@@ -9,6 +9,100 @@ description: Query service provides query capabilities through wow-mongo and wow
 Currently the `wow-mongo` module and `wow-elasticsearch` module support query services.
 :::
 
+## Snapshot Query Gateway
+
+`SnapshotQueryGateway<S>` is the backend-neutral query entry point. Spring Boot registers one Gateway for each
+aggregate state type and selects MongoDB or Elasticsearch through `wow.eventsourcing.storage-routing`. Every query
+passes schema validation, authorization, resource budgets, and routing before backend access. Backend records are
+then validated, transformed by result policies, and materialized.
+
+```text
+Query → Schema/Policy/Budget → Router → MongoDB | Elasticsearch
+                                      ↓
+Snapshot ← Materialization/Projection/Result Policy ← QueryRecord
+```
+
+### Basic usage
+
+```kotlin
+class OrderQueries(
+    private val gateway: SnapshotQueryGateway<OrderState>
+) {
+    fun paidOrders(tenantId: String): Mono<QueryPage<ObjectNode>> =
+        gateway.pageRecords(page = 1, size = 50) {
+            filter { field("state.status") eq "PAID" }
+            projection { include("aggregateId", "state.status", "eventTime") }
+            sort { desc("eventTime") }
+            scope { tenantId(tenantId) }
+            budget(QueryBudget(timeout = Duration.ofSeconds(3), maxRecords = 50))
+        }.contextWrite(
+            QueryContexts.withAuthority(QueryAuthority(tenantId = tenantId))
+        )
+}
+```
+
+- `first`, `stream`, and `page` return complete typed snapshots and do not accept field projections.
+- `firstRecord`, `streamRecords`, and `pageRecords` return `ObjectNode` values and support include or exclude projections.
+- `count` returns an exact count; partial shard results are rejected.
+- `QueryScope` may only narrow `QueryAuthority`; it cannot widen tenant, owner, or space access.
+- Reading deleted snapshots requires the `query:snapshot:deletion` permission.
+
+:::warning Authorization boundary
+The Gateway does not authenticate callers. Without `QueryAuthority`, the default system policy cannot infer a tenant,
+owner, or space; that mode is only suitable for trusted, in-process single-tenant use. External entry points must inject
+an authenticated authority or install a custom `QueryPolicy` that denies anonymous calls. A
+`filter { field("tenantId") ... }` expression is not an isolation boundary.
+:::
+
+### Policies and resource bounds
+
+Every `QueryPolicy` runs: any `DENY` rejects the query, field access is intersected, and the smallest budget wins.
+Every `QueryResultPolicy` runs before projection and materialization and cannot change snapshot identity fields such as
+context, aggregate, version, or tenancy. Policies and result transformations must remain non-blocking.
+
+The default `QueryLimits.maximumBudget` has no timeout or record cap to preserve legacy
+`IListQuery.limit == 0` unlimited streams. Production applications must supply explicit bounds. If an application still
+depends on unlimited legacy streams, migrate those calls to bounded pages or an explicit limit before enabling
+`maxRecords`.
+
+```kotlin
+@Bean
+fun queryLimits() = QueryLimits(
+    maxPageSize = 200,
+    maximumBudget = QueryBudget(
+        timeout = Duration.ofSeconds(5),
+        maxRecords = 10_000
+    )
+)
+```
+
+If a stream fails after emitting records, it terminates with `INCOMPLETE_RESULT`. Discard the partial stream and restart
+the query; never treat it as a successful truncated result.
+
+### Backend constraints
+
+| Capability | MongoDB | Elasticsearch |
+|---|---|---|
+| Exact query/sort | Uses BSON field semantics | Fields need strict exact semantics; text fields need one keyword subfield or explicit `exactSubfields` |
+| Full text | Requested fields must exactly match the collection text-index field set | Fields must be indexed text; only standard-analyzer semantics are currently accepted |
+| Object arrays | Uses `$elemMatch` | The corresponding field must be mapped as `nested` |
+| Pagination | Default page size is at most 1000; offset cannot exceed `Int.MAX_VALUE` | `from + size` is at most 10000 by default; streams use PIT plus `search_after` |
+| Presence semantics | Distinguishes null and missing values | The new Gateway rejects `NE`, `NOT_IN`, `IS_NULL`, `EXISTS`, `IS_EMPTY`, `EQ null`, and `IN` containing null |
+
+Gateway callers use logical fields such as `state.code`, never physical fields such as `.keyword`. If an Elasticsearch
+mapping cannot prove the requested semantics, the backend returns `BACKEND_NOT_READY` instead of widening the query.
+
+### Compatibility layer
+
+Existing `SnapshotQueryService`, `Condition`, and Query DSL calls remain available. Spring factories send legacy calls
+through the same authorization, budget, routing, and result-validation pipeline, while the selected backend's original
+converter compiles conditions to preserve historical MongoDB/Elasticsearch semantics. A legacy projection that mixes
+include and exclude fields now returns `INVALID_QUERY`; migrate it to one projection mode.
+
+Before upgrading an existing service or moving Elasticsearch read traffic, follow
+[Snapshot Query Gateway migration and production gates](./migration/query-gateway.md). Updating an index template does
+not change existing indices and cannot replace historical snapshot rebuilding and reconciliation.
+
 ## Operators
 
 | Operator           | Description                                                                                                                                                                                                                                                             |

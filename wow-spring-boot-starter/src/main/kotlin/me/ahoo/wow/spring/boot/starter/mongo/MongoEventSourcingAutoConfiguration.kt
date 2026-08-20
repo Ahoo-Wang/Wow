@@ -205,6 +205,7 @@ class MongoEventSourcingAutoConfiguration(
     @Bean
     @ConditionalOnSnapshotEnabled
     @ConditionalOnSnapshotStoreStorage(StorageType.MONGO)
+    @ConditionalOnMissingBean(MongoSnapshotQueryBackend::class)
     fun mongoSnapshotQueryBackend(
         mongoClient: MongoClient,
         dataMongoProperties: org.springframework.boot.mongodb.autoconfigure.MongoProperties?

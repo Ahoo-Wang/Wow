@@ -215,12 +215,16 @@ private fun validateNode(value: JsonNode, schema: SchemaNode) {
             array.forEach { element -> if (!element.isNull) validateScalar(element, field.valueKind) }
         }
 
-        QueryCollectionKind.OBJECT -> {
-            val array = value as? ArrayNode ?: resultInvalid()
-            array.forEach { element ->
-                if (!element.isNull) validateObject(element as? ObjectNode ?: resultInvalid(), schema)
-            }
-        }
+        QueryCollectionKind.OBJECT -> validateObjectCollection(value, field, schema)
+    }
+}
+
+private fun validateObjectCollection(value: JsonNode, field: QueryFieldSchema, schema: SchemaNode) {
+    val array = value as? ArrayNode ?: resultInvalid()
+    array.forEach { element ->
+        if (element.isNull) return@forEach
+        val objectValue = element as? ObjectNode ?: resultInvalid()
+        if (field.valueKind != QueryValueKind.MAP) validateObject(objectValue, schema)
     }
 }
 

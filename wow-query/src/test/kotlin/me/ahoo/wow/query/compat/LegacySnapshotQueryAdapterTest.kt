@@ -20,7 +20,6 @@ import me.ahoo.wow.api.query.ElementMatchExpression
 import me.ahoo.wow.api.query.LegacyConditionExpression
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.LogicalExpression
-import me.ahoo.wow.api.query.LogicalOperator
 import me.ahoo.wow.api.query.MatchAll
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.PredicateExpression
@@ -117,16 +116,16 @@ class LegacySnapshotQueryAdapterTest {
 
     @Test
     fun `should preserve one child nor`() {
-        val lowered = LegacyConditionLowerer.lower(
+        val lowered = LegacyConditionLowerer.lowerQuery(
             Condition.nor(Condition.eq("state.data", "secret"))
-        ) as LogicalExpression
+        ).first as LegacyConditionExpression
 
-        lowered.operator.assert().isEqualTo(LogicalOperator.NOR)
-        lowered.operands.assert().hasSize(1)
+        val nor = lowered.condition.children.single { it.operator == me.ahoo.wow.api.query.Operator.NOR }
+        nor.children.assert().hasSize(1)
     }
 
     @Test
-    fun `should keep backend specific legacy conditions inside the secured gateway`() {
+    fun `should preserve legacy conditions inside the secured gateway`() {
         val compatible = LegacySnapshotQueryAdapter(
             SnapshotQueryGatewayFactory.create(
                 JacksonQuerySchemaProvider(JsonSerializer),
@@ -136,7 +135,10 @@ class LegacySnapshotQueryAdapterTest {
             metadata
         )
         val conditions = listOf(
+            Condition.eq("state.data", "secret"),
+            Condition.contains("state.data", "sec"),
             Condition.raw("{}"),
+            Condition.beforeToday("eventTime", "08:00", "yyyy-MM-dd"),
             Condition.tomorrow("state.data", "yyyy-MM-dd"),
             Condition.exists("tags.department"),
             Condition.isNull("state.data")
@@ -150,11 +152,37 @@ class LegacySnapshotQueryAdapterTest {
         }
     }
 
+    @Test
+    fun `should not let legacy converter narrow deleted scope`() {
+        backend.record = record(deleted = true)
+        val condition = Condition.and(
+            Condition.deleted(DeletionState.DELETED),
+            Condition.raw("{}")
+        )
+
+        adapter.dynamicSingle(SingleQuery(condition)).test()
+            .expectNextCount(1)
+            .verifyComplete()
+
+        backend.lastQuery!!.filter.deletionOperators().assert().containsExactly(PredicateOperator.IS_TRUE)
+        val legacy = backend.lastQuery!!.filter.legacyCondition()
+        legacy.children.single { it.operator == me.ahoo.wow.api.query.Operator.DELETED }
+            .deletionState().assert().isEqualTo(DeletionState.ALL)
+    }
+
     private fun QueryExpression.containsLegacyCondition(): Boolean = when (this) {
         is LegacyConditionExpression -> true
         is LogicalExpression -> operands.any { it.containsLegacyCondition() }
         is ElementMatchExpression -> predicate.containsLegacyCondition()
         else -> false
+    }
+
+    private fun QueryExpression.legacyCondition(): Condition = when (this) {
+        is LegacyConditionExpression -> condition
+        is LogicalExpression -> operands.firstNotNullOfOrNull { operand ->
+            runCatching { operand.legacyCondition() }.getOrNull()
+        } ?: error("Legacy condition is missing.")
+        else -> error("Legacy condition is missing.")
     }
 
     private fun QueryExpression.deletionOperators(): List<PredicateOperator> = when (this) {

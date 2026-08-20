@@ -14,15 +14,12 @@
 package me.ahoo.wow.query.snapshot
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.QueryErrorCode
-import me.ahoo.wow.api.query.QueryException
 import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.pagedQuery
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
-import reactor.test.StepVerifier
 
 class NoOpSnapshotQueryServiceTest {
     private val queryService = NoOpSnapshotQueryServiceFactory.create<Any>("test.test".toNamedAggregate())
@@ -45,7 +42,7 @@ class NoOpSnapshotQueryServiceTest {
             }
         }.query(queryService)
             .test()
-            .verifyBackendNotReady()
+            .verifyComplete()
     }
 
     @Test
@@ -56,7 +53,7 @@ class NoOpSnapshotQueryServiceTest {
             }
         }.dynamicQuery(queryService)
             .test()
-            .verifyBackendNotReady()
+            .verifyComplete()
     }
 
     @Test
@@ -67,7 +64,7 @@ class NoOpSnapshotQueryServiceTest {
             }
         }.query(queryService)
             .test()
-            .verifyBackendNotReady()
+            .verifyComplete()
     }
 
     @Test
@@ -78,7 +75,7 @@ class NoOpSnapshotQueryServiceTest {
             }
         }.dynamicQuery(queryService)
             .test()
-            .verifyBackendNotReady()
+            .verifyComplete()
     }
 
     @Test
@@ -89,7 +86,10 @@ class NoOpSnapshotQueryServiceTest {
             }
         }.query(queryService)
             .test()
-            .verifyBackendNotReady()
+            .consumeNextWith {
+                it.total.assert().isZero()
+            }
+            .verifyComplete()
     }
 
     @Test
@@ -100,7 +100,10 @@ class NoOpSnapshotQueryServiceTest {
             }
         }.dynamicQuery(queryService)
             .test()
-            .verifyBackendNotReady()
+            .consumeNextWith {
+                it.total.assert().isZero()
+            }
+            .verifyComplete()
     }
 
     @Test
@@ -109,12 +112,7 @@ class NoOpSnapshotQueryServiceTest {
             "test" eq "test"
         }.count(queryService)
             .test()
-            .verifyBackendNotReady()
-    }
-
-    private fun <T : Any> StepVerifier.FirstStep<T>.verifyBackendNotReady() {
-        expectErrorMatches { error ->
-            error is QueryException && error.code == QueryErrorCode.BACKEND_NOT_READY
-        }.verify()
+            .expectNext(0L)
+            .verifyComplete()
     }
 }

@@ -8,8 +8,9 @@ description: Choose between traditional-architecture adoption and the Wow v6-to-
 There are two primary migration paths. **First-time Wow adoption** is about domain boundaries,
 data modeling, and traffic cutover. **Wow v6 → v8** is about the exact source-tag platform delta,
 source compatibility, and storage-format cutovers. A system already on Wow v8 with custom runtime lifecycle ownership
-also needs the **runtime-orchestration migration track** inside the v8 path; it is not a third
-business or data migration. Choose the primary path first; do not combine both into one release.
+also needs the **runtime-orchestration migration track** inside the v8 path. Upgrading snapshot queries or moving
+MongoDB/Elasticsearch read traffic also requires the **Query Gateway migration track**. These tracks do not replace a
+primary migration path, data reconciliation, or a rollback rehearsal.
 
 ## Choose a Migration Path
 
@@ -18,6 +19,7 @@ business or data migration. Choose the primary path first; do not combine both i
 | Traditional CRUD, transaction scripts, or direct database writes | Adopt Wow CQRS and event sourcing incrementally | [Migrating from Traditional Architecture](./migration/traditional-architecture.md) | Wow v6 version-compatibility assumptions |
 | Wow v6 on its exact pinned platform | Wow v8 on its pinned target platform | [Migrate Wow v6 to v8](./migration/v6-to-v8.md) | Redesigning every business boundary |
 | Wow v8 with custom Dispatcher, MessageBus, or Spring lifecycle integration | Current unified `WowRuntime` | [Runtime Orchestration Migration](./migration/runtime-orchestration.md) | Rewriting business data |
+| Existing `SnapshotQueryService` use or a planned snapshot-query backend move | Adopt `SnapshotQueryGateway` with a reversible cutover | [Query Gateway Migration](./migration/query-gateway.md) | Treating a template update as migration of existing indices |
 
 ```mermaid
 %%{init: {"theme": "dark"}}%%
@@ -69,6 +71,7 @@ graph TD
 | Traditional architecture | How do we establish commands, aggregates, events, and state from CRUD, then move traffic safely? | [CreateOrder.kt:31-64](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-api/src/main/kotlin/me/ahoo/wow/example/api/order/CreateOrder.kt#L31-L64), [Order.kt:55-137](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/Order.kt#L55-L137) |
 | v6 → v8 | How do we align the exact v6 platform baseline with the pinned v8 target and handle storage and API breaks? | [v6.21.5 versions](https://github.com/Ahoo-Wang/Wow/blob/v6.21.5/gradle/libs.versions.toml), [v8.0.0 Release](https://github.com/Ahoo-Wang/Wow/releases/tag/v8.0.0), [current versions](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/libs.versions.toml) |
 | Runtime orchestration | How do we converge multiple lifecycle owners on one `WowRuntime`? | [WowAutoConfiguration.kt:118-152](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt#L118-L152) |
+| Query Gateway | How do we preserve legacy semantics, audit real mappings, rebuild snapshots, and canary read traffic? | `LegacySnapshotQueryAdapter`, `ElasticsearchQueryMapping`, and `StorageRouteResolver` |
 
 ## Shared Completion Gates
 

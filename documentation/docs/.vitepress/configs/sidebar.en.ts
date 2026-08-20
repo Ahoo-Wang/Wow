@@ -96,6 +96,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                         {text: 'Traditional Architecture', link: 'migration/traditional-architecture'},
                         {text: 'Migrate Wow v6 to v8', link: 'migration/v6-to-v8'},
                         {text: 'Runtime Orchestration', link: 'migration/runtime-orchestration'},
+                        {text: 'Query Gateway Migration', link: 'migration/query-gateway'},
                     ],
                 },
             ],

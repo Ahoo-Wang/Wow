@@ -199,6 +199,7 @@ class ElasticsearchEventSourcingAutoConfiguration(
     @Bean
     @ConditionalOnSnapshotEnabled
     @ConditionalOnSnapshotStoreStorage(StorageType.ELASTICSEARCH)
+    @ConditionalOnMissingBean(ElasticsearchSnapshotQueryBackend::class)
     fun elasticsearchSnapshotQueryBackend(
         elasticsearchClient: ReactiveElasticsearchClient
     ): ElasticsearchSnapshotQueryBackend = ElasticsearchSnapshotQueryBackend(elasticsearchClient)

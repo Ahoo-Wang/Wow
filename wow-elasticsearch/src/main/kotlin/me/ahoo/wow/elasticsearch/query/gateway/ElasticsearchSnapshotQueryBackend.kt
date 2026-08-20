@@ -16,6 +16,7 @@ package me.ahoo.wow.elasticsearch.query.gateway
 import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.elasticsearch.core.ClosePointInTimeRequest
 import co.elastic.clients.elasticsearch.core.CountRequest
+import co.elastic.clients.elasticsearch.core.CountResponse
 import co.elastic.clients.elasticsearch.core.OpenPointInTimeRequest
 import co.elastic.clients.elasticsearch.core.SearchRequest
 import co.elastic.clients.elasticsearch.core.search.TotalHitsRelation
@@ -95,7 +96,7 @@ class ElasticsearchSnapshotQueryBackend(
             CountRequest.of { builder ->
                 builder.index(snapshot.indices).query(compiler.query(query.filter))
             }
-        ).map { response -> response.count() }
+        ).map(::exactCount)
     }
 
     private fun openPit(snapshot: ElasticsearchExecutionSnapshot): Mono<String> = client.openPointInTime(
@@ -259,4 +260,11 @@ class ElasticsearchSnapshotQueryBackend(
         const val ID = "elasticsearch"
         val TIME_FIELDS = setOf("firstEventTime", "eventTime", "snapshotTime")
     }
+}
+
+internal fun exactCount(response: CountResponse): Long {
+    if (response.shards().failed().toInt() > 0) {
+        throw QueryException(QueryErrorCode.BACKEND_FAILURE, QueryStage.BACKEND)
+    }
+    return response.count()
 }

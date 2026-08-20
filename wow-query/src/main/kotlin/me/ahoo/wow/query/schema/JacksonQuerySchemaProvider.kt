@@ -82,6 +82,8 @@ class JacksonQuerySchemaProvider(private val objectMapper: ObjectMapper) : Query
             )
             type.isCollectionLikeType || type.isArrayType -> addCollection(type, field, nullable, fields, visiting)
             type.scalarKind() != null -> fields[field] = QueryFieldSchema(field, checkNotNull(type.scalarKind()), nullable)
+            type.rawClass in visiting -> fields[field] =
+                QueryFieldSchema(field, QueryValueKind.MAP, nullable, queryable = false)
             else -> {
                 fields[field] = QueryFieldSchema(field, QueryValueKind.OBJECT, nullable, queryable = false)
                 deriveProperties(type, path, fields, visiting)
@@ -100,6 +102,20 @@ class JacksonQuerySchemaProvider(private val objectMapper: ObjectMapper) : Query
         val scalar = content.scalarKind()
         if (scalar != null) {
             fields[field] = QueryFieldSchema(field, scalar, nullable, QueryCollectionKind.SCALAR, sortable = false)
+            return
+        }
+        if (content.isMapLikeType || content.rawClass in visiting) {
+            fields[field] = QueryFieldSchema(
+                field,
+                QueryValueKind.MAP,
+                nullable,
+                QueryCollectionKind.OBJECT,
+                queryable = false,
+                sortable = false,
+                elementMatch = false,
+                operators = emptySet(),
+                fullText = false
+            )
             return
         }
         fields[field] = QueryFieldSchema(
@@ -137,6 +153,7 @@ class JacksonQuerySchemaProvider(private val objectMapper: ObjectMapper) : Query
     @Suppress("CyclomaticComplexMethod")
     private fun JavaType.scalarKind(): QueryValueKind? = when {
         rawClass == Boolean::class.java || rawClass == Boolean::class.javaPrimitiveType -> QueryValueKind.BOOLEAN
+        rawClass == ByteArray::class.java -> QueryValueKind.BINARY
         isEnumType -> QueryValueKind.ENUM
         rawClass == String::class.java || rawClass == Char::class.java ||
             rawClass == Char::class.javaPrimitiveType || rawClass == java.util.UUID::class.java -> QueryValueKind.STRING

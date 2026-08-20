@@ -43,7 +43,9 @@ import me.ahoo.wow.query.policy.QueryDecision
 import me.ahoo.wow.query.policy.QueryFieldAccess
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.result.QueryResultPolicy
+import me.ahoo.wow.query.result.canonicalSnapshot
 import me.ahoo.wow.query.schema.JacksonQuerySchemaProvider
+import me.ahoo.wow.query.schema.QueryCollectionKind
 import me.ahoo.wow.query.schema.QuerySchemaProvider
 import me.ahoo.wow.query.schema.QueryValueKind
 import me.ahoo.wow.serialization.JsonSerializer
@@ -289,6 +291,32 @@ class SnapshotQueryGatewayTest {
     }
 
     @Test
+    fun `should keep recursive and map collection state opaque`() {
+        val recursiveState = mockk<StateAggregateMetadata<RecursiveState>> {
+            every { aggregateType } returns RecursiveState::class.java
+        }
+        val recursiveMetadata = mockk<AggregateMetadata<Any, RecursiveState>> {
+            every { state } returns recursiveState
+        }
+        val schema = JacksonQuerySchemaProvider(JsonSerializer).getSchema(recursiveMetadata)
+
+        schema[LogicalField("state.child")]!!.valueKind.assert().isEqualTo(QueryValueKind.MAP)
+        schema[LogicalField("state.children")]!!.also { field ->
+            field.valueKind.assert().isEqualTo(QueryValueKind.MAP)
+            field.collectionKind.assert().isEqualTo(QueryCollectionKind.OBJECT)
+            field.queryable.assert().isFalse()
+        }
+        val source = record()
+        (source["state"] as ObjectNode).apply {
+            remove("data")
+            set("child", JsonNodeFactory.instance.objectNode().put("id", "child"))
+            putArray("children").addObject().put("id", "nested")
+            putArray("attributes").addObject().put("key", "value")
+        }
+        canonicalSnapshot(source, schema)
+    }
+
+    @Test
     fun `should materialize typed snapshot through the shared materializer`() {
         val gateway = gateway(backend(stream = Flux.just(record())))
 
@@ -453,3 +481,10 @@ class SnapshotQueryGatewayTest {
 private data class TemporalState(val id: String) {
     val date: LocalDate = LocalDate.of(2026, 8, 20)
 }
+
+private data class RecursiveState(
+    val id: String,
+    val child: RecursiveState? = null,
+    val children: List<RecursiveState> = emptyList(),
+    val attributes: List<Map<String, String>> = emptyList()
+)

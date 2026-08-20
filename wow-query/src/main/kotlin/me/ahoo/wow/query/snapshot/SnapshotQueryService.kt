@@ -22,9 +22,6 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.api.query.QueryErrorCode
-import me.ahoo.wow.api.query.QueryException
-import me.ahoo.wow.api.query.QueryStage
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotStore
 import me.ahoo.wow.query.QueryService
 import reactor.core.publisher.Flux
@@ -36,32 +33,30 @@ class NoOpSnapshotQueryService<S : Any>(override val namedAggregate: NamedAggreg
         get() = NoOpSnapshotStore.NAME
 
     override fun single(singleQuery: ISingleQuery): Mono<MaterializedSnapshot<S>> {
-        return Mono.error(unavailable())
+        return Mono.empty()
     }
 
     override fun dynamicSingle(singleQuery: ISingleQuery): Mono<DynamicDocument> {
-        return Mono.error(unavailable())
+        return Mono.empty()
     }
 
     override fun list(listQuery: IListQuery): Flux<MaterializedSnapshot<S>> {
-        return Flux.error(unavailable())
+        return Flux.empty()
     }
 
     override fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument> {
-        return Flux.error(unavailable())
+        return Flux.empty()
     }
 
     override fun paged(pagedQuery: IPagedQuery): Mono<PagedList<MaterializedSnapshot<S>>> {
-        return Mono.error(unavailable())
+        return Mono.just(PagedList.empty())
     }
 
     override fun dynamicPaged(pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>> {
-        return Mono.error(unavailable())
+        return Mono.just(PagedList.empty())
     }
 
     override fun count(condition: Condition): Mono<Long> {
-        return Mono.error(unavailable())
+        return Mono.just(0)
     }
-
-    private fun unavailable(): QueryException = QueryException(QueryErrorCode.BACKEND_NOT_READY, QueryStage.BACKEND)
 }
