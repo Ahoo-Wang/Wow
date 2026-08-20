@@ -35,10 +35,10 @@ import me.ahoo.wow.query.policy.QueryOperation
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.policy.QueryResultKind
 import me.ahoo.wow.query.policy.SystemQueryPolicy
-import me.ahoo.wow.query.result.QueryMaterializer
 import me.ahoo.wow.query.result.QueryResultContext
 import me.ahoo.wow.query.result.QueryResultPolicy
 import me.ahoo.wow.query.result.QueryResultPolicyChain
+import me.ahoo.wow.query.result.SnapshotQueryMaterializer
 import me.ahoo.wow.query.schema.QuerySchema
 import me.ahoo.wow.query.schema.QuerySchemaProvider
 import reactor.core.Exceptions
@@ -55,7 +55,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 internal class DefaultSnapshotQueryGatewayFactory(
     private val schemaProvider: QuerySchemaProvider,
     private val router: QueryRouter,
-    objectMapper: ObjectMapper,
+    private val objectMapper: ObjectMapper,
     policies: List<QueryPolicy>,
     resultPolicies: List<QueryResultPolicy>,
     limits: QueryLimits,
@@ -69,17 +69,16 @@ internal class DefaultSnapshotQueryGatewayFactory(
         clock
     )
     private val resultPolicy = QueryResultPolicyChain(resultPolicies.toList())
-    private val materializer = QueryMaterializer(objectMapper)
 
     override fun <S : Any> create(metadata: AggregateMetadata<*, S>): SnapshotQueryGateway<S> {
-        val schema = schemaProvider.getSchema(metadata).validatedSnapshot()
+        val schema = schemaProvider.getSchema(metadata).validated()
         return DefaultSnapshotQueryGateway(
             metadata,
             schema,
             preparer,
             router,
             resultPolicy,
-            materializer,
+            SnapshotQueryMaterializer(objectMapper, metadata.state.aggregateType),
             clock
         )
     }
@@ -91,7 +90,7 @@ internal class DefaultSnapshotQueryGateway<S : Any>(
     private val preparer: QueryPreparer,
     private val router: QueryRouter,
     private val resultPolicy: QueryResultPolicyChain,
-    private val materializer: QueryMaterializer,
+    private val materializer: SnapshotQueryMaterializer<S>,
     private val clock: Clock
 ) : SnapshotQueryGateway<S> {
     override val namedAggregate: NamedAggregate = metadata.namedAggregate.materialize()
@@ -102,9 +101,9 @@ internal class DefaultSnapshotQueryGateway<S : Any>(
         QueryOperation.FIRST,
         QueryResultKind.SNAPSHOT
     ) { backend, secured, context ->
-        records(backend.stream(secured), secured, context)
+        records(backend.stream(secured), context)
             .next()
-            .map { materializer.snapshot(it, metadata) }
+            .map(materializer::snapshot)
     }
 
     override fun firstRecord(query: Query): Mono<ObjectNode> = monoQuery(
@@ -112,9 +111,9 @@ internal class DefaultSnapshotQueryGateway<S : Any>(
         QueryOperation.FIRST,
         QueryResultKind.RECORD
     ) { backend, secured, context ->
-        records(backend.stream(secured), secured, context)
+        records(backend.stream(secured), context)
             .next()
-            .map { materializer.record(it, secured.projection) }
+            .map(materializer::record)
     }
 
     override fun stream(query: Query): Flux<MaterializedSnapshot<S>> = executeStream(query, null)
@@ -125,7 +124,7 @@ internal class DefaultSnapshotQueryGateway<S : Any>(
         query,
         QueryResultKind.SNAPSHOT,
         limit
-    ) { record, _ -> materializer.snapshot(record, metadata) }
+    ) { record, _ -> materializer.snapshot(record) }
 
     override fun streamRecords(query: Query): Flux<ObjectNode> = executeRecordStream(query, null)
 
@@ -135,21 +134,21 @@ internal class DefaultSnapshotQueryGateway<S : Any>(
         query,
         QueryResultKind.RECORD,
         limit
-    ) { record, secured -> materializer.record(record, secured.projection) }
+    ) { record, _ -> materializer.record(record) }
 
     override fun page(query: Query, page: Int, size: Int): Mono<QueryPage<MaterializedSnapshot<S>>> = pageQuery(
         query,
         page,
         size,
         QueryResultKind.SNAPSHOT
-    ) { record, _ -> materializer.snapshot(record, metadata) }
+    ) { record, _ -> materializer.snapshot(record) }
 
     override fun pageRecords(query: Query, page: Int, size: Int): Mono<QueryPage<ObjectNode>> = pageQuery(
         query,
         page,
         size,
         QueryResultKind.RECORD
-    ) { record, secured -> materializer.record(record, secured.projection) }
+    ) { record, _ -> materializer.record(record) }
 
     override fun count(filter: QueryExpression, scope: QueryScope, budget: QueryBudget): Mono<Long> =
         Mono.deferContextual { reactorContext ->
@@ -202,7 +201,7 @@ internal class DefaultSnapshotQueryGateway<S : Any>(
         ).flatMapMany { secured ->
             val backend = route(secured)
             val context = QueryResultContext(secured, call.authority, call.subscribedAt)
-            withDeadline(records(backend.stream(secured), secured, context).map { materialize(it, secured) }, secured)
+            withDeadline(records(backend.stream(secured), context).map { materialize(it, secured) }, secured)
         }
     }.let(::mapStreamErrors)
 
@@ -228,13 +227,6 @@ internal class DefaultSnapshotQueryGateway<S : Any>(
             val context = QueryResultContext(secured, call.authority, call.subscribedAt)
             withDeadline(
                 backend.page(secured).map { result ->
-                    val limit = secured.limit ?: throw QueryException(
-                        QueryErrorCode.RESULT_INVALID,
-                        QueryStage.BACKEND
-                    )
-                    if (result.items.size > limit) {
-                        throw QueryException(QueryErrorCode.RESULT_INVALID, QueryStage.BACKEND)
-                    }
                     QueryPage(
                         result.items.map { resultPolicy.transform(context, it) }.map { materialize(it, secured) },
                         result.total
@@ -247,21 +239,8 @@ internal class DefaultSnapshotQueryGateway<S : Any>(
 
     private fun records(
         source: Flux<ObjectNode>,
-        query: SecuredQuery,
         context: QueryResultContext
-    ): Flux<ObjectNode> {
-        val limited = query.limit?.let { maximum -> source.take(maximum.toLong()) } ?: source
-        val bounded = query.budget.maxRecords?.let { maximum ->
-            limited.index().handle<ObjectNode> { indexed, sink ->
-                if (indexed.t1 >= maximum) {
-                    sink.error(QueryException(QueryErrorCode.BUDGET_EXCEEDED, QueryStage.BACKEND))
-                } else {
-                    sink.next(indexed.t2)
-                }
-            }
-        } ?: limited
-        return bounded.map { record -> resultPolicy.transform(context, record) }
-    }
+    ): Flux<ObjectNode> = source.map { record -> resultPolicy.transform(context, record) }
 
     private fun route(query: SecuredQuery): QueryBackend = try {
         router.route(query).also { it.validate(query) }

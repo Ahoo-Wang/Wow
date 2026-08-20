@@ -14,10 +14,10 @@ real indices, historical data, authorization, capacity, failure handling, and ro
 
 | Scenario | Behavior |
 |---|---|
-| Legacy `SnapshotQueryService` / `Condition` | Runs through Gateway policies and result validation, but the original backend converter preserves historical backend semantics |
+| Legacy `SnapshotQueryService` / `Condition` | Runs through Gateway authorization and result policies, but the original backend converter preserves historical backend semantics |
 | `IListQuery.limit == 0` | Remains unlimited by default; a global `maxRecords` ends it with `INCOMPLETE_RESULT` when the budget is reached |
-| Dynamic legacy projection/sort paths | Projection runs on raw paths after result policies; sort remains backend-validated and compiled |
-| Legacy projection mixes include and exclude | Returns `INVALID_QUERY` instead of silently dropping exclusions and widening the result |
+| Dynamic legacy projection/sort paths | Projection and sort remain backend-validated and compiled |
+| Legacy projection mixes include and exclude | The backend applies both parts instead of silently dropping either one |
 | `DeletionState.DELETED` / `ALL` | The adapter grants the legacy API's deletion access; new Gateway callers need `query:snapshot:deletion` explicitly |
 | A new Gateway storage route has no query backend | The application can start; a Gateway query on that route returns `BACKEND_NOT_READY` |
 | Legacy `NoOpSnapshotQueryService` | Preserves the public empty/zero result contract; production checks must verify routes instead of treating an empty result as proof that no data exists |

@@ -14,10 +14,10 @@ Elasticsearch 的服务。完成编译、启动或单元测试不等于生产可
 
 | 场景 | 行为 |
 |---|---|
-| 旧 `SnapshotQueryService` / `Condition` | 经过 Gateway 的策略与结果校验，但仍由原后端 converter 编译，保留历史后端语义 |
+| 旧 `SnapshotQueryService` / `Condition` | 经过 Gateway 的授权与结果策略，但仍由原后端 converter 编译，保留历史后端语义 |
 | `IListQuery.limit == 0` | 默认仍为无限流；配置全局 `maxRecords` 后会在达到预算时以 `INCOMPLETE_RESULT` 结束 |
-| 旧 projection/sort 动态路径 | projection 在结果策略之后按原始路径执行；sort 继续由所选后端验证和编译 |
-| 旧投影同时 include 与 exclude | 返回 `INVALID_QUERY`，避免静默丢弃 exclude 后扩大结果 |
+| 旧 projection/sort 动态路径 | projection 与 sort 继续由所选后端验证和编译 |
+| 旧投影同时 include 与 exclude | 后端同时执行 include 与 exclude，不静默丢弃任一部分 |
 | `DeletionState.DELETED` / `ALL` | 兼容层授予旧接口所需的删除查询权限；新 Gateway 调用方必须显式持有 `query:snapshot:deletion` |
 | 新 Gateway 的 storage route 未配置查询后端 | 应用可以启动；实际 Gateway 查询返回 `BACKEND_NOT_READY` |
 | 旧 `NoOpSnapshotQueryService` | 为保持公共兼容性，仍返回空结果或 0；生产检查必须先确认 route，不能把空结果当作“确实无数据” |

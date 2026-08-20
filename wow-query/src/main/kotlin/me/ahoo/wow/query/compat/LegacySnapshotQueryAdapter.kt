@@ -43,7 +43,7 @@ import me.ahoo.wow.query.gateway.SnapshotQueryGateway
 import me.ahoo.wow.query.gateway.SnapshotQueryGatewayFactory
 import me.ahoo.wow.query.policy.QueryContexts
 import me.ahoo.wow.query.policy.QueryPolicyPermissions
-import me.ahoo.wow.query.result.QueryMaterializer
+import me.ahoo.wow.query.result.SnapshotQueryMaterializer
 import me.ahoo.wow.query.snapshot.AbstractSnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.serialization.JsonSerializer
@@ -66,16 +66,16 @@ class GatewaySnapshotQueryServiceFactory(
 
 internal class LegacySnapshotQueryAdapter<S : Any>(
     private val gateway: SnapshotQueryGateway<S>,
-    private val metadata: AggregateMetadata<*, S>,
+    metadata: AggregateMetadata<*, S>,
     override val name: String = "gateway"
 ) : SnapshotQueryService<S> {
-    private val materializer = QueryMaterializer(JsonSerializer)
+    private val materializer = SnapshotQueryMaterializer(JsonSerializer, metadata.state.aggregateType)
     override val namedAggregate: NamedAggregate = gateway.namedAggregate
 
     override fun single(singleQuery: ISingleQuery): Mono<MaterializedSnapshot<S>> {
         val query = singleQuery.toQuery()
         return gateway.firstRecord(query)
-            .map { materializer.snapshot(it, metadata) }
+            .map(materializer::snapshot)
             .withLegacyDeletionAccess(query)
     }
 
@@ -91,7 +91,7 @@ internal class LegacySnapshotQueryAdapter<S : Any>(
         } else {
             gateway.streamRecords(query, listQuery.limit)
         }
-        return records.map { materializer.snapshot(it, metadata) }.withLegacyDeletionAccess(query)
+        return records.map(materializer::snapshot).withLegacyDeletionAccess(query)
     }
 
     override fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument> {
@@ -110,7 +110,7 @@ internal class LegacySnapshotQueryAdapter<S : Any>(
             query,
             pagedQuery.pagination.index,
             pagedQuery.pagination.size
-        ).map { page -> PagedList(page.total, page.items.map { materializer.snapshot(it, metadata) }) }
+        ).map { page -> PagedList(page.total, page.items.map(materializer::snapshot)) }
             .withLegacyDeletionAccess(query)
     }
 
@@ -132,17 +132,8 @@ internal class LegacySnapshotQueryAdapter<S : Any>(
 
     @Suppress("UNCHECKED_CAST")
     private fun toDynamicDocument(source: ObjectNode): DynamicDocument {
-        val record = source.deepCopy()
-        TIME_FIELDS.forEach { field ->
-            val value = record[field]
-            if (value?.isString == true) record.put(field, java.time.Instant.parse(value.asString()).toEpochMilli())
-        }
-        val values = JsonSerializer.convertValue(record, Map::class.java) as MutableMap<String, Any?>
+        val values = JsonSerializer.convertValue(source, Map::class.java) as MutableMap<String, Any?>
         return values.toDynamicDocument()
-    }
-
-    private companion object {
-        val TIME_FIELDS = setOf("firstEventTime", "eventTime", "snapshotTime")
     }
 }
 

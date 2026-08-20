@@ -20,6 +20,7 @@ import me.ahoo.wow.api.query.LogicalOperator
 import me.ahoo.wow.api.query.PredicateExpression
 import me.ahoo.wow.api.query.PredicateOperator
 import me.ahoo.wow.api.query.Query
+import me.ahoo.wow.api.query.QueryProjection
 import me.ahoo.wow.api.query.QueryErrorCode
 import me.ahoo.wow.query.QueryException
 import me.ahoo.wow.api.query.QuerySort
@@ -92,12 +93,28 @@ class ElasticsearchSnapshotQueryGatewayTest {
 
         gateway.firstRecord(query)
             .test()
-            .assertNext { record -> check(record["aggregateId"].asString() == aggregateId) }
+            .assertNext { record ->
+                check(record["aggregateId"].asString() == aggregateId)
+                check(listOf("firstEventTime", "eventTime", "snapshotTime").all { record[it].isIntegralNumber })
+            }
             .verifyComplete()
 
         gateway.first(query)
             .test()
             .assertNext { snapshot -> check(snapshot.aggregateId == aggregateId) }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `should apply record projection in backend`() {
+        val query = aggregateQuery().copy(
+            projection = QueryProjection.Include(setOf(LogicalField("aggregateId"), LogicalField("eventTime")))
+        )
+
+        gateway.firstRecord(query).test()
+            .assertNext { record ->
+                check(record.propertyNames().asSequence().toSet() == setOf("aggregateId", "eventTime"))
+            }
             .verifyComplete()
     }
 

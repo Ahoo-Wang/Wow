@@ -24,10 +24,13 @@ import me.ahoo.wow.api.query.ElementMatchExpression
 import me.ahoo.wow.api.query.LogicalExpression
 import me.ahoo.wow.api.query.PredicateExpression
 import me.ahoo.wow.api.query.PredicateOperator
+import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryErrorCode
 import me.ahoo.wow.api.query.QueryExpression
 import me.ahoo.wow.api.query.QueryPage
+import me.ahoo.wow.api.query.QueryProjection
 import me.ahoo.wow.api.query.QueryStage
+import me.ahoo.wow.elasticsearch.query.ElasticsearchProjectionConverter.toSourceFilter
 import me.ahoo.wow.query.QueryException
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.SecuredQuery
@@ -36,14 +39,12 @@ import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchCl
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import tools.jackson.databind.node.ObjectNode
-import java.time.Instant
 import java.util.concurrent.atomic.AtomicReference
 
 class ElasticsearchSnapshotQueryBackend(
     private val client: ReactiveElasticsearchClient,
     private val options: ElasticsearchQueryBackendOptions = ElasticsearchQueryBackendOptions()
 ) : QueryBackend {
-    override val id: String = ID
     private val mapping = ElasticsearchQueryMapping(client, options)
     internal var onPitOpened: (String) -> Unit = {}
     internal var onPitClosed: (String) -> Unit = {}
@@ -83,6 +84,9 @@ class ElasticsearchSnapshotQueryBackend(
                 .size(query.limit ?: unsupported())
                 .trackTotalHits { total -> total.enabled(true) }
                 .apply {
+                    if (query.projection != QueryProjection.All) {
+                        source { source -> source.filter(query.projection.toProjection().toSourceFilter()) }
+                    }
                     val sort = compiler.sort(query, pit = false)
                     if (sort.isNotEmpty()) sort(sort)
                 }
@@ -140,19 +144,19 @@ class ElasticsearchSnapshotQueryBackend(
                 .size(window.size)
                 .sort(session.compiler.sort(query, pit = true))
                 .trackTotalHits { total -> total.enabled(false) }
-                .apply { if (searchAfter.isNotEmpty()) searchAfter(searchAfter) }
+                .apply {
+                    if (query.projection != QueryProjection.All) {
+                        source { source -> source.filter(query.projection.toProjection().toSourceFilter()) }
+                    }
+                    if (searchAfter.isNotEmpty()) searchAfter(searchAfter)
+                }
         }
         client.search(request, Map::class.java).flatMapMany { response ->
             response.pitId()?.let(session.pitId::set)
             if (response.timedOut() || response.shards().failed().toInt() > 0) backendFailure()
             val hits = response.hits().hits()
             if (hits.isEmpty()) return@flatMapMany Flux.empty()
-            val page = hits.map { hit ->
-                val sort = hit.sort()
-                if (sort.isEmpty()) resultInvalid()
-                PitHit(decode(hit.source()), sort)
-            }
-            validateSort(page, searchAfter)
+            val page = hits.map { hit -> PitHit(decode(hit.source()), hit.sort()) }
             emitPage(session, query, page, window, emitted)
         }
     }
@@ -195,30 +199,10 @@ class ElasticsearchSnapshotQueryBackend(
         return SearchWindow(remainingRequest, remainingBudget, size)
     }
 
-    private fun validateSort(page: List<PitHit>, previous: List<FieldValue>) {
-        val signatures = page.map { hit -> hit.sort.map(::signature) }
-        if (signatures.toSet().size != signatures.size) resultInvalid()
-        if (previous.isNotEmpty() && signatures.first() == previous.map(::signature)) resultInvalid()
-    }
-
-    private fun signature(value: FieldValue): String = when (value._kind()) {
-        FieldValue.Kind.String -> "s:${value.stringValue()}"
-        FieldValue.Kind.Long -> "l:${value.longValue()}"
-        FieldValue.Kind.Double -> "d:${value.doubleValue()}"
-        FieldValue.Kind.Boolean -> "b:${value.booleanValue()}"
-        FieldValue.Kind.Null -> "n:"
-        FieldValue.Kind.Any -> resultInvalid()
-    }
-
     @Suppress("UNCHECKED_CAST")
     private fun decode(source: Map<*, *>?): ObjectNode {
         val typed = source as? Map<String, Any?> ?: resultInvalid()
-        val result = JsonSerializer.valueToTree<ObjectNode>(typed)
-        TIME_FIELDS.forEach { field ->
-            val value = result[field]
-            if (value?.isIntegralNumber == true) result.put(field, Instant.ofEpochMilli(value.longValue()).toString())
-        }
-        return result
+        return JsonSerializer.valueToTree(typed)
     }
 
     private fun backendFailure(): Nothing = throw backendFailureException()
@@ -261,11 +245,6 @@ class ElasticsearchSnapshotQueryBackend(
         val remainingBudget: Long?,
         val size: Int
     )
-
-    private companion object {
-        const val ID = "elasticsearch"
-        val TIME_FIELDS = setOf("firstEventTime", "eventTime", "snapshotTime")
-    }
 }
 
 internal fun exactCount(response: CountResponse): Long {
@@ -276,3 +255,10 @@ internal fun exactCount(response: CountResponse): Long {
 }
 
 internal fun Long.incrementSaturated(): Long = if (this == Long.MAX_VALUE) this else this + 1
+
+private fun QueryProjection.toProjection(): Projection = when (this) {
+    QueryProjection.All -> Projection.ALL
+    is QueryProjection.Include -> Projection(include = fields.map { it.value })
+    is QueryProjection.Exclude -> Projection(exclude = fields.map { it.value })
+    is QueryProjection.Legacy -> Projection(include, exclude)
+}

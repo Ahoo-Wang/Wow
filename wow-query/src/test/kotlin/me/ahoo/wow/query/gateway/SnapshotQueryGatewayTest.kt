@@ -47,7 +47,6 @@ import me.ahoo.wow.query.policy.QueryDecision
 import me.ahoo.wow.query.policy.QueryFieldAccess
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.result.QueryResultPolicy
-import me.ahoo.wow.query.result.canonicalSnapshot
 import me.ahoo.wow.query.schema.JacksonQuerySchemaProvider
 import me.ahoo.wow.query.schema.QueryCollectionKind
 import me.ahoo.wow.query.schema.QuerySchemaProvider
@@ -82,33 +81,32 @@ class SnapshotQueryGatewayTest {
     private val metadata = aggregateMetadata<MockCommandAggregate, MockStateAggregate>()
 
     @Test
-    fun `should keep publisher cold and isolate ObjectNode ownership`() {
+    fun `should keep publisher cold`() {
         val subscriptions = AtomicInteger()
-        val backendRecord = record()
         val backend = backend(
             stream = Flux.defer {
                 subscriptions.incrementAndGet()
-                Flux.just(backendRecord)
+                Flux.just(record())
             }
         )
         val gateway = gateway(backend)
         val publisher = gateway.firstRecord()
 
-        val first = publisher.block()!!
-        (first["state"] as ObjectNode).put("data", "changed")
-        val second = publisher.block()!!
+        publisher.block()
+        publisher.block()
 
         subscriptions.get().assert().isEqualTo(2)
-        (backendRecord["state"] as ObjectNode)["data"].asString().assert().isEqualTo("data")
-        (second["state"] as ObjectNode)["data"].asString().assert().isEqualTo("data")
     }
 
     @Test
     fun `should isolate the subscribed projection from caller mutation`() {
         val source = Sinks.one<ObjectNode>()
+        val captured = AtomicReference<QueryProjection>()
         val fields = linkedSetOf(LogicalField("aggregateId"))
         val query = Query(projection = QueryProjection.Include(fields))
-        val publisher = gateway(backend(stream = source.asMono().flux())).firstRecord(query)
+        val publisher = gateway(
+            backend(stream = source.asMono().flux(), onValidate = { captured.set(it.projection) })
+        ).firstRecord(query)
 
         StepVerifier.create(publisher)
             .then {
@@ -116,10 +114,10 @@ class SnapshotQueryGatewayTest {
                 fields += LogicalField("state.data")
                 source.tryEmitValue(record())
             }
-            .assertNext { result ->
-                result.propertyNames().asSequence().toList().assert().isEqualTo(listOf("aggregateId"))
-            }
+            .expectNextCount(1)
             .verifyComplete()
+
+        (captured.get() as QueryProjection.Include).fields.assert().containsExactly(LogicalField("aggregateId"))
     }
 
     @Test
@@ -183,8 +181,6 @@ class SnapshotQueryGatewayTest {
     fun `should treat an empty space allowlist as no access`() {
         val captured = AtomicReference<SecuredQuery>()
         val backend = object : QueryBackend {
-            override val id: String = "test"
-
             override fun validate(query: SecuredQuery) {
                 captured.set(query)
             }
@@ -460,18 +456,10 @@ class SnapshotQueryGatewayTest {
             field.collectionKind.assert().isEqualTo(QueryCollectionKind.OBJECT)
             field.queryable.assert().isFalse()
         }
-        val source = record()
-        (source["state"] as ObjectNode).apply {
-            remove("data")
-            set("child", JsonNodeFactory.instance.objectNode().put("id", "child"))
-            putArray("children").addObject().put("id", "nested")
-            putArray("attributes").addObject().put("key", "value")
-        }
-        canonicalSnapshot(source, schema)
     }
 
     @Test
-    fun `should derive and canonicalize every supported state shape`() {
+    fun `should derive every supported state shape`() {
         val schema = richSchema()
 
         mapOf(
@@ -491,60 +479,6 @@ class SnapshotQueryGatewayTest {
         }
         schema[LogicalField("state.scores")]!!.collectionKind.assert().isEqualTo(QueryCollectionKind.SCALAR)
         schema[LogicalField("state.children")]!!.collectionKind.assert().isEqualTo(QueryCollectionKind.OBJECT)
-
-        val canonical = canonicalSnapshot(richRecord(), schema)
-        val state = canonical["state"] as ObjectNode
-        state["binary"].asString().assert().isEqualTo("AQID")
-        state["nullableText"].isNull.assert().isTrue()
-    }
-
-    @Test
-    fun `should reject malformed canonical result trees`() {
-        val schema = richSchema()
-        val invalidStates = listOf<(ObjectNode) -> Unit>(
-            { it.put("active", "true") },
-            { it.put("binary", 1) },
-            { it.put("intValue", "1") },
-            { it.put("decimalValue", "1.5") },
-            { it.put("status", 1) },
-            { it.put("instant", true) },
-            { it.set("attributes", JsonNodeFactory.instance.arrayNode()) },
-            { it.set("nested", JsonNodeFactory.instance.stringNode("nested")) },
-            { it.set("scores", JsonNodeFactory.instance.stringNode("scores")) },
-            { it.putArray("children").add("child") },
-            { it.putNull("active") },
-            { it.put("unknown", "value") }
-        )
-
-        invalidStates.forEach { mutate ->
-            val invalid = richRecord()
-            mutate(invalid["state"] as ObjectNode)
-            assertThrows<QueryException> { canonicalSnapshot(invalid, schema) }.code.assert()
-                .isEqualTo(QueryErrorCode.RESULT_INVALID)
-        }
-
-        listOf<(ObjectNode) -> Unit>(
-            { it.put("version", "1") },
-            { it.put("deleted", "false") },
-            { it.put("eventTime", "invalid") },
-            { it.put("unexpected", "value") },
-            { it.set("state", JsonNodeFactory.instance.arrayNode()) }
-        ).forEach { mutate ->
-            val invalid = richRecord().also(mutate)
-            assertThrows<QueryException> { canonicalSnapshot(invalid, schema) }.code.assert()
-                .isEqualTo(QueryErrorCode.RESULT_INVALID)
-        }
-
-        val nonFinite = richRecord().also {
-            (it["state"] as ObjectNode).set("decimalValue", JsonNodeFactory.instance.numberNode(Double.NaN))
-        }
-        assertThrows<QueryException> { canonicalSnapshot(nonFinite, schema) }
-        assertThrows<QueryException> { canonicalSnapshot(richRecord(), schema, maxNodes = 1) }
-
-        val cyclic = richRecord()
-        val state = cyclic["state"] as ObjectNode
-        state.set("nested", state)
-        assertThrows<QueryException> { canonicalSnapshot(cyclic, schema) }
     }
 
     @Test
@@ -578,14 +512,15 @@ class SnapshotQueryGatewayTest {
     }
 
     @Test
-    fun `should reject an oversized backend page`() {
+    fun `should trust the backend page result`() {
         val oversized = QueryPage(listOf(record(), record()), 2)
 
         gateway(backend(page = Mono.just(oversized))).pageRecords(Query(), 1, 1).test()
-            .expectErrorMatches { error ->
-                error is QueryException && error.code == QueryErrorCode.RESULT_INVALID
+            .assertNext { page ->
+                page.items.assert().hasSize(2)
+                page.total.assert().isEqualTo(2)
             }
-            .verify()
+            .verifyComplete()
     }
 
     @Test
@@ -598,7 +533,7 @@ class SnapshotQueryGatewayTest {
     }
 
     @Test
-    fun `should apply result policies in order and protect canonical identity`() {
+    fun `should apply result policies in order and map failures`() {
         val first = QueryResultPolicy { _, record ->
             (record["state"] as ObjectNode).put("data", "first")
             record
@@ -616,14 +551,6 @@ class SnapshotQueryGatewayTest {
             }
             .verifyComplete()
 
-        val corrupting = QueryResultPolicy { _, result -> result.put("aggregateId", "other") }
-        val protected = gateway(backend(stream = Flux.just(record())), listOf(corrupting))
-        StepVerifier.create(protected.firstRecord())
-            .expectErrorMatches { error ->
-                error is QueryException && error.code == QueryErrorCode.RESULT_INVALID
-            }
-            .verify()
-
         val failing = gateway(
             backend(stream = Flux.just(record())),
             listOf(QueryResultPolicy { _, _ -> error("sensitive-result-policy-error") })
@@ -636,14 +563,14 @@ class SnapshotQueryGatewayTest {
     }
 
     @Test
-    fun `should reject records outside the logical schema`() {
+    fun `should return backend record without schema validation`() {
         val unknown = record().also { (it["state"] as ObjectNode).put("secret", "value") }
 
         StepVerifier.create(gateway(backend(stream = Flux.just(unknown))).firstRecord())
-            .expectErrorMatches { error ->
-                error is QueryException && error.code == QueryErrorCode.RESULT_INVALID
+            .assertNext { result ->
+                (result["state"] as ObjectNode)["secret"].asString().assert().isEqualTo("value")
             }
-            .verify()
+            .verifyComplete()
     }
 
     @Test
@@ -682,24 +609,17 @@ class SnapshotQueryGatewayTest {
     }
 
     @Test
-    fun `should cancel and report incomplete result after budget is exceeded`() {
-        val cancelled = AtomicBoolean()
+    fun `should delegate stream budget enforcement to the backend`() {
         val gateway = gateway(
             backend(
                 stream = Flux.range(0, 3)
                     .map { record().put("aggregateId", "aggregate-$it") }
-                    .doOnCancel { cancelled.set(true) }
             )
         )
 
         StepVerifier.create(gateway.streamRecords(Query(budget = QueryBudget(maxRecords = 1))))
-            .expectNextCount(1)
-            .expectErrorMatches { error ->
-                error is QueryException && error.code == QueryErrorCode.INCOMPLETE_RESULT &&
-                    (error.cause as? QueryException)?.code == QueryErrorCode.BUDGET_EXCEEDED
-            }
-            .verify()
-        cancelled.get().assert().isTrue()
+            .expectNextCount(3)
+            .verifyComplete()
     }
 
     private fun gateway(
@@ -719,8 +639,6 @@ class SnapshotQueryGatewayTest {
         count: Mono<Long> = Mono.just(0),
         onValidate: (SecuredQuery) -> Unit = {}
     ): QueryBackend = object : QueryBackend {
-        override val id: String = "test"
-
         override fun validate(query: SecuredQuery) = onValidate(query)
 
         override fun stream(query: SecuredQuery): Flux<ObjectNode> = stream
@@ -738,27 +656,6 @@ class SnapshotQueryGatewayTest {
         }
     )
 
-    private fun richRecord(): ObjectNode = record().apply {
-        set(
-            "state",
-            JsonNodeFactory.instance.objectNode().apply {
-                put("id", "aggregate-1")
-                put("active", true)
-                set("binary", JsonNodeFactory.instance.binaryNode(byteArrayOf(1, 2, 3)))
-                put("status", RichStatus.ACTIVE.name)
-                put("intValue", 1)
-                put("decimalValue", 1.5)
-                put("instant", 1L)
-                put("localDate", "2026-08-20")
-                set("attributes", JsonNodeFactory.instance.objectNode().put("key", "value"))
-                set("nested", JsonNodeFactory.instance.objectNode().put("value", "nested"))
-                putArray("scores").add(1).addNull()
-                putArray("children").addObject().put("value", "child")
-                putNull("nullableText")
-            }
-        )
-    }
-
     private fun QueryExpression.containsRelativeTime(): Boolean = when (this) {
         is RelativeTimeExpression -> true
         is LogicalExpression -> operands.any { it.containsRelativeTime() }
@@ -767,6 +664,7 @@ class SnapshotQueryGatewayTest {
     }
 
     private fun record(): ObjectNode = JsonNodeFactory.instance.objectNode().apply {
+        val timestamp = Instant.parse("2026-08-19T00:00:00Z").toEpochMilli()
         put("contextName", metadata.contextName)
         put("aggregateName", metadata.aggregateName)
         put("tenantId", "tenant-1")
@@ -777,9 +675,9 @@ class SnapshotQueryGatewayTest {
         put("eventId", "event-1")
         put("firstOperator", "operator-1")
         put("operator", "operator-1")
-        put("firstEventTime", "2026-08-19T00:00:00Z")
-        put("eventTime", "2026-08-19T00:00:00Z")
-        put("snapshotTime", "2026-08-19T00:00:00Z")
+        put("firstEventTime", timestamp)
+        put("eventTime", timestamp)
+        put("snapshotTime", timestamp)
         set("tags", JsonNodeFactory.instance.objectNode())
         put("deleted", false)
         set(

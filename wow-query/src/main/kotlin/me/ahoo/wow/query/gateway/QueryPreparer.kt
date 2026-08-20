@@ -140,7 +140,7 @@ internal class QueryPreparer(
             if (authorization.capabilities[capability] != CapabilityDecision.GRANT) policyDenied()
         }
         val legacy = query.filter.containsLegacyCondition()
-        val resultFields = resultFields(query.projection, schema, legacy)
+        val projectionFields = projectionFields(query.projection, schema, legacy)
         val requiredFields = linkedSetOf<LogicalField>().apply {
             if (legacy) {
                 addAll(schema.fields.keys)
@@ -150,7 +150,7 @@ internal class QueryPreparer(
             }
             when (resultKind) {
                 QueryResultKind.SNAPSHOT -> addAll(schema.fields.keys)
-                QueryResultKind.RECORD -> addAll(resultFields)
+                QueryResultKind.RECORD -> addAll(projectionFields)
                 QueryResultKind.COUNT -> Unit
             }
         }
@@ -170,18 +170,14 @@ internal class QueryPreparer(
             throw QueryException(QueryErrorCode.BUDGET_EXCEEDED, QueryStage.PREPARATION)
         }
         val offset = if (page == null || size == null) 0 else Math.multiplyExact(page.toLong() - 1, size.toLong())
-        return SecuredQuery.create(
+        return SecuredQuery(
             target = metadata.namedAggregate,
             operation = operation,
-            resultKind = resultKind,
             filter = securedFilter,
             sort = query.sort,
             offset = offset,
             limit = effectiveLimit,
-            resultFields = resultFields,
             projection = query.projection,
-            recordFields = schema.fields.keys,
-            capabilities = capabilities,
             budget = budget,
             deadline = deadline(call.subscribedAt, budget.timeout),
             schema = schema
@@ -391,7 +387,7 @@ internal class QueryPreparer(
         validateExpression(query.filter, schema)
         if (resultKind == QueryResultKind.SNAPSHOT && query.projection != QueryProjection.All) invalidQuery()
         val legacy = query.filter.containsLegacyCondition()
-        resultFields(query.projection, schema, legacy)
+        projectionFields(query.projection, schema, legacy)
         if (!legacy) {
             query.sort.forEach { sort ->
                 val field = schema[sort.field] ?: invalidQuery()
@@ -492,7 +488,7 @@ internal class QueryPreparer(
         if (!valid) invalidQuery()
     }
 
-    private fun resultFields(
+    private fun projectionFields(
         projection: QueryProjection,
         schema: QuerySchema,
         legacy: Boolean

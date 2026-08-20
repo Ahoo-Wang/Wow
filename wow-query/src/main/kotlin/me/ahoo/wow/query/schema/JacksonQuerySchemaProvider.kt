@@ -40,7 +40,7 @@ class JacksonQuerySchemaProvider(private val objectMapper: ObjectMapper) : Query
             fields = fields,
             visiting = linkedSetOf()
         )
-        return QuerySchema(fields).validatedSnapshot()
+        return QuerySchema(fields)
     }
 
     private fun deriveProperties(

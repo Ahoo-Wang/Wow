@@ -59,42 +59,37 @@ class LegacySnapshotQueryAdapterTest {
     )
 
     @Test
-    fun `should apply legacy projection before typed materialization`() {
+    fun `should forward legacy projection for typed materialization`() {
         val projection = Projection(exclude = listOf("state.data"))
         adapter.single(
             SingleQuery(Condition.ALL, projection)
         ).test()
-            .assertNext { snapshot -> snapshot.state.data.assert().isEmpty() }
+            .expectNextCount(1)
             .verifyComplete()
 
         adapter.list(ListQuery(Condition.ALL, projection)).test()
-            .assertNext { snapshot -> snapshot.state.data.assert().isEmpty() }
+            .expectNextCount(1)
             .verifyComplete()
 
         adapter.paged(PagedQuery(Condition.ALL, projection)).test()
-            .assertNext { page -> page.list.single().state.data.assert().isEmpty() }
+            .expectNextCount(1)
             .verifyComplete()
+
+        (backend.lastQuery!!.projection as QueryProjection.Legacy).exclude.assert().containsExactly("state.data")
     }
 
     @Test
     fun `should preserve dynamic legacy projection and sort paths`() {
-        backend.record = record().apply {
-            (this["tags"] as ObjectNode).put("department", "sales")
-        }
         adapter.dynamicSingle(
             SingleQuery(
                 condition = Condition.ALL,
                 projection = Projection(include = listOf("tags.department")),
                 sort = listOf(Sort("tags.department", Sort.Direction.ASC))
             )
-        ).test()
-            .assertNext { document ->
-                document.keys.assert().containsExactly("tags")
-                document.getNestedDocument("tags")["department"].assert().isEqualTo("sales")
-            }
-            .verifyComplete()
+        ).test().expectNextCount(1).verifyComplete()
 
         backend.lastQuery!!.sort.single().field.value.assert().isEqualTo("tags.department")
+        (backend.lastQuery!!.projection as QueryProjection.Legacy).include.assert().containsExactly("tags.department")
     }
 
     @Test
@@ -104,12 +99,7 @@ class LegacySnapshotQueryAdapterTest {
                 Condition.ALL,
                 Projection(include = listOf("state"), exclude = listOf("state.data"))
             )
-        ).test()
-            .assertNext { document ->
-                document.keys.assert().containsExactly("state")
-                document.getNestedDocument("state").keys.assert().containsExactly("id")
-            }
-            .verifyComplete()
+        ).test().expectNextCount(1).verifyComplete()
 
         (backend.lastQuery!!.projection as QueryProjection.Legacy).also { projection ->
             projection.include.assert().containsExactly("state")
@@ -247,9 +237,9 @@ class LegacySnapshotQueryAdapterTest {
         put("eventId", "event-1")
         put("firstOperator", "operator-1")
         put("operator", "operator-1")
-        put("firstEventTime", "2026-08-19T00:00:00Z")
-        put("eventTime", "2026-08-19T00:00:00Z")
-        put("snapshotTime", "2026-08-19T00:00:00Z")
+        put("firstEventTime", 1L)
+        put("eventTime", 1L)
+        put("snapshotTime", 1L)
         set("tags", JsonNodeFactory.instance.objectNode())
         put("deleted", deleted)
         set(
@@ -262,7 +252,6 @@ class LegacySnapshotQueryAdapterTest {
     }
 
     private inner class RecordingBackend : QueryBackend {
-        override val id: String = "recording"
         var record: ObjectNode = record()
         var records: Flux<ObjectNode>? = null
         var lastQuery: SecuredQuery? = null

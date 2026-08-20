@@ -8,7 +8,7 @@ outline: deep
 
 `SnapshotQueryGateway<S>` 是后端中立的快照查询入口。Spring Boot 为每个聚合状态类型注册一个 Gateway，
 并按 `wow.eventsourcing.storage-routing` 选择 MongoDB 或 Elasticsearch。查询在访问后端前固定经过 Schema
-校验、授权策略、资源预算和路由；后端结果还会经过结构校验、结果策略和物化。
+校验、授权策略、资源预算和路由；后端结果再经过结果策略和物化。
 
 ## 适用范围与前提
 
@@ -48,14 +48,14 @@ flowchart TB
     Router --> Mongo["MongoSnapshotQueryBackend"]
     Router --> ES["ElasticsearchSnapshotQueryBackend"]
     Router --> Custom["自定义 QueryBackend"]
-    Mongo --> Record["Canonical QueryRecord"]
+    Mongo --> Record["快照记录"]
     ES --> Record
     Custom --> Record
     Mongo --> Count["精确 count"]
     ES --> Count
     Custom --> Count
     Record --> Result["QueryResultPolicy Chain"]
-    Result --> Materialize["Projection / Materializer"]
+    Result --> Materialize["Materializer"]
     Materialize --> Output["MaterializedSnapshot<br/>ObjectNode / QueryPage"]
     Count --> Output
 
@@ -64,7 +64,7 @@ flowchart TB
 ```
 
 紫色边框表示公开扩展点。Gateway 先把调用方的 `Query` 编译成 `SecuredQuery`，后端只能执行这份已经完成
-Schema、授权和预算约束的不可变计划；后端返回统一的 canonical record，结果策略、投影和类型物化不会依赖
+Schema、授权和预算约束的不可变计划；后端负责执行投影并返回 `ObjectNode`，结果策略和类型物化不会依赖
 MongoDB BSON 或 Elasticsearch DSL。
 
 ## 基本用法
@@ -245,8 +245,7 @@ gateway.firstRecord {
 ```
 
 选择父字段会包含或排除其全部已知子字段。强类型快照需要完整 state，因此在 `first`、`stream` 或 `page`
-上使用投影会返回 `INVALID_QUERY`。后端记录先经过结果结构校验和 `QueryResultPolicy`，之后才执行投影，
-敏感字段脱敏不会被投影绕过。
+上使用投影会返回 `INVALID_QUERY`。Record 投影由后端执行，`QueryResultPolicy` 只处理后端返回的字段。
 
 分页同时执行 items 查询和精确 total。大结果集不应递增 page 深翻页：MongoDB 会承受大 `skip`，
 Elasticsearch 受 `maxResultWindow` 限制。批量读取应使用带稳定 sort、明确 limit、timeout 和 maxRecords 的
@@ -260,7 +259,7 @@ stream。
 |---|---|---|
 | 身份 | `contextName`、`aggregateName`、`aggregateId`、`tenantId` | 系统字段，可过滤和排序 |
 | 版本与操作人 | `version`、`eventId`、`operator`、`firstOperator` | 系统字段 |
-| 时间 | `firstEventTime`、`eventTime`、`snapshotTime` | 系统 `TIME` 字段 |
+| 时间 | `firstEventTime`、`eventTime`、`snapshotTime` | epoch-millis `Long`；查询语义为 `TIME` |
 | 生命周期 | `deleted`、`ownerId`、`spaceId` | 由 scope 和系统策略保护 |
 | 状态 | `state.status`、`state.items.sku` | 从状态类型推导 |
 | 动态结构 | `tags`、Map、递归对象 | 默认 opaque，不允许便携字段查询 |
@@ -274,7 +273,7 @@ PREPARATION 阶段拒绝非法用法。
 - Map、递归对象和动态 JSON 默认作为 opaque 字段；需要查询内部路径时应提供显式 `QuerySchemaProvider`。
 - Schema 只描述逻辑能力；MongoDB/Elasticsearch 后端仍会验证真实索引是否具备对应物理语义。
 
-自定义 Schema 时应装饰默认 Schema，不得删除或篡改 canonical envelope 字段：
+自定义 Schema 时应装饰默认 Schema，不得删除或篡改标准 envelope 字段：
 
 ```kotlin
 @Bean
@@ -298,8 +297,8 @@ Gateway 不负责认证。没有 `QueryAuthority` 时，默认系统策略不会
 调用。不要把 `filter { field("tenantId") ... }` 当作隔离边界。
 :::
 
-所有 `QueryPolicy` 都会执行：任一 `DENY` 拒绝查询，字段权限取交集，预算取最小值。所有
-`QueryResultPolicy` 在投影和类型物化前执行，且不能修改快照的上下文、聚合、版本、租户等身份字段。
+所有 `QueryPolicy` 都会执行：任一 `DENY` 拒绝查询，字段权限取交集，预算取最小值。
+`QueryResultPolicy` 在后端投影之后、类型物化之前执行；Gateway 信任后端记录和策略返回值，不额外校验或恢复字段。
 策略与结果转换必须保持非阻塞。
 
 ### QueryAuthority 与 Scope
@@ -446,11 +445,11 @@ fun elasticsearchSnapshotQueryBackend(
 
 | 扩展点 | 适合解决 | 必须保持的约束 |
 |---|---|---|
-| `QuerySchemaProvider` | 增减逻辑字段能力、全文或数组元数据 | 保留 canonical envelope；字段名不包含 `.keyword` 等物理路径 |
+| `QuerySchemaProvider` | 增减逻辑字段能力、全文或数组元数据 | 保留标准 envelope；字段名不包含 `.keyword` 等物理路径 |
 | `QueryPolicy` | ABAC、mandatory filter、字段权限、预算和 capability 授权 | 非阻塞；`DENY` 优先；scope 只能收窄 authority |
 | `QueryRouter` | 按聚合把已授权查询路由到不同后端 | 只选择后端，不改写 `SecuredQuery` |
-| `QueryBackend` | 接入新的快照存储或查询引擎 | 只执行 `SecuredQuery`；fail-closed；返回 canonical record |
-| `QueryResultPolicy` | 脱敏或按 authority 变换 state | 在投影前执行；不得修改受保护的 envelope 身份字段 |
+| `QueryBackend` | 接入新的快照存储或查询引擎 | 执行 `SecuredQuery` 和 Record 投影；fail-closed；返回调用独占的记录 |
+| `QueryResultPolicy` | 脱敏或按 authority 变换后端记录 | 在后端投影后执行；保持非阻塞 |
 
 ### 1. 扩展逻辑字段能力
 
@@ -461,8 +460,7 @@ fun elasticsearchSnapshotQueryBackend(
 ### 2. 扩展授权与结果处理
 
 使用 [自定义授权策略](#自定义授权策略) 增加 mandatory filter、字段白名单、预算或 capability 决策，使用
-[结果策略](#结果策略) 做投影前脱敏。策略链自动合并所有 Bean；无需自行实现另一套 Gateway，也不能在
-结果策略中把跨租户记录改造成当前租户记录。
+[结果策略](#结果策略) 变换后端已经投影的记录。策略链自动合并所有 Bean；无需自行实现另一套 Gateway。
 
 ### 3. 扩展路由
 
@@ -503,7 +501,7 @@ class AnalyticsSnapshotQueryBackend : QueryBackend {
 实现时必须满足：
 
 1. `validate` 对无法准确实现的语义返回 `UNSUPPORTED_QUERY` 或 `BACKEND_NOT_READY`，不得扩大结果；
-2. `stream` 和 `page` 返回完整 canonical envelope，投影和类型物化由 Gateway 完成；
+2. 强类型查询返回完整 envelope，Record 查询执行 `query.projection`；每次订阅返回独占的 `ObjectNode`；
 3. `page.total` 与 `count` 是精确值，不能把分片失败或近似值包装成成功；
 4. 全程保持 Reactor 非阻塞，响应取消、deadline 和 `maxRecords`，部分流失败使用 `INCOMPLETE_RESULT`；
 5. 用同一组契约用例验证 filter、sort、page、count、null/missing、nested、全文和错误映射。
@@ -514,9 +512,9 @@ Gateway 构造策略时才替换 `SnapshotQueryGatewayFactory`；通常扩展 Sc
 ## 兼容层
 
 旧 `SnapshotQueryService`、`Condition` 和 Query DSL 仍可使用。Spring 工厂把旧调用送入同一授权、预算、
-路由和结果校验管线，但条件由所选后端原有的 converter 编译，从而保留 MongoDB/Elasticsearch 的历史
-语义。旧 projection 的动态路径会在结果策略之后按原始路径执行，旧 sort 路径继续交给后端验证和编译；
-投影同时包含 include 和 exclude 时会返回 `INVALID_QUERY`，请拆成单一模式。
+路由和结果策略管线，但条件由所选后端原有的 converter 编译，从而保留 MongoDB/Elasticsearch 的历史
+语义。旧 projection 和 sort 的动态路径继续由所选后端验证和编译；旧投影同时包含 include 与 exclude 时，
+后端会同时执行两部分。
 
 `LegacyConditionExpression` 与 `QueryProjection.Legacy` 是进程内兼容细节，不属于新 Query JSON 的公开
 subtype。新业务代码不要构造这些类型，也不要把 RAW 后端语句混入便携 Query。
@@ -550,8 +548,8 @@ sequenceDiagram
         alt count
             Backend-->>Caller: 精确 Long
         else first / stream / page
-            Backend-->>Result: canonical QueryRecord
-            Result->>Result: 结构校验、结果策略、投影或类型物化
+            Backend-->>Result: 已投影的快照记录
+            Result->>Result: 结果策略、直接返回或类型物化
             Result-->>Caller: Snapshot / ObjectNode / QueryPage
         end
     end
@@ -568,7 +566,7 @@ sequenceDiagram
 | `BACKEND_NOT_READY` | `ROUTING` / `BACKEND` | route、collection/index、text index 或 mapping 未就绪；停止切流并修复 |
 | `DEADLINE_EXCEEDED` | `POLICY` / `BACKEND` | 超过绝对 deadline；收窄查询或调整已验证预算 |
 | `BUDGET_EXCEEDED` | `PREPARATION` / `BACKEND` | limit/page/stream 超过 maxRecords |
-| `RESULT_INVALID` | `BACKEND` / `RESULT_POLICY` | 后端结果或结果策略破坏 canonical Schema；按数据事故处理 |
+| `RESULT_INVALID` | `BACKEND` / `RESULT_POLICY` | 后端未返回可读记录，或结果策略执行失败；按数据事故处理 |
 | `MATERIALIZATION_FAILED` | `MATERIALIZATION` | 完整 state 无法反序列化为聚合状态类型 |
 | `BACKEND_FAILURE` | `BACKEND` | 后端请求、分片或 PIT 失败；确认健康后做有界重试 |
 | `INCOMPLETE_RESULT` | `BACKEND` | stream 已输出部分数据后失败；丢弃全部部分结果并从头重试 |
@@ -616,7 +614,7 @@ settings，而不是只看 template；重点核对 exact keyword、doc values、
 
 ### `MATERIALIZATION_FAILED`
 
-强类型方法要求完整、与当前 Jackson 状态模型兼容的 state。先用 `firstRecord` 检查 canonical 记录，再核对
+强类型方法要求完整、与当前 Jackson 状态模型兼容的 state。先用 `firstRecord` 检查后端记录，再核对
 历史快照字段、nullable/default 值和状态类型升级。不要用投影后的不完整 state 做强类型物化。
 
 ### `INCOMPLETE_RESULT`

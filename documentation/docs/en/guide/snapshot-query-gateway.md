@@ -9,7 +9,7 @@ outline: deep
 `SnapshotQueryGateway<S>` is the backend-neutral snapshot query entry point. Spring Boot registers one Gateway for
 each aggregate state type and selects MongoDB or Elasticsearch through `wow.eventsourcing.storage-routing`. Every query
 passes schema validation, authorization, resource budgets, and routing before backend access. Backend records are then
-validated, transformed by result policies, and materialized.
+transformed by result policies and materialized.
 
 ## Scope and prerequisites
 
@@ -51,14 +51,14 @@ flowchart TB
     Router --> Mongo["MongoSnapshotQueryBackend"]
     Router --> ES["ElasticsearchSnapshotQueryBackend"]
     Router --> Custom["Custom QueryBackend"]
-    Mongo --> Record["Canonical QueryRecord"]
+    Mongo --> Record["Snapshot record"]
     ES --> Record
     Custom --> Record
     Mongo --> Count["Exact count"]
     ES --> Count
     Custom --> Count
     Record --> Result["QueryResultPolicy Chain"]
-    Result --> Materialize["Projection / Materializer"]
+    Result --> Materialize["Materializer"]
     Materialize --> Output["MaterializedSnapshot<br/>ObjectNode / QueryPage"]
     Count --> Output
 
@@ -68,7 +68,7 @@ flowchart TB
 
 Purple borders identify public extension points. The gateway compiles the caller's `Query` into a `SecuredQuery`; a
 backend can execute only that immutable plan after schema, authorization, and budget constraints have been applied.
-Backends return canonical records, so result policy, projection, and typed materialization stay independent of MongoDB
+Backends apply projection and return `ObjectNode` records, so result policy and typed materialization stay independent of MongoDB
 BSON and Elasticsearch DSL.
 
 ## Basic usage
@@ -253,8 +253,8 @@ gateway.firstRecord {
 ```
 
 Selecting a parent includes or excludes all known descendants. Typed snapshots require complete state, so a projection
-on `first`, `stream`, or `page` returns `INVALID_QUERY`. Records pass structural validation and every
-`QueryResultPolicy` before projection, so projection cannot bypass masking.
+on `first`, `stream`, or `page` returns `INVALID_QUERY`. Record projections run in the backend; `QueryResultPolicy`
+receives only the fields returned by that backend.
 
 A page performs both an item query and an exact total. Do not walk deep result sets by incrementing page: MongoDB pays
 for large `skip` values and Elasticsearch enforces `maxResultWindow`. Bulk reads should use a stream with stable sort,
@@ -269,7 +269,7 @@ envelope fields:
 |---|---|---|
 | Identity | `contextName`, `aggregateName`, `aggregateId`, `tenantId` | Queryable and sortable system fields |
 | Version and operator | `version`, `eventId`, `operator`, `firstOperator` | System fields |
-| Time | `firstEventTime`, `eventTime`, `snapshotTime` | System `TIME` fields |
+| Time | `firstEventTime`, `eventTime`, `snapshotTime` | Epoch-millisecond `Long` values with `TIME` query semantics |
 | Lifecycle | `deleted`, `ownerId`, `spaceId` | Protected by scope and system policy |
 | State | `state.status`, `state.items.sku` | Derived from the state type |
 | Dynamic structures | `tags`, maps, recursive objects | Opaque by default, not portable query fields |
@@ -283,7 +283,7 @@ queryable, sortable, projectable, elementMatch, operators, and fullText metadata
 - Maps, recursive objects, and dynamic JSON are opaque by default. Supply an explicit `QuerySchemaProvider` to expose inner paths.
 - Schema describes logical capability; MongoDB and Elasticsearch still verify the real physical index semantics.
 
-Decorate the default schema when customizing it. Canonical envelope fields cannot be removed or changed:
+Decorate the default schema when customizing it. Standard envelope fields cannot be removed or changed:
 
 ```kotlin
 @Bean
@@ -309,8 +309,8 @@ an authenticated authority or install a custom `QueryPolicy` that denies anonymo
 :::
 
 Every `QueryPolicy` runs: any `DENY` rejects the query, field access is intersected, and the smallest budget wins.
-Every `QueryResultPolicy` runs before projection and materialization and cannot change snapshot identity fields such as
-context, aggregate, version, or tenancy. Policies and result transformations must remain non-blocking.
+`QueryResultPolicy` runs after backend projection and before typed materialization. The gateway trusts backend records
+and policy results without validating or restoring fields. Policies and result transformations must remain non-blocking.
 
 ### QueryAuthority and scope
 
@@ -462,11 +462,11 @@ public query model:
 
 | Extension point | Use it for | Invariant |
 |---|---|---|
-| `QuerySchemaProvider` | Logical-field capabilities, full-text, or array metadata | Preserve the canonical envelope; do not expose physical paths such as `.keyword` |
+| `QuerySchemaProvider` | Logical-field capabilities, full-text, or array metadata | Preserve the standard envelope; do not expose physical paths such as `.keyword` |
 | `QueryPolicy` | ABAC, mandatory filters, field access, budgets, and capability grants | Stay non-blocking; `DENY` wins; scope may only narrow authority |
 | `QueryRouter` | Route an authorized query to a backend by aggregate | Select only; do not rewrite `SecuredQuery` |
-| `QueryBackend` | Integrate another snapshot store or query engine | Execute only `SecuredQuery`; fail closed; return canonical records |
-| `QueryResultPolicy` | Mask or transform state for the current authority | Runs before projection; protected envelope identity is immutable |
+| `QueryBackend` | Integrate another snapshot store or query engine | Execute `SecuredQuery` and record projection; fail closed; return subscriber-owned records |
+| `QueryResultPolicy` | Mask or transform backend records for the current authority | Runs after backend projection; stay non-blocking |
 
 ### 1. Extend logical-field capabilities
 
@@ -478,9 +478,8 @@ mapping stays in backend configuration.
 ### 2. Extend authorization and result processing
 
 Use a [custom authorization policy](#custom-authorization-policy) for mandatory filters, field allowlists, budgets, or
-capability decisions, and a [result policy](#result-policy) for pre-projection masking. The policy chains merge all Spring
-beans automatically, so no parallel gateway implementation is needed. A result policy must not turn a cross-tenant
-record into a current-tenant record.
+capability decisions, and a [result policy](#result-policy) to transform records already projected by the backend. The
+policy chains merge all Spring beans automatically, so no parallel gateway implementation is needed.
 
 ### 3. Extend routing
 
@@ -522,7 +521,7 @@ class AnalyticsSnapshotQueryBackend : QueryBackend {
 The implementation must:
 
 1. map unsupported exact semantics to `UNSUPPORTED_QUERY` or `BACKEND_NOT_READY`, never a wider result;
-2. return the complete canonical envelope from `stream` and `page`; projection and materialization belong to the gateway;
+2. return the complete envelope for typed queries and apply `query.projection` for record queries; each subscription owns its `ObjectNode` instances exclusively;
 3. return exact `page.total` and `count` values, never a successful approximation or partial-shard result;
 4. remain non-blocking, honor cancellation, deadline, and `maxRecords`, and report partial-stream failure as `INCOMPLETE_RESULT`;
 5. run the same contract cases for filter, sort, page, count, null/missing, nested, full-text, and error mapping.
@@ -534,10 +533,10 @@ policy, router, and backend extensions cover normal integrations.
 ## Compatibility layer
 
 Existing `SnapshotQueryService`, `Condition`, and Query DSL calls remain available. Spring factories send legacy calls
-through the same authorization, budget, routing, and result-validation pipeline, while the selected backend's original
+through the same authorization, budget, routing, and result-policy pipeline, while the selected backend's original
 converter compiles conditions to preserve historical MongoDB/Elasticsearch semantics. Dynamic legacy projection paths
-run after result policies, while legacy sort paths remain backend-validated and compiled. A projection that mixes include
-and exclude fields returns `INVALID_QUERY`; migrate it to one projection mode.
+and legacy sort paths remain backend-validated and compiled. When a legacy projection mixes include and exclude, the
+backend applies both parts.
 
 `LegacyConditionExpression` and `QueryProjection.Legacy` are in-process compatibility details, not public subtypes of
 the new Query JSON protocol. New business code should not construct them or mix backend RAW statements into a portable
@@ -572,8 +571,8 @@ sequenceDiagram
         alt count
             Backend-->>Caller: Exact Long
         else first / stream / page
-            Backend-->>Result: Canonical QueryRecord
-            Result->>Result: Validate, apply result policy, project or materialize
+            Backend-->>Result: Projected snapshot record
+            Result->>Result: Apply result policy, return directly or materialize
             Result-->>Caller: Snapshot / ObjectNode / QueryPage
         end
     end
@@ -591,7 +590,7 @@ raw backend exception messages.
 | `BACKEND_NOT_READY` | `ROUTING` / `BACKEND` | Route, collection/index, text index, or mapping is not ready; stop cutover and repair it |
 | `DEADLINE_EXCEEDED` | `POLICY` / `BACKEND` | Absolute deadline exceeded; narrow the query or adjust a tested budget |
 | `BUDGET_EXCEEDED` | `PREPARATION` / `BACKEND` | Limit, page, or stream exceeded maxRecords |
-| `RESULT_INVALID` | `BACKEND` / `RESULT_POLICY` | Backend result or result policy violated canonical schema; treat as a data incident |
+| `RESULT_INVALID` | `BACKEND` / `RESULT_POLICY` | The backend returned no readable record or a result policy failed; treat as a data incident |
 | `MATERIALIZATION_FAILED` | `MATERIALIZATION` | Complete state could not deserialize into the aggregate state type |
 | `BACKEND_FAILURE` | `BACKEND` | Backend request, shard, or PIT failure; use bounded retries only after checking health |
 | `INCOMPLETE_RESULT` | `BACKEND` | Stream failed after emitting records; discard the complete partial result and restart |
@@ -640,7 +639,7 @@ the real index/alias rather than only the template; check exact keyword, doc val
 
 ### `MATERIALIZATION_FAILED`
 
-Typed methods need complete state compatible with the current Jackson state model. Inspect the canonical record with
+Typed methods need complete state compatible with the current Jackson state model. Inspect the backend record with
 `firstRecord`, then verify historical fields, nullable/default values, and state-type upgrades. Do not materialize a
 projected, incomplete state as a typed snapshot.
 

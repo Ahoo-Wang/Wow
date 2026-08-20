@@ -28,9 +28,11 @@ import me.ahoo.wow.api.query.MatchAll
 import me.ahoo.wow.api.query.MatchNone
 import me.ahoo.wow.api.query.PredicateExpression
 import me.ahoo.wow.api.query.PredicateOperator
+import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryErrorCode
 import me.ahoo.wow.api.query.QueryExpression
 import me.ahoo.wow.api.query.QueryPage
+import me.ahoo.wow.api.query.QueryProjection
 import me.ahoo.wow.api.query.QuerySortDirection
 import me.ahoo.wow.api.query.QueryStage
 import me.ahoo.wow.api.query.RelativeTimeExpression
@@ -38,7 +40,9 @@ import me.ahoo.wow.api.query.SearchExpression
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCollectionName
 import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToAggregateId
+import me.ahoo.wow.mongo.query.MongoProjectionConverter
 import me.ahoo.wow.mongo.query.snapshot.SnapshotConditionConverter
+import me.ahoo.wow.mongo.query.snapshot.SnapshotFieldConverter
 import me.ahoo.wow.query.QueryException
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.SecuredQuery
@@ -63,6 +67,8 @@ class MongoSnapshotQueryBackend private constructor(
     private val collectionProvider: (me.ahoo.wow.api.modeling.NamedAggregate) -> MongoCollection<Document>,
     private val batchSize: Int = 256
 ) : QueryBackend {
+    private val projectionConverter = MongoProjectionConverter(SnapshotFieldConverter)
+
     constructor(database: MongoDatabase, batchSize: Int = 256) : this(
         { target -> database.getCollection(target.toSnapshotCollectionName()) },
         batchSize
@@ -72,8 +78,6 @@ class MongoSnapshotQueryBackend private constructor(
         { collection },
         batchSize
     )
-
-    override val id: String = ID
 
     init {
         require(batchSize > 0) { "batchSize must be positive." }
@@ -87,6 +91,7 @@ class MongoSnapshotQueryBackend private constructor(
     override fun stream(query: SecuredQuery): Flux<ObjectNode> = executionSnapshot(query).flatMapMany { snapshot ->
         val limit = executionLimit(query)
         var publisher = snapshot.collection.find(compile(query.filter, snapshot))
+            .projection(projectionConverter.convert(query.projection.toProjection()))
             .sort(compileSort(query))
             .batchSize(min(batchSize, limit ?: batchSize))
         if (query.offset > 0) publisher = publisher.skip(query.offset.toInt())
@@ -101,6 +106,7 @@ class MongoSnapshotQueryBackend private constructor(
         if (!sort.isEmpty()) itemPipeline += Aggregates.sort(sort)
         itemPipeline += Aggregates.skip(query.offset.toInt())
         itemPipeline += Aggregates.limit(size)
+        projectionConverter.convert(query.projection.toProjection())?.let { itemPipeline += Aggregates.project(it) }
         val facet = Aggregates.facet(
             Facet("items", itemPipeline),
             Facet("total", Aggregates.count("value"))
@@ -296,12 +302,7 @@ class MongoSnapshotQueryBackend private constructor(
 
     private fun decode(document: Document): ObjectNode {
         val copy = Document(document).replacePrimaryKeyToAggregateId()
-        val result = JsonSerializer.valueToTree<ObjectNode>(copy)
-        TIME_FIELDS.forEach { field ->
-            val value = result[field]
-            if (value?.isIntegralNumber == true) result.put(field, Instant.ofEpochMilli(value.longValue()).toString())
-        }
-        return result
+        return JsonSerializer.valueToTree(copy)
     }
 
     private fun validateSearchPlacement(expression: QueryExpression): Int = when (expression) {
@@ -343,11 +344,13 @@ class MongoSnapshotQueryBackend private constructor(
         val textFields: Set<LogicalField>,
         val schema: QuerySchema
     )
+}
 
-    private companion object {
-        const val ID = "mongo"
-        val TIME_FIELDS = setOf("firstEventTime", "eventTime", "snapshotTime")
-    }
+private fun QueryProjection.toProjection(): Projection = when (this) {
+    QueryProjection.All -> Projection.ALL
+    is QueryProjection.Include -> Projection(include = fields.map { it.value })
+    is QueryProjection.Exclude -> Projection(exclude = fields.map { it.value })
+    is QueryProjection.Legacy -> Projection(include, exclude)
 }
 
 internal fun Long.incrementSaturated(): Long = if (this == Long.MAX_VALUE) this else this + 1

@@ -16,7 +16,6 @@ package me.ahoo.wow.query.schema
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.PredicateOperator
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
-import java.util.Collections
 
 enum class QueryValueKind {
     BOOLEAN,
@@ -118,16 +117,11 @@ data class QueryFieldSchema(
 data class QuerySchema(val fields: Map<LogicalField, QueryFieldSchema>) {
     operator fun get(field: LogicalField): QueryFieldSchema? = fields[field]
 
-    internal fun validatedSnapshot(): QuerySchema {
-        val snapshot = fields.mapValuesTo(LinkedHashMap()) { (_, field) ->
-            field.copy(operators = Collections.unmodifiableSet(LinkedHashSet(field.operators)))
-        }
-        require(snapshot.size == fields.size) { "Query schema field cardinality changed." }
-        snapshot.forEach { (path, field) -> require(path == field.path) { "Query schema path is inconsistent." } }
+    internal fun validated(): QuerySchema = apply {
+        fields.forEach { (path, field) -> require(path == field.path) { "Query schema path is inconsistent." } }
         CANONICAL_FIELDS.forEach { expected ->
-            require(snapshot[expected.path] == expected) { "Canonical query schema is invalid." }
+            require(fields[expected.path] == expected) { "Canonical query schema is invalid." }
         }
-        return QuerySchema(Collections.unmodifiableMap(snapshot))
     }
 }
 
