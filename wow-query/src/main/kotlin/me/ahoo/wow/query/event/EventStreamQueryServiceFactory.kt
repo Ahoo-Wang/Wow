@@ -14,16 +14,19 @@
 package me.ahoo.wow.query.event
 
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.modeling.materialize
+import java.util.concurrent.ConcurrentHashMap
 
 fun interface EventStreamQueryServiceFactory {
     fun create(namedAggregate: NamedAggregate): EventStreamQueryService
 }
 
 abstract class AbstractEventStreamQueryServiceFactory : EventStreamQueryServiceFactory {
-    private val queryServiceCache = mutableMapOf<NamedAggregate, EventStreamQueryService>()
+    private val queryServiceCache = ConcurrentHashMap<MaterializedNamedAggregate, EventStreamQueryService>()
 
     override fun create(namedAggregate: NamedAggregate): EventStreamQueryService {
-        return queryServiceCache.computeIfAbsent(namedAggregate) {
+        return queryServiceCache.computeIfAbsent(namedAggregate.materialize()) {
             createQueryService(it)
         }
     }
