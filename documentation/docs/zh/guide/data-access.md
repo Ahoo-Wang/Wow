@@ -357,6 +357,14 @@ class MemberAbacQueryFilter(
 }
 ```
 
+### 查询入口与策略执行
+
+Spring 自动生成的聚合专属 `SnapshotQueryService` 与 `EventStreamQueryService` 默认经过 `QueryHandler` 过滤链，因此会执行 ABAC 条件追加、查询改写和结果脱敏。普通应用代码应使用这些生成的查询服务。
+
+`SnapshotQueryServiceFactory` 与 `EventStreamQueryServiceFactory` 是可信的原始后端入口。直接通过 Factory 创建的服务会绕过上述策略，仅应用于明确需要原始数据访问的基础设施、运维或迁移代码。
+
+使用生成服务名称显式注册的自定义 Bean 会被原样保留，不会再包装代理；未提供对应 `QueryHandler` 而单独导入 Registrar 时，也会保留原有的原始服务行为。这两种配置都应视为可信的原始访问。
+
 ## 隔离层级总结
 
 | 层级 | 作用范围 | 机制 | API 表现 | 典型场景 |

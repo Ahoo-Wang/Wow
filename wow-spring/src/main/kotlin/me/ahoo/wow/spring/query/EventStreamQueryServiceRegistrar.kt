@@ -19,6 +19,7 @@ import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.query.event.EventStreamQueryService
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
+import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.support.BeanDefinitionBuilder
 import org.springframework.beans.factory.support.BeanDefinitionRegistry
@@ -39,13 +40,16 @@ class EventStreamQueryServiceRegistrar : QueryServiceRegistrar() {
         }
         if (registry.containsBeanDefinition(beanName)) {
             log.warn {
-                "EventStreamQueryService [$beanName] already exists - Ignore."
+                "EventStreamQueryService [$beanName] already exists - use it as-is without a policy proxy."
             }
             return
         }
         val beanDefinitionBuilder = BeanDefinitionBuilder.rootBeanDefinition(EventStreamQueryService::class.java) {
             val queryServiceFactory = appContext.getBean(EventStreamQueryServiceFactory::class.java)
-            queryServiceFactory.create(namedAggregate)
+            val queryService = queryServiceFactory.create(namedAggregate)
+            appContext.getBeanProvider(EventStreamQueryHandler::class.java).getIfAvailable()
+                ?.let { EventStreamQueryServiceProxy(queryService, it) }
+                ?: queryService
         }
 
         registry.registerBeanDefinition(beanName, beanDefinitionBuilder.beanDefinition)
