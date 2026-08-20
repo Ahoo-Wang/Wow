@@ -17,7 +17,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import java.time.Duration
 
-data class Query @JvmOverloads constructor(
+data class Query(
     val filter: QueryExpression = MatchAll,
     val projection: QueryProjection = QueryProjection.All,
     val sort: List<QuerySort> = emptyList(),
@@ -74,7 +74,7 @@ enum class DeletionScope {
     ALL
 }
 
-data class QueryScope @JvmOverloads constructor(
+data class QueryScope(
     val tenantId: String? = null,
     val ownerId: String? = null,
     val spaceId: String? = null,
@@ -87,7 +87,7 @@ data class QueryScope @JvmOverloads constructor(
     }
 }
 
-data class QueryBudget @JvmOverloads constructor(
+data class QueryBudget(
     val timeout: Duration? = null,
     val maxRecords: Long? = null
 ) {

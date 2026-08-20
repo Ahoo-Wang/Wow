@@ -121,7 +121,7 @@ enum class StringComparison {
     CASE_INSENSITIVE
 }
 
-data class PredicateExpression @JvmOverloads constructor(
+data class PredicateExpression(
     val field: LogicalField,
     val operator: PredicateOperator,
     val values: List<JsonNode> = emptyList(),
@@ -159,7 +159,7 @@ enum class RelativeTimeOperator {
     EARLIER_DAYS
 }
 
-data class RelativeTimeExpression @JvmOverloads constructor(
+data class RelativeTimeExpression(
     val field: LogicalField,
     val operator: RelativeTimeOperator,
     val values: List<JsonNode> = emptyList(),

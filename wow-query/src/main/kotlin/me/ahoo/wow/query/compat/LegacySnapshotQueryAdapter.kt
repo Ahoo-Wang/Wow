@@ -52,10 +52,12 @@ import reactor.core.publisher.Mono
 import reactor.util.context.Context
 import tools.jackson.databind.node.ObjectNode
 
-class GatewaySnapshotQueryServiceFactory @JvmOverloads constructor(
+class GatewaySnapshotQueryServiceFactory(
     private val gatewayFactory: SnapshotQueryGatewayFactory,
-    private val serviceName: String = "gateway"
+    private val serviceName: String
 ) : AbstractSnapshotQueryServiceFactory() {
+    constructor(gatewayFactory: SnapshotQueryGatewayFactory) : this(gatewayFactory, "gateway")
+
     override fun createQueryService(namedAggregate: NamedAggregate): SnapshotQueryService<*> {
         val metadata = namedAggregate.requiredAggregateType<Any>().aggregateMetadata<Any, Any>()
         return LegacySnapshotQueryAdapter(gatewayFactory.create(metadata), metadata, serviceName)
