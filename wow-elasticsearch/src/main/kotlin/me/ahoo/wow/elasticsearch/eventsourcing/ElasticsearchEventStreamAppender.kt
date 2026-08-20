@@ -38,7 +38,7 @@ internal class DirectElasticsearchEventStreamAppender(
         val request = IndexRequest.of<Map<String, Any?>> {
             it.index(eventStream.aggregateId.toEventStreamIndexName())
                 .id(eventStream.toDocId())
-                .document(eventStream.toLinkedHashMap())
+                .document(eventStream.toElasticsearchDocument())
                 .routing(eventStream.aggregateId.id)
                 .opType(OpType.Create)
                 .refresh(refreshPolicy)
@@ -66,3 +66,7 @@ internal class DirectElasticsearchEventStreamAppender(
 }
 
 internal fun DomainEventStream.toDocId(): String = "${this.aggregateId.id}-${this.version}"
+
+@JvmSynthetic
+internal fun DomainEventStream.toElasticsearchDocument(): Map<String, Any?> =
+    ElasticsearchQueryPresenceEncoder.encode(toLinkedHashMap())

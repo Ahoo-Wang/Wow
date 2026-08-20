@@ -21,10 +21,13 @@ import co.elastic.clients.elasticsearch.core.search.ResponseBody
 import co.elastic.clients.util.ObjectBuilder
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.serialization.toLinkedHashMap
+import me.ahoo.wow.tck.event.MockDomainEventStreams
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
@@ -80,9 +83,54 @@ class ElasticsearchEventStoreUnitTest {
     }
 
     @Test
+    fun `last event stream hit source is required`() {
+        stubSearch(
+            Mono.just(searchResponse(source = null, sort = listOf(FieldValue.of(1), FieldValue.of("id")))),
+        )
+
+        ElasticsearchEventStore(client).last(aggregateId)
+            .test()
+            .expectErrorMatches {
+                it is IllegalArgumentException && it.message == "Elasticsearch hit source is required."
+            }
+            .verify()
+    }
+
+    @Test
+    fun `presence metadata is stripped before restoring an event stream`() {
+        val expected = eventStream()
+        val encoded = ElasticsearchQueryPresenceEncoder.encode(expected.toLinkedHashMap())
+        stubSearch(Mono.just(searchResponse(source = encoded)))
+
+        ElasticsearchEventStore(client).load(aggregateId)
+            .test()
+            .assertNext { actual ->
+                actual.aggregateId.assert().isEqualTo(expected.aggregateId)
+                actual.version.assert().isEqualTo(expected.version)
+                actual.body.single().name.assert().isEqualTo(expected.body.single().name)
+                actual.body.single().body.javaClass.assert().isEqualTo(expected.body.single().body.javaClass)
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `legacy event stream without presence metadata remains readable`() {
+        val expected = eventStream()
+        stubSearch(Mono.just(searchResponse(source = expected.toLinkedHashMap())))
+
+        ElasticsearchEventStore(client).load(aggregateId)
+            .test()
+            .assertNext { actual ->
+                actual.aggregateId.assert().isEqualTo(expected.aggregateId)
+                actual.version.assert().isEqualTo(expected.version)
+            }
+            .verifyComplete()
+    }
+
+    @Test
     fun `full page requires search after cursor`() {
         stubSearch(
-            Mono.just(searchResponse(source = mockk(), sort = emptyList())),
+            Mono.just(searchResponse(source = eventStream().toLinkedHashMap(), sort = emptyList())),
         )
 
         ElasticsearchEventStore(client, batchSize = 1).load(aggregateId)
@@ -94,20 +142,20 @@ class ElasticsearchEventStoreUnitTest {
             .verify()
     }
 
-    private fun stubSearch(response: Mono<ResponseBody<DomainEventStream>>) {
+    private fun stubSearch(response: Mono<ResponseBody<Map<*, *>>>) {
         every {
             client.search(
                 any<Function<SearchRequest.Builder, ObjectBuilder<SearchRequest>>>(),
-                DomainEventStream::class.java,
+                Map::class.java,
             )
         } returns response
     }
 
     private fun searchResponse(
-        source: DomainEventStream?,
-        sort: List<FieldValue>,
-    ): SearchResponse<DomainEventStream> {
-        return SearchResponse.of<DomainEventStream> { response ->
+        source: Map<*, *>?,
+        sort: List<FieldValue> = listOf(FieldValue.of(1), FieldValue.of("id")),
+    ): SearchResponse<Map<*, *>> {
+        return SearchResponse.of<Map<*, *>> { response ->
             response.took(1)
                 .timedOut(false)
                 .shards { shards -> shards.failed(0).successful(1).total(1) }
@@ -122,4 +170,10 @@ class ElasticsearchEventStoreUnitTest {
                 }
         }
     }
+
+    private fun eventStream(): DomainEventStream = MockDomainEventStreams.generateEventStream(
+        aggregateId = aggregateId,
+        aggregateVersion = 0,
+        eventCount = 1,
+    )
 }

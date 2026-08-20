@@ -17,30 +17,57 @@ import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.MaterializedSnapshot
+import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchQueryService
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
+import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.converter.ConditionConverter
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.convert
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 
-class ElasticsearchSnapshotQueryService<S : Any>(
-    override val namedAggregate: NamedAggregate,
-    override val elasticsearchClient: ReactiveElasticsearchClient,
-    override val conditionConverter: ConditionConverter<Query> = SnapshotConditionConverter
-) : AbstractElasticsearchQueryService<MaterializedSnapshot<S>>(), SnapshotQueryService<S> {
+class ElasticsearchSnapshotQueryService<S : Any> :
+    AbstractElasticsearchQueryService<MaterializedSnapshot<S>>,
+    SnapshotQueryService<S> {
+    override val namedAggregate: NamedAggregate
+    override val elasticsearchClient: ReactiveElasticsearchClient
+    override val conditionConverter: ConditionConverter<Query>
+
+    @Deprecated("Use the constructor that requires QueryGateway.")
+    constructor(
+        namedAggregate: NamedAggregate,
+        elasticsearchClient: ReactiveElasticsearchClient,
+        conditionConverter: ConditionConverter<Query> = SnapshotConditionConverter
+    ) : super() {
+        this.namedAggregate = namedAggregate
+        this.elasticsearchClient = elasticsearchClient
+        this.conditionConverter = conditionConverter
+    }
+
+    constructor(
+        namedAggregate: NamedAggregate,
+        elasticsearchClient: ReactiveElasticsearchClient,
+        queryGateway: QueryGateway
+    ) : super(namedAggregate, queryGateway, QueryDocumentKind.SNAPSHOT) {
+        this.namedAggregate = namedAggregate
+        this.elasticsearchClient = elasticsearchClient
+        this.conditionConverter = SnapshotConditionConverter
+    }
+
     override val name: String
         get() = ElasticsearchSnapshotStore.NAME
-    override val indexName: String = namedAggregate.toSnapshotIndexName()
-    private val snapshotType = JsonSerializer.typeFactory
-        .constructParametricType(
+    override val indexName: String
+        get() = namedAggregate.toSnapshotIndexName()
+    private val snapshotType by lazy {
+        JsonSerializer.typeFactory.constructParametricType(
             MaterializedSnapshot::class.java,
-            namedAggregate.requiredAggregateType<Any>().aggregateMetadata<Any, S>().state.aggregateType
+            namedAggregate.requiredAggregateType<Any>().aggregateMetadata<Any, S>().state.aggregateType,
         )
+    }
 
     override fun toTypedResult(document: DynamicDocument): MaterializedSnapshot<S> {
         return document.convert(snapshotType)

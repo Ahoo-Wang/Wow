@@ -13,41 +13,40 @@
 
 package me.ahoo.wow.webflux.route
 
-import me.ahoo.wow.filter.FilterChainBuilder
-import me.ahoo.wow.filter.LogErrorHandler
+import me.ahoo.wow.api.query.gateway.CountQueryRequest
+import me.ahoo.wow.api.query.gateway.ListQueryRequest
+import me.ahoo.wow.api.query.gateway.PageQueryRequest
+import me.ahoo.wow.api.query.gateway.QueryConsistency
+import me.ahoo.wow.api.query.gateway.QueryPage
+import me.ahoo.wow.api.query.gateway.SingleQueryRequest
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
-import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
-import me.ahoo.wow.query.event.filter.DefaultEventStreamQueryHandler
-import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
-import me.ahoo.wow.query.event.filter.TailEventStreamQueryFilter
-import me.ahoo.wow.query.filter.QueryContext
-import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
-import me.ahoo.wow.query.snapshot.filter.DefaultSnapshotQueryHandler
-import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
-import me.ahoo.wow.query.snapshot.filter.TailSnapshotQueryFilter
+import me.ahoo.wow.query.QueryGateway
+import me.ahoo.wow.query.invocation.QueryAuthorityProvider
+import me.ahoo.wow.query.invocation.QueryAuthorityView
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import me.ahoo.wow.webflux.route.query.WebFluxQueryAdmission
+import me.ahoo.wow.webflux.route.query.WebFluxQueryAuthorityResolver
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 
 internal object RouteTestFixtures {
     val MOCK_AGGREGATE_ROUTE_METADATA =
         MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata()
 
-    private val tailSnapshotQueryFilter = TailSnapshotQueryFilter<Any>(NoOpSnapshotQueryServiceFactory)
-    private val snapshotQueryFilterChain = FilterChainBuilder<QueryContext<*, *>>()
-        .addFilters(listOf(tailSnapshotQueryFilter))
-        .filterCondition(SnapshotQueryHandler::class)
-        .build()
-    val snapshotQueryHandler = DefaultSnapshotQueryHandler(
-        snapshotQueryFilterChain,
-        LogErrorHandler()
+    val queryGateway: QueryGateway = EmptyQueryGateway
+    val queryAdmission = WebFluxQueryAdmission(
+        WebFluxQueryAuthorityResolver.SUBJECT,
+        QueryAuthorityProvider { Mono.just(QueryAuthorityView(null, null, null, emptySet(), emptySet())) }
     )
+}
 
-    private val tailEventStreamQueryFilter = TailEventStreamQueryFilter(NoOpEventStreamQueryServiceFactory)
-    private val eventStreamQueryFilterChain = FilterChainBuilder<QueryContext<*, *>>()
-        .addFilters(listOf(tailEventStreamQueryFilter))
-        .filterCondition(EventStreamQueryHandler::class)
-        .build()
-    val eventStreamQueryHandler = DefaultEventStreamQueryHandler(
-        eventStreamQueryFilterChain,
-        LogErrorHandler()
-    )
+private object EmptyQueryGateway : QueryGateway {
+    override fun <R : Any> single(request: SingleQueryRequest<R>): Mono<R> = Mono.empty()
+
+    override fun <R : Any> list(request: ListQueryRequest<R>): Flux<R> = Flux.empty()
+
+    override fun <R : Any> page(request: PageQueryRequest<R>): Mono<QueryPage<R>> =
+        Mono.just(QueryPage(emptyList(), 0, QueryConsistency.EXACT))
+
+    override fun count(request: CountQueryRequest): Mono<Long> = Mono.just(0)
 }

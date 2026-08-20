@@ -34,7 +34,8 @@ class LoadSnapshotHandlerFunctionTest {
     @Test
     fun `should handle load snapshot request`() {
         val handlerFunction = LoadSnapshotHandlerFunctionFactory(
-            snapshotQueryHandler = RouteTestFixtures.snapshotQueryHandler,
+            queryGateway = RouteTestFixtures.queryGateway,
+            queryAdmission = RouteTestFixtures.queryAdmission,
             exceptionHandler = WebFluxRequestExceptionHandler(),
         ).create(
             testAggregateRouteContract(

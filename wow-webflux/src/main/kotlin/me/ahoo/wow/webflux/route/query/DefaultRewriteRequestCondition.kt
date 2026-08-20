@@ -13,4 +13,5 @@
 
 package me.ahoo.wow.webflux.route.query
 
+@Deprecated("Use QueryGateway policies with a verified QueryAuthorityProvider.")
 object DefaultRewriteRequestCondition : AbstractRewriteRequestCondition()

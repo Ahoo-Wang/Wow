@@ -7,6 +7,8 @@ description: Use snapshots as aggregate loading checkpoints and the default curr
 
 Snapshots save aggregate-state checkpoints to reduce event replay. With the recommended `all` strategy, the same data also serves as the default materialized current-state query store through `SnapshotQueryService` and Wow's built-in query routes.
 
+Every Snapshot query entry point uses the single `QueryGateway`. Put mandatory tenant/owner/space/ABAC conditions in `QueryPolicy` and masking in `ResultPolicy`; see [Query Filter migration](./migration/query-filter-to-query-policy.md).
+
 ## Snapshot Mechanism
 
 In event sourcing, the state of an aggregate root is reconstructed by replaying all historical events. As the number of events increases, replaying all events becomes slower and slower. The snapshot mechanism solves this problem by periodically saving the current state of the aggregate root.

@@ -1,14 +1,13 @@
 package me.ahoo.wow.spring.boot.starter.query
 
 import io.mockk.every
+import io.mockk.mockk
 import io.mockk.spyk
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
+import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.mask.EventStreamDynamicDocumentMasker
+import me.ahoo.wow.query.mask.MaskingResultPolicy
 import me.ahoo.wow.query.mask.StateDynamicDocumentMasker
-import me.ahoo.wow.query.snapshot.filter.MaskingSnapshotQueryFilter
-import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
-import me.ahoo.wow.query.snapshot.filter.TailSnapshotQueryFilter
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
@@ -17,9 +16,10 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner
 
 class QueryAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
+        .withBean(QueryGateway::class.java, { mockk<QueryGateway>() })
 
     @Test
-    fun `should load context with query handler beans`() {
+    fun `should load context without removed query filter runtime beans`() {
         contextRunner
             .enableWow()
             .withUserConfiguration(QueryAutoConfiguration::class.java)
@@ -36,14 +36,15 @@ class QueryAutoConfigurationTest {
             .run { context: AssertableApplicationContext ->
                 context.assert()
                     .hasBean(ExistsBeanName.SNAPSHOT_QUERY_SERVICE)
-                    .hasSingleBean(MaskingSnapshotQueryFilter::class.java)
-                    .hasSingleBean(TailSnapshotQueryFilter::class.java)
-                    .hasBean("snapshotQueryFilterChain")
-                    .hasBean("eventStreamQueryFilterChain")
-                    .hasBean("snapshotQueryErrorHandler")
-                    .hasBean("eventStreamQueryErrorHandler")
-                    .hasSingleBean(SnapshotQueryHandler::class.java)
-                    .hasSingleBean(EventStreamQueryHandler::class.java)
+                    .hasSingleBean(MaskingResultPolicy::class.java)
+                    .doesNotHaveBean("tailSnapshotQueryFilter")
+                    .doesNotHaveBean("tailEventStreamQueryFilter")
+                    .doesNotHaveBean("snapshotQueryFilterChain")
+                    .doesNotHaveBean("eventStreamQueryFilterChain")
+                    .doesNotHaveBean("snapshotQueryErrorHandler")
+                    .doesNotHaveBean("eventStreamQueryErrorHandler")
+                    .doesNotHaveBean("snapshotQueryHandler")
+                    .doesNotHaveBean("eventStreamQueryHandler")
             }
     }
 
@@ -58,6 +59,18 @@ class QueryAutoConfigurationTest {
                     .hasBean("example.order.SnapshotQueryService")
                     .hasSingleBean(ExistsBeanName::class.java)
             }
+    }
+
+    @Test
+    fun `retained legacy masker registry methods are deprecated`() {
+        val methods = listOf(
+            QueryAutoConfiguration::class.java.getDeclaredMethod("stateDataMaskerRegistry", List::class.java),
+            QueryAutoConfiguration::class.java.getDeclaredMethod("eventStreamMaskerRegistry", List::class.java)
+        )
+
+        methods.forEach { method ->
+            method.isAnnotationPresent(kotlin.Deprecated::class.java).assert().isTrue()
+        }
     }
 }
 

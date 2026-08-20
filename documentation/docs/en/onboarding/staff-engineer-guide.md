@@ -817,14 +817,11 @@ Sources: [command checks](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/sr
 
 These conditional checks protect aggregate context when it is supplied; they do not authenticate the caller or replace endpoint authorization.
 
-### Query ABAC
+### Query Policy and ABAC
 
-`AbacQueryFilter` converts principal tags into query conditions.
+Every query entry point runs through one `QueryGateway` Policy chain. `AbacQueryPolicy` accepts only a finite, declared principal-tag key set; empty/error/undeclared resolver output fails closed. CoSec Policy reads trusted authority only, while headers, paths, and rewrite contributions remain caller input.
 
-Principal tag resolution is abstract and must be supplied by an integration.
-An empty tag set resolves to `Condition.all()`.
-Therefore the presence of this filter alone does not prove an authenticated or restricted query.
-Source: [AbacQueryFilter](https://github.com/Ahoo-Wang/Wow/blob/main/wow-query/src/main/kotlin/me/ahoo/wow/query/snapshot/filter/AbacQueryFilter.kt#L33-L130).
+Sources: [ABAC Policy](https://github.com/Ahoo-Wang/Wow/blob/main/wow-query/src/main/kotlin/me/ahoo/wow/query/policy/abac/AbacQueryPolicy.kt), [migration guide](../guide/migration/query-filter-to-query-policy.md).
 
 ### Security checklist
 
@@ -993,7 +990,7 @@ They should not be called technical debt without an ADR, issue, or maintainer de
 | Constraint | Engineering implication | Source |
 |---|---|---|
 | State-event send errors are logged and resumed at the immediate filter boundary. | Snapshot and state-event consumers may lag; concrete bus durability and replay policy must close the operational gap. | [SendStateEventFilter](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/state/SendStateEventFilter.kt#L54-L76) |
-| Authentication and principal-tag resolution are integration-owned. | Header extraction and ABAC hooks alone do not establish authenticated or restricted access. | [CoSec extraction](https://github.com/Ahoo-Wang/Wow/blob/main/wow-cosec/src/main/kotlin/me/ahoo/wow/cosec/extractor/CoSecCommandBuilderExtractor.kt#L23-L40), [ABAC empty tags](https://github.com/Ahoo-Wang/Wow/blob/main/wow-query/src/main/kotlin/me/ahoo/wow/query/snapshot/filter/AbacQueryFilter.kt#L91-L130) |
+| Authentication and principal-tag resolution are integration-owned. | Headers, paths, and rewrite never establish authority; Policy fails closed without trusted authority or valid tags. | [CoSec Policy](https://github.com/Ahoo-Wang/Wow/blob/main/wow-cosec/src/main/kotlin/me/ahoo/wow/cosec/query/CoSecQueryPolicy.kt), [ABAC Policy](https://github.com/Ahoo-Wang/Wow/blob/main/wow-query/src/main/kotlin/me/ahoo/wow/query/policy/abac/AbacQueryPolicy.kt) |
 | Ordinary event-processor return values have no publication semantics. | Use stateless saga mapping when event results must become commands. | [event function filter](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/dispatcher/DomainEventFunctionFilter.kt#L41-L70), [saga mapper](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaFunction.kt#L57-L105) |
 | `WowRuntime` and its Spring bridge are one-shot. | Embedding code must replace the runtime rather than restart a stopped instance. | [one-shot start](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L188-L217), [Spring lifecycle states](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring/src/main/kotlin/me/ahoo/wow/spring/WowRuntimeLifecycle.kt#L45-L51) |
 | KSP does not remove runtime aggregate reflection. | AOT, startup, or reflection-reduction work must measure the actual parser and invocation path. | [generated accessor](https://github.com/Ahoo-Wang/Wow/blob/main/wow-compiler/src/main/kotlin/me/ahoo/wow/compiler/aggregate/metadata/AggregatesMetadataResolver.kt#L48-L59), [runtime parser](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/annotation/AggregateMetadataParser.kt#L54-L102) |

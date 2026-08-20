@@ -13,21 +13,26 @@
 
 package me.ahoo.wow.webflux.route.snapshot
 
+import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
-import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
+import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.snapshot.toStateDocument
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.query.RewriteRequestCondition
 import me.ahoo.wow.webflux.route.query.SingleQueryHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.query.WebFluxQueryAdmission
 
 class SingleSnapshotStateHandlerFunctionFactory(
-    snapshotQueryHandler: SnapshotQueryHandler,
+    queryGateway: QueryGateway,
     rewriteRequestCondition: RewriteRequestCondition,
+    queryAdmission: WebFluxQueryAdmission,
     exceptionHandler: RequestExceptionHandler
 ) : SingleQueryHandlerFunctionFactory(
     handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.SINGLE_STATE,
-    queryHandler = snapshotQueryHandler,
+    queryGateway = queryGateway,
+    documentKind = QueryDocumentKind.SNAPSHOT,
     rewriteRequestCondition = rewriteRequestCondition,
+    queryAdmission = queryAdmission,
     exceptionHandler = exceptionHandler,
     rewriteResult = { it.toStateDocument() }
 )

@@ -258,35 +258,11 @@ pagedQuery {
 }.query(queryService)
 ```
 
-## Rewrite Query
+## Mandatory query constraints
 
-```kotlin
-@Component
-@Order(ORDER_FIRST)
-@FilterType(SnapshotQueryHandler::class)
-class DataFilterSnapshotQueryFilter : SnapshotQueryFilter {
+Caller-selectable conditions belong to requests and the DSL. Conditions that every entry point must execute and callers cannot remove belong to `QueryPolicy`. Masking belongs to `ResultPolicy`; logical-to-physical binding belongs to `QuerySchemaCustomizer` and backend compilers. There is no generic condition hook.
 
-    override fun filter(
-        context: QueryContext<*, *>,
-        next: FilterChain<QueryContext<*, *>>,
-    ): Mono<Void> {
-
-        return Mono.deferContextual {
-            /**
-             * Rewrite query, append warehouse ID to query conditions.
-             */
-            context.asRewritableQuery().rewriteQuery { query ->
-                val warehouseIdCondition = condition {
-                    nestedState()
-                    WarehouseIdCapable::warehouseId.name eq warehouseId
-                }
-                query.appendCondition(warehouseIdCondition)
-            }
-            next.filter(context)
-        }
-    }
-}
-```
+`RewriteRequestCondition` remains only as deprecated 8.x HTTP `LEGACY_ENRICHMENT`; it is not authorization. See [Query Filter migration](./migration/query-filter-to-query-policy.md) and [Custom Query Backend](./extensions/query-backend.md).
 
 ## OpenAPI
 

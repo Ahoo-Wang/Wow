@@ -47,6 +47,12 @@ class StorageRouteResolverTest {
     private val archiveSnapshotQueryServiceFactory = RecordingSnapshotQueryServiceFactory()
 
     @Test
+    fun `legacy resolver is deprecated`() {
+        StorageRouteResolver::class.java
+            .isAnnotationPresent(kotlin.Deprecated::class.java).assert().isTrue()
+    }
+
+    @Test
     fun `aggregate key without context resolves using current context`() {
         val resolved = resolver().resolveEventRoutes(
             StorageRoutingProperties(

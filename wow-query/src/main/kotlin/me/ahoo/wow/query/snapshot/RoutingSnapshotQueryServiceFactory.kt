@@ -17,6 +17,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.materialize
 
+@Deprecated("Use GatewaySnapshotQueryServiceFactory backed by QueryGateway.")
 class RoutingSnapshotQueryServiceFactory(
     private val defaultSnapshotQueryServiceFactory: SnapshotQueryServiceFactory,
     routes: Map<NamedAggregate, SnapshotQueryServiceFactory>

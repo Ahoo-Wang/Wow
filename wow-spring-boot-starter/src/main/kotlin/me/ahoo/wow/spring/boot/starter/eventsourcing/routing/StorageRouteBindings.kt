@@ -12,8 +12,10 @@
  */
 package me.ahoo.wow.spring.boot.starter.eventsourcing.routing
 
+import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
+import me.ahoo.wow.query.backend.QueryBackendFactory
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
@@ -82,6 +84,42 @@ data class SnapshotQueryServiceFactoryBinding(
                 storage = storage,
                 snapshotQueryServiceFactory = snapshotQueryServiceFactory,
             )
+    }
+}
+
+internal class QueryBackendBinding private constructor(
+    @get:JvmSynthetic
+    val name: String,
+    @get:JvmSynthetic
+    val documentKind: QueryDocumentKind,
+    @get:JvmSynthetic
+    val storage: StorageType?,
+    @get:JvmSynthetic
+    val backendFactory: QueryBackendFactory,
+) {
+    companion object {
+        @JvmSynthetic
+        fun storage(
+            storage: StorageType,
+            documentKind: QueryDocumentKind,
+            backendFactory: QueryBackendFactory,
+        ): QueryBackendBinding = QueryBackendBinding(
+            name = storage.bindingPrefix() + when (documentKind) {
+                QueryDocumentKind.EVENT_STREAM -> "-event-store"
+                QueryDocumentKind.SNAPSHOT -> "-snapshot-store"
+            },
+            documentKind = documentKind,
+            storage = storage,
+            backendFactory = backendFactory,
+        )
+
+        @JvmSynthetic
+        fun named(
+            name: String,
+            documentKind: QueryDocumentKind,
+            storage: StorageType?,
+            backendFactory: QueryBackendFactory,
+        ): QueryBackendBinding = QueryBackendBinding(name, documentKind, storage, backendFactory)
     }
 }
 

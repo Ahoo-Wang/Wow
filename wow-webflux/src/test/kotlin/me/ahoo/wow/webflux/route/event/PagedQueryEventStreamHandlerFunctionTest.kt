@@ -1,0 +1,54 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.webflux.route.event
+
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.PagedQuery
+import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
+import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
+import me.ahoo.wow.webflux.route.RouteTestFixtures
+import me.ahoo.wow.webflux.route.query.DefaultRewriteRequestCondition
+import me.ahoo.wow.webflux.route.testAggregateRouteContract
+import org.junit.jupiter.api.Test
+import org.springframework.http.HttpStatus
+import org.springframework.mock.web.reactive.function.server.MockServerRequest
+import reactor.kotlin.core.publisher.toMono
+import reactor.kotlin.test.test
+
+class PagedQueryEventStreamHandlerFunctionTest {
+    @Test
+    fun `should handle paged event stream request`() {
+        val handler = PagedQueryEventStreamHandlerFunctionFactory(
+            RouteTestFixtures.queryGateway,
+            DefaultRewriteRequestCondition,
+            RouteTestFixtures.queryAdmission,
+            WebFluxRequestExceptionHandler()
+        ).create(
+            testAggregateRouteContract(
+                BuiltInHttpRouteHandlerKeys.Event.PAGED_QUERY,
+                RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA
+            )
+        )
+        val request = MockServerRequest.builder()
+            .pathVariable(MessageRecords.OWNER_ID, generateGlobalId())
+            .body(PagedQuery(Condition.ALL).toMono())
+
+        handler.handle(request).test()
+            .consumeNextWith { response -> response.statusCode().assert().isEqualTo(HttpStatus.OK) }
+            .verifyComplete()
+    }
+}

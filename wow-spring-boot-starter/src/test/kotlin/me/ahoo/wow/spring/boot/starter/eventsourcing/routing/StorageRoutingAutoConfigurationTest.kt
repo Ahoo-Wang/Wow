@@ -17,6 +17,8 @@ import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.gateway.QueryDocumentKind
+import me.ahoo.wow.api.query.gateway.QueryTarget
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.RoutingEventStore
@@ -25,6 +27,7 @@ import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.query.backend.QueryBackendFactory
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.NoOpEventStreamQueryService
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryService
@@ -36,6 +39,7 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.BeanCreationException
+import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.context.annotation.Bean
@@ -57,10 +61,13 @@ class StorageRoutingAutoConfigurationTest {
             "${EventStoreProperties.STORAGE}=${StorageType.MONGO_NAME}",
             "${SnapshotProperties.STORAGE}=${StorageType.MONGO_NAME}",
         )
-        .withUserConfiguration(
-            StorageRoutingAutoConfiguration::class.java,
-            StorageRoutingTestConfiguration::class.java,
+        .withConfiguration(
+            AutoConfigurations.of(
+                StorageRoutingAutoConfiguration::class.java,
+                CanonicalStorageRouteConfiguration::class.java,
+            ),
         )
+        .withUserConfiguration(StorageRoutingTestConfiguration::class.java)
 
     @Test
     fun `default storage should match mongo conditions`() {
@@ -200,6 +207,26 @@ class StorageRoutingAutoConfigurationTest {
     }
 
     @Test
+    fun `canonical route snapshot should back off without event store bindings`() {
+        ApplicationContextRunner()
+            .enableWow()
+            .withPropertyValues("wow.context-name=order-service")
+            .withConfiguration(
+                AutoConfigurations.of(
+                    StorageRoutingAutoConfiguration::class.java,
+                    CanonicalStorageRouteConfiguration::class.java,
+                ),
+            )
+            .run { context: AssertableApplicationContext ->
+                context.assert()
+                    .doesNotHaveBean(ResolvedStorageRouteSnapshot::class.java)
+                    .doesNotHaveBean(QueryBackendRouteSnapshot::class.java)
+                    .doesNotHaveBean(RoutingEventStore::class.java)
+                    .doesNotHaveBean(RoutingSnapshotStore::class.java)
+            }
+    }
+
+    @Test
     fun `event route should create primary routing event store`() {
         routingContextRunner
             .withPropertyValues("${StorageRoutingProperties.AGGREGATES}.order.event.storage=${StorageType.REDIS_NAME}")
@@ -220,6 +247,23 @@ class StorageRoutingAutoConfigurationTest {
                 StepVerifier.create(eventStore.load(cartAggregateId()))
                     .verifyComplete()
                 stores.mongoEventStore.lastAggregateId.assert().isEqualTo(cartAggregateId())
+            }
+    }
+
+    @Test
+    fun `routing stores and query backends project from one canonical snapshot`() {
+        routingContextRunner
+            .withPropertyValues("${StorageRoutingProperties.AGGREGATES}.order.event.storage=${StorageType.REDIS_NAME}")
+            .run { context: AssertableApplicationContext ->
+                val snapshot = context.getBean(ResolvedStorageRouteSnapshot::class.java)
+                val stores = context.getBean(RecordingStores::class.java)
+
+                snapshot.eventRoutes().eventRoutes.getValue(ORDER).assert().isSameAs(stores.redisEventStore)
+                val selection = snapshot.queryBackendRoutes().selection(
+                    QueryTarget(ORDER, QueryDocumentKind.EVENT_STREAM),
+                )
+                checkNotNull(selection.binding).name.assert().isEqualTo("redis-event-store")
+                checkNotNull(selection.binding).storage.assert().isEqualTo(StorageType.REDIS)
             }
     }
 
@@ -486,6 +530,54 @@ class StorageRoutingAutoConfigurationTest {
                 StorageType.REDIS,
                 stores.redisSnapshotQueryServiceFactory
             )
+
+        @Bean
+        fun mongoEventQueryBackendBinding(): QueryBackendBinding = QueryBackendBinding.storage(
+            StorageType.MONGO,
+            QueryDocumentKind.EVENT_STREAM,
+            unusedBackendFactory(),
+        )
+
+        @Bean
+        fun redisEventQueryBackendBinding(): QueryBackendBinding = QueryBackendBinding.storage(
+            StorageType.REDIS,
+            QueryDocumentKind.EVENT_STREAM,
+            unusedBackendFactory(),
+        )
+
+        @Bean
+        fun archiveEventQueryBackendBinding(): QueryBackendBinding = QueryBackendBinding.named(
+            "archive-event-store",
+            QueryDocumentKind.EVENT_STREAM,
+            null,
+            unusedBackendFactory(),
+        )
+
+        @Bean
+        fun mongoSnapshotQueryBackendBinding(): QueryBackendBinding = QueryBackendBinding.storage(
+            StorageType.MONGO,
+            QueryDocumentKind.SNAPSHOT,
+            unusedBackendFactory(),
+        )
+
+        @Bean
+        fun redisSnapshotQueryBackendBinding(): QueryBackendBinding = QueryBackendBinding.storage(
+            StorageType.REDIS,
+            QueryDocumentKind.SNAPSHOT,
+            unusedBackendFactory(),
+        )
+
+        @Bean
+        fun archiveSnapshotQueryBackendBinding(): QueryBackendBinding = QueryBackendBinding.named(
+            "archive-snapshot-store",
+            QueryDocumentKind.SNAPSHOT,
+            null,
+            unusedBackendFactory(),
+        )
+
+        private fun unusedBackendFactory(): QueryBackendFactory = QueryBackendFactory {
+            throw AssertionError("Backend binding is not executed by storage projection tests.")
+        }
     }
 
     internal class RecordingStores {

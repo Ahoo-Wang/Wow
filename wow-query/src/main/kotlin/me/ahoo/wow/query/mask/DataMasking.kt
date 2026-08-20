@@ -16,10 +16,12 @@ package me.ahoo.wow.query.mask
 import me.ahoo.wow.api.query.IMaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 
+@Deprecated("Use ResultPolicy for query result masking.")
 interface DataMasking<SOURCE : DataMasking<SOURCE>> : DataMasker {
     fun mask(): SOURCE
 }
 
+@Deprecated("Use ResultPolicy for query result masking.")
 fun <S : Any> S.tryMask(): S {
     if (this is DataMasking<*>) {
         @Suppress("UNCHECKED_CAST")
@@ -28,6 +30,7 @@ fun <S : Any> S.tryMask(): S {
     return this
 }
 
+@Deprecated("Use ResultPolicy for query result masking.")
 fun <SOURCE : IMaterializedSnapshot<SOURCE, S>, S : Any> SOURCE.tryMask(): SOURCE {
     val state = this.state
     if (state !is DataMasking<*>) {
@@ -38,6 +41,7 @@ fun <SOURCE : IMaterializedSnapshot<SOURCE, S>, S : Any> SOURCE.tryMask(): SOURC
     return this.withState(maskedState)
 }
 
+@Deprecated("Use ResultPolicy for query result masking.")
 fun <SOURCE : IMaterializedSnapshot<SOURCE, S>, S : Any> PagedList<SOURCE>.tryMask(): PagedList<SOURCE> {
     if (list.isEmpty()) {
         return this

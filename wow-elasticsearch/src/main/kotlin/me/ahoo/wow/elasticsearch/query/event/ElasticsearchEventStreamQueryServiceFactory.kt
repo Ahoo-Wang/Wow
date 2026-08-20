@@ -14,13 +14,26 @@
 package me.ahoo.wow.elasticsearch.query.event
 
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.event.AbstractEventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.EventStreamQueryService
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 
-class ElasticsearchEventStreamQueryServiceFactory(private val elasticsearchClient: ReactiveElasticsearchClient) :
-    AbstractEventStreamQueryServiceFactory() {
+class ElasticsearchEventStreamQueryServiceFactory private constructor(
+    private val elasticsearchClient: ReactiveElasticsearchClient,
+    private val queryGateway: QueryGateway?,
+    @Suppress("UNUSED_PARAMETER") marker: Unit
+) : AbstractEventStreamQueryServiceFactory() {
+    @Deprecated("Use the constructor that requires QueryGateway.")
+    constructor(elasticsearchClient: ReactiveElasticsearchClient) : this(elasticsearchClient, null, Unit)
+
+    constructor(
+        elasticsearchClient: ReactiveElasticsearchClient,
+        queryGateway: QueryGateway
+    ) : this(elasticsearchClient, queryGateway, Unit)
+
     override fun createQueryService(namedAggregate: NamedAggregate): EventStreamQueryService {
-        return ElasticsearchEventStreamQueryService(namedAggregate, elasticsearchClient)
+        return queryGateway?.let { ElasticsearchEventStreamQueryService(namedAggregate, elasticsearchClient, it) }
+            ?: ElasticsearchEventStreamQueryService(namedAggregate, elasticsearchClient)
     }
 }

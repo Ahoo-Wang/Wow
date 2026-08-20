@@ -4,7 +4,26 @@
   ],
   "template": {
     "mappings": {
+      "_meta": {
+        "wow_query_presence_version": 1,
+        "wow_query_presence_template_version": 1
+      },
       "properties": {
+        "__wow_query": {
+          "type": "object",
+          "properties": {
+            "present": {
+              "type": "keyword",
+              "index": true,
+              "doc_values": true
+            },
+            "null": {
+              "type": "keyword",
+              "index": true,
+              "doc_values": true
+            }
+          }
+        },
         "contextName": {
           "type": "keyword"
         },
@@ -63,6 +82,34 @@
         }
       },
       "dynamic_templates": [
+        {
+          "wow_query_present_keyword": {
+            "match_mapping_type": "string",
+            "path_match": [
+              "__wow_query.present",
+              "*.__wow_query.present"
+            ],
+            "mapping": {
+              "type": "keyword",
+              "index": true,
+              "doc_values": true
+            }
+          }
+        },
+        {
+          "wow_query_null_keyword": {
+            "match_mapping_type": "string",
+            "path_match": [
+              "__wow_query.null",
+              "*.__wow_query.null"
+            ],
+            "mapping": {
+              "type": "keyword",
+              "index": true,
+              "doc_values": true
+            }
+          }
+        },
         {
           "tags_strings_as_keyword": {
             "match_mapping_type": "string",

@@ -16,20 +16,45 @@ package me.ahoo.wow.elasticsearch.query.event
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchQueryService
 import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.converter.ConditionConverter
 import me.ahoo.wow.query.event.EventStreamQueryService
 import me.ahoo.wow.serialization.convert
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 
-class ElasticsearchEventStreamQueryService(
-    override val namedAggregate: NamedAggregate,
-    override val elasticsearchClient: ReactiveElasticsearchClient,
-    override val conditionConverter: ConditionConverter<Query> = EventStreamConditionConverter
-) : AbstractElasticsearchQueryService<DomainEventStream>(), EventStreamQueryService {
-    override val indexName: String = namedAggregate.toEventStreamIndexName()
+class ElasticsearchEventStreamQueryService :
+    AbstractElasticsearchQueryService<DomainEventStream>,
+    EventStreamQueryService {
+    override val namedAggregate: NamedAggregate
+    override val elasticsearchClient: ReactiveElasticsearchClient
+    override val conditionConverter: ConditionConverter<Query>
+
+    @Deprecated("Use the constructor that requires QueryGateway.")
+    constructor(
+        namedAggregate: NamedAggregate,
+        elasticsearchClient: ReactiveElasticsearchClient,
+        conditionConverter: ConditionConverter<Query> = EventStreamConditionConverter
+    ) : super() {
+        this.namedAggregate = namedAggregate
+        this.elasticsearchClient = elasticsearchClient
+        this.conditionConverter = conditionConverter
+    }
+
+    constructor(
+        namedAggregate: NamedAggregate,
+        elasticsearchClient: ReactiveElasticsearchClient,
+        queryGateway: QueryGateway
+    ) : super(namedAggregate, queryGateway, QueryDocumentKind.EVENT_STREAM) {
+        this.namedAggregate = namedAggregate
+        this.elasticsearchClient = elasticsearchClient
+        this.conditionConverter = EventStreamConditionConverter
+    }
+    override val indexName: String
+        get() = namedAggregate.toEventStreamIndexName()
 
     override fun toTypedResult(document: DynamicDocument): DomainEventStream {
         return document.convert<DomainEventStream>()

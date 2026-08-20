@@ -11,14 +11,18 @@
  * limitations under the License.
  */
 
+@file:Suppress("DEPRECATION_ERROR")
+
 package me.ahoo.wow.webflux.route.query
 
 import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.gateway.QueryDocumentKind
+import me.ahoo.wow.api.query.gateway.QueryTarget
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
-import me.ahoo.wow.query.filter.Contexts.writeRawRequest
-import me.ahoo.wow.query.filter.QueryHandler
+import me.ahoo.wow.query.QueryGateway
+import me.ahoo.wow.query.compat.LegacyQueryGatewayExecution
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.query.QueryBodyExtractor.Companion.LIST_QUERY_EXTRACTOR
@@ -31,8 +35,10 @@ import reactor.core.publisher.Mono
 
 class ListQueryHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val queryHandler: QueryHandler<*>,
+    private val queryGateway: QueryGateway,
+    private val documentKind: QueryDocumentKind,
     private val rewriteRequestCondition: RewriteRequestCondition,
+    private val queryAdmission: WebFluxQueryAdmission,
     private val exceptionHandler: RequestExceptionHandler,
     private val rewriteResult: (Flux<DynamicDocument>) -> Flux<DynamicDocument>
 ) : HandlerFunction<ServerResponse> {
@@ -40,18 +46,21 @@ class ListQueryHandlerFunction(
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         return request.body(LIST_QUERY_EXTRACTOR)
             .flatMapMany {
-                val query = rewriteRequestCondition.rewrite(aggregateMetadata, request, it)
-                val result = queryHandler.dynamicList(aggregateMetadata, query)
-                rewriteResult(result)
-            }.writeRawRequest(request)
+                val rewritten = rewriteRequestCondition.rewrite(aggregateMetadata, request, it)
+                val target = QueryTarget(aggregateMetadata, documentKind)
+                val result = LegacyQueryGatewayExecution.list(queryGateway, target, it, rewritten)
+                queryAdmission.bind(request, rewriteResult(result))
+            }
             .toServerResponse(request, exceptionHandler)
     }
 }
 
 open class ListQueryHandlerFunctionFactory(
     handlerKey: String,
-    private val queryHandler: QueryHandler<*>,
+    private val queryGateway: QueryGateway,
+    private val documentKind: QueryDocumentKind,
     private val rewriteRequestCondition: RewriteRequestCondition,
+    private val queryAdmission: WebFluxQueryAdmission,
     private val exceptionHandler: RequestExceptionHandler,
     private val rewriteResult: (Flux<DynamicDocument>) -> Flux<DynamicDocument> = { it }
 ) : AggregateRouteHandlerFunctionFactorySupport(handlerKey) {
@@ -65,8 +74,10 @@ open class ListQueryHandlerFunctionFactory(
     private fun create(aggregateMetadata: AggregateMetadata<*, *>): HandlerFunction<ServerResponse> {
         return ListQueryHandlerFunction(
             aggregateMetadata = aggregateMetadata,
-            queryHandler = queryHandler,
+            queryGateway = queryGateway,
+            documentKind = documentKind,
             rewriteRequestCondition = rewriteRequestCondition,
+            queryAdmission = queryAdmission,
             exceptionHandler = exceptionHandler,
             rewriteResult = rewriteResult
         )

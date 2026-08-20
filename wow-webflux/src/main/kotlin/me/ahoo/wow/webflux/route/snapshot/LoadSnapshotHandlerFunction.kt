@@ -11,20 +11,26 @@
  * limitations under the License.
  */
 
+@file:Suppress("DEPRECATION_ERROR")
+
 package me.ahoo.wow.webflux.route.snapshot
 
+import me.ahoo.wow.api.query.gateway.QueryDocumentKind
+import me.ahoo.wow.api.query.gateway.QueryTarget
 import me.ahoo.wow.exception.throwNotFoundIfEmpty
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
+import me.ahoo.wow.query.QueryGateway
+import me.ahoo.wow.query.compat.LegacyQueryGatewayExecution
 import me.ahoo.wow.query.dsl.singleQuery
-import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.command.getAggregateId
 import me.ahoo.wow.webflux.route.command.getOwnerId
 import me.ahoo.wow.webflux.route.command.getTenantIdOrDefault
+import me.ahoo.wow.webflux.route.query.WebFluxQueryAdmission
 import me.ahoo.wow.webflux.route.toServerResponse
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -33,7 +39,8 @@ import reactor.core.publisher.Mono
 
 class LoadSnapshotHandlerFunction(
     private val aggregateRouteMetadata: AggregateRouteMetadata<*>,
-    private val snapshotQueryHandler: SnapshotQueryHandler,
+    private val queryGateway: QueryGateway,
+    private val queryAdmission: WebFluxQueryAdmission,
     private val exceptionHandler: RequestExceptionHandler
 ) : HandlerFunction<ServerResponse> {
     private val aggregateMetadata = aggregateRouteMetadata.aggregateMetadata
@@ -50,14 +57,16 @@ class LoadSnapshotHandlerFunction(
                 }
             }
         }
-        return snapshotQueryHandler.dynamicSingle(aggregateMetadata, singleQuery)
-            .throwNotFoundIfEmpty()
+        val target = QueryTarget(aggregateMetadata, QueryDocumentKind.SNAPSHOT)
+        val result = LegacyQueryGatewayExecution.single(queryGateway, target, singleQuery, singleQuery)
+        return queryAdmission.bind(request, result.throwNotFoundIfEmpty())
             .toServerResponse(request, exceptionHandler)
     }
 }
 
 class LoadSnapshotHandlerFunctionFactory(
-    private val snapshotQueryHandler: SnapshotQueryHandler,
+    private val queryGateway: QueryGateway,
+    private val queryAdmission: WebFluxQueryAdmission,
     private val exceptionHandler: RequestExceptionHandler
 ) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Snapshot.LOAD) {
     override fun create(
@@ -68,6 +77,6 @@ class LoadSnapshotHandlerFunctionFactory(
     }
 
     private fun create(aggregateRouteMetadata: AggregateRouteMetadata<*>): HandlerFunction<ServerResponse> {
-        return LoadSnapshotHandlerFunction(aggregateRouteMetadata, snapshotQueryHandler, exceptionHandler)
+        return LoadSnapshotHandlerFunction(aggregateRouteMetadata, queryGateway, queryAdmission, exceptionHandler)
     }
 }

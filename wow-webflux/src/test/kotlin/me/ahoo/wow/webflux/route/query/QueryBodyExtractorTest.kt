@@ -13,17 +13,16 @@
 
 package me.ahoo.wow.webflux.route.query
 
-import io.mockk.every
-import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.ImmutableDynamicDocument
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedQuery
-import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.api.query.SingleQuery
+import me.ahoo.wow.api.query.gateway.ListQueryRequest
+import me.ahoo.wow.api.query.gateway.QueryDocumentKind
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
-import me.ahoo.wow.query.filter.Contexts.getRawRequest
-import me.ahoo.wow.query.filter.QueryHandler
+import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
 import me.ahoo.wow.webflux.route.testAggregateRouteContract
@@ -32,11 +31,11 @@ import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import org.springframework.mock.web.server.MockServerWebExchange
 import org.springframework.web.reactive.function.server.HandlerStrategies
-import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Flux
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
+import java.util.concurrent.atomic.AtomicBoolean
 
 class QueryBodyExtractorTest {
 
@@ -45,8 +44,10 @@ class QueryBodyExtractorTest {
         // Test condition extraction through CountQueryHandlerFunction end-to-end
         val handlerFunction = CountQueryHandlerFunctionFactory(
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
-            queryHandler = RouteTestFixtures.snapshotQueryHandler,
+            queryGateway = RouteTestFixtures.queryGateway,
+            documentKind = QueryDocumentKind.SNAPSHOT,
             rewriteRequestCondition = DefaultRewriteRequestCondition,
+            queryAdmission = RouteTestFixtures.queryAdmission,
             exceptionHandler = WebFluxRequestExceptionHandler()
         ).create(
             testAggregateRouteContract(
@@ -66,19 +67,21 @@ class QueryBodyExtractorTest {
     }
 
     @Test
-    fun `list query should keep raw request context until response body subscription`() {
-        val queryHandler = mockk<QueryHandler<Any>> {
-            every {
-                dynamicList(any(), any())
-            } returns Flux.deferContextual {
-                it.getRawRequest<ServerRequest>().assert().isNotNull()
-                Flux.just(mutableMapOf("context" to "ok").toDynamicDocument())
+    fun `list query should stay lazy until response body subscription`() {
+        val subscribed = AtomicBoolean()
+        val queryGateway = object : QueryGateway by RouteTestFixtures.queryGateway {
+            override fun <R : Any> list(request: ListQueryRequest<R>): Flux<R> = Flux.defer {
+                subscribed.set(true)
+                @Suppress("UNCHECKED_CAST")
+                Flux.just(ImmutableDynamicDocument.copyOf(mapOf("context" to "ok")) as R)
             }
         }
         val handlerFunction = ListQueryHandlerFunctionFactory(
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY,
-            queryHandler = queryHandler,
+            queryGateway = queryGateway,
+            documentKind = QueryDocumentKind.SNAPSHOT,
             rewriteRequestCondition = DefaultRewriteRequestCondition,
+            queryAdmission = RouteTestFixtures.queryAdmission,
             exceptionHandler = WebFluxRequestExceptionHandler()
         ).create(
             testAggregateRouteContract(
@@ -93,6 +96,7 @@ class QueryBodyExtractorTest {
         handlerFunction.handle(request)
             .test()
             .consumeNextWith {
+                subscribed.get().assert().isFalse()
                 val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/test").build())
                 it.writeTo(exchange, SERVER_RESPONSE_CONTEXT)
                     .test()
@@ -105,8 +109,10 @@ class QueryBodyExtractorTest {
     fun `should extract list query via list handler`() {
         val handlerFunction = ListQueryHandlerFunctionFactory(
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY,
-            queryHandler = RouteTestFixtures.snapshotQueryHandler,
+            queryGateway = RouteTestFixtures.queryGateway,
+            documentKind = QueryDocumentKind.SNAPSHOT,
             rewriteRequestCondition = DefaultRewriteRequestCondition,
+            queryAdmission = RouteTestFixtures.queryAdmission,
             exceptionHandler = WebFluxRequestExceptionHandler()
         ).create(
             testAggregateRouteContract(
@@ -129,8 +135,10 @@ class QueryBodyExtractorTest {
     fun `should extract paged query via paged handler`() {
         val handlerFunction = PagedQueryHandlerFunctionFactory(
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.PAGED_QUERY,
-            queryHandler = RouteTestFixtures.snapshotQueryHandler,
+            queryGateway = RouteTestFixtures.queryGateway,
+            documentKind = QueryDocumentKind.SNAPSHOT,
             rewriteRequestCondition = DefaultRewriteRequestCondition,
+            queryAdmission = RouteTestFixtures.queryAdmission,
             exceptionHandler = WebFluxRequestExceptionHandler()
         ).create(
             testAggregateRouteContract(
@@ -156,8 +164,10 @@ class QueryBodyExtractorTest {
         // This tests that the body extraction and query pipeline work correctly.
         val handlerFunction = SingleQueryHandlerFunctionFactory(
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.SINGLE,
-            queryHandler = RouteTestFixtures.snapshotQueryHandler,
+            queryGateway = RouteTestFixtures.queryGateway,
+            documentKind = QueryDocumentKind.SNAPSHOT,
             rewriteRequestCondition = DefaultRewriteRequestCondition,
+            queryAdmission = RouteTestFixtures.queryAdmission,
             exceptionHandler = WebFluxRequestExceptionHandler()
         ).create(
             testAggregateRouteContract(

@@ -22,6 +22,10 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.error.QueryErrorCode
+import me.ahoo.wow.api.query.error.QueryErrorReason
+import me.ahoo.wow.api.query.error.QueryException
+import me.ahoo.wow.api.query.error.QueryStage
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotStore
 import me.ahoo.wow.query.QueryService
 import reactor.core.publisher.Flux
@@ -33,30 +37,36 @@ class NoOpSnapshotQueryService<S : Any>(override val namedAggregate: NamedAggreg
         get() = NoOpSnapshotStore.NAME
 
     override fun single(singleQuery: ISingleQuery): Mono<MaterializedSnapshot<S>> {
-        return Mono.empty()
+        return Mono.defer { Mono.error(backendUnavailable()) }
     }
 
     override fun dynamicSingle(singleQuery: ISingleQuery): Mono<DynamicDocument> {
-        return Mono.empty()
+        return Mono.defer { Mono.error(backendUnavailable()) }
     }
 
     override fun list(listQuery: IListQuery): Flux<MaterializedSnapshot<S>> {
-        return Flux.empty()
+        return Flux.defer { Flux.error(backendUnavailable()) }
     }
 
     override fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument> {
-        return Flux.empty()
+        return Flux.defer { Flux.error(backendUnavailable()) }
     }
 
     override fun paged(pagedQuery: IPagedQuery): Mono<PagedList<MaterializedSnapshot<S>>> {
-        return Mono.just(PagedList.empty())
+        return Mono.defer { Mono.error(backendUnavailable()) }
     }
 
     override fun dynamicPaged(pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>> {
-        return Mono.just(PagedList.empty())
+        return Mono.defer { Mono.error(backendUnavailable()) }
     }
 
     override fun count(condition: Condition): Mono<Long> {
-        return Mono.just(0)
+        return Mono.defer { Mono.error(backendUnavailable()) }
     }
+
+    private fun backendUnavailable(): QueryException = QueryException(
+        QueryErrorCode.BACKEND_NOT_READY,
+        QueryStage.BACKEND_RESOLUTION,
+        QueryErrorReason.BACKEND_UNAVAILABLE
+    )
 }

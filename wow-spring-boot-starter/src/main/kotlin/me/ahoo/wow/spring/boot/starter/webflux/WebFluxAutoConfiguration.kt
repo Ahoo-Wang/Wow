@@ -23,8 +23,7 @@ import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.RouterSpecs
-import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
-import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
+import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
 import me.ahoo.wow.spring.boot.starter.bi.BiScriptProperties
@@ -62,6 +61,8 @@ import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
 import me.ahoo.wow.webflux.route.query.DefaultRewriteRequestCondition
 import me.ahoo.wow.webflux.route.query.RewriteRequestCondition
+import me.ahoo.wow.webflux.route.query.WebFluxQueryAdmission
+import me.ahoo.wow.webflux.route.query.WebFluxQueryAuthorityResolver
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
@@ -174,8 +175,24 @@ class WebFluxAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    @Deprecated("Use QueryGateway policies with a verified QueryAuthorityProvider.")
     fun rewriteRequestCondition(): RewriteRequestCondition {
         return DefaultRewriteRequestCondition
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    fun webFluxQueryAuthorityResolver(): WebFluxQueryAuthorityResolver {
+        return WebFluxQueryAuthorityResolver.SUBJECT
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    fun webFluxQueryAdmission(
+        authorityResolver: WebFluxQueryAuthorityResolver,
+        authorityProvider: me.ahoo.wow.query.invocation.QueryAuthorityProvider
+    ): WebFluxQueryAdmission {
+        return WebFluxQueryAdmission(authorityResolver, authorityProvider)
     }
 
     @Bean
@@ -220,15 +237,15 @@ class WebFluxAutoConfiguration {
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @ConditionalOnMissingBean
     fun queryRouteModule(
-        snapshotQueryHandler: SnapshotQueryHandler,
-        eventStreamQueryHandler: EventStreamQueryHandler,
+        queryGateway: QueryGateway,
         rewriteRequestCondition: RewriteRequestCondition,
+        queryAdmission: WebFluxQueryAdmission,
         exceptionHandler: RequestExceptionHandler
     ): QueryRouteModule {
         return QueryRouteModule(
-            snapshotQueryHandler = snapshotQueryHandler,
-            eventStreamQueryHandler = eventStreamQueryHandler,
+            queryGateway = queryGateway,
             rewriteRequestCondition = rewriteRequestCondition,
+            queryAdmission = queryAdmission,
             exceptionHandler = exceptionHandler
         )
     }

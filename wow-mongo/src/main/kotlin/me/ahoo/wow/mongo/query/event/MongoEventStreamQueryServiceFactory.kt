@@ -17,15 +17,25 @@ import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
+import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.event.AbstractEventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.EventStreamQueryService
 
-class MongoEventStreamQueryServiceFactory(private val database: MongoDatabase) :
-    AbstractEventStreamQueryServiceFactory() {
+class MongoEventStreamQueryServiceFactory private constructor(
+    private val database: MongoDatabase,
+    private val queryGateway: QueryGateway?,
+    @Suppress("UNUSED_PARAMETER") marker: Unit
+) : AbstractEventStreamQueryServiceFactory() {
+    @Deprecated("Use the constructor that requires QueryGateway.")
+    constructor(database: MongoDatabase) : this(database, null, Unit)
+
+    constructor(database: MongoDatabase, queryGateway: QueryGateway) : this(database, queryGateway, Unit)
 
     override fun createQueryService(namedAggregate: NamedAggregate): EventStreamQueryService {
         val collectionName = namedAggregate.toEventStreamCollectionName()
         val collection = database.getCollection(collectionName)
-        return MongoEventStreamQueryService(namedAggregate.materialize(), collection)
+        val materialized = namedAggregate.materialize()
+        return queryGateway?.let { MongoEventStreamQueryService(materialized, collection, it) }
+            ?: MongoEventStreamQueryService(materialized, collection)
     }
 }

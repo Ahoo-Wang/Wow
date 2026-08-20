@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.webflux.route.query
 
+import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.ConditionCapable
 import me.ahoo.wow.api.query.RewritableCondition
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.query.dsl.condition
@@ -21,6 +23,7 @@ import me.ahoo.wow.webflux.route.command.getSpaceId
 import me.ahoo.wow.webflux.route.command.getTenantId
 import org.springframework.web.reactive.function.server.ServerRequest
 
+@Deprecated("Use QueryGateway policies with a verified QueryAuthorityProvider.")
 interface RewriteRequestCondition {
     fun <Q : RewritableCondition<Q>> rewrite(
         aggregateMetadata: AggregateMetadata<*, *>,
@@ -29,6 +32,7 @@ interface RewriteRequestCondition {
     ): Q
 }
 
+@Deprecated("Use QueryGateway policies with a verified QueryAuthorityProvider.")
 abstract class AbstractRewriteRequestCondition : RewriteRequestCondition {
     protected open fun ServerRequest.resolveTenantId(aggregateMetadata: AggregateMetadata<*, *>): String? {
         return getTenantId(aggregateMetadata)
@@ -64,6 +68,11 @@ abstract class AbstractRewriteRequestCondition : RewriteRequestCondition {
                 spaceId(spaceId)
             }
         }
-        return rewritableCondition.appendCondition(appendCondition)
+        val originalCondition = when (rewritableCondition) {
+            is Condition -> rewritableCondition
+            is ConditionCapable<*> -> rewritableCondition.condition
+            else -> return rewritableCondition.appendCondition(appendCondition)
+        }
+        return rewritableCondition.withCondition(Condition.and(originalCondition, appendCondition))
     }
 }

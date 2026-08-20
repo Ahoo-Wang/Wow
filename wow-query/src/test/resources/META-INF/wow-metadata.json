@@ -1,0 +1,14 @@
+{
+  "contexts": {
+    "masking-compat": {
+      "scopes": [
+        "me.ahoo.wow.query.compat"
+      ],
+      "aggregates": {
+        "masking_compatibility_aggregate": {
+          "type": "me.ahoo.wow.query.compat.MaskingCompatibilityAggregate"
+        }
+      }
+    }
+  }
+}

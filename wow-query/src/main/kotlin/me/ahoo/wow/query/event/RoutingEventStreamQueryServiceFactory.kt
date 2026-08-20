@@ -17,6 +17,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.materialize
 
+@Deprecated("Use GatewayEventStreamQueryServiceFactory backed by QueryGateway.")
 class RoutingEventStreamQueryServiceFactory(
     private val defaultEventStreamQueryServiceFactory: EventStreamQueryServiceFactory,
     routes: Map<NamedAggregate, EventStreamQueryServiceFactory>

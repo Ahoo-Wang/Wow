@@ -2,6 +2,7 @@ description = "Wow Test Suite"
 
 dependencies {
     api(project(":wow-core"))
+    api(project(":wow-query"))
     api("io.projectreactor:reactor-test")
     api("me.ahoo.cosid:cosid-test")
     api("me.ahoo.test:fluent-assert-core")

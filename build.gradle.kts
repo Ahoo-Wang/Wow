@@ -13,14 +13,17 @@
 
 import io.gitlab.arturbosch.detekt.DetektPlugin
 import io.gitlab.arturbosch.detekt.extensions.DetektExtension
+import org.gradle.api.tasks.ClasspathNormalizer
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.SourceSetContainer
+import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.gradle.language.base.plugins.LifecycleBasePlugin
 import org.gradle.testretry.TestRetryPlugin
 import org.jetbrains.dokka.gradle.DokkaPlugin
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import java.io.File
 
 plugins {
     alias(libs.plugins.test.retry)
@@ -87,6 +90,17 @@ val integrationTestProjects = setOf(
     project(":wow-it"),
 )
 
+val queryApiModules = listOf(
+    ":wow-api",
+    ":wow-query",
+    ":wow-webflux",
+    ":wow-spring",
+    ":wow-spring-boot-starter",
+    ":wow-mongo",
+    ":wow-elasticsearch",
+    ":wow-cosec",
+)
+val queryApiExpectedModules = layout.projectDirectory.file("config/query-api/expected-modules.txt")
 ext.set("localTestProjects", localTestProjects)
 ext.set("localContractTestProjects", localContractTestProjects)
 ext.set("integrationTestProjects", integrationTestProjects)
@@ -226,6 +240,162 @@ configure(libraryProjects) {
         testImplementation("org.junit.jupiter:junit-jupiter-params")
         testRuntimeOnly("org.junit.platform:junit-platform-launcher")
         testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
+    }
+}
+
+val queryApiRuntimeClasspathTaskName = "writeQueryApiRuntimeClasspath"
+configure(queryApiModules.map(::project)) {
+    val sourceSets = extensions.getByType<SourceSetContainer>()
+    val mainSourceSet = sourceSets.getByName(SourceSet.MAIN_SOURCE_SET_NAME)
+    val runtimeDependencyClasspath = providers.provider {
+        mainSourceSet.runtimeClasspath.minus(mainSourceSet.output)
+    }
+    val runtimeDependencyClasspathOrder = runtimeDependencyClasspath.map { classpath ->
+        classpath.files.map(File::getAbsolutePath)
+    }
+    val runtimeClasspathFile = layout.buildDirectory.file("query-api/runtime-classpath.txt")
+    tasks.register(queryApiRuntimeClasspathTaskName) {
+        inputs.files(runtimeDependencyClasspath)
+            .withPropertyName("runtimeDependencyClasspath")
+            .withNormalizer(ClasspathNormalizer::class.java)
+        inputs.property("runtimeDependencyClasspathOrder", runtimeDependencyClasspathOrder)
+        outputs.file(runtimeClasspathFile)
+        doLast {
+            val classpathEntries = runtimeDependencyClasspath.get().files
+            val missingRequiredEntries = classpathEntries.filter { entry -> !entry.exists() }
+            check(missingRequiredEntries.isEmpty()) {
+                "Runtime classpath contains missing required entries: $missingRequiredEntries"
+            }
+            val output = runtimeClasspathFile.get().asFile
+            output.parentFile.mkdirs()
+            output.writeText(
+                classpathEntries.joinToString(separator = "\n", postfix = "\n") { it.absolutePath }
+            )
+        }
+    }
+}
+
+fun queryApiModuleRuntimeClasspath(module: String): List<String> = project(module)
+    .layout
+    .buildDirectory
+    .file("query-api/runtime-classpath.txt")
+    .get()
+    .asFile
+    .readLines()
+    .filter(String::isNotEmpty)
+
+fun queryApiModuleRuntimeDependencies(module: String): FileCollection {
+    val sourceSets = project(module).extensions.getByType<SourceSetContainer>()
+    val mainSourceSet = sourceSets.getByName(SourceSet.MAIN_SOURCE_SET_NAME)
+    return mainSourceSet.runtimeClasspath.minus(mainSourceSet.output)
+}
+
+fun queryApiRuntimeClasspath(): String = queryApiModules
+    .map(::queryApiModuleRuntimeClasspath)
+    .flatten()
+    .joinToString(File.pathSeparator)
+
+val queryApiKotlinCompiler = configurations.detachedConfiguration(
+    dependencies.create("org.jetbrains.kotlin:kotlin-compiler-embeddable:${libs.versions.kotlin.asProvider().get()}")
+)
+
+val queryApiSourceCheck = tasks.register<Exec>("queryApiSourceCheck") {
+    description = "Compiles query admission API fixtures as external Java and Kotlin modules."
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    dependsOn(":wow-query:jar")
+    dependsOn(":wow-query:$queryApiRuntimeClasspathTaskName")
+    dependsOn(":wow-mongo:jar")
+    dependsOn(":wow-mongo:$queryApiRuntimeClasspathTaskName")
+    dependsOn(":wow-elasticsearch:jar")
+    dependsOn(":wow-elasticsearch:$queryApiRuntimeClasspathTaskName")
+    dependsOn(":wow-spring-boot-starter:jar")
+    dependsOn(":wow-spring-boot-starter:$queryApiRuntimeClasspathTaskName")
+    val wowQueryJar = project(":wow-query").tasks.named<Jar>("jar").flatMap { it.archiveFile }
+    val wowMongoJar = project(":wow-mongo").tasks.named<Jar>("jar").flatMap { it.archiveFile }
+    val wowElasticsearchJar = project(":wow-elasticsearch").tasks.named<Jar>("jar").flatMap { it.archiveFile }
+    val wowStarterJar = project(":wow-spring-boot-starter").tasks.named<Jar>("jar").flatMap { it.archiveFile }
+    val runtimeDependencies = queryApiModuleRuntimeDependencies(":wow-query")
+        .plus(queryApiModuleRuntimeDependencies(":wow-mongo"))
+        .plus(queryApiModuleRuntimeDependencies(":wow-elasticsearch"))
+        .plus(queryApiModuleRuntimeDependencies(":wow-spring-boot-starter"))
+        .minus(files(wowQueryJar, wowMongoJar, wowElasticsearchJar, wowStarterJar))
+    inputs.file("scripts/query-api-source-check.sh")
+    inputs.file(wowQueryJar)
+    inputs.file(wowMongoJar)
+    inputs.file(wowElasticsearchJar)
+    inputs.file(wowStarterJar)
+    inputs.file(project(":wow-query").layout.buildDirectory.file("query-api/runtime-classpath.txt"))
+    inputs.file(project(":wow-mongo").layout.buildDirectory.file("query-api/runtime-classpath.txt"))
+    inputs.file(project(":wow-elasticsearch").layout.buildDirectory.file("query-api/runtime-classpath.txt"))
+    inputs.file(project(":wow-spring-boot-starter").layout.buildDirectory.file("query-api/runtime-classpath.txt"))
+    inputs.files(runtimeDependencies)
+        .withPropertyName("runtimeDependencyClasspath")
+        .withNormalizer(ClasspathNormalizer::class.java)
+    inputs.files(queryApiKotlinCompiler)
+        .withPropertyName("kotlinCompilerClasspath")
+        .withNormalizer(ClasspathNormalizer::class.java)
+    doFirst {
+        val wowQueryJar = project(":wow-query").tasks.named<Jar>("jar").get().archiveFile.get().asFile
+        val wowMongoJar = project(":wow-mongo").tasks.named<Jar>("jar").get().archiveFile.get().asFile
+        val wowElasticsearchJar = project(":wow-elasticsearch").tasks.named<Jar>("jar").get().archiveFile.get().asFile
+        val wowStarterJar = project(":wow-spring-boot-starter").tasks.named<Jar>("jar").get().archiveFile.get().asFile
+        val sourceRuntimeClasspath = (
+            queryApiModuleRuntimeClasspath(":wow-query") + queryApiModuleRuntimeClasspath(":wow-mongo") +
+                queryApiModuleRuntimeClasspath(":wow-elasticsearch") +
+                queryApiModuleRuntimeClasspath(":wow-spring-boot-starter")
+            ).distinct().filterNot { runtimeEntry ->
+                runtimeEntry == wowQueryJar.absolutePath || runtimeEntry == wowMongoJar.absolutePath ||
+                    runtimeEntry == wowElasticsearchJar.absolutePath || runtimeEntry == wowStarterJar.absolutePath
+            }
+        commandLine(
+            "bash",
+            "scripts/query-api-source-check.sh",
+            wowQueryJar.absolutePath,
+            wowMongoJar.absolutePath,
+            wowElasticsearchJar.absolutePath,
+            wowStarterJar.absolutePath,
+            sourceRuntimeClasspath.joinToString(File.pathSeparator),
+            queryApiKotlinCompiler.asPath,
+        )
+    }
+}
+
+tasks.register<Exec>("queryApiDump") {
+    dependsOn(queryApiModules.map { "$it:jar" })
+    dependsOn(queryApiModules.map { "$it:$queryApiRuntimeClasspathTaskName" })
+    inputs.file(queryApiExpectedModules)
+    doFirst {
+        commandLine(
+            "bash",
+            "scripts/query-api-abi.sh",
+            "dump",
+            "--expected-modules",
+            queryApiExpectedModules.asFile.absolutePath,
+            "--runtime-classpath",
+            queryApiRuntimeClasspath(),
+            "--classpath-separator",
+            File.pathSeparator,
+        )
+    }
+}
+
+tasks.register<Exec>("queryApiCheck") {
+    dependsOn(queryApiSourceCheck)
+    dependsOn(queryApiModules.map { "$it:jar" })
+    dependsOn(queryApiModules.map { "$it:$queryApiRuntimeClasspathTaskName" })
+    inputs.file(queryApiExpectedModules)
+    doFirst {
+        commandLine(
+            "bash",
+            "scripts/query-api-abi.sh",
+            "check",
+            "--expected-modules",
+            queryApiExpectedModules.asFile.absolutePath,
+            "--runtime-classpath",
+            queryApiRuntimeClasspath(),
+            "--classpath-separator",
+            File.pathSeparator,
+        )
     }
 }
 

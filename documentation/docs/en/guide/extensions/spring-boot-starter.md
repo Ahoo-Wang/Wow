@@ -51,6 +51,12 @@ Spring Boot Starter uses Spring Boot's auto-configuration mechanism to automatic
 
 The capabilities are optional; you can instead declare the individual `wow-*` dependencies directly, as shown in the extension-specific guides.
 
+### QueryGateway auto-configuration
+
+The starter creates one application `QueryGateway`, collects ordered `QueryPolicy` and `ResultPolicy` beans, and resolves backends through canonical storage routing. An application may provide at most one custom `QueryAdmission`. Tenant/owner/space authority must come from an authenticated adapter and is never promoted from headers or paths.
+
+Extend queries with `QueryPolicy`, `ResultPolicy`, `QuerySchemaCustomizer`, or `QueryBackendFactory`. The legacy Filter runtime is removed; deprecated `RewriteRequestCondition` is 8.x `LEGACY_ENRICHMENT` only. See [Query Filter migration](../migration/query-filter-to-query-policy.md) and [Custom Query Backend](./query-backend.md).
+
 ```mermaid
 flowchart TB
     subgraph AutoConfig["Auto Configuration"]
