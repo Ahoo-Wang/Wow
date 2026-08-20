@@ -47,6 +47,8 @@ class QueryAutoConfigurationTest {
                 context.assert()
                     .hasBean(ExistsBeanName.SNAPSHOT_QUERY_SERVICE)
                     .hasBean(ExistsBeanName.EVENT_STREAM_QUERY_SERVICE)
+                    .hasBean("noOpSnapshotQueryServiceFactory")
+                    .hasBean("noOpEventStreamQueryServiceFactory")
                     .hasSingleBean(MaskingSnapshotQueryFilter::class.java)
                     .hasSingleBean(TailSnapshotQueryFilter::class.java)
                     .hasBean("snapshotQueryFilterChain")

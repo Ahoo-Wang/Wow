@@ -150,13 +150,13 @@ class QueryAutoConfiguration {
         return DefaultEventStreamQueryHandler(chain, queryErrorHandler)
     }
 
-    @Bean
+    @Bean("noOpSnapshotQueryServiceFactory")
     @ConditionalOnMissingBean(SnapshotQueryServiceFactory::class)
     fun unavailableSnapshotQueryServiceFactory(): SnapshotQueryServiceFactory {
         return UnavailableSnapshotQueryServiceFactory
     }
 
-    @Bean
+    @Bean("noOpEventStreamQueryServiceFactory")
     @ConditionalOnMissingBean(EventStreamQueryServiceFactory::class)
     fun unavailableEventStreamQueryServiceFactory(): EventStreamQueryServiceFactory {
         return UnavailableEventStreamQueryServiceFactory
