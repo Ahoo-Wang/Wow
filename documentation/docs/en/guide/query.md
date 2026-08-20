@@ -57,6 +57,10 @@ Currently the `wow-mongo` module and `wow-elasticsearch` module support query se
 | RECENT_DAYS   | Matches all documents where the field is within the specified number of recent days range. For example: `today`: `2024-06-06`, recent 3 days, matches range: `2024-06-04 00:00:00.000` ~ `2024-06-06 23:59:59.999`. That is: today, yesterday, the day before yesterday |
 | EARLIER_DAYS  | Matches all documents where the field is within the specified number of days before the specified value. For example: `today`: `2024-06-06`, 3 days ago, matches range: less than `2024-06-04 00:00:00.000`                                                             |
 
+:::info Elasticsearch string fields
+`CONTAINS`, `STARTS_WITH`, and `ENDS_WITH` are literal operations. In Elasticsearch, use them with term-level fields such as `keyword` and `wildcard`; `*`, `?`, and `\` are matched as ordinary characters, and all three support `ignoreCase`. Use `MATCH` for full-text search.
+:::
+
 ## Query DSL
 
 The `Query DSL` aims to provide a concise and flexible way to build query conditions.

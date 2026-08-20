@@ -57,6 +57,10 @@ description: 通过 wow-mongo 和 wow-elasticsearch 模块提供的查询服务�
 | RECENT_DAYS   | 匹配字段在指定值最近天数范围区间的所有文档。比如：`today` : `2024-06-06`，近三天，匹配范围 : `2024-06-04 00:00:00.000` ~ `2024-06-06 23:59:59.999` 的所有文档。即 : 今天、昨天、前天 |
 | EARLIER_DAYS  | 匹配字段在指定值之前天数范围的所有文档。比如：`today` : `2024-06-06`，前三天，匹配范围 : 小于`2024-06-04 00:00:00.000`的所有文档                                           |
 
+:::info Elasticsearch 字符串字段
+`CONTAINS`、`STARTS_WITH` 和 `ENDS_WITH` 是字面量操作，在 Elasticsearch 中应作用于 `keyword`、`wildcard` 等 term-level 字段；`*`、`?` 和 `\` 按普通字符匹配，三者均支持 `ignoreCase`。全文检索请使用 `MATCH`。
+:::
+
 ## Query DSL
 
 `Query DSL` 旨在提供一种简洁而灵活的方式来构建查询条件。

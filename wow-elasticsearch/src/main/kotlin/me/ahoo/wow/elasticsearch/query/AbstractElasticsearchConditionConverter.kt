@@ -20,7 +20,6 @@ import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.exists
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.ids
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.match
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll
-import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchPhrase
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.nested
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.prefix
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.range
@@ -144,9 +143,10 @@ abstract class AbstractElasticsearchConditionConverter : AbstractConditionConver
     }
 
     override fun contains(condition: Condition): Query {
-        return matchPhrase {
+        return wildcard {
             it.field(condition.field)
-                .query(condition.valueAs<String>())
+                .value("*${condition.valueAs<String>().escapeWildcard()}*")
+                .caseInsensitive(condition.ignoreCase())
         }
     }
 
@@ -209,13 +209,15 @@ abstract class AbstractElasticsearchConditionConverter : AbstractConditionConver
         return prefix {
             it.field(condition.field)
                 .value(condition.valueAs<String>())
+                .caseInsensitive(condition.ignoreCase())
         }
     }
 
     override fun endsWith(condition: Condition): Query {
         return wildcard {
             it.field(condition.field)
-                .value("*${condition.valueAs<String>()}")
+                .value("*${condition.valueAs<String>().escapeWildcard()}")
+                .caseInsensitive(condition.ignoreCase())
         }
     }
 
@@ -317,3 +319,8 @@ abstract class AbstractElasticsearchConditionConverter : AbstractConditionConver
         return Query.Builder().withJson(StringReader(this)).build()
     }
 }
+
+private fun String.escapeWildcard(): String =
+    replace("\\", "\\\\")
+        .replace("*", "\\*")
+        .replace("?", "\\?")
