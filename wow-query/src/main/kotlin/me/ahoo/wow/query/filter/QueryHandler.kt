@@ -51,100 +51,46 @@ abstract class AbstractQueryHandler<R : Any>(
             }
     }
 
-    override fun single(namedAggregate: NamedAggregate, singleQuery: ISingleQuery): Mono<R> {
-        val context = DefaultQueryContext<ISingleQuery, Mono<R>>(
-            namedAggregate = namedAggregate,
-            queryType = QueryType.SINGLE
-        ).setQuery(singleQuery)
-        return handle(context)
-            .then(
-                Mono.defer {
-                    context.getRequiredResult()
-                }
-            )
+    private fun <Q : Any, T : Any> mono(
+        namedAggregate: NamedAggregate,
+        queryType: QueryType,
+        query: Q,
+    ): Mono<T> = Mono.defer {
+        val context = DefaultQueryContext<Q, Mono<T>>(queryType, namedAggregate).setQuery(query)
+        handle(context).then(Mono.defer { context.getRequiredResult() })
     }
 
-    override fun dynamicSingle(namedAggregate: NamedAggregate, singleQuery: ISingleQuery): Mono<DynamicDocument> {
-        val context = DefaultQueryContext<ISingleQuery, Mono<DynamicDocument>>(
-            namedAggregate = namedAggregate,
-            queryType = QueryType.DYNAMIC_SINGLE
-        ).setQuery(singleQuery)
-        return handle(context)
-            .then(
-                Mono.defer {
-                    context.getRequiredResult()
-                }
-            )
+    private fun <Q : Any, T : Any> flux(
+        namedAggregate: NamedAggregate,
+        queryType: QueryType,
+        query: Q,
+    ): Flux<T> = Flux.defer {
+        val context = DefaultQueryContext<Q, Flux<T>>(queryType, namedAggregate).setQuery(query)
+        handle(context).thenMany(Flux.defer { context.getRequiredResult() })
     }
 
-    override fun list(namedAggregate: NamedAggregate, listQuery: IListQuery): Flux<R> {
-        val context = DefaultQueryContext<IListQuery, Flux<R>>(
-            namedAggregate = namedAggregate,
-            queryType = QueryType.LIST
-        ).setQuery(listQuery)
-        return handle(context)
-            .thenMany(
-                Flux.defer {
-                    context.getRequiredResult()
-                }
-            )
-    }
+    override fun single(namedAggregate: NamedAggregate, singleQuery: ISingleQuery): Mono<R> =
+        mono(namedAggregate, QueryType.SINGLE, singleQuery)
 
-    override fun dynamicList(namedAggregate: NamedAggregate, listQuery: IListQuery): Flux<DynamicDocument> {
-        val context = DefaultQueryContext<IListQuery, Flux<DynamicDocument>>(
-            namedAggregate = namedAggregate,
-            queryType = QueryType.DYNAMIC_LIST
-        ).setQuery(listQuery)
-        return handle(context)
-            .thenMany(
-                Flux.defer {
-                    context.getRequiredResult()
-                }
-            )
-    }
+    override fun dynamicSingle(namedAggregate: NamedAggregate, singleQuery: ISingleQuery): Mono<DynamicDocument> =
+        mono(namedAggregate, QueryType.DYNAMIC_SINGLE, singleQuery)
+
+    override fun list(namedAggregate: NamedAggregate, listQuery: IListQuery): Flux<R> =
+        flux(namedAggregate, QueryType.LIST, listQuery)
+
+    override fun dynamicList(namedAggregate: NamedAggregate, listQuery: IListQuery): Flux<DynamicDocument> =
+        flux(namedAggregate, QueryType.DYNAMIC_LIST, listQuery)
 
     override fun paged(
         namedAggregate: NamedAggregate,
         pagedQuery: IPagedQuery
-    ): Mono<PagedList<R>> {
-        val context = DefaultQueryContext<IPagedQuery, Mono<PagedList<R>>>(
-            namedAggregate = namedAggregate,
-            queryType = QueryType.PAGED
-        ).setQuery(pagedQuery)
-        return handle(context)
-            .then(
-                Mono.defer {
-                    context.getRequiredResult()
-                }
-            )
-    }
+    ): Mono<PagedList<R>> = mono(namedAggregate, QueryType.PAGED, pagedQuery)
 
     override fun dynamicPaged(
         namedAggregate: NamedAggregate,
         pagedQuery: IPagedQuery
-    ): Mono<PagedList<DynamicDocument>> {
-        val context = DefaultQueryContext<IPagedQuery, Mono<PagedList<DynamicDocument>>>(
-            namedAggregate = namedAggregate,
-            queryType = QueryType.DYNAMIC_PAGED
-        ).setQuery(pagedQuery)
-        return handle(context)
-            .then(
-                Mono.defer {
-                    context.getRequiredResult()
-                }
-            )
-    }
+    ): Mono<PagedList<DynamicDocument>> = mono(namedAggregate, QueryType.DYNAMIC_PAGED, pagedQuery)
 
-    override fun count(namedAggregate: NamedAggregate, condition: Condition): Mono<Long> {
-        val context = DefaultQueryContext<Condition, Mono<Long>>(
-            namedAggregate = namedAggregate,
-            queryType = QueryType.COUNT
-        ).setQuery(condition)
-        return handle(context)
-            .then(
-                Mono.defer {
-                    context.getRequiredResult()
-                }
-            )
-    }
+    override fun count(namedAggregate: NamedAggregate, condition: Condition): Mono<Long> =
+        mono(namedAggregate, QueryType.COUNT, condition)
 }
