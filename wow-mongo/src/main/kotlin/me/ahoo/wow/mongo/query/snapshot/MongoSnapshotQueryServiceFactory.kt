@@ -16,14 +16,33 @@ package me.ahoo.wow.mongo.query.snapshot
 import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.modeling.materialize
-import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCollectionName
+import me.ahoo.wow.mongo.query.gateway.MongoSnapshotQueryBackend
+import me.ahoo.wow.query.backend.QueryRouter
+import me.ahoo.wow.query.compat.GatewaySnapshotQueryServiceFactory
+import me.ahoo.wow.query.gateway.SnapshotQueryGatewayFactory
+import me.ahoo.wow.query.schema.JacksonQuerySchemaProvider
 import me.ahoo.wow.query.snapshot.AbstractSnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
+import me.ahoo.wow.serialization.JsonSerializer
 
-class MongoSnapshotQueryServiceFactory(private val database: MongoDatabase) : AbstractSnapshotQueryServiceFactory() {
+class MongoSnapshotQueryServiceFactory private constructor(
+    private val delegate: GatewaySnapshotQueryServiceFactory
+) : AbstractSnapshotQueryServiceFactory() {
+    constructor(database: MongoDatabase) : this(
+        GatewaySnapshotQueryServiceFactory(
+            SnapshotQueryGatewayFactory.create(
+                schemaProvider = JacksonQuerySchemaProvider(JsonSerializer),
+                router = QueryRouter { MongoSnapshotQueryBackend(database) },
+                objectMapper = JsonSerializer
+            )
+        )
+    )
+
+    constructor(gatewayFactory: SnapshotQueryGatewayFactory) : this(
+        GatewaySnapshotQueryServiceFactory(gatewayFactory)
+    )
+
     override fun createQueryService(namedAggregate: NamedAggregate): SnapshotQueryService<*> {
-        val collectionName = namedAggregate.toSnapshotCollectionName()
-        val collection = database.getCollection(collectionName)
-        return MongoSnapshotQueryService<Any>(namedAggregate.materialize(), collection)
+        return delegate.create<Any>(namedAggregate.materialize())
     }
 }

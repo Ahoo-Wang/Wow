@@ -27,7 +27,9 @@ import me.ahoo.wow.mongo.MongoSnapshotStore
 import me.ahoo.wow.mongo.SnapshotSchemaInitializer
 import me.ahoo.wow.mongo.prepare.MongoPrepareKeyFactory
 import me.ahoo.wow.mongo.query.event.MongoEventStreamQueryServiceFactory
+import me.ahoo.wow.mongo.query.gateway.MongoSnapshotQueryBackend
 import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryServiceFactory
+import me.ahoo.wow.query.gateway.SnapshotQueryGatewayFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
@@ -35,6 +37,7 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ConditionalOnEventS
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ConditionalOnSnapshotStoreStorage
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStreamQueryServiceFactoryBinding
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotQueryBackendBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotQueryServiceFactoryBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
@@ -165,9 +168,19 @@ class MongoEventSourcingAutoConfiguration(
         return SnapshotStoreBinding.storage(StorageType.MONGO, snapshotStore)
     }
 
-    @Bean
+    @Bean("mongoSnapshotQueryServiceFactory")
     @ConditionalOnSnapshotEnabled
     @ConditionalOnSnapshotStoreStorage(StorageType.MONGO)
+    fun gatewayMongoSnapshotQueryServiceFactory(
+        gatewayFactory: ObjectProvider<SnapshotQueryGatewayFactory>,
+        mongoClient: MongoClient,
+        dataMongoProperties: org.springframework.boot.mongodb.autoconfigure.MongoProperties?,
+        @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
+        currentBoundedContext: NamedBoundedContext,
+    ): MongoSnapshotQueryServiceFactory = gatewayFactory.ifAvailable
+        ?.let(::MongoSnapshotQueryServiceFactory)
+        ?: mongoSnapshotQueryServiceFactory(mongoClient, dataMongoProperties, currentBoundedContext)
+
     fun mongoSnapshotQueryServiceFactory(
         mongoClient: MongoClient,
         dataMongoProperties: org.springframework.boot.mongodb.autoconfigure.MongoProperties?,
@@ -188,6 +201,20 @@ class MongoEventSourcingAutoConfiguration(
     ): SnapshotQueryServiceFactoryBinding {
         return SnapshotQueryServiceFactoryBinding.storage(StorageType.MONGO, mongoSnapshotQueryServiceFactory)
     }
+
+    @Bean
+    @ConditionalOnSnapshotEnabled
+    @ConditionalOnSnapshotStoreStorage(StorageType.MONGO)
+    fun mongoSnapshotQueryBackend(
+        mongoClient: MongoClient,
+        dataMongoProperties: org.springframework.boot.mongodb.autoconfigure.MongoProperties?
+    ): MongoSnapshotQueryBackend = MongoSnapshotQueryBackend(getMongoSnapshotDatabase(dataMongoProperties, mongoClient))
+
+    @Bean
+    @ConditionalOnSnapshotEnabled
+    @ConditionalOnSnapshotStoreStorage(StorageType.MONGO)
+    fun mongoSnapshotQueryBackendBinding(backend: MongoSnapshotQueryBackend): SnapshotQueryBackendBinding =
+        SnapshotQueryBackendBinding.storage(StorageType.MONGO, backend)
 
     private fun getMongoSnapshotDatabase(
         dataMongoProperties: org.springframework.boot.mongodb.autoconfigure.MongoProperties?,

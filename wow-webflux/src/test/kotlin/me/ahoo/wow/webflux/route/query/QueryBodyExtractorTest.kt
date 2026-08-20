@@ -151,7 +151,7 @@ class QueryBodyExtractorTest {
 
     @Test
     fun `should extract single query and return not found when no data`() {
-        // NoOpSnapshotQueryServiceFactory returns empty for single query,
+        // The route test service returns empty for a single query,
         // so throwNotFoundIfEmpty() results in 404 NOT_FOUND.
         // This tests that the body extraction and query pipeline work correctly.
         val handlerFunction = SingleQueryHandlerFunctionFactory(
@@ -172,7 +172,7 @@ class QueryBodyExtractorTest {
         handlerFunction.handle(request)
             .test()
             .consumeNextWith {
-                // NoOp returns empty, which triggers throwNotFoundIfEmpty → 404
+                // Empty results trigger throwNotFoundIfEmpty → 404
                 it.statusCode().assert().isEqualTo(org.springframework.http.HttpStatus.NOT_FOUND)
             }.verifyComplete()
     }

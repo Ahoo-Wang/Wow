@@ -1,0 +1,393 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.query.compat
+
+import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.DeletionScope
+import me.ahoo.wow.api.query.DeletionState
+import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.ElementMatchExpression
+import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.IPagedQuery
+import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.LegacyConditionExpression
+import me.ahoo.wow.api.query.LogicalExpression
+import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.LogicalOperator
+import me.ahoo.wow.api.query.MatchAll
+import me.ahoo.wow.api.query.MaterializedSnapshot
+import me.ahoo.wow.api.query.Operator
+import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.PredicateExpression
+import me.ahoo.wow.api.query.PredicateOperator
+import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.Query
+import me.ahoo.wow.api.query.QueryErrorCode
+import me.ahoo.wow.api.query.QueryException
+import me.ahoo.wow.api.query.QueryExpression
+import me.ahoo.wow.api.query.QueryProjection
+import me.ahoo.wow.api.query.QueryScope
+import me.ahoo.wow.api.query.QuerySort
+import me.ahoo.wow.api.query.QuerySortDirection
+import me.ahoo.wow.api.query.QueryStage
+import me.ahoo.wow.api.query.RelativeTimeExpression
+import me.ahoo.wow.api.query.RelativeTimeOperator
+import me.ahoo.wow.api.query.SearchExpression
+import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
+import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.StringComparison
+import me.ahoo.wow.configuration.requiredAggregateType
+import me.ahoo.wow.modeling.annotation.aggregateMetadata
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
+import me.ahoo.wow.query.converter.DeleteConditionGuard.guard
+import me.ahoo.wow.query.gateway.SnapshotQueryGateway
+import me.ahoo.wow.query.gateway.SnapshotQueryGatewayFactory
+import me.ahoo.wow.query.policy.QueryContexts
+import me.ahoo.wow.query.policy.QueryPolicyPermissions
+import me.ahoo.wow.query.result.QueryMaterializer
+import me.ahoo.wow.query.snapshot.AbstractSnapshotQueryServiceFactory
+import me.ahoo.wow.query.snapshot.SnapshotQueryService
+import me.ahoo.wow.serialization.JsonSerializer
+import me.ahoo.wow.serialization.state.StateAggregateRecords
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
+import reactor.util.context.Context
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.node.JsonNodeFactory
+import tools.jackson.databind.node.ObjectNode
+import java.time.LocalTime
+
+class GatewaySnapshotQueryServiceFactory(
+    private val gatewayFactory: SnapshotQueryGatewayFactory
+) : AbstractSnapshotQueryServiceFactory() {
+    override fun createQueryService(namedAggregate: NamedAggregate): SnapshotQueryService<*> {
+        val metadata = namedAggregate.requiredAggregateType<Any>().aggregateMetadata<Any, Any>()
+        return LegacySnapshotQueryAdapter(gatewayFactory.create(metadata), metadata)
+    }
+}
+
+internal class LegacySnapshotQueryAdapter<S : Any>(
+    private val gateway: SnapshotQueryGateway<S>,
+    private val metadata: AggregateMetadata<*, S>
+) : SnapshotQueryService<S> {
+    private val materializer = QueryMaterializer(JsonSerializer)
+    override val namedAggregate: NamedAggregate = gateway.namedAggregate
+    override val name: String = "gateway"
+
+    override fun single(singleQuery: ISingleQuery): Mono<MaterializedSnapshot<S>> {
+        val query = singleQuery.toQuery()
+        return gateway.firstRecord(query)
+            .map { materializer.snapshot(it, metadata) }
+            .withLegacyDeletionAccess(query)
+    }
+
+    override fun dynamicSingle(singleQuery: ISingleQuery): Mono<DynamicDocument> {
+        val query = singleQuery.toQuery()
+        return gateway.firstRecord(query).map(::toDynamicDocument).withLegacyDeletionAccess(query)
+    }
+
+    override fun list(listQuery: IListQuery): Flux<MaterializedSnapshot<S>> {
+        val query = listQuery.toQuery()
+        val records = if (listQuery.limit == 0) {
+            gateway.streamRecords(query)
+        } else {
+            gateway.streamRecords(query, listQuery.limit)
+        }
+        return records.map { materializer.snapshot(it, metadata) }.withLegacyDeletionAccess(query)
+    }
+
+    override fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument> {
+        val query = listQuery.toQuery()
+        val records = if (listQuery.limit == 0) {
+            gateway.streamRecords(query)
+        } else {
+            gateway.streamRecords(query, listQuery.limit)
+        }
+        return records.map(::toDynamicDocument).withLegacyDeletionAccess(query)
+    }
+
+    override fun paged(pagedQuery: IPagedQuery): Mono<PagedList<MaterializedSnapshot<S>>> {
+        val query = pagedQuery.toQuery()
+        return gateway.pageRecords(
+            query,
+            pagedQuery.pagination.index,
+            pagedQuery.pagination.size
+        ).map { page -> PagedList(page.total, page.items.map { materializer.snapshot(it, metadata) }) }
+            .withLegacyDeletionAccess(query)
+    }
+
+    override fun dynamicPaged(pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>> {
+        val query = pagedQuery.toQuery()
+        return gateway.pageRecords(
+            query,
+            pagedQuery.pagination.index,
+            pagedQuery.pagination.size
+        ).map { page -> PagedList(page.total, page.items.map(::toDynamicDocument)) }
+            .withLegacyDeletionAccess(query)
+    }
+
+    override fun count(condition: Condition): Mono<Long> {
+        val (filter, deletion) = LegacyConditionLowerer.lowerQuery(condition)
+        val query = Query(filter = filter, scope = QueryScope(deletion = deletion))
+        return gateway.count(query.filter, query.scope, query.budget).withLegacyDeletionAccess(query)
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun toDynamicDocument(source: ObjectNode): DynamicDocument {
+        val record = source.deepCopy()
+        TIME_FIELDS.forEach { field ->
+            val value = record[field]
+            if (value?.isString == true) record.put(field, java.time.Instant.parse(value.asString()).toEpochMilli())
+        }
+        val values = JsonSerializer.convertValue(record, Map::class.java) as MutableMap<String, Any?>
+        return values.toDynamicDocument()
+    }
+
+    private companion object {
+        val TIME_FIELDS = setOf("firstEventTime", "eventTime", "snapshotTime")
+    }
+}
+
+private fun Condition.requiresBackendCompatibility(): Boolean =
+    operator == Operator.RAW ||
+        field == StateAggregateRecords.TAGS || field.startsWith("${StateAggregateRecords.TAGS}.") ||
+        operator in LEGACY_PRESENCE_OPERATORS ||
+        operator == Operator.IN && (value as? Iterable<*>)?.any { it == null } == true ||
+        operator in LEGACY_RELATIVE_TIME_OPERATORS && datePattern() != null ||
+        children.any(Condition::requiresBackendCompatibility)
+
+private val LEGACY_PRESENCE_OPERATORS = setOf(
+    Operator.NULL,
+    Operator.NOT_NULL,
+    Operator.EXISTS,
+    Operator.NE,
+    Operator.NOT_IN
+)
+
+private val LEGACY_RELATIVE_TIME_OPERATORS = setOf(
+    Operator.TODAY,
+    Operator.TOMORROW,
+    Operator.THIS_WEEK,
+    Operator.NEXT_WEEK,
+    Operator.LAST_WEEK,
+    Operator.THIS_MONTH,
+    Operator.LAST_MONTH,
+    Operator.RECENT_DAYS,
+    Operator.EARLIER_DAYS
+)
+
+private fun ISingleQuery.toQuery(): Query = condition.toQuery(projection, sort)
+
+private fun IListQuery.toQuery(): Query = condition.toQuery(projection, sort)
+
+private fun IPagedQuery.toQuery(): Query = condition.toQuery(projection, sort)
+
+private fun Condition.toQuery(projection: Projection, sort: List<Sort>): Query {
+    val (filter, deletion) = LegacyConditionLowerer.lowerQuery(this)
+    return Query(filter, projection.toProjection(), sort.toSort(), QueryScope(deletion = deletion))
+}
+
+private fun Projection.toProjection(): QueryProjection {
+    if (include.isNotEmpty() && exclude.isNotEmpty()) invalidQuery()
+    return when {
+        include.isNotEmpty() -> QueryProjection.Include(include.mapTo(linkedSetOf(), ::LogicalField))
+        exclude.isNotEmpty() -> QueryProjection.Exclude(exclude.mapTo(linkedSetOf(), ::LogicalField))
+        else -> QueryProjection.All
+    }
+}
+
+private fun List<Sort>.toSort(): List<QuerySort> = map { sort ->
+    QuerySort(
+        LogicalField(sort.field),
+        if (sort.direction == Sort.Direction.ASC) QuerySortDirection.ASC else QuerySortDirection.DESC
+    )
+}
+
+internal object LegacyConditionLowerer {
+    fun lowerQuery(condition: Condition): Pair<QueryExpression, DeletionScope> {
+        val guarded = condition.guard()
+        if (guarded.operator == Operator.DELETED) return MatchAll to guarded.deletionState().toScope()
+        if (guarded.operator != Operator.AND) return lowerCompatible(guarded) to DeletionScope.ACTIVE
+        val deletions = guarded.children.filter { it.operator == Operator.DELETED }
+        if (deletions.size != 1) return lower(guarded) to DeletionScope.ALL
+        val remaining = guarded.children - deletions.single()
+        val filter = if (remaining.any(Condition::requiresBackendCompatibility)) {
+            legacyAnd(remaining)
+        } else {
+            logical(LogicalOperator.AND, remaining)
+        }
+        return filter to deletions.single().deletionState().toScope()
+    }
+
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
+    fun lower(condition: Condition): QueryExpression {
+        if (condition.requiresBackendCompatibility()) return LegacyConditionExpression(condition)
+        return when (condition.operator) {
+            Operator.ALL -> MatchAll
+            Operator.AND -> logical(LogicalOperator.AND, condition.children)
+            Operator.OR -> logical(LogicalOperator.OR, condition.children)
+            Operator.NOR -> logical(LogicalOperator.NOR, condition.children)
+            Operator.ID,
+            Operator.AGGREGATE_ID -> predicate("aggregateId", PredicateOperator.EQ, condition.value)
+            Operator.IDS,
+            Operator.AGGREGATE_IDS -> predicate("aggregateId", PredicateOperator.IN, iterable(condition.value))
+            Operator.TENANT_ID -> predicate("tenantId", PredicateOperator.EQ, condition.value)
+            Operator.OWNER_ID -> predicate("ownerId", PredicateOperator.EQ, condition.value)
+            Operator.SPACE_ID -> predicate("spaceId", PredicateOperator.EQ, condition.value)
+            Operator.DELETED -> deleted(condition)
+            Operator.EQ -> predicate(condition, PredicateOperator.EQ)
+            Operator.NE -> predicate(condition, PredicateOperator.NE)
+            Operator.GT -> predicate(condition, PredicateOperator.GT)
+            Operator.LT -> predicate(condition, PredicateOperator.LT)
+            Operator.GTE -> predicate(condition, PredicateOperator.GTE)
+            Operator.LTE -> predicate(condition, PredicateOperator.LTE)
+            Operator.CONTAINS -> predicate(condition, PredicateOperator.CONTAINS)
+            Operator.IN -> predicate(condition.field, PredicateOperator.IN, iterable(condition.value))
+            Operator.NOT_IN -> predicate(condition.field, PredicateOperator.NOT_IN, iterable(condition.value))
+            Operator.BETWEEN -> predicate(condition.field, PredicateOperator.BETWEEN, iterable(condition.value))
+            Operator.ALL_IN -> predicate(condition.field, PredicateOperator.CONTAINS_ALL, iterable(condition.value))
+            Operator.STARTS_WITH -> predicate(condition, PredicateOperator.STARTS_WITH)
+            Operator.ENDS_WITH -> predicate(condition, PredicateOperator.ENDS_WITH)
+            Operator.ELEM_MATCH -> ElementMatchExpression(
+                LogicalField(condition.field),
+                lower(condition.children.single())
+            )
+            Operator.NULL -> predicate(condition.field, PredicateOperator.IS_NULL)
+            Operator.NOT_NULL -> predicate(condition.field, PredicateOperator.IS_NOT_NULL)
+            Operator.TRUE -> predicate(condition.field, PredicateOperator.IS_TRUE)
+            Operator.FALSE -> predicate(condition.field, PredicateOperator.IS_FALSE)
+            Operator.EXISTS -> {
+                val exists = predicate(condition.field, PredicateOperator.EXISTS)
+                if (condition.value == false) {
+                    LogicalExpression(LogicalOperator.NOR, listOf(exists))
+                } else {
+                    exists
+                }
+            }
+            Operator.TODAY -> relative(condition, RelativeTimeOperator.TODAY)
+            Operator.BEFORE_TODAY -> relative(
+                condition,
+                RelativeTimeOperator.BEFORE_TODAY,
+                beforeTodayValue(condition.value)
+            )
+            Operator.TOMORROW -> relative(condition, RelativeTimeOperator.TOMORROW)
+            Operator.THIS_WEEK -> relative(condition, RelativeTimeOperator.THIS_WEEK)
+            Operator.NEXT_WEEK -> relative(condition, RelativeTimeOperator.NEXT_WEEK)
+            Operator.LAST_WEEK -> relative(condition, RelativeTimeOperator.LAST_WEEK)
+            Operator.THIS_MONTH -> relative(condition, RelativeTimeOperator.THIS_MONTH)
+            Operator.LAST_MONTH -> relative(condition, RelativeTimeOperator.LAST_MONTH)
+            Operator.RECENT_DAYS -> relative(condition, RelativeTimeOperator.RECENT_DAYS, condition.value)
+            Operator.EARLIER_DAYS -> relative(condition, RelativeTimeOperator.EARLIER_DAYS, condition.value)
+            Operator.MATCH -> SearchExpression(condition.value.toString(), setOf(LogicalField(condition.field)))
+            Operator.RAW -> LegacyConditionExpression(condition)
+        }
+    }
+
+    private fun lowerCompatible(condition: Condition): QueryExpression =
+        if (condition.requiresBackendCompatibility()) LegacyConditionExpression(condition) else lower(condition)
+
+    private fun legacyAnd(children: List<Condition>): QueryExpression = when (children.size) {
+        0 -> MatchAll
+        1 -> LegacyConditionExpression(children.single())
+        else -> LegacyConditionExpression(Condition.and(children))
+    }
+
+    private fun logical(operator: LogicalOperator, children: List<Condition>): QueryExpression {
+        val operands = children.map(::lower)
+        return when {
+            operands.isEmpty() -> MatchAll
+            operands.size == 1 && operator != LogicalOperator.NOR -> operands.single()
+            else -> LogicalExpression(operator, operands)
+        }
+    }
+
+    private fun deleted(condition: Condition): QueryExpression = when (condition.deletionState()) {
+        DeletionState.ACTIVE -> predicate("deleted", PredicateOperator.IS_FALSE)
+        DeletionState.DELETED -> predicate("deleted", PredicateOperator.IS_TRUE)
+        DeletionState.ALL -> MatchAll
+    }
+
+    private fun predicate(condition: Condition, operator: PredicateOperator): QueryExpression =
+        PredicateExpression(
+            LogicalField(condition.field),
+            operator,
+            listOf(literal(condition.value)),
+            stringComparison(condition)
+        )
+
+    private fun predicate(field: String, operator: PredicateOperator, vararg values: Any?): QueryExpression =
+        PredicateExpression(LogicalField(field), operator, values.map(::literal))
+
+    private fun predicate(field: String, operator: PredicateOperator, values: Iterable<*>): QueryExpression =
+        PredicateExpression(LogicalField(field), operator, values.map(::literal))
+
+    private fun relative(
+        condition: Condition,
+        operator: RelativeTimeOperator,
+        vararg values: Any?
+    ): QueryExpression = RelativeTimeExpression(
+        LogicalField(condition.field),
+        operator,
+        values.map(::literal),
+        condition.zoneId()?.id
+    )
+
+    private fun beforeTodayValue(value: Any): Long = when (value) {
+        is LocalTime -> value.toSecondOfDay().toLong()
+        is String -> LocalTime.parse(value).toSecondOfDay().toLong()
+        is Number -> value.toLong()
+        else -> invalidQuery()
+    }
+
+    private fun stringComparison(condition: Condition): StringComparison = when (condition.ignoreCase()) {
+        true -> StringComparison.CASE_INSENSITIVE
+        false -> StringComparison.CASE_SENSITIVE
+        null -> StringComparison.DEFAULT
+    }
+
+    private fun iterable(value: Any): Iterable<*> = value as? Iterable<*> ?: invalidQuery()
+
+    private fun literal(value: Any?): JsonNode = when (value) {
+        null -> JsonNodeFactory.instance.nullNode()
+        is JsonNode -> value.deepCopy()
+        else -> JsonSerializer.valueToTree(value)
+    }
+}
+
+private fun DeletionState.toScope(): DeletionScope = when (this) {
+    DeletionState.ACTIVE -> DeletionScope.ACTIVE
+    DeletionState.DELETED -> DeletionScope.DELETED
+    DeletionState.ALL -> DeletionScope.ALL
+}
+
+private fun Query.requiresLegacyDeletionAccess(): Boolean =
+    scope.deletion == DeletionScope.DELETED || scope.deletion == DeletionScope.ALL
+
+private fun Context.grantLegacyDeletionAccess(): Context {
+    val authority = QueryContexts.authority(this)
+    return QueryContexts.withAuthority(
+        authority.copy(
+            permissions = authority.permissions + QueryPolicyPermissions.QUERY_DELETED_SNAPSHOTS
+        )
+    )(this)
+}
+
+private fun <T : Any> Mono<T>.withLegacyDeletionAccess(query: Query): Mono<T> =
+    if (query.requiresLegacyDeletionAccess()) contextWrite(Context::grantLegacyDeletionAccess) else this
+
+private fun <T : Any> Flux<T>.withLegacyDeletionAccess(query: Query): Flux<T> =
+    if (query.requiresLegacyDeletionAccess()) contextWrite(Context::grantLegacyDeletionAccess) else this
+
+private fun invalidQuery(): Nothing = throw QueryException(QueryErrorCode.INVALID_QUERY, QueryStage.PREPARATION)

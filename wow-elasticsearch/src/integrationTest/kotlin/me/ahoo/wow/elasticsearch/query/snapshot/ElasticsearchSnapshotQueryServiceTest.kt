@@ -13,6 +13,10 @@
 
 package me.ahoo.wow.elasticsearch.query.snapshot
 
+import co.elastic.clients.elasticsearch._types.FieldValue
+import co.elastic.clients.elasticsearch._types.query_dsl.Query
+import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
 import me.ahoo.wow.elasticsearch.TemplateInitializer.initSnapshotTemplate
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
@@ -21,8 +25,10 @@ import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
 import me.ahoo.wow.tck.query.SnapshotQueryServiceSpec
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
+import reactor.kotlin.test.test
 
 class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     @JvmField
@@ -44,5 +50,16 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
 
     override fun createSnapshotStore(): SnapshotStore {
         return ElasticsearchSnapshotStore(elasticsearchClient)
+    }
+
+    @Test
+    fun `should preserve raw legacy queries`() {
+        val raw = Query.of { query ->
+            query.term { term -> term.field("aggregateId").value(FieldValue.of(snapshot.aggregateId.id)) }
+        }
+
+        snapshotQueryService.dynamicSingle(SingleQuery(Condition.raw(raw))).test()
+            .expectNextCount(1)
+            .verifyComplete()
     }
 }
