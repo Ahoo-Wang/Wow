@@ -13,10 +13,8 @@
 
 package me.ahoo.wow.elasticsearch.query
 
+@Deprecated("List queries now use PIT and search_after.", level = DeprecationLevel.HIDDEN)
 const val UNLIMITED_SIZE = 10_000
-fun Int.searchSize(): Int {
-    if (this == 0) {
-        return UNLIMITED_SIZE
-    }
-    return this
-}
+
+@Deprecated("List queries now use PIT and search_after.", level = DeprecationLevel.HIDDEN)
+fun Int.searchSize(): Int = if (this == 0) 10_000 else this

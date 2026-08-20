@@ -473,7 +473,8 @@ spring:
 
 1. **Use Filter Instead of Query**: Use filter for exact matches to improve cache hit rate
 2. **Limit Returned Fields**: Use `_source` filtering to return only needed fields
-3. **Pagination Optimization**: Use `search_after` instead of `from/size` for large result sets
+3. **Full List Queries**: `ListQuery.limit=0` streams all matches with PIT + `search_after`; limits from 1 through 10,000 use one request, while larger limits use the same internal pager. The 10,000 value is only an internal batch size, not a result cap.
+4. **Paged Queries**: `PagedQuery` keeps its `from/size` contract and remains subject to Elasticsearch `index.max_result_window`. Use a list query when the complete result set is required.
 
 ## Troubleshooting
 
