@@ -42,4 +42,10 @@ class QueryModelTest {
         assertThrows<IllegalArgumentException> { QueryScope(tenantId = " ") }
         assertThrows<IllegalArgumentException> { QueryPage(emptyList<String>(), -1) }
     }
+
+    @Test
+    fun `should preserve compatibility-only field and projection shapes`() {
+        LogicalField("state.items.0.price").value.assert().isEqualTo("state.items.0.price")
+        QueryProjection.Legacy(include = listOf("state"), exclude = listOf("state.secret")).assert().isNotNull()
+    }
 }

@@ -77,6 +77,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
+@Suppress("LargeClass")
 class SnapshotQueryGatewayTest {
     private val metadata = aggregateMetadata<MockCommandAggregate, MockStateAggregate>()
 
@@ -280,6 +281,34 @@ class SnapshotQueryGatewayTest {
         )
 
         StepVerifier.create(gateway.firstRecord(query))
+            .expectErrorMatches { error ->
+                error is QueryException && error.code == QueryErrorCode.INVALID_QUERY
+            }
+            .verify()
+        routed.get().assert().isFalse()
+    }
+
+    @Test
+    fun `should reject integers outside the backend contract before routing`() {
+        val routed = AtomicBoolean()
+        val gateway = SnapshotQueryGatewayFactory.create(
+            schemaProvider = JacksonQuerySchemaProvider(JsonSerializer),
+            router = QueryRouter {
+                routed.set(true)
+                backend()
+            },
+            objectMapper = JsonSerializer
+        ).create(metadata)
+        val outsideLong = BigInteger.valueOf(Long.MAX_VALUE).add(BigInteger.ONE)
+        val query = Query(
+            filter = PredicateExpression(
+                LogicalField("version"),
+                PredicateOperator.EQ,
+                listOf(JsonNodeFactory.instance.numberNode(outsideLong))
+            )
+        )
+
+        gateway.firstRecord(query).test()
             .expectErrorMatches { error ->
                 error is QueryException && error.code == QueryErrorCode.INVALID_QUERY
             }
@@ -555,6 +584,15 @@ class SnapshotQueryGatewayTest {
         gateway(backend(page = Mono.just(oversized))).pageRecords(Query(), 1, 1).test()
             .expectErrorMatches { error ->
                 error is QueryException && error.code == QueryErrorCode.RESULT_INVALID
+            }
+            .verify()
+    }
+
+    @Test
+    fun `should retain the portable page size limit`() {
+        gateway(backend()).pageRecords(Query(), 1, 1_001).test()
+            .expectErrorMatches { error ->
+                error is QueryException && error.code == QueryErrorCode.INVALID_QUERY
             }
             .verify()
     }

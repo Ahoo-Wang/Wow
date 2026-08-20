@@ -19,7 +19,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.annotation.JsonValue
 import tools.jackson.databind.JsonNode
 
-private val LOGICAL_FIELD_PATTERN = Regex("[A-Za-z_][A-Za-z0-9_-]*(\\.[A-Za-z_][A-Za-z0-9_-]*)*")
+private val LOGICAL_FIELD_PATTERN = Regex("[A-Za-z_][A-Za-z0-9_-]*(\\.(?:[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*")
 private val CAPABILITY_ID_PATTERN = Regex("[A-Za-z0-9][A-Za-z0-9._:-]*")
 
 data class LogicalField(

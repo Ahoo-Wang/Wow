@@ -53,7 +53,6 @@ sealed interface QueryProjection {
     ) : QueryProjection {
         init {
             require(include.isNotEmpty() || exclude.isNotEmpty()) { "Legacy projection cannot be empty." }
-            require(include.isEmpty() || exclude.isEmpty()) { "Legacy projection cannot mix include and exclude." }
         }
     }
 }

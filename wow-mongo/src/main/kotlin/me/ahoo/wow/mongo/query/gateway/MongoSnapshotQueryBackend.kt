@@ -255,7 +255,8 @@ class MongoSnapshotQueryBackend private constructor(
             value.isString -> value.asString()
             value.isBoolean -> value.booleanValue()
             value.isIntegralNumber && value.canConvertToInt() -> value.intValue()
-            value.isIntegralNumber -> value.longValue()
+            value.isIntegralNumber && value.canConvertToLong() -> value.longValue()
+            value.isIntegralNumber -> unsupported()
             value.isFloatingPointNumber -> Decimal128(value.decimalValue())
             else -> unsupported()
         }
@@ -276,7 +277,7 @@ class MongoSnapshotQueryBackend private constructor(
 
     private fun executionLimit(query: SecuredQuery): Int? {
         val budgetProbe = query.budget.maxRecords?.let { maximum ->
-            val probe = Math.addExact(maximum, 1)
+            val probe = maximum.incrementSaturated()
             probe.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
         }
         return listOfNotNull(query.limit, budgetProbe).minOrNull()
@@ -348,3 +349,5 @@ class MongoSnapshotQueryBackend private constructor(
         val TIME_FIELDS = setOf("firstEventTime", "eventTime", "snapshotTime")
     }
 }
+
+internal fun Long.incrementSaturated(): Long = if (this == Long.MAX_VALUE) this else this + 1

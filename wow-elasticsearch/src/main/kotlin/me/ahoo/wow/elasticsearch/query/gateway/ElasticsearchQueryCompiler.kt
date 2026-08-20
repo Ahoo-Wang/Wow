@@ -225,7 +225,8 @@ internal class ElasticsearchQueryCompiler(private val snapshot: ElasticsearchExe
             schema.valueKind == QueryValueKind.TIME && schema.system -> Instant.parse(value.asString()).toEpochMilli()
             value.isString -> value.asString()
             value.isBoolean -> value.booleanValue()
-            value.isIntegralNumber -> value.longValue()
+            value.isIntegralNumber && value.canConvertToLong() -> value.longValue()
+            value.isIntegralNumber -> unsupported()
             value.isFloatingPointNumber -> value.decimalValue()
             else -> notReady()
         }

@@ -15,6 +15,7 @@ package me.ahoo.wow.elasticsearch.query.snapshot
 
 import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
@@ -61,5 +62,10 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         snapshotQueryService.dynamicSingle(SingleQuery(Condition.raw(raw))).test()
             .expectNextCount(1)
             .verifyComplete()
+    }
+
+    @Test
+    fun `should preserve the elasticsearch service name`() {
+        snapshotQueryService.name.assert().isEqualTo("elasticsearch")
     }
 }

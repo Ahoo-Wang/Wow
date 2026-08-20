@@ -15,6 +15,7 @@ package me.ahoo.wow.mongo.query.snapshot
 
 import com.mongodb.client.model.Filters
 import com.mongodb.reactivestreams.client.MongoDatabase
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
@@ -55,5 +56,10 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         ).test()
             .expectNextCount(1)
             .verifyComplete()
+    }
+
+    @Test
+    fun `should preserve the mongo service name`() {
+        snapshotQueryService.name.assert().isEqualTo("mongo")
     }
 }

@@ -43,6 +43,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.JsonNodeFactory
+import java.math.BigInteger
 
 class ElasticsearchQueryCompilerTest {
     private val aggregateId = LogicalField("aggregateId")
@@ -141,7 +142,11 @@ class ElasticsearchQueryCompilerTest {
             if (operator in NO_VALUE_OPERATORS) predicate(data, operator) else predicate(data, operator, value)
         } + listOf(
             eq(data, JsonNodeFactory.instance.nullNode()),
-            predicate(data, PredicateOperator.IN, value, JsonNodeFactory.instance.nullNode())
+            predicate(data, PredicateOperator.IN, value, JsonNodeFactory.instance.nullNode()),
+            eq(
+                version,
+                JsonNodeFactory.instance.numberNode(BigInteger.valueOf(Long.MAX_VALUE).add(BigInteger.ONE))
+            )
         )
 
         unsupported.forEach { expression ->

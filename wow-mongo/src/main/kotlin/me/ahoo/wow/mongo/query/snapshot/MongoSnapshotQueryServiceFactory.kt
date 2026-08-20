@@ -16,6 +16,7 @@ package me.ahoo.wow.mongo.query.snapshot
 import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.modeling.materialize
+import me.ahoo.wow.mongo.MongoSnapshotStore
 import me.ahoo.wow.mongo.query.gateway.MongoSnapshotQueryBackend
 import me.ahoo.wow.query.backend.QueryRouter
 import me.ahoo.wow.query.compat.GatewaySnapshotQueryServiceFactory
@@ -34,12 +35,13 @@ class MongoSnapshotQueryServiceFactory private constructor(
                 schemaProvider = JacksonQuerySchemaProvider(JsonSerializer),
                 router = QueryRouter { MongoSnapshotQueryBackend(database) },
                 objectMapper = JsonSerializer
-            )
+            ),
+            MongoSnapshotStore.NAME
         )
     )
 
     constructor(gatewayFactory: SnapshotQueryGatewayFactory) : this(
-        GatewaySnapshotQueryServiceFactory(gatewayFactory)
+        GatewaySnapshotQueryServiceFactory(gatewayFactory, MongoSnapshotStore.NAME)
     )
 
     override fun createQueryService(namedAggregate: NamedAggregate): SnapshotQueryService<*> {

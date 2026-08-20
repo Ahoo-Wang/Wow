@@ -202,6 +202,30 @@ class ElasticsearchSnapshotQueryGatewayTest {
     }
 
     @Test
+    fun `should reject a physical mapping that contradicts the logical schema`() {
+        val stateId = LogicalField("state.id")
+        val fields = LinkedHashMap(JacksonQuerySchemaProvider(JsonSerializer).getSchema(MOCK_AGGREGATE_METADATA).fields)
+        fields[stateId] = QueryFieldSchema(stateId, QueryValueKind.INTEGER, nullable = false)
+        val mismatchedGateway = SnapshotQueryGatewayFactory.create(
+            schemaProvider = { QuerySchema(fields) },
+            router = QueryRouter { backend },
+            objectMapper = JsonSerializer
+        ).create(MOCK_AGGREGATE_METADATA)
+
+        mismatchedGateway.count(
+            PredicateExpression(
+                stateId,
+                PredicateOperator.EQ,
+                listOf(JsonNodeFactory.instance.numberNode(1))
+            )
+        ).test()
+            .expectErrorMatches { error ->
+                error is QueryException && error.code == QueryErrorCode.BACKEND_NOT_READY
+            }
+            .verify()
+    }
+
+    @Test
     fun `should reject non-null presence without reliable metadata`() {
         val optional = LogicalField("state.optional")
         val fields = LinkedHashMap(JacksonQuerySchemaProvider(JsonSerializer).getSchema(MOCK_AGGREGATE_METADATA).fields)

@@ -190,7 +190,7 @@ class ElasticsearchSnapshotQueryBackend(
         if (remainingBudget != null && remainingBudget < 0) {
             throw QueryException(QueryErrorCode.BUDGET_EXCEEDED, QueryStage.BACKEND)
         }
-        val budgetProbe = remainingBudget?.let { Math.addExact(it, 1) }
+        val budgetProbe = remainingBudget?.let(Long::incrementSaturated)
         val size = listOfNotNull(options.pitPageSize.toLong(), remainingRequest, budgetProbe).min().toInt()
         return SearchWindow(remainingRequest, remainingBudget, size)
     }
@@ -274,3 +274,5 @@ internal fun exactCount(response: CountResponse): Long {
     }
     return response.count()
 }
+
+internal fun Long.incrementSaturated(): Long = if (this == Long.MAX_VALUE) this else this + 1

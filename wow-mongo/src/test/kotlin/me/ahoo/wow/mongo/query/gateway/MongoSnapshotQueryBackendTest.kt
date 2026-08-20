@@ -11,33 +11,12 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.elasticsearch.query.gateway
+package me.ahoo.wow.mongo.query.gateway
 
-import co.elastic.clients.elasticsearch.core.CountResponse
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.QueryErrorCode
-import me.ahoo.wow.api.query.QueryException
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 
-class ElasticsearchSnapshotQueryBackendTest {
-    @Test
-    fun `should reject partial count results`() {
-        val response = CountResponse.of { count ->
-            count.count(42).shards { shards -> shards.total(2).successful(1).failed(1) }
-        }
-
-        assertThrows<QueryException> { exactCount(response) }
-            .code.assert().isEqualTo(QueryErrorCode.BACKEND_FAILURE)
-    }
-
-    @Test
-    fun `should classify mapping transport errors as backend failures`() {
-        val mapped = mapMappingError(IllegalStateException("connection failed")) as QueryException
-
-        mapped.code.assert().isEqualTo(QueryErrorCode.BACKEND_FAILURE)
-    }
-
+class MongoSnapshotQueryBackendTest {
     @Test
     fun `should saturate a maximum record budget probe`() {
         Long.MAX_VALUE.incrementSaturated().assert().isEqualTo(Long.MAX_VALUE)

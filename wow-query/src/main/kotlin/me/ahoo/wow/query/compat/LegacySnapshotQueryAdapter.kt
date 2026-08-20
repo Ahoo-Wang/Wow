@@ -28,14 +28,11 @@ import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Query
-import me.ahoo.wow.api.query.QueryErrorCode
-import me.ahoo.wow.api.query.QueryException
 import me.ahoo.wow.api.query.QueryExpression
 import me.ahoo.wow.api.query.QueryProjection
 import me.ahoo.wow.api.query.QueryScope
 import me.ahoo.wow.api.query.QuerySort
 import me.ahoo.wow.api.query.QuerySortDirection
-import me.ahoo.wow.api.query.QueryStage
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.configuration.requiredAggregateType
@@ -55,22 +52,23 @@ import reactor.core.publisher.Mono
 import reactor.util.context.Context
 import tools.jackson.databind.node.ObjectNode
 
-class GatewaySnapshotQueryServiceFactory(
-    private val gatewayFactory: SnapshotQueryGatewayFactory
+class GatewaySnapshotQueryServiceFactory @JvmOverloads constructor(
+    private val gatewayFactory: SnapshotQueryGatewayFactory,
+    private val serviceName: String = "gateway"
 ) : AbstractSnapshotQueryServiceFactory() {
     override fun createQueryService(namedAggregate: NamedAggregate): SnapshotQueryService<*> {
         val metadata = namedAggregate.requiredAggregateType<Any>().aggregateMetadata<Any, Any>()
-        return LegacySnapshotQueryAdapter(gatewayFactory.create(metadata), metadata)
+        return LegacySnapshotQueryAdapter(gatewayFactory.create(metadata), metadata, serviceName)
     }
 }
 
 internal class LegacySnapshotQueryAdapter<S : Any>(
     private val gateway: SnapshotQueryGateway<S>,
-    private val metadata: AggregateMetadata<*, S>
+    private val metadata: AggregateMetadata<*, S>,
+    override val name: String = "gateway"
 ) : SnapshotQueryService<S> {
     private val materializer = QueryMaterializer(JsonSerializer)
     override val namedAggregate: NamedAggregate = gateway.namedAggregate
-    override val name: String = "gateway"
 
     override fun single(singleQuery: ISingleQuery): Mono<MaterializedSnapshot<S>> {
         val query = singleQuery.toQuery()
@@ -158,9 +156,8 @@ private fun Condition.toQuery(projection: Projection, sort: List<Sort>): Query {
 }
 
 private fun Projection.toProjection(): QueryProjection {
-    if (include.isNotEmpty() && exclude.isNotEmpty()) invalidQuery()
     return when {
-        include.isNotEmpty() -> QueryProjection.Legacy(include = include.toList())
+        include.isNotEmpty() -> QueryProjection.Legacy(include = include.toList(), exclude = exclude.toList())
         exclude.isNotEmpty() -> QueryProjection.Legacy(exclude = exclude.toList())
         else -> QueryProjection.All
     }
@@ -214,5 +211,3 @@ private fun <T : Any> Mono<T>.withLegacyDeletionAccess(query: Query): Mono<T> =
 
 private fun <T : Any> Flux<T>.withLegacyDeletionAccess(query: Query): Flux<T> =
     if (query.requiresLegacyDeletionAccess()) contextWrite(Context::grantLegacyDeletionAccess) else this
-
-private fun invalidQuery(): Nothing = throw QueryException(QueryErrorCode.INVALID_QUERY, QueryStage.PREPARATION)

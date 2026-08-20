@@ -14,6 +14,7 @@
 package me.ahoo.wow.elasticsearch.query.snapshot
 
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
 import me.ahoo.wow.elasticsearch.query.gateway.ElasticsearchSnapshotQueryBackend
 import me.ahoo.wow.query.backend.QueryRouter
 import me.ahoo.wow.query.compat.GatewaySnapshotQueryServiceFactory
@@ -33,12 +34,13 @@ class ElasticsearchSnapshotQueryServiceFactory private constructor(
                 schemaProvider = JacksonQuerySchemaProvider(JsonSerializer),
                 router = QueryRouter { ElasticsearchSnapshotQueryBackend(elasticsearchClient) },
                 objectMapper = JsonSerializer
-            )
+            ),
+            ElasticsearchSnapshotStore.NAME
         )
     )
 
     constructor(gatewayFactory: SnapshotQueryGatewayFactory) : this(
-        GatewaySnapshotQueryServiceFactory(gatewayFactory)
+        GatewaySnapshotQueryServiceFactory(gatewayFactory, ElasticsearchSnapshotStore.NAME)
     )
 
     override fun createQueryService(namedAggregate: NamedAggregate): SnapshotQueryService<*> {

@@ -21,13 +21,13 @@ import me.ahoo.wow.api.query.LegacyConditionExpression
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.LogicalExpression
 import me.ahoo.wow.api.query.PagedQuery
+import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.PredicateExpression
 import me.ahoo.wow.api.query.PredicateOperator
 import me.ahoo.wow.api.query.Projection
-import me.ahoo.wow.api.query.QueryErrorCode
-import me.ahoo.wow.api.query.QueryException
 import me.ahoo.wow.api.query.QueryExpression
 import me.ahoo.wow.api.query.QueryPage
+import me.ahoo.wow.api.query.QueryProjection
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
@@ -40,7 +40,6 @@ import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MockCommandAggregate
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
@@ -99,17 +98,40 @@ class LegacySnapshotQueryAdapterTest {
     }
 
     @Test
-    fun `should reject mixed legacy projection before execution`() {
-        val error = assertThrows<QueryException> {
-            adapter.dynamicSingle(
-                SingleQuery(
-                    Condition.ALL,
-                    Projection(include = listOf("state"), exclude = listOf("state.data"))
-                )
+    fun `should apply both parts of a mixed legacy projection`() {
+        adapter.dynamicSingle(
+            SingleQuery(
+                Condition.ALL,
+                Projection(include = listOf("state"), exclude = listOf("state.data"))
             )
-        }
+        ).test()
+            .assertNext { document ->
+                document.keys.assert().containsExactly("state")
+                document.getNestedDocument("state").keys.assert().containsExactly("id")
+            }
+            .verifyComplete()
 
-        error.code.assert().isEqualTo(QueryErrorCode.INVALID_QUERY)
+        (backend.lastQuery!!.projection as QueryProjection.Legacy).also { projection ->
+            projection.include.assert().containsExactly("state")
+            projection.exclude.assert().containsExactly("state.data")
+        }
+    }
+
+    @Test
+    fun `should preserve numeric legacy sort segments`() {
+        adapter.dynamicSingle(
+            SingleQuery(Condition.ALL, sort = listOf(Sort("state.items.0.price", Sort.Direction.DESC)))
+        ).test().expectNextCount(1).verifyComplete()
+
+        backend.lastQuery!!.sort.single().field.value.assert().isEqualTo("state.items.0.price")
+    }
+
+    @Test
+    fun `should preserve legacy page sizes above the portable limit`() {
+        adapter.dynamicPaged(PagedQuery(Condition.ALL, pagination = Pagination(index = 1, size = 1_001)))
+            .test().expectNextCount(1).verifyComplete()
+
+        backend.lastQuery!!.limit.assert().isEqualTo(1_001)
     }
 
     @Test

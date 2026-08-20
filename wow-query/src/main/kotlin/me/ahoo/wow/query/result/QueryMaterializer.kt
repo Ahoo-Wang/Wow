@@ -57,9 +57,9 @@ internal class QueryMaterializer(private val objectMapper: ObjectMapper) {
         QueryProjection.All -> record
         is QueryProjection.Include -> include(record, projection.fields.map { it.value })
         is QueryProjection.Exclude -> exclude(record, projection.fields.map { it.value })
-        is QueryProjection.Legacy -> when {
-            projection.include.isNotEmpty() -> include(record, projection.include)
-            else -> exclude(record, projection.exclude)
+        is QueryProjection.Legacy -> {
+            val included = if (projection.include.isEmpty()) record else include(record, projection.include)
+            if (projection.exclude.isEmpty()) included else exclude(included, projection.exclude)
         }
     }
 

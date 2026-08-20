@@ -31,6 +31,8 @@ import me.ahoo.wow.api.query.QueryStage
 import me.ahoo.wow.api.query.SearchExpression
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.query.backend.SecuredQuery
+import me.ahoo.wow.query.schema.QueryFieldSchema
+import me.ahoo.wow.query.schema.QueryValueKind
 import org.springframework.data.elasticsearch.RestStatusException
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
@@ -123,17 +125,24 @@ internal class ElasticsearchQueryMapping(
         } else {
             emptySet()
         }
-        val bindings = views.map { view -> bind(logical, usages, view) }.distinct()
+        val expected = query.schema[logical]
+        val bindings = views.map { view -> bind(logical, usages, expected, view) }.distinct()
         return bindings.singleOrNull() ?: notReady()
     }
 
-    private fun bind(logical: LogicalField, usages: Set<Usage>, view: MappingView): ElasticsearchFieldBinding {
+    private fun bind(
+        logical: LogicalField,
+        usages: Set<Usage>,
+        expected: QueryFieldSchema?,
+        view: MappingView
+    ): ElasticsearchFieldBinding {
         val path = logical.value
         val property = propertyAt(view.mapping, path)
         if (property == null && usages == setOf(Usage.PRESENCE)) {
             return ElasticsearchFieldBinding(path, null, null, null, null)
         }
         property ?: notReady()
+        expected?.let(property::requireCompatible)
         val requiresExact = usages.any { usage -> usage == Usage.EXACT || usage == Usage.SORT }
         val exact = if (requiresExact) {
             exact(path, logical, property, view.mapping)
@@ -297,6 +306,40 @@ internal class ElasticsearchQueryMapping(
         const val STANDARD = "standard"
     }
 }
+
+private fun Property.requireCompatible(field: QueryFieldSchema) {
+    if (!compatibleWith(field)) notReady()
+}
+
+internal fun Property.compatibleWith(field: QueryFieldSchema): Boolean = when (field.valueKind) {
+    QueryValueKind.BOOLEAN -> _kind() == Property.Kind.Boolean
+    QueryValueKind.INTEGER -> _kind() in INTEGER_TYPES
+    QueryValueKind.DECIMAL -> _kind() in DECIMAL_TYPES
+    QueryValueKind.STRING,
+    QueryValueKind.ENUM -> _kind() in STRING_TYPES
+
+    QueryValueKind.TIME -> _kind() in TIME_TYPES
+    QueryValueKind.BINARY -> _kind() == Property.Kind.Binary
+    QueryValueKind.OBJECT -> _kind() in OBJECT_TYPES
+    QueryValueKind.MAP -> _kind() in MAP_TYPES
+}
+
+private val INTEGER_TYPES = setOf(
+    Property.Kind.Byte,
+    Property.Kind.Short,
+    Property.Kind.Integer,
+    Property.Kind.Long
+)
+private val DECIMAL_TYPES = setOf(
+    Property.Kind.HalfFloat,
+    Property.Kind.Float,
+    Property.Kind.Double,
+    Property.Kind.ScaledFloat
+)
+private val STRING_TYPES = setOf(Property.Kind.Keyword, Property.Kind.ConstantKeyword, Property.Kind.Text)
+private val TIME_TYPES = setOf(Property.Kind.Date, Property.Kind.DateNanos) + INTEGER_TYPES
+private val OBJECT_TYPES = setOf(Property.Kind.Object, Property.Kind.Nested)
+private val MAP_TYPES = setOf(Property.Kind.Object, Property.Kind.Flattened)
 
 internal fun mapMappingError(error: Throwable): Throwable = when {
     error is QueryException -> error

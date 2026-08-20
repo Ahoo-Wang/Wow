@@ -398,17 +398,17 @@ internal class QueryPreparer(
                 if (!field.sortable) invalidQuery()
             }
         }
-        validatePagination(page, size)
+        validatePagination(page, size, legacy)
         if (limit != null && limit <= 0) {
             invalidQuery()
         }
     }
 
-    private fun validatePagination(page: Int?, size: Int?) {
+    private fun validatePagination(page: Int?, size: Int?, legacy: Boolean) {
         if (page == null && size == null) return
         if (page == null || size == null) invalidQuery()
         if (page < 1 || size < 1) invalidQuery()
-        if (size > limits.maxPageSize) invalidQuery()
+        if (!legacy && size > limits.maxPageSize) invalidQuery()
     }
 
     @Suppress("CyclomaticComplexMethod")
@@ -468,6 +468,7 @@ internal class QueryPreparer(
         if (expression.operator !in STRING_OPERATORS) invalidQuery()
     }
 
+    @Suppress("CyclomaticComplexMethod")
     private fun validateLiteral(value: JsonNode, field: QueryFieldSchema, operator: PredicateOperator) {
         if (value.isNull) {
             if (field.collectionKind != QueryCollectionKind.NONE || operator !in NULL_LITERAL_OPERATORS) invalidQuery()
@@ -475,7 +476,7 @@ internal class QueryPreparer(
         }
         val valid = when (field.valueKind) {
             QueryValueKind.BOOLEAN -> value.isBoolean
-            QueryValueKind.INTEGER -> value.isIntegralNumber
+            QueryValueKind.INTEGER -> value.isIntegralNumber && value.canConvertToLong()
             QueryValueKind.DECIMAL -> value.isNumber
             QueryValueKind.STRING,
             QueryValueKind.ENUM -> value.isString

@@ -103,11 +103,11 @@ data class Pagination(
  * Data class representing field projection settings for queries.
  *
  * Projection controls which fields are included in or excluded from query results.
- * You can either specify fields to include (include list) or fields to exclude (exclude list),
- * but not both. If both lists are empty, all fields are included.
+ * If both lists are present, inclusion is applied first and exclusion is applied to that result.
+ * If both lists are empty, all fields are included.
  *
  * @property include List of field names to include in the results. If non-empty, only these fields will be returned.
- * @property exclude List of field names to exclude from the results. Ignored if include list is non-empty.
+ * @property exclude List of field names to exclude from the included result or full result.
  *
  * @sample
  * ```
