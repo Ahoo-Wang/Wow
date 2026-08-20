@@ -64,11 +64,15 @@ import reactor.kotlin.test.test
 import reactor.test.StepVerifier
 import tools.jackson.databind.node.JsonNodeFactory
 import tools.jackson.databind.node.ObjectNode
+import java.math.BigDecimal
+import java.math.BigInteger
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
+import java.util.Date
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
@@ -438,6 +442,83 @@ class SnapshotQueryGatewayTest {
     }
 
     @Test
+    fun `should derive and canonicalize every supported state shape`() {
+        val schema = richSchema()
+
+        mapOf(
+            QueryValueKind.BOOLEAN to listOf("active"),
+            QueryValueKind.BINARY to listOf("binary"),
+            QueryValueKind.ENUM to listOf("status"),
+            QueryValueKind.STRING to listOf("charValue", "uuid", "localDate", "nullableText"),
+            QueryValueKind.INTEGER to listOf("byteValue", "shortValue", "intValue", "longValue", "bigInteger"),
+            QueryValueKind.DECIMAL to listOf("floatValue", "decimalValue", "bigDecimal"),
+            QueryValueKind.TIME to listOf("date", "instant"),
+            QueryValueKind.MAP to listOf("attributes"),
+            QueryValueKind.OBJECT to listOf("nested", "children")
+        ).forEach { (kind, fields) ->
+            fields.forEach { field ->
+                schema[LogicalField("state.$field")]!!.valueKind.assert().isEqualTo(kind)
+            }
+        }
+        schema[LogicalField("state.scores")]!!.collectionKind.assert().isEqualTo(QueryCollectionKind.SCALAR)
+        schema[LogicalField("state.children")]!!.collectionKind.assert().isEqualTo(QueryCollectionKind.OBJECT)
+
+        val canonical = canonicalSnapshot(richRecord(), schema)
+        val state = canonical["state"] as ObjectNode
+        state["binary"].asString().assert().isEqualTo("AQID")
+        state["nullableText"].isNull.assert().isTrue()
+    }
+
+    @Test
+    fun `should reject malformed canonical result trees`() {
+        val schema = richSchema()
+        val invalidStates = listOf<(ObjectNode) -> Unit>(
+            { it.put("active", "true") },
+            { it.put("binary", 1) },
+            { it.put("intValue", "1") },
+            { it.put("decimalValue", "1.5") },
+            { it.put("status", 1) },
+            { it.put("instant", true) },
+            { it.set("attributes", JsonNodeFactory.instance.arrayNode()) },
+            { it.set("nested", JsonNodeFactory.instance.stringNode("nested")) },
+            { it.set("scores", JsonNodeFactory.instance.stringNode("scores")) },
+            { it.putArray("children").add("child") },
+            { it.putNull("active") },
+            { it.put("unknown", "value") }
+        )
+
+        invalidStates.forEach { mutate ->
+            val invalid = richRecord()
+            mutate(invalid["state"] as ObjectNode)
+            assertThrows<QueryException> { canonicalSnapshot(invalid, schema) }.code.assert()
+                .isEqualTo(QueryErrorCode.RESULT_INVALID)
+        }
+
+        listOf<(ObjectNode) -> Unit>(
+            { it.put("version", "1") },
+            { it.put("deleted", "false") },
+            { it.put("eventTime", "invalid") },
+            { it.put("unexpected", "value") },
+            { it.set("state", JsonNodeFactory.instance.arrayNode()) }
+        ).forEach { mutate ->
+            val invalid = richRecord().also(mutate)
+            assertThrows<QueryException> { canonicalSnapshot(invalid, schema) }.code.assert()
+                .isEqualTo(QueryErrorCode.RESULT_INVALID)
+        }
+
+        val nonFinite = richRecord().also {
+            (it["state"] as ObjectNode).set("decimalValue", JsonNodeFactory.instance.numberNode(Double.NaN))
+        }
+        assertThrows<QueryException> { canonicalSnapshot(nonFinite, schema) }
+        assertThrows<QueryException> { canonicalSnapshot(richRecord(), schema, maxNodes = 1) }
+
+        val cyclic = richRecord()
+        val state = cyclic["state"] as ObjectNode
+        state.set("nested", state)
+        assertThrows<QueryException> { canonicalSnapshot(cyclic, schema) }
+    }
+
+    @Test
     fun `should materialize typed snapshot through the shared materializer`() {
         val gateway = gateway(backend(stream = Flux.just(record())))
 
@@ -449,6 +530,33 @@ class SnapshotQueryGatewayTest {
                 snapshot.eventTime.assert().isEqualTo(Instant.parse("2026-08-19T00:00:00Z").toEpochMilli())
             }
             .verifyComplete()
+    }
+
+    @Test
+    fun `should support every stream and page entry point`() {
+        val gateway = gateway(
+            backend(
+                stream = Flux.just(record()),
+                page = Mono.just(QueryPage(listOf(record()), 1))
+            )
+        )
+
+        gateway.stream().test().expectNextCount(1).verifyComplete()
+        gateway.stream(Query(), 1).test().expectNextCount(1).verifyComplete()
+        gateway.streamRecords(Query(), 1).test().expectNextCount(1).verifyComplete()
+        gateway.page(Query(), 1, 1).test().assertNext { it.total.assert().isEqualTo(1) }.verifyComplete()
+        gateway.pageRecords(Query(), 1, 1).test().assertNext { it.total.assert().isEqualTo(1) }.verifyComplete()
+    }
+
+    @Test
+    fun `should reject an oversized backend page`() {
+        val oversized = QueryPage(listOf(record(), record()), 2)
+
+        gateway(backend(page = Mono.just(oversized))).pageRecords(Query(), 1, 1).test()
+            .expectErrorMatches { error ->
+                error is QueryException && error.code == QueryErrorCode.RESULT_INVALID
+            }
+            .verify()
     }
 
     @Test
@@ -475,6 +583,16 @@ class SnapshotQueryGatewayTest {
         StepVerifier.create(protected.firstRecord())
             .expectErrorMatches { error ->
                 error is QueryException && error.code == QueryErrorCode.RESULT_INVALID
+            }
+            .verify()
+
+        val failing = gateway(
+            backend(stream = Flux.just(record())),
+            listOf(QueryResultPolicy { _, _ -> error("sensitive-result-policy-error") })
+        )
+        StepVerifier.create(failing.firstRecord())
+            .expectErrorMatches { error ->
+                error is QueryException && error.code == QueryErrorCode.RESULT_INVALID && error.cause == null
             }
             .verify()
     }
@@ -574,6 +692,35 @@ class SnapshotQueryGatewayTest {
         override fun count(query: SecuredQuery): Mono<Long> = count
     }
 
+    private fun richSchema() = JacksonQuerySchemaProvider(JsonSerializer).getSchema(
+        mockk<AggregateMetadata<Any, RichState>> {
+            every { state } returns mockk {
+                every { aggregateType } returns RichState::class.java
+            }
+        }
+    )
+
+    private fun richRecord(): ObjectNode = record().apply {
+        set(
+            "state",
+            JsonNodeFactory.instance.objectNode().apply {
+                put("id", "aggregate-1")
+                put("active", true)
+                set("binary", JsonNodeFactory.instance.binaryNode(byteArrayOf(1, 2, 3)))
+                put("status", RichStatus.ACTIVE.name)
+                put("intValue", 1)
+                put("decimalValue", 1.5)
+                put("instant", 1L)
+                put("localDate", "2026-08-20")
+                set("attributes", JsonNodeFactory.instance.objectNode().put("key", "value"))
+                set("nested", JsonNodeFactory.instance.objectNode().put("value", "nested"))
+                putArray("scores").add(1).addNull()
+                putArray("children").addObject().put("value", "child")
+                putNull("nullableText")
+            }
+        )
+    }
+
     private fun QueryExpression.containsRelativeTime(): Boolean = when (this) {
         is RelativeTimeExpression -> true
         is LogicalExpression -> operands.any { it.containsRelativeTime() }
@@ -616,4 +763,36 @@ private data class RecursiveState(
     val child: RecursiveState? = null,
     val children: List<RecursiveState> = emptyList(),
     val attributes: List<Map<String, String>> = emptyList()
+)
+
+private enum class RichStatus {
+    ACTIVE
+}
+
+private data class RichNested(val value: String)
+
+@Suppress("LongParameterList")
+private data class RichState(
+    val id: String,
+    val active: Boolean,
+    val binary: ByteArray,
+    val status: RichStatus,
+    val charValue: Char,
+    val uuid: UUID,
+    val byteValue: Byte,
+    val shortValue: Short,
+    val intValue: Int,
+    val longValue: Long,
+    val bigInteger: BigInteger,
+    val floatValue: Float,
+    val decimalValue: Double,
+    val bigDecimal: BigDecimal,
+    val date: Date,
+    val instant: Instant,
+    val localDate: LocalDate,
+    val attributes: Map<String, String>,
+    val nested: RichNested,
+    val scores: List<Int>,
+    val children: List<RichNested>,
+    val nullableText: String?
 )
