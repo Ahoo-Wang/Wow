@@ -363,6 +363,24 @@ class SnapshotConditionConverterTest {
         assertConvert(actual, expected)
     }
 
+    @Test
+    fun `should convert aggregate id in logical conditions`() {
+        val condition = Condition.and(
+            Condition.eq(MessageRecords.AGGREGATE_ID, "and"),
+            Condition.or(Condition.eq(MessageRecords.AGGREGATE_ID, "or")),
+            Condition.nor(Condition.eq(MessageRecords.AGGREGATE_ID, "nor")),
+        )
+
+        val actual = SnapshotConditionConverter.convert(condition)
+        val expected = Filters.and(
+            Filters.eq(Documents.ID_FIELD, "and"),
+            Filters.or(Filters.eq(Documents.ID_FIELD, "or")),
+            Filters.nor(Filters.eq(Documents.ID_FIELD, "nor")),
+        )
+
+        assertConvert(actual, expected)
+    }
+
     @ParameterizedTest
     @MethodSource("toMongoFilterParameters")
     fun `should convert condition to mongo filter`(condition: Condition, expected: Bson) {

@@ -15,6 +15,7 @@ package me.ahoo.wow.mongo.query.event
 
 import com.mongodb.client.model.Filters
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.serialization.MessageRecords
@@ -42,6 +43,44 @@ class EventStreamConditionConverterTest {
         val condition = condition { aggregateIds("aggregateIds") }
         val actual = EventStreamConditionConverter.convert(condition)
         val expected = Filters.`in`(MessageRecords.AGGREGATE_ID, condition.valueAs<Iterable<String>>())
+        actual.assert().isEqualTo(expected)
+    }
+
+    @Test
+    fun `should convert id in logical conditions`() {
+        val condition = Condition.and(
+            Condition.eq(MessageRecords.ID, "and"),
+            Condition.or(Condition.eq(MessageRecords.ID, "or")),
+            Condition.nor(Condition.eq(MessageRecords.ID, "nor")),
+        )
+
+        val actual = EventStreamConditionConverter.convert(condition).toBsonDocument()
+        val expected = Filters.and(
+            Filters.eq(Documents.ID_FIELD, "and"),
+            Filters.or(Filters.eq(Documents.ID_FIELD, "or")),
+            Filters.nor(Filters.eq(Documents.ID_FIELD, "nor")),
+        ).toBsonDocument()
+
+        actual.assert().isEqualTo(expected)
+    }
+
+    @Test
+    fun `should keep element relative id unchanged`() {
+        val condition = Condition.and(
+            Condition.elemMatch(
+                "body",
+                Condition.and(Condition.eq(MessageRecords.ID, "event-body-id")),
+            )
+        )
+
+        val actual = EventStreamConditionConverter.convert(condition).toBsonDocument()
+        val expected = Filters.and(
+            Filters.elemMatch(
+                "body",
+                Filters.and(Filters.eq(MessageRecords.ID, "event-body-id")),
+            )
+        ).toBsonDocument()
+
         actual.assert().isEqualTo(expected)
     }
 }
