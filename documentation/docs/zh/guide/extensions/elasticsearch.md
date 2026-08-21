@@ -86,6 +86,7 @@ wow:
 ```
 
 - 配置类：[ElasticsearchProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchProperties.kt)
+- 查询配置类：[ElasticsearchQueryProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchQueryProperties.kt)
 - 前缀：`wow.elasticsearch.`
 
 | 名称 | 数据类型 | 默认值 | 描述 |
@@ -102,6 +103,8 @@ wow:
 | `snapshot-store-batch.max-delay` | `Duration` | `1ms` | 收集部分快照批次的等待时长上限 |
 | `snapshot-store-batch.max-pending-saves` | `Int` | `4096` | 等待或正在写入的保存请求上限；必须不小于 `max-size` |
 | `snapshot-store-batch.lane-count` | `Int` | `1` | 串行写入通道数；同一聚合的保存保持在同一通道 |
+| `query.batch-size` | `Int` | `10000` | PIT + `search_after` 列表查询的内部批大小，取值范围 `1..10000` |
+| `query.keep-alive` | `Duration` | `1m` | PIT 的保持时间，必须大于 `0` |
 
 应用启动完成前会安装所需索引模板；请求失败或未确认会导致启动失败。仅当索引模板由外部系统管理时，才应设置
 `wow.elasticsearch.auto-init-template=false`。内置模板不会固定分片数和副本数，这些拓扑参数应由集群或更高优先级的
@@ -142,6 +145,125 @@ SnapshotStore 使用带 scripted upsert 的 Bulk `update`，direct 路径使用�
 |---------|------------|------|
 | 事件流 | `wow.{contextName}.{aggregateName}.es` | `wow.order-service.order.es` |
 | 快照 | `wow.{contextName}.{aggregateName}.snapshot` | `wow.order-service.order.snapshot` |
+
+## 快照查询字段解析
+
+快照查询第一次访问聚合索引时会异步加载当前 Elasticsearch Mapping，并按物理字段能力编译条件和排序；Mapping
+是字段能力的唯一来源，不需要维护额外的 `QuerySchema`。缓存按索引隔离且没有 TTL。当缓存中的字段缺失或能力不匹配时，
+查询会自动刷新一次 Mapping；刷新成功后替换缓存，刷新失败时保留旧缓存并使当前查询失败关闭。
+
+字段选择规则如下：
+
+| Query 操作 | Mapping 要求 |
+|---|---|
+| `EQ`、`NE`、`IN`、`NOT_IN`、`ALL_IN`、`TRUE`、`FALSE` | 可执行 term 查询，包括受支持的 doc-value-only 字段 |
+| `CONTAINS`、`STARTS_WITH`、`ENDS_WITH` | `keyword` 或 `wildcard` |
+| 范围操作 | numeric、date、ip、keyword 或 `*_range`，支持适用的 `doc_values=true,index=false` 字段 |
+| `MATCH` | `text`、`match_only_text`、`search_as_you_type` 或 `semantic_text` |
+| 排序 | 启用 `doc_values` 的可排序字段、启用 `fielddata` 的已索引 `text` 字段，或可排序 runtime field |
+
+`_score`、`_doc` 和 `_shard_doc` 是 Elasticsearch 元数据排序字段，不参与 Mapping 字段解析并保持原样传递。
+`text.fielddata=true` 会占用较多堆内存，通常仍应优先使用 `keyword` multi-field；doc-values 字段和 runtime field
+排序不要求 `index=true`。
+
+flattened 字段的动态键不会单独出现在 Mapping 中。Resolver 会从 `state.labels.release` 这类具体路径向上查找最近的
+flattened 父字段，并保留原路径执行精确和排序操作。flattened 值均按 keyword 处理，排序是字典序；
+动态键不自动启用范围操作，显式声明的 typed sub-field 仍使用自身类型能力。
+
+例如，同一逻辑字段可同时支持全文搜索和精确查询：
+
+```json
+{
+  "properties": {
+    "state": {
+      "properties": {
+        "customerName": {
+          "type": "text",
+          "fields": {
+            "keyword": { "type": "keyword" }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+| Query 操作 | 客户端字段 | 实际字段 |
+|---|---|---|
+| `MATCH` | `state.customerName` | `state.customerName` |
+| `EQ`、`IN`、排序 | `state.customerName` | `state.customerName.keyword` |
+| projection | `state.customerName` | `state.customerName`（不重写） |
+
+客户端始终使用逻辑字段，不需要固定写入 `.keyword` 或 `.text`。
+
+对于 multi-field，依次选择当前字段、`.keyword`/`.text`、`.exact`，最后才选择唯一的兼容子字段；存在多个兼容候选时
+查询失败，避免静默改变语义。`EXISTS`、`NULL`、`NOT_NULL`、projection 和 `RAW` 不重写，`ELEM_MATCH` 的父路径
+必须映射为 `nested`。自定义 `ConditionConverter` 继续负责解释自己的物理字段，不经过上述重写。
+
+Field alias 继承其目标字段的查询与排序能力，并继续使用 alias 名称生成查询。Mapping 中声明的 runtime field 也会按
+其类型参与能力解析；runtime 查询会在查询时计算，且当 Elasticsearch 设置 `search.allow_expensive_queries=false` 时
+可能被集群拒绝。projection 仍按逻辑路径作用于 `_source`，不会把 field alias 或 runtime field 改写为其目标字段。
+
+每个聚合必须解析到一个物理快照索引。alias 或 data stream 如果解析出多个索引，查询会失败；这种拓扑需要先收敛为
+单个物理索引，或由应用自行实现基于 `_field_caps` 的查询方案。
+
+## 主动刷新 Mapping
+
+应用引入 `org.springframework.boot:spring-boot-starter-actuator` 后会注册可选维护端点。端点默认不可访问，必须同时配置
+access 和 Web exposure，并由管理端安全策略限制为维护角色：
+
+::: code-group
+```kotlin [Gradle(Kotlin)]
+implementation("org.springframework.boot:spring-boot-starter-actuator")
+```
+```xml [Maven]
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-actuator</artifactId>
+</dependency>
+```
+:::
+
+```yaml
+management:
+  endpoint:
+    wowElasticsearchMapping:
+      access: unrestricted
+  endpoints:
+    web:
+      exposure:
+        include: health,wowElasticsearchMapping
+```
+
+按已注册聚合刷新当前实例的 Mapping：
+
+```bash
+curl -X POST \
+  http://localhost:8080/actuator/wowElasticsearchMapping/order-service/order
+```
+
+响应示例：
+
+```json
+{
+  "scope": "LOCAL_INSTANCE",
+  "indexName": "wow.order-service.order.snapshot",
+  "fieldCount": 24,
+  "changed": true,
+  "refreshedAt": "2026-08-21T09:00:00Z"
+}
+```
+
+端点不接受任意索引表达式，索引名由聚合元数据计算。`fieldCount` 是解析到的字段路径数，`changed`
+表示新能力模型是否与刷新前不同；响应不会返回完整 Mapping。未注册的聚合返回 `400 Bad Request`。
+
+Elasticsearch 凭据需要目标索引的 `view_index_metadata` 权限；权限不足、索引不存在或 Mapping 无法解析时
+请求失败，已有成功缓存不受影响。刷新只重新加载查询能力缓存，不修改 Elasticsearch Mapping、
+不重建索引，也不回填历史快照。
+
+刷新只作用于收到请求的应用实例。多副本部署需要运维逐 Pod 调用；当前不提供广播、定时刷新或“刷新全部聚合”。
+刷新完成后的新查询使用新 Mapping，已经在途的查询继续使用其开始编译时取得的旧 Mapping。
 
 ## 配置事件流索引模板
 
@@ -355,12 +477,16 @@ POST _index_template/wow-order-snapshot-template
 
 ```kotlin
 // 使用 QueryService 进行全文搜索
-val condition = Condition.all()
-    .match("state.description", "搜索关键词")
-    .range("state.totalAmount", 100, 500)
-    .limit(10)
-
-snapshotQueryService.dynamicQuery(condition)
+listQuery {
+    condition {
+        "state.description" match "搜索关键词"
+        "state.totalAmount" between 100 to 500
+    }
+    sort {
+        "state.customerName".asc()
+    }
+    limit(10)
+}.dynamicQuery(snapshotQueryService)
 ```
 
 ## 聚合查询
@@ -481,24 +607,29 @@ spring:
 
 ### 常见问题
 
-#### 1. 索引映射冲突
+#### 1. 查询报字段未映射、能力不兼容或 multi-field 存在歧义
 
-**解决方案**：
-- 检查动态模板配置
-- 使用严格映射模式
+使用 `GET /{indexName}/_mapping` 检查当前物理 Mapping，再调用主动刷新端点。多个兼容子字段时，使用
+`.keyword`、`.text` 或 `.exact` 的约定名称消除歧义。
 
-#### 2. 集群状态为黄色或红色
+#### 2. 刷新端点不可用或刷新失败
 
-**解决方案**：
-- 检查节点状态
-- 增加副本或重新分配分片
+`404` 时检查 Actuator 依赖、endpoint access 和 Web exposure；`400` 时检查 `contextName` 和 `aggregateName`
+是否已注册。Elasticsearch 错误时检查索引是否存在以及 `view_index_metadata` 权限。刷新失败不会删除旧缓存。
 
-#### 3. 查询性能慢
+#### 3. alias 或 data stream 无法解析
 
-**解决方案**：
-- 优化查询语句
-- 增加索引分片
-- 使用缓存
+确认快照别名只指向一个物理索引。当前 Resolver 不合并多索引 Mapping，需要多索引查询时由应用基于
+`_field_caps` 实现。
+
+#### 4. 更新索引模板并刷新后，历史数据仍无法查询
+
+索引模板只影响之后创建的索引，Mapping 刷新也只更新 Wow 的能力缓存。根据 Mapping 变更类型执行
+`PUT /{indexName}/_mapping`、reindex 或快照重建，并核对结果数、排序和快照版本。
+
+#### 5. runtime field 查询被拒绝
+
+检查集群的 `search.allow_expensive_queries`。保持该限制时，将高频查询字段落到物理 Mapping，不要依赖 runtime field。
 
 ## 完整配置示例
 
@@ -515,6 +646,10 @@ spring:
     socket-timeout: 30s
 
 wow:
+  elasticsearch:
+    query:
+      batch-size: 10000
+      keep-alive: 1m
   eventsourcing:
     store:
       storage: elasticsearch
@@ -526,8 +661,8 @@ wow:
 
 ## 最佳实践
 
-1. **预定义映射**：在生产环境中预先创建索引模板，避免动态映射问题
+1. **预定义映射**：在首个快照写入前安装高优先级的聚合索引模板，避免动态映射锁定错误类型
 2. **合理分片**：根据数据量设置合适的分片数，避免过多小分片
-3. **使用别名**：使用索引别名便于零停机迁移
-4. **启用 ILM**：使用索引生命周期管理自动管理索引
-5. **监控集群**：监控集群健康状态和性能指标
+3. **限制别名拓扑**：Wow 快照查询使用的 alias 或 data stream 必须只解析到一个物理索引
+4. **重建后核对**：Mapping 变更需要 reindex 或快照重建时，核对结果数、排序和快照版本
+5. **监控集群**：监控集群健康状态、PIT 数量和查询延迟

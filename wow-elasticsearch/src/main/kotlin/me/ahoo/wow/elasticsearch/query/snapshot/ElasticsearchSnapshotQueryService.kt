@@ -15,14 +15,18 @@ package me.ahoo.wow.elasticsearch.query.snapshot
 
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.MaterializedSnapshot
+import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchQueryService
 import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
+import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
+import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.query.converter.ConditionConverter
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
@@ -38,6 +42,10 @@ class ElasticsearchSnapshotQueryService<S : Any>(
 ) : AbstractElasticsearchQueryService<MaterializedSnapshot<S>>(), SnapshotQueryService<S> {
     private var configuredQueryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE
     private var configuredQueryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE
+    private var configuredIndexMappingResolver: ElasticsearchIndexMappingResolver? =
+        conditionConverter
+            .takeIf { it === SnapshotConditionConverter }
+            ?.let { ElasticsearchIndexMappingResolver(elasticsearchClient) }
 
     constructor(
         namedAggregate: NamedAggregate,
@@ -50,6 +58,17 @@ class ElasticsearchSnapshotQueryService<S : Any>(
         configuredQueryKeepAlive = queryKeepAlive
     }
 
+    constructor(
+        namedAggregate: NamedAggregate,
+        elasticsearchClient: ReactiveElasticsearchClient,
+        conditionConverter: ConditionConverter<Query>,
+        queryBatchSize: Int,
+        queryKeepAlive: Duration,
+        indexMappingResolver: ElasticsearchIndexMappingResolver,
+    ) : this(namedAggregate, elasticsearchClient, conditionConverter, queryBatchSize, queryKeepAlive) {
+        configuredIndexMappingResolver = indexMappingResolver.takeIf { conditionConverter === SnapshotConditionConverter }
+    }
+
     override val name: String
         get() = ElasticsearchSnapshotStore.NAME
     override val indexName: String = namedAggregate.toSnapshotIndexName()
@@ -57,6 +76,8 @@ class ElasticsearchSnapshotQueryService<S : Any>(
         get() = configuredQueryBatchSize
     protected override val queryKeepAlive: Duration
         get() = configuredQueryKeepAlive
+    override val indexMappingResolver: ElasticsearchIndexMappingResolver?
+        get() = configuredIndexMappingResolver
     private val snapshotType = JsonSerializer.typeFactory
         .constructParametricType(
             MaterializedSnapshot::class.java,
@@ -66,4 +87,10 @@ class ElasticsearchSnapshotQueryService<S : Any>(
     override fun toTypedResult(document: DynamicDocument): MaterializedSnapshot<S> {
         return document.convert(snapshotType)
     }
+
+    override fun resolveCondition(mapping: ElasticsearchIndexMapping, condition: Condition): Condition =
+        mapping.resolve(condition)
+
+    override fun resolveSort(mapping: ElasticsearchIndexMapping, sort: List<Sort>): List<Sort> =
+        mapping.resolve(sort)
 }
