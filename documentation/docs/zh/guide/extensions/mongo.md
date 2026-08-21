@@ -548,16 +548,31 @@ db.order_event_stream.createIndex(
 
 ```javascript
 // 根据查询模式创建复合索引
-db.order_snapshot.createIndex(
-  { "state.status": 1, "snapshotTime": -1 },
-  { name: "idx_status_time" }
-)
+db.order_snapshot.find({
+  tenantId: "tenant-1",
+  deleted: false,
+  "state.status": "PAID"
+}).sort({ snapshotTime: -1, _id: 1 })
 
 db.order_snapshot.createIndex(
-  { "tenantId": 1, "deleted": 1 },
-  { name: "idx_tenant_deleted" }
+  {
+    "tenantId": 1,
+    "deleted": 1,
+    "state.status": 1,
+    "snapshotTime": -1,
+    "_id": 1
+  },
+  { name: "tenant_deleted_status_time" }
 )
 ```
+
+对于 event-stream 与 snapshot 集合，Wow 的自动初始化只创建事件溯源与通用过滤所需的受管索引，不推测业务查询模式。业务复合索引由应用按以下流程逐个发布：
+
+1. 从真实请求提取完整 filter、sort 与 projection，并在类生产数据上保存变更前的 `explain("executionStats")`。
+2. 默认按 ESR 规则设计“等值字段 → 排序字段（包括查询 sort 中的唯一稳定字段）→ 范围字段”。范围条件选择性很高时，同时用 `explain` 比较 ERS 候选；只有记录基线并审批接受阻塞排序后才能选择 ERS。`aggregateId` 排序在 MongoDB 快照集合中映射为 `_id`。
+3. 先在 staging 创建候选索引并复测。代表性查询必须返回数据；单节点及分片部署中每个 shard 的 winning plan 都不得包含 `COLLSCAN` 或阻塞 `SORT`。`totalKeysExamined / nReturned` 与 `totalDocsExamined / nReturned` 默认均不得超过 `5`；超过时必须记录基线和审批理由。同时核对结果数与有序 aggregate ID 列表不变。
+4. 生产环境按单聚合、单索引发布，记录变更前后的查询 p95/p99、索引大小和写入延迟。
+5. 仅查询计划回退时，可在支持隐藏索引的部署中先通过 `collMod` 隐藏新索引并复测。隐藏索引仍参与写入维护，不能回滚写放大；如索引大小或写入延迟回退，确认查询不再依赖后删除候选索引。
 
 ## 性能优化
 
