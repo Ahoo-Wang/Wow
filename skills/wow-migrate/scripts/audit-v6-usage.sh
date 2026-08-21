@@ -5,7 +5,7 @@
 set -euo pipefail
 
 usage() {
-  printf 'Usage: %s [--include-dotenv] [target-repository]\n' "${0##*/}"
+  printf 'Usage: %s [--include-dotenv] <target-application-root>\n' "${0##*/}"
 }
 
 include_dotenv=false
@@ -25,13 +25,13 @@ case "${1:-}" in
     ;;
 esac
 
-if [[ "$#" -gt 1 ]]; then
-  printf 'ERROR: expected at most one target repository.\n' >&2
+if [[ "$#" -ne 1 ]]; then
+  printf 'ERROR: expected exactly one target application root.\n' >&2
   usage >&2
   exit 2
 fi
 
-scan_root="${1:-.}"
+scan_root="$1"
 
 if ! command -v rg >/dev/null 2>&1; then
   echo "ERROR: rg is required" >&2
@@ -52,6 +52,7 @@ common_globs=(
   --glob '!**/.gradle/**'
   --glob '!**/node_modules/**'
   --glob '!**/target/**'
+  --glob '!skills/**/evals/fixtures/**'
   --glob '!**/package-lock.json'
   --glob '!**/npm-shrinkwrap.json'
   --glob '!**/pnpm-lock.yaml'
@@ -92,7 +93,7 @@ match_section() {
 
   local output
   local rg_status
-  if output="$(rg -n --only-matching --color never "$@" "${common_globs[@]}" -- "$pattern" "$scan_root")"; then
+  if output="$(cd "$scan_root" && rg -n --only-matching --color never "$@" "${common_globs[@]}" -- "$pattern" .)"; then
     :
   else
     rg_status=$?

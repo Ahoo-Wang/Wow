@@ -1,9 +1,9 @@
-diff --git a/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/OrderSaga.kt b/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/OrderSaga.kt
---- a/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/OrderSaga.kt
-+++ b/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/OrderSaga.kt
+diff --git a/src/main/kotlin/example/order/OrderSaga.kt b/src/main/kotlin/example/order/OrderSaga.kt
+--- a/src/main/kotlin/example/order/OrderSaga.kt
++++ b/src/main/kotlin/example/order/OrderSaga.kt
 @@ -16,2 +16 @@
 -import me.ahoo.wow.api.annotation.StatelessSaga
- import me.ahoo.wow.example.api.order.OrderCreated
+ import example.api.order.OrderCreated
 @@ -21,2 +20 @@
 -@StatelessSaga
  class OrderSaga {

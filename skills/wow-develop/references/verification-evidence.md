@@ -17,10 +17,10 @@ Use this reference to select evidence proportional to the behavior and risk.
 
 ## Procedure
 
-1. Resolve the real module path from `settings.gradle.kts`.
-2. Run the narrowest test that proves the changed contract.
+1. Resolve the actual build tool and module path from `settings.gradle(.kts)`, `build.gradle(.kts)`, or `pom.xml`.
+2. Run the narrowest test that proves the changed contract, using the owning Gradle module's focused test/check or the owning Maven module's test/verify goal.
 3. Inspect the failure rather than broadening blindly.
-4. Run the owning module's `check` when focused evidence passes.
+4. Run the owning module's Gradle `check` or Maven `verify` when focused evidence passes.
 5. Broaden to integration or full build only when the affected boundary justifies it.
 
 Report the exact command, exit result, and what the command proves. Distinguish environment failures from product failures. Do not infer production safety, concurrency correctness, compatibility, or performance solely from a green unit test.

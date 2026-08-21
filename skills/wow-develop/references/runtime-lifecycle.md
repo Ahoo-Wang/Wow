@@ -17,7 +17,7 @@ Use this reference for runtime ownership, startup, readiness, admission, drainin
 rg -n "WowRuntime|RuntimeComponent|WowRuntimeLifecycle|GracefullyStoppable|DRAINING|readiness|fatal" . -g '*.kt' -g '*.java'
 ```
 
-In this repository, inspect together:
+In a separate checkout of the pinned Wow source, inspect together:
 
 - `wow-core/src/main/kotlin/me/ahoo/wow/runtime/`
 - `wow-spring/src/main/kotlin/me/ahoo/wow/spring/WowRuntimeLifecycle.kt`

@@ -1,4 +1,4 @@
 interface:
   display_name: "Wow Review"
-  short_description: "Review Wow changes with evidence and safe fix gates"
-  default_prompt: "Use $wow-review to review this Wow diff, report findings first, and fix only issues I explicitly authorize."
+  short_description: "Review downstream application changes that use Wow"
+  default_prompt: "Use $wow-review to review this downstream application's Wow diff, report findings first, and fix only authorized issues."

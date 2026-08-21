@@ -15,10 +15,11 @@ Use this reference for Query DSL, filtering, projection, pagination, sorting, qu
 
 ```bash
 rg -n "singleQuery|listQuery|pagedQuery|condition|pagination|projection|sort" . -g '*.kt' -g '*.java'
+# Run this from a separate checkout of the pinned Wow source:
 rg -n "QueryDsl|QueryService|QueryRewriter|Condition" wow-query -g '*.kt'
 ```
 
-Inspect the current DSL builders, condition types, snapshot/event query extensions, backend converters, service interfaces, and tests. Never invent an operator or copy a complete method list into a Skill.
+Inspect the downstream usage plus DSL builders, condition types, snapshot/event query extensions, backend converters, service interfaces, and tests from a separate pinned Wow source checkout or resolved dependency sources. Never invent an operator or copy a complete method list into a Skill.
 
 ## Verification boundary
 

@@ -16,6 +16,6 @@ Use this reference for uniqueness, reservation, rollback, reprepare, and operati
 rg -n "PrepareKey|PreparedValue|usingPrepare|reprepare|rollback" . -g '*.kt' -g '*.java'
 ```
 
-In this repository, inspect `wow-core/src/main/kotlin/me/ahoo/wow/infra/prepare/`, the starter auto-registration/properties, backend implementations, and their tests. Resolve exact method signatures, TTL representation, storage selection, and error types from the target version.
+In a separate checkout of the pinned Wow source, inspect `wow-core/src/main/kotlin/me/ahoo/wow/infra/prepare/`, the starter auto-registration/properties, backend implementations, and their tests. Resolve exact method signatures, TTL representation, storage selection, and error types from the target version.
 
 Use unit tests for business branching and focused backend/integration tests for ownership, expiration, concurrency, rollback, and retry claims.

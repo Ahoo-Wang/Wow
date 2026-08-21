@@ -1,5 +1,5 @@
-{"id":"A01-develop-aggregate","prompt":"为 Cart 聚合增加最多 10 件商品的不变量，补齐 command、event、sourcing 和行为测试。","expectedSkills":["wow-develop"],"tags":["positive","aggregate"]}
-{"id":"A02-develop-mixed","prompt":"同时新增支付 Saga 和订单 Projection，并分别补齐测试与验证结果。","expectedSkills":["wow-develop"],"tags":["positive","mixed","conflict"]}
+{"id":"A01-develop-aggregate","prompt":"为 Wow Cart 聚合增加最多 10 件商品的不变量，补齐 command、event、sourcing 和行为测试。","expectedSkills":["wow-develop"],"tags":["positive","aggregate"]}
+{"id":"A02-develop-mixed","prompt":"同时为 Wow 应用新增支付 Saga 和订单 Projection，并分别补齐测试与验证结果。","expectedSkills":["wow-develop"],"tags":["positive","mixed","conflict"]}
 {"id":"A03-develop-lookup","prompt":"核对当前 Wow Query DSL 如何按 tenant 和 status 分页查询，并只投影指定字段。","expectedSkills":["wow-develop"],"tags":["positive","lookup"]}
 {"id":"A04-develop-adoption","prompt":"新服务第一次采用 Wow v8，请设计订单 aggregate、存储入口和测试策略。","expectedSkills":["wow-develop"],"tags":["boundary","conflict"]}
 {"id":"A15-none-kotlin","prompt":"修复这个纯 Kotlin 协程工具库的 flaky test，它没有使用 Wow。","expectedSkills":[],"tags":["negative"]}
@@ -8,3 +8,7 @@
 {"id":"A19-develop-english","prompt":"Explain how to page Wow Query DSL results by tenant and status while projecting only selected fields; do not change files.","expectedSkills":["wow-develop"],"tags":["positive","lookup","language-en"]}
 {"id":"A23-develop-adoption-english","prompt":"Design the aggregate, storage entry point, and test strategy for a new service adopting Wow 8 for the first time.","expectedSkills":["wow-develop"],"tags":["boundary","adoption","conflict","language-en"]}
 {"id":"A29-none-release-prep","prompt":"准备 Wow 8.9.9 patch release：只同步 Gradle、package metadata 和版本文档，不修改 Wow framework 或 domain behavior。","expectedSkills":[],"tags":["negative","wow-repository","release-tooling"]}
+{"id":"A36-none-develop-axon","prompt":"为 Axon Framework 订单服务增加 aggregate 不变量、Saga 和 Projection，并补齐测试。","expectedSkills":[],"tags":["negative","non-wow-project","vocabulary-collision"]}
+{"id":"A39-none-develop-spring-english","prompt":"Design an aggregate, saga, and CQRS read model for this Spring Boot service, then add tests.","expectedSkills":[],"tags":["negative","non-wow-project","vocabulary-collision","language-en"]}
+{"id":"A50-develop-source-marker-only","fixture":"fixtures/service.gradle.kts","prompt":"为这个服务的 Cart 聚合增加容量不变量，并补齐 command、event、sourcing 和行为测试。","expectedSkills":["wow-develop"],"tags":["positive","source-marker","fixture","no-wow-keyword"]}
+{"id":"A54-none-framework-develop","prompt":"在 Wow 框架仓库的 wow-core 中新增 CommandGateway API 和实现，并补框架测试。","expectedSkills":[],"tags":["negative","wow-framework-repository","development"]}

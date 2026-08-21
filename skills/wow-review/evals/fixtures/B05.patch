@@ -1,6 +1,6 @@
-diff --git a/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/Cart.kt b/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/Cart.kt
---- a/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/Cart.kt
-+++ b/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/Cart.kt
+diff --git a/src/main/kotlin/example/cart/Cart.kt b/src/main/kotlin/example/cart/Cart.kt
+--- a/src/main/kotlin/example/cart/Cart.kt
++++ b/src/main/kotlin/example/cart/Cart.kt
 @@ -41,7 +41,7 @@ class Cart(private val state: CartState) {
      fun onCommand(
          command: AddCartItem
