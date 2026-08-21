@@ -9,7 +9,7 @@ description: Wow exposes real-time aggregate state events and commands as busine
 
 <center>
 
-![Event Sourcing VS Traditional Architecture](../../public/images/eventstore/eventsourcing.svg)
+![Event Sourcing VS Traditional Architecture](/images/eventstore/eventsourcing.svg)
 </center>
 
 A traditional real-time ETL pipeline usually follows `DB -> CDC -> Process -> DB`. CDC records data changes, so the analytics side must reconstruct business meaning from those changes. Wow publishes commands and state events with business semantics and generates ClickHouse synchronization and expansion SQL, shortening the real-time analytics path.
@@ -19,7 +19,7 @@ A traditional real-time ETL pipeline usually follows `DB -> CDC -> Process -> DB
 - Latest-state view (`*_state_last`): the latest state for each tenant and aggregate root.
 - Snapshot expansion view: a relational view expanded from one-to-one and one-to-many structures inside an aggregate.
 
-![Business Intelligence](../../public/images/bi/bi.svg)
+![Business Intelligence](/images/bi/bi.svg)
 
 ## Generate and Retrieve ETL Scripts
 

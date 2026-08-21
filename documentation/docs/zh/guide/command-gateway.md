@@ -10,7 +10,7 @@ description: 命令网关是接收和发送命令的核心组件，负责处理�
 
 ## 发送命令
 
-![发送命令 - 命令网关](../../public/images/command-gateway/send-command.svg)
+![发送命令 - 命令网关](/images/command-gateway/send-command.svg)
 
 ## API 使用
 
@@ -548,7 +548,7 @@ wow:
 ### CommandWait
 
 <p align="center" style="text-align:center;">
-  <img  width="95%" src="../../public/images/wait/CommandWait.svg" alt="CommandWait"/>
+  <img  width="95%" src="/images/wait/CommandWait.svg" alt="CommandWait"/>
 </p>
 
 `CommandWait` 支持的等待信号如下：
@@ -623,7 +623,7 @@ commandGateway.sendAndWaitForProcessed(message)
 |---|---|---|---|---|---|---|
 | `SENT` | 无 | 命令被总线/队列接受 | 是 | 否 | 发后即忘；最快响应 | [CommandStage.kt:32](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L32) |
 | `PROCESSED` | `[SENT]` | 聚合执行完成 | 否 | 否 | 默认；速度与一致性平衡 | [CommandStage.kt:40](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L40) |
-| `SNAPSHOT` | `[SENT, PROCESSED]` | 快照已持久化 | 否 | 否 | 冷启动性能；写后读 | [CommandStage.kt:53](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L53) |
+| `SNAPSHOT` | `[SENT, PROCESSED]` | 快照处理已完成；`version_offset` 可能跳过写入 | 否 | 否 | 快照生命周期；`strategy: all` 时写后读 | [CommandStage.kt:53](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L53) |
 | `PROJECTED` | `[SENT, PROCESSED]` | 投影（读模型）已更新 | 否 | 是 | 读模型一致性；UI 刷新 | [CommandStage.kt:62](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L62) |
 | `EVENT_HANDLED` | `[SENT, PROCESSED]` | 外部事件处理器完成 | 否 | 是 | 副作用处理；通知 | [CommandStage.kt:72](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L72) |
 | `SAGA_HANDLED` | `[SENT, PROCESSED]` | 指定 Saga 函数已完成处理；若生成了命令，则已被接受/发送 | 否 | 是 | 观察源事件编排；不代表下游命令完成 | [CommandStage.kt:83](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L83) |
@@ -673,7 +673,7 @@ graph TB
 ### 链式等待计划
 
 <p align="center" style="text-align:center;">
-  <img  width="95%" src="../../public/images/wait/CommandWaitChain.svg" alt="链式等待计划"/>
+  <img  width="95%" src="/images/wait/CommandWaitChain.svg" alt="链式等待计划"/>
 </p>
 
 

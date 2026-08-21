@@ -59,7 +59,7 @@ sequenceDiagram
 > 运行之后，访问 Swagger-UI : [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html) 。
 > 该 RESTful API 端点是由 Wow 自动生成的，无需手动编写。
 
-![example-transfer-swagger](../../../public/images/example/transfer-swagger.png)
+![example-transfer-swagger](/images/example/transfer-swagger.png)
 
 ## 模块划分
 
@@ -249,7 +249,7 @@ public class TransferSaga {
 
 借助 Wow 单元测试套件，可以轻松的编写聚合根和 Saga 的单元测试。从而提升代码覆盖率，保证代码质量。
 
-![example-transfer-jacoco](../../../public/images/example/transfer-jacoco.png)
+![example-transfer-jacoco](/images/example/transfer-jacoco.png)
 
 > 使用 `AggregateSpec` 进行聚合根单元测试，可以有效的减少单元测试的编写工作量。
 

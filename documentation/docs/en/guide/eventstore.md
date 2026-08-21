@@ -11,7 +11,7 @@ The Event Store is the persistence backbone of the event sourcing architecture. 
 
 <center>
 
-![EventSourcing](../../public/images/eventstore/eventsourcing.svg)
+![EventSourcing](/images/eventstore/eventsourcing.svg)
 </center>
 
 In traditional architectures, databases only store the current state, and historical change records are often lost. In event sourcing architecture:

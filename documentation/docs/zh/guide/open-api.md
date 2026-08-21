@@ -42,7 +42,7 @@ implementation("org.springdoc:springdoc-openapi-starter-webflux-ui")
 
 > Swagger-UI 是一个基于 OpenAPI 规范的 API 文档工具，可以通过 Swagger-UI 来查看和测试 API 接口。
 
-![Swagger-UI](../../public/images/compensation/open-api.png)
+![Swagger-UI](/images/compensation/open-api.png)
 
 ## 聚合资源归属
 

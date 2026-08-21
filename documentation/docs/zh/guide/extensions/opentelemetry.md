@@ -42,7 +42,7 @@ instrumenter；Wow 指标仍是 Micrometer meter，由 Micrometer Registry 负�
 - `wow.message.request_id`: 命令消息的请求ID。
 - `wow.message.trace_id`: 通过消息头传播的 Trace ID。
 
-![可观测性](../../../public/images/observability/observability.png)
+![可观测性](/images/observability/observability.png)
 
 ## 安装
 

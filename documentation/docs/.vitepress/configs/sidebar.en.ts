@@ -45,6 +45,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             text: 'Basics',
             collapsed: false,
             items: [
+                {text: 'Guide Overview', link: ''},
                 {text: 'Introduction', link: 'introduction'},
                 {text: 'Getting Started', link: 'getting-started'},
                 {text: 'Core Concepts', link: 'core-concepts'},

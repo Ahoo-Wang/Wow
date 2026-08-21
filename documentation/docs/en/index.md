@@ -14,8 +14,8 @@ hero:
       text: Get Started
       link: /guide/getting-started
     - theme: alt
-      text: Introduction
-      link: /guide/introduction
+      text: Documentation Map
+      link: /guide/
     - theme: alt
       text: GitHub
       link: https://github.com/Ahoo-Wang/Wow

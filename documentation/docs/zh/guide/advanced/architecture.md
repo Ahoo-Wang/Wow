@@ -196,8 +196,8 @@ sequenceDiagram
 stateDiagram-v2
     [*] --> SENT : 命令被总线接受
     SENT --> PROCESSED : 聚合执行了命令
-    SENT --> SNAPSHOT : 快照已保存
-    PROCESSED --> SNAPSHOT : 快照已保存
+    SENT --> SNAPSHOT : 快照处理完成
+    PROCESSED --> SNAPSHOT : 快照处理完成
     PROCESSED --> PROJECTED : 所有投影已更新
     PROCESSED --> EVENT_HANDLED : 事件处理器完成
     PROCESSED --> SAGA_HANDLED : Saga 处理完成

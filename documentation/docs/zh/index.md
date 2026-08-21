@@ -14,8 +14,8 @@ hero:
       text: 快速上手
       link: /zh/guide/getting-started
     - theme: alt
-      text: 简介
-      link: /zh/guide/introduction
+      text: 文档导览
+      link: /zh/guide/
     - theme: alt
       text: GitHub
       link: https://github.com/Ahoo-Wang/Wow

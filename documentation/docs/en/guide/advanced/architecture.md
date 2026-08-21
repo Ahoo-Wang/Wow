@@ -196,8 +196,8 @@ The `CommandGateway` supports waiting for the command to reach specific processi
 stateDiagram-v2
     [*] --> SENT : command accepted by bus
     SENT --> PROCESSED : aggregate executed command
-    SENT --> SNAPSHOT : snapshot saved
-    PROCESSED --> SNAPSHOT : snapshot saved
+    SENT --> SNAPSHOT : snapshot processing complete
+    PROCESSED --> SNAPSHOT : snapshot processing complete
     PROCESSED --> PROJECTED : all projections updated
     PROCESSED --> EVENT_HANDLED : event handlers complete
     PROCESSED --> SAGA_HANDLED : saga processing complete

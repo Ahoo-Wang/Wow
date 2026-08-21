@@ -11,7 +11,7 @@ description: 事件存储是事件溯源架构的核心持久化引擎 -- 不可
 
 <center>
 
-![EventSourcing](../../public/images/eventstore/eventsourcing.svg)
+![EventSourcing](/images/eventstore/eventsourcing.svg)
 </center>
 
 在传统架构中，数据库只存储当前状态，历史变更记录往往会丢失。而在事件溯源架构中：

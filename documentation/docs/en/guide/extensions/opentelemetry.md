@@ -43,7 +43,7 @@ Supports the following attribute tags:
 - `wow.message.request_id`: Command message request ID.
 - `wow.message.trace_id`: Trace ID propagated through the message header.
 
-![Observability](../../../public/images/observability/observability.png)
+![Observability](/images/observability/observability.png)
 
 ## Installation
 

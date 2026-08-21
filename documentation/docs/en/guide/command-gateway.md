@@ -10,7 +10,7 @@ It is an extension of the command bus, not only responsible for command transmis
 
 ## Send Command
 
-![Send Command - Command Gateway](../../public/images/command-gateway/send-command.svg)
+![Send Command - Command Gateway](/images/command-gateway/send-command.svg)
 
 ## API Usage
 
@@ -548,7 +548,7 @@ Currently supported command wait plans include:
 ### CommandWait
 
 <p align="center" style="text-align:center;">
-  <img  width="95%" src="../../public/images/wait/CommandWait.svg" alt="CommandWait"/>
+  <img  width="95%" src="/images/wait/CommandWait.svg" alt="CommandWait"/>
 </p>
 
 The waiting signals supported by `CommandWait` are as follows:
@@ -623,7 +623,7 @@ commandGateway.sendAndWaitForProcessed(message)
 |---|---|---|---|---|---|---|
 | `SENT` | none | Command accepted by bus/queue | Yes | No | Fire-and-forget; fastest response | [CommandStage.kt:32](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L32) |
 | `PROCESSED` | `[SENT]` | Aggregate finished executing | No | No | Default; balance of speed and consistency | [CommandStage.kt:40](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L40) |
-| `SNAPSHOT` | `[SENT, PROCESSED]` | Snapshot persisted | No | No | Cold-start performance; read-after-write | [CommandStage.kt:53](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L53) |
+| `SNAPSHOT` | `[SENT, PROCESSED]` | Snapshot processing completed; `version_offset` may skip writing | No | No | Snapshot lifecycle; read-after-write with `strategy: all` | [CommandStage.kt:53](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L53) |
 | `PROJECTED` | `[SENT, PROCESSED]` | Projection (read model) updated | No | Yes | Read-model consistency; UI refresh | [CommandStage.kt:62](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L62) |
 | `EVENT_HANDLED` | `[SENT, PROCESSED]` | External event handlers complete | No | Yes | Side-effect processing; notifications | [CommandStage.kt:72](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L72) |
 | `SAGA_HANDLED` | `[SENT, PROCESSED]` | Selected Saga function completed handling; any generated commands were accepted/sent | No | Yes | Observe source-event orchestration; not downstream command completion | [CommandStage.kt:83](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L83) |
@@ -673,7 +673,7 @@ At runtime, `WaitPlan` remains immutable intent. `WaitCoordinator` registers exa
 ### Chain Wait Plan
 
 <p align="center" style="text-align:center;">
-  <img  width="95%" src="../../public/images/wait/CommandWaitChain.svg" alt="Chain wait plan"/>
+  <img  width="95%" src="/images/wait/CommandWaitChain.svg" alt="Chain wait plan"/>
 </p>
 
 

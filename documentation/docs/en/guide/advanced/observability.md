@@ -5,7 +5,7 @@ description: End-to-end observability integration for the Wow framework.
 
 # Observability
 
-![Observability](../../../public/images/observability/observability.png)
+![Observability](/images/observability/observability.png)
 
 Wow provides end-to-end observability through two complementary integrations:
 
