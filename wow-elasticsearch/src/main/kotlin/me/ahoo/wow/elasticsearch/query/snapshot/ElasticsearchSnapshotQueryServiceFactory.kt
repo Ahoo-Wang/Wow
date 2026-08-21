@@ -14,13 +14,36 @@
 package me.ahoo.wow.elasticsearch.query.snapshot
 
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
+import me.ahoo.wow.elasticsearch.query.gateway.ElasticsearchSnapshotQueryBackend
+import me.ahoo.wow.query.backend.QueryRouter
+import me.ahoo.wow.query.compat.GatewaySnapshotQueryServiceFactory
+import me.ahoo.wow.query.gateway.SnapshotQueryGatewayFactory
+import me.ahoo.wow.query.schema.JacksonQuerySchemaProvider
 import me.ahoo.wow.query.snapshot.AbstractSnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
+import me.ahoo.wow.serialization.JsonSerializer
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 
-class ElasticsearchSnapshotQueryServiceFactory(private val elasticsearchClient: ReactiveElasticsearchClient) :
-    AbstractSnapshotQueryServiceFactory() {
+class ElasticsearchSnapshotQueryServiceFactory private constructor(
+    private val delegate: GatewaySnapshotQueryServiceFactory
+) : AbstractSnapshotQueryServiceFactory() {
+    constructor(elasticsearchClient: ReactiveElasticsearchClient) : this(
+        GatewaySnapshotQueryServiceFactory(
+            SnapshotQueryGatewayFactory.create(
+                schemaProvider = JacksonQuerySchemaProvider(JsonSerializer),
+                router = QueryRouter { ElasticsearchSnapshotQueryBackend(elasticsearchClient) },
+                objectMapper = JsonSerializer
+            ),
+            ElasticsearchSnapshotStore.NAME
+        )
+    )
+
+    constructor(gatewayFactory: SnapshotQueryGatewayFactory) : this(
+        GatewaySnapshotQueryServiceFactory(gatewayFactory, ElasticsearchSnapshotStore.NAME)
+    )
+
     override fun createQueryService(namedAggregate: NamedAggregate): SnapshotQueryService<*> {
-        return ElasticsearchSnapshotQueryService<Any>(namedAggregate, elasticsearchClient)
+        return delegate.create<Any>(namedAggregate)
     }
 }

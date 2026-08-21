@@ -13,14 +13,20 @@
 
 package me.ahoo.wow.mongo.query.snapshot
 
+import com.mongodb.client.model.Filters
 import com.mongodb.reactivestreams.client.MongoDatabase
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.mongo.MongoSnapshotStore
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.tck.container.MongoTestFixture
 import me.ahoo.wow.tck.query.SnapshotQueryServiceSpec
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
+import reactor.kotlin.test.test
 
 class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     @JvmField
@@ -41,5 +47,19 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
 
     override fun createSnapshotStore(): SnapshotStore {
         return MongoSnapshotStore(database)
+    }
+
+    @Test
+    fun `should preserve raw legacy queries`() {
+        snapshotQueryService.dynamicSingle(
+            SingleQuery(Condition.raw(Filters.eq("_id", snapshot.aggregateId.id)))
+        ).test()
+            .expectNextCount(1)
+            .verifyComplete()
+    }
+
+    @Test
+    fun `should preserve the mongo service name`() {
+        snapshotQueryService.name.assert().isEqualTo("mongo")
     }
 }

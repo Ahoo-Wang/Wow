@@ -13,12 +13,16 @@
 package me.ahoo.wow.spring.boot.starter.eventsourcing.routing
 
 import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.api.query.QueryErrorCode
+import me.ahoo.wow.api.query.QueryStage
 import me.ahoo.wow.eventsourcing.AggregateEventStoreRegistry
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.RoutingEventStore
 import me.ahoo.wow.eventsourcing.snapshot.AggregateSnapshotStoreRegistry
 import me.ahoo.wow.eventsourcing.snapshot.RoutingSnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
+import me.ahoo.wow.query.QueryException
+import me.ahoo.wow.query.backend.QueryRouter
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.RoutingEventStreamQueryServiceFactory
 import me.ahoo.wow.query.snapshot.RoutingSnapshotQueryServiceFactory
@@ -39,6 +43,8 @@ import me.ahoo.wow.spring.boot.starter.redis.RedisEventSourcingAutoConfiguration
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionOutcome
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.SpringBootCondition
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.context.properties.bind.Binder
@@ -68,6 +74,38 @@ import org.springframework.core.type.AnnotatedTypeMetadata
     SnapshotProperties::class,
 )
 class StorageRoutingAutoConfiguration {
+
+    @Bean
+    @Primary
+    @ConditionalOnBean(SnapshotQueryBackendBinding::class)
+    @ConditionalOnMissingBean(QueryRouter::class)
+    fun snapshotQueryRouter(
+        @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
+        namedBoundedContext: NamedBoundedContext,
+        eventStoreProperties: EventStoreProperties,
+        snapshotProperties: SnapshotProperties,
+        storageRoutingProperties: StorageRoutingProperties,
+        eventStoreBindings: List<EventStoreBinding>,
+        snapshotStoreBindings: List<SnapshotStoreBinding>,
+        snapshotQueryBackendBindings: List<SnapshotQueryBackendBinding>
+    ): QueryRouter {
+        val resolved = StorageRouteResolver(
+            contextName = namedBoundedContext.contextName,
+            snapshotEnabled = snapshotProperties.enabled,
+            eventStoreBindings = eventStoreBindings,
+            snapshotStoreBindings = snapshotStoreBindings,
+            eventStreamQueryServiceFactoryBindings = emptyList(),
+            snapshotQueryServiceFactoryBindings = emptyList(),
+            defaultEventStorage = eventStoreProperties.storage,
+            defaultSnapshotStorage = snapshotProperties.storage,
+            snapshotQueryBackendBindings = snapshotQueryBackendBindings
+        ).resolveSnapshotQueryBackendRoutes(storageRoutingProperties)
+        val routes = resolved.routes.toMap()
+        return QueryRouter { query ->
+            val backend = if (routes.containsKey(query.target)) routes[query.target] else resolved.defaultBackend
+            backend ?: throw QueryException(QueryErrorCode.BACKEND_NOT_READY, QueryStage.ROUTING)
+        }
+    }
 
     @Bean(destroyMethod = "")
     @Primary

@@ -7,8 +7,9 @@ description: 根据系统现状选择传统架构迁移或 Wow v6 到 v8 升级�
 
 迁移有两条主路径：**首次采用 Wow** 解决的是领域边界、数据建模和流量切换；
 **Wow v6 → v8** 解决的是精确源 tag 对应的平台差异、源码兼容和存储格式切换。已经使用 Wow v8
-且自定义运行时生命周期的系统，还需执行其中的**运行时编排专项迁移**；它不是第三种
-业务或数据迁移。请先选择主路径，不要把两套步骤混在同一次发布中。
+且自定义运行时生命周期的系统，还需执行其中的**运行时编排专项迁移**；升级快照查询或切换
+MongoDB/Elasticsearch 读存储时，还需执行 **快照查询网关专项迁移**。专项迁移不替代主路径，
+也不能省略数据对账和回滚演练。
 
 ## 选择迁移路径
 
@@ -17,6 +18,7 @@ description: 根据系统现状选择传统架构迁移或 Wow v6 到 v8 升级�
 | 传统 CRUD / 事务脚本 / 直接操作数据库 | 渐进采用 Wow CQRS + Event Sourcing | [传统架构迁移](./migration/traditional-architecture.md) | Wow v6 的版本兼容假设 |
 | 使用精确平台基线的 Wow v6 | 使用固定目标平台的 Wow v8 | [Wow v6 迁移到 v8](./migration/v6-to-v8.md) | 重新设计全部业务边界 |
 | 已在 Wow v8 上自定义 Dispatcher、MessageBus 或 Spring 生命周期 | 当前统一 `WowRuntime` | [运行时编排迁移](./migration/runtime-orchestration.md) | 业务数据重写 |
+| 已使用 `SnapshotQueryService` 或准备切换快照查询后端 | 采用 `SnapshotQueryGateway` 并完成可回滚切流 | [快照查询网关迁移](./migration/snapshot-query-gateway.md) | 把 template 更新当作已有索引迁移 |
 
 ```mermaid
 %%{init: {"theme": "dark"}}%%
@@ -68,6 +70,7 @@ graph TD
 | 传统架构迁移 | 如何从 CRUD 建立 command、aggregate、event、state，并安全切流？ | [CreateOrder.kt:31-64](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-api/src/main/kotlin/me/ahoo/wow/example/api/order/CreateOrder.kt#L31-L64)、[Order.kt:55-137](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/Order.kt#L55-L137) |
 | v6 → v8 | 如何按精确 v6 平台基线对齐固定 v8 目标，并处理存储与 API 破坏？ | [v6.21.5 版本基线](https://github.com/Ahoo-Wang/Wow/blob/v6.21.5/gradle/libs.versions.toml)、[v8.0.0 Release](https://github.com/Ahoo-Wang/Wow/releases/tag/v8.0.0)、[当前版本基线](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/libs.versions.toml) |
 | 运行时编排迁移 | 如何把多个生命周期 owner 收敛到一个 `WowRuntime`？ | [WowAutoConfiguration.kt:118-152](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt#L118-L152) |
+| 快照查询网关迁移 | 如何保留旧查询语义、审计真实 mapping、重建快照并灰度切流？ | `LegacySnapshotQueryAdapter`、`ElasticsearchQueryMapping`、`StorageRouteResolver` |
 
 ## 共同完成门禁
 

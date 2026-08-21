@@ -14,6 +14,7 @@ package me.ahoo.wow.spring.boot.starter.eventsourcing.routing
 
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
+import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
@@ -81,6 +82,21 @@ data class SnapshotQueryServiceFactoryBinding(
                 name = storage.bindingPrefix() + "-snapshot-query-service-factory",
                 storage = storage,
                 snapshotQueryServiceFactory = snapshotQueryServiceFactory,
+            )
+    }
+}
+
+data class SnapshotQueryBackendBinding(
+    val name: String,
+    val storage: StorageType?,
+    val backend: QueryBackend
+) {
+    companion object {
+        fun storage(storage: StorageType, backend: QueryBackend): SnapshotQueryBackendBinding =
+            SnapshotQueryBackendBinding(
+                name = storage.bindingPrefix() + "-snapshot-query-backend",
+                storage = storage,
+                backend = backend
             )
     }
 }

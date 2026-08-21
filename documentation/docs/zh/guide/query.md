@@ -9,6 +9,11 @@ description: 通过 wow-mongo 和 wow-elasticsearch 模块提供的查询服务�
 目前 `wow-mongo` 模块 与 `wow-elasticsearch` 模块支持查询服务。
 :::
 
+:::info 新查询入口
+新代码优先使用后端中立的 [快照查询网关](./snapshot-query-gateway.md)。本页保留旧 `SnapshotQueryService`、`Condition`
+和 Query DSL 的公共用法。
+:::
+
 ## 操作符
 
 | 操作符           | 描述                                                                                                                                  |

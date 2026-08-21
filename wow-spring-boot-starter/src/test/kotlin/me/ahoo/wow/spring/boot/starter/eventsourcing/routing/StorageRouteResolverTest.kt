@@ -404,6 +404,24 @@ class StorageRouteResolverTest {
         snapshotException.message.assert().contains("query service factory")
     }
 
+    @Test
+    fun `missing snapshot query backends remain unresolved`() {
+        val target = MaterializedNamedAggregate("order-service", "cart")
+        val resolved = resolver().resolveSnapshotQueryBackendRoutes(
+            StorageRoutingProperties(
+                aggregates = mapOf(
+                    "cart" to AggregateStorageRouteProperties(
+                        snapshot = StorageChannelRouteProperties(storage = StorageType.REDIS)
+                    )
+                )
+            )
+        )
+
+        resolved.defaultBackend.assert().isNull()
+        resolved.routes.containsKey(target).assert().isTrue()
+        resolved.routes[target].assert().isNull()
+    }
+
     private fun resolver(
         contextName: String = "order-service",
         snapshotEnabled: Boolean = true,

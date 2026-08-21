@@ -9,6 +9,11 @@ description: Query service provides query capabilities through wow-mongo and wow
 Currently the `wow-mongo` module and `wow-elasticsearch` module support query services.
 :::
 
+:::info New query entry point
+Prefer the backend-neutral [Snapshot Query Gateway](./snapshot-query-gateway.md) for new code. This page retains the public usage of the
+legacy `SnapshotQueryService`, `Condition`, and Query DSL.
+:::
+
 ## Operators
 
 | Operator           | Description                                                                                                                                                                                                                                                             |
