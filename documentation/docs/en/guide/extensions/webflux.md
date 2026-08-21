@@ -87,6 +87,13 @@ plus `wow-webflux` for these properties to be bound.
 | `global-error.enabled` | `Boolean` | `true` | Whether to install the global exception handler that maps errors to the unified `ErrorInfo` response |
 | `batch.concurrency` | `Int` | `1` | Maximum concurrent requests processed in a single batch execution |
 | `batch.prefetch` | `Int` | `1` | Prefetch window for batch request processing |
+| `query.max-list-size` | `Int` | `1000` | Maximum positive limit for HTTP list queries; `0` disables the cap and restores unlimited `limit=0` queries |
+| `query.max-page-size` | `Int` | `100` | Maximum HTTP page size; `0` disables the cap |
+| `query.max-page-window` | `Long` | `10000` | Maximum HTTP `index * size` page window; `0` disables the cap |
+| `query.max-condition-nodes` | `Int` | `64` | Maximum number of HTTP query condition nodes; `0` disables the cap |
+| `query.allow-raw` | `Boolean` | `false` | Whether HTTP queries may use native `RAW` conditions |
+| `query.allow-expensive-operators` | `Boolean` | `false` | Whether HTTP queries may use `CONTAINS` and `ENDS_WITH` |
+| `query.idle-timeout` | `Duration` | `10s` | Maximum wait for the next HTTP query result; `0s` disables the timeout |
 
 ```yaml
 wow:
@@ -97,9 +104,18 @@ wow:
     batch:
       concurrency: 4
       prefetch: 4
+    query:
+      max-list-size: 1000
+      max-page-size: 100
+      max-page-window: 10000
+      max-condition-nodes: 64
+      allow-raw: false
+      allow-expensive-operators: false
+      idle-timeout: 10s
 ```
 
 When `wow-spring-boot-starter` is used, WebFlux is included as the `webflux-support` feature capability. The global error handler is enabled by default; disable it only if you provide your own `WebExceptionHandler`.
+The query limits apply only to built-in HTTP query routes; injected query services and low-level factories keep their existing behavior. To temporarily restore the previous HTTP behavior after upgrading, set the numeric limits and `idle-timeout` to `0` and explicitly enable both `allow-*` switches.
 
 ## Wait Plan Integration
 

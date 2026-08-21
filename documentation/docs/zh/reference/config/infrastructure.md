@@ -172,6 +172,13 @@ direct 和 batch 模式下都使用基于 `_source.version` 的原子保护更�
 | `wow.webflux.global-error.enabled` | Boolean | `true` | 启用全局错误处理 |
 | `wow.webflux.batch.concurrency` | Integer | `1` | 批量命令请求的并发数 |
 | `wow.webflux.batch.prefetch` | Integer | `1` | 批量命令请求的预取数 |
+| `wow.webflux.query.max-list-size` | Integer | `1000` | HTTP 列表查询最大 limit；`0` 关闭上限 |
+| `wow.webflux.query.max-page-size` | Integer | `100` | HTTP 查询最大页大小；`0` 关闭上限 |
+| `wow.webflux.query.max-page-window` | Long | `10000` | HTTP 查询最大分页窗口；`0` 关闭上限 |
+| `wow.webflux.query.max-condition-nodes` | Integer | `64` | HTTP 查询条件节点上限；`0` 关闭上限 |
+| `wow.webflux.query.allow-raw` | Boolean | `false` | 允许 HTTP `RAW` 查询 |
+| `wow.webflux.query.allow-expensive-operators` | Boolean | `false` | 允许 HTTP `CONTAINS`/`ENDS_WITH` 查询 |
+| `wow.webflux.query.idle-timeout` | Duration | `10s` | HTTP 查询结果空闲超时；`0s` 关闭 |
 | `wow.webflux.command.request.appender.agent.enabled` | Boolean | `true` | 将客户端 `User-Agent` 追加到命令请求上下文（设为 `false` 可禁用） |
 | `wow.webflux.command.request.appender.ip.enabled` | Boolean | `true` | 将客户端 IP 追加到命令请求上下文（设为 `false` 可禁用） |
 
@@ -184,6 +191,14 @@ wow:
     batch:
       concurrency: 1
       prefetch: 1
+    query:
+      max-list-size: 1000
+      max-page-size: 100
+      max-page-window: 10000
+      max-condition-nodes: 64
+      allow-raw: false
+      allow-expensive-operators: false
+      idle-timeout: 10s
     command:
       request:
         appender:

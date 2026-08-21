@@ -85,6 +85,13 @@ data class CreateOrder(/* ... */)
 | `global-error.enabled` | `Boolean` | `true` | 是否安装全局异常处理器，将错误映射为统一的 `ErrorInfo` 响应 |
 | `batch.concurrency` | `Int` | `1` | 单次批量执行中并发处理的最大请求数 |
 | `batch.prefetch` | `Int` | `1` | 批量请求处理的预取窗口 |
+| `query.max-list-size` | `Int` | `1000` | HTTP 列表查询允许的最大正数 limit；`0` 关闭上限并恢复 `limit=0` 全量查询 |
+| `query.max-page-size` | `Int` | `100` | HTTP 分页查询的最大页大小；`0` 关闭上限 |
+| `query.max-page-window` | `Long` | `10000` | HTTP 分页查询允许的最大 `index * size`；`0` 关闭上限 |
+| `query.max-condition-nodes` | `Int` | `64` | HTTP 查询条件树的最大节点数；`0` 关闭上限 |
+| `query.allow-raw` | `Boolean` | `false` | 是否允许 HTTP 查询使用 `RAW` 原生条件 |
+| `query.allow-expensive-operators` | `Boolean` | `false` | 是否允许 HTTP 查询使用 `CONTAINS` 与 `ENDS_WITH` |
+| `query.idle-timeout` | `Duration` | `10s` | HTTP 查询等待下一条结果的最长时间；`0s` 关闭超时 |
 
 ```yaml
 wow:
@@ -95,9 +102,18 @@ wow:
     batch:
       concurrency: 4
       prefetch: 4
+    query:
+      max-list-size: 1000
+      max-page-size: 100
+      max-page-window: 10000
+      max-condition-nodes: 64
+      allow-raw: false
+      allow-expensive-operators: false
+      idle-timeout: 10s
 ```
 
 使用 `wow-spring-boot-starter` 时，WebFlux 作为 `webflux-support` 特性能力包含在内。全局异常处理器默认启用；仅当你提供自己的 `WebExceptionHandler` 时才需关闭。
+查询限制只作用于内置 HTTP 查询路由，不改变程序内注入的查询服务或底层 Factory。升级后如需临时恢复旧 HTTP 行为，可将数值限制和 `idle-timeout` 设为 `0`，并显式启用两个 `allow-*` 开关。
 
 ## 等待计划集成
 

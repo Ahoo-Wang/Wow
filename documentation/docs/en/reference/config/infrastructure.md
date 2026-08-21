@@ -173,6 +173,13 @@ snapshots.
 | `wow.webflux.global-error.enabled` | Boolean | `true` | Enable global error handling |
 | `wow.webflux.batch.concurrency` | Integer | `1` | Concurrency for batch command requests |
 | `wow.webflux.batch.prefetch` | Integer | `1` | Prefetch count for batch command requests |
+| `wow.webflux.query.max-list-size` | Integer | `1000` | Maximum HTTP list-query limit; `0` disables the cap |
+| `wow.webflux.query.max-page-size` | Integer | `100` | Maximum HTTP page size; `0` disables the cap |
+| `wow.webflux.query.max-page-window` | Long | `10000` | Maximum HTTP page window; `0` disables the cap |
+| `wow.webflux.query.max-condition-nodes` | Integer | `64` | Maximum HTTP query condition nodes; `0` disables the cap |
+| `wow.webflux.query.allow-raw` | Boolean | `false` | Allow native HTTP `RAW` queries |
+| `wow.webflux.query.allow-expensive-operators` | Boolean | `false` | Allow HTTP `CONTAINS`/`ENDS_WITH` queries |
+| `wow.webflux.query.idle-timeout` | Duration | `10s` | HTTP query-result idle timeout; `0s` disables it |
 | `wow.webflux.command.request.appender.agent.enabled` | Boolean | `true` | Append the client `User-Agent` to the command request context (set `false` to disable) |
 | `wow.webflux.command.request.appender.ip.enabled` | Boolean | `true` | Append the client IP to the command request context (set `false` to disable) |
 
@@ -185,6 +192,14 @@ wow:
     batch:
       concurrency: 1
       prefetch: 1
+    query:
+      max-list-size: 1000
+      max-page-size: 100
+      max-page-window: 10000
+      max-condition-nodes: 64
+      allow-raw: false
+      allow-expensive-operators: false
+      idle-timeout: 10s
     command:
       request:
         appender:
