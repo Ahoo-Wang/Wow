@@ -408,6 +408,21 @@ snapshotQueryService.dynamicQuery(condition)
 
 `MongoSnapshotQueryService` 使用 `MaterializedSnapshot<S>` 作为其类型化的结果包装器，其中 `S` 是从聚合元数据解析出的聚合状态类型。这支持直接对聚合状态字段进行类型安全的动态查询——例如，查询 `state.status` 或 `state.totalAmount` 而不需要单独的投影处理器。
 
+### 快照聚合
+
+`AggregationQuery` 会编译成 `$match -> $group -> $project -> $sort -> $limit`。多维分组使用复合 `_id`，数值直方图使用取整表达式，时间直方图使用 `$dateTrunc`：
+
+```kotlin
+aggregationQuery {
+    groupBy("state.status", "status")
+    histogram("state.totalAmount", "amountBand", interval = 100.0)
+    count("orderCount")
+    avg("state.totalAmount", "averageAmount")
+}.aggregate(snapshotQueryService)
+```
+
+公共 API 只接受标量分组字段和数值指标字段；MongoDB 返回值会被归一化为与 Elasticsearch 相同的 `Long`/`Double`/epoch-millisecond 结构。
+
 ## PrepareKey：分布式协调
 
 `MongoPrepareKey` 实现了 Wow 的 `PrepareKey<V>` 接口，以 MongoDB 为协调后端进行分布式键预留。每个逻辑键变成一个 `prepare_{name}` 集合。

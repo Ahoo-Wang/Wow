@@ -15,6 +15,8 @@ package me.ahoo.wow.query.snapshot.filter
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.IListQuery
@@ -140,6 +142,16 @@ class MaskingSnapshotQueryFilterTest {
             .verifyComplete()
     }
 
+    @Test
+    fun `should reject aggregation when masking is configured`() {
+        queryHandler.aggregate(
+            MockSnapshotQueryService.namedAggregate,
+            AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))),
+        ).test()
+            .expectErrorMessage("Snapshot aggregation is unavailable when data masking is configured.")
+            .verify()
+    }
+
     data class DataMaskable(val pwd: String) : DataMasking<DataMaskable> {
         companion object {
             const val MASKED_PWD = "******"
@@ -216,6 +228,10 @@ class MaskingSnapshotQueryFilterTest {
 
         override fun count(condition: Condition): Mono<Long> {
             return 1L.toMono()
+        }
+
+        override fun aggregate(aggregationQuery: AggregationQuery): Flux<Map<String, Any?>> {
+            return Flux.just(mapOf("count" to 1L))
         }
     }
 }

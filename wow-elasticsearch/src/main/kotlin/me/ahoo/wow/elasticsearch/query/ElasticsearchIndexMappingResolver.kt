@@ -45,6 +45,8 @@ enum class ElasticsearchFieldUsage {
     RANGE,
     SEARCH,
     SORT,
+    NUMERIC,
+    DATE,
 }
 
 class ElasticsearchFieldResolutionException(message: String) : IllegalArgumentException(message)
@@ -274,15 +276,35 @@ private data class ElasticsearchMappedField(
 ) {
     fun supports(usage: ElasticsearchFieldUsage): Boolean =
         when (usage) {
+            ElasticsearchFieldUsage.NUMERIC,
+            ElasticsearchFieldUsage.DATE,
+            -> supportsAggregation(usage)
+
+            else -> supportsQuery(usage)
+        }
+
+    private fun supportsQuery(usage: ElasticsearchFieldUsage): Boolean =
+        when (usage) {
             ElasticsearchFieldUsage.EXACT -> isQueryable() && kind in EXACT_KINDS
             ElasticsearchFieldUsage.LITERAL -> indexed && kind in LITERAL_KINDS
             ElasticsearchFieldUsage.RANGE -> isQueryable() && kind in RANGE_KINDS
             ElasticsearchFieldUsage.SEARCH -> indexed && kind in SEARCH_KINDS
             ElasticsearchFieldUsage.SORT ->
                 sortable && (kind in EXACT_KINDS || (indexed && kind == Property.Kind.Text))
+
+            else -> error("Unsupported query field usage: $usage")
+        }
+
+    private fun supportsAggregation(usage: ElasticsearchFieldUsage): Boolean =
+        when (usage) {
+            ElasticsearchFieldUsage.NUMERIC -> isSortable(NUMERIC_KINDS)
+            ElasticsearchFieldUsage.DATE -> isSortable(DATE_KINDS + NUMERIC_KINDS)
+            else -> error("Unsupported aggregation field usage: $usage")
         }
 
     private fun isQueryable(): Boolean = indexed || (sortable && kind in DOC_VALUE_QUERY_KINDS)
+
+    private fun isSortable(kinds: Set<Property.Kind>): Boolean = sortable && kind in kinds
 
     companion object {
         private val NUMERIC_KINDS = setOf(
@@ -318,6 +340,7 @@ private data class ElasticsearchMappedField(
             Property.Kind.DateNanos,
             Property.Kind.Ip,
         )
+        private val DATE_KINDS = setOf(Property.Kind.Date, Property.Kind.DateNanos)
         private val EXACT_KINDS = NUMERIC_KINDS + TERM_KINDS + setOf(
             Property.Kind.Boolean,
             Property.Kind.Date,

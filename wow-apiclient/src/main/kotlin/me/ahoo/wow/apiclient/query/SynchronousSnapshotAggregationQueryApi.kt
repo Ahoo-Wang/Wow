@@ -11,15 +11,12 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.filter
+package me.ahoo.wow.apiclient.query
 
-enum class QueryType(val isDynamic: Boolean) {
-    SINGLE(false),
-    DYNAMIC_SINGLE(true),
-    LIST(false),
-    DYNAMIC_LIST(true),
-    PAGED(false),
-    DYNAMIC_PAGED(true),
-    COUNT(false),
-    AGGREGATE(true),
-}
+import me.ahoo.wow.api.query.AggregationQuery
+
+interface SynchronousSnapshotAggregationQueryApi :
+    SnapshotAggregationQueryApi<List<Map<String, Any?>>>
+
+fun AggregationQuery.aggregate(snapshotQueryApi: SynchronousSnapshotAggregationQueryApi): List<Map<String, Any?>> =
+    snapshotQueryApi.aggregate(this)

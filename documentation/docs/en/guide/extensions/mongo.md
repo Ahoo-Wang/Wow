@@ -413,6 +413,21 @@ snapshotQueryService.dynamicQuery(condition)
 
 The `MongoSnapshotQueryService` uses `MaterializedSnapshot<S>` as its typed result wrapper, where `S` is the aggregate's state type resolved from the aggregate metadata. This enables type-safe dynamic queries directly against aggregate state fields -- for example, querying `state.status` or `state.totalAmount` without a separate projection processor.
 
+### Snapshot Aggregation
+
+`AggregationQuery` compiles to `$match -> $group -> $project -> $sort -> $limit`. Composite `_id` values implement multiple dimensions, arithmetic expressions implement numeric histograms, and `$dateTrunc` implements date histograms:
+
+```kotlin
+aggregationQuery {
+    groupBy("state.status", "status")
+    histogram("state.totalAmount", "amountBand", interval = 100.0)
+    count("orderCount")
+    avg("state.totalAmount", "averageAmount")
+}.aggregate(snapshotQueryService)
+```
+
+The portable API accepts scalar group fields and numeric metric fields. MongoDB values are normalized to the same `Long`, `Double`, and epoch-millisecond shapes returned by the Elasticsearch implementation.
+
 ## PrepareKey: Distributed Coordination
 
 `MongoPrepareKey` implements Wow's `PrepareKey<V>` interface for distributed key reservation with MongoDB as the coordination backend. Each logical key becomes a `prepare_{name}` collection.

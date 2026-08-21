@@ -14,18 +14,21 @@
 package me.ahoo.wow.tck.query
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
+import me.ahoo.wow.query.dsl.aggregationQuery
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.pagedQuery
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
+import me.ahoo.wow.query.snapshot.aggregate
 import me.ahoo.wow.query.snapshot.count
 import me.ahoo.wow.query.snapshot.dynamicQuery
 import me.ahoo.wow.query.snapshot.query
@@ -34,7 +37,8 @@ import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
-import java.time.Clock
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 
 abstract class SnapshotQueryServiceSpec {
     lateinit var snapshotStore: SnapshotStore
@@ -51,7 +55,7 @@ abstract class SnapshotQueryServiceSpec {
         val stateAggregate =
             ConstructorStateAggregateFactory.create(MOCK_AGGREGATE_METADATA.state, aggregateId)
         snapshot =
-            SimpleSnapshot(stateAggregate, Clock.systemUTC().millis())
+            SimpleSnapshot(stateAggregate, FIXED_SNAPSHOT_TIME)
         snapshotStore.save(snapshot)
             .test()
             .verifyComplete()
@@ -168,5 +172,110 @@ abstract class SnapshotQueryServiceSpec {
             .test()
             .expectNext(1L)
             .verifyComplete()
+    }
+
+    @Test
+    fun aggregateGlobalMetrics() {
+        val second = saveSnapshot(FIXED_SNAPSHOT_TIME + 1_000)
+
+        aggregationQuery {
+            count("snapshotCount")
+            sum("snapshotTime", "totalSnapshotTime")
+            avg("snapshotTime", "averageSnapshotTime")
+            min("snapshotTime", "minimumSnapshotTime")
+            max("snapshotTime", "maximumSnapshotTime")
+        }.aggregate(snapshotQueryService)
+            .test()
+            .consumeNextWith { result ->
+                result["snapshotCount"].assert().isEqualTo(2L)
+                result["totalSnapshotTime"].assert()
+                    .isEqualTo(FIXED_SNAPSHOT_TIME.toDouble() + second.snapshotTime.toDouble())
+                result["averageSnapshotTime"].assert()
+                    .isEqualTo((FIXED_SNAPSHOT_TIME.toDouble() + second.snapshotTime.toDouble()) / 2)
+                result["minimumSnapshotTime"].assert().isEqualTo(FIXED_SNAPSHOT_TIME.toDouble())
+                result["maximumSnapshotTime"].assert().isEqualTo(second.snapshotTime.toDouble())
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun aggregateMultiDimensionalBuckets() {
+        saveSnapshot(FIXED_SNAPSHOT_TIME + 1_000)
+        saveSnapshot(FIXED_SNAPSHOT_TIME + HOUR_MILLIS)
+
+        aggregationQuery {
+            groupBy("contextName", "context")
+            histogram("snapshotTime", "hour", HOUR_MILLIS.toDouble())
+            count("snapshotCount")
+            sort {
+                "snapshotCount".desc()
+            }
+            limit(10)
+        }.aggregate(snapshotQueryService)
+            .collectList()
+            .test()
+            .consumeNextWith { result ->
+                result.assert().hasSize(2)
+                result[0]["snapshotCount"].assert().isEqualTo(2L)
+                result[0]["hour"].assert().isEqualTo(hourBucket(FIXED_SNAPSHOT_TIME))
+                result[1]["snapshotCount"].assert().isEqualTo(1L)
+                result[1]["hour"].assert().isEqualTo(hourBucket(FIXED_SNAPSHOT_TIME + HOUR_MILLIS))
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun aggregateDateHistogram() {
+        saveSnapshot(FIXED_SNAPSHOT_TIME + 1_000)
+
+        aggregationQuery {
+            groupBy("contextName", "context")
+            dateHistogram("snapshotTime", "day", AggregationDateUnit.DAY)
+            count("snapshotCount")
+        }.aggregate(snapshotQueryService)
+            .test()
+            .consumeNextWith { result ->
+                result["context"].assert().isEqualTo(MOCK_AGGREGATE_METADATA.contextName)
+                result["day"].assert().isEqualTo(
+                    Instant.ofEpochMilli(FIXED_SNAPSHOT_TIME).truncatedTo(ChronoUnit.DAYS).toEpochMilli()
+                )
+                result["snapshotCount"].assert().isEqualTo(2L)
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun aggregateEmptyGlobalMetrics() {
+        aggregationQuery {
+            condition {
+                id("missing")
+            }
+            count("snapshotCount")
+            sum("snapshotTime", "totalSnapshotTime")
+            avg("snapshotTime", "averageSnapshotTime")
+        }.aggregate(snapshotQueryService)
+            .test()
+            .consumeNextWith { result ->
+                result["snapshotCount"].assert().isEqualTo(0L)
+                result["totalSnapshotTime"].assert().isEqualTo(0.0)
+                result["averageSnapshotTime"].assert().isNull()
+            }
+            .verifyComplete()
+    }
+
+    private fun saveSnapshot(snapshotTime: Long): Snapshot<MockStateAggregate> {
+        val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(generateGlobalId())
+        val stateAggregate = ConstructorStateAggregateFactory.create(MOCK_AGGREGATE_METADATA.state, aggregateId)
+        val additionalSnapshot = SimpleSnapshot(stateAggregate, snapshotTime)
+        snapshotStore.save(additionalSnapshot).block()
+        return additionalSnapshot
+    }
+
+    private companion object {
+        const val FIXED_SNAPSHOT_TIME = 1_700_000_000_000L
+        const val HOUR_MILLIS = 3_600_000L
+
+        fun hourBucket(value: Long): Double =
+            (value / HOUR_MILLIS * HOUR_MILLIS).toDouble()
     }
 }

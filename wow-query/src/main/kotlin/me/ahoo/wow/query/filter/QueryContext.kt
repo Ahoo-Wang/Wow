@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.filter
 
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
@@ -87,6 +88,10 @@ interface QueryContext<Q : Any, R : Any> {
 
     fun asCountQuery(): QueryContext<Condition, Mono<Long>> {
         return this as QueryContext<Condition, Mono<Long>>
+    }
+
+    fun asAggregationQuery(): QueryContext<AggregationQuery, Flux<Map<String, Any?>>> {
+        return this as QueryContext<AggregationQuery, Flux<Map<String, Any?>>>
     }
 }
 

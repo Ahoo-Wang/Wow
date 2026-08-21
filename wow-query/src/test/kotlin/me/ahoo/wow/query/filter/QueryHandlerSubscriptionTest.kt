@@ -14,6 +14,8 @@
 package me.ahoo.wow.query.filter
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.ConditionCapable
 import me.ahoo.wow.api.query.DynamicDocument
@@ -95,13 +97,17 @@ class QueryHandlerSubscriptionTest {
             QueryType.PAGED to handler.paged(MOCK_AGGREGATE_METADATA, pagedQuery { }),
             QueryType.DYNAMIC_PAGED to handler.dynamicPaged(MOCK_AGGREGATE_METADATA, pagedQuery { }),
             QueryType.COUNT to handler.count(MOCK_AGGREGATE_METADATA, Condition.ALL),
+            QueryType.AGGREGATE to handler.aggregate(AGGREGATION_QUERY),
         )
 
     private class TestQueryHandler(chain: FilterChain<QueryContext<*, *>>) :
         AbstractQueryHandler<String>(
             chain,
             ErrorHandler<QueryContext<*, *>> { _, error -> Mono.error(error) }
-        )
+        ) {
+        fun aggregate(aggregationQuery: AggregationQuery): Flux<Map<String, Any?>> =
+            flux(MOCK_AGGREGATE_METADATA, QueryType.AGGREGATE, aggregationQuery)
+    }
 
     private class NonIdempotentTestFilter(
         private val failures: AtomicInteger = AtomicInteger(),
@@ -182,6 +188,9 @@ class QueryHandlerSubscriptionTest {
                 )
 
                 QueryType.COUNT -> context.asCountQuery().setResult(Mono.just(1L))
+                QueryType.AGGREGATE -> context.asAggregationQuery().setResult(
+                    Flux.just(mapOf("result" to RESULT))
+                )
             }
             return next.filter(context)
         }
@@ -191,6 +200,7 @@ class QueryHandlerSubscriptionTest {
         const val RESULT = "result"
         const val MASK_COUNT_KEY = "maskCount"
         val APPENDED_CONDITION: Condition = Condition.id("subscription")
+        val AGGREGATION_QUERY = AggregationQuery(metrics = listOf(AggregationMetric.Count("count")))
 
         fun queryCondition(context: QueryContext<*, *>): Condition =
             when (val query = context.getQuery()) {

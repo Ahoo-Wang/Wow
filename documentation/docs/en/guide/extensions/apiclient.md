@@ -182,6 +182,22 @@ interface OrderQueryApi : SynchronousSnapshotQueryApi<OrderState>
 The synchronous variant mirrors the reactive API but returns values directly
 (blocking).
 
+### Aggregation Query API
+
+Aggregation remains opt-in and does not change the existing composite query interfaces:
+
+```kotlin
+@CoApi
+interface OrderAggregationApi : ReactiveSnapshotAggregationQueryApi
+
+val rows = aggregationQuery {
+    groupBy("state.status", "status")
+    count("orderCount")
+}.aggregate(orderAggregationApi)
+```
+
+Use `SynchronousSnapshotAggregationQueryApi` for blocking calls.
+
 ## Error Handling
 
 `RestCommandGatewayException` wraps command errors with full request context:

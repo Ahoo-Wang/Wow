@@ -16,6 +16,8 @@ package me.ahoo.wow.webflux.route.query
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedQuery
@@ -24,8 +26,10 @@ import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.filter.Contexts.getRawRequest
 import me.ahoo.wow.query.filter.QueryHandler
+import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
+import me.ahoo.wow.webflux.route.snapshot.AggregateSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
@@ -39,6 +43,30 @@ import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 
 class QueryBodyExtractorTest {
+
+    @Test
+    fun `should extract aggregation query via snapshot handler`() {
+        val queryHandler = mockk<SnapshotQueryHandler> {
+            every { aggregate(any(), any()) } returns Flux.just(mapOf("count" to 1L))
+        }
+        val handlerFunction = AggregateSnapshotHandlerFunctionFactory(
+            snapshotQueryHandler = queryHandler,
+            rewriteRequestCondition = DefaultRewriteRequestCondition,
+            exceptionHandler = WebFluxRequestExceptionHandler(),
+        ).create(
+            testAggregateRouteContract(
+                handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.AGGREGATE,
+                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
+            )
+        )
+        val request = MockServerRequest.builder()
+            .body(AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))).toMono())
+
+        handlerFunction.handle(request)
+            .test()
+            .consumeNextWith { it.statusCode().assert().isEqualTo(org.springframework.http.HttpStatus.OK) }
+            .verifyComplete()
+    }
 
     @Test
     fun `should extract condition via count handler`() {

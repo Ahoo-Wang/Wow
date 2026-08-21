@@ -262,6 +262,39 @@ pagedQuery {
 }.query(queryService)
 ```
 
+## Execute Aggregation Query
+
+`SnapshotQueryService` provides snapshot aggregation with the same public semantics on MongoDB and Elasticsearch. Ordered group dimensions form a composite key and aliases are flattened into each result row:
+
+```kotlin
+aggregationQuery {
+    condition {
+        "state.status" ne "CANCELLED"
+    }
+    groupBy("state.country", "country")
+    dateHistogram(
+        field = "snapshotTime",
+        alias = "month",
+        unit = AggregationDateUnit.MONTH,
+        timeZone = "Asia/Shanghai",
+    )
+    count("orderCount")
+    sum("state.totalAmount", "totalAmount")
+    sort {
+        "totalAmount".desc()
+    }
+    limit(100)
+}.aggregate(snapshotQueryService)
+```
+
+The portable groups are `Terms`, `Histogram`, and `DateHistogram`; metrics are `Count`, `Sum`, `Avg`, `Min`, and `Max`. Count values are `Long`, date bucket keys are epoch-millisecond `Long` values, and other numeric results are normalized to `Double`. Group fields must be scalar and metric fields numeric; missing or null group values do not create buckets.
+
+An aggregation without groups always returns one row. With no matching documents, Count is `0`, Sum is `0.0`, and the remaining metrics are `null`. Grouped queries default to 100 rows and allow at most 10,000. Aggregation is rejected when snapshot data masking is configured so grouping cannot bypass result masking.
+
+:::warning High cardinality and money
+When Elasticsearch results are ordered by a metric, Wow scans all composite buckets and computes an exact Top-N. Validate high-cardinality queries with production-scale data. Numeric metrics are normalized to `Double`; use scaled integers in the read model when money requires exact arithmetic.
+:::
+
 ## Rewrite Query
 
 ```kotlin

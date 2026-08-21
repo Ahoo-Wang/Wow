@@ -13,8 +13,13 @@
 
 package me.ahoo.wow.spring.query
 
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.IListQuery
@@ -35,6 +40,7 @@ import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryService
 import me.ahoo.wow.query.snapshot.filter.DefaultSnapshotQueryHandler
+import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.support.DefaultListableBeanFactory
 import reactor.core.publisher.Flux
@@ -76,6 +82,20 @@ class QueryServiceProxyTest {
 
         proxy.name.assert().isEqualTo(delegate.name)
         proxy.namedAggregate.assert().isSameAs(delegate.namedAggregate)
+    }
+
+    @Test
+    fun `snapshot proxy should route aggregation through handler`() {
+        val delegate = NoOpSnapshotQueryService<Any>(namedAggregate)
+        val query = AggregationQuery(metrics = listOf(AggregationMetric.Count("count")))
+        val handler = mockk<SnapshotQueryHandler> {
+            every { aggregate(namedAggregate, query) } returns Flux.just(mapOf("count" to 1L))
+        }
+        val proxy = SnapshotQueryServiceProxy(delegate, handler)
+
+        proxy.aggregate(query).collectList().block()!!.assert().containsExactly(mapOf("count" to 1L))
+
+        verify(exactly = 1) { handler.aggregate(namedAggregate, query) }
     }
 
     @Test

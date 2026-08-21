@@ -36,10 +36,12 @@ import me.ahoo.wow.openapi.contributor.aggregate.aggregatePath
 import me.ahoo.wow.openapi.contributor.aggregate.aggregateTags
 import me.ahoo.wow.openapi.contributor.aggregate.defaultAppendOwnerPath
 import me.ahoo.wow.openapi.contributor.aggregate.defaultAppendTenantPath
+import me.ahoo.wow.openapi.contributor.aggregatedAggregationQueryRequestBodyRef
 import me.ahoo.wow.openapi.contributor.aggregatedCountQueryRequestBodyRef
 import me.ahoo.wow.openapi.contributor.aggregatedListQueryRequestBodyRef
 import me.ahoo.wow.openapi.contributor.aggregatedPagedQueryRequestBodyRef
 import me.ahoo.wow.openapi.contributor.aggregatedSingleQueryRequestBodyRef
+import me.ahoo.wow.openapi.contributor.aggregationListResponse
 import me.ahoo.wow.openapi.contributor.batchAfterIdPathParameterRef
 import me.ahoo.wow.openapi.contributor.batchLimitPathParameterRef
 import me.ahoo.wow.openapi.contributor.batchResultResponseRef
@@ -84,6 +86,7 @@ object SnapshotRouteContributor : RouteContributor {
     ): List<HttpRouteContract> {
         val aggregateMetadata = aggregateRouteMetadata.aggregateMetadata
         return listOf(
+            aggregationSnapshotRoute(currentContext, aggregateRouteMetadata, componentContext, variant),
             snapshotRoute(
                 currentContext = currentContext,
                 aggregateRouteMetadata = aggregateRouteMetadata,
@@ -110,6 +113,29 @@ object SnapshotRouteContributor : RouteContributor {
             singleSnapshotStateRoute(currentContext, aggregateRouteMetadata, componentContext, variant)
         )
     }
+
+    private fun aggregationSnapshotRoute(
+        currentContext: NamedBoundedContext,
+        aggregateRouteMetadata: AggregateRouteMetadata<*>,
+        componentContext: OpenAPIComponentContext,
+        variant: TenantOwnerVariant,
+    ): HttpRouteContract = snapshotRoute(
+        currentContext = currentContext,
+        aggregateRouteMetadata = aggregateRouteMetadata,
+        componentContext = componentContext,
+        handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.AGGREGATE,
+        resourceName = SNAPSHOT,
+        operation = "aggregate",
+        operationSummary = "Aggregate Snapshot",
+        appendTenantPath = variant.appendTenantPath,
+        appendOwnerPath = variant.appendOwnerPath,
+        appendPathSuffix = "snapshot/aggregate",
+        accept = STREAMING_ACCEPT,
+        requestBody = componentContext.aggregatedAggregationQueryRequestBodyRef(
+            aggregateRouteMetadata.aggregateMetadata
+        ),
+        responses = listOf(componentContext.aggregationListResponse()),
+    )
 
     private fun listQuerySnapshotRoute(
         currentContext: NamedBoundedContext,

@@ -190,20 +190,24 @@ abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
         }.flatMap(elasticsearchClient::count).map { it.count() }
     }
 
-    private fun resolve(condition: Condition, sort: List<Sort> = emptyList()): Mono<ResolvedQuery> {
-        val resolver = indexMappingResolver ?: return Mono.just(compile(condition, sort))
+    protected fun <T : Any> resolveWithMapping(resolve: (ElasticsearchIndexMapping?) -> T): Mono<T> {
+        val resolver = indexMappingResolver ?: return Mono.fromSupplier { resolve(null) }
         return resolver.currentOrLoad(indexName)
-            .map { mapping -> compile(resolveCondition(mapping, condition), resolveSort(mapping, sort)) }
+            .map(resolve)
             .onErrorResume(ElasticsearchFieldResolutionException::class.java) {
                 resolver.refresh(indexName)
-                    .map { result ->
-                        compile(
-                            resolveCondition(result.mapping, condition),
-                            resolveSort(result.mapping, sort),
-                        )
-                    }
+                    .map { result -> resolve(result.mapping) }
             }
     }
+
+    private fun resolve(condition: Condition, sort: List<Sort> = emptyList()): Mono<ResolvedQuery> =
+        resolveWithMapping { mapping ->
+            if (mapping == null) {
+                compile(condition, sort)
+            } else {
+                compile(resolveCondition(mapping, condition), resolveSort(mapping, sort))
+            }
+        }
 
     private fun compile(condition: Condition, sort: List<Sort>): ResolvedQuery =
         ResolvedQuery(

@@ -19,6 +19,7 @@ import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.QueryComponent
+import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedAggregationQueryRequestBody
 import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedCountQueryRequestBody
 import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedListQueryRequestBody
 import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedPagedQueryRequestBody
@@ -39,6 +40,13 @@ import java.lang.reflect.Type
 internal fun OpenAPIComponentContext.countQueryRequestBodyRef(): HttpRequestBody {
     countQueryRequestBody()
     return HttpRequestBody(componentRef = QueryComponent.COUNT_QUERY_KEY)
+}
+
+internal fun OpenAPIComponentContext.aggregatedAggregationQueryRequestBodyRef(
+    aggregateMetadata: AggregateMetadata<*, *>
+): HttpRequestBody {
+    aggregatedAggregationQueryRequestBody(aggregateMetadata)
+    return aggregateMetadata.queryRequestBodyRef(QueryComponent.AGGREGATION_QUERY_SUFFIX)
 }
 
 internal fun OpenAPIComponentContext.listQueryRequestBodyRef(): HttpRequestBody {
@@ -122,6 +130,10 @@ internal fun OpenAPIComponentContext.stateListResponse(
     aggregateMetadata: AggregateMetadata<*, *>
 ): HttpResponse {
     return listResponse(mainTargetType = aggregateMetadata.state.aggregateType)
+}
+
+internal fun OpenAPIComponentContext.aggregationListResponse(): HttpResponse {
+    return listResponse(Map::class.java)
 }
 
 internal fun OpenAPIComponentContext.materializedSnapshotPagedResponse(

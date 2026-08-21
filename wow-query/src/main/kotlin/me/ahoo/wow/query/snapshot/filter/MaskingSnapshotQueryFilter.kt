@@ -34,6 +34,14 @@ class MaskingSnapshotQueryFilter(maskerRegistry: StateDataMaskerRegistry) : Snap
         context: QueryContext<*, *>,
         next: FilterChain<QueryContext<*, *>>
     ): Mono<Void> {
+        if (
+            context.queryType == QueryType.AGGREGATE &&
+            !maskerRegistry.getAggregateDataMasker(context.namedAggregate).isEmpty()
+        ) {
+            return Mono.error(
+                IllegalStateException("Snapshot aggregation is unavailable when data masking is configured.")
+            )
+        }
         return next.filter(context).then(
             Mono.defer {
                 mask(context)

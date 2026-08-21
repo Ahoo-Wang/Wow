@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.query.snapshot.filter
 
+import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.FilterChain
@@ -20,8 +22,18 @@ import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.query.filter.AbstractQueryHandler
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryHandler
+import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.snapshot.validateFieldTypes
+import reactor.core.publisher.Flux
 
-interface SnapshotQueryHandler : QueryHandler<MaterializedSnapshot<Any>>
+interface SnapshotQueryHandler : QueryHandler<MaterializedSnapshot<Any>> {
+    fun aggregate(
+        namedAggregate: NamedAggregate,
+        aggregationQuery: AggregationQuery,
+    ): Flux<Map<String, Any?>> = Flux.error(
+        UnsupportedOperationException("Snapshot aggregation is not supported by this query handler.")
+    )
+}
 
 class DefaultSnapshotQueryHandler(
     chain: FilterChain<QueryContext<*, *>>,
@@ -29,4 +41,12 @@ class DefaultSnapshotQueryHandler(
 ) : SnapshotQueryHandler, AbstractQueryHandler<MaterializedSnapshot<Any>>(
     chain,
     errorHandler,
-)
+) {
+    override fun aggregate(
+        namedAggregate: NamedAggregate,
+        aggregationQuery: AggregationQuery,
+    ): Flux<Map<String, Any?>> = Flux.defer {
+        aggregationQuery.validateFieldTypes(namedAggregate)
+        flux(namedAggregate, QueryType.AGGREGATE, aggregationQuery)
+    }
+}

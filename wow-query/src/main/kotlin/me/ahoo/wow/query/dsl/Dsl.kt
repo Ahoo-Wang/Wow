@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.dsl
 
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
@@ -20,6 +21,10 @@ import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
+
+fun aggregationQuery(block: AggregationQueryDsl.() -> Unit): AggregationQuery {
+    return AggregationQueryDsl().apply(block).build()
+}
 
 /**
  * Executes a single query using the provided DSL block.

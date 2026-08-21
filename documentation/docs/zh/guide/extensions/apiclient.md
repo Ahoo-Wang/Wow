@@ -176,6 +176,22 @@ interface OrderQueryApi : SynchronousSnapshotQueryApi<OrderState>
 
 同步版本与响应式 API 对应，但直接返回值（阻塞）。
 
+### 聚合查询 API
+
+聚合接口保持可选，不修改已有组合接口：
+
+```kotlin
+@CoApi
+interface OrderAggregationApi : ReactiveSnapshotAggregationQueryApi
+
+val rows = aggregationQuery {
+    groupBy("state.status", "status")
+    count("orderCount")
+}.aggregate(orderAggregationApi)
+```
+
+同步调用使用 `SynchronousSnapshotAggregationQueryApi`。
+
 ## 错误处理
 
 `RestCommandGatewayException` 封装命令错误并携带完整的请求上下文：

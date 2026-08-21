@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.webflux.route.query
 
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedQuery
@@ -26,6 +27,7 @@ import tools.jackson.databind.node.ObjectNode
 
 class QueryBodyExtractor<Q : Any>(private val queryType: Class<Q>) : BodyExtractor<Mono<Q>, ReactiveHttpInputMessage> {
     companion object {
+        val AGGREGATION_QUERY_EXTRACTOR = QueryBodyExtractor(AggregationQuery::class.java)
         val CONDITION_EXTRACTOR = QueryBodyExtractor(Condition::class.java)
         val LIST_QUERY_EXTRACTOR = QueryBodyExtractor(ListQuery::class.java)
         val PAGED_QUERY_EXTRACTOR = QueryBodyExtractor(PagedQuery::class.java)

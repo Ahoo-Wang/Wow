@@ -11,15 +11,15 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.filter
+package me.ahoo.wow.apiclient.query
 
-enum class QueryType(val isDynamic: Boolean) {
-    SINGLE(false),
-    DYNAMIC_SINGLE(true),
-    LIST(false),
-    DYNAMIC_LIST(true),
-    PAGED(false),
-    DYNAMIC_PAGED(true),
-    COUNT(false),
-    AGGREGATE(true),
+import me.ahoo.wow.api.query.AggregationQuery
+import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.service.annotation.PostExchange
+
+const val SNAPSHOT_AGGREGATION_RESOURCE_NAME = "$SNAPSHOT_RESOURCE_NAME/aggregate"
+
+interface SnapshotAggregationQueryApi<R> : SnapshotQueryApi {
+    @PostExchange(SNAPSHOT_AGGREGATION_RESOURCE_NAME)
+    fun aggregate(@RequestBody query: AggregationQuery): R
 }

@@ -491,41 +491,19 @@ listQuery {
 
 ## 聚合查询
 
-Elasticsearch 提供强大的聚合功能：
-
-### 统计分析
+使用公共 `AggregationQuery`，可以让聚合继续经过 Wow 的条件改写、ABAC 与租户/所有者过滤：
 
 ```kotlin
-// 按状态统计订单数量
-val aggregation = SearchRequest.of { s ->
-    s.index("wow.order-service.order.snapshot")
-        .aggregations("status_count") { a ->
-            a.terms { t ->
-                t.field("state.status")
-            }
-        }
-}
+aggregationQuery {
+    groupBy("state.status", "status")
+    dateHistogram("snapshotTime", "day", AggregationDateUnit.DAY, "Asia/Shanghai")
+    count("orderCount")
+    sum("state.totalAmount", "totalAmount")
+    sort { "totalAmount".desc() }
+}.aggregate(snapshotQueryService)
 ```
 
-### 时间范围聚合
-
-```kotlin
-// 按天统计订单金额
-val aggregation = SearchRequest.of { s ->
-    s.index("wow.order-service.order.snapshot")
-        .aggregations("daily_amount") { a ->
-            a.dateHistogram { d ->
-                d.field("eventTime")
-                    .calendarInterval(CalendarInterval.Day)
-            }
-            .aggregations("total") { sa ->
-                sa.sum { sum ->
-                    sum.field("state.totalAmount")
-                }
-            }
-        }
-}
-```
+Elasticsearch 使用 PIT + composite aggregation 分页。按分组键排序达到 limit 后停止；按指标排序会遍历所有 buckets，以 `O(limit)` 内存维护精确 Top-N。逻辑字符串字段会根据 mapping 自动解析到可聚合的 `keyword`/`exact` 字段，调用方不应书写 `.keyword` 物理路径。
 
 ## 索引设计建议
 

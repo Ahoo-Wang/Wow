@@ -16,6 +16,7 @@ package me.ahoo.wow.query.snapshot.filter
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogErrorHandler
+import me.ahoo.wow.query.dsl.aggregationQuery
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.singleQuery
@@ -101,5 +102,16 @@ class DefaultSnapshotQueryHandlerTest {
                 it.assert().isZero()
             }
             .verifyComplete()
+    }
+
+    @Test
+    fun `should reject non-numeric metric fields before backend access`() {
+        val query = aggregationQuery {
+            sum("state.data", "total")
+        }
+        queryHandler.aggregate(MOCK_AGGREGATE_METADATA, query)
+            .test()
+            .expectErrorMessage("Aggregation metric field [state.data] must be numeric.")
+            .verify()
     }
 }

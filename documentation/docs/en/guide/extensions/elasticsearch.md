@@ -501,41 +501,19 @@ listQuery {
 
 ## Aggregation Queries
 
-Elasticsearch provides powerful aggregation capabilities:
-
-### Statistical Analysis
+Use the portable `AggregationQuery` so aggregation still passes through Wow condition rewriting, ABAC, and tenant/owner filters:
 
 ```kotlin
-// Count orders by status
-val aggregation = SearchRequest.of { s ->
-    s.index("wow.order-service.order.snapshot")
-        .aggregations("status_count") { a ->
-            a.terms { t ->
-                t.field("state.status")
-            }
-        }
-}
+aggregationQuery {
+    groupBy("state.status", "status")
+    dateHistogram("snapshotTime", "day", AggregationDateUnit.DAY, "Asia/Shanghai")
+    count("orderCount")
+    sum("state.totalAmount", "totalAmount")
+    sort { "totalAmount".desc() }
+}.aggregate(snapshotQueryService)
 ```
 
-### Time Range Aggregation
-
-```kotlin
-// Daily order amount statistics
-val aggregation = SearchRequest.of { s ->
-    s.index("wow.order-service.order.snapshot")
-        .aggregations("daily_amount") { a ->
-            a.dateHistogram { d ->
-                d.field("eventTime")
-                    .calendarInterval(CalendarInterval.Day)
-            }
-            .aggregations("total") { sa ->
-                sa.sum { sum ->
-                    sum.field("state.totalAmount")
-                }
-            }
-        }
-}
-```
+Elasticsearch uses PIT plus paged composite aggregations. Group-key ordering stops after the requested limit; metric ordering scans every bucket and keeps an exact Top-N in `O(limit)` memory. Logical string fields are resolved from the mapping to an aggregatable `keyword`/`exact` field, so callers must not use physical `.keyword` paths.
 
 ## Index Design Recommendations
 
