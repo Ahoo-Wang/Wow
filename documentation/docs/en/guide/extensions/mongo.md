@@ -553,16 +553,31 @@ db.order_event_stream.createIndex(
 
 ```javascript
 // Create compound indexes based on query patterns
-db.order_snapshot.createIndex(
-  { "state.status": 1, "snapshotTime": -1 },
-  { name: "idx_status_time" }
-)
+db.order_snapshot.find({
+  tenantId: "tenant-1",
+  deleted: false,
+  "state.status": "PAID"
+}).sort({ snapshotTime: -1, _id: 1 })
 
 db.order_snapshot.createIndex(
-  { "tenantId": 1, "deleted": 1 },
-  { name: "idx_tenant_deleted" }
+  {
+    "tenantId": 1,
+    "deleted": 1,
+    "state.status": 1,
+    "snapshotTime": -1,
+    "_id": 1
+  },
+  { name: "tenant_deleted_status_time" }
 )
 ```
+
+For event-stream and snapshot collections, Wow auto-initialization creates only the managed indexes required by event sourcing and common filters; it does not infer application query patterns. Publish each application-owned compound index through this workflow:
+
+1. Capture the complete filter, sort, and projection from real requests, then save the pre-change `explain("executionStats")` against production-like data.
+2. Use ESR by default: equality fields → sort fields, including the unique stable field present in the query sort → range fields. When a range predicate is highly selective, compare an ERS candidate with `explain`; choose ERS only when a recorded baseline and approval accept the blocking sort. An `aggregateId` sort maps to `_id` in MongoDB snapshot collections.
+3. Create and retest the candidate in staging first. A representative query must return data. On standalone and sharded deployments, every shard's winning plan must contain neither `COLLSCAN` nor a blocking `SORT`. Both `totalKeysExamined / nReturned` and `totalDocsExamined / nReturned` must be at most `5` by default; record the baseline and approval reason for any exception. Reconcile the result count and ordered aggregate-ID list as well.
+4. Release one aggregate and one index at a time in production, recording query p95/p99, index size, and write latency before and after the change.
+5. If only the query plan regresses, use `collMod` to hide the new index on deployments that support hidden indexes, then retest. A hidden index is still maintained on writes and cannot roll back write amplification; if index size or write latency regresses, confirm that queries no longer depend on it and drop the candidate index.
 
 ## Performance Optimization
 
