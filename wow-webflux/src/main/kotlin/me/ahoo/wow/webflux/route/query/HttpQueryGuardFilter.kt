@@ -28,6 +28,7 @@ import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
+import me.ahoo.wow.webflux.route.acceptsEventStream
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.core.publisher.Mono
 import java.time.Duration
@@ -57,12 +58,13 @@ class HttpQueryGuardFilter(
         context: QueryContext<*, *>,
         next: FilterChain<QueryContext<*, *>>,
     ): Mono<Void> = Mono.deferContextual { contextView ->
-        if (contextView.getRawRequest<ServerRequest>() == null) {
+        val request = contextView.getRawRequest<ServerRequest>()
+        if (request == null) {
             return@deferContextual next.filter(context)
         }
         validate(context.getQuery())
         next.filter(context).doOnSuccess {
-            applyIdleTimeout(context)
+            applyIdleTimeout(context, request)
         }
     }
 
@@ -96,6 +98,10 @@ class HttpQueryGuardFilter(
         require(maxPageWindow == 0L || window <= maxPageWindow) {
             "HTTP page window[$window] must not exceed $maxPageWindow."
         }
+        val offset = (pagination.index.toLong() - 1) * pagination.size
+        require(offset <= Int.MAX_VALUE) {
+            "HTTP page offset[$offset] must not exceed ${Int.MAX_VALUE}."
+        }
     }
 
     private fun validateCondition(condition: Condition) {
@@ -118,14 +124,20 @@ class HttpQueryGuardFilter(
         }
     }
 
-    private fun applyIdleTimeout(context: QueryContext<*, *>) {
+    private fun applyIdleTimeout(context: QueryContext<*, *>, request: ServerRequest) {
         if (idleTimeout.isZero) return
         when (context.queryType) {
             QueryType.SINGLE, QueryType.DYNAMIC_SINGLE ->
                 context.asSingleQuery<Any>().rewriteResult { it.timeout(idleTimeout) }
 
             QueryType.LIST, QueryType.DYNAMIC_LIST ->
-                context.asListQuery<Any>().rewriteResult { it.timeout(idleTimeout) }
+                context.asListQuery<Any>().rewriteResult {
+                    if (request.acceptsEventStream()) {
+                        it.timeout(idleTimeout)
+                    } else {
+                        it.timeout(Mono.delay(idleTimeout))
+                    }
+                }
 
             QueryType.PAGED, QueryType.DYNAMIC_PAGED ->
                 context.asPagedQuery<Any>().rewriteResult { it.timeout(idleTimeout) }

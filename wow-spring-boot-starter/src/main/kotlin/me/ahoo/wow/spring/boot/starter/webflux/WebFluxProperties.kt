@@ -16,17 +16,21 @@ package me.ahoo.wow.spring.boot.starter.webflux
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.EnabledCapable
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.bind.DefaultValue
 import java.time.Duration
 
 @ConfigurationProperties(prefix = WebFluxProperties.PREFIX)
-class WebFluxProperties(
+class WebFluxProperties
+@Autowired(required = false)
+constructor(
     @DefaultValue("true") override var enabled: Boolean = true,
     var globalError: GlobalError = GlobalError(),
     var batch: Batch = Batch(),
-    var query: Query = Query(),
 ) : EnabledCapable {
+    var query: Query = Query()
+
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}webflux"
         const val COMMAND_REQUEST_APPENDER_PREFIX = "$PREFIX.command.request.appender"

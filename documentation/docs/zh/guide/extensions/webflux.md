@@ -91,7 +91,7 @@ data class CreateOrder(/* ... */)
 | `query.max-condition-nodes` | `Int` | `64` | HTTP 查询条件树的最大节点数；`0` 关闭上限 |
 | `query.allow-raw` | `Boolean` | `false` | 是否允许 HTTP 查询使用 `RAW` 原生条件 |
 | `query.allow-expensive-operators` | `Boolean` | `false` | 是否允许 HTTP 查询使用 `CONTAINS` 与 `ENDS_WITH` |
-| `query.idle-timeout` | `Duration` | `10s` | HTTP 查询等待下一条结果的最长时间；`0s` 关闭超时 |
+| `query.idle-timeout` | `Duration` | `10s` | 普通 JSON 数组等待首条结果、SSE 等待下一条结果的最长时间；`0s` 关闭超时 |
 
 ```yaml
 wow:

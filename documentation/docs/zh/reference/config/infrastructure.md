@@ -178,7 +178,7 @@ direct 和 batch 模式下都使用基于 `_source.version` 的原子保护更�
 | `wow.webflux.query.max-condition-nodes` | Integer | `64` | HTTP 查询条件节点上限；`0` 关闭上限 |
 | `wow.webflux.query.allow-raw` | Boolean | `false` | 允许 HTTP `RAW` 查询 |
 | `wow.webflux.query.allow-expensive-operators` | Boolean | `false` | 允许 HTTP `CONTAINS`/`ENDS_WITH` 查询 |
-| `wow.webflux.query.idle-timeout` | Duration | `10s` | HTTP 查询结果空闲超时；`0s` 关闭 |
+| `wow.webflux.query.idle-timeout` | Duration | `10s` | 普通 JSON 数组首条结果或 SSE 下一条结果的等待超时；`0s` 关闭 |
 | `wow.webflux.command.request.appender.agent.enabled` | Boolean | `true` | 将客户端 `User-Agent` 追加到命令请求上下文（设为 `false` 可禁用） |
 | `wow.webflux.command.request.appender.ip.enabled` | Boolean | `true` | 将客户端 IP 追加到命令请求上下文（设为 `false` 可禁用） |
 

@@ -93,7 +93,7 @@ plus `wow-webflux` for these properties to be bound.
 | `query.max-condition-nodes` | `Int` | `64` | Maximum number of HTTP query condition nodes; `0` disables the cap |
 | `query.allow-raw` | `Boolean` | `false` | Whether HTTP queries may use native `RAW` conditions |
 | `query.allow-expensive-operators` | `Boolean` | `false` | Whether HTTP queries may use `CONTAINS` and `ENDS_WITH` |
-| `query.idle-timeout` | `Duration` | `10s` | Maximum wait for the next HTTP query result; `0s` disables the timeout |
+| `query.idle-timeout` | `Duration` | `10s` | Maximum wait for the first JSON-array result or the next SSE result; `0s` disables the timeout |
 
 ```yaml
 wow:

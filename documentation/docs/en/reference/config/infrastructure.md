@@ -179,7 +179,7 @@ snapshots.
 | `wow.webflux.query.max-condition-nodes` | Integer | `64` | Maximum HTTP query condition nodes; `0` disables the cap |
 | `wow.webflux.query.allow-raw` | Boolean | `false` | Allow native HTTP `RAW` queries |
 | `wow.webflux.query.allow-expensive-operators` | Boolean | `false` | Allow HTTP `CONTAINS`/`ENDS_WITH` queries |
-| `wow.webflux.query.idle-timeout` | Duration | `10s` | HTTP query-result idle timeout; `0s` disables it |
+| `wow.webflux.query.idle-timeout` | Duration | `10s` | Timeout for the first JSON-array result or next SSE result; `0s` disables it |
 | `wow.webflux.command.request.appender.agent.enabled` | Boolean | `true` | Append the client `User-Agent` to the command request context (set `false` to disable) |
 | `wow.webflux.command.request.appender.ip.enabled` | Boolean | `true` | Append the client IP to the command request context (set `false` to disable) |
 

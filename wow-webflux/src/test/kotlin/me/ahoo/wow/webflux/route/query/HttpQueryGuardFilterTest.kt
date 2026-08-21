@@ -27,7 +27,13 @@ import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogErrorHandler
+import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.openapi.BatchComponent
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
+import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
+import me.ahoo.wow.query.event.filter.DefaultEventStreamQueryHandler
+import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
+import me.ahoo.wow.query.event.filter.TailEventStreamQueryFilter
 import me.ahoo.wow.query.filter.Contexts.writeRawRequest
 import me.ahoo.wow.query.filter.DefaultQueryContext
 import me.ahoo.wow.query.filter.QueryContext
@@ -39,9 +45,12 @@ import me.ahoo.wow.query.snapshot.filter.AbacQueryFilter
 import me.ahoo.wow.query.snapshot.filter.DefaultSnapshotQueryHandler
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.query.snapshot.filter.TailSnapshotQueryFilter
+import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
+import me.ahoo.wow.webflux.route.event.LoadEventStreamHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.snapshot.LoadSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
@@ -49,7 +58,6 @@ import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import org.springframework.mock.web.server.MockServerWebExchange
 import org.springframework.web.reactive.function.server.HandlerStrategies
-import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -61,7 +69,7 @@ import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
 
 class HttpQueryGuardFilterTest {
-    private val request = mockk<ServerRequest>()
+    private val request = MockServerRequest.builder().build()
 
     @Test
     fun `should reject unsafe list queries before backend invocation`() {
@@ -94,6 +102,13 @@ class HttpQueryGuardFilterTest {
                 .expectError(IllegalArgumentException::class.java)
                 .verify()
         }
+
+        guard(maxPageSize = 0, maxPageWindow = Long.MAX_VALUE).filter(
+            pagedContext(PagedQuery(Condition.ALL, pagination = Pagination(index = 1_500_000_000, size = 2))),
+            unexpectedBackend(),
+        ).writeRawRequest(request).test()
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
     }
 
     @Test
@@ -144,6 +159,25 @@ class HttpQueryGuardFilterTest {
         context.getRequiredResult().test()
             .expectError(TimeoutException::class.java)
             .verify()
+    }
+
+    @Test
+    fun `json list should not time out after the first result`() {
+        val context = listContext(ListQuery(Condition.ALL, limit = 2))
+        guard(idleTimeout = Duration.ofMillis(10)).filter(
+            context,
+            FilterChain {
+                it.asListQuery<Any>().setResult(
+                    Flux.concat(
+                        Mono.just("first"),
+                        Mono.delay(Duration.ofMillis(50)).thenReturn("second"),
+                    ),
+                )
+                Mono.empty()
+            },
+        ).writeRawRequest(request).test().verifyComplete()
+
+        context.getRequiredResult().collectList().block()!!.assert().containsExactly("first", "second")
     }
 
     @Test
@@ -198,14 +232,55 @@ class HttpQueryGuardFilterTest {
         cancelled.get().assert().isTrue()
     }
 
+    @Test
+    fun `built-in event load route should enforce list limit`() {
+        val request = MockServerRequest.builder()
+            .pathVariable(MessageRecords.ID, generateGlobalId())
+            .pathVariable(BatchComponent.PathVariable.HEAD_VERSION, "0")
+            .pathVariable(BatchComponent.PathVariable.TAIL_VERSION, "1000")
+            .build()
+        val response = loadEventStreamHandler(eventStreamQueryHandler()).handle(request).block()!!
+        val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/test").build())
+
+        response.writeTo(exchange, SERVER_RESPONSE_CONTEXT).block()
+
+        exchange.response.statusCode.assert().isEqualTo(HttpStatus.BAD_REQUEST)
+    }
+
+    @Test
+    fun `built-in snapshot load route should apply idle timeout`() {
+        val service = mockk<SnapshotQueryService<Any>> {
+            io.mockk.every { dynamicSingle(any()) } returns Mono.never()
+        }
+        val factory = mockk<SnapshotQueryServiceFactory> {
+            io.mockk.every { create<Any>(any()) } returns service
+        }
+        val request = MockServerRequest.builder()
+            .pathVariable(MessageRecords.ID, generateGlobalId())
+            .build()
+
+        val response = loadSnapshotHandler(
+            snapshotQueryHandler(
+                guard = guard(idleTimeout = Duration.ofMillis(10)),
+                queryServiceFactory = factory,
+            ),
+        ).handle(request).block()!!
+
+        response.statusCode().assert().isEqualTo(HttpStatus.REQUEST_TIMEOUT)
+    }
+
     private fun guard(
         maxListSize: Int = 1000,
+        maxPageSize: Int = 100,
+        maxPageWindow: Long = 10_000,
         maxConditionNodes: Int = 64,
         allowRaw: Boolean = false,
         allowExpensiveOperators: Boolean = false,
         idleTimeout: Duration = Duration.ofSeconds(10),
     ) = HttpQueryGuardFilter(
         maxListSize = maxListSize,
+        maxPageSize = maxPageSize,
+        maxPageWindow = maxPageWindow,
         maxConditionNodes = maxConditionNodes,
         allowRaw = allowRaw,
         allowExpensiveOperators = allowExpensiveOperators,
@@ -245,6 +320,14 @@ class HttpQueryGuardFilterTest {
         return DefaultSnapshotQueryHandler(chain, LogErrorHandler())
     }
 
+    private fun eventStreamQueryHandler(guard: HttpQueryGuardFilter = guard()): EventStreamQueryHandler {
+        val chain = FilterChainBuilder<QueryContext<*, *>>()
+            .addFilters(listOf(guard, TailEventStreamQueryFilter(NoOpEventStreamQueryServiceFactory)))
+            .filterCondition(EventStreamQueryHandler::class)
+            .build()
+        return DefaultEventStreamQueryHandler(chain, LogErrorHandler())
+    }
+
     private fun listHandler(queryHandler: SnapshotQueryHandler) = ListQueryHandlerFunctionFactory(
         handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY,
         queryHandler = queryHandler,
@@ -256,6 +339,22 @@ class HttpQueryGuardFilterTest {
             aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
         ),
     )
+
+    private fun loadEventStreamHandler(queryHandler: EventStreamQueryHandler) =
+        LoadEventStreamHandlerFunctionFactory(queryHandler, WebFluxRequestExceptionHandler()).create(
+            testAggregateRouteContract(
+                handlerKey = BuiltInHttpRouteHandlerKeys.Event.LOAD,
+                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
+            ),
+        )
+
+    private fun loadSnapshotHandler(queryHandler: SnapshotQueryHandler) =
+        LoadSnapshotHandlerFunctionFactory(queryHandler, WebFluxRequestExceptionHandler()).create(
+            testAggregateRouteContract(
+                handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.LOAD,
+                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
+            ),
+        )
 
     private object TestAbacQueryFilter : AbacQueryFilter() {
         override fun getPrincipalTags(contextView: ContextView, context: QueryContext<*, *>): Mono<AbacTags> =
