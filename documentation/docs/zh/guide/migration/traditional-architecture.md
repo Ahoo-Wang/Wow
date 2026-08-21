@@ -199,6 +199,8 @@ Wow 在 `DomainEventRecord` 物化领域事件前调用按顺序注册的 `Event
 [`EventUpgraderFactory.kt:37-73`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/upgrader/EventUpgraderFactory.kt#L37-L73)
 [`EventUpgraderFactory.kt:89-115`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/upgrader/EventUpgraderFactory.kt#L89-L115)
 
+具体实现、ServiceLoader 注册、链式顺序与历史回放门禁见[事件演进](../advanced/event-evolution.md)。
+
 ## 完成检查清单
 
 - [ ] bounded context、aggregate、跨 tenant 唯一 ID、tenant 与所有权映射已固定

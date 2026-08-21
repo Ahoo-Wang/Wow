@@ -30,7 +30,7 @@ data class BatchOptions(
      * A queued cancellation releases live admission immediately, but its
      * physical queue slot remains reserved until the batching pipeline observes
      * and discards the placeholder. A cancellation storm may therefore reject a
-     * new submission even when fewer than [maxPendingItems] live callers remain;
+     * new submission even when fewer than `maxPendingItems` live callers remain;
      * this keeps the internal Reactor queue bounded.
      */
     val maxPendingItems: Int,

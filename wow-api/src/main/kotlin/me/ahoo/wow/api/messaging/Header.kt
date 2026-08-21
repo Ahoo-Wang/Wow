@@ -40,7 +40,7 @@ interface Header :
      * Indicates whether this header is in read-only mode.
      *
      * When `true`, the header's contents cannot be modified. Any attempt to modify
-     * the header (via [put], [remove], [putAll], [clear], or the fluent [with] methods)
+     * the header (via `put`, `remove`, `putAll`, `clear`, or the fluent [with] methods)
      * will result in an [UnsupportedOperationException]. This is useful for ensuring
      * immutability after the header has been finalized or sent.
      *
@@ -57,7 +57,6 @@ interface Header :
      *
      * @return This header instance (now read-only) to support method chaining
      *
-     * @sample
      * ```kotlin
      * val header = DefaultHeader()
      *     .with("correlationId", "123")
@@ -71,14 +70,13 @@ interface Header :
      *
      * This method provides a fluent API for setting header values, allowing multiple
      * header modifications to be chained together. Internally, this delegates to the
-     * [put] method, which will check the read-only status before making changes.
+     * `put` method, which will check the read-only status before making changes.
      *
      * @param key The header key to set (must not be null or empty)
      * @param value The header value to associate with the key (must not be null)
      * @return This header instance to support method chaining
      * @throws UnsupportedOperationException if the header is read-only
      *
-     * @sample
      * ```kotlin
      * val header = DefaultHeader()
      *     .with("correlationId", "abc-123")
@@ -97,14 +95,13 @@ interface Header :
      * Adds all key-value pairs from the provided map to this header and returns the header for method chaining.
      *
      * This method provides a fluent API for bulk header modifications, allowing multiple
-     * header fields to be set at once. Internally, this delegates to the [putAll] method,
+     * header fields to be set at once. Internally, this delegates to the `putAll` method,
      * which will check the read-only status before making changes.
      *
      * @param additional A map containing key-value pairs to add to this header (must not be null)
      * @return This header instance to support method chaining
      * @throws UnsupportedOperationException if the header is read-only
      *
-     * @sample
      * ```kotlin
      * val contextHeaders = mapOf(
      *     "userId" to "user123",

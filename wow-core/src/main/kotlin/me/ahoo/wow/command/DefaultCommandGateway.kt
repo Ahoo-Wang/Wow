@@ -145,7 +145,7 @@ class DefaultCommandGateway(
     /**
      * Sends a command and completes with the SENT stage result as soon as the command bus accepts it.
      *
-     * The SENT signal is synthesized by this gateway itself once [CommandBus.send] completes, so this
+     * The SENT signal is synthesized by this gateway itself once `CommandBus.send` completes, so this
      * fast path skips the wait plan propagation, handle allocation, and wait-header propagation that
      * [sendAndWait] requires. Downstream stage notifiers see no wait headers and therefore stay no-op,
      * which matches the SENT-only contract: no stage after SENT is ever waited on.

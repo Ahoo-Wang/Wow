@@ -9,6 +9,7 @@ _Spring-Boot-Starter_ 模块集成了所有 _Wow_ 扩展，提供了自动装配
 
 ::: tip
 该模块的公共配置文档请参考 [配置](../../reference/config/core)。
+已有 Spring Boot 服务请按[接入现有项目](../existing-project)完成 BOM、KSP、首跑配置和路由验证。
 :::
 
 ## 安装

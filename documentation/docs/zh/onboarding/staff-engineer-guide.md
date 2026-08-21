@@ -961,7 +961,7 @@ DSL 通过 JUnit dynamic test 暴露 Given、When、Expect 阶段。
 
 ## 依赖理由
 
-版本目录固定 Kotlin 2.4.10、KSP 2.3.10、Spring Boot 4.1.0、JUnit 6.1.2、Testcontainers 2.0.5 与 JMH 1.37。
+版本目录固定 Kotlin 2.4.10、KSP 2.3.11、Spring Boot 4.1.1、JUnit 6.1.3、Testcontainers 2.0.5 与 JMH 1.37。
 来源：[version catalog](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/libs.versions.toml#L3-L33)。
 
 引用证据中没有 ADR 或迁移记录说明这些依赖替换过什么。

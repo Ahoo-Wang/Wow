@@ -120,7 +120,7 @@ runtimeOnly("org.springframework.boot:spring-boot-opentelemetry")
 runtimeOnly("io.micrometer:micrometer-registry-otlp")
 ```
 
-在项目当前使用的 Spring Boot 4.1.0 中，`spring-boot-opentelemetry` 提供 OTLP Metrics
+在项目当前使用的 Spring Boot 4.1.1 中，`spring-boot-opentelemetry` 提供 OTLP Metrics
 自动配置所依赖的统一 OpenTelemetry 环境变量与 Resource 配置。Starter 的
 `opentelemetry-support` capability 提供 Wow 链路追踪埋点，但不能替代这个 Spring Boot
 运行时模块。

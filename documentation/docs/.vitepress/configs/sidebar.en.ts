@@ -20,7 +20,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             base: '/articles/',
             collapsed: false,
             items: [
-                {text: 'Articles Home', link: ''},
+                {text: 'Articles Home', link: 'index.html'},
                 {text: 'Why DDD Matters More in the AI Era', link: 'why-ddd-fits-ai-era'},
             ],
         },
@@ -31,7 +31,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             text: 'Onboarding',
             collapsed: false,
             items: [
-                {text: 'Choose Your Path', link: ''},
+                {text: 'Choose Your Path', link: 'index.html'},
                 {text: 'Contributor Guide', link: 'contributor-guide'},
                 {text: 'Staff Engineer Guide', link: 'staff-engineer-guide'},
                 {text: 'Executive Guide', link: 'executive-guide'},
@@ -45,9 +45,10 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             text: 'Basics',
             collapsed: false,
             items: [
-                {text: 'Guide Overview', link: ''},
+                {text: 'Guide Overview', link: 'index.html'},
                 {text: 'Introduction', link: 'introduction'},
                 {text: 'Getting Started', link: 'getting-started'},
+                {text: 'Existing Spring Boot Project', link: 'existing-project'},
                 {text: 'Core Concepts', link: 'core-concepts'},
                 {text: 'Aggregate Modeling', link: 'modeling'},
                 {text: 'Configuration', link: 'configuration'},
@@ -88,6 +89,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             collapsed: false,
             items: [
                 {text: 'Production Best Practices', link: 'best-practices'},
+                {text: 'Backup, Restore, and Replay', link: 'recovery'},
                 {text: 'Troubleshooting', link: 'troubleshooting'},
                 {
                     text: 'Migration Guide',
@@ -128,6 +130,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'Runtime Lifecycle', link: 'runtime-lifecycle'},
                 {text: 'Aggregate Lifecycle', link: 'aggregate-lifecycle'},
                 {text: 'Event Bus', link: 'event-bus'},
+                {text: 'Event Evolution', link: 'event-evolution'},
                 {text: 'Data Flow', link: 'data-flow'},
                 {text: 'Module Dependencies', link: 'module-dependencies'},
                 {text: 'ID Generator', link: 'id-generator'},

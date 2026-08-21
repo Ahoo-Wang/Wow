@@ -67,7 +67,7 @@ object CommandMetadataParser : CacheableMetadataParser() {
      * @param type the Class object representing the command type
      * @return the parsed CommandMetadata for the command class
      * @see CommandMetadata
-     * @see CommandMetadataVisitor
+     * The internal command metadata visitor performs the reflective scan.
      */
     override fun <TYPE : Any, M : Metadata> parseToMetadata(type: Class<TYPE>): M {
         val visitor = CommandMetadataVisitor(type)

@@ -63,7 +63,6 @@ class EventSourcingStateAggregateRepository(
      * @throws IllegalArgumentException if aggregateId or metadata is invalid.
      * @throws RuntimeException if event sourcing fails due to event store errors.
      *
-     * @sample
      * ```
      * val aggregateId = AggregateId("user", "123")
      * val metadata = StateAggregateMetadata<UserState>(...)
@@ -119,7 +118,6 @@ class EventSourcingStateAggregateRepository(
      * @throws IllegalArgumentException if aggregateId or metadata is invalid.
      * @throws RuntimeException if event sourcing fails due to event store errors.
      *
-     * @sample
      * ```
      * val aggregateId = AggregateId("user", "123")
      * val metadata = StateAggregateMetadata<UserState>(...)

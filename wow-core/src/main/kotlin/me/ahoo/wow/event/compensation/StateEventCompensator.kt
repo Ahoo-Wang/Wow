@@ -63,7 +63,7 @@ class StateEventCompensator(
      * @return A Mono that completes when the compensated event is sent
      *
      * @see StateEvent.withCompensation
-     * @see StateEventBus.send
+     * Delegates the compensated event to `StateEventBus.send`.
      * @see CompensationTarget
      */
     override fun compensate(

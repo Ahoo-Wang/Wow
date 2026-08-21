@@ -956,7 +956,7 @@ The repository does not contain a cited ADR that records the historical alternat
 
 ## Dependency rationale
 
-The catalog pins Kotlin 2.4.10, KSP 2.3.10, Spring Boot 4.1.0, JUnit 6.1.2, Testcontainers 2.0.5, and JMH 1.37.
+The catalog pins Kotlin 2.4.10, KSP 2.3.11, Spring Boot 4.1.1, JUnit 6.1.3, Testcontainers 2.0.5, and JMH 1.37.
 Source: [version catalog](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/libs.versions.toml#L3-L33).
 
 No cited ADR or migration record identifies what these dependencies replaced.

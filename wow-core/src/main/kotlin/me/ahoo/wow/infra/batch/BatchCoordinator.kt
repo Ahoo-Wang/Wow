@@ -32,8 +32,8 @@ import java.util.concurrent.atomic.AtomicInteger
  * Coordinates bounded, non-blocking admission and graceful shutdown for
  * storage-independent reactive batches.
  *
- * Each [BatchLane] owns buffering and serial writes. [BatchAdmission] owns the
- * global capacity shared by lanes, and [BatchResultDispatcher] isolates
+ * Each internal batch lane owns buffering and serial writes. The internal admission controller owns the
+ * global capacity shared by lanes, and the result dispatcher isolates
  * per-item subscriber callbacks.
  */
 class BatchCoordinator<T : Any> internal constructor(

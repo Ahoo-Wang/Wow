@@ -25,7 +25,6 @@ import io.swagger.v3.oas.annotations.media.Schema
  * @property field The name of the field to sort by.
  * @property direction The direction of sorting (ascending or descending).
  *
- * @sample
  * ```
  * val sortByName = Sort("name", Sort.Direction.ASC)
  * val sortByDate = Sort("createdDate", Sort.Direction.DESC)
@@ -60,7 +59,6 @@ data class Sort(
  * @property index The page number to retrieve (1-based indexing).
  * @property size The number of items per page.
  *
- * @sample
  * ```
  * val firstPage = Pagination(index = 1, size = 20)  // First 20 items
  * val secondPage = Pagination(index = 2, size = 20) // Items 21-40
@@ -109,7 +107,6 @@ data class Pagination(
  * @property include List of field names to include in the results. If non-empty, only these fields will be returned.
  * @property exclude List of field names to exclude from the results. Ignored if include list is non-empty.
  *
- * @sample
  * ```
  * val includeOnly = Projection(include = listOf("name", "email"))  // Only return name and email
  * val excludeSome = Projection(exclude = listOf("password", "secret"))  // Return all except password and secret

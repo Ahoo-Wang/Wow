@@ -49,7 +49,7 @@ class CosIdAggregateIdGeneratorFactory(
     /**
      * Creates an [IdGenerator] for the specified [NamedAggregate].
      *
-     * This method first attempts to retrieve an existing [IdGenerator] from the [idProvider] using the aggregate's
+     * This method first attempts to retrieve an existing [IdGenerator] from the `idProvider` using the aggregate's
      * ID from metadata or the aggregate name as the key. If found, it returns the existing generator.
      * If not found, it creates a new [ClockSyncCosIdGenerator] wrapping a [Radix62CosIdGenerator] initialized
      * with the global machine ID.

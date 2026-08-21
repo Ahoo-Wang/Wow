@@ -85,7 +85,6 @@ interface ServiceProvider : Copyable<ServiceProvider> {
  * @param service the service instance to register
  * @param serviceName the name to register the service under (defaults to class name converted to naming convention)
  *
- * @sample
  * ```
  * val provider = SimpleServiceProvider()
  * val myService = MyService()
@@ -106,7 +105,6 @@ inline fun <reified S : Any> ServiceProvider.register(
  * @param S the type of service to retrieve
  * @return the service instance of type S, or null if not found
  *
- * @sample
  * ```
  * val provider = SimpleServiceProvider()
  * val service: MyServiceInterface? = provider.getService()
@@ -123,7 +121,6 @@ inline fun <reified S : Any> ServiceProvider.getService(): S? = getService(typeO
  * @return the service instance of type S
  * @throws IllegalArgumentException if the service is not found
  *
- * @sample
  * ```
  * val provider = SimpleServiceProvider()
  * val service = provider.getRequiredService<MyService>("myService")
@@ -172,7 +169,6 @@ fun <S : Any> ServiceProvider.getRequiredService(serviceType: Class<S>): S =
  * @return the service instance of type S
  * @throws IllegalArgumentException if the service is not found
  *
- * @sample
  * ```
  * val provider = SimpleServiceProvider()
  * val service = provider.getRequiredService<MyService>()

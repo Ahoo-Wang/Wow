@@ -85,7 +85,6 @@ interface ICondition<C : ICondition<C>> {
  * @property children List of child conditions for logical operators (AND, OR, NOR). Must not be empty when using logical operators.
  * @property options Additional configuration options like case sensitivity, date patterns, etc.
  *
- * @sample
  * ```
  * // Simple equality condition
  * val nameCondition = Condition.eq("name", "John")

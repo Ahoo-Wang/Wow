@@ -46,7 +46,7 @@ class CosIdGlobalIdGeneratorFactory(
     /**
      * Creates a global [CosIdGenerator] instance.
      *
-     * Attempts to retrieve a [CosIdGenerator] from the [idProvider] using the predefined [ID_NAME].
+     * Attempts to retrieve a [CosIdGenerator] from the `idProvider` using the predefined [ID_NAME].
      * If no generator is found, returns null. Otherwise, returns the found generator cast to [CosIdGenerator].
      *
      * @return the [CosIdGenerator] if found in the provider, null otherwise

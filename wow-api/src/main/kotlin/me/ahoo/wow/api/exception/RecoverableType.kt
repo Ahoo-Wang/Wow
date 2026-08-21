@@ -28,7 +28,6 @@ package me.ahoo.wow.api.exception
  *
  * @see me.ahoo.wow.api.annotation.Retry for retry policy annotations
  *
- * @sample
  * ```kotlin
  * when (error.recoverableType) {
  *     RECOVERABLE -> retryWithBackoff()

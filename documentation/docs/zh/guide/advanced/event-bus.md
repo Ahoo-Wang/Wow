@@ -485,7 +485,7 @@ wow:
 
 ## 事件升级管道
 
-当事件的 `revision` 与当前模式版本不匹配时，Wow 的事件升级系统（在 `wow-core/src/main/kotlin/me/ahoo/wow/event/upgrader/` 中）会在事件到达消费者之前透明地迁移旧版本的事件格式。这确保了在领域模型演进时的向后兼容性，无需消费者做出更改。
+在领域事件物化前，Wow 会按顺序执行通过 ServiceLoader 注册的 `EventUpgrader`。Upgrader 必须自行识别源 `revision` 并输出明确的目标 `revision`；框架不会根据版本号自动推断转换逻辑。实现、注册、测试和发布门禁见[事件演进](./event-evolution)。
 
 ## 关键设计决策
 
@@ -501,6 +501,7 @@ wow:
 |---|---|
 | [命令网关](../command-gateway) | 命令路由和分发架构 |
 | [事件存储](../eventstore) | 领域事件如何持久化和加载 |
+| [事件演进](./event-evolution) | 升级已持久化事件并验证历史回放 |
 | [事件处理器](../event-processor) | 创建和配置事件处理器 |
 | [Saga 处理器](../saga) | 通过事件进行分布式事务编排 |
 | [Kafka 配置](../../reference/config/infrastructure) | Kafka 连接和主题配置 |

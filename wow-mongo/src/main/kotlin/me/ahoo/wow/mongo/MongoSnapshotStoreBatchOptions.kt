@@ -18,7 +18,7 @@ import java.time.Duration
 /**
  * Controls transparent batching for [MongoSnapshotStore] saves.
  *
- * Batching is opt-in because collecting a partial batch adds up to [maxDelay]
+ * Batching is opt-in because collecting a partial batch adds up to `maxDelay`
  * to a low-throughput save.
  */
 data class MongoSnapshotStoreBatchOptions(

@@ -20,11 +20,11 @@ import java.util.concurrent.atomic.AtomicBoolean
 /**
  * A single message source with separate readiness and processing admission.
  *
- * [messages] must be subscribed before [readiness]. The readiness signal is
+ * `messages` must be subscribed before `readiness`. The readiness signal is
  * hot and replayable: it completes only after the subscribed source can retain
  * messages without loss, or fails when that setup cannot complete. Once every
- * runtime component is ready, [openProcessing] explicitly opens transport
- * consumption. [closeProcessing] revokes that logical admission before
+ * runtime component is ready, `openProcessing` explicitly opens transport
+ * consumption. `closeProcessing` revokes that logical admission before
  * physical cancellation, without inferring lifecycle state from reactive
  * demand or subscription count.
  */

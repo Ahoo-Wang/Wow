@@ -207,6 +207,7 @@ Every aggregate rule should have a success case, a rejection case, and relevant 
 | Delivery | Retry, idempotency, concurrency, and LocalFirst boundaries are explicit | Failure-path tests and adapter settings | [DefaultCommandGateway.kt:86-143](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L86-L143) |
 | Snapshot query | `all` is enabled on a query-capable backend; filters, indexes, routes, and `SNAPSHOT` read-after-write behavior are verified | API tests and query plans with production-like data | [SnapshotQueryService.kt:30-61](https://github.com/Ahoo-Wang/Wow/blob/main/wow-query/src/main/kotlin/me/ahoo/wow/query/snapshot/SnapshotQueryService.kt#L30-L61) |
 | Recovery | Retry exhaustion and unrecoverable failures have an operator workflow | Compensation dashboard/runbook | [IExecutionFailedState.kt:138-164](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-api/src/main/kotlin/me/ahoo/wow/compensation/api/IExecutionFailedState.kt#L138-L164) |
+| Disaster recovery | EventStore, snapshots, projections, and broker offsets pass an isolated restore and reconciliation | Backup checksums, RPO/RTO, and business reconciliation results | [Backup, Restore, and Replay](./recovery.md) |
 | Observability | Command waits, bus sends, and storage calls are traceable | Trace and metric screenshots from staging | [TracingCommandGateway.kt:31-66](https://github.com/Ahoo-Wang/Wow/blob/main/wow-opentelemetry/src/main/kotlin/me/ahoo/wow/opentelemetry/wait/TracingCommandGateway.kt#L31-L66), [TracingEventStore.kt:28-66](https://github.com/Ahoo-Wang/Wow/blob/main/wow-opentelemetry/src/main/kotlin/me/ahoo/wow/opentelemetry/eventsourcing/TracingEventStore.kt#L28-L66) |
 | Lifecycle | Shutdown drains accepted work within an explicit deadline | Deployment termination test | [CommandDispatcher.kt:78-83](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/dispatcher/CommandDispatcher.kt#L78-L83) |
 
@@ -223,5 +224,6 @@ Promote only after validating the actual storage adapter, broker, deployment top
 | [Query Service](./query.md) | Documents snapshot query DSL and built-in endpoints |
 | [Distributed Transactions (Saga)](./saga.md) | Covers cross-aggregate orchestration |
 | [Event Compensation](./event-compensation.md) | Covers failure recovery and operator workflows |
+| [Backup, Restore, and Replay](./recovery.md) | Defines EventStore restore, replay, reconciliation, and rollback gates |
 | [Test Suite](./test-suite.md) | Describes the aggregate and Saga testing DSL |
 | [Observability](./advanced/observability.md) | Covers traces and runtime observability |

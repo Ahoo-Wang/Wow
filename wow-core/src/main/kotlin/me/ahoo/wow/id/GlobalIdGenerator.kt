@@ -94,7 +94,6 @@ object GlobalIdGenerator : CosIdGenerator, Decorator<CosIdGenerator> {
  *
  * @return a unique global ID as a string
  * @see GlobalIdGenerator
- * @sample
  * val id = generateGlobalId() // Generates a unique string like "0H1F2G3H4I5J6K7L8M9N0O1P2Q3"
  */
 fun generateGlobalId(): String = GlobalIdGenerator.generateAsString()

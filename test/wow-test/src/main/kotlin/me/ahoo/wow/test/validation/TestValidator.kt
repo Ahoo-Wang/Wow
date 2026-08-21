@@ -49,7 +49,6 @@ val TestValidator: Validator =
  * @return The same object if validation passes.
  * @throws CommandValidationException If validation fails due to constraint violations.
  *
- * @sample
  * ```
  * data class TestCommand(@NotBlank val name: String = "")
  * ```
