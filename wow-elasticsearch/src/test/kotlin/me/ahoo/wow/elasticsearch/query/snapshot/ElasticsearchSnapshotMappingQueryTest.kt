@@ -32,13 +32,16 @@ import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
+import me.ahoo.wow.elasticsearch.query.ElasticsearchFieldResolutionException
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
 import me.ahoo.wow.query.converter.ConditionConverter
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchIndicesClient
 import reactor.core.publisher.Mono
+import reactor.kotlin.test.test
 
 class ElasticsearchSnapshotMappingQueryTest {
     private val client = mockk<ReactiveElasticsearchClient>()
@@ -81,17 +84,60 @@ class ElasticsearchSnapshotMappingQueryTest {
     }
 
     @Test
-    fun `missing field should refresh mapping once before compiling query`() {
+    fun `missing field should fail without automatic mapping refresh`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(queryMapping()),
+        )
+        val service = queryService()
+
+        repeat(2) {
+            service.dynamicList(
+                ListQuery(condition = Condition.eq("state.newField", "new"), limit = 10),
+            ).test()
+                .expectError(ElasticsearchFieldResolutionException::class.java)
+                .verify()
+        }
+
+        verify(exactly = 1) { indicesClient.getMapping(any<GetMappingRequest>()) }
+        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+    }
+
+    @Test
+    fun `explicit mapping refresh should make a new field queryable`() {
         every { indicesClient.getMapping(any<GetMappingRequest>()) } returnsMany listOf(
             Mono.just(mappingResponse(queryMapping())),
             Mono.just(mappingResponse(queryMapping(includeNewField = true))),
         )
+        val resolver = ElasticsearchIndexMappingResolver(client)
+        val service = queryService(resolver)
+        val query = ListQuery(condition = Condition.eq("state.newField", "new"), limit = 10)
 
-        queryService().dynamicList(
-            ListQuery(condition = Condition.eq("state.newField", "new"), limit = 10),
-        ).collectList().block()
+        service.dynamicList(query).test()
+            .expectError(ElasticsearchFieldResolutionException::class.java)
+            .verify()
+        service.refreshIndexMapping().block()
+        service.dynamicList(query).collectList().block()
 
         searchRequest.captured.query()!!.bool().filter()[1].term().field().assert().isEqualTo("state.newField")
+        verify(exactly = 2) { indicesClient.getMapping(any<GetMappingRequest>()) }
+    }
+
+    @Test
+    fun `default factory should expose explicit mapping refresh`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returnsMany listOf(
+            Mono.just(mappingResponse(queryMapping())),
+            Mono.just(mappingResponse(queryMapping(includeNewField = true))),
+        )
+        val factory = ElasticsearchSnapshotQueryServiceFactory(client)
+        val service = factory.create<Any>(MOCK_AGGREGATE_METADATA)
+        val query = ListQuery(condition = Condition.eq("state.newField", "new"), limit = 10)
+
+        service.dynamicList(query).test()
+            .expectError(ElasticsearchFieldResolutionException::class.java)
+            .verify()
+        factory.refreshIndexMapping(MOCK_AGGREGATE_METADATA).block()
+        service.dynamicList(query).collectList().block()
+
         verify(exactly = 2) { indicesClient.getMapping(any<GetMappingRequest>()) }
     }
 
@@ -114,17 +160,20 @@ class ElasticsearchSnapshotMappingQueryTest {
         service.dynamicList(ListQuery(condition = condition, limit = 10)).collectList().block()
 
         convertedCondition.captured.assert().isEqualTo(condition)
+        assertThrows<IllegalArgumentException> { service.refreshIndexMapping() }
         verify(exactly = 0) { client.indices() }
     }
 
-    private fun queryService(): ElasticsearchSnapshotQueryService<Any> =
+    private fun queryService(
+        resolver: ElasticsearchIndexMappingResolver = ElasticsearchIndexMappingResolver(client),
+    ): ElasticsearchSnapshotQueryService<Any> =
         ElasticsearchSnapshotQueryService(
             MOCK_AGGREGATE_METADATA,
             client,
             SnapshotConditionConverter,
             DEFAULT_SEARCH_BATCH_SIZE,
             DEFAULT_PIT_KEEP_ALIVE,
-            ElasticsearchIndexMappingResolver(client),
+            resolver,
         )
 
     private fun mappingResponse(mapping: TypeMapping): GetMappingResponse =
