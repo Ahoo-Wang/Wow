@@ -16,6 +16,7 @@ package me.ahoo.wow.elasticsearch.query.snapshot
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
+import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
 import me.ahoo.wow.query.snapshot.AbstractSnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
@@ -26,11 +27,22 @@ class ElasticsearchSnapshotQueryServiceFactory(
     private val queryBatchSize: Int,
     private val queryKeepAlive: Duration,
 ) : AbstractSnapshotQueryServiceFactory() {
+    private var indexMappingResolver = ElasticsearchIndexMappingResolver(elasticsearchClient)
+
     constructor(elasticsearchClient: ReactiveElasticsearchClient) : this(
         elasticsearchClient,
         DEFAULT_SEARCH_BATCH_SIZE,
         DEFAULT_PIT_KEEP_ALIVE,
     )
+
+    constructor(
+        elasticsearchClient: ReactiveElasticsearchClient,
+        queryBatchSize: Int,
+        queryKeepAlive: Duration,
+        indexMappingResolver: ElasticsearchIndexMappingResolver,
+    ) : this(elasticsearchClient, queryBatchSize, queryKeepAlive) {
+        this.indexMappingResolver = indexMappingResolver
+    }
 
     override fun createQueryService(namedAggregate: NamedAggregate): SnapshotQueryService<*> {
         return ElasticsearchSnapshotQueryService<Any>(
@@ -39,6 +51,7 @@ class ElasticsearchSnapshotQueryServiceFactory(
             SnapshotConditionConverter,
             queryBatchSize,
             queryKeepAlive,
+            indexMappingResolver,
         )
     }
 }

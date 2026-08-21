@@ -147,6 +147,69 @@ version-metadata migration is required.
 | Event Stream | `wow.{contextName}.{aggregateName}.es` | `wow.order-service.order.es` |
 | Snapshot | `wow.{contextName}.{aggregateName}.snapshot` | `wow.order-service.order.snapshot` |
 
+## Snapshot Query Field Resolution
+
+On the first snapshot query for an aggregate index, Wow asynchronously loads the current Elasticsearch mapping and
+compiles conditions and sorts from its physical field capabilities. The mapping is the only capability source; no
+separate `QuerySchema` is maintained. The cache is isolated by index and has no TTL. A missing or incompatible cached
+field triggers one automatic refresh. A successful refresh atomically replaces the cache; a failed refresh preserves
+the previous cache and fails the current query closed.
+
+Field selection follows these rules:
+
+| Query operation | Mapping requirement |
+|---|---|
+| `EQ`, `NE`, `IN`, `NOT_IN`, `ALL_IN`, `TRUE`, `FALSE` | Term-query compatible |
+| `CONTAINS`, `STARTS_WITH`, `ENDS_WITH` | `keyword` or `wildcard` |
+| Range operations | numeric, date, or keyword |
+| `MATCH` | `text`, `match_only_text`, or `search_as_you_type` |
+| Sort | Indexed field sortable with `doc_values`, or a sortable runtime field |
+
+For a multi-field, Wow tries the current field, `.keyword`/`.text`, `.exact`, and finally a single compatible child.
+Multiple compatible children fail as ambiguous rather than silently changing semantics. `EXISTS`, `NULL`, `NOT_NULL`,
+projection, and `RAW` remain logical fields; the parent of `ELEM_MATCH` must be mapped as `nested`. A custom
+`ConditionConverter` retains ownership of its physical fields and bypasses this rewriting.
+
+A field alias inherits the query and sort capabilities of its target while queries continue to use the alias name.
+Runtime fields declared in the mapping also participate according to their type. They are evaluated at query time and
+may be rejected by the cluster when `search.allow_expensive_queries=false`.
+
+Each aggregate must resolve to one physical snapshot index. An alias or data stream that resolves to multiple indices
+fails closed. Such a topology must be reduced to one physical index or handled by an application-specific `_field_caps`
+query implementation.
+
+## Actively Refresh a Mapping
+
+Adding `org.springframework.boot:spring-boot-starter-actuator` registers an optional maintenance endpoint. It has no
+access by default. Configure both access and Web exposure, and restrict it to a maintenance role in management endpoint
+security:
+
+```yaml
+management:
+  endpoint:
+    wowElasticsearchMapping:
+      access: unrestricted
+  endpoints:
+    web:
+      exposure:
+        include: health,wowElasticsearchMapping
+```
+
+Refresh the mapping for a registered aggregate on the current application instance:
+
+```http request
+POST /actuator/wowElasticsearchMapping/{contextName}/{aggregateName}
+```
+
+The endpoint does not accept arbitrary index expressions; it derives the index name from aggregate metadata. Its
+response contains only `scope=LOCAL_INSTANCE`, `indexName`, `fieldCount`, `changed`, and `refreshedAt`, never the full
+mapping. Elasticsearch credentials need `view_index_metadata` on the target index. Missing privileges, a missing index,
+or an unparseable mapping fails the request without damaging a previously successful cache entry.
+
+Refresh is local to the instance that receives the request. In a replicated deployment, operations must call each Pod;
+there is no broadcast, scheduled refresh, or refresh-all operation. New queries use the refreshed mapping, while
+in-flight queries continue with the mapping obtained when their compilation began.
+
 ## Configure Event Stream Index Template
 
 ```http request

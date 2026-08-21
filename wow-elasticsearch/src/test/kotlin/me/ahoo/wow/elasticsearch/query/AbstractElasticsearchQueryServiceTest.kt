@@ -14,6 +14,7 @@
 package me.ahoo.wow.elasticsearch.query
 
 import co.elastic.clients.elasticsearch._types.SortOrder
+import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll
 import co.elastic.clients.elasticsearch.core.ClosePointInTimeRequest
@@ -25,6 +26,9 @@ import co.elastic.clients.elasticsearch.core.OpenPointInTimeResponse
 import co.elastic.clients.elasticsearch.core.SearchRequest
 import co.elastic.clients.elasticsearch.core.SearchResponse
 import co.elastic.clients.elasticsearch.core.search.TotalHitsRelation
+import co.elastic.clients.elasticsearch.indices.GetMappingRequest
+import co.elastic.clients.elasticsearch.indices.GetMappingResponse
+import co.elastic.clients.elasticsearch.indices.get_mapping.IndexMappingRecord
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -44,6 +48,7 @@ import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
+import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchIndicesClient
 import reactor.core.publisher.Mono
 import java.time.Duration
 
@@ -139,6 +144,9 @@ class AbstractElasticsearchQueryServiceTest {
     fun `configured snapshot factory should propagate pager settings`() {
         val openRequest = slot<OpenPointInTimeRequest>()
         val searchRequest = slot<SearchRequest>()
+        val indicesClient = mockk<ReactiveElasticsearchIndicesClient>()
+        every { elasticsearchClient.indices() } returns indicesClient
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(emptyMappingResponse())
         every { elasticsearchClient.openPointInTime(capture(openRequest)) } returns Mono.just(openPointInTimeResponse())
         every { elasticsearchClient.search(capture(searchRequest), Map::class.java) } returns Mono.just(
             searchResponse(total = null, pitId = "pit-2")
@@ -234,6 +242,14 @@ class AbstractElasticsearchQueryServiceTest {
     private fun closePointInTimeResponse(): ClosePointInTimeResponse {
         return ClosePointInTimeResponse.of { it.succeeded(true).numFreed(1) }
     }
+
+    private fun emptyMappingResponse(): GetMappingResponse =
+        GetMappingResponse.of { response ->
+            response.mappings(
+                "wow.test.aggregate.snapshot",
+                IndexMappingRecord.of { record -> record.mappings(TypeMapping.of { it }) },
+            )
+        }
 
     private class TestElasticsearchQueryService(
         override val elasticsearchClient: ReactiveElasticsearchClient,

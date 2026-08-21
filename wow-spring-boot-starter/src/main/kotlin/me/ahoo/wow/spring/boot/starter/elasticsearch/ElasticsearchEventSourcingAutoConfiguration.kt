@@ -21,6 +21,7 @@ import me.ahoo.wow.elasticsearch.IndexTemplateInitializer
 import me.ahoo.wow.elasticsearch.WowJsonpMapper
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStore
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
+import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
 import me.ahoo.wow.elasticsearch.query.event.ElasticsearchEventStreamQueryServiceFactory
 import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryServiceFactory
 import me.ahoo.wow.eventsourcing.EventStore
@@ -187,13 +188,23 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
     @ConditionalOnSnapshotStoreStorage(StorageType.ELASTICSEARCH)
     fun elasticsearchSnapshotQueryServiceFactory(
         elasticsearchClient: ReactiveElasticsearchClient,
+        elasticsearchIndexMappingResolver: ElasticsearchIndexMappingResolver,
     ): ElasticsearchSnapshotQueryServiceFactory {
         return ElasticsearchSnapshotQueryServiceFactory(
             elasticsearchClient,
             queryProperties.batchSize,
             queryProperties.keepAlive,
+            elasticsearchIndexMappingResolver,
         )
     }
+
+    @Bean
+    @ConditionalOnSnapshotEnabled
+    @ConditionalOnSnapshotStoreStorage(StorageType.ELASTICSEARCH)
+    @ConditionalOnMissingBean
+    fun elasticsearchIndexMappingResolver(
+        elasticsearchClient: ReactiveElasticsearchClient,
+    ): ElasticsearchIndexMappingResolver = ElasticsearchIndexMappingResolver(elasticsearchClient)
 
     @Bean
     @ConditionalOnSnapshotEnabled

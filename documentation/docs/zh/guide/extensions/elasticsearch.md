@@ -143,6 +143,62 @@ SnapshotStore 使用带 scripted upsert 的 Bulk `update`，direct 路径使用�
 | 事件流 | `wow.{contextName}.{aggregateName}.es` | `wow.order-service.order.es` |
 | 快照 | `wow.{contextName}.{aggregateName}.snapshot` | `wow.order-service.order.snapshot` |
 
+## 快照查询字段解析
+
+快照查询第一次访问聚合索引时会异步加载当前 Elasticsearch Mapping，并按物理字段能力编译条件和排序；Mapping
+是字段能力的唯一来源，不需要维护额外的 `QuerySchema`。缓存按索引隔离且没有 TTL。当缓存中的字段缺失或能力不匹配时，
+查询会自动刷新一次 Mapping；刷新成功后替换缓存，刷新失败时保留旧缓存并使当前查询失败关闭。
+
+字段选择规则如下：
+
+| Query 操作 | Mapping 要求 |
+|---|---|
+| `EQ`、`NE`、`IN`、`NOT_IN`、`ALL_IN`、`TRUE`、`FALSE` | 可执行 term 查询 |
+| `CONTAINS`、`STARTS_WITH`、`ENDS_WITH` | `keyword` 或 `wildcard` |
+| 范围操作 | numeric、date 或 keyword |
+| `MATCH` | `text`、`match_only_text` 或 `search_as_you_type` |
+| 排序 | 索引字段可排序且启用 `doc_values`，或 runtime field 支持排序 |
+
+对于 multi-field，依次选择当前字段、`.keyword`/`.text`、`.exact`，最后才选择唯一的兼容子字段；存在多个兼容候选时
+查询失败，避免静默改变语义。`EXISTS`、`NULL`、`NOT_NULL`、projection 和 `RAW` 不重写，`ELEM_MATCH` 的父路径
+必须映射为 `nested`。自定义 `ConditionConverter` 继续负责解释自己的物理字段，不经过上述重写。
+
+Field alias 继承其目标字段的查询与排序能力，并继续使用 alias 名称生成查询。Mapping 中声明的 runtime field 也会按
+其类型参与能力解析；runtime 查询会在查询时计算，且当 Elasticsearch 设置 `search.allow_expensive_queries=false` 时
+可能被集群拒绝。
+
+每个聚合必须解析到一个物理快照索引。alias 或 data stream 如果解析出多个索引，查询会失败；这种拓扑需要先收敛为
+单个物理索引，或由应用自行实现基于 `_field_caps` 的查询方案。
+
+## 主动刷新 Mapping
+
+应用引入 `org.springframework.boot:spring-boot-starter-actuator` 后会注册可选维护端点。端点默认不可访问，必须同时配置
+access 和 Web exposure，并由管理端安全策略限制为维护角色：
+
+```yaml
+management:
+  endpoint:
+    wowElasticsearchMapping:
+      access: unrestricted
+  endpoints:
+    web:
+      exposure:
+        include: health,wowElasticsearchMapping
+```
+
+按已注册聚合刷新当前实例的 Mapping：
+
+```http request
+POST /actuator/wowElasticsearchMapping/{contextName}/{aggregateName}
+```
+
+端点不接受任意索引表达式，索引名由聚合元数据计算。响应只包含 `scope=LOCAL_INSTANCE`、`indexName`、
+`fieldCount`、`changed` 和 `refreshedAt`，不会返回完整 Mapping。Elasticsearch 凭据需要目标索引的
+`view_index_metadata` 权限；权限不足、索引不存在或 Mapping 无法解析时请求失败，已有成功缓存不受影响。
+
+刷新只作用于收到请求的应用实例。多副本部署需要运维逐 Pod 调用；当前不提供广播、定时刷新或“刷新全部聚合”。
+刷新完成后的新查询使用新 Mapping，已经在途的查询继续使用其开始编译时取得的旧 Mapping。
+
 ## 配置事件流索引模板
 
 ```http request
