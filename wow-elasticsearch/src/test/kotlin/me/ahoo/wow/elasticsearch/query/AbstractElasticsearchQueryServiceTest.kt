@@ -13,10 +13,15 @@
 
 package me.ahoo.wow.elasticsearch.query
 
+import co.elastic.clients.elasticsearch._types.SortOrder
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll
+import co.elastic.clients.elasticsearch.core.ClosePointInTimeRequest
+import co.elastic.clients.elasticsearch.core.ClosePointInTimeResponse
 import co.elastic.clients.elasticsearch.core.CountRequest
 import co.elastic.clients.elasticsearch.core.CountResponse
+import co.elastic.clients.elasticsearch.core.OpenPointInTimeRequest
+import co.elastic.clients.elasticsearch.core.OpenPointInTimeResponse
 import co.elastic.clients.elasticsearch.core.SearchRequest
 import co.elastic.clients.elasticsearch.core.SearchResponse
 import co.elastic.clients.elasticsearch.core.search.TotalHitsRelation
@@ -32,11 +37,15 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryServiceFactory
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.converter.ConditionConverter
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
+import java.time.Duration
 
 class AbstractElasticsearchQueryServiceTest {
     private val elasticsearchClient = mockk<ReactiveElasticsearchClient>()
@@ -57,15 +66,106 @@ class AbstractElasticsearchQueryServiceTest {
                 condition = Condition.ALL,
                 projection = Projection(include = listOf("field")),
                 sort = listOf(Sort("field", Sort.Direction.ASC)),
-                limit = 7,
+                limit = DEFAULT_SEARCH_BATCH_SIZE,
             )
         ).collectList().block()!!
 
         request.captured.trackTotalHits()!!.enabled().assert().isFalse()
-        request.captured.size().assert().isEqualTo(7)
+        request.captured.size().assert().isEqualTo(DEFAULT_SEARCH_BATCH_SIZE)
         request.captured.source()!!.filter().includes().assert().containsExactly("field")
         request.captured.sort().assert().hasSize(1)
         result.assert().hasSize(1)
+        verify(exactly = 0) { elasticsearchClient.openPointInTime(any<OpenPointInTimeRequest>()) }
+    }
+
+    @Test
+    fun `dynamic list without limit should use pit and stable sort`() {
+        val openRequest = slot<OpenPointInTimeRequest>()
+        val searchRequest = slot<SearchRequest>()
+        val closeRequest = slot<ClosePointInTimeRequest>()
+        every { elasticsearchClient.openPointInTime(capture(openRequest)) } returns Mono.just(openPointInTimeResponse())
+        every { elasticsearchClient.search(capture(searchRequest), Map::class.java) } returns Mono.just(
+            searchResponse(total = null, pitId = "pit-2")
+        )
+        every { elasticsearchClient.closePointInTime(capture(closeRequest)) } returns Mono.just(
+            closePointInTimeResponse()
+        )
+
+        val result = queryService.dynamicList(ListQuery(Condition.ALL)).collectList().block()!!
+
+        result.assert().hasSize(1)
+        openRequest.captured.index().assert().containsExactly("test-index")
+        openRequest.captured.keepAlive().time().assert().isEqualTo("1m")
+        searchRequest.captured.index().assert().isEmpty()
+        searchRequest.captured.pit()!!.id().assert().isEqualTo("pit-1")
+        searchRequest.captured.pit()!!.keepAlive()!!.time().assert().isEqualTo("1m")
+        searchRequest.captured.sort().assert().hasSize(2)
+        searchRequest.captured.sort()[0].isScore.assert().isTrue()
+        searchRequest.captured.sort()[0].score().order().assert().isEqualTo(
+            SortOrder.Desc
+        )
+        searchRequest.captured.sort()[1].field().field().assert().isEqualTo("_shard_doc")
+        closeRequest.captured.id().assert().isEqualTo("pit-2")
+    }
+
+    @Test
+    fun `dynamic list above result window should preserve query options and append tiebreaker`() {
+        val searchRequest = slot<SearchRequest>()
+        every { elasticsearchClient.openPointInTime(any<OpenPointInTimeRequest>()) } returns Mono.just(
+            openPointInTimeResponse()
+        )
+        every { elasticsearchClient.search(capture(searchRequest), Map::class.java) } returns Mono.just(
+            searchResponse(total = null, pitId = "pit-2")
+        )
+        every { elasticsearchClient.closePointInTime(any<ClosePointInTimeRequest>()) } returns Mono.just(
+            closePointInTimeResponse()
+        )
+
+        queryService.dynamicList(
+            ListQuery(
+                condition = Condition.ALL,
+                projection = Projection(include = listOf("field")),
+                sort = listOf(Sort("field", Sort.Direction.ASC)),
+                limit = DEFAULT_SEARCH_BATCH_SIZE + 1,
+            )
+        ).collectList().block()
+
+        searchRequest.captured.size().assert().isEqualTo(DEFAULT_SEARCH_BATCH_SIZE)
+        searchRequest.captured.source()!!.filter().includes().assert().containsExactly("field")
+        searchRequest.captured.sort().map { it.field().field() }.assert().containsExactly("field", "_shard_doc")
+    }
+
+    @Test
+    fun `configured snapshot factory should propagate pager settings`() {
+        val openRequest = slot<OpenPointInTimeRequest>()
+        val searchRequest = slot<SearchRequest>()
+        every { elasticsearchClient.openPointInTime(capture(openRequest)) } returns Mono.just(openPointInTimeResponse())
+        every { elasticsearchClient.search(capture(searchRequest), Map::class.java) } returns Mono.just(
+            searchResponse(total = null, pitId = "pit-2")
+        )
+        every { elasticsearchClient.closePointInTime(any<ClosePointInTimeRequest>()) } returns Mono.just(
+            closePointInTimeResponse()
+        )
+
+        ElasticsearchSnapshotQueryServiceFactory(elasticsearchClient, 3, Duration.ofMinutes(5))
+            .create<Any>(MOCK_AGGREGATE_METADATA)
+            .dynamicList(ListQuery(Condition.ALL, limit = 4))
+            .collectList()
+            .block()
+
+        openRequest.captured.keepAlive().time().assert().isEqualTo("5m")
+        searchRequest.captured.size().assert().isEqualTo(3)
+        searchRequest.captured.pit()!!.keepAlive()!!.time().assert().isEqualTo("5m")
+    }
+
+    @Test
+    fun `dynamic list should reject negative limit before searching`() {
+        assertThrows<IllegalArgumentException> {
+            queryService.dynamicList(ListQuery(Condition.ALL, limit = -1))
+        }
+
+        verify(exactly = 0) { elasticsearchClient.search(any<SearchRequest>(), Map::class.java) }
+        verify(exactly = 0) { elasticsearchClient.openPointInTime(any<OpenPointInTimeRequest>()) }
     }
 
     @Test
@@ -78,6 +178,8 @@ class AbstractElasticsearchQueryServiceTest {
         val result = queryService.dynamicPaged(PagedQuery(Condition.ALL)).block()!!
 
         request.captured.trackTotalHits()!!.enabled().assert().isTrue()
+        request.captured.index().assert().containsExactly("test-index")
+        request.captured.pit().assert().isNull()
         result.total.assert().isEqualTo(42)
         result.list.assert().hasSize(1)
         result.list.single()["field"].assert().isEqualTo("value")
@@ -100,7 +202,7 @@ class AbstractElasticsearchQueryServiceTest {
         verify(exactly = 0) { elasticsearchClient.search(any<SearchRequest>(), Map::class.java) }
     }
 
-    private fun searchResponse(total: Long?): SearchResponse<Map<*, *>> {
+    private fun searchResponse(total: Long?, pitId: String? = null): SearchResponse<Map<*, *>> {
         return SearchResponse.of<Map<*, *>> {
             it.took(1)
                 .timedOut(false)
@@ -115,7 +217,22 @@ class AbstractElasticsearchQueryServiceTest {
                             .source(mutableMapOf<String, Any?>("field" to "value"))
                     }.hits { hit -> hit.index("test-index").id("2") }
                 }
+            if (pitId != null) {
+                it.pitId(pitId)
+            }
+            it
         }
+    }
+
+    private fun openPointInTimeResponse(): OpenPointInTimeResponse {
+        return OpenPointInTimeResponse.of {
+            it.id("pit-1")
+                .shards { shards -> shards.failed(0).successful(1).total(1) }
+        }
+    }
+
+    private fun closePointInTimeResponse(): ClosePointInTimeResponse {
+        return ClosePointInTimeResponse.of { it.succeeded(true).numFreed(1) }
     }
 
     private class TestElasticsearchQueryService(

@@ -120,6 +120,8 @@ wow:
 |----------|------|---------|-------------|
 | `wow.elasticsearch.enabled` | Boolean | `true` | Enable Elasticsearch integration |
 | `wow.elasticsearch.auto-init-template` | Boolean | `true` | Initialize required index templates before startup completes |
+| `wow.elasticsearch.query.batch-size` | Int | `10000` | PIT + `search_after` batch size; configure no higher than the target index's `index.max_result_window` |
+| `wow.elasticsearch.query.keep-alive` | Duration | `1m` | PIT lifetime refreshed by each full-list search request; increase for slow subscribers |
 | `wow.elasticsearch.event-store-batch.enabled` | Boolean | `false` | Enable transparent EventStore Bulk `create` batching |
 | `wow.elasticsearch.event-store-batch.max-size` | Int | `128` | Maximum event streams per Bulk request |
 | `wow.elasticsearch.event-store-batch.max-delay` | Duration | `1ms` | Maximum wait used to collect a partial event batch |

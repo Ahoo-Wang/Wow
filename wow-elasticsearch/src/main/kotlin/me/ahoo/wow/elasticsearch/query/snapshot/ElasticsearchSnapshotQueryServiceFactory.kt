@@ -14,13 +14,31 @@
 package me.ahoo.wow.elasticsearch.query.snapshot
 
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
+import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.query.snapshot.AbstractSnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
+import java.time.Duration
 
-class ElasticsearchSnapshotQueryServiceFactory(private val elasticsearchClient: ReactiveElasticsearchClient) :
-    AbstractSnapshotQueryServiceFactory() {
+class ElasticsearchSnapshotQueryServiceFactory(
+    private val elasticsearchClient: ReactiveElasticsearchClient,
+    private val queryBatchSize: Int,
+    private val queryKeepAlive: Duration,
+) : AbstractSnapshotQueryServiceFactory() {
+    constructor(elasticsearchClient: ReactiveElasticsearchClient) : this(
+        elasticsearchClient,
+        DEFAULT_SEARCH_BATCH_SIZE,
+        DEFAULT_PIT_KEEP_ALIVE,
+    )
+
     override fun createQueryService(namedAggregate: NamedAggregate): SnapshotQueryService<*> {
-        return ElasticsearchSnapshotQueryService<Any>(namedAggregate, elasticsearchClient)
+        return ElasticsearchSnapshotQueryService<Any>(
+            namedAggregate,
+            elasticsearchClient,
+            SnapshotConditionConverter,
+            queryBatchSize,
+            queryKeepAlive,
+        )
     }
 }

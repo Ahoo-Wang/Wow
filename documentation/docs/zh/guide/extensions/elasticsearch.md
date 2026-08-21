@@ -472,7 +472,10 @@ spring:
 
 1. **使用 Filter 替代 Query**：对于精确匹配使用 filter 提高缓存命中率
 2. **限制返回字段**：使用 `_source` 过滤只返回需要的字段
-3. **分页优化**：大数据量分页使用 `search_after` 替代 `from/size`
+3. **全量列表查询**：`ListQuery.limit=0` 使用 PIT + `search_after` 流式返回全部匹配结果；默认情况下，`1..10_000` 使用单次请求，更大的正数 limit 使用同一内部分页器。10,000 只是默认内部批大小，不是结果上限。
+4. **分页查询**：`PagedQuery` 保持 `from/size` 语义，仍受 Elasticsearch `index.max_result_window` 限制。需要完整结果集时应使用列表查询。
+
+当目标索引的 `index.max_result_window` 小于 10,000 时，将 `wow.elasticsearch.query.batch-size` 配置为不超过该值；当慢速订阅者消费一批数据可能超过默认 `1m` 时，应增大 `wow.elasticsearch.query.keep-alive`。
 
 ## 故障排查
 

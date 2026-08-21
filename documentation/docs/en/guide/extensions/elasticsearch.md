@@ -473,7 +473,10 @@ spring:
 
 1. **Use Filter Instead of Query**: Use filter for exact matches to improve cache hit rate
 2. **Limit Returned Fields**: Use `_source` filtering to return only needed fields
-3. **Pagination Optimization**: Use `search_after` instead of `from/size` for large result sets
+3. **Full List Queries**: `ListQuery.limit=0` streams all matches with PIT + `search_after`; by default, limits from 1 through 10,000 use one request, while larger limits use the same internal pager. The 10,000 value is only the default internal batch size, not a result cap.
+4. **Paged Queries**: `PagedQuery` keeps its `from/size` contract and remains subject to Elasticsearch `index.max_result_window`. Use a list query when the complete result set is required.
+
+Set `wow.elasticsearch.query.batch-size` no higher than the target index's `index.max_result_window` when it is below 10,000. Increase `wow.elasticsearch.query.keep-alive` above its `1m` default when a slow subscriber may take longer than that to consume one batch.
 
 ## Troubleshooting
 

@@ -216,6 +216,8 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
                 "${ElasticsearchProperties.PREFIX}.snapshot-store-batch.max-delay=3ms",
                 "${ElasticsearchProperties.PREFIX}.snapshot-store-batch.max-pending-saves=1024",
                 "${ElasticsearchProperties.PREFIX}.snapshot-store-batch.lane-count=3",
+                "${ElasticsearchQueryProperties.PREFIX}.batch-size=512",
+                "${ElasticsearchQueryProperties.PREFIX}.keep-alive=5m",
             )
             .withBean(ReactiveElasticsearchClient::class.java, {
                 mock(ReactiveElasticsearchClient::class.java)
@@ -239,6 +241,7 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
                     .hasSingleBean(SnapshotStoreBinding::class.java)
                     .hasSingleBean(ElasticsearchSnapshotQueryServiceFactory::class.java)
                 context.containsBean("snapshotRepository").assert().isFalse()
+                assertQueryProperties(context)
                 assertBatchOptions(context)
                 val eventStore = context.getBean(ElasticsearchEventStore::class.java)
                 val eventBinding = context.getBean(EventStoreBinding::class.java)
@@ -250,6 +253,13 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
                 snapshotBinding.storage.assert().isEqualTo(StorageType.ELASTICSEARCH)
                 snapshotBinding.snapshotStore.assert().isSameAs(snapshotStore)
             }
+    }
+
+    private fun assertQueryProperties(context: AssertableApplicationContext) {
+        context.getBean(ElasticsearchQueryProperties::class.java).also {
+            it.batchSize.assert().isEqualTo(512)
+            it.keepAlive.assert().isEqualTo(java.time.Duration.ofMinutes(5))
+        }
     }
 
     private fun assertBatchOptions(context: AssertableApplicationContext) {

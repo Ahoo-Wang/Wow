@@ -11,16 +11,23 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.elasticsearch.query
+package me.ahoo.wow.spring.boot.starter.elasticsearch
 
-import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import org.junit.jupiter.api.Test
+import java.time.Duration
 
-@Suppress("DEPRECATION")
-class SearchSizeTest {
+class ElasticsearchQueryPropertiesTest {
     @Test
-    fun `deprecated helpers should remain source compatible`() {
-        0.searchSize().assert().isEqualTo(UNLIMITED_SIZE)
-        1.searchSize().assert().isOne()
+    fun `should reject invalid query settings`() {
+        assertThrownBy<IllegalArgumentException> {
+            ElasticsearchQueryProperties(batchSize = 0)
+        }
+        assertThrownBy<IllegalArgumentException> {
+            ElasticsearchQueryProperties(batchSize = 10_001)
+        }
+        assertThrownBy<IllegalArgumentException> {
+            ElasticsearchQueryProperties(keepAlive = Duration.ZERO)
+        }
     }
 }

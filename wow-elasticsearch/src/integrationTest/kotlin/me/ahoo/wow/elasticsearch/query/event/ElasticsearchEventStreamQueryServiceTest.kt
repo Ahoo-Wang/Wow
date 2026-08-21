@@ -20,8 +20,10 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.query.dsl.condition
+import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.count
+import me.ahoo.wow.query.event.query
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
 import me.ahoo.wow.tck.query.EventStreamQueryServiceSpec
@@ -63,6 +65,24 @@ class ElasticsearchEventStreamQueryServiceTest : EventStreamQueryServiceSpec() {
             .count(eventStreamQueryService)
             .test()
             .expectNext(1L)
+            .verifyComplete()
+    }
+
+    @Test
+    fun `limit zero should query every event stream through pit`() {
+        val tenantId = generateGlobalId()
+        val eventStreams = (1..3).map {
+            generateEventStream(namedAggregate.aggregateId(id = generateGlobalId(), tenantId = tenantId))
+        }
+
+        Flux.concat(eventStreams.map { eventStore.append(it) })
+            .thenMany(
+                listQuery {
+                    condition { tenantId(tenantId) }
+                }.query(eventStreamQueryService)
+            )
+            .test()
+            .expectNextCount(3)
             .verifyComplete()
     }
 

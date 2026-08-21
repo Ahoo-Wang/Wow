@@ -13,9 +13,13 @@
 
 package me.ahoo.wow.elasticsearch.query
 
+import co.elastic.clients.elasticsearch._types.SortOptions
+import co.elastic.clients.elasticsearch._types.SortOrder
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import co.elastic.clients.elasticsearch.core.CountRequest
 import co.elastic.clients.elasticsearch.core.SearchRequest
+import co.elastic.clients.elasticsearch.core.search.Hit
+import co.elastic.clients.elasticsearch.core.search.SourceFilter
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.IListQuery
@@ -33,11 +37,14 @@ import me.ahoo.wow.query.converter.ConditionConverter
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import java.time.Duration
 
 abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
     abstract val elasticsearchClient: ReactiveElasticsearchClient
     abstract val conditionConverter: ConditionConverter<Query>
     abstract val indexName: String
+    protected open val queryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE
+    protected open val queryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE
     abstract fun toTypedResult(document: DynamicDocument): R
 
     override fun single(singleQuery: ISingleQuery): Mono<R> {
@@ -59,10 +66,21 @@ abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
     }
 
     override fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument> {
+        require(listQuery.limit >= 0) { "limit must be greater than or equal to 0." }
+        if (listQuery.limit == 0 || listQuery.limit > queryBatchSize) {
+            return ElasticsearchQueryPager(elasticsearchClient, indexName, queryBatchSize, queryKeepAlive)
+                .search(
+                    limit = listQuery.limit,
+                    query = conditionConverter.convert(listQuery.condition),
+                    sourceFilter = listQuery.sourceFilter(),
+                    sort = listQuery.searchAfterSort(),
+                )
+                .mapNotNull { it.toDynamicDocument() }
+        }
         val searchRequest = createSearchRequest(
             query = listQuery,
             from = 0,
-            size = listQuery.limit.searchSize(),
+            size = listQuery.limit,
             trackTotalHits = false,
         )
         return search(searchRequest).flatMapIterable { it.list }
@@ -115,16 +133,36 @@ abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
         return searchRequest
     }
 
+    private fun IListQuery.sourceFilter(): SourceFilter? {
+        return if (projection.isEmpty()) null else projection.toSourceFilter()
+    }
+
+    private fun IListQuery.searchAfterSort(): List<SortOptions> {
+        val userSort = sort.toSortOptions()
+        return buildList {
+            if (userSort.isEmpty()) {
+                add(SortOptions.of { it.score { score -> score.order(SortOrder.Desc) } })
+            } else {
+                addAll(userSort)
+            }
+            add(
+                SortOptions.of {
+                    it.field { field -> field.field("_shard_doc").order(SortOrder.Asc) }
+                }
+            )
+        }
+    }
+
     @Suppress("UNCHECKED_CAST")
+    private fun Hit<Map<*, *>>.toDynamicDocument(): DynamicDocument? {
+        return source()?.let { (it as MutableMap<String, Any?>).toDynamicDocument() }
+    }
+
     private fun search(searchRequest: SearchRequest): Mono<PagedList<DynamicDocument>> {
         return elasticsearchClient.search(searchRequest, Map::class.java)
             .map { result ->
                 val hits = result.hits()
-                val list = hits.hits().mapNotNull { hit ->
-                    hit.source()?.let {
-                        (it as MutableMap<String, Any?>).toDynamicDocument()
-                    }
-                }
+                val list = hits.hits().mapNotNull { it.toDynamicDocument() }
                 PagedList(hits.total()?.value() ?: 0, list)
             }
     }

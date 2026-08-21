@@ -36,6 +36,7 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotQueryServic
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
@@ -58,14 +59,26 @@ import org.springframework.data.elasticsearch.core.ReactiveElasticsearchOperatio
 @ConditionalOnClass(ElasticsearchEventStore::class)
 @EnableConfigurationProperties(
     ElasticsearchProperties::class,
+    ElasticsearchQueryProperties::class,
     ElasticsearchEventStoreBatchProperties::class,
     ElasticsearchSnapshotStoreBatchProperties::class,
 )
-class ElasticsearchEventSourcingAutoConfiguration(
+class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
     private val elasticsearchProperties: ElasticsearchProperties,
     private val eventStoreBatchProperties: ElasticsearchEventStoreBatchProperties,
     private val snapshotStoreBatchProperties: ElasticsearchSnapshotStoreBatchProperties,
+    private val queryProperties: ElasticsearchQueryProperties,
 ) {
+    constructor(
+        elasticsearchProperties: ElasticsearchProperties,
+        eventStoreBatchProperties: ElasticsearchEventStoreBatchProperties,
+        snapshotStoreBatchProperties: ElasticsearchSnapshotStoreBatchProperties,
+    ) : this(
+        elasticsearchProperties,
+        eventStoreBatchProperties,
+        snapshotStoreBatchProperties,
+        ElasticsearchQueryProperties(),
+    )
 
     @Bean
     @ConditionalOnProperty(ElasticsearchProperties.COMPATIBILITY_VERSION_KEY)
@@ -123,7 +136,11 @@ class ElasticsearchEventSourcingAutoConfiguration(
     fun elasticsearchEventStreamQueryServiceFactory(
         elasticsearchClient: ReactiveElasticsearchClient
     ): ElasticsearchEventStreamQueryServiceFactory {
-        return ElasticsearchEventStreamQueryServiceFactory(elasticsearchClient)
+        return ElasticsearchEventStreamQueryServiceFactory(
+            elasticsearchClient,
+            queryProperties.batchSize,
+            queryProperties.keepAlive,
+        )
     }
 
     @Bean
@@ -171,7 +188,11 @@ class ElasticsearchEventSourcingAutoConfiguration(
     fun elasticsearchSnapshotQueryServiceFactory(
         elasticsearchClient: ReactiveElasticsearchClient,
     ): ElasticsearchSnapshotQueryServiceFactory {
-        return ElasticsearchSnapshotQueryServiceFactory(elasticsearchClient)
+        return ElasticsearchSnapshotQueryServiceFactory(
+            elasticsearchClient,
+            queryProperties.batchSize,
+            queryProperties.keepAlive,
+        )
     }
 
     @Bean
