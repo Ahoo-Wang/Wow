@@ -1,13 +1,13 @@
 ---
 name: "wow-debug"
-description: "Diagnose observed failures in downstream applications' Wow command, sourcing, event-processing, projection, query, or runtime pipelines. Never activate for the Wow framework repository itself. Require the failure path to involve Wow, established by explicit target wording or scoped me.ahoo.wow imports or wow-* dependencies; checkout-wide markers and generic DDD/CQRS terms are insufficient. Use for diagnosis-only and diagnose-and-fix. Do not use for non-Wow scopes, proactive review/development, or migration/data-cutover failures."
+description: "Diagnose observed Wow pipeline failures in downstream apps, optionally fixing with authorization. Activate only for explicit failing Wow behavior or scoped me.ahoo.wow imports/wow-* dependencies; generic DDD/CQRS or checkout-wide markers do not qualify. Exclude the Wow framework repository, non-Wow scopes, proactive review/development, and migration/data-cutover failures."
 ---
 
 # Debug Wow Failures
 
 ## Scope gate
 
-Before diagnosing, confirm that the target is a downstream application rather than the Wow framework repository itself. Then require the failure path to involve a Wow pipeline and scoped source to contain `me.ahoo.wow` imports or `wow-*` dependencies, or the request to explicitly identify the failing Wow application behavior. Framework-repository modules, markers elsewhere in a checkout, negated/comparative mentions, and shared DDD/CQRS vocabulary do not qualify. If no downstream scoped Wow evidence exists, state that this Skill does not apply and stop using it.
+Use only to diagnose a downstream application's failure; the Wow framework repository and its modules never qualify. Require the failing path to involve Wow, shown by scoped `me.ahoo.wow` imports, `wow-*` dependencies, or explicit failing Wow behavior. Checkout-wide markers, negated/comparative mentions, and generic DDD/CQRS vocabulary do not qualify. Otherwise state that this Skill does not apply and stop using it.
 
 Own the complete diagnosis or diagnose-and-fix task. Do not route to another Wow Skill.
 

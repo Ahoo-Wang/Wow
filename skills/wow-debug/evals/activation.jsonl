@@ -11,3 +11,4 @@
 {"id":"A48-debug-source-marker-only","fixture":"fixtures/B06.patch","prompt":"这个 Saga 的直接 handler 测试通过，但运行时没有调用；只定位第一个失败阶段。","expectedSkills":["wow-debug"],"tags":["positive","source-marker","fixture","no-wow-keyword"]}
 {"id":"A51-none-dashboard-debug","prompt":"定位 compensation dashboard 的 Vitest hang，检查 React 状态与 fake timer，不修改 JVM 模块。","expectedSkills":[],"tags":["negative","wow-repository","dashboard","debug"]}
 {"id":"A55-none-framework-debug","prompt":"Wow 框架仓库的 DefaultCommandGatewayTest 失败；复现并定位 wow-core 中的根因。","expectedSkills":[],"tags":["negative","wow-framework-repository","debug"]}
+{"id":"A59-none-debug-checkout-wide-marker","fixture":"fixtures/non-wow-scope.patch","prompt":"services/plain-service 的请求偶发超时；定位根因，不要修改文件。","expectedSkills":[],"tags":["negative","checkout-wide-marker","non-wow-scope","fixture","debug"]}
