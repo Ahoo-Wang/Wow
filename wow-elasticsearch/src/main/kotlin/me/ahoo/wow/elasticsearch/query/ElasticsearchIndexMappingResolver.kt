@@ -84,8 +84,6 @@ class ElasticsearchIndexMappingResolver(
                 refreshes.remove(indexName)
             }.doOnError {
                 refreshes.remove(indexName)
-            }.doOnCancel {
-                refreshes.remove(indexName)
             }.cache()
         }
 }

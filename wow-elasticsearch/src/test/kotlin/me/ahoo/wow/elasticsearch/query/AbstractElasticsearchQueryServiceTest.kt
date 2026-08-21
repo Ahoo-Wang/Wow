@@ -167,6 +167,36 @@ class AbstractElasticsearchQueryServiceTest {
     }
 
     @Test
+    fun `mapping resolver should preserve fields through default hooks`() {
+        val indicesClient = mockk<ReactiveElasticsearchIndicesClient>()
+        val request = slot<SearchRequest>()
+        val convertedCondition = slot<Condition>()
+        every { elasticsearchClient.indices() } returns indicesClient
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(emptyMappingResponse())
+        every { conditionConverter.convert(capture(convertedCondition)) } returns matchAll { it }
+        every { elasticsearchClient.search(capture(request), Map::class.java) } returns Mono.just(
+            searchResponse(total = null),
+        )
+        val condition = Condition.eq("logicalField", "value")
+        val service = MappingTestElasticsearchQueryService(
+            elasticsearchClient,
+            conditionConverter,
+            ElasticsearchIndexMappingResolver(elasticsearchClient),
+        )
+
+        service.dynamicList(
+            ListQuery(
+                condition = condition,
+                sort = listOf(Sort("logicalField", Sort.Direction.ASC)),
+                limit = 1,
+            ),
+        ).collectList().block()
+
+        convertedCondition.captured.assert().isEqualTo(condition)
+        request.captured.sort().single().field().field().assert().isEqualTo("logicalField")
+    }
+
+    @Test
     fun `dynamic list should reject negative limit before searching`() {
         assertThrows<IllegalArgumentException> {
             queryService.dynamicList(ListQuery(Condition.ALL, limit = -1))
@@ -251,7 +281,7 @@ class AbstractElasticsearchQueryServiceTest {
             )
         }
 
-    private class TestElasticsearchQueryService(
+    private open class TestElasticsearchQueryService(
         override val elasticsearchClient: ReactiveElasticsearchClient,
         override val conditionConverter: ConditionConverter<Query>,
     ) : AbstractElasticsearchQueryService<DynamicDocument>() {
@@ -260,4 +290,10 @@ class AbstractElasticsearchQueryServiceTest {
 
         override fun toTypedResult(document: DynamicDocument): DynamicDocument = document
     }
+
+    private class MappingTestElasticsearchQueryService(
+        elasticsearchClient: ReactiveElasticsearchClient,
+        conditionConverter: ConditionConverter<Query>,
+        override val indexMappingResolver: ElasticsearchIndexMappingResolver,
+    ) : TestElasticsearchQueryService(elasticsearchClient, conditionConverter)
 }

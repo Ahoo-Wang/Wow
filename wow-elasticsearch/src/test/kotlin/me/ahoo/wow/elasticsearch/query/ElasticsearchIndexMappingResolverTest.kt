@@ -62,6 +62,16 @@ class ElasticsearchIndexMappingResolverTest {
     }
 
     @Test
+    fun `refreshing an unchanged mapping should report no change`() {
+        val response = mappingResponse(textWithKeyword())
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(response)
+        val resolver = ElasticsearchIndexMappingResolver(client)
+
+        resolver.currentOrLoad(INDEX).block()!!.fieldCount.assert().isEqualTo(6)
+        resolver.refresh(INDEX).block()!!.changed.assert().isFalse()
+    }
+
+    @Test
     fun `failed refresh should keep previous mapping and retry later`() {
         val initial = mappingResponse(textWithKeyword())
         val refreshed = mappingResponse(keywordOnly())
@@ -170,6 +180,18 @@ class ElasticsearchIndexMappingResolverTest {
     }
 
     @Test
+    fun `should use a unique compatible multi-field and reject missing paths`() {
+        val mapping = ElasticsearchIndexMapping.from(INDEX, multiFieldFallbacks())
+
+        mapping.resolve("state.name", ElasticsearchFieldUsage.EXACT).assert().isEqualTo("state.name.raw")
+        mapping.resolve("state.code", ElasticsearchFieldUsage.SEARCH).assert().isEqualTo("state.code.text")
+        runCatching { mapping.resolve("state.missing", ElasticsearchFieldUsage.EXACT) }
+            .exceptionOrNull()!!.message.assert().contains("not mapped")
+        runCatching { mapping.requireNested("state.missing") }
+            .exceptionOrNull()!!.message.assert().contains("not mapped")
+    }
+
+    @Test
     fun `should preserve field alias and runtime field query compatibility`() {
         val mapping = ElasticsearchIndexMapping.from(INDEX, aliasAndRuntimeFields())
 
@@ -183,8 +205,48 @@ class ElasticsearchIndexMappingResolverTest {
             .assert().isEqualTo("state.runtimeScore")
         mapping.resolve("state.runtimeAt", ElasticsearchFieldUsage.SORT)
             .assert().isEqualTo("state.runtimeAt")
+        mapping.resolve("state.runtimeEnabled", ElasticsearchFieldUsage.EXACT)
+            .assert().isEqualTo("state.runtimeEnabled")
+        mapping.resolve("state.runtimeIp", ElasticsearchFieldUsage.EXACT)
+            .assert().isEqualTo("state.runtimeIp")
+        mapping.resolve("state.runtimeLong", ElasticsearchFieldUsage.RANGE)
+            .assert().isEqualTo("state.runtimeLong")
         mapping.resolve("state.runtime.code", ElasticsearchFieldUsage.EXACT)
             .assert().isEqualTo("state.runtime.code")
+        runCatching { mapping.resolve("state.runtimeGeo", ElasticsearchFieldUsage.EXACT) }
+            .exceptionOrNull()!!.message.assert().contains("not mapped")
+        runCatching { mapping.resolve("state.runtime.geo", ElasticsearchFieldUsage.EXACT) }
+            .exceptionOrNull()!!.message.assert().contains("not mapped")
+        runCatching { mapping.resolve("state.missingAlias", ElasticsearchFieldUsage.EXACT) }
+            .exceptionOrNull()!!.message.assert().contains("not mapped")
+    }
+
+    @Test
+    fun `should honor index capability across mapped field types`() {
+        val mapping = ElasticsearchIndexMapping.from(INDEX, indexedFieldVariants())
+        val usages = mapOf(
+            "boolean" to ElasticsearchFieldUsage.EXACT,
+            "countedKeyword" to ElasticsearchFieldUsage.EXACT,
+            "dateNanos" to ElasticsearchFieldUsage.RANGE,
+            "date" to ElasticsearchFieldUsage.RANGE,
+            "icu" to ElasticsearchFieldUsage.EXACT,
+            "ip" to ElasticsearchFieldUsage.EXACT,
+            "keyword" to ElasticsearchFieldUsage.EXACT,
+            "integer" to ElasticsearchFieldUsage.RANGE,
+            "searchAsYouType" to ElasticsearchFieldUsage.SEARCH,
+            "text" to ElasticsearchFieldUsage.SEARCH,
+            "tokenCount" to ElasticsearchFieldUsage.RANGE,
+        )
+
+        usages.forEach { (field, usage) ->
+            mapping.resolve("${field}True", usage).assert().isEqualTo("${field}True")
+            runCatching { mapping.resolve("${field}False", usage) }
+                .exceptionOrNull()!!.message.assert().contains("does not support")
+        }
+        mapping.resolve("constantKeyword", ElasticsearchFieldUsage.SORT)
+            .assert().isEqualTo("constantKeyword")
+        mapping.resolve("countedKeywordTrue", ElasticsearchFieldUsage.SORT)
+            .assert().isEqualTo("countedKeywordTrue")
     }
 
     private fun mappingResponse(mapping: TypeMapping): GetMappingResponse =
@@ -225,6 +287,21 @@ class ElasticsearchIndexMappingResolverTest {
             items = Property.of { property -> property.`object` { it } },
         )
 
+    private fun multiFieldFallbacks(): TypeMapping =
+        stateMapping(
+            name = Property.of { property ->
+                property.text { text ->
+                    text.fields("keyword") { child -> child.text { it } }
+                        .fields("raw") { keyword -> keyword.keyword { it } }
+                }
+            },
+            code = Property.of { property ->
+                property.keyword { keyword ->
+                    keyword.fields("text") { text -> text.text { it } }
+                }
+            },
+        )
+
     private fun aliasAndRuntimeFields(): TypeMapping =
         TypeMapping.of { mapping ->
             mapping
@@ -235,14 +312,48 @@ class ElasticsearchIndexMappingResolverTest {
                             .properties("code") { it.keyword { keyword -> keyword } }
                             .properties("nameAlias") { it.alias { alias -> alias.path("state.name") } }
                             .properties("codeAlias") { it.alias { alias -> alias.path("state.code") } }
+                            .properties("missingAlias") { it.alias { alias -> alias.path("state.missing") } }
                     }
                 }.runtime("state.runtimeCode") { it.type(RuntimeFieldType.Keyword) }
                 .runtime("state.runtimeScore") { it.type(RuntimeFieldType.Double) }
                 .runtime("state.runtimeAt") { it.type(RuntimeFieldType.Date) }
+                .runtime("state.runtimeEnabled") { it.type(RuntimeFieldType.Boolean) }
+                .runtime("state.runtimeIp") { it.type(RuntimeFieldType.Ip) }
+                .runtime("state.runtimeLong") { it.type(RuntimeFieldType.Long) }
+                .runtime("state.runtimeGeo") { it.type(RuntimeFieldType.GeoPoint) }
                 .runtime("state.runtime") { runtime ->
                     runtime.type(RuntimeFieldType.Composite)
                         .fields("code") { it.type(RuntimeFieldType.Keyword) }
+                        .fields("geo") { it.type(RuntimeFieldType.GeoPoint) }
                 }
+        }
+
+    private fun indexedFieldVariants(): TypeMapping =
+        TypeMapping.of { mapping ->
+            mapping
+                .properties("booleanTrue") { it.boolean_ { field -> field.index(true) } }
+                .properties("booleanFalse") { it.boolean_ { field -> field.index(false) } }
+                .properties("constantKeyword") { it.constantKeyword { field -> field } }
+                .properties("countedKeywordTrue") { it.countedKeyword { field -> field.index(true) } }
+                .properties("countedKeywordFalse") { it.countedKeyword { field -> field.index(false) } }
+                .properties("dateNanosTrue") { it.dateNanos { field -> field.index(true) } }
+                .properties("dateNanosFalse") { it.dateNanos { field -> field.index(false) } }
+                .properties("dateTrue") { it.date { field -> field.index(true) } }
+                .properties("dateFalse") { it.date { field -> field.index(false) } }
+                .properties("icuTrue") { it.icuCollationKeyword { field -> field.index(true) } }
+                .properties("icuFalse") { it.icuCollationKeyword { field -> field.index(false) } }
+                .properties("ipTrue") { it.ip { field -> field.index(true) } }
+                .properties("ipFalse") { it.ip { field -> field.index(false) } }
+                .properties("keywordTrue") { it.keyword { field -> field.index(true) } }
+                .properties("keywordFalse") { it.keyword { field -> field.index(false) } }
+                .properties("integerTrue") { it.integer { field -> field.index(true) } }
+                .properties("integerFalse") { it.integer { field -> field.index(false) } }
+                .properties("searchAsYouTypeTrue") { it.searchAsYouType { field -> field.index(true) } }
+                .properties("searchAsYouTypeFalse") { it.searchAsYouType { field -> field.index(false) } }
+                .properties("textTrue") { it.text { field -> field.index(true) } }
+                .properties("textFalse") { it.text { field -> field.index(false) } }
+                .properties("tokenCountTrue") { it.tokenCount { field -> field.index(true) } }
+                .properties("tokenCountFalse") { it.tokenCount { field -> field.index(false) } }
         }
 
     private fun stateMapping(
