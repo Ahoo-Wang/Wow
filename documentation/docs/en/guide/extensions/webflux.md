@@ -93,7 +93,7 @@ plus `wow-webflux` for these properties to be bound.
 | `query.max-condition-nodes` | `Int` | `64` | Maximum number of HTTP query condition nodes; `0` disables the cap |
 | `query.max-condition-values` | `Int` | `1000` | Maximum values in HTTP `IN`, `NOT_IN`, `ALL_IN`, `IDS`, or `AGGREGATE_IDS` conditions; `0` disables the cap |
 | `query.allowed-sort-fields` | `Set<String>` | `[]` | Indexed logical fields allowed for explicit HTTP sorting; an empty set rejects all explicit sorts and `["*"]` disables the restriction |
-| `query.allowed-condition-fields` | `Set<String>` | `[]` | Additional indexed logical fields allowed in HTTP predicates; an empty set keeps only built-in `aggregateId` and fieldless metadata operators, while `["*"]` disables the restriction |
+| `query.allowed-condition-fields` | `Set<String>` | `[]` | Additional indexed logical fields allowed in HTTP predicates; an empty set keeps built-in `aggregateId`, aggregate-ID-scoped `version`, and fieldless logical/metadata operators, while `["*"]` disables the restriction |
 | `query.allow-raw` | `Boolean` | `false` | Whether HTTP queries may use native `RAW` conditions |
 | `query.allow-expensive-operators` | `Boolean` | `false` | Whether HTTP queries may use expensive string operators or unfiltered count/paged queries |
 | `query.idle-timeout` | `Duration` | `10s` | Maximum wait between results or completion; JSON arrays are buffered before the response is committed, while SSE remains streaming; `0s` disables the timeout |

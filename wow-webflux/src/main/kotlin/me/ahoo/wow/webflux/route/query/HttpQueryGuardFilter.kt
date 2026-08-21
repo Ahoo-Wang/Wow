@@ -126,6 +126,7 @@ class HttpQueryGuardFilter(
     private fun validateCondition(condition: Condition, rejectMatchAll: Boolean) {
         val pending = ArrayDeque<Pair<Condition, String>>()
         pending.add(condition to "")
+        val aggregateIdScoped = condition.isAggregateIdScoped()
         var nodes = 0
         while (pending.isNotEmpty()) {
             val (current, parentField) = pending.removeLast()
@@ -139,7 +140,7 @@ class HttpQueryGuardFilter(
                 current.field == parentField || current.field.startsWith("$parentField.") -> current.field
                 else -> "$parentField.${current.field}"
             }
-            validateConditionNode(current, effectiveField)
+            validateConditionNode(current, effectiveField, aggregateIdScoped)
             val childParentField = if (current.operator == Operator.ELEM_MATCH) effectiveField else parentField
             current.children.forEach { pending.add(it to childParentField) }
         }
@@ -151,14 +152,16 @@ class HttpQueryGuardFilter(
     private fun validateConditionNode(
         condition: Condition,
         effectiveField: String,
+        aggregateIdScoped: Boolean,
     ) {
         if (condition.operator == Operator.ELEM_MATCH) {
             require(condition.children.size == 1) {
                 "HTTP ELEM_MATCH condition must contain exactly one child."
             }
         }
-        val fieldAllowed = effectiveField.isEmpty() ||
+        val fieldAllowed = effectiveField.isEmpty() && condition.operator in FIELDLESS_OPERATORS ||
             effectiveField in BUILT_IN_CONDITION_FIELDS ||
+            effectiveField == MessageRecords.VERSION && aggregateIdScoped ||
             allowedConditionFields.allows(effectiveField)
         val hasIndexedElementChild = condition.operator == Operator.ELEM_MATCH &&
             condition.children.single().hasFieldOrDescendant()
@@ -197,6 +200,14 @@ class HttpQueryGuardFilter(
     private fun Condition.isExpensive(): Boolean =
         operator in EXPENSIVE_OPERATORS ||
             operator == Operator.STARTS_WITH && ((value as? String).isNullOrEmpty() || ignoreCase() == true)
+
+    private fun Condition.isAggregateIdScoped(): Boolean = when (operator) {
+        Operator.AGGREGATE_ID -> true
+        Operator.EQ -> field == MessageRecords.AGGREGATE_ID
+        Operator.AND -> children.any { it.isAggregateIdScoped() }
+        Operator.OR -> children.isNotEmpty() && children.all { it.isAggregateIdScoped() }
+        else -> false
+    }
 
     private fun Condition.isMatchAll(): Boolean {
         val values = value
@@ -275,6 +286,21 @@ class HttpQueryGuardFilter(
     private companion object {
         val EXPENSIVE_OPERATORS = setOf(Operator.CONTAINS, Operator.ENDS_WITH)
         val BUILT_IN_CONDITION_FIELDS = setOf(MessageRecords.AGGREGATE_ID)
+        val FIELDLESS_OPERATORS = setOf(
+            Operator.AND,
+            Operator.OR,
+            Operator.NOR,
+            Operator.ID,
+            Operator.IDS,
+            Operator.AGGREGATE_ID,
+            Operator.AGGREGATE_IDS,
+            Operator.TENANT_ID,
+            Operator.OWNER_ID,
+            Operator.SPACE_ID,
+            Operator.DELETED,
+            Operator.ALL,
+            Operator.RAW,
+        )
         val COUNTING_QUERY_TYPES = setOf(QueryType.PAGED, QueryType.DYNAMIC_PAGED, QueryType.COUNT)
         const val FIELD_WILDCARD = "*"
         val COLLECTION_OPERATORS = setOf(

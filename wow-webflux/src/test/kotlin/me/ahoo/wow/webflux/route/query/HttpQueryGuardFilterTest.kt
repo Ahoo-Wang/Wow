@@ -85,6 +85,7 @@ class HttpQueryGuardFilterTest {
             ListQuery(Condition.startsWith(MessageRecords.AGGREGATE_ID, "wow", ignoreCase = true), limit = 1),
             ListQuery(Condition.eq("state.unindexed", "value"), limit = 1),
             ListQuery(Condition.eq(MessageRecords.VERSION, 1), limit = 1),
+            ListQuery(Condition(operator = Operator.NE, value = "value"), limit = 1),
             ListQuery(Condition.isIn(MessageRecords.AGGREGATE_ID, List(1001) { it }), limit = 1),
             ListQuery(Condition(operator = Operator.IDS, value = List(1001) { it }), limit = 1),
             ListQuery(Condition(operator = Operator.AGGREGATE_IDS, value = List(1001) { it }), limit = 1),
@@ -461,6 +462,21 @@ class HttpQueryGuardFilterTest {
         response.writeTo(exchange, SERVER_RESPONSE_CONTEXT).block()
 
         exchange.response.statusCode.assert().isEqualTo(HttpStatus.BAD_REQUEST)
+    }
+
+    @Test
+    fun `built-in event load route should allow aggregate-scoped version range`() {
+        val request = MockServerRequest.builder()
+            .pathVariable(MessageRecords.ID, generateGlobalId())
+            .pathVariable(BatchComponent.PathVariable.HEAD_VERSION, "0")
+            .pathVariable(BatchComponent.PathVariable.TAIL_VERSION, "1")
+            .build()
+        val response = loadEventStreamHandler(eventStreamQueryHandler()).handle(request).block()!!
+        val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/test").build())
+
+        response.writeTo(exchange, SERVER_RESPONSE_CONTEXT).block()
+
+        exchange.response.statusCode.assert().isEqualTo(HttpStatus.OK)
     }
 
     @Test
