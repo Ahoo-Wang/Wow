@@ -71,7 +71,7 @@ spring:
     uris:
       - http://localhost:9200
     username: elastic
-    password: your-password
+    password: ${ELASTICSEARCH_PASSWORD}
 ```
 
 ### Wow 配置
@@ -510,7 +510,7 @@ spring:
       - http://es-node-2:9200
       - http://es-node-3:9200
     username: elastic
-    password: your-password
+    password: ${ELASTICSEARCH_PASSWORD}
     connection-timeout: 5s
     socket-timeout: 30s
 

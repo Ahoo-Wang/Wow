@@ -7,6 +7,10 @@ description: CoSec security framework integration for Wow, handling security con
 
 The CoSec extension integrates the [CoSec](https://github.com/Ahoo-Wang/CoSec) security framework with Wow's WebFlux command and query endpoints, handling security context injection and propagation.
 
+::: danger Integration is not an authorization policy
+`wow-cosec` reads and propagates CoSec context, but request headers alone do not authenticate a caller and the extension does not automatically authorize commands. Configure a trusted CoSec/Spring Security authentication chain and route policy; client-supplied tenant, owner, space, app, or device values are not authorization evidence. Query-side ABAC also requires an application-provided, fail-closed `AbacQueryFilter`. See [Data Access Control](../data-access.md#required-security-closure).
+:::
+
 ## How It Works
 
 CoSec integration provides four key components:
@@ -97,3 +101,12 @@ class OrderSaga {
     }
 }
 ```
+
+## Completion Gates
+
+- unauthenticated requests cannot access protected command or query routes;
+- forged `CoSec-*`, `Wow-Space-Id`, tenant, or owner values cannot expand access;
+- server-side policy binds identity to allowed scopes instead of trusting headers;
+- a protected query rejects missing principal tags rather than falling back to `Condition.all()`;
+- sagas, projections, and event handlers use propagated context only for audit or validated authorization decisions;
+- integration tests cover anonymous, unauthorized, cross-tenant, and successful authorized paths.

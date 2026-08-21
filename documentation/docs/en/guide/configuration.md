@@ -1,725 +1,188 @@
 ---
-title: Configuration
-description: Comprehensive configuration options through Spring Boot configuration properties mechanism.
+title: Configuring a Wow Application
+description: Configure Wow by development stage, production backend, environment, and secret boundary; use reference pages for exact properties.
+outline: deep
 ---
 
-# Configuration
+# Configuring a Wow Application
 
-The Wow framework provides comprehensive configuration options through Spring Boot's configuration properties mechanism. This guide covers all available configuration options and how to configure them effectively.
+This page helps application developers make configuration decisions. Exact properties, types, and defaults live only in [Configuration References](#configuration-references), avoiding multiple manually maintained sources of truth.
 
-## Configuration Structure
+## Choose a Starting Point
 
-Wow configuration is organized under the `wow` prefix in your `application.yaml` or `application.yml` file:
+| Scenario | Bus | EventStore / SnapshotStore | Next step |
+| --- | --- | --- | --- |
+| Initial adoption and domain tests | `in_memory` | `in_memory` | prove command → event → state first |
+| Common production baseline | Kafka | MongoDB | verify persistence, restart, offsets, and recovery |
+| Existing Redis platform | Redis Streams | Redis | evaluate query capability, capacity, and canonical v2 layout |
+| Search/complex snapshot queries | Kafka/Redis | Elasticsearch or MongoDB | establish indexes, query plans, and rebuild procedures |
 
-```yaml
-wow:
-  enabled: true                    # Enable/disable Wow framework
-  context-name: my-service         # Bounded context name
-  shutdown-timeout: 60s           # Complete-runtime shutdown deadline
-  shutdown-quiet-period: 1s       # Stable idle period before intake closes
+Do not introduce Kafka, MongoDB, Redis, Elasticsearch, compensation, and telemetry together on the first run. Complete an in-memory vertical slice, then replace one boundary at a time while retaining test evidence.
 
-  # Command Bus Configuration
-  command:
-    bus:
-      type: kafka                  # kafka, redis, in_memory, no_op
-      local-first:
-        enabled: true              # Process local messages first
-
-  # Event Bus Configuration
-  event:
-    bus:
-      type: kafka
-      local-first:
-        enabled: true
-
-  # State Event Bus Configuration
-  eventsourcing:
-    state:
-      bus:
-        type: kafka
-        local-first:
-          enabled: true
-    store:
-      storage: mongo               # Event store type: mongo, redis, elasticsearch, in_memory, delay
-    snapshot:
-      enabled: true
-      strategy: all                # recommended for current-state queries
-      storage: mongo
-
-  # Infrastructure-specific configurations
-  kafka:
-    bootstrap-servers:
-      - localhost:9092
-    topic-prefix: 'wow.'
-
-  mongo:
-    enabled: true
-    auto-init-schema: true
-    event-stream-database: wow_event_db
-    snapshot-database: wow_snapshot_db
-    prepare-database: wow_prepare_db
-
-  redis:
-    enabled: true
-
-
-  elasticsearch:
-    enabled: true
-
-  compensation:
-    enabled: true
-    webhook:
-      weixin:
-        url: <webhook-url>
-        events:
-          - execution_failed_created
-          - execution_failed_applied
-          - execution_success_applied
-
-  openapi:
-    enabled: true
-
-  webflux:
-    enabled: true
-    global-error:
-      enabled: true
-```
-
-## Core Configuration
-
-### WowProperties
-
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `wow.enabled` | Boolean | `true` | Enable/disable the Wow framework |
-| `wow.context-name` | String | `${spring.application.name}` | Bounded context name for the service |
-| `wow.shutdown-timeout` | Duration | `60s` | Global deadline for quiescing and stopping the complete Wow runtime |
-| `wow.shutdown-quiet-period` | Duration | `1s` | Stable idle period required before dispatcher intake closes; new activity resets it |
-
-`wow.shutdown-timeout` must be positive. `wow.shutdown-quiet-period` must be
-non-negative and strictly shorter than `wow.shutdown-timeout`. Both durations
-must fit in a signed 64-bit nanosecond value.
-
-See [Runtime Lifecycle](./advanced/runtime-lifecycle.md#configuration-and-operations)
-for the shared deadline, quiet-boundary, and force-stop semantics.
-
-```yaml
-wow:
-  enabled: true
-  context-name: order-service
-  shutdown-timeout: 120s
-  shutdown-quiet-period: 2s
-```
-
-## Command Bus Configuration
-
-### CommandProperties
-
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `wow.command.bus.type` | BusType | `kafka` | Command bus implementation type |
-| `wow.command.bus.local-first.enabled` | Boolean | `true` | Enable LocalFirst mode |
-
-```yaml
-wow:
-  command:
-    bus:
-      type: kafka
-      local-first:
-        enabled: true
-```
-
-## Event Bus Configuration
-
-### EventProperties
-
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `wow.event.bus.type` | BusType | `kafka` | Event bus implementation type |
-| `wow.event.bus.local-first.enabled` | Boolean | `true` | Enable LocalFirst mode |
-
-```yaml
-wow:
-  event:
-    bus:
-      type: kafka
-      local-first:
-        enabled: true
-```
-
-## State Event Bus Configuration
-
-### StateProperties
-
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `wow.eventsourcing.state.bus.type` | BusType | `kafka` | State event bus type |
-| `wow.eventsourcing.state.bus.local-first.enabled` | Boolean | `true` | Enable LocalFirst mode |
-
-```yaml
-wow:
-  eventsourcing:
-    state:
-      bus:
-        type: kafka
-        local-first:
-          enabled: true
-```
-
-## Event Sourcing Configuration
-
-### Event Store Configuration
-
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `wow.eventsourcing.store.storage` | StorageType | `mongo` | Event store backend |
-
-```yaml
-wow:
-  eventsourcing:
-    store:
-      storage: mongo    # mongo, redis, elasticsearch, in_memory, delay
-```
-
-### Snapshot Configuration
-
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `wow.eventsourcing.snapshot.enabled` | Boolean | `true` | Enable snapshot functionality |
-| `wow.eventsourcing.snapshot.strategy` | Strategy | `all` | Snapshot strategy |
-| `wow.eventsourcing.snapshot.version-offset` | Int | `5` | Version offset for VERSION_OFFSET strategy |
-| `wow.eventsourcing.snapshot.storage` | StorageType | `mongo` | Snapshot storage backend |
-
-```yaml
-wow:
-  eventsourcing:
-    snapshot:
-      enabled: true
-      strategy: all                 # recommended for current-state queries
-      storage: mongo
-```
-
-### Aggregate Storage Routing
-
-`wow.eventsourcing.storage-routing` is optional. When an aggregate or channel is not configured, Wow keeps using the corresponding global default from `wow.eventsourcing.store.storage` or `wow.eventsourcing.snapshot.storage`.
-
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `wow.eventsourcing.storage-routing.aggregates.*.event.storage` | StorageType | | EventStore backend for one aggregate |
-| `wow.eventsourcing.storage-routing.aggregates.*.event.binding` | String | | Named EventStore binding for one aggregate |
-| `wow.eventsourcing.storage-routing.aggregates.*.snapshot.storage` | StorageType | | SnapshotStore backend for one aggregate |
-| `wow.eventsourcing.storage-routing.aggregates.*.snapshot.binding` | String | | Named SnapshotStore binding for one aggregate |
-
-```yaml
-wow:
-  context-name: order-service
-  eventsourcing:
-    store:
-      storage: mongo
-    snapshot:
-      enabled: true
-      storage: mongo
-    storage-routing:
-      aggregates:
-        order:
-          event:
-            storage: redis
-        cart:
-          snapshot:
-            storage: redis
-        audit:
-          event:
-            binding: archive-event-store
-          snapshot:
-            binding: archive-snapshot-store
-```
-
-- `order` resolves to `order-service.order` by using the current `wow.context-name`.
-- Full aggregate keys such as `order-service.order` are also accepted. Quote the key in YAML when needed.
-- `event` routes only affect the aggregate `EventStore`; `snapshot` routes only affect the aggregate `SnapshotStore`.
-- `event.binding` and `snapshot.binding` point to named custom bindings registered by application code or infrastructure auto-configuration.
-- `storage` and `binding` are mutually exclusive inside the same `event` or `snapshot` channel.
-- Changing a route to another backend does not migrate existing event streams or snapshots.
-- The snapshot abstraction is now named `SnapshotStore`. Deprecated `SnapshotRepository` Kotlin compatibility aliases remain transitional and should not be used in new code.
-
-## Infrastructure Configuration
-
-### Kafka Configuration
-
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `wow.kafka.enabled` | Boolean | `true` | Enable Kafka support |
-| `wow.kafka.bootstrap-servers` | List\<String\> | | Kafka broker addresses |
-| `wow.kafka.topic-prefix` | String | `wow.` | Topic name prefix |
-
-```yaml
-wow:
-  kafka:
-    enabled: true
-    bootstrap-servers:
-      - kafka-0:9092
-      - kafka-1:9092
-      - kafka-2:9092
-    topic-prefix: 'wow.'
-```
-
-### MongoDB Configuration
-
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `wow.mongo.enabled` | Boolean | `true` | Enable MongoDB support |
-| `wow.mongo.auto-init-schema` | Boolean | `true` | Auto-create collections |
-| `wow.mongo.event-stream-database` | String | Spring MongoDB database | Event stream database |
-| `wow.mongo.snapshot-database` | String | Spring MongoDB database | Snapshot database |
-| `wow.mongo.prepare-database` | String | Spring MongoDB database | Prepare key database |
-| `wow.mongo.event-store-batch.enabled` | Boolean | `false` | Enable transparent event-store append batching |
-| `wow.mongo.event-store-batch.max-size` | Int | `128` | Maximum event streams per collection batch |
-| `wow.mongo.event-store-batch.max-delay` | Duration | `1ms` | Maximum wait used to collect a partial batch |
-| `wow.mongo.event-store-batch.max-pending-appends` | Int | `4096` | Maximum accepted appends waiting or being written; must be at least `max-size` |
-| `wow.mongo.event-store-batch.lane-count` | Int | `1` | Number of serial write lanes; appends for the same aggregate stay on one lane |
-| `wow.mongo.snapshot-store-batch.enabled` | Boolean | `false` | Enable transparent snapshot-store save batching |
-| `wow.mongo.snapshot-store-batch.max-size` | Int | `128` | Maximum snapshots per collection batch |
-| `wow.mongo.snapshot-store-batch.max-delay` | Duration | `1ms` | Maximum wait used to collect a partial snapshot batch |
-| `wow.mongo.snapshot-store-batch.max-pending-saves` | Int | `4096` | Maximum accepted saves waiting or being written; must be at least `max-size` |
-| `wow.mongo.snapshot-store-batch.lane-count` | Int | `1` | Number of serial write lanes; saves for the same aggregate stay on one lane |
-
-```yaml
-wow:
-  mongo:
-    enabled: true
-    auto-init-schema: true
-    event-stream-database: wow_event_db
-    snapshot-database: wow_snapshot_db
-    prepare-database: wow_prepare_db
-    event-store-batch:
-      enabled: true
-      max-size: 128
-      max-delay: 1ms
-      max-pending-appends: 4096
-      lane-count: 1
-    snapshot-store-batch:
-      enabled: true
-      max-size: 128
-      max-delay: 1ms
-      max-pending-saves: 4096
-      lane-count: 1
-```
-
-### Redis Configuration
-
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `wow.redis.enabled` | Boolean | `true` | Enable Redis support |
-
-```yaml
-wow:
-  redis:
-    enabled: true
-```
-
-
-### Elasticsearch Configuration
-
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `wow.elasticsearch.enabled` | Boolean | `true` | Enable Elasticsearch support |
-| `wow.elasticsearch.query.batch-size` | Int | `10000` | PIT + `search_after` batch size; configure no higher than the target index's `index.max_result_window` |
-| `wow.elasticsearch.query.keep-alive` | Duration | `1m` | PIT lifetime refreshed by each full-list search request; increase for slow subscribers |
-| `wow.elasticsearch.event-store-batch.enabled` | Boolean | `false` | Enable transparent EventStore Bulk `create` batching |
-| `wow.elasticsearch.event-store-batch.max-size` | Int | `128` | Maximum event streams per Bulk request |
-| `wow.elasticsearch.event-store-batch.max-delay` | Duration | `1ms` | Maximum wait used to collect a partial event batch |
-| `wow.elasticsearch.event-store-batch.max-pending-appends` | Int | `4096` | Maximum accepted appends waiting or being written; must be at least `max-size` |
-| `wow.elasticsearch.event-store-batch.lane-count` | Int | `1` | Number of serial write lanes; appends for the same aggregate stay on one lane |
-| `wow.elasticsearch.snapshot-store-batch.enabled` | Boolean | `false` | Enable transparent SnapshotStore Bulk `update` batching |
-| `wow.elasticsearch.snapshot-store-batch.max-size` | Int | `128` | Maximum snapshots per Bulk request |
-| `wow.elasticsearch.snapshot-store-batch.max-delay` | Duration | `1ms` | Maximum wait used to collect a partial snapshot batch |
-| `wow.elasticsearch.snapshot-store-batch.max-pending-saves` | Int | `4096` | Maximum accepted saves waiting or being written; must be at least `max-size` |
-| `wow.elasticsearch.snapshot-store-batch.lane-count` | Int | `1` | Number of serial write lanes; saves for the same aggregate stay on one lane |
-
-```yaml
-wow:
-  elasticsearch:
-    enabled: true
-    event-store-batch:
-      enabled: true
-      max-size: 128
-      max-delay: 1ms
-      max-pending-appends: 4096
-      lane-count: 1
-    snapshot-store-batch:
-      enabled: true
-      max-size: 128
-      max-delay: 1ms
-      max-pending-saves: 4096
-      lane-count: 1
-```
-
-Batching is opt-in. Event writes use Bulk `create`, preserving no-overwrite and
-version-conflict semantics. Snapshot writes use atomic `_source.version` guarded
-updates in both direct and batch modes, so a stale or equal version cannot
-overwrite a newer snapshot, including a legacy internal-version document.
-
-## Feature Configuration
-
-### Event Compensation Configuration
-
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `wow.compensation.enabled` | Boolean | `true` | Enable event compensation |
-| `wow.compensation.webhook.weixin.url` | String | | WeChat Work webhook URL |
-| `wow.compensation.webhook.weixin.events` | List\<String\> | See description | Notification events |
-
-```yaml
-wow:
-  compensation:
-    enabled: true
-    webhook:
-      weixin:
-        url: https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxx
-        events:
-          - execution_failed_created
-          - execution_failed_applied
-          - execution_success_applied
-```
-
-### OpenAPI Configuration
-
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `wow.openapi.enabled` | Boolean | `true` | Enable OpenAPI support |
-
-```yaml
-wow:
-  openapi:
-    enabled: true
-```
-
-### WebFlux Configuration
-
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `wow.webflux.enabled` | Boolean | `true` | Enable WebFlux support |
-| `wow.webflux.global-error.enabled` | Boolean | `true` | Enable global error handling |
-
-```yaml
-wow:
-  webflux:
-    enabled: true
-    global-error:
-      enabled: true
-```
-
-### BI Script Configuration
-
-These properties establish the server-side base for the ClickHouse SQL returned by `POST /wow/bi/script`:
-
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `wow.bi.script.enabled` | Boolean | `true` | Enabled by default; set to `false` to remove both the BI script HTTP route and its OpenAPI operation; application security must protect the endpoint |
-| `wow.bi.script.database` | String | `bi_db` | Database for command/state `*_store` tables plus public, latest-state, and expansion views; maximum 128 characters |
-| `wow.bi.script.consumer-database` | String | `bi_db_consumer` | Database for Kafka queue tables, consumer materialized views, and the deployment anchor; maximum 128 characters |
-| `wow.bi.script.topology.mode` | Enum | `CLUSTER` | Physical DDL topology: `CLUSTER` or `STANDALONE` |
-| `wow.bi.script.topology.cluster.name` | String | `{cluster}` | Cluster name used by `ON CLUSTER` and `Distributed` in `CLUSTER` mode; maximum 128 characters |
-| `wow.bi.script.topology.cluster.installation` | String | `{installation}` | Installation segment in the replicated table path in `CLUSTER` mode; maximum 128 characters |
-| `wow.bi.script.timezone` | String | `Asia/Shanghai` | ClickHouse timezone for generated date-time columns and conversions; maximum 64 characters |
-| `wow.bi.script.kafka-bootstrap-servers` | String | Inherit `wow.kafka.bootstrap-servers`; otherwise `localhost:9093` | BI Kafka broker override; multiple inherited brokers are joined with commas; maximum 4096 characters |
-| `wow.bi.script.topic-prefix` | String | Inherit `wow.kafka.topic-prefix`; otherwise `wow.` | BI topic prefix override; maximum 128 characters |
-| `wow.bi.script.consumer-group-namespace` | String | none | Required for every `RESET`, including an empty aggregate scope, and for `DEPLOY` whenever Kafka consumers are generated; deployment-unique namespace embedded in every consumer group |
-| `wow.bi.script.kafka-offset-storage` | Enum | `BROKER` | `BROKER` uses Kafka offsets; `KEEPER` enables ClickHouse Keeper-backed offsets |
-| `wow.bi.script.kafka-keeper-path-prefix` | String | `/clickhouse/wow-bi` | Keeper path prefix used only with `KEEPER` |
-| `wow.bi.script.max-expansion-depth` | Int | `5` | Maximum complex-property expansion depth; must be at least `1` |
-| `wow.bi.script.unsupported-type-strategy` | Enum | `RAW_JSON` | `RAW_JSON` emits a scoped JSON convenience projection and a diagnostic; the exact lexical value is recovered from `__state` at the recovery `__path`; `FAIL` stops generation |
-| `wow.bi.script.inspector.type` | Enum | `NO_OP` | Deployment-state inspector: `NO_OP` or `CLICKHOUSE`; the catalog is contacted only when `CLICKHOUSE` is explicitly selected |
-| `wow.bi.script.inspector.timeout` | Duration | `30s` | Deadline for the complete inspection; cluster inspection performs two catalog operations, so this should exceed the per-operation execution timeout |
-| `wow.bi.script.inspector.clickhouse.endpoints` | List&lt;URI&gt; | none | One or more distinct ClickHouse HTTP(S) endpoints; each requires an explicit port and may include a reverse-proxy base path |
-| `wow.bi.script.inspector.clickhouse.username` | String | `default` | ClickHouse Basic Auth username |
-| `wow.bi.script.inspector.clickhouse.password` | String | empty | ClickHouse Basic Auth password; redacted from property and client-option string representations |
-| `wow.bi.script.inspector.clickhouse.connection-pool-enabled` | Boolean | `true` | Maps to `Client.Builder.enableConnectionPool` |
-| `wow.bi.script.inspector.clickhouse.connection-timeout` | Duration | `3s` | Maps to `Client.Builder.setConnectTimeout`; must be at least `1ms` |
-| `wow.bi.script.inspector.clickhouse.connection-request-timeout` | Duration | `10s` | Maximum wait for a pooled connection; maps to `setConnectionRequestTimeout` and must be at least `1ms` |
-| `wow.bi.script.inspector.clickhouse.socket-timeout` | Duration | `10s` | Socket read/write timeout; maps to `setSocketTimeout`; must be at least `1ms` and no greater than `inspector.timeout` |
-| `wow.bi.script.inspector.clickhouse.execution-timeout` | Duration | `10s` | Deadline for one driver operation; the inspector enables asynchronous requests, configures `setExecutionTimeout`, and bounds the returned future with this value; zero means no driver operation deadline, otherwise the minimum is `1ms` |
-| `wow.bi.script.inspector.clickhouse.max-connections` | Int | `10` | Maximum open connections per endpoint; maps to `setMaxConnections` and must be positive |
-| `wow.bi.script.inspector.clickhouse.max-retries` | Int | `0` | Driver retry count; maps to `setMaxRetries` and must not be negative |
-
-`execution-timeout` bounds how long the inspector waits for the asynchronous result, but client-v2 does not turn that future timeout into an HTTP abort. Therefore `socket-timeout` is mandatory and cannot exceed the total `inspector.timeout`; cancelled-response cleanup runs off the timeout scheduler and remains bounded by that transport deadline.
-
-The default `NO_OP` implementation does not contact ClickHouse. Select the `CLICKHOUSE` inspector for catalog reconciliation:
-
-```yaml
-wow:
-  bi:
-    script:
-      enabled: true
-      consumer-group-namespace: orders-production-blue
-      topology:
-        mode: STANDALONE
-      inspector:
-        type: CLICKHOUSE
-        timeout: 30s
-        clickhouse:
-          endpoints:
-            - http://clickhouse-1:8123
-            - http://clickhouse-2:8123
-          username: default
-          password: ${CLICKHOUSE_PASSWORD:}
-          connection-pool-enabled: true
-          connection-timeout: 3s
-          connection-request-timeout: 10s
-          socket-timeout: 10s
-          execution-timeout: 10s
-          max-connections: 10
-          max-retries: 0
-```
-
-The built-in inspector is implemented in `wow-bi` with the official ClickHouse Java `client-v2`. Its typed Spring Boot properties map one-to-one to the corresponding `Client.Builder` concepts instead of merging unrelated driver timeouts. The inspector owns and closes the client with the Spring context; it starts asynchronous client-v2 queries and waits for each returned future on Reactor's bounded-elastic scheduler without creating another driver executor. Catalog queries use typed RowBinary records and named parameters, and cluster mode verifies replica participation and owned-object definitions while ignoring unrelated replica-local catalog differences. Connection, timeout, invalid ownership-marker, and owned replica-divergence failures propagate without silently falling back to `NO_OP`. Selecting `CLICKHOUSE` without the client-v2 classes fails application startup. Use a custom `BiDeploymentInspector` bean for unsupported proxy, mTLS, or authentication requirements; a custom bean takes precedence over both built-in implementations.
-
-Standalone topology:
-
-```yaml
-wow:
-  bi:
-    script:
-      enabled: true
-      consumer-group-namespace: orders-production-blue
-      topology:
-        mode: STANDALONE
-```
-
-Cluster topology:
-
-```yaml
-wow:
-  bi:
-    script:
-      enabled: true
-      consumer-group-namespace: orders-production-blue
-      topology:
-        mode: CLUSTER
-        cluster:
-          name: production
-          installation: clickhouse
-```
-
-`STANDALONE` creates `*_store` physical tables with `ReplacingMergeTree`; `command`, `state`, and `state_last` remain read-only views that query their stores with `FINAL`. It rejects `topology.cluster`. `CLUSTER` creates replicated `*_store_local` physical tables, `*_store` `Distributed` write facades, and the same public read views; omitted cluster fields use the defaults shown above. Cluster DDL always uses ClickHouse's `{shard}` and `{replica}` server macros, including the Keeper consumer replica identity; they are intentionally not application-level overrides.
-
-`DEPLOY` and `RESET` reconcile only the current physical ownership scope; they do not migrate `database`, `consumerDatabase`, `consumerGroupNamespace`, topology mode, cluster name, or installation. Visible topology-fingerprint drift is rejected. Because a scope change can make old objects undiscoverable, stop old consumers and explicitly clean the old scope before deploying the new scope.
-
-The complete precedence, from lowest to highest, is:
-
-1. `BiScriptOptions` domain defaults;
-2. Kafka properties for bootstrap servers and topic prefix;
-3. `wow.bi.script.*` application properties;
-4. Non-null `POST` request fields.
-
-When a real deployment inspector is configured, `database`, `consumerDatabase`, and `topology` are fixed to the server configuration and request overrides for those fields return `400`. This prevents a public request from using the server's ClickHouse credentials to inspect an arbitrary database or cluster. The default `NO_OP` inspector permits those overrides because it never contacts ClickHouse; such output is an offline preview, not a migration of an existing scope.
-
-Thus, explicit `wow.bi.script.kafka-bootstrap-servers` / `wow.bi.script.topic-prefix` values override the corresponding `wow.kafka.bootstrap-servers` / `wow.kafka.topic-prefix` values, even when equal to their defaults. Multiple inherited Kafka brokers are joined with commas. Every other absent application binding falls back directly to its `BiScriptOptions` domain default. The length limits in the table apply equally to the server configuration and the corresponding non-null `POST` overrides (`database`, `consumerDatabase`, `timezone`, `kafkaBootstrapServers`, `topicPrefix`, `topology.cluster.name`, and `topology.cluster.installation`). A value exactly at its 64, 128, or 4096 character limit is accepted. When BI script generation is enabled, the Starter validates the server base while constructing the domain options: a value over its limit, blank required strings, control characters, `max-expansion-depth < 1`, and cluster fields supplied in `STANDALONE` mode all fail application startup. With `enabled=false`, the Starter neither constructs nor validates BI generation options or an inspector. For HTTP overrides, the server-configured `maxExpansionDepth` is the request ceiling.
-
-The endpoint and its OpenAPI operation are registered by default; `enabled=false` removes both. Enablement does not provide authentication. Missing `consumer-group-namespace` does not fail startup, but generation returns `400` for every `RESET`, including an empty aggregate scope, and for `DEPLOY` whenever Kafka consumers are generated. An empty `DEPLOY` without it remains unanchored. The endpoint requires `Content-Type: application/json` and a JSON body. Use `{}` to generate SQL from the server base without request overrides:
-
-```bash
-curl -X POST 'http://localhost:8080/wow/bi/script' \
-  -H 'content-type: application/json' \
-  -H 'accept: application/sql' \
-  --data '{}'
-```
-
-Non-null request fields override both ordinary options and Kafka-derived options for this generation. A Standalone request can also override the database:
-
-```json
-{
-  "database": "analytics",
-  "topology": {
-    "mode": "STANDALONE"
-  }
-}
-```
-
-A Cluster request may provide only selected cluster fields. Omitted cluster fields inherit the current Cluster server base, or the `BiScriptOptions` Cluster defaults when the server base is Standalone:
-
-```json
-{
-  "topology": {
-    "mode": "CLUSTER",
-    "cluster": {
-      "name": "production"
-    }
-  },
-  "kafkaBootstrapServers": "kafka:9092",
-  "topicPrefix": "analytics."
-}
-```
-
-When `topology` is present, `topology.mode` is mandatory. `STANDALONE` rejects a `cluster` object. Invalid JSON, an empty body, an over-limit non-null override, another invalid option value, or an invalid topology combination returns a `400` response. A missing or unsupported request `Content-Type` returns `415`; OpenAPI declares the common `wow.UnsupportedMediaType` response, and runtime uses `Wow-Error-Code: UnsupportedMediaType`. An unexpected generation failure returns `500`. With a real inspector, inconsistent catalog state returns `502`, an unavailable ClickHouse service returns `503`, and an inspection timeout returns `504`. `Accept` quality values are honored; JSON returns SQL, diagnostics, and the destructive flag, while SQL and wildcards return SQL. If no requested representation is supported or every supported representation is explicitly assigned `q=0`, the endpoint returns `406` with `Wow-Error-Code: NotAcceptable`. Every `200` response includes `Wow-BI-Diagnostic-Count`, including SQL responses whose body cannot carry diagnostics. Callers no longer submit manifests. The default NoOp inspector permits offline `DEPLOY` with an unreconciled diagnostic but rejects `RESET`. With an explicitly configured ClickHouse inspector, catalog ownership markers restore the identity and drive stale cleanup and confirmed Reset.
-
-See [Business Intelligence](./bi) for structured result diagnostics, current expansion semantics, and lossless mappings.
-
-## Bus Type
-
-The framework supports multiple bus implementations:
-
-| Type | Description |
-|------|-------------|
-| `kafka` | Apache Kafka message bus (recommended for production) |
-| `redis` | Redis Streams message bus |
-| `in_memory` | In-memory message bus (for testing) |
-| `no_op` | No-op message bus (for special cases) |
-
-## Storage Type
-
-For event stores and snapshots:
-
-| Type | Description |
-|------|-------------|
-| `mongo` | MongoDB (recommended for event store) |
-| `redis` | Redis for high-performance scenarios |
-| `elasticsearch` | Elasticsearch for full-text search |
-| `in_memory` | In-memory store (development/testing) |
-| `delay` | Delay store (testing/special cases) |
-
-## Complete Example
+## First Run: In-Memory Configuration
 
 ```yaml
 spring:
   application:
     name: order-service
 
-  mongodb:
-    uri: mongodb://localhost:27017/wow_db
-  data:
-    redis:
-      host: localhost
-      port: 6379
-
-
-  elasticsearch:
-    uris:
-      - http://localhost:9200
+cosid:
+  machine:
+    enabled: true
+    distributor:
+      type: manual
+      manual:
+        machine-id: 1
+  generator:
+    enabled: true
 
 wow:
-  enabled: true
-  context-name: order-service
-  shutdown-timeout: 120s
-  shutdown-quiet-period: 2s
+  prepare:
+    enabled: false
+  command:
+    bus:
+      type: in_memory
+  event:
+    bus:
+      type: in_memory
+  eventsourcing:
+    store:
+      storage: in_memory
+    snapshot:
+      storage: in_memory
+      strategy: all
+    state:
+      bus:
+        type: in_memory
+```
 
+This configuration is only for single-process validation: data disappears on restart and it provides no cross-instance delivery, durable recovery, or general dynamic query support. A manual machine ID is also unsafe for multiple instances.
+
+## Production Starting Point: Kafka + MongoDB
+
+Request the matching Starter capabilities before configuring a backend. Configuration keys alone do not add runtime dependencies:
+
+```kotlin
+implementation("me.ahoo.wow:wow-spring-boot-starter") {
+    capabilities { requireCapability("me.ahoo.wow:kafka-support") }
+}
+implementation("me.ahoo.wow:wow-spring-boot-starter") {
+    capabilities { requireCapability("me.ahoo.wow:mongo-support") }
+}
+implementation("org.springframework.boot:spring-boot-starter-data-mongodb-reactive")
+```
+
+```yaml
+spring:
+  application:
+    name: order-service
+  mongodb:
+    uri: ${MONGODB_URI}
+
+wow:
   command:
     bus:
       type: kafka
-      local-first:
-        enabled: true
   event:
     bus:
       type: kafka
-      local-first:
-        enabled: true
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
   eventsourcing:
+    store:
+      storage: mongo
+    snapshot:
+      storage: mongo
+      strategy: all
     state:
       bus:
         type: kafka
-        local-first:
-          enabled: true
-    store:
-      storage: mongo
-    snapshot:
-      enabled: true
-      strategy: all
-      storage: mongo
-  kafka:
-    bootstrap-servers:
-      - localhost:9092
-    topic-prefix: 'wow.'
-  mongo:
-    enabled: true
-    auto-init-schema: true
-  elasticsearch:
-    enabled: true
-  compensation:
-    enabled: true
-  openapi:
-    enabled: true
-  webflux:
-    enabled: true
-    global-error:
-      enabled: true
-
-management:
-  endpoint:
-    health:
-      show-details: always
-      probes:
-        enabled: true
-  endpoints:
-    web:
-      exposure:
-        include:
-          - health
-          - wow
-          - cosid
-
-springdoc:
-  show-actuator: true
 ```
 
-## Configuration in Different Environments
+This is only a production starting point. Before release, verify authentication/TLS, topics and consumer groups, indexes, capacity, backup/restore, shutdown, alerts, and rolling upgrades.
+
+## Backend Boundaries
+
+### Bus
+
+| Type | Good fit | Main boundary |
+| --- | --- | --- |
+| `in_memory` | single-process development and tests | no persistence or cross-instance delivery |
+| `kafka` | multiple instances and durable messaging | topics, partitions, offsets, redelivery, and capacity |
+| `redis` | services already using Redis Streams | pending recovery, consumer groups, and capacity |
+| `no_op` | explicit cases that do not process a message kind | messages do not produce real business processing |
+
+### Storage
+
+| Backend | EventStore | SnapshotStore | Dynamic query | Verify before adoption |
+| --- | --- | --- | --- | --- |
+| MongoDB | yes | yes | event stream and snapshot | indexes, sharding, write concern, backup, recovery |
+| Redis | yes | yes | no general dynamic snapshot query | canonical v2, capacity, persistence, pending recovery |
+| Elasticsearch | yes | yes | event stream and snapshot | templates/ILM, bulk, PIT, rebuild, recovery |
+| In-memory | yes | yes | tests only | process exit loses all data |
+
+Use `wow.eventsourcing.storage-routing` when one aggregate needs a dedicated backend; do not select storage manually in business code. See [Spring Boot Starter](./extensions/spring-boot-starter.md#bean-wiring-and-overrides) for binding rules.
+
+## Configuration and Secret Boundaries
+
+Split configuration into three groups:
+
+| Type | Examples | Location |
+| --- | --- | --- |
+| Versioned policy | bus/storage type, snapshot strategy, timeouts | repository `application.yaml` |
+| Environment value | broker addresses, database names, OTLP endpoint | deployment environment/configuration |
+| Secret | database password, token, webhook, certificate private key | secret manager |
+
+- never put real credentials in documentation, examples, or ConfigMaps;
+- reference environment values with `${ENV_NAME}` and fail startup when required values are missing;
+- do not keep `me.ahoo.wow: DEBUG` enabled in production;
+- retain a redacted effective-configuration summary for recovery and audit;
+- review configuration changes with the application version instead of treating YAML-only changes as risk-free.
+
+## Environment Layers
 
 ### Development
 
-```yaml
-wow:
-  command:
-    bus:
-      type: in_memory
-  event:
-    bus:
-      type: in_memory
-  eventsourcing:
-    store:
-      storage: in_memory
-    snapshot:
-      storage: in_memory
-      strategy: all
-```
+- prefer in-memory adapters or isolated local backends;
+- use a single-instance manual machine ID;
+- keep Swagger, detailed logs, and fast domain tests;
+- make data-loss expectations explicit and never copy local settings to production.
 
 ### Production
 
+- use a distributor that guarantees unique machine IDs;
+- configure durable bus, EventStore, and SnapshotStore implementations;
+- protect command, query, and Actuator endpoints with authentication and authorization;
+- verify idempotency indexes, partitioning/sharding, consumer offsets, and graceful shutdown;
+- complete [Application Testing](./application-testing.md) and [Backup, Restore, and Replay](./recovery.md) gates.
+
+## BI Script Configuration
+
+The BI script service uses `wow.bi.script.*`; enable it only when generating or deploying ClickHouse scripts:
+
 ```yaml
 wow:
-  command:
-    bus:
-      type: kafka
-      local-first:
-        enabled: true
-  event:
-    bus:
-      type: kafka
-      local-first:
-        enabled: true
-  eventsourcing:
-    store:
-      storage: mongo
-    snapshot:
+  bi:
+    script:
       enabled: true
-      strategy: all
-      storage: mongo
-  kafka:
-    bootstrap-servers:
-      - kafka-0:9092
-      - kafka-1:9092
-      - kafka-2:9092
-  mongo:
-    enabled: true
-    auto-init-schema: true
+      database: wow
+      consumer-database: wow_consumer
+      timezone: UTC
+      kafka-bootstrap-servers: ${BI_KAFKA_BOOTSTRAP_SERVERS:${KAFKA_BOOTSTRAP_SERVERS}}
+      topic-prefix: ${BI_TOPIC_PREFIX:wow.}
+      inspector:
+        type: NO_OP # offline generation only; deployment/reset needs a controlled ClickHouse inspector
 ```
+
+Explicit `wow.bi.script.kafka-bootstrap-servers` and `topic-prefix` values override `wow.kafka.*`. A `NO_OP` inspector supports offline generation and does not prove catalog reconciliation. Before `RESET`, use a real inspector and complete the destructive gates in [BI Deployment and Recovery](./bi-operations.md).
 
 ## Configuration References
 
-For detailed configuration of specific modules, see:
-- [Kafka Extension](./extensions/kafka)
-- [MongoDB Extension](./extensions/mongo)
-- [Redis Extension](./extensions/redis)
-- [Elasticsearch Extension](./extensions/elasticsearch)
-- [Event Compensation](./event-compensation)
-- [Command Configuration](../reference/config/core)
-- [Event Configuration](../reference/config/core)
-- [Event Sourcing Configuration](../reference/config/core)
+Use configuration classes and these pages for exact properties:
+
+- [Core](../reference/config/core.md): Wow, buses, event sourcing, snapshots, storage routing, and PrepareKey;
+- [Infrastructure](../reference/config/infrastructure.md): Kafka, MongoDB, Redis, Elasticsearch, and WebFlux;
+- [Observability](../reference/config/observability.md): OpenAPI, OpenTelemetry, metrics, and BI;
+- [Event Compensation](../reference/config/compensation.md): compensation switch, scheduler, and notifications.
+
+When upgrading Wow, use the target tag's configuration classes and release notes; do not apply `main` defaults to an older release.

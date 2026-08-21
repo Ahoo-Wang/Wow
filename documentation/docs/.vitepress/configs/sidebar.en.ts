@@ -21,6 +21,8 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             collapsed: false,
             items: [
                 {text: 'Articles Home', link: 'index.html'},
+                {text: 'HTTP 200 but the Query Is Empty', link: 'command-success-is-not-complete'},
+                {text: 'Traditional CRUD vs Wow', link: 'traditional-vs-wow-architecture'},
                 {text: 'Why DDD Matters More in the AI Era', link: 'why-ddd-fits-ai-era'},
             ],
         },
@@ -76,7 +78,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             items: [
                 {text: 'Open API', link: 'open-api'},
                 {text: 'Test Suite', link: 'test-suite'},
-                {text: 'Test Runtime', link: 'test-runtime'},
+                {text: 'Application Testing', link: 'application-testing'},
                 {text: 'Agent Skills', link: 'skills'},
                 {text: 'Business Intelligence', link: 'bi'},
                 {text: 'BI Deployment and Recovery', link: 'bi-operations'},
@@ -160,6 +162,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             base: '/reference/example/',
             collapsed: false,
             items: [
+                {text: 'Order and Cart (Kotlin)', link: 'order'},
                 {text: 'Bank Transfer (JAVA)', link: 'transfer'},
                 {text: 'Event Compensation', link: 'compensation'},
             ],

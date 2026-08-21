@@ -524,7 +524,7 @@ and closes the lease exactly once when processing completes.
 | Page | Relationship |
 |---|---|
 | [Architecture](architecture.md) | Places runtime ownership inside the wider Wow module and processing architecture |
-| [Configuration](../configuration.md) | Complete Spring Boot property reference |
+| [Configuration](../configuration.md) | Application decisions, environments, and secret boundaries with links to exact references |
 | [Runtime Orchestration Migration](../migration/runtime-orchestration.md) | Breaking lifecycle changes and extension migration |
 | [Aggregate Scheduler](aggregate-scheduler.md) | Graceful and forced disposal of per-aggregate schedulers |
 | [Event Bus](event-bus.md) | Message transport participating in runtime activity |

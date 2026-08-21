@@ -42,9 +42,7 @@ Years of production practice and continuous evolution shaped the current feature
 
 ## What Does Wow Mean for Developers?
 
-::: info Author perspective
 I once warned my team that if we rely too heavily on data-driven design and ignore domain-driven design, our work can collapse into table-oriented CRUD. The point is not to label developers; it is to move engineering attention back to business value, domain knowledge, and problem-solving ability.
-:::
 
 ### Business Value
 
@@ -58,7 +56,7 @@ _Implementing Domain-Driven Design_ emphasizes concentrating investment in the c
 
 As a business grows, systems must address throughput, storage, and scaling. In traditional architectures, relational schemas, sharding rules, and cross-shard transactions can leak into business code. Wow uses aggregate boundaries, event storage, and messaging abstractions to reduce coupling between the domain model and a particular storage topology, so changing backends or scaling horizontally does not require rewriting domain rules directly.
 
-This does not give an application unlimited scalability automatically. Results still depend on aggregate hot spots, event size, storage implementation, messaging, and deployment. Evaluate the current version with the reproducible JMH tasks in [Test Runtime](./test-runtime.md#benchmark-smoke); historical throughput without the matching code revision, hardware, and run parameters is not a current performance guarantee.
+This does not give an application unlimited scalability automatically. Results still depend on aggregate hot spots, event size, storage implementation, messaging, and deployment. Evaluate the current framework version with the reproducible JMH tasks in [Framework Tests and Benchmarks](./test-runtime.md#benchmark-smoke); historical throughput without the matching code revision, hardware, and run parameters is not a current performance guarantee.
 
 ### Read-Write Separation and Synchronization Delay
 
@@ -72,7 +70,7 @@ A fixed one-second delay wastes time for fast requests and still cannot guarante
 
 Traditional domain tests are often burdened by database connections, transactions, data cleanup, and full application startup. The Wow Given → When → Expect test suite keeps tests centered on commands, events, and state, allowing developers to focus on whether the domain model behaves as intended.
 
-In the original team practice, the minimum domain-model coverage was commonly set to **85%**, and some modules naturally reached **95%**; API testing also found materially fewer defects in comparable projects. These figures are team experience, not a universal promise. Current quality claims must come from module tests, coverage gates, and CI results. See [Test Suite](./test-suite.md) and [Test Runtime](./test-runtime.md).
+In the original team practice, the minimum domain-model coverage was commonly set to **85%**, and some modules naturally reached **95%**; API testing also found materially fewer defects in comparable projects. These figures are team experience, not a universal promise. Application quality must come from its own domain, HTTP, real-adapter, recovery, and security gates. See [Test Suite](./test-suite.md) and [Application Testing](./application-testing.md).
 
 ## Wow in One Sentence
 

@@ -176,7 +176,7 @@ At minimum, observe:
 - Command, event, projection, and saga lag and failure rates.
 - Retry, compensation, and unrecoverable-task counts.
 
-Use the JMH tasks in [Test Runtime](./test-runtime.md#benchmark-smoke) for a reproducible baseline of the current version.
+Use the JMH tasks in [Framework Tests and Benchmarks](./test-runtime.md#benchmark-smoke) for a reproducible baseline of the current framework version.
 
 ## File a Diagnosable Issue
 

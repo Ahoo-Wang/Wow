@@ -36,7 +36,9 @@ flowchart LR
 | 判断 Wow 是否适合项目 | [简介](./introduction.md) | [生产最佳实践](./best-practices.md) | 能说明收益、运行成本和不适用场景 |
 | 运行第一个应用 | [快速上手](./getting-started.md) | [配置](./configuration.md) | 领域测试通过，真实命令到达 `SNAPSHOT`，状态可读回 |
 | 接入现有 Spring Boot 服务 | [接入现有项目](./existing-project.md) | [Spring Boot Starter](./extensions/spring-boot-starter.md) | KSP 元数据、自动路由、命令和快照闭环均通过 |
+| 学习完整 Kotlin 应用 | [订单与购物车](../reference/example/order.md) | [应用测试](./application-testing.md) | 能追踪命令、事件、状态、Saga、投影和重启恢复 |
 | 设计聚合和业务约束 | [聚合建模](./modeling.md) | [测试套件](./test-suite.md) | 命令产生领域事件，溯源后状态可验证 |
+| 建立应用发布门禁 | [应用测试](./application-testing.md) | [生产最佳实践](./best-practices.md) | 领域、HTTP、真实 Adapter、恢复和安全反例都有证据 |
 | 演进已持久化事件 | [事件演进](./advanced/event-evolution.md) | [事件存储](./eventstore.md) | Upgrader 注册、顺序、历史回放与回滚均有证据 |
 | 提供写入 API 和完成语义 | [命令网关](./command-gateway.md) | [OpenAPI](./open-api.md) | 能区分 `SENT`、`PROCESSED`、`SNAPSHOT` 和 `PROJECTED` |
 | 建立查询模型 | [投影](./projection.md) | [查询服务](./query.md) | 投影可重试且幂等，查询边界清晰 |
@@ -67,7 +69,7 @@ flowchart LR
 
 1. [生产最佳实践](./best-practices.md)
 2. [备份、恢复与重放](./recovery.md)
-3. [测试运行体系](./test-runtime.md)
+3. [应用测试](./application-testing.md)
 4. [可观测性](./advanced/observability.md)
 5. [故障排查](./troubleshooting.md)
 6. [迁移指南](./migration.md)

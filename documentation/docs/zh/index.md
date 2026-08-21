@@ -28,11 +28,11 @@ hero:
 features:
 - title: 领域模型即服务
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>'
-  details: 仅需编写领域模型，即可完成服务开发，Wow 自动为您准备好 OpenAPI 接口。因为高效，CRUD 也值得 DDD。
+  details: 围绕领域模型定义命令、事件与状态，Wow 生成 OpenAPI 元数据并装配运行链路，减少重复基础设施代码。
   link: /zh/guide/modeling
 - title: 测试套件
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6l3 7-6 11-6-11 3-7Z"/><path d="M9 3 3 10h18L15 3"/></svg>'
-  details: 基于 Given->When->Expect 模式的测试套件，助力开发者轻松实现 80% 以上的测试覆盖率，确保高质量应用交付
+  details: Given->When->Expect 测试套件直接验证命令、事件与状态；覆盖率和交付质量仍由应用门禁证明。
   link: /zh/guide/test-suite
 - title: 可复现的性能基线
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>'
@@ -40,7 +40,7 @@ features:
   link: /zh/guide/test-runtime#基准-smoke
 - title: 可伸缩性
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="m21 3-7 7"/><path d="m3 21 7-7"/></svg>'
-  details: 无需考虑数据库关系模式、分片规则等问题，代码无需变更，即可轻松实现水平伸缩
+  details: 聚合、事件存储与消息抽象降低领域规则对存储拓扑的耦合；实际伸缩能力取决于热点、后端和部署验证。
   link: /zh/guide/introduction.html#性能与伸缩性
 - title: 分布式事务 (Saga)
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>'
@@ -48,18 +48,18 @@ features:
   link: /zh/guide/saga
 - title: 事件补偿自动化
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>'
-  details: 提供可视化的事件补偿控制台和自动补偿机制，确保系统数据的最终一致性
+  details: 记录事件处理失败并提供重试、通知和可视化运维入口，帮助应用建立可验证的恢复流程。
   link: /zh/guide/event-compensation
 - title: 端到端可观测 (Observability)
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>'
-  details: 集成 OpenTelemetry，实现系统的端到端可观测性，助力监控和调试，解决CQRS模式可能引起的系统复杂性问题
+  details: 为命令、事件、投影、Saga 与存储链路提供 OpenTelemetry 观测点，支持应用定位异步阶段和失败边界。
   link: /zh/guide/extensions/opentelemetry
 - title: 响应式编程 (Reactive)
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>'
-  details: 基于响应式编程模型使系统更适应异步和并发操作，提高整体响应性能。通过异步消息传递，系统组件以非阻塞方式通信，降低系统开销、增强系统弹性，确保高负载和低负载时均能保持即时响应性。
+  details: 核心运行链路采用 Reactor 非阻塞组合；吞吐、延迟和弹性仍需在实际 Adapter、硬件与负载下验证。
 - title: 商业智能
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>'
-  details: 提供更丰富且具有明确业务语义的数据源（包括状态事件和命令）。具有极低的ETL成本，助力实时数据分析和操作审计，为业务决策提供有力支持。
+  details: 以状态事件和命令提供具有业务语义的数据源，并生成 ClickHouse 同步脚本；实时性与数据质量由应用运维保障。
   link: /zh/guide/bi
 ---
 

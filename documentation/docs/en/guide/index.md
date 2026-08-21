@@ -36,7 +36,9 @@ An aggregate makes business decisions, and its domain events are persisted as th
 | Decide whether Wow fits | [Introduction](./introduction.md) | [Production Best Practices](./best-practices.md) | You can explain the benefits, operating costs, and poor-fit cases |
 | Run a first application | [Getting Started](./getting-started.md) | [Configuration](./configuration.md) | Domain tests pass, a real command reaches `SNAPSHOT`, and state can be loaded |
 | Add Wow to an existing Spring Boot service | [Existing Project](./existing-project.md) | [Spring Boot Starter](./extensions/spring-boot-starter.md) | KSP metadata, generated routes, command handling, and snapshot loading all work |
+| Study a complete Kotlin application | [Order and Cart](../reference/example/order.md) | [Application Testing](./application-testing.md) | You can trace commands, events, state, sagas, projections, and restart recovery |
 | Model an aggregate and invariants | [Aggregate Modeling](./modeling.md) | [Test Suite](./test-suite.md) | Commands emit domain events and replay produces verified state |
+| Build application release gates | [Application Testing](./application-testing.md) | [Production Best Practices](./best-practices.md) | Domain, HTTP, real-adapter, recovery, and security-negative evidence exists |
 | Evolve persisted events | [Event Evolution](./advanced/event-evolution.md) | [Event Store](./eventstore.md) | Upgrader registration, ordering, historical replay, and rollback have evidence |
 | Expose writes and completion semantics | [Command Gateway](./command-gateway.md) | [OpenAPI](./open-api.md) | You can distinguish `SENT`, `PROCESSED`, `SNAPSHOT`, and `PROJECTED` |
 | Build a query model | [Projection](./projection.md) | [Query Service](./query.md) | The projection is retry-safe and idempotent, with a clear query boundary |
@@ -67,7 +69,7 @@ An aggregate makes business decisions, and its domain events are persisted as th
 
 1. [Production Best Practices](./best-practices.md)
 2. [Backup, Restore, and Replay](./recovery.md)
-3. [Test Runtime](./test-runtime.md)
+3. [Application Testing](./application-testing.md)
 4. [Observability](./advanced/observability.md)
 5. [Troubleshooting](./troubleshooting.md)
 6. [Migration Guide](./migration.md)

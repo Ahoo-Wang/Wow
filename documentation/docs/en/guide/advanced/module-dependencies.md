@@ -15,13 +15,13 @@ The Wow framework is composed of over 20 Gradle modules, each with a single, wel
 | `wow-core` | Core | Framework engine: aggregates, command bus, event sourcing, projections, sagas, wait plans. |
 | `wow-spring` | Spring | Spring `ApplicationContext` bridge, bean registration. |
 | `wow-spring-boot-starter` | Spring | Auto-configuration with Gradle feature variants for optional infrastructure. |
-| `wow-kafka` | Infra | Distributed `CommandBus` and `DomainEventBus` via Apache Kafka. |
-| `wow-mongo` | Infra | `EventStore`, `SnapshotStore`, projection storage via MongoDB. |
-| `wow-redis` | Infra | `EventStore` and `SnapshotStore` via Redis / Lettuce. |
-| `wow-elasticsearch` | Infra | Projection indexing via Elasticsearch. |
-| `wow-webflux` | Infra | Spring WebFlux command endpoint integration. |
+| `wow-kafka` | Infra | Distributed command, domain-event, and state-event buses via Apache Kafka. |
+| `wow-mongo` | Infra | MongoDB `EventStore`, `SnapshotStore`, PrepareKey, and query services. |
+| `wow-redis` | Infra | Redis/Lettuce message buses, `EventStore`, `SnapshotStore`, and PrepareKey. |
+| `wow-elasticsearch` | Infra | Elasticsearch `EventStore`, `SnapshotStore`, and query services. |
+| `wow-webflux` | Infra | Spring WebFlux command, event-stream, and snapshot-query endpoints. |
 | `wow-opentelemetry` | Infra | Distributed tracing for Wow operations via OpenTelemetry. |
-| `wow-cosec` | Infra | ABAC authorization via CoSec. |
+| `wow-cosec` | Infra | Extracts/propagates CoSec request context and rewrites query space; the application owns authentication and authorization policy. |
 | `wow-compiler` | Tooling | KSP processor — generates command routing, event handling metadata, OpenAPI specs at compile time. |
 | `wow-test` | Testing | Unit testing DSL: `AggregateSpec`, `SagaSpec`, Given-When-Expect pattern. |
 | `wow-tck` | Testing | Technology Compatibility Kit — integration tests with Testcontainers. |
@@ -262,6 +262,8 @@ Feature variants allow consumers to declare only the infrastructure they need:
 implementation("me.ahoo.wow:wow-spring-boot-starter")
 implementation("me.ahoo.wow:wow-spring-boot-starter") {
     capabilities { requireCapability("me.ahoo.wow:mongo-support") }
+}
+implementation("me.ahoo.wow:wow-spring-boot-starter") {
     capabilities { requireCapability("me.ahoo.wow:kafka-support") }
 }
 ```

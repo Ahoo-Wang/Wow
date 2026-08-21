@@ -177,6 +177,8 @@ _事件补偿控制台_ 提供了开发者友好的 [RESTful OpenAPI](https://wo
 
 ### 部署 (Kubernetes)
 
+下面的清单仅展示部署边界，不是可直接投产的配置。请从选定的 Wow tag 构建不可变镜像，使用目标环境的 Secret 注入数据库、Redis、Kafka 和通知凭据，并按容量测试结果设置副本与资源。不要把凭据或测试集群地址提交到仓库。
+
 ::: code-group
 ```yaml [ConfigMap]
 apiVersion: v1
@@ -203,7 +205,7 @@ data:
       show-actuator: true
     logging:
       level:
-        me.ahoo.wow: debug
+        me.ahoo.wow: info
     spring:
       application:
         name: compensation-service
@@ -212,13 +214,13 @@ data:
           static-locations: file:./browser/
       data:
         mongodb:
-          uri: mongodb://root:root@localhost:27017/compensation_db?authSource=admin&maxIdleTimeMS=60000
+          uri: ${MONGODB_URI}
         redis:
           cluster:
             max-redirects: 3
             nodes:
-                - redis-test-redis-cluster-0.redis-test-redis-cluster-headless.test.svc.cluster.local:6379
-          password: VPI7MsrrF7beIg
+                - ${REDIS_HOST}:6379
+          password: ${REDIS_PASSWORD}
     cosid:
       machine:
         enabled: true
@@ -228,7 +230,7 @@ data:
         enabled: true
     wow:
       kafka:
-        bootstrap-servers: 'kafka-test-0.kafka-test-headless.test.svc.cluster.local:9093'
+        bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
 ```
 
 ```yaml [Deployment]
@@ -239,7 +241,7 @@ metadata:
   labels:
     app: compensation-service
 spec:
-  replicas: 1
+  replicas: 2
   strategy:
     rollingUpdate:
       maxSurge: 25%
@@ -257,7 +259,7 @@ spec:
     spec:
       containers:
         - name: compensation-service
-          image: registry.cn-shanghai.aliyuncs.com/ahoo/wow-compensation-server:2.10.4
+          image: <registry>/wow-compensation-server:<wow-version>
           env:
             - name: LANG
               value: C.utf8
@@ -265,6 +267,9 @@ spec:
               value: Asia/Shanghai
             - name: JAVA_OPTS
               value: -Xms1792M  -Xmx1792M
+          envFrom:
+            - secretRef:
+                name: wow-compensation-secrets
           ports:
             - name: http
               protocol: TCP

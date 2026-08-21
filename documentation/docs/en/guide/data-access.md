@@ -6,14 +6,18 @@ outline: deep
 
 # Data Access Control
 
-Wow provides three optional data isolation layers and an attribute-based access control layer:
+Wow provides three optional routing/data scopes and a pluggable ABAC query-filter mechanism:
 
 1. **Tenant** — isolates data by organization/customer (optional)
 2. **Owner** — isolates data by user identity within a tenant (optional)
 3. **Space** — provides namespace-based partitioning within a tenant (optional)
-4. **ABAC** — fine-grained attribute-based access control using tags
+4. **ABAC** — query filtering through a principal-tag resolver supplied by the application
 
 All three isolation layers are **optional** and can be enabled independently or combined freely. Single-tenant applications don't need any isolation layer; SaaS applications can combine tenant, owner, space, and ABAC as needed.
+
+::: danger This is not authentication or command authorization by default
+`tenantId`/`ownerId` path values, `spaceId` headers, and message tags are scope data; they do not prove that the caller may use those values. Wow does not authenticate users or automatically authorize generated command routes. The application must authenticate through Spring Security, CoSec policy, or a custom WebFilter/handler filter, bind the identity to allowed scopes, and protect every generated command and query endpoint.
+:::
 
 ```mermaid
 graph TB
@@ -320,6 +324,8 @@ This pattern allows ABAC rules to be based on aggregate state fields (like addre
 
 When querying snapshots, the `AbacQueryFilter` automatically injects permission conditions based on the principal's tags. The matching rules are:
 
+`AbacQueryFilter` is an abstract extension point. Enabling Wow, WebFlux, or CoSec does not register an application policy automatically. If no filter bean is registered, or the filter returns empty tags or `Mono.empty()`, the default condition is `Condition.all()` and no ABAC restriction is added. Protected queries must reject missing security context or principal tags explicitly.
+
 | Principal Tags | Resource Tags | Result |
 |---------------|---------------|--------|
 | `["*"]` (wildcard) | Any | ✅ Match |
@@ -344,17 +350,19 @@ class MemberAbacQueryFilter(
         context: QueryContext<*, *>
     ): Mono<AbacTags> {
         val securityContext = contextView.getSecurityContextOrEmpty()
-            ?: return Mono.empty()
+            ?: return Mono.error(AccessDeniedException("Missing security context"))
         val principal = securityContext.principal
 
         // Look up member tags from cache based on user + tenant + app
-        return Mono.fromCallable {
-            val memberId = memberId(userId = principal.id, tenantId = principal.tenantId)
-            memberCache[memberId]?.tags?.get(appId)
-        }
+        val memberId = memberId(userId = principal.id, tenantId = principal.tenantId)
+        val tags = memberCache[memberId]?.tags?.get(appId)
+        return tags?.let { Mono.just(it) }
+            ?: Mono.error(AccessDeniedException("Missing principal tags"))
     }
 }
 ```
+
+`AccessDeniedException` above represents the denial exception used by the application. Public and protected queries should have distinct, explicit policies; do not use missing tags as an implicit public-resource switch.
 
 ### Query Entry Points and Policy Enforcement
 
@@ -363,6 +371,15 @@ The aggregate-specific `SnapshotQueryService` and `EventStreamQueryService` inst
 `SnapshotQueryServiceFactory` and `EventStreamQueryServiceFactory` are trusted raw-backend entry points. Services created directly through a factory bypass those policies and are intended only for infrastructure, operations, or migration code that explicitly requires raw access.
 
 A custom bean registered under a generated service name is used as-is and is not wrapped. Likewise, importing a registrar without providing its `QueryHandler` preserves the legacy raw-service behavior. Treat both configurations as trusted raw access.
+
+## Required Security Closure
+
+1. **Authenticate**: establish a trusted `Principal` before entering Wow routes; anonymous access must be an explicit decision.
+2. **Bind scopes**: derive allowed tenant, owner, and space values from server-side identity/membership data rather than trusting client paths or headers.
+3. **Authorize commands**: protect generated command routes with Spring Security/CoSec policy and, when required, recheck business authorization in a command filter.
+4. **Authorize queries**: register a fail-closed `AbacQueryFilter` or equivalent `QueryFilter`; reject missing context, tags, or policy.
+5. **Isolate raw entry points**: never expose `*QueryServiceFactory` or custom beans that bypass `QueryHandler` to ordinary application requests.
+6. **Test**: cover anonymous requests, forged tenant/owner/space, cross-tenant reads, missing principal tags, unauthorized commands, and accidental raw-factory use.
 
 ## Layered Isolation Summary
 
@@ -373,4 +390,4 @@ A custom bean registered under a generated service name is used as-is and is not
 | Owner | Individual user | `@OwnerId` + `@AggregateRoute(owner)` | `owner/{ownerId}` path prefix | "My data" isolation |
 | ABAC | Attribute-based | Tags on principal + resource + query filter | Internal filter (no API surface) | Fine-grained permission (department, role, level) |
 
-These layers are **additive** — enabling more layers adds more restrictions. A query without any layer applied returns all data; enabling tenant + owner + ABAC restricts to only the data the authenticated user is allowed to see.
+These layers form a security boundary only after identity binding, command authorization, and query filtering are all configured. Without a filter, with missing principal tags, or through a raw factory, a query may not be ABAC-restricted. The presence of tenant, owner, or space in a route does not mean authorization is complete.

@@ -92,7 +92,7 @@ spring:
     redis:
       host: localhost
       port: 6379
-      password: your-password
+      password: ${REDIS_PASSWORD}
 
 wow:
   command:
@@ -387,7 +387,7 @@ spring:
     redis:
       host: localhost
       port: 6379
-      password: your-password
+      password: ${REDIS_PASSWORD}
       database: 0
       lettuce:
         pool:
