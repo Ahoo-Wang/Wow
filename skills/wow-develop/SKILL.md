@@ -19,7 +19,7 @@ Own the complete development task. Do not route to another Wow Skill.
 - Preserve reactive execution, serialization compatibility, module boundaries, and public contracts unless the user authorizes a breaking change.
 - Keep explanation, lookup, design-only, and other read-only requests non-mutating. Enter test-first implementation only when the user requests a code or document change.
 - Use RED→GREEN→REFACTOR for behavior changes. If a change is not testable at the unit level, name the narrowest replacement evidence before editing.
-- Report exact commands, results, changed behavior, and remaining uncertainty.
+- Report source-backed answers or changed files and behavior, exact verification commands and results, compatibility or operational risk, and remaining evidence gaps. Never replace an unavailable test with “should pass.”
 
 ## Load one domain reference first
 
@@ -50,7 +50,3 @@ For an annotation, configuration property, DSL method, gateway API, or generated
 - Do not introduce blocking or manual subscription into reactive runtime paths.
 - Verify event/schema/API compatibility when changing public messages or metadata.
 - Use the assertion style already established by the target module; Kotlin Wow tests normally use `me.ahoo.test.asserts.assert` and `.assert()`.
-
-## Completion
-
-For read-only work, finish with the aligned question, source-backed answer, verification performed, and remaining evidence gaps. For authorized changes, also report changed files and behavior plus compatibility or operational risk. Never replace an unavailable test with “should pass.”

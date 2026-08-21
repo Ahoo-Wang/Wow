@@ -17,7 +17,7 @@ Own the complete review or review-and-fix task. Do not route to another Wow Skil
 - Review Wow semantics and observable behavior before style.
 - Derive findings from the requested diff, current source, tests, configuration, and generated contracts.
 - Separate review evidence from any later implementation evidence.
-- Report no findings directly when appropriate, then name residual risks and unverified checks.
+- Lead with findings; if none remain, state that directly. Report executed checks and results, residual risks or gaps, and every intentionally omitted write, remote, approval, or merge action.
 
 ## Review workflow
 
@@ -40,7 +40,3 @@ When the user explicitly authorizes fixes:
 7. Repeat only for newly discovered issues that remain inside the authorized scope.
 
 Do not turn “review and fix” into permission to fix unrelated pre-existing issues.
-
-## Completion
-
-Lead with findings. If none remain, state that explicitly. Then report executed commands, results, remaining test or environment gaps, and whether any write, remote, approval, or merge action was intentionally not performed.
