@@ -20,6 +20,7 @@ import me.ahoo.wow.api.query.ConditionCapable
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.Operator
+import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
@@ -42,6 +43,7 @@ class HttpQueryGuardFilter(
     private val maxPageWindow: Long = 10_000,
     private val maxConditionNodes: Int = 64,
     private val maxConditionValues: Int = 1000,
+    private val allowedSortFields: Set<String> = emptySet(),
     private val allowRaw: Boolean = false,
     private val allowExpensiveOperators: Boolean = false,
     private val idleTimeout: Duration = Duration.ofSeconds(10),
@@ -76,6 +78,12 @@ class HttpQueryGuardFilter(
         when (query) {
             is IListQuery -> validateList(query)
             is IPagedQuery -> validatePage(query)
+        }
+        if (query is Queryable<*>) {
+            val rejectedSortFields = query.sort.map { it.field }.filterNot(allowedSortFields::contains)
+            require(rejectedSortFields.isEmpty()) {
+                "HTTP query sort fields$rejectedSortFields are not allowed."
+            }
         }
         val condition = when (query) {
             is Condition -> query

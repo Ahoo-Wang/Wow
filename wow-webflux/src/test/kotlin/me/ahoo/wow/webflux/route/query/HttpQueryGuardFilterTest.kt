@@ -25,6 +25,7 @@ import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
+import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogErrorHandler
@@ -82,6 +83,7 @@ class HttpQueryGuardFilterTest {
             ListQuery(Condition.isIn("state.id", List(1001) { it }), limit = 1),
             ListQuery(Condition(operator = Operator.IDS, value = List(1001) { it }), limit = 1),
             ListQuery(Condition(operator = Operator.AGGREGATE_IDS, value = List(1001) { it }), limit = 1),
+            ListQuery(Condition.ALL, limit = 1, sort = listOf(Sort("state.unindexed", Sort.Direction.ASC))),
             ListQuery(Condition.and(List(65) { Condition.eq("state.value$it", it) }), limit = 1),
         ).forEach { query ->
             guard().filter(listContext(query), unexpectedBackend())
@@ -156,6 +158,24 @@ class HttpQueryGuardFilterTest {
         ).writeRawRequest(request).test().verifyComplete()
 
         context.getRequiredResult().test().verifyComplete()
+    }
+
+    @Test
+    fun `should allow indexed sort fields explicitly`() {
+        val context = listContext(
+            ListQuery(
+                Condition.ALL,
+                limit = 1,
+                sort = listOf(Sort("state.createdAt", Sort.Direction.DESC)),
+            ),
+        )
+        guard(allowedSortFields = setOf("state.createdAt")).filter(
+            context,
+            FilterChain {
+                it.asListQuery<Any>().setResult(Flux.empty())
+                Mono.empty()
+            },
+        ).writeRawRequest(request).test().verifyComplete()
     }
 
     @Test
@@ -298,6 +318,7 @@ class HttpQueryGuardFilterTest {
         maxPageWindow: Long = 10_000,
         maxConditionNodes: Int = 64,
         maxConditionValues: Int = 1000,
+        allowedSortFields: Set<String> = emptySet(),
         allowRaw: Boolean = false,
         allowExpensiveOperators: Boolean = false,
         idleTimeout: Duration = Duration.ofSeconds(10),
@@ -307,6 +328,7 @@ class HttpQueryGuardFilterTest {
         maxPageWindow = maxPageWindow,
         maxConditionNodes = maxConditionNodes,
         maxConditionValues = maxConditionValues,
+        allowedSortFields = allowedSortFields,
         allowRaw = allowRaw,
         allowExpensiveOperators = allowExpensiveOperators,
         idleTimeout = idleTimeout,

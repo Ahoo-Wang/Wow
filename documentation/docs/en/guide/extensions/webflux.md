@@ -92,6 +92,7 @@ plus `wow-webflux` for these properties to be bound.
 | `query.max-page-window` | `Long` | `10000` | Maximum HTTP `index * size` page window; `0` disables the cap |
 | `query.max-condition-nodes` | `Int` | `64` | Maximum number of HTTP query condition nodes; `0` disables the cap |
 | `query.max-condition-values` | `Int` | `1000` | Maximum values in HTTP `IN`, `NOT_IN`, `ALL_IN`, `IDS`, or `AGGREGATE_IDS` conditions; `0` disables the cap |
+| `query.allowed-sort-fields` | `Set<String>` | `[]` | Indexed logical fields allowed for explicit HTTP sorting; an empty set rejects all explicit sorts |
 | `query.allow-raw` | `Boolean` | `false` | Whether HTTP queries may use native `RAW` conditions |
 | `query.allow-expensive-operators` | `Boolean` | `false` | Whether HTTP queries may use `CONTAINS` and `ENDS_WITH` |
 | `query.idle-timeout` | `Duration` | `10s` | Maximum wait for the first JSON-array result or the next SSE result; `0s` disables the timeout |
@@ -111,6 +112,7 @@ wow:
       max-page-window: 10000
       max-condition-nodes: 64
       max-condition-values: 1000
+      allowed-sort-fields: []
       allow-raw: false
       allow-expensive-operators: false
       idle-timeout: 10s
