@@ -231,7 +231,7 @@ class WowSkillsValidatorTest(unittest.TestCase):
             self.assert_error("resource links are not allowed")
 
         with self.subTest(reference="resource-is-directory"):
-            resource = self.root / "skills" / "wow-develop" / "assets" / "behavior-scenarios.md"
+            resource = self.root / "skills" / "wow-develop" / "references" / "aggregate-sourcing.md"
             resource.unlink()
             resource.mkdir()
             self.assert_error("referenced resource must be a regular file")

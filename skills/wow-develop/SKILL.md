@@ -42,7 +42,6 @@ Own the complete development task. Do not route to another Wow Skill.
 | Spring Boot starter, feature capability, storage or bus routing | `references/starter-storage.md` |
 | Runtime ownership, readiness, fatal handling, drain or shutdown | `references/runtime-lifecycle.md` |
 | Uniqueness, reservation, rollback, or reprepare with PrepareKey | `references/prepare-key.md` |
-| Selecting tests and deciding whether evidence is sufficient | `references/verification-evidence.md` |
 
 Load a second reference only when the task genuinely crosses domains. Read only the relevant sections, then verify every exact symbol and default in the current source.
 
@@ -75,13 +74,6 @@ For an annotation, configuration property, DSL method, gateway API, or generated
 - Inspect current `@ConfigurationProperties` before changing configuration examples.
 - Verify event/schema/API compatibility when changing public messages or metadata.
 - Use the assertion style already established by the target module; Kotlin Wow tests normally use `me.ahoo.test.asserts.assert` and `.assert()`.
-
-## Optional output assets
-
-- Copy `assets/behavior-scenarios.md` only when the user requests a scenario document.
-- Copy `assets/design-report.md` only when the user requests a design report.
-
-Do not load either asset merely to answer or implement a task.
 
 ## Completion
 
