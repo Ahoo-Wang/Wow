@@ -37,6 +37,7 @@ import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
 import me.ahoo.wow.query.converter.ConditionConverter
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchIndicesClient
 import reactor.core.publisher.Mono
@@ -159,6 +160,7 @@ class ElasticsearchSnapshotMappingQueryTest {
         service.dynamicList(ListQuery(condition = condition, limit = 10)).collectList().block()
 
         convertedCondition.captured.assert().isEqualTo(condition)
+        assertThrows<IllegalArgumentException> { service.refreshIndexMapping() }
         verify(exactly = 0) { client.indices() }
     }
 
