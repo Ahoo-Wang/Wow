@@ -155,8 +155,8 @@ version-metadata migration is required.
 On the first snapshot query for an aggregate index, Wow asynchronously loads the current Elasticsearch mapping and
 compiles conditions and sorts from its physical field capabilities. The mapping is the only capability source; no
 separate `QuerySchema` is maintained. The cache is isolated by index and has no TTL. A missing or incompatible cached
-field triggers one automatic refresh. A successful refresh atomically replaces the cache; a failed refresh preserves
-the previous cache and fails the current query closed.
+field fails the query without implicitly calling the mapping API; refresh the cache explicitly through the maintenance
+endpoint after a mapping change.
 
 Field selection follows these rules:
 
@@ -277,6 +277,12 @@ query capability cache; it does not modify the Elasticsearch mapping, rebuild th
 Refresh is local to the instance that receives the request. In a replicated deployment, operations must call each Pod;
 there is no broadcast, scheduled refresh, or refresh-all operation. New queries use the refreshed mapping, while
 in-flight queries continue with the mapping obtained when their compilation began.
+
+Publish a mapping change in this order:
+
+1. Update the target index mapping; complete any required reindex or snapshot rebuild first.
+2. Call the refresh endpoint on every application Pod and verify the returned `fieldCount` and `changed` values.
+3. Run representative exact, full-text, and sort queries against every Pod; reconcile result count, order, and snapshot version before completing the release.
 
 ## Configure Event Stream Index Template
 

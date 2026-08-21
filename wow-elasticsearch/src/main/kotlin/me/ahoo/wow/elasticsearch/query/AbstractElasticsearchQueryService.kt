@@ -192,15 +192,6 @@ abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
         val resolver = indexMappingResolver ?: return Mono.just(compile(condition, sort))
         return resolver.currentOrLoad(indexName)
             .map { mapping -> compile(resolveCondition(mapping, condition), resolveSort(mapping, sort)) }
-            .onErrorResume(ElasticsearchFieldResolutionException::class.java) {
-                resolver.refresh(indexName)
-                    .map { result ->
-                        compile(
-                            resolveCondition(result.mapping, condition),
-                            resolveSort(result.mapping, sort),
-                        )
-                    }
-            }
     }
 
     private fun compile(condition: Condition, sort: List<Sort>): ResolvedQuery =
