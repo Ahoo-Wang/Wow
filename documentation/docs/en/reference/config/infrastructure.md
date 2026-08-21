@@ -179,8 +179,9 @@ snapshots.
 | `wow.webflux.query.max-condition-nodes` | Integer | `64` | Maximum HTTP query condition nodes; `0` disables the cap |
 | `wow.webflux.query.max-condition-values` | Integer | `1000` | Maximum values in HTTP `IN`, `NOT_IN`, `ALL_IN`, `IDS`, or `AGGREGATE_IDS` conditions; `0` disables the cap |
 | `wow.webflux.query.allowed-sort-fields` | Set<String> | `[]` | Indexed logical fields allowed for explicit HTTP sorting; an empty set rejects all explicit sorts |
+| `wow.webflux.query.allowed-condition-fields` | Set<String> | `[]` | Additional indexed logical fields allowed in HTTP predicates; an empty set keeps only built-in `aggregateId`, `version`, and fieldless metadata operators |
 | `wow.webflux.query.allow-raw` | Boolean | `false` | Allow native HTTP `RAW` queries |
-| `wow.webflux.query.allow-expensive-operators` | Boolean | `false` | Allow HTTP `CONTAINS`/`ENDS_WITH` queries |
+| `wow.webflux.query.allow-expensive-operators` | Boolean | `false` | Allow HTTP `CONTAINS`, `ENDS_WITH`, or empty/case-insensitive `STARTS_WITH` queries |
 | `wow.webflux.query.idle-timeout` | Duration | `10s` | Timeout for the first JSON-array result or next SSE result; `0s` disables it |
 | `wow.webflux.command.request.appender.agent.enabled` | Boolean | `true` | Append the client `User-Agent` to the command request context (set `false` to disable) |
 | `wow.webflux.command.request.appender.ip.enabled` | Boolean | `true` | Append the client IP to the command request context (set `false` to disable) |
@@ -201,6 +202,7 @@ wow:
       max-condition-nodes: 64
       max-condition-values: 1000
       allowed-sort-fields: []
+      allowed-condition-fields: []
       allow-raw: false
       allow-expensive-operators: false
       idle-timeout: 10s

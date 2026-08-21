@@ -91,8 +91,9 @@ data class CreateOrder(/* ... */)
 | `query.max-condition-nodes` | `Int` | `64` | HTTP 查询条件树的最大节点数；`0` 关闭上限 |
 | `query.max-condition-values` | `Int` | `1000` | HTTP `IN`、`NOT_IN`、`ALL_IN`、`IDS`、`AGGREGATE_IDS` 条件的最大值数量；`0` 关闭上限 |
 | `query.allowed-sort-fields` | `Set<String>` | `[]` | HTTP 显式排序允许的已索引逻辑字段；空集拒绝所有显式排序 |
+| `query.allowed-condition-fields` | `Set<String>` | `[]` | HTTP 条件允许的额外已索引逻辑字段；空集仅保留内置 `aggregateId`、`version` 和无字段元数据操作符 |
 | `query.allow-raw` | `Boolean` | `false` | 是否允许 HTTP 查询使用 `RAW` 原生条件 |
-| `query.allow-expensive-operators` | `Boolean` | `false` | 是否允许 HTTP 查询使用 `CONTAINS` 与 `ENDS_WITH` |
+| `query.allow-expensive-operators` | `Boolean` | `false` | 是否允许 HTTP 查询使用 `CONTAINS`、`ENDS_WITH` 及空值或忽略大小写的 `STARTS_WITH` |
 | `query.idle-timeout` | `Duration` | `10s` | 普通 JSON 数组等待首条结果、SSE 等待下一条结果的最长时间；`0s` 关闭超时 |
 
 ```yaml
@@ -111,6 +112,7 @@ wow:
       max-condition-nodes: 64
       max-condition-values: 1000
       allowed-sort-fields: []
+      allowed-condition-fields: []
       allow-raw: false
       allow-expensive-operators: false
       idle-timeout: 10s

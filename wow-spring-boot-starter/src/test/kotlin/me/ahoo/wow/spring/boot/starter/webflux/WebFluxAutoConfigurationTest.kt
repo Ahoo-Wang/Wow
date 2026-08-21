@@ -187,6 +187,7 @@ internal class WebFluxAutoConfigurationTest {
                 "${WebFluxProperties.PREFIX}.query.max-condition-nodes=32",
                 "${WebFluxProperties.PREFIX}.query.max-condition-values=50",
                 "${WebFluxProperties.PREFIX}.query.allowed-sort-fields=state.createdAt,state.id",
+                "${WebFluxProperties.PREFIX}.query.allowed-condition-fields=state.status,state.id",
                 "${WebFluxProperties.PREFIX}.query.allow-raw=true",
                 "${WebFluxProperties.PREFIX}.query.allow-expensive-operators=true",
                 "${WebFluxProperties.PREFIX}.query.idle-timeout=5s",
@@ -224,6 +225,7 @@ internal class WebFluxAutoConfigurationTest {
                 properties.query.maxConditionNodes.assert().isEqualTo(32)
                 properties.query.maxConditionValues.assert().isEqualTo(50)
                 properties.query.allowedSortFields.assert().isEqualTo(setOf("state.createdAt", "state.id"))
+                properties.query.allowedConditionFields.assert().isEqualTo(setOf("state.status", "state.id"))
                 properties.query.allowRaw.assert().isTrue()
                 properties.query.allowExpensiveOperators.assert().isTrue()
                 properties.query.idleTimeout.assert().isEqualTo(Duration.ofSeconds(5))

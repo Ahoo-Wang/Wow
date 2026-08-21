@@ -29,6 +29,7 @@ import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
+import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.route.acceptsEventStream
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.core.publisher.Mono
@@ -44,6 +45,7 @@ class HttpQueryGuardFilter(
     private val maxConditionNodes: Int = 64,
     private val maxConditionValues: Int = 1000,
     private val allowedSortFields: Set<String> = emptySet(),
+    private val allowedConditionFields: Set<String> = emptySet(),
     private val allowRaw: Boolean = false,
     private val allowExpensiveOperators: Boolean = false,
     private val idleTimeout: Duration = Duration.ofSeconds(10),
@@ -126,10 +128,17 @@ class HttpQueryGuardFilter(
             require(maxConditionNodes == 0 || nodes <= maxConditionNodes) {
                 "HTTP query condition nodes[$nodes] must not exceed $maxConditionNodes."
             }
+            require(
+                current.field.isEmpty() ||
+                    current.field in BUILT_IN_CONDITION_FIELDS ||
+                    current.field in allowedConditionFields
+            ) {
+                "HTTP query condition field[${current.field}] is not allowed."
+            }
             require(allowRaw || current.operator != Operator.RAW) {
                 "HTTP query operator[RAW] is not allowed."
             }
-            require(allowExpensiveOperators || current.operator !in EXPENSIVE_OPERATORS) {
+            require(allowExpensiveOperators || !current.isExpensive()) {
                 "HTTP query operator[${current.operator}] is disabled because expensive operators are not allowed."
             }
             val values = current.value
@@ -141,6 +150,10 @@ class HttpQueryGuardFilter(
             pending.addAll(current.children)
         }
     }
+
+    private fun Condition.isExpensive(): Boolean =
+        operator in EXPENSIVE_OPERATORS ||
+            operator == Operator.STARTS_WITH && ((value as? String).isNullOrEmpty() || ignoreCase() == true)
 
     private fun applyIdleTimeout(context: QueryContext<*, *>, request: ServerRequest) {
         if (idleTimeout.isZero) return
@@ -166,6 +179,7 @@ class HttpQueryGuardFilter(
 
     private companion object {
         val EXPENSIVE_OPERATORS = setOf(Operator.CONTAINS, Operator.ENDS_WITH)
+        val BUILT_IN_CONDITION_FIELDS = setOf(MessageRecords.AGGREGATE_ID, MessageRecords.VERSION)
         val COLLECTION_OPERATORS = setOf(
             Operator.IN,
             Operator.NOT_IN,

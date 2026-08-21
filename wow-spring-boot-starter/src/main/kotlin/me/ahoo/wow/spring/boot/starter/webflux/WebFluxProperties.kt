@@ -61,6 +61,7 @@ constructor(
         @DefaultValue("1000")
         var maxConditionValues: Int = 1000,
         var allowedSortFields: Set<String> = emptySet(),
+        var allowedConditionFields: Set<String> = emptySet(),
         @DefaultValue("false")
         var allowRaw: Boolean = false,
         @DefaultValue("false")

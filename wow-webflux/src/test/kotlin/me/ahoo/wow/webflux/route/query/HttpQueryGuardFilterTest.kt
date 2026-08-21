@@ -78,13 +78,16 @@ class HttpQueryGuardFilterTest {
         listOf(
             ListQuery(Condition.ALL),
             ListQuery(Condition.raw(mapOf("script" to "unsafe")), limit = 1),
-            ListQuery(Condition.contains("state.name", "wow"), limit = 1),
-            ListQuery(Condition.endsWith("state.name", "wow"), limit = 1),
-            ListQuery(Condition.isIn("state.id", List(1001) { it }), limit = 1),
+            ListQuery(Condition.contains(MessageRecords.AGGREGATE_ID, "wow"), limit = 1),
+            ListQuery(Condition.endsWith(MessageRecords.AGGREGATE_ID, "wow"), limit = 1),
+            ListQuery(Condition.startsWith(MessageRecords.AGGREGATE_ID, ""), limit = 1),
+            ListQuery(Condition.startsWith(MessageRecords.AGGREGATE_ID, "wow", ignoreCase = true), limit = 1),
+            ListQuery(Condition.eq("state.unindexed", "value"), limit = 1),
+            ListQuery(Condition.isIn(MessageRecords.AGGREGATE_ID, List(1001) { it }), limit = 1),
             ListQuery(Condition(operator = Operator.IDS, value = List(1001) { it }), limit = 1),
             ListQuery(Condition(operator = Operator.AGGREGATE_IDS, value = List(1001) { it }), limit = 1),
             ListQuery(Condition.ALL, limit = 1, sort = listOf(Sort("state.unindexed", Sort.Direction.ASC))),
-            ListQuery(Condition.and(List(65) { Condition.eq("state.value$it", it) }), limit = 1),
+            ListQuery(Condition.and(List(65) { Condition.eq(MessageRecords.AGGREGATE_ID, it) }), limit = 1),
         ).forEach { query ->
             guard().filter(listContext(query), unexpectedBackend())
                 .writeRawRequest(request)
@@ -164,12 +167,15 @@ class HttpQueryGuardFilterTest {
     fun `should allow indexed sort fields explicitly`() {
         val context = listContext(
             ListQuery(
-                Condition.ALL,
+                Condition.eq("state.status", "ACTIVE"),
                 limit = 1,
                 sort = listOf(Sort("state.createdAt", Sort.Direction.DESC)),
             ),
         )
-        guard(allowedSortFields = setOf("state.createdAt")).filter(
+        guard(
+            allowedSortFields = setOf("state.createdAt"),
+            allowedConditionFields = setOf("state.status"),
+        ).filter(
             context,
             FilterChain {
                 it.asListQuery<Any>().setResult(Flux.empty())
@@ -226,7 +232,7 @@ class HttpQueryGuardFilterTest {
     @Test
     fun `should run before concrete abac filters in the real snapshot chain`() {
         val handler = snapshotQueryHandler(
-            guard = guard(maxConditionNodes = 1),
+            guard = guard(maxConditionNodes = 1, allowedConditionFields = setOf("state.status")),
             abacQueryFilter = TestAbacQueryFilter,
         )
 
@@ -319,6 +325,7 @@ class HttpQueryGuardFilterTest {
         maxConditionNodes: Int = 64,
         maxConditionValues: Int = 1000,
         allowedSortFields: Set<String> = emptySet(),
+        allowedConditionFields: Set<String> = emptySet(),
         allowRaw: Boolean = false,
         allowExpensiveOperators: Boolean = false,
         idleTimeout: Duration = Duration.ofSeconds(10),
@@ -329,6 +336,7 @@ class HttpQueryGuardFilterTest {
         maxConditionNodes = maxConditionNodes,
         maxConditionValues = maxConditionValues,
         allowedSortFields = allowedSortFields,
+        allowedConditionFields = allowedConditionFields,
         allowRaw = allowRaw,
         allowExpensiveOperators = allowExpensiveOperators,
         idleTimeout = idleTimeout,

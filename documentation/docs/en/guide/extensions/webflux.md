@@ -93,8 +93,9 @@ plus `wow-webflux` for these properties to be bound.
 | `query.max-condition-nodes` | `Int` | `64` | Maximum number of HTTP query condition nodes; `0` disables the cap |
 | `query.max-condition-values` | `Int` | `1000` | Maximum values in HTTP `IN`, `NOT_IN`, `ALL_IN`, `IDS`, or `AGGREGATE_IDS` conditions; `0` disables the cap |
 | `query.allowed-sort-fields` | `Set<String>` | `[]` | Indexed logical fields allowed for explicit HTTP sorting; an empty set rejects all explicit sorts |
+| `query.allowed-condition-fields` | `Set<String>` | `[]` | Additional indexed logical fields allowed in HTTP predicates; an empty set keeps only built-in `aggregateId`, `version`, and fieldless metadata operators |
 | `query.allow-raw` | `Boolean` | `false` | Whether HTTP queries may use native `RAW` conditions |
-| `query.allow-expensive-operators` | `Boolean` | `false` | Whether HTTP queries may use `CONTAINS` and `ENDS_WITH` |
+| `query.allow-expensive-operators` | `Boolean` | `false` | Whether HTTP queries may use `CONTAINS`, `ENDS_WITH`, or empty/case-insensitive `STARTS_WITH` |
 | `query.idle-timeout` | `Duration` | `10s` | Maximum wait for the first JSON-array result or the next SSE result; `0s` disables the timeout |
 
 ```yaml
@@ -113,6 +114,7 @@ wow:
       max-condition-nodes: 64
       max-condition-values: 1000
       allowed-sort-fields: []
+      allowed-condition-fields: []
       allow-raw: false
       allow-expensive-operators: false
       idle-timeout: 10s
