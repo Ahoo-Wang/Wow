@@ -89,6 +89,7 @@ class HttpQueryGuardFilterTest {
             ListQuery(Condition.isNull(MessageRecords.AGGREGATE_ID), limit = 1),
             ListQuery(Condition.notNull(MessageRecords.AGGREGATE_ID), limit = 1),
             ListQuery(Condition.exists(MessageRecords.AGGREGATE_ID, false), limit = 1),
+            ListQuery(Condition.spaceId("space-id"), limit = 1),
             ListQuery(Condition.eq("state.unindexed", "value"), limit = 1),
             ListQuery(Condition.eq(MessageRecords.VERSION, 1), limit = 1),
             ListQuery(Condition(operator = Operator.NE, value = "value"), limit = 1),
@@ -186,6 +187,15 @@ class HttpQueryGuardFilterTest {
             allowedConditionFields = setOf("state.status"),
         ).filter(
             context,
+            FilterChain {
+                it.asListQuery<Any>().setResult(Flux.empty())
+                Mono.empty()
+            },
+        ).writeRawRequest(request).test().verifyComplete()
+
+        val spaceContext = listContext(ListQuery(Condition.spaceId("space-id"), limit = 1))
+        guard(allowedConditionFields = setOf(MessageRecords.SPACE_ID)).filter(
+            spaceContext,
             FilterChain {
                 it.asListQuery<Any>().setResult(Flux.empty())
                 Mono.empty()

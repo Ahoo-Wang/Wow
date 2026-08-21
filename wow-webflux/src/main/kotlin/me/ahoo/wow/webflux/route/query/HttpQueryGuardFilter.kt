@@ -135,6 +135,7 @@ class HttpQueryGuardFilter(
                 "HTTP query condition nodes[$nodes] must not exceed $maxConditionNodes."
             }
             val effectiveField = when {
+                current.operator == Operator.SPACE_ID -> MessageRecords.SPACE_ID
                 current.field.isEmpty() -> ""
                 parentField.isEmpty() -> current.field
                 current.field == parentField || current.field.startsWith("$parentField.") -> current.field
@@ -271,7 +272,6 @@ class HttpQueryGuardFilter(
             Operator.AGGREGATE_IDS,
             Operator.TENANT_ID,
             Operator.OWNER_ID,
-            Operator.SPACE_ID,
             Operator.DELETED,
             Operator.ALL,
             Operator.RAW,
