@@ -29,6 +29,15 @@ EXPLICIT_ABSOLUTE_FILESYSTEM_PATTERN = re.compile(
 UNIX_ABSOLUTE_PATH_PATTERN = re.compile(
     r"(?<![A-Za-z0-9:./])/(?!/)[A-Za-z0-9._{}-]+(?:/[A-Za-z0-9._{}-]+)*"
 )
+GLOB_ARGUMENT_PATTERN = re.compile(r"--glob(?:=|\s+)(?:'[^']*'|\"[^\"]*\"|\S+)")
+HTTP_ROUTE_PREFIX_PATTERN = re.compile(
+    r"^/(?:api(?:/|$)|v\d+(?:/|$)|actuator(?:/|$)|swagger-ui(?:[./]|$)|wow(?:/|$))",
+    re.IGNORECASE,
+)
+HTTP_PATH_CONTEXT_PATTERN = re.compile(
+    r"\b(?:http|endpoint|route|request|browser|get|post|put|patch|delete|head|options)\b",
+    re.IGNORECASE,
+)
 FILESYSTEM_PATH_CONTEXT_PATTERN = re.compile(
     r"\b(?:read|open|inspect|load|write|edit|delete|remove|copy|move|execute|run|source|"
     r"cat|head|tail|less|more|rm|cp|mv|"
@@ -43,6 +52,21 @@ FILESYSTEM_ROOTS = {
 FILESYSTEM_SUFFIXES = {
     ".env", ".key", ".pem",
 }
+
+
+def _is_glob_argument(line: str, start: int, end: int) -> bool:
+    return any(match.start() <= start and end <= match.end() for match in GLOB_ARGUMENT_PATTERN.finditer(line))
+
+
+def _is_http_route(path: str, line: str) -> bool:
+    return (
+        HTTP_ROUTE_PREFIX_PATTERN.search(path) is not None
+        or ("{" in path and "}" in path)
+        or (
+            HTTP_PATH_CONTEXT_PATTERN.search(line) is not None
+            and FILESYSTEM_PATH_CONTEXT_PATTERN.search(line) is None
+        )
+    )
 
 
 def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -73,15 +97,17 @@ def _validate_filesystem_paths(
     for line in value.splitlines():
         for match in UNIX_ABSOLUTE_PATH_PATTERN.finditer(line):
             path = match.group(0)
-            if script and (path == "/dev/null" or "--glob" in line):
+            if script and (path == "/dev/null" or _is_glob_argument(line, match.start(), match.end())):
                 continue
             parts = path.lstrip("/").split("/")
-            if (
+            filesystem_marker = (
                 parts[0] in FILESYSTEM_ROOTS
                 or any(part.startswith(".") for part in parts)
                 or any(path.endswith(suffix) for suffix in FILESYSTEM_SUFFIXES)
-                or FILESYSTEM_PATH_CONTEXT_PATTERN.search(line) is not None
-            ):
+            )
+            if _is_http_route(path, line) and not filesystem_marker:
+                continue
+            if filesystem_marker or FILESYSTEM_PATH_CONTEXT_PATTERN.search(line) is not None:
                 errors.append(f"{source}: runtime content references an absolute filesystem path")
                 return
 

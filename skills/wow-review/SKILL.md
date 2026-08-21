@@ -1,13 +1,13 @@
 ---
 name: "wow-review"
-description: "Review downstream application code, diffs, or pull requests that use or introduce Wow and produce evidence-backed findings about correctness, compatibility, reactive behavior, and tests. Never activate for the Wow framework repository itself. Require scoped me.ahoo.wow imports, wow-* dependencies, or explicit Wow introduction; checkout-wide markers and generic DDD/CQRS terms are insufficient. Use for findings, merge readiness, and review-and-fix. Do not use for non-Wow scopes, diagnosis, development, or breaking migration/data-cutover review."
+description: "Review downstream application code, diffs, or pull requests that use or introduce Wow and produce evidence-backed findings about correctness, compatibility, reactive behavior, and tests. Never activate for the Wow framework repository itself. Require scoped me.ahoo.wow imports, wow-* dependencies, or an explicit request to review Wow use or introduction in a downstream application; checkout-wide markers and generic DDD/CQRS terms are insufficient. Use for findings, merge readiness, and review-and-fix. Do not use for non-Wow scopes, diagnosis, development, or breaking migration/data-cutover review."
 ---
 
 # Review Wow Changes
 
 ## Scope gate
 
-Before reviewing, confirm that the target is a downstream application rather than the Wow framework repository itself. Then require the review scope to use or introduce Wow, evidenced by scoped `me.ahoo.wow` imports, `wow-*` dependencies, or a request to review Wow introduction. Framework-repository modules, negated/comparative mentions, shared DDD/CQRS vocabulary, and application scopes without Wow semantics do not qualify. If no downstream scoped Wow evidence exists, state that this Skill does not apply and stop using it.
+Before reviewing, confirm that the target is a downstream application rather than the Wow framework repository itself. Then require scoped `me.ahoo.wow` imports, `wow-*` dependencies, or an explicit request to review Wow use or introduction in that downstream application. Framework-repository modules, negated/comparative mentions, shared DDD/CQRS vocabulary, and application scopes without Wow semantics do not qualify. If no downstream scoped Wow evidence exists, state that this Skill does not apply and stop using it.
 
 Own the complete review or review-and-fix task. Do not route to another Wow Skill.
 

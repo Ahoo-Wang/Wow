@@ -1,13 +1,13 @@
 ---
 name: "wow-develop"
-description: "Design, implement, test, refactor, or explain Wow behavior in downstream applications. Never activate for development of the Wow framework repository itself. Require the requested scope to use or explicitly adopt Wow, established by scoped me.ahoo.wow imports, wow-* dependencies, or explicit adoption; checkout-wide markers and generic DDD/CQRS terms are insufficient. Use for first-time adoption and routine same-major application upgrades. Do not use for unrelated code, diff review, diagnosis, release/build tooling, or breaking migration/data cutover."
+description: "Design, implement, test, refactor, or explain Wow behavior in downstream applications. Never activate for development of the Wow framework repository itself. Require scoped me.ahoo.wow imports, wow-* dependencies, or an explicit request to use, adopt, configure, or explain Wow in a downstream application; checkout-wide markers and generic DDD/CQRS terms are insufficient. Use for first-time adoption and routine same-major application upgrades. Do not use for unrelated code, diff review, diagnosis, release/build tooling, or breaking migration/data cutover."
 ---
 
 # Develop Wow Applications
 
 ## Scope gate
 
-Before doing development work, confirm that the target is a downstream application rather than the Wow framework repository itself. Then require the requested code/behavior scope to use or introduce Wow and scoped source to contain `me.ahoo.wow` imports or `wow-*` dependencies, or the task to explicitly adopt Wow. Framework-repository modules, markers elsewhere in a checkout, negated/comparative mentions, and generic Kotlin, Java, Spring, Reactor, DDD, CQRS, or Event Sourcing terms do not qualify. If no downstream scoped Wow evidence exists, state that this Skill does not apply and stop using it.
+Before doing development work, confirm that the target is a downstream application rather than the Wow framework repository itself. Then require scoped source to contain `me.ahoo.wow` imports or `wow-*` dependencies, or the task to explicitly request using, adopting, configuring, or explaining Wow in that downstream application. Framework-repository modules, markers elsewhere in a checkout, negated/comparative mentions, and generic Kotlin, Java, Spring, Reactor, DDD, CQRS, or Event Sourcing terms do not qualify. If no downstream scoped Wow evidence exists, state that this Skill does not apply and stop using it.
 
 Own the complete development task. Do not route to another Wow Skill.
 

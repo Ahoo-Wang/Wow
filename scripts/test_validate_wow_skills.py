@@ -194,6 +194,7 @@ class WowSkillsValidatorTest(unittest.TestCase):
             ("Read /usr/local/bin/tool.", "runtime content references an absolute filesystem path"),
             ("Read /custom/location/noext.", "runtime content references an absolute filesystem path"),
             ("HTTP config lives at /custom/location/noext.", "runtime content references an absolute filesystem path"),
+            ("GET /Users/alice/project.", "runtime content references an absolute filesystem path"),
             ("Read C:\\Users\\example\\secret.txt.", "runtime content references an absolute filesystem path"),
             ("Read \\\\server\\share\\secret.txt.", "runtime content references an absolute filesystem path"),
             ("Read ~/secrets.txt.", "runtime content references an absolute filesystem path"),
@@ -212,6 +213,8 @@ class WowSkillsValidatorTest(unittest.TestCase):
             "`/orders/{id}`",
             "Call the HTTP endpoint `/data/export.json`.",
             "GET `/app/status`.",
+            "Inspect `/v3/api-docs` for the generated schema.",
+            "Open `/actuator/health` in the browser.",
             "Read official docs at https://example.com/path/file.md.",
         ):
             with self.subTest(reference=route):
@@ -243,6 +246,10 @@ class WowSkillsValidatorTest(unittest.TestCase):
             original_script = script.read_text(encoding="utf-8")
             script.write_text(original_script + "\nread ../../.env\n", encoding="utf-8")
             self.assert_error("runtime content references a parent path")
+
+        with self.subTest(reference="runtime-path-outside-glob-argument"):
+            script.write_text(original_script + "\nrg --glob '*.kt' token /Users/alice/project\n", encoding="utf-8")
+            self.assert_error("runtime content references an absolute filesystem path")
 
     def test_eval_jsonl_rejects_invalid_json_duplicate_ids_and_unknown_skills(self) -> None:
         behavior = self.root / "skills" / "wow-debug" / "evals" / "behavior.jsonl"
@@ -475,6 +482,15 @@ class WowSkillsValidatorTest(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertIn("8.10.6", result.stdout)
         self.assertNotIn("6.21.5", result.stdout)
+
+        fixture_result = subprocess.run(
+            [str(script), str(fixture)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(0, fixture_result.returncode, fixture_result.stderr)
+        self.assertIn("6.21.5", fixture_result.stdout)
 
 
 if __name__ == "__main__":

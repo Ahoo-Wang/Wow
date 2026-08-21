@@ -52,7 +52,7 @@ common_globs=(
   --glob '!**/.gradle/**'
   --glob '!**/node_modules/**'
   --glob '!**/target/**'
-  --glob '!**/skills/**/evals/fixtures/**'
+  --glob '!skills/**/evals/fixtures/**'
   --glob '!**/package-lock.json'
   --glob '!**/npm-shrinkwrap.json'
   --glob '!**/pnpm-lock.yaml'
@@ -93,7 +93,7 @@ match_section() {
 
   local output
   local rg_status
-  if output="$(rg -n --only-matching --color never "$@" "${common_globs[@]}" -- "$pattern" "$scan_root")"; then
+  if output="$(cd "$scan_root" && rg -n --only-matching --color never "$@" "${common_globs[@]}" -- "$pattern" .)"; then
     :
   else
     rg_status=$?
