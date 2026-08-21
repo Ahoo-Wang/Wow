@@ -91,7 +91,7 @@ plus `wow-webflux` for these properties to be bound.
 | `query.max-page-size` | `Int` | `100` | Maximum HTTP page size; `0` disables the cap |
 | `query.max-page-window` | `Long` | `10000` | Maximum HTTP `index * size` page window; `0` disables the cap |
 | `query.max-condition-nodes` | `Int` | `64` | Maximum number of HTTP query condition nodes; `0` disables the cap |
-| `query.max-condition-values` | `Int` | `1000` | Maximum values in HTTP `IN`, `NOT_IN`, or `ALL_IN` conditions; `0` disables the cap |
+| `query.max-condition-values` | `Int` | `1000` | Maximum values in HTTP `IN`, `NOT_IN`, `ALL_IN`, `IDS`, or `AGGREGATE_IDS` conditions; `0` disables the cap |
 | `query.allow-raw` | `Boolean` | `false` | Whether HTTP queries may use native `RAW` conditions |
 | `query.allow-expensive-operators` | `Boolean` | `false` | Whether HTTP queries may use `CONTAINS` and `ENDS_WITH` |
 | `query.idle-timeout` | `Duration` | `10s` | Maximum wait for the first JSON-array result or the next SSE result; `0s` disables the timeout |

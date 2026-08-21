@@ -21,6 +21,7 @@ import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
@@ -79,6 +80,8 @@ class HttpQueryGuardFilterTest {
             ListQuery(Condition.contains("state.name", "wow"), limit = 1),
             ListQuery(Condition.endsWith("state.name", "wow"), limit = 1),
             ListQuery(Condition.isIn("state.id", List(1001) { it }), limit = 1),
+            ListQuery(Condition(operator = Operator.IDS, value = List(1001) { it }), limit = 1),
+            ListQuery(Condition(operator = Operator.AGGREGATE_IDS, value = List(1001) { it }), limit = 1),
             ListQuery(Condition.and(List(65) { Condition.eq("state.value$it", it) }), limit = 1),
         ).forEach { query ->
             guard().filter(listContext(query), unexpectedBackend())

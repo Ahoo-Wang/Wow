@@ -158,6 +158,12 @@ class HttpQueryGuardFilter(
 
     private companion object {
         val EXPENSIVE_OPERATORS = setOf(Operator.CONTAINS, Operator.ENDS_WITH)
-        val COLLECTION_OPERATORS = setOf(Operator.IN, Operator.NOT_IN, Operator.ALL_IN)
+        val COLLECTION_OPERATORS = setOf(
+            Operator.IN,
+            Operator.NOT_IN,
+            Operator.ALL_IN,
+            Operator.IDS,
+            Operator.AGGREGATE_IDS,
+        )
     }
 }

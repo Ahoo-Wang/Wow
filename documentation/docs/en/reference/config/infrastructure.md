@@ -177,7 +177,7 @@ snapshots.
 | `wow.webflux.query.max-page-size` | Integer | `100` | Maximum HTTP page size; `0` disables the cap |
 | `wow.webflux.query.max-page-window` | Long | `10000` | Maximum HTTP page window; `0` disables the cap |
 | `wow.webflux.query.max-condition-nodes` | Integer | `64` | Maximum HTTP query condition nodes; `0` disables the cap |
-| `wow.webflux.query.max-condition-values` | Integer | `1000` | Maximum values in HTTP `IN`, `NOT_IN`, or `ALL_IN` conditions; `0` disables the cap |
+| `wow.webflux.query.max-condition-values` | Integer | `1000` | Maximum values in HTTP `IN`, `NOT_IN`, `ALL_IN`, `IDS`, or `AGGREGATE_IDS` conditions; `0` disables the cap |
 | `wow.webflux.query.allow-raw` | Boolean | `false` | Allow native HTTP `RAW` queries |
 | `wow.webflux.query.allow-expensive-operators` | Boolean | `false` | Allow HTTP `CONTAINS`/`ENDS_WITH` queries |
 | `wow.webflux.query.idle-timeout` | Duration | `10s` | Timeout for the first JSON-array result or next SSE result; `0s` disables it |
