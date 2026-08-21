@@ -63,6 +63,7 @@ abstract class AbstractMongoQueryService<R : Any> : QueryService<R> {
     }
 
     private fun listDocument(listQuery: IListQuery): Flux<Document> {
+        require(listQuery.limit >= 0) { "limit must be greater than or equal to 0." }
         return findDocument(listQuery)
             .limit(listQuery.limit)
             .toFlux()
