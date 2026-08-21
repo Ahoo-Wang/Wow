@@ -181,7 +181,7 @@ snapshots.
 | `wow.webflux.query.allowed-sort-fields` | Set<String> | `[]` | Indexed logical fields allowed for explicit HTTP sorting; an empty set rejects all explicit sorts and `["*"]` disables the restriction |
 | `wow.webflux.query.allowed-condition-fields` | Set<String> | `[]` | Additional indexed logical fields allowed in HTTP predicates; an empty set keeps only built-in fields and `["*"]` disables the restriction |
 | `wow.webflux.query.allow-raw` | Boolean | `false` | Allow native HTTP `RAW` queries |
-| `wow.webflux.query.allow-expensive-operators` | Boolean | `false` | Allow HTTP negative/expensive string operators or unfiltered count/paged queries |
+| `wow.webflux.query.allow-expensive-operators` | Boolean | `false` | Allow HTTP negative/existence/expensive string operators or unfiltered count/paged queries |
 | `wow.webflux.query.idle-timeout` | Duration | `10s` | Maximum wait between results or completion; JSON arrays are buffered before commit, while SSE remains streaming; `0s` disables it |
 | `wow.webflux.command.request.appender.agent.enabled` | Boolean | `true` | Append the client `User-Agent` to the command request context (set `false` to disable) |
 | `wow.webflux.command.request.appender.ip.enabled` | Boolean | `true` | Append the client IP to the command request context (set `false` to disable) |

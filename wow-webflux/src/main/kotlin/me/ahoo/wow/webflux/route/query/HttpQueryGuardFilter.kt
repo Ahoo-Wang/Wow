@@ -203,6 +203,7 @@ class HttpQueryGuardFilter(
 
     private fun Condition.isExpensive(): Boolean =
         operator in EXPENSIVE_OPERATORS ||
+            operator == Operator.EXISTS && value == false ||
             operator == Operator.STARTS_WITH && ((value as? String).isNullOrEmpty() || ignoreCase() == true)
 
     private fun Condition.isAggregateIdScoped(): Boolean = when (operator) {
@@ -254,6 +255,8 @@ class HttpQueryGuardFilter(
             Operator.NE,
             Operator.NOT_IN,
             Operator.NOR,
+            Operator.NULL,
+            Operator.NOT_NULL,
             Operator.CONTAINS,
             Operator.ENDS_WITH,
         )

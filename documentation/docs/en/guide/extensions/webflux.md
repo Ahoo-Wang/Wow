@@ -95,7 +95,7 @@ plus `wow-webflux` for these properties to be bound.
 | `query.allowed-sort-fields` | `Set<String>` | `[]` | Indexed logical fields allowed for explicit HTTP sorting; an empty set rejects all explicit sorts and `["*"]` disables the restriction |
 | `query.allowed-condition-fields` | `Set<String>` | `[]` | Additional indexed logical fields allowed in HTTP predicates; an empty set keeps built-in `aggregateId`, aggregate-ID-scoped `version`, and fieldless logical/metadata operators, while `["*"]` disables the restriction |
 | `query.allow-raw` | `Boolean` | `false` | Whether HTTP queries may use native `RAW` conditions |
-| `query.allow-expensive-operators` | `Boolean` | `false` | Whether HTTP queries may use negative/expensive string operators or unfiltered count/paged queries |
+| `query.allow-expensive-operators` | `Boolean` | `false` | Whether HTTP queries may use negative/existence/expensive string operators or unfiltered count/paged queries |
 | `query.idle-timeout` | `Duration` | `10s` | Maximum wait between results or completion; JSON arrays are buffered before the response is committed, while SSE remains streaming; `0s` disables the timeout |
 
 ```yaml
