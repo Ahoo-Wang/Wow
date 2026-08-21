@@ -21,16 +21,6 @@ Own the complete development task. Do not route to another Wow Skill.
 - Use RED→GREEN→REFACTOR for behavior changes. If a change is not testable at the unit level, name the narrowest replacement evidence before editing.
 - Report exact commands, results, changed behavior, and remaining uncertainty.
 
-## Workflow
-
-1. **Frame**: state the requested outcome, writable scope, compatibility boundary, and completion evidence.
-2. **Discover**: inspect the actual build descriptors (`settings.gradle(.kts)`, `build.gradle(.kts)`, or `pom.xml`), relevant source, neighboring implementations, tests, configuration, generated contracts, and recent diffs.
-3. **Model**: identify the responsible boundary, invariant, message flow, failure behavior, and required compatibility.
-4. **Prove**: for read-only guidance, verify the requested facts against current source and tests. For an authorized behavior change, add or tighten the smallest failing test or name equivalent pre-change evidence.
-5. **Change**: only within the authorized writable scope, implement the smallest coherent design; avoid introducing a second source of truth.
-6. **Verify**: run the narrowest relevant test/check first, then broaden only when risk requires it.
-7. **Report**: distinguish verified behavior from inference and list every unverified external boundary.
-
 ## Load one domain reference first
 
 | Primary scope | Load |
@@ -47,15 +37,6 @@ Load a second reference only when the task genuinely crosses domains. Read only 
 
 ## Source discovery
 
-Start with `rg --files` and `rg`. Resolve actual module names instead of assuming placeholders.
-
-```bash
-rg -n "@AggregateRoot|@OnCommand|@OnSourcing|@StatelessSaga|@ProjectionProcessor|@EventProcessor" . -g '*.kt' -g '*.java'
-rg -n "AggregateSpec<|SagaSpec<|aggregateVerifier|sagaVerifier" . -g '*.kt' -g '*.java'
-rg -n "@ConfigurationProperties|class .*Properties" . -g '*.kt' -g '*.java'
-rg -n "WowRuntime|RuntimeComponent|WowRuntimeLifecycle|GracefullyStoppable" . -g '*.kt' -g '*.java'
-```
-
 For an annotation, configuration property, DSL method, gateway API, or generated contract:
 
 1. Find its definition.
@@ -64,14 +45,9 @@ For an annotation, configuration property, DSL method, gateway API, or generated
 4. Compare the target module's usage.
 5. Update generated outputs only through their source or generator.
 
-## Implementation gates
+## Shared gates
 
-- Do not mutate aggregate state from command handlers.
-- Keep sourcing deterministic and side-effect free.
-- Test every material branch, including no-event/no-command and error paths.
-- Test projection and processor retry/idempotency at the runtime layer that owns them.
 - Do not introduce blocking or manual subscription into reactive runtime paths.
-- Inspect current `@ConfigurationProperties` before changing configuration examples.
 - Verify event/schema/API compatibility when changing public messages or metadata.
 - Use the assertion style already established by the target module; Kotlin Wow tests normally use `me.ahoo.test.asserts.assert` and `.assert()`.
 
