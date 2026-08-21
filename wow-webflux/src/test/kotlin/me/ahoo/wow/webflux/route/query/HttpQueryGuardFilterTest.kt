@@ -228,6 +228,13 @@ class HttpQueryGuardFilterTest {
         ).writeRawRequest(request).test()
             .expectError(IllegalArgumentException::class.java)
             .verify()
+
+        guard.filter(
+            listContext(ListQuery(Condition.elemMatch("state.unindexed", Condition.ALL), limit = 1)),
+            unexpectedBackend(),
+        ).writeRawRequest(request).test()
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
     }
 
     @Test
@@ -235,6 +242,18 @@ class HttpQueryGuardFilterTest {
         guard().filter(countContext(Condition.ALL), unexpectedBackend())
             .writeRawRequest(request)
             .test()
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
+
+        guard().filter(
+            countContext(
+                Condition.or(
+                    Condition.ALL,
+                    Condition.eq(MessageRecords.AGGREGATE_ID, "aggregate-id"),
+                ),
+            ),
+            unexpectedBackend(),
+        ).writeRawRequest(request).test()
             .expectError(IllegalArgumentException::class.java)
             .verify()
 
