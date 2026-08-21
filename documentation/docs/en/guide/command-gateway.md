@@ -10,7 +10,7 @@ It is an extension of the command bus, not only responsible for command transmis
 
 ## Send Command
 
-![Send Command - Command Gateway](../../public/images/command-gateway/send-command.svg)
+![Send Command - Command Gateway](/images/command-gateway/send-command.svg)
 
 ## API Usage
 
@@ -548,7 +548,7 @@ Currently supported command wait plans include:
 ### CommandWait
 
 <p align="center" style="text-align:center;">
-  <img  width="95%" src="../../public/images/wait/CommandWait.svg" alt="CommandWait"/>
+  <img  width="95%" src="/images/wait/CommandWait.svg" alt="CommandWait"/>
 </p>
 
 The waiting signals supported by `CommandWait` are as follows:
@@ -673,7 +673,7 @@ At runtime, `WaitPlan` remains immutable intent. `WaitCoordinator` registers exa
 ### Chain Wait Plan
 
 <p align="center" style="text-align:center;">
-  <img  width="95%" src="../../public/images/wait/CommandWaitChain.svg" alt="Chain wait plan"/>
+  <img  width="95%" src="/images/wait/CommandWaitChain.svg" alt="Chain wait plan"/>
 </p>
 
 

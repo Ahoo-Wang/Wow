@@ -9,7 +9,7 @@ description: Wow 提供实时聚合根状态事件和命令作为商业智能分
 
 <center>
 
-![事件溯源 VS 传统架构](../../public/images/eventstore/eventsourcing.svg)
+![事件溯源 VS 传统架构](/images/eventstore/eventsourcing.svg)
 </center>
 
 传统实时 ETL 通常要经过 `DB -> CDC -> Process -> DB`。CDC 记录的是数据变化，分析端还需要从变化中还原业务语义。Wow 直接发布带业务语义的命令与状态事件，并生成 ClickHouse 同步及展开 SQL，缩短实时分析链路。
@@ -19,7 +19,7 @@ description: Wow 提供实时聚合根状态事件和命令作为商业智能分
 - 最新状态视图（`*_state_last`）：每个租户、聚合根的最新状态。
 - 快照展开视图：将聚合内的一对一和一对多结构展开为关系化视图。
 
-![商业智能](../../public/images/bi/bi.svg)
+![商业智能](/images/bi/bi.svg)
 
 ## 生成与获取 ETL 脚本
 

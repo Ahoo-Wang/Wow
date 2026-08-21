@@ -74,7 +74,7 @@ flowchart TB
 
 ## 控制台截图
 
-![Event-Compensation-Dashboard](../../../public/images/compensation/dashboard.png)
+![Event-Compensation-Dashboard](/images/compensation/dashboard.png)
 
 ## 详细文档
 

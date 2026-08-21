@@ -74,7 +74,7 @@ flowchart TB
 
 ## Console Screenshot
 
-![Event-Compensation-Dashboard](../../../public/images/compensation/dashboard.png)
+![Event-Compensation-Dashboard](/images/compensation/dashboard.png)
 
 ## Detailed Documentation
 

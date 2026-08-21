@@ -1,243 +1,102 @@
 ---
 title: 故障排查
-description: Wow 框架常见问题的诊断和解决方案。
+description: 按命令、聚合、事件存储、投影与 Saga 阶段定位 Wow 故障，并收集可复现证据。
+outline: deep
 ---
 
-# 故障排查指南
+# 故障排查
 
-本指南提供 Wow 框架常见问题的诊断和解决方案。
+排障的目标不是先扩大超时，而是回答两个问题：**消息最后到达了哪个阶段？下一个阶段为什么没有完成？**
 
-## 常见问题 FAQ
+::: warning 超时不等于命令失败
+调用方超时只表示没有在截止时间前观测到目标信号。命令可能尚未处理、正在处理，或已经完成但结果信号未到达。在确认状态前，不要用新 `requestId` 盲目重试。
+:::
 
-### 1. 命令处理相关
+## 先收集最小证据包
 
-#### Q: 命令处理超时
+在修改配置或代码前，保留以下信息：
 
-**现象**：命令发送后长时间没有响应，最终超时。
+- Wow 版本、JDK 版本与启用的 `wow-*` 模块。
+- 完整异常链，不只是最后一行。
+- `commandId`、`requestId`、`contextName`、`aggregateName`、`aggregateId` 和已知的聚合版本。
+- 调用方请求的 `CommandStage` 与最后观测到的 `CommandResult.stage`。
+- 生效的 `wow.*`、`spring.*` 后端配置（密码、Token 和 URI 凭据必须脱敏）。
+- 同一时间窗口内的日志、span、指标、消费积压和存储健康状态。
 
-**可能原因**：
-1. 消息总线连接问题
-2. 命令处理器未正确注册
-3. 聚合根加载失败
-4. 事件存储连接问题
-
-**排查步骤**：
-
-```kotlin
-// 检查命令是否被正确接收
-logging.level:
-  me.ahoo.wow.command: DEBUG
-  me.ahoo.wow.bus: DEBUG
-```
-
-**解决方案**：
-- 检查 Kafka/Redis 连接配置
-- 确认聚合根类使用了 `@AggregateRoot` 注解
-- 验证 EventStore 连接状态
-- 增加命令超时时间
-
-#### Q: 重复命令执行
-
-**现象**：同一命令被执行多次。
-
-**可能原因**：
-1. 客户端重试
-2. 幂等性检查未启用
-3. 消息总线重复投递
-
-**解决方案**：
+临时提高 Wow 日志级别时，优先在可复现环境中开启，并限制时间窗口：
 
 ```yaml
-wow:
-  command:
-    idempotency:
-      enabled: true
-      bloom-filter:
-        ttl: PT60S
-```
-
-#### Q: 命令验证失败
-
-**现象**：`CommandValidationException` 异常。
-
-**排查步骤**：
-1. 检查命令字段是否符合验证规则
-2. 检查 JSR-303 验证注解配置
-
-```kotlin
-data class CreateOrder(
-    @field:NotBlank val customerId: String,
-    @field:Size(min = 1) val items: List<OrderItem>
-)
-```
-
-### 2. 事件处理相关
-
-#### Q: 事件投影延迟
-
-**现象**：领域事件发布后，投影更新延迟严重。
-
-**可能原因**：
-1. 消费者处理能力不足
-2. 事件积压
-3. 投影处理器阻塞
-
-**排查步骤**：
-
-```yaml
-# 启用投影处理器日志
 logging:
   level:
-    me.ahoo.wow.projection: DEBUG
+    me.ahoo.wow: DEBUG
 ```
 
-**解决方案**：
-- 增加消费者实例数量
-- 优化投影处理器性能
-- 使用 `@Blocking` 标记阻塞操作
+Debug 日志可能包含业务标识和消息上下文；不要在生产环境长期开启，也不要将未脱敏日志附到公开 Issue。
+
+## 症状到阶段的速查表
+
+| 症状 | 先确认 | 最常见的下一步 |
+| --- | --- | --- |
+| 命令没有任何结果 | 是否到达 `SENT` | 检查 CommandBus 连接、路由和发送错误 |
+| 只到 `SENT` | 聚合元数据和处理函数是否注册 | 检查 KSP 输出、限界上下文和聚合加载 |
+| 只到 `PROCESSED` | 实际等待的是否为 `SNAPSHOT`、`PROJECTED` 或 `SAGA_HANDLED` | 进入对应处理器，核对目标函数和消费积压 |
+| HTTP 写入成功，立即查询不到 | 写入等待阶段是否覆盖该投影 | 使用精确 `PROJECTED` 目标，不要固定 `sleep` |
+| 同一事件的副作用重复执行 | 处理器是否幂等 | 先修正副作用幂等，再分析重投或 ACK |
+| 聚合加载慢 | 加载了多少事件，是否命中快照 | 检查快照策略与 EventStore 查询延迟 |
+| 启动时缺少 Bean 或聚合 | 依赖、capability 和自动配置条件是否成立 | 打开 Spring condition report，核对配置键 |
+| 关停卡住 | 哪个运行时组件仍有活动任务 | 按[运行时生命周期](./advanced/runtime-lifecycle.md)核对拥有权和超时 |
+
+## 命令超时
+
+### 1. 先确认等待的阶段
+
+| 阶段 | 表示 | 未到达时检查 |
+| --- | --- | --- |
+| `SENT` | 命令已被命令总线接受 | CommandBus 实现、网络、序列化和路由 |
+| `PROCESSED` | 聚合决策与事件追加已完成 | 处理函数注册、聚合加载、业务异常和 EventStore |
+| `SNAPSHOT` | 快照处理已完成 | 状态事件总线、快照处理器和 SnapshotStore |
+| `PROJECTED` | 特定投影函数已完成 | 目标函数是否匹配、投影异常、消费积压和读库 |
+| `EVENT_HANDLED` | 特定事件处理函数已完成 | 处理器过滤、重试、补偿和外部依赖 |
+| `SAGA_HANDLED` | 特定 Saga 函数已处理源事件 | Saga 匹配、处理异常和派生命令发送；该阶段不代表下游命令已完成 |
+
+等待函数型阶段时，还要核对 `contextName`、`processorName` 和 `functionName`。目标函数写错时，其他投影或 Saga 完成也不会满足等待计划。
+
+### 2. 用同一组标识追踪链路
+
+从 HTTP 请求或 `CommandResult` 取得 `commandId` 和 `requestId`，在日志与 span 中追踪同一条链路。不要依赖固定英文日志文本；日志消息可随实现演进，标识与阶段更稳定。
+
+### 3. 不要用超时掩盖根因
+
+- `SENT` 都未到达：延长 `PROJECTED` 超时没有意义。
+- 总在 `PROCESSED` 后超时：优先检查目标投影/Saga 和消费积压。
+- 只有少数请求超时：对比聚合热点、事件数量、后端延迟和重试。
+
+详细等待契约见[命令网关](./command-gateway.md#等待计划)。
+
+## 聚合、幂等与并发异常
+
+### `DuplicateRequestIdException`
+
+表示同一聚合上的 `requestId` 重复。先判断这是客户端对同一逻辑请求的重试，还是错误复用了标识。对同一逻辑请求，重试时应保留原 `requestId`；换新标识会绕过幂等保护。
+
+### `DuplicateAggregateIdException`
+
+创建命令尝试初始化已存在的聚合。核对 ID 生成、创建语义和客户端重试，不要把它当作普通版本冲突无限重试。
+
+### `EventVersionConflictException`
+
+表示事件流的预期版本与存储中的当前版本不同。Wow 会对可恢复异常执行有限重试，但持续冲突通常意味着聚合是写入热点或业务边界需要调整。记录冲突频率和聚合标识，不要把无限重试当作解决方案。
+
+## 元数据或处理函数未注册
+
+典型表现是运行时无法找到 context、aggregate 或处理函数。
+
+1. 确认领域模块应用 KSP 并引入 `wow-compiler`。
+2. 确认聚合类和处理函数符合[建模约定](./modeling.md#约定)。
+3. 清理并重新编译相关模块，然后检查生成的 `META-INF/wow-metadata.json`。
+4. 确认宿主服务实际依赖了该领域模块。
 
 ```kotlin
-@ProjectionProcessor
-class OrderProjection {
-    @OnEvent
-    @Blocking
-    fun onOrderCreated(event: OrderCreated) {
-        // IO 密集型操作
-    }
-}
-```
-
-#### Q: 事件处理失败
-
-**现象**：事件处理抛出异常，事件重复消费。
-
-**解决方案**：
-- 配置重试策略
-- 使用事件补偿机制
-
-```kotlin
-@OnEvent
-@Retry(maxRetries = 3)
-fun onOrderCreated(event: OrderCreated) {
-    // 可能失败的操作
-}
-```
-
-### 3. 事件溯源相关
-
-#### Q: 版本冲突异常
-
-**现象**：`EventVersionConflictException` 异常。
-
-**原因**：并发修改同一聚合根。
-
-**解决方案**：
-- 这是正常的乐观锁行为
-- 框架会自动重试
-- 如果频繁发生，考虑优化业务流程
-
-#### Q: 聚合根加载缓慢
-
-**现象**：聚合根加载时间过长。
-
-**可能原因**：
-1. 事件数量过多
-2. 未启用快照
-3. EventStore 查询性能问题
-
-**解决方案**：
-
-```yaml
-wow:
-  eventsourcing:
-    snapshot:
-      enabled: true
-      strategy: all
-```
-
-#### Q: 快照不一致
-
-**现象**：快照状态与事件回放结果不一致。
-
-**可能原因**：
-1. 事件溯源方法 (`onSourcing`) 实现错误
-2. 状态字段未正确更新
-
-**排查步骤**：
-1. 检查所有 `onSourcing` 方法的实现
-2. 使用测试套件验证事件溯源
-
-```kotlin
-class OrderSpec : AggregateSpec<Order, OrderState>({
-    on {
-        whenCommand(CreateOrder(...)) {
-            expectEventType(OrderCreated::class)
-            expectState {
-                // 验证状态
-            }
-        }
-    }
-})
-```
-
-### 4. 连接问题
-
-#### Q: Kafka 连接失败
-
-**现象**：`TimeoutException: Failed to update metadata`
-
-**解决方案**：
-1. 检查 `bootstrap-servers` 配置
-2. 验证网络连通性
-3. 确认 Kafka 服务状态
-
-```yaml
-wow:
-  kafka:
-    bootstrap-servers:
-      - kafka-0:9092
-      - kafka-1:9092
-```
-
-#### Q: MongoDB 连接超时
-
-**现象**：`MongoTimeoutException`
-
-**解决方案**：
-1. 检查 MongoDB URI 配置
-2. 增加连接池大小
-3. 验证网络延迟
-
-```yaml
-spring:
-  mongodb:
-    uri: mongodb://localhost:27017/wow_db?connectTimeoutMS=5000&socketTimeoutMS=5000
-```
-
-#### Q: Redis 连接失败
-
-**现象**：`RedisConnectionFailureException`
-
-**解决方案**：
-1. 检查 Redis 服务状态
-2. 验证密码配置
-3. 检查网络防火墙
-
-### 5. 配置问题
-
-#### Q: 元数据未加载
-
-**现象**：运行时聚合元数据缺失（例如 `MetadataSearcher` 解析不到 context/aggregate，或框架报告该聚合未注册）。
-
-**可能原因**：
-1. 未使用 wow-compiler
-2. 元数据文件未生成
-3. 限界上下文配置错误
-
-**解决方案**：
-
-```kotlin
-// build.gradle.kts
 plugins {
     id("com.google.devtools.ksp")
 }
@@ -247,117 +106,43 @@ dependencies {
 }
 ```
 
-检查生成的元数据文件：`build/generated/ksp/main/resources/META-INF/wow-metadata.json`
+## 投影延迟或重复副作用
 
-#### Q: Bean 装配失败
+### 先区分积压与单次处理慢
 
-**现象**：`NoSuchBeanDefinitionException`
+- **积压增长**：检查消费并发度、分区、实例数、持续失败和下游容量。
+- **单次处理慢**：从 span 或处理时间分布定位外部 I/O、大对象序列化或读库写入。
+- **只有等待超时**：核对 `PROJECTED` 目标函数；处理器可能已完成，但不匹配等待目标。
 
-**排查步骤**：
-1. 检查依赖是否正确引入
-2. 验证自动配置条件
-3. 检查 `@ConditionalOnProperty` 配置
+优先使用响应式客户端。只有处理函数确实调用不可避免的阻塞 API 时，才使用 `@Blocking` 显式隔离；它不会修复慢查询或下游容量不足。
 
-```yaml
-# 确保基础配置正确
-wow:
-  enabled: true
-```
+### 处理器必须可重试
 
-## 性能问题诊断
+不要把分布式消息投递当作“恰好一次”。以业务唯一键、事件 ID 或目标版本建立幂等写入，并在重试前确认外部副作用的当前状态。对无法自动恢复的失败，进入[事件补偿](./event-compensation.md)流程。
 
-### 响应延迟分析
+## 聚合加载慢或快照异常
 
-```yaml
-# 启用详细日志
-logging:
-  level:
-    me.ahoo.wow: DEBUG
-```
+1. 记录聚合当前版本、快照版本和本次重放的事件数。
+2. 分开测量 SnapshotStore 加载、EventStore 加载和溯源函数执行时间。
+3. 如果快照与完整事件重放结果不同，先停止依赖该快照的读取路径，用聚合规格测试检查每个 `onSourcing` 函数。
+4. 调整快照策略前，先用实际事件分布验证收益；不要只因单个热聚合就全局改策略。
 
-### 监控指标
+配置和语义见[快照](./snapshot.md)。
 
-建议监控以下指标：
+## 连接与自动配置
 
-| 指标 | 说明 | 告警阈值 |
-|------|------|---------|
-| 命令处理延迟 | 命令发送到处理完成的时间 | > 1s |
-| 事件投影延迟 | 事件发布到投影更新的时间 | > 5s |
-| 聚合根加载时间 | 从存储加载聚合根的时间 | > 500ms |
-| 消息队列积压 | 待处理消息数量 | > 10000 |
+### 先隔离框架与外部后端
 
-### 性能调优建议
+在本地或最小复现中，可暂时使用内存实现确认领域模型与路由是否正常：
 
-1. **启用 LocalFirst 模式**
 ```yaml
 wow:
+  kafka:
+    enabled: false
   command:
     bus:
-      local-first:
-        enabled: true
-```
-
-2. **优化快照策略**
-```yaml
-wow:
-  eventsourcing:
-    snapshot:
-      strategy: all
-```
-
-3. **调整连接池**
-```yaml
-spring:
-  mongodb:
-    uri: mongodb://localhost:27017/wow_db?minPoolSize=10&maxPoolSize=100
-```
-
-## 日志分析
-
-### 启用调试日志
-
-```yaml
-logging:
-  level:
-    me.ahoo.wow: DEBUG
-    me.ahoo.wow.command: TRACE
-    me.ahoo.wow.eventsourcing: TRACE
-    me.ahoo.wow.projection: DEBUG
-```
-
-### 关键日志模式
-
-| 日志模式 | 说明 |
-|---------|------|
-| `Command received` | 命令已接收 |
-| `Command processed` | 命令处理完成 |
-| `Event appended` | 事件已追加 |
-| `Snapshot saved` | 快照已保存 |
-| `Projection updated` | 投影已更新 |
-
-### 错误日志分析
-
-```
-ERROR - EventVersionConflictException: version conflict for aggregate[order:order-001]
-```
-
-**分析**：并发写入导致版本冲突，框架会自动重试。
-
-```
-ERROR - DuplicateRequestIdException: duplicate request[req-001]
-```
-
-**分析**：幂等性检查阻止了重复请求，这是正常行为。
-
-## 调试技巧
-
-### 本地调试
-
-1. 使用内存实现进行快速测试：
-
-```yaml
-wow:
-  command:
+      type: in_memory
+  event:
     bus:
       type: in_memory
   eventsourcing:
@@ -365,34 +150,44 @@ wow:
       storage: in_memory
     snapshot:
       storage: in_memory
+    state:
+      bus:
+        type: in_memory
 ```
 
-2. 使用测试套件验证业务逻辑：
+如果内存路径通过而外部后端失败，再进入 [Kafka](./extensions/kafka.md)、[MongoDB](./extensions/mongo.md)、[Redis](./extensions/redis.md) 或 [Elasticsearch](./extensions/elasticsearch.md) 页面。该方法只用于定位，不是生产降级方案。
 
-```kotlin
-class OrderSpec : AggregateSpec<Order, OrderState>({
-    // 测试用例
-})
-```
+### Bean 装配失败
 
-### 远程调试
+1. 检查对应模块或 starter capability 是否在运行时 classpath。
+2. 打开 Spring Boot condition evaluation report，查看具体哪个 `@Conditional*` 未满足。
+3. 核对配置前缀和默认值，使用[配置参考](../reference/config/core.md)而不是猜测配置键。
+4. 检查是否同时提供了多个候选实现，或用自定义 Bean 覆盖了自动配置。
 
-1. 启用 JMX 监控
-2. 使用分布式追踪（OpenTelemetry）
+## 性能与告警
 
-```yaml
-wow:
-  opentelemetry:
-    enabled: true
-```
+没有通用的“命令 1 秒”或“投影 5 秒”告警阈值。阈值应来自应用 SLO、当前代码与硬件上的基线，并区分 p50、p95、p99 和最大值。
 
-## 获取帮助
+建议至少观测：
 
-如果以上解决方案无法解决您的问题，请：
+- 按 `CommandStage` 分解的端到端延迟。
+- 聚合加载时间、重放事件数和版本冲突率。
+- EventStore/SnapshotStore 读写延迟与错误率。
+- 命令、事件、投影和 Saga 的消费积压与失败率。
+- 重试、补偿和不可恢复任务数量。
 
-1. 查阅 [GitHub Issues](https://github.com/Ahoo-Wang/Wow/issues)
-2. 提交新 Issue 并提供：
-   - Wow 框架版本
-   - 完整的错误堆栈
-   - 相关配置
-   - 最小可复现示例
+对当前版本建立可复现性能基线时，使用[测试运行体系](./test-runtime.md#基准-smoke)中的 JMH 任务。
+
+## 提交可诊断的 Issue
+
+如果仍无法定位，在 [GitHub Issues](https://github.com/Ahoo-Wang/Wow/issues) 搜索完整异常类名和 `errorCode`。新 Issue 至少应包含：
+
+- Wow/JDK 版本与依赖模块。
+- 期望阶段、实际最后阶段和完整异常链。
+- 脱敏后的有关配置。
+- 最小可复现示例或可执行失败测试。
+- 如涉及外部后端，提供后端版本、拓扑和健康/积压证据。
+
+::: tip
+一个能稳定失败的最小测试，比一整段脱离上下文的 Debug 日志更容易解决问题。
+:::

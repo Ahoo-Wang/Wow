@@ -1,243 +1,102 @@
 ---
-title: Troubleshooting Guide
-description: Diagnostics and solutions for common issues with the Wow framework.
+title: Troubleshooting
+description: Locate Wow failures by command, aggregate, event-store, projection, and saga stage, then collect reproducible evidence.
+outline: deep
 ---
 
-# Troubleshooting Guide
+# Troubleshooting
 
-This guide provides diagnostics and solutions for common issues with the Wow framework.
+Troubleshooting should answer two questions before increasing a timeout: **what was the last completed stage, and why did the next stage not complete?**
 
-## Frequently Asked Questions
+::: warning A timeout is not proof that a command failed
+A caller timeout only means the target signal was not observed before its deadline. The command may be unprocessed, still processing, or complete with a result signal that did not arrive. Do not retry with a new `requestId` until you establish the current state.
+:::
 
-### 1. Command Processing
+## Collect a Minimal Evidence Bundle First
 
-#### Q: Command Processing Timeout
+Before changing configuration or code, preserve:
 
-**Symptom**: Command sent but no response for a long time, eventually timeout.
+- Wow version, JDK version, and enabled `wow-*` modules.
+- The complete exception chain, not only its last line.
+- `commandId`, `requestId`, `contextName`, `aggregateName`, `aggregateId`, and any known aggregate version.
+- The requested `CommandStage` and last observed `CommandResult.stage`.
+- Effective `wow.*` and backend `spring.*` configuration, with passwords, tokens, and URI credentials redacted.
+- Logs, spans, metrics, consumer lag, and backend health from the same time window.
 
-**Possible Causes**:
-1. Message bus connection issues
-2. Command processor not properly registered
-3. Aggregate root loading failure
-4. Event store connection issues
-
-**Troubleshooting Steps**:
-
-```kotlin
-// Check if command is received correctly
-logging.level:
-  me.ahoo.wow.command: DEBUG
-  me.ahoo.wow.bus: DEBUG
-```
-
-**Solutions**:
-- Check Kafka/Redis connection configuration
-- Confirm aggregate root class uses `@AggregateRoot` annotation
-- Verify EventStore connection status
-- Increase command timeout
-
-#### Q: Duplicate Command Execution
-
-**Symptom**: Same command executed multiple times.
-
-**Possible Causes**:
-1. Client retry
-2. Idempotency check not enabled
-3. Message bus duplicate delivery
-
-**Solution**:
+Raise Wow logging only in a reproducible environment and for a bounded time window:
 
 ```yaml
-wow:
-  command:
-    idempotency:
-      enabled: true
-      bloom-filter:
-        ttl: PT60S
-```
-
-#### Q: Command Validation Failure
-
-**Symptom**: `CommandValidationException` exception.
-
-**Troubleshooting Steps**:
-1. Check if command fields comply with validation rules
-2. Check JSR-303 validation annotation configuration
-
-```kotlin
-data class CreateOrder(
-    @field:NotBlank val customerId: String,
-    @field:Size(min = 1) val items: List<OrderItem>
-)
-```
-
-### 2. Event Processing
-
-#### Q: Event Projection Delay
-
-**Symptom**: After domain event is published, projection update is severely delayed.
-
-**Possible Causes**:
-1. Consumer processing capacity insufficient
-2. Event backlog
-3. Projection processor blocking
-
-**Troubleshooting Steps**:
-
-```yaml
-# Enable projection processor logging
 logging:
   level:
-    me.ahoo.wow.projection: DEBUG
+    me.ahoo.wow: DEBUG
 ```
 
-**Solutions**:
-- Increase consumer instance count
-- Optimize projection processor performance
-- Use `@Blocking` annotation for blocking operations
+Debug logs may contain business identifiers and message context. Do not enable them indefinitely in production or attach unredacted logs to a public issue.
+
+## Symptom-to-Stage Quick Reference
+
+| Symptom | Confirm first | Most common next step |
+| --- | --- | --- |
+| A command returns no result | Did it reach `SENT`? | Check CommandBus connectivity, routing, and send errors |
+| It reaches only `SENT` | Is aggregate metadata and its handler registered? | Check KSP output, bounded context, and aggregate loading |
+| It reaches only `PROCESSED` | Is the target `SNAPSHOT`, `PROJECTED`, or `SAGA_HANDLED`? | Inspect that processor, target function, and consumer lag |
+| HTTP write succeeds but an immediate query is stale | Does the write wait for the relevant projection? | Use a precise `PROJECTED` target instead of fixed sleep |
+| A side effect runs more than once for one event | Is the handler idempotent? | Fix side-effect idempotency before investigating redelivery or ACK behavior |
+| Aggregate loading is slow | How many events replayed, and was a snapshot used? | Inspect snapshot policy and EventStore query latency |
+| Startup misses a bean or aggregate | Are dependencies, capability, and auto-configuration conditions present? | Open the Spring condition report and verify property keys |
+| Shutdown hangs | Which runtime component still owns active work? | Follow [Runtime Lifecycle](./advanced/runtime-lifecycle.md) ownership and timeout checks |
+
+## Command Timeouts
+
+### 1. Confirm the requested stage
+
+| Stage | Meaning | If it is missing, inspect |
+| --- | --- | --- |
+| `SENT` | The command bus accepted the command | CommandBus implementation, network, serialization, and routing |
+| `PROCESSED` | Aggregate decision and event append completed | Handler registration, aggregate load, business errors, and EventStore |
+| `SNAPSHOT` | Snapshot processing completed | State-event bus, snapshot processor, and SnapshotStore |
+| `PROJECTED` | A specific projection function completed | Target matching, projection errors, consumer lag, and read storage |
+| `EVENT_HANDLED` | A specific event processor completed | Handler filters, retry, compensation, and external dependencies |
+| `SAGA_HANDLED` | A specific saga function handled the source event | Saga matching, handler errors, and derived-command send; it does not mean the downstream command completed |
+
+For function-scoped stages, also verify `contextName`, `processorName`, and `functionName`. Completion of another projection or saga does not satisfy a mismatched target.
+
+### 2. Trace one identity through the pipeline
+
+Take `commandId` and `requestId` from the HTTP request or `CommandResult` and follow those identities through logs and spans. Do not rely on fixed English log text: message wording may evolve, while identifiers and stages are the stable evidence.
+
+### 3. Do not hide the cause with a larger timeout
+
+- If `SENT` is missing, increasing a `PROJECTED` timeout cannot help.
+- If requests consistently stop after `PROCESSED`, inspect the target projection or saga and its consumer lag.
+- If only a small fraction time out, compare aggregate hot spots, replay length, backend latency, and retries.
+
+See [Command Gateway](./command-gateway.md#wait-plans) for the complete wait contract.
+
+## Aggregate, Idempotency, and Concurrency Errors
+
+### `DuplicateRequestIdException`
+
+The same `requestId` was used for the same aggregate. Determine whether this is a retry of one logical request or accidental identifier reuse. Retrying the same logical request should preserve its original `requestId`; replacing it bypasses idempotency protection.
+
+### `DuplicateAggregateIdException`
+
+A create command attempted to initialize an aggregate that already exists. Check ID generation, create semantics, and client retries. Do not treat it as an ordinary version conflict to retry indefinitely.
+
+### `EventVersionConflictException`
+
+The expected event-stream version differs from the stored version. Wow performs bounded retries for recoverable errors, but persistent conflicts usually indicate a hot aggregate or a business boundary that needs attention. Measure conflict frequency and affected aggregate identities; unlimited retry is not a fix.
+
+## Missing Metadata or Handler Registration
+
+Typical symptoms say the runtime cannot find a context, aggregate, or handler.
+
+1. Confirm the domain module applies KSP and depends on `wow-compiler`.
+2. Confirm the aggregate and handlers follow the [modeling conventions](./modeling.md#conventions).
+3. Clean and rebuild the affected module, then inspect generated `META-INF/wow-metadata.json`.
+4. Confirm the host service actually depends on that domain module.
 
 ```kotlin
-@ProjectionProcessor
-class OrderProjection {
-    @OnEvent
-    @Blocking
-    fun onOrderCreated(event: OrderCreated) {
-        // IO intensive operation
-    }
-}
-```
-
-#### Q: Event Processing Failure
-
-**Symptom**: Event processing throws exception, event consumed repeatedly.
-
-**Solution**:
-- Configure retry strategy
-- Use event compensation mechanism
-
-```kotlin
-@OnEvent
-@Retry(maxRetries = 3)
-fun onOrderCreated(event: OrderCreated) {
-    // Operation that may fail
-}
-```
-
-### 3. Event Sourcing
-
-#### Q: Version Conflict Exception
-
-**Symptom**: `EventVersionConflictException` exception.
-
-**Cause**: Concurrent modification of the same aggregate root.
-
-**Solution**:
-- This is normal optimistic locking behavior
-- Framework will automatically retry
-- If frequent, consider optimizing business process
-
-#### Q: Slow Aggregate Root Loading
-
-**Symptom**: Aggregate root loading takes too long.
-
-**Possible Causes**:
-1. Too many events
-2. Snapshots not enabled
-3. EventStore query performance issue
-
-**Solution**:
-
-```yaml
-wow:
-  eventsourcing:
-    snapshot:
-      enabled: true
-      strategy: all
-```
-
-#### Q: Snapshot Inconsistency
-
-**Symptom**: Snapshot state is inconsistent with event replay result.
-
-**Possible Causes**:
-1. Event sourcing method (`onSourcing`) implementation error
-2. State fields not properly updated
-
-**Troubleshooting Steps**:
-1. Check all `onSourcing` method implementations
-2. Use test suite to verify event sourcing
-
-```kotlin
-class OrderSpec : AggregateSpec<Order, OrderState>({
-    on {
-        whenCommand(CreateOrder(...)) {
-            expectEventType(OrderCreated::class)
-            expectState {
-                // Verify state
-            }
-        }
-    }
-})
-```
-
-### 4. Connection Issues
-
-#### Q: Kafka Connection Failure
-
-**Symptom**: `TimeoutException: Failed to update metadata`
-
-**Solutions**:
-1. Check `bootstrap-servers` configuration
-2. Verify network connectivity
-3. Confirm Kafka service status
-
-```yaml
-wow:
-  kafka:
-    bootstrap-servers:
-      - kafka-0:9092
-      - kafka-1:9092
-```
-
-#### Q: MongoDB Connection Timeout
-
-**Symptom**: `MongoTimeoutException`
-
-**Solutions**:
-1. Check MongoDB URI configuration
-2. Increase connection pool size
-3. Verify network latency
-
-```yaml
-spring:
-  mongodb:
-    uri: mongodb://localhost:27017/wow_db?connectTimeoutMS=5000&socketTimeoutMS=5000
-```
-
-#### Q: Redis Connection Failure
-
-**Symptom**: `RedisConnectionFailureException`
-
-**Solutions**:
-1. Check Redis service status
-2. Verify password configuration
-3. Check network firewall
-
-### 5. Configuration Issues
-
-#### Q: Metadata Not Loaded
-
-**Symptom**: Aggregate metadata is missing at runtime (for example `MetadataSearcher` resolves no context/aggregate, or the framework reports that the aggregate is not registered).
-
-**Possible Causes**:
-1. wow-compiler not used
-2. Metadata file not generated
-3. Bounded context configuration error
-
-**Solution**:
-
-```kotlin
-// build.gradle.kts
 plugins {
     id("com.google.devtools.ksp")
 }
@@ -247,117 +106,43 @@ dependencies {
 }
 ```
 
-Check generated metadata file: `build/generated/ksp/main/resources/META-INF/wow-metadata.json`
+## Projection Lag or Duplicate Side Effects
 
-#### Q: Bean Wiring Failure
+### Separate backlog from slow single-message processing
 
-**Symptom**: `NoSuchBeanDefinitionException`
+- **Growing backlog**: inspect consumer concurrency, partitions, instances, persistent failures, and downstream capacity.
+- **Slow individual processing**: use spans or processing-time distributions to locate external I/O, large serialization, or read-store writes.
+- **Wait timeout only**: verify the `PROJECTED` target function. Processing may have completed without matching the wait target.
 
-**Troubleshooting Steps**:
-1. Check if dependencies are correctly imported
-2. Verify auto-configuration conditions
-3. Check `@ConditionalOnProperty` configuration
+Prefer reactive clients. Use `@Blocking` only to isolate an unavoidable blocking API; it cannot repair a slow query or insufficient downstream capacity.
 
-```yaml
-# Ensure basic configuration is correct
-wow:
-  enabled: true
-```
+### Handlers must be retry-safe
 
-## Performance Issue Diagnosis
+Do not assume distributed delivery is exactly once. Use a business key, event ID, or target version for idempotent writes, and check an external side effect's state before retrying it. Route failures that cannot recover automatically through [Event Compensation](./event-compensation.md).
 
-### Response Latency Analysis
+## Slow Aggregate Loads or Snapshot Problems
 
-```yaml
-# Enable detailed logging
-logging:
-  level:
-    me.ahoo.wow: DEBUG
-```
+1. Record the aggregate version, snapshot version, and number of replayed events.
+2. Measure SnapshotStore loading, EventStore loading, and sourcing-handler execution separately.
+3. If a snapshot differs from full event replay, stop relying on that snapshot path and use aggregate specification tests to check every sourcing handler.
+4. Validate a snapshot-strategy change against the real event distribution before changing it globally for one hot aggregate.
 
-### Monitoring Metrics
+See [Snapshot](./snapshot.md) for configuration and semantics.
 
-The following metrics should be monitored:
+## Connectivity and Auto-Configuration
 
-| Metric | Description | Alert Threshold |
-|------|------|---------|
-| Command processing latency | Time from command sent to processing complete | > 1s |
-| Event projection latency | Time from event published to projection updated | > 5s |
-| Aggregate root loading time | Time to load aggregate root from storage | > 500ms |
-| Message queue backlog | Number of pending messages | > 10000 |
+### Isolate framework behavior from an external backend
 
-### Performance Tuning Recommendations
+For a local minimal reproduction, temporarily use in-memory implementations:
 
-1. **Enable LocalFirst Mode**
 ```yaml
 wow:
+  kafka:
+    enabled: false
   command:
     bus:
-      local-first:
-        enabled: true
-```
-
-2. **Optimize Snapshot Strategy**
-```yaml
-wow:
-  eventsourcing:
-    snapshot:
-      strategy: all
-```
-
-3. **Adjust Connection Pool**
-```yaml
-spring:
-  mongodb:
-    uri: mongodb://localhost:27017/wow_db?minPoolSize=10&maxPoolSize=100
-```
-
-## Log Analysis
-
-### Enable Debug Logging
-
-```yaml
-logging:
-  level:
-    me.ahoo.wow: DEBUG
-    me.ahoo.wow.command: TRACE
-    me.ahoo.wow.eventsourcing: TRACE
-    me.ahoo.wow.projection: DEBUG
-```
-
-### Key Log Patterns
-
-| Log Pattern | Description |
-|---------|------|
-| `Command received` | Command has been received |
-| `Command processed` | Command processing complete |
-| `Event appended` | Event has been appended |
-| `Snapshot saved` | Snapshot has been saved |
-| `Projection updated` | Projection has been updated |
-
-### Error Log Analysis
-
-```
-ERROR - EventVersionConflictException: version conflict for aggregate[order:order-001]
-```
-
-**Analysis**: Version conflict due to concurrent writes, framework will automatically retry.
-
-```
-ERROR - DuplicateRequestIdException: duplicate request[req-001]
-```
-
-**Analysis**: Idempotency check blocked duplicate request, this is normal behavior.
-
-## Debugging Tips
-
-### Local Debugging
-
-1. Use in-memory implementation for quick testing:
-
-```yaml
-wow:
-  command:
+      type: in_memory
+  event:
     bus:
       type: in_memory
   eventsourcing:
@@ -365,34 +150,44 @@ wow:
       storage: in_memory
     snapshot:
       storage: in_memory
+    state:
+      bus:
+        type: in_memory
 ```
 
-2. Use test suite to verify business logic:
+If the in-memory path passes and an external backend fails, continue with [Kafka](./extensions/kafka.md), [MongoDB](./extensions/mongo.md), [Redis](./extensions/redis.md), or [Elasticsearch](./extensions/elasticsearch.md). This is a diagnostic isolation technique, not a production fallback.
 
-```kotlin
-class OrderSpec : AggregateSpec<Order, OrderState>({
-    // Test cases
-})
-```
+### Bean assembly failures
 
-### Remote Debugging
+1. Check that the required module or starter capability is on the runtime classpath.
+2. Open Spring Boot's condition evaluation report and identify the exact failed `@Conditional*` condition.
+3. Verify prefixes and defaults against [Configuration Reference](../reference/config/core.md) instead of guessing property names.
+4. Check for multiple candidate implementations or a custom bean that overrides auto-configuration.
 
-1. Enable JMX monitoring
-2. Use distributed tracing (OpenTelemetry)
+## Performance and Alerting
 
-```yaml
-wow:
-  opentelemetry:
-    enabled: true
-```
+There is no universal "one-second command" or "five-second projection" alert threshold. Derive thresholds from the application SLO and a baseline for the current code and hardware; distinguish p50, p95, p99, and maximum values.
 
-## Getting Help
+At minimum, observe:
 
-If the above solutions cannot resolve your issue, please:
+- End-to-end latency decomposed by `CommandStage`.
+- Aggregate-load duration, replayed-event count, and version-conflict rate.
+- EventStore and SnapshotStore read/write latency and error rate.
+- Command, event, projection, and saga lag and failure rates.
+- Retry, compensation, and unrecoverable-task counts.
 
-1. Check [GitHub Issues](https://github.com/Ahoo-Wang/Wow/issues)
-2. Submit a new Issue with:
-   - Wow framework version
-   - Complete error stack trace
-   - Related configuration
-   - Minimal reproducible example
+Use the JMH tasks in [Test Runtime](./test-runtime.md#benchmark-smoke) for a reproducible baseline of the current version.
+
+## File a Diagnosable Issue
+
+If the cause is still unclear, search [GitHub Issues](https://github.com/Ahoo-Wang/Wow/issues) by full exception class and `errorCode`. A new issue should include:
+
+- Wow/JDK versions and dependency modules.
+- Requested stage, actual last stage, and complete exception chain.
+- Relevant redacted configuration.
+- A minimal reproducer or executable failing test.
+- For external backends, backend version, topology, and health or lag evidence.
+
+::: tip
+A minimal test that fails reliably is more useful than a large block of debug logs without its execution context.
+:::

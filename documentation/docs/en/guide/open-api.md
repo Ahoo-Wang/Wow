@@ -42,7 +42,7 @@ implementation("org.springdoc:springdoc-openapi-starter-webflux-ui")
 
 > Swagger-UI is an API documentation tool based on the OpenAPI specification, which can be used to view and test API interfaces through Swagger-UI.
 
-![Swagger-UI](../../public/images/compensation/open-api.png)
+![Swagger-UI](/images/compensation/open-api.png)
 
 ## Aggregate Resource Ownership
 

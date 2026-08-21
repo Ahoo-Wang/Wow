@@ -3,7 +3,7 @@ import {DefaultTheme} from "vitepress/types/default-theme";
 export const navbarEn: DefaultTheme.NavItem[] = [
     {
         text: 'Guide',
-        link: '/guide/getting-started',
+        link: '/guide/',
         activeMatch: '^/guide/'
     },
     {

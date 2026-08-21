@@ -299,7 +299,7 @@ This means developers usually only need to focus on writing domain models to com
 
 The examples below query the `sales-order` aggregate for `tenant-1`. All four requests describe the same synthetic snapshot, so their conditions and response counts stay consistent.
 
-![Query Service](../../public/images/query/open-api-query.png)
+![Query Service](/images/query/open-api-query.png)
 
 ### Paged Query
 

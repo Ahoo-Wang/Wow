@@ -7,6 +7,34 @@ description: Get started with the Wow framework using the project template to qu
 
 > Use the [Wow Project Template](https://github.com/Ahoo-Wang/wow-project-template) to quickly create a DDD project based on the _Wow_ framework.
 
+This page completes one minimal vertical slice: start the service, open Swagger UI, and use a domain test to verify **command → event → state**.
+
+## Before You Start
+
+- JDK 17 or later.
+- Git.
+- Use the checked-in Gradle Wrapper; no global Gradle installation is required.
+- The template defaults to in-memory buses, event storage, and snapshot storage, so the first run does not require Kafka, MongoDB, or Redis.
+
+::: warning Confirm the version first
+The Wow Project Template evolves independently and is not guaranteed to match the Wow source tag documented by this site. After creating a project, inspect the template's [`gradle/libs.versions.toml`](https://github.com/Ahoo-Wang/wow-project-template/blob/main/gradle/libs.versions.toml), then pin the version for your selected [Wow release](https://github.com/Ahoo-Wang/Wow/releases).
+:::
+
+## The 10-Minute Path
+
+1. Create a repository from the template and clone it locally.
+2. Change `rootProject.name` in `settings.gradle.kts` to your project name.
+3. Run the domain checks and start the service:
+
+```shell
+./gradlew :domain:check
+./gradlew :server:run
+```
+
+4. Open [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html).
+
+When the domain tests pass and Swagger UI is reachable, the first-run baseline is complete. The remaining sections explain how to understand and replace the template's `Demo` model.
+
 ## Create Project
 
 [![Use this template](https://img.shields.io/badge/Use%20this%20template-2ea44f?style=for-the-badge&logo=github)](https://github.com/new?template_name=wow-project-template&template_owner=Ahoo-Wang)
@@ -18,23 +46,24 @@ Click the button above to create a new repository from [Wow Project Template](ht
 - Modify `domain/{package}/DemoBoundedContext`
 
 
-## Project Modules
+## Project Structure
 
-| Module                   | Description                                                                                                                                |
-|----------------------|-----------------------------------------------------------------------------------------------------------------------------------|
-| api                  | **API Layer**, defines aggregate commands (Command), domain events (Domain Event), and query view models (Query View Model). Acts as the "published language" for communication between modules, while providing detailed API documentation to help developers understand and use the interfaces.             |
-| domain               | **Domain Layer**, contains aggregate root and business constraint implementations. The aggregate root serves as the entry point for the domain model, responsible for coordinating domain object operations and ensuring correct execution of business rules. Business constraints include domain object validation rules, domain event processing, etc. The module includes detailed domain model documentation to help the team deeply understand the business logic.                 |
-| server               | **Host Service**, the application startup point. Responsible for integrating other modules and providing the application entry point. Involves configuring dependencies, connecting to databases, starting API services, etc. Additionally, the server module provides containerized deployment support, including Docker image building and Kubernetes deployment files, simplifying the deployment process. |
-| client               | **Client Library**, uses [fetcher-generator](https://github.com/Ahoo-Wang/fetcher) to automatically generate TypeScript client libraries, providing type-safe API call interfaces for convenient interaction between frontend or other services and the backend.      |
-| code-coverage-report | **Test Coverage**, used to generate detailed test coverage reports and verify that coverage meets requirements. Helps development teams understand the comprehensiveness and quality of project testing.                                                                       |
-| dependencies         | **Dependency Management**, this module is responsible for managing project dependencies, ensuring that modules can correctly reference and use required external libraries and tools.                                                                              |
-| bom                  | **Project BOM (Bill of Materials)**                                                                                                    |
-| libs.versions.toml   | **Dependency Version Configuration File**, clearly defines the versions of various libraries in the project, facilitating team collaboration and maintaining version consistency.                                                                                        |
-| deploy               | **Kubernetes Deployment Files**, provides configuration files needed to deploy applications on Kubernetes, simplifying the deployment process.                                                                       |
-| Dockerfile           | **Server Docker Build Image**, defines the containerized build steps for the application through the Dockerfile, facilitating deployment and scaling.                                                                   |
-| document             | **Project Documentation**, includes UML diagrams and context maps, providing team members with a clear understanding of the overall project structure and business logic.                                                                               |
+| Directory/file | Responsibility |
+| --- | --- |
+| `api` | Commands, domain events, and query view models that form the published language between modules |
+| `domain` | Aggregates, business invariants, sourcing handlers, and domain tests |
+| `server` | Host wiring for the domain and Wow extensions, plus the application entry point and `Dockerfile` |
+| `config` | Versioned starting points for application and environment configuration |
+| `client` | Type-safe TypeScript clients generated with [fetcher-generator](https://github.com/Ahoo-Wang/fetcher) |
+| `code-coverage-report` | Aggregated coverage reports and verification gates |
+| `dependencies` / `bom` | Central dependency constraints and BOM publication |
+| `gradle/libs.versions.toml` | Pinned Wow and third-party dependency versions |
+| `deploy` | Kubernetes manifests that require review for the target environment |
+| `document` | Context maps, UML, and other project-level design material |
 
-## Install _server_ Dependencies
+## Add External Infrastructure (Optional)
+
+Keep the template's `in_memory` configuration for the first run. Add an extension only when durable storage, multi-instance messaging, or a specific query backend becomes an actual requirement.
 
 1. Use _Kafka_ as the messaging engine: command bus and event bus
 
@@ -98,7 +127,9 @@ implementation 'me.ahoo.cosid:cosid-mongo'
 ```
 :::
 
-## Application Configuration
+## External Infrastructure Configuration Example
+
+The following example replaces the in-memory first-run setup with Kafka and MongoDB. It is a configuration starting point, not a production manifest: authentication, TLS, capacity, backup/restore, and alerting must be designed for the target environment.
 
 ```yaml {20,23,29,34}
 management:
@@ -138,11 +169,15 @@ wow:
 
 ## Start Service
 
-![Start Service](../../public/images/getting-started/run-server.png)
+```shell
+./gradlew :server:run
+```
+
+![Start Service](/images/getting-started/run-server.png)
 
 > Access: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
 
-![Swagger-UI](../../public/images/getting-started/swagger-ui.png)
+![Swagger-UI](/images/getting-started/swagger-ui.png)
 
 ## Domain Modeling
 
@@ -235,14 +270,21 @@ class DemoSpec : AggregateSpec<Demo, DemoState>({
 })
 ```
 
-## CI Verification
+## Verify Changes
 
-The Wow repository uses GitHub Actions and JDK 17. Before submitting changes, run the same core checks locally:
+In an application created from the template, begin with the narrow checks that directly cover the domain model:
 
 ```shell
-./gradlew allLocalTest
-./gradlew allContractTest
+./gradlew :domain:check
+./gradlew :domain:jacocoTestCoverageVerification
 ./gradlew detekt
 ```
 
-The authoritative workflow definitions are [Local Test](https://github.com/Ahoo-Wang/Wow/blob/main/.github/workflows/local-test.yml), [Contract Test](https://github.com/Ahoo-Wang/Wow/blob/main/.github/workflows/contract-test.yml), and [Static Analysis](https://github.com/Ahoo-Wang/Wow/blob/main/.github/workflows/static-analysis.yml). Application projects should add their own image publishing and deployment stages for the target registry and runtime instead of copying provider-specific credentials or pipeline templates.
+If you are changing the Wow framework itself, use the [Contributor Guide](../onboarding/contributor-guide.md) and [Test Runtime](./test-runtime.md) instead. Application repositories should design release and deployment for their own registry and runtime environment rather than copying a pipeline tied to a specific cloud provider or credential model.
+
+## Next Steps
+
+- Replace the example domain: [Aggregate Modeling](./modeling.md)
+- Understand write APIs and completion stages: [Command Gateway](./command-gateway.md)
+- Build a read model: [Projection](./projection.md) and [Query Service](./query.md)
+- Switch to external storage or messaging: [Configuration](./configuration.md) and [Extensions](./extensions/spring-boot-starter.md)

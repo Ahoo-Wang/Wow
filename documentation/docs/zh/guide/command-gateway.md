@@ -10,7 +10,7 @@ description: 命令网关是接收和发送命令的核心组件，负责处理�
 
 ## 发送命令
 
-![发送命令 - 命令网关](../../public/images/command-gateway/send-command.svg)
+![发送命令 - 命令网关](/images/command-gateway/send-command.svg)
 
 ## API 使用
 
@@ -548,7 +548,7 @@ wow:
 ### CommandWait
 
 <p align="center" style="text-align:center;">
-  <img  width="95%" src="../../public/images/wait/CommandWait.svg" alt="CommandWait"/>
+  <img  width="95%" src="/images/wait/CommandWait.svg" alt="CommandWait"/>
 </p>
 
 `CommandWait` 支持的等待信号如下：
@@ -673,7 +673,7 @@ graph TB
 ### 链式等待计划
 
 <p align="center" style="text-align:center;">
-  <img  width="95%" src="../../public/images/wait/CommandWaitChain.svg" alt="链式等待计划"/>
+  <img  width="95%" src="/images/wait/CommandWaitChain.svg" alt="链式等待计划"/>
 </p>
 
 

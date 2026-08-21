@@ -5,7 +5,7 @@ description: Wow 框架的端到端可观测性集成。
 
 # 可观测性
 
-![可观测性](../../../public/images/observability/observability.png)
+![可观测性](/images/observability/observability.png)
 
 Wow 通过两项互补的集成提供端到端可观测性：
 

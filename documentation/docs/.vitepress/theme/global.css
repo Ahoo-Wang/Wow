@@ -102,11 +102,11 @@
 */
 :root {
     --vp-sidebar-width: 200px;
-    --vp-layout-max-width: 100%;
+    --vp-layout-max-width: 1600px;
 }
 
 .VPDoc.has-aside .content-container {
-    max-width: var(--vp-layout-max-width) !important;
+    max-width: 960px !important;
 }
 
 /**

@@ -47,6 +47,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             text: '基础',
             collapsed: false,
             items: [
+                {text: '指南导览', link: ''},
                 {text: '简介', link: 'introduction'},
                 {text: '快速上手', link: 'getting-started'},
                 {text: '核心概念', link: 'core-concepts'},

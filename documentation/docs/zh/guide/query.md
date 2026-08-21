@@ -299,7 +299,7 @@ class DataFilterSnapshotQueryFilter : SnapshotQueryFilter {
 
 以下示例查询 `tenant-1` 的 `sales-order` 聚合。四个请求都描述同一条模拟快照，因此查询条件与响应数量保持一致。
 
-![Query Service](../../public/images/query/open-api-query.png)
+![Query Service](/images/query/open-api-query.png)
 
 ### 分页查询
 
