@@ -213,8 +213,8 @@ Field alias 继承其目标字段的查询与排序能力，并继续使用 alia
 非 Spring 场景可直接刷新默认构造路径持有的缓存：
 
 ```kotlin
-queryService.refreshIndexMapping()
-queryServiceFactory.refreshIndexMapping(namedAggregate)
+queryService.refreshIndexMapping().block()
+queryServiceFactory.refreshIndexMapping(namedAggregate).block()
 ```
 
 Factory 方法刷新该 Factory 创建的查询服务共享的 Resolver；直接构造的 `ElasticsearchSnapshotQueryService`

@@ -223,8 +223,8 @@ query implementation.
 Non-Spring construction paths can refresh their owned cache directly:
 
 ```kotlin
-queryService.refreshIndexMapping()
-queryServiceFactory.refreshIndexMapping(namedAggregate)
+queryService.refreshIndexMapping().block()
+queryServiceFactory.refreshIndexMapping(namedAggregate).block()
 ```
 
 The factory method refreshes the resolver shared by services created from that factory. A directly constructed
