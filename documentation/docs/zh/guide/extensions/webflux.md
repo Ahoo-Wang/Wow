@@ -91,10 +91,10 @@ data class CreateOrder(/* ... */)
 | `query.max-condition-nodes` | `Int` | `64` | HTTP 查询条件树的最大节点数；`0` 关闭上限 |
 | `query.max-condition-values` | `Int` | `1000` | HTTP `IN`、`NOT_IN`、`ALL_IN`、`IDS`、`AGGREGATE_IDS` 条件的最大值数量；`0` 关闭上限 |
 | `query.allowed-sort-fields` | `Set<String>` | `[]` | HTTP 显式排序允许的已索引逻辑字段；空集拒绝所有显式排序，`["*"]` 关闭限制 |
-| `query.allowed-condition-fields` | `Set<String>` | `[]` | HTTP 条件允许的额外已索引逻辑字段；空集仅保留内置 `aggregateId`、`version` 和无字段元数据操作符，`["*"]` 关闭限制 |
+| `query.allowed-condition-fields` | `Set<String>` | `[]` | HTTP 条件允许的额外已索引逻辑字段；空集仅保留内置 `aggregateId` 和无字段元数据操作符，`["*"]` 关闭限制 |
 | `query.allow-raw` | `Boolean` | `false` | 是否允许 HTTP 查询使用 `RAW` 原生条件 |
 | `query.allow-expensive-operators` | `Boolean` | `false` | 是否允许 HTTP 查询使用高成本字符串操作符及无过滤 count/paged 查询 |
-| `query.idle-timeout` | `Duration` | `10s` | 普通 JSON 数组等待首条结果、SSE 等待下一条结果的最长时间；`0s` 关闭超时 |
+| `query.idle-timeout` | `Duration` | `10s` | 等待下一条结果或完成的最长时间；普通 JSON 数组在提交响应前缓冲，SSE 保持流式；`0s` 关闭超时 |
 
 ```yaml
 wow:

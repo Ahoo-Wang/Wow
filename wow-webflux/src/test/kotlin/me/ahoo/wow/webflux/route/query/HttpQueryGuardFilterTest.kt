@@ -84,6 +84,7 @@ class HttpQueryGuardFilterTest {
             ListQuery(Condition.startsWith(MessageRecords.AGGREGATE_ID, ""), limit = 1),
             ListQuery(Condition.startsWith(MessageRecords.AGGREGATE_ID, "wow", ignoreCase = true), limit = 1),
             ListQuery(Condition.eq("state.unindexed", "value"), limit = 1),
+            ListQuery(Condition.eq(MessageRecords.VERSION, 1), limit = 1),
             ListQuery(Condition.isIn(MessageRecords.AGGREGATE_ID, List(1001) { it }), limit = 1),
             ListQuery(Condition(operator = Operator.IDS, value = List(1001) { it }), limit = 1),
             ListQuery(Condition(operator = Operator.AGGREGATE_IDS, value = List(1001) { it }), limit = 1),
@@ -337,6 +338,17 @@ class HttpQueryGuardFilterTest {
     }
 
     @Test
+    fun `should reject complementary counting branches`() {
+        val aggregateIdCondition = Condition.eq(MessageRecords.AGGREGATE_ID, "aggregate-id")
+        guard().filter(
+            countContext(Condition.or(aggregateIdCondition, Condition.nor(aggregateIdCondition))),
+            unexpectedBackend(),
+        ).writeRawRequest(request).test()
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
+    }
+
+    @Test
     fun `should apply idle timeout after backend result is installed`() {
         val context = pagedContext(PagedQuery(Condition.id("aggregate-id")))
         guard(idleTimeout = Duration.ofMillis(10)).filter(
@@ -363,7 +375,7 @@ class HttpQueryGuardFilterTest {
     }
 
     @Test
-    fun `json list should not time out after the first result`() {
+    fun `json list should time out before response when a later result stalls`() {
         val context = listContext(ListQuery(Condition.ALL, limit = 2))
         guard(idleTimeout = Duration.ofMillis(10)).filter(
             context,
@@ -378,7 +390,9 @@ class HttpQueryGuardFilterTest {
             },
         ).writeRawRequest(request).test().verifyComplete()
 
-        context.getRequiredResult().collectList().block()!!.assert().containsExactly("first", "second")
+        context.getRequiredResult().test()
+            .expectError(TimeoutException::class.java)
+            .verify()
     }
 
     @Test
@@ -407,12 +421,13 @@ class HttpQueryGuardFilterTest {
     }
 
     @Test
-    fun `built-in http route should map idle timeout and cancel backend`() {
+    fun `built-in http route should buffer json and map a later idle timeout`() {
         val cancelled = AtomicBoolean()
         val service = mockk<SnapshotQueryService<Any>> {
-            io.mockk.every { dynamicList(any()) } returns Flux.never<DynamicDocument>().doOnCancel {
-                cancelled.set(true)
-            }
+            io.mockk.every { dynamicList(any()) } returns Flux.concat(
+                Flux.just(mockk<DynamicDocument>()),
+                Flux.never(),
+            ).doOnCancel { cancelled.set(true) }
         }
         val factory = mockk<SnapshotQueryServiceFactory> {
             io.mockk.every { create<Any>(any()) } returns service

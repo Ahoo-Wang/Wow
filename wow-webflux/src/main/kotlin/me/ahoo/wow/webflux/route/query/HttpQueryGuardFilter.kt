@@ -33,6 +33,7 @@ import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.route.acceptsEventStream
 import org.springframework.web.reactive.function.server.ServerRequest
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.time.Duration
 import java.util.ArrayDeque
@@ -204,7 +205,7 @@ class HttpQueryGuardFilter(
             Operator.DELETED -> deletionState() == DeletionState.ALL
             Operator.NOT_IN -> values is Collection<*> && values.isEmpty()
             Operator.AND -> children.all { it.isMatchAll() }
-            Operator.OR -> children.any { it.isMatchAll() }
+            Operator.OR -> children.any { it.isMatchAll() } || children.hasMatchAllComplement()
             Operator.NOR -> children.all { it.isMatchNone() }
             else -> false
         }
@@ -218,13 +219,34 @@ class HttpQueryGuardFilter(
             Operator.AGGREGATE_IDS,
             -> values is Collection<*> && values.isEmpty()
 
-            Operator.AND -> children.any { it.isMatchNone() }
+            Operator.AND -> children.any { it.isMatchNone() } || children.hasMatchNoneConflict()
             Operator.OR -> children.all { it.isMatchNone() }
             Operator.NOR -> children.any { it.isMatchAll() }
             Operator.ELEM_MATCH -> children.singleOrNull()?.isMatchNone() == true
             else -> false
         }
     }
+
+    private fun List<Condition>.hasMatchAllComplement(): Boolean = any { negation ->
+        negation.operator == Operator.NOR &&
+            negation.children.isNotEmpty() &&
+            (
+                negation.children.all { it in this } ||
+                    any { it.operator == Operator.OR && it.children.sameMembers(negation.children) }
+                )
+    }
+
+    private fun List<Condition>.hasMatchNoneConflict(): Boolean = any { negation ->
+        negation.operator == Operator.NOR &&
+            negation.children.isNotEmpty() &&
+            (
+                negation.children.any { it in this } ||
+                    any { it.operator == Operator.OR && it.children.sameMembers(negation.children) }
+                )
+    }
+
+    private fun List<Condition>.sameMembers(other: List<Condition>): Boolean =
+        size == other.size && all { it in other } && other.all { it in this }
 
     private fun applyIdleTimeout(context: QueryContext<*, *>, request: ServerRequest) {
         if (idleTimeout.isZero) return
@@ -237,7 +259,9 @@ class HttpQueryGuardFilter(
                     if (request.acceptsEventStream()) {
                         it.timeout(idleTimeout)
                     } else {
-                        it.timeout(Mono.delay(idleTimeout))
+                        it.timeout(idleTimeout)
+                            .collectList()
+                            .flatMapMany(Flux<Any>::fromIterable)
                     }
                 }
 
@@ -250,7 +274,7 @@ class HttpQueryGuardFilter(
 
     private companion object {
         val EXPENSIVE_OPERATORS = setOf(Operator.CONTAINS, Operator.ENDS_WITH)
-        val BUILT_IN_CONDITION_FIELDS = setOf(MessageRecords.AGGREGATE_ID, MessageRecords.VERSION)
+        val BUILT_IN_CONDITION_FIELDS = setOf(MessageRecords.AGGREGATE_ID)
         val COUNTING_QUERY_TYPES = setOf(QueryType.PAGED, QueryType.DYNAMIC_PAGED, QueryType.COUNT)
         const val FIELD_WILDCARD = "*"
         val COLLECTION_OPERATORS = setOf(
