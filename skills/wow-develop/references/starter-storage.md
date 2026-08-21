@@ -17,7 +17,7 @@ In a separate checkout of the pinned Wow source, start with `wow-spring-boot-sta
 
 ## Decision sequence
 
-1. Resolve the actual dependency graph: Gradle applications select the intended capability/variant; Maven applications declare the corresponding Wow module explicitly and verify runtime scope.
+1. Resolve the actual dependency graph: for Gradle, use the target tag's official example and published module metadata to determine whether the base starter and each capability-qualified starter declaration are both required, then prove `compileClasspath` and `runtimeClasspath`; Maven applications declare the corresponding Wow module explicitly and verify runtime scope.
 2. Identify the property class and conditional auto-configuration that owns the behavior.
 3. Verify which store/bus bean is created and which route selects it.
 4. Check the bounded-context, aggregate, tenant, database/namespace, and ownership boundary.
@@ -27,7 +27,7 @@ In a separate checkout of the pinned Wow source, start with `wow-spring-boot-sta
 ## Safety rules
 
 - Do not infer a property from YAML examples; read its class and binding tests.
-- For Gradle, do not add a duplicate module when the intended feature is exposed through an existing capability/variant. For Maven, add the documented target Wow module explicitly when that capability is required and verify its runtime dependency graph.
+- For Gradle, do not replace a target-supported capability with a direct backend module. When target evidence requires both the base starter and a capability-qualified starter declaration, keep both; selecting the capability does not prove that the base API remains on the chosen variant. For Maven, add the documented target Wow module explicitly when that capability is required and verify its runtime dependency graph.
 - Do not change default storage or bus selection from a component benchmark alone.
 - Do not reuse a database, namespace, stream, or ownership marker across contexts without verifying the store contract.
 - Treat index reconciliation, batching, migration, and destructive initialization as operational behavior requiring explicit scope and rollback evidence.
