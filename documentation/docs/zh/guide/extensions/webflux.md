@@ -93,7 +93,7 @@ data class CreateOrder(/* ... */)
 | `query.allowed-sort-fields` | `Set<String>` | `[]` | HTTP 显式排序允许的已索引逻辑字段；空集拒绝所有显式排序，`["*"]` 关闭限制 |
 | `query.allowed-condition-fields` | `Set<String>` | `[]` | HTTP 条件允许的额外已索引逻辑字段；空集保留内置 `aggregateId`、受聚合 ID 约束的 `version` 以及无字段逻辑/元数据操作符，`["*"]` 关闭限制 |
 | `query.allow-raw` | `Boolean` | `false` | 是否允许 HTTP 查询使用 `RAW` 原生条件 |
-| `query.allow-expensive-operators` | `Boolean` | `false` | 是否允许 HTTP 查询使用高成本字符串操作符及无过滤 count/paged 查询 |
+| `query.allow-expensive-operators` | `Boolean` | `false` | 是否允许 HTTP 查询使用负向/高成本字符串操作符及无过滤 count/paged 查询 |
 | `query.idle-timeout` | `Duration` | `10s` | 等待下一条结果或完成的最长时间；普通 JSON 数组在提交响应前缓冲，SSE 保持流式；`0s` 关闭超时 |
 
 ```yaml

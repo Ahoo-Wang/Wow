@@ -126,7 +126,7 @@ class HttpQueryGuardFilter(
     private fun validateCondition(condition: Condition, rejectMatchAll: Boolean) {
         val pending = ArrayDeque<Pair<Condition, String>>()
         pending.add(condition to "")
-        val aggregateIdScoped = condition.isAggregateIdScoped()
+        val validatedNodes = mutableListOf<Pair<Condition, String>>()
         var nodes = 0
         while (pending.isNotEmpty()) {
             val (current, parentField) = pending.removeLast()
@@ -140,9 +140,13 @@ class HttpQueryGuardFilter(
                 current.field == parentField || current.field.startsWith("$parentField.") -> current.field
                 else -> "$parentField.${current.field}"
             }
-            validateConditionNode(current, effectiveField, aggregateIdScoped)
+            validatedNodes.add(current to effectiveField)
             val childParentField = if (current.operator == Operator.ELEM_MATCH) effectiveField else parentField
             current.children.forEach { pending.add(it to childParentField) }
+        }
+        val aggregateIdScoped = condition.isAggregateIdScoped()
+        validatedNodes.forEach { (current, effectiveField) ->
+            validateConditionNode(current, effectiveField, aggregateIdScoped)
         }
         require(!rejectMatchAll || !condition.isMatchAll()) {
             "HTTP counting query must not match all documents."
@@ -216,48 +220,10 @@ class HttpQueryGuardFilter(
             Operator.DELETED -> deletionState() == DeletionState.ALL
             Operator.NOT_IN -> values is Collection<*> && values.isEmpty()
             Operator.AND -> children.all { it.isMatchAll() }
-            Operator.OR -> children.any { it.isMatchAll() } || children.hasMatchAllComplement()
-            Operator.NOR -> children.all { it.isMatchNone() }
+            Operator.OR -> children.any { it.isMatchAll() }
             else -> false
         }
     }
-
-    private fun Condition.isMatchNone(): Boolean {
-        val values = value
-        return when (operator) {
-            Operator.IN,
-            Operator.IDS,
-            Operator.AGGREGATE_IDS,
-            -> values is Collection<*> && values.isEmpty()
-
-            Operator.AND -> children.any { it.isMatchNone() } || children.hasMatchNoneConflict()
-            Operator.OR -> children.all { it.isMatchNone() }
-            Operator.NOR -> children.any { it.isMatchAll() }
-            Operator.ELEM_MATCH -> children.singleOrNull()?.isMatchNone() == true
-            else -> false
-        }
-    }
-
-    private fun List<Condition>.hasMatchAllComplement(): Boolean = any { negation ->
-        negation.operator == Operator.NOR &&
-            negation.children.isNotEmpty() &&
-            (
-                negation.children.all { it in this } ||
-                    any { it.operator == Operator.OR && it.children.sameMembers(negation.children) }
-                )
-    }
-
-    private fun List<Condition>.hasMatchNoneConflict(): Boolean = any { negation ->
-        negation.operator == Operator.NOR &&
-            negation.children.isNotEmpty() &&
-            (
-                negation.children.any { it in this } ||
-                    any { it.operator == Operator.OR && it.children.sameMembers(negation.children) }
-                )
-    }
-
-    private fun List<Condition>.sameMembers(other: List<Condition>): Boolean =
-        size == other.size && all { it in other } && other.all { it in this }
 
     private fun applyIdleTimeout(context: QueryContext<*, *>, request: ServerRequest) {
         if (idleTimeout.isZero) return
@@ -284,7 +250,13 @@ class HttpQueryGuardFilter(
     }
 
     private companion object {
-        val EXPENSIVE_OPERATORS = setOf(Operator.CONTAINS, Operator.ENDS_WITH)
+        val EXPENSIVE_OPERATORS = setOf(
+            Operator.NE,
+            Operator.NOT_IN,
+            Operator.NOR,
+            Operator.CONTAINS,
+            Operator.ENDS_WITH,
+        )
         val BUILT_IN_CONDITION_FIELDS = setOf(MessageRecords.AGGREGATE_ID)
         val FIELDLESS_OPERATORS = setOf(
             Operator.AND,

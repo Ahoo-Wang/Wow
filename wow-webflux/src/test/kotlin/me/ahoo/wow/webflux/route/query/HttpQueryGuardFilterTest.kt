@@ -83,6 +83,9 @@ class HttpQueryGuardFilterTest {
             ListQuery(Condition.endsWith(MessageRecords.AGGREGATE_ID, "wow"), limit = 1),
             ListQuery(Condition.startsWith(MessageRecords.AGGREGATE_ID, ""), limit = 1),
             ListQuery(Condition.startsWith(MessageRecords.AGGREGATE_ID, "wow", ignoreCase = true), limit = 1),
+            ListQuery(Condition.ne(MessageRecords.AGGREGATE_ID, "aggregate-id"), limit = 1),
+            ListQuery(Condition.notIn(MessageRecords.AGGREGATE_ID, listOf("aggregate-id")), limit = 1),
+            ListQuery(Condition.nor(Condition.eq(MessageRecords.AGGREGATE_ID, "aggregate-id")), limit = 1),
             ListQuery(Condition.eq("state.unindexed", "value"), limit = 1),
             ListQuery(Condition.eq(MessageRecords.VERSION, 1), limit = 1),
             ListQuery(Condition(operator = Operator.NE, value = "value"), limit = 1),
@@ -318,33 +321,18 @@ class HttpQueryGuardFilterTest {
             it.asCountQuery().setResult(Mono.just(0))
             Mono.empty()
         }
-        listOf(
-            Condition.and(
-                Condition.ALL,
-                Condition.eq(MessageRecords.AGGREGATE_ID, "aggregate-id"),
-            ),
-            Condition.nor(Condition.ALL),
-        ).forEach { condition ->
-            guard().filter(countContext(condition), countBackend)
-                .writeRawRequest(request)
-                .test()
-                .verifyComplete()
-        }
+        val scopedCondition = Condition.and(
+            Condition.ALL,
+            Condition.eq(MessageRecords.AGGREGATE_ID, "aggregate-id"),
+        )
+        guard().filter(countContext(scopedCondition), countBackend)
+            .writeRawRequest(request)
+            .test()
+            .verifyComplete()
 
         guard().filter(pagedContext(PagedQuery(Condition.ALL)), unexpectedBackend())
             .writeRawRequest(request)
             .test()
-            .expectError(IllegalArgumentException::class.java)
-            .verify()
-    }
-
-    @Test
-    fun `should reject complementary counting branches`() {
-        val aggregateIdCondition = Condition.eq(MessageRecords.AGGREGATE_ID, "aggregate-id")
-        guard().filter(
-            countContext(Condition.or(aggregateIdCondition, Condition.nor(aggregateIdCondition))),
-            unexpectedBackend(),
-        ).writeRawRequest(request).test()
             .expectError(IllegalArgumentException::class.java)
             .verify()
     }
