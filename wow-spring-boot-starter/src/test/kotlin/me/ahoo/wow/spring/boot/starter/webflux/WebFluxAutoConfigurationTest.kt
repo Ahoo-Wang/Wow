@@ -79,6 +79,7 @@ import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
+import me.ahoo.wow.webflux.route.query.HttpQueryGuardFilter
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.test.context.FilteredClassLoader
@@ -151,6 +152,7 @@ internal class WebFluxAutoConfigurationTest {
                     .hasSingleBean(CommandWaitPolicy::class.java)
                     .hasSingleBean(TracingPolicy::class.java)
                     .hasSingleBean(BatchExecutionPolicy::class.java)
+                    .hasSingleBean(HttpQueryGuardFilter::class.java)
                     .hasSingleBean(WebFluxProperties::class.java)
                     .hasSingleBean(BiScriptProperties::class.java)
                 val batchExecutionPolicy = context.getBean(BatchExecutionPolicy::class.java)
@@ -179,6 +181,16 @@ internal class WebFluxAutoConfigurationTest {
             .withPropertyValues(
                 "${WebFluxProperties.PREFIX}.batch.concurrency=4",
                 "${WebFluxProperties.PREFIX}.batch.prefetch=8",
+                "${WebFluxProperties.PREFIX}.query.max-list-size=200",
+                "${WebFluxProperties.PREFIX}.query.max-page-size=20",
+                "${WebFluxProperties.PREFIX}.query.max-page-window=2000",
+                "${WebFluxProperties.PREFIX}.query.max-condition-nodes=32",
+                "${WebFluxProperties.PREFIX}.query.max-condition-values=50",
+                "${WebFluxProperties.PREFIX}.query.allowed-sort-fields=state.createdAt,state.id",
+                "${WebFluxProperties.PREFIX}.query.allowed-condition-fields=state.status,state.id",
+                "${WebFluxProperties.PREFIX}.query.allow-raw=true",
+                "${WebFluxProperties.PREFIX}.query.allow-expensive-operators=true",
+                "${WebFluxProperties.PREFIX}.query.idle-timeout=5s",
             )
             .withBean(CommandWaitNotifier::class.java, { mockk() })
             .withBean(CommandGateway::class.java, { SagaVerifier.defaultCommandGateway() })
@@ -207,6 +219,16 @@ internal class WebFluxAutoConfigurationTest {
                 val properties = context.getBean(WebFluxProperties::class.java)
                 properties.batch.concurrency.assert().isEqualTo(4)
                 properties.batch.prefetch.assert().isEqualTo(8)
+                properties.query.maxListSize.assert().isEqualTo(200)
+                properties.query.maxPageSize.assert().isEqualTo(20)
+                properties.query.maxPageWindow.assert().isEqualTo(2000)
+                properties.query.maxConditionNodes.assert().isEqualTo(32)
+                properties.query.maxConditionValues.assert().isEqualTo(50)
+                properties.query.allowedSortFields.assert().isEqualTo(setOf("state.createdAt", "state.id"))
+                properties.query.allowedConditionFields.assert().isEqualTo(setOf("state.status", "state.id"))
+                properties.query.allowRaw.assert().isTrue()
+                properties.query.allowExpensiveOperators.assert().isTrue()
+                properties.query.idleTimeout.assert().isEqualTo(Duration.ofSeconds(5))
                 val batchExecutionPolicy = context.getBean(BatchExecutionPolicy::class.java)
                 batchExecutionPolicy.concurrency.assert().isEqualTo(4)
                 batchExecutionPolicy.prefetch.assert().isEqualTo(8)

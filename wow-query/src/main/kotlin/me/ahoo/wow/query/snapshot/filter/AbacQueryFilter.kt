@@ -47,7 +47,7 @@ import reactor.util.context.ContextView
  *
  * @see SnapshotQueryFilter
  */
-@Order(ORDER_FIRST)
+@Order(ORDER_FIRST + 1)
 @FilterType(SnapshotQueryHandler::class)
 abstract class AbacQueryFilter : SnapshotQueryFilter {
     companion object {

@@ -61,6 +61,7 @@ import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
 import me.ahoo.wow.webflux.route.query.DefaultRewriteRequestCondition
+import me.ahoo.wow.webflux.route.query.HttpQueryGuardFilter
 import me.ahoo.wow.webflux.route.query.RewriteRequestCondition
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -118,6 +119,24 @@ class WebFluxAutoConfiguration {
         return BatchExecutionPolicy(
             concurrency = webFluxProperties.batch.concurrency,
             prefetch = webFluxProperties.batch.prefetch,
+        )
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    fun httpQueryGuardFilter(webFluxProperties: WebFluxProperties): HttpQueryGuardFilter {
+        val query = webFluxProperties.query
+        return HttpQueryGuardFilter(
+            maxListSize = query.maxListSize,
+            maxPageSize = query.maxPageSize,
+            maxPageWindow = query.maxPageWindow,
+            maxConditionNodes = query.maxConditionNodes,
+            maxConditionValues = query.maxConditionValues,
+            allowedSortFields = query.allowedSortFields,
+            allowedConditionFields = query.allowedConditionFields,
+            allowRaw = query.allowRaw,
+            allowExpensiveOperators = query.allowExpensiveOperators,
+            idleTimeout = query.idleTimeout,
         )
     }
 

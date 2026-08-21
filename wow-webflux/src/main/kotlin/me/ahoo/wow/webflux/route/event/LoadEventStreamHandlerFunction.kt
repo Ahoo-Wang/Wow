@@ -20,6 +20,7 @@ import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
+import me.ahoo.wow.query.filter.Contexts.writeRawRequest
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
@@ -51,6 +52,7 @@ class LoadEventStreamHandlerFunction(
             limit(limit)
         }
         return eventStreamQueryHandler.dynamicList(aggregateMetadata, listQuery)
+            .writeRawRequest(request)
             .toServerResponse(request, exceptionHandler)
     }
 }

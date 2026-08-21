@@ -173,6 +173,16 @@ snapshots.
 | `wow.webflux.global-error.enabled` | Boolean | `true` | Enable global error handling |
 | `wow.webflux.batch.concurrency` | Integer | `1` | Concurrency for batch command requests |
 | `wow.webflux.batch.prefetch` | Integer | `1` | Prefetch count for batch command requests |
+| `wow.webflux.query.max-list-size` | Integer | `1000` | Maximum HTTP list-query limit; `0` disables the cap |
+| `wow.webflux.query.max-page-size` | Integer | `100` | Maximum HTTP page size; `0` disables the cap |
+| `wow.webflux.query.max-page-window` | Long | `10000` | Maximum HTTP page window; `0` disables the cap |
+| `wow.webflux.query.max-condition-nodes` | Integer | `64` | Maximum HTTP query condition nodes; `0` disables the cap |
+| `wow.webflux.query.max-condition-values` | Integer | `1000` | Maximum values in HTTP `IN`, `NOT_IN`, `ALL_IN`, `IDS`, or `AGGREGATE_IDS` conditions; `0` disables the cap |
+| `wow.webflux.query.allowed-sort-fields` | Set<String> | `[]` | Indexed logical fields allowed for explicit HTTP sorting; an empty set rejects all explicit sorts and `["*"]` disables the restriction |
+| `wow.webflux.query.allowed-condition-fields` | Set<String> | `[]` | Additional indexed logical fields allowed in HTTP predicates; `spaceId` requires explicit allowlisting, and `["*"]` disables the restriction |
+| `wow.webflux.query.allow-raw` | Boolean | `false` | Allow native HTTP `RAW` queries |
+| `wow.webflux.query.allow-expensive-operators` | Boolean | `false` | Allow HTTP negative/existence/expensive string operators or unfiltered count/paged queries |
+| `wow.webflux.query.idle-timeout` | Duration | `10s` | Maximum wait between results or completion; JSON arrays are buffered before commit, while SSE remains streaming; `0s` disables it |
 | `wow.webflux.command.request.appender.agent.enabled` | Boolean | `true` | Append the client `User-Agent` to the command request context (set `false` to disable) |
 | `wow.webflux.command.request.appender.ip.enabled` | Boolean | `true` | Append the client IP to the command request context (set `false` to disable) |
 
@@ -185,6 +195,17 @@ wow:
     batch:
       concurrency: 1
       prefetch: 1
+    query:
+      max-list-size: 1000
+      max-page-size: 100
+      max-page-window: 10000
+      max-condition-nodes: 64
+      max-condition-values: 1000
+      allowed-sort-fields: []
+      allowed-condition-fields: []
+      allow-raw: false
+      allow-expensive-operators: false
+      idle-timeout: 10s
     command:
       request:
         appender:
