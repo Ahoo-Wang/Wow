@@ -192,6 +192,26 @@ class ElasticsearchIndexMappingResolverTest {
     }
 
     @Test
+    fun `should resolve concrete paths through a flattened parent`() {
+        val mapping = ElasticsearchIndexMapping.from(INDEX, flattenedFields())
+
+        mapping.resolve("state.labels.release", ElasticsearchFieldUsage.EXACT)
+            .assert().isEqualTo("state.labels.release")
+        mapping.resolve("state.labels.release", ElasticsearchFieldUsage.SORT)
+            .assert().isEqualTo("state.labels.release")
+        mapping.resolve("state.labels.host.ip", ElasticsearchFieldUsage.RANGE)
+            .assert().isEqualTo("state.labels.host.ip")
+        runCatching { mapping.resolve("state.labels.release", ElasticsearchFieldUsage.LITERAL) }
+            .exceptionOrNull()!!.message.assert().contains("does not support")
+        runCatching { mapping.resolve("state.labels.release", ElasticsearchFieldUsage.RANGE) }
+            .exceptionOrNull()!!.message.assert().contains("does not support")
+        runCatching { mapping.resolve("state.unindexedLabels.release", ElasticsearchFieldUsage.EXACT) }
+            .exceptionOrNull()!!.message.assert().contains("does not support")
+        mapping.resolve("state.unindexedLabels.release", ElasticsearchFieldUsage.SORT)
+            .assert().isEqualTo("state.unindexedLabels.release")
+    }
+
+    @Test
     fun `should preserve field alias and runtime field query compatibility`() {
         val mapping = ElasticsearchIndexMapping.from(INDEX, aliasAndRuntimeFields())
 
@@ -306,6 +326,22 @@ class ElasticsearchIndexMappingResolverTest {
                 }
             },
         )
+
+    private fun flattenedFields(): TypeMapping =
+        TypeMapping.of { mapping ->
+            mapping.properties("state") { state ->
+                state.`object` { objectField ->
+                    objectField
+                        .properties("labels") { labels ->
+                            labels.flattened { flattened ->
+                                flattened.properties("host.ip") { field -> field.ip { it } }
+                            }
+                        }.properties("unindexedLabels") { labels ->
+                            labels.flattened { flattened -> flattened.index(false) }
+                        }
+                }
+            }
+        }
 
     private fun aliasAndRuntimeFields(): TypeMapping =
         TypeMapping.of { mapping ->

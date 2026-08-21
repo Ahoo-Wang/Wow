@@ -164,9 +164,14 @@ Field selection follows these rules:
 |---|---|
 | `EQ`, `NE`, `IN`, `NOT_IN`, `ALL_IN`, `TRUE`, `FALSE` | Term-query compatible, including supported doc-value-only fields |
 | `CONTAINS`, `STARTS_WITH`, `ENDS_WITH` | `keyword` or `wildcard` |
-| Range operations | numeric, date, or keyword, including `doc_values=true,index=false` |
+| Range operations | numeric, date, ip, or keyword, including applicable `doc_values=true,index=false` fields |
 | `MATCH` | `text`, `match_only_text`, or `search_as_you_type` |
 | Sort | Sortable field with `doc_values`, or a sortable runtime field; `index=true` is not required |
+
+Dynamic keys under a flattened field do not have individual mapping entries. For a concrete path such as
+`state.labels.release`, the resolver walks up to the nearest flattened parent and preserves the original path for exact
+and sort operations. Flattened values use keyword semantics, so sorting is lexicographic. Dynamic keys do not
+automatically enable range operations; explicitly mapped typed sub-fields continue to use their own type capabilities.
 
 For example, one logical field can support both full-text and exact operations:
 

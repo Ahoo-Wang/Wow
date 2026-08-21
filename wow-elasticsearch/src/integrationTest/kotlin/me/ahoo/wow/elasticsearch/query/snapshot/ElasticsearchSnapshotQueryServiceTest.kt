@@ -135,7 +135,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     }
 
     @Test
-    fun `doc value only fields should support exact range and sort queries`() {
+    fun `mapping capabilities should support doc values ip ranges and flattened paths`() {
         val indexName = MOCK_AGGREGATE_METADATA.toSnapshotIndexName()
         elasticsearchClient.indices().putMapping(
             PutMappingRequest.of { request ->
@@ -144,6 +144,10 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                         field.keyword { keyword -> keyword.index(false) }
                     }.properties("docValueOnlyLong") { field ->
                         field.long_ { number -> number.index(false) }
+                    }.properties("ipAddress") { field ->
+                        field.ip { ip -> ip.index(false) }
+                    }.properties("labels") { field ->
+                        field.flattened { flattened -> flattened }
                     }
             },
         ).block()
@@ -158,6 +162,8 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                         mapOf(
                             "docValueOnlyKeyword" to "exact",
                             "docValueOnlyLong" to 42,
+                            "ipAddress" to "192.168.1.1",
+                            "labels" to mapOf("release" to "v1.2.3"),
                         ),
                     ).refresh(Refresh.True)
             },
@@ -172,6 +178,12 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             .assert().isEqualTo("docValueOnlyLong")
         mapping.resolve("docValueOnlyLong", ElasticsearchFieldUsage.SORT)
             .assert().isEqualTo("docValueOnlyLong")
+        mapping.resolve("ipAddress", ElasticsearchFieldUsage.RANGE)
+            .assert().isEqualTo("ipAddress")
+        mapping.resolve("labels.release", ElasticsearchFieldUsage.EXACT)
+            .assert().isEqualTo("labels.release")
+        mapping.resolve("labels.release", ElasticsearchFieldUsage.SORT)
+            .assert().isEqualTo("labels.release")
 
         ElasticsearchSnapshotQueryServiceFactory(
             elasticsearchClient,
@@ -184,8 +196,13 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                     condition = Condition.and(
                         Condition.eq("docValueOnlyKeyword", "exact"),
                         Condition.gt("docValueOnlyLong", 1),
+                        Condition.gt("ipAddress", "192.168.0.1"),
+                        Condition.eq("labels.release", "v1.2.3"),
                     ),
-                    sort = listOf(Sort("docValueOnlyLong", Sort.Direction.ASC)),
+                    sort = listOf(
+                        Sort("docValueOnlyLong", Sort.Direction.ASC),
+                        Sort("labels.release", Sort.Direction.ASC),
+                    ),
                     limit = 10,
                 ),
             ).test()

@@ -18,6 +18,7 @@ import co.elastic.clients.elasticsearch._types.mapping.CountedKeywordProperty
 import co.elastic.clients.elasticsearch._types.mapping.DateNanosProperty
 import co.elastic.clients.elasticsearch._types.mapping.DateProperty
 import co.elastic.clients.elasticsearch._types.mapping.DocValuesPropertyBase
+import co.elastic.clients.elasticsearch._types.mapping.FlattenedProperty
 import co.elastic.clients.elasticsearch._types.mapping.IcuCollationProperty
 import co.elastic.clients.elasticsearch._types.mapping.IpProperty
 import co.elastic.clients.elasticsearch._types.mapping.KeywordProperty
@@ -97,7 +98,7 @@ data class ElasticsearchIndexMapping private constructor(
         get() = fields.size
 
     fun resolve(field: String, usage: ElasticsearchFieldUsage): String {
-        val mappedField = fields[field]
+        val mappedField = findMappedField(field)
             ?: resolutionFailure(
                 "Elasticsearch field [$field] is not mapped in index [$indexName].",
             )
@@ -125,6 +126,18 @@ data class ElasticsearchIndexMapping private constructor(
         resolutionFailure(
             "Elasticsearch field [$field] does not support ${usage.name.lowercase()} queries in index [$indexName].",
         )
+    }
+
+    private fun findMappedField(field: String): ElasticsearchMappedField? {
+        fields[field]?.let { return it }
+        var separator = field.lastIndexOf('.')
+        while (separator > 0) {
+            fields[field.substring(0, separator)]
+                ?.takeIf { it.kind == Property.Kind.Flattened }
+                ?.let { return it }
+            separator = field.lastIndexOf('.', separator - 1)
+        }
+        return null
     }
 
     fun requireNested(field: String): String {
@@ -250,12 +263,14 @@ private data class ElasticsearchMappedField(
 ) {
     fun supports(usage: ElasticsearchFieldUsage): Boolean =
         when (usage) {
-            ElasticsearchFieldUsage.EXACT -> (indexed || sortable) && kind in EXACT_KINDS
+            ElasticsearchFieldUsage.EXACT -> isQueryable() && kind in EXACT_KINDS
             ElasticsearchFieldUsage.LITERAL -> indexed && kind in LITERAL_KINDS
-            ElasticsearchFieldUsage.RANGE -> (indexed || sortable) && kind in RANGE_KINDS
+            ElasticsearchFieldUsage.RANGE -> isQueryable() && kind in RANGE_KINDS
             ElasticsearchFieldUsage.SEARCH -> indexed && kind in SEARCH_KINDS
             ElasticsearchFieldUsage.SORT -> sortable && kind in EXACT_KINDS
         }
+
+    private fun isQueryable(): Boolean = indexed || (sortable && kind in DOC_VALUE_QUERY_KINDS)
 
     companion object {
         private val NUMERIC_KINDS = setOf(
@@ -277,10 +292,17 @@ private data class ElasticsearchMappedField(
             Property.Kind.IcuCollationKeyword,
         )
         private val TERM_KINDS = KEYWORD_KINDS + Property.Kind.Wildcard
+        private val DOC_VALUE_QUERY_KINDS = NUMERIC_KINDS + KEYWORD_KINDS + setOf(
+            Property.Kind.Boolean,
+            Property.Kind.Date,
+            Property.Kind.DateNanos,
+            Property.Kind.Ip,
+        )
         private val EXACT_KINDS = NUMERIC_KINDS + TERM_KINDS + setOf(
             Property.Kind.Boolean,
             Property.Kind.Date,
             Property.Kind.DateNanos,
+            Property.Kind.Flattened,
             Property.Kind.Ip,
             Property.Kind.Version,
         )
@@ -288,6 +310,7 @@ private data class ElasticsearchMappedField(
         private val RANGE_KINDS = NUMERIC_KINDS + KEYWORD_KINDS + setOf(
             Property.Kind.Date,
             Property.Kind.DateNanos,
+            Property.Kind.Ip,
         )
         private val SEARCH_KINDS = setOf(
             Property.Kind.Text,
@@ -321,6 +344,7 @@ private fun Property.hasDocValues(): Boolean =
         Property.Kind.CountedKeyword,
         -> true
 
+        Property.Kind.Flattened -> flattened().docValues() != false
         else -> (_get() as? DocValuesPropertyBase)?.let { it.docValues() != false } == true
     }
 
@@ -330,6 +354,7 @@ private fun Property.isIndexed(): Boolean =
         is CountedKeywordProperty -> property.index() != false
         is DateNanosProperty -> property.index() != false
         is DateProperty -> property.index() != false
+        is FlattenedProperty -> property.index() != false
         is IcuCollationProperty -> property.index() != false
         is IpProperty -> property.index() != false
         is KeywordProperty -> property.index() != false
