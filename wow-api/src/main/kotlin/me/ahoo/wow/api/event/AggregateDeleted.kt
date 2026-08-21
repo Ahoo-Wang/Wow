@@ -29,7 +29,6 @@ import me.ahoo.wow.api.annotation.Event
  * @see AggregateRecovered for events indicating aggregate recovery
  * @see me.ahoo.wow.api.annotation.Event for the event annotation
  *
- * @sample
  * ```kotlin
  * class OrderDeleted : AggregateDeleted {
  *     // Additional event data can be included here

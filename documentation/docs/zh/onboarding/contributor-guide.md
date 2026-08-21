@@ -33,11 +33,11 @@ description: 面向 Wow 代码库、开发流程、测试策略与首次贡献�
 | --- | --- | --- |
 | Wow | `8.10.6` | [`gradle.properties`](https://github.com/Ahoo-Wang/Wow/blob/main/gradle.properties#L18-L23) |
 | Kotlin | `2.4.10` | [版本目录](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/libs.versions.toml#L23-L35) |
-| Spring Boot | `4.1.0` | [版本目录](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/libs.versions.toml#L1-L5) |
-| Gradle | `9.6.1` | [Wrapper 配置](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/wrapper/gradle-wrapper.properties#L1-L9) |
+| Spring Boot | `4.1.1` | [版本目录](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/libs.versions.toml#L1-L5) |
+| Gradle | `9.7.1` | [Wrapper 配置](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/wrapper/gradle-wrapper.properties#L1-L9) |
 | JVM Toolchain | Java `17` | [根构建脚本](https://github.com/Ahoo-Wang/Wow/blob/main/build.gradle.kts#L175-L190) |
-| JUnit | `6.1.2` | [版本目录](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/libs.versions.toml#L23-L27) |
-| KSP | `2.3.10` | [版本目录](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/libs.versions.toml#L31-L35) |
+| JUnit | `6.1.3` | [版本目录](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/libs.versions.toml#L23-L27) |
+| KSP | `2.3.11` | [版本目录](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/libs.versions.toml#L31-L35) |
 
 README 也说明 Wow 8 面向 Spring Boot 4 与 Java 17 及以上版本。
 
@@ -844,12 +844,12 @@ flowchart TB
 | --- | --- | --- | --- | --- | --- |
 | Git | 当前受支持版本 | 所有工作 | `brew install git` | `git --version` | 一行以 `git version` 开头的输出 |
 | JDK | `17` | JVM 测试与 Dokka | `brew install --cask temurin@17` | `java -version` | 版本输出包含 `17` |
-| Gradle Wrapper | `9.6.1` | JVM 构建 | 无需全局安装；用 `./gradlew --version` 启动 | `./gradlew --version` | `Gradle 9.6.1` 与 `Launcher JVM: 17...` |
+| Gradle Wrapper | `9.7.1` | JVM 构建 | 无需全局安装；用 `./gradlew --version` 启动 | `./gradlew --version` | `Gradle 9.7.1` 与 `Launcher JVM: 17...` |
 | Node.js | CI 使用 `24.18.1` | 文档与 Dashboard | `brew install node@24` | `node --version` | `v24...`；CI 精确使用 `v24.18.1` |
 | pnpm | `10.34.5` | 文档与 Dashboard | `corepack enable && corepack prepare pnpm@10.34.5 --activate` | `pnpm --version` | 精确输出 `10.34.5` |
 | Docker 兼容运行时 | 能运行 Testcontainers 的 Engine | 仅 Integration Test | `brew install --cask docker` | `docker version` | 启动运行时后同时输出 `Client` 与 `Server` 部分 |
 
-本地测试 CI 使用 Temurin Java 17，仓库中的 Wrapper 会下载 Gradle 9.6.1，无需安装全局 Gradle。
+本地测试 CI 使用 Temurin Java 17，仓库中的 Wrapper 会下载 Gradle 9.7.1，无需安装全局 Gradle。
 [查看 JVM 工作流配置。](https://github.com/Ahoo-Wang/Wow/blob/main/.github/workflows/local-test.yml#L48-L58)
 [查看 Wrapper 版本。](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/wrapper/gradle-wrapper.properties#L1-L9)
 
@@ -875,7 +875,7 @@ flowchart TB
 预期关键行：
 
 ```text
-Gradle 9.6.1
+Gradle 9.7.1
 Launcher JVM: 17...
 ```
 

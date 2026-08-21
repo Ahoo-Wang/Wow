@@ -55,6 +55,65 @@ Wow 按运行时依赖拆分测试，让本地检查保持快速，并让容器�
 
 集成测试使用 Testcontainers，需要 Docker。它们有意不接入 `check`。
 
+### 业务应用的最小 HTTP 集成测试
+
+上面的 `:wow-it` 是 Wow 仓库自身的验证任务。业务应用还需要一条由自己拥有的测试，覆盖 KSP 元数据、Spring 装配、WebFlux 路由、命令等待和事件溯源状态。下面的测试使用[接入现有项目](./existing-project.md)中的内存配置，不需要 Docker：
+
+```kotlin
+import org.junit.jupiter.api.Test
+import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.boot.test.web.server.LocalServerPort
+import org.springframework.test.web.reactive.server.WebTestClient
+import java.util.UUID
+
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+class WowCommandFlowIntegrationTest {
+    @LocalServerPort
+    private var port: Int = 0
+
+    @Test
+    fun `http command reaches sourced state`() {
+        val aggregateId = "it-${UUID.randomUUID()}"
+        val client = WebTestClient.bindToServer()
+            .baseUrl("http://127.0.0.1:$port")
+            .build()
+
+        client.post()
+            .uri("/tenant/test/demo")
+            .header("Command-Wait-Stage", "SNAPSHOT")
+            .header("Command-Aggregate-Id", aggregateId)
+            .header("Command-Request-Id", "request-$aggregateId")
+            .bodyValue(mapOf("data" to "integration"))
+            .exchange()
+            .expectStatus().isOk
+            .expectBody()
+            .jsonPath("$.succeeded").isEqualTo(true)
+            .jsonPath("$.stage").isEqualTo("SNAPSHOT")
+            .jsonPath("$.aggregateId").isEqualTo(aggregateId)
+
+        client.get()
+            .uri("/tenant/test/demo/$aggregateId/state/1")
+            .exchange()
+            .expectStatus().isOk
+            .expectBody()
+            .jsonPath("$.id").isEqualTo(aggregateId)
+            .jsonPath("$.data").isEqualTo("integration")
+    }
+}
+```
+
+这条测试已经证明：生成的元数据进入运行时、路由存在、命令被聚合处理、`SNAPSHOT` 等待成功，并且历史事件能重建状态。它**没有**证明 Kafka 投递、MongoDB/Redis/Elasticsearch 持久化、重启恢复或生产鉴权。
+
+对实际生产适配器再增加一个容器层测试，并至少验证：
+
+1. 使用与生产相同的 Starter capabilities 和配置；
+2. 命令写入真实 EventStore，重启应用后仍能读取状态；
+3. 重复 `requestId` 被权威存储拒绝；
+4. Broker 重投不会重复执行投影或外部副作用；
+5. tenant、owner、授权和查询索引按生产边界生效。
+
+不要用框架仓库的 `:wow-it:integrationTest` 代替应用自己的发布门禁。
+
 ## 覆盖率
 
 ```bash

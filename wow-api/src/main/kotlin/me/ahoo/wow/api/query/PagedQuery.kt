@@ -37,7 +37,6 @@ interface IPagedQuery : Queryable<IPagedQuery> {
  * @property sort The sorting criteria to order the results.
  * @property pagination The pagination settings to control which page and how many items to return.
  *
- * @sample
  * ```
  * val query = PagedQuery(
  *     condition = Condition.eq("status", "active"),

@@ -9,6 +9,7 @@ The _Spring-Boot-Starter_ module integrates all _Wow_ extensions and provides au
 
 ::: tip
 For the public configuration documentation of this module, please refer to [Configuration](../../reference/config/core).
+For an existing Spring Boot service, follow [Existing Project](../existing-project) for the BOM, KSP, first-run configuration, and route verification.
 :::
 
 ## Installation

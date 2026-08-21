@@ -35,7 +35,6 @@ object AnnotationScanner {
      * @param annotationClass the KClass representing the annotation type
      * @return a list of all matching annotations found on the element
      *
-     * @sample
      * ```
      * class MyClass {
      *     @MyAnnotation
@@ -61,7 +60,6 @@ object AnnotationScanner {
      * @param annotationClass the KClass representing the annotation type
      * @return the first matching annotation, or null if none found
      *
-     * @sample
      * ```
      * val annotation = myClass.scanAnnotation(Deprecated::class)
      * if (annotation != null) {
@@ -79,7 +77,6 @@ object AnnotationScanner {
      * @param A the type of annotation to scan for
      * @return the first matching annotation, or null if none found
      *
-     * @sample
      * ```
      * val deprecated = myClass.scanAnnotation<Deprecated>()
      * ```
@@ -93,7 +90,6 @@ object AnnotationScanner {
      * @param A the type of annotation to scan for
      * @return a list of all matching annotations found on the element
      *
-     * @sample
      * ```
      * val annotations = myClass.scanAnnotations<SuppressWarnings>()
      * ```

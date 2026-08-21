@@ -18,6 +18,7 @@ import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.gradle.language.base.plugins.LifecycleBasePlugin
 import org.gradle.testretry.TestRetryPlugin
+import org.jetbrains.dokka.gradle.DokkaExtension
 import org.jetbrains.dokka.gradle.DokkaPlugin
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
@@ -174,6 +175,11 @@ configure(bomProjects) {
 
 configure(libraryProjects) {
     apply<DokkaPlugin>()
+    configure<DokkaExtension> {
+        dokkaPublications.html {
+            suppressInheritedMembers.set(true)
+        }
+    }
     apply<JacocoPlugin>()
     apply<JavaLibraryPlugin>()
     configure<JavaPluginExtension> {

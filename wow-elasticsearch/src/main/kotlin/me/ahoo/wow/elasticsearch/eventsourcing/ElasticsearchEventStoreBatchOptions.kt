@@ -18,7 +18,7 @@ import java.time.Duration
 /**
  * Controls transparent batching for [ElasticsearchEventStore] appends.
  *
- * Batching is opt-in because collecting a partial batch adds up to [maxDelay]
+ * Batching is opt-in because collecting a partial batch adds up to `maxDelay`
  * to a low-throughput append.
  */
 data class ElasticsearchEventStoreBatchOptions(

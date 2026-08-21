@@ -20,7 +20,7 @@ runtimeOnly("io.micrometer:micrometer-registry-prometheus")
 ```
 
 No Wow configuration is required to enable metrics; `wow.metrics.enabled` defaults to `true`.
-For OTLP with the current Spring Boot 4.1.0 baseline, replace the Prometheus registry with
+For OTLP with the current Spring Boot 4.1.1 baseline, replace the Prometheus registry with
 `spring-boot-opentelemetry` and `micrometer-registry-otlp`; then `OTEL_SERVICE_NAME` and
 `OTEL_EXPORTER_OTLP_ENDPOINT` are sufficient for the default exporter path. See the complete
 [Observability Configuration](/reference/config/observability#exporting-metrics-via-otlp-opentelemetry-collector).
@@ -167,7 +167,7 @@ flowchart LR
     Tracing["wow-opentelemetry spans"] --> Collector
 ```
 
-For OTLP with the current Spring Boot 4.1.0 baseline, add `spring-boot-opentelemetry` and
+For OTLP with the current Spring Boot 4.1.1 baseline, add `spring-boot-opentelemetry` and
 `micrometer-registry-otlp`, then set
 `OTEL_SERVICE_NAME` and the shared
 `OTEL_EXPORTER_OTLP_ENDPOINT`, normally an OTLP/HTTP Collector endpoint on port `4318`. Spring Boot

@@ -31,7 +31,6 @@ interface PrepareKeyFactory {
      * @param valueClass the Java class representing the value type V
      * @return a new PrepareKey instance configured for the specified parameters
      *
-     * @sample
      * ```
      * val factory = MyPrepareKeyFactory()
      * val usernameKey = factory.create("username", String::class.java)

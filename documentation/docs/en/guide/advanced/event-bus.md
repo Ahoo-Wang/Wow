@@ -485,7 +485,7 @@ The `KafkaAutoConfiguration` ([KafkaAutoConfiguration.kt:43-127](https://github.
 
 ## Event Upgrade Pipeline
 
-When an event's `revision` does not match the current schema version, Wow's event upgrader system (in `wow-core/src/main/kotlin/me/ahoo/wow/event/upgrader/`) transparently migrates legacy event formats before they reach consumers. This ensures backward compatibility as domain models evolve without requiring consumer changes.
+Before materializing a domain event, Wow runs the `EventUpgrader` implementations registered through ServiceLoader in order. Each upgrader must recognize its source `revision` and emit an explicit target revision; the framework does not infer a conversion from version numbers. See [Event Evolution](./event-evolution) for implementation, registration, tests, and release gates.
 
 ## Key Design Decisions
 
@@ -501,6 +501,7 @@ When an event's `revision` does not match the current schema version, Wow's even
 |---|---|
 | [Command Gateway](../command-gateway) | Command routing and dispatch architecture |
 | [Event Store](../eventstore) | How domain events are persisted and loaded |
+| [Event Evolution](./event-evolution) | Upgrade persisted events and verify historical replay |
 | [Event Processor](../event-processor) | Creating and configuring event handlers |
 | [Saga Processor](../saga) | Distributed transaction orchestration via events |
 | [Kafka Configuration](../../reference/config/infrastructure) | Kafka connection and topic configuration |

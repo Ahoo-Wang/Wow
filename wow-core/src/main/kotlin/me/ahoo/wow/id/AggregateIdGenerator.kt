@@ -120,7 +120,6 @@ object AggregateIdGeneratorRegistrar :
  * It materializes the aggregate and delegates to [AggregateIdGeneratorRegistrar.generateId].
  *
  * @return the generated ID as a string
- * @sample
  * val aggregate: NamedAggregate = // some aggregate instance
  * val id = aggregate.generateId() // Generates a unique ID for this aggregate
  */

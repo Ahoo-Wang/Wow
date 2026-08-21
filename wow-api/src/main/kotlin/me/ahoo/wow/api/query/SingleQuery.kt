@@ -31,7 +31,6 @@ interface ISingleQuery : Queryable<ISingleQuery>
  * @property projection The field projection to control which fields are included in the result.
  * @property sort The sorting criteria to order results (useful when multiple matches exist).
  *
- * @sample
  * ```
  * val query = SingleQuery(
  *     condition = Condition.eq("id", "user-123"),

@@ -52,13 +52,12 @@ class TestGlobalIdGeneratorFactory : GlobalIdGeneratorFactory {
     /**
      * Creates a new [CosIdGenerator] instance configured for testing.
      *
-     * This method instantiates a [Radix62CosIdGenerator] with the fixed [TEST_MACHINE_ID]
+     * This method instantiates a [Radix62CosIdGenerator] with the fixed `TEST_MACHINE_ID`
      * and wraps it in a [ClockSyncCosIdGenerator] to ensure consistent ID generation
      * across different test runs. The creation is logged for debugging purposes.
      *
      * @return A [CosIdGenerator] suitable for generating unique IDs in test environments.
      *
-     * @sample
      * ```
      * val factory = TestGlobalIdGeneratorFactory()
      * val generator = factory.create()

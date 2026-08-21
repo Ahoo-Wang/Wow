@@ -22,7 +22,7 @@ import java.time.Duration
  * Partitions submissions into a fixed number of serial batch lanes.
  *
  * Equal ordering keys are assigned to the same lane. Batch writer invocations
- * inside one lane are serial, while different lanes may invoke [writer]
+ * inside one lane are serial, while different lanes may invoke `writer`
  * concurrently. The coordinator keeps one global admission bound and one
  * lifecycle across all lanes.
  *
@@ -30,7 +30,7 @@ import java.time.Duration
  * type does not impose an item execution order inside a protocol-specific batch;
  * a writer that requires such an order must provide it.
  *
- * When [laneCount] is greater than one, [keySelector] runs during lazy
+ * When `laneCount` is greater than one, `keySelector` runs during lazy
  * submission and must be deterministic and non-blocking. A selector failure
  * rejects only that submission. Ordering keys must obey the usual
  * equality/hash-code contract.

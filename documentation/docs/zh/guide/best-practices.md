@@ -207,6 +207,7 @@ stateDiagram-v2
 | 投递 | 重试、幂等、并发和 LocalFirst 边界明确 | 失败路径测试与 Adapter 设置 | [DefaultCommandGateway.kt:86-143](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L86-L143) |
 | 快照查询 | 在支持查询的后端启用 `all`，并验证过滤、索引、路由与 `SNAPSHOT` 写后读行为 | 使用类生产数据的 API 测试与查询计划 | [SnapshotQueryService.kt:30-61](https://github.com/Ahoo-Wang/Wow/blob/main/wow-query/src/main/kotlin/me/ahoo/wow/query/snapshot/SnapshotQueryService.kt#L30-L61) |
 | 恢复 | 重试耗尽与不可恢复失败有运维流程 | 补偿看板/Runbook | [IExecutionFailedState.kt:138-164](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-api/src/main/kotlin/me/ahoo/wow/compensation/api/IExecutionFailedState.kt#L138-L164) |
+| 数据灾备 | EventStore、快照、投影和 Broker 位点完成隔离恢复与对账 | 备份校验和、RPO/RTO 与业务对账结果 | [备份、恢复与重放](./recovery.md) |
 | 可观测性 | 命令等待、总线发送和存储调用可追踪 | 预发环境 Trace 与指标截图 | [TracingCommandGateway.kt:31-66](https://github.com/Ahoo-Wang/Wow/blob/main/wow-opentelemetry/src/main/kotlin/me/ahoo/wow/opentelemetry/wait/TracingCommandGateway.kt#L31-L66)、[TracingEventStore.kt:28-66](https://github.com/Ahoo-Wang/Wow/blob/main/wow-opentelemetry/src/main/kotlin/me/ahoo/wow/opentelemetry/eventsourcing/TracingEventStore.kt#L28-L66) |
 | 生命周期 | 停机能在明确截止时间内排空已接受工作 | 部署终止测试 | [CommandDispatcher.kt:78-83](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/dispatcher/CommandDispatcher.kt#L78-L83) |
 
@@ -223,5 +224,6 @@ stateDiagram-v2
 | [查询服务](./query.md) | 说明快照查询 DSL 与内置端点 |
 | [分布式事务（Saga）](./saga.md) | 说明跨聚合编排 |
 | [事件补偿](./event-compensation.md) | 说明失败恢复与运维流程 |
+| [备份、恢复与重放](./recovery.md) | 定义 EventStore 恢复、重放、对账与回滚门禁 |
 | [测试套件](./test-suite.md) | 说明 Aggregate 与 Saga 测试 DSL |
 | [可观测性](./advanced/observability.md) | 说明 Trace 与运行时可观测性 |

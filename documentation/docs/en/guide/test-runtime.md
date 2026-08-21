@@ -55,6 +55,65 @@ The function-style DSL is planned as a later migration stage, so runtime test la
 
 Integration tests use Testcontainers and require Docker. They are intentionally not wired into `check`.
 
+### Minimal HTTP Integration Test for an Application
+
+The `:wow-it` task above belongs to the Wow repository. An application also needs an owned test that covers KSP metadata, Spring wiring, WebFlux routes, command waits, and event-sourced state. The following test uses the in-memory configuration from [Existing Project](./existing-project.md) and does not require Docker:
+
+```kotlin
+import org.junit.jupiter.api.Test
+import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.boot.test.web.server.LocalServerPort
+import org.springframework.test.web.reactive.server.WebTestClient
+import java.util.UUID
+
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+class WowCommandFlowIntegrationTest {
+    @LocalServerPort
+    private var port: Int = 0
+
+    @Test
+    fun `http command reaches sourced state`() {
+        val aggregateId = "it-${UUID.randomUUID()}"
+        val client = WebTestClient.bindToServer()
+            .baseUrl("http://127.0.0.1:$port")
+            .build()
+
+        client.post()
+            .uri("/tenant/test/demo")
+            .header("Command-Wait-Stage", "SNAPSHOT")
+            .header("Command-Aggregate-Id", aggregateId)
+            .header("Command-Request-Id", "request-$aggregateId")
+            .bodyValue(mapOf("data" to "integration"))
+            .exchange()
+            .expectStatus().isOk
+            .expectBody()
+            .jsonPath("$.succeeded").isEqualTo(true)
+            .jsonPath("$.stage").isEqualTo("SNAPSHOT")
+            .jsonPath("$.aggregateId").isEqualTo(aggregateId)
+
+        client.get()
+            .uri("/tenant/test/demo/$aggregateId/state/1")
+            .exchange()
+            .expectStatus().isOk
+            .expectBody()
+            .jsonPath("$.id").isEqualTo(aggregateId)
+            .jsonPath("$.data").isEqualTo("integration")
+    }
+}
+```
+
+This proves that generated metadata reaches runtime, routes exist, the aggregate processes the command, the `SNAPSHOT` wait succeeds, and historical events rebuild state. It does **not** prove Kafka delivery, MongoDB/Redis/Elasticsearch durability, restart recovery, or production authorization.
+
+Add a container-backed layer for the actual production adapters and verify at least:
+
+1. the same Starter capabilities and configuration used in production;
+2. a command persists to the real EventStore and state remains readable after application restart;
+3. the authoritative store rejects a duplicate `requestId`;
+4. broker redelivery does not duplicate projections or external side effects;
+5. tenant, owner, authorization, and query indexes enforce production boundaries.
+
+Do not use the framework repository's `:wow-it:integrationTest` as a substitute for the application's release gate.
+
 ## Coverage
 
 ```bash

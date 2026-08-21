@@ -126,7 +126,7 @@ runtimeOnly("org.springframework.boot:spring-boot-opentelemetry")
 runtimeOnly("io.micrometer:micrometer-registry-otlp")
 ```
 
-With the project's current Spring Boot 4.1.0 baseline, `spring-boot-opentelemetry` supplies the
+With the project's current Spring Boot 4.1.1 baseline, `spring-boot-opentelemetry` supplies the
 shared OpenTelemetry environment and resource configuration used by the OTLP metrics
 auto-configuration. The starter's
 `opentelemetry-support` capability supplies Wow tracing instrumentation, but does not replace this

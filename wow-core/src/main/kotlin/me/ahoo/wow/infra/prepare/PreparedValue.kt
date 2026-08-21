@@ -82,7 +82,6 @@ interface PreparedValue<V> {
          * @param V the type of the value
          * @return a PreparedValue that never expires
          *
-         * @sample
          * ```
          * val permanentValue = "myValue".toForever()
          * assert(permanentValue.isForever) // true
@@ -98,7 +97,6 @@ interface PreparedValue<V> {
          * @param ttlAt the expiration timestamp in milliseconds since epoch
          * @return a PreparedValue with the specified TTL
          *
-         * @sample
          * ```
          * val tempValue = "myValue".toTtlAt(System.currentTimeMillis() + 3600000) // expires in 1 hour
          * assert(!tempValue.isForever) // false

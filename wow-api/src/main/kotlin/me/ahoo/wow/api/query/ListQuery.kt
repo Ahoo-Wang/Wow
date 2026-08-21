@@ -41,7 +41,6 @@ interface IListQuery : Queryable<IListQuery> {
  * @property sort The sorting criteria to order the results.
  * @property limit The maximum number of items to return. Defaults to the standard pagination size.
  *
- * @sample
  * ```
  * val query = ListQuery(
  *     condition = Condition.eq("status", "active"),

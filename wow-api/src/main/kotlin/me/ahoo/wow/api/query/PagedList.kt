@@ -30,7 +30,6 @@ interface IPagedList<out T> {
  * @property total The total number of items available across all pages.
  * @property list The list of items for the current page.
  *
- * @sample
  * ```
  * val page = PagedList(
  *     total = 150,

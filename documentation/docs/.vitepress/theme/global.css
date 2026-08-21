@@ -102,7 +102,7 @@
 */
 :root {
     --vp-sidebar-width: 200px;
-    --vp-layout-max-width: 1600px;
+    --vp-layout-max-width: 100%;
 }
 
 .VPDoc.has-aside .content-container {

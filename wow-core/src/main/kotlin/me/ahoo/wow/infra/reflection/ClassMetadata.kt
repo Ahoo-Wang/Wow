@@ -35,7 +35,6 @@ object ClassMetadata {
      * @param T the type of the class being visited
      * @param visitor the visitor that will process each class element
      *
-     * @sample
      * ```
      * class MyVisitor : ClassVisitor<MyClass, Unit> {
      *     override fun start() { println("Starting visit") }

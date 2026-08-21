@@ -20,7 +20,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             base: '/zh/articles/',
             collapsed: false,
             items: [
-                {text: '文章首页', link: ''},
+                {text: '文章首页', link: 'index.html'},
                 {text: '接口返回 200，查询却查不到', link: 'command-success-is-not-complete'},
                 {text: '传统架构 VS Wow：从写接口到交付领域模型', link: 'traditional-vs-wow-architecture'},
                 {text: 'AI 越强，业务模型越值钱', link: 'why-ddd-fits-ai-era'},
@@ -33,7 +33,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             text: '入门导航',
             collapsed: false,
             items: [
-                {text: '选择阅读路径', link: ''},
+                {text: '选择阅读路径', link: 'index.html'},
                 {text: '贡献者指南', link: 'contributor-guide'},
                 {text: '资深工程师指南', link: 'staff-engineer-guide'},
                 {text: '管理者指南', link: 'executive-guide'},
@@ -47,9 +47,10 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             text: '基础',
             collapsed: false,
             items: [
-                {text: '指南导览', link: ''},
+                {text: '指南导览', link: 'index.html'},
                 {text: '简介', link: 'introduction'},
                 {text: '快速上手', link: 'getting-started'},
+                {text: '接入现有项目', link: 'existing-project'},
                 {text: '核心概念', link: 'core-concepts'},
                 {text: '聚合建模', link: 'modeling'},
                 {text: '配置', link: 'configuration'},
@@ -90,6 +91,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             collapsed: false,
             items: [
                 {text: '生产最佳实践', link: 'best-practices'},
+                {text: '备份、恢复与重放', link: 'recovery'},
                 {text: '故障排查', link: 'troubleshooting'},
                 {
                     text: '迁移指南',
@@ -130,6 +132,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: '运行时生命周期', link: 'runtime-lifecycle'},
                 {text: '聚合生命周期', link: 'aggregate-lifecycle'},
                 {text: '事件总线', link: 'event-bus'},
+                {text: '事件演进', link: 'event-evolution'},
                 {text: '数据流', link: 'data-flow'},
                 {text: '模块依赖', link: 'module-dependencies'},
                 {text: 'ID 生成器', link: 'id-generator'},

@@ -7,7 +7,7 @@ description: 使用 Wow 项目模板快速创建基于 DDD 的微服务项目。
 
 > 使用 [Wow 项目模板](https://github.com/Ahoo-Wang/wow-project-template) 快速创建基于 _Wow_ 框架的 _DDD_ 项目。
 
-本页的目标是完成一个最小垂直切片：启动服务、打开 Swagger UI，并用领域测试验证“命令 → 事件 → 状态”。
+本页的目标是完成一个最小垂直切片：用领域测试验证规则，再通过真实 HTTP 命令完成“命令 → 事件 → 溯源状态”。
 
 ## 开始前
 
@@ -28,12 +28,54 @@ Wow 项目模板独立演进，不保证与本站对应的 Wow 源码 tag 同步
 
 ```shell
 ./gradlew :domain:check
+mkdir -p server/logs
+test -e server/config || ln -s src/main/resources server/config
 ./gradlew :server:run
 ```
 
 4. 访问 [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)。
+5. 按下一节提交一条 `CreateDemo` 命令并等待 `SNAPSHOT`。
+6. 读取 `demo-1` 在版本 `1` 的状态，确认状态由 `DemoCreated` 事件生成。
 
-看到领域测试通过且 Swagger UI 可访问，就完成了首次验证。下文用于理解并替换模板中的 `Demo` 模型。
+领域测试、HTTP 命令和版本化状态读取全部通过，才完成首次垂直切片。下文用于理解并替换模板中的 `Demo` 模型。
+
+### 提交第一条真实命令
+
+模板中的 `CreateDemo` 会生成 `POST /tenant/{tenantId}/demo`。保持服务运行，在另一个终端执行：
+
+```shell
+curl -X POST \
+  'http://localhost:8080/tenant/tenant-1/demo' \
+  -H 'accept: application/json' \
+  -H 'Command-Wait-Stage: SNAPSHOT' \
+  -H 'Command-Aggregate-Id: demo-1' \
+  -H 'Command-Request-Id: quickstart-demo-1' \
+  -H 'Content-Type: application/json' \
+  -d '{"data":"hello-wow"}'
+```
+
+检查响应，而不是只看 HTTP 状态码：
+
+- `succeeded` 为 `true`；
+- `stage` 为 `SNAPSHOT`；
+- `aggregateId` 为 `demo-1`；
+- `aggregateVersion` 为 `1`。
+
+然后读取聚合在版本 `1` 的事件溯源状态：
+
+```shell
+curl \
+  'http://localhost:8080/tenant/tenant-1/demo/demo-1/state/1' \
+  -H 'accept: application/json'
+```
+
+响应应为 `{"id":"demo-1","data":"hello-wow"}`。这证明的不只是路由存在，而是命令已经被聚合处理，且 `DemoCreated` 能重建版本 `1` 的状态。
+
+模板还包含 `DemoSaga`：它收到 `DemoCreated` 后会发送 `UpdateDemo(data = "updated")`。因此读取不带版本的当前状态 `/tenant/tenant-1/demo/demo-1/state` 时，最终会看到 `data = "updated"`。这同时演示了创建命令之后的异步 Saga 链路。
+
+::: tip 重复执行
+`Command-Request-Id` 用于幂等。重复执行同一请求会被识别为重复请求；重新试验时更换 `Command-Request-Id` 和聚合 ID，或重启使用内存存储的服务。
+:::
 
 ## 创建项目
 
@@ -170,8 +212,12 @@ wow:
 ## 启动服务
 
 ```shell
+mkdir -p server/logs
+test -e server/config || ln -s src/main/resources server/config
 ./gradlew :server:run
 ```
+
+模板的 `run` 任务以 `server/` 为工作目录，并从该目录下读取运行时配置、写入 GC 日志。上面的符号链接让 `server/config` 直接指向受版本控制的 `server/src/main/resources`，避免复制后出现两份配置；该链接只用于本地运行，不要提交。Windows 上可创建等价的目录链接，或在 `server/build.gradle.kts` 中把 `spring.config.location` 改为实际配置目录。
 
 ![启动服务](/images/getting-started/run-server.png)
 

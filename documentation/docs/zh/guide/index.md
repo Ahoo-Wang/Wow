@@ -10,6 +10,7 @@ outline: deep
 
 ::: tip 第一次接触 Wow？
 用 15 分钟阅读[简介](./introduction.md)和[核心概念](./core-concepts.md)；想直接运行代码，进入[快速上手](./getting-started.md)。
+已有 Spring Boot 服务则从[接入现有项目](./existing-project.md)开始。
 :::
 
 ## 一张图理解主链路
@@ -33,13 +34,15 @@ flowchart LR
 | 你要完成的任务 | 先读 | 然后读 | 完成标志 |
 | --- | --- | --- | --- |
 | 判断 Wow 是否适合项目 | [简介](./introduction.md) | [生产最佳实践](./best-practices.md) | 能说明收益、运行成本和不适用场景 |
-| 运行第一个应用 | [快速上手](./getting-started.md) | [配置](./configuration.md) | 领域测试通过，服务可启动，Swagger UI 可访问 |
+| 运行第一个应用 | [快速上手](./getting-started.md) | [配置](./configuration.md) | 领域测试通过，真实命令到达 `SNAPSHOT`，状态可读回 |
+| 接入现有 Spring Boot 服务 | [接入现有项目](./existing-project.md) | [Spring Boot Starter](./extensions/spring-boot-starter.md) | KSP 元数据、自动路由、命令和快照闭环均通过 |
 | 设计聚合和业务约束 | [聚合建模](./modeling.md) | [测试套件](./test-suite.md) | 命令产生领域事件，溯源后状态可验证 |
+| 演进已持久化事件 | [事件演进](./advanced/event-evolution.md) | [事件存储](./eventstore.md) | Upgrader 注册、顺序、历史回放与回滚均有证据 |
 | 提供写入 API 和完成语义 | [命令网关](./command-gateway.md) | [OpenAPI](./open-api.md) | 能区分 `SENT`、`PROCESSED`、`SNAPSHOT` 和 `PROJECTED` |
 | 建立查询模型 | [投影](./projection.md) | [查询服务](./query.md) | 投影可重试且幂等，查询边界清晰 |
 | 编排跨聚合流程 | [Saga](./saga.md) | [事件补偿](./event-compensation.md) | 正常、重试、不可恢复路径都有测试 |
 | 选择存储和消息实现 | [模块依赖](./advanced/module-dependencies.md) | [扩展](./extensions/spring-boot-starter.md) | 只引入实际需要的后端和 Starter capability |
-| 准备上生产 | [生产最佳实践](./best-practices.md) | [可观测性](./advanced/observability.md) | 幂等、备份恢复、容量、告警和回滚均有证据 |
+| 准备上生产 | [生产最佳实践](./best-practices.md) | [备份、恢复与重放](./recovery.md) | 幂等、恢复、容量、告警和回滚均有证据 |
 | 处理异常或卡住 | [故障排查](./troubleshooting.md) | 对应的核心/扩展页 | 已定位失败阶段，而不只是扩大超时 |
 | 迁移旧系统或旧版本 | [迁移指南](./migration.md) | 选定的迁移路径 | 库存、对账、切流、回滚门禁完整 |
 
@@ -54,18 +57,21 @@ flowchart LR
 ### 60 分钟：完成一个垂直切片
 
 1. [快速上手](./getting-started.md)
-2. [聚合建模](./modeling.md)
-3. [测试套件](./test-suite.md)
-4. [命令网关](./command-gateway.md)
-5. [投影](./projection.md)与[查询服务](./query.md)
+2. 已有服务改读[接入现有项目](./existing-project.md)
+3. [聚合建模](./modeling.md)
+4. [测试套件](./test-suite.md)
+5. [命令网关](./command-gateway.md)
+6. [投影](./projection.md)与[查询服务](./query.md)
 
 ### 生产评估：从风险开始
 
 1. [生产最佳实践](./best-practices.md)
-2. [测试运行体系](./test-runtime.md)
-3. [可观测性](./advanced/observability.md)
-4. [故障排查](./troubleshooting.md)
-5. [迁移指南](./migration.md)
+2. [备份、恢复与重放](./recovery.md)
+3. [测试运行体系](./test-runtime.md)
+4. [可观测性](./advanced/observability.md)
+5. [故障排查](./troubleshooting.md)
+6. [迁移指南](./migration.md)
+7. [事件演进](./advanced/event-evolution.md)
 
 ## 如何使用不同类型的文档
 

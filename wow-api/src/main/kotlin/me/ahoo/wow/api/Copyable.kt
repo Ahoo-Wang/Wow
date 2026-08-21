@@ -27,7 +27,6 @@ package me.ahoo.wow.api
  *               This is a covariant generic parameter (declared with 'out') to allow more specific types
  *               in implementations while maintaining type safety.
  *
- * @sample
  * ```
  * data class Person(val name: String, val age: Int) : Copyable<Person> {
  *     override fun copy(): Person = Person(name, age)

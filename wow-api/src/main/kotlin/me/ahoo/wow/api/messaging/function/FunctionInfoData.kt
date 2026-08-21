@@ -51,7 +51,6 @@ data class FunctionInfoData(
          * @param functionName The function name (defaults to "Unknown")
          * @return A new [FunctionInfoData] instance with the specified or default values
          *
-         * @sample
          * ```kotlin
          * val unknownCommand = FunctionInfoData.unknown(FunctionKind.COMMAND, "OrderContext")
          * ```

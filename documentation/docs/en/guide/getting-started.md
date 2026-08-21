@@ -7,7 +7,7 @@ description: Get started with the Wow framework using the project template to qu
 
 > Use the [Wow Project Template](https://github.com/Ahoo-Wang/wow-project-template) to quickly create a DDD project based on the _Wow_ framework.
 
-This page completes one minimal vertical slice: start the service, open Swagger UI, and use a domain test to verify **command → event → state**.
+This page completes one minimal vertical slice: verify the rules with a domain test, then use a real HTTP command to prove **command → event → sourced state**.
 
 ## Before You Start
 
@@ -28,12 +28,54 @@ The Wow Project Template evolves independently and is not guaranteed to match th
 
 ```shell
 ./gradlew :domain:check
+mkdir -p server/logs
+test -e server/config || ln -s src/main/resources server/config
 ./gradlew :server:run
 ```
 
 4. Open [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html).
+5. Submit one `CreateDemo` command as shown below and wait for `SNAPSHOT`.
+6. Load version `1` of `demo-1` and confirm that `DemoCreated` produced the state.
 
-When the domain tests pass and Swagger UI is reachable, the first-run baseline is complete. The remaining sections explain how to understand and replace the template's `Demo` model.
+The first vertical slice is complete only when the domain test, HTTP command, and versioned-state read all pass. The remaining sections explain how to understand and replace the template's `Demo` model.
+
+### Send the First Real Command
+
+The template's `CreateDemo` generates `POST /tenant/{tenantId}/demo`. Keep the service running and execute this in another terminal:
+
+```shell
+curl -X POST \
+  'http://localhost:8080/tenant/tenant-1/demo' \
+  -H 'accept: application/json' \
+  -H 'Command-Wait-Stage: SNAPSHOT' \
+  -H 'Command-Aggregate-Id: demo-1' \
+  -H 'Command-Request-Id: quickstart-demo-1' \
+  -H 'Content-Type: application/json' \
+  -d '{"data":"hello-wow"}'
+```
+
+Inspect the command result rather than relying on the HTTP status alone:
+
+- `succeeded` is `true`;
+- `stage` is `SNAPSHOT`;
+- `aggregateId` is `demo-1`;
+- `aggregateVersion` is `1`.
+
+Then load the event-sourced aggregate state at version `1`:
+
+```shell
+curl \
+  'http://localhost:8080/tenant/tenant-1/demo/demo-1/state/1' \
+  -H 'accept: application/json'
+```
+
+The response should be `{"id":"demo-1","data":"hello-wow"}`. This proves more than route availability: the aggregate processed the command and `DemoCreated` can rebuild state at version `1`.
+
+The template also contains `DemoSaga`. After `DemoCreated`, it sends `UpdateDemo(data = "updated")`. As a result, the unversioned current-state endpoint `/tenant/tenant-1/demo/demo-1/state` eventually returns `data = "updated"`, demonstrating the asynchronous Saga flow that follows creation.
+
+::: tip Repeating the request
+`Command-Request-Id` is the idempotency key. Repeating the same request is detected as a duplicate. For another trial, change both the request ID and aggregate ID, or restart the service that uses in-memory storage.
+:::
 
 ## Create Project
 
@@ -170,8 +212,12 @@ wow:
 ## Start Service
 
 ```shell
+mkdir -p server/logs
+test -e server/config || ln -s src/main/resources server/config
 ./gradlew :server:run
 ```
+
+The template's `run` task uses `server/` as its working directory, reads runtime configuration there, and writes GC logs there. The symlink above makes `server/config` point directly to the version-controlled `server/src/main/resources`, avoiding two configuration copies; it is only for local execution and must not be committed. On Windows, create an equivalent directory link or update `spring.config.location` in `server/build.gradle.kts` to the actual configuration directory.
 
 ![Start Service](/images/getting-started/run-server.png)
 

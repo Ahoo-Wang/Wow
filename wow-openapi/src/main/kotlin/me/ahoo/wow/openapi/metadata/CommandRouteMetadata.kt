@@ -114,14 +114,14 @@ data class VariableMetadata(
     val bound: Boolean = true
 ) {
     /**
-     * The name of the last field in [fieldPath].
+     * The name of the last field in `fieldPath`.
      */
     val fieldName: String by lazy {
         fieldPath.last()
     }
 
     /**
-     * The variable type resolved from [field] and [fieldPath], or `null` when it cannot be resolved.
+     * The variable type resolved from `field` and `fieldPath`, or `null` when it cannot be resolved.
      */
     val variableType: Type? by lazy {
         this.field ?: return@lazy null

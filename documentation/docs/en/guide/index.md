@@ -10,6 +10,7 @@ You do not need to read the sidebar from top to bottom. Pick the task you need t
 
 ::: tip New to Wow?
 Spend 15 minutes on the [Introduction](./introduction.md) and [Core Concepts](./core-concepts.md). To run code immediately, start with [Getting Started](./getting-started.md).
+For an existing Spring Boot service, start with [Add Wow to an Existing Project](./existing-project.md).
 :::
 
 ## The Main Flow in One Diagram
@@ -33,13 +34,15 @@ An aggregate makes business decisions, and its domain events are persisted as th
 | Task | Read first | Then read | Done when |
 | --- | --- | --- | --- |
 | Decide whether Wow fits | [Introduction](./introduction.md) | [Production Best Practices](./best-practices.md) | You can explain the benefits, operating costs, and poor-fit cases |
-| Run a first application | [Getting Started](./getting-started.md) | [Configuration](./configuration.md) | Domain tests pass, the service starts, and Swagger UI is reachable |
+| Run a first application | [Getting Started](./getting-started.md) | [Configuration](./configuration.md) | Domain tests pass, a real command reaches `SNAPSHOT`, and state can be loaded |
+| Add Wow to an existing Spring Boot service | [Existing Project](./existing-project.md) | [Spring Boot Starter](./extensions/spring-boot-starter.md) | KSP metadata, generated routes, command handling, and snapshot loading all work |
 | Model an aggregate and invariants | [Aggregate Modeling](./modeling.md) | [Test Suite](./test-suite.md) | Commands emit domain events and replay produces verified state |
+| Evolve persisted events | [Event Evolution](./advanced/event-evolution.md) | [Event Store](./eventstore.md) | Upgrader registration, ordering, historical replay, and rollback have evidence |
 | Expose writes and completion semantics | [Command Gateway](./command-gateway.md) | [OpenAPI](./open-api.md) | You can distinguish `SENT`, `PROCESSED`, `SNAPSHOT`, and `PROJECTED` |
 | Build a query model | [Projection](./projection.md) | [Query Service](./query.md) | The projection is retry-safe and idempotent, with a clear query boundary |
 | Coordinate across aggregates | [Saga](./saga.md) | [Event Compensation](./event-compensation.md) | Success, retry, and unrecoverable paths are tested |
 | Choose messaging and storage | [Module Dependencies](./advanced/module-dependencies.md) | [Extensions](./extensions/spring-boot-starter.md) | Only the required backends and starter capabilities are included |
-| Prepare for production | [Production Best Practices](./best-practices.md) | [Observability](./advanced/observability.md) | Idempotency, restore, capacity, alerts, and rollback have evidence |
+| Prepare for production | [Production Best Practices](./best-practices.md) | [Backup, Restore, and Replay](./recovery.md) | Idempotency, recovery, capacity, alerts, and rollback have evidence |
 | Diagnose a failure or hang | [Troubleshooting](./troubleshooting.md) | The relevant core or extension page | The failed stage is known instead of merely having a larger timeout |
 | Migrate a system or version | [Migration Guide](./migration.md) | The selected migration path | Inventory, reconciliation, cutover, and rollback gates are complete |
 
@@ -54,18 +57,21 @@ An aggregate makes business decisions, and its domain events are persisted as th
 ### 60 minutes: complete a vertical slice
 
 1. [Getting Started](./getting-started.md)
-2. [Aggregate Modeling](./modeling.md)
-3. [Test Suite](./test-suite.md)
-4. [Command Gateway](./command-gateway.md)
-5. [Projection](./projection.md) and [Query Service](./query.md)
+2. For an existing service, use [Existing Project](./existing-project.md) instead
+3. [Aggregate Modeling](./modeling.md)
+4. [Test Suite](./test-suite.md)
+5. [Command Gateway](./command-gateway.md)
+6. [Projection](./projection.md) and [Query Service](./query.md)
 
 ### Production assessment: start with risk
 
 1. [Production Best Practices](./best-practices.md)
-2. [Test Runtime](./test-runtime.md)
-3. [Observability](./advanced/observability.md)
-4. [Troubleshooting](./troubleshooting.md)
-5. [Migration Guide](./migration.md)
+2. [Backup, Restore, and Replay](./recovery.md)
+3. [Test Runtime](./test-runtime.md)
+4. [Observability](./advanced/observability.md)
+5. [Troubleshooting](./troubleshooting.md)
+6. [Migration Guide](./migration.md)
+7. [Event Evolution](./advanced/event-evolution.md)
 
 ## Use Each Documentation Type for Its Job
 

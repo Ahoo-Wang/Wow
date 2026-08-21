@@ -212,6 +212,8 @@ to be transformed to the current shape.
 [`EventUpgraderFactory.kt:37-73`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/upgrader/EventUpgraderFactory.kt#L37-L73)
 [`EventUpgraderFactory.kt:89-115`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/upgrader/EventUpgraderFactory.kt#L89-L115)
 
+See [Event Evolution](../advanced/event-evolution.md) for implementation, ServiceLoader registration, chain ordering, and historical replay gates.
+
 ## Completion Checklist
 
 - [ ] Bounded context, aggregate, cross-tenant-unique ID, tenant, and ownership mappings are fixed

@@ -18,7 +18,7 @@ import java.time.Duration
 /**
  * Controls transparent batching for [MongoEventStore] appends.
  *
- * Batching is opt-in because collecting a partial batch adds up to [maxDelay] to a low-throughput append.
+ * Batching is opt-in because collecting a partial batch adds up to `maxDelay` to a low-throughput append.
  */
 data class MongoEventStoreBatchOptions(
     val enabled: Boolean = false,

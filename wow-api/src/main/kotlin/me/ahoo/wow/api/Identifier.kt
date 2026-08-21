@@ -24,7 +24,6 @@ import me.ahoo.wow.api.modeling.StringIdCapable
  * The identifier should be immutable and unique across all instances of the same type.
  * Common implementations include UUIDs, database primary keys, or domain-specific identifiers.
  *
- * @sample
  * ```
  * data class User(val name: String, override val id: String) : Identifier
  *

@@ -35,7 +35,6 @@ import me.ahoo.wow.api.naming.Named
  * @see DefaultErrorInfo for the default implementation
  * @see ErrorInfoCapable for objects that can provide error information
  *
- * @sample
  * ```kotlin
  * // Successful operation
  * val success = ErrorInfo.OK
@@ -147,7 +146,6 @@ interface ErrorInfo {
          * @receiver The ErrorInfo instance to materialize
          * @return A [Materialized] ErrorInfo instance with the same error details
          *
-         * @sample
          * ```kotlin
          * val error = someErrorInfo.materialize()
          * // Now error is guaranteed to be serializable
@@ -195,7 +193,6 @@ interface ErrorInfo {
          * @receiver Any object that might be an ErrorInfo
          * @return `true` if this is a failed ErrorInfo, `false` otherwise
          *
-         * @sample
          * ```kotlin
          * val result = someOperation()
          * if (result.isFailed()) {
@@ -217,7 +214,6 @@ interface ErrorInfo {
          * @param bindingErrors A list of field-level binding errors (defaults to empty list)
          * @return A new [DefaultErrorInfo] instance with the specified error details
          *
-         * @sample
          * ```kotlin
          * val validationError = ErrorInfo.of(
          *     errorCode = "VALIDATION_FAILED",
@@ -250,7 +246,6 @@ interface ErrorInfo {
  *
  * @see ErrorInfo.bindingErrors for how binding errors are used in error responses
  *
- * @sample
  * ```kotlin
  * val errors = listOf(
  *     BindingError("email", "Invalid email format"),
@@ -279,7 +274,6 @@ data class BindingError(
  * @see ErrorInfo for the interface definition
  * @see ErrorInfo.of for convenient factory method
  *
- * @sample
  * ```kotlin
  * // Create a simple error
  * val error = DefaultErrorInfo("NOT_FOUND", "User not found")

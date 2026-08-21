@@ -92,7 +92,7 @@ abstract class AbstractAggregateEventDispatcher<E : MessageExchange<*, DomainEve
      * @param exchange The message exchange containing the event stream
      * @return A Mono that completes when all events are processed
      *
-     * @see handleEvent
+     * Each event is dispatched through the private event handler.
      * @see ExchangeAck.finallyAck
      */
     override fun handleExchange(exchange: E): Mono<Void> =

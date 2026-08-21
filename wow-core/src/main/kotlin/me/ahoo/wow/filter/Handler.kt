@@ -104,7 +104,7 @@ class LogResumeErrorHandler<T> : ErrorHandler<T> {
 }
 
 /**
- * Base handler that delegates processing to [chain] and failures to [errorHandler].
+ * Base handler that delegates processing to `chain` and failures to `errorHandler`.
  *
  * @param T context type
  * @param chain filter chain used to process the context

@@ -33,11 +33,11 @@ Use the repository wrapper and toolchain rather than installing arbitrary global
 | --- | --- | --- |
 | Wow | `8.10.6` | [`gradle.properties`](https://github.com/Ahoo-Wang/Wow/blob/main/gradle.properties#L18-L23) |
 | Kotlin | `2.4.10` | [version catalog](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/libs.versions.toml#L23-L35) |
-| Spring Boot | `4.1.0` | [version catalog](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/libs.versions.toml#L1-L5) |
-| Gradle | `9.6.1` | [wrapper properties](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/wrapper/gradle-wrapper.properties#L1-L9) |
+| Spring Boot | `4.1.1` | [version catalog](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/libs.versions.toml#L1-L5) |
+| Gradle | `9.7.1` | [wrapper properties](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/wrapper/gradle-wrapper.properties#L1-L9) |
 | JVM toolchain | Java `17` | [root build](https://github.com/Ahoo-Wang/Wow/blob/main/build.gradle.kts#L175-L190) |
-| JUnit | `6.1.2` | [version catalog](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/libs.versions.toml#L23-L27) |
-| KSP | `2.3.10` | [version catalog](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/libs.versions.toml#L31-L35) |
+| JUnit | `6.1.3` | [version catalog](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/libs.versions.toml#L23-L27) |
+| KSP | `2.3.11` | [version catalog](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/libs.versions.toml#L31-L35) |
 
 The README also states that Wow 8 targets Spring Boot 4 and Java 17 or later.
 Treat the build files above as the more precise source when versions move.
@@ -841,12 +841,12 @@ The install commands below are macOS/Homebrew examples. On Linux or Windows, use
 | --- | --- | --- | --- | --- | --- |
 | Git | Current supported release | All work | `brew install git` | `git --version` | One line beginning with `git version` |
 | JDK | `17` | JVM tests and Dokka | `brew install --cask temurin@17` | `java -version` | Version output containing `17` |
-| Gradle Wrapper | `9.6.1` | JVM build | No global install; bootstrap with `./gradlew --version` | `./gradlew --version` | `Gradle 9.6.1` and `Launcher JVM: 17...` |
+| Gradle Wrapper | `9.7.1` | JVM build | No global install; bootstrap with `./gradlew --version` | `./gradlew --version` | `Gradle 9.7.1` and `Launcher JVM: 17...` |
 | Node.js | `24.18.1` in CI | Documentation and dashboard | `brew install node@24` | `node --version` | A `v24...` version; CI uses `v24.18.1` |
 | pnpm | `10.34.5` | Documentation and dashboard | `corepack enable && corepack prepare pnpm@10.34.5 --activate` | `pnpm --version` | Exactly `10.34.5` |
 | Docker-compatible runtime | Engine capable of running Testcontainers | Integration tests only | `brew install --cask docker` | `docker version` | Both `Client` and `Server` sections after the runtime starts |
 
-CI uses Temurin Java 17 for local tests, and the checked-in wrapper downloads Gradle 9.6.1. You do not need a global Gradle installation.
+CI uses Temurin Java 17 for local tests, and the checked-in wrapper downloads Gradle 9.7.1. You do not need a global Gradle installation.
 [See the JVM workflow setup.](https://github.com/Ahoo-Wang/Wow/blob/main/.github/workflows/local-test.yml#L48-L58)
 [See the wrapper version.](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/wrapper/gradle-wrapper.properties#L1-L9)
 
@@ -872,7 +872,7 @@ Run commands from the repository root.
 Expected key lines:
 
 ```text
-Gradle 9.6.1
+Gradle 9.7.1
 Launcher JVM: 17...
 ```
 

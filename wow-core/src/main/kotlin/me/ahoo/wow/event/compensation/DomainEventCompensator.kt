@@ -55,7 +55,7 @@ class DomainEventCompensator(
      * @return A Mono that completes when the compensated event is sent
      *
      * @see DomainEventStream.withCompensation
-     * @see DomainEventBus.send
+     * Delegates the compensated stream to `DomainEventBus.send`.
      * @see CompensationTarget
      */
     override fun compensate(
