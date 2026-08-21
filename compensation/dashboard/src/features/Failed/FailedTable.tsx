@@ -283,7 +283,7 @@ export function FailedTable({
                       "h-[82px] border-b-slate-200",
                       loading ? "cursor-wait" : "cursor-pointer",
                       selected &&
-                        "rounded-md ring-1 ring-inset ring-blue-500 data-[state=selected]:bg-blue-50/70 data-[state=selected]:hover:bg-blue-50/80",
+                        "rounded-md outline-1 -outline-offset-1 outline-blue-500 data-[state=selected]:bg-blue-50/70 data-[state=selected]:hover:bg-blue-50/80",
                     )}
                     onClick={() => {
                       if (!loading) {
