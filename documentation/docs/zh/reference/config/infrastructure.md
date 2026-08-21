@@ -177,10 +177,10 @@ direct 和 batch 模式下都使用基于 `_source.version` 的原子保护更�
 | `wow.webflux.query.max-page-window` | Long | `10000` | HTTP 查询最大分页窗口；`0` 关闭上限 |
 | `wow.webflux.query.max-condition-nodes` | Integer | `64` | HTTP 查询条件节点上限；`0` 关闭上限 |
 | `wow.webflux.query.max-condition-values` | Integer | `1000` | HTTP `IN`、`NOT_IN`、`ALL_IN`、`IDS`、`AGGREGATE_IDS` 条件值数量上限；`0` 关闭上限 |
-| `wow.webflux.query.allowed-sort-fields` | Set<String> | `[]` | HTTP 显式排序允许的已索引逻辑字段；空集拒绝所有显式排序 |
-| `wow.webflux.query.allowed-condition-fields` | Set<String> | `[]` | HTTP 条件允许的额外已索引逻辑字段；空集仅保留内置 `aggregateId`、`version` 和无字段元数据操作符 |
+| `wow.webflux.query.allowed-sort-fields` | Set<String> | `[]` | HTTP 显式排序允许的已索引逻辑字段；空集拒绝所有显式排序，`["*"]` 关闭限制 |
+| `wow.webflux.query.allowed-condition-fields` | Set<String> | `[]` | HTTP 条件允许的额外已索引逻辑字段；空集仅保留内置字段，`["*"]` 关闭限制 |
 | `wow.webflux.query.allow-raw` | Boolean | `false` | 允许 HTTP `RAW` 查询 |
-| `wow.webflux.query.allow-expensive-operators` | Boolean | `false` | 允许 HTTP `CONTAINS`、`ENDS_WITH` 及空值或忽略大小写的 `STARTS_WITH` 查询 |
+| `wow.webflux.query.allow-expensive-operators` | Boolean | `false` | 允许 HTTP 高成本字符串操作符及无过滤 count/paged 查询 |
 | `wow.webflux.query.idle-timeout` | Duration | `10s` | 普通 JSON 数组首条结果或 SSE 下一条结果的等待超时；`0s` 关闭 |
 | `wow.webflux.command.request.appender.agent.enabled` | Boolean | `true` | 将客户端 `User-Agent` 追加到命令请求上下文（设为 `false` 可禁用） |
 | `wow.webflux.command.request.appender.ip.enabled` | Boolean | `true` | 将客户端 IP 追加到命令请求上下文（设为 `false` 可禁用） |

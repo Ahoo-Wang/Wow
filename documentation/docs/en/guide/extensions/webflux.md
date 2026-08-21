@@ -92,10 +92,10 @@ plus `wow-webflux` for these properties to be bound.
 | `query.max-page-window` | `Long` | `10000` | Maximum HTTP `index * size` page window; `0` disables the cap |
 | `query.max-condition-nodes` | `Int` | `64` | Maximum number of HTTP query condition nodes; `0` disables the cap |
 | `query.max-condition-values` | `Int` | `1000` | Maximum values in HTTP `IN`, `NOT_IN`, `ALL_IN`, `IDS`, or `AGGREGATE_IDS` conditions; `0` disables the cap |
-| `query.allowed-sort-fields` | `Set<String>` | `[]` | Indexed logical fields allowed for explicit HTTP sorting; an empty set rejects all explicit sorts |
-| `query.allowed-condition-fields` | `Set<String>` | `[]` | Additional indexed logical fields allowed in HTTP predicates; an empty set keeps only built-in `aggregateId`, `version`, and fieldless metadata operators |
+| `query.allowed-sort-fields` | `Set<String>` | `[]` | Indexed logical fields allowed for explicit HTTP sorting; an empty set rejects all explicit sorts and `["*"]` disables the restriction |
+| `query.allowed-condition-fields` | `Set<String>` | `[]` | Additional indexed logical fields allowed in HTTP predicates; an empty set keeps only built-in `aggregateId`, `version`, and fieldless metadata operators, while `["*"]` disables the restriction |
 | `query.allow-raw` | `Boolean` | `false` | Whether HTTP queries may use native `RAW` conditions |
-| `query.allow-expensive-operators` | `Boolean` | `false` | Whether HTTP queries may use `CONTAINS`, `ENDS_WITH`, or empty/case-insensitive `STARTS_WITH` |
+| `query.allow-expensive-operators` | `Boolean` | `false` | Whether HTTP queries may use expensive string operators or unfiltered count/paged queries |
 | `query.idle-timeout` | `Duration` | `10s` | Maximum wait for the first JSON-array result or the next SSE result; `0s` disables the timeout |
 
 ```yaml
@@ -121,7 +121,7 @@ wow:
 ```
 
 When `wow-spring-boot-starter` is used, WebFlux is included as the `webflux-support` feature capability. The global error handler is enabled by default; disable it only if you provide your own `WebExceptionHandler`.
-The query limits apply only to built-in HTTP query routes; injected query services and low-level factories keep their existing behavior. To temporarily restore the previous HTTP behavior after upgrading, set the numeric limits and `idle-timeout` to `0` and explicitly enable both `allow-*` switches.
+The query limits apply only to built-in HTTP query routes; injected query services and low-level factories keep their existing behavior. Configure `ELEM_MATCH` children with their full logical paths, such as `state.items.productId`. To temporarily restore the previous HTTP behavior after upgrading, set the numeric limits and `idle-timeout` to `0`, enable both `allow-*` switches, and set both `allowed-*-fields` properties to `["*"]`.
 
 ## Wait Plan Integration
 

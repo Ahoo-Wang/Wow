@@ -185,8 +185,69 @@ class HttpQueryGuardFilterTest {
     }
 
     @Test
+    fun `should allow legacy fields with wildcard`() {
+        val context = listContext(
+            ListQuery(
+                Condition.eq("state.unindexed", "value"),
+                limit = 1,
+                sort = listOf(Sort("state.unindexed", Sort.Direction.ASC)),
+            ),
+        )
+        guard(
+            allowedSortFields = setOf("*"),
+            allowedConditionFields = setOf("*"),
+        ).filter(
+            context,
+            FilterChain {
+                it.asListQuery<Any>().setResult(Flux.empty())
+                Mono.empty()
+            },
+        ).writeRawRequest(request).test().verifyComplete()
+    }
+
+    @Test
+    fun `should validate element match children with effective paths`() {
+        val guard = guard(allowedConditionFields = setOf("state.items.productId"))
+        val context = listContext(
+            ListQuery(
+                Condition.elemMatch("state.items", Condition.eq("productId", "product-1")),
+                limit = 1,
+            ),
+        )
+        guard.filter(
+            context,
+            FilterChain {
+                it.asListQuery<Any>().setResult(Flux.empty())
+                Mono.empty()
+            },
+        ).writeRawRequest(request).test().verifyComplete()
+
+        guard.filter(
+            listContext(ListQuery(Condition.eq("productId", "product-1"), limit = 1)),
+            unexpectedBackend(),
+        ).writeRawRequest(request).test()
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
+    }
+
+    @Test
+    fun `should reject unfiltered counting queries`() {
+        guard().filter(countContext(Condition.ALL), unexpectedBackend())
+            .writeRawRequest(request)
+            .test()
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
+
+        guard().filter(pagedContext(PagedQuery(Condition.ALL)), unexpectedBackend())
+            .writeRawRequest(request)
+            .test()
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
+    }
+
+    @Test
     fun `should apply idle timeout after backend result is installed`() {
-        val context = pagedContext(PagedQuery(Condition.ALL))
+        val context = pagedContext(PagedQuery(Condition.id("aggregate-id")))
         guard(idleTimeout = Duration.ofMillis(10)).filter(
             context,
             FilterChain {
@@ -353,6 +414,12 @@ class HttpQueryGuardFilterTest {
             QueryType.PAGED,
             MOCK_AGGREGATE_METADATA,
         ).setQuery(query)
+
+    private fun countContext(condition: Condition): QueryContext<Condition, Mono<Long>> =
+        DefaultQueryContext<Condition, Mono<Long>>(
+            QueryType.COUNT,
+            MOCK_AGGREGATE_METADATA,
+        ).setQuery(condition)
 
     private fun unexpectedBackend(): FilterChain<QueryContext<*, *>> = FilterChain {
         error("Backend must not be invoked.")

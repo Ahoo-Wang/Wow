@@ -68,7 +68,7 @@ class HttpQueryGuardFilter(
         if (request == null) {
             return@deferContextual next.filter(context)
         }
-        validate(context.getQuery())
+        validate(context.queryType, context.getQuery())
         val downstream = next.filter(context)
         val guardedDownstream = if (idleTimeout.isZero) downstream else downstream.timeout(idleTimeout)
         guardedDownstream.doOnSuccess {
@@ -76,13 +76,13 @@ class HttpQueryGuardFilter(
         }
     }
 
-    private fun validate(query: Any) {
+    private fun validate(queryType: QueryType, query: Any) {
         when (query) {
             is IListQuery -> validateList(query)
             is IPagedQuery -> validatePage(query)
         }
         if (query is Queryable<*>) {
-            val rejectedSortFields = query.sort.map { it.field }.filterNot(allowedSortFields::contains)
+            val rejectedSortFields = query.sort.map { it.field }.filterNot { allowedSortFields.allows(it) }
             require(rejectedSortFields.isEmpty()) {
                 "HTTP query sort fields$rejectedSortFields are not allowed."
             }
@@ -91,6 +91,13 @@ class HttpQueryGuardFilter(
             is Condition -> query
             is ConditionCapable<*> -> query.condition
             else -> return
+        }
+        require(
+            allowExpensiveOperators ||
+                queryType !in COUNTING_QUERY_TYPES ||
+                condition.operator != Operator.ALL
+        ) {
+            "HTTP unfiltered ${queryType.name.lowercase()} query is disabled because expensive operators are not allowed."
         }
         validateCondition(condition)
     }
@@ -119,37 +126,50 @@ class HttpQueryGuardFilter(
     }
 
     private fun validateCondition(condition: Condition) {
-        val pending = ArrayDeque<Condition>()
-        pending.add(condition)
+        val pending = ArrayDeque<Pair<Condition, String>>()
+        pending.add(condition to "")
         var nodes = 0
         while (pending.isNotEmpty()) {
-            val current = pending.removeLast()
+            val (current, parentField) = pending.removeLast()
             nodes++
             require(maxConditionNodes == 0 || nodes <= maxConditionNodes) {
                 "HTTP query condition nodes[$nodes] must not exceed $maxConditionNodes."
             }
-            require(
-                current.field.isEmpty() ||
-                    current.field in BUILT_IN_CONDITION_FIELDS ||
-                    current.field in allowedConditionFields
-            ) {
-                "HTTP query condition field[${current.field}] is not allowed."
+            val effectiveField = when {
+                current.field.isEmpty() -> ""
+                parentField.isEmpty() -> current.field
+                else -> "$parentField.${current.field}"
             }
-            require(allowRaw || current.operator != Operator.RAW) {
-                "HTTP query operator[RAW] is not allowed."
-            }
-            require(allowExpensiveOperators || !current.isExpensive()) {
-                "HTTP query operator[${current.operator}] is disabled because expensive operators are not allowed."
-            }
-            val values = current.value
-            if (current.operator in COLLECTION_OPERATORS && values is Collection<*>) {
-                require(maxConditionValues == 0 || values.size <= maxConditionValues) {
-                    "HTTP query condition values[${values.size}] must not exceed $maxConditionValues."
-                }
-            }
-            pending.addAll(current.children)
+            validateConditionNode(current, effectiveField)
+            val childParentField = if (current.operator == Operator.ELEM_MATCH) effectiveField else parentField
+            current.children.forEach { pending.add(it to childParentField) }
         }
     }
+
+    private fun validateConditionNode(condition: Condition, effectiveField: String) {
+        require(
+            condition.operator == Operator.ELEM_MATCH ||
+                effectiveField.isEmpty() ||
+                effectiveField in BUILT_IN_CONDITION_FIELDS ||
+                allowedConditionFields.allows(effectiveField)
+        ) {
+            "HTTP query condition field[$effectiveField] is not allowed."
+        }
+        require(allowRaw || condition.operator != Operator.RAW) {
+            "HTTP query operator[RAW] is not allowed."
+        }
+        require(allowExpensiveOperators || !condition.isExpensive()) {
+            "HTTP query operator[${condition.operator}] is disabled because expensive operators are not allowed."
+        }
+        val values = condition.value
+        if (condition.operator in COLLECTION_OPERATORS && values is Collection<*>) {
+            require(maxConditionValues == 0 || values.size <= maxConditionValues) {
+                "HTTP query condition values[${values.size}] must not exceed $maxConditionValues."
+            }
+        }
+    }
+
+    private fun Set<String>.allows(field: String): Boolean = FIELD_WILDCARD in this || field in this
 
     private fun Condition.isExpensive(): Boolean =
         operator in EXPENSIVE_OPERATORS ||
@@ -180,6 +200,8 @@ class HttpQueryGuardFilter(
     private companion object {
         val EXPENSIVE_OPERATORS = setOf(Operator.CONTAINS, Operator.ENDS_WITH)
         val BUILT_IN_CONDITION_FIELDS = setOf(MessageRecords.AGGREGATE_ID, MessageRecords.VERSION)
+        val COUNTING_QUERY_TYPES = setOf(QueryType.PAGED, QueryType.DYNAMIC_PAGED, QueryType.COUNT)
+        const val FIELD_WILDCARD = "*"
         val COLLECTION_OPERATORS = setOf(
             Operator.IN,
             Operator.NOT_IN,

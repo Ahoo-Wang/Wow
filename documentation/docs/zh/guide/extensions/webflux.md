@@ -90,10 +90,10 @@ data class CreateOrder(/* ... */)
 | `query.max-page-window` | `Long` | `10000` | HTTP 分页查询允许的最大 `index * size`；`0` 关闭上限 |
 | `query.max-condition-nodes` | `Int` | `64` | HTTP 查询条件树的最大节点数；`0` 关闭上限 |
 | `query.max-condition-values` | `Int` | `1000` | HTTP `IN`、`NOT_IN`、`ALL_IN`、`IDS`、`AGGREGATE_IDS` 条件的最大值数量；`0` 关闭上限 |
-| `query.allowed-sort-fields` | `Set<String>` | `[]` | HTTP 显式排序允许的已索引逻辑字段；空集拒绝所有显式排序 |
-| `query.allowed-condition-fields` | `Set<String>` | `[]` | HTTP 条件允许的额外已索引逻辑字段；空集仅保留内置 `aggregateId`、`version` 和无字段元数据操作符 |
+| `query.allowed-sort-fields` | `Set<String>` | `[]` | HTTP 显式排序允许的已索引逻辑字段；空集拒绝所有显式排序，`["*"]` 关闭限制 |
+| `query.allowed-condition-fields` | `Set<String>` | `[]` | HTTP 条件允许的额外已索引逻辑字段；空集仅保留内置 `aggregateId`、`version` 和无字段元数据操作符，`["*"]` 关闭限制 |
 | `query.allow-raw` | `Boolean` | `false` | 是否允许 HTTP 查询使用 `RAW` 原生条件 |
-| `query.allow-expensive-operators` | `Boolean` | `false` | 是否允许 HTTP 查询使用 `CONTAINS`、`ENDS_WITH` 及空值或忽略大小写的 `STARTS_WITH` |
+| `query.allow-expensive-operators` | `Boolean` | `false` | 是否允许 HTTP 查询使用高成本字符串操作符及无过滤 count/paged 查询 |
 | `query.idle-timeout` | `Duration` | `10s` | 普通 JSON 数组等待首条结果、SSE 等待下一条结果的最长时间；`0s` 关闭超时 |
 
 ```yaml
@@ -119,7 +119,7 @@ wow:
 ```
 
 使用 `wow-spring-boot-starter` 时，WebFlux 作为 `webflux-support` 特性能力包含在内。全局异常处理器默认启用；仅当你提供自己的 `WebExceptionHandler` 时才需关闭。
-查询限制只作用于内置 HTTP 查询路由，不改变程序内注入的查询服务或底层 Factory。升级后如需临时恢复旧 HTTP 行为，可将数值限制和 `idle-timeout` 设为 `0`，并显式启用两个 `allow-*` 开关。
+查询限制只作用于内置 HTTP 查询路由，不改变程序内注入的查询服务或底层 Factory。`ELEM_MATCH` 子字段按完整逻辑路径配置，例如 `state.items.productId`。升级后如需临时恢复旧 HTTP 行为，可将数值限制和 `idle-timeout` 设为 `0`，启用两个 `allow-*` 开关，并将两个 `allowed-*-fields` 设为 `["*"]`。
 
 ## 等待计划集成
 
