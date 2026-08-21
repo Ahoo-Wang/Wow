@@ -14,6 +14,9 @@ hero:
       text: Get Started
       link: /guide/getting-started
     - theme: alt
+      text: Introduction
+      link: /guide/introduction
+    - theme: alt
       text: Documentation Map
       link: /guide/
     - theme: alt

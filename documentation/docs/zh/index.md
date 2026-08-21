@@ -14,6 +14,9 @@ hero:
       text: 快速上手
       link: /zh/guide/getting-started
     - theme: alt
+      text: 简介
+      link: /zh/guide/introduction
+    - theme: alt
       text: 文档导览
       link: /zh/guide/
     - theme: alt
