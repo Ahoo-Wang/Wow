@@ -12,3 +12,4 @@
 {"id":"A42-none-review-compare-wow","prompt":"审查这个 Axon Framework PR，并比较它与 Wow 的 Saga 和 CommandGateway 设计；项目不使用 Wow。","expectedSkills":[],"tags":["negative","non-wow-project","review","vocabulary-collision","explicit-wow-exclusion"]}
 {"id":"A49-review-source-marker-only","fixture":"fixtures/service.gradle.kts","prompt":"审查这个下游服务的聚合补丁，按严重度报告 findings，不要修改文件。","expectedSkills":["wow-review"],"tags":["positive","source-marker","fixture","no-wow-keyword"]}
 {"id":"A56-none-framework-review","prompt":"审查 Wow 框架仓库中修改 wow-core CommandGateway 的 PR，判断能否发布。","expectedSkills":[],"tags":["negative","wow-framework-repository","review"]}
+{"id":"A62-none-review-checkout-wide-marker","fixture":"fixtures/non-wow-scope.patch","prompt":"审查 services/plain-service 的协程工具改动，判断是否可以合并。","expectedSkills":[],"tags":["negative","checkout-wide-marker","non-wow-scope","fixture","review"]}

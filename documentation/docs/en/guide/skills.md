@@ -66,7 +66,6 @@ Each `SKILL.md` contains only the core procedure and selection rules. Domain mat
 | Starter, storage, and buses | `starter-storage.md` |
 | Runtime lifecycle | `runtime-lifecycle.md` |
 | PrepareKey uniqueness and reservation | `prepare-key.md` |
-| Test level and completion evidence | `verification-evidence.md` |
 
 References contain stable decisions, source-discovery methods, and verification boundaries. Discover complete annotation parameters, test DSL APIs, configuration keys, defaults, and backend lists from the target version. [`skills/README.md`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/README.md#content-model)
 
@@ -94,12 +93,14 @@ This four-Skill architecture is intentionally breaking: legacy names and compati
 
 Provide at least the objective, scope, authorization mode, and completion evidence:
 
+These examples target a downstream application that uses Wow; never target the Wow framework repository or its modules with these Skills.
+
 | Information | Example |
 |---|---|
 | Objective | "Add cancellation behavior and tests to `Order`" |
-| Scope | "Only change `example-domain`; preserve public API compatibility" |
+| Scope | "Only change the downstream `order-domain`; preserve public API compatibility" |
 | Mode | "Review only; do not edit" or "Diagnose and fix" |
-| Verification | "Run `:example-domain:test` and report the exact result" |
+| Verification | "Run `:order-domain:test` and report the exact result" |
 
 ```mermaid
 sequenceDiagram

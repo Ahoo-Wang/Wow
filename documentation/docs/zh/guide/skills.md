@@ -66,7 +66,6 @@ flowchart TD
 | Starter、storage、bus | `starter-storage.md` |
 | Runtime lifecycle | `runtime-lifecycle.md` |
 | PrepareKey 唯一性与预留 | `prepare-key.md` |
-| 测试层级与完成证据 | `verification-evidence.md` |
 
 references 只保存稳定决策、源码发现方法和验证边界。完整注解参数、测试 DSL 方法表、配置键、默认值和后端枚举应直接从目标版本源码发现。[`skills/README.md`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/README.md#content-model)
 
@@ -94,12 +93,14 @@ codex plugin add ahoo-wow-skills@ahoo-skills
 
 请求至少应说明目标、范围、授权模式和完成证据：
 
+以下示例均指使用 Wow 的下游应用；不要把 Wow 框架仓库或其模块作为这些 Skills 的目标。
+
 | 信息 | 示例 |
 |---|---|
 | 目标 | “为 `Order` 增加取消能力并补测试” |
-| 范围 | “只修改 `example-domain`，保持公开 API 兼容” |
+| 范围 | “只修改下游 `order-domain`，保持公开 API 兼容” |
 | 模式 | “只 review，不修改”或“定位并修复” |
-| 验证 | “运行 `:example-domain:test` 并报告准确结果” |
+| 验证 | “运行 `:order-domain:test` 并报告准确结果” |
 
 ```mermaid
 sequenceDiagram

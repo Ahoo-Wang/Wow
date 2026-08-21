@@ -14,3 +14,4 @@
 {"id":"A52-migrate-wow-runtime-contract-break","prompt":"将 Wow 8.9 升级到 8.10：目标 tag 改变了 Wow 生成元数据和 runtimeClasspath 自动配置契约；无需数据转换，但要审计适配和回滚。","expectedSkills":["wow-migrate"],"tags":["positive","generated-contract","runtime-contract","conflict"]}
 {"id":"A53-none-unrelated-generated-contract","prompt":"这个 Wow 服务只升级独立的 GraphQL codegen 和生成客户端，不改变 Wow 版本、源码、配置、生成元数据、runtimeClasspath、存储或数据契约。","expectedSkills":[],"tags":["negative","wow-project","unrelated-generated-contract"]}
 {"id":"A57-none-framework-migrate","prompt":"为 Wow 框架仓库规划 v9 破坏性版本发布，修改框架生成元数据和 runtime contract。","expectedSkills":[],"tags":["negative","wow-framework-repository","migration"]}
+{"id":"A61-none-migrate-checkout-wide-marker","fixture":"fixtures/non-wow-scope.patch","prompt":"把 services/plain-service 的 Flyway 报表表迁移到新 schema，要求对账和回滚。","expectedSkills":[],"tags":["negative","checkout-wide-marker","non-wow-scope","fixture","migration"]}

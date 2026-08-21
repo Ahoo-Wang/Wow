@@ -1,13 +1,13 @@
 ---
 name: "wow-review"
-description: "Review downstream application code, diffs, or pull requests that use or introduce Wow and produce evidence-backed findings about correctness, compatibility, reactive behavior, and tests. Never activate for the Wow framework repository itself. Require scoped me.ahoo.wow imports, wow-* dependencies, or an explicit request to review Wow use or introduction in a downstream application; checkout-wide markers and generic DDD/CQRS terms are insufficient. Use for findings, merge readiness, and review-and-fix. Do not use for non-Wow scopes, diagnosis, development, or breaking migration/data-cutover review."
+description: "Review Wow use or adoption in downstream application code, diffs, or pull requests for findings, merge readiness, or review-and-fix. Activate only for scoped me.ahoo.wow imports/wow-* dependencies or an explicit downstream Wow review; generic DDD/CQRS or checkout-wide markers do not qualify. Exclude the Wow framework repository, non-Wow scopes, diagnosis, development, and breaking migration/data-cutover review."
 ---
 
 # Review Wow Changes
 
 ## Scope gate
 
-Before reviewing, confirm that the target is a downstream application rather than the Wow framework repository itself. Then require scoped `me.ahoo.wow` imports, `wow-*` dependencies, or an explicit request to review Wow use or introduction in that downstream application. Framework-repository modules, negated/comparative mentions, shared DDD/CQRS vocabulary, and application scopes without Wow semantics do not qualify. If no downstream scoped Wow evidence exists, state that this Skill does not apply and stop using it.
+Use only to review a downstream application; the Wow framework repository and its modules never qualify. Require scoped `me.ahoo.wow` imports, `wow-*` dependencies, or an explicit downstream request to review Wow use or introduction. Application scopes without Wow semantics, negated/comparative mentions, and generic DDD/CQRS vocabulary do not qualify. Otherwise state that this Skill does not apply and stop using it.
 
 Own the complete review or review-and-fix task. Do not route to another Wow Skill.
 
@@ -17,7 +17,7 @@ Own the complete review or review-and-fix task. Do not route to another Wow Skil
 - Review Wow semantics and observable behavior before style.
 - Derive findings from the requested diff, current source, tests, configuration, and generated contracts.
 - Separate review evidence from any later implementation evidence.
-- Report no findings directly when appropriate, then name residual risks and unverified checks.
+- Lead with findings; if none remain, state that directly. Report executed checks and results, residual risks or gaps, and every intentionally omitted write, remote, approval, or merge action.
 
 ## Review workflow
 
@@ -40,7 +40,3 @@ When the user explicitly authorizes fixes:
 7. Repeat only for newly discovered issues that remain inside the authorized scope.
 
 Do not turn “review and fix” into permission to fix unrelated pre-existing issues.
-
-## Completion
-
-Lead with findings. If none remain, state that explicitly. Then report executed commands, results, remaining test or environment gaps, and whether any write, remote, approval, or merge action was intentionally not performed.

@@ -23,16 +23,3 @@ For each item record current evidence, target-tag evidence, required action, own
 ## Runtime and data coupling
 
 Identify every writer, reader, database/namespace, bounded context, aggregate route, ownership marker, stream/topic, snapshot/event format, PrepareKey store, index, and background process. Determine whether source and target versions can safely coexist; assume they cannot unless the pinned contract proves otherwise.
-
-## Proof sequence
-
-1. compile affected modules and run focused tests;
-2. resolve the application runtime graph and verify critical classes on `runtimeClasspath`;
-3. regenerate and review contracts;
-4. start an isolated target-version process and exercise the real REST stack using `runtime-rest-validation.md`;
-5. run authorized store/bus integration tests;
-6. verify replay and snapshot regeneration;
-7. verify runtime readiness, drain, and shutdown;
-8. rehearse data and deployment using `cutover-evidence.md`.
-
-Compilation proves only source compatibility. Startup proves only that one configuration path initialized. Local HTTP evidence does not prove external integration, data reconciliation, deployability, or production readiness.
