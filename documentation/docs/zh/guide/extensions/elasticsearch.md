@@ -149,8 +149,8 @@ SnapshotStore 使用带 scripted upsert 的 Bulk `update`，direct 路径使用�
 ## 快照查询字段解析
 
 快照查询第一次访问聚合索引时会异步加载当前 Elasticsearch Mapping，并按物理字段能力编译条件和排序；Mapping
-是字段能力的唯一来源，不需要维护额外的 `QuerySchema`。缓存按索引隔离且没有 TTL。当缓存中的字段缺失或能力不匹配时，
-查询会自动刷新一次 Mapping；刷新成功后替换缓存，刷新失败时保留旧缓存并使当前查询失败关闭。
+是字段能力的唯一来源，不需要维护额外的 `QuerySchema`。缓存按索引隔离且没有 TTL。缓存中的字段缺失或能力不匹配时，
+查询直接失败且不会隐式访问 Mapping API；Mapping 变更后通过维护端点显式刷新。
 
 字段选择规则如下：
 
@@ -210,6 +210,16 @@ Field alias 继承其目标字段的查询与排序能力，并继续使用 alia
 
 ## 主动刷新 Mapping
 
+非 Spring 场景可直接刷新默认构造路径持有的缓存：
+
+```kotlin
+queryService.refreshIndexMapping().block()
+queryServiceFactory.refreshIndexMapping(namedAggregate).block()
+```
+
+Factory 方法刷新该 Factory 创建的查询服务共享的 Resolver；直接构造的 `ElasticsearchSnapshotQueryService`
+使用实例方法刷新自身 Resolver。
+
 应用引入 `org.springframework.boot:spring-boot-starter-actuator` 后会注册可选维护端点。端点默认不可访问，必须同时配置
 access 和 Web exposure，并由管理端安全策略限制为维护角色：
 
@@ -264,6 +274,12 @@ Elasticsearch 凭据需要目标索引的 `view_index_metadata` 权限；权限�
 
 刷新只作用于收到请求的应用实例。多副本部署需要运维逐 Pod 调用；当前不提供广播、定时刷新或“刷新全部聚合”。
 刷新完成后的新查询使用新 Mapping，已经在途的查询继续使用其开始编译时取得的旧 Mapping。
+
+Mapping 发布必须按以下顺序执行：
+
+1. 更新目标索引 Mapping；需要历史数据转换时先完成 reindex 或快照重建。
+2. 对每个应用 Pod 调用上述刷新端点，并确认返回的 `fieldCount` 与 `changed` 符合预期。
+3. 在每个 Pod 执行代表性精确查询、全文查询和排序查询，核对结果数、顺序与快照版本后再完成发布。
 
 ## 配置事件流索引模板
 
@@ -578,6 +594,8 @@ spring:
 2. **限制返回字段**：使用 `_source` 过滤只返回需要的字段
 3. **全量列表查询**：`ListQuery.limit=0` 使用 PIT + `search_after` 流式返回全部匹配结果；默认情况下，`1..10_000` 使用单次请求，更大的正数 limit 使用同一内部分页器。10,000 只是默认内部批大小，不是结果上限。
 4. **分页查询**：`PagedQuery` 保持 `from/size` 语义，仍受 Elasticsearch `index.max_result_window` 限制。需要完整结果集时应使用列表查询。
+
+PIT 列表查询未指定 `sort` 时只按 `_shard_doc` 扫描，结果顺序不属于契约。需要相关性顺序时应显式添加 `_score DESC`。
 
 当目标索引的 `index.max_result_window` 小于 10,000 时，将 `wow.elasticsearch.query.batch-size` 配置为不超过该值；当慢速订阅者消费一批数据可能超过默认 `1m` 时，应增大 `wow.elasticsearch.query.keep-alive`。
 

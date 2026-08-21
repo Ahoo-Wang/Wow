@@ -19,6 +19,7 @@ import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.query.dsl.singleQuery
+import me.ahoo.wow.query.filter.Contexts.writeRawRequest
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
@@ -51,6 +52,7 @@ class LoadSnapshotHandlerFunction(
             }
         }
         return snapshotQueryHandler.dynamicSingle(aggregateMetadata, singleQuery)
+            .writeRawRequest(request)
             .throwNotFoundIfEmpty()
             .toServerResponse(request, exceptionHandler)
     }

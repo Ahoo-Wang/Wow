@@ -154,9 +154,7 @@ abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
 
     private fun List<SortOptions>.searchAfterSort(): List<SortOptions> {
         return buildList {
-            if (this@searchAfterSort.isEmpty()) {
-                add(SortOptions.of { it.score { score -> score.order(SortOrder.Desc) } })
-            } else {
+            if (this@searchAfterSort.isNotEmpty()) {
                 addAll(this@searchAfterSort)
             }
             add(
@@ -194,10 +192,6 @@ abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
         val resolver = indexMappingResolver ?: return Mono.fromSupplier { resolve(null) }
         return resolver.currentOrLoad(indexName)
             .map(resolve)
-            .onErrorResume(ElasticsearchFieldResolutionException::class.java) {
-                resolver.refresh(indexName)
-                    .map { result -> resolve(result.mapping) }
-            }
     }
 
     private fun resolve(condition: Condition, sort: List<Sort> = emptyList()): Mono<ResolvedQuery> =

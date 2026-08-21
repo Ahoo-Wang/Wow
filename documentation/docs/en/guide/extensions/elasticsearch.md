@@ -155,8 +155,8 @@ version-metadata migration is required.
 On the first snapshot query for an aggregate index, Wow asynchronously loads the current Elasticsearch mapping and
 compiles conditions and sorts from its physical field capabilities. The mapping is the only capability source; no
 separate `QuerySchema` is maintained. The cache is isolated by index and has no TTL. A missing or incompatible cached
-field triggers one automatic refresh. A successful refresh atomically replaces the cache; a failed refresh preserves
-the previous cache and fails the current query closed.
+field fails the query without implicitly calling the mapping API; refresh the cache explicitly through the maintenance
+endpoint after a mapping change.
 
 Field selection follows these rules:
 
@@ -220,6 +220,16 @@ query implementation.
 
 ## Actively Refresh a Mapping
 
+Non-Spring construction paths can refresh their owned cache directly:
+
+```kotlin
+queryService.refreshIndexMapping().block()
+queryServiceFactory.refreshIndexMapping(namedAggregate).block()
+```
+
+The factory method refreshes the resolver shared by services created from that factory. A directly constructed
+`ElasticsearchSnapshotQueryService` refreshes its own resolver through the instance method.
+
 Adding `org.springframework.boot:spring-boot-starter-actuator` registers an optional maintenance endpoint. It has no
 access by default. Configure both access and Web exposure, and restrict it to a maintenance role in management endpoint
 security:
@@ -277,6 +287,12 @@ query capability cache; it does not modify the Elasticsearch mapping, rebuild th
 Refresh is local to the instance that receives the request. In a replicated deployment, operations must call each Pod;
 there is no broadcast, scheduled refresh, or refresh-all operation. New queries use the refreshed mapping, while
 in-flight queries continue with the mapping obtained when their compilation began.
+
+Publish a mapping change in this order:
+
+1. Update the target index mapping; complete any required reindex or snapshot rebuild first.
+2. Call the refresh endpoint on every application Pod and verify the returned `fieldCount` and `changed` values.
+3. Run representative exact, full-text, and sort queries against every Pod; reconcile result count, order, and snapshot version before completing the release.
 
 ## Configure Event Stream Index Template
 
@@ -588,6 +604,8 @@ spring:
 2. **Limit Returned Fields**: Use `_source` filtering to return only needed fields
 3. **Full List Queries**: `ListQuery.limit=0` streams all matches with PIT + `search_after`; by default, limits from 1 through 10,000 use one request, while larger limits use the same internal pager. The 10,000 value is only the default internal batch size, not a result cap.
 4. **Paged Queries**: `PagedQuery` keeps its `from/size` contract and remains subject to Elasticsearch `index.max_result_window`. Use a list query when the complete result set is required.
+
+PIT list queries without an explicit `sort` scan only by `_shard_doc`, and their result order is not part of the contract. Add `_score DESC` explicitly when relevance order is required.
 
 Set `wow.elasticsearch.query.batch-size` no higher than the target index's `index.max_result_window` when it is below 10,000. Increase `wow.elasticsearch.query.keep-alive` above its `1m` default when a slow subscriber may take longer than that to consume one batch.
 

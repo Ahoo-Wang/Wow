@@ -45,6 +45,7 @@ import me.ahoo.wow.elasticsearch.query.ElasticsearchAggregationPager
 import me.ahoo.wow.elasticsearch.query.ElasticsearchFieldUsage
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
+import me.ahoo.wow.elasticsearch.query.ElasticsearchMappingRefreshResult
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.query.converter.ConditionConverter
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
@@ -52,6 +53,7 @@ import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.convert
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 import java.time.Duration
 import java.util.PriorityQueue
 
@@ -98,6 +100,13 @@ class ElasticsearchSnapshotQueryService<S : Any>(
         get() = configuredQueryKeepAlive
     override val indexMappingResolver: ElasticsearchIndexMappingResolver?
         get() = configuredIndexMappingResolver
+
+    fun refreshIndexMapping(): Mono<ElasticsearchMappingRefreshResult> {
+        return requireNotNull(indexMappingResolver) {
+            "Index mapping resolution is disabled for custom condition converters."
+        }.refresh(indexName)
+    }
+
     private val snapshotType = JsonSerializer.typeFactory
         .constructParametricType(
             MaterializedSnapshot::class.java,

@@ -16,15 +16,21 @@ package me.ahoo.wow.spring.boot.starter.webflux
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.EnabledCapable
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.bind.DefaultValue
+import java.time.Duration
 
 @ConfigurationProperties(prefix = WebFluxProperties.PREFIX)
-class WebFluxProperties(
+class WebFluxProperties
+@Autowired(required = false)
+constructor(
     @DefaultValue("true") override var enabled: Boolean = true,
     var globalError: GlobalError = GlobalError(),
-    var batch: Batch = Batch()
+    var batch: Batch = Batch(),
 ) : EnabledCapable {
+    var query: Query = Query()
+
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}webflux"
         const val COMMAND_REQUEST_APPENDER_PREFIX = "$PREFIX.command.request.appender"
@@ -42,4 +48,34 @@ class WebFluxProperties(
         @DefaultValue("1")
         var prefetch: Int = 1
     )
+
+    data class Query(
+        @DefaultValue("1000")
+        var maxListSize: Int = 1000,
+        @DefaultValue("100")
+        var maxPageSize: Int = 100,
+        @DefaultValue("10000")
+        var maxPageWindow: Long = 10_000,
+        @DefaultValue("64")
+        var maxConditionNodes: Int = 64,
+        @DefaultValue("1000")
+        var maxConditionValues: Int = 1000,
+        var allowedSortFields: Set<String> = emptySet(),
+        var allowedConditionFields: Set<String> = emptySet(),
+        @DefaultValue("false")
+        var allowRaw: Boolean = false,
+        @DefaultValue("false")
+        var allowExpensiveOperators: Boolean = false,
+        @DefaultValue("10s")
+        var idleTimeout: Duration = Duration.ofSeconds(10),
+    ) {
+        init {
+            require(maxListSize >= 0) { "maxListSize must be greater than or equal to 0." }
+            require(maxPageSize >= 0) { "maxPageSize must be greater than or equal to 0." }
+            require(maxPageWindow >= 0) { "maxPageWindow must be greater than or equal to 0." }
+            require(maxConditionNodes >= 0) { "maxConditionNodes must be greater than or equal to 0." }
+            require(maxConditionValues >= 0) { "maxConditionValues must be greater than or equal to 0." }
+            require(!idleTimeout.isNegative) { "idleTimeout must be greater than or equal to 0." }
+        }
+    }
 }

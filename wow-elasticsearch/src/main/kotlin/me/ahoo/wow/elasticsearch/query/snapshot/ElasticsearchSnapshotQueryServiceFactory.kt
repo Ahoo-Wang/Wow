@@ -14,12 +14,15 @@
 package me.ahoo.wow.elasticsearch.query.snapshot
 
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
+import me.ahoo.wow.elasticsearch.query.ElasticsearchMappingRefreshResult
 import me.ahoo.wow.query.snapshot.AbstractSnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
+import reactor.core.publisher.Mono
 import java.time.Duration
 
 class ElasticsearchSnapshotQueryServiceFactory(
@@ -42,6 +45,10 @@ class ElasticsearchSnapshotQueryServiceFactory(
         indexMappingResolver: ElasticsearchIndexMappingResolver,
     ) : this(elasticsearchClient, queryBatchSize, queryKeepAlive) {
         this.indexMappingResolver = indexMappingResolver
+    }
+
+    fun refreshIndexMapping(namedAggregate: NamedAggregate): Mono<ElasticsearchMappingRefreshResult> {
+        return indexMappingResolver.refresh(namedAggregate.toSnapshotIndexName())
     }
 
     override fun createQueryService(namedAggregate: NamedAggregate): SnapshotQueryService<*> {
