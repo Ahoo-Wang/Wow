@@ -17,6 +17,7 @@ import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.ConditionCapable
+import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.Operator
@@ -137,25 +138,31 @@ class HttpQueryGuardFilter(
                 current.field == parentField || current.field.startsWith("$parentField.") -> current.field
                 else -> "$parentField.${current.field}"
             }
-            validateConditionNode(current, effectiveField, rejectMatchAll)
+            validateConditionNode(current, effectiveField)
             val childParentField = if (current.operator == Operator.ELEM_MATCH) effectiveField else parentField
             current.children.forEach { pending.add(it to childParentField) }
+        }
+        require(!rejectMatchAll || !condition.isMatchAll()) {
+            "HTTP counting query must not match all documents."
         }
     }
 
     private fun validateConditionNode(
         condition: Condition,
         effectiveField: String,
-        rejectMatchAll: Boolean,
     ) {
-        require(!rejectMatchAll || !condition.isMatchAllBranch()) {
-            "HTTP counting queries must not contain match-all branches."
+        if (condition.operator == Operator.ELEM_MATCH) {
+            require(condition.children.size == 1) {
+                "HTTP ELEM_MATCH condition must contain exactly one child."
+            }
         }
         val fieldAllowed = effectiveField.isEmpty() ||
             effectiveField in BUILT_IN_CONDITION_FIELDS ||
             allowedConditionFields.allows(effectiveField)
+        val hasIndexedElementChild = condition.operator == Operator.ELEM_MATCH &&
+            condition.children.single().hasFieldOrDescendant()
         require(
-            fieldAllowed || condition.operator == Operator.ELEM_MATCH && condition.hasFieldDescendant()
+            fieldAllowed || hasIndexedElementChild
         ) {
             "HTTP query condition field[$effectiveField] is not allowed."
         }
@@ -173,7 +180,8 @@ class HttpQueryGuardFilter(
         }
     }
 
-    private fun Condition.hasFieldDescendant(): Boolean {
+    private fun Condition.hasFieldOrDescendant(): Boolean {
+        if (field.isNotEmpty()) return true
         val pending = ArrayDeque(children)
         while (pending.isNotEmpty()) {
             val current = pending.removeLast()
@@ -189,10 +197,16 @@ class HttpQueryGuardFilter(
         operator in EXPENSIVE_OPERATORS ||
             operator == Operator.STARTS_WITH && ((value as? String).isNullOrEmpty() || ignoreCase() == true)
 
-    private fun Condition.isMatchAllBranch(): Boolean {
-        if (operator == Operator.ALL) return true
+    private fun Condition.isMatchAll(): Boolean {
         val values = value
-        return operator == Operator.NOT_IN && values is Collection<*> && values.isEmpty()
+        return when (operator) {
+            Operator.ALL -> true
+            Operator.DELETED -> deletionState() == DeletionState.ALL
+            Operator.NOT_IN -> values is Collection<*> && values.isEmpty()
+            Operator.AND -> children.all { it.isMatchAll() }
+            Operator.OR -> children.any { it.isMatchAll() }
+            else -> false
+        }
     }
 
     private fun applyIdleTimeout(context: QueryContext<*, *>, request: ServerRequest) {

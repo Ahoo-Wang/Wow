@@ -17,6 +17,7 @@ import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.abac.AbacTags
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
@@ -252,6 +253,22 @@ class HttpQueryGuardFilterTest {
         ).writeRawRequest(request).test()
             .expectError(IllegalArgumentException::class.java)
             .verify()
+
+        guard.filter(
+            listContext(
+                ListQuery(
+                    Condition(
+                        field = "state.unindexed",
+                        operator = Operator.ELEM_MATCH,
+                        children = listOf(Condition.ALL, Condition.eq("productId", "product-1")),
+                    ),
+                    limit = 1,
+                ),
+            ),
+            unexpectedBackend(),
+        ).writeRawRequest(request).test()
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
     }
 
     @Test
@@ -280,6 +297,30 @@ class HttpQueryGuardFilterTest {
         ).writeRawRequest(request).test()
             .expectError(IllegalArgumentException::class.java)
             .verify()
+
+        guard().filter(
+            countContext(Condition.deleted(DeletionState.ALL)),
+            unexpectedBackend(),
+        ).writeRawRequest(request).test()
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
+
+        val countBackend = FilterChain<QueryContext<*, *>> {
+            it.asCountQuery().setResult(Mono.just(0))
+            Mono.empty()
+        }
+        listOf(
+            Condition.and(
+                Condition.ALL,
+                Condition.eq(MessageRecords.AGGREGATE_ID, "aggregate-id"),
+            ),
+            Condition.nor(Condition.ALL),
+        ).forEach { condition ->
+            guard().filter(countContext(condition), countBackend)
+                .writeRawRequest(request)
+                .test()
+                .verifyComplete()
+        }
 
         guard().filter(pagedContext(PagedQuery(Condition.ALL)), unexpectedBackend())
             .writeRawRequest(request)
