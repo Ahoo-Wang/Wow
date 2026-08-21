@@ -123,7 +123,7 @@ All six command stages are selectable as wait plans (see [Command Gateway](../co
 
 - `SENT`: Command accepted by the bus
 - `PROCESSED`: Aggregate has executed the command
-- `SNAPSHOT`: Aggregate snapshot persisted
+- `SNAPSHOT`: Snapshot processing completed; `version_offset` may skip writing
 - `PROJECTED`: Read-model projections updated (function-aware)
 - `EVENT_HANDLED`: External event processors finished (function-aware)
 - `SAGA_HANDLED`: Saga finished processing the events (function-aware)

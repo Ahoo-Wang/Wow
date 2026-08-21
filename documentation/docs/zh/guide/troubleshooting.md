@@ -63,7 +63,7 @@ Debug 日志可能包含业务标识和消息上下文；不要在生产环境�
 
 ### 2. 用同一组标识追踪链路
 
-从 HTTP 请求或 `CommandResult` 取得 `commandId` 和 `requestId`，在日志与 span 中追踪同一条链路。不要依赖固定英文日志文本；日志消息可随实现演进，标识与阶段更稳定。
+使用客户端在 `Command-Request-Id` 中提供的 `requestId` 关联 HTTP 请求。`CommandResult` 还会返回服务端生成的 `commandId`；如果没有返回结果，则通过 `requestId` 关联服务端日志或 span，从中找回 `commandId`。不要依赖固定英文日志文本；日志消息可随实现演进，标识与阶段更稳定。
 
 ### 3. 不要用超时掩盖根因
 

@@ -121,7 +121,7 @@ Command-Wait-Timeout: 30000
 
 - `SENT`：命令已被总线接受
 - `PROCESSED`：聚合已执行命令
-- `SNAPSHOT`：聚合快照已持久化
+- `SNAPSHOT`：快照处理已完成；`version_offset` 可能跳过写入
 - `PROJECTED`：读模型投影已更新（按函数匹配）
 - `EVENT_HANDLED`：外部事件处理器已完成（按函数匹配）
 - `SAGA_HANDLED`：Saga 已完成事件处理（按函数匹配）

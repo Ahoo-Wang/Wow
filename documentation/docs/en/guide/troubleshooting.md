@@ -63,7 +63,7 @@ For function-scoped stages, also verify `contextName`, `processorName`, and `fun
 
 ### 2. Trace one identity through the pipeline
 
-Take `commandId` and `requestId` from the HTTP request or `CommandResult` and follow those identities through logs and spans. Do not rely on fixed English log text: message wording may evolve, while identifiers and stages are the stable evidence.
+Use the client-supplied `requestId` from `Command-Request-Id` to correlate an HTTP request. A `CommandResult` also exposes the server-generated `commandId`; if no result was returned, recover that command ID from server logs or spans correlated by `requestId`. Do not rely on fixed English log text: message wording may evolve, while identifiers and stages are the stable evidence.
 
 ### 3. Do not hide the cause with a larger timeout
 

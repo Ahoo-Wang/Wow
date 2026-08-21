@@ -35,7 +35,7 @@ flowchart LR
     Store --> Saga[Saga / 跨聚合命令]
 ```
 
-这条链路有多个“完成”阶段。命令已进入总线（`SENT`）、已被聚合处理（`PROCESSED`）、快照已保存（`SNAPSHOT`）和查询模型已更新（`PROJECTED`）不是同一件事。[命令网关](./command-gateway.md#等待计划)允许调用方声明它真正需要的阶段。
+这条链路有多个“完成”阶段。命令已进入总线（`SENT`）、已被聚合处理（`PROCESSED`）、快照处理已完成（`SNAPSHOT`）和查询模型已更新（`PROJECTED`）不是同一件事。[命令网关](./command-gateway.md#等待计划)允许调用方声明它真正需要的阶段。
 
 ## Wow 解决什么问题
 

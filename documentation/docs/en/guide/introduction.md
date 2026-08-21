@@ -35,7 +35,7 @@ flowchart LR
     Store --> Saga[Saga / Cross-Aggregate Command]
 ```
 
-This flow has several meanings of "complete." A command being accepted by the bus (`SENT`), processed by the aggregate (`PROCESSED`), saved as a snapshot (`SNAPSHOT`), and reflected in a query model (`PROJECTED`) are different events. [Command Gateway](./command-gateway.md#wait-plans) lets callers declare the stage they actually need.
+This flow has several meanings of "complete": command accepted by the bus (`SENT`), aggregate processing completed (`PROCESSED`), snapshot processing completed (`SNAPSHOT`), and query model updated (`PROJECTED`). [Command Gateway](./command-gateway.md#wait-plans) lets callers declare the stage they actually need.
 
 ## Problems Wow Addresses
 
