@@ -222,6 +222,23 @@ class HttpQueryGuardFilterTest {
             },
         ).writeRawRequest(request).test().verifyComplete()
 
+        val qualifiedContext = listContext(
+            ListQuery(
+                Condition.elemMatch(
+                    "state.items",
+                    Condition.eq("state.items.productId", "product-1"),
+                ),
+                limit = 1,
+            ),
+        )
+        guard.filter(
+            qualifiedContext,
+            FilterChain {
+                it.asListQuery<Any>().setResult(Flux.empty())
+                Mono.empty()
+            },
+        ).writeRawRequest(request).test().verifyComplete()
+
         guard.filter(
             listContext(ListQuery(Condition.eq("productId", "product-1"), limit = 1)),
             unexpectedBackend(),
@@ -252,6 +269,13 @@ class HttpQueryGuardFilterTest {
                     Condition.eq(MessageRecords.AGGREGATE_ID, "aggregate-id"),
                 ),
             ),
+            unexpectedBackend(),
+        ).writeRawRequest(request).test()
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
+
+        guard().filter(
+            countContext(Condition.notIn(MessageRecords.AGGREGATE_ID, emptyList())),
             unexpectedBackend(),
         ).writeRawRequest(request).test()
             .expectError(IllegalArgumentException::class.java)

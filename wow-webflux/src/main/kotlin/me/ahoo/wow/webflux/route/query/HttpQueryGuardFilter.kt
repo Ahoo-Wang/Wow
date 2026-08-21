@@ -134,6 +134,7 @@ class HttpQueryGuardFilter(
             val effectiveField = when {
                 current.field.isEmpty() -> ""
                 parentField.isEmpty() -> current.field
+                current.field == parentField || current.field.startsWith("$parentField.") -> current.field
                 else -> "$parentField.${current.field}"
             }
             validateConditionNode(current, effectiveField, rejectMatchAll)
@@ -147,7 +148,7 @@ class HttpQueryGuardFilter(
         effectiveField: String,
         rejectMatchAll: Boolean,
     ) {
-        require(!rejectMatchAll || condition.operator != Operator.ALL) {
+        require(!rejectMatchAll || !condition.isMatchAllBranch()) {
             "HTTP counting queries must not contain match-all branches."
         }
         val fieldAllowed = effectiveField.isEmpty() ||
@@ -187,6 +188,12 @@ class HttpQueryGuardFilter(
     private fun Condition.isExpensive(): Boolean =
         operator in EXPENSIVE_OPERATORS ||
             operator == Operator.STARTS_WITH && ((value as? String).isNullOrEmpty() || ignoreCase() == true)
+
+    private fun Condition.isMatchAllBranch(): Boolean {
+        if (operator == Operator.ALL) return true
+        val values = value
+        return operator == Operator.NOT_IN && values is Collection<*> && values.isEmpty()
+    }
 
     private fun applyIdleTimeout(context: QueryContext<*, *>, request: ServerRequest) {
         if (idleTimeout.isZero) return
