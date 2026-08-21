@@ -210,6 +210,16 @@ Field alias 继承其目标字段的查询与排序能力，并继续使用 alia
 
 ## 主动刷新 Mapping
 
+非 Spring 场景可直接刷新默认构造路径持有的缓存：
+
+```kotlin
+queryService.refreshIndexMapping()
+queryServiceFactory.refreshIndexMapping(namedAggregate)
+```
+
+Factory 方法刷新该 Factory 创建的查询服务共享的 Resolver；直接构造的 `ElasticsearchSnapshotQueryService`
+使用实例方法刷新自身 Resolver。
+
 应用引入 `org.springframework.boot:spring-boot-starter-actuator` 后会注册可选维护端点。端点默认不可访问，必须同时配置
 access 和 Web exposure，并由管理端安全策略限制为维护角色：
 

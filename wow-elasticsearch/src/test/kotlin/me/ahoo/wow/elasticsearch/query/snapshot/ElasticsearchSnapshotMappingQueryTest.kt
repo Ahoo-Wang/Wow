@@ -114,10 +114,29 @@ class ElasticsearchSnapshotMappingQueryTest {
         service.dynamicList(query).test()
             .expectError(ElasticsearchFieldResolutionException::class.java)
             .verify()
-        resolver.refresh(service.indexName).block()
+        service.refreshIndexMapping().block()
         service.dynamicList(query).collectList().block()
 
         searchRequest.captured.query()!!.bool().filter()[1].term().field().assert().isEqualTo("state.newField")
+        verify(exactly = 2) { indicesClient.getMapping(any<GetMappingRequest>()) }
+    }
+
+    @Test
+    fun `default factory should expose explicit mapping refresh`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returnsMany listOf(
+            Mono.just(mappingResponse(queryMapping())),
+            Mono.just(mappingResponse(queryMapping(includeNewField = true))),
+        )
+        val factory = ElasticsearchSnapshotQueryServiceFactory(client)
+        val service = factory.create<Any>(MOCK_AGGREGATE_METADATA)
+        val query = ListQuery(condition = Condition.eq("state.newField", "new"), limit = 10)
+
+        service.dynamicList(query).test()
+            .expectError(ElasticsearchFieldResolutionException::class.java)
+            .verify()
+        factory.refreshIndexMapping(MOCK_AGGREGATE_METADATA).block()
+        service.dynamicList(query).collectList().block()
+
         verify(exactly = 2) { indicesClient.getMapping(any<GetMappingRequest>()) }
     }
 

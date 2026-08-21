@@ -220,6 +220,16 @@ query implementation.
 
 ## Actively Refresh a Mapping
 
+Non-Spring construction paths can refresh their owned cache directly:
+
+```kotlin
+queryService.refreshIndexMapping()
+queryServiceFactory.refreshIndexMapping(namedAggregate)
+```
+
+The factory method refreshes the resolver shared by services created from that factory. A directly constructed
+`ElasticsearchSnapshotQueryService` refreshes its own resolver through the instance method.
+
 Adding `org.springframework.boot:spring-boot-starter-actuator` registers an optional maintenance endpoint. It has no
 access by default. Configure both access and Web exposure, and restrict it to a maintenance role in management endpoint
 security:
