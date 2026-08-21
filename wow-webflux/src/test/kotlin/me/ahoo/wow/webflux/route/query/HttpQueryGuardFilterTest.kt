@@ -78,6 +78,7 @@ class HttpQueryGuardFilterTest {
             ListQuery(Condition.raw(mapOf("script" to "unsafe")), limit = 1),
             ListQuery(Condition.contains("state.name", "wow"), limit = 1),
             ListQuery(Condition.endsWith("state.name", "wow"), limit = 1),
+            ListQuery(Condition.isIn("state.id", List(1001) { it }), limit = 1),
             ListQuery(Condition.and(List(65) { Condition.eq("state.value$it", it) }), limit = 1),
         ).forEach { query ->
             guard().filter(listContext(query), unexpectedBackend())
@@ -123,6 +124,15 @@ class HttpQueryGuardFilterTest {
         ).test().verifyComplete()
 
         context.getRequiredResult().test().verifyComplete()
+
+        val propagatedContext = listContext(ListQuery(Condition.raw("{}")))
+        guard().filter(
+            propagatedContext,
+            FilterChain {
+                it.asListQuery<Any>().setResult(Flux.empty())
+                Mono.empty()
+            },
+        ).writeRawRequest(Any()).test().verifyComplete()
     }
 
     @Test
@@ -157,6 +167,16 @@ class HttpQueryGuardFilterTest {
         ).writeRawRequest(request).test().verifyComplete()
 
         context.getRequiredResult().test()
+            .expectError(TimeoutException::class.java)
+            .verify()
+    }
+
+    @Test
+    fun `should apply idle timeout while downstream filters are running`() {
+        guard(idleTimeout = Duration.ofMillis(10)).filter(
+            listContext(ListQuery(Condition.ALL, limit = 1)),
+            FilterChain { Mono.never() },
+        ).writeRawRequest(request).test()
             .expectError(TimeoutException::class.java)
             .verify()
     }
@@ -274,6 +294,7 @@ class HttpQueryGuardFilterTest {
         maxPageSize: Int = 100,
         maxPageWindow: Long = 10_000,
         maxConditionNodes: Int = 64,
+        maxConditionValues: Int = 1000,
         allowRaw: Boolean = false,
         allowExpensiveOperators: Boolean = false,
         idleTimeout: Duration = Duration.ofSeconds(10),
@@ -282,6 +303,7 @@ class HttpQueryGuardFilterTest {
         maxPageSize = maxPageSize,
         maxPageWindow = maxPageWindow,
         maxConditionNodes = maxConditionNodes,
+        maxConditionValues = maxConditionValues,
         allowRaw = allowRaw,
         allowExpensiveOperators = allowExpensiveOperators,
         idleTimeout = idleTimeout,

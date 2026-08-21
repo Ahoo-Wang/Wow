@@ -176,6 +176,7 @@ direct 和 batch 模式下都使用基于 `_source.version` 的原子保护更�
 | `wow.webflux.query.max-page-size` | Integer | `100` | HTTP 查询最大页大小；`0` 关闭上限 |
 | `wow.webflux.query.max-page-window` | Long | `10000` | HTTP 查询最大分页窗口；`0` 关闭上限 |
 | `wow.webflux.query.max-condition-nodes` | Integer | `64` | HTTP 查询条件节点上限；`0` 关闭上限 |
+| `wow.webflux.query.max-condition-values` | Integer | `1000` | HTTP `IN`、`NOT_IN`、`ALL_IN` 条件值数量上限；`0` 关闭上限 |
 | `wow.webflux.query.allow-raw` | Boolean | `false` | 允许 HTTP `RAW` 查询 |
 | `wow.webflux.query.allow-expensive-operators` | Boolean | `false` | 允许 HTTP `CONTAINS`/`ENDS_WITH` 查询 |
 | `wow.webflux.query.idle-timeout` | Duration | `10s` | 普通 JSON 数组首条结果或 SSE 下一条结果的等待超时；`0s` 关闭 |
@@ -196,6 +197,7 @@ wow:
       max-page-size: 100
       max-page-window: 10000
       max-condition-nodes: 64
+      max-condition-values: 1000
       allow-raw: false
       allow-expensive-operators: false
       idle-timeout: 10s

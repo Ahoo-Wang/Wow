@@ -131,6 +131,7 @@ class WebFluxAutoConfiguration {
             maxPageSize = query.maxPageSize,
             maxPageWindow = query.maxPageWindow,
             maxConditionNodes = query.maxConditionNodes,
+            maxConditionValues = query.maxConditionValues,
             allowRaw = query.allowRaw,
             allowExpensiveOperators = query.allowExpensiveOperators,
             idleTimeout = query.idleTimeout,

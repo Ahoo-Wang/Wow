@@ -58,6 +58,8 @@ constructor(
         var maxPageWindow: Long = 10_000,
         @DefaultValue("64")
         var maxConditionNodes: Int = 64,
+        @DefaultValue("1000")
+        var maxConditionValues: Int = 1000,
         @DefaultValue("false")
         var allowRaw: Boolean = false,
         @DefaultValue("false")
@@ -70,6 +72,7 @@ constructor(
             require(maxPageSize >= 0) { "maxPageSize must be greater than or equal to 0." }
             require(maxPageWindow >= 0) { "maxPageWindow must be greater than or equal to 0." }
             require(maxConditionNodes >= 0) { "maxConditionNodes must be greater than or equal to 0." }
+            require(maxConditionValues >= 0) { "maxConditionValues must be greater than or equal to 0." }
             require(!idleTimeout.isNegative) { "idleTimeout must be greater than or equal to 0." }
         }
     }

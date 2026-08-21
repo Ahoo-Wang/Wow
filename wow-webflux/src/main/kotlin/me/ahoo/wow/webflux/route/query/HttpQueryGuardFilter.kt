@@ -41,6 +41,7 @@ class HttpQueryGuardFilter(
     private val maxPageSize: Int = 100,
     private val maxPageWindow: Long = 10_000,
     private val maxConditionNodes: Int = 64,
+    private val maxConditionValues: Int = 1000,
     private val allowRaw: Boolean = false,
     private val allowExpensiveOperators: Boolean = false,
     private val idleTimeout: Duration = Duration.ofSeconds(10),
@@ -51,6 +52,7 @@ class HttpQueryGuardFilter(
         require(maxPageSize >= 0) { "maxPageSize must be greater than or equal to 0." }
         require(maxPageWindow >= 0) { "maxPageWindow must be greater than or equal to 0." }
         require(maxConditionNodes >= 0) { "maxConditionNodes must be greater than or equal to 0." }
+        require(maxConditionValues >= 0) { "maxConditionValues must be greater than or equal to 0." }
         require(!idleTimeout.isNegative) { "idleTimeout must be greater than or equal to 0." }
     }
 
@@ -58,12 +60,14 @@ class HttpQueryGuardFilter(
         context: QueryContext<*, *>,
         next: FilterChain<QueryContext<*, *>>,
     ): Mono<Void> = Mono.deferContextual { contextView ->
-        val request = contextView.getRawRequest<ServerRequest>()
+        val request = contextView.getRawRequest<Any>() as? ServerRequest
         if (request == null) {
             return@deferContextual next.filter(context)
         }
         validate(context.getQuery())
-        next.filter(context).doOnSuccess {
+        val downstream = next.filter(context)
+        val guardedDownstream = if (idleTimeout.isZero) downstream else downstream.timeout(idleTimeout)
+        guardedDownstream.doOnSuccess {
             applyIdleTimeout(context, request)
         }
     }
@@ -120,6 +124,12 @@ class HttpQueryGuardFilter(
             require(allowExpensiveOperators || current.operator !in EXPENSIVE_OPERATORS) {
                 "HTTP query operator[${current.operator}] is disabled because expensive operators are not allowed."
             }
+            val values = current.value
+            if (current.operator in COLLECTION_OPERATORS && values is Collection<*>) {
+                require(maxConditionValues == 0 || values.size <= maxConditionValues) {
+                    "HTTP query condition values[${values.size}] must not exceed $maxConditionValues."
+                }
+            }
             pending.addAll(current.children)
         }
     }
@@ -148,5 +158,6 @@ class HttpQueryGuardFilter(
 
     private companion object {
         val EXPENSIVE_OPERATORS = setOf(Operator.CONTAINS, Operator.ENDS_WITH)
+        val COLLECTION_OPERATORS = setOf(Operator.IN, Operator.NOT_IN, Operator.ALL_IN)
     }
 }
