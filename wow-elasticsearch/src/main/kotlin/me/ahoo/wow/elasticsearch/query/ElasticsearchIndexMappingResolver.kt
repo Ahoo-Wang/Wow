@@ -248,16 +248,14 @@ private data class ElasticsearchMappedField(
     val sortable: Boolean,
     val multiFields: Set<String>,
 ) {
-    fun supports(usage: ElasticsearchFieldUsage): Boolean {
-        if (!indexed) return false
-        return when (usage) {
-            ElasticsearchFieldUsage.EXACT -> kind in EXACT_KINDS
-            ElasticsearchFieldUsage.LITERAL -> kind in LITERAL_KINDS
-            ElasticsearchFieldUsage.RANGE -> kind in RANGE_KINDS
-            ElasticsearchFieldUsage.SEARCH -> kind in SEARCH_KINDS
+    fun supports(usage: ElasticsearchFieldUsage): Boolean =
+        when (usage) {
+            ElasticsearchFieldUsage.EXACT -> (indexed || sortable) && kind in EXACT_KINDS
+            ElasticsearchFieldUsage.LITERAL -> indexed && kind in LITERAL_KINDS
+            ElasticsearchFieldUsage.RANGE -> (indexed || sortable) && kind in RANGE_KINDS
+            ElasticsearchFieldUsage.SEARCH -> indexed && kind in SEARCH_KINDS
             ElasticsearchFieldUsage.SORT -> sortable && kind in EXACT_KINDS
         }
-    }
 
     companion object {
         private val NUMERIC_KINDS = setOf(

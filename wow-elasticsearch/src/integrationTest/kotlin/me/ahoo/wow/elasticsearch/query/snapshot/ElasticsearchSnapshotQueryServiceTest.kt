@@ -13,7 +13,9 @@
 
 package me.ahoo.wow.elasticsearch.query.snapshot
 
+import co.elastic.clients.elasticsearch._types.Refresh
 import co.elastic.clients.elasticsearch._types.mapping.RuntimeFieldType
+import co.elastic.clients.elasticsearch.core.UpdateRequest
 import co.elastic.clients.elasticsearch.indices.PutMappingRequest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
@@ -128,6 +130,65 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                 limit = 10,
             ),
         ).test()
+            .expectNextCount(1)
+            .verifyComplete()
+    }
+
+    @Test
+    fun `doc value only fields should support exact range and sort queries`() {
+        val indexName = MOCK_AGGREGATE_METADATA.toSnapshotIndexName()
+        elasticsearchClient.indices().putMapping(
+            PutMappingRequest.of { request ->
+                request.index(indexName)
+                    .properties("docValueOnlyKeyword") { field ->
+                        field.keyword { keyword -> keyword.index(false) }
+                    }.properties("docValueOnlyLong") { field ->
+                        field.long_ { number -> number.index(false) }
+                    }
+            },
+        ).block()
+
+        @Suppress("UNCHECKED_CAST")
+        val documentClass = Map::class.java as Class<Map<String, Any?>>
+        elasticsearchClient.update(
+            UpdateRequest.of<Map<String, Any?>, Map<String, Any?>> { request ->
+                request.index(indexName)
+                    .id(snapshot.aggregateId.id)
+                    .doc(
+                        mapOf(
+                            "docValueOnlyKeyword" to "exact",
+                            "docValueOnlyLong" to 42,
+                        ),
+                    ).refresh(Refresh.True)
+            },
+            documentClass,
+        ).block()
+
+        val mappingResolver = ElasticsearchIndexMappingResolver(elasticsearchClient)
+        val mapping = mappingResolver.currentOrLoad(indexName).block()!!
+        mapping.resolve("docValueOnlyKeyword", ElasticsearchFieldUsage.EXACT)
+            .assert().isEqualTo("docValueOnlyKeyword")
+        mapping.resolve("docValueOnlyLong", ElasticsearchFieldUsage.RANGE)
+            .assert().isEqualTo("docValueOnlyLong")
+        mapping.resolve("docValueOnlyLong", ElasticsearchFieldUsage.SORT)
+            .assert().isEqualTo("docValueOnlyLong")
+
+        ElasticsearchSnapshotQueryServiceFactory(
+            elasticsearchClient,
+            DEFAULT_SEARCH_BATCH_SIZE,
+            DEFAULT_PIT_KEEP_ALIVE,
+            mappingResolver,
+        ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+            .dynamicList(
+                ListQuery(
+                    condition = Condition.and(
+                        Condition.eq("docValueOnlyKeyword", "exact"),
+                        Condition.gt("docValueOnlyLong", 1),
+                    ),
+                    sort = listOf(Sort("docValueOnlyLong", Sort.Direction.ASC)),
+                    limit = 10,
+                ),
+            ).test()
             .expectNextCount(1)
             .verifyComplete()
     }

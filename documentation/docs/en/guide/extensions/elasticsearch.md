@@ -162,11 +162,11 @@ Field selection follows these rules:
 
 | Query operation | Mapping requirement |
 |---|---|
-| `EQ`, `NE`, `IN`, `NOT_IN`, `ALL_IN`, `TRUE`, `FALSE` | Term-query compatible |
+| `EQ`, `NE`, `IN`, `NOT_IN`, `ALL_IN`, `TRUE`, `FALSE` | Term-query compatible, including supported doc-value-only fields |
 | `CONTAINS`, `STARTS_WITH`, `ENDS_WITH` | `keyword` or `wildcard` |
-| Range operations | numeric, date, or keyword |
+| Range operations | numeric, date, or keyword, including `doc_values=true,index=false` |
 | `MATCH` | `text`, `match_only_text`, or `search_as_you_type` |
-| Sort | Indexed field sortable with `doc_values`, or a sortable runtime field |
+| Sort | Sortable field with `doc_values`, or a sortable runtime field; `index=true` is not required |
 
 For example, one logical field can support both full-text and exact operations:
 

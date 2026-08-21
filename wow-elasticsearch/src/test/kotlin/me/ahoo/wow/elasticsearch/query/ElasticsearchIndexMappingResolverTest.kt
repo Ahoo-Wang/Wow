@@ -222,9 +222,9 @@ class ElasticsearchIndexMappingResolverTest {
     }
 
     @Test
-    fun `should honor index capability across mapped field types`() {
+    fun `should honor index and doc values capabilities across mapped field types`() {
         val mapping = ElasticsearchIndexMapping.from(INDEX, indexedFieldVariants())
-        val usages = mapOf(
+        val docValueUsages = mapOf(
             "boolean" to ElasticsearchFieldUsage.EXACT,
             "countedKeyword" to ElasticsearchFieldUsage.EXACT,
             "dateNanos" to ElasticsearchFieldUsage.RANGE,
@@ -233,16 +233,21 @@ class ElasticsearchIndexMappingResolverTest {
             "ip" to ElasticsearchFieldUsage.EXACT,
             "keyword" to ElasticsearchFieldUsage.EXACT,
             "integer" to ElasticsearchFieldUsage.RANGE,
-            "searchAsYouType" to ElasticsearchFieldUsage.SEARCH,
-            "text" to ElasticsearchFieldUsage.SEARCH,
             "tokenCount" to ElasticsearchFieldUsage.RANGE,
         )
 
-        usages.forEach { (field, usage) ->
+        docValueUsages.forEach { (field, usage) ->
             mapping.resolve("${field}True", usage).assert().isEqualTo("${field}True")
-            runCatching { mapping.resolve("${field}False", usage) }
+            mapping.resolve("${field}False", usage).assert().isEqualTo("${field}False")
+        }
+        listOf("searchAsYouType", "text").forEach { field ->
+            mapping.resolve("${field}True", ElasticsearchFieldUsage.SEARCH).assert().isEqualTo("${field}True")
+            runCatching { mapping.resolve("${field}False", ElasticsearchFieldUsage.SEARCH) }
                 .exceptionOrNull()!!.message.assert().contains("does not support")
         }
+        runCatching { mapping.resolve("keywordFalse", ElasticsearchFieldUsage.LITERAL) }
+            .exceptionOrNull()!!.message.assert().contains("does not support")
+        mapping.resolve("keywordFalse", ElasticsearchFieldUsage.SORT).assert().isEqualTo("keywordFalse")
         mapping.resolve("constantKeyword", ElasticsearchFieldUsage.SORT)
             .assert().isEqualTo("constantKeyword")
         mapping.resolve("countedKeywordTrue", ElasticsearchFieldUsage.SORT)

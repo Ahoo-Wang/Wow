@@ -156,11 +156,11 @@ SnapshotStore 使用带 scripted upsert 的 Bulk `update`，direct 路径使用�
 
 | Query 操作 | Mapping 要求 |
 |---|---|
-| `EQ`、`NE`、`IN`、`NOT_IN`、`ALL_IN`、`TRUE`、`FALSE` | 可执行 term 查询 |
+| `EQ`、`NE`、`IN`、`NOT_IN`、`ALL_IN`、`TRUE`、`FALSE` | 可执行 term 查询，包括受支持的 doc-value-only 字段 |
 | `CONTAINS`、`STARTS_WITH`、`ENDS_WITH` | `keyword` 或 `wildcard` |
-| 范围操作 | numeric、date 或 keyword |
+| 范围操作 | numeric、date 或 keyword，支持 `doc_values=true,index=false` |
 | `MATCH` | `text`、`match_only_text` 或 `search_as_you_type` |
-| 排序 | 索引字段可排序且启用 `doc_values`，或 runtime field 支持排序 |
+| 排序 | 启用 `doc_values` 的可排序字段，或 runtime field 支持排序；不要求 `index=true` |
 
 例如，同一逻辑字段可同时支持全文搜索和精确查询：
 
