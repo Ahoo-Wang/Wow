@@ -37,12 +37,15 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryServiceFactory
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.converter.ConditionConverter
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
+import java.time.Duration
 
 class AbstractElasticsearchQueryServiceTest {
     private val elasticsearchClient = mockk<ReactiveElasticsearchClient>()
@@ -130,6 +133,29 @@ class AbstractElasticsearchQueryServiceTest {
         searchRequest.captured.size().assert().isEqualTo(DEFAULT_SEARCH_BATCH_SIZE)
         searchRequest.captured.source()!!.filter().includes().assert().containsExactly("field")
         searchRequest.captured.sort().map { it.field().field() }.assert().containsExactly("field", "_shard_doc")
+    }
+
+    @Test
+    fun `configured snapshot factory should propagate pager settings`() {
+        val openRequest = slot<OpenPointInTimeRequest>()
+        val searchRequest = slot<SearchRequest>()
+        every { elasticsearchClient.openPointInTime(capture(openRequest)) } returns Mono.just(openPointInTimeResponse())
+        every { elasticsearchClient.search(capture(searchRequest), Map::class.java) } returns Mono.just(
+            searchResponse(total = null, pitId = "pit-2")
+        )
+        every { elasticsearchClient.closePointInTime(any<ClosePointInTimeRequest>()) } returns Mono.just(
+            closePointInTimeResponse()
+        )
+
+        ElasticsearchSnapshotQueryServiceFactory(elasticsearchClient, 3, Duration.ofMinutes(5))
+            .create<Any>(MOCK_AGGREGATE_METADATA)
+            .dynamicList(ListQuery(Condition.ALL, limit = 4))
+            .collectList()
+            .block()
+
+        openRequest.captured.keepAlive().time().assert().isEqualTo("5m")
+        searchRequest.captured.size().assert().isEqualTo(3)
+        searchRequest.captured.pit()!!.keepAlive()!!.time().assert().isEqualTo("5m")
     }
 
     @Test

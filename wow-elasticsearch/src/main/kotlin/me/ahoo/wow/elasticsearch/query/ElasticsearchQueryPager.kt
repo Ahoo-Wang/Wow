@@ -159,6 +159,6 @@ internal class ElasticsearchQueryPager(
     )
 
     private companion object {
-        val log = KotlinLogging.logger {}
+        val log = KotlinLogging.logger(ElasticsearchQueryPager::class.java.name)
     }
 }

@@ -29,6 +29,7 @@ import io.mockk.slot
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
@@ -41,6 +42,31 @@ class ElasticsearchQueryPagerTest {
         SortOptions.of { it.field { field -> field.field("sequence").order(SortOrder.Asc) } },
         SortOptions.of { it.field { field -> field.field("_shard_doc").order(SortOrder.Asc) } },
     )
+
+    @Test
+    fun `should reject invalid pager options and query arguments`() {
+        assertThrows<IllegalArgumentException> {
+            ElasticsearchQueryPager(elasticsearchClient, "test-index", batchSize = 0)
+        }
+        assertThrows<IllegalArgumentException> {
+            ElasticsearchQueryPager(elasticsearchClient, "test-index", batchSize = 10_001)
+        }
+        assertThrows<IllegalArgumentException> {
+            ElasticsearchQueryPager(elasticsearchClient, "test-index", keepAlive = Duration.ZERO)
+        }
+        val pager = ElasticsearchQueryPager(
+            elasticsearchClient,
+            "test-index",
+            batchSize = 2,
+            keepAlive = Duration.ofMillis(1_500),
+        )
+        assertThrows<IllegalArgumentException> {
+            pager.search(-1, query, null, sort)
+        }
+        assertThrows<IllegalArgumentException> {
+            pager.search(0, query, null, emptyList())
+        }
+    }
 
     @Test
     fun `should read every page in stable order and close latest pit`() {
@@ -154,6 +180,68 @@ class ElasticsearchQueryPagerTest {
             .verifyComplete()
     }
 
+    @Test
+    fun `should retain pit id when responses omit it and tolerate unsuccessful close`() {
+        val searchRequests = mutableListOf<SearchRequest>()
+        val closeRequest = slot<ClosePointInTimeRequest>()
+        every { elasticsearchClient.openPointInTime(any<OpenPointInTimeRequest>()) } returns Mono.just(
+            openPointInTimeResponse()
+        )
+        every { elasticsearchClient.search(capture(searchRequests), Map::class.java) } returnsMany listOf(
+            Mono.just(searchResponse(null, hit("1", 1), hit("2", 2))),
+            Mono.just(searchResponse("", hit("3", 3))),
+        )
+        every { elasticsearchClient.closePointInTime(capture(closeRequest)) } returns Mono.just(
+            closePointInTimeResponse(succeeded = false)
+        )
+
+        ElasticsearchQueryPager(
+            elasticsearchClient,
+            "test-index",
+            batchSize = 2,
+            keepAlive = Duration.ofMillis(1_500),
+        ).search(0, query, null, sort)
+            .test()
+            .expectNextCount(3)
+            .verifyComplete()
+
+        searchRequests.map { it.pit()!!.id() }.assert().containsExactly("pit-1", "pit-1")
+        searchRequests.map { it.pit()!!.keepAlive()!!.time() }.assert().containsExactly("1500ms", "1500ms")
+        closeRequest.captured.id().assert().isEqualTo("pit-1")
+    }
+
+    @Test
+    fun `should fail when a full page omits the search after cursor`() {
+        val closeRequest = slot<ClosePointInTimeRequest>()
+        stubPointInTime(closeRequest = closeRequest)
+        every { elasticsearchClient.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(
+            searchResponse("pit-2", "1" to emptyList(), "2" to emptyList())
+        )
+
+        ElasticsearchQueryPager(elasticsearchClient, "test-index", batchSize = 2)
+            .search(0, query, null, sort)
+            .test()
+            .expectErrorMessage("Elasticsearch search_after cursor must not be empty.")
+            .verify()
+
+        closeRequest.captured.id().assert().isEqualTo("pit-2")
+    }
+
+    @Test
+    fun `should reject an empty pit id`() {
+        every { elasticsearchClient.openPointInTime(any<OpenPointInTimeRequest>()) } returns Mono.just(
+            openPointInTimeResponse("")
+        )
+
+        ElasticsearchQueryPager(elasticsearchClient, "test-index", batchSize = 2)
+            .search(0, query, null, sort)
+            .test()
+            .expectErrorMessage("Elasticsearch returned an empty PIT ID.")
+            .verify()
+
+        verify(exactly = 0) { elasticsearchClient.closePointInTime(any<ClosePointInTimeRequest>()) }
+    }
+
     private fun stubPointInTime(
         openRequest: io.mockk.CapturingSlot<OpenPointInTimeRequest>? = null,
         closeRequest: io.mockk.CapturingSlot<ClosePointInTimeRequest>? = null,
@@ -178,15 +266,15 @@ class ElasticsearchQueryPagerTest {
         }
     }
 
-    private fun openPointInTimeResponse(): OpenPointInTimeResponse {
+    private fun openPointInTimeResponse(id: String = "pit-1"): OpenPointInTimeResponse {
         return OpenPointInTimeResponse.of {
-            it.id("pit-1")
+            it.id(id)
                 .shards { shards -> shards.failed(0).successful(1).total(1) }
         }
     }
 
-    private fun closePointInTimeResponse(): ClosePointInTimeResponse {
-        return ClosePointInTimeResponse.of { it.succeeded(true).numFreed(1) }
+    private fun closePointInTimeResponse(succeeded: Boolean = true): ClosePointInTimeResponse {
+        return ClosePointInTimeResponse.of { it.succeeded(succeeded).numFreed(if (succeeded) 1 else 0) }
     }
 
     private fun hit(id: String, sequence: Long): Pair<String, List<FieldValue>> {
@@ -194,13 +282,12 @@ class ElasticsearchQueryPagerTest {
     }
 
     private fun searchResponse(
-        pitId: String,
+        pitId: String?,
         vararg hits: Pair<String, List<FieldValue>>,
     ): SearchResponse<Map<*, *>> {
         return SearchResponse.of<Map<*, *>> {
             it.took(1)
                 .timedOut(false)
-                .pitId(pitId)
                 .shards { shards -> shards.failed(0).successful(1).total(1) }
                 .hits { metadata ->
                     hits.forEach { (id, sort) ->
@@ -213,6 +300,10 @@ class ElasticsearchQueryPagerTest {
                     }
                     metadata
                 }
+            if (pitId != null) {
+                it.pitId(pitId)
+            }
+            it
         }
     }
 }
