@@ -205,6 +205,23 @@ class HttpQueryGuardFilter(
             Operator.NOT_IN -> values is Collection<*> && values.isEmpty()
             Operator.AND -> children.all { it.isMatchAll() }
             Operator.OR -> children.any { it.isMatchAll() }
+            Operator.NOR -> children.all { it.isMatchNone() }
+            else -> false
+        }
+    }
+
+    private fun Condition.isMatchNone(): Boolean {
+        val values = value
+        return when (operator) {
+            Operator.IN,
+            Operator.IDS,
+            Operator.AGGREGATE_IDS,
+            -> values is Collection<*> && values.isEmpty()
+
+            Operator.AND -> children.any { it.isMatchNone() }
+            Operator.OR -> children.all { it.isMatchNone() }
+            Operator.NOR -> children.any { it.isMatchAll() }
+            Operator.ELEM_MATCH -> children.singleOrNull()?.isMatchNone() == true
             else -> false
         }
     }

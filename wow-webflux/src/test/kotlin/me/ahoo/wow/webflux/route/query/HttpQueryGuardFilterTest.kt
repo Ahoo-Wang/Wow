@@ -305,6 +305,13 @@ class HttpQueryGuardFilterTest {
             .expectError(IllegalArgumentException::class.java)
             .verify()
 
+        guard().filter(
+            countContext(Condition.nor(Condition.nor(Condition.ALL))),
+            unexpectedBackend(),
+        ).writeRawRequest(request).test()
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
+
         val countBackend = FilterChain<QueryContext<*, *>> {
             it.asCountQuery().setResult(Mono.just(0))
             Mono.empty()

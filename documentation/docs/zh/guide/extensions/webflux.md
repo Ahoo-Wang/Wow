@@ -119,7 +119,7 @@ wow:
 ```
 
 使用 `wow-spring-boot-starter` 时，WebFlux 作为 `webflux-support` 特性能力包含在内。全局异常处理器默认启用；仅当你提供自己的 `WebExceptionHandler` 时才需关闭。
-查询限制只作用于内置 HTTP 查询路由，不改变程序内注入的查询服务或底层 Factory。`ELEM_MATCH` 子字段按完整逻辑路径配置，例如 `state.items.productId`。升级后如需临时恢复旧 HTTP 行为，可将数值限制和 `idle-timeout` 设为 `0`，启用两个 `allow-*` 开关，并将两个 `allowed-*-fields` 设为 `["*"]`。
+Reactor Context 通过 `writeRawRequest(request)` 携带 WebFlux `ServerRequest` 时都会启用护栏，包括内置路由和自定义 HTTP Handler；程序内注入的查询服务和非 WebFlux 请求上下文保持原行为。`ELEM_MATCH` 的 Mongo 请求子字段使用 `productId` 这类相对路径，Elasticsearch nested 请求子字段使用 `state.items.productId` 这类完整逻辑路径；`allowed-condition-fields` 始终配置完整有效路径。升级后如需临时恢复旧 HTTP 行为，可将数值限制和 `idle-timeout` 设为 `0`，启用两个 `allow-*` 开关，并将两个 `allowed-*-fields` 设为 `["*"]`。
 
 ## 等待计划集成
 

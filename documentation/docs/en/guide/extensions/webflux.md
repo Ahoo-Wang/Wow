@@ -121,7 +121,7 @@ wow:
 ```
 
 When `wow-spring-boot-starter` is used, WebFlux is included as the `webflux-support` feature capability. The global error handler is enabled by default; disable it only if you provide your own `WebExceptionHandler`.
-The query limits apply only to built-in HTTP query routes; injected query services and low-level factories keep their existing behavior. Configure `ELEM_MATCH` children with their full logical paths, such as `state.items.productId`. To temporarily restore the previous HTTP behavior after upgrading, set the numeric limits and `idle-timeout` to `0`, enable both `allow-*` switches, and set both `allowed-*-fields` properties to `["*"]`.
+The guard applies whenever the Reactor context contains a WebFlux `ServerRequest` through `writeRawRequest(request)`, including built-in routes and custom HTTP handlers. Injected query services and non-WebFlux request contexts keep their existing behavior. For `ELEM_MATCH`, Mongo request children use relative fields such as `productId`, while Elasticsearch nested children use full logical fields such as `state.items.productId`; `allowed-condition-fields` always lists the full effective path. To temporarily restore the previous HTTP behavior after upgrading, set the numeric limits and `idle-timeout` to `0`, enable both `allow-*` switches, and set both `allowed-*-fields` properties to `["*"]`.
 
 ## Wait Plan Integration
 
