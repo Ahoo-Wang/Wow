@@ -21,6 +21,28 @@ RESOURCE_PATTERN = re.compile(
     r"(?<![A-Za-z0-9_/])((?:references|assets|scripts)/[A-Za-z0-9_.\-/]+)"
 )
 NON_RUNTIME_RESOURCE_MARKERS = ("agents/", "evals/")
+PARENT_PATH_PATTERN = re.compile(r"(?<![A-Za-z0-9_.-])\.\.[/\\]")
+EXPLICIT_ABSOLUTE_FILESYSTEM_PATTERN = re.compile(
+    r"(?<![A-Za-z0-9])(?:file://|~[/\\]|\$(?:HOME|CODEX_HOME)[/\\]|"
+    r"\$\{(?:HOME|CODEX_HOME)\}[/\\]|[A-Za-z]:[/\\]|\\\\[^\\\s]+\\[^\\\s]+)"
+)
+UNIX_ABSOLUTE_PATH_PATTERN = re.compile(
+    r"(?<![A-Za-z0-9:./])/(?!/)[A-Za-z0-9._{}-]+(?:/[A-Za-z0-9._{}-]+)*"
+)
+FILESYSTEM_PATH_CONTEXT_PATTERN = re.compile(
+    r"\b(?:read|open|inspect|load|write|edit|delete|remove|copy|move|execute|run|source|"
+    r"cat|head|tail|less|more|rm|cp|mv|"
+    r"file|directory|filesystem|config(?:uration)?\s+(?:file|path|lives)|path\s+(?:is|at))\b",
+    re.IGNORECASE,
+)
+FILESYSTEM_ROOTS = {
+    "Users", "Volumes", "bin", "boot", "dev", "etc", "home",
+    "lib", "lib64", "media", "mnt", "opt", "private", "proc", "root",
+    "run", "sbin", "secrets", "srv", "sys", "tmp", "usr", "var", "workspace", "workspaces",
+}
+FILESYSTEM_SUFFIXES = {
+    ".env", ".key", ".pem",
+}
 
 
 def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -36,10 +58,43 @@ def _reject_json_constant(value: str) -> Any:
     raise ValueError(f"invalid constant {value}")
 
 
+def _validate_filesystem_paths(
+    source: Path,
+    value: str,
+    errors: list[str],
+    *,
+    script: bool = False,
+) -> None:
+    if PARENT_PATH_PATTERN.search(value):
+        errors.append(f"{source}: runtime content references a parent path")
+    if EXPLICIT_ABSOLUTE_FILESYSTEM_PATTERN.search(value):
+        errors.append(f"{source}: runtime content references an absolute filesystem path")
+        return
+    for line in value.splitlines():
+        for match in UNIX_ABSOLUTE_PATH_PATTERN.finditer(line):
+            path = match.group(0)
+            if script and (path == "/dev/null" or "--glob" in line):
+                continue
+            parts = path.lstrip("/").split("/")
+            if (
+                parts[0] in FILESYSTEM_ROOTS
+                or any(part.startswith(".") for part in parts)
+                or any(path.endswith(suffix) for suffix in FILESYSTEM_SUFFIXES)
+                or FILESYSTEM_PATH_CONTEXT_PATTERN.search(line) is not None
+            ):
+                errors.append(f"{source}: runtime content references an absolute filesystem path")
+                return
+
+
 def _validate_runtime_text(source: Path, value: str, errors: list[str]) -> None:
     for marker in NON_RUNTIME_RESOURCE_MARKERS:
         if marker in value:
             errors.append(f"{source}: runtime content references maintainer-only content: {marker}")
+    _validate_filesystem_paths(source, value, errors)
+
+
+def _validate_script_text(source: Path, value: str, errors: list[str]) -> None:
+    _validate_filesystem_paths(source, value, errors, script=True)
 
 
 def _scalar(raw: str, source: Path, line: int, errors: list[str]) -> str | None:
@@ -117,6 +172,7 @@ def _validate_skill_file(skill_dir: Path, errors: list[str]) -> str:
         errors.append(f"{skill_file}: invalid skill name {name!r}")
     if not description.strip() or len(description) > 1024 or "<" in description or ">" in description:
         errors.append(f"{skill_file}: description must be 1-1024 characters without angle brackets")
+    _validate_runtime_text(skill_file, description, errors)
     if not body:
         errors.append(f"{skill_file}: body must not be empty")
     return body
@@ -244,6 +300,18 @@ def _validate_resources(skill_dir: Path, body: str, errors: list[str]) -> None:
                     documents.append((path, path.read_text(encoding="utf-8")))
                 except (OSError, UnicodeError) as exc:
                     errors.append(f"{path}: cannot read UTF-8 text: {exc}")
+    script_root = skill_dir / "scripts"
+    if script_root.is_dir() and not script_root.is_symlink() and _contained(script_root, skill_dir):
+        for path in sorted(script_root.rglob("*")):
+            if path.is_symlink() or not path.is_file() or not _contained(path, skill_dir):
+                continue
+            try:
+                lines = path.read_text(encoding="utf-8").splitlines()
+                if lines and lines[0].startswith("#!"):
+                    lines = lines[1:]
+                _validate_script_text(path, "\n".join(lines), errors)
+            except (OSError, UnicodeError) as exc:
+                errors.append(f"{path}: cannot read UTF-8 text: {exc}")
     for source, text in documents:
         _validate_runtime_text(source, text, errors)
 
@@ -395,6 +463,24 @@ def validate_repository(root: Path) -> list[str]:
     ):
         errors.append(f"{manifest_path}: expected schemaVersion 1 and exactly one plugin")
         included = []
+    if isinstance(plugins, list) and len(plugins) == 1 and isinstance(plugins[0], dict):
+        plugin = plugins[0]
+        for key in ("name", "version", "description"):
+            value = plugin.get(key)
+            if not isinstance(value, str) or not value.strip():
+                errors.append(f"{manifest_path}: plugin {key} must be a non-empty string")
+            elif key == "description":
+                _validate_runtime_text(manifest_path, value, errors)
+        interface = plugin.get("interface")
+        if not isinstance(interface, dict):
+            errors.append(f"{manifest_path}: plugin interface must be an object")
+        else:
+            for key in ("displayName", "defaultPrompt"):
+                value = interface.get(key)
+                if not isinstance(value, str) or not value.strip():
+                    errors.append(f"{manifest_path}: plugin interface.{key} must be a non-empty string")
+                elif key == "defaultPrompt":
+                    _validate_runtime_text(manifest_path, value, errors)
     if not isinstance(included, list) or any(not isinstance(item, str) for item in included):
         errors.append(f"{manifest_path}: skills.include must be a list of Skill names")
         included_names: set[str] = set()

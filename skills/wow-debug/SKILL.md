@@ -1,9 +1,13 @@
 ---
 name: "wow-debug"
-description: "Diagnose observed Wow failures, hangs, missing handlers, incorrect sourced state, retry or wait problems, runtime failures, and failing tests by reproducing and locating the failing stage. Use only when the failure involves Wow framework pipeline behavior — commands, sourcing, event processing, projection, or runtime stages — for diagnosis-only and diagnose-and-fix requests; remain read-only until a fix is explicitly requested. Do not use for proactive diff review, planned feature development, failures in projects that do not use the Wow framework, or failures inside a breaking migration or storage/data cutover centered on migration, reconciliation, rollout, or rollback."
+description: "Diagnose observed failures in downstream applications' Wow command, sourcing, event-processing, projection, query, or runtime pipelines. Never activate for the Wow framework repository itself. Require the failure path to involve Wow, established by explicit target wording or scoped me.ahoo.wow imports or wow-* dependencies; checkout-wide markers and generic DDD/CQRS terms are insufficient. Use for diagnosis-only and diagnose-and-fix. Do not use for non-Wow scopes, proactive review/development, or migration/data-cutover failures."
 ---
 
 # Debug Wow Failures
+
+## Scope gate
+
+Before diagnosing, confirm that the target is a downstream application rather than the Wow framework repository itself. Then require the failure path to involve a Wow pipeline and scoped source to contain `me.ahoo.wow` imports or `wow-*` dependencies, or the request to explicitly identify the failing Wow application behavior. Framework-repository modules, markers elsewhere in a checkout, negated/comparative mentions, and shared DDD/CQRS vocabulary do not qualify. If no downstream scoped Wow evidence exists, state that this Skill does not apply and stop using it.
 
 Own the complete diagnosis or diagnose-and-fix task. Do not route to another Wow Skill.
 

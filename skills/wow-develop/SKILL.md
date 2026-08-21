@@ -1,9 +1,13 @@
 ---
 name: "wow-develop"
-description: "Design, implement, test, refactor, or explain Wow framework and domain behavior in Kotlin or Java reactive DDD, Event Sourcing, and CQRS applications. Use when the primary outcome is changed Wow code, tests, modeling, or source-backed API and configuration guidance for aggregates, sourcing, sagas, projections, processors, command delivery, Query DSL, starter or storage setup, runtime lifecycle, or PrepareKey. Also use for first-time adoption and routine same-major service upgrades with no known breaking source or configuration contract and no data migration. Do not use for diff review, observed-failure diagnosis, or breaking migration and data cutover work. Do not activate merely because work occurs in the Wow repository; exclude Gradle, build, CI, release metadata, dependency-only maintenance, dashboards, frontends, documentation translation, and unrelated Kotlin or Java work unless Wow framework or domain semantics are the outcome."
+description: "Design, implement, test, refactor, or explain Wow behavior in downstream applications. Never activate for development of the Wow framework repository itself. Require the requested scope to use or explicitly adopt Wow, established by scoped me.ahoo.wow imports, wow-* dependencies, or explicit adoption; checkout-wide markers and generic DDD/CQRS terms are insufficient. Use for first-time adoption and routine same-major application upgrades. Do not use for unrelated code, diff review, diagnosis, release/build tooling, or breaking migration/data cutover."
 ---
 
 # Develop Wow Applications
+
+## Scope gate
+
+Before doing development work, confirm that the target is a downstream application rather than the Wow framework repository itself. Then require the requested code/behavior scope to use or introduce Wow and scoped source to contain `me.ahoo.wow` imports or `wow-*` dependencies, or the task to explicitly adopt Wow. Framework-repository modules, markers elsewhere in a checkout, negated/comparative mentions, and generic Kotlin, Java, Spring, Reactor, DDD, CQRS, or Event Sourcing terms do not qualify. If no downstream scoped Wow evidence exists, state that this Skill does not apply and stop using it.
 
 Own the complete development task. Do not route to another Wow Skill.
 
@@ -20,7 +24,7 @@ Own the complete development task. Do not route to another Wow Skill.
 ## Workflow
 
 1. **Frame**: state the requested outcome, writable scope, compatibility boundary, and completion evidence.
-2. **Discover**: inspect `settings.gradle.kts`, relevant source, neighboring implementations, tests, configuration, generated contracts, and recent diffs.
+2. **Discover**: inspect the actual build descriptors (`settings.gradle(.kts)`, `build.gradle(.kts)`, or `pom.xml`), relevant source, neighboring implementations, tests, configuration, generated contracts, and recent diffs.
 3. **Model**: identify the responsible boundary, invariant, message flow, failure behavior, and required compatibility.
 4. **Prove**: for read-only guidance, verify the requested facts against current source and tests. For an authorized behavior change, add or tighten the smallest failing test or name equivalent pre-change evidence.
 5. **Change**: only within the authorized writable scope, implement the smallest coherent design; avoid introducing a second source of truth.
@@ -49,7 +53,7 @@ Start with `rg --files` and `rg`. Resolve actual module names instead of assumin
 ```bash
 rg -n "@AggregateRoot|@OnCommand|@OnSourcing|@StatelessSaga|@ProjectionProcessor|@EventProcessor" . -g '*.kt' -g '*.java'
 rg -n "AggregateSpec<|SagaSpec<|aggregateVerifier|sagaVerifier" . -g '*.kt' -g '*.java'
-rg -n "@ConfigurationProperties|class .*Properties" . -g '*.kt'
+rg -n "@ConfigurationProperties|class .*Properties" . -g '*.kt' -g '*.java'
 rg -n "WowRuntime|RuntimeComponent|WowRuntimeLifecycle|GracefullyStoppable" . -g '*.kt' -g '*.java'
 ```
 

@@ -17,7 +17,7 @@ rg -n "CommandGateway|CommandBus|sendAndWait|WaitPlan|CommandWait|WaitingChain" 
 rg -n "Command-Wait|CommandRoute|AggregateRoute" . -g '*.kt' -g '*.java'
 ```
 
-In this repository, start with:
+In a separate checkout of the pinned Wow source, start with:
 
 - `wow-core/src/main/kotlin/me/ahoo/wow/command/`
 - `wow-core/src/main/kotlin/me/ahoo/wow/command/wait/`

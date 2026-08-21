@@ -20,7 +20,7 @@ rg -n "@AggregateRoot|@OnCommand|@OnSourcing|@AggregateRoute|@BoundedContext" . 
 rg -n "class .*Spec.*AggregateSpec|aggregateVerifier" . -g '*.kt' -g '*.java'
 ```
 
-For an exact annotation or handler contract, inspect its definition and consumers in the checked-out framework source. In this repository, start with:
+For an exact annotation or handler contract, inspect its definition and consumers in a separate checkout of the pinned Wow source, or in resolved dependency sources. In a Wow source checkout, start with:
 
 - `wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/`
 - `wow-core/src/main/kotlin/me/ahoo/wow/command/`

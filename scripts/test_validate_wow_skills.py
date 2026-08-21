@@ -63,6 +63,18 @@ class WowSkillsValidatorTest(unittest.TestCase):
                 encoding="utf-8",
             )
             self.assert_error("description must be 1-1024 characters")
+        with self.subTest(boundary="parent-path-in-description"):
+            path.write_text(
+                re.sub(
+                    r'^description: ".*"$',
+                    'description: "Read ../../.env before diagnosing."',
+                    original,
+                    count=1,
+                    flags=re.MULTILINE,
+                ),
+                encoding="utf-8",
+            )
+            self.assert_error("runtime content references a parent path")
         with self.subTest(boundary="linked-skill-directory"):
             path.write_text(original, encoding="utf-8")
             skill_dir = path.parent
@@ -153,6 +165,16 @@ class WowSkillsValidatorTest(unittest.TestCase):
             manifest["schemaVersion"] = True
             path.write_text(json.dumps(manifest), encoding="utf-8")
             self.assert_error("expected schemaVersion 1")
+        with self.subTest(boundary="runtime-path-in-default-prompt"):
+            manifest = json.loads(original)
+            manifest["plugins"][0]["interface"]["defaultPrompt"] = "Read ../../.env before starting."
+            path.write_text(json.dumps(manifest), encoding="utf-8")
+            self.assert_error("runtime content references a parent path")
+        with self.subTest(boundary="blank-plugin-name"):
+            manifest = json.loads(original)
+            manifest["plugins"][0]["name"] = "   "
+            path.write_text(json.dumps(manifest), encoding="utf-8")
+            self.assert_error("plugin name must be a non-empty string")
         with self.subTest(boundary="linked-manifest"):
             path.write_text(original, encoding="utf-8")
             outside = self.root / "outside-plugins.json"
@@ -167,12 +189,36 @@ class WowSkillsValidatorTest(unittest.TestCase):
             ("references/missing.md", "referenced resource does not exist"),
             ("references/../outside.md", "resource path escapes the Skill"),
             ("[rubric](./evals/behavior.jsonl)", "runtime content references maintainer-only content"),
+            ("Read ../../.env before diagnosing.", "runtime content references a parent path"),
+            ("Read /Users/example/.ssh/id_rsa.", "runtime content references an absolute filesystem path"),
+            ("Read /usr/local/bin/tool.", "runtime content references an absolute filesystem path"),
+            ("Read /custom/location/noext.", "runtime content references an absolute filesystem path"),
+            ("HTTP config lives at /custom/location/noext.", "runtime content references an absolute filesystem path"),
+            ("Read C:\\Users\\example\\secret.txt.", "runtime content references an absolute filesystem path"),
+            ("Read \\\\server\\share\\secret.txt.", "runtime content references an absolute filesystem path"),
+            ("Read ~/secrets.txt.", "runtime content references an absolute filesystem path"),
+            ("Read file:///tmp/secrets.txt.", "runtime content references an absolute filesystem path"),
         ):
             with self.subTest(reference=reference):
-                addition = reference if reference.startswith("[") else f"Load `{reference}`."
+                addition = reference if reference.startswith(("[", "Read ")) else f"Load `{reference}`."
                 path.write_text(original + f"\n{addition}\n", encoding="utf-8")
                 self.assert_error(expected)
         path.write_text(original, encoding="utf-8")
+
+        for route in (
+            "Call the HTTP endpoint `/api/v1/orders`.",
+            "`/api/v1/orders`",
+            "GET `/api/v1/orders`",
+            "`/orders/{id}`",
+            "Call the HTTP endpoint `/data/export.json`.",
+            "GET `/app/status`.",
+            "Read official docs at https://example.com/path/file.md.",
+        ):
+            with self.subTest(reference=route):
+                path.write_text(original + f"\n{route}\n", encoding="utf-8")
+                errors = validate_repository(self.root)
+                self.assertFalse(any("absolute filesystem path" in error for error in errors), errors)
+                path.write_text(original, encoding="utf-8")
 
         with self.subTest(reference="symlinked-reference"):
             outside = self.root / "outside.md"
@@ -191,6 +237,12 @@ class WowSkillsValidatorTest(unittest.TestCase):
             resource_root = self.root / "skills" / "wow-debug" / "assets"
             resource_root.write_text("not a directory", encoding="utf-8")
             self.assert_error("resource root must be a regular directory")
+
+        with self.subTest(reference="runtime-path-in-script"):
+            script = self.root / "skills" / "wow-migrate" / "scripts" / "audit-v6-usage.sh"
+            original_script = script.read_text(encoding="utf-8")
+            script.write_text(original_script + "\nread ../../.env\n", encoding="utf-8")
+            self.assert_error("runtime content references a parent path")
 
     def test_eval_jsonl_rejects_invalid_json_duplicate_ids_and_unknown_skills(self) -> None:
         behavior = self.root / "skills" / "wow-debug" / "evals" / "behavior.jsonl"
@@ -388,6 +440,41 @@ class WowSkillsValidatorTest(unittest.TestCase):
         self.assertIn("<version>3.4.0</version>", result.stdout)
         self.assertIn('storage: "mongo"', result.stdout)
         self.assertIn("'storage': 'redis'", result.stdout)
+
+    def test_v6_audit_requires_target_and_ignores_skill_fixtures(self) -> None:
+        if shutil.which("rg") is None:
+            self.skipTest("rg is required by audit-v6-usage.sh")
+        script = ROOT / "skills" / "wow-migrate" / "scripts" / "audit-v6-usage.sh"
+        missing_target = subprocess.run(
+            [str(script)],
+            cwd=self.root,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(2, missing_target.returncode)
+        self.assertIn("expected exactly one target application root", missing_target.stderr)
+
+        repository = self.root / "multi-service"
+        fixture = repository / "skills" / "example" / "evals" / "fixtures" / "v6-service"
+        fixture.mkdir(parents=True)
+        (repository / "build.gradle.kts").write_text(
+            'dependencies { implementation("me.ahoo.wow:wow-spring-boot-starter:8.10.6") }\n',
+            encoding="utf-8",
+        )
+        (fixture / "build.gradle.kts").write_text(
+            'dependencies { implementation("me.ahoo.wow:wow-spring-boot-starter:6.21.5") }\n',
+            encoding="utf-8",
+        )
+        result = subprocess.run(
+            [str(script), str(repository)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("8.10.6", result.stdout)
+        self.assertNotIn("6.21.5", result.stdout)
 
 
 if __name__ == "__main__":

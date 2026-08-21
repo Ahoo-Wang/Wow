@@ -1,4 +1,4 @@
 interface:
   display_name: "Wow Debug"
-  short_description: "Locate and fix failures in Wow processing pipelines"
-  default_prompt: "Use $wow-debug to attempt the narrowest safe reproduction, locate the first broken stage from available evidence, and fix it only if I authorize changes."
+  short_description: "Debug downstream applications using Wow pipelines"
+  default_prompt: "Use $wow-debug to diagnose this downstream application's Wow failure, and fix it only if I authorize changes."
