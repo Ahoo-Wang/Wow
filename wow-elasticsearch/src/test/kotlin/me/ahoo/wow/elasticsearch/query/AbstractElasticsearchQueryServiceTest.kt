@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.elasticsearch.query
 
-import co.elastic.clients.elasticsearch._types.SortOrder
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll
@@ -104,12 +103,8 @@ class AbstractElasticsearchQueryServiceTest {
         searchRequest.captured.index().assert().isEmpty()
         searchRequest.captured.pit()!!.id().assert().isEqualTo("pit-1")
         searchRequest.captured.pit()!!.keepAlive()!!.time().assert().isEqualTo("1m")
-        searchRequest.captured.sort().assert().hasSize(2)
-        searchRequest.captured.sort()[0].isScore.assert().isTrue()
-        searchRequest.captured.sort()[0].score().order().assert().isEqualTo(
-            SortOrder.Desc
-        )
-        searchRequest.captured.sort()[1].field().field().assert().isEqualTo("_shard_doc")
+        searchRequest.captured.sort().assert().hasSize(1)
+        searchRequest.captured.sort().single().field().field().assert().isEqualTo("_shard_doc")
         closeRequest.captured.id().assert().isEqualTo("pit-2")
     }
 
@@ -130,14 +125,18 @@ class AbstractElasticsearchQueryServiceTest {
             ListQuery(
                 condition = Condition.ALL,
                 projection = Projection(include = listOf("field")),
-                sort = listOf(Sort("field", Sort.Direction.ASC)),
+                sort = listOf(
+                    Sort("_score", Sort.Direction.DESC),
+                    Sort("field", Sort.Direction.ASC),
+                ),
                 limit = DEFAULT_SEARCH_BATCH_SIZE + 1,
             )
         ).collectList().block()
 
         searchRequest.captured.size().assert().isEqualTo(DEFAULT_SEARCH_BATCH_SIZE)
         searchRequest.captured.source()!!.filter().includes().assert().containsExactly("field")
-        searchRequest.captured.sort().map { it.field().field() }.assert().containsExactly("field", "_shard_doc")
+        searchRequest.captured.sort().map { it.field().field() }.assert()
+            .containsExactly("_score", "field", "_shard_doc")
     }
 
     @Test

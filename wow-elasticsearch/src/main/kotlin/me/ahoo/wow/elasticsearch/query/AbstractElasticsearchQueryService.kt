@@ -154,9 +154,7 @@ abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
 
     private fun List<SortOptions>.searchAfterSort(): List<SortOptions> {
         return buildList {
-            if (this@searchAfterSort.isEmpty()) {
-                add(SortOptions.of { it.score { score -> score.order(SortOrder.Desc) } })
-            } else {
+            if (this@searchAfterSort.isNotEmpty()) {
                 addAll(this@searchAfterSort)
             }
             add(
