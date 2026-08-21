@@ -177,6 +177,8 @@ Through this interface, developers can implement management and control of compe
 
 ### Deployment (Kubernetes)
 
+The manifest below only illustrates deployment boundaries; it is not production-ready configuration. Build an immutable image from the selected Wow tag, inject database, Redis, Kafka, and notification credentials from environment-specific Secrets, and size replicas and resources from capacity tests. Never commit credentials or test-cluster addresses.
+
 ::: code-group
 ```yaml [ConfigMap]
 apiVersion: v1
@@ -203,7 +205,7 @@ data:
       show-actuator: true
     logging:
       level:
-        me.ahoo.wow: debug
+        me.ahoo.wow: info
     spring:
       application:
         name: compensation-service
@@ -212,13 +214,13 @@ data:
           static-locations: file:./browser/
       data:
         mongodb:
-          uri: mongodb://root:root@localhost:27017/compensation_db?authSource=admin&maxIdleTimeMS=60000
+          uri: ${MONGODB_URI}
         redis:
           cluster:
             max-redirects: 3
             nodes:
-                - redis-test-redis-cluster-0.redis-test-redis-cluster-headless.test.svc.cluster.local:6379
-          password: VPI7MsrrF7beIg
+                - ${REDIS_HOST}:6379
+          password: ${REDIS_PASSWORD}
     cosid:
       machine:
         enabled: true
@@ -228,7 +230,7 @@ data:
         enabled: true
     wow:
       kafka:
-        bootstrap-servers: 'kafka-test-0.kafka-test-headless.test.svc.cluster.local:9093'
+        bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
 ```
 
 ```yaml [Deployment]
@@ -239,7 +241,7 @@ metadata:
   labels:
     app: compensation-service
 spec:
-  replicas: 1
+  replicas: 2
   strategy:
     rollingUpdate:
       maxSurge: 25%
@@ -257,7 +259,7 @@ spec:
     spec:
       containers:
         - name: compensation-service
-          image: registry.cn-shanghai.aliyuncs.com/ahoo/wow-compensation-server:2.10.4
+          image: <registry>/wow-compensation-server:<wow-version>
           env:
             - name: LANG
               value: C.utf8
@@ -265,6 +267,9 @@ spec:
               value: Asia/Shanghai
             - name: JAVA_OPTS
               value: -Xms1792M  -Xmx1792M
+          envFrom:
+            - secretRef:
+                name: wow-compensation-secrets
           ports:
             - name: http
               protocol: TCP

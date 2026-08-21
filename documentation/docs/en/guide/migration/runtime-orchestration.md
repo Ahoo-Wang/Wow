@@ -305,5 +305,5 @@ launcher configuration. Do not restart a context whose runtime has terminated.
 |---|---|
 | [Migration Guide](../migration.md) | Upgrade overview and other migration topics |
 | [Runtime Lifecycle](../advanced/runtime-lifecycle.md) | Stable runtime architecture and shutdown semantics |
-| [Configuration](../configuration.md) | Complete Spring Boot property reference |
+| [Configuration](../configuration.md) | Application decisions, environments, and secret boundaries with links to exact references |
 | [Spring Boot Starter](../extensions/spring-boot-starter.md) | Starter auto-configuration and application integration |

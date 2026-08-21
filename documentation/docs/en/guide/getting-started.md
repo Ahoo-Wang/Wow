@@ -326,11 +326,13 @@ In an application created from the template, begin with the narrow checks that d
 ./gradlew detekt
 ```
 
-If you are changing the Wow framework itself, use the [Contributor Guide](../onboarding/contributor-guide.md) and [Test Runtime](./test-runtime.md) instead. Application repositories should design release and deployment for their own registry and runtime environment rather than copying a pipeline tied to a specific cloud provider or credential model.
+If you are changing the Wow framework itself, use the [Contributor Guide](../onboarding/contributor-guide.md) and [Framework Tests and Benchmarks](./test-runtime.md) instead. Application repositories should design release and deployment for their own registry and runtime environment rather than copying a pipeline tied to a specific cloud provider or credential model.
 
 ## Next Steps
 
 - Replace the example domain: [Aggregate Modeling](./modeling.md)
 - Understand write APIs and completion stages: [Command Gateway](./command-gateway.md)
+- Build application tests and release gates: [Testing Wow Applications](./application-testing.md)
+- Read the complete Kotlin business example: [Order and Cart](../reference/example/order.md)
 - Build a read model: [Projection](./projection.md) and [Query Service](./query.md)
 - Switch to external storage or messaging: [Configuration](./configuration.md) and [Extensions](./extensions/spring-boot-starter.md)

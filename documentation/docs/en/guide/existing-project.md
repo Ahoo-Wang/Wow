@@ -176,4 +176,5 @@ If the service starts but routes are missing, follow [Troubleshooting: Missing M
 - Split `api`, `domain`, and `server`: [Module Dependencies](./advanced/module-dependencies.md).
 - Select durable messaging and storage: [Spring Boot Starter](./extensions/spring-boot-starter.md).
 - Define completion semantics: [Command Gateway](./command-gateway.md).
+- Build application release gates: [Testing Wow Applications](./application-testing.md).
 - Establish a policy for persisted event changes: [Event Evolution](./advanced/event-evolution.md).

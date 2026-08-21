@@ -78,7 +78,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             items: [
                 {text: 'Open API', link: 'open-api'},
                 {text: '测试套件', link: 'test-suite'},
-                {text: '测试运行体系', link: 'test-runtime'},
+                {text: '应用测试', link: 'application-testing'},
                 {text: 'Agent Skills', link: 'skills'},
                 {text: '商业智能', link: 'bi'},
                 {text: 'BI 部署与恢复', link: 'bi-operations'},
@@ -162,6 +162,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             base: '/zh/reference/example/',
             collapsed: false,
             items: [
+                {text: '订单与购物车（Kotlin）', link: 'order'},
                 {text: '银行转账（JAVA）', link: 'transfer'},
                 {text: '事件补偿', link: 'compensation'},
             ],

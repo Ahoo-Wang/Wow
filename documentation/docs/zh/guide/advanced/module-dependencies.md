@@ -15,13 +15,13 @@ Wow 框架由 20 多个 Gradle 模块组成，每个模块都有单一且定义�
 | `wow-core` | Core | 框架引擎：聚合根、命令总线、Event Sourcing、投影、Saga、等待计划。 |
 | `wow-spring` | Spring | Spring `ApplicationContext` 桥接、Bean 注册。 |
 | `wow-spring-boot-starter` | Spring | 带 Gradle Feature Variants 的自动配置，支持可选基础设施。 |
-| `wow-kafka` | Infra | 通过 Apache Kafka 实现分布式 `CommandBus` 和 `DomainEventBus`。 |
-| `wow-mongo` | Infra | 通过 MongoDB 实现 `EventStore`、`SnapshotStore` 和投影存储。 |
-| `wow-redis` | Infra | 通过 Redis / Lettuce 实现 `EventStore` 和 `SnapshotStore`。 |
-| `wow-elasticsearch` | Infra | 通过 Elasticsearch 实现投影索引。 |
-| `wow-webflux` | Infra | Spring WebFlux 命令端点集成。 |
+| `wow-kafka` | Infra | 通过 Apache Kafka 实现分布式命令、领域事件和状态事件总线。 |
+| `wow-mongo` | Infra | 通过 MongoDB 实现 `EventStore`、`SnapshotStore`、PrepareKey 和查询服务。 |
+| `wow-redis` | Infra | 通过 Redis / Lettuce 实现消息总线、`EventStore`、`SnapshotStore` 和 PrepareKey。 |
+| `wow-elasticsearch` | Infra | 通过 Elasticsearch 实现 `EventStore`、`SnapshotStore` 和查询服务。 |
+| `wow-webflux` | Infra | Spring WebFlux 命令、事件流和快照查询端点集成。 |
 | `wow-opentelemetry` | Infra | 通过 OpenTelemetry 为 Wow 操作提供分布式链路追踪。 |
-| `wow-cosec` | Infra | 通过 CoSec 实现 ABAC 授权。 |
+| `wow-cosec` | Infra | 提取和传播 CoSec 请求上下文并改写查询 space；认证与授权策略由应用提供。 |
 | `wow-compiler` | Tooling | KSP 处理器 — 在编译时生成命令路由、事件处理元数据和 OpenAPI 规范。 |
 | `wow-test` | Testing | 单元测试 DSL：`AggregateSpec`、`SagaSpec`，Given-When-Expect 模式。 |
 | `wow-tck` | Testing | 技术兼容性套件 — 使用 Testcontainers 的集成测试。 |
@@ -262,6 +262,8 @@ Feature Variants 允许消费者只声明所需的基础设施：
 implementation("me.ahoo.wow:wow-spring-boot-starter")
 implementation("me.ahoo.wow:wow-spring-boot-starter") {
     capabilities { requireCapability("me.ahoo.wow:mongo-support") }
+}
+implementation("me.ahoo.wow:wow-spring-boot-starter") {
     capabilities { requireCapability("me.ahoo.wow:kafka-support") }
 }
 ```

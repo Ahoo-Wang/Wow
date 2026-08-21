@@ -326,11 +326,13 @@ class DemoSpec : AggregateSpec<Demo, DemoState>({
 ./gradlew detekt
 ```
 
-如果你要修改 Wow 框架本身，请改读[贡献者指南](../onboarding/contributor-guide.md)和[测试运行体系](./test-runtime.md)。应用项目应根据目标镜像仓库和运行环境单独设计发布与部署，不要直接复制绑定特定云厂商或凭据的流水线。
+如果你要修改 Wow 框架本身，请改读[贡献者指南](../onboarding/contributor-guide.md)和[框架测试与基准](./test-runtime.md)。应用项目应根据目标镜像仓库和运行环境单独设计发布与部署，不要直接复制绑定特定云厂商或凭据的流水线。
 
 ## 下一步
 
 - 先改造领域模型：[聚合建模](./modeling.md)
 - 理解写入 API 与完成阶段：[命令网关](./command-gateway.md)
+- 建立应用测试与发布门禁：[Wow 应用测试](./application-testing.md)
+- 阅读完整 Kotlin 业务案例：[订单与购物车](../reference/example/order.md)
 - 建立读模型：[投影](./projection.md)与[查询服务](./query.md)
 - 切换外部存储或总线：[配置](./configuration.md)与[扩展](./extensions/spring-boot-starter.md)

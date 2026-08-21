@@ -7,6 +7,10 @@ description: CoSec 安全框架集成，处理命令和查询端点的安全上�
 
 CoSec 扩展将 [CoSec](https://github.com/Ahoo-Wang/CoSec) 安全框架与 Wow 的 WebFlux 命令和查询端点集成，处理安全上下文的注入与传播。
 
+::: danger 集成不等于授权策略
+`wow-cosec` 读取并传播 CoSec 上下文，但不会仅凭请求头认证调用方，也不会自动授权命令。应用必须配置可信的 CoSec/Spring Security 认证链和路由策略；客户端提供的 tenant、owner、space、app 或 device 值不能直接作为授权证据。查询 ABAC 还需要应用注册 fail-closed 的 `AbacQueryFilter`。完整边界见[数据权限](../data-access.md#必须完成的安全闭环)。
+:::
+
 ## 工作原理
 
 CoSec 集成提供四个核心组件：
@@ -98,3 +102,12 @@ class OrderSaga {
     }
 }
 ```
+
+## 完成门禁
+
+- 未认证请求不能访问受保护的命令和查询路由；
+- 伪造 `CoSec-*`、`Wow-Space-Id`、tenant 或 owner 不能扩大权限；
+- 身份与作用域由服务端策略绑定，而不是由请求头自行声明；
+- 受保护查询缺少主体标签时拒绝，而不是退化为 `Condition.all()`；
+- Saga、投影和事件处理器只把传播上下文用于审计或经验证的授权决策；
+- 集成测试覆盖匿名、越权、跨租户和正常授权路径。

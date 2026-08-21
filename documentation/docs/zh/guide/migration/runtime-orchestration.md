@@ -286,5 +286,5 @@ Runtime 先关闭全局准入，再静默组件入口、等待连续静默期，
 |---|---|
 | [迁移指南](../migration.md) | 升级总览与其他迁移主题 |
 | [运行时生命周期](../advanced/runtime-lifecycle.md) | 稳定运行架构与停机语义 |
-| [配置](../configuration.md) | 完整 Spring Boot 配置参考 |
+| [配置](../configuration.md) | 应用配置决策、环境与密钥边界；精确属性链接到参考页 |
 | [Spring Boot Starter](../extensions/spring-boot-starter.md) | Starter 自动配置与应用集成 |

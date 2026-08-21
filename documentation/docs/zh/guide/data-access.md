@@ -6,14 +6,18 @@ outline: deep
 
 # 数据权限
 
-Wow 提供了三个可选的数据隔离层和一个基于属性的访问控制层：
+Wow 提供三个可选的路由/数据作用域，以及一个可插入的 ABAC 查询过滤机制：
 
 1. **租户（Tenant）** — 按组织/客户隔离数据（可选）
 2. **拥有者（Owner）** — 在租户内按用户身份隔离数据（可选）
 3. **命名空间（Space）** — 在租户内提供基于命名空间的分区（可选）
-4. **ABAC** — 基于属性的细粒度访问控制
+4. **ABAC** — 由应用提供主体标签解析器的查询过滤机制
 
 这三层隔离都是**可选**的，可以独立启用或自由组合。单租户应用无需启用任何隔离层；SaaS 应用可以按需组合租户、拥有者、命名空间和 ABAC。
+
+::: danger 这不是默认认证或命令授权
+路径中的 `tenantId`/`ownerId`、请求头中的 `spaceId` 以及消息中的标签都是作用域数据，不能证明调用方有权使用这些值。Wow 不会替应用认证用户，也不会自动为生成的命令路由执行授权决策。应用必须在 Spring Security、CoSec 策略或自定义 WebFilter/Handler Filter 中完成身份认证、把身份绑定到允许的作用域，并保护所有自动生成的命令与查询端点。
+:::
 
 ```mermaid
 graph TB
@@ -321,6 +325,8 @@ class OrderState(
 
 查询快照时，`AbacQueryFilter` 根据主体的标签自动注入权限过滤条件。匹配规则如下：
 
+`AbacQueryFilter` 是抽象扩展点，不会仅因启用 Wow、WebFlux 或 CoSec 自动出现。应用未注册该 Bean、返回空标签或返回 `Mono.empty()` 时，默认条件是 `Condition.all()`，即不增加 ABAC 限制。受保护的查询必须在缺少安全上下文或主体标签时显式拒绝请求。
+
 | 主体标签 | 资源标签 | 结果 |
 |---------|---------|------|
 | `["*"]`（通配符） | 任意 | ✅ 匹配 |
@@ -345,17 +351,19 @@ class MemberAbacQueryFilter(
         context: QueryContext<*, *>
     ): Mono<AbacTags> {
         val securityContext = contextView.getSecurityContextOrEmpty()
-            ?: return Mono.empty()
+            ?: return Mono.error(AccessDeniedException("Missing security context"))
         val principal = securityContext.principal
 
         // 根据用户 + 租户 + 应用从缓存查找成员标签
-        return Mono.fromCallable {
-            val memberId = memberId(userId = principal.id, tenantId = principal.tenantId)
-            memberCache[memberId]?.tags?.get(appId)
-        }
+        val memberId = memberId(userId = principal.id, tenantId = principal.tenantId)
+        val tags = memberCache[memberId]?.tags?.get(appId)
+        return tags?.let { Mono.just(it) }
+            ?: Mono.error(AccessDeniedException("Missing principal tags"))
     }
 }
 ```
+
+上例中的 `AccessDeniedException` 代表应用采用的拒绝异常。公开查询与受保护查询应使用明确的不同策略，不要通过“缺少标签等于公开”隐式区分。
 
 ### 查询入口与策略执行
 
@@ -364,6 +372,15 @@ Spring 自动生成的聚合专属 `SnapshotQueryService` 与 `EventStreamQueryS
 `SnapshotQueryServiceFactory` 与 `EventStreamQueryServiceFactory` 是可信的原始后端入口。直接通过 Factory 创建的服务会绕过上述策略，仅应用于明确需要原始数据访问的基础设施、运维或迁移代码。
 
 使用生成服务名称显式注册的自定义 Bean 会被原样保留，不会再包装代理；未提供对应 `QueryHandler` 而单独导入 Registrar 时，也会保留原有的原始服务行为。这两种配置都应视为可信的原始访问。
+
+## 必须完成的安全闭环
+
+1. **认证**：在进入 Wow 路由前建立可信 `Principal`；匿名访问是否允许必须显式配置。
+2. **作用域绑定**：从服务端身份/成员关系推导允许的 tenant、owner 和 space，不能只信任客户端路径或请求头。
+3. **命令授权**：为自动生成的命令路由配置 Spring Security/CoSec 策略，必要时在命令 Filter 中再次校验业务权限。
+4. **查询授权**：为受保护查询注册 fail-closed 的 `AbacQueryFilter` 或等价 `QueryFilter`；缺少上下文、标签或策略时拒绝。
+5. **原始入口隔离**：不要把 `*QueryServiceFactory` 或绕过 `QueryHandler` 的自定义 Bean 暴露给普通应用请求。
+6. **测试**：至少覆盖匿名请求、伪造 tenant/owner/space、跨租户读取、缺失主体标签、无权限命令和原始 Factory 误用。
 
 ## 隔离层级总结
 
@@ -374,4 +391,4 @@ Spring 自动生成的聚合专属 `SnapshotQueryService` 与 `EventStreamQueryS
 | 拥有者 | 个人用户 | `@OwnerId` + `@AggregateRoute(owner)` | `owner/{ownerId}` 路径前缀 | "我的数据"隔离 |
 | ABAC | 基于属性 | 主体标签 + 资源标签 + 查询过滤器 | 内部过滤（无 API 表面） | 细粒度权限（部门、角色、级别） |
 
-这些层级是**叠加**关系 — 启用更多层级意味着更严格的限制。未启用任何层级的查询返回全部数据；同时启用租户 + 拥有者 + ABAC，则仅返回经过认证的用户被允许查看的数据。
+这些层级只有在身份绑定、命令授权和查询过滤全部配置后才形成安全边界。未注册过滤器、缺少主体标签或直接使用原始 Factory 时，查询可能不受 ABAC 限制；不要把路由中出现 tenant、owner 或 space 当作授权已经完成。

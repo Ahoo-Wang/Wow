@@ -32,6 +32,7 @@ export const navbarEn: DefaultTheme.NavItem[] = [
             {
                 text: 'Examples',
                 items: [
+                    {text: 'Order and Cart (Kotlin)', link: '/reference/example/order'},
                     {text: 'Bank Transfer (JAVA)', link: '/reference/example/transfer'},
                     {text: 'Event Compensation', link: '/reference/example/compensation'},
                 ],

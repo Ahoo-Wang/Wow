@@ -176,4 +176,5 @@ test -s domain/build/generated/ksp/main/resources/META-INF/wow-metadata.json
 - 将单模块拆成 `api`、`domain`、`server`：参考 [模块依赖](./advanced/module-dependencies.md)。
 - 切换真实消息和存储后端：参考 [Spring Boot Starter](./extensions/spring-boot-starter.md)。
 - 明确命令完成语义：参考 [命令网关](./command-gateway.md)。
+- 建立应用发布门禁：参考 [Wow 应用测试](./application-testing.md)。
 - 为持久化事件建立升级策略：参考 [事件演进](./advanced/event-evolution.md)。

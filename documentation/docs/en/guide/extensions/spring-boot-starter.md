@@ -171,7 +171,7 @@ dependencies {
     implementation(project(":my-project-api"))
     implementation("me.ahoo.wow:wow-core")
     ksp("me.ahoo.wow:wow-compiler")
-    testImplementation("me.ahoo.wow:wow-tck")
+    testImplementation("me.ahoo.wow:wow-test")
 }
 ```
 
@@ -182,9 +182,16 @@ dependencies {
 dependencies {
     implementation(project(":my-project-domain"))
     implementation("me.ahoo.wow:wow-spring-boot-starter")
-    implementation("me.ahoo.wow:wow-kafka")
-    implementation("me.ahoo.wow:wow-mongo")
-    implementation("me.ahoo.wow:wow-webflux")
+    implementation("me.ahoo.wow:wow-spring-boot-starter") {
+        capabilities { requireCapability("me.ahoo.wow:kafka-support") }
+    }
+    implementation("me.ahoo.wow:wow-spring-boot-starter") {
+        capabilities { requireCapability("me.ahoo.wow:mongo-support") }
+    }
+    implementation("me.ahoo.wow:wow-spring-boot-starter") {
+        capabilities { requireCapability("me.ahoo.wow:webflux-support") }
+    }
+    implementation("org.springframework.boot:spring-boot-starter-data-mongodb-reactive")
 }
 ```
 
