@@ -13,7 +13,9 @@
 
 package me.ahoo.wow.mongo.query
 
+import com.mongodb.reactivestreams.client.FindPublisher
 import com.mongodb.reactivestreams.client.MongoCollection
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import me.ahoo.wow.api.query.Condition
@@ -45,5 +47,22 @@ class AbstractMongoQueryServiceTest {
         }
 
         verify(exactly = 0) { collection.find(any<Bson>()) }
+    }
+
+    @Test
+    fun `non-negative list limit should reach MongoDB`() {
+        val bson = mockk<Bson>()
+        val publisher = mockk<FindPublisher<Document>>()
+        every { service.converter.convert(any()) } returns bson
+        every { service.projectionConverter.convert(any()) } returns bson
+        every { service.sortConverter.convert(any()) } returns bson
+        every { collection.find(bson) } returns publisher
+        every { publisher.projection(bson) } returns publisher
+        every { publisher.sort(bson) } returns publisher
+        every { publisher.limit(1) } returns publisher
+
+        service.list(ListQuery(Condition.ALL, limit = 1))
+
+        verify(exactly = 1) { publisher.limit(1) }
     }
 }
