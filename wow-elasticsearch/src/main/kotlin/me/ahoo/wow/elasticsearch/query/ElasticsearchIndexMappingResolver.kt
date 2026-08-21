@@ -25,6 +25,7 @@ import co.elastic.clients.elasticsearch._types.mapping.KeywordProperty
 import co.elastic.clients.elasticsearch._types.mapping.NumberPropertyBase
 import co.elastic.clients.elasticsearch._types.mapping.Property
 import co.elastic.clients.elasticsearch._types.mapping.PropertyBase
+import co.elastic.clients.elasticsearch._types.mapping.RangePropertyBase
 import co.elastic.clients.elasticsearch._types.mapping.RuntimeFieldType
 import co.elastic.clients.elasticsearch._types.mapping.SearchAsYouTypeProperty
 import co.elastic.clients.elasticsearch._types.mapping.TextProperty
@@ -201,7 +202,15 @@ data class ElasticsearchIndexMapping private constructor(
         }
 
     fun resolve(sort: List<Sort>): List<Sort> =
-        sort.map { it.copy(field = resolve(it.field, ElasticsearchFieldUsage.SORT)) }
+        sort.map {
+            if (it.field in METADATA_SORT_FIELDS) {
+                it
+            } else {
+                it.copy(
+                    field = resolve(it.field, ElasticsearchFieldUsage.SORT),
+                )
+            }
+        }
 
     private fun Condition.withResolvedField(usage: ElasticsearchFieldUsage): Condition =
         copy(field = resolve(field, usage))
@@ -224,7 +233,7 @@ data class ElasticsearchIndexMapping private constructor(
                 fields[path] = ElasticsearchMappedField(
                     kind = property._kind(),
                     indexed = property.isIndexed(),
-                    sortable = property.hasDocValues(),
+                    sortable = property.isSortable(),
                     multiFields = multiFields,
                 )
                 propertyBase?.fields().orEmpty().forEach { (name, field) -> visit("$path.$name", field) }
@@ -252,6 +261,8 @@ data class ElasticsearchIndexMapping private constructor(
                 ElasticsearchFieldUsage.SEARCH -> listOf("text")
                 else -> listOf("keyword", "exact")
             }
+
+        private val METADATA_SORT_FIELDS = setOf("_score", "_doc", "_shard_doc")
     }
 }
 
@@ -267,7 +278,8 @@ private data class ElasticsearchMappedField(
             ElasticsearchFieldUsage.LITERAL -> indexed && kind in LITERAL_KINDS
             ElasticsearchFieldUsage.RANGE -> isQueryable() && kind in RANGE_KINDS
             ElasticsearchFieldUsage.SEARCH -> indexed && kind in SEARCH_KINDS
-            ElasticsearchFieldUsage.SORT -> sortable && kind in EXACT_KINDS
+            ElasticsearchFieldUsage.SORT ->
+                sortable && (kind in EXACT_KINDS || (indexed && kind == Property.Kind.Text))
         }
 
     private fun isQueryable(): Boolean = indexed || (sortable && kind in DOC_VALUE_QUERY_KINDS)
@@ -292,6 +304,14 @@ private data class ElasticsearchMappedField(
             Property.Kind.IcuCollationKeyword,
         )
         private val TERM_KINDS = KEYWORD_KINDS + Property.Kind.Wildcard
+        private val RANGE_FIELD_KINDS = setOf(
+            Property.Kind.IntegerRange,
+            Property.Kind.FloatRange,
+            Property.Kind.LongRange,
+            Property.Kind.DoubleRange,
+            Property.Kind.DateRange,
+            Property.Kind.IpRange,
+        )
         private val DOC_VALUE_QUERY_KINDS = NUMERIC_KINDS + KEYWORD_KINDS + setOf(
             Property.Kind.Boolean,
             Property.Kind.Date,
@@ -307,7 +327,7 @@ private data class ElasticsearchMappedField(
             Property.Kind.Version,
         )
         private val LITERAL_KINDS = TERM_KINDS
-        private val RANGE_KINDS = NUMERIC_KINDS + KEYWORD_KINDS + setOf(
+        private val RANGE_KINDS = NUMERIC_KINDS + KEYWORD_KINDS + RANGE_FIELD_KINDS + setOf(
             Property.Kind.Date,
             Property.Kind.DateNanos,
             Property.Kind.Ip,
@@ -316,6 +336,7 @@ private data class ElasticsearchMappedField(
             Property.Kind.Text,
             Property.Kind.MatchOnlyText,
             Property.Kind.SearchAsYouType,
+            Property.Kind.SemanticText,
         )
     }
 }
@@ -338,13 +359,14 @@ private fun RuntimeFieldType.toMappedField(): ElasticsearchMappedField? {
     )
 }
 
-private fun Property.hasDocValues(): Boolean =
+private fun Property.isSortable(): Boolean =
     when (_kind()) {
         Property.Kind.ConstantKeyword,
         Property.Kind.CountedKeyword,
         -> true
 
         Property.Kind.Flattened -> flattened().docValues() != false
+        Property.Kind.Text -> text().fielddata() == true
         else -> (_get() as? DocValuesPropertyBase)?.let { it.docValues() != false } == true
     }
 
@@ -362,5 +384,5 @@ private fun Property.isIndexed(): Boolean =
         is SearchAsYouTypeProperty -> property.index() != false
         is TextProperty -> property.index() != false
         is TokenCountProperty -> property.index() != false
-        else -> true
+        else -> (property as? RangePropertyBase)?.index() != false
     }

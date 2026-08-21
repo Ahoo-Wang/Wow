@@ -158,9 +158,13 @@ SnapshotStore 使用带 scripted upsert 的 Bulk `update`，direct 路径使用�
 |---|---|
 | `EQ`、`NE`、`IN`、`NOT_IN`、`ALL_IN`、`TRUE`、`FALSE` | 可执行 term 查询，包括受支持的 doc-value-only 字段 |
 | `CONTAINS`、`STARTS_WITH`、`ENDS_WITH` | `keyword` 或 `wildcard` |
-| 范围操作 | numeric、date、ip 或 keyword，支持适用的 `doc_values=true,index=false` 字段 |
-| `MATCH` | `text`、`match_only_text` 或 `search_as_you_type` |
-| 排序 | 启用 `doc_values` 的可排序字段，或 runtime field 支持排序；不要求 `index=true` |
+| 范围操作 | numeric、date、ip、keyword 或 `*_range`，支持适用的 `doc_values=true,index=false` 字段 |
+| `MATCH` | `text`、`match_only_text`、`search_as_you_type` 或 `semantic_text` |
+| 排序 | 启用 `doc_values` 的可排序字段、启用 `fielddata` 的已索引 `text` 字段，或可排序 runtime field |
+
+`_score`、`_doc` 和 `_shard_doc` 是 Elasticsearch 元数据排序字段，不参与 Mapping 字段解析并保持原样传递。
+`text.fielddata=true` 会占用较多堆内存，通常仍应优先使用 `keyword` multi-field；doc-values 字段和 runtime field
+排序不要求 `index=true`。
 
 flattened 字段的动态键不会单独出现在 Mapping 中。Resolver 会从 `state.labels.release` 这类具体路径向上查找最近的
 flattened 父字段，并保留原路径执行精确和排序操作。flattened 值均按 keyword 处理，排序是字典序；

@@ -274,6 +274,30 @@ class ElasticsearchIndexMappingResolverTest {
             .assert().isEqualTo("countedKeywordTrue")
     }
 
+    @Test
+    fun `should support range semantic text fielddata and metadata sorts`() {
+        val mapping = ElasticsearchIndexMapping.from(INDEX, specialCapabilities())
+
+        listOf("integerRange", "floatRange", "longRange", "doubleRange", "dateRange", "ipRange").forEach {
+            mapping.resolve(it, ElasticsearchFieldUsage.RANGE).assert().isEqualTo(it)
+        }
+        mapping.resolve("semanticText", ElasticsearchFieldUsage.SEARCH).assert().isEqualTo("semanticText")
+        mapping.resolve("fielddataText", ElasticsearchFieldUsage.SORT).assert().isEqualTo("fielddataText")
+        listOf("integerRange", "plainText", "unindexedFielddataText").forEach {
+            runCatching { mapping.resolve(it, ElasticsearchFieldUsage.SORT) }
+                .exceptionOrNull()!!.message.assert().contains("does not support")
+        }
+        runCatching { mapping.resolve("unindexedRange", ElasticsearchFieldUsage.RANGE) }
+            .exceptionOrNull()!!.message.assert().contains("does not support")
+        mapping.resolve(
+            listOf(
+                Sort("_score", Sort.Direction.DESC),
+                Sort("_doc", Sort.Direction.ASC),
+                Sort("_shard_doc", Sort.Direction.ASC),
+            ),
+        ).map { it.field }.assert().containsExactly("_score", "_doc", "_shard_doc")
+    }
+
     private fun mappingResponse(mapping: TypeMapping): GetMappingResponse =
         GetMappingResponse.of { response ->
             response.mappings(
@@ -395,6 +419,22 @@ class ElasticsearchIndexMappingResolverTest {
                 .properties("textFalse") { it.text { field -> field.index(false) } }
                 .properties("tokenCountTrue") { it.tokenCount { field -> field.index(true) } }
                 .properties("tokenCountFalse") { it.tokenCount { field -> field.index(false) } }
+        }
+
+    private fun specialCapabilities(): TypeMapping =
+        TypeMapping.of { mapping ->
+            mapping
+                .properties("integerRange") { it.integerRange { field -> field } }
+                .properties("floatRange") { it.floatRange { field -> field } }
+                .properties("longRange") { it.longRange { field -> field } }
+                .properties("doubleRange") { it.doubleRange { field -> field } }
+                .properties("dateRange") { it.dateRange { field -> field } }
+                .properties("ipRange") { it.ipRange { field -> field } }
+                .properties("unindexedRange") { it.integerRange { field -> field.index(false) } }
+                .properties("semanticText") { it.semanticText { field -> field } }
+                .properties("plainText") { it.text { field -> field } }
+                .properties("fielddataText") { it.text { field -> field.fielddata(true) } }
+                .properties("unindexedFielddataText") { it.text { field -> field.index(false).fielddata(true) } }
         }
 
     private fun stateMapping(

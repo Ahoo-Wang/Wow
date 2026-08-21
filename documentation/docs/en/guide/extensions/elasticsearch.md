@@ -164,9 +164,13 @@ Field selection follows these rules:
 |---|---|
 | `EQ`, `NE`, `IN`, `NOT_IN`, `ALL_IN`, `TRUE`, `FALSE` | Term-query compatible, including supported doc-value-only fields |
 | `CONTAINS`, `STARTS_WITH`, `ENDS_WITH` | `keyword` or `wildcard` |
-| Range operations | numeric, date, ip, or keyword, including applicable `doc_values=true,index=false` fields |
-| `MATCH` | `text`, `match_only_text`, or `search_as_you_type` |
-| Sort | Sortable field with `doc_values`, or a sortable runtime field; `index=true` is not required |
+| Range operations | numeric, date, ip, keyword, or `*_range`, including applicable `doc_values=true,index=false` fields |
+| `MATCH` | `text`, `match_only_text`, `search_as_you_type`, or `semantic_text` |
+| Sort | Sortable field with `doc_values`, indexed `text` with `fielddata`, or a sortable runtime field |
+
+`_score`, `_doc`, and `_shard_doc` are Elasticsearch metadata sort fields. They bypass mapping field resolution and are
+passed through unchanged. Because `text.fielddata=true` uses significant heap memory, a `keyword` multi-field is still
+preferred in most cases. Sorting on doc-values and runtime fields does not require `index=true`.
 
 Dynamic keys under a flattened field do not have individual mapping entries. For a concrete path such as
 `state.labels.release`, the resolver walks up to the nearest flattened parent and preserves the original path for exact

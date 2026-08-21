@@ -135,7 +135,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     }
 
     @Test
-    fun `mapping capabilities should support doc values ip ranges and flattened paths`() {
+    fun `mapping capabilities should support special field types and metadata sorts`() {
         val indexName = MOCK_AGGREGATE_METADATA.toSnapshotIndexName()
         elasticsearchClient.indices().putMapping(
             PutMappingRequest.of { request ->
@@ -146,6 +146,12 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                         field.long_ { number -> number.index(false) }
                     }.properties("ipAddress") { field ->
                         field.ip { ip -> ip.index(false) }
+                    }.properties("integerRange") { field ->
+                        field.integerRange { range -> range }
+                    }.properties("ipRange") { field ->
+                        field.ipRange { range -> range }
+                    }.properties("sortableText") { field ->
+                        field.text { text -> text.fielddata(true) }
                     }.properties("labels") { field ->
                         field.flattened { flattened -> flattened }
                     }
@@ -163,6 +169,9 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                             "docValueOnlyKeyword" to "exact",
                             "docValueOnlyLong" to 42,
                             "ipAddress" to "192.168.1.1",
+                            "integerRange" to mapOf("gte" to 10, "lte" to 20),
+                            "ipRange" to "192.168.0.0/24",
+                            "sortableText" to "single",
                             "labels" to mapOf("release" to "v1.2.3"),
                         ),
                     ).refresh(Refresh.True)
@@ -180,6 +189,12 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             .assert().isEqualTo("docValueOnlyLong")
         mapping.resolve("ipAddress", ElasticsearchFieldUsage.RANGE)
             .assert().isEqualTo("ipAddress")
+        mapping.resolve("integerRange", ElasticsearchFieldUsage.RANGE)
+            .assert().isEqualTo("integerRange")
+        mapping.resolve("ipRange", ElasticsearchFieldUsage.RANGE)
+            .assert().isEqualTo("ipRange")
+        mapping.resolve("sortableText", ElasticsearchFieldUsage.SORT)
+            .assert().isEqualTo("sortableText")
         mapping.resolve("labels.release", ElasticsearchFieldUsage.EXACT)
             .assert().isEqualTo("labels.release")
         mapping.resolve("labels.release", ElasticsearchFieldUsage.SORT)
@@ -197,11 +212,17 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                         Condition.eq("docValueOnlyKeyword", "exact"),
                         Condition.gt("docValueOnlyLong", 1),
                         Condition.gt("ipAddress", "192.168.0.1"),
+                        Condition.gt("integerRange", 15),
+                        Condition.gt("ipRange", "192.168.0.128"),
                         Condition.eq("labels.release", "v1.2.3"),
                     ),
                     sort = listOf(
                         Sort("docValueOnlyLong", Sort.Direction.ASC),
+                        Sort("sortableText", Sort.Direction.ASC),
                         Sort("labels.release", Sort.Direction.ASC),
+                        Sort("_score", Sort.Direction.DESC),
+                        Sort("_doc", Sort.Direction.ASC),
+                        Sort("_shard_doc", Sort.Direction.ASC),
                     ),
                     limit = 10,
                 ),
