@@ -57,5 +57,13 @@ class AggregationQueryDslTest {
         )
         query.limit.assert().isEqualTo(20)
         query.toJsonString().toObject<AggregationQuery>().assert().isEqualTo(query)
+
+        val defaultedGroups = aggregationQuery {
+            histogram("version", "versionBand", 1.0)
+            dateHistogram("snapshotTime", "day", AggregationDateUnit.DAY)
+            count("count")
+        }.groupBy
+        (defaultedGroups[0] as AggregationGroup.Histogram).offset.assert().isEqualTo(0.0)
+        (defaultedGroups[1] as AggregationGroup.DateHistogram).timeZone.assert().isEqualTo("UTC")
     }
 }

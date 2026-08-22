@@ -43,6 +43,7 @@ import java.util.ArrayDeque
 @FilterType(SnapshotQueryHandler::class, EventStreamQueryHandler::class)
 class HttpQueryGuardFilter(
     private val maxListSize: Int = 1000,
+    private val maxAggregationMetrics: Int = 32,
     private val maxPageSize: Int = 100,
     private val maxPageWindow: Long = 10_000,
     private val maxConditionNodes: Int = 64,
@@ -56,6 +57,7 @@ class HttpQueryGuardFilter(
 
     init {
         require(maxListSize >= 0) { "maxListSize must be greater than or equal to 0." }
+        require(maxAggregationMetrics >= 0) { "maxAggregationMetrics must be greater than or equal to 0." }
         require(maxPageSize >= 0) { "maxPageSize must be greater than or equal to 0." }
         require(maxPageWindow >= 0) { "maxPageWindow must be greater than or equal to 0." }
         require(maxConditionNodes >= 0) { "maxConditionNodes must be greater than or equal to 0." }
@@ -85,6 +87,9 @@ class HttpQueryGuardFilter(
             is IPagedQuery -> validatePage(query)
             is AggregationQuery -> {
                 validateResultSize(query.limit, "aggregation")
+                require(maxAggregationMetrics == 0 || query.metrics.size <= maxAggregationMetrics) {
+                    "HTTP aggregation metrics[${query.metrics.size}] must not exceed $maxAggregationMetrics."
+                }
                 require(query.sort.isEmpty() || FIELD_WILDCARD in allowedSortFields) {
                     "HTTP aggregation sort requires the allowed-sort-fields wildcard."
                 }

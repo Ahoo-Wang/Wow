@@ -42,7 +42,7 @@ internal fun AggregationQuery.validateFieldTypes(namedAggregate: NamedAggregate)
     val snapshotType = JsonSerializer.typeFactory.constructParametricType(MaterializedSnapshot::class.java, stateType)
 
     groupBy.forEach { group ->
-        val fieldType = snapshotType.resolveField(group.field)
+        val fieldType = snapshotType.resolveDeclaredField(group.field) ?: return@forEach
         require(fieldType.isAggregationScalar) { "Aggregation group field [${group.field}] must be scalar." }
         when (group) {
             is AggregationGroup.Terms -> Unit
@@ -56,19 +56,20 @@ internal fun AggregationQuery.validateFieldTypes(namedAggregate: NamedAggregate)
         }
     }
     metrics.filterIsInstance<AggregationMetric.Numeric>().forEach { metric ->
-        require(snapshotType.resolveField(metric.field).isNumeric) {
+        val fieldType = snapshotType.resolveDeclaredField(metric.field) ?: return@forEach
+        require(fieldType.isNumeric) {
             "Aggregation metric field [${metric.field}] must be numeric."
         }
     }
 }
 
-private fun JavaType.resolveField(path: String): JavaType {
+private fun JavaType.resolveDeclaredField(path: String): JavaType? {
     var current = this
-    path.split('.').forEach { segment ->
-        val property = current.toBeanDescription().findProperties()
+    for (segment in path.split('.')) {
+        current = current.toBeanDescription().findProperties()
             .firstOrNull { it.name == segment }
-        requireNotNull(property) { "Aggregation field [$path] does not exist." }
-        current = property.primaryType
+            ?.primaryType
+            ?: return null
     }
     return current
 }

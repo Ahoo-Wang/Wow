@@ -52,6 +52,8 @@ constructor(
     data class Query(
         @DefaultValue("1000")
         var maxListSize: Int = 1000,
+        @DefaultValue("32")
+        var maxAggregationMetrics: Int = 32,
         @DefaultValue("100")
         var maxPageSize: Int = 100,
         @DefaultValue("10000")
@@ -71,6 +73,7 @@ constructor(
     ) {
         init {
             require(maxListSize >= 0) { "maxListSize must be greater than or equal to 0." }
+            require(maxAggregationMetrics >= 0) { "maxAggregationMetrics must be greater than or equal to 0." }
             require(maxPageSize >= 0) { "maxPageSize must be greater than or equal to 0." }
             require(maxPageWindow >= 0) { "maxPageWindow must be greater than or equal to 0." }
             require(maxConditionNodes >= 0) { "maxConditionNodes must be greater than or equal to 0." }

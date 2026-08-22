@@ -422,7 +422,10 @@ internal fun compareAggregationValues(left: Any?, right: Any?, direction: Sort.D
         left is Number && right is Number -> left.toDouble().compareTo(right.toDouble())
         left is String && right is String -> left.compareUtf8(right)
         left::class == right::class && left is Comparable<*> -> (left as Comparable<Any>).compareTo(right)
-        else -> left.toString().compareUtf8(right.toString())
+        else -> error(
+            "Elasticsearch aggregation sort values must have compatible scalar types " +
+                "[${left::class.qualifiedName}, ${right::class.qualifiedName}]."
+        )
     }
     return if (direction == Sort.Direction.ASC) ascending else -ascending
 }

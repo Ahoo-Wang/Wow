@@ -15,6 +15,7 @@ package me.ahoo.wow.webflux.route.query
 
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
@@ -45,7 +46,7 @@ import reactor.kotlin.test.test
 class QueryBodyExtractorTest {
 
     @Test
-    fun `should extract aggregation query via snapshot handler`() {
+    fun `should route aggregation query via snapshot handler`() {
         val queryHandler = mockk<SnapshotQueryHandler> {
             every { aggregate(any(), any()) } returns Flux.just(mapOf("count" to 1L))
         }
@@ -59,13 +60,23 @@ class QueryBodyExtractorTest {
                 aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
             )
         )
-        val request = MockServerRequest.builder()
-            .body(AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))).toMono())
+        val query = AggregationQuery(metrics = listOf(AggregationMetric.Count("count")))
+        val request = mockk<ServerRequest>(relaxed = true)
+        every { request.body(QueryBodyExtractor.AGGREGATION_QUERY_EXTRACTOR) } returns query.toMono()
 
         handlerFunction.handle(request)
             .test()
-            .consumeNextWith { it.statusCode().assert().isEqualTo(org.springframework.http.HttpStatus.OK) }
+            .consumeNextWith { response ->
+                response.statusCode().assert().isEqualTo(org.springframework.http.HttpStatus.OK)
+                val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/test").build())
+                response.writeTo(exchange, SERVER_RESPONSE_CONTEXT)
+                    .test()
+                    .verifyComplete()
+                exchange.response.bodyAsString.block()!!.assert().contains("count")
+            }
             .verifyComplete()
+
+        verify(exactly = 1) { queryHandler.aggregate(any(), query) }
     }
 
     @Test

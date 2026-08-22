@@ -375,6 +375,21 @@ class HttpQueryGuardFilterTest {
             .expectError(IllegalArgumentException::class.java)
             .verify()
 
+        guard(maxAggregationMetrics = 1).filter(
+            aggregationContext(
+                AggregationQuery(
+                    condition = Condition.id("aggregate-id"),
+                    metrics = listOf(
+                        AggregationMetric.Count("count"),
+                        AggregationMetric.Sum("version", "versionSum"),
+                    ),
+                ),
+            ),
+            unexpectedBackend(),
+        ).writeRawRequest(request).test()
+            .expectErrorMessage("HTTP aggregation metrics[2] must not exceed 1.")
+            .verify()
+
         val context = aggregationContext(
             AggregationQuery(
                 condition = Condition.id("aggregate-id"),
@@ -577,6 +592,7 @@ class HttpQueryGuardFilterTest {
 
     private fun guard(
         maxListSize: Int = 1000,
+        maxAggregationMetrics: Int = 32,
         maxPageSize: Int = 100,
         maxPageWindow: Long = 10_000,
         maxConditionNodes: Int = 64,
@@ -588,6 +604,7 @@ class HttpQueryGuardFilterTest {
         idleTimeout: Duration = Duration.ofSeconds(10),
     ) = HttpQueryGuardFilter(
         maxListSize = maxListSize,
+        maxAggregationMetrics = maxAggregationMetrics,
         maxPageSize = maxPageSize,
         maxPageWindow = maxPageWindow,
         maxConditionNodes = maxConditionNodes,

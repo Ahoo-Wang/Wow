@@ -26,7 +26,7 @@ data class AggregationQuery(
     @get:ArraySchema(maxItems = MAX_GROUPS)
     @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
     val groupBy: List<AggregationGroup> = emptyList(),
-    @get:ArraySchema(minItems = 1, maxItems = MAX_METRICS)
+    @get:ArraySchema(minItems = 1)
     val metrics: List<AggregationMetric>,
     @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
     override val sort: List<Sort> = emptyList(),
@@ -35,7 +35,6 @@ data class AggregationQuery(
 ) : ConditionCapable<AggregationQuery>, SortCapable {
     init {
         require(metrics.isNotEmpty()) { "metrics must not be empty." }
-        require(metrics.size <= MAX_METRICS) { "metrics must contain at most $MAX_METRICS items." }
         require(limit in 1..MAX_LIMIT) { "limit must be between 1 and $MAX_LIMIT." }
         require(groupBy.size <= MAX_GROUPS) { "groupBy must contain at most $MAX_GROUPS dimensions." }
         require(groupBy.isNotEmpty() || sort.isEmpty()) { "sort requires at least one groupBy." }
@@ -57,7 +56,6 @@ data class AggregationQuery(
         const val DEFAULT_LIMIT: Int = 100
         const val MAX_LIMIT: Int = 10_000
         const val MAX_GROUPS: Int = 32
-        const val MAX_METRICS: Int = 32
         private const val DEFAULT_LIMIT_TEXT = "100"
         private const val MAX_LIMIT_TEXT = "10000"
     }

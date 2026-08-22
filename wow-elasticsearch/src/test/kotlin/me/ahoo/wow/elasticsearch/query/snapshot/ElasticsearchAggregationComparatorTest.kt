@@ -16,6 +16,7 @@ package me.ahoo.wow.elasticsearch.query.snapshot
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Sort
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class ElasticsearchAggregationComparatorTest {
     @Test
@@ -24,5 +25,14 @@ class ElasticsearchAggregationComparatorTest {
             .assert().isLessThan(0)
         compareAggregationValues("\uD800\uDC00", "\uE000", Sort.Direction.ASC)
             .assert().isGreaterThan(0)
+        compareAggregationValues(null, null, Sort.Direction.ASC).assert().isZero()
+        compareAggregationValues(null, 1L, Sort.Direction.ASC).assert().isLessThan(0)
+        compareAggregationValues(1L, null, Sort.Direction.DESC).assert().isLessThan(0)
+        compareAggregationValues(1L, 1.0, Sort.Direction.ASC).assert().isZero()
+        compareAggregationValues(true, false, Sort.Direction.ASC).assert().isGreaterThan(0)
+
+        assertThrows<IllegalStateException> {
+            compareAggregationValues(true, "true", Sort.Direction.ASC)
+        }.message.assert().contains("must have compatible scalar types")
     }
 }

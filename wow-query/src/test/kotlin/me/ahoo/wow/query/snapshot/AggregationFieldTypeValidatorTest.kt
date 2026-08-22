@@ -14,8 +14,14 @@
 package me.ahoo.wow.query.snapshot
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationDateUnit
+import me.ahoo.wow.api.query.AggregationGroup
+import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.serialization.JsonSerializer
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -40,6 +46,50 @@ class AggregationFieldTypeValidatorTest {
         Month::class.java.toJavaType().isAggregationDate.assert().isFalse()
         MonthDay::class.java.toJavaType().isAggregationDate.assert().isFalse()
         LocalTime::class.java.toJavaType().isAggregationDate.assert().isFalse()
+    }
+
+    @Test
+    fun `should validate group and metric field types`() {
+        AggregationQuery(
+            groupBy = listOf(
+                AggregationGroup.Terms("state.data", "data"),
+                AggregationGroup.Histogram("version", "versionBand", 1.0),
+                AggregationGroup.DateHistogram("snapshotTime", "day", AggregationDateUnit.DAY),
+            ),
+            metrics = listOf(
+                AggregationMetric.Count("count"),
+                AggregationMetric.Sum("version", "totalVersion"),
+            ),
+        ).validateFieldTypes(MOCK_AGGREGATE_METADATA)
+
+        listOf(
+            AggregationQuery(
+                groupBy = listOf(AggregationGroup.Terms("state", "state")),
+                metrics = listOf(AggregationMetric.Count("count")),
+            ) to "Aggregation group field [state] must be scalar.",
+            AggregationQuery(
+                groupBy = listOf(AggregationGroup.Histogram("state.data", "dataBand", 1.0)),
+                metrics = listOf(AggregationMetric.Count("count")),
+            ) to "Histogram field [state.data] must be numeric.",
+            AggregationQuery(
+                groupBy = listOf(
+                    AggregationGroup.DateHistogram("state.data", "day", AggregationDateUnit.DAY),
+                ),
+                metrics = listOf(AggregationMetric.Count("count")),
+            ) to "Date histogram field [state.data] must be a date or epoch number.",
+        ).forEach { (query, expectedMessage) ->
+            assertThrows<IllegalArgumentException> {
+                query.validateFieldTypes(MOCK_AGGREGATE_METADATA)
+            }.message.assert().isEqualTo(expectedMessage)
+        }
+    }
+
+    @Test
+    fun `should defer undeclared fields to backend validation`() {
+        AggregationQuery(
+            groupBy = listOf(AggregationGroup.Terms("state.labels.runtime", "runtime")),
+            metrics = listOf(AggregationMetric.Sum("state.runtimeScore", "score")),
+        ).validateFieldTypes(MOCK_AGGREGATE_METADATA)
     }
 
     private fun Class<*>.toJavaType() = JsonSerializer.typeFactory.constructType(this)

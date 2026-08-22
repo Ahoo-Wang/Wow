@@ -86,6 +86,7 @@ data class CreateOrder(/* ... */)
 | `batch.concurrency` | `Int` | `1` | 单次批量执行中并发处理的最大请求数 |
 | `batch.prefetch` | `Int` | `1` | 批量请求处理的预取窗口 |
 | `query.max-list-size` | `Int` | `1000` | HTTP 列表与聚合查询允许的最大正数 limit；`0` 关闭上限并恢复列表 `limit=0` 全量查询 |
+| `query.max-aggregation-metrics` | `Int` | `32` | HTTP 聚合查询允许的最大指标数量；`0` 关闭上限 |
 | `query.max-page-size` | `Int` | `100` | HTTP 分页查询的最大页大小；`0` 关闭上限 |
 | `query.max-page-window` | `Long` | `10000` | HTTP 分页查询允许的最大 `index * size`；`0` 关闭上限 |
 | `query.max-condition-nodes` | `Int` | `64` | HTTP 查询条件树的最大节点数；`0` 关闭上限 |
@@ -107,6 +108,7 @@ wow:
       prefetch: 4
     query:
       max-list-size: 1000
+      max-aggregation-metrics: 32
       max-page-size: 100
       max-page-window: 10000
       max-condition-nodes: 64

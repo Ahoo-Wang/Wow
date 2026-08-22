@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.query.snapshot.filter
 
+import io.mockk.every
+import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogErrorHandler
@@ -117,6 +119,30 @@ class DefaultSnapshotQueryHandlerTest {
         handledQueryHandler.aggregate(MOCK_AGGREGATE_METADATA, query)
             .test()
             .expectErrorMessage("handled")
+            .verify()
+    }
+
+    @Test
+    fun `should route supported aggregation to query service`() {
+        queryHandler.aggregate(
+            MOCK_AGGREGATE_METADATA,
+            aggregationQuery { count("count") },
+        ).test()
+            .expectErrorMessage("Snapshot aggregation is not supported by [no_op].")
+            .verify()
+    }
+
+    @Test
+    fun `default handler should reject aggregation`() {
+        val handler = mockk<SnapshotQueryHandler> {
+            every { aggregate(any(), any()) } answers { callOriginal() }
+        }
+
+        handler.aggregate(
+            MOCK_AGGREGATE_METADATA,
+            aggregationQuery { count("count") },
+        ).test()
+            .expectErrorMessage("Snapshot aggregation is not supported by this query handler.")
             .verify()
     }
 }

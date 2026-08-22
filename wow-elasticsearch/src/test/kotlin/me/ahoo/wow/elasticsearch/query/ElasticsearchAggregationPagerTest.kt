@@ -15,9 +15,11 @@ package me.ahoo.wow.elasticsearch.query
 
 import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.elasticsearch._types.aggregations.Aggregate
+import co.elastic.clients.elasticsearch._types.aggregations.Aggregation
 import co.elastic.clients.elasticsearch._types.aggregations.CompositeAggregate
 import co.elastic.clients.elasticsearch._types.aggregations.CompositeAggregationSource
 import co.elastic.clients.elasticsearch._types.aggregations.CompositeBucket
+import co.elastic.clients.elasticsearch._types.aggregations.SumAggregate
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll
 import co.elastic.clients.elasticsearch.core.ClosePointInTimeRequest
 import co.elastic.clients.elasticsearch.core.ClosePointInTimeResponse
@@ -31,6 +33,7 @@ import io.mockk.mockk
 import io.mockk.slot
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
@@ -102,6 +105,69 @@ class ElasticsearchAggregationPagerTest {
         closeRequest.captured.id().assert().isEqualTo("pit-2")
     }
 
+    @Test
+    fun `should validate arguments`() {
+        assertThrows<IllegalArgumentException> {
+            ElasticsearchAggregationPager(elasticsearchClient, "test-index", batchSize = 0)
+        }
+        val pager = ElasticsearchAggregationPager(elasticsearchClient, "test-index")
+        assertThrows<IllegalArgumentException> {
+            pager.search(matchAll { it }, emptyList(), emptyMap())
+        }
+        assertThrows<IllegalArgumentException> {
+            pager.search(matchAll { it }, listOf(source), emptyMap(), limit = -1)
+        }
+    }
+
+    @Test
+    fun `should honor limit and include metrics`() {
+        val request = slot<SearchRequest>()
+        stubPointInTime(slot())
+        every { elasticsearchClient.search(capture(request), Map::class.java) } returns Mono.just(
+            aggregationResponse("pit-2", listOf(bucket(1))),
+        )
+        val metrics = mapOf(
+            "sum" to Aggregation.of {
+                it.sum { sum -> sum.field("amount") }
+            },
+        )
+
+        ElasticsearchAggregationPager(elasticsearchClient, "test-index", batchSize = 2)
+            .search(matchAll { it }, listOf(source), metrics, limit = 1)
+            .test()
+            .expectNextCount(1)
+            .verifyComplete()
+
+        val root = request.captured.aggregations()[ROOT]!!
+        root.composite().size().assert().isEqualTo(1)
+        root.aggregations().assert().containsKey("sum")
+    }
+
+    @Test
+    fun `should reject malformed aggregation responses`() {
+        listOf(
+            malformedResponse(null) to "Elasticsearch aggregation response is missing [$ROOT].",
+            malformedResponse(Aggregate(SumAggregate.of { it.value(1.0) })) to
+                "Elasticsearch aggregation response [$ROOT] must be composite.",
+            malformedResponse(
+                Aggregate(
+                    CompositeAggregate.of { composite ->
+                        composite.buckets { buckets -> buckets.keyed(mapOf("key" to bucket(1))) }
+                    },
+                ),
+            ) to "Elasticsearch composite aggregation must return array buckets.",
+        ).forEach { (response, message) ->
+            stubPointInTime(slot())
+            every { elasticsearchClient.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(response)
+
+            ElasticsearchAggregationPager(elasticsearchClient, "test-index")
+                .search(matchAll { it }, listOf(source), emptyMap())
+                .test()
+                .expectErrorMessage(message)
+                .verify()
+        }
+    }
+
     private fun stubPointInTime(closeRequest: io.mockk.CapturingSlot<ClosePointInTimeRequest>) {
         every { elasticsearchClient.openPointInTime(any<OpenPointInTimeRequest>()) } returns Mono.just(
             OpenPointInTimeResponse.of {
@@ -139,6 +205,17 @@ class ElasticsearchAggregationPagerTest {
                     }
                 ),
             ).pitId(pitId)
+    }
+
+    private fun malformedResponse(root: Aggregate?): SearchResponse<Map<*, *>> = SearchResponse.of {
+        it.took(1)
+            .timedOut(false)
+            .shards { shards -> shards.failed(0).successful(1).total(1) }
+            .hits { hits -> hits.hits(emptyList()) }
+        if (root != null) {
+            it.aggregations(ROOT, root)
+        }
+        it
     }
 
     private companion object {

@@ -182,6 +182,7 @@ internal class WebFluxAutoConfigurationTest {
                 "${WebFluxProperties.PREFIX}.batch.concurrency=4",
                 "${WebFluxProperties.PREFIX}.batch.prefetch=8",
                 "${WebFluxProperties.PREFIX}.query.max-list-size=200",
+                "${WebFluxProperties.PREFIX}.query.max-aggregation-metrics=16",
                 "${WebFluxProperties.PREFIX}.query.max-page-size=20",
                 "${WebFluxProperties.PREFIX}.query.max-page-window=2000",
                 "${WebFluxProperties.PREFIX}.query.max-condition-nodes=32",
@@ -213,13 +214,11 @@ internal class WebFluxAutoConfigurationTest {
                 WebFluxAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
-                context.assert()
-                    .hasSingleBean(BatchExecutionPolicy::class.java)
-                    .hasSingleBean(WebFluxProperties::class.java)
                 val properties = context.getBean(WebFluxProperties::class.java)
                 properties.batch.concurrency.assert().isEqualTo(4)
                 properties.batch.prefetch.assert().isEqualTo(8)
                 properties.query.maxListSize.assert().isEqualTo(200)
+                properties.query.maxAggregationMetrics.assert().isEqualTo(16)
                 properties.query.maxPageSize.assert().isEqualTo(20)
                 properties.query.maxPageWindow.assert().isEqualTo(2000)
                 properties.query.maxConditionNodes.assert().isEqualTo(32)

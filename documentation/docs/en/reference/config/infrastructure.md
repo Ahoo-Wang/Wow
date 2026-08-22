@@ -174,6 +174,7 @@ snapshots.
 | `wow.webflux.batch.concurrency` | Integer | `1` | Concurrency for batch command requests |
 | `wow.webflux.batch.prefetch` | Integer | `1` | Prefetch count for batch command requests |
 | `wow.webflux.query.max-list-size` | Integer | `1000` | Maximum HTTP list/aggregation-query limit; `0` disables the cap |
+| `wow.webflux.query.max-aggregation-metrics` | Integer | `32` | Maximum metrics per HTTP aggregation query; `0` disables the cap |
 | `wow.webflux.query.max-page-size` | Integer | `100` | Maximum HTTP page size; `0` disables the cap |
 | `wow.webflux.query.max-page-window` | Long | `10000` | Maximum HTTP page window; `0` disables the cap |
 | `wow.webflux.query.max-condition-nodes` | Integer | `64` | Maximum HTTP query condition nodes; `0` disables the cap |
@@ -197,6 +198,7 @@ wow:
       prefetch: 1
     query:
       max-list-size: 1000
+      max-aggregation-metrics: 32
       max-page-size: 100
       max-page-window: 10000
       max-condition-nodes: 64

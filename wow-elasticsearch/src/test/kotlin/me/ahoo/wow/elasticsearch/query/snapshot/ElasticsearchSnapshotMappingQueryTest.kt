@@ -13,13 +13,24 @@
 
 package me.ahoo.wow.elasticsearch.query.snapshot
 
+import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.elasticsearch._types.aggregations.Aggregate
+import co.elastic.clients.elasticsearch._types.aggregations.AvgAggregate
+import co.elastic.clients.elasticsearch._types.aggregations.CompositeAggregate
+import co.elastic.clients.elasticsearch._types.aggregations.CompositeBucket
+import co.elastic.clients.elasticsearch._types.aggregations.MaxAggregate
+import co.elastic.clients.elasticsearch._types.aggregations.MinAggregate
 import co.elastic.clients.elasticsearch._types.aggregations.SumAggregate
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll
+import co.elastic.clients.elasticsearch.core.ClosePointInTimeRequest
+import co.elastic.clients.elasticsearch.core.ClosePointInTimeResponse
+import co.elastic.clients.elasticsearch.core.OpenPointInTimeRequest
+import co.elastic.clients.elasticsearch.core.OpenPointInTimeResponse
 import co.elastic.clients.elasticsearch.core.SearchRequest
 import co.elastic.clients.elasticsearch.core.SearchResponse
+import co.elastic.clients.elasticsearch.core.search.TotalHitsRelation
 import co.elastic.clients.elasticsearch.indices.GetMappingRequest
 import co.elastic.clients.elasticsearch.indices.GetMappingResponse
 import co.elastic.clients.elasticsearch.indices.get_mapping.IndexMappingRecord
@@ -28,6 +39,8 @@ import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationDateUnit
+import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
@@ -202,6 +215,86 @@ class ElasticsearchSnapshotMappingQueryTest {
             .verify()
     }
 
+    @Test
+    fun `global aggregation should return every metric type`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(queryMapping()),
+        )
+        every { client.search(capture(searchRequest), Map::class.java) } returns Mono.just(
+            metricSearchResponse(),
+        )
+
+        queryService().aggregate(
+            AggregationQuery(
+                metrics = listOf(
+                    AggregationMetric.Count("count"),
+                    AggregationMetric.Sum("state.age", "sum"),
+                    AggregationMetric.Avg("state.age", "avg"),
+                    AggregationMetric.Min("state.age", "min"),
+                    AggregationMetric.Max("state.age", "max"),
+                ),
+            ),
+        ).test()
+            .expectNext(
+                mapOf(
+                    "count" to 2L,
+                    "sum" to 4.0,
+                    "avg" to 2.0,
+                    "min" to 1.0,
+                    "max" to 3.0,
+                ),
+            ).verifyComplete()
+    }
+
+    @Test
+    fun `grouped aggregation should compile every group and return metric top result`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(queryMapping()),
+        )
+        stubPointInTime()
+        every { client.search(capture(searchRequest), Map::class.java) } returns Mono.just(
+            groupedSearchResponse(
+                groupedBucket("A", 19.0, 1_700_000_000_000, 2, 40.0),
+                groupedBucket("B", 29.0, 1_700_000_000_000, 1, 30.0),
+            ),
+        )
+
+        queryService().aggregate(
+            AggregationQuery(
+                groupBy = listOf(
+                    AggregationGroup.Terms("state.name", "name"),
+                    AggregationGroup.Histogram("state.age", "ageBand", 10.0, 1.0),
+                    AggregationGroup.DateHistogram("snapshotTime", "day", AggregationDateUnit.DAY),
+                    AggregationGroup.DateHistogram("snapshotTime", "second", AggregationDateUnit.SECOND),
+                ),
+                metrics = listOf(
+                    AggregationMetric.Count("count"),
+                    AggregationMetric.Sum("state.age", "sum"),
+                ),
+                sort = listOf(Sort("sum", Sort.Direction.DESC)),
+                limit = 1,
+            ),
+        ).test()
+            .expectNext(
+                mapOf(
+                    "name" to "A",
+                    "ageBand" to 20.0,
+                    "day" to 1_700_000_000_000L,
+                    "second" to 1_700_000_000_000L,
+                    "count" to 2L,
+                    "sum" to 40.0,
+                ),
+            ).verifyComplete()
+
+        val root = searchRequest.captured.aggregations()[ROOT_AGGREGATION]!!
+        val sources = root.composite().sources()
+        sources[0].value().terms().field().assert().isEqualTo("state.name.keyword")
+        sources[1].value().histogram().script().assert().isNotNull()
+        sources[2].value().dateHistogram().script().assert().isNotNull()
+        sources[3].value().dateHistogram().fixedInterval()!!.time().assert().isEqualTo("1s")
+        root.aggregations()["sum"]!!.sum().field().assert().isEqualTo("state.age")
+    }
+
     private fun queryService(
         resolver: ElasticsearchIndexMappingResolver = ElasticsearchIndexMappingResolver(client),
     ): ElasticsearchSnapshotQueryService<Any> =
@@ -237,7 +330,50 @@ class ElasticsearchSnapshotMappingQueryTest {
                     }
                     objectField
                 }
-            }
+            }.properties("snapshotTime") { snapshotTime -> snapshotTime.long_ { it } }
+        }
+
+    private fun stubPointInTime() {
+        every { client.openPointInTime(any<OpenPointInTimeRequest>()) } returns Mono.just(
+            OpenPointInTimeResponse.of { it.id("pit-1").shards { shards -> shards.failed(0).successful(1).total(1) } },
+        )
+        every { client.closePointInTime(any<ClosePointInTimeRequest>()) } returns Mono.just(
+            ClosePointInTimeResponse.of { it.succeeded(true).numFreed(1) },
+        )
+    }
+
+    private fun groupedBucket(
+        name: String,
+        ageBand: Double,
+        day: Long,
+        count: Long,
+        sum: Double,
+    ): CompositeBucket = CompositeBucket.of {
+        it.key(
+            mapOf(
+                "name" to FieldValue.of(name),
+                "ageBand" to FieldValue.of(ageBand),
+                "day" to FieldValue.of(day),
+                "second" to FieldValue.of(day),
+            ),
+        ).docCount(count)
+            .aggregations("sum", Aggregate(SumAggregate.of { metric -> metric.value(sum) }))
+    }
+
+    private fun groupedSearchResponse(vararg buckets: CompositeBucket): SearchResponse<Map<*, *>> =
+        SearchResponse.of {
+            it.took(1)
+                .timedOut(false)
+                .shards { shards -> shards.failed(0).successful(1).total(1) }
+                .hits { hits -> hits.hits(emptyList()) }
+                .aggregations(
+                    ROOT_AGGREGATION,
+                    Aggregate(
+                        CompositeAggregate.of { composite ->
+                            composite.buckets { bucketContainer -> bucketContainer.array(buckets.toList()) }
+                        },
+                    ),
+                ).pitId("pit-2")
         }
 
     private fun emptySearchResponse(timedOut: Boolean = false): SearchResponse<Map<*, *>> =
@@ -256,4 +392,22 @@ class ElasticsearchSnapshotMappingQueryTest {
                 .hits { hits -> hits.hits(emptyList()) }
                 .aggregations("sum", Aggregate(SumAggregate.of { sum -> sum.value(value) }))
         }
+
+    private fun metricSearchResponse(): SearchResponse<Map<*, *>> =
+        SearchResponse.of<Map<*, *>> {
+            it.took(1)
+                .timedOut(false)
+                .shards { shards -> shards.failed(0).successful(1).total(1) }
+                .hits { hits ->
+                    hits.total { total -> total.relation(TotalHitsRelation.Eq).value(2) }
+                        .hits(emptyList())
+                }.aggregations("sum", Aggregate(SumAggregate.of { sum -> sum.value(4.0) }))
+                .aggregations("avg", Aggregate(AvgAggregate.of { avg -> avg.value(2.0) }))
+                .aggregations("min", Aggregate(MinAggregate.of { min -> min.value(1.0) }))
+                .aggregations("max", Aggregate(MaxAggregate.of { max -> max.value(3.0) }))
+        }
+
+    private companion object {
+        const val ROOT_AGGREGATION = "__wow_aggregation__"
+    }
 }

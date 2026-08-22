@@ -173,6 +173,7 @@ direct 和 batch 模式下都使用基于 `_source.version` 的原子保护更�
 | `wow.webflux.batch.concurrency` | Integer | `1` | 批量命令请求的并发数 |
 | `wow.webflux.batch.prefetch` | Integer | `1` | 批量命令请求的预取数 |
 | `wow.webflux.query.max-list-size` | Integer | `1000` | HTTP 列表/聚合查询最大 limit；`0` 关闭上限 |
+| `wow.webflux.query.max-aggregation-metrics` | Integer | `32` | HTTP 聚合查询指标数量上限；`0` 关闭上限 |
 | `wow.webflux.query.max-page-size` | Integer | `100` | HTTP 查询最大页大小；`0` 关闭上限 |
 | `wow.webflux.query.max-page-window` | Long | `10000` | HTTP 查询最大分页窗口；`0` 关闭上限 |
 | `wow.webflux.query.max-condition-nodes` | Integer | `64` | HTTP 查询条件节点上限；`0` 关闭上限 |
@@ -196,6 +197,7 @@ wow:
       prefetch: 1
     query:
       max-list-size: 1000
+      max-aggregation-metrics: 32
       max-page-size: 100
       max-page-window: 10000
       max-condition-nodes: 64

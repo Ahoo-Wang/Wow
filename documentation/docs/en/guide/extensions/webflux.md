@@ -88,6 +88,7 @@ plus `wow-webflux` for these properties to be bound.
 | `batch.concurrency` | `Int` | `1` | Maximum concurrent requests processed in a single batch execution |
 | `batch.prefetch` | `Int` | `1` | Prefetch window for batch request processing |
 | `query.max-list-size` | `Int` | `1000` | Maximum positive limit for HTTP list and aggregation queries; `0` disables the cap and restores unlimited list queries with `limit=0` |
+| `query.max-aggregation-metrics` | `Int` | `32` | Maximum metrics per HTTP aggregation query; `0` disables the cap |
 | `query.max-page-size` | `Int` | `100` | Maximum HTTP page size; `0` disables the cap |
 | `query.max-page-window` | `Long` | `10000` | Maximum HTTP `index * size` page window; `0` disables the cap |
 | `query.max-condition-nodes` | `Int` | `64` | Maximum number of HTTP query condition nodes; `0` disables the cap |
@@ -109,6 +110,7 @@ wow:
       prefetch: 4
     query:
       max-list-size: 1000
+      max-aggregation-metrics: 32
       max-page-size: 100
       max-page-window: 10000
       max-condition-nodes: 64

@@ -26,7 +26,7 @@ data class AggregatedAggregationQuery<CommandAggregateType : Any>(
     val condition: AggregatedCondition<CommandAggregateType> = AggregatedCondition(),
     @get:ArraySchema(maxItems = AggregationQuery.MAX_GROUPS)
     val groupBy: List<AggregatedAggregationGroup<CommandAggregateType>> = emptyList(),
-    @get:ArraySchema(minItems = 1, maxItems = AggregationQuery.MAX_METRICS)
+    @get:ArraySchema(minItems = 1)
     val metrics: List<AggregatedAggregationMetric<CommandAggregateType>>,
     val sort: List<Sort> = emptyList(),
     @get:Schema(defaultValue = "100", minimum = "1", maximum = "10000")
