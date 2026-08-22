@@ -18,6 +18,7 @@ import co.elastic.clients.elasticsearch._types.aggregations.Aggregate
 import co.elastic.clients.elasticsearch._types.aggregations.CompositeAggregate
 import co.elastic.clients.elasticsearch._types.aggregations.CompositeAggregationSource
 import co.elastic.clients.elasticsearch._types.aggregations.CompositeBucket
+import co.elastic.clients.elasticsearch._types.aggregations.SumAggregate
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll
 import co.elastic.clients.elasticsearch.core.ClosePointInTimeRequest
 import co.elastic.clients.elasticsearch.core.ClosePointInTimeResponse
@@ -35,6 +36,7 @@ import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchAggregationPlan
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
@@ -53,6 +55,37 @@ class ElasticsearchAggregationPagerTest {
         ),
         elements = emptyList(),
     )
+
+    @Test
+    fun `should reject invalid configuration and inputs`() {
+        assertThrows<IllegalArgumentException> { ElasticsearchAggregationPager(client, "index", batchSize = 0) }
+        assertThrows<IllegalArgumentException> {
+            ElasticsearchAggregationPager(client, "index", batchSize = DEFAULT_SEARCH_BATCH_SIZE + 1)
+        }
+        val pager = ElasticsearchAggregationPager(client, "index")
+        assertThrows<IllegalArgumentException> { pager.search(plan, emptyList(), emptyMap()) }
+        assertThrows<IllegalArgumentException> { pager.search(plan, listOf(source), emptyMap(), limit = -1) }
+    }
+
+    @Test
+    fun `should stop at a finite limit and keep the original pit when response id is blank`() {
+        val requests = mutableListOf<SearchRequest>()
+        val close = slot<ClosePointInTimeRequest>()
+        stubPointInTime(close)
+        every { client.search(capture(requests), Map::class.java) } returns Mono.just(
+            response("", listOf(bucket(1)), FieldValue.of(1L)),
+        )
+
+        ElasticsearchAggregationPager(client, "index", batchSize = 2)
+            .search(plan, listOf(source), emptyMap(), limit = 1)
+            .test()
+            .expectNextCount(1)
+            .verifyComplete()
+
+        requests.assert().hasSize(1)
+        requests.single().aggregations()[ROWS]!!.composite().size().assert().isEqualTo(1)
+        close.captured.id().assert().isEqualTo("pit-1")
+    }
 
     @Test
     fun `should page buckets and close latest pit`() {
@@ -129,6 +162,49 @@ class ElasticsearchAggregationPagerTest {
         close.captured.id().assert().isEqualTo("pit-2")
     }
 
+    @Test
+    fun `should reject missing and malformed row aggregations`() {
+        val cases = listOf(
+            response("pit-2", emptyList(), includeRows = false) to
+                "Elasticsearch aggregation response is missing [$ROWS].",
+            response(
+                "pit-2",
+                emptyList(),
+                rowsOverride = Aggregate(SumAggregate.of { it.value(1.0) }),
+            ) to "Elasticsearch aggregation response [$ROWS] must be composite.",
+            response(
+                "pit-2",
+                emptyList(),
+                rowsOverride = Aggregate(
+                    CompositeAggregate.of { composite ->
+                        composite.buckets { buckets -> buckets.keyed(emptyMap()) }
+                    },
+                ),
+            ) to "Elasticsearch composite aggregation must return array buckets.",
+        )
+
+        cases.forEach { (response, message) ->
+            val caseClient = mockk<ReactiveElasticsearchClient>()
+            val close = slot<ClosePointInTimeRequest>()
+            every { caseClient.openPointInTime(any<OpenPointInTimeRequest>()) } returns Mono.just(
+                OpenPointInTimeResponse.of {
+                    it.id("pit-1").shards { shards -> shards.failed(0).successful(1).total(1) }
+                },
+            )
+            every { caseClient.closePointInTime(capture(close)) } returns Mono.just(
+                ClosePointInTimeResponse.of { it.succeeded(true).numFreed(1) },
+            )
+            every { caseClient.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(response)
+
+            ElasticsearchAggregationPager(caseClient, "index", batchSize = 2)
+                .search(plan, listOf(source), emptyMap())
+                .test()
+                .expectErrorMessage(message)
+                .verify()
+            close.captured.id().assert().isEqualTo("pit-2")
+        }
+    }
+
     private fun stubPointInTime(close: io.mockk.CapturingSlot<ClosePointInTimeRequest>) {
         every { client.openPointInTime(any<OpenPointInTimeRequest>()) } returns Mono.just(
             OpenPointInTimeResponse.of {
@@ -150,23 +226,29 @@ class ElasticsearchAggregationPagerTest {
         afterKey: FieldValue? = null,
         failedShards: Int = 0,
         timedOut: Boolean = false,
+        rowsOverride: Aggregate? = null,
+        includeRows: Boolean = true,
     ): SearchResponse<Map<*, *>> = SearchResponse.of {
         it.took(1)
             .timedOut(timedOut)
             .shards { shards -> shards.failed(failedShards).successful(1).total(1 + failedShards) }
             .hits { hits -> hits.hits(emptyList()) }
-            .aggregations(
-                ROWS,
-                Aggregate(
-                    CompositeAggregate.of { composite ->
-                        composite.buckets { container -> container.array(buckets) }
-                        if (afterKey != null) {
-                            composite.afterKey("group", afterKey)
-                        }
-                        composite
-                    },
-                ),
-            ).pitId(pitId)
+            .also { response ->
+                if (includeRows) {
+                    response.aggregations(
+                        ROWS,
+                        rowsOverride ?: Aggregate(
+                            CompositeAggregate.of { composite ->
+                                composite.buckets { container -> container.array(buckets) }
+                                if (afterKey != null) {
+                                    composite.afterKey("group", afterKey)
+                                }
+                                composite
+                            },
+                        ),
+                    )
+                }
+            }.pitId(pitId)
     }
 
     private companion object {
