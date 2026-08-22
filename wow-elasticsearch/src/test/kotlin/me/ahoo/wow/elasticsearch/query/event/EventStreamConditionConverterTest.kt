@@ -17,7 +17,9 @@ import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.term
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.terms
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.serialization.MessageRecords
 import org.junit.jupiter.api.Test
@@ -36,6 +38,27 @@ class EventStreamConditionConverterTest {
 
         actual.term().field().assert().isEqualTo(MessageRecords.ID)
         actual.term().value().stringValue().assert().isEqualTo("streamId")
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `legacy event stream id filter should target id field`() {
+        val actual = EventStreamConditionConverter.convert(Condition.id("streamId").toFilterExpression())
+
+        actual.term().field().assert().isEqualTo(MessageRecords.ID)
+        actual.term().value().stringValue().assert().isEqualTo("streamId")
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `legacy event stream ids filter should target id field`() {
+        val actual = EventStreamConditionConverter.convert(
+            Condition.ids("streamId-1", "streamId-2").toFilterExpression(),
+        )
+
+        actual.terms().field().assert().isEqualTo(MessageRecords.ID)
+        actual.terms().terms().value().map { it.stringValue() }
+            .assert().containsExactly("streamId-1", "streamId-2")
     }
 
     @Test

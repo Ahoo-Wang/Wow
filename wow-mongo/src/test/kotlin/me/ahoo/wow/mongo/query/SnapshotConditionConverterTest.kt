@@ -1,14 +1,14 @@
+@file:Suppress("NoWildcardImports", "WildcardImport")
+
 package me.ahoo.wow.mongo.query
 
 import com.mongodb.client.model.Filters
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
-import me.ahoo.wow.api.query.Condition
-import me.ahoo.wow.api.query.DeletionState
-import me.ahoo.wow.api.query.Operator
-import me.ahoo.wow.api.query.toFilterExpression
+import me.ahoo.wow.api.query.*
 import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.mongo.query.snapshot.SnapshotConditionConverter
+import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import org.bson.conversions.Bson
@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
+import tools.jackson.databind.JsonNode
 import java.time.DayOfWeek
 import java.time.LocalTime
 import java.time.OffsetDateTime
@@ -44,6 +45,46 @@ class SnapshotConditionConverterTest {
         )
 
         assertConvert(actual, Filters.eq("state.name", "Wow"))
+    }
+
+    @Test
+    fun `should compile filter expression operators`() {
+        val field = LogicalField("state.value")
+        val nestedField = LogicalField("name")
+        val one = JsonSerializer.valueToTree<JsonNode>(1)
+        val two = JsonSerializer.valueToTree<JsonNode>(2)
+        val text = JsonSerializer.valueToTree<JsonNode>("value")
+        val filters = listOf<FilterExpression>(
+            MatchNoneFilter,
+            AndFilter(listOf(EqualFilter(field, one), EqualFilter(field, two))),
+            OrFilter(listOf(EqualFilter(field, one), EqualFilter(field, two))),
+            NorFilter(listOf(EqualFilter(field, one), EqualFilter(field, two))),
+            EqualFilter(field, JsonSerializer.valueToTree(true)),
+            NotEqualFilter(field, one),
+            GreaterThanFilter(field, one),
+            GreaterThanOrEqualFilter(field, one),
+            LessThanFilter(field, one),
+            LessThanOrEqualFilter(field, one),
+            ContainsFilter(field, "value.*", StringComparison.CASE_INSENSITIVE),
+            StartsWithFilter(field, "value.*"),
+            EndsWithFilter(field, "value.*"),
+            InFilter(field, listOf(one, two)),
+            NotInFilter(field, listOf(one, two)),
+            BetweenFilter(field, one, two),
+            ContainsAllFilter(field, listOf(one, two)),
+            IsEmptyFilter(field),
+            IsNullFilter(field),
+            IsNotNullFilter(field),
+            ExistsFilter(field),
+            NotExistsFilter(field),
+            ElementMatchFilter(field, EqualFilter(nestedField, text)),
+            SearchFilter("value", linkedSetOf(field)),
+            DeletionFilter(DeletionState.ACTIVE),
+            DeletionFilter(DeletionState.DELETED),
+            DeletionFilter(DeletionState.ALL),
+        )
+
+        filters.map { SnapshotConditionConverter.convert(it).toBsonDocument() }.assert().hasSize(filters.size)
     }
 
     @Suppress("DEPRECATION")

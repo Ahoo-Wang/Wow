@@ -41,6 +41,7 @@ import me.ahoo.wow.serialization.state.StateAggregateRecords
 
 abstract class AbstractElasticsearchConditionConverter(
     defaultDeletionState: DeletionState? = DeletionState.ACTIVE,
+    private val documentIdField: String? = null,
 ) : AbstractConditionConverter<Query>() {
     private val filterNormalizer = FilterNormalizer(defaultDeletionState = defaultDeletionState)
 
@@ -54,7 +55,7 @@ abstract class AbstractElasticsearchConditionConverter(
         is OrFilter -> bool { it.should(filter.operands.map(::internalConvert)).minimumShouldMatch("1") }
         is NorFilter -> bool { it.mustNot(filter.operands.map(::internalConvert)) }
         is EqualFilter -> if (filter.field.isDocumentId) {
-            ids { it.values(filter.value.requiredNativeValue().toString()) }
+            documentIdEqual(filter)
         } else {
             term { it.field(filter.field.value).value(filter.value.fieldValue()) }
         }
@@ -83,7 +84,7 @@ abstract class AbstractElasticsearchConditionConverter(
                 .caseInsensitive(filter.stringComparison.ignoreCase)
         }
         is InFilter -> if (filter.field.isDocumentId) {
-            ids { it.values(filter.values.map { value -> value.requiredNativeValue().toString() }) }
+            documentIdIn(filter)
         } else {
             terms {
                 it.field(
@@ -141,6 +142,16 @@ abstract class AbstractElasticsearchConditionConverter(
     private val LogicalField.isDocumentId: Boolean
         get() = value == "_id"
 
+    private fun documentIdEqual(filter: EqualFilter): Query = documentIdField?.let { field ->
+        term { it.field(field).value(filter.value.fieldValue()) }
+    } ?: ids { it.values(filter.value.requiredNativeValue().toString()) }
+
+    private fun documentIdIn(filter: InFilter): Query = documentIdField?.let { field ->
+        terms {
+            it.field(field).terms { terms -> terms.value(filter.values.map { value -> value.fieldValue() }) }
+        }
+    } ?: ids { it.values(filter.values.map { value -> value.requiredNativeValue().toString() }) }
+
     private val StringComparison.ignoreCase: Boolean
         get() = this == StringComparison.CASE_INSENSITIVE
 
@@ -151,7 +162,11 @@ abstract class AbstractElasticsearchConditionConverter(
         else -> throw IllegalArgumentException("Filter value must be a non-null JSON scalar.")
     }
 
-    private fun tools.jackson.databind.JsonNode.fieldValue(): FieldValue = FieldValue.of(requiredNativeValue())
+    private fun tools.jackson.databind.JsonNode.fieldValue(): FieldValue = when {
+        isString -> FieldValue.of(asString())
+        isBoolean -> FieldValue.of(booleanValue())
+        else -> FieldValue.of(requiredNativeValue())
+    }
     override fun and(condition: Condition): Query {
         return bool { builder ->
             builder.filter(condition.children.map { internalConvert(it) })

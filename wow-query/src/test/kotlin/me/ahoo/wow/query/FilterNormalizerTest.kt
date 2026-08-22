@@ -17,7 +17,9 @@ package me.ahoo.wow.query
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.*
+import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.JsonNode
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
@@ -68,5 +70,64 @@ class FilterNormalizerTest {
             .isEqualTo("2026-08-22 00:00:00")
         (normalized.operands[2] as LessThanFilter).value.asString().assert()
             .isEqualTo("2026-08-23 00:00:00")
+    }
+
+    @Test
+    fun `should expand every relative time filter`() {
+        val field = LogicalField("createdAt")
+        listOf(
+            TomorrowFilter(field, "UTC"),
+            ThisWeekFilter(field, "UTC"),
+            NextWeekFilter(field, "UTC"),
+            LastWeekFilter(field, "UTC"),
+            ThisMonthFilter(field, "UTC"),
+            LastMonthFilter(field, "UTC"),
+            BeforeTodayFilter(field, "12:00", "UTC"),
+            RecentDaysFilter(field, 2, "UTC"),
+            EarlierDaysFilter(field, 2, "UTC"),
+        ).forEach { relative ->
+            normalizer.normalize(relative).assert().isInstanceOf(AndFilter::class.java)
+        }
+    }
+
+    @Test
+    fun `should normalize nulls and simplify logical filters`() {
+        val field = LogicalField("field")
+        val value = JsonSerializer.valueToTree<JsonNode>("value")
+        val nullValue = JsonSerializer.valueToTree<JsonNode>(null)
+        val noScope = FilterNormalizer(defaultDeletionState = null)
+        val normalized = noScope.normalize(
+            AndFilter(
+                listOf(
+                    EqualFilter(field, nullValue),
+                    NotEqualFilter(field, nullValue),
+                    OrFilter(listOf(MatchNoneFilter, EqualFilter(field, value))),
+                    NorFilter(listOf(MatchNoneFilter)),
+                    ElementMatchFilter(field, EqualFilter(field, nullValue)),
+                    MatchAllFilter,
+                ),
+            ),
+        ) as AndFilter
+
+        normalized.operands.assert().hasSize(4)
+        noScope.normalize(AndFilter(listOf(MatchNoneFilter))).assert().isEqualTo(MatchNoneFilter)
+        noScope.normalize(AndFilter(listOf(MatchAllFilter))).assert().isEqualTo(MatchAllFilter)
+        noScope.normalize(AndFilter(listOf(EqualFilter(field, value)))).assert().isEqualTo(EqualFilter(field, value))
+        noScope.normalize(OrFilter(listOf(MatchAllFilter))).assert().isEqualTo(MatchAllFilter)
+        noScope.normalize(OrFilter(listOf(MatchNoneFilter))).assert().isEqualTo(MatchNoneFilter)
+        noScope.normalize(OrFilter(listOf(EqualFilter(field, value)))).assert().isEqualTo(EqualFilter(field, value))
+        noScope.normalize(NorFilter(listOf(MatchAllFilter))).assert().isEqualTo(MatchNoneFilter)
+        noScope.normalize(NorFilter(listOf(MatchNoneFilter))).assert().isEqualTo(MatchAllFilter)
+    }
+
+    @Test
+    fun `should find deletion filters in nested expressions`() {
+        listOf(
+            AndFilter(listOf(DeletionFilter(DeletionState.ACTIVE))),
+            OrFilter(listOf(DeletionFilter(DeletionState.ACTIVE))),
+            NorFilter(listOf(DeletionFilter(DeletionState.ACTIVE))),
+        ).forEach { expression ->
+            normalizer.normalize(expression)
+        }
     }
 }

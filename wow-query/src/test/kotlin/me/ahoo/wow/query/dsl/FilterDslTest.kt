@@ -11,15 +11,15 @@
  * limitations under the License.
  */
 
+@file:Suppress("NoWildcardImports", "WildcardImport")
+
 package me.ahoo.wow.query.dsl
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.AndFilter
-import me.ahoo.wow.api.query.DeletionState
-import me.ahoo.wow.api.query.ElementMatchFilter
-import me.ahoo.wow.api.query.EqualFilter
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.*
 import org.junit.jupiter.api.Test
+import java.time.LocalTime
+import java.time.ZoneOffset
 
 class FilterDslTest {
     @Test
@@ -55,5 +55,54 @@ class FilterDslTest {
         org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
             filter { and { } }
         }
+    }
+
+    @Test
+    fun `should expose the complete filter DSL`() {
+        val expression = filter {
+            matchAll()
+            matchNone()
+            deletion(DeletionState.DELETED)
+            and { "and" eq 1 }
+            or { "or" eq 1 }
+            nor { "nor" eq 1 }
+            "state".nested { "name" eq "Wow" }
+            "items".elementMatch { "quantity" gt 0 }
+            "null" eq null
+            "notNull" ne null
+            "equal" eq 1
+            "notEqual" ne 1
+            "greaterThan" gt 1
+            "greaterThanOrEqual" gte 1
+            "lessThan" lt 1
+            "lessThanOrEqual" lte 1
+            "contains".contains("value", StringComparison.CASE_INSENSITIVE)
+            "startsWith".startsWith("value")
+            "endsWith".endsWith("value")
+            "in" isIn listOf(1, 2)
+            "notIn" notIn listOf(1, 2)
+            "between".between(1, 2)
+            "containsAll" containsAll listOf(1, 2)
+            "empty".isEmptyCollection()
+            "isNull".isNull()
+            "isNotNull".isNotNull()
+            "exists".exists()
+            "notExists".notExists()
+            search("phrase", "title", "description")
+            "content" search "phrase"
+            "today".today(ZoneOffset.UTC, "yyyy-MM-dd")
+            "beforeToday".beforeToday(LocalTime.NOON, ZoneOffset.UTC)
+            "tomorrow".tomorrow()
+            "thisWeek".thisWeek()
+            "nextWeek".nextWeek()
+            "lastWeek".lastWeek()
+            "thisMonth".thisMonth()
+            "lastMonth".lastMonth()
+            "recentDays".recentDays(2)
+            "earlierDays".earlierDays(2)
+        } as AndFilter
+
+        expression.operands.assert().hasSize(40)
+        (expression.operands[6] as EqualFilter).field.assert().isEqualTo(LogicalField("state.name"))
     }
 }
