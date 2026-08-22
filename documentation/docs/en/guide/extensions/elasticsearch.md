@@ -298,8 +298,38 @@ Publish a mapping change in this order:
 
 The built-in templates disable automatic date detection; map domain date fields explicitly in an aggregate-specific
 template. Event entries are `nested`, while `body[].body` remains available in `_source` but is not indexed, preventing
-arbitrary event payloads from breaking event persistence through mapping conflicts. Use `ELEM_MATCH` for event-entry
-metadata queries, and install an explicit higher-priority mapping only when payload search is required.
+arbitrary payloads from breaking persistence through mapping conflicts. One event stream is limited to 10,000 events,
+matching Elasticsearch's default nested-object limit.
+
+Elasticsearch `ELEM_MATCH` children use fully qualified paths:
+
+```kotlin
+condition {
+    "body" elemMatch {
+        "body.name" eq "Created"
+    }
+}
+```
+
+```json
+{
+  "condition": {
+    "field": "body",
+    "operator": "ELEM_MATCH",
+    "children": [
+      {
+        "field": "body.name",
+        "operator": "EQ",
+        "value": "Created"
+      }
+    ]
+  }
+}
+```
+
+Payload search or custom nested semantics require an application-owned higher-priority template and matching query
+converter. That template must reproduce the complete built-in baseline because composable templates do not merge by
+priority.
 
 ```http request
 POST _index_template/wow-event-stream-template

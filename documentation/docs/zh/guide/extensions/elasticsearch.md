@@ -283,9 +283,38 @@ Mapping 发布必须按以下顺序执行：
 
 ## 配置事件流索引模板
 
-内置模板关闭自动日期探测，业务日期字段应在聚合专用模板中显式映射。事件条目使用 `nested`，其中的
-`body[].body` 仍保留在 `_source`，但不参与索引，避免任意事件载荷因 Mapping 冲突阻断事件持久化。
-查询事件条目元数据时使用 `ELEM_MATCH`；只有确实需要检索事件载荷时，才安装显式的高优先级 Mapping。
+内置模板关闭自动日期探测，业务日期字段应在聚合专用模板中显式映射。事件条目使用 `nested`；`body[].body`
+仍保留在 `_source`，但不参与索引，避免任意载荷因 Mapping 冲突阻断持久化。单个事件流最多包含 10,000 个事件，
+与 Elasticsearch 默认的 nested-object 上限一致。
+
+Elasticsearch 的 `ELEM_MATCH` 子条件必须使用完整路径：
+
+```kotlin
+condition {
+    "body" elemMatch {
+        "body.name" eq "Created"
+    }
+}
+```
+
+```json
+{
+  "condition": {
+    "field": "body",
+    "operator": "ELEM_MATCH",
+    "children": [
+      {
+        "field": "body.name",
+        "operator": "EQ",
+        "value": "Created"
+      }
+    ]
+  }
+}
+```
+
+需要检索载荷或自定义 nested 语义时，应用必须提供高优先级模板和匹配的查询转换器。由于 composable template
+不会按优先级合并，该模板必须完整复现内置基础 Mapping。
 
 ```http request
 POST _index_template/wow-event-stream-template

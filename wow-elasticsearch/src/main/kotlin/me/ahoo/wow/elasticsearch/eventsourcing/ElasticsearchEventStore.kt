@@ -59,6 +59,7 @@ class ElasticsearchEventStore(
     companion object {
         private const val NOT_FOUND_CODE = 404
         private const val DEFAULT_BATCH_SIZE = 10000
+        private const val MAX_EVENT_STREAM_SIZE = 10000
     }
 
     init {
@@ -71,7 +72,13 @@ class ElasticsearchEventStore(
     )
 
     override fun appendStream(eventStream: DomainEventStream): Mono<Void> {
-        return appender.append(eventStream)
+        return Mono.defer {
+            require(eventStream.size <= MAX_EVENT_STREAM_SIZE) {
+                "eventStream.size[${eventStream.size}] must not exceed Elasticsearch nested object limit" +
+                    "[$MAX_EVENT_STREAM_SIZE]."
+            }
+            appender.append(eventStream)
+        }
     }
 
     override fun loadStream(

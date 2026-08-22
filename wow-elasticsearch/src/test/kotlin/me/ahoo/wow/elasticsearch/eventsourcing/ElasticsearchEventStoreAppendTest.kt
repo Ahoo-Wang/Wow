@@ -68,6 +68,21 @@ class ElasticsearchEventStoreAppendTest {
     }
 
     @Test
+    fun `event stream should not exceed nested object limit`() {
+        ElasticsearchEventStore(client)
+            .append(eventStream("order-too-many-events", eventCount = 10001))
+            .test()
+            .expectErrorMatches {
+                it is IllegalArgumentException &&
+                    it.message ==
+                    "eventStream.size[10001] must not exceed Elasticsearch nested object limit[10000]."
+            }
+            .verify()
+
+        verify(exactly = 0) { client.index(any<IndexRequest<Map<String, Any?>>>()) }
+    }
+
+    @Test
     fun `direct create conflict should preserve version conflict semantics`() {
         val failure = mockk<ElasticsearchException> {
             every { status() } returns 409
@@ -385,11 +400,12 @@ class ElasticsearchEventStoreAppendTest {
     private fun eventStream(
         id: String,
         aggregateVersion: Int = 0,
+        eventCount: Int = 1,
     ): DomainEventStream {
         return MockDomainEventStreams.generateEventStream(
             aggregateId = namedAggregate.aggregateId(id),
             aggregateVersion = aggregateVersion,
-            eventCount = 1,
+            eventCount = eventCount,
         )
     }
 
