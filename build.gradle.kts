@@ -151,7 +151,7 @@ allprojects {
     configure<DetektExtension> {
         config.setFrom(files("${rootProject.rootDir}/config/detekt/detekt.yml"))
         buildUponDefaultConfig = true
-        autoCorrect = true
+        autoCorrect = false
     }
     dependencies {
         detektPlugins(dependenciesProject)
