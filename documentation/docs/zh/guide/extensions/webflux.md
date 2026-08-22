@@ -90,8 +90,6 @@ data class CreateOrder(/* ... */)
 | `query.max-page-window` | `Long` | `10000` | HTTP 分页查询允许的最大 `index * size`；`0` 关闭上限 |
 | `query.max-condition-nodes` | `Int` | `64` | HTTP 查询条件树的最大节点数；`0` 关闭上限 |
 | `query.max-condition-values` | `Int` | `1000` | HTTP `IN`、`NOT_IN`、`ALL_IN`、`IDS`、`AGGREGATE_IDS` 条件的最大值数量；`0` 关闭上限 |
-| `query.allowed-sort-fields` | `Set<String>` | `[]` | HTTP 显式排序允许的已索引逻辑字段；空集拒绝所有显式排序，`["*"]` 关闭限制 |
-| `query.allowed-condition-fields` | `Set<String>` | `[]` | HTTP 条件允许的额外已索引逻辑字段；空集保留内置 `aggregateId`、受聚合 ID 约束的 `version` 以及已索引的无字段逻辑/元数据操作符；`spaceId` 必须显式加入白名单，`["*"]` 关闭限制 |
 | `query.allow-raw` | `Boolean` | `false` | 是否允许 HTTP 查询使用 `RAW` 原生条件 |
 | `query.allow-expensive-operators` | `Boolean` | `false` | 是否允许 HTTP 查询使用负向/存在性/高成本字符串操作符及无过滤 count/paged 查询 |
 | `query.idle-timeout` | `Duration` | `10s` | 等待下一条结果或完成的最长时间；普通 JSON 数组在提交响应前缓冲，SSE 保持流式；`0s` 关闭超时 |
@@ -111,15 +109,13 @@ wow:
       max-page-window: 10000
       max-condition-nodes: 64
       max-condition-values: 1000
-      allowed-sort-fields: []
-      allowed-condition-fields: []
       allow-raw: false
       allow-expensive-operators: false
       idle-timeout: 10s
 ```
 
 使用 `wow-spring-boot-starter` 时，WebFlux 作为 `webflux-support` 特性能力包含在内。全局异常处理器默认启用；仅当你提供自己的 `WebExceptionHandler` 时才需关闭。
-Reactor Context 通过 `writeRawRequest(request)` 携带 WebFlux `ServerRequest` 时都会启用护栏，包括内置路由和自定义 HTTP Handler；程序内注入的查询服务和非 WebFlux 请求上下文保持原行为。`ELEM_MATCH` 的 Mongo 请求子字段使用 `productId` 这类相对路径，Elasticsearch nested 请求子字段使用 `state.items.productId` 这类完整逻辑路径；`allowed-condition-fields` 始终配置完整有效路径。升级后如需临时恢复旧 HTTP 行为，可将数值限制和 `idle-timeout` 设为 `0`，启用两个 `allow-*` 开关，并将两个 `allowed-*-fields` 设为 `["*"]`。
+Reactor Context 通过 `writeRawRequest(request)` 携带 WebFlux `ServerRequest` 时都会启用护栏，包括内置路由和自定义 HTTP Handler；程序内注入的查询服务和非 WebFlux 请求上下文保持原行为。升级后如需临时恢复旧 HTTP 行为，可将数值限制和 `idle-timeout` 设为 `0`，并启用两个 `allow-*` 开关。
 
 ## 等待计划集成
 

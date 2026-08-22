@@ -60,22 +60,11 @@ constructor(
         var maxConditionNodes: Int = 64,
         @DefaultValue("1000")
         var maxConditionValues: Int = 1000,
-        var allowedSortFields: Set<String> = emptySet(),
-        var allowedConditionFields: Set<String> = emptySet(),
         @DefaultValue("false")
         var allowRaw: Boolean = false,
         @DefaultValue("false")
         var allowExpensiveOperators: Boolean = false,
         @DefaultValue("10s")
         var idleTimeout: Duration = Duration.ofSeconds(10),
-    ) {
-        init {
-            require(maxListSize >= 0) { "maxListSize must be greater than or equal to 0." }
-            require(maxPageSize >= 0) { "maxPageSize must be greater than or equal to 0." }
-            require(maxPageWindow >= 0) { "maxPageWindow must be greater than or equal to 0." }
-            require(maxConditionNodes >= 0) { "maxConditionNodes must be greater than or equal to 0." }
-            require(maxConditionValues >= 0) { "maxConditionValues must be greater than or equal to 0." }
-            require(!idleTimeout.isNegative) { "idleTimeout must be greater than or equal to 0." }
-        }
-    }
+    )
 }
