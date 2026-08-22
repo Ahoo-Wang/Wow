@@ -235,6 +235,14 @@ internal class WebFluxAutoConfigurationTest {
     }
 
     @Test
+    fun `query properties should preserve positional constructor arguments`() {
+        val query = WebFluxProperties.Query(1000, 20)
+
+        query.maxPageSize.assert().isEqualTo(20)
+        query.maxAggregationMetrics.assert().isEqualTo(32)
+    }
+
+    @Test
     fun `should generate SQL from every explicit BI property and bind the domain strategy directly`() {
         webFluxContextRunner()
             .withPropertyValues(

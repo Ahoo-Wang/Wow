@@ -43,7 +43,6 @@ import java.util.ArrayDeque
 @FilterType(SnapshotQueryHandler::class, EventStreamQueryHandler::class)
 class HttpQueryGuardFilter(
     private val maxListSize: Int = 1000,
-    private val maxAggregationMetrics: Int = 32,
     private val maxPageSize: Int = 100,
     private val maxPageWindow: Long = 10_000,
     private val maxConditionNodes: Int = 64,
@@ -53,6 +52,7 @@ class HttpQueryGuardFilter(
     private val allowRaw: Boolean = false,
     private val allowExpensiveOperators: Boolean = false,
     private val idleTimeout: Duration = Duration.ofSeconds(10),
+    private val maxAggregationMetrics: Int = 32,
 ) : QueryFilter<QueryContext<*, *>> {
 
     init {

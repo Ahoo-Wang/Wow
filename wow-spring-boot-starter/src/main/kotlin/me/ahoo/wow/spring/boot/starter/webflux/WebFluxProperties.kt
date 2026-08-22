@@ -52,8 +52,6 @@ constructor(
     data class Query(
         @DefaultValue("1000")
         var maxListSize: Int = 1000,
-        @DefaultValue("32")
-        var maxAggregationMetrics: Int = 32,
         @DefaultValue("100")
         var maxPageSize: Int = 100,
         @DefaultValue("10000")
@@ -70,6 +68,8 @@ constructor(
         var allowExpensiveOperators: Boolean = false,
         @DefaultValue("10s")
         var idleTimeout: Duration = Duration.ofSeconds(10),
+        @DefaultValue("32")
+        var maxAggregationMetrics: Int = 32,
     ) {
         init {
             require(maxListSize >= 0) { "maxListSize must be greater than or equal to 0." }

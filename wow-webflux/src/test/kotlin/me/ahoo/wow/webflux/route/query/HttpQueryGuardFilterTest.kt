@@ -131,6 +131,15 @@ class HttpQueryGuardFilterTest {
         ).writeRawRequest(request).test()
             .expectError(IllegalArgumentException::class.java)
             .verify()
+
+        HttpQueryGuardFilter(1000, 1).filter(
+            pagedContext(
+                PagedQuery(Condition.id("aggregate-id"), pagination = Pagination(index = 1, size = 2)),
+            ),
+            unexpectedBackend(),
+        ).writeRawRequest(request).test()
+            .expectErrorMessage("HTTP page size[2] must be between 1 and 1.")
+            .verify()
     }
 
     @Test
