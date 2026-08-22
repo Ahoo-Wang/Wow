@@ -14,8 +14,13 @@
 package me.ahoo.wow.query.converter
 
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.query.UnsupportedFilterException
 
 interface ConditionConverter<T> {
 
     fun convert(condition: Condition): T
+
+    fun convert(filter: FilterExpression): T =
+        throw UnsupportedFilterException(filter.operator, null, this.javaClass.name)
 }

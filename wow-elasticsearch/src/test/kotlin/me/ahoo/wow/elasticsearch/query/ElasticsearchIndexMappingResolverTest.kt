@@ -161,8 +161,18 @@ class ElasticsearchIndexMappingResolverTest {
         )
         elementMatch.field.assert().isEqualTo("state.items")
         elementMatch.children.single().field.assert().isEqualTo("state.items.name")
-        val raw = Condition.raw("""{"match_all":{}}""")
-        mapping.resolve(raw).assert().isEqualTo(raw)
+
+        val filter = mapping.resolve(
+            me.ahoo.wow.api.query.ElementMatchFilter(
+                me.ahoo.wow.api.query.LogicalField("state.items"),
+                me.ahoo.wow.api.query.EqualFilter(
+                    me.ahoo.wow.api.query.LogicalField("state.items.name"),
+                    me.ahoo.wow.serialization.JsonSerializer.valueToTree("item"),
+                ),
+            ),
+        ) as me.ahoo.wow.api.query.ElementMatchFilter
+        (filter.predicate as me.ahoo.wow.api.query.EqualFilter).field.value.assert()
+            .isEqualTo("state.items.name")
     }
 
     @Test

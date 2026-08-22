@@ -15,7 +15,6 @@ package me.ahoo.wow.elasticsearch.query.snapshot
 
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.Sort
@@ -97,8 +96,10 @@ class ElasticsearchSnapshotQueryService<S : Any>(
         return document.convert(snapshotType)
     }
 
-    override fun resolveCondition(mapping: ElasticsearchIndexMapping, condition: Condition): Condition =
-        mapping.resolve(condition)
+    override fun resolveFilter(
+        mapping: ElasticsearchIndexMapping,
+        filter: me.ahoo.wow.api.query.FilterExpression,
+    ): me.ahoo.wow.api.query.FilterExpression = mapping.resolve(filter)
 
     override fun resolveSort(mapping: ElasticsearchIndexMapping, sort: List<Sort>): List<Sort> =
         mapping.resolve(sort)

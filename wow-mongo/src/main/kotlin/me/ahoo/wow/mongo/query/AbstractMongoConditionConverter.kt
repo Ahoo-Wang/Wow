@@ -14,16 +14,54 @@
 package me.ahoo.wow.mongo.query
 
 import com.mongodb.client.model.Filters
+import me.ahoo.wow.api.query.AndFilter
+import me.ahoo.wow.api.query.BeforeTodayFilter
+import me.ahoo.wow.api.query.BetweenFilter
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.ContainsAllFilter
+import me.ahoo.wow.api.query.ContainsFilter
+import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
+import me.ahoo.wow.api.query.EarlierDaysFilter
+import me.ahoo.wow.api.query.ElementMatchFilter
+import me.ahoo.wow.api.query.EndsWithFilter
+import me.ahoo.wow.api.query.EqualFilter
+import me.ahoo.wow.api.query.ExistsFilter
+import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.GreaterThanFilter
+import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
+import me.ahoo.wow.api.query.InFilter
+import me.ahoo.wow.api.query.IsEmptyFilter
+import me.ahoo.wow.api.query.IsNotNullFilter
+import me.ahoo.wow.api.query.IsNullFilter
+import me.ahoo.wow.api.query.LastMonthFilter
+import me.ahoo.wow.api.query.LastWeekFilter
+import me.ahoo.wow.api.query.LessThanFilter
+import me.ahoo.wow.api.query.LessThanOrEqualFilter
+import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.MatchNoneFilter
+import me.ahoo.wow.api.query.NextWeekFilter
+import me.ahoo.wow.api.query.NorFilter
+import me.ahoo.wow.api.query.NotEqualFilter
+import me.ahoo.wow.api.query.NotExistsFilter
+import me.ahoo.wow.api.query.NotInFilter
 import me.ahoo.wow.api.query.Operator
+import me.ahoo.wow.api.query.OrFilter
+import me.ahoo.wow.api.query.RecentDaysFilter
+import me.ahoo.wow.api.query.SearchFilter
+import me.ahoo.wow.api.query.StartsWithFilter
+import me.ahoo.wow.api.query.StringComparison
+import me.ahoo.wow.api.query.ThisMonthFilter
+import me.ahoo.wow.api.query.ThisWeekFilter
+import me.ahoo.wow.api.query.TodayFilter
+import me.ahoo.wow.api.query.TomorrowFilter
 import me.ahoo.wow.mongo.Documents
+import me.ahoo.wow.query.FilterNormalizer
+import me.ahoo.wow.query.UnsupportedFilterException
 import me.ahoo.wow.query.converter.AbstractConditionConverter
 import me.ahoo.wow.query.converter.FieldConverter
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
-import me.ahoo.wow.serialization.toJsonString
-import org.bson.Document
 import org.bson.conversions.Bson
 
 abstract class AbstractMongoConditionConverter : AbstractConditionConverter<Bson>() {
@@ -32,6 +70,94 @@ abstract class AbstractMongoConditionConverter : AbstractConditionConverter<Bson
     }
 
     protected abstract val fieldConverter: FieldConverter
+
+    private val filterNormalizer = FilterNormalizer()
+
+    override fun convert(filter: FilterExpression): Bson = internalConvert(filterNormalizer.normalize(filter))
+
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
+    private fun internalConvert(filter: FilterExpression): Bson = when (filter) {
+        MatchAllFilter -> Filters.empty()
+        MatchNoneFilter -> org.bson.Document("\$expr", false)
+        is AndFilter -> Filters.and(filter.operands.map(::internalConvert))
+        is OrFilter -> Filters.or(filter.operands.map(::internalConvert))
+        is NorFilter -> Filters.nor(filter.operands.map(::internalConvert))
+        is EqualFilter -> Filters.eq(filter.field.convert(), filter.value.nativeValue())
+        is NotEqualFilter -> Filters.ne(filter.field.convert(), filter.value.nativeValue())
+        is GreaterThanFilter -> Filters.gt(filter.field.convert(), filter.value.requiredNativeValue())
+        is GreaterThanOrEqualFilter -> Filters.gte(filter.field.convert(), filter.value.requiredNativeValue())
+        is LessThanFilter -> Filters.lt(filter.field.convert(), filter.value.requiredNativeValue())
+        is LessThanOrEqualFilter -> Filters.lte(filter.field.convert(), filter.value.requiredNativeValue())
+        is ContainsFilter -> regex(
+            filter.field.convert(),
+            filter.value.escapeRegex(),
+            filter.stringComparison.ignoreCase
+        )
+        is StartsWithFilter -> regex(
+            filter.field.convert(),
+            "^${filter.value.escapeRegex()}",
+            filter.stringComparison.ignoreCase
+        )
+        is EndsWithFilter -> regex(
+            filter.field.convert(),
+            "${filter.value.escapeRegex()}$",
+            filter.stringComparison.ignoreCase
+        )
+        is InFilter -> Filters.`in`(filter.field.convert(), filter.values.map { it.nativeValue() })
+        is NotInFilter -> Filters.nin(filter.field.convert(), filter.values.map { it.nativeValue() })
+        is BetweenFilter -> Filters.and(
+            Filters.gte(filter.field.convert(), filter.lowerBound.requiredNativeValue()),
+            Filters.lte(filter.field.convert(), filter.upperBound.requiredNativeValue()),
+        )
+        is ContainsAllFilter -> Filters.all(filter.field.convert(), filter.values.map { it.nativeValue() })
+        is IsEmptyFilter -> Filters.size(filter.field.convert(), 0)
+        is IsNullFilter -> Filters.and(Filters.exists(filter.field.convert()), Filters.eq(filter.field.convert(), null))
+        is IsNotNullFilter -> Filters.and(
+            Filters.exists(filter.field.convert()),
+            Filters.ne(filter.field.convert(), null)
+        )
+        is ExistsFilter -> Filters.exists(filter.field.convert())
+        is NotExistsFilter -> Filters.exists(filter.field.convert(), false)
+        is DeletionFilter -> when (filter.deletionState) {
+            DeletionState.ACTIVE -> Filters.eq(StateAggregateRecords.DELETED, false)
+            DeletionState.DELETED -> Filters.eq(StateAggregateRecords.DELETED, true)
+            DeletionState.ALL -> Filters.empty()
+        }
+        is ElementMatchFilter -> Filters.elemMatch(filter.field.convert(), internalConvert(filter.predicate))
+        is SearchFilter -> {
+            if (filter.fields.isNotEmpty()) {
+                throw UnsupportedFilterException(filter.operator, filter.fields.first(), "mongodb")
+            }
+            Filters.text(filter.query)
+        }
+        is TodayFilter,
+        is BeforeTodayFilter,
+        is TomorrowFilter,
+        is ThisWeekFilter,
+        is NextWeekFilter,
+        is LastWeekFilter,
+        is ThisMonthFilter,
+        is LastMonthFilter,
+        is RecentDaysFilter,
+        is EarlierDaysFilter,
+        -> error("Relative-time filter must be normalized before compilation.")
+    }
+
+    private fun me.ahoo.wow.api.query.LogicalField.convert(): String = fieldConverter.convert(value)
+
+    private val StringComparison.ignoreCase: Boolean
+        get() = this == StringComparison.CASE_INSENSITIVE
+
+    private fun tools.jackson.databind.JsonNode.nativeValue(): Any? = when {
+        isNull -> null
+        isString -> asString()
+        isNumber -> numberValue()
+        isBoolean -> booleanValue()
+        else -> error("Filter value must be a JSON scalar.")
+    }
+
+    private fun tools.jackson.databind.JsonNode.requiredNativeValue(): Any =
+        requireNotNull(nativeValue()) { "Range filter value cannot be null." }
 
     protected open fun convertCondition(condition: Condition): Condition {
         val convertedField = fieldConverter.convert(condition.field)
@@ -180,26 +306,6 @@ abstract class AbstractMongoConditionConverter : AbstractConditionConverter<Bson
 
             DeletionState.ALL -> {
                 Filters.empty()
-            }
-        }
-
-    override fun raw(condition: Condition): Bson =
-        when (condition.value) {
-            is Bson -> {
-                condition.valueAs()
-            }
-
-            is String -> {
-                Document.parse(condition.valueAs<String>())
-            }
-
-            is Map<*, *> -> {
-                Document(condition.valueAs<Map<String, *>>())
-            }
-
-            else -> {
-                val conditionValueJson = condition.value.toJsonString()
-                Document.parse(conditionValueJson)
             }
         }
 }

@@ -27,7 +27,7 @@ fun MongoCollection<Document>.findDocument(
     sortConverter: MongoSortConverter
 ): FindPublisher<Document> {
     val projectionBson = projectionConverter.convert(queryable.projection)
-    val filter = converter.convert(queryable.condition)
+    val filter = converter.convert(queryable.filter)
     val sort = sortConverter.convert(queryable.sort)
     return find(filter)
         .projection(projectionBson)

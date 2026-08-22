@@ -14,7 +14,6 @@
 package me.ahoo.wow.elasticsearch.query
 
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
-import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll
 import co.elastic.clients.elasticsearch.core.ClosePointInTimeRequest
 import co.elastic.clients.elasticsearch.core.ClosePointInTimeResponse
@@ -36,13 +35,14 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryServiceFactory
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.query.converter.ConditionConverter
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -53,8 +53,8 @@ import java.time.Duration
 
 class AbstractElasticsearchQueryServiceTest {
     private val elasticsearchClient = mockk<ReactiveElasticsearchClient>()
-    private val conditionConverter = mockk<ConditionConverter<Query>> {
-        every { convert(any()) } returns matchAll { it }
+    private val conditionConverter = mockk<AbstractElasticsearchConditionConverter> {
+        every { convert(any<me.ahoo.wow.api.query.FilterExpression>()) } returns matchAll { it }
     }
     private val queryService = TestElasticsearchQueryService(elasticsearchClient, conditionConverter)
 
@@ -169,10 +169,10 @@ class AbstractElasticsearchQueryServiceTest {
     fun `mapping resolver should preserve fields through default hooks`() {
         val indicesClient = mockk<ReactiveElasticsearchIndicesClient>()
         val request = slot<SearchRequest>()
-        val convertedCondition = slot<Condition>()
+        val convertedFilter = slot<FilterExpression>()
         every { elasticsearchClient.indices() } returns indicesClient
         every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(emptyMappingResponse())
-        every { conditionConverter.convert(capture(convertedCondition)) } returns matchAll { it }
+        every { conditionConverter.convert(capture(convertedFilter)) } returns matchAll { it }
         every { elasticsearchClient.search(capture(request), Map::class.java) } returns Mono.just(
             searchResponse(total = null),
         )
@@ -191,7 +191,7 @@ class AbstractElasticsearchQueryServiceTest {
             ),
         ).collectList().block()
 
-        convertedCondition.captured.assert().isEqualTo(condition)
+        convertedFilter.captured.assert().isEqualTo(condition.toFilterExpression())
         request.captured.sort().single().field().field().assert().isEqualTo("logicalField")
     }
 
@@ -282,7 +282,7 @@ class AbstractElasticsearchQueryServiceTest {
 
     private open class TestElasticsearchQueryService(
         override val elasticsearchClient: ReactiveElasticsearchClient,
-        override val conditionConverter: ConditionConverter<Query>,
+        override val conditionConverter: AbstractElasticsearchConditionConverter,
     ) : AbstractElasticsearchQueryService<DynamicDocument>() {
         override val namedAggregate: NamedAggregate = MaterializedNamedAggregate("test", "aggregate")
         override val indexName: String = "test-index"
@@ -292,7 +292,7 @@ class AbstractElasticsearchQueryServiceTest {
 
     private class MappingTestElasticsearchQueryService(
         elasticsearchClient: ReactiveElasticsearchClient,
-        conditionConverter: ConditionConverter<Query>,
+        conditionConverter: AbstractElasticsearchConditionConverter,
         override val indexMappingResolver: ElasticsearchIndexMappingResolver,
     ) : TestElasticsearchQueryService(elasticsearchClient, conditionConverter)
 }

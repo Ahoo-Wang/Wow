@@ -433,10 +433,6 @@ class ConditionDsl : NestedFieldDsl() {
         condition(Condition.earlierDays(this.withNestedField(), days, datePattern))
     }
 
-    fun raw(value: Any) {
-        condition(Condition.raw(value))
-    }
-
     fun build(): Condition {
         if (conditions.isEmpty()) {
             return Condition.all()

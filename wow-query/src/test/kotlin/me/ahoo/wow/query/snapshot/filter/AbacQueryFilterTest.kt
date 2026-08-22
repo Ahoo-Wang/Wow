@@ -21,7 +21,6 @@ import me.ahoo.wow.api.abac.AbacTagValue
 import me.ahoo.wow.api.abac.AbacTags
 import me.ahoo.wow.api.abac.EMPTY_ABAC_TAGS
 import me.ahoo.wow.api.abac.wildcard
-import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.query.filter.DefaultQueryContext
@@ -114,7 +113,7 @@ class AbacQueryFilterTest {
 
     @Test
     fun `filter for EmptyAbacQueryFilter`() {
-        val context = DefaultQueryContext<Condition, Any>(
+        val context = DefaultQueryContext<me.ahoo.wow.api.query.FilterExpression, Any>(
             queryType = QueryType.COUNT,
             MOCK_AGGREGATE_METADATA
         )
@@ -128,10 +127,10 @@ class AbacQueryFilterTest {
 
     @Test
     fun `filter for MockAbacQueryFilter`() {
-        val context = DefaultQueryContext<Condition, Any>(
+        val context = DefaultQueryContext<me.ahoo.wow.api.query.FilterExpression, Any>(
             queryType = QueryType.COUNT,
             MOCK_AGGREGATE_METADATA
-        ).setQuery(Condition.ALL)
+        ).setQuery(me.ahoo.wow.api.query.MatchAllFilter)
         val chain = mockk<FilterChain<QueryContext<*, *>>> {
             every {
                 filter(context)

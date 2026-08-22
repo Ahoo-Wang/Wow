@@ -15,6 +15,7 @@ package me.ahoo.wow.webflux.route.snapshot
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.serialization.MessageRecords
@@ -44,7 +45,7 @@ class CountSnapshotHandlerFunctionTest {
         )
         val request = MockServerRequest.builder()
             .pathVariable(MessageRecords.OWNER_ID, generateGlobalId())
-            .body(Condition.ALL.toMono())
+            .body(Condition.ALL.toFilterExpression().toMono())
 
         handlerFunction.handle(request)
             .test()

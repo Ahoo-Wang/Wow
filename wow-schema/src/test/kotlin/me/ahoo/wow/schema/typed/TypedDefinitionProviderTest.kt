@@ -22,13 +22,8 @@ import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.schema.CreateTestAggregate
 import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
 import me.ahoo.wow.schema.SchemaGeneratorBuilder
-import me.ahoo.wow.schema.TestAggregate
 import me.ahoo.wow.schema.TestAggregateCreated
 import me.ahoo.wow.schema.TestState
-import me.ahoo.wow.schema.typed.query.AggregatedCondition
-import me.ahoo.wow.schema.typed.query.AggregatedListQuery
-import me.ahoo.wow.schema.typed.query.AggregatedPagedQuery
-import me.ahoo.wow.schema.typed.query.AggregatedSingleQuery
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
@@ -70,30 +65,6 @@ class TypedDefinitionProviderTest {
                     StateEvent::class.java,
                     TestState::class.java,
                     "state"
-                ),
-                Arguments.of(
-                    "AggregatedCondition",
-                    AggregatedCondition::class.java,
-                    TestAggregate::class.java,
-                    null
-                ),
-                Arguments.of(
-                    "AggregatedListQuery",
-                    AggregatedListQuery::class.java,
-                    TestAggregate::class.java,
-                    null
-                ),
-                Arguments.of(
-                    "AggregatedPagedQuery",
-                    AggregatedPagedQuery::class.java,
-                    TestAggregate::class.java,
-                    null
-                ),
-                Arguments.of(
-                    "AggregatedSingleQuery",
-                    AggregatedSingleQuery::class.java,
-                    TestAggregate::class.java,
-                    null
                 ),
             )
         }

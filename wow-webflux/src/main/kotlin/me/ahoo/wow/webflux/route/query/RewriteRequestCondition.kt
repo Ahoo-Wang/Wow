@@ -13,23 +13,30 @@
 
 package me.ahoo.wow.webflux.route.query
 
-import me.ahoo.wow.api.query.RewritableCondition
+import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.RewritableFilter
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
-import me.ahoo.wow.query.dsl.condition
+import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.webflux.route.command.getOwnerId
 import me.ahoo.wow.webflux.route.command.getSpaceId
 import me.ahoo.wow.webflux.route.command.getTenantId
 import org.springframework.web.reactive.function.server.ServerRequest
 
-interface RewriteRequestCondition {
-    fun <Q : RewritableCondition<Q>> rewrite(
+interface RewriteRequestFilter {
+    fun rewrite(
+        aggregateMetadata: AggregateMetadata<*, *>,
+        request: ServerRequest,
+        filter: FilterExpression,
+    ): FilterExpression
+
+    fun <Q : RewritableFilter<Q>> rewrite(
         aggregateMetadata: AggregateMetadata<*, *>,
         request: ServerRequest,
         rewritableCondition: Q
     ): Q
 }
 
-abstract class AbstractRewriteRequestCondition : RewriteRequestCondition {
+abstract class AbstractRewriteRequestCondition : RewriteRequestFilter {
     protected open fun ServerRequest.resolveTenantId(aggregateMetadata: AggregateMetadata<*, *>): String? {
         return getTenantId(aggregateMetadata)
     }
@@ -42,7 +49,7 @@ abstract class AbstractRewriteRequestCondition : RewriteRequestCondition {
         return getSpaceId()
     }
 
-    override fun <Q : RewritableCondition<Q>> rewrite(
+    override fun <Q : RewritableFilter<Q>> rewrite(
         aggregateMetadata: AggregateMetadata<*, *>,
         request: ServerRequest,
         rewritableCondition: Q
@@ -53,17 +60,38 @@ abstract class AbstractRewriteRequestCondition : RewriteRequestCondition {
         if (tenantId.isNullOrBlank() && ownerId.isNullOrBlank() && spaceId.isNullOrBlank()) {
             return rewritableCondition
         }
-        val appendCondition = condition {
-            if (!tenantId.isNullOrBlank()) {
-                tenantId(tenantId)
-            }
-            if (!ownerId.isNullOrBlank()) {
-                ownerId(ownerId)
-            }
-            if (!spaceId.isNullOrBlank()) {
-                spaceId(spaceId)
-            }
+        val appendFilter = requestScopeFilter(tenantId, ownerId, spaceId)
+        return rewritableCondition.appendFilter(appendFilter)
+    }
+
+    override fun rewrite(
+        aggregateMetadata: AggregateMetadata<*, *>,
+        request: ServerRequest,
+        filter: FilterExpression,
+    ): FilterExpression {
+        val tenantId = request.resolveTenantId(aggregateMetadata)
+        val ownerId = request.resolveOwnerId(aggregateMetadata)
+        val spaceId = request.resolveSpaceId(aggregateMetadata)
+        if (tenantId.isNullOrBlank() && ownerId.isNullOrBlank() && spaceId.isNullOrBlank()) {
+            return filter
         }
-        return rewritableCondition.appendCondition(appendCondition)
+        return me.ahoo.wow.api.query.AndFilter(
+            listOf(filter, requestScopeFilter(tenantId, ownerId, spaceId)),
+        )
+    }
+
+    private fun requestScopeFilter(tenantId: String?, ownerId: String?, spaceId: String?): FilterExpression = filter {
+        if (!tenantId.isNullOrBlank()) {
+            "tenantId" eq tenantId
+        }
+        if (!ownerId.isNullOrBlank()) {
+            "ownerId" eq ownerId
+        }
+        if (!spaceId.isNullOrBlank()) {
+            "spaceId" eq spaceId
+        }
     }
 }
+
+@Deprecated("Use RewriteRequestFilter.")
+typealias RewriteRequestCondition = RewriteRequestFilter

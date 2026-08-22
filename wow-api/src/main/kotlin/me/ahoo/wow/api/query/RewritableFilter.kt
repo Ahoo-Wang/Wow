@@ -11,6 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema.typed.query
+package me.ahoo.wow.api.query
 
-interface AggregatedListQuery<CommandAggregateType : Any>
+interface RewritableFilter<Q : RewritableFilter<Q>> {
+    fun withFilter(newFilter: FilterExpression): Q
+
+    fun appendFilter(append: FilterExpression): Q
+}

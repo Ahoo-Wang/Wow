@@ -21,6 +21,7 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.api.query.SingleQuery
+import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
@@ -71,6 +72,30 @@ class QueryBodyExtractorTest {
     }
 
     @Test
+    fun `should reject unknown filter fields`() {
+        val handlerFunction = CountQueryHandlerFunctionFactory(
+            handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
+            queryHandler = RouteTestFixtures.snapshotQueryHandler,
+            rewriteRequestCondition = DefaultRewriteRequestCondition,
+            exceptionHandler = WebFluxRequestExceptionHandler()
+        ).create(
+            testAggregateRouteContract(
+                handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
+                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA
+            )
+        )
+
+        WebTestClient.bindToRouterFunction(route(POST("/sku/snapshot/count"), handlerFunction)).build()
+            .post()
+            .uri("/sku/snapshot/count")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("""{"op":"MATCH_NONE","unexpected":true}""")
+            .exchange()
+            .expectStatus().isBadRequest
+            .expectHeader().valueEquals(ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
+    }
+
+    @Test
     fun `should extract condition via count handler`() {
         // Test condition extraction through CountQueryHandlerFunction end-to-end
         val handlerFunction = CountQueryHandlerFunctionFactory(
@@ -86,7 +111,7 @@ class QueryBodyExtractorTest {
         )
 
         val request = MockServerRequest.builder()
-            .body(Condition.ALL.toMono())
+            .body(Condition.ALL.toFilterExpression().toMono())
 
         handlerFunction.handle(request)
             .test()

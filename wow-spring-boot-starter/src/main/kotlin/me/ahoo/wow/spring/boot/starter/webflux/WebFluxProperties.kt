@@ -61,8 +61,6 @@ constructor(
         @DefaultValue("1000")
         var maxConditionValues: Int = 1000,
         @DefaultValue("false")
-        var allowRaw: Boolean = false,
-        @DefaultValue("false")
         var allowExpensiveOperators: Boolean = false,
         @DefaultValue("10s")
         var idleTimeout: Duration = Duration.ofSeconds(10),

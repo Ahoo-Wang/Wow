@@ -44,6 +44,6 @@ import me.ahoo.wow.api.query.SingleQuery
 class SingleQueryDsl : QueryableDsl<ISingleQuery>() {
 
     override fun build(): ISingleQuery {
-        return SingleQuery(condition, projection, sort)
+        return SingleQuery(filter, projection, sort)
     }
 }

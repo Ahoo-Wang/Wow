@@ -11,15 +11,13 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema.typed
+package me.ahoo.wow.api.query
 
-interface AggregatedFields<CommandAggregateType : Any> {
-    companion object {
-        val EMPTY = object : AggregatedFields<Any> {}
+interface FilterCapable<Q : FilterCapable<Q>> : RewritableFilter<Q> {
+    val filter: FilterExpression
 
-        @Suppress("UNCHECKED_CAST")
-        fun <CommandAggregateType : Any> empty(): AggregatedFields<CommandAggregateType> {
-            return EMPTY as AggregatedFields<CommandAggregateType>
-        }
+    override fun appendFilter(append: FilterExpression): Q {
+        val appended = if (filter === MatchAllFilter) append else AndFilter(listOf(filter, append))
+        return withFilter(appended)
     }
 }

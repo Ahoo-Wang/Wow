@@ -14,7 +14,6 @@
 package me.ahoo.wow.elasticsearch.query.snapshot
 
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
-import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll
 import co.elastic.clients.elasticsearch.core.SearchRequest
 import co.elastic.clients.elasticsearch.core.SearchResponse
@@ -30,11 +29,11 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.elasticsearch.query.ElasticsearchFieldResolutionException
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
-import me.ahoo.wow.query.converter.ConditionConverter
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -74,11 +73,11 @@ class ElasticsearchSnapshotMappingQueryTest {
             ),
         ).collectList().block()
 
-        val filters = searchRequest.captured.query()!!.bool().filter()[1].bool().filter()
-        filters[0].term().field().assert().isEqualTo("state.name.keyword")
-        filters[1].match().field().assert().isEqualTo("state.name")
-        filters[2].wildcard().field().assert().isEqualTo("state.name.keyword")
-        filters[3].range().untyped().field().assert().isEqualTo("state.age")
+        val filters = searchRequest.captured.query()!!.bool().filter()
+        filters[1].term().field().assert().isEqualTo("state.name.keyword")
+        filters[2].multiMatch().fields().assert().containsExactly("state.name")
+        filters[3].wildcard().field().assert().isEqualTo("state.name.keyword")
+        filters[4].range().untyped().field().assert().isEqualTo("state.age")
         searchRequest.captured.sort().single().field().field().assert().isEqualTo("state.name.keyword")
         searchRequest.captured.source()!!.filter().includes().assert().containsExactly("state.name")
     }
@@ -143,9 +142,9 @@ class ElasticsearchSnapshotMappingQueryTest {
 
     @Test
     fun `custom condition converter should keep physical field ownership`() {
-        val convertedCondition = slot<Condition>()
-        val customConverter = mockk<ConditionConverter<Query>> {
-            every { convert(capture(convertedCondition)) } returns matchAll { it }
+        val convertedFilter = slot<me.ahoo.wow.api.query.FilterExpression>()
+        val customConverter = mockk<me.ahoo.wow.elasticsearch.query.AbstractElasticsearchConditionConverter> {
+            every { convert(capture(convertedFilter)) } returns matchAll { it }
         }
         val condition = Condition.eq("custom.physical", "value")
         val service = ElasticsearchSnapshotQueryService<Any>(
@@ -159,7 +158,7 @@ class ElasticsearchSnapshotMappingQueryTest {
 
         service.dynamicList(ListQuery(condition = condition, limit = 10)).collectList().block()
 
-        convertedCondition.captured.assert().isEqualTo(condition)
+        convertedFilter.captured.assert().isEqualTo(condition.toFilterExpression())
         assertThrows<IllegalArgumentException> { service.refreshIndexMapping() }
         verify(exactly = 0) { client.indices() }
     }

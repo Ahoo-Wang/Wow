@@ -271,7 +271,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "$ref" : "#/components/schemas/example.cart.CartAggregatedCondition"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
             }
           }
         }
@@ -280,7 +280,29 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "$ref" : "#/components/schemas/example.cart.CartAggregatedListQuery"
+              "additionalProperties" : false,
+              "properties" : {
+                "filter" : {
+                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+                },
+                "limit" : {
+                  "default" : 0,
+                  "format" : "int32",
+                  "minimum" : 0,
+                  "type" : "integer"
+                },
+                "projection" : {
+                  "$ref" : "#/components/schemas/wow.api.query.Projection"
+                },
+                "sort" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/wow.api.query.Sort"
+                  },
+                  "type" : "array"
+                }
+              },
+              "required" : [ "filter" ],
+              "type" : "object"
             }
           }
         }
@@ -289,7 +311,26 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "$ref" : "#/components/schemas/example.cart.CartAggregatedPagedQuery"
+              "additionalProperties" : false,
+              "properties" : {
+                "filter" : {
+                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+                },
+                "pagination" : {
+                  "$ref" : "#/components/schemas/wow.api.query.Pagination"
+                },
+                "projection" : {
+                  "$ref" : "#/components/schemas/wow.api.query.Projection"
+                },
+                "sort" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/wow.api.query.Sort"
+                  },
+                  "type" : "array"
+                }
+              },
+              "required" : [ "filter" ],
+              "type" : "object"
             }
           }
         }
@@ -298,7 +339,23 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "$ref" : "#/components/schemas/example.cart.CartAggregatedSingleQuery"
+              "additionalProperties" : false,
+              "properties" : {
+                "filter" : {
+                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+                },
+                "projection" : {
+                  "$ref" : "#/components/schemas/wow.api.query.Projection"
+                },
+                "sort" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/wow.api.query.Sort"
+                  },
+                  "type" : "array"
+                }
+              },
+              "required" : [ "filter" ],
+              "type" : "object"
             }
           }
         }
@@ -307,7 +364,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "$ref" : "#/components/schemas/example.order.OrderAggregatedCondition"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
             }
           }
         }
@@ -316,7 +373,29 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "$ref" : "#/components/schemas/example.order.OrderAggregatedListQuery"
+              "additionalProperties" : false,
+              "properties" : {
+                "filter" : {
+                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+                },
+                "limit" : {
+                  "default" : 0,
+                  "format" : "int32",
+                  "minimum" : 0,
+                  "type" : "integer"
+                },
+                "projection" : {
+                  "$ref" : "#/components/schemas/wow.api.query.Projection"
+                },
+                "sort" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/wow.api.query.Sort"
+                  },
+                  "type" : "array"
+                }
+              },
+              "required" : [ "filter" ],
+              "type" : "object"
             }
           }
         }
@@ -325,7 +404,26 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "$ref" : "#/components/schemas/example.order.OrderAggregatedPagedQuery"
+              "additionalProperties" : false,
+              "properties" : {
+                "filter" : {
+                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+                },
+                "pagination" : {
+                  "$ref" : "#/components/schemas/wow.api.query.Pagination"
+                },
+                "projection" : {
+                  "$ref" : "#/components/schemas/wow.api.query.Projection"
+                },
+                "sort" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/wow.api.query.Sort"
+                  },
+                  "type" : "array"
+                }
+              },
+              "required" : [ "filter" ],
+              "type" : "object"
             }
           }
         }
@@ -334,7 +432,23 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "$ref" : "#/components/schemas/example.order.OrderAggregatedSingleQuery"
+              "additionalProperties" : false,
+              "properties" : {
+                "filter" : {
+                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+                },
+                "projection" : {
+                  "$ref" : "#/components/schemas/wow.api.query.Projection"
+                },
+                "sort" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/wow.api.query.Sort"
+                  },
+                  "type" : "array"
+                }
+              },
+              "required" : [ "filter" ],
+              "type" : "object"
             }
           }
         }
@@ -343,7 +457,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedCondition"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
             }
           }
         }
@@ -352,7 +466,29 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedListQuery"
+              "additionalProperties" : false,
+              "properties" : {
+                "filter" : {
+                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+                },
+                "limit" : {
+                  "default" : 0,
+                  "format" : "int32",
+                  "minimum" : 0,
+                  "type" : "integer"
+                },
+                "projection" : {
+                  "$ref" : "#/components/schemas/wow.api.query.Projection"
+                },
+                "sort" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/wow.api.query.Sort"
+                  },
+                  "type" : "array"
+                }
+              },
+              "required" : [ "filter" ],
+              "type" : "object"
             }
           }
         }
@@ -361,7 +497,26 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedPagedQuery"
+              "additionalProperties" : false,
+              "properties" : {
+                "filter" : {
+                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+                },
+                "pagination" : {
+                  "$ref" : "#/components/schemas/wow.api.query.Pagination"
+                },
+                "projection" : {
+                  "$ref" : "#/components/schemas/wow.api.query.Projection"
+                },
+                "sort" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/wow.api.query.Sort"
+                  },
+                  "type" : "array"
+                }
+              },
+              "required" : [ "filter" ],
+              "type" : "object"
             }
           }
         }
@@ -370,7 +525,23 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedSingleQuery"
+              "additionalProperties" : false,
+              "properties" : {
+                "filter" : {
+                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+                },
+                "projection" : {
+                  "$ref" : "#/components/schemas/wow.api.query.Projection"
+                },
+                "sort" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/wow.api.query.Sort"
+                  },
+                  "type" : "array"
+                }
+              },
+              "required" : [ "filter" ],
+              "type" : "object"
             }
           }
         }
@@ -379,7 +550,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedCondition"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
             }
           }
         }
@@ -388,7 +559,29 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedListQuery"
+              "additionalProperties" : false,
+              "properties" : {
+                "filter" : {
+                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+                },
+                "limit" : {
+                  "default" : 0,
+                  "format" : "int32",
+                  "minimum" : 0,
+                  "type" : "integer"
+                },
+                "projection" : {
+                  "$ref" : "#/components/schemas/wow.api.query.Projection"
+                },
+                "sort" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/wow.api.query.Sort"
+                  },
+                  "type" : "array"
+                }
+              },
+              "required" : [ "filter" ],
+              "type" : "object"
             }
           }
         }
@@ -397,7 +590,26 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedPagedQuery"
+              "additionalProperties" : false,
+              "properties" : {
+                "filter" : {
+                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+                },
+                "pagination" : {
+                  "$ref" : "#/components/schemas/wow.api.query.Pagination"
+                },
+                "projection" : {
+                  "$ref" : "#/components/schemas/wow.api.query.Projection"
+                },
+                "sort" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/wow.api.query.Sort"
+                  },
+                  "type" : "array"
+                }
+              },
+              "required" : [ "filter" ],
+              "type" : "object"
             }
           }
         }
@@ -406,7 +618,23 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedSingleQuery"
+              "additionalProperties" : false,
+              "properties" : {
+                "filter" : {
+                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+                },
+                "projection" : {
+                  "$ref" : "#/components/schemas/wow.api.query.Projection"
+                },
+                "sort" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/wow.api.query.Sort"
+                  },
+                  "type" : "array"
+                }
+              },
+              "required" : [ "filter" ],
+              "type" : "object"
             }
           }
         }
@@ -415,7 +643,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedCondition"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
             }
           }
         }
@@ -424,7 +652,29 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedListQuery"
+              "additionalProperties" : false,
+              "properties" : {
+                "filter" : {
+                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+                },
+                "limit" : {
+                  "default" : 0,
+                  "format" : "int32",
+                  "minimum" : 0,
+                  "type" : "integer"
+                },
+                "projection" : {
+                  "$ref" : "#/components/schemas/wow.api.query.Projection"
+                },
+                "sort" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/wow.api.query.Sort"
+                  },
+                  "type" : "array"
+                }
+              },
+              "required" : [ "filter" ],
+              "type" : "object"
             }
           }
         }
@@ -433,7 +683,26 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedPagedQuery"
+              "additionalProperties" : false,
+              "properties" : {
+                "filter" : {
+                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+                },
+                "pagination" : {
+                  "$ref" : "#/components/schemas/wow.api.query.Pagination"
+                },
+                "projection" : {
+                  "$ref" : "#/components/schemas/wow.api.query.Projection"
+                },
+                "sort" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/wow.api.query.Sort"
+                  },
+                  "type" : "array"
+                }
+              },
+              "required" : [ "filter" ],
+              "type" : "object"
             }
           }
         }
@@ -442,7 +711,23 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedSingleQuery"
+              "additionalProperties" : false,
+              "properties" : {
+                "filter" : {
+                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+                },
+                "projection" : {
+                  "$ref" : "#/components/schemas/wow.api.query.Projection"
+                },
+                "sort" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/wow.api.query.Sort"
+                  },
+                  "type" : "array"
+                }
+              },
+              "required" : [ "filter" ],
+              "type" : "object"
             }
           }
         }
@@ -460,7 +745,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "$ref" : "#/components/schemas/wow.api.query.Condition"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
             }
           }
         }
@@ -469,7 +754,29 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "$ref" : "#/components/schemas/wow.api.query.ListQuery"
+              "additionalProperties" : false,
+              "properties" : {
+                "filter" : {
+                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+                },
+                "limit" : {
+                  "default" : 0,
+                  "format" : "int32",
+                  "minimum" : 0,
+                  "type" : "integer"
+                },
+                "projection" : {
+                  "$ref" : "#/components/schemas/wow.api.query.Projection"
+                },
+                "sort" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/wow.api.query.Sort"
+                  },
+                  "type" : "array"
+                }
+              },
+              "required" : [ "filter" ],
+              "type" : "object"
             }
           }
         }
@@ -478,7 +785,26 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "$ref" : "#/components/schemas/wow.api.query.PagedQuery"
+              "additionalProperties" : false,
+              "properties" : {
+                "filter" : {
+                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+                },
+                "pagination" : {
+                  "$ref" : "#/components/schemas/wow.api.query.Pagination"
+                },
+                "projection" : {
+                  "$ref" : "#/components/schemas/wow.api.query.Projection"
+                },
+                "sort" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/wow.api.query.Sort"
+                  },
+                  "type" : "array"
+                }
+              },
+              "required" : [ "filter" ],
+              "type" : "object"
             }
           }
         }
@@ -737,30 +1063,6 @@
         "title" : "加入购物车",
         "type" : "object"
       },
-      "example.cart.CartAggregatedCondition" : {
-        "properties" : {
-          "children" : {
-            "default" : "[]",
-            "items" : {
-              "$ref" : "#/components/schemas/example.cart.CartAggregatedCondition"
-            },
-            "type" : "array"
-          },
-          "field" : {
-            "$ref" : "#/components/schemas/example.cart.CartAggregatedFields"
-          },
-          "operator" : {
-            "$ref" : "#/components/schemas/wow.api.query.Operator",
-            "default" : "ALL"
-          },
-          "options" : {
-            "$ref" : "#/components/schemas/wow.api.query.ConditionOptions",
-            "default" : "{}"
-          },
-          "value" : { }
-        },
-        "type" : "object"
-      },
       "example.cart.CartAggregatedDomainEventStream" : {
         "$schema" : "https://json-schema.org/draft/2020-12/schema",
         "properties" : {
@@ -972,75 +1274,6 @@
           }
         },
         "required" : [ "data" ],
-        "type" : "object"
-      },
-      "example.cart.CartAggregatedFields" : {
-        "enum" : [ "", "aggregateId", "tenantId", "ownerId", "spaceId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "tags", "deleted", "state", "state.id", "state.items", "state.items.productId", "state.items.quantity", "state.size" ],
-        "type" : "string"
-      },
-      "example.cart.CartAggregatedListQuery" : {
-        "properties" : {
-          "condition" : {
-            "$ref" : "#/components/schemas/example.cart.CartAggregatedCondition"
-          },
-          "limit" : {
-            "default" : "0",
-            "format" : "int32",
-            "type" : "integer"
-          },
-          "projection" : {
-            "$ref" : "#/components/schemas/wow.api.query.Projection"
-          },
-          "sort" : {
-            "default" : "[]",
-            "items" : {
-              "$ref" : "#/components/schemas/wow.api.query.Sort"
-            },
-            "type" : "array"
-          }
-        },
-        "required" : [ "condition" ],
-        "type" : "object"
-      },
-      "example.cart.CartAggregatedPagedQuery" : {
-        "properties" : {
-          "condition" : {
-            "$ref" : "#/components/schemas/example.cart.CartAggregatedCondition"
-          },
-          "pagination" : {
-            "$ref" : "#/components/schemas/wow.api.query.Pagination"
-          },
-          "projection" : {
-            "$ref" : "#/components/schemas/wow.api.query.Projection"
-          },
-          "sort" : {
-            "default" : "[]",
-            "items" : {
-              "$ref" : "#/components/schemas/wow.api.query.Sort"
-            },
-            "type" : "array"
-          }
-        },
-        "required" : [ "condition" ],
-        "type" : "object"
-      },
-      "example.cart.CartAggregatedSingleQuery" : {
-        "properties" : {
-          "condition" : {
-            "$ref" : "#/components/schemas/example.cart.CartAggregatedCondition"
-          },
-          "projection" : {
-            "$ref" : "#/components/schemas/wow.api.query.Projection"
-          },
-          "sort" : {
-            "default" : "[]",
-            "items" : {
-              "$ref" : "#/components/schemas/wow.api.query.Sort"
-            },
-            "type" : "array"
-          }
-        },
-        "required" : [ "condition" ],
         "type" : "object"
       },
       "example.cart.CartItem" : {
@@ -1584,30 +1817,6 @@
         "required" : [ "price", "productId", "quantity" ],
         "type" : "object"
       },
-      "example.order.OrderAggregatedCondition" : {
-        "properties" : {
-          "children" : {
-            "default" : "[]",
-            "items" : {
-              "$ref" : "#/components/schemas/example.order.OrderAggregatedCondition"
-            },
-            "type" : "array"
-          },
-          "field" : {
-            "$ref" : "#/components/schemas/example.order.OrderAggregatedFields"
-          },
-          "operator" : {
-            "$ref" : "#/components/schemas/wow.api.query.Operator",
-            "default" : "ALL"
-          },
-          "options" : {
-            "$ref" : "#/components/schemas/wow.api.query.ConditionOptions",
-            "default" : "{}"
-          },
-          "value" : { }
-        },
-        "type" : "object"
-      },
       "example.order.OrderAggregatedDomainEventStream" : {
         "$schema" : "https://json-schema.org/draft/2020-12/schema",
         "properties" : {
@@ -1871,75 +2080,6 @@
           }
         },
         "required" : [ "data" ],
-        "type" : "object"
-      },
-      "example.order.OrderAggregatedFields" : {
-        "enum" : [ "", "aggregateId", "tenantId", "ownerId", "spaceId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "tags", "deleted", "state", "state.address", "state.address.city", "state.address.country", "state.address.detail", "state.address.district", "state.address.province", "state.id", "state.items", "state.items.id", "state.items.price", "state.items.productId", "state.items.quantity", "state.items.totalPrice", "state.paidAmount", "state.payable", "state.status", "state.totalAmount" ],
-        "type" : "string"
-      },
-      "example.order.OrderAggregatedListQuery" : {
-        "properties" : {
-          "condition" : {
-            "$ref" : "#/components/schemas/example.order.OrderAggregatedCondition"
-          },
-          "limit" : {
-            "default" : "0",
-            "format" : "int32",
-            "type" : "integer"
-          },
-          "projection" : {
-            "$ref" : "#/components/schemas/wow.api.query.Projection"
-          },
-          "sort" : {
-            "default" : "[]",
-            "items" : {
-              "$ref" : "#/components/schemas/wow.api.query.Sort"
-            },
-            "type" : "array"
-          }
-        },
-        "required" : [ "condition" ],
-        "type" : "object"
-      },
-      "example.order.OrderAggregatedPagedQuery" : {
-        "properties" : {
-          "condition" : {
-            "$ref" : "#/components/schemas/example.order.OrderAggregatedCondition"
-          },
-          "pagination" : {
-            "$ref" : "#/components/schemas/wow.api.query.Pagination"
-          },
-          "projection" : {
-            "$ref" : "#/components/schemas/wow.api.query.Projection"
-          },
-          "sort" : {
-            "default" : "[]",
-            "items" : {
-              "$ref" : "#/components/schemas/wow.api.query.Sort"
-            },
-            "type" : "array"
-          }
-        },
-        "required" : [ "condition" ],
-        "type" : "object"
-      },
-      "example.order.OrderAggregatedSingleQuery" : {
-        "properties" : {
-          "condition" : {
-            "$ref" : "#/components/schemas/example.order.OrderAggregatedCondition"
-          },
-          "projection" : {
-            "$ref" : "#/components/schemas/wow.api.query.Projection"
-          },
-          "sort" : {
-            "default" : "[]",
-            "items" : {
-              "$ref" : "#/components/schemas/wow.api.query.Sort"
-            },
-            "type" : "array"
-          }
-        },
-        "required" : [ "condition" ],
         "type" : "object"
       },
       "example.order.OrderCreated" : {
@@ -2527,30 +2667,6 @@
         "required" : [ "data", "id" ],
         "type" : "object"
       },
-      "tck.mock_aggregate.MockCommandAggregateAggregatedCondition" : {
-        "properties" : {
-          "children" : {
-            "default" : "[]",
-            "items" : {
-              "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedCondition"
-            },
-            "type" : "array"
-          },
-          "field" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedFields"
-          },
-          "operator" : {
-            "$ref" : "#/components/schemas/wow.api.query.Operator",
-            "default" : "ALL"
-          },
-          "options" : {
-            "$ref" : "#/components/schemas/wow.api.query.ConditionOptions",
-            "default" : "{}"
-          },
-          "value" : { }
-        },
-        "type" : "object"
-      },
       "tck.mock_aggregate.MockCommandAggregateAggregatedDomainEventStream" : {
         "$schema" : "https://json-schema.org/draft/2020-12/schema",
         "properties" : {
@@ -2738,99 +2854,6 @@
         "required" : [ "data" ],
         "type" : "object"
       },
-      "tck.mock_aggregate.MockCommandAggregateAggregatedFields" : {
-        "enum" : [ "", "aggregateId", "tenantId", "ownerId", "spaceId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "tags", "deleted", "state", "state.data", "state.id" ],
-        "type" : "string"
-      },
-      "tck.mock_aggregate.MockCommandAggregateAggregatedListQuery" : {
-        "properties" : {
-          "condition" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedCondition"
-          },
-          "limit" : {
-            "default" : "0",
-            "format" : "int32",
-            "type" : "integer"
-          },
-          "projection" : {
-            "$ref" : "#/components/schemas/wow.api.query.Projection"
-          },
-          "sort" : {
-            "default" : "[]",
-            "items" : {
-              "$ref" : "#/components/schemas/wow.api.query.Sort"
-            },
-            "type" : "array"
-          }
-        },
-        "required" : [ "condition" ],
-        "type" : "object"
-      },
-      "tck.mock_aggregate.MockCommandAggregateAggregatedPagedQuery" : {
-        "properties" : {
-          "condition" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedCondition"
-          },
-          "pagination" : {
-            "$ref" : "#/components/schemas/wow.api.query.Pagination"
-          },
-          "projection" : {
-            "$ref" : "#/components/schemas/wow.api.query.Projection"
-          },
-          "sort" : {
-            "default" : "[]",
-            "items" : {
-              "$ref" : "#/components/schemas/wow.api.query.Sort"
-            },
-            "type" : "array"
-          }
-        },
-        "required" : [ "condition" ],
-        "type" : "object"
-      },
-      "tck.mock_aggregate.MockCommandAggregateAggregatedSingleQuery" : {
-        "properties" : {
-          "condition" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedCondition"
-          },
-          "projection" : {
-            "$ref" : "#/components/schemas/wow.api.query.Projection"
-          },
-          "sort" : {
-            "default" : "[]",
-            "items" : {
-              "$ref" : "#/components/schemas/wow.api.query.Sort"
-            },
-            "type" : "array"
-          }
-        },
-        "required" : [ "condition" ],
-        "type" : "object"
-      },
-      "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedCondition" : {
-        "properties" : {
-          "children" : {
-            "default" : "[]",
-            "items" : {
-              "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedCondition"
-            },
-            "type" : "array"
-          },
-          "field" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedFields"
-          },
-          "operator" : {
-            "$ref" : "#/components/schemas/wow.api.query.Operator",
-            "default" : "ALL"
-          },
-          "options" : {
-            "$ref" : "#/components/schemas/wow.api.query.ConditionOptions",
-            "default" : "{}"
-          },
-          "value" : { }
-        },
-        "type" : "object"
-      },
       "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedDomainEventStream" : {
         "$schema" : "https://json-schema.org/draft/2020-12/schema",
         "properties" : {
@@ -2987,99 +3010,6 @@
         "required" : [ "data" ],
         "type" : "object"
       },
-      "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedFields" : {
-        "enum" : [ "", "aggregateId", "tenantId", "ownerId", "spaceId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "tags", "deleted", "state", "state.id", "state.tenantId" ],
-        "type" : "string"
-      },
-      "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedListQuery" : {
-        "properties" : {
-          "condition" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedCondition"
-          },
-          "limit" : {
-            "default" : "0",
-            "format" : "int32",
-            "type" : "integer"
-          },
-          "projection" : {
-            "$ref" : "#/components/schemas/wow.api.query.Projection"
-          },
-          "sort" : {
-            "default" : "[]",
-            "items" : {
-              "$ref" : "#/components/schemas/wow.api.query.Sort"
-            },
-            "type" : "array"
-          }
-        },
-        "required" : [ "condition" ],
-        "type" : "object"
-      },
-      "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedPagedQuery" : {
-        "properties" : {
-          "condition" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedCondition"
-          },
-          "pagination" : {
-            "$ref" : "#/components/schemas/wow.api.query.Pagination"
-          },
-          "projection" : {
-            "$ref" : "#/components/schemas/wow.api.query.Projection"
-          },
-          "sort" : {
-            "default" : "[]",
-            "items" : {
-              "$ref" : "#/components/schemas/wow.api.query.Sort"
-            },
-            "type" : "array"
-          }
-        },
-        "required" : [ "condition" ],
-        "type" : "object"
-      },
-      "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedSingleQuery" : {
-        "properties" : {
-          "condition" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedCondition"
-          },
-          "projection" : {
-            "$ref" : "#/components/schemas/wow.api.query.Projection"
-          },
-          "sort" : {
-            "default" : "[]",
-            "items" : {
-              "$ref" : "#/components/schemas/wow.api.query.Sort"
-            },
-            "type" : "array"
-          }
-        },
-        "required" : [ "condition" ],
-        "type" : "object"
-      },
-      "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedCondition" : {
-        "properties" : {
-          "children" : {
-            "default" : "[]",
-            "items" : {
-              "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedCondition"
-            },
-            "type" : "array"
-          },
-          "field" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedFields"
-          },
-          "operator" : {
-            "$ref" : "#/components/schemas/wow.api.query.Operator",
-            "default" : "ALL"
-          },
-          "options" : {
-            "$ref" : "#/components/schemas/wow.api.query.ConditionOptions",
-            "default" : "{}"
-          },
-          "value" : { }
-        },
-        "type" : "object"
-      },
       "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedDomainEventStream" : {
         "$schema" : "https://json-schema.org/draft/2020-12/schema",
         "properties" : {
@@ -3234,75 +3164,6 @@
           }
         },
         "required" : [ "data" ],
-        "type" : "object"
-      },
-      "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedFields" : {
-        "enum" : [ "", "aggregateId", "tenantId", "ownerId", "spaceId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "tags", "deleted", "state" ],
-        "type" : "string"
-      },
-      "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedListQuery" : {
-        "properties" : {
-          "condition" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedCondition"
-          },
-          "limit" : {
-            "default" : "0",
-            "format" : "int32",
-            "type" : "integer"
-          },
-          "projection" : {
-            "$ref" : "#/components/schemas/wow.api.query.Projection"
-          },
-          "sort" : {
-            "default" : "[]",
-            "items" : {
-              "$ref" : "#/components/schemas/wow.api.query.Sort"
-            },
-            "type" : "array"
-          }
-        },
-        "required" : [ "condition" ],
-        "type" : "object"
-      },
-      "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedPagedQuery" : {
-        "properties" : {
-          "condition" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedCondition"
-          },
-          "pagination" : {
-            "$ref" : "#/components/schemas/wow.api.query.Pagination"
-          },
-          "projection" : {
-            "$ref" : "#/components/schemas/wow.api.query.Projection"
-          },
-          "sort" : {
-            "default" : "[]",
-            "items" : {
-              "$ref" : "#/components/schemas/wow.api.query.Sort"
-            },
-            "type" : "array"
-          }
-        },
-        "required" : [ "condition" ],
-        "type" : "object"
-      },
-      "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedSingleQuery" : {
-        "properties" : {
-          "condition" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedCondition"
-          },
-          "projection" : {
-            "$ref" : "#/components/schemas/wow.api.query.Projection"
-          },
-          "sort" : {
-            "default" : "[]",
-            "items" : {
-              "$ref" : "#/components/schemas/wow.api.query.Sort"
-            },
-            "type" : "array"
-          }
-        },
-        "required" : [ "condition" ],
         "type" : "object"
       },
       "tck.mock_aggregate.MockCreateAggregate" : {
@@ -4537,95 +4398,875 @@
         "required" : [ "aggregateId", "aggregateName", "contextName", "tenantId" ],
         "type" : "object"
       },
-      "wow.api.query.Condition" : {
-        "properties" : {
-          "children" : {
-            "default" : "[]",
-            "items" : {
-              "$ref" : "#/components/schemas/wow.api.query.Condition"
+      "wow.api.query.FilterExpression" : {
+        "$id" : "https://github.com/Ahoo-Wang/Wow/blob/main/schema/query/v2/filter-expression.schema.json",
+        "$ref" : "#/definitions/filterExpression",
+        "$schema" : "http://json-schema.org/draft-07/schema#",
+        "definitions" : {
+          "and" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "AND" ]
+              },
+              "operands" : {
+                "items" : {
+                  "$ref" : "#/definitions/filterExpression"
+                },
+                "minItems" : 1,
+                "type" : "array"
+              }
             },
-            "type" : "array"
+            "required" : [ "op", "operands" ],
+            "type" : "object"
           },
-          "field" : {
+          "beforeToday" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "BEFORE_TODAY" ]
+              },
+              "time" : {
+                "pattern" : "^([01][0-9]|2[0-3]):[0-5][0-9](?::[0-5][0-9](?:\\.[0-9]{1,9})?)?$",
+                "type" : "string"
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field", "time" ],
+            "type" : "object"
+          },
+          "between" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "lowerBound" : {
+                "$ref" : "#/definitions/comparableLiteral"
+              },
+              "op" : {
+                "enum" : [ "BETWEEN" ]
+              },
+              "upperBound" : {
+                "$ref" : "#/definitions/comparableLiteral"
+              }
+            },
+            "required" : [ "op", "field", "lowerBound", "upperBound" ],
+            "type" : "object"
+          },
+          "comparableLiteral" : {
+            "type" : [ "string", "number", "boolean" ]
+          },
+          "contains" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "CONTAINS" ]
+              },
+              "stringComparison" : {
+                "$ref" : "#/definitions/stringComparison"
+              },
+              "value" : {
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "containsAll" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "CONTAINS_ALL" ]
+              },
+              "values" : {
+                "items" : {
+                  "$ref" : "#/definitions/comparableLiteral"
+                },
+                "minItems" : 1,
+                "type" : "array"
+              }
+            },
+            "required" : [ "op", "field", "values" ],
+            "type" : "object"
+          },
+          "deletion" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "DELETION" ]
+              },
+              "state" : {
+                "enum" : [ "ACTIVE", "DELETED", "ALL" ]
+              }
+            },
+            "required" : [ "op", "state" ],
+            "type" : "object"
+          },
+          "earlierDays" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "days" : {
+                "minimum" : 1,
+                "type" : "integer"
+              },
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "EARLIER_DAYS" ]
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field", "days" ],
+            "type" : "object"
+          },
+          "elementAnd" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "AND" ]
+              },
+              "operands" : {
+                "items" : {
+                  "$ref" : "#/definitions/elementPredicate"
+                },
+                "minItems" : 1,
+                "type" : "array"
+              }
+            },
+            "required" : [ "op", "operands" ],
+            "type" : "object"
+          },
+          "elementMatch" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "ELEMENT_MATCH" ]
+              },
+              "predicate" : {
+                "$ref" : "#/definitions/elementPredicate"
+              }
+            },
+            "required" : [ "op", "field", "predicate" ],
+            "type" : "object"
+          },
+          "elementNor" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "NOR" ]
+              },
+              "operands" : {
+                "items" : {
+                  "$ref" : "#/definitions/elementPredicate"
+                },
+                "minItems" : 1,
+                "type" : "array"
+              }
+            },
+            "required" : [ "op", "operands" ],
+            "type" : "object"
+          },
+          "elementOr" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "OR" ]
+              },
+              "operands" : {
+                "items" : {
+                  "$ref" : "#/definitions/elementPredicate"
+                },
+                "minItems" : 1,
+                "type" : "array"
+              }
+            },
+            "required" : [ "op", "operands" ],
+            "type" : "object"
+          },
+          "elementPredicate" : {
+            "oneOf" : [ {
+              "$ref" : "#/definitions/beforeToday"
+            }, {
+              "$ref" : "#/definitions/between"
+            }, {
+              "$ref" : "#/definitions/contains"
+            }, {
+              "$ref" : "#/definitions/containsAll"
+            }, {
+              "$ref" : "#/definitions/earlierDays"
+            }, {
+              "$ref" : "#/definitions/elementAnd"
+            }, {
+              "$ref" : "#/definitions/elementMatch"
+            }, {
+              "$ref" : "#/definitions/elementNor"
+            }, {
+              "$ref" : "#/definitions/elementOr"
+            }, {
+              "$ref" : "#/definitions/endsWith"
+            }, {
+              "$ref" : "#/definitions/eq"
+            }, {
+              "$ref" : "#/definitions/exists"
+            }, {
+              "$ref" : "#/definitions/gt"
+            }, {
+              "$ref" : "#/definitions/gte"
+            }, {
+              "$ref" : "#/definitions/in"
+            }, {
+              "$ref" : "#/definitions/isEmpty"
+            }, {
+              "$ref" : "#/definitions/isNotNull"
+            }, {
+              "$ref" : "#/definitions/isNull"
+            }, {
+              "$ref" : "#/definitions/lastMonth"
+            }, {
+              "$ref" : "#/definitions/lastWeek"
+            }, {
+              "$ref" : "#/definitions/lt"
+            }, {
+              "$ref" : "#/definitions/lte"
+            }, {
+              "$ref" : "#/definitions/matchAll"
+            }, {
+              "$ref" : "#/definitions/matchNone"
+            }, {
+              "$ref" : "#/definitions/ne"
+            }, {
+              "$ref" : "#/definitions/nextWeek"
+            }, {
+              "$ref" : "#/definitions/notExists"
+            }, {
+              "$ref" : "#/definitions/notIn"
+            }, {
+              "$ref" : "#/definitions/recentDays"
+            }, {
+              "$ref" : "#/definitions/startsWith"
+            }, {
+              "$ref" : "#/definitions/thisMonth"
+            }, {
+              "$ref" : "#/definitions/thisWeek"
+            }, {
+              "$ref" : "#/definitions/today"
+            }, {
+              "$ref" : "#/definitions/tomorrow"
+            } ]
+          },
+          "endsWith" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "ENDS_WITH" ]
+              },
+              "stringComparison" : {
+                "$ref" : "#/definitions/stringComparison"
+              },
+              "value" : {
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "eq" : {
+            "$ref" : "#/definitions/eqShape"
+          },
+          "eqShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "EQ" ]
+              },
+              "value" : {
+                "$ref" : "#/definitions/literal"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "exists" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "EXISTS" ]
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "filterExpression" : {
+            "oneOf" : [ {
+              "$ref" : "#/definitions/and"
+            }, {
+              "$ref" : "#/definitions/beforeToday"
+            }, {
+              "$ref" : "#/definitions/between"
+            }, {
+              "$ref" : "#/definitions/contains"
+            }, {
+              "$ref" : "#/definitions/containsAll"
+            }, {
+              "$ref" : "#/definitions/deletion"
+            }, {
+              "$ref" : "#/definitions/earlierDays"
+            }, {
+              "$ref" : "#/definitions/elementMatch"
+            }, {
+              "$ref" : "#/definitions/endsWith"
+            }, {
+              "$ref" : "#/definitions/eq"
+            }, {
+              "$ref" : "#/definitions/exists"
+            }, {
+              "$ref" : "#/definitions/gt"
+            }, {
+              "$ref" : "#/definitions/gte"
+            }, {
+              "$ref" : "#/definitions/in"
+            }, {
+              "$ref" : "#/definitions/isEmpty"
+            }, {
+              "$ref" : "#/definitions/isNotNull"
+            }, {
+              "$ref" : "#/definitions/isNull"
+            }, {
+              "$ref" : "#/definitions/lastMonth"
+            }, {
+              "$ref" : "#/definitions/lastWeek"
+            }, {
+              "$ref" : "#/definitions/lt"
+            }, {
+              "$ref" : "#/definitions/lte"
+            }, {
+              "$ref" : "#/definitions/matchAll"
+            }, {
+              "$ref" : "#/definitions/matchNone"
+            }, {
+              "$ref" : "#/definitions/ne"
+            }, {
+              "$ref" : "#/definitions/nextWeek"
+            }, {
+              "$ref" : "#/definitions/nor"
+            }, {
+              "$ref" : "#/definitions/notExists"
+            }, {
+              "$ref" : "#/definitions/notIn"
+            }, {
+              "$ref" : "#/definitions/or"
+            }, {
+              "$ref" : "#/definitions/recentDays"
+            }, {
+              "$ref" : "#/definitions/search"
+            }, {
+              "$ref" : "#/definitions/startsWith"
+            }, {
+              "$ref" : "#/definitions/thisMonth"
+            }, {
+              "$ref" : "#/definitions/thisWeek"
+            }, {
+              "$ref" : "#/definitions/today"
+            }, {
+              "$ref" : "#/definitions/tomorrow"
+            } ]
+          },
+          "gt" : {
+            "$ref" : "#/definitions/gtShape"
+          },
+          "gtShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "GT" ]
+              },
+              "value" : {
+                "$ref" : "#/definitions/comparableLiteral"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "gte" : {
+            "$ref" : "#/definitions/gteShape"
+          },
+          "gteShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "GTE" ]
+              },
+              "value" : {
+                "$ref" : "#/definitions/comparableLiteral"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "in" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "IN" ]
+              },
+              "values" : {
+                "items" : {
+                  "$ref" : "#/definitions/comparableLiteral"
+                },
+                "minItems" : 1,
+                "type" : "array"
+              }
+            },
+            "required" : [ "op", "field", "values" ],
+            "type" : "object"
+          },
+          "isEmpty" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "IS_EMPTY" ]
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "isNotNull" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "IS_NOT_NULL" ]
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "isNull" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "IS_NULL" ]
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "lastMonth" : {
+            "$ref" : "#/definitions/lastMonthShape"
+          },
+          "lastMonthShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "LAST_MONTH" ]
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "lastWeek" : {
+            "$ref" : "#/definitions/lastWeekShape"
+          },
+          "lastWeekShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "LAST_WEEK" ]
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "literal" : {
+            "type" : [ "null", "string", "number", "boolean" ]
+          },
+          "logicalField" : {
+            "pattern" : "^[A-Za-z_][A-Za-z0-9_-]*(\\.(?:[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*$",
             "type" : "string"
           },
+          "lt" : {
+            "$ref" : "#/definitions/ltShape"
+          },
+          "ltShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "LT" ]
+              },
+              "value" : {
+                "$ref" : "#/definitions/comparableLiteral"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "lte" : {
+            "$ref" : "#/definitions/lteShape"
+          },
+          "lteShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "LTE" ]
+              },
+              "value" : {
+                "$ref" : "#/definitions/comparableLiteral"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "matchAll" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "MATCH_ALL" ]
+              }
+            },
+            "required" : [ "op" ],
+            "type" : "object"
+          },
+          "matchNone" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "MATCH_NONE" ]
+              }
+            },
+            "required" : [ "op" ],
+            "type" : "object"
+          },
+          "ne" : {
+            "$ref" : "#/definitions/neShape"
+          },
+          "neShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "NE" ]
+              },
+              "value" : {
+                "$ref" : "#/definitions/literal"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "nextWeek" : {
+            "$ref" : "#/definitions/nextWeekShape"
+          },
+          "nextWeekShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "NEXT_WEEK" ]
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "nor" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "NOR" ]
+              },
+              "operands" : {
+                "items" : {
+                  "$ref" : "#/definitions/filterExpression"
+                },
+                "minItems" : 1,
+                "type" : "array"
+              }
+            },
+            "required" : [ "op", "operands" ],
+            "type" : "object"
+          },
+          "notExists" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "NOT_EXISTS" ]
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "notIn" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "NOT_IN" ]
+              },
+              "values" : {
+                "items" : {
+                  "$ref" : "#/definitions/comparableLiteral"
+                },
+                "minItems" : 1,
+                "type" : "array"
+              }
+            },
+            "required" : [ "op", "field", "values" ],
+            "type" : "object"
+          },
+          "or" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "OR" ]
+              },
+              "operands" : {
+                "items" : {
+                  "$ref" : "#/definitions/filterExpression"
+                },
+                "minItems" : 1,
+                "type" : "array"
+              }
+            },
+            "required" : [ "op", "operands" ],
+            "type" : "object"
+          },
+          "recentDays" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "days" : {
+                "minimum" : 1,
+                "type" : "integer"
+              },
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "RECENT_DAYS" ]
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field", "days" ],
+            "type" : "object"
+          },
+          "search" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "fields" : {
+                "default" : [ ],
+                "items" : {
+                  "$ref" : "#/definitions/logicalField"
+                },
+                "type" : "array",
+                "uniqueItems" : true
+              },
+              "op" : {
+                "enum" : [ "SEARCH" ]
+              },
+              "query" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "query" ],
+            "type" : "object"
+          },
+          "startsWith" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "STARTS_WITH" ]
+              },
+              "stringComparison" : {
+                "$ref" : "#/definitions/stringComparison"
+              },
+              "value" : {
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "stringComparison" : {
+            "default" : "CASE_SENSITIVE",
+            "enum" : [ "CASE_SENSITIVE", "CASE_INSENSITIVE" ],
+            "type" : "string"
+          },
+          "thisMonth" : {
+            "$ref" : "#/definitions/thisMonthShape"
+          },
+          "thisMonthShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "THIS_MONTH" ]
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "thisWeek" : {
+            "$ref" : "#/definitions/thisWeekShape"
+          },
+          "thisWeekShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "THIS_WEEK" ]
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "today" : {
+            "$ref" : "#/definitions/todayShape"
+          },
+          "todayShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "TODAY" ]
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "tomorrow" : {
+            "$ref" : "#/definitions/tomorrowShape"
+          },
+          "tomorrowShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "TOMORROW" ]
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          }
+        },
+        "properties" : {
           "operator" : {
-            "$ref" : "#/components/schemas/wow.api.query.Operator",
-            "default" : "ALL"
-          },
-          "options" : {
-            "$ref" : "#/components/schemas/wow.api.query.ConditionOptions",
-            "default" : "{}"
-          },
-          "value" : { }
-        },
-        "type" : "object"
-      },
-      "wow.api.query.ConditionOptions" : {
-        "$schema" : "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties" : true,
-        "properties" : {
-          "datePattern" : {
-            "type" : "string"
-          },
-          "ignoreCase" : {
-            "type" : "boolean"
-          },
-          "zoneId" : {
-            "type" : "string"
+            "$ref" : "#/components/schemas/wow.api.query.FilterOperator",
+            "readOnly" : true
           }
         },
-        "type" : "object"
+        "title" : "Filter Expression"
       },
-      "wow.api.query.ListQuery" : {
-        "properties" : {
-          "condition" : {
-            "$ref" : "#/components/schemas/wow.api.query.Condition"
-          },
-          "limit" : {
-            "default" : "0",
-            "format" : "int32",
-            "type" : "integer"
-          },
-          "projection" : {
-            "$ref" : "#/components/schemas/wow.api.query.Projection"
-          },
-          "sort" : {
-            "default" : "[]",
-            "items" : {
-              "$ref" : "#/components/schemas/wow.api.query.Sort"
-            },
-            "type" : "array"
-          }
-        },
-        "required" : [ "condition" ],
-        "type" : "object"
-      },
-      "wow.api.query.Operator" : {
-        "enum" : [ "AND", "OR", "NOR", "ID", "IDS", "AGGREGATE_ID", "AGGREGATE_IDS", "TENANT_ID", "OWNER_ID", "SPACE_ID", "DELETED", "ALL", "EQ", "NE", "GT", "LT", "GTE", "LTE", "CONTAINS", "IN", "NOT_IN", "BETWEEN", "ALL_IN", "STARTS_WITH", "ENDS_WITH", "ELEM_MATCH", "NULL", "NOT_NULL", "TRUE", "FALSE", "EXISTS", "TODAY", "BEFORE_TODAY", "TOMORROW", "THIS_WEEK", "NEXT_WEEK", "LAST_WEEK", "THIS_MONTH", "LAST_MONTH", "RECENT_DAYS", "EARLIER_DAYS", "MATCH", "RAW" ],
+      "wow.api.query.FilterOperator" : {
+        "enum" : [ "MATCH_ALL", "MATCH_NONE", "AND", "OR", "NOR", "EQ", "NE", "GT", "GTE", "LT", "LTE", "CONTAINS", "STARTS_WITH", "ENDS_WITH", "IN", "NOT_IN", "BETWEEN", "CONTAINS_ALL", "IS_EMPTY", "IS_NULL", "IS_NOT_NULL", "EXISTS", "NOT_EXISTS", "DELETION", "ELEMENT_MATCH", "SEARCH", "TODAY", "BEFORE_TODAY", "TOMORROW", "THIS_WEEK", "NEXT_WEEK", "LAST_WEEK", "THIS_MONTH", "LAST_MONTH", "RECENT_DAYS", "EARLIER_DAYS" ],
         "type" : "string"
-      },
-      "wow.api.query.PagedQuery" : {
-        "properties" : {
-          "condition" : {
-            "$ref" : "#/components/schemas/wow.api.query.Condition"
-          },
-          "pagination" : {
-            "$ref" : "#/components/schemas/wow.api.query.Pagination"
-          },
-          "projection" : {
-            "$ref" : "#/components/schemas/wow.api.query.Projection"
-          },
-          "sort" : {
-            "default" : "[]",
-            "items" : {
-              "$ref" : "#/components/schemas/wow.api.query.Sort"
-            },
-            "type" : "array"
-          }
-        },
-        "required" : [ "condition" ],
-        "type" : "object"
       },
       "wow.api.query.Pagination" : {
         "properties" : {

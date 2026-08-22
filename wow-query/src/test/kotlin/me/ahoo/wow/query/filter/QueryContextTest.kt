@@ -16,6 +16,7 @@ package me.ahoo.wow.query.filter
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
@@ -60,9 +61,7 @@ class QueryContextTest {
                 condition { "field2" eq "value2" }
             }
         }
-        context.getQuery().condition.assert().isEqualTo(
-            Condition.eq("field2", "value2")
-        )
+        context.getQuery().filter.assert().isEqualTo(Condition.eq("field2", "value2").toFilterExpression())
     }
 
     @Test
@@ -85,7 +84,7 @@ class QueryContextTest {
         val query = singleQuery { }
         context.setQuery(query)
         context.setResult { queryArg ->
-            queryArg.condition.assert().isEqualTo(query.condition)
+            queryArg.filter.assert().isEqualTo(query.filter)
             Mono.just("handled")
         }
         context.getRequiredResult().block().assert().isEqualTo("handled")

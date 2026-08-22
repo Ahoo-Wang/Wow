@@ -62,7 +62,6 @@ class ConditionConverterTest {
         override fun isFalse(condition: Condition) = record("isFalse", condition)
         override fun exists(condition: Condition) = record("exists", condition)
         override fun deleted(condition: Condition) = record("deleted", condition)
-        override fun raw(condition: Condition) = record("raw", condition)
 
         fun testInternalConvert(condition: Condition): Pair<String, Condition> {
             return internalConvert(condition)
@@ -215,11 +214,6 @@ class ConditionConverterTest {
     }
 
     @Test
-    fun `should dispatch raw operator`() {
-        dispatchAndAssert("raw", Condition.raw("1=1"))
-    }
-
-    @Test
     fun `should dispatch match operator`() {
         dispatchAndAssert("match", Condition.match("field1", "pattern"))
     }
@@ -234,5 +228,16 @@ class ConditionConverterTest {
         guardedConverter.calls.first().first.assert().isEqualTo("and")
         val guarded = guardedConverter.calls.first().second
         guarded.children.first().operator.assert().isEqualTo(Condition.ACTIVE.operator)
+    }
+
+    @Test
+    fun `legacy converter should remain source compatible`() {
+        val legacyConverter = object : ConditionConverter<String> {
+            override fun convert(condition: Condition): String = condition.operator.name
+        }
+
+        org.junit.jupiter.api.assertThrows<me.ahoo.wow.query.UnsupportedFilterException> {
+            legacyConverter.convert(me.ahoo.wow.api.query.MatchAllFilter)
+        }
     }
 }

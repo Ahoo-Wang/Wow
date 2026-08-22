@@ -14,12 +14,15 @@
 package me.ahoo.wow.query.filter
 
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.AndFilter
+import me.ahoo.wow.api.query.FilterCapable
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.api.query.RewritableCondition
+import me.ahoo.wow.api.query.RewritableFilter
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.util.concurrent.ConcurrentHashMap
@@ -42,6 +45,16 @@ interface QueryContext<Q : Any, R : Any> {
 
     fun rewriteQuery(rewrite: (Q) -> Q): QueryContext<Q, R> {
         return setQuery(rewrite(getQuery()))
+    }
+
+    fun appendFilter(append: FilterExpression): QueryContext<Q, R> {
+        val query = getQuery()
+        val rewritten = when (query) {
+            is FilterExpression -> if (query === MatchAllFilter) append else AndFilter(listOf(query, append))
+            is FilterCapable<*> -> query.appendFilter(append)
+            else -> error("Query type [${query::class}] does not support filters.")
+        }
+        return setQuery(rewritten as Q)
     }
 
     fun setResult(result: R): QueryContext<Q, R> {
@@ -81,12 +94,12 @@ interface QueryContext<Q : Any, R : Any> {
         return this as QueryContext<IPagedQuery, Mono<PagedList<E>>>
     }
 
-    fun asRewritableQuery(): QueryContext<RewritableCondition<*>, R> {
-        return this as QueryContext<RewritableCondition<*>, R>
+    fun asRewritableQuery(): QueryContext<RewritableFilter<*>, R> {
+        return this as QueryContext<RewritableFilter<*>, R>
     }
 
-    fun asCountQuery(): QueryContext<Condition, Mono<Long>> {
-        return this as QueryContext<Condition, Mono<Long>>
+    fun asCountQuery(): QueryContext<FilterExpression, Mono<Long>> {
+        return this as QueryContext<FilterExpression, Mono<Long>>
     }
 }
 

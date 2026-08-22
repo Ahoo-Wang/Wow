@@ -74,7 +74,6 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
             Operator.RECENT_DAYS -> recentDays(condition)
             Operator.EARLIER_DAYS -> earlierDays(condition)
             Operator.MATCH -> match(condition)
-            Operator.RAW -> raw(condition)
         }
 
     abstract fun and(condition: Condition): T
@@ -140,8 +139,6 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
     abstract fun exists(condition: Condition): T
 
     abstract fun deleted(condition: Condition): T
-
-    abstract fun raw(condition: Condition): T
 
     private fun now(condition: Condition): OffsetDateTime {
         val zoneId = condition.zoneId() ?: ZoneId.systemDefault()

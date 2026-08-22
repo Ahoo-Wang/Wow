@@ -856,14 +856,5 @@ data class Condition(
             value = days,
             options = datePatternOptions(datePattern),
         )
-
-        /**
-         * Creates a raw condition.
-         * Uses the provided value directly as a raw database query condition without any processing.
-         *
-         * @param value The raw query condition value to use directly.
-         * @return A new raw condition.
-         */
-        fun raw(value: Any) = Condition(field = EMPTY_VALUE, operator = Operator.RAW, value = value)
     }
 }

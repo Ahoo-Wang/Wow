@@ -19,8 +19,6 @@ import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.bool
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.exists
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.ids
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.match
-import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll
-import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.nested
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.prefix
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.range
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.term
@@ -52,6 +50,18 @@ class ElasticsearchConditionConverterTest {
         val expectedGen = WowJsonpMapper.createBufferingGenerator()
         expected.serialize(expectedGen, WowJsonpMapper)
         actualGen.jsonData.toJson().toString().assert().isEqualTo(expectedGen.jsonData.toJson().toString())
+    }
+
+    @Test
+    fun `should convert filter expression`() {
+        val query = SnapshotConditionConverter.convert(
+            me.ahoo.wow.api.query.EqualFilter(
+                me.ahoo.wow.api.query.LogicalField("state.name"),
+                me.ahoo.wow.serialization.JsonSerializer.valueToTree("Wow"),
+            ),
+        )
+
+        assertConvert(query, term { it.field("state.name").value("Wow") })
     }
 
     @Test
@@ -464,7 +474,7 @@ class ElasticsearchConditionConverterTest {
         }
         assertConvert(
             query,
-            nested {
+            co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.nested {
                 it.path("field")
                     .query(
                         bool { builder ->
@@ -598,46 +608,5 @@ class ElasticsearchConditionConverterTest {
             SnapshotConditionConverter.convert(it)
         }
         query._kind().assert().isEqualTo(Query.Kind.Bool)
-    }
-
-    @Test
-    fun `raw to query`() {
-        val rawQuery = Query.Builder().matchAll { it }.build()
-        val query = condition {
-            raw(rawQuery)
-        }.let {
-            SnapshotConditionConverter.convert(it)
-        }
-        assertConvert(query, rawQuery)
-    }
-
-    @Test
-    fun `string raw to query`() {
-        val query = condition {
-            raw("""{"match_all":{}}""")
-        }.let {
-            SnapshotConditionConverter.convert(it)
-        }
-        assertConvert(
-            query,
-            matchAll {
-                it
-            }
-        )
-    }
-
-    @Test
-    fun `map raw to query`() {
-        val query = condition {
-            raw(mapOf("match_all" to emptyMap<String, String>()))
-        }.let {
-            SnapshotConditionConverter.convert(it)
-        }
-        assertConvert(
-            query,
-            matchAll {
-                it
-            }
-        )
     }
 }

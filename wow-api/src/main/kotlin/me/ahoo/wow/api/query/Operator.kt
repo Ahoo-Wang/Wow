@@ -280,11 +280,5 @@ enum class Operator {
      * and is not restricted to a single field.
      * For Elasticsearch: Uses `QueryBuilders.match` for standard full-text search on the specified field.
      */
-    MATCH,
-
-    /**
-     * Raw operator.
-     * Uses the condition value directly as a raw database query condition without any processing.
-     */
-    RAW
+    MATCH
 }

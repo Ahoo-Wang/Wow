@@ -27,30 +27,50 @@ interface ISingleQuery : Queryable<ISingleQuery>
  * This class implements [ISingleQuery] and provides a concrete implementation for single-item queries.
  * It supports all standard query operations but is optimized for scenarios where only one result is expected.
  *
- * @property condition The filtering condition to apply to the query.
+ * @property filter The filter expression to apply to the query.
  * @property projection The field projection to control which fields are included in the result.
  * @property sort The sorting criteria to order results (useful when multiple matches exist).
  *
  * ```
  * val query = SingleQuery(
- *     condition = Condition.eq("id", "user-123"),
+ *     filter = EqualFilter(LogicalField("id"), value),
  *     projection = Projection(include = listOf("name", "email")),
  *     sort = listOf(Sort("createdDate", Direction.DESC))
  * )
  * ```
  */
 data class SingleQuery(
-    override val condition: Condition,
+    override val filter: FilterExpression,
     override val projection: Projection = Projection.ALL,
     override val sort: List<Sort> = emptyList()
 ) : ISingleQuery {
+    @Deprecated("Use filter.")
+    constructor(
+        condition: Condition,
+        projection: Projection = Projection.ALL,
+        sort: List<Sort> = emptyList(),
+    ) : this(LegacyConditionAdapter.adapt(condition), projection, sort)
+
     /**
-     * Creates a new SingleQuery with the specified condition.
+     * Creates a new SingleQuery with the specified filter.
      *
-     * @param newCondition The new condition to apply.
-     * @return A new SingleQuery with the updated condition.
+     * @param newFilter The new filter to apply.
+     * @return A new SingleQuery with the updated filter.
      */
-    override fun withCondition(newCondition: Condition): ISingleQuery = copy(condition = newCondition)
+    override fun withFilter(newFilter: FilterExpression): ISingleQuery = copy(filter = newFilter)
+
+    @Deprecated("Use withFilter.")
+    fun withCondition(newCondition: Condition): ISingleQuery = copy(filter = LegacyConditionAdapter.adapt(newCondition))
+
+    @Deprecated("Use appendFilter.")
+    fun appendCondition(append: Condition): ISingleQuery = appendFilter(LegacyConditionAdapter.adapt(append))
+
+    @Deprecated("Use copy(filter = ...).")
+    fun copy(
+        condition: Condition,
+        projection: Projection = this.projection,
+        sort: List<Sort> = this.sort,
+    ): SingleQuery = copy(filter = LegacyConditionAdapter.adapt(condition), projection = projection, sort = sort)
 
     /**
      * Creates a new SingleQuery with the specified projection.

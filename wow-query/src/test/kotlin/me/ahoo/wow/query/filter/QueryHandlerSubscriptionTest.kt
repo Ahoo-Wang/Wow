@@ -15,10 +15,10 @@ package me.ahoo.wow.query.filter
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
-import me.ahoo.wow.api.query.ConditionCapable
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
+import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.filter.EmptyFilterChain
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.Filter
@@ -118,9 +118,7 @@ class QueryHandlerSubscriptionTest {
             next: FilterChain<QueryContext<*, *>>
         ): Mono<Void> {
             contexts.add(context)
-            context.asRewritableQuery().rewriteQuery {
-                it.appendCondition(APPENDED_CONDITION)
-            }
+            context.appendFilter(APPENDED_FILTER)
             return next.filter(context).then(
                 Mono.defer {
                     if (context.queryType == QueryType.COUNT) {
@@ -143,7 +141,7 @@ class QueryHandlerSubscriptionTest {
             matchedContexts.assert().hasSize(expected)
             matchedContexts.toSet().assert().hasSize(expected)
             matchedContexts.forEach { context ->
-                queryCondition(context).assert().isEqualTo(APPENDED_CONDITION)
+                queryFilter(context).assert().isEqualTo(APPENDED_FILTER)
                 if (queryType == QueryType.COUNT) {
                     context.getAttribute<Int>(MASK_COUNT_KEY).assert().isNull()
                 } else {
@@ -190,12 +188,12 @@ class QueryHandlerSubscriptionTest {
     private companion object {
         const val RESULT = "result"
         const val MASK_COUNT_KEY = "maskCount"
-        val APPENDED_CONDITION: Condition = Condition.id("subscription")
+        val APPENDED_FILTER = Condition.id("subscription").toFilterExpression()
 
-        fun queryCondition(context: QueryContext<*, *>): Condition =
+        fun queryFilter(context: QueryContext<*, *>): me.ahoo.wow.api.query.FilterExpression =
             when (val query = context.getQuery()) {
-                is Condition -> query
-                is ConditionCapable<*> -> query.condition
+                is me.ahoo.wow.api.query.FilterExpression -> query
+                is me.ahoo.wow.api.query.FilterCapable<*> -> query.filter
                 else -> error("Unsupported query type: ${query::class}.")
             }
     }

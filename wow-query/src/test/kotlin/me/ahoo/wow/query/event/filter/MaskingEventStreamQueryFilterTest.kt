@@ -152,7 +152,7 @@ object MockEventStreamQueryService : EventStreamQueryService {
         return Mono.just(PagedList(1, listOf(dynamicDocument)))
     }
 
-    override fun count(condition: Condition): Mono<Long> {
+    override fun count(filter: me.ahoo.wow.api.query.FilterExpression): Mono<Long> {
         return 1L.toMono()
     }
 }

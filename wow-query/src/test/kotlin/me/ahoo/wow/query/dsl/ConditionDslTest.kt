@@ -251,7 +251,6 @@ class ConditionDslTest {
     @Test
     fun `should build nested conditions`() {
         val condition = condition {
-            raw("1=1")
             "state" nested {
                 "field27" eq "value27"
                 "field28" eq "value28"
@@ -266,7 +265,6 @@ class ConditionDslTest {
         condition.assert().isEqualTo(
             Condition.and(
                 listOf(
-                    Condition.raw("1=1"),
                     Condition.eq("state.field27", "value27"),
                     Condition.eq("state.field28", "value28"),
                     Condition.eq("state.child.field29", "value29"),
