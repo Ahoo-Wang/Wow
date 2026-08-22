@@ -4,6 +4,7 @@
   ],
   "template": {
     "mappings": {
+      "date_detection": false,
       "properties": {
         "contextName": {
           "type": "keyword"
@@ -68,7 +69,8 @@
             "match_mapping_type": "string",
             "path_match": "tags.*",
             "mapping": {
-              "type": "keyword"
+              "type": "keyword",
+              "ignore_above": 8191
             }
           }
         },
@@ -77,7 +79,8 @@
             "match": "id",
             "match_mapping_type": "string",
             "mapping": {
-              "type": "keyword"
+              "type": "keyword",
+              "ignore_above": 8191
             }
           }
         },
@@ -86,7 +89,8 @@
             "match": "*Id",
             "match_mapping_type": "string",
             "mapping": {
-              "type": "keyword"
+              "type": "keyword",
+              "ignore_above": 8191
             }
           }
         }

@@ -296,6 +296,41 @@ Publish a mapping change in this order:
 
 ## Configure Event Stream Index Template
 
+The built-in templates disable automatic date detection; map domain date fields explicitly in an aggregate-specific
+template. Event entries are `nested`, while `body[].body` remains available in `_source` but is not indexed, preventing
+arbitrary payloads from breaking persistence through mapping conflicts. One event stream is limited to 10,000 events,
+matching Elasticsearch's default nested-object limit.
+
+Elasticsearch `ELEM_MATCH` children use fully qualified paths:
+
+```kotlin
+condition {
+    "body" elemMatch {
+        "body.name" eq "Created"
+    }
+}
+```
+
+```json
+{
+  "condition": {
+    "field": "body",
+    "operator": "ELEM_MATCH",
+    "children": [
+      {
+        "field": "body.name",
+        "operator": "EQ",
+        "value": "Created"
+      }
+    ]
+  }
+}
+```
+
+Payload search or custom nested semantics require an application-owned higher-priority template and matching query
+converter. That template must reproduce the complete built-in baseline because composable templates do not merge by
+priority.
+
 ```http request
 POST _index_template/wow-event-stream-template
 {
@@ -304,6 +339,7 @@ POST _index_template/wow-event-stream-template
   ],
   "template": {
     "mappings": {
+      "date_detection": false,
       "properties": {
         "aggregateId": {
           "type": "keyword"
@@ -312,7 +348,12 @@ POST _index_template/wow-event-stream-template
           "type": "keyword"
         },
         "body": {
+          "type": "nested",
           "properties": {
+            "body": {
+              "type": "object",
+              "enabled": false
+            },
             "bodyType": {
               "type": "keyword"
             },
@@ -355,6 +396,12 @@ POST _index_template/wow-event-stream-template
         "tenantId": {
           "type": "keyword"
         },
+        "ownerId": {
+          "type": "keyword"
+        },
+        "spaceId": {
+          "type": "keyword"
+        },
         "version": {
           "type": "integer"
         }
@@ -364,7 +411,8 @@ POST _index_template/wow-event-stream-template
           "string_as_keyword": {
             "match_mapping_type": "string",
             "mapping": {
-              "type": "keyword"
+              "type": "keyword",
+              "ignore_above": 8191
             }
           }
         }
@@ -384,6 +432,7 @@ POST _index_template/wow-snapshot-template
   ],
   "template": {
     "mappings": {
+      "date_detection": false,
       "properties": {
         "contextName": {
           "type": "keyword"
@@ -401,6 +450,12 @@ POST _index_template/wow-snapshot-template
           "type": "integer"
         },
         "eventId": {
+          "type": "keyword"
+        },
+        "ownerId": {
+          "type": "keyword"
+        },
+        "spaceId": {
           "type": "keyword"
         },
         "firstOperator": {
@@ -421,6 +476,10 @@ POST _index_template/wow-snapshot-template
         "deleted": {
           "type": "boolean"
         },
+        "tags": {
+          "type": "object",
+          "dynamic": true
+        },
         "state": {
           "properties": {
             "id": {
@@ -434,11 +493,22 @@ POST _index_template/wow-snapshot-template
       },
       "dynamic_templates": [
         {
+          "tags_strings_as_keyword": {
+            "match_mapping_type": "string",
+            "path_match": "tags.*",
+            "mapping": {
+              "type": "keyword",
+              "ignore_above": 8191
+            }
+          }
+        },
+        {
           "id_string_as_keyword": {
             "match": "id",
             "match_mapping_type": "string",
             "mapping": {
-              "type": "keyword"
+              "type": "keyword",
+              "ignore_above": 8191
             }
           }
         },
@@ -447,7 +517,8 @@ POST _index_template/wow-snapshot-template
             "match": "*Id",
             "match_mapping_type": "string",
             "mapping": {
-              "type": "keyword"
+              "type": "keyword",
+              "ignore_above": 8191
             }
           }
         }
@@ -463,30 +534,21 @@ Leverage Elasticsearch's full-text search capabilities for complex queries on sn
 
 ### Add Full-Text Index for State Fields
 
-```http request
-POST _index_template/wow-order-snapshot-template
+The following is only the custom `state.properties` fragment; do not submit it as an index template:
+
+```json
 {
-  "index_patterns": [
-    "wow.*.order.snapshot"
-  ],
-  "priority": 100,
-  "template": {
-    "mappings": {
-      "properties": {
-        "state": {
-          "properties": {
-            "description": {
-              "type": "text",
-              "analyzer": "standard"
-            },
-            "customerName": {
-              "type": "text",
-              "fields": {
-                "keyword": {
-                  "type": "keyword"
-                }
-              }
-            }
+  "state": {
+    "properties": {
+      "description": {
+        "type": "text",
+        "analyzer": "standard"
+      },
+      "customerName": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword"
           }
         }
       }
@@ -495,9 +557,10 @@ POST _index_template/wow-order-snapshot-template
 }
 ```
 
-The higher priority makes the aggregate template win over Wow's default snapshot template. The shortened example
-shows only the custom fields; a production replacement must also include the required baseline snapshot mappings, or
-compose both baseline and custom mappings from component templates.
+To publish `wow-order-snapshot-template`, copy the complete built-in snapshot template shown above, merge this fragment
+into `mappings.properties`, narrow `index_patterns`, and then set `priority: 100`. A higher-priority composable template
+replaces Wow's default template instead of merging with it; never publish the fragment alone. Alternatively, build the
+complete mapping from operator-owned baseline and custom component templates.
 
 ### Execute Full-Text Search
 
