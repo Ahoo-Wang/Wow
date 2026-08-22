@@ -29,7 +29,7 @@ import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
 
-class AggregateSnapshotHandlerFunction(
+class SnapshotAggregationHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val snapshotQueryHandler: SnapshotQueryHandler,
     private val rewriteRequestCondition: RewriteRequestCondition,
@@ -46,15 +46,15 @@ class AggregateSnapshotHandlerFunction(
             .toServerResponse(request, exceptionHandler)
 }
 
-class AggregateSnapshotHandlerFunctionFactory(
+class SnapshotAggregationHandlerFunctionFactory(
     private val snapshotQueryHandler: SnapshotQueryHandler,
     private val rewriteRequestCondition: RewriteRequestCondition,
     private val exceptionHandler: RequestExceptionHandler,
-) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Snapshot.AGGREGATE) {
+) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Snapshot.AGGREGATION) {
     override fun create(
         contract: HttpRouteContract,
         metadata: HttpRouteHandlerMetadata.Aggregate,
-    ): HandlerFunction<ServerResponse> = AggregateSnapshotHandlerFunction(
+    ): HandlerFunction<ServerResponse> = SnapshotAggregationHandlerFunction(
         aggregateMetadata = aggregateMetadata(metadata),
         snapshotQueryHandler = snapshotQueryHandler,
         rewriteRequestCondition = rewriteRequestCondition,

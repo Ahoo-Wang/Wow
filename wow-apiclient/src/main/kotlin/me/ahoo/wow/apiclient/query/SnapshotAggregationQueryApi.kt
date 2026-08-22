@@ -17,7 +17,7 @@ import me.ahoo.wow.api.query.AggregationQuery
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.service.annotation.PostExchange
 
-const val SNAPSHOT_AGGREGATION_RESOURCE_NAME = "$SNAPSHOT_RESOURCE_NAME/aggregate"
+const val SNAPSHOT_AGGREGATION_RESOURCE_NAME = "$SNAPSHOT_RESOURCE_NAME/aggregation"
 
 interface SnapshotAggregationQueryApi<R> : SnapshotQueryApi {
     @PostExchange(SNAPSHOT_AGGREGATION_RESOURCE_NAME)

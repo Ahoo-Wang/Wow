@@ -515,7 +515,7 @@ listQuery {
 }.dynamicQuery(snapshotQueryService)
 ```
 
-## Aggregation Queries
+## Snapshot Aggregation
 
 Use the portable `AggregationQuery` so aggregation still passes through Wow condition rewriting, ABAC, and tenant/owner filters:
 

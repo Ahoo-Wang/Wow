@@ -123,13 +123,13 @@ object SnapshotRouteContributor : RouteContributor {
         currentContext = currentContext,
         aggregateRouteMetadata = aggregateRouteMetadata,
         componentContext = componentContext,
-        handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.AGGREGATE,
+        handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.AGGREGATION,
         resourceName = SNAPSHOT,
-        operation = "aggregate",
-        operationSummary = "Aggregate Snapshot",
+        operation = "aggregation",
+        operationSummary = "Snapshot Aggregation",
         appendTenantPath = variant.appendTenantPath,
         appendOwnerPath = variant.appendOwnerPath,
-        appendPathSuffix = "snapshot/aggregate",
+        appendPathSuffix = "snapshot/aggregation",
         accept = STREAMING_ACCEPT,
         requestBody = componentContext.aggregatedAggregationQueryRequestBodyRef(
             aggregateRouteMetadata.aggregateMetadata

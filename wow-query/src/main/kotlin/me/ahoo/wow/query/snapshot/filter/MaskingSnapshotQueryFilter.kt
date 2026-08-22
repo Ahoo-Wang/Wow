@@ -35,7 +35,7 @@ class MaskingSnapshotQueryFilter(maskerRegistry: StateDataMaskerRegistry) : Snap
         next: FilterChain<QueryContext<*, *>>
     ): Mono<Void> {
         if (
-            context.queryType == QueryType.AGGREGATE &&
+            context.queryType == QueryType.AGGREGATION &&
             !maskerRegistry.getAggregateDataMasker(context.namedAggregate).isEmpty()
         ) {
             return Mono.error(

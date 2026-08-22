@@ -591,7 +591,7 @@ class HttpQueryGuardFilterTest {
         query: AggregationQuery,
     ): QueryContext<AggregationQuery, Flux<Map<String, Any?>>> =
         DefaultQueryContext<AggregationQuery, Flux<Map<String, Any?>>>(
-            QueryType.AGGREGATE,
+            QueryType.AGGREGATION,
             MOCK_AGGREGATE_METADATA,
         ).setQuery(query)
 

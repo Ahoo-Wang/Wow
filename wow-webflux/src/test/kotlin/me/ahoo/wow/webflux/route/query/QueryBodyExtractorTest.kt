@@ -29,7 +29,7 @@ import me.ahoo.wow.query.filter.QueryHandler
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
-import me.ahoo.wow.webflux.route.snapshot.AggregateSnapshotHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.snapshot.SnapshotAggregationHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
@@ -49,13 +49,13 @@ class QueryBodyExtractorTest {
         val queryHandler = mockk<SnapshotQueryHandler> {
             every { aggregate(any(), any()) } returns Flux.just(mapOf("count" to 1L))
         }
-        val handlerFunction = AggregateSnapshotHandlerFunctionFactory(
+        val handlerFunction = SnapshotAggregationHandlerFunctionFactory(
             snapshotQueryHandler = queryHandler,
             rewriteRequestCondition = DefaultRewriteRequestCondition,
             exceptionHandler = WebFluxRequestExceptionHandler(),
         ).create(
             testAggregateRouteContract(
-                handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.AGGREGATE,
+                handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.AGGREGATION,
                 aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
             )
         )

@@ -81,7 +81,7 @@ class TailEventStreamQueryFilter(private val queryServiceFactory: EventStreamQue
                 }
             }
 
-            QueryType.AGGREGATE -> error("Event stream aggregation is not supported.")
+            QueryType.AGGREGATION -> error("Event stream aggregation is not supported.")
         }
         return next.filter(context)
     }

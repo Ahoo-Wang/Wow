@@ -262,9 +262,9 @@ pagedQuery {
 }.query(queryService)
 ```
 
-## 执行聚合查询
+## 执行快照统计分析
 
-`SnapshotQueryService` 支持 MongoDB 与 Elasticsearch 语义一致的快照聚合。多个分组维度按声明顺序组成组合键，结果以 alias 扁平返回：
+`SnapshotQueryService` 支持 MongoDB 与 Elasticsearch 语义一致的快照统计分析。多个分组维度按声明顺序组成组合键，结果以 alias 扁平返回；HTTP 入口为 `POST .../snapshot/aggregation`：
 
 ```kotlin
 aggregationQuery {

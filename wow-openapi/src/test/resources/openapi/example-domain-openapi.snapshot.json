@@ -6178,9 +6178,9 @@
         "tags" : [ "example.cart", "customer" ]
       }
     },
-    "/cart/snapshot/aggregate" : {
+    "/cart/snapshot/aggregation" : {
       "post" : {
-        "operationId" : "example.cart.snapshot.aggregate",
+        "operationId" : "example.cart.snapshot.aggregation",
         "parameters" : [ ],
         "requestBody" : {
           "$ref" : "#/components/requestBodies/example.cart.AggregationQuery"
@@ -7095,9 +7095,9 @@
         "tags" : [ "example.cart", "customer" ]
       }
     },
-    "/owner/{ownerId}/cart/snapshot/aggregate" : {
+    "/owner/{ownerId}/cart/snapshot/aggregation" : {
       "post" : {
-        "operationId" : "example.cart.owner.snapshot.aggregate",
+        "operationId" : "example.cart.owner.snapshot.aggregation",
         "parameters" : [ {
           "$ref" : "#/components/parameters/wow.ownerId"
         } ],
@@ -7678,9 +7678,9 @@
         "tags" : [ "example.order" ]
       }
     },
-    "/owner/{ownerId}/sales-order/snapshot/aggregate" : {
+    "/owner/{ownerId}/sales-order/snapshot/aggregation" : {
       "post" : {
-        "operationId" : "example.order.owner.snapshot.aggregate",
+        "operationId" : "example.order.owner.snapshot.aggregation",
         "parameters" : [ {
           "$ref" : "#/components/parameters/wow.Wow-Space-Id"
         }, {
@@ -8036,9 +8036,9 @@
         "tags" : [ "example.order" ]
       }
     },
-    "/sales-order/snapshot/aggregate" : {
+    "/sales-order/snapshot/aggregation" : {
       "post" : {
-        "operationId" : "example.order.snapshot.aggregate",
+        "operationId" : "example.order.snapshot.aggregation",
         "parameters" : [ {
           "$ref" : "#/components/parameters/wow.Wow-Space-Id"
         } ],
@@ -8414,9 +8414,9 @@
         "tags" : [ "tck.mock_aggregate" ]
       }
     },
-    "/tck/mock_aggregate/snapshot/aggregate" : {
+    "/tck/mock_aggregate/snapshot/aggregation" : {
       "post" : {
-        "operationId" : "tck.mock_aggregate.snapshot.aggregate",
+        "operationId" : "tck.mock_aggregate.snapshot.aggregation",
         "parameters" : [ ],
         "requestBody" : {
           "$ref" : "#/components/requestBodies/tck.mock_aggregate.AggregationQuery"
@@ -8772,9 +8772,9 @@
         "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
       }
     },
-    "/tck/modeling_command_aggregate_with_tenant_id/snapshot/aggregate" : {
+    "/tck/modeling_command_aggregate_with_tenant_id/snapshot/aggregation" : {
       "post" : {
-        "operationId" : "tck.modeling_command_aggregate_with_tenant_id.snapshot.aggregate",
+        "operationId" : "tck.modeling_command_aggregate_with_tenant_id.snapshot.aggregation",
         "parameters" : [ ],
         "requestBody" : {
           "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_with_tenant_id.AggregationQuery"
@@ -9130,9 +9130,9 @@
         "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
       }
     },
-    "/tck/modeling_command_aggregate_without_ctor_parameters/snapshot/aggregate" : {
+    "/tck/modeling_command_aggregate_without_ctor_parameters/snapshot/aggregation" : {
       "post" : {
-        "operationId" : "tck.modeling_command_aggregate_without_ctor_parameters.snapshot.aggregate",
+        "operationId" : "tck.modeling_command_aggregate_without_ctor_parameters.snapshot.aggregation",
         "parameters" : [ ],
         "requestBody" : {
           "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_without_ctor_parameters.AggregationQuery"
@@ -9632,9 +9632,9 @@
         "tags" : [ "tck.mock_aggregate" ]
       }
     },
-    "/tck/tenant/{tenantId}/mock_aggregate/snapshot/aggregate" : {
+    "/tck/tenant/{tenantId}/mock_aggregate/snapshot/aggregation" : {
       "post" : {
-        "operationId" : "tck.mock_aggregate.tenant.snapshot.aggregate",
+        "operationId" : "tck.mock_aggregate.tenant.snapshot.aggregation",
         "parameters" : [ {
           "$ref" : "#/components/parameters/wow.tenantId"
         } ],
@@ -10508,9 +10508,9 @@
         "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
       }
     },
-    "/tck/tenant/{tenantId}/modeling_command_aggregate_with_tenant_id/snapshot/aggregate" : {
+    "/tck/tenant/{tenantId}/modeling_command_aggregate_with_tenant_id/snapshot/aggregation" : {
       "post" : {
-        "operationId" : "tck.modeling_command_aggregate_with_tenant_id.tenant.snapshot.aggregate",
+        "operationId" : "tck.modeling_command_aggregate_with_tenant_id.tenant.snapshot.aggregation",
         "parameters" : [ {
           "$ref" : "#/components/parameters/wow.tenantId"
         } ],
@@ -11313,9 +11313,9 @@
         "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
       }
     },
-    "/tck/tenant/{tenantId}/modeling_command_aggregate_without_ctor_parameters/snapshot/aggregate" : {
+    "/tck/tenant/{tenantId}/modeling_command_aggregate_without_ctor_parameters/snapshot/aggregation" : {
       "post" : {
-        "operationId" : "tck.modeling_command_aggregate_without_ctor_parameters.tenant.snapshot.aggregate",
+        "operationId" : "tck.modeling_command_aggregate_without_ctor_parameters.tenant.snapshot.aggregation",
         "parameters" : [ {
           "$ref" : "#/components/parameters/wow.tenantId"
         } ],
@@ -12828,9 +12828,9 @@
         "tags" : [ "example.order" ]
       }
     },
-    "/tenant/{tenantId}/sales-order/snapshot/aggregate" : {
+    "/tenant/{tenantId}/sales-order/snapshot/aggregation" : {
       "post" : {
-        "operationId" : "example.order.tenant.snapshot.aggregate",
+        "operationId" : "example.order.tenant.snapshot.aggregation",
         "parameters" : [ {
           "$ref" : "#/components/parameters/wow.Wow-Space-Id"
         }, {

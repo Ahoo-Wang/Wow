@@ -255,7 +255,7 @@ class HttpQueryGuardFilter(
 
             QueryType.COUNT -> context.asCountQuery().rewriteResult { it.timeout(idleTimeout) }
 
-            QueryType.AGGREGATE -> context.asAggregationQuery().rewriteResult {
+            QueryType.AGGREGATION -> context.asAggregationQuery().rewriteResult {
                 if (request.acceptsEventStream()) {
                     it.timeout(idleTimeout)
                 } else {
@@ -296,7 +296,7 @@ class HttpQueryGuardFilter(
             QueryType.PAGED,
             QueryType.DYNAMIC_PAGED,
             QueryType.COUNT,
-            QueryType.AGGREGATE,
+            QueryType.AGGREGATION,
         )
         const val FIELD_WILDCARD = "*"
         val COLLECTION_OPERATORS = setOf(

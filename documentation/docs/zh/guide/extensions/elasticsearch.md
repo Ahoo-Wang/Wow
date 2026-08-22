@@ -505,7 +505,7 @@ listQuery {
 }.dynamicQuery(snapshotQueryService)
 ```
 
-## 聚合查询
+## 快照统计分析
 
 使用公共 `AggregationQuery`，可以让聚合继续经过 Wow 的条件改写、ABAC 与租户/所有者过滤：
 

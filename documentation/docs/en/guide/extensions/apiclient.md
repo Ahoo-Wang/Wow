@@ -182,7 +182,7 @@ interface OrderQueryApi : SynchronousSnapshotQueryApi<OrderState>
 The synchronous variant mirrors the reactive API but returns values directly
 (blocking).
 
-### Aggregation Query API
+### Snapshot Aggregation API
 
 Aggregation remains opt-in and does not change the existing composite query interfaces:
 

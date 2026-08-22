@@ -47,6 +47,6 @@ class DefaultSnapshotQueryHandler(
         aggregationQuery: AggregationQuery,
     ): Flux<Map<String, Any?>> = Flux.defer {
         aggregationQuery.validateFieldTypes(namedAggregate)
-        flux(namedAggregate, QueryType.AGGREGATE, aggregationQuery)
+        flux(namedAggregate, QueryType.AGGREGATION, aggregationQuery)
     }
 }

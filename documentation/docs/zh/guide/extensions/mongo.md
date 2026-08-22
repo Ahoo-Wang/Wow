@@ -408,7 +408,7 @@ snapshotQueryService.dynamicQuery(condition)
 
 `MongoSnapshotQueryService` 使用 `MaterializedSnapshot<S>` 作为其类型化的结果包装器，其中 `S` 是从聚合元数据解析出的聚合状态类型。这支持直接对聚合状态字段进行类型安全的动态查询——例如，查询 `state.status` 或 `state.totalAmount` 而不需要单独的投影处理器。
 
-### 快照聚合
+### 快照统计分析
 
 `AggregationQuery` 会编译成 `$match -> $group -> $project -> $sort -> $limit`。多维分组使用复合 `_id`，数值直方图使用取整表达式，时间直方图使用 `$dateTrunc`：
 

@@ -176,7 +176,7 @@ interface OrderQueryApi : SynchronousSnapshotQueryApi<OrderState>
 
 同步版本与响应式 API 对应，但直接返回值（阻塞）。
 
-### 聚合查询 API
+### 快照统计分析 API
 
 聚合接口保持可选，不修改已有组合接口：
 

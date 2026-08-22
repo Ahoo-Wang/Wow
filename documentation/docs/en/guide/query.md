@@ -262,9 +262,9 @@ pagedQuery {
 }.query(queryService)
 ```
 
-## Execute Aggregation Query
+## Execute Snapshot Aggregation
 
-`SnapshotQueryService` provides snapshot aggregation with the same public semantics on MongoDB and Elasticsearch. Ordered group dimensions form a composite key and aliases are flattened into each result row:
+`SnapshotQueryService` provides snapshot aggregation with the same public semantics on MongoDB and Elasticsearch. Ordered group dimensions form a composite key, aliases are flattened into each result row, and the HTTP endpoint is `POST .../snapshot/aggregation`:
 
 ```kotlin
 aggregationQuery {

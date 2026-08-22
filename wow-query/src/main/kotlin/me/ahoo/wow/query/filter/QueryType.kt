@@ -21,5 +21,5 @@ enum class QueryType(val isDynamic: Boolean) {
     PAGED(false),
     DYNAMIC_PAGED(true),
     COUNT(false),
-    AGGREGATE(true),
+    AGGREGATION(true),
 }

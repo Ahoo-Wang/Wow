@@ -22,7 +22,6 @@ import me.ahoo.wow.webflux.route.event.ListQueryEventStreamHandlerFunctionFactor
 import me.ahoo.wow.webflux.route.event.LoadEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.PagedQueryEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.query.RewriteRequestCondition
-import me.ahoo.wow.webflux.route.snapshot.AggregateSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.CountSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.ListQuerySnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.ListQuerySnapshotStateHandlerFunctionFactory
@@ -31,6 +30,7 @@ import me.ahoo.wow.webflux.route.snapshot.PagedQuerySnapshotHandlerFunctionFacto
 import me.ahoo.wow.webflux.route.snapshot.PagedQuerySnapshotStateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.SingleSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.SingleSnapshotStateHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.snapshot.SnapshotAggregationHandlerFunctionFactory
 
 class QueryRouteModule(
     snapshotQueryHandler: SnapshotQueryHandler,
@@ -39,7 +39,7 @@ class QueryRouteModule(
     exceptionHandler: RequestExceptionHandler
 ) : WebFluxRouteModule {
     override val httpFactories: List<HttpRouteHandlerFunctionFactory> = listOf(
-        AggregateSnapshotHandlerFunctionFactory(
+        SnapshotAggregationHandlerFunctionFactory(
             snapshotQueryHandler = snapshotQueryHandler,
             rewriteRequestCondition = rewriteRequestCondition,
             exceptionHandler = exceptionHandler

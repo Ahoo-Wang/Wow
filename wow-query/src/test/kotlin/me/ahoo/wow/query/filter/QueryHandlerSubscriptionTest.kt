@@ -97,7 +97,7 @@ class QueryHandlerSubscriptionTest {
             QueryType.PAGED to handler.paged(MOCK_AGGREGATE_METADATA, pagedQuery { }),
             QueryType.DYNAMIC_PAGED to handler.dynamicPaged(MOCK_AGGREGATE_METADATA, pagedQuery { }),
             QueryType.COUNT to handler.count(MOCK_AGGREGATE_METADATA, Condition.ALL),
-            QueryType.AGGREGATE to handler.aggregate(AGGREGATION_QUERY),
+            QueryType.AGGREGATION to handler.aggregate(AGGREGATION_QUERY),
         )
 
     private class TestQueryHandler(chain: FilterChain<QueryContext<*, *>>) :
@@ -106,7 +106,7 @@ class QueryHandlerSubscriptionTest {
             ErrorHandler<QueryContext<*, *>> { _, error -> Mono.error(error) }
         ) {
         fun aggregate(aggregationQuery: AggregationQuery): Flux<Map<String, Any?>> =
-            flux(MOCK_AGGREGATE_METADATA, QueryType.AGGREGATE, aggregationQuery)
+            flux(MOCK_AGGREGATE_METADATA, QueryType.AGGREGATION, aggregationQuery)
     }
 
     private class NonIdempotentTestFilter(
@@ -188,7 +188,7 @@ class QueryHandlerSubscriptionTest {
                 )
 
                 QueryType.COUNT -> context.asCountQuery().setResult(Mono.just(1L))
-                QueryType.AGGREGATE -> context.asAggregationQuery().setResult(
+                QueryType.AGGREGATION -> context.asAggregationQuery().setResult(
                     Flux.just(mapOf("result" to RESULT))
                 )
             }
