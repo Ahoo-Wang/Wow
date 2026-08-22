@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.dsl
 
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
@@ -73,11 +74,15 @@ fun pagedQuery(block: PagedQueryDsl.() -> Unit): IPagedQuery {
  * @param block The DSL block to define the condition.
  * @return The constructed [Condition] object.
  */
+@Deprecated("Use filterExpression.")
 fun condition(block: ConditionDsl.() -> Unit): Condition {
     val dsl = ConditionDsl()
     dsl.block()
     return dsl.build()
 }
+
+/** Creates a filter expression. */
+fun filterExpression(block: FilterDsl.() -> Unit): FilterExpression = filter(block)
 
 /**
  *

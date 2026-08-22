@@ -62,7 +62,6 @@ class ConditionConverterTest {
         override fun isFalse(condition: Condition) = record("isFalse", condition)
         override fun exists(condition: Condition) = record("exists", condition)
         override fun deleted(condition: Condition) = record("deleted", condition)
-        override fun raw(condition: Condition) = record("raw", condition)
 
         fun testInternalConvert(condition: Condition): Pair<String, Condition> {
             return internalConvert(condition)
@@ -212,11 +211,6 @@ class ConditionConverterTest {
     @Test
     fun `should dispatch exists operator`() {
         dispatchAndAssert("exists", Condition.exists("field1"))
-    }
-
-    @Test
-    fun `should dispatch raw operator`() {
-        dispatchAndAssert("raw", Condition.raw("1=1"))
     }
 
     @Test

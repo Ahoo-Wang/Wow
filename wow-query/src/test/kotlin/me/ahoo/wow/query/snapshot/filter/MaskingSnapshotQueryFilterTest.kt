@@ -214,7 +214,7 @@ class MaskingSnapshotQueryFilterTest {
             return PagedList(1, listOf(dynamicDocument)).toMono()
         }
 
-        override fun count(condition: Condition): Mono<Long> {
+        override fun count(filter: me.ahoo.wow.api.query.FilterExpression): Mono<Long> {
             return 1L.toMono()
         }
     }

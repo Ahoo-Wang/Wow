@@ -163,13 +163,13 @@ val state = queryApi.getStateById("order-001").block()
 // Paged: takes an IPagedQuery (1-indexed Pagination); returns Mono<PagedList<...>>
 val paged = queryApi.paged(
     PagedQuery(
-        condition = Condition.all(),
+        filter = MatchAllFilter,
         pagination = Pagination(index = 1, size = 10),
     ),
 ).block()
 
-// Count: takes a Condition; returns Mono<Long>
-val total = queryApi.count(Condition.all()).block()
+// Count: takes a FilterExpression; returns Mono<Long>
+val total = queryApi.count(MatchAllFilter).block()
 ```
 
 ### Synchronous Query API

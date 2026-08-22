@@ -14,7 +14,7 @@
 package me.ahoo.wow.example.api.client
 
 import me.ahoo.coapi.api.CoApi
-import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
@@ -31,7 +31,7 @@ import reactor.core.publisher.Mono
 @CoApi(baseUrl = "http://localhost:8080")
 @HttpExchange(ExampleService.CART_AGGREGATE_NAME)
 interface CartQueryClient : ReactiveSnapshotQueryApi<CartData> {
-    override fun count(@RequestBody condition: Condition): Mono<Long>
+    override fun count(@RequestBody filter: FilterExpression): Mono<Long>
 
     override fun pagedState(@RequestBody pagedQuery: IPagedQuery): Mono<PagedList<CartData>>
 

@@ -20,7 +20,7 @@ import me.ahoo.wow.query.converter.FieldConverter
 import me.ahoo.wow.serialization.MessageRecords
 import org.bson.conversions.Bson
 
-object EventStreamConditionConverter : AbstractMongoConditionConverter() {
+object EventStreamConditionConverter : AbstractMongoConditionConverter(defaultDeletionState = null) {
     override val fieldConverter: FieldConverter = EventStreamFieldConverter
     override fun convert(condition: Condition): Bson {
         val convertedCondition = convertCondition(condition)

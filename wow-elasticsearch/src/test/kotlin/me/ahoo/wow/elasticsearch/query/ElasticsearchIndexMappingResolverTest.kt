@@ -24,6 +24,8 @@ import io.mockk.mockk
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.EqualFilter
+import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.Sort
 import org.junit.jupiter.api.Test
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
@@ -137,6 +139,13 @@ class ElasticsearchIndexMappingResolverTest {
         mapping.resolve("state.name", ElasticsearchFieldUsage.SEARCH).assert().isEqualTo("state.name")
         mapping.resolve("state.name", ElasticsearchFieldUsage.SORT).assert().isEqualTo("state.name.keyword")
         mapping.requireNested("state.items").assert().isEqualTo("state.items")
+        val documentIdFilter = mapping.resolve(
+            EqualFilter(
+                LogicalField("_id"),
+                me.ahoo.wow.serialization.JsonSerializer.valueToTree("aggregate-1"),
+            ),
+        ) as EqualFilter
+        documentIdFilter.field.value.assert().isEqualTo("_id")
 
         val condition = mapping.resolve(
             Condition.and(
@@ -161,8 +170,18 @@ class ElasticsearchIndexMappingResolverTest {
         )
         elementMatch.field.assert().isEqualTo("state.items")
         elementMatch.children.single().field.assert().isEqualTo("state.items.name")
-        val raw = Condition.raw("""{"match_all":{}}""")
-        mapping.resolve(raw).assert().isEqualTo(raw)
+
+        val filter = mapping.resolve(
+            me.ahoo.wow.api.query.ElementMatchFilter(
+                me.ahoo.wow.api.query.LogicalField("state.items"),
+                me.ahoo.wow.api.query.EqualFilter(
+                    me.ahoo.wow.api.query.LogicalField("state.items.name"),
+                    me.ahoo.wow.serialization.JsonSerializer.valueToTree("item"),
+                ),
+            ),
+        ) as me.ahoo.wow.api.query.ElementMatchFilter
+        (filter.predicate as me.ahoo.wow.api.query.EqualFilter).field.value.assert()
+            .isEqualTo("state.items.name")
     }
 
     @Test

@@ -11,6 +11,15 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema.typed.query
+package me.ahoo.wow.query
 
-interface AggregatedPagedQuery<CommandAggregateType : Any>
+import me.ahoo.wow.api.query.FilterOperator
+import me.ahoo.wow.api.query.LogicalField
+
+class UnsupportedFilterException(
+    val operator: FilterOperator,
+    val field: LogicalField?,
+    val backend: String,
+) : IllegalArgumentException(
+    "Filter [$operator]${field?.let { " on field [$it]" }.orEmpty()} is not supported by backend [$backend].",
+)

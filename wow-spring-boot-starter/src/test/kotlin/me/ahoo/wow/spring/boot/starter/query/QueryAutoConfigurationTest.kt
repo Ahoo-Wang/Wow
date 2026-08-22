@@ -8,7 +8,6 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.ISingleQuery
-import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.exception.WowException
@@ -148,7 +147,8 @@ class QueryAutoConfigurationTest {
                         it.getNestedDocument("state").assert().doesNotContainKey(SECRET)
                     }
                     .verifyComplete()
-                factory.service.lastQuery!!.condition.operator.assert().isNotEqualTo(Operator.ALL)
+                factory.service.lastQuery!!.filter.operator.assert()
+                    .isNotEqualTo(me.ahoo.wow.api.query.FilterOperator.MATCH_ALL)
 
                 val rawService = factory.create<Any>(MOCK_AGGREGATE_METADATA)
                 rawService.assert().isSameAs(factory.service)

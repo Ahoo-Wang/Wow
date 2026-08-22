@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/Ahoo-Wang/Wow/blob/main/schema/query/v2/paged-query.schema.json",
+  "title": "Paged Query",
+  "type": "object",
+  "properties": {
+    "filter": { "$ref": "filter-expression.schema.json" },
+    "projection": { "$ref": "../definitions.schema.json#/definitions/projection" },
+    "sort": { "type": "array", "items": { "$ref": "../definitions.schema.json#/definitions/sort" }, "default": [] },
+    "pagination": { "$ref": "../definitions.schema.json#/definitions/pagination" }
+  },
+  "required": ["filter"],
+  "additionalProperties": false
+}

@@ -16,6 +16,7 @@ package me.ahoo.wow.webflux.route.query
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.serialization.MessageRecords
@@ -29,12 +30,13 @@ class DefaultRewriteRequestConditionTest {
     fun `should not rewrite condition when no tenant or owner headers`() {
         val request = MockServerRequest.builder().build()
         val originalCondition = Condition("id")
+        val originalFilter = originalCondition.toFilterExpression()
         val result = DefaultRewriteRequestCondition.rewrite(
             MOCK_AGGREGATE_METADATA,
             request,
-            originalCondition
+            originalFilter
         )
-        result.assert().isSameAs(originalCondition)
+        result.assert().isSameAs(originalFilter)
     }
 
     @Test
@@ -49,7 +51,7 @@ class DefaultRewriteRequestConditionTest {
             request,
             ListQuery(condition = originalCondition)
         )
-        result.condition.assert().isNotSameAs(originalCondition)
+        result.filter.assert().isNotSameAs(originalCondition.toFilterExpression())
     }
 
     @Test
@@ -64,7 +66,7 @@ class DefaultRewriteRequestConditionTest {
             request,
             ListQuery(condition = originalCondition)
         )
-        result.condition.assert().isNotSameAs(originalCondition)
+        result.filter.assert().isNotSameAs(originalCondition.toFilterExpression())
     }
 
     @Test
@@ -79,6 +81,6 @@ class DefaultRewriteRequestConditionTest {
             request,
             ListQuery(condition = originalCondition)
         )
-        result.condition.assert().isNotSameAs(originalCondition)
+        result.filter.assert().isNotSameAs(originalCondition.toFilterExpression())
     }
 }

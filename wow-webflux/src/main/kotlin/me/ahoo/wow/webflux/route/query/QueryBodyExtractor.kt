@@ -14,20 +14,25 @@
 package me.ahoo.wow.webflux.route.query
 
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.SingleQuery
+import me.ahoo.wow.api.query.toFilterExpression
+import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toObject
 import me.ahoo.wow.webflux.route.mapRequestBodyDecodingException
 import org.springframework.http.ReactiveHttpInputMessage
 import org.springframework.web.reactive.function.BodyExtractor
 import org.springframework.web.reactive.function.BodyExtractors
 import reactor.core.publisher.Mono
+import tools.jackson.core.JacksonException
+import tools.jackson.databind.DeserializationFeature
 import tools.jackson.databind.node.ObjectNode
 
 class QueryBodyExtractor<Q : Any>(private val queryType: Class<Q>) : BodyExtractor<Mono<Q>, ReactiveHttpInputMessage> {
     companion object {
-        val CONDITION_EXTRACTOR = QueryBodyExtractor(Condition::class.java)
+        val FILTER_EXPRESSION_EXTRACTOR = QueryBodyExtractor(FilterExpression::class.java)
         val LIST_QUERY_EXTRACTOR = QueryBodyExtractor(ListQuery::class.java)
         val PAGED_QUERY_EXTRACTOR = QueryBodyExtractor(PagedQuery::class.java)
         val SINGLE_QUERY_EXTRACTOR = QueryBodyExtractor(SingleQuery::class.java)
@@ -40,8 +45,41 @@ class QueryBodyExtractor<Q : Any>(private val queryType: Class<Q>) : BodyExtract
         return BodyExtractors.toMono(ObjectNode::class.java)
             .extract(inputMessage, context)
             .mapRequestBodyDecodingException()
-            .map { objectNode ->
-                objectNode.toObject(queryType)
-            }
+            .map(::decode)
+    }
+
+    private fun decode(objectNode: ObjectNode): Q {
+        if (queryType == FilterExpression::class.java) {
+            return decodeCount(objectNode)
+        }
+        val hasFilter = objectNode.has("filter")
+        val hasCondition = objectNode.has("condition")
+        require(hasFilter.xor(hasCondition)) { "Exactly one of filter or condition is required." }
+        if (hasFilter) {
+            return strictDecode(objectNode)
+        }
+        val condition = objectNode.remove("condition").toObject(Condition::class.java)
+        objectNode.set("filter", JsonSerializer.valueToTree(condition.toFilterExpression()))
+        return objectNode.toObject(queryType)
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun decodeCount(objectNode: ObjectNode): Q {
+        val hasFilter = objectNode.has("op")
+        val hasCondition = objectNode.has("operator")
+        require(hasFilter.xor(hasCondition)) { "Exactly one of op or operator is required." }
+        return if (hasFilter) {
+            strictDecode(objectNode)
+        } else {
+            objectNode.toObject(Condition::class.java).toFilterExpression() as Q
+        }
+    }
+
+    private fun strictDecode(objectNode: ObjectNode): Q = try {
+        JsonSerializer.readerFor(queryType)
+            .with(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+            .readValue(objectNode)
+    } catch (error: JacksonException) {
+        throw IllegalArgumentException("Invalid filter request body.", error)
     }
 }

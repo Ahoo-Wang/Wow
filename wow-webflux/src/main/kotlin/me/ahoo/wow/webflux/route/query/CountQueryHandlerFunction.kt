@@ -20,7 +20,7 @@ import me.ahoo.wow.query.filter.Contexts.writeRawRequest
 import me.ahoo.wow.query.filter.QueryHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
-import me.ahoo.wow.webflux.route.query.QueryBodyExtractor.Companion.CONDITION_EXTRACTOR
+import me.ahoo.wow.webflux.route.query.QueryBodyExtractor.Companion.FILTER_EXPRESSION_EXTRACTOR
 import me.ahoo.wow.webflux.route.toServerResponse
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -35,7 +35,7 @@ class CountQueryHandlerFunction(
 ) : HandlerFunction<ServerResponse> {
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        return request.body(CONDITION_EXTRACTOR)
+        return request.body(FILTER_EXPRESSION_EXTRACTOR)
             .flatMap {
                 val query = rewriteRequestCondition.rewrite(aggregateMetadata, request, it)
                 queryHandler.count(aggregateMetadata, query)

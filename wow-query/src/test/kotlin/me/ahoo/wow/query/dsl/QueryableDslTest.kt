@@ -15,21 +15,24 @@ package me.ahoo.wow.query.dsl
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.toFilterExpression
 import org.junit.jupiter.api.Test
 
 class QueryableDslTest {
 
     private class TestQueryableDsl : QueryableDsl<ISingleQuery>() {
         fun exposedProjection(): Projection = projection
-        fun exposedCondition(): Condition = condition
+        fun exposedFilter(): FilterExpression = filter
         fun exposedSort(): List<Sort> = sort
 
         override fun build(): ISingleQuery {
-            return SingleQuery(condition, projection, sort)
+            return SingleQuery(filter, projection, sort)
         }
     }
 
@@ -37,7 +40,7 @@ class QueryableDslTest {
     fun `should use default values`() {
         val dsl = TestQueryableDsl()
         dsl.exposedProjection().assert().isEqualTo(Projection.ALL)
-        dsl.exposedCondition().assert().isEqualTo(Condition.all())
+        dsl.exposedFilter().assert().isEqualTo(MatchAllFilter)
         dsl.exposedSort().assert().isEmpty()
     }
 
@@ -63,7 +66,7 @@ class QueryableDslTest {
         val dsl = TestQueryableDsl()
         val condition = Condition.eq("field1", "value1")
         dsl.condition(condition)
-        dsl.exposedCondition().assert().isEqualTo(condition)
+        dsl.exposedFilter().assert().isEqualTo(condition.toFilterExpression())
     }
 
     @Test
@@ -72,7 +75,7 @@ class QueryableDslTest {
         dsl.condition {
             "field1" eq "value1"
         }
-        dsl.exposedCondition().assert().isEqualTo(Condition.eq("field1", "value1"))
+        dsl.exposedFilter().assert().isEqualTo(Condition.eq("field1", "value1").toFilterExpression())
     }
 
     @Test
@@ -99,7 +102,7 @@ class QueryableDslTest {
             projection { include("field1") }
             sort { "field1".asc() }
         }.build()
-        query.condition.assert().isEqualTo(Condition.eq("field1", "value1"))
+        query.filter.assert().isEqualTo(Condition.eq("field1", "value1").toFilterExpression())
         query.projection.include.assert().hasSize(1)
         query.sort.assert().hasSize(1)
     }

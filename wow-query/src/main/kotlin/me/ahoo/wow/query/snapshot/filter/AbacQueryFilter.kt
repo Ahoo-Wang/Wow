@@ -20,10 +20,10 @@ import me.ahoo.wow.api.abac.wildcard
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.query.Condition
-import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.query.dsl.condition
+import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.serialization.state.StateAggregateRecords.TAGS
 import reactor.core.publisher.Mono
@@ -51,6 +51,27 @@ import reactor.util.context.ContextView
 @FilterType(SnapshotQueryHandler::class)
 abstract class AbacQueryFilter : SnapshotQueryFilter {
     companion object {
+        @Deprecated("Use toFilterExpression.")
+        fun Map.Entry<AbacTagKey, AbacTagValue>.toCondition(): Condition = condition {
+            nested(TAGS)
+            if (value.wildcard) {
+                key.exists(true)
+            } else {
+                or {
+                    key.exists(false)
+                    key eq listOf<String>()
+                    key isIn value
+                }
+            }
+        }
+
+        @Deprecated("Use toFilterExpression.")
+        fun AbacTags.toCondition(): Condition = condition {
+            and {
+                for (tag in this@toCondition) condition(tag.toCondition())
+            }
+        }
+
         /**
          * Converts one principal tag into a nested query condition.
          *
@@ -59,16 +80,17 @@ abstract class AbacQueryFilter : SnapshotQueryFilter {
          *
          * @return the nested query condition
          */
-        fun Map.Entry<AbacTagKey, AbacTagValue>.toCondition(): Condition =
-            condition {
-                nested(TAGS)
-                if (value.wildcard) {
-                    key.exists(true)
-                } else {
-                    or {
-                        key.exists(false)
-                        key eq listOf<String>()
-                        key isIn value
+        fun Map.Entry<AbacTagKey, AbacTagValue>.toFilterExpression(): me.ahoo.wow.api.query.FilterExpression =
+            me.ahoo.wow.query.dsl.filter {
+                TAGS.nested {
+                    if (value.wildcard) {
+                        key.exists()
+                    } else {
+                        or {
+                            key.notExists()
+                            key.isEmptyCollection()
+                            key isIn value
+                        }
                     }
                 }
             }
@@ -78,11 +100,11 @@ abstract class AbacQueryFilter : SnapshotQueryFilter {
          *
          * @return the combined tag condition
          */
-        fun AbacTags.toCondition(): Condition =
-            condition {
+        fun AbacTags.toFilterExpression(): me.ahoo.wow.api.query.FilterExpression =
+            me.ahoo.wow.query.dsl.filter {
                 and {
-                    for (tag in this@toCondition) {
-                        condition(tag.toCondition())
+                    for (tag in this@toFilterExpression) {
+                        expression(tag.toFilterExpression())
                     }
                 }
             }
@@ -104,13 +126,16 @@ abstract class AbacQueryFilter : SnapshotQueryFilter {
      * @param context the query context
      * @return an unrestricted condition when no tags exist, otherwise the combined tag condition
      */
-    open fun resolveCondition(contextView: ContextView, context: QueryContext<*, *>): Mono<Condition> {
+    open fun resolveFilter(
+        contextView: ContextView,
+        context: QueryContext<*, *>
+    ): Mono<me.ahoo.wow.api.query.FilterExpression> {
         return getPrincipalTags(contextView, context).map {
             if (it.isEmpty()) {
-                return@map Condition.all()
+                return@map me.ahoo.wow.api.query.MatchAllFilter
             }
-            return@map it.toCondition()
-        }.switchIfEmpty(Condition.all().toMono())
+            return@map it.toFilterExpression()
+        }.switchIfEmpty(me.ahoo.wow.api.query.MatchAllFilter.toMono())
     }
 
     override fun filter(
@@ -118,13 +143,11 @@ abstract class AbacQueryFilter : SnapshotQueryFilter {
         next: FilterChain<QueryContext<*, *>>
     ): Mono<Void> {
         return Mono.deferContextual { contextView ->
-            resolveCondition(contextView, context).flatMap { abacCondition ->
-                if (abacCondition.operator == Operator.ALL) {
+            resolveFilter(contextView, context).flatMap { abacFilter ->
+                if (abacFilter === me.ahoo.wow.api.query.MatchAllFilter) {
                     return@flatMap next.filter(context)
                 }
-                context.asRewritableQuery().rewriteQuery { query ->
-                    query.appendCondition(abacCondition)
-                }
+                context.appendFilter(abacFilter)
                 next.filter(context)
             }
         }

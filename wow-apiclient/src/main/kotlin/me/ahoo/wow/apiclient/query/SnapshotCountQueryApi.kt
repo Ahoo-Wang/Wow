@@ -14,6 +14,8 @@
 package me.ahoo.wow.apiclient.query
 
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.toFilterExpression
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.service.annotation.PostExchange
 
@@ -21,5 +23,8 @@ const val SNAPSHOT_COUNT_RESOURCE_NAME = "$SNAPSHOT_RESOURCE_NAME/count"
 
 interface SnapshotCountQueryApi<R> : SnapshotQueryApi {
     @PostExchange(SNAPSHOT_COUNT_RESOURCE_NAME)
-    fun count(@RequestBody condition: Condition): R
+    fun count(@RequestBody filter: FilterExpression): R
+
+    @Deprecated("Use count(FilterExpression).")
+    fun count(condition: Condition): R = count(condition.toFilterExpression())
 }

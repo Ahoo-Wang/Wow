@@ -18,3 +18,10 @@ dependencies {
     testImplementation(project(":example-api"))
     testImplementation(project(":example-domain"))
 }
+
+tasks.processResources {
+    from(rootProject.file("schema/query/v2/filter-expression.schema.json")) {
+        into("META-INF/wow-schema")
+        rename { "FilterExpression.json" }
+    }
+}

@@ -6,6 +6,7 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.Operator
+import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.mongo.query.snapshot.SnapshotConditionConverter
 import me.ahoo.wow.serialization.MessageRecords
@@ -31,6 +32,31 @@ class SnapshotConditionConverterTest {
             expected
         )
         actual.toBsonDocument().assert().isEqualTo(deletionBson.toBsonDocument())
+    }
+
+    @Test
+    fun `should convert filter expression`() {
+        val actual = SnapshotConditionConverter.convert(
+            me.ahoo.wow.api.query.EqualFilter(
+                me.ahoo.wow.api.query.LogicalField("state.name"),
+                me.ahoo.wow.serialization.JsonSerializer.valueToTree("Wow"),
+            ),
+        )
+
+        assertConvert(actual, Filters.eq("state.name", "Wow"))
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `should preserve legacy document id and match semantics`() {
+        assertConvert(
+            SnapshotConditionConverter.convert(Condition.id("aggregate-1").toFilterExpression()),
+            Filters.eq(Documents.ID_FIELD, "aggregate-1"),
+        )
+        assertConvert(
+            SnapshotConditionConverter.convert(Condition.match("state.name", "wow").toFilterExpression()),
+            Filters.text("wow"),
+        )
     }
 
     @Test
@@ -325,45 +351,6 @@ class SnapshotConditionConverterTest {
     }
 
     @Test
-    fun `should convert raw bson condition`() {
-        val expected = Filters.eq("id", "id")
-        val actual = Condition.raw(expected).let {
-            SnapshotConditionConverter.convert(it)
-        }
-        assertConvert(actual, expected)
-    }
-
-    @Test
-    fun `should convert raw string condition`() {
-        val actual = Condition.raw("{\"id\":\"id\"}").let {
-            SnapshotConditionConverter.convert(it)
-        }.toBsonDocument()
-        val expected = Filters.eq("id", "id").toBsonDocument()
-        assertConvert(actual, expected)
-    }
-
-    @Test
-    fun `should convert raw map condition`() {
-        val actual = Condition.raw(mapOf("id" to "id")).let {
-            SnapshotConditionConverter.convert(it)
-        }.toBsonDocument()
-
-        val expected = Filters.eq("id", "id").toBsonDocument()
-        assertConvert(actual, expected)
-    }
-
-    data class RawObj(val id: String)
-
-    @Test
-    fun `should convert raw object condition`() {
-        val actual = Condition.raw(RawObj("id")).let {
-            SnapshotConditionConverter.convert(it)
-        }.toBsonDocument()
-        val expected = Filters.eq("id", "id").toBsonDocument()
-        assertConvert(actual, expected)
-    }
-
-    @Test
     fun `should convert aggregate id in logical conditions`() {
         val condition = Condition.and(
             Condition.eq(MessageRecords.AGGREGATE_ID, "and"),
@@ -456,18 +443,6 @@ class SnapshotConditionConverterTest {
                     Condition.or(listOf(Condition.exists("id"))),
                     Filters.or(Filters.exists("id", true))
                 ),
-                Arguments.of(
-                    Condition.or(listOf(Condition.raw(Filters.eq("id", false)))),
-                    Filters.or(Filters.eq("id", false))
-                ),
-                Arguments.of(
-                    Condition.raw(Filters.eq("id", false)),
-                    Filters.eq("id", false)
-                ),
-                Arguments.of(
-                    Condition.raw("{id:false}"),
-                    Filters.eq("id", false)
-                )
             )
         }
     }

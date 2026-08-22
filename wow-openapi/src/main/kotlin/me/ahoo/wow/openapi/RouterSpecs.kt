@@ -32,7 +32,6 @@ import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contributor.DefaultRouteContributors
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.openapi.render.OpenApiRenderer
-import me.ahoo.wow.schema.typed.AggregatedFields
 
 class RouterSpecs(
     private val currentContext: NamedBoundedContext,
@@ -149,7 +148,6 @@ class RouterSpecs(
             if (aggregateRouteMetadata.enabled.not()) {
                 return@forEach
             }
-            componentContext.schema(AggregatedFields::class.java, aggregateType)
             aggregateContributors.forEach { contributor ->
                 builder.addAll(
                     contributor.contributeAggregate(currentContext, aggregateRouteMetadata, componentContext)
