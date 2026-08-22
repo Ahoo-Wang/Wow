@@ -534,30 +534,21 @@ Leverage Elasticsearch's full-text search capabilities for complex queries on sn
 
 ### Add Full-Text Index for State Fields
 
-```http request
-POST _index_template/wow-order-snapshot-template
+The following is only the custom `state.properties` fragment; do not submit it as an index template:
+
+```json
 {
-  "index_patterns": [
-    "wow.*.order.snapshot"
-  ],
-  "priority": 100,
-  "template": {
-    "mappings": {
-      "properties": {
-        "state": {
-          "properties": {
-            "description": {
-              "type": "text",
-              "analyzer": "standard"
-            },
-            "customerName": {
-              "type": "text",
-              "fields": {
-                "keyword": {
-                  "type": "keyword"
-                }
-              }
-            }
+  "state": {
+    "properties": {
+      "description": {
+        "type": "text",
+        "analyzer": "standard"
+      },
+      "customerName": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword"
           }
         }
       }
@@ -566,9 +557,10 @@ POST _index_template/wow-order-snapshot-template
 }
 ```
 
-The higher priority makes the aggregate template win over Wow's default snapshot template. The shortened example
-shows only the custom fields; a production replacement must also include the required baseline snapshot mappings, or
-compose both baseline and custom mappings from component templates.
+To publish `wow-order-snapshot-template`, copy the complete built-in snapshot template shown above, merge this fragment
+into `mappings.properties`, narrow `index_patterns`, and then set `priority: 100`. A higher-priority composable template
+replaces Wow's default template instead of merging with it; never publish the fragment alone. Alternatively, build the
+complete mapping from operator-owned baseline and custom component templates.
 
 ### Execute Full-Text Search
 

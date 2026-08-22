@@ -519,30 +519,21 @@ POST _index_template/wow-snapshot-template
 
 ### 为状态字段添加全文索引
 
-```http request
-POST _index_template/wow-order-snapshot-template
+以下内容只是自定义 `state.properties` 片段，不能作为索引模板直接提交：
+
+```json
 {
-  "index_patterns": [
-    "wow.*.order.snapshot"
-  ],
-  "priority": 100,
-  "template": {
-    "mappings": {
-      "properties": {
-        "state": {
-          "properties": {
-            "description": {
-              "type": "text",
-              "analyzer": "standard"
-            },
-            "customerName": {
-              "type": "text",
-              "fields": {
-                "keyword": {
-                  "type": "keyword"
-                }
-              }
-            }
+  "state": {
+    "properties": {
+      "description": {
+        "type": "text",
+        "analyzer": "standard"
+      },
+      "customerName": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword"
           }
         }
       }
@@ -551,8 +542,10 @@ POST _index_template/wow-order-snapshot-template
 }
 ```
 
-更高的优先级会使聚合模板覆盖 Wow 默认快照模板。上例为简洁起见只展示自定义字段；生产模板还必须包含快照所需的
-基础映射，或者通过 component template 组合基础映射与自定义映射。
+发布 `wow-order-snapshot-template` 时，先复制上文完整的内置快照模板，将该片段合并到
+`mappings.properties`，收窄 `index_patterns`，最后设置 `priority: 100`。高优先级 composable template 会替换而非
+合并 Wow 默认模板，绝不能单独发布上述片段。也可以通过运维自有的基础 component template 和自定义 component
+template 组合出完整 Mapping。
 
 ::: tip
 如果需要中文分词支持，可以安装 [IK 分析器插件](https://github.com/medcl/elasticsearch-analysis-ik)，然后使用 `ik_max_word` 和 `ik_smart` 分析器。
