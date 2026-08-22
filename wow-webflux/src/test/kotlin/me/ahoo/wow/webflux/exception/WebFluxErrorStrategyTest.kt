@@ -28,6 +28,7 @@ import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.reactivestreams.Publisher
+import org.springframework.core.codec.DecodingException
 import org.springframework.core.io.buffer.DataBuffer
 import org.springframework.core.io.buffer.DefaultDataBufferFactory
 import org.springframework.http.HttpHeaders
@@ -71,6 +72,22 @@ class WebFluxErrorStrategyTest {
             .consumeNextWith {
                 it.statusCode().assert().isEqualTo(HttpStatus.BAD_REQUEST)
                 it.headers().contentType.assert().isEqualTo(MediaType.APPLICATION_JSON)
+                it.headers().getFirst(ERROR_CODE).assert().isEqualTo(ErrorCodes.ILLEGAL_ARGUMENT)
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `should map decoding exception to bad request`() {
+        val request = MockServerRequest.builder()
+            .method(HttpMethod.POST)
+            .uri(URI.create("/test"))
+            .build()
+
+        DefaultWebFluxErrorStrategy.toServerResponse(request, DecodingException("Malformed JSON"))
+            .test()
+            .consumeNextWith {
+                it.statusCode().assert().isEqualTo(HttpStatus.BAD_REQUEST)
                 it.headers().getFirst(ERROR_CODE).assert().isEqualTo(ErrorCodes.ILLEGAL_ARGUMENT)
             }
             .verifyComplete()
