@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.snapshot
 
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.IListQuery
@@ -55,4 +56,8 @@ fun ISingleQuery.dynamicQuery(queryService: SnapshotQueryService<*>): Mono<Dynam
 
 fun Condition.count(queryService: SnapshotQueryService<*>): Mono<Long> {
     return queryService.count(this)
+}
+
+fun AggregationQuery.aggregate(queryService: SnapshotQueryService<*>): Flux<DynamicDocument> {
+    return queryService.aggregate(this)
 }

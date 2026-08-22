@@ -1,0 +1,64 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.webflux.route.snapshot
+
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
+import me.ahoo.wow.openapi.contract.HttpRouteContract
+import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
+import me.ahoo.wow.query.filter.Contexts.writeRawRequest
+import me.ahoo.wow.query.filter.Contexts.writeUserQuery
+import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
+import me.ahoo.wow.webflux.exception.RequestExceptionHandler
+import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
+import me.ahoo.wow.webflux.route.query.QueryBodyExtractor.Companion.AGGREGATION_QUERY_EXTRACTOR
+import me.ahoo.wow.webflux.route.query.RewriteRequestCondition
+import me.ahoo.wow.webflux.route.toServerResponse
+import org.springframework.web.reactive.function.server.HandlerFunction
+import org.springframework.web.reactive.function.server.ServerRequest
+import org.springframework.web.reactive.function.server.ServerResponse
+import reactor.core.publisher.Mono
+
+class SnapshotAggregationHandlerFunction(
+    private val aggregateMetadata: AggregateMetadata<*, *>,
+    private val snapshotQueryHandler: SnapshotQueryHandler,
+    private val rewriteRequestCondition: RewriteRequestCondition,
+    private val exceptionHandler: RequestExceptionHandler,
+) : HandlerFunction<ServerResponse> {
+    override fun handle(request: ServerRequest): Mono<ServerResponse> =
+        request.body(AGGREGATION_QUERY_EXTRACTOR)
+            .flatMapMany { query ->
+                snapshotQueryHandler.aggregate(
+                    aggregateMetadata,
+                    rewriteRequestCondition.rewrite(aggregateMetadata, request, query),
+                ).writeUserQuery(query)
+            }.writeRawRequest(request)
+            .toServerResponse(request, exceptionHandler)
+}
+
+class SnapshotAggregationHandlerFunctionFactory(
+    private val snapshotQueryHandler: SnapshotQueryHandler,
+    private val rewriteRequestCondition: RewriteRequestCondition,
+    private val exceptionHandler: RequestExceptionHandler,
+) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Snapshot.AGGREGATION) {
+    override fun create(
+        contract: HttpRouteContract,
+        metadata: HttpRouteHandlerMetadata.Aggregate,
+    ): HandlerFunction<ServerResponse> = SnapshotAggregationHandlerFunction(
+        aggregateMetadata = aggregateMetadata(metadata),
+        snapshotQueryHandler = snapshotQueryHandler,
+        rewriteRequestCondition = rewriteRequestCondition,
+        exceptionHandler = exceptionHandler,
+    )
+}

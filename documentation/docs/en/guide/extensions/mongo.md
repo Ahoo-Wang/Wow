@@ -635,6 +635,10 @@ sh.shardCollection("wow_snapshot_db.order_snapshot", { "_id": "hashed" })
 When using sharded collections, keep `EventStreamSchemaInitializer.enableRequestIdUniqueIndex = false` (the default). MongoDB cannot enforce a unique index across shards unless the shard key is part of the index. The compound `{aggregateId, requestId}` index is shard-compatible because `aggregateId` is the shard key.
 :::
 
+## Snapshot Elements Aggregation
+
+MongoDB compiles the root predicate into the first `$match`, emits `$unwind/$match` for every Elements level, and then runs `$group/$project/$sort/$limit`. String grouping and sorting explicitly use the `simple` collation to match Elasticsearch keyword binary order. Consequently, an index with a non-`simple` collation may not support string predicates in the same request.
+
 ## Troubleshooting
 
 ### Common Issues

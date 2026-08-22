@@ -20,7 +20,8 @@ interface SynchronousSnapshotQueryApi<S : Any> :
     SynchronousSnapshotSingleQueryApi<S>,
     SynchronousSnapshotListQueryApi<S>,
     SynchronousSnapshotPagedQueryApi<S>,
-    SynchronousSnapshotCountQueryApi
+    SynchronousSnapshotCountQueryApi,
+    SynchronousSnapshotAggregationQueryApi
 
 fun <T> switchNotFoundToNull(query: () -> T): T? {
     return try {

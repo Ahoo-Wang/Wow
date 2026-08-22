@@ -21,6 +21,46 @@ dependencies {
     kapt(libs.jmh.generator.annprocess)
 }
 
+fun registerSnapshotAggregationBenchmark(taskName: String, backend: String) {
+    tasks.register<JavaExec>(taskName) {
+        group = "benchmark"
+        description = "Runs the $backend Snapshot Elements aggregation benchmark and writes independent reports."
+        val jmhJar = tasks.named<Jar>("jmhJar")
+        dependsOn(jmhJar)
+        classpath(jmhJar.flatMap { it.archiveFile })
+        mainClass.set("org.openjdk.jmh.Main")
+        val reportBase = layout.projectDirectory.file("results/reports/snapshot-elements-$backend")
+        args(
+            "me.ahoo.wow.benchmark.infrastructure.SnapshotElementsAggregationBenchmark",
+            "-p",
+            "backend=$backend",
+            "-wi",
+            "1",
+            "-i",
+            "3",
+            "-f",
+            "1",
+            "-foe",
+            "true",
+            "-rf",
+            "json",
+            "-rff",
+            "${reportBase.asFile}.json",
+            "-o",
+            "${reportBase.asFile}.txt",
+        )
+        doFirst { reportBase.asFile.parentFile.mkdirs() }
+        doLast {
+            check(reportBase.asFile.resolveSibling("${reportBase.asFile.name}.json").readText().contains("\"benchmark\"")) {
+                "$taskName produced no benchmark results."
+            }
+        }
+    }
+}
+
+registerSnapshotAggregationBenchmark("benchmarkSnapshotElementsMongo", "mongo")
+registerSnapshotAggregationBenchmark("benchmarkSnapshotElementsElasticsearch", "elasticsearch")
+
 tasks.named("check") {
     dependsOn(gradle.includedBuild("build-logic").task(":test"))
 }

@@ -460,6 +460,37 @@ eq("state.status", "CREATED")
 
 
 
+## Snapshot Elements Aggregation
+
+Snapshot aggregation exposes only tabular semantics that MongoDB and Elasticsearch can execute exactly. The HTTP endpoint is
+`POST {aggregate-path}/snapshot/aggregation` and supports both `application/json` and
+`text/event-stream`. Every group key and metric uses an explicit alias.
+
+```kotlin
+aggregationQuery {
+    condition { "tenantId" eq tenantId }
+    expand("state.orders") {
+        condition { "status" eq "PAID" }
+        expand("lines") {
+            condition { "cancelled" eq false }
+            groupBy("sku", "sku")
+            sum("amount", "totalAmount")
+            count("lineCount")
+            sort { "totalAmount".desc() }
+            limit(100)
+        }
+    }
+}
+```
+
+- `expand` declares a strict parent-child object-collection chain from outermost to innermost. Each scope has at most one child expansion; sibling Cartesian products are unsupported.
+- Fields inside DSL blocks are relative; the resulting `AggregationQuery` uses absolute paths. JSON requests must also use absolute paths.
+- `groupBy` supports `Terms`, `Histogram` without offset, and `DateHistogram`. Metrics support `Count`, `Sum`, `Avg`, `Min`, and `Max`; numeric metrics initially accept only `Field`.
+- A root `ELEM_MATCH` filters snapshots only; it does not filter expanded rows. Put row filters in the corresponding `AggregationElement.condition`.
+- An ungrouped query always returns one row: an empty set yields `Count=0`, `Sum=0.0`, and `null` for other numeric metrics. A grouped query with no bucket returns an empty stream.
+- Every Elasticsearch Elements field must be mapped as `nested`, and `DateHistogram` fields as `date`/`date_nanos`. MongoDB uses successive `$unwind` stages. Neither backend executes user scripts.
+- Elements, unfiltered aggregation, and metric sorting are expensive HTTP operations and require `allow-expensive-operators`. Aggregation fails before backend access when a Snapshot masker is configured.
+
 ## Query Service Registrar
 
 `SnapshotQueryServiceRegistrar` is used to automatically register all local aggregate root query services into the `Spring` container.

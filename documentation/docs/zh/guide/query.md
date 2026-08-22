@@ -458,6 +458,37 @@ eq("state.status", "CREATED")
 
 :::
 
+## 快照 Elements 聚合
+
+快照聚合只暴露 MongoDB 与 Elasticsearch 都能精确执行的表格语义。HTTP 入口为
+`POST {aggregate-path}/snapshot/aggregation`，支持 `application/json` 与
+`text/event-stream`。结果中的分组键和指标均使用显式 alias。
+
+```kotlin
+aggregationQuery {
+    condition { "tenantId" eq tenantId }
+    expand("state.orders") {
+        condition { "status" eq "PAID" }
+        expand("lines") {
+            condition { "cancelled" eq false }
+            groupBy("sku", "sku")
+            sum("amount", "totalAmount")
+            count("lineCount")
+            sort { "totalAmount".desc() }
+            limit(100)
+        }
+    }
+}
+```
+
+- `expand` 按从外到内声明严格父子对象集合链；每层最多一个子 `expand`，不支持兄弟集合笛卡尔积。
+- DSL 块内字段为相对路径，生成的 `AggregationQuery` 使用绝对路径；JSON 请求也必须使用绝对路径。
+- `groupBy` 支持 `Terms`、无 offset 的 `Histogram` 和 `DateHistogram`；指标支持 `Count`、`Sum`、`Avg`、`Min`、`Max`，数值指标首版只接受 `Field`。
+- 根 `ELEM_MATCH` 只筛选快照，不会筛选展开行；展开行条件必须写入对应 `AggregationElement.condition`。
+- 无分组时固定返回一行：空集 `Count=0`、`Sum=0.0`，其余数值指标为 `null`；有分组且无 bucket 时返回空流。
+- Elasticsearch 的每层 Elements 字段必须映射为 `nested`，`DateHistogram` 字段必须映射为 `date`/`date_nanos`；MongoDB 使用逐层 `$unwind`。两端都不执行用户脚本。
+- Elements、无过滤聚合和指标排序属于高成本操作，HTTP 需要启用 `allow-expensive-operators`；配置 Snapshot masker 时聚合会在访问后端前失败。
+
 ## 查询服务注册器
 
 `SnapshotQueryServiceRegistrar` 用于自动将所有本地聚合根查询服务注册到 `Spring` 容器中。

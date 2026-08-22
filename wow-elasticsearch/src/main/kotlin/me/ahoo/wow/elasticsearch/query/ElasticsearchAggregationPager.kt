@@ -1,0 +1,138 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.elasticsearch.query
+
+import co.elastic.clients.elasticsearch._types.FieldValue
+import co.elastic.clients.elasticsearch._types.aggregations.Aggregation
+import co.elastic.clients.elasticsearch._types.aggregations.CompositeAggregationSource
+import co.elastic.clients.elasticsearch._types.aggregations.CompositeBucket
+import co.elastic.clients.elasticsearch.core.SearchRequest
+import co.elastic.clients.elasticsearch.core.search.ResponseBody
+import co.elastic.clients.util.NamedValue
+import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchAggregationPlan
+import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
+import java.time.Duration
+
+internal class ElasticsearchAggregationPager(
+    private val elasticsearchClient: ReactiveElasticsearchClient,
+    indexName: String,
+    private val batchSize: Int = DEFAULT_SEARCH_BATCH_SIZE,
+    keepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE,
+) {
+    private val pointInTime = ElasticsearchPointInTime(elasticsearchClient, indexName, keepAlive)
+
+    init {
+        require(batchSize in 1..DEFAULT_SEARCH_BATCH_SIZE) {
+            "batchSize must be between 1 and $DEFAULT_SEARCH_BATCH_SIZE."
+        }
+    }
+
+    fun search(
+        plan: ElasticsearchAggregationPlan,
+        sources: List<NamedValue<CompositeAggregationSource>>,
+        metrics: Map<String, Aggregation>,
+        limit: Int = 0,
+    ): Flux<CompositeBucket> {
+        require(sources.isNotEmpty()) { "aggregation sources must not be empty." }
+        require(limit >= 0) { "limit must be greater than or equal to 0." }
+        return pointInTime.use { pit ->
+            searchPage(pit, plan, sources, metrics, limit)
+                .expand { page ->
+                    page.afterKey?.let { afterKey ->
+                        searchPage(pit, plan, sources, metrics, limit, page.fetched, afterKey)
+                    } ?: Mono.empty()
+                }
+                .concatMapIterable({ it.buckets }, 1)
+        }
+    }
+
+    private fun searchPage(
+        pit: ElasticsearchPointInTime.Session,
+        plan: ElasticsearchAggregationPlan,
+        sources: List<NamedValue<CompositeAggregationSource>>,
+        metrics: Map<String, Aggregation>,
+        limit: Int,
+        fetched: Long = 0,
+        afterKey: Map<String, FieldValue> = emptyMap(),
+    ): Mono<AggregationPage> {
+        val pageSize = if (limit == 0) {
+            batchSize
+        } else {
+            minOf(batchSize.toLong(), limit.toLong() - fetched).toInt()
+        }
+        return Mono.defer {
+            val rows = Aggregation.of { aggregation ->
+                aggregation.composite { composite ->
+                    composite.size(pageSize).sources(sources)
+                    if (afterKey.isNotEmpty()) {
+                        composite.after(afterKey)
+                    }
+                    composite
+                }.aggregations(metrics)
+            }
+            val request = SearchRequest.of {
+                it.size(0)
+                    .allowPartialSearchResults(false)
+                    .trackTotalHits { trackTotalHits -> trackTotalHits.enabled(false) }
+                    .query(plan.query)
+                    .pit { pitConfig ->
+                        pitConfig.id(pit.id)
+                            .keepAlive { keepAlive -> keepAlive.time(pointInTime.keepAliveValue) }
+                    }
+                    .aggregations(plan.wrap(mapOf(ROWS_AGGREGATION to rows)))
+            }
+            elasticsearchClient.search(request, Map::class.java)
+        }.map { response ->
+            response.pitId()?.takeIf(String::isNotBlank)?.let { pit.id = it }
+            response.requireCompleteAggregationResponse()
+            val rows = checkNotNull(plan.leaf(response.aggregations()).aggregations[ROWS_AGGREGATION]) {
+                "Elasticsearch aggregation response is missing [$ROWS_AGGREGATION]."
+            }
+            check(rows.isComposite) {
+                "Elasticsearch aggregation response [$ROWS_AGGREGATION] must be composite."
+            }
+            val composite = rows.composite()
+            check(composite.buckets().isArray) {
+                "Elasticsearch composite aggregation must return array buckets."
+            }
+            val buckets = composite.buckets().array()
+            val totalFetched = fetched + buckets.size
+            val hasNextPage = buckets.size == pageSize && (limit == 0 || totalFetched < limit.toLong())
+            AggregationPage(
+                buckets = buckets,
+                fetched = totalFetched,
+                afterKey = composite.afterKey().takeIf { hasNextPage && it.isNotEmpty() },
+            )
+        }
+    }
+
+    private data class AggregationPage(
+        val buckets: List<CompositeBucket>,
+        val fetched: Long,
+        val afterKey: Map<String, FieldValue>?,
+    )
+
+    private companion object {
+        const val ROWS_AGGREGATION = "__wow_rows"
+    }
+}
+
+internal fun ResponseBody<*>.requireCompleteAggregationResponse() {
+    check(!timedOut()) { "Elasticsearch aggregation search timed out." }
+    check(shards().failed().toInt() == 0) {
+        "Elasticsearch aggregation search failed on ${shards().failed()} shard(s)."
+    }
+}

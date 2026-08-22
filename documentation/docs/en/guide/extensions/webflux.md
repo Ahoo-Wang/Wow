@@ -92,8 +92,10 @@ plus `wow-webflux` for these properties to be bound.
 | `query.max-page-window` | `Long` | `10000` | Maximum HTTP `index * size` page window; `0` disables the cap |
 | `query.max-condition-nodes` | `Int` | `64` | Maximum number of HTTP query condition nodes; `0` disables the cap |
 | `query.max-condition-values` | `Int` | `1000` | Maximum values in HTTP `IN`, `NOT_IN`, `ALL_IN`, `IDS`, or `AGGREGATE_IDS` conditions; `0` disables the cap |
+| `query.max-aggregation-elements` | `Int` | `3` | Maximum HTTP Snapshot aggregation Elements depth; `0` disables the HTTP cap while the public hard limit of 5 remains |
+| `query.max-aggregation-metrics` | `Int` | `32` | Maximum metrics in one HTTP Snapshot aggregation; `0` disables the HTTP cap while the public hard limit of 64 remains |
 | `query.allow-raw` | `Boolean` | `false` | Whether HTTP queries may use native `RAW` conditions |
-| `query.allow-expensive-operators` | `Boolean` | `false` | Whether HTTP queries may use negative/existence/expensive string operators or unfiltered count/paged queries |
+| `query.allow-expensive-operators` | `Boolean` | `false` | Whether HTTP queries may use negative/existence/expensive string operators, unfiltered count/paged/aggregation, Elements expansion, and metric sorting |
 | `query.idle-timeout` | `Duration` | `10s` | Maximum wait between results or completion; JSON arrays are buffered before the response is committed, while SSE remains streaming; `0s` disables the timeout |
 
 ```yaml
@@ -111,6 +113,8 @@ wow:
       max-page-window: 10000
       max-condition-nodes: 64
       max-condition-values: 1000
+      max-aggregation-elements: 3
+      max-aggregation-metrics: 32
       allow-raw: false
       allow-expensive-operators: false
       idle-timeout: 10s

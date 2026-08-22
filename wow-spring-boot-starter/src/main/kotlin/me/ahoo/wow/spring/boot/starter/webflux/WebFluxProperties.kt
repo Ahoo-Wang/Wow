@@ -66,5 +66,9 @@ constructor(
         var allowExpensiveOperators: Boolean = false,
         @DefaultValue("10s")
         var idleTimeout: Duration = Duration.ofSeconds(10),
+        @DefaultValue("3")
+        var maxAggregationElements: Int = 3,
+        @DefaultValue("32")
+        var maxAggregationMetrics: Int = 32,
     )
 }

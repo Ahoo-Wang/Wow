@@ -51,5 +51,6 @@ class QueryTypeTest {
     @Test
     fun `count should not be dynamic`() {
         QueryType.COUNT.isDynamic.assert().isFalse()
+        QueryType.AGGREGATION.isDynamic.assert().isTrue()
     }
 }

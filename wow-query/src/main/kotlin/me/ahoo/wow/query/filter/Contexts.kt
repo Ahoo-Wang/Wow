@@ -19,6 +19,7 @@ import reactor.util.context.ContextView
 
 object Contexts {
     private const val RAW_REQUEST_KEY = "__RAW_REQUEST___"
+    private const val USER_QUERY_KEY = "__USER_QUERY___"
 
     fun <T : Any> Mono<T>.writeRawRequest(request: Any): Mono<T> {
         return this.contextWrite {
@@ -35,5 +36,18 @@ object Contexts {
     fun <R> ContextView.getRawRequest(): R? {
         @Suppress("IMPLICIT_NOTHING_TYPE_ARGUMENT_IN_RETURN_POSITION")
         return this.getOrDefault(RAW_REQUEST_KEY, null)
+    }
+
+    fun <T : Any> Flux<T>.writeUserQuery(query: Any): Flux<T> = contextWrite {
+        it.put(USER_QUERY_KEY, query)
+    }
+
+    fun <T : Any> Mono<T>.writeUserQuery(query: Any): Mono<T> = contextWrite {
+        it.put(USER_QUERY_KEY, query)
+    }
+
+    fun <Q> ContextView.getUserQuery(): Q? {
+        @Suppress("IMPLICIT_NOTHING_TYPE_ARGUMENT_IN_RETURN_POSITION")
+        return getOrDefault(USER_QUERY_KEY, null)
     }
 }

@@ -165,7 +165,15 @@ val paged = queryApi.paged(
 
 // 计数：接收 Condition；返回 Mono<Long>
 val total = queryApi.count(Condition.all()).block()
+
+// 快照聚合：返回 Flux<Map<String, Any?>>
+val rows = queryApi.aggregate(
+    AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))),
+).collectList().block()
 ```
+
+`ReactiveSnapshotQueryApi` 同时组合 `ReactiveSnapshotAggregationQueryApi`；同步版本通过
+`SynchronousSnapshotAggregationQueryApi` 返回 `List<Map<String, Any?>>`。
 
 ### 同步查询 API
 

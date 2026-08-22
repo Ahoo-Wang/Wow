@@ -170,7 +170,15 @@ val paged = queryApi.paged(
 
 // Count: takes a Condition; returns Mono<Long>
 val total = queryApi.count(Condition.all()).block()
+
+// Snapshot aggregation: Flux<Map<String, Any?>>
+val rows = queryApi.aggregate(
+    AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))),
+).collectList().block()
 ```
+
+`ReactiveSnapshotQueryApi` also composes `ReactiveSnapshotAggregationQueryApi`. The synchronous variant exposes
+`SynchronousSnapshotAggregationQueryApi` and returns `List<Map<String, Any?>>`.
 
 ### Synchronous Query API
 

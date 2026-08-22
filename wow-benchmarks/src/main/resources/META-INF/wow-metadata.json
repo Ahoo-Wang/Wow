@@ -1,0 +1,17 @@
+{
+  "contexts": {
+    "wow-benchmarks": {
+      "scopes": [
+        "me.ahoo.wow.benchmark.infrastructure"
+      ],
+      "aggregates": {
+        "snapshot_elements_benchmark": {
+          "type": "me.ahoo.wow.benchmark.infrastructure.SnapshotElementsBenchmarkAggregate",
+          "scopes": [
+            "me.ahoo.wow.benchmark.infrastructure"
+          ]
+        }
+      }
+    }
+  }
+}

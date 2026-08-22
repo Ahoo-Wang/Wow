@@ -14,6 +14,8 @@
 package me.ahoo.wow.query.snapshot.filter
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.query.dsl.condition
@@ -100,6 +102,16 @@ class DefaultSnapshotQueryHandlerTest {
             .consumeNextWith {
                 it.assert().isZero()
             }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `should execute aggregation query`() {
+        queryHandler.aggregate(
+            MOCK_AGGREGATE_METADATA,
+            AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))),
+        ).test()
+            .assertNext { row -> row.getValue<Long>("count").assert().isZero() }
             .verifyComplete()
     }
 }

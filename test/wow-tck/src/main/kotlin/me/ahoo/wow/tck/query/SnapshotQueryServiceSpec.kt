@@ -14,6 +14,15 @@
 package me.ahoo.wow.tck.query
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationDateUnit
+import me.ahoo.wow.api.query.AggregationElement
+import me.ahoo.wow.api.query.AggregationExpression
+import me.ahoo.wow.api.query.AggregationFunction
+import me.ahoo.wow.api.query.AggregationGroup
+import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
@@ -29,12 +38,16 @@ import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.count
 import me.ahoo.wow.query.snapshot.dynamicQuery
 import me.ahoo.wow.query.snapshot.query
+import me.ahoo.wow.serialization.toLinkedHashMap
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import me.ahoo.wow.tck.mock.MockOrder
+import me.ahoo.wow.tck.mock.MockOrderLine
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 import java.time.Clock
+import java.time.Instant
 
 abstract class SnapshotQueryServiceSpec {
     lateinit var snapshotStore: SnapshotStore
@@ -52,10 +65,34 @@ abstract class SnapshotQueryServiceSpec {
             ConstructorStateAggregateFactory.create(MOCK_AGGREGATE_METADATA.state, aggregateId)
         snapshot =
             SimpleSnapshot(stateAggregate, Clock.systemUTC().millis())
+        prepareAggregationStorage()
+        snapshot.state.orders = listOf(
+            MockOrder(
+                status = "PAID",
+                amount = 30.0,
+                lines = listOf(
+                    MockOrderLine("A", 1, 10.0, false, Instant.parse("2024-01-01T00:00:00Z")),
+                    MockOrderLine("B", 2, 40.0, true, Instant.parse("2024-01-02T00:00:00Z")),
+                ),
+            ),
+            MockOrder(
+                status = "NEW",
+                amount = 30.0,
+                lines = listOf(
+                    MockOrderLine("A", 3, 30.0, false, Instant.parse("2024-02-01T00:00:00Z")),
+                ),
+            ),
+            MockOrder(status = "PAID", amount = 0.0, lines = emptyList()),
+        )
+        val serializedOrders = (snapshot.toLinkedHashMap()["state"] as Map<*, *>)["orders"] as List<*>
+        check(serializedOrders.size == 3) { "Aggregation TCK snapshot must serialize nested elements." }
         snapshotStore.save(snapshot)
             .test()
             .verifyComplete()
     }
+
+    protected open fun prepareAggregationStorage() = Unit
+    protected open val rootElementStatusField: String = "status"
 
     protected open fun createSnapshotStore(): SnapshotStore = createSnapshotRepository()
 
@@ -167,6 +204,232 @@ abstract class SnapshotQueryServiceSpec {
         }.count(snapshotQueryService)
             .test()
             .expectNext(1L)
+            .verifyComplete()
+    }
+
+    @Test
+    fun aggregateGlobal() {
+        snapshotQueryService.aggregate(
+            AggregationQuery(
+                metrics = listOf(
+                    AggregationMetric.Count("count"),
+                    AggregationMetric.Numeric(
+                        AggregationFunction.SUM,
+                        AggregationExpression.Field("version"),
+                        "versionTotal",
+                    ),
+                    AggregationMetric.Numeric(
+                        AggregationFunction.AVG,
+                        AggregationExpression.Field("version"),
+                        "versionAverage",
+                    ),
+                    AggregationMetric.Numeric(
+                        AggregationFunction.MIN,
+                        AggregationExpression.Field("version"),
+                        "versionMinimum",
+                    ),
+                    AggregationMetric.Numeric(
+                        AggregationFunction.MAX,
+                        AggregationExpression.Field("version"),
+                        "versionMaximum",
+                    ),
+                ),
+            ),
+        ).test()
+            .assertNext { row ->
+                row.getValue<Long>("count").assert().isOne()
+                row.getValue<Double>("versionTotal").assert().isEqualTo(snapshot.version.toDouble())
+                row.getValue<Double>("versionAverage").assert().isEqualTo(snapshot.version.toDouble())
+                row.getValue<Double>("versionMinimum").assert().isEqualTo(snapshot.version.toDouble())
+                row.getValue<Double>("versionMaximum").assert().isEqualTo(snapshot.version.toDouble())
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun aggregateGroupedAndEmpty() {
+        snapshotQueryService.aggregate(
+            AggregationQuery(
+                groupBy = listOf(AggregationGroup.Terms("aggregateId", "aggregateId")),
+                metrics = listOf(AggregationMetric.Count("count")),
+            ),
+        ).test()
+            .assertNext { row ->
+                row.getValue<String>("aggregateId").assert().isEqualTo(snapshot.aggregateId.id)
+                row.getValue<Long>("count").assert().isOne()
+            }
+            .verifyComplete()
+
+        snapshotQueryService.aggregate(
+            AggregationQuery(
+                condition = Condition.id("missing"),
+                metrics = listOf(
+                    AggregationMetric.Count("count"),
+                    AggregationMetric.Numeric(
+                        AggregationFunction.SUM,
+                        AggregationExpression.Field("version"),
+                        "sum",
+                    ),
+                    AggregationMetric.Numeric(
+                        AggregationFunction.AVG,
+                        AggregationExpression.Field("version"),
+                        "average",
+                    ),
+                    AggregationMetric.Numeric(
+                        AggregationFunction.MIN,
+                        AggregationExpression.Field("version"),
+                        "min",
+                    ),
+                    AggregationMetric.Numeric(
+                        AggregationFunction.MAX,
+                        AggregationExpression.Field("version"),
+                        "max",
+                    ),
+                ),
+            ),
+        ).test()
+            .assertNext { row ->
+                row.getValue<Long>("count").assert().isZero()
+                row.getValue<Double>("sum").assert().isEqualTo(0.0)
+                row["average"].assert().isNull()
+                row["min"].assert().isNull()
+                row["max"].assert().isNull()
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun aggregateElementsAndNestedElements() {
+        snapshotQueryService.aggregate(
+            AggregationQuery(
+                elements = listOf(
+                    AggregationElement(
+                        "state.orders",
+                        Condition.eq("state.orders.status", "PAID"),
+                    ),
+                ),
+                metrics = listOf(AggregationMetric.Count("count")),
+            ),
+        ).test()
+            .assertNext { row -> row.getValue<Long>("count").assert().isEqualTo(2L) }
+            .verifyComplete()
+
+        snapshotQueryService.aggregate(
+            AggregationQuery(
+                elements = listOf(
+                    AggregationElement(
+                        "state.orders",
+                        Condition.eq("state.orders.status", "PAID"),
+                    ),
+                    AggregationElement(
+                        "state.orders.lines",
+                        Condition.eq("state.orders.lines.cancelled", false),
+                    ),
+                ),
+                groupBy = listOf(AggregationGroup.Terms("state.orders.lines.sku", "sku")),
+                metrics = listOf(
+                    AggregationMetric.Count("count"),
+                    AggregationMetric.Numeric(
+                        AggregationFunction.SUM,
+                        AggregationExpression.Field("state.orders.lines.amount"),
+                        "amount",
+                    ),
+                ),
+            ),
+        ).test()
+            .assertNext { row ->
+                row.getValue<String>("sku").assert().isEqualTo("A")
+                row.getValue<Long>("count").assert().isOne()
+                row.getValue<Double>("amount").assert().isEqualTo(10.0)
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun rootElemMatchShouldNotFilterExpandedRows() {
+        snapshotQueryService.aggregate(
+            AggregationQuery(
+                condition = Condition.elemMatch(
+                    "state.orders",
+                    Condition.eq(rootElementStatusField, "PAID"),
+                ),
+                elements = listOf(AggregationElement("state.orders")),
+                metrics = listOf(AggregationMetric.Count("count")),
+            ),
+        ).test()
+            .assertNext { row -> row.getValue<Long>("count").assert().isEqualTo(3L) }
+            .verifyComplete()
+    }
+
+    @Test
+    fun aggregateElementsWithExactMetricTopN() {
+        snapshotQueryService.aggregate(
+            AggregationQuery(
+                elements = listOf(
+                    AggregationElement("state.orders"),
+                    AggregationElement("state.orders.lines"),
+                ),
+                groupBy = listOf(AggregationGroup.Terms("state.orders.lines.sku", "sku")),
+                metrics = listOf(
+                    AggregationMetric.Count("count"),
+                    AggregationMetric.Numeric(
+                        AggregationFunction.SUM,
+                        AggregationExpression.Field("state.orders.lines.amount"),
+                        "amount",
+                    ),
+                ),
+                sort = listOf(Sort("amount", Sort.Direction.DESC)),
+                limit = 1,
+            ),
+        ).test()
+            .assertNext { row ->
+                row.getValue<String>("sku").assert().isEqualTo("A")
+                row.getValue<Long>("count").assert().isEqualTo(2L)
+                row.getValue<Double>("amount").assert().isEqualTo(40.0)
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun aggregateElementsShouldNormalizeGroupValues() {
+        snapshotQueryService.aggregate(
+            AggregationQuery(
+                elements = listOf(
+                    AggregationElement("state.orders"),
+                    AggregationElement("state.orders.lines"),
+                ),
+                groupBy = listOf(
+                    AggregationGroup.Histogram("state.orders.lines.amount", "amountBand", 20.0),
+                    AggregationGroup.DateHistogram(
+                        "state.orders.lines.createdAt",
+                        "day",
+                        AggregationDateUnit.DAY,
+                    ),
+                ),
+                metrics = listOf(AggregationMetric.Count("count")),
+            ),
+        ).collectList().test()
+            .assertNext { rows ->
+                rows.assert().hasSize(3)
+                rows.all { it["amountBand"] is Double }.assert().isTrue()
+                rows.all { it["day"] is Long }.assert().isTrue()
+                rows.all { it["count"] is Long }.assert().isTrue()
+            }
+            .verifyComplete()
+
+        snapshotQueryService.aggregate(
+            AggregationQuery(
+                elements = listOf(
+                    AggregationElement("state.orders"),
+                    AggregationElement("state.orders.lines"),
+                ),
+                groupBy = listOf(AggregationGroup.Terms("state.orders.lines.rank", "rank")),
+                metrics = listOf(AggregationMetric.Count("count")),
+            ),
+        ).collectList().test()
+            .assertNext { rows ->
+                rows.map { it["rank"] }.assert().containsExactly(1L, 2L, 3L)
+            }
             .verifyComplete()
     }
 }

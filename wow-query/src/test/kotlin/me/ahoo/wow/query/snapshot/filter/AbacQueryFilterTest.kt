@@ -21,6 +21,9 @@ import me.ahoo.wow.api.abac.AbacTagValue
 import me.ahoo.wow.api.abac.AbacTags
 import me.ahoo.wow.api.abac.EMPTY_ABAC_TAGS
 import me.ahoo.wow.api.abac.wildcard
+import me.ahoo.wow.api.query.AggregationElement
+import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.filter.FilterChain
@@ -138,6 +141,29 @@ class AbacQueryFilterTest {
             } returns Mono.empty()
         }
         MockAbacQueryFilter.filter(context, chain).test().verifyComplete()
+    }
+
+    @Test
+    fun `aggregation ABAC should rewrite only root condition`() {
+        val elementCondition = Condition.eq("state.orders.status", "PAID")
+        val context = DefaultQueryContext<AggregationQuery, Any>(
+            queryType = QueryType.AGGREGATION,
+            MOCK_AGGREGATE_METADATA,
+        ).setQuery(
+            AggregationQuery(
+                elements = listOf(AggregationElement("state.orders", elementCondition)),
+                metrics = listOf(AggregationMetric.Count("count")),
+            ),
+        )
+        MockAbacQueryFilter.filter(
+            context,
+            FilterChain {
+                val rewritten = context.getQuery()
+                rewritten.condition.operator.assert().isEqualTo(Operator.AND)
+                rewritten.elements.single().condition.assert().isEqualTo(elementCondition)
+                Mono.empty()
+            },
+        ).test().verifyComplete()
     }
 
     object EmptyAbacQueryFilter : AbacQueryFilter() {

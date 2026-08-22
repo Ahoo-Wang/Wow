@@ -23,3 +23,7 @@ interface AggregatedFields<CommandAggregateType : Any> {
         }
     }
 }
+
+interface SnapshotAggregationFields<CommandAggregateType : Any>
+
+interface SnapshotAggregationElements<CommandAggregateType : Any>

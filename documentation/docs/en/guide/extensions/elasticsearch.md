@@ -670,6 +670,10 @@ PUT _ilm/policy/wow-snapshot-policy
 }
 ```
 
+## Snapshot Elements Aggregation
+
+Every Elements path must be mapped as `nested` in the actual index; a regular `object` mapping is rejected. Groups use native fields and composite aggregations without reading `_source` or running Painless. Group-key sorting follows composite order and can stop at the limit. Metric sorting reuses one PIT, traverses every bucket, and computes exact Top-N with O(limit) memory. `DateHistogram` accepts only `date`/`date_nanos` mappings and never treats a plain epoch `long` as a date.
+
 ## Performance Optimization
 
 ### Bulk Indexing

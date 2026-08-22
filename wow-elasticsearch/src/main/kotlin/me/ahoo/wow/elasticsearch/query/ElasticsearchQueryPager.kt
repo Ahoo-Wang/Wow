@@ -16,12 +16,9 @@ package me.ahoo.wow.elasticsearch.query
 import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.elasticsearch._types.SortOptions
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
-import co.elastic.clients.elasticsearch.core.ClosePointInTimeRequest
-import co.elastic.clients.elasticsearch.core.OpenPointInTimeRequest
 import co.elastic.clients.elasticsearch.core.SearchRequest
 import co.elastic.clients.elasticsearch.core.search.Hit
 import co.elastic.clients.elasticsearch.core.search.SourceFilter
-import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -37,9 +34,7 @@ internal class ElasticsearchQueryPager(
     private val batchSize: Int = DEFAULT_SEARCH_BATCH_SIZE,
     private val keepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE,
 ) {
-    private val keepAliveValue = keepAlive.toMillis().let {
-        if (it % 60_000 == 0L) "${it / 60_000}m" else "${it}ms"
-    }
+    private val pointInTime = ElasticsearchPointInTime(elasticsearchClient, indexName, keepAlive)
 
     init {
         require(batchSize in 1..DEFAULT_SEARCH_BATCH_SIZE) {
@@ -56,39 +51,19 @@ internal class ElasticsearchQueryPager(
     ): Flux<Hit<Map<*, *>>> {
         require(limit >= 0) { "limit must be greater than or equal to 0." }
         require(sort.isNotEmpty()) { "sort must not be empty when using search_after." }
-        return Flux.usingWhen(
-            openPointInTime(),
-            { pit ->
-                searchPage(pit, limit, query, sourceFilter, sort)
-                    .expand { page ->
-                        page.nextSearchAfter?.let {
-                            searchPage(pit, limit, query, sourceFilter, sort, page.fetched, it)
-                        } ?: Mono.empty()
-                    }
-                    .concatMapIterable({ it.hits }, 1)
-            },
-            ::closePointInTime,
-            { pit, _ -> closePointInTime(pit) },
-            ::closePointInTime,
-        )
-    }
-
-    private fun openPointInTime(): Mono<PointInTime> {
-        return Mono.defer {
-            elasticsearchClient.openPointInTime(
-                OpenPointInTimeRequest.of {
-                    it.index(indexName)
-                        .keepAlive { it.time(keepAliveValue) }
+        return pointInTime.use { pit ->
+            searchPage(pit, limit, query, sourceFilter, sort)
+                .expand { page ->
+                    page.nextSearchAfter?.let {
+                        searchPage(pit, limit, query, sourceFilter, sort, page.fetched, it)
+                    } ?: Mono.empty()
                 }
-            )
-        }.map {
-            check(it.id().isNotBlank()) { "Elasticsearch returned an empty PIT ID." }
-            PointInTime(it.id())
+                .concatMapIterable({ it.hits }, 1)
         }
     }
 
     private fun searchPage(
-        pit: PointInTime,
+        pit: ElasticsearchPointInTime.Session,
         limit: Int,
         query: Query,
         sourceFilter: SourceFilter?,
@@ -106,9 +81,9 @@ internal class ElasticsearchQueryPager(
                 it.query(query)
                     .size(pageSize)
                     .trackTotalHits { trackHits -> trackHits.enabled(false) }
-                    .pit { pointInTime ->
-                        pointInTime.id(pit.id)
-                            .keepAlive { it.time(keepAliveValue) }
+                    .pit { pitConfig ->
+                        pitConfig.id(pit.id)
+                            .keepAlive { it.time(pointInTime.keepAliveValue) }
                     }
                     .sort(sort)
                 if (searchAfter.isNotEmpty()) {
@@ -136,29 +111,9 @@ internal class ElasticsearchQueryPager(
         }
     }
 
-    private fun closePointInTime(pit: PointInTime): Mono<Void> {
-        return Mono.defer {
-            elasticsearchClient.closePointInTime(ClosePointInTimeRequest.of { it.id(pit.id) })
-        }.doOnNext {
-            if (!it.succeeded()) {
-                log.warn { "Failed to close Elasticsearch PIT [${pit.id}]." }
-            }
-        }.then()
-            .onErrorResume {
-                log.warn(it) { "Failed to close Elasticsearch PIT [${pit.id}]." }
-                Mono.empty()
-            }
-    }
-
-    private data class PointInTime(var id: String)
-
     private data class SearchPage(
         val hits: List<Hit<Map<*, *>>>,
         val fetched: Long,
         val nextSearchAfter: List<FieldValue>?,
     )
-
-    private companion object {
-        val log = KotlinLogging.logger(ElasticsearchQueryPager::class.java.name)
-    }
 }

@@ -659,6 +659,10 @@ PUT _ilm/policy/wow-snapshot-policy
 }
 ```
 
+## 快照 Elements 聚合
+
+每层 Elements 路径必须在实际索引 Mapping 中声明为 `nested`；普通 `object` 会被拒绝。分组使用原生 field + composite aggregation，不读取 `_source`、不执行 Painless。分组键排序按 composite 顺序分页并可在达到 limit 后停止；指标排序会复用同一 PIT 完整遍历所有 bucket，再以 O(limit) 内存计算精确 Top-N。`DateHistogram` 仅接受 `date`/`date_nanos` Mapping，普通 long epoch 字段不会被隐式接受。
+
 ## 性能优化
 
 ### 批量索引

@@ -18,17 +18,25 @@ import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.CustomDefinitionProviderV2
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import com.github.victools.jsonschema.generator.SchemaKeyword
+import me.ahoo.wow.modeling.annotation.aggregateMetadata
+import me.ahoo.wow.query.AggregationFieldCatalog
 import me.ahoo.wow.schema.AggregatedFieldPaths.commandAggregatedFieldPaths
 import me.ahoo.wow.schema.JsonSchema.Companion.toPropertyName
 
 object AggregatedFieldsDefinitionProvider : CustomDefinitionProviderV2 {
     private val type: Class<*> = AggregatedFields::class.java
+    private val aggregationFieldsType: Class<*> = SnapshotAggregationFields::class.java
+    private val aggregationElementsType: Class<*> = SnapshotAggregationElements::class.java
 
     override fun provideCustomSchemaDefinition(
         javaType: ResolvedType,
         context: SchemaGenerationContext
     ): CustomDefinition? {
-        if (!javaType.isInstanceOf(type)) {
+        if (
+            !javaType.isInstanceOf(type) &&
+            !javaType.isInstanceOf(aggregationFieldsType) &&
+            !javaType.isInstanceOf(aggregationElementsType)
+        ) {
             return null
         }
 
@@ -42,7 +50,15 @@ object AggregatedFieldsDefinitionProvider : CustomDefinitionProviderV2 {
         if (commandAggregateType == Any::class.java) {
             return CustomDefinition(rootNode)
         }
-        val enumValues = commandAggregateType.kotlin.commandAggregatedFieldPaths()
+        val enumValues = when {
+            javaType.isInstanceOf(aggregationFieldsType) || javaType.isInstanceOf(aggregationElementsType) -> {
+                val stateType = commandAggregateType.aggregateMetadata<Any, Any>().state.aggregateType
+                val catalog = AggregationFieldCatalog.scan(stateType)
+                if (javaType.isInstanceOf(aggregationElementsType)) catalog.elementPaths else catalog.scalarPaths
+            }
+
+            else -> commandAggregateType.kotlin.commandAggregatedFieldPaths()
+        }
         rootNode.putPOJO(SchemaKeyword.TAG_ENUM.toPropertyName(schemaVersion), enumValues)
 
         return CustomDefinition(rootNode)

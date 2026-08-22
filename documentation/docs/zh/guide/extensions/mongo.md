@@ -630,6 +630,10 @@ sh.shardCollection("wow_snapshot_db.order_snapshot", { "_id": "hashed" })
 使用分片集合时，保持 `EventStreamSchemaInitializer.enableRequestIdUniqueIndex = false`（默认值）。MongoDB 无法跨分片强制执行唯一索引，除非分片键是索引的一部分。复合 `{aggregateId, requestId}` 索引与分片兼容，因为 `aggregateId` 是分片键。
 :::
 
+## 快照 Elements 聚合
+
+MongoDB 将根条件编译为首个 `$match`，随后为每层 Elements 生成 `$unwind/$match`，最后执行 `$group/$project/$sort/$limit`。字符串分组与排序显式使用 `simple` collation，以便与 Elasticsearch keyword 的二进制顺序保持一致；这也意味着非 `simple` collation 的索引可能无法支持相同请求中的字符串条件。
+
 ## 故障排除
 
 ### 常见问题
