@@ -24,6 +24,7 @@ import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
+import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 
 class DefaultSnapshotQueryHandlerTest {
@@ -105,13 +106,17 @@ class DefaultSnapshotQueryHandlerTest {
     }
 
     @Test
-    fun `should reject non-numeric metric fields before backend access`() {
+    fun `should route field validation errors through configured error handler`() {
+        val handledQueryHandler = DefaultSnapshotQueryHandler(snapshotQueryFilterChain) { _, error ->
+            error.message.assert().isEqualTo("Aggregation metric field [state.data] must be numeric.")
+            Mono.error(IllegalStateException("handled"))
+        }
         val query = aggregationQuery {
             sum("state.data", "total")
         }
-        queryHandler.aggregate(MOCK_AGGREGATE_METADATA, query)
+        handledQueryHandler.aggregate(MOCK_AGGREGATE_METADATA, query)
             .test()
-            .expectErrorMessage("Aggregation metric field [state.data] must be numeric.")
+            .expectErrorMessage("handled")
             .verify()
     }
 }

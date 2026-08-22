@@ -23,7 +23,6 @@ import me.ahoo.wow.query.filter.AbstractQueryHandler
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryHandler
 import me.ahoo.wow.query.filter.QueryType
-import me.ahoo.wow.query.snapshot.validateFieldTypes
 import reactor.core.publisher.Flux
 
 interface SnapshotQueryHandler : QueryHandler<MaterializedSnapshot<Any>> {
@@ -45,8 +44,5 @@ class DefaultSnapshotQueryHandler(
     override fun aggregate(
         namedAggregate: NamedAggregate,
         aggregationQuery: AggregationQuery,
-    ): Flux<Map<String, Any?>> = Flux.defer {
-        aggregationQuery.validateFieldTypes(namedAggregate)
-        flux(namedAggregate, QueryType.AGGREGATION, aggregationQuery)
-    }
+    ): Flux<Map<String, Any?>> = flux(namedAggregate, QueryType.AGGREGATION, aggregationQuery)
 }

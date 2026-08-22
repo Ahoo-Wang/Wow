@@ -60,6 +60,7 @@ class ElasticsearchAggregationPagerTest {
             .verifyComplete()
 
         searchRequests.assert().hasSize(2)
+        searchRequests.forEach { it.allowPartialSearchResults().assert().isFalse() }
         searchRequests[0].aggregations()[ROOT]!!.composite().after().assert().isEmpty()
         searchRequests[1].aggregations()[ROOT]!!.composite().after()["group"]!!.longValue().assert().isEqualTo(2L)
         closeRequest.captured.id().assert().isEqualTo("pit-3")
@@ -84,6 +85,23 @@ class ElasticsearchAggregationPagerTest {
         closeRequest.captured.id().assert().isEqualTo("pit-2")
     }
 
+    @Test
+    fun `should reject failed shard responses`() {
+        val closeRequest = slot<ClosePointInTimeRequest>()
+        stubPointInTime(closeRequest)
+        every { elasticsearchClient.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(
+            aggregationResponse("pit-2", emptyList(), failedShards = 1),
+        )
+
+        ElasticsearchAggregationPager(elasticsearchClient, "test-index", batchSize = 2)
+            .search(matchAll { it }, listOf(source), emptyMap())
+            .test()
+            .expectErrorMessage("Elasticsearch aggregation search failed on 1 shard(s).")
+            .verify()
+
+        closeRequest.captured.id().assert().isEqualTo("pit-2")
+    }
+
     private fun stubPointInTime(closeRequest: io.mockk.CapturingSlot<ClosePointInTimeRequest>) {
         every { elasticsearchClient.openPointInTime(any<OpenPointInTimeRequest>()) } returns Mono.just(
             OpenPointInTimeResponse.of {
@@ -103,10 +121,11 @@ class ElasticsearchAggregationPagerTest {
         pitId: String,
         buckets: List<CompositeBucket>,
         afterKey: FieldValue? = null,
+        failedShards: Int = 0,
     ): SearchResponse<Map<*, *>> = SearchResponse.of {
         it.took(1)
             .timedOut(false)
-            .shards { shards -> shards.failed(0).successful(1).total(1) }
+            .shards { shards -> shards.failed(failedShards).successful(1).total(1 + failedShards) }
             .hits { hits -> hits.hits(emptyList()) }
             .aggregations(
                 ROOT,

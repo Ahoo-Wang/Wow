@@ -83,7 +83,12 @@ class HttpQueryGuardFilter(
         when (query) {
             is IListQuery -> validateList(query)
             is IPagedQuery -> validatePage(query)
-            is AggregationQuery -> validateResultSize(query.limit, "aggregation")
+            is AggregationQuery -> {
+                validateResultSize(query.limit, "aggregation")
+                require(query.sort.isEmpty() || FIELD_WILDCARD in allowedSortFields) {
+                    "HTTP aggregation sort requires the allowed-sort-fields wildcard."
+                }
+            }
         }
         if (query is Queryable<*>) {
             val rejectedSortFields = query.sort.map { it.field }.filterNot { allowedSortFields.allows(it) }

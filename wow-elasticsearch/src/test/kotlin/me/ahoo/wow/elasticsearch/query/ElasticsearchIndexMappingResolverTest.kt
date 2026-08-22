@@ -136,6 +136,7 @@ class ElasticsearchIndexMappingResolverTest {
         mapping.resolve("state.name", ElasticsearchFieldUsage.LITERAL).assert().isEqualTo("state.name.keyword")
         mapping.resolve("state.name", ElasticsearchFieldUsage.SEARCH).assert().isEqualTo("state.name")
         mapping.resolve("state.name", ElasticsearchFieldUsage.SORT).assert().isEqualTo("state.name.keyword")
+        mapping.resolve("state.name", ElasticsearchFieldUsage.TERMS).assert().isEqualTo("state.name.keyword")
         mapping.requireNested("state.items").assert().isEqualTo("state.items")
 
         val condition = mapping.resolve(
@@ -174,6 +175,9 @@ class ElasticsearchIndexMappingResolverTest {
         runCatching { mapping.resolve("state.code", ElasticsearchFieldUsage.SEARCH) }
             .exceptionOrNull()!!.message.assert().contains("does not support")
         runCatching { mapping.resolve("state.code", ElasticsearchFieldUsage.SORT) }
+            .exceptionOrNull()!!.message.assert().contains("does not support")
+        mapping.resolve("state.code", ElasticsearchFieldUsage.EXACT).assert().isEqualTo("state.code")
+        runCatching { mapping.resolve("state.code", ElasticsearchFieldUsage.TERMS) }
             .exceptionOrNull()!!.message.assert().contains("does not support")
         runCatching { mapping.requireNested("state.objectItems") }
             .exceptionOrNull()!!.message.assert().contains("nested")

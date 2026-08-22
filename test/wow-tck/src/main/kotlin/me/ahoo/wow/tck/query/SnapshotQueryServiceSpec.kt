@@ -199,6 +199,20 @@ abstract class SnapshotQueryServiceSpec {
     }
 
     @Test
+    fun aggregateIntegralTerms() {
+        aggregationQuery {
+            groupBy("version", "version")
+            count("snapshotCount")
+        }.aggregate(snapshotQueryService)
+            .test()
+            .consumeNextWith { result ->
+                result["version"].assert().isEqualTo(snapshot.version.toLong())
+                result["snapshotCount"].assert().isEqualTo(1L)
+            }
+            .verifyComplete()
+    }
+
+    @Test
     fun aggregateMultiDimensionalBuckets() {
         saveSnapshot(FIXED_SNAPSHOT_TIME + 1_000)
         saveSnapshot(FIXED_SNAPSHOT_TIME + HOUR_MILLIS)

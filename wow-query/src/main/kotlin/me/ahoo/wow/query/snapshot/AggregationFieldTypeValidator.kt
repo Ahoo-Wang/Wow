@@ -23,8 +23,14 @@ import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toBeanDescription
 import tools.jackson.databind.JavaType
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.ZonedDateTime
 import java.time.temporal.TemporalAccessor
 import java.util.Date
+import java.util.UUID
 
 internal fun AggregationQuery.validateFieldTypes(namedAggregate: NamedAggregate) {
     if (groupBy.isEmpty() && metrics.none { it is AggregationMetric.Numeric }) {
@@ -37,14 +43,14 @@ internal fun AggregationQuery.validateFieldTypes(namedAggregate: NamedAggregate)
 
     groupBy.forEach { group ->
         val fieldType = snapshotType.resolveField(group.field)
-        require(fieldType.isScalar) { "Aggregation group field [${group.field}] must be scalar." }
+        require(fieldType.isAggregationScalar) { "Aggregation group field [${group.field}] must be scalar." }
         when (group) {
             is AggregationGroup.Terms -> Unit
             is AggregationGroup.Histogram -> require(fieldType.isNumeric) {
                 "Histogram field [${group.field}] must be numeric."
             }
 
-            is AggregationGroup.DateHistogram -> require(fieldType.isDate) {
+            is AggregationGroup.DateHistogram -> require(fieldType.isAggregationDate) {
                 "Date histogram field [${group.field}] must be a date or epoch number."
             }
         }
@@ -67,12 +73,23 @@ private fun JavaType.resolveField(path: String): JavaType {
     return current
 }
 
-private val JavaType.isScalar: Boolean
-    get() = !isArrayType && !isCollectionLikeType && !isMapLikeType
+internal val JavaType.isAggregationScalar: Boolean
+    get() = isNumeric || isAggregationDate || rawClass.isPrimitive || rawClass.isEnum ||
+        CharSequence::class.java.isAssignableFrom(rawClass) ||
+        rawClass == Boolean::class.javaObjectType || rawClass == Char::class.javaObjectType || rawClass == UUID::class.java
 
 private val JavaType.isNumeric: Boolean
     get() = (rawClass.isPrimitive && rawClass != Boolean::class.javaPrimitiveType && rawClass != Char::class.javaPrimitiveType) ||
         Number::class.java.isAssignableFrom(rawClass)
 
-private val JavaType.isDate: Boolean
-    get() = isNumeric || Date::class.java.isAssignableFrom(rawClass) || TemporalAccessor::class.java.isAssignableFrom(rawClass)
+internal val JavaType.isAggregationDate: Boolean
+    get() = isNumeric || Date::class.java.isAssignableFrom(rawClass) ||
+        rawClass in SUPPORTED_AGGREGATION_TEMPORAL_TYPES
+
+private val SUPPORTED_AGGREGATION_TEMPORAL_TYPES: Set<Class<out TemporalAccessor>> = setOf(
+    Instant::class.java,
+    LocalDate::class.java,
+    LocalDateTime::class.java,
+    OffsetDateTime::class.java,
+    ZonedDateTime::class.java,
+)

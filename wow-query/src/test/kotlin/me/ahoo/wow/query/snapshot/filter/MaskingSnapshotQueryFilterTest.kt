@@ -146,7 +146,7 @@ class MaskingSnapshotQueryFilterTest {
     fun `should reject aggregation when masking is configured`() {
         queryHandler.aggregate(
             MockSnapshotQueryService.namedAggregate,
-            AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))),
+            AggregationQuery(metrics = listOf(AggregationMetric.Sum("state.unknown", "total"))),
         ).test()
             .expectErrorMessage("Snapshot aggregation is unavailable when data masking is configured.")
             .verify()

@@ -23,6 +23,7 @@ import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
+import me.ahoo.wow.query.snapshot.validateFieldTypes
 import reactor.core.publisher.Mono
 
 @FilterType(SnapshotQueryHandler::class)
@@ -35,7 +36,7 @@ class TailSnapshotQueryFilter<S : Any>(private val queryServiceFactory: Snapshot
     override fun filter(
         context: QueryContext<*, *>,
         next: FilterChain<QueryContext<*, *>>
-    ): Mono<Void> {
+    ): Mono<Void> = Mono.defer {
         val queryService = queryServiceFactory.create<S>(context.namedAggregate)
         when (context.queryType) {
             QueryType.SINGLE -> {
@@ -81,11 +82,13 @@ class TailSnapshotQueryFilter<S : Any>(private val queryServiceFactory: Snapshot
             }
 
             QueryType.AGGREGATION -> {
-                context.asAggregationQuery().setResult {
+                val aggregationContext = context.asAggregationQuery()
+                aggregationContext.getQuery().validateFieldTypes(context.namedAggregate)
+                aggregationContext.setResult {
                     queryService.aggregate(it)
                 }
             }
         }
-        return next.filter(context)
+        next.filter(context)
     }
 }

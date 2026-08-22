@@ -19,6 +19,7 @@ import co.elastic.clients.elasticsearch._types.aggregations.CompositeAggregation
 import co.elastic.clients.elasticsearch._types.aggregations.CompositeBucket
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import co.elastic.clients.elasticsearch.core.SearchRequest
+import co.elastic.clients.elasticsearch.core.search.ResponseBody
 import co.elastic.clients.util.NamedValue
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
@@ -87,6 +88,7 @@ internal class ElasticsearchAggregationPager(
             }
             val request = SearchRequest.of {
                 it.size(0)
+                    .allowPartialSearchResults(false)
                     .trackTotalHits { trackTotalHits -> trackTotalHits.enabled(false) }
                     .query(query)
                     .pit { pointInTime ->
@@ -98,6 +100,7 @@ internal class ElasticsearchAggregationPager(
             elasticsearchClient.search(request, Map::class.java)
         }.map { response ->
             response.pitId()?.takeIf(String::isNotBlank)?.let { pit.id = it }
+            response.requireCompleteAggregationResponse()
             val aggregate = checkNotNull(response.aggregations()[ROOT_AGGREGATION]) {
                 "Elasticsearch aggregation response is missing [$ROOT_AGGREGATION]."
             }
@@ -127,5 +130,12 @@ internal class ElasticsearchAggregationPager(
 
     private companion object {
         const val ROOT_AGGREGATION = "__wow_aggregation__"
+    }
+}
+
+internal fun ResponseBody<*>.requireCompleteAggregationResponse() {
+    check(!timedOut()) { "Elasticsearch aggregation search timed out." }
+    check(shards().failed().toInt() == 0) {
+        "Elasticsearch aggregation search failed on ${shards().failed()} shard(s)."
     }
 }

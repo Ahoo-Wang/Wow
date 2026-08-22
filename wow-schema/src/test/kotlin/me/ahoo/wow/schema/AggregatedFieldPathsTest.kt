@@ -21,6 +21,7 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.schema.AggregatedFieldPaths.commandAggregatedFieldPaths
+import me.ahoo.wow.schema.AggregatedFieldPaths.commandSnapshotAggregatedFieldPaths
 import me.ahoo.wow.schema.TypeFieldPaths.allFieldPaths
 import org.junit.jupiter.api.Test
 
@@ -80,6 +81,20 @@ class AggregatedFieldPathsTest {
     fun `should list command aggregated field paths`() {
         val paths = TestAggregate::class.commandAggregatedFieldPaths()
         paths.assert().isNotEmpty()
+            .doesNotContain("contextName")
+            .doesNotContain("aggregateName")
+            .doesNotContain("snapshotTime")
+    }
+
+    @Test
+    fun `should list command snapshot aggregated field paths`() {
+        val paths = TestAggregate::class.commandSnapshotAggregatedFieldPaths()
+        paths.assert()
+            .contains("contextName")
+            .contains("aggregateName")
+            .contains("snapshotTime")
+            .contains("state.id")
+            .doesNotContain("")
     }
 
     class FieldPathDemoState(override val id: String) : Identifier {

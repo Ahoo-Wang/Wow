@@ -16,6 +16,7 @@ package me.ahoo.wow.webflux.route.query
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.abac.AbacTags
+import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
@@ -391,6 +392,35 @@ class HttpQueryGuardFilterTest {
         context.getRequiredResult().test()
             .expectError(TimeoutException::class.java)
             .verify()
+    }
+
+    @Test
+    fun `should require wildcard to enable aggregation sorting`() {
+        val query = AggregationQuery(
+            condition = Condition.id("aggregate-id"),
+            groupBy = listOf(AggregationGroup.Terms("state.status", "status")),
+            metrics = listOf(AggregationMetric.Count("count")),
+            sort = listOf(Sort("count", Sort.Direction.DESC)),
+        )
+        listOf(
+            guard(),
+            guard(allowedSortFields = setOf("count")),
+        ).forEach { guard ->
+            guard.filter(aggregationContext(query), unexpectedBackend())
+                .writeRawRequest(request)
+                .test()
+                .expectError(IllegalArgumentException::class.java)
+                .verify()
+        }
+
+        val context = aggregationContext(query)
+        guard(allowedSortFields = setOf("*")).filter(
+            context,
+            FilterChain {
+                it.asAggregationQuery().setResult(Flux.empty())
+                Mono.empty()
+            },
+        ).writeRawRequest(request).test().verifyComplete()
     }
 
     @Test

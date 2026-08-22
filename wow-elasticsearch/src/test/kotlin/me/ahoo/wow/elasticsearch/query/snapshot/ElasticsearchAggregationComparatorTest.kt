@@ -11,17 +11,18 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema.typed
+package me.ahoo.wow.elasticsearch.query.snapshot
 
-interface AggregatedFields<CommandAggregateType : Any> {
-    companion object {
-        val EMPTY = object : AggregatedFields<Any> {}
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.Sort
+import org.junit.jupiter.api.Test
 
-        @Suppress("UNCHECKED_CAST")
-        fun <CommandAggregateType : Any> empty(): AggregatedFields<CommandAggregateType> {
-            return EMPTY as AggregatedFields<CommandAggregateType>
-        }
+class ElasticsearchAggregationComparatorTest {
+    @Test
+    fun `should preserve integral and UTF-8 binary order`() {
+        compareAggregationValues(9_007_199_254_740_992L, 9_007_199_254_740_993L, Sort.Direction.ASC)
+            .assert().isLessThan(0)
+        compareAggregationValues("\uD800\uDC00", "\uE000", Sort.Direction.ASC)
+            .assert().isGreaterThan(0)
     }
 }
-
-interface SnapshotAggregatedFields<CommandAggregateType : Any>

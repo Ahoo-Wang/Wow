@@ -45,6 +45,7 @@ enum class ElasticsearchFieldUsage {
     RANGE,
     SEARCH,
     SORT,
+    TERMS,
     NUMERIC,
     DATE,
 }
@@ -276,6 +277,7 @@ private data class ElasticsearchMappedField(
 ) {
     fun supports(usage: ElasticsearchFieldUsage): Boolean =
         when (usage) {
+            ElasticsearchFieldUsage.TERMS,
             ElasticsearchFieldUsage.NUMERIC,
             ElasticsearchFieldUsage.DATE,
             -> supportsAggregation(usage)
@@ -297,6 +299,7 @@ private data class ElasticsearchMappedField(
 
     private fun supportsAggregation(usage: ElasticsearchFieldUsage): Boolean =
         when (usage) {
+            ElasticsearchFieldUsage.TERMS -> isSortable(EXACT_KINDS)
             ElasticsearchFieldUsage.NUMERIC -> isSortable(NUMERIC_KINDS)
             ElasticsearchFieldUsage.DATE -> isSortable(DATE_KINDS + NUMERIC_KINDS)
             else -> error("Unsupported aggregation field usage: $usage")

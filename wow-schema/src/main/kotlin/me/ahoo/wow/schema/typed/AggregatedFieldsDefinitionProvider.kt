@@ -19,16 +19,18 @@ import com.github.victools.jsonschema.generator.CustomDefinitionProviderV2
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import com.github.victools.jsonschema.generator.SchemaKeyword
 import me.ahoo.wow.schema.AggregatedFieldPaths.commandAggregatedFieldPaths
+import me.ahoo.wow.schema.AggregatedFieldPaths.commandSnapshotAggregatedFieldPaths
 import me.ahoo.wow.schema.JsonSchema.Companion.toPropertyName
 
 object AggregatedFieldsDefinitionProvider : CustomDefinitionProviderV2 {
     private val type: Class<*> = AggregatedFields::class.java
+    private val snapshotType: Class<*> = SnapshotAggregatedFields::class.java
 
     override fun provideCustomSchemaDefinition(
         javaType: ResolvedType,
         context: SchemaGenerationContext
     ): CustomDefinition? {
-        if (!javaType.isInstanceOf(type)) {
+        if (!javaType.isInstanceOf(type) && !javaType.isInstanceOf(snapshotType)) {
             return null
         }
 
@@ -42,7 +44,11 @@ object AggregatedFieldsDefinitionProvider : CustomDefinitionProviderV2 {
         if (commandAggregateType == Any::class.java) {
             return CustomDefinition(rootNode)
         }
-        val enumValues = commandAggregateType.kotlin.commandAggregatedFieldPaths()
+        val enumValues = if (javaType.isInstanceOf(snapshotType)) {
+            commandAggregateType.kotlin.commandSnapshotAggregatedFieldPaths()
+        } else {
+            commandAggregateType.kotlin.commandAggregatedFieldPaths()
+        }
         rootNode.putPOJO(SchemaKeyword.TAG_ENUM.toPropertyName(schemaVersion), enumValues)
 
         return CustomDefinition(rootNode)

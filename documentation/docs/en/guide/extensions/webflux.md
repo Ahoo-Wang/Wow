@@ -92,7 +92,7 @@ plus `wow-webflux` for these properties to be bound.
 | `query.max-page-window` | `Long` | `10000` | Maximum HTTP `index * size` page window; `0` disables the cap |
 | `query.max-condition-nodes` | `Int` | `64` | Maximum number of HTTP query condition nodes; `0` disables the cap |
 | `query.max-condition-values` | `Int` | `1000` | Maximum values in HTTP `IN`, `NOT_IN`, `ALL_IN`, `IDS`, or `AGGREGATE_IDS` conditions; `0` disables the cap |
-| `query.allowed-sort-fields` | `Set<String>` | `[]` | Indexed logical fields allowed for explicit HTTP sorting; an empty set rejects all explicit sorts and `["*"]` disables the restriction |
+| `query.allowed-sort-fields` | `Set<String>` | `[]` | Indexed logical fields allowed for explicit HTTP sorting; an empty set rejects all explicit sorts and `["*"]` disables the restriction. Aggregation sorts use request-defined aliases and therefore require `["*"]` |
 | `query.allowed-condition-fields` | `Set<String>` | `[]` | Additional indexed logical fields allowed in HTTP predicates; an empty set keeps built-in `aggregateId`, aggregate-ID-scoped `version`, and indexed fieldless logical/metadata operators; `spaceId` requires explicit allowlisting, while `["*"]` disables the restriction |
 | `query.allow-raw` | `Boolean` | `false` | Whether HTTP queries may use native `RAW` conditions |
 | `query.allow-expensive-operators` | `Boolean` | `false` | Whether HTTP queries may use negative/existence/expensive string operators or unfiltered count/paged/aggregation queries |

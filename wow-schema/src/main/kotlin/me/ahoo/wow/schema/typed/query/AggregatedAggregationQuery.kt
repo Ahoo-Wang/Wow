@@ -15,14 +15,16 @@ package me.ahoo.wow.schema.typed.query
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import io.swagger.v3.oas.annotations.media.ArraySchema
 import io.swagger.v3.oas.annotations.media.Schema
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.schema.typed.AggregatedFields
+import me.ahoo.wow.schema.typed.SnapshotAggregatedFields
 
 data class AggregatedAggregationQuery<CommandAggregateType : Any>(
     val condition: AggregatedCondition<CommandAggregateType> = AggregatedCondition(),
+    @get:ArraySchema(maxItems = AggregationQuery.MAX_GROUPS)
     val groupBy: List<AggregatedAggregationGroup<CommandAggregateType>> = emptyList(),
     val metrics: List<AggregatedAggregationMetric<CommandAggregateType>>,
     val sort: List<Sort> = emptyList(),
@@ -37,23 +39,23 @@ data class AggregatedAggregationQuery<CommandAggregateType : Any>(
     JsonSubTypes.Type(value = AggregatedAggregationGroup.DateHistogram::class, name = "DATE_HISTOGRAM"),
 )
 sealed interface AggregatedAggregationGroup<CommandAggregateType : Any> {
-    val field: AggregatedFields<CommandAggregateType>
+    val field: SnapshotAggregatedFields<CommandAggregateType>
     val alias: String
 
     data class Terms<CommandAggregateType : Any>(
-        override val field: AggregatedFields<CommandAggregateType>,
+        override val field: SnapshotAggregatedFields<CommandAggregateType>,
         override val alias: String,
     ) : AggregatedAggregationGroup<CommandAggregateType>
 
     data class Histogram<CommandAggregateType : Any>(
-        override val field: AggregatedFields<CommandAggregateType>,
+        override val field: SnapshotAggregatedFields<CommandAggregateType>,
         override val alias: String,
         val interval: Double,
         val offset: Double = 0.0,
     ) : AggregatedAggregationGroup<CommandAggregateType>
 
     data class DateHistogram<CommandAggregateType : Any>(
-        override val field: AggregatedFields<CommandAggregateType>,
+        override val field: SnapshotAggregatedFields<CommandAggregateType>,
         override val alias: String,
         val unit: AggregationDateUnit,
         val timeZone: String = "UTC",
@@ -76,22 +78,22 @@ sealed interface AggregatedAggregationMetric<CommandAggregateType : Any> {
     ) : AggregatedAggregationMetric<CommandAggregateType>
 
     data class Sum<CommandAggregateType : Any>(
-        val field: AggregatedFields<CommandAggregateType>,
+        val field: SnapshotAggregatedFields<CommandAggregateType>,
         override val alias: String,
     ) : AggregatedAggregationMetric<CommandAggregateType>
 
     data class Avg<CommandAggregateType : Any>(
-        val field: AggregatedFields<CommandAggregateType>,
+        val field: SnapshotAggregatedFields<CommandAggregateType>,
         override val alias: String,
     ) : AggregatedAggregationMetric<CommandAggregateType>
 
     data class Min<CommandAggregateType : Any>(
-        val field: AggregatedFields<CommandAggregateType>,
+        val field: SnapshotAggregatedFields<CommandAggregateType>,
         override val alias: String,
     ) : AggregatedAggregationMetric<CommandAggregateType>
 
     data class Max<CommandAggregateType : Any>(
-        val field: AggregatedFields<CommandAggregateType>,
+        val field: SnapshotAggregatedFields<CommandAggregateType>,
         override val alias: String,
     ) : AggregatedAggregationMetric<CommandAggregateType>
 }

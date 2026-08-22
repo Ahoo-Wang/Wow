@@ -68,7 +68,16 @@ class MongoSnapshotQueryService<S : Any>(
         val pipeline = aggregationQuery.toMongoPipeline(converter)
         collection.aggregate(pipeline)
             .toFlux()
-            .map<Map<String, Any?>> { LinkedHashMap(it) }
+            .map<Map<String, Any?>> { document ->
+                LinkedHashMap<String, Any?>(document).apply {
+                    aggregationQuery.groupBy.filterIsInstance<AggregationGroup.Terms>().forEach { group ->
+                        val value = get(group.alias)
+                        if (value is Int) {
+                            put(group.alias, value.toLong())
+                        }
+                    }
+                }
+            }
             .let { result ->
                 if (aggregationQuery.groupBy.isEmpty()) {
                     result.switchIfEmpty(Flux.just(aggregationQuery.emptyGlobalResult()))

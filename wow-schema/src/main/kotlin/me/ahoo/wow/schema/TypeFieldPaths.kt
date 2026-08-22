@@ -21,6 +21,7 @@ import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.schema.TypeFieldPaths.allFieldPaths
 import me.ahoo.wow.schema.Types.isStdType
 import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.serialization.state.SnapshotRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
@@ -175,9 +176,24 @@ object AggregatedFieldPaths {
         )
     }
 
+    fun KClass<*>.snapshotAggregatedFieldPaths(): Set<String> {
+        return buildSet {
+            addAll(stateAggregatedFieldPaths().filter(String::isNotEmpty))
+            add(MessageRecords.CONTEXT_NAME)
+            add(MessageRecords.AGGREGATE_NAME)
+            add(SnapshotRecords.SNAPSHOT_TIME)
+        }
+    }
+
     fun KClass<*>.commandAggregatedFieldPaths(): Set<String> {
         val aggregateMetadata = this.java.aggregateMetadata<Any, Any>()
         val stateAggregateType = aggregateMetadata.state.aggregateType.kotlin
         return stateAggregateType.stateAggregatedFieldPaths()
+    }
+
+    fun KClass<*>.commandSnapshotAggregatedFieldPaths(): Set<String> {
+        val aggregateMetadata = this.java.aggregateMetadata<Any, Any>()
+        val stateAggregateType = aggregateMetadata.state.aggregateType.kotlin
+        return stateAggregateType.snapshotAggregatedFieldPaths()
     }
 }

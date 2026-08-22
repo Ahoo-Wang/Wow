@@ -46,6 +46,7 @@ import me.ahoo.wow.elasticsearch.query.ElasticsearchFieldUsage
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
 import me.ahoo.wow.elasticsearch.query.ElasticsearchMappingRefreshResult
+import me.ahoo.wow.elasticsearch.query.requireCompleteAggregationResponse
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.query.converter.ConditionConverter
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
@@ -55,6 +56,7 @@ import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchCl
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.time.Duration
+import java.util.Arrays
 import java.util.PriorityQueue
 
 class ElasticsearchSnapshotQueryService<S : Any>(
@@ -138,6 +140,7 @@ class ElasticsearchSnapshotQueryService<S : Any>(
         val request = SearchRequest.of {
             it.index(indexName)
                 .size(0)
+                .allowPartialSearchResults(false)
                 .query(resolved.condition)
                 .trackTotalHits { trackTotalHits ->
                     trackTotalHits.enabled(resolved.query.metrics.any { metric -> metric is AggregationMetric.Count })
@@ -149,6 +152,7 @@ class ElasticsearchSnapshotQueryService<S : Any>(
         }
         return elasticsearchClient.search(request, Map::class.java)
             .map<Map<String, Any?>> { response ->
+                response.requireCompleteAggregationResponse()
                 buildMap {
                     resolved.query.metrics.forEach { metric ->
                         put(
@@ -200,7 +204,7 @@ class ElasticsearchSnapshotQueryService<S : Any>(
         val resolvedGroups = groupBy.map { group ->
             when (group) {
                 is AggregationGroup.Terms -> group.copy(
-                    field = mapping.resolve(group.field, ElasticsearchFieldUsage.EXACT)
+                    field = mapping.resolve(group.field, ElasticsearchFieldUsage.TERMS)
                 )
 
                 is AggregationGroup.Histogram -> group.copy(
@@ -404,14 +408,23 @@ private fun aggregationComparator(sort: List<Sort>): Comparator<Map<String, Any?
 }
 
 @Suppress("UNCHECKED_CAST")
-private fun compareAggregationValues(left: Any?, right: Any?, direction: Sort.Direction): Int {
+internal fun compareAggregationValues(left: Any?, right: Any?, direction: Sort.Direction): Int {
     val ascending = when {
         left === right -> 0
         left == null -> -1
         right == null -> 1
+        left.isIntegral() && right.isIntegral() -> (left as Number).toLong().compareTo((right as Number).toLong())
         left is Number && right is Number -> left.toDouble().compareTo(right.toDouble())
+        left is String && right is String -> left.compareUtf8(right)
         left::class == right::class && left is Comparable<*> -> (left as Comparable<Any>).compareTo(right)
-        else -> left.toString().compareTo(right.toString())
+        else -> left.toString().compareUtf8(right.toString())
     }
     return if (direction == Sort.Direction.ASC) ascending else -ascending
 }
+
+private fun Any?.isIntegral(): Boolean = this is Byte || this is Short || this is Int || this is Long
+
+private fun String.compareUtf8(other: String): Int = Arrays.compareUnsigned(
+    encodeToByteArray(),
+    other.encodeToByteArray(),
+)

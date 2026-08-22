@@ -792,7 +792,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/example.cart.CartAggregatedFields"
+            "$ref" : "#/components/schemas/example.cart.CartSnapshotAggregatedFields"
           },
           "timeZone" : {
             "type" : "string"
@@ -813,7 +813,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/example.cart.CartAggregatedFields"
+            "$ref" : "#/components/schemas/example.cart.CartSnapshotAggregatedFields"
           },
           "interval" : {
             "format" : "double",
@@ -836,7 +836,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/example.cart.CartAggregatedFields"
+            "$ref" : "#/components/schemas/example.cart.CartSnapshotAggregatedFields"
           },
           "type" : {
             "const" : "TERMS"
@@ -851,7 +851,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/example.cart.CartAggregatedFields"
+            "$ref" : "#/components/schemas/example.cart.CartSnapshotAggregatedFields"
           },
           "type" : {
             "const" : "AVG"
@@ -878,7 +878,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/example.cart.CartAggregatedFields"
+            "$ref" : "#/components/schemas/example.cart.CartSnapshotAggregatedFields"
           },
           "type" : {
             "const" : "MAX"
@@ -893,7 +893,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/example.cart.CartAggregatedFields"
+            "$ref" : "#/components/schemas/example.cart.CartSnapshotAggregatedFields"
           },
           "type" : {
             "const" : "MIN"
@@ -908,7 +908,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/example.cart.CartAggregatedFields"
+            "$ref" : "#/components/schemas/example.cart.CartSnapshotAggregatedFields"
           },
           "type" : {
             "const" : "SUM"
@@ -932,6 +932,7 @@
                 "$ref" : "#/components/schemas/example.cart.CartAggregatedAggregationGroup.Terms"
               } ]
             },
+            "maxItems" : 32,
             "type" : "array"
           },
           "limit" : {
@@ -1316,6 +1317,10 @@
         },
         "required" : [ "changed" ],
         "type" : "object"
+      },
+      "example.cart.CartSnapshotAggregatedFields" : {
+        "enum" : [ "aggregateId", "tenantId", "ownerId", "spaceId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "tags", "deleted", "state", "state.id", "state.items", "state.items.productId", "state.items.quantity", "state.size", "contextName", "aggregateName", "snapshotTime" ],
+        "type" : "string"
       },
       "example.cart.CartState" : {
         "properties" : {
@@ -1820,7 +1825,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/example.order.OrderAggregatedFields"
+            "$ref" : "#/components/schemas/example.order.OrderSnapshotAggregatedFields"
           },
           "timeZone" : {
             "type" : "string"
@@ -1841,7 +1846,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/example.order.OrderAggregatedFields"
+            "$ref" : "#/components/schemas/example.order.OrderSnapshotAggregatedFields"
           },
           "interval" : {
             "format" : "double",
@@ -1864,7 +1869,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/example.order.OrderAggregatedFields"
+            "$ref" : "#/components/schemas/example.order.OrderSnapshotAggregatedFields"
           },
           "type" : {
             "const" : "TERMS"
@@ -1879,7 +1884,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/example.order.OrderAggregatedFields"
+            "$ref" : "#/components/schemas/example.order.OrderSnapshotAggregatedFields"
           },
           "type" : {
             "const" : "AVG"
@@ -1906,7 +1911,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/example.order.OrderAggregatedFields"
+            "$ref" : "#/components/schemas/example.order.OrderSnapshotAggregatedFields"
           },
           "type" : {
             "const" : "MAX"
@@ -1921,7 +1926,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/example.order.OrderAggregatedFields"
+            "$ref" : "#/components/schemas/example.order.OrderSnapshotAggregatedFields"
           },
           "type" : {
             "const" : "MIN"
@@ -1936,7 +1941,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/example.order.OrderAggregatedFields"
+            "$ref" : "#/components/schemas/example.order.OrderSnapshotAggregatedFields"
           },
           "type" : {
             "const" : "SUM"
@@ -1960,6 +1965,7 @@
                 "$ref" : "#/components/schemas/example.order.OrderAggregatedAggregationGroup.Terms"
               } ]
             },
+            "maxItems" : 32,
             "type" : "array"
           },
           "limit" : {
@@ -2414,6 +2420,10 @@
       },
       "example.order.OrderShipped" : {
         "type" : "object"
+      },
+      "example.order.OrderSnapshotAggregatedFields" : {
+        "enum" : [ "aggregateId", "tenantId", "ownerId", "spaceId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "tags", "deleted", "state", "state.address", "state.address.city", "state.address.country", "state.address.detail", "state.address.district", "state.address.province", "state.id", "state.items", "state.items.id", "state.items.price", "state.items.productId", "state.items.quantity", "state.items.totalPrice", "state.paidAmount", "state.payable", "state.status", "state.totalAmount", "contextName", "aggregateName", "snapshotTime" ],
+        "type" : "string"
       },
       "example.order.OrderStatus" : {
         "enum" : [ "CREATED", "PAID", "SHIPPED", "RECEIVED" ],
@@ -2944,7 +2954,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedFields"
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateSnapshotAggregatedFields"
           },
           "timeZone" : {
             "type" : "string"
@@ -2965,7 +2975,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedFields"
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateSnapshotAggregatedFields"
           },
           "interval" : {
             "format" : "double",
@@ -2988,7 +2998,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedFields"
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateSnapshotAggregatedFields"
           },
           "type" : {
             "const" : "TERMS"
@@ -3003,7 +3013,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedFields"
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateSnapshotAggregatedFields"
           },
           "type" : {
             "const" : "AVG"
@@ -3030,7 +3040,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedFields"
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateSnapshotAggregatedFields"
           },
           "type" : {
             "const" : "MAX"
@@ -3045,7 +3055,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedFields"
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateSnapshotAggregatedFields"
           },
           "type" : {
             "const" : "MIN"
@@ -3060,7 +3070,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedFields"
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateSnapshotAggregatedFields"
           },
           "type" : {
             "const" : "SUM"
@@ -3084,6 +3094,7 @@
                 "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedAggregationGroup.Terms"
               } ]
             },
+            "maxItems" : 32,
             "type" : "array"
           },
           "limit" : {
@@ -3399,13 +3410,17 @@
         "required" : [ "condition" ],
         "type" : "object"
       },
+      "tck.mock_aggregate.MockCommandAggregateSnapshotAggregatedFields" : {
+        "enum" : [ "aggregateId", "tenantId", "ownerId", "spaceId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "tags", "deleted", "state", "state.data", "state.id", "contextName", "aggregateName", "snapshotTime" ],
+        "type" : "string"
+      },
       "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedAggregationGroup.DateHistogram" : {
         "properties" : {
           "alias" : {
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedFields"
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdSnapshotAggregatedFields"
           },
           "timeZone" : {
             "type" : "string"
@@ -3426,7 +3441,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedFields"
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdSnapshotAggregatedFields"
           },
           "interval" : {
             "format" : "double",
@@ -3449,7 +3464,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedFields"
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdSnapshotAggregatedFields"
           },
           "type" : {
             "const" : "TERMS"
@@ -3464,7 +3479,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedFields"
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdSnapshotAggregatedFields"
           },
           "type" : {
             "const" : "AVG"
@@ -3491,7 +3506,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedFields"
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdSnapshotAggregatedFields"
           },
           "type" : {
             "const" : "MAX"
@@ -3506,7 +3521,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedFields"
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdSnapshotAggregatedFields"
           },
           "type" : {
             "const" : "MIN"
@@ -3521,7 +3536,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedFields"
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdSnapshotAggregatedFields"
           },
           "type" : {
             "const" : "SUM"
@@ -3545,6 +3560,7 @@
                 "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedAggregationGroup.Terms"
               } ]
             },
+            "maxItems" : 32,
             "type" : "array"
           },
           "limit" : {
@@ -3829,13 +3845,17 @@
         "required" : [ "condition" ],
         "type" : "object"
       },
+      "tck.mock_aggregate.MockCommandAggregateWithTenantIdSnapshotAggregatedFields" : {
+        "enum" : [ "aggregateId", "tenantId", "ownerId", "spaceId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "tags", "deleted", "state", "state.id", "state.tenantId", "contextName", "aggregateName", "snapshotTime" ],
+        "type" : "string"
+      },
       "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedAggregationGroup.DateHistogram" : {
         "properties" : {
           "alias" : {
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedFields"
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersSnapshotAggregatedFields"
           },
           "timeZone" : {
             "type" : "string"
@@ -3856,7 +3876,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedFields"
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersSnapshotAggregatedFields"
           },
           "interval" : {
             "format" : "double",
@@ -3879,7 +3899,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedFields"
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersSnapshotAggregatedFields"
           },
           "type" : {
             "const" : "TERMS"
@@ -3894,7 +3914,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedFields"
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersSnapshotAggregatedFields"
           },
           "type" : {
             "const" : "AVG"
@@ -3921,7 +3941,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedFields"
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersSnapshotAggregatedFields"
           },
           "type" : {
             "const" : "MAX"
@@ -3936,7 +3956,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedFields"
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersSnapshotAggregatedFields"
           },
           "type" : {
             "const" : "MIN"
@@ -3951,7 +3971,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedFields"
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersSnapshotAggregatedFields"
           },
           "type" : {
             "const" : "SUM"
@@ -3975,6 +3995,7 @@
                 "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedAggregationGroup.Terms"
               } ]
             },
+            "maxItems" : 32,
             "type" : "array"
           },
           "limit" : {
@@ -4258,6 +4279,10 @@
         },
         "required" : [ "condition" ],
         "type" : "object"
+      },
+      "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersSnapshotAggregatedFields" : {
+        "enum" : [ "aggregateId", "tenantId", "ownerId", "spaceId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "tags", "deleted", "state", "contextName", "aggregateName", "snapshotTime" ],
+        "type" : "string"
       },
       "tck.mock_aggregate.MockCreateAggregate" : {
         "properties" : {

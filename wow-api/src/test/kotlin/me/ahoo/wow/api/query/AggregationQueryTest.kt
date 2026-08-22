@@ -82,11 +82,56 @@ class AggregationQueryTest {
             )
         }
         assertThrows<IllegalArgumentException> {
+            AggregationMetric.Count("bad\u0000alias")
+        }
+        assertThrows<IllegalArgumentException> {
             AggregationQuery(
                 groupBy = listOf(AggregationGroup.Terms("state.status", "status")),
                 metrics = listOf(AggregationMetric.Count("count")),
                 limit = AggregationQuery.MAX_LIMIT + 1,
             )
+        }
+    }
+
+    @Test
+    fun `should reject aggregation exceeding MongoDB sort key limit`() {
+        assertThrows<IllegalArgumentException> {
+            AggregationQuery(
+                groupBy = List(AggregationQuery.MAX_GROUPS + 1) {
+                    AggregationGroup.Terms("state.field$it", "field$it")
+                },
+                metrics = listOf(AggregationMetric.Count("count")),
+            )
+        }
+        assertThrows<IllegalArgumentException> {
+            AggregationQuery(
+                groupBy = List(AggregationQuery.MAX_GROUPS) {
+                    AggregationGroup.Terms("state.field$it", "field$it")
+                },
+                metrics = listOf(AggregationMetric.Count("count")),
+                sort = listOf(Sort("count", Sort.Direction.DESC)),
+            )
+        }
+    }
+
+    @Test
+    fun `should accept only portable date histogram time zones`() {
+        AggregationGroup.DateHistogram(
+            field = "snapshotTime",
+            alias = "hour",
+            unit = AggregationDateUnit.HOUR,
+            timeZone = "+08:00",
+        ).timeZone.assert().isEqualTo("+08:00")
+
+        listOf("UTC+08:00", "GMT+08:00", "Z", "+19:00").forEach { timeZone ->
+            assertThrows<IllegalArgumentException> {
+                AggregationGroup.DateHistogram(
+                    field = "snapshotTime",
+                    alias = "hour",
+                    unit = AggregationDateUnit.HOUR,
+                    timeZone = timeZone,
+                )
+            }
         }
     }
 }

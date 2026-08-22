@@ -26,6 +26,8 @@ import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.Projection
@@ -164,6 +166,24 @@ class ElasticsearchSnapshotMappingQueryTest {
         verify(exactly = 0) { client.indices() }
     }
 
+    @Test
+    fun `global aggregation should reject timed out responses`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(queryMapping()),
+        )
+        every { client.search(capture(searchRequest), Map::class.java) } returns Mono.just(
+            emptySearchResponse(timedOut = true),
+        )
+
+        queryService().aggregate(
+            AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))),
+        ).test()
+            .expectErrorMessage("Elasticsearch aggregation search timed out.")
+            .verify()
+
+        searchRequest.captured.allowPartialSearchResults().assert().isFalse()
+    }
+
     private fun queryService(
         resolver: ElasticsearchIndexMappingResolver = ElasticsearchIndexMappingResolver(client),
     ): ElasticsearchSnapshotQueryService<Any> =
@@ -202,10 +222,10 @@ class ElasticsearchSnapshotMappingQueryTest {
             }
         }
 
-    private fun emptySearchResponse(): SearchResponse<Map<*, *>> =
+    private fun emptySearchResponse(timedOut: Boolean = false): SearchResponse<Map<*, *>> =
         SearchResponse.of<Map<*, *>> {
             it.took(1)
-                .timedOut(false)
+                .timedOut(timedOut)
                 .shards { shards -> shards.failed(0).successful(1).total(1) }
                 .hits { hits -> hits.hits(emptyList()) }
         }

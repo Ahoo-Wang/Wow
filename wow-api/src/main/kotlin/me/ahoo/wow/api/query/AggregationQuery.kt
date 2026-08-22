@@ -16,11 +16,14 @@ package me.ahoo.wow.api.query
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import io.swagger.v3.oas.annotations.media.ArraySchema
 import io.swagger.v3.oas.annotations.media.Schema
 import java.time.ZoneId
+import java.time.ZoneOffset
 
 data class AggregationQuery(
     override val condition: Condition = Condition.ALL,
+    @get:ArraySchema(maxItems = MAX_GROUPS)
     @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
     val groupBy: List<AggregationGroup> = emptyList(),
     val metrics: List<AggregationMetric>,
@@ -32,6 +35,7 @@ data class AggregationQuery(
     init {
         require(metrics.isNotEmpty()) { "metrics must not be empty." }
         require(limit in 1..MAX_LIMIT) { "limit must be between 1 and $MAX_LIMIT." }
+        require(groupBy.size <= MAX_GROUPS) { "groupBy must contain at most $MAX_GROUPS dimensions." }
         require(groupBy.isNotEmpty() || sort.isEmpty()) { "sort requires at least one groupBy." }
 
         val aliases = groupBy.map(AggregationGroup::alias) + metrics.map(AggregationMetric::alias)
@@ -39,6 +43,10 @@ data class AggregationQuery(
         val sortFields = sort.map(Sort::field)
         require(sortFields.distinct().size == sortFields.size) { "sort fields must be unique." }
         require(sortFields.all(aliases::contains)) { "sort fields must reference aggregation aliases." }
+        val groupAliases = groupBy.mapTo(hashSetOf(), AggregationGroup::alias)
+        require(groupBy.size + sortFields.count { it !in groupAliases } <= MAX_GROUPS) {
+            "aggregation sort must contain at most $MAX_GROUPS effective fields."
+        }
     }
 
     override fun withCondition(newCondition: Condition): AggregationQuery = copy(condition = newCondition)
@@ -46,6 +54,7 @@ data class AggregationQuery(
     companion object {
         const val DEFAULT_LIMIT: Int = 100
         const val MAX_LIMIT: Int = 10_000
+        const val MAX_GROUPS: Int = 32
         private const val DEFAULT_LIMIT_TEXT = "100"
         private const val MAX_LIMIT_TEXT = "10000"
     }
@@ -94,9 +103,7 @@ sealed interface AggregationGroup {
         init {
             requireAggregationField(field)
             requireAggregationAlias(alias)
-            require(timeZone.isNotBlank()) { "date histogram timeZone must not be blank." }
-            runCatching { ZoneId.of(timeZone) }
-                .getOrElse { throw IllegalArgumentException("Invalid date histogram timeZone: $timeZone.", it) }
+            requireAggregationTimeZone(timeZone)
         }
     }
 }
@@ -181,6 +188,19 @@ private fun requireAggregationField(field: String) {
 private fun requireAggregationAlias(alias: String) {
     require(alias.isNotBlank()) { "aggregation alias must not be blank." }
     require('.' !in alias) { "aggregation alias must not contain '.'." }
+    require('\u0000' !in alias) { "aggregation alias must not contain NUL." }
     require(!alias.startsWith('$')) { "aggregation alias must not start with '$'." }
     require(alias != "_id") { "aggregation alias [_id] is reserved." }
+}
+
+private val PORTABLE_TIME_ZONE_IDS: Set<String> = ZoneId.getAvailableZoneIds()
+private val PORTABLE_TIME_ZONE_OFFSET = Regex("[+-](?:0\\d|1\\d):[0-5]\\d")
+
+private fun requireAggregationTimeZone(timeZone: String) {
+    require(timeZone.isNotBlank()) { "date histogram timeZone must not be blank." }
+    val isPortableOffset = PORTABLE_TIME_ZONE_OFFSET.matches(timeZone) &&
+        runCatching { ZoneOffset.of(timeZone) }.isSuccess
+    require(timeZone in PORTABLE_TIME_ZONE_IDS || isPortableOffset) {
+        "Invalid date histogram timeZone [$timeZone]: use an IANA identifier or an offset in [+/-]HH:MM form."
+    }
 }
