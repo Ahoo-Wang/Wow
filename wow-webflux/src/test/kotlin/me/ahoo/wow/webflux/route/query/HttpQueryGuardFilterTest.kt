@@ -89,14 +89,10 @@ class HttpQueryGuardFilterTest {
             ListQuery(Condition.isNull(MessageRecords.AGGREGATE_ID), limit = 1),
             ListQuery(Condition.notNull(MessageRecords.AGGREGATE_ID), limit = 1),
             ListQuery(Condition.exists(MessageRecords.AGGREGATE_ID, false), limit = 1),
-            ListQuery(Condition.spaceId("space-id"), limit = 1),
-            ListQuery(Condition.eq("state.unindexed", "value"), limit = 1),
-            ListQuery(Condition.eq(MessageRecords.VERSION, 1), limit = 1),
             ListQuery(Condition(operator = Operator.NE, value = "value"), limit = 1),
             ListQuery(Condition.isIn(MessageRecords.AGGREGATE_ID, List(1001) { it }), limit = 1),
             ListQuery(Condition(operator = Operator.IDS, value = List(1001) { it }), limit = 1),
             ListQuery(Condition(operator = Operator.AGGREGATE_IDS, value = List(1001) { it }), limit = 1),
-            ListQuery(Condition.ALL, limit = 1, sort = listOf(Sort("state.unindexed", Sort.Direction.ASC))),
             ListQuery(Condition.and(List(65) { Condition.eq(MessageRecords.AGGREGATE_ID, it) }), limit = 1),
         ).forEach { query ->
             guard().filter(listContext(query), unexpectedBackend())
@@ -174,66 +170,35 @@ class HttpQueryGuardFilterTest {
     }
 
     @Test
-    fun `should allow indexed sort fields explicitly`() {
-        val context = listContext(
-            ListQuery(
-                Condition.eq("state.status", "ACTIVE"),
-                limit = 1,
-                sort = listOf(Sort("state.createdAt", Sort.Direction.DESC)),
+    fun `should allow application sort and condition fields`() {
+        val context = pagedContext(
+            PagedQuery(
+                Condition.and(
+                    Condition.eq("state.status", "ACTIVE"),
+                    Condition.spaceId("space-id"),
+                    Condition.eq(MessageRecords.VERSION, 1),
+                ),
+                sort = listOf(Sort(MessageRecords.AGGREGATE_ID, Sort.Direction.DESC)),
             ),
         )
-        guard(
-            allowedSortFields = setOf("state.createdAt"),
-            allowedConditionFields = setOf("state.status"),
-        ).filter(
+        guard().filter(
             context,
             FilterChain {
-                it.asListQuery<Any>().setResult(Flux.empty())
-                Mono.empty()
-            },
-        ).writeRawRequest(request).test().verifyComplete()
-
-        val spaceContext = listContext(ListQuery(Condition.spaceId("space-id"), limit = 1))
-        guard(allowedConditionFields = setOf(MessageRecords.SPACE_ID)).filter(
-            spaceContext,
-            FilterChain {
-                it.asListQuery<Any>().setResult(Flux.empty())
+                it.asPagedQuery<Any>().setResult(Mono.empty())
                 Mono.empty()
             },
         ).writeRawRequest(request).test().verifyComplete()
     }
 
     @Test
-    fun `should allow legacy fields with wildcard`() {
-        val context = listContext(
-            ListQuery(
-                Condition.eq("state.unindexed", "value"),
-                limit = 1,
-                sort = listOf(Sort("state.unindexed", Sort.Direction.ASC)),
-            ),
-        )
-        guard(
-            allowedSortFields = setOf("*"),
-            allowedConditionFields = setOf("*"),
-        ).filter(
-            context,
-            FilterChain {
-                it.asListQuery<Any>().setResult(Flux.empty())
-                Mono.empty()
-            },
-        ).writeRawRequest(request).test().verifyComplete()
-    }
-
-    @Test
-    fun `should validate element match children with effective paths`() {
-        val guard = guard(allowedConditionFields = setOf("state.items.productId"))
+    fun `should require one element match child`() {
         val context = listContext(
             ListQuery(
                 Condition.elemMatch("state.items", Condition.eq("productId", "product-1")),
                 limit = 1,
             ),
         )
-        guard.filter(
+        guard().filter(
             context,
             FilterChain {
                 it.asListQuery<Any>().setResult(Flux.empty())
@@ -241,38 +206,7 @@ class HttpQueryGuardFilterTest {
             },
         ).writeRawRequest(request).test().verifyComplete()
 
-        val qualifiedContext = listContext(
-            ListQuery(
-                Condition.elemMatch(
-                    "state.items",
-                    Condition.eq("state.items.productId", "product-1"),
-                ),
-                limit = 1,
-            ),
-        )
-        guard.filter(
-            qualifiedContext,
-            FilterChain {
-                it.asListQuery<Any>().setResult(Flux.empty())
-                Mono.empty()
-            },
-        ).writeRawRequest(request).test().verifyComplete()
-
-        guard.filter(
-            listContext(ListQuery(Condition.eq("productId", "product-1"), limit = 1)),
-            unexpectedBackend(),
-        ).writeRawRequest(request).test()
-            .expectError(IllegalArgumentException::class.java)
-            .verify()
-
-        guard.filter(
-            listContext(ListQuery(Condition.elemMatch("state.unindexed", Condition.ALL), limit = 1)),
-            unexpectedBackend(),
-        ).writeRawRequest(request).test()
-            .expectError(IllegalArgumentException::class.java)
-            .verify()
-
-        guard.filter(
+        guard().filter(
             listContext(
                 ListQuery(
                     Condition(
@@ -400,7 +334,7 @@ class HttpQueryGuardFilterTest {
     @Test
     fun `should run before concrete abac filters in the real snapshot chain`() {
         val handler = snapshotQueryHandler(
-            guard = guard(maxConditionNodes = 1, allowedConditionFields = setOf("state.status")),
+            guard = guard(maxConditionNodes = 1),
             abacQueryFilter = TestAbacQueryFilter,
         )
 
@@ -508,8 +442,6 @@ class HttpQueryGuardFilterTest {
         maxPageWindow: Long = 10_000,
         maxConditionNodes: Int = 64,
         maxConditionValues: Int = 1000,
-        allowedSortFields: Set<String> = emptySet(),
-        allowedConditionFields: Set<String> = emptySet(),
         allowRaw: Boolean = false,
         allowExpensiveOperators: Boolean = false,
         idleTimeout: Duration = Duration.ofSeconds(10),
@@ -519,8 +451,6 @@ class HttpQueryGuardFilterTest {
         maxPageWindow = maxPageWindow,
         maxConditionNodes = maxConditionNodes,
         maxConditionValues = maxConditionValues,
-        allowedSortFields = allowedSortFields,
-        allowedConditionFields = allowedConditionFields,
         allowRaw = allowRaw,
         allowExpensiveOperators = allowExpensiveOperators,
         idleTimeout = idleTimeout,

@@ -21,7 +21,6 @@ import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.Operator
-import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
@@ -30,7 +29,6 @@ import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
-import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.route.acceptsEventStream
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.core.publisher.Flux
@@ -46,8 +44,6 @@ class HttpQueryGuardFilter(
     private val maxPageWindow: Long = 10_000,
     private val maxConditionNodes: Int = 64,
     private val maxConditionValues: Int = 1000,
-    private val allowedSortFields: Set<String> = emptySet(),
-    private val allowedConditionFields: Set<String> = emptySet(),
     private val allowRaw: Boolean = false,
     private val allowExpensiveOperators: Boolean = false,
     private val idleTimeout: Duration = Duration.ofSeconds(10),
@@ -82,12 +78,6 @@ class HttpQueryGuardFilter(
         when (query) {
             is IListQuery -> validateList(query)
             is IPagedQuery -> validatePage(query)
-        }
-        if (query is Queryable<*>) {
-            val rejectedSortFields = query.sort.map { it.field }.filterNot { allowedSortFields.allows(it) }
-            require(rejectedSortFields.isEmpty()) {
-                "HTTP query sort fields$rejectedSortFields are not allowed."
-            }
         }
         val condition = when (query) {
             is Condition -> query
@@ -124,56 +114,28 @@ class HttpQueryGuardFilter(
     }
 
     private fun validateCondition(condition: Condition, rejectMatchAll: Boolean) {
-        val pending = ArrayDeque<Pair<Condition, String>>()
-        pending.add(condition to "")
-        val validatedNodes = mutableListOf<Pair<Condition, String>>()
+        val pending = ArrayDeque<Condition>()
+        pending.add(condition)
         var nodes = 0
         while (pending.isNotEmpty()) {
-            val (current, parentField) = pending.removeLast()
+            val current = pending.removeLast()
             nodes++
             require(maxConditionNodes == 0 || nodes <= maxConditionNodes) {
                 "HTTP query condition nodes[$nodes] must not exceed $maxConditionNodes."
             }
-            val effectiveField = when {
-                current.operator == Operator.SPACE_ID -> MessageRecords.SPACE_ID
-                current.field.isEmpty() -> ""
-                parentField.isEmpty() -> current.field
-                current.field == parentField || current.field.startsWith("$parentField.") -> current.field
-                else -> "$parentField.${current.field}"
-            }
-            validatedNodes.add(current to effectiveField)
-            val childParentField = if (current.operator == Operator.ELEM_MATCH) effectiveField else parentField
-            current.children.forEach { pending.add(it to childParentField) }
-        }
-        val aggregateIdScoped = condition.isAggregateIdScoped()
-        validatedNodes.forEach { (current, effectiveField) ->
-            validateConditionNode(current, effectiveField, aggregateIdScoped)
+            validateConditionNode(current)
+            pending.addAll(current.children)
         }
         require(!rejectMatchAll || !condition.isMatchAll()) {
             "HTTP counting query must not match all documents."
         }
     }
 
-    private fun validateConditionNode(
-        condition: Condition,
-        effectiveField: String,
-        aggregateIdScoped: Boolean,
-    ) {
+    private fun validateConditionNode(condition: Condition) {
         if (condition.operator == Operator.ELEM_MATCH) {
             require(condition.children.size == 1) {
                 "HTTP ELEM_MATCH condition must contain exactly one child."
             }
-        }
-        val fieldAllowed = effectiveField.isEmpty() && condition.operator in FIELDLESS_OPERATORS ||
-            effectiveField in BUILT_IN_CONDITION_FIELDS ||
-            effectiveField == MessageRecords.VERSION && aggregateIdScoped ||
-            allowedConditionFields.allows(effectiveField)
-        val hasIndexedElementChild = condition.operator == Operator.ELEM_MATCH &&
-            condition.children.single().hasFieldOrDescendant()
-        require(
-            fieldAllowed || hasIndexedElementChild
-        ) {
-            "HTTP query condition field[$effectiveField] is not allowed."
         }
         require(allowRaw || condition.operator != Operator.RAW) {
             "HTTP query operator[RAW] is not allowed."
@@ -189,31 +151,10 @@ class HttpQueryGuardFilter(
         }
     }
 
-    private fun Condition.hasFieldOrDescendant(): Boolean {
-        if (field.isNotEmpty()) return true
-        val pending = ArrayDeque(children)
-        while (pending.isNotEmpty()) {
-            val current = pending.removeLast()
-            if (current.field.isNotEmpty()) return true
-            pending.addAll(current.children)
-        }
-        return false
-    }
-
-    private fun Set<String>.allows(field: String): Boolean = FIELD_WILDCARD in this || field in this
-
     private fun Condition.isExpensive(): Boolean =
         operator in EXPENSIVE_OPERATORS ||
             operator == Operator.EXISTS && value == false ||
             operator == Operator.STARTS_WITH && ((value as? String).isNullOrEmpty() || ignoreCase() == true)
-
-    private fun Condition.isAggregateIdScoped(): Boolean = when (operator) {
-        Operator.AGGREGATE_ID -> true
-        Operator.EQ -> field == MessageRecords.AGGREGATE_ID
-        Operator.AND -> children.any { it.isAggregateIdScoped() }
-        Operator.OR -> children.isNotEmpty() && children.all { it.isAggregateIdScoped() }
-        else -> false
-    }
 
     private fun Condition.isMatchAll(): Boolean {
         val values = value
@@ -261,23 +202,7 @@ class HttpQueryGuardFilter(
             Operator.CONTAINS,
             Operator.ENDS_WITH,
         )
-        val BUILT_IN_CONDITION_FIELDS = setOf(MessageRecords.AGGREGATE_ID)
-        val FIELDLESS_OPERATORS = setOf(
-            Operator.AND,
-            Operator.OR,
-            Operator.NOR,
-            Operator.ID,
-            Operator.IDS,
-            Operator.AGGREGATE_ID,
-            Operator.AGGREGATE_IDS,
-            Operator.TENANT_ID,
-            Operator.OWNER_ID,
-            Operator.DELETED,
-            Operator.ALL,
-            Operator.RAW,
-        )
         val COUNTING_QUERY_TYPES = setOf(QueryType.PAGED, QueryType.DYNAMIC_PAGED, QueryType.COUNT)
-        const val FIELD_WILDCARD = "*"
         val COLLECTION_OPERATORS = setOf(
             Operator.IN,
             Operator.NOT_IN,
