@@ -62,6 +62,7 @@ class AggregationQueryValidatorTest {
         listOf(
             listOf(AggregationElement("state.tags")),
             listOf(AggregationElement("state.attributes")),
+            listOf(AggregationElement("state.objects")),
             listOf(AggregationElement("state.orders.lines")),
             listOf(AggregationElement("state.orders"), AggregationElement("state.items")),
         ).forEach { elements ->
@@ -77,7 +78,9 @@ class AggregationQueryValidatorTest {
         listOf(
             Condition.eq("state.status", "PAID"),
             Condition.eq("state.orders.lines.sku", "sku"),
+            Condition.eq("state.orders.tags", "tag"),
             Condition.elemMatch("state.orders.lines", Condition.eq("state.orders.lines.sku", "sku")),
+            Condition.raw("{}"),
         ).forEach { condition ->
             assertThrows<IllegalArgumentException> {
                 AggregationQuery(
@@ -110,6 +113,19 @@ class AggregationQueryValidatorTest {
                 metrics = listOf(AggregationMetric.Count("count")),
             ),
             AggregationQuery(
+                groupBy = listOf(AggregationGroup.DateHistogram("state.status", "day", AggregationDateUnit.DAY)),
+                metrics = listOf(AggregationMetric.Count("count")),
+            ),
+            AggregationQuery(
+                groupBy = listOf(AggregationGroup.Terms("state.orders.status", "status")),
+                metrics = listOf(AggregationMetric.Count("count")),
+            ),
+            AggregationQuery(
+                elements = listOf(AggregationElement("state.orders")),
+                groupBy = listOf(AggregationGroup.Terms("state.orders.shipping", "shipping")),
+                metrics = listOf(AggregationMetric.Count("count")),
+            ),
+            AggregationQuery(
                 metrics = listOf(numeric("state.status")),
             ),
         )
@@ -130,12 +146,15 @@ class AggregationQueryValidatorTest {
         val items: List<Item> = emptyList()
         val tags: List<String> = emptyList()
         val attributes: Map<String, String> = emptyMap()
+        val objects: List<Any> = emptyList()
     }
 
     private data class Order(
         val status: String,
         val amount: Double,
         val lines: List<Line>,
+        val tags: List<String> = emptyList(),
+        val shipping: Shipping = Shipping(""),
     )
 
     private data class Line(
@@ -145,4 +164,5 @@ class AggregationQueryValidatorTest {
     )
 
     private data class Item(val sku: String)
+    private data class Shipping(val address: String)
 }

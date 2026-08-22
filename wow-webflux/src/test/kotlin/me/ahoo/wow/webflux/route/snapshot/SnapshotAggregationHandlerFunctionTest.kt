@@ -27,7 +27,11 @@ import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
+import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
+import org.springframework.mock.web.server.MockServerWebExchange
+import org.springframework.web.reactive.function.server.HandlerStrategies
+import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 
@@ -56,8 +60,18 @@ class SnapshotAggregationHandlerFunctionTest {
                 .assertNext { response ->
                     response.statusCode().assert().isEqualTo(HttpStatus.OK)
                     response.headers().contentType.assert().isEqualTo(accept)
+                    val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/test").build())
+                    response.writeTo(exchange, SERVER_RESPONSE_CONTEXT).block()
                 }
                 .verifyComplete()
+        }
+    }
+
+    private companion object {
+        private val SERVER_RESPONSE_CONTEXT = object : ServerResponse.Context {
+            private val strategies = HandlerStrategies.withDefaults()
+            override fun messageWriters() = strategies.messageWriters()
+            override fun viewResolvers() = strategies.viewResolvers()
         }
     }
 }
