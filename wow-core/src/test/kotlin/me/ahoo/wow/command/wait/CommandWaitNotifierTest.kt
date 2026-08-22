@@ -15,6 +15,8 @@ package me.ahoo.wow.command.wait
 
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
+import reactor.core.publisher.Hooks
+import reactor.core.publisher.Mono
 
 class CommandWaitNotifierTest {
     @Test
@@ -28,6 +30,24 @@ class CommandWaitNotifierTest {
         recordingNotifier.notifications.assert().containsExactly(
             RecordingCommandWaitNotifier.Notification(TEST_ENDPOINT, signal)
         )
+    }
+
+    @Test
+    fun `default notifyAndForget consumes notification errors`() {
+        val droppedErrors = mutableListOf<Throwable>()
+        val failure = IllegalStateException("notify failed")
+        val notifier = object : CommandWaitNotifier {
+            override fun notify(commandWaitEndpoint: String, waitSignal: WaitSignal): Mono<Void> = Mono.error(failure)
+        }
+        Hooks.onErrorDropped(droppedErrors::add)
+
+        try {
+            notifier.notifyAndForget(TEST_ENDPOINT, testSignal(CommandStage.PROCESSED))
+
+            droppedErrors.assert().isEmpty()
+        } finally {
+            Hooks.resetOnErrorDropped()
+        }
     }
 
     @Test
