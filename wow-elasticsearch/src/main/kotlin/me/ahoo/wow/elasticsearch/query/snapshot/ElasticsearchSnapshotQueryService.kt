@@ -123,7 +123,18 @@ class ElasticsearchSnapshotQueryService<S : Any>(
 
     override fun aggregate(query: AggregationQuery): Flux<DynamicDocument> = Flux.defer {
         aggregationMappingResolver.currentOrLoad(indexName)
-            .map { mapping -> ElasticsearchAggregationCompiler.compile(query, mapping, conditionConverter) }
+            .map { mapping ->
+                ElasticsearchAggregationCompiler.compile(
+                    query = query,
+                    mapping = mapping,
+                    conditionConverter = conditionConverter,
+                    resolveCondition = if (configuredIndexMappingResolver == null) {
+                        { condition -> condition }
+                    } else {
+                        mapping::resolve
+                    },
+                )
+            }
             .flatMapMany { plan ->
                 if (plan.aggregationQuery.groupBy.isEmpty()) {
                     aggregateGlobal(plan)
@@ -145,7 +156,7 @@ class ElasticsearchSnapshotQueryService<S : Any>(
                         query.elements.isEmpty() && query.metrics.any { metric -> metric is AggregationMetric.Count },
                     )
                 }
-                .aggregations(plan.wrap(query.metricAggregations()))
+                .aggregations(plan.wrap(plan.metricAggregations()))
         }
         return elasticsearchClient.search(request, Map::class.java)
             .map<DynamicDocument> { response ->
@@ -172,7 +183,7 @@ class ElasticsearchSnapshotQueryService<S : Any>(
         } else {
             query.groupBy.map { it to Sort.Direction.ASC }
         }
-        val sources = orderedGroups.map { (group, direction) -> group.toCompositeSource(direction) }
+        val sources = orderedGroups.map { (group, direction) -> plan.compositeSource(group, direction) }
         val buckets = ElasticsearchAggregationPager(
             elasticsearchClient = elasticsearchClient,
             indexName = indexName,
@@ -181,7 +192,7 @@ class ElasticsearchSnapshotQueryService<S : Any>(
         ).search(
             plan = plan,
             sources = sources,
-            metrics = query.metricAggregations(),
+            metrics = plan.metricAggregations(),
             limit = if (sortByGroupsOnly) query.limit else 0,
         ).map { bucket -> bucket.toResult(query) }
 

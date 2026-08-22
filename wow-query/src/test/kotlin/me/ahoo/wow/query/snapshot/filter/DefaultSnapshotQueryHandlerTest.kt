@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.snapshot.filter
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.filter.FilterChainBuilder
@@ -37,6 +38,15 @@ class DefaultSnapshotQueryHandlerTest {
         snapshotQueryFilterChain,
         LogErrorHandler()
     )
+
+    @Test
+    fun `aggregation should remain a binary-compatible default method`() {
+        SnapshotQueryHandler::class.java.getMethod(
+            "aggregate",
+            NamedAggregate::class.java,
+            AggregationQuery::class.java,
+        ).isDefault.assert().isTrue()
+    }
 
     @Test
     fun `should execute single query`() {

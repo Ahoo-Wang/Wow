@@ -173,7 +173,7 @@ snapshots.
 | `wow.webflux.global-error.enabled` | Boolean | `true` | Enable global error handling |
 | `wow.webflux.batch.concurrency` | Integer | `1` | Concurrency for batch command requests |
 | `wow.webflux.batch.prefetch` | Integer | `1` | Prefetch count for batch command requests |
-| `wow.webflux.query.max-list-size` | Integer | `1000` | Maximum HTTP list-query limit; `0` disables the cap |
+| `wow.webflux.query.max-list-size` | Integer | `1000` | HTTP list-query limit and grouped Snapshot aggregation row cap; `0` disables the HTTP cap while aggregation keeps its public 10,000 hard limit |
 | `wow.webflux.query.max-page-size` | Integer | `100` | Maximum HTTP page size; `0` disables the cap |
 | `wow.webflux.query.max-page-window` | Long | `10000` | Maximum HTTP page window; `0` disables the cap |
 | `wow.webflux.query.max-condition-nodes` | Integer | `64` | Maximum HTTP query condition nodes; `0` disables the cap |

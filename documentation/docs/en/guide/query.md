@@ -297,7 +297,7 @@ class DataFilterSnapshotQueryFilter : SnapshotQueryFilter {
 **Wow** not only automatically generates _OpenAPI_ endpoints for commands (`Command`), but also provides query (`Query`) _OpenAPI_ endpoints.
 This means developers usually only need to focus on writing domain models to complete service development, without worrying about implementing query logic, greatly improving development efficiency.
 
-The examples below query the `sales-order` aggregate for `tenant-1`. All four requests describe the same synthetic snapshot, so their conditions and response counts stay consistent.
+The examples below use the `sales-order` aggregate for `tenant-1` to demonstrate five query endpoints.
 
 ![Query Service](/images/query/open-api-query.png)
 
@@ -466,30 +466,187 @@ Snapshot aggregation exposes only tabular semantics that MongoDB and Elasticsear
 `POST {aggregate-path}/snapshot/aggregation` and supports both `application/json` and
 `text/event-stream`. Every group key and metric uses an explicit alias.
 
+### Kotlin DSL
+
 ```kotlin
 aggregationQuery {
-    condition { "tenantId" eq tenantId }
-    expand("state.orders") {
-        condition { "status" eq "PAID" }
-        expand("lines") {
-            condition { "cancelled" eq false }
-            groupBy("sku", "sku")
-            sum("amount", "totalAmount")
-            count("lineCount")
-            sort { "totalAmount".desc() }
-            limit(100)
-        }
+    condition { "state.status" eq "CREATED" }
+    expand("state.items") {
+        condition { "quantity" gt 0 }
+        groupBy("productId", "productId")
+        sum("totalPrice", "totalAmount")
+        count("lineCount")
+        sort { "totalAmount".desc() }
+        limit(100)
     }
 }
 ```
 
-- `expand` declares a strict parent-child object-collection chain from outermost to innermost. Each scope has at most one child expansion; sibling Cartesian products are unsupported.
-- Fields inside DSL blocks are relative; the resulting `AggregationQuery` uses absolute paths. JSON requests must also use absolute paths.
-- `groupBy` supports `Terms`, `Histogram` without offset, and `DateHistogram`. Metrics support `Count`, `Sum`, `Avg`, `Min`, and `Max`; numeric metrics initially accept only `Field`.
-- A root `ELEM_MATCH` filters snapshots only; it does not filter expanded rows. Put row filters in the corresponding `AggregationElement.condition`.
-- An ungrouped query always returns one row: an empty set yields `Count=0`, `Sum=0.0`, and `null` for other numeric metrics. A grouped query with no bucket returns an empty stream.
-- Every Elasticsearch Elements field must be mapped as `nested`, and `DateHistogram` fields as `date`/`date_nanos`. MongoDB uses successive `$unwind` stages. Neither backend executes user scripts.
-- Elements, unfiltered aggregation, and metric sorting are expensive HTTP operations and require `allow-expensive-operators`. Aggregation fails before backend access when a Snapshot masker is configured.
+Fields inside an `expand` block are relative; the resulting `AggregationQuery` normalizes them to
+absolute paths. `groupBy`, metrics, sort, and limit must be declared in the innermost scope, and
+each scope has at most one child `expand`.
+
+### HTTP JSON
+
+When constructing the Kotlin model directly or sending JSON, all fields in Elements, conditions,
+groups, and metrics must be absolute. `type` is the Jackson discriminator for Group, Metric, and
+Expression.
+Generated OpenAPI publishes separate Elements, Terms, Numeric, and Temporal field enums so clients
+cannot select a field type that runtime validation would always reject.
+The following example contains Elements and metric ordering, so set
+`wow.webflux.query.allow-expensive-operators=true` before calling it; the default configuration
+rejects this request.
+
+::: code-group
+
+```shell [Request]
+curl -X POST \
+  'http://localhost:8080/tenant/tenant-1/sales-order/snapshot/aggregation' \
+  -H 'Accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -H 'Wow-Space-Id: space-1' \
+  -d '{
+    "condition": {
+      "field": "state.status",
+      "operator": "EQ",
+      "value": "CREATED",
+      "children": []
+    },
+    "elements": [
+      {
+        "path": "state.items",
+        "condition": {
+          "field": "state.items.quantity",
+          "operator": "GT",
+          "value": 0,
+          "children": []
+        }
+      }
+    ],
+    "groupBy": [
+      {
+        "type": "TERMS",
+        "field": "state.items.productId",
+        "alias": "productId"
+      }
+    ],
+    "metrics": [
+      {
+        "type": "NUMERIC",
+        "function": "SUM",
+        "expression": {
+          "type": "FIELD",
+          "field": "state.items.totalPrice"
+        },
+        "alias": "totalAmount"
+      },
+      {
+        "type": "COUNT",
+        "alias": "lineCount"
+      }
+    ],
+    "sort": [
+      {
+        "field": "totalAmount",
+        "direction": "DESC"
+      }
+    ],
+    "limit": 100
+  }'
+```
+
+```json [Response]
+[
+  {
+    "productId": "product-1001",
+    "totalAmount": 128.0,
+    "lineCount": 4
+  },
+  {
+    "productId": "product-1002",
+    "totalAmount": 96.5,
+    "lineCount": 2
+  }
+]
+```
+
+:::
+
+Set `Accept` to `text/event-stream` to stream one result row at a time. Query semantics are
+identical to the JSON response.
+
+### Sources and Field Scope
+
+- `elements=[]` aggregates root snapshots. Otherwise, Elements declare one strict parent-child object-collection chain from outermost to innermost.
+- Elements accept only object collections or object arrays. Maps, scalar collections, duplicate paths, skipped parent collections, and sibling Cartesian products are rejected.
+- `groupBy`, metric, and expression fields must belong to the innermost source. They cannot implicitly access a parent, sibling, or unexpanded child collection.
+- Each `AggregationElement.condition` may reference only scalar fields or non-collection object paths in that element and must not use `ELEM_MATCH`.
+- A root `ELEM_MATCH` filters snapshots containing a match; it does not filter rows produced by expansion. Put row filters in the corresponding Element condition.
+- Missing, `null`, and empty collections produce no expanded rows. A row with any missing or `null` group field produces no bucket.
+
+### Groups and Metrics
+
+| Type | Input constraint | Result |
+|---|---|---|
+| `TERMS` | String, enum, UUID, Boolean, or numeric scalar; temporal fields are rejected | Integral keys normalize to `Long`; floating-point/Decimal keys normalize to `Double` |
+| `HISTOGRAM` | Numeric scalar; `interval` must be finite and greater than 0; no offset in the first version | `Double` bucket key |
+| `DATE_HISTOGRAM` | Supported temporal/`Date` field; unit is `YEAR`, `QUARTER`, `MONTH`, `WEEK`, `DAY`, `HOUR`, `MINUTE`, or `SECOND` | Epoch-millisecond `Long`; `WEEK` starts on Monday |
+| `COUNT` | No field | Counts snapshots at the root or innermost expanded rows under Elements; returns `Long` |
+| `NUMERIC` | `SUM`, `AVG`, `MIN`, or `MAX` with a numeric `FIELD` expression | `Double?`; missing values are ignored; an empty set yields `SUM=0.0` and `null` for the others |
+
+`DateHistogram.timeZone` defaults to `UTC` and accepts only an IANA ID such as
+`Asia/Shanghai` or an `±HH:MM` offset. Non-contract forms such as `Z` and `UTC+08:00`
+are rejected. Any non-finite Numeric metric result fails the whole query.
+
+### Results, Ordering, and Empty Sets
+
+- Without `groupBy`, the query always returns one row, rejects sort, and validates limit even though limit cannot change the single result.
+- A grouped query with no bucket returns an empty stream.
+- The default order is ascending by group declaration order. Explicit sort appends every omitted group alias ascending as a stable tie-breaker.
+- Sort fields must be unique and reference output aliases only. `null` sorts first ascending and last descending.
+- Group-alias-only ordering can stop at limit. Any metric-alias ordering traverses every bucket and computes exact Top-N.
+- Aliases are globally unique across groups and metrics. They must not be blank, contain `.`/NUL, start with `$` or `__wow_`, or equal `_id`.
+
+### Limits and HTTP Guards
+
+| Item | Public model | HTTP default |
+|---|---:|---:|
+| Elements depth | 5 | 3 |
+| Element/group/expression field-path segments | 10 | 10 |
+| groupBy entries | 32 | 32 |
+| metrics entries | 1..64 | 1..32 |
+| limit | Default 100; maximum 10,000 | Grouped queries are also capped by `max-list-size=1000` |
+| Root plus all Element conditions | — | At most `max-condition-nodes=64` nodes in total |
+
+Setting `max-aggregation-elements`, `max-aggregation-metrics`, or `max-list-size` to `0`
+disables that HTTP cap only; public hard limits still apply. The following requests also require
+`allow-expensive-operators=true`:
+
+- any Elements expansion;
+- a user-supplied match-all root condition;
+- sort referencing any metric alias.
+
+The HTTP guard counts user conditions before tenant/owner/space and ABAC conditions are injected.
+Trusted conditions do not consume the user budget and do not turn a user match-all request into a
+cheap query. Aggregation fails closed before backend access when a Snapshot masker is configured.
+The HTTP layer does not maintain a duplicate field allowlist; the aggregation metadata Validator is
+the single authority for collection chains, field ownership, and portable types.
+Groups and metrics have no script entry point. HTTP `RAW` conditions still follow the general
+`allow-raw` switch and are disabled by default.
+
+### Backend Failures and Performance Boundary
+
+- Elasticsearch requires every Elements path to be `nested` and every `DateHistogram` field to be `date`/`date_nanos`. Plain `object` mappings and epoch `long` fields are rejected.
+- MongoDB uses successive `$unwind` stages and forces `simple` collation for string grouping and ordering.
+- Timeout, shard failure, missing response structure, conversion failure, or a non-finite metric result fails the whole query; partial results are never returned.
+
+The current single-thread engineering baseline uses 10,000 snapshots with 100 leaf elements per
+snapshot. Elements group-key ordering is approximately `393–1,639 ms/op` on MongoDB and
+`1–8 ms/op` on Elasticsearch. Exact metric Top-N is approximately `1.61–1.84 s/op` on MongoDB and
+`1.79 s/op` on Elasticsearch. These are point-estimate ranges from one JMH run (1 fork and 3
+measurements, with high variance in some scenarios). They identify expensive operators; they are
+not a production SLA, regression threshold, or cross-backend ranking. See the
+[full benchmark report](https://github.com/Ahoo-Wang/Wow/blob/main/wow-benchmarks/results/reports/snapshot-elements.md).
 
 ## Query Service Registrar
 

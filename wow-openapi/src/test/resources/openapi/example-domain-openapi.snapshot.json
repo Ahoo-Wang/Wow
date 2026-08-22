@@ -801,7 +801,7 @@
       "example.cart.CartAggregatedAggregationExpression.Field" : {
         "properties" : {
           "field" : {
-            "$ref" : "#/components/schemas/example.cart.CartSnapshotAggregationFields"
+            "$ref" : "#/components/schemas/example.cart.CartSnapshotAggregationNumericFields"
           },
           "type" : {
             "const" : "FIELD"
@@ -816,7 +816,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/example.cart.CartSnapshotAggregationFields"
+            "$ref" : "#/components/schemas/example.cart.CartSnapshotAggregationTemporalFields"
           },
           "timeZone" : {
             "type" : "string"
@@ -837,7 +837,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/example.cart.CartSnapshotAggregationFields"
+            "$ref" : "#/components/schemas/example.cart.CartSnapshotAggregationNumericFields"
           },
           "interval" : {
             "exclusiveMinimum" : 0,
@@ -857,7 +857,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/example.cart.CartSnapshotAggregationFields"
+            "$ref" : "#/components/schemas/example.cart.CartSnapshotAggregationTermsFields"
           },
           "type" : {
             "const" : "TERMS"
@@ -1304,7 +1304,15 @@
         "enum" : [ "state.items" ],
         "type" : "string"
       },
-      "example.cart.CartSnapshotAggregationFields" : {
+      "example.cart.CartSnapshotAggregationNumericFields" : {
+        "enum" : [ "version", "firstEventTime", "eventTime", "state.items.quantity", "state.size", "snapshotTime" ],
+        "type" : "string"
+      },
+      "example.cart.CartSnapshotAggregationTemporalFields" : {
+        "enum" : [ ],
+        "type" : "string"
+      },
+      "example.cart.CartSnapshotAggregationTermsFields" : {
         "enum" : [ "contextName", "aggregateName", "tenantId", "ownerId", "spaceId", "aggregateId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "state.id", "state.items.productId", "state.items.quantity", "state.size", "snapshotTime", "deleted" ],
         "type" : "string"
       },
@@ -1820,7 +1828,7 @@
       "example.order.OrderAggregatedAggregationExpression.Field" : {
         "properties" : {
           "field" : {
-            "$ref" : "#/components/schemas/example.order.OrderSnapshotAggregationFields"
+            "$ref" : "#/components/schemas/example.order.OrderSnapshotAggregationNumericFields"
           },
           "type" : {
             "const" : "FIELD"
@@ -1835,7 +1843,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/example.order.OrderSnapshotAggregationFields"
+            "$ref" : "#/components/schemas/example.order.OrderSnapshotAggregationTemporalFields"
           },
           "timeZone" : {
             "type" : "string"
@@ -1856,7 +1864,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/example.order.OrderSnapshotAggregationFields"
+            "$ref" : "#/components/schemas/example.order.OrderSnapshotAggregationNumericFields"
           },
           "interval" : {
             "exclusiveMinimum" : 0,
@@ -1876,7 +1884,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/example.order.OrderSnapshotAggregationFields"
+            "$ref" : "#/components/schemas/example.order.OrderSnapshotAggregationTermsFields"
           },
           "type" : {
             "const" : "TERMS"
@@ -2393,7 +2401,15 @@
         "enum" : [ "state.items" ],
         "type" : "string"
       },
-      "example.order.OrderSnapshotAggregationFields" : {
+      "example.order.OrderSnapshotAggregationNumericFields" : {
+        "enum" : [ "version", "firstEventTime", "eventTime", "state.items.price", "state.items.quantity", "state.items.totalPrice", "state.paidAmount", "state.payable", "state.totalAmount", "snapshotTime" ],
+        "type" : "string"
+      },
+      "example.order.OrderSnapshotAggregationTemporalFields" : {
+        "enum" : [ ],
+        "type" : "string"
+      },
+      "example.order.OrderSnapshotAggregationTermsFields" : {
         "enum" : [ "contextName", "aggregateName", "tenantId", "ownerId", "spaceId", "aggregateId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "state.id", "state.address.country", "state.address.province", "state.address.city", "state.address.district", "state.address.detail", "state.items.id", "state.items.productId", "state.items.price", "state.items.quantity", "state.items.totalPrice", "state.paidAmount", "state.payable", "state.status", "state.totalAmount", "snapshotTime", "deleted" ],
         "type" : "string"
       },
@@ -2935,7 +2951,7 @@
       "tck.mock_aggregate.MockCommandAggregateAggregatedAggregationExpression.Field" : {
         "properties" : {
           "field" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateSnapshotAggregationFields"
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateSnapshotAggregationNumericFields"
           },
           "type" : {
             "const" : "FIELD"
@@ -2950,7 +2966,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateSnapshotAggregationFields"
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateSnapshotAggregationTemporalFields"
           },
           "timeZone" : {
             "type" : "string"
@@ -2971,7 +2987,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateSnapshotAggregationFields"
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateSnapshotAggregationNumericFields"
           },
           "interval" : {
             "exclusiveMinimum" : 0,
@@ -2991,7 +3007,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateSnapshotAggregationFields"
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateSnapshotAggregationTermsFields"
           },
           "type" : {
             "const" : "TERMS"
@@ -3368,8 +3384,16 @@
         "enum" : [ "state.orders", "state.orders.lines" ],
         "type" : "string"
       },
-      "tck.mock_aggregate.MockCommandAggregateSnapshotAggregationFields" : {
-        "enum" : [ "contextName", "aggregateName", "tenantId", "ownerId", "spaceId", "aggregateId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "state.id", "state.data", "state.orders.status", "state.orders.amount", "state.orders.lines.sku", "state.orders.lines.rank", "state.orders.lines.amount", "state.orders.lines.cancelled", "state.orders.lines.createdAt", "snapshotTime", "deleted" ],
+      "tck.mock_aggregate.MockCommandAggregateSnapshotAggregationNumericFields" : {
+        "enum" : [ "version", "firstEventTime", "eventTime", "state.orders.amount", "state.orders.lines.rank", "state.orders.lines.amount", "snapshotTime" ],
+        "type" : "string"
+      },
+      "tck.mock_aggregate.MockCommandAggregateSnapshotAggregationTemporalFields" : {
+        "enum" : [ "state.orders.lines.createdAt" ],
+        "type" : "string"
+      },
+      "tck.mock_aggregate.MockCommandAggregateSnapshotAggregationTermsFields" : {
+        "enum" : [ "contextName", "aggregateName", "tenantId", "ownerId", "spaceId", "aggregateId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "state.id", "state.data", "state.orders.status", "state.orders.amount", "state.orders.lines.sku", "state.orders.lines.rank", "state.orders.lines.amount", "state.orders.lines.cancelled", "snapshotTime", "deleted" ],
         "type" : "string"
       },
       "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedAggregationElement" : {
@@ -3387,7 +3411,7 @@
       "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedAggregationExpression.Field" : {
         "properties" : {
           "field" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdSnapshotAggregationFields"
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdSnapshotAggregationNumericFields"
           },
           "type" : {
             "const" : "FIELD"
@@ -3402,7 +3426,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdSnapshotAggregationFields"
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdSnapshotAggregationTemporalFields"
           },
           "timeZone" : {
             "type" : "string"
@@ -3423,7 +3447,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdSnapshotAggregationFields"
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdSnapshotAggregationNumericFields"
           },
           "interval" : {
             "exclusiveMinimum" : 0,
@@ -3443,7 +3467,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdSnapshotAggregationFields"
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdSnapshotAggregationTermsFields"
           },
           "type" : {
             "const" : "TERMS"
@@ -3789,7 +3813,15 @@
         "enum" : [ ],
         "type" : "string"
       },
-      "tck.mock_aggregate.MockCommandAggregateWithTenantIdSnapshotAggregationFields" : {
+      "tck.mock_aggregate.MockCommandAggregateWithTenantIdSnapshotAggregationNumericFields" : {
+        "enum" : [ "version", "firstEventTime", "eventTime", "snapshotTime" ],
+        "type" : "string"
+      },
+      "tck.mock_aggregate.MockCommandAggregateWithTenantIdSnapshotAggregationTemporalFields" : {
+        "enum" : [ ],
+        "type" : "string"
+      },
+      "tck.mock_aggregate.MockCommandAggregateWithTenantIdSnapshotAggregationTermsFields" : {
         "enum" : [ "contextName", "aggregateName", "tenantId", "ownerId", "spaceId", "aggregateId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "state.id", "state.tenantId", "snapshotTime", "deleted" ],
         "type" : "string"
       },
@@ -3808,7 +3840,7 @@
       "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedAggregationExpression.Field" : {
         "properties" : {
           "field" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersSnapshotAggregationFields"
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersSnapshotAggregationNumericFields"
           },
           "type" : {
             "const" : "FIELD"
@@ -3823,7 +3855,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersSnapshotAggregationFields"
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersSnapshotAggregationTemporalFields"
           },
           "timeZone" : {
             "type" : "string"
@@ -3844,7 +3876,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersSnapshotAggregationFields"
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersSnapshotAggregationNumericFields"
           },
           "interval" : {
             "exclusiveMinimum" : 0,
@@ -3864,7 +3896,7 @@
             "type" : "string"
           },
           "field" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersSnapshotAggregationFields"
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersSnapshotAggregationTermsFields"
           },
           "type" : {
             "const" : "TERMS"
@@ -4210,7 +4242,15 @@
         "enum" : [ ],
         "type" : "string"
       },
-      "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersSnapshotAggregationFields" : {
+      "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersSnapshotAggregationNumericFields" : {
+        "enum" : [ "version", "firstEventTime", "eventTime", "snapshotTime" ],
+        "type" : "string"
+      },
+      "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersSnapshotAggregationTemporalFields" : {
+        "enum" : [ ],
+        "type" : "string"
+      },
+      "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersSnapshotAggregationTermsFields" : {
         "enum" : [ "contextName", "aggregateName", "tenantId", "ownerId", "spaceId", "aggregateId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "snapshotTime", "deleted" ],
         "type" : "string"
       },

@@ -26,6 +26,8 @@ import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.Projection
@@ -162,6 +164,35 @@ class ElasticsearchSnapshotMappingQueryTest {
         convertedCondition.captured.assert().isEqualTo(condition)
         assertThrows<IllegalArgumentException> { service.refreshIndexMapping() }
         verify(exactly = 0) { client.indices() }
+    }
+
+    @Test
+    fun `custom condition converter should keep physical field ownership for aggregation`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(queryMapping()),
+        )
+        val convertedCondition = slot<Condition>()
+        val customConverter = mockk<ConditionConverter<Query>> {
+            every { convert(capture(convertedCondition)) } returns matchAll { it }
+        }
+        val condition = Condition.eq("custom.physical", "value")
+        val service = ElasticsearchSnapshotQueryService<Any>(
+            MOCK_AGGREGATE_METADATA,
+            client,
+            customConverter,
+            DEFAULT_SEARCH_BATCH_SIZE,
+            DEFAULT_PIT_KEEP_ALIVE,
+            ElasticsearchIndexMappingResolver(client),
+        )
+
+        service.aggregate(
+            AggregationQuery(
+                condition = condition,
+                metrics = listOf(AggregationMetric.Count("count")),
+            ),
+        ).collectList().block()
+
+        convertedCondition.captured.assert().isEqualTo(condition)
     }
 
     private fun queryService(

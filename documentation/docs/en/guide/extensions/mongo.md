@@ -637,7 +637,32 @@ When using sharded collections, keep `EventStreamSchemaInitializer.enableRequest
 
 ## Snapshot Elements Aggregation
 
-MongoDB compiles the root predicate into the first `$match`, emits `$unwind/$match` for every Elements level, and then runs `$group/$project/$sort/$limit`. String grouping and sorting explicitly use the `simple` collation to match Elasticsearch keyword binary order. Consequently, an index with a non-`simple` collation may not support string predicates in the same request.
+See [Snapshot Elements Aggregation](../query.md#snapshot-elements-aggregation) for the public
+model, JSON, empty-set, and ordering contract.
+
+### Pipeline
+
+The MongoDB compiler emits a fixed sequence:
+
+1. the root condition as the first `$match`;
+2. one `$unwind` per Elements level, followed by `$match` for a non-match-all Element condition;
+3. exists/non-null filters for group fields;
+4. `$group` and `$project`, followed by `$sort/$limit` for grouped queries.
+
+The `$sum: 1` for `Count` runs after every `$unwind/$match`, so an Elements query counts
+innermost expanded rows. Missing, `null`, and empty collections produce no rows. When an
+ungrouped pipeline has no output, the Service synthesizes the portable one-row empty result.
+
+### Types and Ordering
+
+- Histogram groups and numeric metrics convert to double in the pipeline. Terms integer, floating-point, and Decimal keys normalize to portable result types during result mapping.
+- `DateHistogram` uses `$dateTrunc`, explicitly starts `WEEK` on Monday, and projects epoch milliseconds with `$toLong`.
+- String grouping and ordering force `simple` collation to match Elasticsearch keyword binary order.
+- Invalid numeric/date conversion or a non-finite metric result fails the whole query.
+
+The initial root `$match` has the best opportunity to use an index, so prefer a selective root
+condition. For string predicates, index collation must be compatible with `simple`; an index with
+a non-`simple` collation may not support the same request.
 
 ## Troubleshooting
 

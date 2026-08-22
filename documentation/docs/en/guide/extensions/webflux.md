@@ -87,7 +87,7 @@ plus `wow-webflux` for these properties to be bound.
 | `global-error.enabled` | `Boolean` | `true` | Whether to install the global exception handler that maps errors to the unified `ErrorInfo` response |
 | `batch.concurrency` | `Int` | `1` | Maximum concurrent requests processed in a single batch execution |
 | `batch.prefetch` | `Int` | `1` | Prefetch window for batch request processing |
-| `query.max-list-size` | `Int` | `1000` | Maximum positive limit for HTTP list queries; `0` disables the cap and restores unlimited `limit=0` queries |
+| `query.max-list-size` | `Int` | `1000` | HTTP list-query limit and grouped Snapshot aggregation row cap; `0` disables the HTTP cap, restores list `limit=0`, and leaves aggregation subject to its public 10,000 hard limit |
 | `query.max-page-size` | `Int` | `100` | Maximum HTTP page size; `0` disables the cap |
 | `query.max-page-window` | `Long` | `10000` | Maximum HTTP `index * size` page window; `0` disables the cap |
 | `query.max-condition-nodes` | `Int` | `64` | Maximum number of HTTP query condition nodes; `0` disables the cap |
@@ -122,6 +122,8 @@ wow:
 
 When `wow-spring-boot-starter` is used, WebFlux is included as the `webflux-support` feature capability. The global error handler is enabled by default; disable it only if you provide your own `WebExceptionHandler`.
 The guard applies whenever the Reactor context contains a WebFlux `ServerRequest` through `writeRawRequest(request)`, including built-in routes and custom HTTP handlers. Injected query services and non-WebFlux request contexts keep their existing behavior. To temporarily restore the previous HTTP behavior after upgrading, set the numeric limits and `idle-timeout` to `0` and enable both `allow-*` switches.
+See [Snapshot Elements Aggregation](../query.md#snapshot-elements-aggregation) for the complete
+HTTP request, cost classification, and failure semantics.
 
 ## Wait Plan Integration
 

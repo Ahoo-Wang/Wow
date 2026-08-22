@@ -24,6 +24,10 @@ interface AggregatedFields<CommandAggregateType : Any> {
     }
 }
 
-interface SnapshotAggregationFields<CommandAggregateType : Any>
+interface SnapshotAggregationTermsFields<CommandAggregateType : Any>
+
+interface SnapshotAggregationNumericFields<CommandAggregateType : Any>
+
+interface SnapshotAggregationTemporalFields<CommandAggregateType : Any>
 
 interface SnapshotAggregationElements<CommandAggregateType : Any>

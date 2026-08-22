@@ -23,7 +23,9 @@ import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.schema.typed.SnapshotAggregationElements
-import me.ahoo.wow.schema.typed.SnapshotAggregationFields
+import me.ahoo.wow.schema.typed.SnapshotAggregationNumericFields
+import me.ahoo.wow.schema.typed.SnapshotAggregationTemporalFields
+import me.ahoo.wow.schema.typed.SnapshotAggregationTermsFields
 
 data class AggregatedAggregationQuery<CommandAggregateType : Any>(
     val condition: AggregatedCondition<CommandAggregateType> = AggregatedCondition(),
@@ -53,23 +55,22 @@ data class AggregatedAggregationElement<CommandAggregateType : Any>(
     JsonSubTypes.Type(value = AggregatedAggregationGroup.DateHistogram::class, name = "DATE_HISTOGRAM"),
 )
 sealed interface AggregatedAggregationGroup<CommandAggregateType : Any> {
-    val field: SnapshotAggregationFields<CommandAggregateType>
     val alias: String
 
     data class Terms<CommandAggregateType : Any>(
-        override val field: SnapshotAggregationFields<CommandAggregateType>,
+        val field: SnapshotAggregationTermsFields<CommandAggregateType>,
         override val alias: String,
     ) : AggregatedAggregationGroup<CommandAggregateType>
 
     data class Histogram<CommandAggregateType : Any>(
-        override val field: SnapshotAggregationFields<CommandAggregateType>,
+        val field: SnapshotAggregationNumericFields<CommandAggregateType>,
         override val alias: String,
         @get:Schema(minimum = "0", exclusiveMinimum = true)
         val interval: Double,
     ) : AggregatedAggregationGroup<CommandAggregateType>
 
     data class DateHistogram<CommandAggregateType : Any>(
-        override val field: SnapshotAggregationFields<CommandAggregateType>,
+        val field: SnapshotAggregationTemporalFields<CommandAggregateType>,
         override val alias: String,
         val unit: AggregationDateUnit,
         val timeZone: String = "UTC",
@@ -101,6 +102,6 @@ sealed interface AggregatedAggregationMetric<CommandAggregateType : Any> {
 )
 sealed interface AggregatedAggregationExpression<CommandAggregateType : Any> {
     data class Field<CommandAggregateType : Any>(
-        val field: SnapshotAggregationFields<CommandAggregateType>,
+        val field: SnapshotAggregationNumericFields<CommandAggregateType>,
     ) : AggregatedAggregationExpression<CommandAggregateType>
 }

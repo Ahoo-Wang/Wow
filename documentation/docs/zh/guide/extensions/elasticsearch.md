@@ -661,7 +661,55 @@ PUT _ilm/policy/wow-snapshot-policy
 
 ## 快照 Elements 聚合
 
-每层 Elements 路径必须在实际索引 Mapping 中声明为 `nested`；普通 `object` 会被拒绝。分组使用原生 field + composite aggregation，不读取 `_source`、不执行 Painless。分组键排序按 composite 顺序分页并可在达到 limit 后停止；指标排序会复用同一 PIT 完整遍历所有 bucket，再以 O(limit) 内存计算精确 Top-N。`DateHistogram` 仅接受 `date`/`date_nanos` Mapping，普通 long epoch 字段不会被隐式接受。
+公共模型、JSON、空集和排序契约参见[快照 Elements 聚合](../query.md#快照-elements-聚合)。
+
+### Mapping 要求
+
+每层 Elements 路径必须在实际索引 Mapping 中声明为 `nested`；普通 `object` 会被拒绝。
+例如两层 `state.orders.lines`：
+
+```json
+{
+  "mappings": {
+    "properties": {
+      "state": {
+        "properties": {
+          "orders": {
+            "type": "nested",
+            "properties": {
+              "status": { "type": "keyword" },
+              "lines": {
+                "type": "nested",
+                "properties": {
+                  "sku": { "type": "keyword" },
+                  "amount": { "type": "double" },
+                  "createdAt": { "type": "date" }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+`Terms`、`Histogram` 与数值指标必须解析到 Mapping 中可聚合的兼容 field。
+`DateHistogram` 仅接受 `date`/`date_nanos`，普通 epoch `long` 不会被隐式当作日期。
+
+### 执行与分页
+
+- 根 condition 编译为 search query；Elements 依次编译为递归 `nested/filter` 包装，叶子使用原生 composite 与 metric aggregations。
+- 根无分组 Count 使用 `hits.total`；Elements 无分组 Count 使用最内层 `doc_count`；有分组 Count 使用 composite bucket `docCount`。
+- 分组键排序直接使用 composite 原生顺序并在达到 limit 后停止。
+- 指标排序完整遍历所有 bucket，以 O(limit) 优先队列计算精确 Top-N，不使用近似 `terms`。
+- 每个分组查询使用独立 PIT；分页始终复用响应返回的最新 PIT ID，并在完成、错误或取消时关闭。
+
+编译器不生成 Painless，也不会在请求中显式读取 `_source`。索引预先声明的 runtime field
+仍按其 Mapping 定义执行；它是否使用脚本或读取 `_source` 由该定义决定。
+`wow.elasticsearch.query.batch-size` 控制 composite 每页大小，`keep-alive` 控制 PIT 生命周期。
+timeout、分片失败、缺失 wrapper/metric、非法响应类型或非有限指标结果都会使整个查询失败，不返回部分结果。
 
 ## 性能优化
 

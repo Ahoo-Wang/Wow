@@ -18,6 +18,7 @@ import co.elastic.clients.elasticsearch._types.aggregations.Aggregate
 import co.elastic.clients.elasticsearch._types.aggregations.FilterAggregate
 import co.elastic.clients.elasticsearch._types.aggregations.NestedAggregate
 import co.elastic.clients.elasticsearch._types.aggregations.SumAggregate
+import co.elastic.clients.elasticsearch._types.mapping.Property
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll
 import me.ahoo.test.asserts.assert
@@ -56,14 +57,14 @@ class ElasticsearchAggregationCompilerTest {
         val plan = ElasticsearchAggregationCompiler.compile(query, mapping(), SnapshotConditionConverter)
         plan.query.toString().assert().contains("state.name.keyword")
         plan.aggregationQuery.groupBy.map(AggregationGroup::field).assert()
-            .containsExactly("state.name.keyword", "state.amount", "state.createdAt")
+            .containsExactly("state.name", "state.amount", "state.createdAt")
 
-        val sources = plan.aggregationQuery.groupBy.map { it.toCompositeSource(Sort.Direction.DESC).value() }
+        val sources = plan.aggregationQuery.groupBy.map { plan.compositeSource(it, Sort.Direction.DESC).value() }
         sources[0].terms().order().assert().isEqualTo(SortOrder.Desc)
         sources[1].histogram().interval().assert().isEqualTo(10.0)
         sources[2].dateHistogram().calendarInterval()!!.time().assert().isEqualTo("1d")
 
-        val metrics = plan.aggregationQuery.metricAggregations()
+        val metrics = plan.metricAggregations()
         metrics.keys.assert().containsExactlyInAnyOrder("sum", "avg", "min", "max")
         metrics["sum"]!!.sum().field().assert().isEqualTo("state.amount")
         metrics["avg"]!!.avg().field().assert().isEqualTo("state.amount")
@@ -91,6 +92,25 @@ class ElasticsearchAggregationCompilerTest {
             )
             (source.fixedInterval() != null).assert().isEqualTo(unit == AggregationDateUnit.SECOND)
         }
+    }
+
+    @Test
+    fun `should keep resolved multi-field paths outside public depth validation`() {
+        val segments = (1..AggregationQuery.MAX_AGGREGATION_FIELD_DEPTH).map { "level$it" }
+        val field = segments.joinToString(".")
+        val query = AggregationQuery(
+            groupBy = listOf(AggregationGroup.Terms(field, "value")),
+            metrics = listOf(AggregationMetric.Count("count")),
+        )
+        val plan = ElasticsearchAggregationCompiler.compile(
+            query,
+            ElasticsearchIndexMapping.from("index", deepTextMapping(segments)),
+            SnapshotConditionConverter,
+        )
+
+        plan.aggregationQuery.groupBy.single().field.assert().isEqualTo(field)
+        plan.compositeSource(query.groupBy.single(), Sort.Direction.ASC)
+            .value().terms().field().assert().isEqualTo("$field.keyword")
     }
 
     @Test
@@ -162,4 +182,19 @@ class ElasticsearchAggregationCompilerTest {
             }
         },
     )
+
+    private fun deepTextMapping(segments: List<String>): TypeMapping {
+        fun property(index: Int): Property = if (index == segments.lastIndex) {
+            Property.of { property ->
+                property.text { text -> text.fields("keyword") { keyword -> keyword.keyword { it } } }
+            }
+        } else {
+            Property.of { property ->
+                property.`object` { objectField ->
+                    objectField.properties(segments[index + 1], property(index + 1))
+                }
+            }
+        }
+        return TypeMapping.of { mapping -> mapping.properties(segments.first(), property(0)) }
+    }
 }

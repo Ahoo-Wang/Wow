@@ -20,12 +20,17 @@ import me.ahoo.wow.example.domain.order.Order
 import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
 import me.ahoo.wow.schema.SchemaGeneratorBuilder
 import me.ahoo.wow.schema.typed.SnapshotAggregationElements
-import me.ahoo.wow.schema.typed.SnapshotAggregationFields
+import me.ahoo.wow.schema.typed.SnapshotAggregationNumericFields
+import me.ahoo.wow.schema.typed.SnapshotAggregationTemporalFields
+import me.ahoo.wow.schema.typed.SnapshotAggregationTermsFields
+import me.ahoo.wow.tck.mock.MockCommandAggregate
 import org.junit.jupiter.api.Test
 
 class AggregatedAggregationQueryTest {
     private val generator = SchemaGeneratorBuilder().build()
-    private val field = object : SnapshotAggregationFields<Order> {}
+    private val termsField = object : SnapshotAggregationTermsFields<Order> {}
+    private val numericField = object : SnapshotAggregationNumericFields<Order> {}
+    private val temporalField = object : SnapshotAggregationTemporalFields<Order> {}
     private val element = object : SnapshotAggregationElements<Order> {}
 
     @Test
@@ -33,15 +38,15 @@ class AggregatedAggregationQueryTest {
         val query = AggregatedAggregationQuery(
             elements = listOf(AggregatedAggregationElement(element)),
             groupBy = listOf(
-                AggregatedAggregationGroup.Terms(field, "terms"),
-                AggregatedAggregationGroup.Histogram(field, "histogram", 10.0),
-                AggregatedAggregationGroup.DateHistogram(field, "date", AggregationDateUnit.DAY),
+                AggregatedAggregationGroup.Terms(termsField, "terms"),
+                AggregatedAggregationGroup.Histogram(numericField, "histogram", 10.0),
+                AggregatedAggregationGroup.DateHistogram(temporalField, "date", AggregationDateUnit.DAY),
             ),
             metrics = listOf(
                 AggregatedAggregationMetric.Count("count"),
                 AggregatedAggregationMetric.Numeric(
                     AggregationFunction.SUM,
-                    AggregatedAggregationExpression.Field(field),
+                    AggregatedAggregationExpression.Field(numericField),
                     "sum",
                 ),
             ),
@@ -73,18 +78,31 @@ class AggregatedAggregationQueryTest {
     }
 
     @Test
-    fun `should expose separate element and scalar field enums`() {
+    fun `should expose operation-specific field enums`() {
         val elements = generator.generateSchema(
             SnapshotAggregationElements::class.java,
-            Order::class.java,
+            MockCommandAggregate::class.java,
         ).asJsonSchema().actual.toString()
-        val fields = generator.generateSchema(
-            SnapshotAggregationFields::class.java,
-            Order::class.java,
+        val terms = generator.generateSchema(
+            SnapshotAggregationTermsFields::class.java,
+            MockCommandAggregate::class.java,
+        ).asJsonSchema().actual.toString()
+        val numeric = generator.generateSchema(
+            SnapshotAggregationNumericFields::class.java,
+            MockCommandAggregate::class.java,
+        ).asJsonSchema().actual.toString()
+        val temporal = generator.generateSchema(
+            SnapshotAggregationTemporalFields::class.java,
+            MockCommandAggregate::class.java,
         ).asJsonSchema().actual.toString()
 
-        elements.assert().contains("state.items")
-        check("state.items.quantity" !in elements)
-        fields.assert().contains("state.items.quantity")
+        elements.assert().contains("state.orders", "state.orders.lines")
+        check("state.orders.lines.sku" !in elements)
+        terms.assert().contains("state.orders.lines.sku", "state.orders.lines.cancelled")
+        check("state.orders.lines.createdAt" !in terms)
+        numeric.assert().contains("state.orders.lines.rank", "state.orders.lines.amount")
+        check("state.orders.lines.sku" !in numeric)
+        temporal.assert().contains("state.orders.lines.createdAt")
+        check("state.orders.lines.amount" !in temporal)
     }
 }

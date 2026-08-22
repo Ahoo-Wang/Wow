@@ -632,7 +632,29 @@ sh.shardCollection("wow_snapshot_db.order_snapshot", { "_id": "hashed" })
 
 ## 快照 Elements 聚合
 
-MongoDB 将根条件编译为首个 `$match`，随后为每层 Elements 生成 `$unwind/$match`，最后执行 `$group/$project/$sort/$limit`。字符串分组与排序显式使用 `simple` collation，以便与 Elasticsearch keyword 的二进制顺序保持一致；这也意味着非 `simple` collation 的索引可能无法支持相同请求中的字符串条件。
+公共模型、JSON、空集和排序契约参见[快照 Elements 聚合](../query.md#快照-elements-聚合)。
+
+### Pipeline
+
+MongoDB 编译器按固定顺序生成：
+
+1. 根 condition 对应首个 `$match`；
+2. 每层 Elements 对应 `$unwind`，非 match-all 的 Element condition 紧随一个 `$match`；
+3. 分组字段执行 exists/non-null 过滤；
+4. 执行 `$group`、`$project`，有分组时再执行 `$sort/$limit`。
+
+`Count` 的 `$sum: 1` 位于全部 `$unwind/$match` 之后，因此 Elements 查询统计最内层展开行。
+缺失、`null` 和空集合不会产生展开行。无 groupBy 且 pipeline 没有输出时，Service 按公共空集语义补出固定单行结果。
+
+### 类型与顺序
+
+- Histogram 与数值指标在 pipeline 中转换为 double；Terms 的整数、浮点和 Decimal key 在结果映射时统一为可移植类型。
+- `DateHistogram` 使用 `$dateTrunc`，`WEEK` 显式指定 Monday；输出通过 `$toLong` 转为 epoch milliseconds。
+- 字符串分组与排序强制使用 `simple` collation，以便与 Elasticsearch keyword 的二进制顺序一致。
+- 非法数值/日期转换或非有限指标结果会使整个查询失败。
+
+初始根 `$match` 最有机会利用索引，因此应优先提高根条件选择性。使用字符串条件时，
+索引 collation 必须与 `simple` 兼容；非 `simple` collation 的索引可能无法支持同一请求。
 
 ## 故障排除
 

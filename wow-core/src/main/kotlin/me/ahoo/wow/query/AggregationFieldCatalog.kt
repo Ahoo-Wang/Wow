@@ -34,6 +34,12 @@ data class AggregationFieldCatalog(
 ) {
     val scalarPaths: Set<String> = paths.values.filterTo(linkedSetOf()) { it.kind == AggregationFieldKind.SCALAR }
         .mapTo(linkedSetOf(), AggregationField::path)
+    val termsPaths: Set<String> = paths.values.filterTo(linkedSetOf()) { it.supportsTerms }
+        .mapTo(linkedSetOf(), AggregationField::path)
+    val numericPaths: Set<String> = paths.values.filterTo(linkedSetOf()) { it.isNumeric }
+        .mapTo(linkedSetOf(), AggregationField::path)
+    val temporalPaths: Set<String> = paths.values.filterTo(linkedSetOf()) { it.isTemporal }
+        .mapTo(linkedSetOf(), AggregationField::path)
     val elementPaths: Set<String> = paths.values.filterTo(linkedSetOf()) {
         it.kind == AggregationFieldKind.OBJECT_COLLECTION
     }.mapTo(linkedSetOf(), AggregationField::path)

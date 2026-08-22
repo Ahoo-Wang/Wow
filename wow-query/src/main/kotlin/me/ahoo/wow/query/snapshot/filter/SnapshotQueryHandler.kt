@@ -27,7 +27,9 @@ import me.ahoo.wow.query.filter.QueryType
 import reactor.core.publisher.Flux
 
 interface SnapshotQueryHandler : QueryHandler<MaterializedSnapshot<Any>> {
-    fun aggregate(namedAggregate: NamedAggregate, query: AggregationQuery): Flux<DynamicDocument>
+    fun aggregate(namedAggregate: NamedAggregate, query: AggregationQuery): Flux<DynamicDocument> = Flux.error(
+        UnsupportedOperationException("Snapshot aggregation is not supported by this query handler.")
+    )
 }
 
 class DefaultSnapshotQueryHandler(

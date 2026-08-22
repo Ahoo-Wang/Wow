@@ -38,6 +38,7 @@ internal object ElasticsearchAggregationCompiler {
         query: AggregationQuery,
         mapping: ElasticsearchIndexMapping,
         conditionConverter: ConditionConverter<Query>,
+        resolveCondition: (Condition) -> Condition = mapping::resolve,
     ): ElasticsearchAggregationPlan {
         val elements = query.elements.mapIndexed { index, element ->
             val elementCondition = Condition.and(
@@ -46,19 +47,20 @@ internal object ElasticsearchAggregationCompiler {
             )
             ResolvedElement(
                 path = mapping.requireNested(element.path),
-                condition = conditionConverter.convert(mapping.resolve(elementCondition)),
+                condition = conditionConverter.convert(resolveCondition(elementCondition)),
                 index = index,
             )
         }
-        val resolved = query.copy(
-            condition = mapping.resolve(query.condition),
-            groupBy = query.groupBy.map { it.resolve(mapping) },
-            metrics = query.metrics.map { it.resolve(mapping) },
-        )
         return ElasticsearchAggregationPlan(
-            query = conditionConverter.convert(resolved.condition),
-            aggregationQuery = resolved,
+            query = conditionConverter.convert(resolveCondition(query.condition)),
+            aggregationQuery = query,
             elements = elements,
+            resolvedGroupFields = query.groupBy.associate { group ->
+                group.alias to group.resolveField(mapping)
+            },
+            resolvedMetricFields = query.metrics.filterIsInstance<AggregationMetric.Numeric>().associate { metric ->
+                metric.alias to metric.resolveField(mapping)
+            },
         )
     }
 }
@@ -67,7 +69,32 @@ internal data class ElasticsearchAggregationPlan(
     val query: Query,
     val aggregationQuery: AggregationQuery,
     private val elements: List<ResolvedElement>,
+    private val resolvedGroupFields: Map<String, String> = emptyMap(),
+    private val resolvedMetricFields: Map<String, String> = emptyMap(),
 ) {
+    fun compositeSource(
+        group: AggregationGroup,
+        direction: Sort.Direction,
+    ): NamedValue<CompositeAggregationSource> = group.toCompositeSource(
+        direction = direction,
+        resolvedField = checkNotNull(resolvedGroupFields[group.alias]) {
+            "Elasticsearch aggregation plan is missing group field [${group.alias}]."
+        },
+    )
+
+    fun metricAggregations(): Map<String, Aggregation> = buildMap {
+        aggregationQuery.metrics.filterIsInstance<AggregationMetric.Numeric>().forEach { metric ->
+            put(
+                metric.alias,
+                metric.toAggregation(
+                    checkNotNull(resolvedMetricFields[metric.alias]) {
+                        "Elasticsearch aggregation plan is missing metric field [${metric.alias}]."
+                    },
+                ),
+            )
+        }
+    }
+
     fun wrap(leafAggregations: Map<String, Aggregation>): Map<String, Aggregation> {
         var children = leafAggregations
         elements.asReversed().forEach { element ->
@@ -118,28 +145,25 @@ internal data class ResolvedElement(
     val filterName: String = "__wow_filter_$index"
 }
 
-internal fun AggregationQuery.metricAggregations(): Map<String, Aggregation> = buildMap {
-    metrics.forEach { metric ->
-        metric.toAggregation()?.let { put(metric.alias, it) }
-    }
-}
-
-internal fun AggregationGroup.toCompositeSource(direction: Sort.Direction): NamedValue<CompositeAggregationSource> {
+internal fun AggregationGroup.toCompositeSource(
+    direction: Sort.Direction,
+    resolvedField: String = field,
+): NamedValue<CompositeAggregationSource> {
     val order = if (direction == Sort.Direction.ASC) SortOrder.Asc else SortOrder.Desc
     return NamedValue.of(
         alias,
         CompositeAggregationSource.of { source ->
             when (this) {
                 is AggregationGroup.Terms -> source.terms {
-                    it.field(field).missingBucket(false).order(order)
+                    it.field(resolvedField).missingBucket(false).order(order)
                 }
 
                 is AggregationGroup.Histogram -> source.histogram {
-                    it.field(field).interval(interval).missingBucket(false).order(order)
+                    it.field(resolvedField).interval(interval).missingBucket(false).order(order)
                 }
 
                 is AggregationGroup.DateHistogram -> source.dateHistogram {
-                    it.field(field)
+                    it.field(resolvedField)
                         .format("epoch_millis")
                         .missingBucket(false)
                         .order(order)
@@ -158,35 +182,23 @@ internal fun AggregationGroup.toCompositeSource(direction: Sort.Direction): Name
     )
 }
 
-private fun AggregationGroup.resolve(mapping: ElasticsearchIndexMapping): AggregationGroup = when (this) {
-    is AggregationGroup.Terms -> copy(field = mapping.resolve(field, ElasticsearchFieldUsage.TERMS))
-    is AggregationGroup.Histogram -> copy(field = mapping.resolve(field, ElasticsearchFieldUsage.NUMERIC))
-    is AggregationGroup.DateHistogram -> copy(field = mapping.resolve(field, ElasticsearchFieldUsage.DATE))
+private fun AggregationGroup.resolveField(mapping: ElasticsearchIndexMapping): String = when (this) {
+    is AggregationGroup.Terms -> mapping.resolve(field, ElasticsearchFieldUsage.TERMS)
+    is AggregationGroup.Histogram -> mapping.resolve(field, ElasticsearchFieldUsage.NUMERIC)
+    is AggregationGroup.DateHistogram -> mapping.resolve(field, ElasticsearchFieldUsage.DATE)
 }
 
-private fun AggregationMetric.resolve(mapping: ElasticsearchIndexMapping): AggregationMetric = when (this) {
-    is AggregationMetric.Count -> this
-    is AggregationMetric.Numeric -> copy(
-        expression = when (val expression = expression) {
-            is AggregationExpression.Field -> expression.copy(
-                field = mapping.resolve(expression.field, ElasticsearchFieldUsage.NUMERIC),
-            )
-        },
-    )
-}
+private fun AggregationMetric.Numeric.resolveField(mapping: ElasticsearchIndexMapping): String =
+    when (val expression = expression) {
+        is AggregationExpression.Field -> mapping.resolve(expression.field, ElasticsearchFieldUsage.NUMERIC)
+    }
 
-private fun AggregationMetric.toAggregation(): Aggregation? = when (this) {
-    is AggregationMetric.Count -> null
-    is AggregationMetric.Numeric -> {
-        val field = (expression as AggregationExpression.Field).field
-        Aggregation.of {
-            when (function) {
-                AggregationFunction.SUM -> it.sum { sum -> sum.field(field) }
-                AggregationFunction.AVG -> it.avg { avg -> avg.field(field) }
-                AggregationFunction.MIN -> it.min { min -> min.field(field) }
-                AggregationFunction.MAX -> it.max { max -> max.field(field) }
-            }
-        }
+private fun AggregationMetric.Numeric.toAggregation(resolvedField: String): Aggregation = Aggregation.of {
+    when (function) {
+        AggregationFunction.SUM -> it.sum { sum -> sum.field(resolvedField) }
+        AggregationFunction.AVG -> it.avg { avg -> avg.field(resolvedField) }
+        AggregationFunction.MIN -> it.min { min -> min.field(resolvedField) }
+        AggregationFunction.MAX -> it.max { max -> max.field(resolvedField) }
     }
 }
 

@@ -172,7 +172,7 @@ direct 和 batch 模式下都使用基于 `_source.version` 的原子保护更�
 | `wow.webflux.global-error.enabled` | Boolean | `true` | 启用全局错误处理 |
 | `wow.webflux.batch.concurrency` | Integer | `1` | 批量命令请求的并发数 |
 | `wow.webflux.batch.prefetch` | Integer | `1` | 批量命令请求的预取数 |
-| `wow.webflux.query.max-list-size` | Integer | `1000` | HTTP 列表查询最大 limit；`0` 关闭上限 |
+| `wow.webflux.query.max-list-size` | Integer | `1000` | HTTP 列表查询 limit 及有分组快照聚合结果行上限；`0` 关闭 HTTP 上限，聚合仍受公共 10,000 硬上限 |
 | `wow.webflux.query.max-page-size` | Integer | `100` | HTTP 查询最大页大小；`0` 关闭上限 |
 | `wow.webflux.query.max-page-window` | Long | `10000` | HTTP 查询最大分页窗口；`0` 关闭上限 |
 | `wow.webflux.query.max-condition-nodes` | Integer | `64` | HTTP 查询条件节点上限；`0` 关闭上限 |

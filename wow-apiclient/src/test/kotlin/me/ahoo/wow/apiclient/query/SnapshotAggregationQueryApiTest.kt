@@ -25,6 +25,14 @@ class SnapshotAggregationQueryApiTest {
     private val row = mapOf<String, Any?>("count" to 1L)
 
     @Test
+    fun `existing composite clients should remain unchanged`() {
+        ReactiveSnapshotAggregationQueryApi::class.java.isAssignableFrom(ReactiveSnapshotQueryApi::class.java)
+            .assert().isFalse()
+        SynchronousSnapshotAggregationQueryApi::class.java.isAssignableFrom(SynchronousSnapshotQueryApi::class.java)
+            .assert().isFalse()
+    }
+
+    @Test
     fun `reactive and synchronous clients should expose dynamic rows`() {
         val reactive = object : ReactiveSnapshotAggregationQueryApi {
             override fun aggregate(query: AggregationQuery): Flux<Map<String, Any?>> = Flux.just(row)

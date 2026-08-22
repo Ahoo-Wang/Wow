@@ -20,8 +20,7 @@ interface ReactiveSnapshotQueryApi<S : Any> :
     ReactiveSnapshotSingleQueryApi<S>,
     ReactiveSnapshotListQueryApi<S>,
     ReactiveSnapshotPagedQueryApi<S>,
-    ReactiveSnapshotCountQueryApi,
-    ReactiveSnapshotAggregationQueryApi
+    ReactiveSnapshotCountQueryApi
 
 fun <T : Any> Mono<T>.switchNotFoundToEmpty(): Mono<T> {
     return onErrorResume(WebClientResponseException.NotFound::class.java) {
