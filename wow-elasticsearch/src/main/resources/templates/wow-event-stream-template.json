@@ -4,6 +4,7 @@
   ],
   "template": {
     "mappings": {
+      "date_detection": false,
       "properties": {
         "aggregateId": {
           "type": "keyword"
@@ -12,7 +13,12 @@
           "type": "keyword"
         },
         "body": {
+          "type": "nested",
           "properties": {
+            "body": {
+              "type": "object",
+              "enabled": false
+            },
             "bodyType": {
               "type": "keyword"
             },
@@ -70,7 +76,8 @@
           "string_as_keyword": {
             "match_mapping_type": "string",
             "mapping": {
-              "type": "keyword"
+              "type": "keyword",
+              "ignore_above": 8191
             }
           }
         }

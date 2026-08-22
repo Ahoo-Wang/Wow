@@ -283,6 +283,10 @@ Mapping 发布必须按以下顺序执行：
 
 ## 配置事件流索引模板
 
+内置模板关闭自动日期探测，业务日期字段应在聚合专用模板中显式映射。事件条目使用 `nested`，其中的
+`body[].body` 仍保留在 `_source`，但不参与索引，避免任意事件载荷因 Mapping 冲突阻断事件持久化。
+查询事件条目元数据时使用 `ELEM_MATCH`；只有确实需要检索事件载荷时，才安装显式的高优先级 Mapping。
+
 ```http request
 POST _index_template/wow-event-stream-template
 {
@@ -291,6 +295,7 @@ POST _index_template/wow-event-stream-template
   ],
   "template": {
     "mappings": {
+      "date_detection": false,
       "properties": {
         "aggregateId": {
           "type": "keyword"
@@ -299,7 +304,12 @@ POST _index_template/wow-event-stream-template
           "type": "keyword"
         },
         "body": {
+          "type": "nested",
           "properties": {
+            "body": {
+              "type": "object",
+              "enabled": false
+            },
             "bodyType": {
               "type": "keyword"
             },
@@ -342,6 +352,12 @@ POST _index_template/wow-event-stream-template
         "tenantId": {
           "type": "keyword"
         },
+        "ownerId": {
+          "type": "keyword"
+        },
+        "spaceId": {
+          "type": "keyword"
+        },
         "version": {
           "type": "integer"
         }
@@ -351,7 +367,8 @@ POST _index_template/wow-event-stream-template
           "string_as_keyword": {
             "match_mapping_type": "string",
             "mapping": {
-              "type": "keyword"
+              "type": "keyword",
+              "ignore_above": 8191
             }
           }
         }
@@ -371,6 +388,7 @@ POST _index_template/wow-snapshot-template
   ],
   "template": {
     "mappings": {
+      "date_detection": false,
       "properties": {
         "contextName": {
           "type": "keyword"
@@ -388,6 +406,12 @@ POST _index_template/wow-snapshot-template
           "type": "integer"
         },
         "eventId": {
+          "type": "keyword"
+        },
+        "ownerId": {
+          "type": "keyword"
+        },
+        "spaceId": {
           "type": "keyword"
         },
         "firstOperator": {
@@ -408,6 +432,10 @@ POST _index_template/wow-snapshot-template
         "deleted": {
           "type": "boolean"
         },
+        "tags": {
+          "type": "object",
+          "dynamic": true
+        },
         "state": {
           "properties": {
             "id": {
@@ -421,11 +449,22 @@ POST _index_template/wow-snapshot-template
       },
       "dynamic_templates": [
         {
+          "tags_strings_as_keyword": {
+            "match_mapping_type": "string",
+            "path_match": "tags.*",
+            "mapping": {
+              "type": "keyword",
+              "ignore_above": 8191
+            }
+          }
+        },
+        {
           "id_string_as_keyword": {
             "match": "id",
             "match_mapping_type": "string",
             "mapping": {
-              "type": "keyword"
+              "type": "keyword",
+              "ignore_above": 8191
             }
           }
         },
@@ -434,7 +473,8 @@ POST _index_template/wow-snapshot-template
             "match": "*Id",
             "match_mapping_type": "string",
             "mapping": {
-              "type": "keyword"
+              "type": "keyword",
+              "ignore_above": 8191
             }
           }
         }

@@ -296,6 +296,11 @@ Publish a mapping change in this order:
 
 ## Configure Event Stream Index Template
 
+The built-in templates disable automatic date detection; map domain date fields explicitly in an aggregate-specific
+template. Event entries are `nested`, while `body[].body` remains available in `_source` but is not indexed, preventing
+arbitrary event payloads from breaking event persistence through mapping conflicts. Use `ELEM_MATCH` for event-entry
+metadata queries, and install an explicit higher-priority mapping only when payload search is required.
+
 ```http request
 POST _index_template/wow-event-stream-template
 {
@@ -304,6 +309,7 @@ POST _index_template/wow-event-stream-template
   ],
   "template": {
     "mappings": {
+      "date_detection": false,
       "properties": {
         "aggregateId": {
           "type": "keyword"
@@ -312,7 +318,12 @@ POST _index_template/wow-event-stream-template
           "type": "keyword"
         },
         "body": {
+          "type": "nested",
           "properties": {
+            "body": {
+              "type": "object",
+              "enabled": false
+            },
             "bodyType": {
               "type": "keyword"
             },
@@ -355,6 +366,12 @@ POST _index_template/wow-event-stream-template
         "tenantId": {
           "type": "keyword"
         },
+        "ownerId": {
+          "type": "keyword"
+        },
+        "spaceId": {
+          "type": "keyword"
+        },
         "version": {
           "type": "integer"
         }
@@ -364,7 +381,8 @@ POST _index_template/wow-event-stream-template
           "string_as_keyword": {
             "match_mapping_type": "string",
             "mapping": {
-              "type": "keyword"
+              "type": "keyword",
+              "ignore_above": 8191
             }
           }
         }
@@ -384,6 +402,7 @@ POST _index_template/wow-snapshot-template
   ],
   "template": {
     "mappings": {
+      "date_detection": false,
       "properties": {
         "contextName": {
           "type": "keyword"
@@ -401,6 +420,12 @@ POST _index_template/wow-snapshot-template
           "type": "integer"
         },
         "eventId": {
+          "type": "keyword"
+        },
+        "ownerId": {
+          "type": "keyword"
+        },
+        "spaceId": {
           "type": "keyword"
         },
         "firstOperator": {
@@ -421,6 +446,10 @@ POST _index_template/wow-snapshot-template
         "deleted": {
           "type": "boolean"
         },
+        "tags": {
+          "type": "object",
+          "dynamic": true
+        },
         "state": {
           "properties": {
             "id": {
@@ -434,11 +463,22 @@ POST _index_template/wow-snapshot-template
       },
       "dynamic_templates": [
         {
+          "tags_strings_as_keyword": {
+            "match_mapping_type": "string",
+            "path_match": "tags.*",
+            "mapping": {
+              "type": "keyword",
+              "ignore_above": 8191
+            }
+          }
+        },
+        {
           "id_string_as_keyword": {
             "match": "id",
             "match_mapping_type": "string",
             "mapping": {
-              "type": "keyword"
+              "type": "keyword",
+              "ignore_above": 8191
             }
           }
         },
@@ -447,7 +487,8 @@ POST _index_template/wow-snapshot-template
             "match": "*Id",
             "match_mapping_type": "string",
             "mapping": {
-              "type": "keyword"
+              "type": "keyword",
+              "ignore_above": 8191
             }
           }
         }

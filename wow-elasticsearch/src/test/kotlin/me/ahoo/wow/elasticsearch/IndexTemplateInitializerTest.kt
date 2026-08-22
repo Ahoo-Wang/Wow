@@ -17,12 +17,15 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.springframework.core.io.ClassPathResource
 import org.springframework.data.elasticsearch.core.ReactiveElasticsearchOperations
 import org.springframework.data.elasticsearch.core.ReactiveIndexOperations
 import org.springframework.data.elasticsearch.core.mapping.IndexCoordinates
 import reactor.core.publisher.Mono
+import tools.jackson.databind.JsonNode
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -32,6 +35,24 @@ class IndexTemplateInitializerTest {
         every { indexOps(any<IndexCoordinates>()) } returns indexOperations
     }
     private val initializer = IndexTemplateInitializer(elasticsearchOperations)
+
+    @Test
+    fun `built-in templates should protect dynamic mappings`() {
+        val eventMappings = readMappings("wow-event-stream-template")
+        eventMappings["date_detection"].asBoolean().assert().isEqualTo(false)
+        eventMappings["properties"]["body"]["type"].asString().assert().isEqualTo("nested")
+        eventMappings["properties"]["body"]["properties"]["body"]["enabled"]
+            .asBoolean().assert().isEqualTo(false)
+        eventMappings["dynamic_templates"][0]["string_as_keyword"]["mapping"]["ignore_above"]
+            .asInt().assert().isEqualTo(8191)
+
+        val snapshotMappings = readMappings("wow-snapshot-template")
+        snapshotMappings["date_detection"].asBoolean().assert().isEqualTo(false)
+        snapshotMappings["dynamic_templates"].forEach { template ->
+            template.properties().single().value["mapping"]["ignore_above"]
+                .asInt().assert().isEqualTo(8191)
+        }
+    }
 
     @Test
     fun `init all should complete both template requests before returning`() {
@@ -86,4 +107,9 @@ class IndexTemplateInitializerTest {
     fun `legacy init subscriber should retain its name`() {
         IndexTemplateInitializer.InitSubscriber("legacy").name.assert().isEqualTo("legacy")
     }
+
+    private fun readMappings(templateName: String): JsonNode =
+        ClassPathResource("templates/$templateName.json").inputStream.use {
+            JsonSerializer.readValue(it, JsonNode::class.java)["template"]["mappings"]
+        }
 }
