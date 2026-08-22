@@ -18,6 +18,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.elasticsearch.query.ElasticsearchSortConverter.toSortOptions
 import me.ahoo.wow.query.dsl.sort
+import me.ahoo.wow.serialization.MessageRecords
 import org.junit.jupiter.api.Test
 
 class ElasticsearchSortConverterTest {
@@ -48,5 +49,14 @@ class ElasticsearchSortConverterTest {
         val actual = sort.toSortOptions()
 
         actual.isEmpty().assert().isTrue()
+    }
+
+    @Test
+    fun `should add nested context to event body sort`() {
+        val actual = sort {
+            "${MessageRecords.BODY}.name".asc()
+        }.toSortOptions().single().field()
+
+        requireNotNull(actual.nested()).path().assert().isEqualTo(MessageRecords.BODY)
     }
 }

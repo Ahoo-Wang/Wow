@@ -17,6 +17,7 @@ import co.elastic.clients.elasticsearch._types.SortOptions
 import co.elastic.clients.elasticsearch._types.SortOrder
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.converter.SortConverter
+import me.ahoo.wow.serialization.MessageRecords
 
 object ElasticsearchSortConverter : SortConverter<List<SortOptions>> {
     override fun convert(sort: List<Sort>): List<SortOptions> {
@@ -24,6 +25,10 @@ object ElasticsearchSortConverter : SortConverter<List<SortOptions>> {
             SortOptions.of { sortBuilder ->
                 sortBuilder.field { fieldBuilder ->
                     fieldBuilder.field(it.field).order(it.direction.toSortOrder())
+                    if (it.field.startsWith("${MessageRecords.BODY}.")) {
+                        fieldBuilder.nested { nested -> nested.path(MessageRecords.BODY) }
+                    }
+                    fieldBuilder
                 }
             }
         }
