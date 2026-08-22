@@ -21,6 +21,7 @@ package me.ahoo.wow.api.query
  *
  * @param Q The type of the query object that implements this interface, enabling method chaining.
  */
+@Deprecated("Use FilterCapable.")
 interface ConditionCapable<Q : ConditionCapable<Q>> : RewritableCondition<Q> {
     /**
      * The condition currently applied to this query.

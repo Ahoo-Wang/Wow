@@ -502,7 +502,7 @@ classDiagram
     class AbstractMongoQueryService~R~ {
         <<abstract>>
         #collection: MongoCollection
-        #converter: ConditionConverter
+        #converter: AbstractMongoConditionConverter
         +single(ISingleQuery) Mono~R~
         +list(IListQuery) Flux~R~
         +paged(IPagedQuery) Mono~PagedList~R~~

@@ -199,7 +199,7 @@ flattened 父字段，并保留原路径执行精确和排序操作。flattened 
 
 对于 multi-field，依次选择当前字段、`.keyword`/`.text`、`.exact`，最后才选择唯一的兼容子字段；存在多个兼容候选时
 查询失败，避免静默改变语义。`EXISTS`、`NULL`、`NOT_NULL`、projection 和 `RAW` 不重写，`ELEM_MATCH` 的父路径
-必须映射为 `nested`。自定义 `ConditionConverter` 继续负责解释自己的物理字段，不经过上述重写。
+必须映射为 `nested`。自定义 `AbstractElasticsearchConditionConverter` 继续负责解释自己的物理字段，不经过上述重写。
 
 Field alias 继承其目标字段的查询与排序能力，并继续使用 alias 名称生成查询。Mapping 中声明的 runtime field 也会按
 其类型参与能力解析；runtime 查询会在查询时计算，且当 Elasticsearch 设置 `search.allow_expensive_queries=false` 时

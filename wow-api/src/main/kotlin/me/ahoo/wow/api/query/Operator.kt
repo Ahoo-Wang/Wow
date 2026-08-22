@@ -20,6 +20,7 @@ package me.ahoo.wow.api.query
  * applied to fields in database queries. Operators range from simple equality checks
  * to complex date range queries and array operations.
  */
+@Deprecated("Use FilterOperator.")
 enum class Operator {
     /**
      * Logical AND operator.

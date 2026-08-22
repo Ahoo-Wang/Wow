@@ -42,7 +42,7 @@ import me.ahoo.wow.serialization.state.StateAggregateRecords
 abstract class AbstractElasticsearchConditionConverter : AbstractConditionConverter<Query>() {
     private val filterNormalizer = FilterNormalizer()
 
-    override fun convert(filter: FilterExpression): Query = internalConvert(filterNormalizer.normalize(filter))
+    fun convert(filter: FilterExpression): Query = internalConvert(filterNormalizer.normalize(filter))
 
     @Suppress("CyclomaticComplexMethod", "LongMethod")
     private fun internalConvert(filter: FilterExpression): Query = when (filter) {

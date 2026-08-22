@@ -207,7 +207,7 @@ Clients always use the logical field and do not need to hard-code `.keyword` or 
 For a multi-field, Wow tries the current field, `.keyword`/`.text`, `.exact`, and finally a single compatible child.
 Multiple compatible children fail as ambiguous rather than silently changing semantics. `EXISTS`, `NULL`, `NOT_NULL`,
 projection, and `RAW` remain logical fields; the parent of `ELEM_MATCH` must be mapped as `nested`. A custom
-`ConditionConverter` retains ownership of its physical fields and bypasses this rewriting.
+`AbstractElasticsearchConditionConverter` retains ownership of its physical fields and bypasses this rewriting.
 
 A field alias inherits the query and sort capabilities of its target while queries continue to use the alias name.
 Runtime fields declared in the mapping also participate according to their type. They are evaluated at query time and

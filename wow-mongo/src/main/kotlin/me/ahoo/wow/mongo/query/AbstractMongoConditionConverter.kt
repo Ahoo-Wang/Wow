@@ -73,7 +73,7 @@ abstract class AbstractMongoConditionConverter : AbstractConditionConverter<Bson
 
     private val filterNormalizer = FilterNormalizer()
 
-    override fun convert(filter: FilterExpression): Bson = internalConvert(filterNormalizer.normalize(filter))
+    fun convert(filter: FilterExpression): Bson = internalConvert(filterNormalizer.normalize(filter))
 
     @Suppress("CyclomaticComplexMethod", "LongMethod")
     private fun internalConvert(filter: FilterExpression): Bson = when (filter) {

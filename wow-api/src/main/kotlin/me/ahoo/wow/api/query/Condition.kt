@@ -23,6 +23,7 @@ import java.time.format.DateTimeFormatter
  * Marker interface for condition options.
  * Implementations can define additional configuration options for query conditions.
  */
+@Deprecated("Use typed FilterExpression properties.")
 interface ConditionOptions
 
 /**
@@ -33,6 +34,7 @@ interface ConditionOptions
  *
  * @param C The type of the condition implementation, enabling self-referential types for nested conditions.
  */
+@Deprecated("Use FilterExpression.")
 interface ICondition<C : ICondition<C>> {
     /**
      * The field name to apply the condition to.
@@ -99,6 +101,7 @@ interface ICondition<C : ICondition<C>> {
  * val searchCondition = Condition.contains("description", "kotlin", ignoreCase = true)
  * ```
  */
+@Deprecated("Use FilterExpression.")
 data class Condition(
     override val field: String = EMPTY_VALUE,
     override val operator: Operator = Operator.ALL,

@@ -34,7 +34,6 @@ import me.ahoo.wow.api.query.isEmpty
 import me.ahoo.wow.elasticsearch.query.ElasticsearchProjectionConverter.toSourceFilter
 import me.ahoo.wow.elasticsearch.query.ElasticsearchSortConverter.toSortOptions
 import me.ahoo.wow.query.QueryService
-import me.ahoo.wow.query.converter.ConditionConverter
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -42,7 +41,7 @@ import java.time.Duration
 
 abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
     abstract val elasticsearchClient: ReactiveElasticsearchClient
-    abstract val conditionConverter: ConditionConverter<Query>
+    abstract val conditionConverter: AbstractElasticsearchConditionConverter
     abstract val indexName: String
     protected open val queryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE
     protected open val queryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE

@@ -229,15 +229,4 @@ class ConditionConverterTest {
         val guarded = guardedConverter.calls.first().second
         guarded.children.first().operator.assert().isEqualTo(Condition.ACTIVE.operator)
     }
-
-    @Test
-    fun `legacy converter should remain source compatible`() {
-        val legacyConverter = object : ConditionConverter<String> {
-            override fun convert(condition: Condition): String = condition.operator.name
-        }
-
-        org.junit.jupiter.api.assertThrows<me.ahoo.wow.query.UnsupportedFilterException> {
-            legacyConverter.convert(me.ahoo.wow.api.query.MatchAllFilter)
-        }
-    }
 }

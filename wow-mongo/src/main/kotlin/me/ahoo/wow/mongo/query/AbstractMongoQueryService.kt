@@ -23,9 +23,7 @@ import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.query.QueryService
-import me.ahoo.wow.query.converter.ConditionConverter
 import org.bson.Document
-import org.bson.conversions.Bson
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toFlux
@@ -33,7 +31,7 @@ import reactor.kotlin.core.publisher.toMono
 
 abstract class AbstractMongoQueryService<R : Any> : QueryService<R> {
     abstract val collection: MongoCollection<Document>
-    abstract val converter: ConditionConverter<Bson>
+    abstract val converter: AbstractMongoConditionConverter
     abstract val projectionConverter: MongoProjectionConverter
     abstract val sortConverter: MongoSortConverter
     abstract fun toTypedResult(document: Document): R

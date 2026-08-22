@@ -23,8 +23,9 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
 
-abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
-    override fun convert(condition: Condition): T {
+@Deprecated("Legacy Condition compatibility only. Compile FilterExpression directly.")
+abstract class AbstractConditionConverter<T> {
+    open fun convert(condition: Condition): T {
         val convertedCondition = condition.guard()
         return internalConvert(convertedCondition)
     }

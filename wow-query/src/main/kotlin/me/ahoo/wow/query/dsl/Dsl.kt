@@ -74,6 +74,7 @@ fun pagedQuery(block: PagedQueryDsl.() -> Unit): IPagedQuery {
  * @param block The DSL block to define the condition.
  * @return The constructed [Condition] object.
  */
+@Deprecated("Use filterExpression.")
 fun condition(block: ConditionDsl.() -> Unit): Condition {
     val dsl = ConditionDsl()
     dsl.block()
