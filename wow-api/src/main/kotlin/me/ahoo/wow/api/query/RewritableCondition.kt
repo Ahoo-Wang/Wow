@@ -29,6 +29,7 @@ interface RewritableCondition<Q : RewritableCondition<Q>> {
      * @param newCondition The new condition to use.
      * @return A new query object with the specified condition.
      */
+    @Deprecated("Use withFilter.")
     fun withCondition(newCondition: Condition): Q
 
     /**
@@ -37,6 +38,7 @@ interface RewritableCondition<Q : RewritableCondition<Q>> {
      * @param append The condition to append.
      * @return A new query object with the combined condition.
      */
+    @Deprecated("Use appendFilter.")
     fun appendCondition(append: Condition): Q
 
     /**
@@ -45,5 +47,6 @@ interface RewritableCondition<Q : RewritableCondition<Q>> {
      * @param tenantId The tenant ID to filter by.
      * @return A new query object with the tenant ID condition appended.
      */
+    @Deprecated("Use appendFilter.")
     fun appendTenantId(tenantId: String): Q = appendCondition(Condition.tenantId(tenantId))
 }

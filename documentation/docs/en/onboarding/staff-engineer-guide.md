@@ -822,7 +822,7 @@ These conditional checks protect aggregate context when it is supplied; they do 
 `AbacQueryFilter` converts principal tags into query conditions.
 
 Principal tag resolution is abstract and must be supplied by an integration.
-An empty tag set resolves to `Condition.all()`.
+An empty tag set resolves to `MatchAllFilter`.
 Therefore the presence of this filter alone does not prove an authenticated or restricted query.
 Source: [AbacQueryFilter](https://github.com/Ahoo-Wang/Wow/blob/main/wow-query/src/main/kotlin/me/ahoo/wow/query/snapshot/filter/AbacQueryFilter.kt#L33-L130).
 

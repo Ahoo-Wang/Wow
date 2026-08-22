@@ -137,6 +137,7 @@ data class Condition(
      * @param newCondition The new condition to use.
      * @return The new condition.
      */
+    @Deprecated("Use FilterExpression.")
     override fun withCondition(newCondition: Condition): Condition = newCondition
 
     /**
@@ -148,6 +149,7 @@ data class Condition(
      * @param append The condition to append.
      * @return A new condition combining this and the appended condition with AND logic.
      */
+    @Deprecated("Use FilterExpression.")
     override fun appendCondition(append: Condition): Condition {
         if (this.operator == Operator.ALL) {
             return append

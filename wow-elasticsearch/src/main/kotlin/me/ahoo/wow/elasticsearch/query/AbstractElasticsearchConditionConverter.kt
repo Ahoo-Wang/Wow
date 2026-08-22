@@ -39,8 +39,10 @@ import me.ahoo.wow.query.converter.AbstractConditionConverter
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 
-abstract class AbstractElasticsearchConditionConverter : AbstractConditionConverter<Query>() {
-    private val filterNormalizer = FilterNormalizer()
+abstract class AbstractElasticsearchConditionConverter(
+    defaultDeletionState: DeletionState? = DeletionState.ACTIVE,
+) : AbstractConditionConverter<Query>() {
+    private val filterNormalizer = FilterNormalizer(defaultDeletionState = defaultDeletionState)
 
     fun convert(filter: FilterExpression): Query = internalConvert(filterNormalizer.normalize(filter))
 
@@ -51,7 +53,11 @@ abstract class AbstractElasticsearchConditionConverter : AbstractConditionConver
         is AndFilter -> bool { it.filter(filter.operands.map(::internalConvert)) }
         is OrFilter -> bool { it.should(filter.operands.map(::internalConvert)).minimumShouldMatch("1") }
         is NorFilter -> bool { it.mustNot(filter.operands.map(::internalConvert)) }
-        is EqualFilter -> term { it.field(filter.field.value).value(filter.value.fieldValue()) }
+        is EqualFilter -> if (filter.field.isDocumentId) {
+            ids { it.values(filter.value.requiredNativeValue().toString()) }
+        } else {
+            term { it.field(filter.field.value).value(filter.value.fieldValue()) }
+        }
         is NotEqualFilter -> bool { it.mustNot(internalConvert(EqualFilter(filter.field, filter.value))) }
         is GreaterThanFilter -> range {
             it.untyped { range -> range.field(filter.field.value).gt(JsonData.of(filter.value.requiredNativeValue())) }
@@ -76,10 +82,14 @@ abstract class AbstractElasticsearchConditionConverter : AbstractConditionConver
             it.field(filter.field.value).value("*${filter.value.escapeWildcard()}")
                 .caseInsensitive(filter.stringComparison.ignoreCase)
         }
-        is InFilter -> terms {
-            it.field(
-                filter.field.value
-            ).terms { terms -> terms.value(filter.values.map { value -> value.fieldValue() }) }
+        is InFilter -> if (filter.field.isDocumentId) {
+            ids { it.values(filter.values.map { value -> value.requiredNativeValue().toString() }) }
+        } else {
+            terms {
+                it.field(
+                    filter.field.value
+                ).terms { terms -> terms.value(filter.values.map { value -> value.fieldValue() }) }
+            }
         }
         is NotInFilter -> bool { it.mustNot(internalConvert(InFilter(filter.field, filter.values))) }
         is BetweenFilter -> range {
@@ -95,7 +105,12 @@ abstract class AbstractElasticsearchConditionConverter : AbstractConditionConver
                 it.field(filter.field.value).terms(values).minimumShouldMatch(values.size.toString())
             }
         }
+        is IsNullFilter -> bool { it.mustNot { query -> query.exists { exists -> exists.field(filter.field.value) } } }
         is IsNotNullFilter -> exists { it.field(filter.field.value) }
+        is ExistsFilter -> exists { it.field(filter.field.value) }
+        is NotExistsFilter -> bool {
+            it.mustNot { query -> query.exists { exists -> exists.field(filter.field.value) } }
+        }
         is ElementMatchFilter -> nested {
             it.path(filter.field.value).query(internalConvert(filter.predicate))
         }
@@ -109,11 +124,7 @@ abstract class AbstractElasticsearchConditionConverter : AbstractConditionConver
             DeletionState.DELETED -> term { it.field(StateAggregateRecords.DELETED).value(true) }
             DeletionState.ALL -> matchAll { it }
         }
-        is IsEmptyFilter,
-        is IsNullFilter,
-        is ExistsFilter,
-        is NotExistsFilter,
-        -> throw UnsupportedFilterException(filter.operator, filter.fieldOrNull(), "elasticsearch")
+        is IsEmptyFilter -> throw UnsupportedFilterException(filter.operator, filter.field, "elasticsearch")
         is TodayFilter,
         is BeforeTodayFilter,
         is TomorrowFilter,
@@ -127,13 +138,8 @@ abstract class AbstractElasticsearchConditionConverter : AbstractConditionConver
         -> error("Relative-time filter must be normalized before compilation.")
     }
 
-    private fun FilterExpression.fieldOrNull(): LogicalField? = when (this) {
-        is IsEmptyFilter -> field
-        is IsNullFilter -> field
-        is ExistsFilter -> field
-        is NotExistsFilter -> field
-        else -> null
-    }
+    private val LogicalField.isDocumentId: Boolean
+        get() = value == "_id"
 
     private val StringComparison.ignoreCase: Boolean
         get() = this == StringComparison.CASE_INSENSITIVE

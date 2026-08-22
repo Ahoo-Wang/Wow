@@ -11,20 +11,17 @@
  * limitations under the License.
  */
 
+@file:Suppress("NoWildcardImports", "WildcardImport")
+
 package me.ahoo.wow.query
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.AndFilter
-import me.ahoo.wow.api.query.DeletionFilter
-import me.ahoo.wow.api.query.DeletionState
-import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
-import me.ahoo.wow.api.query.LessThanFilter
-import me.ahoo.wow.api.query.LogicalField
-import me.ahoo.wow.api.query.TodayFilter
+import me.ahoo.wow.api.query.*
 import org.junit.jupiter.api.Test
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 
 class FilterNormalizerTest {
     private val normalizer = FilterNormalizer(
@@ -48,5 +45,28 @@ class FilterNormalizerTest {
     fun `should preserve explicit deletion scope`() {
         normalizer.normalize(DeletionFilter(DeletionState.ALL)).assert()
             .isEqualTo(DeletionFilter(DeletionState.ALL))
+    }
+
+    @Test
+    fun `should allow event stream normalization without deletion scope`() {
+        FilterNormalizer(
+            clock = Clock.fixed(Instant.parse("2026-08-22T12:00:00Z"), ZoneOffset.UTC),
+            defaultZoneId = ZoneOffset.UTC,
+            defaultDeletionState = null,
+        ).normalize(MatchAllFilter).assert().isEqualTo(MatchAllFilter)
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `should preserve legacy date formatter`() {
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+        val normalized = normalizer.normalize(
+            Condition.today("createdAt", formatter).toFilterExpression(),
+        ) as AndFilter
+
+        (normalized.operands[1] as GreaterThanOrEqualFilter).value.asString().assert()
+            .isEqualTo("2026-08-22 00:00:00")
+        (normalized.operands[2] as LessThanFilter).value.asString().assert()
+            .isEqualTo("2026-08-23 00:00:00")
     }
 }

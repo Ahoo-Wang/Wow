@@ -59,4 +59,48 @@ class FilterExpressionTest {
             InFilter(LogicalField("state.status"), listOf(jsonMapper.nullNode()))
         }
     }
+
+    @Test
+    fun `should round trip relative time date pattern without exposing formatter`() {
+        val expression: FilterExpression = TodayFilter(
+            LogicalField("state.createTime"),
+            zoneId = "UTC",
+            datePattern = "yyyy-MM-dd HH:mm:ss",
+        )
+
+        val json = jsonMapper.writeValueAsString(expression)
+        val decoded = jsonMapper.readValue(json, FilterExpression::class.java) as TodayFilter
+
+        json.contains("dateFormatter").assert().isFalse()
+        decoded.datePattern.assert().isEqualTo("yyyy-MM-dd HH:mm:ss")
+        decoded.resolvedDateFormatter().assert().isNotNull()
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `legacy queryable implementation should inherit filter compatibility`() {
+        val query = LegacyQueryable(Condition.eq("state.status", "CREATED"))
+
+        (query.filter as EqualFilter).field.value.assert().isEqualTo("state.status")
+        query.withFilter(MatchAllFilter).condition.assert().isEqualTo(Condition.ALL)
+    }
+
+    @Test
+    fun `query serialization should expose only filter`() {
+        val json = jsonMapper.writeValueAsString(ListQuery(MatchAllFilter))
+
+        json.contains("\"filter\"").assert().isTrue()
+        json.contains("\"condition\"").assert().isFalse()
+    }
+
+    @Suppress("DEPRECATION")
+    private data class LegacyQueryable(
+        override val condition: Condition,
+        override val projection: Projection = Projection.ALL,
+        override val sort: List<Sort> = emptyList(),
+    ) : Queryable<LegacyQueryable> {
+        override fun withCondition(newCondition: Condition): LegacyQueryable = copy(condition = newCondition)
+
+        override fun withProjection(newProjection: Projection): LegacyQueryable = copy(projection = newProjection)
+    }
 }

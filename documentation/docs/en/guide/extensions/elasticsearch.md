@@ -198,15 +198,15 @@ For example, one logical field can support both full-text and exact operations:
 
 | Query operation | Client field | Resolved field |
 |---|---|---|
-| `MATCH` | `state.customerName` | `state.customerName` |
+| `SEARCH` | `state.customerName` | `state.customerName` |
 | `EQ`, `IN`, sort | `state.customerName` | `state.customerName.keyword` |
 | projection | `state.customerName` | `state.customerName` (unchanged) |
 
 Clients always use the logical field and do not need to hard-code `.keyword` or `.text`.
 
 For a multi-field, Wow tries the current field, `.keyword`/`.text`, `.exact`, and finally a single compatible child.
-Multiple compatible children fail as ambiguous rather than silently changing semantics. `EXISTS`, `NULL`, `NOT_NULL`,
-projection, and `RAW` remain logical fields; the parent of `ELEM_MATCH` must be mapped as `nested`. A custom
+Multiple compatible children fail as ambiguous rather than silently changing semantics. Projection remains on the
+logical field; the parent of `ELEMENT_MATCH` must be mapped as `nested`. A custom
 `AbstractElasticsearchConditionConverter` retains ownership of its physical fields and bypasses this rewriting.
 
 A field alias inherits the query and sort capabilities of its target while queries continue to use the alias name.
@@ -301,28 +301,22 @@ template. Event entries are `nested`, while `body[].body` remains available in `
 arbitrary payloads from breaking persistence through mapping conflicts. One event stream is limited to 10,000 events,
 matching Elasticsearch's default nested-object limit.
 
-Elasticsearch `ELEM_MATCH` children use fully qualified paths:
+Use relative child paths inside `ELEMENT_MATCH`; the resolver qualifies them against the nested parent:
 
 ```kotlin
-condition {
-    "body" elemMatch {
-        "body.name" eq "Created"
+filter {
+    "body".elementMatch {
+        "name" eq "Created"
     }
 }
 ```
 
 ```json
 {
-  "condition": {
+  "filter": {
+    "op": "ELEMENT_MATCH",
     "field": "body",
-    "operator": "ELEM_MATCH",
-    "children": [
-      {
-        "field": "body.name",
-        "operator": "EQ",
-        "value": "Created"
-      }
-    ]
+    "predicate": { "op": "EQ", "field": "name", "value": "Created" }
   }
 }
 ```
@@ -567,9 +561,9 @@ complete mapping from operator-owned baseline and custom component templates.
 ```kotlin
 // Use QueryService for full-text search
 listQuery {
-    condition {
-        "state.description" match "phone"
-        "state.totalAmount" between 100 to 500
+    filter {
+        search("phone", "state.description")
+        "state.totalAmount".between(100, 500)
     }
     sort {
         "state.customerName".asc()

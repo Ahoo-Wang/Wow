@@ -46,18 +46,20 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
 
 class FilterNormalizer(
     private val clock: Clock = Clock.systemDefaultZone(),
     private val defaultZoneId: ZoneId = ZoneId.systemDefault(),
+    private val defaultDeletionState: DeletionState? = DeletionState.ACTIVE,
 ) {
     fun normalize(expression: FilterExpression): FilterExpression {
         val structural = normalizeStructural(expression)
-        val scoped = if (structural.containsDeletion()) {
+        val scoped = if (defaultDeletionState == null || structural.containsDeletion()) {
             structural
         } else {
-            AndFilter(listOf(DeletionFilter(DeletionState.ACTIVE), structural))
+            AndFilter(listOf(DeletionFilter(defaultDeletionState), structural))
         }
         val now = clock.instant()
         return simplify(expandRelativeTime(scoped, now))
@@ -99,7 +101,8 @@ class FilterNormalizer(
             expression.field,
             instantNode(
                 today(now, expression.zoneId).atTime(LocalTime.parse(expression.time)),
-                zone(expression.zoneId)
+                zone(expression.zoneId),
+                expression.resolvedDateFormatter(),
             ),
         )
         is RecentDaysFilter -> {
@@ -109,12 +112,16 @@ class FilterNormalizer(
                 today.minusDays(expression.days.toLong() - 1).atStartOfDay(),
                 today.plusDays(1).atStartOfDay(),
                 zone(expression.zoneId),
+                expression.resolvedDateFormatter(),
             )
         }
 
         is EarlierDaysFilter -> {
             val end = today(now, expression.zoneId).minusDays(expression.days.toLong() - 1).atStartOfDay()
-            LessThanFilter(expression.field, instantNode(end, zone(expression.zoneId)))
+            LessThanFilter(
+                expression.field,
+                instantNode(end, zone(expression.zoneId), expression.resolvedDateFormatter()),
+            )
         }
 
         else -> expression
@@ -126,6 +133,7 @@ class FilterNormalizer(
             today(now, zoneId).plusDays(days).atStartOfDay(),
             today(now, zoneId).plusDays(days + 1).atStartOfDay(),
             zone(zoneId),
+            resolvedDateFormatter(),
         )
 
     private fun TomorrowFilter.dayRange(now: Instant, days: Long): FilterExpression =
@@ -134,31 +142,44 @@ class FilterNormalizer(
             today(now, zoneId).plusDays(days).atStartOfDay(),
             today(now, zoneId).plusDays(days + 1).atStartOfDay(),
             zone(zoneId),
+            resolvedDateFormatter(),
         )
 
     private fun ThisWeekFilter.weekRange(now: Instant, offset: Long): FilterExpression =
-        weekRange(field, today(now, zoneId), offset, zone(zoneId))
+        weekRange(field, today(now, zoneId), offset, zone(zoneId), resolvedDateFormatter())
 
     private fun NextWeekFilter.weekRange(now: Instant, offset: Long): FilterExpression =
-        weekRange(field, today(now, zoneId), offset, zone(zoneId))
+        weekRange(field, today(now, zoneId), offset, zone(zoneId), resolvedDateFormatter())
 
     private fun LastWeekFilter.weekRange(now: Instant, offset: Long): FilterExpression =
-        weekRange(field, today(now, zoneId), offset, zone(zoneId))
+        weekRange(field, today(now, zoneId), offset, zone(zoneId), resolvedDateFormatter())
 
     private fun ThisMonthFilter.monthRange(now: Instant, offset: Long): FilterExpression =
-        monthRange(field, today(now, zoneId), offset, zone(zoneId))
+        monthRange(field, today(now, zoneId), offset, zone(zoneId), resolvedDateFormatter())
 
     private fun LastMonthFilter.monthRange(now: Instant, offset: Long): FilterExpression =
-        monthRange(field, today(now, zoneId), offset, zone(zoneId))
+        monthRange(field, today(now, zoneId), offset, zone(zoneId), resolvedDateFormatter())
 
-    private fun weekRange(field: LogicalField, today: LocalDate, offset: Long, zoneId: ZoneId): FilterExpression {
+    private fun weekRange(
+        field: LogicalField,
+        today: LocalDate,
+        offset: Long,
+        zoneId: ZoneId,
+        dateFormatter: DateTimeFormatter?,
+    ): FilterExpression {
         val start = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).plusWeeks(offset)
-        return range(field, start.atStartOfDay(), start.plusWeeks(1).atStartOfDay(), zoneId)
+        return range(field, start.atStartOfDay(), start.plusWeeks(1).atStartOfDay(), zoneId, dateFormatter)
     }
 
-    private fun monthRange(field: LogicalField, today: LocalDate, offset: Long, zoneId: ZoneId): FilterExpression {
+    private fun monthRange(
+        field: LogicalField,
+        today: LocalDate,
+        offset: Long,
+        zoneId: ZoneId,
+        dateFormatter: DateTimeFormatter?,
+    ): FilterExpression {
         val start = today.withDayOfMonth(1).plusMonths(offset)
-        return range(field, start.atStartOfDay(), start.plusMonths(1).atStartOfDay(), zoneId)
+        return range(field, start.atStartOfDay(), start.plusMonths(1).atStartOfDay(), zoneId, dateFormatter)
     }
 
     private fun range(
@@ -166,15 +187,21 @@ class FilterNormalizer(
         start: java.time.LocalDateTime,
         end: java.time.LocalDateTime,
         zoneId: ZoneId = defaultZoneId,
+        dateFormatter: DateTimeFormatter? = null,
     ): FilterExpression = AndFilter(
         listOf(
-            GreaterThanOrEqualFilter(field, instantNode(start, zoneId)),
-            LessThanFilter(field, instantNode(end, zoneId)),
+            GreaterThanOrEqualFilter(field, instantNode(start, zoneId, dateFormatter)),
+            LessThanFilter(field, instantNode(end, zoneId, dateFormatter)),
         ),
     )
 
-    private fun instantNode(dateTime: java.time.LocalDateTime, zoneId: ZoneId = defaultZoneId) =
-        JsonNodeFactory.instance.numberNode(dateTime.atZone(zoneId).toInstant().toEpochMilli())
+    private fun instantNode(
+        dateTime: java.time.LocalDateTime,
+        zoneId: ZoneId = defaultZoneId,
+        dateFormatter: DateTimeFormatter? = null,
+    ) = dateFormatter?.let {
+        JsonNodeFactory.instance.stringNode(it.format(dateTime.atZone(zoneId)))
+    } ?: JsonNodeFactory.instance.numberNode(dateTime.atZone(zoneId).toInstant().toEpochMilli())
 
     private fun today(now: Instant, zoneId: String?): LocalDate = now.atZone(zone(zoneId)).toLocalDate()
 

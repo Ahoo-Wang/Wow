@@ -29,7 +29,12 @@ import co.elastic.clients.json.JsonData
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DeletionState
+import me.ahoo.wow.api.query.ExistsFilter
+import me.ahoo.wow.api.query.IsNullFilter
+import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.NotExistsFilter
 import me.ahoo.wow.api.query.Operator
+import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.elasticsearch.WowJsonpMapper
 import me.ahoo.wow.elasticsearch.query.snapshot.SnapshotConditionConverter
 import me.ahoo.wow.query.dsl.condition
@@ -62,6 +67,27 @@ class ElasticsearchConditionConverterTest {
         )
 
         assertConvert(query, term { it.field("state.name").value("Wow") })
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `should preserve document id and existence filters`() {
+        assertConvert(
+            SnapshotConditionConverter.convert(Condition.id("aggregate-1").toFilterExpression()),
+            ids { it.values("aggregate-1") },
+        )
+        assertConvert(
+            SnapshotConditionConverter.convert(IsNullFilter(LogicalField("state.name"))),
+            bool { it.mustNot { query -> query.exists { exists -> exists.field("state.name") } } },
+        )
+        assertConvert(
+            SnapshotConditionConverter.convert(ExistsFilter(LogicalField("state.name"))),
+            exists { it.field("state.name") },
+        )
+        assertConvert(
+            SnapshotConditionConverter.convert(NotExistsFilter(LogicalField("state.name"))),
+            bool { it.mustNot { query -> query.exists { exists -> exists.field("state.name") } } },
+        )
     }
 
     @Test

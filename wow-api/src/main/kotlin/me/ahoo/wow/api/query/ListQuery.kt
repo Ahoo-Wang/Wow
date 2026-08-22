@@ -57,6 +57,10 @@ data class ListQuery(
     override val limit: Int = 0
 ) : IListQuery {
     @Deprecated("Use filter.")
+    override val condition: Condition
+        get() = filter.toLegacyCondition()
+
+    @Deprecated("Use filter.")
     constructor(
         condition: Condition,
         projection: Projection = Projection.ALL,
@@ -73,10 +77,11 @@ data class ListQuery(
     override fun withFilter(newFilter: FilterExpression): IListQuery = copy(filter = newFilter)
 
     @Deprecated("Use withFilter.")
-    fun withCondition(newCondition: Condition): IListQuery = copy(filter = LegacyConditionAdapter.adapt(newCondition))
+    override fun withCondition(newCondition: Condition): IListQuery =
+        copy(filter = LegacyConditionAdapter.adapt(newCondition))
 
     @Deprecated("Use appendFilter.")
-    fun appendCondition(append: Condition): IListQuery = appendFilter(LegacyConditionAdapter.adapt(append))
+    override fun appendCondition(append: Condition): IListQuery = appendFilter(LegacyConditionAdapter.adapt(append))
 
     @Deprecated("Use copy(filter = ...).")
     fun copy(

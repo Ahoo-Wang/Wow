@@ -17,11 +17,19 @@ import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.term
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.terms
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.serialization.MessageRecords
 import org.junit.jupiter.api.Test
 
 class EventStreamConditionConverterTest {
+    @Test
+    fun `match all filter should include deleted event streams`() {
+        EventStreamConditionConverter.convert(MatchAllFilter)._kind().assert().isEqualTo(
+            co.elastic.clients.elasticsearch._types.query_dsl.Query.Kind.MatchAll,
+        )
+    }
+
     @Test
     fun `should convert event stream id condition`() {
         val actual = EventStreamConditionConverter.convert(condition { id("streamId") })

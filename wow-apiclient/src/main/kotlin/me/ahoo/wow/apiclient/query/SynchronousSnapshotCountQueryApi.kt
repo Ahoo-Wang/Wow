@@ -14,9 +14,15 @@
 package me.ahoo.wow.apiclient.query
 
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.FilterExpression
 
 interface SynchronousSnapshotCountQueryApi : SnapshotCountQueryApi<Long>
 
+fun FilterExpression.count(snapshotQueryApi: SynchronousSnapshotCountQueryApi): Long {
+    return snapshotQueryApi.count(this)
+}
+
+@Deprecated("Use FilterExpression.count.")
 fun Condition.count(snapshotQueryApi: SynchronousSnapshotCountQueryApi): Long {
     return snapshotQueryApi.count(this)
 }

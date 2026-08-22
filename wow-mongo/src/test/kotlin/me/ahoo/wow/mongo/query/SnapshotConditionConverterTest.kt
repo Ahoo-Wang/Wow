@@ -6,6 +6,7 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.Operator
+import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.mongo.query.snapshot.SnapshotConditionConverter
 import me.ahoo.wow.serialization.MessageRecords
@@ -43,6 +44,19 @@ class SnapshotConditionConverterTest {
         )
 
         assertConvert(actual, Filters.eq("state.name", "Wow"))
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `should preserve legacy document id and match semantics`() {
+        assertConvert(
+            SnapshotConditionConverter.convert(Condition.id("aggregate-1").toFilterExpression()),
+            Filters.eq(Documents.ID_FIELD, "aggregate-1"),
+        )
+        assertConvert(
+            SnapshotConditionConverter.convert(Condition.match("state.name", "wow").toFilterExpression()),
+            Filters.text("wow"),
+        )
     }
 
     @Test

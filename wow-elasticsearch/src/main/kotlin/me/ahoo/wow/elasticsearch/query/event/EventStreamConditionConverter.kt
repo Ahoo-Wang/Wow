@@ -21,7 +21,7 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchConditionConverter
 import me.ahoo.wow.serialization.MessageRecords
 
-object EventStreamConditionConverter : AbstractElasticsearchConditionConverter() {
+object EventStreamConditionConverter : AbstractElasticsearchConditionConverter(defaultDeletionState = null) {
     override fun convert(condition: Condition): Query = internalConvert(condition)
 
     override fun id(condition: Condition): Query {

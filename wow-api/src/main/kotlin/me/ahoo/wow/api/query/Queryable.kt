@@ -145,6 +145,6 @@ fun Projection.isEmpty(): Boolean = include.isEmpty() && exclude.isEmpty()
  * @param Q The type of the query object that implements this interface, enabling method chaining.
  */
 interface Queryable<Q : Queryable<Q>> :
-    FilterCapable<Q>,
+    ConditionCapable<Q>,
     ProjectionCapable<Q>,
     SortCapable

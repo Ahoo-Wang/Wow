@@ -143,28 +143,35 @@ class FilterDsl internal constructor(private val prefix: String = "") {
 
     infix fun String.search(query: String) = search(query, this)
 
-    fun String.today(zoneId: ZoneId? = null) = expression(TodayFilter(field(this), zoneId?.id))
+    fun String.today(zoneId: ZoneId? = null, datePattern: String? = null) =
+        expression(TodayFilter(field(this), zoneId?.id, datePattern))
 
-    fun String.beforeToday(time: LocalTime, zoneId: ZoneId? = null) =
-        expression(BeforeTodayFilter(field(this), time.toString(), zoneId?.id))
+    fun String.beforeToday(time: LocalTime, zoneId: ZoneId? = null, datePattern: String? = null) =
+        expression(BeforeTodayFilter(field(this), time.toString(), zoneId?.id, datePattern))
 
-    fun String.tomorrow(zoneId: ZoneId? = null) = expression(TomorrowFilter(field(this), zoneId?.id))
+    fun String.tomorrow(zoneId: ZoneId? = null, datePattern: String? = null) =
+        expression(TomorrowFilter(field(this), zoneId?.id, datePattern))
 
-    fun String.thisWeek(zoneId: ZoneId? = null) = expression(ThisWeekFilter(field(this), zoneId?.id))
+    fun String.thisWeek(zoneId: ZoneId? = null, datePattern: String? = null) =
+        expression(ThisWeekFilter(field(this), zoneId?.id, datePattern))
 
-    fun String.nextWeek(zoneId: ZoneId? = null) = expression(NextWeekFilter(field(this), zoneId?.id))
+    fun String.nextWeek(zoneId: ZoneId? = null, datePattern: String? = null) =
+        expression(NextWeekFilter(field(this), zoneId?.id, datePattern))
 
-    fun String.lastWeek(zoneId: ZoneId? = null) = expression(LastWeekFilter(field(this), zoneId?.id))
+    fun String.lastWeek(zoneId: ZoneId? = null, datePattern: String? = null) =
+        expression(LastWeekFilter(field(this), zoneId?.id, datePattern))
 
-    fun String.thisMonth(zoneId: ZoneId? = null) = expression(ThisMonthFilter(field(this), zoneId?.id))
+    fun String.thisMonth(zoneId: ZoneId? = null, datePattern: String? = null) =
+        expression(ThisMonthFilter(field(this), zoneId?.id, datePattern))
 
-    fun String.lastMonth(zoneId: ZoneId? = null) = expression(LastMonthFilter(field(this), zoneId?.id))
+    fun String.lastMonth(zoneId: ZoneId? = null, datePattern: String? = null) =
+        expression(LastMonthFilter(field(this), zoneId?.id, datePattern))
 
-    fun String.recentDays(days: Int, zoneId: ZoneId? = null) =
-        expression(RecentDaysFilter(field(this), days, zoneId?.id))
+    fun String.recentDays(days: Int, zoneId: ZoneId? = null, datePattern: String? = null) =
+        expression(RecentDaysFilter(field(this), days, zoneId?.id, datePattern))
 
-    fun String.earlierDays(days: Int, zoneId: ZoneId? = null) =
-        expression(EarlierDaysFilter(field(this), days, zoneId?.id))
+    fun String.earlierDays(days: Int, zoneId: ZoneId? = null, datePattern: String? = null) =
+        expression(EarlierDaysFilter(field(this), days, zoneId?.id, datePattern))
 
     internal fun build(): FilterExpression = when (expressions.size) {
         0 -> MatchAllFilter

@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.api.query
 
+import com.fasterxml.jackson.annotation.JsonIgnore
+
 /**
  * Interface for query objects that can have conditions applied to them.
  *
@@ -22,11 +24,20 @@ package me.ahoo.wow.api.query
  * @param Q The type of the query object that implements this interface, enabling method chaining.
  */
 @Deprecated("Use FilterCapable.")
-interface ConditionCapable<Q : ConditionCapable<Q>> : RewritableCondition<Q> {
+interface ConditionCapable<Q : ConditionCapable<Q>> :
+    RewritableCondition<Q>,
+    FilterCapable<Q> {
     /**
      * The condition currently applied to this query.
      */
+    @Deprecated("Use filter.")
+    @get:JsonIgnore
     val condition: Condition
+
+    override val filter: FilterExpression
+        get() = condition.toFilterExpression()
+
+    override fun withFilter(newFilter: FilterExpression): Q = withCondition(newFilter.toLegacyCondition())
 
     /**
      * Appends a condition to the existing condition using logical AND.
@@ -35,5 +46,6 @@ interface ConditionCapable<Q : ConditionCapable<Q>> : RewritableCondition<Q> {
      * @param append The condition to append to the current condition.
      * @return A new query object with the combined condition.
      */
+    @Deprecated("Use appendFilter.")
     override fun appendCondition(append: Condition): Q = withCondition(this.condition.appendCondition(append))
 }

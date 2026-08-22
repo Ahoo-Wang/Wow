@@ -377,38 +377,39 @@ The `SnapshotSchemaInitializer.initSchema()` creates:
 
 ## Query Services
 
-The `wow-mongo` module provides two query service implementations that translate Wow's abstract `Condition` objects into MongoDB filter documents (`Bson`).
+The `wow-mongo` module provides two query service implementations that compile `FilterExpression` into MongoDB filter documents (`Bson`).
 
-### Condition Converter Pipeline
+### Filter Compilation Pipeline
 
-The conversion pipeline is: `Condition` -> `AbstractMongoConditionConverter` -> `Bson` (MongoDB filter).
+The compilation pipeline is: `FilterExpression` -> `AbstractMongoConditionConverter` -> `Bson`.
 
 | Wow Operator | MongoDB Equivalent |
 |---|---|
-| `eq` | `Filters.eq()` |
-| `gt` / `gte` / `lt` / `lte` | `Filters.gt()` / `gte()` / `lt()` / `lte()` |
-| `contains` | `Filters.regex()` (escaped) |
-| `match` | `Filters.text()` |
-| `between` | `Filters.and(Filters.gte(), Filters.lte())` |
-| `isIn` / `notIn` | `Filters.in()` / `nin()` |
-| `deleted` (soft-delete) | `Filters.eq("deleted", true/false)` or `Filters.empty()` |
-| `raw` | `Document.parse()` or direct `Bson` |
+| `EQ` | `Filters.eq()` |
+| `GT` / `GTE` / `LT` / `LTE` | `Filters.gt()` / `gte()` / `lt()` / `lte()` |
+| `CONTAINS` | `Filters.regex()` (escaped) |
+| `SEARCH` | `Filters.text()` |
+| `BETWEEN` | `Filters.and(Filters.gte(), Filters.lte())` |
+| `IN` / `NOT_IN` | `Filters.in()` / `nin()` |
+| `DELETION` | `Filters.eq("deleted", true/false)` or `Filters.empty()` |
 
 The converter also applies **field name translation** via `FieldConverter`. For event streams, the `MessageRecords.ID` field is mapped to `_id`. For snapshots, `MessageRecords.AGGREGATE_ID` is mapped to `_id`. This keeps the application-layer query model consistent regardless of the underlying primary key strategy.
 
 ### Snapshot Queries
 
-Snapshot storage can be used directly as a read model, supporting rich query conditions:
+Snapshot storage can be used directly as a read model:
 
 ```kotlin
-// Paginated snapshot query
-val condition = Condition.all()
-    .eq("state.status", "PAID")
-    .gt("state.totalAmount", 50.00)
-    .limit(10)
-    .sort("snapshotTime".desc())
+val query = listQuery {
+    filter {
+        "state.status" eq "PAID"
+        "state.totalAmount" gt 50.00
+    }
+    sort { "snapshotTime".desc() }
+    limit(10)
+}
 
-snapshotQueryService.dynamicQuery(condition)
+query.dynamicQuery(snapshotQueryService)
 ```
 
 The `MongoSnapshotQueryService` uses `MaterializedSnapshot<S>` as its typed result wrapper, where `S` is the aggregate's state type resolved from the aggregate metadata. This enables type-safe dynamic queries directly against aggregate state fields -- for example, querying `state.status` or `state.totalAmount` without a separate projection processor.
@@ -511,7 +512,7 @@ classDiagram
         +single(ISingleQuery) Mono~R~
         +list(IListQuery) Flux~R~
         +paged(IPagedQuery) Mono~PagedList~R~~
-        +count(Condition) Mono~Long~
+        +count(FilterExpression) Mono~Long~
     }
 
     class MongoEventStreamQueryService {

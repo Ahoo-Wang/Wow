@@ -53,6 +53,10 @@ data class PagedQuery(
     override val pagination: Pagination = Pagination.DEFAULT
 ) : IPagedQuery {
     @Deprecated("Use filter.")
+    override val condition: Condition
+        get() = filter.toLegacyCondition()
+
+    @Deprecated("Use filter.")
     constructor(
         condition: Condition,
         projection: Projection = Projection.ALL,
@@ -69,10 +73,11 @@ data class PagedQuery(
     override fun withFilter(newFilter: FilterExpression): IPagedQuery = copy(filter = newFilter)
 
     @Deprecated("Use withFilter.")
-    fun withCondition(newCondition: Condition): IPagedQuery = copy(filter = LegacyConditionAdapter.adapt(newCondition))
+    override fun withCondition(newCondition: Condition): IPagedQuery =
+        copy(filter = LegacyConditionAdapter.adapt(newCondition))
 
     @Deprecated("Use appendFilter.")
-    fun appendCondition(append: Condition): IPagedQuery = appendFilter(LegacyConditionAdapter.adapt(append))
+    override fun appendCondition(append: Condition): IPagedQuery = appendFilter(LegacyConditionAdapter.adapt(append))
 
     @Deprecated("Use copy(filter = ...).")
     fun copy(

@@ -4423,6 +4423,10 @@
           "beforeToday" : {
             "additionalProperties" : false,
             "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
               "field" : {
                 "$ref" : "#/definitions/logicalField"
               },
@@ -4518,6 +4522,10 @@
           "earlierDays" : {
             "additionalProperties" : false,
             "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
               "days" : {
                 "minimum" : 1,
                 "type" : "integer"
@@ -4903,6 +4911,10 @@
           "lastMonthShape" : {
             "additionalProperties" : false,
             "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
               "field" : {
                 "$ref" : "#/definitions/logicalField"
               },
@@ -4923,6 +4935,10 @@
           "lastWeekShape" : {
             "additionalProperties" : false,
             "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
               "field" : {
                 "$ref" : "#/definitions/logicalField"
               },
@@ -5027,6 +5043,10 @@
           "nextWeekShape" : {
             "additionalProperties" : false,
             "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
               "field" : {
                 "$ref" : "#/definitions/logicalField"
               },
@@ -5111,6 +5131,10 @@
           "recentDays" : {
             "additionalProperties" : false,
             "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
               "days" : {
                 "minimum" : 1,
                 "type" : "integer"
@@ -5181,6 +5205,10 @@
           "thisMonthShape" : {
             "additionalProperties" : false,
             "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
               "field" : {
                 "$ref" : "#/definitions/logicalField"
               },
@@ -5201,6 +5229,10 @@
           "thisWeekShape" : {
             "additionalProperties" : false,
             "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
               "field" : {
                 "$ref" : "#/definitions/logicalField"
               },
@@ -5221,6 +5253,10 @@
           "todayShape" : {
             "additionalProperties" : false,
             "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
               "field" : {
                 "$ref" : "#/definitions/logicalField"
               },
@@ -5241,6 +5277,10 @@
           "tomorrowShape" : {
             "additionalProperties" : false,
             "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
               "field" : {
                 "$ref" : "#/definitions/logicalField"
               },

@@ -57,21 +57,22 @@ import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.TomorrowFilter
 import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.query.FilterNormalizer
-import me.ahoo.wow.query.UnsupportedFilterException
 import me.ahoo.wow.query.converter.AbstractConditionConverter
 import me.ahoo.wow.query.converter.FieldConverter
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import org.bson.conversions.Bson
 
-abstract class AbstractMongoConditionConverter : AbstractConditionConverter<Bson>() {
+abstract class AbstractMongoConditionConverter(
+    defaultDeletionState: DeletionState? = DeletionState.ACTIVE,
+) : AbstractConditionConverter<Bson>() {
     companion object {
         private val ESCAPE_CHARS = setOf('\\', '^', '$', '.', '|', '?', '*', '+', '(', ')', '[', ']', '{', '}')
     }
 
     protected abstract val fieldConverter: FieldConverter
 
-    private val filterNormalizer = FilterNormalizer()
+    private val filterNormalizer = FilterNormalizer(defaultDeletionState = defaultDeletionState)
 
     fun convert(filter: FilterExpression): Bson = internalConvert(filterNormalizer.normalize(filter))
 
@@ -124,12 +125,7 @@ abstract class AbstractMongoConditionConverter : AbstractConditionConverter<Bson
             DeletionState.ALL -> Filters.empty()
         }
         is ElementMatchFilter -> Filters.elemMatch(filter.field.convert(), internalConvert(filter.predicate))
-        is SearchFilter -> {
-            if (filter.fields.isNotEmpty()) {
-                throw UnsupportedFilterException(filter.operator, filter.fields.first(), "mongodb")
-            }
-            Filters.text(filter.query)
-        }
+        is SearchFilter -> Filters.text(filter.query)
         is TodayFilter,
         is BeforeTodayFilter,
         is TomorrowFilter,

@@ -158,13 +158,13 @@ val state = queryApi.getStateById("order-001").block()
 // 分页查询：接收 IPagedQuery（Pagination 从 1 开始）；返回 Mono<PagedList<...>>
 val paged = queryApi.paged(
     PagedQuery(
-        condition = Condition.all(),
+        filter = MatchAllFilter,
         pagination = Pagination(index = 1, size = 10),
     ),
 ).block()
 
-// 计数：接收 Condition；返回 Mono<Long>
-val total = queryApi.count(Condition.all()).block()
+// 计数：接收 FilterExpression；返回 Mono<Long>
+val total = queryApi.count(MatchAllFilter).block()
 ```
 
 ### 同步查询 API

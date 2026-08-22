@@ -45,6 +45,10 @@ data class SingleQuery(
     override val sort: List<Sort> = emptyList()
 ) : ISingleQuery {
     @Deprecated("Use filter.")
+    override val condition: Condition
+        get() = filter.toLegacyCondition()
+
+    @Deprecated("Use filter.")
     constructor(
         condition: Condition,
         projection: Projection = Projection.ALL,
@@ -60,10 +64,11 @@ data class SingleQuery(
     override fun withFilter(newFilter: FilterExpression): ISingleQuery = copy(filter = newFilter)
 
     @Deprecated("Use withFilter.")
-    fun withCondition(newCondition: Condition): ISingleQuery = copy(filter = LegacyConditionAdapter.adapt(newCondition))
+    override fun withCondition(newCondition: Condition): ISingleQuery =
+        copy(filter = LegacyConditionAdapter.adapt(newCondition))
 
     @Deprecated("Use appendFilter.")
-    fun appendCondition(append: Condition): ISingleQuery = appendFilter(LegacyConditionAdapter.adapt(append))
+    override fun appendCondition(append: Condition): ISingleQuery = appendFilter(LegacyConditionAdapter.adapt(append))
 
     @Deprecated("Use copy(filter = ...).")
     fun copy(

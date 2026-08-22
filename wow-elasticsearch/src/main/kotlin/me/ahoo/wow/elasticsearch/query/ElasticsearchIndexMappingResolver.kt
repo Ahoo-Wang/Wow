@@ -252,8 +252,10 @@ data class ElasticsearchIndexMapping private constructor(
     private fun LogicalField.path(parent: String?): String =
         if (parent == null || value == parent || value.startsWith("$parent.")) value else "$parent.$value"
 
-    private fun LogicalField.resolve(parent: String?, usage: ElasticsearchFieldUsage): LogicalField =
-        LogicalField(this@ElasticsearchIndexMapping.resolve(path(parent), usage))
+    private fun LogicalField.resolve(parent: String?, usage: ElasticsearchFieldUsage): LogicalField {
+        if (parent == null && value == "_id" && usage == ElasticsearchFieldUsage.EXACT) return this
+        return LogicalField(this@ElasticsearchIndexMapping.resolve(path(parent), usage))
+    }
 
     fun resolve(sort: List<Sort>): List<Sort> =
         sort.map {
