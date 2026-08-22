@@ -956,6 +956,8 @@
                 "$ref" : "#/components/schemas/example.cart.CartAggregatedAggregationMetric.Sum"
               } ]
             },
+            "maxItems" : 32,
+            "minItems" : 1,
             "type" : "array"
           },
           "sort" : {
@@ -1989,6 +1991,8 @@
                 "$ref" : "#/components/schemas/example.order.OrderAggregatedAggregationMetric.Sum"
               } ]
             },
+            "maxItems" : 32,
+            "minItems" : 1,
             "type" : "array"
           },
           "sort" : {
@@ -3118,6 +3122,8 @@
                 "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedAggregationMetric.Sum"
               } ]
             },
+            "maxItems" : 32,
+            "minItems" : 1,
             "type" : "array"
           },
           "sort" : {
@@ -3584,6 +3590,8 @@
                 "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedAggregationMetric.Sum"
               } ]
             },
+            "maxItems" : 32,
+            "minItems" : 1,
             "type" : "array"
           },
           "sort" : {
@@ -4019,6 +4027,8 @@
                 "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedAggregationMetric.Sum"
               } ]
             },
+            "maxItems" : 32,
+            "minItems" : 1,
             "type" : "array"
           },
           "sort" : {

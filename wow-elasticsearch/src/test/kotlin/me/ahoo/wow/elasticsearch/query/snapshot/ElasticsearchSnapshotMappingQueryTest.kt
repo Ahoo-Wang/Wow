@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.elasticsearch.query.snapshot
 
+import co.elastic.clients.elasticsearch._types.aggregations.Aggregate
+import co.elastic.clients.elasticsearch._types.aggregations.SumAggregate
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll
@@ -184,6 +186,22 @@ class ElasticsearchSnapshotMappingQueryTest {
         searchRequest.captured.allowPartialSearchResults().assert().isFalse()
     }
 
+    @Test
+    fun `global sum should reject non-finite results`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(queryMapping()),
+        )
+        every { client.search(capture(searchRequest), Map::class.java) } returns Mono.just(
+            sumSearchResponse(Double.POSITIVE_INFINITY),
+        )
+
+        queryService().aggregate(
+            AggregationQuery(metrics = listOf(AggregationMetric.Sum("state.age", "sum"))),
+        ).test()
+            .expectErrorMessage("Elasticsearch aggregation metric [sum] returned a non-finite value.")
+            .verify()
+    }
+
     private fun queryService(
         resolver: ElasticsearchIndexMappingResolver = ElasticsearchIndexMappingResolver(client),
     ): ElasticsearchSnapshotQueryService<Any> =
@@ -228,5 +246,14 @@ class ElasticsearchSnapshotMappingQueryTest {
                 .timedOut(timedOut)
                 .shards { shards -> shards.failed(0).successful(1).total(1) }
                 .hits { hits -> hits.hits(emptyList()) }
+        }
+
+    private fun sumSearchResponse(value: Double): SearchResponse<Map<*, *>> =
+        SearchResponse.of<Map<*, *>> {
+            it.took(1)
+                .timedOut(false)
+                .shards { shards -> shards.failed(0).successful(1).total(1) }
+                .hits { hits -> hits.hits(emptyList()) }
+                .aggregations("sum", Aggregate(SumAggregate.of { sum -> sum.value(value) }))
         }
 }

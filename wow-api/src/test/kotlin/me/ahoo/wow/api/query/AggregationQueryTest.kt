@@ -115,6 +115,17 @@ class AggregationQueryTest {
     }
 
     @Test
+    fun `should reject too many metrics`() {
+        assertThrows<IllegalArgumentException> {
+            AggregationQuery(
+                metrics = List(AggregationQuery.MAX_METRICS + 1) {
+                    AggregationMetric.Count("count$it")
+                },
+            )
+        }
+    }
+
+    @Test
     fun `should accept only portable date histogram time zones`() {
         AggregationGroup.DateHistogram(
             field = "snapshotTime",

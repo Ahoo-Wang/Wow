@@ -13,14 +13,25 @@
 
 package me.ahoo.wow.mongo.query.snapshot
 
+import com.mongodb.client.model.Filters
+import com.mongodb.client.model.Updates
 import com.mongodb.reactivestreams.client.MongoDatabase
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
+import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCollectionName
 import me.ahoo.wow.mongo.MongoSnapshotStore
+import me.ahoo.wow.query.dsl.aggregationQuery
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
+import me.ahoo.wow.query.snapshot.aggregate
 import me.ahoo.wow.tck.container.MongoTestFixture
 import me.ahoo.wow.tck.query.SnapshotQueryServiceSpec
+import org.bson.types.Decimal128
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
+import reactor.kotlin.core.publisher.toMono
+import reactor.kotlin.test.test
+import java.math.BigDecimal
 
 class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     @JvmField
@@ -41,5 +52,25 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
 
     override fun createSnapshotStore(): SnapshotStore {
         return MongoSnapshotStore(database)
+    }
+
+    @Test
+    fun `decimal terms should return portable double keys`() {
+        database.getCollection(snapshot.aggregateId.toSnapshotCollectionName())
+            .updateOne(
+                Filters.eq("_id", snapshot.aggregateId.id),
+                Updates.set("state.amount", Decimal128(BigDecimal("1.25"))),
+            ).toMono()
+            .test()
+            .expectNextCount(1)
+            .verifyComplete()
+
+        aggregationQuery {
+            groupBy("state.amount", "amount")
+            count("count")
+        }.aggregate(snapshotQueryService)
+            .test()
+            .consumeNextWith { result -> result["amount"].assert().isEqualTo(1.25) }
+            .verifyComplete()
     }
 }

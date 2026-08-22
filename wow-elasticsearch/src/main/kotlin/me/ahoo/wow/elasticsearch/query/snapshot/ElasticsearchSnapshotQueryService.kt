@@ -364,7 +364,7 @@ private fun AggregationMetric.toResultValue(
     documentCount: Long,
 ): Any? = when (this) {
     is AggregationMetric.Count -> documentCount
-    is AggregationMetric.Sum -> aggregations.required(alias).sum().value().finiteOrNull() ?: 0.0
+    is AggregationMetric.Sum -> aggregations.required(alias).sum().value().requireFinite(alias)
     is AggregationMetric.Avg -> aggregations.required(alias).avg().value().finiteOrNull()
     is AggregationMetric.Min -> aggregations.required(alias).min().value().finiteOrNull()
     is AggregationMetric.Max -> aggregations.required(alias).max().value().finiteOrNull()
@@ -375,6 +375,11 @@ private fun Map<String, Aggregate>.required(alias: String): Aggregate = checkNot
 }
 
 private fun Double?.finiteOrNull(): Double? = this?.takeIf(Double::isFinite)
+
+private fun Double?.requireFinite(alias: String): Double {
+    check(this?.isFinite() == true) { "Elasticsearch aggregation metric [$alias] returned a non-finite value." }
+    return this
+}
 
 private fun AggregationQuery.effectiveSort(): List<Sort> = buildList {
     addAll(sort)

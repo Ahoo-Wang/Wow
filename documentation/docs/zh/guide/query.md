@@ -289,7 +289,7 @@ aggregationQuery {
 
 公共分组类型为 `Terms`、`Histogram`、`DateHistogram`，指标为 `Count`、`Sum`、`Avg`、`Min`、`Max`。`Count` 返回 `Long`，时间 bucket 返回 epoch milliseconds `Long`，其他数值统一为 `Double`。分组字段必须是标量，指标字段必须是数值；缺失或 `null` 的分组值不会生成 bucket。
 
-没有分组时固定返回一行；无匹配数据时 `Count` 为 `0`、`Sum` 为 `0.0`，其余指标为 `null`。分组查询默认最多返回 100 行，最大 10,000 行。注册了快照数据脱敏器时聚合查询会被拒绝，避免通过分组或统计绕过脱敏。
+没有分组时固定返回一行；无匹配数据时 `Count` 为 `0`、`Sum` 为 `0.0`，其余指标为 `null`。单个查询最多包含 32 个指标；分组查询默认最多返回 100 行，最大 10,000 行。注册了快照数据脱敏器时聚合查询会被拒绝，避免通过分组或统计绕过脱敏。
 
 :::warning 高基数与金额精度
 Elasticsearch 按指标排序时会遍历所有 composite buckets，再计算精确 Top-N；应使用生产规模数据验证高基数字段。`Sum` 等数值结果统一为 `Double`，要求精确金额统计时应在读模型中保存缩放整数。

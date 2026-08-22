@@ -38,6 +38,7 @@ import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.serialization.JsonSerializer
 import org.bson.Document
 import org.bson.conversions.Bson
+import org.bson.types.Decimal128
 import reactor.core.publisher.Flux
 import reactor.kotlin.core.publisher.toFlux
 
@@ -72,8 +73,9 @@ class MongoSnapshotQueryService<S : Any>(
                 LinkedHashMap<String, Any?>(document).apply {
                     aggregationQuery.groupBy.filterIsInstance<AggregationGroup.Terms>().forEach { group ->
                         val value = get(group.alias)
-                        if (value is Int) {
-                            put(group.alias, value.toLong())
+                        when (value) {
+                            is Int -> put(group.alias, value.toLong())
+                            is Decimal128 -> put(group.alias, value.bigDecimalValue().toDouble())
                         }
                     }
                 }

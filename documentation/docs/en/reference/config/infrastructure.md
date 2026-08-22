@@ -178,8 +178,8 @@ snapshots.
 | `wow.webflux.query.max-page-window` | Long | `10000` | Maximum HTTP page window; `0` disables the cap |
 | `wow.webflux.query.max-condition-nodes` | Integer | `64` | Maximum HTTP query condition nodes; `0` disables the cap |
 | `wow.webflux.query.max-condition-values` | Integer | `1000` | Maximum values in HTTP `IN`, `NOT_IN`, `ALL_IN`, `IDS`, or `AGGREGATE_IDS` conditions; `0` disables the cap |
-| `wow.webflux.query.allowed-sort-fields` | Set\<String\> | `[]` | Indexed logical fields allowed for explicit HTTP sorting; an empty set rejects all explicit sorts and `["*"]` disables the restriction |
-| `wow.webflux.query.allowed-condition-fields` | Set\<String\> | `[]` | Additional indexed logical fields allowed in HTTP predicates; `spaceId` requires explicit allowlisting, and `["*"]` disables the restriction |
+| `wow.webflux.query.allowed-sort-fields` | `Set<String>` | `[]` | Indexed logical fields allowed for explicit HTTP sorting; an empty set rejects all explicit sorts and `["*"]` disables the restriction |
+| `wow.webflux.query.allowed-condition-fields` | `Set<String>` | `[]` | Additional indexed logical fields allowed in HTTP predicates; `spaceId` requires explicit allowlisting, and `["*"]` disables the restriction |
 | `wow.webflux.query.allow-raw` | Boolean | `false` | Allow native HTTP `RAW` queries |
 | `wow.webflux.query.allow-expensive-operators` | Boolean | `false` | Allow HTTP negative/existence/expensive string operators or unfiltered count/paged/aggregation queries |
 | `wow.webflux.query.idle-timeout` | Duration | `10s` | Maximum wait between results or completion; JSON arrays are buffered before commit, while SSE remains streaming; `0s` disables it |
