@@ -79,6 +79,12 @@ class TailSnapshotQueryFilter<S : Any>(private val queryServiceFactory: Snapshot
                     queryService.count(it)
                 }
             }
+
+            QueryType.AGGREGATION -> {
+                context.asAggregationQuery().setResult {
+                    queryService.aggregate(it)
+                }
+            }
         }
         return next.filter(context)
     }

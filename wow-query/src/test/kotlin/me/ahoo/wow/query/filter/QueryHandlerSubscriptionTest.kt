@@ -182,6 +182,7 @@ class QueryHandlerSubscriptionTest {
                 )
 
                 QueryType.COUNT -> context.asCountQuery().setResult(Mono.just(1L))
+                QueryType.AGGREGATION -> error("Aggregation is handled only by SnapshotQueryHandler.")
             }
             return next.filter(context)
         }

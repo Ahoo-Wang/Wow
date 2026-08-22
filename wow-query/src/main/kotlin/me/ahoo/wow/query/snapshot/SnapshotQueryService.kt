@@ -15,6 +15,9 @@ package me.ahoo.wow.query.snapshot
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.naming.Named
+import me.ahoo.wow.api.query.AggregationFunction
+import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.IListQuery
@@ -22,12 +25,18 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotStore
 import me.ahoo.wow.query.QueryService
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-interface SnapshotQueryService<S : Any> : Named, QueryService<MaterializedSnapshot<S>>
+interface SnapshotQueryService<S : Any> : Named, QueryService<MaterializedSnapshot<S>> {
+    fun aggregate(query: AggregationQuery): Flux<DynamicDocument> = Flux.error(
+        UnsupportedOperationException("Snapshot aggregation is not supported by [$name].")
+    )
+}
+
 class NoOpSnapshotQueryService<S : Any>(override val namedAggregate: NamedAggregate) : SnapshotQueryService<S> {
     override val name: String
         get() = NoOpSnapshotStore.NAME
@@ -58,5 +67,17 @@ class NoOpSnapshotQueryService<S : Any>(override val namedAggregate: NamedAggreg
 
     override fun count(condition: Condition): Mono<Long> {
         return Mono.just(0)
+    }
+
+    override fun aggregate(query: AggregationQuery): Flux<DynamicDocument> {
+        if (query.groupBy.isNotEmpty()) return Flux.empty()
+        return Flux.just(
+            query.metrics.associateTo(linkedMapOf()) { metric ->
+                metric.alias to when (metric) {
+                    is AggregationMetric.Count -> 0L
+                    is AggregationMetric.Numeric -> if (metric.function == AggregationFunction.SUM) 0.0 else null
+                }
+            }.toDynamicDocument()
+        )
     }
 }

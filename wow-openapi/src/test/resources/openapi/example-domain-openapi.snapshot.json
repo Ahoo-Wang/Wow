@@ -267,6 +267,15 @@
       }
     },
     "requestBodies" : {
+      "example.cart.AggregationQuery" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/example.cart.CartAggregatedAggregationQuery"
+            }
+          }
+        }
+      },
       "example.cart.CountQuery" : {
         "content" : {
           "application/json" : {
@@ -299,6 +308,15 @@
           "application/json" : {
             "schema" : {
               "$ref" : "#/components/schemas/example.cart.CartAggregatedSingleQuery"
+            }
+          }
+        }
+      },
+      "example.order.AggregationQuery" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/example.order.OrderAggregatedAggregationQuery"
             }
           }
         }
@@ -339,6 +357,15 @@
           }
         }
       },
+      "tck.mock_aggregate.AggregationQuery" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedAggregationQuery"
+            }
+          }
+        }
+      },
       "tck.mock_aggregate.CountQuery" : {
         "content" : {
           "application/json" : {
@@ -375,6 +402,15 @@
           }
         }
       },
+      "tck.modeling_command_aggregate_with_tenant_id.AggregationQuery" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedAggregationQuery"
+            }
+          }
+        }
+      },
       "tck.modeling_command_aggregate_with_tenant_id.CountQuery" : {
         "content" : {
           "application/json" : {
@@ -407,6 +443,15 @@
           "application/json" : {
             "schema" : {
               "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedSingleQuery"
+            }
+          }
+        }
+      },
+      "tck.modeling_command_aggregate_without_ctor_parameters.AggregationQuery" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedAggregationQuery"
             }
           }
         }
@@ -709,6 +754,10 @@
       }
     },
     "schemas" : {
+      "example.ObjectObjectMap" : {
+        "type" : "object",
+        "x-map-key-schema" : { }
+      },
       "example.StringObjectMap" : {
         "type" : "object"
       },
@@ -735,6 +784,170 @@
         },
         "required" : [ "productId" ],
         "title" : "加入购物车",
+        "type" : "object"
+      },
+      "example.cart.CartAggregatedAggregationElement" : {
+        "properties" : {
+          "condition" : {
+            "$ref" : "#/components/schemas/example.cart.CartAggregatedCondition"
+          },
+          "path" : {
+            "$ref" : "#/components/schemas/example.cart.CartSnapshotAggregationElements"
+          }
+        },
+        "required" : [ "path" ],
+        "type" : "object"
+      },
+      "example.cart.CartAggregatedAggregationExpression.Field" : {
+        "properties" : {
+          "field" : {
+            "$ref" : "#/components/schemas/example.cart.CartSnapshotAggregationNumericFields"
+          },
+          "type" : {
+            "const" : "FIELD"
+          }
+        },
+        "required" : [ "field", "type" ],
+        "type" : "object"
+      },
+      "example.cart.CartAggregatedAggregationGroup.DateHistogram" : {
+        "properties" : {
+          "alias" : {
+            "type" : "string"
+          },
+          "field" : {
+            "$ref" : "#/components/schemas/example.cart.CartSnapshotAggregationTemporalFields"
+          },
+          "timeZone" : {
+            "type" : "string"
+          },
+          "type" : {
+            "const" : "DATE_HISTOGRAM"
+          },
+          "unit" : {
+            "$ref" : "#/components/schemas/wow.api.query.AggregationDateUnit"
+          }
+        },
+        "required" : [ "alias", "field", "type", "unit" ],
+        "type" : "object"
+      },
+      "example.cart.CartAggregatedAggregationGroup.Histogram" : {
+        "properties" : {
+          "alias" : {
+            "type" : "string"
+          },
+          "field" : {
+            "$ref" : "#/components/schemas/example.cart.CartSnapshotAggregationNumericFields"
+          },
+          "interval" : {
+            "exclusiveMinimum" : 0,
+            "format" : "double",
+            "type" : "number"
+          },
+          "type" : {
+            "const" : "HISTOGRAM"
+          }
+        },
+        "required" : [ "alias", "field", "interval", "type" ],
+        "type" : "object"
+      },
+      "example.cart.CartAggregatedAggregationGroup.Terms" : {
+        "properties" : {
+          "alias" : {
+            "type" : "string"
+          },
+          "field" : {
+            "$ref" : "#/components/schemas/example.cart.CartSnapshotAggregationTermsFields"
+          },
+          "type" : {
+            "const" : "TERMS"
+          }
+        },
+        "required" : [ "alias", "field", "type" ],
+        "type" : "object"
+      },
+      "example.cart.CartAggregatedAggregationMetric.Count" : {
+        "properties" : {
+          "alias" : {
+            "type" : "string"
+          },
+          "type" : {
+            "const" : "COUNT"
+          }
+        },
+        "required" : [ "alias", "type" ],
+        "type" : "object"
+      },
+      "example.cart.CartAggregatedAggregationMetric.Numeric" : {
+        "properties" : {
+          "alias" : {
+            "type" : "string"
+          },
+          "expression" : {
+            "$ref" : "#/components/schemas/example.cart.CartAggregatedAggregationExpression.Field"
+          },
+          "function" : {
+            "$ref" : "#/components/schemas/wow.api.query.AggregationFunction"
+          },
+          "type" : {
+            "const" : "NUMERIC"
+          }
+        },
+        "required" : [ "alias", "expression", "function", "type" ],
+        "type" : "object"
+      },
+      "example.cart.CartAggregatedAggregationQuery" : {
+        "properties" : {
+          "condition" : {
+            "$ref" : "#/components/schemas/example.cart.CartAggregatedCondition"
+          },
+          "elements" : {
+            "items" : {
+              "$ref" : "#/components/schemas/example.cart.CartAggregatedAggregationElement"
+            },
+            "maxItems" : 5,
+            "type" : "array"
+          },
+          "groupBy" : {
+            "items" : {
+              "anyOf" : [ {
+                "$ref" : "#/components/schemas/example.cart.CartAggregatedAggregationGroup.DateHistogram"
+              }, {
+                "$ref" : "#/components/schemas/example.cart.CartAggregatedAggregationGroup.Histogram"
+              }, {
+                "$ref" : "#/components/schemas/example.cart.CartAggregatedAggregationGroup.Terms"
+              } ]
+            },
+            "maxItems" : 32,
+            "type" : "array"
+          },
+          "limit" : {
+            "default" : "100",
+            "format" : "int32",
+            "maximum" : 10000,
+            "minimum" : 1,
+            "type" : "integer"
+          },
+          "metrics" : {
+            "items" : {
+              "anyOf" : [ {
+                "$ref" : "#/components/schemas/example.cart.CartAggregatedAggregationMetric.Count"
+              }, {
+                "$ref" : "#/components/schemas/example.cart.CartAggregatedAggregationMetric.Numeric"
+              } ]
+            },
+            "maxItems" : 64,
+            "minItems" : 1,
+            "type" : "array"
+          },
+          "sort" : {
+            "items" : {
+              "$ref" : "#/components/schemas/wow.api.query.Sort"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "metrics" ],
         "type" : "object"
       },
       "example.cart.CartAggregatedCondition" : {
@@ -1086,6 +1299,22 @@
         },
         "required" : [ "changed" ],
         "type" : "object"
+      },
+      "example.cart.CartSnapshotAggregationElements" : {
+        "enum" : [ "state.items" ],
+        "type" : "string"
+      },
+      "example.cart.CartSnapshotAggregationNumericFields" : {
+        "enum" : [ "version", "firstEventTime", "eventTime", "state.items.quantity", "state.size", "snapshotTime" ],
+        "type" : "string"
+      },
+      "example.cart.CartSnapshotAggregationTemporalFields" : {
+        "enum" : [ ],
+        "type" : "string"
+      },
+      "example.cart.CartSnapshotAggregationTermsFields" : {
+        "enum" : [ "contextName", "aggregateName", "tenantId", "ownerId", "spaceId", "aggregateId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "state.id", "state.items.productId", "state.items.quantity", "state.size", "snapshotTime", "deleted" ],
+        "type" : "string"
       },
       "example.cart.CartState" : {
         "properties" : {
@@ -1584,6 +1813,170 @@
         "required" : [ "price", "productId", "quantity" ],
         "type" : "object"
       },
+      "example.order.OrderAggregatedAggregationElement" : {
+        "properties" : {
+          "condition" : {
+            "$ref" : "#/components/schemas/example.order.OrderAggregatedCondition"
+          },
+          "path" : {
+            "$ref" : "#/components/schemas/example.order.OrderSnapshotAggregationElements"
+          }
+        },
+        "required" : [ "path" ],
+        "type" : "object"
+      },
+      "example.order.OrderAggregatedAggregationExpression.Field" : {
+        "properties" : {
+          "field" : {
+            "$ref" : "#/components/schemas/example.order.OrderSnapshotAggregationNumericFields"
+          },
+          "type" : {
+            "const" : "FIELD"
+          }
+        },
+        "required" : [ "field", "type" ],
+        "type" : "object"
+      },
+      "example.order.OrderAggregatedAggregationGroup.DateHistogram" : {
+        "properties" : {
+          "alias" : {
+            "type" : "string"
+          },
+          "field" : {
+            "$ref" : "#/components/schemas/example.order.OrderSnapshotAggregationTemporalFields"
+          },
+          "timeZone" : {
+            "type" : "string"
+          },
+          "type" : {
+            "const" : "DATE_HISTOGRAM"
+          },
+          "unit" : {
+            "$ref" : "#/components/schemas/wow.api.query.AggregationDateUnit"
+          }
+        },
+        "required" : [ "alias", "field", "type", "unit" ],
+        "type" : "object"
+      },
+      "example.order.OrderAggregatedAggregationGroup.Histogram" : {
+        "properties" : {
+          "alias" : {
+            "type" : "string"
+          },
+          "field" : {
+            "$ref" : "#/components/schemas/example.order.OrderSnapshotAggregationNumericFields"
+          },
+          "interval" : {
+            "exclusiveMinimum" : 0,
+            "format" : "double",
+            "type" : "number"
+          },
+          "type" : {
+            "const" : "HISTOGRAM"
+          }
+        },
+        "required" : [ "alias", "field", "interval", "type" ],
+        "type" : "object"
+      },
+      "example.order.OrderAggregatedAggregationGroup.Terms" : {
+        "properties" : {
+          "alias" : {
+            "type" : "string"
+          },
+          "field" : {
+            "$ref" : "#/components/schemas/example.order.OrderSnapshotAggregationTermsFields"
+          },
+          "type" : {
+            "const" : "TERMS"
+          }
+        },
+        "required" : [ "alias", "field", "type" ],
+        "type" : "object"
+      },
+      "example.order.OrderAggregatedAggregationMetric.Count" : {
+        "properties" : {
+          "alias" : {
+            "type" : "string"
+          },
+          "type" : {
+            "const" : "COUNT"
+          }
+        },
+        "required" : [ "alias", "type" ],
+        "type" : "object"
+      },
+      "example.order.OrderAggregatedAggregationMetric.Numeric" : {
+        "properties" : {
+          "alias" : {
+            "type" : "string"
+          },
+          "expression" : {
+            "$ref" : "#/components/schemas/example.order.OrderAggregatedAggregationExpression.Field"
+          },
+          "function" : {
+            "$ref" : "#/components/schemas/wow.api.query.AggregationFunction"
+          },
+          "type" : {
+            "const" : "NUMERIC"
+          }
+        },
+        "required" : [ "alias", "expression", "function", "type" ],
+        "type" : "object"
+      },
+      "example.order.OrderAggregatedAggregationQuery" : {
+        "properties" : {
+          "condition" : {
+            "$ref" : "#/components/schemas/example.order.OrderAggregatedCondition"
+          },
+          "elements" : {
+            "items" : {
+              "$ref" : "#/components/schemas/example.order.OrderAggregatedAggregationElement"
+            },
+            "maxItems" : 5,
+            "type" : "array"
+          },
+          "groupBy" : {
+            "items" : {
+              "anyOf" : [ {
+                "$ref" : "#/components/schemas/example.order.OrderAggregatedAggregationGroup.DateHistogram"
+              }, {
+                "$ref" : "#/components/schemas/example.order.OrderAggregatedAggregationGroup.Histogram"
+              }, {
+                "$ref" : "#/components/schemas/example.order.OrderAggregatedAggregationGroup.Terms"
+              } ]
+            },
+            "maxItems" : 32,
+            "type" : "array"
+          },
+          "limit" : {
+            "default" : "100",
+            "format" : "int32",
+            "maximum" : 10000,
+            "minimum" : 1,
+            "type" : "integer"
+          },
+          "metrics" : {
+            "items" : {
+              "anyOf" : [ {
+                "$ref" : "#/components/schemas/example.order.OrderAggregatedAggregationMetric.Count"
+              }, {
+                "$ref" : "#/components/schemas/example.order.OrderAggregatedAggregationMetric.Numeric"
+              } ]
+            },
+            "maxItems" : 64,
+            "minItems" : 1,
+            "type" : "array"
+          },
+          "sort" : {
+            "items" : {
+              "$ref" : "#/components/schemas/wow.api.query.Sort"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "metrics" ],
+        "type" : "object"
+      },
       "example.order.OrderAggregatedCondition" : {
         "properties" : {
           "children" : {
@@ -2003,6 +2396,22 @@
       },
       "example.order.OrderShipped" : {
         "type" : "object"
+      },
+      "example.order.OrderSnapshotAggregationElements" : {
+        "enum" : [ "state.items" ],
+        "type" : "string"
+      },
+      "example.order.OrderSnapshotAggregationNumericFields" : {
+        "enum" : [ "version", "firstEventTime", "eventTime", "state.items.price", "state.items.quantity", "state.items.totalPrice", "state.paidAmount", "state.payable", "state.totalAmount", "snapshotTime" ],
+        "type" : "string"
+      },
+      "example.order.OrderSnapshotAggregationTemporalFields" : {
+        "enum" : [ ],
+        "type" : "string"
+      },
+      "example.order.OrderSnapshotAggregationTermsFields" : {
+        "enum" : [ "contextName", "aggregateName", "tenantId", "ownerId", "spaceId", "aggregateId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "state.id", "state.address.country", "state.address.province", "state.address.city", "state.address.district", "state.address.detail", "state.items.id", "state.items.productId", "state.items.price", "state.items.quantity", "state.items.totalPrice", "state.paidAmount", "state.payable", "state.status", "state.totalAmount", "snapshotTime", "deleted" ],
+        "type" : "string"
       },
       "example.order.OrderStatus" : {
         "enum" : [ "CREATED", "PAID", "SHIPPED", "RECEIVED" ],
@@ -2527,6 +2936,170 @@
         "required" : [ "data", "id" ],
         "type" : "object"
       },
+      "tck.mock_aggregate.MockCommandAggregateAggregatedAggregationElement" : {
+        "properties" : {
+          "condition" : {
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedCondition"
+          },
+          "path" : {
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateSnapshotAggregationElements"
+          }
+        },
+        "required" : [ "path" ],
+        "type" : "object"
+      },
+      "tck.mock_aggregate.MockCommandAggregateAggregatedAggregationExpression.Field" : {
+        "properties" : {
+          "field" : {
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateSnapshotAggregationNumericFields"
+          },
+          "type" : {
+            "const" : "FIELD"
+          }
+        },
+        "required" : [ "field", "type" ],
+        "type" : "object"
+      },
+      "tck.mock_aggregate.MockCommandAggregateAggregatedAggregationGroup.DateHistogram" : {
+        "properties" : {
+          "alias" : {
+            "type" : "string"
+          },
+          "field" : {
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateSnapshotAggregationTemporalFields"
+          },
+          "timeZone" : {
+            "type" : "string"
+          },
+          "type" : {
+            "const" : "DATE_HISTOGRAM"
+          },
+          "unit" : {
+            "$ref" : "#/components/schemas/wow.api.query.AggregationDateUnit"
+          }
+        },
+        "required" : [ "alias", "field", "type", "unit" ],
+        "type" : "object"
+      },
+      "tck.mock_aggregate.MockCommandAggregateAggregatedAggregationGroup.Histogram" : {
+        "properties" : {
+          "alias" : {
+            "type" : "string"
+          },
+          "field" : {
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateSnapshotAggregationNumericFields"
+          },
+          "interval" : {
+            "exclusiveMinimum" : 0,
+            "format" : "double",
+            "type" : "number"
+          },
+          "type" : {
+            "const" : "HISTOGRAM"
+          }
+        },
+        "required" : [ "alias", "field", "interval", "type" ],
+        "type" : "object"
+      },
+      "tck.mock_aggregate.MockCommandAggregateAggregatedAggregationGroup.Terms" : {
+        "properties" : {
+          "alias" : {
+            "type" : "string"
+          },
+          "field" : {
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateSnapshotAggregationTermsFields"
+          },
+          "type" : {
+            "const" : "TERMS"
+          }
+        },
+        "required" : [ "alias", "field", "type" ],
+        "type" : "object"
+      },
+      "tck.mock_aggregate.MockCommandAggregateAggregatedAggregationMetric.Count" : {
+        "properties" : {
+          "alias" : {
+            "type" : "string"
+          },
+          "type" : {
+            "const" : "COUNT"
+          }
+        },
+        "required" : [ "alias", "type" ],
+        "type" : "object"
+      },
+      "tck.mock_aggregate.MockCommandAggregateAggregatedAggregationMetric.Numeric" : {
+        "properties" : {
+          "alias" : {
+            "type" : "string"
+          },
+          "expression" : {
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedAggregationExpression.Field"
+          },
+          "function" : {
+            "$ref" : "#/components/schemas/wow.api.query.AggregationFunction"
+          },
+          "type" : {
+            "const" : "NUMERIC"
+          }
+        },
+        "required" : [ "alias", "expression", "function", "type" ],
+        "type" : "object"
+      },
+      "tck.mock_aggregate.MockCommandAggregateAggregatedAggregationQuery" : {
+        "properties" : {
+          "condition" : {
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedCondition"
+          },
+          "elements" : {
+            "items" : {
+              "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedAggregationElement"
+            },
+            "maxItems" : 5,
+            "type" : "array"
+          },
+          "groupBy" : {
+            "items" : {
+              "anyOf" : [ {
+                "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedAggregationGroup.DateHistogram"
+              }, {
+                "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedAggregationGroup.Histogram"
+              }, {
+                "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedAggregationGroup.Terms"
+              } ]
+            },
+            "maxItems" : 32,
+            "type" : "array"
+          },
+          "limit" : {
+            "default" : "100",
+            "format" : "int32",
+            "maximum" : 10000,
+            "minimum" : 1,
+            "type" : "integer"
+          },
+          "metrics" : {
+            "items" : {
+              "anyOf" : [ {
+                "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedAggregationMetric.Count"
+              }, {
+                "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedAggregationMetric.Numeric"
+              } ]
+            },
+            "maxItems" : 64,
+            "minItems" : 1,
+            "type" : "array"
+          },
+          "sort" : {
+            "items" : {
+              "$ref" : "#/components/schemas/wow.api.query.Sort"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "metrics" ],
+        "type" : "object"
+      },
       "tck.mock_aggregate.MockCommandAggregateAggregatedCondition" : {
         "properties" : {
           "children" : {
@@ -2739,7 +3312,7 @@
         "type" : "object"
       },
       "tck.mock_aggregate.MockCommandAggregateAggregatedFields" : {
-        "enum" : [ "", "aggregateId", "tenantId", "ownerId", "spaceId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "tags", "deleted", "state", "state.data", "state.id" ],
+        "enum" : [ "", "aggregateId", "tenantId", "ownerId", "spaceId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "tags", "deleted", "state", "state.data", "state.id", "state.orders", "state.orders.amount", "state.orders.lines", "state.orders.lines.amount", "state.orders.lines.cancelled", "state.orders.lines.createdAt", "state.orders.lines.rank", "state.orders.lines.sku", "state.orders.status" ],
         "type" : "string"
       },
       "tck.mock_aggregate.MockCommandAggregateAggregatedListQuery" : {
@@ -2805,6 +3378,186 @@
           }
         },
         "required" : [ "condition" ],
+        "type" : "object"
+      },
+      "tck.mock_aggregate.MockCommandAggregateSnapshotAggregationElements" : {
+        "enum" : [ "state.orders", "state.orders.lines" ],
+        "type" : "string"
+      },
+      "tck.mock_aggregate.MockCommandAggregateSnapshotAggregationNumericFields" : {
+        "enum" : [ "version", "firstEventTime", "eventTime", "state.orders.amount", "state.orders.lines.rank", "state.orders.lines.amount", "snapshotTime" ],
+        "type" : "string"
+      },
+      "tck.mock_aggregate.MockCommandAggregateSnapshotAggregationTemporalFields" : {
+        "enum" : [ "state.orders.lines.createdAt" ],
+        "type" : "string"
+      },
+      "tck.mock_aggregate.MockCommandAggregateSnapshotAggregationTermsFields" : {
+        "enum" : [ "contextName", "aggregateName", "tenantId", "ownerId", "spaceId", "aggregateId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "state.id", "state.data", "state.orders.status", "state.orders.amount", "state.orders.lines.sku", "state.orders.lines.rank", "state.orders.lines.amount", "state.orders.lines.cancelled", "snapshotTime", "deleted" ],
+        "type" : "string"
+      },
+      "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedAggregationElement" : {
+        "properties" : {
+          "condition" : {
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedCondition"
+          },
+          "path" : {
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdSnapshotAggregationElements"
+          }
+        },
+        "required" : [ "path" ],
+        "type" : "object"
+      },
+      "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedAggregationExpression.Field" : {
+        "properties" : {
+          "field" : {
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdSnapshotAggregationNumericFields"
+          },
+          "type" : {
+            "const" : "FIELD"
+          }
+        },
+        "required" : [ "field", "type" ],
+        "type" : "object"
+      },
+      "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedAggregationGroup.DateHistogram" : {
+        "properties" : {
+          "alias" : {
+            "type" : "string"
+          },
+          "field" : {
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdSnapshotAggregationTemporalFields"
+          },
+          "timeZone" : {
+            "type" : "string"
+          },
+          "type" : {
+            "const" : "DATE_HISTOGRAM"
+          },
+          "unit" : {
+            "$ref" : "#/components/schemas/wow.api.query.AggregationDateUnit"
+          }
+        },
+        "required" : [ "alias", "field", "type", "unit" ],
+        "type" : "object"
+      },
+      "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedAggregationGroup.Histogram" : {
+        "properties" : {
+          "alias" : {
+            "type" : "string"
+          },
+          "field" : {
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdSnapshotAggregationNumericFields"
+          },
+          "interval" : {
+            "exclusiveMinimum" : 0,
+            "format" : "double",
+            "type" : "number"
+          },
+          "type" : {
+            "const" : "HISTOGRAM"
+          }
+        },
+        "required" : [ "alias", "field", "interval", "type" ],
+        "type" : "object"
+      },
+      "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedAggregationGroup.Terms" : {
+        "properties" : {
+          "alias" : {
+            "type" : "string"
+          },
+          "field" : {
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdSnapshotAggregationTermsFields"
+          },
+          "type" : {
+            "const" : "TERMS"
+          }
+        },
+        "required" : [ "alias", "field", "type" ],
+        "type" : "object"
+      },
+      "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedAggregationMetric.Count" : {
+        "properties" : {
+          "alias" : {
+            "type" : "string"
+          },
+          "type" : {
+            "const" : "COUNT"
+          }
+        },
+        "required" : [ "alias", "type" ],
+        "type" : "object"
+      },
+      "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedAggregationMetric.Numeric" : {
+        "properties" : {
+          "alias" : {
+            "type" : "string"
+          },
+          "expression" : {
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedAggregationExpression.Field"
+          },
+          "function" : {
+            "$ref" : "#/components/schemas/wow.api.query.AggregationFunction"
+          },
+          "type" : {
+            "const" : "NUMERIC"
+          }
+        },
+        "required" : [ "alias", "expression", "function", "type" ],
+        "type" : "object"
+      },
+      "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedAggregationQuery" : {
+        "properties" : {
+          "condition" : {
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedCondition"
+          },
+          "elements" : {
+            "items" : {
+              "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedAggregationElement"
+            },
+            "maxItems" : 5,
+            "type" : "array"
+          },
+          "groupBy" : {
+            "items" : {
+              "anyOf" : [ {
+                "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedAggregationGroup.DateHistogram"
+              }, {
+                "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedAggregationGroup.Histogram"
+              }, {
+                "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedAggregationGroup.Terms"
+              } ]
+            },
+            "maxItems" : 32,
+            "type" : "array"
+          },
+          "limit" : {
+            "default" : "100",
+            "format" : "int32",
+            "maximum" : 10000,
+            "minimum" : 1,
+            "type" : "integer"
+          },
+          "metrics" : {
+            "items" : {
+              "anyOf" : [ {
+                "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedAggregationMetric.Count"
+              }, {
+                "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedAggregationMetric.Numeric"
+              } ]
+            },
+            "maxItems" : 64,
+            "minItems" : 1,
+            "type" : "array"
+          },
+          "sort" : {
+            "items" : {
+              "$ref" : "#/components/schemas/wow.api.query.Sort"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "metrics" ],
         "type" : "object"
       },
       "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedCondition" : {
@@ -3056,6 +3809,186 @@
         "required" : [ "condition" ],
         "type" : "object"
       },
+      "tck.mock_aggregate.MockCommandAggregateWithTenantIdSnapshotAggregationElements" : {
+        "enum" : [ ],
+        "type" : "string"
+      },
+      "tck.mock_aggregate.MockCommandAggregateWithTenantIdSnapshotAggregationNumericFields" : {
+        "enum" : [ "version", "firstEventTime", "eventTime", "snapshotTime" ],
+        "type" : "string"
+      },
+      "tck.mock_aggregate.MockCommandAggregateWithTenantIdSnapshotAggregationTemporalFields" : {
+        "enum" : [ ],
+        "type" : "string"
+      },
+      "tck.mock_aggregate.MockCommandAggregateWithTenantIdSnapshotAggregationTermsFields" : {
+        "enum" : [ "contextName", "aggregateName", "tenantId", "ownerId", "spaceId", "aggregateId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "state.id", "state.tenantId", "snapshotTime", "deleted" ],
+        "type" : "string"
+      },
+      "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedAggregationElement" : {
+        "properties" : {
+          "condition" : {
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedCondition"
+          },
+          "path" : {
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersSnapshotAggregationElements"
+          }
+        },
+        "required" : [ "path" ],
+        "type" : "object"
+      },
+      "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedAggregationExpression.Field" : {
+        "properties" : {
+          "field" : {
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersSnapshotAggregationNumericFields"
+          },
+          "type" : {
+            "const" : "FIELD"
+          }
+        },
+        "required" : [ "field", "type" ],
+        "type" : "object"
+      },
+      "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedAggregationGroup.DateHistogram" : {
+        "properties" : {
+          "alias" : {
+            "type" : "string"
+          },
+          "field" : {
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersSnapshotAggregationTemporalFields"
+          },
+          "timeZone" : {
+            "type" : "string"
+          },
+          "type" : {
+            "const" : "DATE_HISTOGRAM"
+          },
+          "unit" : {
+            "$ref" : "#/components/schemas/wow.api.query.AggregationDateUnit"
+          }
+        },
+        "required" : [ "alias", "field", "type", "unit" ],
+        "type" : "object"
+      },
+      "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedAggregationGroup.Histogram" : {
+        "properties" : {
+          "alias" : {
+            "type" : "string"
+          },
+          "field" : {
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersSnapshotAggregationNumericFields"
+          },
+          "interval" : {
+            "exclusiveMinimum" : 0,
+            "format" : "double",
+            "type" : "number"
+          },
+          "type" : {
+            "const" : "HISTOGRAM"
+          }
+        },
+        "required" : [ "alias", "field", "interval", "type" ],
+        "type" : "object"
+      },
+      "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedAggregationGroup.Terms" : {
+        "properties" : {
+          "alias" : {
+            "type" : "string"
+          },
+          "field" : {
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersSnapshotAggregationTermsFields"
+          },
+          "type" : {
+            "const" : "TERMS"
+          }
+        },
+        "required" : [ "alias", "field", "type" ],
+        "type" : "object"
+      },
+      "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedAggregationMetric.Count" : {
+        "properties" : {
+          "alias" : {
+            "type" : "string"
+          },
+          "type" : {
+            "const" : "COUNT"
+          }
+        },
+        "required" : [ "alias", "type" ],
+        "type" : "object"
+      },
+      "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedAggregationMetric.Numeric" : {
+        "properties" : {
+          "alias" : {
+            "type" : "string"
+          },
+          "expression" : {
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedAggregationExpression.Field"
+          },
+          "function" : {
+            "$ref" : "#/components/schemas/wow.api.query.AggregationFunction"
+          },
+          "type" : {
+            "const" : "NUMERIC"
+          }
+        },
+        "required" : [ "alias", "expression", "function", "type" ],
+        "type" : "object"
+      },
+      "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedAggregationQuery" : {
+        "properties" : {
+          "condition" : {
+            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedCondition"
+          },
+          "elements" : {
+            "items" : {
+              "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedAggregationElement"
+            },
+            "maxItems" : 5,
+            "type" : "array"
+          },
+          "groupBy" : {
+            "items" : {
+              "anyOf" : [ {
+                "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedAggregationGroup.DateHistogram"
+              }, {
+                "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedAggregationGroup.Histogram"
+              }, {
+                "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedAggregationGroup.Terms"
+              } ]
+            },
+            "maxItems" : 32,
+            "type" : "array"
+          },
+          "limit" : {
+            "default" : "100",
+            "format" : "int32",
+            "maximum" : 10000,
+            "minimum" : 1,
+            "type" : "integer"
+          },
+          "metrics" : {
+            "items" : {
+              "anyOf" : [ {
+                "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedAggregationMetric.Count"
+              }, {
+                "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedAggregationMetric.Numeric"
+              } ]
+            },
+            "maxItems" : 64,
+            "minItems" : 1,
+            "type" : "array"
+          },
+          "sort" : {
+            "items" : {
+              "$ref" : "#/components/schemas/wow.api.query.Sort"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "metrics" ],
+        "type" : "object"
+      },
       "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedCondition" : {
         "properties" : {
           "children" : {
@@ -3305,6 +4238,22 @@
         "required" : [ "condition" ],
         "type" : "object"
       },
+      "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersSnapshotAggregationElements" : {
+        "enum" : [ ],
+        "type" : "string"
+      },
+      "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersSnapshotAggregationNumericFields" : {
+        "enum" : [ "version", "firstEventTime", "eventTime", "snapshotTime" ],
+        "type" : "string"
+      },
+      "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersSnapshotAggregationTemporalFields" : {
+        "enum" : [ ],
+        "type" : "string"
+      },
+      "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersSnapshotAggregationTermsFields" : {
+        "enum" : [ "contextName", "aggregateName", "tenantId", "ownerId", "spaceId", "aggregateId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "snapshotTime", "deleted" ],
+        "type" : "string"
+      },
       "tck.mock_aggregate.MockCreateAggregate" : {
         "properties" : {
           "data" : {
@@ -3317,6 +4266,49 @@
         "required" : [ "data", "id" ],
         "type" : "object"
       },
+      "tck.mock_aggregate.MockOrder" : {
+        "properties" : {
+          "amount" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "lines" : {
+            "items" : {
+              "$ref" : "#/components/schemas/tck.mock_aggregate.MockOrderLine"
+            },
+            "type" : "array"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "amount", "lines", "status" ],
+        "type" : "object"
+      },
+      "tck.mock_aggregate.MockOrderLine" : {
+        "properties" : {
+          "amount" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "cancelled" : {
+            "type" : "boolean"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "rank" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "sku" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "amount", "cancelled", "createdAt", "rank", "sku" ],
+        "type" : "object"
+      },
       "tck.mock_aggregate.MockStateAggregate" : {
         "properties" : {
           "data" : {
@@ -3324,6 +4316,12 @@
           },
           "id" : {
             "type" : "string"
+          },
+          "orders" : {
+            "items" : {
+              "$ref" : "#/components/schemas/tck.mock_aggregate.MockOrder"
+            },
+            "type" : "array"
           }
         },
         "required" : [ "id" ],
@@ -3532,6 +4530,12 @@
               },
               "id" : {
                 "type" : "string"
+              },
+              "orders" : {
+                "items" : {
+                  "$ref" : "#/components/schemas/tck.mock_aggregate.MockOrder"
+                },
+                "type" : "array"
               }
             },
             "required" : [ "id" ],
@@ -3671,6 +4675,12 @@
               },
               "id" : {
                 "type" : "string"
+              },
+              "orders" : {
+                "items" : {
+                  "$ref" : "#/components/schemas/tck.mock_aggregate.MockOrder"
+                },
+                "type" : "array"
               }
             },
             "required" : [ "id" ],
@@ -4439,6 +5449,37 @@
         "required" : [ "data" ],
         "type" : "object"
       },
+      "wow.ObjectObjectMapServerSentEventNonNullData" : {
+        "properties" : {
+          "data" : {
+            "$ref" : "#/components/schemas/example.ObjectObjectMap"
+          },
+          "event" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
+          },
+          "id" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
+          },
+          "retry" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "format" : "int32",
+              "type" : "integer"
+            } ]
+          }
+        },
+        "required" : [ "data" ],
+        "type" : "object"
+      },
       "wow.api.BindingError" : {
         "properties" : {
           "msg" : {
@@ -4536,6 +5577,14 @@
         },
         "required" : [ "aggregateId", "aggregateName", "contextName", "tenantId" ],
         "type" : "object"
+      },
+      "wow.api.query.AggregationDateUnit" : {
+        "enum" : [ "YEAR", "QUARTER", "MONTH", "WEEK", "DAY", "HOUR", "MINUTE", "SECOND" ],
+        "type" : "string"
+      },
+      "wow.api.query.AggregationFunction" : {
+        "enum" : [ "SUM", "AVG", "MIN", "MAX" ],
+        "type" : "string"
       },
       "wow.api.query.Condition" : {
         "properties" : {
@@ -5176,6 +6225,43 @@
               "application/json" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/example.cart.CartAggregatedDomainEventStreamPagedList"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          }
+        },
+        "tags" : [ "example.cart", "customer" ]
+      }
+    },
+    "/cart/snapshot/aggregation" : {
+      "post" : {
+        "operationId" : "example.cart.snapshot.aggregation",
+        "parameters" : [ ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/example.cart.AggregationQuery"
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/example.ObjectObjectMap"
+                  },
+                  "type" : "array"
+                }
+              },
+              "text/event-stream" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/wow.ObjectObjectMapServerSentEventNonNullData"
+                  },
+                  "type" : "array"
                 }
               }
             },
@@ -6069,6 +7155,45 @@
         "tags" : [ "example.cart", "customer" ]
       }
     },
+    "/owner/{ownerId}/cart/snapshot/aggregation" : {
+      "post" : {
+        "operationId" : "example.cart.owner.snapshot.aggregation",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.ownerId"
+        } ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/example.cart.AggregationQuery"
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/example.ObjectObjectMap"
+                  },
+                  "type" : "array"
+                }
+              },
+              "text/event-stream" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/wow.ObjectObjectMapServerSentEventNonNullData"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          }
+        },
+        "tags" : [ "example.cart", "customer" ]
+      }
+    },
     "/owner/{ownerId}/cart/snapshot/count" : {
       "post" : {
         "operationId" : "example.cart.owner.snapshot.count",
@@ -6613,6 +7738,47 @@
         "tags" : [ "example.order" ]
       }
     },
+    "/owner/{ownerId}/sales-order/snapshot/aggregation" : {
+      "post" : {
+        "operationId" : "example.order.owner.snapshot.aggregation",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.Wow-Space-Id"
+        }, {
+          "$ref" : "#/components/parameters/wow.ownerId"
+        } ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/example.order.AggregationQuery"
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/example.ObjectObjectMap"
+                  },
+                  "type" : "array"
+                }
+              },
+              "text/event-stream" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/wow.ObjectObjectMapServerSentEventNonNullData"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          }
+        },
+        "tags" : [ "example.order" ]
+      }
+    },
     "/owner/{ownerId}/sales-order/snapshot/count" : {
       "post" : {
         "operationId" : "example.order.owner.snapshot.count",
@@ -6917,6 +8083,45 @@
               "application/json" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/example.order.OrderAggregatedDomainEventStreamPagedList"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          }
+        },
+        "tags" : [ "example.order" ]
+      }
+    },
+    "/sales-order/snapshot/aggregation" : {
+      "post" : {
+        "operationId" : "example.order.snapshot.aggregation",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.Wow-Space-Id"
+        } ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/example.order.AggregationQuery"
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/example.ObjectObjectMap"
+                  },
+                  "type" : "array"
+                }
+              },
+              "text/event-stream" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/wow.ObjectObjectMapServerSentEventNonNullData"
+                  },
+                  "type" : "array"
                 }
               }
             },
@@ -7269,6 +8474,43 @@
         "tags" : [ "tck.mock_aggregate" ]
       }
     },
+    "/tck/mock_aggregate/snapshot/aggregation" : {
+      "post" : {
+        "operationId" : "tck.mock_aggregate.snapshot.aggregation",
+        "parameters" : [ ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/tck.mock_aggregate.AggregationQuery"
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/example.ObjectObjectMap"
+                  },
+                  "type" : "array"
+                }
+              },
+              "text/event-stream" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/wow.ObjectObjectMapServerSentEventNonNullData"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          }
+        },
+        "tags" : [ "tck.mock_aggregate" ]
+      }
+    },
     "/tck/mock_aggregate/snapshot/count" : {
       "post" : {
         "operationId" : "tck.mock_aggregate.snapshot.count",
@@ -7590,6 +8832,43 @@
         "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
       }
     },
+    "/tck/modeling_command_aggregate_with_tenant_id/snapshot/aggregation" : {
+      "post" : {
+        "operationId" : "tck.modeling_command_aggregate_with_tenant_id.snapshot.aggregation",
+        "parameters" : [ ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_with_tenant_id.AggregationQuery"
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/example.ObjectObjectMap"
+                  },
+                  "type" : "array"
+                }
+              },
+              "text/event-stream" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/wow.ObjectObjectMapServerSentEventNonNullData"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          }
+        },
+        "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+      }
+    },
     "/tck/modeling_command_aggregate_with_tenant_id/snapshot/count" : {
       "post" : {
         "operationId" : "tck.modeling_command_aggregate_with_tenant_id.snapshot.count",
@@ -7898,6 +9177,43 @@
               "application/json" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedDomainEventStreamPagedList"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          }
+        },
+        "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+      }
+    },
+    "/tck/modeling_command_aggregate_without_ctor_parameters/snapshot/aggregation" : {
+      "post" : {
+        "operationId" : "tck.modeling_command_aggregate_without_ctor_parameters.snapshot.aggregation",
+        "parameters" : [ ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_without_ctor_parameters.AggregationQuery"
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/example.ObjectObjectMap"
+                  },
+                  "type" : "array"
+                }
+              },
+              "text/event-stream" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/wow.ObjectObjectMapServerSentEventNonNullData"
+                  },
+                  "type" : "array"
                 }
               }
             },
@@ -8371,6 +9687,45 @@
           },
           "429" : {
             "$ref" : "#/components/responses/wow.CommandTooManyRequests"
+          }
+        },
+        "tags" : [ "tck.mock_aggregate" ]
+      }
+    },
+    "/tck/tenant/{tenantId}/mock_aggregate/snapshot/aggregation" : {
+      "post" : {
+        "operationId" : "tck.mock_aggregate.tenant.snapshot.aggregation",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.tenantId"
+        } ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/tck.mock_aggregate.AggregationQuery"
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/example.ObjectObjectMap"
+                  },
+                  "type" : "array"
+                }
+              },
+              "text/event-stream" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/wow.ObjectObjectMapServerSentEventNonNullData"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
           }
         },
         "tags" : [ "tck.mock_aggregate" ]
@@ -9213,6 +10568,45 @@
         "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
       }
     },
+    "/tck/tenant/{tenantId}/modeling_command_aggregate_with_tenant_id/snapshot/aggregation" : {
+      "post" : {
+        "operationId" : "tck.modeling_command_aggregate_with_tenant_id.tenant.snapshot.aggregation",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.tenantId"
+        } ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_with_tenant_id.AggregationQuery"
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/example.ObjectObjectMap"
+                  },
+                  "type" : "array"
+                }
+              },
+              "text/event-stream" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/wow.ObjectObjectMapServerSentEventNonNullData"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          }
+        },
+        "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+      }
+    },
     "/tck/tenant/{tenantId}/modeling_command_aggregate_with_tenant_id/snapshot/count" : {
       "post" : {
         "operationId" : "tck.modeling_command_aggregate_with_tenant_id.tenant.snapshot.count",
@@ -9966,6 +11360,45 @@
               "application/json" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedDomainEventStreamPagedList"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          }
+        },
+        "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+      }
+    },
+    "/tck/tenant/{tenantId}/modeling_command_aggregate_without_ctor_parameters/snapshot/aggregation" : {
+      "post" : {
+        "operationId" : "tck.modeling_command_aggregate_without_ctor_parameters.tenant.snapshot.aggregation",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.tenantId"
+        } ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_without_ctor_parameters.AggregationQuery"
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/example.ObjectObjectMap"
+                  },
+                  "type" : "array"
+                }
+              },
+              "text/event-stream" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/wow.ObjectObjectMapServerSentEventNonNullData"
+                  },
+                  "type" : "array"
                 }
               }
             },
@@ -11442,6 +12875,47 @@
               "application/json" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/example.order.OrderAggregatedDomainEventStreamPagedList"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          }
+        },
+        "tags" : [ "example.order" ]
+      }
+    },
+    "/tenant/{tenantId}/sales-order/snapshot/aggregation" : {
+      "post" : {
+        "operationId" : "example.order.tenant.snapshot.aggregation",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.Wow-Space-Id"
+        }, {
+          "$ref" : "#/components/parameters/wow.tenantId"
+        } ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/example.order.AggregationQuery"
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/example.ObjectObjectMap"
+                  },
+                  "type" : "array"
+                }
+              },
+              "text/event-stream" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/wow.ObjectObjectMapServerSentEventNonNullData"
+                  },
+                  "type" : "array"
                 }
               }
             },

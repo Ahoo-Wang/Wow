@@ -170,7 +170,21 @@ val paged = queryApi.paged(
 
 // Count: takes a Condition; returns Mono<Long>
 val total = queryApi.count(Condition.all()).block()
+
+// Snapshot aggregation: Flux<Map<String, Any?>>
+val rows = queryApi.aggregate(
+    AggregationQuery(
+        condition = Condition.eq("state.status", "CREATED"),
+        metrics = listOf(AggregationMetric.Count("count")),
+    ),
+).collectList().block()
 ```
+
+Aggregation is exposed through the separate `ReactiveSnapshotAggregationQueryApi`. The synchronous
+`SynchronousSnapshotAggregationQueryApi` returns `List<Map<String, Any?>>`. Existing composite Snapshot
+client interfaces stay unchanged so custom implementations remain compatible.
+For complete Elements, JSON discriminator, result, and ordering semantics, see
+[Snapshot Elements Aggregation](../query.md#snapshot-elements-aggregation).
 
 ### Synchronous Query API
 

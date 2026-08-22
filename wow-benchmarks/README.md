@@ -529,6 +529,17 @@ benchmark runs to reduce measurement noise.
 
 If these services are not running, use Framework E2E and Component benchmarks instead.
 
+## Snapshot Elements Aggregation
+
+These tasks seed 10,000 snapshots and compare root, one-level, and three-level Elements aggregation with 100 leaves per snapshot, including low/high-cardinality group sorting and exact metric Top-N:
+
+```bash
+./gradlew :wow-benchmarks:benchmarkSnapshotElementsMongo --no-parallel
+./gradlew :wow-benchmarks:benchmarkSnapshotElementsElasticsearch --no-parallel
+```
+
+Each task writes independent JSON and text output under `wow-benchmarks/results/reports/snapshot-elements-*`. `benchmarkSmoke` only verifies JMH entry points and is not an aggregation performance result.
+
 ## Baseline Utilities
 
 ```bash

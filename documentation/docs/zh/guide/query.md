@@ -297,7 +297,7 @@ class DataFilterSnapshotQueryFilter : SnapshotQueryFilter {
 **Wow** 除了为命令(`Command`)自动生成了 _OpenAPI_ 端点，另外还提供了查询(`Query`) _OpenAPI_ 端点。
 这意味着开发人员通常只需专注于编写领域模型，即可完成服务开发，而无需费心处理查询逻辑的实现，极大提升了开发效率。
 
-以下示例查询 `tenant-1` 的 `sales-order` 聚合。四个请求都描述同一条模拟快照，因此查询条件与响应数量保持一致。
+以下示例使用 `tenant-1` 的 `sales-order` 聚合，依次演示五种查询入口。
 
 ![Query Service](/images/query/open-api-query.png)
 
@@ -457,6 +457,183 @@ eq("state.status", "CREATED")
 ```
 
 :::
+
+## 快照 Elements 聚合
+
+快照聚合只暴露 MongoDB 与 Elasticsearch 都能精确执行的表格语义。HTTP 入口为
+`POST {aggregate-path}/snapshot/aggregation`，支持 `application/json` 与
+`text/event-stream`。结果中的分组键和指标均使用显式 alias。
+
+### Kotlin DSL
+
+```kotlin
+aggregationQuery {
+    condition { "state.status" eq "CREATED" }
+    expand("state.items") {
+        condition { "quantity" gt 0 }
+        groupBy("productId", "productId")
+        sum("totalPrice", "totalAmount")
+        count("lineCount")
+        sort { "totalAmount".desc() }
+        limit(100)
+    }
+}
+```
+
+`expand` 块内的字段使用相对路径；构建出的 `AggregationQuery` 会统一转换为绝对路径。
+`groupBy`、指标、排序和 limit 只能声明在最内层；每层最多一个子 `expand`。
+
+### HTTP JSON
+
+直接构造 Kotlin 模型或发送 JSON 时，Elements、条件、分组和指标中的字段都必须使用绝对路径。
+`type` 是 Group、Metric 和 Expression 的 Jackson discriminator。
+生成的 OpenAPI 会分别给出 Elements、Terms、Numeric 与 Temporal 字段枚举，避免客户端选择运行时必然拒绝的字段类型。
+以下示例包含 Elements 和指标排序，调用前需设置
+`wow.webflux.query.allow-expensive-operators=true`；默认配置会拒绝该请求。
+
+::: code-group
+
+```shell [请求]
+curl -X POST \
+  'http://localhost:8080/tenant/tenant-1/sales-order/snapshot/aggregation' \
+  -H 'Accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -H 'Wow-Space-Id: space-1' \
+  -d '{
+    "condition": {
+      "field": "state.status",
+      "operator": "EQ",
+      "value": "CREATED",
+      "children": []
+    },
+    "elements": [
+      {
+        "path": "state.items",
+        "condition": {
+          "field": "state.items.quantity",
+          "operator": "GT",
+          "value": 0,
+          "children": []
+        }
+      }
+    ],
+    "groupBy": [
+      {
+        "type": "TERMS",
+        "field": "state.items.productId",
+        "alias": "productId"
+      }
+    ],
+    "metrics": [
+      {
+        "type": "NUMERIC",
+        "function": "SUM",
+        "expression": {
+          "type": "FIELD",
+          "field": "state.items.totalPrice"
+        },
+        "alias": "totalAmount"
+      },
+      {
+        "type": "COUNT",
+        "alias": "lineCount"
+      }
+    ],
+    "sort": [
+      {
+        "field": "totalAmount",
+        "direction": "DESC"
+      }
+    ],
+    "limit": 100
+  }'
+```
+
+```json [响应]
+[
+  {
+    "productId": "product-1001",
+    "totalAmount": 128.0,
+    "lineCount": 4
+  },
+  {
+    "productId": "product-1002",
+    "totalAmount": 96.5,
+    "lineCount": 2
+  }
+]
+```
+
+:::
+
+将 `Accept` 改为 `text/event-stream` 时，每个结果行独立发送；查询语义与 JSON 响应完全相同。
+
+### 来源与字段作用域
+
+- `elements=[]` 表示在根 Snapshot 上聚合；否则按从外到内顺序声明严格父子对象集合链。
+- Elements 只接受对象集合或对象数组；Map、标量集合、重复路径、跳过中间集合和兄弟集合笛卡尔积都会被拒绝。
+- `groupBy`、指标及表达式字段必须属于最内层来源，不能隐式访问父级、兄弟或未展开的子集合。
+- 每层 `AggregationElement.condition` 只能访问该层标量字段或非集合对象路径，并且不能使用 `ELEM_MATCH`。
+- 根 `ELEM_MATCH` 只筛选“包含匹配元素的快照”，不会筛选随后展开的行；行过滤必须写入对应 Element condition。
+- 缺失、`null` 或空集合不产生展开行；任一分组字段缺失或为 `null` 时，该行不进入 bucket。
+
+### 分组与指标
+
+| 类型 | 输入约束 | 结果 |
+|---|---|---|
+| `TERMS` | 字符串、枚举、UUID、Boolean 或数值标量；拒绝 temporal | 整数 key 归一化为 `Long`，浮点/Decimal key 归一化为 `Double` |
+| `HISTOGRAM` | 数值标量；`interval` 必须有限且大于 0；首版无 offset | bucket key 为 `Double` |
+| `DATE_HISTOGRAM` | 支持的 temporal/`Date` 字段；unit 为 `YEAR`、`QUARTER`、`MONTH`、`WEEK`、`DAY`、`HOUR`、`MINUTE`、`SECOND` | epoch milliseconds `Long`；`WEEK` 从 Monday 开始 |
+| `COUNT` | 无字段 | 根查询统计快照数；Elements 查询统计最内层展开行，返回 `Long` |
+| `NUMERIC` | `SUM`、`AVG`、`MIN`、`MAX` + `FIELD` 数值表达式 | `Double?`；缺失值被忽略，空集 `SUM=0.0`，其余为 `null` |
+
+`DateHistogram.timeZone` 默认为 `UTC`，只接受 IANA ID（如 `Asia/Shanghai`）或
+`±HH:MM`；`Z`、`UTC+08:00` 等非约定格式会被拒绝。任何非有限 Numeric metric 结果都会使整个查询失败。
+
+### 结果、排序与空集
+
+- 无 `groupBy` 时始终返回一行，禁止 sort，limit 仍需合法但不会改变单行结果。
+- 有 `groupBy` 且没有 bucket 时返回空流。
+- 默认按 groupBy 声明顺序升序；显式 sort 后会追加尚未出现的 group alias 升序，保证结果稳定。
+- sort 字段必须唯一且只能引用输出 alias。升序时 `null` 在前，降序时 `null` 在后。
+- 仅按 group alias 排序时，后端达到 limit 即可停止；按 metric alias 排序时必须完整遍历 bucket，再计算精确 Top-N。
+- alias 在 groupBy 与 metrics 间全局唯一；不能为空、包含 `.`/NUL、以 `$` 或 `__wow_` 开头，也不能为 `_id`。
+
+### 限制与 HTTP 防护
+
+| 项目 | 公共模型 | HTTP 默认 |
+|---|---:|---:|
+| Elements 层数 | 5 | 3 |
+| Element/group/expression 字段路径段数 | 10 | 10 |
+| groupBy 数量 | 32 | 32 |
+| metrics 数量 | 1..64 | 1..32 |
+| limit | 默认 100，最大 10,000 | 有分组时还受 `max-list-size=1000` 限制 |
+| 根条件与全部 Element conditions | — | 合计最多 `max-condition-nodes=64` 个节点 |
+
+将 `max-aggregation-elements`、`max-aggregation-metrics` 或 `max-list-size` 设为 `0`
+只会关闭对应 HTTP 上限，公共模型硬上限仍然生效。以下请求还要求
+`allow-expensive-operators=true`：
+
+- 包含任意 Elements；
+- 用户提交的根 condition 为 match-all；
+- sort 引用任意 metric alias。
+
+HTTP guard 在 tenant/owner/space 和 ABAC 条件注入前统计用户条件；受信任条件不消耗用户预算，
+也不会把用户提交的 match-all 自动变成低成本查询。Snapshot 配置 masker 时，聚合会在访问后端前 fail-closed。
+HTTP 层不维护重复的字段白名单；聚合元数据 Validator 统一校验集合链、字段归属和可移植类型。
+指标和分组没有脚本入口；HTTP `RAW` condition 仍遵循通用 `allow-raw` 开关且默认关闭。
+
+### 后端失败与性能边界
+
+- Elasticsearch 要求每层 Elements 映射为 `nested`，`DateHistogram` 映射为 `date`/`date_nanos`；普通 `object` 或 epoch `long` 会被拒绝。
+- MongoDB 使用逐层 `$unwind`；字符串分组和排序固定使用 `simple` collation。
+- timeout、分片失败、响应结构缺失、类型转换失败或非有限指标结果都会使整个查询失败，不返回部分结果。
+
+当前单线程工程基线使用 10,000 个快照、每快照 100 个叶子元素。Elements group-key 排序约为
+MongoDB `393–1,639 ms/op`、Elasticsearch `1–8 ms/op`；精确 metric Top-N 约为
+MongoDB `1.61–1.84 s/op`、Elasticsearch `1.79 s/op`。这些数值是一次 JMH 运行的点估计区间
+（1 fork、3 次测量，部分场景方差较高），仅用于识别昂贵操作，不代表生产 SLA、回归阈值或跨后端排名。参见
+[完整基准测试报告](https://github.com/Ahoo-Wang/Wow/blob/main/wow-benchmarks/results/reports/snapshot-elements.md)。
 
 ## 查询服务注册器
 

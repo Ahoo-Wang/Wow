@@ -31,6 +31,7 @@ import me.ahoo.wow.query.mask.StateDataMaskerRegistry
 import me.ahoo.wow.query.mask.StateDynamicDocumentMasker
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
+import me.ahoo.wow.query.snapshot.filter.AggregationQueryValidationFilter
 import me.ahoo.wow.query.snapshot.filter.DefaultSnapshotQueryHandler
 import me.ahoo.wow.query.snapshot.filter.MaskingSnapshotQueryFilter
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryFilter
@@ -82,6 +83,9 @@ class QueryAutoConfiguration {
     fun maskingSnapshotQueryFilter(stateDataMaskerRegistry: StateDataMaskerRegistry): SnapshotQueryFilter {
         return MaskingSnapshotQueryFilter(stateDataMaskerRegistry)
     }
+
+    @Bean
+    fun aggregationQueryValidationFilter(): SnapshotQueryFilter = AggregationQueryValidationFilter()
 
     @Bean
     fun maskingEventStreamQueryFilter(eventStreamMaskerRegistry: EventStreamMaskerRegistry): EventStreamQueryFilter {

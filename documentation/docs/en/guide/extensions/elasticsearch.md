@@ -670,6 +670,61 @@ PUT _ilm/policy/wow-snapshot-policy
 }
 ```
 
+## Snapshot Elements Aggregation
+
+See [Snapshot Elements Aggregation](../query.md#snapshot-elements-aggregation) for the public
+model, JSON, empty-set, and ordering contract.
+
+### Mapping Requirements
+
+Every Elements path must be `nested` in the actual index; a regular `object` mapping is rejected.
+For example, a two-level `state.orders.lines` chain requires:
+
+```json
+{
+  "mappings": {
+    "properties": {
+      "state": {
+        "properties": {
+          "orders": {
+            "type": "nested",
+            "properties": {
+              "status": { "type": "keyword" },
+              "lines": {
+                "type": "nested",
+                "properties": {
+                  "sku": { "type": "keyword" },
+                  "amount": { "type": "double" },
+                  "createdAt": { "type": "date" }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+`Terms`, `Histogram`, and numeric metrics must resolve to compatible aggregatable fields in the mapping.
+`DateHistogram` accepts only `date`/`date_nanos` and never treats a plain epoch `long` as a date.
+
+### Execution and Paging
+
+- The root condition becomes the search query. Elements become recursive `nested/filter` wrappers, with native composite and metric aggregations at the leaf.
+- Root ungrouped Count uses `hits.total`; Elements ungrouped Count uses the innermost `doc_count`; grouped Count uses composite bucket `docCount`.
+- Group-key ordering uses native composite order and stops at limit.
+- Metric ordering traverses every bucket and computes exact Top-N with an O(limit) priority queue; it never substitutes approximate `terms`.
+- Every grouped query owns one PIT. Paging reuses the latest PIT ID returned by Elasticsearch and closes it on completion, error, or cancellation.
+
+The compiler does not generate Painless or explicitly request `_source`. A runtime field already
+declared by the index still executes according to its mapping; that definition determines whether
+it uses a script or reads `_source`.
+`wow.elasticsearch.query.batch-size` controls the composite page size, and `keep-alive` controls
+the PIT lifetime. Timeout, shard failure, missing wrappers/metrics, an invalid response type, or a
+non-finite metric result fails the whole query; partial results are never returned.
+
 ## Performance Optimization
 
 ### Bulk Indexing

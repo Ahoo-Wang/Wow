@@ -16,6 +16,10 @@ package me.ahoo.wow.webflux.route.query
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.abac.AbacTags
+import me.ahoo.wow.api.query.AggregationElement
+import me.ahoo.wow.api.query.AggregationGroup
+import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.DynamicDocument
@@ -38,6 +42,7 @@ import me.ahoo.wow.query.event.filter.DefaultEventStreamQueryHandler
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.query.event.filter.TailEventStreamQueryFilter
 import me.ahoo.wow.query.filter.Contexts.writeRawRequest
+import me.ahoo.wow.query.filter.Contexts.writeUserQuery
 import me.ahoo.wow.query.filter.DefaultQueryContext
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryType
@@ -124,6 +129,106 @@ class HttpQueryGuardFilterTest {
         ).writeRawRequest(request).test()
             .expectError(IllegalArgumentException::class.java)
             .verify()
+    }
+
+    @Test
+    fun `should classify and limit aggregation requests before backend invocation`() {
+        val root = Condition.eq(MessageRecords.AGGREGATE_ID, "aggregate-id")
+        val unsafe = listOf(
+            AggregationQuery(
+                elements = listOf(AggregationElement("state.orders")),
+                metrics = listOf(AggregationMetric.Count("count")),
+                condition = root,
+            ),
+            AggregationQuery(
+                condition = root,
+                groupBy = listOf(AggregationGroup.Terms("state.status", "status")),
+                metrics = listOf(AggregationMetric.Count("count")),
+                sort = listOf(Sort("count", Sort.Direction.DESC)),
+            ),
+            AggregationQuery(
+                groupBy = listOf(AggregationGroup.Terms("state.status", "status")),
+                metrics = listOf(AggregationMetric.Count("count")),
+            ),
+            AggregationQuery(
+                condition = root,
+                groupBy = listOf(AggregationGroup.Terms("state.status", "status")),
+                metrics = listOf(AggregationMetric.Count("count")),
+                limit = 1001,
+            ),
+            AggregationQuery(
+                condition = root,
+                metrics = List(33) { AggregationMetric.Count("count$it") },
+            ),
+        )
+        unsafe.forEach { query ->
+            guard().filter(aggregationContext(query), unexpectedBackend())
+                .writeRawRequest(request)
+                .test()
+                .expectError(IllegalArgumentException::class.java)
+                .verify()
+        }
+    }
+
+    @Test
+    fun `should share condition budget across aggregation elements`() {
+        val query = AggregationQuery(
+            condition = Condition.eq(MessageRecords.AGGREGATE_ID, "aggregate-id"),
+            elements = listOf(
+                AggregationElement("state.orders", Condition.eq("state.orders.status", "PAID")),
+            ),
+            groupBy = listOf(AggregationGroup.Terms("state.orders.status", "status")),
+            metrics = listOf(AggregationMetric.Count("count")),
+        )
+        guard(
+            maxConditionNodes = 1,
+            allowExpensiveOperators = true,
+        ).filter(aggregationContext(query), unexpectedBackend())
+            .writeRawRequest(request)
+            .test()
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
+
+        val context = aggregationContext(query)
+        guard(
+            maxConditionNodes = 2,
+            allowExpensiveOperators = true,
+        ).filter(
+            context,
+            FilterChain {
+                it.asAggregationQuery().setResult(Flux.empty())
+                Mono.empty()
+            },
+        ).writeRawRequest(request).test().verifyComplete()
+        context.getRequiredResult().test().verifyComplete()
+    }
+
+    @Test
+    fun `trusted route conditions should not consume aggregation user budget`() {
+        val userQuery = AggregationQuery(
+            condition = Condition.eq(MessageRecords.AGGREGATE_ID, "aggregate-id"),
+            metrics = listOf(AggregationMetric.Count("count")),
+        )
+        val rewritten = userQuery.withCondition(
+            Condition.and(
+                userQuery.condition,
+                Condition.tenantId("tenant"),
+                Condition.ownerId("owner"),
+                Condition.spaceId("space"),
+            ),
+        )
+        val context = aggregationContext(rewritten)
+
+        guard(maxConditionNodes = 1).filter(
+            context,
+            FilterChain {
+                it.asAggregationQuery().setResult(Flux.empty())
+                Mono.empty()
+            },
+        ).writeUserQuery(userQuery)
+            .writeRawRequest(request)
+            .test()
+            .verifyComplete()
     }
 
     @Test
@@ -445,6 +550,8 @@ class HttpQueryGuardFilterTest {
         allowRaw: Boolean = false,
         allowExpensiveOperators: Boolean = false,
         idleTimeout: Duration = Duration.ofSeconds(10),
+        maxAggregationElements: Int = 3,
+        maxAggregationMetrics: Int = 32,
     ) = HttpQueryGuardFilter(
         maxListSize = maxListSize,
         maxPageSize = maxPageSize,
@@ -454,6 +561,8 @@ class HttpQueryGuardFilterTest {
         allowRaw = allowRaw,
         allowExpensiveOperators = allowExpensiveOperators,
         idleTimeout = idleTimeout,
+        maxAggregationElements = maxAggregationElements,
+        maxAggregationMetrics = maxAggregationMetrics,
     )
 
     private fun listContext(query: IListQuery): QueryContext<IListQuery, Flux<Any>> =
@@ -473,6 +582,14 @@ class HttpQueryGuardFilterTest {
             QueryType.COUNT,
             MOCK_AGGREGATE_METADATA,
         ).setQuery(condition)
+
+    private fun aggregationContext(
+        query: AggregationQuery,
+    ): QueryContext<AggregationQuery, Flux<DynamicDocument>> =
+        DefaultQueryContext<AggregationQuery, Flux<DynamicDocument>>(
+            QueryType.AGGREGATION,
+            MOCK_AGGREGATE_METADATA,
+        ).setQuery(query)
 
     private fun unexpectedBackend(): FilterChain<QueryContext<*, *>> = FilterChain {
         error("Backend must not be invoked.")

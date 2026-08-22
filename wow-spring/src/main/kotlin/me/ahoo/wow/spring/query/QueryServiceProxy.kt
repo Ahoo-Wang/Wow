@@ -14,6 +14,7 @@
 package me.ahoo.wow.spring.query
 
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.IListQuery
@@ -33,14 +34,17 @@ import reactor.core.publisher.Mono
 
 internal class SnapshotQueryServiceProxy<S : Any>(
     private val delegate: SnapshotQueryService<S>,
-    handler: SnapshotQueryHandler,
+    private val snapshotQueryHandler: SnapshotQueryHandler,
 ) : QueryServiceProxy<MaterializedSnapshot<S>>(
     delegate.namedAggregate,
-    handler.cast(),
+    snapshotQueryHandler.cast(),
 ),
     SnapshotQueryService<S> {
     override val name: String
         get() = delegate.name
+
+    override fun aggregate(query: AggregationQuery): Flux<DynamicDocument> =
+        snapshotQueryHandler.aggregate(namedAggregate, query)
 }
 
 internal class EventStreamQueryServiceProxy(

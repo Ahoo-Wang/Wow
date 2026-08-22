@@ -63,6 +63,49 @@
         },
         "id" : {
           "type" : "string"
+        },
+        "orders" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "properties" : {
+              "amount" : {
+                "type" : "number",
+                "format" : "double"
+              },
+              "lines" : {
+                "type" : "array",
+                "items" : {
+                  "type" : "object",
+                  "properties" : {
+                    "amount" : {
+                      "type" : "number",
+                      "format" : "double"
+                    },
+                    "cancelled" : {
+                      "type" : "boolean"
+                    },
+                    "createdAt" : {
+                      "type" : "string",
+                      "format" : "date-time"
+                    },
+                    "rank" : {
+                      "type" : "integer",
+                      "format" : "int32"
+                    },
+                    "sku" : {
+                      "type" : "string"
+                    }
+                  },
+                  "required" : [ "amount", "cancelled", "createdAt", "rank", "sku" ]
+                }
+              },
+              "status" : {
+                "type" : "string"
+              }
+            },
+            "required" : [ "amount", "lines", "status" ]
+          }
         }
       },
       "required" : [ "id" ],

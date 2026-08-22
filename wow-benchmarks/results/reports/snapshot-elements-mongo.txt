@@ -1,0 +1,213 @@
+# JMH version: 1.37
+# VM version: JDK 17.0.7, OpenJDK 64-Bit Server VM, 17.0.7+7-LTS
+# VM invoker: /Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java
+# VM options: -Dfile.encoding=UTF-8 -Duser.country=CN -Duser.language=zh -Duser.variant
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 1 iterations, 10 s each
+# Measurement: 3 iterations, 10 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: me.ahoo.wow.benchmark.infrastructure.SnapshotElementsAggregationBenchmark.aggregate
+# Parameters: (backend = mongo, scenario = root)
+
+# Run progress: 0.00% complete, ETA 00:04:40
+# Fork: 1 of 1
+# Warmup Iteration   1: 10.807 ms/op
+Iteration   1: 10.153 ms/op
+Iteration   2: 10.284 ms/op
+Iteration   3: 10.299 ms/op
+
+
+Result "me.ahoo.wow.benchmark.infrastructure.SnapshotElementsAggregationBenchmark.aggregate":
+  10.245 ±(99.9%) 1.466 ms/op [Average]
+  (min, avg, max) = (10.153, 10.245, 10.299), stdev = 0.080
+  CI (99.9%): [8.780, 11.711] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 17.0.7, OpenJDK 64-Bit Server VM, 17.0.7+7-LTS
+# VM invoker: /Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java
+# VM options: -Dfile.encoding=UTF-8 -Duser.country=CN -Duser.language=zh -Duser.variant
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 1 iterations, 10 s each
+# Measurement: 3 iterations, 10 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: me.ahoo.wow.benchmark.infrastructure.SnapshotElementsAggregationBenchmark.aggregate
+# Parameters: (backend = mongo, scenario = single-low)
+
+# Run progress: 14.29% complete, ETA 00:04:19
+# Fork: 1 of 1
+# Warmup Iteration   1: 367.825 ms/op
+Iteration   1: 418.813 ms/op
+Iteration   2: 391.666 ms/op
+Iteration   3: 369.058 ms/op
+
+
+Result "me.ahoo.wow.benchmark.infrastructure.SnapshotElementsAggregationBenchmark.aggregate":
+  393.179 ±(99.9%) 454.487 ms/op [Average]
+  (min, avg, max) = (369.058, 393.179, 418.813), stdev = 24.912
+  CI (99.9%): [≈ 0, 847.666] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 17.0.7, OpenJDK 64-Bit Server VM, 17.0.7+7-LTS
+# VM invoker: /Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java
+# VM options: -Dfile.encoding=UTF-8 -Duser.country=CN -Duser.language=zh -Duser.variant
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 1 iterations, 10 s each
+# Measurement: 3 iterations, 10 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: me.ahoo.wow.benchmark.infrastructure.SnapshotElementsAggregationBenchmark.aggregate
+# Parameters: (backend = mongo, scenario = single-high)
+
+# Run progress: 28.57% complete, ETA 00:03:37
+# Fork: 1 of 1
+# Warmup Iteration   1: 1449.433 ms/op
+Iteration   1: 1378.888 ms/op
+Iteration   2: 1392.903 ms/op
+Iteration   3: 1405.397 ms/op
+
+
+Result "me.ahoo.wow.benchmark.infrastructure.SnapshotElementsAggregationBenchmark.aggregate":
+  1392.396 ±(99.9%) 241.947 ms/op [Average]
+  (min, avg, max) = (1378.888, 1392.396, 1405.397), stdev = 13.262
+  CI (99.9%): [1150.449, 1634.343] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 17.0.7, OpenJDK 64-Bit Server VM, 17.0.7+7-LTS
+# VM invoker: /Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java
+# VM options: -Dfile.encoding=UTF-8 -Duser.country=CN -Duser.language=zh -Duser.variant
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 1 iterations, 10 s each
+# Measurement: 3 iterations, 10 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: me.ahoo.wow.benchmark.infrastructure.SnapshotElementsAggregationBenchmark.aggregate
+# Parameters: (backend = mongo, scenario = three-low)
+
+# Run progress: 42.86% complete, ETA 00:02:58
+# Fork: 1 of 1
+# Warmup Iteration   1: 594.329 ms/op
+Iteration   1: 602.919 ms/op
+Iteration   2: 578.148 ms/op
+Iteration   3: 590.155 ms/op
+
+
+Result "me.ahoo.wow.benchmark.infrastructure.SnapshotElementsAggregationBenchmark.aggregate":
+  590.408 ±(99.9%) 225.990 ms/op [Average]
+  (min, avg, max) = (578.148, 590.408, 602.919), stdev = 12.387
+  CI (99.9%): [364.418, 816.398] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 17.0.7, OpenJDK 64-Bit Server VM, 17.0.7+7-LTS
+# VM invoker: /Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java
+# VM options: -Dfile.encoding=UTF-8 -Duser.country=CN -Duser.language=zh -Duser.variant
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 1 iterations, 10 s each
+# Measurement: 3 iterations, 10 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: me.ahoo.wow.benchmark.infrastructure.SnapshotElementsAggregationBenchmark.aggregate
+# Parameters: (backend = mongo, scenario = three-high)
+
+# Run progress: 57.14% complete, ETA 00:02:13
+# Fork: 1 of 1
+# Warmup Iteration   1: 1563.010 ms/op
+Iteration   1: 1520.976 ms/op
+Iteration   2: 1653.918 ms/op
+Iteration   3: 1740.730 ms/op
+
+
+Result "me.ahoo.wow.benchmark.infrastructure.SnapshotElementsAggregationBenchmark.aggregate":
+  1638.541 ±(99.9%) 2019.229 ms/op [Average]
+  (min, avg, max) = (1520.976, 1638.541, 1740.730), stdev = 110.681
+  CI (99.9%): [≈ 0, 3657.771] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 17.0.7, OpenJDK 64-Bit Server VM, 17.0.7+7-LTS
+# VM invoker: /Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java
+# VM options: -Dfile.encoding=UTF-8 -Duser.country=CN -Duser.language=zh -Duser.variant
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 1 iterations, 10 s each
+# Measurement: 3 iterations, 10 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: me.ahoo.wow.benchmark.infrastructure.SnapshotElementsAggregationBenchmark.aggregate
+# Parameters: (backend = mongo, scenario = single-metric)
+
+# Run progress: 71.43% complete, ETA 00:01:29
+# Fork: 1 of 1
+# Warmup Iteration   1: 1730.448 ms/op
+Iteration   1: 1696.425 ms/op
+Iteration   2: 1577.097 ms/op
+Iteration   3: 1565.940 ms/op
+
+
+Result "me.ahoo.wow.benchmark.infrastructure.SnapshotElementsAggregationBenchmark.aggregate":
+  1613.154 ±(99.9%) 1319.578 ms/op [Average]
+  (min, avg, max) = (1565.940, 1613.154, 1696.425), stdev = 72.331
+  CI (99.9%): [293.576, 2932.732] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 17.0.7, OpenJDK 64-Bit Server VM, 17.0.7+7-LTS
+# VM invoker: /Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java
+# VM options: -Dfile.encoding=UTF-8 -Duser.country=CN -Duser.language=zh -Duser.variant
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 1 iterations, 10 s each
+# Measurement: 3 iterations, 10 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: me.ahoo.wow.benchmark.infrastructure.SnapshotElementsAggregationBenchmark.aggregate
+# Parameters: (backend = mongo, scenario = three-metric)
+
+# Run progress: 85.71% complete, ETA 00:00:45
+# Fork: 1 of 1
+# Warmup Iteration   1: 1994.497 ms/op
+Iteration   1: 1815.131 ms/op
+Iteration   2: 1838.212 ms/op
+Iteration   3: 1853.123 ms/op
+
+
+Result "me.ahoo.wow.benchmark.infrastructure.SnapshotElementsAggregationBenchmark.aggregate":
+  1835.488 ±(99.9%) 349.219 ms/op [Average]
+  (min, avg, max) = (1815.131, 1835.488, 1853.123), stdev = 19.142
+  CI (99.9%): [1486.269, 2184.708] (assumes normal distribution)
+
+
+# Run complete. Total time: 00:05:18
+
+REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on
+why the numbers are the way they are. Use profilers (see -prof, -lprof), design factorial
+experiments, perform baseline and negative tests that provide experimental control, make sure
+the benchmarking environment is safe on JVM/OS/HW level, ask for reviews from the domain experts.
+Do not assume the numbers tell you what you want them to tell.
+
+NOTE: Current JVM experimentally supports Compiler Blackholes, and they are in use. Please exercise
+extra caution when trusting the results, look into the generated code to check the benchmark still
+works, and factor in a small probability of new VM bugs. Additionally, while comparisons between
+different JVMs are already problematic, the performance difference caused by different Blackhole
+modes can be very significant. Please make sure you use the consistent Blackhole mode for comparisons.
+
+Benchmark                                       (backend)     (scenario)  Mode  Cnt     Score      Error  Units
+SnapshotElementsAggregationBenchmark.aggregate      mongo           root  avgt    3    10.245 ±    1.466  ms/op
+SnapshotElementsAggregationBenchmark.aggregate      mongo     single-low  avgt    3   393.179 ±  454.487  ms/op
+SnapshotElementsAggregationBenchmark.aggregate      mongo    single-high  avgt    3  1392.396 ±  241.947  ms/op
+SnapshotElementsAggregationBenchmark.aggregate      mongo      three-low  avgt    3   590.408 ±  225.990  ms/op
+SnapshotElementsAggregationBenchmark.aggregate      mongo     three-high  avgt    3  1638.541 ± 2019.229  ms/op
+SnapshotElementsAggregationBenchmark.aggregate      mongo  single-metric  avgt    3  1613.154 ± 1319.578  ms/op
+SnapshotElementsAggregationBenchmark.aggregate      mongo   three-metric  avgt    3  1835.488 ±  349.219  ms/op
+
+Benchmark result is saved to /Users/ahoo/.codex/worktrees/487f/Wow/wow-benchmarks/results/reports/snapshot-elements-mongo.json

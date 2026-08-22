@@ -45,6 +45,9 @@ enum class ElasticsearchFieldUsage {
     RANGE,
     SEARCH,
     SORT,
+    TERMS,
+    NUMERIC,
+    DATE,
 }
 
 class ElasticsearchFieldResolutionException(message: String) : IllegalArgumentException(message)
@@ -273,6 +276,9 @@ private data class ElasticsearchMappedField(
     val multiFields: Set<String>,
 ) {
     fun supports(usage: ElasticsearchFieldUsage): Boolean =
+        if (usage in AGGREGATION_USAGES) supportsAggregation(usage) else supportsQuery(usage)
+
+    private fun supportsQuery(usage: ElasticsearchFieldUsage): Boolean =
         when (usage) {
             ElasticsearchFieldUsage.EXACT -> isQueryable() && kind in EXACT_KINDS
             ElasticsearchFieldUsage.LITERAL -> indexed && kind in LITERAL_KINDS
@@ -280,11 +286,26 @@ private data class ElasticsearchMappedField(
             ElasticsearchFieldUsage.SEARCH -> indexed && kind in SEARCH_KINDS
             ElasticsearchFieldUsage.SORT ->
                 sortable && (kind in EXACT_KINDS || (indexed && kind == Property.Kind.Text))
+
+            else -> error("Unsupported query field usage: $usage")
+        }
+
+    private fun supportsAggregation(usage: ElasticsearchFieldUsage): Boolean =
+        when (usage) {
+            ElasticsearchFieldUsage.TERMS -> sortable && kind in TERMS_AGGREGATION_KINDS
+            ElasticsearchFieldUsage.NUMERIC -> sortable && kind in NUMERIC_KINDS
+            ElasticsearchFieldUsage.DATE -> sortable && kind in DATE_KINDS
+            else -> error("Unsupported aggregation field usage: $usage")
         }
 
     private fun isQueryable(): Boolean = indexed || (sortable && kind in DOC_VALUE_QUERY_KINDS)
 
     companion object {
+        private val AGGREGATION_USAGES = setOf(
+            ElasticsearchFieldUsage.TERMS,
+            ElasticsearchFieldUsage.NUMERIC,
+            ElasticsearchFieldUsage.DATE,
+        )
         private val NUMERIC_KINDS = setOf(
             Property.Kind.Byte,
             Property.Kind.Short,
@@ -304,6 +325,12 @@ private data class ElasticsearchMappedField(
             Property.Kind.IcuCollationKeyword,
         )
         private val TERM_KINDS = KEYWORD_KINDS + Property.Kind.Wildcard
+        private val DATE_KINDS = setOf(Property.Kind.Date, Property.Kind.DateNanos)
+        private val TERMS_AGGREGATION_KINDS = NUMERIC_KINDS + TERM_KINDS + setOf(
+            Property.Kind.Boolean,
+            Property.Kind.Ip,
+            Property.Kind.Version,
+        )
         private val RANGE_FIELD_KINDS = setOf(
             Property.Kind.IntegerRange,
             Property.Kind.FloatRange,

@@ -85,13 +85,15 @@ data class CreateOrder(/* ... */)
 | `global-error.enabled` | `Boolean` | `true` | 是否安装全局异常处理器，将错误映射为统一的 `ErrorInfo` 响应 |
 | `batch.concurrency` | `Int` | `1` | 单次批量执行中并发处理的最大请求数 |
 | `batch.prefetch` | `Int` | `1` | 批量请求处理的预取窗口 |
-| `query.max-list-size` | `Int` | `1000` | HTTP 列表查询允许的最大正数 limit；`0` 关闭上限并恢复 `limit=0` 全量查询 |
+| `query.max-list-size` | `Int` | `1000` | HTTP 列表查询 limit 及有分组快照聚合结果行上限；`0` 关闭 HTTP 上限，列表恢复 `limit=0`，聚合仍受公共 10,000 硬上限 |
 | `query.max-page-size` | `Int` | `100` | HTTP 分页查询的最大页大小；`0` 关闭上限 |
 | `query.max-page-window` | `Long` | `10000` | HTTP 分页查询允许的最大 `index * size`；`0` 关闭上限 |
 | `query.max-condition-nodes` | `Int` | `64` | HTTP 查询条件树的最大节点数；`0` 关闭上限 |
 | `query.max-condition-values` | `Int` | `1000` | HTTP `IN`、`NOT_IN`、`ALL_IN`、`IDS`、`AGGREGATE_IDS` 条件的最大值数量；`0` 关闭上限 |
+| `query.max-aggregation-elements` | `Int` | `3` | HTTP 快照聚合 Elements 展开层数上限；`0` 关闭 HTTP 上限，公共硬上限 5 仍生效 |
+| `query.max-aggregation-metrics` | `Int` | `32` | HTTP 单次快照聚合指标数量上限；`0` 关闭 HTTP 上限，公共硬上限 64 仍生效 |
 | `query.allow-raw` | `Boolean` | `false` | 是否允许 HTTP 查询使用 `RAW` 原生条件 |
-| `query.allow-expensive-operators` | `Boolean` | `false` | 是否允许 HTTP 查询使用负向/存在性/高成本字符串操作符及无过滤 count/paged 查询 |
+| `query.allow-expensive-operators` | `Boolean` | `false` | 是否允许 HTTP 查询使用负向/存在性/高成本字符串操作符、无过滤 count/paged/aggregation、Elements 展开及指标排序 |
 | `query.idle-timeout` | `Duration` | `10s` | 等待下一条结果或完成的最长时间；普通 JSON 数组在提交响应前缓冲，SSE 保持流式；`0s` 关闭超时 |
 
 ```yaml
@@ -109,6 +111,8 @@ wow:
       max-page-window: 10000
       max-condition-nodes: 64
       max-condition-values: 1000
+      max-aggregation-elements: 3
+      max-aggregation-metrics: 32
       allow-raw: false
       allow-expensive-operators: false
       idle-timeout: 10s
@@ -116,6 +120,7 @@ wow:
 
 使用 `wow-spring-boot-starter` 时，WebFlux 作为 `webflux-support` 特性能力包含在内。全局异常处理器默认启用；仅当你提供自己的 `WebExceptionHandler` 时才需关闭。
 Reactor Context 通过 `writeRawRequest(request)` 携带 WebFlux `ServerRequest` 时都会启用护栏，包括内置路由和自定义 HTTP Handler；程序内注入的查询服务和非 WebFlux 请求上下文保持原行为。升级后如需临时恢复旧 HTTP 行为，可将数值限制和 `idle-timeout` 设为 `0`，并启用两个 `allow-*` 开关。
+快照聚合的完整 HTTP 请求、成本分类和错误语义参见[快照 Elements 聚合](../query.md#快照-elements-聚合)。
 
 ## 等待计划集成
 

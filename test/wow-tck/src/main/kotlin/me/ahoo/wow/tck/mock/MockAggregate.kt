@@ -22,6 +22,7 @@ import me.ahoo.wow.api.command.validation.CommandValidator
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregateAware
+import java.time.Instant
 
 val MOCK_AGGREGATE_METADATA = aggregateMetadata<MockCommandAggregate, MockStateAggregate>()
 
@@ -39,6 +40,20 @@ data class MockChangeAggregate(val id: String, val data: String)
 
 data class MockAggregateCreated(val data: String)
 data class MockAggregateChanged(val data: String)
+
+data class MockOrder(
+    val status: String,
+    val amount: Double,
+    val lines: List<MockOrderLine>,
+)
+
+data class MockOrderLine(
+    val sku: String,
+    val rank: Int,
+    val amount: Double,
+    val cancelled: Boolean,
+    val createdAt: Instant,
+)
 
 @VoidCommand
 data class MockVoidCommand(val data: String)
@@ -64,6 +79,8 @@ class MockCommandAggregate(val state: MockStateAggregate) {
 data class MockStateAggregate(val id: String) : ReadOnlyStateAggregateAware<MockStateAggregate> {
     var data: String = ""
         private set
+
+    var orders: List<MockOrder> = emptyList()
 
     @field:JsonIgnore
     private var readOnlyStateAggregate: ReadOnlyStateAggregate<MockStateAggregate>? = null

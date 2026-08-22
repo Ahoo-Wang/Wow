@@ -30,6 +30,7 @@ import me.ahoo.wow.webflux.route.snapshot.PagedQuerySnapshotHandlerFunctionFacto
 import me.ahoo.wow.webflux.route.snapshot.PagedQuerySnapshotStateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.SingleSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.SingleSnapshotStateHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.snapshot.SnapshotAggregationHandlerFunctionFactory
 
 class QueryRouteModule(
     snapshotQueryHandler: SnapshotQueryHandler,
@@ -38,6 +39,11 @@ class QueryRouteModule(
     exceptionHandler: RequestExceptionHandler
 ) : WebFluxRouteModule {
     override val httpFactories: List<HttpRouteHandlerFunctionFactory> = listOf(
+        SnapshotAggregationHandlerFunctionFactory(
+            snapshotQueryHandler = snapshotQueryHandler,
+            rewriteRequestCondition = rewriteRequestCondition,
+            exceptionHandler = exceptionHandler
+        ),
         LoadSnapshotHandlerFunctionFactory(
             snapshotQueryHandler = snapshotQueryHandler,
             exceptionHandler = exceptionHandler

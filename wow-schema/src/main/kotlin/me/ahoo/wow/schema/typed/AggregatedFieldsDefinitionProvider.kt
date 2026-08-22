@@ -18,17 +18,30 @@ import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.CustomDefinitionProviderV2
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import com.github.victools.jsonschema.generator.SchemaKeyword
+import me.ahoo.wow.modeling.annotation.aggregateMetadata
+import me.ahoo.wow.query.AggregationFieldCatalog
 import me.ahoo.wow.schema.AggregatedFieldPaths.commandAggregatedFieldPaths
 import me.ahoo.wow.schema.JsonSchema.Companion.toPropertyName
 
 object AggregatedFieldsDefinitionProvider : CustomDefinitionProviderV2 {
     private val type: Class<*> = AggregatedFields::class.java
+    private val aggregationTermsFieldsType: Class<*> = SnapshotAggregationTermsFields::class.java
+    private val aggregationNumericFieldsType: Class<*> = SnapshotAggregationNumericFields::class.java
+    private val aggregationTemporalFieldsType: Class<*> = SnapshotAggregationTemporalFields::class.java
+    private val aggregationElementsType: Class<*> = SnapshotAggregationElements::class.java
+    private val aggregationTypes = setOf(
+        aggregationTermsFieldsType,
+        aggregationNumericFieldsType,
+        aggregationTemporalFieldsType,
+        aggregationElementsType,
+    )
+    private val supportedTypes = aggregationTypes + type
 
     override fun provideCustomSchemaDefinition(
         javaType: ResolvedType,
         context: SchemaGenerationContext
     ): CustomDefinition? {
-        if (!javaType.isInstanceOf(type)) {
+        if (supportedTypes.none { javaType.isInstanceOf(it) }) {
             return null
         }
 
@@ -42,9 +55,22 @@ object AggregatedFieldsDefinitionProvider : CustomDefinitionProviderV2 {
         if (commandAggregateType == Any::class.java) {
             return CustomDefinition(rootNode)
         }
-        val enumValues = commandAggregateType.kotlin.commandAggregatedFieldPaths()
+        val enumValues = javaType.aggregationPaths(commandAggregateType)
+            ?: commandAggregateType.kotlin.commandAggregatedFieldPaths()
         rootNode.putPOJO(SchemaKeyword.TAG_ENUM.toPropertyName(schemaVersion), enumValues)
 
         return CustomDefinition(rootNode)
+    }
+
+    private fun ResolvedType.aggregationPaths(commandAggregateType: Class<*>): Set<String>? {
+        if (aggregationTypes.none { isInstanceOf(it) }) return null
+        val stateType = commandAggregateType.aggregateMetadata<Any, Any>().state.aggregateType
+        val catalog = AggregationFieldCatalog.scan(stateType)
+        return when {
+            isInstanceOf(aggregationElementsType) -> catalog.elementPaths
+            isInstanceOf(aggregationTermsFieldsType) -> catalog.termsPaths
+            isInstanceOf(aggregationNumericFieldsType) -> catalog.numericPaths
+            else -> catalog.temporalPaths
+        }
     }
 }

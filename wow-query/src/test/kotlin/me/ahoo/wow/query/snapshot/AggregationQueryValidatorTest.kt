@@ -1,0 +1,168 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.query.snapshot
+
+import me.ahoo.wow.api.query.AggregationDateUnit
+import me.ahoo.wow.api.query.AggregationElement
+import me.ahoo.wow.api.query.AggregationExpression
+import me.ahoo.wow.api.query.AggregationFunction
+import me.ahoo.wow.api.query.AggregationGroup
+import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.modeling.annotation.stateAggregateMetadata
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import java.time.Instant
+
+class AggregationQueryValidatorTest {
+    private val namedAggregate = AggregateMetadata(
+        namedAggregate = MOCK_AGGREGATE_METADATA.namedAggregate,
+        staticTenantId = MOCK_AGGREGATE_METADATA.staticTenantId,
+        state = TestState::class.java.stateAggregateMetadata(),
+        command = MOCK_AGGREGATE_METADATA.command,
+    )
+
+    @Test
+    fun `should validate root and recursive elements aggregation`() {
+        AggregationQuery(
+            groupBy = listOf(
+                AggregationGroup.Terms("state.status", "status"),
+                AggregationGroup.Histogram("state.amount", "band", 10.0),
+                AggregationGroup.DateHistogram("state.createdAt", "day", AggregationDateUnit.DAY),
+            ),
+            metrics = listOf(numeric("state.amount"), AggregationMetric.Count("count")),
+        ).validate(namedAggregate)
+
+        AggregationQuery(
+            elements = listOf(
+                AggregationElement("state.orders", Condition.eq("state.orders.status", "PAID")),
+                AggregationElement("state.orders.lines", Condition.eq("state.orders.lines.cancelled", false)),
+            ),
+            groupBy = listOf(AggregationGroup.Terms("state.orders.lines.sku", "sku")),
+            metrics = listOf(numeric("state.orders.lines.amount"), AggregationMetric.Count("count")),
+        ).validate(namedAggregate)
+    }
+
+    @Test
+    fun `should reject invalid element chains and collections`() {
+        listOf(
+            listOf(AggregationElement("state.tags")),
+            listOf(AggregationElement("state.attributes")),
+            listOf(AggregationElement("state.objects")),
+            listOf(AggregationElement("state.orders.lines")),
+            listOf(AggregationElement("state.orders"), AggregationElement("state.items")),
+        ).forEach { elements ->
+            assertThrows<IllegalArgumentException> {
+                AggregationQuery(elements = elements, metrics = listOf(AggregationMetric.Count("count")))
+                    .validate(namedAggregate)
+            }
+        }
+    }
+
+    @Test
+    fun `should keep element conditions inside their own row scope`() {
+        listOf(
+            Condition.eq("state.status", "PAID"),
+            Condition.eq("state.orders.lines.sku", "sku"),
+            Condition.eq("state.orders.tags", "tag"),
+            Condition.elemMatch("state.orders.lines", Condition.eq("state.orders.lines.sku", "sku")),
+            Condition.raw("{}"),
+        ).forEach { condition ->
+            assertThrows<IllegalArgumentException> {
+                AggregationQuery(
+                    elements = listOf(AggregationElement("state.orders", condition)),
+                    metrics = listOf(AggregationMetric.Count("count")),
+                ).validate(namedAggregate)
+            }
+        }
+    }
+
+    @Test
+    fun `should require fields from innermost source with portable types`() {
+        val invalid = listOf(
+            AggregationQuery(
+                elements = listOf(AggregationElement("state.orders")),
+                groupBy = listOf(AggregationGroup.Terms("state.status", "status")),
+                metrics = listOf(AggregationMetric.Count("count")),
+            ),
+            AggregationQuery(
+                elements = listOf(AggregationElement("state.orders")),
+                groupBy = listOf(AggregationGroup.Terms("state.orders.lines.sku", "sku")),
+                metrics = listOf(AggregationMetric.Count("count")),
+            ),
+            AggregationQuery(
+                groupBy = listOf(AggregationGroup.Terms("state.createdAt", "time")),
+                metrics = listOf(AggregationMetric.Count("count")),
+            ),
+            AggregationQuery(
+                groupBy = listOf(AggregationGroup.Histogram("state.status", "band", 1.0)),
+                metrics = listOf(AggregationMetric.Count("count")),
+            ),
+            AggregationQuery(
+                groupBy = listOf(AggregationGroup.DateHistogram("state.status", "day", AggregationDateUnit.DAY)),
+                metrics = listOf(AggregationMetric.Count("count")),
+            ),
+            AggregationQuery(
+                groupBy = listOf(AggregationGroup.Terms("state.orders.status", "status")),
+                metrics = listOf(AggregationMetric.Count("count")),
+            ),
+            AggregationQuery(
+                elements = listOf(AggregationElement("state.orders")),
+                groupBy = listOf(AggregationGroup.Terms("state.orders.shipping", "shipping")),
+                metrics = listOf(AggregationMetric.Count("count")),
+            ),
+            AggregationQuery(
+                metrics = listOf(numeric("state.status")),
+            ),
+        )
+        invalid.forEach { query -> assertThrows<IllegalArgumentException> { query.validate(namedAggregate) } }
+    }
+
+    private fun numeric(field: String) = AggregationMetric.Numeric(
+        AggregationFunction.SUM,
+        AggregationExpression.Field(field),
+        "amount",
+    )
+
+    private class TestState(val id: String) {
+        val status: String = ""
+        val amount: Double = 0.0
+        val createdAt: Instant = Instant.EPOCH
+        val orders: List<Order> = emptyList()
+        val items: List<Item> = emptyList()
+        val tags: List<String> = emptyList()
+        val attributes: Map<String, String> = emptyMap()
+        val objects: List<Any> = emptyList()
+    }
+
+    private data class Order(
+        val status: String,
+        val amount: Double,
+        val lines: List<Line>,
+        val tags: List<String> = emptyList(),
+        val shipping: Shipping = Shipping(""),
+    )
+
+    private data class Line(
+        val sku: String,
+        val amount: Double,
+        val cancelled: Boolean,
+    )
+
+    private data class Item(val sku: String)
+    private data class Shipping(val address: String)
+}

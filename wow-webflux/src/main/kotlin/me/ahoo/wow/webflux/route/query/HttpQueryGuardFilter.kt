@@ -15,9 +15,11 @@ package me.ahoo.wow.webflux.route.query
 
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.Order
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.ConditionCapable
 import me.ahoo.wow.api.query.DeletionState
+import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.Operator
@@ -25,6 +27,7 @@ import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.query.filter.Contexts.getRawRequest
+import me.ahoo.wow.query.filter.Contexts.getUserQuery
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
@@ -47,6 +50,8 @@ class HttpQueryGuardFilter(
     private val allowRaw: Boolean = false,
     private val allowExpensiveOperators: Boolean = false,
     private val idleTimeout: Duration = Duration.ofSeconds(10),
+    private val maxAggregationElements: Int = 3,
+    private val maxAggregationMetrics: Int = 32,
 ) : QueryFilter<QueryContext<*, *>> {
 
     init {
@@ -55,6 +60,12 @@ class HttpQueryGuardFilter(
         require(maxPageWindow >= 0) { "maxPageWindow must be greater than or equal to 0." }
         require(maxConditionNodes >= 0) { "maxConditionNodes must be greater than or equal to 0." }
         require(maxConditionValues >= 0) { "maxConditionValues must be greater than or equal to 0." }
+        require(maxAggregationElements in 0..AggregationQuery.MAX_ELEMENTS) {
+            "maxAggregationElements must be between 0 and ${AggregationQuery.MAX_ELEMENTS}."
+        }
+        require(maxAggregationMetrics in 0..AggregationQuery.MAX_METRICS) {
+            "maxAggregationMetrics must be between 0 and ${AggregationQuery.MAX_METRICS}."
+        }
         require(!idleTimeout.isNegative) { "idleTimeout must be greater than or equal to 0." }
     }
 
@@ -66,7 +77,7 @@ class HttpQueryGuardFilter(
         if (request == null) {
             return@deferContextual next.filter(context)
         }
-        validate(context.queryType, context.getQuery())
+        validate(context.queryType, contextView.getUserQuery<Any>() ?: context.getQuery())
         val downstream = next.filter(context)
         val guardedDownstream = if (idleTimeout.isZero) downstream else downstream.timeout(idleTimeout)
         guardedDownstream.doOnSuccess {
@@ -78,22 +89,54 @@ class HttpQueryGuardFilter(
         when (query) {
             is IListQuery -> validateList(query)
             is IPagedQuery -> validatePage(query)
+            is AggregationQuery -> validateAggregation(query)
         }
         val condition = when (query) {
             is Condition -> query
             is ConditionCapable<*> -> query.condition
             else -> return
         }
-        validateCondition(
-            condition = condition,
-            rejectMatchAll = !allowExpensiveOperators && queryType in COUNTING_QUERY_TYPES,
-        )
+        val conditions = if (query is AggregationQuery) {
+            listOf(condition) + query.elements.map { it.condition }
+        } else {
+            listOf(condition)
+        }
+        validateConditions(conditions)
+        require(allowExpensiveOperators || queryType !in COUNTING_QUERY_TYPES || !condition.isMatchAll()) {
+            "HTTP counting query must not match all documents."
+        }
+    }
+
+    private fun validateAggregation(query: AggregationQuery) {
+        if (query.groupBy.isNotEmpty()) {
+            validateResultSize(query.limit, "aggregation")
+        }
+        require(maxAggregationElements == 0 || query.elements.size <= maxAggregationElements) {
+            "HTTP aggregation elements[${query.elements.size}] must not exceed $maxAggregationElements."
+        }
+        require(maxAggregationMetrics == 0 || query.metrics.size <= maxAggregationMetrics) {
+            "HTTP aggregation metrics[${query.metrics.size}] must not exceed $maxAggregationMetrics."
+        }
+        require(allowExpensiveOperators || query.elements.isEmpty()) {
+            "HTTP aggregation elements are disabled because expensive operators are not allowed."
+        }
+        val metricAliases = query.metrics.mapTo(hashSetOf()) { it.alias }
+        require(allowExpensiveOperators || query.sort.none { it.field in metricAliases }) {
+            "HTTP aggregation metric sort is disabled because expensive operators are not allowed."
+        }
     }
 
     private fun validateList(query: IListQuery) {
         val minimum = if (maxListSize == 0) 0 else 1
         require(query.limit >= minimum && (maxListSize == 0 || query.limit <= maxListSize)) {
             "HTTP list query limit[${query.limit}] must be between $minimum and $maxListSize."
+        }
+    }
+
+    private fun validateResultSize(limit: Int, queryName: String) {
+        val maximum = if (maxListSize == 0) AggregationQuery.MAX_LIMIT else maxListSize
+        require(limit in 1..maximum) {
+            "HTTP $queryName query limit[$limit] must be between 1 and $maximum."
         }
     }
 
@@ -113,9 +156,9 @@ class HttpQueryGuardFilter(
         }
     }
 
-    private fun validateCondition(condition: Condition, rejectMatchAll: Boolean) {
+    private fun validateConditions(conditions: List<Condition>) {
         val pending = ArrayDeque<Condition>()
-        pending.add(condition)
+        pending.addAll(conditions)
         var nodes = 0
         while (pending.isNotEmpty()) {
             val current = pending.removeLast()
@@ -125,9 +168,6 @@ class HttpQueryGuardFilter(
             }
             validateConditionNode(current)
             pending.addAll(current.children)
-        }
-        require(!rejectMatchAll || !condition.isMatchAll()) {
-            "HTTP counting query must not match all documents."
         }
     }
 
@@ -189,6 +229,16 @@ class HttpQueryGuardFilter(
                 context.asPagedQuery<Any>().rewriteResult { it.timeout(idleTimeout) }
 
             QueryType.COUNT -> context.asCountQuery().rewriteResult { it.timeout(idleTimeout) }
+
+            QueryType.AGGREGATION -> context.asAggregationQuery().rewriteResult {
+                if (request.acceptsEventStream()) {
+                    it.timeout(idleTimeout)
+                } else {
+                    it.timeout(idleTimeout)
+                        .collectList()
+                        .flatMapMany(Flux<DynamicDocument>::fromIterable)
+                }
+            }
         }
     }
 
@@ -202,7 +252,12 @@ class HttpQueryGuardFilter(
             Operator.CONTAINS,
             Operator.ENDS_WITH,
         )
-        val COUNTING_QUERY_TYPES = setOf(QueryType.PAGED, QueryType.DYNAMIC_PAGED, QueryType.COUNT)
+        val COUNTING_QUERY_TYPES = setOf(
+            QueryType.PAGED,
+            QueryType.DYNAMIC_PAGED,
+            QueryType.COUNT,
+            QueryType.AGGREGATION,
+        )
         val COLLECTION_OPERATORS = setOf(
             Operator.IN,
             Operator.NOT_IN,

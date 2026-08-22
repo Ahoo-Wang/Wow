@@ -136,6 +136,8 @@ class ElasticsearchIndexMappingResolverTest {
         mapping.resolve("state.name", ElasticsearchFieldUsage.LITERAL).assert().isEqualTo("state.name.keyword")
         mapping.resolve("state.name", ElasticsearchFieldUsage.SEARCH).assert().isEqualTo("state.name")
         mapping.resolve("state.name", ElasticsearchFieldUsage.SORT).assert().isEqualTo("state.name.keyword")
+        mapping.resolve("state.name", ElasticsearchFieldUsage.TERMS).assert().isEqualTo("state.name.keyword")
+        mapping.resolve("state.age", ElasticsearchFieldUsage.NUMERIC).assert().isEqualTo("state.age")
         mapping.requireNested("state.items").assert().isEqualTo("state.items")
 
         val condition = mapping.resolve(
@@ -244,6 +246,10 @@ class ElasticsearchIndexMappingResolverTest {
     @Test
     fun `should honor index and doc values capabilities across mapped field types`() {
         val mapping = ElasticsearchIndexMapping.from(INDEX, indexedFieldVariants())
+        mapping.resolve("dateTrue", ElasticsearchFieldUsage.DATE).assert().isEqualTo("dateTrue")
+        mapping.resolve("dateNanosTrue", ElasticsearchFieldUsage.DATE).assert().isEqualTo("dateNanosTrue")
+        runCatching { mapping.resolve("integerTrue", ElasticsearchFieldUsage.DATE) }
+            .exceptionOrNull()!!.message.assert().contains("does not support")
         val docValueUsages = mapOf(
             "boolean" to ElasticsearchFieldUsage.EXACT,
             "countedKeyword" to ElasticsearchFieldUsage.EXACT,

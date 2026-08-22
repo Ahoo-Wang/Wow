@@ -14,6 +14,11 @@
 package me.ahoo.wow.query.snapshot
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationExpression
+import me.ahoo.wow.api.query.AggregationFunction
+import me.ahoo.wow.api.query.AggregationGroup
+import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.listQuery
@@ -114,5 +119,39 @@ class NoOpSnapshotQueryServiceTest {
             .test()
             .expectNext(0L)
             .verifyComplete()
+    }
+
+    @Test
+    fun `should preserve aggregation empty set semantics`() {
+        queryService.aggregate(
+            AggregationQuery(
+                metrics = listOf(
+                    AggregationMetric.Count("count"),
+                    AggregationMetric.Numeric(
+                        AggregationFunction.SUM,
+                        AggregationExpression.Field("version"),
+                        "sum",
+                    ),
+                    AggregationMetric.Numeric(
+                        AggregationFunction.MAX,
+                        AggregationExpression.Field("version"),
+                        "max",
+                    ),
+                ),
+            ),
+        ).test()
+            .assertNext { row ->
+                row.getValue<Long>("count").assert().isZero()
+                row.getValue<Double>("sum").assert().isEqualTo(0.0)
+                row["max"].assert().isNull()
+            }
+            .verifyComplete()
+
+        queryService.aggregate(
+            AggregationQuery(
+                groupBy = listOf(AggregationGroup.Terms("aggregateId", "aggregateId")),
+                metrics = listOf(AggregationMetric.Count("count")),
+            ),
+        ).test().verifyComplete()
     }
 }

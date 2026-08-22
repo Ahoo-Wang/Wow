@@ -16,7 +16,10 @@ package me.ahoo.wow.elasticsearch.query.snapshot
 import co.elastic.clients.elasticsearch._types.Refresh
 import co.elastic.clients.elasticsearch._types.mapping.RuntimeFieldType
 import co.elastic.clients.elasticsearch.core.UpdateRequest
+import co.elastic.clients.elasticsearch.core.SearchRequest
+import co.elastic.clients.elasticsearch._types.aggregations.Aggregation
 import co.elastic.clients.elasticsearch.indices.PutMappingRequest
+import co.elastic.clients.elasticsearch.indices.CreateIndexRequest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.ListQuery
@@ -42,6 +45,7 @@ import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchCl
 import reactor.kotlin.test.test
 
 class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
+    override val rootElementStatusField: String = "state.orders.status"
     @JvmField
     @RegisterExtension
     val elasticsearch = ElasticsearchTestFixture()
@@ -61,6 +65,49 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
 
     override fun createSnapshotStore(): SnapshotStore {
         return ElasticsearchSnapshotStore(elasticsearchClient)
+    }
+
+    override fun prepareAggregationStorage() {
+        elasticsearchClient.indices().create(
+            CreateIndexRequest.of { request ->
+                request.index(MOCK_AGGREGATE_METADATA.toSnapshotIndexName())
+                    .mappings { mapping ->
+                        mapping.properties("state") { state ->
+                            state.`object` { objectField ->
+                                objectField.properties("orders") { orders ->
+                                    orders.nested { nested ->
+                                        nested.properties("lines") { lines ->
+                                            lines.nested { line ->
+                                                line.properties("createdAt") { createdAt ->
+                                                    createdAt.date { date -> date }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+            },
+        ).block()
+    }
+
+    @Test
+    fun `nested mapping should index aggregation elements`() {
+        val response = elasticsearchClient.search(
+            SearchRequest.of { request ->
+                request.index(MOCK_AGGREGATE_METADATA.toSnapshotIndexName())
+                    .size(0)
+                    .aggregations(
+                        "orders",
+                        Aggregation.of { aggregation ->
+                            aggregation.nested { nested -> nested.path("state.orders") }
+                        },
+                    )
+            },
+            Map::class.java,
+        ).block()!!
+        response.aggregations()["orders"]!!.nested().docCount().assert().isEqualTo(3L)
     }
 
     @Test

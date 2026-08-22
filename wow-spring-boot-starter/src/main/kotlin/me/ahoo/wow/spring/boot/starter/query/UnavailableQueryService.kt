@@ -14,6 +14,7 @@
 package me.ahoo.wow.spring.boot.starter.query
 
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.IListQuery
@@ -47,6 +48,8 @@ private class UnavailableSnapshotQueryService<S : Any>(namedAggregate: NamedAggr
     UnavailableQueryService<MaterializedSnapshot<S>>(namedAggregate),
     SnapshotQueryService<S> {
     override val name: String = "unavailable"
+
+    override fun aggregate(query: AggregationQuery): Flux<DynamicDocument> = unavailableFlux()
 }
 
 private class UnavailableEventStreamQueryService(namedAggregate: NamedAggregate) :
@@ -72,7 +75,7 @@ private abstract class UnavailableQueryService<R : Any>(
 
     private fun <T : Any> unavailableMono(): Mono<T> = Mono.error(unavailable())
 
-    private fun <T : Any> unavailableFlux(): Flux<T> = Flux.error(unavailable())
+    protected fun <T : Any> unavailableFlux(): Flux<T> = Flux.error(unavailable())
 
     private fun unavailable(): WowException = WowException(
         ErrorCodes.INTERNAL_SERVER_ERROR,

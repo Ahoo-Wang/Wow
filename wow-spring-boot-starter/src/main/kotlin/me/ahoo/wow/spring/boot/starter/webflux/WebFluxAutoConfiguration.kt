@@ -135,6 +135,8 @@ class WebFluxAutoConfiguration {
             allowRaw = query.allowRaw,
             allowExpensiveOperators = query.allowExpensiveOperators,
             idleTimeout = query.idleTimeout,
+            maxAggregationElements = query.maxAggregationElements,
+            maxAggregationMetrics = query.maxAggregationMetrics,
         )
     }
 

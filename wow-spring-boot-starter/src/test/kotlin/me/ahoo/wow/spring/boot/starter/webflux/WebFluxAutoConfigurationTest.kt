@@ -189,6 +189,8 @@ internal class WebFluxAutoConfigurationTest {
                 "${WebFluxProperties.PREFIX}.query.allow-raw=true",
                 "${WebFluxProperties.PREFIX}.query.allow-expensive-operators=true",
                 "${WebFluxProperties.PREFIX}.query.idle-timeout=5s",
+                "${WebFluxProperties.PREFIX}.query.max-aggregation-elements=2",
+                "${WebFluxProperties.PREFIX}.query.max-aggregation-metrics=16",
             )
             .withBean(CommandWaitNotifier::class.java, { mockk() })
             .withBean(CommandGateway::class.java, { SagaVerifier.defaultCommandGateway() })
@@ -225,6 +227,8 @@ internal class WebFluxAutoConfigurationTest {
                 properties.query.allowRaw.assert().isTrue()
                 properties.query.allowExpensiveOperators.assert().isTrue()
                 properties.query.idleTimeout.assert().isEqualTo(Duration.ofSeconds(5))
+                properties.query.maxAggregationElements.assert().isEqualTo(2)
+                properties.query.maxAggregationMetrics.assert().isEqualTo(16)
                 val batchExecutionPolicy = context.getBean(BatchExecutionPolicy::class.java)
                 batchExecutionPolicy.concurrency.assert().isEqualTo(4)
                 batchExecutionPolicy.prefetch.assert().isEqualTo(8)
