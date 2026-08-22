@@ -96,6 +96,53 @@ class QueryBodyExtractorTest {
     }
 
     @Test
+    fun `should accept legacy collection equality`() {
+        val handlerFunction = CountQueryHandlerFunctionFactory(
+            handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
+            queryHandler = RouteTestFixtures.snapshotQueryHandler,
+            rewriteRequestCondition = DefaultRewriteRequestCondition,
+            exceptionHandler = WebFluxRequestExceptionHandler()
+        ).create(
+            testAggregateRouteContract(
+                handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
+                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA
+            )
+        )
+
+        WebTestClient.bindToRouterFunction(route(POST("/sku/snapshot/count"), handlerFunction)).build()
+            .post()
+            .uri("/sku/snapshot/count")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("""{"field":"state.tags","operator":"EQ","value":["a","b"]}""")
+            .exchange()
+            .expectStatus().isOk
+    }
+
+    @Test
+    fun `should reject collection equality in new filter payloads`() {
+        val handlerFunction = CountQueryHandlerFunctionFactory(
+            handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
+            queryHandler = RouteTestFixtures.snapshotQueryHandler,
+            rewriteRequestCondition = DefaultRewriteRequestCondition,
+            exceptionHandler = WebFluxRequestExceptionHandler()
+        ).create(
+            testAggregateRouteContract(
+                handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
+                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA
+            )
+        )
+
+        WebTestClient.bindToRouterFunction(route(POST("/sku/snapshot/count"), handlerFunction)).build()
+            .post()
+            .uri("/sku/snapshot/count")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("""{"op":"EQ","field":"state.tags","value":["a","b"]}""")
+            .exchange()
+            .expectStatus().isBadRequest
+            .expectHeader().valueEquals(ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
+    }
+
+    @Test
     fun `should extract condition via count handler`() {
         // Test condition extraction through CountQueryHandlerFunction end-to-end
         val handlerFunction = CountQueryHandlerFunctionFactory(

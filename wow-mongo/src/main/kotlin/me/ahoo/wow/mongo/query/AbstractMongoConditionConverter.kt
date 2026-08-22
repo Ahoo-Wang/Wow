@@ -77,54 +77,54 @@ abstract class AbstractMongoConditionConverter(
     fun convert(filter: FilterExpression): Bson = internalConvert(filterNormalizer.normalize(filter))
 
     @Suppress("CyclomaticComplexMethod", "LongMethod")
-    private fun internalConvert(filter: FilterExpression): Bson = when (filter) {
+    private fun internalConvert(filter: FilterExpression, mapField: Boolean = true): Bson = when (filter) {
         MatchAllFilter -> Filters.empty()
         MatchNoneFilter -> org.bson.Document("\$expr", false)
-        is AndFilter -> Filters.and(filter.operands.map(::internalConvert))
-        is OrFilter -> Filters.or(filter.operands.map(::internalConvert))
-        is NorFilter -> Filters.nor(filter.operands.map(::internalConvert))
-        is EqualFilter -> Filters.eq(filter.field.convert(), filter.value.nativeValue())
-        is NotEqualFilter -> Filters.ne(filter.field.convert(), filter.value.nativeValue())
-        is GreaterThanFilter -> Filters.gt(filter.field.convert(), filter.value.requiredNativeValue())
-        is GreaterThanOrEqualFilter -> Filters.gte(filter.field.convert(), filter.value.requiredNativeValue())
-        is LessThanFilter -> Filters.lt(filter.field.convert(), filter.value.requiredNativeValue())
-        is LessThanOrEqualFilter -> Filters.lte(filter.field.convert(), filter.value.requiredNativeValue())
+        is AndFilter -> Filters.and(filter.operands.map { internalConvert(it, mapField) })
+        is OrFilter -> Filters.or(filter.operands.map { internalConvert(it, mapField) })
+        is NorFilter -> Filters.nor(filter.operands.map { internalConvert(it, mapField) })
+        is EqualFilter -> Filters.eq(filter.field.convert(mapField), filter.value.nativeValue())
+        is NotEqualFilter -> Filters.ne(filter.field.convert(mapField), filter.value.nativeValue())
+        is GreaterThanFilter -> Filters.gt(filter.field.convert(mapField), filter.value.requiredNativeValue())
+        is GreaterThanOrEqualFilter -> Filters.gte(filter.field.convert(mapField), filter.value.requiredNativeValue())
+        is LessThanFilter -> Filters.lt(filter.field.convert(mapField), filter.value.requiredNativeValue())
+        is LessThanOrEqualFilter -> Filters.lte(filter.field.convert(mapField), filter.value.requiredNativeValue())
         is ContainsFilter -> regex(
-            filter.field.convert(),
+            filter.field.convert(mapField),
             filter.value.escapeRegex(),
             filter.stringComparison.ignoreCase
         )
         is StartsWithFilter -> regex(
-            filter.field.convert(),
+            filter.field.convert(mapField),
             "^${filter.value.escapeRegex()}",
             filter.stringComparison.ignoreCase
         )
         is EndsWithFilter -> regex(
-            filter.field.convert(),
+            filter.field.convert(mapField),
             "${filter.value.escapeRegex()}$",
             filter.stringComparison.ignoreCase
         )
-        is InFilter -> Filters.`in`(filter.field.convert(), filter.values.map { it.nativeValue() })
-        is NotInFilter -> Filters.nin(filter.field.convert(), filter.values.map { it.nativeValue() })
+        is InFilter -> Filters.`in`(filter.field.convert(mapField), filter.values.map { it.nativeValue() })
+        is NotInFilter -> Filters.nin(filter.field.convert(mapField), filter.values.map { it.nativeValue() })
         is BetweenFilter -> Filters.and(
-            Filters.gte(filter.field.convert(), filter.lowerBound.requiredNativeValue()),
-            Filters.lte(filter.field.convert(), filter.upperBound.requiredNativeValue()),
+            Filters.gte(filter.field.convert(mapField), filter.lowerBound.requiredNativeValue()),
+            Filters.lte(filter.field.convert(mapField), filter.upperBound.requiredNativeValue()),
         )
-        is ContainsAllFilter -> Filters.all(filter.field.convert(), filter.values.map { it.nativeValue() })
-        is IsEmptyFilter -> Filters.size(filter.field.convert(), 0)
-        is IsNullFilter -> Filters.and(Filters.exists(filter.field.convert()), Filters.eq(filter.field.convert(), null))
-        is IsNotNullFilter -> Filters.and(
-            Filters.exists(filter.field.convert()),
-            Filters.ne(filter.field.convert(), null)
-        )
-        is ExistsFilter -> Filters.exists(filter.field.convert())
-        is NotExistsFilter -> Filters.exists(filter.field.convert(), false)
+        is ContainsAllFilter -> Filters.all(filter.field.convert(mapField), filter.values.map { it.nativeValue() })
+        is IsEmptyFilter -> Filters.size(filter.field.convert(mapField), 0)
+        is IsNullFilter -> Filters.eq(filter.field.convert(mapField), null)
+        is IsNotNullFilter -> Filters.ne(filter.field.convert(mapField), null)
+        is ExistsFilter -> Filters.exists(filter.field.convert(mapField))
+        is NotExistsFilter -> Filters.exists(filter.field.convert(mapField), false)
         is DeletionFilter -> when (filter.deletionState) {
             DeletionState.ACTIVE -> Filters.eq(StateAggregateRecords.DELETED, false)
             DeletionState.DELETED -> Filters.eq(StateAggregateRecords.DELETED, true)
             DeletionState.ALL -> Filters.empty()
         }
-        is ElementMatchFilter -> Filters.elemMatch(filter.field.convert(), internalConvert(filter.predicate))
+        is ElementMatchFilter -> Filters.elemMatch(
+            filter.field.convert(mapField),
+            internalConvert(filter.predicate, mapField = false),
+        )
         is SearchFilter -> Filters.text(filter.query)
         is TodayFilter,
         is BeforeTodayFilter,
@@ -139,7 +139,8 @@ abstract class AbstractMongoConditionConverter(
         -> error("Relative-time filter must be normalized before compilation.")
     }
 
-    private fun me.ahoo.wow.api.query.LogicalField.convert(): String = fieldConverter.convert(value)
+    private fun me.ahoo.wow.api.query.LogicalField.convert(mapField: Boolean): String =
+        if (mapField) fieldConverter.convert(value) else value
 
     private val StringComparison.ignoreCase: Boolean
         get() = this == StringComparison.CASE_INSENSITIVE
@@ -149,7 +150,8 @@ abstract class AbstractMongoConditionConverter(
         isString -> asString()
         isNumber -> numberValue()
         isBoolean -> booleanValue()
-        else -> error("Filter value must be a JSON scalar.")
+        isArray -> asSequence().map { it.nativeValue() }.toList()
+        else -> error("Filter value must be a JSON scalar or scalar array.")
     }
 
     private fun tools.jackson.databind.JsonNode.requiredNativeValue(): Any =

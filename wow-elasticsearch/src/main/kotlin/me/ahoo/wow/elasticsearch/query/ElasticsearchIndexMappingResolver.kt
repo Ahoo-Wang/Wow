@@ -46,6 +46,7 @@ enum class ElasticsearchFieldUsage {
     EXACT,
     LITERAL,
     RANGE,
+    PRESENCE,
     SEARCH,
     SORT,
 }
@@ -216,11 +217,11 @@ data class ElasticsearchIndexMapping private constructor(
         is InFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.EXACT))
         is NotInFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.EXACT))
         is ContainsAllFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.EXACT))
-        is IsEmptyFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.EXACT))
-        is IsNullFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.EXACT))
-        is IsNotNullFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.EXACT))
-        is ExistsFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.EXACT))
-        is NotExistsFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.EXACT))
+        is IsEmptyFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.PRESENCE))
+        is IsNullFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.PRESENCE))
+        is IsNotNullFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.PRESENCE))
+        is ExistsFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.PRESENCE))
+        is NotExistsFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.PRESENCE))
         is ContainsFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.LITERAL))
         is StartsWithFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.LITERAL))
         is EndsWithFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.LITERAL))
@@ -333,6 +334,7 @@ private data class ElasticsearchMappedField(
             ElasticsearchFieldUsage.EXACT -> isQueryable() && kind in EXACT_KINDS
             ElasticsearchFieldUsage.LITERAL -> indexed && kind in LITERAL_KINDS
             ElasticsearchFieldUsage.RANGE -> isQueryable() && kind in RANGE_KINDS
+            ElasticsearchFieldUsage.PRESENCE -> isQueryable()
             ElasticsearchFieldUsage.SEARCH -> indexed && kind in SEARCH_KINDS
             ElasticsearchFieldUsage.SORT ->
                 sortable && (kind in EXACT_KINDS || (indexed && kind == Property.Kind.Text))

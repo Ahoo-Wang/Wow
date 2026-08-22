@@ -165,6 +165,7 @@ Field selection follows these rules:
 | `EQ`, `NE`, `IN`, `NOT_IN`, `ALL_IN`, `TRUE`, `FALSE` | Term-query compatible, including supported doc-value-only fields |
 | `CONTAINS`, `STARTS_WITH`, `ENDS_WITH` | `keyword` or `wildcard` |
 | Range operations | numeric, date, ip, keyword, or `*_range`, including applicable `doc_values=true,index=false` fields |
+| `IS_EMPTY`, null, and existence operations | Any indexed or doc-value-queryable field; an empty Elasticsearch array has no indexed value, so `IS_EMPTY` compiles as `NOT EXISTS` |
 | `MATCH` | `text`, `match_only_text`, `search_as_you_type`, or `semantic_text` |
 | Sort | Sortable field with `doc_values`, indexed `text` with `fielddata`, or a sortable runtime field |
 

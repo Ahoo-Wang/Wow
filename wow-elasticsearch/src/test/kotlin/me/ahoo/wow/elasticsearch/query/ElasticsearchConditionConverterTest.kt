@@ -32,7 +32,6 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.*
 import me.ahoo.wow.elasticsearch.WowJsonpMapper
 import me.ahoo.wow.elasticsearch.query.snapshot.SnapshotConditionConverter
-import me.ahoo.wow.query.UnsupportedFilterException
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageRecords
@@ -93,6 +92,7 @@ class ElasticsearchConditionConverterTest {
             NotInFilter(field, listOf(one, two)),
             BetweenFilter(field, one, two),
             ContainsAllFilter(field, listOf(one, two)),
+            IsEmptyFilter(field),
             IsNullFilter(field),
             IsNotNullFilter(field),
             ExistsFilter(field),
@@ -106,9 +106,6 @@ class ElasticsearchConditionConverterTest {
         )
 
         filters.map(SnapshotConditionConverter::convert).assert().hasSize(filters.size)
-        assertThrows<UnsupportedFilterException> {
-            SnapshotConditionConverter.convert(IsEmptyFilter(field))
-        }
     }
 
     @Suppress("DEPRECATION")

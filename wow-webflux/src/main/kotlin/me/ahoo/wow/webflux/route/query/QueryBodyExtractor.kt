@@ -13,9 +13,16 @@
 
 package me.ahoo.wow.webflux.route.query
 
+import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.ElementMatchFilter
+import me.ahoo.wow.api.query.EqualFilter
+import me.ahoo.wow.api.query.FilterCapable
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.NorFilter
+import me.ahoo.wow.api.query.NotEqualFilter
+import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.toFilterExpression
@@ -76,10 +83,38 @@ class QueryBodyExtractor<Q : Any>(private val queryType: Class<Q>) : BodyExtract
     }
 
     private fun strictDecode(objectNode: ObjectNode): Q = try {
-        JsonSerializer.readerFor(queryType)
+        val decoded: Q = JsonSerializer.readerFor(queryType)
             .with(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
             .readValue(objectNode)
+        requireStrictFilterValues(decoded)
+        decoded
     } catch (error: JacksonException) {
         throw IllegalArgumentException("Invalid filter request body.", error)
+    }
+
+    private fun requireStrictFilterValues(decoded: Q) {
+        when (decoded) {
+            is FilterExpression -> decoded
+            is FilterCapable<*> -> decoded.filter
+            else -> null
+        }?.requireScalarEqualityValues()
+    }
+
+    private fun FilterExpression.requireScalarEqualityValues() {
+        when (this) {
+            is EqualFilter -> value.requireScalarEqualityValue(operator.name)
+            is NotEqualFilter -> value.requireScalarEqualityValue(operator.name)
+            is AndFilter -> operands.forEach { it.requireScalarEqualityValues() }
+            is OrFilter -> operands.forEach { it.requireScalarEqualityValues() }
+            is NorFilter -> operands.forEach { it.requireScalarEqualityValues() }
+            is ElementMatchFilter -> predicate.requireScalarEqualityValues()
+            else -> Unit
+        }
+    }
+
+    private fun tools.jackson.databind.JsonNode.requireScalarEqualityValue(operator: String) {
+        require(isNull || isString || isNumber || isBoolean) {
+            "$operator value must be a JSON scalar in filter payloads."
+        }
     }
 }

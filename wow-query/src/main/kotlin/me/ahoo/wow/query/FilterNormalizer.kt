@@ -56,7 +56,7 @@ class FilterNormalizer(
 ) {
     fun normalize(expression: FilterExpression): FilterExpression {
         val structural = normalizeStructural(expression)
-        val scoped = if (defaultDeletionState == null || structural.containsDeletion()) {
+        val scoped = if (defaultDeletionState == null || structural.hasExplicitDeletionScope()) {
             structural
         } else {
             AndFilter(listOf(DeletionFilter(defaultDeletionState), structural))
@@ -75,12 +75,9 @@ class FilterNormalizer(
         else -> expression
     }
 
-    private fun FilterExpression.containsDeletion(): Boolean = when (this) {
+    private fun FilterExpression.hasExplicitDeletionScope(): Boolean = when (this) {
         is DeletionFilter -> true
-        is AndFilter -> operands.any { it.containsDeletion() }
-        is OrFilter -> operands.any { it.containsDeletion() }
-        is NorFilter -> operands.any { it.containsDeletion() }
-        is ElementMatchFilter -> predicate.containsDeletion()
+        is AndFilter -> operands.any { it is DeletionFilter }
         else -> false
     }
 

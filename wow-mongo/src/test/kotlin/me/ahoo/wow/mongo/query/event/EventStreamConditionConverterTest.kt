@@ -17,6 +17,7 @@ import com.mongodb.client.model.Filters
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.serialization.MessageRecords
@@ -89,5 +90,12 @@ class EventStreamConditionConverterTest {
         ).toBsonDocument()
 
         actual.assert().isEqualTo(expected)
+        EventStreamConditionConverter.convert(condition.toFilterExpression()).toBsonDocument().assert()
+            .isEqualTo(
+                Filters.elemMatch(
+                    "body",
+                    Filters.eq(MessageRecords.ID, "event-body-id"),
+                ).toBsonDocument(),
+            )
     }
 }

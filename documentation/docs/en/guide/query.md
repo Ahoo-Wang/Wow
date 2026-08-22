@@ -46,7 +46,7 @@ state.items.0.productId
 
 A named segment starts with a letter or underscore and may contain letters, digits, underscores, and hyphens. Pure numeric segments are valid array indexes. MongoDB and Elasticsearch query implementations own physical field mapping.
 
-Snapshot queries default to `DELETION = ACTIVE` when no deletion filter is present. Event-stream queries do not add a deletion scope, preserving complete audit history.
+Snapshot queries default to `DELETION = ACTIVE`. A top-level `DELETION`, or one used directly inside the top-level `AND`, explicitly overrides that scope; nesting deletion inside `OR` or `NOR` does not disable the active guard. Event-stream queries do not add a deletion scope, preserving complete audit history.
 
 :::info Backend differences
 MongoDB `SEARCH` uses the collection text index and does not restrict the query to `fields`; Elasticsearch can resolve search fields and multi-fields. Use relative child fields inside `ELEMENT_MATCH` for portable MongoDB and Elasticsearch behavior.

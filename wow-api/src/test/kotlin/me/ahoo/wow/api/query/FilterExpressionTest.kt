@@ -85,6 +85,16 @@ class FilterExpressionTest {
         query.withFilter(MatchAllFilter).condition.assert().isEqualTo(Condition.ALL)
     }
 
+    @Suppress("DEPRECATION")
+    @Test
+    fun `should preserve legacy collection equality`() {
+        val condition = Condition.eq("state.tags", listOf("a", "b"))
+        val filter = condition.toFilterExpression() as EqualFilter
+
+        filter.value.isArray.assert().isTrue()
+        filter.toCondition().assert().isEqualTo(condition)
+    }
+
     @Test
     fun `query serialization should expose only filter`() {
         val json = jsonMapper.writeValueAsString(ListQuery(MatchAllFilter))

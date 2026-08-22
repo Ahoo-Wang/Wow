@@ -159,6 +159,7 @@ SnapshotStore 使用带 scripted upsert 的 Bulk `update`，direct 路径使用�
 | `EQ`、`NE`、`IN`、`NOT_IN`、`ALL_IN`、`TRUE`、`FALSE` | 可执行 term 查询，包括受支持的 doc-value-only 字段 |
 | `CONTAINS`、`STARTS_WITH`、`ENDS_WITH` | `keyword` 或 `wildcard` |
 | 范围操作 | numeric、date、ip、keyword 或 `*_range`，支持适用的 `doc_values=true,index=false` 字段 |
+| `IS_EMPTY`、null 与存在性操作 | 任意已索引或可通过 doc values 查询的字段；Elasticsearch 空数组没有索引值，因此 `IS_EMPTY` 编译为 `NOT EXISTS` |
 | `MATCH` | `text`、`match_only_text`、`search_as_you_type` 或 `semantic_text` |
 | 排序 | 启用 `doc_values` 的可排序字段、启用 `fielddata` 的已索引 `text` 字段，或可排序 runtime field |
 

@@ -121,13 +121,17 @@ class FilterNormalizerTest {
     }
 
     @Test
-    fun `should find deletion filters in nested expressions`() {
+    fun `should keep active scope around nested deletion filters`() {
+        val predicate = EqualFilter(
+            LogicalField("field"),
+            JsonSerializer.valueToTree<JsonNode>("value"),
+        )
         listOf(
-            AndFilter(listOf(DeletionFilter(DeletionState.ACTIVE))),
-            OrFilter(listOf(DeletionFilter(DeletionState.ACTIVE))),
-            NorFilter(listOf(DeletionFilter(DeletionState.ACTIVE))),
+            OrFilter(listOf(DeletionFilter(DeletionState.DELETED), predicate)),
+            NorFilter(listOf(DeletionFilter(DeletionState.DELETED), predicate)),
         ).forEach { expression ->
-            normalizer.normalize(expression)
+            val normalized = normalizer.normalize(expression) as AndFilter
+            normalized.operands.first().assert().isEqualTo(DeletionFilter(DeletionState.ACTIVE))
         }
     }
 }

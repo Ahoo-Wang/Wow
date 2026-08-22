@@ -34,7 +34,6 @@ import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.wildcard
 import co.elastic.clients.json.JsonData
 import me.ahoo.wow.api.query.*
 import me.ahoo.wow.query.FilterNormalizer
-import me.ahoo.wow.query.UnsupportedFilterException
 import me.ahoo.wow.query.converter.AbstractConditionConverter
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
@@ -125,7 +124,9 @@ abstract class AbstractElasticsearchConditionConverter(
             DeletionState.DELETED -> term { it.field(StateAggregateRecords.DELETED).value(true) }
             DeletionState.ALL -> matchAll { it }
         }
-        is IsEmptyFilter -> throw UnsupportedFilterException(filter.operator, filter.field, "elasticsearch")
+        is IsEmptyFilter -> bool {
+            it.mustNot { query -> query.exists { exists -> exists.field(filter.field.value) } }
+        }
         is TodayFilter,
         is BeforeTodayFilter,
         is TomorrowFilter,

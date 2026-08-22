@@ -113,8 +113,8 @@ internal object LegacyConditionAdapter {
 
     private fun Condition.equal(): FilterExpression {
         if (value is Collection<*>) {
-            require(value.isEmpty()) { "EQ collection value is not supported." }
-            return IsEmptyFilter(logicalField())
+            if (value.isEmpty()) return IsEmptyFilter(logicalField())
+            return EqualFilter(logicalField(), jsonMapper.valueToTree(value))
         }
         val literal = literal()
         return if (literal.isNull) IsNullFilter(logicalField()) else EqualFilter(logicalField(), literal)
@@ -122,8 +122,8 @@ internal object LegacyConditionAdapter {
 
     private fun Condition.notEqual(): FilterExpression {
         if (value is Collection<*>) {
-            require(value.isEmpty()) { "NE collection value is not supported." }
-            return NorFilter(listOf(IsEmptyFilter(logicalField())))
+            if (value.isEmpty()) return NorFilter(listOf(IsEmptyFilter(logicalField())))
+            return NotEqualFilter(logicalField(), jsonMapper.valueToTree(value))
         }
         val literal = literal()
         return if (literal.isNull) IsNotNullFilter(logicalField()) else NotEqualFilter(logicalField(), literal)
@@ -249,7 +249,8 @@ private fun JsonNode.toLegacyValue(): Any? = when {
     isString -> asString()
     isNumber -> numberValue()
     isBoolean -> booleanValue()
-    else -> error("Filter value must be a JSON scalar.")
+    isArray -> asSequence().map(JsonNode::toLegacyValue).toList()
+    else -> error("Filter value must be a JSON scalar or scalar array.")
 }
 
 private fun JsonNode.toRequiredLegacyValue(): Any =
@@ -274,3 +275,6 @@ private fun relativeCondition(
 
 @Deprecated("Use FilterExpression directly.")
 fun Condition.toFilterExpression(): FilterExpression = LegacyConditionAdapter.adapt(this)
+
+@Deprecated("Legacy Condition compatibility only. Use FilterExpression directly.")
+fun FilterExpression.toCondition(): Condition = toLegacyCondition()

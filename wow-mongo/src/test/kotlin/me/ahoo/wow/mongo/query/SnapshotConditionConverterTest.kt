@@ -98,6 +98,30 @@ class SnapshotConditionConverterTest {
             SnapshotConditionConverter.convert(Condition.match("state.name", "wow").toFilterExpression()),
             Filters.text("wow"),
         )
+        assertConvert(
+            SnapshotConditionConverter.convert(Condition.isNull("state.optional").toFilterExpression()),
+            Filters.eq("state.optional", null),
+        )
+        assertConvert(
+            SnapshotConditionConverter.convert(Condition.eq("state.tags", listOf("a", "b")).toFilterExpression()),
+            Filters.eq("state.tags", listOf("a", "b")),
+        )
+        assertConvert(
+            SnapshotConditionConverter.convert(Condition.ne("state.tags", listOf("a", "b")).toFilterExpression()),
+            Filters.ne("state.tags", listOf("a", "b")),
+        )
+        assertConvert(
+            SnapshotConditionConverter.convert(
+                Condition.elemMatch(
+                    "state.items",
+                    Condition.eq(MessageRecords.AGGREGATE_ID, "nested-aggregate-id"),
+                ).toFilterExpression(),
+            ),
+            Filters.elemMatch(
+                "state.items",
+                Filters.eq(MessageRecords.AGGREGATE_ID, "nested-aggregate-id"),
+            ),
+        )
     }
 
     @Test
