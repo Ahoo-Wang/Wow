@@ -14,31 +14,13 @@
 package me.ahoo.wow.webflux.wait
 
 import me.ahoo.wow.messaging.handler.DEFAULT_RETRY_SPEC
-import org.springframework.http.HttpStatus
-import org.springframework.web.reactive.function.client.WebClientRequestException
-import org.springframework.web.reactive.function.client.WebClientResponseException
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
 import reactor.util.retry.Retry
 
-internal fun Throwable.isRetryableRemoteWaitFailure(): Boolean = when (this) {
-    is WebClientRequestException -> true
-    is WebClientResponseException ->
-        statusCode.is5xxServerError ||
-            statusCode == HttpStatus.REQUEST_TIMEOUT ||
-            statusCode == HttpStatus.TOO_MANY_REQUESTS
-
-    else -> false
-}
-
-private val DEFAULT_REMOTE_WAIT_NOTIFY_RETRY: Retry =
-    DEFAULT_RETRY_SPEC.modifyErrorFilter { current ->
-        current.or(Throwable::isRetryableRemoteWaitFailure)
-    }
-
 class RemoteWaitNotifyPolicy(
-    val retry: Retry = DEFAULT_REMOTE_WAIT_NOTIFY_RETRY,
+    val retry: Retry = DEFAULT_RETRY_SPEC,
     val scheduler: Scheduler = Schedulers.immediate()
 ) {
     fun <T : Any> apply(publisher: Mono<T>): Mono<T> = publisher.retryWhen(retry).subscribeOn(scheduler)
