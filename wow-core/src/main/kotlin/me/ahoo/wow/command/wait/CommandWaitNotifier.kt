@@ -17,6 +17,8 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.id.GlobalIdGenerator
 import reactor.core.publisher.Mono
 
+private val commandWaitNotifierLog = KotlinLogging.logger { }
+
 /**
  * Interface for notifying command wait endpoints about processing results.
  * After command processors complete their work, they send results to waiting clients
@@ -49,7 +51,16 @@ interface CommandWaitNotifier {
         commandWaitEndpoint: String,
         waitSignal: WaitSignal
     ) {
-        notify(commandWaitEndpoint, waitSignal).subscribe()
+        notify(commandWaitEndpoint, waitSignal).subscribe(
+            {},
+            { error ->
+                commandWaitNotifierLog.error(error) {
+                    "NotifyAndForget failed - endpoint: [$commandWaitEndpoint], " +
+                        "waitCommandId: [${waitSignal.waitCommandId}], commandId: [${waitSignal.commandId}], " +
+                        "stage: [${waitSignal.stage}]."
+                }
+            },
+        )
     }
 }
 

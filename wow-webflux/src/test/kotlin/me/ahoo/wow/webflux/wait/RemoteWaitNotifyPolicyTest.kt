@@ -13,9 +13,17 @@
 
 package me.ahoo.wow.webflux.wait
 
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
+import org.springframework.http.HttpHeaders
+import org.springframework.http.HttpMethod
+import org.springframework.http.HttpStatus
+import org.springframework.web.reactive.function.client.WebClientRequestException
+import org.springframework.web.reactive.function.client.WebClientResponseException
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
+import java.io.IOException
+import java.net.URI
 
 class RemoteWaitNotifyPolicyTest {
 
@@ -28,5 +36,29 @@ class RemoteWaitNotifyPolicyTest {
             .test()
             .expectNext(callerThreadName)
             .verifyComplete()
+    }
+
+    @Test
+    fun `should classify transient web client failures only`() {
+        WebClientRequestException(
+            IOException("connection reset"),
+            HttpMethod.POST,
+            URI.create("http://localhost/command/wait"),
+            HttpHeaders.EMPTY,
+        ).isRetryableRemoteWaitFailure().assert().isTrue()
+        WebClientResponseException.create(
+            HttpStatus.SERVICE_UNAVAILABLE.value(),
+            HttpStatus.SERVICE_UNAVAILABLE.reasonPhrase,
+            HttpHeaders.EMPTY,
+            ByteArray(0),
+            null,
+        ).isRetryableRemoteWaitFailure().assert().isTrue()
+        WebClientResponseException.create(
+            HttpStatus.BAD_REQUEST.value(),
+            HttpStatus.BAD_REQUEST.reasonPhrase,
+            HttpHeaders.EMPTY,
+            ByteArray(0),
+            null,
+        ).isRetryableRemoteWaitFailure().assert().isFalse()
     }
 }
