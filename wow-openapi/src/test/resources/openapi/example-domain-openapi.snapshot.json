@@ -816,6 +816,7 @@
             "$ref" : "#/components/schemas/example.cart.CartSnapshotAggregatedFields"
           },
           "interval" : {
+            "exclusiveMinimum" : 0,
             "format" : "double",
             "type" : "number"
           },
@@ -1850,6 +1851,7 @@
             "$ref" : "#/components/schemas/example.order.OrderSnapshotAggregatedFields"
           },
           "interval" : {
+            "exclusiveMinimum" : 0,
             "format" : "double",
             "type" : "number"
           },
@@ -2980,6 +2982,7 @@
             "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateSnapshotAggregatedFields"
           },
           "interval" : {
+            "exclusiveMinimum" : 0,
             "format" : "double",
             "type" : "number"
           },
@@ -3447,6 +3450,7 @@
             "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdSnapshotAggregatedFields"
           },
           "interval" : {
+            "exclusiveMinimum" : 0,
             "format" : "double",
             "type" : "number"
           },
@@ -3883,6 +3887,7 @@
             "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersSnapshotAggregatedFields"
           },
           "interval" : {
+            "exclusiveMinimum" : 0,
             "format" : "double",
             "type" : "number"
           },

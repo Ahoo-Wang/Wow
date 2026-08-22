@@ -84,6 +84,7 @@ sealed interface AggregationGroup {
     data class Histogram(
         override val field: String,
         override val alias: String,
+        @get:Schema(minimum = "0", exclusiveMinimum = true)
         val interval: Double,
         val offset: Double = 0.0,
     ) : AggregationGroup {

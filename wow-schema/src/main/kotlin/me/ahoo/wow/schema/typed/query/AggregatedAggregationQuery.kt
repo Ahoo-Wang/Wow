@@ -51,6 +51,7 @@ sealed interface AggregatedAggregationGroup<CommandAggregateType : Any> {
     data class Histogram<CommandAggregateType : Any>(
         override val field: SnapshotAggregatedFields<CommandAggregateType>,
         override val alias: String,
+        @get:Schema(minimum = "0", exclusiveMinimum = true)
         val interval: Double,
         val offset: Double = 0.0,
     ) : AggregatedAggregationGroup<CommandAggregateType>

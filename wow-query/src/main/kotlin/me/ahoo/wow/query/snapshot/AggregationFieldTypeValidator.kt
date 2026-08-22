@@ -18,8 +18,7 @@ import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
-import me.ahoo.wow.configuration.requiredAggregateType
-import me.ahoo.wow.modeling.annotation.aggregateMetadata
+import me.ahoo.wow.modeling.metadata.asAggregateMetadata
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toBeanDescription
 import tools.jackson.databind.JavaType
@@ -36,8 +35,7 @@ internal fun AggregationQuery.validateFieldTypes(namedAggregate: NamedAggregate)
     if (groupBy.isEmpty() && metrics.none { it is AggregationMetric.Numeric }) {
         return
     }
-    val stateType = namedAggregate.requiredAggregateType<Any>()
-        .aggregateMetadata<Any, Any>()
+    val stateType = namedAggregate.asAggregateMetadata<Any, Any>()
         .state.aggregateType
     val snapshotType = JsonSerializer.typeFactory.constructParametricType(MaterializedSnapshot::class.java, stateType)
 
@@ -65,11 +63,18 @@ internal fun AggregationQuery.validateFieldTypes(namedAggregate: NamedAggregate)
 
 private fun JavaType.resolveDeclaredField(path: String): JavaType? {
     var current = this
-    for (segment in path.split('.')) {
+    val segments = path.split('.')
+    for ((index, segment) in segments.withIndex()) {
         current = current.toBeanDescription().findProperties()
             .firstOrNull { it.name == segment }
             ?.primaryType
             ?: return null
+        require(
+            index == segments.lastIndex || (!current.isArrayType && !current.isCollectionLikeType),
+        ) {
+            val collectionPath = segments.take(index + 1).joinToString(".")
+            "Aggregation field [$path] must not traverse collection field [$collectionPath]."
+        }
     }
     return current
 }

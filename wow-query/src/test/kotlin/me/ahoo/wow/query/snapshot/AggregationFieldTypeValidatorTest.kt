@@ -18,6 +18,8 @@ import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.modeling.annotation.stateAggregateMetadata
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
@@ -92,11 +94,41 @@ class AggregationFieldTypeValidatorTest {
         ).validateFieldTypes(MOCK_AGGREGATE_METADATA)
     }
 
+    @Test
+    fun `should reject aggregation paths through collections`() {
+        val aggregateMetadata = AggregateMetadata(
+            namedAggregate = MOCK_AGGREGATE_METADATA.namedAggregate,
+            staticTenantId = MOCK_AGGREGATE_METADATA.staticTenantId,
+            state = CollectionState::class.java.stateAggregateMetadata(),
+            command = MOCK_AGGREGATE_METADATA.command,
+        )
+        listOf(
+            AggregationQuery(
+                groupBy = listOf(AggregationGroup.Terms("state.items.value", "value")),
+                metrics = listOf(AggregationMetric.Count("count")),
+            ) to "state.items.value",
+            AggregationQuery(
+                metrics = listOf(AggregationMetric.Sum("state.items.amount", "amount")),
+            ) to "state.items.amount",
+        ).forEach { (query, field) ->
+            assertThrows<IllegalArgumentException> {
+                query.validateFieldTypes(aggregateMetadata)
+            }.message.assert().isEqualTo(
+                "Aggregation field [$field] " +
+                    "must not traverse collection field [state.items].",
+            )
+        }
+    }
+
     private fun Class<*>.toJavaType() = JsonSerializer.typeFactory.constructType(this)
 
     private enum class TestEnum {
         VALUE,
     }
 
-    private data class TestPojo(val value: String)
+    private data class TestPojo(val value: String, val amount: Int = 0)
+
+    private class CollectionState(val id: String) {
+        val items: List<TestPojo> = emptyList()
+    }
 }
