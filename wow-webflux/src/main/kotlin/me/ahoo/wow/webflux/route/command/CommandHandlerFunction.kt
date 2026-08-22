@@ -24,6 +24,7 @@ import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.CommandRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.command.extractor.CommandBodyExtractor
 import me.ahoo.wow.webflux.route.command.extractor.CommandMessageExtractor
+import me.ahoo.wow.webflux.route.mapRequestBodyDecodingException
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.RouterFunctions
@@ -58,7 +59,7 @@ class CommandHandlerFunction(
                 bodyExtractor,
                 mapOf(RouterFunctions.URI_TEMPLATE_VARIABLES_ATTRIBUTE to request.pathVariables()),
             )
-        }.switchIfEmpty {
+        }.mapRequestBodyDecodingException().switchIfEmpty {
             Mono.error(IllegalArgumentException("Command can not be empty."))
         }.flatMapMany {
             handler.handle(request, it, aggregateRouteMetadata)

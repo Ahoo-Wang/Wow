@@ -20,6 +20,7 @@ import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.NoMetadataRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.command.extractor.CommandFacadeBodyExtractor
 import me.ahoo.wow.webflux.route.command.extractor.CommandMessageExtractor
+import me.ahoo.wow.webflux.route.mapRequestBodyDecodingException
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -45,7 +46,7 @@ class CommandFacadeHandlerFunction(
     )
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        return request.body(CommandFacadeBodyExtractor).switchIfEmpty {
+        return request.body(CommandFacadeBodyExtractor).mapRequestBodyDecodingException().switchIfEmpty {
             Mono.error(IllegalArgumentException("Command can not be empty."))
         }.flatMapMany {
             handler.handle(request, it.t1, it.t2)

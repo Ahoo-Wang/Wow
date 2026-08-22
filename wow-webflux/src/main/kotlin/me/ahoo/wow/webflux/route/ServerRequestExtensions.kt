@@ -13,9 +13,12 @@
 
 package me.ahoo.wow.webflux.route
 
+import org.springframework.core.codec.DecodingException
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.server.NotAcceptableStatusException
+import org.springframework.web.server.ServerWebInputException
+import reactor.core.publisher.Mono
 
 private val STREAMING_RESPONSE_MEDIA_TYPES = listOf(MediaType.APPLICATION_JSON, MediaType.TEXT_EVENT_STREAM)
 
@@ -61,6 +64,11 @@ internal fun ServerRequest.preferredResponseMediaType(supportedMediaTypes: List<
         ?.mediaType
         ?: throw NotAcceptableStatusException(supportedMediaTypes)
 }
+
+internal fun <T : Any> Mono<T>.mapRequestBodyDecodingException(): Mono<T> =
+    onErrorMap(DecodingException::class.java) {
+        ServerWebInputException("Failed to read HTTP message", null, it)
+    }
 
 private fun MediaType.accepts(responseMediaType: MediaType): Boolean =
     isCompatibleWith(responseMediaType) ||

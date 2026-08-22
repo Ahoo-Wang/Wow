@@ -78,7 +78,7 @@ class WebFluxErrorStrategyTest {
     }
 
     @Test
-    fun `should map decoding exception to bad request`() {
+    fun `should keep unscoped decoding exception as internal server error`() {
         val request = MockServerRequest.builder()
             .method(HttpMethod.POST)
             .uri(URI.create("/test"))
@@ -87,8 +87,8 @@ class WebFluxErrorStrategyTest {
         DefaultWebFluxErrorStrategy.toServerResponse(request, DecodingException("Malformed JSON"))
             .test()
             .consumeNextWith {
-                it.statusCode().assert().isEqualTo(HttpStatus.BAD_REQUEST)
-                it.headers().getFirst(ERROR_CODE).assert().isEqualTo(ErrorCodes.ILLEGAL_ARGUMENT)
+                it.statusCode().assert().isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR)
+                it.headers().getFirst(ERROR_CODE).assert().isEqualTo(ErrorCodes.INTERNAL_SERVER_ERROR)
             }
             .verifyComplete()
     }

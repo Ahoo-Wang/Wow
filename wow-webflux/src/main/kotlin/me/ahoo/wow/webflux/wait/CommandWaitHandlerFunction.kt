@@ -18,6 +18,7 @@ import me.ahoo.wow.command.wait.WaitCoordinator
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.webflux.route.NoMetadataRouteHandlerFunctionFactorySupport
+import me.ahoo.wow.webflux.route.mapRequestBodyDecodingException
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -36,6 +37,7 @@ class CommandWaitHandlerFunction(
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         return request
             .bodyToMono(SimpleWaitSignal::class.java)
+            .mapRequestBodyDecodingException()
             .map {
                 waitCoordinator.signal(it)
             }.flatMap {

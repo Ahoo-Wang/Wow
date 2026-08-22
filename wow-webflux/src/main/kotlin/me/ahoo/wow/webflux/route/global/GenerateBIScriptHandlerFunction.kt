@@ -30,6 +30,7 @@ import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
 import me.ahoo.wow.openapi.contract.bi.BiScriptResponse
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.NoMetadataRouteHandlerFunctionFactorySupport
+import me.ahoo.wow.webflux.route.mapRequestBodyDecodingException
 import me.ahoo.wow.webflux.route.preferredResponseMediaType
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.HandlerFunction
@@ -61,7 +62,7 @@ class GenerateBIScriptHandlerFunction(
 ) : HandlerFunction<ServerResponse> {
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        return request.bodyToMono(BiScriptRequest::class.java)
+        return request.bodyToMono(BiScriptRequest::class.java).mapRequestBodyDecodingException()
             .switchIfEmpty(Mono.error(IllegalArgumentException("BI script request body must not be empty")))
             .flatMap { body ->
                 body.requireAllowedInspectionScope(deploymentInspector)
