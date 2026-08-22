@@ -14,6 +14,7 @@
 package me.ahoo.wow.webflux.route.query
 
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.RewritableFilter
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.query.dsl.filter
@@ -75,9 +76,12 @@ abstract class AbstractRewriteRequestCondition : RewriteRequestFilter {
         if (tenantId.isNullOrBlank() && ownerId.isNullOrBlank() && spaceId.isNullOrBlank()) {
             return filter
         }
-        return me.ahoo.wow.api.query.AndFilter(
-            listOf(filter, requestScopeFilter(tenantId, ownerId, spaceId)),
-        )
+        val appendFilter = requestScopeFilter(tenantId, ownerId, spaceId)
+        return if (filter === MatchAllFilter) {
+            appendFilter
+        } else {
+            me.ahoo.wow.api.query.AndFilter(listOf(filter, appendFilter))
+        }
     }
 
     private fun requestScopeFilter(tenantId: String?, ownerId: String?, spaceId: String?): FilterExpression = filter {
