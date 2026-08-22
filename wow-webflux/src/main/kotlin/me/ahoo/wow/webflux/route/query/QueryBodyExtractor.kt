@@ -18,6 +18,7 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.serialization.toObject
+import me.ahoo.wow.webflux.route.mapRequestBodyDecodingException
 import org.springframework.http.ReactiveHttpInputMessage
 import org.springframework.web.reactive.function.BodyExtractor
 import org.springframework.web.reactive.function.BodyExtractors
@@ -38,6 +39,7 @@ class QueryBodyExtractor<Q : Any>(private val queryType: Class<Q>) : BodyExtract
     ): Mono<Q> {
         return BodyExtractors.toMono(ObjectNode::class.java)
             .extract(inputMessage, context)
+            .mapRequestBodyDecodingException()
             .map { objectNode ->
                 objectNode.toObject(queryType)
             }
