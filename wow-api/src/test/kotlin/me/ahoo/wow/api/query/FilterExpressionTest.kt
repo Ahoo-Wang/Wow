@@ -39,6 +39,42 @@ class FilterExpressionTest {
         decoded.assert().isEqualTo(expression)
     }
 
+    @Suppress("DEPRECATION")
+    @Test
+    fun `metadata filters should round trip with dedicated operators`() {
+        val filters = listOf<FilterExpression>(
+            IdFilter("id-1"),
+            IdsFilter(listOf("id-1", "id-2")),
+            AggregateIdFilter("aggregate-1"),
+            AggregateIdsFilter(listOf("aggregate-1", "aggregate-2")),
+            TenantIdFilter("tenant-1"),
+            OwnerIdFilter("owner-1"),
+            SpaceIdFilter("space-1"),
+        )
+
+        filters.forEach { filter ->
+            val decoded = jsonMapper.readValue(
+                jsonMapper.writeValueAsString(filter),
+                FilterExpression::class.java,
+            )
+            decoded.assert().isEqualTo(filter)
+            decoded.toCondition().operator.name.assert().isEqualTo(filter.operator.name)
+        }
+    }
+
+    @Test
+    fun `plural metadata filters should reject empty values`() {
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> { IdsFilter(emptyList()) }
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> { AggregateIdsFilter(emptyList()) }
+    }
+
+    @Test
+    fun `element match should reject root metadata filters`() {
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+            ElementMatchFilter(LogicalField("state.items"), TenantIdFilter("tenant-1"))
+        }
+    }
+
     @Test
     fun `should reject non scalar predicate value`() {
         org.junit.jupiter.api.assertThrows<IllegalArgumentException> {

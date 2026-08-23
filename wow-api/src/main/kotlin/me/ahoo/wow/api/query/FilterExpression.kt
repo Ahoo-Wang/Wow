@@ -41,6 +41,13 @@ data class LogicalField(
 enum class FilterOperator {
     MATCH_ALL,
     MATCH_NONE,
+    ID,
+    IDS,
+    AGGREGATE_ID,
+    AGGREGATE_IDS,
+    TENANT_ID,
+    OWNER_ID,
+    SPACE_ID,
     AND,
     OR,
     NOR,
@@ -90,6 +97,13 @@ enum class StringComparison {
 @JsonSubTypes(
     JsonSubTypes.Type(MatchAllFilter::class, name = "MATCH_ALL"),
     JsonSubTypes.Type(MatchNoneFilter::class, name = "MATCH_NONE"),
+    JsonSubTypes.Type(IdFilter::class, name = "ID"),
+    JsonSubTypes.Type(IdsFilter::class, name = "IDS"),
+    JsonSubTypes.Type(AggregateIdFilter::class, name = "AGGREGATE_ID"),
+    JsonSubTypes.Type(AggregateIdsFilter::class, name = "AGGREGATE_IDS"),
+    JsonSubTypes.Type(TenantIdFilter::class, name = "TENANT_ID"),
+    JsonSubTypes.Type(OwnerIdFilter::class, name = "OWNER_ID"),
+    JsonSubTypes.Type(SpaceIdFilter::class, name = "SPACE_ID"),
     JsonSubTypes.Type(AndFilter::class, name = "AND"),
     JsonSubTypes.Type(OrFilter::class, name = "OR"),
     JsonSubTypes.Type(NorFilter::class, name = "NOR"),
@@ -183,7 +197,7 @@ data class ElementMatchFilter(
 
     init {
         require(predicate.containsElementUnsupportedFilter().not()) {
-            "ELEMENT_MATCH predicate cannot contain DELETION or SEARCH."
+            "ELEMENT_MATCH predicate cannot contain root filters."
         }
     }
 }
@@ -201,7 +215,16 @@ data class SearchFilter(
 }
 
 private fun FilterExpression.containsElementUnsupportedFilter(): Boolean = when (this) {
-    is DeletionFilter, is SearchFilter -> true
+    is DeletionFilter,
+    is SearchFilter,
+    is IdFilter,
+    is IdsFilter,
+    is AggregateIdFilter,
+    is AggregateIdsFilter,
+    is TenantIdFilter,
+    is OwnerIdFilter,
+    is SpaceIdFilter,
+    -> true
     is AndFilter -> operands.any { it.containsElementUnsupportedFilter() }
     is OrFilter -> operands.any { it.containsElementUnsupportedFilter() }
     is NorFilter -> operands.any { it.containsElementUnsupportedFilter() }

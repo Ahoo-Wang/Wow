@@ -39,12 +39,14 @@ private fun Operator.toFilterOperator(): FilterOperator = when (this) {
     Operator.NOR -> FilterOperator.NOR
     Operator.ALL -> FilterOperator.MATCH_ALL
     Operator.DELETED -> FilterOperator.DELETION
+    Operator.ID -> FilterOperator.ID
+    Operator.IDS -> FilterOperator.IDS
+    Operator.AGGREGATE_ID -> FilterOperator.AGGREGATE_ID
+    Operator.AGGREGATE_IDS -> FilterOperator.AGGREGATE_IDS
+    Operator.TENANT_ID -> FilterOperator.TENANT_ID
+    Operator.OWNER_ID -> FilterOperator.OWNER_ID
+    Operator.SPACE_ID -> FilterOperator.SPACE_ID
     Operator.EQ,
-    Operator.ID,
-    Operator.AGGREGATE_ID,
-    Operator.TENANT_ID,
-    Operator.OWNER_ID,
-    Operator.SPACE_ID,
     Operator.TRUE,
     Operator.FALSE,
     -> FilterOperator.EQ
@@ -54,10 +56,7 @@ private fun Operator.toFilterOperator(): FilterOperator = when (this) {
     Operator.GTE -> FilterOperator.GTE
     Operator.LTE -> FilterOperator.LTE
     Operator.CONTAINS -> FilterOperator.CONTAINS
-    Operator.IN,
-    Operator.IDS,
-    Operator.AGGREGATE_IDS,
-    -> FilterOperator.IN
+    Operator.IN -> FilterOperator.IN
     Operator.NOT_IN -> FilterOperator.NOT_IN
     Operator.BETWEEN -> FilterOperator.BETWEEN
     Operator.ALL_IN -> FilterOperator.CONTAINS_ALL
@@ -88,6 +87,13 @@ internal fun FilterExpression.toLegacyCondition(): Condition = when (this) {
     is LegacyConditionFilter -> condition
     MatchAllFilter -> Condition.ALL
     MatchNoneFilter -> Condition.ids(emptyList())
+    is IdFilter -> Condition.id(value)
+    is IdsFilter -> Condition.ids(values)
+    is AggregateIdFilter -> Condition.aggregateId(value)
+    is AggregateIdsFilter -> Condition.aggregateIds(values)
+    is TenantIdFilter -> Condition.tenantId(value)
+    is OwnerIdFilter -> Condition.ownerId(value)
+    is SpaceIdFilter -> Condition.spaceId(value)
     is AndFilter -> Condition.and(operands.map(FilterExpression::toLegacyCondition))
     is OrFilter -> Condition.or(operands.map(FilterExpression::toLegacyCondition))
     is NorFilter -> Condition.nor(operands.map(FilterExpression::toLegacyCondition))
