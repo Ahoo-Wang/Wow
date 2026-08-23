@@ -16,6 +16,11 @@ package me.ahoo.wow.query.filter
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.IPagedQuery
+import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.api.query.toFilterExpression
@@ -38,6 +43,38 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
 
 class QueryHandlerSubscriptionTest {
+    @Suppress("DEPRECATION")
+    @Test
+    fun `new count should delegate to a legacy query handler implementation`() {
+        val handler = object : QueryHandler<Any> {
+            override fun handle(context: QueryContext<*, *>): Mono<Void> = Mono.empty()
+            override fun single(namedAggregate: me.ahoo.wow.api.modeling.NamedAggregate, singleQuery: ISingleQuery) =
+                Mono.empty<Any>()
+            override fun dynamicSingle(
+                namedAggregate: me.ahoo.wow.api.modeling.NamedAggregate,
+                singleQuery: ISingleQuery,
+            ) = Mono.empty<DynamicDocument>()
+            override fun list(namedAggregate: me.ahoo.wow.api.modeling.NamedAggregate, listQuery: IListQuery) =
+                Flux.empty<Any>()
+            override fun dynamicList(
+                namedAggregate: me.ahoo.wow.api.modeling.NamedAggregate,
+                listQuery: IListQuery,
+            ) = Flux.empty<DynamicDocument>()
+            override fun paged(namedAggregate: me.ahoo.wow.api.modeling.NamedAggregate, pagedQuery: IPagedQuery) =
+                Mono.empty<PagedList<Any>>()
+            override fun dynamicPaged(
+                namedAggregate: me.ahoo.wow.api.modeling.NamedAggregate,
+                pagedQuery: IPagedQuery,
+            ) = Mono.empty<PagedList<DynamicDocument>>()
+            override fun count(
+                namedAggregate: me.ahoo.wow.api.modeling.NamedAggregate,
+                condition: Condition,
+            ) = Mono.just(1L)
+        }
+
+        handler.count(MOCK_AGGREGATE_METADATA, MatchAllFilter).test().expectNext(1).verifyComplete()
+    }
+
     @Test
     fun `should isolate all query operations when repeated`() {
         val filter = NonIdempotentTestFilter()

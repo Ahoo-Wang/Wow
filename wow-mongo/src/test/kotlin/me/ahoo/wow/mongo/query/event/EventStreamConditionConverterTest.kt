@@ -91,11 +91,6 @@ class EventStreamConditionConverterTest {
 
         actual.assert().isEqualTo(expected)
         EventStreamConditionConverter.convert(condition.toFilterExpression()).toBsonDocument().assert()
-            .isEqualTo(
-                Filters.elemMatch(
-                    "body",
-                    Filters.eq(MessageRecords.ID, "event-body-id"),
-                ).toBsonDocument(),
-            )
+            .isEqualTo(expected)
     }
 }

@@ -11,19 +11,15 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.api.query
+package me.ahoo.wow.schema.typed
 
-interface FilterCapable<Q : FilterCapable<Q>> : RewritableFilter<Q> {
-    val filter: FilterExpression
+@Deprecated("Use FilterExpression schemas.")
+interface AggregatedFields<CommandAggregateType : Any> {
+    companion object {
+        val EMPTY = object : AggregatedFields<Any> {}
 
-    override fun appendFilter(append: FilterExpression): Q {
-        val appended = if (
-            filter === MatchAllFilter || filter.legacyConditionOrNull()?.operator == Operator.ALL
-        ) {
-            append
-        } else {
-            AndFilter(listOf(filter, append))
-        }
-        return withFilter(appended)
+        @Suppress("UNCHECKED_CAST")
+        fun <CommandAggregateType : Any> empty(): AggregatedFields<CommandAggregateType> =
+            EMPTY as AggregatedFields<CommandAggregateType>
     }
 }

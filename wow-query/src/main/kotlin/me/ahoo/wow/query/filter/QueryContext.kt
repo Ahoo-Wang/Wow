@@ -21,8 +21,10 @@ import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.RewritableFilter
+import me.ahoo.wow.api.query.legacyConditionOrNull
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.util.concurrent.ConcurrentHashMap
@@ -50,7 +52,13 @@ interface QueryContext<Q : Any, R : Any> {
     fun appendFilter(append: FilterExpression): QueryContext<Q, R> {
         val query = getQuery()
         val rewritten = when (query) {
-            is FilterExpression -> if (query === MatchAllFilter) append else AndFilter(listOf(query, append))
+            is FilterExpression -> if (
+                query === MatchAllFilter || query.legacyConditionOrNull()?.operator == Operator.ALL
+            ) {
+                append
+            } else {
+                AndFilter(listOf(query, append))
+            }
             is FilterCapable<*> -> query.appendFilter(append)
             else -> error("Query type [${query::class}] does not support filters.")
         }

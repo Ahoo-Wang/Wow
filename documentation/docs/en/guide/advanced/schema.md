@@ -81,6 +81,8 @@ that supply schemas for framework and Kotlin/Joda types:
 | Nullable Kotlin types (`KotlinNullableCheck`) | `null` added to the type union |
 | `@Summary` / `@Description` | Resolved into schema `title` / `description` metadata |
 
+`AggregatedFields` and the `Aggregated*Query` types remain available only as deprecated compatibility entry points. New query contracts use the v2 `FilterExpression` schemas.
+
 ## How the OpenAPI Module Uses Schemas
 
 The `wow-openapi` module wires schema generation into the OpenAPI spec via

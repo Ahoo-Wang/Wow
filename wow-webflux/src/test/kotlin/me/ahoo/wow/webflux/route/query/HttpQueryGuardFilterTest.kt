@@ -22,7 +22,9 @@ import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
+import me.ahoo.wow.api.query.IsEmptyFilter
 import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.api.query.PagedList
@@ -59,7 +61,6 @@ import me.ahoo.wow.webflux.route.event.LoadEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.LoadSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import org.springframework.http.HttpStatus
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
@@ -80,9 +81,6 @@ class HttpQueryGuardFilterTest {
 
     @Test
     fun `should reject unsafe list queries before backend invocation`() {
-        assertThrows<IllegalArgumentException> {
-            ListQuery(Condition(operator = Operator.NE, value = "value"), limit = 1)
-        }
         listOf(
             ListQuery(Condition.ALL),
             ListQuery(Condition.contains(MessageRecords.AGGREGATE_ID, "wow"), limit = 1),
@@ -95,6 +93,7 @@ class HttpQueryGuardFilterTest {
             ListQuery(Condition.isNull(MessageRecords.AGGREGATE_ID), limit = 1),
             ListQuery(Condition.notNull(MessageRecords.AGGREGATE_ID), limit = 1),
             ListQuery(Condition.exists(MessageRecords.AGGREGATE_ID, false), limit = 1),
+            ListQuery(IsEmptyFilter(LogicalField("state.items")), limit = 1),
             ListQuery(Condition.isIn(MessageRecords.AGGREGATE_ID, List(1001) { it }), limit = 1),
             ListQuery(Condition(operator = Operator.IDS, value = List(1001) { it }), limit = 1),
             ListQuery(Condition(operator = Operator.AGGREGATE_IDS, value = List(1001) { it }), limit = 1),
@@ -210,16 +209,21 @@ class HttpQueryGuardFilterTest {
             },
         ).writeRawRequest(request).test().verifyComplete()
 
-        assertThrows<IllegalArgumentException> {
-            ListQuery(
-                Condition(
-                    field = "state.unindexed",
-                    operator = Operator.ELEM_MATCH,
-                    children = listOf(Condition.ALL, Condition.eq("productId", "product-1")),
+        guard().filter(
+            listContext(
+                ListQuery(
+                    Condition(
+                        field = "state.unindexed",
+                        operator = Operator.ELEM_MATCH,
+                        children = listOf(Condition.ALL, Condition.eq("productId", "product-1")),
+                    ),
+                    limit = 1,
                 ),
-                limit = 1,
-            )
-        }
+            ),
+            unexpectedBackend(),
+        ).writeRawRequest(request).test()
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
     }
 
     @Test

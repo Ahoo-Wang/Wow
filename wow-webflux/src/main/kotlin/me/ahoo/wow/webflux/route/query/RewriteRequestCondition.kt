@@ -19,7 +19,10 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.FilterCapable
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.api.query.RewritableCondition
+import me.ahoo.wow.api.query.RewritableFilter
+import me.ahoo.wow.api.query.legacyConditionOrNull
 import me.ahoo.wow.api.query.toCondition
 import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
@@ -45,13 +48,18 @@ interface RewriteRequestFilter {
         request: ServerRequest,
         rewritableCondition: Q
     ): Q {
-        val filter = (rewritableCondition as? FilterCapable<*>)?.filter ?: return rewritableCondition
-        return rewritableCondition.withCondition(rewrite(aggregateMetadata, request, filter).toCondition())
+        val filterCapable = rewritableCondition as? FilterCapable<*> ?: return rewritableCondition
+        val rewritten = rewrite(aggregateMetadata, request, filterCapable.filter)
+        @Suppress("UNCHECKED_CAST")
+        return (rewritableCondition as RewritableFilter<*>).withFilter(rewritten) as Q
     }
 }
 
-private data class LegacyRewritableCondition(val filter: FilterExpression) :
-    RewritableCondition<LegacyRewritableCondition> {
+private data class LegacyRewritableCondition(override val filter: FilterExpression) :
+    RewritableCondition<LegacyRewritableCondition>,
+    FilterCapable<LegacyRewritableCondition> {
+    override fun withFilter(newFilter: FilterExpression): LegacyRewritableCondition = copy(filter = newFilter)
+
     override fun withCondition(newCondition: Condition): LegacyRewritableCondition =
         copy(filter = newCondition.toFilterExpression())
 
@@ -84,7 +92,7 @@ abstract class AbstractRewriteRequestCondition : RewriteRequestFilter {
             return filter
         }
         val appendFilter = requestScopeFilter(tenantId, ownerId, spaceId)
-        return if (filter === MatchAllFilter) {
+        return if (filter === MatchAllFilter || filter.legacyConditionOrNull()?.operator == Operator.ALL) {
             appendFilter
         } else {
             me.ahoo.wow.api.query.AndFilter(listOf(filter, appendFilter))

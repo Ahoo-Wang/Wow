@@ -24,6 +24,7 @@ import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.filter.Contexts.getRawRequest
 import me.ahoo.wow.query.filter.QueryHandler
@@ -93,6 +94,30 @@ class QueryBodyExtractorTest {
             .exchange()
             .expectStatus().isBadRequest
             .expectHeader().valueEquals(ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
+    }
+
+    @Test
+    fun `should accept discriminator-free legacy count body when request is scoped`() {
+        val handlerFunction = CountQueryHandlerFunctionFactory(
+            handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
+            queryHandler = RouteTestFixtures.snapshotQueryHandler,
+            rewriteRequestCondition = DefaultRewriteRequestCondition,
+            exceptionHandler = WebFluxRequestExceptionHandler(),
+        ).create(
+            testAggregateRouteContract(
+                handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
+                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
+            ),
+        )
+
+        WebTestClient.bindToRouterFunction(route(POST("/sku/snapshot/count"), handlerFunction)).build()
+            .post()
+            .uri("/sku/snapshot/count")
+            .header(CommandComponent.Header.TENANT_ID, "tenant-1")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("{}")
+            .exchange()
+            .expectStatus().isOk
     }
 
     @Test

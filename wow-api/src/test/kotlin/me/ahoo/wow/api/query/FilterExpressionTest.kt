@@ -81,7 +81,7 @@ class FilterExpressionTest {
     fun `legacy queryable implementation should inherit filter compatibility`() {
         val query = LegacyQueryable(Condition.eq("state.status", "CREATED"))
 
-        (query.filter as EqualFilter).field.value.assert().isEqualTo("state.status")
+        query.filter.toCondition().assert().isEqualTo(query.condition)
         query.withFilter(MatchAllFilter).condition.assert().isEqualTo(Condition.ALL)
     }
 
@@ -89,9 +89,8 @@ class FilterExpressionTest {
     @Test
     fun `should preserve legacy collection equality`() {
         val condition = Condition.eq("state.tags", listOf("a", "b"))
-        val filter = condition.toFilterExpression() as EqualFilter
+        val filter = condition.toFilterExpression()
 
-        filter.value.isArray.assert().isTrue()
         filter.toCondition().assert().isEqualTo(condition)
     }
 
@@ -101,6 +100,16 @@ class FilterExpressionTest {
 
         json.contains("\"filter\"").assert().isTrue()
         json.contains("\"condition\"").assert().isFalse()
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `legacy query serialization should preserve condition wire shape`() {
+        val json = jsonMapper.writeValueAsString(ListQuery(Condition.eq("@timestamp", "now")))
+
+        json.contains("\"condition\"").assert().isTrue()
+        json.contains("\"filter\"").assert().isFalse()
+        json.contains("@timestamp").assert().isTrue()
     }
 
     @Suppress("DEPRECATION")

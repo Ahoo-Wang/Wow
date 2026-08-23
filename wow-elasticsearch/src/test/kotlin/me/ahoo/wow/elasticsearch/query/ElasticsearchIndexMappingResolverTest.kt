@@ -188,6 +188,10 @@ class ElasticsearchIndexMappingResolverTest {
         ) as me.ahoo.wow.api.query.ElementMatchFilter
         (filter.predicate as me.ahoo.wow.api.query.EqualFilter).field.value.assert()
             .isEqualTo("state.items.name")
+
+        ElasticsearchIndexMapping.from(INDEX, keywordOnly())
+            .resolve(Condition.match("state.name", "Wow"))
+            .field.assert().isEqualTo("state.name")
     }
 
     @Test

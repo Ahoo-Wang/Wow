@@ -13,6 +13,10 @@
 
 package me.ahoo.wow.api.query
 
+import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.annotation.JsonInclude
+import com.fasterxml.jackson.annotation.JsonProperty
+
 /**
  * Interface for paginated queries that retrieve items in pages.
  *
@@ -47,14 +51,24 @@ interface IPagedQuery : Queryable<IPagedQuery> {
  * ```
  */
 data class PagedQuery(
+    @get:JsonInclude(
+        value = JsonInclude.Include.CUSTOM,
+        valueFilter = LegacyConditionFilterValueFilter::class,
+    )
     override val filter: FilterExpression,
     override val projection: Projection = Projection.ALL,
     override val sort: List<Sort> = emptyList(),
     override val pagination: Pagination = Pagination.DEFAULT
 ) : IPagedQuery {
     @Deprecated("Use filter.")
+    @get:JsonIgnore
     override val condition: Condition
         get() = filter.toLegacyCondition()
+
+    @get:JsonProperty("condition")
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    internal val legacyConditionPayload: Condition?
+        get() = filter.legacyConditionOrNull()
 
     @Deprecated("Use filter.")
     constructor(
@@ -77,7 +91,8 @@ data class PagedQuery(
         copy(filter = LegacyConditionAdapter.adapt(newCondition))
 
     @Deprecated("Use appendFilter.")
-    override fun appendCondition(append: Condition): IPagedQuery = appendFilter(LegacyConditionAdapter.adapt(append))
+    override fun appendCondition(append: Condition): IPagedQuery =
+        copy(filter = LegacyConditionAdapter.adapt(condition.appendCondition(append)))
 
     @Deprecated("Use copy(filter = ...).")
     fun copy(

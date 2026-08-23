@@ -11,19 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.api.query
+package me.ahoo.wow.schema.typed.query
 
-interface FilterCapable<Q : FilterCapable<Q>> : RewritableFilter<Q> {
-    val filter: FilterExpression
-
-    override fun appendFilter(append: FilterExpression): Q {
-        val appended = if (
-            filter === MatchAllFilter || filter.legacyConditionOrNull()?.operator == Operator.ALL
-        ) {
-            append
-        } else {
-            AndFilter(listOf(filter, append))
-        }
-        return withFilter(appended)
-    }
-}
+@Deprecated("Use SingleQuery with FilterExpression.")
+interface AggregatedSingleQuery<CommandAggregateType : Any>

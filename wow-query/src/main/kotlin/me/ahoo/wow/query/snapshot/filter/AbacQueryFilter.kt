@@ -20,6 +20,7 @@ import me.ahoo.wow.api.abac.wildcard
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.query.dsl.condition
@@ -119,6 +120,14 @@ abstract class AbacQueryFilter : SnapshotQueryFilter {
      */
     abstract fun getPrincipalTags(contextView: ContextView, context: QueryContext<*, *>): Mono<AbacTags>
 
+    @Deprecated("Use resolveFilter.")
+    open fun resolveCondition(
+        contextView: ContextView,
+        context: QueryContext<*, *>,
+    ): Mono<Condition> = getPrincipalTags(contextView, context).map {
+        if (it.isEmpty()) Condition.ALL else it.toCondition()
+    }.switchIfEmpty(Condition.ALL.toMono())
+
     /**
      * Resolves the ABAC condition for the current context.
      *
@@ -129,14 +138,14 @@ abstract class AbacQueryFilter : SnapshotQueryFilter {
     open fun resolveFilter(
         contextView: ContextView,
         context: QueryContext<*, *>
-    ): Mono<me.ahoo.wow.api.query.FilterExpression> {
-        return getPrincipalTags(contextView, context).map {
-            if (it.isEmpty()) {
-                return@map me.ahoo.wow.api.query.MatchAllFilter
+    ): Mono<me.ahoo.wow.api.query.FilterExpression> =
+        resolveCondition(contextView, context).map {
+            if (it.operator == me.ahoo.wow.api.query.Operator.ALL) {
+                me.ahoo.wow.api.query.MatchAllFilter
+            } else {
+                it.toFilterExpression()
             }
-            return@map it.toFilterExpression()
-        }.switchIfEmpty(me.ahoo.wow.api.query.MatchAllFilter.toMono())
-    }
+        }
 
     override fun filter(
         context: QueryContext<*, *>,

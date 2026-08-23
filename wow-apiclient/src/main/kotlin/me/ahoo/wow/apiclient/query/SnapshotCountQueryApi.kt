@@ -29,5 +29,6 @@ interface SnapshotCountQueryApi<R> : SnapshotQueryApi {
     fun count(@RequestBody filter: FilterExpression): R = count(filter.toCondition())
 
     @Deprecated("Use count(FilterExpression).")
-    fun count(condition: Condition): R = count(condition.toFilterExpression())
+    @PostExchange(SNAPSHOT_COUNT_RESOURCE_NAME)
+    fun count(@RequestBody condition: Condition): R = count(condition.toFilterExpression())
 }

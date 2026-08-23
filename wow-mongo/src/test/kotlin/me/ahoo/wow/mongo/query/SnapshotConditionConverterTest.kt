@@ -12,6 +12,7 @@ import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import org.bson.conversions.Bson
+import org.bson.types.ObjectId
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
@@ -90,6 +91,7 @@ class SnapshotConditionConverterTest {
     @Suppress("DEPRECATION")
     @Test
     fun `should preserve legacy document id and match semantics`() {
+        val objectId = ObjectId()
         assertConvert(
             SnapshotConditionConverter.convert(Condition.id("aggregate-1").toFilterExpression()),
             Filters.eq(Documents.ID_FIELD, "aggregate-1"),
@@ -121,6 +123,14 @@ class SnapshotConditionConverterTest {
                 "state.items",
                 Filters.eq(MessageRecords.AGGREGATE_ID, "nested-aggregate-id"),
             ),
+        )
+        assertConvert(
+            SnapshotConditionConverter.convert(Condition.eq("@timestamp", objectId).toFilterExpression()),
+            Filters.eq("@timestamp", objectId),
+        )
+        assertConvert(
+            SnapshotConditionConverter.convert(Condition.all("state.tags", emptyList()).toFilterExpression()),
+            Filters.all("state.tags", emptyList<Any>()),
         )
     }
 

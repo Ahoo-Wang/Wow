@@ -55,6 +55,7 @@ import me.ahoo.wow.api.query.ThisMonthFilter
 import me.ahoo.wow.api.query.ThisWeekFilter
 import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.TomorrowFilter
+import me.ahoo.wow.api.query.legacyConditionOrNull
 import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.query.FilterNormalizer
 import me.ahoo.wow.query.converter.AbstractConditionConverter
@@ -74,70 +75,78 @@ abstract class AbstractMongoConditionConverter(
 
     private val filterNormalizer = FilterNormalizer(defaultDeletionState = defaultDeletionState)
 
-    fun convert(filter: FilterExpression): Bson = internalConvert(filterNormalizer.normalize(filter))
+    fun convert(filter: FilterExpression): Bson =
+        filter.legacyConditionOrNull()?.let(::convert) ?: internalConvert(filterNormalizer.normalize(filter))
 
     @Suppress("CyclomaticComplexMethod", "LongMethod")
-    private fun internalConvert(filter: FilterExpression, mapField: Boolean = true): Bson = when (filter) {
-        MatchAllFilter -> Filters.empty()
-        MatchNoneFilter -> org.bson.Document("\$expr", false)
-        is AndFilter -> Filters.and(filter.operands.map { internalConvert(it, mapField) })
-        is OrFilter -> Filters.or(filter.operands.map { internalConvert(it, mapField) })
-        is NorFilter -> Filters.nor(filter.operands.map { internalConvert(it, mapField) })
-        is EqualFilter -> Filters.eq(filter.field.convert(mapField), filter.value.nativeValue())
-        is NotEqualFilter -> Filters.ne(filter.field.convert(mapField), filter.value.nativeValue())
-        is GreaterThanFilter -> Filters.gt(filter.field.convert(mapField), filter.value.requiredNativeValue())
-        is GreaterThanOrEqualFilter -> Filters.gte(filter.field.convert(mapField), filter.value.requiredNativeValue())
-        is LessThanFilter -> Filters.lt(filter.field.convert(mapField), filter.value.requiredNativeValue())
-        is LessThanOrEqualFilter -> Filters.lte(filter.field.convert(mapField), filter.value.requiredNativeValue())
-        is ContainsFilter -> regex(
-            filter.field.convert(mapField),
-            filter.value.escapeRegex(),
-            filter.stringComparison.ignoreCase
-        )
-        is StartsWithFilter -> regex(
-            filter.field.convert(mapField),
-            "^${filter.value.escapeRegex()}",
-            filter.stringComparison.ignoreCase
-        )
-        is EndsWithFilter -> regex(
-            filter.field.convert(mapField),
-            "${filter.value.escapeRegex()}$",
-            filter.stringComparison.ignoreCase
-        )
-        is InFilter -> Filters.`in`(filter.field.convert(mapField), filter.values.map { it.nativeValue() })
-        is NotInFilter -> Filters.nin(filter.field.convert(mapField), filter.values.map { it.nativeValue() })
-        is BetweenFilter -> Filters.and(
-            Filters.gte(filter.field.convert(mapField), filter.lowerBound.requiredNativeValue()),
-            Filters.lte(filter.field.convert(mapField), filter.upperBound.requiredNativeValue()),
-        )
-        is ContainsAllFilter -> Filters.all(filter.field.convert(mapField), filter.values.map { it.nativeValue() })
-        is IsEmptyFilter -> Filters.size(filter.field.convert(mapField), 0)
-        is IsNullFilter -> Filters.eq(filter.field.convert(mapField), null)
-        is IsNotNullFilter -> Filters.ne(filter.field.convert(mapField), null)
-        is ExistsFilter -> Filters.exists(filter.field.convert(mapField))
-        is NotExistsFilter -> Filters.exists(filter.field.convert(mapField), false)
-        is DeletionFilter -> when (filter.deletionState) {
-            DeletionState.ACTIVE -> Filters.eq(StateAggregateRecords.DELETED, false)
-            DeletionState.DELETED -> Filters.eq(StateAggregateRecords.DELETED, true)
-            DeletionState.ALL -> Filters.empty()
+    private fun internalConvert(filter: FilterExpression, mapField: Boolean = true): Bson =
+        filter.legacyConditionOrNull()?.let {
+            if (mapField) convert(it) else super.internalConvert(it)
+        } ?: when (filter) {
+            MatchAllFilter -> Filters.empty()
+            MatchNoneFilter -> org.bson.Document("\$expr", false)
+            is AndFilter -> Filters.and(filter.operands.map { internalConvert(it, mapField) })
+            is OrFilter -> Filters.or(filter.operands.map { internalConvert(it, mapField) })
+            is NorFilter -> Filters.nor(filter.operands.map { internalConvert(it, mapField) })
+            is EqualFilter -> Filters.eq(filter.field.convert(mapField), filter.value.nativeValue())
+            is NotEqualFilter -> Filters.ne(filter.field.convert(mapField), filter.value.nativeValue())
+            is GreaterThanFilter -> Filters.gt(filter.field.convert(mapField), filter.value.requiredNativeValue())
+            is GreaterThanOrEqualFilter -> Filters.gte(
+                filter.field.convert(mapField),
+                filter.value.requiredNativeValue()
+            )
+            is LessThanFilter -> Filters.lt(filter.field.convert(mapField), filter.value.requiredNativeValue())
+            is LessThanOrEqualFilter -> Filters.lte(filter.field.convert(mapField), filter.value.requiredNativeValue())
+            is ContainsFilter -> regex(
+                filter.field.convert(mapField),
+                filter.value.escapeRegex(),
+                filter.stringComparison.ignoreCase
+            )
+            is StartsWithFilter -> regex(
+                filter.field.convert(mapField),
+                "^${filter.value.escapeRegex()}",
+                filter.stringComparison.ignoreCase
+            )
+            is EndsWithFilter -> regex(
+                filter.field.convert(mapField),
+                "${filter.value.escapeRegex()}$",
+                filter.stringComparison.ignoreCase
+            )
+            is InFilter -> Filters.`in`(filter.field.convert(mapField), filter.values.map { it.nativeValue() })
+            is NotInFilter -> Filters.nin(filter.field.convert(mapField), filter.values.map { it.nativeValue() })
+            is BetweenFilter -> Filters.and(
+                Filters.gte(filter.field.convert(mapField), filter.lowerBound.requiredNativeValue()),
+                Filters.lte(filter.field.convert(mapField), filter.upperBound.requiredNativeValue()),
+            )
+            is ContainsAllFilter -> Filters.all(filter.field.convert(mapField), filter.values.map { it.nativeValue() })
+            is IsEmptyFilter -> Filters.size(filter.field.convert(mapField), 0)
+            is IsNullFilter -> Filters.eq(filter.field.convert(mapField), null)
+            is IsNotNullFilter -> Filters.ne(filter.field.convert(mapField), null)
+            is ExistsFilter -> Filters.exists(filter.field.convert(mapField))
+            is NotExistsFilter -> Filters.exists(filter.field.convert(mapField), false)
+            is DeletionFilter -> when (filter.deletionState) {
+                DeletionState.ACTIVE -> Filters.eq(StateAggregateRecords.DELETED, false)
+                DeletionState.DELETED -> Filters.eq(StateAggregateRecords.DELETED, true)
+                DeletionState.ALL -> Filters.empty()
+            }
+            is ElementMatchFilter -> Filters.elemMatch(
+                filter.field.convert(mapField),
+                internalConvert(filter.predicate, mapField = false),
+            )
+            is SearchFilter -> Filters.text(filter.query)
+            is TodayFilter,
+            is BeforeTodayFilter,
+            is TomorrowFilter,
+            is ThisWeekFilter,
+            is NextWeekFilter,
+            is LastWeekFilter,
+            is ThisMonthFilter,
+            is LastMonthFilter,
+            is RecentDaysFilter,
+            is EarlierDaysFilter,
+            -> error("Relative-time filter must be normalized before compilation.")
+            else -> error("Unsupported filter expression: ${filter::class.java.name}.")
         }
-        is ElementMatchFilter -> Filters.elemMatch(
-            filter.field.convert(mapField),
-            internalConvert(filter.predicate, mapField = false),
-        )
-        is SearchFilter -> Filters.text(filter.query)
-        is TodayFilter,
-        is BeforeTodayFilter,
-        is TomorrowFilter,
-        is ThisWeekFilter,
-        is NextWeekFilter,
-        is LastWeekFilter,
-        is ThisMonthFilter,
-        is LastMonthFilter,
-        is RecentDaysFilter,
-        is EarlierDaysFilter,
-        -> error("Relative-time filter must be normalized before compilation.")
-    }
 
     private fun me.ahoo.wow.api.query.LogicalField.convert(mapField: Boolean): String =
         if (mapField) fieldConverter.convert(value) else value

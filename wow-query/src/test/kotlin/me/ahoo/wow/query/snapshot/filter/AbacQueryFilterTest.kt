@@ -21,7 +21,10 @@ import me.ahoo.wow.api.abac.AbacTagValue
 import me.ahoo.wow.api.abac.AbacTags
 import me.ahoo.wow.api.abac.EMPTY_ABAC_TAGS
 import me.ahoo.wow.api.abac.wildcard
+import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.Operator
+import me.ahoo.wow.api.query.toCondition
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.query.filter.DefaultQueryContext
 import me.ahoo.wow.query.filter.QueryContext
@@ -137,6 +140,33 @@ class AbacQueryFilterTest {
             } returns Mono.empty()
         }
         MockAbacQueryFilter.filter(context, chain).test().verifyComplete()
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `filter should retain legacy resolveCondition overrides`() {
+        val legacyCondition = Condition.eq("state.owner", "owner-1")
+        val context = DefaultQueryContext<FilterExpression, Any>(
+            queryType = QueryType.COUNT,
+            MOCK_AGGREGATE_METADATA,
+        ).setQuery(me.ahoo.wow.api.query.MatchAllFilter)
+        val filter = object : AbacQueryFilter() {
+            override fun getPrincipalTags(
+                contextView: ContextView,
+                context: QueryContext<*, *>,
+            ): Mono<AbacTags> = EMPTY_ABAC_TAGS.toMono()
+
+            override fun resolveCondition(
+                contextView: ContextView,
+                context: QueryContext<*, *>,
+            ): Mono<Condition> = legacyCondition.toMono()
+        }
+        val chain = FilterChain<QueryContext<*, *>> {
+            (it.getQuery() as FilterExpression).toCondition().assert().isEqualTo(legacyCondition)
+            Mono.empty()
+        }
+
+        filter.filter(context, chain).test().verifyComplete()
     }
 
     object EmptyAbacQueryFilter : AbacQueryFilter() {

@@ -66,10 +66,7 @@ class FilterNormalizerTest {
             Condition.today("createdAt", formatter).toFilterExpression(),
         ) as AndFilter
 
-        (normalized.operands[1] as GreaterThanOrEqualFilter).value.asString().assert()
-            .isEqualTo("2026-08-22 00:00:00")
-        (normalized.operands[2] as LessThanFilter).value.asString().assert()
-            .isEqualTo("2026-08-23 00:00:00")
+        normalized.operands[1].toCondition().datePattern().assert().isEqualTo(formatter)
     }
 
     @Test

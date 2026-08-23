@@ -20,6 +20,7 @@ import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterCapable
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.NorFilter
 import me.ahoo.wow.api.query.NotEqualFilter
 import me.ahoo.wow.api.query.OrFilter
@@ -66,15 +67,17 @@ class QueryBodyExtractor<Q : Any>(private val queryType: Class<Q>) : BodyExtract
             return strictDecode(objectNode)
         }
         val condition = objectNode.remove("condition").toObject(Condition::class.java)
-        objectNode.set("filter", JsonSerializer.valueToTree(condition.toFilterExpression()))
-        return objectNode.toObject(queryType)
+        objectNode.set("filter", JsonSerializer.valueToTree(MatchAllFilter))
+        val query = objectNode.toObject(queryType)
+        @Suppress("UNCHECKED_CAST")
+        return (query as FilterCapable<*>).withFilter(condition.toFilterExpression()) as Q
     }
 
     @Suppress("UNCHECKED_CAST")
     private fun decodeCount(objectNode: ObjectNode): Q {
         val hasFilter = objectNode.has("op")
         val hasCondition = objectNode.has("operator")
-        require(hasFilter.xor(hasCondition)) { "Exactly one of op or operator is required." }
+        require(!(hasFilter && hasCondition)) { "op and operator cannot be used together." }
         return if (hasFilter) {
             strictDecode(objectNode)
         } else {

@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.api.query
 
+import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.annotation.JsonInclude
+import com.fasterxml.jackson.annotation.JsonProperty
 import io.swagger.v3.oas.annotations.media.Schema
 
 /**
@@ -51,14 +54,24 @@ interface IListQuery : Queryable<IListQuery> {
  * ```
  */
 data class ListQuery(
+    @get:JsonInclude(
+        value = JsonInclude.Include.CUSTOM,
+        valueFilter = LegacyConditionFilterValueFilter::class,
+    )
     override val filter: FilterExpression,
     override val projection: Projection = Projection.ALL,
     override val sort: List<Sort> = emptyList(),
     override val limit: Int = 0
 ) : IListQuery {
     @Deprecated("Use filter.")
+    @get:JsonIgnore
     override val condition: Condition
         get() = filter.toLegacyCondition()
+
+    @get:JsonProperty("condition")
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    internal val legacyConditionPayload: Condition?
+        get() = filter.legacyConditionOrNull()
 
     @Deprecated("Use filter.")
     constructor(
@@ -81,7 +94,8 @@ data class ListQuery(
         copy(filter = LegacyConditionAdapter.adapt(newCondition))
 
     @Deprecated("Use appendFilter.")
-    override fun appendCondition(append: Condition): IListQuery = appendFilter(LegacyConditionAdapter.adapt(append))
+    override fun appendCondition(append: Condition): IListQuery =
+        copy(filter = LegacyConditionAdapter.adapt(condition.appendCondition(append)))
 
     @Deprecated("Use copy(filter = ...).")
     fun copy(

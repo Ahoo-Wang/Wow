@@ -73,11 +73,11 @@ class ElasticsearchSnapshotMappingQueryTest {
             ),
         ).collectList().block()
 
-        val filters = searchRequest.captured.query()!!.bool().filter()
-        filters[1].term().field().assert().isEqualTo("state.name.keyword")
-        filters[2].multiMatch().fields().assert().containsExactly("state.name")
-        filters[3].wildcard().field().assert().isEqualTo("state.name.keyword")
-        filters[4].range().untyped().field().assert().isEqualTo("state.age")
+        val filters = searchRequest.captured.query()!!.bool().filter()[1].bool().filter()
+        filters[0].term().field().assert().isEqualTo("state.name.keyword")
+        filters[1].match().field().assert().isEqualTo("state.name")
+        filters[2].wildcard().field().assert().isEqualTo("state.name.keyword")
+        filters[3].range().untyped().field().assert().isEqualTo("state.age")
         searchRequest.captured.sort().single().field().field().assert().isEqualTo("state.name.keyword")
         searchRequest.captured.source()!!.filter().includes().assert().containsExactly("state.name")
     }
@@ -99,6 +99,25 @@ class ElasticsearchSnapshotMappingQueryTest {
 
         verify(exactly = 1) { indicesClient.getMapping(any<GetMappingRequest>()) }
         verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `legacy element match should retain nested match query`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(queryMapping()),
+        )
+
+        queryService().dynamicList(
+            ListQuery(
+                condition = Condition.elemMatch("body", Condition.match("body.name", "wow")),
+                limit = 10,
+            ),
+        ).collectList().block()
+
+        val nested = searchRequest.captured.query()!!.bool().filter()[1].nested()
+        nested.path().assert().isEqualTo("body")
+        nested.query().bool().filter().single().match().field().assert().isEqualTo("body.name")
     }
 
     @Test
@@ -185,6 +204,11 @@ class ElasticsearchSnapshotMappingQueryTest {
 
     private fun queryMapping(includeNewField: Boolean = false): TypeMapping =
         TypeMapping.of { mapping ->
+            mapping.properties("body") { body ->
+                body.nested { nested ->
+                    nested.properties("name") { name -> name.keyword { it } }
+                }
+            }
             mapping.properties("state") { state ->
                 state.`object` { objectField ->
                     objectField
