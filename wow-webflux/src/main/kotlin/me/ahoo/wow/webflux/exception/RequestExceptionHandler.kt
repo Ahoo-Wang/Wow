@@ -32,9 +32,12 @@ class WebFluxRequestExceptionHandler(
     }
 
     override fun handle(request: ServerRequest, throwable: Throwable): Mono<ServerResponse> {
-        log.warn(throwable) {
-            request.formatRequest()
+        return errorStrategy.toServerResponse(request, throwable).doOnNext { response ->
+            if (response.statusCode().is4xxClientError) {
+                log.warn { "${request.formatRequest()} - ${throwable.message.orEmpty()}" }
+            } else {
+                log.warn(throwable) { request.formatRequest() }
+            }
         }
-        return errorStrategy.toServerResponse(request, throwable)
     }
 }

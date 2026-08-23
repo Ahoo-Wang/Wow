@@ -13,8 +13,13 @@
 
 package me.ahoo.wow.webflux.exception
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
+import org.slf4j.LoggerFactory
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import reactor.kotlin.test.test
 
@@ -28,5 +33,45 @@ class WebFluxRequestExceptionHandlerTest {
             .consumeNextWith {
                 it.statusCode().is4xxClientError.assert().isTrue()
             }.verifyComplete()
+    }
+
+    @Test
+    fun `should log client error without stack trace`() {
+        val warnings = captureWarnings {
+            WebFluxRequestExceptionHandler().handle(
+                MockServerRequest.builder().build(),
+                IllegalArgumentException("invalid request"),
+            ).block()
+        }
+
+        warnings.assert().hasSize(1)
+        warnings.single().formattedMessage.assert().contains("invalid request")
+        warnings.single().throwableProxy.assert().isNull()
+    }
+
+    @Test
+    fun `should retain stack trace for server error`() {
+        val warnings = captureWarnings {
+            WebFluxRequestExceptionHandler().handle(
+                MockServerRequest.builder().build(),
+                RuntimeException("server error"),
+            ).block()
+        }
+
+        warnings.assert().hasSize(1)
+        warnings.single().throwableProxy.assert().isNotNull()
+    }
+
+    private fun captureWarnings(block: () -> Unit): List<ILoggingEvent> {
+        val logger = LoggerFactory.getLogger(WebFluxRequestExceptionHandler::class.java) as Logger
+        val appender = ListAppender<ILoggingEvent>().apply { start() }
+        logger.addAppender(appender)
+        return try {
+            block()
+            appender.list.filter { it.level == Level.WARN }
+        } finally {
+            logger.detachAppender(appender)
+            appender.stop()
+        }
     }
 }
