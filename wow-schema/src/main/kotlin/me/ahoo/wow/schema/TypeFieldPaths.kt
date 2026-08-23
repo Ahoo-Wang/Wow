@@ -13,11 +13,14 @@
 
 package me.ahoo.wow.schema
 
+import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.schema.TypeFieldPaths.allFieldPaths
+import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import tools.jackson.databind.JsonNode
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.KClass
 
 /**
@@ -26,7 +29,7 @@ import kotlin.reflect.KClass
 object TypeFieldPaths {
     const val JOIN_DELIMITER = "."
     const val MAX_DEPTH = 5
-    private val schemaGenerator by lazy { SchemaGeneratorBuilder().build() }
+    private val schemaGenerator by lazy { SchemaGeneratorBuilder().objectMapper(JsonSerializer).build() }
 
     fun KClass<*>.allFieldPaths(
         parentName: String = "",
@@ -95,6 +98,8 @@ object TypeFieldPaths {
 }
 
 object AggregatedFieldPaths {
+    private val commandFieldPaths = ConcurrentHashMap<Class<*>, Set<String>>()
+
     fun KClass<*>.stateAggregatedFieldPaths(): Set<String> {
         return allFieldPaths(
             parentName = StateAggregateRecords.STATE,
@@ -114,12 +119,14 @@ object AggregatedFieldPaths {
                 StateAggregateRecords.DELETED,
                 StateAggregateRecords.STATE
             )
-        )
+        ).filterTo(linkedSetOf()) { field ->
+            runCatching { LogicalField(field) }.isSuccess
+        }
     }
 
-    fun KClass<*>.commandAggregatedFieldPaths(): Set<String> {
-        val aggregateMetadata = this.java.aggregateMetadata<Any, Any>()
-        val stateAggregateType = aggregateMetadata.state.aggregateType.kotlin
-        return stateAggregateType.stateAggregatedFieldPaths()
+    fun KClass<*>.commandAggregatedFieldPaths(): Set<String> = commandFieldPaths.computeIfAbsent(
+        java
+    ) { aggregateType ->
+        aggregateType.aggregateMetadata<Any, Any>().state.aggregateType.kotlin.stateAggregatedFieldPaths()
     }
 }

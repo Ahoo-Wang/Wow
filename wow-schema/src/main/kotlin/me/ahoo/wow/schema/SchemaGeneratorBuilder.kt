@@ -29,6 +29,7 @@ import me.ahoo.wow.schema.jackson.WowJacksonModule
 import me.ahoo.wow.schema.joda.money.JodaMoneyModule
 import me.ahoo.wow.schema.kotlin.KotlinModule
 import me.ahoo.wow.schema.naming.SchemaNamingModule
+import tools.jackson.databind.ObjectMapper
 import java.util.function.Consumer
 
 /**
@@ -37,6 +38,9 @@ import java.util.function.Consumer
  * Jackson, Jakarta Validation, Swagger2, Kotlin, Joda Money, and Wow-specific modules.
  */
 class SchemaGeneratorBuilder {
+    var objectMapper: ObjectMapper? = null
+        private set
+
     /** Whether to use OpenAPI 3.1 specification. */
     var openapi31: Boolean = true
         private set
@@ -103,6 +107,11 @@ class SchemaGeneratorBuilder {
 
     fun openapi31(openapi31: Boolean): SchemaGeneratorBuilder {
         this.openapi31 = openapi31
+        return this
+    }
+
+    fun objectMapper(objectMapper: ObjectMapper): SchemaGeneratorBuilder {
+        this.objectMapper = objectMapper
         return this
     }
 

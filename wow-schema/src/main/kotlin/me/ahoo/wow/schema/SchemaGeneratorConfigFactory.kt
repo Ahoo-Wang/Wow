@@ -20,7 +20,10 @@ import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder
 internal object SchemaGeneratorConfigFactory {
 
     fun create(builder: SchemaGeneratorBuilder): SchemaGeneratorConfigBuilder {
-        return SchemaGeneratorConfigBuilder(builder.schemaVersion, builder.optionPreset)
+        val configBuilder = builder.objectMapper?.let {
+            SchemaGeneratorConfigBuilder(it, builder.schemaVersion, builder.optionPreset)
+        } ?: SchemaGeneratorConfigBuilder(builder.schemaVersion, builder.optionPreset)
+        return configBuilder
             .withModuleIfPresent(builder.jacksonModule)
             .withModuleIfPresent(builder.jakartaValidationModule)
             .withModuleIfPresent(builder.swagger2Module)

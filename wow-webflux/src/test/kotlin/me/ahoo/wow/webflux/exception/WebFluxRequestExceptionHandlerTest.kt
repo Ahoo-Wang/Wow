@@ -104,6 +104,22 @@ class WebFluxRequestExceptionHandlerTest {
         warnings.single().throwableProxy.assert().isNotNull()
     }
 
+    @Test
+    fun `should retain original exception when error response is cancelled`() {
+        val errorStrategy = mockk<WebFluxErrorStrategy> {
+            every { toServerResponse(any(), any()) } returns Mono.never()
+        }
+        val warnings = captureWarnings {
+            WebFluxRequestExceptionHandler(errorStrategy).handle(
+                MockServerRequest.builder().build(),
+                IllegalArgumentException("invalid request"),
+            ).test().thenCancel().verify()
+        }
+
+        warnings.assert().hasSize(1)
+        warnings.single().throwableProxy.assert().isNotNull()
+    }
+
     private fun captureWarnings(block: () -> Unit): List<ILoggingEvent> {
         val logger = LoggerFactory.getLogger(WebFluxRequestExceptionHandler::class.java) as Logger
         val appender = ListAppender<ILoggingEvent>().apply { start() }

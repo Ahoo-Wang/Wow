@@ -135,7 +135,7 @@ object QueryComponent {
         }
 
         private fun AggregateMetadata<*, *>.queryFields(): List<String> =
-            command.aggregateType.kotlin.commandAggregatedFieldPaths().filter(String::isNotBlank).sorted()
+            command.aggregateType.kotlin.commandAggregatedFieldPaths().sorted()
     }
 
     object Response {

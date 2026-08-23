@@ -24,6 +24,7 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.schema.AggregatedFieldPaths.commandAggregatedFieldPaths
+import me.ahoo.wow.schema.AggregatedFieldPaths.stateAggregatedFieldPaths
 import me.ahoo.wow.schema.TypeFieldPaths.allFieldPaths
 import org.junit.jupiter.api.Test
 
@@ -50,8 +51,18 @@ class AggregatedFieldPathsTest {
 
         paths.assert()
             .contains("state.display_name")
+            .contains("state.display name")
             .contains("state.frozen")
             .doesNotContain("state.name")
+    }
+
+    @Test
+    fun `should exclude field paths rejected by logical field grammar`() {
+        val paths = JavaBeanFieldPathFixture::class.stateAggregatedFieldPaths()
+
+        paths.assert()
+            .contains("state.display_name")
+            .doesNotContain("state.display name")
     }
 
     @Test

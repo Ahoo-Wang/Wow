@@ -18,6 +18,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public class JavaBeanFieldPathFixture {
     @JsonProperty("display_name")
     private String name = "";
+    @JsonProperty("display name")
+    private String invalidName = "";
     private boolean frozen;
 
     public String getName() {
@@ -26,5 +28,9 @@ public class JavaBeanFieldPathFixture {
 
     public boolean isFrozen() {
         return frozen;
+    }
+
+    public String getInvalidName() {
+        return invalidName;
     }
 }
