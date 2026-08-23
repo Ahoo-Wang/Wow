@@ -31,7 +31,7 @@ private fun JsonNode.requireEqualityFilterValue() {
 }
 
 private fun JsonNode.requireComparableFilterLiteral() {
-    requireFilterLiteral()
+    if (!isPojo) requireFilterLiteral()
     require(!isNull) { "Comparison filter value cannot be null." }
 }
 

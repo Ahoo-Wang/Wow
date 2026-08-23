@@ -13,10 +13,13 @@
 
 package me.ahoo.wow.schema.typed.query
 
+import com.networknt.schema.SchemaRegistry
+import com.networknt.schema.SpecificationVersion
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.schema.WowSchemaLoader
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.json.JsonMapper
 
 class FilterExpressionDefinitionProviderTest {
     @Test
@@ -32,5 +35,16 @@ class FilterExpressionDefinitionProviderTest {
             .assert().isOne()
         definitions.path("aggregateIds").path("properties").path("values").path("minItems").intValue()
             .assert().isOne()
+    }
+
+    @Test
+    fun `filter schema should accept at-prefixed logical fields`() {
+        val schema = SchemaRegistry.withDefaultDialect(SpecificationVersion.DRAFT_7)
+            .getSchema(WowSchemaLoader.load(FilterExpression::class.java))
+        val filter = JsonMapper.builder().build().readTree(
+            """{"op":"EQ","field":"@timestamp","value":"now"}""",
+        )
+
+        schema.validate(filter).assert().isEmpty()
     }
 }

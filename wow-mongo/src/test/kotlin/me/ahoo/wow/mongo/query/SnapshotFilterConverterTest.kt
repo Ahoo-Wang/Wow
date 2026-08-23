@@ -17,6 +17,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import tools.jackson.databind.JsonNode
+import java.util.Date
 import java.util.stream.Stream
 
 class SnapshotFilterConverterTest {
@@ -103,6 +104,34 @@ class SnapshotFilterConverterTest {
         assertConvert(
             SnapshotFilterConverter.convert(Condition.all("timestamp", listOf(objectId)).toFilterExpression()),
             Filters.all("timestamp", objectId),
+        )
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `legacy range predicates should preserve Date values`() {
+        val lower = Date(1_000)
+        val upper = Date(2_000)
+
+        assertConvert(
+            SnapshotFilterConverter.convert(Condition.gt("createdAt", lower).toFilterExpression()),
+            Filters.gt("createdAt", lower),
+        )
+        assertConvert(
+            SnapshotFilterConverter.convert(Condition.gte("createdAt", lower).toFilterExpression()),
+            Filters.gte("createdAt", lower),
+        )
+        assertConvert(
+            SnapshotFilterConverter.convert(Condition.lt("createdAt", upper).toFilterExpression()),
+            Filters.lt("createdAt", upper),
+        )
+        assertConvert(
+            SnapshotFilterConverter.convert(Condition.lte("createdAt", upper).toFilterExpression()),
+            Filters.lte("createdAt", upper),
+        )
+        assertConvert(
+            SnapshotFilterConverter.convert(Condition.between("createdAt", lower, upper).toFilterExpression()),
+            Filters.and(Filters.gte("createdAt", lower), Filters.lte("createdAt", upper)),
         )
     }
 

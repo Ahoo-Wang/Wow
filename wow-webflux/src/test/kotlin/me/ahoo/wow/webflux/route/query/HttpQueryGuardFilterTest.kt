@@ -211,6 +211,44 @@ class HttpQueryGuardFilterTest {
         }
     }
 
+    @Suppress("DEPRECATION")
+    @Test
+    fun `legacy collection nested with match should respect max filter values`() {
+        val filter = Condition.elemMatch(
+            "state.items",
+            Condition.and(
+                Condition.match("name", "wow"),
+                Condition.isIn("tags", listOf("one", "two")),
+            ),
+        ).toFilterExpression()
+
+        guard(maxFilterValues = 1).filter(countContext(filter), unexpectedBackend())
+            .writeRawRequest(request)
+            .test()
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `legacy predicates nested with match should preserve expensive operator guard`() {
+        listOf(
+            Condition.exists("value", false),
+            Condition.startsWith("value", "wow", ignoreCase = true),
+        ).forEach { predicate ->
+            val filter = Condition.elemMatch(
+                "state.items",
+                Condition.and(Condition.match("name", "wow"), predicate),
+            ).toFilterExpression()
+
+            guard().filter(countContext(filter), unexpectedBackend())
+                .writeRawRequest(request)
+                .test()
+                .expectError(IllegalArgumentException::class.java)
+                .verify()
+        }
+    }
+
     @Test
     fun `should allow application sort and filter fields`() {
         val filter = filterExpression {
