@@ -31,7 +31,7 @@ import reactor.kotlin.core.publisher.toMono
 
 abstract class AbstractMongoQueryService<R : Any> : QueryService<R> {
     abstract val collection: MongoCollection<Document>
-    abstract val converter: AbstractMongoConditionConverter
+    abstract val converter: AbstractMongoFilterConverter
     abstract val projectionConverter: MongoProjectionConverter
     abstract val sortConverter: MongoSortConverter
     abstract fun toTypedResult(document: Document): R

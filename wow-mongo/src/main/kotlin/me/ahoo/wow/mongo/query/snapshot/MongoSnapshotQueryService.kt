@@ -22,7 +22,7 @@ import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToAggregateId
 import me.ahoo.wow.mongo.MongoSnapshotStore
-import me.ahoo.wow.mongo.query.AbstractMongoConditionConverter
+import me.ahoo.wow.mongo.query.AbstractMongoFilterConverter
 import me.ahoo.wow.mongo.query.AbstractMongoQueryService
 import me.ahoo.wow.mongo.query.MongoProjectionConverter
 import me.ahoo.wow.mongo.query.MongoSortConverter
@@ -34,7 +34,7 @@ import org.bson.Document
 class MongoSnapshotQueryService<S : Any>(
     override val namedAggregate: NamedAggregate,
     override val collection: MongoCollection<Document>,
-    override val converter: AbstractMongoConditionConverter = SnapshotConditionConverter
+    override val converter: AbstractMongoFilterConverter = SnapshotFilterConverter
 ) : AbstractMongoQueryService<MaterializedSnapshot<S>>(), SnapshotQueryService<S> {
     override val name: String
         get() = MongoSnapshotStore.NAME

@@ -1,0 +1,179 @@
+@file:Suppress("NoWildcardImports", "WildcardImport")
+
+package me.ahoo.wow.mongo.query
+
+import com.mongodb.client.model.Filters
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.*
+import me.ahoo.wow.mongo.Documents
+import me.ahoo.wow.mongo.query.snapshot.SnapshotFilterConverter
+import me.ahoo.wow.serialization.JsonSerializer
+import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.serialization.state.StateAggregateRecords
+import org.bson.conversions.Bson
+import org.bson.types.ObjectId
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.node.JsonNodeFactory
+import java.util.stream.Stream
+
+class SnapshotFilterConverterTest {
+
+    private fun assertConvert(actual: Bson, expected: Bson) {
+        val deletionBson = Filters.and(
+            Filters.eq(StateAggregateRecords.DELETED, false),
+            expected
+        )
+        actual.toBsonDocument().assert().isEqualTo(deletionBson.toBsonDocument())
+    }
+
+    @Test
+    fun `snapshot metadata filters should target document and metadata fields`() {
+        assertConvert(SnapshotFilterConverter.convert(IdFilter("id-1")), Filters.eq(Documents.ID_FIELD, "id-1"))
+        assertConvert(
+            SnapshotFilterConverter.convert(AggregateIdFilter("aggregate-1")),
+            Filters.eq(Documents.ID_FIELD, "aggregate-1"),
+        )
+        assertConvert(
+            SnapshotFilterConverter.convert(TenantIdFilter("tenant-1")),
+            Filters.eq(MessageRecords.TENANT_ID, "tenant-1"),
+        )
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `direct converter execution should resolve a legacy wrapper`() {
+        SnapshotFilterConverter.convert(Condition.id("id-1").toFilterExpression()).toBsonDocument().assert()
+            .isEqualTo(
+                Filters.and(
+                    Filters.eq(StateAggregateRecords.DELETED, false),
+                    Filters.eq(Documents.ID_FIELD, "id-1"),
+                ).toBsonDocument(),
+            )
+    }
+
+    @Test
+    fun `equality filters should preserve scalar arrays and runtime POJOs`() {
+        val objectId = ObjectId()
+        assertConvert(
+            SnapshotFilterConverter.convert(EqualFilter(LogicalField("state.tags"), json(listOf("a", "b")))),
+            Filters.eq("state.tags", listOf("a", "b")),
+        )
+        assertConvert(
+            SnapshotFilterConverter.convert(
+                NotEqualFilter(LogicalField("state.tags"), json(listOf("a", "b"))),
+            ),
+            Filters.ne("state.tags", listOf("a", "b")),
+        )
+        assertConvert(
+            SnapshotFilterConverter.convert(
+                EqualFilter(LogicalField("timestamp"), JsonNodeFactory.instance.pojoNode(objectId)),
+            ),
+            Filters.eq("timestamp", objectId),
+        )
+    }
+
+    @Test
+    fun `element predicate fields should remain relative`() {
+        assertConvert(
+            SnapshotFilterConverter.convert(
+                ElementMatchFilter(
+                    LogicalField("state.items"),
+                    EqualFilter(LogicalField(MessageRecords.AGGREGATE_ID), json("nested-aggregate-id")),
+                ),
+            ),
+            Filters.elemMatch(
+                "state.items",
+                Filters.eq(MessageRecords.AGGREGATE_ID, "nested-aggregate-id"),
+            ),
+        )
+    }
+
+    @Test
+    fun `explicit deletion filters should replace the default deletion scope`() {
+        SnapshotFilterConverter.convert(
+            AndFilter(
+                listOf(
+                    DeletionFilter(DeletionState.DELETED),
+                    EqualFilter(LogicalField("state.name"), json("Wow")),
+                ),
+            ),
+        ).toBsonDocument().assert().isEqualTo(
+            Filters.and(
+                Filters.eq(StateAggregateRecords.DELETED, true),
+                Filters.eq("state.name", "Wow"),
+            ).toBsonDocument(),
+        )
+    }
+
+    @Test
+    fun `match none should absorb the default deletion scope`() {
+        SnapshotFilterConverter.convert(MatchNoneFilter).toBsonDocument().assert()
+            .isEqualTo(org.bson.Document("\$expr", false).toBsonDocument())
+    }
+
+    @ParameterizedTest
+    @MethodSource("mongoFilterParameters")
+    fun `should compile typed filter`(filter: FilterExpression, expected: Bson) {
+        assertConvert(SnapshotFilterConverter.convert(filter), expected)
+    }
+
+    companion object {
+        private fun json(value: Any?): JsonNode = JsonSerializer.valueToTree(value)
+
+        @JvmStatic
+        fun mongoFilterParameters(): Stream<Arguments> {
+            val field = LogicalField("state.value")
+            val nestedField = LogicalField("name")
+            val one = json(1)
+            val two = json(2)
+            val text = json("value")
+            return Stream.of(
+                Arguments.of(IdsFilter(listOf("id-1", "id-2")), Filters.`in`(Documents.ID_FIELD, "id-1", "id-2")),
+                Arguments.of(
+                    AggregateIdsFilter(listOf("aggregate-1", "aggregate-2")),
+                    Filters.`in`(Documents.ID_FIELD, "aggregate-1", "aggregate-2"),
+                ),
+                Arguments.of(OwnerIdFilter("owner-1"), Filters.eq(MessageRecords.OWNER_ID, "owner-1")),
+                Arguments.of(SpaceIdFilter("space-1"), Filters.eq(MessageRecords.SPACE_ID, "space-1")),
+                Arguments.of(
+                    OrFilter(listOf(EqualFilter(field, one), EqualFilter(field, two))),
+                    Filters.or(Filters.eq("state.value", 1), Filters.eq("state.value", 2)),
+                ),
+                Arguments.of(NorFilter(listOf(EqualFilter(field, one))), Filters.nor(Filters.eq("state.value", 1))),
+                Arguments.of(EqualFilter(field, json(true)), Filters.eq("state.value", true)),
+                Arguments.of(NotEqualFilter(field, one), Filters.ne("state.value", 1)),
+                Arguments.of(GreaterThanFilter(field, one), Filters.gt("state.value", 1)),
+                Arguments.of(GreaterThanOrEqualFilter(field, one), Filters.gte("state.value", 1)),
+                Arguments.of(LessThanFilter(field, one), Filters.lt("state.value", 1)),
+                Arguments.of(LessThanOrEqualFilter(field, one), Filters.lte("state.value", 1)),
+                Arguments.of(
+                    ContainsFilter(field, "value.*", StringComparison.CASE_INSENSITIVE),
+                    Filters.regex("state.value", "value\\.\\*", "i"),
+                ),
+                Arguments.of(StartsWithFilter(field, "value.*"), Filters.regex("state.value", "^value\\.\\*")),
+                Arguments.of(EndsWithFilter(field, "value.*"), Filters.regex("state.value", "value\\.\\*$")),
+                Arguments.of(InFilter(field, listOf(one, two)), Filters.`in`("state.value", 1, 2)),
+                Arguments.of(NotInFilter(field, listOf(one, two)), Filters.nin("state.value", 1, 2)),
+                Arguments.of(
+                    BetweenFilter(field, one, two),
+                    Filters.and(Filters.gte("state.value", 1), Filters.lte("state.value", 2)),
+                ),
+                Arguments.of(ContainsAllFilter(field, listOf(one, two)), Filters.all("state.value", 1, 2)),
+                Arguments.of(IsEmptyFilter(field), Filters.size("state.value", 0)),
+                Arguments.of(IsNullFilter(field), Filters.eq("state.value", null)),
+                Arguments.of(IsNotNullFilter(field), Filters.ne("state.value", null)),
+                Arguments.of(ExistsFilter(field), Filters.exists("state.value")),
+                Arguments.of(NotExistsFilter(field), Filters.exists("state.value", false)),
+                Arguments.of(
+                    ElementMatchFilter(field, EqualFilter(nestedField, text)),
+                    Filters.elemMatch("state.value", Filters.eq("name", "value")),
+                ),
+                Arguments.of(SearchFilter("value", linkedSetOf(field)), Filters.text("value")),
+            )
+        }
+    }
+}

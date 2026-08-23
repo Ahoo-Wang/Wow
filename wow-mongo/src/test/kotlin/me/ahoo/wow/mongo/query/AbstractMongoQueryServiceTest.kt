@@ -18,9 +18,9 @@ import com.mongodb.reactivestreams.client.MongoCollection
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import org.bson.Document
 import org.bson.conversions.Bson
@@ -32,7 +32,7 @@ class AbstractMongoQueryServiceTest {
     private val service = object : AbstractMongoQueryService<Document>() {
         override val namedAggregate = MaterializedNamedAggregate("test", "aggregate")
         override val collection: MongoCollection<Document> = this@AbstractMongoQueryServiceTest.collection
-        override val converter = me.ahoo.wow.mongo.query.snapshot.SnapshotConditionConverter
+        override val converter = me.ahoo.wow.mongo.query.snapshot.SnapshotFilterConverter
         override val projectionConverter = mockk<MongoProjectionConverter>()
         override val sortConverter = mockk<MongoSortConverter>()
         override fun toTypedResult(document: Document): Document = document
@@ -42,7 +42,7 @@ class AbstractMongoQueryServiceTest {
     @Test
     fun `negative list limit should fail before calling MongoDB`() {
         assertThrows<IllegalArgumentException> {
-            service.list(ListQuery(Condition.ALL, limit = -1))
+            service.list(ListQuery(MatchAllFilter, limit = -1))
         }
 
         verify(exactly = 0) { collection.find(any<Bson>()) }
@@ -59,7 +59,7 @@ class AbstractMongoQueryServiceTest {
         every { publisher.sort(bson) } returns publisher
         every { publisher.limit(1) } returns publisher
 
-        service.list(ListQuery(Condition.ALL, limit = 1))
+        service.list(ListQuery(MatchAllFilter, limit = 1))
 
         verify(exactly = 1) { publisher.limit(1) }
     }

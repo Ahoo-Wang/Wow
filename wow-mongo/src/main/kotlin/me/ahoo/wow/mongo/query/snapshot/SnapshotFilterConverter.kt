@@ -13,18 +13,9 @@
 
 package me.ahoo.wow.mongo.query.snapshot
 
-import me.ahoo.wow.api.query.Condition
-import me.ahoo.wow.mongo.query.AbstractMongoConditionConverter
+import me.ahoo.wow.mongo.query.AbstractMongoFilterConverter
 import me.ahoo.wow.query.converter.FieldConverter
-import org.bson.conversions.Bson
 
-object SnapshotConditionConverter : AbstractMongoConditionConverter() {
+object SnapshotFilterConverter : AbstractMongoFilterConverter() {
     override val fieldConverter: FieldConverter = SnapshotFieldConverter
-    override fun aggregateId(condition: Condition): Bson {
-        return id(condition)
-    }
-
-    override fun aggregateIds(condition: Condition): Bson {
-        return ids(condition)
-    }
 }
