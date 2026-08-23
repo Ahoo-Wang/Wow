@@ -99,12 +99,14 @@ MongoDB 与 Elasticsearch converter 直接编译这些类型；不先改写成 `
 
 兼容反向转换把七种 Filter 还原为对应的 `Condition` operator，确保废弃的 `condition` 属性与 `toCondition()` 仍保留语义，而不是退化成带物理字段名的 EQ/IN。
 
-### 集合相等兼容
+### 集合与 JVM 原生相等兼容
 
 旧入口允许 `Condition.eq/ne(field, collection)`，而新 HTTP filter 合同要求 EQ/NE 值为标量。为保留旧行为：
 
 - `EqualFilter` / `NotEqualFilter` 的运行时模型允许由 legacy resolver 生成数组值；
+- legacy JVM EQ/NE 的非 JSON 原生值（现有回归包含 BSON `ObjectId`）以运行时 `POJONode` 承载，并在存储 converter 中还原；
 - 新 HTTP `filter` 请求继续在 trust boundary 强制 EQ/NE 标量；
+- 新 HTTP `filter` 不接受数组或 POJO equality value；
 - OpenAPI/JSON Schema 继续声明 typed filter 的标量约束；
 - 不增加 `LegacyEqualFilter` 等实现层兼容类型。
 
@@ -164,7 +166,7 @@ MongoDB 与 Elasticsearch converter 直接编译这些类型；不先改写成 `
 - 覆盖七种独立元数据 Filter 的构造、JSON round-trip、空 plural 校验及 legacy 映射。
 - 覆盖七种独立元数据 Filter 到对应 Condition operator 的兼容反向转换。
 - 覆盖相对时间、search 和 element match。
-- 覆盖 collection EQ/NE 兼容及 typed/legacy 单字段序列化。
+- 覆盖 collection/native EQ/NE 兼容及 typed/legacy 单字段序列化。
 - 证明 typed resolver 为同一对象，legacy resolver 返回非 wrapper typed tree。
 
 ### wow-query
@@ -185,7 +187,7 @@ MongoDB 与 Elasticsearch converter 直接编译这些类型；不先改写成 `
 ### wow-mongo 与 wow-elasticsearch
 
 - converter 测试全部改用 FilterExpression。
-- 覆盖七种独立元数据 Filter 在 snapshot/event stream 中的不同物理查询、删除范围、nested 和相对时间语义。
+- 覆盖七种独立元数据 Filter 在 snapshot/event stream 中的不同物理查询、JVM 原生 equality value、删除范围、nested 和相对时间语义。
 - 运行已有 snapshot/event query service 测试与 Elasticsearch integration test 的相关子集。
 
 ## 验证命令
@@ -203,5 +205,5 @@ MongoDB 与 Elasticsearch converter 直接编译这些类型；不先改写成 `
 - MongoDB、Elasticsearch 不再存在 Condition converter 或 Condition override。
 - 七种独立元数据 Filter 可通过 JVM、HTTP、OpenAPI 和 JSON Schema 使用，并由两种存储直接编译。
 - 每条执行路径在 filter chain/storage 前得到真实 FilterExpression。
-- HTTP XOR、legacy JVM/HTTP 调用和 collection equality 回归测试通过。
+- HTTP XOR、legacy JVM/HTTP 调用及 collection/native equality 回归测试通过。
 - 相关模块 check 与 detekt 通过。
