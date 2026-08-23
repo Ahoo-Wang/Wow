@@ -15,12 +15,14 @@ package me.ahoo.wow.mongo.query.snapshot
 
 import com.mongodb.MongoClientSettings
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationElement
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.dsl.filter
 import org.bson.BsonDocument
 import org.bson.BsonInt32
@@ -89,5 +91,46 @@ class MongoAggregationCompilerTest {
             "\$project",
         )
         pipeline[2].toString().assert().contains("\$type")
+    }
+
+    @Test
+    fun `should compile portable bucket and metric operators`() {
+        val pipeline = MongoAggregationCompiler.compile(
+            AggregationQuery(
+                groupBy = listOf(
+                    AggregationGroup.Histogram("state.amount", "band", 10.0),
+                    AggregationGroup.DateHistogram(
+                        "state.createdAt",
+                        "week",
+                        AggregationDateUnit.WEEK,
+                        "Asia/Shanghai",
+                    ),
+                ),
+                metrics = AggregationFunction.entries.map { function ->
+                    AggregationMetric.Numeric(
+                        function,
+                        AggregationExpression.Field("state.amount"),
+                        function.name.lowercase(),
+                    )
+                },
+                sort = listOf(Sort("sum", Sort.Direction.DESC)),
+            ),
+            SnapshotConditionConverter,
+        ).map {
+            it.toBsonDocument(BsonDocument::class.java, MongoClientSettings.getDefaultCodecRegistry())
+        }
+
+        val group = pipeline.first { "\$group" in it }.getDocument("\$group")
+        group.getDocument("_id").getDocument("band").containsKey("\$multiply").assert().isTrue()
+        val dateTrunc = group.getDocument("_id").getDocument("week").getDocument("\$dateTrunc")
+        dateTrunc.getString("unit").value.assert().isEqualTo("week")
+        dateTrunc.getString("timezone").value.assert().isEqualTo("Asia/Shanghai")
+        dateTrunc.getString("startOfWeek").value.assert().isEqualTo("monday")
+        mapOf("sum" to "\$sum", "avg" to "\$avg", "min" to "\$min", "max" to "\$max")
+            .forEach { (alias, operator) -> group.getDocument(alias).containsKey(operator).assert().isTrue() }
+        val sort = pipeline.first { "\$sort" in it }.getDocument("\$sort")
+        sort.getInt32("sum").value.assert().isEqualTo(-1)
+        sort.getInt32("band").value.assert().isOne()
+        sort.getInt32("week").value.assert().isOne()
     }
 }

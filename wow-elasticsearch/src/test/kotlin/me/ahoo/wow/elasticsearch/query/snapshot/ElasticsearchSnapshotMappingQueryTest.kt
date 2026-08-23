@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.elasticsearch.query.snapshot
 
+import co.elastic.clients.elasticsearch._types.aggregations.Aggregate
+import co.elastic.clients.elasticsearch._types.aggregations.SumAggregate
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll
 import co.elastic.clients.elasticsearch.core.SearchRequest
@@ -254,6 +256,34 @@ class ElasticsearchSnapshotMappingQueryTest {
         verify(exactly = 0) { client.indices() }
     }
 
+    @Test
+    fun `global numeric aggregation should reject incomplete metric responses`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(queryMapping(includeNewField = true)),
+        )
+        val service = queryService()
+        val query = AggregationQuery(
+            metrics = listOf(
+                AggregationMetric.Numeric(
+                    AggregationFunction.SUM,
+                    AggregationExpression.Field("version"),
+                    "sum",
+                ),
+            ),
+        )
+
+        service.aggregate(query).test()
+            .expectErrorMessage("Elasticsearch aggregation response is missing metric [sum].")
+            .verify()
+
+        every { client.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(
+            aggregationResponse(Aggregate(SumAggregate.of { it.value(Double.POSITIVE_INFINITY) })),
+        )
+        service.aggregate(query).test()
+            .expectErrorMessage("Elasticsearch aggregation metric [sum] returned a non-finite value.")
+            .verify()
+    }
+
     private fun queryService(
         resolver: ElasticsearchIndexMappingResolver = ElasticsearchIndexMappingResolver(client),
     ): ElasticsearchSnapshotQueryService<Any> =
@@ -306,5 +336,14 @@ class ElasticsearchSnapshotMappingQueryTest {
                 .timedOut(false)
                 .shards { shards -> shards.failed(0).successful(1).total(1) }
                 .hits { hits -> hits.hits(emptyList()) }
+        }
+
+    private fun aggregationResponse(metric: Aggregate): SearchResponse<Map<*, *>> =
+        SearchResponse.of<Map<*, *>> {
+            it.took(1)
+                .timedOut(false)
+                .shards { shards -> shards.failed(0).successful(1).total(1) }
+                .hits { hits -> hits.hits(emptyList()) }
+                .aggregations("__wow_metric_0", metric)
         }
 }

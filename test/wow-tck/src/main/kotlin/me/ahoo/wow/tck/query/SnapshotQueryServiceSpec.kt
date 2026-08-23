@@ -444,4 +444,23 @@ abstract class SnapshotQueryServiceSpec {
             }
             .verifyComplete()
     }
+
+    @Test
+    fun aggregateElementsShouldPreserveBooleanTerms() {
+        snapshotQueryService.aggregate(
+            AggregationQuery(
+                elements = listOf(
+                    AggregationElement("state.orders"),
+                    AggregationElement("state.orders.lines"),
+                ),
+                groupBy = listOf(AggregationGroup.Terms("state.orders.lines.cancelled", "cancelled")),
+                metrics = listOf(AggregationMetric.Count("count")),
+            ),
+        ).collectList().test()
+            .assertNext { rows ->
+                rows.map { it.getValue<Boolean>("cancelled") to it.getValue<Long>("count") }.assert()
+                    .containsExactly(false to 2L, true to 1L)
+            }
+            .verifyComplete()
+    }
 }
