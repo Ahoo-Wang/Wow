@@ -43,7 +43,7 @@ class HttpQueryGuardFilter(
     private val maxPageWindow: Long = 10_000,
     private val maxConditionNodes: Int = 64,
     private val maxConditionValues: Int = 1000,
-    private val allowExpensiveOperators: Boolean = false,
+    private val allowExpensiveOperators: Boolean = true,
     private val idleTimeout: Duration = Duration.ofSeconds(10),
 ) : QueryFilter<QueryContext<*, *>> {
 

@@ -23,6 +23,7 @@ import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.IsEmptyFilter
+import me.ahoo.wow.api.query.IsNotNullFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.MatchAllFilter
@@ -154,14 +155,9 @@ class HttpQueryGuardFilterTest {
     }
 
     @Test
-    fun `should allow explicitly enabled expensive http behavior`() {
-        val context = listContext(ListQuery(MatchAllFilter))
-        guard(
-            maxListSize = 0,
-            maxConditionNodes = 0,
-            allowExpensiveOperators = true,
-            idleTimeout = Duration.ZERO,
-        ).filter(
+    fun `should allow expensive http operators by default`() {
+        val context = listContext(ListQuery(IsNotNullFilter(LogicalField("state.status")), limit = 1))
+        HttpQueryGuardFilter(idleTimeout = Duration.ZERO).filter(
             context,
             FilterChain {
                 it.asListQuery<Any>().setResult(Flux.empty())
@@ -170,6 +166,20 @@ class HttpQueryGuardFilterTest {
         ).writeRawRequest(request).test().verifyComplete()
 
         context.getRequiredResult().test().verifyComplete()
+    }
+
+    @Test
+    fun `should allow unfiltered counting queries by default`() {
+        val context = countContext(Condition.ALL)
+        HttpQueryGuardFilter(idleTimeout = Duration.ZERO).filter(
+            context,
+            FilterChain {
+                it.asFilterCountQuery().setResult(Mono.just(0))
+                Mono.empty()
+            },
+        ).writeRawRequest(request).test().verifyComplete()
+
+        context.getRequiredResult().test().expectNext(0).verifyComplete()
     }
 
     @Test
