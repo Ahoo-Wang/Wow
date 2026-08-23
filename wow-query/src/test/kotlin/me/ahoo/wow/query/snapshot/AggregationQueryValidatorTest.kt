@@ -68,6 +68,7 @@ class AggregationQueryValidatorTest {
             listOf(AggregationElement("state.tags")),
             listOf(AggregationElement("state.attributes")),
             listOf(AggregationElement("state.objects")),
+            listOf(AggregationElement("state.nestedItems")),
             listOf(AggregationElement("state.orders.lines")),
             listOf(AggregationElement("state.orders"), AggregationElement("state.items")),
         ).forEach { elements ->
@@ -239,6 +240,7 @@ class AggregationQueryValidatorTest {
         val tags: List<String> = emptyList()
         val attributes: Map<String, String> = emptyMap()
         val objects: List<Any> = emptyList()
+        val nestedItems: List<List<Item>> = emptyList()
     }
 
     private data class Order(

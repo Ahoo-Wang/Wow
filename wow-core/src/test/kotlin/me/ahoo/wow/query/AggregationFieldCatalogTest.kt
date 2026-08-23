@@ -34,7 +34,16 @@ class AggregationFieldCatalogTest {
 
         catalog.scalarPaths.assert().contains("state.level1.level2.level3.level4.level5.level6.value")
         catalog.elementPaths.assert().contains("state.orders", "state.orders.lines")
-        catalog.elementPaths.assert().doesNotContain("state.tags", "state.objects")
+        catalog.elementPaths.assert().doesNotContain(
+            "state.tags",
+            "state.objects",
+            "state.nestedItems",
+            "state.arrayItems",
+            "state.mappedItems",
+        )
+        listOf("state.nestedItems", "state.arrayItems", "state.mappedItems").forEach { path ->
+            catalog.paths[path]!!.kind.assert().isEqualTo(AggregationFieldKind.UNSUPPORTED_COLLECTION)
+        }
         catalog.paths.keys.assert().doesNotContain("state.attributes.value")
         catalog.paths["state.orders.lines.sku"]!!.collectionPaths.assert()
             .containsExactly("state.orders", "state.orders.lines")
@@ -88,6 +97,9 @@ class AggregationFieldCatalogTest {
         val orders: List<Order> = emptyList()
         val tags: List<String> = emptyList()
         val objects: List<Any> = emptyList()
+        val nestedItems: List<List<Line>> = emptyList()
+        val arrayItems: List<Array<Line>> = emptyList()
+        val mappedItems: List<Map<String, Line>> = emptyList()
         val attributes: Map<String, String> = emptyMap()
     }
 

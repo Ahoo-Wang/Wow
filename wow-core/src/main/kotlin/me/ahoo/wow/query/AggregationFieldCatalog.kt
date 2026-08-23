@@ -98,6 +98,7 @@ enum class AggregationFieldKind {
     OBJECT,
     OBJECT_COLLECTION,
     SCALAR_COLLECTION,
+    UNSUPPORTED_COLLECTION,
 }
 
 private fun JavaType.scan(
@@ -123,11 +124,7 @@ private fun JavaType.scan(
         if (propertyType.isCollectionLikeType || propertyType.isArrayType) {
             val elementType = propertyType.contentType ?: return@forEach
             val nestedCollections = collectionPaths + path
-            val kind = if (elementType.isAggregationScalar) {
-                AggregationFieldKind.SCALAR_COLLECTION
-            } else {
-                AggregationFieldKind.OBJECT_COLLECTION
-            }
+            val kind = elementType.aggregationCollectionKind
             paths[path] = AggregationField(path, elementType, kind, nestedCollections)
             if (kind == AggregationFieldKind.OBJECT_COLLECTION) {
                 elementType.scan(paths, path, depth + 1, maxDepth, nestedCollections)
@@ -142,6 +139,13 @@ private fun JavaType.scan(
         }
     }
 }
+
+private val JavaType.aggregationCollectionKind: AggregationFieldKind
+    get() = when {
+        isAggregationScalar -> AggregationFieldKind.SCALAR_COLLECTION
+        isMapLikeType || isCollectionLikeType || isArrayType -> AggregationFieldKind.UNSUPPORTED_COLLECTION
+        else -> AggregationFieldKind.OBJECT_COLLECTION
+    }
 
 private val JavaType.isAggregationScalar: Boolean
     get() = isAggregationNumeric || isAggregationDate || isAggregationTextual || rawClass.isPrimitive ||

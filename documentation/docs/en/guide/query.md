@@ -343,7 +343,7 @@ identical to the JSON response.
 ### Sources and Field Scope
 
 - `elements=[]` aggregates root snapshots. Otherwise, Elements declare one strict parent-child object-collection chain from outermost to innermost.
-- Elements accept only object collections or object arrays. Maps, scalar collections, duplicate paths, skipped parent collections, and sibling Cartesian products are rejected.
+- Elements accept only object collections or object arrays. Maps, scalar collections, collection/array members that are themselves collections, duplicate paths, skipped parent collections, and sibling Cartesian products are rejected.
 - `groupBy`, metric, and expression fields must belong to the innermost source. They cannot implicitly access a parent, sibling, or unexpanded child collection.
 - Each `AggregationElement.filter` may reference only scalar fields in that element, including scalar descendants of non-collection objects. It cannot target an object path directly or use `ELEMENT_MATCH`, `SEARCH`, or `DELETION`.
 - Exact, membership, and range operators validate literal types: numeric fields use JSON numbers; temporal, textual, UUID, and enum fields use JSON strings; Boolean fields use JSON booleans. Null checks must use `IS_NULL`/`IS_NOT_NULL`. String operators require textual fields, and relative-time operators require temporal fields.
