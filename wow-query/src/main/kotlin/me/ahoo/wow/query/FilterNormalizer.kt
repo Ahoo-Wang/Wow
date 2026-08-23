@@ -33,14 +33,12 @@ import me.ahoo.wow.api.query.MatchNoneFilter
 import me.ahoo.wow.api.query.NextWeekFilter
 import me.ahoo.wow.api.query.NorFilter
 import me.ahoo.wow.api.query.NotEqualFilter
-import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.RecentDaysFilter
 import me.ahoo.wow.api.query.ThisMonthFilter
 import me.ahoo.wow.api.query.ThisWeekFilter
 import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.TomorrowFilter
-import me.ahoo.wow.api.query.legacyConditionOrNull
 import tools.jackson.databind.node.JsonNodeFactory
 import java.time.Clock
 import java.time.DayOfWeek
@@ -79,17 +77,9 @@ class FilterNormalizer(
 
     private fun FilterExpression.hasExplicitDeletionScope(): Boolean = when (this) {
         is DeletionFilter -> true
-        is AndFilter -> operands.any {
-            it is DeletionFilter || it.legacyConditionOrNull()?.hasExplicitDeletionScope() == true
-        }
-        else -> legacyConditionOrNull()?.let {
-            it.hasExplicitDeletionScope()
-        } ?: false
+        is AndFilter -> operands.any { it is DeletionFilter }
+        else -> false
     }
-
-    private fun me.ahoo.wow.api.query.Condition.hasExplicitDeletionScope(): Boolean =
-        operator == Operator.DELETED ||
-            operator == Operator.AND && children.any { it.operator == Operator.DELETED }
 
     @Suppress("CyclomaticComplexMethod")
     private fun expandRelativeTime(expression: FilterExpression, now: Instant): FilterExpression = when (expression) {

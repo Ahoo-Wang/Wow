@@ -20,10 +20,11 @@ import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
-import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.IdFilter
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
-import me.ahoo.wow.api.query.toFilterExpression
+import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.filter.EmptyFilterChain
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.Filter
@@ -45,7 +46,28 @@ import java.util.concurrent.atomic.AtomicInteger
 class QueryHandlerSubscriptionTest {
     @Suppress("DEPRECATION")
     @Test
-    fun `new count should delegate to a legacy query handler implementation`() {
+    fun `legacy query should be executable before first filter`() {
+        lateinit var captured: FilterExpression
+        val chain = FilterChain<QueryContext<*, *>> { context ->
+            val listContext = context.asListQuery<String>()
+            captured = listContext.getQuery().filter
+            listContext.setResult(Flux.empty())
+            Mono.empty()
+        }
+        val handler = TestQueryHandler(chain)
+
+        handler.list(
+            MOCK_AGGREGATE_METADATA,
+            ListQuery(Condition.tenantId("tenant-1")),
+        ).test().verifyComplete()
+
+        captured.assert().isEqualTo(TenantIdFilter("tenant-1"))
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `legacy count should delegate once to filter query handler implementation`() {
+        lateinit var captured: FilterExpression
         val handler = object : QueryHandler<Any> {
             override fun handle(context: QueryContext<*, *>): Mono<Void> = Mono.empty()
             override fun single(namedAggregate: me.ahoo.wow.api.modeling.NamedAggregate, singleQuery: ISingleQuery) =
@@ -68,11 +90,15 @@ class QueryHandlerSubscriptionTest {
             ) = Mono.empty<PagedList<DynamicDocument>>()
             override fun count(
                 namedAggregate: me.ahoo.wow.api.modeling.NamedAggregate,
-                condition: Condition,
-            ) = Mono.just(1L)
+                filter: FilterExpression,
+            ): Mono<Long> {
+                captured = filter
+                return Mono.just(1L)
+            }
         }
 
-        handler.count(MOCK_AGGREGATE_METADATA, MatchAllFilter).test().expectNext(1).verifyComplete()
+        handler.count(MOCK_AGGREGATE_METADATA, Condition.id("id-1")).test().expectNext(1).verifyComplete()
+        captured.assert().isEqualTo(IdFilter("id-1"))
     }
 
     @Test
@@ -225,12 +251,11 @@ class QueryHandlerSubscriptionTest {
     private companion object {
         const val RESULT = "result"
         const val MASK_COUNT_KEY = "maskCount"
-        val APPENDED_FILTER = Condition.id("subscription").toFilterExpression()
+        val APPENDED_FILTER = IdFilter("subscription")
 
         fun queryFilter(context: QueryContext<*, *>): me.ahoo.wow.api.query.FilterExpression =
             when (val query = context.getQuery()) {
                 is me.ahoo.wow.api.query.FilterExpression -> query
-                is Condition -> query.toFilterExpression()
                 is me.ahoo.wow.api.query.FilterCapable<*> -> query.filter
                 else -> error("Unsupported query type: ${query::class}.")
             }

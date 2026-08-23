@@ -58,15 +58,15 @@ class FilterNormalizerTest {
         ).normalize(MatchAllFilter).assert().isEqualTo(MatchAllFilter)
     }
 
-    @Suppress("DEPRECATION")
     @Test
-    fun `should preserve legacy date formatter`() {
+    fun `should preserve runtime date formatter`() {
         val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
         val normalized = normalizer.normalize(
-            Condition.today("createdAt", formatter).toFilterExpression(),
+            TodayFilter(LogicalField("createdAt"), dateFormatter = formatter),
         ) as AndFilter
 
-        normalized.operands[1].toCondition().datePattern().assert().isEqualTo(formatter)
+        (normalized.operands[1] as GreaterThanOrEqualFilter).value.asText().assert()
+            .isEqualTo("2026-08-22 00:00:00")
     }
 
     @Test

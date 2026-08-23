@@ -16,12 +16,13 @@ package me.ahoo.wow.query.filter
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.FilterCapable
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.api.query.toCondition
+import me.ahoo.wow.api.query.toExecutableFilter
 import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.filter.ErrorAccessor
 import me.ahoo.wow.filter.ErrorHandler
@@ -37,13 +38,19 @@ interface QueryHandler<R : Any> : Handler<QueryContext<*, *>> {
     fun dynamicList(namedAggregate: NamedAggregate, listQuery: IListQuery): Flux<DynamicDocument>
     fun paged(namedAggregate: NamedAggregate, pagedQuery: IPagedQuery): Mono<PagedList<R>>
     fun dynamicPaged(namedAggregate: NamedAggregate, pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>>
-    fun count(namedAggregate: NamedAggregate, filter: FilterExpression): Mono<Long> =
-        count(namedAggregate, filter.toCondition())
+    fun count(namedAggregate: NamedAggregate, filter: FilterExpression): Mono<Long>
 
     @Deprecated("Use count with FilterExpression.")
     fun count(namedAggregate: NamedAggregate, condition: Condition): Mono<Long> =
-        count(namedAggregate, condition.toFilterExpression())
+        count(namedAggregate, condition.toFilterExpression().toExecutableFilter())
 }
+
+@Suppress("UNCHECKED_CAST")
+private fun <Q : Any> Q.toExecutableQuery(): Q = when (this) {
+    is FilterExpression -> toExecutableFilter()
+    is FilterCapable<*> -> withFilter(filter.toExecutableFilter())
+    else -> this
+} as Q
 
 abstract class AbstractQueryHandler<R : Any>(
     private val chain: FilterChain<QueryContext<*, *>>,
@@ -64,7 +71,7 @@ abstract class AbstractQueryHandler<R : Any>(
         queryType: QueryType,
         query: Q,
     ): Mono<T> = Mono.defer {
-        val context = DefaultQueryContext<Q, Mono<T>>(queryType, namedAggregate).setQuery(query)
+        val context = DefaultQueryContext<Q, Mono<T>>(queryType, namedAggregate).setQuery(query.toExecutableQuery())
         handle(context).then(Mono.defer { context.getRequiredResult() })
     }
 
@@ -73,7 +80,7 @@ abstract class AbstractQueryHandler<R : Any>(
         queryType: QueryType,
         query: Q,
     ): Flux<T> = Flux.defer {
-        val context = DefaultQueryContext<Q, Flux<T>>(queryType, namedAggregate).setQuery(query)
+        val context = DefaultQueryContext<Q, Flux<T>>(queryType, namedAggregate).setQuery(query.toExecutableQuery())
         handle(context).thenMany(Flux.defer { context.getRequiredResult() })
     }
 
@@ -101,8 +108,4 @@ abstract class AbstractQueryHandler<R : Any>(
 
     override fun count(namedAggregate: NamedAggregate, filter: FilterExpression): Mono<Long> =
         mono(namedAggregate, QueryType.COUNT, filter)
-
-    @Deprecated("Use count with FilterExpression.")
-    override fun count(namedAggregate: NamedAggregate, condition: Condition): Mono<Long> =
-        mono(namedAggregate, QueryType.COUNT, condition)
 }

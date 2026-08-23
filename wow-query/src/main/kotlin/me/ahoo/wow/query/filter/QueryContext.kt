@@ -15,19 +15,14 @@ package me.ahoo.wow.query.filter
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AndFilter
-import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.FilterCapable
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MatchAllFilter
-import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.api.query.RewritableCondition
 import me.ahoo.wow.api.query.RewritableFilter
-import me.ahoo.wow.api.query.legacyConditionOrNull
-import me.ahoo.wow.api.query.toCondition
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.util.concurrent.ConcurrentHashMap
@@ -53,16 +48,8 @@ interface QueryContext<Q : Any, R : Any> {
     }
 
     fun appendFilter(append: FilterExpression): QueryContext<Q, R> {
-        val query = getQuery()
-        val rewritten = when (query) {
-            is FilterExpression -> if (
-                query === MatchAllFilter || query.legacyConditionOrNull()?.operator == Operator.ALL
-            ) {
-                append
-            } else {
-                AndFilter(listOf(query, append))
-            }
-            is Condition -> query.appendCondition(append.toCondition())
+        val rewritten = when (val query = getQuery()) {
+            is FilterExpression -> if (query === MatchAllFilter) append else AndFilter(listOf(query, append))
             is FilterCapable<*> -> query.appendFilter(append)
             else -> error("Query type [${query::class}] does not support filters.")
         }
@@ -106,18 +93,8 @@ interface QueryContext<Q : Any, R : Any> {
         return this as QueryContext<IPagedQuery, Mono<PagedList<E>>>
     }
 
-    @Deprecated("Use asRewritableFilterQuery().")
-    fun asRewritableQuery(): QueryContext<RewritableCondition<*>, R> {
-        return this as QueryContext<RewritableCondition<*>, R>
-    }
-
     fun asRewritableFilterQuery(): QueryContext<RewritableFilter<*>, R> {
         return this as QueryContext<RewritableFilter<*>, R>
-    }
-
-    @Deprecated("Use asFilterCountQuery().")
-    fun asCountQuery(): QueryContext<Condition, Mono<Long>> {
-        return this as QueryContext<Condition, Mono<Long>>
     }
 
     fun asFilterCountQuery(): QueryContext<FilterExpression, Mono<Long>> {
