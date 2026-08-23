@@ -23,8 +23,10 @@ import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.slf4j.LoggerFactory
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
+import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
+import reactor.test.publisher.TestPublisher
 
 class WebFluxRequestExceptionHandlerTest {
     @Test
@@ -134,6 +136,27 @@ class WebFluxRequestExceptionHandlerTest {
 
         warnings.assert().hasSize(1)
         warnings.single().throwableProxy.assert().isNotNull()
+    }
+
+    @Test
+    fun `should not duplicate warning when response is cancelled after emission`() {
+        val response = ServerResponse.badRequest().build().block()!!
+        val responses = TestPublisher.create<ServerResponse>()
+        val errorStrategy = mockk<WebFluxErrorStrategy> {
+            every { toServerResponse(any(), any()) } returns responses.mono()
+        }
+        val warnings = captureWarnings {
+            WebFluxRequestExceptionHandler(errorStrategy).handle(
+                MockServerRequest.builder().build(),
+                IllegalArgumentException("invalid request"),
+            ).test()
+                .then { responses.next(response) }
+                .expectNext(response)
+                .thenCancel()
+                .verify()
+        }
+
+        warnings.assert().hasSize(1)
     }
 
     private fun captureWarnings(block: () -> Unit): List<ILoggingEvent> {

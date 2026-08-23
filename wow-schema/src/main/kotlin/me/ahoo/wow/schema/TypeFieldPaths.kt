@@ -138,11 +138,9 @@ object TypeFieldPaths {
     }
 
     private fun JsonSerialize.definesWireShape(): Boolean =
-        using != ValueSerializer.None::class.java ||
-            contentUsing != ValueSerializer.None::class.java ||
-            keyUsing != ValueSerializer.None::class.java ||
-            converter != Converter.None::class.java ||
-            contentConverter != Converter.None::class.java
+        listOf(contentUsing, keyUsing, converter, contentConverter, using).any {
+            it != ValueSerializer.None::class.java && it != Converter.None::class.java
+        }
 
     private fun Class<*>.registeredSerializerDefinition(context: SchemaGenerationContext): CustomDefinition? {
         if (isStdType()) {

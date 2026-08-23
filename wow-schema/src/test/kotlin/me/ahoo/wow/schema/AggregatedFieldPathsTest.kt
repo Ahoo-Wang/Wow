@@ -115,6 +115,16 @@ class AggregatedFieldPathsTest {
     }
 
     @Test
+    fun `should treat property custom serializer wire shape as opaque`() {
+        JsonSerializer.writeValueAsString(PropertyCustomSerializedFixture(PropertyCustomSerializedValue("wire")))
+            .assert().isEqualTo("{\"value\":\"wire\"}")
+
+        PropertyCustomSerializedFixture::class.allFieldPaths(parentName = "state").assert()
+            .contains("state.value")
+            .doesNotContain("state.value.hidden")
+    }
+
+    @Test
     fun `should respect the requested maximum depth`() {
         val paths = TestState::class.allFieldPaths(parentName = "state", maxDepth = 1)
 
@@ -193,6 +203,25 @@ private class CustomSerializedValueSerializer : StdSerializer<CustomSerializedVa
 ) {
     override fun serialize(
         value: CustomSerializedValue,
+        generator: JsonGenerator,
+        provider: SerializationContext,
+    ) {
+        generator.writeString(value.hidden)
+    }
+}
+
+private data class PropertyCustomSerializedFixture(
+    @get:JsonSerialize(using = PropertyCustomSerializedValueSerializer::class)
+    val value: PropertyCustomSerializedValue,
+)
+
+private data class PropertyCustomSerializedValue(val hidden: String)
+
+private class PropertyCustomSerializedValueSerializer : StdSerializer<PropertyCustomSerializedValue>(
+    PropertyCustomSerializedValue::class.java,
+) {
+    override fun serialize(
+        value: PropertyCustomSerializedValue,
         generator: JsonGenerator,
         provider: SerializationContext,
     ) {
