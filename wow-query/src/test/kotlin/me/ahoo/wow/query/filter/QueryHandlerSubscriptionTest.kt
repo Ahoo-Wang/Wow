@@ -27,6 +27,8 @@ import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TenantIdFilter
+import me.ahoo.wow.api.query.toCondition
+import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.filter.EmptyFilterChain
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.Filter
@@ -46,6 +48,27 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
 
 class QueryHandlerSubscriptionTest {
+    @Suppress("DEPRECATION")
+    @Test
+    fun `custom list query should retain implementation during executable conversion`() {
+        lateinit var captured: IListQuery
+        val chain = FilterChain<QueryContext<*, *>> { context ->
+            val listContext = context.asListQuery<String>()
+            captured = listContext.getQuery()
+            listContext.setResult(Flux.empty())
+            Mono.empty()
+        }
+        val handler = TestQueryHandler(chain)
+
+        handler.list(
+            MOCK_AGGREGATE_METADATA,
+            CustomListQuery(Condition.tenantId("tenant-1").toFilterExpression(), marker = "custom"),
+        ).test().verifyComplete()
+
+        (captured as CustomListQuery).marker.assert().isEqualTo("custom")
+        captured.filter.assert().isEqualTo(TenantIdFilter("tenant-1"))
+    }
+
     @Suppress("DEPRECATION")
     @Test
     fun `custom Condition backed list query should be executable before first filter`() {
@@ -258,6 +281,25 @@ class QueryHandlerSubscriptionTest {
         override val limit: Int = 0,
     ) : IListQuery {
         override fun withCondition(newCondition: Condition): IListQuery = copy(condition = newCondition)
+
+        override fun withProjection(newProjection: Projection): IListQuery = copy(projection = newProjection)
+    }
+
+    @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
+    private data class CustomListQuery(
+        override val filter: FilterExpression,
+        val marker: String,
+        override val projection: Projection = Projection.ALL,
+        override val sort: List<Sort> = emptyList(),
+        override val limit: Int = 0,
+    ) : IListQuery {
+        override val condition: Condition
+            get() = filter.toCondition()
+
+        override fun withFilter(newFilter: FilterExpression): IListQuery = copy(filter = newFilter)
+
+        override fun withCondition(newCondition: Condition): IListQuery =
+            copy(filter = newCondition.toFilterExpression())
 
         override fun withProjection(newProjection: Projection): IListQuery = copy(projection = newProjection)
     }
