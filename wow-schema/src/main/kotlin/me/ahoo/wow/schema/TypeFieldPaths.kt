@@ -168,6 +168,8 @@ object AggregatedFieldPaths {
             parentName = StateAggregateRecords.STATE,
             fields = listOf(
                 "",
+                MessageRecords.CONTEXT_NAME,
+                MessageRecords.AGGREGATE_NAME,
                 MessageRecords.AGGREGATE_ID,
                 MessageRecords.TENANT_ID,
                 MessageRecords.OWNER_ID,

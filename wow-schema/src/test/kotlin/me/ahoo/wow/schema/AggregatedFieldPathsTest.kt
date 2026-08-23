@@ -27,6 +27,7 @@ import me.ahoo.wow.schema.AggregatedFieldPaths.commandAggregatedFieldPaths
 import me.ahoo.wow.schema.AggregatedFieldPaths.stateAggregatedFieldPaths
 import me.ahoo.wow.schema.TypeFieldPaths.allFieldPaths
 import me.ahoo.wow.serialization.JsonSerializer
+import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.SnapshotRecords
 import org.junit.jupiter.api.Test
 import tools.jackson.core.JsonGenerator
@@ -147,7 +148,10 @@ class AggregatedFieldPathsTest {
     @Test
     fun `should list command aggregated field paths`() {
         val paths = TestAggregate::class.commandAggregatedFieldPaths()
-        paths.assert().contains(SnapshotRecords.SNAPSHOT_TIME)
+        paths.assert()
+            .contains(MessageRecords.CONTEXT_NAME)
+            .contains(MessageRecords.AGGREGATE_NAME)
+            .contains(SnapshotRecords.SNAPSHOT_TIME)
     }
 
     class FieldPathDemoState(override val id: String) : Identifier {
