@@ -16,6 +16,7 @@ package me.ahoo.wow.schema.typed.query
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationFunction
+import me.ahoo.wow.api.query.AggregationTimeZones
 import me.ahoo.wow.example.domain.order.Order
 import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
 import me.ahoo.wow.schema.SchemaGeneratorBuilder
@@ -117,6 +118,7 @@ class AggregatedAggregationQueryTest {
 
         zoneIds.assert().contains("UTC", "Asia/Shanghai")
         zoneIds.assert().doesNotContain("Z", "UTC+08:00")
+        zoneIds.toSet().assert().isEqualTo(AggregationTimeZones.ids)
         listOf("+00:00", "-08:30", "+18:00").forEach { offset ->
             offsetPattern.matches(offset).assert().isTrue()
         }

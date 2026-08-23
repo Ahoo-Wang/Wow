@@ -355,7 +355,7 @@ curl -X POST \
 | `COUNT` | 无字段 | 根查询统计快照数；Elements 查询统计最内层展开行，返回 `Long` |
 | `NUMERIC` | `SUM`、`AVG`、`MIN`、`MAX` + `FIELD` 数值表达式 | `Double?`；缺失值被忽略，空集 `SUM=0.0`，其余为 `null` |
 
-`DateHistogram.timeZone` 默认为 `UTC`，只接受 IANA ID（如 `Asia/Shanghai`）或
+`DateHistogram.timeZone` 默认为 `UTC`，只接受当前 Wow 版本内置的可移植 IANA ID（如 `Asia/Shanghai`）或
 `±HH:MM`；`Z`、`UTC+08:00` 等非约定格式会被拒绝。任何非有限 Numeric metric 结果都会使整个查询失败。
 
 ### 结果、排序与空集

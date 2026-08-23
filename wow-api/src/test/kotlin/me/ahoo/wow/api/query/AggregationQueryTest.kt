@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.node.JsonNodeFactory
+import java.time.ZoneId
 
 class AggregationQueryTest {
     @Test
@@ -144,5 +145,11 @@ class AggregationQueryTest {
                 AggregationGroup.DateHistogram("snapshotTime", "day", AggregationDateUnit.DAY, timeZone)
             }
         }
+    }
+
+    @Test
+    fun `portable time zones should be a stable runtime subset`() {
+        AggregationTimeZones.ids.assert().contains("UTC", "Asia/Shanghai")
+        ZoneId.getAvailableZoneIds().containsAll(AggregationTimeZones.ids).assert().isTrue()
     }
 }

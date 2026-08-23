@@ -360,7 +360,7 @@ identical to the JSON response.
 | `COUNT` | No field | Counts snapshots at the root or innermost expanded rows under Elements; returns `Long` |
 | `NUMERIC` | `SUM`, `AVG`, `MIN`, or `MAX` with a numeric `FIELD` expression | `Double?`; missing values are ignored; an empty set yields `SUM=0.0` and `null` for the others |
 
-`DateHistogram.timeZone` defaults to `UTC` and accepts only an IANA ID such as
+`DateHistogram.timeZone` defaults to `UTC` and accepts only an IANA ID from the portable catalog shipped with the current Wow release, such as
 `Asia/Shanghai` or an `±HH:MM` offset. Non-contract forms such as `Z` and `UTC+08:00`
 are rejected. Any non-finite Numeric metric result fails the whole query.
 

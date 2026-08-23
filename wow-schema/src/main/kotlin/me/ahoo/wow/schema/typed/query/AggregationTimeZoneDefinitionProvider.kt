@@ -18,8 +18,8 @@ import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.CustomDefinitionProviderV2
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import com.github.victools.jsonschema.generator.SchemaKeyword
+import me.ahoo.wow.api.query.AggregationTimeZones
 import me.ahoo.wow.schema.JsonSchema.Companion.toPropertyName
-import java.time.ZoneId
 
 object AggregationTimeZoneDefinitionProvider : CustomDefinitionProviderV2 {
     private const val OFFSET_PATTERN = "^[+-](?:(?:0\\d|1[0-7]):[0-5]\\d|18:00)\$"
@@ -34,7 +34,7 @@ object AggregationTimeZoneDefinitionProvider : CustomDefinitionProviderV2 {
         val stringType = SchemaKeyword.TAG_TYPE_STRING.toPropertyName(schemaVersion)
         val alternatives = context.generatorConfig.createArrayNode()
         val zoneIds = context.generatorConfig.createArrayNode()
-        ZoneId.getAvailableZoneIds().sorted().forEach(zoneIds::add)
+        AggregationTimeZones.ids.forEach(zoneIds::add)
         alternatives.add(
             context.generatorConfig.createObjectNode()
                 .put(typeName, stringType)

@@ -18,7 +18,6 @@ import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import io.swagger.v3.oas.annotations.media.ArraySchema
 import io.swagger.v3.oas.annotations.media.Schema
-import java.time.ZoneId
 import java.time.ZoneOffset
 
 data class AggregationQuery(
@@ -205,14 +204,25 @@ private fun requireAggregationAlias(alias: String) {
     require(alias != "_id") { "aggregation alias [_id] is reserved." }
 }
 
-private val PORTABLE_TIME_ZONE_IDS: Set<String> = ZoneId.getAvailableZoneIds()
+object AggregationTimeZones {
+    private const val RESOURCE_PATH = "META-INF/wow/aggregation-time-zone-ids.txt"
+
+    val ids: Set<String> by lazy {
+        requireNotNull(AggregationTimeZones::class.java.classLoader.getResourceAsStream(RESOURCE_PATH)) {
+            "Aggregation time zone resource [$RESOURCE_PATH] is missing."
+        }.bufferedReader().useLines { lines ->
+            lines.filter(String::isNotBlank).toCollection(linkedSetOf())
+        }.also { require(it.isNotEmpty()) { "Aggregation time zone resource must not be empty." } }
+    }
+}
+
 private val PORTABLE_TIME_ZONE_OFFSET = Regex("[+-](?:0\\d|1\\d):[0-5]\\d")
 
 private fun requireAggregationTimeZone(timeZone: String) {
     require(timeZone.isNotBlank()) { "date histogram timeZone must not be blank." }
     val isPortableOffset = PORTABLE_TIME_ZONE_OFFSET.matches(timeZone) &&
         runCatching { ZoneOffset.of(timeZone) }.isSuccess
-    require(timeZone in PORTABLE_TIME_ZONE_IDS || isPortableOffset) {
+    require(timeZone in AggregationTimeZones.ids || isPortableOffset) {
         "Invalid date histogram timeZone [$timeZone]: use an IANA identifier or an offset in [+/-]HH:MM form."
     }
 }
