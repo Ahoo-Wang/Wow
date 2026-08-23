@@ -150,7 +150,8 @@ SnapshotStore 使用带 scripted upsert 的 Bulk `update`，direct 路径使用�
 
 快照查询第一次访问聚合索引时会异步加载当前 Elasticsearch Mapping，并按物理字段能力编译条件和排序；Mapping
 是字段能力的唯一来源，不需要维护额外的 `QuerySchema`。缓存按索引隔离且没有 TTL。缓存中的字段缺失或能力不匹配时，
-查询直接失败且不会隐式访问 Mapping API；Mapping 变更后通过维护端点显式刷新。
+查询直接失败且不会隐式访问 Mapping API；存在性操作除外，因为 Elasticsearch 可以对未映射逻辑字段执行 `exists`。
+Mapping 变更后通过维护端点显式刷新。
 
 字段选择规则如下：
 
@@ -159,6 +160,7 @@ SnapshotStore 使用带 scripted upsert 的 Bulk `update`，direct 路径使用�
 | `EQ`、`NE`、`IN`、`NOT_IN`、`ALL_IN`、`TRUE`、`FALSE` | 可执行 term 查询，包括受支持的 doc-value-only 字段 |
 | `CONTAINS`、`STARTS_WITH`、`ENDS_WITH` | `keyword` 或 `wildcard` |
 | 范围操作 | numeric、date、ip、keyword 或 `*_range`，支持适用的 `doc_values=true,index=false` 字段 |
+| `IS_EMPTY`、null 与存在性操作 | 任意已索引或可通过 doc values 查询的字段；Elasticsearch 空数组没有索引值，因此 `IS_EMPTY` 编译为 `NOT EXISTS` |
 | `MATCH` | `text`、`match_only_text`、`search_as_you_type` 或 `semantic_text` |
 | 排序 | 启用 `doc_values` 的可排序字段、启用 `fielddata` 的已索引 `text` 字段，或可排序 runtime field |
 
@@ -191,15 +193,15 @@ flattened 父字段，并保留原路径执行精确和排序操作。flattened 
 
 | Query 操作 | 客户端字段 | 实际字段 |
 |---|---|---|
-| `MATCH` | `state.customerName` | `state.customerName` |
+| `SEARCH` | `state.customerName` | `state.customerName` |
 | `EQ`、`IN`、排序 | `state.customerName` | `state.customerName.keyword` |
 | projection | `state.customerName` | `state.customerName`（不重写） |
 
 客户端始终使用逻辑字段，不需要固定写入 `.keyword` 或 `.text`。
 
 对于 multi-field，依次选择当前字段、`.keyword`/`.text`、`.exact`，最后才选择唯一的兼容子字段；存在多个兼容候选时
-查询失败，避免静默改变语义。`EXISTS`、`NULL`、`NOT_NULL`、projection 和 `RAW` 不重写，`ELEM_MATCH` 的父路径
-必须映射为 `nested`。自定义 `ConditionConverter` 继续负责解释自己的物理字段，不经过上述重写。
+查询失败，避免静默改变语义。projection 仍使用逻辑字段，`ELEMENT_MATCH` 的父路径
+必须映射为 `nested`。自定义 `AbstractElasticsearchConditionConverter` 继续负责解释自己的物理字段，不经过上述重写。
 
 Field alias 继承其目标字段的查询与排序能力，并继续使用 alias 名称生成查询。Mapping 中声明的 runtime field 也会按
 其类型参与能力解析；runtime 查询会在查询时计算，且当 Elasticsearch 设置 `search.allow_expensive_queries=false` 时
@@ -287,28 +289,22 @@ Mapping 发布必须按以下顺序执行：
 仍保留在 `_source`，但不参与索引，避免任意载荷因 Mapping 冲突阻断持久化。单个事件流最多包含 10,000 个事件，
 与 Elasticsearch 默认的 nested-object 上限一致。
 
-Elasticsearch 的 `ELEM_MATCH` 子条件必须使用完整路径：
+`ELEMENT_MATCH` 内使用相对子字段，解析器会根据 nested 父路径补全：
 
 ```kotlin
-condition {
-    "body" elemMatch {
-        "body.name" eq "Created"
+filter {
+    "body".elementMatch {
+        "name" eq "Created"
     }
 }
 ```
 
 ```json
 {
-  "condition": {
+  "filter": {
+    "op": "ELEMENT_MATCH",
     "field": "body",
-    "operator": "ELEM_MATCH",
-    "children": [
-      {
-        "field": "body.name",
-        "operator": "EQ",
-        "value": "Created"
-      }
-    ]
+    "predicate": { "op": "EQ", "field": "name", "value": "Created" }
   }
 }
 ```
@@ -556,9 +552,9 @@ template 组合出完整 Mapping。
 ```kotlin
 // 使用 QueryService 进行全文搜索
 listQuery {
-    condition {
-        "state.description" match "搜索关键词"
-        "state.totalAmount" between 100 to 500
+    filter {
+        search("搜索关键词", "state.description")
+        "state.totalAmount".between(100, 500)
     }
     sort {
         "state.customerName".asc()

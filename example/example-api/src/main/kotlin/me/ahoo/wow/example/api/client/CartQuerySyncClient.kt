@@ -14,7 +14,7 @@
 package me.ahoo.wow.example.api.client
 
 import me.ahoo.coapi.api.CoApi
-import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
@@ -47,5 +47,5 @@ interface CartQuerySyncClient : SynchronousSnapshotQueryApi<CartData> {
 
     override fun pagedState(@RequestBody pagedQuery: IPagedQuery): PagedList<CartData>
 
-    override fun count(@RequestBody condition: Condition): Long
+    override fun count(@RequestBody filter: FilterExpression): Long
 }

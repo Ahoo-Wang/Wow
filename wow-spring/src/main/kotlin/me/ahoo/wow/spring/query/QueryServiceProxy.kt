@@ -14,8 +14,8 @@
 package me.ahoo.wow.spring.query
 
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
@@ -68,7 +68,7 @@ internal abstract class QueryServiceProxy<R : Any>(
     override fun dynamicPaged(pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>> =
         handler.dynamicPaged(namedAggregate, pagedQuery)
 
-    override fun count(condition: Condition): Mono<Long> = handler.count(namedAggregate, condition)
+    override fun count(filter: FilterExpression): Mono<Long> = handler.count(namedAggregate, filter)
 }
 
 @Suppress("UNCHECKED_CAST")

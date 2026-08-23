@@ -22,7 +22,6 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.query.converter.ConditionConverter
 import org.bson.Document
 import org.bson.conversions.Bson
 import org.junit.jupiter.api.Test
@@ -33,7 +32,7 @@ class AbstractMongoQueryServiceTest {
     private val service = object : AbstractMongoQueryService<Document>() {
         override val namedAggregate = MaterializedNamedAggregate("test", "aggregate")
         override val collection: MongoCollection<Document> = this@AbstractMongoQueryServiceTest.collection
-        override val converter = mockk<ConditionConverter<Bson>>()
+        override val converter = me.ahoo.wow.mongo.query.snapshot.SnapshotConditionConverter
         override val projectionConverter = mockk<MongoProjectionConverter>()
         override val sortConverter = mockk<MongoSortConverter>()
         override fun toTypedResult(document: Document): Document = document
@@ -53,10 +52,9 @@ class AbstractMongoQueryServiceTest {
     fun `non-negative list limit should reach MongoDB`() {
         val bson = mockk<Bson>()
         val publisher = mockk<FindPublisher<Document>>()
-        every { service.converter.convert(any()) } returns bson
         every { service.projectionConverter.convert(any()) } returns bson
         every { service.sortConverter.convert(any()) } returns bson
-        every { collection.find(bson) } returns publisher
+        every { collection.find(any<Bson>()) } returns publisher
         every { publisher.projection(bson) } returns publisher
         every { publisher.sort(bson) } returns publisher
         every { publisher.limit(1) } returns publisher

@@ -15,7 +15,6 @@ package me.ahoo.wow.query.snapshot
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.naming.Named
-import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
@@ -56,7 +55,7 @@ class NoOpSnapshotQueryService<S : Any>(override val namedAggregate: NamedAggreg
         return Mono.just(PagedList.empty())
     }
 
-    override fun count(condition: Condition): Mono<Long> {
+    override fun count(filter: me.ahoo.wow.api.query.FilterExpression): Mono<Long> {
         return Mono.just(0)
     }
 }

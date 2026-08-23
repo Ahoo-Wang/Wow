@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+@file:Suppress("DEPRECATION")
+
 package me.ahoo.wow.schema.typed
 
 import com.fasterxml.classmate.ResolvedType
@@ -21,30 +23,26 @@ import com.github.victools.jsonschema.generator.SchemaKeyword
 import me.ahoo.wow.schema.AggregatedFieldPaths.commandAggregatedFieldPaths
 import me.ahoo.wow.schema.JsonSchema.Companion.toPropertyName
 
+@Deprecated("Use FilterExpressionDefinitionProvider.")
 object AggregatedFieldsDefinitionProvider : CustomDefinitionProviderV2 {
-    private val type: Class<*> = AggregatedFields::class.java
-
     override fun provideCustomSchemaDefinition(
         javaType: ResolvedType,
-        context: SchemaGenerationContext
+        context: SchemaGenerationContext,
     ): CustomDefinition? {
-        if (!javaType.isInstanceOf(type)) {
-            return null
-        }
-
+        if (!javaType.isInstanceOf(AggregatedFields::class.java)) return null
         val schemaVersion = context.generatorConfig.schemaVersion
         val rootNode = context.generatorConfig.createObjectNode()
         rootNode.put(
             SchemaKeyword.TAG_TYPE.toPropertyName(schemaVersion),
-            SchemaKeyword.TAG_TYPE_STRING.toPropertyName(schemaVersion)
+            SchemaKeyword.TAG_TYPE_STRING.toPropertyName(schemaVersion),
         )
-        val commandAggregateType = javaType.typeBindings.getBoundType(0).erasedType
-        if (commandAggregateType == Any::class.java) {
-            return CustomDefinition(rootNode)
+        val aggregateType = javaType.typeBindings.getBoundType(0).erasedType
+        if (aggregateType != Any::class.java) {
+            rootNode.putPOJO(
+                SchemaKeyword.TAG_ENUM.toPropertyName(schemaVersion),
+                aggregateType.kotlin.commandAggregatedFieldPaths(),
+            )
         }
-        val enumValues = commandAggregateType.kotlin.commandAggregatedFieldPaths()
-        rootNode.putPOJO(SchemaKeyword.TAG_ENUM.toPropertyName(schemaVersion), enumValues)
-
         return CustomDefinition(rootNode)
     }
 }

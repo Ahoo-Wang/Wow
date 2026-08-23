@@ -13,4 +13,5 @@
 
 package me.ahoo.wow.schema.typed.query
 
+@Deprecated("Use ListQuery with FilterExpression.")
 interface AggregatedListQuery<CommandAggregateType : Any>

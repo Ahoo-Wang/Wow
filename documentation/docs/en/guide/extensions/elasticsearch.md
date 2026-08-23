@@ -155,7 +155,8 @@ version-metadata migration is required.
 On the first snapshot query for an aggregate index, Wow asynchronously loads the current Elasticsearch mapping and
 compiles conditions and sorts from its physical field capabilities. The mapping is the only capability source; no
 separate `QuerySchema` is maintained. The cache is isolated by index and has no TTL. A missing or incompatible cached
-field fails the query without implicitly calling the mapping API; refresh the cache explicitly through the maintenance
+field fails the query without implicitly calling the mapping API, except that presence operations preserve an unmapped
+logical field because Elasticsearch can execute `exists` against it. Refresh the cache explicitly through the maintenance
 endpoint after a mapping change.
 
 Field selection follows these rules:
@@ -165,6 +166,7 @@ Field selection follows these rules:
 | `EQ`, `NE`, `IN`, `NOT_IN`, `ALL_IN`, `TRUE`, `FALSE` | Term-query compatible, including supported doc-value-only fields |
 | `CONTAINS`, `STARTS_WITH`, `ENDS_WITH` | `keyword` or `wildcard` |
 | Range operations | numeric, date, ip, keyword, or `*_range`, including applicable `doc_values=true,index=false` fields |
+| `IS_EMPTY`, null, and existence operations | Any indexed or doc-value-queryable field; an empty Elasticsearch array has no indexed value, so `IS_EMPTY` compiles as `NOT EXISTS` |
 | `MATCH` | `text`, `match_only_text`, `search_as_you_type`, or `semantic_text` |
 | Sort | Sortable field with `doc_values`, indexed `text` with `fielddata`, or a sortable runtime field |
 
@@ -198,16 +200,16 @@ For example, one logical field can support both full-text and exact operations:
 
 | Query operation | Client field | Resolved field |
 |---|---|---|
-| `MATCH` | `state.customerName` | `state.customerName` |
+| `SEARCH` | `state.customerName` | `state.customerName` |
 | `EQ`, `IN`, sort | `state.customerName` | `state.customerName.keyword` |
 | projection | `state.customerName` | `state.customerName` (unchanged) |
 
 Clients always use the logical field and do not need to hard-code `.keyword` or `.text`.
 
 For a multi-field, Wow tries the current field, `.keyword`/`.text`, `.exact`, and finally a single compatible child.
-Multiple compatible children fail as ambiguous rather than silently changing semantics. `EXISTS`, `NULL`, `NOT_NULL`,
-projection, and `RAW` remain logical fields; the parent of `ELEM_MATCH` must be mapped as `nested`. A custom
-`ConditionConverter` retains ownership of its physical fields and bypasses this rewriting.
+Multiple compatible children fail as ambiguous rather than silently changing semantics. Projection remains on the
+logical field; the parent of `ELEMENT_MATCH` must be mapped as `nested`. A custom
+`AbstractElasticsearchConditionConverter` retains ownership of its physical fields and bypasses this rewriting.
 
 A field alias inherits the query and sort capabilities of its target while queries continue to use the alias name.
 Runtime fields declared in the mapping also participate according to their type. They are evaluated at query time and
@@ -301,28 +303,22 @@ template. Event entries are `nested`, while `body[].body` remains available in `
 arbitrary payloads from breaking persistence through mapping conflicts. One event stream is limited to 10,000 events,
 matching Elasticsearch's default nested-object limit.
 
-Elasticsearch `ELEM_MATCH` children use fully qualified paths:
+Use relative child paths inside `ELEMENT_MATCH`; the resolver qualifies them against the nested parent:
 
 ```kotlin
-condition {
-    "body" elemMatch {
-        "body.name" eq "Created"
+filter {
+    "body".elementMatch {
+        "name" eq "Created"
     }
 }
 ```
 
 ```json
 {
-  "condition": {
+  "filter": {
+    "op": "ELEMENT_MATCH",
     "field": "body",
-    "operator": "ELEM_MATCH",
-    "children": [
-      {
-        "field": "body.name",
-        "operator": "EQ",
-        "value": "Created"
-      }
-    ]
+    "predicate": { "op": "EQ", "field": "name", "value": "Created" }
   }
 }
 ```
@@ -567,9 +563,9 @@ complete mapping from operator-owned baseline and custom component templates.
 ```kotlin
 // Use QueryService for full-text search
 listQuery {
-    condition {
-        "state.description" match "phone"
-        "state.totalAmount" between 100 to 500
+    filter {
+        search("phone", "state.description")
+        "state.totalAmount".between(100, 500)
     }
     sort {
         "state.customerName".asc()

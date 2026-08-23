@@ -16,12 +16,20 @@ package me.ahoo.wow.mongo.query.event
 import com.mongodb.client.model.Filters
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.serialization.MessageRecords
 import org.junit.jupiter.api.Test
 
 class EventStreamConditionConverterTest {
+    @Test
+    fun `match all filter should include deleted event streams`() {
+        EventStreamConditionConverter.convert(MatchAllFilter).toBsonDocument().assert()
+            .isEqualTo(Filters.empty().toBsonDocument())
+    }
+
     @Test
     fun `should convert id condition`() {
         val condition = condition { MessageRecords.ID.eq("test") }
@@ -82,5 +90,7 @@ class EventStreamConditionConverterTest {
         ).toBsonDocument()
 
         actual.assert().isEqualTo(expected)
+        EventStreamConditionConverter.convert(condition.toFilterExpression()).toBsonDocument().assert()
+            .isEqualTo(expected)
     }
 }

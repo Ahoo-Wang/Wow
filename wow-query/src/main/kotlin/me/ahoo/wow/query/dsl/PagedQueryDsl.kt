@@ -60,6 +60,6 @@ class PagedQueryDsl : QueryableDsl<IPagedQuery>() {
     }
 
     override fun build(): IPagedQuery {
-        return PagedQuery(condition, projection, sort, pagination)
+        return PagedQuery(filter, projection, sort, pagination)
     }
 }

@@ -107,6 +107,6 @@ class OrderSaga {
 - unauthenticated requests cannot access protected command or query routes;
 - forged `CoSec-*`, `Wow-Space-Id`, tenant, or owner values cannot expand access;
 - server-side policy binds identity to allowed scopes instead of trusting headers;
-- a protected query rejects missing principal tags rather than falling back to `Condition.all()`;
+- a protected query rejects missing principal tags rather than falling back to `MatchAllFilter`;
 - sagas, projections, and event handlers use propagated context only for audit or validated authorization decisions;
 - integration tests cover anonymous, unauthorized, cross-tenant, and successful authorized paths.

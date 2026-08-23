@@ -13,4 +13,5 @@
 
 package me.ahoo.wow.schema.typed.query
 
+@Deprecated("Use SingleQuery with FilterExpression.")
 interface AggregatedSingleQuery<CommandAggregateType : Any>

@@ -372,38 +372,39 @@ context，应先迁移或清空原事件流、快照与 PrepareKey 数据，再�
 
 ## 查询服务
 
-`wow-mongo` 模块提供两个查询服务实现，将 Wow 的抽象 `Condition` 对象转换为 MongoDB 过滤器文档（`Bson`）。
+`wow-mongo` 模块提供两个查询服务实现，将 `FilterExpression` 编译为 MongoDB 过滤器文档（`Bson`）。
 
-### 条件转换管道
+### 过滤器编译管道
 
-转换管道为：`Condition` -> `AbstractMongoConditionConverter` -> `Bson`（MongoDB 过滤器）。
+编译管道为：`FilterExpression` -> `AbstractMongoConditionConverter` -> `Bson`。
 
 | Wow 操作符 | MongoDB 等价操作 |
 |---|---|
-| `eq` | `Filters.eq()` |
-| `gt` / `gte` / `lt` / `lte` | `Filters.gt()` / `gte()` / `lt()` / `lte()` |
-| `contains` | `Filters.regex()`（已转义） |
-| `match` | `Filters.text()` |
-| `between` | `Filters.and(Filters.gte(), Filters.lte())` |
-| `isIn` / `notIn` | `Filters.in()` / `nin()` |
-| `deleted`（软删除） | `Filters.eq("deleted", true/false)` 或 `Filters.empty()` |
-| `raw` | `Document.parse()` 或直接 `Bson` |
+| `EQ` | `Filters.eq()` |
+| `GT` / `GTE` / `LT` / `LTE` | `Filters.gt()` / `gte()` / `lt()` / `lte()` |
+| `CONTAINS` | `Filters.regex()`（已转义） |
+| `SEARCH` | `Filters.text()` |
+| `BETWEEN` | `Filters.and(Filters.gte(), Filters.lte())` |
+| `IN` / `NOT_IN` | `Filters.in()` / `nin()` |
+| `DELETION` | `Filters.eq("deleted", true/false)` 或 `Filters.empty()` |
 
 转换器还通过 `FieldConverter` 应用 **字段名转换**。对于事件流，`MessageRecords.ID` 字段映射到 `_id`。对于快照，`MessageRecords.AGGREGATE_ID` 映射到 `_id`。这使得应用层查询模型在整个底层主键策略中保持一致。
 
 ### 快照查询
 
-快照存储可直接用作读模型，支持丰富的查询条件：
+快照存储可直接用作读模型：
 
 ```kotlin
-// 分页快照查询
-val condition = Condition.all()
-    .eq("state.status", "PAID")
-    .gt("state.totalAmount", 50.00)
-    .limit(10)
-    .sort("snapshotTime".desc())
+val query = listQuery {
+    filter {
+        "state.status" eq "PAID"
+        "state.totalAmount" gt 50.00
+    }
+    sort { "snapshotTime".desc() }
+    limit(10)
+}
 
-snapshotQueryService.dynamicQuery(condition)
+query.dynamicQuery(snapshotQueryService)
 ```
 
 `MongoSnapshotQueryService` 使用 `MaterializedSnapshot<S>` 作为其类型化的结果包装器，其中 `S` 是从聚合元数据解析出的聚合状态类型。这支持直接对聚合状态字段进行类型安全的动态查询——例如，查询 `state.status` 或 `state.totalAmount` 而不需要单独的投影处理器。
@@ -502,11 +503,11 @@ classDiagram
     class AbstractMongoQueryService~R~ {
         <<abstract>>
         #collection: MongoCollection
-        #converter: ConditionConverter
+        #converter: AbstractMongoConditionConverter
         +single(ISingleQuery) Mono~R~
         +list(IListQuery) Flux~R~
         +paged(IPagedQuery) Mono~PagedList~R~~
-        +count(Condition) Mono~Long~
+        +count(FilterExpression) Mono~Long~
     }
 
     class MongoEventStreamQueryService {

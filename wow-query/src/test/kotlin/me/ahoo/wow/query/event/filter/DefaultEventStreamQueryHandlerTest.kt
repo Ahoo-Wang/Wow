@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.event.filter
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.query.dsl.condition
@@ -100,6 +101,10 @@ class DefaultEventStreamQueryHandlerTest {
             .consumeNextWith {
                 it.assert().isZero()
             }
+            .verifyComplete()
+        queryHandler.count(MOCK_AGGREGATE_METADATA, MatchAllFilter)
+            .test()
+            .expectNext(0)
             .verifyComplete()
     }
 }

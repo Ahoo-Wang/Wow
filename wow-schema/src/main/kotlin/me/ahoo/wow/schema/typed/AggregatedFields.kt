@@ -13,13 +13,13 @@
 
 package me.ahoo.wow.schema.typed
 
+@Deprecated("Use FilterExpression schemas.")
 interface AggregatedFields<CommandAggregateType : Any> {
     companion object {
         val EMPTY = object : AggregatedFields<Any> {}
 
         @Suppress("UNCHECKED_CAST")
-        fun <CommandAggregateType : Any> empty(): AggregatedFields<CommandAggregateType> {
-            return EMPTY as AggregatedFields<CommandAggregateType>
-        }
+        fun <CommandAggregateType : Any> empty(): AggregatedFields<CommandAggregateType> =
+            EMPTY as AggregatedFields<CommandAggregateType>
     }
 }

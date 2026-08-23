@@ -16,6 +16,8 @@ package me.ahoo.wow.query.filter
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
@@ -60,9 +62,7 @@ class QueryContextTest {
                 condition { "field2" eq "value2" }
             }
         }
-        context.getQuery().condition.assert().isEqualTo(
-            Condition.eq("field2", "value2")
-        )
+        context.getQuery().filter.assert().isEqualTo(Condition.eq("field2", "value2").toFilterExpression())
     }
 
     @Test
@@ -85,7 +85,7 @@ class QueryContextTest {
         val query = singleQuery { }
         context.setQuery(query)
         context.setResult { queryArg ->
-            queryArg.condition.assert().isEqualTo(query.condition)
+            queryArg.filter.assert().isEqualTo(query.filter)
             Mono.just("handled")
         }
         context.getRequiredResult().block().assert().isEqualTo("handled")
@@ -132,5 +132,82 @@ class QueryContextTest {
         context.setQuery(Condition.ALL)
         val countContext = context.asCountQuery()
         countContext.getQuery().assert().isEqualTo(Condition.ALL)
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `legacy count context should append typed filter as condition`() {
+        val context = DefaultQueryContext<Condition, Mono<Long>>(
+            queryType = QueryType.COUNT,
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+        ).setQuery(Condition.ALL)
+
+        context.appendFilter(Condition.eq("state.name", "Wow").toFilterExpression())
+
+        context.asCountQuery().getQuery().assert().isEqualTo(Condition.eq("state.name", "Wow"))
+    }
+
+    @Test
+    fun `should expose typed count context separately`() {
+        val context = DefaultQueryContext<me.ahoo.wow.api.query.FilterExpression, Mono<Long>>(
+            queryType = QueryType.COUNT,
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+        ).setQuery(MatchAllFilter)
+
+        context.asFilterCountQuery().getQuery().assert().isSameAs(MatchAllFilter)
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `legacy rewritable accessor should preserve condition receiver`() {
+        val context = DefaultQueryContext<ISingleQuery, Mono<Any>>(
+            queryType = QueryType.SINGLE,
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+        ).setQuery(singleQuery { })
+
+        context.asRewritableQuery().rewriteQuery {
+            it.appendCondition(Condition.eq("state.name", "Wow"))
+        }
+
+        context.getQuery().condition.assert().isEqualTo(Condition.eq("state.name", "Wow"))
+    }
+
+    @Test
+    fun `typed rewritable accessor should preserve filter receiver`() {
+        val context = DefaultQueryContext<ISingleQuery, Mono<Any>>(
+            queryType = QueryType.SINGLE,
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+        ).setQuery(singleQuery { })
+        val appended = Condition.eq("state.name", "Wow").toFilterExpression()
+
+        context.asRewritableFilterQuery().rewriteQuery { it.appendFilter(appended) }
+
+        context.getQuery().filter.assert().isEqualTo(appended)
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `legacy match all filter should append without redundant AND`() {
+        val context = DefaultQueryContext<me.ahoo.wow.api.query.FilterExpression, Mono<Long>>(
+            queryType = QueryType.COUNT,
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+        ).setQuery(Condition.ALL.toFilterExpression())
+        val appended = Condition.eq("state.name", "Wow").toFilterExpression()
+
+        context.appendFilter(appended)
+
+        context.getQuery().assert().isSameAs(appended)
+    }
+
+    @Test
+    fun `append filter should reject unsupported query type`() {
+        val context = DefaultQueryContext<String, Mono<Long>>(
+            queryType = QueryType.COUNT,
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+        ).setQuery("unsupported")
+
+        org.junit.jupiter.api.assertThrows<IllegalStateException> {
+            context.appendFilter(MatchAllFilter)
+        }
     }
 }

@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+@file:Suppress("NoWildcardImports", "WildcardImport")
+
 package me.ahoo.wow.elasticsearch.query
 
 import co.elastic.clients.elasticsearch._types.mapping.BooleanProperty
@@ -32,6 +34,7 @@ import co.elastic.clients.elasticsearch._types.mapping.TextProperty
 import co.elastic.clients.elasticsearch._types.mapping.TokenCountProperty
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch.indices.GetMappingRequest
+import me.ahoo.wow.api.query.*
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.api.query.Sort
@@ -43,7 +46,9 @@ enum class ElasticsearchFieldUsage {
     EXACT,
     LITERAL,
     RANGE,
+    PRESENCE,
     SEARCH,
+    MATCH,
     SORT,
 }
 
@@ -100,9 +105,13 @@ data class ElasticsearchIndexMapping private constructor(
 
     fun resolve(field: String, usage: ElasticsearchFieldUsage): String {
         val mappedField = findMappedField(field)
-            ?: resolutionFailure(
-                "Elasticsearch field [$field] is not mapped in index [$indexName].",
-            )
+            ?: if (usage == ElasticsearchFieldUsage.PRESENCE) {
+                return field
+            } else {
+                resolutionFailure(
+                    "Elasticsearch field [$field] is not mapped in index [$indexName].",
+                )
+            }
         if (mappedField.supports(usage)) {
             return field
         }
@@ -192,7 +201,7 @@ data class ElasticsearchIndexMapping private constructor(
             Operator.EARLIER_DAYS,
             -> condition.withResolvedField(ElasticsearchFieldUsage.RANGE)
 
-            Operator.MATCH -> condition.withResolvedField(ElasticsearchFieldUsage.SEARCH)
+            Operator.MATCH -> condition.withResolvedField(ElasticsearchFieldUsage.MATCH)
             Operator.ELEM_MATCH -> condition.copy(
                 field = requireNested(condition.field),
                 children = condition.children.map(::resolve),
@@ -200,6 +209,74 @@ data class ElasticsearchIndexMapping private constructor(
 
             else -> condition
         }
+
+    fun resolve(filter: FilterExpression): FilterExpression = resolve(filter, null)
+
+    private fun resolve(filter: FilterExpression, parent: String?): FilterExpression =
+        filter.legacyConditionOrNull()?.let { resolve(it).toFilterExpression() } ?: resolveTyped(filter, parent)
+
+    @Suppress("CyclomaticComplexMethod")
+    private fun resolveTyped(filter: FilterExpression, parent: String?): FilterExpression = when (filter) {
+        is AndFilter -> AndFilter(filter.operands.map { resolve(it, parent) })
+        is OrFilter -> OrFilter(filter.operands.map { resolve(it, parent) })
+        is NorFilter -> NorFilter(filter.operands.map { resolve(it, parent) })
+        is EqualFilter -> filter.copy(
+            field = filter.field.resolve(
+                parent,
+                if (filter.value.isNull) ElasticsearchFieldUsage.PRESENCE else ElasticsearchFieldUsage.EXACT,
+            ),
+        )
+        is NotEqualFilter -> filter.copy(
+            field = filter.field.resolve(
+                parent,
+                if (filter.value.isNull) ElasticsearchFieldUsage.PRESENCE else ElasticsearchFieldUsage.EXACT,
+            ),
+        )
+        is InFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.EXACT))
+        is NotInFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.EXACT))
+        is ContainsAllFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.EXACT))
+        is IsEmptyFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.PRESENCE))
+        is IsNullFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.PRESENCE))
+        is IsNotNullFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.PRESENCE))
+        is ExistsFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.PRESENCE))
+        is NotExistsFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.PRESENCE))
+        is ContainsFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.LITERAL))
+        is StartsWithFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.LITERAL))
+        is EndsWithFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.LITERAL))
+        is GreaterThanFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is GreaterThanOrEqualFilter -> filter.copy(
+            field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE)
+        )
+        is LessThanFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is LessThanOrEqualFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is BetweenFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is TodayFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is BeforeTodayFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is TomorrowFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is ThisWeekFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is NextWeekFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is LastWeekFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is ThisMonthFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is LastMonthFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is RecentDaysFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is EarlierDaysFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is SearchFilter -> filter.copy(
+            fields = filter.fields.mapTo(linkedSetOf()) { it.resolve(parent, ElasticsearchFieldUsage.SEARCH) },
+        )
+        is ElementMatchFilter -> {
+            val nestedPath = filter.field.path(parent)
+            ElementMatchFilter(LogicalField(requireNested(nestedPath)), resolve(filter.predicate, nestedPath))
+        }
+        else -> filter
+    }
+
+    private fun LogicalField.path(parent: String?): String =
+        if (parent == null || value == parent || value.startsWith("$parent.")) value else "$parent.$value"
+
+    private fun LogicalField.resolve(parent: String?, usage: ElasticsearchFieldUsage): LogicalField {
+        if (parent == null && value == "_id" && usage == ElasticsearchFieldUsage.EXACT) return this
+        return LogicalField(this@ElasticsearchIndexMapping.resolve(path(parent), usage))
+    }
 
     fun resolve(sort: List<Sort>): List<Sort> =
         sort.map {
@@ -277,7 +354,10 @@ private data class ElasticsearchMappedField(
             ElasticsearchFieldUsage.EXACT -> isQueryable() && kind in EXACT_KINDS
             ElasticsearchFieldUsage.LITERAL -> indexed && kind in LITERAL_KINDS
             ElasticsearchFieldUsage.RANGE -> isQueryable() && kind in RANGE_KINDS
-            ElasticsearchFieldUsage.SEARCH -> indexed && kind in SEARCH_KINDS
+            ElasticsearchFieldUsage.PRESENCE -> isQueryable()
+            ElasticsearchFieldUsage.SEARCH,
+            ElasticsearchFieldUsage.MATCH,
+            -> indexed && kind in SEARCH_KINDS_BY_USAGE.getValue(usage)
             ElasticsearchFieldUsage.SORT ->
                 sortable && (kind in EXACT_KINDS || (indexed && kind == Property.Kind.Text))
         }
@@ -337,6 +417,11 @@ private data class ElasticsearchMappedField(
             Property.Kind.MatchOnlyText,
             Property.Kind.SearchAsYouType,
             Property.Kind.SemanticText,
+        )
+        private val MATCH_KINDS = SEARCH_KINDS + EXACT_KINDS
+        private val SEARCH_KINDS_BY_USAGE = mapOf(
+            ElasticsearchFieldUsage.SEARCH to SEARCH_KINDS,
+            ElasticsearchFieldUsage.MATCH to MATCH_KINDS,
         )
     }
 }

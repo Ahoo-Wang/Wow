@@ -15,8 +15,10 @@ package me.ahoo.wow.query.dsl
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.toFilterExpression
 import org.junit.jupiter.api.Test
 
 class ListQueryDslTest {
@@ -43,7 +45,7 @@ class ListQueryDslTest {
         query.projection.assert().isEqualTo(Projection.ALL)
         query.limit.assert().isOne()
         query.sort.assert().isEqualTo(listOf(Sort("field1", Sort.Direction.ASC)))
-        query.condition.assert().isEqualTo(
+        query.filter.assert().isEqualTo(
             Condition.and(
                 listOf(
                     Condition.eq("field1", "value1"),
@@ -59,14 +61,14 @@ class ListQueryDslTest {
                         )
                     )
                 )
-            )
+            ).toFilterExpression()
         )
     }
 
     @Test
     fun `should build empty list query with defaults`() {
         val query = listQuery { }
-        query.condition.assert().isEqualTo(Condition.all())
+        query.filter.assert().isEqualTo(MatchAllFilter)
         query.projection.assert().isEqualTo(Projection.ALL)
         query.sort.assert().isEmpty()
         query.limit.assert().isZero()
@@ -78,7 +80,7 @@ class ListQueryDslTest {
             limit(10)
         }
         query.limit.assert().isEqualTo(10)
-        query.condition.assert().isEqualTo(Condition.all())
+        query.filter.assert().isEqualTo(MatchAllFilter)
     }
 
     @Test

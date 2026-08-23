@@ -24,6 +24,14 @@ import io.mockk.mockk
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.EqualFilter
+import me.ahoo.wow.api.query.ExistsFilter
+import me.ahoo.wow.api.query.IsEmptyFilter
+import me.ahoo.wow.api.query.IsNotNullFilter
+import me.ahoo.wow.api.query.IsNullFilter
+import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.NotEqualFilter
+import me.ahoo.wow.api.query.NotExistsFilter
 import me.ahoo.wow.api.query.Sort
 import org.junit.jupiter.api.Test
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
@@ -137,6 +145,13 @@ class ElasticsearchIndexMappingResolverTest {
         mapping.resolve("state.name", ElasticsearchFieldUsage.SEARCH).assert().isEqualTo("state.name")
         mapping.resolve("state.name", ElasticsearchFieldUsage.SORT).assert().isEqualTo("state.name.keyword")
         mapping.requireNested("state.items").assert().isEqualTo("state.items")
+        val documentIdFilter = mapping.resolve(
+            EqualFilter(
+                LogicalField("_id"),
+                me.ahoo.wow.serialization.JsonSerializer.valueToTree("aggregate-1"),
+            ),
+        ) as EqualFilter
+        documentIdFilter.field.value.assert().isEqualTo("_id")
 
         val condition = mapping.resolve(
             Condition.and(
@@ -161,8 +176,45 @@ class ElasticsearchIndexMappingResolverTest {
         )
         elementMatch.field.assert().isEqualTo("state.items")
         elementMatch.children.single().field.assert().isEqualTo("state.items.name")
-        val raw = Condition.raw("""{"match_all":{}}""")
-        mapping.resolve(raw).assert().isEqualTo(raw)
+
+        val filter = mapping.resolve(
+            me.ahoo.wow.api.query.ElementMatchFilter(
+                me.ahoo.wow.api.query.LogicalField("state.items"),
+                me.ahoo.wow.api.query.EqualFilter(
+                    me.ahoo.wow.api.query.LogicalField("state.items.name"),
+                    me.ahoo.wow.serialization.JsonSerializer.valueToTree("item"),
+                ),
+            ),
+        ) as me.ahoo.wow.api.query.ElementMatchFilter
+        (filter.predicate as me.ahoo.wow.api.query.EqualFilter).field.value.assert()
+            .isEqualTo("state.items.name")
+
+        ElasticsearchIndexMapping.from(INDEX, keywordOnly())
+            .resolve(Condition.match("state.name", "Wow"))
+            .field.assert().isEqualTo("state.name")
+    }
+
+    @Test
+    fun `should preserve presence fields without exact mappings`() {
+        val mapping = ElasticsearchIndexMapping.from(INDEX, textWithKeyword())
+        val nullValue = me.ahoo.wow.serialization.JsonSerializer.valueToTree<tools.jackson.databind.JsonNode>(null)
+
+        (mapping.resolve(EqualFilter(LogicalField("state.name"), nullValue)) as EqualFilter).field.value.assert()
+            .isEqualTo("state.name")
+        (mapping.resolve(NotEqualFilter(LogicalField("state.name"), nullValue)) as NotEqualFilter).field.value.assert()
+            .isEqualTo("state.name")
+        (mapping.resolve(IsEmptyFilter(LogicalField("state.name"))) as IsEmptyFilter).field.value.assert()
+            .isEqualTo("state.name")
+        (mapping.resolve(IsNullFilter(LogicalField("state.name"))) as IsNullFilter).field.value.assert()
+            .isEqualTo("state.name")
+        (mapping.resolve(IsNotNullFilter(LogicalField("state.name"))) as IsNotNullFilter).field.value.assert()
+            .isEqualTo("state.name")
+        (mapping.resolve(ExistsFilter(LogicalField("state.name"))) as ExistsFilter).field.value.assert()
+            .isEqualTo("state.name")
+        (mapping.resolve(NotExistsFilter(LogicalField("state.name"))) as NotExistsFilter).field.value.assert()
+            .isEqualTo("state.name")
+        (mapping.resolve(NotExistsFilter(LogicalField("state.unmapped"))) as NotExistsFilter).field.value.assert()
+            .isEqualTo("state.unmapped")
     }
 
     @Test

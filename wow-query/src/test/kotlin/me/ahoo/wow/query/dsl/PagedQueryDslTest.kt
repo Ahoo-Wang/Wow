@@ -15,9 +15,11 @@ package me.ahoo.wow.query.dsl
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.toFilterExpression
 import org.junit.jupiter.api.Test
 
 class PagedQueryDslTest {
@@ -64,7 +66,7 @@ class PagedQueryDslTest {
         pagedQuery.pagination.index.assert().isOne()
         pagedQuery.pagination.size.assert().isEqualTo(10)
         pagedQuery.sort.assert().isEqualTo(listOf(Sort("field1", Sort.Direction.ASC)))
-        pagedQuery.condition.assert().isEqualTo(
+        pagedQuery.filter.assert().isEqualTo(
             Condition.and(
                 listOf(
                     Condition.eq("field1", "value1"),
@@ -95,14 +97,14 @@ class PagedQueryDslTest {
                         )
                     )
                 )
-            )
+            ).toFilterExpression()
         )
     }
 
     @Test
     fun `should build empty paged query with defaults`() {
         val pagedQuery = pagedQuery { }
-        pagedQuery.condition.assert().isEqualTo(Condition.all())
+        pagedQuery.filter.assert().isEqualTo(MatchAllFilter)
         pagedQuery.projection.assert().isEqualTo(Projection.ALL)
         pagedQuery.sort.assert().isEmpty()
         pagedQuery.pagination.assert().isEqualTo(Pagination.DEFAULT)
@@ -118,7 +120,7 @@ class PagedQueryDslTest {
         }
         pagedQuery.pagination.index.assert().isEqualTo(2)
         pagedQuery.pagination.size.assert().isEqualTo(20)
-        pagedQuery.condition.assert().isEqualTo(Condition.all())
+        pagedQuery.filter.assert().isEqualTo(MatchAllFilter)
     }
 
     @Test
@@ -128,7 +130,7 @@ class PagedQueryDslTest {
                 "field1" eq "value1"
             }
         }
-        pagedQuery.condition.assert().isEqualTo(Condition.eq("field1", "value1"))
+        pagedQuery.filter.assert().isEqualTo(Condition.eq("field1", "value1").toFilterExpression())
         pagedQuery.pagination.assert().isEqualTo(Pagination.DEFAULT)
     }
 

@@ -16,10 +16,13 @@ package me.ahoo.wow.query.filter
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.toCondition
+import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.filter.ErrorAccessor
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.FilterChain
@@ -34,7 +37,12 @@ interface QueryHandler<R : Any> : Handler<QueryContext<*, *>> {
     fun dynamicList(namedAggregate: NamedAggregate, listQuery: IListQuery): Flux<DynamicDocument>
     fun paged(namedAggregate: NamedAggregate, pagedQuery: IPagedQuery): Mono<PagedList<R>>
     fun dynamicPaged(namedAggregate: NamedAggregate, pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>>
-    fun count(namedAggregate: NamedAggregate, condition: Condition): Mono<Long>
+    fun count(namedAggregate: NamedAggregate, filter: FilterExpression): Mono<Long> =
+        count(namedAggregate, filter.toCondition())
+
+    @Deprecated("Use count with FilterExpression.")
+    fun count(namedAggregate: NamedAggregate, condition: Condition): Mono<Long> =
+        count(namedAggregate, condition.toFilterExpression())
 }
 
 abstract class AbstractQueryHandler<R : Any>(
@@ -91,6 +99,10 @@ abstract class AbstractQueryHandler<R : Any>(
         pagedQuery: IPagedQuery
     ): Mono<PagedList<DynamicDocument>> = mono(namedAggregate, QueryType.DYNAMIC_PAGED, pagedQuery)
 
+    override fun count(namedAggregate: NamedAggregate, filter: FilterExpression): Mono<Long> =
+        mono(namedAggregate, QueryType.COUNT, filter)
+
+    @Deprecated("Use count with FilterExpression.")
     override fun count(namedAggregate: NamedAggregate, condition: Condition): Mono<Long> =
         mono(namedAggregate, QueryType.COUNT, condition)
 }

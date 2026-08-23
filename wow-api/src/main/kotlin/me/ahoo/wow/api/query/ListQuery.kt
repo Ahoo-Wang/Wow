@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.api.query
 
+import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.annotation.JsonInclude
+import com.fasterxml.jackson.annotation.JsonProperty
 import io.swagger.v3.oas.annotations.media.Schema
 
 /**
@@ -36,14 +39,14 @@ interface IListQuery : Queryable<IListQuery> {
  * This class implements [IListQuery] and provides a concrete implementation for list-based queries.
  * It supports all standard query operations including conditions, projections, sorting, and result limiting.
  *
- * @property condition The filtering condition to apply to the query.
+ * @property filter The filter expression to apply to the query.
  * @property projection The field projection to control which fields are included in the results.
  * @property sort The sorting criteria to order the results.
  * @property limit The maximum number of items to return. Defaults to the standard pagination size.
  *
  * ```
  * val query = ListQuery(
- *     condition = Condition.eq("status", "active"),
+ *     filter = EqualFilter(LogicalField("status"), value),
  *     projection = Projection(listOf("name", "email")),
  *     sort = listOf(Sort("name", Direction.ASC)),
  *     limit = 50
@@ -51,18 +54,58 @@ interface IListQuery : Queryable<IListQuery> {
  * ```
  */
 data class ListQuery(
-    override val condition: Condition,
+    @get:JsonIgnore(false)
+    @get:JsonInclude(
+        value = JsonInclude.Include.CUSTOM,
+        valueFilter = LegacyConditionFilterValueFilter::class,
+    )
+    override val filter: FilterExpression,
     override val projection: Projection = Projection.ALL,
     override val sort: List<Sort> = emptyList(),
     override val limit: Int = 0
 ) : IListQuery {
+    @Deprecated("Use filter.")
+    @get:JsonIgnore
+    override val condition: Condition
+        get() = filter.toLegacyCondition()
+
+    @get:JsonProperty("condition")
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    internal val legacyConditionPayload: Condition?
+        get() = filter.legacyConditionOrNull()
+
+    @Deprecated("Use filter.")
+    constructor(
+        condition: Condition,
+        projection: Projection = Projection.ALL,
+        sort: List<Sort> = emptyList(),
+        limit: Int = 0,
+    ) : this(LegacyConditionAdapter.adapt(condition), projection, sort, limit)
+
     /**
-     * Creates a new ListQuery with the specified condition.
+     * Creates a new ListQuery with the specified filter.
      *
-     * @param newCondition The new condition to apply.
-     * @return A new ListQuery with the updated condition.
+     * @param newFilter The new filter to apply.
+     * @return A new ListQuery with the updated filter.
      */
-    override fun withCondition(newCondition: Condition): IListQuery = copy(condition = newCondition)
+    override fun withFilter(newFilter: FilterExpression): IListQuery = copy(filter = newFilter)
+
+    @Deprecated("Use withFilter.")
+    override fun withCondition(newCondition: Condition): IListQuery =
+        copy(filter = LegacyConditionAdapter.adapt(newCondition))
+
+    @Deprecated("Use copy(filter = ...).")
+    fun copy(
+        condition: Condition,
+        projection: Projection = this.projection,
+        sort: List<Sort> = this.sort,
+        limit: Int = this.limit,
+    ): ListQuery = copy(
+        filter = LegacyConditionAdapter.adapt(condition),
+        projection = projection,
+        sort = sort,
+        limit = limit
+    )
 
     /**
      * Creates a new ListQuery with the specified projection.

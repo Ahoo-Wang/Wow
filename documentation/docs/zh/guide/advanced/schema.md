@@ -78,6 +78,8 @@ Wow 提供了专门的 `TypedCustomDefinitionProvider` 实现与模块，为框�
 | 可空的 Kotlin 类型（`KotlinNullableCheck`） | 在类型联合中加入 `null` |
 | `@Summary` / `@Description` | 解析为 Schema 的 `title` / `description` 元数据 |
 
+`AggregatedFields` 与 `Aggregated*Query` 类型仅作为已弃用的兼容入口保留；新的查询契约统一使用 v2 `FilterExpression` Schema。
+
 ## OpenAPI 模块如何使用 Schema
 
 `wow-openapi` 模块通过 `OpenAPIComponentContext` 将 Schema 生成接入 OpenAPI 规范。

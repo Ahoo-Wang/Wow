@@ -1,20 +1,23 @@
+@file:Suppress("NoWildcardImports", "WildcardImport")
+
 package me.ahoo.wow.mongo.query
 
 import com.mongodb.client.model.Filters
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
-import me.ahoo.wow.api.query.Condition
-import me.ahoo.wow.api.query.DeletionState
-import me.ahoo.wow.api.query.Operator
+import me.ahoo.wow.api.query.*
 import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.mongo.query.snapshot.SnapshotConditionConverter
+import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import org.bson.conversions.Bson
+import org.bson.types.ObjectId
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
+import tools.jackson.databind.JsonNode
 import java.time.DayOfWeek
 import java.time.LocalTime
 import java.time.OffsetDateTime
@@ -31,6 +34,137 @@ class SnapshotConditionConverterTest {
             expected
         )
         actual.toBsonDocument().assert().isEqualTo(deletionBson.toBsonDocument())
+    }
+
+    @Test
+    fun `should convert filter expression`() {
+        val actual = SnapshotConditionConverter.convert(
+            me.ahoo.wow.api.query.EqualFilter(
+                me.ahoo.wow.api.query.LogicalField("state.name"),
+                me.ahoo.wow.serialization.JsonSerializer.valueToTree("Wow"),
+            ),
+        )
+
+        assertConvert(actual, Filters.eq("state.name", "Wow"))
+    }
+
+    @Test
+    fun `should compile filter expression operators`() {
+        val field = LogicalField("state.value")
+        val nestedField = LogicalField("name")
+        val one = JsonSerializer.valueToTree<JsonNode>(1)
+        val two = JsonSerializer.valueToTree<JsonNode>(2)
+        val text = JsonSerializer.valueToTree<JsonNode>("value")
+        val filters = listOf<FilterExpression>(
+            MatchNoneFilter,
+            AndFilter(listOf(EqualFilter(field, one), EqualFilter(field, two))),
+            OrFilter(listOf(EqualFilter(field, one), EqualFilter(field, two))),
+            NorFilter(listOf(EqualFilter(field, one), EqualFilter(field, two))),
+            EqualFilter(field, JsonSerializer.valueToTree(true)),
+            NotEqualFilter(field, one),
+            GreaterThanFilter(field, one),
+            GreaterThanOrEqualFilter(field, one),
+            LessThanFilter(field, one),
+            LessThanOrEqualFilter(field, one),
+            ContainsFilter(field, "value.*", StringComparison.CASE_INSENSITIVE),
+            StartsWithFilter(field, "value.*"),
+            EndsWithFilter(field, "value.*"),
+            InFilter(field, listOf(one, two)),
+            NotInFilter(field, listOf(one, two)),
+            BetweenFilter(field, one, two),
+            ContainsAllFilter(field, listOf(one, two)),
+            IsEmptyFilter(field),
+            IsNullFilter(field),
+            IsNotNullFilter(field),
+            ExistsFilter(field),
+            NotExistsFilter(field),
+            ElementMatchFilter(field, EqualFilter(nestedField, text)),
+            SearchFilter("value", linkedSetOf(field)),
+            DeletionFilter(DeletionState.ACTIVE),
+            DeletionFilter(DeletionState.DELETED),
+            DeletionFilter(DeletionState.ALL),
+        )
+
+        filters.map { SnapshotConditionConverter.convert(it).toBsonDocument() }.assert().hasSize(filters.size)
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `should preserve legacy document id and match semantics`() {
+        val objectId = ObjectId()
+        assertConvert(
+            SnapshotConditionConverter.convert(Condition.id("aggregate-1").toFilterExpression()),
+            Filters.eq(Documents.ID_FIELD, "aggregate-1"),
+        )
+        assertConvert(
+            SnapshotConditionConverter.convert(Condition.match("state.name", "wow").toFilterExpression()),
+            Filters.text("wow"),
+        )
+        assertConvert(
+            SnapshotConditionConverter.convert(Condition.isNull("state.optional").toFilterExpression()),
+            Filters.eq("state.optional", null),
+        )
+        assertConvert(
+            SnapshotConditionConverter.convert(Condition.eq("state.tags", listOf("a", "b")).toFilterExpression()),
+            Filters.eq("state.tags", listOf("a", "b")),
+        )
+        assertConvert(
+            SnapshotConditionConverter.convert(Condition.ne("state.tags", listOf("a", "b")).toFilterExpression()),
+            Filters.ne("state.tags", listOf("a", "b")),
+        )
+        assertConvert(
+            SnapshotConditionConverter.convert(
+                Condition.elemMatch(
+                    "state.items",
+                    Condition.eq(MessageRecords.AGGREGATE_ID, "nested-aggregate-id"),
+                ).toFilterExpression(),
+            ),
+            Filters.elemMatch(
+                "state.items",
+                Filters.eq(MessageRecords.AGGREGATE_ID, "nested-aggregate-id"),
+            ),
+        )
+        assertConvert(
+            SnapshotConditionConverter.convert(Condition.eq("@timestamp", objectId).toFilterExpression()),
+            Filters.eq("@timestamp", objectId),
+        )
+        assertConvert(
+            SnapshotConditionConverter.convert(Condition.all("state.tags", emptyList()).toFilterExpression()),
+            Filters.all("state.tags", emptyList<Any>()),
+        )
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `should not reapply active deletion scope to nested legacy filter`() {
+        val actual = SnapshotConditionConverter.convert(
+            AndFilter(
+                listOf(
+                    DeletionFilter(DeletionState.DELETED),
+                    Condition.eq("state.name", "Wow").toFilterExpression(),
+                ),
+            ),
+        )
+
+        actual.toBsonDocument().assert().isEqualTo(
+            Filters.and(
+                Filters.eq(StateAggregateRecords.DELETED, true),
+                Filters.eq("state.name", "Wow"),
+            ).toBsonDocument(),
+        )
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `should compile legacy predicate inside typed element match`() {
+        val actual = SnapshotConditionConverter.convert(
+            ElementMatchFilter(
+                LogicalField("state.items"),
+                Condition.eq("name", "Wow").toFilterExpression(),
+            ),
+        )
+
+        assertConvert(actual, Filters.elemMatch("state.items", Filters.eq("name", "Wow")))
     }
 
     @Test
@@ -325,45 +459,6 @@ class SnapshotConditionConverterTest {
     }
 
     @Test
-    fun `should convert raw bson condition`() {
-        val expected = Filters.eq("id", "id")
-        val actual = Condition.raw(expected).let {
-            SnapshotConditionConverter.convert(it)
-        }
-        assertConvert(actual, expected)
-    }
-
-    @Test
-    fun `should convert raw string condition`() {
-        val actual = Condition.raw("{\"id\":\"id\"}").let {
-            SnapshotConditionConverter.convert(it)
-        }.toBsonDocument()
-        val expected = Filters.eq("id", "id").toBsonDocument()
-        assertConvert(actual, expected)
-    }
-
-    @Test
-    fun `should convert raw map condition`() {
-        val actual = Condition.raw(mapOf("id" to "id")).let {
-            SnapshotConditionConverter.convert(it)
-        }.toBsonDocument()
-
-        val expected = Filters.eq("id", "id").toBsonDocument()
-        assertConvert(actual, expected)
-    }
-
-    data class RawObj(val id: String)
-
-    @Test
-    fun `should convert raw object condition`() {
-        val actual = Condition.raw(RawObj("id")).let {
-            SnapshotConditionConverter.convert(it)
-        }.toBsonDocument()
-        val expected = Filters.eq("id", "id").toBsonDocument()
-        assertConvert(actual, expected)
-    }
-
-    @Test
     fun `should convert aggregate id in logical conditions`() {
         val condition = Condition.and(
             Condition.eq(MessageRecords.AGGREGATE_ID, "and"),
@@ -456,18 +551,6 @@ class SnapshotConditionConverterTest {
                     Condition.or(listOf(Condition.exists("id"))),
                     Filters.or(Filters.exists("id", true))
                 ),
-                Arguments.of(
-                    Condition.or(listOf(Condition.raw(Filters.eq("id", false)))),
-                    Filters.or(Filters.eq("id", false))
-                ),
-                Arguments.of(
-                    Condition.raw(Filters.eq("id", false)),
-                    Filters.eq("id", false)
-                ),
-                Arguments.of(
-                    Condition.raw("{id:false}"),
-                    Filters.eq("id", false)
-                )
             )
         }
     }

@@ -13,6 +13,10 @@
 
 package me.ahoo.wow.api.query
 
+import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.annotation.JsonInclude
+import com.fasterxml.jackson.annotation.JsonProperty
+
 /**
  * Interface for paginated queries that retrieve items in pages.
  *
@@ -32,14 +36,14 @@ interface IPagedQuery : Queryable<IPagedQuery> {
  * This class implements [IPagedQuery] and provides a concrete implementation for
  * queries that need to retrieve results in pages with support for all standard query operations.
  *
- * @property condition The filtering condition to apply to the query.
+ * @property filter The filter expression to apply to the query.
  * @property projection The field projection to control which fields are included in the results.
  * @property sort The sorting criteria to order the results.
  * @property pagination The pagination settings to control which page and how many items to return.
  *
  * ```
  * val query = PagedQuery(
- *     condition = Condition.eq("status", "active"),
+ *     filter = EqualFilter(LogicalField("status"), value),
  *     projection = Projection(listOf("name", "email")),
  *     sort = listOf(Sort("name", Direction.ASC)),
  *     pagination = Pagination(index = 2, size = 20)
@@ -47,18 +51,58 @@ interface IPagedQuery : Queryable<IPagedQuery> {
  * ```
  */
 data class PagedQuery(
-    override val condition: Condition,
+    @get:JsonIgnore(false)
+    @get:JsonInclude(
+        value = JsonInclude.Include.CUSTOM,
+        valueFilter = LegacyConditionFilterValueFilter::class,
+    )
+    override val filter: FilterExpression,
     override val projection: Projection = Projection.ALL,
     override val sort: List<Sort> = emptyList(),
     override val pagination: Pagination = Pagination.DEFAULT
 ) : IPagedQuery {
+    @Deprecated("Use filter.")
+    @get:JsonIgnore
+    override val condition: Condition
+        get() = filter.toLegacyCondition()
+
+    @get:JsonProperty("condition")
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    internal val legacyConditionPayload: Condition?
+        get() = filter.legacyConditionOrNull()
+
+    @Deprecated("Use filter.")
+    constructor(
+        condition: Condition,
+        projection: Projection = Projection.ALL,
+        sort: List<Sort> = emptyList(),
+        pagination: Pagination = Pagination.DEFAULT,
+    ) : this(LegacyConditionAdapter.adapt(condition), projection, sort, pagination)
+
     /**
-     * Creates a new PagedQuery with the specified condition.
+     * Creates a new PagedQuery with the specified filter.
      *
-     * @param newCondition The new condition to apply.
-     * @return A new PagedQuery with the updated condition.
+     * @param newFilter The new filter to apply.
+     * @return A new PagedQuery with the updated filter.
      */
-    override fun withCondition(newCondition: Condition): IPagedQuery = copy(condition = newCondition)
+    override fun withFilter(newFilter: FilterExpression): IPagedQuery = copy(filter = newFilter)
+
+    @Deprecated("Use withFilter.")
+    override fun withCondition(newCondition: Condition): IPagedQuery =
+        copy(filter = LegacyConditionAdapter.adapt(newCondition))
+
+    @Deprecated("Use copy(filter = ...).")
+    fun copy(
+        condition: Condition,
+        projection: Projection = this.projection,
+        sort: List<Sort> = this.sort,
+        pagination: Pagination = this.pagination,
+    ): PagedQuery = copy(
+        filter = LegacyConditionAdapter.adapt(condition),
+        projection = projection,
+        sort = sort,
+        pagination = pagination,
+    )
 
     /**
      * Creates a new PagedQuery with the specified projection.

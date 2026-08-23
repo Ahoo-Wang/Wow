@@ -21,8 +21,8 @@ interface SynchronousSnapshotSingleQueryApi<S : Any> :
     SnapshotSingleQueryApi<MaterializedSnapshot<S>?, Map<String, Any>?, S?> {
     override fun getById(id: String): MaterializedSnapshot<S>? {
         singleQuery {
-            condition {
-                id(id)
+            filter {
+                "aggregateId" eq id
             }
         }.let {
             return switchNotFoundToNull { single(it) }
@@ -31,8 +31,8 @@ interface SynchronousSnapshotSingleQueryApi<S : Any> :
 
     override fun getStateById(id: String): S? {
         singleQuery {
-            condition {
-                id(id)
+            filter {
+                "aggregateId" eq id
             }
         }.let {
             return switchNotFoundToNull { singleState(it) }
