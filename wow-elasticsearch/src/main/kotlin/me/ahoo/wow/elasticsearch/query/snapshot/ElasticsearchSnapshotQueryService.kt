@@ -40,6 +40,7 @@ import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
 import me.ahoo.wow.elasticsearch.query.ElasticsearchMappingRefreshResult
 import me.ahoo.wow.elasticsearch.query.requireCompleteAggregationResponse
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
+import me.ahoo.wow.query.snapshot.AggregationQueryValidator
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.convert
@@ -120,6 +121,7 @@ class ElasticsearchSnapshotQueryService<S : Any>(
         mapping.resolve(sort)
 
     override fun aggregate(query: AggregationQuery): Flux<DynamicDocument> = Flux.defer {
+        AggregationQueryValidator.validate(query, namedAggregate)
         val plan = if (configuredIndexMappingResolver == null && query.isRootCountOnly) {
             Mono.just(ElasticsearchAggregationCompiler.compileCount(query, conditionConverter))
         } else {

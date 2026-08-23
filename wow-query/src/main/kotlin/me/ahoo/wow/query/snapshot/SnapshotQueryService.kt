@@ -68,14 +68,17 @@ class NoOpSnapshotQueryService<S : Any>(override val namedAggregate: NamedAggreg
     }
 
     override fun aggregate(query: AggregationQuery): Flux<DynamicDocument> {
-        if (query.groupBy.isNotEmpty()) return Flux.empty()
-        return Flux.just(
-            query.metrics.associateTo(linkedMapOf()) { metric ->
-                metric.alias to when (metric) {
-                    is AggregationMetric.Count -> 0L
-                    is AggregationMetric.Numeric -> if (metric.function == AggregationFunction.SUM) 0.0 else null
-                }
-            }.toDynamicDocument()
-        )
+        return Flux.defer {
+            AggregationQueryValidator.validate(query, namedAggregate)
+            if (query.groupBy.isNotEmpty()) return@defer Flux.empty()
+            Flux.just(
+                query.metrics.associateTo(linkedMapOf()) { metric ->
+                    metric.alias to when (metric) {
+                        is AggregationMetric.Count -> 0L
+                        is AggregationMetric.Numeric -> if (metric.function == AggregationFunction.SUM) 0.0 else null
+                    }
+                }.toDynamicDocument()
+            )
+        }
     }
 }

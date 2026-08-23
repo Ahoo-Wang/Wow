@@ -209,7 +209,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             metrics = listOf(
                 AggregationMetric.Numeric(
                     AggregationFunction.SUM,
-                    AggregationExpression.Field("state.newField"),
+                    AggregationExpression.Field("version"),
                     "sum",
                 ),
             ),
@@ -276,6 +276,9 @@ class ElasticsearchSnapshotMappingQueryTest {
 
     private fun queryMapping(includeNewField: Boolean = false): TypeMapping =
         TypeMapping.of { mapping ->
+            if (includeNewField) {
+                mapping.properties("version") { field -> field.long_ { it } }
+            }
             mapping.properties("body") { body ->
                 body.nested { nested ->
                     nested.properties("name") { name -> name.keyword { it } }

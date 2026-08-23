@@ -32,6 +32,7 @@ import me.ahoo.wow.mongo.query.AbstractMongoQueryService
 import me.ahoo.wow.mongo.query.MongoProjectionConverter
 import me.ahoo.wow.mongo.query.MongoSortConverter
 import me.ahoo.wow.mongo.toMaterializedSnapshot
+import me.ahoo.wow.query.snapshot.AggregationQueryValidator
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.serialization.JsonSerializer
 import org.bson.Document
@@ -63,6 +64,7 @@ class MongoSnapshotQueryService<S : Any>(
     }
 
     override fun aggregate(query: AggregationQuery): Flux<DynamicDocument> = Flux.defer {
+        AggregationQueryValidator.validate(query, namedAggregate)
         collection.aggregate(MongoAggregationCompiler.compile(query, converter))
             .collation(SIMPLE_COLLATION)
             .toFlux()

@@ -347,6 +347,18 @@ abstract class SnapshotQueryServiceSpec {
     }
 
     @Test
+    fun aggregateRejectsUndeclaredElementFields() {
+        snapshotQueryService.aggregate(
+            AggregationQuery(
+                groupBy = listOf(AggregationGroup.Terms("state.orders.status", "status")),
+                metrics = listOf(AggregationMetric.Count("count")),
+            ),
+        ).test()
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
+    }
+
+    @Test
     fun rootElemMatchShouldNotFilterExpandedRows() {
         snapshotQueryService.aggregate(
             AggregationQuery(

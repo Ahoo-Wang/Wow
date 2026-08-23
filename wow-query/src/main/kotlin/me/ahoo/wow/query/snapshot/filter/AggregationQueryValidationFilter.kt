@@ -16,7 +16,7 @@ package me.ahoo.wow.query.snapshot.filter
 import me.ahoo.wow.api.annotation.ORDER_DEFAULT
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.filter.FilterChain
-import me.ahoo.wow.query.snapshot.validate
+import me.ahoo.wow.query.snapshot.AggregationQueryValidator
 import reactor.core.publisher.Mono
 
 @Order(ORDER_DEFAULT)
@@ -25,7 +25,7 @@ class AggregationQueryValidationFilter : SnapshotAggregationQueryFilter {
         context: SnapshotAggregationQueryContext,
         next: FilterChain<SnapshotAggregationQueryContext>,
     ): Mono<Void> {
-        context.query.validate(context.namedAggregate)
+        AggregationQueryValidator.validate(context.query, context.namedAggregate)
         return next.filter(context)
     }
 }

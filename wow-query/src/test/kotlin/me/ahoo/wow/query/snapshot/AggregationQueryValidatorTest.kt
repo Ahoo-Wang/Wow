@@ -47,7 +47,7 @@ class AggregationQueryValidatorTest {
                 AggregationGroup.DateHistogram("state.createdAt", "day", AggregationDateUnit.DAY),
             ),
             metrics = listOf(numeric("state.amount"), AggregationMetric.Count("count")),
-        ).validate(namedAggregate)
+        ).validate()
 
         AggregationQuery(
             elements = listOf(
@@ -56,7 +56,7 @@ class AggregationQueryValidatorTest {
             ),
             groupBy = listOf(AggregationGroup.Terms("state.orders.lines.sku", "sku")),
             metrics = listOf(numeric("state.orders.lines.amount"), AggregationMetric.Count("count")),
-        ).validate(namedAggregate)
+        ).validate()
     }
 
     @Test
@@ -70,7 +70,7 @@ class AggregationQueryValidatorTest {
         ).forEach { elements ->
             assertThrows<IllegalArgumentException> {
                 AggregationQuery(elements = elements, metrics = listOf(AggregationMetric.Count("count")))
-                    .validate(namedAggregate)
+                    .validate()
             }
         }
     }
@@ -89,7 +89,7 @@ class AggregationQueryValidatorTest {
                 AggregationQuery(
                     elements = listOf(AggregationElement("state.orders", elementFilter)),
                     metrics = listOf(AggregationMetric.Count("count")),
-                ).validate(namedAggregate)
+                ).validate()
             }
         }
     }
@@ -132,7 +132,7 @@ class AggregationQueryValidatorTest {
                 metrics = listOf(numeric("state.status")),
             ),
         )
-        invalid.forEach { query -> assertThrows<IllegalArgumentException> { query.validate(namedAggregate) } }
+        invalid.forEach { query -> assertThrows<IllegalArgumentException> { query.validate() } }
     }
 
     @Test
@@ -142,7 +142,7 @@ class AggregationQueryValidatorTest {
             filter { "state.orders.amount" gt 0.0 },
             filter { "state.orders.createdAt".today() },
             filter { "state.orders.shipping".exists() },
-        ).forEach { elementFilter -> aggregation(elementFilter).validate(namedAggregate) }
+        ).forEach { elementFilter -> aggregation(elementFilter).validate() }
 
         listOf(
             filter { "state.orders.amount".contains("1") },
@@ -152,7 +152,7 @@ class AggregationQueryValidatorTest {
             filter { "state.orders.shipping".isEmptyCollection() },
             filter { "state.orders.status".today() },
         ).forEach { elementFilter ->
-            assertThrows<IllegalArgumentException> { aggregation(elementFilter).validate(namedAggregate) }
+            assertThrows<IllegalArgumentException> { aggregation(elementFilter).validate() }
         }
     }
 
@@ -193,13 +193,13 @@ class AggregationQueryValidatorTest {
             filter { "state.orders.createdAt".lastMonth() },
             filter { "state.orders.createdAt".recentDays(1) },
             filter { "state.orders.createdAt".earlierDays(1) },
-        ).forEach { elementFilter -> aggregation(elementFilter).validate(namedAggregate) }
+        ).forEach { elementFilter -> aggregation(elementFilter).validate() }
 
         listOf(
             filter { "state.orders.tags" containsAll listOf("tag") },
             filter { "state.orders.tags".isEmptyCollection() },
         ).forEach { elementFilter ->
-            assertThrows<IllegalArgumentException> { aggregation(elementFilter).validate(namedAggregate) }
+            assertThrows<IllegalArgumentException> { aggregation(elementFilter).validate() }
         }
     }
 
@@ -207,6 +207,8 @@ class AggregationQueryValidatorTest {
         elements = listOf(AggregationElement("state.orders", elementFilter)),
         metrics = listOf(AggregationMetric.Count("count")),
     )
+
+    private fun AggregationQuery.validate() = AggregationQueryValidator.validate(this, namedAggregate)
 
     private fun numeric(field: String) = AggregationMetric.Numeric(
         AggregationFunction.SUM,

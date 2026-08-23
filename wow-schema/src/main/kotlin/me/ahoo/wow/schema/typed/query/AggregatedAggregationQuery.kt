@@ -78,9 +78,16 @@ sealed interface AggregatedAggregationGroup<CommandAggregateType : Any> {
         @get:Schema(minLength = 1, pattern = AGGREGATION_ALIAS_PATTERN)
         override val alias: String,
         val unit: AggregationDateUnit,
+        @get:Schema(
+            defaultValue = "UTC",
+            implementation = AggregationTimeZoneSchema::class,
+        )
         val timeZone: String = "UTC",
     ) : AggregatedAggregationGroup<CommandAggregateType>
 }
+
+@Schema(name = "api.query.AggregationTimeZone")
+sealed interface AggregationTimeZoneSchema
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(

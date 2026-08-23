@@ -392,6 +392,7 @@ HTTP guard 只统计用户提交的根过滤器与 Element filters。受信任�
 自定义 Snapshot `QueryFilter` 必须通过 `SnapshotAggregationQueryFilterProvider` 提供等价的聚合策略；否则聚合端点会 fail-closed，避免绕过既有授权或改写规则。
 Snapshot 配置 masker 时，聚合会在访问后端前 fail-closed。
 HTTP 层不维护重复的字段白名单；聚合元数据 Validator 统一校验集合链、字段归属和可移植类型。
+同一 Validator 也在 NoOp、MongoDB 与 Elasticsearch Service 入口执行，直接调用 `SnapshotQueryService.aggregate` 或 DSL 不会绕过领域约束。
 指标和分组没有脚本入口。
 
 ### 后端失败与性能边界

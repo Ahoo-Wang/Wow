@@ -401,6 +401,8 @@ aggregation policy through `SnapshotAggregationQueryFilterProvider`; otherwise t
 fails closed instead of bypassing existing authorization or rewrite rules. Aggregation fails closed before backend access when a Snapshot masker is configured.
 The HTTP layer does not maintain a duplicate field allowlist; the aggregation metadata Validator is
 the single authority for collection chains, field ownership, and portable types.
+The same Validator runs at the NoOp, MongoDB, and Elasticsearch service entry points, so direct
+`SnapshotQueryService.aggregate` or DSL calls cannot bypass domain constraints.
 Groups and metrics have no script entry point.
 
 ### Backend Failures and Performance Boundary

@@ -22,7 +22,13 @@ import me.ahoo.wow.query.AggregationField
 import me.ahoo.wow.query.AggregationFieldCatalog
 import me.ahoo.wow.query.AggregationFieldKind
 
-internal fun AggregationQuery.validate(namedAggregate: NamedAggregate) {
+object AggregationQueryValidator {
+    fun validate(query: AggregationQuery, namedAggregate: NamedAggregate) {
+        query.validateInternal(namedAggregate)
+    }
+}
+
+private fun AggregationQuery.validateInternal(namedAggregate: NamedAggregate) {
     val stateType = namedAggregate.asAggregateMetadata<Any, Any>().state.aggregateType
     val catalog = AggregationFieldCatalog.scan(stateType)
     val elementPaths = elements.map { it.path }

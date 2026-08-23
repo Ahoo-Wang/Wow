@@ -19,17 +19,17 @@ import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.pagedQuery
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Proxy
 
 class NoOpSnapshotQueryServiceTest {
-    private val queryService = NoOpSnapshotQueryServiceFactory.create<Any>("test.test".toNamedAggregate())
+    private val queryService = NoOpSnapshotQueryServiceFactory.create<Any>(MOCK_AGGREGATE_METADATA)
 
     @Test
     fun `aggregation should keep service default method executable`() {
@@ -58,7 +58,7 @@ class NoOpSnapshotQueryServiceTest {
 
     @Test
     fun `should return named aggregate`() {
-        queryService.namedAggregate.assert().isEqualTo("test.test".toNamedAggregate())
+        queryService.namedAggregate.assert().isEqualTo(MOCK_AGGREGATE_METADATA.namedAggregate)
     }
 
     @Test
@@ -175,5 +175,17 @@ class NoOpSnapshotQueryServiceTest {
                 metrics = listOf(AggregationMetric.Count("count")),
             ),
         ).test().verifyComplete()
+    }
+
+    @Test
+    fun `should validate aggregation fields`() {
+        queryService.aggregate(
+            AggregationQuery(
+                groupBy = listOf(AggregationGroup.Terms("state.orders.status", "status")),
+                metrics = listOf(AggregationMetric.Count("count")),
+            ),
+        ).test()
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
     }
 }

@@ -108,6 +108,24 @@ class AggregatedAggregationQueryTest {
     }
 
     @Test
+    fun `should publish exact portable time zones`() {
+        val schema = generator.generateSchema(AggregationTimeZoneSchema::class.java).asJsonSchema().actual
+        val alternatives = schema.path("oneOf") as Iterable<tools.jackson.databind.JsonNode>
+        val enumValues = alternatives.first { it.has("enum") }.path("enum")
+        val zoneIds = (enumValues as Iterable<tools.jackson.databind.JsonNode>).map { it.stringValue() }
+        val offsetPattern = Regex(alternatives.first { it.has("pattern") }.path("pattern").stringValue())
+
+        zoneIds.assert().contains("UTC", "Asia/Shanghai")
+        zoneIds.assert().doesNotContain("Z", "UTC+08:00")
+        listOf("+00:00", "-08:30", "+18:00").forEach { offset ->
+            offsetPattern.matches(offset).assert().isTrue()
+        }
+        listOf("Z", "UTC+08:00", "+18:01", "+19:00").forEach { invalid ->
+            offsetPattern.matches(invalid).assert().isFalse()
+        }
+    }
+
+    @Test
     fun `should expose operation-specific field enums`() {
         val elements = generator.generateSchema(
             SnapshotAggregationElements::class.java,
