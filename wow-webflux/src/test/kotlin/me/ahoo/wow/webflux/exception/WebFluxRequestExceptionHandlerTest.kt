@@ -105,6 +105,22 @@ class WebFluxRequestExceptionHandlerTest {
     }
 
     @Test
+    fun `should retain original exception when error strategy throws`() {
+        val errorStrategy = mockk<WebFluxErrorStrategy> {
+            every { toServerResponse(any(), any()) } throws IllegalStateException("render failed")
+        }
+        val warnings = captureWarnings {
+            WebFluxRequestExceptionHandler(errorStrategy).handle(
+                MockServerRequest.builder().build(),
+                IllegalArgumentException("invalid request"),
+            ).test().expectErrorMessage("render failed").verify()
+        }
+
+        warnings.assert().hasSize(1)
+        warnings.single().throwableProxy.assert().isNotNull()
+    }
+
+    @Test
     fun `should retain original exception when error response is cancelled`() {
         val errorStrategy = mockk<WebFluxErrorStrategy> {
             every { toServerResponse(any(), any()) } returns Mono.never()

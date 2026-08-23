@@ -35,7 +35,7 @@ class WebFluxRequestExceptionHandler(
     override fun handle(request: ServerRequest, throwable: Throwable): Mono<ServerResponse> {
         return Mono.defer {
             val logged = AtomicBoolean()
-            errorStrategy.toServerResponse(request, throwable)
+            Mono.defer { errorStrategy.toServerResponse(request, throwable) }
                 .doOnNext { response ->
                     if (logged.compareAndSet(false, true)) {
                         if (response.statusCode().is4xxClientError) {

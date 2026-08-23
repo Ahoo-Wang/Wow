@@ -79,9 +79,11 @@ object TypeFieldPaths {
             }
         }
         get("properties")?.properties()?.forEach { (propertyName, propertySchema) ->
-            val fullName = resolveFieldName(parentName, propertyName)
-            fieldPaths.add(fullName)
-            propertySchema.collectFieldPaths(rootSchema, fieldPaths, fullName, depth + 1, maxDepth, emptySet())
+            if (propertyName.isLogicalFieldSegment() && propertySchema.get("writeOnly")?.asBoolean() != true) {
+                val fullName = resolveFieldName(parentName, propertyName)
+                fieldPaths.add(fullName)
+                propertySchema.collectFieldPaths(rootSchema, fieldPaths, fullName, depth + 1, maxDepth, emptySet())
+            }
         }
         get("items")?.collectFieldPaths(
             rootSchema,
@@ -95,6 +97,9 @@ object TypeFieldPaths {
 
     private fun resolveFieldName(parentName: String, fieldName: String): String =
         if (parentName.isBlank()) fieldName else "$parentName${JOIN_DELIMITER}$fieldName"
+
+    private fun String.isLogicalFieldSegment(): Boolean =
+        JOIN_DELIMITER !in this && runCatching { LogicalField("_.$this") }.isSuccess
 }
 
 object AggregatedFieldPaths {

@@ -26,6 +26,7 @@ import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.schema.AggregatedFieldPaths.commandAggregatedFieldPaths
 import me.ahoo.wow.schema.AggregatedFieldPaths.stateAggregatedFieldPaths
 import me.ahoo.wow.schema.TypeFieldPaths.allFieldPaths
+import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.api.Test
 
 class AggregatedFieldPathsTest {
@@ -47,12 +48,17 @@ class AggregatedFieldPathsTest {
 
     @Test
     fun `should use Jackson names for JavaBean field paths`() {
+        SchemaGeneratorBuilder().objectMapper(JsonSerializer).build()
+            .generateSchema(JavaBeanFieldPathFixture::class.java)
+            .findValue("writeOnly").asBoolean().assert().isTrue()
         val paths = JavaBeanFieldPathFixture::class.allFieldPaths(parentName = "state")
 
         paths.assert()
             .contains("state.display_name")
-            .contains("state.display name")
             .contains("state.frozen")
+            .doesNotContain("state.display name")
+            .doesNotContain("state.display.name")
+            .doesNotContain("state.secret")
             .doesNotContain("state.name")
     }
 
@@ -63,6 +69,8 @@ class AggregatedFieldPathsTest {
         paths.assert()
             .contains("state.display_name")
             .doesNotContain("state.display name")
+            .doesNotContain("state.display.name")
+            .doesNotContain("state.secret")
     }
 
     @Test

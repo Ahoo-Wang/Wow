@@ -20,6 +20,10 @@ public class JavaBeanFieldPathFixture {
     private String name = "";
     @JsonProperty("display name")
     private String invalidName = "";
+    @JsonProperty("display.name")
+    private String dottedName = "";
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    private String secret = "";
     private boolean frozen;
 
     public String getName() {
@@ -32,5 +36,13 @@ public class JavaBeanFieldPathFixture {
 
     public String getInvalidName() {
         return invalidName;
+    }
+
+    public String getDottedName() {
+        return dottedName;
+    }
+
+    public void setSecret(String secret) {
+        this.secret = secret;
     }
 }
