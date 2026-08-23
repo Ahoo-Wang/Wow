@@ -125,7 +125,7 @@ object TypeFieldPaths {
         if (parentName.isBlank()) fieldName else "$parentName${JOIN_DELIMITER}$fieldName"
 
     private fun String.isLogicalFieldSegment(): Boolean =
-        JOIN_DELIMITER !in this && runCatching { LogicalField("_.$this") }.isSuccess
+        JOIN_DELIMITER !in this && runCatching { LogicalField(this) }.isSuccess
 
     private fun MemberScope<*, *>.customSerializerDefinition(
         context: SchemaGenerationContext,

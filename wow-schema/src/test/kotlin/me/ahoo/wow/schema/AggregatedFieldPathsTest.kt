@@ -62,6 +62,7 @@ class AggregatedFieldPathsTest {
             .contains("state.frozen")
             .doesNotContain("state.display name")
             .doesNotContain("state.display.name")
+            .doesNotContain("state.0")
             .doesNotContain("state.secret")
             .doesNotContain("state.name")
     }
@@ -74,6 +75,7 @@ class AggregatedFieldPathsTest {
             .contains("state.display_name")
             .doesNotContain("state.display name")
             .doesNotContain("state.display.name")
+            .doesNotContain("state.0")
             .doesNotContain("state.secret")
     }
 
