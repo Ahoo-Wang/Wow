@@ -21,11 +21,11 @@ import me.ahoo.wow.webflux.route.query.RewriteRequestFilter
 
 class ListQueryEventStreamHandlerFunctionFactory(
     eventStreamQueryHandler: EventStreamQueryHandler,
-    rewriteRequestCondition: RewriteRequestFilter,
+    rewriteRequestFilter: RewriteRequestFilter,
     exceptionHandler: RequestExceptionHandler
 ) : ListQueryHandlerFunctionFactory(
     handlerKey = BuiltInHttpRouteHandlerKeys.Event.LIST_QUERY,
     queryHandler = eventStreamQueryHandler,
-    rewriteRequestCondition = rewriteRequestCondition,
+    rewriteRequestFilter = rewriteRequestFilter,
     exceptionHandler = exceptionHandler
 )

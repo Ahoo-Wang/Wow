@@ -21,11 +21,11 @@ import me.ahoo.wow.webflux.route.query.SingleQueryHandlerFunctionFactory
 
 class SingleSnapshotHandlerFunctionFactory(
     snapshotQueryHandler: SnapshotQueryHandler,
-    rewriteRequestCondition: RewriteRequestFilter,
+    rewriteRequestFilter: RewriteRequestFilter,
     exceptionHandler: RequestExceptionHandler
 ) : SingleQueryHandlerFunctionFactory(
     handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.SINGLE,
     queryHandler = snapshotQueryHandler,
-    rewriteRequestCondition = rewriteRequestCondition,
+    rewriteRequestFilter = rewriteRequestFilter,
     exceptionHandler = exceptionHandler
 )

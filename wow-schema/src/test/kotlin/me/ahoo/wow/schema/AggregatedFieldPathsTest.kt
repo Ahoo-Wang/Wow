@@ -20,7 +20,7 @@ import com.fasterxml.jackson.annotation.JsonUnwrapped
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.schema.AggregatedFieldPaths.commandAggregatedFieldPaths
@@ -37,9 +37,9 @@ import tools.jackson.databind.ser.std.StdSerializer
 
 class AggregatedFieldPathsTest {
     @Test
-    fun `should list all field paths for condition type`() {
-        val paths = Condition::class.allFieldPaths()
-        paths.assert().isNotEmpty()
+    fun `should list all field paths for recursive type`() {
+        val paths = TreeNodeFixture::class.allFieldPaths()
+        paths.assert().contains("children").contains("code")
     }
 
     @Test
@@ -173,7 +173,7 @@ class AggregatedFieldPathsTest {
         var addressArray: Array<TestAddress> = emptyArray()
 
         @JsonIgnore(false)
-        var pagedQuery: PagedQuery = PagedQuery(Condition.all())
+        var pagedQuery: PagedQuery = PagedQuery(MatchAllFilter)
         var pagedList: PagedList<FieldPathDemoState> = PagedList.empty()
     }
 

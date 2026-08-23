@@ -43,7 +43,7 @@ class LoadSnapshotHandlerFunction(
         val id = requireNotNull(request.getAggregateId(aggregateRouteMetadata.owner))
         val ownerId = request.getOwnerId()
         val singleQuery = singleQuery {
-            condition {
+            filter {
                 tenantId(tenantId)
                 id(id)
                 if (!ownerId.isNullOrBlank()) {

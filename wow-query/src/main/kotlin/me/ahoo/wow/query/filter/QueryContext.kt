@@ -93,11 +93,11 @@ interface QueryContext<Q : Any, R : Any> {
         return this as QueryContext<IPagedQuery, Mono<PagedList<E>>>
     }
 
-    fun asRewritableFilterQuery(): QueryContext<RewritableFilter<*>, R> {
+    fun asRewritableQuery(): QueryContext<RewritableFilter<*>, R> {
         return this as QueryContext<RewritableFilter<*>, R>
     }
 
-    fun asFilterCountQuery(): QueryContext<FilterExpression, Mono<Long>> {
+    fun asCountQuery(): QueryContext<FilterExpression, Mono<Long>> {
         return this as QueryContext<FilterExpression, Mono<Long>>
     }
 }

@@ -21,6 +21,7 @@ import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.IdFilter
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
@@ -158,7 +159,7 @@ class QueryHandlerSubscriptionTest {
             QueryType.DYNAMIC_LIST to handler.dynamicList(MOCK_AGGREGATE_METADATA, listQuery { }),
             QueryType.PAGED to handler.paged(MOCK_AGGREGATE_METADATA, pagedQuery { }),
             QueryType.DYNAMIC_PAGED to handler.dynamicPaged(MOCK_AGGREGATE_METADATA, pagedQuery { }),
-            QueryType.COUNT to handler.count(MOCK_AGGREGATE_METADATA, Condition.ALL),
+            QueryType.COUNT to handler.count(MOCK_AGGREGATE_METADATA, MatchAllFilter),
         )
 
     private class TestQueryHandler(chain: FilterChain<QueryContext<*, *>>) :
@@ -243,7 +244,7 @@ class QueryHandlerSubscriptionTest {
                     Mono.just(PagedList(1, listOf(mutableMapOf("result" to RESULT).toDynamicDocument())))
                 )
 
-                QueryType.COUNT -> context.asFilterCountQuery().setResult(Mono.just(1L))
+                QueryType.COUNT -> context.asCountQuery().setResult(Mono.just(1L))
             }
             return next.filter(context)
         }

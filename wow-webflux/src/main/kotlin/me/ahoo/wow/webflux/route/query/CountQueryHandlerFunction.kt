@@ -31,7 +31,7 @@ import reactor.core.publisher.Mono
 class CountQueryHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val queryHandler: QueryHandler<*>,
-    private val rewriteRequestCondition: RewriteRequestFilter,
+    private val rewriteRequestFilter: RewriteRequestFilter,
     private val exceptionHandler: RequestExceptionHandler,
 ) : HandlerFunction<ServerResponse> {
 
@@ -39,7 +39,7 @@ class CountQueryHandlerFunction(
         return request.body(FILTER_EXPRESSION_EXTRACTOR)
             .flatMap { filter ->
                 val executable = filter.toExecutableFilter()
-                val rewritten = rewriteRequestCondition.rewrite(aggregateMetadata, request, executable)
+                val rewritten = rewriteRequestFilter.rewrite(aggregateMetadata, request, executable)
                 queryHandler.count(
                     aggregateMetadata,
                     rewritten,
@@ -51,7 +51,7 @@ class CountQueryHandlerFunction(
 open class CountQueryHandlerFunctionFactory(
     handlerKey: String,
     private val queryHandler: QueryHandler<*>,
-    private val rewriteRequestCondition: RewriteRequestFilter,
+    private val rewriteRequestFilter: RewriteRequestFilter,
     private val exceptionHandler: RequestExceptionHandler
 ) : AggregateRouteHandlerFunctionFactorySupport(handlerKey) {
     override fun create(
@@ -65,7 +65,7 @@ open class CountQueryHandlerFunctionFactory(
         return CountQueryHandlerFunction(
             aggregateMetadata = aggregateMetadata,
             queryHandler = queryHandler,
-            rewriteRequestCondition = rewriteRequestCondition,
+            rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler
         )
     }

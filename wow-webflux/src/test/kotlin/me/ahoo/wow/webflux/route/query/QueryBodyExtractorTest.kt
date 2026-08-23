@@ -61,7 +61,7 @@ class QueryBodyExtractorTest {
         val handlerFunction = CountQueryHandlerFunctionFactory(
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
             queryHandler = RouteTestFixtures.snapshotQueryHandler,
-            rewriteRequestCondition = DefaultRewriteRequestCondition,
+            rewriteRequestFilter = DefaultRewriteRequestFilter,
             exceptionHandler = WebFluxRequestExceptionHandler()
         ).create(
             testAggregateRouteContract(
@@ -85,7 +85,7 @@ class QueryBodyExtractorTest {
         val handlerFunction = CountQueryHandlerFunctionFactory(
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
             queryHandler = RouteTestFixtures.snapshotQueryHandler,
-            rewriteRequestCondition = DefaultRewriteRequestCondition,
+            rewriteRequestFilter = DefaultRewriteRequestFilter,
             exceptionHandler = WebFluxRequestExceptionHandler()
         ).create(
             testAggregateRouteContract(
@@ -128,7 +128,7 @@ class QueryBodyExtractorTest {
         val handlerFunction = CountQueryHandlerFunctionFactory(
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
             queryHandler = RouteTestFixtures.snapshotQueryHandler,
-            rewriteRequestCondition = DefaultRewriteRequestCondition,
+            rewriteRequestFilter = DefaultRewriteRequestFilter,
             exceptionHandler = WebFluxRequestExceptionHandler()
         ).create(
             testAggregateRouteContract(
@@ -205,7 +205,7 @@ class QueryBodyExtractorTest {
         val handlerFunction = CountQueryHandlerFunctionFactory(
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
             queryHandler = RouteTestFixtures.snapshotQueryHandler,
-            rewriteRequestCondition = DefaultRewriteRequestCondition,
+            rewriteRequestFilter = DefaultRewriteRequestFilter,
             exceptionHandler = WebFluxRequestExceptionHandler()
         ).create(
             testAggregateRouteContract(
@@ -232,7 +232,7 @@ class QueryBodyExtractorTest {
         val handlerFunction = CountQueryHandlerFunctionFactory(
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
             queryHandler = RouteTestFixtures.snapshotQueryHandler,
-            rewriteRequestCondition = DefaultRewriteRequestCondition,
+            rewriteRequestFilter = DefaultRewriteRequestFilter,
             exceptionHandler = WebFluxRequestExceptionHandler()
         ).create(
             testAggregateRouteContract(
@@ -264,7 +264,7 @@ class QueryBodyExtractorTest {
         val handlerFunction = ListQueryHandlerFunctionFactory(
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY,
             queryHandler = queryHandler,
-            rewriteRequestCondition = DefaultRewriteRequestCondition,
+            rewriteRequestFilter = DefaultRewriteRequestFilter,
             exceptionHandler = WebFluxRequestExceptionHandler()
         ).create(
             testAggregateRouteContract(
@@ -292,7 +292,7 @@ class QueryBodyExtractorTest {
         val handlerFunction = ListQueryHandlerFunctionFactory(
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY,
             queryHandler = RouteTestFixtures.snapshotQueryHandler,
-            rewriteRequestCondition = DefaultRewriteRequestCondition,
+            rewriteRequestFilter = DefaultRewriteRequestFilter,
             exceptionHandler = WebFluxRequestExceptionHandler()
         ).create(
             testAggregateRouteContract(
@@ -316,7 +316,7 @@ class QueryBodyExtractorTest {
         val handlerFunction = PagedQueryHandlerFunctionFactory(
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.PAGED_QUERY,
             queryHandler = RouteTestFixtures.snapshotQueryHandler,
-            rewriteRequestCondition = DefaultRewriteRequestCondition,
+            rewriteRequestFilter = DefaultRewriteRequestFilter,
             exceptionHandler = WebFluxRequestExceptionHandler()
         ).create(
             testAggregateRouteContract(
@@ -343,7 +343,7 @@ class QueryBodyExtractorTest {
         val handlerFunction = SingleQueryHandlerFunctionFactory(
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.SINGLE,
             queryHandler = RouteTestFixtures.snapshotQueryHandler,
-            rewriteRequestCondition = DefaultRewriteRequestCondition,
+            rewriteRequestFilter = DefaultRewriteRequestFilter,
             exceptionHandler = WebFluxRequestExceptionHandler()
         ).create(
             testAggregateRouteContract(
@@ -368,7 +368,7 @@ class QueryBodyExtractorTest {
             val handler = CountQueryHandlerFunctionFactory(
                 BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
                 queryHandler,
-                DefaultRewriteRequestCondition,
+                DefaultRewriteRequestFilter,
                 WebFluxRequestExceptionHandler(),
             ).create(
                 testAggregateRouteContract(
@@ -389,19 +389,19 @@ class QueryBodyExtractorTest {
             val single = SingleQueryHandlerFunctionFactory(
                 BuiltInHttpRouteHandlerKeys.Snapshot.SINGLE,
                 queryHandler,
-                DefaultRewriteRequestCondition,
+                DefaultRewriteRequestFilter,
                 exceptionHandler,
             ).create(testAggregateRouteContract(BuiltInHttpRouteHandlerKeys.Snapshot.SINGLE, metadata))
             val list = ListQueryHandlerFunctionFactory(
                 BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY,
                 queryHandler,
-                DefaultRewriteRequestCondition,
+                DefaultRewriteRequestFilter,
                 exceptionHandler,
             ).create(testAggregateRouteContract(BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY, metadata))
             val paged = PagedQueryHandlerFunctionFactory(
                 BuiltInHttpRouteHandlerKeys.Snapshot.PAGED_QUERY,
                 queryHandler,
-                DefaultRewriteRequestCondition,
+                DefaultRewriteRequestFilter,
                 exceptionHandler,
             ).create(testAggregateRouteContract(BuiltInHttpRouteHandlerKeys.Snapshot.PAGED_QUERY, metadata))
 

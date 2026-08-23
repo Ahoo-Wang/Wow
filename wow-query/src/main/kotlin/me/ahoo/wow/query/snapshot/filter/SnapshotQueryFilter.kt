@@ -82,7 +82,7 @@ class TailSnapshotQueryFilter<S : Any>(private val queryServiceFactory: Snapshot
                 } else {
                     error("Query type [${query::class}] does not support count.")
                 }
-                context.asFilterCountQuery().setResult(result)
+                context.asCountQuery().setResult(result)
             }
         }
         return next.filter(context)

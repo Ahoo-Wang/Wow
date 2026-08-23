@@ -22,13 +22,13 @@ import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
 
-class CoSecRewriteRequestConditionTest {
+class CoSecRewriteRequestFilterTest {
 
     @Test
     fun `should resolve space id from request condition`() {
         val spaceId = generateGlobalId()
         val request = MockServerRequest.builder().header(SPACE_ID_KEY, spaceId).build()
-        val filter = CoSecRewriteRequestCondition.rewrite(MOCK_AGGREGATE_METADATA, request, filterExpression { })
+        val filter = CoSecRewriteRequestFilter.rewrite(MOCK_AGGREGATE_METADATA, request, filterExpression { })
         filter.assert().isInstanceOf(SpaceIdFilter::class.java)
         (filter as SpaceIdFilter).value.assert().isEqualTo(spaceId)
     }

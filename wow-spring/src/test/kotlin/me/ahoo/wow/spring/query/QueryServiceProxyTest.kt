@@ -15,12 +15,12 @@ package me.ahoo.wow.spring.query
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.filter.EmptyFilterChain
@@ -55,7 +55,7 @@ class QueryServiceProxyTest {
         proxy.dynamicList(listQuery { })
         proxy.paged(pagedQuery { })
         proxy.dynamicPaged(pagedQuery { })
-        proxy.count(Condition.ALL)
+        proxy.count(MatchAllFilter)
 
         handler.queryTypes.assert().containsExactly(
             QueryType.SINGLE,

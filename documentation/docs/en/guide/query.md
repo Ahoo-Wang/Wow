@@ -150,7 +150,7 @@ query.query(queryService)
 Query filters use `withFilter` or `appendFilter`; internal paths no longer rewrite `Condition`:
 
 ```kotlin
-context.asRewritableFilterQuery().rewriteQuery { query ->
+context.asRewritableQuery().rewriteQuery { query ->
     val warehouseFilter = filterExpression {
         "state.warehouseId" eq warehouseId
     }
@@ -204,6 +204,8 @@ List and single requests also use `filter`. A list request adds `limit`; a singl
 
 ### Count
 
+On the JVM, call the typed extension directly: `filter.count(queryService)`. The `Condition.count(...)` extension remains available but is deprecated.
+
 The count request body is a `FilterExpression` directly, without an outer `filter` property:
 
 ```http
@@ -223,7 +225,7 @@ New payloads use strict deserialization. Unknown properties, missing required fi
 
 ## Compatibility and migration
 
-The legacy `Condition`, `Operator`, `ConditionDsl`, `ConditionCapable`, and `RewritableCondition` APIs remain available but are deprecated. Legacy query constructors and `QueryService.count(Condition)` still adapt `Condition` to `FilterExpression`.
+The legacy `Condition`, `Operator`, `ConditionDsl`, `ConditionCapable`, and `RewritableCondition` APIs remain available but are deprecated. Legacy query constructors, `QueryService.count(Condition)`, and `Condition.count(...)` still adapt `Condition` to `FilterExpression`.
 
 During REST migration:
 

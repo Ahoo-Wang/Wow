@@ -21,6 +21,7 @@ import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.query.dsl.condition
+import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.pagedQuery
 import me.ahoo.wow.query.dsl.singleQuery
@@ -162,7 +163,7 @@ abstract class SnapshotQueryServiceSpec {
 
     @Test
     fun count() {
-        condition {
+        filterExpression {
             id(snapshot.aggregateId.id)
         }.count(snapshotQueryService)
             .test()

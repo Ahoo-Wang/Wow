@@ -14,14 +14,14 @@
 package me.ahoo.wow.webflux.route.snapshot
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
-import me.ahoo.wow.webflux.route.query.DefaultRewriteRequestCondition
+import me.ahoo.wow.webflux.route.query.DefaultRewriteRequestFilter
 import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
@@ -35,7 +35,7 @@ class PagedQuerySnapshotStateHandlerFunctionFactoryTest {
     fun `should handle paged query snapshot state request`() {
         val handlerFunction = PagedQuerySnapshotStateHandlerFunctionFactory(
             RouteTestFixtures.snapshotQueryHandler,
-            DefaultRewriteRequestCondition,
+            DefaultRewriteRequestFilter,
             exceptionHandler = WebFluxRequestExceptionHandler(),
         ).create(
             testAggregateRouteContract(
@@ -46,7 +46,7 @@ class PagedQuerySnapshotStateHandlerFunctionFactoryTest {
         val request = MockServerRequest.builder()
             .pathVariable(MessageRecords.TENANT_ID, generateGlobalId())
             .pathVariable(MessageRecords.OWNER_ID, generateGlobalId())
-            .body(PagedQuery(Condition.ALL).toMono())
+            .body(PagedQuery(MatchAllFilter).toMono())
 
         handlerFunction.handle(request)
             .test()

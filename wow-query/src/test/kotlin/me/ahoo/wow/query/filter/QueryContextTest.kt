@@ -130,7 +130,7 @@ class QueryContextTest {
             namedAggregate = MOCK_AGGREGATE_METADATA,
         ).setQuery(MatchAllFilter)
 
-        context.asFilterCountQuery().getQuery().assert().isSameAs(MatchAllFilter)
+        context.asCountQuery().getQuery().assert().isSameAs(MatchAllFilter)
     }
 
     @Test
@@ -141,7 +141,7 @@ class QueryContextTest {
         ).setQuery(singleQuery { })
         val appended = IdFilter("id-1")
 
-        context.asRewritableFilterQuery().rewriteQuery { it.appendFilter(appended) }
+        context.asRewritableQuery().rewriteQuery { it.appendFilter(appended) }
 
         context.getQuery().filter.assert().isEqualTo(appended)
     }

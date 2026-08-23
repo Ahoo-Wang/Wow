@@ -41,8 +41,8 @@ class HttpQueryGuardFilter(
     private val maxListSize: Int = 1000,
     private val maxPageSize: Int = 100,
     private val maxPageWindow: Long = 10_000,
-    private val maxConditionNodes: Int = 64,
-    private val maxConditionValues: Int = 1000,
+    private val maxFilterNodes: Int = 64,
+    private val maxFilterValues: Int = 1000,
     private val allowExpensiveOperators: Boolean = true,
     private val idleTimeout: Duration = Duration.ofSeconds(10),
 ) : QueryFilter<QueryContext<*, *>> {
@@ -51,8 +51,8 @@ class HttpQueryGuardFilter(
         require(maxListSize >= 0) { "maxListSize must be greater than or equal to 0." }
         require(maxPageSize >= 0) { "maxPageSize must be greater than or equal to 0." }
         require(maxPageWindow >= 0) { "maxPageWindow must be greater than or equal to 0." }
-        require(maxConditionNodes >= 0) { "maxConditionNodes must be greater than or equal to 0." }
-        require(maxConditionValues >= 0) { "maxConditionValues must be greater than or equal to 0." }
+        require(maxFilterNodes >= 0) { "maxFilterNodes must be greater than or equal to 0." }
+        require(maxFilterValues >= 0) { "maxFilterValues must be greater than or equal to 0." }
         require(!idleTimeout.isNegative) { "idleTimeout must be greater than or equal to 0." }
     }
 
@@ -118,8 +118,8 @@ class HttpQueryGuardFilter(
         while (pending.isNotEmpty()) {
             val current = pending.removeLast()
             nodes++
-            require(maxConditionNodes == 0 || nodes <= maxConditionNodes) {
-                "HTTP query condition nodes[$nodes] must not exceed $maxConditionNodes."
+            require(maxFilterNodes == 0 || nodes <= maxFilterNodes) {
+                "HTTP query filter nodes[$nodes] must not exceed $maxFilterNodes."
             }
             validateFilterNode(current)
             when (current) {
@@ -141,8 +141,8 @@ class HttpQueryGuardFilter(
         }
         val valueCount = filter.valueCount()
         if (valueCount != null) {
-            require(maxConditionValues == 0 || valueCount <= maxConditionValues) {
-                "HTTP query condition values[$valueCount] must not exceed $maxConditionValues."
+            require(maxFilterValues == 0 || valueCount <= maxFilterValues) {
+                "HTTP query filter values[$valueCount] must not exceed $maxFilterValues."
             }
         }
     }
@@ -190,7 +190,7 @@ class HttpQueryGuardFilter(
             QueryType.PAGED, QueryType.DYNAMIC_PAGED ->
                 context.asPagedQuery<Any>().rewriteResult { it.timeout(idleTimeout) }
 
-            QueryType.COUNT -> context.asFilterCountQuery().rewriteResult { it.timeout(idleTimeout) }
+            QueryType.COUNT -> context.asCountQuery().rewriteResult { it.timeout(idleTimeout) }
         }
     }
 

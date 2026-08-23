@@ -150,7 +150,7 @@ query.query(queryService)
 查询过滤器通过 `withFilter` 或 `appendFilter` 重写，不再操作内部 `Condition`：
 
 ```kotlin
-context.asRewritableFilterQuery().rewriteQuery { query ->
+context.asRewritableQuery().rewriteQuery { query ->
     val warehouseFilter = filterExpression {
         "state.warehouseId" eq warehouseId
     }
@@ -204,6 +204,8 @@ Wow-Space-Id: space-1
 
 ### 计数
 
+在 JVM 中直接调用 typed 扩展：`filter.count(queryService)`。`Condition.count(...)` 扩展仍保留，但已标记弃用。
+
 计数请求体就是一个 `FilterExpression`，外层没有 `filter`：
 
 ```http
@@ -223,7 +225,7 @@ Content-Type: application/json
 
 ## 兼容与迁移
 
-旧 `Condition`、`Operator`、`ConditionDsl`、`ConditionCapable` 和 `RewritableCondition` 保留但已标记弃用。旧查询构造器以及 `QueryService.count(Condition)` 仍会把 `Condition` 转换为 `FilterExpression`。
+旧 `Condition`、`Operator`、`ConditionDsl`、`ConditionCapable` 和 `RewritableCondition` 保留但已标记弃用。旧查询构造器、`QueryService.count(Condition)` 和 `Condition.count(...)` 仍会把 `Condition` 转换为 `FilterExpression`。
 
 REST 迁移期间：
 

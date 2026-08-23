@@ -69,7 +69,7 @@ Wow 提供了专门的 `TypedCustomDefinitionProvider` 实现与模块，为框�
 
 | 类型 / 模块 | Schema 处理 |
 |------|------------|
-| `AggregateId`、`DomainEventStream`、`AggregatedFields`、查询模型 | 通过 `WowSchemaLoader` 从内置 JSON Schema 资源加载（复杂对象，非展平的基础类型） |
+| `AggregateId`、`DomainEventStream`、`FilterExpression` 查询模型 | 通过 `WowSchemaLoader` 从内置 JSON Schema 资源加载（复杂对象，非展平的基础类型） |
 | `Map<K, V>`（`MapDefinitionProvider`） | 带附加属性的对象 |
 | `CharRange` / `IntRange` / `LongRange`（`KotlinModule`） | 带 `start` 和 `end` 属性的对象 |
 | `CurrencyUnit`（`JodaMoneyModule`） | 带 `format: currency` 的字符串 |
@@ -78,7 +78,7 @@ Wow 提供了专门的 `TypedCustomDefinitionProvider` 实现与模块，为框�
 | 可空的 Kotlin 类型（`KotlinNullableCheck`） | 在类型联合中加入 `null` |
 | `@Summary` / `@Description` | 解析为 Schema 的 `title` / `description` 元数据 |
 
-`AggregatedFields` 与 `Aggregated*Query` 类型仅作为已弃用的兼容入口保留；新的查询契约统一使用 v2 `FilterExpression` Schema。
+查询契约统一使用 v2 `FilterExpression` Schema。
 
 ## OpenAPI 模块如何使用 Schema
 

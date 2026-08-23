@@ -60,7 +60,7 @@ import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
-import me.ahoo.wow.webflux.route.query.DefaultRewriteRequestCondition
+import me.ahoo.wow.webflux.route.query.DefaultRewriteRequestFilter
 import me.ahoo.wow.webflux.route.query.HttpQueryGuardFilter
 import me.ahoo.wow.webflux.route.query.RewriteRequestFilter
 import org.springframework.beans.factory.ObjectProvider
@@ -130,8 +130,8 @@ class WebFluxAutoConfiguration {
             maxListSize = query.maxListSize,
             maxPageSize = query.maxPageSize,
             maxPageWindow = query.maxPageWindow,
-            maxConditionNodes = query.maxConditionNodes,
-            maxConditionValues = query.maxConditionValues,
+            maxFilterNodes = query.maxConditionNodes,
+            maxFilterValues = query.maxConditionValues,
             allowExpensiveOperators = query.allowExpensiveOperators,
             idleTimeout = query.idleTimeout,
         )
@@ -190,8 +190,8 @@ class WebFluxAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    fun rewriteRequestCondition(): RewriteRequestFilter {
-        return DefaultRewriteRequestCondition
+    fun rewriteRequestFilter(): RewriteRequestFilter {
+        return DefaultRewriteRequestFilter
     }
 
     @Bean
@@ -238,13 +238,13 @@ class WebFluxAutoConfiguration {
     fun queryRouteModule(
         snapshotQueryHandler: SnapshotQueryHandler,
         eventStreamQueryHandler: EventStreamQueryHandler,
-        rewriteRequestCondition: RewriteRequestFilter,
+        rewriteRequestFilter: RewriteRequestFilter,
         exceptionHandler: RequestExceptionHandler
     ): QueryRouteModule {
         return QueryRouteModule(
             snapshotQueryHandler = snapshotQueryHandler,
             eventStreamQueryHandler = eventStreamQueryHandler,
-            rewriteRequestCondition = rewriteRequestCondition,
+            rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler
         )
     }

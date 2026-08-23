@@ -40,7 +40,7 @@ interface RewriteRequestFilter {
     )
 }
 
-abstract class AbstractRewriteRequestCondition : RewriteRequestFilter {
+abstract class AbstractRewriteRequestFilter : RewriteRequestFilter {
     protected open fun ServerRequest.resolveTenantId(aggregateMetadata: AggregateMetadata<*, *>): String? {
         return getTenantId(aggregateMetadata)
     }
@@ -84,6 +84,3 @@ abstract class AbstractRewriteRequestCondition : RewriteRequestFilter {
         }
     }
 }
-
-@Deprecated("Use RewriteRequestFilter.")
-typealias RewriteRequestCondition = RewriteRequestFilter

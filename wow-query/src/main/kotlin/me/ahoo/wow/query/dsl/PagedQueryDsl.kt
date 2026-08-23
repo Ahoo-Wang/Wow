@@ -20,14 +20,14 @@ import me.ahoo.wow.api.query.Pagination
 /**
  * A DSL for constructing paged queries, extending the [QueryableDsl] to support pagination.
  *
- * This class allows you to define a query with specific conditions, projections, sorting, and pagination. It is
+ * This class allows you to define a query with specific filters, projections, sorting, and pagination. It is
  * particularly useful when you need to fetch a subset of data from a larger dataset, applying page-based navigation.
  *
  * Example usage:
  * ```kotlin
  * val query = pagedQuery {
- *     condition {
- *         // Define your conditions here
+ *     filter {
+ *         // Define your filters here
  *     }
  *     projection {
  *         // Define your projections here

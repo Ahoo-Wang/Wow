@@ -32,7 +32,7 @@ import reactor.core.publisher.Mono
 class PagedQueryHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val queryHandler: QueryHandler<*>,
-    private val rewriteRequestCondition: RewriteRequestFilter,
+    private val rewriteRequestFilter: RewriteRequestFilter,
     private val exceptionHandler: RequestExceptionHandler,
     private val rewriteResult: (Mono<PagedList<DynamicDocument>>) -> Mono<PagedList<DynamicDocument>>
 ) : HandlerFunction<ServerResponse> {
@@ -40,7 +40,7 @@ class PagedQueryHandlerFunction(
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         return request.body(PAGED_QUERY_EXTRACTOR)
             .flatMap {
-                val query = rewriteRequestCondition.rewrite(aggregateMetadata, request, it)
+                val query = rewriteRequestFilter.rewrite(aggregateMetadata, request, it)
                 val result = queryHandler.dynamicPaged(aggregateMetadata, query)
                 rewriteResult(result)
                     .writeRawRequest(request)
@@ -51,7 +51,7 @@ class PagedQueryHandlerFunction(
 open class PagedQueryHandlerFunctionFactory(
     handlerKey: String,
     private val queryHandler: QueryHandler<*>,
-    private val rewriteRequestCondition: RewriteRequestFilter,
+    private val rewriteRequestFilter: RewriteRequestFilter,
     private val exceptionHandler: RequestExceptionHandler,
     private val rewriteResult: (Mono<PagedList<DynamicDocument>>) -> Mono<PagedList<DynamicDocument>> = { it }
 ) : AggregateRouteHandlerFunctionFactorySupport(handlerKey) {
@@ -66,7 +66,7 @@ open class PagedQueryHandlerFunctionFactory(
         return PagedQueryHandlerFunction(
             aggregateMetadata = aggregateMetadata,
             queryHandler = queryHandler,
-            rewriteRequestCondition = rewriteRequestCondition,
+            rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler,
             rewriteResult = rewriteResult
         )
