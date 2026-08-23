@@ -14,7 +14,7 @@
 package me.ahoo.wow.cosec.query
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.EqualFilter
+import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.cosec.extractor.CoSecCommandBuilderExtractor.SPACE_ID_KEY
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.query.dsl.filterExpression
@@ -29,9 +29,7 @@ class CoSecRewriteRequestConditionTest {
         val spaceId = generateGlobalId()
         val request = MockServerRequest.builder().header(SPACE_ID_KEY, spaceId).build()
         val filter = CoSecRewriteRequestCondition.rewrite(MOCK_AGGREGATE_METADATA, request, filterExpression { })
-        filter.assert().isInstanceOf(EqualFilter::class.java)
-        filter as EqualFilter
-        filter.field.value.assert().isEqualTo("spaceId")
-        filter.value.asString().assert().isEqualTo(spaceId)
+        filter.assert().isInstanceOf(SpaceIdFilter::class.java)
+        (filter as SpaceIdFilter).value.assert().isEqualTo(spaceId)
     }
 }
