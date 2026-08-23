@@ -19,7 +19,7 @@ Wow identifies itself as a reactive CQRS and Event Sourcing framework for
 modern applications. It is a framework and set of integration modules, not a
 complete business product or a managed service.
 
-The current project version is `8.10.10`, the JVM toolchain is 17, and the build
+The current project version is `8.11.0`, the JVM toolchain is 17, and the build
 uses Kotlin `2.4.10`.
 
 Sources:
@@ -374,7 +374,7 @@ production recommendation.
 The README includes a two-minute stress-test sample. Its reported numbers must
 not be used as a current version guarantee, an end-to-end SLA, or a sizing
 substitute. The linked performance deployment references version `6.11.3` and
-specific resource settings, while the current project version is `8.10.10`.
+specific resource settings, while the current project version is `8.11.0`.
 
 Sources:
 
@@ -489,7 +489,7 @@ maintainers' roadmap.
 | Issue | Business Impact | Effort to Fix | Priority |
 | --- | --- | --- | --- |
 | Compensation history requires EventStream query support from the configured storage | The dashboard provides paged lifecycle history when the query is supported and reports it as unavailable otherwise; this is not a complete audit-retention policy | Medium: select a query-capable storage and define retention, access, and export controls | P1 when auditability is a launch criterion |
-| Example deployment image versions drift from root `8.10.10` | Adopters may test or deploy artifacts that do not match current source | Small to medium: align or label versions and add release checks | P1 |
+| Example deployment image versions drift from root `8.11.0` | Adopters may test or deploy artifacts that do not match current source | Small to medium: align or label versions and add release checks | P1 |
 | Example compensation config contains inline credentials | Copying the example can expose reusable secrets | Small: replace with placeholders or secret references and scan manifests | P0 |
 | Compensation deployment requests one replica while its HPA minimum is two | Capacity and cost expectations differ between deployment files | Small: align the example and document intent | P2 |
 

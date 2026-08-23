@@ -10,7 +10,7 @@ Welcome to Wow.
 This onboarding hub routes each reader to the guide that matches the decisions they need to make.
 
 Wow is a reactive domain-driven design framework built around CQRS and event sourcing, as summarized by the [project overview](https://github.com/Ahoo-Wang/Wow/blob/main/README.md#L51-L84).
-Its current baseline is Wow `8.10.10`, Kotlin `2.4.10`, Spring Boot `4.1.1`, Gradle `9.7.1`, and Java `17`.
+Its current baseline is Wow `8.11.0`, Kotlin `2.4.10`, Spring Boot `4.1.1`, Gradle `9.7.1`, and Java `17`.
 Those versions are defined by the repository rather than by this page: [project version](https://github.com/Ahoo-Wang/Wow/blob/main/gradle.properties#L18-L23), [dependency versions](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/libs.versions.toml#L1-L35), [Gradle wrapper](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/wrapper/gradle-wrapper.properties#L1-L9), and [JVM toolchain](https://github.com/Ahoo-Wang/Wow/blob/main/build.gradle.kts#L175-L190).
 
 ## Choose your path

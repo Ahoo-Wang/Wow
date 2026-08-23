@@ -20,7 +20,7 @@ Wow describes itself as a reactive CQRS and Event Sourcing framework. It is a
 toolkit for building applications. It is not a ready-made customer product,
 hosted platform, or replacement for product discovery.
 
-The current repository version is `8.10.10`.
+The current repository version is `8.11.0`.
 
 Sources:
 
@@ -377,7 +377,7 @@ workflow. Neither is a current product SLA.
 The README sample ran for two minutes and reports send and processed rates and
 latencies for two example commands. The linked performance deployment uses a
 specific resource profile and image version `6.11.3`, while the current root
-version is `8.10.10`.
+version is `8.11.0`.
 
 Use the sample to discover what to test, not to promise customer outcomes.
 
@@ -417,7 +417,7 @@ These answers are application requirements, not defaults supplied by Wow.
 | --- | --- | --- | --- |
 | Compensation covers eligible event-handler paths, not universal rollback | A retry cannot be presented as undoing the original business action | Require a business safety decision before retry | Not declared |
 | Dashboard history requires EventStream query support from the configured storage | Operators receive paged lifecycle records when supported and an explicit unavailable state otherwise; retention and export remain adopter responsibilities | Use a query-capable storage and an approved audit process | Storage-specific |
-| Example image versions differ from root `8.10.10` | Example behavior may not match current source | Build reviewed artifacts from the selected release | Not declared |
+| Example image versions differ from root `8.11.0` | Example behavior may not match current source | Build reviewed artifacts from the selected release | Not declared |
 | Example compensation configuration includes inline credentials | Copying the example can expose reusable secrets | Replace values with the adopter's secret mechanism | Not declared |
 | Default aggregate deletion is not a general event-erasure mechanism | A delete action may not satisfy data-erasure obligations | Minimize regulated event data and design a store-specific lifecycle process | Not declared |
 | No repository-wide SLA, capacity envelope, or data policy | Product commitments cannot be derived from framework defaults | Define and validate them for the adopter service | Not declared |
