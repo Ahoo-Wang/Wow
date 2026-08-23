@@ -16,7 +16,7 @@ package me.ahoo.wow.elasticsearch.query.event
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
-import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchConditionConverter
+import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterConverter
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchQueryService
 import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
@@ -29,7 +29,7 @@ import java.time.Duration
 class ElasticsearchEventStreamQueryService(
     override val namedAggregate: NamedAggregate,
     override val elasticsearchClient: ReactiveElasticsearchClient,
-    override val conditionConverter: AbstractElasticsearchConditionConverter = EventStreamConditionConverter
+    override val filterConverter: AbstractElasticsearchFilterConverter = EventStreamFilterConverter
 ) : AbstractElasticsearchQueryService<DomainEventStream>(), EventStreamQueryService {
     private var configuredQueryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE
     private var configuredQueryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE
@@ -37,10 +37,10 @@ class ElasticsearchEventStreamQueryService(
     constructor(
         namedAggregate: NamedAggregate,
         elasticsearchClient: ReactiveElasticsearchClient,
-        conditionConverter: AbstractElasticsearchConditionConverter,
+        filterConverter: AbstractElasticsearchFilterConverter,
         queryBatchSize: Int,
         queryKeepAlive: Duration,
-    ) : this(namedAggregate, elasticsearchClient, conditionConverter) {
+    ) : this(namedAggregate, elasticsearchClient, filterConverter) {
         configuredQueryBatchSize = queryBatchSize
         configuredQueryKeepAlive = queryKeepAlive
     }

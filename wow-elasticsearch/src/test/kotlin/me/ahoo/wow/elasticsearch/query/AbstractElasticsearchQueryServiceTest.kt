@@ -53,10 +53,10 @@ import java.time.Duration
 
 class AbstractElasticsearchQueryServiceTest {
     private val elasticsearchClient = mockk<ReactiveElasticsearchClient>()
-    private val conditionConverter = mockk<AbstractElasticsearchConditionConverter> {
+    private val filterConverter = mockk<AbstractElasticsearchFilterConverter> {
         every { convert(any<me.ahoo.wow.api.query.FilterExpression>()) } returns matchAll { it }
     }
-    private val queryService = TestElasticsearchQueryService(elasticsearchClient, conditionConverter)
+    private val queryService = TestElasticsearchQueryService(elasticsearchClient, filterConverter)
 
     @Test
     fun `dynamic list should not track exact total hits`() {
@@ -172,14 +172,14 @@ class AbstractElasticsearchQueryServiceTest {
         val convertedFilter = slot<FilterExpression>()
         every { elasticsearchClient.indices() } returns indicesClient
         every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(emptyMappingResponse())
-        every { conditionConverter.convert(capture(convertedFilter)) } returns matchAll { it }
+        every { filterConverter.convert(capture(convertedFilter)) } returns matchAll { it }
         every { elasticsearchClient.search(capture(request), Map::class.java) } returns Mono.just(
             searchResponse(total = null),
         )
         val condition = Condition.eq("logicalField", "value")
         val service = MappingTestElasticsearchQueryService(
             elasticsearchClient,
-            conditionConverter,
+            filterConverter,
             ElasticsearchIndexMappingResolver(elasticsearchClient),
         )
 
@@ -282,7 +282,7 @@ class AbstractElasticsearchQueryServiceTest {
 
     private open class TestElasticsearchQueryService(
         override val elasticsearchClient: ReactiveElasticsearchClient,
-        override val conditionConverter: AbstractElasticsearchConditionConverter,
+        override val filterConverter: AbstractElasticsearchFilterConverter,
     ) : AbstractElasticsearchQueryService<DynamicDocument>() {
         override val namedAggregate: NamedAggregate = MaterializedNamedAggregate("test", "aggregate")
         override val indexName: String = "test-index"
@@ -292,7 +292,7 @@ class AbstractElasticsearchQueryServiceTest {
 
     private class MappingTestElasticsearchQueryService(
         elasticsearchClient: ReactiveElasticsearchClient,
-        conditionConverter: AbstractElasticsearchConditionConverter,
+        filterConverter: AbstractElasticsearchFilterConverter,
         override val indexMappingResolver: ElasticsearchIndexMappingResolver,
-    ) : TestElasticsearchQueryService(elasticsearchClient, conditionConverter)
+    ) : TestElasticsearchQueryService(elasticsearchClient, filterConverter)
 }

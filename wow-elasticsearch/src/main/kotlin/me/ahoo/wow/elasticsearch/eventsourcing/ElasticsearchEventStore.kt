@@ -20,15 +20,15 @@ import co.elastic.clients.elasticsearch.core.search.Hit
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
 import me.ahoo.wow.elasticsearch.query.ElasticsearchSortConverter.toSortOptions
-import me.ahoo.wow.elasticsearch.query.event.EventStreamConditionConverter
+import me.ahoo.wow.elasticsearch.query.event.EventStreamFilterConverter
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.AbstractEventStore
 import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.modeling.aggregateId
-import me.ahoo.wow.query.dsl.condition
+import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.query.dsl.sort
 import me.ahoo.wow.serialization.MessageRecords
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
@@ -86,13 +86,13 @@ class ElasticsearchEventStore(
         headVersion: Int,
         tailVersion: Int
     ): Flux<DomainEventStream> {
-        val condition =
-            condition {
+        val filter =
+            filter {
                 tenantId(aggregateId.tenantId)
-                MessageRecords.AGGREGATE_ID eq aggregateId.id
-                MessageRecords.VERSION between headVersion to tailVersion
+                aggregateId(aggregateId.id)
+                MessageRecords.VERSION.between(headVersion, tailVersion)
             }
-        return searchEventStreams(aggregateId, condition)
+        return searchEventStreams(aggregateId, filter)
     }
 
     override fun loadStream(
@@ -100,23 +100,23 @@ class ElasticsearchEventStore(
         headEventTime: Long,
         tailEventTime: Long
     ): Flux<DomainEventStream> {
-        val condition =
-            condition {
+        val filter =
+            filter {
                 tenantId(aggregateId.tenantId)
-                MessageRecords.AGGREGATE_ID eq aggregateId.id
-                MessageRecords.CREATE_TIME between headEventTime to tailEventTime
+                aggregateId(aggregateId.id)
+                MessageRecords.CREATE_TIME.between(headEventTime, tailEventTime)
             }
-        return searchEventStreams(aggregateId, condition)
+        return searchEventStreams(aggregateId, filter)
     }
 
     private fun searchEventStreams(
         aggregateId: AggregateId,
-        condition: Condition,
+        filter: FilterExpression,
     ): Flux<DomainEventStream> {
-        return searchEventStreamPage(aggregateId, condition)
+        return searchEventStreamPage(aggregateId, filter)
             .expand { page ->
                 page.nextSearchAfter?.let { searchAfter ->
-                    searchEventStreamPage(aggregateId, condition, searchAfter)
+                    searchEventStreamPage(aggregateId, filter, searchAfter)
                 } ?: Mono.empty()
             }
             .concatMapIterable { it.streams }
@@ -124,12 +124,12 @@ class ElasticsearchEventStore(
 
     private fun searchEventStreamPage(
         aggregateId: AggregateId,
-        condition: Condition,
+        filter: FilterExpression,
         searchAfter: List<FieldValue> = emptyList(),
     ): Mono<EventStreamPage> {
         return searchEventStreamHits(
             aggregateId = aggregateId,
-            condition = condition,
+            filter = filter,
             size = batchSize,
             searchAfter = searchAfter,
         ).map { hits ->
@@ -147,12 +147,12 @@ class ElasticsearchEventStore(
 
     private fun searchEventStreamHits(
         aggregateId: AggregateId,
-        condition: Condition,
+        filter: FilterExpression,
         size: Int,
         searchAfter: List<FieldValue> = emptyList(),
         descending: Boolean = false,
     ): Mono<List<Hit<DomainEventStream>>> {
-        val query = EventStreamConditionConverter.convert(condition)
+        val query = EventStreamFilterConverter.convert(filter)
         val sort = sort {
             if (descending) {
                 MessageRecords.VERSION.desc()
@@ -182,14 +182,14 @@ class ElasticsearchEventStore(
     }
 
     override fun last(aggregateId: AggregateId): Mono<DomainEventStream> {
-        val condition =
-            condition {
+        val filter =
+            filter {
                 tenantId(aggregateId.tenantId)
-                MessageRecords.AGGREGATE_ID eq aggregateId.id
+                aggregateId(aggregateId.id)
             }
         return searchEventStreamHits(
             aggregateId = aggregateId,
-            condition = condition,
+            filter = filter,
             size = 1,
             descending = true,
         )
@@ -205,7 +205,7 @@ class ElasticsearchEventStore(
         afterId: String,
         limit: Int
     ): Flux<AggregateId> {
-        val condition = condition {
+        val filter = filter {
             MessageRecords.AGGREGATE_ID gt afterId
             MessageRecords.VERSION eq Version.INITIAL_VERSION
         }
@@ -214,7 +214,7 @@ class ElasticsearchEventStore(
             .search({
                 it
                     .index(namedAggregate.toEventStreamIndexName())
-                    .query(EventStreamConditionConverter.convert(condition))
+                    .query(EventStreamFilterConverter.convert(filter))
                     .source { sourceBuilder ->
                         sourceBuilder.filter { sourceFilterBuilder ->
                             sourceFilterBuilder.includes(MessageRecords.AGGREGATE_ID, MessageRecords.TENANT_ID)

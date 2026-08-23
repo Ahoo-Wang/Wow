@@ -14,25 +14,21 @@
 package me.ahoo.wow.elasticsearch.query
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.Condition
-import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.toFilterExpression
-import me.ahoo.wow.elasticsearch.query.snapshot.SnapshotConditionConverter
+import me.ahoo.wow.elasticsearch.query.snapshot.SnapshotFilterConverter
 import org.junit.jupiter.api.Test
 
 class LegacyFilterScopeTest {
     @Suppress("DEPRECATION")
     @Test
     fun `should not reapply active deletion scope to nested legacy filter`() {
-        val query = SnapshotConditionConverter.convert(
-            AndFilter(
-                listOf(
-                    DeletionFilter(DeletionState.DELETED),
-                    Condition.eq("state.name", "Wow").toFilterExpression(),
-                ),
-            ),
+        val query = SnapshotFilterConverter.convert(
+            Condition.and(
+                Condition.deleted(DeletionState.DELETED),
+                Condition.eq("state.name", "Wow"),
+            ).toFilterExpression(),
         )
 
         query.bool().filter().assert().hasSize(2)
