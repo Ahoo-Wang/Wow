@@ -93,6 +93,38 @@ class AggregatedAggregationQueryTest {
     }
 
     @Test
+    fun `should bind element filter fields to path and operator type`() {
+        val schema = generator.generateSchema(
+            AggregatedAggregationElement::class.java,
+            MockCommandAggregate::class.java,
+        ).asJsonSchema().actual
+        val definitions = schema.path("definitions")
+
+        fun element(path: String) = (schema.path("oneOf") as Iterable<tools.jackson.databind.JsonNode>)
+            .single { it.path("properties").path("path").path("const").stringValue() == path }
+        fun definition(element: tools.jackson.databind.JsonNode, name: String): tools.jackson.databind.JsonNode {
+            val filterReference = element.path("properties").path("filter").path("\$ref").stringValue()
+            val prefix = filterReference.substringAfterLast('/').removeSuffix("filterExpression")
+            return definitions.path("$prefix$name")
+        }
+        fun fields(definition: tools.jackson.databind.JsonNode): List<String> =
+            (definition.path("properties").path("field").path("enum") as Iterable<tools.jackson.databind.JsonNode>)
+                .map { it.stringValue() }
+
+        val orders = element("state.orders")
+        fields(definition(orders, "contains")).assert().containsExactly("state.orders.status")
+
+        val orderRanges = definition(orders, "gtShape").path("oneOf") as Iterable<tools.jackson.databind.JsonNode>
+        fields(orderRanges.single { it.path("properties").path("value").path("type").stringValue() == "number" })
+            .assert().containsExactly("state.orders.amount")
+        fields(orderRanges.single { it.path("properties").path("value").path("type").stringValue() == "string" })
+            .assert().containsExactly("state.orders.status")
+
+        val lines = element("state.orders.lines")
+        fields(definition(lines, "contains")).assert().containsExactly("state.orders.lines.sku")
+    }
+
+    @Test
     fun `should publish runtime alias restrictions`() {
         val schema = generator.generateSchema(
             AggregatedAggregationQuery::class.java,

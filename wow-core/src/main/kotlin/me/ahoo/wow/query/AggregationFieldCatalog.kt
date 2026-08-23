@@ -83,6 +83,8 @@ data class AggregationField(
         get() = type.isAggregationNumeric
     val isTemporal: Boolean
         get() = type.isAggregationDate
+    val isTextual: Boolean
+        get() = type.isAggregationTextual
     val supportsTerms: Boolean
         get() = type.isAggregationTerms
 }
@@ -138,9 +140,12 @@ private fun JavaType.scan(
 }
 
 private val JavaType.isAggregationScalar: Boolean
-    get() = isAggregationNumeric || isAggregationDate || rawClass.isPrimitive || rawClass.isEnum ||
-        CharSequence::class.java.isAssignableFrom(rawClass) ||
+    get() = isAggregationNumeric || isAggregationDate || isAggregationTextual || rawClass.isPrimitive ||
         rawClass == Boolean::class.javaObjectType || rawClass == Char::class.javaObjectType || rawClass == UUID::class.java
+
+private val JavaType.isAggregationTextual: Boolean
+    get() = rawClass.isEnum || CharSequence::class.java.isAssignableFrom(rawClass) ||
+        rawClass == Char::class.javaPrimitiveType || rawClass == Char::class.javaObjectType
 
 private val JavaType.isAggregationTerms: Boolean
     get() = !isAggregationDate && isAggregationScalar

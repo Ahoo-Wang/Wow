@@ -1113,16 +1113,539 @@
         "type" : "object"
       },
       "example.cart.CartAggregatedAggregationElement" : {
-        "properties" : {
-          "filter" : {
-            "$ref" : "#/components/schemas/wow.api.query.AggregationElementFilterExpression"
+        "definitions" : {
+          "element0_and" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "AND" ]
+              },
+              "operands" : {
+                "items" : {
+                  "$ref" : "#/definitions/element0_filterExpression"
+                },
+                "minItems" : 1,
+                "type" : "array"
+              }
+            },
+            "required" : [ "op", "operands" ],
+            "type" : "object"
           },
-          "path" : {
-            "$ref" : "#/components/schemas/example.cart.CartSnapshotAggregationElements"
+          "element0_between" : {
+            "oneOf" : [ {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.items.quantity" ],
+                  "type" : "string"
+                },
+                "lowerBound" : {
+                  "type" : "number"
+                },
+                "op" : {
+                  "enum" : [ "BETWEEN" ]
+                },
+                "upperBound" : {
+                  "type" : "number"
+                }
+              },
+              "required" : [ "op", "field", "lowerBound", "upperBound" ],
+              "type" : "object"
+            }, {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.items.productId" ],
+                  "type" : "string"
+                },
+                "lowerBound" : {
+                  "type" : "string"
+                },
+                "op" : {
+                  "enum" : [ "BETWEEN" ]
+                },
+                "upperBound" : {
+                  "type" : "string"
+                }
+              },
+              "required" : [ "op", "field", "lowerBound", "upperBound" ],
+              "type" : "object"
+            } ]
+          },
+          "element0_comparableLiteral" : {
+            "type" : [ "string", "number", "boolean" ]
+          },
+          "element0_contains" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.items.productId" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "CONTAINS" ]
+              },
+              "stringComparison" : {
+                "$ref" : "#/definitions/element0_stringComparison"
+              },
+              "value" : {
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "element0_endsWith" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.items.productId" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "ENDS_WITH" ]
+              },
+              "stringComparison" : {
+                "$ref" : "#/definitions/element0_stringComparison"
+              },
+              "value" : {
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "element0_eq" : {
+            "$ref" : "#/definitions/element0_eqShape"
+          },
+          "element0_eqShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.items.productId", "state.items.quantity" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "EQ" ]
+              },
+              "value" : {
+                "$ref" : "#/definitions/element0_literal"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "element0_exists" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.items.productId", "state.items.quantity" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "EXISTS" ]
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "element0_filterExpression" : {
+            "oneOf" : [ {
+              "$ref" : "#/definitions/element0_and"
+            }, {
+              "$ref" : "#/definitions/element0_between"
+            }, {
+              "$ref" : "#/definitions/element0_contains"
+            }, {
+              "$ref" : "#/definitions/element0_endsWith"
+            }, {
+              "$ref" : "#/definitions/element0_eq"
+            }, {
+              "$ref" : "#/definitions/element0_exists"
+            }, {
+              "$ref" : "#/definitions/element0_gt"
+            }, {
+              "$ref" : "#/definitions/element0_gte"
+            }, {
+              "$ref" : "#/definitions/element0_in"
+            }, {
+              "$ref" : "#/definitions/element0_isNotNull"
+            }, {
+              "$ref" : "#/definitions/element0_isNull"
+            }, {
+              "$ref" : "#/definitions/element0_lt"
+            }, {
+              "$ref" : "#/definitions/element0_lte"
+            }, {
+              "$ref" : "#/definitions/element0_matchAll"
+            }, {
+              "$ref" : "#/definitions/element0_matchNone"
+            }, {
+              "$ref" : "#/definitions/element0_ne"
+            }, {
+              "$ref" : "#/definitions/element0_nor"
+            }, {
+              "$ref" : "#/definitions/element0_notExists"
+            }, {
+              "$ref" : "#/definitions/element0_notIn"
+            }, {
+              "$ref" : "#/definitions/element0_or"
+            }, {
+              "$ref" : "#/definitions/element0_startsWith"
+            } ]
+          },
+          "element0_gt" : {
+            "$ref" : "#/definitions/element0_gtShape"
+          },
+          "element0_gtShape" : {
+            "oneOf" : [ {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.items.quantity" ],
+                  "type" : "string"
+                },
+                "op" : {
+                  "enum" : [ "GT" ]
+                },
+                "value" : {
+                  "type" : "number"
+                }
+              },
+              "required" : [ "op", "field", "value" ],
+              "type" : "object"
+            }, {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.items.productId" ],
+                  "type" : "string"
+                },
+                "op" : {
+                  "enum" : [ "GT" ]
+                },
+                "value" : {
+                  "type" : "string"
+                }
+              },
+              "required" : [ "op", "field", "value" ],
+              "type" : "object"
+            } ]
+          },
+          "element0_gte" : {
+            "$ref" : "#/definitions/element0_gteShape"
+          },
+          "element0_gteShape" : {
+            "oneOf" : [ {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.items.quantity" ],
+                  "type" : "string"
+                },
+                "op" : {
+                  "enum" : [ "GTE" ]
+                },
+                "value" : {
+                  "type" : "number"
+                }
+              },
+              "required" : [ "op", "field", "value" ],
+              "type" : "object"
+            }, {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.items.productId" ],
+                  "type" : "string"
+                },
+                "op" : {
+                  "enum" : [ "GTE" ]
+                },
+                "value" : {
+                  "type" : "string"
+                }
+              },
+              "required" : [ "op", "field", "value" ],
+              "type" : "object"
+            } ]
+          },
+          "element0_in" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.items.productId", "state.items.quantity" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "IN" ]
+              },
+              "values" : {
+                "items" : {
+                  "$ref" : "#/definitions/element0_comparableLiteral"
+                },
+                "minItems" : 1,
+                "type" : "array"
+              }
+            },
+            "required" : [ "op", "field", "values" ],
+            "type" : "object"
+          },
+          "element0_isNotNull" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.items.productId", "state.items.quantity" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "IS_NOT_NULL" ]
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "element0_isNull" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.items.productId", "state.items.quantity" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "IS_NULL" ]
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "element0_literal" : {
+            "type" : [ "null", "string", "number", "boolean" ]
+          },
+          "element0_lt" : {
+            "$ref" : "#/definitions/element0_ltShape"
+          },
+          "element0_ltShape" : {
+            "oneOf" : [ {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.items.quantity" ],
+                  "type" : "string"
+                },
+                "op" : {
+                  "enum" : [ "LT" ]
+                },
+                "value" : {
+                  "type" : "number"
+                }
+              },
+              "required" : [ "op", "field", "value" ],
+              "type" : "object"
+            }, {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.items.productId" ],
+                  "type" : "string"
+                },
+                "op" : {
+                  "enum" : [ "LT" ]
+                },
+                "value" : {
+                  "type" : "string"
+                }
+              },
+              "required" : [ "op", "field", "value" ],
+              "type" : "object"
+            } ]
+          },
+          "element0_lte" : {
+            "$ref" : "#/definitions/element0_lteShape"
+          },
+          "element0_lteShape" : {
+            "oneOf" : [ {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.items.quantity" ],
+                  "type" : "string"
+                },
+                "op" : {
+                  "enum" : [ "LTE" ]
+                },
+                "value" : {
+                  "type" : "number"
+                }
+              },
+              "required" : [ "op", "field", "value" ],
+              "type" : "object"
+            }, {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.items.productId" ],
+                  "type" : "string"
+                },
+                "op" : {
+                  "enum" : [ "LTE" ]
+                },
+                "value" : {
+                  "type" : "string"
+                }
+              },
+              "required" : [ "op", "field", "value" ],
+              "type" : "object"
+            } ]
+          },
+          "element0_matchAll" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "MATCH_ALL" ]
+              }
+            },
+            "required" : [ "op" ],
+            "type" : "object"
+          },
+          "element0_matchNone" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "MATCH_NONE" ]
+              }
+            },
+            "required" : [ "op" ],
+            "type" : "object"
+          },
+          "element0_ne" : {
+            "$ref" : "#/definitions/element0_neShape"
+          },
+          "element0_neShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.items.productId", "state.items.quantity" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "NE" ]
+              },
+              "value" : {
+                "$ref" : "#/definitions/element0_literal"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "element0_nor" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "NOR" ]
+              },
+              "operands" : {
+                "items" : {
+                  "$ref" : "#/definitions/element0_filterExpression"
+                },
+                "minItems" : 1,
+                "type" : "array"
+              }
+            },
+            "required" : [ "op", "operands" ],
+            "type" : "object"
+          },
+          "element0_notExists" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.items.productId", "state.items.quantity" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "NOT_EXISTS" ]
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "element0_notIn" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.items.productId", "state.items.quantity" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "NOT_IN" ]
+              },
+              "values" : {
+                "items" : {
+                  "$ref" : "#/definitions/element0_comparableLiteral"
+                },
+                "minItems" : 1,
+                "type" : "array"
+              }
+            },
+            "required" : [ "op", "field", "values" ],
+            "type" : "object"
+          },
+          "element0_or" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "OR" ]
+              },
+              "operands" : {
+                "items" : {
+                  "$ref" : "#/definitions/element0_filterExpression"
+                },
+                "minItems" : 1,
+                "type" : "array"
+              }
+            },
+            "required" : [ "op", "operands" ],
+            "type" : "object"
+          },
+          "element0_startsWith" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.items.productId" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "STARTS_WITH" ]
+              },
+              "stringComparison" : {
+                "$ref" : "#/definitions/element0_stringComparison"
+              },
+              "value" : {
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "element0_stringComparison" : {
+            "default" : "CASE_SENSITIVE",
+            "enum" : [ "CASE_SENSITIVE", "CASE_INSENSITIVE" ],
+            "type" : "string"
           }
         },
-        "required" : [ "path" ],
-        "type" : "object"
+        "oneOf" : [ {
+          "additionalProperties" : false,
+          "properties" : {
+            "filter" : {
+              "$ref" : "#/definitions/element0_filterExpression"
+            },
+            "path" : {
+              "const" : "state.items"
+            }
+          },
+          "required" : [ "path" ],
+          "type" : "object"
+        } ]
       },
       "example.cart.CartAggregatedAggregationExpression.Field" : {
         "properties" : {
@@ -1543,10 +2066,6 @@
         },
         "required" : [ "changed" ],
         "type" : "object"
-      },
-      "example.cart.CartSnapshotAggregationElements" : {
-        "enum" : [ "state.items" ],
-        "type" : "string"
       },
       "example.cart.CartSnapshotAggregationNumericFields" : {
         "enum" : [ "version", "firstEventTime", "eventTime", "state.items.quantity", "state.size", "snapshotTime" ],
@@ -2058,16 +2577,539 @@
         "type" : "object"
       },
       "example.order.OrderAggregatedAggregationElement" : {
-        "properties" : {
-          "filter" : {
-            "$ref" : "#/components/schemas/wow.api.query.AggregationElementFilterExpression"
+        "definitions" : {
+          "element0_and" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "AND" ]
+              },
+              "operands" : {
+                "items" : {
+                  "$ref" : "#/definitions/element0_filterExpression"
+                },
+                "minItems" : 1,
+                "type" : "array"
+              }
+            },
+            "required" : [ "op", "operands" ],
+            "type" : "object"
           },
-          "path" : {
-            "$ref" : "#/components/schemas/example.order.OrderSnapshotAggregationElements"
+          "element0_between" : {
+            "oneOf" : [ {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.items.price", "state.items.quantity", "state.items.totalPrice" ],
+                  "type" : "string"
+                },
+                "lowerBound" : {
+                  "type" : "number"
+                },
+                "op" : {
+                  "enum" : [ "BETWEEN" ]
+                },
+                "upperBound" : {
+                  "type" : "number"
+                }
+              },
+              "required" : [ "op", "field", "lowerBound", "upperBound" ],
+              "type" : "object"
+            }, {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.items.id", "state.items.productId" ],
+                  "type" : "string"
+                },
+                "lowerBound" : {
+                  "type" : "string"
+                },
+                "op" : {
+                  "enum" : [ "BETWEEN" ]
+                },
+                "upperBound" : {
+                  "type" : "string"
+                }
+              },
+              "required" : [ "op", "field", "lowerBound", "upperBound" ],
+              "type" : "object"
+            } ]
+          },
+          "element0_comparableLiteral" : {
+            "type" : [ "string", "number", "boolean" ]
+          },
+          "element0_contains" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.items.id", "state.items.productId" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "CONTAINS" ]
+              },
+              "stringComparison" : {
+                "$ref" : "#/definitions/element0_stringComparison"
+              },
+              "value" : {
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "element0_endsWith" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.items.id", "state.items.productId" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "ENDS_WITH" ]
+              },
+              "stringComparison" : {
+                "$ref" : "#/definitions/element0_stringComparison"
+              },
+              "value" : {
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "element0_eq" : {
+            "$ref" : "#/definitions/element0_eqShape"
+          },
+          "element0_eqShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.items.id", "state.items.productId", "state.items.price", "state.items.quantity", "state.items.totalPrice" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "EQ" ]
+              },
+              "value" : {
+                "$ref" : "#/definitions/element0_literal"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "element0_exists" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.items.id", "state.items.productId", "state.items.price", "state.items.quantity", "state.items.totalPrice" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "EXISTS" ]
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "element0_filterExpression" : {
+            "oneOf" : [ {
+              "$ref" : "#/definitions/element0_and"
+            }, {
+              "$ref" : "#/definitions/element0_between"
+            }, {
+              "$ref" : "#/definitions/element0_contains"
+            }, {
+              "$ref" : "#/definitions/element0_endsWith"
+            }, {
+              "$ref" : "#/definitions/element0_eq"
+            }, {
+              "$ref" : "#/definitions/element0_exists"
+            }, {
+              "$ref" : "#/definitions/element0_gt"
+            }, {
+              "$ref" : "#/definitions/element0_gte"
+            }, {
+              "$ref" : "#/definitions/element0_in"
+            }, {
+              "$ref" : "#/definitions/element0_isNotNull"
+            }, {
+              "$ref" : "#/definitions/element0_isNull"
+            }, {
+              "$ref" : "#/definitions/element0_lt"
+            }, {
+              "$ref" : "#/definitions/element0_lte"
+            }, {
+              "$ref" : "#/definitions/element0_matchAll"
+            }, {
+              "$ref" : "#/definitions/element0_matchNone"
+            }, {
+              "$ref" : "#/definitions/element0_ne"
+            }, {
+              "$ref" : "#/definitions/element0_nor"
+            }, {
+              "$ref" : "#/definitions/element0_notExists"
+            }, {
+              "$ref" : "#/definitions/element0_notIn"
+            }, {
+              "$ref" : "#/definitions/element0_or"
+            }, {
+              "$ref" : "#/definitions/element0_startsWith"
+            } ]
+          },
+          "element0_gt" : {
+            "$ref" : "#/definitions/element0_gtShape"
+          },
+          "element0_gtShape" : {
+            "oneOf" : [ {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.items.price", "state.items.quantity", "state.items.totalPrice" ],
+                  "type" : "string"
+                },
+                "op" : {
+                  "enum" : [ "GT" ]
+                },
+                "value" : {
+                  "type" : "number"
+                }
+              },
+              "required" : [ "op", "field", "value" ],
+              "type" : "object"
+            }, {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.items.id", "state.items.productId" ],
+                  "type" : "string"
+                },
+                "op" : {
+                  "enum" : [ "GT" ]
+                },
+                "value" : {
+                  "type" : "string"
+                }
+              },
+              "required" : [ "op", "field", "value" ],
+              "type" : "object"
+            } ]
+          },
+          "element0_gte" : {
+            "$ref" : "#/definitions/element0_gteShape"
+          },
+          "element0_gteShape" : {
+            "oneOf" : [ {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.items.price", "state.items.quantity", "state.items.totalPrice" ],
+                  "type" : "string"
+                },
+                "op" : {
+                  "enum" : [ "GTE" ]
+                },
+                "value" : {
+                  "type" : "number"
+                }
+              },
+              "required" : [ "op", "field", "value" ],
+              "type" : "object"
+            }, {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.items.id", "state.items.productId" ],
+                  "type" : "string"
+                },
+                "op" : {
+                  "enum" : [ "GTE" ]
+                },
+                "value" : {
+                  "type" : "string"
+                }
+              },
+              "required" : [ "op", "field", "value" ],
+              "type" : "object"
+            } ]
+          },
+          "element0_in" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.items.id", "state.items.productId", "state.items.price", "state.items.quantity", "state.items.totalPrice" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "IN" ]
+              },
+              "values" : {
+                "items" : {
+                  "$ref" : "#/definitions/element0_comparableLiteral"
+                },
+                "minItems" : 1,
+                "type" : "array"
+              }
+            },
+            "required" : [ "op", "field", "values" ],
+            "type" : "object"
+          },
+          "element0_isNotNull" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.items.id", "state.items.productId", "state.items.price", "state.items.quantity", "state.items.totalPrice" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "IS_NOT_NULL" ]
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "element0_isNull" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.items.id", "state.items.productId", "state.items.price", "state.items.quantity", "state.items.totalPrice" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "IS_NULL" ]
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "element0_literal" : {
+            "type" : [ "null", "string", "number", "boolean" ]
+          },
+          "element0_lt" : {
+            "$ref" : "#/definitions/element0_ltShape"
+          },
+          "element0_ltShape" : {
+            "oneOf" : [ {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.items.price", "state.items.quantity", "state.items.totalPrice" ],
+                  "type" : "string"
+                },
+                "op" : {
+                  "enum" : [ "LT" ]
+                },
+                "value" : {
+                  "type" : "number"
+                }
+              },
+              "required" : [ "op", "field", "value" ],
+              "type" : "object"
+            }, {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.items.id", "state.items.productId" ],
+                  "type" : "string"
+                },
+                "op" : {
+                  "enum" : [ "LT" ]
+                },
+                "value" : {
+                  "type" : "string"
+                }
+              },
+              "required" : [ "op", "field", "value" ],
+              "type" : "object"
+            } ]
+          },
+          "element0_lte" : {
+            "$ref" : "#/definitions/element0_lteShape"
+          },
+          "element0_lteShape" : {
+            "oneOf" : [ {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.items.price", "state.items.quantity", "state.items.totalPrice" ],
+                  "type" : "string"
+                },
+                "op" : {
+                  "enum" : [ "LTE" ]
+                },
+                "value" : {
+                  "type" : "number"
+                }
+              },
+              "required" : [ "op", "field", "value" ],
+              "type" : "object"
+            }, {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.items.id", "state.items.productId" ],
+                  "type" : "string"
+                },
+                "op" : {
+                  "enum" : [ "LTE" ]
+                },
+                "value" : {
+                  "type" : "string"
+                }
+              },
+              "required" : [ "op", "field", "value" ],
+              "type" : "object"
+            } ]
+          },
+          "element0_matchAll" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "MATCH_ALL" ]
+              }
+            },
+            "required" : [ "op" ],
+            "type" : "object"
+          },
+          "element0_matchNone" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "MATCH_NONE" ]
+              }
+            },
+            "required" : [ "op" ],
+            "type" : "object"
+          },
+          "element0_ne" : {
+            "$ref" : "#/definitions/element0_neShape"
+          },
+          "element0_neShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.items.id", "state.items.productId", "state.items.price", "state.items.quantity", "state.items.totalPrice" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "NE" ]
+              },
+              "value" : {
+                "$ref" : "#/definitions/element0_literal"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "element0_nor" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "NOR" ]
+              },
+              "operands" : {
+                "items" : {
+                  "$ref" : "#/definitions/element0_filterExpression"
+                },
+                "minItems" : 1,
+                "type" : "array"
+              }
+            },
+            "required" : [ "op", "operands" ],
+            "type" : "object"
+          },
+          "element0_notExists" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.items.id", "state.items.productId", "state.items.price", "state.items.quantity", "state.items.totalPrice" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "NOT_EXISTS" ]
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "element0_notIn" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.items.id", "state.items.productId", "state.items.price", "state.items.quantity", "state.items.totalPrice" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "NOT_IN" ]
+              },
+              "values" : {
+                "items" : {
+                  "$ref" : "#/definitions/element0_comparableLiteral"
+                },
+                "minItems" : 1,
+                "type" : "array"
+              }
+            },
+            "required" : [ "op", "field", "values" ],
+            "type" : "object"
+          },
+          "element0_or" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "OR" ]
+              },
+              "operands" : {
+                "items" : {
+                  "$ref" : "#/definitions/element0_filterExpression"
+                },
+                "minItems" : 1,
+                "type" : "array"
+              }
+            },
+            "required" : [ "op", "operands" ],
+            "type" : "object"
+          },
+          "element0_startsWith" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.items.id", "state.items.productId" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "STARTS_WITH" ]
+              },
+              "stringComparison" : {
+                "$ref" : "#/definitions/element0_stringComparison"
+              },
+              "value" : {
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "element0_stringComparison" : {
+            "default" : "CASE_SENSITIVE",
+            "enum" : [ "CASE_SENSITIVE", "CASE_INSENSITIVE" ],
+            "type" : "string"
           }
         },
-        "required" : [ "path" ],
-        "type" : "object"
+        "oneOf" : [ {
+          "additionalProperties" : false,
+          "properties" : {
+            "filter" : {
+              "$ref" : "#/definitions/element0_filterExpression"
+            },
+            "path" : {
+              "const" : "state.items"
+            }
+          },
+          "required" : [ "path" ],
+          "type" : "object"
+        } ]
       },
       "example.order.OrderAggregatedAggregationExpression.Field" : {
         "properties" : {
@@ -2558,10 +3600,6 @@
       },
       "example.order.OrderShipped" : {
         "type" : "object"
-      },
-      "example.order.OrderSnapshotAggregationElements" : {
-        "enum" : [ "state.items" ],
-        "type" : "string"
       },
       "example.order.OrderSnapshotAggregationNumericFields" : {
         "enum" : [ "version", "firstEventTime", "eventTime", "state.items.price", "state.items.quantity", "state.items.totalPrice", "state.paidAmount", "state.payable", "state.totalAmount", "snapshotTime" ],
@@ -3099,16 +4137,1342 @@
         "type" : "object"
       },
       "tck.mock_aggregate.MockCommandAggregateAggregatedAggregationElement" : {
-        "properties" : {
-          "filter" : {
-            "$ref" : "#/components/schemas/wow.api.query.AggregationElementFilterExpression"
+        "definitions" : {
+          "element0_and" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "AND" ]
+              },
+              "operands" : {
+                "items" : {
+                  "$ref" : "#/definitions/element0_filterExpression"
+                },
+                "minItems" : 1,
+                "type" : "array"
+              }
+            },
+            "required" : [ "op", "operands" ],
+            "type" : "object"
           },
-          "path" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateSnapshotAggregationElements"
+          "element0_between" : {
+            "oneOf" : [ {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.orders.amount" ],
+                  "type" : "string"
+                },
+                "lowerBound" : {
+                  "type" : "number"
+                },
+                "op" : {
+                  "enum" : [ "BETWEEN" ]
+                },
+                "upperBound" : {
+                  "type" : "number"
+                }
+              },
+              "required" : [ "op", "field", "lowerBound", "upperBound" ],
+              "type" : "object"
+            }, {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.orders.status" ],
+                  "type" : "string"
+                },
+                "lowerBound" : {
+                  "type" : "string"
+                },
+                "op" : {
+                  "enum" : [ "BETWEEN" ]
+                },
+                "upperBound" : {
+                  "type" : "string"
+                }
+              },
+              "required" : [ "op", "field", "lowerBound", "upperBound" ],
+              "type" : "object"
+            } ]
+          },
+          "element0_comparableLiteral" : {
+            "type" : [ "string", "number", "boolean" ]
+          },
+          "element0_contains" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.orders.status" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "CONTAINS" ]
+              },
+              "stringComparison" : {
+                "$ref" : "#/definitions/element0_stringComparison"
+              },
+              "value" : {
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "element0_endsWith" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.orders.status" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "ENDS_WITH" ]
+              },
+              "stringComparison" : {
+                "$ref" : "#/definitions/element0_stringComparison"
+              },
+              "value" : {
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "element0_eq" : {
+            "$ref" : "#/definitions/element0_eqShape"
+          },
+          "element0_eqShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.orders.status", "state.orders.amount" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "EQ" ]
+              },
+              "value" : {
+                "$ref" : "#/definitions/element0_literal"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "element0_exists" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.orders.status", "state.orders.amount" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "EXISTS" ]
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "element0_filterExpression" : {
+            "oneOf" : [ {
+              "$ref" : "#/definitions/element0_and"
+            }, {
+              "$ref" : "#/definitions/element0_between"
+            }, {
+              "$ref" : "#/definitions/element0_contains"
+            }, {
+              "$ref" : "#/definitions/element0_endsWith"
+            }, {
+              "$ref" : "#/definitions/element0_eq"
+            }, {
+              "$ref" : "#/definitions/element0_exists"
+            }, {
+              "$ref" : "#/definitions/element0_gt"
+            }, {
+              "$ref" : "#/definitions/element0_gte"
+            }, {
+              "$ref" : "#/definitions/element0_in"
+            }, {
+              "$ref" : "#/definitions/element0_isNotNull"
+            }, {
+              "$ref" : "#/definitions/element0_isNull"
+            }, {
+              "$ref" : "#/definitions/element0_lt"
+            }, {
+              "$ref" : "#/definitions/element0_lte"
+            }, {
+              "$ref" : "#/definitions/element0_matchAll"
+            }, {
+              "$ref" : "#/definitions/element0_matchNone"
+            }, {
+              "$ref" : "#/definitions/element0_ne"
+            }, {
+              "$ref" : "#/definitions/element0_nor"
+            }, {
+              "$ref" : "#/definitions/element0_notExists"
+            }, {
+              "$ref" : "#/definitions/element0_notIn"
+            }, {
+              "$ref" : "#/definitions/element0_or"
+            }, {
+              "$ref" : "#/definitions/element0_startsWith"
+            } ]
+          },
+          "element0_gt" : {
+            "$ref" : "#/definitions/element0_gtShape"
+          },
+          "element0_gtShape" : {
+            "oneOf" : [ {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.orders.amount" ],
+                  "type" : "string"
+                },
+                "op" : {
+                  "enum" : [ "GT" ]
+                },
+                "value" : {
+                  "type" : "number"
+                }
+              },
+              "required" : [ "op", "field", "value" ],
+              "type" : "object"
+            }, {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.orders.status" ],
+                  "type" : "string"
+                },
+                "op" : {
+                  "enum" : [ "GT" ]
+                },
+                "value" : {
+                  "type" : "string"
+                }
+              },
+              "required" : [ "op", "field", "value" ],
+              "type" : "object"
+            } ]
+          },
+          "element0_gte" : {
+            "$ref" : "#/definitions/element0_gteShape"
+          },
+          "element0_gteShape" : {
+            "oneOf" : [ {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.orders.amount" ],
+                  "type" : "string"
+                },
+                "op" : {
+                  "enum" : [ "GTE" ]
+                },
+                "value" : {
+                  "type" : "number"
+                }
+              },
+              "required" : [ "op", "field", "value" ],
+              "type" : "object"
+            }, {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.orders.status" ],
+                  "type" : "string"
+                },
+                "op" : {
+                  "enum" : [ "GTE" ]
+                },
+                "value" : {
+                  "type" : "string"
+                }
+              },
+              "required" : [ "op", "field", "value" ],
+              "type" : "object"
+            } ]
+          },
+          "element0_in" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.orders.status", "state.orders.amount" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "IN" ]
+              },
+              "values" : {
+                "items" : {
+                  "$ref" : "#/definitions/element0_comparableLiteral"
+                },
+                "minItems" : 1,
+                "type" : "array"
+              }
+            },
+            "required" : [ "op", "field", "values" ],
+            "type" : "object"
+          },
+          "element0_isNotNull" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.orders.status", "state.orders.amount" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "IS_NOT_NULL" ]
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "element0_isNull" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.orders.status", "state.orders.amount" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "IS_NULL" ]
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "element0_literal" : {
+            "type" : [ "null", "string", "number", "boolean" ]
+          },
+          "element0_lt" : {
+            "$ref" : "#/definitions/element0_ltShape"
+          },
+          "element0_ltShape" : {
+            "oneOf" : [ {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.orders.amount" ],
+                  "type" : "string"
+                },
+                "op" : {
+                  "enum" : [ "LT" ]
+                },
+                "value" : {
+                  "type" : "number"
+                }
+              },
+              "required" : [ "op", "field", "value" ],
+              "type" : "object"
+            }, {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.orders.status" ],
+                  "type" : "string"
+                },
+                "op" : {
+                  "enum" : [ "LT" ]
+                },
+                "value" : {
+                  "type" : "string"
+                }
+              },
+              "required" : [ "op", "field", "value" ],
+              "type" : "object"
+            } ]
+          },
+          "element0_lte" : {
+            "$ref" : "#/definitions/element0_lteShape"
+          },
+          "element0_lteShape" : {
+            "oneOf" : [ {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.orders.amount" ],
+                  "type" : "string"
+                },
+                "op" : {
+                  "enum" : [ "LTE" ]
+                },
+                "value" : {
+                  "type" : "number"
+                }
+              },
+              "required" : [ "op", "field", "value" ],
+              "type" : "object"
+            }, {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.orders.status" ],
+                  "type" : "string"
+                },
+                "op" : {
+                  "enum" : [ "LTE" ]
+                },
+                "value" : {
+                  "type" : "string"
+                }
+              },
+              "required" : [ "op", "field", "value" ],
+              "type" : "object"
+            } ]
+          },
+          "element0_matchAll" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "MATCH_ALL" ]
+              }
+            },
+            "required" : [ "op" ],
+            "type" : "object"
+          },
+          "element0_matchNone" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "MATCH_NONE" ]
+              }
+            },
+            "required" : [ "op" ],
+            "type" : "object"
+          },
+          "element0_ne" : {
+            "$ref" : "#/definitions/element0_neShape"
+          },
+          "element0_neShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.orders.status", "state.orders.amount" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "NE" ]
+              },
+              "value" : {
+                "$ref" : "#/definitions/element0_literal"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "element0_nor" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "NOR" ]
+              },
+              "operands" : {
+                "items" : {
+                  "$ref" : "#/definitions/element0_filterExpression"
+                },
+                "minItems" : 1,
+                "type" : "array"
+              }
+            },
+            "required" : [ "op", "operands" ],
+            "type" : "object"
+          },
+          "element0_notExists" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.orders.status", "state.orders.amount" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "NOT_EXISTS" ]
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "element0_notIn" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.orders.status", "state.orders.amount" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "NOT_IN" ]
+              },
+              "values" : {
+                "items" : {
+                  "$ref" : "#/definitions/element0_comparableLiteral"
+                },
+                "minItems" : 1,
+                "type" : "array"
+              }
+            },
+            "required" : [ "op", "field", "values" ],
+            "type" : "object"
+          },
+          "element0_or" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "OR" ]
+              },
+              "operands" : {
+                "items" : {
+                  "$ref" : "#/definitions/element0_filterExpression"
+                },
+                "minItems" : 1,
+                "type" : "array"
+              }
+            },
+            "required" : [ "op", "operands" ],
+            "type" : "object"
+          },
+          "element0_startsWith" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.orders.status" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "STARTS_WITH" ]
+              },
+              "stringComparison" : {
+                "$ref" : "#/definitions/element0_stringComparison"
+              },
+              "value" : {
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "element0_stringComparison" : {
+            "default" : "CASE_SENSITIVE",
+            "enum" : [ "CASE_SENSITIVE", "CASE_INSENSITIVE" ],
+            "type" : "string"
+          },
+          "element1_and" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "AND" ]
+              },
+              "operands" : {
+                "items" : {
+                  "$ref" : "#/definitions/element1_filterExpression"
+                },
+                "minItems" : 1,
+                "type" : "array"
+              }
+            },
+            "required" : [ "op", "operands" ],
+            "type" : "object"
+          },
+          "element1_beforeToday" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
+              "field" : {
+                "enum" : [ "state.orders.lines.createdAt" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "BEFORE_TODAY" ]
+              },
+              "time" : {
+                "pattern" : "^([01][0-9]|2[0-3]):[0-5][0-9](?::[0-5][0-9](?:\\.[0-9]{1,9})?)?$",
+                "type" : "string"
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field", "time" ],
+            "type" : "object"
+          },
+          "element1_between" : {
+            "oneOf" : [ {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.orders.lines.rank", "state.orders.lines.amount" ],
+                  "type" : "string"
+                },
+                "lowerBound" : {
+                  "type" : "number"
+                },
+                "op" : {
+                  "enum" : [ "BETWEEN" ]
+                },
+                "upperBound" : {
+                  "type" : "number"
+                }
+              },
+              "required" : [ "op", "field", "lowerBound", "upperBound" ],
+              "type" : "object"
+            }, {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.orders.lines.sku", "state.orders.lines.createdAt" ],
+                  "type" : "string"
+                },
+                "lowerBound" : {
+                  "type" : "string"
+                },
+                "op" : {
+                  "enum" : [ "BETWEEN" ]
+                },
+                "upperBound" : {
+                  "type" : "string"
+                }
+              },
+              "required" : [ "op", "field", "lowerBound", "upperBound" ],
+              "type" : "object"
+            } ]
+          },
+          "element1_comparableLiteral" : {
+            "type" : [ "string", "number", "boolean" ]
+          },
+          "element1_contains" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.orders.lines.sku" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "CONTAINS" ]
+              },
+              "stringComparison" : {
+                "$ref" : "#/definitions/element1_stringComparison"
+              },
+              "value" : {
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "element1_earlierDays" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
+              "days" : {
+                "minimum" : 1,
+                "type" : "integer"
+              },
+              "field" : {
+                "enum" : [ "state.orders.lines.createdAt" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "EARLIER_DAYS" ]
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field", "days" ],
+            "type" : "object"
+          },
+          "element1_endsWith" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.orders.lines.sku" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "ENDS_WITH" ]
+              },
+              "stringComparison" : {
+                "$ref" : "#/definitions/element1_stringComparison"
+              },
+              "value" : {
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "element1_eq" : {
+            "$ref" : "#/definitions/element1_eqShape"
+          },
+          "element1_eqShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.orders.lines.sku", "state.orders.lines.rank", "state.orders.lines.amount", "state.orders.lines.cancelled", "state.orders.lines.createdAt" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "EQ" ]
+              },
+              "value" : {
+                "$ref" : "#/definitions/element1_literal"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "element1_exists" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.orders.lines.sku", "state.orders.lines.rank", "state.orders.lines.amount", "state.orders.lines.cancelled", "state.orders.lines.createdAt" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "EXISTS" ]
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "element1_filterExpression" : {
+            "oneOf" : [ {
+              "$ref" : "#/definitions/element1_and"
+            }, {
+              "$ref" : "#/definitions/element1_beforeToday"
+            }, {
+              "$ref" : "#/definitions/element1_between"
+            }, {
+              "$ref" : "#/definitions/element1_contains"
+            }, {
+              "$ref" : "#/definitions/element1_earlierDays"
+            }, {
+              "$ref" : "#/definitions/element1_endsWith"
+            }, {
+              "$ref" : "#/definitions/element1_eq"
+            }, {
+              "$ref" : "#/definitions/element1_exists"
+            }, {
+              "$ref" : "#/definitions/element1_gt"
+            }, {
+              "$ref" : "#/definitions/element1_gte"
+            }, {
+              "$ref" : "#/definitions/element1_in"
+            }, {
+              "$ref" : "#/definitions/element1_isNotNull"
+            }, {
+              "$ref" : "#/definitions/element1_isNull"
+            }, {
+              "$ref" : "#/definitions/element1_lastMonth"
+            }, {
+              "$ref" : "#/definitions/element1_lastWeek"
+            }, {
+              "$ref" : "#/definitions/element1_lt"
+            }, {
+              "$ref" : "#/definitions/element1_lte"
+            }, {
+              "$ref" : "#/definitions/element1_matchAll"
+            }, {
+              "$ref" : "#/definitions/element1_matchNone"
+            }, {
+              "$ref" : "#/definitions/element1_ne"
+            }, {
+              "$ref" : "#/definitions/element1_nextWeek"
+            }, {
+              "$ref" : "#/definitions/element1_nor"
+            }, {
+              "$ref" : "#/definitions/element1_notExists"
+            }, {
+              "$ref" : "#/definitions/element1_notIn"
+            }, {
+              "$ref" : "#/definitions/element1_or"
+            }, {
+              "$ref" : "#/definitions/element1_recentDays"
+            }, {
+              "$ref" : "#/definitions/element1_startsWith"
+            }, {
+              "$ref" : "#/definitions/element1_thisMonth"
+            }, {
+              "$ref" : "#/definitions/element1_thisWeek"
+            }, {
+              "$ref" : "#/definitions/element1_today"
+            }, {
+              "$ref" : "#/definitions/element1_tomorrow"
+            } ]
+          },
+          "element1_gt" : {
+            "$ref" : "#/definitions/element1_gtShape"
+          },
+          "element1_gtShape" : {
+            "oneOf" : [ {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.orders.lines.rank", "state.orders.lines.amount" ],
+                  "type" : "string"
+                },
+                "op" : {
+                  "enum" : [ "GT" ]
+                },
+                "value" : {
+                  "type" : "number"
+                }
+              },
+              "required" : [ "op", "field", "value" ],
+              "type" : "object"
+            }, {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.orders.lines.sku", "state.orders.lines.createdAt" ],
+                  "type" : "string"
+                },
+                "op" : {
+                  "enum" : [ "GT" ]
+                },
+                "value" : {
+                  "type" : "string"
+                }
+              },
+              "required" : [ "op", "field", "value" ],
+              "type" : "object"
+            } ]
+          },
+          "element1_gte" : {
+            "$ref" : "#/definitions/element1_gteShape"
+          },
+          "element1_gteShape" : {
+            "oneOf" : [ {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.orders.lines.rank", "state.orders.lines.amount" ],
+                  "type" : "string"
+                },
+                "op" : {
+                  "enum" : [ "GTE" ]
+                },
+                "value" : {
+                  "type" : "number"
+                }
+              },
+              "required" : [ "op", "field", "value" ],
+              "type" : "object"
+            }, {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.orders.lines.sku", "state.orders.lines.createdAt" ],
+                  "type" : "string"
+                },
+                "op" : {
+                  "enum" : [ "GTE" ]
+                },
+                "value" : {
+                  "type" : "string"
+                }
+              },
+              "required" : [ "op", "field", "value" ],
+              "type" : "object"
+            } ]
+          },
+          "element1_in" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.orders.lines.sku", "state.orders.lines.rank", "state.orders.lines.amount", "state.orders.lines.cancelled", "state.orders.lines.createdAt" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "IN" ]
+              },
+              "values" : {
+                "items" : {
+                  "$ref" : "#/definitions/element1_comparableLiteral"
+                },
+                "minItems" : 1,
+                "type" : "array"
+              }
+            },
+            "required" : [ "op", "field", "values" ],
+            "type" : "object"
+          },
+          "element1_isNotNull" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.orders.lines.sku", "state.orders.lines.rank", "state.orders.lines.amount", "state.orders.lines.cancelled", "state.orders.lines.createdAt" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "IS_NOT_NULL" ]
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "element1_isNull" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.orders.lines.sku", "state.orders.lines.rank", "state.orders.lines.amount", "state.orders.lines.cancelled", "state.orders.lines.createdAt" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "IS_NULL" ]
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "element1_lastMonth" : {
+            "$ref" : "#/definitions/element1_lastMonthShape"
+          },
+          "element1_lastMonthShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
+              "field" : {
+                "enum" : [ "state.orders.lines.createdAt" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "LAST_MONTH" ]
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "element1_lastWeek" : {
+            "$ref" : "#/definitions/element1_lastWeekShape"
+          },
+          "element1_lastWeekShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
+              "field" : {
+                "enum" : [ "state.orders.lines.createdAt" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "LAST_WEEK" ]
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "element1_literal" : {
+            "type" : [ "null", "string", "number", "boolean" ]
+          },
+          "element1_lt" : {
+            "$ref" : "#/definitions/element1_ltShape"
+          },
+          "element1_ltShape" : {
+            "oneOf" : [ {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.orders.lines.rank", "state.orders.lines.amount" ],
+                  "type" : "string"
+                },
+                "op" : {
+                  "enum" : [ "LT" ]
+                },
+                "value" : {
+                  "type" : "number"
+                }
+              },
+              "required" : [ "op", "field", "value" ],
+              "type" : "object"
+            }, {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.orders.lines.sku", "state.orders.lines.createdAt" ],
+                  "type" : "string"
+                },
+                "op" : {
+                  "enum" : [ "LT" ]
+                },
+                "value" : {
+                  "type" : "string"
+                }
+              },
+              "required" : [ "op", "field", "value" ],
+              "type" : "object"
+            } ]
+          },
+          "element1_lte" : {
+            "$ref" : "#/definitions/element1_lteShape"
+          },
+          "element1_lteShape" : {
+            "oneOf" : [ {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.orders.lines.rank", "state.orders.lines.amount" ],
+                  "type" : "string"
+                },
+                "op" : {
+                  "enum" : [ "LTE" ]
+                },
+                "value" : {
+                  "type" : "number"
+                }
+              },
+              "required" : [ "op", "field", "value" ],
+              "type" : "object"
+            }, {
+              "additionalProperties" : false,
+              "properties" : {
+                "field" : {
+                  "enum" : [ "state.orders.lines.sku", "state.orders.lines.createdAt" ],
+                  "type" : "string"
+                },
+                "op" : {
+                  "enum" : [ "LTE" ]
+                },
+                "value" : {
+                  "type" : "string"
+                }
+              },
+              "required" : [ "op", "field", "value" ],
+              "type" : "object"
+            } ]
+          },
+          "element1_matchAll" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "MATCH_ALL" ]
+              }
+            },
+            "required" : [ "op" ],
+            "type" : "object"
+          },
+          "element1_matchNone" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "MATCH_NONE" ]
+              }
+            },
+            "required" : [ "op" ],
+            "type" : "object"
+          },
+          "element1_ne" : {
+            "$ref" : "#/definitions/element1_neShape"
+          },
+          "element1_neShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.orders.lines.sku", "state.orders.lines.rank", "state.orders.lines.amount", "state.orders.lines.cancelled", "state.orders.lines.createdAt" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "NE" ]
+              },
+              "value" : {
+                "$ref" : "#/definitions/element1_literal"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "element1_nextWeek" : {
+            "$ref" : "#/definitions/element1_nextWeekShape"
+          },
+          "element1_nextWeekShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
+              "field" : {
+                "enum" : [ "state.orders.lines.createdAt" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "NEXT_WEEK" ]
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "element1_nor" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "NOR" ]
+              },
+              "operands" : {
+                "items" : {
+                  "$ref" : "#/definitions/element1_filterExpression"
+                },
+                "minItems" : 1,
+                "type" : "array"
+              }
+            },
+            "required" : [ "op", "operands" ],
+            "type" : "object"
+          },
+          "element1_notExists" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.orders.lines.sku", "state.orders.lines.rank", "state.orders.lines.amount", "state.orders.lines.cancelled", "state.orders.lines.createdAt" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "NOT_EXISTS" ]
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "element1_notIn" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.orders.lines.sku", "state.orders.lines.rank", "state.orders.lines.amount", "state.orders.lines.cancelled", "state.orders.lines.createdAt" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "NOT_IN" ]
+              },
+              "values" : {
+                "items" : {
+                  "$ref" : "#/definitions/element1_comparableLiteral"
+                },
+                "minItems" : 1,
+                "type" : "array"
+              }
+            },
+            "required" : [ "op", "field", "values" ],
+            "type" : "object"
+          },
+          "element1_or" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "OR" ]
+              },
+              "operands" : {
+                "items" : {
+                  "$ref" : "#/definitions/element1_filterExpression"
+                },
+                "minItems" : 1,
+                "type" : "array"
+              }
+            },
+            "required" : [ "op", "operands" ],
+            "type" : "object"
+          },
+          "element1_recentDays" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
+              "days" : {
+                "minimum" : 1,
+                "type" : "integer"
+              },
+              "field" : {
+                "enum" : [ "state.orders.lines.createdAt" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "RECENT_DAYS" ]
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field", "days" ],
+            "type" : "object"
+          },
+          "element1_startsWith" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "enum" : [ "state.orders.lines.sku" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "STARTS_WITH" ]
+              },
+              "stringComparison" : {
+                "$ref" : "#/definitions/element1_stringComparison"
+              },
+              "value" : {
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "element1_stringComparison" : {
+            "default" : "CASE_SENSITIVE",
+            "enum" : [ "CASE_SENSITIVE", "CASE_INSENSITIVE" ],
+            "type" : "string"
+          },
+          "element1_thisMonth" : {
+            "$ref" : "#/definitions/element1_thisMonthShape"
+          },
+          "element1_thisMonthShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
+              "field" : {
+                "enum" : [ "state.orders.lines.createdAt" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "THIS_MONTH" ]
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "element1_thisWeek" : {
+            "$ref" : "#/definitions/element1_thisWeekShape"
+          },
+          "element1_thisWeekShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
+              "field" : {
+                "enum" : [ "state.orders.lines.createdAt" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "THIS_WEEK" ]
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "element1_today" : {
+            "$ref" : "#/definitions/element1_todayShape"
+          },
+          "element1_todayShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
+              "field" : {
+                "enum" : [ "state.orders.lines.createdAt" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "TODAY" ]
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "element1_tomorrow" : {
+            "$ref" : "#/definitions/element1_tomorrowShape"
+          },
+          "element1_tomorrowShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
+              "field" : {
+                "enum" : [ "state.orders.lines.createdAt" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "TOMORROW" ]
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
           }
         },
-        "required" : [ "path" ],
-        "type" : "object"
+        "oneOf" : [ {
+          "additionalProperties" : false,
+          "properties" : {
+            "filter" : {
+              "$ref" : "#/definitions/element0_filterExpression"
+            },
+            "path" : {
+              "const" : "state.orders"
+            }
+          },
+          "required" : [ "path" ],
+          "type" : "object"
+        }, {
+          "additionalProperties" : false,
+          "properties" : {
+            "filter" : {
+              "$ref" : "#/definitions/element1_filterExpression"
+            },
+            "path" : {
+              "const" : "state.orders.lines"
+            }
+          },
+          "required" : [ "path" ],
+          "type" : "object"
+        } ]
       },
       "tck.mock_aggregate.MockCommandAggregateAggregatedAggregationExpression.Field" : {
         "properties" : {
@@ -3460,10 +5824,6 @@
         "required" : [ "data" ],
         "type" : "object"
       },
-      "tck.mock_aggregate.MockCommandAggregateSnapshotAggregationElements" : {
-        "enum" : [ "state.orders", "state.orders.lines" ],
-        "type" : "string"
-      },
       "tck.mock_aggregate.MockCommandAggregateSnapshotAggregationNumericFields" : {
         "enum" : [ "version", "firstEventTime", "eventTime", "state.orders.amount", "state.orders.lines.rank", "state.orders.lines.amount", "snapshotTime" ],
         "type" : "string"
@@ -3477,16 +5837,8 @@
         "type" : "string"
       },
       "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedAggregationElement" : {
-        "properties" : {
-          "filter" : {
-            "$ref" : "#/components/schemas/wow.api.query.AggregationElementFilterExpression"
-          },
-          "path" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdSnapshotAggregationElements"
-          }
-        },
-        "required" : [ "path" ],
-        "type" : "object"
+        "definitions" : { },
+        "oneOf" : [ ]
       },
       "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedAggregationExpression.Field" : {
         "properties" : {
@@ -3807,10 +6159,6 @@
         "required" : [ "data" ],
         "type" : "object"
       },
-      "tck.mock_aggregate.MockCommandAggregateWithTenantIdSnapshotAggregationElements" : {
-        "enum" : [ ],
-        "type" : "string"
-      },
       "tck.mock_aggregate.MockCommandAggregateWithTenantIdSnapshotAggregationNumericFields" : {
         "enum" : [ "version", "firstEventTime", "eventTime", "snapshotTime" ],
         "type" : "string"
@@ -3824,16 +6172,8 @@
         "type" : "string"
       },
       "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedAggregationElement" : {
-        "properties" : {
-          "filter" : {
-            "$ref" : "#/components/schemas/wow.api.query.AggregationElementFilterExpression"
-          },
-          "path" : {
-            "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersSnapshotAggregationElements"
-          }
-        },
-        "required" : [ "path" ],
-        "type" : "object"
+        "definitions" : { },
+        "oneOf" : [ ]
       },
       "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedAggregationExpression.Field" : {
         "properties" : {
@@ -4153,10 +6493,6 @@
         },
         "required" : [ "data" ],
         "type" : "object"
-      },
-      "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersSnapshotAggregationElements" : {
-        "enum" : [ ],
-        "type" : "string"
       },
       "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersSnapshotAggregationNumericFields" : {
         "enum" : [ "version", "firstEventTime", "eventTime", "snapshotTime" ],
@@ -5497,689 +7833,6 @@
       "wow.api.query.AggregationDateUnit" : {
         "enum" : [ "YEAR", "QUARTER", "MONTH", "WEEK", "DAY", "HOUR", "MINUTE", "SECOND" ],
         "type" : "string"
-      },
-      "wow.api.query.AggregationElementFilterExpression" : {
-        "$ref" : "#/definitions/filterExpression",
-        "$schema" : "http://json-schema.org/draft-07/schema#",
-        "definitions" : {
-          "and" : {
-            "additionalProperties" : false,
-            "properties" : {
-              "op" : {
-                "enum" : [ "AND" ]
-              },
-              "operands" : {
-                "items" : {
-                  "$ref" : "#/definitions/filterExpression"
-                },
-                "minItems" : 1,
-                "type" : "array"
-              }
-            },
-            "required" : [ "op", "operands" ],
-            "type" : "object"
-          },
-          "beforeToday" : {
-            "additionalProperties" : false,
-            "properties" : {
-              "datePattern" : {
-                "minLength" : 1,
-                "type" : "string"
-              },
-              "field" : {
-                "$ref" : "#/definitions/logicalField"
-              },
-              "op" : {
-                "enum" : [ "BEFORE_TODAY" ]
-              },
-              "time" : {
-                "pattern" : "^([01][0-9]|2[0-3]):[0-5][0-9](?::[0-5][0-9](?:\\.[0-9]{1,9})?)?$",
-                "type" : "string"
-              },
-              "zoneId" : {
-                "minLength" : 1,
-                "type" : "string"
-              }
-            },
-            "required" : [ "op", "field", "time" ],
-            "type" : "object"
-          },
-          "between" : {
-            "additionalProperties" : false,
-            "properties" : {
-              "field" : {
-                "$ref" : "#/definitions/logicalField"
-              },
-              "lowerBound" : {
-                "$ref" : "#/definitions/comparableLiteral"
-              },
-              "op" : {
-                "enum" : [ "BETWEEN" ]
-              },
-              "upperBound" : {
-                "$ref" : "#/definitions/comparableLiteral"
-              }
-            },
-            "required" : [ "op", "field", "lowerBound", "upperBound" ],
-            "type" : "object"
-          },
-          "comparableLiteral" : {
-            "type" : [ "string", "number", "boolean" ]
-          },
-          "contains" : {
-            "additionalProperties" : false,
-            "properties" : {
-              "field" : {
-                "$ref" : "#/definitions/logicalField"
-              },
-              "op" : {
-                "enum" : [ "CONTAINS" ]
-              },
-              "stringComparison" : {
-                "$ref" : "#/definitions/stringComparison"
-              },
-              "value" : {
-                "type" : "string"
-              }
-            },
-            "required" : [ "op", "field", "value" ],
-            "type" : "object"
-          },
-          "earlierDays" : {
-            "additionalProperties" : false,
-            "properties" : {
-              "datePattern" : {
-                "minLength" : 1,
-                "type" : "string"
-              },
-              "days" : {
-                "minimum" : 1,
-                "type" : "integer"
-              },
-              "field" : {
-                "$ref" : "#/definitions/logicalField"
-              },
-              "op" : {
-                "enum" : [ "EARLIER_DAYS" ]
-              },
-              "zoneId" : {
-                "minLength" : 1,
-                "type" : "string"
-              }
-            },
-            "required" : [ "op", "field", "days" ],
-            "type" : "object"
-          },
-          "endsWith" : {
-            "additionalProperties" : false,
-            "properties" : {
-              "field" : {
-                "$ref" : "#/definitions/logicalField"
-              },
-              "op" : {
-                "enum" : [ "ENDS_WITH" ]
-              },
-              "stringComparison" : {
-                "$ref" : "#/definitions/stringComparison"
-              },
-              "value" : {
-                "type" : "string"
-              }
-            },
-            "required" : [ "op", "field", "value" ],
-            "type" : "object"
-          },
-          "eq" : {
-            "$ref" : "#/definitions/eqShape"
-          },
-          "eqShape" : {
-            "additionalProperties" : false,
-            "properties" : {
-              "field" : {
-                "$ref" : "#/definitions/logicalField"
-              },
-              "op" : {
-                "enum" : [ "EQ" ]
-              },
-              "value" : {
-                "$ref" : "#/definitions/literal"
-              }
-            },
-            "required" : [ "op", "field", "value" ],
-            "type" : "object"
-          },
-          "exists" : {
-            "additionalProperties" : false,
-            "properties" : {
-              "field" : {
-                "$ref" : "#/definitions/logicalField"
-              },
-              "op" : {
-                "enum" : [ "EXISTS" ]
-              }
-            },
-            "required" : [ "op", "field" ],
-            "type" : "object"
-          },
-          "filterExpression" : {
-            "oneOf" : [ {
-              "$ref" : "#/definitions/and"
-            }, {
-              "$ref" : "#/definitions/beforeToday"
-            }, {
-              "$ref" : "#/definitions/between"
-            }, {
-              "$ref" : "#/definitions/contains"
-            }, {
-              "$ref" : "#/definitions/earlierDays"
-            }, {
-              "$ref" : "#/definitions/endsWith"
-            }, {
-              "$ref" : "#/definitions/eq"
-            }, {
-              "$ref" : "#/definitions/exists"
-            }, {
-              "$ref" : "#/definitions/gt"
-            }, {
-              "$ref" : "#/definitions/gte"
-            }, {
-              "$ref" : "#/definitions/in"
-            }, {
-              "$ref" : "#/definitions/isNotNull"
-            }, {
-              "$ref" : "#/definitions/isNull"
-            }, {
-              "$ref" : "#/definitions/lastMonth"
-            }, {
-              "$ref" : "#/definitions/lastWeek"
-            }, {
-              "$ref" : "#/definitions/lt"
-            }, {
-              "$ref" : "#/definitions/lte"
-            }, {
-              "$ref" : "#/definitions/matchAll"
-            }, {
-              "$ref" : "#/definitions/matchNone"
-            }, {
-              "$ref" : "#/definitions/ne"
-            }, {
-              "$ref" : "#/definitions/nextWeek"
-            }, {
-              "$ref" : "#/definitions/nor"
-            }, {
-              "$ref" : "#/definitions/notExists"
-            }, {
-              "$ref" : "#/definitions/notIn"
-            }, {
-              "$ref" : "#/definitions/or"
-            }, {
-              "$ref" : "#/definitions/recentDays"
-            }, {
-              "$ref" : "#/definitions/startsWith"
-            }, {
-              "$ref" : "#/definitions/thisMonth"
-            }, {
-              "$ref" : "#/definitions/thisWeek"
-            }, {
-              "$ref" : "#/definitions/today"
-            }, {
-              "$ref" : "#/definitions/tomorrow"
-            } ]
-          },
-          "gt" : {
-            "$ref" : "#/definitions/gtShape"
-          },
-          "gtShape" : {
-            "additionalProperties" : false,
-            "properties" : {
-              "field" : {
-                "$ref" : "#/definitions/logicalField"
-              },
-              "op" : {
-                "enum" : [ "GT" ]
-              },
-              "value" : {
-                "$ref" : "#/definitions/comparableLiteral"
-              }
-            },
-            "required" : [ "op", "field", "value" ],
-            "type" : "object"
-          },
-          "gte" : {
-            "$ref" : "#/definitions/gteShape"
-          },
-          "gteShape" : {
-            "additionalProperties" : false,
-            "properties" : {
-              "field" : {
-                "$ref" : "#/definitions/logicalField"
-              },
-              "op" : {
-                "enum" : [ "GTE" ]
-              },
-              "value" : {
-                "$ref" : "#/definitions/comparableLiteral"
-              }
-            },
-            "required" : [ "op", "field", "value" ],
-            "type" : "object"
-          },
-          "in" : {
-            "additionalProperties" : false,
-            "properties" : {
-              "field" : {
-                "$ref" : "#/definitions/logicalField"
-              },
-              "op" : {
-                "enum" : [ "IN" ]
-              },
-              "values" : {
-                "items" : {
-                  "$ref" : "#/definitions/comparableLiteral"
-                },
-                "minItems" : 1,
-                "type" : "array"
-              }
-            },
-            "required" : [ "op", "field", "values" ],
-            "type" : "object"
-          },
-          "isNotNull" : {
-            "additionalProperties" : false,
-            "properties" : {
-              "field" : {
-                "$ref" : "#/definitions/logicalField"
-              },
-              "op" : {
-                "enum" : [ "IS_NOT_NULL" ]
-              }
-            },
-            "required" : [ "op", "field" ],
-            "type" : "object"
-          },
-          "isNull" : {
-            "additionalProperties" : false,
-            "properties" : {
-              "field" : {
-                "$ref" : "#/definitions/logicalField"
-              },
-              "op" : {
-                "enum" : [ "IS_NULL" ]
-              }
-            },
-            "required" : [ "op", "field" ],
-            "type" : "object"
-          },
-          "lastMonth" : {
-            "$ref" : "#/definitions/lastMonthShape"
-          },
-          "lastMonthShape" : {
-            "additionalProperties" : false,
-            "properties" : {
-              "datePattern" : {
-                "minLength" : 1,
-                "type" : "string"
-              },
-              "field" : {
-                "$ref" : "#/definitions/logicalField"
-              },
-              "op" : {
-                "enum" : [ "LAST_MONTH" ]
-              },
-              "zoneId" : {
-                "minLength" : 1,
-                "type" : "string"
-              }
-            },
-            "required" : [ "op", "field" ],
-            "type" : "object"
-          },
-          "lastWeek" : {
-            "$ref" : "#/definitions/lastWeekShape"
-          },
-          "lastWeekShape" : {
-            "additionalProperties" : false,
-            "properties" : {
-              "datePattern" : {
-                "minLength" : 1,
-                "type" : "string"
-              },
-              "field" : {
-                "$ref" : "#/definitions/logicalField"
-              },
-              "op" : {
-                "enum" : [ "LAST_WEEK" ]
-              },
-              "zoneId" : {
-                "minLength" : 1,
-                "type" : "string"
-              }
-            },
-            "required" : [ "op", "field" ],
-            "type" : "object"
-          },
-          "literal" : {
-            "type" : [ "null", "string", "number", "boolean" ]
-          },
-          "logicalField" : {
-            "pattern" : "^[A-Za-z_][A-Za-z0-9_-]*(\\.(?:[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*$",
-            "type" : "string"
-          },
-          "lt" : {
-            "$ref" : "#/definitions/ltShape"
-          },
-          "ltShape" : {
-            "additionalProperties" : false,
-            "properties" : {
-              "field" : {
-                "$ref" : "#/definitions/logicalField"
-              },
-              "op" : {
-                "enum" : [ "LT" ]
-              },
-              "value" : {
-                "$ref" : "#/definitions/comparableLiteral"
-              }
-            },
-            "required" : [ "op", "field", "value" ],
-            "type" : "object"
-          },
-          "lte" : {
-            "$ref" : "#/definitions/lteShape"
-          },
-          "lteShape" : {
-            "additionalProperties" : false,
-            "properties" : {
-              "field" : {
-                "$ref" : "#/definitions/logicalField"
-              },
-              "op" : {
-                "enum" : [ "LTE" ]
-              },
-              "value" : {
-                "$ref" : "#/definitions/comparableLiteral"
-              }
-            },
-            "required" : [ "op", "field", "value" ],
-            "type" : "object"
-          },
-          "matchAll" : {
-            "additionalProperties" : false,
-            "properties" : {
-              "op" : {
-                "enum" : [ "MATCH_ALL" ]
-              }
-            },
-            "required" : [ "op" ],
-            "type" : "object"
-          },
-          "matchNone" : {
-            "additionalProperties" : false,
-            "properties" : {
-              "op" : {
-                "enum" : [ "MATCH_NONE" ]
-              }
-            },
-            "required" : [ "op" ],
-            "type" : "object"
-          },
-          "ne" : {
-            "$ref" : "#/definitions/neShape"
-          },
-          "neShape" : {
-            "additionalProperties" : false,
-            "properties" : {
-              "field" : {
-                "$ref" : "#/definitions/logicalField"
-              },
-              "op" : {
-                "enum" : [ "NE" ]
-              },
-              "value" : {
-                "$ref" : "#/definitions/literal"
-              }
-            },
-            "required" : [ "op", "field", "value" ],
-            "type" : "object"
-          },
-          "nextWeek" : {
-            "$ref" : "#/definitions/nextWeekShape"
-          },
-          "nextWeekShape" : {
-            "additionalProperties" : false,
-            "properties" : {
-              "datePattern" : {
-                "minLength" : 1,
-                "type" : "string"
-              },
-              "field" : {
-                "$ref" : "#/definitions/logicalField"
-              },
-              "op" : {
-                "enum" : [ "NEXT_WEEK" ]
-              },
-              "zoneId" : {
-                "minLength" : 1,
-                "type" : "string"
-              }
-            },
-            "required" : [ "op", "field" ],
-            "type" : "object"
-          },
-          "nor" : {
-            "additionalProperties" : false,
-            "properties" : {
-              "op" : {
-                "enum" : [ "NOR" ]
-              },
-              "operands" : {
-                "items" : {
-                  "$ref" : "#/definitions/filterExpression"
-                },
-                "minItems" : 1,
-                "type" : "array"
-              }
-            },
-            "required" : [ "op", "operands" ],
-            "type" : "object"
-          },
-          "notExists" : {
-            "additionalProperties" : false,
-            "properties" : {
-              "field" : {
-                "$ref" : "#/definitions/logicalField"
-              },
-              "op" : {
-                "enum" : [ "NOT_EXISTS" ]
-              }
-            },
-            "required" : [ "op", "field" ],
-            "type" : "object"
-          },
-          "notIn" : {
-            "additionalProperties" : false,
-            "properties" : {
-              "field" : {
-                "$ref" : "#/definitions/logicalField"
-              },
-              "op" : {
-                "enum" : [ "NOT_IN" ]
-              },
-              "values" : {
-                "items" : {
-                  "$ref" : "#/definitions/comparableLiteral"
-                },
-                "minItems" : 1,
-                "type" : "array"
-              }
-            },
-            "required" : [ "op", "field", "values" ],
-            "type" : "object"
-          },
-          "or" : {
-            "additionalProperties" : false,
-            "properties" : {
-              "op" : {
-                "enum" : [ "OR" ]
-              },
-              "operands" : {
-                "items" : {
-                  "$ref" : "#/definitions/filterExpression"
-                },
-                "minItems" : 1,
-                "type" : "array"
-              }
-            },
-            "required" : [ "op", "operands" ],
-            "type" : "object"
-          },
-          "recentDays" : {
-            "additionalProperties" : false,
-            "properties" : {
-              "datePattern" : {
-                "minLength" : 1,
-                "type" : "string"
-              },
-              "days" : {
-                "minimum" : 1,
-                "type" : "integer"
-              },
-              "field" : {
-                "$ref" : "#/definitions/logicalField"
-              },
-              "op" : {
-                "enum" : [ "RECENT_DAYS" ]
-              },
-              "zoneId" : {
-                "minLength" : 1,
-                "type" : "string"
-              }
-            },
-            "required" : [ "op", "field", "days" ],
-            "type" : "object"
-          },
-          "startsWith" : {
-            "additionalProperties" : false,
-            "properties" : {
-              "field" : {
-                "$ref" : "#/definitions/logicalField"
-              },
-              "op" : {
-                "enum" : [ "STARTS_WITH" ]
-              },
-              "stringComparison" : {
-                "$ref" : "#/definitions/stringComparison"
-              },
-              "value" : {
-                "type" : "string"
-              }
-            },
-            "required" : [ "op", "field", "value" ],
-            "type" : "object"
-          },
-          "stringComparison" : {
-            "default" : "CASE_SENSITIVE",
-            "enum" : [ "CASE_SENSITIVE", "CASE_INSENSITIVE" ],
-            "type" : "string"
-          },
-          "thisMonth" : {
-            "$ref" : "#/definitions/thisMonthShape"
-          },
-          "thisMonthShape" : {
-            "additionalProperties" : false,
-            "properties" : {
-              "datePattern" : {
-                "minLength" : 1,
-                "type" : "string"
-              },
-              "field" : {
-                "$ref" : "#/definitions/logicalField"
-              },
-              "op" : {
-                "enum" : [ "THIS_MONTH" ]
-              },
-              "zoneId" : {
-                "minLength" : 1,
-                "type" : "string"
-              }
-            },
-            "required" : [ "op", "field" ],
-            "type" : "object"
-          },
-          "thisWeek" : {
-            "$ref" : "#/definitions/thisWeekShape"
-          },
-          "thisWeekShape" : {
-            "additionalProperties" : false,
-            "properties" : {
-              "datePattern" : {
-                "minLength" : 1,
-                "type" : "string"
-              },
-              "field" : {
-                "$ref" : "#/definitions/logicalField"
-              },
-              "op" : {
-                "enum" : [ "THIS_WEEK" ]
-              },
-              "zoneId" : {
-                "minLength" : 1,
-                "type" : "string"
-              }
-            },
-            "required" : [ "op", "field" ],
-            "type" : "object"
-          },
-          "today" : {
-            "$ref" : "#/definitions/todayShape"
-          },
-          "todayShape" : {
-            "additionalProperties" : false,
-            "properties" : {
-              "datePattern" : {
-                "minLength" : 1,
-                "type" : "string"
-              },
-              "field" : {
-                "$ref" : "#/definitions/logicalField"
-              },
-              "op" : {
-                "enum" : [ "TODAY" ]
-              },
-              "zoneId" : {
-                "minLength" : 1,
-                "type" : "string"
-              }
-            },
-            "required" : [ "op", "field" ],
-            "type" : "object"
-          },
-          "tomorrow" : {
-            "$ref" : "#/definitions/tomorrowShape"
-          },
-          "tomorrowShape" : {
-            "additionalProperties" : false,
-            "properties" : {
-              "datePattern" : {
-                "minLength" : 1,
-                "type" : "string"
-              },
-              "field" : {
-                "$ref" : "#/definitions/logicalField"
-              },
-              "op" : {
-                "enum" : [ "TOMORROW" ]
-              },
-              "zoneId" : {
-                "minLength" : 1,
-                "type" : "string"
-              }
-            },
-            "required" : [ "op", "field" ],
-            "type" : "object"
-          }
-        },
-        "title" : "Filter Expression"
       },
       "wow.api.query.AggregationFunction" : {
         "enum" : [ "SUM", "AVG", "MIN", "MAX" ],

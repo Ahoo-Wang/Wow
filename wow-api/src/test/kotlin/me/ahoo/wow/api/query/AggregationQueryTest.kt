@@ -101,6 +101,19 @@ class AggregationQueryTest {
     }
 
     @Test
+    fun `should keep effective sort within portable backend limit`() {
+        assertThrows<IllegalArgumentException> {
+            AggregationQuery(
+                groupBy = List(AggregationQuery.MAX_GROUPS) {
+                    AggregationGroup.Terms("state.value$it", "value$it")
+                },
+                metrics = listOf(AggregationMetric.Count("count")),
+                sort = listOf(Sort("count", Sort.Direction.DESC)),
+            )
+        }
+    }
+
+    @Test
     fun `should enforce independent hard limits`() {
         assertThrows<IllegalArgumentException> {
             AggregationQuery(

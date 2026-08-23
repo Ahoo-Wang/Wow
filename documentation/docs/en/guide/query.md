@@ -346,7 +346,8 @@ identical to the JSON response.
 - Elements accept only object collections or object arrays. Maps, scalar collections, duplicate paths, skipped parent collections, and sibling Cartesian products are rejected.
 - `groupBy`, metric, and expression fields must belong to the innermost source. They cannot implicitly access a parent, sibling, or unexpanded child collection.
 - Each `AggregationElement.filter` may reference only scalar fields or non-collection object paths in that element and must not use `ELEMENT_MATCH`, `SEARCH`, or `DELETION`.
-- String operators require textual fields; range operators require numeric, temporal, or textual fields; relative-time operators require temporal fields. Object paths support only null/presence filters.
+- String operators require textual fields. Range operators require numeric, temporal, or textual fields and use a JSON number for numeric fields or a JSON string for temporal/textual fields. Relative-time operators require temporal fields. Object paths support only null/presence filters.
+- OpenAPI publishes separate field enums for each Element path and narrows them by operator field type, so clients do not offer parent, sibling, or incorrectly typed fields as valid options.
 - A root `ELEMENT_MATCH` filters snapshots containing a match; it does not filter rows produced by expansion. Put row filters in the corresponding Element filter.
 - Missing, `null`, and empty collections, including `null` collection members, produce no expanded rows. A row with any missing or `null` group field produces no bucket.
 
@@ -370,6 +371,7 @@ are rejected. Any non-finite Numeric metric result fails the whole query.
 - A grouped query with no bucket returns an empty stream.
 - The default order is ascending by group declaration order. Explicit sort appends every omitted group alias ascending as a stable tie-breaker.
 - Sort fields must be unique and reference output aliases only. `null` sorts first ascending and last descending.
+- Explicit sort plus appended stable group aliases may contain at most 32 fields. For example, 32 groups cannot add metric ordering.
 - Group-alias-only ordering can stop at limit. Any metric-alias ordering traverses every bucket and computes exact Top-N.
 - Aliases are globally unique across groups and metrics. They must not be blank, contain `.`/NUL, start with `$` or `__wow_`, or equal `_id`.
 
@@ -381,6 +383,7 @@ are rejected. Any non-finite Numeric metric result fails the whole query.
 | Element/group/expression field-path segments | 10 | 10 |
 | groupBy entries | 32 | 32 |
 | metrics entries | 1..64 | 1..32 |
+| Effective sort fields, including tie-breakers | 32 | 32 |
 | limit | Default 100; maximum 10,000 | Grouped queries are also capped by `max-list-size=1000` |
 | Root plus all Element filters | — | At most `max-condition-nodes=64` nodes in total |
 

@@ -118,12 +118,12 @@ private fun AggregationField.supportsElementFilter(filter: FilterExpression): Bo
     is NotEqualFilter ->
         kind == AggregationFieldKind.SCALAR || filter.value.isNull && kind == AggregationFieldKind.OBJECT
     is InFilter, is NotInFilter -> kind == AggregationFieldKind.SCALAR
-    is GreaterThanFilter,
-    is GreaterThanOrEqualFilter,
-    is LessThanFilter,
-    is LessThanOrEqualFilter,
-    is BetweenFilter,
-    -> kind == AggregationFieldKind.SCALAR && isRangeComparable
+    is GreaterThanFilter -> kind == AggregationFieldKind.SCALAR && supportsRangeLiteral(filter.value)
+    is GreaterThanOrEqualFilter -> kind == AggregationFieldKind.SCALAR && supportsRangeLiteral(filter.value)
+    is LessThanFilter -> kind == AggregationFieldKind.SCALAR && supportsRangeLiteral(filter.value)
+    is LessThanOrEqualFilter -> kind == AggregationFieldKind.SCALAR && supportsRangeLiteral(filter.value)
+    is BetweenFilter -> kind == AggregationFieldKind.SCALAR && supportsRangeLiteral(filter.lowerBound) &&
+        supportsRangeLiteral(filter.upperBound)
     is ContainsFilter, is StartsWithFilter, is EndsWithFilter ->
         kind == AggregationFieldKind.SCALAR && isTextual
     is IsNullFilter, is IsNotNullFilter, is ExistsFilter, is NotExistsFilter ->
@@ -132,14 +132,11 @@ private fun AggregationField.supportsElementFilter(filter: FilterExpression): Bo
     else -> false
 }
 
-private val AggregationField.isTextual: Boolean
-    get() = type.rawClass.isEnum ||
-        CharSequence::class.java.isAssignableFrom(type.rawClass) ||
-        type.rawClass == Char::class.javaPrimitiveType ||
-        type.rawClass == Char::class.javaObjectType
-
-private val AggregationField.isRangeComparable: Boolean
-    get() = isNumeric || isTemporal || isTextual
+private fun AggregationField.supportsRangeLiteral(value: tools.jackson.databind.JsonNode): Boolean = when {
+    isNumeric -> value.isNumber
+    isTemporal || isTextual -> value.isString
+    else -> false
+}
 
 @Suppress("CyclomaticComplexMethod")
 private fun FilterExpression.requiredElementField(): String = when (this) {

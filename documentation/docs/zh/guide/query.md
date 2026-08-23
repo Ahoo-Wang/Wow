@@ -341,7 +341,8 @@ curl -X POST \
 - Elements 只接受对象集合或对象数组；Map、标量集合、重复路径、跳过中间集合和兄弟集合笛卡尔积都会被拒绝。
 - `groupBy`、指标及表达式字段必须属于最内层来源，不能隐式访问父级、兄弟或未展开的子集合。
 - 每层 `AggregationElement.filter` 只能访问该层标量字段或非集合对象路径，并且不能使用 `ELEMENT_MATCH`、`SEARCH` 或 `DELETION`。
-- 字符串操作符只接受文本字段；范围操作符只接受数值、时间或文本字段；相对时间操作符只接受时间字段。对象路径只支持 null/presence 过滤。
+- 字符串操作符只接受文本字段；范围操作符只接受数值、时间或文本字段，且数值字段使用 JSON number、时间/文本字段使用 JSON string；相对时间操作符只接受时间字段。对象路径只支持 null/presence 过滤。
+- OpenAPI 会按每个 Element path 分别生成字段枚举，并按操作符字段类型收窄；客户端不会把父级、兄弟或错误类型字段提示为合法选项。
 - 根 `ELEMENT_MATCH` 只筛选“包含匹配元素的快照”，不会筛选随后展开的行；行过滤必须写入对应 Element filter。
 - 缺失、`null`、空集合及集合中的 `null` 成员都不产生展开行；任一分组字段缺失或为 `null` 时，该行不进入 bucket。
 
@@ -364,6 +365,7 @@ curl -X POST \
 - 有 `groupBy` 且没有 bucket 时返回空流。
 - 默认按 groupBy 声明顺序升序；显式 sort 后会追加尚未出现的 group alias 升序，保证结果稳定。
 - sort 字段必须唯一且只能引用输出 alias。升序时 `null` 在前，降序时 `null` 在后。
+- 显式 sort 与自动追加的稳定 group alias 合计最多 32 个；例如 32 个 groupBy 后不能再按 metric 排序。
 - 仅按 group alias 排序时，后端达到 limit 即可停止；按 metric alias 排序时必须完整遍历 bucket，再计算精确 Top-N。
 - alias 在 groupBy 与 metrics 间全局唯一；不能为空、包含 `.`/NUL、以 `$` 或 `__wow_` 开头，也不能为 `_id`。
 
@@ -375,6 +377,7 @@ curl -X POST \
 | Element/group/expression 字段路径段数 | 10 | 10 |
 | groupBy 数量 | 32 | 32 |
 | metrics 数量 | 1..64 | 1..32 |
+| 有效排序字段（含稳定决胜字段） | 32 | 32 |
 | limit | 默认 100，最大 10,000 | 有分组时还受 `max-list-size=1000` 限制 |
 | 根过滤器与全部 Element filters | — | 合计最多 `max-condition-nodes=64` 个节点 |
 

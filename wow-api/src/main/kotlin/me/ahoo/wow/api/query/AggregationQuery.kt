@@ -48,6 +48,9 @@ data class AggregationQuery(
         val sortFields = sort.map(Sort::field)
         require(sortFields.distinct().size == sortFields.size) { "sort fields must be unique." }
         require(sortFields.all(aliases::contains)) { "sort fields must reference aggregation aliases." }
+        require(effectiveSort().size <= MAX_SORT_FIELDS) {
+            "effective sort must contain at most $MAX_SORT_FIELDS fields."
+        }
     }
 
     override fun withFilter(newFilter: FilterExpression): AggregationQuery = copy(filter = newFilter)
@@ -67,6 +70,7 @@ data class AggregationQuery(
         const val MAX_AGGREGATION_FIELD_DEPTH: Int = 10
         const val MAX_GROUPS: Int = 32
         const val MAX_METRICS: Int = 64
+        const val MAX_SORT_FIELDS: Int = 32
         const val INTERNAL_ALIAS_PREFIX: String = "__wow_"
         private const val DEFAULT_LIMIT_TEXT = "100"
         private const val MAX_LIMIT_TEXT = "10000"
