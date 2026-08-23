@@ -24,6 +24,7 @@ import me.ahoo.wow.schema.TypeFieldPaths.allFieldPaths
 import me.ahoo.wow.schema.Types.isStdType
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.serialization.state.SnapshotRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.ValueSerializer
@@ -179,7 +180,8 @@ object AggregatedFieldPaths {
                 StateAggregateRecords.EVENT_TIME,
                 StateAggregateRecords.TAGS,
                 StateAggregateRecords.DELETED,
-                StateAggregateRecords.STATE
+                StateAggregateRecords.STATE,
+                SnapshotRecords.SNAPSHOT_TIME,
             )
         ).filterTo(linkedSetOf()) { field ->
             runCatching { LogicalField(field) }.isSuccess
