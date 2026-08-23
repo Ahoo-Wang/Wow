@@ -83,13 +83,9 @@ class FilterExpressionTest {
     }
 
     @Test
-    fun `should reject array equality value`() {
-        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
-            EqualFilter(LogicalField("state.tags"), jsonMapper.valueToTree<JsonNode>(listOf("a", "b")))
-        }
-        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
-            NotEqualFilter(LogicalField("state.tags"), jsonMapper.valueToTree<JsonNode>(listOf("a", "b")))
-        }
+    fun `should accept scalar array equality value`() {
+        EqualFilter(LogicalField("state.tags"), jsonMapper.valueToTree<JsonNode>(listOf("a", "b")))
+        NotEqualFilter(LogicalField("state.tags"), jsonMapper.valueToTree<JsonNode>(listOf("a", "b")))
     }
 
     @Test
@@ -140,6 +136,61 @@ class FilterExpressionTest {
         val filter = condition.toFilterExpression()
 
         filter.toCondition().assert().isEqualTo(condition)
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `should resolve legacy metadata and logical conditions once`() {
+        val wrapped = Condition.and(
+            Condition.id("id-1"),
+            Condition.aggregateIds("aggregate-1", "aggregate-2"),
+            Condition.tenantId("tenant-1"),
+        ).toFilterExpression()
+
+        val resolved = wrapped.toExecutableFilter() as AndFilter
+
+        resolved.operands.assert().containsExactly(
+            IdFilter("id-1"),
+            AggregateIdsFilter(listOf("aggregate-1", "aggregate-2")),
+            TenantIdFilter("tenant-1"),
+        )
+        resolved.toExecutableFilter().assert().isSameAs(resolved)
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `should preserve legacy collection equality as array equality`() {
+        val resolved = Condition.eq("state.tags", listOf("a", "b"))
+            .toFilterExpression()
+            .toExecutableFilter() as EqualFilter
+
+        resolved.value.isArray.assert().isTrue()
+        resolved.toCondition().assert().isEqualTo(Condition.eq("state.tags", listOf("a", "b")))
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `should preserve legacy native equality value`() {
+        data class NativeValue(val id: String)
+        val native = NativeValue("native-1")
+        val resolved = Condition.eq("state.native", native)
+            .toFilterExpression()
+            .toExecutableFilter() as EqualFilter
+
+        resolved.value.isPojo.assert().isTrue()
+        resolved.toCondition().value.assert().isSameAs(native)
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `should reject invalid legacy logical and element match nodes`() {
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+            Condition(operator = Operator.AND).toFilterExpression().toExecutableFilter()
+        }
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+            Condition(field = "items", operator = Operator.ELEM_MATCH)
+                .toFilterExpression().toExecutableFilter()
+        }
     }
 
     @Test

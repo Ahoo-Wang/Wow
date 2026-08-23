@@ -20,6 +20,16 @@ internal fun JsonNode.requireFilterLiteral() {
     require(isNull || isString || isNumber || isBoolean) { "Filter value must be a JSON scalar." }
 }
 
+private fun JsonNode.requireEqualityFilterValue() {
+    if (isArray) {
+        forEach { require(it.isPojo || it.isNull || it.isString || it.isNumber || it.isBoolean) }
+    } else {
+        require(isPojo || isNull || isString || isNumber || isBoolean) {
+            "EQ/NE value must be a JSON scalar, scalar array, or runtime POJO."
+        }
+    }
+}
+
 private fun JsonNode.requireComparableFilterLiteral() {
     requireFilterLiteral()
     require(!isNull) { "Comparison filter value cannot be null." }
@@ -38,7 +48,7 @@ data class EqualFilter(val field: LogicalField, val value: JsonNode) : FilterExp
     override val operator: FilterOperator = FilterOperator.EQ
 
     init {
-        value.requireFilterLiteral()
+        value.requireEqualityFilterValue()
     }
 }
 
@@ -47,7 +57,7 @@ data class NotEqualFilter(val field: LogicalField, val value: JsonNode) : Filter
     override val operator: FilterOperator = FilterOperator.NE
 
     init {
-        value.requireFilterLiteral()
+        value.requireEqualityFilterValue()
     }
 }
 
