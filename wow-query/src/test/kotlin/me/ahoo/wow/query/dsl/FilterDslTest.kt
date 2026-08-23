@@ -17,6 +17,7 @@ package me.ahoo.wow.query.dsl
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.*
+import me.ahoo.wow.query.snapshot.pathState
 import org.junit.jupiter.api.Test
 import java.time.LocalTime
 import java.time.ZoneOffset
@@ -51,6 +52,127 @@ class FilterDslTest {
     }
 
     @Test
+    fun `should resolve scoped paths without duplicate prefixes`() {
+        val expression = filter {
+            "state".path {
+                "state.name" eq "Wow"
+                "statement" eq "value"
+                "items".path {
+                    "productId" eq "product-1"
+                }
+            }
+            "tenantId" eq "tenant-1"
+        } as AndFilter
+
+        expression.operands.assert().hasSize(2)
+        val state = expression.operands[0] as AndFilter
+        (state.operands[0] as EqualFilter).field.assert().isEqualTo(LogicalField("state.name"))
+        (state.operands[1] as EqualFilter).field.assert().isEqualTo(LogicalField("state.statement"))
+        (state.operands[2] as EqualFilter).field.assert().isEqualTo(LogicalField("state.items.productId"))
+        (expression.operands[1] as EqualFilter).field.assert().isEqualTo(LogicalField("tenantId"))
+    }
+
+    @Test
+    fun `should keep path block as one OR operand`() {
+        val expression = filter {
+            or {
+                "state".path {
+                    "status" eq "CREATED"
+                    "ownerId" eq "owner-1"
+                }
+                "tenantId" eq "tenant-1"
+            }
+        } as OrFilter
+
+        expression.operands.assert().hasSize(2)
+        (expression.operands[0] as AndFilter).operands.assert().hasSize(2)
+        (expression.operands[1] as EqualFilter).field.assert().isEqualTo(LogicalField("tenantId"))
+    }
+
+    @Test
+    fun `should reject injected expression inside path scope`() {
+        val prebuilt = filter { "name" eq "Wow" }
+
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+            filter {
+                "state".path {
+                    expression(prebuilt)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `should reject invalid path scope`() {
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+            filter {
+                "invalid path".path {
+                    matchAll()
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `should keep injected element fields relative`() {
+        val itemFilter = filter { "productId" eq "product-1" }
+
+        val expression = filter {
+            "state.items".elementMatch {
+                expression(itemFilter)
+            }
+        } as ElementMatchFilter
+
+        expression.predicate.assert().isSameAs(itemFilter)
+    }
+
+    @Test
+    @Suppress("DEPRECATION")
+    fun `should preserve deprecated nested source compatibility`() {
+        val expression = filter {
+            "state".nested {
+                "name" eq "Wow"
+            }
+        }
+
+        (expression as EqualFilter).field.assert().isEqualTo(LogicalField("state.name"))
+    }
+
+    @Test
+    @Suppress("DEPRECATION")
+    fun `should preserve deprecated nested logical semantics`() {
+        val expression = filter {
+            or {
+                "state".nested {
+                    "status" eq "CREATED"
+                    "ownerId" eq "owner-1"
+                }
+                "tenantId" eq "tenant-1"
+            }
+        } as OrFilter
+
+        expression.operands.assert().hasSize(3)
+    }
+
+    @Test
+    @Suppress("DEPRECATION")
+    fun `should preserve prebuilt expressions in deprecated nested logical blocks`() {
+        val prebuilt = filter { "name" eq "Wow" }
+
+        val expression = filter {
+            "state".nested {
+                or {
+                    expression(prebuilt)
+                    "status" eq "CREATED"
+                }
+            }
+        } as OrFilter
+
+        expression.operands[0].assert().isSameAs(prebuilt)
+        (expression.operands[1] as EqualFilter).field.assert().isEqualTo(LogicalField("state.status"))
+    }
+
+    @Test
     fun `should reject empty logical block`() {
         org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
             filter { and { } }
@@ -66,7 +188,7 @@ class FilterDslTest {
             and { "and" eq 1 }
             or { "or" eq 1 }
             nor { "nor" eq 1 }
-            "state".nested { "name" eq "Wow" }
+            pathState { "name" eq "Wow" }
             "items".elementMatch { "quantity" gt 0 }
             "null" eq null
             "notNull" ne null

@@ -87,6 +87,22 @@ val filter = filterExpression {
 }
 ```
 
+Use `String.path` to create a lexical path scope for relative fields; `pathState` is shorthand for `"state".path`. Nested `path` blocks append relative paths, complete paths already under the current scope are not prefixed again, and leaving a block automatically restores its parent path. Multiple expressions in a `path` block form one implicit `AND` operand, even when the block appears inside `or` or `nor`:
+
+```kotlin
+val filter = filterExpression {
+    pathState {
+        "status" eq "CREATED"
+        "customer".path {
+            "id" eq customerId
+        }
+    }
+    "tenantId" eq tenantId
+}
+```
+
+`expression(...)` adds a prebuilt expression only at the current query-context root and cannot be called inside a `path` scope. Its `LogicalField` values must already match the insertion context; for example, the independent element root inside `elementMatch` uses element-relative paths.
+
 ### Query DSL
 
 `singleQuery`, `listQuery`, and `pagedQuery` all use `filter {}`:

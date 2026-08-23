@@ -83,7 +83,7 @@ abstract class AbacQueryFilter : SnapshotQueryFilter {
          */
         fun Map.Entry<AbacTagKey, AbacTagValue>.toFilterExpression(): me.ahoo.wow.api.query.FilterExpression =
             me.ahoo.wow.query.dsl.filter {
-                TAGS.nested {
+                TAGS.path {
                     if (value.wildcard) {
                         key.exists()
                     } else {

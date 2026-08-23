@@ -87,6 +87,22 @@ val filter = filterExpression {
 }
 ```
 
+使用 `String.path` 为块内的相对字段设置词法路径作用域，`pathState` 等价于 `"state".path`。嵌套 `path` 会追加相对路径，已经包含当前作用域的完整路径不会重复添加前缀；退出代码块后自动回到父级路径。`path` 块内的多个表达式组成一个隐式 `AND` 操作数，即使它位于 `or` 或 `nor` 中也不会被摊平：
+
+```kotlin
+val filter = filterExpression {
+    pathState {
+        "status" eq "CREATED"
+        "customer".path {
+            "id" eq customerId
+        }
+    }
+    "tenantId" eq tenantId
+}
+```
+
+`expression(...)` 只能在当前查询上下文根直接加入已经构造的表达式，不能在 `path` 作用域内调用。其中的 `LogicalField` 必须已经适配插入位置的查询上下文；例如，`elementMatch` 的独立元素根上下文使用元素相对路径。
+
 ### 查询 DSL
 
 `singleQuery`、`listQuery` 和 `pagedQuery` 统一使用 `filter {}`：
