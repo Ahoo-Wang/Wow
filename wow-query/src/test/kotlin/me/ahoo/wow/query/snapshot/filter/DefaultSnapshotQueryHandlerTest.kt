@@ -152,6 +152,19 @@ class DefaultSnapshotQueryHandlerTest {
             .verifyComplete()
     }
 
+    @Test
+    fun `aggregation context should fail when the chain provides no result`() {
+        val error = runCatching {
+            SnapshotAggregationQueryContext(
+                MOCK_AGGREGATE_METADATA,
+                AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))),
+            ).getRequiredResult()
+        }.exceptionOrNull()
+
+        error.assert().isInstanceOf(IllegalStateException::class.java)
+        error!!.message.assert().contains("did not provide a result")
+    }
+
     private object LegacyExhaustiveSnapshotQueryFilter : SnapshotQueryFilter {
         override fun filter(
             context: QueryContext<*, *>,

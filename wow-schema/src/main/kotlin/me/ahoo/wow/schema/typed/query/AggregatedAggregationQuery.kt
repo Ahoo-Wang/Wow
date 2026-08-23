@@ -45,7 +45,7 @@ data class AggregatedAggregationQuery<CommandAggregateType : Any>(
 
 data class AggregatedAggregationElement<CommandAggregateType : Any>(
     val path: SnapshotAggregationElements<CommandAggregateType>,
-    val filter: FilterExpressionSchema = FilterExpressionSchema.MatchAll,
+    val filter: AggregationElementFilterExpressionSchema = AggregationElementFilterExpressionSchema.MatchAll,
 )
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")

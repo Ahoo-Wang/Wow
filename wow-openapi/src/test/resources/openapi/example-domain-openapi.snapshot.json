@@ -1115,7 +1115,7 @@
       "example.cart.CartAggregatedAggregationElement" : {
         "properties" : {
           "filter" : {
-            "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+            "$ref" : "#/components/schemas/wow.api.query.AggregationElementFilterExpression"
           },
           "path" : {
             "$ref" : "#/components/schemas/example.cart.CartSnapshotAggregationElements"
@@ -2049,7 +2049,7 @@
       "example.order.OrderAggregatedAggregationElement" : {
         "properties" : {
           "filter" : {
-            "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+            "$ref" : "#/components/schemas/wow.api.query.AggregationElementFilterExpression"
           },
           "path" : {
             "$ref" : "#/components/schemas/example.order.OrderSnapshotAggregationElements"
@@ -3079,7 +3079,7 @@
       "tck.mock_aggregate.MockCommandAggregateAggregatedAggregationElement" : {
         "properties" : {
           "filter" : {
-            "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+            "$ref" : "#/components/schemas/wow.api.query.AggregationElementFilterExpression"
           },
           "path" : {
             "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateSnapshotAggregationElements"
@@ -3446,7 +3446,7 @@
       "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedAggregationElement" : {
         "properties" : {
           "filter" : {
-            "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+            "$ref" : "#/components/schemas/wow.api.query.AggregationElementFilterExpression"
           },
           "path" : {
             "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithTenantIdSnapshotAggregationElements"
@@ -3782,7 +3782,7 @@
       "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedAggregationElement" : {
         "properties" : {
           "filter" : {
-            "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+            "$ref" : "#/components/schemas/wow.api.query.AggregationElementFilterExpression"
           },
           "path" : {
             "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersSnapshotAggregationElements"
@@ -5442,6 +5442,689 @@
       "wow.api.query.AggregationDateUnit" : {
         "enum" : [ "YEAR", "QUARTER", "MONTH", "WEEK", "DAY", "HOUR", "MINUTE", "SECOND" ],
         "type" : "string"
+      },
+      "wow.api.query.AggregationElementFilterExpression" : {
+        "$ref" : "#/definitions/filterExpression",
+        "$schema" : "http://json-schema.org/draft-07/schema#",
+        "definitions" : {
+          "and" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "AND" ]
+              },
+              "operands" : {
+                "items" : {
+                  "$ref" : "#/definitions/filterExpression"
+                },
+                "minItems" : 1,
+                "type" : "array"
+              }
+            },
+            "required" : [ "op", "operands" ],
+            "type" : "object"
+          },
+          "beforeToday" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "BEFORE_TODAY" ]
+              },
+              "time" : {
+                "pattern" : "^([01][0-9]|2[0-3]):[0-5][0-9](?::[0-5][0-9](?:\\.[0-9]{1,9})?)?$",
+                "type" : "string"
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field", "time" ],
+            "type" : "object"
+          },
+          "between" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "lowerBound" : {
+                "$ref" : "#/definitions/comparableLiteral"
+              },
+              "op" : {
+                "enum" : [ "BETWEEN" ]
+              },
+              "upperBound" : {
+                "$ref" : "#/definitions/comparableLiteral"
+              }
+            },
+            "required" : [ "op", "field", "lowerBound", "upperBound" ],
+            "type" : "object"
+          },
+          "comparableLiteral" : {
+            "type" : [ "string", "number", "boolean" ]
+          },
+          "contains" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "CONTAINS" ]
+              },
+              "stringComparison" : {
+                "$ref" : "#/definitions/stringComparison"
+              },
+              "value" : {
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "earlierDays" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
+              "days" : {
+                "minimum" : 1,
+                "type" : "integer"
+              },
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "EARLIER_DAYS" ]
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field", "days" ],
+            "type" : "object"
+          },
+          "endsWith" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "ENDS_WITH" ]
+              },
+              "stringComparison" : {
+                "$ref" : "#/definitions/stringComparison"
+              },
+              "value" : {
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "eq" : {
+            "$ref" : "#/definitions/eqShape"
+          },
+          "eqShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "EQ" ]
+              },
+              "value" : {
+                "$ref" : "#/definitions/literal"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "exists" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "EXISTS" ]
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "filterExpression" : {
+            "oneOf" : [ {
+              "$ref" : "#/definitions/and"
+            }, {
+              "$ref" : "#/definitions/beforeToday"
+            }, {
+              "$ref" : "#/definitions/between"
+            }, {
+              "$ref" : "#/definitions/contains"
+            }, {
+              "$ref" : "#/definitions/earlierDays"
+            }, {
+              "$ref" : "#/definitions/endsWith"
+            }, {
+              "$ref" : "#/definitions/eq"
+            }, {
+              "$ref" : "#/definitions/exists"
+            }, {
+              "$ref" : "#/definitions/gt"
+            }, {
+              "$ref" : "#/definitions/gte"
+            }, {
+              "$ref" : "#/definitions/in"
+            }, {
+              "$ref" : "#/definitions/isNotNull"
+            }, {
+              "$ref" : "#/definitions/isNull"
+            }, {
+              "$ref" : "#/definitions/lastMonth"
+            }, {
+              "$ref" : "#/definitions/lastWeek"
+            }, {
+              "$ref" : "#/definitions/lt"
+            }, {
+              "$ref" : "#/definitions/lte"
+            }, {
+              "$ref" : "#/definitions/matchAll"
+            }, {
+              "$ref" : "#/definitions/matchNone"
+            }, {
+              "$ref" : "#/definitions/ne"
+            }, {
+              "$ref" : "#/definitions/nextWeek"
+            }, {
+              "$ref" : "#/definitions/nor"
+            }, {
+              "$ref" : "#/definitions/notExists"
+            }, {
+              "$ref" : "#/definitions/notIn"
+            }, {
+              "$ref" : "#/definitions/or"
+            }, {
+              "$ref" : "#/definitions/recentDays"
+            }, {
+              "$ref" : "#/definitions/startsWith"
+            }, {
+              "$ref" : "#/definitions/thisMonth"
+            }, {
+              "$ref" : "#/definitions/thisWeek"
+            }, {
+              "$ref" : "#/definitions/today"
+            }, {
+              "$ref" : "#/definitions/tomorrow"
+            } ]
+          },
+          "gt" : {
+            "$ref" : "#/definitions/gtShape"
+          },
+          "gtShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "GT" ]
+              },
+              "value" : {
+                "$ref" : "#/definitions/comparableLiteral"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "gte" : {
+            "$ref" : "#/definitions/gteShape"
+          },
+          "gteShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "GTE" ]
+              },
+              "value" : {
+                "$ref" : "#/definitions/comparableLiteral"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "in" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "IN" ]
+              },
+              "values" : {
+                "items" : {
+                  "$ref" : "#/definitions/comparableLiteral"
+                },
+                "minItems" : 1,
+                "type" : "array"
+              }
+            },
+            "required" : [ "op", "field", "values" ],
+            "type" : "object"
+          },
+          "isNotNull" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "IS_NOT_NULL" ]
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "isNull" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "IS_NULL" ]
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "lastMonth" : {
+            "$ref" : "#/definitions/lastMonthShape"
+          },
+          "lastMonthShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "LAST_MONTH" ]
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "lastWeek" : {
+            "$ref" : "#/definitions/lastWeekShape"
+          },
+          "lastWeekShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "LAST_WEEK" ]
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "literal" : {
+            "type" : [ "null", "string", "number", "boolean" ]
+          },
+          "logicalField" : {
+            "pattern" : "^[A-Za-z_][A-Za-z0-9_-]*(\\.(?:[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*$",
+            "type" : "string"
+          },
+          "lt" : {
+            "$ref" : "#/definitions/ltShape"
+          },
+          "ltShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "LT" ]
+              },
+              "value" : {
+                "$ref" : "#/definitions/comparableLiteral"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "lte" : {
+            "$ref" : "#/definitions/lteShape"
+          },
+          "lteShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "LTE" ]
+              },
+              "value" : {
+                "$ref" : "#/definitions/comparableLiteral"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "matchAll" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "MATCH_ALL" ]
+              }
+            },
+            "required" : [ "op" ],
+            "type" : "object"
+          },
+          "matchNone" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "MATCH_NONE" ]
+              }
+            },
+            "required" : [ "op" ],
+            "type" : "object"
+          },
+          "ne" : {
+            "$ref" : "#/definitions/neShape"
+          },
+          "neShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "NE" ]
+              },
+              "value" : {
+                "$ref" : "#/definitions/literal"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "nextWeek" : {
+            "$ref" : "#/definitions/nextWeekShape"
+          },
+          "nextWeekShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "NEXT_WEEK" ]
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "nor" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "NOR" ]
+              },
+              "operands" : {
+                "items" : {
+                  "$ref" : "#/definitions/filterExpression"
+                },
+                "minItems" : 1,
+                "type" : "array"
+              }
+            },
+            "required" : [ "op", "operands" ],
+            "type" : "object"
+          },
+          "notExists" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "NOT_EXISTS" ]
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "notIn" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "NOT_IN" ]
+              },
+              "values" : {
+                "items" : {
+                  "$ref" : "#/definitions/comparableLiteral"
+                },
+                "minItems" : 1,
+                "type" : "array"
+              }
+            },
+            "required" : [ "op", "field", "values" ],
+            "type" : "object"
+          },
+          "or" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "OR" ]
+              },
+              "operands" : {
+                "items" : {
+                  "$ref" : "#/definitions/filterExpression"
+                },
+                "minItems" : 1,
+                "type" : "array"
+              }
+            },
+            "required" : [ "op", "operands" ],
+            "type" : "object"
+          },
+          "recentDays" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
+              "days" : {
+                "minimum" : 1,
+                "type" : "integer"
+              },
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "RECENT_DAYS" ]
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field", "days" ],
+            "type" : "object"
+          },
+          "startsWith" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "STARTS_WITH" ]
+              },
+              "stringComparison" : {
+                "$ref" : "#/definitions/stringComparison"
+              },
+              "value" : {
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "stringComparison" : {
+            "default" : "CASE_SENSITIVE",
+            "enum" : [ "CASE_SENSITIVE", "CASE_INSENSITIVE" ],
+            "type" : "string"
+          },
+          "thisMonth" : {
+            "$ref" : "#/definitions/thisMonthShape"
+          },
+          "thisMonthShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "THIS_MONTH" ]
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "thisWeek" : {
+            "$ref" : "#/definitions/thisWeekShape"
+          },
+          "thisWeekShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "THIS_WEEK" ]
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "today" : {
+            "$ref" : "#/definitions/todayShape"
+          },
+          "todayShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "TODAY" ]
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "tomorrow" : {
+            "$ref" : "#/definitions/tomorrowShape"
+          },
+          "tomorrowShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
+              "field" : {
+                "$ref" : "#/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "TOMORROW" ]
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          }
+        },
+        "title" : "Filter Expression"
       },
       "wow.api.query.AggregationFunction" : {
         "enum" : [ "SUM", "AVG", "MIN", "MAX" ],

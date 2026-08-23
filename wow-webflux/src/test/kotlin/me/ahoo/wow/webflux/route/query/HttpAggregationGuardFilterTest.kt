@@ -56,14 +56,12 @@ class HttpAggregationGuardFilterTest {
                 limit = AggregationQuery.MAX_LIMIT,
             ),
         )
-        HttpAggregationQueryGuardFilter(
-            HttpQueryGuardFilter(
-                maxListSize = 0,
-                maxAggregationElements = 0,
-                maxAggregationMetrics = 0,
-                allowExpensiveOperators = true,
-            ),
-        ).filter(
+        HttpQueryGuardFilter(
+            maxListSize = 0,
+            maxAggregationElements = 0,
+            maxAggregationMetrics = 0,
+            allowExpensiveOperators = true,
+        ).createSnapshotAggregationQueryFilter().filter(
             context,
             FilterChain {
                 it.setResult(Flux.empty())

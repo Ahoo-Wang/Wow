@@ -54,6 +54,14 @@ class SnapshotAggregationQueryContext(
 
 interface SnapshotAggregationQueryFilter : Filter<SnapshotAggregationQueryContext>
 
+/**
+ * Supplies the aggregation policy equivalent of a Snapshot query filter.
+ * Query filters without this contract disable Snapshot aggregation fail-closed.
+ */
+fun interface SnapshotAggregationQueryFilterProvider {
+    fun createSnapshotAggregationQueryFilter(): SnapshotAggregationQueryFilter
+}
+
 @Order(ORDER_LAST)
 class TailSnapshotAggregationQueryFilter(
     private val queryServiceFactory: SnapshotQueryServiceFactory,

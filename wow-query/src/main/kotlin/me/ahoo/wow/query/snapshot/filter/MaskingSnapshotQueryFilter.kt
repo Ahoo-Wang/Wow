@@ -28,8 +28,14 @@ import reactor.core.publisher.Mono
 
 @Order(ORDER_LAST, before = [TailSnapshotQueryFilter::class])
 @FilterType(SnapshotQueryHandler::class)
-class MaskingSnapshotQueryFilter(maskerRegistry: StateDataMaskerRegistry) : SnapshotQueryFilter,
-    MaskingDynamicDocumentQueryFilter<StateDynamicDocumentMasker>(maskerRegistry) {
+class MaskingSnapshotQueryFilter(maskerRegistry: StateDataMaskerRegistry) :
+    SnapshotQueryFilter,
+    MaskingDynamicDocumentQueryFilter<StateDynamicDocumentMasker>(maskerRegistry),
+    SnapshotAggregationQueryFilterProvider {
+    private val aggregationFilter = MaskingSnapshotAggregationQueryFilter(maskerRegistry)
+
+    override fun createSnapshotAggregationQueryFilter(): SnapshotAggregationQueryFilter = aggregationFilter
+
     override fun filter(
         context: QueryContext<*, *>,
         next: FilterChain<QueryContext<*, *>>

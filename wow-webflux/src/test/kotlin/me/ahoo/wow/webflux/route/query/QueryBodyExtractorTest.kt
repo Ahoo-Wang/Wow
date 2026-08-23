@@ -200,6 +200,41 @@ class QueryBodyExtractorTest {
     }
 
     @Test
+    fun `should decode valid strict count and list wire payloads`() {
+        val countHandler = CountQueryHandlerFunctionFactory(
+            handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
+            queryHandler = RouteTestFixtures.snapshotQueryHandler,
+            rewriteRequestCondition = DefaultRewriteRequestCondition,
+            exceptionHandler = WebFluxRequestExceptionHandler(),
+        ).create(
+            testAggregateRouteContract(
+                handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
+                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
+            ),
+        )
+        val listHandler = ListQueryHandlerFunctionFactory(
+            handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY,
+            queryHandler = RouteTestFixtures.snapshotQueryHandler,
+            rewriteRequestCondition = DefaultRewriteRequestCondition,
+            exceptionHandler = WebFluxRequestExceptionHandler(),
+        ).create(
+            testAggregateRouteContract(
+                handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY,
+                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
+            ),
+        )
+
+        WebTestClient.bindToRouterFunction(route(POST("/count"), countHandler)).build()
+            .post().uri("/count").contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("""{"op":"MATCH_NONE"}""")
+            .exchange().expectStatus().isOk
+        WebTestClient.bindToRouterFunction(route(POST("/list"), listHandler)).build()
+            .post().uri("/list").contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("""{"filter":{"op":"MATCH_ALL"}}""")
+            .exchange().expectStatus().isOk
+    }
+
+    @Test
     fun `should extract condition via count handler`() {
         // Test condition extraction through CountQueryHandlerFunction end-to-end
         val handlerFunction = CountQueryHandlerFunctionFactory(

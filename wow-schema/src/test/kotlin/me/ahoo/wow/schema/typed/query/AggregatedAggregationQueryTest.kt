@@ -78,6 +78,20 @@ class AggregatedAggregationQueryTest {
     }
 
     @Test
+    fun `should publish only supported element filter operators`() {
+        val schema = generator.generateSchema(
+            AggregationElementFilterExpressionSchema::class.java,
+        ).asJsonSchema().actual
+        val oneOf = schema.path("definitions").path("filterExpression").path("oneOf")
+        val references = (oneOf as Iterable<tools.jackson.databind.JsonNode>)
+            .map { it.path("\$ref").stringValue().substringAfterLast('/') }
+
+        references.assert().contains("and", "eq", "between", "today", "earlierDays")
+        references.assert().doesNotContain("containsAll", "isEmpty", "deletion", "elementMatch", "search")
+        schema.path("definitions").has("search").assert().isFalse()
+    }
+
+    @Test
     fun `should expose operation-specific field enums`() {
         val elements = generator.generateSchema(
             SnapshotAggregationElements::class.java,

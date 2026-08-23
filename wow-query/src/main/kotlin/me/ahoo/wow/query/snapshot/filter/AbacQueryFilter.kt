@@ -56,7 +56,7 @@ import reactor.util.context.ContextView
  */
 @Order(ORDER_FIRST + 1)
 @FilterType(SnapshotQueryHandler::class)
-abstract class AbacQueryFilter : SnapshotQueryFilter {
+abstract class AbacQueryFilter : SnapshotQueryFilter, SnapshotAggregationQueryFilterProvider {
     companion object {
         @Deprecated("Use toFilterExpression.")
         fun Map.Entry<AbacTagKey, AbacTagValue>.toCondition(): Condition = condition {
@@ -172,6 +172,9 @@ abstract class AbacQueryFilter : SnapshotQueryFilter {
         ).setQuery(context.query.filter)
         return resolveFilter(contextView, queryContext)
     }
+
+    override fun createSnapshotAggregationQueryFilter(): SnapshotAggregationQueryFilter =
+        AggregationAbacQueryFilter(listOf(this))
 
     override fun filter(
         context: QueryContext<*, *>,

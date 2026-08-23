@@ -102,6 +102,31 @@ class ElasticsearchAggregationCompilerTest {
     }
 
     @Test
+    fun `should reject incomplete private aggregation plans`() {
+        val group = AggregationGroup.Terms("state.name", "name")
+        val metric = AggregationMetric.Numeric(
+            AggregationFunction.SUM,
+            AggregationExpression.Field("state.amount"),
+            "sum",
+        )
+        val query = AggregationQuery(groupBy = listOf(group), metrics = listOf(metric))
+        val incomplete = ElasticsearchAggregationPlan(
+            query = matchAll { it },
+            aggregationQuery = query,
+            elements = emptyList(),
+        )
+
+        assertThrows<IllegalArgumentException> {
+            ElasticsearchAggregationCompiler.compileCount(query, SnapshotConditionConverter)
+        }
+        assertThrows<IllegalStateException> { incomplete.compositeSource(group, Sort.Direction.ASC) }
+        assertThrows<IllegalStateException> { incomplete.metricAggregations() }
+        assertThrows<IllegalStateException> {
+            incomplete.metricName(metric.copy(alias = "other"))
+        }
+    }
+
+    @Test
     fun `should compile every date interval`() {
         AggregationDateUnit.entries.forEach { unit ->
             val source = AggregationGroup.DateHistogram("createdAt", "createdAt", unit)

@@ -5,16 +5,20 @@ import io.mockk.spyk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.abac.AbacTags
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.exception.WowException
+import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.query.event.EventStreamQueryService
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
+import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.mask.EventStreamDynamicDocumentMasker
 import me.ahoo.wow.query.mask.StateDynamicDocumentMasker
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryService
@@ -23,6 +27,10 @@ import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.filter.AbacQueryFilter
 import me.ahoo.wow.query.snapshot.filter.MaskingSnapshotQueryFilter
+import me.ahoo.wow.query.snapshot.filter.SnapshotAggregationQueryContext
+import me.ahoo.wow.query.snapshot.filter.SnapshotAggregationQueryFilter
+import me.ahoo.wow.query.snapshot.filter.SnapshotAggregationQueryFilterProvider
+import me.ahoo.wow.query.snapshot.filter.SnapshotQueryFilter
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.query.snapshot.filter.TailSnapshotQueryFilter
 import me.ahoo.wow.spring.boot.starter.enableWow
@@ -124,6 +132,49 @@ class QueryAutoConfigurationTest {
     }
 
     @Test
+    fun `should disable aggregation when a snapshot query filter has no aggregation policy`() {
+        contextRunner
+            .enableWow()
+            .withUserConfiguration(QueryAutoConfiguration::class.java)
+            .withBean(SnapshotQueryServiceFactory::class.java, { NoOpSnapshotQueryServiceFactory })
+            .withBean(UnsupportedAggregationPolicyFilter::class.java, { UnsupportedAggregationPolicyFilter })
+            .run { context: AssertableApplicationContext ->
+                context.getBean(SnapshotQueryHandler::class.java)
+                    .aggregate(
+                        MOCK_AGGREGATE_METADATA,
+                        AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))),
+                    )
+                    .test()
+                    .expectErrorSatisfies { error ->
+                        error.assert().isInstanceOf(UnsupportedOperationException::class.java)
+                        error.message.assert().contains(UnsupportedAggregationPolicyFilter::class.java.name)
+                    }
+                    .verify()
+            }
+    }
+
+    @Test
+    fun `should apply aggregation policy provided by a snapshot query filter`() {
+        contextRunner
+            .enableWow()
+            .withUserConfiguration(QueryAutoConfiguration::class.java)
+            .withBean(SnapshotQueryServiceFactory::class.java, { NoOpSnapshotQueryServiceFactory })
+            .withBean(AggregationAwareFilter::class.java, { AggregationAwareFilter() })
+            .run { context: AssertableApplicationContext ->
+                val policy = context.getBean(AggregationAwareFilter::class.java)
+                context.getBean(SnapshotQueryHandler::class.java)
+                    .aggregate(
+                        MOCK_AGGREGATE_METADATA,
+                        AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))),
+                    )
+                    .test()
+                    .expectNextCount(1)
+                    .verifyComplete()
+                policy.aggregationInvoked.assert().isTrue()
+            }
+    }
+
+    @Test
     fun `injected query service should enforce policies while factory remains raw`() {
         contextRunner
             .enableWow()
@@ -206,6 +257,33 @@ class QueryAutoConfigurationTest {
             dynamicDocument.getNestedDocument("state").remove(SECRET)
             return dynamicDocument
         }
+    }
+
+    internal object UnsupportedAggregationPolicyFilter : SnapshotQueryFilter {
+        override fun filter(
+            context: QueryContext<*, *>,
+            next: FilterChain<QueryContext<*, *>>,
+        ): Mono<Void> = next.filter(context)
+    }
+
+    internal class AggregationAwareFilter : SnapshotQueryFilter, SnapshotAggregationQueryFilterProvider {
+        var aggregationInvoked = false
+
+        override fun filter(
+            context: QueryContext<*, *>,
+            next: FilterChain<QueryContext<*, *>>,
+        ): Mono<Void> = next.filter(context)
+
+        override fun createSnapshotAggregationQueryFilter(): SnapshotAggregationQueryFilter =
+            object : SnapshotAggregationQueryFilter {
+                override fun filter(
+                    context: SnapshotAggregationQueryContext,
+                    next: FilterChain<SnapshotAggregationQueryContext>,
+                ): Mono<Void> {
+                    aggregationInvoked = true
+                    return next.filter(context)
+                }
+            }
     }
 
     private companion object {

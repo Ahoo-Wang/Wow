@@ -389,6 +389,7 @@ curl -X POST \
 HTTP guard 只统计用户提交的根过滤器与 Element filters。受信任的 tenant/owner/space 路由过滤器不消耗用户预算，
 并可在成本分类前约束 match-all 根过滤器；ABAC 随后执行，不改变本次分类。
 `AbacQueryFilter.resolveAggregationFilter` 是聚合专用授权扩展点；默认按返回数据的 `DYNAMIC_LIST` 语义执行，绝不会伪装成 `COUNT`。
+自定义 Snapshot `QueryFilter` 必须通过 `SnapshotAggregationQueryFilterProvider` 提供等价的聚合策略；否则聚合端点会 fail-closed，避免绕过既有授权或改写规则。
 Snapshot 配置 masker 时，聚合会在访问后端前 fail-closed。
 HTTP 层不维护重复的字段白名单；聚合元数据 Validator 统一校验集合链、字段归属和可移植类型。
 指标和分组没有脚本入口。

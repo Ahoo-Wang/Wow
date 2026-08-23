@@ -68,6 +68,19 @@ class SnapshotAggregationHandlerFunctionTest {
     }
 
     @Test
+    fun `should decode a valid aggregation wire payload`() {
+        val handler = aggregationHandler()
+
+        WebTestClient.bindToRouterFunction(route(POST("/sku/snapshot/aggregation"), handler)).build()
+            .post()
+            .uri("/sku/snapshot/aggregation")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("""{"filter":{"op":"MATCH_ALL"},"metrics":[{"type":"COUNT","alias":"count"}]}""")
+            .exchange()
+            .expectStatus().isOk
+    }
+
+    @Test
     fun `should handle json and sse aggregation requests`() {
         val handler = aggregationHandler()
         listOf(MediaType.APPLICATION_JSON, MediaType.TEXT_EVENT_STREAM).forEach { accept ->

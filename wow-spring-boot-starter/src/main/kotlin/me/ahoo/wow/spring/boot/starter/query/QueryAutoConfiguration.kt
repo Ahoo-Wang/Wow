@@ -31,17 +31,14 @@ import me.ahoo.wow.query.mask.StateDataMaskerRegistry
 import me.ahoo.wow.query.mask.StateDynamicDocumentMasker
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
-import me.ahoo.wow.query.snapshot.filter.AbacQueryFilter
-import me.ahoo.wow.query.snapshot.filter.AggregationAbacQueryFilter
 import me.ahoo.wow.query.snapshot.filter.AggregationQueryValidationFilter
 import me.ahoo.wow.query.snapshot.filter.DefaultSnapshotQueryHandler
-import me.ahoo.wow.query.snapshot.filter.MaskingSnapshotAggregationQueryFilter
 import me.ahoo.wow.query.snapshot.filter.MaskingSnapshotQueryFilter
 import me.ahoo.wow.query.snapshot.filter.SnapshotAggregationQueryContext
 import me.ahoo.wow.query.snapshot.filter.SnapshotAggregationQueryFilter
+import me.ahoo.wow.query.snapshot.filter.SnapshotAggregationQueryFilterProvider
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryFilter
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
-import me.ahoo.wow.query.snapshot.filter.TailSnapshotAggregationQueryFilter
 import me.ahoo.wow.query.snapshot.filter.TailSnapshotQueryFilter
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.query.EventStreamQueryServiceRegistrar
@@ -52,6 +49,7 @@ import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
+import reactor.core.publisher.Mono
 
 /**
  * Query AutoConfiguration .
@@ -91,15 +89,6 @@ class QueryAutoConfiguration {
     }
 
     @Bean
-    fun maskingSnapshotAggregationQueryFilter(
-        stateDataMaskerRegistry: StateDataMaskerRegistry,
-    ): SnapshotAggregationQueryFilter = MaskingSnapshotAggregationQueryFilter(stateDataMaskerRegistry)
-
-    @Bean
-    fun aggregationAbacQueryFilter(filters: List<AbacQueryFilter>): SnapshotAggregationQueryFilter =
-        AggregationAbacQueryFilter(filters)
-
-    @Bean
     fun aggregationQueryValidationFilter(): SnapshotAggregationQueryFilter = AggregationQueryValidationFilter()
 
     @Bean
@@ -113,12 +102,6 @@ class QueryAutoConfiguration {
     ): TailSnapshotQueryFilter<Any> {
         return TailSnapshotQueryFilter(snapshotQueryServiceFactory.getObject())
     }
-
-    @Bean
-    fun tailSnapshotAggregationQueryFilter(
-        snapshotQueryServiceFactory: ObjectProvider<SnapshotQueryServiceFactory>,
-    ): TailSnapshotAggregationQueryFilter =
-        TailSnapshotAggregationQueryFilter(snapshotQueryServiceFactory.getObject())
 
     @Bean
     fun tailEventStreamQueryFilter(
@@ -139,11 +122,32 @@ class QueryAutoConfiguration {
 
     @Bean
     fun snapshotAggregationQueryFilterChain(
-        filters: List<SnapshotAggregationQueryFilter>,
-    ): FilterChain<SnapshotAggregationQueryContext> =
-        FilterChainBuilder<SnapshotAggregationQueryContext>()
-            .addFilters(filters)
+        aggregationFilters: List<SnapshotAggregationQueryFilter>,
+        queryFilters: List<Filter<QueryContext<*, *>>>,
+    ): FilterChain<SnapshotAggregationQueryContext> {
+        val snapshotQueryFilters = queryFilters.filter {
+            me.ahoo.wow.filter.TypedFilterCondition(SnapshotQueryHandler::class).matches(it)
+        }
+        val unsupportedFilters = snapshotQueryFilters.filterNot {
+            it is SnapshotAggregationQueryFilterProvider
+        }
+        if (unsupportedFilters.isNotEmpty()) {
+            val names = unsupportedFilters.joinToString { it.javaClass.name }
+            return FilterChain {
+                Mono.error(
+                    UnsupportedOperationException(
+                        "Snapshot aggregation is disabled because query filters do not provide aggregation policy: [$names].",
+                    ),
+                )
+            }
+        }
+        val inheritedFilters = snapshotQueryFilters.map {
+            (it as SnapshotAggregationQueryFilterProvider).createSnapshotAggregationQueryFilter()
+        }
+        return FilterChainBuilder<SnapshotAggregationQueryContext>()
+            .addFilters(aggregationFilters + inheritedFilters)
             .build()
+    }
 
     @Bean
     fun eventStreamQueryFilterChain(

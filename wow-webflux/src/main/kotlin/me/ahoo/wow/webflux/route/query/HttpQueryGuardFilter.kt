@@ -30,6 +30,7 @@ import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.snapshot.filter.SnapshotAggregationQueryContext
 import me.ahoo.wow.query.snapshot.filter.SnapshotAggregationQueryFilter
+import me.ahoo.wow.query.snapshot.filter.SnapshotAggregationQueryFilterProvider
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.webflux.route.acceptsEventStream
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -50,7 +51,10 @@ class HttpQueryGuardFilter(
     private val idleTimeout: Duration = Duration.ofSeconds(10),
     private val maxAggregationElements: Int = 3,
     private val maxAggregationMetrics: Int = 32,
-) : QueryFilter<QueryContext<*, *>> {
+) : QueryFilter<QueryContext<*, *>>, SnapshotAggregationQueryFilterProvider {
+
+    override fun createSnapshotAggregationQueryFilter(): SnapshotAggregationQueryFilter =
+        HttpAggregationQueryGuardFilter(this)
 
     init {
         require(maxListSize >= 0) { "maxListSize must be greater than or equal to 0." }

@@ -33,7 +33,11 @@ interface SnapshotQueryFilter : QueryFilter<QueryContext<*, *>>
 @Order(ORDER_LAST)
 @FilterType(SnapshotQueryHandler::class)
 class TailSnapshotQueryFilter<S : Any>(private val queryServiceFactory: SnapshotQueryServiceFactory) :
-    SnapshotQueryFilter {
+    SnapshotQueryFilter,
+    SnapshotAggregationQueryFilterProvider {
+    override fun createSnapshotAggregationQueryFilter(): SnapshotAggregationQueryFilter =
+        TailSnapshotAggregationQueryFilter(queryServiceFactory)
+
     override fun filter(
         context: QueryContext<*, *>,
         next: FilterChain<QueryContext<*, *>>

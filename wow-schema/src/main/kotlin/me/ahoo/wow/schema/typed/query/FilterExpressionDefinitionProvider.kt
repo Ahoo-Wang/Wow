@@ -26,8 +26,47 @@ object FilterExpressionDefinitionProvider : CustomDefinitionProviderV2 {
         javaType: ResolvedType,
         context: SchemaGenerationContext,
     ): CustomDefinition? {
-        if (javaType.erasedType !in SUPPORTED_TYPES) return null
-        return CustomDefinition(WowSchemaLoader.load(FilterExpression::class.java))
+        return when (javaType.erasedType) {
+            AggregationElementFilterExpressionSchema::class.java -> CustomDefinition(
+                loadAggregationElementFilterSchema()
+            )
+            in SUPPORTED_TYPES -> CustomDefinition(WowSchemaLoader.load(FilterExpression::class.java))
+            else -> null
+        }
+    }
+
+    private fun loadAggregationElementFilterSchema() = WowSchemaLoader.load(
+        FilterExpression::class.java
+    ).also { schema ->
+        schema.remove("\$id")
+        val supportedDefinitions = setOf(
+            "matchAll", "matchNone", "and", "or", "nor",
+            "eq", "ne", "gt", "gte", "lt", "lte", "contains", "startsWith", "endsWith",
+            "in", "notIn", "between", "isNull", "isNotNull", "exists", "notExists",
+            "today", "beforeToday", "tomorrow", "thisWeek", "nextWeek", "lastWeek",
+            "thisMonth", "lastMonth", "recentDays", "earlierDays",
+        )
+        val oneOf = schema.path("definitions").path("filterExpression").path("oneOf")
+        val supported = oneOf.filter { reference ->
+            reference.path("\$ref").stringValue().substringAfterLast('/') in supportedDefinitions
+        }
+        (oneOf as tools.jackson.databind.node.ArrayNode).removeAll()
+        supported.forEach(oneOf::add)
+
+        val definitions = schema.path("definitions") as tools.jackson.databind.node.ObjectNode
+        val retainedDefinitions = mutableSetOf("filterExpression")
+        while (true) {
+            val referencedDefinitions = retainedDefinitions.flatMap { definition ->
+                definitions.path(definition).findValuesAsString("\$ref")
+                    .map { it.substringAfterLast('/') }
+                    .filter(definitions::has)
+            }
+            if (!retainedDefinitions.addAll(referencedDefinitions)) break
+        }
+        val unusedDefinitions = definitions.propertyNames()
+            .filterNot(retainedDefinitions::contains)
+            .toList()
+        definitions.remove(unusedDefinitions)
     }
 
     private val SUPPORTED_TYPES = setOf(FilterExpression::class.java, FilterExpressionSchema::class.java)
@@ -36,4 +75,9 @@ object FilterExpressionDefinitionProvider : CustomDefinitionProviderV2 {
 @Schema(name = "api.query.FilterExpression")
 sealed interface FilterExpressionSchema {
     data object MatchAll : FilterExpressionSchema
+}
+
+@Schema(name = "api.query.AggregationElementFilterExpression")
+sealed interface AggregationElementFilterExpressionSchema {
+    data object MatchAll : AggregationElementFilterExpressionSchema
 }

@@ -396,7 +396,9 @@ The HTTP guard counts only user-submitted root and Element filters. Trusted tena
 filters do not consume that budget and may scope a match-all root before cost classification; ABAC is
 applied later and does not change the classification. `AbacQueryFilter.resolveAggregationFilter`
 is the aggregation-specific authorization hook; its default delegates with data-returning
-`DYNAMIC_LIST` semantics, never `COUNT`. Aggregation fails closed before backend access when a Snapshot masker is configured.
+`DYNAMIC_LIST` semantics, never `COUNT`. A custom Snapshot `QueryFilter` must provide its equivalent
+aggregation policy through `SnapshotAggregationQueryFilterProvider`; otherwise the aggregation endpoint
+fails closed instead of bypassing existing authorization or rewrite rules. Aggregation fails closed before backend access when a Snapshot masker is configured.
 The HTTP layer does not maintain a duplicate field allowlist; the aggregation metadata Validator is
 the single authority for collection chains, field ownership, and portable types.
 Groups and metrics have no script entry point.
