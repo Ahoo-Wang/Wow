@@ -88,40 +88,6 @@ class HttpQueryGuardFilter(
         )
     }
 
-    private fun validateConditionNode(condition: Condition) {
-        if (condition.operator == Operator.ELEM_MATCH) {
-            require(condition.children.size == 1) {
-                "HTTP ELEM_MATCH condition must contain exactly one child."
-            }
-        }
-        require(allowExpensiveOperators || !condition.isExpensive()) {
-            "HTTP query operator[${condition.operator}] is disabled because expensive operators are not allowed."
-        }
-        val values = condition.value
-        if (condition.operator in LEGACY_COLLECTION_OPERATORS && values is Collection<*>) {
-            require(maxConditionValues == 0 || values.size <= maxConditionValues) {
-                "HTTP query condition values[${values.size}] must not exceed $maxConditionValues."
-            }
-        }
-    }
-
-    private fun Condition.isExpensive(): Boolean =
-        operator in LEGACY_EXPENSIVE_OPERATORS ||
-            operator == Operator.EXISTS && value == false ||
-            operator == Operator.STARTS_WITH && ((value as? String).isNullOrEmpty() || ignoreCase() == true)
-
-    private fun Condition.isMatchAll(): Boolean {
-        val values = value
-        return when (operator) {
-            Operator.ALL -> true
-            Operator.DELETED -> deletionState() == DeletionState.ALL
-            Operator.NOT_IN -> values is Collection<*> && values.isEmpty()
-            Operator.AND -> children.all { it.isMatchAll() }
-            Operator.OR -> children.any { it.isMatchAll() }
-            else -> false
-        }
-    }
-
     private fun validateList(query: IListQuery) {
         val minimum = if (maxListSize == 0) 0 else 1
         require(query.limit >= minimum && (maxListSize == 0 || query.limit <= maxListSize)) {
@@ -146,7 +112,7 @@ class HttpQueryGuardFilter(
     }
 
     private fun validateFilter(filter: FilterExpression, rejectMatchAll: Boolean) {
-        val pending = ArrayDeque<Any>()
+        val pending = ArrayDeque<FilterExpression>()
         pending.add(filter)
         var nodes = 0
         while (pending.isNotEmpty()) {
@@ -155,24 +121,13 @@ class HttpQueryGuardFilter(
             require(maxConditionNodes == 0 || nodes <= maxConditionNodes) {
                 "HTTP query condition nodes[$nodes] must not exceed $maxConditionNodes."
             }
+            validateFilterNode(current)
             when (current) {
-                is FilterExpression -> current.legacyConditionOrNull()?.let {
-                    validateConditionNode(it)
-                    pending.addAll(it.children)
-                } ?: run {
-                    validateFilterNode(current)
-                    when (current) {
-                        is AndFilter -> pending.addAll(current.operands)
-                        is OrFilter -> pending.addAll(current.operands)
-                        is NorFilter -> pending.addAll(current.operands)
-                        is ElementMatchFilter -> pending.add(current.predicate)
-                        else -> Unit
-                    }
-                }
-                is Condition -> {
-                    validateConditionNode(current)
-                    pending.addAll(current.children)
-                }
+                is AndFilter -> pending.addAll(current.operands)
+                is OrFilter -> pending.addAll(current.operands)
+                is NorFilter -> pending.addAll(current.operands)
+                is ElementMatchFilter -> pending.add(current.predicate)
+                else -> Unit
             }
         }
         require(!rejectMatchAll || !filter.isMatchAll()) {
@@ -197,7 +152,6 @@ class HttpQueryGuardFilter(
             this is StartsWithFilter && (value.isEmpty() || stringComparison == StringComparison.CASE_INSENSITIVE)
 
     private fun FilterExpression.isMatchAll(): Boolean {
-        legacyConditionOrNull()?.let { return it.isMatchAll() }
         return when (this) {
             MatchAllFilter -> true
             is DeletionFilter -> deletionState == DeletionState.ALL
@@ -211,6 +165,8 @@ class HttpQueryGuardFilter(
         is InFilter -> values.size
         is NotInFilter -> values.size
         is ContainsAllFilter -> values.size
+        is IdsFilter -> values.size
+        is AggregateIdsFilter -> values.size
         else -> null
     }
 
@@ -249,22 +205,6 @@ class HttpQueryGuardFilter(
             FilterOperator.IS_EMPTY,
             FilterOperator.CONTAINS,
             FilterOperator.ENDS_WITH,
-        )
-        val LEGACY_EXPENSIVE_OPERATORS = setOf(
-            Operator.NE,
-            Operator.NOT_IN,
-            Operator.NOR,
-            Operator.NULL,
-            Operator.NOT_NULL,
-            Operator.CONTAINS,
-            Operator.ENDS_WITH,
-        )
-        val LEGACY_COLLECTION_OPERATORS = setOf(
-            Operator.IN,
-            Operator.NOT_IN,
-            Operator.ALL_IN,
-            Operator.IDS,
-            Operator.AGGREGATE_IDS,
         )
         val COUNTING_QUERY_TYPES = setOf(QueryType.PAGED, QueryType.DYNAMIC_PAGED, QueryType.COUNT)
     }

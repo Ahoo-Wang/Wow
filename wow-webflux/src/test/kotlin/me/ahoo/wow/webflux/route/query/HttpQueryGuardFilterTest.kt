@@ -22,6 +22,7 @@ import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
+import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.IsEmptyFilter
 import me.ahoo.wow.api.query.IsNotNullFilter
 import me.ahoo.wow.api.query.ListQuery
@@ -32,6 +33,7 @@ import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.toExecutableFilter
 import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterChainBuilder
@@ -170,7 +172,7 @@ class HttpQueryGuardFilterTest {
 
     @Test
     fun `should allow unfiltered counting queries by default`() {
-        val context = countContext(Condition.ALL)
+        val context = countContext(Condition.ALL.toFilterExpression())
         HttpQueryGuardFilter(idleTimeout = Duration.ZERO).filter(
             context,
             FilterChain {
@@ -180,6 +182,20 @@ class HttpQueryGuardFilterTest {
         ).writeRawRequest(request).test().verifyComplete()
 
         context.getRequiredResult().test().expectNext(0).verifyComplete()
+    }
+
+    @Test
+    fun `metadata ids should respect max condition values`() {
+        val context = DefaultQueryContext<FilterExpression, Mono<Long>>(
+            QueryType.COUNT,
+            MOCK_AGGREGATE_METADATA,
+        ).setQuery(IdsFilter(listOf("id-1", "id-2")))
+
+        guard(maxConditionValues = 1).filter(context, unexpectedBackend())
+            .writeRawRequest(request)
+            .test()
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
     }
 
     @Test
@@ -204,41 +220,33 @@ class HttpQueryGuardFilterTest {
     }
 
     @Test
-    fun `should require one element match child`() {
-        val context = listContext(
-            ListQuery(
-                Condition.elemMatch("state.items", Condition.eq("productId", "product-1")),
-                limit = 1,
+    fun `should allow canonicalized element match`() {
+        listOf(
+            Condition.elemMatch("state.items", Condition.eq("productId", "product-1")),
+            Condition(
+                field = "state.unindexed",
+                operator = Operator.ELEM_MATCH,
+                children = listOf(Condition.ALL, Condition.eq("productId", "product-1")),
             ),
-        )
-        guard().filter(
-            context,
-            FilterChain {
-                it.asListQuery<Any>().setResult(Flux.empty())
-                Mono.empty()
-            },
-        ).writeRawRequest(request).test().verifyComplete()
-
-        guard().filter(
-            listContext(
-                ListQuery(
-                    Condition(
-                        field = "state.unindexed",
-                        operator = Operator.ELEM_MATCH,
-                        children = listOf(Condition.ALL, Condition.eq("productId", "product-1")),
+        ).forEach { condition ->
+            guard().filter(
+                listContext(
+                    ListQuery(
+                        condition,
+                        limit = 1,
                     ),
-                    limit = 1,
                 ),
-            ),
-            unexpectedBackend(),
-        ).writeRawRequest(request).test()
-            .expectError(IllegalArgumentException::class.java)
-            .verify()
+                FilterChain {
+                    it.asListQuery<Any>().setResult(Flux.empty())
+                    Mono.empty()
+                },
+            ).writeRawRequest(request).test().verifyComplete()
+        }
     }
 
     @Test
     fun `should reject unfiltered counting queries`() {
-        guard().filter(countContext(Condition.ALL), unexpectedBackend())
+        guard().filter(countContext(Condition.ALL.toFilterExpression()), unexpectedBackend())
             .writeRawRequest(request)
             .test()
             .expectError(IllegalArgumentException::class.java)
@@ -249,7 +257,7 @@ class HttpQueryGuardFilterTest {
                 Condition.or(
                     Condition.ALL,
                     Condition.eq(MessageRecords.AGGREGATE_ID, "aggregate-id"),
-                ),
+                ).toFilterExpression(),
             ),
             unexpectedBackend(),
         ).writeRawRequest(request).test()
@@ -257,21 +265,21 @@ class HttpQueryGuardFilterTest {
             .verify()
 
         guard().filter(
-            countContext(Condition.notIn(MessageRecords.AGGREGATE_ID, emptyList())),
+            countContext(Condition.notIn(MessageRecords.AGGREGATE_ID, emptyList()).toFilterExpression()),
             unexpectedBackend(),
         ).writeRawRequest(request).test()
             .expectError(IllegalArgumentException::class.java)
             .verify()
 
         guard().filter(
-            countContext(Condition.deleted(DeletionState.ALL)),
+            countContext(Condition.deleted(DeletionState.ALL).toFilterExpression()),
             unexpectedBackend(),
         ).writeRawRequest(request).test()
             .expectError(IllegalArgumentException::class.java)
             .verify()
 
         guard().filter(
-            countContext(Condition.nor(Condition.nor(Condition.ALL))),
+            countContext(Condition.nor(Condition.nor(Condition.ALL)).toFilterExpression()),
             unexpectedBackend(),
         ).writeRawRequest(request).test()
             .expectError(IllegalArgumentException::class.java)
@@ -285,7 +293,7 @@ class HttpQueryGuardFilterTest {
             Condition.ALL,
             Condition.eq(MessageRecords.AGGREGATE_ID, "aggregate-id"),
         )
-        guard().filter(countContext(scopedCondition), countBackend)
+        guard().filter(countContext(scopedCondition.toFilterExpression()), countBackend)
             .writeRawRequest(request)
             .test()
             .verifyComplete()
@@ -471,19 +479,19 @@ class HttpQueryGuardFilterTest {
         DefaultQueryContext<IListQuery, Flux<Any>>(
             QueryType.LIST,
             MOCK_AGGREGATE_METADATA,
-        ).setQuery(query)
+        ).setQuery(query.withFilter(query.filter.toExecutableFilter()))
 
     private fun pagedContext(query: IPagedQuery): QueryContext<IPagedQuery, Mono<PagedList<Any>>> =
         DefaultQueryContext<IPagedQuery, Mono<PagedList<Any>>>(
             QueryType.PAGED,
             MOCK_AGGREGATE_METADATA,
-        ).setQuery(query)
+        ).setQuery(query.withFilter(query.filter.toExecutableFilter()))
 
-    private fun countContext(condition: Condition): QueryContext<FilterExpression, Mono<Long>> =
+    private fun countContext(filter: FilterExpression): QueryContext<FilterExpression, Mono<Long>> =
         DefaultQueryContext<FilterExpression, Mono<Long>>(
             QueryType.COUNT,
             MOCK_AGGREGATE_METADATA,
-        ).setQuery(condition.toFilterExpression())
+        ).setQuery(filter.toExecutableFilter())
 
     private fun unexpectedBackend(): FilterChain<QueryContext<*, *>> = FilterChain {
         error("Backend must not be invoked.")

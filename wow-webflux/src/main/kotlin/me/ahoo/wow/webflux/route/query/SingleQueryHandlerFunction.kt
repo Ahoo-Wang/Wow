@@ -32,7 +32,7 @@ import reactor.core.publisher.Mono
 class SingleQueryHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val queryHandler: QueryHandler<*>,
-    private val rewriteRequestCondition: RewriteRequestCondition,
+    private val rewriteRequestCondition: RewriteRequestFilter,
     private val exceptionHandler: RequestExceptionHandler,
     private val rewriteResult: (Mono<DynamicDocument>) -> Mono<DynamicDocument>
 ) : HandlerFunction<ServerResponse> {
@@ -52,7 +52,7 @@ class SingleQueryHandlerFunction(
 open class SingleQueryHandlerFunctionFactory(
     handlerKey: String,
     private val queryHandler: QueryHandler<*>,
-    private val rewriteRequestCondition: RewriteRequestCondition,
+    private val rewriteRequestCondition: RewriteRequestFilter,
     private val exceptionHandler: RequestExceptionHandler,
     private val rewriteResult: (Mono<DynamicDocument>) -> Mono<DynamicDocument> = { it }
 ) : AggregateRouteHandlerFunctionFactorySupport(handlerKey) {

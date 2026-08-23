@@ -14,13 +14,13 @@
 package me.ahoo.wow.webflux.route.query
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.MatchAllFilter
-import me.ahoo.wow.api.query.RewritableCondition
 import me.ahoo.wow.api.query.SearchFilter
-import me.ahoo.wow.api.query.toCondition
+import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
@@ -107,21 +107,23 @@ class DefaultRewriteRequestConditionTest {
 
     @Suppress("DEPRECATION")
     @Test
-    fun `new filter rewrite should delegate to a legacy implementation`() {
-        val legacy = object : RewriteRequestCondition {
-            override fun <Q : RewritableCondition<Q>> rewrite(
+    fun `deprecated rewrite name should use typed implementation`() {
+        val rewrite = object : RewriteRequestCondition {
+            override fun rewrite(
                 aggregateMetadata: me.ahoo.wow.modeling.metadata.AggregateMetadata<*, *>,
                 request: org.springframework.web.reactive.function.server.ServerRequest,
-                rewritableCondition: Q,
-            ): Q = rewritableCondition.appendCondition(Condition.eq("legacy", true))
+                filter: me.ahoo.wow.api.query.FilterExpression,
+            ) = AndFilter(
+                listOf(filter, TenantIdFilter("tenant-1")),
+            )
         }
 
-        val rewritten = legacy.rewrite(
+        val rewritten = rewrite.rewrite(
             MOCK_AGGREGATE_METADATA,
             MockServerRequest.builder().build(),
-            MatchAllFilter,
+            ListQuery(MatchAllFilter),
         )
 
-        rewritten.toCondition().assert().isEqualTo(Condition.eq("legacy", true))
+        rewritten.filter.assert().isEqualTo(AndFilter(listOf(MatchAllFilter, TenantIdFilter("tenant-1"))))
     }
 }

@@ -32,7 +32,7 @@ import reactor.core.publisher.Mono
 class ListQueryHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val queryHandler: QueryHandler<*>,
-    private val rewriteRequestCondition: RewriteRequestCondition,
+    private val rewriteRequestCondition: RewriteRequestFilter,
     private val exceptionHandler: RequestExceptionHandler,
     private val rewriteResult: (Flux<DynamicDocument>) -> Flux<DynamicDocument>
 ) : HandlerFunction<ServerResponse> {
@@ -51,7 +51,7 @@ class ListQueryHandlerFunction(
 open class ListQueryHandlerFunctionFactory(
     handlerKey: String,
     private val queryHandler: QueryHandler<*>,
-    private val rewriteRequestCondition: RewriteRequestCondition,
+    private val rewriteRequestCondition: RewriteRequestFilter,
     private val exceptionHandler: RequestExceptionHandler,
     private val rewriteResult: (Flux<DynamicDocument>) -> Flux<DynamicDocument> = { it }
 ) : AggregateRouteHandlerFunctionFactorySupport(handlerKey) {

@@ -17,11 +17,11 @@ import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.query.PagedQueryHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.query.RewriteRequestCondition
+import me.ahoo.wow.webflux.route.query.RewriteRequestFilter
 
 class PagedQueryEventStreamHandlerFunctionFactory(
     eventStreamQueryHandler: EventStreamQueryHandler,
-    rewriteRequestCondition: RewriteRequestCondition,
+    rewriteRequestCondition: RewriteRequestFilter,
     exceptionHandler: RequestExceptionHandler
 ) : PagedQueryHandlerFunctionFactory(
     handlerKey = BuiltInHttpRouteHandlerKeys.Event.PAGED_QUERY,

@@ -17,11 +17,11 @@ import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.query.CountQueryHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.query.RewriteRequestCondition
+import me.ahoo.wow.webflux.route.query.RewriteRequestFilter
 
 class CountSnapshotHandlerFunctionFactory(
     snapshotQueryHandler: SnapshotQueryHandler,
-    rewriteRequestCondition: RewriteRequestCondition,
+    rewriteRequestCondition: RewriteRequestFilter,
     exceptionHandler: RequestExceptionHandler
 ) : CountQueryHandlerFunctionFactory(
     handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,

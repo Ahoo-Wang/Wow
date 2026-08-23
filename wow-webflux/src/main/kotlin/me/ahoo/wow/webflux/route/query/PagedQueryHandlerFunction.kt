@@ -32,7 +32,7 @@ import reactor.core.publisher.Mono
 class PagedQueryHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val queryHandler: QueryHandler<*>,
-    private val rewriteRequestCondition: RewriteRequestCondition,
+    private val rewriteRequestCondition: RewriteRequestFilter,
     private val exceptionHandler: RequestExceptionHandler,
     private val rewriteResult: (Mono<PagedList<DynamicDocument>>) -> Mono<PagedList<DynamicDocument>>
 ) : HandlerFunction<ServerResponse> {
@@ -51,7 +51,7 @@ class PagedQueryHandlerFunction(
 open class PagedQueryHandlerFunctionFactory(
     handlerKey: String,
     private val queryHandler: QueryHandler<*>,
-    private val rewriteRequestCondition: RewriteRequestCondition,
+    private val rewriteRequestCondition: RewriteRequestFilter,
     private val exceptionHandler: RequestExceptionHandler,
     private val rewriteResult: (Mono<PagedList<DynamicDocument>>) -> Mono<PagedList<DynamicDocument>> = { it }
 ) : AggregateRouteHandlerFunctionFactorySupport(handlerKey) {
