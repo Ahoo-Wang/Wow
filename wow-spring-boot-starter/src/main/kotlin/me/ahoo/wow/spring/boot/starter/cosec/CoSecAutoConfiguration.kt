@@ -19,7 +19,7 @@ import me.ahoo.wow.cosec.query.CoSecRewriteRequestCondition
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestHeaderAppender
 import me.ahoo.wow.webflux.route.command.extractor.CommandBuilderExtractor
-import me.ahoo.wow.webflux.route.query.RewriteRequestCondition
+import me.ahoo.wow.webflux.route.query.RewriteRequestFilter
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.context.annotation.Bean
@@ -40,7 +40,7 @@ class CoSecAutoConfiguration {
     }
 
     @Bean
-    fun coSecRewriteRequestCondition(): RewriteRequestCondition {
+    fun coSecRewriteRequestCondition(): RewriteRequestFilter {
         return CoSecRewriteRequestCondition
     }
 }

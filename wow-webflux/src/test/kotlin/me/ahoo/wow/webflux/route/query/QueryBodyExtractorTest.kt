@@ -189,14 +189,16 @@ class QueryBodyExtractorTest {
             )
         )
 
-        WebTestClient.bindToRouterFunction(route(POST("/sku/snapshot/count"), handlerFunction)).build()
-            .post()
-            .uri("/sku/snapshot/count")
-            .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue("""{"op":"EQ","field":"state.tags","value":["a","b"]}""")
-            .exchange()
-            .expectStatus().isBadRequest
-            .expectHeader().valueEquals(ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
+        val client = WebTestClient.bindToRouterFunction(route(POST("/sku/snapshot/count"), handlerFunction)).build()
+        listOf("EQ", "NE").forEach { operator ->
+            client.post()
+                .uri("/sku/snapshot/count")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("""{"op":"$operator","field":"state.tags","value":["a","b"]}""")
+                .exchange()
+                .expectStatus().isBadRequest
+                .expectHeader().valueEquals(ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
+        }
     }
 
     @Test

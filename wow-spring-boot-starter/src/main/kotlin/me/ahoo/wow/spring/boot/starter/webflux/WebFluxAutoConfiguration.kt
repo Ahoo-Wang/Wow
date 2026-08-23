@@ -62,7 +62,7 @@ import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
 import me.ahoo.wow.webflux.route.query.DefaultRewriteRequestCondition
 import me.ahoo.wow.webflux.route.query.HttpQueryGuardFilter
-import me.ahoo.wow.webflux.route.query.RewriteRequestCondition
+import me.ahoo.wow.webflux.route.query.RewriteRequestFilter
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
@@ -190,7 +190,7 @@ class WebFluxAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    fun rewriteRequestCondition(): RewriteRequestCondition {
+    fun rewriteRequestCondition(): RewriteRequestFilter {
         return DefaultRewriteRequestCondition
     }
 
@@ -238,7 +238,7 @@ class WebFluxAutoConfiguration {
     fun queryRouteModule(
         snapshotQueryHandler: SnapshotQueryHandler,
         eventStreamQueryHandler: EventStreamQueryHandler,
-        rewriteRequestCondition: RewriteRequestCondition,
+        rewriteRequestCondition: RewriteRequestFilter,
         exceptionHandler: RequestExceptionHandler
     ): QueryRouteModule {
         return QueryRouteModule(
