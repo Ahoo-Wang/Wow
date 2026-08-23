@@ -14,12 +14,12 @@ KSP 元数据生成 → Spring 自动装配 → HTTP 命令 → 聚合处理 →
 
 ## 版本基线
 
-以下版本与当前 Wow `8.11.0` 源码基线一致：
+以下版本与当前 Wow `8.11.1` 源码基线一致：
 
 | 组件 | 版本 |
 | --- | --- |
 | JDK | 17+ |
-| Wow | `8.11.0` |
+| Wow | `8.11.1` |
 | Spring Boot | `4.1.1` |
 | Kotlin | `2.4.10` |
 | KSP | `2.3.11` |
@@ -51,8 +51,8 @@ repositories {
 
 dependencies {
     implementation(platform("org.springframework.boot:spring-boot-dependencies:4.1.1"))
-    implementation(platform("me.ahoo.wow:wow-bom:8.11.0"))
-    ksp(platform("me.ahoo.wow:wow-bom:8.11.0"))
+    implementation(platform("me.ahoo.wow:wow-bom:8.11.1"))
+    ksp(platform("me.ahoo.wow:wow-bom:8.11.1"))
 
     ksp("me.ahoo.wow:wow-compiler")
     implementation("me.ahoo.wow:wow-spring-boot-starter")
