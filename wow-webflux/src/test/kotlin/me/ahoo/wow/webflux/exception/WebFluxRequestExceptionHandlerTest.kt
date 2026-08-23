@@ -17,10 +17,13 @@ import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Logger
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.read.ListAppender
+import io.mockk.every
+import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.slf4j.LoggerFactory
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
+import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 
 class WebFluxRequestExceptionHandlerTest {
@@ -40,12 +43,15 @@ class WebFluxRequestExceptionHandlerTest {
         val warnings = captureWarnings {
             WebFluxRequestExceptionHandler().handle(
                 MockServerRequest.builder().build(),
-                IllegalArgumentException("invalid request"),
+                IllegalArgumentException("invalid\r\nrequest"),
             ).block()
         }
 
         warnings.assert().hasSize(1)
-        warnings.single().formattedMessage.assert().contains("invalid request")
+        warnings.single().formattedMessage.assert()
+            .contains("invalid  request")
+            .doesNotContain("\r")
+            .doesNotContain("\n")
         warnings.single().throwableProxy.assert().isNull()
     }
 
@@ -59,6 +65,42 @@ class WebFluxRequestExceptionHandlerTest {
         }
 
         warnings.assert().hasSize(1)
+        warnings.single().throwableProxy.assert().isNotNull()
+    }
+
+    @Test
+    fun `should retain original exception when error response is empty`() {
+        val errorStrategy = mockk<WebFluxErrorStrategy> {
+            every { toServerResponse(any(), any()) } returns Mono.empty()
+        }
+        val warnings = captureWarnings {
+            WebFluxRequestExceptionHandler(errorStrategy).handle(
+                MockServerRequest.builder().build(),
+                IllegalArgumentException("invalid request"),
+            ).test().verifyComplete()
+        }
+
+        warnings.assert().hasSize(1)
+        warnings.single().throwableProxy.assert().isNotNull()
+    }
+
+    @Test
+    fun `should retain original exception when error response fails`() {
+        val errorStrategy = mockk<WebFluxErrorStrategy> {
+            every { toServerResponse(any(), any()) } returns Mono.error(IllegalStateException("render\r\nfailed"))
+        }
+        val warnings = captureWarnings {
+            WebFluxRequestExceptionHandler(errorStrategy).handle(
+                MockServerRequest.builder().build(),
+                IllegalArgumentException("invalid request"),
+            ).test().expectErrorMessage("render\r\nfailed").verify()
+        }
+
+        warnings.assert().hasSize(1)
+        warnings.single().formattedMessage.assert()
+            .contains("render  failed")
+            .doesNotContain("\r")
+            .doesNotContain("\n")
         warnings.single().throwableProxy.assert().isNotNull()
     }
 

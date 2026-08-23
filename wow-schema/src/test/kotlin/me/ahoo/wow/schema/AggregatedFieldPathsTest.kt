@@ -42,6 +42,16 @@ class AggregatedFieldPathsTest {
     }
 
     @Test
+    fun `should use Jackson names for JavaBean field paths`() {
+        val paths = JavaBeanFieldPathFixture::class.allFieldPaths(parentName = "state")
+
+        paths.assert()
+            .contains("state.display_name")
+            .contains("state.frozen")
+            .doesNotContain("state.name")
+    }
+
+    @Test
     fun `should follow aggregate id serialized field paths`() {
         val paths = AggregateIdFixture::class.allFieldPaths(parentName = "state")
 

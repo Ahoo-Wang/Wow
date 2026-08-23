@@ -32,12 +32,26 @@ class WebFluxRequestExceptionHandler(
     }
 
     override fun handle(request: ServerRequest, throwable: Throwable): Mono<ServerResponse> {
-        return errorStrategy.toServerResponse(request, throwable).doOnNext { response ->
-            if (response.statusCode().is4xxClientError) {
-                log.warn { "${request.formatRequest()} - ${throwable.message.orEmpty()}" }
-            } else {
-                log.warn(throwable) { request.formatRequest() }
+        return Mono.defer { errorStrategy.toServerResponse(request, throwable) }
+            .doOnNext { response ->
+                if (response.statusCode().is4xxClientError) {
+                    log.warn { "${request.formatRequest()} - ${throwable.singleLineMessage()}" }
+                } else {
+                    log.warn(throwable) { request.formatRequest() }
+                }
             }
-        }
+            .switchIfEmpty(
+                Mono.defer {
+                    log.warn(throwable) { "${request.formatRequest()} - Error response was empty." }
+                    Mono.empty()
+                }
+            ).doOnError { responseFailure ->
+                log.warn(throwable) {
+                    "${request.formatRequest()} - Failed to render error response: " +
+                        responseFailure.singleLineMessage()
+                }
+            }
     }
+
+    private fun Throwable.singleLineMessage(): String = message.orEmpty().replace('\r', ' ').replace('\n', ' ')
 }

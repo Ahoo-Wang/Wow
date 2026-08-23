@@ -13,22 +13,20 @@
 
 package me.ahoo.wow.schema
 
-import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.schema.TypeFieldPaths.allFieldPaths
 import me.ahoo.wow.schema.Types.isStdType
+import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
+import me.ahoo.wow.serialization.toBeanDescription
+import tools.jackson.databind.JavaType
+import tools.jackson.databind.introspect.BeanPropertyDefinition
 import kotlin.reflect.KClass
-import kotlin.reflect.KProperty1
-import kotlin.reflect.KVisibility
 import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.isSubclassOf
-import kotlin.reflect.full.memberProperties
-import kotlin.reflect.jvm.jvmErasure
 
 /**
  * Utility object to handle state field paths.
@@ -57,7 +55,7 @@ object TypeFieldPaths {
         if (fields.isNotEmpty()) {
             fieldPaths.addAll(fields)
         }
-        allFieldPathsInternal(fieldPaths, parentName, 1, maxDepth)
+        JsonSerializer.constructType(java).allFieldPathsInternal(fieldPaths, parentName, 1, maxDepth)
         return fieldPaths
     }
 
@@ -69,7 +67,7 @@ object TypeFieldPaths {
      * @param depth The current nested-property depth.
      * @param maxDepth The maximum nested-property depth to inspect.
      */
-    private fun KClass<*>.allFieldPathsInternal(
+    private fun JavaType.allFieldPathsInternal(
         fieldPaths: LinkedHashSet<String>,
         parentName: String,
         depth: Int,
@@ -78,7 +76,8 @@ object TypeFieldPaths {
         if (depth > maxDepth) {
             return
         }
-        if (isSubclassOf(AggregateId::class)) {
+        val kotlinType = rawClass.kotlin
+        if (kotlinType.isSubclassOf(AggregateId::class)) {
             listOf(
                 MessageRecords.CONTEXT_NAME,
                 MessageRecords.AGGREGATE_NAME,
@@ -88,11 +87,10 @@ object TypeFieldPaths {
                 fieldPaths.add(resolveFieldName(parentName, field))
             }
         }
-        val jsonSubTypes = this.findAnnotation<JsonSubTypes>()
+        val jsonSubTypes = kotlinType.findAnnotation<JsonSubTypes>()
         if (jsonSubTypes != null) {
             for (jsonSubType in jsonSubTypes.value) {
-                val subType = jsonSubType.value
-                subType.allFieldPathsInternal(
+                JsonSerializer.constructType(jsonSubType.value.java).allFieldPathsInternal(
                     fieldPaths = fieldPaths,
                     parentName = parentName,
                     depth = depth,
@@ -102,31 +100,19 @@ object TypeFieldPaths {
             return
         }
 
-        memberProperties.filter {
-            it.visibility == KVisibility.PUBLIC &&
-                it.isConst.not() &&
-                it.scanAnnotation<JsonIgnore>()?.value != true
-        }.forEach { property ->
-            val fullName = property.resolveFieldName(parentName)
-            fieldPaths.add(fullName)
-            val nestedType = property.resolveNestedType() ?: return@forEach
-            nestedType.allFieldPathsInternal(
-                fieldPaths = fieldPaths,
-                parentName = fullName,
-                depth = depth + 1,
-                maxDepth = maxDepth
-            )
-        }
-    }
-
-    /**
-     * Resolves the full field name including the parent name.
-     *
-     * @param parentName The name of the parent field.
-     * @return The full field name.
-     */
-    private fun KProperty1<*, *>.resolveFieldName(parentName: String): String {
-        return resolveFieldName(parentName, name)
+        toBeanDescription().findProperties().asSequence()
+            .filter(BeanPropertyDefinition::couldSerialize)
+            .forEach { property ->
+                val fullName = resolveFieldName(parentName, property.name)
+                fieldPaths.add(fullName)
+                val nestedType = property.primaryType.resolveNestedType() ?: return@forEach
+                nestedType.allFieldPathsInternal(
+                    fieldPaths = fieldPaths,
+                    parentName = fullName,
+                    depth = depth + 1,
+                    maxDepth = maxDepth
+                )
+            }
     }
 
     private fun resolveFieldName(parentName: String, fieldName: String): String =
@@ -137,15 +123,14 @@ object TypeFieldPaths {
      *
      * @return The nested type if it's not a standard type, otherwise null.
      */
-    private fun KProperty1<*, *>.resolveNestedType(): KClass<*>? {
-        val returnKClass = returnType.jvmErasure
-        val nestedType = if (returnKClass.isSubclassOf(Collection::class) || returnKClass.java.isArray) {
-            returnType.arguments.firstOrNull()?.type?.jvmErasure ?: return null
+    private fun JavaType.resolveNestedType(): JavaType? {
+        val nestedType = if (isCollectionLikeType || isArrayType) {
+            contentType ?: return null
         } else {
-            returnType.jvmErasure
+            this
         }
 
-        if (nestedType.java.isStdType()) {
+        if (nestedType.rawClass.isStdType()) {
             return null
         }
         return nestedType
