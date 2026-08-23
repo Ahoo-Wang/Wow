@@ -126,6 +126,7 @@ class AggregatedAggregationQueryTest {
         val lines = element("state.orders.lines")
         fields(definition(lines, "contains")).assert().containsExactly("state.orders.lines.sku")
         fields(definition(orders, "isNull")).assert().containsExactly("state.orders.status", "state.orders.amount")
+        definition(lines, "todayShape").path("properties").has("datePattern").assert().isFalse()
 
         val lineExact = definition(lines, "eqShape").path("oneOf").nodes()
         fields(

@@ -166,6 +166,7 @@ class AggregationQueryValidatorTest {
             filter { "state.orders.shipping".exists() },
             filter { "state.orders.shipping".isEmptyCollection() },
             filter { "state.orders.status".today() },
+            filter { "state.orders.createdAt".today(datePattern = "yyyy-MM-dd") },
         ).forEach { elementFilter ->
             assertThrows<IllegalArgumentException> { aggregation(elementFilter).validate() }
         }

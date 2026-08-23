@@ -107,6 +107,9 @@ private fun FilterExpression.validateElementFilter(
     require(resolved.collectionPaths == elementPaths) {
         "Aggregation element filter field [$field] must not traverse an undeclared collection."
     }
+    require(this !is RelativeTimeFilter || resolvedDateFormatter() == null) {
+        "Aggregation element relative-time filters do not support custom date patterns."
+    }
     require(resolved.supportsElementFilter(this)) {
         "Aggregation element filter [$operator] does not support field [$field] of type [${resolved.type.rawClass.name}]."
     }

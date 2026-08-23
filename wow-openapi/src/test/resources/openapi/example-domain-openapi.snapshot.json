@@ -5195,10 +5195,6 @@
           "element1_beforeToday" : {
             "additionalProperties" : false,
             "properties" : {
-              "datePattern" : {
-                "minLength" : 1,
-                "type" : "string"
-              },
               "field" : {
                 "enum" : [ "state.orders.lines.createdAt" ],
                 "type" : "string"
@@ -5282,10 +5278,6 @@
           "element1_earlierDays" : {
             "additionalProperties" : false,
             "properties" : {
-              "datePattern" : {
-                "minLength" : 1,
-                "type" : "string"
-              },
               "days" : {
                 "minimum" : 1,
                 "type" : "integer"
@@ -5631,10 +5623,6 @@
           "element1_lastMonthShape" : {
             "additionalProperties" : false,
             "properties" : {
-              "datePattern" : {
-                "minLength" : 1,
-                "type" : "string"
-              },
               "field" : {
                 "enum" : [ "state.orders.lines.createdAt" ],
                 "type" : "string"
@@ -5656,10 +5644,6 @@
           "element1_lastWeekShape" : {
             "additionalProperties" : false,
             "properties" : {
-              "datePattern" : {
-                "minLength" : 1,
-                "type" : "string"
-              },
               "field" : {
                 "enum" : [ "state.orders.lines.createdAt" ],
                 "type" : "string"
@@ -5831,10 +5815,6 @@
           "element1_nextWeekShape" : {
             "additionalProperties" : false,
             "properties" : {
-              "datePattern" : {
-                "minLength" : 1,
-                "type" : "string"
-              },
               "field" : {
                 "enum" : [ "state.orders.lines.createdAt" ],
                 "type" : "string"
@@ -5964,10 +5944,6 @@
           "element1_recentDays" : {
             "additionalProperties" : false,
             "properties" : {
-              "datePattern" : {
-                "minLength" : 1,
-                "type" : "string"
-              },
               "days" : {
                 "minimum" : 1,
                 "type" : "integer"
@@ -6018,10 +5994,6 @@
           "element1_thisMonthShape" : {
             "additionalProperties" : false,
             "properties" : {
-              "datePattern" : {
-                "minLength" : 1,
-                "type" : "string"
-              },
               "field" : {
                 "enum" : [ "state.orders.lines.createdAt" ],
                 "type" : "string"
@@ -6043,10 +6015,6 @@
           "element1_thisWeekShape" : {
             "additionalProperties" : false,
             "properties" : {
-              "datePattern" : {
-                "minLength" : 1,
-                "type" : "string"
-              },
               "field" : {
                 "enum" : [ "state.orders.lines.createdAt" ],
                 "type" : "string"
@@ -6068,10 +6036,6 @@
           "element1_todayShape" : {
             "additionalProperties" : false,
             "properties" : {
-              "datePattern" : {
-                "minLength" : 1,
-                "type" : "string"
-              },
               "field" : {
                 "enum" : [ "state.orders.lines.createdAt" ],
                 "type" : "string"
@@ -6093,10 +6057,6 @@
           "element1_tomorrowShape" : {
             "additionalProperties" : false,
             "properties" : {
-              "datePattern" : {
-                "minLength" : 1,
-                "type" : "string"
-              },
               "field" : {
                 "enum" : [ "state.orders.lines.createdAt" ],
                 "type" : "string"

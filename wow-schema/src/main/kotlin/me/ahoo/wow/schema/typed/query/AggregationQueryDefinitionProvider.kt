@@ -221,6 +221,9 @@ object AggregationQueryDefinitionProvider : CustomDefinitionProviderV2 {
         definitions.setFieldEnums(listOf("contains", "startsWith", "endsWith"), textualPaths)
         definitions.setFieldEnums(listOf("isNull", "isNotNull", "exists", "notExists"), scalarPaths)
         definitions.setFieldEnums(RELATIVE_TIME_DEFINITIONS, temporalPaths)
+        RELATIVE_TIME_DEFINITIONS.forEach { name ->
+            (definitions.path(name).path("properties") as ObjectNode).remove("datePattern")
+        }
         RANGE_DEFINITIONS.forEach { name ->
             definitions.set(name, definitions.path(name).rangeVariants(numericPaths, stringRangePaths))
         }

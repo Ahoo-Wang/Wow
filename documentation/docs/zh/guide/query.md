@@ -275,8 +275,8 @@ aggregationQuery {
 `type` 是 Group、Metric 和 Expression 的 Jackson discriminator。
 这个新聚合端点只接受 `filter`，旧 `condition` 请求会被拒绝。
 生成的 OpenAPI 会分别给出 Elements、Terms、Numeric 与 Temporal 字段枚举，避免客户端选择运行时必然拒绝的字段类型。
-以下示例包含 Elements 和指标排序，调用前需设置
-`wow.webflux.query.allow-expensive-operators=true`；默认配置会拒绝该请求。
+以下示例包含 Elements 和指标排序，因此被归类为高成本请求。默认配置允许该请求；如需拒绝此类请求，
+请设置 `wow.webflux.query.allow-expensive-operators=false`。
 
 ::: code-group
 
@@ -360,6 +360,7 @@ curl -X POST \
 - `groupBy`、指标及表达式字段必须属于最内层来源，不能隐式访问父级、兄弟或未展开的子集合。
 - 每层 `AggregationElement.filter` 只能访问该层标量字段或非集合对象下的标量后代，不能直接过滤对象路径，也不能使用 `ELEMENT_MATCH`、`SEARCH` 或 `DELETION`。
 - 精确匹配、集合匹配与范围操作符都会校验 literal 类型：数值字段使用 JSON number，时间/文本/UUID/枚举字段使用 JSON string，Boolean 字段使用 JSON boolean；null 判断必须使用 `IS_NULL`/`IS_NOT_NULL`。字符串操作符只接受文本字段，相对时间操作符只接受时间字段。
+- Element 相对时间过滤器使用标准序列化的时间值并允许指定 `zoneId`；自定义 `datePattern` 无法在 MongoDB 与 Elasticsearch 之间保证可移植执行，因此会被拒绝。
 - OpenAPI 会发布完整的合法 Elements 链，并按最内层来源与操作符类型收窄 Element filter、groupBy 和 metric 字段枚举；客户端不会把跳层、逆序、重复、父级、兄弟或错误类型字段提示为合法组合。
 - 根 `ELEMENT_MATCH` 只筛选“包含匹配元素的快照”，不会筛选随后展开的行；行过滤必须写入对应 Element filter。
 - 缺失、`null`、空集合及集合中的 `null` 成员都不产生展开行；任一分组字段缺失或为 `null` 时，该行不进入 bucket。
@@ -400,8 +401,8 @@ curl -X POST \
 | 根过滤器与全部 Element filters | — | 合计最多 `max-condition-nodes=64` 个节点 |
 
 将 `max-aggregation-elements`、`max-aggregation-metrics` 或 `max-list-size` 设为 `0`
-只会关闭对应 HTTP 上限，公共模型硬上限仍然生效。以下请求还要求
-`allow-expensive-operators=true`：
+只会关闭对应 HTTP 上限，公共模型硬上限仍然生效。以下请求会被归类为高成本请求，并在
+`allow-expensive-operators=false` 时被拒绝：
 
 - 包含任意 Elements；
 - 根过滤器在受信任的 tenant/owner/space 路由过滤后仍为 match-all；

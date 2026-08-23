@@ -48,6 +48,8 @@ import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 import java.time.Clock
 import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
 
 abstract class SnapshotQueryServiceSpec {
     lateinit var snapshotStore: SnapshotStore
@@ -461,6 +463,34 @@ abstract class SnapshotQueryServiceSpec {
                 rows.map { it.getValue<Boolean>("cancelled") to it.getValue<Long>("count") }.assert()
                     .containsExactly(false to 2L, true to 1L)
             }
+            .verifyComplete()
+    }
+
+    @Test
+    fun aggregateElementsShouldFilterRelativeTime() {
+        val today = LocalDate.now(ZoneOffset.UTC).atStartOfDay(ZoneOffset.UTC).toInstant().plusSeconds(43_200)
+        snapshot.state.orders = listOf(
+            MockOrder(
+                status = "PAID",
+                amount = 10.0,
+                lines = listOf(MockOrderLine("TODAY", 1, 10.0, false, today)),
+            ),
+        )
+        snapshotStore.save(snapshot).test().verifyComplete()
+
+        snapshotQueryService.aggregate(
+            AggregationQuery(
+                elements = listOf(
+                    AggregationElement("state.orders"),
+                    AggregationElement(
+                        "state.orders.lines",
+                        filter { "state.orders.lines.createdAt".today(ZoneOffset.UTC) },
+                    ),
+                ),
+                metrics = listOf(AggregationMetric.Count("count")),
+            ),
+        ).test()
+            .assertNext { row -> row.getValue<Long>("count").assert().isOne() }
             .verifyComplete()
     }
 }

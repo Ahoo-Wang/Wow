@@ -278,9 +278,9 @@ Expression.
 This new aggregation endpoint accepts `filter` only; legacy `condition` payloads are rejected.
 Generated OpenAPI publishes separate Elements, Terms, Numeric, and Temporal field enums so clients
 cannot select a field type that runtime validation would always reject.
-The following example contains Elements and metric ordering, so set
-`wow.webflux.query.allow-expensive-operators=true` before calling it; the default configuration
-rejects this request.
+The following example contains Elements and metric ordering, so it is classified as expensive.
+The default configuration allows it; set `wow.webflux.query.allow-expensive-operators=false`
+to reject this class of request.
 
 ::: code-group
 
@@ -365,6 +365,7 @@ identical to the JSON response.
 - `groupBy`, metric, and expression fields must belong to the innermost source. They cannot implicitly access a parent, sibling, or unexpanded child collection.
 - Each `AggregationElement.filter` may reference only scalar fields in that element, including scalar descendants of non-collection objects. It cannot target an object path directly or use `ELEMENT_MATCH`, `SEARCH`, or `DELETION`.
 - Exact, membership, and range operators validate literal types: numeric fields use JSON numbers; temporal, textual, UUID, and enum fields use JSON strings; Boolean fields use JSON booleans. Null checks must use `IS_NULL`/`IS_NOT_NULL`. String operators require textual fields, and relative-time operators require temporal fields.
+- Element relative-time filters use the standard serialized temporal value and may specify `zoneId`; custom `datePattern` values are rejected because they cannot be executed portably across MongoDB and Elasticsearch.
 - OpenAPI publishes complete valid Elements chains and narrows Element filter, groupBy, and metric field enums by the innermost source and operator type, so clients do not offer skipped, reversed, repeated, parent, sibling, or incorrectly typed combinations.
 - A root `ELEMENT_MATCH` filters snapshots containing a match; it does not filter rows produced by expansion. Put row filters in the corresponding Element filter.
 - Missing, `null`, and empty collections, including `null` collection members, produce no expanded rows. A row with any missing or `null` group field produces no bucket.
@@ -406,8 +407,8 @@ are rejected. Any non-finite Numeric metric result fails the whole query.
 | Root plus all Element filters | — | At most `max-condition-nodes=64` nodes in total |
 
 Setting `max-aggregation-elements`, `max-aggregation-metrics`, or `max-list-size` to `0`
-disables that HTTP cap only; public hard limits still apply. The following requests also require
-`allow-expensive-operators=true`:
+disables that HTTP cap only; public hard limits still apply. The following requests are classified
+as expensive and are rejected when `allow-expensive-operators=false`:
 
 - any Elements expansion;
 - a root filter that remains match-all after trusted tenant/owner/space route scoping;
