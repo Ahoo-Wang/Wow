@@ -31,7 +31,7 @@ description: Query snapshots and event streams with FilterExpression, the query 
 | String | `CONTAINS`, `STARTS_WITH`, `ENDS_WITH` | `field`, `value`, `stringComparison` | `stringComparison` defaults to `CASE_SENSITIVE` |
 | Collection | `IN`, `NOT_IN`, `CONTAINS_ALL` | `field`, `values` | `values` must be non-empty and cannot contain `null` |
 | Range | `BETWEEN` | `field`, `lowerBound`, `upperBound` | Both bounds are inclusive |
-| Empty, null, and existence | `IS_EMPTY`, `IS_NULL`, `IS_NOT_NULL`, `EXISTS`, `NOT_EXISTS` | `field` | Unsupported backend capabilities throw `UnsupportedFilterException` |
+| Empty, null, and existence | `IS_EMPTY`, `IS_NULL`, `IS_NOT_NULL`, `EXISTS`, `NOT_EXISTS` | `field` | Compiled to each backend's native existence and empty-value semantics |
 | Deletion | `DELETION` | `state` | `ACTIVE`, `DELETED`, or `ALL`; deletion is part of the filter model |
 | Array element | `ELEMENT_MATCH` | `field`, `predicate` | `predicate` cannot contain `DELETION` or `SEARCH` |
 | Full-text search | `SEARCH` | `query`, `fields` | `query` cannot be blank; field support is backend-specific |
