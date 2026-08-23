@@ -90,9 +90,11 @@ class FilterExpressionTest {
     @Test
     fun `legacy queryable implementation should inherit filter compatibility`() {
         val query = LegacyQueryable(Condition.eq("state.status", "CREATED"))
+        val appended = Condition.eq("state.tenant", "tenant")
 
         query.filter.toCondition().assert().isEqualTo(query.condition)
         query.withFilter(MatchAllFilter).condition.assert().isEqualTo(Condition.ALL)
+        query.appendCondition(appended).condition.assert().isEqualTo(query.condition.appendCondition(appended))
     }
 
     @Suppress("DEPRECATION")
@@ -129,6 +131,33 @@ class FilterExpressionTest {
 
         json.contains("\"condition\"").assert().isTrue()
         json.contains("\"filter\"").assert().isFalse()
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `legacy query DTO methods should preserve conditions`() {
+        val initial = Condition.eq("state.status", "CREATED")
+        val replacement = Condition.eq("state.status", "PAID")
+        val appended = initial.appendCondition(replacement)
+
+        ListQuery(initial).also {
+            it.condition.assert().isEqualTo(initial)
+            it.withCondition(replacement).condition.assert().isEqualTo(replacement)
+            it.appendCondition(replacement).condition.assert().isEqualTo(appended)
+            it.copy(condition = replacement).condition.assert().isEqualTo(replacement)
+        }
+        PagedQuery(initial).also {
+            it.condition.assert().isEqualTo(initial)
+            it.withCondition(replacement).condition.assert().isEqualTo(replacement)
+            it.appendCondition(replacement).condition.assert().isEqualTo(appended)
+            it.copy(condition = replacement).condition.assert().isEqualTo(replacement)
+        }
+        SingleQuery(initial).also {
+            it.condition.assert().isEqualTo(initial)
+            it.withCondition(replacement).condition.assert().isEqualTo(replacement)
+            it.appendCondition(replacement).condition.assert().isEqualTo(appended)
+            it.copy(condition = replacement).condition.assert().isEqualTo(replacement)
+        }
     }
 
     @Suppress("DEPRECATION")

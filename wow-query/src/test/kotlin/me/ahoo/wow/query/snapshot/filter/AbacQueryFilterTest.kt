@@ -21,6 +21,7 @@ import me.ahoo.wow.api.abac.AbacTagValue
 import me.ahoo.wow.api.abac.AbacTags
 import me.ahoo.wow.api.abac.EMPTY_ABAC_TAGS
 import me.ahoo.wow.api.abac.wildcard
+import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.MatchAllFilter
@@ -83,6 +84,14 @@ class AbacQueryFilterTest {
     @Test
     fun `empty AbacTags should return match all filter`() {
         EMPTY_ABAC_TAGS.toFilterExpression().assert().isSameAs(MatchAllFilter)
+    }
+
+    @Test
+    fun `non-empty AbacTags should return AND filter`() {
+        val filter = mapOf("dept" to listOf("eng"), "role" to listOf("admin")).toFilterExpression()
+
+        filter.assert().isInstanceOf(AndFilter::class.java)
+        (filter as AndFilter).operands.assert().hasSize(2)
     }
 
     @Test

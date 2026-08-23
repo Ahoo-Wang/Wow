@@ -154,6 +154,19 @@ class SnapshotConditionConverterTest {
         )
     }
 
+    @Suppress("DEPRECATION")
+    @Test
+    fun `should compile legacy predicate inside typed element match`() {
+        val actual = SnapshotConditionConverter.convert(
+            ElementMatchFilter(
+                LogicalField("state.items"),
+                Condition.eq("name", "Wow").toFilterExpression(),
+            ),
+        )
+
+        assertConvert(actual, Filters.elemMatch("state.items", Filters.eq("name", "Wow")))
+    }
+
     @Test
     fun `should throw error when between filter has invalid values`() {
         assertThrownBy<IllegalArgumentException> {

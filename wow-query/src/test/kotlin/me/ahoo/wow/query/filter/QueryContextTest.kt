@@ -171,4 +171,43 @@ class QueryContextTest {
 
         context.getQuery().condition.assert().isEqualTo(Condition.eq("state.name", "Wow"))
     }
+
+    @Test
+    fun `typed rewritable accessor should preserve filter receiver`() {
+        val context = DefaultQueryContext<ISingleQuery, Mono<Any>>(
+            queryType = QueryType.SINGLE,
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+        ).setQuery(singleQuery { })
+        val appended = Condition.eq("state.name", "Wow").toFilterExpression()
+
+        context.asRewritableFilterQuery().rewriteQuery { it.appendFilter(appended) }
+
+        context.getQuery().filter.assert().isEqualTo(appended)
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `legacy match all filter should append without redundant AND`() {
+        val context = DefaultQueryContext<me.ahoo.wow.api.query.FilterExpression, Mono<Long>>(
+            queryType = QueryType.COUNT,
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+        ).setQuery(Condition.ALL.toFilterExpression())
+        val appended = Condition.eq("state.name", "Wow").toFilterExpression()
+
+        context.appendFilter(appended)
+
+        context.getQuery().assert().isSameAs(appended)
+    }
+
+    @Test
+    fun `append filter should reject unsupported query type`() {
+        val context = DefaultQueryContext<String, Mono<Long>>(
+            queryType = QueryType.COUNT,
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+        ).setQuery("unsupported")
+
+        org.junit.jupiter.api.assertThrows<IllegalStateException> {
+            context.appendFilter(MatchAllFilter)
+        }
+    }
 }
