@@ -151,17 +151,6 @@ abstract class AbstractElasticsearchFilterConverter(
         is IsEmptyFilter -> bool {
             it.mustNot { query -> query.exists { exists -> exists.field(filter.field.path(parent)) } }
         }
-        is TodayFilter,
-        is BeforeTodayFilter,
-        is TomorrowFilter,
-        is ThisWeekFilter,
-        is NextWeekFilter,
-        is LastWeekFilter,
-        is ThisMonthFilter,
-        is LastMonthFilter,
-        is RecentDaysFilter,
-        is EarlierDaysFilter,
-        -> error("Relative-time filter must be normalized before compilation.")
         else -> error("Unsupported filter expression: ${filter::class.java.name}.")
     }
 
