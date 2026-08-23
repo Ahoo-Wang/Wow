@@ -14,6 +14,9 @@
 package me.ahoo.wow.schema
 
 import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.JsonTypeInfo
+import com.fasterxml.jackson.annotation.JsonUnwrapped
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.modeling.AggregateId
@@ -21,8 +24,16 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.schema.AggregatedFieldPaths.commandAggregatedFieldPaths
+import me.ahoo.wow.schema.AggregatedFieldPaths.stateAggregatedFieldPaths
 import me.ahoo.wow.schema.TypeFieldPaths.allFieldPaths
+import me.ahoo.wow.serialization.JsonSerializer
+import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.serialization.state.SnapshotRecords
 import org.junit.jupiter.api.Test
+import tools.jackson.core.JsonGenerator
+import tools.jackson.databind.SerializationContext
+import tools.jackson.databind.annotation.JsonSerialize
+import tools.jackson.databind.ser.std.StdSerializer
 
 class AggregatedFieldPathsTest {
     @Test
@@ -42,6 +53,45 @@ class AggregatedFieldPathsTest {
     }
 
     @Test
+    fun `should use Jackson names for JavaBean field paths`() {
+        SchemaGeneratorBuilder().objectMapper(JsonSerializer).build()
+            .generateSchema(JavaBeanFieldPathFixture::class.java)
+            .findValue("writeOnly").asBoolean().assert().isTrue()
+        val paths = JavaBeanFieldPathFixture::class.allFieldPaths(parentName = "state")
+
+        paths.assert()
+            .contains("state.display_name")
+            .contains("state.frozen")
+            .doesNotContain("state.display name")
+            .doesNotContain("state.display.name")
+            .doesNotContain("state.0")
+            .doesNotContain("state.secret")
+            .doesNotContain("state.name")
+    }
+
+    @Test
+    fun `should exclude field paths rejected by logical field grammar`() {
+        val paths = JavaBeanFieldPathFixture::class.stateAggregatedFieldPaths()
+
+        paths.assert()
+            .contains("state.display_name")
+            .doesNotContain("state.display name")
+            .doesNotContain("state.display.name")
+            .doesNotContain("state.0")
+            .doesNotContain("state.secret")
+    }
+
+    @Test
+    fun `should flatten Jackson unwrapped field paths`() {
+        val paths = UnwrappedFieldPathFixture::class.allFieldPaths(parentName = "state")
+
+        paths.assert()
+            .contains("state.detail_nestedValue_value")
+            .doesNotContain("state.details")
+            .doesNotContain("state.details.nestedValue")
+    }
+
+    @Test
     fun `should follow aggregate id serialized field paths`() {
         val paths = AggregateIdFixture::class.allFieldPaths(parentName = "state")
 
@@ -50,8 +100,28 @@ class AggregatedFieldPathsTest {
             .contains("state.aggregateId.aggregateName")
             .contains("state.aggregateId.aggregateId")
             .contains("state.aggregateId.tenantId")
-            .contains("state.aggregateId.namedAggregate")
-            .contains("state.aggregateId.id")
+            .doesNotContain("state.aggregateId.namedAggregate")
+            .doesNotContain("state.aggregateId.id")
+    }
+
+    @Test
+    fun `should treat custom serializer wire shape as opaque`() {
+        JsonSerializer.writeValueAsString(CustomSerializedFixture(CustomSerializedValue("wire")))
+            .assert().isEqualTo("{\"value\":\"wire\"}")
+
+        CustomSerializedFixture::class.allFieldPaths(parentName = "state").assert()
+            .contains("state.value")
+            .doesNotContain("state.value.hidden")
+    }
+
+    @Test
+    fun `should treat property custom serializer wire shape as opaque`() {
+        JsonSerializer.writeValueAsString(PropertyCustomSerializedFixture(PropertyCustomSerializedValue("wire")))
+            .assert().isEqualTo("{\"value\":\"wire\"}")
+
+        PropertyCustomSerializedFixture::class.allFieldPaths(parentName = "state").assert()
+            .contains("state.value")
+            .doesNotContain("state.value.hidden")
     }
 
     @Test
@@ -70,6 +140,15 @@ class AggregatedFieldPathsTest {
     }
 
     @Test
+    fun `should include Jackson polymorphic discriminator`() {
+        val paths = SyntheticTypeInfoFixture::class.allFieldPaths(parentName = "state.payment")
+
+        paths.assert()
+            .contains("state.payment.kind")
+            .contains("state.payment.cardNumber")
+    }
+
+    @Test
     fun `should not count polymorphic subtype dispatch as nested depth`() {
         val paths = PolymorphicFixture::class.allFieldPaths(maxDepth = 1)
 
@@ -79,7 +158,10 @@ class AggregatedFieldPathsTest {
     @Test
     fun `should list command aggregated field paths`() {
         val paths = TestAggregate::class.commandAggregatedFieldPaths()
-        paths.assert().isNotEmpty()
+        paths.assert()
+            .contains(MessageRecords.CONTEXT_NAME)
+            .contains(MessageRecords.AGGREGATE_NAME)
+            .contains(SnapshotRecords.SNAPSHOT_TIME)
     }
 
     class FieldPathDemoState(override val id: String) : Identifier {
@@ -96,4 +178,53 @@ class AggregatedFieldPathsTest {
     }
 
     data class AggregateIdFixture(val aggregateId: AggregateId)
+}
+
+private data class UnwrappedFieldPathFixture(
+    @get:JsonUnwrapped(prefix = "detail_", suffix = "_value")
+    val details: UnwrappedDetails,
+)
+
+private data class UnwrappedDetails(val nestedValue: String)
+
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "kind")
+@JsonSubTypes(JsonSubTypes.Type(value = CardPayment::class, name = "card"))
+private sealed interface SyntheticTypeInfoFixture
+
+private data class CardPayment(val cardNumber: String) : SyntheticTypeInfoFixture
+
+private data class CustomSerializedFixture(val value: CustomSerializedValue)
+
+@JsonSerialize(using = CustomSerializedValueSerializer::class)
+private data class CustomSerializedValue(val hidden: String)
+
+private class CustomSerializedValueSerializer : StdSerializer<CustomSerializedValue>(
+    CustomSerializedValue::class.java,
+) {
+    override fun serialize(
+        value: CustomSerializedValue,
+        generator: JsonGenerator,
+        provider: SerializationContext,
+    ) {
+        generator.writeString(value.hidden)
+    }
+}
+
+private data class PropertyCustomSerializedFixture(
+    @get:JsonSerialize(using = PropertyCustomSerializedValueSerializer::class)
+    val value: PropertyCustomSerializedValue,
+)
+
+private data class PropertyCustomSerializedValue(val hidden: String)
+
+private class PropertyCustomSerializedValueSerializer : StdSerializer<PropertyCustomSerializedValue>(
+    PropertyCustomSerializedValue::class.java,
+) {
+    override fun serialize(
+        value: PropertyCustomSerializedValue,
+        generator: JsonGenerator,
+        provider: SerializationContext,
+    ) {
+        generator.writeString(value.hidden)
+    }
 }

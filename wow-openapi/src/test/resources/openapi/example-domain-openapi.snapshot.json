@@ -274,7 +274,8 @@
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
             }
           }
-        }
+        },
+        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.id", "state.items", "state.items.productId", "state.items.quantity", "state.size", "tags", "tenantId", "version" ]
       },
       "example.cart.ListQuery" : {
         "content" : {
@@ -305,7 +306,8 @@
               "type" : "object"
             }
           }
-        }
+        },
+        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.id", "state.items", "state.items.productId", "state.items.quantity", "state.size", "tags", "tenantId", "version" ]
       },
       "example.cart.PagedQuery" : {
         "content" : {
@@ -333,7 +335,8 @@
               "type" : "object"
             }
           }
-        }
+        },
+        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.id", "state.items", "state.items.productId", "state.items.quantity", "state.size", "tags", "tenantId", "version" ]
       },
       "example.cart.SingleQuery" : {
         "content" : {
@@ -358,7 +361,8 @@
               "type" : "object"
             }
           }
-        }
+        },
+        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.id", "state.items", "state.items.productId", "state.items.quantity", "state.size", "tags", "tenantId", "version" ]
       },
       "example.order.CountQuery" : {
         "content" : {
@@ -367,7 +371,8 @@
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
             }
           }
-        }
+        },
+        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.address", "state.address.city", "state.address.country", "state.address.detail", "state.address.district", "state.address.province", "state.id", "state.items", "state.items.id", "state.items.price", "state.items.productId", "state.items.quantity", "state.items.totalPrice", "state.paidAmount", "state.payable", "state.status", "state.totalAmount", "tags", "tenantId", "version" ]
       },
       "example.order.ListQuery" : {
         "content" : {
@@ -398,7 +403,8 @@
               "type" : "object"
             }
           }
-        }
+        },
+        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.address", "state.address.city", "state.address.country", "state.address.detail", "state.address.district", "state.address.province", "state.id", "state.items", "state.items.id", "state.items.price", "state.items.productId", "state.items.quantity", "state.items.totalPrice", "state.paidAmount", "state.payable", "state.status", "state.totalAmount", "tags", "tenantId", "version" ]
       },
       "example.order.PagedQuery" : {
         "content" : {
@@ -426,7 +432,8 @@
               "type" : "object"
             }
           }
-        }
+        },
+        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.address", "state.address.city", "state.address.country", "state.address.detail", "state.address.district", "state.address.province", "state.id", "state.items", "state.items.id", "state.items.price", "state.items.productId", "state.items.quantity", "state.items.totalPrice", "state.paidAmount", "state.payable", "state.status", "state.totalAmount", "tags", "tenantId", "version" ]
       },
       "example.order.SingleQuery" : {
         "content" : {
@@ -451,7 +458,8 @@
               "type" : "object"
             }
           }
-        }
+        },
+        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.address", "state.address.city", "state.address.country", "state.address.detail", "state.address.district", "state.address.province", "state.id", "state.items", "state.items.id", "state.items.price", "state.items.productId", "state.items.quantity", "state.items.totalPrice", "state.paidAmount", "state.payable", "state.status", "state.totalAmount", "tags", "tenantId", "version" ]
       },
       "tck.mock_aggregate.CountQuery" : {
         "content" : {
@@ -460,7 +468,8 @@
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
             }
           }
-        }
+        },
+        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.data", "state.id", "tags", "tenantId", "version" ]
       },
       "tck.mock_aggregate.ListQuery" : {
         "content" : {
@@ -491,7 +500,8 @@
               "type" : "object"
             }
           }
-        }
+        },
+        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.data", "state.id", "tags", "tenantId", "version" ]
       },
       "tck.mock_aggregate.PagedQuery" : {
         "content" : {
@@ -519,7 +529,8 @@
               "type" : "object"
             }
           }
-        }
+        },
+        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.data", "state.id", "tags", "tenantId", "version" ]
       },
       "tck.mock_aggregate.SingleQuery" : {
         "content" : {
@@ -544,7 +555,8 @@
               "type" : "object"
             }
           }
-        }
+        },
+        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.data", "state.id", "tags", "tenantId", "version" ]
       },
       "tck.modeling_command_aggregate_with_tenant_id.CountQuery" : {
         "content" : {
@@ -553,7 +565,8 @@
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
             }
           }
-        }
+        },
+        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.id", "state.tenantId", "tags", "tenantId", "version" ]
       },
       "tck.modeling_command_aggregate_with_tenant_id.ListQuery" : {
         "content" : {
@@ -584,7 +597,8 @@
               "type" : "object"
             }
           }
-        }
+        },
+        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.id", "state.tenantId", "tags", "tenantId", "version" ]
       },
       "tck.modeling_command_aggregate_with_tenant_id.PagedQuery" : {
         "content" : {
@@ -612,7 +626,8 @@
               "type" : "object"
             }
           }
-        }
+        },
+        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.id", "state.tenantId", "tags", "tenantId", "version" ]
       },
       "tck.modeling_command_aggregate_with_tenant_id.SingleQuery" : {
         "content" : {
@@ -637,7 +652,8 @@
               "type" : "object"
             }
           }
-        }
+        },
+        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.id", "state.tenantId", "tags", "tenantId", "version" ]
       },
       "tck.modeling_command_aggregate_without_ctor_parameters.CountQuery" : {
         "content" : {
@@ -646,7 +662,8 @@
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
             }
           }
-        }
+        },
+        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "tags", "tenantId", "version" ]
       },
       "tck.modeling_command_aggregate_without_ctor_parameters.ListQuery" : {
         "content" : {
@@ -677,7 +694,8 @@
               "type" : "object"
             }
           }
-        }
+        },
+        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "tags", "tenantId", "version" ]
       },
       "tck.modeling_command_aggregate_without_ctor_parameters.PagedQuery" : {
         "content" : {
@@ -705,7 +723,8 @@
               "type" : "object"
             }
           }
-        }
+        },
+        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "tags", "tenantId", "version" ]
       },
       "tck.modeling_command_aggregate_without_ctor_parameters.SingleQuery" : {
         "content" : {
@@ -730,7 +749,8 @@
               "type" : "object"
             }
           }
-        }
+        },
+        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "tags", "tenantId", "version" ]
       },
       "wow.CompensationTarget" : {
         "content" : {

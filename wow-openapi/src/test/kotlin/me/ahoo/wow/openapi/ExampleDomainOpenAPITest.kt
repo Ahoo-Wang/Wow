@@ -72,6 +72,15 @@ internal class ExampleDomainOpenAPITest {
     inner class AggregateRoutes {
 
         @Test
+        fun `should expose aggregate query fields`() {
+            listOf("CountQuery", "ListQuery", "PagedQuery", "SingleQuery").forEach { queryType ->
+                val requestBody = requireNotNull(openAPI.components.requestBodies["example.cart.$queryType"])
+                val queryFields = requestBody.extensions["x-wow-query-fields"] as List<*>
+                queryFields.assert().contains("state.items.productId").doesNotContain("")
+            }
+        }
+
+        @Test
         fun `should generate cart routes without default tenant path`() {
             // Cart has @StaticTenantId → default appendTenantPath=false
             // MockVariableCommand overrides with appendTenantPath=ALWAYS, so exclude it

@@ -17,6 +17,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
+import java.util.concurrent.atomic.AtomicBoolean
 
 interface RequestExceptionHandler {
     fun handle(request: ServerRequest, throwable: Throwable): Mono<ServerResponse>
@@ -32,9 +33,39 @@ class WebFluxRequestExceptionHandler(
     }
 
     override fun handle(request: ServerRequest, throwable: Throwable): Mono<ServerResponse> {
-        log.warn(throwable) {
-            request.formatRequest()
+        return Mono.defer {
+            val logged = AtomicBoolean()
+            Mono.defer { errorStrategy.toServerResponse(request, throwable) }
+                .doOnNext { response ->
+                    if (logged.compareAndSet(false, true)) {
+                        if (response.statusCode().is4xxClientError) {
+                            log.warn { "${request.formatRequest()} - ${throwable.singleLineMessage()}" }
+                        } else {
+                            log.warn(throwable) { request.formatRequest() }
+                        }
+                    }
+                }
+                .switchIfEmpty(
+                    Mono.defer {
+                        if (logged.compareAndSet(false, true)) {
+                            log.warn(throwable) { "${request.formatRequest()} - Error response was empty." }
+                        }
+                        Mono.empty()
+                    }
+                ).doOnError { responseFailure ->
+                    if (logged.compareAndSet(false, true)) {
+                        log.warn(throwable) {
+                            "${request.formatRequest()} - Failed to render error response: " +
+                                responseFailure.singleLineMessage()
+                        }
+                    }
+                }.doOnCancel {
+                    if (logged.compareAndSet(false, true)) {
+                        log.warn(throwable) { "${request.formatRequest()} - Error response rendering was cancelled." }
+                    }
+                }
         }
-        return errorStrategy.toServerResponse(request, throwable)
     }
+
+    private fun Throwable.singleLineMessage(): String = message.orEmpty().replace('\r', ' ').replace('\n', ' ')
 }

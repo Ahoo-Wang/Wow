@@ -25,6 +25,7 @@ import me.ahoo.wow.schema.jackson.WowJacksonModule
 import me.ahoo.wow.schema.kotlin.KotlinModule
 import me.ahoo.wow.schema.naming.SchemaNamingModule
 import org.junit.jupiter.api.Test
+import tools.jackson.module.kotlin.jsonMapper
 import java.util.function.Consumer
 
 class SchemaGeneratorBuilderTest {
@@ -41,7 +42,9 @@ class SchemaGeneratorBuilderTest {
         val options = listOf<Option>()
         val customizer = Consumer<SchemaGeneratorConfigBuilder> {
         }
+        val objectMapper = jsonMapper()
         val schemaGeneratorBuilder = SchemaGeneratorBuilder()
+            .objectMapper(objectMapper)
             .openapi31(true)
             .schemaVersion(SchemaVersion.DRAFT_2020_12)
             .optionPreset(OptionPreset.PLAIN_JSON)
@@ -55,6 +58,7 @@ class SchemaGeneratorBuilderTest {
             .options(options)
             .customizer(customizer)
         schemaGeneratorBuilder.openapi31.assert().isTrue()
+        schemaGeneratorBuilder.objectMapper.assert().isSameAs(objectMapper)
         schemaGeneratorBuilder.schemaVersion.assert().isEqualTo(SchemaVersion.DRAFT_2020_12)
         schemaGeneratorBuilder.optionPreset.assert().isEqualTo(OptionPreset.PLAIN_JSON)
         schemaGeneratorBuilder.jacksonModule.assert().isSameAs(jacksonModule)
@@ -73,6 +77,7 @@ class SchemaGeneratorBuilderTest {
         val schemaGenerator = schemaGeneratorBuilder.build()
 
         schemaGenerator.assert().isNotNull()
+        schemaGenerator.config.objectMapper.assert().isSameAs(objectMapper)
         schemaGeneratorBuilder.typeContext.assert().isNotNull()
         schemaGeneratorBuilder.requiredTypeContent.assert().isNotNull()
     }

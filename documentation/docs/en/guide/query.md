@@ -46,6 +46,8 @@ state.items.0.productId
 
 A named segment starts with a letter or underscore and may contain letters, digits, underscores, and hyphens. Pure numeric segments are valid array indexes. MongoDB and Elasticsearch query implementations own physical field mapping.
 
+Aggregate-specific OpenAPI request bodies publish valid filter, projection, and sort paths in `x-wow-query-fields`. Use those paths even when a `/state` response unwraps the `state` object; for example, query the response property `status` as `state.status`.
+
 Snapshot queries default to `DELETION = ACTIVE`. A top-level `DELETION`, or one used directly inside the top-level `AND`, explicitly overrides that scope; nesting deletion inside `OR` or `NOR` does not disable the active guard. Event-stream queries do not add a deletion scope, preserving complete audit history.
 
 :::info Backend differences
