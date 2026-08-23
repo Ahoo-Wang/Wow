@@ -136,7 +136,7 @@ abstract class AbstractElasticsearchFilterConverter(
         }
         is ElementMatchFilter -> nested {
             val nestedPath = filter.field.path(parent)
-            it.path(nestedPath).query(compile(filter.predicate, nestedPath))
+            it.path(nestedPath).query(compile(filter.predicate.toExecutableFilter(), nestedPath))
         }
         is SearchFilter -> multiMatch {
             it.query(filter.query)

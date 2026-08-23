@@ -105,13 +105,30 @@ class QueryBodyExtractorTest {
     }
 
     @Test
-    fun `count body should reject empty and mixed discriminators`() {
-        listOf("{}", """{"op":"MATCH_ALL","operator":"ALL"}""").forEach { body ->
-            countClient().post().uri("/sku/snapshot/count")
-                .contentType(MediaType.APPLICATION_JSON).bodyValue(body).exchange()
-                .expectStatus().isBadRequest
-                .expectHeader().valueEquals(ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
+    fun `count body should reject mixed discriminators`() {
+        countClient().post().uri("/sku/snapshot/count")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("""{"op":"MATCH_ALL","operator":"ALL"}""")
+            .exchange()
+            .expectStatus().isBadRequest
+            .expectHeader().valueEquals(ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
+    }
+
+    @Test
+    fun `empty count body should use request scope`() {
+        val captured = slot<FilterExpression>()
+        val queryHandler = mockk<QueryHandler<Any>> {
+            every { count(any(), capture(captured)) } returns Mono.just(0)
         }
+
+        countClient(queryHandler).post().uri("/sku/snapshot/count")
+            .header(CommandComponent.Header.TENANT_ID, "tenant-1")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("{}")
+            .exchange()
+            .expectStatus().isOk
+
+        captured.captured.assert().isEqualTo(TenantIdFilter("tenant-1"))
     }
 
     @Test

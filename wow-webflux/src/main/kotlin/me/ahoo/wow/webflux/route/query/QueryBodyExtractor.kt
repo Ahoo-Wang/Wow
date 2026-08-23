@@ -77,7 +77,7 @@ class QueryBodyExtractor<Q : Any>(private val queryType: Class<Q>) : BodyExtract
     private fun decodeCount(objectNode: ObjectNode): Q {
         val hasFilter = objectNode.has("op")
         val hasCondition = objectNode.has("operator")
-        require(hasFilter.xor(hasCondition)) { "Exactly one of op or operator is required." }
+        require(!(hasFilter && hasCondition)) { "op and operator cannot be used together." }
         return if (hasFilter) {
             strictDecode(objectNode)
         } else {

@@ -50,4 +50,28 @@ class QueryServiceCompatibilityTest {
         service.count(Condition.id("id-1")).test().expectNext(1).verifyComplete()
         captured.assert().isEqualTo(IdFilter("id-1"))
     }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `filter count should delegate once to legacy implementation`() {
+        lateinit var captured: Condition
+        val service = object : QueryService<Any> {
+            override val namedAggregate = "test.test".toNamedAggregate()
+            override fun single(singleQuery: ISingleQuery): Mono<Any> = Mono.empty()
+            override fun dynamicSingle(singleQuery: ISingleQuery): Mono<DynamicDocument> = Mono.empty()
+            override fun list(listQuery: IListQuery): Flux<Any> = Flux.empty()
+            override fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument> = Flux.empty()
+            override fun paged(pagedQuery: IPagedQuery): Mono<PagedList<Any>> = Mono.empty()
+            override fun dynamicPaged(pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>> = Mono.empty()
+
+            @Suppress("OVERRIDE_DEPRECATION")
+            override fun count(condition: Condition): Mono<Long> {
+                captured = condition
+                return Mono.just(1)
+            }
+        }
+
+        service.count(IdFilter("id-1")).test().expectNext(1).verifyComplete()
+        captured.assert().isEqualTo(Condition.id("id-1"))
+    }
 }

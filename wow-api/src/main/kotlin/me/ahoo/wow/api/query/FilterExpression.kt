@@ -20,7 +20,8 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.annotation.JsonTypeName
 import com.fasterxml.jackson.annotation.JsonValue
 
-private val LOGICAL_FIELD_PATTERN = Regex("[A-Za-z_][A-Za-z0-9_-]*(\\.(?:[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*")
+private val LOGICAL_FIELD_PATTERN =
+    Regex("@?[A-Za-z_][A-Za-z0-9_-]*(\\.(?:@?[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*")
 
 data class LogicalField(
     @get:JsonValue val value: String,

@@ -142,7 +142,7 @@ abstract class AbstractMongoFilterConverter(
         }
         is ElementMatchFilter -> Filters.elemMatch(
             filter.field.convert(mapField),
-            compile(filter.predicate, mapField = false),
+            compile(filter.predicate.toExecutableFilter(), mapField = false),
         )
         is SearchFilter -> Filters.text(filter.query)
         is TodayFilter,

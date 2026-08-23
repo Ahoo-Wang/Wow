@@ -35,10 +35,23 @@ fun FilterExpression.toExecutableFilter(): FilterExpression = when (this) {
     is AndFilter -> resolveOperands(operands, ::AndFilter)
     is OrFilter -> resolveOperands(operands, ::OrFilter)
     is NorFilter -> resolveOperands(operands, ::NorFilter)
-    is ElementMatchFilter -> predicate.toExecutableFilter().let { resolved ->
-        if (resolved === predicate) this else copy(predicate = resolved)
+    is ElementMatchFilter -> if (predicate.containsLegacyMatch()) {
+        this
+    } else {
+        predicate.toExecutableFilter().let { resolved ->
+            if (resolved === predicate) this else copy(predicate = resolved)
+        }
     }
     else -> this
+}
+
+private fun FilterExpression.containsLegacyMatch(): Boolean = when (this) {
+    is LegacyConditionFilter -> condition.operator == Operator.MATCH
+    is AndFilter -> operands.any(FilterExpression::containsLegacyMatch)
+    is OrFilter -> operands.any(FilterExpression::containsLegacyMatch)
+    is NorFilter -> operands.any(FilterExpression::containsLegacyMatch)
+    is ElementMatchFilter -> predicate.containsLegacyMatch()
+    else -> false
 }
 
 private fun FilterExpression.resolveOperands(
@@ -85,7 +98,7 @@ private fun Condition.toExecutableFilter(): FilterExpression = when (operator) {
     Operator.BETWEEN -> betweenFilter()
     Operator.ALL_IN -> valueAs<List<Any>>().takeIf { it.isNotEmpty() }
         ?.map { it.toFilterValue() }
-        ?.let { ContainsAllFilter(LogicalField(field), it) } ?: MatchAllFilter
+        ?.let { ContainsAllFilter(LogicalField(field), it) } ?: MatchNoneFilter
     Operator.ELEM_MATCH -> elementMatchFilter()
     Operator.NULL -> IsNullFilter(LogicalField(field))
     Operator.NOT_NULL -> IsNotNullFilter(LogicalField(field))
@@ -141,8 +154,9 @@ private fun Condition.betweenFilter(): FilterExpression {
 }
 
 private fun Condition.elementMatchFilter(): FilterExpression {
-    val predicates = children.requireChildren("ELEM_MATCH").map(Condition::toExecutableFilter)
+    val predicates = children.requireChildren("ELEM_MATCH").map(LegacyConditionAdapter::adapt)
     return ElementMatchFilter(LogicalField(field), predicates.singleOrNull() ?: AndFilter(predicates))
+        .toExecutableFilter()
 }
 
 private val Condition.logicalField: LogicalField get() = LogicalField(field)

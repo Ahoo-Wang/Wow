@@ -56,6 +56,17 @@ class SnapshotFilterConverterTest {
 
     @Suppress("DEPRECATION")
     @Test
+    fun `legacy element match should resolve nested match`() {
+        assertConvert(
+            SnapshotFilterConverter.convert(
+                Condition.elemMatch("state.items", Condition.match("name", "wow")).toFilterExpression(),
+            ),
+            Filters.elemMatch("state.items", Filters.text("wow")),
+        )
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
     fun `equality filters should preserve scalar arrays and legacy ObjectId values`() {
         val objectId = ObjectId()
         assertConvert(

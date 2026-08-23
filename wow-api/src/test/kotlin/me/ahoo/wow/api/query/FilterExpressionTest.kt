@@ -350,13 +350,23 @@ class FilterExpressionTest {
             Condition.aggregateIds(emptyList()) to MatchNoneFilter,
             Condition.isIn(field.value, emptyList()) to MatchNoneFilter,
             Condition.notIn(field.value, emptyList()) to MatchAllFilter,
-            Condition.all(field.value, emptyList()) to MatchAllFilter,
+            Condition.all(field.value, emptyList()) to MatchNoneFilter,
             Condition.eq(field.value, emptyList<Any>()) to EqualFilter(field, emptyArray),
         )
 
         cases.forEach { (condition, expected) ->
             condition.toFilterExpression().toExecutableFilter().assert().isEqualTo(expected)
         }
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `legacy backend field should remain executable`() {
+        val executable = Condition.eq("@timestamp", "now")
+            .toFilterExpression()
+            .toExecutableFilter() as EqualFilter
+
+        executable.field.value.assert().isEqualTo("@timestamp")
     }
 
     @Suppress("DEPRECATION")
