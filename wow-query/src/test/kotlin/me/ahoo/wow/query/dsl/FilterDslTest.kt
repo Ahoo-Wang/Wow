@@ -55,6 +55,7 @@ class FilterDslTest {
     fun `should resolve scoped paths without duplicate prefixes`() {
         val expression = filter {
             "state".path {
+                "state" eq "root"
                 "state.name" eq "Wow"
                 "statement" eq "value"
                 "items".path {
@@ -66,9 +67,11 @@ class FilterDslTest {
 
         expression.operands.assert().hasSize(2)
         val state = expression.operands[0] as AndFilter
-        (state.operands[0] as EqualFilter).field.assert().isEqualTo(LogicalField("state.name"))
-        (state.operands[1] as EqualFilter).field.assert().isEqualTo(LogicalField("state.statement"))
-        (state.operands[2] as EqualFilter).field.assert().isEqualTo(LogicalField("state.items.productId"))
+        state.operands.assert().hasSize(4)
+        (state.operands[0] as EqualFilter).field.assert().isEqualTo(LogicalField("state"))
+        (state.operands[1] as EqualFilter).field.assert().isEqualTo(LogicalField("state.name"))
+        (state.operands[2] as EqualFilter).field.assert().isEqualTo(LogicalField("state.statement"))
+        (state.operands[3] as EqualFilter).field.assert().isEqualTo(LogicalField("state.items.productId"))
         (expression.operands[1] as EqualFilter).field.assert().isEqualTo(LogicalField("tenantId"))
     }
 
@@ -114,6 +117,15 @@ class FilterDslTest {
     }
 
     @Test
+    fun `should reject empty path block`() {
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+            filter {
+                "state".path { }
+            }
+        }
+    }
+
+    @Test
     fun `should keep injected element fields relative`() {
         val itemFilter = filter { "productId" eq "product-1" }
 
@@ -136,6 +148,25 @@ class FilterDslTest {
         }
 
         (expression as EqualFilter).field.assert().isEqualTo(LogicalField("state.name"))
+    }
+
+    @Test
+    @Suppress("DEPRECATION")
+    fun `should reject empty nested block`() {
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+            filter {
+                "state".nested { }
+            }
+        }
+    }
+
+    @Test
+    fun `should reject empty element match block`() {
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+            filter {
+                "items".elementMatch { }
+            }
+        }
     }
 
     @Test
@@ -199,6 +230,7 @@ class FilterDslTest {
             "lessThan" lt 1
             "lessThanOrEqual" lte 1
             "contains".contains("value", StringComparison.CASE_INSENSITIVE)
+            "containsDefault".contains("value")
             "startsWith".startsWith("value")
             "endsWith".endsWith("value")
             "in" isIn listOf(1, 2)
@@ -222,9 +254,19 @@ class FilterDslTest {
             "lastMonth".lastMonth()
             "recentDays".recentDays(2)
             "earlierDays".earlierDays(2)
+            "todayDefault".today()
+            "beforeTodayDefault".beforeToday(LocalTime.NOON)
+            "tomorrowUtc".tomorrow(ZoneOffset.UTC)
+            "thisWeekUtc".thisWeek(ZoneOffset.UTC)
+            "nextWeekUtc".nextWeek(ZoneOffset.UTC)
+            "lastWeekUtc".lastWeek(ZoneOffset.UTC)
+            "thisMonthUtc".thisMonth(ZoneOffset.UTC)
+            "lastMonthUtc".lastMonth(ZoneOffset.UTC)
+            "recentDaysUtc".recentDays(2, ZoneOffset.UTC)
+            "earlierDaysUtc".earlierDays(2, ZoneOffset.UTC)
         } as AndFilter
 
-        expression.operands.assert().hasSize(40)
+        expression.operands.assert().hasSize(51)
         (expression.operands[6] as EqualFilter).field.assert().isEqualTo(LogicalField("state.name"))
     }
 }

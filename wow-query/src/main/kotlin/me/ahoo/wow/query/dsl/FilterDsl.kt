@@ -61,9 +61,9 @@ import java.time.ZoneId
 @QueryDslMarker
 class FilterDsl private constructor(
     private val prefix: String,
-    private val allowScopedExpression: Boolean = false,
+    private val allowScopedExpression: Boolean,
 ) {
-    internal constructor() : this(prefix = "")
+    internal constructor() : this(prefix = "", allowScopedExpression = false)
 
     internal constructor(prefix: String) : this(prefix, allowScopedExpression = false)
 
