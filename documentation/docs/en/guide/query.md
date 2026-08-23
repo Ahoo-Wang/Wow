@@ -26,6 +26,7 @@ description: Query snapshots and event streams with FilterExpression, the query 
 | Category | `op` | Main fields | Semantics |
 |---|---|---|---|
 | Constants | `MATCH_ALL`, `MATCH_NONE` | - | Match every record or no records |
+| Metadata | `ID`, `IDS`, `AGGREGATE_ID`, `AGGREGATE_IDS`, `TENANT_ID`, `OWNER_ID`, `SPACE_ID` | `value` or `values` | Query document IDs, aggregate IDs, or message metadata; valid only as query-root expressions |
 | Logical | `AND`, `OR`, `NOR` | `operands` | `operands` must contain at least one expression |
 | Comparison | `EQ`, `NE`, `GT`, `GTE`, `LT`, `LTE` | `field`, `value` | `EQ` and `NE` accept `null` and normalize to null predicates |
 | String | `CONTAINS`, `STARTS_WITH`, `ENDS_WITH` | `field`, `value`, `stringComparison` | `stringComparison` defaults to `CASE_SENSITIVE` |
@@ -33,7 +34,7 @@ description: Query snapshots and event streams with FilterExpression, the query 
 | Range | `BETWEEN` | `field`, `lowerBound`, `upperBound` | Both bounds are inclusive |
 | Empty, null, and existence | `IS_EMPTY`, `IS_NULL`, `IS_NOT_NULL`, `EXISTS`, `NOT_EXISTS` | `field` | Compiled to each backend's native existence and empty-value semantics |
 | Deletion | `DELETION` | `state` | `ACTIVE`, `DELETED`, or `ALL`; deletion is part of the filter model |
-| Array element | `ELEMENT_MATCH` | `field`, `predicate` | `predicate` cannot contain `DELETION` or `SEARCH` |
+| Array element | `ELEMENT_MATCH` | `field`, `predicate` | `predicate` cannot contain `DELETION`, `SEARCH`, or metadata Filters |
 | Full-text search | `SEARCH` | `query`, `fields` | `query` cannot be blank; field support is backend-specific |
 | Relative time | `TODAY`, `BEFORE_TODAY`, `TOMORROW`, `THIS_WEEK`, `NEXT_WEEK`, `LAST_WEEK`, `THIS_MONTH`, `LAST_MONTH`, `RECENT_DAYS`, `EARLIER_DAYS` | `field`; operation-specific `time` or `days`; optional `zoneId` | Normalized to absolute ranges before backend compilation |
 
@@ -74,6 +75,17 @@ val orderFilter = filterExpression {
     }
 }
 ```
+
+Use the dedicated functions to query aggregate and message metadata:
+
+```kotlin
+val filter = filterExpression {
+    aggregateId("order-1")
+    tenantId("tenant-1")
+}
+```
+
+Metadata Filters are query-root expressions and cannot be nested inside `elementMatch`.
 
 Multiple expressions in the same DSL block are combined with `AND`. Use `and`, `or`, or `nor` for explicit grouping:
 
@@ -138,7 +150,7 @@ query.query(queryService)
 Query filters use `withFilter` or `appendFilter`; internal paths no longer rewrite `Condition`:
 
 ```kotlin
-context.asRewritableQuery().rewriteQuery { query ->
+context.asRewritableFilterQuery().rewriteQuery { query ->
     val warehouseFilter = filterExpression {
         "state.warehouseId" eq warehouseId
     }
@@ -184,7 +196,7 @@ List and single requests also use `filter`. A list request adds `limit`; a singl
 
 ```json
 {
-  "filter": { "op": "EQ", "field": "aggregateId", "value": "order-1" },
+  "filter": { "op": "AGGREGATE_ID", "value": "order-1" },
   "limit": 1,
   "sort": []
 }
@@ -254,7 +266,7 @@ class OrderService(
 ) {
     fun getById(id: String): Mono<OrderState> = singleQuery {
         filter {
-            "aggregateId" eq id
+            aggregateId(id)
         }
     }.query(queryService).toState().throwNotFoundIfEmpty()
 }

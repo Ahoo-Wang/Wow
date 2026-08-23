@@ -4423,6 +4423,36 @@
         "$ref" : "#/definitions/filterExpression",
         "$schema" : "http://json-schema.org/draft-07/schema#",
         "definitions" : {
+          "aggregateId" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "AGGREGATE_ID" ]
+              },
+              "value" : {
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "value" ],
+            "type" : "object"
+          },
+          "aggregateIds" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "AGGREGATE_IDS" ]
+              },
+              "values" : {
+                "items" : {
+                  "type" : "string"
+                },
+                "minItems" : 1,
+                "type" : "array"
+              }
+            },
+            "required" : [ "op", "values" ],
+            "type" : "object"
+          },
           "and" : {
             "additionalProperties" : false,
             "properties" : {
@@ -4755,6 +4785,10 @@
           },
           "filterExpression" : {
             "oneOf" : [ {
+              "$ref" : "#/definitions/aggregateId"
+            }, {
+              "$ref" : "#/definitions/aggregateIds"
+            }, {
               "$ref" : "#/definitions/and"
             }, {
               "$ref" : "#/definitions/beforeToday"
@@ -4780,6 +4814,10 @@
               "$ref" : "#/definitions/gt"
             }, {
               "$ref" : "#/definitions/gte"
+            }, {
+              "$ref" : "#/definitions/id"
+            }, {
+              "$ref" : "#/definitions/ids"
             }, {
               "$ref" : "#/definitions/in"
             }, {
@@ -4813,11 +4851,17 @@
             }, {
               "$ref" : "#/definitions/or"
             }, {
+              "$ref" : "#/definitions/ownerId"
+            }, {
               "$ref" : "#/definitions/recentDays"
             }, {
               "$ref" : "#/definitions/search"
             }, {
+              "$ref" : "#/definitions/spaceId"
+            }, {
               "$ref" : "#/definitions/startsWith"
+            }, {
+              "$ref" : "#/definitions/tenantId"
             }, {
               "$ref" : "#/definitions/thisMonth"
             }, {
@@ -4864,6 +4908,36 @@
               }
             },
             "required" : [ "op", "field", "value" ],
+            "type" : "object"
+          },
+          "id" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "ID" ]
+              },
+              "value" : {
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "value" ],
+            "type" : "object"
+          },
+          "ids" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "IDS" ]
+              },
+              "values" : {
+                "items" : {
+                  "type" : "string"
+                },
+                "minItems" : 1,
+                "type" : "array"
+              }
+            },
+            "required" : [ "op", "values" ],
             "type" : "object"
           },
           "in" : {
@@ -5148,6 +5222,19 @@
             "required" : [ "op", "operands" ],
             "type" : "object"
           },
+          "ownerId" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "OWNER_ID" ]
+              },
+              "value" : {
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "value" ],
+            "type" : "object"
+          },
           "recentDays" : {
             "additionalProperties" : false,
             "properties" : {
@@ -5195,6 +5282,19 @@
             "required" : [ "op", "query" ],
             "type" : "object"
           },
+          "spaceId" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "SPACE_ID" ]
+              },
+              "value" : {
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "value" ],
+            "type" : "object"
+          },
           "startsWith" : {
             "additionalProperties" : false,
             "properties" : {
@@ -5218,6 +5318,19 @@
             "default" : "CASE_SENSITIVE",
             "enum" : [ "CASE_SENSITIVE", "CASE_INSENSITIVE" ],
             "type" : "string"
+          },
+          "tenantId" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "op" : {
+                "enum" : [ "TENANT_ID" ]
+              },
+              "value" : {
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "value" ],
+            "type" : "object"
           },
           "thisMonth" : {
             "$ref" : "#/definitions/thisMonthShape"
@@ -5325,7 +5438,7 @@
         "title" : "Filter Expression"
       },
       "wow.api.query.FilterOperator" : {
-        "enum" : [ "MATCH_ALL", "MATCH_NONE", "AND", "OR", "NOR", "EQ", "NE", "GT", "GTE", "LT", "LTE", "CONTAINS", "STARTS_WITH", "ENDS_WITH", "IN", "NOT_IN", "BETWEEN", "CONTAINS_ALL", "IS_EMPTY", "IS_NULL", "IS_NOT_NULL", "EXISTS", "NOT_EXISTS", "DELETION", "ELEMENT_MATCH", "SEARCH", "TODAY", "BEFORE_TODAY", "TOMORROW", "THIS_WEEK", "NEXT_WEEK", "LAST_WEEK", "THIS_MONTH", "LAST_MONTH", "RECENT_DAYS", "EARLIER_DAYS" ],
+        "enum" : [ "MATCH_ALL", "MATCH_NONE", "ID", "IDS", "AGGREGATE_ID", "AGGREGATE_IDS", "TENANT_ID", "OWNER_ID", "SPACE_ID", "AND", "OR", "NOR", "EQ", "NE", "GT", "GTE", "LT", "LTE", "CONTAINS", "STARTS_WITH", "ENDS_WITH", "IN", "NOT_IN", "BETWEEN", "CONTAINS_ALL", "IS_EMPTY", "IS_NULL", "IS_NOT_NULL", "EXISTS", "NOT_EXISTS", "DELETION", "ELEMENT_MATCH", "SEARCH", "TODAY", "BEFORE_TODAY", "TOMORROW", "THIS_WEEK", "NEXT_WEEK", "LAST_WEEK", "THIS_MONTH", "LAST_MONTH", "RECENT_DAYS", "EARLIER_DAYS" ],
         "type" : "string"
       },
       "wow.api.query.Pagination" : {

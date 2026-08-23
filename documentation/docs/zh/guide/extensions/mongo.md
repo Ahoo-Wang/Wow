@@ -376,7 +376,7 @@ context，应先迁移或清空原事件流、快照与 PrepareKey 数据，再�
 
 ### 过滤器编译管道
 
-编译管道为：`FilterExpression` -> `AbstractMongoConditionConverter` -> `Bson`。
+编译管道为：`FilterExpression` -> `AbstractMongoFilterConverter` -> `Bson`。
 
 | Wow 操作符 | MongoDB 等价操作 |
 |---|---|
@@ -503,7 +503,7 @@ classDiagram
     class AbstractMongoQueryService~R~ {
         <<abstract>>
         #collection: MongoCollection
-        #converter: AbstractMongoConditionConverter
+        #converter: AbstractMongoFilterConverter
         +single(ISingleQuery) Mono~R~
         +list(IListQuery) Flux~R~
         +paged(IPagedQuery) Mono~PagedList~R~~

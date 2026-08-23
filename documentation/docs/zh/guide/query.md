@@ -26,6 +26,7 @@ description: 使用 FilterExpression、查询 DSL 与 REST API 查询快照和�
 | 分类 | `op` | 主要字段 | 说明 |
 |---|---|---|---|
 | 常量 | `MATCH_ALL`、`MATCH_NONE` | - | 匹配全部或不匹配任何记录 |
+| 元数据 | `ID`、`IDS`、`AGGREGATE_ID`、`AGGREGATE_IDS`、`TENANT_ID`、`OWNER_ID`、`SPACE_ID` | `value` 或 `values` | 查询文档 ID、聚合 ID 或消息元数据；只能作为查询根表达式 |
 | 逻辑 | `AND`、`OR`、`NOR` | `operands` | `operands` 至少包含一个表达式 |
 | 比较 | `EQ`、`NE`、`GT`、`GTE`、`LT`、`LTE` | `field`、`value` | `EQ`、`NE` 允许 `null`，并规范化为判空表达式 |
 | 字符串 | `CONTAINS`、`STARTS_WITH`、`ENDS_WITH` | `field`、`value`、`stringComparison` | `stringComparison` 默认为 `CASE_SENSITIVE` |
@@ -33,7 +34,7 @@ description: 使用 FilterExpression、查询 DSL 与 REST API 查询快照和�
 | 范围 | `BETWEEN` | `field`、`lowerBound`、`upperBound` | 两个边界都包含在范围内 |
 | 空值与存在性 | `IS_EMPTY`、`IS_NULL`、`IS_NOT_NULL`、`EXISTS`、`NOT_EXISTS` | `field` | 按各后端原生的存在性与空值语义编译 |
 | 删除状态 | `DELETION` | `state` | `ACTIVE`、`DELETED` 或 `ALL`；删除状态本身也是过滤器 |
-| 数组元素 | `ELEMENT_MATCH` | `field`、`predicate` | `predicate` 内不允许 `DELETION` 或 `SEARCH` |
+| 数组元素 | `ELEMENT_MATCH` | `field`、`predicate` | `predicate` 内不允许 `DELETION`、`SEARCH` 或元数据 Filter |
 | 全文搜索 | `SEARCH` | `query`、`fields` | `query` 不能为空；具体字段能力由后端决定 |
 | 相对时间 | `TODAY`、`BEFORE_TODAY`、`TOMORROW`、`THIS_WEEK`、`NEXT_WEEK`、`LAST_WEEK`、`THIS_MONTH`、`LAST_MONTH`、`RECENT_DAYS`、`EARLIER_DAYS` | `field`；特定操作使用 `time` 或 `days`；可选 `zoneId` | 执行前统一规范化为绝对时间范围 |
 
@@ -74,6 +75,17 @@ val orderFilter = filterExpression {
     }
 }
 ```
+
+使用专用函数查询聚合与消息元数据：
+
+```kotlin
+val filter = filterExpression {
+    aggregateId("order-1")
+    tenantId("tenant-1")
+}
+```
+
+元数据 Filter 是查询根表达式，不能嵌套到 `elementMatch` 中。
 
 同一 DSL 块内的多个表达式自动组合为 `AND`。需要显式逻辑关系时使用 `and`、`or` 或 `nor`：
 
@@ -138,7 +150,7 @@ query.query(queryService)
 查询过滤器通过 `withFilter` 或 `appendFilter` 重写，不再操作内部 `Condition`：
 
 ```kotlin
-context.asRewritableQuery().rewriteQuery { query ->
+context.asRewritableFilterQuery().rewriteQuery { query ->
     val warehouseFilter = filterExpression {
         "state.warehouseId" eq warehouseId
     }
@@ -184,7 +196,7 @@ Wow-Space-Id: space-1
 
 ```json
 {
-  "filter": { "op": "EQ", "field": "aggregateId", "value": "order-1" },
+  "filter": { "op": "AGGREGATE_ID", "value": "order-1" },
   "limit": 1,
   "sort": []
 }
@@ -254,7 +266,7 @@ class OrderService(
 ) {
     fun getById(id: String): Mono<OrderState> = singleQuery {
         filter {
-            "aggregateId" eq id
+            aggregateId(id)
         }
     }.query(queryService).toState().throwNotFoundIfEmpty()
 }
