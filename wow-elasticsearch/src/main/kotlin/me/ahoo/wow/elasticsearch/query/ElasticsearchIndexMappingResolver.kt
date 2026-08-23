@@ -212,61 +212,63 @@ data class ElasticsearchIndexMapping private constructor(
 
     fun resolve(filter: FilterExpression): FilterExpression = resolve(filter, null)
 
-    @Suppress("CyclomaticComplexMethod")
     private fun resolve(filter: FilterExpression, parent: String?): FilterExpression =
-        filter.legacyConditionOrNull()?.let { resolve(it).toFilterExpression() } ?: when (filter) {
-            is AndFilter -> AndFilter(filter.operands.map { resolve(it, parent) })
-            is OrFilter -> OrFilter(filter.operands.map { resolve(it, parent) })
-            is NorFilter -> NorFilter(filter.operands.map { resolve(it, parent) })
-            is EqualFilter -> filter.copy(
-                field = filter.field.resolve(
-                    parent,
-                    if (filter.value.isNull) ElasticsearchFieldUsage.PRESENCE else ElasticsearchFieldUsage.EXACT,
-                ),
-            )
-            is NotEqualFilter -> filter.copy(
-                field = filter.field.resolve(
-                    parent,
-                    if (filter.value.isNull) ElasticsearchFieldUsage.PRESENCE else ElasticsearchFieldUsage.EXACT,
-                ),
-            )
-            is InFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.EXACT))
-            is NotInFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.EXACT))
-            is ContainsAllFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.EXACT))
-            is IsEmptyFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.PRESENCE))
-            is IsNullFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.PRESENCE))
-            is IsNotNullFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.PRESENCE))
-            is ExistsFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.PRESENCE))
-            is NotExistsFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.PRESENCE))
-            is ContainsFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.LITERAL))
-            is StartsWithFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.LITERAL))
-            is EndsWithFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.LITERAL))
-            is GreaterThanFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-            is GreaterThanOrEqualFilter -> filter.copy(
-                field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE)
-            )
-            is LessThanFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-            is LessThanOrEqualFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-            is BetweenFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-            is TodayFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-            is BeforeTodayFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-            is TomorrowFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-            is ThisWeekFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-            is NextWeekFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-            is LastWeekFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-            is ThisMonthFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-            is LastMonthFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-            is RecentDaysFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-            is EarlierDaysFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-            is SearchFilter -> filter.copy(
-                fields = filter.fields.mapTo(linkedSetOf()) { it.resolve(parent, ElasticsearchFieldUsage.SEARCH) },
-            )
-            is ElementMatchFilter -> {
-                val nestedPath = filter.field.path(parent)
-                ElementMatchFilter(LogicalField(requireNested(nestedPath)), resolve(filter.predicate, nestedPath))
-            }
-            else -> filter
+        filter.legacyConditionOrNull()?.let { resolve(it).toFilterExpression() } ?: resolveTyped(filter, parent)
+
+    @Suppress("CyclomaticComplexMethod")
+    private fun resolveTyped(filter: FilterExpression, parent: String?): FilterExpression = when (filter) {
+        is AndFilter -> AndFilter(filter.operands.map { resolve(it, parent) })
+        is OrFilter -> OrFilter(filter.operands.map { resolve(it, parent) })
+        is NorFilter -> NorFilter(filter.operands.map { resolve(it, parent) })
+        is EqualFilter -> filter.copy(
+            field = filter.field.resolve(
+                parent,
+                if (filter.value.isNull) ElasticsearchFieldUsage.PRESENCE else ElasticsearchFieldUsage.EXACT,
+            ),
+        )
+        is NotEqualFilter -> filter.copy(
+            field = filter.field.resolve(
+                parent,
+                if (filter.value.isNull) ElasticsearchFieldUsage.PRESENCE else ElasticsearchFieldUsage.EXACT,
+            ),
+        )
+        is InFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.EXACT))
+        is NotInFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.EXACT))
+        is ContainsAllFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.EXACT))
+        is IsEmptyFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.PRESENCE))
+        is IsNullFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.PRESENCE))
+        is IsNotNullFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.PRESENCE))
+        is ExistsFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.PRESENCE))
+        is NotExistsFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.PRESENCE))
+        is ContainsFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.LITERAL))
+        is StartsWithFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.LITERAL))
+        is EndsWithFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.LITERAL))
+        is GreaterThanFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is GreaterThanOrEqualFilter -> filter.copy(
+            field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE)
+        )
+        is LessThanFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is LessThanOrEqualFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is BetweenFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is TodayFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is BeforeTodayFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is TomorrowFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is ThisWeekFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is NextWeekFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is LastWeekFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is ThisMonthFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is LastMonthFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is RecentDaysFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is EarlierDaysFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is SearchFilter -> filter.copy(
+            fields = filter.fields.mapTo(linkedSetOf()) { it.resolve(parent, ElasticsearchFieldUsage.SEARCH) },
+        )
+        is ElementMatchFilter -> {
+            val nestedPath = filter.field.path(parent)
+            ElementMatchFilter(LogicalField(requireNested(nestedPath)), resolve(filter.predicate, nestedPath))
         }
+        else -> filter
+    }
 
     private fun LogicalField.path(parent: String?): String =
         if (parent == null || value == parent || value.startsWith("$parent.")) value else "$parent.$value"
