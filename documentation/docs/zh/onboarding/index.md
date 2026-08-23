@@ -10,7 +10,7 @@ description: 根据读者角色选择参与、评估或采用 Wow 的阅读路�
 本页按读者需要做出的决策，将你分流到最合适的入门指南。
 
 Wow 是围绕 CQRS 与事件溯源构建的响应式领域驱动设计框架，项目的[能力概览](https://github.com/Ahoo-Wang/Wow/blob/main/README.md#L51-L84)对此进行了说明。
-当前仓库基线为 Wow `8.11.0`、Kotlin `2.4.10`、Spring Boot `4.1.1`、Gradle `9.7.1` 与 Java `17`。
+当前仓库基线为 Wow `8.11.1`、Kotlin `2.4.10`、Spring Boot `4.1.1`、Gradle `9.7.1` 与 Java `17`。
 这些版本以仓库配置为准，而不是以本文为准：[项目版本](https://github.com/Ahoo-Wang/Wow/blob/main/gradle.properties#L18-L23)、[依赖版本](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/libs.versions.toml#L1-L35)、[Gradle Wrapper](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/wrapper/gradle-wrapper.properties#L1-L9) 与 [JVM Toolchain](https://github.com/Ahoo-Wang/Wow/blob/main/build.gradle.kts#L175-L190)。
 
 ## 选择阅读路径
