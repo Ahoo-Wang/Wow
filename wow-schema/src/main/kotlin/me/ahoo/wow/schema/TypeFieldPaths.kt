@@ -24,6 +24,7 @@ import me.ahoo.wow.serialization.state.StateAggregateRecords
 import me.ahoo.wow.serialization.toBeanDescription
 import tools.jackson.databind.JavaType
 import tools.jackson.databind.introspect.BeanPropertyDefinition
+import tools.jackson.databind.util.NameTransformer
 import kotlin.reflect.KClass
 import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.isSubclassOf
@@ -66,12 +67,14 @@ object TypeFieldPaths {
      * @param parentName The name of the parent property (used for nested properties).
      * @param depth The current nested-property depth.
      * @param maxDepth The maximum nested-property depth to inspect.
+     * @param nameTransformer The Jackson name transformer inherited from an unwrapped parent.
      */
     private fun JavaType.allFieldPathsInternal(
         fieldPaths: LinkedHashSet<String>,
         parentName: String,
         depth: Int,
-        maxDepth: Int
+        maxDepth: Int,
+        nameTransformer: NameTransformer? = null,
     ) {
         if (depth > maxDepth) {
             return
@@ -94,7 +97,8 @@ object TypeFieldPaths {
                     fieldPaths = fieldPaths,
                     parentName = parentName,
                     depth = depth,
-                    maxDepth = maxDepth
+                    maxDepth = maxDepth,
+                    nameTransformer = nameTransformer,
                 )
             }
             return
@@ -103,16 +107,37 @@ object TypeFieldPaths {
         toBeanDescription().findProperties().asSequence()
             .filter(BeanPropertyDefinition::couldSerialize)
             .forEach { property ->
-                val fullName = resolveFieldName(parentName, property.name)
+                val nestedType = property.primaryType.resolveNestedType()
+                val unwrappingTransformer = nestedType?.let { property.unwrappingNameTransformer() }
+                if (unwrappingTransformer != null) {
+                    requireNotNull(nestedType).allFieldPathsInternal(
+                        fieldPaths = fieldPaths,
+                        parentName = parentName,
+                        depth = depth,
+                        maxDepth = maxDepth,
+                        nameTransformer = nameTransformer?.let {
+                            NameTransformer.chainedTransformer(it, unwrappingTransformer)
+                        } ?: unwrappingTransformer,
+                    )
+                    return@forEach
+                }
+
+                val propertyName = nameTransformer?.transform(property.name) ?: property.name
+                val fullName = resolveFieldName(parentName, propertyName)
                 fieldPaths.add(fullName)
-                val nestedType = property.primaryType.resolveNestedType() ?: return@forEach
-                nestedType.allFieldPathsInternal(
+                nestedType?.allFieldPathsInternal(
                     fieldPaths = fieldPaths,
                     parentName = fullName,
                     depth = depth + 1,
-                    maxDepth = maxDepth
+                    maxDepth = maxDepth,
                 )
             }
+    }
+
+    private fun BeanPropertyDefinition.unwrappingNameTransformer(): NameTransformer? {
+        val member = primaryMember ?: accessor ?: return null
+        val config = JsonSerializer.serializationConfig()
+        return config.annotationIntrospector.findUnwrappingNameTransformer(config, member)
     }
 
     private fun resolveFieldName(parentName: String, fieldName: String): String =

@@ -14,6 +14,7 @@
 package me.ahoo.wow.schema
 
 import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.annotation.JsonUnwrapped
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.modeling.AggregateId
@@ -49,6 +50,16 @@ class AggregatedFieldPathsTest {
             .contains("state.display_name")
             .contains("state.frozen")
             .doesNotContain("state.name")
+    }
+
+    @Test
+    fun `should flatten Jackson unwrapped field paths`() {
+        val paths = UnwrappedFieldPathFixture::class.allFieldPaths(parentName = "state")
+
+        paths.assert()
+            .contains("state.detail_nestedValue_value")
+            .doesNotContain("state.details")
+            .doesNotContain("state.details.nestedValue")
     }
 
     @Test
@@ -107,3 +118,10 @@ class AggregatedFieldPathsTest {
 
     data class AggregateIdFixture(val aggregateId: AggregateId)
 }
+
+private data class UnwrappedFieldPathFixture(
+    @get:JsonUnwrapped(prefix = "detail_", suffix = "_value")
+    val details: UnwrappedDetails,
+)
+
+private data class UnwrappedDetails(val nestedValue: String)
