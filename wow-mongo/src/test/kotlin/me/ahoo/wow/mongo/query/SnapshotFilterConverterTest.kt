@@ -87,6 +87,25 @@ class SnapshotFilterConverterTest {
         )
     }
 
+    @Suppress("DEPRECATION")
+    @Test
+    fun `legacy collection predicates should preserve ObjectId values`() {
+        val objectId = ObjectId()
+
+        assertConvert(
+            SnapshotFilterConverter.convert(Condition.isIn("timestamp", listOf(objectId)).toFilterExpression()),
+            Filters.`in`("timestamp", objectId),
+        )
+        assertConvert(
+            SnapshotFilterConverter.convert(Condition.notIn("timestamp", listOf(objectId)).toFilterExpression()),
+            Filters.nin("timestamp", objectId),
+        )
+        assertConvert(
+            SnapshotFilterConverter.convert(Condition.all("timestamp", listOf(objectId)).toFilterExpression()),
+            Filters.all("timestamp", objectId),
+        )
+    }
+
     @Test
     fun `element predicate fields should remain relative`() {
         assertConvert(

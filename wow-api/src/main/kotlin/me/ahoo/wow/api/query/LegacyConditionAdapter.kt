@@ -46,13 +46,16 @@ fun FilterExpression.toExecutableFilter(): FilterExpression = when (this) {
 }
 
 private fun FilterExpression.containsLegacyMatch(): Boolean = when (this) {
-    is LegacyConditionFilter -> condition.operator == Operator.MATCH
+    is LegacyConditionFilter -> condition.containsMatch()
     is AndFilter -> operands.any(FilterExpression::containsLegacyMatch)
     is OrFilter -> operands.any(FilterExpression::containsLegacyMatch)
     is NorFilter -> operands.any(FilterExpression::containsLegacyMatch)
     is ElementMatchFilter -> predicate.containsLegacyMatch()
     else -> false
 }
+
+private fun Condition.containsMatch(): Boolean =
+    operator == Operator.MATCH || children.any(Condition::containsMatch)
 
 private fun FilterExpression.resolveOperands(
     operands: List<FilterExpression>,

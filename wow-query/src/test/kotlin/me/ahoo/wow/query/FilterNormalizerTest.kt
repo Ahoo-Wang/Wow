@@ -50,6 +50,22 @@ class FilterNormalizerTest {
     }
 
     @Test
+    fun `should preserve deletion scope nested in conjunctions`() {
+        val predicate = EqualFilter(
+            LogicalField("field"),
+            JsonSerializer.valueToTree<JsonNode>("value"),
+        )
+        val deleted = DeletionFilter(DeletionState.DELETED)
+        val tenant = TenantIdFilter("tenant-1")
+
+        val normalized = normalizer.normalize(
+            AndFilter(listOf(AndFilter(listOf(deleted, predicate)), tenant)),
+        ) as AndFilter
+
+        normalized.operands.assert().containsExactly(deleted, predicate, tenant)
+    }
+
+    @Test
     fun `should allow event stream normalization without deletion scope`() {
         FilterNormalizer(
             clock = Clock.fixed(Instant.parse("2026-08-22T12:00:00Z"), ZoneOffset.UTC),

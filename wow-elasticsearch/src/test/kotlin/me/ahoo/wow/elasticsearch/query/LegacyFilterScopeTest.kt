@@ -39,6 +39,24 @@ class LegacyFilterScopeTest {
 
     @Suppress("DEPRECATION")
     @Test
+    fun `should compile legacy match inside logical element predicate`() {
+        val query = EventStreamFilterConverter.convert(
+            Condition.elemMatch(
+                "body",
+                Condition.and(
+                    Condition.match("body.name", "wow"),
+                    Condition.eq("body.active", true),
+                ),
+            ).toFilterExpression(),
+        )
+
+        val filters = query.nested().query().bool().filter()
+        filters.single { it.isMultiMatch }.multiMatch().query().assert().isEqualTo("wow")
+        filters.single { it.isTerm }.term().field().assert().isEqualTo("body.active")
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
     fun `should not reapply active deletion scope to nested legacy filter`() {
         val query = SnapshotFilterConverter.convert(
             AndFilter(

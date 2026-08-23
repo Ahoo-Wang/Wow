@@ -38,7 +38,7 @@ private fun JsonNode.requireComparableFilterLiteral() {
 private fun List<JsonNode>.requireFilterLiterals(operator: FilterOperator) {
     require(isNotEmpty()) { "$operator values cannot be empty." }
     forEach {
-        it.requireFilterLiteral()
+        if (!it.isPojo) it.requireFilterLiteral()
         require(!it.isNull) { "$operator values cannot contain null." }
     }
 }

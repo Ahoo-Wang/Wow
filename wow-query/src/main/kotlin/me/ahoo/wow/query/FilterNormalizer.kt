@@ -77,7 +77,7 @@ class FilterNormalizer(
 
     private fun FilterExpression.hasExplicitDeletionScope(): Boolean = when (this) {
         is DeletionFilter -> true
-        is AndFilter -> operands.any { it is DeletionFilter }
+        is AndFilter -> operands.any { it.hasExplicitDeletionScope() }
         else -> false
     }
 
