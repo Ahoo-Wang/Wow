@@ -65,5 +65,29 @@ class MongoAggregationCompilerTest {
         )
         val group = pipeline.first { "\$group" in it }.getDocument("\$group")
         group.getDocument("count").assert().isEqualTo(BsonDocument("\$sum", BsonInt32(1)))
+        pipeline[2].toString().assert().contains("\$type")
+        pipeline[4].toString().assert().contains("\$type")
+    }
+
+    @Test
+    fun `should reject null element rows even without an element filter`() {
+        val pipeline = MongoAggregationCompiler.compile(
+            AggregationQuery(
+                elements = listOf(AggregationElement("state.orders")),
+                metrics = listOf(AggregationMetric.Count("count")),
+            ),
+            SnapshotConditionConverter,
+        ).map {
+            it.toBsonDocument(BsonDocument::class.java, MongoClientSettings.getDefaultCodecRegistry())
+        }
+
+        pipeline.map { it.keys.single() }.assert().containsExactly(
+            "\$match",
+            "\$unwind",
+            "\$match",
+            "\$group",
+            "\$project",
+        )
+        pipeline[2].toString().assert().contains("\$type")
     }
 }

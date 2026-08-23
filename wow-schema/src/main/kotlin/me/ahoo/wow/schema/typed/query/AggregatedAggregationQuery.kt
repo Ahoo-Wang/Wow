@@ -27,6 +27,8 @@ import me.ahoo.wow.schema.typed.SnapshotAggregationNumericFields
 import me.ahoo.wow.schema.typed.SnapshotAggregationTemporalFields
 import me.ahoo.wow.schema.typed.SnapshotAggregationTermsFields
 
+private const val AGGREGATION_ALIAS_PATTERN = "^(?!\\x24)(?!__wow_)(?!_id\$)[^.\\u0000]+\$"
+
 data class AggregatedAggregationQuery<CommandAggregateType : Any>(
     val filter: FilterExpressionSchema = FilterExpressionSchema.MatchAll,
     @get:ArraySchema(maxItems = AggregationQuery.MAX_ELEMENTS)
@@ -59,11 +61,13 @@ sealed interface AggregatedAggregationGroup<CommandAggregateType : Any> {
 
     data class Terms<CommandAggregateType : Any>(
         val field: SnapshotAggregationTermsFields<CommandAggregateType>,
+        @get:Schema(minLength = 1, pattern = AGGREGATION_ALIAS_PATTERN)
         override val alias: String,
     ) : AggregatedAggregationGroup<CommandAggregateType>
 
     data class Histogram<CommandAggregateType : Any>(
         val field: SnapshotAggregationNumericFields<CommandAggregateType>,
+        @get:Schema(minLength = 1, pattern = AGGREGATION_ALIAS_PATTERN)
         override val alias: String,
         @get:Schema(minimum = "0", exclusiveMinimum = true)
         val interval: Double,
@@ -71,6 +75,7 @@ sealed interface AggregatedAggregationGroup<CommandAggregateType : Any> {
 
     data class DateHistogram<CommandAggregateType : Any>(
         val field: SnapshotAggregationTemporalFields<CommandAggregateType>,
+        @get:Schema(minLength = 1, pattern = AGGREGATION_ALIAS_PATTERN)
         override val alias: String,
         val unit: AggregationDateUnit,
         val timeZone: String = "UTC",
@@ -86,12 +91,14 @@ sealed interface AggregatedAggregationMetric<CommandAggregateType : Any> {
     val alias: String
 
     data class Count<CommandAggregateType : Any>(
+        @get:Schema(minLength = 1, pattern = AGGREGATION_ALIAS_PATTERN)
         override val alias: String,
     ) : AggregatedAggregationMetric<CommandAggregateType>
 
     data class Numeric<CommandAggregateType : Any>(
         val function: AggregationFunction,
         val expression: AggregatedAggregationExpression<CommandAggregateType>,
+        @get:Schema(minLength = 1, pattern = AGGREGATION_ALIAS_PATTERN)
         override val alias: String,
     ) : AggregatedAggregationMetric<CommandAggregateType>
 }

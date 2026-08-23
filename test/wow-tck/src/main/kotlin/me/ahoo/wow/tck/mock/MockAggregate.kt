@@ -80,7 +80,7 @@ data class MockStateAggregate(val id: String) : ReadOnlyStateAggregateAware<Mock
     var data: String = ""
         private set
 
-    var orders: List<MockOrder> = emptyList()
+    var orders: List<MockOrder?> = emptyList()
 
     @field:JsonIgnore
     private var readOnlyStateAggregate: ReadOnlyStateAggregate<MockStateAggregate>? = null

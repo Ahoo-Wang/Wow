@@ -1139,6 +1139,8 @@
       "example.cart.CartAggregatedAggregationGroup.DateHistogram" : {
         "properties" : {
           "alias" : {
+            "minLength" : 1,
+            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "field" : {
@@ -1160,6 +1162,8 @@
       "example.cart.CartAggregatedAggregationGroup.Histogram" : {
         "properties" : {
           "alias" : {
+            "minLength" : 1,
+            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "field" : {
@@ -1180,6 +1184,8 @@
       "example.cart.CartAggregatedAggregationGroup.Terms" : {
         "properties" : {
           "alias" : {
+            "minLength" : 1,
+            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "field" : {
@@ -1195,6 +1201,8 @@
       "example.cart.CartAggregatedAggregationMetric.Count" : {
         "properties" : {
           "alias" : {
+            "minLength" : 1,
+            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "type" : {
@@ -1207,6 +1215,8 @@
       "example.cart.CartAggregatedAggregationMetric.Numeric" : {
         "properties" : {
           "alias" : {
+            "minLength" : 1,
+            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "expression" : {
@@ -2073,6 +2083,8 @@
       "example.order.OrderAggregatedAggregationGroup.DateHistogram" : {
         "properties" : {
           "alias" : {
+            "minLength" : 1,
+            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "field" : {
@@ -2094,6 +2106,8 @@
       "example.order.OrderAggregatedAggregationGroup.Histogram" : {
         "properties" : {
           "alias" : {
+            "minLength" : 1,
+            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "field" : {
@@ -2114,6 +2128,8 @@
       "example.order.OrderAggregatedAggregationGroup.Terms" : {
         "properties" : {
           "alias" : {
+            "minLength" : 1,
+            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "field" : {
@@ -2129,6 +2145,8 @@
       "example.order.OrderAggregatedAggregationMetric.Count" : {
         "properties" : {
           "alias" : {
+            "minLength" : 1,
+            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "type" : {
@@ -2141,6 +2159,8 @@
       "example.order.OrderAggregatedAggregationMetric.Numeric" : {
         "properties" : {
           "alias" : {
+            "minLength" : 1,
+            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "expression" : {
@@ -3103,6 +3123,8 @@
       "tck.mock_aggregate.MockCommandAggregateAggregatedAggregationGroup.DateHistogram" : {
         "properties" : {
           "alias" : {
+            "minLength" : 1,
+            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "field" : {
@@ -3124,6 +3146,8 @@
       "tck.mock_aggregate.MockCommandAggregateAggregatedAggregationGroup.Histogram" : {
         "properties" : {
           "alias" : {
+            "minLength" : 1,
+            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "field" : {
@@ -3144,6 +3168,8 @@
       "tck.mock_aggregate.MockCommandAggregateAggregatedAggregationGroup.Terms" : {
         "properties" : {
           "alias" : {
+            "minLength" : 1,
+            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "field" : {
@@ -3159,6 +3185,8 @@
       "tck.mock_aggregate.MockCommandAggregateAggregatedAggregationMetric.Count" : {
         "properties" : {
           "alias" : {
+            "minLength" : 1,
+            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "type" : {
@@ -3171,6 +3199,8 @@
       "tck.mock_aggregate.MockCommandAggregateAggregatedAggregationMetric.Numeric" : {
         "properties" : {
           "alias" : {
+            "minLength" : 1,
+            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "expression" : {
@@ -3470,6 +3500,8 @@
       "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedAggregationGroup.DateHistogram" : {
         "properties" : {
           "alias" : {
+            "minLength" : 1,
+            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "field" : {
@@ -3491,6 +3523,8 @@
       "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedAggregationGroup.Histogram" : {
         "properties" : {
           "alias" : {
+            "minLength" : 1,
+            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "field" : {
@@ -3511,6 +3545,8 @@
       "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedAggregationGroup.Terms" : {
         "properties" : {
           "alias" : {
+            "minLength" : 1,
+            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "field" : {
@@ -3526,6 +3562,8 @@
       "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedAggregationMetric.Count" : {
         "properties" : {
           "alias" : {
+            "minLength" : 1,
+            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "type" : {
@@ -3538,6 +3576,8 @@
       "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedAggregationMetric.Numeric" : {
         "properties" : {
           "alias" : {
+            "minLength" : 1,
+            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "expression" : {
@@ -3806,6 +3846,8 @@
       "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedAggregationGroup.DateHistogram" : {
         "properties" : {
           "alias" : {
+            "minLength" : 1,
+            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "field" : {
@@ -3827,6 +3869,8 @@
       "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedAggregationGroup.Histogram" : {
         "properties" : {
           "alias" : {
+            "minLength" : 1,
+            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "field" : {
@@ -3847,6 +3891,8 @@
       "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedAggregationGroup.Terms" : {
         "properties" : {
           "alias" : {
+            "minLength" : 1,
+            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "field" : {
@@ -3862,6 +3908,8 @@
       "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedAggregationMetric.Count" : {
         "properties" : {
           "alias" : {
+            "minLength" : 1,
+            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "type" : {
@@ -3874,6 +3922,8 @@
       "tck.mock_aggregate.MockCommandAggregateWithoutCtorParametersAggregatedAggregationMetric.Numeric" : {
         "properties" : {
           "alias" : {
+            "minLength" : 1,
+            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "expression" : {

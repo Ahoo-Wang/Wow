@@ -343,7 +343,7 @@ curl -X POST \
 - 每层 `AggregationElement.filter` 只能访问该层标量字段或非集合对象路径，并且不能使用 `ELEMENT_MATCH`、`SEARCH` 或 `DELETION`。
 - 字符串操作符只接受文本字段；范围操作符只接受数值、时间或文本字段；相对时间操作符只接受时间字段。对象路径只支持 null/presence 过滤。
 - 根 `ELEMENT_MATCH` 只筛选“包含匹配元素的快照”，不会筛选随后展开的行；行过滤必须写入对应 Element filter。
-- 缺失、`null` 或空集合不产生展开行；任一分组字段缺失或为 `null` 时，该行不进入 bucket。
+- 缺失、`null`、空集合及集合中的 `null` 成员都不产生展开行；任一分组字段缺失或为 `null` 时，该行不进入 bucket。
 
 ### 分组与指标
 

@@ -348,7 +348,7 @@ identical to the JSON response.
 - Each `AggregationElement.filter` may reference only scalar fields or non-collection object paths in that element and must not use `ELEMENT_MATCH`, `SEARCH`, or `DELETION`.
 - String operators require textual fields; range operators require numeric, temporal, or textual fields; relative-time operators require temporal fields. Object paths support only null/presence filters.
 - A root `ELEMENT_MATCH` filters snapshots containing a match; it does not filter rows produced by expansion. Put row filters in the corresponding Element filter.
-- Missing, `null`, and empty collections produce no expanded rows. A row with any missing or `null` group field produces no bucket.
+- Missing, `null`, and empty collections, including `null` collection members, produce no expanded rows. A row with any missing or `null` group field produces no bucket.
 
 ### Groups and Metrics
 

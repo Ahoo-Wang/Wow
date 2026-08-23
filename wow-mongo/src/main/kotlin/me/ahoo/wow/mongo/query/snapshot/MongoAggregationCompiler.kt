@@ -28,6 +28,7 @@ import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.mongo.query.AbstractMongoConditionConverter
+import org.bson.BsonType
 import org.bson.Document
 import org.bson.conversions.Bson
 
@@ -37,12 +38,14 @@ internal object MongoAggregationCompiler {
         query.elements.forEach { element ->
             val field = SnapshotFieldConverter.convert(element.path)
             add(Aggregates.unwind("\$$field", UnwindOptions().preserveNullAndEmptyArrays(false)))
+            val filters = mutableListOf<Bson>(Filters.type(field, BsonType.DOCUMENT))
             if (element.filter !== MatchAllFilter) {
                 val elementFilter = AndFilter(
                     listOf(DeletionFilter(DeletionState.ALL), element.filter),
                 )
-                add(Aggregates.match(conditionConverter.convert(elementFilter)))
+                filters += conditionConverter.convert(elementFilter)
             }
+            add(Aggregates.match(Filters.and(filters)))
         }
         if (query.groupBy.isNotEmpty()) {
             add(

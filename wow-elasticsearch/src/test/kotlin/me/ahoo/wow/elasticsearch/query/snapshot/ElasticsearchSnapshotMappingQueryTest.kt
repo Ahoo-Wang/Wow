@@ -25,6 +25,8 @@ import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationExpression
+import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
@@ -40,7 +42,6 @@ import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
 import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchIndicesClient
 import reactor.core.publisher.Mono
@@ -182,8 +183,48 @@ class ElasticsearchSnapshotMappingQueryTest {
         service.dynamicList(ListQuery(condition = condition, limit = 10)).collectList().block()
 
         convertedFilter.captured.assert().isEqualTo(condition.toFilterExpression())
-        assertThrows<IllegalArgumentException> { service.refreshIndexMapping() }
         verify(exactly = 0) { client.indices() }
+    }
+
+    @Test
+    fun `custom condition converter should refresh its aggregation mapping`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returnsMany listOf(
+            Mono.just(mappingResponse(queryMapping())),
+            Mono.just(mappingResponse(queryMapping(includeNewField = true))),
+        )
+        val customConverter = mockk<me.ahoo.wow.elasticsearch.query.AbstractElasticsearchConditionConverter> {
+            every { convert(any<FilterExpression>()) } returns matchAll { it }
+        }
+        val executed = IllegalStateException("aggregation executed")
+        every { client.search(any<SearchRequest>(), Map::class.java) } returns Mono.error(executed)
+        val service = ElasticsearchSnapshotQueryService<Any>(
+            MOCK_AGGREGATE_METADATA,
+            client,
+            customConverter,
+            DEFAULT_SEARCH_BATCH_SIZE,
+            DEFAULT_PIT_KEEP_ALIVE,
+            ElasticsearchIndexMappingResolver(client),
+        )
+        val query = AggregationQuery(
+            metrics = listOf(
+                AggregationMetric.Numeric(
+                    AggregationFunction.SUM,
+                    AggregationExpression.Field("state.newField"),
+                    "sum",
+                ),
+            ),
+        )
+
+        service.aggregate(query).test()
+            .expectError(ElasticsearchFieldResolutionException::class.java)
+            .verify()
+        service.refreshIndexMapping().block()
+        service.aggregate(query).test()
+            .expectErrorSatisfies { error -> error.assert().isSameAs(executed) }
+            .verify()
+
+        verify(exactly = 2) { indicesClient.getMapping(any<GetMappingRequest>()) }
+        verify(exactly = 1) { client.search(any<SearchRequest>(), Map::class.java) }
     }
 
     @Test
@@ -249,7 +290,7 @@ class ElasticsearchSnapshotMappingQueryTest {
                             }
                         }.properties("age") { age -> age.integer { it } }
                     if (includeNewField) {
-                        objectField.properties("newField") { field -> field.keyword { it } }
+                        objectField.properties("newField") { field -> field.double_ { it } }
                     }
                     objectField
                 }

@@ -92,6 +92,22 @@ class AggregatedAggregationQueryTest {
     }
 
     @Test
+    fun `should publish runtime alias restrictions`() {
+        val schema = generator.generateSchema(
+            AggregatedAggregationQuery::class.java,
+            Order::class.java,
+        ).asJsonSchema().actual
+        val aliases = schema.findValues("alias")
+
+        aliases.assert().hasSize(5)
+        aliases.map { it.path("minLength").intValue() }.distinct().assert().containsExactly(1)
+        val pattern = Regex(aliases.map { it.path("pattern").stringValue() }.distinct().single())
+        pattern.matches("totalAmount").assert().isTrue()
+        listOf("", "_id", "a.b", "\$value", "__wow_x", "nul\u0000alias")
+            .forEach { alias -> pattern.matches(alias).assert().isFalse() }
+    }
+
+    @Test
     fun `should expose operation-specific field enums`() {
         val elements = generator.generateSchema(
             SnapshotAggregationElements::class.java,

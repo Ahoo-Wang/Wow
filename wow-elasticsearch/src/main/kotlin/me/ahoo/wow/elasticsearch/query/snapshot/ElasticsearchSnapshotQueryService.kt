@@ -81,6 +81,7 @@ class ElasticsearchSnapshotQueryService<S : Any>(
         queryKeepAlive: Duration,
         indexMappingResolver: ElasticsearchIndexMappingResolver,
     ) : this(namedAggregate, elasticsearchClient, conditionConverter, queryBatchSize, queryKeepAlive) {
+        aggregationMappingResolver = indexMappingResolver
         configuredIndexMappingResolver = indexMappingResolver.takeIf { conditionConverter === SnapshotConditionConverter }
     }
 
@@ -93,14 +94,11 @@ class ElasticsearchSnapshotQueryService<S : Any>(
         get() = configuredQueryKeepAlive
     override val indexMappingResolver: ElasticsearchIndexMappingResolver?
         get() = configuredIndexMappingResolver
-    private val aggregationMappingResolver: ElasticsearchIndexMappingResolver by lazy {
+    private var aggregationMappingResolver: ElasticsearchIndexMappingResolver =
         configuredIndexMappingResolver ?: ElasticsearchIndexMappingResolver(elasticsearchClient)
-    }
 
     fun refreshIndexMapping(): Mono<ElasticsearchMappingRefreshResult> {
-        return requireNotNull(indexMappingResolver) {
-            "Index mapping resolution is disabled for custom condition converters."
-        }.refresh(indexName)
+        return aggregationMappingResolver.refresh(indexName)
     }
 
     private val snapshotType = JsonSerializer.typeFactory

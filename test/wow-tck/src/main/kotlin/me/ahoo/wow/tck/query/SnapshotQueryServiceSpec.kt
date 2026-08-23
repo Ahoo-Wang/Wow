@@ -83,9 +83,10 @@ abstract class SnapshotQueryServiceSpec {
                 ),
             ),
             MockOrder(status = "PAID", amount = 0.0, lines = emptyList()),
+            null,
         )
         val serializedOrders = (snapshot.toLinkedHashMap()["state"] as Map<*, *>)["orders"] as List<*>
-        check(serializedOrders.size == 3) { "Aggregation TCK snapshot must serialize nested elements." }
+        check(serializedOrders.size == 4) { "Aggregation TCK snapshot must serialize nested and null elements." }
         snapshotStore.save(snapshot)
             .test()
             .verifyComplete()
