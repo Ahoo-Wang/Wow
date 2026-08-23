@@ -16,6 +16,7 @@ package me.ahoo.wow.webflux.route.query
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.abac.AbacTags
+import me.ahoo.wow.api.query.AggregateIdsFilter
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.DynamicDocument
@@ -185,17 +186,17 @@ class HttpQueryGuardFilterTest {
     }
 
     @Test
-    fun `metadata ids should respect max condition values`() {
-        val context = DefaultQueryContext<FilterExpression, Mono<Long>>(
-            QueryType.COUNT,
-            MOCK_AGGREGATE_METADATA,
-        ).setQuery(IdsFilter(listOf("id-1", "id-2")))
-
-        guard(maxConditionValues = 1).filter(context, unexpectedBackend())
-            .writeRawRequest(request)
-            .test()
-            .expectError(IllegalArgumentException::class.java)
-            .verify()
+    fun `plural metadata filters should respect max condition values`() {
+        listOf<FilterExpression>(
+            IdsFilter(listOf("id-1", "id-2")),
+            AggregateIdsFilter(listOf("aggregate-1", "aggregate-2")),
+        ).forEach { filter ->
+            guard(maxConditionValues = 1).filter(countContext(filter), unexpectedBackend())
+                .writeRawRequest(request)
+                .test()
+                .expectError(IllegalArgumentException::class.java)
+                .verify()
+        }
     }
 
     @Test

@@ -37,6 +37,7 @@ import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
 import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
+import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
@@ -114,6 +115,15 @@ class QueryBodyExtractorTest {
     }
 
     @Test
+    fun `count body should accept exactly one discriminator`() {
+        listOf("""{"op":"MATCH_ALL"}""", """{"operator":"ALL"}""").forEach { body ->
+            countClient().post().uri("/sku/snapshot/count")
+                .contentType(MediaType.APPLICATION_JSON).bodyValue(body).exchange()
+                .expectStatus().isOk
+        }
+    }
+
+    @Test
     fun `should accept legacy collection equality`() {
         val handlerFunction = CountQueryHandlerFunctionFactory(
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
@@ -172,6 +182,21 @@ class QueryBodyExtractorTest {
                 .contentType(MediaType.APPLICATION_JSON).bodyValue("{}").exchange()
                 .expectStatus().isBadRequest
                 .expectHeader().valueEquals(ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
+        }
+    }
+
+    @Test
+    fun `query body should accept exactly one filter representation`() {
+        listOf(
+            """{"filter":{"op":"MATCH_ALL"}}""",
+            """{"condition":{"operator":"ALL"}}""",
+        ).forEach { body ->
+            queryClients().forEach { (path, client) ->
+                val expectedStatus = if (path.endsWith("/single")) HttpStatus.NOT_FOUND else HttpStatus.OK
+                client.post().uri(path)
+                    .contentType(MediaType.APPLICATION_JSON).bodyValue(body).exchange()
+                    .expectStatus().isEqualTo(expectedStatus)
+            }
         }
     }
 

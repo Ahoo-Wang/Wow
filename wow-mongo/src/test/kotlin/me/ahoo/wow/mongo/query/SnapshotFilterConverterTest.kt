@@ -17,7 +17,6 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import tools.jackson.databind.JsonNode
-import tools.jackson.databind.node.JsonNodeFactory
 import java.util.stream.Stream
 
 class SnapshotFilterConverterTest {
@@ -55,8 +54,9 @@ class SnapshotFilterConverterTest {
             )
     }
 
+    @Suppress("DEPRECATION")
     @Test
-    fun `equality filters should preserve scalar arrays and runtime POJOs`() {
+    fun `equality filters should preserve scalar arrays and legacy ObjectId values`() {
         val objectId = ObjectId()
         assertConvert(
             SnapshotFilterConverter.convert(EqualFilter(LogicalField("state.tags"), json(listOf("a", "b")))),
@@ -70,7 +70,7 @@ class SnapshotFilterConverterTest {
         )
         assertConvert(
             SnapshotFilterConverter.convert(
-                EqualFilter(LogicalField("timestamp"), JsonNodeFactory.instance.pojoNode(objectId)),
+                Condition.eq("timestamp", objectId).toFilterExpression(),
             ),
             Filters.eq("timestamp", objectId),
         )

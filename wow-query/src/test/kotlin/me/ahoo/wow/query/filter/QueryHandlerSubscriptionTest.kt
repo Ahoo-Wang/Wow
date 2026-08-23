@@ -21,9 +21,10 @@ import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.IdFilter
-import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
+import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.filter.EmptyFilterChain
 import me.ahoo.wow.filter.ErrorHandler
@@ -46,7 +47,7 @@ import java.util.concurrent.atomic.AtomicInteger
 class QueryHandlerSubscriptionTest {
     @Suppress("DEPRECATION")
     @Test
-    fun `legacy query should be executable before first filter`() {
+    fun `custom Condition backed list query should be executable before first filter`() {
         lateinit var captured: FilterExpression
         val chain = FilterChain<QueryContext<*, *>> { context ->
             val listContext = context.asListQuery<String>()
@@ -58,7 +59,7 @@ class QueryHandlerSubscriptionTest {
 
         handler.list(
             MOCK_AGGREGATE_METADATA,
-            ListQuery(Condition.tenantId("tenant-1")),
+            LegacyListQuery(Condition.tenantId("tenant-1")),
         ).test().verifyComplete()
 
         captured.assert().isEqualTo(TenantIdFilter("tenant-1"))
@@ -246,6 +247,18 @@ class QueryHandlerSubscriptionTest {
             }
             return next.filter(context)
         }
+    }
+
+    @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
+    private data class LegacyListQuery(
+        override val condition: Condition,
+        override val projection: Projection = Projection.ALL,
+        override val sort: List<Sort> = emptyList(),
+        override val limit: Int = 0,
+    ) : IListQuery {
+        override fun withCondition(newCondition: Condition): IListQuery = copy(condition = newCondition)
+
+        override fun withProjection(newProjection: Projection): IListQuery = copy(projection = newProjection)
     }
 
     private companion object {

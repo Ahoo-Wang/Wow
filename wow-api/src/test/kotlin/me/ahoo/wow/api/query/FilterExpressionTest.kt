@@ -17,6 +17,9 @@ import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.JsonNode
 import tools.jackson.module.kotlin.jsonMapper
+import java.time.LocalTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 class FilterExpressionTest {
     private val jsonMapper = jsonMapper()
@@ -204,11 +207,165 @@ class FilterExpressionTest {
         resolved.toCondition().value.assert().isSameAs(native)
     }
 
+    @Suppress("DEPRECATION", "LongMethod")
+    @Test
+    fun `should resolve every legacy operator with its options`() {
+        val field = LogicalField("state.value")
+        val dateField = LogicalField("state.createdAt")
+        val nestedField = LogicalField("name")
+        val one = jsonMapper.valueToTree<JsonNode>(1)
+        val two = jsonMapper.valueToTree<JsonNode>(2)
+        val text = jsonMapper.valueToTree<JsonNode>("Wow")
+        val equal = EqualFilter(field, one)
+        val relativeOptions = mapOf(
+            Condition.ZONE_ID_OPTION_KEY to "UTC",
+            Condition.DATE_PATTERN_OPTION_KEY to "yyyy-MM-dd",
+        )
+        val formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME
+        val formatterOptions = mapOf(
+            Condition.ZONE_ID_OPTION_KEY to ZoneId.of("UTC"),
+            Condition.DATE_PATTERN_OPTION_KEY to formatter,
+        )
+        val cases = listOf(
+            Condition.and(Condition.eq(field.value, 1)) to AndFilter(listOf(equal)),
+            Condition.or(Condition.eq(field.value, 1)) to OrFilter(listOf(equal)),
+            Condition.nor(Condition.eq(field.value, 1)) to NorFilter(listOf(equal)),
+            Condition.id("id-1") to IdFilter("id-1"),
+            Condition.ids("id-1", "id-2") to IdsFilter(listOf("id-1", "id-2")),
+            Condition.aggregateId("aggregate-1") to AggregateIdFilter("aggregate-1"),
+            Condition.aggregateIds("aggregate-1", "aggregate-2") to
+                AggregateIdsFilter(listOf("aggregate-1", "aggregate-2")),
+            Condition.tenantId("tenant-1") to TenantIdFilter("tenant-1"),
+            Condition.ownerId("owner-1") to OwnerIdFilter("owner-1"),
+            Condition.spaceId("space-1") to SpaceIdFilter("space-1"),
+            Condition.deleted(DeletionState.DELETED) to DeletionFilter(DeletionState.DELETED),
+            Condition.ALL to MatchAllFilter,
+            Condition.eq(field.value, 1) to equal,
+            Condition.ne(field.value, 1) to NotEqualFilter(field, one),
+            Condition.gt(field.value, 1) to GreaterThanFilter(field, one),
+            Condition.lt(field.value, 1) to LessThanFilter(field, one),
+            Condition.gte(field.value, 1) to GreaterThanOrEqualFilter(field, one),
+            Condition.lte(field.value, 1) to LessThanOrEqualFilter(field, one),
+            Condition.contains(field.value, "Wow", ignoreCase = true) to
+                ContainsFilter(field, "Wow", StringComparison.CASE_INSENSITIVE),
+            Condition.isIn(field.value, listOf<Any>(1, 2)) to InFilter(field, listOf(one, two)),
+            Condition.notIn(field.value, listOf<Any>(1, 2)) to NotInFilter(field, listOf(one, two)),
+            Condition.between(field.value, 1, 2) to BetweenFilter(field, one, two),
+            Condition.all(field.value, listOf<Any>(1, 2)) to ContainsAllFilter(field, listOf(one, two)),
+            Condition.startsWith(field.value, "Wow") to StartsWithFilter(field, "Wow"),
+            Condition.endsWith(field.value, "Wow", ignoreCase = true) to
+                EndsWithFilter(field, "Wow", StringComparison.CASE_INSENSITIVE),
+            Condition.elemMatch("state.items", Condition.eq(nestedField.value, "Wow")) to
+                ElementMatchFilter(LogicalField("state.items"), EqualFilter(nestedField, text)),
+            Condition(
+                field = "state.items",
+                operator = Operator.ELEM_MATCH,
+                children = listOf(Condition.eq(nestedField.value, "Wow"), Condition.gt("price", 1)),
+            ) to ElementMatchFilter(
+                LogicalField("state.items"),
+                AndFilter(
+                    listOf(
+                        EqualFilter(nestedField, text),
+                        GreaterThanFilter(LogicalField("price"), one),
+                    ),
+                ),
+            ),
+            Condition.isNull(field.value) to IsNullFilter(field),
+            Condition.notNull(field.value) to IsNotNullFilter(field),
+            Condition.isTrue(field.value) to EqualFilter(field, jsonMapper.valueToTree(true)),
+            Condition.isFalse(field.value) to EqualFilter(field, jsonMapper.valueToTree(false)),
+            Condition.exists(field.value) to ExistsFilter(field),
+            Condition.exists(field.value, false) to NotExistsFilter(field),
+            Condition(
+                field = dateField.value,
+                operator = Operator.TODAY,
+                options = relativeOptions,
+            ) to TodayFilter(dateField, "UTC", "yyyy-MM-dd"),
+            Condition(
+                field = dateField.value,
+                operator = Operator.BEFORE_TODAY,
+                value = LocalTime.of(8, 30),
+                options = formatterOptions,
+            ) to BeforeTodayFilter(dateField, "08:30", "UTC", dateFormatter = formatter),
+            Condition(
+                field = dateField.value,
+                operator = Operator.TOMORROW,
+                options = relativeOptions,
+            ) to TomorrowFilter(dateField, "UTC", "yyyy-MM-dd"),
+            Condition(
+                field = dateField.value,
+                operator = Operator.THIS_WEEK,
+                options = relativeOptions,
+            ) to ThisWeekFilter(dateField, "UTC", "yyyy-MM-dd"),
+            Condition(
+                field = dateField.value,
+                operator = Operator.NEXT_WEEK,
+                options = relativeOptions,
+            ) to NextWeekFilter(dateField, "UTC", "yyyy-MM-dd"),
+            Condition(
+                field = dateField.value,
+                operator = Operator.LAST_WEEK,
+                options = relativeOptions,
+            ) to LastWeekFilter(dateField, "UTC", "yyyy-MM-dd"),
+            Condition(
+                field = dateField.value,
+                operator = Operator.THIS_MONTH,
+                options = relativeOptions,
+            ) to ThisMonthFilter(dateField, "UTC", "yyyy-MM-dd"),
+            Condition(
+                field = dateField.value,
+                operator = Operator.LAST_MONTH,
+                options = relativeOptions,
+            ) to LastMonthFilter(dateField, "UTC", "yyyy-MM-dd"),
+            Condition(
+                field = dateField.value,
+                operator = Operator.RECENT_DAYS,
+                value = 7,
+                options = relativeOptions,
+            ) to RecentDaysFilter(dateField, 7, "UTC", "yyyy-MM-dd"),
+            Condition(
+                field = dateField.value,
+                operator = Operator.EARLIER_DAYS,
+                value = 30,
+                options = relativeOptions,
+            ) to EarlierDaysFilter(dateField, 30, "UTC", "yyyy-MM-dd"),
+            Condition.match("state.description", "Wow") to
+                SearchFilter("Wow", setOf(LogicalField("state.description"))),
+            Condition.match("", "Wow") to SearchFilter("Wow"),
+        )
+
+        cases.map { it.first.operator }.toSet().assert().containsExactly(*Operator.entries.toTypedArray())
+        cases.forEach { (condition, expected) ->
+            condition.toFilterExpression().toExecutableFilter().assert().isEqualTo(expected)
+        }
+    }
+
     @Suppress("DEPRECATION")
     @Test
-    fun `should reject invalid legacy logical and element match nodes`() {
-        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
-            Condition(operator = Operator.AND).toFilterExpression().toExecutableFilter()
+    fun `should normalize empty legacy collections`() {
+        val field = LogicalField("state.values")
+        val emptyArray = jsonMapper.valueToTree<JsonNode>(emptyList<Any>())
+        val cases = listOf(
+            Condition.ids(emptyList()) to MatchNoneFilter,
+            Condition.aggregateIds(emptyList()) to MatchNoneFilter,
+            Condition.isIn(field.value, emptyList()) to MatchNoneFilter,
+            Condition.notIn(field.value, emptyList()) to MatchAllFilter,
+            Condition.all(field.value, emptyList()) to MatchAllFilter,
+            Condition.eq(field.value, emptyList<Any>()) to EqualFilter(field, emptyArray),
+        )
+
+        cases.forEach { (condition, expected) ->
+            condition.toFilterExpression().toExecutableFilter().assert().isEqualTo(expected)
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `should reject empty legacy logical and element match nodes`() {
+        listOf(Operator.AND, Operator.OR, Operator.NOR).forEach { operator ->
+            org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+                Condition(operator = operator).toFilterExpression().toExecutableFilter()
+            }
         }
         org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
             Condition(field = "items", operator = Operator.ELEM_MATCH)

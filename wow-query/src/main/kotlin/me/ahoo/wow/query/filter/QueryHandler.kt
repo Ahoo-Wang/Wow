@@ -16,12 +16,14 @@ package me.ahoo.wow.query.filter
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
-import me.ahoo.wow.api.query.FilterCapable
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.PagedQuery
+import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.toExecutableFilter
 import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.filter.ErrorAccessor
@@ -48,7 +50,9 @@ interface QueryHandler<R : Any> : Handler<QueryContext<*, *>> {
 @Suppress("UNCHECKED_CAST")
 private fun <Q : Any> Q.toExecutableQuery(): Q = when (this) {
     is FilterExpression -> toExecutableFilter()
-    is FilterCapable<*> -> withFilter(filter.toExecutableFilter())
+    is ISingleQuery -> SingleQuery(filter.toExecutableFilter(), projection, sort)
+    is IListQuery -> ListQuery(filter.toExecutableFilter(), projection, sort, limit)
+    is IPagedQuery -> PagedQuery(filter.toExecutableFilter(), projection, sort, pagination)
     else -> this
 } as Q
 
