@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-@file:Suppress("NoWildcardImports", "WildcardImport")
+@file:Suppress("DEPRECATION", "NoWildcardImports", "WildcardImport")
 
 package me.ahoo.wow.elasticsearch.query
 
@@ -164,7 +164,20 @@ data class ElasticsearchIndexMapping private constructor(
     fun resolve(filter: FilterExpression): FilterExpression = resolve(filter, null)
 
     private fun resolve(filter: FilterExpression, parent: String?): FilterExpression =
-        resolveTyped(filter, parent)
+        filter.legacyConditionOrNull()?.let { resolveLegacy(it, parent) }
+            ?: resolveTyped(filter, parent)
+
+    private fun resolveLegacy(condition: Condition, parent: String?): FilterExpression = when (condition.operator) {
+        Operator.AND -> AndFilter(condition.children.map { resolve(it.toFilterExpression(), parent) })
+        Operator.OR -> OrFilter(condition.children.map { resolve(it.toFilterExpression(), parent) })
+        Operator.NOR -> NorFilter(condition.children.map { resolve(it.toFilterExpression(), parent) })
+        Operator.MATCH -> condition.copy(
+            field = condition.field.takeIf(String::isNotBlank)
+                ?.let { LogicalField(it).resolve(parent, ElasticsearchFieldUsage.MATCH).value }
+                .orEmpty(),
+        ).toFilterExpression()
+        else -> resolveTyped(condition.toFilterExpression().toExecutableFilter(), parent)
+    }
 
     @Suppress("CyclomaticComplexMethod", "LongMethod")
     private fun resolveTyped(filter: FilterExpression, parent: String?): FilterExpression = when (filter) {

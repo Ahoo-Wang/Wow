@@ -101,6 +101,21 @@ class ElasticsearchSnapshotMappingQueryTest {
             .isEqualTo("state.name.keyword")
     }
 
+    @Suppress("DEPRECATION")
+    @Test
+    fun `legacy match should preserve exact field mapping`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(queryMapping(includeNewField = true)),
+        )
+
+        queryService().dynamicList(
+            ListQuery(condition = Condition.match("state.newField", "exact"), limit = 10),
+        ).collectList().block()
+
+        searchRequest.captured.query()!!.bool().filter()[1].multiMatch().fields().assert()
+            .containsExactly("state.newField")
+    }
+
     @Test
     fun `missing field should fail without automatic mapping refresh`() {
         every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
@@ -140,6 +155,31 @@ class ElasticsearchSnapshotMappingQueryTest {
         val nested = searchRequest.captured.query()!!.bool().filter()[1].nested()
         nested.path().assert().isEqualTo("body")
         nested.query().term().field().assert().isEqualTo("body.name")
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `legacy element match should resolve non-match sibling fields`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(queryMapping()),
+        )
+
+        queryService().dynamicList(
+            ListQuery(
+                condition = Condition.elemMatch(
+                    "body",
+                    Condition.and(
+                        Condition.match("body.description", "wow"),
+                        Condition.eq("body.title", "Wow"),
+                    ),
+                ),
+                limit = 10,
+            ),
+        ).collectList().block()
+
+        val filters = searchRequest.captured.query()!!.bool().filter()[1].nested().query().bool().filter()
+        filters[0].multiMatch().fields().assert().containsExactly("body.description")
+        filters[1].term().field().assert().isEqualTo("body.title.keyword")
     }
 
     @Test
@@ -232,6 +272,12 @@ class ElasticsearchSnapshotMappingQueryTest {
             mapping.properties("body") { body ->
                 body.nested { nested ->
                     nested.properties("name") { name -> name.keyword { it } }
+                        .properties("description") { description -> description.text { it } }
+                        .properties("title") { title ->
+                            title.text { text ->
+                                text.fields("keyword") { keyword -> keyword.keyword { it } }
+                            }
+                        }
                 }
             }
             mapping.properties("state") { state ->
