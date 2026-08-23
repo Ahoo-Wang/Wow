@@ -12,6 +12,7 @@ Wow 8.11 已引入 `FilterExpression`，但 `Condition` 兼容逻辑仍贯穿查
 - 保留 HTTP 旧 `condition` 请求兼容。
 - 每次查询执行最多进行一次实际 legacy 适配。
 - 查询过滤链、请求 guard、ABAC、MongoDB、Elasticsearch 和字段映射只处理 `FilterExpression`。
+- 使用独立、公开的 FilterExpression 表达文档 ID 与聚合元数据条件，不再降级为普通逻辑字段比较。
 - 删除旧 Condition converter、删除条件 guard 和实现层 legacy 分支。
 - HTTP 请求必须恰好选择一种查询表示，不能同时或都不提供 `condition` 与 `filter`。
 
@@ -58,9 +59,9 @@ Wow 8.11 已引入 `FilterExpression`，但 `Condition` 兼容逻辑仍贯穿查
 |---|---|
 | `ALL` | `MatchAllFilter` |
 | `AND` / `OR` / `NOR` | 递归映射为 `AndFilter` / `OrFilter` / `NorFilter` |
-| `ID` / `IDS` | `_id` 上的 `EqualFilter` / `InFilter` |
-| `AGGREGATE_ID` / `AGGREGATE_IDS` | `aggregateId` 上的 `EqualFilter` / `InFilter` |
-| `TENANT_ID` / `OWNER_ID` / `SPACE_ID` | 对应逻辑字段上的 `EqualFilter` |
+| `ID` / `IDS` | `IdFilter` / `IdsFilter` |
+| `AGGREGATE_ID` / `AGGREGATE_IDS` | `AggregateIdFilter` / `AggregateIdsFilter` |
+| `TENANT_ID` / `OWNER_ID` / `SPACE_ID` | `TenantIdFilter` / `OwnerIdFilter` / `SpaceIdFilter` |
 | `TRUE` / `FALSE` | 对应字段上的布尔 `EqualFilter` |
 | `EQ` / `NE` / 范围比较 | 对应 typed predicate |
 | `IN` / `NOT_IN` / `BETWEEN` / `ALL_IN` | 对应集合 typed predicate |
@@ -72,6 +73,31 @@ Wow 8.11 已引入 `FilterExpression`，但 `Condition` 兼容逻辑仍贯穿查
 | 相对时间 operators | 对应相对时间 filter，并保留 zone、pattern、time、days |
 
 空逻辑节点、空 `ELEM_MATCH`、非法字段和值类型在适配阶段拒绝。
+
+### 独立元数据 Filter
+
+以下类型作为公开、可序列化的 `FilterExpression` 一等成员：
+
+| FilterExpression | FilterOperator | JSON 载荷 |
+|---|---|---|
+| `IdFilter` | `ID` | `{"op":"ID","value":"..."}` |
+| `IdsFilter` | `IDS` | `{"op":"IDS","values":["..."]}` |
+| `AggregateIdFilter` | `AGGREGATE_ID` | `{"op":"AGGREGATE_ID","value":"..."}` |
+| `AggregateIdsFilter` | `AGGREGATE_IDS` | `{"op":"AGGREGATE_IDS","values":["..."]}` |
+| `TenantIdFilter` | `TENANT_ID` | `{"op":"TENANT_ID","value":"..."}` |
+| `OwnerIdFilter` | `OWNER_ID` | `{"op":"OWNER_ID","value":"..."}` |
+| `SpaceIdFilter` | `SPACE_ID` | `{"op":"SPACE_ID","value":"..."}` |
+
+这些类型加入 Jackson polymorphic subtype、`FilterOperator`、Filter DSL、OpenAPI 和 JSON Schema。它们表达稳定的查询语义，而不是暴露存储字段：
+
+- `IdFilter` / `IdsFilter` 查询存储文档 ID；
+- `AggregateIdFilter` / `AggregateIdsFilter` 在 snapshot 查询中解析到文档 ID，在 event stream 查询中解析到 `aggregateId` 字段；
+- tenant/owner/space filter 解析到对应消息元数据字段；
+- plural filter 的空值在 legacy 适配时归一化为 `MatchNoneFilter`，公开 typed 载荷要求 values 非空。
+
+MongoDB 与 Elasticsearch converter 直接编译这些类型；不先改写成 `EqualFilter` / `InFilter`，也不让 mapping resolver 猜测物理字段。
+
+兼容反向转换把七种 Filter 还原为对应的 `Condition` operator，确保废弃的 `condition` 属性与 `toCondition()` 仍保留语义，而不是退化成带物理字段名的 EQ/IN。
 
 ### 集合相等兼容
 
@@ -90,6 +116,7 @@ Wow 8.11 已引入 `FilterExpression`，但 `Condition` 兼容逻辑仍贯穿查
 - `AbstractQueryHandler`、`QueryContext`、snapshot/event handler 删除 Condition context 和运行时类型分支。
 - `FilterNormalizer` 删除 `legacyConditionOrNull` 与 Condition 删除范围判断，只处理 typed tree。
 - `AbacQueryFilter` 只生成和解析 FilterExpression；删除 `resolveCondition`、`toCondition` 等实现扩展兼容。
+- Filter DSL 为七种独立元数据 Filter 提供直接构造入口。
 - 删除 `AbstractConditionConverter` 与 `DeleteConditionGuard`。
 
 ### wow-webflux
@@ -98,6 +125,7 @@ Wow 8.11 已引入 `FilterExpression`，但 `Condition` 兼容逻辑仍贯穿查
 - count 请求强制恰好匹配 legacy `operator` 或 typed `op` 形态；空对象不再隐式表示 match-all。
 - legacy 请求仍按 Condition 解析并保留到执行边界。
 - request rewrite、count handler 和 `HttpQueryGuardFilter` 删除 Condition 分支，只处理已解析的 FilterExpression。
+- `HttpQueryGuardFilter` 对 `IdsFilter` / `AggregateIdsFilter` 应用现有 `maxConditionValues` 限制。
 - 非法互斥状态继续映射为 `400` 和 `ILLEGAL_ARGUMENT`。
 
 ### wow-mongo
@@ -105,6 +133,7 @@ Wow 8.11 已引入 `FilterExpression`，但 `Condition` 兼容逻辑仍贯穿查
 - `AbstractMongoConditionConverter` 更名为 `AbstractMongoFilterConverter`。
 - event/snapshot converter 统一按 Filter 命名并只接受 `FilterExpression`。
 - 删除全部旧 Condition override；字段映射通过现有 `FieldConverter` 完成。
+- 两类 converter 分别编译独立元数据 Filter，保留 snapshot/event stream 的 ID 语义差异。
 - 默认 deletion scope 继续由 `FilterNormalizer` 处理。
 
 ### wow-elasticsearch
@@ -112,12 +141,13 @@ Wow 8.11 已引入 `FilterExpression`，但 `Condition` 兼容逻辑仍贯穿查
 - `AbstractElasticsearchConditionConverter` 更名为 `AbstractElasticsearchFilterConverter`。
 - event/snapshot converter 统一按 Filter 命名并只接受 `FilterExpression`。
 - `ElasticsearchIndexMappingResolver` 删除 Condition resolve 路径。
+- mapping resolver 将独立元数据 Filter 视为已确定语义，不做普通字段 mapping 推断。
 - `ElasticsearchEventStore` 的内部查询从 Condition DSL 改为 Filter DSL。
 - `_id`、`aggregateId`、nested path、全文检索和 mapping usage 规则保持不变。
 
 ### OpenAPI 与 Schema
 
-公开合同继续只展示 typed `filter` 和 raw FilterExpression count body。旧 `condition` 仅作为运行时兼容入口，不加入新生成客户端合同。除实现清理导致的必要快照更新外，不改变 typed schema 结构。
+公开合同继续只展示 typed `filter` 和 raw FilterExpression count body。旧 `condition` 仅作为运行时兼容入口，不加入新生成客户端合同。typed schema 新增七种独立元数据 Filter 及对应 discriminator；同步更新静态 JSON Schema、OpenAPI 快照和生成客户端可见合同。
 
 ## 错误处理
 
@@ -131,7 +161,9 @@ Wow 8.11 已引入 `FilterExpression`，但 `Condition` 兼容逻辑仍贯穿查
 ### wow-api
 
 - 表驱动覆盖所有 legacy Operator 到 FilterExpression 的映射。
-- 覆盖 ID、aggregateId、tenant/owner/space、相对时间、search 和 element match。
+- 覆盖七种独立元数据 Filter 的构造、JSON round-trip、空 plural 校验及 legacy 映射。
+- 覆盖七种独立元数据 Filter 到对应 Condition operator 的兼容反向转换。
+- 覆盖相对时间、search 和 element match。
 - 覆盖 collection EQ/NE 兼容及 typed/legacy 单字段序列化。
 - 证明 typed resolver 为同一对象，legacy resolver 返回非 wrapper typed tree。
 
@@ -147,18 +179,19 @@ Wow 8.11 已引入 `FilterExpression`，但 `Condition` 兼容逻辑仍贯穿查
 - single/list/paged 分别覆盖 condition-only、filter-only、both、neither。
 - count 覆盖 legacy、typed、混用和空对象。
 - 验证 legacy 请求经 request scope rewrite 后传给 QueryHandler 的是 typed filter。
+- 验证 plural 元数据 Filter 受 `maxConditionValues` 约束。
 - 保留新 HTTP filter 拒绝 collection EQ/NE、旧 condition 接受该语义的回归测试。
 
 ### wow-mongo 与 wow-elasticsearch
 
 - converter 测试全部改用 FilterExpression。
-- 覆盖 legacy resolver 输出在两种存储中的特殊字段、删除范围、nested 和相对时间语义。
+- 覆盖七种独立元数据 Filter 在 snapshot/event stream 中的不同物理查询、删除范围、nested 和相对时间语义。
 - 运行已有 snapshot/event query service 测试与 Elasticsearch integration test 的相关子集。
 
 ## 验证命令
 
 ```bash
-./gradlew :wow-api:check :wow-query:check :wow-mongo:check :wow-elasticsearch:check :wow-webflux:check :wow-openapi:check
+./gradlew :wow-api:check :wow-query:check :wow-mongo:check :wow-elasticsearch:check :wow-webflux:check :wow-schema:check :wow-openapi:check
 ./gradlew detekt
 ```
 
@@ -168,6 +201,7 @@ Wow 8.11 已引入 `FilterExpression`，但 `Condition` 兼容逻辑仍贯穿查
 
 - 非兼容入口源码中不再 import 或运行时判断 `Condition`。
 - MongoDB、Elasticsearch 不再存在 Condition converter 或 Condition override。
+- 七种独立元数据 Filter 可通过 JVM、HTTP、OpenAPI 和 JSON Schema 使用，并由两种存储直接编译。
 - 每条执行路径在 filter chain/storage 前得到真实 FilterExpression。
 - HTTP XOR、legacy JVM/HTTP 调用和 collection equality 回归测试通过。
 - 相关模块 check 与 detekt 通过。
