@@ -18,6 +18,10 @@ import com.fasterxml.jackson.annotation.JsonValue
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import tools.jackson.core.JsonGenerator
+import tools.jackson.databind.SerializationContext
+import tools.jackson.databind.annotation.JsonSerialize
+import tools.jackson.databind.ser.std.StdSerializer
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
@@ -42,10 +46,12 @@ class AggregationFieldCatalogTest {
             "state.nestedItems",
             "state.arrayItems",
             "state.mappedItems",
+            "state.serializedItems",
         )
-        listOf("state.nestedItems", "state.arrayItems", "state.mappedItems").forEach { path ->
+        listOf("state.nestedItems", "state.arrayItems", "state.mappedItems", "state.serializedItems").forEach { path ->
             catalog.paths[path]!!.kind.assert().isEqualTo(AggregationFieldKind.UNSUPPORTED_COLLECTION)
         }
+        catalog.paths.keys.assert().doesNotContain("state.serializedItems.sku")
         catalog.paths.keys.assert().doesNotContain("state.attributes.value")
         catalog.paths["state.scalarItems"]!!.kind.assert().isEqualTo(AggregationFieldKind.SCALAR_COLLECTION)
         catalog.paths.keys.assert().doesNotContain("state.scalarItems.value")
@@ -105,6 +111,9 @@ class AggregationFieldCatalogTest {
         val nestedItems: List<List<Line>> = emptyList()
         val arrayItems: List<Array<Line>> = emptyList()
         val mappedItems: List<Map<String, Line>> = emptyList()
+
+        @get:JsonSerialize(contentUsing = ScalarLineSerializer::class)
+        val serializedItems: List<Line> = emptyList()
         val attributes: Map<String, String> = emptyMap()
     }
 
@@ -117,6 +126,12 @@ class AggregationFieldCatalogTest {
     private data class Order(val lines: List<Line>)
     private data class Line(val sku: String)
     private data class ScalarItem(@get:JsonValue val value: String)
+
+    private class ScalarLineSerializer : StdSerializer<Line>(Line::class.java) {
+        override fun serialize(value: Line, generator: JsonGenerator, provider: SerializationContext) {
+            generator.writeString(value.sku)
+        }
+    }
 
     private class PortableState {
         val flag: Boolean = false

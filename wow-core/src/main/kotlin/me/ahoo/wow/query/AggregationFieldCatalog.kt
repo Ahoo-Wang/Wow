@@ -124,7 +124,11 @@ private fun JavaType.scan(
         if (propertyType.isCollectionLikeType || propertyType.isArrayType) {
             val elementType = propertyType.contentType ?: return@forEach
             val nestedCollections = collectionPaths + path
-            val kind = elementType.aggregationCollectionKind
+            val kind = if (property.hasCustomCollectionSerialization) {
+                AggregationFieldKind.UNSUPPORTED_COLLECTION
+            } else {
+                elementType.aggregationCollectionKind
+            }
             paths[path] = AggregationField(path, elementType, kind, nestedCollections)
             if (kind == AggregationFieldKind.OBJECT_COLLECTION) {
                 elementType.scan(paths, path, depth + 1, maxDepth, nestedCollections)
@@ -139,6 +143,18 @@ private fun JavaType.scan(
         }
     }
 }
+
+private val tools.jackson.databind.introspect.BeanPropertyDefinition.hasCustomCollectionSerialization: Boolean
+    get() {
+        val member = primaryMember ?: return false
+        val config = JsonSerializer.serializationConfig()
+        return config.annotationIntrospector.run {
+            findSerializer(config, member) != null ||
+                findContentSerializer(config, member) != null ||
+                findSerializationConverter(config, member) != null ||
+                findSerializationContentConverter(config, member) != null
+        }
+    }
 
 private val JavaType.aggregationCollectionKind: AggregationFieldKind
     get() = when {
