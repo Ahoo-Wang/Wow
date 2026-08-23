@@ -37,6 +37,7 @@ class WowDefinitionProviderRegistryTest {
             "AggregatedPagedQueryDefinitionProvider",
             "AggregatedSingleQueryDefinitionProvider",
             "AggregationTimeZoneDefinitionProvider",
+            "AggregationQueryDefinitionProvider",
             "FilterExpressionDefinitionProvider",
             "ConditionOptionsDefinitionProvider",
             "MapDefinitionProvider",

@@ -28,6 +28,7 @@ import me.ahoo.wow.schema.typed.StateEventDefinitionProvider
 import me.ahoo.wow.schema.typed.query.AggregatedListQueryDefinitionProvider
 import me.ahoo.wow.schema.typed.query.AggregatedPagedQueryDefinitionProvider
 import me.ahoo.wow.schema.typed.query.AggregatedSingleQueryDefinitionProvider
+import me.ahoo.wow.schema.typed.query.AggregationQueryDefinitionProvider
 import me.ahoo.wow.schema.typed.query.AggregationTimeZoneDefinitionProvider
 import me.ahoo.wow.schema.typed.query.ConditionOptionsDefinitionProvider
 import me.ahoo.wow.schema.typed.query.FilterExpressionDefinitionProvider
@@ -49,6 +50,7 @@ internal object WowDefinitionProviderRegistry {
         AggregatedPagedQueryDefinitionProvider,
         AggregatedSingleQueryDefinitionProvider,
         AggregationTimeZoneDefinitionProvider,
+        AggregationQueryDefinitionProvider,
         FilterExpressionDefinitionProvider,
         ConditionOptionsDefinitionProvider,
         MapDefinitionProvider,

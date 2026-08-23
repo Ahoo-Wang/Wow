@@ -34,7 +34,7 @@ class AggregationFieldCatalogTest {
 
         catalog.scalarPaths.assert().contains("state.level1.level2.level3.level4.level5.level6.value")
         catalog.elementPaths.assert().contains("state.orders", "state.orders.lines")
-        catalog.elementPaths.assert().doesNotContain("state.tags")
+        catalog.elementPaths.assert().doesNotContain("state.tags", "state.objects")
         catalog.paths.keys.assert().doesNotContain("state.attributes.value")
         catalog.paths["state.orders.lines.sku"]!!.collectionPaths.assert()
             .containsExactly("state.orders", "state.orders.lines")
@@ -87,6 +87,7 @@ class AggregationFieldCatalogTest {
         val level1 = Level1()
         val orders: List<Order> = emptyList()
         val tags: List<String> = emptyList()
+        val objects: List<Any> = emptyList()
         val attributes: Map<String, String> = emptyMap()
     }
 

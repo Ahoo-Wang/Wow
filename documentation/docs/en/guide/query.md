@@ -345,9 +345,9 @@ identical to the JSON response.
 - `elements=[]` aggregates root snapshots. Otherwise, Elements declare one strict parent-child object-collection chain from outermost to innermost.
 - Elements accept only object collections or object arrays. Maps, scalar collections, duplicate paths, skipped parent collections, and sibling Cartesian products are rejected.
 - `groupBy`, metric, and expression fields must belong to the innermost source. They cannot implicitly access a parent, sibling, or unexpanded child collection.
-- Each `AggregationElement.filter` may reference only scalar fields or non-collection object paths in that element and must not use `ELEMENT_MATCH`, `SEARCH`, or `DELETION`.
-- String operators require textual fields. Range operators require numeric, temporal, or textual fields and use a JSON number for numeric fields or a JSON string for temporal/textual fields. Relative-time operators require temporal fields. Object paths support only null/presence filters.
-- OpenAPI publishes separate field enums for each Element path and narrows them by operator field type, so clients do not offer parent, sibling, or incorrectly typed fields as valid options.
+- Each `AggregationElement.filter` may reference only scalar fields in that element, including scalar descendants of non-collection objects. It cannot target an object path directly or use `ELEMENT_MATCH`, `SEARCH`, or `DELETION`.
+- Exact, membership, and range operators validate literal types: numeric fields use JSON numbers; temporal, textual, UUID, and enum fields use JSON strings; Boolean fields use JSON booleans; `EQ`/`NE` additionally allow `null`. String operators require textual fields, and relative-time operators require temporal fields.
+- OpenAPI publishes complete valid Elements chains and narrows Element filter, groupBy, and metric field enums by the innermost source and operator type, so clients do not offer skipped, reversed, repeated, parent, sibling, or incorrectly typed combinations.
 - A root `ELEMENT_MATCH` filters snapshots containing a match; it does not filter rows produced by expansion. Put row filters in the corresponding Element filter.
 - Missing, `null`, and empty collections, including `null` collection members, produce no expanded rows. A row with any missing or `null` group field produces no bucket.
 

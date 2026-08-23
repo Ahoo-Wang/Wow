@@ -26,6 +26,7 @@ import me.ahoo.wow.schema.typed.SnapshotAggregationTemporalFields
 import me.ahoo.wow.schema.typed.SnapshotAggregationTermsFields
 import me.ahoo.wow.tck.mock.MockCommandAggregate
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.JsonNode
 
 class AggregatedAggregationQueryTest {
     private val generator = SchemaGeneratorBuilder().build()
@@ -33,6 +34,8 @@ class AggregatedAggregationQueryTest {
     private val numericField = object : SnapshotAggregationNumericFields<Order> {}
     private val temporalField = object : SnapshotAggregationTemporalFields<Order> {}
     private val element = object : SnapshotAggregationElements<Order> {}
+
+    private fun JsonNode.nodes(): List<JsonNode> = (this as Iterable<JsonNode>).toList()
 
     @Test
     fun `should construct every typed aggregation subtype`() {
@@ -122,6 +125,51 @@ class AggregatedAggregationQueryTest {
 
         val lines = element("state.orders.lines")
         fields(definition(lines, "contains")).assert().containsExactly("state.orders.lines.sku")
+        fields(definition(orders, "isNull")).assert().containsExactly("state.orders.status", "state.orders.amount")
+
+        val lineExact = definition(lines, "eqShape").path("oneOf").nodes()
+        fields(
+            lineExact.single { variant ->
+                variant.path("properties").path("value").path("type").toString().contains("boolean")
+            },
+        ).assert().containsExactly("state.orders.lines.cancelled")
+    }
+
+    @Test
+    fun `should bind valid element chains and output fields to source`() {
+        val schema = generator.generateSchema(
+            AggregatedAggregationQuery::class.java,
+            MockCommandAggregate::class.java,
+        ).asJsonSchema().actual
+        val sources = schema.path("oneOf").nodes()
+        val lineSource = sources.single {
+            it.path("properties").path("elements").path("maxItems").intValue() == 2
+        }
+        val elementPaths = lineSource.path("properties").path("elements").path("prefixItems").nodes().map {
+            it.path("allOf").path(1).path("properties").path("path").path("const").stringValue()
+        }
+        elementPaths.assert().containsExactly("state.orders", "state.orders.lines")
+
+        val groupTypes = lineSource.path("properties").path("groupBy").path("items").path("oneOf").nodes()
+        val terms = groupTypes.single {
+            it.path("properties").path("type").path("const").stringValue() == "TERMS"
+        }
+        val termsFields = terms.path("properties").path("field").path("enum").nodes().map { it.stringValue() }
+        termsFields.assert().contains(
+            "state.orders.lines.sku",
+            "state.orders.lines.rank",
+            "state.orders.lines.amount",
+            "state.orders.lines.cancelled",
+        )
+        termsFields.assert().doesNotContain("state.orders.status", "state.data")
+
+        val metricTypes = lineSource.path("properties").path("metrics").path("items").path("oneOf").nodes()
+        val numeric = metricTypes.single {
+            it.path("properties").path("type").path("const").stringValue() == "NUMERIC"
+        }
+        val metricFields = numeric.path("properties").path("expression").path("properties")
+            .path("field").path("enum").nodes().map { it.stringValue() }
+        metricFields.assert().containsExactly("state.orders.lines.rank", "state.orders.lines.amount")
     }
 
     @Test

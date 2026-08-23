@@ -41,7 +41,7 @@ data class AggregationFieldCatalog(
     val temporalPaths: Set<String> = paths.values.filterTo(linkedSetOf()) { it.isTemporal }
         .mapTo(linkedSetOf(), AggregationField::path)
     val elementPaths: Set<String> = paths.values.filterTo(linkedSetOf()) {
-        it.kind == AggregationFieldKind.OBJECT_COLLECTION
+        it.kind == AggregationFieldKind.OBJECT_COLLECTION && it.type.rawClass != Any::class.java
     }.mapTo(linkedSetOf(), AggregationField::path)
 
     companion object {
@@ -85,6 +85,10 @@ data class AggregationField(
         get() = type.isAggregationDate
     val isTextual: Boolean
         get() = type.isAggregationTextual
+    val isBoolean: Boolean
+        get() = type.rawClass == Boolean::class.javaPrimitiveType || type.rawClass == Boolean::class.javaObjectType
+    val usesStringLiteral: Boolean
+        get() = isTemporal || isTextual || type.rawClass == UUID::class.java
     val supportsTerms: Boolean
         get() = type.isAggregationTerms
 }

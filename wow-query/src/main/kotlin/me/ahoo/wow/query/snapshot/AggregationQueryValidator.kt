@@ -114,10 +114,10 @@ private fun FilterExpression.validateElementFilter(
 
 @Suppress("CyclomaticComplexMethod")
 private fun AggregationField.supportsElementFilter(filter: FilterExpression): Boolean = when (filter) {
-    is EqualFilter -> kind == AggregationFieldKind.SCALAR || filter.value.isNull && kind == AggregationFieldKind.OBJECT
-    is NotEqualFilter ->
-        kind == AggregationFieldKind.SCALAR || filter.value.isNull && kind == AggregationFieldKind.OBJECT
-    is InFilter, is NotInFilter -> kind == AggregationFieldKind.SCALAR
+    is EqualFilter -> kind == AggregationFieldKind.SCALAR && supportsExactLiteral(filter.value)
+    is NotEqualFilter -> kind == AggregationFieldKind.SCALAR && supportsExactLiteral(filter.value)
+    is InFilter -> kind == AggregationFieldKind.SCALAR && filter.values.all(::supportsExactLiteral)
+    is NotInFilter -> kind == AggregationFieldKind.SCALAR && filter.values.all(::supportsExactLiteral)
     is GreaterThanFilter -> kind == AggregationFieldKind.SCALAR && supportsRangeLiteral(filter.value)
     is GreaterThanOrEqualFilter -> kind == AggregationFieldKind.SCALAR && supportsRangeLiteral(filter.value)
     is LessThanFilter -> kind == AggregationFieldKind.SCALAR && supportsRangeLiteral(filter.value)
@@ -127,8 +127,16 @@ private fun AggregationField.supportsElementFilter(filter: FilterExpression): Bo
     is ContainsFilter, is StartsWithFilter, is EndsWithFilter ->
         kind == AggregationFieldKind.SCALAR && isTextual
     is IsNullFilter, is IsNotNullFilter, is ExistsFilter, is NotExistsFilter ->
-        kind == AggregationFieldKind.SCALAR || kind == AggregationFieldKind.OBJECT
+        kind == AggregationFieldKind.SCALAR
     is RelativeTimeFilter -> kind == AggregationFieldKind.SCALAR && isTemporal
+    else -> false
+}
+
+private fun AggregationField.supportsExactLiteral(value: tools.jackson.databind.JsonNode): Boolean = when {
+    value.isNull -> true
+    isNumeric -> value.isNumber
+    usesStringLiteral -> value.isString
+    isBoolean -> value.isBoolean
     else -> false
 }
 
