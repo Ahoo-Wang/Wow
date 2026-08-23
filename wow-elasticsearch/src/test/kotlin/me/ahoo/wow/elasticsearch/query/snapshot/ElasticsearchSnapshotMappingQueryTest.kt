@@ -25,6 +25,7 @@ import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ListQuery
@@ -83,6 +84,21 @@ class ElasticsearchSnapshotMappingQueryTest {
         filters[4].range().untyped().field().assert().isEqualTo("state.age")
         searchRequest.captured.sort().single().field().field().assert().isEqualTo("state.name.keyword")
         searchRequest.captured.source()!!.filter().includes().assert().containsExactly("state.name")
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `legacy snapshot query should resolve logical fields before mapping inference`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(queryMapping()),
+        )
+
+        queryService().dynamicList(
+            ListQuery(condition = Condition.eq("state.name", "Wow"), limit = 10),
+        ).collectList().block()
+
+        searchRequest.captured.query()!!.bool().filter()[1].term().field().assert()
+            .isEqualTo("state.name.keyword")
     }
 
     @Test

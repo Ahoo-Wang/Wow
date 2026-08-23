@@ -14,10 +14,13 @@
 package me.ahoo.wow.elasticsearch.query
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.elasticsearch.query.snapshot.SnapshotFilterConverter
+import me.ahoo.wow.serialization.state.StateAggregateRecords
 import org.junit.jupiter.api.Test
 
 class LegacyFilterScopeTest {
@@ -25,14 +28,18 @@ class LegacyFilterScopeTest {
     @Test
     fun `should not reapply active deletion scope to nested legacy filter`() {
         val query = SnapshotFilterConverter.convert(
-            Condition.and(
-                Condition.deleted(DeletionState.DELETED),
-                Condition.eq("state.name", "Wow"),
-            ).toFilterExpression(),
+            AndFilter(
+                listOf(
+                    Condition.eq("state.name", "Wow").toFilterExpression(),
+                    DeletionFilter(DeletionState.DELETED),
+                ),
+            ),
         )
 
-        query.bool().filter().assert().hasSize(2)
-        query.bool().filter()[0].term().value().booleanValue().assert().isTrue()
-        query.bool().filter()[1].term().field().assert().isEqualTo("state.name")
+        val filters = query.bool().filter()
+        filters.assert().hasSize(2)
+        filters.single { it.term().field() == StateAggregateRecords.DELETED }.term().value().booleanValue().assert()
+            .isTrue()
+        filters.single { it.term().field() == "state.name" }.term().value().stringValue().assert().isEqualTo("Wow")
     }
 }

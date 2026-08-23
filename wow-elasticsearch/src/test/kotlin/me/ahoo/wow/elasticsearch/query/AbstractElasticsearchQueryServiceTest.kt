@@ -40,6 +40,7 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.toExecutableFilter
 import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryServiceFactory
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
@@ -191,7 +192,7 @@ class AbstractElasticsearchQueryServiceTest {
             ),
         ).collectList().block()
 
-        convertedFilter.captured.assert().isEqualTo(condition.toFilterExpression())
+        convertedFilter.captured.assert().isEqualTo(condition.toFilterExpression().toExecutableFilter())
         request.captured.sort().single().field().field().assert().isEqualTo("logicalField")
     }
 

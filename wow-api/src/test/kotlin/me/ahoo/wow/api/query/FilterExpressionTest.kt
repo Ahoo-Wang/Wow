@@ -159,6 +159,29 @@ class FilterExpressionTest {
 
     @Suppress("DEPRECATION")
     @Test
+    fun `should resolve legacy wrappers nested in typed trees without rebuilding pure typed trees`() {
+        val typed = EqualFilter(LogicalField("state.status"), jsonMapper.valueToTree("CREATED"))
+        val legacy = Condition.eq("state.tenant", "tenant-1").toFilterExpression()
+
+        val and = AndFilter(listOf(legacy, typed)).toExecutableFilter() as AndFilter
+        (and.operands.first() as EqualFilter).field.value.assert().isEqualTo("state.tenant")
+        and.operands.last().assert().isSameAs(typed)
+
+        val or = OrFilter(listOf(typed, legacy)).toExecutableFilter() as OrFilter
+        (or.operands.last() as EqualFilter).field.value.assert().isEqualTo("state.tenant")
+
+        val nor = NorFilter(listOf(legacy)).toExecutableFilter() as NorFilter
+        (nor.operands.single() as EqualFilter).field.value.assert().isEqualTo("state.tenant")
+
+        val element = ElementMatchFilter(LogicalField("state.items"), legacy).toExecutableFilter() as ElementMatchFilter
+        (element.predicate as EqualFilter).field.value.assert().isEqualTo("state.tenant")
+
+        val pureTyped = AndFilter(listOf(typed, OrFilter(listOf(typed))))
+        pureTyped.toExecutableFilter().assert().isSameAs(pureTyped)
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
     fun `should preserve legacy collection equality as array equality`() {
         val resolved = Condition.eq("state.tags", listOf("a", "b"))
             .toFilterExpression()

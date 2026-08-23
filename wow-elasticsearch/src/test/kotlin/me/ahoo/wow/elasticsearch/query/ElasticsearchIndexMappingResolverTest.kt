@@ -26,6 +26,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregateIdsFilter
 import me.ahoo.wow.api.query.AndFilter
+import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.ContainsFilter
 import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EqualFilter
@@ -45,6 +46,8 @@ import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.TenantIdFilter
+import me.ahoo.wow.api.query.toExecutableFilter
+import me.ahoo.wow.api.query.toFilterExpression
 import org.junit.jupiter.api.Test
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchIndicesClient
@@ -212,6 +215,17 @@ class ElasticsearchIndexMappingResolverTest {
         )
 
         filters.forEach { filter -> mapping.resolve(filter).assert().isSameAs(filter) }
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `resolved legacy filter should use logical field mapping`() {
+        val mapping = ElasticsearchIndexMapping.from(INDEX, textWithKeyword())
+        val executable = Condition.eq("state.name", "Wow").toFilterExpression().toExecutableFilter()
+
+        val resolved = mapping.resolve(executable) as EqualFilter
+
+        resolved.field.value.assert().isEqualTo("state.name.keyword")
     }
 
     @Test

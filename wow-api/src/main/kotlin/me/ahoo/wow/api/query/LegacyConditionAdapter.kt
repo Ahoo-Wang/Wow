@@ -30,8 +30,27 @@ private data class LegacyConditionFilter(val condition: Condition) : FilterExpre
     override val operator: FilterOperator = condition.operator.toFilterOperator()
 }
 
-fun FilterExpression.toExecutableFilter(): FilterExpression =
-    (this as? LegacyConditionFilter)?.condition?.toExecutableFilter() ?: this
+fun FilterExpression.toExecutableFilter(): FilterExpression = when (this) {
+    is LegacyConditionFilter -> condition.toExecutableFilter()
+    is AndFilter -> resolveOperands(operands, ::AndFilter)
+    is OrFilter -> resolveOperands(operands, ::OrFilter)
+    is NorFilter -> resolveOperands(operands, ::NorFilter)
+    is ElementMatchFilter -> predicate.toExecutableFilter().let { resolved ->
+        if (resolved === predicate) this else copy(predicate = resolved)
+    }
+    else -> this
+}
+
+private fun FilterExpression.resolveOperands(
+    operands: List<FilterExpression>,
+    create: (List<FilterExpression>) -> FilterExpression,
+): FilterExpression {
+    var changed = false
+    val resolved = operands.map { operand ->
+        operand.toExecutableFilter().also { if (it !== operand) changed = true }
+    }
+    return if (changed) create(resolved) else this
+}
 
 @Suppress("CyclomaticComplexMethod", "LongMethod")
 private fun Condition.toExecutableFilter(): FilterExpression = when (operator) {

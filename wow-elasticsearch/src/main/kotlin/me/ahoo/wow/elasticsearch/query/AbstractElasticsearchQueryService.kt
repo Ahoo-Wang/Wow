@@ -31,6 +31,7 @@ import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.isEmpty
+import me.ahoo.wow.api.query.toExecutableFilter
 import me.ahoo.wow.elasticsearch.query.ElasticsearchProjectionConverter.toSourceFilter
 import me.ahoo.wow.elasticsearch.query.ElasticsearchSortConverter.toSortOptions
 import me.ahoo.wow.query.QueryService
@@ -188,9 +189,10 @@ abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
     }
 
     private fun resolve(filter: FilterExpression, sort: List<Sort> = emptyList()): Mono<ResolvedQuery> {
-        val resolver = indexMappingResolver ?: return Mono.just(compile(filter, sort))
+        val executableFilter = filter.toExecutableFilter()
+        val resolver = indexMappingResolver ?: return Mono.just(compile(executableFilter, sort))
         return resolver.currentOrLoad(indexName)
-            .map { mapping -> compile(resolveFilter(mapping, filter), resolveSort(mapping, sort)) }
+            .map { mapping -> compile(resolveFilter(mapping, executableFilter), resolveSort(mapping, sort)) }
     }
 
     private fun compile(filter: FilterExpression, sort: List<Sort>): ResolvedQuery =
