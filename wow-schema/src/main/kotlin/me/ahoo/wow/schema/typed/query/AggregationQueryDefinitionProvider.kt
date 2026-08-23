@@ -18,6 +18,7 @@ import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.CustomDefinitionProviderV2
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import io.swagger.v3.oas.annotations.media.Schema
+import me.ahoo.wow.api.query.AggregationTimeZones
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.query.AggregationField
@@ -188,6 +189,7 @@ object AggregationQueryDefinitionProvider : CustomDefinitionProviderV2 {
         FilterExpression::class.java
     ).also { schema ->
         schema.remove("\$id")
+        schema.constrainElementPortableSemantics()
         val supportedDefinitions = fields?.let { schema.constrainElementFields(it) } ?: SUPPORTED_DEFINITIONS
         val oneOf = schema.path("definitions").path("filterExpression").path("oneOf")
         val supported = oneOf.filter { reference ->
@@ -196,6 +198,17 @@ object AggregationQueryDefinitionProvider : CustomDefinitionProviderV2 {
         (oneOf as ArrayNode).removeAll()
         supported.forEach(oneOf::add)
         schema.pruneUnreferencedDefinitions()
+    }
+
+    private fun ObjectNode.constrainElementPortableSemantics() {
+        val definitions = path("definitions") as ObjectNode
+        definitions.set(ELEMENT_TIME_ZONE_DEFINITION, portableTimeZoneSchema())
+        RELATIVE_TIME_DEFINITIONS.forEach { name ->
+            (definitions.path(name).path("properties") as ObjectNode).apply {
+                remove("datePattern")
+                set("zoneId", objectNode().put("\$ref", "#/definitions/$ELEMENT_TIME_ZONE_DEFINITION"))
+            }
+        }
     }
 
     private fun ObjectNode.constrainElementFields(fields: Collection<AggregationField>): Set<String> {
@@ -219,11 +232,8 @@ object AggregationQueryDefinitionProvider : CustomDefinitionProviderV2 {
             )
         }
         definitions.setFieldEnums(listOf("contains", "startsWith", "endsWith"), textualPaths)
-        definitions.setFieldEnums(listOf("isNull", "isNotNull", "exists", "notExists"), scalarPaths)
+        definitions.setFieldEnums(NULLABLE_DEFINITIONS, scalarPaths)
         definitions.setFieldEnums(RELATIVE_TIME_DEFINITIONS, temporalPaths)
-        RELATIVE_TIME_DEFINITIONS.forEach { name ->
-            (definitions.path(name).path("properties") as ObjectNode).remove("datePattern")
-        }
         RANGE_DEFINITIONS.forEach { name ->
             definitions.set(name, definitions.path(name).rangeVariants(numericPaths, stringRangePaths))
         }
@@ -263,6 +273,22 @@ object AggregationQueryDefinitionProvider : CustomDefinitionProviderV2 {
     private fun ObjectNode.fieldEnum(fields: Collection<String>): ObjectNode = objectNode().apply {
         put("type", "string")
         putArray("enum").also { values -> fields.forEach(values::add) }
+    }
+
+    private fun ObjectNode.portableTimeZoneSchema(): ObjectNode = objectNode().apply {
+        putArray("oneOf").apply {
+            add(
+                objectNode().apply {
+                    put("type", "string")
+                    putArray("enum").also { values -> AggregationTimeZones.ids.forEach(values::add) }
+                }
+            )
+            add(
+                objectNode()
+                    .put("type", "string")
+                    .put("pattern", AggregationTimeZoneDefinitionProvider.OFFSET_PATTERN)
+            )
+        }
     }
 
     private fun JsonNode.exactVariants(
@@ -348,7 +374,7 @@ object AggregationQueryDefinitionProvider : CustomDefinitionProviderV2 {
     private val RANGE_OPERATORS = setOf("gt", "gte", "lt", "lte", "between")
     private val RANGE_DEFINITIONS = setOf("gtShape", "gteShape", "ltShape", "lteShape", "between")
     private val TEXTUAL_DEFINITIONS = setOf("contains", "startsWith", "endsWith")
-    private val NULLABLE_DEFINITIONS = setOf("isNull", "isNotNull", "exists", "notExists")
+    private val NULLABLE_DEFINITIONS = setOf("isNull", "isNotNull")
     private val RELATIVE_TIME_OPERATORS = setOf(
         "today", "beforeToday", "tomorrow", "thisWeek", "nextWeek", "lastWeek",
         "thisMonth", "lastMonth", "recentDays", "earlierDays",
@@ -357,6 +383,7 @@ object AggregationQueryDefinitionProvider : CustomDefinitionProviderV2 {
         "todayShape", "beforeToday", "tomorrowShape", "thisWeekShape", "nextWeekShape", "lastWeekShape",
         "thisMonthShape", "lastMonthShape", "recentDays", "earlierDays",
     )
+    private const val ELEMENT_TIME_ZONE_DEFINITION = "elementTimeZone"
     private val SUPPORTED_DEFINITIONS = BASE_DEFINITIONS + SCALAR_DEFINITIONS + RANGE_OPERATORS +
         TEXTUAL_DEFINITIONS + NULLABLE_DEFINITIONS + RELATIVE_TIME_OPERATORS
 }

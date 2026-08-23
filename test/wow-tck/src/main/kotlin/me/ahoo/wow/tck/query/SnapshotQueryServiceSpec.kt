@@ -484,7 +484,10 @@ abstract class SnapshotQueryServiceSpec {
                     AggregationElement("state.orders"),
                     AggregationElement(
                         "state.orders.lines",
-                        filter { "state.orders.lines.createdAt".today(ZoneOffset.UTC) },
+                        filter {
+                            "state.orders.lines.createdAt".today(ZoneOffset.UTC)
+                            "state.orders.lines.createdAt" gte today.minusSeconds(3_600).toString()
+                        },
                     ),
                 ),
                 metrics = listOf(AggregationMetric.Count("count")),
@@ -492,5 +495,22 @@ abstract class SnapshotQueryServiceSpec {
         ).test()
             .assertNext { row -> row.getValue<Long>("count").assert().isOne() }
             .verifyComplete()
+    }
+
+    @Test
+    fun aggregateElementsShouldRejectExistencePredicates() {
+        listOf(
+            filter { "state.orders.status".exists() },
+            filter { "state.orders.status".notExists() },
+        ).forEach { elementFilter ->
+            snapshotQueryService.aggregate(
+                AggregationQuery(
+                    elements = listOf(AggregationElement("state.orders", elementFilter)),
+                    metrics = listOf(AggregationMetric.Count("count")),
+                ),
+            ).test()
+                .expectError(IllegalArgumentException::class.java)
+                .verify()
+        }
     }
 }

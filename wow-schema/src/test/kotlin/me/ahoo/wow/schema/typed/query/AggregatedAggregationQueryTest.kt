@@ -91,8 +91,17 @@ class AggregatedAggregationQueryTest {
             .map { it.path("\$ref").stringValue().substringAfterLast('/') }
 
         references.assert().contains("and", "eq", "between", "today", "earlierDays")
-        references.assert().doesNotContain("containsAll", "isEmpty", "deletion", "elementMatch", "search")
+        references.assert().doesNotContain(
+            "containsAll",
+            "isEmpty",
+            "exists",
+            "notExists",
+            "deletion",
+            "elementMatch",
+            "search",
+        )
         schema.path("definitions").has("search").assert().isFalse()
+        schema.path("definitions").has("elementTimeZone").assert().isTrue()
     }
 
     @Test
@@ -126,7 +135,20 @@ class AggregatedAggregationQueryTest {
         val lines = element("state.orders.lines")
         fields(definition(lines, "contains")).assert().containsExactly("state.orders.lines.sku")
         fields(definition(orders, "isNull")).assert().containsExactly("state.orders.status", "state.orders.amount")
+        definition(orders, "exists").isMissingNode.assert().isTrue()
+        definition(orders, "notExists").isMissingNode.assert().isTrue()
         definition(lines, "todayShape").path("properties").has("datePattern").assert().isFalse()
+        val timeZoneReference = definition(lines, "todayShape").path("properties").path("zoneId")
+            .path("\$ref").stringValue().substringAfterLast('/')
+        val elementTimeZones = definitions.path(timeZoneReference).path("oneOf").nodes()
+        val zoneIds = elementTimeZones.first { it.has("enum") }.path("enum").nodes().map { it.stringValue() }
+        val offsetPattern = Regex(elementTimeZones.first { it.has("pattern") }.path("pattern").stringValue())
+        zoneIds.assert().contains("UTC", "Asia/Shanghai")
+        zoneIds.assert().doesNotContain("Not/AZone", "Z", "UTC+08:00")
+        offsetPattern.matches("+08:00").assert().isTrue()
+        listOf("Not/AZone", "Z", "UTC+08:00").forEach { invalid ->
+            offsetPattern.matches(invalid).assert().isFalse()
+        }
 
         val lineExact = definition(lines, "eqShape").path("oneOf").nodes()
         fields(

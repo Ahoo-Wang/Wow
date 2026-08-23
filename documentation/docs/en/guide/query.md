@@ -365,7 +365,8 @@ identical to the JSON response.
 - `groupBy`, metric, and expression fields must belong to the innermost source. They cannot implicitly access a parent, sibling, or unexpanded child collection.
 - Each `AggregationElement.filter` may reference only scalar fields in that element, including scalar descendants of non-collection objects. It cannot target an object path directly or use `ELEMENT_MATCH`, `SEARCH`, or `DELETION`.
 - Exact, membership, and range operators validate literal types: numeric fields use JSON numbers; temporal, textual, UUID, and enum fields use JSON strings; Boolean fields use JSON booleans. Null checks must use `IS_NULL`/`IS_NOT_NULL`. String operators require textual fields, and relative-time operators require temporal fields.
-- Element relative-time filters use the standard serialized temporal value and may specify `zoneId`; custom `datePattern` values are rejected because they cannot be executed portably across MongoDB and Elasticsearch.
+- Element null checks support only `IS_NULL`/`IS_NOT_NULL`; `EXISTS`/`NOT_EXISTS` are rejected because MongoDB and Elasticsearch disagree on explicitly null fields.
+- Element relative-time filters use the standard serialized temporal value; `zoneId` accepts only IANA IDs such as `Asia/Shanghai` or canonical `±HH:MM` offsets, and custom `datePattern` values are rejected.
 - OpenAPI publishes complete valid Elements chains and narrows Element filter, groupBy, and metric field enums by the innermost source and operator type, so clients do not offer skipped, reversed, repeated, parent, sibling, or incorrectly typed combinations.
 - A root `ELEMENT_MATCH` filters snapshots containing a match; it does not filter rows produced by expansion. Put row filters in the corresponding Element filter.
 - Missing, `null`, and empty collections, including `null` collection members, produce no expanded rows. A row with any missing or `null` group field produces no bucket.

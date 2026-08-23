@@ -129,7 +129,7 @@ private fun AggregationField.supportsElementFilter(filter: FilterExpression): Bo
         supportsRangeLiteral(filter.upperBound)
     is ContainsFilter, is StartsWithFilter, is EndsWithFilter ->
         kind == AggregationFieldKind.SCALAR && isTextual
-    is IsNullFilter, is IsNotNullFilter, is ExistsFilter, is NotExistsFilter ->
+    is IsNullFilter, is IsNotNullFilter ->
         kind == AggregationFieldKind.SCALAR
     is RelativeTimeFilter -> kind == AggregationFieldKind.SCALAR && isTemporal
     else -> false

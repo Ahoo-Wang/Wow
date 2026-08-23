@@ -145,7 +145,6 @@ class AggregationQueryValidatorTest {
             filter { "state.orders.status".contains("PAID") },
             filter { "state.orders.amount" gt 0.0 },
             filter { "state.orders.createdAt".today() },
-            filter { "state.orders.status".exists() },
         ).forEach { elementFilter -> aggregation(elementFilter).validate() }
 
         listOf(
@@ -163,6 +162,8 @@ class AggregationQueryValidatorTest {
             EqualFilter(LogicalField("state.orders.status"), JsonNodeFactory.instance.nullNode()),
             filter { "state.orders.shipping" eq "address" },
             filter { "state.orders.shipping" eq null },
+            filter { "state.orders.status".exists() },
+            filter { "state.orders.status".notExists() },
             filter { "state.orders.shipping".exists() },
             filter { "state.orders.shipping".isEmptyCollection() },
             filter { "state.orders.status".today() },
@@ -199,7 +200,6 @@ class AggregationQueryValidatorTest {
             filter { "state.orders.amount".between(1, 100) },
             filter { "state.orders.status".isNull() },
             filter { "state.orders.status".isNotNull() },
-            filter { "state.orders.status".notExists() },
             filter { "state.orders.createdAt".beforeToday(LocalTime.NOON) },
             filter { "state.orders.createdAt".tomorrow() },
             filter { "state.orders.createdAt".thisWeek() },
