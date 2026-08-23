@@ -14,6 +14,8 @@
 package me.ahoo.wow.schema
 
 import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.annotation.JsonUnwrapped
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.Identifier
@@ -71,8 +73,8 @@ class AggregatedFieldPathsTest {
             .contains("state.aggregateId.aggregateName")
             .contains("state.aggregateId.aggregateId")
             .contains("state.aggregateId.tenantId")
-            .contains("state.aggregateId.namedAggregate")
-            .contains("state.aggregateId.id")
+            .doesNotContain("state.aggregateId.namedAggregate")
+            .doesNotContain("state.aggregateId.id")
     }
 
     @Test
@@ -88,6 +90,15 @@ class AggregatedFieldPathsTest {
     fun `should list all field paths for polymorphic fixture`() {
         val paths = PolymorphicFixture::class.allFieldPaths()
         paths.assert().isNotEmpty()
+    }
+
+    @Test
+    fun `should include Jackson polymorphic discriminator`() {
+        val paths = SyntheticTypeInfoFixture::class.allFieldPaths(parentName = "state.payment")
+
+        paths.assert()
+            .contains("state.payment.kind")
+            .contains("state.payment.cardNumber")
     }
 
     @Test
@@ -125,3 +136,9 @@ private data class UnwrappedFieldPathFixture(
 )
 
 private data class UnwrappedDetails(val nestedValue: String)
+
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "kind")
+@JsonSubTypes(JsonSubTypes.Type(value = CardPayment::class, name = "card"))
+private sealed interface SyntheticTypeInfoFixture
+
+private data class CardPayment(val cardNumber: String) : SyntheticTypeInfoFixture
