@@ -419,7 +419,7 @@ The HTTP guard counts only user-submitted root and Element filters. Trusted tena
 filters do not consume that budget and may scope a match-all root before cost classification; ABAC is
 applied later and does not change the classification. `AbacQueryFilter.resolveAggregationFilter`
 is the aggregation-specific authorization hook; its default delegates with data-returning
-`DYNAMIC_LIST` semantics, never `COUNT`. A custom Snapshot `QueryFilter` must provide its equivalent
+`DYNAMIC_LIST` semantics, never `COUNT`, and an empty authorization result fails closed. A custom Snapshot `QueryFilter` must provide its equivalent
 aggregation policy through `SnapshotAggregationQueryFilterProvider`; otherwise the aggregation endpoint
 fails closed instead of bypassing existing authorization or rewrite rules. Aggregation fails closed before backend access when a Snapshot masker is configured.
 The HTTP layer does not maintain a duplicate field allowlist; the aggregation metadata Validator is
@@ -431,7 +431,8 @@ Groups and metrics have no script entry point.
 ### Backend Failures and Performance Boundary
 
 - Elasticsearch requires every Elements path to be `nested` and every `DateHistogram` field to be `date`/`date_nanos`. Plain `object` mappings and epoch `long` fields are rejected.
-- MongoDB uses successive `$unwind` stages and forces `simple` collation for string grouping and ordering.
+- MongoDB uses successive `$unwind` stages and forces `simple` collation for string grouping and ordering; Element temporal exact-match and range operands are converted to dates before comparison.
+- Portable time zones accept IANA/Olson IDs and canonical `±HH:MM` offsets, excluding Java `SystemV/*` IDs that MongoDB does not support.
 - Timeout, shard failure, missing response structure, conversion failure, or a non-finite metric result fails the whole query; partial results are never returned.
 
 The current single-thread engineering baseline uses 10,000 snapshots with 100 leaf elements per

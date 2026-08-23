@@ -203,6 +203,11 @@ class AggregationAbacQueryFilter(
         Flux.fromIterable(filters)
             .concatMap { filter ->
                 filter.resolveAggregationFilter(contextView, context)
+                    .switchIfEmpty(
+                        Mono.error(
+                            IllegalStateException("Aggregation ABAC filter returned an empty authorization result.")
+                        )
+                    )
             }.doOnNext { filter ->
                 if (filter !== MatchAllFilter) {
                     context.rewriteQuery { query -> query.appendFilter(filter) }

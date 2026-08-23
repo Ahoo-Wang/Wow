@@ -227,6 +227,38 @@ class AbacQueryFilterTest {
         ).test().verifyComplete()
     }
 
+    @Test
+    fun `aggregation ABAC should reject an empty authorization result`() {
+        val aggregationFilter = object : AbacQueryFilter() {
+            override fun getPrincipalTags(
+                contextView: ContextView,
+                context: QueryContext<*, *>,
+            ): Mono<AbacTags> = EMPTY_ABAC_TAGS.toMono()
+
+            override fun resolveAggregationFilter(
+                contextView: ContextView,
+                context: SnapshotAggregationQueryContext,
+            ): Mono<FilterExpression> = Mono.empty()
+        }
+        val context = SnapshotAggregationQueryContext(
+            MOCK_AGGREGATE_METADATA,
+            AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))),
+        )
+        var nextCalled = false
+
+        AggregationAbacQueryFilter(listOf(aggregationFilter)).filter(
+            context,
+            FilterChain {
+                nextCalled = true
+                Mono.empty()
+            },
+        ).test()
+            .expectError(IllegalStateException::class.java)
+            .verify()
+
+        nextCalled.assert().isFalse()
+    }
+
     object EmptyAbacQueryFilter : AbacQueryFilter() {
         override fun getPrincipalTags(contextView: ContextView, context: QueryContext<*, *>): Mono<AbacTags> {
             return EMPTY_ABAC_TAGS.toMono()

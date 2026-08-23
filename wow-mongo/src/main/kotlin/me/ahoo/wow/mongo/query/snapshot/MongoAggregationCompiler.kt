@@ -26,13 +26,17 @@ import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.BetweenFilter
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
+import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.GreaterThanFilter
 import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
+import me.ahoo.wow.api.query.InFilter
 import me.ahoo.wow.api.query.LessThanFilter
 import me.ahoo.wow.api.query.LessThanOrEqualFilter
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.NorFilter
+import me.ahoo.wow.api.query.NotEqualFilter
+import me.ahoo.wow.api.query.NotInFilter
 import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.RelativeTimeFilter
 import me.ahoo.wow.api.query.Sort
@@ -190,6 +194,11 @@ internal object MongoAggregationCompiler {
             operands.map { it.toMongoElementFilter(conditionConverter, normalizer, temporalFields) }
         )
         is RelativeTimeFilter -> normalizer.normalize(this).toMongoRelativeTimeFilter()
+        is EqualFilter,
+        is NotEqualFilter,
+        is InFilter,
+        is NotInFilter,
+        -> temporalExact(temporalFields) ?: conditionConverter.convert(withoutDefaultDeletionScope())
         is GreaterThanFilter,
         is GreaterThanOrEqualFilter,
         is LessThanFilter,
@@ -231,6 +240,14 @@ internal object MongoAggregationCompiler {
         else -> error("Unsupported temporal range filter: [$this].")
     }
 
+    private fun FilterExpression.temporalExact(temporalFields: Set<String>): Bson? = when (this) {
+        is EqualFilter -> temporalComparison(field.value, "\$eq", value, temporalFields)
+        is NotEqualFilter -> temporalComparison(field.value, "\$ne", value, temporalFields)
+        is InFilter -> temporalMembership(field.value, values, temporalFields)
+        is NotInFilter -> temporalMembership(field.value, values, temporalFields, negated = true)
+        else -> error("Unsupported temporal exact filter: [$this].")
+    }
+
     private fun temporalComparison(
         field: String,
         operator: String,
@@ -251,6 +268,21 @@ internal object MongoAggregationCompiler {
             temporalComparison(field.value, "\$gte", lowerBound.stringValue().toMongoDate()),
             temporalComparison(field.value, "\$lte", upperBound.stringValue().toMongoDate()),
         )
+    }
+
+    private fun temporalMembership(
+        field: String,
+        values: List<JsonNode>,
+        temporalFields: Set<String>,
+        negated: Boolean = false,
+    ): Bson? {
+        if (field !in temporalFields) return null
+        check(values.all(JsonNode::isString)) { "Temporal exact filter values must be strings." }
+        val physicalField = SnapshotFieldConverter.convert(field)
+        val dateField = Document("\$convert", Document("input", "\$$physicalField").append("to", "date"))
+        val membership = Document("\$in", listOf(dateField, values.map { it.stringValue().toMongoDate() }))
+        val expression = if (negated) Document("\$not", listOf(membership)) else membership
+        return Document("\$expr", expression)
     }
 
     private fun temporalComparison(field: String, operator: String, boundary: Any): Bson {

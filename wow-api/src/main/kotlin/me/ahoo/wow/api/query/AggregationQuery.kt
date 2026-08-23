@@ -30,6 +30,7 @@ data class AggregationQuery(
     val groupBy: List<AggregationGroup> = emptyList(),
     @get:ArraySchema(minItems = 1, maxItems = MAX_METRICS)
     val metrics: List<AggregationMetric>,
+    @get:ArraySchema(maxItems = MAX_SORT_FIELDS)
     @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
     override val sort: List<Sort> = emptyList(),
     @get:Schema(defaultValue = DEFAULT_LIMIT_TEXT, minimum = "1", maximum = MAX_LIMIT_TEXT)

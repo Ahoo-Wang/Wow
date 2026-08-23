@@ -39,6 +39,7 @@ data class AggregatedAggregationQuery<CommandAggregateType : Any>(
     val groupBy: List<AggregatedAggregationGroup<CommandAggregateType>> = emptyList(),
     @get:ArraySchema(minItems = 1, maxItems = AggregationQuery.MAX_METRICS)
     val metrics: List<AggregatedAggregationMetric<CommandAggregateType>>,
+    @get:ArraySchema(maxItems = AggregationQuery.MAX_SORT_FIELDS)
     @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
     val sort: List<Sort> = emptyList(),
     @get:Schema(defaultValue = "100", minimum = "1", maximum = "10000")

@@ -163,6 +163,7 @@ class AggregationQueryTest {
     @Test
     fun `portable time zones should be a stable runtime subset`() {
         AggregationTimeZones.ids.assert().contains("UTC", "Asia/Shanghai")
+        AggregationTimeZones.ids.none { it.startsWith("SystemV/") }.assert().isTrue()
         ZoneId.getAvailableZoneIds().containsAll(AggregationTimeZones.ids).assert().isTrue()
     }
 }

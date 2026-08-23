@@ -16,6 +16,7 @@ package me.ahoo.wow.schema.typed.query
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationFunction
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AggregationTimeZones
 import me.ahoo.wow.example.domain.order.Order
 import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
@@ -165,6 +166,8 @@ class AggregatedAggregationQueryTest {
             MockCommandAggregate::class.java,
         ).asJsonSchema().actual
         val sources = schema.path("oneOf").nodes()
+        schema.path("properties").path("sort").path("maxItems").intValue().assert()
+            .isEqualTo(AggregationQuery.MAX_SORT_FIELDS)
         val lineSource = sources.single {
             it.path("properties").path("elements").path("maxItems").intValue() == 2
         }

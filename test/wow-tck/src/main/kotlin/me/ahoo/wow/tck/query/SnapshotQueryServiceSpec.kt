@@ -525,6 +525,42 @@ abstract class SnapshotQueryServiceSpec {
     }
 
     @Test
+    fun aggregateElementsShouldNormalizeTemporalExactMatches() {
+        val field = "state.orders.lines.createdAt"
+        val equivalent = "2023-12-31T19:00:00.000-05:00"
+        listOf(
+            filter { field eq equivalent } to 1L,
+            filter { field ne equivalent } to 2L,
+            filter { field isIn listOf(equivalent) } to 1L,
+            filter { field notIn listOf(equivalent) } to 2L,
+        ).forEach { (elementFilter, expected) ->
+            snapshotQueryService.aggregate(
+                AggregationQuery(
+                    elements = listOf(
+                        AggregationElement("state.orders"),
+                        AggregationElement("state.orders.lines", elementFilter),
+                    ),
+                    metrics = listOf(AggregationMetric.Count("count")),
+                ),
+            ).test()
+                .assertNext { row -> row.getValue<Long>("count").assert().isEqualTo(expected) }
+                .verifyComplete()
+        }
+
+        snapshotQueryService.aggregate(
+            AggregationQuery(
+                elements = listOf(
+                    AggregationElement("state.orders"),
+                    AggregationElement("state.orders.lines", filter { field eq "not-a-date" }),
+                ),
+                metrics = listOf(AggregationMetric.Count("count")),
+            ),
+        ).test()
+            .expectError()
+            .verify()
+    }
+
+    @Test
     fun aggregateElementsShouldRejectExistencePredicates() {
         listOf(
             filter { "state.orders.status".exists() },
