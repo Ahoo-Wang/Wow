@@ -78,6 +78,21 @@ class AggregationQueryTest {
     }
 
     @Test
+    fun `should append stable group sort`() {
+        AggregationQuery(
+            groupBy = listOf(
+                AggregationGroup.Terms("state.status", "status"),
+                AggregationGroup.Terms("state.category", "category"),
+            ),
+            metrics = listOf(AggregationMetric.Count("count")),
+            sort = listOf(Sort("category", Sort.Direction.DESC)),
+        ).effectiveSort().assert().containsExactly(
+            Sort("category", Sort.Direction.DESC),
+            Sort("status", Sort.Direction.ASC),
+        )
+    }
+
+    @Test
     fun `should enforce independent hard limits`() {
         assertThrows<IllegalArgumentException> {
             AggregationQuery(

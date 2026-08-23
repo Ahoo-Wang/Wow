@@ -143,11 +143,7 @@ private val JavaType.isAggregationScalar: Boolean
         rawClass == Boolean::class.javaObjectType || rawClass == Char::class.javaObjectType || rawClass == UUID::class.java
 
 private val JavaType.isAggregationTerms: Boolean
-    get() = !isAggregationDate && (
-        isAggregationNumeric || rawClass.isPrimitive || rawClass.isEnum ||
-            CharSequence::class.java.isAssignableFrom(rawClass) ||
-            rawClass == Boolean::class.javaObjectType || rawClass == Char::class.javaObjectType || rawClass == UUID::class.java
-        )
+    get() = !isAggregationDate && isAggregationScalar
 
 private val JavaType.isAggregationNumeric: Boolean
     get() = (rawClass.isPrimitive && rawClass != Boolean::class.javaPrimitiveType && rawClass != Char::class.javaPrimitiveType) ||

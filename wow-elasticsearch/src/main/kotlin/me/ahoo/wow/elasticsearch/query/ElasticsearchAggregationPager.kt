@@ -20,6 +20,7 @@ import co.elastic.clients.elasticsearch._types.aggregations.CompositeBucket
 import co.elastic.clients.elasticsearch.core.SearchRequest
 import co.elastic.clients.elasticsearch.core.search.ResponseBody
 import co.elastic.clients.util.NamedValue
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchAggregationPlan
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
@@ -126,7 +127,7 @@ internal class ElasticsearchAggregationPager(
     )
 
     private companion object {
-        const val ROWS_AGGREGATION = "__wow_rows"
+        const val ROWS_AGGREGATION = "${AggregationQuery.INTERNAL_ALIAS_PREFIX}rows"
     }
 }
 

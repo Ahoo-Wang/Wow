@@ -290,14 +290,6 @@ private fun AggregationMetric.toResultValue(
     }
 }
 
-private fun AggregationQuery.effectiveSort(): List<Sort> = buildList {
-    addAll(sort)
-    val sortedAliases = sort.mapTo(hashSetOf(), Sort::field)
-    groupBy.map(AggregationGroup::alias)
-        .filterNot(sortedAliases::contains)
-        .forEach { add(Sort(it, Sort.Direction.ASC)) }
-}
-
 private fun Flux<DynamicDocument>.top(limit: Int, sort: List<Sort>): Flux<DynamicDocument> {
     val comparator = aggregationComparator(sort)
     return collect(

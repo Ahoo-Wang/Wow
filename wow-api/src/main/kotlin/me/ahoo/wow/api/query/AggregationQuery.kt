@@ -53,6 +53,14 @@ data class AggregationQuery(
 
     override fun withCondition(newCondition: Condition): AggregationQuery = copy(condition = newCondition)
 
+    fun effectiveSort(): List<Sort> = buildList {
+        addAll(sort)
+        val sortedAliases = sort.mapTo(hashSetOf(), Sort::field)
+        groupBy.map(AggregationGroup::alias)
+            .filterNot(sortedAliases::contains)
+            .forEach { add(Sort(it, Sort.Direction.ASC)) }
+    }
+
     companion object {
         const val DEFAULT_LIMIT: Int = 100
         const val MAX_LIMIT: Int = 10_000

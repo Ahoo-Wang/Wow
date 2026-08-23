@@ -74,7 +74,7 @@ internal data class ElasticsearchAggregationPlan(
 ) {
     private val metricNames = aggregationQuery.metrics
         .filterIsInstance<AggregationMetric.Numeric>()
-        .mapIndexed { index, metric -> metric.alias to "__wow_metric_$index" }
+        .mapIndexed { index, metric -> metric.alias to "${AggregationQuery.INTERNAL_ALIAS_PREFIX}metric_$index" }
         .toMap()
 
     fun compositeSource(
@@ -150,8 +150,8 @@ internal data class ResolvedElement(
     val condition: Query,
     val index: Int,
 ) {
-    val elementName: String = "__wow_element_$index"
-    val filterName: String = "__wow_filter_$index"
+    val elementName: String = "${AggregationQuery.INTERNAL_ALIAS_PREFIX}element_$index"
+    val filterName: String = "${AggregationQuery.INTERNAL_ALIAS_PREFIX}filter_$index"
 }
 
 internal fun AggregationGroup.toCompositeSource(
