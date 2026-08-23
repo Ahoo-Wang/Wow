@@ -47,5 +47,5 @@ interface ConditionCapable<Q : ConditionCapable<Q>> :
      * @return A new query object with the combined condition.
      */
     @Deprecated("Use appendFilter.")
-    override fun appendCondition(append: Condition): Q = withCondition(this.condition.appendCondition(append))
+    override fun appendCondition(append: Condition): Q = appendFilter(append.toFilterExpression())
 }

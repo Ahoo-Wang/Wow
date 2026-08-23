@@ -94,10 +94,6 @@ data class ListQuery(
     override fun withCondition(newCondition: Condition): IListQuery =
         copy(filter = LegacyConditionAdapter.adapt(newCondition))
 
-    @Deprecated("Use appendFilter.")
-    override fun appendCondition(append: Condition): IListQuery =
-        copy(filter = LegacyConditionAdapter.adapt(condition.appendCondition(append)))
-
     @Deprecated("Use copy(filter = ...).")
     fun copy(
         condition: Condition,

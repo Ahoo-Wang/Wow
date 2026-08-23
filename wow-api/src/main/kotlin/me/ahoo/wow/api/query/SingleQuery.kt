@@ -82,10 +82,6 @@ data class SingleQuery(
     override fun withCondition(newCondition: Condition): ISingleQuery =
         copy(filter = LegacyConditionAdapter.adapt(newCondition))
 
-    @Deprecated("Use appendFilter.")
-    override fun appendCondition(append: Condition): ISingleQuery =
-        copy(filter = LegacyConditionAdapter.adapt(condition.appendCondition(append)))
-
     @Deprecated("Use copy(filter = ...).")
     fun copy(
         condition: Condition,

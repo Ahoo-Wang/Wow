@@ -48,6 +48,11 @@ interface RewriteRequestFilter {
         request: ServerRequest,
         rewritableCondition: Q
     ): Q {
+        if (rewritableCondition is Condition) {
+            val rewritten = rewrite(aggregateMetadata, request, rewritableCondition.toFilterExpression()).toCondition()
+            @Suppress("UNCHECKED_CAST")
+            return rewritten as Q
+        }
         val filterCapable = rewritableCondition as? FilterCapable<*> ?: return rewritableCondition
         val rewritten = rewrite(aggregateMetadata, request, filterCapable.filter)
         @Suppress("UNCHECKED_CAST")

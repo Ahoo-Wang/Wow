@@ -161,6 +161,21 @@ class FilterExpressionTest {
     }
 
     @Suppress("DEPRECATION")
+    @Test
+    fun `legacy append should preserve typed filter details`() {
+        val search = SearchFilter(
+            query = "wow",
+            fields = linkedSetOf(LogicalField("state.name"), LogicalField("state.description")),
+        )
+        val appended = Condition.tenantId("tenant")
+
+        val rewritten = ListQuery(search).appendCondition(appended).filter as AndFilter
+
+        rewritten.operands.first().assert().isSameAs(search)
+        rewritten.operands.last().toCondition().assert().isEqualTo(appended)
+    }
+
+    @Suppress("DEPRECATION")
     private data class LegacyQueryable(
         override val condition: Condition,
         override val projection: Projection = Projection.ALL,

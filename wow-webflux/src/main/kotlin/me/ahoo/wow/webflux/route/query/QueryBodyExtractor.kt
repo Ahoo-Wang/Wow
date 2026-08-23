@@ -41,6 +41,7 @@ import tools.jackson.databind.node.ObjectNode
 class QueryBodyExtractor<Q : Any>(private val queryType: Class<Q>) : BodyExtractor<Mono<Q>, ReactiveHttpInputMessage> {
     companion object {
         val FILTER_EXPRESSION_EXTRACTOR = QueryBodyExtractor(FilterExpression::class.java)
+        internal val COUNT_QUERY_EXTRACTOR = QueryBodyExtractor(Any::class.java)
         val LIST_QUERY_EXTRACTOR = QueryBodyExtractor(ListQuery::class.java)
         val PAGED_QUERY_EXTRACTOR = QueryBodyExtractor(PagedQuery::class.java)
         val SINGLE_QUERY_EXTRACTOR = QueryBodyExtractor(SingleQuery::class.java)
@@ -57,7 +58,7 @@ class QueryBodyExtractor<Q : Any>(private val queryType: Class<Q>) : BodyExtract
     }
 
     private fun decode(objectNode: ObjectNode): Q {
-        if (queryType == FilterExpression::class.java) {
+        if (queryType == FilterExpression::class.java || queryType == Any::class.java) {
             return decodeCount(objectNode)
         }
         val hasFilter = objectNode.has("filter")
@@ -78,15 +79,18 @@ class QueryBodyExtractor<Q : Any>(private val queryType: Class<Q>) : BodyExtract
         val hasFilter = objectNode.has("op")
         val hasCondition = objectNode.has("operator")
         require(!(hasFilter && hasCondition)) { "op and operator cannot be used together." }
-        return if (hasFilter) {
-            strictDecode(objectNode)
+        val decoded: Any = if (hasFilter) {
+            strictDecode(objectNode, FilterExpression::class.java)
         } else {
-            objectNode.toObject(Condition::class.java).toFilterExpression() as Q
+            objectNode.toObject(Condition::class.java)
         }
+        return decoded as Q
     }
 
-    private fun strictDecode(objectNode: ObjectNode): Q = try {
-        val decoded: Q = JsonSerializer.readerFor(queryType)
+    private fun strictDecode(objectNode: ObjectNode): Q = strictDecode(objectNode, queryType)
+
+    private fun <T : Any> strictDecode(objectNode: ObjectNode, type: Class<T>): T = try {
+        val decoded: T = JsonSerializer.readerFor(type)
             .with(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
             .readValue(objectNode)
         requireStrictFilterValues(decoded)
@@ -95,7 +99,7 @@ class QueryBodyExtractor<Q : Any>(private val queryType: Class<Q>) : BodyExtract
         throw IllegalArgumentException("Invalid filter request body.", error)
     }
 
-    private fun requireStrictFilterValues(decoded: Q) {
+    private fun requireStrictFilterValues(decoded: Any) {
         when (decoded) {
             is FilterExpression -> decoded
             is FilterCapable<*> -> decoded.filter

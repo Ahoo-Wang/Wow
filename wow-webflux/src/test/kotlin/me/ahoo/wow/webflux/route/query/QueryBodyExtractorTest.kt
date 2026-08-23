@@ -15,6 +15,7 @@ package me.ahoo.wow.webflux.route.query
 
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.ListQuery
@@ -43,6 +44,7 @@ import org.springframework.web.reactive.function.server.RouterFunctions.route
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 
@@ -141,6 +143,36 @@ class QueryBodyExtractorTest {
             .bodyValue("""{"field":"state.tags","operator":"EQ","value":["a","b"]}""")
             .exchange()
             .expectStatus().isOk
+    }
+
+    @Test
+    fun `legacy count body should invoke Condition overload with request scope`() {
+        val captured = slot<Condition>()
+        val queryHandler = mockk<QueryHandler<Any>> {
+            every { count(any(), capture(captured)) } returns Mono.just(0)
+        }
+        val handlerFunction = CountQueryHandlerFunctionFactory(
+            handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
+            queryHandler = queryHandler,
+            rewriteRequestCondition = DefaultRewriteRequestCondition,
+            exceptionHandler = WebFluxRequestExceptionHandler(),
+        ).create(
+            testAggregateRouteContract(
+                handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
+                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
+            ),
+        )
+
+        WebTestClient.bindToRouterFunction(route(POST("/sku/snapshot/count"), handlerFunction)).build()
+            .post()
+            .uri("/sku/snapshot/count")
+            .header(CommandComponent.Header.TENANT_ID, "tenant-1")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("""{"field":"state.name","operator":"EQ","value":"Wow"}""")
+            .exchange()
+            .expectStatus().isOk
+
+        captured.captured.children.any { it.field == "tenantId" && it.value == "tenant-1" }.assert().isTrue()
     }
 
     @Test
