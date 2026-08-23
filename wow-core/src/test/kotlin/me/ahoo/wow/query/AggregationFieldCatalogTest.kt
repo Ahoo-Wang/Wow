@@ -14,6 +14,7 @@
 package me.ahoo.wow.query
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.JsonValue
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -37,6 +38,7 @@ class AggregationFieldCatalogTest {
         catalog.elementPaths.assert().doesNotContain(
             "state.tags",
             "state.objects",
+            "state.scalarItems",
             "state.nestedItems",
             "state.arrayItems",
             "state.mappedItems",
@@ -45,6 +47,8 @@ class AggregationFieldCatalogTest {
             catalog.paths[path]!!.kind.assert().isEqualTo(AggregationFieldKind.UNSUPPORTED_COLLECTION)
         }
         catalog.paths.keys.assert().doesNotContain("state.attributes.value")
+        catalog.paths["state.scalarItems"]!!.kind.assert().isEqualTo(AggregationFieldKind.SCALAR_COLLECTION)
+        catalog.paths.keys.assert().doesNotContain("state.scalarItems.value")
         catalog.paths["state.orders.lines.sku"]!!.collectionPaths.assert()
             .containsExactly("state.orders", "state.orders.lines")
     }
@@ -97,6 +101,7 @@ class AggregationFieldCatalogTest {
         val orders: List<Order> = emptyList()
         val tags: List<String> = emptyList()
         val objects: List<Any> = emptyList()
+        val scalarItems: List<ScalarItem> = emptyList()
         val nestedItems: List<List<Line>> = emptyList()
         val arrayItems: List<Array<Line>> = emptyList()
         val mappedItems: List<Map<String, Line>> = emptyList()
@@ -111,6 +116,7 @@ class AggregationFieldCatalogTest {
     private class Level6 { val value: String = "" }
     private data class Order(val lines: List<Line>)
     private data class Line(val sku: String)
+    private data class ScalarItem(@get:JsonValue val value: String)
 
     private class PortableState {
         val flag: Boolean = false

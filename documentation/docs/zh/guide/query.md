@@ -359,7 +359,7 @@ curl -X POST \
 - Elements 只接受对象集合或对象数组；Map、标量集合、集合/数组嵌套集合、重复路径、跳过中间集合和兄弟集合笛卡尔积都会被拒绝。
 - `groupBy`、指标及表达式字段必须属于最内层来源，不能隐式访问父级、兄弟或未展开的子集合。
 - 每层 `AggregationElement.filter` 只能访问该层标量字段或非集合对象下的标量后代，不能直接过滤对象路径，也不能使用 `ELEMENT_MATCH`、`SEARCH` 或 `DELETION`。
-- 精确匹配、集合匹配与范围操作符都会校验 literal 类型：数值字段使用 JSON number，时间/文本/UUID/枚举字段使用 JSON string，Boolean 字段使用 JSON boolean；null 判断必须使用 `IS_NULL`/`IS_NOT_NULL`。字符串操作符只接受文本字段，相对时间操作符只接受时间字段。
+- 精确匹配、集合匹配与范围操作符都会校验 literal 类型：数值字段使用 JSON number，并受声明的 JVM 数值类型范围约束（浮点值必须有限）；时间/文本/UUID/枚举字段使用 JSON string，Boolean 字段使用 JSON boolean；null 判断必须使用 `IS_NULL`/`IS_NOT_NULL`。字符串操作符只接受文本字段，相对时间操作符只接受时间字段。
 - Element 空值判断只支持 `IS_NULL`/`IS_NOT_NULL`；`EXISTS`/`NOT_EXISTS` 对显式 `null` 的定义在 MongoDB 与 Elasticsearch 间不一致，因此会被拒绝。
 - Element 相对时间过滤器使用标准序列化的时间值；`zoneId` 只接受 IANA ID（如 `Asia/Shanghai`）或规范的 `±HH:MM` 偏移，自定义 `datePattern` 会被拒绝。
 - OpenAPI 会发布完整的合法 Elements 链，并按最内层来源与操作符类型收窄 Element filter、groupBy 和 metric 字段枚举；客户端不会把跳层、逆序、重复、父级、兄弟或错误类型字段提示为合法组合。

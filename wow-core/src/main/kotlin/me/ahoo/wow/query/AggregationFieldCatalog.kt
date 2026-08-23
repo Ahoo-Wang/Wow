@@ -149,7 +149,8 @@ private val JavaType.aggregationCollectionKind: AggregationFieldKind
 
 private val JavaType.isAggregationScalar: Boolean
     get() = isAggregationNumeric || isAggregationDate || isAggregationTextual || rawClass.isPrimitive ||
-        rawClass == Boolean::class.javaObjectType || rawClass == Char::class.javaObjectType || rawClass == UUID::class.java
+        rawClass == Boolean::class.javaObjectType || rawClass == Char::class.javaObjectType ||
+        rawClass == UUID::class.java || toBeanDescription().findJsonValueAccessor() != null
 
 private val JavaType.isAggregationTextual: Boolean
     get() = rawClass.isEnum || CharSequence::class.java.isAssignableFrom(rawClass) ||

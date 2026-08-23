@@ -53,6 +53,26 @@ class HttpQueryGuardFilter(
     private val maxAggregationMetrics: Int = 32,
 ) : QueryFilter<QueryContext<*, *>>, SnapshotAggregationQueryFilterProvider {
 
+    constructor(
+        maxListSize: Int,
+        maxPageSize: Int,
+        maxPageWindow: Long,
+        maxConditionNodes: Int,
+        maxConditionValues: Int,
+        allowExpensiveOperators: Boolean,
+        idleTimeout: Duration,
+    ) : this(
+        maxListSize = maxListSize,
+        maxPageSize = maxPageSize,
+        maxPageWindow = maxPageWindow,
+        maxConditionNodes = maxConditionNodes,
+        maxConditionValues = maxConditionValues,
+        allowExpensiveOperators = allowExpensiveOperators,
+        idleTimeout = idleTimeout,
+        maxAggregationElements = 3,
+        maxAggregationMetrics = 32,
+    )
+
     override fun createSnapshotAggregationQueryFilter(): SnapshotAggregationQueryFilter =
         HttpAggregationQueryGuardFilter(this)
 

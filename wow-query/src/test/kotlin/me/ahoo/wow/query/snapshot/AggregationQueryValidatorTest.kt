@@ -144,6 +144,7 @@ class AggregationQueryValidatorTest {
         listOf(
             filter { "state.orders.status".contains("PAID") },
             filter { "state.orders.amount" gt 0.0 },
+            filter { "state.orders.rank" eq Int.MAX_VALUE },
             filter { "state.orders.createdAt".today() },
         ).forEach { elementFilter -> aggregation(elementFilter).validate() }
 
@@ -156,10 +157,17 @@ class AggregationQueryValidatorTest {
             filter { "state.orders.status" gt 1 },
             filter { "state.orders.createdAt" gt 1 },
             filter { "state.orders.amount" eq false },
+            filter { "state.orders.rank" eq 2_147_483_648L },
+            filter { "state.orders.rank" eq 1.5 },
+            filter { "state.orders.rank" isIn listOf(1, 2_147_483_648L) },
             filter { "state.orders.amount" isIn listOf(false) },
             filter { "state.orders.cancelled" eq 1 },
             filter { "state.orders.createdAt" notIn listOf(1) },
             EqualFilter(LogicalField("state.orders.status"), JsonNodeFactory.instance.nullNode()),
+            EqualFilter(
+                LogicalField("state.orders.amount"),
+                JsonNodeFactory.instance.numberNode(Double.POSITIVE_INFINITY),
+            ),
             filter { "state.orders.shipping" eq "address" },
             filter { "state.orders.shipping" eq null },
             filter { "state.orders.status".exists() },
@@ -247,6 +255,7 @@ class AggregationQueryValidatorTest {
     private data class Order(
         val status: String,
         val amount: Double,
+        val rank: Int = 0,
         val lines: List<Line>,
         val createdAt: Instant = Instant.EPOCH,
         val cancelled: Boolean = false,

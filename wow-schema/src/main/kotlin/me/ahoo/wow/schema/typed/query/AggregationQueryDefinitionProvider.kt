@@ -217,25 +217,26 @@ object AggregationQueryDefinitionProvider : CustomDefinitionProviderV2 {
         val scalarPaths = scalarFields.map(AggregationField::path)
         val textualPaths = scalarFields.filter(AggregationField::isTextual).map(AggregationField::path)
         val temporalPaths = scalarFields.filter(AggregationField::isTemporal).map(AggregationField::path)
-        val numericPaths = scalarFields.filter(AggregationField::isNumeric).map(AggregationField::path)
+        val numericFields = scalarFields.filter(AggregationField::isNumeric)
+        val numericPaths = numericFields.map(AggregationField::path)
         val booleanPaths = scalarFields.filter(AggregationField::isBoolean).map(AggregationField::path)
         val stringLiteralPaths = scalarFields.filter(AggregationField::usesStringLiteral).map(AggregationField::path)
         val stringRangePaths = scalarFields.filter { it.isTemporal || it.isTextual }.map(AggregationField::path)
 
         listOf("eqShape", "neShape").forEach { name ->
-            definitions.set(name, definitions.path(name).exactVariants(numericPaths, stringLiteralPaths, booleanPaths))
+            definitions.set(name, definitions.path(name).exactVariants(numericFields, stringLiteralPaths, booleanPaths))
         }
         listOf("in", "notIn").forEach { name ->
             definitions.set(
                 name,
-                definitions.path(name).membershipVariants(numericPaths, stringLiteralPaths, booleanPaths),
+                definitions.path(name).membershipVariants(numericFields, stringLiteralPaths, booleanPaths),
             )
         }
         definitions.setFieldEnums(listOf("contains", "startsWith", "endsWith"), textualPaths)
         definitions.setFieldEnums(NULLABLE_DEFINITIONS, scalarPaths)
         definitions.setFieldEnums(RELATIVE_TIME_DEFINITIONS, temporalPaths)
         RANGE_DEFINITIONS.forEach { name ->
-            definitions.set(name, definitions.path(name).rangeVariants(numericPaths, stringRangePaths))
+            definitions.set(name, definitions.path(name).rangeVariants(numericFields, stringRangePaths))
         }
 
         return buildSet {
@@ -292,70 +293,112 @@ object AggregationQueryDefinitionProvider : CustomDefinitionProviderV2 {
     }
 
     private fun JsonNode.exactVariants(
-        numericFields: Collection<String>,
+        numericFields: Collection<AggregationField>,
         stringFields: Collection<String>,
         booleanFields: Collection<String>,
-    ): ObjectNode = literalVariants(numericFields, stringFields, booleanFields) { fields, type ->
-        exactVariant(fields, type)
+    ): ObjectNode = literalVariants(numericFields, stringFields, booleanFields) { fields, valueSchema ->
+        exactVariant(fields, valueSchema)
     }
 
     private fun JsonNode.membershipVariants(
-        numericFields: Collection<String>,
+        numericFields: Collection<AggregationField>,
         stringFields: Collection<String>,
         booleanFields: Collection<String>,
-    ): ObjectNode = literalVariants(numericFields, stringFields, booleanFields) { fields, type ->
-        membershipVariant(fields, type)
+    ): ObjectNode = literalVariants(numericFields, stringFields, booleanFields) { fields, valueSchema ->
+        membershipVariant(fields, valueSchema)
     }
 
     private fun JsonNode.literalVariants(
-        numericFields: Collection<String>,
+        numericFields: Collection<AggregationField>,
         stringFields: Collection<String>,
         booleanFields: Collection<String>,
-        variant: ObjectNode.(Collection<String>, String) -> ObjectNode,
+        variant: ObjectNode.(Collection<String>, ObjectNode) -> ObjectNode,
     ): ObjectNode {
         val template = this as ObjectNode
         return template.objectNode().apply {
             val alternatives = putArray("oneOf")
-            if (numericFields.isNotEmpty()) alternatives.add(template.variant(numericFields, "number"))
-            if (stringFields.isNotEmpty()) alternatives.add(template.variant(stringFields, "string"))
-            if (booleanFields.isNotEmpty()) alternatives.add(template.variant(booleanFields, "boolean"))
+            numericFields.groupBy { it.type.rawClass }.values.forEach { fields ->
+                alternatives.add(
+                    template.variant(fields.map(AggregationField::path), numericValueSchema(fields.first())),
+                )
+            }
+            if (stringFields.isNotEmpty()) {
+                alternatives.add(template.variant(stringFields, objectNode().put("type", "string")))
+            }
+            if (booleanFields.isNotEmpty()) {
+                alternatives.add(template.variant(booleanFields, objectNode().put("type", "boolean")))
+            }
         }
     }
 
-    private fun ObjectNode.exactVariant(fields: Collection<String>, valueType: String): ObjectNode =
+    private fun ObjectNode.exactVariant(fields: Collection<String>, valueSchema: ObjectNode): ObjectNode =
         deepCopy().apply {
             val properties = path("properties") as ObjectNode
             properties.set("field", fieldEnum(fields))
-            properties.set("value", objectNode().put("type", valueType))
+            properties.set("value", valueSchema)
         }
 
-    private fun ObjectNode.membershipVariant(fields: Collection<String>, valueType: String): ObjectNode =
+    private fun ObjectNode.membershipVariant(fields: Collection<String>, valueSchema: ObjectNode): ObjectNode =
         deepCopy().apply {
             val properties = path("properties") as ObjectNode
             properties.set("field", fieldEnum(fields))
-            (properties.path("values") as ObjectNode).set("items", objectNode().put("type", valueType))
+            (properties.path("values") as ObjectNode).set("items", valueSchema)
         }
 
     private fun JsonNode.rangeVariants(
-        numericFields: Collection<String>,
+        numericFields: Collection<AggregationField>,
         stringFields: Collection<String>,
     ): ObjectNode {
         val template = this as ObjectNode
         return template.objectNode().apply {
             val alternatives = putArray("oneOf")
-            if (numericFields.isNotEmpty()) alternatives.add(template.rangeVariant(numericFields, "number"))
-            if (stringFields.isNotEmpty()) alternatives.add(template.rangeVariant(stringFields, "string"))
+            numericFields.groupBy { it.type.rawClass }.values.forEach { fields ->
+                alternatives.add(
+                    template.rangeVariant(fields.map(AggregationField::path), numericValueSchema(fields.first()))
+                )
+            }
+            if (stringFields.isNotEmpty()) {
+                alternatives.add(template.rangeVariant(stringFields, objectNode().put("type", "string")))
+            }
         }
     }
 
-    private fun ObjectNode.rangeVariant(fields: Collection<String>, valueType: String): ObjectNode =
+    private fun ObjectNode.rangeVariant(fields: Collection<String>, valueSchema: ObjectNode): ObjectNode =
         deepCopy().apply {
             val properties = path("properties") as ObjectNode
             properties.set("field", fieldEnum(fields))
             listOf("value", "lowerBound", "upperBound")
                 .filter(properties::has)
-                .forEach { property -> properties.set(property, objectNode().put("type", valueType)) }
+                .forEach { property -> properties.set(property, valueSchema.deepCopy()) }
         }
+
+    private fun ObjectNode.numericValueSchema(field: AggregationField): ObjectNode = objectNode().apply {
+        when (field.type.rawClass) {
+            Byte::class.javaPrimitiveType, Byte::class.javaObjectType ->
+                integer(Byte.MIN_VALUE.toLong(), Byte.MAX_VALUE.toLong())
+            Short::class.javaPrimitiveType, Short::class.javaObjectType ->
+                integer(Short.MIN_VALUE.toLong(), Short.MAX_VALUE.toLong())
+            Int::class.javaPrimitiveType, Int::class.javaObjectType ->
+                integer(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong())
+            Long::class.javaPrimitiveType, Long::class.javaObjectType -> integer(Long.MIN_VALUE, Long.MAX_VALUE)
+            java.math.BigInteger::class.java -> put("type", "integer")
+            Float::class.javaPrimitiveType, Float::class.javaObjectType -> number(Float.MAX_VALUE.toDouble())
+            Double::class.javaPrimitiveType, Double::class.javaObjectType -> number(Double.MAX_VALUE)
+            else -> put("type", "number")
+        }
+    }
+
+    private fun ObjectNode.integer(minimum: Long, maximum: Long) {
+        put("type", "integer")
+        put("minimum", minimum)
+        put("maximum", maximum)
+    }
+
+    private fun ObjectNode.number(maximum: Double) {
+        put("type", "number")
+        put("minimum", -maximum)
+        put("maximum", maximum)
+    }
 
     private fun JsonNode.prefixDefinitionReferences(prefix: String) {
         when (this) {

@@ -91,6 +91,20 @@ class HttpQueryGuardFilterTest {
     private val request = MockServerRequest.builder().build()
 
     @Test
+    fun `should retain the seven argument Java constructor`() {
+        HttpQueryGuardFilter::class.java.getConstructor(
+            Int::class.javaPrimitiveType,
+            Int::class.javaPrimitiveType,
+            Long::class.javaPrimitiveType,
+            Int::class.javaPrimitiveType,
+            Int::class.javaPrimitiveType,
+            Boolean::class.javaPrimitiveType,
+            Duration::class.java,
+        ).newInstance(1000, 100, 10_000L, 64, 1000, true, Duration.ofSeconds(10))
+            .assert().isInstanceOf(HttpQueryGuardFilter::class.java)
+    }
+
+    @Test
     fun `should reject unsafe list queries before backend invocation`() {
         listOf(
             ListQuery(Condition.ALL),

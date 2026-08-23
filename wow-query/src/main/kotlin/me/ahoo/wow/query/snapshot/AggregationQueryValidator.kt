@@ -21,6 +21,8 @@ import me.ahoo.wow.modeling.metadata.asAggregateMetadata
 import me.ahoo.wow.query.AggregationField
 import me.ahoo.wow.query.AggregationFieldCatalog
 import me.ahoo.wow.query.AggregationFieldKind
+import tools.jackson.databind.JsonNode
+import java.math.BigInteger
 
 object AggregationQueryValidator {
     fun validate(query: AggregationQuery, namedAggregate: NamedAggregate) {
@@ -135,18 +137,39 @@ private fun AggregationField.supportsElementFilter(filter: FilterExpression): Bo
     else -> false
 }
 
-private fun AggregationField.supportsExactLiteral(value: tools.jackson.databind.JsonNode): Boolean = when {
-    isNumeric -> value.isNumber
+private fun AggregationField.supportsExactLiteral(value: JsonNode): Boolean = when {
+    isNumeric -> supportsNumericLiteral(value)
     usesStringLiteral -> value.isString
     isBoolean -> value.isBoolean
     else -> false
 }
 
-private fun AggregationField.supportsRangeLiteral(value: tools.jackson.databind.JsonNode): Boolean = when {
-    isNumeric -> value.isNumber
+private fun AggregationField.supportsRangeLiteral(value: JsonNode): Boolean = when {
+    isNumeric -> supportsNumericLiteral(value)
     isTemporal || isTextual -> value.isString
     else -> false
 }
+
+private fun AggregationField.supportsNumericLiteral(value: JsonNode): Boolean {
+    if (!value.isNumber || !value.doubleValue().isFinite()) return false
+    return when (type.rawClass) {
+        Byte::class.javaPrimitiveType, Byte::class.javaObjectType ->
+            value.fitsInteger(Byte.MIN_VALUE.toLong(), Byte.MAX_VALUE.toLong())
+        Short::class.javaPrimitiveType, Short::class.javaObjectType ->
+            value.fitsInteger(Short.MIN_VALUE.toLong(), Short.MAX_VALUE.toLong())
+        Int::class.javaPrimitiveType, Int::class.javaObjectType ->
+            value.fitsInteger(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong())
+        Long::class.javaPrimitiveType, Long::class.javaObjectType ->
+            value.fitsInteger(Long.MIN_VALUE, Long.MAX_VALUE)
+        BigInteger::class.java -> value.isIntegralNumber
+        Float::class.javaPrimitiveType, Float::class.javaObjectType ->
+            value.doubleValue() in -Float.MAX_VALUE.toDouble()..Float.MAX_VALUE.toDouble()
+        else -> true
+    }
+}
+
+private fun JsonNode.fitsInteger(minimum: Long, maximum: Long): Boolean = isIntegralNumber &&
+    bigIntegerValue() >= BigInteger.valueOf(minimum) && bigIntegerValue() <= BigInteger.valueOf(maximum)
 
 @Suppress("CyclomaticComplexMethod")
 private fun FilterExpression.requiredElementField(): String = when (this) {

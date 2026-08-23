@@ -152,6 +152,12 @@ class AggregatedAggregationQueryTest {
         }
 
         val lineExact = definition(lines, "eqShape").path("oneOf").nodes()
+        val rankExact = lineExact.single { variant ->
+            fields(variant).contains("state.orders.lines.rank")
+        }.path("properties").path("value")
+        rankExact.path("type").stringValue().assert().isEqualTo("integer")
+        rankExact.path("minimum").longValue().assert().isEqualTo(Int.MIN_VALUE.toLong())
+        rankExact.path("maximum").longValue().assert().isEqualTo(Int.MAX_VALUE.toLong())
         fields(
             lineExact.single { variant ->
                 variant.path("properties").path("value").path("type").toString().contains("boolean")
