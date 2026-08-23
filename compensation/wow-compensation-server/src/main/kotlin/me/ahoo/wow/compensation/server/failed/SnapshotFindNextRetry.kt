@@ -25,7 +25,7 @@ import me.ahoo.wow.compensation.domain.ExecutionFailedStateProperties.STATUS
 import me.ahoo.wow.compensation.domain.FindNextRetry
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
-import me.ahoo.wow.query.snapshot.nestedState
+import me.ahoo.wow.query.snapshot.pathState
 import me.ahoo.wow.query.snapshot.query
 import me.ahoo.wow.query.snapshot.toState
 import me.ahoo.wow.serialization.MessageRecords
@@ -43,19 +43,20 @@ class SnapshotFindNextRetry(
         val currentTime = System.currentTimeMillis()
         return listQuery {
             limit(limit)
-            condition {
-                nestedState()
-                RECOVERABLE isIn listOf(
-                    RecoverableType.RECOVERABLE.name,
-                    RecoverableType.UNKNOWN.name,
-                )
-                IS_RETRYABLE eq true
-                RETRY_STATE__NEXT_RETRY_AT lte currentTime
-                or {
-                    STATUS eq ExecutionFailedStatus.FAILED.name
-                    and {
-                        STATUS eq ExecutionFailedStatus.PREPARED.name
-                        RETRY_STATE__TIMEOUT_AT lte currentTime
+            filter {
+                pathState {
+                    RECOVERABLE isIn listOf(
+                        RecoverableType.RECOVERABLE.name,
+                        RecoverableType.UNKNOWN.name,
+                    )
+                    IS_RETRYABLE eq true
+                    RETRY_STATE__NEXT_RETRY_AT lte currentTime
+                    or {
+                        STATUS eq ExecutionFailedStatus.FAILED.name
+                        and {
+                            STATUS eq ExecutionFailedStatus.PREPARED.name
+                            RETRY_STATE__TIMEOUT_AT lte currentTime
+                        }
                     }
                 }
             }
