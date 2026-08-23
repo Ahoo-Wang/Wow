@@ -150,7 +150,8 @@ SnapshotStore 使用带 scripted upsert 的 Bulk `update`，direct 路径使用�
 
 快照查询第一次访问聚合索引时会异步加载当前 Elasticsearch Mapping，并按物理字段能力编译条件和排序；Mapping
 是字段能力的唯一来源，不需要维护额外的 `QuerySchema`。缓存按索引隔离且没有 TTL。缓存中的字段缺失或能力不匹配时，
-查询直接失败且不会隐式访问 Mapping API；Mapping 变更后通过维护端点显式刷新。
+查询直接失败且不会隐式访问 Mapping API；存在性操作除外，因为 Elasticsearch 可以对未映射逻辑字段执行 `exists`。
+Mapping 变更后通过维护端点显式刷新。
 
 字段选择规则如下：
 

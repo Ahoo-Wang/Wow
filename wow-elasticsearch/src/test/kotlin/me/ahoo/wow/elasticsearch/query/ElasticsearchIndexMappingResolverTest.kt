@@ -30,6 +30,7 @@ import me.ahoo.wow.api.query.IsEmptyFilter
 import me.ahoo.wow.api.query.IsNotNullFilter
 import me.ahoo.wow.api.query.IsNullFilter
 import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.NotEqualFilter
 import me.ahoo.wow.api.query.NotExistsFilter
 import me.ahoo.wow.api.query.Sort
 import org.junit.jupiter.api.Test
@@ -151,16 +152,6 @@ class ElasticsearchIndexMappingResolverTest {
             ),
         ) as EqualFilter
         documentIdFilter.field.value.assert().isEqualTo("_id")
-        (mapping.resolve(IsEmptyFilter(LogicalField("state.name"))) as IsEmptyFilter).field.value.assert()
-            .isEqualTo("state.name")
-        (mapping.resolve(IsNullFilter(LogicalField("state.name"))) as IsNullFilter).field.value.assert()
-            .isEqualTo("state.name")
-        (mapping.resolve(IsNotNullFilter(LogicalField("state.name"))) as IsNotNullFilter).field.value.assert()
-            .isEqualTo("state.name")
-        (mapping.resolve(ExistsFilter(LogicalField("state.name"))) as ExistsFilter).field.value.assert()
-            .isEqualTo("state.name")
-        (mapping.resolve(NotExistsFilter(LogicalField("state.name"))) as NotExistsFilter).field.value.assert()
-            .isEqualTo("state.name")
 
         val condition = mapping.resolve(
             Condition.and(
@@ -197,6 +188,29 @@ class ElasticsearchIndexMappingResolverTest {
         ) as me.ahoo.wow.api.query.ElementMatchFilter
         (filter.predicate as me.ahoo.wow.api.query.EqualFilter).field.value.assert()
             .isEqualTo("state.items.name")
+    }
+
+    @Test
+    fun `should preserve presence fields without exact mappings`() {
+        val mapping = ElasticsearchIndexMapping.from(INDEX, textWithKeyword())
+        val nullValue = me.ahoo.wow.serialization.JsonSerializer.valueToTree<tools.jackson.databind.JsonNode>(null)
+
+        (mapping.resolve(EqualFilter(LogicalField("state.name"), nullValue)) as EqualFilter).field.value.assert()
+            .isEqualTo("state.name")
+        (mapping.resolve(NotEqualFilter(LogicalField("state.name"), nullValue)) as NotEqualFilter).field.value.assert()
+            .isEqualTo("state.name")
+        (mapping.resolve(IsEmptyFilter(LogicalField("state.name"))) as IsEmptyFilter).field.value.assert()
+            .isEqualTo("state.name")
+        (mapping.resolve(IsNullFilter(LogicalField("state.name"))) as IsNullFilter).field.value.assert()
+            .isEqualTo("state.name")
+        (mapping.resolve(IsNotNullFilter(LogicalField("state.name"))) as IsNotNullFilter).field.value.assert()
+            .isEqualTo("state.name")
+        (mapping.resolve(ExistsFilter(LogicalField("state.name"))) as ExistsFilter).field.value.assert()
+            .isEqualTo("state.name")
+        (mapping.resolve(NotExistsFilter(LogicalField("state.name"))) as NotExistsFilter).field.value.assert()
+            .isEqualTo("state.name")
+        (mapping.resolve(NotExistsFilter(LogicalField("state.unmapped"))) as NotExistsFilter).field.value.assert()
+            .isEqualTo("state.unmapped")
     }
 
     @Test

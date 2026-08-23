@@ -21,6 +21,7 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.query.dsl.condition
+import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.serialization.MessageRecords
 import org.junit.jupiter.api.Test
 
@@ -94,5 +95,19 @@ class EventStreamConditionConverterTest {
                 }
         }
         actual.terms().field().assert().isEqualTo(expected.terms().field())
+    }
+
+    @Test
+    fun `should qualify relative element predicate fields`() {
+        val actual = EventStreamConditionConverter.convert(
+            filter {
+                "body".elementMatch {
+                    "name" eq "value"
+                }
+            },
+        )
+
+        actual.nested().path().assert().isEqualTo("body")
+        actual.nested().query().term().field().assert().isEqualTo("body.name")
     }
 }

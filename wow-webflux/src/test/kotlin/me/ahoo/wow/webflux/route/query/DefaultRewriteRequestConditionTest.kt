@@ -15,7 +15,10 @@ package me.ahoo.wow.webflux.route.query
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.RewritableCondition
 import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
@@ -82,5 +85,25 @@ class DefaultRewriteRequestConditionTest {
             ListQuery(condition = originalCondition)
         )
         result.filter.assert().isNotSameAs(originalCondition.toFilterExpression())
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `new filter rewrite should delegate to a legacy implementation`() {
+        val legacy = object : RewriteRequestCondition {
+            override fun <Q : RewritableCondition<Q>> rewrite(
+                aggregateMetadata: me.ahoo.wow.modeling.metadata.AggregateMetadata<*, *>,
+                request: org.springframework.web.reactive.function.server.ServerRequest,
+                rewritableCondition: Q,
+            ): Q = rewritableCondition.appendCondition(Condition.eq("legacy", true))
+        }
+
+        val rewritten = legacy.rewrite(
+            MOCK_AGGREGATE_METADATA,
+            MockServerRequest.builder().build(),
+            MatchAllFilter,
+        ) as EqualFilter
+
+        rewritten.field.value.assert().isEqualTo("legacy")
     }
 }

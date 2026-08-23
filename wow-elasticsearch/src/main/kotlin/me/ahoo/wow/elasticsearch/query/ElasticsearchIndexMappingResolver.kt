@@ -104,9 +104,13 @@ data class ElasticsearchIndexMapping private constructor(
 
     fun resolve(field: String, usage: ElasticsearchFieldUsage): String {
         val mappedField = findMappedField(field)
-            ?: resolutionFailure(
-                "Elasticsearch field [$field] is not mapped in index [$indexName].",
-            )
+            ?: if (usage == ElasticsearchFieldUsage.PRESENCE) {
+                return field
+            } else {
+                resolutionFailure(
+                    "Elasticsearch field [$field] is not mapped in index [$indexName].",
+                )
+            }
         if (mappedField.supports(usage)) {
             return field
         }
@@ -212,8 +216,18 @@ data class ElasticsearchIndexMapping private constructor(
         is AndFilter -> AndFilter(filter.operands.map { resolve(it, parent) })
         is OrFilter -> OrFilter(filter.operands.map { resolve(it, parent) })
         is NorFilter -> NorFilter(filter.operands.map { resolve(it, parent) })
-        is EqualFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.EXACT))
-        is NotEqualFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.EXACT))
+        is EqualFilter -> filter.copy(
+            field = filter.field.resolve(
+                parent,
+                if (filter.value.isNull) ElasticsearchFieldUsage.PRESENCE else ElasticsearchFieldUsage.EXACT,
+            ),
+        )
+        is NotEqualFilter -> filter.copy(
+            field = filter.field.resolve(
+                parent,
+                if (filter.value.isNull) ElasticsearchFieldUsage.PRESENCE else ElasticsearchFieldUsage.EXACT,
+            ),
+        )
         is InFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.EXACT))
         is NotInFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.EXACT))
         is ContainsAllFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.EXACT))

@@ -11,23 +11,21 @@
  * limitations under the License.
  */
 
-@file:Suppress("DEPRECATION")
-
 package me.ahoo.wow.apiclient.query
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
-import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.toCondition
-import me.ahoo.wow.api.query.toFilterExpression
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.service.annotation.PostExchange
+import me.ahoo.wow.api.query.MatchAllFilter
+import org.junit.jupiter.api.Test
 
-const val SNAPSHOT_COUNT_RESOURCE_NAME = "$SNAPSHOT_RESOURCE_NAME/count"
+class SnapshotCountQueryApiTest {
+    @Suppress("DEPRECATION")
+    @Test
+    fun `new count should delegate to a legacy implementation`() {
+        val api = object : SnapshotCountQueryApi<Long> {
+            override fun count(condition: Condition): Long = 1
+        }
 
-interface SnapshotCountQueryApi<R> : SnapshotQueryApi {
-    @PostExchange(SNAPSHOT_COUNT_RESOURCE_NAME)
-    fun count(@RequestBody filter: FilterExpression): R = count(filter.toCondition())
-
-    @Deprecated("Use count(FilterExpression).")
-    fun count(condition: Condition): R = count(condition.toFilterExpression())
+        api.count(MatchAllFilter).assert().isEqualTo(1)
+    }
 }

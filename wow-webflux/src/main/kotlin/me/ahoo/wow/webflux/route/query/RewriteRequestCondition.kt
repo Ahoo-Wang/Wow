@@ -11,11 +11,17 @@
  * limitations under the License.
  */
 
+@file:Suppress("DEPRECATION")
+
 package me.ahoo.wow.webflux.route.query
 
+import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.FilterCapable
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.MatchAllFilter
-import me.ahoo.wow.api.query.RewritableFilter
+import me.ahoo.wow.api.query.RewritableCondition
+import me.ahoo.wow.api.query.toCondition
+import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.webflux.route.command.getOwnerId
@@ -28,13 +34,29 @@ interface RewriteRequestFilter {
         aggregateMetadata: AggregateMetadata<*, *>,
         request: ServerRequest,
         filter: FilterExpression,
-    ): FilterExpression
+    ): FilterExpression = rewrite(
+        aggregateMetadata,
+        request,
+        LegacyRewritableCondition(filter),
+    ).filter
 
-    fun <Q : RewritableFilter<Q>> rewrite(
+    fun <Q : RewritableCondition<Q>> rewrite(
         aggregateMetadata: AggregateMetadata<*, *>,
         request: ServerRequest,
         rewritableCondition: Q
-    ): Q
+    ): Q {
+        val filter = (rewritableCondition as? FilterCapable<*>)?.filter ?: return rewritableCondition
+        return rewritableCondition.withCondition(rewrite(aggregateMetadata, request, filter).toCondition())
+    }
+}
+
+private data class LegacyRewritableCondition(val filter: FilterExpression) :
+    RewritableCondition<LegacyRewritableCondition> {
+    override fun withCondition(newCondition: Condition): LegacyRewritableCondition =
+        copy(filter = newCondition.toFilterExpression())
+
+    override fun appendCondition(append: Condition): LegacyRewritableCondition =
+        withCondition(filter.toCondition().appendCondition(append))
 }
 
 abstract class AbstractRewriteRequestCondition : RewriteRequestFilter {
@@ -48,21 +70,6 @@ abstract class AbstractRewriteRequestCondition : RewriteRequestFilter {
 
     protected open fun ServerRequest.resolveSpaceId(aggregateMetadata: AggregateMetadata<*, *>): String? {
         return getSpaceId()
-    }
-
-    override fun <Q : RewritableFilter<Q>> rewrite(
-        aggregateMetadata: AggregateMetadata<*, *>,
-        request: ServerRequest,
-        rewritableCondition: Q
-    ): Q {
-        val tenantId = request.resolveTenantId(aggregateMetadata)
-        val ownerId = request.resolveOwnerId(aggregateMetadata)
-        val spaceId = request.resolveSpaceId(aggregateMetadata)
-        if (tenantId.isNullOrBlank() && ownerId.isNullOrBlank() && spaceId.isNullOrBlank()) {
-            return rewritableCondition
-        }
-        val appendFilter = requestScopeFilter(tenantId, ownerId, spaceId)
-        return rewritableCondition.appendFilter(appendFilter)
     }
 
     override fun rewrite(

@@ -155,7 +155,8 @@ version-metadata migration is required.
 On the first snapshot query for an aggregate index, Wow asynchronously loads the current Elasticsearch mapping and
 compiles conditions and sorts from its physical field capabilities. The mapping is the only capability source; no
 separate `QuerySchema` is maintained. The cache is isolated by index and has no TTL. A missing or incompatible cached
-field fails the query without implicitly calling the mapping API; refresh the cache explicitly through the maintenance
+field fails the query without implicitly calling the mapping API, except that presence operations preserve an unmapped
+logical field because Elasticsearch can execute `exists` against it. Refresh the cache explicitly through the maintenance
 endpoint after a mapping change.
 
 Field selection follows these rules:
