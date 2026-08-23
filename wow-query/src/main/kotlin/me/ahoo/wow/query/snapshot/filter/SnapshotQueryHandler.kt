@@ -23,8 +23,8 @@ import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.query.filter.AbstractQueryHandler
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryHandler
-import me.ahoo.wow.query.filter.QueryType
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 
 interface SnapshotQueryHandler : QueryHandler<MaterializedSnapshot<Any>> {
     fun aggregate(namedAggregate: NamedAggregate, query: AggregationQuery): Flux<DynamicDocument> = Flux.error(
@@ -32,13 +32,22 @@ interface SnapshotQueryHandler : QueryHandler<MaterializedSnapshot<Any>> {
     )
 }
 
-class DefaultSnapshotQueryHandler(
+class DefaultSnapshotQueryHandler @JvmOverloads constructor(
     chain: FilterChain<QueryContext<*, *>>,
-    errorHandler: ErrorHandler<QueryContext<*, *>> = LogErrorHandler()
+    errorHandler: ErrorHandler<QueryContext<*, *>> = LogErrorHandler(),
+    private val aggregationChain: FilterChain<SnapshotAggregationQueryContext> = FilterChain {
+        Mono.error(UnsupportedOperationException("Snapshot aggregation filter chain is not configured."))
+    },
 ) : SnapshotQueryHandler, AbstractQueryHandler<MaterializedSnapshot<Any>>(
     chain,
     errorHandler,
 ) {
-    override fun aggregate(namedAggregate: NamedAggregate, query: AggregationQuery): Flux<DynamicDocument> =
-        flux(namedAggregate, QueryType.AGGREGATION, query)
+    override fun aggregate(
+        namedAggregate: NamedAggregate,
+        query: AggregationQuery,
+    ): Flux<DynamicDocument> = Flux.defer {
+        val context = SnapshotAggregationQueryContext(namedAggregate, query)
+        aggregationChain.filter(context)
+            .thenMany(Flux.defer { context.getRequiredResult() })
+    }
 }

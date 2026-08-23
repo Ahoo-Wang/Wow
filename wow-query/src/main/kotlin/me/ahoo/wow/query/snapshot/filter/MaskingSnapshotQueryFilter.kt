@@ -34,14 +34,6 @@ class MaskingSnapshotQueryFilter(maskerRegistry: StateDataMaskerRegistry) : Snap
         context: QueryContext<*, *>,
         next: FilterChain<QueryContext<*, *>>
     ): Mono<Void> {
-        if (
-            context.queryType == QueryType.AGGREGATION &&
-            !maskerRegistry.getAggregateDataMasker(context.namedAggregate).isEmpty()
-        ) {
-            return Mono.error(
-                IllegalStateException("Snapshot aggregation is unavailable when data masking is configured.")
-            )
-        }
         return next.filter(context).then(
             Mono.defer {
                 mask(context)
@@ -92,5 +84,22 @@ class MaskingSnapshotQueryFilter(maskerRegistry: StateDataMaskerRegistry) : Snap
             else -> {
             }
         }
+    }
+}
+
+@Order(ORDER_LAST, before = [TailSnapshotAggregationQueryFilter::class])
+class MaskingSnapshotAggregationQueryFilter(
+    private val maskerRegistry: StateDataMaskerRegistry,
+) : SnapshotAggregationQueryFilter {
+    override fun filter(
+        context: SnapshotAggregationQueryContext,
+        next: FilterChain<SnapshotAggregationQueryContext>,
+    ): Mono<Void> {
+        if (!maskerRegistry.getAggregateDataMasker(context.namedAggregate).isEmpty()) {
+            return Mono.error(
+                IllegalStateException("Snapshot aggregation is unavailable when data masking is configured."),
+            )
+        }
+        return next.filter(context)
     }
 }

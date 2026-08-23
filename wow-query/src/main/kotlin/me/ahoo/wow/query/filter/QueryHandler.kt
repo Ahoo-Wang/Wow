@@ -60,7 +60,7 @@ abstract class AbstractQueryHandler<R : Any>(
         handle(context).then(Mono.defer { context.getRequiredResult() })
     }
 
-    protected fun <Q : Any, T : Any> flux(
+    private fun <Q : Any, T : Any> flux(
         namedAggregate: NamedAggregate,
         queryType: QueryType,
         query: Q,

@@ -146,19 +146,17 @@ class AbacQueryFilterTest {
     @Test
     fun `aggregation ABAC should rewrite only root condition`() {
         val elementCondition = Condition.eq("state.orders.status", "PAID")
-        val context = DefaultQueryContext<AggregationQuery, Any>(
-            queryType = QueryType.AGGREGATION,
+        val context = SnapshotAggregationQueryContext(
             MOCK_AGGREGATE_METADATA,
-        ).setQuery(
             AggregationQuery(
                 elements = listOf(AggregationElement("state.orders", elementCondition)),
                 metrics = listOf(AggregationMetric.Count("count")),
             ),
         )
-        MockAbacQueryFilter.filter(
+        AggregationAbacQueryFilter(listOf(MockAbacQueryFilter)).filter(
             context,
             FilterChain {
-                val rewritten = context.getQuery()
+                val rewritten = context.query
                 rewritten.condition.operator.assert().isEqualTo(Operator.AND)
                 rewritten.elements.single().condition.assert().isEqualTo(elementCondition)
                 Mono.empty()

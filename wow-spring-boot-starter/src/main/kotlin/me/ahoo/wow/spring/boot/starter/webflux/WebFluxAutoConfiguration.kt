@@ -61,6 +61,7 @@ import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
 import me.ahoo.wow.webflux.route.query.DefaultRewriteRequestCondition
+import me.ahoo.wow.webflux.route.query.HttpAggregationQueryGuardFilter
 import me.ahoo.wow.webflux.route.query.HttpQueryGuardFilter
 import me.ahoo.wow.webflux.route.query.RewriteRequestCondition
 import org.springframework.beans.factory.ObjectProvider
@@ -139,6 +140,11 @@ class WebFluxAutoConfiguration {
             maxAggregationMetrics = query.maxAggregationMetrics,
         )
     }
+
+    @Bean
+    fun httpAggregationQueryGuardFilter(
+        httpQueryGuardFilter: HttpQueryGuardFilter,
+    ): HttpAggregationQueryGuardFilter = HttpAggregationQueryGuardFilter(httpQueryGuardFilter)
 
     @Bean
     @ConditionalOnWebfluxGlobalErrorEnabled

@@ -31,6 +31,8 @@ import me.ahoo.wow.query.filter.Contexts.getUserQuery
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.snapshot.filter.SnapshotAggregationQueryContext
+import me.ahoo.wow.query.snapshot.filter.SnapshotAggregationQueryFilter
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.webflux.route.acceptsEventStream
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -77,7 +79,10 @@ class HttpQueryGuardFilter(
         if (request == null) {
             return@deferContextual next.filter(context)
         }
-        validate(context.queryType, contextView.getUserQuery<Any>() ?: context.getQuery())
+        validate(
+            query = contextView.getUserQuery<Any>() ?: context.getQuery(),
+            rejectMatchAll = context.queryType in COUNTING_QUERY_TYPES,
+        )
         val downstream = next.filter(context)
         val guardedDownstream = if (idleTimeout.isZero) downstream else downstream.timeout(idleTimeout)
         guardedDownstream.doOnSuccess {
@@ -85,7 +90,26 @@ class HttpQueryGuardFilter(
         }
     }
 
-    private fun validate(queryType: QueryType, query: Any) {
+    internal fun filterAggregation(
+        context: SnapshotAggregationQueryContext,
+        next: FilterChain<SnapshotAggregationQueryContext>,
+    ): Mono<Void> = Mono.deferContextual { contextView ->
+        val request = contextView.getRawRequest<Any>() as? ServerRequest
+        if (request == null) {
+            return@deferContextual next.filter(context)
+        }
+        validate(
+            query = contextView.getUserQuery<AggregationQuery>() ?: context.query,
+            rejectMatchAll = true,
+        )
+        val downstream = next.filter(context)
+        val guardedDownstream = if (idleTimeout.isZero) downstream else downstream.timeout(idleTimeout)
+        guardedDownstream.doOnSuccess {
+            applyAggregationIdleTimeout(context, request)
+        }
+    }
+
+    private fun validate(query: Any, rejectMatchAll: Boolean) {
         when (query) {
             is IListQuery -> validateList(query)
             is IPagedQuery -> validatePage(query)
@@ -102,7 +126,7 @@ class HttpQueryGuardFilter(
             listOf(condition)
         }
         validateConditions(conditions)
-        require(allowExpensiveOperators || queryType !in COUNTING_QUERY_TYPES || !condition.isMatchAll()) {
+        require(allowExpensiveOperators || !rejectMatchAll || !condition.isMatchAll()) {
             "HTTP counting query must not match all documents."
         }
     }
@@ -229,15 +253,21 @@ class HttpQueryGuardFilter(
                 context.asPagedQuery<Any>().rewriteResult { it.timeout(idleTimeout) }
 
             QueryType.COUNT -> context.asCountQuery().rewriteResult { it.timeout(idleTimeout) }
+        }
+    }
 
-            QueryType.AGGREGATION -> context.asAggregationQuery().rewriteResult {
-                if (request.acceptsEventStream()) {
-                    it.timeout(idleTimeout)
-                } else {
-                    it.timeout(idleTimeout)
-                        .collectList()
-                        .flatMapMany(Flux<DynamicDocument>::fromIterable)
-                }
+    private fun applyAggregationIdleTimeout(
+        context: SnapshotAggregationQueryContext,
+        request: ServerRequest,
+    ) {
+        if (idleTimeout.isZero) return
+        context.rewriteResult {
+            if (request.acceptsEventStream()) {
+                it.timeout(idleTimeout)
+            } else {
+                it.timeout(idleTimeout)
+                    .collectList()
+                    .flatMapMany(Flux<DynamicDocument>::fromIterable)
             }
         }
     }
@@ -256,7 +286,6 @@ class HttpQueryGuardFilter(
             QueryType.PAGED,
             QueryType.DYNAMIC_PAGED,
             QueryType.COUNT,
-            QueryType.AGGREGATION,
         )
         val COLLECTION_OPERATORS = setOf(
             Operator.IN,
@@ -266,4 +295,14 @@ class HttpQueryGuardFilter(
             Operator.AGGREGATE_IDS,
         )
     }
+}
+
+@Order(ORDER_FIRST)
+class HttpAggregationQueryGuardFilter(
+    private val delegate: HttpQueryGuardFilter,
+) : SnapshotAggregationQueryFilter {
+    override fun filter(
+        context: SnapshotAggregationQueryContext,
+        next: FilterChain<SnapshotAggregationQueryContext>,
+    ): Mono<Void> = delegate.filterAggregation(context, next)
 }

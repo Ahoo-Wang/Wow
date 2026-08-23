@@ -52,9 +52,17 @@ class MaskingSnapshotQueryFilterTest {
         .addFilters(listOf(tailSnapshotQueryFilter, MaskingSnapshotQueryFilter(stateDataMaskerRegistry)))
         .filterCondition(SnapshotQueryHandler::class)
         .build()
+    private val snapshotAggregationQueryFilterChain = FilterChainBuilder<SnapshotAggregationQueryContext>()
+        .addFilters(
+            listOf(
+                TailSnapshotAggregationQueryFilter(MockSnapshotQueryServiceFactory),
+                MaskingSnapshotAggregationQueryFilter(stateDataMaskerRegistry),
+            ),
+        ).build()
     private val queryHandler = DefaultSnapshotQueryHandler(
         snapshotQueryFilterChain,
-        LogErrorHandler()
+        LogErrorHandler(),
+        snapshotAggregationQueryFilterChain,
     )
 
     init {

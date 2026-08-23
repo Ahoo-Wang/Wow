@@ -169,7 +169,7 @@ class ElasticsearchSnapshotQueryService<S : Any>(
                         "Elasticsearch aggregation response is missing the leaf document count."
                     }
                 }
-                query.toResult(leaf.aggregations, documentCount)
+                query.toResult(leaf.aggregations, documentCount, plan::metricName)
             }.flux()
     }
 
@@ -194,7 +194,7 @@ class ElasticsearchSnapshotQueryService<S : Any>(
             sources = sources,
             metrics = plan.metricAggregations(),
             limit = if (sortByGroupsOnly) query.limit else 0,
-        ).map { bucket -> bucket.toResult(query) }
+        ).map { bucket -> bucket.toResult(query, plan::metricName) }
 
         return if (sortByGroupsOnly) {
             buckets.take(query.limit.toLong())
@@ -207,11 +207,15 @@ class ElasticsearchSnapshotQueryService<S : Any>(
 private fun AggregationQuery.toResult(
     aggregations: Map<String, Aggregate>,
     documentCount: Long,
+    metricName: (AggregationMetric.Numeric) -> String,
 ): DynamicDocument = linkedMapOf<String, Any?>().apply {
-    metrics.forEach { metric -> put(metric.alias, metric.toResultValue(aggregations, documentCount)) }
+    metrics.forEach { metric -> put(metric.alias, metric.toResultValue(aggregations, documentCount, metricName)) }
 }.toDynamicDocument()
 
-private fun CompositeBucket.toResult(query: AggregationQuery): DynamicDocument =
+private fun CompositeBucket.toResult(
+    query: AggregationQuery,
+    metricName: (AggregationMetric.Numeric) -> String,
+): DynamicDocument =
     linkedMapOf<String, Any?>().apply {
         query.groupBy.forEach { group ->
             val key = checkNotNull(key()[group.alias]) {
@@ -220,7 +224,7 @@ private fun CompositeBucket.toResult(query: AggregationQuery): DynamicDocument =
             put(group.alias, group.toResultValue(key))
         }
         query.metrics.forEach { metric ->
-            put(metric.alias, metric.toResultValue(aggregations(), docCount()))
+            put(metric.alias, metric.toResultValue(aggregations(), docCount(), metricName))
         }
     }.toDynamicDocument()
 
@@ -249,13 +253,14 @@ private fun FieldValue.toAggregationValue(): Any = when {
 private fun AggregationMetric.toResultValue(
     aggregations: Map<String, Aggregate>,
     documentCount: Long,
+    metricName: (AggregationMetric.Numeric) -> String,
 ): Any? = when (this) {
     is AggregationMetric.Count -> documentCount
     is AggregationMetric.Numeric -> {
         check(expression is AggregationExpression.Field) {
             "Elasticsearch supports only field aggregation expressions."
         }
-        val aggregate = checkNotNull(aggregations[alias]) {
+        val aggregate = checkNotNull(aggregations[metricName(this)]) {
             "Elasticsearch aggregation response is missing metric [$alias]."
         }
         val value = when (function) {

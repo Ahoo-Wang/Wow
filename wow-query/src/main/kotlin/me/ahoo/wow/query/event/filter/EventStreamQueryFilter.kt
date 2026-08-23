@@ -80,8 +80,6 @@ class TailEventStreamQueryFilter(private val queryServiceFactory: EventStreamQue
                     queryService.count(it)
                 }
             }
-
-            QueryType.AGGREGATION -> error("Snapshot aggregation must not be routed to an event-stream query handler.")
         }
         return next.filter(context)
     }

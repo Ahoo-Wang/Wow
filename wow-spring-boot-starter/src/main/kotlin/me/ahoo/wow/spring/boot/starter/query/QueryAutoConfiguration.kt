@@ -31,11 +31,17 @@ import me.ahoo.wow.query.mask.StateDataMaskerRegistry
 import me.ahoo.wow.query.mask.StateDynamicDocumentMasker
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
+import me.ahoo.wow.query.snapshot.filter.AbacQueryFilter
+import me.ahoo.wow.query.snapshot.filter.AggregationAbacQueryFilter
 import me.ahoo.wow.query.snapshot.filter.AggregationQueryValidationFilter
 import me.ahoo.wow.query.snapshot.filter.DefaultSnapshotQueryHandler
+import me.ahoo.wow.query.snapshot.filter.MaskingSnapshotAggregationQueryFilter
 import me.ahoo.wow.query.snapshot.filter.MaskingSnapshotQueryFilter
+import me.ahoo.wow.query.snapshot.filter.SnapshotAggregationQueryContext
+import me.ahoo.wow.query.snapshot.filter.SnapshotAggregationQueryFilter
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryFilter
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
+import me.ahoo.wow.query.snapshot.filter.TailSnapshotAggregationQueryFilter
 import me.ahoo.wow.query.snapshot.filter.TailSnapshotQueryFilter
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.query.EventStreamQueryServiceRegistrar
@@ -85,7 +91,16 @@ class QueryAutoConfiguration {
     }
 
     @Bean
-    fun aggregationQueryValidationFilter(): SnapshotQueryFilter = AggregationQueryValidationFilter()
+    fun maskingSnapshotAggregationQueryFilter(
+        stateDataMaskerRegistry: StateDataMaskerRegistry,
+    ): SnapshotAggregationQueryFilter = MaskingSnapshotAggregationQueryFilter(stateDataMaskerRegistry)
+
+    @Bean
+    fun aggregationAbacQueryFilter(filters: List<AbacQueryFilter>): SnapshotAggregationQueryFilter =
+        AggregationAbacQueryFilter(filters)
+
+    @Bean
+    fun aggregationQueryValidationFilter(): SnapshotAggregationQueryFilter = AggregationQueryValidationFilter()
 
     @Bean
     fun maskingEventStreamQueryFilter(eventStreamMaskerRegistry: EventStreamMaskerRegistry): EventStreamQueryFilter {
@@ -98,6 +113,12 @@ class QueryAutoConfiguration {
     ): TailSnapshotQueryFilter<Any> {
         return TailSnapshotQueryFilter(snapshotQueryServiceFactory.getObject())
     }
+
+    @Bean
+    fun tailSnapshotAggregationQueryFilter(
+        snapshotQueryServiceFactory: ObjectProvider<SnapshotQueryServiceFactory>,
+    ): TailSnapshotAggregationQueryFilter =
+        TailSnapshotAggregationQueryFilter(snapshotQueryServiceFactory.getObject())
 
     @Bean
     fun tailEventStreamQueryFilter(
@@ -115,6 +136,14 @@ class QueryAutoConfiguration {
             .filterCondition(SnapshotQueryHandler::class)
             .build()
     }
+
+    @Bean
+    fun snapshotAggregationQueryFilterChain(
+        filters: List<SnapshotAggregationQueryFilter>,
+    ): FilterChain<SnapshotAggregationQueryContext> =
+        FilterChainBuilder<SnapshotAggregationQueryContext>()
+            .addFilters(filters)
+            .build()
 
     @Bean
     fun eventStreamQueryFilterChain(
@@ -141,9 +170,11 @@ class QueryAutoConfiguration {
     @Bean
     fun snapshotQueryHandler(
         @Qualifier("snapshotQueryFilterChain") chain: FilterChain<QueryContext<*, *>>,
-        @Qualifier("snapshotQueryErrorHandler") queryErrorHandler: ErrorHandler<QueryContext<*, *>>
+        @Qualifier("snapshotQueryErrorHandler") queryErrorHandler: ErrorHandler<QueryContext<*, *>>,
+        @Qualifier("snapshotAggregationQueryFilterChain")
+        aggregationChain: FilterChain<SnapshotAggregationQueryContext>,
     ): SnapshotQueryHandler {
-        return DefaultSnapshotQueryHandler(chain, queryErrorHandler)
+        return DefaultSnapshotQueryHandler(chain, queryErrorHandler, aggregationChain)
     }
 
     @Bean

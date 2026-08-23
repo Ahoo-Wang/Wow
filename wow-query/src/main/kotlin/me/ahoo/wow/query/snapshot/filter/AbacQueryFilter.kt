@@ -24,8 +24,11 @@ import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.query.dsl.condition
+import me.ahoo.wow.query.filter.DefaultQueryContext
 import me.ahoo.wow.query.filter.QueryContext
+import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.serialization.state.StateAggregateRecords.TAGS
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 import reactor.util.context.ContextView
@@ -128,5 +131,29 @@ abstract class AbacQueryFilter : SnapshotQueryFilter {
                 next.filter(context)
             }
         }
+    }
+}
+
+@Order(ORDER_FIRST + 1)
+class AggregationAbacQueryFilter(
+    private val filters: List<AbacQueryFilter>,
+) : SnapshotAggregationQueryFilter {
+    override fun filter(
+        context: SnapshotAggregationQueryContext,
+        next: FilterChain<SnapshotAggregationQueryContext>,
+    ): Mono<Void> = Mono.deferContextual { contextView ->
+        Flux.fromIterable(filters)
+            .concatMap { filter ->
+                val rootContext = DefaultQueryContext<Condition, Mono<Long>>(
+                    queryType = QueryType.COUNT,
+                    namedAggregate = context.namedAggregate,
+                    attributes = context.attributes,
+                ).setQuery(context.query.condition)
+                filter.resolveCondition(contextView, rootContext)
+            }.doOnNext { condition ->
+                if (condition.operator != Operator.ALL) {
+                    context.rewriteQuery { query -> query.appendCondition(condition) }
+                }
+            }.then(Mono.defer { next.filter(context) })
     }
 }

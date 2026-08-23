@@ -50,8 +50,12 @@ import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.filter.AbacQueryFilter
+import me.ahoo.wow.query.snapshot.filter.AggregationAbacQueryFilter
 import me.ahoo.wow.query.snapshot.filter.DefaultSnapshotQueryHandler
+import me.ahoo.wow.query.snapshot.filter.SnapshotAggregationQueryContext
+import me.ahoo.wow.query.snapshot.filter.SnapshotAggregationQueryFilter
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
+import me.ahoo.wow.query.snapshot.filter.TailSnapshotAggregationQueryFilter
 import me.ahoo.wow.query.snapshot.filter.TailSnapshotQueryFilter
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -162,7 +166,7 @@ class HttpQueryGuardFilterTest {
             ),
         )
         unsafe.forEach { query ->
-            guard().filter(aggregationContext(query), unexpectedBackend())
+            guard().filterAggregation(aggregationContext(query), unexpectedBackend())
                 .writeRawRequest(request)
                 .test()
                 .expectError(IllegalArgumentException::class.java)
@@ -183,7 +187,7 @@ class HttpQueryGuardFilterTest {
         guard(
             maxConditionNodes = 1,
             allowExpensiveOperators = true,
-        ).filter(aggregationContext(query), unexpectedBackend())
+        ).filterAggregation(aggregationContext(query), unexpectedBackend())
             .writeRawRequest(request)
             .test()
             .expectError(IllegalArgumentException::class.java)
@@ -193,10 +197,10 @@ class HttpQueryGuardFilterTest {
         guard(
             maxConditionNodes = 2,
             allowExpensiveOperators = true,
-        ).filter(
+        ).filterAggregation(
             context,
             FilterChain {
-                it.asAggregationQuery().setResult(Flux.empty())
+                it.setResult(Flux.empty())
                 Mono.empty()
             },
         ).writeRawRequest(request).test().verifyComplete()
@@ -219,10 +223,10 @@ class HttpQueryGuardFilterTest {
         )
         val context = aggregationContext(rewritten)
 
-        guard(maxConditionNodes = 1).filter(
+        guard(maxConditionNodes = 1).filterAggregation(
             context,
             FilterChain {
-                it.asAggregationQuery().setResult(Flux.empty())
+                it.setResult(Flux.empty())
                 Mono.empty()
             },
         ).writeUserQuery(userQuery)
@@ -585,13 +589,9 @@ class HttpQueryGuardFilterTest {
 
     private fun aggregationContext(
         query: AggregationQuery,
-    ): QueryContext<AggregationQuery, Flux<DynamicDocument>> =
-        DefaultQueryContext<AggregationQuery, Flux<DynamicDocument>>(
-            QueryType.AGGREGATION,
-            MOCK_AGGREGATE_METADATA,
-        ).setQuery(query)
+    ): SnapshotAggregationQueryContext = SnapshotAggregationQueryContext(MOCK_AGGREGATE_METADATA, query)
 
-    private fun unexpectedBackend(): FilterChain<QueryContext<*, *>> = FilterChain {
+    private fun <T> unexpectedBackend(): FilterChain<T> = FilterChain {
         error("Backend must not be invoked.")
     }
 
@@ -609,7 +609,15 @@ class HttpQueryGuardFilterTest {
             .addFilters(filters)
             .filterCondition(SnapshotQueryHandler::class)
             .build()
-        return DefaultSnapshotQueryHandler(chain, LogErrorHandler())
+        val aggregationFilters = buildList<SnapshotAggregationQueryFilter> {
+            add(HttpAggregationQueryGuardFilter(guard))
+            if (abacQueryFilter != null) add(AggregationAbacQueryFilter(listOf(abacQueryFilter)))
+            add(TailSnapshotAggregationQueryFilter(queryServiceFactory))
+        }
+        val aggregationChain = FilterChainBuilder<SnapshotAggregationQueryContext>()
+            .addFilters(aggregationFilters)
+            .build()
+        return DefaultSnapshotQueryHandler(chain, LogErrorHandler(), aggregationChain)
     }
 
     private fun eventStreamQueryHandler(guard: HttpQueryGuardFilter = guard()): EventStreamQueryHandler {

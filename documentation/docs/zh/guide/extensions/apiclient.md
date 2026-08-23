@@ -144,7 +144,9 @@ interface OrderCommandGateway : SyncRestCommandGateway
 
 ```kotlin
 @CoApi
-interface OrderQueryApi : ReactiveSnapshotQueryApi<OrderState>
+interface OrderQueryApi :
+    ReactiveSnapshotQueryApi<OrderState>,
+    ReactiveSnapshotAggregationQueryApi
 ```
 
 `ReactiveSnapshotQueryApi<S>` 组合了单条、列表、分页与计数操作，全部返回 `Mono`/`Flux`：
@@ -185,7 +187,9 @@ val rows = queryApi.aggregate(
 
 ```kotlin
 @CoApi
-interface OrderQueryApi : SynchronousSnapshotQueryApi<OrderState>
+interface OrderQueryApi :
+    SynchronousSnapshotQueryApi<OrderState>,
+    SynchronousSnapshotAggregationQueryApi
 ```
 
 同步版本与响应式 API 对应，但直接返回值（阻塞）。

@@ -23,7 +23,9 @@ import me.ahoo.wow.query.event.filter.TailEventStreamQueryFilter
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.filter.DefaultSnapshotQueryHandler
+import me.ahoo.wow.query.snapshot.filter.SnapshotAggregationQueryContext
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
+import me.ahoo.wow.query.snapshot.filter.TailSnapshotAggregationQueryFilter
 import me.ahoo.wow.query.snapshot.filter.TailSnapshotQueryFilter
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 
@@ -36,9 +38,13 @@ internal object RouteTestFixtures {
         .addFilters(listOf(tailSnapshotQueryFilter))
         .filterCondition(SnapshotQueryHandler::class)
         .build()
+    private val snapshotAggregationQueryFilterChain = FilterChainBuilder<SnapshotAggregationQueryContext>()
+        .addFilters(listOf(TailSnapshotAggregationQueryFilter(NoOpSnapshotQueryServiceFactory)))
+        .build()
     val snapshotQueryHandler = DefaultSnapshotQueryHandler(
         snapshotQueryFilterChain,
-        LogErrorHandler()
+        LogErrorHandler(),
+        snapshotAggregationQueryFilterChain,
     )
 
     private val tailEventStreamQueryFilter = TailEventStreamQueryFilter(NoOpEventStreamQueryServiceFactory)

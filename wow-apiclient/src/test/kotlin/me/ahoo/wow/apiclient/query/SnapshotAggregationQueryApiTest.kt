@@ -33,6 +33,12 @@ class SnapshotAggregationQueryApiTest {
     }
 
     @Test
+    fun `applications should compose snapshot and aggregation clients explicitly`() {
+        ReactiveCombinedQueryApi::class.java.interfaces.assert().hasSize(2)
+        SynchronousCombinedQueryApi::class.java.interfaces.assert().hasSize(2)
+    }
+
+    @Test
     fun `reactive and synchronous clients should expose dynamic rows`() {
         val reactive = object : ReactiveSnapshotAggregationQueryApi {
             override fun aggregate(query: AggregationQuery): Flux<Map<String, Any?>> = Flux.just(row)
@@ -44,4 +50,12 @@ class SnapshotAggregationQueryApiTest {
         }
         query.aggregate(synchronous).assert().containsExactly(row)
     }
+
+    private interface ReactiveCombinedQueryApi :
+        ReactiveSnapshotQueryApi<Any>,
+        ReactiveSnapshotAggregationQueryApi
+
+    private interface SynchronousCombinedQueryApi :
+        SynchronousSnapshotQueryApi<Any>,
+        SynchronousSnapshotAggregationQueryApi
 }

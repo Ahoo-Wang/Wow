@@ -18,12 +18,9 @@ import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
-import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.query.filter.Contexts.writeRawRequest
-import me.ahoo.wow.query.filter.DefaultQueryContext
-import me.ahoo.wow.query.filter.QueryContext
-import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.snapshot.filter.SnapshotAggregationQueryContext
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
@@ -59,15 +56,17 @@ class HttpAggregationGuardFilterTest {
                 limit = AggregationQuery.MAX_LIMIT,
             ),
         )
-        HttpQueryGuardFilter(
-            maxListSize = 0,
-            maxAggregationElements = 0,
-            maxAggregationMetrics = 0,
-            allowExpensiveOperators = true,
+        HttpAggregationQueryGuardFilter(
+            HttpQueryGuardFilter(
+                maxListSize = 0,
+                maxAggregationElements = 0,
+                maxAggregationMetrics = 0,
+                allowExpensiveOperators = true,
+            ),
         ).filter(
             context,
             FilterChain {
-                it.asAggregationQuery().setResult(Flux.empty())
+                it.setResult(Flux.empty())
                 Mono.empty()
             },
         ).writeRawRequest(MockServerRequest.builder().build()).test().verifyComplete()
@@ -85,10 +84,12 @@ class HttpAggregationGuardFilterTest {
         val request = MockServerRequest.builder()
             .header(HttpHeaders.ACCEPT, MediaType.TEXT_EVENT_STREAM_VALUE)
             .build()
-        HttpQueryGuardFilter(idleTimeout = Duration.ofMillis(10)).filter(
+        HttpAggregationQueryGuardFilter(
+            HttpQueryGuardFilter(idleTimeout = Duration.ofMillis(10)),
+        ).filter(
             context,
             FilterChain {
-                it.asAggregationQuery().setResult(Flux.never())
+                it.setResult(Flux.never())
                 Mono.empty()
             },
         ).writeRawRequest(request).test().verifyComplete()
@@ -100,9 +101,5 @@ class HttpAggregationGuardFilterTest {
 
     private fun context(
         query: AggregationQuery,
-    ): QueryContext<AggregationQuery, Flux<DynamicDocument>> =
-        DefaultQueryContext<AggregationQuery, Flux<DynamicDocument>>(
-            QueryType.AGGREGATION,
-            MOCK_AGGREGATE_METADATA,
-        ).setQuery(query)
+    ): SnapshotAggregationQueryContext = SnapshotAggregationQueryContext(MOCK_AGGREGATE_METADATA, query)
 }

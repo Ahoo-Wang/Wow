@@ -72,6 +72,11 @@ internal data class ElasticsearchAggregationPlan(
     private val resolvedGroupFields: Map<String, String> = emptyMap(),
     private val resolvedMetricFields: Map<String, String> = emptyMap(),
 ) {
+    private val metricNames = aggregationQuery.metrics
+        .filterIsInstance<AggregationMetric.Numeric>()
+        .mapIndexed { index, metric -> metric.alias to "__wow_metric_$index" }
+        .toMap()
+
     fun compositeSource(
         group: AggregationGroup,
         direction: Sort.Direction,
@@ -85,7 +90,7 @@ internal data class ElasticsearchAggregationPlan(
     fun metricAggregations(): Map<String, Aggregation> = buildMap {
         aggregationQuery.metrics.filterIsInstance<AggregationMetric.Numeric>().forEach { metric ->
             put(
-                metric.alias,
+                metricName(metric),
                 metric.toAggregation(
                     checkNotNull(resolvedMetricFields[metric.alias]) {
                         "Elasticsearch aggregation plan is missing metric field [${metric.alias}]."
@@ -93,6 +98,10 @@ internal data class ElasticsearchAggregationPlan(
                 ),
             )
         }
+    }
+
+    fun metricName(metric: AggregationMetric.Numeric): String = checkNotNull(metricNames[metric.alias]) {
+        "Elasticsearch aggregation plan is missing metric [${metric.alias}]."
     }
 
     fun wrap(leafAggregations: Map<String, Aggregation>): Map<String, Aggregation> {

@@ -31,16 +31,20 @@ import reactor.kotlin.test.test
 class DefaultSnapshotQueryHandlerTest {
     private val tailSnapshotQueryFilter = TailSnapshotQueryFilter<Any>(NoOpSnapshotQueryServiceFactory)
     private val snapshotQueryFilterChain = FilterChainBuilder<QueryContext<*, *>>()
-        .addFilters(listOf(tailSnapshotQueryFilter))
+        .addFilters(listOf(LegacyExhaustiveSnapshotQueryFilter, tailSnapshotQueryFilter))
         .filterCondition(SnapshotQueryHandler::class)
+        .build()
+    private val aggregationQueryFilterChain = FilterChainBuilder<SnapshotAggregationQueryContext>()
+        .addFilters(listOf(TailSnapshotAggregationQueryFilter(NoOpSnapshotQueryServiceFactory)))
         .build()
     private val queryHandler = DefaultSnapshotQueryHandler(
         snapshotQueryFilterChain,
-        LogErrorHandler()
+        LogErrorHandler(),
+        aggregationQueryFilterChain,
     )
 
     @Test
-    fun `aggregation should remain a binary-compatible default method`() {
+    fun `aggregation should remain a source-compatible default method`() {
         SnapshotQueryHandler::class.java.getMethod(
             "aggregate",
             NamedAggregate::class.java,
@@ -123,5 +127,21 @@ class DefaultSnapshotQueryHandlerTest {
         ).test()
             .assertNext { row -> row.getValue<Long>("count").assert().isZero() }
             .verifyComplete()
+    }
+
+    private object LegacyExhaustiveSnapshotQueryFilter : SnapshotQueryFilter {
+        override fun filter(
+            context: QueryContext<*, *>,
+            next: me.ahoo.wow.filter.FilterChain<QueryContext<*, *>>,
+        ) = when (context.queryType) {
+            me.ahoo.wow.query.filter.QueryType.SINGLE,
+            me.ahoo.wow.query.filter.QueryType.DYNAMIC_SINGLE,
+            me.ahoo.wow.query.filter.QueryType.LIST,
+            me.ahoo.wow.query.filter.QueryType.DYNAMIC_LIST,
+            me.ahoo.wow.query.filter.QueryType.PAGED,
+            me.ahoo.wow.query.filter.QueryType.DYNAMIC_PAGED,
+            me.ahoo.wow.query.filter.QueryType.COUNT,
+            -> next.filter(context)
+        }
     }
 }

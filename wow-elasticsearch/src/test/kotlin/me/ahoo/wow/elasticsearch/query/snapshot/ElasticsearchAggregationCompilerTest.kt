@@ -65,11 +65,40 @@ class ElasticsearchAggregationCompilerTest {
         sources[2].dateHistogram().calendarInterval()!!.time().assert().isEqualTo("1d")
 
         val metrics = plan.metricAggregations()
-        metrics.keys.assert().containsExactlyInAnyOrder("sum", "avg", "min", "max")
-        metrics["sum"]!!.sum().field().assert().isEqualTo("state.amount")
-        metrics["avg"]!!.avg().field().assert().isEqualTo("state.amount")
-        metrics["min"]!!.min().field().assert().isEqualTo("state.amount")
-        metrics["max"]!!.max().field().assert().isEqualTo("state.amount")
+        metrics.keys.assert().containsExactlyInAnyOrder(
+            "__wow_metric_0",
+            "__wow_metric_1",
+            "__wow_metric_2",
+            "__wow_metric_3",
+        )
+        metrics["__wow_metric_0"]!!.sum().field().assert().isEqualTo("state.amount")
+        metrics["__wow_metric_1"]!!.avg().field().assert().isEqualTo("state.amount")
+        metrics["__wow_metric_2"]!!.min().field().assert().isEqualTo("state.amount")
+        metrics["__wow_metric_3"]!!.max().field().assert().isEqualTo("state.amount")
+    }
+
+    @Test
+    fun `should isolate metric aliases from Elasticsearch response fields`() {
+        val query = AggregationQuery(
+            metrics = listOf(
+                AggregationMetric.Numeric(
+                    AggregationFunction.SUM,
+                    AggregationExpression.Field("state.amount"),
+                    "key",
+                ),
+                AggregationMetric.Numeric(
+                    AggregationFunction.AVG,
+                    AggregationExpression.Field("state.amount"),
+                    "doc_count",
+                ),
+            ),
+        )
+
+        val plan = ElasticsearchAggregationCompiler.compile(query, mapping(), SnapshotConditionConverter)
+
+        plan.metricAggregations().keys.assert().containsExactlyInAnyOrder("__wow_metric_0", "__wow_metric_1")
+        plan.metricName(query.metrics[0] as AggregationMetric.Numeric).assert().isEqualTo("__wow_metric_0")
+        plan.metricName(query.metrics[1] as AggregationMetric.Numeric).assert().isEqualTo("__wow_metric_1")
     }
 
     @Test

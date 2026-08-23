@@ -148,7 +148,9 @@ carrying the `CommandResult` / `ErrorInfo` body.
 
 ```kotlin
 @CoApi
-interface OrderQueryApi : ReactiveSnapshotQueryApi<OrderState>
+interface OrderQueryApi :
+    ReactiveSnapshotQueryApi<OrderState>,
+    ReactiveSnapshotAggregationQueryApi
 ```
 
 `ReactiveSnapshotQueryApi<S>` composes single, list, paged, and count operations,
@@ -190,7 +192,9 @@ For complete Elements, JSON discriminator, result, and ordering semantics, see
 
 ```kotlin
 @CoApi
-interface OrderQueryApi : SynchronousSnapshotQueryApi<OrderState>
+interface OrderQueryApi :
+    SynchronousSnapshotQueryApi<OrderState>,
+    SynchronousSnapshotAggregationQueryApi
 ```
 
 The synchronous variant mirrors the reactive API but returns values directly

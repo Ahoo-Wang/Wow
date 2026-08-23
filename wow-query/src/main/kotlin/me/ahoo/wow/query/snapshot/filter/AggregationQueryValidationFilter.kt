@@ -15,24 +15,17 @@ package me.ahoo.wow.query.snapshot.filter
 
 import me.ahoo.wow.api.annotation.ORDER_DEFAULT
 import me.ahoo.wow.api.annotation.Order
-import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.filter.FilterChain
-import me.ahoo.wow.filter.FilterType
-import me.ahoo.wow.query.filter.QueryContext
-import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.snapshot.validate
 import reactor.core.publisher.Mono
 
 @Order(ORDER_DEFAULT)
-@FilterType(SnapshotQueryHandler::class)
-class AggregationQueryValidationFilter : SnapshotQueryFilter {
+class AggregationQueryValidationFilter : SnapshotAggregationQueryFilter {
     override fun filter(
-        context: QueryContext<*, *>,
-        next: FilterChain<QueryContext<*, *>>,
+        context: SnapshotAggregationQueryContext,
+        next: FilterChain<SnapshotAggregationQueryContext>,
     ): Mono<Void> {
-        if (context.queryType == QueryType.AGGREGATION) {
-            (context.getQuery() as AggregationQuery).validate(context.namedAggregate)
-        }
+        context.query.validate(context.namedAggregate)
         return next.filter(context)
     }
 }

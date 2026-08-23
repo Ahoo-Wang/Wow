@@ -51,6 +51,20 @@ class QueryTypeTest {
     @Test
     fun `count should not be dynamic`() {
         QueryType.COUNT.isDynamic.assert().isFalse()
-        QueryType.AGGREGATION.isDynamic.assert().isTrue()
+    }
+
+    @Test
+    fun `legacy exhaustive when should remain source compatible`() {
+        QueryType.entries.map {
+            when (it) {
+                QueryType.SINGLE -> "single"
+                QueryType.DYNAMIC_SINGLE -> "dynamic-single"
+                QueryType.LIST -> "list"
+                QueryType.DYNAMIC_LIST -> "dynamic-list"
+                QueryType.PAGED -> "paged"
+                QueryType.DYNAMIC_PAGED -> "dynamic-paged"
+                QueryType.COUNT -> "count"
+            }
+        }.assert().hasSize(7)
     }
 }
