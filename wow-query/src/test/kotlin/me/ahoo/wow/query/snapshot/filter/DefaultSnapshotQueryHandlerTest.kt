@@ -30,6 +30,8 @@ import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
+import java.lang.reflect.InvocationHandler
+import java.lang.reflect.Proxy
 
 class DefaultSnapshotQueryHandlerTest {
     private val tailSnapshotQueryFilter = TailSnapshotQueryFilter<Any>(NoOpSnapshotQueryServiceFactory)
@@ -48,11 +50,25 @@ class DefaultSnapshotQueryHandlerTest {
 
     @Test
     fun `aggregation should remain a source-compatible default method`() {
-        SnapshotQueryHandler::class.java.getMethod(
+        val method = SnapshotQueryHandler::class.java.getMethod(
             "aggregate",
             NamedAggregate::class.java,
             AggregationQuery::class.java,
-        ).isDefault.assert().isTrue()
+        )
+        method.isDefault.assert().isTrue()
+        val handler = Proxy.newProxyInstance(
+            SnapshotQueryHandler::class.java.classLoader,
+            arrayOf(SnapshotQueryHandler::class.java),
+        ) { proxy, invoked, arguments ->
+            InvocationHandler.invokeDefault(proxy, invoked, *(arguments ?: emptyArray()))
+        } as SnapshotQueryHandler
+
+        handler.aggregate(
+            MOCK_AGGREGATE_METADATA,
+            AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))),
+        ).test()
+            .expectError(UnsupportedOperationException::class.java)
+            .verify()
     }
 
     @Test

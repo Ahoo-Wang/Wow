@@ -28,6 +28,7 @@ import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.time.Instant
+import java.time.LocalTime
 
 class AggregationQueryValidatorTest {
     private val namedAggregate = AggregateMetadata(
@@ -150,6 +151,53 @@ class AggregationQueryValidatorTest {
             filter { "state.orders.shipping" eq "address" },
             filter { "state.orders.shipping".isEmptyCollection() },
             filter { "state.orders.status".today() },
+        ).forEach { elementFilter ->
+            assertThrows<IllegalArgumentException> { aggregation(elementFilter).validate(namedAggregate) }
+        }
+    }
+
+    @Test
+    fun `should validate complete portable element filter surface`() {
+        listOf(
+            filter { matchNone() },
+            filter {
+                and {
+                    "state.orders.status" eq "PAID"
+                    "state.orders.amount" gt 0
+                }
+            },
+            filter {
+                or {
+                    "state.orders.status" eq "PAID"
+                    "state.orders.status" eq "CREATED"
+                }
+            },
+            filter { nor { "state.orders.status" eq "CANCELLED" } },
+            filter { "state.orders.status" ne "CANCELLED" },
+            filter { "state.orders.amount" gte 1 },
+            filter { "state.orders.amount" lt 100 },
+            filter { "state.orders.amount" lte 100 },
+            filter { "state.orders.status".endsWith("ID") },
+            filter { "state.orders.status" isIn listOf("PAID") },
+            filter { "state.orders.status" notIn listOf("CANCELLED") },
+            filter { "state.orders.amount".between(1, 100) },
+            filter { "state.orders.status".isNull() },
+            filter { "state.orders.status".isNotNull() },
+            filter { "state.orders.shipping".notExists() },
+            filter { "state.orders.createdAt".beforeToday(LocalTime.NOON) },
+            filter { "state.orders.createdAt".tomorrow() },
+            filter { "state.orders.createdAt".thisWeek() },
+            filter { "state.orders.createdAt".nextWeek() },
+            filter { "state.orders.createdAt".lastWeek() },
+            filter { "state.orders.createdAt".thisMonth() },
+            filter { "state.orders.createdAt".lastMonth() },
+            filter { "state.orders.createdAt".recentDays(1) },
+            filter { "state.orders.createdAt".earlierDays(1) },
+        ).forEach { elementFilter -> aggregation(elementFilter).validate(namedAggregate) }
+
+        listOf(
+            filter { "state.orders.tags" containsAll listOf("tag") },
+            filter { "state.orders.tags".isEmptyCollection() },
         ).forEach { elementFilter ->
             assertThrows<IllegalArgumentException> { aggregation(elementFilter).validate(namedAggregate) }
         }

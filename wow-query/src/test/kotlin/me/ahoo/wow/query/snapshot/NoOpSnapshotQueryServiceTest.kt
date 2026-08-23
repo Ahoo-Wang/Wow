@@ -25,9 +25,31 @@ import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.pagedQuery
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
+import java.lang.reflect.InvocationHandler
+import java.lang.reflect.Proxy
 
 class NoOpSnapshotQueryServiceTest {
     private val queryService = NoOpSnapshotQueryServiceFactory.create<Any>("test.test".toNamedAggregate())
+
+    @Test
+    fun `aggregation should keep service default method executable`() {
+        val service = Proxy.newProxyInstance(
+            SnapshotQueryService::class.java.classLoader,
+            arrayOf(SnapshotQueryService::class.java),
+        ) { proxy, method, arguments ->
+            when {
+                method.isDefault -> InvocationHandler.invokeDefault(proxy, method, *(arguments ?: emptyArray()))
+                method.name == "getName" -> "proxy"
+                else -> error("Unexpected method: ${method.name}")
+            }
+        } as SnapshotQueryService<*>
+
+        service.aggregate(
+            AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))),
+        ).test()
+            .expectError(UnsupportedOperationException::class.java)
+            .verify()
+    }
 
     @Test
     fun `should return no op name`() {
