@@ -27,7 +27,7 @@ import me.ahoo.wow.schema.typed.SnapshotAggregationNumericFields
 import me.ahoo.wow.schema.typed.SnapshotAggregationTemporalFields
 import me.ahoo.wow.schema.typed.SnapshotAggregationTermsFields
 
-private const val AGGREGATION_ALIAS_PATTERN = "^(?!\\x24)(?!__wow_)(?!_id\$)[^.\\u0000]+\$"
+private const val AGGREGATION_ALIAS_PATTERN = "^(?!\\s+\$)(?!\\x24)(?!__wow_)(?!_id\$)[^.\\u0000]+\$"
 
 data class AggregatedAggregationQuery<CommandAggregateType : Any>(
     val filter: FilterExpressionSchema = FilterExpressionSchema.MatchAll,

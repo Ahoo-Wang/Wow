@@ -1663,7 +1663,7 @@
         "properties" : {
           "alias" : {
             "minLength" : 1,
-            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
+            "pattern" : "^(?!\\s+$)(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "field" : {
@@ -1687,7 +1687,7 @@
         "properties" : {
           "alias" : {
             "minLength" : 1,
-            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
+            "pattern" : "^(?!\\s+$)(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "field" : {
@@ -1709,7 +1709,7 @@
         "properties" : {
           "alias" : {
             "minLength" : 1,
-            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
+            "pattern" : "^(?!\\s+$)(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "field" : {
@@ -1726,7 +1726,7 @@
         "properties" : {
           "alias" : {
             "minLength" : 1,
-            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
+            "pattern" : "^(?!\\s+$)(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "type" : {
@@ -1740,7 +1740,7 @@
         "properties" : {
           "alias" : {
             "minLength" : 1,
-            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
+            "pattern" : "^(?!\\s+$)(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "expression" : {
@@ -3127,7 +3127,7 @@
         "properties" : {
           "alias" : {
             "minLength" : 1,
-            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
+            "pattern" : "^(?!\\s+$)(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "field" : {
@@ -3151,7 +3151,7 @@
         "properties" : {
           "alias" : {
             "minLength" : 1,
-            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
+            "pattern" : "^(?!\\s+$)(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "field" : {
@@ -3173,7 +3173,7 @@
         "properties" : {
           "alias" : {
             "minLength" : 1,
-            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
+            "pattern" : "^(?!\\s+$)(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "field" : {
@@ -3190,7 +3190,7 @@
         "properties" : {
           "alias" : {
             "minLength" : 1,
-            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
+            "pattern" : "^(?!\\s+$)(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "type" : {
@@ -3204,7 +3204,7 @@
         "properties" : {
           "alias" : {
             "minLength" : 1,
-            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
+            "pattern" : "^(?!\\s+$)(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "expression" : {
@@ -5490,7 +5490,7 @@
         "properties" : {
           "alias" : {
             "minLength" : 1,
-            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
+            "pattern" : "^(?!\\s+$)(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "field" : {
@@ -5514,7 +5514,7 @@
         "properties" : {
           "alias" : {
             "minLength" : 1,
-            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
+            "pattern" : "^(?!\\s+$)(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "field" : {
@@ -5536,7 +5536,7 @@
         "properties" : {
           "alias" : {
             "minLength" : 1,
-            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
+            "pattern" : "^(?!\\s+$)(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "field" : {
@@ -5553,7 +5553,7 @@
         "properties" : {
           "alias" : {
             "minLength" : 1,
-            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
+            "pattern" : "^(?!\\s+$)(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "type" : {
@@ -5567,7 +5567,7 @@
         "properties" : {
           "alias" : {
             "minLength" : 1,
-            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
+            "pattern" : "^(?!\\s+$)(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "expression" : {
@@ -5856,7 +5856,7 @@
         "properties" : {
           "alias" : {
             "minLength" : 1,
-            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
+            "pattern" : "^(?!\\s+$)(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "field" : {
@@ -5880,7 +5880,7 @@
         "properties" : {
           "alias" : {
             "minLength" : 1,
-            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
+            "pattern" : "^(?!\\s+$)(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "field" : {
@@ -5902,7 +5902,7 @@
         "properties" : {
           "alias" : {
             "minLength" : 1,
-            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
+            "pattern" : "^(?!\\s+$)(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "field" : {
@@ -5919,7 +5919,7 @@
         "properties" : {
           "alias" : {
             "minLength" : 1,
-            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
+            "pattern" : "^(?!\\s+$)(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "type" : {
@@ -5933,7 +5933,7 @@
         "properties" : {
           "alias" : {
             "minLength" : 1,
-            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
+            "pattern" : "^(?!\\s+$)(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "expression" : {
@@ -6191,7 +6191,7 @@
         "properties" : {
           "alias" : {
             "minLength" : 1,
-            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
+            "pattern" : "^(?!\\s+$)(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "field" : {
@@ -6215,7 +6215,7 @@
         "properties" : {
           "alias" : {
             "minLength" : 1,
-            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
+            "pattern" : "^(?!\\s+$)(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "field" : {
@@ -6237,7 +6237,7 @@
         "properties" : {
           "alias" : {
             "minLength" : 1,
-            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
+            "pattern" : "^(?!\\s+$)(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "field" : {
@@ -6254,7 +6254,7 @@
         "properties" : {
           "alias" : {
             "minLength" : 1,
-            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
+            "pattern" : "^(?!\\s+$)(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "type" : {
@@ -6268,7 +6268,7 @@
         "properties" : {
           "alias" : {
             "minLength" : 1,
-            "pattern" : "^(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
+            "pattern" : "^(?!\\s+$)(?!\\x24)(?!__wow_)(?!_id$)[^.\\u0000]+$",
             "type" : "string"
           },
           "expression" : {

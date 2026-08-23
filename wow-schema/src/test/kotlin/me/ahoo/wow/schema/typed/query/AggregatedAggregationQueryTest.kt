@@ -136,7 +136,7 @@ class AggregatedAggregationQueryTest {
         aliases.map { it.path("minLength").intValue() }.distinct().assert().containsExactly(1)
         val pattern = Regex(aliases.map { it.path("pattern").stringValue() }.distinct().single())
         pattern.matches("totalAmount").assert().isTrue()
-        listOf("", "_id", "a.b", "\$value", "__wow_x", "nul\u0000alias")
+        listOf("", " ", "\t", "_id", "a.b", "\$value", "__wow_x", "nul\u0000alias")
             .forEach { alias -> pattern.matches(alias).assert().isFalse() }
     }
 
