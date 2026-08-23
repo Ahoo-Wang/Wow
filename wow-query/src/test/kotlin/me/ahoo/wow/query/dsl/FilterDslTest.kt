@@ -68,7 +68,7 @@ class FilterDslTest {
         expression.operands.assert().hasSize(2)
         val state = expression.operands[0] as AndFilter
         state.operands.assert().hasSize(4)
-        (state.operands[0] as EqualFilter).field.assert().isEqualTo(LogicalField("state"))
+        (state.operands[0] as EqualFilter).field.assert().isEqualTo(LogicalField("state.state"))
         (state.operands[1] as EqualFilter).field.assert().isEqualTo(LogicalField("state.name"))
         (state.operands[2] as EqualFilter).field.assert().isEqualTo(LogicalField("state.statement"))
         (state.operands[3] as EqualFilter).field.assert().isEqualTo(LogicalField("state.items.productId"))
@@ -106,6 +106,22 @@ class FilterDslTest {
     }
 
     @Test
+    @Suppress("DEPRECATION")
+    fun `should reject injected expression inside nested path scope`() {
+        val prebuilt = filter { "productId" eq "product-1" }
+
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+            filter {
+                "state".path {
+                    "items".nested {
+                        expression(prebuilt)
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
     fun `should reject invalid path scope`() {
         org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
             filter {
@@ -121,6 +137,17 @@ class FilterDslTest {
         org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
             filter {
                 "state".path { }
+            }
+        }
+    }
+
+    @Test
+    fun `should reject deletion inside path scope`() {
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+            filter {
+                "state".path {
+                    deletion(DeletionState.DELETED)
+                }
             }
         }
     }
@@ -201,6 +228,22 @@ class FilterDslTest {
 
         expression.operands[0].assert().isSameAs(prebuilt)
         (expression.operands[1] as EqualFilter).field.assert().isEqualTo(LogicalField("state.status"))
+    }
+
+    @Test
+    @Suppress("DEPRECATION")
+    fun `should preserve prebuilt expressions in nested chains from root`() {
+        val prebuilt = filter { "name" eq "Wow" }
+
+        val expression = filter {
+            "state".nested {
+                "child".nested {
+                    expression(prebuilt)
+                }
+            }
+        }
+
+        expression.assert().isSameAs(prebuilt)
     }
 
     @Test

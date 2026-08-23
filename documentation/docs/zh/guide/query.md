@@ -87,7 +87,7 @@ val filter = filterExpression {
 }
 ```
 
-使用 `String.path` 为块内的相对字段设置词法路径作用域，`pathState` 等价于 `"state".path`。嵌套 `path` 会追加相对路径，已经包含当前作用域的完整路径不会重复添加前缀；退出代码块后自动回到父级路径。`path` 块内的多个表达式组成一个隐式 `AND` 操作数，即使它位于 `or` 或 `nor` 中也不会被摊平：
+使用 `String.path` 为块内的相对字段设置词法路径作用域，`pathState` 等价于 `"state".path`。嵌套 `path` 会追加相对路径。只有以当前作用域加 `.` 开头的路径才视为已经限定，因此与作用域同名的字段仍按相对字段处理。退出代码块后自动回到父级路径。`path` 块内的多个表达式组成一个隐式 `AND` 操作数，即使它位于 `or` 或 `nor` 中也不会被摊平：
 
 ```kotlin
 val filter = filterExpression {
@@ -101,7 +101,7 @@ val filter = filterExpression {
 }
 ```
 
-`expression(...)` 只能在当前查询上下文根直接加入已经构造的表达式，不能在 `path` 作用域内调用。其中的 `LogicalField` 必须已经适配插入位置的查询上下文；例如，`elementMatch` 的独立元素根上下文使用元素相对路径。
+`expression(...)` 只能在当前查询上下文根直接加入已经构造的表达式，不能在 `path` 作用域内调用，包括经由已弃用的 `nested` 块调用。`deletion(...)` 同样属于查询根作用域，在 `path` 内会被拒绝。预构造表达式中的 `LogicalField` 必须已经适配插入位置的查询上下文；例如，`elementMatch` 的独立元素根上下文使用元素相对路径。
 
 ### 查询 DSL
 

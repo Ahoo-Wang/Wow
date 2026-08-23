@@ -89,7 +89,7 @@ class FilterDsl private constructor(
 
     fun matchNone() = add(MatchNoneFilter)
 
-    fun deletion(deletionState: DeletionState) = add(DeletionFilter(deletionState))
+    fun deletion(deletionState: DeletionState) = expression(DeletionFilter(deletionState))
 
     fun and(block: FilterDsl.() -> Unit) = add(nestedLogical("AND", ::AndFilter, block))
 
@@ -100,7 +100,7 @@ class FilterDsl private constructor(
     /**
      * Applies [block] in the logical field path scope represented by this string.
      *
-     * Relative paths extend the current scope, while paths already under the current scope remain unchanged.
+     * Relative paths extend the current scope, while paths starting with the current scope plus `.` remain unchanged.
      * Multiple expressions in [block] form one implicit AND operand.
      */
     fun String.path(block: FilterDsl.() -> Unit) {
@@ -111,7 +111,10 @@ class FilterDsl private constructor(
 
     @Deprecated("Use path. Unlike nested, path groups multiple expressions with AND.")
     fun String.nested(block: FilterDsl.() -> Unit) {
-        val nested = FilterDsl(field(this).value, allowScopedExpression = true).apply(block)
+        val nested = FilterDsl(
+            prefix = field(this).value,
+            allowScopedExpression = prefix == "" || allowScopedExpression,
+        ).apply(block)
         require(nested.expressions.isNotEmpty()) { "nested block cannot be empty." }
         nested.expressions.forEach(::add)
     }
@@ -224,7 +227,7 @@ class FilterDsl private constructor(
     private fun field(value: String): LogicalField = LogicalField(resolvePath(value))
 
     private fun resolvePath(value: String): String =
-        if (prefix == "" || value == prefix || value.startsWith(prefix = "$prefix.")) value else "$prefix.$value"
+        if (prefix == "" || value.startsWith(prefix = "$prefix.")) value else "$prefix.$value"
 
     private fun Any?.literal(): JsonNode = JsonSerializer.valueToTree(this)
 
