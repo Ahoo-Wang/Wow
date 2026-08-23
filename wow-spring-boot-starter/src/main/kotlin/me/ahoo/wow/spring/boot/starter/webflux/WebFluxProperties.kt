@@ -60,8 +60,8 @@ constructor(
         var maxConditionNodes: Int = 64,
         @DefaultValue("1000")
         var maxConditionValues: Int = 1000,
-        @DefaultValue("false")
-        var allowExpensiveOperators: Boolean = false,
+        @DefaultValue("true")
+        var allowExpensiveOperators: Boolean = true,
         @DefaultValue("10s")
         var idleTimeout: Duration = Duration.ofSeconds(10),
     )
