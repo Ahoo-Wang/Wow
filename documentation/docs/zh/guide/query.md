@@ -46,6 +46,8 @@ state.items.0.productId
 
 字段段以字母或下划线开头，可包含字母、数字、下划线和连字符；数组索引允许使用纯数字段。物理字段映射由 MongoDB 或 Elasticsearch 查询实现负责。
 
+聚合级 OpenAPI 请求体通过 `x-wow-query-fields` 发布可用的过滤、投影和排序字段路径。即使 `/state` 响应已解包 `state` 对象，查询仍应使用这里声明的路径；例如响应中的 `status` 应查询为 `state.status`。
+
 快照查询默认使用 `DELETION = ACTIVE`。顶层 `DELETION`，或顶层 `AND` 的直接 `DELETION` 子项，可以显式覆盖该范围；嵌套在 `OR` 或 `NOR` 中的删除过滤器不会关闭 active guard。事件流查询不会自动追加删除状态过滤，以保证审计事件完整。
 
 :::info 后端差异

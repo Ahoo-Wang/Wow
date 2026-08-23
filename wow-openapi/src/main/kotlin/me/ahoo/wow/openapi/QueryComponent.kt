@@ -26,6 +26,7 @@ import me.ahoo.wow.openapi.QueryComponent.Schema.listQuerySchema
 import me.ahoo.wow.openapi.QueryComponent.Schema.pagedQuerySchema
 import me.ahoo.wow.openapi.QueryComponent.Schema.singleQuerySchema
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.schema.AggregatedFieldPaths.commandAggregatedFieldPaths
 import me.ahoo.wow.schema.typed.AggregatedDomainEventStream
 import me.ahoo.wow.schema.typed.query.AggregatedAggregationQuery
 import me.ahoo.wow.schema.typed.query.FilterExpressionSchema
@@ -83,10 +84,13 @@ object QueryComponent {
 
     object RequestBody {
 
+        private const val QUERY_FIELDS_EXTENSION = "x-wow-query-fields"
+
         fun OpenAPIComponentContext.aggregatedAggregationQueryRequestBody(
             aggregateMetadata: AggregateMetadata<*, *>
         ): io.swagger.v3.oas.models.parameters.RequestBody {
             return requestBody(aggregateMetadata.toStringWithAlias() + AGGREGATION_QUERY_SUFFIX) {
+                extension(QUERY_FIELDS_EXTENSION, aggregateMetadata.queryFields())
                 content(
                     schema = schema(
                         AggregatedAggregationQuery::class.java,
@@ -98,6 +102,7 @@ object QueryComponent {
 
         fun OpenAPIComponentContext.aggregatedSingleQueryRequestBody(aggregateMetadata: AggregateMetadata<*, *>): io.swagger.v3.oas.models.parameters.RequestBody {
             return requestBody(aggregateMetadata.toStringWithAlias() + SINGLE_QUERY_SUFFIX) {
+                extension(QUERY_FIELDS_EXTENSION, aggregateMetadata.queryFields())
                 content(schema = singleQuerySchema())
             }
         }
@@ -110,6 +115,7 @@ object QueryComponent {
 
         fun OpenAPIComponentContext.aggregatedCountQueryRequestBody(aggregateMetadata: AggregateMetadata<*, *>): io.swagger.v3.oas.models.parameters.RequestBody {
             return requestBody(aggregateMetadata.toStringWithAlias() + COUNT_QUERY_SUFFIX) {
+                extension(QUERY_FIELDS_EXTENSION, aggregateMetadata.queryFields())
                 content(schema = filterSchema())
             }
         }
@@ -124,6 +130,7 @@ object QueryComponent {
             aggregateMetadata: AggregateMetadata<*, *>
         ): io.swagger.v3.oas.models.parameters.RequestBody {
             return requestBody(aggregateMetadata.toStringWithAlias() + LIST_QUERY_SUFFIX) {
+                extension(QUERY_FIELDS_EXTENSION, aggregateMetadata.queryFields())
                 content(schema = listQuerySchema())
             }
         }
@@ -138,9 +145,13 @@ object QueryComponent {
             aggregateMetadata: AggregateMetadata<*, *>
         ): io.swagger.v3.oas.models.parameters.RequestBody {
             return requestBody(aggregateMetadata.toStringWithAlias() + PAGED_QUERY_SUFFIX) {
+                extension(QUERY_FIELDS_EXTENSION, aggregateMetadata.queryFields())
                 content(schema = pagedQuerySchema())
             }
         }
+
+        private fun AggregateMetadata<*, *>.queryFields(): List<String> =
+            command.aggregateType.kotlin.commandAggregatedFieldPaths().sorted()
     }
 
     object Response {

@@ -13,41 +13,51 @@
 
 package me.ahoo.wow.schema
 
-import com.fasterxml.jackson.annotation.JsonIgnore
-import com.fasterxml.jackson.annotation.JsonSubTypes
-import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
+import com.github.victools.jsonschema.generator.CustomDefinition
+import com.github.victools.jsonschema.generator.CustomPropertyDefinition
+import com.github.victools.jsonschema.generator.MemberScope
+import com.github.victools.jsonschema.generator.Option
+import com.github.victools.jsonschema.generator.SchemaGenerationContext
+import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.schema.TypeFieldPaths.allFieldPaths
 import me.ahoo.wow.schema.Types.isStdType
+import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.serialization.state.SnapshotRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.ValueSerializer
+import tools.jackson.databind.annotation.JsonSerialize
+import tools.jackson.databind.ser.bean.BeanSerializerBase
+import tools.jackson.databind.ser.impl.UnknownSerializer
+import tools.jackson.databind.ser.std.ReferenceTypeSerializer
+import tools.jackson.databind.ser.std.StdContainerSerializer
+import tools.jackson.databind.util.Converter
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.KClass
-import kotlin.reflect.KProperty1
-import kotlin.reflect.KVisibility
-import kotlin.reflect.full.findAnnotation
-import kotlin.reflect.full.isSubclassOf
-import kotlin.reflect.full.memberProperties
-import kotlin.reflect.jvm.jvmErasure
 
 /**
  * Utility object to handle state field paths.
  */
 object TypeFieldPaths {
-    /**
-     * Delimiter used to join property names in the path.
-     */
     const val JOIN_DELIMITER = "."
     const val MAX_DEPTH = 5
+    private val schemaGenerator by lazy {
+        SchemaGeneratorBuilder().objectMapper(JsonSerializer).customizer { config ->
+            config.with(Option.DEFINITIONS_FOR_ALL_OBJECTS)
+            config.forFields().withCustomDefinitionProvider { scope, context ->
+                scope.customSerializerDefinition(context)
+            }
+            config.forMethods().withCustomDefinitionProvider { scope, context ->
+                scope.customSerializerDefinition(context)
+            }
+            config.forTypesInGeneral().withCustomDefinitionProvider { javaType, context ->
+                javaType.erasedType.registeredSerializerDefinition(context)
+            }
+        }.build()
+    }
 
-    /**
-     * Retrieves all property paths for a given KClass.
-     *
-     * @param parentName The name of the parent property (used for nested properties).
-     * @param fields A list of initial properties to include in the result.
-     * @param maxDepth The maximum nested-property depth to inspect.
-     * @return A list of all property paths.
-     */
     fun KClass<*>.allFieldPaths(
         parentName: String = "",
         fields: List<String> = emptyList(),
@@ -57,107 +67,107 @@ object TypeFieldPaths {
         if (fields.isNotEmpty()) {
             fieldPaths.addAll(fields)
         }
-        allFieldPathsInternal(fieldPaths, parentName, 1, maxDepth)
+        val rootSchema = schemaGenerator.generateSchema(java)
+        rootSchema.collectFieldPaths(rootSchema, fieldPaths, parentName, 1, maxDepth, emptySet())
         return fieldPaths
     }
 
-    /**
-     * Internal method to recursively retrieve all property paths.
-     *
-     * @param fieldPaths The list to store property paths.
-     * @param parentName The name of the parent property (used for nested properties).
-     * @param depth The current nested-property depth.
-     * @param maxDepth The maximum nested-property depth to inspect.
-     */
-    private fun KClass<*>.allFieldPathsInternal(
+    private fun JsonNode.collectFieldPaths(
+        rootSchema: JsonNode,
         fieldPaths: LinkedHashSet<String>,
         parentName: String,
         depth: Int,
-        maxDepth: Int
+        maxDepth: Int,
+        resolvingReferences: Set<String>,
     ) {
         if (depth > maxDepth) {
             return
         }
-        if (isSubclassOf(AggregateId::class)) {
-            listOf(
-                MessageRecords.CONTEXT_NAME,
-                MessageRecords.AGGREGATE_NAME,
-                MessageRecords.AGGREGATE_ID,
-                MessageRecords.TENANT_ID
-            ).forEach { field ->
-                fieldPaths.add(resolveFieldName(parentName, field))
-            }
-        }
-        val jsonSubTypes = this.findAnnotation<JsonSubTypes>()
-        if (jsonSubTypes != null) {
-            for (jsonSubType in jsonSubTypes.value) {
-                val subType = jsonSubType.value
-                subType.allFieldPathsInternal(
-                    fieldPaths = fieldPaths,
-                    parentName = parentName,
-                    depth = depth,
-                    maxDepth = maxDepth
-                )
-            }
-            return
-        }
-
-        memberProperties.filter {
-            it.visibility == KVisibility.PUBLIC &&
-                it.isConst.not() &&
-                it.scanAnnotation<JsonIgnore>()?.value != true
-        }.forEach { property ->
-            val fullName = property.resolveFieldName(parentName)
-            fieldPaths.add(fullName)
-            val nestedType = property.resolveNestedType() ?: return@forEach
-            nestedType.allFieldPathsInternal(
-                fieldPaths = fieldPaths,
-                parentName = fullName,
-                depth = depth + 1,
-                maxDepth = maxDepth
+        get("\$ref")?.asString()?.takeIf { it.startsWith("#/") && it !in resolvingReferences }?.let { reference ->
+            rootSchema.at(reference.removePrefix("#")).collectFieldPaths(
+                rootSchema,
+                fieldPaths,
+                parentName,
+                depth,
+                maxDepth,
+                resolvingReferences + reference,
             )
         }
-    }
-
-    /**
-     * Resolves the full field name including the parent name.
-     *
-     * @param parentName The name of the parent field.
-     * @return The full field name.
-     */
-    private fun KProperty1<*, *>.resolveFieldName(parentName: String): String {
-        return resolveFieldName(parentName, name)
+        listOf("allOf", "anyOf", "oneOf").forEach { composition ->
+            get(composition)?.forEach { alternative ->
+                alternative.collectFieldPaths(
+                    rootSchema,
+                    fieldPaths,
+                    parentName,
+                    depth,
+                    maxDepth,
+                    resolvingReferences,
+                )
+            }
+        }
+        get("properties")?.properties()?.forEach { (propertyName, propertySchema) ->
+            if (propertyName.isLogicalFieldSegment() && propertySchema.get("writeOnly")?.asBoolean() != true) {
+                val fullName = resolveFieldName(parentName, propertyName)
+                fieldPaths.add(fullName)
+                propertySchema.collectFieldPaths(rootSchema, fieldPaths, fullName, depth + 1, maxDepth, emptySet())
+            }
+        }
+        get("items")?.collectFieldPaths(
+            rootSchema,
+            fieldPaths,
+            parentName,
+            depth,
+            maxDepth,
+            resolvingReferences,
+        )
     }
 
     private fun resolveFieldName(parentName: String, fieldName: String): String =
         if (parentName.isBlank()) fieldName else "$parentName${JOIN_DELIMITER}$fieldName"
 
-    /**
-     * Resolves the nested type of a property.
-     *
-     * @return The nested type if it's not a standard type, otherwise null.
-     */
-    private fun KProperty1<*, *>.resolveNestedType(): KClass<*>? {
-        val returnKClass = returnType.jvmErasure
-        val nestedType = if (returnKClass.isSubclassOf(Collection::class) || returnKClass.java.isArray) {
-            returnType.arguments.firstOrNull()?.type?.jvmErasure ?: return null
-        } else {
-            returnType.jvmErasure
+    private fun String.isLogicalFieldSegment(): Boolean =
+        JOIN_DELIMITER !in this && runCatching { LogicalField(this) }.isSuccess
+
+    private fun MemberScope<*, *>.customSerializerDefinition(
+        context: SchemaGenerationContext,
+    ): CustomPropertyDefinition? {
+        val annotation = getAnnotationConsideringFieldAndGetterIfSupported(JsonSerialize::class.java)
+        return annotation?.takeIf { it.definesWireShape() }?.let {
+            CustomPropertyDefinition(context.generatorConfig.createObjectNode())
+        }
+    }
+
+    private fun JsonSerialize.definesWireShape(): Boolean =
+        listOf(contentUsing, keyUsing, converter, contentConverter, using).any {
+            it != ValueSerializer.None::class.java && it != Converter.None::class.java
         }
 
-        if (nestedType.java.isStdType()) {
+    private fun Class<*>.registeredSerializerDefinition(context: SchemaGenerationContext): CustomDefinition? {
+        if (isStdType()) {
             return null
         }
-        return nestedType
+        val serializer = runCatching { JsonSerializer._serializationContext().findValueSerializer(this) }.getOrNull()
+        return serializer?.takeUnless {
+            it is BeanSerializerBase ||
+                it is UnknownSerializer ||
+                it is StdContainerSerializer<*> ||
+                it is ReferenceTypeSerializer<*>
+        }?.let {
+            CustomDefinition(context.generatorConfig.createObjectNode())
+        }
     }
 }
 
 object AggregatedFieldPaths {
+    private val commandFieldPaths = ConcurrentHashMap<Class<*>, Set<String>>()
+
     fun KClass<*>.stateAggregatedFieldPaths(): Set<String> {
         return allFieldPaths(
             parentName = StateAggregateRecords.STATE,
             fields = listOf(
                 "",
+                MessageRecords.CONTEXT_NAME,
+                MessageRecords.AGGREGATE_NAME,
                 MessageRecords.AGGREGATE_ID,
                 MessageRecords.TENANT_ID,
                 MessageRecords.OWNER_ID,
@@ -170,14 +180,17 @@ object AggregatedFieldPaths {
                 StateAggregateRecords.EVENT_TIME,
                 StateAggregateRecords.TAGS,
                 StateAggregateRecords.DELETED,
-                StateAggregateRecords.STATE
+                StateAggregateRecords.STATE,
+                SnapshotRecords.SNAPSHOT_TIME,
             )
-        )
+        ).filterTo(linkedSetOf()) { field ->
+            runCatching { LogicalField(field) }.isSuccess
+        }
     }
 
-    fun KClass<*>.commandAggregatedFieldPaths(): Set<String> {
-        val aggregateMetadata = this.java.aggregateMetadata<Any, Any>()
-        val stateAggregateType = aggregateMetadata.state.aggregateType.kotlin
-        return stateAggregateType.stateAggregatedFieldPaths()
+    fun KClass<*>.commandAggregatedFieldPaths(): Set<String> = commandFieldPaths.computeIfAbsent(
+        java
+    ) { aggregateType ->
+        aggregateType.aggregateMetadata<Any, Any>().state.aggregateType.kotlin.stateAggregatedFieldPaths()
     }
 }

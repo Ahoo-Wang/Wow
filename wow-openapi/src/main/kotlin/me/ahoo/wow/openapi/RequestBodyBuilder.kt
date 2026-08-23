@@ -26,6 +26,11 @@ class RequestBodyBuilder {
         return this
     }
 
+    fun extension(name: String, value: Any): RequestBodyBuilder {
+        requestBody.addExtension(name, value)
+        return this
+    }
+
     fun content(name: String = DEFAULT_MEDIA_TYPE_NAME, mediaType: MediaType): RequestBodyBuilder {
         requestBody.content.addMediaType(name, mediaType)
         return this
