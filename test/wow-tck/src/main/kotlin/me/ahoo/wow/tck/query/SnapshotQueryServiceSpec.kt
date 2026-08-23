@@ -21,7 +21,6 @@ import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
@@ -30,6 +29,7 @@ import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.query.dsl.condition
+import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.pagedQuery
 import me.ahoo.wow.query.dsl.singleQuery
@@ -262,7 +262,7 @@ abstract class SnapshotQueryServiceSpec {
 
         snapshotQueryService.aggregate(
             AggregationQuery(
-                condition = Condition.id("missing"),
+                filter = filter { "_id" eq "missing" },
                 metrics = listOf(
                     AggregationMetric.Count("count"),
                     AggregationMetric.Numeric(
@@ -305,7 +305,7 @@ abstract class SnapshotQueryServiceSpec {
                 elements = listOf(
                     AggregationElement(
                         "state.orders",
-                        Condition.eq("state.orders.status", "PAID"),
+                        filter { "state.orders.status" eq "PAID" },
                     ),
                 ),
                 metrics = listOf(AggregationMetric.Count("count")),
@@ -319,11 +319,11 @@ abstract class SnapshotQueryServiceSpec {
                 elements = listOf(
                     AggregationElement(
                         "state.orders",
-                        Condition.eq("state.orders.status", "PAID"),
+                        filter { "state.orders.status" eq "PAID" },
                     ),
                     AggregationElement(
                         "state.orders.lines",
-                        Condition.eq("state.orders.lines.cancelled", false),
+                        filter { "state.orders.lines.cancelled" eq false },
                     ),
                 ),
                 groupBy = listOf(AggregationGroup.Terms("state.orders.lines.sku", "sku")),
@@ -349,10 +349,9 @@ abstract class SnapshotQueryServiceSpec {
     fun rootElemMatchShouldNotFilterExpandedRows() {
         snapshotQueryService.aggregate(
             AggregationQuery(
-                condition = Condition.elemMatch(
-                    "state.orders",
-                    Condition.eq(rootElementStatusField, "PAID"),
-                ),
+                filter = filter {
+                    "state.orders".elementMatch { rootElementStatusField eq "PAID" }
+                },
                 elements = listOf(AggregationElement("state.orders")),
                 metrics = listOf(AggregationMetric.Count("count")),
             ),

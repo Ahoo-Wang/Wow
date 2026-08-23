@@ -21,7 +21,7 @@ import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.query.dsl.filter
 import org.bson.BsonDocument
 import org.bson.BsonInt32
 import org.junit.jupiter.api.Test
@@ -31,10 +31,10 @@ class MongoAggregationCompilerTest {
     fun `should unwind and filter every element before counting`() {
         val pipeline = MongoAggregationCompiler.compile(
             AggregationQuery(
-                condition = Condition.eq("aggregateId", "id"),
+                filter = filter { "aggregateId" eq "id" },
                 elements = listOf(
-                    AggregationElement("state.orders", Condition.eq("state.orders.status", "PAID")),
-                    AggregationElement("state.orders.lines", Condition.eq("state.orders.lines.cancelled", false)),
+                    AggregationElement("state.orders", filter { "state.orders.status" eq "PAID" }),
+                    AggregationElement("state.orders.lines", filter { "state.orders.lines.cancelled" eq false }),
                 ),
                 groupBy = listOf(AggregationGroup.Terms("state.orders.lines.sku", "sku")),
                 metrics = listOf(

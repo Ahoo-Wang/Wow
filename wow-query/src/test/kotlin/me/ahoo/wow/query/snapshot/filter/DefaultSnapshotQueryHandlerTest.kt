@@ -17,12 +17,15 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.filter.QueryContext
+import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
@@ -117,6 +120,10 @@ class DefaultSnapshotQueryHandlerTest {
                 it.assert().isZero()
             }
             .verifyComplete()
+        queryHandler.count(MOCK_AGGREGATE_METADATA, MatchAllFilter)
+            .test()
+            .expectNext(0)
+            .verifyComplete()
     }
 
     @Test
@@ -132,15 +139,15 @@ class DefaultSnapshotQueryHandlerTest {
     private object LegacyExhaustiveSnapshotQueryFilter : SnapshotQueryFilter {
         override fun filter(
             context: QueryContext<*, *>,
-            next: me.ahoo.wow.filter.FilterChain<QueryContext<*, *>>,
+            next: FilterChain<QueryContext<*, *>>,
         ) = when (context.queryType) {
-            me.ahoo.wow.query.filter.QueryType.SINGLE,
-            me.ahoo.wow.query.filter.QueryType.DYNAMIC_SINGLE,
-            me.ahoo.wow.query.filter.QueryType.LIST,
-            me.ahoo.wow.query.filter.QueryType.DYNAMIC_LIST,
-            me.ahoo.wow.query.filter.QueryType.PAGED,
-            me.ahoo.wow.query.filter.QueryType.DYNAMIC_PAGED,
-            me.ahoo.wow.query.filter.QueryType.COUNT,
+            QueryType.SINGLE,
+            QueryType.DYNAMIC_SINGLE,
+            QueryType.LIST,
+            QueryType.DYNAMIC_LIST,
+            QueryType.PAGED,
+            QueryType.DYNAMIC_PAGED,
+            QueryType.COUNT,
             -> next.filter(context)
         }
     }

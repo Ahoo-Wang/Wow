@@ -22,26 +22,26 @@ import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.AndFilter
+import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
-import me.ahoo.wow.api.query.Operator
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.query.converter.ConditionConverter
+import me.ahoo.wow.mongo.query.AbstractMongoConditionConverter
 import org.bson.Document
 import org.bson.conversions.Bson
 
 internal object MongoAggregationCompiler {
-    fun compile(query: AggregationQuery, conditionConverter: ConditionConverter<Bson>): List<Bson> = buildList {
-        add(Aggregates.match(conditionConverter.convert(query.condition)))
+    fun compile(query: AggregationQuery, conditionConverter: AbstractMongoConditionConverter): List<Bson> = buildList {
+        add(Aggregates.match(conditionConverter.convert(query.filter)))
         query.elements.forEach { element ->
             val field = SnapshotFieldConverter.convert(element.path)
             add(Aggregates.unwind("\$$field", UnwindOptions().preserveNullAndEmptyArrays(false)))
-            if (element.condition.operator != Operator.ALL) {
-                val elementCondition = Condition.and(
-                    Condition.deleted(DeletionState.ALL),
-                    element.condition,
+            if (element.filter !== MatchAllFilter) {
+                val elementFilter = AndFilter(
+                    listOf(DeletionFilter(DeletionState.ALL), element.filter),
                 )
-                add(Aggregates.match(conditionConverter.convert(elementCondition)))
+                add(Aggregates.match(conditionConverter.convert(elementFilter)))
             }
         }
         if (query.groupBy.isNotEmpty()) {

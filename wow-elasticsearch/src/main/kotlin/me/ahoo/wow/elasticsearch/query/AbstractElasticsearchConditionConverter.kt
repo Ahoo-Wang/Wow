@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+@file:Suppress("NoWildcardImports", "WildcardImport")
+
 package me.ahoo.wow.elasticsearch.query
 
 import co.elastic.clients.elasticsearch._types.FieldValue
@@ -20,6 +22,8 @@ import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.exists
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.ids
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.match
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchNone
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.multiMatch
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.nested
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.prefix
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.range
@@ -28,15 +32,169 @@ import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.terms
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.termsSet
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.wildcard
 import co.elastic.clients.json.JsonData
-import me.ahoo.wow.api.query.Condition
-import me.ahoo.wow.api.query.DeletionState
+import me.ahoo.wow.api.query.*
+import me.ahoo.wow.query.FilterNormalizer
 import me.ahoo.wow.query.converter.AbstractConditionConverter
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
-import me.ahoo.wow.serialization.toJsonString
-import java.io.StringReader
 
-abstract class AbstractElasticsearchConditionConverter : AbstractConditionConverter<Query>() {
+abstract class AbstractElasticsearchConditionConverter(
+    defaultDeletionState: DeletionState? = DeletionState.ACTIVE,
+    private val documentIdField: String? = null,
+) : AbstractConditionConverter<Query>() {
+    private val filterNormalizer = FilterNormalizer(defaultDeletionState = defaultDeletionState)
+
+    fun convert(filter: FilterExpression): Query =
+        filter.legacyConditionOrNull()?.let(::convert) ?: internalConvert(filterNormalizer.normalize(filter))
+
+    private fun internalConvert(filter: FilterExpression, parent: String? = null): Query =
+        filter.legacyConditionOrNull()?.let { super.internalConvert(it) } ?: compile(filter, parent)
+
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
+    private fun compile(filter: FilterExpression, parent: String?): Query = when (filter) {
+        MatchAllFilter -> matchAll { it }
+        MatchNoneFilter -> matchNone { it }
+        is AndFilter -> bool { it.filter(filter.operands.map { operand -> internalConvert(operand, parent) }) }
+        is OrFilter -> bool {
+            it.should(filter.operands.map { operand -> internalConvert(operand, parent) }).minimumShouldMatch("1")
+        }
+        is NorFilter -> bool { it.mustNot(filter.operands.map { operand -> internalConvert(operand, parent) }) }
+        is EqualFilter -> if (parent == null && filter.field.isDocumentId) {
+            documentIdEqual(filter)
+        } else {
+            term { it.field(filter.field.path(parent)).value(filter.value.fieldValue()) }
+        }
+        is NotEqualFilter -> bool {
+            it.mustNot(internalConvert(EqualFilter(filter.field, filter.value), parent))
+        }
+        is GreaterThanFilter -> range {
+            it.untyped { range ->
+                range.field(filter.field.path(parent)).gt(JsonData.of(filter.value.requiredNativeValue()))
+            }
+        }
+        is GreaterThanOrEqualFilter -> range {
+            it.untyped { range ->
+                range.field(filter.field.path(parent)).gte(JsonData.of(filter.value.requiredNativeValue()))
+            }
+        }
+        is LessThanFilter -> range {
+            it.untyped { range ->
+                range.field(filter.field.path(parent)).lt(JsonData.of(filter.value.requiredNativeValue()))
+            }
+        }
+        is LessThanOrEqualFilter -> range {
+            it.untyped { range ->
+                range.field(filter.field.path(parent)).lte(JsonData.of(filter.value.requiredNativeValue()))
+            }
+        }
+        is ContainsFilter -> wildcard {
+            it.field(filter.field.path(parent)).value("*${filter.value.escapeWildcard()}*")
+                .caseInsensitive(filter.stringComparison.ignoreCase)
+        }
+        is StartsWithFilter -> prefix {
+            it.field(
+                filter.field.path(parent)
+            ).value(filter.value).caseInsensitive(filter.stringComparison.ignoreCase)
+        }
+        is EndsWithFilter -> wildcard {
+            it.field(filter.field.path(parent)).value("*${filter.value.escapeWildcard()}")
+                .caseInsensitive(filter.stringComparison.ignoreCase)
+        }
+        is InFilter -> if (parent == null && filter.field.isDocumentId) {
+            documentIdIn(filter)
+        } else {
+            terms {
+                it.field(
+                    filter.field.path(parent)
+                ).terms { terms -> terms.value(filter.values.map { value -> value.fieldValue() }) }
+            }
+        }
+        is NotInFilter -> bool {
+            it.mustNot(internalConvert(InFilter(filter.field, filter.values), parent))
+        }
+        is BetweenFilter -> range {
+            it.untyped {
+                it.field(filter.field.path(parent))
+                    .gte(JsonData.of(filter.lowerBound.requiredNativeValue()))
+                    .lte(JsonData.of(filter.upperBound.requiredNativeValue()))
+            }
+        }
+        is ContainsAllFilter -> {
+            val values = filter.values.map { it.fieldValue() }
+            termsSet {
+                it.field(filter.field.path(parent)).terms(values).minimumShouldMatch(values.size.toString())
+            }
+        }
+        is IsNullFilter -> bool {
+            it.mustNot { query -> query.exists { exists -> exists.field(filter.field.path(parent)) } }
+        }
+        is IsNotNullFilter -> exists { it.field(filter.field.path(parent)) }
+        is ExistsFilter -> exists { it.field(filter.field.path(parent)) }
+        is NotExistsFilter -> bool {
+            it.mustNot { query -> query.exists { exists -> exists.field(filter.field.path(parent)) } }
+        }
+        is ElementMatchFilter -> nested {
+            val nestedPath = filter.field.path(parent)
+            it.path(nestedPath).query(internalConvert(filter.predicate, nestedPath))
+        }
+        is SearchFilter -> multiMatch {
+            it.query(filter.query)
+            if (filter.fields.isNotEmpty()) it.fields(filter.fields.map { field -> field.path(parent) })
+            it
+        }
+        is DeletionFilter -> when (filter.deletionState) {
+            DeletionState.ACTIVE -> term { it.field(StateAggregateRecords.DELETED).value(false) }
+            DeletionState.DELETED -> term { it.field(StateAggregateRecords.DELETED).value(true) }
+            DeletionState.ALL -> matchAll { it }
+        }
+        is IsEmptyFilter -> bool {
+            it.mustNot { query -> query.exists { exists -> exists.field(filter.field.path(parent)) } }
+        }
+        is TodayFilter,
+        is BeforeTodayFilter,
+        is TomorrowFilter,
+        is ThisWeekFilter,
+        is NextWeekFilter,
+        is LastWeekFilter,
+        is ThisMonthFilter,
+        is LastMonthFilter,
+        is RecentDaysFilter,
+        is EarlierDaysFilter,
+        -> error("Relative-time filter must be normalized before compilation.")
+        else -> error("Unsupported filter expression: ${filter::class.java.name}.")
+    }
+
+    private val LogicalField.isDocumentId: Boolean
+        get() = value == "_id"
+
+    private fun LogicalField.path(parent: String?): String =
+        if (parent == null || value == parent || value.startsWith("$parent.")) value else "$parent.$value"
+
+    private fun documentIdEqual(filter: EqualFilter): Query = documentIdField?.let { field ->
+        term { it.field(field).value(filter.value.fieldValue()) }
+    } ?: ids { it.values(filter.value.requiredNativeValue().toString()) }
+
+    private fun documentIdIn(filter: InFilter): Query = documentIdField?.let { field ->
+        terms {
+            it.field(field).terms { terms -> terms.value(filter.values.map { value -> value.fieldValue() }) }
+        }
+    } ?: ids { it.values(filter.values.map { value -> value.requiredNativeValue().toString() }) }
+
+    private val StringComparison.ignoreCase: Boolean
+        get() = this == StringComparison.CASE_INSENSITIVE
+
+    private fun tools.jackson.databind.JsonNode.requiredNativeValue(): Any = when {
+        isString -> asString()
+        isNumber -> numberValue()
+        isBoolean -> booleanValue()
+        else -> throw IllegalArgumentException("Filter value must be a non-null JSON scalar.")
+    }
+
+    private fun tools.jackson.databind.JsonNode.fieldValue(): FieldValue = when {
+        isString -> FieldValue.of(asString())
+        isBoolean -> FieldValue.of(booleanValue())
+        else -> FieldValue.of(requiredNativeValue())
+    }
     override fun and(condition: Condition): Query {
         return bool { builder ->
             builder.filter(condition.children.map { internalConvert(it) })
@@ -297,26 +455,6 @@ abstract class AbstractElasticsearchConditionConverter : AbstractConditionConver
                 }
             }
         }
-    }
-
-    override fun raw(condition: Condition): Query {
-        return when (condition.value) {
-            is Query -> {
-                condition.valueAs<Query>()
-            }
-
-            is String -> {
-                condition.valueAs<String>().toQuery()
-            }
-
-            else -> {
-                condition.value.toJsonString().toQuery()
-            }
-        }
-    }
-
-    private fun String.toQuery(): Query {
-        return Query.Builder().withJson(StringReader(this)).build()
     }
 }
 

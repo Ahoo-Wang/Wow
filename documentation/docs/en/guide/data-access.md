@@ -324,7 +324,7 @@ This pattern allows ABAC rules to be based on aggregate state fields (like addre
 
 When querying snapshots, the `AbacQueryFilter` automatically injects permission conditions based on the principal's tags. The matching rules are:
 
-`AbacQueryFilter` is an abstract extension point. Enabling Wow, WebFlux, or CoSec does not register an application policy automatically. If no filter bean is registered, or the filter returns empty tags or `Mono.empty()`, the default condition is `Condition.all()` and no ABAC restriction is added. Protected queries must reject missing security context or principal tags explicitly.
+`AbacQueryFilter` is an abstract extension point. Enabling Wow, WebFlux, or CoSec does not register an application policy automatically. If no filter bean is registered, or the filter returns empty tags or `Mono.empty()`, the default is `MatchAllFilter` and no ABAC restriction is added. Protected queries must reject missing security context or principal tags explicitly.
 
 | Principal Tags | Resource Tags | Result |
 |---------------|---------------|--------|

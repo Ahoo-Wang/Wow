@@ -15,10 +15,8 @@ import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.schema.CreateTestAggregate
 import me.ahoo.wow.schema.OuterFixture
-import me.ahoo.wow.schema.TestAggregate
 import me.ahoo.wow.schema.TestState
 import me.ahoo.wow.schema.naming.WowSchemaNamingStrategy.Companion.toSchemaName
-import me.ahoo.wow.schema.typed.AggregatedFields
 import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
@@ -80,13 +78,6 @@ class WowSchemaNamingStrategyTest {
                         OuterFixture.StaticNestedFixture::class.java
                     ),
                     "wow.schema.OuterFixture.StaticNestedFixture"
-                ),
-                Arguments.of(
-                    typeContext.resolve(
-                        AggregatedFields::class.java,
-                        TestAggregate::class.java
-                    ),
-                    "wow.schema.TestAggregateAggregatedFields"
                 )
             )
         }

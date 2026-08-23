@@ -90,12 +90,11 @@ plus `wow-webflux` for these properties to be bound.
 | `query.max-list-size` | `Int` | `1000` | HTTP list-query limit and grouped Snapshot aggregation row cap; `0` disables the HTTP cap, restores list `limit=0`, and leaves aggregation subject to its public 10,000 hard limit |
 | `query.max-page-size` | `Int` | `100` | Maximum HTTP page size; `0` disables the cap |
 | `query.max-page-window` | `Long` | `10000` | Maximum HTTP `index * size` page window; `0` disables the cap |
-| `query.max-condition-nodes` | `Int` | `64` | Maximum number of HTTP query condition nodes; `0` disables the cap |
-| `query.max-condition-values` | `Int` | `1000` | Maximum values in HTTP `IN`, `NOT_IN`, `ALL_IN`, `IDS`, or `AGGREGATE_IDS` conditions; `0` disables the cap |
+| `query.max-condition-nodes` | `Int` | `64` | Maximum number of HTTP filter nodes; `0` disables the cap |
+| `query.max-condition-values` | `Int` | `1000` | Maximum values in HTTP collection filters; `0` disables the cap |
 | `query.max-aggregation-elements` | `Int` | `3` | Maximum HTTP Snapshot aggregation Elements depth; `0` disables the HTTP cap while the public hard limit of 5 remains |
 | `query.max-aggregation-metrics` | `Int` | `32` | Maximum metrics in one HTTP Snapshot aggregation; `0` disables the HTTP cap while the public hard limit of 64 remains |
-| `query.allow-raw` | `Boolean` | `false` | Whether HTTP queries may use native `RAW` conditions |
-| `query.allow-expensive-operators` | `Boolean` | `false` | Whether HTTP queries may use negative/existence/expensive string operators, unfiltered count/paged/aggregation, Elements expansion, and metric sorting |
+| `query.allow-expensive-operators` | `Boolean` | `false` | Whether HTTP queries may use expensive filters, unfiltered count/paged/aggregation, Elements expansion, and metric sorting |
 | `query.idle-timeout` | `Duration` | `10s` | Maximum wait between results or completion; JSON arrays are buffered before the response is committed, while SSE remains streaming; `0s` disables the timeout |
 
 ```yaml
@@ -115,15 +114,12 @@ wow:
       max-condition-values: 1000
       max-aggregation-elements: 3
       max-aggregation-metrics: 32
-      allow-raw: false
       allow-expensive-operators: false
       idle-timeout: 10s
 ```
 
 When `wow-spring-boot-starter` is used, WebFlux is included as the `webflux-support` feature capability. The global error handler is enabled by default; disable it only if you provide your own `WebExceptionHandler`.
-The guard applies whenever the Reactor context contains a WebFlux `ServerRequest` through `writeRawRequest(request)`, including built-in routes and custom HTTP handlers. Injected query services and non-WebFlux request contexts keep their existing behavior. To temporarily restore the previous HTTP behavior after upgrading, set the numeric limits and `idle-timeout` to `0` and enable both `allow-*` switches.
-See [Snapshot Elements Aggregation](../query.md#snapshot-elements-aggregation) for the complete
-HTTP request, cost classification, and failure semantics.
+The guard applies whenever the Reactor context contains a WebFlux `ServerRequest` through `writeRawRequest(request)`, including built-in routes and custom HTTP handlers. Injected query services and non-WebFlux request contexts keep their existing behavior. See [Snapshot Elements Aggregation](../query.md#snapshot-elements-aggregation) for its HTTP request, cost, and failure contract.
 
 ## Wait Plan Integration
 

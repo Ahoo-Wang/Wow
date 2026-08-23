@@ -14,8 +14,11 @@
 package me.ahoo.wow.query.snapshot.filter
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.Condition
-import me.ahoo.wow.query.dsl.condition
+import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.toFilterExpression
+import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.query.filter.DefaultQueryContext
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -25,36 +28,31 @@ class CountSnapshotQueryContextTest {
 
     @Test
     fun `should rewrite query with tenant id`() {
-        val context = DefaultQueryContext<Condition, Any>(
+        val context = DefaultQueryContext<FilterExpression, Any>(
             queryType = QueryType.COUNT,
             MOCK_AGGREGATE_METADATA
         )
-        val query = condition { }
+        val query = filter { }
         context.setQuery(query)
-        context.asRewritableQuery().rewriteQuery {
-            it.appendTenantId("tenantId")
-        }
+        context.appendFilter(Condition.tenantId("tenantId").toFilterExpression())
         context.getQuery().assert().isEqualTo(
-            condition {
-                tenantId("tenantId")
-            }
+            Condition.tenantId("tenantId").toFilterExpression()
         )
     }
 
     @Test
     fun `should rewrite query with appended condition`() {
-        val context = DefaultQueryContext<Condition, Any>(
+        val context = DefaultQueryContext<FilterExpression, Any>(
             queryType = QueryType.COUNT,
             MOCK_AGGREGATE_METADATA
         )
-        val query = condition {
+        val query = filter {
             "field1" eq "value1"
         }
         context.setQuery(query)
-        context.asRewritableQuery().rewriteQuery {
-            it.appendCondition(Condition.ownerId("ownerId"))
-        }
-        context.getQuery().children.assert().hasSize(2)
-        context.getQuery().children.last().assert().isEqualTo(Condition.ownerId("ownerId"))
+        context.appendFilter(Condition.ownerId("ownerId").toFilterExpression())
+        val operands = (context.getQuery() as AndFilter).operands
+        operands.assert().hasSize(2)
+        operands.last().assert().isEqualTo(Condition.ownerId("ownerId").toFilterExpression())
     }
 }

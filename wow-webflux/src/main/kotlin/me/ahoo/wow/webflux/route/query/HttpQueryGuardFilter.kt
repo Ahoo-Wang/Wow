@@ -11,18 +11,15 @@
  * limitations under the License.
  */
 
+@file:Suppress("NoWildcardImports", "WildcardImport")
+
 package me.ahoo.wow.webflux.route.query
 
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.Order
-import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.Condition
-import me.ahoo.wow.api.query.ConditionCapable
-import me.ahoo.wow.api.query.DeletionState
-import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.*
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
@@ -49,7 +46,6 @@ class HttpQueryGuardFilter(
     private val maxPageWindow: Long = 10_000,
     private val maxConditionNodes: Int = 64,
     private val maxConditionValues: Int = 1000,
-    private val allowRaw: Boolean = false,
     private val allowExpensiveOperators: Boolean = false,
     private val idleTimeout: Duration = Duration.ofSeconds(10),
     private val maxAggregationElements: Int = 3,
@@ -79,10 +75,7 @@ class HttpQueryGuardFilter(
         if (request == null) {
             return@deferContextual next.filter(context)
         }
-        validate(
-            query = contextView.getUserQuery<Any>() ?: context.getQuery(),
-            rejectMatchAll = context.queryType in COUNTING_QUERY_TYPES,
-        )
+        validate(context.getQuery(), context.queryType in COUNTING_QUERY_TYPES)
         val downstream = next.filter(context)
         val guardedDownstream = if (idleTimeout.isZero) downstream else downstream.timeout(idleTimeout)
         guardedDownstream.doOnSuccess {
@@ -95,46 +88,34 @@ class HttpQueryGuardFilter(
         next: FilterChain<SnapshotAggregationQueryContext>,
     ): Mono<Void> = Mono.deferContextual { contextView ->
         val request = contextView.getRawRequest<Any>() as? ServerRequest
-        if (request == null) {
-            return@deferContextual next.filter(context)
-        }
-        validate(
-            query = contextView.getUserQuery<AggregationQuery>() ?: context.query,
-            rejectMatchAll = true,
+        if (request == null) return@deferContextual next.filter(context)
+
+        val userQuery = contextView.getUserQuery<AggregationQuery>() ?: context.query
+        validateAggregation(userQuery)
+        validateFilters(
+            filters = listOf(userQuery.filter) + userQuery.elements.map(AggregationElement::filter),
+            rejectMatchAll = context.query.filter,
         )
         val downstream = next.filter(context)
         val guardedDownstream = if (idleTimeout.isZero) downstream else downstream.timeout(idleTimeout)
-        guardedDownstream.doOnSuccess {
-            applyAggregationIdleTimeout(context, request)
-        }
+        guardedDownstream.doOnSuccess { applyAggregationIdleTimeout(context, request) }
     }
 
     private fun validate(query: Any, rejectMatchAll: Boolean) {
         when (query) {
             is IListQuery -> validateList(query)
             is IPagedQuery -> validatePage(query)
-            is AggregationQuery -> validateAggregation(query)
         }
-        val condition = when (query) {
-            is Condition -> query
-            is ConditionCapable<*> -> query.condition
+        val filter = when (query) {
+            is FilterExpression -> query
+            is FilterCapable<*> -> query.filter
             else -> return
         }
-        val conditions = if (query is AggregationQuery) {
-            listOf(condition) + query.elements.map { it.condition }
-        } else {
-            listOf(condition)
-        }
-        validateConditions(conditions)
-        require(allowExpensiveOperators || !rejectMatchAll || !condition.isMatchAll()) {
-            "HTTP counting query must not match all documents."
-        }
+        validateFilters(listOf(filter), filter.takeIf { rejectMatchAll })
     }
 
     private fun validateAggregation(query: AggregationQuery) {
-        if (query.groupBy.isNotEmpty()) {
-            validateResultSize(query.limit, "aggregation")
-        }
+        if (query.groupBy.isNotEmpty()) validateResultSize(query.limit, "aggregation")
         require(maxAggregationElements == 0 || query.elements.size <= maxAggregationElements) {
             "HTTP aggregation elements[${query.elements.size}] must not exceed $maxAggregationElements."
         }
@@ -147,6 +128,40 @@ class HttpQueryGuardFilter(
         val metricAliases = query.metrics.mapTo(hashSetOf()) { it.alias }
         require(allowExpensiveOperators || query.sort.none { it.field in metricAliases }) {
             "HTTP aggregation metric sort is disabled because expensive operators are not allowed."
+        }
+    }
+
+    private fun validateConditionNode(condition: Condition) {
+        if (condition.operator == Operator.ELEM_MATCH) {
+            require(condition.children.size == 1) {
+                "HTTP ELEM_MATCH condition must contain exactly one child."
+            }
+        }
+        require(allowExpensiveOperators || !condition.isExpensive()) {
+            "HTTP query operator[${condition.operator}] is disabled because expensive operators are not allowed."
+        }
+        val values = condition.value
+        if (condition.operator in LEGACY_COLLECTION_OPERATORS && values is Collection<*>) {
+            require(maxConditionValues == 0 || values.size <= maxConditionValues) {
+                "HTTP query condition values[${values.size}] must not exceed $maxConditionValues."
+            }
+        }
+    }
+
+    private fun Condition.isExpensive(): Boolean =
+        operator in LEGACY_EXPENSIVE_OPERATORS ||
+            operator == Operator.EXISTS && value == false ||
+            operator == Operator.STARTS_WITH && ((value as? String).isNullOrEmpty() || ignoreCase() == true)
+
+    private fun Condition.isMatchAll(): Boolean {
+        val values = value
+        return when (operator) {
+            Operator.ALL -> true
+            Operator.DELETED -> deletionState() == DeletionState.ALL
+            Operator.NOT_IN -> values is Collection<*> && values.isEmpty()
+            Operator.AND -> children.all { it.isMatchAll() }
+            Operator.OR -> children.any { it.isMatchAll() }
+            else -> false
         }
     }
 
@@ -180,9 +195,13 @@ class HttpQueryGuardFilter(
         }
     }
 
-    private fun validateConditions(conditions: List<Condition>) {
-        val pending = ArrayDeque<Condition>()
-        pending.addAll(conditions)
+    @Suppress("CyclomaticComplexMethod")
+    private fun validateFilters(
+        filters: List<FilterExpression>,
+        rejectMatchAll: FilterExpression?,
+    ) {
+        val pending = ArrayDeque<Any>()
+        pending.addAll(filters)
         var nodes = 0
         while (pending.isNotEmpty()) {
             val current = pending.removeLast()
@@ -190,46 +209,63 @@ class HttpQueryGuardFilter(
             require(maxConditionNodes == 0 || nodes <= maxConditionNodes) {
                 "HTTP query condition nodes[$nodes] must not exceed $maxConditionNodes."
             }
-            validateConditionNode(current)
-            pending.addAll(current.children)
+            when (current) {
+                is FilterExpression -> current.legacyConditionOrNull()?.let {
+                    validateConditionNode(it)
+                    pending.addAll(it.children)
+                } ?: run {
+                    validateFilterNode(current)
+                    when (current) {
+                        is AndFilter -> pending.addAll(current.operands)
+                        is OrFilter -> pending.addAll(current.operands)
+                        is NorFilter -> pending.addAll(current.operands)
+                        is ElementMatchFilter -> pending.add(current.predicate)
+                        else -> Unit
+                    }
+                }
+                is Condition -> {
+                    validateConditionNode(current)
+                    pending.addAll(current.children)
+                }
+            }
+        }
+        require(allowExpensiveOperators || rejectMatchAll == null || !rejectMatchAll.isMatchAll()) {
+            "HTTP counting query must not match all documents."
         }
     }
 
-    private fun validateConditionNode(condition: Condition) {
-        if (condition.operator == Operator.ELEM_MATCH) {
-            require(condition.children.size == 1) {
-                "HTTP ELEM_MATCH condition must contain exactly one child."
-            }
+    private fun validateFilterNode(filter: FilterExpression) {
+        require(allowExpensiveOperators || !filter.isExpensive()) {
+            "HTTP query operator[${filter.operator}] is disabled because expensive operators are not allowed."
         }
-        require(allowRaw || condition.operator != Operator.RAW) {
-            "HTTP query operator[RAW] is not allowed."
-        }
-        require(allowExpensiveOperators || !condition.isExpensive()) {
-            "HTTP query operator[${condition.operator}] is disabled because expensive operators are not allowed."
-        }
-        val values = condition.value
-        if (condition.operator in COLLECTION_OPERATORS && values is Collection<*>) {
-            require(maxConditionValues == 0 || values.size <= maxConditionValues) {
-                "HTTP query condition values[${values.size}] must not exceed $maxConditionValues."
+        val valueCount = filter.valueCount()
+        if (valueCount != null) {
+            require(maxConditionValues == 0 || valueCount <= maxConditionValues) {
+                "HTTP query condition values[$valueCount] must not exceed $maxConditionValues."
             }
         }
     }
 
-    private fun Condition.isExpensive(): Boolean =
+    private fun FilterExpression.isExpensive(): Boolean =
         operator in EXPENSIVE_OPERATORS ||
-            operator == Operator.EXISTS && value == false ||
-            operator == Operator.STARTS_WITH && ((value as? String).isNullOrEmpty() || ignoreCase() == true)
+            this is StartsWithFilter && (value.isEmpty() || stringComparison == StringComparison.CASE_INSENSITIVE)
 
-    private fun Condition.isMatchAll(): Boolean {
-        val values = value
-        return when (operator) {
-            Operator.ALL -> true
-            Operator.DELETED -> deletionState() == DeletionState.ALL
-            Operator.NOT_IN -> values is Collection<*> && values.isEmpty()
-            Operator.AND -> children.all { it.isMatchAll() }
-            Operator.OR -> children.any { it.isMatchAll() }
+    private fun FilterExpression.isMatchAll(): Boolean {
+        legacyConditionOrNull()?.let { return it.isMatchAll() }
+        return when (this) {
+            MatchAllFilter -> true
+            is DeletionFilter -> deletionState == DeletionState.ALL
+            is AndFilter -> operands.all { it.isMatchAll() }
+            is OrFilter -> operands.any { it.isMatchAll() }
             else -> false
         }
+    }
+
+    private fun FilterExpression.valueCount(): Int? = when (this) {
+        is InFilter -> values.size
+        is NotInFilter -> values.size
+        is ContainsAllFilter -> values.size
+        else -> null
     }
 
     private fun applyIdleTimeout(context: QueryContext<*, *>, request: ServerRequest) {
@@ -252,7 +288,7 @@ class HttpQueryGuardFilter(
             QueryType.PAGED, QueryType.DYNAMIC_PAGED ->
                 context.asPagedQuery<Any>().rewriteResult { it.timeout(idleTimeout) }
 
-            QueryType.COUNT -> context.asCountQuery().rewriteResult { it.timeout(idleTimeout) }
+            QueryType.COUNT -> context.asFilterCountQuery().rewriteResult { it.timeout(idleTimeout) }
         }
     }
 
@@ -265,15 +301,24 @@ class HttpQueryGuardFilter(
             if (request.acceptsEventStream()) {
                 it.timeout(idleTimeout)
             } else {
-                it.timeout(idleTimeout)
-                    .collectList()
-                    .flatMapMany(Flux<DynamicDocument>::fromIterable)
+                it.timeout(idleTimeout).collectList().flatMapMany(Flux<DynamicDocument>::fromIterable)
             }
         }
     }
 
     private companion object {
         val EXPENSIVE_OPERATORS = setOf(
+            FilterOperator.NE,
+            FilterOperator.NOT_IN,
+            FilterOperator.NOR,
+            FilterOperator.IS_NULL,
+            FilterOperator.IS_NOT_NULL,
+            FilterOperator.NOT_EXISTS,
+            FilterOperator.IS_EMPTY,
+            FilterOperator.CONTAINS,
+            FilterOperator.ENDS_WITH,
+        )
+        val LEGACY_EXPENSIVE_OPERATORS = setOf(
             Operator.NE,
             Operator.NOT_IN,
             Operator.NOR,
@@ -282,18 +327,14 @@ class HttpQueryGuardFilter(
             Operator.CONTAINS,
             Operator.ENDS_WITH,
         )
-        val COUNTING_QUERY_TYPES = setOf(
-            QueryType.PAGED,
-            QueryType.DYNAMIC_PAGED,
-            QueryType.COUNT,
-        )
-        val COLLECTION_OPERATORS = setOf(
+        val LEGACY_COLLECTION_OPERATORS = setOf(
             Operator.IN,
             Operator.NOT_IN,
             Operator.ALL_IN,
             Operator.IDS,
             Operator.AGGREGATE_IDS,
         )
+        val COUNTING_QUERY_TYPES = setOf(QueryType.PAGED, QueryType.DYNAMIC_PAGED, QueryType.COUNT)
     }
 }
 

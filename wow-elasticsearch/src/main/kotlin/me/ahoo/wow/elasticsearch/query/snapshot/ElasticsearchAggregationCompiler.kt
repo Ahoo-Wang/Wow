@@ -26,33 +26,34 @@ import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.AndFilter
+import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchConditionConverter
 import me.ahoo.wow.elasticsearch.query.ElasticsearchFieldUsage
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
-import me.ahoo.wow.query.converter.ConditionConverter
 
 internal object ElasticsearchAggregationCompiler {
     fun compile(
         query: AggregationQuery,
         mapping: ElasticsearchIndexMapping,
-        conditionConverter: ConditionConverter<Query>,
-        resolveCondition: (Condition) -> Condition = mapping::resolve,
+        conditionConverter: AbstractElasticsearchConditionConverter,
+        resolveFilter: (FilterExpression) -> FilterExpression = mapping::resolve,
     ): ElasticsearchAggregationPlan {
         val elements = query.elements.mapIndexed { index, element ->
-            val elementCondition = Condition.and(
-                Condition.deleted(DeletionState.ALL),
-                element.condition,
+            val elementFilter = AndFilter(
+                listOf(DeletionFilter(DeletionState.ALL), element.filter),
             )
             ResolvedElement(
                 path = mapping.requireNested(element.path),
-                condition = conditionConverter.convert(resolveCondition(elementCondition)),
+                filter = conditionConverter.convert(resolveFilter(elementFilter)),
                 index = index,
             )
         }
         return ElasticsearchAggregationPlan(
-            query = conditionConverter.convert(resolveCondition(query.condition)),
+            query = conditionConverter.convert(resolveFilter(query.filter)),
             aggregationQuery = query,
             elements = elements,
             resolvedGroupFields = query.groupBy.associate { group ->
@@ -108,7 +109,7 @@ internal data class ElasticsearchAggregationPlan(
         var children = leafAggregations
         elements.asReversed().forEach { element ->
             val filter = Aggregation.of {
-                it.filter(element.condition).aggregations(children)
+                it.filter(element.filter).aggregations(children)
             }
             val nested = Aggregation.of {
                 it.nested { nested -> nested.path(element.path) }
@@ -147,7 +148,7 @@ internal data class ElasticsearchAggregationLeaf(
 
 internal data class ResolvedElement(
     val path: String,
-    val condition: Query,
+    val filter: Query,
     val index: Int,
 ) {
     val elementName: String = "${AggregationQuery.INTERNAL_ALIAS_PREFIX}element_$index"

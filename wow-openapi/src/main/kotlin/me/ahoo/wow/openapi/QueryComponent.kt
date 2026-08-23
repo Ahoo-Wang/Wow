@@ -14,23 +14,21 @@
 package me.ahoo.wow.openapi
 
 import me.ahoo.wow.api.Wow
-import me.ahoo.wow.api.query.Condition
-import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.api.query.PagedQuery
+import me.ahoo.wow.api.query.Pagination
+import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.openapi.CommonComponent.Response.withErrorCodeHeader
-import me.ahoo.wow.openapi.QueryComponent.Schema.conditionSchema
+import me.ahoo.wow.openapi.QueryComponent.Schema.filterSchema
 import me.ahoo.wow.openapi.QueryComponent.Schema.listQuerySchema
 import me.ahoo.wow.openapi.QueryComponent.Schema.pagedQuerySchema
+import me.ahoo.wow.openapi.QueryComponent.Schema.singleQuerySchema
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.schema.typed.AggregatedDomainEventStream
 import me.ahoo.wow.schema.typed.query.AggregatedAggregationQuery
-import me.ahoo.wow.schema.typed.query.AggregatedCondition
-import me.ahoo.wow.schema.typed.query.AggregatedListQuery
-import me.ahoo.wow.schema.typed.query.AggregatedPagedQuery
-import me.ahoo.wow.schema.typed.query.AggregatedSingleQuery
+import me.ahoo.wow.schema.typed.query.FilterExpressionSchema
 
 object QueryComponent {
     const val SINGLE_QUERY_SUFFIX = ".SingleQuery"
@@ -44,17 +42,43 @@ object QueryComponent {
 
     object Schema {
 
-        fun OpenAPIComponentContext.conditionSchema(): io.swagger.v3.oas.models.media.Schema<*> {
-            return schema(Condition::class.java)
+        fun OpenAPIComponentContext.filterSchema(): io.swagger.v3.oas.models.media.Schema<*> {
+            return schema(FilterExpressionSchema::class.java)
+        }
+
+        fun OpenAPIComponentContext.singleQuerySchema(): io.swagger.v3.oas.models.media.Schema<*> {
+            return baseQuerySchema()
         }
 
         fun OpenAPIComponentContext.listQuerySchema(): io.swagger.v3.oas.models.media.Schema<*> {
-            return schema(ListQuery::class.java)
+            val querySchema = baseQuerySchema()
+            val limitSchema = io.swagger.v3.oas.models.media.IntegerSchema()
+            limitSchema.minimum(java.math.BigDecimal.ZERO)
+            limitSchema.setDefault(0)
+            querySchema.addProperty("limit", limitSchema.asAnySchema())
+            return querySchema
         }
 
         fun OpenAPIComponentContext.pagedQuerySchema(): io.swagger.v3.oas.models.media.Schema<*> {
-            return schema(PagedQuery::class.java)
+            val querySchema = baseQuerySchema()
+            querySchema.addProperty("pagination", schema(Pagination::class.java).asAnySchema())
+            return querySchema
         }
+
+        private fun OpenAPIComponentContext.baseQuerySchema(): io.swagger.v3.oas.models.media.ObjectSchema {
+            val querySchema = io.swagger.v3.oas.models.media.ObjectSchema()
+            querySchema.addProperty("filter", filterSchema().asAnySchema())
+            querySchema.addProperty("projection", schema(Projection::class.java).asAnySchema())
+            val sortSchema = io.swagger.v3.oas.models.media.ArraySchema().items(schema(Sort::class.java))
+            querySchema.addProperty("sort", sortSchema.asAnySchema())
+            querySchema.required(listOf("filter"))
+            querySchema.additionalProperties(false)
+            return querySchema
+        }
+
+        @Suppress("UNCHECKED_CAST")
+        private fun io.swagger.v3.oas.models.media.Schema<*>.asAnySchema():
+            io.swagger.v3.oas.models.media.Schema<Any> = this as io.swagger.v3.oas.models.media.Schema<Any>
     }
 
     object RequestBody {
@@ -74,19 +98,19 @@ object QueryComponent {
 
         fun OpenAPIComponentContext.aggregatedSingleQueryRequestBody(aggregateMetadata: AggregateMetadata<*, *>): io.swagger.v3.oas.models.parameters.RequestBody {
             return requestBody(aggregateMetadata.toStringWithAlias() + SINGLE_QUERY_SUFFIX) {
-                content(schema = schema(AggregatedSingleQuery::class.java, aggregateMetadata.command.aggregateType))
+                content(schema = singleQuerySchema())
             }
         }
 
         fun OpenAPIComponentContext.countQueryRequestBody(): io.swagger.v3.oas.models.parameters.RequestBody {
             return requestBody(COUNT_QUERY_KEY) {
-                content(schema = conditionSchema())
+                content(schema = filterSchema())
             }
         }
 
         fun OpenAPIComponentContext.aggregatedCountQueryRequestBody(aggregateMetadata: AggregateMetadata<*, *>): io.swagger.v3.oas.models.parameters.RequestBody {
             return requestBody(aggregateMetadata.toStringWithAlias() + COUNT_QUERY_SUFFIX) {
-                content(schema = schema(AggregatedCondition::class.java, aggregateMetadata.command.aggregateType))
+                content(schema = filterSchema())
             }
         }
 
@@ -100,7 +124,7 @@ object QueryComponent {
             aggregateMetadata: AggregateMetadata<*, *>
         ): io.swagger.v3.oas.models.parameters.RequestBody {
             return requestBody(aggregateMetadata.toStringWithAlias() + LIST_QUERY_SUFFIX) {
-                content(schema = schema(AggregatedListQuery::class.java, aggregateMetadata.command.aggregateType))
+                content(schema = listQuerySchema())
             }
         }
 
@@ -114,7 +138,7 @@ object QueryComponent {
             aggregateMetadata: AggregateMetadata<*, *>
         ): io.swagger.v3.oas.models.parameters.RequestBody {
             return requestBody(aggregateMetadata.toStringWithAlias() + PAGED_QUERY_SUFFIX) {
-                content(schema = schema(AggregatedPagedQuery::class.java, aggregateMetadata.command.aggregateType))
+                content(schema = pagedQuerySchema())
             }
         }
     }

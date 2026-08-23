@@ -20,6 +20,7 @@ package me.ahoo.wow.api.query
  * applied to fields in database queries. Operators range from simple equality checks
  * to complex date range queries and array operations.
  */
+@Deprecated("Use FilterOperator.")
 enum class Operator {
     /**
      * Logical AND operator.
@@ -280,11 +281,5 @@ enum class Operator {
      * and is not restricted to a single field.
      * For Elasticsearch: Uses `QueryBuilders.match` for standard full-text search on the specified field.
      */
-    MATCH,
-
-    /**
-     * Raw operator.
-     * Uses the condition value directly as a raw database query condition without any processing.
-     */
-    RAW
+    MATCH
 }

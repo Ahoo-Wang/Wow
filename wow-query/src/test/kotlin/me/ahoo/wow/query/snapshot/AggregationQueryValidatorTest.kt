@@ -20,9 +20,10 @@ import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.modeling.annotation.stateAggregateMetadata
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
+import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -49,8 +50,8 @@ class AggregationQueryValidatorTest {
 
         AggregationQuery(
             elements = listOf(
-                AggregationElement("state.orders", Condition.eq("state.orders.status", "PAID")),
-                AggregationElement("state.orders.lines", Condition.eq("state.orders.lines.cancelled", false)),
+                AggregationElement("state.orders", filter { "state.orders.status" eq "PAID" }),
+                AggregationElement("state.orders.lines", filter { "state.orders.lines.cancelled" eq false }),
             ),
             groupBy = listOf(AggregationGroup.Terms("state.orders.lines.sku", "sku")),
             metrics = listOf(numeric("state.orders.lines.amount"), AggregationMetric.Count("count")),
@@ -74,17 +75,18 @@ class AggregationQueryValidatorTest {
     }
 
     @Test
-    fun `should keep element conditions inside their own row scope`() {
+    fun `should keep element filters inside their own row scope`() {
         listOf(
-            Condition.eq("state.status", "PAID"),
-            Condition.eq("state.orders.lines.sku", "sku"),
-            Condition.eq("state.orders.tags", "tag"),
-            Condition.elemMatch("state.orders.lines", Condition.eq("state.orders.lines.sku", "sku")),
-            Condition.raw("{}"),
-        ).forEach { condition ->
+            filter { "state.status" eq "PAID" },
+            filter { "state.orders.lines.sku" eq "sku" },
+            filter { "state.orders.tags" eq "tag" },
+            filter { "state.orders.lines".elementMatch { "sku" eq "sku" } },
+            filter { search("sku") },
+            filter { deletion(DeletionState.ACTIVE) },
+        ).forEach { elementFilter ->
             assertThrows<IllegalArgumentException> {
                 AggregationQuery(
-                    elements = listOf(AggregationElement("state.orders", condition)),
+                    elements = listOf(AggregationElement("state.orders", elementFilter)),
                     metrics = listOf(AggregationMetric.Count("count")),
                 ).validate(namedAggregate)
             }

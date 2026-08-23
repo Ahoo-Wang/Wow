@@ -16,13 +16,19 @@ package me.ahoo.wow.api.query
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import tools.jackson.databind.node.JsonNodeFactory
 
 class AggregationQueryTest {
     @Test
     fun `should round trip portable aggregation model`() {
         val query = AggregationQuery(
-            condition = Condition.eq("tenantId", "tenant"),
-            elements = listOf(AggregationElement("state.orders", Condition.eq("state.orders.status", "PAID"))),
+            filter = EqualFilter(LogicalField("tenantId"), JsonNodeFactory.instance.stringNode("tenant")),
+            elements = listOf(
+                AggregationElement(
+                    "state.orders",
+                    EqualFilter(LogicalField("state.orders.status"), JsonNodeFactory.instance.stringNode("PAID")),
+                ),
+            ),
             groupBy = listOf(
                 AggregationGroup.Terms("state.orders.status", "status"),
                 AggregationGroup.Histogram("state.orders.amount", "amountBand", 10.0),
@@ -45,8 +51,9 @@ class AggregationQueryTest {
             limit = 20,
         )
 
-        query.withCondition(Condition.id("id")).condition.assert().isEqualTo(Condition.id("id"))
-        query.assert().isInstanceOf(ConditionCapable::class.java)
+        val replacement = EqualFilter(LogicalField("_id"), JsonNodeFactory.instance.stringNode("id"))
+        query.withFilter(replacement).filter.assert().isEqualTo(replacement)
+        query.assert().isInstanceOf(FilterCapable::class.java)
         query.assert().isInstanceOf(SortCapable::class.java)
     }
 

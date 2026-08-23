@@ -22,8 +22,8 @@ interface ReactiveSnapshotSingleQueryApi<S : Any> :
     SnapshotSingleQueryApi<Mono<MaterializedSnapshot<S>>, Mono<Map<String, Any>>, Mono<S>> {
     override fun getById(id: String): Mono<MaterializedSnapshot<S>> {
         singleQuery {
-            condition {
-                id(id)
+            filter {
+                "aggregateId" eq id
             }
         }.let {
             return single(it).switchNotFoundToEmpty()
@@ -32,8 +32,8 @@ interface ReactiveSnapshotSingleQueryApi<S : Any> :
 
     override fun getStateById(id: String): Mono<S> {
         singleQuery {
-            condition {
-                id(id)
+            filter {
+                "aggregateId" eq id
             }
         }.let {
             return singleState(it).switchNotFoundToEmpty()

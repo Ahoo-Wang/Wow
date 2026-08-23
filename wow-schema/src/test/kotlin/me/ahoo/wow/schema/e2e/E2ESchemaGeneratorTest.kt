@@ -21,14 +21,8 @@ import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.example.api.order.CreateOrder
 import me.ahoo.wow.example.api.order.OrderCreated
 import me.ahoo.wow.example.domain.cart.Cart
-import me.ahoo.wow.example.domain.order.Order
 import me.ahoo.wow.schema.SchemaGeneratorBuilder
 import me.ahoo.wow.schema.typed.AggregatedDomainEventStream
-import me.ahoo.wow.schema.typed.AggregatedFields
-import me.ahoo.wow.schema.typed.query.AggregatedCondition
-import me.ahoo.wow.schema.typed.query.AggregatedListQuery
-import me.ahoo.wow.schema.typed.query.AggregatedPagedQuery
-import me.ahoo.wow.schema.typed.query.AggregatedSingleQuery
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
@@ -64,31 +58,6 @@ class E2ESchemaGeneratorTest {
                     AggregatedDomainEventStream::class.java,
                     Cart::class.java,
                     "CartAggregatedDomainEventStream"
-                ),
-                Arguments.of(
-                    AggregatedFields::class.java,
-                    Order::class.java,
-                    "OrderAggregatedFields"
-                ),
-                Arguments.of(
-                    AggregatedCondition::class.java,
-                    Order::class.java,
-                    "OrderAggregatedCondition"
-                ),
-                Arguments.of(
-                    AggregatedListQuery::class.java,
-                    Order::class.java,
-                    "OrderAggregatedListQuery"
-                ),
-                Arguments.of(
-                    AggregatedPagedQuery::class.java,
-                    Order::class.java,
-                    "OrderAggregatedPagedQuery"
-                ),
-                Arguments.of(
-                    AggregatedSingleQuery::class.java,
-                    Order::class.java,
-                    "OrderAggregatedSingleQuery"
                 ),
             )
         }

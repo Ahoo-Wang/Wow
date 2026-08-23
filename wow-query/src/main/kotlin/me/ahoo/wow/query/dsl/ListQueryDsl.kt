@@ -48,6 +48,6 @@ class ListQueryDsl : QueryableDsl<IListQuery>() {
     }
 
     override fun build(): IListQuery {
-        return ListQuery(condition, projection, sort, limit)
+        return ListQuery(filter, projection, sort, limit)
     }
 }

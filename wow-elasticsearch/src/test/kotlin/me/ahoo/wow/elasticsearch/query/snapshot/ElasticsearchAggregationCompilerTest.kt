@@ -29,9 +29,9 @@ import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
+import me.ahoo.wow.query.dsl.filter
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
@@ -39,7 +39,7 @@ class ElasticsearchAggregationCompilerTest {
     @Test
     fun `should compile every portable group and metric`() {
         val query = AggregationQuery(
-            condition = Condition.eq("state.name", "Wow"),
+            filter = filter { "state.name" eq "Wow" },
             groupBy = listOf(
                 AggregationGroup.Terms("state.name", "name"),
                 AggregationGroup.Histogram("state.amount", "amountBand", 10.0),
@@ -178,9 +178,9 @@ class ElasticsearchAggregationCompilerTest {
     }
 
     @Test
-    fun `should compile nested element conditions`() {
+    fun `should compile nested element filters`() {
         val query = AggregationQuery(
-            elements = listOf(AggregationElement("state.items", Condition.eq("state.items.status", "PAID"))),
+            elements = listOf(AggregationElement("state.items", filter { "state.items.status" eq "PAID" })),
             metrics = listOf(AggregationMetric.Count("count")),
         )
         val plan = ElasticsearchAggregationCompiler.compile(query, mapping(), SnapshotConditionConverter)

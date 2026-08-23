@@ -24,13 +24,19 @@ import me.ahoo.wow.api.abac.wildcard
 import me.ahoo.wow.api.query.AggregationElement
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Operator
+import me.ahoo.wow.api.query.toCondition
 import me.ahoo.wow.filter.FilterChain
+import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.query.filter.DefaultQueryContext
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.snapshot.filter.AbacQueryFilter.Companion.toCondition
+import me.ahoo.wow.query.snapshot.filter.AbacQueryFilter.Companion.toFilterExpression
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
@@ -80,6 +86,19 @@ class AbacQueryFilterTest {
     }
 
     @Test
+    fun `empty AbacTags should return match all filter`() {
+        EMPTY_ABAC_TAGS.toFilterExpression().assert().isSameAs(MatchAllFilter)
+    }
+
+    @Test
+    fun `non-empty AbacTags should return AND filter`() {
+        val filter = mapOf("dept" to listOf("eng"), "role" to listOf("admin")).toFilterExpression()
+
+        filter.assert().isInstanceOf(AndFilter::class.java)
+        (filter as AndFilter).operands.assert().hasSize(2)
+    }
+
+    @Test
     fun `wildcard extension property should return true for wildcard value`() {
         val wildcardValue: AbacTagValue = listOf("*")
         wildcardValue.wildcard.assert().isTrue()
@@ -117,7 +136,7 @@ class AbacQueryFilterTest {
 
     @Test
     fun `filter for EmptyAbacQueryFilter`() {
-        val context = DefaultQueryContext<Condition, Any>(
+        val context = DefaultQueryContext<me.ahoo.wow.api.query.FilterExpression, Any>(
             queryType = QueryType.COUNT,
             MOCK_AGGREGATE_METADATA
         )
@@ -131,10 +150,10 @@ class AbacQueryFilterTest {
 
     @Test
     fun `filter for MockAbacQueryFilter`() {
-        val context = DefaultQueryContext<Condition, Any>(
+        val context = DefaultQueryContext<me.ahoo.wow.api.query.FilterExpression, Any>(
             queryType = QueryType.COUNT,
             MOCK_AGGREGATE_METADATA
-        ).setQuery(Condition.ALL)
+        ).setQuery(me.ahoo.wow.api.query.MatchAllFilter)
         val chain = mockk<FilterChain<QueryContext<*, *>>> {
             every {
                 filter(context)
@@ -143,22 +162,48 @@ class AbacQueryFilterTest {
         MockAbacQueryFilter.filter(context, chain).test().verifyComplete()
     }
 
+    @Suppress("DEPRECATION")
     @Test
-    fun `aggregation ABAC should rewrite only root condition`() {
-        val elementCondition = Condition.eq("state.orders.status", "PAID")
+    fun `filter should retain legacy resolveCondition overrides`() {
+        val legacyCondition = Condition.eq("state.owner", "owner-1")
+        val context = DefaultQueryContext<FilterExpression, Any>(
+            queryType = QueryType.COUNT,
+            MOCK_AGGREGATE_METADATA,
+        ).setQuery(me.ahoo.wow.api.query.MatchAllFilter)
+        val filter = object : AbacQueryFilter() {
+            override fun getPrincipalTags(
+                contextView: ContextView,
+                context: QueryContext<*, *>,
+            ): Mono<AbacTags> = EMPTY_ABAC_TAGS.toMono()
+
+            override fun resolveCondition(
+                contextView: ContextView,
+                context: QueryContext<*, *>,
+            ): Mono<Condition> = legacyCondition.toMono()
+        }
+        val chain = FilterChain<QueryContext<*, *>> {
+            (it.getQuery() as FilterExpression).toCondition().assert().isEqualTo(legacyCondition)
+            Mono.empty()
+        }
+
+        filter.filter(context, chain).test().verifyComplete()
+    }
+
+    @Test
+    fun `aggregation ABAC should rewrite only root filter`() {
+        val elementFilter = filter { "state.orders.status" eq "PAID" }
         val context = SnapshotAggregationQueryContext(
             MOCK_AGGREGATE_METADATA,
             AggregationQuery(
-                elements = listOf(AggregationElement("state.orders", elementCondition)),
+                elements = listOf(AggregationElement("state.orders", elementFilter)),
                 metrics = listOf(AggregationMetric.Count("count")),
             ),
         )
         AggregationAbacQueryFilter(listOf(MockAbacQueryFilter)).filter(
             context,
             FilterChain {
-                val rewritten = context.query
-                rewritten.condition.operator.assert().isEqualTo(Operator.AND)
-                rewritten.elements.single().condition.assert().isEqualTo(elementCondition)
+                check(context.query.filter !== MatchAllFilter)
+                context.query.elements.single().filter.assert().isEqualTo(elementFilter)
                 Mono.empty()
             },
         ).test().verifyComplete()

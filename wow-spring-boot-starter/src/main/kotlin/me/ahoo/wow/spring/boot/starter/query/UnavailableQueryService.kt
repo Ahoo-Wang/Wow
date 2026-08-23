@@ -15,8 +15,8 @@ package me.ahoo.wow.spring.boot.starter.query
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
@@ -71,7 +71,7 @@ private abstract class UnavailableQueryService<R : Any>(
 
     override fun dynamicPaged(pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>> = unavailableMono()
 
-    override fun count(condition: Condition): Mono<Long> = unavailableMono()
+    override fun count(filter: FilterExpression): Mono<Long> = unavailableMono()
 
     private fun <T : Any> unavailableMono(): Mono<T> = Mono.error(unavailable())
 

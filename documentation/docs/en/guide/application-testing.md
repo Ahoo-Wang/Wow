@@ -120,7 +120,7 @@ Protected applications should retain these negative tests:
 | --- | --- |
 | Anonymous protected command/query | `401` or `403` |
 | Forged tenant, owner, or space | rejected without expanding scope |
-| Missing principal ABAC tags | fail closed; never fall back to `Condition.all()` |
+| Missing principal ABAC tags | fail closed; never fall back to `MatchAllFilter` |
 | Cross-tenant/owner query | no unauthorized records returned |
 | Ordinary request reaches raw `*QueryServiceFactory` | no reachable entry point |
 

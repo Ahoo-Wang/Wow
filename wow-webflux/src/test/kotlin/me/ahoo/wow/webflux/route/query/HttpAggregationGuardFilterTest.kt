@@ -17,8 +17,8 @@ import me.ahoo.wow.api.query.AggregationElement
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.filter.FilterChain
+import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.query.filter.Contexts.writeRawRequest
 import me.ahoo.wow.query.snapshot.filter.SnapshotAggregationQueryContext
 import me.ahoo.wow.serialization.MessageRecords
@@ -49,7 +49,7 @@ class HttpAggregationGuardFilterTest {
     fun `zero aggregation limits should defer to public hard limits`() {
         val context = context(
             AggregationQuery(
-                condition = Condition.eq(MessageRecords.AGGREGATE_ID, "aggregate-id"),
+                filter = filter { MessageRecords.AGGREGATE_ID eq "aggregate-id" },
                 elements = listOf(AggregationElement("state.orders")),
                 groupBy = listOf(AggregationGroup.Terms("state.orders.status", "status")),
                 metrics = listOf(AggregationMetric.Count("count")),
@@ -77,7 +77,7 @@ class HttpAggregationGuardFilterTest {
     fun `sse aggregation should apply idle timeout without buffering`() {
         val context = context(
             AggregationQuery(
-                condition = Condition.id("aggregate-id"),
+                filter = filter { "_id" eq "aggregate-id" },
                 metrics = listOf(AggregationMetric.Count("count")),
             ),
         )

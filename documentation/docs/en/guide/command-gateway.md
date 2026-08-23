@@ -917,10 +917,9 @@ class ResetPwdCommandBuilderRewriter(private val queryService: SnapshotQueryServ
    override fun rewrite(commandBuilder: CommandBuilder): Mono<CommandBuilder> {
       return singleQuery {
          projection { include(Documents.ID_FIELD) }
-         condition {
-            nestedState()
-            PHONE_VERIFIED eq true
-            PHONE eq commandBuilder.bodyAs<ResetPwd>().phone
+         filter {
+            "state.$PHONE_VERIFIED" eq true
+            "state.$PHONE" eq commandBuilder.bodyAs<ResetPwd>().phone
          }
       }.dynamicQuery(queryService)
          .switchIfEmpty {

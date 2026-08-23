@@ -15,14 +15,17 @@ package me.ahoo.wow.webflux.route.query
 
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.api.query.SingleQuery
+import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.filter.Contexts.getRawRequest
 import me.ahoo.wow.query.filter.QueryHandler
@@ -41,6 +44,7 @@ import org.springframework.web.reactive.function.server.RouterFunctions.route
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 
@@ -71,6 +75,131 @@ class QueryBodyExtractorTest {
     }
 
     @Test
+    fun `should reject unknown filter fields`() {
+        val handlerFunction = CountQueryHandlerFunctionFactory(
+            handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
+            queryHandler = RouteTestFixtures.snapshotQueryHandler,
+            rewriteRequestCondition = DefaultRewriteRequestCondition,
+            exceptionHandler = WebFluxRequestExceptionHandler()
+        ).create(
+            testAggregateRouteContract(
+                handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
+                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA
+            )
+        )
+
+        WebTestClient.bindToRouterFunction(route(POST("/sku/snapshot/count"), handlerFunction)).build()
+            .post()
+            .uri("/sku/snapshot/count")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("""{"op":"MATCH_NONE","unexpected":true}""")
+            .exchange()
+            .expectStatus().isBadRequest
+            .expectHeader().valueEquals(ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
+    }
+
+    @Test
+    fun `should accept discriminator-free legacy count body when request is scoped`() {
+        val handlerFunction = CountQueryHandlerFunctionFactory(
+            handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
+            queryHandler = RouteTestFixtures.snapshotQueryHandler,
+            rewriteRequestCondition = DefaultRewriteRequestCondition,
+            exceptionHandler = WebFluxRequestExceptionHandler(),
+        ).create(
+            testAggregateRouteContract(
+                handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
+                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
+            ),
+        )
+
+        WebTestClient.bindToRouterFunction(route(POST("/sku/snapshot/count"), handlerFunction)).build()
+            .post()
+            .uri("/sku/snapshot/count")
+            .header(CommandComponent.Header.TENANT_ID, "tenant-1")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("{}")
+            .exchange()
+            .expectStatus().isOk
+    }
+
+    @Test
+    fun `should accept legacy collection equality`() {
+        val handlerFunction = CountQueryHandlerFunctionFactory(
+            handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
+            queryHandler = RouteTestFixtures.snapshotQueryHandler,
+            rewriteRequestCondition = DefaultRewriteRequestCondition,
+            exceptionHandler = WebFluxRequestExceptionHandler()
+        ).create(
+            testAggregateRouteContract(
+                handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
+                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA
+            )
+        )
+
+        WebTestClient.bindToRouterFunction(route(POST("/sku/snapshot/count"), handlerFunction)).build()
+            .post()
+            .uri("/sku/snapshot/count")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("""{"field":"state.tags","operator":"EQ","value":["a","b"]}""")
+            .exchange()
+            .expectStatus().isOk
+    }
+
+    @Test
+    fun `legacy count body should invoke Condition overload with request scope`() {
+        val captured = slot<Condition>()
+        val queryHandler = mockk<QueryHandler<Any>> {
+            every { count(any(), capture(captured)) } returns Mono.just(0)
+        }
+        val handlerFunction = CountQueryHandlerFunctionFactory(
+            handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
+            queryHandler = queryHandler,
+            rewriteRequestCondition = DefaultRewriteRequestCondition,
+            exceptionHandler = WebFluxRequestExceptionHandler(),
+        ).create(
+            testAggregateRouteContract(
+                handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
+                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
+            ),
+        )
+
+        WebTestClient.bindToRouterFunction(route(POST("/sku/snapshot/count"), handlerFunction)).build()
+            .post()
+            .uri("/sku/snapshot/count")
+            .header(CommandComponent.Header.TENANT_ID, "tenant-1")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("""{"field":"state.name","operator":"EQ","value":"Wow"}""")
+            .exchange()
+            .expectStatus().isOk
+
+        captured.captured.children.any { it.field == "tenantId" && it.value == "tenant-1" }.assert().isTrue()
+    }
+
+    @Test
+    fun `should reject collection equality in new filter payloads`() {
+        val handlerFunction = CountQueryHandlerFunctionFactory(
+            handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
+            queryHandler = RouteTestFixtures.snapshotQueryHandler,
+            rewriteRequestCondition = DefaultRewriteRequestCondition,
+            exceptionHandler = WebFluxRequestExceptionHandler()
+        ).create(
+            testAggregateRouteContract(
+                handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
+                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA
+            )
+        )
+
+        WebTestClient.bindToRouterFunction(route(POST("/sku/snapshot/count"), handlerFunction)).build()
+            .post()
+            .uri("/sku/snapshot/count")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("""{"op":"EQ","field":"state.tags","value":["a","b"]}""")
+            .exchange()
+            .expectStatus().isBadRequest
+            .expectHeader().valueEquals(ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
+    }
+
+    @Test
     fun `should extract condition via count handler`() {
         // Test condition extraction through CountQueryHandlerFunction end-to-end
         val handlerFunction = CountQueryHandlerFunctionFactory(
@@ -86,7 +215,7 @@ class QueryBodyExtractorTest {
         )
 
         val request = MockServerRequest.builder()
-            .body(Condition.ALL.toMono())
+            .body(Condition.ALL.toFilterExpression().toMono())
 
         handlerFunction.handle(request)
             .test()

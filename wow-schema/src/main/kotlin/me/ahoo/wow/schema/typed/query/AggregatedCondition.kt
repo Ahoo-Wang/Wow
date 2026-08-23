@@ -11,15 +11,18 @@
  * limitations under the License.
  */
 
+@file:Suppress("DEPRECATION")
+
 package me.ahoo.wow.schema.typed.query
 
 import com.fasterxml.jackson.annotation.JsonInclude
 import io.swagger.v3.oas.annotations.media.Schema
-import me.ahoo.wow.api.query.Condition.Companion.EMPTY_VALUE
+import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.ConditionOptions
 import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.schema.typed.AggregatedFields
 
+@Deprecated("Use FilterExpression schemas.")
 interface IAggregatedCondition<CommandAggregateType : Any> {
     @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
     val field: AggregatedFields<CommandAggregateType>
@@ -30,19 +33,16 @@ interface IAggregatedCondition<CommandAggregateType : Any> {
     @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
     val value: Any
 
-    @get:Schema(
-        defaultValue = "{}",
-        requiredMode = Schema.RequiredMode.NOT_REQUIRED,
-        implementation = ConditionOptions::class
-    )
+    @get:Schema(defaultValue = "{}", implementation = ConditionOptions::class)
     @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
     val options: Map<String, Any>
 }
 
+@Deprecated("Use FilterExpression schemas.")
 data class AggregatedCondition<CommandAggregateType : Any>(
     override val field: AggregatedFields<CommandAggregateType> = AggregatedFields.empty(),
     override val operator: Operator = Operator.ALL,
-    override val value: Any = EMPTY_VALUE,
+    override val value: Any = Condition.EMPTY_VALUE,
     @get:Schema(defaultValue = "[]")
     @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
     val children: List<AggregatedCondition<CommandAggregateType>> = emptyList(),

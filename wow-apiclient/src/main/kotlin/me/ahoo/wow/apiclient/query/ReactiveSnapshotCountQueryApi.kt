@@ -14,10 +14,16 @@
 package me.ahoo.wow.apiclient.query
 
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.FilterExpression
 import reactor.core.publisher.Mono
 
 interface ReactiveSnapshotCountQueryApi : SnapshotCountQueryApi<Mono<Long>>
 
+fun FilterExpression.count(snapshotQueryApi: ReactiveSnapshotCountQueryApi): Mono<Long> {
+    return snapshotQueryApi.count(this)
+}
+
+@Deprecated("Use FilterExpression.count.")
 fun Condition.count(snapshotQueryApi: ReactiveSnapshotCountQueryApi): Mono<Long> {
     return snapshotQueryApi.count(this)
 }

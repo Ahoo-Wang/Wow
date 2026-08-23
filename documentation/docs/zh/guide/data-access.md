@@ -325,7 +325,7 @@ class OrderState(
 
 查询快照时，`AbacQueryFilter` 根据主体的标签自动注入权限过滤条件。匹配规则如下：
 
-`AbacQueryFilter` 是抽象扩展点，不会仅因启用 Wow、WebFlux 或 CoSec 自动出现。应用未注册该 Bean、返回空标签或返回 `Mono.empty()` 时，默认条件是 `Condition.all()`，即不增加 ABAC 限制。受保护的查询必须在缺少安全上下文或主体标签时显式拒绝请求。
+`AbacQueryFilter` 是抽象扩展点，不会仅因启用 Wow、WebFlux 或 CoSec 自动出现。应用未注册该 Bean、返回空标签或返回 `Mono.empty()` 时，默认使用 `MatchAllFilter`，即不增加 ABAC 限制。受保护的查询必须在缺少安全上下文或主体标签时显式拒绝请求。
 
 | 主体标签 | 资源标签 | 结果 |
 |---------|---------|------|

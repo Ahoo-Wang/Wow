@@ -825,7 +825,7 @@ CoSec extractor 把 request ID 和 space ID Header 写入命令 builder。
 `AbacQueryFilter` 把 principal tag 转换为查询条件。
 
 principal tag 解析是抽象方法，必须由集成实现。
-空 tag 集解析为 `Condition.all()`。
+空 tag 集解析为 `MatchAllFilter`。
 因此仅存在该过滤器不能证明查询已认证或受限。
 来源：[AbacQueryFilter](https://github.com/Ahoo-Wang/Wow/blob/main/wow-query/src/main/kotlin/me/ahoo/wow/query/snapshot/filter/AbacQueryFilter.kt#L33-L130)。
 

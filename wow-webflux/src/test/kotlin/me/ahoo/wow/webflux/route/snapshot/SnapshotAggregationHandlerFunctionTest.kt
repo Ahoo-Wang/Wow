@@ -30,12 +30,37 @@ import org.springframework.http.MediaType
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import org.springframework.mock.web.server.MockServerWebExchange
+import org.springframework.test.web.reactive.server.WebTestClient
 import org.springframework.web.reactive.function.server.HandlerStrategies
+import org.springframework.web.reactive.function.server.RequestPredicates.POST
+import org.springframework.web.reactive.function.server.RouterFunctions.route
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 
 class SnapshotAggregationHandlerFunctionTest {
+    @Test
+    fun `should reject legacy condition payload`() {
+        val handler = SnapshotAggregationHandlerFunctionFactory(
+            RouteTestFixtures.snapshotQueryHandler,
+            DefaultRewriteRequestCondition,
+            WebFluxRequestExceptionHandler(),
+        ).create(
+            testAggregateRouteContract(
+                handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.AGGREGATION,
+                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
+            ),
+        )
+
+        WebTestClient.bindToRouterFunction(route(POST("/sku/snapshot/aggregation"), handler)).build()
+            .post()
+            .uri("/sku/snapshot/aggregation")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("""{"condition":{"operator":"ALL"},"metrics":[{"type":"COUNT","alias":"count"}]}""")
+            .exchange()
+            .expectStatus().isBadRequest
+    }
+
     @Test
     fun `should handle json and sse aggregation requests`() {
         val handler = SnapshotAggregationHandlerFunctionFactory(

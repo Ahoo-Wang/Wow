@@ -160,28 +160,26 @@ val state = queryApi.getStateById("order-001").block()
 // 分页查询：接收 IPagedQuery（Pagination 从 1 开始）；返回 Mono<PagedList<...>>
 val paged = queryApi.paged(
     PagedQuery(
-        condition = Condition.all(),
+        filter = MatchAllFilter,
         pagination = Pagination(index = 1, size = 10),
     ),
 ).block()
 
-// 计数：接收 Condition；返回 Mono<Long>
-val total = queryApi.count(Condition.all()).block()
+// 计数：接收 FilterExpression；返回 Mono<Long>
+val total = queryApi.count(MatchAllFilter).block()
 
 // 快照聚合：返回 Flux<Map<String, Any?>>
 val rows = queryApi.aggregate(
     AggregationQuery(
-        condition = Condition.eq("state.status", "CREATED"),
+        filter = filter { "state.status" eq "CREATED" },
         metrics = listOf(AggregationMetric.Count("count")),
     ),
 ).collectList().block()
 ```
 
-聚合能力通过独立的 `ReactiveSnapshotAggregationQueryApi` 暴露；同步版本通过
-`SynchronousSnapshotAggregationQueryApi` 返回 `List<Map<String, Any?>>`。现有组合式 Snapshot Client
-接口保持不变，避免破坏自定义实现。
-完整 Elements、JSON discriminator、结果和排序语义参见
-[快照 Elements 聚合](../query.md#快照-elements-聚合)。
+聚合能力由独立的 `ReactiveSnapshotAggregationQueryApi` 暴露；同步接口返回
+`List<Map<String, Any?>>`。聚合只接受 `FilterExpression`，这个新端点不支持旧 `Condition` 请求体。
+完整合同参见[快照 Elements 聚合](../query.md#快照-elements-聚合)。
 
 ### 同步查询 API
 

@@ -13,15 +13,14 @@
 
 package me.ahoo.wow.elasticsearch.query.event
 
-import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
+import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchConditionConverter
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchQueryService
 import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.query.converter.ConditionConverter
 import me.ahoo.wow.query.event.EventStreamQueryService
 import me.ahoo.wow.serialization.convert
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
@@ -30,7 +29,7 @@ import java.time.Duration
 class ElasticsearchEventStreamQueryService(
     override val namedAggregate: NamedAggregate,
     override val elasticsearchClient: ReactiveElasticsearchClient,
-    override val conditionConverter: ConditionConverter<Query> = EventStreamConditionConverter
+    override val conditionConverter: AbstractElasticsearchConditionConverter = EventStreamConditionConverter
 ) : AbstractElasticsearchQueryService<DomainEventStream>(), EventStreamQueryService {
     private var configuredQueryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE
     private var configuredQueryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE
@@ -38,7 +37,7 @@ class ElasticsearchEventStreamQueryService(
     constructor(
         namedAggregate: NamedAggregate,
         elasticsearchClient: ReactiveElasticsearchClient,
-        conditionConverter: ConditionConverter<Query>,
+        conditionConverter: AbstractElasticsearchConditionConverter,
         queryBatchSize: Int,
         queryKeepAlive: Duration,
     ) : this(namedAggregate, elasticsearchClient, conditionConverter) {

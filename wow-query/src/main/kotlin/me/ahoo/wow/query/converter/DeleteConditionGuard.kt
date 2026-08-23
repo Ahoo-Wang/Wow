@@ -16,6 +16,7 @@ package me.ahoo.wow.query.converter
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.Operator
 
+@Deprecated("Legacy Condition compatibility only.")
 object DeleteConditionGuard {
     fun Condition.guard(): Condition {
         return when (this.operator) {

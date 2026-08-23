@@ -1,462 +1,230 @@
 ---
 title: 查询服务
-description: 通过 wow-mongo 和 wow-elasticsearch 模块提供的查询服务能力。
+description: 使用 FilterExpression、查询 DSL 与 REST API 查询快照和事件流。
 ---
 
 # 查询服务
 
-:::tip
-目前 `wow-mongo` 模块 与 `wow-elasticsearch` 模块支持查询服务。
-:::
+`wow-mongo` 与 `wow-elasticsearch` 提供查询服务实现。查询 API 使用单层 `FilterExpression` 描述过滤语义；存储模块负责将其编译为后端查询。
 
-## 操作符
+## FilterExpression
 
-| 操作符           | 描述                                                                                                                                  |
-|---------------|-------------------------------------------------------------------------------------------------------------------------------------|
-| AND           | 对提供的条件列表执行逻辑与                                                                                                                       |
-| OR            | 对提供的条件列表执行逻辑或                                                                                                                       |
-| NOR           | 对提供的条件列表执行逻辑或非                                                                                                                      |
-| ID            | 匹配`id`字段值等于指定值的所有文档                                                                                                                 |
-| IDS           | 匹配`id`字段值等于指定值列表中的任何值的所有文档                                                                                                          |
-| AGGREGATE_ID  | 匹配聚合根ID等于指定值的文档                                                                                                                     |
-| AGGREGATE_IDS | 匹配聚合根ID等于指定值列表中的任何值的所有文档                                                                                                            |
-| TENANT_ID     | 匹配`tenantId`字段值等于指定值的所有文档                                                                                                           |
-| OWNER_ID      | 匹配`ownerId`字段值等于指定值的所有文档                                                                                                            |
-| SPACE_ID      | 匹配`spaceId`字段值等于指定值的所有文档                                                                                                            |
-| DELETED       | 匹配`deleted`字段值等于指定值的所有文档                                                                                                            |
-| ALL           | 匹配所有文档                                                                                                                              |
-| EQ            | 匹配字段名称值等于指定值的所有文档                                                                                                                   |
-| NE            | 匹配字段名称值不等于指定值的所有文档                                                                                                                  |
-| GT            | 匹配给定字段的值大于指定值的所有文档                                                                                                                  |
-| LT            | 匹配给定字段的值小于指定值的所有文档                                                                                                                  |
-| GTE           | 匹配给定字段的值大于或等于指定值的所有文档                                                                                                               |
-| LTE           | 匹配给定字段的值小于或等于指定值的所有文档                                                                                                               |
-| CONTAINS      | 匹配给定字段的值包含指定值的所有文档                                                                                                                  |
-| IN            | 匹配字段值等于指定值列表中的任何值的所有文档                                                                                                              |
-| NOT_IN        | 匹配字段值不等于任何指定值或不存在的所有文档                                                                                                              |
-| BETWEEN       | 匹配字段值在指定值范围区间的所有文档                                                                                                                  |
-| ALL_IN        | 匹配所有文档，其中字段值是包含所有指定值的数组                                                                                                             |
-| STARTS_WITH   | 匹配字段值以指定字符串开头的文档                                                                                                                    |
-| ENDS_WITH     | 匹配字段值以指定字符串结尾的文档                                                                                                                    |
-| MATCH         | 全文匹配。与后端相关：MongoDB 使用 `text` 在已配置的文本索引上检索；Elasticsearch 使用 `match` 在指定字段上检索                                                                  |
-| ELEM_MATCH    | 条件与包含数组字段的所有文档相匹配，其中数组中至少有一个成员与给定的条件匹配。                                                                                             |
-| NULL          | 匹配字段值在指定值为`null`的所有文档                                                                                                               |
-| NOT_NULL      | 匹配字段值在指定值不为`null`的所有文档                                                                                                              |
-| TRUE          | 匹配字段值在指定值为`true`的所有文档                                                                                                               |
-| FALSE         | 匹配字段值在指定值为`false`的所有文档                                                                                                              |
-| EXISTS        | 匹配文档是否存在字段                                                                                                                          |
-| RAW           | 原始操作符，将条件值直接作为原始的数据库查询条件                                                                                                            |
-| TODAY         | 匹配字段在今天范围区间的所有文档。比如：`today` 为 `2024-06-06`，匹配范围 `2024-06-06 00:00:00.000` ~ `2024-06-06 23:59:59.999` 的所有文档                         |
-| BEFORE_TODAY  | 匹配字段在今天_time_之前的所有文档                                                                                                                |
-| TOMORROW      | 匹配字段在明天范围区间的所有文档。比如：`today` 为 `2024-06-06`，匹配范围 `2024-06-07 00:00:00.000` ~ `2024-06-07 23:59:59.999` 的所有文档                         |
-| THIS_WEEK     | 匹配字段在本周范围区间的所有文档                                                                                                                    |
-| NEXT_WEEK     | 匹配字段在下周范围区间的所有文档                                                                                                                    |
-| LAST_WEEK     | 匹配字段在上周范围区间的所有文档                                                                                                                    |
-| THIS_MONTH    | 匹配字段在本月范围区间的所有文档。比如：`today` : `2024-06-06`，匹配范围 : `2024-06-01 00:00:00.000` ~ `2024-06-30 23:59:59.999` 的所有文档                       |
-| LAST_MONTH    | 匹配字段在上月范围区间的所有文档。比如：`today` : `2024-06-06`，匹配范围 : `2024-05-01 00:00:00.000` ~ `2024-05-31 23:59:59.999` 的所有文档                       |
-| RECENT_DAYS   | 匹配字段在指定值最近天数范围区间的所有文档。比如：`today` : `2024-06-06`，近三天，匹配范围 : `2024-06-04 00:00:00.000` ~ `2024-06-06 23:59:59.999` 的所有文档。即 : 今天、昨天、前天 |
-| EARLIER_DAYS  | 匹配字段在指定值之前天数范围的所有文档。比如：`today` : `2024-06-06`，前三天，匹配范围 : 小于`2024-06-04 00:00:00.000`的所有文档                                           |
+`FilterExpression` 是密封接口。每个表达式只使用 `op` 作为 JSON 类型判别字段，不再同时声明 `type` 与 `operator`。
 
-:::info Elasticsearch 字符串字段
-`CONTAINS`、`STARTS_WITH` 和 `ENDS_WITH` 是字面量操作，在 Elasticsearch 中应作用于 `keyword`、`wildcard` 等 term-level 字段；`*`、`?` 和 `\` 按普通字符匹配，三者均支持 `ignoreCase`。全文检索请使用 `MATCH`。
-:::
-
-## Query DSL
-
-`Query DSL` 旨在提供一种简洁而灵活的方式来构建查询条件。
-
-### ConditionDsl
-
-```kotlin
-condition {
-    deleted(DeletionState.ALL)
-    and {
-        tenantId("tenantId")
-        all()
-    }
-    nor {
-        all()
-    }
-    id("id")
-    ids("id", "id2")
-    "field1" eq "value1"
-    "field2" ne "value2"
-    "filed3" gt 1
-    "field4" lt 1
-    "field5" gte 1
-    "field6" lte 1
-    "field7" contains "value7"
-    "field8" isIn listOf("value8")
-    "field9" notIn listOf("value9")
-    "field10" between (1 to 2)
-    "field100" between 1 to 2
-    "field11" all listOf("value11")
-    "field12" startsWith "value12"
-    "field12" endsWith "value12"
-    "field13" elemMatch {
-        "field14" eq "value14"
-    }
-    "field15".isNull()
-    "field16".notNull()
-    "field17".isTrue()
-    "field18".isFalse()
-    and {
-        "field3" eq "value3"
-        "field4" eq "value4"
-    }
-    or {
-        "field3" eq "value3"
-        "field4" eq "value4"
-    }
-    "field19".today()
-    "field20".tomorrow()
-    "field21".thisWeek()
-    "field22".nextWeek()
-    "field23".lastWeek()
-    "field24".thisMonth()
-    "field25".lastMonth()
-    "field26".recentDays(1)
-    raw("1=1")
-    "state" nested {
-        "field27" eq "value27"
-        "field28" eq "value28"
-        "child" nested {
-            "field29" eq "value29"
-        }
-        nested("")
-        "field30" eq "value30"
-    }
-}
-```
-
-### SortDsl
-
-```kotlin
-sort {
-    "field1".asc()
-    "field2".desc()
-}
-```
-
-### PaginationDsl
-
-```kotlin
-pagination {
-    index(1)
-    size(1)
-}
-```
-
-### ProjectionDsl
-
-```kotlin
-projection {
-    include("field1")
-    exclude("field2")
-}
-```
-
-### ListQueryDsl
-
-```kotlin
-listQuery {
-    limit(1)
-    sort {
-        "field1".asc()
-    }
-    condition {
-        "field1" eq "value1"
-        "field2" eq "value2"
-        and {
-            "field3" eq "value3"
-        }
-        or {
-            "field4" eq "value4"
-        }
-    }
-}
-```
-
-### PagedQueryDsl
-
-```kotlin
-pagedQuery {
-    pagination {
-        index(1)
-        size(10)
-    }
-    sort {
-        "field1".asc()
-    }
-    condition {
-        "field1" eq "value1"
-        "field2" ne "value2"
-        "filed3" gt 1
-        "field4" lt 1
-        "field5" gte 1
-        "field6" lte 1
-        "field7" contains "value7"
-        "field8" isIn listOf("value8")
-        "field9" notIn listOf("value9")
-        "field10" between (1 to 2)
-        "field11" all listOf("value11")
-        "field12" startsWith "value12"
-        "field13" elemMatch {
-            "field14" eq "value14"
-        }
-        "field15".isNull()
-        "field16".notNull()
-        and {
-            "field3" eq "value3"
-            "field4" eq "value4"
-        }
-        or {
-            "field3" eq "value3"
-            "field4" eq "value4"
-        }
-    }
-}
-```
-
-## 执行查询
-
-```kotlin
-listQuery {
-    limit(1)
-    sort {
-        "field1".asc()
-    }
-    condition {
-        "field1" eq "value1"
-        and {
-            "field3" eq "value3"
-        }
-        or {
-            "field4" eq "value4"
-        }
-    }
-}.query(queryService)
-```
-
-## 执行分页查询
-
-```kotlin
-pagedQuery {
-    pagination {
-        index(1)
-        size(10)
-    }
-    sort {
-        "field1".asc()
-    }
-    condition {
-        and {
-            "field3" eq "value3"
-            "field4" startsWith "value4"
-        }
-        or {
-            "field3" eq "value3"
-            "field4" startsWith "value4"
-        }
-    }
-}.query(queryService)
-```
-
-## 重写查询
-
-```kotlin
-@Component
-@Order(ORDER_FIRST)
-@FilterType(SnapshotQueryHandler::class)
-class DataFilterSnapshotQueryFilter : SnapshotQueryFilter {
-
-    override fun filter(
-        context: QueryContext<*, *>,
-        next: FilterChain<QueryContext<*, *>>,
-    ): Mono<Void> {
-
-        return Mono.deferContextual {
-            /**
-             * 重写查询，将仓库ID附加到查询条件中。
-             */
-            context.asRewritableQuery().rewriteQuery { query ->
-                val warehouseIdCondition = condition {
-                    nestedState()
-                    WarehouseIdCapable::warehouseId.name eq warehouseId
-                }
-                query.appendCondition(warehouseIdCondition)
-            }
-            next.filter(context)
-        }
-    }
-}
-```
-
-## OpenAPI
-
-**Wow** 除了为命令(`Command`)自动生成了 _OpenAPI_ 端点，另外还提供了查询(`Query`) _OpenAPI_ 端点。
-这意味着开发人员通常只需专注于编写领域模型，即可完成服务开发，而无需费心处理查询逻辑的实现，极大提升了开发效率。
-
-以下示例使用 `tenant-1` 的 `sales-order` 聚合，依次演示五种查询入口。
-
-![Query Service](/images/query/open-api-query.png)
-
-### 分页查询
-
-::: code-group
-
-```shell [OpenAPI]
-  curl -X 'POST' \
-  'http://localhost:8080/tenant/tenant-1/sales-order/snapshot/paged' \
-  -H 'accept: application/json' \
-  -H 'Content-Type: application/json' \
-  -H 'Wow-Space-Id: space-1' \
-  -d '{
-  "sort": [
-    {
-      "field": "_id",
-      "direction": "DESC"
-    }
-  ],
-  "pagination": {
-    "index": 1,
-    "size": 10
-  },
-  "condition": {
-    "field": "state.status",
-    "operator": "EQ",
-    "value": "CREATED",
-    "children": []
-  }
-}'
-```
-
-```json [响应（已省略部分字段）]
+```json
 {
-  "total": 1,
-  "list": [
-    {
-      "aggregateId": "order-1",
-      "tenantId": "tenant-1",
-      "version": 3,
-      "state": {
-        "id": "order-1",
-        "status": "CREATED"
-      }
-    }
+  "op": "AND",
+  "operands": [
+    { "op": "EQ", "field": "state.status", "value": "CREATED" },
+    { "op": "DELETION", "state": "ACTIVE" }
   ]
 }
 ```
 
-```typescript [Typescript]
-import { eq } from "@ahoo-wang/fetcher-wow";
+### 操作符
 
-eq("state.status", "CREATED")
+| 分类 | `op` | 主要字段 | 说明 |
+|---|---|---|---|
+| 常量 | `MATCH_ALL`、`MATCH_NONE` | - | 匹配全部或不匹配任何记录 |
+| 逻辑 | `AND`、`OR`、`NOR` | `operands` | `operands` 至少包含一个表达式 |
+| 比较 | `EQ`、`NE`、`GT`、`GTE`、`LT`、`LTE` | `field`、`value` | `EQ`、`NE` 允许 `null`，并规范化为判空表达式 |
+| 字符串 | `CONTAINS`、`STARTS_WITH`、`ENDS_WITH` | `field`、`value`、`stringComparison` | `stringComparison` 默认为 `CASE_SENSITIVE` |
+| 集合 | `IN`、`NOT_IN`、`CONTAINS_ALL` | `field`、`values` | `values` 非空且元素不能为 `null` |
+| 范围 | `BETWEEN` | `field`、`lowerBound`、`upperBound` | 两个边界都包含在范围内 |
+| 空值与存在性 | `IS_EMPTY`、`IS_NULL`、`IS_NOT_NULL`、`EXISTS`、`NOT_EXISTS` | `field` | 按各后端原生的存在性与空值语义编译 |
+| 删除状态 | `DELETION` | `state` | `ACTIVE`、`DELETED` 或 `ALL`；删除状态本身也是过滤器 |
+| 数组元素 | `ELEMENT_MATCH` | `field`、`predicate` | `predicate` 内不允许 `DELETION` 或 `SEARCH` |
+| 全文搜索 | `SEARCH` | `query`、`fields` | `query` 不能为空；具体字段能力由后端决定 |
+| 相对时间 | `TODAY`、`BEFORE_TODAY`、`TOMORROW`、`THIS_WEEK`、`NEXT_WEEK`、`LAST_WEEK`、`THIS_MONTH`、`LAST_MONTH`、`RECENT_DAYS`、`EARLIER_DAYS` | `field`；特定操作使用 `time` 或 `days`；可选 `zoneId` | 执行前统一规范化为绝对时间范围 |
+
+`field` 是逻辑字段路径。合法示例：
+
+```text
+state.status
+state.items.0.productId
 ```
 
+字段段以字母或下划线开头，可包含字母、数字、下划线和连字符；数组索引允许使用纯数字段。物理字段映射由 MongoDB 或 Elasticsearch 查询实现负责。
+
+快照查询默认使用 `DELETION = ACTIVE`。顶层 `DELETION`，或顶层 `AND` 的直接 `DELETION` 子项，可以显式覆盖该范围；嵌套在 `OR` 或 `NOR` 中的删除过滤器不会关闭 active guard。事件流查询不会自动追加删除状态过滤，以保证审计事件完整。
+
+:::info 后端差异
+MongoDB 的 `SEARCH` 使用集合文本索引，不会把查询限制到 `fields`；Elasticsearch 可解析搜索字段和多字段映射。`ELEMENT_MATCH` 的子字段建议使用相对路径，以同时兼容 MongoDB 与 Elasticsearch。
 :::
 
-### 查询
+## Kotlin DSL
 
-::: code-group
+使用 `filterExpression` 构造独立过滤器：
 
-```shell [OpenAPI]
-  curl -X 'POST' \
-  'http://localhost:8080/tenant/tenant-1/sales-order/snapshot/list' \
-  -H 'accept: application/json' \
-  -H 'Content-Type: application/json' \
-  -H 'Wow-Space-Id: space-1' \
-  -d '{
-  "sort": [
-    {
-      "field": "_id",
-      "direction": "DESC"
+```kotlin
+val orderFilter = filterExpression {
+    deletion(DeletionState.ACTIVE)
+    "state.status" eq "CREATED"
+    "state.totalAmount" gte 100
+    "state.customerName".contains(
+        "wang",
+        StringComparison.CASE_INSENSITIVE,
+    )
+    "state.tags" containsAll listOf("priority", "online")
+    "state.items".elementMatch {
+        "productId" eq "product-1"
+        "quantity" gt 0
     }
-  ],
-  "limit": 1,
-  "condition": {
-    "field": "state.status",
-    "operator": "EQ",
-    "value": "CREATED",
-    "children": []
-  }
-}'
+}
 ```
 
-```json [响应（已省略部分字段）]
-[
-  {
-    "aggregateId": "order-1",
-    "tenantId": "tenant-1",
-    "version": 3,
-    "state": {
-      "id": "order-1",
-      "status": "CREATED"
+同一 DSL 块内的多个表达式自动组合为 `AND`。需要显式逻辑关系时使用 `and`、`or` 或 `nor`：
+
+```kotlin
+val filter = filterExpression {
+    or {
+        "state.status" eq "CREATED"
+        "state.status" eq "PAID"
     }
-  }
-]
+    nor {
+        "state.channel" eq "TEST"
+    }
+}
 ```
 
-:::
+### 查询 DSL
 
-### 计数(`Count`)
+`singleQuery`、`listQuery` 和 `pagedQuery` 统一使用 `filter {}`：
 
-::: code-group
+```kotlin
+val query = pagedQuery {
+    filter {
+        "state.status" eq "CREATED"
+        "state.createTime".recentDays(7, ZoneId.of("Asia/Shanghai"))
+    }
+    projection {
+        include("aggregateId")
+        include("state.status")
+    }
+    sort {
+        "state.createTime".desc()
+    }
+    pagination {
+        index(1)
+        size(20)
+    }
+}
 
-```shell [OpenAPI]
-  curl -X 'POST' \
-  'http://localhost:8080/tenant/tenant-1/sales-order/snapshot/count' \
-  -H 'accept: application/json' \
-  -H 'Content-Type: application/json' \
-  -H 'Wow-Space-Id: space-1' \
-  -d '{
-    "field": "state.status",
-    "operator": "EQ",
-    "value": "CREATED",
-    "children": []
-  }'
+query.query(queryService)
 ```
 
-```json [响应]
-1
+`ListQuery.limit = 0` 表示不限制结果数量；HTTP 查询仍会受到 WebFlux 查询成本保护配置约束。
+
+### 重写查询
+
+查询过滤器通过 `withFilter` 或 `appendFilter` 重写，不再操作内部 `Condition`：
+
+```kotlin
+context.asRewritableQuery().rewriteQuery { query ->
+    val warehouseFilter = filterExpression {
+        "state.warehouseId" eq warehouseId
+    }
+    query.appendFilter(warehouseFilter)
+}
 ```
 
-:::
+## REST API
 
-### 获取单个模型
+### 分页查询
 
-::: code-group
-
-```shell [OpenAPI]
-  curl -X 'POST' \
-  'http://localhost:8080/tenant/tenant-1/sales-order/snapshot/single' \
-  -H 'accept: application/json' \
-  -H 'Content-Type: application/json' \
-  -H 'Wow-Space-Id: space-1' \
-  -d '{
-  "sort": [],
-  "condition": {
-    "field": "_id",
-    "operator": "EQ",
-    "value": "order-1",
-    "children": []
-  }
-}'
+```http
+POST /tenant/tenant-1/sales-order/snapshot/paged
+Content-Type: application/json
+Wow-Space-Id: space-1
 ```
 
-```json [响应（已省略部分字段）]
+```json
 {
-  "aggregateId": "order-1",
-  "tenantId": "tenant-1",
-  "version": 3,
-  "state": {
-    "id": "order-1",
-    "status": "CREATED"
+  "filter": {
+    "op": "AND",
+    "operands": [
+      { "op": "EQ", "field": "state.status", "value": "CREATED" },
+      { "op": "DELETION", "state": "ACTIVE" }
+    ]
+  },
+  "projection": {
+    "include": ["aggregateId", "state.status"]
+  },
+  "sort": [
+    { "field": "state.createTime", "direction": "DESC" }
+  ],
+  "pagination": {
+    "index": 1,
+    "size": 20
   }
 }
 ```
 
-:::
+### 列表与单条查询
+
+列表和单条查询同样使用 `filter`。列表请求使用 `limit`，单条请求不需要分页字段：
+
+```json
+{
+  "filter": { "op": "EQ", "field": "aggregateId", "value": "order-1" },
+  "limit": 1,
+  "sort": []
+}
+```
+
+### 计数
+
+计数请求体就是一个 `FilterExpression`，外层没有 `filter`：
+
+```http
+POST /tenant/tenant-1/sales-order/snapshot/count
+Content-Type: application/json
+```
+
+```json
+{
+  "op": "EQ",
+  "field": "state.status",
+  "value": "CREATED"
+}
+```
+
+新格式执行严格反序列化：未知字段、缺少必填字段、空逻辑操作数、非法逻辑字段或不符合类型约束的值都会返回请求错误。
+
+## 兼容与迁移
+
+旧 `Condition`、`Operator`、`ConditionDsl`、`ConditionCapable` 和 `RewritableCondition` 保留但已标记弃用。旧查询构造器以及 `QueryService.count(Condition)` 仍会把 `Condition` 转换为 `FilterExpression`。
+
+REST 迁移期间：
+
+- `single`、`list`、`paged` 请求必须且只能提供 `filter` 或 `condition` 之一；
+- `count` 请求必须且只能提供新格式的 `op` 或旧格式的 `operator` 之一；
+- OpenAPI 只发布新的 `FilterExpression` 格式；
+- 旧 `condition` 请求仍可读取，但新客户端应立即改用 `filter`；
+- `RAW` 已删除且没有替代操作符。需要后端原生查询时，应由应用自有端点和安全策略负责。
+
+旧格式示例：
+
+```json
+{
+  "condition": {
+    "field": "state.status",
+    "operator": "EQ",
+    "value": "CREATED"
+  },
+  "limit": 20
+}
+```
+
+## JSON Schema
+
+规范文件：
+
+- [`filter-expression.schema.json`](https://github.com/Ahoo-Wang/Wow/blob/main/schema/query/v2/filter-expression.schema.json)
+- [`single-query.schema.json`](https://github.com/Ahoo-Wang/Wow/blob/main/schema/query/v2/single-query.schema.json)
+- [`list-query.schema.json`](https://github.com/Ahoo-Wang/Wow/blob/main/schema/query/v2/list-query.schema.json)
+- [`paged-query.schema.json`](https://github.com/Ahoo-Wang/Wow/blob/main/schema/query/v2/paged-query.schema.json)
+- [`count-query.schema.json`](https://github.com/Ahoo-Wang/Wow/blob/main/schema/query/v2/count-query.schema.json)
 
 ## 快照 Elements 聚合
 
@@ -468,9 +236,9 @@ eq("state.status", "CREATED")
 
 ```kotlin
 aggregationQuery {
-    condition { "state.status" eq "CREATED" }
+    filter { "state.status" eq "CREATED" }
     expand("state.items") {
-        condition { "quantity" gt 0 }
+        filter { "quantity" gt 0 }
         groupBy("productId", "productId")
         sum("totalPrice", "totalAmount")
         count("lineCount")
@@ -485,8 +253,9 @@ aggregationQuery {
 
 ### HTTP JSON
 
-直接构造 Kotlin 模型或发送 JSON 时，Elements、条件、分组和指标中的字段都必须使用绝对路径。
+直接构造 Kotlin 模型或发送 JSON 时，Elements、过滤器、分组和指标中的字段都必须使用绝对路径。
 `type` 是 Group、Metric 和 Expression 的 Jackson discriminator。
+这个新聚合端点只接受 `filter`，旧 `condition` 请求会被拒绝。
 生成的 OpenAPI 会分别给出 Elements、Terms、Numeric 与 Temporal 字段枚举，避免客户端选择运行时必然拒绝的字段类型。
 以下示例包含 Elements 和指标排序，调用前需设置
 `wow.webflux.query.allow-expensive-operators=true`；默认配置会拒绝该请求。
@@ -500,20 +269,18 @@ curl -X POST \
   -H 'Content-Type: application/json' \
   -H 'Wow-Space-Id: space-1' \
   -d '{
-    "condition": {
+    "filter": {
+      "op": "EQ",
       "field": "state.status",
-      "operator": "EQ",
-      "value": "CREATED",
-      "children": []
+      "value": "CREATED"
     },
     "elements": [
       {
         "path": "state.items",
-        "condition": {
+        "filter": {
+          "op": "GT",
           "field": "state.items.quantity",
-          "operator": "GT",
-          "value": 0,
-          "children": []
+          "value": 0
         }
       }
     ],
@@ -573,8 +340,8 @@ curl -X POST \
 - `elements=[]` 表示在根 Snapshot 上聚合；否则按从外到内顺序声明严格父子对象集合链。
 - Elements 只接受对象集合或对象数组；Map、标量集合、重复路径、跳过中间集合和兄弟集合笛卡尔积都会被拒绝。
 - `groupBy`、指标及表达式字段必须属于最内层来源，不能隐式访问父级、兄弟或未展开的子集合。
-- 每层 `AggregationElement.condition` 只能访问该层标量字段或非集合对象路径，并且不能使用 `ELEM_MATCH`。
-- 根 `ELEM_MATCH` 只筛选“包含匹配元素的快照”，不会筛选随后展开的行；行过滤必须写入对应 Element condition。
+- 每层 `AggregationElement.filter` 只能访问该层标量字段或非集合对象路径，并且不能使用 `ELEMENT_MATCH`、`SEARCH` 或 `DELETION`。
+- 根 `ELEMENT_MATCH` 只筛选“包含匹配元素的快照”，不会筛选随后展开的行；行过滤必须写入对应 Element filter。
 - 缺失、`null` 或空集合不产生展开行；任一分组字段缺失或为 `null` 时，该行不进入 bucket。
 
 ### 分组与指标
@@ -608,20 +375,20 @@ curl -X POST \
 | groupBy 数量 | 32 | 32 |
 | metrics 数量 | 1..64 | 1..32 |
 | limit | 默认 100，最大 10,000 | 有分组时还受 `max-list-size=1000` 限制 |
-| 根条件与全部 Element conditions | — | 合计最多 `max-condition-nodes=64` 个节点 |
+| 根过滤器与全部 Element filters | — | 合计最多 `max-condition-nodes=64` 个节点 |
 
 将 `max-aggregation-elements`、`max-aggregation-metrics` 或 `max-list-size` 设为 `0`
 只会关闭对应 HTTP 上限，公共模型硬上限仍然生效。以下请求还要求
 `allow-expensive-operators=true`：
 
 - 包含任意 Elements；
-- 用户提交的根 condition 为 match-all；
+- 根过滤器在受信任的 tenant/owner/space 路由过滤后仍为 match-all；
 - sort 引用任意 metric alias。
 
-HTTP guard 在 tenant/owner/space 和 ABAC 条件注入前统计用户条件；受信任条件不消耗用户预算，
-也不会把用户提交的 match-all 自动变成低成本查询。Snapshot 配置 masker 时，聚合会在访问后端前 fail-closed。
+HTTP guard 只统计用户提交的根过滤器与 Element filters。受信任的 tenant/owner/space 路由过滤器不消耗用户预算，
+并可在成本分类前约束 match-all 根过滤器；ABAC 随后执行，不改变本次分类。Snapshot 配置 masker 时，聚合会在访问后端前 fail-closed。
 HTTP 层不维护重复的字段白名单；聚合元数据 Validator 统一校验集合链、字段归属和可移植类型。
-指标和分组没有脚本入口；HTTP `RAW` condition 仍遵循通用 `allow-raw` 开关且默认关闭。
+指标和分组没有脚本入口。
 
 ### 后端失败与性能边界
 
@@ -637,36 +404,16 @@ MongoDB `1.61–1.84 s/op`、Elasticsearch `1.79 s/op`。这些数值是一次 J
 
 ## 查询服务注册器
 
-`SnapshotQueryServiceRegistrar` 用于自动将所有本地聚合根查询服务注册到 `Spring` 容器中。
-开发者可以通过指定的 `Bean Name` 从 `BeanFactory` 中获取相应的 `SnapshotQueryService`。
+`SnapshotQueryServiceRegistrar` 会把本地聚合根查询服务注册到 Spring 容器。Bean 名称为 `聚合根名称 + ".SnapshotQueryService"`。
 
-> `Bean Name` 命名规则：`聚合根名称 + ".SnapshotQueryService"`。
-
-使用案例：
-
-::: code-group
-
-```kotlin [构造函数注入]
+```kotlin
 class OrderService(
-    private val queryService: SnapshotQueryService<OrderState>
+    private val queryService: SnapshotQueryService<OrderState>,
 ) {
-    fun getById(id: String): Mono<OrderState> {
-        return singleQuery {
-            condition {
-                id(id)
-            }
-        }.query(queryService).toState().throwNotFoundIfEmpty()
-    }
+    fun getById(id: String): Mono<OrderState> = singleQuery {
+        filter {
+            "aggregateId" eq id
+        }
+    }.query(queryService).toState().throwNotFoundIfEmpty()
 }
 ```
-
-```kotlin [字段注入]
-@Autowired
-private lateinit var queryService: SnapshotQueryService<OrderState>
-```
-
-```kotlin [根据 Bean Name 手动获取]
-val queryService = applicationContext.getBean("example.order.SnapshotQueryService") as SnapshotQueryService<OrderState>
-```
-
-:::

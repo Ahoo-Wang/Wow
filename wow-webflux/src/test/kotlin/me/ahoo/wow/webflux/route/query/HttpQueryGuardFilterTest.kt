@@ -23,20 +23,26 @@ import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
+import me.ahoo.wow.api.query.IsEmptyFilter
 import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.BatchComponent
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
+import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.filter.DefaultEventStreamQueryHandler
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
@@ -87,7 +93,6 @@ class HttpQueryGuardFilterTest {
     fun `should reject unsafe list queries before backend invocation`() {
         listOf(
             ListQuery(Condition.ALL),
-            ListQuery(Condition.raw(mapOf("script" to "unsafe")), limit = 1),
             ListQuery(Condition.contains(MessageRecords.AGGREGATE_ID, "wow"), limit = 1),
             ListQuery(Condition.endsWith(MessageRecords.AGGREGATE_ID, "wow"), limit = 1),
             ListQuery(Condition.startsWith(MessageRecords.AGGREGATE_ID, ""), limit = 1),
@@ -98,7 +103,7 @@ class HttpQueryGuardFilterTest {
             ListQuery(Condition.isNull(MessageRecords.AGGREGATE_ID), limit = 1),
             ListQuery(Condition.notNull(MessageRecords.AGGREGATE_ID), limit = 1),
             ListQuery(Condition.exists(MessageRecords.AGGREGATE_ID, false), limit = 1),
-            ListQuery(Condition(operator = Operator.NE, value = "value"), limit = 1),
+            ListQuery(IsEmptyFilter(LogicalField("state.items")), limit = 1),
             ListQuery(Condition.isIn(MessageRecords.AGGREGATE_ID, List(1001) { it }), limit = 1),
             ListQuery(Condition(operator = Operator.IDS, value = List(1001) { it }), limit = 1),
             ListQuery(Condition(operator = Operator.AGGREGATE_IDS, value = List(1001) { it }), limit = 1),
@@ -137,15 +142,15 @@ class HttpQueryGuardFilterTest {
 
     @Test
     fun `should classify and limit aggregation requests before backend invocation`() {
-        val root = Condition.eq(MessageRecords.AGGREGATE_ID, "aggregate-id")
+        val root = filter { MessageRecords.AGGREGATE_ID eq "aggregate-id" }
         val unsafe = listOf(
             AggregationQuery(
                 elements = listOf(AggregationElement("state.orders")),
                 metrics = listOf(AggregationMetric.Count("count")),
-                condition = root,
+                filter = root,
             ),
             AggregationQuery(
-                condition = root,
+                filter = root,
                 groupBy = listOf(AggregationGroup.Terms("state.status", "status")),
                 metrics = listOf(AggregationMetric.Count("count")),
                 sort = listOf(Sort("count", Sort.Direction.DESC)),
@@ -155,13 +160,13 @@ class HttpQueryGuardFilterTest {
                 metrics = listOf(AggregationMetric.Count("count")),
             ),
             AggregationQuery(
-                condition = root,
+                filter = root,
                 groupBy = listOf(AggregationGroup.Terms("state.status", "status")),
                 metrics = listOf(AggregationMetric.Count("count")),
                 limit = 1001,
             ),
             AggregationQuery(
-                condition = root,
+                filter = root,
                 metrics = List(33) { AggregationMetric.Count("count$it") },
             ),
         )
@@ -175,11 +180,11 @@ class HttpQueryGuardFilterTest {
     }
 
     @Test
-    fun `should share condition budget across aggregation elements`() {
+    fun `should share filter budget across aggregation elements`() {
         val query = AggregationQuery(
-            condition = Condition.eq(MessageRecords.AGGREGATE_ID, "aggregate-id"),
+            filter = filter { MessageRecords.AGGREGATE_ID eq "aggregate-id" },
             elements = listOf(
-                AggregationElement("state.orders", Condition.eq("state.orders.status", "PAID")),
+                AggregationElement("state.orders", filter { "state.orders.status" eq "PAID" }),
             ),
             groupBy = listOf(AggregationGroup.Terms("state.orders.status", "status")),
             metrics = listOf(AggregationMetric.Count("count")),
@@ -208,18 +213,17 @@ class HttpQueryGuardFilterTest {
     }
 
     @Test
-    fun `trusted route conditions should not consume aggregation user budget`() {
+    fun `trusted route filters should not consume aggregation user budget`() {
         val userQuery = AggregationQuery(
-            condition = Condition.eq(MessageRecords.AGGREGATE_ID, "aggregate-id"),
+            filter = filter { MessageRecords.AGGREGATE_ID eq "aggregate-id" },
             metrics = listOf(AggregationMetric.Count("count")),
         )
-        val rewritten = userQuery.withCondition(
-            Condition.and(
-                userQuery.condition,
-                Condition.tenantId("tenant"),
-                Condition.ownerId("owner"),
-                Condition.spaceId("space"),
-            ),
+        val rewritten = userQuery.appendFilter(
+            filter {
+                "tenantId" eq "tenant"
+                "ownerId" eq "owner"
+                "spaceId" eq "space"
+            }
         )
         val context = aggregationContext(rewritten)
 
@@ -237,7 +241,7 @@ class HttpQueryGuardFilterTest {
 
     @Test
     fun `should keep trusted non-http query behavior`() {
-        val context = listContext(ListQuery(Condition.raw("{}")))
+        val context = listContext(ListQuery(MatchAllFilter))
         guard().filter(
             context,
             FilterChain {
@@ -248,7 +252,7 @@ class HttpQueryGuardFilterTest {
 
         context.getRequiredResult().test().verifyComplete()
 
-        val propagatedContext = listContext(ListQuery(Condition.raw("{}")))
+        val propagatedContext = listContext(ListQuery(MatchAllFilter))
         guard().filter(
             propagatedContext,
             FilterChain {
@@ -259,12 +263,11 @@ class HttpQueryGuardFilterTest {
     }
 
     @Test
-    fun `should allow explicitly enabled legacy http behavior`() {
-        val context = listContext(ListQuery(Condition.raw("{}")))
+    fun `should allow explicitly enabled expensive http behavior`() {
+        val context = listContext(ListQuery(MatchAllFilter))
         guard(
             maxListSize = 0,
             maxConditionNodes = 0,
-            allowRaw = true,
             allowExpensiveOperators = true,
             idleTimeout = Duration.ZERO,
         ).filter(
@@ -374,7 +377,7 @@ class HttpQueryGuardFilterTest {
             .verify()
 
         val countBackend = FilterChain<QueryContext<*, *>> {
-            it.asCountQuery().setResult(Mono.just(0))
+            it.asFilterCountQuery().setResult(Mono.just(0))
             Mono.empty()
         }
         val scopedCondition = Condition.and(
@@ -551,7 +554,6 @@ class HttpQueryGuardFilterTest {
         maxPageWindow: Long = 10_000,
         maxConditionNodes: Int = 64,
         maxConditionValues: Int = 1000,
-        allowRaw: Boolean = false,
         allowExpensiveOperators: Boolean = false,
         idleTimeout: Duration = Duration.ofSeconds(10),
         maxAggregationElements: Int = 3,
@@ -562,7 +564,6 @@ class HttpQueryGuardFilterTest {
         maxPageWindow = maxPageWindow,
         maxConditionNodes = maxConditionNodes,
         maxConditionValues = maxConditionValues,
-        allowRaw = allowRaw,
         allowExpensiveOperators = allowExpensiveOperators,
         idleTimeout = idleTimeout,
         maxAggregationElements = maxAggregationElements,
@@ -581,11 +582,11 @@ class HttpQueryGuardFilterTest {
             MOCK_AGGREGATE_METADATA,
         ).setQuery(query)
 
-    private fun countContext(condition: Condition): QueryContext<Condition, Mono<Long>> =
-        DefaultQueryContext<Condition, Mono<Long>>(
+    private fun countContext(condition: Condition): QueryContext<FilterExpression, Mono<Long>> =
+        DefaultQueryContext<FilterExpression, Mono<Long>>(
             QueryType.COUNT,
             MOCK_AGGREGATE_METADATA,
-        ).setQuery(condition)
+        ).setQuery(condition.toFilterExpression())
 
     private fun aggregationContext(
         query: AggregationQuery,

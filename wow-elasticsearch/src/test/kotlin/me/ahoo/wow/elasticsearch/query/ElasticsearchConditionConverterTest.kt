@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+@file:Suppress("NoWildcardImports", "WildcardImport")
+
 package me.ahoo.wow.elasticsearch.query
 
 import co.elastic.clients.elasticsearch._types.FieldValue
@@ -19,8 +21,6 @@ import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.bool
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.exists
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.ids
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.match
-import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll
-import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.nested
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.prefix
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.range
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.term
@@ -29,16 +29,16 @@ import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.termsSet
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.wildcard
 import co.elastic.clients.json.JsonData
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.Condition
-import me.ahoo.wow.api.query.DeletionState
-import me.ahoo.wow.api.query.Operator
+import me.ahoo.wow.api.query.*
 import me.ahoo.wow.elasticsearch.WowJsonpMapper
 import me.ahoo.wow.elasticsearch.query.snapshot.SnapshotConditionConverter
 import me.ahoo.wow.query.dsl.condition
+import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import tools.jackson.databind.JsonNode
 
 class ElasticsearchConditionConverterTest {
     private fun assertConvert(actual: Query, expected: Query) {
@@ -52,6 +52,81 @@ class ElasticsearchConditionConverterTest {
         val expectedGen = WowJsonpMapper.createBufferingGenerator()
         expected.serialize(expectedGen, WowJsonpMapper)
         actualGen.jsonData.toJson().toString().assert().isEqualTo(expectedGen.jsonData.toJson().toString())
+    }
+
+    @Test
+    fun `should convert filter expression`() {
+        val query = SnapshotConditionConverter.convert(
+            me.ahoo.wow.api.query.EqualFilter(
+                me.ahoo.wow.api.query.LogicalField("state.name"),
+                me.ahoo.wow.serialization.JsonSerializer.valueToTree("Wow"),
+            ),
+        )
+
+        assertConvert(query, term { it.field("state.name").value("Wow") })
+    }
+
+    @Test
+    fun `should compile filter expression operators`() {
+        val field = LogicalField("state.value")
+        val nestedField = LogicalField("name")
+        val one = JsonSerializer.valueToTree<JsonNode>(1)
+        val two = JsonSerializer.valueToTree<JsonNode>(2)
+        val text = JsonSerializer.valueToTree<JsonNode>("value")
+        val filters = listOf<FilterExpression>(
+            MatchNoneFilter,
+            AndFilter(listOf(EqualFilter(field, one), EqualFilter(field, two))),
+            OrFilter(listOf(EqualFilter(field, one), EqualFilter(field, two))),
+            NorFilter(listOf(EqualFilter(field, one), EqualFilter(field, two))),
+            EqualFilter(field, JsonSerializer.valueToTree(true)),
+            NotEqualFilter(field, one),
+            GreaterThanFilter(field, one),
+            GreaterThanOrEqualFilter(field, one),
+            LessThanFilter(field, one),
+            LessThanOrEqualFilter(field, one),
+            ContainsFilter(field, "value*?\\tail", StringComparison.CASE_INSENSITIVE),
+            StartsWithFilter(field, "value", StringComparison.CASE_INSENSITIVE),
+            EndsWithFilter(field, "value*?\\tail", StringComparison.CASE_INSENSITIVE),
+            InFilter(field, listOf(one, two)),
+            InFilter(LogicalField("_id"), listOf(text)),
+            NotInFilter(field, listOf(one, two)),
+            BetweenFilter(field, one, two),
+            ContainsAllFilter(field, listOf(one, two)),
+            IsEmptyFilter(field),
+            IsNullFilter(field),
+            IsNotNullFilter(field),
+            ExistsFilter(field),
+            NotExistsFilter(field),
+            ElementMatchFilter(field, EqualFilter(nestedField, text)),
+            SearchFilter("value"),
+            SearchFilter("value", linkedSetOf(field)),
+            DeletionFilter(DeletionState.ACTIVE),
+            DeletionFilter(DeletionState.DELETED),
+            DeletionFilter(DeletionState.ALL),
+        )
+
+        filters.map(SnapshotConditionConverter::convert).assert().hasSize(filters.size)
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `should preserve document id and existence filters`() {
+        assertConvert(
+            SnapshotConditionConverter.convert(Condition.id("aggregate-1").toFilterExpression()),
+            ids { it.values("aggregate-1") },
+        )
+        assertConvert(
+            SnapshotConditionConverter.convert(IsNullFilter(LogicalField("state.name"))),
+            bool { it.mustNot { query -> query.exists { exists -> exists.field("state.name") } } },
+        )
+        assertConvert(
+            SnapshotConditionConverter.convert(ExistsFilter(LogicalField("state.name"))),
+            exists { it.field("state.name") },
+        )
+        assertConvert(
+            SnapshotConditionConverter.convert(NotExistsFilter(LogicalField("state.name"))),
+            bool { it.mustNot { query -> query.exists { exists -> exists.field("state.name") } } },
+        )
     }
 
     @Test
@@ -464,7 +539,7 @@ class ElasticsearchConditionConverterTest {
         }
         assertConvert(
             query,
-            nested {
+            co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.nested {
                 it.path("field")
                     .query(
                         bool { builder ->
@@ -598,46 +673,5 @@ class ElasticsearchConditionConverterTest {
             SnapshotConditionConverter.convert(it)
         }
         query._kind().assert().isEqualTo(Query.Kind.Bool)
-    }
-
-    @Test
-    fun `raw to query`() {
-        val rawQuery = Query.Builder().matchAll { it }.build()
-        val query = condition {
-            raw(rawQuery)
-        }.let {
-            SnapshotConditionConverter.convert(it)
-        }
-        assertConvert(query, rawQuery)
-    }
-
-    @Test
-    fun `string raw to query`() {
-        val query = condition {
-            raw("""{"match_all":{}}""")
-        }.let {
-            SnapshotConditionConverter.convert(it)
-        }
-        assertConvert(
-            query,
-            matchAll {
-                it
-            }
-        )
-    }
-
-    @Test
-    fun `map raw to query`() {
-        val query = condition {
-            raw(mapOf("match_all" to emptyMap<String, String>()))
-        }.let {
-            SnapshotConditionConverter.convert(it)
-        }
-        assertConvert(
-            query,
-            matchAll {
-                it
-            }
-        )
     }
 }

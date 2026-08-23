@@ -28,7 +28,7 @@ import me.ahoo.wow.schema.typed.SnapshotAggregationTemporalFields
 import me.ahoo.wow.schema.typed.SnapshotAggregationTermsFields
 
 data class AggregatedAggregationQuery<CommandAggregateType : Any>(
-    val condition: AggregatedCondition<CommandAggregateType> = AggregatedCondition(),
+    val filter: FilterExpressionSchema = FilterExpressionSchema.MatchAll,
     @get:ArraySchema(maxItems = AggregationQuery.MAX_ELEMENTS)
     @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
     val elements: List<AggregatedAggregationElement<CommandAggregateType>> = emptyList(),
@@ -45,7 +45,7 @@ data class AggregatedAggregationQuery<CommandAggregateType : Any>(
 
 data class AggregatedAggregationElement<CommandAggregateType : Any>(
     val path: SnapshotAggregationElements<CommandAggregateType>,
-    val condition: AggregatedCondition<CommandAggregateType> = AggregatedCondition(),
+    val filter: FilterExpressionSchema = FilterExpressionSchema.MatchAll,
 )
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")

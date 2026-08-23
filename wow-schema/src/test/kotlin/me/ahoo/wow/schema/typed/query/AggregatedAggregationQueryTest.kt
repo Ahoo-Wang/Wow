@@ -65,7 +65,7 @@ class AggregatedAggregationQueryTest {
         ).asJsonSchema()
 
         schema.actual.toString().assert().contains(
-            "condition",
+            "filter",
             "elements",
             "groupBy",
             "metrics",

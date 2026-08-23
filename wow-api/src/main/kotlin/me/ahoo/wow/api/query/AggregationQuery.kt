@@ -22,7 +22,7 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 
 data class AggregationQuery(
-    override val condition: Condition = Condition.ALL,
+    override val filter: FilterExpression = MatchAllFilter,
     @get:ArraySchema(maxItems = MAX_ELEMENTS)
     @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
     val elements: List<AggregationElement> = emptyList(),
@@ -35,7 +35,7 @@ data class AggregationQuery(
     override val sort: List<Sort> = emptyList(),
     @get:Schema(defaultValue = DEFAULT_LIMIT_TEXT, minimum = "1", maximum = MAX_LIMIT_TEXT)
     val limit: Int = DEFAULT_LIMIT,
-) : ConditionCapable<AggregationQuery>, SortCapable {
+) : FilterCapable<AggregationQuery>, SortCapable {
     init {
         require(elements.size <= MAX_ELEMENTS) { "elements must contain at most $MAX_ELEMENTS paths." }
         require(groupBy.size <= MAX_GROUPS) { "groupBy must contain at most $MAX_GROUPS dimensions." }
@@ -51,7 +51,7 @@ data class AggregationQuery(
         require(sortFields.all(aliases::contains)) { "sort fields must reference aggregation aliases." }
     }
 
-    override fun withCondition(newCondition: Condition): AggregationQuery = copy(condition = newCondition)
+    override fun withFilter(newFilter: FilterExpression): AggregationQuery = copy(filter = newFilter)
 
     fun effectiveSort(): List<Sort> = buildList {
         addAll(sort)
@@ -76,7 +76,7 @@ data class AggregationQuery(
 
 data class AggregationElement(
     val path: String,
-    val condition: Condition = Condition.ALL,
+    val filter: FilterExpression = MatchAllFilter,
 ) {
     init {
         requireAggregationField(path, "element path")

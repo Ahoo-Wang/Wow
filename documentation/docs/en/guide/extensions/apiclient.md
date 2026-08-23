@@ -165,28 +165,27 @@ val state = queryApi.getStateById("order-001").block()
 // Paged: takes an IPagedQuery (1-indexed Pagination); returns Mono<PagedList<...>>
 val paged = queryApi.paged(
     PagedQuery(
-        condition = Condition.all(),
+        filter = MatchAllFilter,
         pagination = Pagination(index = 1, size = 10),
     ),
 ).block()
 
-// Count: takes a Condition; returns Mono<Long>
-val total = queryApi.count(Condition.all()).block()
+// Count: takes a FilterExpression; returns Mono<Long>
+val total = queryApi.count(MatchAllFilter).block()
 
 // Snapshot aggregation: Flux<Map<String, Any?>>
 val rows = queryApi.aggregate(
     AggregationQuery(
-        condition = Condition.eq("state.status", "CREATED"),
+        filter = filter { "state.status" eq "CREATED" },
         metrics = listOf(AggregationMetric.Count("count")),
     ),
 ).collectList().block()
 ```
 
-Aggregation is exposed through the separate `ReactiveSnapshotAggregationQueryApi`. The synchronous
-`SynchronousSnapshotAggregationQueryApi` returns `List<Map<String, Any?>>`. Existing composite Snapshot
-client interfaces stay unchanged so custom implementations remain compatible.
-For complete Elements, JSON discriminator, result, and ordering semantics, see
-[Snapshot Elements Aggregation](../query.md#snapshot-elements-aggregation).
+Aggregation is exposed by the separate `ReactiveSnapshotAggregationQueryApi`; its synchronous
+counterpart returns `List<Map<String, Any?>>`. Aggregation accepts `FilterExpression` only—legacy
+`Condition` payloads are not part of this new endpoint. See
+[Snapshot Elements Aggregation](../query.md#snapshot-elements-aggregation) for the full contract.
 
 ### Synchronous Query API
 

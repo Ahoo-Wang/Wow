@@ -29,6 +29,7 @@ import me.ahoo.wow.schema.typed.query.AggregatedListQueryDefinitionProvider
 import me.ahoo.wow.schema.typed.query.AggregatedPagedQueryDefinitionProvider
 import me.ahoo.wow.schema.typed.query.AggregatedSingleQueryDefinitionProvider
 import me.ahoo.wow.schema.typed.query.ConditionOptionsDefinitionProvider
+import me.ahoo.wow.schema.typed.query.FilterExpressionDefinitionProvider
 import me.ahoo.wow.schema.web.ServerSentEventCustomDefinitionProvider
 
 internal object WowDefinitionProviderRegistry {
@@ -38,14 +39,15 @@ internal object WowDefinitionProviderRegistry {
         DomainEventDefinitionProvider,
         DomainEventStreamDefinitionProvider,
         AggregatedDomainEventStreamDefinitionProvider,
-        AggregatedFieldsDefinitionProvider,
-        AggregatedListQueryDefinitionProvider,
-        AggregatedPagedQueryDefinitionProvider,
-        AggregatedSingleQueryDefinitionProvider,
         StateAggregateDefinitionProvider,
         SnapshotDefinitionProvider,
         StateEventDefinitionProvider,
         ServerSentEventCustomDefinitionProvider,
+        AggregatedFieldsDefinitionProvider,
+        AggregatedListQueryDefinitionProvider,
+        AggregatedPagedQueryDefinitionProvider,
+        AggregatedSingleQueryDefinitionProvider,
+        FilterExpressionDefinitionProvider,
         ConditionOptionsDefinitionProvider,
         MapDefinitionProvider,
         EnumTextDefinitionProvider

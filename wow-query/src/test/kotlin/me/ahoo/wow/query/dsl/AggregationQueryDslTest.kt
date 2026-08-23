@@ -18,7 +18,8 @@ import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.Operator
+import me.ahoo.wow.api.query.EqualFilter
+import me.ahoo.wow.api.query.FilterOperator
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
@@ -29,11 +30,11 @@ class AggregationQueryDslTest {
     @Test
     fun `should normalize recursive expand paths and leaf fields`() {
         val query = aggregationQuery {
-            condition { "tenantId" eq "tenant" }
+            filter { "tenantId" eq "tenant" }
             expand("state.orders") {
-                condition { "status" eq "PAID" }
+                filter { "status" eq "PAID" }
                 expand("lines") {
-                    condition { "cancelled" eq false }
+                    filter { "cancelled" eq false }
                     groupBy("sku", "sku")
                     histogram("amount", "amountBand", 10.0)
                     dateHistogram("createdAt", "createdDay", AggregationDateUnit.DAY)
@@ -49,9 +50,9 @@ class AggregationQueryDslTest {
         }
 
         query.elements.map { it.path }.assert().containsExactly("state.orders", "state.orders.lines")
-        query.elements[0].condition.field.assert().isEqualTo("state.orders.status")
-        query.elements[1].condition.field.assert().isEqualTo("state.orders.lines.cancelled")
-        query.condition.operator.assert().isEqualTo(Operator.EQ)
+        (query.elements[0].filter as EqualFilter).field.value.assert().isEqualTo("state.orders.status")
+        (query.elements[1].filter as EqualFilter).field.value.assert().isEqualTo("state.orders.lines.cancelled")
+        query.filter.operator.assert().isEqualTo(FilterOperator.EQ)
         query.groupBy.map { it.field }.assert().containsExactly(
             "state.orders.lines.sku",
             "state.orders.lines.amount",

@@ -41,7 +41,7 @@ class SnapshotAggregationHandlerFunction(
             .flatMapMany { query ->
                 snapshotQueryHandler.aggregate(
                     aggregateMetadata,
-                    rewriteRequestCondition.rewrite(aggregateMetadata, request, query),
+                    rewriteRequestCondition.rewriteFilter(aggregateMetadata, request, query),
                 ).writeUserQuery(query)
             }.writeRawRequest(request)
             .toServerResponse(request, exceptionHandler)

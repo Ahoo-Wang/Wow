@@ -13,4 +13,5 @@
 
 package me.ahoo.wow.schema.typed.query
 
+@Deprecated("Use PagedQuery with FilterExpression.")
 interface AggregatedPagedQuery<CommandAggregateType : Any>

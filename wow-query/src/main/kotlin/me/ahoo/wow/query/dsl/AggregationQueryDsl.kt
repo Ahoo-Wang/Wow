@@ -20,7 +20,8 @@ import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Sort
 
 @QueryDslMarker
@@ -28,7 +29,7 @@ class AggregationQueryDsl : AggregationScopeDsl("") {
     fun build(): AggregationQuery {
         val leaf = buildLeaf()
         return AggregationQuery(
-            condition = condition,
+            filter = filter,
             elements = leaf.elements,
             groupBy = leaf.groupBy,
             metrics = leaf.metrics,
@@ -42,19 +43,19 @@ class AggregationQueryDsl : AggregationScopeDsl("") {
 class AggregationElementDsl internal constructor(path: String) : AggregationScopeDsl(path)
 
 abstract class AggregationScopeDsl internal constructor(private val path: String) {
-    internal var condition: Condition = Condition.ALL
+    internal var filter: FilterExpression = MatchAllFilter
     private var child: AggregationElementDsl? = null
     private val groupBy = mutableListOf<AggregationGroup>()
     private val metrics = mutableListOf<AggregationMetric>()
     private var sort: List<Sort> = emptyList()
     private var limit: Int = AggregationQuery.DEFAULT_LIMIT
 
-    fun condition(condition: Condition) {
-        this.condition = condition.toAbsolute(path)
+    fun filter(filter: FilterExpression) {
+        this.filter = filter
     }
 
-    fun condition(block: ConditionDsl.() -> Unit) {
-        condition(ConditionDsl().apply(block).build())
+    fun filter(block: FilterDsl.() -> Unit) {
+        filter(FilterDsl(path).apply(block).build())
     }
 
     fun expand(elementPath: String, block: AggregationElementDsl.() -> Unit) {
@@ -115,7 +116,7 @@ abstract class AggregationScopeDsl internal constructor(private val path: String
         val nested = child
         if (nested == null) {
             return AggregationLeaf(
-                elements = path.takeIf(String::isNotEmpty)?.let { listOf(AggregationElement(it, condition)) }.orEmpty(),
+                elements = path.takeIf(String::isNotEmpty)?.let { listOf(AggregationElement(it, filter)) }.orEmpty(),
                 groupBy = groupBy.toList(),
                 metrics = metrics.toList(),
                 sort = sort,
@@ -126,7 +127,7 @@ abstract class AggregationScopeDsl internal constructor(private val path: String
             "groupBy, metrics, sort, and limit must be declared in the innermost aggregation scope."
         }
         val leaf = nested.buildLeaf()
-        val current = path.takeIf(String::isNotEmpty)?.let { AggregationElement(it, condition) }
+        val current = path.takeIf(String::isNotEmpty)?.let { AggregationElement(it, filter) }
         return leaf.copy(elements = current?.let { listOf(it) + leaf.elements } ?: leaf.elements)
     }
 
@@ -152,13 +153,4 @@ private fun resolvePath(parent: String, field: String): String {
         return field
     }
     return "$parent.$field"
-}
-
-private fun Condition.toAbsolute(parent: String): Condition {
-    if (parent.isEmpty()) return this
-    val resolvedField = if (field.isEmpty()) "" else resolvePath(parent, field)
-    return copy(
-        field = resolvedField,
-        children = children.map { it.toAbsolute(parent) },
-    )
 }

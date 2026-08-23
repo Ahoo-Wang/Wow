@@ -18,7 +18,6 @@ import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
@@ -36,7 +35,6 @@ interface SnapshotQueryService<S : Any> : Named, QueryService<MaterializedSnapsh
         UnsupportedOperationException("Snapshot aggregation is not supported by [$name].")
     )
 }
-
 class NoOpSnapshotQueryService<S : Any>(override val namedAggregate: NamedAggregate) : SnapshotQueryService<S> {
     override val name: String
         get() = NoOpSnapshotStore.NAME
@@ -65,7 +63,7 @@ class NoOpSnapshotQueryService<S : Any>(override val namedAggregate: NamedAggreg
         return Mono.just(PagedList.empty())
     }
 
-    override fun count(condition: Condition): Mono<Long> {
+    override fun count(filter: me.ahoo.wow.api.query.FilterExpression): Mono<Long> {
         return Mono.just(0)
     }
 

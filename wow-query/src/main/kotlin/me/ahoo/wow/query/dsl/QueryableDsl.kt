@@ -14,9 +14,13 @@
 package me.ahoo.wow.query.dsl
 
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.toCondition
+import me.ahoo.wow.api.query.toFilterExpression
 
 /**
  * Represents a DSL (Domain Specific Language) for constructing queryable objects. This abstract class allows
@@ -28,7 +32,14 @@ import me.ahoo.wow.api.query.Sort
 @QueryDslMarker
 abstract class QueryableDsl<Q : Queryable<Q>> {
     protected var projection: Projection = Projection.ALL
-    protected var condition: Condition = Condition.all()
+    protected var filter: FilterExpression = MatchAllFilter
+
+    @Deprecated("Use filter.")
+    protected var condition: Condition
+        get() = filter.toCondition()
+        set(value) {
+            filter = value.toFilterExpression()
+        }
     protected var sort: List<Sort> = emptyList()
 
     fun projection(projection: Projection) {
@@ -41,14 +52,22 @@ abstract class QueryableDsl<Q : Queryable<Q>> {
         projection(dsl.build())
     }
 
-    fun condition(condition: Condition) {
-        this.condition = condition
+    fun filter(filter: FilterExpression) {
+        this.filter = filter
     }
 
+    fun filter(block: FilterDsl.() -> Unit) {
+        filter(me.ahoo.wow.query.dsl.filter(block))
+    }
+
+    @Deprecated("Use filter.")
+    fun condition(condition: Condition) {
+        filter(condition.toFilterExpression())
+    }
+
+    @Deprecated("Use filter.")
     fun condition(block: ConditionDsl.() -> Unit) {
-        val dsl = ConditionDsl()
-        dsl.block()
-        condition(dsl.build())
+        condition(me.ahoo.wow.query.dsl.condition(block))
     }
 
     fun sort(sort: List<Sort>) {

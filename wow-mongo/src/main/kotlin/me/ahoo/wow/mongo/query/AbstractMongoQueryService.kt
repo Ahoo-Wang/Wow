@@ -15,17 +15,15 @@ package me.ahoo.wow.mongo.query
 
 import com.mongodb.reactivestreams.client.FindPublisher
 import com.mongodb.reactivestreams.client.MongoCollection
-import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.query.QueryService
-import me.ahoo.wow.query.converter.ConditionConverter
 import org.bson.Document
-import org.bson.conversions.Bson
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toFlux
@@ -33,7 +31,7 @@ import reactor.kotlin.core.publisher.toMono
 
 abstract class AbstractMongoQueryService<R : Any> : QueryService<R> {
     abstract val collection: MongoCollection<Document>
-    abstract val converter: ConditionConverter<Bson>
+    abstract val converter: AbstractMongoConditionConverter
     abstract val projectionConverter: MongoProjectionConverter
     abstract val sortConverter: MongoSortConverter
     abstract fun toTypedResult(document: Document): R
@@ -86,7 +84,7 @@ abstract class AbstractMongoQueryService<R : Any> : QueryService<R> {
         documentMapper: (Document) -> T
     ): Mono<PagedList<T>> {
         val projectionBson = projectionConverter.convert(pagedQuery.projection)
-        val filter = converter.convert(pagedQuery.condition)
+        val filter = converter.convert(pagedQuery.filter)
         val sort = sortConverter.convert(pagedQuery.sort)
 
         val totalPublisher = collection.countDocuments(filter).toMono()
@@ -115,8 +113,7 @@ abstract class AbstractMongoQueryService<R : Any> : QueryService<R> {
         return pagedDocument(pagedQuery) { toDynamicDocument(it) }
     }
 
-    override fun count(condition: Condition): Mono<Long> {
-        val filter = converter.convert(condition)
-        return collection.countDocuments(filter).toMono()
+    override fun count(filter: FilterExpression): Mono<Long> {
+        return collection.countDocuments(converter.convert(filter)).toMono()
     }
 }

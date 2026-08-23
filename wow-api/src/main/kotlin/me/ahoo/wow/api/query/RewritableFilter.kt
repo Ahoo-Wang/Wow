@@ -11,11 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.converter
+package me.ahoo.wow.api.query
 
-import me.ahoo.wow.api.query.Condition
+interface RewritableFilter<Q : RewritableFilter<Q>> {
+    fun withFilter(newFilter: FilterExpression): Q
 
-interface ConditionConverter<T> {
-
-    fun convert(condition: Condition): T
+    fun appendFilter(append: FilterExpression): Q
 }

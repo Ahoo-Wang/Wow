@@ -120,7 +120,7 @@ class WowCommandFlowIntegrationTest {
 | --- | --- |
 | 匿名访问受保护命令/查询 | `401` 或 `403` |
 | 伪造 tenant、owner 或 space | 被拒绝，不能扩大作用域 |
-| 缺少主体 ABAC 标签 | fail closed，不得退化为 `Condition.all()` |
+| 缺少主体 ABAC 标签 | fail closed，不得退化为 `MatchAllFilter` |
 | 跨租户/拥有者查询 | 不返回任何越权记录 |
 | 普通请求访问原始 `*QueryServiceFactory` | 没有可达入口 |
 

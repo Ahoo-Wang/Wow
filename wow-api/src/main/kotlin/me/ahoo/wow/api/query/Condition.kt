@@ -23,6 +23,7 @@ import java.time.format.DateTimeFormatter
  * Marker interface for condition options.
  * Implementations can define additional configuration options for query conditions.
  */
+@Deprecated("Use typed FilterExpression properties.")
 interface ConditionOptions
 
 /**
@@ -33,6 +34,7 @@ interface ConditionOptions
  *
  * @param C The type of the condition implementation, enabling self-referential types for nested conditions.
  */
+@Deprecated("Use FilterExpression.")
 interface ICondition<C : ICondition<C>> {
     /**
      * The field name to apply the condition to.
@@ -99,6 +101,7 @@ interface ICondition<C : ICondition<C>> {
  * val searchCondition = Condition.contains("description", "kotlin", ignoreCase = true)
  * ```
  */
+@Deprecated("Use FilterExpression.")
 data class Condition(
     override val field: String = EMPTY_VALUE,
     override val operator: Operator = Operator.ALL,
@@ -134,6 +137,7 @@ data class Condition(
      * @param newCondition The new condition to use.
      * @return The new condition.
      */
+    @Deprecated("Use FilterExpression.")
     override fun withCondition(newCondition: Condition): Condition = newCondition
 
     /**
@@ -145,6 +149,7 @@ data class Condition(
      * @param append The condition to append.
      * @return A new condition combining this and the appended condition with AND logic.
      */
+    @Deprecated("Use FilterExpression.")
     override fun appendCondition(append: Condition): Condition {
         if (this.operator == Operator.ALL) {
             return append
@@ -856,14 +861,5 @@ data class Condition(
             value = days,
             options = datePatternOptions(datePattern),
         )
-
-        /**
-         * Creates a raw condition.
-         * Uses the provided value directly as a raw database query condition without any processing.
-         *
-         * @param value The raw query condition value to use directly.
-         * @return A new raw condition.
-         */
-        fun raw(value: Any) = Condition(field = EMPTY_VALUE, operator = Operator.RAW, value = value)
     }
 }

@@ -22,6 +22,7 @@ import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
@@ -145,7 +146,7 @@ class QueryServiceProxyTest {
         ): Mono<PagedList<DynamicDocument>> =
             record(QueryType.DYNAMIC_PAGED, namedAggregate, Mono.just(PagedList.empty()))
 
-        override fun count(namedAggregate: NamedAggregate, condition: Condition): Mono<Long> =
+        override fun count(namedAggregate: NamedAggregate, filter: FilterExpression): Mono<Long> =
             record(QueryType.COUNT, namedAggregate, Mono.just(0L))
 
         private fun <T> record(queryType: QueryType, namedAggregate: NamedAggregate, result: T): T {
