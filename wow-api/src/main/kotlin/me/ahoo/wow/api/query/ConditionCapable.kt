@@ -31,9 +31,9 @@ interface ConditionCapable<Q : ConditionCapable<Q>> :
      * The condition currently applied to this query.
      */
     @Deprecated("Use filter.")
-    @get:JsonIgnore
     val condition: Condition
 
+    @get:JsonIgnore
     override val filter: FilterExpression
         get() = condition.toFilterExpression()
 

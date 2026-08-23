@@ -102,10 +102,14 @@ abstract class AbacQueryFilter : SnapshotQueryFilter {
          * @return the combined tag condition
          */
         fun AbacTags.toFilterExpression(): me.ahoo.wow.api.query.FilterExpression =
-            me.ahoo.wow.query.dsl.filter {
-                and {
-                    for (tag in this@toFilterExpression) {
-                        expression(tag.toFilterExpression())
+            if (isEmpty()) {
+                me.ahoo.wow.api.query.MatchAllFilter
+            } else {
+                me.ahoo.wow.query.dsl.filter {
+                    and {
+                        for (tag in this@toFilterExpression) {
+                            expression(tag.toFilterExpression())
+                        }
                     }
                 }
             }

@@ -101,4 +101,8 @@ abstract class AbstractQueryHandler<R : Any>(
 
     override fun count(namedAggregate: NamedAggregate, filter: FilterExpression): Mono<Long> =
         mono(namedAggregate, QueryType.COUNT, filter)
+
+    @Deprecated("Use count with FilterExpression.")
+    override fun count(namedAggregate: NamedAggregate, condition: Condition): Mono<Long> =
+        mono(namedAggregate, QueryType.COUNT, condition)
 }

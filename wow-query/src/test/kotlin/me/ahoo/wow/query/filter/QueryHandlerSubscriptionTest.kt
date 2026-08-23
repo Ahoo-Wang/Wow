@@ -216,7 +216,7 @@ class QueryHandlerSubscriptionTest {
                     Mono.just(PagedList(1, listOf(mutableMapOf("result" to RESULT).toDynamicDocument())))
                 )
 
-                QueryType.COUNT -> context.asCountQuery().setResult(Mono.just(1L))
+                QueryType.COUNT -> context.asFilterCountQuery().setResult(Mono.just(1L))
             }
             return next.filter(context)
         }
@@ -230,6 +230,7 @@ class QueryHandlerSubscriptionTest {
         fun queryFilter(context: QueryContext<*, *>): me.ahoo.wow.api.query.FilterExpression =
             when (val query = context.getQuery()) {
                 is me.ahoo.wow.api.query.FilterExpression -> query
+                is Condition -> query.toFilterExpression()
                 is me.ahoo.wow.api.query.FilterCapable<*> -> query.filter
                 else -> error("Unsupported query type: ${query::class}.")
             }

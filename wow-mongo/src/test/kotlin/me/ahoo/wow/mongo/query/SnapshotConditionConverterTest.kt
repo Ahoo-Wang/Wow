@@ -134,6 +134,26 @@ class SnapshotConditionConverterTest {
         )
     }
 
+    @Suppress("DEPRECATION")
+    @Test
+    fun `should not reapply active deletion scope to nested legacy filter`() {
+        val actual = SnapshotConditionConverter.convert(
+            AndFilter(
+                listOf(
+                    DeletionFilter(DeletionState.DELETED),
+                    Condition.eq("state.name", "Wow").toFilterExpression(),
+                ),
+            ),
+        )
+
+        actual.toBsonDocument().assert().isEqualTo(
+            Filters.and(
+                Filters.eq(StateAggregateRecords.DELETED, true),
+                Filters.eq("state.name", "Wow"),
+            ).toBsonDocument(),
+        )
+    }
+
     @Test
     fun `should throw error when between filter has invalid values`() {
         assertThrownBy<IllegalArgumentException> {

@@ -54,6 +54,7 @@ interface IListQuery : Queryable<IListQuery> {
  * ```
  */
 data class ListQuery(
+    @get:JsonIgnore(false)
     @get:JsonInclude(
         value = JsonInclude.Include.CUSTOM,
         valueFilter = LegacyConditionFilterValueFilter::class,

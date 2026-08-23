@@ -51,6 +51,7 @@ interface IPagedQuery : Queryable<IPagedQuery> {
  * ```
  */
 data class PagedQuery(
+    @get:JsonIgnore(false)
     @get:JsonInclude(
         value = JsonInclude.Include.CUSTOM,
         valueFilter = LegacyConditionFilterValueFilter::class,

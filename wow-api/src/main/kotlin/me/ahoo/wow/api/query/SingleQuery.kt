@@ -44,6 +44,7 @@ interface ISingleQuery : Queryable<ISingleQuery>
  * ```
  */
 data class SingleQuery(
+    @get:JsonIgnore(false)
     @get:JsonInclude(
         value = JsonInclude.Include.CUSTOM,
         valueFilter = LegacyConditionFilterValueFilter::class,

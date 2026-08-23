@@ -48,7 +48,7 @@ abstract class AbstractElasticsearchConditionConverter(
         filter.legacyConditionOrNull()?.let(::convert) ?: internalConvert(filterNormalizer.normalize(filter))
 
     private fun internalConvert(filter: FilterExpression, parent: String? = null): Query =
-        filter.legacyConditionOrNull()?.let(::convert) ?: compile(filter, parent)
+        filter.legacyConditionOrNull()?.let { super.internalConvert(it) } ?: compile(filter, parent)
 
     @Suppress("CyclomaticComplexMethod", "LongMethod")
     private fun compile(filter: FilterExpression, parent: String?): Query = when (filter) {

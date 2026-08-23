@@ -23,6 +23,7 @@ import me.ahoo.wow.api.abac.EMPTY_ABAC_TAGS
 import me.ahoo.wow.api.abac.wildcard
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.api.query.toCondition
 import me.ahoo.wow.filter.FilterChain
@@ -30,6 +31,7 @@ import me.ahoo.wow.query.filter.DefaultQueryContext
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.snapshot.filter.AbacQueryFilter.Companion.toCondition
+import me.ahoo.wow.query.snapshot.filter.AbacQueryFilter.Companion.toFilterExpression
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
@@ -76,6 +78,11 @@ class AbacQueryFilterTest {
 
         condition.assert().isNotNull()
         condition.operator.assert().isEqualTo(Operator.AND)
+    }
+
+    @Test
+    fun `empty AbacTags should return match all filter`() {
+        EMPTY_ABAC_TAGS.toFilterExpression().assert().isSameAs(MatchAllFilter)
     }
 
     @Test

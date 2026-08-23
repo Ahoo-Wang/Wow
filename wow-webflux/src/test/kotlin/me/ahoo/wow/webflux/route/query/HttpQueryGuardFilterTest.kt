@@ -268,7 +268,7 @@ class HttpQueryGuardFilterTest {
             .verify()
 
         val countBackend = FilterChain<QueryContext<*, *>> {
-            it.asCountQuery().setResult(Mono.just(0))
+            it.asFilterCountQuery().setResult(Mono.just(0))
             Mono.empty()
         }
         val scopedCondition = Condition.and(

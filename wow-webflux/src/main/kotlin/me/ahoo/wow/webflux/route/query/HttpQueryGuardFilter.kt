@@ -234,7 +234,7 @@ class HttpQueryGuardFilter(
             QueryType.PAGED, QueryType.DYNAMIC_PAGED ->
                 context.asPagedQuery<Any>().rewriteResult { it.timeout(idleTimeout) }
 
-            QueryType.COUNT -> context.asCountQuery().rewriteResult { it.timeout(idleTimeout) }
+            QueryType.COUNT -> context.asFilterCountQuery().rewriteResult { it.timeout(idleTimeout) }
         }
     }
 

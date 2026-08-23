@@ -80,7 +80,7 @@ abstract class AbstractMongoConditionConverter(
 
     private fun internalConvert(filter: FilterExpression, mapField: Boolean = true): Bson {
         filter.legacyConditionOrNull()?.let {
-            return if (mapField) convert(it) else super.internalConvert(it)
+            return super.internalConvert(if (mapField) convertCondition(it) else it)
         }
         return compile(filter, mapField)
     }

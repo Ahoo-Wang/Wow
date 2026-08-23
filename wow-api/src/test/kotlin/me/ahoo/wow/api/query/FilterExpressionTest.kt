@@ -47,6 +47,16 @@ class FilterExpressionTest {
     }
 
     @Test
+    fun `should reject array equality value`() {
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+            EqualFilter(LogicalField("state.tags"), jsonMapper.valueToTree<JsonNode>(listOf("a", "b")))
+        }
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+            NotEqualFilter(LogicalField("state.tags"), jsonMapper.valueToTree<JsonNode>(listOf("a", "b")))
+        }
+    }
+
+    @Test
     fun `should reject null range value`() {
         org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
             GreaterThanFilter(LogicalField("state.version"), jsonMapper.nullNode())
@@ -110,6 +120,15 @@ class FilterExpressionTest {
         json.contains("\"condition\"").assert().isTrue()
         json.contains("\"filter\"").assert().isFalse()
         json.contains("@timestamp").assert().isTrue()
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `legacy queryable serialization should preserve condition wire shape`() {
+        val json = jsonMapper.writeValueAsString(LegacyQueryable(Condition.eq("state.status", "CREATED")))
+
+        json.contains("\"condition\"").assert().isTrue()
+        json.contains("\"filter\"").assert().isFalse()
     }
 
     @Suppress("DEPRECATION")
