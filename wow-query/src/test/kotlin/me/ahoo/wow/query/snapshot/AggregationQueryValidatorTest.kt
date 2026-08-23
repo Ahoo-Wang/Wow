@@ -21,12 +21,15 @@ import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.DeletionState
+import me.ahoo.wow.api.query.EqualFilter
+import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.modeling.annotation.stateAggregateMetadata
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import tools.jackson.databind.node.JsonNodeFactory
 import java.time.Instant
 import java.time.LocalTime
 
@@ -156,6 +159,7 @@ class AggregationQueryValidatorTest {
             filter { "state.orders.amount" isIn listOf(false) },
             filter { "state.orders.cancelled" eq 1 },
             filter { "state.orders.createdAt" notIn listOf(1) },
+            EqualFilter(LogicalField("state.orders.status"), JsonNodeFactory.instance.nullNode()),
             filter { "state.orders.shipping" eq "address" },
             filter { "state.orders.shipping" eq null },
             filter { "state.orders.shipping".exists() },

@@ -297,7 +297,7 @@ object AggregationQueryDefinitionProvider : CustomDefinitionProviderV2 {
         deepCopy().apply {
             val properties = path("properties") as ObjectNode
             properties.set("field", fieldEnum(fields))
-            properties.set("value", objectNode().apply { putArray("type").add("null").add(valueType) })
+            properties.set("value", objectNode().put("type", valueType))
         }
 
     private fun ObjectNode.membershipVariant(fields: Collection<String>, valueType: String): ObjectNode =

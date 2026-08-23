@@ -1227,7 +1227,7 @@
                   "enum" : [ "EQ" ]
                 },
                 "value" : {
-                  "type" : [ "null", "number" ]
+                  "type" : "number"
                 }
               },
               "required" : [ "op", "field", "value" ],
@@ -1243,7 +1243,7 @@
                   "enum" : [ "EQ" ]
                 },
                 "value" : {
-                  "type" : [ "null", "string" ]
+                  "type" : "string"
                 }
               },
               "required" : [ "op", "field", "value" ],
@@ -1567,7 +1567,7 @@
                   "enum" : [ "NE" ]
                 },
                 "value" : {
-                  "type" : [ "null", "number" ]
+                  "type" : "number"
                 }
               },
               "required" : [ "op", "field", "value" ],
@@ -1583,7 +1583,7 @@
                   "enum" : [ "NE" ]
                 },
                 "value" : {
-                  "type" : [ "null", "string" ]
+                  "type" : "string"
                 }
               },
               "required" : [ "op", "field", "value" ],
@@ -2901,7 +2901,7 @@
                   "enum" : [ "EQ" ]
                 },
                 "value" : {
-                  "type" : [ "null", "number" ]
+                  "type" : "number"
                 }
               },
               "required" : [ "op", "field", "value" ],
@@ -2917,7 +2917,7 @@
                   "enum" : [ "EQ" ]
                 },
                 "value" : {
-                  "type" : [ "null", "string" ]
+                  "type" : "string"
                 }
               },
               "required" : [ "op", "field", "value" ],
@@ -3241,7 +3241,7 @@
                   "enum" : [ "NE" ]
                 },
                 "value" : {
-                  "type" : [ "null", "number" ]
+                  "type" : "number"
                 }
               },
               "required" : [ "op", "field", "value" ],
@@ -3257,7 +3257,7 @@
                   "enum" : [ "NE" ]
                 },
                 "value" : {
-                  "type" : [ "null", "string" ]
+                  "type" : "string"
                 }
               },
               "required" : [ "op", "field", "value" ],
@@ -4671,7 +4671,7 @@
                   "enum" : [ "EQ" ]
                 },
                 "value" : {
-                  "type" : [ "null", "number" ]
+                  "type" : "number"
                 }
               },
               "required" : [ "op", "field", "value" ],
@@ -4687,7 +4687,7 @@
                   "enum" : [ "EQ" ]
                 },
                 "value" : {
-                  "type" : [ "null", "string" ]
+                  "type" : "string"
                 }
               },
               "required" : [ "op", "field", "value" ],
@@ -5011,7 +5011,7 @@
                   "enum" : [ "NE" ]
                 },
                 "value" : {
-                  "type" : [ "null", "number" ]
+                  "type" : "number"
                 }
               },
               "required" : [ "op", "field", "value" ],
@@ -5027,7 +5027,7 @@
                   "enum" : [ "NE" ]
                 },
                 "value" : {
-                  "type" : [ "null", "string" ]
+                  "type" : "string"
                 }
               },
               "required" : [ "op", "field", "value" ],
@@ -5315,7 +5315,7 @@
                   "enum" : [ "EQ" ]
                 },
                 "value" : {
-                  "type" : [ "null", "number" ]
+                  "type" : "number"
                 }
               },
               "required" : [ "op", "field", "value" ],
@@ -5331,7 +5331,7 @@
                   "enum" : [ "EQ" ]
                 },
                 "value" : {
-                  "type" : [ "null", "string" ]
+                  "type" : "string"
                 }
               },
               "required" : [ "op", "field", "value" ],
@@ -5347,7 +5347,7 @@
                   "enum" : [ "EQ" ]
                 },
                 "value" : {
-                  "type" : [ "null", "boolean" ]
+                  "type" : "boolean"
                 }
               },
               "required" : [ "op", "field", "value" ],
@@ -5761,7 +5761,7 @@
                   "enum" : [ "NE" ]
                 },
                 "value" : {
-                  "type" : [ "null", "number" ]
+                  "type" : "number"
                 }
               },
               "required" : [ "op", "field", "value" ],
@@ -5777,7 +5777,7 @@
                   "enum" : [ "NE" ]
                 },
                 "value" : {
-                  "type" : [ "null", "string" ]
+                  "type" : "string"
                 }
               },
               "required" : [ "op", "field", "value" ],
@@ -5793,7 +5793,7 @@
                   "enum" : [ "NE" ]
                 },
                 "value" : {
-                  "type" : [ "null", "boolean" ]
+                  "type" : "boolean"
                 }
               },
               "required" : [ "op", "field", "value" ],

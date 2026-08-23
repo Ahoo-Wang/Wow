@@ -133,7 +133,6 @@ private fun AggregationField.supportsElementFilter(filter: FilterExpression): Bo
 }
 
 private fun AggregationField.supportsExactLiteral(value: tools.jackson.databind.JsonNode): Boolean = when {
-    value.isNull -> true
     isNumeric -> value.isNumber
     usesStringLiteral -> value.isString
     isBoolean -> value.isBoolean
