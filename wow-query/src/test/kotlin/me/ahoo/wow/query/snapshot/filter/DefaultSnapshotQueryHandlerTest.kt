@@ -17,7 +17,9 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterChainBuilder
@@ -30,6 +32,7 @@ import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 import java.lang.reflect.InvocationHandler
@@ -180,6 +183,27 @@ class DefaultSnapshotQueryHandlerTest {
         context.queryType.assert().isEqualTo(QueryType.DYNAMIC_LIST)
         context.namedAggregate.assert().isEqualTo(MOCK_AGGREGATE_METADATA)
         context.getQuery().assert().isInstanceOf(AggregationQuery::class.java)
+    }
+
+    @Test
+    fun `aggregation error handler should recover with a result`() {
+        val recovered = mutableMapOf<String, Any>("count" to 1L).toDynamicDocument()
+        val handler = DefaultSnapshotQueryHandler(
+            snapshotQueryFilterChain,
+            ErrorHandler { context, _ ->
+                @Suppress("UNCHECKED_CAST")
+                (context as QueryContext<AggregationQuery, Flux<DynamicDocument>>).setResult(Flux.just(recovered))
+                Mono.empty()
+            },
+            FilterChain { Mono.error(IllegalStateException("aggregation filter failure")) },
+        )
+
+        handler.aggregate(
+            MOCK_AGGREGATE_METADATA,
+            AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))),
+        ).test()
+            .expectNext(recovered)
+            .verifyComplete()
     }
 
     @Test

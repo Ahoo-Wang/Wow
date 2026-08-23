@@ -59,6 +59,7 @@ abstract class AggregationScopeDsl internal constructor(private val path: String
     }
 
     fun expand(elementPath: String, block: AggregationElementDsl.() -> Unit) {
+        require(elementPath.isNotBlank()) { "Aggregation element path must not be blank." }
         require(child == null) { "Only one child expand is allowed in each aggregation scope." }
         child = AggregationElementDsl(resolvePath(path, elementPath)).apply(block)
     }

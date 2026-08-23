@@ -158,9 +158,19 @@ private val tools.jackson.databind.introspect.BeanPropertyDefinition.hasCustomCo
 
 private val JavaType.aggregationCollectionKind: AggregationFieldKind
     get() = when {
+        hasCustomSerialization -> AggregationFieldKind.UNSUPPORTED_COLLECTION
         isAggregationScalar -> AggregationFieldKind.SCALAR_COLLECTION
         isMapLikeType || isCollectionLikeType || isArrayType -> AggregationFieldKind.UNSUPPORTED_COLLECTION
         else -> AggregationFieldKind.OBJECT_COLLECTION
+    }
+
+private val JavaType.hasCustomSerialization: Boolean
+    get() {
+        val config = JsonSerializer.serializationConfig()
+        val classInfo = toBeanDescription().classInfo
+        return config.annotationIntrospector.run {
+            findSerializer(config, classInfo) != null || findSerializationConverter(config, classInfo) != null
+        }
     }
 
 private val JavaType.isAggregationScalar: Boolean

@@ -100,4 +100,15 @@ class AggregationQueryDslTest {
             }
         }
     }
+
+    @Test
+    fun `should reject blank expand paths`() {
+        listOf("", " ").forEach { path ->
+            assertThrows<IllegalArgumentException> {
+                aggregationQuery {
+                    expand(path) { count("count") }
+                }
+            }
+        }
+    }
 }

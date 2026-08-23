@@ -25,6 +25,7 @@ import me.ahoo.wow.query.filter.DefaultQueryContext
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryHandler
 import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.filter.RESULT_KEY
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
@@ -56,7 +57,9 @@ class DefaultSnapshotQueryHandler @JvmOverloads constructor(
                     context.namedAggregate,
                     context.attributes,
                 ).setQuery(context.query)
-                handleError(errorContext, error)
+                handleError(errorContext, error).doOnSuccess {
+                    errorContext.getAttribute<Flux<DynamicDocument>>(RESULT_KEY)?.let(context::setResult)
+                }
             }
             .thenMany(Flux.defer { context.getRequiredResult() })
     }

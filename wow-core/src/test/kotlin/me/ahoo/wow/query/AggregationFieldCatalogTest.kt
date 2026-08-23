@@ -47,11 +47,19 @@ class AggregationFieldCatalogTest {
             "state.arrayItems",
             "state.mappedItems",
             "state.serializedItems",
+            "state.classSerializedItems",
         )
-        listOf("state.nestedItems", "state.arrayItems", "state.mappedItems", "state.serializedItems").forEach { path ->
+        listOf(
+            "state.nestedItems",
+            "state.arrayItems",
+            "state.mappedItems",
+            "state.serializedItems",
+            "state.classSerializedItems",
+        ).forEach { path ->
             catalog.paths[path]!!.kind.assert().isEqualTo(AggregationFieldKind.UNSUPPORTED_COLLECTION)
         }
         catalog.paths.keys.assert().doesNotContain("state.serializedItems.sku")
+        catalog.paths.keys.assert().doesNotContain("state.classSerializedItems.sku")
         catalog.paths.keys.assert().doesNotContain("state.attributes.value")
         catalog.paths["state.scalarItems"]!!.kind.assert().isEqualTo(AggregationFieldKind.SCALAR_COLLECTION)
         catalog.paths.keys.assert().doesNotContain("state.scalarItems.value")
@@ -114,6 +122,7 @@ class AggregationFieldCatalogTest {
 
         @get:JsonSerialize(contentUsing = ScalarLineSerializer::class)
         val serializedItems: List<Line> = emptyList()
+        val classSerializedItems: List<ClassSerializedLine> = emptyList()
         val attributes: Map<String, String> = emptyMap()
     }
 
@@ -129,6 +138,15 @@ class AggregationFieldCatalogTest {
 
     private class ScalarLineSerializer : StdSerializer<Line>(Line::class.java) {
         override fun serialize(value: Line, generator: JsonGenerator, provider: SerializationContext) {
+            generator.writeString(value.sku)
+        }
+    }
+
+    @JsonSerialize(using = ClassSerializedLineSerializer::class)
+    private data class ClassSerializedLine(val sku: String)
+
+    private class ClassSerializedLineSerializer : StdSerializer<ClassSerializedLine>(ClassSerializedLine::class.java) {
+        override fun serialize(value: ClassSerializedLine, generator: JsonGenerator, provider: SerializationContext) {
             generator.writeString(value.sku)
         }
     }
