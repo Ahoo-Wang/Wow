@@ -11,14 +11,74 @@
  * limitations under the License.
  */
 
-import { describe, it, expect } from 'vitest';
-import type { FieldSort } from '../../src';
-import { all, asc, eq, projection } from '../../src';
+import { describe, expect, expectTypeOf, it } from 'vitest';
+import type {
+  FieldSort,
+  FilterListQuery,
+  ListQuery,
+  PagedQuery,
+  SingleQuery,
+} from '../../src';
+import { all, asc, eq, filter, projection } from '../../src';
 import { singleQuery, listQuery, pagedQuery, pagedList } from '../../src';
 import type { Projection } from '../../src';
 import { DEFAULT_PAGINATION } from '../../src';
 
 describe('queryable', () => {
+  it('infers the query protocol from its required discriminator', () => {
+    expectTypeOf(singleQuery({ sort: [] })).toEqualTypeOf<
+      SingleQuery<string>
+    >();
+    expectTypeOf(listQuery({ limit: 10 })).toEqualTypeOf<ListQuery<string>>();
+    expectTypeOf(pagedQuery({ pagination: DEFAULT_PAGINATION })).toEqualTypeOf<
+      PagedQuery<string>
+    >();
+
+    const expression = filter.eq('state.status', 'PAID');
+    expectTypeOf(listQuery({ filter: expression })).toEqualTypeOf<
+      FilterListQuery<'state.status'>
+    >();
+  });
+
+  it('creates filter expression query requests', () => {
+    const expression = filter.eq('state.status', 'PAID');
+
+    expect(singleQuery({ filter: expression })).toEqual({
+      filter: expression,
+    });
+    expect(listQuery({ filter: expression })).toEqual({
+      filter: expression,
+      limit: 0,
+    });
+    expect(pagedQuery({ filter: expression })).toEqual({
+      filter: expression,
+      pagination: DEFAULT_PAGINATION,
+    });
+  });
+
+  it('rejects null query discriminators instead of falling back to match-all', () => {
+    for (const createQuery of [singleQuery, listQuery, pagedQuery]) {
+      expect(() => createQuery({ filter: null } as never)).toThrowError(
+        'filter cannot be null.',
+      );
+      expect(() => createQuery({ condition: null } as never)).toThrowError(
+        'condition cannot be null.',
+      );
+    }
+  });
+
+  it('prefers an explicit filter over a legacy condition', () => {
+    const expression = filter.matchAll();
+    for (const createQuery of [singleQuery, listQuery, pagedQuery]) {
+      const query = createQuery({
+        filter: expression,
+        condition: null,
+      } as never);
+      expect(query).toHaveProperty('filter', expression);
+      expect(query).not.toHaveProperty('condition');
+    }
+  });
+
   describe('singleQuery', () => {
     it('should create a SingleQuery with default condition when no parameters are provided', () => {
       const result = singleQuery();

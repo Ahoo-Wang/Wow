@@ -11,7 +11,11 @@
  * limitations under the License.
  */
 
-import type { ListQuery } from '@ahoo-wang/fetcher-wow';
+import type {
+  FilterListQuery,
+  ListQuery,
+  ListQueryRequest,
+} from '@ahoo-wang/fetcher-wow';
 import type { FetcherError } from '@ahoo-wang/fetcher';
 import type { UseQueryOptions, UseQueryReturn } from '../core';
 import { useQuery } from '../core';
@@ -28,7 +32,8 @@ export interface UseListQueryOptions<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseQueryOptions<ListQuery<FIELDS>, R[], E> {}
+  Q extends ListQueryRequest<FIELDS> = ListQuery<FIELDS>,
+> extends UseQueryOptions<Q, R[], E> {}
 
 /**
  * Return type for the useListQuery hook.
@@ -42,7 +47,8 @@ export interface UseListQueryReturn<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseQueryReturn<ListQuery<FIELDS>, R[], E> {}
+  Q extends ListQueryRequest<FIELDS> = ListQuery<FIELDS>,
+> extends UseQueryReturn<Q, R[], E> {}
 
 /**
  * Hook for querying list data with conditions, projection, and sorting.
@@ -71,7 +77,30 @@ export function useListQuery<
   FIELDS extends string = string,
   E = FetcherError,
 >(
-  options: UseListQueryOptions<R, FIELDS, E>,
-): UseListQueryReturn<R, FIELDS, E> {
-  return useQuery<ListQuery<FIELDS>, R[], E>(options);
+  options: UseListQueryOptions<R, FIELDS, E, ListQuery<FIELDS>>,
+): UseListQueryReturn<R, FIELDS, E, ListQuery<FIELDS>>;
+export function useListQuery<
+  R,
+  FIELDS extends string = string,
+  E = FetcherError,
+>(
+  options: UseListQueryOptions<R, FIELDS, E, FilterListQuery<FIELDS>>,
+): UseListQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
+export function useListQuery<
+  R,
+  FIELDS extends string = string,
+  E = FetcherError,
+  Q extends ListQueryRequest<FIELDS> = ListQuery<FIELDS>,
+>(
+  options: UseListQueryOptions<R, FIELDS, E, Q>,
+): UseListQueryReturn<R, FIELDS, E, Q>;
+export function useListQuery<
+  R,
+  FIELDS extends string,
+  E,
+  Q extends ListQueryRequest<FIELDS>,
+>(
+  options: UseListQueryOptions<R, FIELDS, E, Q>,
+): UseListQueryReturn<R, FIELDS, E, Q> {
+  return useQuery<Q, R[], E>(options);
 }

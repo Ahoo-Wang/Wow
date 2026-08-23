@@ -11,7 +11,11 @@
  * limitations under the License.
  */
 
-import type { ListQuery } from '@ahoo-wang/fetcher-wow';
+import type {
+  FilterListQuery,
+  ListQuery,
+  ListQueryRequest,
+} from '@ahoo-wang/fetcher-wow';
 import type { FetcherError } from '@ahoo-wang/fetcher';
 import type { UseQueryReturn } from '../../core';
 import type { UseFetcherQueryOptions } from '../../fetcher';
@@ -29,7 +33,8 @@ export interface UseFetcherListQueryOptions<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseFetcherQueryOptions<ListQuery<FIELDS>, R[], E> {}
+  Q extends ListQueryRequest<FIELDS> = ListQuery<FIELDS>,
+> extends UseFetcherQueryOptions<Q, R[], E> {}
 
 /**
  * Return type of the useFetcherListQuery hook.
@@ -43,7 +48,8 @@ export interface UseFetcherListQueryReturn<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseQueryReturn<ListQuery<FIELDS>, R[], E> {}
+  Q extends ListQueryRequest<FIELDS> = ListQuery<FIELDS>,
+> extends UseQueryReturn<Q, R[], E> {}
 
 /**
  * A React hook for executing list queries using the fetcher library within the wow framework.
@@ -124,7 +130,30 @@ export function useFetcherListQuery<
   FIELDS extends string = string,
   E = FetcherError,
 >(
-  options: UseFetcherListQueryOptions<R, FIELDS, E>,
-): UseFetcherListQueryReturn<R, FIELDS, E> {
-  return useFetcherQuery<ListQuery<FIELDS>, R[], E>(options);
+  options: UseFetcherListQueryOptions<R, FIELDS, E, ListQuery<FIELDS>>,
+): UseFetcherListQueryReturn<R, FIELDS, E, ListQuery<FIELDS>>;
+export function useFetcherListQuery<
+  R,
+  FIELDS extends string = string,
+  E = FetcherError,
+>(
+  options: UseFetcherListQueryOptions<R, FIELDS, E, FilterListQuery<FIELDS>>,
+): UseFetcherListQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
+export function useFetcherListQuery<
+  R,
+  FIELDS extends string = string,
+  E = FetcherError,
+  Q extends ListQueryRequest<FIELDS> = ListQuery<FIELDS>,
+>(
+  options: UseFetcherListQueryOptions<R, FIELDS, E, Q>,
+): UseFetcherListQueryReturn<R, FIELDS, E, Q>;
+export function useFetcherListQuery<
+  R,
+  FIELDS extends string,
+  E,
+  Q extends ListQueryRequest<FIELDS>,
+>(
+  options: UseFetcherListQueryOptions<R, FIELDS, E, Q>,
+): UseFetcherListQueryReturn<R, FIELDS, E, Q> {
+  return useFetcherQuery<Q, R[], E>(options);
 }

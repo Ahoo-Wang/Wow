@@ -241,7 +241,10 @@ export class ApiClientGenerator implements Generator {
     if (requestBody.content['application/json']) {
       const requestBodySchema = requestBody.content['application/json'].schema;
       if (isReference(requestBodySchema)) {
-        const modelInfo = resolveReferenceModelInfo(requestBodySchema);
+        const modelInfo = resolveReferenceModelInfo(
+          requestBodySchema,
+          this.context.openAPI.components,
+        );
         this.context.logger.info(
           `Adding import for request body model: ${modelInfo.name} from ${modelInfo.path}`,
         );
@@ -335,7 +338,10 @@ export class ApiClientGenerator implements Generator {
     schema: Schema | Reference,
   ): string {
     if (isReference(schema)) {
-      const modelInfo = resolveReferenceModelInfo(schema);
+      const modelInfo = resolveReferenceModelInfo(
+        schema,
+        this.context.openAPI.components,
+      );
       addImportRefModel(sourceFile, this.context.outputDir, modelInfo);
       return modelInfo.name;
     }
@@ -412,7 +418,10 @@ export class ApiClientGenerator implements Generator {
           this.context.openAPI.components!,
         )!;
         if (isArray(schema) && isReference(schema.items)) {
-          const modelInfo = resolveReferenceModelInfo(schema.items);
+          const modelInfo = resolveReferenceModelInfo(
+            schema.items,
+            this.context.openAPI.components,
+          );
           this.context.logger.info(
             `Adding import for event stream model: ${modelInfo.name} from ${modelInfo.path}`,
           );

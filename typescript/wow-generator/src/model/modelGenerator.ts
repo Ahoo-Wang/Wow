@@ -165,6 +165,7 @@ export class ModelGenerator implements Generator {
       sourceFile,
       keySchema,
       this.context.outputDir,
+      this.context.openAPI.components,
     );
     typeGenerator.generate();
   }

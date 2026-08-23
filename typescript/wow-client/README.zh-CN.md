@@ -15,7 +15,7 @@
 
 - **📦 完整的 TypeScript 支持**：为所有 Wow 框架实体提供完整的类型定义，包括命令、事件和查询
 - **🚀 命令客户端**：用于向 Wow 服务发送命令的高级客户端，支持同步和流式响应
-- **🔍 强大的查询 DSL**：丰富的查询条件构建器，支持全面的操作符用于复杂查询
+- **🔍 强大的查询 DSL**：类型安全的 `FilterExpression` 构建器，支持完整的查询操作符
 - **📡 实时事件流**：内置对服务器发送事件的支持，用于接收实时命令结果和数据更新
 - **🔄 CQRS 模式实现**：对命令查询责任分离架构模式的一流支持
 - **🧱 DDD 基础构件**：基本的领域驱动设计构建块，包括聚合、事件和值对象
@@ -151,9 +151,28 @@ for await (const commandResultEvent of commandResultStream) {
 
 ### 查询模块
 
-#### 条件构建器
+#### FilterExpression 构建器
 
-支持操作符的综合查询条件构建器：
+Wow 8.11+ 查询使用 `FilterExpression`：
+
+```typescript
+import { DeletionState, filter } from '@ahoo-wang/fetcher-wow';
+
+const expression = filter.and(
+  filter.deletion(DeletionState.ACTIVE),
+  filter.eq('state.status', 'PAID'),
+  filter.elementMatch('state.items', filter.gt('quantity', 0)),
+  filter.search('wow', 'state.name'),
+);
+```
+
+所有构建器集中在 `filter`：`matchAll`、`matchNone`、`and`、`or`、`nor`、
+比较、字符串/集合谓词、存在性检查、`elementMatch`、`search`、删除范围和相对时间过滤器。
+
+#### 条件构建器（已弃用）
+
+旧 Condition API 仅为兼容旧版 Wow 服务保留。新代码应使用
+`FilterExpression` 和 `filter.*`。
 
 ```typescript
 import {
@@ -238,7 +257,7 @@ const arrayConditions = [
 // 日期条件
 const dateConditions = [
   today('createdAt'),
-  beforeToday('lastLogin', 7), // 7天前（即过去7天内）
+  beforeToday('lastLogin', '09:30'),
   tomorrow('scheduledDate'),
   thisWeek('updatedAt'),
   nextWeek('startDate'),
@@ -274,7 +293,7 @@ const rawCondition = raw({ $text: { $search: 'keywords' } });
 | 字符串    | `contains`, `startsWith`, `endsWith`, `match`                                                                                                   |
 | 集合      | `isIn`, `notIn`, `allIn`, `elemMatch`                                                                                                           |
 | 空值/布尔 | `isNull`, `notNull`, `isTrue`, `isFalse`, `exists`                                                                                              |
-| 日期      | `today`, `beforeToday(days)`, `tomorrow`, `thisWeek`, `nextWeek`, `lastWeek`, `thisMonth`, `lastMonth`, `recentDays(days)`, `earlierDays(days)` |
+| 日期      | `today`, `beforeToday(time)`, `tomorrow`, `thisWeek`, `nextWeek`, `lastWeek`, `thisMonth`, `lastMonth`, `recentDays(days)`, `earlierDays(days)` |
 | ID        | `id`, `ids`, `aggregateId`, `aggregateIds`, `tenantId`, `ownerId`                                                                               |
 | 状态      | `active`, `all`, `deleted`                                                                                                                      |
 | 特殊      | `raw`（用于高级数据库特定查询）                                                                                                                 |
@@ -293,10 +312,10 @@ import {
 import '@ahoo-wang/fetcher-eventstream';
 import {
   SnapshotQueryClient,
-  all,
-  ListQuery,
-  PagedQuery,
-  SingleQuery,
+  filter,
+  FilterListQuery,
+  FilterPagedQuery,
+  FilterSingleQuery,
 } from '@ahoo-wang/fetcher-wow';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 
@@ -338,11 +357,11 @@ const cartSnapshotQueryClient = new SnapshotQueryClient<CartState>({
 });
 
 // 统计快照数量
-const count = await cartSnapshotQueryClient.count(all());
+const count = await cartSnapshotQueryClient.count(filter.matchAll());
 
 // 列出快照
-const listQuery: ListQuery = {
-  condition: all(),
+const listQuery: FilterListQuery = {
+  filter: filter.matchAll(),
 };
 const list = await cartSnapshotQueryClient.list(listQuery);
 
@@ -364,8 +383,8 @@ for await (const event of stateStream) {
 }
 
 // 分页查询快照
-const pagedQuery: PagedQuery = {
-  condition: all(),
+const pagedQuery: FilterPagedQuery = {
+  filter: filter.matchAll(),
 };
 const paged = await cartSnapshotQueryClient.paged(pagedQuery);
 
@@ -373,8 +392,8 @@ const paged = await cartSnapshotQueryClient.paged(pagedQuery);
 const pagedState = await cartSnapshotQueryClient.pagedState(pagedQuery);
 
 // 查询单个快照
-const singleQuery: SingleQuery = {
-  condition: all(),
+const singleQuery: FilterSingleQuery = {
+  filter: filter.matchAll(),
 };
 const single = await cartSnapshotQueryClient.single(singleQuery);
 
@@ -384,17 +403,17 @@ const singleState = await cartSnapshotQueryClient.singleState(singleQuery);
 
 ##### 方法
 
-- `count(condition: Condition): Promise<number>` - 统计匹配给定条件的快照数量。
-- `list(listQuery: ListQuery): Promise<Partial<MaterializedSnapshot<S>>[]>` - 检索物化快照列表。
-- `listStream(listQuery: ListQuery): Promise<ReadableStream<JsonServerSentEvent<Partial<MaterializedSnapshot<S>>>>>` -
+- `count(filter: FilterExpression): Promise<number>` - 统计匹配过滤表达式的快照数量。
+- `list(listQuery: FilterListQuery): Promise<Partial<MaterializedSnapshot<S>>[]>` - 检索物化快照列表。
+- `listStream(listQuery: FilterListQuery): Promise<ReadableStream<JsonServerSentEvent<Partial<MaterializedSnapshot<S>>>>>` -
   以服务器发送事件的形式检索物化快照流。
-- `listState(listQuery: ListQuery): Promise<Partial<S>[]>` - 检索快照状态列表。
-- `listStateStream(listQuery: ListQuery): Promise<ReadableStream<JsonServerSentEvent<Partial<S>>>>` -
+- `listState(listQuery: FilterListQuery): Promise<Partial<S>[]>` - 检索快照状态列表。
+- `listStateStream(listQuery: FilterListQuery): Promise<ReadableStream<JsonServerSentEvent<Partial<S>>>>` -
   以服务器发送事件的形式检索快照状态流。
-- `paged(pagedQuery: PagedQuery): Promise<PagedList<Partial<MaterializedSnapshot<S>>>>` - 检索物化快照的分页列表。
-- `pagedState(pagedQuery: PagedQuery): Promise<PagedList<Partial<S>>>` - 检索快照状态的分页列表。
-- `single(singleQuery: SingleQuery): Promise<Partial<MaterializedSnapshot<S>>>` - 检索单个物化快照。
-- `singleState(singleQuery: SingleQuery): Promise<Partial<S>>` - 检索单个快照状态。
+- `paged(pagedQuery: FilterPagedQuery): Promise<PagedList<Partial<MaterializedSnapshot<S>>>>` - 检索物化快照的分页列表。
+- `pagedState(pagedQuery: FilterPagedQuery): Promise<PagedList<Partial<S>>>` - 检索快照状态的分页列表。
+- `single(singleQuery: FilterSingleQuery): Promise<Partial<MaterializedSnapshot<S>>>` - 检索单个物化快照。
+- `singleState(singleQuery: FilterSingleQuery): Promise<Partial<S>>` - 检索单个快照状态。
 
 #### QueryClientFactory
 
@@ -402,9 +421,9 @@ const singleState = await cartSnapshotQueryClient.singleState(singleQuery);
 
 ```typescript
 import {
+  filter,
   QueryClientFactory,
   ResourceAttributionPathSpec,
-  all,
 } from '@ahoo-wang/fetcher-wow';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 
@@ -420,7 +439,7 @@ const factory = new QueryClientFactory({
 const snapshotClient = factory.createSnapshotQueryClient({
   aggregateName: 'cart',
 });
-const carts = await snapshotClient.listState({ condition: all() });
+const carts = await snapshotClient.listState({ filter: filter.matchAll() });
 
 // 创建状态聚合客户端
 const stateClient = factory.createLoadStateAggregateClient({
@@ -432,7 +451,7 @@ const cart = await stateClient.load('cart-123');
 const eventClient = factory.createEventStreamQueryClient({
   aggregateName: 'cart',
 });
-const events = await eventClient.list({ condition: all() });
+const events = await eventClient.list({ filter: filter.matchAll() });
 ```
 
 **方法：**
@@ -456,9 +475,9 @@ import {
 import '@ahoo-wang/fetcher-eventstream';
 import {
   EventStreamQueryClient,
-  all,
-  ListQuery,
-  PagedQuery,
+  filter,
+  FilterListQuery,
+  FilterPagedQuery,
 } from '@ahoo-wang/fetcher-wow';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 
@@ -491,11 +510,11 @@ const cartEventStreamQueryClient = new EventStreamQueryClient({
 });
 
 // 统计事件流数量
-const count = await cartEventStreamQueryClient.count(all());
+const count = await cartEventStreamQueryClient.count(filter.matchAll());
 
 // 列出事件流
-const listQuery: ListQuery = {
-  condition: all(),
+const listQuery: FilterListQuery = {
+  filter: filter.matchAll(),
 };
 const list = await cartEventStreamQueryClient.list(listQuery);
 
@@ -507,19 +526,19 @@ for await (const event of listStream) {
 }
 
 // 分页查询事件流
-const pagedQuery: PagedQuery = {
-  condition: all(),
+const pagedQuery: FilterPagedQuery = {
+  filter: filter.matchAll(),
 };
 const paged = await cartEventStreamQueryClient.paged(pagedQuery);
 ```
 
 ##### 方法
 
-- `count(condition: Condition): Promise<number>` - 统计匹配给定条件的领域事件流数量。
-- `list(listQuery: ListQuery): Promise<Partial<DomainEventStream>[]>` - 检索领域事件流列表。
-- `listStream(listQuery: ListQuery): Promise<ReadableStream<JsonServerSentEvent<Partial<DomainEventStream>>>>` -
+- `count(filter: FilterExpression): Promise<number>` - 统计匹配过滤表达式的领域事件流数量。
+- `list(listQuery: FilterListQuery): Promise<Partial<DomainEventStream>[]>` - 检索领域事件流列表。
+- `listStream(listQuery: FilterListQuery): Promise<ReadableStream<JsonServerSentEvent<Partial<DomainEventStream>>>>` -
   以服务器发送事件的形式检索领域事件流。
-- `paged(pagedQuery: PagedQuery): Promise<PagedList<Partial<DomainEventStream>>>` - 检索领域事件流的分页列表。
+- `paged(pagedQuery: FilterPagedQuery): Promise<PagedList<Partial<DomainEventStream>>>` - 检索领域事件流的分页列表。
 
 ## 🛠️ 高级用法
 
@@ -540,8 +559,8 @@ import {
   CommandHeaders,
   CommandStage,
   SnapshotQueryClient,
-  all,
-  ListQuery,
+  filter,
+  FilterListQuery,
 } from '@ahoo-wang/fetcher-wow';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 
@@ -620,8 +639,8 @@ const commandResult = await cartCommandClient.send(
 console.log('命令执行完成:', commandResult);
 
 // 2. 查询更新后的购物车
-const listQuery: ListQuery = {
-  condition: all(),
+const listQuery: FilterListQuery = {
+  filter: filter.matchAll(),
 };
 const carts = await cartSnapshotQueryClient.list(listQuery);
 

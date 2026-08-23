@@ -14,12 +14,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   cursorCondition,
+  cursorFilter,
   cursorQuery,
   cursorSort,
   CURSOR_ID_START,
 } from '../../src';
 import { SortDirection } from '../../src';
-import { and, eq, gt, lt } from '../../src';
+import { and, eq, filter, gt, lt } from '../../src';
 import { listQuery } from '../../src';
 
 describe('cursorQuery', () => {
@@ -49,6 +50,49 @@ describe('cursorQuery', () => {
     const result = cursorCondition({ field });
 
     expect(result).toEqual(lt(field, CURSOR_ID_START));
+  });
+
+  it('should enhance a filter query with cursor parameters', () => {
+    const query = listQuery({ filter: filter.eq('status', 'active') });
+    const result = cursorQuery({
+      field: 'id',
+      cursorId: 'cursor123',
+      direction: SortDirection.ASC,
+      query,
+    });
+
+    expect(result.filter).toEqual(
+      filter.and(
+        cursorFilter({
+          field: 'id',
+          cursorId: 'cursor123',
+          direction: SortDirection.ASC,
+        }),
+        query.filter,
+      ),
+    );
+  });
+
+  it('should treat an undefined filter as a legacy query', () => {
+    const query = {
+      condition: eq('status', 'active'),
+      filter: undefined,
+      limit: 10,
+    };
+    const options = {
+      field: 'id',
+      cursorId: 'cursor123',
+      direction: SortDirection.ASC,
+      query,
+    };
+
+    const result = cursorQuery(options);
+
+    expect(result).toEqual({
+      ...query,
+      condition: and(cursorCondition(options), query.condition),
+      sort: [{ field: 'id', direction: SortDirection.ASC }],
+    });
   });
 
   it('should create cursor sort configuration', () => {

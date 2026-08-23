@@ -14,10 +14,10 @@
 import type { QueryApi } from '../queryApi';
 import type { MaterializedSnapshot } from './snapshot';
 import type {
-  ListQuery,
+  ListQueryRequest,
   PagedList,
-  PagedQuery,
-  SingleQuery,
+  PagedQueryRequest,
+  SingleQueryRequest,
 } from '../queryable';
 import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 
@@ -43,7 +43,7 @@ export interface SnapshotQueryApi<
    * @returns A promise that resolves to a partial snapshot state
    */
   singleState<T extends Partial<S> = S>(
-    singleQuery: SingleQuery<FIELDS>,
+    singleQuery: SingleQueryRequest<FIELDS>,
     attributes?: Record<string, any>,
     abortController?: AbortController,
   ): Promise<T>;
@@ -60,7 +60,7 @@ export interface SnapshotQueryApi<
    * @returns A promise that resolves to an array of partial snapshot states
    */
   listState<T extends Partial<S> = S>(
-    listQuery: ListQuery<FIELDS>,
+    listQuery: ListQueryRequest<FIELDS>,
     attributes?: Record<string, any>,
     abortController?: AbortController,
   ): Promise<T[]>;
@@ -77,7 +77,7 @@ export interface SnapshotQueryApi<
    * @returns A promise that resolves to a readable stream of JSON server-sent events containing partial snapshot states
    */
   listStateStream<T extends Partial<S> = S>(
-    listQuery: ListQuery<FIELDS>,
+    listQuery: ListQueryRequest<FIELDS>,
     attributes?: Record<string, any>,
     abortController?: AbortController,
   ): Promise<ReadableStream<JsonServerSentEvent<T>>>;
@@ -94,7 +94,7 @@ export interface SnapshotQueryApi<
    * @returns A promise that resolves to a paged list of partial snapshot states
    */
   pagedState<T extends Partial<S> = S>(
-    pagedQuery: PagedQuery<FIELDS>,
+    pagedQuery: PagedQueryRequest<FIELDS>,
     attributes?: Record<string, any>,
     abortController?: AbortController,
   ): Promise<PagedList<T>>;

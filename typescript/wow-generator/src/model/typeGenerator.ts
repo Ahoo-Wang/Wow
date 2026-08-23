@@ -14,7 +14,7 @@
 import type { ModelInfo } from './modelInfo';
 import { resolveReferenceModelInfo } from './modelInfo';
 import type { InterfaceDeclaration, JSDocableNode, SourceFile } from 'ts-morph';
-import type { Reference, Schema } from '@ahoo-wang/fetcher-openapi';
+import type { Components, Reference, Schema } from '@ahoo-wang/fetcher-openapi';
 import type {
   AllOfSchema,
   ArraySchema,
@@ -53,6 +53,7 @@ export class TypeGenerator implements Generator {
     private readonly sourceFile: SourceFile,
     private readonly keySchema: KeySchema,
     private readonly outputDir: string,
+    private readonly components?: Components,
   ) {}
 
   generate(): void {
@@ -83,7 +84,7 @@ export class TypeGenerator implements Generator {
   }
 
   private resolveReference(schema: Reference) {
-    const refModelInfo = resolveReferenceModelInfo(schema);
+    const refModelInfo = resolveReferenceModelInfo(schema, this.components);
     addImportModelInfo(
       this.modelInfo,
       this.sourceFile,

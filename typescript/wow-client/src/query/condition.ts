@@ -19,6 +19,7 @@ import { Operator } from './operator';
  * @param condition - Condition
  * @returns If condition is validate return true, otherwise return false
  */
+/** @deprecated Use FilterExpression and filter.* instead. */
 export function isValidateCondition(
   condition: Condition | undefined | null,
 ): condition is Condition {
@@ -30,6 +31,7 @@ export function isValidateCondition(
  *
  * Defines standard option keys used in query conditions for special handling.
  */
+/** @deprecated Use FilterExpression and filter.* instead. */
 export class ConditionOptionKey {
   /**
    * Ignore case option key for string comparisons
@@ -53,6 +55,7 @@ export class ConditionOptionKey {
  * Represents additional options that can be applied to query conditions,
  * such as case sensitivity, date patterns, and time zones.
  */
+/** @deprecated Use FilterExpression and filter.* instead. */
 export interface ConditionOptions {
   /**
    * Whether to ignore case in string comparisons
@@ -81,6 +84,7 @@ export interface ConditionOptions {
  * @param ignoreCase - Whether to ignore case
  * @returns Condition options or undefined if ignoreCase is undefined
  */
+/** @deprecated Use StringComparison with filter.* instead. */
 export function ignoreCaseOptions(
   ignoreCase?: boolean,
 ): ConditionOptions | undefined {
@@ -97,6 +101,7 @@ export function ignoreCaseOptions(
  * @param zoneId - Time zone ID
  * @returns Condition options or undefined if both parameters are undefined
  */
+/** @deprecated Pass RelativeTimeFilterOptions to filter.* instead. */
 export function dateOptions(
   datePattern?: string,
   zoneId?: string,
@@ -119,6 +124,7 @@ export function dateOptions(
  *
  * When `operator` is `AND` or `OR` or `NOR`, `children` cannot be empty.
  */
+/** @deprecated Use FilterExpression instead. */
 export interface Condition<FIELDS extends string = string> {
   /**
    * Field name for the condition
@@ -149,7 +155,9 @@ export interface Condition<FIELDS extends string = string> {
 /**
  * Interface for objects that have a condition.
  */
+/** @deprecated Use FilterCapable instead. */
 export interface ConditionCapable<FIELDS extends string = string> {
+  /** @deprecated Use filter instead. */
   condition: Condition<FIELDS>;
 }
 
@@ -187,6 +195,7 @@ export enum DeletionState {
  *                   If multiple, combines them into an AND condition with flattening optimization.
  * @returns A condition with AND operator or an optimized condition based on the input
  */
+/** @deprecated Use filter.and instead. */
 export function and<FIELDS extends string = string>(
   ...conditions: Array<Condition<FIELDS> | undefined | null>
 ): Condition<FIELDS> {
@@ -222,6 +231,7 @@ export function and<FIELDS extends string = string>(
  * @param conditions - Conditions to combine with OR
  * @returns A condition with OR operator
  */
+/** @deprecated Use filter.or instead. */
 export function or<FIELDS extends string = string>(
   ...conditions: Array<Condition<FIELDS> | undefined | null>
 ): Condition<FIELDS> {
@@ -240,6 +250,7 @@ export function or<FIELDS extends string = string>(
  * @param conditions - Conditions to combine with NOR
  * @returns A condition with NOR operator
  */
+/** @deprecated Use filter.nor instead. */
 export function nor<FIELDS extends string = string>(
   ...conditions: Condition<FIELDS>[]
 ): Condition<FIELDS> {
@@ -255,6 +266,7 @@ export function nor<FIELDS extends string = string>(
  * @param value - The ID value to match
  * @returns A condition with ID operator
  */
+/** @deprecated Use filter.eq with the logical ID field instead. */
 export function id<FIELDS extends string = string>(
   value: string,
 ): Condition<FIELDS> {
@@ -267,6 +279,7 @@ export function id<FIELDS extends string = string>(
  * @param value - The ID values to match
  * @returns A condition with IDS operator
  */
+/** @deprecated Use filter.isIn with the logical ID field instead. */
 export function ids<FIELDS extends string = string>(
   value: string[],
 ): Condition<FIELDS> {
@@ -279,6 +292,7 @@ export function ids<FIELDS extends string = string>(
  * @param value - The aggregate ID value to match
  * @returns A condition with AGGREGATE_ID operator
  */
+/** @deprecated Use filter.eq with the aggregate ID field instead. */
 export function aggregateId<FIELDS extends string = string>(
   value: string,
 ): Condition<FIELDS> {
@@ -291,6 +305,7 @@ export function aggregateId<FIELDS extends string = string>(
  * @param value - The aggregate ID values to match
  * @returns A condition with AGGREGATE_IDS operator
  */
+/** @deprecated Use filter.isIn with the aggregate ID field instead. */
 export function aggregateIds<FIELDS extends string = string>(
   value: string[],
 ): Condition<FIELDS> {
@@ -303,6 +318,7 @@ export function aggregateIds<FIELDS extends string = string>(
  * @param value - The tenant ID value to match
  * @returns A condition with TENANT_ID operator
  */
+/** @deprecated Use filter.eq with the tenant ID field instead. */
 export function tenantId<FIELDS extends string = string>(
   value: string,
 ): Condition<FIELDS> {
@@ -315,12 +331,14 @@ export function tenantId<FIELDS extends string = string>(
  * @param value - The owner ID value to match
  * @returns A condition with OWNER_ID operator
  */
+/** @deprecated Use filter.eq with the owner ID field instead. */
 export function ownerId<FIELDS extends string = string>(
   value: string,
 ): Condition<FIELDS> {
   return { operator: Operator.OWNER_ID, value: value };
 }
 
+/** @deprecated Use filter.eq with the space ID field instead. */
 export function spaceId<FIELDS extends string = string>(
   value: string,
 ): Condition<FIELDS> {
@@ -333,6 +351,7 @@ export function spaceId<FIELDS extends string = string>(
  * @param value - The deletion state value to match
  * @returns A condition with DELETED operator
  */
+/** @deprecated Use filter.deletion instead. */
 export function deleted<FIELDS extends string = string>(
   value: DeletionState,
 ): Condition<FIELDS> {
@@ -344,6 +363,7 @@ export function deleted<FIELDS extends string = string>(
  *
  * @returns A condition with DELETED operator set to ACTIVE
  */
+/** @deprecated Use filter.deletion(DeletionState.ACTIVE) instead. */
 export function active<FIELDS extends string = string>(): Condition<FIELDS> {
   return deleted(DeletionState.ACTIVE);
 }
@@ -353,6 +373,7 @@ export function active<FIELDS extends string = string>(): Condition<FIELDS> {
  *
  * @returns A condition with ALL operator
  */
+/** @deprecated Use filter.matchAll instead. */
 export function all<FIELDS extends string = string>(): Condition<FIELDS> {
   return {
     operator: Operator.ALL,
@@ -366,6 +387,7 @@ export function all<FIELDS extends string = string>(): Condition<FIELDS> {
  * @param value - The value to compare against
  * @returns A condition with EQ operator
  */
+/** @deprecated Use filter.eq instead. */
 export function eq<FIELDS extends string = string>(
   field: FIELDS,
   value: any,
@@ -380,6 +402,7 @@ export function eq<FIELDS extends string = string>(
  * @param value - The value to compare against
  * @returns A condition with NE operator
  */
+/** @deprecated Use filter.ne instead. */
 export function ne<FIELDS extends string = string>(
   field: FIELDS,
   value: any,
@@ -394,6 +417,7 @@ export function ne<FIELDS extends string = string>(
  * @param value - The value to compare against
  * @returns A condition with GT operator
  */
+/** @deprecated Use filter.gt instead. */
 export function gt<FIELDS extends string = string>(
   field: FIELDS,
   value: any,
@@ -408,6 +432,7 @@ export function gt<FIELDS extends string = string>(
  * @param value - The value to compare against
  * @returns A condition with LT operator
  */
+/** @deprecated Use filter.lt instead. */
 export function lt<FIELDS extends string = string>(
   field: FIELDS,
   value: any,
@@ -422,6 +447,7 @@ export function lt<FIELDS extends string = string>(
  * @param value - The value to compare against
  * @returns A condition with GTE operator
  */
+/** @deprecated Use filter.gte instead. */
 export function gte<FIELDS extends string = string>(
   field: FIELDS,
   value: any,
@@ -436,6 +462,7 @@ export function gte<FIELDS extends string = string>(
  * @param value - The value to compare against
  * @returns A condition with LTE operator
  */
+/** @deprecated Use filter.lte instead. */
 export function lte<FIELDS extends string = string>(
   field: FIELDS,
   value: any,
@@ -451,6 +478,7 @@ export function lte<FIELDS extends string = string>(
  * @param ignoreCase - Whether to ignore case in the search
  * @returns A condition with CONTAINS operator
  */
+/** @deprecated Use filter.contains instead. */
 export function contains<FIELDS extends string = string>(
   field: FIELDS,
   value: any,
@@ -468,6 +496,7 @@ export function contains<FIELDS extends string = string>(
  * @param value - The values to compare against
  * @returns A condition with IN operator
  */
+/** @deprecated Use filter.isIn instead. */
 export function isIn<FIELDS extends string = string>(
   field: FIELDS,
   ...value: any[]
@@ -482,6 +511,7 @@ export function isIn<FIELDS extends string = string>(
  * @param value - The values to compare against
  * @returns A condition with NOT_IN operator
  */
+/** @deprecated Use filter.notIn instead. */
 export function notIn<FIELDS extends string = string>(
   field: FIELDS,
   ...value: any[]
@@ -497,6 +527,7 @@ export function notIn<FIELDS extends string = string>(
  * @param end - The end value of the range
  * @returns A condition with BETWEEN operator
  */
+/** @deprecated Use filter.between instead. */
 export function between<FIELDS extends string = string>(
   field: FIELDS,
   start: any,
@@ -512,6 +543,7 @@ export function between<FIELDS extends string = string>(
  * @param value - The values to compare against
  * @returns A condition with ALL_IN operator
  */
+/** @deprecated Use filter.containsAll instead. */
 export function allIn<FIELDS extends string = string>(
   field: FIELDS,
   ...value: any[]
@@ -527,6 +559,7 @@ export function allIn<FIELDS extends string = string>(
  * @param ignoreCase - Whether to ignore case in the comparison
  * @returns A condition with STARTS_WITH operator
  */
+/** @deprecated Use filter.startsWith instead. */
 export function startsWith<FIELDS extends string = string>(
   field: FIELDS,
   value: any,
@@ -544,6 +577,7 @@ export function startsWith<FIELDS extends string = string>(
  * @param value - The search keywords
  * @returns A condition with MATCH operator
  */
+/** @deprecated Use filter.search instead. */
 export function match<FIELDS extends string = string>(
   field: FIELDS,
   value: string,
@@ -559,6 +593,7 @@ export function match<FIELDS extends string = string>(
  * @param ignoreCase - Whether to ignore case in the comparison
  * @returns A condition with ENDS_WITH operator
  */
+/** @deprecated Use filter.endsWith instead. */
 export function endsWith<FIELDS extends string = string>(
   field: FIELDS,
   value: any,
@@ -576,6 +611,7 @@ export function endsWith<FIELDS extends string = string>(
  * @param value - The condition to match elements against
  * @returns A condition with ELEM_MATCH operator
  */
+/** @deprecated Use filter.elementMatch instead. */
 export function elemMatch<FIELDS extends string = string>(
   field: FIELDS,
   value: Condition<FIELDS>,
@@ -589,6 +625,7 @@ export function elemMatch<FIELDS extends string = string>(
  * @param field - The field name to check
  * @returns A condition with NULL operator
  */
+/** @deprecated Use filter.isNull instead. */
 export function isNull<FIELDS extends string = string>(
   field: FIELDS,
 ): Condition<FIELDS> {
@@ -601,6 +638,7 @@ export function isNull<FIELDS extends string = string>(
  * @param field - The field name to check
  * @returns A condition with NOT_NULL operator
  */
+/** @deprecated Use filter.isNotNull instead. */
 export function notNull<FIELDS extends string = string>(
   field: FIELDS,
 ): Condition<FIELDS> {
@@ -613,6 +651,7 @@ export function notNull<FIELDS extends string = string>(
  * @param field - The field name to check
  * @returns A condition with TRUE operator
  */
+/** @deprecated Use filter.eq(field, true) instead. */
 export function isTrue<FIELDS extends string = string>(
   field: FIELDS,
 ): Condition<FIELDS> {
@@ -625,6 +664,7 @@ export function isTrue<FIELDS extends string = string>(
  * @param field - The field name to check
  * @returns A condition with FALSE operator
  */
+/** @deprecated Use filter.eq(field, false) instead. */
 export function isFalse<FIELDS extends string = string>(
   field: FIELDS,
 ): Condition<FIELDS> {
@@ -638,6 +678,7 @@ export function isFalse<FIELDS extends string = string>(
  * @param exists - Whether the field should exist (default: true)
  * @returns A condition with EXISTS operator
  */
+/** @deprecated Use filter.exists or filter.notExists instead. */
 export function exists<FIELDS extends string = string>(
   field: FIELDS,
   exists: boolean = true,
@@ -653,6 +694,7 @@ export function exists<FIELDS extends string = string>(
  * @param zoneId - The time zone ID to use
  * @returns A condition with TODAY operator
  */
+/** @deprecated Use filter.today instead. */
 export function today<FIELDS extends string = string>(
   field: FIELDS,
   datePattern?: string,
@@ -671,6 +713,7 @@ export function today<FIELDS extends string = string>(
  * @param zoneId - The time zone ID to use
  * @returns A condition with BEFORE_TODAY operator
  */
+/** @deprecated Use filter.beforeToday instead. */
 export function beforeToday<FIELDS extends string = string>(
   field: FIELDS,
   time: any,
@@ -689,6 +732,7 @@ export function beforeToday<FIELDS extends string = string>(
  * @param zoneId - The time zone ID to use
  * @returns A condition with TOMORROW operator
  */
+/** @deprecated Use filter.tomorrow instead. */
 export function tomorrow<FIELDS extends string = string>(
   field: FIELDS,
   datePattern?: string,
@@ -706,6 +750,7 @@ export function tomorrow<FIELDS extends string = string>(
  * @param zoneId - The time zone ID to use
  * @returns A condition with THIS_WEEK operator
  */
+/** @deprecated Use filter.thisWeek instead. */
 export function thisWeek<FIELDS extends string = string>(
   field: FIELDS,
   datePattern?: string,
@@ -723,6 +768,7 @@ export function thisWeek<FIELDS extends string = string>(
  * @param zoneId - The time zone ID to use
  * @returns A condition with NEXT_WEEK operator
  */
+/** @deprecated Use filter.nextWeek instead. */
 export function nextWeek<FIELDS extends string = string>(
   field: FIELDS,
   datePattern?: string,
@@ -740,6 +786,7 @@ export function nextWeek<FIELDS extends string = string>(
  * @param zoneId - The time zone ID to use
  * @returns A condition with LAST_WEEK operator
  */
+/** @deprecated Use filter.lastWeek instead. */
 export function lastWeek<FIELDS extends string = string>(
   field: FIELDS,
   datePattern?: string,
@@ -757,6 +804,7 @@ export function lastWeek<FIELDS extends string = string>(
  * @param zoneId - The time zone ID to use
  * @returns A condition with THIS_MONTH operator
  */
+/** @deprecated Use filter.thisMonth instead. */
 export function thisMonth<FIELDS extends string = string>(
   field: FIELDS,
   datePattern?: string,
@@ -774,6 +822,7 @@ export function thisMonth<FIELDS extends string = string>(
  * @param zoneId - The time zone ID to use
  * @returns A condition with LAST_MONTH operator
  */
+/** @deprecated Use filter.lastMonth instead. */
 export function lastMonth<FIELDS extends string = string>(
   field: FIELDS,
   datePattern?: string,
@@ -792,6 +841,7 @@ export function lastMonth<FIELDS extends string = string>(
  * @param zoneId - The time zone ID to use
  * @returns A condition with RECENT_DAYS operator
  */
+/** @deprecated Use filter.recentDays instead. */
 export function recentDays<FIELDS extends string = string>(
   field: FIELDS,
   days: number,
@@ -811,6 +861,7 @@ export function recentDays<FIELDS extends string = string>(
  * @param zoneId - The time zone ID to use
  * @returns A condition with EARLIER_DAYS operator
  */
+/** @deprecated Use filter.earlierDays instead. */
 export function earlierDays<FIELDS extends string = string>(
   field: FIELDS,
   days: number,
@@ -827,6 +878,7 @@ export function earlierDays<FIELDS extends string = string>(
  * @param raw - The raw condition value
  * @returns A condition with RAW operator
  */
+/** @deprecated RAW has no FilterExpression replacement. */
 export function raw<FIELDS extends string = string>(
   raw: any,
 ): Condition<FIELDS> {

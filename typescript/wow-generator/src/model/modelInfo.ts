@@ -11,9 +11,14 @@
  * limitations under the License.
  */
 
-import type { Reference } from '@ahoo-wang/fetcher-openapi';
+import type { Components, Reference, Schema } from '@ahoo-wang/fetcher-openapi';
 import type { Named } from '@ahoo-wang/fetcher-wow';
-import { extractComponentKey, pascalCase, upperSnakeCase } from '../utils';
+import {
+  extractComponentKey,
+  extractSchema,
+  pascalCase,
+  upperSnakeCase,
+} from '../utils';
 import { IMPORT_WOW_PATH, WOW_TYPE_MAPPING } from './wowTypeMapping';
 
 /**
@@ -41,12 +46,21 @@ export interface ModelInfo extends Named {
  * @param schemaKey - The dot-separated schema key (e.g., "com.example.User")
  * @returns ModelInfo object containing the parsed name and path
  */
-export function resolveModelInfo(schemaKey: string): ModelInfo {
+export function resolveModelInfo(
+  schemaKey: string,
+  schema?: Schema,
+): ModelInfo {
   if (!schemaKey) {
     return { name: '', path: '/' };
   }
-  const mappedType =
-    WOW_TYPE_MAPPING[schemaKey as keyof typeof WOW_TYPE_MAPPING];
+  let mappedType = WOW_TYPE_MAPPING[schemaKey as keyof typeof WOW_TYPE_MAPPING];
+  if (schema?.properties && 'filter' in schema.properties) {
+    if (schemaKey === 'wow.api.query.ListQuery') {
+      mappedType = 'ListQueryRequest';
+    } else if (schemaKey === 'wow.api.query.PagedQuery') {
+      mappedType = 'PagedQueryRequest';
+    }
+  }
   if (mappedType) {
     return { name: mappedType, path: IMPORT_WOW_PATH };
   }
@@ -73,9 +87,13 @@ export function resolveModelInfo(schemaKey: string): ModelInfo {
   return { name, path };
 }
 
-export function resolveReferenceModelInfo(reference: Reference): ModelInfo {
+export function resolveReferenceModelInfo(
+  reference: Reference,
+  components?: Components,
+): ModelInfo {
   const componentKey = extractComponentKey(reference);
-  return resolveModelInfo(componentKey);
+  const schema = components ? extractSchema(reference, components) : undefined;
+  return resolveModelInfo(componentKey, schema);
 }
 
 export function resolveContextDeclarationName(contextAlias: string): string {

@@ -11,7 +11,11 @@
  * limitations under the License.
  */
 
-import type { ListQuery } from '@ahoo-wang/fetcher-wow';
+import type {
+  FilterListQuery,
+  ListQuery,
+  ListQueryRequest,
+} from '@ahoo-wang/fetcher-wow';
 import type { FetcherError } from '@ahoo-wang/fetcher';
 import type { UseQueryReturn } from '../../core';
 import type { UseFetcherQueryOptions } from '../../fetcher';
@@ -33,8 +37,9 @@ export interface UseFetcherListStreamQueryOptions<
   R,
   FIELDS extends string = string,
   E = FetcherError,
+  Q extends ListQueryRequest<FIELDS> = ListQuery<FIELDS>,
 > extends UseFetcherQueryOptions<
-  ListQuery<FIELDS>,
+  Q,
   ReadableStream<JsonServerSentEvent<R>>,
   E
 > {}
@@ -53,11 +58,8 @@ export interface UseFetcherListStreamQueryReturn<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseQueryReturn<
-  ListQuery<FIELDS>,
-  ReadableStream<JsonServerSentEvent<R>>,
-  E
-> {}
+  Q extends ListQueryRequest<FIELDS> = ListQuery<FIELDS>,
+> extends UseQueryReturn<Q, ReadableStream<JsonServerSentEvent<R>>, E> {}
 
 /**
  * A React hook for performing list stream queries using the Fetcher library with server-sent events.
@@ -140,15 +142,41 @@ export function useFetcherListStreamQuery<
   FIELDS extends string = string,
   E = FetcherError,
 >(
-  options: UseFetcherListStreamQueryOptions<R, FIELDS, E>,
-): UseFetcherListStreamQueryReturn<R, FIELDS, E> {
+  options: UseFetcherListStreamQueryOptions<R, FIELDS, E, ListQuery<FIELDS>>,
+): UseFetcherListStreamQueryReturn<R, FIELDS, E, ListQuery<FIELDS>>;
+export function useFetcherListStreamQuery<
+  R,
+  FIELDS extends string = string,
+  E = FetcherError,
+>(
+  options: UseFetcherListStreamQueryOptions<
+    R,
+    FIELDS,
+    E,
+    FilterListQuery<FIELDS>
+  >,
+): UseFetcherListStreamQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
+export function useFetcherListStreamQuery<
+  R,
+  FIELDS extends string = string,
+  E = FetcherError,
+  Q extends ListQueryRequest<FIELDS> = ListQuery<FIELDS>,
+>(
+  options: UseFetcherListStreamQueryOptions<R, FIELDS, E, Q>,
+): UseFetcherListStreamQueryReturn<R, FIELDS, E, Q>;
+export function useFetcherListStreamQuery<
+  R,
+  FIELDS extends string,
+  E,
+  Q extends ListQueryRequest<FIELDS>,
+>(
+  options: UseFetcherListStreamQueryOptions<R, FIELDS, E, Q>,
+): UseFetcherListStreamQueryReturn<R, FIELDS, E, Q> {
   const streamOptions = {
     ...options,
     resultExtractor: JsonEventStreamResultExtractor,
   };
-  return useFetcherQuery<
-    ListQuery<FIELDS>,
-    ReadableStream<JsonServerSentEvent<R>>,
-    E
-  >(streamOptions);
+  return useFetcherQuery<Q, ReadableStream<JsonServerSentEvent<R>>, E>(
+    streamOptions,
+  );
 }

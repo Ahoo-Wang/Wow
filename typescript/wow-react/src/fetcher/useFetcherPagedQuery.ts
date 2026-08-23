@@ -11,7 +11,12 @@
  * limitations under the License.
  */
 
-import type { PagedList, PagedQuery } from '@ahoo-wang/fetcher-wow';
+import type {
+  FilterPagedQuery,
+  PagedList,
+  PagedQuery,
+  PagedQueryRequest,
+} from '@ahoo-wang/fetcher-wow';
 import type { FetcherError } from '@ahoo-wang/fetcher';
 import type { UseQueryReturn } from '../../core';
 import type { UseFetcherQueryOptions } from '../../fetcher';
@@ -31,7 +36,8 @@ export interface UseFetcherPagedQueryOptions<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseFetcherQueryOptions<PagedQuery<FIELDS>, PagedList<R>, E> {}
+  Q extends PagedQueryRequest<FIELDS> = PagedQuery<FIELDS>,
+> extends UseFetcherQueryOptions<Q, PagedList<R>, E> {}
 
 /**
  * Return type for the useFetcherPagedQuery hook.
@@ -47,7 +53,8 @@ export interface UseFetcherPagedQueryReturn<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseQueryReturn<PagedQuery<FIELDS>, PagedList<R>, E> {}
+  Q extends PagedQueryRequest<FIELDS> = PagedQuery<FIELDS>,
+> extends UseQueryReturn<Q, PagedList<R>, E> {}
 
 /**
  * A React hook for performing paged queries using the Fetcher library.
@@ -135,7 +142,30 @@ export function useFetcherPagedQuery<
   FIELDS extends string = string,
   E = FetcherError,
 >(
-  options: UseFetcherPagedQueryOptions<R, FIELDS, E>,
-): UseFetcherPagedQueryReturn<R, FIELDS, E> {
-  return useFetcherQuery<PagedQuery<FIELDS>, PagedList<R>, E>(options);
+  options: UseFetcherPagedQueryOptions<R, FIELDS, E, PagedQuery<FIELDS>>,
+): UseFetcherPagedQueryReturn<R, FIELDS, E, PagedQuery<FIELDS>>;
+export function useFetcherPagedQuery<
+  R,
+  FIELDS extends string = string,
+  E = FetcherError,
+>(
+  options: UseFetcherPagedQueryOptions<R, FIELDS, E, FilterPagedQuery<FIELDS>>,
+): UseFetcherPagedQueryReturn<R, FIELDS, E, FilterPagedQuery<FIELDS>>;
+export function useFetcherPagedQuery<
+  R,
+  FIELDS extends string = string,
+  E = FetcherError,
+  Q extends PagedQueryRequest<FIELDS> = PagedQuery<FIELDS>,
+>(
+  options: UseFetcherPagedQueryOptions<R, FIELDS, E, Q>,
+): UseFetcherPagedQueryReturn<R, FIELDS, E, Q>;
+export function useFetcherPagedQuery<
+  R,
+  FIELDS extends string,
+  E,
+  Q extends PagedQueryRequest<FIELDS>,
+>(
+  options: UseFetcherPagedQueryOptions<R, FIELDS, E, Q>,
+): UseFetcherPagedQueryReturn<R, FIELDS, E, Q> {
+  return useFetcherQuery<Q, PagedList<R>, E>(options);
 }

@@ -15,7 +15,7 @@ import type { FetcherError } from '@ahoo-wang/fetcher';
 import type { UseQueryReturn } from '../../core';
 import type { UseFetcherQueryOptions } from '../../fetcher';
 import { useFetcherQuery } from '../../fetcher';
-import type { Condition } from '@ahoo-wang/fetcher-wow';
+import type { Condition, FilterExpression } from '@ahoo-wang/fetcher-wow';
 
 /**
  * Options for configuring the useFetcherCountQuery hook.
@@ -29,7 +29,8 @@ import type { Condition } from '@ahoo-wang/fetcher-wow';
 export interface UseFetcherCountQueryOptions<
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseFetcherQueryOptions<Condition<FIELDS>, number, E> {}
+  Q extends Condition<FIELDS> | FilterExpression<FIELDS> = Condition<FIELDS>,
+> extends UseFetcherQueryOptions<Q, number, E> {}
 
 /**
  * Return type for the useFetcherCountQuery hook.
@@ -43,7 +44,8 @@ export interface UseFetcherCountQueryOptions<
 export interface UseFetcherCountQueryReturn<
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseQueryReturn<Condition<FIELDS>, number, E> {}
+  Q extends Condition<FIELDS> | FilterExpression<FIELDS> = Condition<FIELDS>,
+> extends UseQueryReturn<Q, number, E> {}
 
 /**
  * A React hook for performing count queries using the Fetcher library.
@@ -88,7 +90,27 @@ export function useFetcherCountQuery<
   FIELDS extends string = string,
   E = FetcherError,
 >(
-  options: UseFetcherCountQueryOptions<FIELDS, E>,
-): UseFetcherCountQueryReturn<FIELDS, E> {
-  return useFetcherQuery<Condition<FIELDS>, number, E>(options);
+  options: UseFetcherCountQueryOptions<FIELDS, E, Condition<FIELDS>>,
+): UseFetcherCountQueryReturn<FIELDS, E, Condition<FIELDS>>;
+export function useFetcherCountQuery<
+  FIELDS extends string = string,
+  E = FetcherError,
+>(
+  options: UseFetcherCountQueryOptions<FIELDS, E, FilterExpression<FIELDS>>,
+): UseFetcherCountQueryReturn<FIELDS, E, FilterExpression<FIELDS>>;
+export function useFetcherCountQuery<
+  FIELDS extends string = string,
+  E = FetcherError,
+  Q extends Condition<FIELDS> | FilterExpression<FIELDS> = Condition<FIELDS>,
+>(
+  options: UseFetcherCountQueryOptions<FIELDS, E, Q>,
+): UseFetcherCountQueryReturn<FIELDS, E, Q>;
+export function useFetcherCountQuery<
+  FIELDS extends string,
+  E,
+  Q extends Condition<FIELDS> | FilterExpression<FIELDS>,
+>(
+  options: UseFetcherCountQueryOptions<FIELDS, E, Q>,
+): UseFetcherCountQueryReturn<FIELDS, E, Q> {
+  return useFetcherQuery<Q, number, E>(options);
 }

@@ -12,13 +12,14 @@
  */
 
 import type {
-  ListQuery,
+  ListQueryRequest,
   PagedList,
-  PagedQuery,
-  SingleQuery,
+  PagedQueryRequest,
+  SingleQueryRequest,
 } from './queryable';
 import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 import type { Condition } from './condition';
+import type { FilterExpression } from './filter';
 
 /**
  * Interface for generic query API operations.
@@ -39,7 +40,7 @@ export interface QueryApi<R, FIELDS extends string = string> {
    * @returns A promise that resolves to a partial resource
    */
   single<T extends Partial<R> = R>(
-    singleQuery: SingleQuery<FIELDS>,
+    singleQuery: SingleQueryRequest<FIELDS>,
     attributes?: Record<string, any>,
   ): Promise<T>;
 
@@ -52,7 +53,7 @@ export interface QueryApi<R, FIELDS extends string = string> {
    * @returns A promise that resolves to an array of partial resources
    */
   list<T extends Partial<R> = R>(
-    listQuery: ListQuery<FIELDS>,
+    listQuery: ListQueryRequest<FIELDS>,
     attributes?: Record<string, any>,
   ): Promise<T[]>;
 
@@ -65,7 +66,7 @@ export interface QueryApi<R, FIELDS extends string = string> {
    * @returns A promise that resolves to a readable stream of JSON server-sent events containing partial resources
    */
   listStream<T extends Partial<R> = R>(
-    listQuery: ListQuery<FIELDS>,
+    listQuery: ListQueryRequest<FIELDS>,
     attributes?: Record<string, any>,
   ): Promise<ReadableStream<JsonServerSentEvent<T>>>;
 
@@ -78,20 +79,20 @@ export interface QueryApi<R, FIELDS extends string = string> {
    * @returns A promise that resolves to a paged list of partial resources
    */
   paged<T extends Partial<R> = R>(
-    pagedQuery: PagedQuery<FIELDS>,
+    pagedQuery: PagedQueryRequest<FIELDS>,
     attributes?: Record<string, any>,
   ): Promise<PagedList<T>>;
 
   /**
-   * Counts the number of resources that match the given condition.
-   * @param condition - The condition to filter resources
+   * Counts the number of resources that match the given filter or legacy condition.
+   * @param filter - The filter expression or legacy condition
    * @param attributes - Optional shared attributes that can be accessed by interceptors
    *                     throughout the request lifecycle. These attributes allow passing
    *                     custom data between different interceptors.
    * @returns A promise that resolves to the count of matching resources
    */
   count(
-    condition: Condition<FIELDS>,
+    filter: FilterExpression<FIELDS> | Condition<FIELDS>,
     attributes?: Record<string, any>,
   ): Promise<number>;
 }

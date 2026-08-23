@@ -23,7 +23,7 @@ working with the Wow CQRS/DDD framework.
   updates
 - **🚀 Command Client**: High-level client for sending commands to Wow services with both synchronous and streaming
   responses
-- **🔍 Powerful Query DSL**: Rich query condition builder with comprehensive operator support for complex querying
+- **🔍 Powerful Query DSL**: Typed `FilterExpression` builders with comprehensive operator support
 - **🔍 Query Clients**: Specialized clients for querying snapshot and event stream data with comprehensive query
   operations:
   - Counting resources
@@ -159,9 +159,29 @@ for await (const commandResultEvent of commandResultStream) {
 
 ### Query Module
 
-#### Condition Builder
+#### Filter Expression Builder
 
-Comprehensive query condition builder with operator support:
+Wow 8.11+ queries use `FilterExpression`:
+
+```typescript
+import { DeletionState, filter } from '@ahoo-wang/fetcher-wow';
+
+const expression = filter.and(
+  filter.deletion(DeletionState.ACTIVE),
+  filter.eq('state.status', 'PAID'),
+  filter.elementMatch('state.items', filter.gt('quantity', 0)),
+  filter.search('wow', 'state.name'),
+);
+```
+
+Builders are grouped under `filter`: `matchAll`, `matchNone`, `and`, `or`,
+`nor`, comparisons, string/collection predicates, presence checks,
+`elementMatch`, `search`, deletion scope, and relative-time filters.
+
+#### Condition Builder (Deprecated)
+
+The legacy Condition API remains available for compatibility with older Wow
+servers. New code should use `FilterExpression` and `filter.*`.
 
 ```typescript
 import {
@@ -246,7 +266,7 @@ const arrayConditions = [
 // Date conditions
 const dateConditions = [
   today('createdAt'),
-  beforeToday('lastLogin', 7), // 7 days before today (i.e., within last 7 days)
+  beforeToday('lastLogin', '09:30'),
   tomorrow('scheduledDate'),
   thisWeek('updatedAt'),
   nextWeek('startDate'),
@@ -282,7 +302,7 @@ const rawCondition = raw({ $text: { $search: 'keywords' } });
 | String       | `contains`, `startsWith`, `endsWith`, `match`                                                                                                   |
 | Collection   | `isIn`, `notIn`, `allIn`, `elemMatch`                                                                                                           |
 | Null/Boolean | `isNull`, `notNull`, `isTrue`, `isFalse`, `exists`                                                                                              |
-| Date         | `today`, `beforeToday(days)`, `tomorrow`, `thisWeek`, `nextWeek`, `lastWeek`, `thisMonth`, `lastMonth`, `recentDays(days)`, `earlierDays(days)` |
+| Date         | `today`, `beforeToday(time)`, `tomorrow`, `thisWeek`, `nextWeek`, `lastWeek`, `thisMonth`, `lastMonth`, `recentDays(days)`, `earlierDays(days)` |
 | ID           | `id`, `ids`, `aggregateId`, `aggregateIds`, `tenantId`, `ownerId`                                                                               |
 | State        | `active`, `all`, `deleted`                                                                                                                      |
 | Special      | `raw` (for advanced database-specific queries)                                                                                                  |
@@ -301,10 +321,10 @@ import {
 import '@ahoo-wang/fetcher-eventstream';
 import {
   SnapshotQueryClient,
-  all,
-  ListQuery,
-  PagedQuery,
-  SingleQuery,
+  filter,
+  FilterListQuery,
+  FilterPagedQuery,
+  FilterSingleQuery,
 } from '@ahoo-wang/fetcher-wow';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 
@@ -346,11 +366,11 @@ const cartSnapshotQueryClient = new SnapshotQueryClient<CartState>({
 });
 
 // Count snapshots
-const count = await cartSnapshotQueryClient.count(all());
+const count = await cartSnapshotQueryClient.count(filter.matchAll());
 
 // List snapshots
-const listQuery: ListQuery = {
-  condition: all(),
+const listQuery: FilterListQuery = {
+  filter: filter.matchAll(),
 };
 const list = await cartSnapshotQueryClient.list(listQuery);
 
@@ -372,8 +392,8 @@ for await (const event of stateStream) {
 }
 
 // Paged snapshots
-const pagedQuery: PagedQuery = {
-  condition: all(),
+const pagedQuery: FilterPagedQuery = {
+  filter: filter.matchAll(),
 };
 const paged = await cartSnapshotQueryClient.paged(pagedQuery);
 
@@ -381,8 +401,8 @@ const paged = await cartSnapshotQueryClient.paged(pagedQuery);
 const pagedState = await cartSnapshotQueryClient.pagedState(pagedQuery);
 
 // Single snapshot
-const singleQuery: SingleQuery = {
-  condition: all(),
+const singleQuery: FilterSingleQuery = {
+  filter: filter.matchAll(),
 };
 const single = await cartSnapshotQueryClient.single(singleQuery);
 
@@ -392,20 +412,20 @@ const singleState = await cartSnapshotQueryClient.singleState(singleQuery);
 
 ##### Methods
 
-- `count(condition: Condition): Promise<number>` - Counts the number of snapshots that match the given condition.
-- `list(listQuery: ListQuery): Promise<Partial<MaterializedSnapshot<S>>[]>` - Retrieves a list of materialized
+- `count(filter: FilterExpression): Promise<number>` - Counts snapshots matching the filter expression.
+- `list(listQuery: FilterListQuery): Promise<Partial<MaterializedSnapshot<S>>[]>` - Retrieves a list of materialized
   snapshots.
-- `listStream(listQuery: ListQuery): Promise<ReadableStream<JsonServerSentEvent<Partial<MaterializedSnapshot<S>>>>>` -
+- `listStream(listQuery: FilterListQuery): Promise<ReadableStream<JsonServerSentEvent<Partial<MaterializedSnapshot<S>>>>>` -
   Retrieves a stream of materialized snapshots as Server-Sent Events.
-- `listState(listQuery: ListQuery): Promise<Partial<S>[]>` - Retrieves a list of snapshot states.
-- `listStateStream(listQuery: ListQuery): Promise<ReadableStream<JsonServerSentEvent<Partial<S>>>>` - Retrieves a stream
+- `listState(listQuery: FilterListQuery): Promise<Partial<S>[]>` - Retrieves a list of snapshot states.
+- `listStateStream(listQuery: FilterListQuery): Promise<ReadableStream<JsonServerSentEvent<Partial<S>>>>` - Retrieves a stream
   of snapshot states as Server-Sent Events.
-- `paged(pagedQuery: PagedQuery): Promise<PagedList<Partial<MaterializedSnapshot<S>>>>` - Retrieves a paged list of
+- `paged(pagedQuery: FilterPagedQuery): Promise<PagedList<Partial<MaterializedSnapshot<S>>>>` - Retrieves a paged list of
   materialized snapshots.
-- `pagedState(pagedQuery: PagedQuery): Promise<PagedList<Partial<S>>>` - Retrieves a paged list of snapshot states.
-- `single(singleQuery: SingleQuery): Promise<Partial<MaterializedSnapshot<S>>>` - Retrieves a single materialized
+- `pagedState(pagedQuery: FilterPagedQuery): Promise<PagedList<Partial<S>>>` - Retrieves a paged list of snapshot states.
+- `single(singleQuery: FilterSingleQuery): Promise<Partial<MaterializedSnapshot<S>>>` - Retrieves a single materialized
   snapshot.
-- `singleState(singleQuery: SingleQuery): Promise<Partial<S>>` - Retrieves a single snapshot state.
+- `singleState(singleQuery: FilterSingleQuery): Promise<Partial<S>>` - Retrieves a single snapshot state.
 
 #### QueryClientFactory
 
@@ -413,9 +433,9 @@ Factory for creating pre-configured query clients. Useful when you need multiple
 
 ```typescript
 import {
+  filter,
   QueryClientFactory,
   ResourceAttributionPathSpec,
-  all,
 } from '@ahoo-wang/fetcher-wow';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 
@@ -431,7 +451,7 @@ const factory = new QueryClientFactory({
 const snapshotClient = factory.createSnapshotQueryClient({
   aggregateName: 'cart',
 });
-const carts = await snapshotClient.listState({ condition: all() });
+const carts = await snapshotClient.listState({ filter: filter.matchAll() });
 
 // Create a state aggregate client
 const stateClient = factory.createLoadStateAggregateClient({
@@ -443,7 +463,7 @@ const cart = await stateClient.load('cart-123');
 const eventClient = factory.createEventStreamQueryClient({
   aggregateName: 'cart',
 });
-const events = await eventClient.list({ condition: all() });
+const events = await eventClient.list({ filter: filter.matchAll() });
 ```
 
 **Methods:**
@@ -467,9 +487,9 @@ import {
 import '@ahoo-wang/fetcher-eventstream';
 import {
   EventStreamQueryClient,
-  all,
-  ListQuery,
-  PagedQuery,
+  filter,
+  FilterListQuery,
+  FilterPagedQuery,
 } from '@ahoo-wang/fetcher-wow';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 
@@ -502,11 +522,11 @@ const cartEventStreamQueryClient = new EventStreamQueryClient({
 });
 
 // Count event streams
-const count = await cartEventStreamQueryClient.count(all());
+const count = await cartEventStreamQueryClient.count(filter.matchAll());
 
 // List event streams
-const listQuery: ListQuery = {
-  condition: all(),
+const listQuery: FilterListQuery = {
+  filter: filter.matchAll(),
 };
 const list = await cartEventStreamQueryClient.list(listQuery);
 
@@ -518,20 +538,19 @@ for await (const event of listStream) {
 }
 
 // Paged event streams
-const pagedQuery: PagedQuery = {
-  condition: all(),
+const pagedQuery: FilterPagedQuery = {
+  filter: filter.matchAll(),
 };
 const paged = await cartEventStreamQueryClient.paged(pagedQuery);
 ```
 
 ##### Methods
 
-- `count(condition: Condition): Promise<number>` - Counts the number of domain event streams that match the given
-  condition.
-- `list(listQuery: ListQuery): Promise<Partial<DomainEventStream>[]>` - Retrieves a list of domain event streams.
-- `listStream(listQuery: ListQuery): Promise<ReadableStream<JsonServerSentEvent<Partial<DomainEventStream>>>>` -
+- `count(filter: FilterExpression): Promise<number>` - Counts domain event streams matching the filter expression.
+- `list(listQuery: FilterListQuery): Promise<Partial<DomainEventStream>[]>` - Retrieves a list of domain event streams.
+- `listStream(listQuery: FilterListQuery): Promise<ReadableStream<JsonServerSentEvent<Partial<DomainEventStream>>>>` -
   Retrieves a stream of domain event streams as Server-Sent Events.
-- `paged(pagedQuery: PagedQuery): Promise<PagedList<Partial<DomainEventStream>>>` - Retrieves a paged list of domain
+- `paged(pagedQuery: FilterPagedQuery): Promise<PagedList<Partial<DomainEventStream>>>` - Retrieves a paged list of domain
   event streams.
 
 ## 🚀 Advanced Usage Examples
@@ -673,8 +692,9 @@ Create complex queries with reactive real-time updates:
 
 ```typescript
 import {
-  SnapshotQueryClient,
   EventStreamQueryClient,
+  filter,
+  SnapshotQueryClient,
 } from '@ahoo-wang/fetcher-wow';
 
 // Advanced query manager with reactive updates
@@ -725,17 +745,16 @@ class ReactiveQueryManager {
   async getUserDashboardStats(userId: string) {
     const [userProfile, recentActivity, stats] = await Promise.all([
       this.snapshotClient.single({
-        condition: { id: userId },
-        projection: { name: 1, email: 1, createdAt: 1 },
+        filter: filter.eq('aggregateId', userId),
       }),
       this.snapshotClient.list({
-        condition: { userId, type: 'activity' },
-        sort: [{ field: 'timestamp', order: 'desc' }],
+        filter: filter.and(
+          filter.eq('state.userId', userId),
+          filter.eq('state.type', 'activity'),
+        ),
         limit: 10,
       }),
-      this.snapshotClient.count({
-        condition: { userId },
-      }),
+      this.snapshotClient.count(filter.eq('state.userId', userId)),
     ]);
 
     return {
@@ -758,8 +777,10 @@ console.log('Dashboard:', dashboard);
 queryManager.subscribeToQuery(
   'user-activity',
   {
-    condition: { userId: 'user-123', type: 'activity' },
-    sort: [{ field: 'timestamp', order: 'desc' }],
+    filter: filter.and(
+      filter.eq('state.userId', 'user-123'),
+      filter.eq('state.type', 'activity'),
+    ),
   },
   update => {
     console.log('New activity:', update);
@@ -785,8 +806,8 @@ import {
   CommandHeaders,
   CommandStage,
   SnapshotQueryClient,
-  all,
-  ListQuery,
+  filter,
+  FilterListQuery,
 } from '@ahoo-wang/fetcher-wow';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 
@@ -865,8 +886,8 @@ const commandResult = await cartCommandClient.send(
 console.log('Command executed:', commandResult);
 
 // 2. Query the updated cart
-const listQuery: ListQuery = {
-  condition: all(),
+const listQuery: FilterListQuery = {
+  filter: filter.matchAll(),
 };
 const carts = await cartSnapshotQueryClient.list(listQuery);
 

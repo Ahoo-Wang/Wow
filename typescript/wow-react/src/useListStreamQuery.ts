@@ -11,7 +11,11 @@
  * limitations under the License.
  */
 
-import type { ListQuery } from '@ahoo-wang/fetcher-wow';
+import type {
+  FilterListQuery,
+  ListQuery,
+  ListQueryRequest,
+} from '@ahoo-wang/fetcher-wow';
 import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 import type { FetcherError } from '@ahoo-wang/fetcher';
 import type { UseQueryOptions, UseQueryReturn } from '../core';
@@ -29,11 +33,8 @@ export interface UseListStreamQueryOptions<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseQueryOptions<
-  ListQuery<FIELDS>,
-  ReadableStream<JsonServerSentEvent<R>>,
-  E
-> {}
+  Q extends ListQueryRequest<FIELDS> = ListQuery<FIELDS>,
+> extends UseQueryOptions<Q, ReadableStream<JsonServerSentEvent<R>>, E> {}
 
 /**
  * Return type for the useListStreamQuery hook.
@@ -47,11 +48,8 @@ export interface UseListStreamQueryReturn<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseQueryReturn<
-  ListQuery<FIELDS>,
-  ReadableStream<JsonServerSentEvent<R>>,
-  E
-> {}
+  Q extends ListQueryRequest<FIELDS> = ListQuery<FIELDS>,
+> extends UseQueryReturn<Q, ReadableStream<JsonServerSentEvent<R>>, E> {}
 
 /**
  * Hook for querying streaming list data with conditions, projection, and sorting.
@@ -80,9 +78,30 @@ export function useListStreamQuery<
   FIELDS extends string = string,
   E = FetcherError,
 >(
-  options: UseListStreamQueryOptions<R, FIELDS, E>,
-): UseListStreamQueryReturn<R, FIELDS, E> {
-  return useQuery<ListQuery<FIELDS>, ReadableStream<JsonServerSentEvent<R>>, E>(
-    options,
-  );
+  options: UseListStreamQueryOptions<R, FIELDS, E, ListQuery<FIELDS>>,
+): UseListStreamQueryReturn<R, FIELDS, E, ListQuery<FIELDS>>;
+export function useListStreamQuery<
+  R,
+  FIELDS extends string = string,
+  E = FetcherError,
+>(
+  options: UseListStreamQueryOptions<R, FIELDS, E, FilterListQuery<FIELDS>>,
+): UseListStreamQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
+export function useListStreamQuery<
+  R,
+  FIELDS extends string = string,
+  E = FetcherError,
+  Q extends ListQueryRequest<FIELDS> = ListQuery<FIELDS>,
+>(
+  options: UseListStreamQueryOptions<R, FIELDS, E, Q>,
+): UseListStreamQueryReturn<R, FIELDS, E, Q>;
+export function useListStreamQuery<
+  R,
+  FIELDS extends string,
+  E,
+  Q extends ListQueryRequest<FIELDS>,
+>(
+  options: UseListStreamQueryOptions<R, FIELDS, E, Q>,
+): UseListStreamQueryReturn<R, FIELDS, E, Q> {
+  return useQuery<Q, ReadableStream<JsonServerSentEvent<R>>, E>(options);
 }

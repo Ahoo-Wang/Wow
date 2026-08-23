@@ -12,7 +12,11 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { resolveModelInfo, WOW_TYPE_MAPPING } from '../../src/model';
+import {
+  resolveModelInfo,
+  resolveReferenceModelInfo,
+  WOW_TYPE_MAPPING,
+} from '../../src/model';
 
 describe('modelInfo', () => {
   describe('resolveModelInfo', () => {
@@ -84,5 +88,40 @@ describe('modelInfo', () => {
         path: '/api',
       });
     });
+  });
+
+  describe('resolveReferenceModelInfo', () => {
+    it.each([
+      ['ListQuery', 'ListQuery', 'ListQueryRequest'],
+      ['PagedQuery', 'PagedQuery', 'PagedQueryRequest'],
+    ])(
+      'maps %s according to the source schema discriminator',
+      (schemaName, conditionType, filterType) => {
+        const schemaKey = `wow.api.query.${schemaName}`;
+        const reference = { $ref: `#/components/schemas/${schemaKey}` };
+        const components = (property: 'condition' | 'filter') => ({
+          schemas: {
+            [schemaKey]: {
+              type: 'object' as const,
+              properties: { [property]: { type: 'object' as const } },
+              required: [property],
+            },
+          },
+        });
+
+        expect(
+          resolveReferenceModelInfo(reference, components('condition')),
+        ).toEqual({
+          name: conditionType,
+          path: '@ahoo-wang/fetcher-wow',
+        });
+        expect(
+          resolveReferenceModelInfo(reference, components('filter')),
+        ).toEqual({
+          name: filterType,
+          path: '@ahoo-wang/fetcher-wow',
+        });
+      },
+    );
   });
 });

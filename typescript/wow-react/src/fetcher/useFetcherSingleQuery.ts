@@ -11,7 +11,11 @@
  * limitations under the License.
  */
 
-import type { SingleQuery } from '@ahoo-wang/fetcher-wow';
+import type {
+  FilterSingleQuery,
+  SingleQuery,
+  SingleQueryRequest,
+} from '@ahoo-wang/fetcher-wow';
 import type { FetcherError } from '@ahoo-wang/fetcher';
 import type { UseQueryReturn } from '../../core';
 import type { UseFetcherQueryOptions } from '../../fetcher';
@@ -30,7 +34,8 @@ export interface UseFetcherSingleQueryOptions<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseFetcherQueryOptions<SingleQuery<FIELDS>, R, E> {}
+  Q extends SingleQueryRequest<FIELDS> = SingleQuery<FIELDS>,
+> extends UseFetcherQueryOptions<Q, R, E> {}
 
 /**
  * Return type of the useFetcherSingleQuery hook.
@@ -45,7 +50,8 @@ export interface UseFetcherSingleQueryReturn<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseQueryReturn<SingleQuery<FIELDS>, R, E> {}
+  Q extends SingleQueryRequest<FIELDS> = SingleQuery<FIELDS>,
+> extends UseQueryReturn<Q, R, E> {}
 
 /**
  * A React hook for executing single item queries using the fetcher library within the wow framework.
@@ -109,7 +115,35 @@ export function useFetcherSingleQuery<
   FIELDS extends string = string,
   E = FetcherError,
 >(
-  options: UseFetcherSingleQueryOptions<R, FIELDS, E>,
-): UseFetcherSingleQueryReturn<R, FIELDS, E> {
-  return useFetcherQuery<SingleQuery<FIELDS>, R, E>(options);
+  options: UseFetcherSingleQueryOptions<R, FIELDS, E, SingleQuery<FIELDS>>,
+): UseFetcherSingleQueryReturn<R, FIELDS, E, SingleQuery<FIELDS>>;
+export function useFetcherSingleQuery<
+  R,
+  FIELDS extends string = string,
+  E = FetcherError,
+>(
+  options: UseFetcherSingleQueryOptions<
+    R,
+    FIELDS,
+    E,
+    FilterSingleQuery<FIELDS>
+  >,
+): UseFetcherSingleQueryReturn<R, FIELDS, E, FilterSingleQuery<FIELDS>>;
+export function useFetcherSingleQuery<
+  R,
+  FIELDS extends string = string,
+  E = FetcherError,
+  Q extends SingleQueryRequest<FIELDS> = SingleQuery<FIELDS>,
+>(
+  options: UseFetcherSingleQueryOptions<R, FIELDS, E, Q>,
+): UseFetcherSingleQueryReturn<R, FIELDS, E, Q>;
+export function useFetcherSingleQuery<
+  R,
+  FIELDS extends string,
+  E,
+  Q extends SingleQueryRequest<FIELDS>,
+>(
+  options: UseFetcherSingleQueryOptions<R, FIELDS, E, Q>,
+): UseFetcherSingleQueryReturn<R, FIELDS, E, Q> {
+  return useFetcherQuery<Q, R, E>(options);
 }

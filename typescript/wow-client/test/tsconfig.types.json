@@ -1,0 +1,11 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "composite": false,
+    "incremental": false,
+    "noEmit": true,
+    "rootDir": "..",
+    "types": ["vitest/globals"]
+  },
+  "include": ["../src/**/*", "./query/filter.test.ts"]
+}

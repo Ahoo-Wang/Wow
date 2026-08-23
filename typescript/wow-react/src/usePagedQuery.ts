@@ -11,7 +11,12 @@
  * limitations under the License.
  */
 
-import type { PagedList, PagedQuery } from '@ahoo-wang/fetcher-wow';
+import type {
+  FilterPagedQuery,
+  PagedList,
+  PagedQuery,
+  PagedQueryRequest,
+} from '@ahoo-wang/fetcher-wow';
 import type { FetcherError } from '@ahoo-wang/fetcher';
 import type { UseQueryOptions, UseQueryReturn } from '../core';
 import { useQuery } from '../core';
@@ -28,7 +33,8 @@ export interface UsePagedQueryOptions<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseQueryOptions<PagedQuery<FIELDS>, PagedList<R>, E> {}
+  Q extends PagedQueryRequest<FIELDS> = PagedQuery<FIELDS>,
+> extends UseQueryOptions<Q, PagedList<R>, E> {}
 
 /**
  * Return type for the usePagedQuery hook.
@@ -42,7 +48,8 @@ export interface UsePagedQueryReturn<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseQueryReturn<PagedQuery<FIELDS>, PagedList<R>, E> {}
+  Q extends PagedQueryRequest<FIELDS> = PagedQuery<FIELDS>,
+> extends UseQueryReturn<Q, PagedList<R>, E> {}
 
 /**
  * Hook for querying paged data with conditions, projection, pagination, and sorting.
@@ -72,7 +79,30 @@ export function usePagedQuery<
   FIELDS extends string = string,
   E = FetcherError,
 >(
-  options: UsePagedQueryOptions<R, FIELDS, E>,
-): UsePagedQueryReturn<R, FIELDS, E> {
-  return useQuery<PagedQuery<FIELDS>, PagedList<R>, E>(options);
+  options: UsePagedQueryOptions<R, FIELDS, E, PagedQuery<FIELDS>>,
+): UsePagedQueryReturn<R, FIELDS, E, PagedQuery<FIELDS>>;
+export function usePagedQuery<
+  R,
+  FIELDS extends string = string,
+  E = FetcherError,
+>(
+  options: UsePagedQueryOptions<R, FIELDS, E, FilterPagedQuery<FIELDS>>,
+): UsePagedQueryReturn<R, FIELDS, E, FilterPagedQuery<FIELDS>>;
+export function usePagedQuery<
+  R,
+  FIELDS extends string = string,
+  E = FetcherError,
+  Q extends PagedQueryRequest<FIELDS> = PagedQuery<FIELDS>,
+>(
+  options: UsePagedQueryOptions<R, FIELDS, E, Q>,
+): UsePagedQueryReturn<R, FIELDS, E, Q>;
+export function usePagedQuery<
+  R,
+  FIELDS extends string,
+  E,
+  Q extends PagedQueryRequest<FIELDS>,
+>(
+  options: UsePagedQueryOptions<R, FIELDS, E, Q>,
+): UsePagedQueryReturn<R, FIELDS, E, Q> {
+  return useQuery<Q, PagedList<R>, E>(options);
 }

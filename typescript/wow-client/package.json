@@ -54,7 +54,8 @@
   "scripts": {
     "build": "vite build",
     "test:ui": "vitest --ui",
-    "test": "vitest run --coverage",
+    "test": "vitest run --coverage && pnpm test:type",
+    "test:type": "tsc --noEmit -p test/tsconfig.types.json",
     "lint": "eslint . --fix",
     "clean": "rm -rf dist",
     "analyze": "npx vite-bundle-analyzer -p auto"

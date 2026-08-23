@@ -13,6 +13,7 @@
 
 import type { OperatorLocale } from './operatorLocale';
 
+/** @deprecated This locale belongs to the legacy Condition API. */
 export const en_US: OperatorLocale = {
   AND: 'AND',
   OR: 'OR',

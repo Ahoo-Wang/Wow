@@ -13,6 +13,7 @@
 
 import type { Operator } from '../operator';
 
+/** @deprecated Operator locale metadata belongs to the legacy Condition API. */
 export type OperatorLocale = {
   [K in Operator]: string;
 };

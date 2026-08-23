@@ -11,7 +11,11 @@
  * limitations under the License.
  */
 
-import type { SingleQuery } from '@ahoo-wang/fetcher-wow';
+import type {
+  FilterSingleQuery,
+  SingleQuery,
+  SingleQueryRequest,
+} from '@ahoo-wang/fetcher-wow';
 import type { FetcherError } from '@ahoo-wang/fetcher';
 import type { UseQueryOptions, UseQueryReturn } from '../core';
 import { useQuery } from '../core';
@@ -28,7 +32,8 @@ export interface UseSingleQueryOptions<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseQueryOptions<SingleQuery<FIELDS>, R, E> {}
+  Q extends SingleQueryRequest<FIELDS> = SingleQuery<FIELDS>,
+> extends UseQueryOptions<Q, R, E> {}
 
 /**
  * Return type for the useSingleQuery hook.
@@ -42,7 +47,8 @@ export interface UseSingleQueryReturn<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseQueryReturn<SingleQuery<FIELDS>, R, E> {}
+  Q extends SingleQueryRequest<FIELDS> = SingleQuery<FIELDS>,
+> extends UseQueryReturn<Q, R, E> {}
 
 /**
  * Hook for querying a single item with conditions, projection, and sorting.
@@ -71,7 +77,30 @@ export function useSingleQuery<
   FIELDS extends string = string,
   E = FetcherError,
 >(
-  options: UseSingleQueryOptions<R, FIELDS, E>,
-): UseSingleQueryReturn<R, FIELDS, E> {
-  return useQuery<SingleQuery<FIELDS>, R, E>(options);
+  options: UseSingleQueryOptions<R, FIELDS, E, SingleQuery<FIELDS>>,
+): UseSingleQueryReturn<R, FIELDS, E, SingleQuery<FIELDS>>;
+export function useSingleQuery<
+  R,
+  FIELDS extends string = string,
+  E = FetcherError,
+>(
+  options: UseSingleQueryOptions<R, FIELDS, E, FilterSingleQuery<FIELDS>>,
+): UseSingleQueryReturn<R, FIELDS, E, FilterSingleQuery<FIELDS>>;
+export function useSingleQuery<
+  R,
+  FIELDS extends string = string,
+  E = FetcherError,
+  Q extends SingleQueryRequest<FIELDS> = SingleQuery<FIELDS>,
+>(
+  options: UseSingleQueryOptions<R, FIELDS, E, Q>,
+): UseSingleQueryReturn<R, FIELDS, E, Q>;
+export function useSingleQuery<
+  R,
+  FIELDS extends string,
+  E,
+  Q extends SingleQueryRequest<FIELDS>,
+>(
+  options: UseSingleQueryOptions<R, FIELDS, E, Q>,
+): UseSingleQueryReturn<R, FIELDS, E, Q> {
+  return useQuery<Q, R, E>(options);
 }
