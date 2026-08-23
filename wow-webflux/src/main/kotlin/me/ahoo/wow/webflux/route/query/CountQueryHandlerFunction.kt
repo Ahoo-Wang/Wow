@@ -13,8 +13,7 @@
 
 package me.ahoo.wow.webflux.route.query
 
-import me.ahoo.wow.api.query.Condition
-import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.legacyConditionOrNull
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
@@ -22,7 +21,7 @@ import me.ahoo.wow.query.filter.Contexts.writeRawRequest
 import me.ahoo.wow.query.filter.QueryHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
-import me.ahoo.wow.webflux.route.query.QueryBodyExtractor.Companion.COUNT_QUERY_EXTRACTOR
+import me.ahoo.wow.webflux.route.query.QueryBodyExtractor.Companion.FILTER_EXPRESSION_EXTRACTOR
 import me.ahoo.wow.webflux.route.toServerResponse
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -37,19 +36,18 @@ class CountQueryHandlerFunction(
 ) : HandlerFunction<ServerResponse> {
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        return request.body(COUNT_QUERY_EXTRACTOR)
-            .flatMap {
-                when (it) {
-                    is FilterExpression -> queryHandler.count(
+        return request.body(FILTER_EXPRESSION_EXTRACTOR)
+            .flatMap { filter ->
+                val result = filter.legacyConditionOrNull()?.let { condition ->
+                    queryHandler.count(
                         aggregateMetadata,
-                        rewriteRequestCondition.rewrite(aggregateMetadata, request, it),
+                        rewriteRequestCondition.rewrite(aggregateMetadata, request, condition),
                     )
-                    is Condition -> queryHandler.count(
-                        aggregateMetadata,
-                        rewriteRequestCondition.rewrite(aggregateMetadata, request, it),
-                    )
-                    else -> error("Unsupported count query type: ${it::class}.")
-                }.writeRawRequest(request)
+                } ?: queryHandler.count(
+                    aggregateMetadata,
+                    rewriteRequestCondition.rewrite(aggregateMetadata, request, filter),
+                )
+                result.writeRawRequest(request)
             }.toServerResponse(request, exceptionHandler)
     }
 }
