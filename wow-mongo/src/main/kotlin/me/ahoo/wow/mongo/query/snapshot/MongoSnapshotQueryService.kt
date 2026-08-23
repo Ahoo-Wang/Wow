@@ -32,6 +32,7 @@ import me.ahoo.wow.mongo.query.AbstractMongoQueryService
 import me.ahoo.wow.mongo.query.MongoProjectionConverter
 import me.ahoo.wow.mongo.query.MongoSortConverter
 import me.ahoo.wow.mongo.toMaterializedSnapshot
+import me.ahoo.wow.query.AggregationFieldCatalog
 import me.ahoo.wow.query.snapshot.AggregationQueryValidator
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.serialization.JsonSerializer
@@ -49,10 +50,12 @@ class MongoSnapshotQueryService<S : Any>(
         get() = MongoSnapshotStore.NAME
     override val projectionConverter: MongoProjectionConverter = MongoProjectionConverter(SnapshotFieldConverter)
     override val sortConverter: MongoSortConverter = MongoSortConverter(SnapshotFieldConverter)
+    private val stateType = namedAggregate.requiredAggregateType<Any>().aggregateMetadata<Any, S>().state.aggregateType
+    private val temporalAggregationFields = AggregationFieldCatalog.scan(stateType).temporalPaths
     private val snapshotType = JsonSerializer.typeFactory
         .constructParametricType(
             MaterializedSnapshot::class.java,
-            namedAggregate.requiredAggregateType<Any>().aggregateMetadata<Any, S>().state.aggregateType
+            stateType,
         )
 
     override fun toTypedResult(document: Document): MaterializedSnapshot<S> {
@@ -65,7 +68,7 @@ class MongoSnapshotQueryService<S : Any>(
 
     override fun aggregate(query: AggregationQuery): Flux<DynamicDocument> = Flux.defer {
         AggregationQueryValidator.validate(query, namedAggregate)
-        collection.aggregate(MongoAggregationCompiler.compile(query, converter))
+        collection.aggregate(MongoAggregationCompiler.compile(query, converter, temporalAggregationFields))
             .collation(SIMPLE_COLLATION)
             .toFlux()
             .map<DynamicDocument> { document -> document.normalizeAggregationResult(query).toDynamicDocument() }

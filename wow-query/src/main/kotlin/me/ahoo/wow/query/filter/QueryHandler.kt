@@ -51,12 +51,14 @@ abstract class AbstractQueryHandler<R : Any>(
 ) : QueryHandler<R> {
     override fun handle(context: QueryContext<*, *>): Mono<Void> {
         return chain.filter(context)
-            .onErrorResume {
-                if (context is ErrorAccessor) {
-                    context.setError(it)
-                }
-                errorHandler.handle(context, it)
-            }
+            .onErrorResume { handleError(context, it) }
+    }
+
+    protected fun handleError(context: QueryContext<*, *>, error: Throwable): Mono<Void> {
+        if (context is ErrorAccessor) {
+            context.setError(error)
+        }
+        return errorHandler.handle(context, error)
     }
 
     private fun <Q : Any, T : Any> mono(

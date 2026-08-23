@@ -498,6 +498,33 @@ abstract class SnapshotQueryServiceSpec {
     }
 
     @Test
+    fun aggregateElementsShouldCompareTemporalRangesChronologically() {
+        snapshotQueryService.aggregate(
+            AggregationQuery(
+                elements = listOf(
+                    AggregationElement("state.orders"),
+                    AggregationElement(
+                        "state.orders.lines",
+                        filter {
+                            "state.orders.lines.createdAt" gt "2024-01-01T01:00:00.000+02:00"
+                            "state.orders.lines.createdAt" gte "2024-01-01T01:00:00.000+02:00"
+                            "state.orders.lines.createdAt" lt "2024-03-01T00:00:00.000Z"
+                            "state.orders.lines.createdAt" lte "2024-03-01T00:00:00.000Z"
+                            "state.orders.lines.createdAt".between(
+                                "2024-01-01T01:00:00.000+02:00",
+                                "2024-03-01T00:00:00.000Z",
+                            )
+                        },
+                    ),
+                ),
+                metrics = listOf(AggregationMetric.Count("count")),
+            ),
+        ).test()
+            .assertNext { row -> row.getValue<Long>("count").assert().isEqualTo(3L) }
+            .verifyComplete()
+    }
+
+    @Test
     fun aggregateElementsShouldRejectExistencePredicates() {
         listOf(
             filter { "state.orders.status".exists() },

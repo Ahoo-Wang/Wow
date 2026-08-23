@@ -23,11 +23,14 @@ import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
+import me.ahoo.wow.api.query.BetweenFilter
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.GreaterThanFilter
 import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
 import me.ahoo.wow.api.query.LessThanFilter
+import me.ahoo.wow.api.query.LessThanOrEqualFilter
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.NorFilter
 import me.ahoo.wow.api.query.OrFilter
@@ -38,13 +41,18 @@ import me.ahoo.wow.query.FilterNormalizer
 import org.bson.BsonType
 import org.bson.Document
 import org.bson.conversions.Bson
+import tools.jackson.databind.JsonNode
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
 import java.util.Date
 
 internal object MongoAggregationCompiler {
-    fun compile(query: AggregationQuery, conditionConverter: AbstractMongoConditionConverter): List<Bson> = buildList {
+    fun compile(
+        query: AggregationQuery,
+        conditionConverter: AbstractMongoConditionConverter,
+        temporalFields: Set<String> = emptySet(),
+    ): List<Bson> = buildList {
         val elementFilterNormalizer = FilterNormalizer(
             clock = Clock.fixed(Instant.now(), ZoneId.systemDefault()),
             defaultDeletionState = null,
@@ -55,7 +63,11 @@ internal object MongoAggregationCompiler {
             add(Aggregates.unwind("\$$field", UnwindOptions().preserveNullAndEmptyArrays(false)))
             val filters = mutableListOf<Bson>(Filters.type(field, BsonType.DOCUMENT))
             if (element.filter !== MatchAllFilter) {
-                filters += element.filter.toMongoElementFilter(conditionConverter, elementFilterNormalizer)
+                filters += element.filter.toMongoElementFilter(
+                    conditionConverter,
+                    elementFilterNormalizer,
+                    temporalFields,
+                )
             }
             add(Aggregates.match(Filters.and(filters)))
         }
@@ -166,18 +178,31 @@ internal object MongoAggregationCompiler {
     private fun FilterExpression.toMongoElementFilter(
         conditionConverter: AbstractMongoConditionConverter,
         normalizer: FilterNormalizer,
+        temporalFields: Set<String>,
     ): Bson = when (this) {
-        is AndFilter -> Filters.and(operands.map { it.toMongoElementFilter(conditionConverter, normalizer) })
-        is OrFilter -> Filters.or(operands.map { it.toMongoElementFilter(conditionConverter, normalizer) })
-        is NorFilter -> Filters.nor(operands.map { it.toMongoElementFilter(conditionConverter, normalizer) })
+        is AndFilter -> Filters.and(
+            operands.map { it.toMongoElementFilter(conditionConverter, normalizer, temporalFields) }
+        )
+        is OrFilter -> Filters.or(
+            operands.map { it.toMongoElementFilter(conditionConverter, normalizer, temporalFields) }
+        )
+        is NorFilter -> Filters.nor(
+            operands.map { it.toMongoElementFilter(conditionConverter, normalizer, temporalFields) }
+        )
         is RelativeTimeFilter -> normalizer.normalize(this).toMongoRelativeTimeFilter()
+        is GreaterThanFilter,
+        is GreaterThanOrEqualFilter,
+        is LessThanFilter,
+        is LessThanOrEqualFilter,
+        is BetweenFilter,
+        -> temporalRange(temporalFields) ?: conditionConverter.convert(withoutDefaultDeletionScope())
         else -> conditionConverter.convert(withoutDefaultDeletionScope())
     }
 
     private fun FilterExpression.toMongoRelativeTimeFilter(): Bson = when (this) {
         is AndFilter -> Filters.and(operands.map { it.toMongoRelativeTimeFilter() })
-        is GreaterThanOrEqualFilter -> temporalComparison("\$gte")
-        is LessThanFilter -> temporalComparison("\$lt")
+        is GreaterThanOrEqualFilter -> normalizedTemporalComparison("\$gte")
+        is LessThanFilter -> normalizedTemporalComparison("\$lt")
         else -> error("Unsupported normalized relative-time filter: [$this].")
     }
 
@@ -185,7 +210,7 @@ internal object MongoAggregationCompiler {
         listOf(DeletionFilter(DeletionState.ALL), this),
     )
 
-    private fun FilterExpression.temporalComparison(
+    private fun FilterExpression.normalizedTemporalComparison(
         operator: String,
     ): Bson {
         val (field, value) = when (this) {
@@ -194,8 +219,43 @@ internal object MongoAggregationCompiler {
             else -> error("Unsupported normalized relative-time filter: [$this].")
         }
         check(value.isIntegralNumber) { "Relative-time filter boundary must be epoch milliseconds." }
-        val physicalField = SnapshotFieldConverter.convert(field.value)
+        return temporalComparison(field.value, operator, Date(value.longValue()))
+    }
+
+    private fun FilterExpression.temporalRange(temporalFields: Set<String>): Bson? = when (this) {
+        is GreaterThanFilter -> temporalComparison(field.value, "\$gt", value, temporalFields)
+        is GreaterThanOrEqualFilter -> temporalComparison(field.value, "\$gte", value, temporalFields)
+        is LessThanFilter -> temporalComparison(field.value, "\$lt", value, temporalFields)
+        is LessThanOrEqualFilter -> temporalComparison(field.value, "\$lte", value, temporalFields)
+        is BetweenFilter -> temporalBetween(temporalFields)
+        else -> error("Unsupported temporal range filter: [$this].")
+    }
+
+    private fun temporalComparison(
+        field: String,
+        operator: String,
+        value: JsonNode,
+        temporalFields: Set<String>,
+    ): Bson? {
+        if (field !in temporalFields) return null
+        check(value.isString) { "Temporal range filter boundary must be a string." }
+        return temporalComparison(field, operator, value.stringValue().toMongoDate())
+    }
+
+    private fun BetweenFilter.temporalBetween(temporalFields: Set<String>): Bson? {
+        if (field.value !in temporalFields) return null
+        check(lowerBound.isString && upperBound.isString) {
+            "Temporal range filter boundaries must be strings."
+        }
+        return Filters.and(
+            temporalComparison(field.value, "\$gte", lowerBound.stringValue().toMongoDate()),
+            temporalComparison(field.value, "\$lte", upperBound.stringValue().toMongoDate()),
+        )
+    }
+
+    private fun temporalComparison(field: String, operator: String, boundary: Any): Bson {
+        val physicalField = SnapshotFieldConverter.convert(field)
         val dateField = Document("\$convert", Document("input", "\$$physicalField").append("to", "date"))
-        return Document("\$expr", Document(operator, listOf(dateField, Date(value.longValue()))))
+        return Document("\$expr", Document(operator, listOf(dateField, boundary)))
     }
 }

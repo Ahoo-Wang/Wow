@@ -18,6 +18,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogErrorHandler
@@ -29,6 +30,7 @@ import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
+import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Proxy
@@ -150,6 +152,34 @@ class DefaultSnapshotQueryHandlerTest {
         ).test()
             .assertNext { row -> row.getValue<Long>("count").assert().isZero() }
             .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation should route failures through error handler`() {
+        val failure = IllegalStateException("aggregation filter failure")
+        val translated = IllegalArgumentException("translated", failure)
+        var handledContext: QueryContext<*, *>? = null
+        val handler = DefaultSnapshotQueryHandler(
+            snapshotQueryFilterChain,
+            ErrorHandler { context, error ->
+                handledContext = context
+                error.assert().isSameAs(failure)
+                Mono.error(translated)
+            },
+            FilterChain { Mono.error(failure) },
+        )
+
+        handler.aggregate(
+            MOCK_AGGREGATE_METADATA,
+            AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))),
+        ).test()
+            .expectErrorMatches { it === translated }
+            .verify()
+
+        val context = requireNotNull(handledContext)
+        context.queryType.assert().isEqualTo(QueryType.DYNAMIC_LIST)
+        context.namedAggregate.assert().isEqualTo(MOCK_AGGREGATE_METADATA)
+        context.getQuery().assert().isInstanceOf(AggregationQuery::class.java)
     }
 
     @Test

@@ -21,8 +21,10 @@ import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.query.filter.AbstractQueryHandler
+import me.ahoo.wow.query.filter.DefaultQueryContext
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryHandler
+import me.ahoo.wow.query.filter.QueryType
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
@@ -48,6 +50,14 @@ class DefaultSnapshotQueryHandler @JvmOverloads constructor(
     ): Flux<DynamicDocument> = Flux.defer {
         val context = SnapshotAggregationQueryContext(namedAggregate, query)
         aggregationChain.filter(context)
+            .onErrorResume { error ->
+                val errorContext = DefaultQueryContext<AggregationQuery, Flux<DynamicDocument>>(
+                    QueryType.DYNAMIC_LIST,
+                    context.namedAggregate,
+                    context.attributes,
+                ).setQuery(context.query)
+                handleError(errorContext, error)
+            }
             .thenMany(Flux.defer { context.getRequiredResult() })
     }
 }
