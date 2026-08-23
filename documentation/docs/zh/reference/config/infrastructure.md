@@ -179,7 +179,7 @@ direct 和 batch 模式下都使用基于 `_source.version` 的原子保护更�
 | `wow.webflux.query.max-condition-values` | Integer | `1000` | HTTP 集合过滤器值数量上限；`0` 关闭上限 |
 | `wow.webflux.query.max-aggregation-elements` | Integer | `3` | HTTP 快照聚合 Elements 深度上限；`0` 关闭 HTTP 上限，公共硬上限 5 仍生效 |
 | `wow.webflux.query.max-aggregation-metrics` | Integer | `32` | 单个 HTTP 快照聚合 metrics 上限；`0` 关闭 HTTP 上限，公共硬上限 64 仍生效 |
-| `wow.webflux.query.allow-expensive-operators` | Boolean | `false` | 允许高成本 HTTP 过滤器、无过滤 count/paged/aggregation、Elements 展开及 metric 排序 |
+| `wow.webflux.query.allow-expensive-operators` | Boolean | `true` | 允许高成本 HTTP 过滤器、无过滤 count/paged/aggregation、Elements 展开及 metric 排序 |
 | `wow.webflux.query.idle-timeout` | Duration | `10s` | 等待下一条结果或完成的最长时间；普通 JSON 数组在提交前缓冲，SSE 保持流式；`0s` 关闭 |
 | `wow.webflux.command.request.appender.agent.enabled` | Boolean | `true` | 将客户端 `User-Agent` 追加到命令请求上下文（设为 `false` 可禁用） |
 | `wow.webflux.command.request.appender.ip.enabled` | Boolean | `true` | 将客户端 IP 追加到命令请求上下文（设为 `false` 可禁用） |
@@ -201,7 +201,7 @@ wow:
       max-condition-values: 1000
       max-aggregation-elements: 3
       max-aggregation-metrics: 32
-      allow-expensive-operators: false
+      allow-expensive-operators: true
       idle-timeout: 10s
     command:
       request:

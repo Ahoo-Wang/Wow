@@ -21,6 +21,7 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.query.dsl.FilterDsl
 import me.ahoo.wow.query.dsl.NestedFieldDsl
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import reactor.core.publisher.Flux
@@ -28,6 +29,11 @@ import reactor.core.publisher.Mono
 
 fun NestedFieldDsl.nestedState() {
     this.nested(StateAggregateRecords.STATE)
+}
+
+/** Applies [block] in the snapshot state path scope. */
+fun FilterDsl.pathState(block: FilterDsl.() -> Unit) {
+    StateAggregateRecords.STATE.path(block)
 }
 
 fun <S : Any> IListQuery.query(queryService: SnapshotQueryService<S>): Flux<MaterializedSnapshot<S>> {

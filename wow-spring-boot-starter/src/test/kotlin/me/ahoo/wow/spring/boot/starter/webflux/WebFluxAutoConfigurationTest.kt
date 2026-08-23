@@ -158,19 +158,9 @@ internal class WebFluxAutoConfigurationTest {
                 val batchExecutionPolicy = context.getBean(BatchExecutionPolicy::class.java)
                 batchExecutionPolicy.concurrency.assert().isOne()
                 batchExecutionPolicy.prefetch.assert().isOne()
+                context.getBean(WebFluxProperties::class.java).query.allowExpensiveOperators.assert().isTrue()
 
-                listOf(
-                    BuiltInHttpRouteHandlerKeys.Global.COMMAND_FACADE,
-                    BuiltInHttpRouteHandlerKeys.State.LOAD_AGGREGATE,
-                    BuiltInHttpRouteHandlerKeys.Snapshot.LOAD,
-                    BuiltInHttpRouteHandlerKeys.Event.LOAD,
-                    BuiltInHttpRouteHandlerKeys.Snapshot.REGENERATE,
-                    BuiltInHttpRouteHandlerKeys.Event.RESEND_STATE,
-                    BuiltInHttpRouteHandlerKeys.Global.GLOBAL_ID,
-                    BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT,
-                ).forEach { handlerKey ->
-                    context.assertRouteFactoryRegistered(handlerKey)
-                }
+                context.assertDefaultRouteFactoriesRegistered()
             }
     }
 
@@ -186,7 +176,7 @@ internal class WebFluxAutoConfigurationTest {
                 "${WebFluxProperties.PREFIX}.query.max-page-window=2000",
                 "${WebFluxProperties.PREFIX}.query.max-condition-nodes=32",
                 "${WebFluxProperties.PREFIX}.query.max-condition-values=50",
-                "${WebFluxProperties.PREFIX}.query.allow-expensive-operators=true",
+                "${WebFluxProperties.PREFIX}.query.allow-expensive-operators=false",
                 "${WebFluxProperties.PREFIX}.query.idle-timeout=5s",
                 "${WebFluxProperties.PREFIX}.query.max-aggregation-elements=2",
                 "${WebFluxProperties.PREFIX}.query.max-aggregation-metrics=16",
@@ -223,7 +213,7 @@ internal class WebFluxAutoConfigurationTest {
                 properties.query.maxPageWindow.assert().isEqualTo(2000)
                 properties.query.maxConditionNodes.assert().isEqualTo(32)
                 properties.query.maxConditionValues.assert().isEqualTo(50)
-                properties.query.allowExpensiveOperators.assert().isTrue()
+                properties.query.allowExpensiveOperators.assert().isFalse()
                 properties.query.idleTimeout.assert().isEqualTo(Duration.ofSeconds(5))
                 properties.query.maxAggregationElements.assert().isEqualTo(2)
                 properties.query.maxAggregationMetrics.assert().isEqualTo(16)
@@ -958,6 +948,19 @@ internal class WebFluxAutoConfigurationTest {
     private fun AssertableApplicationContext.assertRouteFactoryRegistered(handlerKey: String) {
         val registrar = getBean(RouteHandlerFunctionRegistrar::class.java)
         registrar.getHttpFactory(handlerKey).assert().isNotNull()
+    }
+
+    private fun AssertableApplicationContext.assertDefaultRouteFactoriesRegistered() {
+        listOf(
+            BuiltInHttpRouteHandlerKeys.Global.COMMAND_FACADE,
+            BuiltInHttpRouteHandlerKeys.State.LOAD_AGGREGATE,
+            BuiltInHttpRouteHandlerKeys.Snapshot.LOAD,
+            BuiltInHttpRouteHandlerKeys.Event.LOAD,
+            BuiltInHttpRouteHandlerKeys.Snapshot.REGENERATE,
+            BuiltInHttpRouteHandlerKeys.Event.RESEND_STATE,
+            BuiltInHttpRouteHandlerKeys.Global.GLOBAL_ID,
+            BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT,
+        ).forEach { handlerKey -> assertRouteFactoryRegistered(handlerKey) }
     }
 
     private fun AssertableApplicationContext.biScriptRouteFactory(): HttpRouteHandlerFunctionFactory {

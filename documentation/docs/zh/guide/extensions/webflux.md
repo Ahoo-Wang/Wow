@@ -92,7 +92,7 @@ data class CreateOrder(/* ... */)
 | `query.max-condition-values` | `Int` | `1000` | HTTP 集合过滤器的值数量上限；`0` 关闭上限 |
 | `query.max-aggregation-elements` | `Int` | `3` | HTTP 快照聚合 Elements 深度上限；`0` 关闭 HTTP 上限，公共硬上限 5 仍生效 |
 | `query.max-aggregation-metrics` | `Int` | `32` | 单个 HTTP 快照聚合的 metrics 上限；`0` 关闭 HTTP 上限，公共硬上限 64 仍生效 |
-| `query.allow-expensive-operators` | `Boolean` | `false` | 是否允许 HTTP 查询使用高成本过滤器、无过滤 count/paged/aggregation、Elements 展开及 metric 排序 |
+| `query.allow-expensive-operators` | `Boolean` | `true` | 是否允许 HTTP 查询使用高成本过滤器、无过滤 count/paged/aggregation、Elements 展开及 metric 排序 |
 | `query.idle-timeout` | `Duration` | `10s` | 等待下一条结果或完成的最长时间；普通 JSON 数组在提交响应前缓冲，SSE 保持流式；`0s` 关闭超时 |
 
 ```yaml
@@ -112,7 +112,7 @@ wow:
       max-condition-values: 1000
       max-aggregation-elements: 3
       max-aggregation-metrics: 32
-      allow-expensive-operators: false
+      allow-expensive-operators: true
       idle-timeout: 10s
 ```
 

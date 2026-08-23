@@ -94,7 +94,7 @@ plus `wow-webflux` for these properties to be bound.
 | `query.max-condition-values` | `Int` | `1000` | Maximum values in HTTP collection filters; `0` disables the cap |
 | `query.max-aggregation-elements` | `Int` | `3` | Maximum HTTP Snapshot aggregation Elements depth; `0` disables the HTTP cap while the public hard limit of 5 remains |
 | `query.max-aggregation-metrics` | `Int` | `32` | Maximum metrics in one HTTP Snapshot aggregation; `0` disables the HTTP cap while the public hard limit of 64 remains |
-| `query.allow-expensive-operators` | `Boolean` | `false` | Whether HTTP queries may use expensive filters, unfiltered count/paged/aggregation, Elements expansion, and metric sorting |
+| `query.allow-expensive-operators` | `Boolean` | `true` | Whether HTTP queries may use expensive filters, unfiltered count/paged/aggregation, Elements expansion, and metric sorting |
 | `query.idle-timeout` | `Duration` | `10s` | Maximum wait between results or completion; JSON arrays are buffered before the response is committed, while SSE remains streaming; `0s` disables the timeout |
 
 ```yaml
@@ -114,7 +114,7 @@ wow:
       max-condition-values: 1000
       max-aggregation-elements: 3
       max-aggregation-metrics: 32
-      allow-expensive-operators: false
+      allow-expensive-operators: true
       idle-timeout: 10s
 ```
 

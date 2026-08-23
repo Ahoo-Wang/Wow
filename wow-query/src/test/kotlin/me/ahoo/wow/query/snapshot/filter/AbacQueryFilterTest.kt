@@ -26,7 +26,9 @@ import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.ExistsFilter
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.api.query.toCondition
@@ -96,6 +98,13 @@ class AbacQueryFilterTest {
 
         filter.assert().isInstanceOf(AndFilter::class.java)
         (filter as AndFilter).operands.assert().hasSize(2)
+    }
+
+    @Test
+    fun `tag key equal to tags path should remain relative`() {
+        val filter = mapOf("tags" to listOf("*")).entries.first().toFilterExpression()
+
+        (filter as ExistsFilter).field.assert().isEqualTo(LogicalField("tags.tags"))
     }
 
     @Test

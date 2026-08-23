@@ -59,119 +59,154 @@ import java.time.LocalTime
 import java.time.ZoneId
 
 @QueryDslMarker
-class FilterDsl internal constructor(private val prefix: String = "") {
+class FilterDsl private constructor(
+    private val prefix: String,
+    private val allowScopedExpression: Boolean,
+) {
+    internal constructor() : this(prefix = "", allowScopedExpression = false)
+
+    internal constructor(prefix: String) : this(prefix, allowScopedExpression = false)
+
     private val expressions = mutableListOf<FilterExpression>()
 
-    fun expression(expression: FilterExpression) {
+    private fun add(expression: FilterExpression) {
         expressions += expression
     }
 
-    fun matchAll() = expression(MatchAllFilter)
+    /**
+     * Adds a prebuilt filter expression unchanged at the current query context root.
+     *
+     * Logical fields in [expression] must already be valid for the insertion context.
+     */
+    fun expression(expression: FilterExpression) {
+        require(prefix == "" || allowScopedExpression) {
+            "Prebuilt expression cannot be added inside a path scope."
+        }
+        add(expression)
+    }
 
-    fun matchNone() = expression(MatchNoneFilter)
+    fun matchAll() = add(MatchAllFilter)
+
+    fun matchNone() = add(MatchNoneFilter)
 
     fun deletion(deletionState: DeletionState) = expression(DeletionFilter(deletionState))
 
-    fun and(block: FilterDsl.() -> Unit) = expression(nestedLogical("AND", ::AndFilter, block))
+    fun and(block: FilterDsl.() -> Unit) = add(nestedLogical("AND", ::AndFilter, block))
 
-    fun or(block: FilterDsl.() -> Unit) = expression(nestedLogical("OR", ::OrFilter, block))
+    fun or(block: FilterDsl.() -> Unit) = add(nestedLogical("OR", ::OrFilter, block))
 
-    fun nor(block: FilterDsl.() -> Unit) = expression(nestedLogical("NOR", ::NorFilter, block))
+    fun nor(block: FilterDsl.() -> Unit) = add(nestedLogical("NOR", ::NorFilter, block))
 
+    /**
+     * Applies [block] in the logical field path scope represented by this string.
+     *
+     * Relative paths extend the current scope, while paths starting with the current scope plus `.` remain unchanged.
+     * Multiple expressions in [block] form one implicit AND operand.
+     */
+    fun String.path(block: FilterDsl.() -> Unit) {
+        val scoped = FilterDsl(field(this).value).apply(block)
+        require(scoped.expressions.isNotEmpty()) { "path block cannot be empty." }
+        add(scoped.build())
+    }
+
+    @Deprecated("Use path. Unlike nested, path groups multiple expressions with AND.")
     fun String.nested(block: FilterDsl.() -> Unit) {
-        val nested = FilterDsl(field(this).value).apply(block)
+        val nested = FilterDsl(
+            prefix = field(this).value,
+            allowScopedExpression = prefix == "" || allowScopedExpression,
+        ).apply(block)
         require(nested.expressions.isNotEmpty()) { "nested block cannot be empty." }
-        expressions += nested.expressions
+        nested.expressions.forEach(::add)
     }
 
     fun String.elementMatch(block: FilterDsl.() -> Unit) {
         val nested = FilterDsl().apply(block)
         require(nested.expressions.isNotEmpty()) { "elementMatch block cannot be empty." }
-        expression(ElementMatchFilter(field(this), nested.build()))
+        add(ElementMatchFilter(field(this), nested.build()))
     }
 
-    infix fun String.eq(value: Any?) = expression(
+    infix fun String.eq(value: Any?) = add(
         value.literal().let {
             if (it.isNull) IsNullFilter(field(this)) else EqualFilter(field(this), it)
         }
     )
 
-    infix fun String.ne(value: Any?) = expression(
+    infix fun String.ne(value: Any?) = add(
         value.literal().let {
             if (it.isNull) IsNotNullFilter(field(this)) else NotEqualFilter(field(this), it)
         }
     )
 
-    infix fun String.gt(value: Any?) = expression(GreaterThanFilter(field(this), value.literal()))
+    infix fun String.gt(value: Any?) = add(GreaterThanFilter(field(this), value.literal()))
 
-    infix fun String.gte(value: Any?) = expression(GreaterThanOrEqualFilter(field(this), value.literal()))
+    infix fun String.gte(value: Any?) = add(GreaterThanOrEqualFilter(field(this), value.literal()))
 
-    infix fun String.lt(value: Any?) = expression(LessThanFilter(field(this), value.literal()))
+    infix fun String.lt(value: Any?) = add(LessThanFilter(field(this), value.literal()))
 
-    infix fun String.lte(value: Any?) = expression(LessThanOrEqualFilter(field(this), value.literal()))
+    infix fun String.lte(value: Any?) = add(LessThanOrEqualFilter(field(this), value.literal()))
 
     fun String.contains(value: String, comparison: StringComparison = StringComparison.CASE_SENSITIVE) =
-        expression(ContainsFilter(field(this), value, comparison))
+        add(ContainsFilter(field(this), value, comparison))
 
     fun String.startsWith(value: String, comparison: StringComparison = StringComparison.CASE_SENSITIVE) =
-        expression(StartsWithFilter(field(this), value, comparison))
+        add(StartsWithFilter(field(this), value, comparison))
 
     fun String.endsWith(value: String, comparison: StringComparison = StringComparison.CASE_SENSITIVE) =
-        expression(EndsWithFilter(field(this), value, comparison))
+        add(EndsWithFilter(field(this), value, comparison))
 
-    infix fun String.isIn(values: Iterable<*>) = expression(InFilter(field(this), values.literals()))
+    infix fun String.isIn(values: Iterable<*>) = add(InFilter(field(this), values.literals()))
 
-    infix fun String.notIn(values: Iterable<*>) = expression(NotInFilter(field(this), values.literals()))
+    infix fun String.notIn(values: Iterable<*>) = add(NotInFilter(field(this), values.literals()))
 
     fun String.between(lowerBound: Any?, upperBound: Any?) =
-        expression(BetweenFilter(field(this), lowerBound.literal(), upperBound.literal()))
+        add(BetweenFilter(field(this), lowerBound.literal(), upperBound.literal()))
 
-    infix fun String.containsAll(values: Iterable<*>) = expression(ContainsAllFilter(field(this), values.literals()))
+    infix fun String.containsAll(values: Iterable<*>) = add(ContainsAllFilter(field(this), values.literals()))
 
-    fun String.isEmptyCollection() = expression(IsEmptyFilter(field(this)))
+    fun String.isEmptyCollection() = add(IsEmptyFilter(field(this)))
 
-    fun String.isNull() = expression(IsNullFilter(field(this)))
+    fun String.isNull() = add(IsNullFilter(field(this)))
 
-    fun String.isNotNull() = expression(IsNotNullFilter(field(this)))
+    fun String.isNotNull() = add(IsNotNullFilter(field(this)))
 
-    fun String.exists() = expression(ExistsFilter(field(this)))
+    fun String.exists() = add(ExistsFilter(field(this)))
 
-    fun String.notExists() = expression(NotExistsFilter(field(this)))
+    fun String.notExists() = add(NotExistsFilter(field(this)))
 
     fun search(query: String, vararg fields: String) =
-        expression(SearchFilter(query, fields.mapTo(linkedSetOf(), ::field)))
+        add(SearchFilter(query, fields.mapTo(linkedSetOf(), ::field)))
 
     infix fun String.search(query: String) = search(query, this)
 
     fun String.today(zoneId: ZoneId? = null, datePattern: String? = null) =
-        expression(TodayFilter(field(this), zoneId?.id, datePattern))
+        add(TodayFilter(field(this), zoneId?.id, datePattern))
 
     fun String.beforeToday(time: LocalTime, zoneId: ZoneId? = null, datePattern: String? = null) =
-        expression(BeforeTodayFilter(field(this), time.toString(), zoneId?.id, datePattern))
+        add(BeforeTodayFilter(field(this), time.toString(), zoneId?.id, datePattern))
 
     fun String.tomorrow(zoneId: ZoneId? = null, datePattern: String? = null) =
-        expression(TomorrowFilter(field(this), zoneId?.id, datePattern))
+        add(TomorrowFilter(field(this), zoneId?.id, datePattern))
 
     fun String.thisWeek(zoneId: ZoneId? = null, datePattern: String? = null) =
-        expression(ThisWeekFilter(field(this), zoneId?.id, datePattern))
+        add(ThisWeekFilter(field(this), zoneId?.id, datePattern))
 
     fun String.nextWeek(zoneId: ZoneId? = null, datePattern: String? = null) =
-        expression(NextWeekFilter(field(this), zoneId?.id, datePattern))
+        add(NextWeekFilter(field(this), zoneId?.id, datePattern))
 
     fun String.lastWeek(zoneId: ZoneId? = null, datePattern: String? = null) =
-        expression(LastWeekFilter(field(this), zoneId?.id, datePattern))
+        add(LastWeekFilter(field(this), zoneId?.id, datePattern))
 
     fun String.thisMonth(zoneId: ZoneId? = null, datePattern: String? = null) =
-        expression(ThisMonthFilter(field(this), zoneId?.id, datePattern))
+        add(ThisMonthFilter(field(this), zoneId?.id, datePattern))
 
     fun String.lastMonth(zoneId: ZoneId? = null, datePattern: String? = null) =
-        expression(LastMonthFilter(field(this), zoneId?.id, datePattern))
+        add(LastMonthFilter(field(this), zoneId?.id, datePattern))
 
     fun String.recentDays(days: Int, zoneId: ZoneId? = null, datePattern: String? = null) =
-        expression(RecentDaysFilter(field(this), days, zoneId?.id, datePattern))
+        add(RecentDaysFilter(field(this), days, zoneId?.id, datePattern))
 
     fun String.earlierDays(days: Int, zoneId: ZoneId? = null, datePattern: String? = null) =
-        expression(EarlierDaysFilter(field(this), days, zoneId?.id, datePattern))
+        add(EarlierDaysFilter(field(this), days, zoneId?.id, datePattern))
 
     internal fun build(): FilterExpression = when (expressions.size) {
         0 -> MatchAllFilter
@@ -184,14 +219,15 @@ class FilterDsl internal constructor(private val prefix: String = "") {
         create: (List<FilterExpression>) -> FilterExpression,
         block: FilterDsl.() -> Unit,
     ): FilterExpression {
-        val nested = FilterDsl(prefix).apply(block)
+        val nested = FilterDsl(prefix, allowScopedExpression).apply(block)
         require(nested.expressions.isNotEmpty()) { "$name block cannot be empty." }
         return create(nested.expressions.toList())
     }
 
-    private fun field(value: String): LogicalField = LogicalField(
-        if (prefix == "") value else "$prefix.$value",
-    )
+    private fun field(value: String): LogicalField = LogicalField(resolvePath(value))
+
+    private fun resolvePath(value: String): String =
+        if (prefix == "" || value.startsWith(prefix = "$prefix.")) value else "$prefix.$value"
 
     private fun Any?.literal(): JsonNode = JsonSerializer.valueToTree(this)
 
