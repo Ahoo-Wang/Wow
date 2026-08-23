@@ -346,6 +346,7 @@ identical to the JSON response.
 - Elements accept only object collections or object arrays. Maps, scalar collections, duplicate paths, skipped parent collections, and sibling Cartesian products are rejected.
 - `groupBy`, metric, and expression fields must belong to the innermost source. They cannot implicitly access a parent, sibling, or unexpanded child collection.
 - Each `AggregationElement.filter` may reference only scalar fields or non-collection object paths in that element and must not use `ELEMENT_MATCH`, `SEARCH`, or `DELETION`.
+- String operators require textual fields; range operators require numeric, temporal, or textual fields; relative-time operators require temporal fields. Object paths support only null/presence filters.
 - A root `ELEMENT_MATCH` filters snapshots containing a match; it does not filter rows produced by expansion. Put row filters in the corresponding Element filter.
 - Missing, `null`, and empty collections produce no expanded rows. A row with any missing or `null` group field produces no bucket.
 
@@ -393,7 +394,9 @@ disables that HTTP cap only; public hard limits still apply. The following reque
 
 The HTTP guard counts only user-submitted root and Element filters. Trusted tenant/owner/space route
 filters do not consume that budget and may scope a match-all root before cost classification; ABAC is
-applied later and does not change the classification. Aggregation fails closed before backend access when a Snapshot masker is configured.
+applied later and does not change the classification. `AbacQueryFilter.resolveAggregationFilter`
+is the aggregation-specific authorization hook; its default delegates with data-returning
+`DYNAMIC_LIST` semantics, never `COUNT`. Aggregation fails closed before backend access when a Snapshot masker is configured.
 The HTTP layer does not maintain a duplicate field allowlist; the aggregation metadata Validator is
 the single authority for collection chains, field ownership, and portable types.
 Groups and metrics have no script entry point.

@@ -192,6 +192,15 @@ class AbacQueryFilterTest {
     @Test
     fun `aggregation ABAC should rewrite only root filter`() {
         val elementFilter = filter { "state.orders.status" eq "PAID" }
+        val aggregationFilter = object : AbacQueryFilter() {
+            override fun getPrincipalTags(
+                contextView: ContextView,
+                context: QueryContext<*, *>,
+            ): Mono<AbacTags> {
+                context.queryType.assert().isEqualTo(QueryType.DYNAMIC_LIST)
+                return MockAbacQueryFilter.getPrincipalTags(contextView, context)
+            }
+        }
         val context = SnapshotAggregationQueryContext(
             MOCK_AGGREGATE_METADATA,
             AggregationQuery(
@@ -199,7 +208,7 @@ class AbacQueryFilterTest {
                 metrics = listOf(AggregationMetric.Count("count")),
             ),
         )
-        AggregationAbacQueryFilter(listOf(MockAbacQueryFilter)).filter(
+        AggregationAbacQueryFilter(listOf(aggregationFilter)).filter(
             context,
             FilterChain {
                 check(context.query.filter !== MatchAllFilter)

@@ -134,6 +134,32 @@ class AggregationQueryValidatorTest {
         invalid.forEach { query -> assertThrows<IllegalArgumentException> { query.validate(namedAggregate) } }
     }
 
+    @Test
+    fun `should validate element filter operators against field types`() {
+        listOf(
+            filter { "state.orders.status".contains("PAID") },
+            filter { "state.orders.amount" gt 0.0 },
+            filter { "state.orders.createdAt".today() },
+            filter { "state.orders.shipping".exists() },
+        ).forEach { elementFilter -> aggregation(elementFilter).validate(namedAggregate) }
+
+        listOf(
+            filter { "state.orders.amount".contains("1") },
+            filter { "state.orders.cancelled".startsWith("false") },
+            filter { "state.orders.cancelled" gt false },
+            filter { "state.orders.shipping" eq "address" },
+            filter { "state.orders.shipping".isEmptyCollection() },
+            filter { "state.orders.status".today() },
+        ).forEach { elementFilter ->
+            assertThrows<IllegalArgumentException> { aggregation(elementFilter).validate(namedAggregate) }
+        }
+    }
+
+    private fun aggregation(elementFilter: me.ahoo.wow.api.query.FilterExpression) = AggregationQuery(
+        elements = listOf(AggregationElement("state.orders", elementFilter)),
+        metrics = listOf(AggregationMetric.Count("count")),
+    )
+
     private fun numeric(field: String) = AggregationMetric.Numeric(
         AggregationFunction.SUM,
         AggregationExpression.Field(field),
@@ -155,6 +181,8 @@ class AggregationQueryValidatorTest {
         val status: String,
         val amount: Double,
         val lines: List<Line>,
+        val createdAt: Instant = Instant.EPOCH,
+        val cancelled: Boolean = false,
         val tags: List<String> = emptyList(),
         val shipping: Shipping = Shipping(""),
     )

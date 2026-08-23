@@ -41,16 +41,7 @@ import reactor.kotlin.test.test
 class SnapshotAggregationHandlerFunctionTest {
     @Test
     fun `should reject legacy condition payload`() {
-        val handler = SnapshotAggregationHandlerFunctionFactory(
-            RouteTestFixtures.snapshotQueryHandler,
-            DefaultRewriteRequestCondition,
-            WebFluxRequestExceptionHandler(),
-        ).create(
-            testAggregateRouteContract(
-                handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.AGGREGATION,
-                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
-            ),
-        )
+        val handler = aggregationHandler()
 
         WebTestClient.bindToRouterFunction(route(POST("/sku/snapshot/aggregation"), handler)).build()
             .post()
@@ -62,17 +53,23 @@ class SnapshotAggregationHandlerFunctionTest {
     }
 
     @Test
+    fun `should reject collection equality in element filter`() {
+        val handler = aggregationHandler()
+
+        WebTestClient.bindToRouterFunction(route(POST("/sku/snapshot/aggregation"), handler)).build()
+            .post()
+            .uri("/sku/snapshot/aggregation")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(
+                """{"elements":[{"path":"state.orders","filter":{"op":"EQ","field":"state.orders.status","value":["PAID"]}}],"metrics":[{"type":"COUNT","alias":"count"}]}"""
+            )
+            .exchange()
+            .expectStatus().isBadRequest
+    }
+
+    @Test
     fun `should handle json and sse aggregation requests`() {
-        val handler = SnapshotAggregationHandlerFunctionFactory(
-            RouteTestFixtures.snapshotQueryHandler,
-            DefaultRewriteRequestCondition,
-            WebFluxRequestExceptionHandler(),
-        ).create(
-            testAggregateRouteContract(
-                handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.AGGREGATION,
-                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
-            ),
-        )
+        val handler = aggregationHandler()
         listOf(MediaType.APPLICATION_JSON, MediaType.TEXT_EVENT_STREAM).forEach { accept ->
             val request = MockServerRequest.builder()
                 .header(HttpHeaders.ACCEPT, accept.toString())
@@ -91,6 +88,17 @@ class SnapshotAggregationHandlerFunctionTest {
                 .verifyComplete()
         }
     }
+
+    private fun aggregationHandler() = SnapshotAggregationHandlerFunctionFactory(
+        RouteTestFixtures.snapshotQueryHandler,
+        DefaultRewriteRequestCondition,
+        WebFluxRequestExceptionHandler(),
+    ).create(
+        testAggregateRouteContract(
+            handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.AGGREGATION,
+            aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
+        ),
+    )
 
     private companion object {
         private val SERVER_RESPONSE_CONTEXT = object : ServerResponse.Context {

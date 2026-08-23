@@ -20,6 +20,7 @@ import me.ahoo.wow.api.abac.wildcard
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.toFilterExpression
@@ -156,6 +157,22 @@ abstract class AbacQueryFilter : SnapshotQueryFilter {
             }
         }
 
+    /**
+     * Resolves authorization for aggregation without presenting it as a count query.
+     * Override this hook when aggregation requires policy distinct from dynamic list access.
+     */
+    open fun resolveAggregationFilter(
+        contextView: ContextView,
+        context: SnapshotAggregationQueryContext,
+    ): Mono<FilterExpression> {
+        val queryContext = DefaultQueryContext<FilterExpression, Flux<DynamicDocument>>(
+            queryType = QueryType.DYNAMIC_LIST,
+            namedAggregate = context.namedAggregate,
+            attributes = context.attributes,
+        ).setQuery(context.query.filter)
+        return resolveFilter(contextView, queryContext)
+    }
+
     override fun filter(
         context: QueryContext<*, *>,
         next: FilterChain<QueryContext<*, *>>
@@ -182,12 +199,7 @@ class AggregationAbacQueryFilter(
     ): Mono<Void> = Mono.deferContextual { contextView ->
         Flux.fromIterable(filters)
             .concatMap { filter ->
-                val rootContext = DefaultQueryContext<FilterExpression, Mono<Long>>(
-                    queryType = QueryType.COUNT,
-                    namedAggregate = context.namedAggregate,
-                    attributes = context.attributes,
-                ).setQuery(context.query.filter)
-                filter.resolveFilter(contextView, rootContext)
+                filter.resolveAggregationFilter(contextView, context)
             }.doOnNext { filter ->
                 if (filter !== MatchAllFilter) {
                     context.rewriteQuery { query -> query.appendFilter(filter) }

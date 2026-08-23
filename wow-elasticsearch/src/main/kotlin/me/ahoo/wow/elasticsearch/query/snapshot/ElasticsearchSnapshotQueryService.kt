@@ -122,8 +122,10 @@ class ElasticsearchSnapshotQueryService<S : Any>(
         mapping.resolve(sort)
 
     override fun aggregate(query: AggregationQuery): Flux<DynamicDocument> = Flux.defer {
-        aggregationMappingResolver.currentOrLoad(indexName)
-            .map { mapping ->
+        val plan = if (configuredIndexMappingResolver == null && query.isRootCountOnly) {
+            Mono.just(ElasticsearchAggregationCompiler.compileCount(query, conditionConverter))
+        } else {
+            aggregationMappingResolver.currentOrLoad(indexName).map { mapping ->
                 ElasticsearchAggregationCompiler.compile(
                     query = query,
                     mapping = mapping,
@@ -134,9 +136,15 @@ class ElasticsearchSnapshotQueryService<S : Any>(
                         mapping::resolve
                     },
                 )
-            }.flatMapMany { plan ->
-                if (plan.aggregationQuery.groupBy.isEmpty()) aggregateGlobal(plan) else aggregateGrouped(plan)
             }
+        }
+        plan.flatMapMany { aggregationPlan ->
+            if (aggregationPlan.aggregationQuery.groupBy.isEmpty()) {
+                aggregateGlobal(aggregationPlan)
+            } else {
+                aggregateGrouped(aggregationPlan)
+            }
+        }
     }
 
     private fun aggregateGlobal(plan: ElasticsearchAggregationPlan): Flux<DynamicDocument> {

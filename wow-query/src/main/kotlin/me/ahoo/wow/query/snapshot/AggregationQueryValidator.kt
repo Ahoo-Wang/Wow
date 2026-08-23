@@ -101,10 +101,39 @@ private fun FilterExpression.validateElementFilter(
     require(resolved.collectionPaths == elementPaths) {
         "Aggregation element filter field [$field] must not traverse an undeclared collection."
     }
-    require(resolved.kind == AggregationFieldKind.SCALAR || resolved.kind == AggregationFieldKind.OBJECT) {
-        "Aggregation element filter field [$field] must not be a collection."
+    require(resolved.supportsElementFilter(this)) {
+        "Aggregation element filter [$operator] does not support field [$field] of type [${resolved.type.rawClass.name}]."
     }
 }
+
+@Suppress("CyclomaticComplexMethod")
+private fun AggregationField.supportsElementFilter(filter: FilterExpression): Boolean = when (filter) {
+    is EqualFilter -> kind == AggregationFieldKind.SCALAR || filter.value.isNull && kind == AggregationFieldKind.OBJECT
+    is NotEqualFilter ->
+        kind == AggregationFieldKind.SCALAR || filter.value.isNull && kind == AggregationFieldKind.OBJECT
+    is InFilter, is NotInFilter -> kind == AggregationFieldKind.SCALAR
+    is GreaterThanFilter,
+    is GreaterThanOrEqualFilter,
+    is LessThanFilter,
+    is LessThanOrEqualFilter,
+    is BetweenFilter,
+    -> kind == AggregationFieldKind.SCALAR && isRangeComparable
+    is ContainsFilter, is StartsWithFilter, is EndsWithFilter ->
+        kind == AggregationFieldKind.SCALAR && isTextual
+    is IsNullFilter, is IsNotNullFilter, is ExistsFilter, is NotExistsFilter ->
+        kind == AggregationFieldKind.SCALAR || kind == AggregationFieldKind.OBJECT
+    is RelativeTimeFilter -> kind == AggregationFieldKind.SCALAR && isTemporal
+    else -> false
+}
+
+private val AggregationField.isTextual: Boolean
+    get() = type.rawClass.isEnum ||
+        CharSequence::class.java.isAssignableFrom(type.rawClass) ||
+        type.rawClass == Char::class.javaPrimitiveType ||
+        type.rawClass == Char::class.javaObjectType
+
+private val AggregationField.isRangeComparable: Boolean
+    get() = isNumeric || isTemporal || isTextual
 
 @Suppress("CyclomaticComplexMethod")
 private fun FilterExpression.requiredElementField(): String = when (this) {

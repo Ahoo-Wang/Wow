@@ -188,9 +188,6 @@ class ElasticsearchSnapshotMappingQueryTest {
 
     @Test
     fun `custom condition converter should keep physical field ownership for aggregation`() {
-        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
-            mappingResponse(queryMapping()),
-        )
         val convertedFilter = slot<FilterExpression>()
         val customConverter = mockk<me.ahoo.wow.elasticsearch.query.AbstractElasticsearchConditionConverter> {
             every { convert(capture(convertedFilter)) } returns matchAll { it }
@@ -213,6 +210,7 @@ class ElasticsearchSnapshotMappingQueryTest {
         ).collectList().block()
 
         convertedFilter.captured.assert().isEqualTo(aggregationFilter)
+        verify(exactly = 0) { client.indices() }
     }
 
     private fun queryService(

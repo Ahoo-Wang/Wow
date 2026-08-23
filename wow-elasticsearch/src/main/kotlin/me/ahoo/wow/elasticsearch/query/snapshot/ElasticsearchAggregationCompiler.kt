@@ -36,6 +36,20 @@ import me.ahoo.wow.elasticsearch.query.ElasticsearchFieldUsage
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
 
 internal object ElasticsearchAggregationCompiler {
+    fun compileCount(
+        query: AggregationQuery,
+        conditionConverter: AbstractElasticsearchConditionConverter,
+    ): ElasticsearchAggregationPlan {
+        require(query.isRootCountOnly) {
+            "Mapping-free aggregation supports only root Count metrics."
+        }
+        return ElasticsearchAggregationPlan(
+            query = conditionConverter.convert(query.filter),
+            aggregationQuery = query,
+            elements = emptyList(),
+        )
+    }
+
     fun compile(
         query: AggregationQuery,
         mapping: ElasticsearchIndexMapping,
@@ -65,6 +79,9 @@ internal object ElasticsearchAggregationCompiler {
         )
     }
 }
+
+internal val AggregationQuery.isRootCountOnly: Boolean
+    get() = elements.isEmpty() && groupBy.isEmpty() && metrics.all { it is AggregationMetric.Count }
 
 internal data class ElasticsearchAggregationPlan(
     val query: Query,

@@ -101,11 +101,13 @@ class QueryBodyExtractor<Q : Any>(private val queryType: Class<Q>) : BodyExtract
     }
 
     private fun requireStrictFilterValues(decoded: Q) {
-        when (decoded) {
-            is FilterExpression -> decoded
-            is FilterCapable<*> -> decoded.filter
-            else -> null
-        }?.requireScalarEqualityValues()
+        val filters = when (decoded) {
+            is AggregationQuery -> listOf(decoded.filter) + decoded.elements.map { it.filter }
+            is FilterExpression -> listOf(decoded)
+            is FilterCapable<*> -> listOf(decoded.filter)
+            else -> emptyList()
+        }
+        filters.forEach { it.requireScalarEqualityValues() }
     }
 
     private fun FilterExpression.requireScalarEqualityValues() {
