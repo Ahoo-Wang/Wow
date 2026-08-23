@@ -28,6 +28,10 @@ import me.ahoo.wow.schema.AggregatedFieldPaths.stateAggregatedFieldPaths
 import me.ahoo.wow.schema.TypeFieldPaths.allFieldPaths
 import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.api.Test
+import tools.jackson.core.JsonGenerator
+import tools.jackson.databind.SerializationContext
+import tools.jackson.databind.annotation.JsonSerialize
+import tools.jackson.databind.ser.std.StdSerializer
 
 class AggregatedFieldPathsTest {
     @Test
@@ -97,6 +101,16 @@ class AggregatedFieldPathsTest {
     }
 
     @Test
+    fun `should treat custom serializer wire shape as opaque`() {
+        JsonSerializer.writeValueAsString(CustomSerializedFixture(CustomSerializedValue("wire")))
+            .assert().isEqualTo("{\"value\":\"wire\"}")
+
+        CustomSerializedFixture::class.allFieldPaths(parentName = "state").assert()
+            .contains("state.value")
+            .doesNotContain("state.value.hidden")
+    }
+
+    @Test
     fun `should respect the requested maximum depth`() {
         val paths = TestState::class.allFieldPaths(parentName = "state", maxDepth = 1)
 
@@ -161,3 +175,20 @@ private data class UnwrappedDetails(val nestedValue: String)
 private sealed interface SyntheticTypeInfoFixture
 
 private data class CardPayment(val cardNumber: String) : SyntheticTypeInfoFixture
+
+private data class CustomSerializedFixture(val value: CustomSerializedValue)
+
+@JsonSerialize(using = CustomSerializedValueSerializer::class)
+private data class CustomSerializedValue(val hidden: String)
+
+private class CustomSerializedValueSerializer : StdSerializer<CustomSerializedValue>(
+    CustomSerializedValue::class.java,
+) {
+    override fun serialize(
+        value: CustomSerializedValue,
+        generator: JsonGenerator,
+        provider: SerializationContext,
+    ) {
+        generator.writeString(value.hidden)
+    }
+}

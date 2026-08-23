@@ -13,13 +13,26 @@
 
 package me.ahoo.wow.schema
 
+import com.github.victools.jsonschema.generator.CustomDefinition
+import com.github.victools.jsonschema.generator.CustomPropertyDefinition
+import com.github.victools.jsonschema.generator.MemberScope
+import com.github.victools.jsonschema.generator.Option
+import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.schema.TypeFieldPaths.allFieldPaths
+import me.ahoo.wow.schema.Types.isStdType
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import tools.jackson.databind.JsonNode
+import tools.jackson.databind.ValueSerializer
+import tools.jackson.databind.annotation.JsonSerialize
+import tools.jackson.databind.ser.bean.BeanSerializerBase
+import tools.jackson.databind.ser.impl.UnknownSerializer
+import tools.jackson.databind.ser.std.ReferenceTypeSerializer
+import tools.jackson.databind.ser.std.StdContainerSerializer
+import tools.jackson.databind.util.Converter
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.KClass
 
@@ -29,7 +42,20 @@ import kotlin.reflect.KClass
 object TypeFieldPaths {
     const val JOIN_DELIMITER = "."
     const val MAX_DEPTH = 5
-    private val schemaGenerator by lazy { SchemaGeneratorBuilder().objectMapper(JsonSerializer).build() }
+    private val schemaGenerator by lazy {
+        SchemaGeneratorBuilder().objectMapper(JsonSerializer).customizer { config ->
+            config.with(Option.DEFINITIONS_FOR_ALL_OBJECTS)
+            config.forFields().withCustomDefinitionProvider { scope, context ->
+                scope.customSerializerDefinition(context)
+            }
+            config.forMethods().withCustomDefinitionProvider { scope, context ->
+                scope.customSerializerDefinition(context)
+            }
+            config.forTypesInGeneral().withCustomDefinitionProvider { javaType, context ->
+                javaType.erasedType.registeredSerializerDefinition(context)
+            }
+        }.build()
+    }
 
     fun KClass<*>.allFieldPaths(
         parentName: String = "",
@@ -100,6 +126,37 @@ object TypeFieldPaths {
 
     private fun String.isLogicalFieldSegment(): Boolean =
         JOIN_DELIMITER !in this && runCatching { LogicalField("_.$this") }.isSuccess
+
+    private fun MemberScope<*, *>.customSerializerDefinition(
+        context: SchemaGenerationContext,
+    ): CustomPropertyDefinition? {
+        val annotation = getAnnotationConsideringFieldAndGetterIfSupported(JsonSerialize::class.java)
+        return annotation?.takeIf { it.definesWireShape() }?.let {
+            CustomPropertyDefinition(context.generatorConfig.createObjectNode())
+        }
+    }
+
+    private fun JsonSerialize.definesWireShape(): Boolean =
+        using != ValueSerializer.None::class.java ||
+            contentUsing != ValueSerializer.None::class.java ||
+            keyUsing != ValueSerializer.None::class.java ||
+            converter != Converter.None::class.java ||
+            contentConverter != Converter.None::class.java
+
+    private fun Class<*>.registeredSerializerDefinition(context: SchemaGenerationContext): CustomDefinition? {
+        if (isStdType()) {
+            return null
+        }
+        val serializer = runCatching { JsonSerializer._serializationContext().findValueSerializer(this) }.getOrNull()
+        return serializer?.takeUnless {
+            it is BeanSerializerBase ||
+                it is UnknownSerializer ||
+                it is StdContainerSerializer<*> ||
+                it is ReferenceTypeSerializer<*>
+        }?.let {
+            CustomDefinition(context.generatorConfig.createObjectNode())
+        }
+    }
 }
 
 object AggregatedFieldPaths {
