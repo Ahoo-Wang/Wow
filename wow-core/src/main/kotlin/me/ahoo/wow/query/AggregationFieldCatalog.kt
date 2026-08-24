@@ -133,13 +133,14 @@ private fun BeanPropertyDefinition.scan(
     if (propertyType.isMapLikeType) return
     if (propertyType.isCollectionLikeType || propertyType.isArrayType) {
         val elementType = propertyType.contentType ?: return
+        val scalarElementType = elementType.aggregationScalarType
         val nestedCollections = collectionPaths + path
         val kind = if (hasCustomCollectionSerialization) {
             AggregationFieldKind.UNSUPPORTED_COLLECTION
         } else {
             elementType.aggregationCollectionKind
         }
-        paths[path] = AggregationField(path, elementType, kind, nestedCollections)
+        paths[path] = AggregationField(path, scalarElementType ?: elementType, kind, nestedCollections)
         if (kind == AggregationFieldKind.OBJECT_COLLECTION) {
             elementType.scan(paths, path, depth + 1, maxDepth, nestedCollections)
         }
@@ -147,8 +148,9 @@ private fun BeanPropertyDefinition.scan(
     }
     if (hasCustomSerialization || propertyType.hasCustomSerialization) return
 
-    val kind = if (propertyType.isAggregationScalar) AggregationFieldKind.SCALAR else AggregationFieldKind.OBJECT
-    paths[path] = AggregationField(path, propertyType, kind, collectionPaths)
+    val scalarType = propertyType.aggregationScalarType
+    val kind = if (scalarType != null) AggregationFieldKind.SCALAR else AggregationFieldKind.OBJECT
+    paths[path] = AggregationField(path, scalarType ?: propertyType, kind, collectionPaths)
     if (kind == AggregationFieldKind.OBJECT) {
         propertyType.scan(paths, path, depth + 1, maxDepth, collectionPaths)
     }
@@ -160,7 +162,8 @@ private val BeanPropertyDefinition.hasCustomSerialization: Boolean
         val config = JsonSerializer.serializationConfig()
         return config.annotationIntrospector.run {
             findSerializer(config, member) != null ||
-                findSerializationConverter(config, member) != null
+                findSerializationConverter(config, member) != null ||
+                findUnwrappingNameTransformer(config, member) != null
         }
     }
 
@@ -178,7 +181,7 @@ private val BeanPropertyDefinition.hasCustomCollectionSerialization: Boolean
 private val JavaType.aggregationCollectionKind: AggregationFieldKind
     get() = when {
         hasCustomSerialization -> AggregationFieldKind.UNSUPPORTED_COLLECTION
-        isAggregationScalar -> AggregationFieldKind.SCALAR_COLLECTION
+        aggregationScalarType != null -> AggregationFieldKind.SCALAR_COLLECTION
         isMapLikeType || isCollectionLikeType || isArrayType -> AggregationFieldKind.UNSUPPORTED_COLLECTION
         else -> AggregationFieldKind.OBJECT_COLLECTION
     }
@@ -192,17 +195,27 @@ private val JavaType.hasCustomSerialization: Boolean
         }
     }
 
-private val JavaType.isAggregationScalar: Boolean
+private val JavaType.aggregationScalarType: JavaType?
+    get() {
+        val jsonValueAccessor = toBeanDescription().findJsonValueAccessor()
+        return if (jsonValueAccessor == null) {
+            takeIf { it.isDirectAggregationScalar }
+        } else {
+            jsonValueAccessor.type.takeIf { it.isDirectAggregationScalar }
+        }
+    }
+
+private val JavaType.isDirectAggregationScalar: Boolean
     get() = isAggregationNumeric || isAggregationDate || isAggregationTextual || rawClass.isPrimitive ||
         rawClass == Boolean::class.javaObjectType || rawClass == Char::class.javaObjectType ||
-        rawClass == UUID::class.java || toBeanDescription().findJsonValueAccessor() != null
+        rawClass == UUID::class.java
 
 private val JavaType.isAggregationTextual: Boolean
     get() = rawClass.isEnum || CharSequence::class.java.isAssignableFrom(rawClass) ||
         rawClass == Char::class.javaPrimitiveType || rawClass == Char::class.javaObjectType
 
 private val JavaType.isAggregationTerms: Boolean
-    get() = !isAggregationDate && isAggregationScalar
+    get() = !isAggregationDate && isDirectAggregationScalar
 
 private val JavaType.isAggregationNumeric: Boolean
     get() = (rawClass.isPrimitive && rawClass != Boolean::class.javaPrimitiveType && rawClass != Char::class.javaPrimitiveType) ||

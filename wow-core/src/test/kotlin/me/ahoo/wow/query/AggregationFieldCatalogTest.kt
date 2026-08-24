@@ -14,6 +14,7 @@
 package me.ahoo.wow.query
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.JsonUnwrapped
 import com.fasterxml.jackson.annotation.JsonValue
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
@@ -65,6 +66,9 @@ class AggregationFieldCatalogTest {
             "state.serializedValue.sku",
             "state.classSerializedValue",
             "state.classSerializedValue.sku",
+            "state.unwrapped",
+            "state.unwrapped.sku",
+            "state.flat_sku",
         )
         catalog.paths.keys.assert().doesNotContain("state.attributes.value")
         catalog.paths["state.scalarItems"]!!.kind.assert().isEqualTo(AggregationFieldKind.SCALAR_COLLECTION)
@@ -90,6 +94,9 @@ class AggregationFieldCatalogTest {
             "state.localDateTime",
             "state.offsetDateTime",
             "state.zonedDateTime",
+            "state.scalarValue",
+            "state.numericStatus",
+            "state.booleanStatus",
             "state.pet.name",
         ).forEach { path ->
             catalog.paths[path]!!.kind.assert().isEqualTo(AggregationFieldKind.SCALAR)
@@ -99,6 +106,9 @@ class AggregationFieldCatalogTest {
         catalog.paths["state.items.value"]!!.collectionPaths.assert().containsExactly("state.items")
         catalog.paths["state.number"]!!.isNumeric.assert().isTrue()
         catalog.paths["state.number"]!!.supportsTerms.assert().isTrue()
+        catalog.paths["state.scalarValue"]!!.isTextual.assert().isTrue()
+        catalog.paths["state.numericStatus"]!!.isNumeric.assert().isTrue()
+        catalog.paths["state.booleanStatus"]!!.isBoolean.assert().isTrue()
         catalog.paths["state.instant"]!!.isTemporal.assert().isTrue()
         catalog.paths["state.instant"]!!.supportsTerms.assert().isFalse()
     }
@@ -133,6 +143,9 @@ class AggregationFieldCatalogTest {
         @get:JsonSerialize(using = ScalarLineSerializer::class)
         val serializedValue: Line = Line("")
         val classSerializedValue: ClassSerializedLine = ClassSerializedLine("")
+
+        @get:JsonUnwrapped(prefix = "flat_")
+        val unwrapped: Line = Line("")
         val attributes: Map<String, String> = emptyMap()
     }
 
@@ -174,12 +187,19 @@ class AggregationFieldCatalogTest {
         val localDateTime: LocalDateTime = LocalDateTime.MIN
         val offsetDateTime: OffsetDateTime = OffsetDateTime.MIN
         val zonedDateTime: ZonedDateTime = ZonedDateTime.of(LocalDateTime.MIN, ZoneOffset.UTC)
+        val scalarValue: ScalarItem = ScalarItem("")
+        val numericStatus: NumericStatus = NumericStatus.ONE
+        val booleanStatus: BooleanStatus = BooleanStatus.YES
         val numbers: IntArray = intArrayOf()
         val items: Array<Item> = emptyArray()
         val pet: Pet = Cat("cat")
     }
 
     private enum class Status { ACTIVE }
+
+    private enum class NumericStatus(@get:JsonValue val value: Int) { ONE(1) }
+
+    private enum class BooleanStatus(@get:JsonValue val value: Boolean) { YES(true) }
 
     private data class Item(val value: Long)
 

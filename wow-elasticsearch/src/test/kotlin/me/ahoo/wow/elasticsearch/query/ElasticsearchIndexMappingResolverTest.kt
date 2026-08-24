@@ -367,6 +367,19 @@ class ElasticsearchIndexMappingResolverTest {
     }
 
     @Test
+    fun `terms should require portable binary ordering`() {
+        val mapping = ElasticsearchIndexMapping.from(INDEX, termOrderingFields())
+
+        listOf("keyword", "constantKeyword", "countedKeyword", "wildcard", "integer", "boolean").forEach { field ->
+            mapping.resolve(field, ElasticsearchFieldUsage.TERMS).assert().isEqualTo(field)
+        }
+        listOf("ip", "version", "icu").forEach { field ->
+            runCatching { mapping.resolve(field, ElasticsearchFieldUsage.TERMS) }
+                .exceptionOrNull()!!.message.assert().contains("does not support")
+        }
+    }
+
+    @Test
     fun `should support range semantic text fielddata and metadata sorts`() {
         val mapping = ElasticsearchIndexMapping.from(INDEX, specialCapabilities())
 
@@ -527,6 +540,20 @@ class ElasticsearchIndexMappingResolverTest {
                 .properties("plainText") { it.text { field -> field } }
                 .properties("fielddataText") { it.text { field -> field.fielddata(true) } }
                 .properties("unindexedFielddataText") { it.text { field -> field.index(false).fielddata(true) } }
+        }
+
+    private fun termOrderingFields(): TypeMapping =
+        TypeMapping.of { mapping ->
+            mapping
+                .properties("keyword") { it.keyword { field -> field } }
+                .properties("constantKeyword") { it.constantKeyword { field -> field } }
+                .properties("countedKeyword") { it.countedKeyword { field -> field } }
+                .properties("wildcard") { it.wildcard { field -> field } }
+                .properties("integer") { it.integer { field -> field } }
+                .properties("boolean") { it.boolean_ { field -> field } }
+                .properties("ip") { it.ip { field -> field } }
+                .properties("version") { it.version { field -> field } }
+                .properties("icu") { it.icuCollationKeyword { field -> field } }
         }
 
     private fun stateMapping(

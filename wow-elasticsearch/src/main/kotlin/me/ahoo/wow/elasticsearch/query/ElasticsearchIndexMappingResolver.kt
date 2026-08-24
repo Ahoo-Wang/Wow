@@ -376,11 +376,13 @@ private data class ElasticsearchMappedField(
         )
         private val TERM_KINDS = KEYWORD_KINDS + Property.Kind.Wildcard
         private val DATE_KINDS = setOf(Property.Kind.Date, Property.Kind.DateNanos)
-        private val TERMS_AGGREGATION_KINDS = NUMERIC_KINDS + TERM_KINDS + setOf(
-            Property.Kind.Boolean,
-            Property.Kind.Ip,
-            Property.Kind.Version,
+        private val BINARY_TERM_KINDS = setOf(
+            Property.Kind.Keyword,
+            Property.Kind.ConstantKeyword,
+            Property.Kind.CountedKeyword,
+            Property.Kind.Wildcard,
         )
+        private val TERMS_AGGREGATION_KINDS = NUMERIC_KINDS + BINARY_TERM_KINDS + Property.Kind.Boolean
         private val RANGE_FIELD_KINDS = setOf(
             Property.Kind.IntegerRange,
             Property.Kind.FloatRange,
