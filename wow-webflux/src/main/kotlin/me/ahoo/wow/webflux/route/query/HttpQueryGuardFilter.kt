@@ -76,8 +76,10 @@ class HttpQueryGuardFilter(
         when (query) {
             is AggregationQuery -> {
                 validateResultSize(query.limit, "aggregation")
-                (listOf(query.filter) + query.elements.map(AggregationElement::filter))
-                    .forEach { validateFilter(it, rejectMatchAll = false, enforceLimits = false) }
+                validateFilters(
+                    listOf(query.filter) + query.elements.map(AggregationElement::filter),
+                    rejectMatchAll = false,
+                )
                 require(allowExpensiveOperators || query.elements.isEmpty()) {
                     "HTTP aggregation elements are disabled because expensive operators are not allowed."
                 }
@@ -95,8 +97,8 @@ class HttpQueryGuardFilter(
             is FilterCapable<*> -> query.filter
             else -> return
         }
-        validateFilter(
-            filter = filter,
+        validateFilters(
+            filters = listOf(filter),
             rejectMatchAll = !allowExpensiveOperators && queryType in COUNTING_QUERY_TYPES,
         )
     }
@@ -128,19 +130,17 @@ class HttpQueryGuardFilter(
         }
     }
 
-    private fun validateFilter(filter: FilterExpression, rejectMatchAll: Boolean, enforceLimits: Boolean = true) {
+    private fun validateFilters(filters: List<FilterExpression>, rejectMatchAll: Boolean) {
         val pending = ArrayDeque<FilterExpression>()
-        pending.add(filter)
+        pending.addAll(filters)
         var nodes = 0
         while (pending.isNotEmpty()) {
             val current = pending.removeLast()
             nodes++
-            if (enforceLimits) {
-                require(maxFilterNodes == 0 || nodes <= maxFilterNodes) {
-                    "HTTP query filter nodes[$nodes] must not exceed $maxFilterNodes."
-                }
+            require(maxFilterNodes == 0 || nodes <= maxFilterNodes) {
+                "HTTP query filter nodes[$nodes] must not exceed $maxFilterNodes."
             }
-            validateFilterNode(current, enforceLimits)
+            validateFilterNode(current)
             when (current) {
                 is AndFilter -> pending.addAll(current.operands)
                 is OrFilter -> pending.addAll(current.operands)
@@ -149,17 +149,17 @@ class HttpQueryGuardFilter(
                 else -> Unit
             }
         }
-        require(!rejectMatchAll || !filter.isMatchAll()) {
+        require(!rejectMatchAll || filters.none { it.isMatchAll() }) {
             "HTTP counting query must not match all documents."
         }
     }
 
-    private fun validateFilterNode(filter: FilterExpression, enforceLimits: Boolean) {
+    private fun validateFilterNode(filter: FilterExpression) {
         require(allowExpensiveOperators || !filter.isExpensive()) {
             "HTTP query operator[${filter.operator}] is disabled because expensive operators are not allowed."
         }
         val valueCount = filter.valueCount()
-        if (enforceLimits && valueCount != null) {
+        if (valueCount != null) {
             require(maxFilterValues == 0 || valueCount <= maxFilterValues) {
                 "HTTP query filter values[$valueCount] must not exceed $maxFilterValues."
             }

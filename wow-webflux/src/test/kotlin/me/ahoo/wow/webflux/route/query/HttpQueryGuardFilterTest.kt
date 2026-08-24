@@ -158,8 +158,53 @@ class HttpQueryGuardFilterTest {
         guard(
             maxFilterNodes = 1,
             idleTimeout = Duration.ZERO
-        ).filter(aggregationContext(filtered), FilterChain { Mono.empty() })
-            .writeRawRequest(request).test().verifyComplete()
+        ).filter(aggregationContext(filtered), unexpectedBackend())
+            .writeRawRequest(request).test().expectError(IllegalArgumentException::class.java).verify()
+    }
+
+    @Test
+    fun `aggregation Guard should share the filter node budget across root and elements`() {
+        val query = AggregationQuery(
+            filter = filterExpression { "state.status" eq "ACTIVE" },
+            elements = listOf(
+                AggregationElement(
+                    path = LogicalField("state.orders"),
+                    filter = filterExpression { "status" eq "PAID" },
+                ),
+            ),
+            metrics = listOf(AggregationMetric.Count("count")),
+        )
+
+        guard(maxFilterNodes = 1, allowExpensiveOperators = true)
+            .filter(aggregationContext(query), unexpectedBackend())
+            .writeRawRequest(request).test().expectError(IllegalArgumentException::class.java).verify()
+    }
+
+    @Test
+    fun `aggregation Guard should enforce filter value limits in every scope`() {
+        val rootIn = AggregationQuery(
+            filter = filterExpression { "state.status" isIn listOf("ACTIVE", "PAID") },
+            metrics = listOf(AggregationMetric.Count("count")),
+        )
+        val elementIn = AggregationQuery(
+            elements = listOf(
+                AggregationElement(
+                    path = LogicalField("state.orders"),
+                    filter = filterExpression { "status" isIn listOf("ACTIVE", "PAID") },
+                ),
+            ),
+            metrics = listOf(AggregationMetric.Count("count")),
+        )
+        val rootMetadata = AggregationQuery(
+            filter = AggregateIdsFilter(listOf("order-1", "order-2")),
+            metrics = listOf(AggregationMetric.Count("count")),
+        )
+
+        listOf(rootIn, elementIn, rootMetadata).forEach { query ->
+            guard(maxFilterValues = 1, allowExpensiveOperators = true)
+                .filter(aggregationContext(query), unexpectedBackend())
+                .writeRawRequest(request).test().expectError(IllegalArgumentException::class.java).verify()
+        }
     }
 
     @Test
