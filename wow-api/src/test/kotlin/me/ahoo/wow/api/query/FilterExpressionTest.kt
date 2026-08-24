@@ -61,7 +61,6 @@ class FilterExpressionTest {
                 FilterExpression::class.java,
             )
             decoded.assert().isEqualTo(filter)
-            decoded.toCondition().operator.name.assert().isEqualTo(filter.operator.name)
         }
     }
 
@@ -123,75 +122,29 @@ class FilterExpressionTest {
 
     @Suppress("DEPRECATION")
     @Test
-    fun `legacy queryable implementation should inherit filter compatibility`() {
-        val query = LegacyQueryable(Condition.eq("state.status", "CREATED"))
-        val appended = Condition.eq("state.tenant", "tenant")
-
-        query.filter.toCondition().assert().isEqualTo(query.condition)
-        query.withFilter(MatchAllFilter).condition.assert().isEqualTo(Condition.ALL)
-        query.appendCondition(appended).condition.assert().isEqualTo(query.condition.appendCondition(appended))
-    }
-
-    @Suppress("DEPRECATION")
-    @Test
-    fun `should preserve legacy collection equality`() {
-        val condition = Condition.eq("state.tags", listOf("a", "b"))
-        val filter = condition.toFilterExpression()
-
-        filter.toCondition().assert().isEqualTo(condition)
-    }
-
-    @Suppress("DEPRECATION")
-    @Test
-    fun `should resolve legacy metadata and logical conditions once`() {
-        val wrapped = Condition.and(
+    fun `should convert legacy metadata and logical conditions immediately`() {
+        val resolved = Condition.and(
             Condition.id("id-1"),
             Condition.aggregateIds("aggregate-1", "aggregate-2"),
             Condition.tenantId("tenant-1"),
-        ).toFilterExpression()
-
-        val resolved = wrapped.toExecutableFilter() as AndFilter
+        ).toFilterExpression() as AndFilter
 
         resolved.operands.assert().containsExactly(
             IdFilter("id-1"),
             AggregateIdsFilter(listOf("aggregate-1", "aggregate-2")),
             TenantIdFilter("tenant-1"),
         )
-        resolved.toExecutableFilter().assert().isSameAs(resolved)
-    }
-
-    @Suppress("DEPRECATION")
-    @Test
-    fun `should resolve legacy wrappers nested in typed trees without rebuilding pure typed trees`() {
-        val typed = EqualFilter(LogicalField("state.status"), jsonMapper.valueToTree("CREATED"))
-        val legacy = Condition.eq("state.tenant", "tenant-1").toFilterExpression()
-
-        val and = AndFilter(listOf(legacy, typed)).toExecutableFilter() as AndFilter
-        (and.operands.first() as EqualFilter).field.value.assert().isEqualTo("state.tenant")
-        and.operands.last().assert().isSameAs(typed)
-
-        val or = OrFilter(listOf(typed, legacy)).toExecutableFilter() as OrFilter
-        (or.operands.last() as EqualFilter).field.value.assert().isEqualTo("state.tenant")
-
-        val nor = NorFilter(listOf(legacy)).toExecutableFilter() as NorFilter
-        (nor.operands.single() as EqualFilter).field.value.assert().isEqualTo("state.tenant")
-
-        val element = ElementMatchFilter(LogicalField("state.items"), legacy).toExecutableFilter() as ElementMatchFilter
-        (element.predicate as EqualFilter).field.value.assert().isEqualTo("state.tenant")
-
-        val pureTyped = AndFilter(listOf(typed, OrFilter(listOf(typed))))
-        pureTyped.toExecutableFilter().assert().isSameAs(pureTyped)
     }
 
     @Suppress("DEPRECATION")
     @Test
     fun `should preserve legacy collection equality as array equality`() {
         val resolved = Condition.eq("state.tags", listOf("a", "b"))
-            .toFilterExpression()
-            .toExecutableFilter() as EqualFilter
+            .toFilterExpression() as EqualFilter
 
         resolved.value.isArray.assert().isTrue()
-        resolved.toCondition().assert().isEqualTo(Condition.eq("state.tags", listOf("a", "b")))
+        resolved.value[0].asString().assert().isEqualTo("a")
+        resolved.value[1].asString().assert().isEqualTo("b")
     }
 
     @Suppress("DEPRECATION")
@@ -200,11 +153,10 @@ class FilterExpressionTest {
         data class NativeValue(val id: String)
         val native = NativeValue("native-1")
         val resolved = Condition.eq("state.native", native)
-            .toFilterExpression()
-            .toExecutableFilter() as EqualFilter
+            .toFilterExpression() as EqualFilter
 
         resolved.value.isPojo.assert().isTrue()
-        resolved.toCondition().value.assert().isSameAs(native)
+        (resolved.value as tools.jackson.databind.node.POJONode).pojo.assert().isSameAs(native)
     }
 
     @Suppress("DEPRECATION", "LongMethod")
@@ -336,7 +288,7 @@ class FilterExpressionTest {
 
         cases.map { it.first.operator }.toSet().assert().containsExactly(*Operator.entries.toTypedArray())
         cases.forEach { (condition, expected) ->
-            condition.toFilterExpression().toExecutableFilter().assert().isEqualTo(expected)
+            condition.toFilterExpression().assert().isEqualTo(expected)
         }
     }
 
@@ -355,7 +307,7 @@ class FilterExpressionTest {
         )
 
         cases.forEach { (condition, expected) ->
-            condition.toFilterExpression().toExecutableFilter().assert().isEqualTo(expected)
+            condition.toFilterExpression().assert().isEqualTo(expected)
         }
     }
 
@@ -363,8 +315,7 @@ class FilterExpressionTest {
     @Test
     fun `legacy backend field should remain executable`() {
         val executable = Condition.eq("@timestamp", "now")
-            .toFilterExpression()
-            .toExecutableFilter() as EqualFilter
+            .toFilterExpression() as EqualFilter
 
         executable.field.value.assert().isEqualTo("@timestamp")
     }
@@ -374,12 +325,12 @@ class FilterExpressionTest {
     fun `should reject empty legacy logical and element match nodes`() {
         listOf(Operator.AND, Operator.OR, Operator.NOR).forEach { operator ->
             org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
-                Condition(operator = operator).toFilterExpression().toExecutableFilter()
+                Condition(operator = operator).toFilterExpression()
             }
         }
         org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
             Condition(field = "items", operator = Operator.ELEM_MATCH)
-                .toFilterExpression().toExecutableFilter()
+                .toFilterExpression()
         }
     }
 
@@ -393,73 +344,14 @@ class FilterExpressionTest {
 
     @Suppress("DEPRECATION")
     @Test
-    fun `legacy query serialization should preserve condition wire shape`() {
-        val json = jsonMapper.writeValueAsString(ListQuery(Condition.eq("@timestamp", "now")))
+    fun `legacy query constructor should serialize filter only`() {
+        val condition = Condition.eq("@timestamp", "now")
 
-        json.contains("\"condition\"").assert().isTrue()
-        json.contains("\"filter\"").assert().isFalse()
-        json.contains("@timestamp").assert().isTrue()
-    }
-
-    @Suppress("DEPRECATION")
-    @Test
-    fun `legacy queryable serialization should preserve condition wire shape`() {
-        val json = jsonMapper.writeValueAsString(LegacyQueryable(Condition.eq("state.status", "CREATED")))
-
-        json.contains("\"condition\"").assert().isTrue()
-        json.contains("\"filter\"").assert().isFalse()
-    }
-
-    @Suppress("DEPRECATION")
-    @Test
-    fun `legacy query DTO methods should preserve conditions`() {
-        val initial = Condition.eq("state.status", "CREATED")
-        val replacement = Condition.eq("state.status", "PAID")
-        val appended = initial.appendCondition(replacement)
-
-        ListQuery(initial).also {
-            it.condition.assert().isEqualTo(initial)
-            it.withCondition(replacement).condition.assert().isEqualTo(replacement)
-            it.appendCondition(replacement).condition.assert().isEqualTo(appended)
-            it.copy(condition = replacement).condition.assert().isEqualTo(replacement)
+        listOf(ListQuery(condition), PagedQuery(condition), SingleQuery(condition)).forEach { query ->
+            val json = jsonMapper.writeValueAsString(query)
+            json.contains("\"condition\"").assert().isFalse()
+            json.contains("\"filter\"").assert().isTrue()
+            json.contains("@timestamp").assert().isTrue()
         }
-        PagedQuery(initial).also {
-            it.condition.assert().isEqualTo(initial)
-            it.withCondition(replacement).condition.assert().isEqualTo(replacement)
-            it.appendCondition(replacement).condition.assert().isEqualTo(appended)
-            it.copy(condition = replacement).condition.assert().isEqualTo(replacement)
-        }
-        SingleQuery(initial).also {
-            it.condition.assert().isEqualTo(initial)
-            it.withCondition(replacement).condition.assert().isEqualTo(replacement)
-            it.appendCondition(replacement).condition.assert().isEqualTo(appended)
-            it.copy(condition = replacement).condition.assert().isEqualTo(replacement)
-        }
-    }
-
-    @Suppress("DEPRECATION")
-    @Test
-    fun `legacy append should preserve typed filter details`() {
-        val search = SearchFilter(
-            query = "wow",
-            fields = linkedSetOf(LogicalField("state.name"), LogicalField("state.description")),
-        )
-        val appended = Condition.tenantId("tenant")
-
-        val rewritten = ListQuery(search).appendCondition(appended).filter as AndFilter
-
-        rewritten.operands.first().assert().isSameAs(search)
-        rewritten.operands.last().toCondition().assert().isEqualTo(appended)
-    }
-
-    @Suppress("DEPRECATION")
-    private data class LegacyQueryable(
-        override val condition: Condition,
-        override val projection: Projection = Projection.ALL,
-        override val sort: List<Sort> = emptyList(),
-    ) : Queryable<LegacyQueryable> {
-        override fun withCondition(newCondition: Condition): LegacyQueryable = copy(condition = newCondition)
-
-        override fun withProjection(newProjection: Projection): LegacyQueryable = copy(projection = newProjection)
     }
 }

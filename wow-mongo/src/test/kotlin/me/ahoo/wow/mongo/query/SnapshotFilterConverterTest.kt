@@ -45,7 +45,7 @@ class SnapshotFilterConverterTest {
 
     @Suppress("DEPRECATION")
     @Test
-    fun `direct converter execution should resolve a legacy wrapper`() {
+    fun `direct converter execution should accept a converted legacy condition`() {
         SnapshotFilterConverter.convert(Condition.id("id-1").toFilterExpression()).toBsonDocument().assert()
             .isEqualTo(
                 Filters.and(
@@ -53,17 +53,6 @@ class SnapshotFilterConverterTest {
                     Filters.eq(Documents.ID_FIELD, "id-1"),
                 ).toBsonDocument(),
             )
-    }
-
-    @Suppress("DEPRECATION")
-    @Test
-    fun `legacy element match should resolve nested match`() {
-        assertConvert(
-            SnapshotFilterConverter.convert(
-                Condition.elemMatch("state.items", Condition.match("name", "wow")).toFilterExpression(),
-            ),
-            Filters.elemMatch("state.items", Filters.text("wow")),
-        )
     }
 
     @Suppress("DEPRECATION")

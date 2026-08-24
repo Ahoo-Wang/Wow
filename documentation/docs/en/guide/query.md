@@ -150,12 +150,10 @@ query.query(queryService)
 Query filters use `withFilter` or `appendFilter`; internal paths no longer rewrite `Condition`:
 
 ```kotlin
-context.asRewritableQuery().rewriteQuery { query ->
-    val warehouseFilter = filterExpression {
-        "state.warehouseId" eq warehouseId
-    }
-    query.appendFilter(warehouseFilter)
+val warehouseFilter = filterExpression {
+    "state.warehouseId" eq warehouseId
 }
+context.appendFilter(warehouseFilter)
 ```
 
 ## REST API
@@ -225,14 +223,14 @@ New payloads use strict deserialization. Unknown properties, missing required fi
 
 ## Compatibility and migration
 
-The legacy `Condition`, `Operator`, `ConditionDsl`, `ConditionCapable`, and `RewritableCondition` APIs remain available but are deprecated. Legacy query constructors, `QueryService.count(Condition)`, and `Condition.count(...)` still adapt `Condition` to `FilterExpression`.
+The legacy `Condition` DTO, `Operator`, and `ConditionDsl` remain available but are deprecated. Legacy query constructors, `QueryService.count(Condition)`, and `Condition.count(...)` convert `Condition` to `FilterExpression` immediately; query objects and the execution pipeline retain only `filter`.
 
 During REST migration:
 
 - `single`, `list`, and `paged` requests must contain exactly one of `filter` or `condition`;
 - `count` requests must contain exactly one of the new `op` or legacy `operator` discriminators;
 - OpenAPI publishes only the new `FilterExpression` shape;
-- legacy `condition` payloads remain readable, but new clients should use `filter` immediately;
+- legacy `condition` payloads are accepted only when they convert to a valid `FilterExpression`; `MATCH` now follows `SEARCH` semantics, cannot appear inside `ELEM_MATCH`, and no longer uses the former Elasticsearch exact-field mapping;
 - `RAW` is removed without a replacement operator. Backend-native queries belong in application-owned endpoints with application-owned security policy.
 
 Legacy payload example:

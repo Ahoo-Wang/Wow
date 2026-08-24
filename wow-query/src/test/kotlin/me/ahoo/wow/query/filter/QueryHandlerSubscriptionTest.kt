@@ -27,7 +27,6 @@ import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TenantIdFilter
-import me.ahoo.wow.api.query.toCondition
 import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.filter.EmptyFilterChain
 import me.ahoo.wow.filter.ErrorHandler
@@ -67,26 +66,6 @@ class QueryHandlerSubscriptionTest {
 
         (captured as CustomListQuery).marker.assert().isEqualTo("custom")
         captured.filter.assert().isEqualTo(TenantIdFilter("tenant-1"))
-    }
-
-    @Suppress("DEPRECATION")
-    @Test
-    fun `custom Condition backed list query should be executable before first filter`() {
-        lateinit var captured: FilterExpression
-        val chain = FilterChain<QueryContext<*, *>> { context ->
-            val listContext = context.asListQuery<String>()
-            captured = listContext.getQuery().filter
-            listContext.setResult(Flux.empty())
-            Mono.empty()
-        }
-        val handler = TestQueryHandler(chain)
-
-        handler.list(
-            MOCK_AGGREGATE_METADATA,
-            LegacyListQuery(Condition.tenantId("tenant-1")),
-        ).test().verifyComplete()
-
-        captured.assert().isEqualTo(TenantIdFilter("tenant-1"))
     }
 
     @Suppress("DEPRECATION")
@@ -273,19 +252,6 @@ class QueryHandlerSubscriptionTest {
         }
     }
 
-    @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
-    private data class LegacyListQuery(
-        override val condition: Condition,
-        override val projection: Projection = Projection.ALL,
-        override val sort: List<Sort> = emptyList(),
-        override val limit: Int = 0,
-    ) : IListQuery {
-        override fun withCondition(newCondition: Condition): IListQuery = copy(condition = newCondition)
-
-        override fun withProjection(newProjection: Projection): IListQuery = copy(projection = newProjection)
-    }
-
-    @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     private data class CustomListQuery(
         override val filter: FilterExpression,
         val marker: String,
@@ -293,13 +259,7 @@ class QueryHandlerSubscriptionTest {
         override val sort: List<Sort> = emptyList(),
         override val limit: Int = 0,
     ) : IListQuery {
-        override val condition: Condition
-            get() = filter.toCondition()
-
         override fun withFilter(newFilter: FilterExpression): IListQuery = copy(filter = newFilter)
-
-        override fun withCondition(newCondition: Condition): IListQuery =
-            copy(filter = newCondition.toFilterExpression())
 
         override fun withProjection(newProjection: Projection): IListQuery = copy(projection = newProjection)
     }

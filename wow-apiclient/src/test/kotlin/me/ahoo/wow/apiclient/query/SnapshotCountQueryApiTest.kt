@@ -22,22 +22,6 @@ import org.junit.jupiter.api.Test
 class SnapshotCountQueryApiTest {
     @Suppress("DEPRECATION")
     @Test
-    fun `filter count should delegate once to a legacy implementation`() {
-        lateinit var captured: Condition
-        val api = object : SnapshotCountQueryApi<Long> {
-            @Suppress("OVERRIDE_DEPRECATION")
-            override fun count(condition: Condition): Long {
-                captured = condition
-                return 1
-            }
-        }
-
-        api.count(IdFilter("id-1")).assert().isEqualTo(1)
-        captured.assert().isEqualTo(Condition.id("id-1"))
-    }
-
-    @Suppress("DEPRECATION")
-    @Test
     fun `legacy count should delegate once to a filter implementation`() {
         lateinit var captured: FilterExpression
         val api = object : SnapshotCountQueryApi<Long> {

@@ -150,12 +150,10 @@ query.query(queryService)
 查询过滤器通过 `withFilter` 或 `appendFilter` 重写，不再操作内部 `Condition`：
 
 ```kotlin
-context.asRewritableQuery().rewriteQuery { query ->
-    val warehouseFilter = filterExpression {
-        "state.warehouseId" eq warehouseId
-    }
-    query.appendFilter(warehouseFilter)
+val warehouseFilter = filterExpression {
+    "state.warehouseId" eq warehouseId
 }
+context.appendFilter(warehouseFilter)
 ```
 
 ## REST API
@@ -225,14 +223,14 @@ Content-Type: application/json
 
 ## 兼容与迁移
 
-旧 `Condition`、`Operator`、`ConditionDsl`、`ConditionCapable` 和 `RewritableCondition` 保留但已标记弃用。旧查询构造器、`QueryService.count(Condition)` 和 `Condition.count(...)` 仍会把 `Condition` 转换为 `FilterExpression`。
+旧 `Condition` DTO、`Operator` 和 `ConditionDsl` 仍保留但已标记弃用。旧查询构造器、`QueryService.count(Condition)` 和 `Condition.count(...)` 会立即把 `Condition` 转换为 `FilterExpression`；查询对象与执行链此后只保留 `filter`。
 
 REST 迁移期间：
 
 - `single`、`list`、`paged` 请求必须且只能提供 `filter` 或 `condition` 之一；
 - `count` 请求必须且只能提供新格式的 `op` 或旧格式的 `operator` 之一；
 - OpenAPI 只发布新的 `FilterExpression` 格式；
-- 旧 `condition` 请求仍可读取，但新客户端应立即改用 `filter`；
+- 旧 `condition` 请求仅在可转换为合法 `FilterExpression` 时接受；`MATCH` 现在遵循 `SEARCH` 语义，不能出现在 `ELEM_MATCH` 内，也不再使用原 Elasticsearch 精确字段映射；
 - `RAW` 已删除且没有替代操作符。需要后端原生查询时，应由应用自有端点和安全策略负责。
 
 旧格式示例：

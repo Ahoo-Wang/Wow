@@ -169,28 +169,7 @@ data class ElasticsearchIndexMapping private constructor(
     fun resolveAggregationFilter(filter: FilterExpression): FilterExpression = resolve(filter, null, true)
 
     private fun resolve(filter: FilterExpression, parent: String?, aggregationFilter: Boolean): FilterExpression =
-        filter.legacyConditionOrNull()?.let { resolveLegacy(it, parent, aggregationFilter) }
-            ?: resolveTyped(filter, parent, aggregationFilter)
-
-    private fun resolveLegacy(condition: Condition, parent: String?, aggregationFilter: Boolean): FilterExpression =
-        when (condition.operator) {
-            Operator.AND -> AndFilter(
-                condition.children.map { resolve(it.toFilterExpression(), parent, aggregationFilter) },
-            )
-            Operator.OR -> OrFilter(
-                condition.children.map { resolve(it.toFilterExpression(), parent, aggregationFilter) },
-            )
-            Operator.NOR -> NorFilter(
-                condition.children.map { resolve(it.toFilterExpression(), parent, aggregationFilter) },
-            )
-            Operator.MATCH -> condition.copy(
-                field = condition.field.takeIf(String::isNotBlank)?.let {
-                    LogicalField(it).resolve(parent, ElasticsearchFieldUsage.MATCH, aggregationFilter).value
-                }
-                    .orEmpty(),
-            ).toFilterExpression()
-            else -> resolveTyped(condition.toFilterExpression().toExecutableFilter(), parent, aggregationFilter)
-        }
+        resolveTyped(filter, parent, aggregationFilter)
 
     @Suppress("CyclomaticComplexMethod", "LongMethod")
     private fun resolveTyped(

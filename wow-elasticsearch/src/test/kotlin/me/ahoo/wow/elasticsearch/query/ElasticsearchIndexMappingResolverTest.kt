@@ -47,7 +47,6 @@ import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.TenantIdFilter
-import me.ahoo.wow.api.query.toExecutableFilter
 import me.ahoo.wow.api.query.toFilterExpression
 import org.junit.jupiter.api.Test
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
@@ -224,7 +223,7 @@ class ElasticsearchIndexMappingResolverTest {
     @Test
     fun `resolved legacy filter should use logical field mapping`() {
         val mapping = ElasticsearchIndexMapping.from(INDEX, textWithKeyword())
-        val executable = Condition.eq("state.name", "Wow").toFilterExpression().toExecutableFilter()
+        val executable = Condition.eq("state.name", "Wow").toFilterExpression()
 
         val resolved = mapping.resolve(executable) as EqualFilter
 

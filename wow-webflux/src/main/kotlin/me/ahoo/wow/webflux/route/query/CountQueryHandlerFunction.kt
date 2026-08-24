@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.webflux.route.query
 
-import me.ahoo.wow.api.query.toExecutableFilter
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
@@ -38,8 +37,7 @@ class CountQueryHandlerFunction(
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         return request.body(FILTER_EXPRESSION_EXTRACTOR)
             .flatMap { filter ->
-                val executable = filter.toExecutableFilter()
-                val rewritten = rewriteRequestFilter.rewrite(aggregateMetadata, request, executable)
+                val rewritten = rewriteRequestFilter.rewrite(aggregateMetadata, request, filter)
                 queryHandler.count(
                     aggregateMetadata,
                     rewritten,

@@ -16,14 +16,5 @@ package me.ahoo.wow.api.query
 interface FilterCapable<Q : FilterCapable<Q>> : RewritableFilter<Q> {
     val filter: FilterExpression
 
-    override fun appendFilter(append: FilterExpression): Q {
-        val appended = if (
-            filter === MatchAllFilter || filter.legacyConditionOrNull()?.operator == Operator.ALL
-        ) {
-            append
-        } else {
-            AndFilter(listOf(filter, append))
-        }
-        return withFilter(appended)
-    }
+    override fun appendFilter(append: FilterExpression): Q = withFilter(filter.appendFilter(append))
 }

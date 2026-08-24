@@ -15,8 +15,6 @@ package me.ahoo.wow.webflux.route.query
 
 import me.ahoo.wow.api.query.FilterCapable
 import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.MatchAllFilter
-import me.ahoo.wow.api.query.toExecutableFilter
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.webflux.route.command.getOwnerId
@@ -42,7 +40,7 @@ interface RewriteRequestFilter {
         request: ServerRequest,
         query: Q,
     ): Q = query.withFilter(
-        rewrite(aggregateMetadata, request, query.filter.toExecutableFilter()),
+        rewrite(aggregateMetadata, request, query.filter),
     )
 }
 
@@ -71,11 +69,7 @@ abstract class AbstractRewriteRequestFilter : RewriteRequestFilter {
             return filter
         }
         val appendFilter = requestScopeFilter(tenantId, ownerId, spaceId)
-        return if (filter === MatchAllFilter) {
-            appendFilter
-        } else {
-            me.ahoo.wow.api.query.AndFilter(listOf(filter, appendFilter))
-        }
+        return filter.appendFilter(appendFilter)
     }
 
     private fun requestScopeFilter(tenantId: String?, ownerId: String?, spaceId: String?): FilterExpression = filter {
