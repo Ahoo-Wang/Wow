@@ -13,11 +13,17 @@
 
 package me.ahoo.wow.elasticsearch.query.snapshot
 
+import co.elastic.clients.elasticsearch._types.Script
+import co.elastic.clients.elasticsearch._types.ScriptLanguage
 import co.elastic.clients.elasticsearch._types.aggregations.CompositeAggregationSource
+import co.elastic.clients.elasticsearch._types.mapping.RuntimeField
+import co.elastic.clients.elasticsearch._types.mapping.RuntimeFieldType
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
+import co.elastic.clients.json.JsonData
 import co.elastic.clients.util.NamedValue
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationExpression
+import me.ahoo.wow.api.query.AggregationExpressionOperator
 import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
@@ -25,6 +31,7 @@ import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
+import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterConverter
 import me.ahoo.wow.elasticsearch.query.ElasticsearchFieldUsage
@@ -36,6 +43,7 @@ internal data class ElasticsearchAggregationPlan(
     val elements: List<ElasticsearchAggregationElement>,
     val groupSources: List<NamedValue<CompositeAggregationSource>>,
     val metrics: List<ElasticsearchAggregationMetric>,
+    val runtimeMappings: Map<String, RuntimeField>,
     val effectiveSort: List<Sort>,
     val limit: Int,
     val metricSorted: Boolean,
@@ -80,13 +88,17 @@ internal class ElasticsearchAggregationCompiler(
         val groups = query.groupBy.associateBy(AggregationGroup::alias)
         val groupSources = effectiveSort
             .mapNotNull { sort -> groups[sort.field]?.let { it.toSource(parent, sort) } }
-        val metrics = query.metrics.map { it.toPlan(parent) }
+        val runtimeMappings = linkedMapOf<String, RuntimeField>()
+        val metrics = query.metrics.mapIndexed { index, metric ->
+            metric.toPlan(parent, index, runtimeMappings)
+        }
         val metricAliases = query.metrics.mapTo(hashSetOf(), AggregationMetric::alias)
         return ElasticsearchAggregationPlan(
             rootQuery = rootQuery,
             elements = elements,
             groupSources = groupSources,
             metrics = metrics,
+            runtimeMappings = runtimeMappings,
             effectiveSort = effectiveSort,
             limit = query.limit,
             metricSorted = effectiveSort.any { it.field in metricAliases },
@@ -127,22 +139,120 @@ internal class ElasticsearchAggregationCompiler(
         return NamedValue.of(alias, source)
     }
 
-    private fun AggregationMetric.toPlan(parent: String?): ElasticsearchAggregationMetric = when (this) {
+    private fun AggregationMetric.toPlan(
+        parent: String?,
+        index: Int,
+        runtimeMappings: MutableMap<String, RuntimeField>,
+    ): ElasticsearchAggregationMetric = when (this) {
         is AggregationMetric.Count -> ElasticsearchAggregationMetric(alias, function = null, field = null)
         is AggregationMetric.Numeric -> {
-            val expressionField = when (val expression = expression) {
-                is AggregationExpression.Field -> expression.field
-                else -> error("Unsupported aggregation expression: ${expression::class.java.name}.")
+            val metricField = when (val expression = expression) {
+                is AggregationExpression.Field -> expression.field.resolveRange(parent)
+                else -> "__wow_expression_$index".also { runtimeFieldName ->
+                    runtimeMappings[runtimeFieldName] = RuntimeExpressionCompiler(parent).compile(expression)
+                }
             }
-            val absoluteField = expressionField.resolve(parent)
-            ElasticsearchAggregationMetric(
-                alias,
-                function,
-                mapping?.resolve(absoluteField, ElasticsearchFieldUsage.RANGE) ?: absoluteField,
-            )
+            ElasticsearchAggregationMetric(alias, function, metricField)
         }
     }
 
-    private fun me.ahoo.wow.api.query.LogicalField.resolve(parent: String?): String =
+    private fun LogicalField.resolveRange(parent: String?): String {
+        val absoluteField = resolve(parent)
+        return mapping?.resolve(absoluteField, ElasticsearchFieldUsage.RANGE) ?: absoluteField
+    }
+
+    private inner class RuntimeExpressionCompiler(private val parent: String?) {
+        private val source = StringBuilder()
+        private val params = linkedMapOf<String, JsonData>()
+        private var nextId = 0
+
+        fun compile(expression: AggregationExpression): RuntimeField {
+            val result = append(expression)
+            source.appendLine("if ($result != null) { emit($result.doubleValue()); }")
+            return RuntimeField.of { runtime ->
+                runtime.type(RuntimeFieldType.Double)
+                    .script(
+                        Script.of { script ->
+                            script.lang(ScriptLanguage.Painless)
+                                .source { it.scriptString(source.toString()) }
+                                .params(params)
+                        },
+                    )
+            }
+        }
+
+        private fun append(expression: AggregationExpression): String = when (expression) {
+            is AggregationExpression.Field -> appendField(expression.field)
+            is AggregationExpression.Constant -> appendConstant(expression.value)
+            is AggregationExpression.Binary -> appendBinary(expression)
+            else -> error("Unsupported aggregation expression: ${expression::class.java.name}.")
+        }
+
+        private fun appendField(field: LogicalField): String {
+            val id = nextId++
+            val value = "value$id"
+            val fieldVariable = "field$id"
+            val raw = "raw$id"
+            val candidate = "candidate$id"
+            val parameter = "field$id"
+            params[parameter] = JsonData.of(field.resolveComputed(parent))
+            source.appendLine("Double $value = null;")
+            source.appendLine("String $fieldVariable = params.$parameter;")
+            source.appendLine("if (doc.containsKey($fieldVariable) && doc[$fieldVariable].size() == 1) {")
+            source.appendLine("  def $raw = doc[$fieldVariable].value;")
+            source.appendLine("  if ($raw instanceof Number) {")
+            source.appendLine("    double $candidate = ((Number)$raw).doubleValue();")
+            source.appendLine("    if (Double.isFinite($candidate)) { $value = $candidate; }")
+            source.appendLine("  }")
+            source.appendLine("}")
+            return value
+        }
+
+        private fun appendConstant(constant: Double): String {
+            val id = nextId++
+            val value = "value$id"
+            val parameter = "constant$id"
+            params[parameter] = JsonData.of(constant)
+            source.appendLine("Double $value = ((Number)params.$parameter).doubleValue();")
+            return value
+        }
+
+        private fun appendBinary(binary: AggregationExpression.Binary): String {
+            val left = append(binary.left)
+            val right = append(binary.right)
+            val id = nextId++
+            val value = "value$id"
+            val candidate = "candidate$id"
+            val divisionGuard = if (binary.operator == AggregationExpressionOperator.DIVIDE) {
+                " && $right.doubleValue() != 0.0"
+            } else {
+                ""
+            }
+            source.appendLine("Double $value = null;")
+            source.appendLine("if ($left != null && $right != null$divisionGuard) {")
+            source.appendLine(
+                "  double $candidate = $left.doubleValue() ${binary.operator.painlessOperator} " +
+                    "$right.doubleValue();",
+            )
+            source.appendLine("  if (Double.isFinite($candidate)) { $value = $candidate; }")
+            source.appendLine("}")
+            return value
+        }
+    }
+
+    private val AggregationExpressionOperator.painlessOperator: String
+        get() = when (this) {
+            AggregationExpressionOperator.ADD -> "+"
+            AggregationExpressionOperator.SUBTRACT -> "-"
+            AggregationExpressionOperator.MULTIPLY -> "*"
+            AggregationExpressionOperator.DIVIDE -> "/"
+        }
+
+    private fun LogicalField.resolveComputed(parent: String?): String {
+        val absoluteField = resolve(parent)
+        return mapping?.resolve(absoluteField, ElasticsearchFieldUsage.PRESENCE) ?: absoluteField
+    }
+
+    private fun LogicalField.resolve(parent: String?): String =
         if (parent == null) value else "$parent.$value"
 }

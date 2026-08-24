@@ -14,6 +14,7 @@
 package me.ahoo.wow.elasticsearch.query.snapshot
 
 import co.elastic.clients.elasticsearch._types.SortOrder
+import co.elastic.clients.elasticsearch._types.mapping.RuntimeFieldType
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -29,6 +30,41 @@ import org.junit.jupiter.api.Test
 import java.time.ZoneId
 
 class ElasticsearchAggregationCompilerTest {
+    @Test
+    fun `computed metric should compile a parameterized double runtime field`() {
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter, mapping = null).compile(
+            aggregation {
+                expand("state.items")
+                sum(field("price") * field("quantity") - constant(10.0), "total")
+            },
+        )
+
+        plan.metrics.single().field.assert().isEqualTo("__wow_expression_0")
+        val runtime = plan.runtimeMappings.getValue("__wow_expression_0")
+        runtime.type().assert().isEqualTo(RuntimeFieldType.Double)
+        val script = requireNotNull(runtime.script())
+        val source = requireNotNull(script.source()).scriptString()
+        source.assert()
+            .contains("doc.containsKey")
+            .contains("instanceof Number")
+            .contains("Double.isFinite")
+            .contains("emit")
+            .doesNotContain("state.items.price")
+            .doesNotContain("10.0")
+        script.params().values.map { it.to(Any::class.java) }.assert()
+            .contains("state.items.price", "state.items.quantity", 10.0)
+    }
+
+    @Test
+    fun `plain field metric should not create a runtime field`() {
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter, mapping = null).compile(
+            aggregation { sum("state.amount", "total") },
+        )
+
+        plan.runtimeMappings.assert().isEmpty()
+        plan.metrics.single().field.assert().isEqualTo("state.amount")
+    }
+
     @Test
     fun `compiler should nest relative elements in order and resolve exact terms`() {
         val mapping = mockk<ElasticsearchIndexMapping> {
