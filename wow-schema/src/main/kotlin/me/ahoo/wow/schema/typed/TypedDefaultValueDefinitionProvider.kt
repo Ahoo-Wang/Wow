@@ -45,7 +45,7 @@ internal object TypedDefaultValueDefinitionProvider : Module {
         ): CustomPropertyDefinition? {
             val textualDefault = scope.textualDefault() ?: return null
             if (
-                textualDefault == "null" &&
+                textualDefault.isJsonNull() &&
                 context.generatorConfig.isNullable(scope) &&
                 !scope.allowsStringDefault(context)
             ) {
@@ -60,7 +60,7 @@ internal object TypedDefaultValueDefinitionProvider : Module {
             context: SchemaGenerationContext,
         ) {
             val default = attributes.path("default")
-            if (!default.isString || default.stringValue() != "null") return
+            if (!default.isString || !default.stringValue().isJsonNull()) return
             if (!context.generatorConfig.isNullable(scope) || scope.allowsStringDefault(context)) return
             attributes.putNull("default")
         }
@@ -82,6 +82,8 @@ internal object TypedDefaultValueDefinitionProvider : Module {
             ?.defaultValue
             ?.takeIf(String::isNotEmpty)
     }
+
+    private fun String.isJsonNull(): Boolean = runCatching { JsonSerializer.readTree(this) }.getOrNull()?.isNull == true
 
     private fun FieldScope.allowsStringDefault(context: SchemaGenerationContext): Boolean {
         val schema = getAnnotationConsideringFieldAndGetterIfSupported(Schema::class.java)

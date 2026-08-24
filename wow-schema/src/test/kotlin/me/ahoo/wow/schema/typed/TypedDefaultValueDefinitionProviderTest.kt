@@ -101,6 +101,18 @@ class TypedDefaultValueDefinitionProviderTest {
     }
 
     @Test
+    fun `should parse whitespace padded json null default`() {
+        val generator = SchemaGeneratorBuilder().customizer { }.build()
+
+        val default = generator.generateSchema(PaddedNullDefault::class.java)
+            .path("properties")
+            .path("value")
+            .path("default")
+
+        default.isNull.assert().isTrue()
+    }
+
+    @Test
     fun `should preserve defaults incompatible with declared type`() {
         val generator = SchemaGeneratorBuilder().customizer { }.build()
 
@@ -164,6 +176,11 @@ class TypedDefaultValueDefinitionProviderTest {
 
     private data class NullableIntegerDefault(
         @get:Schema(defaultValue = "null")
+        val value: Int? = null,
+    )
+
+    private data class PaddedNullDefault(
+        @get:Schema(defaultValue = " null ")
         val value: Int? = null,
     )
 
