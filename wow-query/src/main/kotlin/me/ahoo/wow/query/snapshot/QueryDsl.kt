@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.query.snapshot
 
-import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery

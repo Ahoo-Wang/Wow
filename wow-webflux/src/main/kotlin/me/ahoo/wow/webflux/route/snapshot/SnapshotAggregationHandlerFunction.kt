@@ -38,7 +38,10 @@ class SnapshotAggregationHandlerFunction(
     override fun handle(request: ServerRequest): Mono<ServerResponse> =
         request.body(AGGREGATION_QUERY_EXTRACTOR)
             .flatMapMany { query ->
-                queryHandler.aggregate(aggregateMetadata, rewriteRequestFilter.rewrite(aggregateMetadata, request, query))
+                queryHandler.aggregate(
+                    aggregateMetadata,
+                    rewriteRequestFilter.rewrite(aggregateMetadata, request, query)
+                )
             }
             .writeRawRequest(request)
             .toServerResponse(request, exceptionHandler)

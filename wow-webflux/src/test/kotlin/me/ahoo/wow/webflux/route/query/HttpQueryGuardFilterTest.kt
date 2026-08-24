@@ -155,7 +155,10 @@ class HttpQueryGuardFilterTest {
             },
             metrics = listOf(AggregationMetric.Count("count")),
         )
-        guard(maxFilterNodes = 1, idleTimeout = Duration.ZERO).filter(aggregationContext(filtered), FilterChain { Mono.empty() })
+        guard(
+            maxFilterNodes = 1,
+            idleTimeout = Duration.ZERO
+        ).filter(aggregationContext(filtered), FilterChain { Mono.empty() })
             .writeRawRequest(request).test().verifyComplete()
     }
 

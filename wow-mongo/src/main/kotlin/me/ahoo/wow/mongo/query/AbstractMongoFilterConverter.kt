@@ -110,7 +110,10 @@ abstract class AbstractMongoFilterConverter(
             filter.value.requiredNativeValue()
         )
         is LessThanFilter -> Filters.lt(filter.field.convert(parent, mapField), filter.value.requiredNativeValue())
-        is LessThanOrEqualFilter -> Filters.lte(filter.field.convert(parent, mapField), filter.value.requiredNativeValue())
+        is LessThanOrEqualFilter -> Filters.lte(
+            filter.field.convert(parent, mapField),
+            filter.value.requiredNativeValue()
+        )
         is ContainsFilter -> regex(
             filter.field.convert(parent, mapField),
             filter.value.escapeRegex(),
@@ -132,7 +135,10 @@ abstract class AbstractMongoFilterConverter(
             Filters.gte(filter.field.convert(parent, mapField), filter.lowerBound.requiredNativeValue()),
             Filters.lte(filter.field.convert(parent, mapField), filter.upperBound.requiredNativeValue()),
         )
-        is ContainsAllFilter -> Filters.all(filter.field.convert(parent, mapField), filter.values.map { it.nativeValue() })
+        is ContainsAllFilter -> Filters.all(
+            filter.field.convert(parent, mapField),
+            filter.values.map { it.nativeValue() }
+        )
         is IsEmptyFilter -> Filters.size(filter.field.convert(parent, mapField), 0)
         is IsNullFilter -> Filters.eq(filter.field.convert(parent, mapField), null)
         is IsNotNullFilter -> Filters.ne(filter.field.convert(parent, mapField), null)

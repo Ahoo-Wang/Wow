@@ -13,10 +13,10 @@
 
 package me.ahoo.wow.query.snapshot.filter
 
-import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.LogErrorHandler

@@ -17,7 +17,6 @@ import com.mongodb.client.model.Aggregates
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Sorts
 import me.ahoo.wow.api.query.AggregationExpression
-import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
@@ -123,12 +122,14 @@ internal class MongoAggregationCompiler(
     private fun LogicalField.resolve(parent: String?): String =
         SnapshotFieldConverter.convert(if (parent == null) value else "$parent.$value")
 
-    private fun List<Sort>.toBson(): Bson = Sorts.orderBy(map {
-        when (it.direction) {
-            Sort.Direction.ASC -> Sorts.ascending(it.field)
-            Sort.Direction.DESC -> Sorts.descending(it.field)
+    private fun List<Sort>.toBson(): Bson = Sorts.orderBy(
+        map {
+            when (it.direction) {
+                Sort.Direction.ASC -> Sorts.ascending(it.field)
+                Sort.Direction.DESC -> Sorts.descending(it.field)
+            }
         }
-    })
+    )
 
     private val AggregationMetric.Numeric.countAlias: String
         get() = "__wow_value_count_$alias"

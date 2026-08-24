@@ -45,7 +45,9 @@ class DefaultSnapshotQueryHandlerTest {
         snapshotQueryFilterChain,
         LogErrorHandler()
     )
-    private val aggregateQueryService = object : SnapshotQueryService<Any> by NoOpSnapshotQueryService(MOCK_AGGREGATE_METADATA) {
+    private val aggregateQueryService = object : SnapshotQueryService<Any> by NoOpSnapshotQueryService(
+        MOCK_AGGREGATE_METADATA
+    ) {
         override fun aggregate(query: AggregationQuery): Flux<DynamicDocument> =
             Flux.just(mutableMapOf<String, Any?>("count" to 1L).toDynamicDocument())
     }

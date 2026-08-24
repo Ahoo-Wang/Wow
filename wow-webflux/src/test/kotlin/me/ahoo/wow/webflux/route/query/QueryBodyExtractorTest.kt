@@ -18,8 +18,6 @@ import io.mockk.mockk
 import io.mockk.slot
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AndFilter
-import me.ahoo.wow.api.query.AggregationMetric
-import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
@@ -87,7 +85,9 @@ class QueryBodyExtractorTest {
             .bodyValue("{\"filter\":{\"op\":\"EQ\",\"field\":\"state.tags\",\"value\":[\"a\"]},$metric}")
             .exchange().expectStatus().isBadRequest
         client.post().uri("/sku/snapshot/aggregation").contentType(MediaType.APPLICATION_JSON)
-            .bodyValue("{\"elements\":[{\"path\":\"state.items\",\"filter\":{\"op\":\"EQ\",\"field\":\"sku\",\"value\":[\"a\"]}}],$metric}")
+            .bodyValue(
+                "{\"elements\":[{\"path\":\"state.items\",\"filter\":{\"op\":\"EQ\",\"field\":\"sku\",\"value\":[\"a\"]}}],$metric}"
+            )
             .exchange().expectStatus().isBadRequest
         client.post().uri("/sku/snapshot/aggregation").contentType(MediaType.APPLICATION_JSON)
             .bodyValue("{\"condition\":{\"operator\":\"ALL\",\"unexpected\":true},$metric}")
@@ -96,7 +96,9 @@ class QueryBodyExtractorTest {
             .bodyValue("{\"condition\":{\"field\":\"state.tags\",\"operator\":\"EQ\",\"value\":[\"a\"]},$metric}")
             .exchange().expectStatus().isBadRequest
         client.post().uri("/sku/snapshot/aggregation").contentType(MediaType.APPLICATION_JSON)
-            .bodyValue("{\"condition\":{\"operator\":\"ALL\"},\"elements\":[{\"path\":\"state.items\",\"filter\":{\"op\":\"NE\",\"field\":\"sku\",\"value\":{\"value\":\"a\"},\"unexpected\":true}}],$metric}")
+            .bodyValue(
+                "{\"condition\":{\"operator\":\"ALL\"},\"elements\":[{\"path\":\"state.items\",\"filter\":{\"op\":\"NE\",\"field\":\"sku\",\"value\":{\"value\":\"a\"},\"unexpected\":true}}],$metric}"
+            )
             .exchange().expectStatus().isBadRequest
     }
 
