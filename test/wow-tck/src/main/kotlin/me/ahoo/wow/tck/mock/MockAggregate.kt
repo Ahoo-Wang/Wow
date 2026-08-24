@@ -22,6 +22,7 @@ import me.ahoo.wow.api.command.validation.CommandValidator
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregateAware
+import java.math.BigDecimal
 import java.time.Instant
 
 val MOCK_AGGREGATE_METADATA = aggregateMetadata<MockCommandAggregate, MockStateAggregate>()
@@ -77,6 +78,7 @@ data class MockDiscount(val type: String, val amount: Double)
 data class MockStateAggregate(
     val id: String,
     val orders: List<MockOrder> = emptyList(),
+    val decimalValue: BigDecimal = BigDecimal.ZERO,
 ) : ReadOnlyStateAggregateAware<MockStateAggregate> {
     constructor(id: String) : this(id, emptyList())
 

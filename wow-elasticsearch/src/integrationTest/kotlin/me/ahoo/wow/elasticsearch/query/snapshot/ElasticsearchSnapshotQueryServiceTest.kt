@@ -52,15 +52,16 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     override fun setup() {
         elasticsearchClient = ReactiveElasticsearchClients.createReactiveElasticsearchClient(elasticsearch)
         elasticsearchClient.initSnapshotTemplate()
-        super.setup()
-        elasticsearchClient.indices().putMapping(
-            PutMappingRequest.of { request ->
-                request.index(MOCK_AGGREGATE_METADATA.toSnapshotIndexName())
-                    .properties("state") { state ->
+        elasticsearchClient.indices().create { request ->
+            request.index(MOCK_AGGREGATE_METADATA.toSnapshotIndexName())
+                .mappings { mapping ->
+                    mapping.properties("state") { state ->
                         state.`object` { stateObject ->
-                            stateObject.properties("orders") { orders ->
-                                orders.nested { ordersNested ->
-                                    ordersNested.properties("status") { it.keyword { keyword -> keyword } }
+                            stateObject
+                                .properties("decimalValue") { it.double_ { number -> number } }
+                                .properties("orders") { orders ->
+                                    orders.nested { ordersNested ->
+                                        ordersNested.properties("status") { it.keyword { keyword -> keyword } }
                                         .properties("lines") { lines ->
                                             lines.nested { linesNested ->
                                                 linesNested
@@ -80,12 +81,13 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                                                     }
                                             }
                                         }
+                                    }
                                 }
-                            }
                         }
                     }
-            },
-        ).block()
+                }
+        }.block()
+        super.setup()
     }
 
     override fun createSnapshotQueryServiceFactory(): SnapshotQueryServiceFactory {

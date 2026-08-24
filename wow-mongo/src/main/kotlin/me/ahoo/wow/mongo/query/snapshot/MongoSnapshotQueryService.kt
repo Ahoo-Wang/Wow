@@ -71,6 +71,9 @@ class MongoSnapshotQueryService<S : Any>(
     }
 
     private fun Document.toAggregationResult(query: AggregationQuery): DynamicDocument {
+        query.groupBy.forEach { group ->
+            (get(group.alias) as? Decimal128)?.let { this[group.alias] = it.toFiniteDouble(group.alias) }
+        }
         query.metrics.forEach { metric ->
             this[metric.alias] = when (metric) {
                 is AggregationMetric.Count -> (get(metric.alias) as Number).toLong()

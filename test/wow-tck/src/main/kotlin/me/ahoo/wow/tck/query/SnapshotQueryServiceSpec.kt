@@ -41,6 +41,7 @@ import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
+import java.math.BigDecimal
 import java.time.Clock
 import java.time.Instant
 
@@ -258,6 +259,28 @@ abstract class SnapshotQueryServiceSpec {
                 rows.map(Map<String, Any?>::toMap).assert().containsExactly(
                     mapOf("week" to 1_769_385_600_000L, "count" to 1L),
                     mapOf("week" to 1_769_990_400_000L, "count" to 1L),
+                )
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `aggregation should return backend neutral decimal Terms keys`() {
+        saveAggregationStates(
+            MockStateAggregate(id = "decimal-a", decimalValue = BigDecimal("1.25")),
+            MockStateAggregate(id = "decimal-b", decimalValue = BigDecimal("2.50")),
+        )
+
+        aggregation {
+            filter { aggregateIds("decimal-a", "decimal-b") }
+            terms("state.decimalValue", "decimal")
+            count("count")
+        }.query(snapshotQueryService)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                rows.map(Map<String, Any?>::toMap).assert().containsExactly(
+                    mapOf("decimal" to 1.25, "count" to 1L),
+                    mapOf("decimal" to 2.5, "count" to 1L),
                 )
             }.verifyComplete()
     }
