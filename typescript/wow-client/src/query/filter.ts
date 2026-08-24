@@ -15,11 +15,19 @@ import { DeletionState } from './condition';
 
 export type LogicalField<FIELDS extends string = string> = FIELDS;
 export type FilterLiteral = null | string | number | boolean;
+export type EqualityFilterValue = FilterLiteral | FilterLiteral[];
 export type ComparableFilterLiteral = Exclude<FilterLiteral, null>;
 
 export enum FilterOperator {
   MATCH_ALL = 'MATCH_ALL',
   MATCH_NONE = 'MATCH_NONE',
+  ID = 'ID',
+  IDS = 'IDS',
+  AGGREGATE_ID = 'AGGREGATE_ID',
+  AGGREGATE_IDS = 'AGGREGATE_IDS',
+  TENANT_ID = 'TENANT_ID',
+  OWNER_ID = 'OWNER_ID',
+  SPACE_ID = 'SPACE_ID',
   AND = 'AND',
   OR = 'OR',
   NOR = 'NOR',
@@ -64,7 +72,7 @@ export enum StringComparison {
 const LOCAL_TIME_PATTERN =
   /^([01][0-9]|2[0-3]):[0-5][0-9](?::[0-5][0-9](?:\.[0-9]{1,9})?)?$/;
 const LOGICAL_FIELD_PATTERN =
-  /^[A-Za-z_][A-Za-z0-9_-]*(\.(?:[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*$/;
+  /^@?[A-Za-z_][A-Za-z0-9_-]*(\.(?:@?[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*$/;
 const OFFSET_ZONE_PATTERN =
   /^(?:UTC|GMT|UT)?[+-](\d{1,2}|\d{4}|\d{6}|\d{2}:\d{2}|\d{2}:\d{2}:\d{2})$/;
 const OFFSET_ZONE_CANDIDATE_PATTERN = /^(?:UTC|GMT|UT)?[+-]/;
@@ -130,6 +138,14 @@ function filterLiteral<T extends FilterLiteral>(
     throw new TypeError('Filter value must be a JSON scalar.');
   }
   return value;
+}
+
+function equalityFilterValue(value: EqualityFilterValue): EqualityFilterValue {
+  if (Array.isArray(value)) {
+    value.forEach(item => filterLiteral(item, true));
+    return value;
+  }
+  return filterLiteral(value, true);
 }
 
 function requiredString(name: string, value: string): string {
@@ -296,6 +312,23 @@ export type MatchFilter = {
   op: FilterOperator.MATCH_ALL | FilterOperator.MATCH_NONE;
 };
 
+export type MetadataValueFilter = {
+  op:
+    | FilterOperator.ID
+    | FilterOperator.AGGREGATE_ID
+    | FilterOperator.TENANT_ID
+    | FilterOperator.OWNER_ID
+    | FilterOperator.SPACE_ID;
+  value: string;
+};
+
+export type MetadataValuesFilter = {
+  op: FilterOperator.IDS | FilterOperator.AGGREGATE_IDS;
+  values: string[];
+};
+
+export type MetadataFilter = MetadataValueFilter | MetadataValuesFilter;
+
 export type LogicalFilter<FIELDS extends string = string> = {
   op: FilterOperator.AND | FilterOperator.OR | FilterOperator.NOR;
   operands: FilterExpression<FIELDS>[];
@@ -309,7 +342,7 @@ export type ElementLogicalFilter<FIELDS extends string = string> = {
 export type EqualityFilter<FIELDS extends string = string> = {
   op: FilterOperator.EQ | FilterOperator.NE;
   field: LogicalField<FIELDS>;
-  value: FilterLiteral;
+  value: EqualityFilterValue;
 };
 
 export type ComparisonFilter<FIELDS extends string = string> = {
@@ -423,6 +456,7 @@ export type ElementFilterExpression<FIELDS extends string = string> =
 
 export type FilterExpression<FIELDS extends string = string> =
   | MatchFilter
+  | MetadataFilter
   | LogicalFilter<FIELDS>
   | EqualityFilter<FIELDS>
   | ComparisonFilter<FIELDS>
@@ -443,10 +477,17 @@ export interface FilterCapable<FIELDS extends string = string> {
 
 function validateElementPredicate(predicate: FilterExpression): void {
   switch (predicate.op) {
+    case FilterOperator.ID:
+    case FilterOperator.IDS:
+    case FilterOperator.AGGREGATE_ID:
+    case FilterOperator.AGGREGATE_IDS:
+    case FilterOperator.TENANT_ID:
+    case FilterOperator.OWNER_ID:
+    case FilterOperator.SPACE_ID:
     case FilterOperator.DELETION:
     case FilterOperator.SEARCH:
       throw new TypeError(
-        'ELEMENT_MATCH predicate cannot contain DELETION or SEARCH.',
+        'ELEMENT_MATCH predicate cannot contain root filters.',
       );
     case FilterOperator.AND:
     case FilterOperator.OR:
@@ -515,27 +556,64 @@ export const filter = {
   matchNone(): MatchFilter {
     return { op: FilterOperator.MATCH_NONE };
   },
+  id(value: string): MetadataValueFilter {
+    return { op: FilterOperator.ID, value: requiredString('ID value', value) };
+  },
+  ids(...values: [string, ...string[]]): MetadataValuesFilter {
+    requireNonEmpty('IDS values', values);
+    values.forEach(value => requiredString('IDS value', value));
+    return { op: FilterOperator.IDS, values };
+  },
+  aggregateId(value: string): MetadataValueFilter {
+    return {
+      op: FilterOperator.AGGREGATE_ID,
+      value: requiredString('AGGREGATE_ID value', value),
+    };
+  },
+  aggregateIds(...values: [string, ...string[]]): MetadataValuesFilter {
+    requireNonEmpty('AGGREGATE_IDS values', values);
+    values.forEach(value => requiredString('AGGREGATE_IDS value', value));
+    return { op: FilterOperator.AGGREGATE_IDS, values };
+  },
+  tenantId(value: string): MetadataValueFilter {
+    return {
+      op: FilterOperator.TENANT_ID,
+      value: requiredString('TENANT_ID value', value),
+    };
+  },
+  ownerId(value: string): MetadataValueFilter {
+    return {
+      op: FilterOperator.OWNER_ID,
+      value: requiredString('OWNER_ID value', value),
+    };
+  },
+  spaceId(value: string): MetadataValueFilter {
+    return {
+      op: FilterOperator.SPACE_ID,
+      value: requiredString('SPACE_ID value', value),
+    };
+  },
   and: andFilter,
   or: orFilter,
   nor: norFilter,
   eq<FIELDS extends string>(
     field: FIELDS,
-    value: FilterLiteral,
+    value: EqualityFilterValue,
   ): EqualityFilter<FIELDS> {
     return {
       op: FilterOperator.EQ,
       field: logicalField(field),
-      value: filterLiteral(value, true),
+      value: equalityFilterValue(value),
     };
   },
   ne<FIELDS extends string>(
     field: FIELDS,
-    value: FilterLiteral,
+    value: EqualityFilterValue,
   ): EqualityFilter<FIELDS> {
     return {
       op: FilterOperator.NE,
       field: logicalField(field),
-      value: filterLiteral(value, true),
+      value: equalityFilterValue(value),
     };
   },
   gt<FIELDS extends string>(

@@ -17,6 +17,7 @@ import {
   FilterOperator,
   StringComparison,
   type ElementFilterExpression,
+  type MetadataFilter,
 } from '../../src';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
@@ -58,6 +59,49 @@ describe('filter', () => {
       field: 'state.name',
       value: 'wow',
       stringComparison: StringComparison.CASE_INSENSITIVE,
+    });
+  });
+
+  it('builds metadata filters', () => {
+    const expressions: MetadataFilter[] = [
+      filter.id('snapshot-1'),
+      filter.ids('snapshot-1', 'snapshot-2'),
+      filter.aggregateId('order-1'),
+      filter.aggregateIds('order-1', 'order-2'),
+      filter.tenantId('tenant-1'),
+      filter.ownerId('owner-1'),
+      filter.spaceId('space-1'),
+    ];
+
+    expect(expressions).toEqual([
+      { op: FilterOperator.ID, value: 'snapshot-1' },
+      { op: FilterOperator.IDS, values: ['snapshot-1', 'snapshot-2'] },
+      { op: FilterOperator.AGGREGATE_ID, value: 'order-1' },
+      {
+        op: FilterOperator.AGGREGATE_IDS,
+        values: ['order-1', 'order-2'],
+      },
+      { op: FilterOperator.TENANT_ID, value: 'tenant-1' },
+      { op: FilterOperator.OWNER_ID, value: 'owner-1' },
+      { op: FilterOperator.SPACE_ID, value: 'space-1' },
+    ]);
+  });
+
+  it('supports Kotlin equality values and logical fields', () => {
+    expect(filter.eq('@metadata.tags', ['wow', null, 1, true])).toEqual({
+      op: FilterOperator.EQ,
+      field: '@metadata.tags',
+      value: ['wow', null, 1, true],
+    });
+    expect(filter.eq('state.@metadata.tags', 'wow')).toEqual({
+      op: FilterOperator.EQ,
+      field: 'state.@metadata.tags',
+      value: 'wow',
+    });
+    expect(filter.ne('state.status', ['CANCELLED', null])).toEqual({
+      op: FilterOperator.NE,
+      field: 'state.status',
+      value: ['CANCELLED', null],
     });
   });
 
@@ -407,6 +451,8 @@ describe('filter', () => {
       filter.elementMatch('state.items', filter.deletion(DeletionState.ACTIVE));
       // @ts-expect-error SEARCH cannot be scoped to an array element.
       filter.elementMatch('state.items', filter.search('wow'));
+      // @ts-expect-error Metadata filters cannot be scoped to an array element.
+      filter.elementMatch('state.items', filter.id('snapshot-1'));
       filter.elementMatch(
         'state.items',
         // @ts-expect-error Unsupported filters remain invalid inside logical predicates.
@@ -422,6 +468,7 @@ describe('filter', () => {
       filter.eq('sku', 'product-1'),
       filter.search('wow'),
     );
+    const metadata = filter.id('snapshot-1');
 
     expect(() =>
       filter.elementMatch(
@@ -433,6 +480,12 @@ describe('filter', () => {
       filter.elementMatch(
         'state.items',
         nestedSearch as unknown as ElementFilterExpression,
+      ),
+    ).toThrow();
+    expect(() =>
+      filter.elementMatch(
+        'state.items',
+        metadata as unknown as ElementFilterExpression,
       ),
     ).toThrow();
   });
@@ -458,6 +511,15 @@ describe('filter', () => {
       'empty collection values',
       () => Reflect.apply(filter.isIn, null, ['status']),
     ],
+    ['empty ids', () => Reflect.apply(filter.ids, null, [])],
+    [
+      'non-string aggregate ID',
+      () => Reflect.apply(filter.aggregateId, null, [1]),
+    ],
+    [
+      'non-string aggregate IDs value',
+      () => Reflect.apply(filter.aggregateIds, null, ['order-1', 2]),
+    ],
     ['invalid logical field', () => filter.eq('bad field', 'value')],
     [
       'non-string logical field',
@@ -466,6 +528,10 @@ describe('filter', () => {
     [
       'object equality value',
       () => Reflect.apply(filter.eq, null, ['status', {}]),
+    ],
+    [
+      'object equality array value',
+      () => Reflect.apply(filter.eq, null, ['status', ['PAID', {}]]),
     ],
     [
       'null comparison value',
