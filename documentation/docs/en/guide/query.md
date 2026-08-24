@@ -204,7 +204,13 @@ Wow validates the request structure, not field existence, collection shape, or p
 
 The HTTP endpoint is `POST /{aggregate}/snapshot/aggregation`. Tenant-, owner-, or space-scoped aggregates prepend their applicable route prefix; use the running instance's OpenAPI paths as the source of truth. JSON responses are arrays of dynamic objects; SSE streams one object at a time. OpenAPI publishes an aggregate-specific `AggregationQuery` request body whose `x-wow-query-fields` references that aggregate's `*AggregatedFields` component, while the JSON schema remains the generic `AggregationQuery` contract.
 
-For example, the compensation control plane can count failed executions by status:
+#### Scenario examples
+
+The following request bodies are sent to the applicable aggregate's `snapshot/aggregation` endpoint. Except for the first example, the repeated `curl` wrapper is omitted to keep the aggregation structure visible.
+
+##### Count records by category
+
+The compensation control plane can count records by execution status:
 
 ```bash
 curl --request POST 'http://localhost:8080/execution_failed/snapshot/aggregation' \
@@ -231,6 +237,142 @@ The response has the following shape; counts depend on the current data:
   {"status": "SUCCEEDED", "count": 3}
 ]
 ```
+
+##### Summarize filtered records
+
+Without `groupBy`, a query returns exactly one row. This query first selects failed records, then reports their count, average retries, and maximum retries:
+
+```json
+{
+  "filter": {"op": "EQ", "field": "state.status", "value": "FAILED"},
+  "metrics": [
+    {"type": "COUNT", "alias": "failedCount"},
+    {
+      "type": "NUMERIC",
+      "function": "AVG",
+      "expression": {"field": "state.retryState.retries"},
+      "alias": "averageRetries"
+    },
+    {
+      "type": "NUMERIC",
+      "function": "MAX",
+      "expression": {"field": "state.retryState.retries"},
+      "alias": "maxRetries"
+    }
+  ]
+}
+```
+
+```json
+[
+  {"failedCount": 12, "averageRetries": 1.5, "maxRetries": 4.0}
+]
+```
+
+If no records match, one row is still returned: `failedCount` is `0`, and both numeric metrics are `null`.
+
+##### Inspect a numeric distribution
+
+Orders can be bucketed by total amount. With `interval: 100`, the buckets are `[0, 100)`, `[100, 200)`, and so on; `amountRange` is the lower bound:
+
+```json
+{
+  "groupBy": [
+    {
+      "type": "HISTOGRAM",
+      "field": "state.totalAmount",
+      "alias": "amountRange",
+      "interval": 100
+    }
+  ],
+  "metrics": [
+    {"type": "COUNT", "alias": "orderCount"},
+    {
+      "type": "NUMERIC",
+      "function": "SUM",
+      "expression": {"field": "state.totalAmount"},
+      "alias": "totalAmount"
+    }
+  ],
+  "sort": [{"field": "amountRange", "direction": "ASC"}],
+  "limit": 20
+}
+```
+
+```json
+[
+  {"amountRange": 0.0, "orderCount": 8, "totalAmount": 356.0},
+  {"amountRange": 100.0, "orderCount": 5, "totalAmount": 642.0}
+]
+```
+
+##### Track a business-time trend
+
+Assuming `state.createdAt` is an executable date field, records can be counted per day in the Shanghai time zone:
+
+```json
+{
+  "groupBy": [
+    {
+      "type": "DATE_HISTOGRAM",
+      "field": "state.createdAt",
+      "alias": "day",
+      "unit": "DAY",
+      "timeZone": "Asia/Shanghai"
+    }
+  ],
+  "metrics": [{"type": "COUNT", "alias": "createdCount"}],
+  "sort": [{"field": "day", "direction": "ASC"}],
+  "limit": 31
+}
+```
+
+```json
+[
+  {"day": 1787500800000, "createdCount": 18},
+  {"day": 1787587200000, "createdCount": 23}
+]
+```
+
+Date bucket keys are epoch milliseconds at the start of each bucket. MongoDB fields must be convertible to dates; Elasticsearch fields must be mapped as `date` or `date_nanos`.
+
+##### Expand a collection and select Top-N
+
+Order items form a collection. Expand `state.items` with an absolute path, then use relative paths to filter, group, and sum the items:
+
+```json
+{
+  "filter": {"op": "EQ", "field": "state.status", "value": "PAID"},
+  "elements": [
+    {
+      "path": "state.items",
+      "filter": {"op": "GT", "field": "quantity", "value": 0}
+    }
+  ],
+  "groupBy": [
+    {"type": "TERMS", "field": "productId", "alias": "productId"}
+  ],
+  "metrics": [
+    {
+      "type": "NUMERIC",
+      "function": "SUM",
+      "expression": {"field": "quantity"},
+      "alias": "totalQuantity"
+    }
+  ],
+  "sort": [{"field": "totalQuantity", "direction": "DESC"}],
+  "limit": 10
+}
+```
+
+```json
+[
+  {"productId": "product-1", "totalQuantity": 42.0},
+  {"productId": "product-2", "totalQuantity": 31.0}
+]
+```
+
+The root `filter` still uses absolute snapshot paths. The Element filter, group, and metric fields are relative to the expanded item. Sorting by a metric alias such as `totalQuantity` is an expensive operation. With `query.allow-expensive-operators=false`, the HTTP guard rejects this example for both its Elements expansion and metric-alias sort; enable the setting or remove both capabilities.
 
 The same `AggregationQuery` contract can run through MongoDB and Elasticsearch snapshot query services and return the same row shape. Backend-specific field mappings, nested models, and custom serialization remain subject to the constraints documented by each extension.
 
