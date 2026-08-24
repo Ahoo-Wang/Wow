@@ -12,13 +12,15 @@ Compare the pinned Wow tag, BOM, official template, selected starters/storage mo
 
 Search for:
 
-- removed or changed annotations, handlers, gateway/wait APIs, Query DSL, lifecycle ownership, stores, buses, and extension points;
+- removed or changed annotations, handlers, gateway/wait APIs, `FilterExpression`/legacy `Condition` rewrite APIs, Query DSL, lifecycle ownership, stores, buses, and extension points;
 - custom compiler/KSP assumptions and generated metadata;
 - OpenAPI, JSON Schema, client SDK, serialization, and event revision outputs;
 - custom auto-configuration, `@ConfigurationProperties`, exclusions, and bean overrides;
-- custom `SnapshotStore`, `EventStore`, bus, processor, lifecycle, or routing implementations.
+- custom `SnapshotQueryService`, `SnapshotStore`, `EventStore`, bus, processor, lifecycle, or routing implementations.
 
 For each item record current evidence, target-tag evidence, required action, owner, verification, and rollback effect.
+
+Source compatibility is not runtime capability: a new default interface method and generated route can compile while a custom `SnapshotQueryService` still falls into an unsupported `aggregate` implementation. When the target publishes aggregation, prove the selected service overrides or delegates `aggregate`, then call the generated endpoint for every snapshot backend actually used.
 
 ## Runtime and data coupling
 
