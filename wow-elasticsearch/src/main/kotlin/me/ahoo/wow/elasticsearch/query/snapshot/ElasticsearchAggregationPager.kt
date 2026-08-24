@@ -76,7 +76,7 @@ internal class ElasticsearchAggregationPager(
         if (!plan.metricSorted) return rows
 
         return rows.collect(
-            { BoundedTopRows(plan.effectiveSort, plan.limit) },
+            { BoundedTopRows(plan.effectiveSort, plan.limit, plan.groupSources.map { it.name() }) },
             BoundedTopRows::add,
         ).flatMapMany { Flux.fromIterable(it.result()) }
     }
@@ -260,27 +260,54 @@ internal fun selectTopRows(
     limit: Int,
 ): List<DynamicDocument> = BoundedTopRows(sort, limit).apply { rows.forEach(::add) }.result()
 
-private class BoundedTopRows(sort: List<Sort>, private val limit: Int) {
-    private val comparator = rowComparator(sort)
+private class BoundedTopRows(
+    sort: List<Sort>,
+    private val limit: Int,
+    private val groupAliases: List<String> = emptyList(),
+) {
+    private val groupIndexes = groupAliases.withIndex().associate { (index, alias) -> alias to index }
+    private val currentGroupOrder = LongArray(groupAliases.size)
+    private var previous: DynamicDocument? = null
+    private var sequence = 0L
+    private val comparator = rankedRowComparator(sort, groupIndexes)
     private val rows = PriorityQueue(comparator.reversed())
 
     fun add(row: DynamicDocument) {
+        previous?.let { previous ->
+            val firstDifference = groupAliases.indexOfFirst { previous[it] != row[it] }
+            if (firstDifference >= 0) {
+                currentGroupOrder.fill(sequence, firstDifference)
+            }
+        }
+        previous = row
+        val rankedRow = RankedRow(row, currentGroupOrder.copyOf())
+        sequence++
         if (rows.size < limit) {
-            rows += row
-        } else if (comparator.compare(row, rows.peek()) < 0) {
+            rows += rankedRow
+        } else if (comparator.compare(rankedRow, rows.peek()) < 0) {
             rows.poll()
-            rows += row
+            rows += rankedRow
         }
     }
 
-    fun result(): List<DynamicDocument> = rows.sortedWith(comparator)
+    fun result(): List<DynamicDocument> = rows.sortedWith(comparator).map(RankedRow::row)
 }
 
-private fun rowComparator(sort: List<Sort>): Comparator<DynamicDocument> = Comparator { left, right ->
+private data class RankedRow(
+    val row: DynamicDocument,
+    val groupOrder: LongArray,
+)
+
+private fun rankedRowComparator(
+    sort: List<Sort>,
+    groupIndexes: Map<String, Int>,
+): Comparator<RankedRow> = Comparator { left, right ->
     sort.firstNotNullOfOrNull { field ->
-        compareValues(left[field.field], right[field.field])
-            .takeIf { it != 0 }
-            ?.let { if (field.direction == Sort.Direction.ASC) it else -it }
+        val comparison = groupIndexes[field.field]?.let { index ->
+            left.groupOrder[index].compareTo(right.groupOrder[index])
+        } ?: compareValues(left.row[field.field], right.row[field.field])
+            .let { if (field.direction == Sort.Direction.ASC) it else -it }
+        comparison.takeIf { it != 0 }
     } ?: 0
 }
 

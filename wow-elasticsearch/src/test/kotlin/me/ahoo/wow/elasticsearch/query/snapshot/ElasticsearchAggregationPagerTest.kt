@@ -116,6 +116,31 @@ class ElasticsearchAggregationPagerTest {
     }
 
     @Test
+    fun `metric ties should preserve native composite group order`() {
+        stubPointInTime()
+        every { client.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(
+            groupResponse(
+                "pit-2",
+                listOf(metricBucket("2.0.0.1", 7.0), metricBucket("10.0.0.1", 7.0)),
+            ),
+        )
+        val plan = compiler().compile(
+            aggregation {
+                terms("state.address", "product")
+                sum("state.total", "total")
+                sort { "total".desc() }
+                limit(1)
+            },
+        )
+
+        pager().execute(plan)
+            .map { it.getValue<String>("product") }
+            .test()
+            .expectNext("2.0.0.1")
+            .verifyComplete()
+    }
+
+    @Test
     fun `metric sort should retain exact bounded top N with complete tie sort`() {
         val rows = listOf(
             SimpleDynamicDocument(mutableMapOf("product" to "c", "total" to 7.0)),
