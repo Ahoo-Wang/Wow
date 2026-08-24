@@ -16,6 +16,7 @@ package me.ahoo.wow.mongo.query.snapshot
 import com.mongodb.client.model.Aggregates
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Sorts
+import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
@@ -109,7 +110,10 @@ internal class MongoAggregationCompiler(
                 "\$dateTrunc",
                 Document("date", Document("\$toDate", "\$${field.resolve(parent)}"))
                     .append("unit", unit.name.lowercase())
-                    .append("timezone", if (timeZone == "Z") "UTC" else timeZone),
+                    .append("timezone", if (timeZone == "Z") "UTC" else timeZone)
+                    .apply {
+                        if (unit == AggregationDateUnit.WEEK) append("startOfWeek", "Monday")
+                    },
             ),
         )
     }

@@ -14,6 +14,7 @@
 package me.ahoo.wow.tck.query
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
@@ -237,6 +238,26 @@ abstract class SnapshotQueryServiceSpec {
                         "day" to 1_769_990_400_000L,
                         "count" to 1L,
                     ),
+                )
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `aggregation should start UTC weeks on Monday`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+
+        aggregation {
+            expand("state.orders")
+            expand("lines") { "productId" isIn listOf("gamma", "delta") }
+            dateHistogram("createdAt", AggregationDateUnit.WEEK, "week")
+            count("count")
+        }.query(snapshotQueryService)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                rows.map(Map<String, Any?>::toMap).assert().containsExactly(
+                    mapOf("week" to 1_769_385_600_000L, "count" to 1L),
+                    mapOf("week" to 1_769_990_400_000L, "count" to 1L),
                 )
             }.verifyComplete()
     }

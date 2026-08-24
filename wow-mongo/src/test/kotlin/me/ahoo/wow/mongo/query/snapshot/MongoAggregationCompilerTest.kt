@@ -76,6 +76,7 @@ class MongoAggregationCompilerTest {
             .contains("\$dateTrunc")
             .contains("\"unit\": \"day\"")
             .contains("\"timezone\": \"Asia/Shanghai\"")
+            .doesNotContain("startOfWeek")
             .contains("\$sum")
             .contains("\$avg")
             .contains("\$min")
@@ -84,6 +85,21 @@ class MongoAggregationCompilerTest {
             .containsExactly("total", "product", "amountRange", "day")
         stages.getValue("\$sort").toBsonDocument().toJson().assert().contains("\"total\": -1")
         stages.getValue("\$limit").toBsonDocument().toJson().assert().contains("7")
+    }
+
+    @Test
+    fun `weekly date histogram should start on Monday and preserve timezone`() {
+        val query = aggregation {
+            dateHistogram("state.createdAt", AggregationDateUnit.WEEK, "week", ZoneId.of("Asia/Shanghai"))
+            count("count")
+        }
+
+        MongoAggregationCompiler(SnapshotFilterConverter).compile(query)
+            .first { it.toBsonDocument().containsKey("\$group") }
+            .toBsonDocument().toJson().assert()
+            .contains("\"unit\": \"week\"")
+            .contains("\"timezone\": \"Asia/Shanghai\"")
+            .contains("\"startOfWeek\": \"Monday\"")
     }
 
     @Test
