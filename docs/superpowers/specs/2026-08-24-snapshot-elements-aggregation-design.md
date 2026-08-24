@@ -123,6 +123,7 @@ DSL 提供 `sum("state.amount")` 等快捷方法，调用者不需要手工构�
 公共层只校验请求本身可确定的事实：
 
 - 数量和 limit 不超过固定上限。
+- metrics 不为空。
 - Elements 构成严格父子前缀链。
 - element filter 不包含 ID、租户、所有者、空间、删除、搜索等根级操作符。
 - element filter 中的字段属于当前 element 路径。
@@ -160,6 +161,8 @@ fun aggregate(query: AggregationQuery): Flux<DynamicDocument> =
 默认实现只保证现有实现重新编译时保持源码兼容，不保留旧 JVM method descriptor，也不增加新的 capability interface。
 
 `SnapshotQueryHandler` 增加对应入口，`QueryType` 增加 `AGGREGATION`。聚合复用现有 `QueryContext` 和 `SnapshotQueryFilter` chain：
+
+`SnapshotQueryHandler.aggregate` 同样提供返回 `UnsupportedOperationException` 的默认实现，保证现有自定义 handler 重新编译时源码兼容；`DefaultSnapshotQueryHandler` 覆盖它并进入现有 filter chain。
 
 ```text
 SnapshotQueryHandler.aggregate
@@ -243,6 +246,7 @@ ApiClient 增加独立的 `SnapshotAggregationQueryApi`、`ReactiveSnapshotAggre
 
 - 请求自身结构错误使用 `IllegalArgumentException`，由现有 ErrorHandler 转换。
 - MongoDB/Elasticsearch 不支持路径、字段类型或 mapping 时保留后端错误。
+- 后端返回 NaN 或正负无穷时整体失败，不把非有限数值写入公共结果。
 - 不把错误降级为空结果，不尝试统一两个后端的错误文本。
 - Flux 任一编译、分页或执行阶段失败即整体失败。
 - PIT close 失败只记录日志，不覆盖原始查询结果或错误。
@@ -261,6 +265,7 @@ ApiClient 增加独立的 `SnapshotAggregationQueryApi`、`ReactiveSnapshotAggre
 - `wow-webflux`：HTTP 路由、Guard、JSON/SSE 响应。
 - `wow-openapi`：Schema 快照和一次真实 `example-server /v3/api-docs` 请求。
 - `wow-apiclient`：同步/响应式请求与返回类型。
+- 中英文查询文档：公共模型、Elements 作用域、HTTP/DSL 示例与明确非目标。
 
 不建立 Jackson annotation 与 Elasticsearch mapping 的组合测试矩阵，不设置 patch coverage 百分比目标。
 
