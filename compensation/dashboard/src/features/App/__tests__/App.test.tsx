@@ -116,7 +116,7 @@ describe("App", () => {
     expect(
       screen.queryByLabelText("Current local time"),
     ).not.toBeInTheDocument();
-    expect(screen.getByText("v8.11.7")).toBeInTheDocument();
+    expect(screen.getByText("v8.12.0")).toBeInTheDocument();
     const commitLink = screen.getByRole("link", {
       name: /^GitHub commit [0-9a-f]{40}$/,
     });

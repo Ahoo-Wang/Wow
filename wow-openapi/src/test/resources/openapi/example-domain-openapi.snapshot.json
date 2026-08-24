@@ -6035,10 +6035,10 @@
   },
   "info" : {
     "title" : "example-service",
-    "version" : "8.11.7",
+    "version" : "8.12.0",
     "x-wow-context-alias" : "example",
     "x-wow-context-name" : "example-service",
-    "x-wow-version" : "8.11.7"
+    "x-wow-version" : "8.12.0"
   },
   "openapi" : "3.1.0",
   "paths" : {
