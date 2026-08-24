@@ -25,13 +25,8 @@ import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.mongo.query.AbstractMongoFilterConverter
-import me.ahoo.wow.query.converter.FieldConverter
 import org.bson.Document
 import org.bson.conversions.Bson
-
-private object ElementSnapshotFilterConverter : AbstractMongoFilterConverter(defaultDeletionState = null) {
-    override val fieldConverter: FieldConverter = SnapshotFieldConverter
-}
 
 internal class MongoAggregationCompiler(
     private val converter: AbstractMongoFilterConverter,
@@ -44,7 +39,7 @@ internal class MongoAggregationCompiler(
             parent = if (parent == null) element.path.value else "$parent.${element.path.value}"
             add(Aggregates.unwind("\$$parent"))
             if (element.filter !== MatchAllFilter) {
-                add(Aggregates.match(ElementSnapshotFilterConverter.convert(element.filter, parent)))
+                add(Aggregates.match(converter.convertWithoutDefaultDeletion(element.filter, parent)))
             }
         }
 

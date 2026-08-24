@@ -77,9 +77,13 @@ abstract class AbstractMongoFilterConverter(
     protected abstract val fieldConverter: FieldConverter
 
     private val filterNormalizer = FilterNormalizer(defaultDeletionState = defaultDeletionState)
+    private val filterNormalizerWithoutDefaultDeletion = FilterNormalizer(defaultDeletionState = null)
 
     fun convert(filter: FilterExpression, parent: String? = null): Bson =
         compile(filterNormalizer.normalize(filter), parent, mapField = true)
+
+    internal fun convertWithoutDefaultDeletion(filter: FilterExpression, parent: String? = null): Bson =
+        compile(filterNormalizerWithoutDefaultDeletion.normalize(filter), parent, mapField = true)
 
     @Suppress("CyclomaticComplexMethod", "LongMethod")
     private fun compile(filter: FilterExpression, parent: String?, mapField: Boolean): Bson = when (filter) {

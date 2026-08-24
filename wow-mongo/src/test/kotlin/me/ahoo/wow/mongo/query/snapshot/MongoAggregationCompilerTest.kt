@@ -17,7 +17,9 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
+import me.ahoo.wow.mongo.query.AbstractMongoFilterConverter
 import me.ahoo.wow.query.dsl.aggregation
+import me.ahoo.wow.query.converter.FieldConverter
 import me.ahoo.wow.serialization.MessageRecords
 import org.junit.jupiter.api.Test
 import java.time.ZoneId
@@ -128,5 +130,23 @@ class MongoAggregationCompilerTest {
         group.toBsonDocument().toJson().assert()
             .contains("\$isNumber")
             .doesNotContain("\$ne")
+    }
+
+    @Test
+    fun `custom field converter should apply to root and element filters without element deletion scope`() {
+        val converter = object : AbstractMongoFilterConverter() {
+            override val fieldConverter: FieldConverter = FieldConverter { "physical.$it" }
+        }
+        val query = aggregation {
+            filter { "state.status" eq "PAID" }
+            expand("state.items") { "quantity" gt 0 }
+            count("count")
+        }
+
+        val pipeline = MongoAggregationCompiler(converter).compile(query)
+        pipeline[0].toBsonDocument().toJson().assert().contains("physical.state.status")
+        pipeline[2].toBsonDocument().toJson().assert()
+            .contains("physical.state.items.quantity")
+            .doesNotContain("deleted")
     }
 }
