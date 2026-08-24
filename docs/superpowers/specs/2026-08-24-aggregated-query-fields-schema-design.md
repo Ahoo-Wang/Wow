@@ -114,7 +114,7 @@ example.cart.CartAggregatedFields
 
 ### 实际服务契约验证
 
-模块测试和快照不能替代运行时证明。实现完成后必须构建并启动 `example-server` 的实际 distribution，通过 HTTP 获取真实 `/v3/api-docs`；不得直接读取测试快照或在测试中调用 `RouterSpecs` 代替服务请求。
+模块测试和快照不能替代运行时证明。实现完成后必须主动构建并启动一次 `example-server` 的实际 distribution，通过 HTTP 获取真实 `/v3/api-docs`；不得直接读取测试快照或在测试中调用 `RouterSpecs` 代替服务请求。
 
 验证流程：
 
@@ -130,15 +130,7 @@ example.cart.CartAggregatedFields
    - 字段枚举只在 `CartAggregatedFields` Schema 中出现一次。
 6. 无论成功或失败都停止服务；失败时输出服务日志和实际 `/v3/api-docs` 响应位置。
 
-该 smoke test 必须可由单条仓库命令重复执行并用于 CI，具体脚本只负责进程生命周期、HTTP 探测和上述断言，不引入测试框架或外部服务。
-
-验证入口：
-
-```bash
-./gradlew :example-server:verifyOpenApi
-```
-
-`verifyOpenApi` 是本次实现需要提供的任务；它依赖 `installDist`，并封装上述真实服务验证流程。
+这是实现完成后的单次主动验收，不向仓库增加 verifier 源码、Gradle task、脚本或 CI 接线。执行者在最终交付中报告实际请求地址、断言结果和日志/响应位置即可。
 
 ## 完成条件
 
@@ -146,4 +138,4 @@ example.cart.CartAggregatedFields
 - 四类聚合查询 RequestBody 指向同一个 `*AggregatedFields` Schema。
 - Wow OpenAPI 不再输出数组形式的 `x-wow-query-fields`。
 - `:wow-openapi:check` 通过，OpenAPI 快照符合新协议。
-- `:example-server:verifyOpenApi` 启动实际服务并通过真实 `/v3/api-docs` 契约验证。
+- 实现完成后已主动启动一次实际服务，并通过真实 `/v3/api-docs` 契约验证。
