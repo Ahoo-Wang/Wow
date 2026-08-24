@@ -16,6 +16,7 @@
 - **📦 完整的 TypeScript 支持**：为所有 Wow 框架实体提供完整的类型定义，包括命令、事件和查询
 - **🚀 命令客户端**：用于向 Wow 服务发送命令的高级客户端，支持同步和流式响应
 - **🔍 强大的查询 DSL**：类型安全的 `FilterExpression` 构建器，支持完整的查询操作符
+- **📊 快照聚合**：使用类型安全的查询对快照数据进行分组和聚合
 - **📡 实时事件流**：内置对服务器发送事件的支持，用于接收实时命令结果和数据更新
 - **🔄 CQRS 模式实现**：对命令查询责任分离架构模式的一流支持
 - **🧱 DDD 基础构件**：基本的领域驱动设计构建块，包括聚合、事件和值对象
@@ -311,7 +312,12 @@ import {
 } from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
 import {
+  AggregationFunction,
+  AggregationGroupType,
+  AggregationMetricType,
+  AggregationQuery,
   SnapshotQueryClient,
+  SortDirection,
   filter,
   FilterListQuery,
   FilterPagedQuery,
@@ -325,6 +331,7 @@ interface CartItem {
 }
 
 interface CartState extends Identifier {
+  status: string;
   items: CartItem[];
 }
 
@@ -399,6 +406,45 @@ const single = await cartSnapshotQueryClient.single(singleQuery);
 
 // 查询单个快照状态
 const singleState = await cartSnapshotQueryClient.singleState(singleQuery);
+
+type ProductSummary = {
+  product: string;
+  itemCount: number;
+  totalQuantity: number;
+};
+
+const aggregationQuery: AggregationQuery = {
+  filter: filter.eq('state.status', 'COMPLETED'),
+  elements: [{ path: 'state.items' }],
+  groupBy: [
+    {
+      type: AggregationGroupType.TERMS,
+      field: 'productId',
+      alias: 'product',
+    },
+  ],
+  metrics: [
+    { type: AggregationMetricType.COUNT, alias: 'itemCount' },
+    {
+      type: AggregationMetricType.NUMERIC,
+      function: AggregationFunction.SUM,
+      expression: { field: 'quantity' },
+      alias: 'totalQuantity',
+    },
+  ],
+  sort: [{ field: 'totalQuantity', direction: SortDirection.DESC }],
+  limit: 10,
+};
+
+const summaries =
+  await cartSnapshotQueryClient.aggregate<ProductSummary>(aggregationQuery);
+const summaryStream =
+  await cartSnapshotQueryClient.aggregateStream<ProductSummary>(
+    aggregationQuery,
+  );
+for await (const event of summaryStream) {
+  console.log(event.data);
+}
 ```
 
 ##### 方法
@@ -414,6 +460,8 @@ const singleState = await cartSnapshotQueryClient.singleState(singleQuery);
 - `pagedState(pagedQuery: FilterPagedQuery): Promise<PagedList<Partial<S>>>` - 检索快照状态的分页列表。
 - `single(singleQuery: FilterSingleQuery): Promise<Partial<MaterializedSnapshot<S>>>` - 检索单个物化快照。
 - `singleState(singleQuery: FilterSingleQuery): Promise<Partial<S>>` - 检索单个快照状态。
+- `aggregate<Row extends DynamicDocument = DynamicDocument>(query: AggregationQuery<FIELDS>): Promise<Row[]>` - 执行快照聚合并请求 `snapshot/aggregation`。
+- `aggregateStream<Row extends DynamicDocument = DynamicDocument>(query: AggregationQuery<FIELDS>): Promise<ReadableStream<JsonServerSentEvent<Row>>>` - 执行快照聚合并通过服务器发送事件（SSE）请求 `snapshot/aggregation`。
 
 #### QueryClientFactory
 
