@@ -5165,12 +5165,13 @@
         "title" : "Filter Expression"
       },
       "wow.api.query.ListQuery" : {
+        "additionalProperties" : false,
         "properties" : {
           "filter" : {
             "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
           },
           "limit" : {
-            "default" : "0",
+            "default" : 0,
             "format" : "int32",
             "minimum" : 0,
             "type" : "integer"
@@ -5179,7 +5180,7 @@
             "$ref" : "#/components/schemas/wow.api.query.Projection"
           },
           "sort" : {
-            "default" : "[]",
+            "default" : [ ],
             "items" : {
               "$ref" : "#/components/schemas/wow.api.query.Sort"
             },
@@ -5190,6 +5191,7 @@
         "type" : "object"
       },
       "wow.api.query.PagedQuery" : {
+        "additionalProperties" : false,
         "properties" : {
           "filter" : {
             "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
@@ -5201,7 +5203,7 @@
             "$ref" : "#/components/schemas/wow.api.query.Projection"
           },
           "sort" : {
-            "default" : "[]",
+            "default" : [ ],
             "items" : {
               "$ref" : "#/components/schemas/wow.api.query.Sort"
             },
@@ -5214,12 +5216,12 @@
       "wow.api.query.Pagination" : {
         "properties" : {
           "index" : {
-            "default" : "1",
+            "default" : 1,
             "format" : "int32",
             "type" : "integer"
           },
           "size" : {
-            "default" : "10",
+            "default" : 10,
             "format" : "int32",
             "type" : "integer"
           }
@@ -5229,14 +5231,14 @@
       "wow.api.query.Projection" : {
         "properties" : {
           "exclude" : {
-            "default" : "[]",
+            "default" : [ ],
             "items" : {
               "type" : "string"
             },
             "type" : "array"
           },
           "include" : {
-            "default" : "[]",
+            "default" : [ ],
             "items" : {
               "type" : "string"
             },
@@ -5246,6 +5248,7 @@
         "type" : "object"
       },
       "wow.api.query.SingleQuery" : {
+        "additionalProperties" : false,
         "properties" : {
           "filter" : {
             "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
@@ -5254,7 +5257,7 @@
             "$ref" : "#/components/schemas/wow.api.query.Projection"
           },
           "sort" : {
-            "default" : "[]",
+            "default" : [ ],
             "items" : {
               "$ref" : "#/components/schemas/wow.api.query.Sort"
             },

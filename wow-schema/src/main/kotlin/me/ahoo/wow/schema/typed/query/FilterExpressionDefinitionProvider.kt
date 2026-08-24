@@ -15,6 +15,8 @@ package me.ahoo.wow.schema.typed.query
 
 import com.fasterxml.classmate.ResolvedType
 import com.github.victools.jsonschema.generator.CustomDefinition
+import com.github.victools.jsonschema.generator.CustomDefinition.AttributeInclusion
+import com.github.victools.jsonschema.generator.CustomDefinition.DefinitionType
 import com.github.victools.jsonschema.generator.CustomDefinitionProviderV2
 import com.github.victools.jsonschema.generator.MemberScope
 import com.github.victools.jsonschema.generator.Module
@@ -35,7 +37,11 @@ object FilterExpressionDefinitionProvider : CustomDefinitionProviderV2, Module {
         context: SchemaGenerationContext,
     ): CustomDefinition? {
         if (javaType.erasedType != FilterExpression::class.java) return null
-        return CustomDefinition(WowSchemaLoader.load(FilterExpression::class.java))
+        return CustomDefinition(
+            WowSchemaLoader.load(FilterExpression::class.java),
+            DefinitionType.STANDARD,
+            AttributeInclusion.NO,
+        )
     }
 
     private fun skipSubtypeLookup(scope: MemberScope<*, *>): List<ResolvedType>? =

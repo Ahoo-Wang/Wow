@@ -17,12 +17,14 @@ import com.github.victools.jsonschema.generator.FieldScope
 import com.github.victools.jsonschema.generator.Module
 import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder
 import com.github.victools.jsonschema.generator.SchemaGeneratorConfigPart
+import me.ahoo.wow.schema.typed.query.FilterExpressionDefinitionProvider
 
 class WowModule(
     private val options: Set<WowOption> = WowOption.ALL
 ) :
     Module {
     override fun applyToConfigBuilder(builder: SchemaGeneratorConfigBuilder) {
+        FilterExpressionDefinitionProvider.applyToConfigBuilder(builder)
         val fieldConfigPart = builder.forFields()
         fieldConfigPart.withTitleResolver(SummaryTitleFieldResolver)
         fieldConfigPart.withDescriptionResolver(DescriptionFieldResolver)

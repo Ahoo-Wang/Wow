@@ -16,6 +16,7 @@ package me.ahoo.wow.schema.openapi
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.schema.WowSchemaLoader
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.json.JsonMapper
 
 class OpenAPISchemaConverterTest {
 
@@ -27,5 +28,31 @@ class OpenAPISchemaConverterTest {
 
         schema.types.assert().contains("object")
         schema.properties.assert().containsKey("aggregateId")
+    }
+
+    @Test
+    fun `should convert textual defaults to declared json types`() {
+        val jsonNode = JsonMapper.builder().build().readTree(
+            """
+            {
+              "type": "object",
+              "properties": {
+                "integer": { "type": "integer", "default": "0" },
+                "array": { "type": "array", "default": "[]" },
+                "object": { "type": "object", "default": "{}" },
+                "boolean": { "type": "boolean", "default": "true" },
+                "string": { "type": "string", "default": "true" }
+              }
+            }
+            """.trimIndent(),
+        )
+
+        val properties = OpenAPISchemaConverter().toSchema(jsonNode).properties
+
+        properties["integer"]?.default.assert().isEqualTo(0)
+        properties["array"]?.default.assert().isEqualTo(emptyList<Any>())
+        properties["object"]?.default.assert().isEqualTo(emptyMap<String, Any>())
+        properties["boolean"]?.default.assert().isEqualTo(true)
+        properties["string"]?.default.assert().isEqualTo("true")
     }
 }

@@ -109,6 +109,15 @@ internal class ExampleDomainOpenAPITest {
         }
 
         @Test
+        fun `should keep generated query schemas closed to unknown properties`() {
+            listOf("SingleQuery", "ListQuery", "PagedQuery").forEach { queryType ->
+                openAPI.components.schemas["wow.api.query.$queryType"]
+                    ?.additionalProperties
+                    .assert().isEqualTo(false)
+            }
+        }
+
+        @Test
         fun `should generate cart routes without default tenant path`() {
             // Cart has @StaticTenantId → default appendTenantPath=false
             // MockVariableCommand overrides with appendTenantPath=ALWAYS, so exclude it

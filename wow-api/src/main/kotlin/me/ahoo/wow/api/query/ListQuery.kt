@@ -51,6 +51,7 @@ interface IListQuery : Queryable<IListQuery> {
  * )
  * ```
  */
+@Schema(additionalProperties = Schema.AdditionalPropertiesValue.FALSE)
 data class ListQuery(
     @get:JsonIgnore(false)
     override val filter: FilterExpression,
