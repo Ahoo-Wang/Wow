@@ -65,7 +65,26 @@ interface OpenAPIComponentContext : InlineSchemaCapable {
 
     fun resolveType(mainTargetType: Type, vararg typeParameters: Type): ResolvedType
     fun schema(mainTargetType: Type, vararg typeParameters: Type): Schema<*>
-    fun componentSchema(key: String, schema: Schema<*>): Schema<*>
+    fun componentSchema(key: String, schema: Schema<*>): Schema<*> {
+        require(key.isNotBlank()) {
+            "key must not be blank"
+        }
+        val writableSchemas = schemas as? MutableMap<String, Schema<*>>
+            ?: throw IllegalStateException(
+                "Cannot register schema component '$key': ${javaClass.name} exposes a read-only schemas map"
+            )
+        try {
+            writableSchemas[key] = schema
+        } catch (exception: UnsupportedOperationException) {
+            throw IllegalStateException(
+                "Cannot register schema component '$key': ${javaClass.name} exposes an unwritable schemas map",
+                exception
+            )
+        }
+        return Schema<Any>().also {
+            it.`$ref` = "$COMPONENTS_SCHEMAS_REF$key"
+        }
+    }
     fun arraySchema(mainTargetType: Type, vararg typeParameters: Type): Schema<*>
     fun parameter(key: String = "", builder: Parameter.() -> Unit): Parameter
     fun header(key: String = "", builder: Header.() -> Unit): Header
