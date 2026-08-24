@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.dsl
 
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
@@ -64,6 +65,12 @@ fun listQuery(block: ListQueryDsl.() -> Unit): IListQuery {
  */
 fun pagedQuery(block: PagedQueryDsl.() -> Unit): IPagedQuery {
     val dsl = PagedQueryDsl()
+    dsl.block()
+    return dsl.build()
+}
+
+fun aggregation(block: AggregationQueryDsl.() -> Unit): AggregationQuery {
+    val dsl = AggregationQueryDsl()
     dsl.block()
     return dsl.build()
 }

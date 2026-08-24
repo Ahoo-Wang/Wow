@@ -5,6 +5,7 @@ import com.github.victools.jsonschema.generator.Option
 import io.swagger.v3.core.util.ObjectMapperFactory
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
@@ -19,6 +20,15 @@ import org.junit.jupiter.api.Test
 import org.springframework.http.codec.ServerSentEvent
 
 class OpenAPISchemaBuilderTest {
+
+    @Test
+    fun `should expose delegating logical field as a string`() {
+        val openAPISchemaBuilder = OpenAPISchemaBuilder()
+        openAPISchemaBuilder.generateSchema(LogicalField::class.java)
+
+        openAPISchemaBuilder.build().getValue("wow.api.query.LogicalField")
+            .types.assert().contains("string").doesNotContain("object")
+    }
 
     @Test
     fun `should rebase embedded schema references to its component`() {

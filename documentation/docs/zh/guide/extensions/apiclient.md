@@ -12,7 +12,7 @@ API 客户端模块基于 [CoApi](https://github.com/Ahoo-Wang/CoApi) 提供声�
 - **响应式与同步 API** — 可选择基于 `Mono` 的响应式接口或阻塞式同步接口
 - **服务发现** — 通过 `@CoApi` 和 `@LoadBalanced` 注解内置服务发现支持
 - **命令网关** — 通过 REST 端点发送命令，支持等待计划
-- **快照查询** — 单条、列表、分页和计数查询接口
+- **快照查询** — 单条、列表、分页、计数及独立的聚合查询接口
 
 ## 安装
 
@@ -175,6 +175,27 @@ interface OrderQueryApi : SynchronousSnapshotQueryApi<OrderState>
 ```
 
 同步版本与响应式 API 对应，但直接返回值（阻塞）。
+
+### 快照聚合 API
+
+聚合接口有意保持独立，不包含在组合式快照查询接口中。需要显式继承 `ReactiveSnapshotAggregationQueryApi` 或 `SynchronousSnapshotAggregationQueryApi`：
+
+```kotlin
+@CoApi(baseUrl = "http://order-service:8080")
+@HttpExchange("cart")
+interface CartAggregationClient : ReactiveSnapshotAggregationQueryApi
+
+val rows: Flux<Map<String, Any?>> = aggregation {
+    expand("state.orders") { "status" eq "PAID" }
+    expand("lines") { "quantity" gt 0 }
+    terms("productId", "product")
+    sum("amount", "total")
+    sort { "total".desc() }
+    limit(20)
+}.query(cartAggregationClient)
+```
+
+响应式 API 返回 `Flux<Map<String, Any?>>`；同步 API 返回 `List<Map<String, Any?>>`。两者都把同一份 `AggregationQuery` JSON 发送到 `snapshot/aggregation`。
 
 ## 错误处理
 

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.webflux.route.query
 
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.ElementMatchFilter
@@ -41,6 +42,7 @@ import tools.jackson.databind.node.ObjectNode
 class QueryBodyExtractor<Q : Any>(private val queryType: Class<Q>) : BodyExtractor<Mono<Q>, ReactiveHttpInputMessage> {
     companion object {
         val FILTER_EXPRESSION_EXTRACTOR = QueryBodyExtractor(FilterExpression::class.java)
+        val AGGREGATION_QUERY_EXTRACTOR = QueryBodyExtractor(AggregationQuery::class.java)
         val LIST_QUERY_EXTRACTOR = QueryBodyExtractor(ListQuery::class.java)
         val PAGED_QUERY_EXTRACTOR = QueryBodyExtractor(PagedQuery::class.java)
         val SINGLE_QUERY_EXTRACTOR = QueryBodyExtractor(SingleQuery::class.java)
@@ -62,15 +64,37 @@ class QueryBodyExtractor<Q : Any>(private val queryType: Class<Q>) : BodyExtract
         }
         val hasFilter = objectNode.has("filter")
         val hasCondition = objectNode.has("condition")
-        require(hasFilter.xor(hasCondition)) { "Exactly one of filter or condition is required." }
+        require(hasFilter.xor(hasCondition) || queryType == AggregationQuery::class.java && !hasFilter) {
+            "Exactly one of filter or condition is required."
+        }
         if (hasFilter) {
             return strictDecode(objectNode)
         }
-        val condition = objectNode.remove("condition").toObject(Condition::class.java)
+        if (!hasCondition) {
+            return strictDecode(objectNode)
+        }
+        val conditionNode = objectNode.remove("condition")
+        val condition = if (queryType == AggregationQuery::class.java) {
+            strictDecodeCondition(conditionNode)
+        } else {
+            conditionNode.toObject(Condition::class.java)
+        }
+        if (queryType == AggregationQuery::class.java) {
+            objectNode.set("filter", JsonSerializer.valueToTree(condition.toFilterExpression()))
+            return strictDecode(objectNode)
+        }
         objectNode.set("filter", JsonSerializer.valueToTree(MatchAllFilter))
         val query = objectNode.toObject(queryType)
         @Suppress("UNCHECKED_CAST")
         return (query as FilterCapable<*>).withFilter(condition.toFilterExpression()) as Q
+    }
+
+    private fun strictDecodeCondition(conditionNode: tools.jackson.databind.JsonNode): Condition = try {
+        JsonSerializer.readerFor(Condition::class.java)
+            .with(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+            .readValue(conditionNode)
+    } catch (error: JacksonException) {
+        throw IllegalArgumentException("Invalid filter request body.", error)
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -98,6 +122,11 @@ class QueryBodyExtractor<Q : Any>(private val queryType: Class<Q>) : BodyExtract
     private fun requireStrictFilterValues(decoded: Q) {
         when (decoded) {
             is FilterExpression -> decoded
+            is AggregationQuery -> {
+                decoded.filter.requireScalarEqualityValues()
+                decoded.elements.forEach { it.filter.requireScalarEqualityValues() }
+                null
+            }
             is FilterCapable<*> -> decoded.filter
             else -> null
         }?.requireScalarEqualityValues()

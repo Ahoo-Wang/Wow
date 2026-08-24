@@ -951,6 +951,7 @@ internal class WebFluxAutoConfigurationTest {
             BuiltInHttpRouteHandlerKeys.Global.COMMAND_FACADE,
             BuiltInHttpRouteHandlerKeys.State.LOAD_AGGREGATE,
             BuiltInHttpRouteHandlerKeys.Snapshot.LOAD,
+            BuiltInHttpRouteHandlerKeys.Snapshot.AGGREGATION,
             BuiltInHttpRouteHandlerKeys.Event.LOAD,
             BuiltInHttpRouteHandlerKeys.Snapshot.REGENERATE,
             BuiltInHttpRouteHandlerKeys.Event.RESEND_STATE,

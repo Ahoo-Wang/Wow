@@ -14,7 +14,11 @@
 package me.ahoo.wow.query.snapshot
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.modeling.toNamedAggregate
+import me.ahoo.wow.query.QueryService
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.dsl.listQuery
@@ -115,5 +119,20 @@ class NoOpSnapshotQueryServiceTest {
             .test()
             .expectNext(0L)
             .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation DSL should return a cold unsupported error`() {
+        val fallback = object :
+            SnapshotQueryService<Any>,
+            QueryService<MaterializedSnapshot<Any>> by queryService {
+            override val name: String = "fallback"
+        }
+
+        AggregationQuery(metrics = listOf(AggregationMetric.Count("count")))
+            .query(fallback)
+            .test()
+            .expectErrorMessage("Snapshot aggregation is not supported by [fallback].")
+            .verify()
     }
 }

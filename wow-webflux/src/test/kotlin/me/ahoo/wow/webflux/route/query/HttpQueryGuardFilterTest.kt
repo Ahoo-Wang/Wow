@@ -17,6 +17,10 @@ import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.abac.AbacTags
 import me.ahoo.wow.api.query.AggregateIdsFilter
+import me.ahoo.wow.api.query.AggregationElement
+import me.ahoo.wow.api.query.AggregationGroup
+import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
@@ -35,6 +39,7 @@ import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
+import me.ahoo.wow.api.query.SimpleDynamicDocument
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.api.query.toFilterExpression
@@ -68,7 +73,9 @@ import me.ahoo.wow.webflux.route.event.LoadEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.LoadSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
+import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import org.springframework.mock.web.server.MockServerWebExchange
@@ -120,6 +127,109 @@ class HttpQueryGuardFilterTest {
                 .expectError(IllegalArgumentException::class.java)
                 .verify()
         }
+    }
+
+    @Test
+    fun `aggregation Guard should reuse existing limits and reject expensive work`() {
+        val oversized = AggregationQuery(
+            elements = listOf(AggregationElement(LogicalField("state.orders"))),
+            metrics = listOf(AggregationMetric.Count("count")),
+            limit = 101,
+        )
+        guard(maxListSize = 100).filter(aggregationContext(oversized), unexpectedBackend())
+            .writeRawRequest(request).test().expectError(IllegalArgumentException::class.java).verify()
+
+        val expensive = oversized.copy(limit = 1)
+        guard(allowExpensiveOperators = false).filter(aggregationContext(expensive), unexpectedBackend())
+            .writeRawRequest(request).test().expectError(IllegalArgumentException::class.java).verify()
+
+        val metricSort = AggregationQuery(
+            groupBy = listOf(AggregationGroup.Terms(LogicalField("state.status"), "status")),
+            metrics = listOf(AggregationMetric.Count("count")),
+            sort = listOf(Sort("count", Sort.Direction.ASC)),
+        )
+        guard(allowExpensiveOperators = false).filter(aggregationContext(metricSort), unexpectedBackend())
+            .writeRawRequest(request).test().expectError(IllegalArgumentException::class.java).verify()
+
+        val filtered = AggregationQuery(
+            filter = filterExpression {
+                "state.customer" eq "customer-1"
+                "state.status" eq "ACTIVE"
+            },
+            metrics = listOf(AggregationMetric.Count("count")),
+        )
+        guard(
+            maxFilterNodes = 1,
+            idleTimeout = Duration.ZERO
+        ).filter(aggregationContext(filtered), unexpectedBackend())
+            .writeRawRequest(request).test().expectError(IllegalArgumentException::class.java).verify()
+    }
+
+    @Test
+    fun `aggregation Guard should share the filter node budget across root and elements`() {
+        val query = AggregationQuery(
+            filter = filterExpression { "state.status" eq "ACTIVE" },
+            elements = listOf(
+                AggregationElement(
+                    path = LogicalField("state.orders"),
+                    filter = filterExpression { "status" eq "PAID" },
+                ),
+            ),
+            metrics = listOf(AggregationMetric.Count("count")),
+        )
+
+        guard(maxFilterNodes = 1, allowExpensiveOperators = true)
+            .filter(aggregationContext(query), unexpectedBackend())
+            .writeRawRequest(request).test().expectError(IllegalArgumentException::class.java).verify()
+    }
+
+    @Test
+    fun `aggregation Guard should enforce filter value limits in every scope`() {
+        val rootIn = AggregationQuery(
+            filter = filterExpression { "state.status" isIn listOf("ACTIVE", "PAID") },
+            metrics = listOf(AggregationMetric.Count("count")),
+        )
+        val elementIn = AggregationQuery(
+            elements = listOf(
+                AggregationElement(
+                    path = LogicalField("state.orders"),
+                    filter = filterExpression { "status" isIn listOf("ACTIVE", "PAID") },
+                ),
+            ),
+            metrics = listOf(AggregationMetric.Count("count")),
+        )
+        val rootMetadata = AggregationQuery(
+            filter = AggregateIdsFilter(listOf("order-1", "order-2")),
+            metrics = listOf(AggregationMetric.Count("count")),
+        )
+
+        listOf(rootIn, elementIn, rootMetadata).forEach { query ->
+            guard(maxFilterValues = 1, allowExpensiveOperators = true)
+                .filter(aggregationContext(query), unexpectedBackend())
+                .writeRawRequest(request).test().expectError(IllegalArgumentException::class.java).verify()
+        }
+    }
+
+    @Test
+    fun `aggregation guard should allow safe group sorting without expensive operators`() {
+        val row = SimpleDynamicDocument(mutableMapOf("status" to "ACTIVE", "count" to 1L))
+        val context = aggregationContext(
+            AggregationQuery(
+                groupBy = listOf(AggregationGroup.Terms(LogicalField("state.status"), "status")),
+                metrics = listOf(AggregationMetric.Count("count")),
+                sort = listOf(Sort("status", Sort.Direction.ASC)),
+            ),
+        )
+
+        guard(maxListSize = 0, idleTimeout = Duration.ZERO).filter(
+            context,
+            FilterChain {
+                it.asAggregationQuery().setResult(Flux.just(row))
+                Mono.empty()
+            },
+        ).writeRawRequest(request).test().verifyComplete()
+
+        context.getRequiredResult().test().expectNext(row).verifyComplete()
     }
 
     @Test
@@ -378,6 +488,44 @@ class HttpQueryGuardFilterTest {
     }
 
     @Test
+    fun `json aggregation should time out before emitting a partial response`() {
+        val row = SimpleDynamicDocument(mutableMapOf("count" to 1L))
+        val context = aggregationContext(AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))))
+        guard(idleTimeout = Duration.ofMillis(10)).filter(
+            context,
+            FilterChain {
+                it.asAggregationQuery().setResult(Flux.concat(Flux.just(row), Flux.never()))
+                Mono.empty()
+            },
+        ).writeRawRequest(request).test().verifyComplete()
+
+        context.getRequiredResult().test()
+            .expectError(TimeoutException::class.java)
+            .verify()
+    }
+
+    @Test
+    fun `event stream aggregation should emit rows before an idle timeout`() {
+        val row = SimpleDynamicDocument(mutableMapOf("count" to 1L))
+        val context = aggregationContext(AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))))
+        val eventStreamRequest = MockServerRequest.builder()
+            .header(HttpHeaders.ACCEPT, MediaType.TEXT_EVENT_STREAM_VALUE)
+            .build()
+        guard(idleTimeout = Duration.ofMillis(10)).filter(
+            context,
+            FilterChain {
+                it.asAggregationQuery().setResult(Flux.concat(Flux.just(row), Flux.never()))
+                Mono.empty()
+            },
+        ).writeRawRequest(eventStreamRequest).test().verifyComplete()
+
+        context.getRequiredResult().test()
+            .expectNext(row)
+            .expectError(TimeoutException::class.java)
+            .verify()
+    }
+
+    @Test
     fun `should run before concrete abac filters in the real snapshot chain`() {
         val handler = snapshotQueryHandler(
             guard = guard(maxFilterNodes = 1),
@@ -517,6 +665,12 @@ class HttpQueryGuardFilterTest {
             QueryType.COUNT,
             MOCK_AGGREGATE_METADATA,
         ).setQuery(filter)
+
+    private fun aggregationContext(query: AggregationQuery): QueryContext<AggregationQuery, Flux<DynamicDocument>> =
+        DefaultQueryContext<AggregationQuery, Flux<DynamicDocument>>(
+            QueryType.AGGREGATION,
+            MOCK_AGGREGATE_METADATA,
+        ).setQuery(query)
 
     private fun unexpectedBackend(): FilterChain<QueryContext<*, *>> = FilterChain {
         error("Backend must not be invoked.")

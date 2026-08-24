@@ -74,6 +74,21 @@ class HttpQueryGuardFilter(
 
     private fun validate(queryType: QueryType, query: Any) {
         when (query) {
+            is AggregationQuery -> {
+                validateResultSize(query.limit, "aggregation")
+                validateFilters(
+                    listOf(query.filter) + query.elements.map(AggregationElement::filter),
+                    rejectMatchAll = false,
+                )
+                require(allowExpensiveOperators || query.elements.isEmpty()) {
+                    "HTTP aggregation elements are disabled because expensive operators are not allowed."
+                }
+                val metricAliases = query.metrics.mapTo(hashSetOf(), AggregationMetric::alias)
+                require(allowExpensiveOperators || query.sort.none { it.field in metricAliases }) {
+                    "HTTP aggregation metric sorting is disabled because expensive operators are not allowed."
+                }
+                return
+            }
             is IListQuery -> validateList(query)
             is IPagedQuery -> validatePage(query)
         }
@@ -82,16 +97,20 @@ class HttpQueryGuardFilter(
             is FilterCapable<*> -> query.filter
             else -> return
         }
-        validateFilter(
-            filter = filter,
+        validateFilters(
+            filters = listOf(filter),
             rejectMatchAll = !allowExpensiveOperators && queryType in COUNTING_QUERY_TYPES,
         )
     }
 
     private fun validateList(query: IListQuery) {
+        validateResultSize(query.limit, "list")
+    }
+
+    private fun validateResultSize(limit: Int, queryName: String) {
         val minimum = if (maxListSize == 0) 0 else 1
-        require(query.limit >= minimum && (maxListSize == 0 || query.limit <= maxListSize)) {
-            "HTTP list query limit[${query.limit}] must be between $minimum and $maxListSize."
+        require(limit >= minimum && (maxListSize == 0 || limit <= maxListSize)) {
+            "HTTP $queryName query limit[$limit] must be between $minimum and $maxListSize."
         }
     }
 
@@ -111,9 +130,9 @@ class HttpQueryGuardFilter(
         }
     }
 
-    private fun validateFilter(filter: FilterExpression, rejectMatchAll: Boolean) {
+    private fun validateFilters(filters: List<FilterExpression>, rejectMatchAll: Boolean) {
         val pending = ArrayDeque<FilterExpression>()
-        pending.add(filter)
+        pending.addAll(filters)
         var nodes = 0
         while (pending.isNotEmpty()) {
             val current = pending.removeLast()
@@ -130,7 +149,7 @@ class HttpQueryGuardFilter(
                 else -> Unit
             }
         }
-        require(!rejectMatchAll || !filter.isMatchAll()) {
+        require(!rejectMatchAll || filters.none { it.isMatchAll() }) {
             "HTTP counting query must not match all documents."
         }
     }
@@ -191,6 +210,16 @@ class HttpQueryGuardFilter(
                 context.asPagedQuery<Any>().rewriteResult { it.timeout(idleTimeout) }
 
             QueryType.COUNT -> context.asCountQuery().rewriteResult { it.timeout(idleTimeout) }
+
+            QueryType.AGGREGATION -> context.asAggregationQuery().rewriteResult {
+                if (request.acceptsEventStream()) {
+                    it.timeout(idleTimeout)
+                } else {
+                    it.timeout(idleTimeout)
+                        .collectList()
+                        .flatMapMany(Flux<Any>::fromIterable)
+                }
+            }
         }
     }
 

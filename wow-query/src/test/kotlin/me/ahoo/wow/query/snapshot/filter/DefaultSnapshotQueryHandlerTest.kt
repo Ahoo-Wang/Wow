@@ -14,16 +14,27 @@
 package me.ahoo.wow.query.snapshot.filter
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.MaterializedSnapshot
+import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.filter.QueryContext
+import me.ahoo.wow.query.filter.QueryHandler
+import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryService
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
+import me.ahoo.wow.query.snapshot.SnapshotQueryService
+import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
+import reactor.core.publisher.Flux
 import reactor.kotlin.test.test
 
 class DefaultSnapshotQueryHandlerTest {
@@ -34,6 +45,24 @@ class DefaultSnapshotQueryHandlerTest {
         .build()
     private val queryHandler = DefaultSnapshotQueryHandler(
         snapshotQueryFilterChain,
+        LogErrorHandler()
+    )
+    private val aggregateQueryService = object : SnapshotQueryService<Any> by NoOpSnapshotQueryService(
+        MOCK_AGGREGATE_METADATA
+    ) {
+        override fun aggregate(query: AggregationQuery): Flux<DynamicDocument> =
+            Flux.just(mutableMapOf<String, Any?>("count" to 1L).toDynamicDocument())
+    }
+    private val aggregateQueryServiceFactory = object : SnapshotQueryServiceFactory {
+        @Suppress("UNCHECKED_CAST")
+        override fun <S : Any> create(namedAggregate: NamedAggregate): SnapshotQueryService<S> =
+            aggregateQueryService as SnapshotQueryService<S>
+    }
+    private val aggregateQueryHandler = DefaultSnapshotQueryHandler(
+        FilterChainBuilder<QueryContext<*, *>>()
+            .addFilters(listOf(TailSnapshotQueryFilter<Any>(aggregateQueryServiceFactory)))
+            .filterCondition(SnapshotQueryHandler::class)
+            .build(),
         LogErrorHandler()
     )
 
@@ -106,5 +135,29 @@ class DefaultSnapshotQueryHandlerTest {
             .test()
             .expectNext(0)
             .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation should use the existing snapshot chain`() {
+        val query = AggregationQuery(metrics = listOf(AggregationMetric.Count("count")))
+
+        aggregateQueryHandler.aggregate(MOCK_AGGREGATE_METADATA, query)
+            .test()
+            .expectNextMatches { it["count"] == 1L }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `legacy snapshot handler should inherit unsupported aggregation`() {
+        val fallback = object :
+            SnapshotQueryHandler,
+            QueryHandler<MaterializedSnapshot<Any>> by queryHandler {}
+
+        fallback.aggregate(
+            MOCK_AGGREGATE_METADATA,
+            AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))),
+        ).test()
+            .expectErrorMessage("Snapshot aggregation is not supported.")
+            .verify()
     }
 }

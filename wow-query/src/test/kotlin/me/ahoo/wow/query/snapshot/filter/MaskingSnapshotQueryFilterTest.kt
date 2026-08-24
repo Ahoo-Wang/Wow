@@ -13,8 +13,12 @@
 
 package me.ahoo.wow.query.snapshot.filter
 
+import io.mockk.spyk
+import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
@@ -28,7 +32,9 @@ import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.singleQuery
+import me.ahoo.wow.query.filter.DefaultQueryContext
 import me.ahoo.wow.query.filter.QueryContext
+import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.mask.DataMasking
 import me.ahoo.wow.query.mask.StateDataMaskerRegistry
 import me.ahoo.wow.query.mask.StateDynamicDocumentMasker
@@ -138,6 +144,20 @@ class MaskingSnapshotQueryFilterTest {
                 it.assert().isOne()
             }
             .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation should not look up a masker`() {
+        val maskerRegistry = spyk(StateDataMaskerRegistry())
+        val filter = MaskingSnapshotQueryFilter(maskerRegistry)
+        val context = DefaultQueryContext<AggregationQuery, Flux<DynamicDocument>>(
+            QueryType.AGGREGATION,
+            MockSnapshotQueryService.namedAggregate,
+        ).setQuery(AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))))
+
+        filter.filter(context) { Mono.empty() }.test().verifyComplete()
+
+        verify(exactly = 0) { maskerRegistry.getAggregateDataMasker(any()) }
     }
 
     data class DataMaskable(val pwd: String) : DataMasking<DataMaskable> {

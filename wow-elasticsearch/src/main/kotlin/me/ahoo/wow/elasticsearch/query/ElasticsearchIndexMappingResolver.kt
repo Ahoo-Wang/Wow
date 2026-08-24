@@ -161,9 +161,7 @@ data class ElasticsearchIndexMapping private constructor(
         return field
     }
 
-    fun resolve(filter: FilterExpression): FilterExpression = resolve(filter, null)
-
-    private fun resolve(filter: FilterExpression, parent: String?): FilterExpression = resolveTyped(filter, parent)
+    fun resolve(filter: FilterExpression, parent: String? = null): FilterExpression = resolveTyped(filter, parent)
 
     @Suppress("CyclomaticComplexMethod", "LongMethod")
     private fun resolveTyped(filter: FilterExpression, parent: String?): FilterExpression = when (filter) {

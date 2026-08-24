@@ -77,12 +77,16 @@ abstract class AbstractMongoFilterConverter(
     protected abstract val fieldConverter: FieldConverter
 
     private val filterNormalizer = FilterNormalizer(defaultDeletionState = defaultDeletionState)
+    private val filterNormalizerWithoutDefaultDeletion = FilterNormalizer(defaultDeletionState = null)
 
-    fun convert(filter: FilterExpression): Bson =
-        compile(filterNormalizer.normalize(filter), mapField = true)
+    fun convert(filter: FilterExpression, parent: String? = null): Bson =
+        compile(filterNormalizer.normalize(filter), parent, mapField = true)
+
+    internal fun convertWithoutDefaultDeletion(filter: FilterExpression, parent: String? = null): Bson =
+        compile(filterNormalizerWithoutDefaultDeletion.normalize(filter), parent, mapField = true)
 
     @Suppress("CyclomaticComplexMethod", "LongMethod")
-    private fun compile(filter: FilterExpression, mapField: Boolean): Bson = when (filter) {
+    private fun compile(filter: FilterExpression, parent: String?, mapField: Boolean): Bson = when (filter) {
         MatchAllFilter -> Filters.empty()
         MatchNoneFilter -> org.bson.Document("\$expr", false)
         is IdFilter -> Filters.eq(Documents.ID_FIELD, filter.value)
@@ -95,53 +99,59 @@ abstract class AbstractMongoFilterConverter(
         is TenantIdFilter -> Filters.eq(MessageRecords.TENANT_ID, filter.value)
         is OwnerIdFilter -> Filters.eq(MessageRecords.OWNER_ID, filter.value)
         is SpaceIdFilter -> Filters.eq(MessageRecords.SPACE_ID, filter.value)
-        is AndFilter -> Filters.and(filter.operands.map { compile(it, mapField) })
-        is OrFilter -> Filters.or(filter.operands.map { compile(it, mapField) })
-        is NorFilter -> Filters.nor(filter.operands.map { compile(it, mapField) })
-        is EqualFilter -> Filters.eq(filter.field.convert(mapField), filter.value.nativeValue())
-        is NotEqualFilter -> Filters.ne(filter.field.convert(mapField), filter.value.nativeValue())
-        is GreaterThanFilter -> Filters.gt(filter.field.convert(mapField), filter.value.requiredNativeValue())
+        is AndFilter -> Filters.and(filter.operands.map { compile(it, parent, mapField) })
+        is OrFilter -> Filters.or(filter.operands.map { compile(it, parent, mapField) })
+        is NorFilter -> Filters.nor(filter.operands.map { compile(it, parent, mapField) })
+        is EqualFilter -> Filters.eq(filter.field.convert(parent, mapField), filter.value.nativeValue())
+        is NotEqualFilter -> Filters.ne(filter.field.convert(parent, mapField), filter.value.nativeValue())
+        is GreaterThanFilter -> Filters.gt(filter.field.convert(parent, mapField), filter.value.requiredNativeValue())
         is GreaterThanOrEqualFilter -> Filters.gte(
-            filter.field.convert(mapField),
+            filter.field.convert(parent, mapField),
             filter.value.requiredNativeValue()
         )
-        is LessThanFilter -> Filters.lt(filter.field.convert(mapField), filter.value.requiredNativeValue())
-        is LessThanOrEqualFilter -> Filters.lte(filter.field.convert(mapField), filter.value.requiredNativeValue())
+        is LessThanFilter -> Filters.lt(filter.field.convert(parent, mapField), filter.value.requiredNativeValue())
+        is LessThanOrEqualFilter -> Filters.lte(
+            filter.field.convert(parent, mapField),
+            filter.value.requiredNativeValue()
+        )
         is ContainsFilter -> regex(
-            filter.field.convert(mapField),
+            filter.field.convert(parent, mapField),
             filter.value.escapeRegex(),
             filter.stringComparison.ignoreCase
         )
         is StartsWithFilter -> regex(
-            filter.field.convert(mapField),
+            filter.field.convert(parent, mapField),
             "^${filter.value.escapeRegex()}",
             filter.stringComparison.ignoreCase
         )
         is EndsWithFilter -> regex(
-            filter.field.convert(mapField),
+            filter.field.convert(parent, mapField),
             "${filter.value.escapeRegex()}$",
             filter.stringComparison.ignoreCase
         )
-        is InFilter -> Filters.`in`(filter.field.convert(mapField), filter.values.map { it.nativeValue() })
-        is NotInFilter -> Filters.nin(filter.field.convert(mapField), filter.values.map { it.nativeValue() })
+        is InFilter -> Filters.`in`(filter.field.convert(parent, mapField), filter.values.map { it.nativeValue() })
+        is NotInFilter -> Filters.nin(filter.field.convert(parent, mapField), filter.values.map { it.nativeValue() })
         is BetweenFilter -> Filters.and(
-            Filters.gte(filter.field.convert(mapField), filter.lowerBound.requiredNativeValue()),
-            Filters.lte(filter.field.convert(mapField), filter.upperBound.requiredNativeValue()),
+            Filters.gte(filter.field.convert(parent, mapField), filter.lowerBound.requiredNativeValue()),
+            Filters.lte(filter.field.convert(parent, mapField), filter.upperBound.requiredNativeValue()),
         )
-        is ContainsAllFilter -> Filters.all(filter.field.convert(mapField), filter.values.map { it.nativeValue() })
-        is IsEmptyFilter -> Filters.size(filter.field.convert(mapField), 0)
-        is IsNullFilter -> Filters.eq(filter.field.convert(mapField), null)
-        is IsNotNullFilter -> Filters.ne(filter.field.convert(mapField), null)
-        is ExistsFilter -> Filters.exists(filter.field.convert(mapField))
-        is NotExistsFilter -> Filters.exists(filter.field.convert(mapField), false)
+        is ContainsAllFilter -> Filters.all(
+            filter.field.convert(parent, mapField),
+            filter.values.map { it.nativeValue() }
+        )
+        is IsEmptyFilter -> Filters.size(filter.field.convert(parent, mapField), 0)
+        is IsNullFilter -> Filters.eq(filter.field.convert(parent, mapField), null)
+        is IsNotNullFilter -> Filters.ne(filter.field.convert(parent, mapField), null)
+        is ExistsFilter -> Filters.exists(filter.field.convert(parent, mapField))
+        is NotExistsFilter -> Filters.exists(filter.field.convert(parent, mapField), false)
         is DeletionFilter -> when (filter.deletionState) {
             DeletionState.ACTIVE -> Filters.eq(StateAggregateRecords.DELETED, false)
             DeletionState.DELETED -> Filters.eq(StateAggregateRecords.DELETED, true)
             DeletionState.ALL -> Filters.empty()
         }
         is ElementMatchFilter -> Filters.elemMatch(
-            filter.field.convert(mapField),
-            compile(filter.predicate, mapField = false),
+            filter.field.convert(parent, mapField),
+            compile(filter.predicate, parent = null, mapField = false),
         )
         is SearchFilter -> Filters.text(filter.query)
         is TodayFilter,
@@ -158,8 +168,11 @@ abstract class AbstractMongoFilterConverter(
         else -> error("Unsupported filter expression: ${filter::class.java.name}.")
     }
 
-    private fun me.ahoo.wow.api.query.LogicalField.convert(mapField: Boolean): String =
-        if (mapField) fieldConverter.convert(value) else value
+    private fun me.ahoo.wow.api.query.LogicalField.convert(parent: String?, mapField: Boolean): String =
+        path(parent).let { if (mapField) fieldConverter.convert(it) else it }
+
+    private fun me.ahoo.wow.api.query.LogicalField.path(parent: String?): String =
+        if (parent == null || value == parent || value.startsWith("$parent.")) value else "$parent.$value"
 
     private val StringComparison.ignoreCase: Boolean
         get() = this == StringComparison.CASE_INSENSITIVE

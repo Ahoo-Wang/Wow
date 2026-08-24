@@ -15,6 +15,7 @@ package me.ahoo.wow.openapi
 
 import io.swagger.v3.oas.models.media.StringSchema
 import me.ahoo.wow.api.Wow
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedList
@@ -23,6 +24,7 @@ import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.openapi.CommonComponent.Response.withErrorCodeHeader
+import me.ahoo.wow.openapi.QueryComponent.Schema.aggregationQuerySchema
 import me.ahoo.wow.openapi.QueryComponent.Schema.filterSchema
 import me.ahoo.wow.openapi.QueryComponent.Schema.listQuerySchema
 import me.ahoo.wow.openapi.QueryComponent.Schema.pagedQuerySchema
@@ -36,6 +38,7 @@ object QueryComponent {
     const val COUNT_QUERY_SUFFIX = ".CountQuery"
     const val LIST_QUERY_SUFFIX = ".ListQuery"
     const val PAGED_QUERY_SUFFIX = ".PagedQuery"
+    const val AGGREGATION_QUERY_SUFFIX = ".AggregationQuery"
     const val COUNT_QUERY_KEY = Wow.WOW + COUNT_QUERY_SUFFIX
     const val LIST_QUERY_KEY = Wow.WOW + LIST_QUERY_SUFFIX
     const val PAGED_QUERY_KEY = Wow.WOW + PAGED_QUERY_SUFFIX
@@ -57,6 +60,9 @@ object QueryComponent {
         fun OpenAPIComponentContext.pagedQuerySchema(): io.swagger.v3.oas.models.media.Schema<*> {
             return schema(PagedQuery::class.java)
         }
+        fun OpenAPIComponentContext.aggregationQuerySchema(): io.swagger.v3.oas.models.media.Schema<*> {
+            return schema(AggregationQuery::class.java)
+        }
     }
 
     object RequestBody {
@@ -68,6 +74,16 @@ object QueryComponent {
             return requestBody(aggregateMetadata.toStringWithAlias() + SINGLE_QUERY_SUFFIX) {
                 extension(QUERY_FIELDS_EXTENSION, queryFields)
                 content(schema = singleQuerySchema())
+            }
+        }
+
+        fun OpenAPIComponentContext.aggregatedAggregationQueryRequestBody(
+            aggregateMetadata: AggregateMetadata<*, *>
+        ): io.swagger.v3.oas.models.parameters.RequestBody {
+            val queryFields = aggregatedFieldsSchema(aggregateMetadata)
+            return requestBody(aggregateMetadata.toStringWithAlias() + AGGREGATION_QUERY_SUFFIX) {
+                extension(QUERY_FIELDS_EXTENSION, queryFields)
+                content(schema = aggregationQuerySchema())
             }
         }
 

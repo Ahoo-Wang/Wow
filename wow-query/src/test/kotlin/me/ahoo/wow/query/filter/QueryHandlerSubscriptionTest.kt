@@ -247,6 +247,7 @@ class QueryHandlerSubscriptionTest {
                 )
 
                 QueryType.COUNT -> context.asCountQuery().setResult(Mono.just(1L))
+                QueryType.AGGREGATION -> error("Test query handler does not support aggregation.")
             }
             return next.filter(context)
         }

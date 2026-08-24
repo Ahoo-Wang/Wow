@@ -52,6 +52,41 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     override fun setup() {
         elasticsearchClient = ReactiveElasticsearchClients.createReactiveElasticsearchClient(elasticsearch)
         elasticsearchClient.initSnapshotTemplate()
+        elasticsearchClient.indices().create { request ->
+            request.index(MOCK_AGGREGATE_METADATA.toSnapshotIndexName())
+                .mappings { mapping ->
+                    mapping.properties("state") { state ->
+                        state.`object` { stateObject ->
+                            stateObject
+                                .properties("decimalValue") { it.double_ { number -> number } }
+                                .properties("orders") { orders ->
+                                    orders.nested { ordersNested ->
+                                        ordersNested.properties("status") { it.keyword { keyword -> keyword } }
+                                        .properties("lines") { lines ->
+                                            lines.nested { linesNested ->
+                                                linesNested
+                                                    .properties("productId") { it.keyword { keyword -> keyword } }
+                                                    .properties("quantity") { it.integer { number -> number } }
+                                                    .properties("amount") { it.double_ { number -> number } }
+                                                    .properties("createdAt") { it.date { date -> date } }
+                                                    .properties("discounts") { discounts ->
+                                                        discounts.nested { discountsNested ->
+                                                            discountsNested
+                                                                .properties("type") {
+                                                                    it.keyword { keyword -> keyword }
+                                                                }.properties("amount") {
+                                                                    it.double_ { number -> number }
+                                                                }
+                                                        }
+                                                    }
+                                            }
+                                        }
+                                    }
+                                }
+                        }
+                    }
+                }
+        }.block()
         super.setup()
     }
 

@@ -12,7 +12,7 @@ The API Client module provides a declarative RESTful client for Wow services bas
 - **Reactive and Synchronous APIs** — Choose between `Mono`-based reactive or blocking synchronous interfaces
 - **Service Discovery** — Built-in support via `@CoApi` and `@LoadBalanced` annotations
 - **Command Gateway** — Send commands with wait plans through REST endpoints
-- **Snapshot Query** — Single, list, paged, and count query interfaces
+- **Snapshot Query** — Single, list, paged, count, and independent aggregation query interfaces
 
 ## Installation
 
@@ -181,6 +181,27 @@ interface OrderQueryApi : SynchronousSnapshotQueryApi<OrderState>
 
 The synchronous variant mirrors the reactive API but returns values directly
 (blocking).
+
+### Snapshot Aggregation API
+
+Aggregation is intentionally separate from the composite snapshot query interfaces. Extend `ReactiveSnapshotAggregationQueryApi` or `SynchronousSnapshotAggregationQueryApi` explicitly:
+
+```kotlin
+@CoApi(baseUrl = "http://order-service:8080")
+@HttpExchange("cart")
+interface CartAggregationClient : ReactiveSnapshotAggregationQueryApi
+
+val rows: Flux<Map<String, Any?>> = aggregation {
+    expand("state.orders") { "status" eq "PAID" }
+    expand("lines") { "quantity" gt 0 }
+    terms("productId", "product")
+    sum("amount", "total")
+    sort { "total".desc() }
+    limit(20)
+}.query(cartAggregationClient)
+```
+
+The reactive API returns `Flux<Map<String, Any?>>`; the synchronous API returns `List<Map<String, Any?>>`. Both post the same `AggregationQuery` JSON to `snapshot/aggregation`.
 
 ## Error Handling
 

@@ -33,8 +33,10 @@ import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.filter.Contexts.getRawRequest
 import me.ahoo.wow.query.filter.QueryHandler
+import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
+import me.ahoo.wow.webflux.route.snapshot.SnapshotAggregationHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
@@ -55,6 +57,56 @@ import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 
 class QueryBodyExtractorTest {
+
+    @Test
+    fun `aggregation body should default omitted filter and reject ambiguous or non scalar element equality`() {
+        val queryHandler = mockk<SnapshotQueryHandler> {
+            every { aggregate(any(), any()) } returns Flux.empty()
+        }
+        val handler = SnapshotAggregationHandlerFunctionFactory(
+            snapshotQueryHandler = queryHandler,
+            rewriteRequestFilter = DefaultRewriteRequestFilter,
+            exceptionHandler = WebFluxRequestExceptionHandler(),
+        ).create(
+            testAggregateRouteContract(
+                handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.AGGREGATION,
+                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
+            ),
+        )
+        val client = WebTestClient.bindToRouterFunction(route(POST("/sku/snapshot/aggregation"), handler)).build()
+        val metric = "\"metrics\":[{\"type\":\"COUNT\",\"alias\":\"count\"}]"
+
+        client.post().uri("/sku/snapshot/aggregation").contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("{$metric}").exchange().expectStatus().isOk
+        client.post().uri("/sku/snapshot/aggregation").contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("{\"condition\":{\"operator\":\"ALL\"},$metric}").exchange().expectStatus().isOk
+        client.post().uri("/sku/snapshot/aggregation").contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(
+                "{\"elements\":[{\"path\":\"state.items\",\"filter\":{\"op\":\"EQ\",\"field\":\"sku\",\"value\":\"a\"}}],$metric}"
+            ).exchange().expectStatus().isOk
+        client.post().uri("/sku/snapshot/aggregation").contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("{\"filter\":{\"op\":\"MATCH_ALL\"},\"condition\":{\"operator\":\"ALL\"},$metric}")
+            .exchange().expectStatus().isBadRequest
+        client.post().uri("/sku/snapshot/aggregation").contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("{\"filter\":{\"op\":\"EQ\",\"field\":\"state.tags\",\"value\":[\"a\"]},$metric}")
+            .exchange().expectStatus().isBadRequest
+        client.post().uri("/sku/snapshot/aggregation").contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(
+                "{\"elements\":[{\"path\":\"state.items\",\"filter\":{\"op\":\"EQ\",\"field\":\"sku\",\"value\":[\"a\"]}}],$metric}"
+            )
+            .exchange().expectStatus().isBadRequest
+        client.post().uri("/sku/snapshot/aggregation").contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("{\"condition\":{\"operator\":\"ALL\",\"unexpected\":true},$metric}")
+            .exchange().expectStatus().isBadRequest
+        client.post().uri("/sku/snapshot/aggregation").contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("{\"condition\":{\"field\":\"state.tags\",\"operator\":\"EQ\",\"value\":[\"a\"]},$metric}")
+            .exchange().expectStatus().isBadRequest
+        client.post().uri("/sku/snapshot/aggregation").contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(
+                "{\"condition\":{\"operator\":\"ALL\"},\"elements\":[{\"path\":\"state.items\",\"filter\":{\"op\":\"NE\",\"field\":\"sku\",\"value\":{\"value\":\"a\"},\"unexpected\":true}}],$metric}"
+            )
+            .exchange().expectStatus().isBadRequest
+    }
 
     @Test
     fun `should reject malformed request body as bad request`() {

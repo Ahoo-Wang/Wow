@@ -30,6 +30,7 @@ import me.ahoo.wow.webflux.route.snapshot.PagedQuerySnapshotHandlerFunctionFacto
 import me.ahoo.wow.webflux.route.snapshot.PagedQuerySnapshotStateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.SingleSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.SingleSnapshotStateHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.snapshot.SnapshotAggregationHandlerFunctionFactory
 
 class QueryRouteModule(
     snapshotQueryHandler: SnapshotQueryHandler,
@@ -73,6 +74,11 @@ class QueryRouteModule(
             exceptionHandler = exceptionHandler
         ),
         CountSnapshotHandlerFunctionFactory(
+            snapshotQueryHandler = snapshotQueryHandler,
+            rewriteRequestFilter = rewriteRequestFilter,
+            exceptionHandler = exceptionHandler
+        ),
+        SnapshotAggregationHandlerFunctionFactory(
             snapshotQueryHandler = snapshotQueryHandler,
             rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler

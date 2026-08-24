@@ -15,6 +15,8 @@ package me.ahoo.wow.spring.query
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
@@ -24,6 +26,7 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.filter.EmptyFilterChain
+import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.pagedQuery
@@ -77,6 +80,24 @@ class QueryServiceProxyTest {
 
         proxy.name.assert().isEqualTo(delegate.name)
         proxy.namedAggregate.assert().isSameAs(delegate.namedAggregate)
+    }
+
+    @Test
+    fun `snapshot proxy should route aggregation through handler`() {
+        val handler = DefaultSnapshotQueryHandler(
+            FilterChain { context ->
+                context.queryType.assert().isEqualTo(QueryType.AGGREGATION)
+                context.asAggregationQuery().setResult(Flux.empty())
+                Mono.empty()
+            }
+        )
+        val proxy = SnapshotQueryServiceProxy(NoOpSnapshotQueryService<Any>(namedAggregate), handler)
+
+        proxy.aggregate(AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))))
+            .collectList()
+            .block()
+            .assert()
+            .isEmpty()
     }
 
     @Test

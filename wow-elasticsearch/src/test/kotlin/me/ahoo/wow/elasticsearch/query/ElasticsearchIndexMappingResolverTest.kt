@@ -196,6 +196,15 @@ class ElasticsearchIndexMappingResolverTest {
             .isEqualTo("state.items.name")
     }
 
+    @Test
+    fun `should resolve relative filter fields from parent`() {
+        val mapping = ElasticsearchIndexMapping.from(INDEX, textWithKeyword())
+
+        val filter = mapping.resolve(EqualFilter(LogicalField("name"), json("Wow")), "state") as EqualFilter
+
+        filter.field.value.assert().isEqualTo("state.name.keyword")
+    }
+
     private fun json(value: Any?) = me.ahoo.wow.serialization.JsonSerializer.valueToTree<tools.jackson.databind.JsonNode>(
         value
     )
