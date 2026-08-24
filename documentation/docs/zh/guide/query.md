@@ -202,7 +202,37 @@ query.query(snapshotQueryService)
 
 Wow 只校验请求结构，不校验字段是否存在、路径是否为集合或物理字段类型；不会维护聚合字段目录，也不会使用 `TypeFieldPaths` 做校验。自定义 Jackson serializer、后端 filter converter 或 Elasticsearch mapping 不保证跨后端等价。首期不包含 Batch 聚合与算术表达式。
 
-HTTP 端点为 `POST /{context}/{aggregate}/snapshot/aggregation`（并遵循聚合自身适用的路由前缀）。JSON 响应是动态对象数组；SSE 逐个流式返回对象。OpenAPI 为每个聚合发布专属 `AggregationQuery` request body，其 `x-wow-query-fields` 引用该聚合的 `*AggregatedFields` 组件，JSON schema 仍使用通用 `AggregationQuery` 合同。
+HTTP 端点为 `POST /{aggregate}/snapshot/aggregation`。tenant、owner 或 space 作用域的聚合会在前面增加各自的路由前缀；以运行实例的 OpenAPI 路径为准。JSON 响应是动态对象数组；SSE 逐个流式返回对象。OpenAPI 为每个聚合发布专属 `AggregationQuery` request body，其 `x-wow-query-fields` 引用该聚合的 `*AggregatedFields` 组件，JSON schema 仍使用通用 `AggregationQuery` 合同。
+
+例如，补偿控制面可以按执行状态统计失败记录：
+
+```bash
+curl --request POST 'http://localhost:8080/execution_failed/snapshot/aggregation' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "groupBy": [
+      {"type": "TERMS", "field": "state.status", "alias": "status"}
+    ],
+    "metrics": [
+      {"type": "COUNT", "alias": "count"}
+    ],
+    "sort": [
+      {"field": "status", "direction": "ASC"}
+    ],
+    "limit": 10
+  }'
+```
+
+响应结构如下，具体计数取决于当前数据：
+
+```json
+[
+  {"status": "FAILED", "count": 12},
+  {"status": "SUCCEEDED", "count": 3}
+]
+```
+
+同一份 `AggregationQuery` 合同可由 MongoDB 与 Elasticsearch 快照查询服务执行并返回相同的行结构；字段映射、嵌套模型及自定义序列化的后端差异仍遵循各扩展文档中的约束。
 
 ### 重写查询
 
