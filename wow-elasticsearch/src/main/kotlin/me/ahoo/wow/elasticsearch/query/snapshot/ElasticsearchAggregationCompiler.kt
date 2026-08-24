@@ -62,7 +62,7 @@ internal object ElasticsearchAggregationCompiler {
             )
             ResolvedElement(
                 path = mapping.requireNested(element.path),
-                filter = filterConverter.convert(resolveFilter(elementFilter)),
+                filter = filterConverter.convert(mapping.resolveAggregationFilter(elementFilter)),
                 index = index,
             )
         }

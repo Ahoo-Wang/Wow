@@ -164,26 +164,40 @@ data class ElasticsearchIndexMapping private constructor(
         return field
     }
 
-    fun resolve(filter: FilterExpression): FilterExpression = resolve(filter, null)
+    fun resolve(filter: FilterExpression): FilterExpression = resolve(filter, null, false)
 
-    private fun resolve(filter: FilterExpression, parent: String?): FilterExpression =
-        filter.legacyConditionOrNull()?.let { resolveLegacy(it, parent) }
-            ?: resolveTyped(filter, parent)
+    fun resolveAggregationFilter(filter: FilterExpression): FilterExpression = resolve(filter, null, true)
 
-    private fun resolveLegacy(condition: Condition, parent: String?): FilterExpression = when (condition.operator) {
-        Operator.AND -> AndFilter(condition.children.map { resolve(it.toFilterExpression(), parent) })
-        Operator.OR -> OrFilter(condition.children.map { resolve(it.toFilterExpression(), parent) })
-        Operator.NOR -> NorFilter(condition.children.map { resolve(it.toFilterExpression(), parent) })
-        Operator.MATCH -> condition.copy(
-            field = condition.field.takeIf(String::isNotBlank)
-                ?.let { LogicalField(it).resolve(parent, ElasticsearchFieldUsage.MATCH).value }
-                .orEmpty(),
-        ).toFilterExpression()
-        else -> resolveTyped(condition.toFilterExpression().toExecutableFilter(), parent)
-    }
+    private fun resolve(filter: FilterExpression, parent: String?, aggregationFilter: Boolean): FilterExpression =
+        filter.legacyConditionOrNull()?.let { resolveLegacy(it, parent, aggregationFilter) }
+            ?: resolveTyped(filter, parent, aggregationFilter)
+
+    private fun resolveLegacy(condition: Condition, parent: String?, aggregationFilter: Boolean): FilterExpression =
+        when (condition.operator) {
+            Operator.AND -> AndFilter(
+                condition.children.map { resolve(it.toFilterExpression(), parent, aggregationFilter) },
+            )
+            Operator.OR -> OrFilter(
+                condition.children.map { resolve(it.toFilterExpression(), parent, aggregationFilter) },
+            )
+            Operator.NOR -> NorFilter(
+                condition.children.map { resolve(it.toFilterExpression(), parent, aggregationFilter) },
+            )
+            Operator.MATCH -> condition.copy(
+                field = condition.field.takeIf(String::isNotBlank)?.let {
+                    LogicalField(it).resolve(parent, ElasticsearchFieldUsage.MATCH, aggregationFilter).value
+                }
+                    .orEmpty(),
+            ).toFilterExpression()
+            else -> resolveTyped(condition.toFilterExpression().toExecutableFilter(), parent, aggregationFilter)
+        }
 
     @Suppress("CyclomaticComplexMethod", "LongMethod")
-    private fun resolveTyped(filter: FilterExpression, parent: String?): FilterExpression = when (filter) {
+    private fun resolveTyped(
+        filter: FilterExpression,
+        parent: String?,
+        aggregationFilter: Boolean,
+    ): FilterExpression = when (filter) {
         is IdFilter,
         is IdsFilter,
         is AggregateIdFilter,
@@ -192,55 +206,112 @@ data class ElasticsearchIndexMapping private constructor(
         is OwnerIdFilter,
         is SpaceIdFilter,
         -> filter
-        is AndFilter -> AndFilter(filter.operands.map { resolve(it, parent) })
-        is OrFilter -> OrFilter(filter.operands.map { resolve(it, parent) })
-        is NorFilter -> NorFilter(filter.operands.map { resolve(it, parent) })
+        is AndFilter -> AndFilter(filter.operands.map { resolve(it, parent, aggregationFilter) })
+        is OrFilter -> OrFilter(filter.operands.map { resolve(it, parent, aggregationFilter) })
+        is NorFilter -> NorFilter(filter.operands.map { resolve(it, parent, aggregationFilter) })
         is EqualFilter -> filter.copy(
             field = filter.field.resolve(
                 parent,
                 if (filter.value.isNull) ElasticsearchFieldUsage.PRESENCE else ElasticsearchFieldUsage.EXACT,
+                aggregationFilter,
             ),
         )
         is NotEqualFilter -> filter.copy(
             field = filter.field.resolve(
                 parent,
                 if (filter.value.isNull) ElasticsearchFieldUsage.PRESENCE else ElasticsearchFieldUsage.EXACT,
+                aggregationFilter,
             ),
         )
-        is InFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.EXACT))
-        is NotInFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.EXACT))
-        is ContainsAllFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.EXACT))
-        is IsEmptyFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.PRESENCE))
-        is IsNullFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.PRESENCE))
-        is IsNotNullFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.PRESENCE))
-        is ExistsFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.PRESENCE))
-        is NotExistsFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.PRESENCE))
-        is ContainsFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.LITERAL))
-        is StartsWithFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.LITERAL))
-        is EndsWithFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.LITERAL))
-        is GreaterThanFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is GreaterThanOrEqualFilter -> filter.copy(
-            field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE)
+        is InFilter -> filter.copy(
+            field = filter.field.resolve(parent, ElasticsearchFieldUsage.EXACT, aggregationFilter)
         )
-        is LessThanFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is LessThanOrEqualFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is BetweenFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is TodayFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is BeforeTodayFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is TomorrowFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is ThisWeekFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is NextWeekFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is LastWeekFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is ThisMonthFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is LastMonthFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is RecentDaysFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is EarlierDaysFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is NotInFilter -> filter.copy(
+            field = filter.field.resolve(parent, ElasticsearchFieldUsage.EXACT, aggregationFilter)
+        )
+        is ContainsAllFilter -> filter.copy(
+            field = filter.field.resolve(parent, ElasticsearchFieldUsage.EXACT, aggregationFilter)
+        )
+        is IsEmptyFilter -> filter.copy(
+            field = filter.field.resolve(parent, ElasticsearchFieldUsage.PRESENCE, aggregationFilter)
+        )
+        is IsNullFilter -> filter.copy(
+            field = filter.field.resolve(parent, ElasticsearchFieldUsage.PRESENCE, aggregationFilter)
+        )
+        is IsNotNullFilter -> filter.copy(
+            field = filter.field.resolve(parent, ElasticsearchFieldUsage.PRESENCE, aggregationFilter)
+        )
+        is ExistsFilter -> filter.copy(
+            field = filter.field.resolve(parent, ElasticsearchFieldUsage.PRESENCE, aggregationFilter)
+        )
+        is NotExistsFilter -> filter.copy(
+            field = filter.field.resolve(parent, ElasticsearchFieldUsage.PRESENCE, aggregationFilter)
+        )
+        is ContainsFilter -> filter.copy(
+            field = filter.field.resolve(parent, ElasticsearchFieldUsage.LITERAL, aggregationFilter)
+        )
+        is StartsWithFilter -> filter.copy(
+            field = filter.field.resolve(parent, ElasticsearchFieldUsage.LITERAL, aggregationFilter)
+        )
+        is EndsWithFilter -> filter.copy(
+            field = filter.field.resolve(parent, ElasticsearchFieldUsage.LITERAL, aggregationFilter)
+        )
+        is GreaterThanFilter -> filter.copy(
+            field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE, aggregationFilter)
+        )
+        is GreaterThanOrEqualFilter -> filter.copy(
+            field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE, aggregationFilter)
+        )
+        is LessThanFilter -> filter.copy(
+            field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE, aggregationFilter)
+        )
+        is LessThanOrEqualFilter -> filter.copy(
+            field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE, aggregationFilter)
+        )
+        is BetweenFilter -> filter.copy(
+            field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE, aggregationFilter)
+        )
+        is TodayFilter -> filter.copy(
+            field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE, aggregationFilter)
+        )
+        is BeforeTodayFilter -> filter.copy(
+            field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE, aggregationFilter)
+        )
+        is TomorrowFilter -> filter.copy(
+            field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE, aggregationFilter)
+        )
+        is ThisWeekFilter -> filter.copy(
+            field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE, aggregationFilter)
+        )
+        is NextWeekFilter -> filter.copy(
+            field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE, aggregationFilter)
+        )
+        is LastWeekFilter -> filter.copy(
+            field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE, aggregationFilter)
+        )
+        is ThisMonthFilter -> filter.copy(
+            field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE, aggregationFilter)
+        )
+        is LastMonthFilter -> filter.copy(
+            field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE, aggregationFilter)
+        )
+        is RecentDaysFilter -> filter.copy(
+            field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE, aggregationFilter)
+        )
+        is EarlierDaysFilter -> filter.copy(
+            field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE, aggregationFilter)
+        )
         is SearchFilter -> filter.copy(
-            fields = filter.fields.mapTo(linkedSetOf()) { it.resolve(parent, ElasticsearchFieldUsage.SEARCH) },
+            fields = filter.fields.mapTo(linkedSetOf()) {
+                it.resolve(parent, ElasticsearchFieldUsage.SEARCH, aggregationFilter)
+            },
         )
         is ElementMatchFilter -> {
             val nestedPath = filter.field.path(parent)
-            ElementMatchFilter(LogicalField(requireNested(nestedPath)), resolve(filter.predicate, nestedPath))
+            ElementMatchFilter(
+                LogicalField(requireNested(nestedPath)),
+                resolve(filter.predicate, nestedPath, aggregationFilter),
+            )
         }
         else -> filter
     }
@@ -248,9 +319,20 @@ data class ElasticsearchIndexMapping private constructor(
     private fun LogicalField.path(parent: String?): String =
         if (parent == null || value == parent || value.startsWith("$parent.")) value else "$parent.$value"
 
-    private fun LogicalField.resolve(parent: String?, usage: ElasticsearchFieldUsage): LogicalField {
+    private fun LogicalField.resolve(
+        parent: String?,
+        usage: ElasticsearchFieldUsage,
+        aggregationFilter: Boolean = false,
+    ): LogicalField {
         if (parent == null && value == "_id" && usage == ElasticsearchFieldUsage.EXACT) return this
-        return LogicalField(this@ElasticsearchIndexMapping.resolve(path(parent), usage))
+        val resolved = this@ElasticsearchIndexMapping.resolve(path(parent), usage)
+        if (aggregationFilter && fields[resolved]?.kind == Property.Kind.DateNanos) {
+            resolutionFailure(
+                "Elasticsearch date_nanos field [$resolved] does not support portable aggregation filters " +
+                    "in index [$indexName].",
+            )
+        }
+        return LogicalField(resolved)
     }
 
     fun resolve(sort: List<Sort>): List<Sort> =
@@ -283,6 +365,7 @@ data class ElasticsearchIndexMapping private constructor(
                     kind = property._kind(),
                     indexed = property.isIndexed(),
                     sortable = property.isSortable(),
+                    portableAggregation = property.isPortableAggregation(),
                     multiFields = multiFields,
                 )
                 propertyBase?.fields().orEmpty().forEach { (name, field) -> visit("$path.$name", field) }
@@ -319,6 +402,7 @@ private data class ElasticsearchMappedField(
     val kind: Property.Kind,
     val indexed: Boolean,
     val sortable: Boolean,
+    val portableAggregation: Boolean,
     val multiFields: Set<String>,
 ) {
     fun supports(usage: ElasticsearchFieldUsage): Boolean =
@@ -341,12 +425,13 @@ private data class ElasticsearchMappedField(
         }
 
     private fun supportsAggregation(usage: ElasticsearchFieldUsage): Boolean =
-        when (usage) {
-            ElasticsearchFieldUsage.TERMS -> sortable && kind in TERMS_AGGREGATION_KINDS
-            ElasticsearchFieldUsage.NUMERIC -> sortable && kind in NUMERIC_KINDS
-            ElasticsearchFieldUsage.DATE -> sortable && kind in DATE_KINDS
-            else -> error("Unsupported aggregation field usage: $usage")
-        }
+        portableAggregation &&
+            when (usage) {
+                ElasticsearchFieldUsage.TERMS -> sortable && kind in TERMS_AGGREGATION_KINDS
+                ElasticsearchFieldUsage.NUMERIC -> sortable && kind in NUMERIC_KINDS
+                ElasticsearchFieldUsage.DATE -> sortable && kind in DATE_KINDS
+                else -> error("Unsupported aggregation field usage: $usage")
+            }
 
     private fun isQueryable(): Boolean = indexed || (sortable && kind in DOC_VALUE_QUERY_KINDS)
 
@@ -439,8 +524,15 @@ private fun RuntimeFieldType.toMappedField(): ElasticsearchMappedField? {
         kind = kind,
         indexed = true,
         sortable = true,
+        portableAggregation = true,
         multiFields = emptySet(),
     )
+}
+
+private fun Property.isPortableAggregation(): Boolean = when (_kind()) {
+    Property.Kind.ScaledFloat -> false
+    Property.Kind.Keyword -> keyword().normalizer() == null && keyword().ignoreAbove() == null
+    else -> true
 }
 
 private fun Property.isSortable(): Boolean =

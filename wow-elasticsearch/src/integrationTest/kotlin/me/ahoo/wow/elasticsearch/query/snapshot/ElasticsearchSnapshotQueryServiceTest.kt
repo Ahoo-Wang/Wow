@@ -76,13 +76,17 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                             state.`object` { objectField ->
                                 objectField.properties("orders") { orders ->
                                     orders.nested { nested ->
-                                        nested.properties("lines") { lines ->
-                                            lines.nested { line ->
-                                                line.properties("createdAt") { createdAt ->
-                                                    createdAt.date { date -> date }
+                                        nested
+                                            .properties("status") { status -> status.keyword { keyword -> keyword } }
+                                            .properties("lines") { lines ->
+                                                lines.nested { line ->
+                                                    line
+                                                        .properties("sku") { sku -> sku.keyword { keyword -> keyword } }
+                                                        .properties("createdAt") { createdAt ->
+                                                            createdAt.date { date -> date }
+                                                        }
                                                 }
                                             }
-                                        }
                                     }
                                 }
                             }

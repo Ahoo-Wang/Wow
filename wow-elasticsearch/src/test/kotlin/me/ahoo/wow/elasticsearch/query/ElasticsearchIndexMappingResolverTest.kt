@@ -373,10 +373,28 @@ class ElasticsearchIndexMappingResolverTest {
         listOf("keyword", "constantKeyword", "countedKeyword", "wildcard", "integer", "boolean").forEach { field ->
             mapping.resolve(field, ElasticsearchFieldUsage.TERMS).assert().isEqualTo(field)
         }
-        listOf("ip", "version", "icu").forEach { field ->
+        listOf("ip", "version", "icu", "normalizedKeyword", "ignoredKeyword").forEach { field ->
             runCatching { mapping.resolve(field, ElasticsearchFieldUsage.TERMS) }
                 .exceptionOrNull()!!.message.assert().contains("does not support")
         }
+    }
+
+    @Test
+    fun `aggregation should reject lossy numeric and date nanos mappings`() {
+        val mapping = ElasticsearchIndexMapping.from(INDEX, termOrderingFields())
+
+        runCatching { mapping.resolve("scaledFloat", ElasticsearchFieldUsage.NUMERIC) }
+            .exceptionOrNull()!!.message.assert().contains("does not support")
+        (
+            mapping.resolve(
+                GreaterThanFilter(LogicalField("dateNanos"), json("2024-01-01T00:00:00.000000050Z")),
+            ) is GreaterThanFilter
+            ).assert().isTrue()
+        runCatching {
+            mapping.resolveAggregationFilter(
+                GreaterThanFilter(LogicalField("dateNanos"), json("2024-01-01T00:00:00.000000050Z")),
+            )
+        }.exceptionOrNull()!!.message.assert().contains("date_nanos")
     }
 
     @Test
@@ -554,6 +572,10 @@ class ElasticsearchIndexMappingResolverTest {
                 .properties("ip") { it.ip { field -> field } }
                 .properties("version") { it.version { field -> field } }
                 .properties("icu") { it.icuCollationKeyword { field -> field } }
+                .properties("normalizedKeyword") { it.keyword { field -> field.normalizer("lowercase") } }
+                .properties("ignoredKeyword") { it.keyword { field -> field.ignoreAbove(16) } }
+                .properties("scaledFloat") { it.scaledFloat { field -> field.scalingFactor(100.0) } }
+                .properties("dateNanos") { it.dateNanos { field -> field } }
         }
 
     private fun stateMapping(

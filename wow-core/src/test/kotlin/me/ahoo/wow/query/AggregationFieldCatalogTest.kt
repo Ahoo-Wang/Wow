@@ -17,6 +17,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonUnwrapped
 import com.fasterxml.jackson.annotation.JsonValue
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.modeling.AggregateId
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import tools.jackson.core.JsonGenerator
@@ -69,6 +70,7 @@ class AggregationFieldCatalogTest {
             "state.unwrapped",
             "state.unwrapped.sku",
             "state.flat_sku",
+            "state.registeredValue",
         )
         catalog.paths.keys.assert().doesNotContain("state.attributes.value")
         catalog.paths["state.scalarItems"]!!.kind.assert().isEqualTo(AggregationFieldKind.SCALAR_COLLECTION)
@@ -146,6 +148,7 @@ class AggregationFieldCatalogTest {
 
         @get:JsonUnwrapped(prefix = "flat_")
         val unwrapped: Line = Line("")
+        val registeredValue: AggregateId? = null
         val attributes: Map<String, String> = emptyMap()
     }
 

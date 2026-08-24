@@ -20,6 +20,10 @@ import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toBeanDescription
 import tools.jackson.databind.JavaType
 import tools.jackson.databind.introspect.BeanPropertyDefinition
+import tools.jackson.databind.ser.bean.BeanSerializerBase
+import tools.jackson.databind.ser.impl.UnknownSerializer
+import tools.jackson.databind.ser.std.ReferenceTypeSerializer
+import tools.jackson.databind.ser.std.StdContainerSerializer
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -190,9 +194,18 @@ private val JavaType.hasCustomSerialization: Boolean
     get() {
         val config = JsonSerializer.serializationConfig()
         val classInfo = toBeanDescription().classInfo
-        return config.annotationIntrospector.run {
-            findSerializer(config, classInfo) != null || findSerializationConverter(config, classInfo) != null
+        if (config.annotationIntrospector.run {
+                findSerializer(config, classInfo) != null || findSerializationConverter(config, classInfo) != null
+            }
+        ) {
+            return true
         }
+        if (aggregationScalarType != null) return false
+        val serializer = runCatching {
+            JsonSerializer._serializationContext().findValueSerializer(rawClass)
+        }.getOrNull()
+        return serializer != null && serializer !is BeanSerializerBase && serializer !is UnknownSerializer &&
+            serializer !is StdContainerSerializer<*> && serializer !is ReferenceTypeSerializer<*>
     }
 
 private val JavaType.aggregationScalarType: JavaType?

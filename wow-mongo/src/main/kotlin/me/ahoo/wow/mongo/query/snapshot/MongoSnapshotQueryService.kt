@@ -70,6 +70,7 @@ class MongoSnapshotQueryService<S : Any>(
         AggregationQueryValidator.validate(query, namedAggregate)
         collection.aggregate(MongoAggregationCompiler.compile(query, converter, temporalAggregationFields))
             .collation(SIMPLE_COLLATION)
+            .allowDiskUse(true)
             .toFlux()
             .map<DynamicDocument> { document -> document.normalizeAggregationResult(query).toDynamicDocument() }
             .let { result ->
