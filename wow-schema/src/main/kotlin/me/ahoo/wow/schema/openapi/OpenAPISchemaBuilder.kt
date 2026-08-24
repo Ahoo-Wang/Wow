@@ -21,8 +21,6 @@ import me.ahoo.wow.schema.SchemaGeneratorBuilder
 import me.ahoo.wow.schema.naming.DefaultSchemaNamePrefixCapable
 import me.ahoo.wow.schema.naming.SchemaNamingModule
 import tools.jackson.databind.JsonNode
-import tools.jackson.databind.node.ArrayNode
-import tools.jackson.databind.node.ObjectNode
 import java.lang.reflect.Type
 
 class OpenAPISchemaBuilder(
@@ -66,36 +64,8 @@ class OpenAPISchemaBuilder(
         val collectedDefs = schemaBuilder.collectDefinitions(definitionPath)
         schemaReferences.mergeAll()
         return collectedDefs.properties().associate { (name, node) ->
-            node.rebaseStandaloneSchemaForEmbedding(name)
+            StandaloneSchemaEmbeddingRebaser.rebase(node, name, definitionPath)
             name to schemaConverter.toSchema(node)
-        }
-    }
-
-    private fun JsonNode.rebaseStandaloneSchemaForEmbedding(schemaName: String) {
-        if (this !is ObjectNode || !has("\$id")) return
-        val references = findValuesAsString("\$ref")
-        val canRebase = findValues("\$id").size == 1 && references.isNotEmpty() &&
-            references.all {
-                it == "#" || it.startsWith("#/definitions/") || it.startsWith("#/$definitionPath/")
-            }
-        if (!canRebase) return
-        remove("\$id")
-        val componentPath = "#/$definitionPath/${schemaName.replace("~", "~0").replace("/", "~1")}"
-        rebaseLocalReferences(componentPath)
-    }
-
-    private fun JsonNode.rebaseLocalReferences(componentPath: String) {
-        when (this) {
-            is ObjectNode -> {
-                get("\$ref")?.stringValue()?.let {
-                    when {
-                        it == "#" -> put("\$ref", componentPath)
-                        it.startsWith("#/definitions/") -> put("\$ref", componentPath + it.removePrefix("#"))
-                    }
-                }
-                properties().forEach { (_, child) -> child.rebaseLocalReferences(componentPath) }
-            }
-            is ArrayNode -> forEach { it.rebaseLocalReferences(componentPath) }
         }
     }
 }

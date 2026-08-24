@@ -1,10 +1,8 @@
 package me.ahoo.wow.schema.openapi
 
 import com.fasterxml.classmate.TypeResolver
-import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.Option
 import io.swagger.v3.core.util.ObjectMapperFactory
-import io.swagger.v3.oas.models.media.Schema
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.MaterializedSnapshot
@@ -19,8 +17,6 @@ import me.ahoo.wow.schema.TestState
 import me.ahoo.wow.schema.TreeNodeFixture
 import org.junit.jupiter.api.Test
 import org.springframework.http.codec.ServerSentEvent
-import tools.jackson.databind.json.JsonMapper
-import tools.jackson.databind.node.ObjectNode
 
 class OpenAPISchemaBuilderTest {
 
@@ -51,33 +47,6 @@ class OpenAPISchemaBuilderTest {
         reference.`$ref`.assert().isEqualTo("#/components/schemas/wow.api.query.PagedQuery")
         schemas["wow.api.query.PagedQuery"]?.properties?.get("filter")?.`$ref`
             .assert().isEqualTo("#/components/schemas/wow.api.query.FilterExpression")
-    }
-
-    @Test
-    fun `should rebase root self reference to its component`() {
-        val schemaNode = JsonMapper.builder().build().createObjectNode()
-            .put("\$id", "urn:self-reference")
-            .put("\$ref", "#")
-
-        val (componentPath, schema) = buildCustomSchema(schemaNode)
-
-        schema.`$id`.assert().isNull()
-        schema.`$ref`.assert().isEqualTo(componentPath)
-    }
-
-    @Test
-    fun `should preserve schema with nested resource`() {
-        val schemaNode = JsonMapper.builder().build().createObjectNode()
-            .put("\$id", "urn:root")
-            .put("\$ref", "#/definitions/node")
-        schemaNode.putObject("definitions").putObject("node")
-            .put("\$id", "urn:nested")
-            .put("\$ref", "#")
-
-        val (_, schema) = buildCustomSchema(schemaNode)
-
-        schema.`$id`.assert().isEqualTo("urn:root")
-        schema.`$ref`.assert().isEqualTo("#/definitions/node")
     }
 
     @Test
@@ -182,20 +151,4 @@ class OpenAPISchemaBuilderTest {
         val schema = componentsSchemas["wow.schema.AnnotationFixture"]
         arrayTypeSchema.types.assert().contains("array")
     }
-
-    private fun buildCustomSchema(schemaNode: ObjectNode): Pair<String, Schema<*>> {
-        val schemaGeneratorBuilder = SchemaGeneratorBuilder().customizer { config ->
-            config.with(Option.DEFINITIONS_FOR_ALL_OBJECTS)
-            config.forTypesInGeneral().withCustomDefinitionProvider { javaType, _ ->
-                if (javaType.erasedType == SelfReferentialSchema::class.java) CustomDefinition(schemaNode) else null
-            }
-        }
-        val openAPISchemaBuilder = OpenAPISchemaBuilder(schemaGeneratorBuilder = schemaGeneratorBuilder)
-        val reference = openAPISchemaBuilder.generateSchema(SelfReferentialSchema::class.java)
-        val schemas = openAPISchemaBuilder.build()
-        val componentPath = requireNotNull(reference.`$ref`)
-        return componentPath to requireNotNull(schemas[componentPath.substringAfterLast('/')])
-    }
-
-    private class SelfReferentialSchema
 }
