@@ -9,6 +9,7 @@ Use this reference for `CommandGateway`, command buses, waiting, idempotency, HT
 - Acceptance, execution, event persistence, projection completion, and client observation are different stages.
 - A timeout can mean an unknown outcome. Do not automatically retry a non-idempotent command after an ambiguous result.
 - Treat command IDs, wait plans, propagated headers, and idempotency keys as one end-to-end contract.
+- Fire-and-forget wait notification failures are logged and do not fail the notifying pipeline. The default implementation logs endpoint, wait/command identity, and stage; the local implementation logs the `waitSignal`. A completed processor is therefore not proof that a remote waiter observed its signal.
 
 ## Discover the target version
 

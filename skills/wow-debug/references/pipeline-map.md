@@ -23,8 +23,9 @@ request / command
 | Saga/processor not invoked | event type/scope, bounded-context resolution, Spring annotated-bean discovery or explicit registration, runtime parser, subscription, function selection |
 | Handler invoked but retries incorrectly | original exception, retry filter, idempotency, compensation state |
 | Projection is stale | event publication, processor invocation, repository result, duplicate/retry behavior |
-| Wait hangs or times out | command identity, wait plan, propagation, stage completion, resource cleanup |
-| Query is wrong | enforced filters, condition conversion, pagination/sort, backend semantics |
+| Wait hangs or times out | command identity, wait plan, propagation, stage completion, `notifyAndForget` failure logs, resource cleanup |
+| Query is wrong | enforced filters, filter normalization/conversion and scoped paths, pagination/sort, backend semantics |
+| Aggregation route exists but fails | generated path/body, `QueryType.AGGREGATION` handler/filter chain, selected `SnapshotQueryService.aggregate`, backend compiler/mapping |
 | Configuration is ignored | property prefix/binding, capability/variant, condition, active profile, bean selection |
 | Runtime startup/shutdown fails | lifecycle owner, state transition, component slot, fatal cause, deadline |
 | Test fails unexpectedly | fixture, owner/tenant, event order, fork/ref checkpoint, assertion boundary |

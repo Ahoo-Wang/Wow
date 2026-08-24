@@ -1,29 +1,35 @@
 # Query and Read-Model Decisions
 
-Use this reference for Query DSL, filtering, projection, pagination, sorting, query rewriting, and read-model access.
+Use this reference for `FilterExpression`, Query DSL, snapshot aggregation, projection, pagination, sorting, query rewriting, and read-model access.
 
 ## Stable decisions
 
 - Keep query construction separate from backend conversion and execution.
+- Use `FilterExpression` and `FilterDsl` as the primary contract. Treat legacy `Condition` APIs only as target-version compatibility adapters; do not introduce new condition rewrite paths.
 - Apply tenant, owner, deletion, and authorization filters at the boundary that cannot be bypassed by callers.
 - Treat pagination ordering as a correctness contract; define a deterministic tie-breaker when records can share the primary sort value.
 - Project only fields supported by downstream mapping and serialization.
 - Verify count and page semantics together when presenting totals.
 - Preserve backend-specific null, collection, date/time, and nested-field semantics through focused converter tests.
+- For snapshot aggregation, the first Element path is absolute and later Element paths are relative to the current element. Group and metric fields are relative to the innermost element. Keep aliases unique and use the query's effective sort rather than inventing backend-specific ordering.
+- Wow validates aggregation structure, not field existence, collection shape, or physical type. MongoDB compiles field paths directly; Elasticsearch resolves executable mappings. Do not add a field catalog or duplicate backend compilers in downstream code.
+- A generated `snapshot/aggregation` OpenAPI route does not prove the selected `SnapshotQueryService` supports aggregation. Custom implementations inherit a default unsupported `aggregate` method until they override or delegate it.
+- Aggregation reuses root route and ABAC filtering, while masking intentionally ignores aggregation results. HTTP cost guards apply only when the query carries a WebFlux `ServerRequest`; read exact defaults from the target version.
 
 ## Discover the actual DSL
 
 ```bash
-rg -n "singleQuery|listQuery|pagedQuery|condition|pagination|projection|sort" . -g '*.kt' -g '*.java'
+rg -n "FilterExpression|filterExpression|singleQuery|listQuery|pagedQuery|aggregation|pagination|projection|sort" . -g '*.kt' -g '*.java'
 # Run this from a separate checkout of the pinned Wow source:
-rg -n "QueryDsl|QueryService|QueryRewriter|Condition" wow-query -g '*.kt'
+rg -n "FilterDsl|AggregationQuery|SnapshotQueryService|QueryFilter|HttpQueryGuardFilter|QueryComponent" wow-api wow-query wow-webflux wow-openapi -g '*.kt'
 ```
 
-Inspect the downstream usage plus DSL builders, condition types, snapshot/event query extensions, backend converters, service interfaces, and tests from a separate pinned Wow source checkout or resolved dependency sources. Never invent an operator or copy a complete method list into a Skill.
+Inspect the downstream usage plus DSL builders, filter types, snapshot/event query extensions, backend converters, service interfaces, generated OpenAPI, and tests from a separate pinned Wow source checkout or resolved dependency sources. Use the generated OpenAPI path as HTTP source of truth; default local aggregate routes do not prepend the context alias. Never invent an operator or copy a complete method list into a Skill.
 
 ## Verification boundary
 
-- Unit-test condition composition, enforced filters, projection, pagination, and sort construction.
+- Unit-test filter composition and scopes, enforced filters, projection, pagination, aggregation effective sort, and Element path construction.
 - Test backend conversion when semantics differ by MongoDB, Elasticsearch, or another store.
+- For a custom `SnapshotQueryService`, prove the selected factory/service path and run the target aggregation contract or equivalent integration coverage; compilation and route publication are insufficient.
 - Use integration data for index usage, performance claims, collation, null handling, or backend-specific consistency.
 - For production-performance conclusions, require reproducible queries and execution/profile evidence; green unit tests are insufficient.

@@ -44,7 +44,7 @@
 
 ```bash
 python3 -S scripts/validate_wow_skills.py
-python3 -S -m unittest scripts/test_validate_wow_skills.py
+python3 -S -m unittest scripts.test_validate_wow_skills
 ```
 
 validator 只使用 Python 标准库，检查：
