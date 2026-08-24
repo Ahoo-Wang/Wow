@@ -27,7 +27,7 @@ interface IListQuery : Queryable<IListQuery> {
      * The maximum number of items to return in the query result.
      * Must be >= 0. If set to 0, the query will return unlimited results.
      */
-    @get:Schema(defaultValue = "0")
+    @get:Schema(defaultValue = "0", minimum = "0")
     val limit: Int
 }
 

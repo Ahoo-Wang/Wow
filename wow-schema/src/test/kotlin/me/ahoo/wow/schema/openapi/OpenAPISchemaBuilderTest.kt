@@ -9,6 +9,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.command.wait.SimpleWaitSignal
 import me.ahoo.wow.schema.AnnotationFixture
 import me.ahoo.wow.schema.ChangeTestName
@@ -37,8 +38,19 @@ class OpenAPISchemaBuilderTest {
         schemaNode["\$id"].assert().isNull()
         schemaNode["\$ref"].asText().assert().isEqualTo("$componentPath/definitions/filterExpression")
         references.assert().contains("$componentPath/definitions/matchAll")
-        references.assert().contains("#/components/schemas/wow.api.query.FilterOperator")
         references.filter { it.startsWith("#/definitions/") }.assert().isEmpty()
+    }
+
+    @Test
+    fun `should build query schema with recursive filter reference`() {
+        val openAPISchemaBuilder = OpenAPISchemaBuilder()
+        val reference = openAPISchemaBuilder.generateSchema(PagedQuery::class.java)
+
+        val schemas = openAPISchemaBuilder.build()
+
+        reference.`$ref`.assert().isEqualTo("#/components/schemas/wow.api.query.PagedQuery")
+        schemas["wow.api.query.PagedQuery"]?.properties?.get("filter")?.`$ref`
+            .assert().isEqualTo("#/components/schemas/wow.api.query.FilterExpression")
     }
 
     @Test

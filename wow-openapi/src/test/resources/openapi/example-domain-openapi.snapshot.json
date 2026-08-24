@@ -283,29 +283,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "filter" : {
-                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
-                },
-                "limit" : {
-                  "default" : 0,
-                  "format" : "int32",
-                  "minimum" : 0,
-                  "type" : "integer"
-                },
-                "projection" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Projection"
-                },
-                "sort" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/wow.api.query.Sort"
-                  },
-                  "type" : "array"
-                }
-              },
-              "required" : [ "filter" ],
-              "type" : "object"
+              "$ref" : "#/components/schemas/wow.api.query.ListQuery"
             }
           }
         },
@@ -317,26 +295,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "filter" : {
-                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
-                },
-                "pagination" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Pagination"
-                },
-                "projection" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Projection"
-                },
-                "sort" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/wow.api.query.Sort"
-                  },
-                  "type" : "array"
-                }
-              },
-              "required" : [ "filter" ],
-              "type" : "object"
+              "$ref" : "#/components/schemas/wow.api.query.PagedQuery"
             }
           }
         },
@@ -348,23 +307,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "filter" : {
-                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
-                },
-                "projection" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Projection"
-                },
-                "sort" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/wow.api.query.Sort"
-                  },
-                  "type" : "array"
-                }
-              },
-              "required" : [ "filter" ],
-              "type" : "object"
+              "$ref" : "#/components/schemas/wow.api.query.SingleQuery"
             }
           }
         },
@@ -388,29 +331,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "filter" : {
-                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
-                },
-                "limit" : {
-                  "default" : 0,
-                  "format" : "int32",
-                  "minimum" : 0,
-                  "type" : "integer"
-                },
-                "projection" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Projection"
-                },
-                "sort" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/wow.api.query.Sort"
-                  },
-                  "type" : "array"
-                }
-              },
-              "required" : [ "filter" ],
-              "type" : "object"
+              "$ref" : "#/components/schemas/wow.api.query.ListQuery"
             }
           }
         },
@@ -422,26 +343,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "filter" : {
-                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
-                },
-                "pagination" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Pagination"
-                },
-                "projection" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Projection"
-                },
-                "sort" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/wow.api.query.Sort"
-                  },
-                  "type" : "array"
-                }
-              },
-              "required" : [ "filter" ],
-              "type" : "object"
+              "$ref" : "#/components/schemas/wow.api.query.PagedQuery"
             }
           }
         },
@@ -453,23 +355,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "filter" : {
-                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
-                },
-                "projection" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Projection"
-                },
-                "sort" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/wow.api.query.Sort"
-                  },
-                  "type" : "array"
-                }
-              },
-              "required" : [ "filter" ],
-              "type" : "object"
+              "$ref" : "#/components/schemas/wow.api.query.SingleQuery"
             }
           }
         },
@@ -493,29 +379,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "filter" : {
-                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
-                },
-                "limit" : {
-                  "default" : 0,
-                  "format" : "int32",
-                  "minimum" : 0,
-                  "type" : "integer"
-                },
-                "projection" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Projection"
-                },
-                "sort" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/wow.api.query.Sort"
-                  },
-                  "type" : "array"
-                }
-              },
-              "required" : [ "filter" ],
-              "type" : "object"
+              "$ref" : "#/components/schemas/wow.api.query.ListQuery"
             }
           }
         },
@@ -527,26 +391,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "filter" : {
-                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
-                },
-                "pagination" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Pagination"
-                },
-                "projection" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Projection"
-                },
-                "sort" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/wow.api.query.Sort"
-                  },
-                  "type" : "array"
-                }
-              },
-              "required" : [ "filter" ],
-              "type" : "object"
+              "$ref" : "#/components/schemas/wow.api.query.PagedQuery"
             }
           }
         },
@@ -558,23 +403,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "filter" : {
-                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
-                },
-                "projection" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Projection"
-                },
-                "sort" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/wow.api.query.Sort"
-                  },
-                  "type" : "array"
-                }
-              },
-              "required" : [ "filter" ],
-              "type" : "object"
+              "$ref" : "#/components/schemas/wow.api.query.SingleQuery"
             }
           }
         },
@@ -598,29 +427,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "filter" : {
-                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
-                },
-                "limit" : {
-                  "default" : 0,
-                  "format" : "int32",
-                  "minimum" : 0,
-                  "type" : "integer"
-                },
-                "projection" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Projection"
-                },
-                "sort" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/wow.api.query.Sort"
-                  },
-                  "type" : "array"
-                }
-              },
-              "required" : [ "filter" ],
-              "type" : "object"
+              "$ref" : "#/components/schemas/wow.api.query.ListQuery"
             }
           }
         },
@@ -632,26 +439,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "filter" : {
-                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
-                },
-                "pagination" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Pagination"
-                },
-                "projection" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Projection"
-                },
-                "sort" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/wow.api.query.Sort"
-                  },
-                  "type" : "array"
-                }
-              },
-              "required" : [ "filter" ],
-              "type" : "object"
+              "$ref" : "#/components/schemas/wow.api.query.PagedQuery"
             }
           }
         },
@@ -663,23 +451,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "filter" : {
-                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
-                },
-                "projection" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Projection"
-                },
-                "sort" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/wow.api.query.Sort"
-                  },
-                  "type" : "array"
-                }
-              },
-              "required" : [ "filter" ],
-              "type" : "object"
+              "$ref" : "#/components/schemas/wow.api.query.SingleQuery"
             }
           }
         },
@@ -703,29 +475,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "filter" : {
-                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
-                },
-                "limit" : {
-                  "default" : 0,
-                  "format" : "int32",
-                  "minimum" : 0,
-                  "type" : "integer"
-                },
-                "projection" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Projection"
-                },
-                "sort" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/wow.api.query.Sort"
-                  },
-                  "type" : "array"
-                }
-              },
-              "required" : [ "filter" ],
-              "type" : "object"
+              "$ref" : "#/components/schemas/wow.api.query.ListQuery"
             }
           }
         },
@@ -737,26 +487,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "filter" : {
-                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
-                },
-                "pagination" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Pagination"
-                },
-                "projection" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Projection"
-                },
-                "sort" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/wow.api.query.Sort"
-                  },
-                  "type" : "array"
-                }
-              },
-              "required" : [ "filter" ],
-              "type" : "object"
+              "$ref" : "#/components/schemas/wow.api.query.PagedQuery"
             }
           }
         },
@@ -768,23 +499,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "filter" : {
-                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
-                },
-                "projection" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Projection"
-                },
-                "sort" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/wow.api.query.Sort"
-                  },
-                  "type" : "array"
-                }
-              },
-              "required" : [ "filter" ],
-              "type" : "object"
+              "$ref" : "#/components/schemas/wow.api.query.SingleQuery"
             }
           }
         },
@@ -814,29 +529,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "filter" : {
-                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
-                },
-                "limit" : {
-                  "default" : 0,
-                  "format" : "int32",
-                  "minimum" : 0,
-                  "type" : "integer"
-                },
-                "projection" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Projection"
-                },
-                "sort" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/wow.api.query.Sort"
-                  },
-                  "type" : "array"
-                }
-              },
-              "required" : [ "filter" ],
-              "type" : "object"
+              "$ref" : "#/components/schemas/wow.api.query.ListQuery"
             }
           }
         }
@@ -845,26 +538,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "filter" : {
-                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
-                },
-                "pagination" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Pagination"
-                },
-                "projection" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Projection"
-                },
-                "sort" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/wow.api.query.Sort"
-                  },
-                  "type" : "array"
-                }
-              },
-              "required" : [ "filter" ],
-              "type" : "object"
+              "$ref" : "#/components/schemas/wow.api.query.PagedQuery"
             }
           }
         }
@@ -5488,17 +5162,54 @@
             "type" : "object"
           }
         },
-        "properties" : {
-          "operator" : {
-            "$ref" : "#/components/schemas/wow.api.query.FilterOperator",
-            "readOnly" : true
-          }
-        },
         "title" : "Filter Expression"
       },
-      "wow.api.query.FilterOperator" : {
-        "enum" : [ "MATCH_ALL", "MATCH_NONE", "ID", "IDS", "AGGREGATE_ID", "AGGREGATE_IDS", "TENANT_ID", "OWNER_ID", "SPACE_ID", "AND", "OR", "NOR", "EQ", "NE", "GT", "GTE", "LT", "LTE", "CONTAINS", "STARTS_WITH", "ENDS_WITH", "IN", "NOT_IN", "BETWEEN", "CONTAINS_ALL", "IS_EMPTY", "IS_NULL", "IS_NOT_NULL", "EXISTS", "NOT_EXISTS", "DELETION", "ELEMENT_MATCH", "SEARCH", "TODAY", "BEFORE_TODAY", "TOMORROW", "THIS_WEEK", "NEXT_WEEK", "LAST_WEEK", "THIS_MONTH", "LAST_MONTH", "RECENT_DAYS", "EARLIER_DAYS" ],
-        "type" : "string"
+      "wow.api.query.ListQuery" : {
+        "properties" : {
+          "filter" : {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+          },
+          "limit" : {
+            "default" : "0",
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          },
+          "projection" : {
+            "$ref" : "#/components/schemas/wow.api.query.Projection"
+          },
+          "sort" : {
+            "default" : "[]",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.api.query.Sort"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "filter" ],
+        "type" : "object"
+      },
+      "wow.api.query.PagedQuery" : {
+        "properties" : {
+          "filter" : {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+          },
+          "pagination" : {
+            "$ref" : "#/components/schemas/wow.api.query.Pagination"
+          },
+          "projection" : {
+            "$ref" : "#/components/schemas/wow.api.query.Projection"
+          },
+          "sort" : {
+            "default" : "[]",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.api.query.Sort"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "filter" ],
+        "type" : "object"
       },
       "wow.api.query.Pagination" : {
         "properties" : {
@@ -5532,6 +5243,25 @@
             "type" : "array"
           }
         },
+        "type" : "object"
+      },
+      "wow.api.query.SingleQuery" : {
+        "properties" : {
+          "filter" : {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+          },
+          "projection" : {
+            "$ref" : "#/components/schemas/wow.api.query.Projection"
+          },
+          "sort" : {
+            "default" : "[]",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.api.query.Sort"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "filter" ],
         "type" : "object"
       },
       "wow.api.query.Sort" : {

@@ -16,6 +16,7 @@ package me.ahoo.wow.schema
 import com.github.victools.jsonschema.generator.Module
 import com.github.victools.jsonschema.generator.Option
 import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder
+import me.ahoo.wow.schema.typed.query.FilterExpressionDefinitionProvider
 
 internal object SchemaGeneratorConfigFactory {
 
@@ -23,6 +24,9 @@ internal object SchemaGeneratorConfigFactory {
         val configBuilder = builder.objectMapper?.let {
             SchemaGeneratorConfigBuilder(it, builder.schemaVersion, builder.optionPreset)
         } ?: SchemaGeneratorConfigBuilder(builder.schemaVersion, builder.optionPreset)
+        if (builder.wowModule != null) {
+            configBuilder.withModuleIfPresent(FilterExpressionDefinitionProvider)
+        }
         return configBuilder
             .withModuleIfPresent(builder.jacksonModule)
             .withModuleIfPresent(builder.jakartaValidationModule)
