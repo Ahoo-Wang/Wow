@@ -119,7 +119,7 @@ The guard applies whenever the Reactor context contains a WebFlux `ServerRequest
 
 ## Snapshot Aggregation Route
 
-WebFlux registers `POST /{context}/{aggregate}/snapshot/aggregation`, with the tenant/owner/space prefixes applicable to the aggregate. The body is an `AggregationQuery`. A normal JSON response is an array of dynamic row objects; `Accept: text/event-stream` streams one row at a time. Strict request decoding rejects unknown properties and invalid scalar equality values in both the root filter and Element filters.
+WebFlux registers `POST /{aggregate}/snapshot/aggregation`; tenant-, owner-, or space-scoped aggregates prepend their applicable route prefix. The body is an `AggregationQuery`. A normal JSON response is an array of dynamic row objects; `Accept: text/event-stream` streams one row at a time. Strict request decoding rejects unknown properties and invalid scalar equality values in both the root filter and Element filters.
 
 The existing query guard applies `query.max-list-size` to the aggregation `limit`. `query.allow-expensive-operators=false` rejects expensive operators in the root and Element filters, any Elements expansion, and sorting by a metric alias. No aggregation-specific WebFlux properties are added.
 

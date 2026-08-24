@@ -202,7 +202,37 @@ Aggregation uses the existing snapshot filter chain: ABAC and route filters stil
 
 Wow validates the request structure, not field existence, collection shape, or physical field type. It does not maintain an aggregation field catalog or use `TypeFieldPaths` for validation. Equivalent behavior is not guaranteed for custom Jackson serializers, backend filter converters, or custom Elasticsearch mappings. Batch aggregation and arithmetic expressions are not included.
 
-The HTTP endpoint is `POST /{context}/{aggregate}/snapshot/aggregation` (with the route prefixes applicable to the aggregate). JSON responses are arrays of dynamic objects; SSE streams one object at a time. OpenAPI publishes an aggregate-specific `AggregationQuery` request body whose `x-wow-query-fields` references that aggregate's `*AggregatedFields` component, while the JSON schema remains the generic `AggregationQuery` contract.
+The HTTP endpoint is `POST /{aggregate}/snapshot/aggregation`. Tenant-, owner-, or space-scoped aggregates prepend their applicable route prefix; use the running instance's OpenAPI paths as the source of truth. JSON responses are arrays of dynamic objects; SSE streams one object at a time. OpenAPI publishes an aggregate-specific `AggregationQuery` request body whose `x-wow-query-fields` references that aggregate's `*AggregatedFields` component, while the JSON schema remains the generic `AggregationQuery` contract.
+
+For example, the compensation control plane can count failed executions by status:
+
+```bash
+curl --request POST 'http://localhost:8080/execution_failed/snapshot/aggregation' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "groupBy": [
+      {"type": "TERMS", "field": "state.status", "alias": "status"}
+    ],
+    "metrics": [
+      {"type": "COUNT", "alias": "count"}
+    ],
+    "sort": [
+      {"field": "status", "direction": "ASC"}
+    ],
+    "limit": 10
+  }'
+```
+
+The response has the following shape; counts depend on the current data:
+
+```json
+[
+  {"status": "FAILED", "count": 12},
+  {"status": "SUCCEEDED", "count": 3}
+]
+```
+
+The same `AggregationQuery` contract can run through MongoDB and Elasticsearch snapshot query services and return the same row shape. Backend-specific field mappings, nested models, and custom serialization remain subject to the constraints documented by each extension.
 
 ### Rewriting queries
 
