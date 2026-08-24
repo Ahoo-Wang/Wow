@@ -220,7 +220,7 @@ data class SearchFilter(
     }
 }
 
-private fun FilterExpression.containsElementUnsupportedFilter(): Boolean = when (this) {
+internal fun FilterExpression.containsElementUnsupportedFilter(): Boolean = when (this) {
     is DeletionFilter,
     is SearchFilter,
     is IdFilter,
