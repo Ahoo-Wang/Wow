@@ -1,3 +1,3 @@
 dependencies {
-    implementation("me.ahoo.wow:wow-spring-boot-starter:8.11.7")
+    implementation("me.ahoo.wow:wow-spring-boot-starter:8.12.0")
 }
