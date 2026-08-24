@@ -27,6 +27,7 @@ import me.ahoo.wow.openapi.context.OpenAPIComponentContext.Companion.COMPONENTS_
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext.Companion.COMPONENTS_PARAMETERS_REF
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext.Companion.COMPONENTS_REQUEST_BODIES_REF
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext.Companion.COMPONENTS_RESPONSES_REF
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext.Companion.COMPONENTS_SCHEMAS_REF
 import me.ahoo.wow.schema.openapi.InlineSchemaCapable
 import me.ahoo.wow.schema.openapi.OpenAPISchemaBuilder
 import java.lang.reflect.Type
@@ -39,6 +40,7 @@ class DefaultOpenAPIComponentContext(private val schemaBuilder: OpenAPISchemaBui
     override val headers: MutableMap<String, Header> = mutableMapOf()
     override val requestBodies: MutableMap<String, RequestBody> = mutableMapOf()
     override val responses: MutableMap<String, ApiResponse> = mutableMapOf()
+    private val explicitSchemas: MutableMap<String, Schema<*>> = mutableMapOf()
     override fun resolveType(mainTargetType: Type, vararg typeParameters: Type): ResolvedType {
         return schemaBuilder.resolveType(mainTargetType, *typeParameters)
     }
@@ -51,6 +53,14 @@ class DefaultOpenAPIComponentContext(private val schemaBuilder: OpenAPISchemaBui
 
     override fun schema(mainTargetType: Type, vararg typeParameters: Type): Schema<*> {
         return schemaBuilder.generateSchema(mainTargetType, *typeParameters)
+    }
+
+    override fun componentSchema(key: String, schema: Schema<*>): Schema<*> {
+        key.requiredKeyNotBlank()
+        explicitSchemas[key] = schema
+        return Schema<Any>().also {
+            it.`$ref` = "$COMPONENTS_SCHEMAS_REF$key"
+        }
     }
 
     private fun String.requiredKeyNotBlank() {
@@ -118,6 +128,11 @@ class DefaultOpenAPIComponentContext(private val schemaBuilder: OpenAPISchemaBui
     }
 
     override fun finish() {
-        schemas = schemaBuilder.build()
+        val generatedSchemas = schemaBuilder.build()
+        val collisions = generatedSchemas.keys.intersect(explicitSchemas.keys)
+        require(collisions.isEmpty()) {
+            "Schema component key collision: ${collisions.sorted().joinToString()}"
+        }
+        schemas = generatedSchemas + explicitSchemas
     }
 }

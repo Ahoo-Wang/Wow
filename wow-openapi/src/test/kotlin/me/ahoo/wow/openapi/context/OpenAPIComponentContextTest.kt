@@ -36,6 +36,7 @@ internal class OpenAPIComponentContextTest {
     fun `should have correct component reference constants`() {
         OpenAPIComponentContext.COMPONENTS_PREFIX.assert().isEqualTo("#/components/")
         OpenAPIComponentContext.COMPONENTS_HEADERS_REF.assert().isEqualTo("#/components/headers/")
+        OpenAPIComponentContext.COMPONENTS_SCHEMAS_REF.assert().isEqualTo("#/components/schemas/")
         OpenAPIComponentContext.COMPONENTS_PARAMETERS_REF.assert().isEqualTo("#/components/parameters/")
         OpenAPIComponentContext.COMPONENTS_REQUEST_BODIES_REF.assert().isEqualTo("#/components/requestBodies/")
         OpenAPIComponentContext.COMPONENTS_RESPONSES_REF.assert().isEqualTo("#/components/responses/")

@@ -13,8 +13,12 @@
 
 package me.ahoo.wow.openapi.context
 
+import io.swagger.v3.oas.models.media.StringSchema
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+
+private data class GeneratedSchema(val value: String)
 
 internal class DefaultOpenAPIComponentContextTest {
 
@@ -61,5 +65,40 @@ internal class DefaultOpenAPIComponentContextTest {
             description("OK")
         }
         context.responses.assert().containsKey("test-response")
+    }
+
+    @Test
+    fun `should register explicit component schema`() {
+        val schema = StringSchema()._enum(listOf("state.id"))
+
+        val reference = context.componentSchema("example.TestFields", schema)
+        context.finish()
+
+        reference.`$ref`.assert()
+            .isEqualTo("#/components/schemas/example.TestFields")
+        context.schemas["example.TestFields"].assert().isEqualTo(schema)
+    }
+
+    @Test
+    fun `should reject blank explicit schema key`() {
+        val error = assertThrows<IllegalArgumentException> {
+            context.componentSchema("", StringSchema())
+        }
+
+        error.message.assert().contains("key must not be blank")
+    }
+
+    @Test
+    fun `should reject collision with generated schema`() {
+        val generatedReference = context.schema(GeneratedSchema::class.java)
+        context.finish()
+        val generatedKey = requireNotNull(generatedReference.`$ref`).substringAfterLast('/')
+        context.componentSchema(generatedKey, StringSchema())
+
+        val error = assertThrows<IllegalArgumentException> {
+            context.finish()
+        }
+
+        error.message.assert().contains(generatedKey)
     }
 }

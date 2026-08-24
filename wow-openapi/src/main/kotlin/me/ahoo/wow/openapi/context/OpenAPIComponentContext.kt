@@ -32,6 +32,7 @@ interface OpenAPIComponentContext : InlineSchemaCapable {
     companion object {
         const val COMPONENTS_PREFIX = "#/components/"
         const val COMPONENTS_HEADERS_REF = "${COMPONENTS_PREFIX}headers/"
+        const val COMPONENTS_SCHEMAS_REF = "${COMPONENTS_PREFIX}schemas/"
         const val COMPONENTS_PARAMETERS_REF = "${COMPONENTS_PREFIX}parameters/"
         const val COMPONENTS_REQUEST_BODIES_REF = "${COMPONENTS_PREFIX}requestBodies/"
         const val COMPONENTS_RESPONSES_REF = "${COMPONENTS_PREFIX}responses/"
@@ -64,6 +65,7 @@ interface OpenAPIComponentContext : InlineSchemaCapable {
 
     fun resolveType(mainTargetType: Type, vararg typeParameters: Type): ResolvedType
     fun schema(mainTargetType: Type, vararg typeParameters: Type): Schema<*>
+    fun componentSchema(key: String, schema: Schema<*>): Schema<*>
     fun arraySchema(mainTargetType: Type, vararg typeParameters: Type): Schema<*>
     fun parameter(key: String = "", builder: Parameter.() -> Unit): Parameter
     fun header(key: String = "", builder: Header.() -> Unit): Header
