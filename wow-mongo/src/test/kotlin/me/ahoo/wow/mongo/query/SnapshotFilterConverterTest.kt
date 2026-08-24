@@ -7,6 +7,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.*
 import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.mongo.query.snapshot.SnapshotFilterConverter
+import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
@@ -137,6 +138,24 @@ class SnapshotFilterConverterTest {
                 "state.items",
                 Filters.eq(MessageRecords.AGGREGATE_ID, "nested-aggregate-id"),
             ),
+        )
+    }
+
+    @Test
+    fun `scoped filter fields should be prefixed with parent`() {
+        val bson = SnapshotFilterConverter.convert(filter { "quantity" gt 1 }, "state.orders.lines")
+
+        bson.toBsonDocument().toJson().assert().contains("state.orders.lines.quantity")
+    }
+
+    @Test
+    fun `scoped element predicate fields should remain relative`() {
+        assertConvert(
+            SnapshotFilterConverter.convert(
+                ElementMatchFilter(LogicalField("items"), EqualFilter(LogicalField("quantity"), json(1))),
+                "state.orders.lines",
+            ),
+            Filters.elemMatch("state.orders.lines.items", Filters.eq("quantity", 1)),
         )
     }
 

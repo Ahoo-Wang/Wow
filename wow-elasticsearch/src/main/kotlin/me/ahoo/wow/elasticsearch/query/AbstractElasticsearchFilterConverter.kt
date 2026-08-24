@@ -42,8 +42,8 @@ abstract class AbstractElasticsearchFilterConverter(
 ) {
     private val filterNormalizer = FilterNormalizer(defaultDeletionState = defaultDeletionState)
 
-    fun convert(filter: FilterExpression): Query =
-        compile(filterNormalizer.normalize(filter), parent = null)
+    fun convert(filter: FilterExpression, parent: String? = null): Query =
+        compile(filterNormalizer.normalize(filter), parent)
 
     @Suppress("CyclomaticComplexMethod", "LongMethod")
     private fun compile(filter: FilterExpression, parent: String?): Query = when (filter) {

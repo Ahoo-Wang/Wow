@@ -33,6 +33,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.*
 import me.ahoo.wow.elasticsearch.WowJsonpMapper
 import me.ahoo.wow.elasticsearch.query.snapshot.SnapshotFilterConverter
+import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
@@ -228,6 +229,13 @@ class ElasticsearchFilterConverterTest {
     fun `relative time filter should normalize before compilation`() {
         SnapshotFilterConverter.convert(TodayFilter(LogicalField("state.time")))._kind().assert()
             .isEqualTo(Query.Kind.Bool)
+    }
+
+    @Test
+    fun `scoped filter fields should be prefixed with parent`() {
+        val query = SnapshotFilterConverter.convert(filter { "quantity" gt 1 }, "state.orders.lines")
+
+        query.bool().filter().last().range().untyped().field().assert().isEqualTo("state.orders.lines.quantity")
     }
 
     companion object {
