@@ -15,6 +15,7 @@ package me.ahoo.wow.query.event
 
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
@@ -47,6 +48,11 @@ fun IPagedQuery.dynamicQuery(queryService: EventStreamQueryService): Mono<PagedL
     return queryService.dynamicPaged(this)
 }
 
+fun FilterExpression.count(queryService: EventStreamQueryService): Mono<Long> {
+    return queryService.count(this)
+}
+
+@Deprecated("Use FilterExpression.count.")
 fun Condition.count(queryService: EventStreamQueryService): Mono<Long> {
     return queryService.count(this)
 }

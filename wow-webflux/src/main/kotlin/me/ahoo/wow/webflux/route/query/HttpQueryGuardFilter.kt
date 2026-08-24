@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-@file:Suppress("NoWildcardImports", "WildcardImport")
+@file:Suppress("DEPRECATION", "NoWildcardImports", "WildcardImport")
 
 package me.ahoo.wow.webflux.route.query
 
@@ -41,8 +41,8 @@ class HttpQueryGuardFilter(
     private val maxListSize: Int = 1000,
     private val maxPageSize: Int = 100,
     private val maxPageWindow: Long = 10_000,
-    private val maxConditionNodes: Int = 64,
-    private val maxConditionValues: Int = 1000,
+    private val maxFilterNodes: Int = 64,
+    private val maxFilterValues: Int = 1000,
     private val allowExpensiveOperators: Boolean = true,
     private val idleTimeout: Duration = Duration.ofSeconds(10),
 ) : QueryFilter<QueryContext<*, *>> {
@@ -51,8 +51,8 @@ class HttpQueryGuardFilter(
         require(maxListSize >= 0) { "maxListSize must be greater than or equal to 0." }
         require(maxPageSize >= 0) { "maxPageSize must be greater than or equal to 0." }
         require(maxPageWindow >= 0) { "maxPageWindow must be greater than or equal to 0." }
-        require(maxConditionNodes >= 0) { "maxConditionNodes must be greater than or equal to 0." }
-        require(maxConditionValues >= 0) { "maxConditionValues must be greater than or equal to 0." }
+        require(maxFilterNodes >= 0) { "maxFilterNodes must be greater than or equal to 0." }
+        require(maxFilterValues >= 0) { "maxFilterValues must be greater than or equal to 0." }
         require(!idleTimeout.isNegative) { "idleTimeout must be greater than or equal to 0." }
     }
 
@@ -88,40 +88,6 @@ class HttpQueryGuardFilter(
         )
     }
 
-    private fun validateConditionNode(condition: Condition) {
-        if (condition.operator == Operator.ELEM_MATCH) {
-            require(condition.children.size == 1) {
-                "HTTP ELEM_MATCH condition must contain exactly one child."
-            }
-        }
-        require(allowExpensiveOperators || !condition.isExpensive()) {
-            "HTTP query operator[${condition.operator}] is disabled because expensive operators are not allowed."
-        }
-        val values = condition.value
-        if (condition.operator in LEGACY_COLLECTION_OPERATORS && values is Collection<*>) {
-            require(maxConditionValues == 0 || values.size <= maxConditionValues) {
-                "HTTP query condition values[${values.size}] must not exceed $maxConditionValues."
-            }
-        }
-    }
-
-    private fun Condition.isExpensive(): Boolean =
-        operator in LEGACY_EXPENSIVE_OPERATORS ||
-            operator == Operator.EXISTS && value == false ||
-            operator == Operator.STARTS_WITH && ((value as? String).isNullOrEmpty() || ignoreCase() == true)
-
-    private fun Condition.isMatchAll(): Boolean {
-        val values = value
-        return when (operator) {
-            Operator.ALL -> true
-            Operator.DELETED -> deletionState() == DeletionState.ALL
-            Operator.NOT_IN -> values is Collection<*> && values.isEmpty()
-            Operator.AND -> children.all { it.isMatchAll() }
-            Operator.OR -> children.any { it.isMatchAll() }
-            else -> false
-        }
-    }
-
     private fun validateList(query: IListQuery) {
         val minimum = if (maxListSize == 0) 0 else 1
         require(query.limit >= minimum && (maxListSize == 0 || query.limit <= maxListSize)) {
@@ -146,32 +112,26 @@ class HttpQueryGuardFilter(
     }
 
     private fun validateFilter(filter: FilterExpression, rejectMatchAll: Boolean) {
-        val pending = ArrayDeque<Any>()
+        val pending = ArrayDeque<FilterExpression>()
         pending.add(filter)
         var nodes = 0
         while (pending.isNotEmpty()) {
             val current = pending.removeLast()
             nodes++
-            require(maxConditionNodes == 0 || nodes <= maxConditionNodes) {
-                "HTTP query condition nodes[$nodes] must not exceed $maxConditionNodes."
+            require(maxFilterNodes == 0 || nodes <= maxFilterNodes) {
+                "HTTP query filter nodes[$nodes] must not exceed $maxFilterNodes."
             }
-            when (current) {
-                is FilterExpression -> current.legacyConditionOrNull()?.let {
-                    validateConditionNode(it)
-                    pending.addAll(it.children)
-                } ?: run {
-                    validateFilterNode(current)
-                    when (current) {
-                        is AndFilter -> pending.addAll(current.operands)
-                        is OrFilter -> pending.addAll(current.operands)
-                        is NorFilter -> pending.addAll(current.operands)
-                        is ElementMatchFilter -> pending.add(current.predicate)
-                        else -> Unit
-                    }
-                }
-                is Condition -> {
-                    validateConditionNode(current)
-                    pending.addAll(current.children)
+            validateFilterNode(current)
+            val condition = current.legacyConditionOrNull()
+            if (condition != null) {
+                pending.addAll(condition.children.map(Condition::toFilterExpression))
+            } else {
+                when (current) {
+                    is AndFilter -> pending.addAll(current.operands)
+                    is OrFilter -> pending.addAll(current.operands)
+                    is NorFilter -> pending.addAll(current.operands)
+                    is ElementMatchFilter -> pending.add(current.predicate)
+                    else -> Unit
                 }
             }
         }
@@ -181,13 +141,14 @@ class HttpQueryGuardFilter(
     }
 
     private fun validateFilterNode(filter: FilterExpression) {
-        require(allowExpensiveOperators || !filter.isExpensive()) {
+        val legacy = filter.legacyConditionOrNull()
+        require(allowExpensiveOperators || !(legacy?.isExpensive() ?: filter.isExpensive())) {
             "HTTP query operator[${filter.operator}] is disabled because expensive operators are not allowed."
         }
-        val valueCount = filter.valueCount()
+        val valueCount = legacy?.valueCount() ?: filter.valueCount()
         if (valueCount != null) {
-            require(maxConditionValues == 0 || valueCount <= maxConditionValues) {
-                "HTTP query condition values[$valueCount] must not exceed $maxConditionValues."
+            require(maxFilterValues == 0 || valueCount <= maxFilterValues) {
+                "HTTP query filter values[$valueCount] must not exceed $maxFilterValues."
             }
         }
     }
@@ -197,7 +158,6 @@ class HttpQueryGuardFilter(
             this is StartsWithFilter && (value.isEmpty() || stringComparison == StringComparison.CASE_INSENSITIVE)
 
     private fun FilterExpression.isMatchAll(): Boolean {
-        legacyConditionOrNull()?.let { return it.isMatchAll() }
         return when (this) {
             MatchAllFilter -> true
             is DeletionFilter -> deletionState == DeletionState.ALL
@@ -211,8 +171,18 @@ class HttpQueryGuardFilter(
         is InFilter -> values.size
         is NotInFilter -> values.size
         is ContainsAllFilter -> values.size
+        is IdsFilter -> values.size
+        is AggregateIdsFilter -> values.size
         else -> null
     }
+
+    private fun Condition.valueCount(): Int? =
+        if (operator in LEGACY_COLLECTION_OPERATORS) (value as? Collection<*>)?.size else null
+
+    private fun Condition.isExpensive(): Boolean =
+        operator in LEGACY_EXPENSIVE_OPERATORS ||
+            operator == Operator.EXISTS && value == false ||
+            operator == Operator.STARTS_WITH && ((value as? String).isNullOrEmpty() || ignoreCase() == true)
 
     private fun applyIdleTimeout(context: QueryContext<*, *>, request: ServerRequest) {
         if (idleTimeout.isZero) return
@@ -234,7 +204,7 @@ class HttpQueryGuardFilter(
             QueryType.PAGED, QueryType.DYNAMIC_PAGED ->
                 context.asPagedQuery<Any>().rewriteResult { it.timeout(idleTimeout) }
 
-            QueryType.COUNT -> context.asFilterCountQuery().rewriteResult { it.timeout(idleTimeout) }
+            QueryType.COUNT -> context.asCountQuery().rewriteResult { it.timeout(idleTimeout) }
         }
     }
 

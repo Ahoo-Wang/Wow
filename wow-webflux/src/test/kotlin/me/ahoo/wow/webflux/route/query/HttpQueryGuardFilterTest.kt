@@ -16,12 +16,16 @@ package me.ahoo.wow.webflux.route.query
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.abac.AbacTags
+import me.ahoo.wow.api.query.AggregateIdsFilter
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
+import me.ahoo.wow.api.query.IdFilter
+import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.IsEmptyFilter
 import me.ahoo.wow.api.query.IsNotNullFilter
 import me.ahoo.wow.api.query.ListQuery
@@ -32,6 +36,8 @@ import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.StringComparison
+import me.ahoo.wow.api.query.toExecutableFilter
 import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterChainBuilder
@@ -39,6 +45,7 @@ import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.BatchComponent
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
+import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.filter.DefaultEventStreamQueryHandler
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
@@ -83,22 +90,30 @@ class HttpQueryGuardFilterTest {
     @Test
     fun `should reject unsafe list queries before backend invocation`() {
         listOf(
-            ListQuery(Condition.ALL),
-            ListQuery(Condition.contains(MessageRecords.AGGREGATE_ID, "wow"), limit = 1),
-            ListQuery(Condition.endsWith(MessageRecords.AGGREGATE_ID, "wow"), limit = 1),
-            ListQuery(Condition.startsWith(MessageRecords.AGGREGATE_ID, ""), limit = 1),
-            ListQuery(Condition.startsWith(MessageRecords.AGGREGATE_ID, "wow", ignoreCase = true), limit = 1),
-            ListQuery(Condition.ne(MessageRecords.AGGREGATE_ID, "aggregate-id"), limit = 1),
-            ListQuery(Condition.notIn(MessageRecords.AGGREGATE_ID, listOf("aggregate-id")), limit = 1),
-            ListQuery(Condition.nor(Condition.eq(MessageRecords.AGGREGATE_ID, "aggregate-id")), limit = 1),
-            ListQuery(Condition.isNull(MessageRecords.AGGREGATE_ID), limit = 1),
-            ListQuery(Condition.notNull(MessageRecords.AGGREGATE_ID), limit = 1),
-            ListQuery(Condition.exists(MessageRecords.AGGREGATE_ID, false), limit = 1),
+            ListQuery(MatchAllFilter),
+            ListQuery(filterExpression { MessageRecords.AGGREGATE_ID.contains("wow") }, limit = 1),
+            ListQuery(filterExpression { MessageRecords.AGGREGATE_ID.endsWith("wow") }, limit = 1),
+            ListQuery(filterExpression { MessageRecords.AGGREGATE_ID.startsWith("") }, limit = 1),
+            ListQuery(
+                filterExpression {
+                    MessageRecords.AGGREGATE_ID.startsWith("wow", StringComparison.CASE_INSENSITIVE)
+                },
+                limit = 1,
+            ),
+            ListQuery(filterExpression { MessageRecords.AGGREGATE_ID ne "aggregate-id" }, limit = 1),
+            ListQuery(filterExpression { MessageRecords.AGGREGATE_ID notIn listOf("aggregate-id") }, limit = 1),
+            ListQuery(
+                filterExpression { nor { MessageRecords.AGGREGATE_ID eq "aggregate-id" } },
+                limit = 1,
+            ),
+            ListQuery(filterExpression { MessageRecords.AGGREGATE_ID.isNull() }, limit = 1),
+            ListQuery(filterExpression { MessageRecords.AGGREGATE_ID.isNotNull() }, limit = 1),
+            ListQuery(filterExpression { MessageRecords.AGGREGATE_ID.notExists() }, limit = 1),
             ListQuery(IsEmptyFilter(LogicalField("state.items")), limit = 1),
-            ListQuery(Condition.isIn(MessageRecords.AGGREGATE_ID, List(1001) { it }), limit = 1),
-            ListQuery(Condition(operator = Operator.IDS, value = List(1001) { it }), limit = 1),
-            ListQuery(Condition(operator = Operator.AGGREGATE_IDS, value = List(1001) { it }), limit = 1),
-            ListQuery(Condition.and(List(65) { Condition.eq(MessageRecords.AGGREGATE_ID, it) }), limit = 1),
+            ListQuery(filterExpression { MessageRecords.AGGREGATE_ID isIn List(1001) { it } }, limit = 1),
+            ListQuery(IdsFilter(List(1001) { it.toString() }), limit = 1),
+            ListQuery(AggregateIdsFilter(List(1001) { it.toString() }), limit = 1),
+            ListQuery(filterExpression { repeat(65) { MessageRecords.AGGREGATE_ID eq it } }, limit = 1),
         ).forEach { query ->
             guard().filter(listContext(query), unexpectedBackend())
                 .writeRawRequest(request)
@@ -116,7 +131,7 @@ class HttpQueryGuardFilterTest {
             Pagination(index = 101, size = 100),
             Pagination(index = Int.MAX_VALUE, size = 100),
         ).forEach { pagination ->
-            guard().filter(pagedContext(PagedQuery(Condition.ALL, pagination = pagination)), unexpectedBackend())
+            guard().filter(pagedContext(PagedQuery(MatchAllFilter, pagination = pagination)), unexpectedBackend())
                 .writeRawRequest(request)
                 .test()
                 .expectError(IllegalArgumentException::class.java)
@@ -124,7 +139,7 @@ class HttpQueryGuardFilterTest {
         }
 
         guard(maxPageSize = 0, maxPageWindow = Long.MAX_VALUE).filter(
-            pagedContext(PagedQuery(Condition.ALL, pagination = Pagination(index = 1_500_000_000, size = 2))),
+            pagedContext(PagedQuery(MatchAllFilter, pagination = Pagination(index = 1_500_000_000, size = 2))),
             unexpectedBackend(),
         ).writeRawRequest(request).test()
             .expectError(IllegalArgumentException::class.java)
@@ -170,11 +185,11 @@ class HttpQueryGuardFilterTest {
 
     @Test
     fun `should allow unfiltered counting queries by default`() {
-        val context = countContext(Condition.ALL)
+        val context = countContext(MatchAllFilter)
         HttpQueryGuardFilter(idleTimeout = Duration.ZERO).filter(
             context,
             FilterChain {
-                it.asFilterCountQuery().setResult(Mono.just(0))
+                it.asCountQuery().setResult(Mono.just(0))
                 Mono.empty()
             },
         ).writeRawRequest(request).test().verifyComplete()
@@ -183,14 +198,67 @@ class HttpQueryGuardFilterTest {
     }
 
     @Test
-    fun `should allow application sort and condition fields`() {
+    fun `plural metadata filters should respect max filter values`() {
+        listOf<FilterExpression>(
+            IdsFilter(listOf("id-1", "id-2")),
+            AggregateIdsFilter(listOf("aggregate-1", "aggregate-2")),
+        ).forEach { filter ->
+            guard(maxFilterValues = 1).filter(countContext(filter), unexpectedBackend())
+                .writeRawRequest(request)
+                .test()
+                .expectError(IllegalArgumentException::class.java)
+                .verify()
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `legacy collection nested with match should respect max filter values`() {
+        val filter = Condition.elemMatch(
+            "state.items",
+            Condition.and(
+                Condition.match("name", "wow"),
+                Condition.isIn("tags", listOf("one", "two")),
+            ),
+        ).toFilterExpression()
+
+        guard(maxFilterValues = 1).filter(countContext(filter), unexpectedBackend())
+            .writeRawRequest(request)
+            .test()
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `legacy predicates nested with match should preserve expensive operator guard`() {
+        listOf(
+            Condition.exists("value", false),
+            Condition.startsWith("value", "wow", ignoreCase = true),
+        ).forEach { predicate ->
+            val filter = Condition.elemMatch(
+                "state.items",
+                Condition.and(Condition.match("name", "wow"), predicate),
+            ).toFilterExpression()
+
+            guard().filter(countContext(filter), unexpectedBackend())
+                .writeRawRequest(request)
+                .test()
+                .expectError(IllegalArgumentException::class.java)
+                .verify()
+        }
+    }
+
+    @Test
+    fun `should allow application sort and filter fields`() {
+        val filter = filterExpression {
+            "state.status" eq "ACTIVE"
+            spaceId("space-id")
+            MessageRecords.VERSION eq 1
+        }
         val context = pagedContext(
             PagedQuery(
-                Condition.and(
-                    Condition.eq("state.status", "ACTIVE"),
-                    Condition.spaceId("space-id"),
-                    Condition.eq(MessageRecords.VERSION, 1),
-                ),
+                filter,
                 sort = listOf(Sort(MessageRecords.AGGREGATE_ID, Sort.Direction.DESC)),
             ),
         )
@@ -204,41 +272,39 @@ class HttpQueryGuardFilterTest {
     }
 
     @Test
-    fun `should require one element match child`() {
-        val context = listContext(
-            ListQuery(
-                Condition.elemMatch("state.items", Condition.eq("productId", "product-1")),
-                limit = 1,
-            ),
-        )
+    fun `should allow canonicalized element match`() {
+        val filter = filterExpression {
+            "state.items".elementMatch { "productId" eq "product-1" }
+        }
         guard().filter(
-            context,
+            listContext(ListQuery(filter, limit = 1)),
             FilterChain {
                 it.asListQuery<Any>().setResult(Flux.empty())
                 Mono.empty()
             },
         ).writeRawRequest(request).test().verifyComplete()
+    }
 
+    @Suppress("DEPRECATION")
+    @Test
+    fun `legacy element match should canonicalize before guard`() {
+        val condition = Condition(
+            field = "state.unindexed",
+            operator = Operator.ELEM_MATCH,
+            children = listOf(Condition.ALL, Condition.eq("productId", "product-1")),
+        )
         guard().filter(
-            listContext(
-                ListQuery(
-                    Condition(
-                        field = "state.unindexed",
-                        operator = Operator.ELEM_MATCH,
-                        children = listOf(Condition.ALL, Condition.eq("productId", "product-1")),
-                    ),
-                    limit = 1,
-                ),
-            ),
-            unexpectedBackend(),
-        ).writeRawRequest(request).test()
-            .expectError(IllegalArgumentException::class.java)
-            .verify()
+            listContext(ListQuery(condition, limit = 1)),
+            FilterChain {
+                it.asListQuery<Any>().setResult(Flux.empty())
+                Mono.empty()
+            },
+        ).writeRawRequest(request).test().verifyComplete()
     }
 
     @Test
     fun `should reject unfiltered counting queries`() {
-        guard().filter(countContext(Condition.ALL), unexpectedBackend())
+        guard().filter(countContext(MatchAllFilter), unexpectedBackend())
             .writeRawRequest(request)
             .test()
             .expectError(IllegalArgumentException::class.java)
@@ -246,10 +312,12 @@ class HttpQueryGuardFilterTest {
 
         guard().filter(
             countContext(
-                Condition.or(
-                    Condition.ALL,
-                    Condition.eq(MessageRecords.AGGREGATE_ID, "aggregate-id"),
-                ),
+                filterExpression {
+                    or {
+                        matchAll()
+                        MessageRecords.AGGREGATE_ID eq "aggregate-id"
+                    }
+                },
             ),
             unexpectedBackend(),
         ).writeRawRequest(request).test()
@@ -257,49 +325,53 @@ class HttpQueryGuardFilterTest {
             .verify()
 
         guard().filter(
-            countContext(Condition.notIn(MessageRecords.AGGREGATE_ID, emptyList())),
+            countContext(DeletionFilter(DeletionState.ALL)),
             unexpectedBackend(),
         ).writeRawRequest(request).test()
             .expectError(IllegalArgumentException::class.java)
             .verify()
 
         guard().filter(
-            countContext(Condition.deleted(DeletionState.ALL)),
-            unexpectedBackend(),
-        ).writeRawRequest(request).test()
-            .expectError(IllegalArgumentException::class.java)
-            .verify()
-
-        guard().filter(
-            countContext(Condition.nor(Condition.nor(Condition.ALL))),
+            countContext(filterExpression { nor { nor { matchAll() } } }),
             unexpectedBackend(),
         ).writeRawRequest(request).test()
             .expectError(IllegalArgumentException::class.java)
             .verify()
 
         val countBackend = FilterChain<QueryContext<*, *>> {
-            it.asFilterCountQuery().setResult(Mono.just(0))
+            it.asCountQuery().setResult(Mono.just(0))
             Mono.empty()
         }
-        val scopedCondition = Condition.and(
-            Condition.ALL,
-            Condition.eq(MessageRecords.AGGREGATE_ID, "aggregate-id"),
-        )
-        guard().filter(countContext(scopedCondition), countBackend)
+        val scopedFilter = filterExpression {
+            matchAll()
+            MessageRecords.AGGREGATE_ID eq "aggregate-id"
+        }
+        guard().filter(countContext(scopedFilter), countBackend)
             .writeRawRequest(request)
             .test()
             .verifyComplete()
 
-        guard().filter(pagedContext(PagedQuery(Condition.ALL)), unexpectedBackend())
+        guard().filter(pagedContext(PagedQuery(MatchAllFilter)), unexpectedBackend())
             .writeRawRequest(request)
             .test()
             .expectError(IllegalArgumentException::class.java)
             .verify()
     }
 
+    @Suppress("DEPRECATION")
+    @Test
+    fun `legacy empty NOT_IN should canonicalize to match all before guard`() {
+        guard().filter(
+            countContext(Condition.notIn(MessageRecords.AGGREGATE_ID, emptyList()).toFilterExpression()),
+            unexpectedBackend(),
+        ).writeRawRequest(request).test()
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
+    }
+
     @Test
     fun `should apply idle timeout after backend result is installed`() {
-        val context = pagedContext(PagedQuery(Condition.id("aggregate-id")))
+        val context = pagedContext(PagedQuery(IdFilter("aggregate-id")))
         guard(idleTimeout = Duration.ofMillis(10)).filter(
             context,
             FilterChain {
@@ -316,7 +388,7 @@ class HttpQueryGuardFilterTest {
     @Test
     fun `should apply idle timeout while downstream filters are running`() {
         guard(idleTimeout = Duration.ofMillis(10)).filter(
-            listContext(ListQuery(Condition.ALL, limit = 1)),
+            listContext(ListQuery(MatchAllFilter, limit = 1)),
             FilterChain { Mono.never() },
         ).writeRawRequest(request).test()
             .expectError(TimeoutException::class.java)
@@ -325,7 +397,7 @@ class HttpQueryGuardFilterTest {
 
     @Test
     fun `json list should time out before response when a later result stalls`() {
-        val context = listContext(ListQuery(Condition.ALL, limit = 2))
+        val context = listContext(ListQuery(MatchAllFilter, limit = 2))
         guard(idleTimeout = Duration.ofMillis(10)).filter(
             context,
             FilterChain {
@@ -347,20 +419,20 @@ class HttpQueryGuardFilterTest {
     @Test
     fun `should run before concrete abac filters in the real snapshot chain`() {
         val handler = snapshotQueryHandler(
-            guard = guard(maxConditionNodes = 1),
+            guard = guard(maxFilterNodes = 1),
             abacQueryFilter = TestAbacQueryFilter,
         )
 
         handler.dynamicList(
             MOCK_AGGREGATE_METADATA,
-            ListQuery(Condition.eq("state.status", "ACTIVE"), limit = 1),
+            ListQuery(filterExpression { "state.status" eq "ACTIVE" }, limit = 1),
         ).writeRawRequest(request).test().verifyComplete()
     }
 
     @Test
     fun `built-in http route should map default unlimited list to bad request`() {
         val response = listHandler(snapshotQueryHandler()).handle(
-            MockServerRequest.builder().body(ListQuery(Condition.ALL).toMono()),
+            MockServerRequest.builder().body(ListQuery(MatchAllFilter).toMono()),
         ).block()!!
         val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/test").build())
 
@@ -387,7 +459,7 @@ class HttpQueryGuardFilterTest {
                 queryServiceFactory = factory,
             ),
         ).handle(
-            MockServerRequest.builder().body(ListQuery(Condition.ALL, limit = 1).toMono()),
+            MockServerRequest.builder().body(ListQuery(MatchAllFilter, limit = 1).toMono()),
         ).block()!!
         val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/test").build())
 
@@ -453,16 +525,16 @@ class HttpQueryGuardFilterTest {
         maxListSize: Int = 1000,
         maxPageSize: Int = 100,
         maxPageWindow: Long = 10_000,
-        maxConditionNodes: Int = 64,
-        maxConditionValues: Int = 1000,
+        maxFilterNodes: Int = 64,
+        maxFilterValues: Int = 1000,
         allowExpensiveOperators: Boolean = false,
         idleTimeout: Duration = Duration.ofSeconds(10),
     ) = HttpQueryGuardFilter(
         maxListSize = maxListSize,
         maxPageSize = maxPageSize,
         maxPageWindow = maxPageWindow,
-        maxConditionNodes = maxConditionNodes,
-        maxConditionValues = maxConditionValues,
+        maxFilterNodes = maxFilterNodes,
+        maxFilterValues = maxFilterValues,
         allowExpensiveOperators = allowExpensiveOperators,
         idleTimeout = idleTimeout,
     )
@@ -471,19 +543,19 @@ class HttpQueryGuardFilterTest {
         DefaultQueryContext<IListQuery, Flux<Any>>(
             QueryType.LIST,
             MOCK_AGGREGATE_METADATA,
-        ).setQuery(query)
+        ).setQuery(query.withFilter(query.filter.toExecutableFilter()))
 
     private fun pagedContext(query: IPagedQuery): QueryContext<IPagedQuery, Mono<PagedList<Any>>> =
         DefaultQueryContext<IPagedQuery, Mono<PagedList<Any>>>(
             QueryType.PAGED,
             MOCK_AGGREGATE_METADATA,
-        ).setQuery(query)
+        ).setQuery(query.withFilter(query.filter.toExecutableFilter()))
 
-    private fun countContext(condition: Condition): QueryContext<FilterExpression, Mono<Long>> =
+    private fun countContext(filter: FilterExpression): QueryContext<FilterExpression, Mono<Long>> =
         DefaultQueryContext<FilterExpression, Mono<Long>>(
             QueryType.COUNT,
             MOCK_AGGREGATE_METADATA,
-        ).setQuery(condition.toFilterExpression())
+        ).setQuery(filter.toExecutableFilter())
 
     private fun unexpectedBackend(): FilterChain<QueryContext<*, *>> = FilterChain {
         error("Backend must not be invoked.")
@@ -517,7 +589,7 @@ class HttpQueryGuardFilterTest {
     private fun listHandler(queryHandler: SnapshotQueryHandler) = ListQueryHandlerFunctionFactory(
         handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY,
         queryHandler = queryHandler,
-        rewriteRequestCondition = DefaultRewriteRequestCondition,
+        rewriteRequestFilter = DefaultRewriteRequestFilter,
         exceptionHandler = WebFluxRequestExceptionHandler(),
     ).create(
         testAggregateRouteContract(

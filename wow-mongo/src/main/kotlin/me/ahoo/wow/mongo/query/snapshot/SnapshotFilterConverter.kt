@@ -11,7 +11,11 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema.typed.query
+package me.ahoo.wow.mongo.query.snapshot
 
-@Deprecated("Use ListQuery with FilterExpression.")
-interface AggregatedListQuery<CommandAggregateType : Any>
+import me.ahoo.wow.mongo.query.AbstractMongoFilterConverter
+import me.ahoo.wow.query.converter.FieldConverter
+
+object SnapshotFilterConverter : AbstractMongoFilterConverter() {
+    override val fieldConverter: FieldConverter = SnapshotFieldConverter
+}

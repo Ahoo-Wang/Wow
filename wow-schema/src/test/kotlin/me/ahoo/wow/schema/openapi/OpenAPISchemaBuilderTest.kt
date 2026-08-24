@@ -3,7 +3,6 @@ package me.ahoo.wow.schema.openapi
 import com.fasterxml.classmate.TypeResolver
 import com.github.victools.jsonschema.generator.Option
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.command.wait.SimpleWaitSignal
@@ -100,25 +99,15 @@ class OpenAPISchemaBuilderTest {
     }
 
     @Test
-    fun `should build condition schema with recursive ref`() {
+    fun `should build tree node schema with recursive ref`() {
         val definitionPath = "${'$'}defs"
         val openAPISchemaBuilder = OpenAPISchemaBuilder(definitionPath = definitionPath)
-        openAPISchemaBuilder.generateSchema(Condition::class.java)
-        val componentsSchemas = openAPISchemaBuilder.build()
-        val conditionSchema = componentsSchemas["wow.api.query.Condition"]
-        val childrenItem = conditionSchema?.properties[Condition::children.name]?.items
-        childrenItem.assert().isNotNull()
-        childrenItem?.`$ref`.assert().startsWith("#/$definitionPath")
-    }
-
-    @Test
-    fun `should build tree node schema with children items`() {
-        val openAPISchemaBuilder = OpenAPISchemaBuilder()
         openAPISchemaBuilder.generateSchema(TreeNodeFixture::class.java)
         val componentsSchemas = openAPISchemaBuilder.build()
         val schema = componentsSchemas["wow.schema.TreeNodeFixture"]
         val childrenItem = schema?.properties[TreeNodeFixture::children.name]?.items
         childrenItem.assert().isNotNull()
+        childrenItem?.`$ref`.assert().startsWith("#/$definitionPath")
     }
 
     @Test

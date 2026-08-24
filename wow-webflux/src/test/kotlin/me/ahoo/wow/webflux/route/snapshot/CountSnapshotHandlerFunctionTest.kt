@@ -14,14 +14,13 @@
 package me.ahoo.wow.webflux.route.snapshot
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.Condition
-import me.ahoo.wow.api.query.toFilterExpression
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
-import me.ahoo.wow.webflux.route.query.DefaultRewriteRequestCondition
+import me.ahoo.wow.webflux.route.query.DefaultRewriteRequestFilter
 import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
@@ -35,7 +34,7 @@ class CountSnapshotHandlerFunctionTest {
     fun `should handle count snapshot query`() {
         val handlerFunction = CountSnapshotHandlerFunctionFactory(
             RouteTestFixtures.snapshotQueryHandler,
-            DefaultRewriteRequestCondition,
+            DefaultRewriteRequestFilter,
             exceptionHandler = WebFluxRequestExceptionHandler(),
         ).create(
             testAggregateRouteContract(
@@ -45,7 +44,7 @@ class CountSnapshotHandlerFunctionTest {
         )
         val request = MockServerRequest.builder()
             .pathVariable(MessageRecords.OWNER_ID, generateGlobalId())
-            .body(Condition.ALL.toFilterExpression().toMono())
+            .body(MatchAllFilter.toMono())
 
         handlerFunction.handle(request)
             .test()

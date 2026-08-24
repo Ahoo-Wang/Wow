@@ -15,17 +15,39 @@ package me.ahoo.wow.apiclient.query
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
-import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.IdFilter
 import org.junit.jupiter.api.Test
 
 class SnapshotCountQueryApiTest {
     @Suppress("DEPRECATION")
     @Test
-    fun `new count should delegate to a legacy implementation`() {
+    fun `filter count should delegate once to a legacy implementation`() {
+        lateinit var captured: Condition
         val api = object : SnapshotCountQueryApi<Long> {
-            override fun count(condition: Condition): Long = 1
+            @Suppress("OVERRIDE_DEPRECATION")
+            override fun count(condition: Condition): Long {
+                captured = condition
+                return 1
+            }
         }
 
-        api.count(MatchAllFilter).assert().isEqualTo(1)
+        api.count(IdFilter("id-1")).assert().isEqualTo(1)
+        captured.assert().isEqualTo(Condition.id("id-1"))
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `legacy count should delegate once to a filter implementation`() {
+        lateinit var captured: FilterExpression
+        val api = object : SnapshotCountQueryApi<Long> {
+            override fun count(filter: FilterExpression): Long {
+                captured = filter
+                return 1
+            }
+        }
+
+        api.count(Condition.id("id-1")).assert().isEqualTo(1)
+        captured.assert().isEqualTo(IdFilter("id-1"))
     }
 }

@@ -13,12 +13,14 @@
 
 package me.ahoo.wow.query
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
-import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.modeling.toNamedAggregate
 import org.junit.jupiter.api.Test
@@ -29,7 +31,8 @@ import reactor.kotlin.test.test
 class QueryServiceCompatibilityTest {
     @Suppress("DEPRECATION")
     @Test
-    fun `new count should delegate to a legacy implementation`() {
+    fun `legacy count should delegate once to filter implementation`() {
+        lateinit var captured: FilterExpression
         val service = object : QueryService<Any> {
             override val namedAggregate = "test.test".toNamedAggregate()
             override fun single(singleQuery: ISingleQuery): Mono<Any> = Mono.empty()
@@ -38,9 +41,37 @@ class QueryServiceCompatibilityTest {
             override fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument> = Flux.empty()
             override fun paged(pagedQuery: IPagedQuery): Mono<PagedList<Any>> = Mono.empty()
             override fun dynamicPaged(pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>> = Mono.empty()
-            override fun count(condition: Condition): Mono<Long> = Mono.just(1)
+            override fun count(filter: FilterExpression): Mono<Long> {
+                captured = filter
+                return Mono.just(1)
+            }
         }
 
-        service.count(MatchAllFilter).test().expectNext(1).verifyComplete()
+        service.count(Condition.id("id-1")).test().expectNext(1).verifyComplete()
+        captured.assert().isEqualTo(IdFilter("id-1"))
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `filter count should delegate once to legacy implementation`() {
+        lateinit var captured: Condition
+        val service = object : QueryService<Any> {
+            override val namedAggregate = "test.test".toNamedAggregate()
+            override fun single(singleQuery: ISingleQuery): Mono<Any> = Mono.empty()
+            override fun dynamicSingle(singleQuery: ISingleQuery): Mono<DynamicDocument> = Mono.empty()
+            override fun list(listQuery: IListQuery): Flux<Any> = Flux.empty()
+            override fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument> = Flux.empty()
+            override fun paged(pagedQuery: IPagedQuery): Mono<PagedList<Any>> = Mono.empty()
+            override fun dynamicPaged(pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>> = Mono.empty()
+
+            @Suppress("OVERRIDE_DEPRECATION")
+            override fun count(condition: Condition): Mono<Long> {
+                captured = condition
+                return Mono.just(1)
+            }
+        }
+
+        service.count(IdFilter("id-1")).test().expectNext(1).verifyComplete()
+        captured.assert().isEqualTo(Condition.id("id-1"))
     }
 }

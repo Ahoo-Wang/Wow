@@ -13,27 +13,19 @@
 
 package me.ahoo.wow.query.snapshot.filter
 
-import io.mockk.every
-import io.mockk.mockk
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.abac.AbacTagKey
 import me.ahoo.wow.api.abac.AbacTagValue
 import me.ahoo.wow.api.abac.AbacTags
 import me.ahoo.wow.api.abac.EMPTY_ABAC_TAGS
 import me.ahoo.wow.api.abac.wildcard
 import me.ahoo.wow.api.query.AndFilter
-import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.ExistsFilter
-import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.MatchAllFilter
-import me.ahoo.wow.api.query.Operator
-import me.ahoo.wow.api.query.toCondition
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.query.filter.DefaultQueryContext
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryType
-import me.ahoo.wow.query.snapshot.filter.AbacQueryFilter.Companion.toCondition
 import me.ahoo.wow.query.snapshot.filter.AbacQueryFilter.Companion.toFilterExpression
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
@@ -43,46 +35,6 @@ import reactor.kotlin.test.test
 import reactor.util.context.ContextView
 
 class AbacQueryFilterTest {
-    @Test
-    fun `toCondition for wildcard should return condition with EXISTS operator`() {
-        val entry: Map.Entry<AbacTagKey, AbacTagValue> = mapOf("dept" to listOf("*")).entries.first()
-        val condition = entry.toCondition()
-
-        condition.assert().isNotNull()
-        condition.operator.assert().isEqualTo(Operator.EXISTS)
-    }
-
-    @Test
-    fun `toCondition for non-wildcard should return condition with OR operator`() {
-        val entry: Map.Entry<AbacTagKey, AbacTagValue> = mapOf("dept" to listOf("eng", "pm")).entries.first()
-        val condition = entry.toCondition()
-
-        condition.assert().isNotNull()
-        condition.operator.assert().isEqualTo(Operator.OR)
-    }
-
-    @Test
-    fun `toCondition for empty tags should return condition with OR operator`() {
-        val entry: Map.Entry<AbacTagKey, AbacTagValue> = mapOf("dept" to emptyList<String>()).entries.first()
-        val condition = entry.toCondition()
-
-        condition.assert().isNotNull()
-        condition.operator.assert().isEqualTo(Operator.OR)
-    }
-
-    @Test
-    fun `AbacTags toCondition should return condition with AND operator`() {
-        val tags: AbacTags =
-            mapOf(
-                "dept" to listOf("eng"),
-                "role" to listOf("admin"),
-            )
-        val condition = tags.toCondition()
-
-        condition.assert().isNotNull()
-        condition.operator.assert().isEqualTo(Operator.AND)
-    }
-
     @Test
     fun `empty AbacTags should return match all filter`() {
         EMPTY_ABAC_TAGS.toFilterExpression().assert().isSameAs(MatchAllFilter)
@@ -122,33 +74,14 @@ class AbacQueryFilterTest {
     }
 
     @Test
-    fun `toCondition for single wildcard tag should work correctly`() {
-        val entry: Map.Entry<AbacTagKey, AbacTagValue> = mapOf("role" to listOf("*")).entries.first()
-        val condition = entry.toCondition()
-
-        condition.assert().isNotNull()
-        condition.operator.assert().isEqualTo(Operator.EXISTS)
-    }
-
-    @Test
-    fun `toCondition for multiple non-wildcard values should work correctly`() {
-        val entry: Map.Entry<AbacTagKey, AbacTagValue> = mapOf("dept" to listOf("eng", "pm", "qa")).entries.first()
-        val condition = entry.toCondition()
-
-        condition.assert().isNotNull()
-        condition.operator.assert().isEqualTo(Operator.OR)
-    }
-
-    @Test
     fun `filter for EmptyAbacQueryFilter`() {
         val context = DefaultQueryContext<me.ahoo.wow.api.query.FilterExpression, Any>(
             queryType = QueryType.COUNT,
             MOCK_AGGREGATE_METADATA
-        )
-        val chain = mockk<FilterChain<QueryContext<*, *>>> {
-            every {
-                filter(context)
-            } returns Mono.empty()
+        ).setQuery(MatchAllFilter)
+        val chain = FilterChain<QueryContext<*, *>> {
+            it.getQuery().assert().isSameAs(MatchAllFilter)
+            Mono.empty()
         }
         EmptyAbacQueryFilter.filter(context, chain).test().verifyComplete()
     }
@@ -158,40 +91,12 @@ class AbacQueryFilterTest {
         val context = DefaultQueryContext<me.ahoo.wow.api.query.FilterExpression, Any>(
             queryType = QueryType.COUNT,
             MOCK_AGGREGATE_METADATA
-        ).setQuery(me.ahoo.wow.api.query.MatchAllFilter)
-        val chain = mockk<FilterChain<QueryContext<*, *>>> {
-            every {
-                filter(context)
-            } returns Mono.empty()
-        }
-        MockAbacQueryFilter.filter(context, chain).test().verifyComplete()
-    }
-
-    @Suppress("DEPRECATION")
-    @Test
-    fun `filter should retain legacy resolveCondition overrides`() {
-        val legacyCondition = Condition.eq("state.owner", "owner-1")
-        val context = DefaultQueryContext<FilterExpression, Any>(
-            queryType = QueryType.COUNT,
-            MOCK_AGGREGATE_METADATA,
-        ).setQuery(me.ahoo.wow.api.query.MatchAllFilter)
-        val filter = object : AbacQueryFilter() {
-            override fun getPrincipalTags(
-                contextView: ContextView,
-                context: QueryContext<*, *>,
-            ): Mono<AbacTags> = EMPTY_ABAC_TAGS.toMono()
-
-            override fun resolveCondition(
-                contextView: ContextView,
-                context: QueryContext<*, *>,
-            ): Mono<Condition> = legacyCondition.toMono()
-        }
+        ).setQuery(MatchAllFilter)
         val chain = FilterChain<QueryContext<*, *>> {
-            (it.getQuery() as FilterExpression).toCondition().assert().isEqualTo(legacyCondition)
+            it.getQuery().assert().isInstanceOf(AndFilter::class.java)
             Mono.empty()
         }
-
-        filter.filter(context, chain).test().verifyComplete()
+        MockAbacQueryFilter.filter(context, chain).test().verifyComplete()
     }
 
     object EmptyAbacQueryFilter : AbacQueryFilter() {

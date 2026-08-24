@@ -6,7 +6,7 @@
   "definitions": {
     "logicalField": {
       "type": "string",
-      "pattern": "^[A-Za-z_][A-Za-z0-9_-]*(\\.(?:[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*$"
+      "pattern": "^@?[A-Za-z_][A-Za-z0-9_-]*(\\.(?:@?[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*$"
     },
     "literal": {
       "type": ["null", "string", "number", "boolean"]
@@ -26,6 +26,13 @@
         { "$ref": "#/definitions/and" },
         { "$ref": "#/definitions/or" },
         { "$ref": "#/definitions/nor" },
+        { "$ref": "#/definitions/id" },
+        { "$ref": "#/definitions/ids" },
+        { "$ref": "#/definitions/aggregateId" },
+        { "$ref": "#/definitions/aggregateIds" },
+        { "$ref": "#/definitions/tenantId" },
+        { "$ref": "#/definitions/ownerId" },
+        { "$ref": "#/definitions/spaceId" },
         { "$ref": "#/definitions/eq" },
         { "$ref": "#/definitions/ne" },
         { "$ref": "#/definitions/gt" },
@@ -163,6 +170,13 @@
       "required": ["op", "operands"],
       "additionalProperties": false
     },
+    "id": { "type": "object", "properties": { "op": { "enum": ["ID"] }, "value": { "type": "string" } }, "required": ["op", "value"], "additionalProperties": false },
+    "ids": { "type": "object", "properties": { "op": { "enum": ["IDS"] }, "values": { "type": "array", "minItems": 1, "items": { "type": "string" } } }, "required": ["op", "values"], "additionalProperties": false },
+    "aggregateId": { "type": "object", "properties": { "op": { "enum": ["AGGREGATE_ID"] }, "value": { "type": "string" } }, "required": ["op", "value"], "additionalProperties": false },
+    "aggregateIds": { "type": "object", "properties": { "op": { "enum": ["AGGREGATE_IDS"] }, "values": { "type": "array", "minItems": 1, "items": { "type": "string" } } }, "required": ["op", "values"], "additionalProperties": false },
+    "tenantId": { "type": "object", "properties": { "op": { "enum": ["TENANT_ID"] }, "value": { "type": "string" } }, "required": ["op", "value"], "additionalProperties": false },
+    "ownerId": { "type": "object", "properties": { "op": { "enum": ["OWNER_ID"] }, "value": { "type": "string" } }, "required": ["op", "value"], "additionalProperties": false },
+    "spaceId": { "type": "object", "properties": { "op": { "enum": ["SPACE_ID"] }, "value": { "type": "string" } }, "required": ["op", "value"], "additionalProperties": false },
     "eq": { "$ref": "#/definitions/eqShape" },
     "ne": { "$ref": "#/definitions/neShape" },
     "gt": { "$ref": "#/definitions/gtShape" },

@@ -15,7 +15,6 @@ package me.ahoo.wow.query.snapshot.filter
 
 import me.ahoo.wow.api.annotation.ORDER_LAST
 import me.ahoo.wow.api.annotation.Order
-import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.MaterializedSnapshot
@@ -77,12 +76,13 @@ class TailSnapshotQueryFilter<S : Any>(private val queryServiceFactory: Snapshot
             }
 
             QueryType.COUNT -> {
-                val result = when (val query = context.getQuery()) {
-                    is FilterExpression -> queryService.count(query)
-                    is Condition -> queryService.count(query)
-                    else -> error("Query type [${query::class}] does not support count.")
+                val query = context.getQuery()
+                val result = if (query is FilterExpression) {
+                    queryService.count(query)
+                } else {
+                    error("Query type [${query::class}] does not support count.")
                 }
-                context.asFilterCountQuery().setResult(result)
+                context.asCountQuery().setResult(result)
             }
         }
         return next.filter(context)

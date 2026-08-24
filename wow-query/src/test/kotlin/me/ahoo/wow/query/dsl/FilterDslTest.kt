@@ -24,6 +24,29 @@ import java.time.ZoneOffset
 
 class FilterDslTest {
     @Test
+    fun `should build dedicated metadata filters`() {
+        val expression = filter {
+            id("id-1")
+            ids("id-1", "id-2")
+            aggregateId("aggregate-1")
+            aggregateIds("aggregate-1", "aggregate-2")
+            tenantId("tenant-1")
+            ownerId("owner-1")
+            spaceId("space-1")
+        } as AndFilter
+
+        expression.operands.map { it::class }.assert().containsExactly(
+            IdFilter::class,
+            IdsFilter::class,
+            AggregateIdFilter::class,
+            AggregateIdsFilter::class,
+            TenantIdFilter::class,
+            OwnerIdFilter::class,
+            SpaceIdFilter::class,
+        )
+    }
+
+    @Test
     fun `should build implicit AND filter`() {
         val expression = filter {
             deletion(DeletionState.ACTIVE)

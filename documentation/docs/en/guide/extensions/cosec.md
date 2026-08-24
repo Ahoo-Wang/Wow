@@ -18,7 +18,7 @@ CoSec integration provides four key components:
 1. **CommandRequestHeaderAppender** — Extracts `CoSec-App-Id` and `CoSec-Device-Id` from HTTP request headers and appends them to command headers
 2. **CommandBuilderExtractor** — Extracts `CoSec-Request-Id` and `CoSec-Space-Id` from HTTP request headers and injects them into the CommandBuilder
 3. **MessagePropagator** — Propagates `app_id` and `device_id` from upstream message headers to downstream messages in the processing chain
-4. **RewriteRequestCondition** — Resolves the query `spaceId` for snapshot/event-stream queries from the `CoSec-Space-Id` header (falling back to the request space), so read-side queries are scoped to the caller's space
+4. **RewriteRequestFilter** — Resolves the query `spaceId` for snapshot/event-stream queries from the `CoSec-Space-Id` header (falling back to the request space), so read-side queries are scoped to the caller's space
 
 ## Installation
 
@@ -86,7 +86,7 @@ sequenceDiagram
 | `CoSec-App-Id` | `CoSecCommandRequestHeaderAppender` | command `header.app_id`, propagated to downstream messages |
 | `CoSec-Device-Id` | `CoSecCommandRequestHeaderAppender` | command `header.device_id`, propagated to downstream messages |
 | `CoSec-Request-Id` | `CoSecCommandBuilderExtractor` | `CommandBuilder.requestId` (idempotency) |
-| `CoSec-Space-Id` | `CoSecCommandBuilderExtractor` + `CoSecRewriteRequestCondition` | `CommandBuilder.spaceId`; for read-side queries, `CoSecRewriteRequestCondition` resolves the `Wow-Space-Id` header first and falls back to `CoSec-Space-Id` only when it is blank |
+| `CoSec-Space-Id` | `CoSecCommandBuilderExtractor` + `CoSecRewriteRequestFilter` | `CommandBuilder.spaceId`; for read-side queries, `CoSecRewriteRequestFilter` resolves the `Wow-Space-Id` header first and falls back to `CoSec-Space-Id` only when it is blank |
 
 To access the propagated context inside a handler, read it from the message header:
 

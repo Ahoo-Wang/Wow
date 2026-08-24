@@ -11,12 +11,12 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema.typed.query
+package me.ahoo.wow.elasticsearch.query.event
 
-import me.ahoo.wow.api.query.ConditionOptions
-import me.ahoo.wow.schema.typed.TypedCustomDefinitionProvider
+import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterConverter
+import me.ahoo.wow.serialization.MessageRecords
 
-object ConditionOptionsDefinitionProvider : TypedCustomDefinitionProvider() {
-    override val type: Class<*>
-        get() = ConditionOptions::class.java
-}
+object EventStreamFilterConverter : AbstractElasticsearchFilterConverter(
+    defaultDeletionState = null,
+    documentIdField = MessageRecords.ID,
+)

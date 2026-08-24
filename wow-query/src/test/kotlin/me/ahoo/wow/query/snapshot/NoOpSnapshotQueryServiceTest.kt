@@ -16,6 +16,7 @@ package me.ahoo.wow.query.snapshot
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.query.dsl.condition
+import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.pagedQuery
 import org.junit.jupiter.api.Test
@@ -108,7 +109,7 @@ class NoOpSnapshotQueryServiceTest {
 
     @Test
     fun `should return zero count`() {
-        condition {
+        filterExpression {
             "test" eq "test"
         }.count(queryService)
             .test()

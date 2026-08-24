@@ -18,7 +18,7 @@ CoSec 集成提供四个核心组件：
 1. **CommandRequestHeaderAppender** — 从 HTTP 请求头中提取 `CoSec-App-Id` 和 `CoSec-Device-Id`，附加到命令 Header 中
 2. **CommandBuilderExtractor** — 从 HTTP 请求头中提取 `CoSec-Request-Id` 和 `CoSec-Space-Id`，注入到 CommandBuilder 中
 3. **MessagePropagator** — 在处理链中将 `app_id` 和 `device_id` 从上游消息 Header 向下游传播
-4. **RewriteRequestCondition** — 从 `CoSec-Space-Id` 请求头（兜底取请求 space）解析查询的 `spaceId`，使快照/事件流查询按调用方的 space 隔离
+4. **RewriteRequestFilter** — 从 `CoSec-Space-Id` 请求头（兜底取请求 space）解析查询的 `spaceId`，使快照/事件流查询按调用方的 space 隔离
 
 ## 安装
 
@@ -87,7 +87,7 @@ sequenceDiagram
 | `CoSec-App-Id` | `CoSecCommandRequestHeaderAppender` | 命令 `header.app_id`，并传播到下游消息 |
 | `CoSec-Device-Id` | `CoSecCommandRequestHeaderAppender` | 命令 `header.device_id`，并传播到下游消息 |
 | `CoSec-Request-Id` | `CoSecCommandBuilderExtractor` | `CommandBuilder.requestId`（幂等性） |
-| `CoSec-Space-Id` | `CoSecCommandBuilderExtractor` + `CoSecRewriteRequestCondition` | `CommandBuilder.spaceId`；对于读侧查询，`CoSecRewriteRequestCondition` 先解析 `Wow-Space-Id` 头，仅在其为空时才回退到 `CoSec-Space-Id` |
+| `CoSec-Space-Id` | `CoSecCommandBuilderExtractor` + `CoSecRewriteRequestFilter` | `CommandBuilder.spaceId`；对于读侧查询，`CoSecRewriteRequestFilter` 先解析 `Wow-Space-Id` 头，仅在其为空时才回退到 `CoSec-Space-Id` |
 
 要在处理器内访问传播的上下文，从消息头读取即可：
 

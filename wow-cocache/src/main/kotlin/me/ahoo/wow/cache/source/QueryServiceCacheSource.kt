@@ -29,7 +29,7 @@ open class QueryServiceCacheSource<S : Any, D : Any>(
 
     override fun loadState(key: String): Mono<MaterializedSnapshot<S>> {
         return singleQuery {
-            condition {
+            filter {
                 aggregateId(key)
             }
         }.query(queryService)

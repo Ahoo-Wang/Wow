@@ -35,7 +35,6 @@ import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
 import me.ahoo.wow.schema.kotlin.KotlinModule
 import me.ahoo.wow.schema.naming.SchemaNamingModule
 import me.ahoo.wow.schema.typed.AggregatedDomainEventStream
-import me.ahoo.wow.schema.typed.query.AggregatedListQuery
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.junit.jupiter.api.Test
@@ -138,15 +137,6 @@ class SchemaGeneratorTest {
     ) {
         val schema = jsonSchemaGenerator.generateSchema(interfaceType, typeParameter)
         schema.toPrettyString().assert().isEqualTo(WowSchemaLoader.loadAsString(resourceName))
-    }
-
-    @Suppress("DEPRECATION")
-    @Test
-    fun `should keep legacy aggregated query schema entry point`() {
-        val schema = jsonSchemaGenerator.generateSchema(AggregatedListQuery::class.java, TestAggregate::class.java)
-
-        schema["properties"]["condition"].assert().isNotNull()
-        schema["properties"]["filter"].assert().isNull()
     }
 
     @Test

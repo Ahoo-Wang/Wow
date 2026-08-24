@@ -19,7 +19,7 @@ import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToId
-import me.ahoo.wow.mongo.query.AbstractMongoConditionConverter
+import me.ahoo.wow.mongo.query.AbstractMongoFilterConverter
 import me.ahoo.wow.mongo.query.AbstractMongoQueryService
 import me.ahoo.wow.mongo.query.MongoProjectionConverter
 import me.ahoo.wow.mongo.query.MongoSortConverter
@@ -30,7 +30,7 @@ import org.bson.Document
 class MongoEventStreamQueryService(
     override val namedAggregate: NamedAggregate,
     override val collection: MongoCollection<Document>,
-    override val converter: AbstractMongoConditionConverter = EventStreamConditionConverter
+    override val converter: AbstractMongoFilterConverter = EventStreamFilterConverter
 ) : AbstractMongoQueryService<DomainEventStream>(), EventStreamQueryService {
 
     override val projectionConverter: MongoProjectionConverter = MongoProjectionConverter(EventStreamFieldConverter)

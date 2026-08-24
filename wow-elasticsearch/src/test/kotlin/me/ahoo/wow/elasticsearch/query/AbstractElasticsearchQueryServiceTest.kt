@@ -33,16 +33,16 @@ import io.mockk.slot
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryServiceFactory
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -53,10 +53,10 @@ import java.time.Duration
 
 class AbstractElasticsearchQueryServiceTest {
     private val elasticsearchClient = mockk<ReactiveElasticsearchClient>()
-    private val conditionConverter = mockk<AbstractElasticsearchConditionConverter> {
+    private val filterConverter = mockk<AbstractElasticsearchFilterConverter> {
         every { convert(any<me.ahoo.wow.api.query.FilterExpression>()) } returns matchAll { it }
     }
-    private val queryService = TestElasticsearchQueryService(elasticsearchClient, conditionConverter)
+    private val queryService = TestElasticsearchQueryService(elasticsearchClient, filterConverter)
 
     @Test
     fun `dynamic list should not track exact total hits`() {
@@ -67,7 +67,7 @@ class AbstractElasticsearchQueryServiceTest {
 
         val result = queryService.dynamicList(
             ListQuery(
-                condition = Condition.ALL,
+                filter = MatchAllFilter,
                 projection = Projection(include = listOf("field")),
                 sort = listOf(Sort("field", Sort.Direction.ASC)),
                 limit = DEFAULT_SEARCH_BATCH_SIZE,
@@ -95,7 +95,7 @@ class AbstractElasticsearchQueryServiceTest {
             closePointInTimeResponse()
         )
 
-        val result = queryService.dynamicList(ListQuery(Condition.ALL)).collectList().block()!!
+        val result = queryService.dynamicList(ListQuery(MatchAllFilter)).collectList().block()!!
 
         result.assert().hasSize(1)
         openRequest.captured.index().assert().containsExactly("test-index")
@@ -123,7 +123,7 @@ class AbstractElasticsearchQueryServiceTest {
 
         queryService.dynamicList(
             ListQuery(
-                condition = Condition.ALL,
+                filter = MatchAllFilter,
                 projection = Projection(include = listOf("field")),
                 sort = listOf(
                     Sort("_score", Sort.Direction.DESC),
@@ -156,7 +156,7 @@ class AbstractElasticsearchQueryServiceTest {
 
         ElasticsearchSnapshotQueryServiceFactory(elasticsearchClient, 3, Duration.ofMinutes(5))
             .create<Any>(MOCK_AGGREGATE_METADATA)
-            .dynamicList(ListQuery(Condition.ALL, limit = 4))
+            .dynamicList(ListQuery(MatchAllFilter, limit = 4))
             .collectList()
             .block()
 
@@ -172,33 +172,33 @@ class AbstractElasticsearchQueryServiceTest {
         val convertedFilter = slot<FilterExpression>()
         every { elasticsearchClient.indices() } returns indicesClient
         every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(emptyMappingResponse())
-        every { conditionConverter.convert(capture(convertedFilter)) } returns matchAll { it }
+        every { filterConverter.convert(capture(convertedFilter)) } returns matchAll { it }
         every { elasticsearchClient.search(capture(request), Map::class.java) } returns Mono.just(
             searchResponse(total = null),
         )
-        val condition = Condition.eq("logicalField", "value")
+        val filter = filterExpression { "logicalField" eq "value" }
         val service = MappingTestElasticsearchQueryService(
             elasticsearchClient,
-            conditionConverter,
+            filterConverter,
             ElasticsearchIndexMappingResolver(elasticsearchClient),
         )
 
         service.dynamicList(
             ListQuery(
-                condition = condition,
+                filter = filter,
                 sort = listOf(Sort("logicalField", Sort.Direction.ASC)),
                 limit = 1,
             ),
         ).collectList().block()
 
-        convertedFilter.captured.assert().isEqualTo(condition.toFilterExpression())
+        convertedFilter.captured.assert().isEqualTo(filter)
         request.captured.sort().single().field().field().assert().isEqualTo("logicalField")
     }
 
     @Test
     fun `dynamic list should reject negative limit before searching`() {
         assertThrows<IllegalArgumentException> {
-            queryService.dynamicList(ListQuery(Condition.ALL, limit = -1))
+            queryService.dynamicList(ListQuery(MatchAllFilter, limit = -1))
         }
 
         verify(exactly = 0) { elasticsearchClient.search(any<SearchRequest>(), Map::class.java) }
@@ -212,7 +212,7 @@ class AbstractElasticsearchQueryServiceTest {
             searchResponse(total = 42)
         )
 
-        val result = queryService.dynamicPaged(PagedQuery(Condition.ALL)).block()!!
+        val result = queryService.dynamicPaged(PagedQuery(MatchAllFilter)).block()!!
 
         request.captured.trackTotalHits()!!.enabled().assert().isTrue()
         request.captured.index().assert().containsExactly("test-index")
@@ -232,7 +232,7 @@ class AbstractElasticsearchQueryServiceTest {
             }
         )
 
-        val result = queryService.count(Condition.ALL).block()!!
+        val result = queryService.count(MatchAllFilter).block()!!
 
         request.captured.index().assert().containsExactly("test-index")
         result.assert().isEqualTo(42)
@@ -282,7 +282,7 @@ class AbstractElasticsearchQueryServiceTest {
 
     private open class TestElasticsearchQueryService(
         override val elasticsearchClient: ReactiveElasticsearchClient,
-        override val conditionConverter: AbstractElasticsearchConditionConverter,
+        override val filterConverter: AbstractElasticsearchFilterConverter,
     ) : AbstractElasticsearchQueryService<DynamicDocument>() {
         override val namedAggregate: NamedAggregate = MaterializedNamedAggregate("test", "aggregate")
         override val indexName: String = "test-index"
@@ -292,7 +292,7 @@ class AbstractElasticsearchQueryServiceTest {
 
     private class MappingTestElasticsearchQueryService(
         elasticsearchClient: ReactiveElasticsearchClient,
-        conditionConverter: AbstractElasticsearchConditionConverter,
+        filterConverter: AbstractElasticsearchFilterConverter,
         override val indexMappingResolver: ElasticsearchIndexMappingResolver,
-    ) : TestElasticsearchQueryService(elasticsearchClient, conditionConverter)
+    ) : TestElasticsearchQueryService(elasticsearchClient, filterConverter)
 }

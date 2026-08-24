@@ -32,12 +32,7 @@ class WowDefinitionProviderRegistryTest {
             "SnapshotDefinitionProvider",
             "StateEventDefinitionProvider",
             "ServerSentEventCustomDefinitionProvider",
-            "AggregatedFieldsDefinitionProvider",
-            "AggregatedListQueryDefinitionProvider",
-            "AggregatedPagedQueryDefinitionProvider",
-            "AggregatedSingleQueryDefinitionProvider",
             "FilterExpressionDefinitionProvider",
-            "ConditionOptionsDefinitionProvider",
             "MapDefinitionProvider",
             "EnumTextDefinitionProvider"
         )

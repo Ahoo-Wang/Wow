@@ -20,9 +20,14 @@ import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
+import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.TenantIdFilter
+import me.ahoo.wow.api.query.toCondition
 import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.filter.EmptyFilterChain
 import me.ahoo.wow.filter.ErrorHandler
@@ -45,7 +50,49 @@ import java.util.concurrent.atomic.AtomicInteger
 class QueryHandlerSubscriptionTest {
     @Suppress("DEPRECATION")
     @Test
-    fun `new count should delegate to a legacy query handler implementation`() {
+    fun `custom list query should retain implementation during executable conversion`() {
+        lateinit var captured: IListQuery
+        val chain = FilterChain<QueryContext<*, *>> { context ->
+            val listContext = context.asListQuery<String>()
+            captured = listContext.getQuery()
+            listContext.setResult(Flux.empty())
+            Mono.empty()
+        }
+        val handler = TestQueryHandler(chain)
+
+        handler.list(
+            MOCK_AGGREGATE_METADATA,
+            CustomListQuery(Condition.tenantId("tenant-1").toFilterExpression(), marker = "custom"),
+        ).test().verifyComplete()
+
+        (captured as CustomListQuery).marker.assert().isEqualTo("custom")
+        captured.filter.assert().isEqualTo(TenantIdFilter("tenant-1"))
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `custom Condition backed list query should be executable before first filter`() {
+        lateinit var captured: FilterExpression
+        val chain = FilterChain<QueryContext<*, *>> { context ->
+            val listContext = context.asListQuery<String>()
+            captured = listContext.getQuery().filter
+            listContext.setResult(Flux.empty())
+            Mono.empty()
+        }
+        val handler = TestQueryHandler(chain)
+
+        handler.list(
+            MOCK_AGGREGATE_METADATA,
+            LegacyListQuery(Condition.tenantId("tenant-1")),
+        ).test().verifyComplete()
+
+        captured.assert().isEqualTo(TenantIdFilter("tenant-1"))
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `legacy count should delegate once to filter query handler implementation`() {
+        lateinit var captured: FilterExpression
         val handler = object : QueryHandler<Any> {
             override fun handle(context: QueryContext<*, *>): Mono<Void> = Mono.empty()
             override fun single(namedAggregate: me.ahoo.wow.api.modeling.NamedAggregate, singleQuery: ISingleQuery) =
@@ -68,11 +115,15 @@ class QueryHandlerSubscriptionTest {
             ) = Mono.empty<PagedList<DynamicDocument>>()
             override fun count(
                 namedAggregate: me.ahoo.wow.api.modeling.NamedAggregate,
-                condition: Condition,
-            ) = Mono.just(1L)
+                filter: FilterExpression,
+            ): Mono<Long> {
+                captured = filter
+                return Mono.just(1L)
+            }
         }
 
-        handler.count(MOCK_AGGREGATE_METADATA, MatchAllFilter).test().expectNext(1).verifyComplete()
+        handler.count(MOCK_AGGREGATE_METADATA, Condition.id("id-1")).test().expectNext(1).verifyComplete()
+        captured.assert().isEqualTo(IdFilter("id-1"))
     }
 
     @Test
@@ -131,7 +182,7 @@ class QueryHandlerSubscriptionTest {
             QueryType.DYNAMIC_LIST to handler.dynamicList(MOCK_AGGREGATE_METADATA, listQuery { }),
             QueryType.PAGED to handler.paged(MOCK_AGGREGATE_METADATA, pagedQuery { }),
             QueryType.DYNAMIC_PAGED to handler.dynamicPaged(MOCK_AGGREGATE_METADATA, pagedQuery { }),
-            QueryType.COUNT to handler.count(MOCK_AGGREGATE_METADATA, Condition.ALL),
+            QueryType.COUNT to handler.count(MOCK_AGGREGATE_METADATA, MatchAllFilter),
         )
 
     private class TestQueryHandler(chain: FilterChain<QueryContext<*, *>>) :
@@ -216,21 +267,51 @@ class QueryHandlerSubscriptionTest {
                     Mono.just(PagedList(1, listOf(mutableMapOf("result" to RESULT).toDynamicDocument())))
                 )
 
-                QueryType.COUNT -> context.asFilterCountQuery().setResult(Mono.just(1L))
+                QueryType.COUNT -> context.asCountQuery().setResult(Mono.just(1L))
             }
             return next.filter(context)
         }
     }
 
+    @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
+    private data class LegacyListQuery(
+        override val condition: Condition,
+        override val projection: Projection = Projection.ALL,
+        override val sort: List<Sort> = emptyList(),
+        override val limit: Int = 0,
+    ) : IListQuery {
+        override fun withCondition(newCondition: Condition): IListQuery = copy(condition = newCondition)
+
+        override fun withProjection(newProjection: Projection): IListQuery = copy(projection = newProjection)
+    }
+
+    @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
+    private data class CustomListQuery(
+        override val filter: FilterExpression,
+        val marker: String,
+        override val projection: Projection = Projection.ALL,
+        override val sort: List<Sort> = emptyList(),
+        override val limit: Int = 0,
+    ) : IListQuery {
+        override val condition: Condition
+            get() = filter.toCondition()
+
+        override fun withFilter(newFilter: FilterExpression): IListQuery = copy(filter = newFilter)
+
+        override fun withCondition(newCondition: Condition): IListQuery =
+            copy(filter = newCondition.toFilterExpression())
+
+        override fun withProjection(newProjection: Projection): IListQuery = copy(projection = newProjection)
+    }
+
     private companion object {
         const val RESULT = "result"
         const val MASK_COUNT_KEY = "maskCount"
-        val APPENDED_FILTER = Condition.id("subscription").toFilterExpression()
+        val APPENDED_FILTER = IdFilter("subscription")
 
         fun queryFilter(context: QueryContext<*, *>): me.ahoo.wow.api.query.FilterExpression =
             when (val query = context.getQuery()) {
                 is me.ahoo.wow.api.query.FilterExpression -> query
-                is Condition -> query.toFilterExpression()
                 is me.ahoo.wow.api.query.FilterCapable<*> -> query.filter
                 else -> error("Unsupported query type: ${query::class}.")
             }

@@ -23,16 +23,31 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregateIdFilter
+import me.ahoo.wow.api.query.AggregateIdsFilter
+import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.ContainsFilter
+import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ExistsFilter
+import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.GreaterThanFilter
+import me.ahoo.wow.api.query.IdFilter
+import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.IsEmptyFilter
 import me.ahoo.wow.api.query.IsNotNullFilter
 import me.ahoo.wow.api.query.IsNullFilter
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.NotEqualFilter
 import me.ahoo.wow.api.query.NotExistsFilter
+import me.ahoo.wow.api.query.OwnerIdFilter
+import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.SpaceIdFilter
+import me.ahoo.wow.api.query.TenantIdFilter
+import me.ahoo.wow.api.query.toExecutableFilter
+import me.ahoo.wow.api.query.toFilterExpression
 import org.junit.jupiter.api.Test
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchIndicesClient
@@ -153,45 +168,64 @@ class ElasticsearchIndexMappingResolverTest {
         ) as EqualFilter
         documentIdFilter.field.value.assert().isEqualTo("_id")
 
-        val condition = mapping.resolve(
-            Condition.and(
-                Condition.eq("state.name", "Wow"),
-                Condition.match("state.name", "Wow"),
-                Condition.contains("state.name", "ow"),
-                Condition.gt("state.age", 18),
-                Condition.exists("state.name"),
+        val filter = mapping.resolve(
+            AndFilter(
+                listOf(
+                    EqualFilter(LogicalField("state.name"), json("Wow")),
+                    SearchFilter("Wow", linkedSetOf(LogicalField("state.name"))),
+                    ContainsFilter(LogicalField("state.name"), "ow"),
+                    GreaterThanFilter(LogicalField("state.age"), json(18)),
+                    ExistsFilter(LogicalField("state.name")),
+                ),
             ),
-        )
-        condition.children.map { it.field }.assert().containsExactly(
-            "state.name.keyword",
-            "state.name",
-            "state.name.keyword",
-            "state.age",
-            "state.name",
-        )
+        ) as AndFilter
+        (filter.operands[0] as EqualFilter).field.value.assert().isEqualTo("state.name.keyword")
+        (filter.operands[1] as SearchFilter).fields.single().value.assert().isEqualTo("state.name")
+        (filter.operands[2] as ContainsFilter).field.value.assert().isEqualTo("state.name.keyword")
+        (filter.operands[3] as GreaterThanFilter).field.value.assert().isEqualTo("state.age")
+        (filter.operands[4] as ExistsFilter).field.value.assert().isEqualTo("state.name")
         mapping.resolve(listOf(Sort("state.name", Sort.Direction.ASC))).single().field
             .assert().isEqualTo("state.name.keyword")
         val elementMatch = mapping.resolve(
-            Condition.elemMatch("state.items", Condition.eq("state.items.name", "item")),
-        )
-        elementMatch.field.assert().isEqualTo("state.items")
-        elementMatch.children.single().field.assert().isEqualTo("state.items.name")
-
-        val filter = mapping.resolve(
-            me.ahoo.wow.api.query.ElementMatchFilter(
-                me.ahoo.wow.api.query.LogicalField("state.items"),
-                me.ahoo.wow.api.query.EqualFilter(
-                    me.ahoo.wow.api.query.LogicalField("state.items.name"),
-                    me.ahoo.wow.serialization.JsonSerializer.valueToTree("item"),
-                ),
+            ElementMatchFilter(
+                LogicalField("state.items"),
+                EqualFilter(LogicalField("state.items.name"), json("item")),
             ),
-        ) as me.ahoo.wow.api.query.ElementMatchFilter
-        (filter.predicate as me.ahoo.wow.api.query.EqualFilter).field.value.assert()
+        ) as ElementMatchFilter
+        elementMatch.field.value.assert().isEqualTo("state.items")
+        (elementMatch.predicate as EqualFilter).field.value.assert()
             .isEqualTo("state.items.name")
+    }
 
-        ElasticsearchIndexMapping.from(INDEX, keywordOnly())
-            .resolve(Condition.match("state.name", "Wow"))
-            .field.assert().isEqualTo("state.name")
+    private fun json(value: Any?) = me.ahoo.wow.serialization.JsonSerializer.valueToTree<tools.jackson.databind.JsonNode>(
+        value
+    )
+
+    @Test
+    fun `metadata filters should bypass logical field resolution`() {
+        val mapping = ElasticsearchIndexMapping.from(INDEX, keywordOnly())
+        val filters = listOf<FilterExpression>(
+            IdFilter("id-1"),
+            IdsFilter(listOf("id-1")),
+            AggregateIdFilter("aggregate-1"),
+            AggregateIdsFilter(listOf("aggregate-1")),
+            TenantIdFilter("tenant-1"),
+            OwnerIdFilter("owner-1"),
+            SpaceIdFilter("space-1"),
+        )
+
+        filters.forEach { filter -> mapping.resolve(filter).assert().isSameAs(filter) }
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `resolved legacy filter should use logical field mapping`() {
+        val mapping = ElasticsearchIndexMapping.from(INDEX, textWithKeyword())
+        val executable = Condition.eq("state.name", "Wow").toFilterExpression().toExecutableFilter()
+
+        val resolved = mapping.resolve(executable) as EqualFilter
+
+        resolved.field.value.assert().isEqualTo("state.name.keyword")
     }
 
     @Test

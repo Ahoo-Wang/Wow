@@ -36,7 +36,7 @@ class ElasticsearchEventStreamQueryServiceFactory(
         return ElasticsearchEventStreamQueryService(
             namedAggregate,
             elasticsearchClient,
-            EventStreamConditionConverter,
+            EventStreamFilterConverter,
             queryBatchSize,
             queryKeepAlive,
         )

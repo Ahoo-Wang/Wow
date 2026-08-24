@@ -18,7 +18,6 @@ import co.elastic.clients.elasticsearch._types.mapping.RuntimeFieldType
 import co.elastic.clients.elasticsearch.core.UpdateRequest
 import co.elastic.clients.elasticsearch.indices.PutMappingRequest
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
@@ -30,6 +29,7 @@ import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.elasticsearch.query.ElasticsearchFieldUsage
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
+import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -111,10 +111,10 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
         queryService.dynamicList(
             ListQuery(
-                condition = Condition.and(
-                    Condition.eq("state.keywordOnly", "exact"),
-                    Condition.match("state.textOnly", "search"),
-                ),
+                filter = filterExpression {
+                    "state.keywordOnly" eq "exact"
+                    "state.textOnly" search "search"
+                },
                 limit = 10,
             ),
         ).test()
@@ -122,10 +122,10 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
 
         queryService.dynamicList(
             ListQuery(
-                condition = Condition.and(
-                    Condition.eq("aggregateIdAlias", snapshot.aggregateId.id),
-                    Condition.eq("state.runtimeCode", "runtime"),
-                ),
+                filter = filterExpression {
+                    "aggregateIdAlias" eq snapshot.aggregateId.id
+                    "state.runtimeCode" eq "runtime"
+                },
                 sort = listOf(Sort("state.runtimeCode", Sort.Direction.ASC)),
                 limit = 10,
             ),
@@ -208,14 +208,14 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
             .dynamicList(
                 ListQuery(
-                    condition = Condition.and(
-                        Condition.eq("docValueOnlyKeyword", "exact"),
-                        Condition.gt("docValueOnlyLong", 1),
-                        Condition.gt("ipAddress", "192.168.0.1"),
-                        Condition.gt("integerRange", 15),
-                        Condition.gt("ipRange", "192.168.0.128"),
-                        Condition.eq("labels.release", "v1.2.3"),
-                    ),
+                    filter = filterExpression {
+                        "docValueOnlyKeyword" eq "exact"
+                        "docValueOnlyLong" gt 1
+                        "ipAddress" gt "192.168.0.1"
+                        "integerRange" gt 15
+                        "ipRange" gt "192.168.0.128"
+                        "labels.release" eq "v1.2.3"
+                    },
                     sort = listOf(
                         Sort("docValueOnlyLong", Sort.Direction.ASC),
                         Sort("sortableText", Sort.Direction.ASC),

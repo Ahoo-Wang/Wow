@@ -50,6 +50,22 @@ class FilterNormalizerTest {
     }
 
     @Test
+    fun `should preserve deletion scope nested in conjunctions`() {
+        val predicate = EqualFilter(
+            LogicalField("field"),
+            JsonSerializer.valueToTree<JsonNode>("value"),
+        )
+        val deleted = DeletionFilter(DeletionState.DELETED)
+        val tenant = TenantIdFilter("tenant-1")
+
+        val normalized = normalizer.normalize(
+            AndFilter(listOf(AndFilter(listOf(deleted, predicate)), tenant)),
+        ) as AndFilter
+
+        normalized.operands.assert().containsExactly(deleted, predicate, tenant)
+    }
+
+    @Test
     fun `should allow event stream normalization without deletion scope`() {
         FilterNormalizer(
             clock = Clock.fixed(Instant.parse("2026-08-22T12:00:00Z"), ZoneOffset.UTC),
@@ -58,15 +74,15 @@ class FilterNormalizerTest {
         ).normalize(MatchAllFilter).assert().isEqualTo(MatchAllFilter)
     }
 
-    @Suppress("DEPRECATION")
     @Test
-    fun `should preserve legacy date formatter`() {
+    fun `should preserve runtime date formatter`() {
         val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
         val normalized = normalizer.normalize(
-            Condition.today("createdAt", formatter).toFilterExpression(),
+            TodayFilter(LogicalField("createdAt"), dateFormatter = formatter),
         ) as AndFilter
 
-        normalized.operands[1].toCondition().datePattern().assert().isEqualTo(formatter)
+        (normalized.operands[1] as GreaterThanOrEqualFilter).value.asText().assert()
+            .isEqualTo("2026-08-22 00:00:00")
     }
 
     @Test

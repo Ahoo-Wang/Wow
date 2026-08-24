@@ -21,7 +21,7 @@ import me.ahoo.wow.webflux.route.event.CountEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.ListQueryEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.LoadEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.PagedQueryEventStreamHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.query.RewriteRequestCondition
+import me.ahoo.wow.webflux.route.query.RewriteRequestFilter
 import me.ahoo.wow.webflux.route.snapshot.CountSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.ListQuerySnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.ListQuerySnapshotStateHandlerFunctionFactory
@@ -34,7 +34,7 @@ import me.ahoo.wow.webflux.route.snapshot.SingleSnapshotStateHandlerFunctionFact
 class QueryRouteModule(
     snapshotQueryHandler: SnapshotQueryHandler,
     eventStreamQueryHandler: EventStreamQueryHandler,
-    rewriteRequestCondition: RewriteRequestCondition,
+    rewriteRequestFilter: RewriteRequestFilter,
     exceptionHandler: RequestExceptionHandler
 ) : WebFluxRouteModule {
     override val httpFactories: List<HttpRouteHandlerFunctionFactory> = listOf(
@@ -44,37 +44,37 @@ class QueryRouteModule(
         ),
         ListQuerySnapshotHandlerFunctionFactory(
             snapshotQueryHandler = snapshotQueryHandler,
-            rewriteRequestCondition = rewriteRequestCondition,
+            rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler
         ),
         ListQuerySnapshotStateHandlerFunctionFactory(
             snapshotQueryHandler = snapshotQueryHandler,
-            rewriteRequestCondition = rewriteRequestCondition,
+            rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler
         ),
         PagedQuerySnapshotHandlerFunctionFactory(
             snapshotQueryHandler = snapshotQueryHandler,
-            rewriteRequestCondition = rewriteRequestCondition,
+            rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler
         ),
         PagedQuerySnapshotStateHandlerFunctionFactory(
             snapshotQueryHandler = snapshotQueryHandler,
-            rewriteRequestCondition = rewriteRequestCondition,
+            rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler
         ),
         SingleSnapshotHandlerFunctionFactory(
             snapshotQueryHandler = snapshotQueryHandler,
-            rewriteRequestCondition = rewriteRequestCondition,
+            rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler
         ),
         SingleSnapshotStateHandlerFunctionFactory(
             snapshotQueryHandler = snapshotQueryHandler,
-            rewriteRequestCondition = rewriteRequestCondition,
+            rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler
         ),
         CountSnapshotHandlerFunctionFactory(
             snapshotQueryHandler = snapshotQueryHandler,
-            rewriteRequestCondition = rewriteRequestCondition,
+            rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler
         ),
         LoadEventStreamHandlerFunctionFactory(
@@ -83,17 +83,17 @@ class QueryRouteModule(
         ),
         ListQueryEventStreamHandlerFunctionFactory(
             eventStreamQueryHandler = eventStreamQueryHandler,
-            rewriteRequestCondition = rewriteRequestCondition,
+            rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler
         ),
         PagedQueryEventStreamHandlerFunctionFactory(
             eventStreamQueryHandler = eventStreamQueryHandler,
-            rewriteRequestCondition = rewriteRequestCondition,
+            rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler
         ),
         CountEventStreamHandlerFunctionFactory(
             eventStreamQueryHandler = eventStreamQueryHandler,
-            rewriteRequestCondition = rewriteRequestCondition,
+            rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler
         ),
     )

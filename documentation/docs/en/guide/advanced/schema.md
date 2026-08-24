@@ -72,7 +72,7 @@ that supply schemas for framework and Kotlin/Joda types:
 
 | Type / Module | Schema Handling |
 |------|----------------|
-| `AggregateId`, `DomainEventStream`, `AggregatedFields`, query models | Loaded from bundled JSON Schema resources via `WowSchemaLoader` (complex objects, not flattened primitives) |
+| `AggregateId`, `DomainEventStream`, `FilterExpression` query models | Loaded from bundled JSON Schema resources via `WowSchemaLoader` (complex objects, not flattened primitives) |
 | `Map<K, V>` (`MapDefinitionProvider`) | Object with additional properties |
 | `CharRange` / `IntRange` / `LongRange` (`KotlinModule`) | Object with `start` and `end` properties |
 | `CurrencyUnit` (`JodaMoneyModule`) | String with `format: currency` |
@@ -81,7 +81,7 @@ that supply schemas for framework and Kotlin/Joda types:
 | Nullable Kotlin types (`KotlinNullableCheck`) | `null` added to the type union |
 | `@Summary` / `@Description` | Resolved into schema `title` / `description` metadata |
 
-`AggregatedFields` and the `Aggregated*Query` types remain available only as deprecated compatibility entry points. New query contracts use the v2 `FilterExpression` schemas.
+Query contracts use the v2 `FilterExpression` schemas.
 
 ## How the OpenAPI Module Uses Schemas
 

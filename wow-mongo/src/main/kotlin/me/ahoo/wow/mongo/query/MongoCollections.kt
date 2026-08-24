@@ -19,7 +19,7 @@ import me.ahoo.wow.api.query.Queryable
 import org.bson.Document
 
 fun MongoCollection<Document>.findDocument(
-    converter: AbstractMongoConditionConverter,
+    converter: AbstractMongoFilterConverter,
     queryable: Queryable<*>,
     projectionConverter: MongoProjectionConverter,
     sortConverter: MongoSortConverter

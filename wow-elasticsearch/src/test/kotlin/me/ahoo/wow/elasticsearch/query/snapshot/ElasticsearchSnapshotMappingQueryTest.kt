@@ -26,14 +26,18 @@ import io.mockk.slot
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.EqualFilter
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.elasticsearch.query.ElasticsearchFieldResolutionException
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
+import me.ahoo.wow.query.dsl.filter
+import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -57,29 +61,59 @@ class ElasticsearchSnapshotMappingQueryTest {
         every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
             mappingResponse(queryMapping()),
         )
-        val condition = Condition.and(
-            Condition.eq("state.name", "Wow"),
-            Condition.match("state.name", "Wow"),
-            Condition.contains("state.name", "ow"),
-            Condition.gt("state.age", 18),
-        )
+        val filter = filter {
+            "state.name" eq "Wow"
+            "state.name" search "Wow"
+            "state.name".contains("ow")
+            "state.age" gt 18
+        }
 
         queryService().dynamicList(
             ListQuery(
-                condition = condition,
+                filter = filter,
                 projection = Projection(include = listOf("state.name")),
                 sort = listOf(Sort("state.name", Sort.Direction.ASC)),
                 limit = 10,
             ),
         ).collectList().block()
 
-        val filters = searchRequest.captured.query()!!.bool().filter()[1].bool().filter()
-        filters[0].term().field().assert().isEqualTo("state.name.keyword")
-        filters[1].match().field().assert().isEqualTo("state.name")
-        filters[2].wildcard().field().assert().isEqualTo("state.name.keyword")
-        filters[3].range().untyped().field().assert().isEqualTo("state.age")
+        val filters = searchRequest.captured.query()!!.bool().filter()
+        filters[1].term().field().assert().isEqualTo("state.name.keyword")
+        filters[2].multiMatch().fields().single().assert().isEqualTo("state.name")
+        filters[3].wildcard().field().assert().isEqualTo("state.name.keyword")
+        filters[4].range().untyped().field().assert().isEqualTo("state.age")
         searchRequest.captured.sort().single().field().field().assert().isEqualTo("state.name.keyword")
         searchRequest.captured.source()!!.filter().includes().assert().containsExactly("state.name")
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `legacy snapshot query should resolve logical fields before mapping inference`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(queryMapping()),
+        )
+
+        queryService().dynamicList(
+            ListQuery(condition = Condition.eq("state.name", "Wow"), limit = 10),
+        ).collectList().block()
+
+        searchRequest.captured.query()!!.bool().filter()[1].term().field().assert()
+            .isEqualTo("state.name.keyword")
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `legacy match should preserve exact field mapping`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(queryMapping(includeNewField = true)),
+        )
+
+        queryService().dynamicList(
+            ListQuery(condition = Condition.match("state.newField", "exact"), limit = 10),
+        ).collectList().block()
+
+        searchRequest.captured.query()!!.bool().filter()[1].multiMatch().fields().assert()
+            .containsExactly("state.newField")
     }
 
     @Test
@@ -91,7 +125,7 @@ class ElasticsearchSnapshotMappingQueryTest {
 
         repeat(2) {
             service.dynamicList(
-                ListQuery(condition = Condition.eq("state.newField", "new"), limit = 10),
+                ListQuery(filter = equal("state.newField", "new"), limit = 10),
             ).test()
                 .expectError(ElasticsearchFieldResolutionException::class.java)
                 .verify()
@@ -101,23 +135,51 @@ class ElasticsearchSnapshotMappingQueryTest {
         verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
     }
 
-    @Suppress("DEPRECATION")
     @Test
-    fun `legacy element match should retain nested match query`() {
+    fun `typed element match should retain nested field qualification`() {
         every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
             mappingResponse(queryMapping()),
         )
 
         queryService().dynamicList(
             ListQuery(
-                condition = Condition.elemMatch("body", Condition.match("body.name", "wow")),
+                filter = filter {
+                    "body".elementMatch {
+                        "name" eq "wow"
+                    }
+                },
                 limit = 10,
             ),
         ).collectList().block()
 
         val nested = searchRequest.captured.query()!!.bool().filter()[1].nested()
         nested.path().assert().isEqualTo("body")
-        nested.query().bool().filter().single().match().field().assert().isEqualTo("body.name")
+        nested.query().term().field().assert().isEqualTo("body.name")
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `legacy element match should resolve non-match sibling fields`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(queryMapping()),
+        )
+
+        queryService().dynamicList(
+            ListQuery(
+                condition = Condition.elemMatch(
+                    "body",
+                    Condition.and(
+                        Condition.match("body.description", "wow"),
+                        Condition.eq("body.title", "Wow"),
+                    ),
+                ),
+                limit = 10,
+            ),
+        ).collectList().block()
+
+        val filters = searchRequest.captured.query()!!.bool().filter()[1].nested().query().bool().filter()
+        filters[0].multiMatch().fields().assert().containsExactly("body.description")
+        filters[1].term().field().assert().isEqualTo("body.title.keyword")
     }
 
     @Test
@@ -128,7 +190,7 @@ class ElasticsearchSnapshotMappingQueryTest {
         )
         val resolver = ElasticsearchIndexMappingResolver(client)
         val service = queryService(resolver)
-        val query = ListQuery(condition = Condition.eq("state.newField", "new"), limit = 10)
+        val query = ListQuery(filter = equal("state.newField", "new"), limit = 10)
 
         service.dynamicList(query).test()
             .expectError(ElasticsearchFieldResolutionException::class.java)
@@ -148,7 +210,7 @@ class ElasticsearchSnapshotMappingQueryTest {
         )
         val factory = ElasticsearchSnapshotQueryServiceFactory(client)
         val service = factory.create<Any>(MOCK_AGGREGATE_METADATA)
-        val query = ListQuery(condition = Condition.eq("state.newField", "new"), limit = 10)
+        val query = ListQuery(filter = equal("state.newField", "new"), limit = 10)
 
         service.dynamicList(query).test()
             .expectError(ElasticsearchFieldResolutionException::class.java)
@@ -160,12 +222,12 @@ class ElasticsearchSnapshotMappingQueryTest {
     }
 
     @Test
-    fun `custom condition converter should keep physical field ownership`() {
-        val convertedFilter = slot<me.ahoo.wow.api.query.FilterExpression>()
-        val customConverter = mockk<me.ahoo.wow.elasticsearch.query.AbstractElasticsearchConditionConverter> {
+    fun `custom filter converter should keep physical field ownership`() {
+        val convertedFilter = slot<FilterExpression>()
+        val customConverter = mockk<me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterConverter> {
             every { convert(capture(convertedFilter)) } returns matchAll { it }
         }
-        val condition = Condition.eq("custom.physical", "value")
+        val filter = equal("custom.physical", "value")
         val service = ElasticsearchSnapshotQueryService<Any>(
             MOCK_AGGREGATE_METADATA,
             client,
@@ -175,9 +237,9 @@ class ElasticsearchSnapshotMappingQueryTest {
             ElasticsearchIndexMappingResolver(client),
         )
 
-        service.dynamicList(ListQuery(condition = condition, limit = 10)).collectList().block()
+        service.dynamicList(ListQuery(filter = filter, limit = 10)).collectList().block()
 
-        convertedFilter.captured.assert().isEqualTo(condition.toFilterExpression())
+        convertedFilter.captured.assert().isSameAs(filter)
         assertThrows<IllegalArgumentException> { service.refreshIndexMapping() }
         verify(exactly = 0) { client.indices() }
     }
@@ -188,11 +250,14 @@ class ElasticsearchSnapshotMappingQueryTest {
         ElasticsearchSnapshotQueryService(
             MOCK_AGGREGATE_METADATA,
             client,
-            SnapshotConditionConverter,
+            SnapshotFilterConverter,
             DEFAULT_SEARCH_BATCH_SIZE,
             DEFAULT_PIT_KEEP_ALIVE,
             resolver,
         )
+
+    private fun equal(field: String, value: Any): EqualFilter =
+        EqualFilter(LogicalField(field), JsonSerializer.valueToTree(value))
 
     private fun mappingResponse(mapping: TypeMapping): GetMappingResponse =
         GetMappingResponse.of { response ->
@@ -207,6 +272,12 @@ class ElasticsearchSnapshotMappingQueryTest {
             mapping.properties("body") { body ->
                 body.nested { nested ->
                     nested.properties("name") { name -> name.keyword { it } }
+                        .properties("description") { description -> description.text { it } }
+                        .properties("title") { title ->
+                            title.text { text ->
+                                text.fields("keyword") { keyword -> keyword.keyword { it } }
+                            }
+                        }
                 }
             }
             mapping.properties("state") { state ->
