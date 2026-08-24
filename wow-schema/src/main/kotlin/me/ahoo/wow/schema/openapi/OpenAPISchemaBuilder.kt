@@ -66,12 +66,12 @@ class OpenAPISchemaBuilder(
         val collectedDefs = schemaBuilder.collectDefinitions(definitionPath)
         schemaReferences.mergeAll()
         return collectedDefs.properties().associate { (name, node) ->
-            node.prepareForEmbedding(name)
+            node.rebaseStandaloneSchemaForEmbedding(name)
             name to schemaConverter.toSchema(node)
         }
     }
 
-    private fun JsonNode.prepareForEmbedding(schemaName: String) {
+    private fun JsonNode.rebaseStandaloneSchemaForEmbedding(schemaName: String) {
         if (this !is ObjectNode || !has("\$id")) return
         val references = findValuesAsString("\$ref")
         val canRebase = findValues("\$id").size == 1 && references.isNotEmpty() &&
