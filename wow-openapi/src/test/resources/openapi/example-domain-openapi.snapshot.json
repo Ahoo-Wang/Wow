@@ -275,7 +275,9 @@
             }
           }
         },
-        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.id", "state.items", "state.items.productId", "state.items.quantity", "state.size", "tags", "tenantId", "version" ]
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/example.cart.CartAggregatedFields"
+        }
       },
       "example.cart.ListQuery" : {
         "content" : {
@@ -307,7 +309,9 @@
             }
           }
         },
-        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.id", "state.items", "state.items.productId", "state.items.quantity", "state.size", "tags", "tenantId", "version" ]
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/example.cart.CartAggregatedFields"
+        }
       },
       "example.cart.PagedQuery" : {
         "content" : {
@@ -336,7 +340,9 @@
             }
           }
         },
-        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.id", "state.items", "state.items.productId", "state.items.quantity", "state.size", "tags", "tenantId", "version" ]
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/example.cart.CartAggregatedFields"
+        }
       },
       "example.cart.SingleQuery" : {
         "content" : {
@@ -362,7 +368,9 @@
             }
           }
         },
-        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.id", "state.items", "state.items.productId", "state.items.quantity", "state.size", "tags", "tenantId", "version" ]
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/example.cart.CartAggregatedFields"
+        }
       },
       "example.order.CountQuery" : {
         "content" : {
@@ -372,7 +380,9 @@
             }
           }
         },
-        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.address", "state.address.city", "state.address.country", "state.address.detail", "state.address.district", "state.address.province", "state.id", "state.items", "state.items.id", "state.items.price", "state.items.productId", "state.items.quantity", "state.items.totalPrice", "state.paidAmount", "state.payable", "state.status", "state.totalAmount", "tags", "tenantId", "version" ]
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/example.order.OrderAggregatedFields"
+        }
       },
       "example.order.ListQuery" : {
         "content" : {
@@ -404,7 +414,9 @@
             }
           }
         },
-        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.address", "state.address.city", "state.address.country", "state.address.detail", "state.address.district", "state.address.province", "state.id", "state.items", "state.items.id", "state.items.price", "state.items.productId", "state.items.quantity", "state.items.totalPrice", "state.paidAmount", "state.payable", "state.status", "state.totalAmount", "tags", "tenantId", "version" ]
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/example.order.OrderAggregatedFields"
+        }
       },
       "example.order.PagedQuery" : {
         "content" : {
@@ -433,7 +445,9 @@
             }
           }
         },
-        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.address", "state.address.city", "state.address.country", "state.address.detail", "state.address.district", "state.address.province", "state.id", "state.items", "state.items.id", "state.items.price", "state.items.productId", "state.items.quantity", "state.items.totalPrice", "state.paidAmount", "state.payable", "state.status", "state.totalAmount", "tags", "tenantId", "version" ]
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/example.order.OrderAggregatedFields"
+        }
       },
       "example.order.SingleQuery" : {
         "content" : {
@@ -459,7 +473,9 @@
             }
           }
         },
-        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.address", "state.address.city", "state.address.country", "state.address.detail", "state.address.district", "state.address.province", "state.id", "state.items", "state.items.id", "state.items.price", "state.items.productId", "state.items.quantity", "state.items.totalPrice", "state.paidAmount", "state.payable", "state.status", "state.totalAmount", "tags", "tenantId", "version" ]
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/example.order.OrderAggregatedFields"
+        }
       },
       "tck.mock_aggregate.CountQuery" : {
         "content" : {
@@ -469,7 +485,9 @@
             }
           }
         },
-        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.data", "state.id", "tags", "tenantId", "version" ]
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedFields"
+        }
       },
       "tck.mock_aggregate.ListQuery" : {
         "content" : {
@@ -501,7 +519,9 @@
             }
           }
         },
-        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.data", "state.id", "tags", "tenantId", "version" ]
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedFields"
+        }
       },
       "tck.mock_aggregate.PagedQuery" : {
         "content" : {
@@ -530,7 +550,9 @@
             }
           }
         },
-        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.data", "state.id", "tags", "tenantId", "version" ]
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedFields"
+        }
       },
       "tck.mock_aggregate.SingleQuery" : {
         "content" : {
@@ -556,7 +578,9 @@
             }
           }
         },
-        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.data", "state.id", "tags", "tenantId", "version" ]
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedFields"
+        }
       },
       "tck.modeling_command_aggregate_with_tenant_id.CountQuery" : {
         "content" : {
@@ -566,7 +590,9 @@
             }
           }
         },
-        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.id", "state.tenantId", "tags", "tenantId", "version" ]
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/tck.modeling_command_aggregate_with_tenant_id.MockCommandAggregateWithTenantIdAggregatedFields"
+        }
       },
       "tck.modeling_command_aggregate_with_tenant_id.ListQuery" : {
         "content" : {
@@ -598,7 +624,9 @@
             }
           }
         },
-        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.id", "state.tenantId", "tags", "tenantId", "version" ]
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/tck.modeling_command_aggregate_with_tenant_id.MockCommandAggregateWithTenantIdAggregatedFields"
+        }
       },
       "tck.modeling_command_aggregate_with_tenant_id.PagedQuery" : {
         "content" : {
@@ -627,7 +655,9 @@
             }
           }
         },
-        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.id", "state.tenantId", "tags", "tenantId", "version" ]
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/tck.modeling_command_aggregate_with_tenant_id.MockCommandAggregateWithTenantIdAggregatedFields"
+        }
       },
       "tck.modeling_command_aggregate_with_tenant_id.SingleQuery" : {
         "content" : {
@@ -653,7 +683,9 @@
             }
           }
         },
-        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.id", "state.tenantId", "tags", "tenantId", "version" ]
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/tck.modeling_command_aggregate_with_tenant_id.MockCommandAggregateWithTenantIdAggregatedFields"
+        }
       },
       "tck.modeling_command_aggregate_without_ctor_parameters.CountQuery" : {
         "content" : {
@@ -663,7 +695,9 @@
             }
           }
         },
-        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "tags", "tenantId", "version" ]
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/tck.modeling_command_aggregate_without_ctor_parameters.MockCommandAggregateWithoutCtorParametersAggregatedFields"
+        }
       },
       "tck.modeling_command_aggregate_without_ctor_parameters.ListQuery" : {
         "content" : {
@@ -695,7 +729,9 @@
             }
           }
         },
-        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "tags", "tenantId", "version" ]
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/tck.modeling_command_aggregate_without_ctor_parameters.MockCommandAggregateWithoutCtorParametersAggregatedFields"
+        }
       },
       "tck.modeling_command_aggregate_without_ctor_parameters.PagedQuery" : {
         "content" : {
@@ -724,7 +760,9 @@
             }
           }
         },
-        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "tags", "tenantId", "version" ]
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/tck.modeling_command_aggregate_without_ctor_parameters.MockCommandAggregateWithoutCtorParametersAggregatedFields"
+        }
       },
       "tck.modeling_command_aggregate_without_ctor_parameters.SingleQuery" : {
         "content" : {
@@ -750,7 +788,9 @@
             }
           }
         },
-        "x-wow-query-fields" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "tags", "tenantId", "version" ]
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/tck.modeling_command_aggregate_without_ctor_parameters.MockCommandAggregateWithoutCtorParametersAggregatedFields"
+        }
       },
       "wow.CompensationTarget" : {
         "content" : {
@@ -1295,6 +1335,10 @@
         },
         "required" : [ "data" ],
         "type" : "object"
+      },
+      "example.cart.CartAggregatedFields" : {
+        "enum" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.id", "state.items", "state.items.productId", "state.items.quantity", "state.size", "tags", "tenantId", "version" ],
+        "type" : "string"
       },
       "example.cart.CartItem" : {
         "properties" : {
@@ -2102,6 +2146,10 @@
         "required" : [ "data" ],
         "type" : "object"
       },
+      "example.order.OrderAggregatedFields" : {
+        "enum" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.address", "state.address.city", "state.address.country", "state.address.detail", "state.address.district", "state.address.province", "state.id", "state.items", "state.items.id", "state.items.price", "state.items.productId", "state.items.quantity", "state.items.totalPrice", "state.paidAmount", "state.payable", "state.status", "state.totalAmount", "tags", "tenantId", "version" ],
+        "type" : "string"
+      },
       "example.order.OrderCreated" : {
         "properties" : {
           "address" : {
@@ -2873,6 +2921,10 @@
         },
         "required" : [ "data" ],
         "type" : "object"
+      },
+      "tck.mock_aggregate.MockCommandAggregateAggregatedFields" : {
+        "enum" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.data", "state.id", "tags", "tenantId", "version" ],
+        "type" : "string"
       },
       "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedDomainEventStream" : {
         "$schema" : "https://json-schema.org/draft/2020-12/schema",
@@ -4319,6 +4371,14 @@
         },
         "required" : [ "data" ],
         "type" : "object"
+      },
+      "tck.modeling_command_aggregate_with_tenant_id.MockCommandAggregateWithTenantIdAggregatedFields" : {
+        "enum" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.id", "state.tenantId", "tags", "tenantId", "version" ],
+        "type" : "string"
+      },
+      "tck.modeling_command_aggregate_without_ctor_parameters.MockCommandAggregateWithoutCtorParametersAggregatedFields" : {
+        "enum" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "tags", "tenantId", "version" ],
+        "type" : "string"
       },
       "wow.api.BindingError" : {
         "properties" : {
