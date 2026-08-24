@@ -109,8 +109,28 @@ internal class ExampleDomainOpenAPITest {
             requestBody.content[Https.MediaType.APPLICATION_JSON]!!.schema.`$ref`
                 .assert().isEqualTo("#/components/schemas/wow.api.query.AggregationQuery")
             val querySchema = requireNotNull(openAPI.components.schemas["wow.api.query.AggregationQuery"])
+            val logicalFieldRef = "#/components/schemas/wow.api.query.LogicalField"
+            openAPI.components.schemas.getValue("wow.api.query.LogicalField").types
+                .assert().contains("string").doesNotContain("object")
             querySchema.properties.getValue("filter").`$ref`
                 .assert().isEqualTo("#/components/schemas/wow.api.query.FilterExpression")
+            openAPI.components.schemas.getValue("wow.api.query.AggregationMetric.Numeric")
+                .properties.getValue("expression").`$ref`
+                .assert().isEqualTo("#/components/schemas/wow.api.query.AggregationExpression.Field")
+            listOf(
+                querySchema.properties.getValue("elements").items.properties.getValue("path"),
+                openAPI.components.schemas.getValue("wow.api.query.AggregationExpression.Field")
+                    .properties.getValue("field"),
+                openAPI.components.schemas.getValue("wow.api.query.AggregationGroup").properties.getValue("field"),
+                openAPI.components.schemas.getValue("wow.api.query.AggregationGroup.DateHistogram")
+                    .properties.getValue("field"),
+                openAPI.components.schemas.getValue("wow.api.query.AggregationGroup.Histogram")
+                    .properties.getValue("field"),
+                openAPI.components.schemas.getValue("wow.api.query.AggregationGroup.Terms")
+                    .properties.getValue("field"),
+            ).forEach { fieldSchema ->
+                fieldSchema.`$ref`.assert().isEqualTo(logicalFieldRef)
+            }
             querySchema.required.assert().containsExactly("metrics")
             querySchema.properties.getValue("metrics").minItems.assert().isEqualTo(1)
             querySchema.properties.getValue("metrics").maxItems.assert().isEqualTo(64)

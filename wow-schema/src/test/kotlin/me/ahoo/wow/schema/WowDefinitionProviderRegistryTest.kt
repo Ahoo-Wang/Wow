@@ -33,6 +33,7 @@ class WowDefinitionProviderRegistryTest {
             "StateEventDefinitionProvider",
             "ServerSentEventCustomDefinitionProvider",
             "FilterExpressionDefinitionProvider",
+            "LogicalFieldDefinitionProvider",
             "MapDefinitionProvider",
             "EnumTextDefinitionProvider"
         )

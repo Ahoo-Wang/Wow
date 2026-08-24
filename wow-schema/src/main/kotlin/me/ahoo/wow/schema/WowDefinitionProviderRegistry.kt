@@ -25,6 +25,7 @@ import me.ahoo.wow.schema.typed.SnapshotDefinitionProvider
 import me.ahoo.wow.schema.typed.StateAggregateDefinitionProvider
 import me.ahoo.wow.schema.typed.StateEventDefinitionProvider
 import me.ahoo.wow.schema.typed.query.FilterExpressionDefinitionProvider
+import me.ahoo.wow.schema.typed.query.LogicalFieldDefinitionProvider
 import me.ahoo.wow.schema.web.ServerSentEventCustomDefinitionProvider
 
 internal object WowDefinitionProviderRegistry {
@@ -39,6 +40,7 @@ internal object WowDefinitionProviderRegistry {
         StateEventDefinitionProvider,
         ServerSentEventCustomDefinitionProvider,
         FilterExpressionDefinitionProvider,
+        LogicalFieldDefinitionProvider,
         MapDefinitionProvider,
         EnumTextDefinitionProvider
     )

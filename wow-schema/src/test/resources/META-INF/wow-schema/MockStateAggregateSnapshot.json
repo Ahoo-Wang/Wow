@@ -61,8 +61,67 @@
         "data" : {
           "type" : "string"
         },
+        "decimalValue" : {
+          "type" : "number"
+        },
         "id" : {
           "type" : "string"
+        },
+        "orders" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "properties" : {
+              "lines" : {
+                "type" : "array",
+                "items" : {
+                  "type" : "object",
+                  "properties" : {
+                    "amount" : {
+                      "anyOf" : [ {
+                        "type" : "null"
+                      }, {
+                        "type" : "number",
+                        "format" : "double"
+                      } ]
+                    },
+                    "createdAt" : {
+                      "type" : "string",
+                      "format" : "date-time"
+                    },
+                    "discounts" : {
+                      "type" : "array",
+                      "items" : {
+                        "type" : "object",
+                        "properties" : {
+                          "amount" : {
+                            "type" : "number",
+                            "format" : "double"
+                          },
+                          "type" : {
+                            "type" : "string"
+                          }
+                        },
+                        "required" : [ "amount", "type" ]
+                      }
+                    },
+                    "productId" : {
+                      "type" : "string"
+                    },
+                    "quantity" : {
+                      "type" : "integer",
+                      "format" : "int32"
+                    }
+                  },
+                  "required" : [ "amount", "createdAt", "discounts", "productId", "quantity" ]
+                }
+              },
+              "status" : {
+                "type" : "string"
+              }
+            },
+            "required" : [ "lines", "status" ]
+          }
         }
       },
       "required" : [ "id" ],

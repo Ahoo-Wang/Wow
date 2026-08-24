@@ -3,6 +3,7 @@ package me.ahoo.wow.schema.openapi
 import com.fasterxml.classmate.TypeResolver
 import com.github.victools.jsonschema.generator.Option
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.command.wait.SimpleWaitSignal
@@ -16,6 +17,15 @@ import org.junit.jupiter.api.Test
 import org.springframework.http.codec.ServerSentEvent
 
 class OpenAPISchemaBuilderTest {
+
+    @Test
+    fun `should expose delegating logical field as a string`() {
+        val openAPISchemaBuilder = OpenAPISchemaBuilder()
+        openAPISchemaBuilder.generateSchema(LogicalField::class.java)
+
+        openAPISchemaBuilder.build().getValue("wow.api.query.LogicalField")
+            .types.assert().contains("string").doesNotContain("object")
+    }
 
     @Test
     fun `should build open api schema with component references`() {

@@ -2983,7 +2983,7 @@
         "type" : "object"
       },
       "tck.mock_aggregate.MockCommandAggregateAggregatedFields" : {
-        "enum" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.data", "state.id", "state.orders", "state.orders.lines", "state.orders.lines.amount", "state.orders.lines.createdAt", "state.orders.lines.discounts", "state.orders.lines.discounts.amount", "state.orders.lines.discounts.type", "state.orders.lines.productId", "state.orders.lines.quantity", "state.orders.status", "tags", "tenantId", "version" ],
+        "enum" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.data", "state.decimalValue", "state.id", "state.orders", "state.orders.lines", "state.orders.lines.amount", "state.orders.lines.createdAt", "state.orders.lines.discounts", "state.orders.lines.discounts.amount", "state.orders.lines.discounts.type", "state.orders.lines.productId", "state.orders.lines.quantity", "state.orders.status", "tags", "tenantId", "version" ],
         "type" : "string"
       },
       "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedDomainEventStream" : {
@@ -3374,6 +3374,9 @@
           "data" : {
             "type" : "string"
           },
+          "decimalValue" : {
+            "type" : "number"
+          },
           "id" : {
             "type" : "string"
           },
@@ -3588,6 +3591,9 @@
               "data" : {
                 "type" : "string"
               },
+              "decimalValue" : {
+                "type" : "number"
+              },
               "id" : {
                 "type" : "string"
               },
@@ -3732,6 +3738,9 @@
             "properties" : {
               "data" : {
                 "type" : "string"
+              },
+              "decimalValue" : {
+                "type" : "number"
               },
               "id" : {
                 "type" : "string"
@@ -5833,7 +5842,7 @@
         "type" : "string"
       },
       "wow.api.query.LogicalField" : {
-        "type" : "object"
+        "type" : "string"
       },
       "wow.api.query.Pagination" : {
         "properties" : {
