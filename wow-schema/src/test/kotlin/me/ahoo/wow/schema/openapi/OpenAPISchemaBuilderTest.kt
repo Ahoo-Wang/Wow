@@ -1,8 +1,12 @@
 package me.ahoo.wow.schema.openapi
 
 import com.fasterxml.classmate.TypeResolver
+import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.Option
+import io.swagger.v3.core.util.ObjectMapperFactory
+import io.swagger.v3.oas.models.media.Schema
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.command.wait.SimpleWaitSignal
@@ -14,8 +18,55 @@ import me.ahoo.wow.schema.TestState
 import me.ahoo.wow.schema.TreeNodeFixture
 import org.junit.jupiter.api.Test
 import org.springframework.http.codec.ServerSentEvent
+import tools.jackson.databind.json.JsonMapper
+import tools.jackson.databind.node.ObjectNode
 
 class OpenAPISchemaBuilderTest {
+
+    @Test
+    fun `should rebase embedded schema references to its component`() {
+        val schemaName = "wow.api.query.FilterExpression"
+        val componentPath = "#/components/schemas/$schemaName"
+        val openAPISchemaBuilder = OpenAPISchemaBuilder()
+        openAPISchemaBuilder.generateSchema(FilterExpression::class.java)
+
+        val schema = requireNotNull(openAPISchemaBuilder.build()[schemaName])
+        val schemaNode = ObjectMapperFactory.createJson31().valueToTree<com.fasterxml.jackson.databind.JsonNode>(schema)
+        val references = schemaNode.findValues("\$ref").map { it.asText() }
+
+        schemaNode["\$id"].assert().isNull()
+        schemaNode["\$ref"].asText().assert().isEqualTo("$componentPath/definitions/filterExpression")
+        references.assert().contains("$componentPath/definitions/matchAll")
+        references.assert().contains("#/components/schemas/wow.api.query.FilterOperator")
+        references.filter { it.startsWith("#/definitions/") }.assert().isEmpty()
+    }
+
+    @Test
+    fun `should rebase root self reference to its component`() {
+        val schemaNode = JsonMapper.builder().build().createObjectNode()
+            .put("\$id", "urn:self-reference")
+            .put("\$ref", "#")
+
+        val (componentPath, schema) = buildCustomSchema(schemaNode)
+
+        schema.`$id`.assert().isNull()
+        schema.`$ref`.assert().isEqualTo(componentPath)
+    }
+
+    @Test
+    fun `should preserve schema with nested resource`() {
+        val schemaNode = JsonMapper.builder().build().createObjectNode()
+            .put("\$id", "urn:root")
+            .put("\$ref", "#/definitions/node")
+        schemaNode.putObject("definitions").putObject("node")
+            .put("\$id", "urn:nested")
+            .put("\$ref", "#")
+
+        val (_, schema) = buildCustomSchema(schemaNode)
+
+        schema.`$id`.assert().isEqualTo("urn:root")
+        schema.`$ref`.assert().isEqualTo("#/definitions/node")
+    }
 
     @Test
     fun `should build open api schema with component references`() {
@@ -119,4 +170,20 @@ class OpenAPISchemaBuilderTest {
         val schema = componentsSchemas["wow.schema.AnnotationFixture"]
         arrayTypeSchema.types.assert().contains("array")
     }
+
+    private fun buildCustomSchema(schemaNode: ObjectNode): Pair<String, Schema<*>> {
+        val schemaGeneratorBuilder = SchemaGeneratorBuilder().customizer { config ->
+            config.with(Option.DEFINITIONS_FOR_ALL_OBJECTS)
+            config.forTypesInGeneral().withCustomDefinitionProvider { javaType, _ ->
+                if (javaType.erasedType == SelfReferentialSchema::class.java) CustomDefinition(schemaNode) else null
+            }
+        }
+        val openAPISchemaBuilder = OpenAPISchemaBuilder(schemaGeneratorBuilder = schemaGeneratorBuilder)
+        val reference = openAPISchemaBuilder.generateSchema(SelfReferentialSchema::class.java)
+        val schemas = openAPISchemaBuilder.build()
+        val componentPath = requireNotNull(reference.`$ref`)
+        return componentPath to requireNotNull(schemas[componentPath.substringAfterLast('/')])
+    }
+
+    private class SelfReferentialSchema
 }
