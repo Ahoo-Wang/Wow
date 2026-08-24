@@ -124,6 +124,44 @@ class MongoAggregationCompilerTest {
     }
 
     @Test
+    fun `computed metric should compile guarded recursive arithmetic`() {
+        val query = aggregation {
+            sum(
+                (field("state.amount") + constant(2.0)) *
+                    (field("state.quantity") - constant(1.0)) / constant(3.0),
+                "total",
+            )
+        }
+
+        val groupJson = MongoAggregationCompiler(SnapshotFilterConverter).compile(query)
+            .first { it.toBsonDocument().containsKey("\$group") }
+            .toBsonDocument()
+            .toJson()
+
+        groupJson.assert()
+            .contains("\$add")
+            .contains("\$subtract")
+            .contains("\$multiply")
+            .contains("\$divide")
+            .contains("\$convert")
+            .contains("\$isNumber")
+            .contains("\$let")
+            .contains("__wow_value_count_total")
+    }
+
+    @Test
+    fun `plain field metric should retain the existing Mongo plan`() {
+        val groupJson = MongoAggregationCompiler(SnapshotFilterConverter).compile(
+            aggregation { sum("state.amount", "total") },
+        )[1].toBsonDocument().toJson()
+
+        groupJson.assert()
+            .contains("\"\$sum\": \"\$state.amount\"")
+            .contains("\$isNumber")
+            .doesNotContain("\$convert")
+    }
+
+    @Test
     fun `element filter should not restore active deletion scope`() {
         val query = aggregation {
             filter(DeletionFilter(DeletionState.DELETED))
