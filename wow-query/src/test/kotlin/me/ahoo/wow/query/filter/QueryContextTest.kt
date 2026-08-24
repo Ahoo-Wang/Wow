@@ -134,19 +134,6 @@ class QueryContextTest {
     }
 
     @Test
-    fun `typed rewritable accessor should preserve filter receiver`() {
-        val context = DefaultQueryContext<ISingleQuery, Mono<Any>>(
-            queryType = QueryType.SINGLE,
-            namedAggregate = MOCK_AGGREGATE_METADATA,
-        ).setQuery(singleQuery { })
-        val appended = IdFilter("id-1")
-
-        context.asRewritableQuery().rewriteQuery { it.appendFilter(appended) }
-
-        context.getQuery().filter.assert().isEqualTo(appended)
-    }
-
-    @Test
     fun `match all filter should append without redundant AND`() {
         val context = DefaultQueryContext<FilterExpression, Mono<Long>>(
             queryType = QueryType.COUNT,

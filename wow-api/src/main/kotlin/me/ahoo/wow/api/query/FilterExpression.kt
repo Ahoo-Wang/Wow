@@ -140,9 +140,14 @@ enum class StringComparison {
     JsonSubTypes.Type(RecentDaysFilter::class, name = "RECENT_DAYS"),
     JsonSubTypes.Type(EarlierDaysFilter::class, name = "EARLIER_DAYS"),
 )
-sealed interface FilterExpression {
+sealed interface FilterExpression : RewritableFilter<FilterExpression> {
     @get:JsonProperty("op")
     val operator: FilterOperator
+
+    override fun withFilter(newFilter: FilterExpression): FilterExpression = newFilter
+
+    override fun appendFilter(append: FilterExpression): FilterExpression =
+        if (this === MatchAllFilter) append else AndFilter(listOf(this, append))
 }
 
 @JsonTypeName("MATCH_ALL")

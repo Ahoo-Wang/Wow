@@ -111,8 +111,7 @@ data class Condition(
      */
     override val children: List<Condition> = emptyList(),
     override val options: Map<String, Any> = emptyMap()
-) : ICondition<Condition>,
-    RewritableCondition<Condition> {
+) : ICondition<Condition> {
     /**
      * Casts the condition value to the specified type.
      *
@@ -126,35 +125,6 @@ data class Condition(
     fun <V> valueAs(): V {
         @Suppress("UNCHECKED_CAST")
         return value as V
-    }
-
-    /**
-     * Creates a new condition with the specified condition.
-     *
-     * This method implements the [RewritableCondition] interface by returning the new condition directly,
-     * as Condition is immutable and doesn't need to preserve existing state.
-     *
-     * @param newCondition The new condition to use.
-     * @return The new condition.
-     */
-    @Deprecated("Use FilterExpression.")
-    override fun withCondition(newCondition: Condition): Condition = newCondition
-
-    /**
-     * Appends a condition to this condition using logical AND.
-     *
-     * If this condition is the ALL condition (matches everything), returns the appended condition.
-     * Otherwise, creates a new AND condition combining this condition with the appended one.
-     *
-     * @param append The condition to append.
-     * @return A new condition combining this and the appended condition with AND logic.
-     */
-    @Deprecated("Use FilterExpression.")
-    override fun appendCondition(append: Condition): Condition {
-        if (this.operator == Operator.ALL) {
-            return append
-        }
-        return and(this, append)
     }
 
     /**

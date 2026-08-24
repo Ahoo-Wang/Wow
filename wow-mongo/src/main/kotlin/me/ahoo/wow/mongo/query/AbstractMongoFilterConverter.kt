@@ -60,7 +60,6 @@ import me.ahoo.wow.api.query.ThisMonthFilter
 import me.ahoo.wow.api.query.ThisWeekFilter
 import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.TomorrowFilter
-import me.ahoo.wow.api.query.toExecutableFilter
 import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.query.FilterNormalizer
 import me.ahoo.wow.query.converter.FieldConverter
@@ -80,7 +79,7 @@ abstract class AbstractMongoFilterConverter(
     private val filterNormalizer = FilterNormalizer(defaultDeletionState = defaultDeletionState)
 
     fun convert(filter: FilterExpression): Bson =
-        compile(filterNormalizer.normalize(filter.toExecutableFilter()), mapField = true)
+        compile(filterNormalizer.normalize(filter), mapField = true)
 
     @Suppress("CyclomaticComplexMethod", "LongMethod")
     private fun compile(filter: FilterExpression, mapField: Boolean): Bson = when (filter) {
@@ -142,7 +141,7 @@ abstract class AbstractMongoFilterConverter(
         }
         is ElementMatchFilter -> Filters.elemMatch(
             filter.field.convert(mapField),
-            compile(filter.predicate.toExecutableFilter(), mapField = false),
+            compile(filter.predicate, mapField = false),
         )
         is SearchFilter -> Filters.text(filter.query)
         is TodayFilter,

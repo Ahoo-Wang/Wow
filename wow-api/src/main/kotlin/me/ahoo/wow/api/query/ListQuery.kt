@@ -14,8 +14,6 @@
 package me.ahoo.wow.api.query
 
 import com.fasterxml.jackson.annotation.JsonIgnore
-import com.fasterxml.jackson.annotation.JsonInclude
-import com.fasterxml.jackson.annotation.JsonProperty
 import io.swagger.v3.oas.annotations.media.Schema
 
 /**
@@ -55,32 +53,18 @@ interface IListQuery : Queryable<IListQuery> {
  */
 data class ListQuery(
     @get:JsonIgnore(false)
-    @get:JsonInclude(
-        value = JsonInclude.Include.CUSTOM,
-        valueFilter = LegacyConditionFilterValueFilter::class,
-    )
     override val filter: FilterExpression,
     override val projection: Projection = Projection.ALL,
     override val sort: List<Sort> = emptyList(),
     override val limit: Int = 0
 ) : IListQuery {
     @Deprecated("Use filter.")
-    @get:JsonIgnore
-    override val condition: Condition
-        get() = filter.toLegacyCondition()
-
-    @get:JsonProperty("condition")
-    @get:JsonInclude(JsonInclude.Include.NON_NULL)
-    internal val legacyConditionPayload: Condition?
-        get() = filter.legacyConditionOrNull()
-
-    @Deprecated("Use filter.")
     constructor(
         condition: Condition,
         projection: Projection = Projection.ALL,
         sort: List<Sort> = emptyList(),
         limit: Int = 0,
-    ) : this(LegacyConditionAdapter.adapt(condition), projection, sort, limit)
+    ) : this(condition.toFilterExpression(), projection, sort, limit)
 
     /**
      * Creates a new ListQuery with the specified filter.
@@ -89,23 +73,6 @@ data class ListQuery(
      * @return A new ListQuery with the updated filter.
      */
     override fun withFilter(newFilter: FilterExpression): IListQuery = copy(filter = newFilter)
-
-    @Deprecated("Use withFilter.")
-    override fun withCondition(newCondition: Condition): IListQuery =
-        copy(filter = LegacyConditionAdapter.adapt(newCondition))
-
-    @Deprecated("Use copy(filter = ...).")
-    fun copy(
-        condition: Condition,
-        projection: Projection = this.projection,
-        sort: List<Sort> = this.sort,
-        limit: Int = this.limit,
-    ): ListQuery = copy(
-        filter = LegacyConditionAdapter.adapt(condition),
-        projection = projection,
-        sort = sort,
-        limit = limit
-    )
 
     /**
      * Creates a new ListQuery with the specified projection.

@@ -30,8 +30,6 @@ class QueryableDslTest {
         fun exposedProjection(): Projection = projection
         fun exposedFilter(): FilterExpression = filter
 
-        @Suppress("DEPRECATION")
-        fun exposedCondition(): Condition = condition
         fun exposedSort(): List<Sort> = sort
 
         override fun build(): ISingleQuery {
@@ -70,7 +68,6 @@ class QueryableDslTest {
         val condition = Condition.eq("field1", "value1")
         dsl.condition(condition)
         dsl.exposedFilter().assert().isEqualTo(condition.toFilterExpression())
-        dsl.exposedCondition().assert().isEqualTo(condition)
     }
 
     @Test

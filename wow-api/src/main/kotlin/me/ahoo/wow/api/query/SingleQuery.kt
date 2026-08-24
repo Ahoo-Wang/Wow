@@ -14,8 +14,6 @@
 package me.ahoo.wow.api.query
 
 import com.fasterxml.jackson.annotation.JsonIgnore
-import com.fasterxml.jackson.annotation.JsonInclude
-import com.fasterxml.jackson.annotation.JsonProperty
 
 /**
  * Interface for single-item queries that retrieve at most one result.
@@ -45,30 +43,16 @@ interface ISingleQuery : Queryable<ISingleQuery>
  */
 data class SingleQuery(
     @get:JsonIgnore(false)
-    @get:JsonInclude(
-        value = JsonInclude.Include.CUSTOM,
-        valueFilter = LegacyConditionFilterValueFilter::class,
-    )
     override val filter: FilterExpression,
     override val projection: Projection = Projection.ALL,
     override val sort: List<Sort> = emptyList()
 ) : ISingleQuery {
     @Deprecated("Use filter.")
-    @get:JsonIgnore
-    override val condition: Condition
-        get() = filter.toLegacyCondition()
-
-    @get:JsonProperty("condition")
-    @get:JsonInclude(JsonInclude.Include.NON_NULL)
-    internal val legacyConditionPayload: Condition?
-        get() = filter.legacyConditionOrNull()
-
-    @Deprecated("Use filter.")
     constructor(
         condition: Condition,
         projection: Projection = Projection.ALL,
         sort: List<Sort> = emptyList(),
-    ) : this(LegacyConditionAdapter.adapt(condition), projection, sort)
+    ) : this(condition.toFilterExpression(), projection, sort)
 
     /**
      * Creates a new SingleQuery with the specified filter.
@@ -77,17 +61,6 @@ data class SingleQuery(
      * @return A new SingleQuery with the updated filter.
      */
     override fun withFilter(newFilter: FilterExpression): ISingleQuery = copy(filter = newFilter)
-
-    @Deprecated("Use withFilter.")
-    override fun withCondition(newCondition: Condition): ISingleQuery =
-        copy(filter = LegacyConditionAdapter.adapt(newCondition))
-
-    @Deprecated("Use copy(filter = ...).")
-    fun copy(
-        condition: Condition,
-        projection: Projection = this.projection,
-        sort: List<Sort> = this.sort,
-    ): SingleQuery = copy(filter = LegacyConditionAdapter.adapt(condition), projection = projection, sort = sort)
 
     /**
      * Creates a new SingleQuery with the specified projection.

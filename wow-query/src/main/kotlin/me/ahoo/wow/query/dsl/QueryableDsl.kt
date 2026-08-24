@@ -19,7 +19,6 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.api.query.toCondition
 import me.ahoo.wow.api.query.toFilterExpression
 
 /**
@@ -34,12 +33,6 @@ abstract class QueryableDsl<Q : Queryable<Q>> {
     protected var projection: Projection = Projection.ALL
     protected var filter: FilterExpression = MatchAllFilter
 
-    @Deprecated("Use filter.")
-    protected var condition: Condition
-        get() = filter.toCondition()
-        set(value) {
-            filter = value.toFilterExpression()
-        }
     protected var sort: List<Sort> = emptyList()
 
     fun projection(projection: Projection) {
