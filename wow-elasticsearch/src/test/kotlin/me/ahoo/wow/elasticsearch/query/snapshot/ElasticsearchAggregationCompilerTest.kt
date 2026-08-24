@@ -21,7 +21,10 @@ import io.mockk.verify
 import io.mockk.verifyOrder
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationDateUnit
+import me.ahoo.wow.api.query.AggregationExpression
+import me.ahoo.wow.api.query.AggregationExpressionOperator
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.elasticsearch.query.ElasticsearchFieldUsage
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
@@ -30,6 +33,16 @@ import org.junit.jupiter.api.Test
 import java.time.ZoneId
 
 class ElasticsearchAggregationCompilerTest {
+    @Test
+    fun `maximum expression should fit the default script source limit`() {
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter, mapping = null).compile(
+            aggregation { sum(maximumExpression(), "total") },
+        )
+
+        val source = requireNotNull(plan.runtimeMappings.values.single().script()?.source()).scriptString()
+        source.toByteArray(Charsets.UTF_8).size.assert().isLessThanOrEqualTo(65_535)
+    }
+
     @Test
     fun `computed metric should compile a parameterized double runtime field`() {
         val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter, mapping = null).compile(
@@ -53,6 +66,31 @@ class ElasticsearchAggregationCompilerTest {
             .doesNotContain("10.0")
         script.params().values.map { it.to(Any::class.java) }.assert()
             .contains("state.items.price", "state.items.quantity", 10.0)
+    }
+
+    @Test
+    fun `computed operands should safely resolve presence while plain fields require range`() {
+        val mapping = mockk<ElasticsearchIndexMapping> {
+            every { resolve(any<String>(), any()) } answers { firstArg() }
+            every { resolve(any<FilterExpression>(), any()) } answers { firstArg() }
+        }
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter, mapping).compile(
+            aggregation {
+                sum(field("state.unreadable") / constant(0.0), "computed")
+                sum("state.amount", "plain")
+            },
+        )
+
+        val source = requireNotNull(plan.runtimeMappings.values.single().script()?.source()).scriptString()
+        source.assert()
+            .contains("try {")
+            .contains("catch (Exception ignored)")
+            .contains("size() == 1")
+            .contains("doubleValue() != 0.0")
+        verify {
+            mapping.resolve("state.unreadable", ElasticsearchFieldUsage.PRESENCE)
+            mapping.resolve("state.amount", ElasticsearchFieldUsage.RANGE)
+        }
     }
 
     @Test
@@ -184,4 +222,15 @@ class ElasticsearchAggregationCompilerTest {
         plan.groupSources.single().value().terms().field().assert().isEqualTo("physical.items.physical.product")
         convertedParents.assert().containsExactly(null, "physical.items")
     }
+
+    private fun maximumExpression(depth: Int = 8): AggregationExpression =
+        if (depth == 1) {
+            AggregationExpression.Field(LogicalField("amount"))
+        } else {
+            AggregationExpression.Binary(
+                AggregationExpressionOperator.ADD,
+                maximumExpression(depth - 1),
+                maximumExpression(depth - 1),
+            )
+        }
 }

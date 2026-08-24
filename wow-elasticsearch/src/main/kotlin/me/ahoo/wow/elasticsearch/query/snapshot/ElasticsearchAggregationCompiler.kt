@@ -168,7 +168,7 @@ internal class ElasticsearchAggregationCompiler(
 
         fun compile(expression: AggregationExpression): RuntimeField {
             val result = append(expression)
-            source.appendLine("if ($result != null) { emit($result.doubleValue()); }")
+            source.append("if ($result != null) { emit($result.doubleValue()); }")
             return RuntimeField.of { runtime ->
                 runtime.type(RuntimeFieldType.Double)
                     .script(
@@ -190,30 +190,32 @@ internal class ElasticsearchAggregationCompiler(
 
         private fun appendField(field: LogicalField): String {
             val id = nextId++
-            val value = "value$id"
-            val fieldVariable = "field$id"
-            val raw = "raw$id"
-            val candidate = "candidate$id"
-            val parameter = "field$id"
+            val value = "v$id"
+            val fieldVariable = "f$id"
+            val raw = "r$id"
+            val candidate = "c$id"
+            val parameter = "f$id"
             params[parameter] = JsonData.of(field.resolveComputed(parent))
-            source.appendLine("Double $value = null;")
-            source.appendLine("String $fieldVariable = params.$parameter;")
-            source.appendLine("if (doc.containsKey($fieldVariable) && doc[$fieldVariable].size() == 1) {")
-            source.appendLine("  def $raw = doc[$fieldVariable].value;")
-            source.appendLine("  if ($raw instanceof Number) {")
-            source.appendLine("    double $candidate = ((Number)$raw).doubleValue();")
-            source.appendLine("    if (Double.isFinite($candidate)) { $value = $candidate; }")
-            source.appendLine("  }")
-            source.appendLine("}")
+            source.append("Double $value=null;")
+            source.append("String $fieldVariable=params.$parameter;")
+            source.append("try {")
+            source.append("if(doc.containsKey($fieldVariable)&&doc[$fieldVariable].size() == 1){")
+            source.append("def $raw=doc[$fieldVariable].value;")
+            source.append("if ($raw instanceof Number) {")
+            source.append("double $candidate=((Number)$raw).doubleValue();")
+            source.append("if(Double.isFinite($candidate)){$value=$candidate;}")
+            source.append("}")
+            source.append("}")
+            source.append("} catch (Exception ignored) {}")
             return value
         }
 
         private fun appendConstant(constant: Double): String {
             val id = nextId++
-            val value = "value$id"
-            val parameter = "constant$id"
+            val value = "v$id"
+            val parameter = "n$id"
             params[parameter] = JsonData.of(constant)
-            source.appendLine("Double $value = ((Number)params.$parameter).doubleValue();")
+            source.append("Double $value=((Number)params.$parameter).doubleValue();")
             return value
         }
 
@@ -221,21 +223,21 @@ internal class ElasticsearchAggregationCompiler(
             val left = append(binary.left)
             val right = append(binary.right)
             val id = nextId++
-            val value = "value$id"
-            val candidate = "candidate$id"
+            val value = "v$id"
+            val candidate = "c$id"
             val divisionGuard = if (binary.operator == AggregationExpressionOperator.DIVIDE) {
                 " && $right.doubleValue() != 0.0"
             } else {
                 ""
             }
-            source.appendLine("Double $value = null;")
-            source.appendLine("if ($left != null && $right != null$divisionGuard) {")
-            source.appendLine(
-                "  double $candidate = $left.doubleValue() ${binary.operator.painlessOperator} " +
+            source.append("Double $value=null;")
+            source.append("if ($left != null && $right != null$divisionGuard) {")
+            source.append(
+                "double $candidate=$left.doubleValue() ${binary.operator.painlessOperator} " +
                     "$right.doubleValue();",
             )
-            source.appendLine("  if (Double.isFinite($candidate)) { $value = $candidate; }")
-            source.appendLine("}")
+            source.append("if(Double.isFinite($candidate)){$value=$candidate;}")
+            source.append("}")
             return value
         }
     }
