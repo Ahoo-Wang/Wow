@@ -40,7 +40,7 @@ object Types {
             isInstanceOf(Snapshot::class.java) ||
             isInstanceOf(StateAggregate::class.java) ||
             isInstanceOf(StateEvent::class.java) ||
-            isInstanceOf(FilterExpression::class.java)
+            this == FilterExpression::class.java
     }
 
     @Suppress("ComplexCondition")

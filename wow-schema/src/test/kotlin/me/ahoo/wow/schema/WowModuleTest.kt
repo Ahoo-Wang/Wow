@@ -19,6 +19,7 @@ import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder
 import com.github.victools.jsonschema.generator.SchemaVersion
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.RelativeTimeFilter
 import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
 import me.ahoo.wow.schema.kotlin.KotlinModule
 import org.junit.jupiter.api.Test
@@ -35,6 +36,13 @@ class WowModuleTest {
         val schema = SchemaGenerator(config).generateSchema(FilterExpression::class.java)
 
         schema.assert().isEqualTo(WowSchemaLoader.load(FilterExpression::class.java))
+    }
+
+    @Test
+    fun `should retain Kotlin getter properties for filter subtypes`() {
+        val schema = SchemaGeneratorBuilder().build().generateSchema(RelativeTimeFilter::class.java)
+
+        schema.path("properties").path("datePattern").isMissingNode.assert().isFalse()
     }
 
     @Test
