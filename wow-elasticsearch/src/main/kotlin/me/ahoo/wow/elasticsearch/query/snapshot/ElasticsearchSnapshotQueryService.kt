@@ -40,6 +40,7 @@ import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
 import me.ahoo.wow.elasticsearch.query.ElasticsearchMappingRefreshResult
 import me.ahoo.wow.elasticsearch.query.requireCompleteAggregationResponse
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
+import me.ahoo.wow.query.AggregationFieldCatalog
 import me.ahoo.wow.query.snapshot.AggregationQueryValidator
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.serialization.JsonSerializer
@@ -102,10 +103,12 @@ class ElasticsearchSnapshotQueryService<S : Any>(
         return aggregationMappingResolver.refresh(indexName)
     }
 
+    private val stateType = namedAggregate.requiredAggregateType<Any>().aggregateMetadata<Any, S>().state.aggregateType
+    private val aggregationFieldCatalog = AggregationFieldCatalog.scan(stateType)
     private val snapshotType = JsonSerializer.typeFactory
         .constructParametricType(
             MaterializedSnapshot::class.java,
-            namedAggregate.requiredAggregateType<Any>().aggregateMetadata<Any, S>().state.aggregateType
+            stateType,
         )
 
     override fun toTypedResult(document: DynamicDocument): MaterializedSnapshot<S> {
@@ -130,6 +133,7 @@ class ElasticsearchSnapshotQueryService<S : Any>(
                     query = query,
                     mapping = mapping,
                     filterConverter = filterConverter,
+                    fieldCatalog = aggregationFieldCatalog,
                     resolveFilter = if (configuredIndexMappingResolver == null) {
                         { filter -> filter }
                     } else {

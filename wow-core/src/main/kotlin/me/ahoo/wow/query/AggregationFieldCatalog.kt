@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query
 
+import com.fasterxml.jackson.annotation.JsonBackReference
 import com.fasterxml.jackson.annotation.JsonFormat
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import me.ahoo.wow.api.query.AggregationQuery
@@ -173,6 +174,7 @@ private val BeanPropertyDefinition.hasCustomSerialization: Boolean
         return config.annotationIntrospector.run {
             findSerializer(config, member) != null ||
                 findSerializationConverter(config, member) != null ||
+                member.getAnnotation(JsonBackReference::class.java) != null ||
                 member.getAnnotation(JsonSerialize::class.java)?.`as`?.let { it != Void::class.java } == true ||
                 member.getAnnotation(JsonFormat::class.java) != null ||
                 findUnwrappingNameTransformer(config, member) != null

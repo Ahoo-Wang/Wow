@@ -181,6 +181,11 @@ class QueryAutoConfiguration {
         return DefaultSnapshotQueryHandler(chain, queryErrorHandler, aggregationChain)
     }
 
+    fun snapshotQueryHandler(
+        chain: FilterChain<QueryContext<*, *>>,
+        queryErrorHandler: ErrorHandler<QueryContext<*, *>>,
+    ): SnapshotQueryHandler = DefaultSnapshotQueryHandler(chain, queryErrorHandler)
+
     @Bean
     fun eventStreamQueryHandler(
         @Qualifier("eventStreamQueryFilterChain") chain: FilterChain<QueryContext<*, *>>,

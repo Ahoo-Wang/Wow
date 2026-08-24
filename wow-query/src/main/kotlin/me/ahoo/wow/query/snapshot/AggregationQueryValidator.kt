@@ -145,6 +145,7 @@ private fun AggregationField.supportsElementFilter(filter: FilterExpression): Bo
 
 private fun AggregationField.supportsExactLiteral(value: JsonNode): Boolean = when {
     isNumeric -> supportsNumericLiteral(value)
+    isTemporal -> supportsTemporalLiteral(value)
     usesStringLiteral -> value.isString
     isBoolean -> value.isBoolean
     else -> false

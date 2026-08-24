@@ -1,6 +1,7 @@
 package me.ahoo.wow.spring.boot.starter.query
 
 import io.mockk.every
+import io.mockk.mockk
 import io.mockk.spyk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.abac.AbacTags
@@ -13,6 +14,7 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.exception.WowException
+import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.query.event.EventStreamQueryService
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
@@ -45,6 +47,14 @@ import reactor.util.context.ContextView
 
 class QueryAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
+
+    @Test
+    fun `should retain two argument snapshot query handler factory`() {
+        QueryAutoConfiguration().snapshotQueryHandler(
+            mockk<FilterChain<QueryContext<*, *>>>(),
+            mockk<ErrorHandler<QueryContext<*, *>>>(),
+        ).assert().isNotNull()
+    }
 
     @Test
     fun `should load context with query handler beans`() {

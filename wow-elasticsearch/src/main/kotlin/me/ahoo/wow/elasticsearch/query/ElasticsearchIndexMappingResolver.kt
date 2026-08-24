@@ -16,6 +16,7 @@
 package me.ahoo.wow.elasticsearch.query
 
 import co.elastic.clients.elasticsearch._types.mapping.BooleanProperty
+import co.elastic.clients.elasticsearch._types.mapping.CorePropertyBase
 import co.elastic.clients.elasticsearch._types.mapping.CountedKeywordProperty
 import co.elastic.clients.elasticsearch._types.mapping.DateNanosProperty
 import co.elastic.clients.elasticsearch._types.mapping.DateProperty
@@ -38,6 +39,8 @@ import me.ahoo.wow.api.query.*
 import me.ahoo.wow.api.query.Sort
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
+import java.math.BigDecimal
+import java.math.BigInteger
 import java.util.concurrent.ConcurrentHashMap
 
 enum class ElasticsearchFieldUsage {
@@ -137,6 +140,18 @@ data class ElasticsearchIndexMapping private constructor(
         resolutionFailure(
             "Elasticsearch field [$field] does not support ${usage.name.lowercase()} queries in index [$indexName].",
         )
+    }
+
+    fun resolveAggregation(field: String, usage: ElasticsearchFieldUsage, fieldType: Class<*>): String {
+        val resolved = resolve(field, usage)
+        val mappedField = fields.getValue(resolved)
+        if (mappedField.kind in NUMERIC_MAPPING_KINDS && !mappedField.supports(fieldType)) {
+            resolutionFailure(
+                "Elasticsearch field [$resolved] mapping [${mappedField.kind}] does not preserve " +
+                    "aggregation field type [${fieldType.name}] in index [$indexName].",
+            )
+        }
+        return resolved
     }
 
     private fun findMappedField(field: String): ElasticsearchMappedField? {
@@ -336,9 +351,11 @@ data class ElasticsearchIndexMapping private constructor(
         throw ElasticsearchFieldResolutionException(message)
 
     companion object {
+        @Suppress("CyclomaticComplexMethod")
         fun from(indexName: String, typeMapping: TypeMapping): ElasticsearchIndexMapping {
             val fields = linkedMapOf<String, ElasticsearchMappedField>()
             val aliases = linkedMapOf<String, String>()
+            val copyToDestinations = linkedSetOf<String>()
 
             fun visit(path: String, property: Property) {
                 if (property.isAlias) {
@@ -346,6 +363,7 @@ data class ElasticsearchIndexMapping private constructor(
                     return
                 }
                 val propertyBase = property._get() as? PropertyBase
+                (property._get() as? CorePropertyBase)?.copyTo()?.let(copyToDestinations::addAll)
                 val multiFields = propertyBase?.fields().orEmpty().keys.mapTo(linkedSetOf()) { "$path.$it" }
                 fields[path] = ElasticsearchMappedField(
                     kind = property._kind(),
@@ -373,6 +391,9 @@ data class ElasticsearchIndexMapping private constructor(
                     fields[name] = it.copy(portableAggregation = false, multiFields = emptySet())
                 }
             }
+            copyToDestinations.forEach { destination ->
+                fields[destination]?.let { fields[destination] = it.copy(portableAggregation = false) }
+            }
             return ElasticsearchIndexMapping(indexName, fields)
         }
 
@@ -393,6 +414,18 @@ private data class ElasticsearchMappedField(
     val portableAggregation: Boolean,
     val multiFields: Set<String>,
 ) {
+    fun supports(fieldType: Class<*>): Boolean = when (fieldType) {
+        Byte::class.javaPrimitiveType, Byte::class.javaObjectType -> kind in BYTE_COMPATIBLE_KINDS
+        Short::class.javaPrimitiveType, Short::class.javaObjectType -> kind in SHORT_COMPATIBLE_KINDS
+        Int::class.javaPrimitiveType, Int::class.javaObjectType -> kind in INT_COMPATIBLE_KINDS
+        Long::class.javaPrimitiveType, Long::class.javaObjectType -> kind == Property.Kind.Long
+        Float::class.javaPrimitiveType, Float::class.javaObjectType,
+        Double::class.javaPrimitiveType, Double::class.javaObjectType,
+        BigDecimal::class.java, BigInteger::class.java,
+        -> kind == Property.Kind.Double
+        else -> false
+    }
+
     fun supports(usage: ElasticsearchFieldUsage): Boolean =
         if (usage in AGGREGATION_USAGES) supportsAggregation(usage) else supportsQuery(usage)
 
@@ -424,6 +457,14 @@ private data class ElasticsearchMappedField(
     private fun isQueryable(): Boolean = indexed || (sortable && kind in DOC_VALUE_QUERY_KINDS)
 
     companion object {
+        private val BYTE_COMPATIBLE_KINDS = setOf(
+            Property.Kind.Byte,
+            Property.Kind.Short,
+            Property.Kind.Integer,
+            Property.Kind.Long,
+        )
+        private val SHORT_COMPATIBLE_KINDS = setOf(Property.Kind.Short, Property.Kind.Integer, Property.Kind.Long)
+        private val INT_COMPATIBLE_KINDS = setOf(Property.Kind.Integer, Property.Kind.Long)
         private val AGGREGATION_USAGES = setOf(
             ElasticsearchFieldUsage.TERMS,
             ElasticsearchFieldUsage.NUMERIC,
@@ -502,6 +543,19 @@ private data class ElasticsearchMappedField(
         )
     }
 }
+
+private val NUMERIC_MAPPING_KINDS = setOf(
+    Property.Kind.Byte,
+    Property.Kind.Short,
+    Property.Kind.Integer,
+    Property.Kind.Long,
+    Property.Kind.UnsignedLong,
+    Property.Kind.HalfFloat,
+    Property.Kind.Float,
+    Property.Kind.Double,
+    Property.Kind.ScaledFloat,
+    Property.Kind.TokenCount,
+)
 
 private fun RuntimeFieldType.toMappedField(): ElasticsearchMappedField? {
     val kind = when (this) {

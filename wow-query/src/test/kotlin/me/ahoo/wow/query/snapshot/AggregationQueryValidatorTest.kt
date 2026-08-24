@@ -157,6 +157,8 @@ class AggregationQueryValidatorTest {
             filter { "state.orders.status" gt 1 },
             filter { "state.orders.createdAt" gt 1 },
             filter { "state.orders.createdAt" gt "now-1d" },
+            filter { "state.orders.createdAt" eq "2024-01-01" },
+            filter { "state.orders.createdAt" isIn listOf("2024-01-01") },
             filter { "state.orders.amount" eq false },
             filter { "state.orders.rank" eq 2_147_483_648L },
             filter { "state.orders.rank" eq 1.5 },

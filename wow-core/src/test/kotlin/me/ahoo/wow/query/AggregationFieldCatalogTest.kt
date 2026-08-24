@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query
 
+import com.fasterxml.jackson.annotation.JsonBackReference
 import com.fasterxml.jackson.annotation.JsonFormat
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonSubTypes
@@ -77,6 +78,7 @@ class AggregationFieldCatalogTest {
             "state.writeOnly",
             "state.refinedValue",
             "state.refinedValue.secret",
+            "state.backReferenced.parent",
         )
         catalog.paths.keys.assert().doesNotContain("state.attributes.value")
         catalog.paths["state.scalarItems"]!!.kind.assert().isEqualTo(AggregationFieldKind.SCALAR_COLLECTION)
@@ -166,6 +168,7 @@ class AggregationFieldCatalogTest {
 
         @get:JsonSerialize(`as` = PublicView::class)
         val refinedValue: ConcreteView = ConcreteView("public", "secret")
+        val backReferenced: BackReferenced = BackReferenced()
         val attributes: Map<String, String> = emptyMap()
     }
 
@@ -228,6 +231,11 @@ class AggregationFieldCatalogTest {
     private interface PublicView { val publicValue: String }
 
     private data class ConcreteView(override val publicValue: String, val secret: String) : PublicView
+
+    private class BackReferenced {
+        @get:JsonBackReference
+        val parent: State? = null
+    }
 
     private data class Item(val value: Long)
 

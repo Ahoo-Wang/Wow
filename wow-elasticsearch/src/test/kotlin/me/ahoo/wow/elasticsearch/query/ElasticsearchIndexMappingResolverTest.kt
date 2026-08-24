@@ -388,6 +388,7 @@ class ElasticsearchIndexMappingResolverTest {
             "nullableDate",
             "halfFloat",
             "float",
+            "copyTarget",
         ).forEach { field ->
             runCatching { mapping.resolve(field, ElasticsearchFieldUsage.TERMS) }
                 .exceptionOrNull()!!.message.assert().contains("does not support")
@@ -421,6 +422,13 @@ class ElasticsearchIndexMappingResolverTest {
             .exceptionOrNull()!!.message.assert().contains("does not support")
         runCatching { syntheticMapping.resolve("state.runtimeScore", ElasticsearchFieldUsage.NUMERIC) }
             .exceptionOrNull()!!.message.assert().contains("does not support")
+
+        runCatching {
+            mapping.resolveAggregation("integer", ElasticsearchFieldUsage.NUMERIC, Double::class.javaObjectType)
+        }.exceptionOrNull()!!.message.assert().contains("does not preserve")
+        runCatching {
+            mapping.resolveAggregation("double", ElasticsearchFieldUsage.NUMERIC, Long::class.javaObjectType)
+        }.exceptionOrNull()!!.message.assert().contains("does not preserve")
     }
 
     @Test
@@ -594,6 +602,7 @@ class ElasticsearchIndexMappingResolverTest {
                 .properties("countedKeyword") { it.countedKeyword { field -> field } }
                 .properties("wildcard") { it.wildcard { field -> field } }
                 .properties("integer") { it.integer { field -> field } }
+                .properties("double") { it.double_ { field -> field } }
                 .properties("boolean") { it.boolean_ { field -> field } }
                 .properties("ip") { it.ip { field -> field } }
                 .properties("version") { it.version { field -> field } }
@@ -610,6 +619,8 @@ class ElasticsearchIndexMappingResolverTest {
                 .properties("float") { it.float_ { field -> field } }
                 .properties("scaledFloat") { it.scaledFloat { field -> field.scalingFactor(100.0) } }
                 .properties("dateNanos") { it.dateNanos { field -> field } }
+                .properties("copySource") { it.keyword { field -> field.copyTo("copyTarget") } }
+                .properties("copyTarget") { it.keyword { field -> field } }
         }
 
     private fun stateMapping(

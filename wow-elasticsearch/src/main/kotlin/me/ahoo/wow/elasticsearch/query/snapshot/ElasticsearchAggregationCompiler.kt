@@ -34,6 +34,7 @@ import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterConverter
 import me.ahoo.wow.elasticsearch.query.ElasticsearchFieldUsage
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
+import me.ahoo.wow.query.AggregationFieldCatalog
 
 internal object ElasticsearchAggregationCompiler {
     fun compileCount(
@@ -54,6 +55,7 @@ internal object ElasticsearchAggregationCompiler {
         query: AggregationQuery,
         mapping: ElasticsearchIndexMapping,
         filterConverter: AbstractElasticsearchFilterConverter,
+        fieldCatalog: AggregationFieldCatalog? = null,
         resolveFilter: (FilterExpression) -> FilterExpression = mapping::resolve,
     ): ElasticsearchAggregationPlan {
         val elements = query.elements.mapIndexed { index, element ->
@@ -71,10 +73,10 @@ internal object ElasticsearchAggregationCompiler {
             aggregationQuery = query,
             elements = elements,
             resolvedGroupFields = query.groupBy.associate { group ->
-                group.alias to group.resolveField(mapping)
+                group.alias to group.resolveField(mapping, fieldCatalog)
             },
             resolvedMetricFields = query.metrics.filterIsInstance<AggregationMetric.Numeric>().associate { metric ->
-                metric.alias to metric.resolveField(mapping)
+                metric.alias to metric.resolveField(mapping, fieldCatalog)
             },
         )
     }
@@ -209,16 +211,42 @@ internal fun AggregationGroup.toCompositeSource(
     )
 }
 
-private fun AggregationGroup.resolveField(mapping: ElasticsearchIndexMapping): String = when (this) {
-    is AggregationGroup.Terms -> mapping.resolve(field, ElasticsearchFieldUsage.TERMS)
-    is AggregationGroup.Histogram -> mapping.resolve(field, ElasticsearchFieldUsage.NUMERIC)
+private fun AggregationGroup.resolveField(
+    mapping: ElasticsearchIndexMapping,
+    catalog: AggregationFieldCatalog?,
+): String = when (this) {
+    is AggregationGroup.Terms -> resolveAggregationField(mapping, catalog, ElasticsearchFieldUsage.TERMS)
+    is AggregationGroup.Histogram -> resolveAggregationField(mapping, catalog, ElasticsearchFieldUsage.NUMERIC)
     is AggregationGroup.DateHistogram -> mapping.resolve(field, ElasticsearchFieldUsage.DATE)
 }
 
-private fun AggregationMetric.Numeric.resolveField(mapping: ElasticsearchIndexMapping): String =
+private fun AggregationMetric.Numeric.resolveField(
+    mapping: ElasticsearchIndexMapping,
+    catalog: AggregationFieldCatalog?,
+): String =
     when (val expression = expression) {
-        is AggregationExpression.Field -> mapping.resolve(expression.field, ElasticsearchFieldUsage.NUMERIC)
+        is AggregationExpression.Field -> expression.resolveAggregationField(
+            mapping,
+            catalog,
+            ElasticsearchFieldUsage.NUMERIC,
+        )
     }
+
+private fun AggregationGroup.resolveAggregationField(
+    mapping: ElasticsearchIndexMapping,
+    catalog: AggregationFieldCatalog?,
+    usage: ElasticsearchFieldUsage,
+): String = catalog?.paths?.get(field)?.takeIf { it.isNumeric }?.let {
+    mapping.resolveAggregation(field, usage, it.type.rawClass)
+} ?: mapping.resolve(field, usage)
+
+private fun AggregationExpression.Field.resolveAggregationField(
+    mapping: ElasticsearchIndexMapping,
+    catalog: AggregationFieldCatalog?,
+    usage: ElasticsearchFieldUsage,
+): String = catalog?.paths?.get(field)?.let {
+    mapping.resolveAggregation(field, usage, it.type.rawClass)
+} ?: mapping.resolve(field, usage)
 
 private fun AggregationMetric.Numeric.toAggregation(resolvedField: String): Aggregation = Aggregation.of {
     when (function) {
