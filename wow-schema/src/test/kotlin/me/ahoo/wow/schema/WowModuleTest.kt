@@ -13,11 +13,37 @@
 
 package me.ahoo.wow.schema
 
+import com.github.victools.jsonschema.generator.OptionPreset
+import com.github.victools.jsonschema.generator.SchemaGenerator
+import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder
+import com.github.victools.jsonschema.generator.SchemaVersion
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.RelativeTimeFilter
 import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
+import me.ahoo.wow.schema.kotlin.KotlinModule
 import org.junit.jupiter.api.Test
 
 class WowModuleTest {
+
+    @Test
+    fun `should provide filter expression schema when configured directly`() {
+        val config = SchemaGeneratorConfigBuilder(SchemaVersion.DRAFT_7, OptionPreset.PLAIN_JSON)
+            .with(KotlinModule())
+            .with(WowModule())
+            .build()
+
+        val schema = SchemaGenerator(config).generateSchema(FilterExpression::class.java)
+
+        schema.assert().isEqualTo(WowSchemaLoader.load(FilterExpression::class.java))
+    }
+
+    @Test
+    fun `should retain Kotlin getter properties for filter subtypes`() {
+        val schema = SchemaGeneratorBuilder().build().generateSchema(RelativeTimeFilter::class.java)
+
+        schema.path("properties").path("datePattern").isMissingNode.assert().isFalse()
+    }
 
     @Test
     fun `should include IGNORE_COMMAND_ROUTE_VARIABLE in ALL options`() {

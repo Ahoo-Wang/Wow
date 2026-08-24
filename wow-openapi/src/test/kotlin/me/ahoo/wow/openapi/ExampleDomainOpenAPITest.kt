@@ -24,6 +24,7 @@ import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import java.math.BigDecimal
 
 internal class ExampleDomainOpenAPITest {
 
@@ -87,6 +88,32 @@ internal class ExampleDomainOpenAPITest {
                 val requestBody = requireNotNull(openAPI.components.requestBodies["example.cart.$queryType"])
                 val queryFields = requestBody.extensions["x-wow-query-fields"] as Schema<*>
                 queryFields.`$ref`.assert().isEqualTo(fieldsRef)
+            }
+        }
+
+        @Test
+        fun `should reuse query schemas in aggregate request bodies`() {
+            mapOf(
+                "CountQuery" to "#/components/schemas/wow.api.query.FilterExpression",
+                "SingleQuery" to "#/components/schemas/wow.api.query.SingleQuery",
+                "ListQuery" to "#/components/schemas/wow.api.query.ListQuery",
+                "PagedQuery" to "#/components/schemas/wow.api.query.PagedQuery",
+            ).forEach { (queryType, schemaRef) ->
+                val requestBody = requireNotNull(openAPI.components.requestBodies["example.cart.$queryType"])
+                requestBody.content[Https.MediaType.APPLICATION_JSON]?.schema?.`$ref`
+                    .assert().isEqualTo(schemaRef)
+            }
+            openAPI.components.schemas["wow.api.query.ListQuery"]
+                ?.properties?.get("limit")?.minimum
+                .assert().isEqualTo(BigDecimal.ZERO)
+        }
+
+        @Test
+        fun `should keep generated query schemas closed to unknown properties`() {
+            listOf("SingleQuery", "ListQuery", "PagedQuery").forEach { queryType ->
+                openAPI.components.schemas["wow.api.query.$queryType"]
+                    ?.additionalProperties
+                    .assert().isEqualTo(false)
             }
         }
 

@@ -16,10 +16,10 @@ package me.ahoo.wow.openapi
 import io.swagger.v3.oas.models.media.StringSchema
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.api.query.Pagination
-import me.ahoo.wow.api.query.Projection
-import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.PagedQuery
+import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.openapi.CommonComponent.Response.withErrorCodeHeader
@@ -47,38 +47,16 @@ object QueryComponent {
         }
 
         fun OpenAPIComponentContext.singleQuerySchema(): io.swagger.v3.oas.models.media.Schema<*> {
-            return baseQuerySchema()
+            return schema(SingleQuery::class.java)
         }
 
         fun OpenAPIComponentContext.listQuerySchema(): io.swagger.v3.oas.models.media.Schema<*> {
-            val querySchema = baseQuerySchema()
-            val limitSchema = io.swagger.v3.oas.models.media.IntegerSchema()
-            limitSchema.minimum(java.math.BigDecimal.ZERO)
-            limitSchema.setDefault(0)
-            querySchema.addProperty("limit", limitSchema.asAnySchema())
-            return querySchema
+            return schema(ListQuery::class.java)
         }
 
         fun OpenAPIComponentContext.pagedQuerySchema(): io.swagger.v3.oas.models.media.Schema<*> {
-            val querySchema = baseQuerySchema()
-            querySchema.addProperty("pagination", schema(Pagination::class.java).asAnySchema())
-            return querySchema
+            return schema(PagedQuery::class.java)
         }
-
-        private fun OpenAPIComponentContext.baseQuerySchema(): io.swagger.v3.oas.models.media.ObjectSchema {
-            val querySchema = io.swagger.v3.oas.models.media.ObjectSchema()
-            querySchema.addProperty("filter", filterSchema().asAnySchema())
-            querySchema.addProperty("projection", schema(Projection::class.java).asAnySchema())
-            val sortSchema = io.swagger.v3.oas.models.media.ArraySchema().items(schema(Sort::class.java))
-            querySchema.addProperty("sort", sortSchema.asAnySchema())
-            querySchema.required(listOf("filter"))
-            querySchema.additionalProperties(false)
-            return querySchema
-        }
-
-        @Suppress("UNCHECKED_CAST")
-        private fun io.swagger.v3.oas.models.media.Schema<*>.asAnySchema():
-            io.swagger.v3.oas.models.media.Schema<Any> = this as io.swagger.v3.oas.models.media.Schema<Any>
     }
 
     object RequestBody {

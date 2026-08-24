@@ -15,17 +15,35 @@ package me.ahoo.wow.schema.typed.query
 
 import com.fasterxml.classmate.ResolvedType
 import com.github.victools.jsonschema.generator.CustomDefinition
+import com.github.victools.jsonschema.generator.CustomDefinition.AttributeInclusion
+import com.github.victools.jsonschema.generator.CustomDefinition.DefinitionType
 import com.github.victools.jsonschema.generator.CustomDefinitionProviderV2
+import com.github.victools.jsonschema.generator.MemberScope
+import com.github.victools.jsonschema.generator.Module
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
+import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.schema.WowSchemaLoader
 
-object FilterExpressionDefinitionProvider : CustomDefinitionProviderV2 {
+object FilterExpressionDefinitionProvider : CustomDefinitionProviderV2, Module {
+    override fun applyToConfigBuilder(builder: SchemaGeneratorConfigBuilder) {
+        builder.forTypesInGeneral().withCustomDefinitionProvider(this)
+        builder.forFields().withTargetTypeOverridesResolver(::skipSubtypeLookup)
+        builder.forMethods().withTargetTypeOverridesResolver(::skipSubtypeLookup)
+    }
+
     override fun provideCustomSchemaDefinition(
         javaType: ResolvedType,
         context: SchemaGenerationContext,
     ): CustomDefinition? {
         if (javaType.erasedType != FilterExpression::class.java) return null
-        return CustomDefinition(WowSchemaLoader.load(FilterExpression::class.java))
+        return CustomDefinition(
+            WowSchemaLoader.load(FilterExpression::class.java),
+            DefinitionType.STANDARD,
+            AttributeInclusion.NO,
+        )
     }
+
+    private fun skipSubtypeLookup(scope: MemberScope<*, *>): List<ResolvedType>? =
+        if (scope.type.erasedType == FilterExpression::class.java) emptyList() else null
 }

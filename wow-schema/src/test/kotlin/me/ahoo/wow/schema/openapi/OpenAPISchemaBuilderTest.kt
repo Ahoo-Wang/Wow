@@ -2,9 +2,12 @@ package me.ahoo.wow.schema.openapi
 
 import com.fasterxml.classmate.TypeResolver
 import com.github.victools.jsonschema.generator.Option
+import io.swagger.v3.core.util.ObjectMapperFactory
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.command.wait.SimpleWaitSignal
 import me.ahoo.wow.schema.AnnotationFixture
 import me.ahoo.wow.schema.ChangeTestName
@@ -16,6 +19,35 @@ import org.junit.jupiter.api.Test
 import org.springframework.http.codec.ServerSentEvent
 
 class OpenAPISchemaBuilderTest {
+
+    @Test
+    fun `should rebase embedded schema references to its component`() {
+        val schemaName = "wow.api.query.FilterExpression"
+        val componentPath = "#/components/schemas/$schemaName"
+        val openAPISchemaBuilder = OpenAPISchemaBuilder()
+        openAPISchemaBuilder.generateSchema(FilterExpression::class.java)
+
+        val schema = requireNotNull(openAPISchemaBuilder.build()[schemaName])
+        val schemaNode = ObjectMapperFactory.createJson31().valueToTree<com.fasterxml.jackson.databind.JsonNode>(schema)
+        val references = schemaNode.findValues("\$ref").map { it.asText() }
+
+        schemaNode["\$id"].assert().isNull()
+        schemaNode["\$ref"].asText().assert().isEqualTo("$componentPath/definitions/filterExpression")
+        references.assert().contains("$componentPath/definitions/matchAll")
+        references.filter { it.startsWith("#/definitions/") }.assert().isEmpty()
+    }
+
+    @Test
+    fun `should build query schema with recursive filter reference`() {
+        val openAPISchemaBuilder = OpenAPISchemaBuilder()
+        val reference = openAPISchemaBuilder.generateSchema(PagedQuery::class.java)
+
+        val schemas = openAPISchemaBuilder.build()
+
+        reference.`$ref`.assert().isEqualTo("#/components/schemas/wow.api.query.PagedQuery")
+        schemas["wow.api.query.PagedQuery"]?.properties?.get("filter")?.`$ref`
+            .assert().isEqualTo("#/components/schemas/wow.api.query.FilterExpression")
+    }
 
     @Test
     fun `should build open api schema with component references`() {

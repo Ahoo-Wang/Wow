@@ -64,6 +64,7 @@ class OpenAPISchemaBuilder(
         val collectedDefs = schemaBuilder.collectDefinitions(definitionPath)
         schemaReferences.mergeAll()
         return collectedDefs.properties().associate { (name, node) ->
+            StandaloneSchemaEmbeddingRebaser.rebase(node, name, definitionPath)
             name to schemaConverter.toSchema(node)
         }
     }
