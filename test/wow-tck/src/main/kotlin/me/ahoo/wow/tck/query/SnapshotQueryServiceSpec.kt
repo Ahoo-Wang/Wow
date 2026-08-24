@@ -194,10 +194,10 @@ abstract class SnapshotQueryServiceSpec {
                 it.toMap().assert().isEqualTo(
                     mapOf(
                         "count" to 2L,
-                        "total" to 2.0,
-                        "average" to 1.0,
+                        "total" to 3.0,
+                        "average" to 1.5,
                         "minimum" to 1.0,
-                        "maximum" to 1.0,
+                        "maximum" to 2.0,
                     ),
                 )
             }.verifyComplete()
@@ -341,10 +341,10 @@ abstract class SnapshotQueryServiceSpec {
     }
 
     private fun saveAggregationStates(vararg states: MockStateAggregate) {
-        states.forEach { state ->
+        states.forEachIndexed { index, state ->
             snapshotStore.save(
                 SimpleSnapshot(
-                    MOCK_AGGREGATE_METADATA.toStateAggregate(state, version = 1),
+                    MOCK_AGGREGATE_METADATA.toStateAggregate(state, version = index + 1),
                     AGGREGATION_SNAPSHOT_TIME,
                 ),
             ).test().verifyComplete()
