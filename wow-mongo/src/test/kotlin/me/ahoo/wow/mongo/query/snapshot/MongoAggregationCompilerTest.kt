@@ -15,7 +15,10 @@ package me.ahoo.wow.mongo.query.snapshot
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationDateUnit
+import me.ahoo.wow.api.query.DeletionFilter
+import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.query.dsl.aggregation
+import me.ahoo.wow.serialization.MessageRecords
 import org.junit.jupiter.api.Test
 import java.time.ZoneId
 
@@ -88,5 +91,42 @@ class MongoAggregationCompilerTest {
         MongoAggregationCompiler(SnapshotFilterConverter).compile(query)
             .joinToString { it.toBsonDocument().toJson() }
             .assert().contains("__wow_value_count_total")
+    }
+
+    @Test
+    fun `element filter should not restore active deletion scope`() {
+        val query = aggregation {
+            filter(DeletionFilter(DeletionState.DELETED))
+            expand("state.items") { "quantity" gt 0 }
+            count("count")
+        }
+
+        val pipeline = MongoAggregationCompiler(SnapshotFilterConverter).compile(query)
+        pipeline[0].toBsonDocument().toJson().assert().contains("\"deleted\": true")
+        pipeline[2].toBsonDocument().toJson().assert().doesNotContain("deleted")
+    }
+
+    @Test
+    fun `root aggregate id leaf should use Mongo primary key`() {
+        val query = aggregation {
+            terms(MessageRecords.AGGREGATE_ID, "aggregate")
+            count("count")
+        }
+
+        val pipeline = MongoAggregationCompiler(SnapshotFilterConverter).compile(query)
+        pipeline[1].toBsonDocument().toJson().assert()
+            .contains("\"_id\"")
+            .doesNotContain(MessageRecords.AGGREGATE_ID)
+        pipeline[2].toBsonDocument().toJson().assert().contains("\"\$_id\"")
+    }
+
+    @Test
+    fun `numeric contribution count should accept only Mongo numeric values`() {
+        val query = aggregation { sum("state.amount", "total") }
+
+        val group = MongoAggregationCompiler(SnapshotFilterConverter).compile(query)[1]
+        group.toBsonDocument().toJson().assert()
+            .contains("\$isNumber")
+            .doesNotContain("\$ne")
     }
 }

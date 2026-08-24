@@ -25,8 +25,13 @@ import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.mongo.query.AbstractMongoFilterConverter
+import me.ahoo.wow.query.converter.FieldConverter
 import org.bson.Document
 import org.bson.conversions.Bson
+
+private object ElementSnapshotFilterConverter : AbstractMongoFilterConverter(defaultDeletionState = null) {
+    override val fieldConverter: FieldConverter = SnapshotFieldConverter
+}
 
 internal class MongoAggregationCompiler(
     private val converter: AbstractMongoFilterConverter,
@@ -39,7 +44,7 @@ internal class MongoAggregationCompiler(
             parent = if (parent == null) element.path.value else "$parent.${element.path.value}"
             add(Aggregates.unwind("\$$parent"))
             if (element.filter !== MatchAllFilter) {
-                add(Aggregates.match(converter.convert(element.filter, parent)))
+                add(Aggregates.match(ElementSnapshotFilterConverter.convert(element.filter, parent)))
             }
         }
 
@@ -71,7 +76,7 @@ internal class MongoAggregationCompiler(
                     group[metric.alias] = Document("\$${metric.function.name.lowercase()}", "\$$field")
                     group[metric.countAlias] = Document(
                         "\$sum",
-                        Document("\$cond", listOf(Document("\$ne", listOf("\$$field", null)), 1, 0)),
+                        Document("\$cond", listOf(Document("\$isNumber", "\$$field"), 1, 0)),
                     )
                 }
             }
@@ -118,7 +123,7 @@ internal class MongoAggregationCompiler(
     }
 
     private fun LogicalField.resolve(parent: String?): String =
-        if (parent == null) value else "$parent.$value"
+        SnapshotFieldConverter.convert(if (parent == null) value else "$parent.$value")
 
     private fun List<Sort>.toBson(): Bson = Sorts.orderBy(map {
         when (it.direction) {
