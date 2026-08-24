@@ -16,6 +16,7 @@ package me.ahoo.wow.query.dsl
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationElement
 import me.ahoo.wow.api.query.AggregationExpression
+import me.ahoo.wow.api.query.AggregationExpressionOperator
 import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
@@ -71,20 +72,53 @@ class AggregationQueryDsl {
         metrics += AggregationMetric.Count(alias)
     }
 
-    fun sum(field: String, alias: String) = numeric(AggregationFunction.SUM, field, alias)
+    fun field(name: String): AggregationExpression = AggregationExpression.Field(LogicalField(name))
 
-    fun avg(field: String, alias: String) = numeric(AggregationFunction.AVG, field, alias)
+    fun constant(value: Double): AggregationExpression = AggregationExpression.Constant(value)
 
-    fun min(field: String, alias: String) = numeric(AggregationFunction.MIN, field, alias)
+    operator fun AggregationExpression.plus(other: AggregationExpression): AggregationExpression =
+        binary(AggregationExpressionOperator.ADD, other)
 
-    fun max(field: String, alias: String) = numeric(AggregationFunction.MAX, field, alias)
+    operator fun AggregationExpression.minus(other: AggregationExpression): AggregationExpression =
+        binary(AggregationExpressionOperator.SUBTRACT, other)
 
-    private fun numeric(function: AggregationFunction, field: String, alias: String) {
-        metrics += AggregationMetric.Numeric(
-            function,
-            AggregationExpression.Field(LogicalField(field)),
-            alias,
-        )
+    operator fun AggregationExpression.times(other: AggregationExpression): AggregationExpression =
+        binary(AggregationExpressionOperator.MULTIPLY, other)
+
+    operator fun AggregationExpression.div(other: AggregationExpression): AggregationExpression =
+        binary(AggregationExpressionOperator.DIVIDE, other)
+
+    private fun AggregationExpression.binary(
+        operator: AggregationExpressionOperator,
+        other: AggregationExpression,
+    ): AggregationExpression = AggregationExpression.Binary(operator, this, other)
+
+    fun sum(field: String, alias: String) = sum(field(field), alias)
+
+    fun avg(field: String, alias: String) = avg(field(field), alias)
+
+    fun min(field: String, alias: String) = min(field(field), alias)
+
+    fun max(field: String, alias: String) = max(field(field), alias)
+
+    fun sum(expression: AggregationExpression, alias: String) =
+        numeric(AggregationFunction.SUM, expression, alias)
+
+    fun avg(expression: AggregationExpression, alias: String) =
+        numeric(AggregationFunction.AVG, expression, alias)
+
+    fun min(expression: AggregationExpression, alias: String) =
+        numeric(AggregationFunction.MIN, expression, alias)
+
+    fun max(expression: AggregationExpression, alias: String) =
+        numeric(AggregationFunction.MAX, expression, alias)
+
+    private fun numeric(
+        function: AggregationFunction,
+        expression: AggregationExpression,
+        alias: String,
+    ) {
+        metrics += AggregationMetric.Numeric(function, expression, alias)
     }
 
     fun sort(sort: List<Sort>) {

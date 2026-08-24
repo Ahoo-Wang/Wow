@@ -15,7 +15,11 @@ package me.ahoo.wow.query.dsl
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationDateUnit
+import me.ahoo.wow.api.query.AggregationExpression
+import me.ahoo.wow.api.query.AggregationExpressionOperator
+import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
+import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.LogicalField
 import org.junit.jupiter.api.Test
 import java.time.ZoneId
@@ -57,6 +61,43 @@ class AggregationQueryDslTest {
                 "day",
                 AggregationDateUnit.DAY,
                 "Asia/Shanghai",
+            ),
+        )
+    }
+
+    @Test
+    fun `aggregation DSL should build arithmetic metric expressions`() {
+        val query = aggregation {
+            sum(field("price") * field("quantity") - constant(10.0), "total")
+            avg(field("amount") / constant(2.0) + field("fee"), "average")
+        }
+
+        query.metrics.assert().containsExactly(
+            AggregationMetric.Numeric(
+                AggregationFunction.SUM,
+                AggregationExpression.Binary(
+                    AggregationExpressionOperator.SUBTRACT,
+                    AggregationExpression.Binary(
+                        AggregationExpressionOperator.MULTIPLY,
+                        AggregationExpression.Field(LogicalField("price")),
+                        AggregationExpression.Field(LogicalField("quantity")),
+                    ),
+                    AggregationExpression.Constant(10.0),
+                ),
+                "total",
+            ),
+            AggregationMetric.Numeric(
+                AggregationFunction.AVG,
+                AggregationExpression.Binary(
+                    AggregationExpressionOperator.ADD,
+                    AggregationExpression.Binary(
+                        AggregationExpressionOperator.DIVIDE,
+                        AggregationExpression.Field(LogicalField("amount")),
+                        AggregationExpression.Constant(2.0),
+                    ),
+                    AggregationExpression.Field(LogicalField("fee")),
+                ),
+                "average",
             ),
         )
     }
