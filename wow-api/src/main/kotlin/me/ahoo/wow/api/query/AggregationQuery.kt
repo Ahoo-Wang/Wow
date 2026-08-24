@@ -22,6 +22,7 @@ import io.swagger.v3.oas.annotations.media.ArraySchema
 import io.swagger.v3.oas.annotations.media.Schema
 import java.time.ZoneId
 
+@Schema(additionalProperties = Schema.AdditionalPropertiesValue.FALSE)
 data class AggregationQuery(
     override val filter: FilterExpression = MatchAllFilter,
     @get:ArraySchema(maxItems = MAX_ELEMENTS)
@@ -97,6 +98,7 @@ data class AggregationQuery(
     }
 }
 
+@Schema(additionalProperties = Schema.AdditionalPropertiesValue.FALSE)
 data class AggregationElement(
     val path: LogicalField,
     val filter: FilterExpression = MatchAllFilter,

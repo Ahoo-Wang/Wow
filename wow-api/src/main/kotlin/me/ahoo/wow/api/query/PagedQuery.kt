@@ -14,6 +14,7 @@
 package me.ahoo.wow.api.query
 
 import com.fasterxml.jackson.annotation.JsonIgnore
+import io.swagger.v3.oas.annotations.media.Schema
 
 /**
  * Interface for paginated queries that retrieve items in pages.
@@ -48,6 +49,7 @@ interface IPagedQuery : Queryable<IPagedQuery> {
  * )
  * ```
  */
+@Schema(additionalProperties = Schema.AdditionalPropertiesValue.FALSE)
 data class PagedQuery(
     @get:JsonIgnore(false)
     override val filter: FilterExpression,

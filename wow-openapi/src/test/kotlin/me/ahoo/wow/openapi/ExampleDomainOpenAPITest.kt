@@ -24,6 +24,7 @@ import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import java.math.BigDecimal
 
 internal class ExampleDomainOpenAPITest {
 
@@ -83,7 +84,7 @@ internal class ExampleDomainOpenAPITest {
                 .contains("state.items.productId")
                 .doesNotContain("")
 
-            listOf("CountQuery", "ListQuery", "PagedQuery", "SingleQuery").forEach { queryType ->
+            listOf("AggregationQuery", "CountQuery", "ListQuery", "PagedQuery", "SingleQuery").forEach { queryType ->
                 val requestBody = requireNotNull(openAPI.components.requestBodies["example.cart.$queryType"])
                 val queryFields = requestBody.extensions["x-wow-query-fields"] as Schema<*>
                 queryFields.`$ref`.assert().isEqualTo(fieldsRef)
@@ -114,14 +115,14 @@ internal class ExampleDomainOpenAPITest {
                 .assert().contains("string").doesNotContain("object")
             querySchema.properties.getValue("filter").`$ref`
                 .assert().isEqualTo("#/components/schemas/wow.api.query.FilterExpression")
+            val elementSchema = openAPI.components.schemas.getValue("wow.api.query.AggregationElement")
             openAPI.components.schemas.getValue("wow.api.query.AggregationMetric.Numeric")
                 .properties.getValue("expression").`$ref`
                 .assert().isEqualTo("#/components/schemas/wow.api.query.AggregationExpression.Field")
             listOf(
-                querySchema.properties.getValue("elements").items.properties.getValue("path"),
+                elementSchema.properties.getValue("path"),
                 openAPI.components.schemas.getValue("wow.api.query.AggregationExpression.Field")
                     .properties.getValue("field"),
-                openAPI.components.schemas.getValue("wow.api.query.AggregationGroup").properties.getValue("field"),
                 openAPI.components.schemas.getValue("wow.api.query.AggregationGroup.DateHistogram")
                     .properties.getValue("field"),
                 openAPI.components.schemas.getValue("wow.api.query.AggregationGroup.Histogram")
@@ -135,9 +136,11 @@ internal class ExampleDomainOpenAPITest {
             querySchema.properties.getValue("metrics").minItems.assert().isEqualTo(1)
             querySchema.properties.getValue("metrics").maxItems.assert().isEqualTo(64)
             querySchema.properties.getValue("elements").maxItems.assert().isEqualTo(5)
-            querySchema.properties.getValue("limit").minimum.assert().isEqualTo(java.math.BigDecimal.ONE)
-            querySchema.properties.getValue("limit").maximum.assert()
-                .isEqualTo(java.math.BigDecimal.valueOf(10_000))
+            querySchema.properties.getValue("limit").minimum.assert().isEqualTo(BigDecimal.ONE)
+            querySchema.properties.getValue("limit").maximum.intValueExact().assert().isEqualTo(10_000)
+            querySchema.additionalProperties.assert().isEqualTo(false)
+            elementSchema.required.assert().containsExactly("path")
+            elementSchema.additionalProperties.assert().isEqualTo(false)
             responseSchema.type.assert().isEqualTo("array")
             responseSchema.items.type.assert().isEqualTo("object")
             (responseSchema.items.additionalProperties as Schema<*>).nullable.assert().isTrue()
@@ -149,6 +152,33 @@ internal class ExampleDomainOpenAPITest {
                 .filter { it.routeId.endsWith(".snapshot.count") }
                 .map { it.routeId.removeSuffix("count") + "aggregation" }
             aggregationRouteIds.assert().containsExactlyInAnyOrder(*countRouteIds.toTypedArray())
+        }
+
+        @Test
+        fun `should reuse query schemas in aggregate request bodies`() {
+            mapOf(
+                "AggregationQuery" to "#/components/schemas/wow.api.query.AggregationQuery",
+                "CountQuery" to "#/components/schemas/wow.api.query.FilterExpression",
+                "SingleQuery" to "#/components/schemas/wow.api.query.SingleQuery",
+                "ListQuery" to "#/components/schemas/wow.api.query.ListQuery",
+                "PagedQuery" to "#/components/schemas/wow.api.query.PagedQuery",
+            ).forEach { (queryType, schemaRef) ->
+                val requestBody = requireNotNull(openAPI.components.requestBodies["example.cart.$queryType"])
+                requestBody.content[Https.MediaType.APPLICATION_JSON]?.schema?.`$ref`
+                    .assert().isEqualTo(schemaRef)
+            }
+            openAPI.components.schemas["wow.api.query.ListQuery"]
+                ?.properties?.get("limit")?.minimum
+                .assert().isEqualTo(BigDecimal.ZERO)
+        }
+
+        @Test
+        fun `should keep generated query schemas closed to unknown properties`() {
+            listOf("AggregationQuery", "SingleQuery", "ListQuery", "PagedQuery").forEach { queryType ->
+                openAPI.components.schemas["wow.api.query.$queryType"]
+                    ?.additionalProperties
+                    .assert().isEqualTo(false)
+            }
         }
 
         @Test

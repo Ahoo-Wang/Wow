@@ -16,6 +16,7 @@ package me.ahoo.wow.schema
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.state.StateEvent
@@ -38,7 +39,8 @@ object Types {
             isInstanceOf(DomainEventStream::class.java) ||
             isInstanceOf(Snapshot::class.java) ||
             isInstanceOf(StateAggregate::class.java) ||
-            isInstanceOf(StateEvent::class.java)
+            isInstanceOf(StateEvent::class.java) ||
+            this == FilterExpression::class.java
     }
 
     @Suppress("ComplexCondition")

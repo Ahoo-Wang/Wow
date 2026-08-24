@@ -295,29 +295,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "filter" : {
-                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
-                },
-                "limit" : {
-                  "default" : 0,
-                  "format" : "int32",
-                  "minimum" : 0,
-                  "type" : "integer"
-                },
-                "projection" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Projection"
-                },
-                "sort" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/wow.api.query.Sort"
-                  },
-                  "type" : "array"
-                }
-              },
-              "required" : [ "filter" ],
-              "type" : "object"
+              "$ref" : "#/components/schemas/wow.api.query.ListQuery"
             }
           }
         },
@@ -329,26 +307,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "filter" : {
-                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
-                },
-                "pagination" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Pagination"
-                },
-                "projection" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Projection"
-                },
-                "sort" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/wow.api.query.Sort"
-                  },
-                  "type" : "array"
-                }
-              },
-              "required" : [ "filter" ],
-              "type" : "object"
+              "$ref" : "#/components/schemas/wow.api.query.PagedQuery"
             }
           }
         },
@@ -360,23 +319,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "filter" : {
-                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
-                },
-                "projection" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Projection"
-                },
-                "sort" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/wow.api.query.Sort"
-                  },
-                  "type" : "array"
-                }
-              },
-              "required" : [ "filter" ],
-              "type" : "object"
+              "$ref" : "#/components/schemas/wow.api.query.SingleQuery"
             }
           }
         },
@@ -412,29 +355,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "filter" : {
-                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
-                },
-                "limit" : {
-                  "default" : 0,
-                  "format" : "int32",
-                  "minimum" : 0,
-                  "type" : "integer"
-                },
-                "projection" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Projection"
-                },
-                "sort" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/wow.api.query.Sort"
-                  },
-                  "type" : "array"
-                }
-              },
-              "required" : [ "filter" ],
-              "type" : "object"
+              "$ref" : "#/components/schemas/wow.api.query.ListQuery"
             }
           }
         },
@@ -446,26 +367,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "filter" : {
-                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
-                },
-                "pagination" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Pagination"
-                },
-                "projection" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Projection"
-                },
-                "sort" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/wow.api.query.Sort"
-                  },
-                  "type" : "array"
-                }
-              },
-              "required" : [ "filter" ],
-              "type" : "object"
+              "$ref" : "#/components/schemas/wow.api.query.PagedQuery"
             }
           }
         },
@@ -477,23 +379,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "filter" : {
-                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
-                },
-                "projection" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Projection"
-                },
-                "sort" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/wow.api.query.Sort"
-                  },
-                  "type" : "array"
-                }
-              },
-              "required" : [ "filter" ],
-              "type" : "object"
+              "$ref" : "#/components/schemas/wow.api.query.SingleQuery"
             }
           }
         },
@@ -529,29 +415,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "filter" : {
-                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
-                },
-                "limit" : {
-                  "default" : 0,
-                  "format" : "int32",
-                  "minimum" : 0,
-                  "type" : "integer"
-                },
-                "projection" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Projection"
-                },
-                "sort" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/wow.api.query.Sort"
-                  },
-                  "type" : "array"
-                }
-              },
-              "required" : [ "filter" ],
-              "type" : "object"
+              "$ref" : "#/components/schemas/wow.api.query.ListQuery"
             }
           }
         },
@@ -563,26 +427,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "filter" : {
-                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
-                },
-                "pagination" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Pagination"
-                },
-                "projection" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Projection"
-                },
-                "sort" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/wow.api.query.Sort"
-                  },
-                  "type" : "array"
-                }
-              },
-              "required" : [ "filter" ],
-              "type" : "object"
+              "$ref" : "#/components/schemas/wow.api.query.PagedQuery"
             }
           }
         },
@@ -594,23 +439,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "filter" : {
-                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
-                },
-                "projection" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Projection"
-                },
-                "sort" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/wow.api.query.Sort"
-                  },
-                  "type" : "array"
-                }
-              },
-              "required" : [ "filter" ],
-              "type" : "object"
+              "$ref" : "#/components/schemas/wow.api.query.SingleQuery"
             }
           }
         },
@@ -646,29 +475,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "filter" : {
-                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
-                },
-                "limit" : {
-                  "default" : 0,
-                  "format" : "int32",
-                  "minimum" : 0,
-                  "type" : "integer"
-                },
-                "projection" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Projection"
-                },
-                "sort" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/wow.api.query.Sort"
-                  },
-                  "type" : "array"
-                }
-              },
-              "required" : [ "filter" ],
-              "type" : "object"
+              "$ref" : "#/components/schemas/wow.api.query.ListQuery"
             }
           }
         },
@@ -680,26 +487,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "filter" : {
-                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
-                },
-                "pagination" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Pagination"
-                },
-                "projection" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Projection"
-                },
-                "sort" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/wow.api.query.Sort"
-                  },
-                  "type" : "array"
-                }
-              },
-              "required" : [ "filter" ],
-              "type" : "object"
+              "$ref" : "#/components/schemas/wow.api.query.PagedQuery"
             }
           }
         },
@@ -711,23 +499,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "filter" : {
-                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
-                },
-                "projection" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Projection"
-                },
-                "sort" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/wow.api.query.Sort"
-                  },
-                  "type" : "array"
-                }
-              },
-              "required" : [ "filter" ],
-              "type" : "object"
+              "$ref" : "#/components/schemas/wow.api.query.SingleQuery"
             }
           }
         },
@@ -763,29 +535,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "filter" : {
-                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
-                },
-                "limit" : {
-                  "default" : 0,
-                  "format" : "int32",
-                  "minimum" : 0,
-                  "type" : "integer"
-                },
-                "projection" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Projection"
-                },
-                "sort" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/wow.api.query.Sort"
-                  },
-                  "type" : "array"
-                }
-              },
-              "required" : [ "filter" ],
-              "type" : "object"
+              "$ref" : "#/components/schemas/wow.api.query.ListQuery"
             }
           }
         },
@@ -797,26 +547,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "filter" : {
-                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
-                },
-                "pagination" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Pagination"
-                },
-                "projection" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Projection"
-                },
-                "sort" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/wow.api.query.Sort"
-                  },
-                  "type" : "array"
-                }
-              },
-              "required" : [ "filter" ],
-              "type" : "object"
+              "$ref" : "#/components/schemas/wow.api.query.PagedQuery"
             }
           }
         },
@@ -828,23 +559,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "filter" : {
-                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
-                },
-                "projection" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Projection"
-                },
-                "sort" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/wow.api.query.Sort"
-                  },
-                  "type" : "array"
-                }
-              },
-              "required" : [ "filter" ],
-              "type" : "object"
+              "$ref" : "#/components/schemas/wow.api.query.SingleQuery"
             }
           }
         },
@@ -874,29 +589,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "filter" : {
-                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
-                },
-                "limit" : {
-                  "default" : 0,
-                  "format" : "int32",
-                  "minimum" : 0,
-                  "type" : "integer"
-                },
-                "projection" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Projection"
-                },
-                "sort" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/wow.api.query.Sort"
-                  },
-                  "type" : "array"
-                }
-              },
-              "required" : [ "filter" ],
-              "type" : "object"
+              "$ref" : "#/components/schemas/wow.api.query.ListQuery"
             }
           }
         }
@@ -905,26 +598,7 @@
         "content" : {
           "application/json" : {
             "schema" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "filter" : {
-                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
-                },
-                "pagination" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Pagination"
-                },
-                "projection" : {
-                  "$ref" : "#/components/schemas/wow.api.query.Projection"
-                },
-                "sort" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/wow.api.query.Sort"
-                  },
-                  "type" : "array"
-                }
-              },
-              "required" : [ "filter" ],
-              "type" : "object"
+              "$ref" : "#/components/schemas/wow.api.query.PagedQuery"
             }
           }
         }
@@ -4628,6 +4302,19 @@
         "enum" : [ "YEAR", "QUARTER", "MONTH", "WEEK", "DAY", "HOUR", "MINUTE", "SECOND" ],
         "type" : "string"
       },
+      "wow.api.query.AggregationElement" : {
+        "additionalProperties" : false,
+        "properties" : {
+          "filter" : {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+          },
+          "path" : {
+            "$ref" : "#/components/schemas/wow.api.query.LogicalField"
+          }
+        },
+        "required" : [ "path" ],
+        "type" : "object"
+      },
       "wow.api.query.AggregationExpression.Field" : {
         "properties" : {
           "field" : {
@@ -4643,25 +4330,6 @@
       "wow.api.query.AggregationFunction" : {
         "enum" : [ "SUM", "AVG", "MIN", "MAX" ],
         "type" : "string"
-      },
-      "wow.api.query.AggregationGroup" : {
-        "anyOf" : [ {
-          "$ref" : "#/components/schemas/wow.api.query.AggregationGroup.DateHistogram"
-        }, {
-          "$ref" : "#/components/schemas/wow.api.query.AggregationGroup.Histogram"
-        }, {
-          "$ref" : "#/components/schemas/wow.api.query.AggregationGroup.Terms"
-        } ],
-        "properties" : {
-          "alias" : {
-            "readOnly" : true,
-            "type" : "string"
-          },
-          "field" : {
-            "$ref" : "#/components/schemas/wow.api.query.LogicalField",
-            "readOnly" : true
-          }
-        }
       },
       "wow.api.query.AggregationGroup.DateHistogram" : {
         "properties" : {
@@ -4719,19 +4387,6 @@
         "required" : [ "alias", "field", "type" ],
         "type" : "object"
       },
-      "wow.api.query.AggregationMetric" : {
-        "anyOf" : [ {
-          "$ref" : "#/components/schemas/wow.api.query.AggregationMetric.Count"
-        }, {
-          "$ref" : "#/components/schemas/wow.api.query.AggregationMetric.Numeric"
-        } ],
-        "properties" : {
-          "alias" : {
-            "readOnly" : true,
-            "type" : "string"
-          }
-        }
-      },
       "wow.api.query.AggregationMetric.Count" : {
         "properties" : {
           "alias" : {
@@ -4767,17 +4422,7 @@
         "properties" : {
           "elements" : {
             "items" : {
-              "additionalProperties" : false,
-              "properties" : {
-                "filter" : {
-                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
-                },
-                "path" : {
-                  "$ref" : "#/components/schemas/wow.api.query.LogicalField"
-                }
-              },
-              "required" : [ "path" ],
-              "type" : "object"
+              "$ref" : "#/components/schemas/wow.api.query.AggregationElement"
             },
             "maxItems" : 5,
             "type" : "array"
@@ -4787,7 +4432,13 @@
           },
           "groupBy" : {
             "items" : {
-              "$ref" : "#/components/schemas/wow.api.query.AggregationGroup"
+              "anyOf" : [ {
+                "$ref" : "#/components/schemas/wow.api.query.AggregationGroup.DateHistogram"
+              }, {
+                "$ref" : "#/components/schemas/wow.api.query.AggregationGroup.Histogram"
+              }, {
+                "$ref" : "#/components/schemas/wow.api.query.AggregationGroup.Terms"
+              } ]
             },
             "maxItems" : 32,
             "type" : "array"
@@ -4801,13 +4452,18 @@
           },
           "metrics" : {
             "items" : {
-              "$ref" : "#/components/schemas/wow.api.query.AggregationMetric"
+              "anyOf" : [ {
+                "$ref" : "#/components/schemas/wow.api.query.AggregationMetric.Count"
+              }, {
+                "$ref" : "#/components/schemas/wow.api.query.AggregationMetric.Numeric"
+              } ]
             },
             "maxItems" : 64,
             "minItems" : 1,
             "type" : "array"
           },
           "sort" : {
+            "default" : [ ],
             "items" : {
               "$ref" : "#/components/schemas/wow.api.query.Sort"
             },
@@ -4819,8 +4475,7 @@
         "type" : "object"
       },
       "wow.api.query.FilterExpression" : {
-        "$id" : "https://github.com/Ahoo-Wang/Wow/blob/main/schema/query/v2/filter-expression.schema.json",
-        "$ref" : "#/definitions/filterExpression",
+        "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/filterExpression",
         "$schema" : "http://json-schema.org/draft-07/schema#",
         "definitions" : {
           "aggregateId" : {
@@ -4861,7 +4516,7 @@
               },
               "operands" : {
                 "items" : {
-                  "$ref" : "#/definitions/filterExpression"
+                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/filterExpression"
                 },
                 "minItems" : 1,
                 "type" : "array"
@@ -4878,7 +4533,7 @@
                 "type" : "string"
               },
               "field" : {
-                "$ref" : "#/definitions/logicalField"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "BEFORE_TODAY" ]
@@ -4899,16 +4554,16 @@
             "additionalProperties" : false,
             "properties" : {
               "field" : {
-                "$ref" : "#/definitions/logicalField"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "lowerBound" : {
-                "$ref" : "#/definitions/comparableLiteral"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/comparableLiteral"
               },
               "op" : {
                 "enum" : [ "BETWEEN" ]
               },
               "upperBound" : {
-                "$ref" : "#/definitions/comparableLiteral"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/comparableLiteral"
               }
             },
             "required" : [ "op", "field", "lowerBound", "upperBound" ],
@@ -4921,13 +4576,13 @@
             "additionalProperties" : false,
             "properties" : {
               "field" : {
-                "$ref" : "#/definitions/logicalField"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "CONTAINS" ]
               },
               "stringComparison" : {
-                "$ref" : "#/definitions/stringComparison"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/stringComparison"
               },
               "value" : {
                 "type" : "string"
@@ -4940,14 +4595,14 @@
             "additionalProperties" : false,
             "properties" : {
               "field" : {
-                "$ref" : "#/definitions/logicalField"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "CONTAINS_ALL" ]
               },
               "values" : {
                 "items" : {
-                  "$ref" : "#/definitions/comparableLiteral"
+                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/comparableLiteral"
                 },
                 "minItems" : 1,
                 "type" : "array"
@@ -4981,7 +4636,7 @@
                 "type" : "integer"
               },
               "field" : {
-                "$ref" : "#/definitions/logicalField"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "EARLIER_DAYS" ]
@@ -5002,7 +4657,7 @@
               },
               "operands" : {
                 "items" : {
-                  "$ref" : "#/definitions/elementPredicate"
+                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/elementPredicate"
                 },
                 "minItems" : 1,
                 "type" : "array"
@@ -5015,13 +4670,13 @@
             "additionalProperties" : false,
             "properties" : {
               "field" : {
-                "$ref" : "#/definitions/logicalField"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "ELEMENT_MATCH" ]
               },
               "predicate" : {
-                "$ref" : "#/definitions/elementPredicate"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/elementPredicate"
               }
             },
             "required" : [ "op", "field", "predicate" ],
@@ -5035,7 +4690,7 @@
               },
               "operands" : {
                 "items" : {
-                  "$ref" : "#/definitions/elementPredicate"
+                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/elementPredicate"
                 },
                 "minItems" : 1,
                 "type" : "array"
@@ -5052,7 +4707,7 @@
               },
               "operands" : {
                 "items" : {
-                  "$ref" : "#/definitions/elementPredicate"
+                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/elementPredicate"
                 },
                 "minItems" : 1,
                 "type" : "array"
@@ -5063,86 +4718,86 @@
           },
           "elementPredicate" : {
             "oneOf" : [ {
-              "$ref" : "#/definitions/beforeToday"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/beforeToday"
             }, {
-              "$ref" : "#/definitions/between"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/between"
             }, {
-              "$ref" : "#/definitions/contains"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/contains"
             }, {
-              "$ref" : "#/definitions/containsAll"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/containsAll"
             }, {
-              "$ref" : "#/definitions/earlierDays"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/earlierDays"
             }, {
-              "$ref" : "#/definitions/elementAnd"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/elementAnd"
             }, {
-              "$ref" : "#/definitions/elementMatch"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/elementMatch"
             }, {
-              "$ref" : "#/definitions/elementNor"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/elementNor"
             }, {
-              "$ref" : "#/definitions/elementOr"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/elementOr"
             }, {
-              "$ref" : "#/definitions/endsWith"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/endsWith"
             }, {
-              "$ref" : "#/definitions/eq"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/eq"
             }, {
-              "$ref" : "#/definitions/exists"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/exists"
             }, {
-              "$ref" : "#/definitions/gt"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/gt"
             }, {
-              "$ref" : "#/definitions/gte"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/gte"
             }, {
-              "$ref" : "#/definitions/in"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/in"
             }, {
-              "$ref" : "#/definitions/isEmpty"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/isEmpty"
             }, {
-              "$ref" : "#/definitions/isNotNull"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/isNotNull"
             }, {
-              "$ref" : "#/definitions/isNull"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/isNull"
             }, {
-              "$ref" : "#/definitions/lastMonth"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/lastMonth"
             }, {
-              "$ref" : "#/definitions/lastWeek"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/lastWeek"
             }, {
-              "$ref" : "#/definitions/lt"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/lt"
             }, {
-              "$ref" : "#/definitions/lte"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/lte"
             }, {
-              "$ref" : "#/definitions/matchAll"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/matchAll"
             }, {
-              "$ref" : "#/definitions/matchNone"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/matchNone"
             }, {
-              "$ref" : "#/definitions/ne"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/ne"
             }, {
-              "$ref" : "#/definitions/nextWeek"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/nextWeek"
             }, {
-              "$ref" : "#/definitions/notExists"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/notExists"
             }, {
-              "$ref" : "#/definitions/notIn"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/notIn"
             }, {
-              "$ref" : "#/definitions/recentDays"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/recentDays"
             }, {
-              "$ref" : "#/definitions/startsWith"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/startsWith"
             }, {
-              "$ref" : "#/definitions/thisMonth"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/thisMonth"
             }, {
-              "$ref" : "#/definitions/thisWeek"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/thisWeek"
             }, {
-              "$ref" : "#/definitions/today"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/today"
             }, {
-              "$ref" : "#/definitions/tomorrow"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/tomorrow"
             } ]
           },
           "endsWith" : {
             "additionalProperties" : false,
             "properties" : {
               "field" : {
-                "$ref" : "#/definitions/logicalField"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "ENDS_WITH" ]
               },
               "stringComparison" : {
-                "$ref" : "#/definitions/stringComparison"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/stringComparison"
               },
               "value" : {
                 "type" : "string"
@@ -5152,19 +4807,19 @@
             "type" : "object"
           },
           "eq" : {
-            "$ref" : "#/definitions/eqShape"
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/eqShape"
           },
           "eqShape" : {
             "additionalProperties" : false,
             "properties" : {
               "field" : {
-                "$ref" : "#/definitions/logicalField"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "EQ" ]
               },
               "value" : {
-                "$ref" : "#/definitions/literal"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/literal"
               }
             },
             "required" : [ "op", "field", "value" ],
@@ -5174,7 +4829,7 @@
             "additionalProperties" : false,
             "properties" : {
               "field" : {
-                "$ref" : "#/definitions/logicalField"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "EXISTS" ]
@@ -5185,126 +4840,126 @@
           },
           "filterExpression" : {
             "oneOf" : [ {
-              "$ref" : "#/definitions/aggregateId"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/aggregateId"
             }, {
-              "$ref" : "#/definitions/aggregateIds"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/aggregateIds"
             }, {
-              "$ref" : "#/definitions/and"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/and"
             }, {
-              "$ref" : "#/definitions/beforeToday"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/beforeToday"
             }, {
-              "$ref" : "#/definitions/between"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/between"
             }, {
-              "$ref" : "#/definitions/contains"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/contains"
             }, {
-              "$ref" : "#/definitions/containsAll"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/containsAll"
             }, {
-              "$ref" : "#/definitions/deletion"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/deletion"
             }, {
-              "$ref" : "#/definitions/earlierDays"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/earlierDays"
             }, {
-              "$ref" : "#/definitions/elementMatch"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/elementMatch"
             }, {
-              "$ref" : "#/definitions/endsWith"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/endsWith"
             }, {
-              "$ref" : "#/definitions/eq"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/eq"
             }, {
-              "$ref" : "#/definitions/exists"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/exists"
             }, {
-              "$ref" : "#/definitions/gt"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/gt"
             }, {
-              "$ref" : "#/definitions/gte"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/gte"
             }, {
-              "$ref" : "#/definitions/id"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/id"
             }, {
-              "$ref" : "#/definitions/ids"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/ids"
             }, {
-              "$ref" : "#/definitions/in"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/in"
             }, {
-              "$ref" : "#/definitions/isEmpty"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/isEmpty"
             }, {
-              "$ref" : "#/definitions/isNotNull"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/isNotNull"
             }, {
-              "$ref" : "#/definitions/isNull"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/isNull"
             }, {
-              "$ref" : "#/definitions/lastMonth"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/lastMonth"
             }, {
-              "$ref" : "#/definitions/lastWeek"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/lastWeek"
             }, {
-              "$ref" : "#/definitions/lt"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/lt"
             }, {
-              "$ref" : "#/definitions/lte"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/lte"
             }, {
-              "$ref" : "#/definitions/matchAll"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/matchAll"
             }, {
-              "$ref" : "#/definitions/matchNone"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/matchNone"
             }, {
-              "$ref" : "#/definitions/ne"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/ne"
             }, {
-              "$ref" : "#/definitions/nextWeek"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/nextWeek"
             }, {
-              "$ref" : "#/definitions/nor"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/nor"
             }, {
-              "$ref" : "#/definitions/notExists"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/notExists"
             }, {
-              "$ref" : "#/definitions/notIn"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/notIn"
             }, {
-              "$ref" : "#/definitions/or"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/or"
             }, {
-              "$ref" : "#/definitions/ownerId"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/ownerId"
             }, {
-              "$ref" : "#/definitions/recentDays"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/recentDays"
             }, {
-              "$ref" : "#/definitions/search"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/search"
             }, {
-              "$ref" : "#/definitions/spaceId"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/spaceId"
             }, {
-              "$ref" : "#/definitions/startsWith"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/startsWith"
             }, {
-              "$ref" : "#/definitions/tenantId"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/tenantId"
             }, {
-              "$ref" : "#/definitions/thisMonth"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/thisMonth"
             }, {
-              "$ref" : "#/definitions/thisWeek"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/thisWeek"
             }, {
-              "$ref" : "#/definitions/today"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/today"
             }, {
-              "$ref" : "#/definitions/tomorrow"
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/tomorrow"
             } ]
           },
           "gt" : {
-            "$ref" : "#/definitions/gtShape"
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/gtShape"
           },
           "gtShape" : {
             "additionalProperties" : false,
             "properties" : {
               "field" : {
-                "$ref" : "#/definitions/logicalField"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "GT" ]
               },
               "value" : {
-                "$ref" : "#/definitions/comparableLiteral"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/comparableLiteral"
               }
             },
             "required" : [ "op", "field", "value" ],
             "type" : "object"
           },
           "gte" : {
-            "$ref" : "#/definitions/gteShape"
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/gteShape"
           },
           "gteShape" : {
             "additionalProperties" : false,
             "properties" : {
               "field" : {
-                "$ref" : "#/definitions/logicalField"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "GTE" ]
               },
               "value" : {
-                "$ref" : "#/definitions/comparableLiteral"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/comparableLiteral"
               }
             },
             "required" : [ "op", "field", "value" ],
@@ -5344,14 +4999,14 @@
             "additionalProperties" : false,
             "properties" : {
               "field" : {
-                "$ref" : "#/definitions/logicalField"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "IN" ]
               },
               "values" : {
                 "items" : {
-                  "$ref" : "#/definitions/comparableLiteral"
+                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/comparableLiteral"
                 },
                 "minItems" : 1,
                 "type" : "array"
@@ -5364,7 +5019,7 @@
             "additionalProperties" : false,
             "properties" : {
               "field" : {
-                "$ref" : "#/definitions/logicalField"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "IS_EMPTY" ]
@@ -5377,7 +5032,7 @@
             "additionalProperties" : false,
             "properties" : {
               "field" : {
-                "$ref" : "#/definitions/logicalField"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "IS_NOT_NULL" ]
@@ -5390,7 +5045,7 @@
             "additionalProperties" : false,
             "properties" : {
               "field" : {
-                "$ref" : "#/definitions/logicalField"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "IS_NULL" ]
@@ -5400,7 +5055,7 @@
             "type" : "object"
           },
           "lastMonth" : {
-            "$ref" : "#/definitions/lastMonthShape"
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/lastMonthShape"
           },
           "lastMonthShape" : {
             "additionalProperties" : false,
@@ -5410,7 +5065,7 @@
                 "type" : "string"
               },
               "field" : {
-                "$ref" : "#/definitions/logicalField"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "LAST_MONTH" ]
@@ -5424,7 +5079,7 @@
             "type" : "object"
           },
           "lastWeek" : {
-            "$ref" : "#/definitions/lastWeekShape"
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/lastWeekShape"
           },
           "lastWeekShape" : {
             "additionalProperties" : false,
@@ -5434,7 +5089,7 @@
                 "type" : "string"
               },
               "field" : {
-                "$ref" : "#/definitions/logicalField"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "LAST_WEEK" ]
@@ -5455,38 +5110,38 @@
             "type" : "string"
           },
           "lt" : {
-            "$ref" : "#/definitions/ltShape"
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/ltShape"
           },
           "ltShape" : {
             "additionalProperties" : false,
             "properties" : {
               "field" : {
-                "$ref" : "#/definitions/logicalField"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "LT" ]
               },
               "value" : {
-                "$ref" : "#/definitions/comparableLiteral"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/comparableLiteral"
               }
             },
             "required" : [ "op", "field", "value" ],
             "type" : "object"
           },
           "lte" : {
-            "$ref" : "#/definitions/lteShape"
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/lteShape"
           },
           "lteShape" : {
             "additionalProperties" : false,
             "properties" : {
               "field" : {
-                "$ref" : "#/definitions/logicalField"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "LTE" ]
               },
               "value" : {
-                "$ref" : "#/definitions/comparableLiteral"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/comparableLiteral"
               }
             },
             "required" : [ "op", "field", "value" ],
@@ -5513,26 +5168,26 @@
             "type" : "object"
           },
           "ne" : {
-            "$ref" : "#/definitions/neShape"
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/neShape"
           },
           "neShape" : {
             "additionalProperties" : false,
             "properties" : {
               "field" : {
-                "$ref" : "#/definitions/logicalField"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "NE" ]
               },
               "value" : {
-                "$ref" : "#/definitions/literal"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/literal"
               }
             },
             "required" : [ "op", "field", "value" ],
             "type" : "object"
           },
           "nextWeek" : {
-            "$ref" : "#/definitions/nextWeekShape"
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/nextWeekShape"
           },
           "nextWeekShape" : {
             "additionalProperties" : false,
@@ -5542,7 +5197,7 @@
                 "type" : "string"
               },
               "field" : {
-                "$ref" : "#/definitions/logicalField"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "NEXT_WEEK" ]
@@ -5563,7 +5218,7 @@
               },
               "operands" : {
                 "items" : {
-                  "$ref" : "#/definitions/filterExpression"
+                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/filterExpression"
                 },
                 "minItems" : 1,
                 "type" : "array"
@@ -5576,7 +5231,7 @@
             "additionalProperties" : false,
             "properties" : {
               "field" : {
-                "$ref" : "#/definitions/logicalField"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "NOT_EXISTS" ]
@@ -5589,14 +5244,14 @@
             "additionalProperties" : false,
             "properties" : {
               "field" : {
-                "$ref" : "#/definitions/logicalField"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "NOT_IN" ]
               },
               "values" : {
                 "items" : {
-                  "$ref" : "#/definitions/comparableLiteral"
+                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/comparableLiteral"
                 },
                 "minItems" : 1,
                 "type" : "array"
@@ -5613,7 +5268,7 @@
               },
               "operands" : {
                 "items" : {
-                  "$ref" : "#/definitions/filterExpression"
+                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/filterExpression"
                 },
                 "minItems" : 1,
                 "type" : "array"
@@ -5647,7 +5302,7 @@
                 "type" : "integer"
               },
               "field" : {
-                "$ref" : "#/definitions/logicalField"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "RECENT_DAYS" ]
@@ -5666,7 +5321,7 @@
               "fields" : {
                 "default" : [ ],
                 "items" : {
-                  "$ref" : "#/definitions/logicalField"
+                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
                 },
                 "type" : "array",
                 "uniqueItems" : true
@@ -5699,13 +5354,13 @@
             "additionalProperties" : false,
             "properties" : {
               "field" : {
-                "$ref" : "#/definitions/logicalField"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "STARTS_WITH" ]
               },
               "stringComparison" : {
-                "$ref" : "#/definitions/stringComparison"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/stringComparison"
               },
               "value" : {
                 "type" : "string"
@@ -5733,7 +5388,7 @@
             "type" : "object"
           },
           "thisMonth" : {
-            "$ref" : "#/definitions/thisMonthShape"
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/thisMonthShape"
           },
           "thisMonthShape" : {
             "additionalProperties" : false,
@@ -5743,7 +5398,7 @@
                 "type" : "string"
               },
               "field" : {
-                "$ref" : "#/definitions/logicalField"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "THIS_MONTH" ]
@@ -5757,7 +5412,7 @@
             "type" : "object"
           },
           "thisWeek" : {
-            "$ref" : "#/definitions/thisWeekShape"
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/thisWeekShape"
           },
           "thisWeekShape" : {
             "additionalProperties" : false,
@@ -5767,7 +5422,7 @@
                 "type" : "string"
               },
               "field" : {
-                "$ref" : "#/definitions/logicalField"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "THIS_WEEK" ]
@@ -5781,7 +5436,7 @@
             "type" : "object"
           },
           "today" : {
-            "$ref" : "#/definitions/todayShape"
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/todayShape"
           },
           "todayShape" : {
             "additionalProperties" : false,
@@ -5791,7 +5446,7 @@
                 "type" : "string"
               },
               "field" : {
-                "$ref" : "#/definitions/logicalField"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "TODAY" ]
@@ -5805,7 +5460,7 @@
             "type" : "object"
           },
           "tomorrow" : {
-            "$ref" : "#/definitions/tomorrowShape"
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/tomorrowShape"
           },
           "tomorrowShape" : {
             "additionalProperties" : false,
@@ -5815,7 +5470,7 @@
                 "type" : "string"
               },
               "field" : {
-                "$ref" : "#/definitions/logicalField"
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "TOMORROW" ]
@@ -5829,30 +5484,69 @@
             "type" : "object"
           }
         },
-        "properties" : {
-          "operator" : {
-            "$ref" : "#/components/schemas/wow.api.query.FilterOperator",
-            "readOnly" : true
-          }
-        },
         "title" : "Filter Expression"
       },
-      "wow.api.query.FilterOperator" : {
-        "enum" : [ "MATCH_ALL", "MATCH_NONE", "ID", "IDS", "AGGREGATE_ID", "AGGREGATE_IDS", "TENANT_ID", "OWNER_ID", "SPACE_ID", "AND", "OR", "NOR", "EQ", "NE", "GT", "GTE", "LT", "LTE", "CONTAINS", "STARTS_WITH", "ENDS_WITH", "IN", "NOT_IN", "BETWEEN", "CONTAINS_ALL", "IS_EMPTY", "IS_NULL", "IS_NOT_NULL", "EXISTS", "NOT_EXISTS", "DELETION", "ELEMENT_MATCH", "SEARCH", "TODAY", "BEFORE_TODAY", "TOMORROW", "THIS_WEEK", "NEXT_WEEK", "LAST_WEEK", "THIS_MONTH", "LAST_MONTH", "RECENT_DAYS", "EARLIER_DAYS" ],
-        "type" : "string"
+      "wow.api.query.ListQuery" : {
+        "additionalProperties" : false,
+        "properties" : {
+          "filter" : {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+          },
+          "limit" : {
+            "default" : 0,
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          },
+          "projection" : {
+            "$ref" : "#/components/schemas/wow.api.query.Projection"
+          },
+          "sort" : {
+            "default" : [ ],
+            "items" : {
+              "$ref" : "#/components/schemas/wow.api.query.Sort"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "filter" ],
+        "type" : "object"
       },
       "wow.api.query.LogicalField" : {
         "type" : "string"
       },
+      "wow.api.query.PagedQuery" : {
+        "additionalProperties" : false,
+        "properties" : {
+          "filter" : {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+          },
+          "pagination" : {
+            "$ref" : "#/components/schemas/wow.api.query.Pagination"
+          },
+          "projection" : {
+            "$ref" : "#/components/schemas/wow.api.query.Projection"
+          },
+          "sort" : {
+            "default" : [ ],
+            "items" : {
+              "$ref" : "#/components/schemas/wow.api.query.Sort"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "filter" ],
+        "type" : "object"
+      },
       "wow.api.query.Pagination" : {
         "properties" : {
           "index" : {
-            "default" : "1",
+            "default" : 1,
             "format" : "int32",
             "type" : "integer"
           },
           "size" : {
-            "default" : "10",
+            "default" : 10,
             "format" : "int32",
             "type" : "integer"
           }
@@ -5862,20 +5556,40 @@
       "wow.api.query.Projection" : {
         "properties" : {
           "exclude" : {
-            "default" : "[]",
+            "default" : [ ],
             "items" : {
               "type" : "string"
             },
             "type" : "array"
           },
           "include" : {
-            "default" : "[]",
+            "default" : [ ],
             "items" : {
               "type" : "string"
             },
             "type" : "array"
           }
         },
+        "type" : "object"
+      },
+      "wow.api.query.SingleQuery" : {
+        "additionalProperties" : false,
+        "properties" : {
+          "filter" : {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+          },
+          "projection" : {
+            "$ref" : "#/components/schemas/wow.api.query.Projection"
+          },
+          "sort" : {
+            "default" : [ ],
+            "items" : {
+              "$ref" : "#/components/schemas/wow.api.query.Sort"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "filter" ],
         "type" : "object"
       },
       "wow.api.query.Sort" : {

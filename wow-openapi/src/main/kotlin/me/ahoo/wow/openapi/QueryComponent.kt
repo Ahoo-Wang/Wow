@@ -13,20 +13,14 @@
 
 package me.ahoo.wow.openapi
 
-import io.swagger.v3.oas.models.media.ArraySchema
-import io.swagger.v3.oas.models.media.IntegerSchema
-import io.swagger.v3.oas.models.media.ObjectSchema
 import io.swagger.v3.oas.models.media.StringSchema
 import me.ahoo.wow.api.Wow
-import me.ahoo.wow.api.query.AggregationGroup
-import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.api.query.Pagination
-import me.ahoo.wow.api.query.Projection
-import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.PagedQuery
+import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.openapi.CommonComponent.Response.withErrorCodeHeader
@@ -48,7 +42,6 @@ object QueryComponent {
     const val COUNT_QUERY_KEY = Wow.WOW + COUNT_QUERY_SUFFIX
     const val LIST_QUERY_KEY = Wow.WOW + LIST_QUERY_SUFFIX
     const val PAGED_QUERY_KEY = Wow.WOW + PAGED_QUERY_SUFFIX
-    const val AGGREGATION_QUERY_KEY = "wow.api.query.AggregationQuery"
 
     object Schema {
 
@@ -57,80 +50,19 @@ object QueryComponent {
         }
 
         fun OpenAPIComponentContext.singleQuerySchema(): io.swagger.v3.oas.models.media.Schema<*> {
-            return baseQuerySchema()
+            return schema(SingleQuery::class.java)
         }
 
         fun OpenAPIComponentContext.listQuerySchema(): io.swagger.v3.oas.models.media.Schema<*> {
-            val querySchema = baseQuerySchema()
-            val limitSchema = io.swagger.v3.oas.models.media.IntegerSchema()
-            limitSchema.minimum(java.math.BigDecimal.ZERO)
-            limitSchema.setDefault(0)
-            querySchema.addProperty("limit", limitSchema.asAnySchema())
-            return querySchema
+            return schema(ListQuery::class.java)
         }
 
         fun OpenAPIComponentContext.pagedQuerySchema(): io.swagger.v3.oas.models.media.Schema<*> {
-            val querySchema = baseQuerySchema()
-            querySchema.addProperty("pagination", schema(Pagination::class.java).asAnySchema())
-            return querySchema
+            return schema(PagedQuery::class.java)
         }
-
         fun OpenAPIComponentContext.aggregationQuerySchema(): io.swagger.v3.oas.models.media.Schema<*> {
-            val elementSchema = ObjectSchema()
-            elementSchema.addProperty("path", schema(LogicalField::class.java).asAnySchema())
-            elementSchema.addProperty("filter", filterSchema().asAnySchema())
-            elementSchema.required(listOf("path"))
-            elementSchema.additionalProperties(false)
-
-            val querySchema = ObjectSchema()
-            querySchema.addProperty("filter", filterSchema().asAnySchema())
-            querySchema.addProperty(
-                "elements",
-                ArraySchema().items(elementSchema).maxItems(AggregationQuery.MAX_ELEMENTS).asAnySchema()
-            )
-            querySchema.addProperty(
-                "groupBy",
-                ArraySchema().items(schema(AggregationGroup::class.java))
-                    .maxItems(AggregationQuery.MAX_GROUPS)
-                    .asAnySchema()
-            )
-            querySchema.addProperty(
-                "metrics",
-                ArraySchema().items(schema(AggregationMetric::class.java))
-                    .minItems(1)
-                    .maxItems(AggregationQuery.MAX_METRICS)
-                    .asAnySchema()
-            )
-            querySchema.addProperty(
-                "sort",
-                ArraySchema().items(schema(Sort::class.java))
-                    .maxItems(AggregationQuery.MAX_SORT_FIELDS)
-                    .asAnySchema()
-            )
-            val limitSchema = IntegerSchema()
-            limitSchema.setDefault(AggregationQuery.DEFAULT_LIMIT)
-            limitSchema.minimum(java.math.BigDecimal.ONE)
-            limitSchema.maximum(java.math.BigDecimal.valueOf(AggregationQuery.MAX_LIMIT.toLong()))
-            querySchema.addProperty("limit", limitSchema.asAnySchema())
-            querySchema.required(listOf("metrics"))
-            querySchema.additionalProperties(false)
-            return componentSchema(AGGREGATION_QUERY_KEY, querySchema)
+            return schema(AggregationQuery::class.java)
         }
-
-        private fun OpenAPIComponentContext.baseQuerySchema(): io.swagger.v3.oas.models.media.ObjectSchema {
-            val querySchema = io.swagger.v3.oas.models.media.ObjectSchema()
-            querySchema.addProperty("filter", filterSchema().asAnySchema())
-            querySchema.addProperty("projection", schema(Projection::class.java).asAnySchema())
-            val sortSchema = io.swagger.v3.oas.models.media.ArraySchema().items(schema(Sort::class.java))
-            querySchema.addProperty("sort", sortSchema.asAnySchema())
-            querySchema.required(listOf("filter"))
-            querySchema.additionalProperties(false)
-            return querySchema
-        }
-
-        @Suppress("UNCHECKED_CAST")
-        private fun io.swagger.v3.oas.models.media.Schema<*>.asAnySchema():
-            io.swagger.v3.oas.models.media.Schema<Any> = this as io.swagger.v3.oas.models.media.Schema<Any>
     }
 
     object RequestBody {
