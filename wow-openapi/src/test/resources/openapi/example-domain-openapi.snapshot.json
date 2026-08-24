@@ -10600,10 +10600,10 @@
   },
   "info" : {
     "title" : "example-service",
-    "version" : "8.11.2",
+    "version" : "8.11.3",
     "x-wow-context-alias" : "example",
     "x-wow-context-name" : "example-service",
-    "x-wow-version" : "8.11.2"
+    "x-wow-version" : "8.11.3"
   },
   "openapi" : "3.1.0",
   "paths" : {
