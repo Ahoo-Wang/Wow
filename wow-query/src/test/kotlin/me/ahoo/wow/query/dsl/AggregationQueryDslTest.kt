@@ -14,7 +14,11 @@
 package me.ahoo.wow.query.dsl
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationDateUnit
+import me.ahoo.wow.api.query.AggregationGroup
+import me.ahoo.wow.api.query.LogicalField
 import org.junit.jupiter.api.Test
+import java.time.ZoneId
 
 class AggregationQueryDslTest {
 
@@ -35,5 +39,24 @@ class AggregationQueryDslTest {
         query.groupBy.assert().hasSize(1)
         query.metrics.assert().hasSize(2)
         query.limit.assert().isEqualTo(20)
+    }
+
+    @Test
+    fun `aggregation DSL should map histogram positional arguments`() {
+        val query = aggregation {
+            histogram("amount", 50.0, "amountBucket")
+            dateHistogram("createdAt", AggregationDateUnit.DAY, "day", ZoneId.of("Asia/Shanghai"))
+            count("count")
+        }
+
+        query.groupBy.assert().containsExactly(
+            AggregationGroup.Histogram(LogicalField("amount"), "amountBucket", 50.0),
+            AggregationGroup.DateHistogram(
+                LogicalField("createdAt"),
+                "day",
+                AggregationDateUnit.DAY,
+                "Asia/Shanghai",
+            ),
+        )
     }
 }

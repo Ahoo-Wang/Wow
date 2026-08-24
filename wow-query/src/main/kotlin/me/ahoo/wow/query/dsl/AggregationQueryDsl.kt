@@ -24,6 +24,8 @@ import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Sort
+import java.time.ZoneId
+import java.time.ZoneOffset
 
 @QueryDslMarker
 class AggregationQueryDsl {
@@ -52,12 +54,17 @@ class AggregationQueryDsl {
         groups += AggregationGroup.Terms(LogicalField(field), alias)
     }
 
-    fun histogram(field: String, alias: String, interval: Double) {
+    fun histogram(field: String, interval: Double, alias: String) {
         groups += AggregationGroup.Histogram(LogicalField(field), alias, interval)
     }
 
-    fun dateHistogram(field: String, alias: String, unit: AggregationDateUnit, timeZone: String = "UTC") {
-        groups += AggregationGroup.DateHistogram(LogicalField(field), alias, unit, timeZone)
+    fun dateHistogram(
+        field: String,
+        unit: AggregationDateUnit,
+        alias: String,
+        timeZone: ZoneId = ZoneOffset.UTC,
+    ) {
+        groups += AggregationGroup.DateHistogram(LogicalField(field), alias, unit, timeZone.id)
     }
 
     fun count(alias: String) {
