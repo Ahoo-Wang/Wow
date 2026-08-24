@@ -30,13 +30,43 @@ class TypedDefaultValueDefinitionProviderTest {
             isIntegralNumber.assert().isTrue()
             intValue().assert().isZero()
         }
+        properties.path("unionInteger").path("default").isIntegralNumber.assert().isTrue()
         properties.path("array").path("default").isArray.assert().isTrue()
         properties.path("objectValue").path("default").isObject.assert().isTrue()
         properties.path("booleanValue").path("default").booleanValue().assert().isTrue()
+        properties.path("nullableInteger").run {
+            path("default").isNull.assert().isTrue()
+            path("anyOf").path(0).path("type").stringValue().assert().isEqualTo("null")
+            path("anyOf").path(1).path("type").stringValue().assert().isEqualTo("integer")
+        }
         properties.path("stringValue").path("default").run {
             isString.assert().isTrue()
             stringValue().assert().isEqualTo("true")
         }
+    }
+
+    @Test
+    fun `should generate typed default for getter-only property`() {
+        val generator = SchemaGeneratorBuilder().customizer { }.build()
+
+        val default = generator.generateSchema(GetterDefault::class.java)
+            .path("properties")
+            .path("number")
+            .path("default")
+
+        default.isNumber.assert().isTrue()
+        default.doubleValue().assert().isEqualTo(1.5)
+    }
+
+    @Test
+    fun `should preserve defaults incompatible with declared type`() {
+        val generator = SchemaGeneratorBuilder().customizer { }.build()
+
+        val properties = generator.generateSchema(IncompatibleDefaults::class.java).path("properties")
+
+        properties.path("mismatchedInteger").path("default").stringValue().assert().isEqualTo("true")
+        properties.path("malformedInteger").path("default").stringValue().assert().isEqualTo("not-json")
+        properties.path("nonNullableInteger").path("default").stringValue().assert().isEqualTo("null")
     }
 
     @Test
@@ -55,14 +85,33 @@ class TypedDefaultValueDefinitionProviderTest {
     private data class TypedDefaults(
         @get:Schema(defaultValue = "0")
         val integer: Int = 0,
+        @get:Schema(types = ["integer", "null"], defaultValue = "0")
+        val unionInteger: Int = 0,
         @get:Schema(defaultValue = "[]")
         val array: List<String> = emptyList(),
         @get:Schema(defaultValue = "{}")
         val objectValue: Map<String, String> = emptyMap(),
         @get:Schema(defaultValue = "true")
         val booleanValue: Boolean = true,
+        @get:Schema(defaultValue = "null")
+        val nullableInteger: Int? = null,
         @get:Schema(defaultValue = "true")
         val stringValue: String = "true",
+    )
+
+    private class GetterDefault {
+        @get:Schema(defaultValue = "1.5")
+        val number: Double
+            get() = 1.5
+    }
+
+    private data class IncompatibleDefaults(
+        @get:Schema(defaultValue = "true")
+        val mismatchedInteger: Int = 0,
+        @get:Schema(defaultValue = "not-json")
+        val malformedInteger: Int = 0,
+        @get:Schema(defaultValue = "null")
+        val nonNullableInteger: Int = 0,
     )
 
     private class FieldDefault {

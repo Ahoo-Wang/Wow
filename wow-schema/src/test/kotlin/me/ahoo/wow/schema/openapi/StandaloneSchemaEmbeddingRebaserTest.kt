@@ -21,6 +21,33 @@ class StandaloneSchemaEmbeddingRebaserTest {
     private val objectMapper = JsonMapper.builder().build()
 
     @Test
+    fun `should preserve non-object schema`() {
+        val schema = objectMapper.readTree("\"string\"")
+
+        StandaloneSchemaEmbeddingRebaser.rebase(schema, "wow.schema.Node", "components/schemas")
+
+        schema.stringValue().assert().isEqualTo("string")
+    }
+
+    @Test
+    fun `should preserve schema without id`() {
+        val schema = objectMapper.createObjectNode().put("\$ref", "#")
+
+        StandaloneSchemaEmbeddingRebaser.rebase(schema, "wow.schema.Node", "components/schemas")
+
+        schema["\$ref"].stringValue().assert().isEqualTo("#")
+    }
+
+    @Test
+    fun `should preserve schema without references`() {
+        val schema = objectMapper.createObjectNode().put("\$id", "urn:root")
+
+        StandaloneSchemaEmbeddingRebaser.rebase(schema, "wow.schema.Node", "components/schemas")
+
+        schema["\$id"].stringValue().assert().isEqualTo("urn:root")
+    }
+
+    @Test
     fun `should rebase supported local references`() {
         val schema = objectMapper.createObjectNode()
             .put("\$id", "urn:root")

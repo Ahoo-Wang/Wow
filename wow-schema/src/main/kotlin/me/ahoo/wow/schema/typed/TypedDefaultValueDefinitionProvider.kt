@@ -17,6 +17,7 @@ import com.github.victools.jsonschema.generator.CustomDefinition.AttributeInclus
 import com.github.victools.jsonschema.generator.CustomPropertyDefinition
 import com.github.victools.jsonschema.generator.CustomPropertyDefinitionProvider
 import com.github.victools.jsonschema.generator.FieldScope
+import com.github.victools.jsonschema.generator.InstanceAttributeOverrideV2
 import com.github.victools.jsonschema.generator.MemberScope
 import com.github.victools.jsonschema.generator.MethodScope
 import com.github.victools.jsonschema.generator.Module
@@ -29,17 +30,30 @@ import tools.jackson.databind.node.ObjectNode
 
 internal object TypedDefaultValueDefinitionProvider : Module {
     override fun applyToConfigBuilder(builder: SchemaGeneratorConfigBuilder) {
-        builder.forFields().withCustomDefinitionProvider(FieldProvider)
+        builder.forFields()
+            .withCustomDefinitionProvider(FieldProvider)
+            .withInstanceAttributeOverride(FieldProvider)
         builder.forMethods().withCustomDefinitionProvider(MethodProvider)
     }
 
-    private object FieldProvider : CustomPropertyDefinitionProvider<FieldScope> {
+    private object FieldProvider :
+        CustomPropertyDefinitionProvider<FieldScope>,
+        InstanceAttributeOverrideV2<FieldScope> {
         override fun provideCustomSchemaDefinition(
             scope: FieldScope,
             context: SchemaGenerationContext,
         ): CustomPropertyDefinition? {
-            if (!scope.hasTextualDefault()) return null
+            val textualDefault = scope.textualDefault() ?: return null
+            if (textualDefault == "null" && context.generatorConfig.isNullable(scope)) return null
             return context.createStandardDefinition(scope, this).withTypedDefault()
+        }
+
+        override fun overrideInstanceAttributes(
+            attributes: ObjectNode,
+            scope: FieldScope,
+            context: SchemaGenerationContext,
+        ) {
+            attributes.normalizeNullDefault(scope.textualDefault(), context.generatorConfig.isNullable(scope))
         }
     }
 
@@ -48,16 +62,21 @@ internal object TypedDefaultValueDefinitionProvider : Module {
             scope: MethodScope,
             context: SchemaGenerationContext,
         ): CustomPropertyDefinition? {
-            if (!scope.hasTextualDefault()) return null
+            if (scope.textualDefault() == null) return null
             return context.createStandardDefinition(scope, this).withTypedDefault()
         }
     }
 
-    private fun MemberScope<*, *>.hasTextualDefault(): Boolean =
-        !isFakeContainerItemScope &&
-            getAnnotationConsideringFieldAndGetterIfSupported(Schema::class.java)
-                ?.defaultValue
-                ?.isNotEmpty() == true
+    private fun MemberScope<*, *>.textualDefault(): String? {
+        if (isFakeContainerItemScope) return null
+        return getAnnotationConsideringFieldAndGetterIfSupported(Schema::class.java)
+            ?.defaultValue
+            ?.takeIf(String::isNotEmpty)
+    }
+
+    private fun ObjectNode.normalizeNullDefault(textualDefault: String?, nullable: Boolean) {
+        if (textualDefault == "null" && nullable) putNull("default")
+    }
 
     private fun JsonNode.withTypedDefault(): CustomPropertyDefinition? {
         if (this !is ObjectNode) return null
@@ -93,7 +112,6 @@ internal object TypedDefaultValueDefinitionProvider : Module {
             "boolean" -> isBoolean
             "array" -> isArray
             "object" -> isObject
-            "null" -> isNull
             else -> false
         }
     }
