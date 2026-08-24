@@ -288,6 +288,7 @@ private fun compareValues(left: Any?, right: Any?): Int = when {
     left === right -> 0
     left == null -> -1
     right == null -> 1
+    left is Long && right is Long -> left.compareTo(right)
     left is Number && right is Number -> left.toDouble().compareTo(right.toDouble())
     left is String && right is String -> left.compareTo(right)
     left is Boolean && right is Boolean -> left.compareTo(right)

@@ -117,6 +117,20 @@ class ElasticsearchAggregationPagerTest {
     }
 
     @Test
+    fun `long sort above double precision should not fall through to tie sort`() {
+        val rows = listOf(
+            SimpleDynamicDocument(mutableMapOf("product" to "z", "count" to 9_007_199_254_740_993L)),
+            SimpleDynamicDocument(mutableMapOf("product" to "a", "count" to 9_007_199_254_740_992L)),
+        )
+
+        selectTopRows(
+            rows,
+            listOf(Sort("count", Sort.Direction.DESC), Sort("product", Sort.Direction.ASC)),
+            limit = 1,
+        ).single()["product"].assert().isEqualTo("z")
+    }
+
+    @Test
     fun `summary should request once and normalize empty values`() {
         stubPointInTime()
         every { client.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(summaryResponse())
