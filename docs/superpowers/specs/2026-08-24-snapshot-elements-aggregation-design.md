@@ -140,6 +140,91 @@ sealed interface AggregationMetric {
 
 DSL 提供 `sum("state.amount")` 等快捷方法，调用者不需要手工构造 `AggregationExpression.Field`。
 
+### Kotlin DSL
+
+DSL 直接映射 `elements` 数组，不创建递归 `AggregationElementDsl` 或第二套 filter DSL：
+
+```kotlin
+val query = aggregation {
+    filter {
+        "state.status" eq "COMPLETED"
+    }
+
+    expand("state.orders") {
+        "status" eq "PAID"
+    }
+    expand("lines") {
+        "quantity" gt 0
+    }
+    expand("discounts") {
+        "type" eq "MEMBER"
+    }
+
+    terms("productId", alias = "product")
+    histogram("amount", interval = 10.0, alias = "amountRange")
+    dateHistogram(
+        "createdAt",
+        unit = AggregationDateUnit.DAY,
+        alias = "day",
+        timeZone = ZoneId.of("Asia/Shanghai"),
+    )
+
+    count(alias = "count")
+    sum("amount", alias = "total")
+    avg("amount", alias = "average")
+    min("amount", alias = "minimum")
+    max("amount", alias = "maximum")
+
+    sort {
+        "total".desc()
+        "product".asc()
+    }
+    limit(20)
+}
+```
+
+最小 DSL API：
+
+```kotlin
+fun aggregation(block: AggregationQueryDsl.() -> Unit): AggregationQuery
+
+@QueryDslMarker
+class AggregationQueryDsl {
+    fun filter(block: FilterDsl.() -> Unit)
+
+    fun expand(path: String)
+    fun expand(path: String, block: FilterDsl.() -> Unit)
+
+    fun terms(field: String, alias: String)
+    fun histogram(field: String, interval: Double, alias: String)
+    fun dateHistogram(
+        field: String,
+        unit: AggregationDateUnit,
+        alias: String,
+        timeZone: ZoneId = ZoneOffset.UTC,
+    )
+
+    fun count(alias: String)
+    fun sum(field: String, alias: String)
+    fun avg(field: String, alias: String)
+    fun min(field: String, alias: String)
+    fun max(field: String, alias: String)
+
+    fun sort(block: SortDsl.() -> Unit)
+    fun limit(limit: Int)
+    fun build(): AggregationQuery
+}
+```
+
+`expand` 调用顺序就是 `elements` 顺序；带 block 的重载直接调用现有 `filter {}` 构造该层相对 filter。group 与 metric 方法把字段包装为 `LogicalField`，数值指标把字段包装为 `AggregationExpression.Field`。alias 必须显式提供，不根据字段名猜测。
+
+执行扩展沿用现有 snapshot query 命名：
+
+```kotlin
+fun AggregationQuery.query(queryService: SnapshotQueryService<*>): Flux<DynamicDocument> =
+    queryService.aggregate(this)
+```
+
 ### 结构校验
 
 公共层只校验请求本身可确定的事实：
