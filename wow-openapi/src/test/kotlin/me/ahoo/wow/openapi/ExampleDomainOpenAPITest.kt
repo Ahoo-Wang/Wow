@@ -105,7 +105,6 @@ internal class ExampleDomainOpenAPITest {
                     ?.get(Https.MediaType.APPLICATION_JSON)
                     ?.schema
             )
-
             queryFields.`$ref`.assert().isEqualTo("#/components/schemas/$fieldsKey")
             requestBody.content[Https.MediaType.APPLICATION_JSON]!!.schema.`$ref`
                 .assert().isEqualTo("#/components/schemas/wow.api.query.AggregationQuery")
@@ -144,7 +143,6 @@ internal class ExampleDomainOpenAPITest {
             responseSchema.type.assert().isEqualTo("array")
             responseSchema.items.type.assert().isEqualTo("object")
             (responseSchema.items.additionalProperties as Schema<*>).nullable.assert().isTrue()
-
             val aggregationRouteIds = catalogRoutes()
                 .filter { it.routeId.endsWith(".snapshot.aggregation") }
                 .map { it.routeId }
@@ -152,6 +150,22 @@ internal class ExampleDomainOpenAPITest {
                 .filter { it.routeId.endsWith(".snapshot.count") }
                 .map { it.routeId.removeSuffix("count") + "aggregation" }
             aggregationRouteIds.assert().containsExactlyInAnyOrder(*countRouteIds.toTypedArray())
+        }
+
+        @Test
+        fun `snapshot aggregation event stream should expose SSE envelopes`() {
+            val eventStreamSchema = requireNotNull(
+                openAPI.paths["/cart/snapshot/aggregation"]
+                    ?.post
+                    ?.responses
+                    ?.get("200")
+                    ?.content
+                    ?.get(Https.MediaType.TEXT_EVENT_STREAM)
+                    ?.schema
+            )
+
+            eventStreamSchema.items.properties.assert().containsKey("data")
+            eventStreamSchema.items.required.assert().contains("data")
         }
 
         @Test

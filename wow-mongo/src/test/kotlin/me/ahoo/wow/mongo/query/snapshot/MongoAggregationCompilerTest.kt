@@ -149,6 +149,22 @@ class MongoAggregationCompilerTest {
     }
 
     @Test
+    fun `minimum and maximum should accumulate only Mongo numeric values`() {
+        val query = aggregation {
+            min("state.amount", "minimum")
+            max("state.amount", "maximum")
+        }
+
+        val group = MongoAggregationCompiler(SnapshotFilterConverter).compile(query)[1]
+            .toBsonDocument().getDocument("\$group")
+        listOf("minimum", "maximum").forEach { alias ->
+            group.getDocument(alias).toJson().assert()
+                .contains("\$cond")
+                .contains("\$isNumber")
+        }
+    }
+
+    @Test
     fun `custom field converter should apply to root and element filters without element deletion scope`() {
         val converter = object : AbstractMongoFilterConverter() {
             override val fieldConverter: FieldConverter = FieldConverter { "physical.$it" }

@@ -107,6 +107,21 @@ class ElasticsearchAggregationCompilerTest {
     }
 
     @Test
+    fun `second date histogram should use a fixed interval`() {
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter, mapping = null).compile(
+            aggregation {
+                dateHistogram("state.createdAt", AggregationDateUnit.SECOND, "second")
+                count("count")
+            },
+        )
+
+        plan.groupSources.single().value().dateHistogram().apply {
+            fixedInterval()!!.time().assert().isEqualTo("1s")
+            calendarInterval().assert().isNull()
+        }
+    }
+
+    @Test
     fun `custom converter should receive caller paths without mapping resolution`() {
         val convertedParents = mutableListOf<String?>()
         val converter = mockk<me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterConverter> {

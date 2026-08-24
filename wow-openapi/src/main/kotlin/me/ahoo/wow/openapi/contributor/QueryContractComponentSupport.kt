@@ -14,8 +14,10 @@
 package me.ahoo.wow.openapi.contributor
 
 import io.swagger.v3.oas.models.media.ArraySchema
+import io.swagger.v3.oas.models.media.IntegerSchema
 import io.swagger.v3.oas.models.media.ObjectSchema
 import io.swagger.v3.oas.models.media.Schema
+import io.swagger.v3.oas.models.media.StringSchema
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
@@ -101,12 +103,20 @@ internal fun OpenAPIComponentContext.countQueryResponseRef(): HttpResponse {
 internal fun OpenAPIComponentContext.aggregationResponse(): HttpResponse {
     val rowSchema = ObjectSchema().additionalProperties(Schema<Any>().nullable(true))
     val responseSchema = ArraySchema().items(rowSchema)
+    val eventStreamSchema = ArraySchema().items(
+        ObjectSchema()
+            .addProperty("id", StringSchema().nullable(true))
+            .addProperty("event", StringSchema().nullable(true))
+            .addProperty("data", rowSchema)
+            .addProperty("retry", IntegerSchema().nullable(true))
+            .required(listOf("data"))
+    )
     return HttpResponse(
         statusCode = Https.Code.OK,
         headers = listOf(errorCodeHeaderRef()),
         content = listOf(
             HttpContent(Https.MediaType.APPLICATION_JSON, HttpSchema.Raw(responseSchema)),
-            HttpContent(Https.MediaType.TEXT_EVENT_STREAM, HttpSchema.Raw(responseSchema))
+            HttpContent(Https.MediaType.TEXT_EVENT_STREAM, HttpSchema.Raw(eventStreamSchema))
         )
     )
 }

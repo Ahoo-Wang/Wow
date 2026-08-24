@@ -18,6 +18,7 @@ import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Sorts
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationExpression
+import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
@@ -68,7 +69,15 @@ internal class MongoAggregationCompiler(
                 is AggregationMetric.Count -> group[metric.alias] = Document("\$sum", 1)
                 is AggregationMetric.Numeric -> {
                     val field = metric.expression.field().resolve(parent)
-                    group[metric.alias] = Document("\$${metric.function.name.lowercase()}", "\$$field")
+                    val input = when (metric.function) {
+                        AggregationFunction.MIN, AggregationFunction.MAX -> Document(
+                            "\$cond",
+                            listOf(Document("\$isNumber", "\$$field"), "\$$field", null),
+                        )
+
+                        else -> "\$$field"
+                    }
+                    group[metric.alias] = Document("\$${metric.function.name.lowercase()}", input)
                     group[metric.countAlias] = Document(
                         "\$sum",
                         Document("\$cond", listOf(Document("\$isNumber", "\$$field"), 1, 0)),

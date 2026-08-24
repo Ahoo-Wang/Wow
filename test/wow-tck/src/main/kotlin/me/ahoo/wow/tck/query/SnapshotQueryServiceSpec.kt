@@ -264,6 +264,26 @@ abstract class SnapshotQueryServiceSpec {
     }
 
     @Test
+    fun `aggregation should support second date histograms`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+
+        aggregation {
+            expand("state.orders")
+            expand("lines") { "productId" eq "beta" }
+            dateHistogram("createdAt", AggregationDateUnit.SECOND, "second")
+            count("count")
+        }.query(snapshotQueryService)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                rows.map(Map<String, Any?>::toMap).assert().containsExactly(
+                    mapOf("second" to Instant.parse("2026-01-02T10:00:00Z").toEpochMilli(), "count" to 1L),
+                    mapOf("second" to Instant.parse("2026-01-02T18:00:00Z").toEpochMilli(), "count" to 1L),
+                )
+            }.verifyComplete()
+    }
+
+    @Test
     fun `aggregation should return backend neutral decimal Terms keys`() {
         saveAggregationStates(
             MockStateAggregate(id = "decimal-a", decimalValue = BigDecimal("1.25")),

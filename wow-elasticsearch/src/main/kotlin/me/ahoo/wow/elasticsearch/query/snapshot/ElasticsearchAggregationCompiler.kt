@@ -16,6 +16,7 @@ package me.ahoo.wow.elasticsearch.query.snapshot
 import co.elastic.clients.elasticsearch._types.aggregations.CompositeAggregationSource
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import co.elastic.clients.util.NamedValue
+import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
@@ -114,9 +115,12 @@ internal class ElasticsearchAggregationCompiler(
                 it.dateHistogram { dateHistogram ->
                     dateHistogram
                         .field(mapping?.resolve(absoluteField, ElasticsearchFieldUsage.RANGE) ?: absoluteField)
-                        .calendarInterval { interval -> interval.time(unit.name.lowercase()) }
-                        .timeZone(timeZone)
-                        .order(sort.direction.toSortOrder())
+                    if (unit == AggregationDateUnit.SECOND) {
+                        dateHistogram.fixedInterval { interval -> interval.time("1s") }
+                    } else {
+                        dateHistogram.calendarInterval { interval -> interval.time(unit.name.lowercase()) }
+                    }
+                    dateHistogram.timeZone(timeZone).order(sort.direction.toSortOrder())
                 }
             }
         }

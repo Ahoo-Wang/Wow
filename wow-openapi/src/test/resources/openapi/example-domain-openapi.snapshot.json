@@ -6142,7 +6142,23 @@
               "text/event-stream" : {
                 "schema" : {
                   "items" : {
-                    "additionalProperties" : { },
+                    "properties" : {
+                      "data" : {
+                        "additionalProperties" : { },
+                        "type" : "object"
+                      },
+                      "event" : {
+                        "type" : "string"
+                      },
+                      "id" : {
+                        "type" : "string"
+                      },
+                      "retry" : {
+                        "format" : "int32",
+                        "type" : "integer"
+                      }
+                    },
+                    "required" : [ "data" ],
                     "type" : "object"
                   },
                   "type" : "array"
@@ -7069,7 +7085,23 @@
               "text/event-stream" : {
                 "schema" : {
                   "items" : {
-                    "additionalProperties" : { },
+                    "properties" : {
+                      "data" : {
+                        "additionalProperties" : { },
+                        "type" : "object"
+                      },
+                      "event" : {
+                        "type" : "string"
+                      },
+                      "id" : {
+                        "type" : "string"
+                      },
+                      "retry" : {
+                        "format" : "int32",
+                        "type" : "integer"
+                      }
+                    },
+                    "required" : [ "data" ],
                     "type" : "object"
                   },
                   "type" : "array"
@@ -7662,7 +7694,23 @@
               "text/event-stream" : {
                 "schema" : {
                   "items" : {
-                    "additionalProperties" : { },
+                    "properties" : {
+                      "data" : {
+                        "additionalProperties" : { },
+                        "type" : "object"
+                      },
+                      "event" : {
+                        "type" : "string"
+                      },
+                      "id" : {
+                        "type" : "string"
+                      },
+                      "retry" : {
+                        "format" : "int32",
+                        "type" : "integer"
+                      }
+                    },
+                    "required" : [ "data" ],
                     "type" : "object"
                   },
                   "type" : "array"
@@ -8026,7 +8074,23 @@
               "text/event-stream" : {
                 "schema" : {
                   "items" : {
-                    "additionalProperties" : { },
+                    "properties" : {
+                      "data" : {
+                        "additionalProperties" : { },
+                        "type" : "object"
+                      },
+                      "event" : {
+                        "type" : "string"
+                      },
+                      "id" : {
+                        "type" : "string"
+                      },
+                      "retry" : {
+                        "format" : "int32",
+                        "type" : "integer"
+                      }
+                    },
+                    "required" : [ "data" ],
                     "type" : "object"
                   },
                   "type" : "array"
@@ -8410,7 +8474,23 @@
               "text/event-stream" : {
                 "schema" : {
                   "items" : {
-                    "additionalProperties" : { },
+                    "properties" : {
+                      "data" : {
+                        "additionalProperties" : { },
+                        "type" : "object"
+                      },
+                      "event" : {
+                        "type" : "string"
+                      },
+                      "id" : {
+                        "type" : "string"
+                      },
+                      "retry" : {
+                        "format" : "int32",
+                        "type" : "integer"
+                      }
+                    },
+                    "required" : [ "data" ],
                     "type" : "object"
                   },
                   "type" : "array"
@@ -8776,7 +8856,23 @@
               "text/event-stream" : {
                 "schema" : {
                   "items" : {
-                    "additionalProperties" : { },
+                    "properties" : {
+                      "data" : {
+                        "additionalProperties" : { },
+                        "type" : "object"
+                      },
+                      "event" : {
+                        "type" : "string"
+                      },
+                      "id" : {
+                        "type" : "string"
+                      },
+                      "retry" : {
+                        "format" : "int32",
+                        "type" : "integer"
+                      }
+                    },
+                    "required" : [ "data" ],
                     "type" : "object"
                   },
                   "type" : "array"
@@ -9142,7 +9238,23 @@
               "text/event-stream" : {
                 "schema" : {
                   "items" : {
-                    "additionalProperties" : { },
+                    "properties" : {
+                      "data" : {
+                        "additionalProperties" : { },
+                        "type" : "object"
+                      },
+                      "event" : {
+                        "type" : "string"
+                      },
+                      "id" : {
+                        "type" : "string"
+                      },
+                      "retry" : {
+                        "format" : "int32",
+                        "type" : "integer"
+                      }
+                    },
+                    "required" : [ "data" ],
                     "type" : "object"
                   },
                   "type" : "array"
@@ -9654,7 +9766,23 @@
               "text/event-stream" : {
                 "schema" : {
                   "items" : {
-                    "additionalProperties" : { },
+                    "properties" : {
+                      "data" : {
+                        "additionalProperties" : { },
+                        "type" : "object"
+                      },
+                      "event" : {
+                        "type" : "string"
+                      },
+                      "id" : {
+                        "type" : "string"
+                      },
+                      "retry" : {
+                        "format" : "int32",
+                        "type" : "integer"
+                      }
+                    },
+                    "required" : [ "data" ],
                     "type" : "object"
                   },
                   "type" : "array"
@@ -10538,7 +10666,23 @@
               "text/event-stream" : {
                 "schema" : {
                   "items" : {
-                    "additionalProperties" : { },
+                    "properties" : {
+                      "data" : {
+                        "additionalProperties" : { },
+                        "type" : "object"
+                      },
+                      "event" : {
+                        "type" : "string"
+                      },
+                      "id" : {
+                        "type" : "string"
+                      },
+                      "retry" : {
+                        "format" : "int32",
+                        "type" : "integer"
+                      }
+                    },
+                    "required" : [ "data" ],
                     "type" : "object"
                   },
                   "type" : "array"
@@ -11351,7 +11495,23 @@
               "text/event-stream" : {
                 "schema" : {
                   "items" : {
-                    "additionalProperties" : { },
+                    "properties" : {
+                      "data" : {
+                        "additionalProperties" : { },
+                        "type" : "object"
+                      },
+                      "event" : {
+                        "type" : "string"
+                      },
+                      "id" : {
+                        "type" : "string"
+                      },
+                      "retry" : {
+                        "format" : "int32",
+                        "type" : "integer"
+                      }
+                    },
+                    "required" : [ "data" ],
                     "type" : "object"
                   },
                   "type" : "array"
@@ -12876,7 +13036,23 @@
               "text/event-stream" : {
                 "schema" : {
                   "items" : {
-                    "additionalProperties" : { },
+                    "properties" : {
+                      "data" : {
+                        "additionalProperties" : { },
+                        "type" : "object"
+                      },
+                      "event" : {
+                        "type" : "string"
+                      },
+                      "id" : {
+                        "type" : "string"
+                      },
+                      "retry" : {
+                        "format" : "int32",
+                        "type" : "integer"
+                      }
+                    },
+                    "required" : [ "data" ],
                     "type" : "object"
                   },
                   "type" : "array"
