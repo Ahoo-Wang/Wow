@@ -576,41 +576,11 @@ listQuery {
 
 ## Aggregation Queries
 
-Elasticsearch provides powerful aggregation capabilities:
+`ElasticsearchSnapshotQueryService.aggregate()` compiles the shared `AggregationQuery` contract. It resolves the first Element as an absolute `nested` path, then resolves later Elements and their filters relative to the current nested scope. Terms groups use the existing exact-field resolver, including standard `.keyword` multi-fields; Histogram, DateHistogram, and numeric metrics resolve executable physical fields and leave type mismatches to Elasticsearch.
 
-### Statistical Analysis
+At the innermost scope, Wow uses composite sources and metric sub-aggregations. Group-alias sorting follows composite source order and reads only the pages needed for `limit`. Metric-alias sorting is more expensive: it scans all composite buckets and keeps an exact bounded Top-N in the client instead of using an approximate `terms` or `bucket_sort` plan.
 
-```kotlin
-// Count orders by status
-val aggregation = SearchRequest.of { s ->
-    s.index("wow.order-service.order.snapshot")
-        .aggregations("status_count") { a ->
-            a.terms { t ->
-                t.field("state.status")
-            }
-        }
-}
-```
-
-### Time Range Aggregation
-
-```kotlin
-// Daily order amount statistics
-val aggregation = SearchRequest.of { s ->
-    s.index("wow.order-service.order.snapshot")
-        .aggregations("daily_amount") { a ->
-            a.dateHistogram { d ->
-                d.field("eventTime")
-                    .calendarInterval(CalendarInterval.Day)
-            }
-            .aggregations("total") { sa ->
-                sa.sum { sum ->
-                    sum.field("state.totalAmount")
-                }
-            }
-        }
-}
-```
+Composite paging reuses the normal query pager's point-in-time lifecycle. The latest PIT is closed after completion, error, or cancellation. Custom filter converters and custom mappings such as runtime fields, `copy_to`, `null_value`, or type coercion receive no portability guarantees; callers must provide executable physical paths.
 
 ## Index Design Recommendations
 

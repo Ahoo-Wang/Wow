@@ -565,41 +565,11 @@ listQuery {
 
 ## 聚合查询
 
-Elasticsearch 提供强大的聚合功能：
+`ElasticsearchSnapshotQueryService.aggregate()` 编译通用 `AggregationQuery` 合同。第一个 Element 按绝对 `nested` 路径解析，后续 Elements 及其 filters 相对当前 nested 作用域解析。Terms 分组复用现有精确字段解析器，包括标准 `.keyword` multi-field；Histogram、DateHistogram 与数值指标解析为可执行物理字段，类型不匹配时保留 Elasticsearch 错误。
 
-### 统计分析
+在最内层作用域，Wow 使用 composite sources 与 metric sub-aggregations。按 group alias 排序遵循 composite source 顺序，只读取满足 `limit` 所需的分页。按 metric alias 排序成本更高：它会遍历全部 composite buckets，并在客户端维护精确的有界 Top-N，而不使用近似的 `terms` 或 `bucket_sort` 方案。
 
-```kotlin
-// 按状态统计订单数量
-val aggregation = SearchRequest.of { s ->
-    s.index("wow.order-service.order.snapshot")
-        .aggregations("status_count") { a ->
-            a.terms { t ->
-                t.field("state.status")
-            }
-        }
-}
-```
-
-### 时间范围聚合
-
-```kotlin
-// 按天统计订单金额
-val aggregation = SearchRequest.of { s ->
-    s.index("wow.order-service.order.snapshot")
-        .aggregations("daily_amount") { a ->
-            a.dateHistogram { d ->
-                d.field("eventTime")
-                    .calendarInterval(CalendarInterval.Day)
-            }
-            .aggregations("total") { sa ->
-                sa.sum { sum ->
-                    sum.field("state.totalAmount")
-                }
-            }
-        }
-}
-```
+Composite 分页复用普通查询 pager 的 point-in-time 生命周期；完成、错误或取消时都会关闭最新 PIT。自定义 filter converter 以及 runtime field、`copy_to`、`null_value`、类型强制转换等自定义 mapping 不提供可移植性保证；调用方必须提供可执行的物理路径。
 
 ## 索引设计建议
 

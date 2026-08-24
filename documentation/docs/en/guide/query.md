@@ -145,6 +145,65 @@ query.query(queryService)
 
 `ListQuery.limit = 0` means unlimited results. HTTP queries remain subject to the WebFlux query-cost guard configuration.
 
+### Snapshot aggregation
+
+Use `aggregation {}` to expand an ordered chain of state collections and return tabular rows:
+
+```kotlin
+val query = aggregation {
+    expand("state.orders") { "status" eq "PAID" }
+    expand("lines") { "quantity" gt 0 }
+    terms("productId", "product")
+    sum("amount", "total")
+    sort { "total".desc() }
+    limit(20)
+}
+
+query.query(snapshotQueryService)
+```
+
+The equivalent JSON is:
+
+```json
+{
+  "elements": [
+    {
+      "path": "state.orders",
+      "filter": { "op": "EQ", "field": "status", "value": "PAID" }
+    },
+    {
+      "path": "lines",
+      "filter": { "op": "GT", "field": "quantity", "value": 0 }
+    }
+  ],
+  "groupBy": [
+    { "type": "TERMS", "field": "productId", "alias": "product" }
+  ],
+  "metrics": [
+    {
+      "type": "NUMERIC",
+      "function": "SUM",
+      "expression": { "field": "amount" },
+      "alias": "total"
+    }
+  ],
+  "sort": [{ "field": "total", "direction": "DESC" }],
+  "limit": 20
+}
+```
+
+The first Element path is an absolute snapshot path. Every later Element path and every Element filter is relative to its current expanded element. Group and metric fields are relative to the innermost Element; without Elements, they are absolute snapshot paths. Elements form one parent-child chain, not sibling expansions.
+
+`TERMS`, `HISTOGRAM`, and `DATE_HISTOGRAM` groups are supported. Metrics are `COUNT`, `SUM`, `AVG`, `MIN`, and `MAX`; `COUNT` returns `Long`, while numeric metrics return a finite `Double` or `null` when no value contributes. A query without groups returns one summary row, including an empty dataset (`COUNT = 0`, numeric metrics `null`). Grouped results contain at most `limit` rows; the default is `100` and the maximum is `10,000`.
+
+Sort fields reference group or metric aliases. Missing group-alias sorts are appended in declaration order for stable results. Sorting by a metric alias is expensive and is controlled by the WebFlux `query.allow-expensive-operators` guard. Fixed structural limits are 5 Elements, 32 groups, 64 metrics, and 32 effective sort fields.
+
+Aggregation uses the existing snapshot filter chain: ABAC and route filters still extend the root filter. The masking filter ignores aggregation queries, so configured maskers do not reject or rewrite aggregation results.
+
+Wow validates the request structure, not field existence, collection shape, or physical field type. It does not maintain an aggregation field catalog or use `TypeFieldPaths` for validation. Equivalent behavior is not guaranteed for custom Jackson serializers, backend filter converters, or custom Elasticsearch mappings. Batch aggregation and arithmetic expressions are not included.
+
+The HTTP endpoint is `POST /{context}/{aggregate}/snapshot/aggregation` (with the route prefixes applicable to the aggregate). JSON responses are arrays of dynamic objects; SSE streams one object at a time. OpenAPI publishes an aggregate-specific `AggregationQuery` request body whose `x-wow-query-fields` references that aggregate's `*AggregatedFields` component, while the JSON schema remains the generic `AggregationQuery` contract.
+
 ### Rewriting queries
 
 Query filters use `withFilter` or `appendFilter`; internal paths no longer rewrite `Condition`:

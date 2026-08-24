@@ -409,6 +409,14 @@ query.dynamicQuery(snapshotQueryService)
 
 `MongoSnapshotQueryService` 使用 `MaterializedSnapshot<S>` 作为其类型化的结果包装器，其中 `S` 是从聚合元数据解析出的聚合状态类型。这支持直接对聚合状态字段进行类型安全的动态查询——例如，查询 `state.status` 或 `state.totalAmount` 而不需要单独的投影处理器。
 
+### 快照聚合
+
+`MongoSnapshotQueryService.aggregate()` 把通用 `AggregationQuery` 合同编译为原生 pipeline：根 `$match`、按顺序执行的 `$unwind` 与每层 Element `$match`、分组键过滤、`$group`、`$project`、`$sort` 和 `$limit`。第一个 Element 路径是绝对路径；后续 Element 路径、Element filter 及最内层 group/metric 字段都从当前作用域解析。
+
+MongoDB accumulator 实现 Terms、Histogram、DateHistogram、Count、Sum、Avg、Min 与 Max。缺失或为 null 的分组键会被排除。Count 统一为 `Long`；数值指标统一为有限 `Double`，没有值参与计算时为 `null`，空数据集的无分组单行汇总也遵循该规则。
+
+编译器不检查 Java 类型或 MongoDB schema。无效或不可展开的路径保留 MongoDB 的结果或错误；自定义 Jackson serializer 或 filter converter 不保证与 Wow 标准字段映射等价。
+
 ## PrepareKey：分布式协调
 
 `MongoPrepareKey` 实现了 Wow 的 `PrepareKey<V>` 接口，以 MongoDB 为协调后端进行分布式键预留。每个逻辑键变成一个 `prepare_{name}` 集合。

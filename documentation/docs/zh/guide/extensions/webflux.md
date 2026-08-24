@@ -90,7 +90,7 @@ data class CreateOrder(/* ... */)
 | `query.max-page-window` | `Long` | `10000` | HTTP 分页查询允许的最大 `index * size`；`0` 关闭上限 |
 | `query.max-condition-nodes` | `Int` | `64` | HTTP 查询条件树的最大节点数；`0` 关闭上限 |
 | `query.max-condition-values` | `Int` | `1000` | HTTP `IN`、`NOT_IN`、`ALL_IN`、`IDS`、`AGGREGATE_IDS` 条件的最大值数量；`0` 关闭上限 |
-| `query.allow-expensive-operators` | `Boolean` | `true` | 是否允许 HTTP 查询使用负向/存在性/高成本字符串操作符及无过滤 count/paged 查询 |
+| `query.allow-expensive-operators` | `Boolean` | `true` | 是否允许 HTTP 查询使用负向/存在性/高成本字符串操作符、无过滤 count/paged 查询、聚合 Elements 或按 metric alias 排序 |
 | `query.idle-timeout` | `Duration` | `10s` | 等待下一条结果或完成的最长时间；普通 JSON 数组在提交响应前缓冲，SSE 保持流式；`0s` 关闭超时 |
 
 ```yaml
@@ -114,6 +114,12 @@ wow:
 
 使用 `wow-spring-boot-starter` 时，WebFlux 作为 `webflux-support` 特性能力包含在内。全局异常处理器默认启用；仅当你提供自己的 `WebExceptionHandler` 时才需关闭。
 Reactor Context 通过 `writeRawRequest(request)` 携带 WebFlux `ServerRequest` 时都会启用护栏，包括内置路由和自定义 HTTP Handler；程序内注入的查询服务和非 WebFlux 请求上下文保持原行为。升级后如需临时恢复旧 HTTP 行为，可将数值限制和 `idle-timeout` 设为 `0`，并启用两个 `allow-*` 开关。
+
+## 快照聚合路由
+
+WebFlux 注册 `POST /{context}/{aggregate}/snapshot/aggregation`，并应用聚合自身适用的 tenant/owner/space 路由前缀。请求体为 `AggregationQuery`。普通 JSON 响应是动态行对象数组；`Accept: text/event-stream` 会逐行流式返回。严格请求解码会拒绝未知属性，以及根 filter 和 Element filters 中非法的标量等值条件。
+
+现有查询护栏把 `query.max-list-size` 用作聚合 `limit` 上限。`query.allow-expensive-operators=false` 时，会拒绝根 filter 与 Element filters 中的高成本操作符、任意 Elements 展开，以及按 metric alias 排序。不会增加聚合专用 WebFlux 配置。
 
 ## 等待计划集成
 
@@ -179,6 +185,8 @@ paths:
             schema:
               $ref: '#/components/schemas/AddCartItem'
 ```
+
+快照聚合 operation 引用聚合专属 request body，例如 `example.cart.AggregationQuery`。其 `x-wow-query-fields.$ref` 指向该聚合的 `CartAggregatedFields` 组件，而 `application/json` schema 引用通用 `wow.api.query.AggregationQuery` schema。成功响应是以动态对象为元素的数组。
 
 ## 性能优化
 

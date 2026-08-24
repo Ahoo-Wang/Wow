@@ -145,6 +145,65 @@ query.query(queryService)
 
 `ListQuery.limit = 0` 表示不限制结果数量；HTTP 查询仍会受到 WebFlux 查询成本保护配置约束。
 
+### 快照聚合
+
+使用 `aggregation {}` 按顺序展开状态中的集合链，并返回表格型结果：
+
+```kotlin
+val query = aggregation {
+    expand("state.orders") { "status" eq "PAID" }
+    expand("lines") { "quantity" gt 0 }
+    terms("productId", "product")
+    sum("amount", "total")
+    sort { "total".desc() }
+    limit(20)
+}
+
+query.query(snapshotQueryService)
+```
+
+等价 JSON 为：
+
+```json
+{
+  "elements": [
+    {
+      "path": "state.orders",
+      "filter": { "op": "EQ", "field": "status", "value": "PAID" }
+    },
+    {
+      "path": "lines",
+      "filter": { "op": "GT", "field": "quantity", "value": 0 }
+    }
+  ],
+  "groupBy": [
+    { "type": "TERMS", "field": "productId", "alias": "product" }
+  ],
+  "metrics": [
+    {
+      "type": "NUMERIC",
+      "function": "SUM",
+      "expression": { "field": "amount" },
+      "alias": "total"
+    }
+  ],
+  "sort": [{ "field": "total", "direction": "DESC" }],
+  "limit": 20
+}
+```
+
+第一个 Element 路径是快照绝对路径；后续每个 Element 路径及每个 Element filter 都相对当前已展开元素。group 与 metric 字段相对最内层 Element；没有 Elements 时，它们使用快照绝对路径。Elements 只表示一条父子链，不支持兄弟集合展开。
+
+分组支持 `TERMS`、`HISTOGRAM` 与 `DATE_HISTOGRAM`。指标支持 `COUNT`、`SUM`、`AVG`、`MIN` 与 `MAX`；`COUNT` 返回 `Long`，数值指标返回有限 `Double`，没有值参与计算时返回 `null`。没有分组的查询返回一行汇总，空数据集同样如此（`COUNT = 0`，数值指标为 `null`）。分组结果最多返回 `limit` 行；默认值为 `100`，最大值为 `10,000`。
+
+排序字段引用 group 或 metric alias。未显式排序的 group alias 会按声明顺序追加，以保证结果稳定。按 metric alias 排序成本较高，受 WebFlux `query.allow-expensive-operators` 护栏控制。固定结构上限为 5 个 Elements、32 个 groups、64 个 metrics 与 32 个有效排序字段。
+
+聚合复用现有快照过滤链：ABAC 与路由 filter 仍会追加到根 filter。Masking filter 会忽略聚合查询，因此已配置的 masker 不会拒绝或重写聚合结果。
+
+Wow 只校验请求结构，不校验字段是否存在、路径是否为集合或物理字段类型；不会维护聚合字段目录，也不会使用 `TypeFieldPaths` 做校验。自定义 Jackson serializer、后端 filter converter 或 Elasticsearch mapping 不保证跨后端等价。首期不包含 Batch 聚合与算术表达式。
+
+HTTP 端点为 `POST /{context}/{aggregate}/snapshot/aggregation`（并遵循聚合自身适用的路由前缀）。JSON 响应是动态对象数组；SSE 逐个流式返回对象。OpenAPI 为每个聚合发布专属 `AggregationQuery` request body，其 `x-wow-query-fields` 引用该聚合的 `*AggregatedFields` 组件，JSON schema 仍使用通用 `AggregationQuery` 合同。
+
 ### 重写查询
 
 查询过滤器通过 `withFilter` 或 `appendFilter` 重写，不再操作内部 `Condition`：
