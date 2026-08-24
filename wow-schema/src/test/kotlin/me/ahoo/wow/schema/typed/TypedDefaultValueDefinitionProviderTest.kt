@@ -59,6 +59,19 @@ class TypedDefaultValueDefinitionProviderTest {
     }
 
     @Test
+    fun `should preserve literal null default for nullable string`() {
+        val generator = SchemaGeneratorBuilder().customizer { }.build()
+
+        val default = generator.generateSchema(NullableStringDefault::class.java)
+            .path("properties")
+            .path("value")
+            .path("default")
+
+        default.isString.assert().isTrue()
+        default.stringValue().assert().isEqualTo("null")
+    }
+
+    @Test
     fun `should preserve defaults incompatible with declared type`() {
         val generator = SchemaGeneratorBuilder().customizer { }.build()
 
@@ -104,6 +117,11 @@ class TypedDefaultValueDefinitionProviderTest {
         val number: Double
             get() = 1.5
     }
+
+    private data class NullableStringDefault(
+        @get:Schema(defaultValue = "null")
+        val value: String? = "null",
+    )
 
     private data class IncompatibleDefaults(
         @get:Schema(defaultValue = "true")

@@ -44,7 +44,13 @@ internal object TypedDefaultValueDefinitionProvider : Module {
             context: SchemaGenerationContext,
         ): CustomPropertyDefinition? {
             val textualDefault = scope.textualDefault() ?: return null
-            if (textualDefault == "null" && context.generatorConfig.isNullable(scope)) return null
+            if (
+                textualDefault == "null" &&
+                context.generatorConfig.isNullable(scope) &&
+                !scope.allowsStringDefault()
+            ) {
+                return null
+            }
             return context.createStandardDefinition(scope, this).withTypedDefault()
         }
 
@@ -53,7 +59,10 @@ internal object TypedDefaultValueDefinitionProvider : Module {
             scope: FieldScope,
             context: SchemaGenerationContext,
         ) {
-            attributes.normalizeNullDefault(scope.textualDefault(), context.generatorConfig.isNullable(scope))
+            attributes.normalizeNullDefault(
+                scope.textualDefault(),
+                context.generatorConfig.isNullable(scope) && !scope.allowsStringDefault(),
+            )
         }
     }
 
@@ -72,6 +81,12 @@ internal object TypedDefaultValueDefinitionProvider : Module {
         return getAnnotationConsideringFieldAndGetterIfSupported(Schema::class.java)
             ?.defaultValue
             ?.takeIf(String::isNotEmpty)
+    }
+
+    private fun MemberScope<*, *>.allowsStringDefault(): Boolean {
+        val schema = getAnnotationConsideringFieldAndGetterIfSupported(Schema::class.java)
+        val declaredTypes = schema?.types.orEmpty().toList() + listOfNotNull(schema?.type?.takeIf(String::isNotEmpty))
+        return if (declaredTypes.isEmpty()) type.erasedType == String::class.java else "string" in declaredTypes
     }
 
     private fun ObjectNode.normalizeNullDefault(textualDefault: String?, nullable: Boolean) {
