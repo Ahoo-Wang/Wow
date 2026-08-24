@@ -12,15 +12,12 @@
  */
 
 import { useDebouncedQuery } from "@ahoo-wang/fetcher-react";
-import type { PagedList, PagedQuery } from "@ahoo-wang/fetcher-wow";
-import {
-  all,
-  and,
-  desc,
-  pagedList,
-  pagedQuery,
-  type Condition,
+import type {
+  FilterExpression,
+  FilterPagedQuery,
+  PagedList,
 } from "@ahoo-wang/fetcher-wow";
+import { desc, filter, pagedList, pagedQuery } from "@ahoo-wang/fetcher-wow";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 import {
@@ -50,7 +47,7 @@ export interface FailedQueueController {
   hasSearchFilters: boolean;
   mutationsDisabled: boolean;
   onPaginationChange: (page: number, pageSize: number) => void;
-  onSearch: (condition: Condition, hasFilters: boolean) => void;
+  onSearch: (filterExpression: FilterExpression, hasFilters: boolean) => void;
   page: PagedList<ExecutionFailedState>;
   refresh: () => void;
   searchResetToken: number;
@@ -80,8 +77,8 @@ export function useFailedQueueController({
 }: UseFailedQueueControllerOptions): FailedQueueController {
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedId = searchParams.get("id");
-  const [searchCondition, setSearchCondition] = useState<Condition>(() =>
-    all(),
+  const [searchFilter, setSearchFilter] = useState<FilterExpression>(() =>
+    filter.matchAll(),
   );
   const [hasSearchFilters, setHasSearchFilters] = useState(false);
   const [searchResetToken, setSearchResetToken] = useState(0);
@@ -95,7 +92,7 @@ export function useFailedQueueController({
     useState<PagedList<ExecutionFailedState>>();
   const [query, setCurrentQuery] = useState(() =>
     pagedQuery({
-      condition: RetryConditions.categoryToCondition(category, Date.now()),
+      filter: RetryConditions.categoryToCondition(category, Date.now()),
       sort: executionFailedSort(),
     }),
   );
@@ -106,7 +103,11 @@ export function useFailedQueueController({
     error,
     isPending,
     setQuery: setRemoteQuery,
-  } = useDebouncedQuery<PagedQuery, PagedList<ExecutionFailedState>, Error>({
+  } = useDebouncedQuery<
+    FilterPagedQuery,
+    PagedList<ExecutionFailedState>,
+    Error
+  >({
     execute: queryExecutionFailedPage,
     query,
     debounce: {
@@ -135,7 +136,7 @@ export function useFailedQueueController({
   const transitioning = loading || isPending();
   const visibleError = error && !isAbortError(error) ? error : undefined;
   const updateQuery = useCallback(
-    (nextQuery: PagedQuery) => {
+    (nextQuery: FilterPagedQuery) => {
       setRemoteQuery(nextQuery);
       setCurrentQuery(nextQuery);
     },
@@ -203,17 +204,17 @@ export function useFailedQueueController({
   }, [searchParams, setSearchParams]);
 
   const onSearch = useCallback(
-    (nextSearchCondition: Condition, hasFilters: boolean) => {
+    (nextSearchFilter: FilterExpression, hasFilters: boolean) => {
       setQueryTransition("replace");
       setLastSuccessfulPage(undefined);
-      setSearchCondition(nextSearchCondition);
+      setSearchFilter(nextSearchFilter);
       setHasSearchFilters(hasFilters);
       clearSelection();
       updateQuery(
         pagedQuery({
-          condition: and(
+          filter: filter.and(
             RetryConditions.categoryToCondition(category, Date.now()),
-            nextSearchCondition,
+            nextSearchFilter,
           ),
           sort: executionFailedSort(),
         }),
@@ -224,7 +225,7 @@ export function useFailedQueueController({
 
   const clearFilters = useCallback(() => {
     setSearchResetToken((current) => current + 1);
-    onSearch(all(), false);
+    onSearch(filter.matchAll(), false);
   }, [onSearch]);
 
   const onPaginationChange = useCallback(
@@ -233,15 +234,15 @@ export function useFailedQueueController({
       clearSelection();
       updateQuery({
         ...query,
-        condition: and(
+        filter: filter.and(
           RetryConditions.categoryToCondition(category, Date.now()),
-          searchCondition,
+          searchFilter,
         ),
         sort: executionFailedSort(),
         pagination: { index: nextPage, size: nextPageSize },
       });
     },
-    [category, clearSelection, query, searchCondition, updateQuery],
+    [category, clearSelection, query, searchFilter, updateQuery],
   );
 
   const select = useCallback(
@@ -255,13 +256,13 @@ export function useFailedQueueController({
     setQueryTransition("refresh");
     updateQuery({
       ...query,
-      condition: and(
+      filter: filter.and(
         RetryConditions.categoryToCondition(category, Date.now()),
-        searchCondition,
+        searchFilter,
       ),
       sort: executionFailedSort(),
     });
-  }, [category, query, searchCondition, updateQuery]);
+  }, [category, query, searchFilter, updateQuery]);
 
   useEffect(() => {
     const timeSensitive = [

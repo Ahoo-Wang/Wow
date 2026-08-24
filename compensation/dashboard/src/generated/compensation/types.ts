@@ -1,22 +1,4 @@
 /**
- * - key: compensation.ApiVersion
- * - schema: 
- * ```json
- * {
- *   "type": "string",
- *   "enum": [
- *     "V2",
- *     "V3"
- *   ]
- * }
- * ```
- */
-export enum ApiVersion {
-    V2 = `V2`,
-    V3 = `V3`
-}
-
-/**
  * - key: compensation.Link
  * - schema: 
  * ```json
@@ -38,16 +20,6 @@ export interface Link {
     templated: boolean;
 }
 
-/**
- * - key: compensation.SecurityContext
- * - schema: 
- * ```json
- * {
- *   "type": "object"
- * }
- * ```
- */
-export type SecurityContext = Record<string, any>;
 /**
  * - key: compensation.StringLinkMap
  * - schema: 
@@ -87,21 +59,3 @@ export type StringObjectMap = Record<string, any>;
  * ```
  */
 export type StringStringListMap = Record<string, string[]>;
-
-/**
- * - key: compensation.WebServerNamespace
- * - schema: 
- * ```json
- * {
- *   "type": "object",
- *   "properties": {
- *     "value": {
- *       "type": "string"
- *     }
- *   }
- * }
- * ```
- */
-export interface WebServerNamespace {
-    value: string;
-}

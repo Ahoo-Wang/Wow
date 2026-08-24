@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { aggregateId, pagedQuery, singleQuery } from "@ahoo-wang/fetcher-wow";
+import { filter, pagedQuery, singleQuery } from "@ahoo-wang/fetcher-wow";
 import {
   queryExecutionFailedPage,
   queryExecutionFailedState,
@@ -33,7 +33,7 @@ describe("executionFailedQueryClient", () => {
   });
 
   it("delegates paged queries with request context and cancellation", async () => {
-    const query = pagedQuery({ condition: aggregateId("failed-1") });
+    const query = pagedQuery({ filter: filter.aggregateId("failed-1") });
     const attributes = { source: "dashboard" };
     const abortController = new AbortController();
 
@@ -47,7 +47,7 @@ describe("executionFailedQueryClient", () => {
   });
 
   it("delegates single-state queries with request context and cancellation", async () => {
-    const query = singleQuery({ condition: aggregateId("failed-1") });
+    const query = singleQuery({ filter: filter.aggregateId("failed-1") });
     const attributes = { source: "dashboard" };
     const abortController = new AbortController();
 

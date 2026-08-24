@@ -14,9 +14,9 @@
 import { usePagedQuery } from "@ahoo-wang/fetcher-react";
 import type { DomainEventStream, PagedList } from "@ahoo-wang/fetcher-wow";
 import {
-  aggregateId,
   desc,
   DomainEventStreamMetadataFields,
+  filter,
   pagedList,
   pagedQuery,
 } from "@ahoo-wang/fetcher-wow";
@@ -37,7 +37,7 @@ interface UseExecutionHistoryOptions {
 
 function createExecutionHistoryQuery(executionId: string, pageIndex: number) {
   return pagedQuery({
-    condition: aggregateId(executionId),
+    filter: filter.aggregateId(executionId),
     sort: [desc(DomainEventStreamMetadataFields.VERSION)],
     pagination: { index: pageIndex, size: EXECUTION_HISTORY_PAGE_SIZE },
   });

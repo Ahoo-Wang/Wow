@@ -1,12 +1,4 @@
-import {
-  and,
-  eq,
-  gt,
-  isIn,
-  lte,
-  or,
-  RecoverableType,
-} from "@ahoo-wang/fetcher-wow";
+import { filter, RecoverableType } from "@ahoo-wang/fetcher-wow";
 import { describe, expect, it } from "vitest";
 import {
   ExecutionFailedAggregatedFields,
@@ -32,31 +24,31 @@ describe("FindCategory", () => {
     const retryableRecoverability = [
       RecoverableType.RECOVERABLE,
       RecoverableType.UNKNOWN,
-    ];
+    ] as const;
     const activeStatuses = [
       ExecutionFailedStatus.FAILED,
       ExecutionFailedStatus.PREPARED,
-    ];
+    ] as const;
 
     it("uses index-friendly recoverability values for to-retry", () => {
       expect(RetryConditions.toRetryCondition(currentTime)).toEqual(
-        and(
-          isIn(
+        filter.and(
+          filter.isIn(
             ExecutionFailedAggregatedFields.STATE_RECOVERABLE,
             ...retryableRecoverability,
           ),
-          eq(ExecutionFailedAggregatedFields.STATE_IS_RETRYABLE, true),
-          or(
-            eq(
+          filter.eq(ExecutionFailedAggregatedFields.STATE_IS_RETRYABLE, true),
+          filter.or(
+            filter.eq(
               ExecutionFailedAggregatedFields.STATE_STATUS,
               ExecutionFailedStatus.FAILED,
             ),
-            and(
-              eq(
+            filter.and(
+              filter.eq(
                 ExecutionFailedAggregatedFields.STATE_STATUS,
                 ExecutionFailedStatus.PREPARED,
               ),
-              lte(
+              filter.lte(
                 ExecutionFailedAggregatedFields.STATE_RETRY_STATE_TIMEOUT_AT,
                 currentTime,
               ),
@@ -68,12 +60,12 @@ describe("FindCategory", () => {
 
     it("keeps the executing range condition", () => {
       expect(RetryConditions.executingCondition(currentTime)).toEqual(
-        and(
-          eq(
+        filter.and(
+          filter.eq(
             ExecutionFailedAggregatedFields.STATE_STATUS,
             ExecutionFailedStatus.PREPARED,
           ),
-          gt(
+          filter.gt(
             ExecutionFailedAggregatedFields.STATE_RETRY_STATE_TIMEOUT_AT,
             currentTime,
           ),
@@ -83,27 +75,27 @@ describe("FindCategory", () => {
 
     it("uses index-friendly recoverability values for next-retry", () => {
       expect(RetryConditions.nextRetryCondition(currentTime)).toEqual(
-        and(
-          isIn(
+        filter.and(
+          filter.isIn(
             ExecutionFailedAggregatedFields.STATE_RECOVERABLE,
             ...retryableRecoverability,
           ),
-          eq(ExecutionFailedAggregatedFields.STATE_IS_RETRYABLE, true),
-          lte(
+          filter.eq(ExecutionFailedAggregatedFields.STATE_IS_RETRYABLE, true),
+          filter.lte(
             ExecutionFailedAggregatedFields.STATE_RETRY_STATE_NEXT_RETRY_AT,
             currentTime,
           ),
-          or(
-            eq(
+          filter.or(
+            filter.eq(
               ExecutionFailedAggregatedFields.STATE_STATUS,
               ExecutionFailedStatus.FAILED,
             ),
-            and(
-              eq(
+            filter.and(
+              filter.eq(
                 ExecutionFailedAggregatedFields.STATE_STATUS,
                 ExecutionFailedStatus.PREPARED,
               ),
-              lte(
+              filter.lte(
                 ExecutionFailedAggregatedFields.STATE_RETRY_STATE_TIMEOUT_AT,
                 currentTime,
               ),
@@ -115,13 +107,16 @@ describe("FindCategory", () => {
 
     it("uses closed enum values for non-retryable", () => {
       expect(RetryConditions.nonRetryableCondition).toEqual(
-        and(
-          isIn(
+        filter.and(
+          filter.isIn(
             ExecutionFailedAggregatedFields.STATE_RECOVERABLE,
             ...retryableRecoverability,
           ),
-          isIn(ExecutionFailedAggregatedFields.STATE_STATUS, ...activeStatuses),
-          eq(
+          filter.isIn(
+            ExecutionFailedAggregatedFields.STATE_STATUS,
+            ...activeStatuses,
+          ),
+          filter.eq(
             ExecutionFailedAggregatedFields.STATE_IS_BELOW_RETRY_THRESHOLD,
             false,
           ),
@@ -135,12 +130,15 @@ describe("FindCategory", () => {
 
     it("uses active status values for unrecoverable", () => {
       expect(RetryConditions.unrecoverableCondition).toEqual(
-        and(
-          eq(
+        filter.and(
+          filter.eq(
             ExecutionFailedAggregatedFields.STATE_RECOVERABLE,
             RecoverableType.UNRECOVERABLE,
           ),
-          isIn(ExecutionFailedAggregatedFields.STATE_STATUS, ...activeStatuses),
+          filter.isIn(
+            ExecutionFailedAggregatedFields.STATE_STATUS,
+            ...activeStatuses,
+          ),
         ),
       );
     });

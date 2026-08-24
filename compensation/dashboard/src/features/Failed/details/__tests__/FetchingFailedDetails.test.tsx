@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { aggregateId, singleQuery } from "@ahoo-wang/fetcher-wow";
+import { filter, singleQuery } from "@ahoo-wang/fetcher-wow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ExecutionFailedState } from "../../../../generated";
 import { FetchingFailedDetails } from "../FetchingFailedDetails.tsx";
@@ -56,7 +56,7 @@ describe("FetchingFailedDetails", () => {
     const { rerender } = render(<FetchingFailedDetails id="remote-A" />);
 
     expect((mocks.hookOptions as { query?: unknown }).query).toEqual(
-      singleQuery({ condition: aggregateId("remote-A") }),
+      singleQuery({ filter: filter.aggregateId("remote-A") }),
     );
     expect((mocks.hookOptions as { execute?: unknown }).execute).toBe(
       mocks.queryExecutionFailedState,
@@ -66,7 +66,7 @@ describe("FetchingFailedDetails", () => {
     rerender(<FetchingFailedDetails id="remote-B" />);
 
     expect((mocks.hookOptions as { query?: unknown }).query).toEqual(
-      singleQuery({ condition: aggregateId("remote-B") }),
+      singleQuery({ filter: filter.aggregateId("remote-B") }),
     );
     expect(screen.getByText("Remote: remote-B")).toBeInTheDocument();
   });

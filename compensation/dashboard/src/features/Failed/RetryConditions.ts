@@ -12,13 +12,8 @@
  */
 
 import {
-  and,
-  type Condition,
-  eq,
-  gt,
-  isIn,
-  lte,
-  or,
+  filter,
+  type FilterExpression,
   RecoverableType,
 } from "@ahoo-wang/fetcher-wow";
 import {
@@ -30,32 +25,32 @@ import { FindCategory } from "./FindCategory.ts";
 const RETRYABLE_RECOVERABILITY = [
   RecoverableType.RECOVERABLE,
   RecoverableType.UNKNOWN,
-];
+] as const;
 
 const ACTIVE_STATUSES = [
   ExecutionFailedStatus.FAILED,
   ExecutionFailedStatus.PREPARED,
-];
+] as const;
 
 export class RetryConditions {
-  static toRetryCondition(now: number): Condition {
-    return and(
-      isIn(
+  static toRetryCondition(now: number): FilterExpression {
+    return filter.and(
+      filter.isIn(
         ExecutionFailedAggregatedFields.STATE_RECOVERABLE,
         ...RETRYABLE_RECOVERABILITY,
       ),
-      eq(ExecutionFailedAggregatedFields.STATE_IS_RETRYABLE, true),
-      or(
-        eq(
+      filter.eq(ExecutionFailedAggregatedFields.STATE_IS_RETRYABLE, true),
+      filter.or(
+        filter.eq(
           ExecutionFailedAggregatedFields.STATE_STATUS,
           ExecutionFailedStatus.FAILED,
         ),
-        and(
-          eq(
+        filter.and(
+          filter.eq(
             ExecutionFailedAggregatedFields.STATE_STATUS,
             ExecutionFailedStatus.PREPARED,
           ),
-          lte(
+          filter.lte(
             ExecutionFailedAggregatedFields.STATE_RETRY_STATE_TIMEOUT_AT,
             now,
           ),
@@ -64,35 +59,41 @@ export class RetryConditions {
     );
   }
 
-  static executingCondition(now: number): Condition {
-    return and(
-      eq(
+  static executingCondition(now: number): FilterExpression {
+    return filter.and(
+      filter.eq(
         ExecutionFailedAggregatedFields.STATE_STATUS,
         ExecutionFailedStatus.PREPARED,
       ),
-      gt(ExecutionFailedAggregatedFields.STATE_RETRY_STATE_TIMEOUT_AT, now),
+      filter.gt(
+        ExecutionFailedAggregatedFields.STATE_RETRY_STATE_TIMEOUT_AT,
+        now,
+      ),
     );
   }
 
-  static nextRetryCondition(now: number): Condition {
-    return and(
-      isIn(
+  static nextRetryCondition(now: number): FilterExpression {
+    return filter.and(
+      filter.isIn(
         ExecutionFailedAggregatedFields.STATE_RECOVERABLE,
         ...RETRYABLE_RECOVERABILITY,
       ),
-      eq(ExecutionFailedAggregatedFields.STATE_IS_RETRYABLE, true),
-      lte(ExecutionFailedAggregatedFields.STATE_RETRY_STATE_NEXT_RETRY_AT, now),
-      or(
-        eq(
+      filter.eq(ExecutionFailedAggregatedFields.STATE_IS_RETRYABLE, true),
+      filter.lte(
+        ExecutionFailedAggregatedFields.STATE_RETRY_STATE_NEXT_RETRY_AT,
+        now,
+      ),
+      filter.or(
+        filter.eq(
           ExecutionFailedAggregatedFields.STATE_STATUS,
           ExecutionFailedStatus.FAILED,
         ),
-        and(
-          eq(
+        filter.and(
+          filter.eq(
             ExecutionFailedAggregatedFields.STATE_STATUS,
             ExecutionFailedStatus.PREPARED,
           ),
-          lte(
+          filter.lte(
             ExecutionFailedAggregatedFields.STATE_RETRY_STATE_TIMEOUT_AT,
             now,
           ),
@@ -101,29 +102,41 @@ export class RetryConditions {
     );
   }
 
-  static nonRetryableCondition = and(
-    isIn(
+  static nonRetryableCondition = filter.and(
+    filter.isIn(
       ExecutionFailedAggregatedFields.STATE_RECOVERABLE,
       ...RETRYABLE_RECOVERABILITY,
     ),
-    isIn(ExecutionFailedAggregatedFields.STATE_STATUS, ...ACTIVE_STATUSES),
-    eq(ExecutionFailedAggregatedFields.STATE_IS_BELOW_RETRY_THRESHOLD, false),
+    filter.isIn(
+      ExecutionFailedAggregatedFields.STATE_STATUS,
+      ...ACTIVE_STATUSES,
+    ),
+    filter.eq(
+      ExecutionFailedAggregatedFields.STATE_IS_BELOW_RETRY_THRESHOLD,
+      false,
+    ),
   );
 
-  static successCondition = eq(
+  static successCondition = filter.eq(
     ExecutionFailedAggregatedFields.STATE_STATUS,
     ExecutionFailedStatus.SUCCEEDED,
   );
 
-  static unrecoverableCondition = and(
-    eq(
+  static unrecoverableCondition = filter.and(
+    filter.eq(
       ExecutionFailedAggregatedFields.STATE_RECOVERABLE,
       RecoverableType.UNRECOVERABLE,
     ),
-    isIn(ExecutionFailedAggregatedFields.STATE_STATUS, ...ACTIVE_STATUSES),
+    filter.isIn(
+      ExecutionFailedAggregatedFields.STATE_STATUS,
+      ...ACTIVE_STATUSES,
+    ),
   );
 
-  static categoryToCondition(category: FindCategory, now: number): Condition {
+  static categoryToCondition(
+    category: FindCategory,
+    now: number,
+  ): FilterExpression {
     switch (category) {
       case FindCategory.ToRetry:
         return this.toRetryCondition(now);
