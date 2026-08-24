@@ -32,7 +32,6 @@ import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.termsSet
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.wildcard
 import co.elastic.clients.json.JsonData
 import me.ahoo.wow.api.query.*
-import me.ahoo.wow.api.query.toExecutableFilter
 import me.ahoo.wow.query.FilterNormalizer
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
@@ -44,7 +43,7 @@ abstract class AbstractElasticsearchFilterConverter(
     private val filterNormalizer = FilterNormalizer(defaultDeletionState = defaultDeletionState)
 
     fun convert(filter: FilterExpression): Query =
-        compile(filterNormalizer.normalize(filter.toExecutableFilter()), parent = null)
+        compile(filterNormalizer.normalize(filter), parent = null)
 
     @Suppress("CyclomaticComplexMethod", "LongMethod")
     private fun compile(filter: FilterExpression, parent: String?): Query = when (filter) {
@@ -136,7 +135,7 @@ abstract class AbstractElasticsearchFilterConverter(
         }
         is ElementMatchFilter -> nested {
             val nestedPath = filter.field.path(parent)
-            it.path(nestedPath).query(compile(filter.predicate.toExecutableFilter(), nestedPath))
+            it.path(nestedPath).query(compile(filter.predicate, nestedPath))
         }
         is SearchFilter -> multiMatch {
             it.query(filter.query)

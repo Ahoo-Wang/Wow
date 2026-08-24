@@ -37,7 +37,6 @@ import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.StringComparison
-import me.ahoo.wow.api.query.toExecutableFilter
 import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterChainBuilder
@@ -204,44 +203,6 @@ class HttpQueryGuardFilterTest {
             AggregateIdsFilter(listOf("aggregate-1", "aggregate-2")),
         ).forEach { filter ->
             guard(maxFilterValues = 1).filter(countContext(filter), unexpectedBackend())
-                .writeRawRequest(request)
-                .test()
-                .expectError(IllegalArgumentException::class.java)
-                .verify()
-        }
-    }
-
-    @Suppress("DEPRECATION")
-    @Test
-    fun `legacy collection nested with match should respect max filter values`() {
-        val filter = Condition.elemMatch(
-            "state.items",
-            Condition.and(
-                Condition.match("name", "wow"),
-                Condition.isIn("tags", listOf("one", "two")),
-            ),
-        ).toFilterExpression()
-
-        guard(maxFilterValues = 1).filter(countContext(filter), unexpectedBackend())
-            .writeRawRequest(request)
-            .test()
-            .expectError(IllegalArgumentException::class.java)
-            .verify()
-    }
-
-    @Suppress("DEPRECATION")
-    @Test
-    fun `legacy predicates nested with match should preserve expensive operator guard`() {
-        listOf(
-            Condition.exists("value", false),
-            Condition.startsWith("value", "wow", ignoreCase = true),
-        ).forEach { predicate ->
-            val filter = Condition.elemMatch(
-                "state.items",
-                Condition.and(Condition.match("name", "wow"), predicate),
-            ).toFilterExpression()
-
-            guard().filter(countContext(filter), unexpectedBackend())
                 .writeRawRequest(request)
                 .test()
                 .expectError(IllegalArgumentException::class.java)
@@ -543,19 +504,19 @@ class HttpQueryGuardFilterTest {
         DefaultQueryContext<IListQuery, Flux<Any>>(
             QueryType.LIST,
             MOCK_AGGREGATE_METADATA,
-        ).setQuery(query.withFilter(query.filter.toExecutableFilter()))
+        ).setQuery(query)
 
     private fun pagedContext(query: IPagedQuery): QueryContext<IPagedQuery, Mono<PagedList<Any>>> =
         DefaultQueryContext<IPagedQuery, Mono<PagedList<Any>>>(
             QueryType.PAGED,
             MOCK_AGGREGATE_METADATA,
-        ).setQuery(query.withFilter(query.filter.toExecutableFilter()))
+        ).setQuery(query)
 
     private fun countContext(filter: FilterExpression): QueryContext<FilterExpression, Mono<Long>> =
         DefaultQueryContext<FilterExpression, Mono<Long>>(
             QueryType.COUNT,
             MOCK_AGGREGATE_METADATA,
-        ).setQuery(filter.toExecutableFilter())
+        ).setQuery(filter)
 
     private fun unexpectedBackend(): FilterChain<QueryContext<*, *>> = FilterChain {
         error("Backend must not be invoked.")

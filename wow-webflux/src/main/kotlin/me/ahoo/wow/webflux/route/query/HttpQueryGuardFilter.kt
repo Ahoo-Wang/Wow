@@ -122,17 +122,12 @@ class HttpQueryGuardFilter(
                 "HTTP query filter nodes[$nodes] must not exceed $maxFilterNodes."
             }
             validateFilterNode(current)
-            val condition = current.legacyConditionOrNull()
-            if (condition != null) {
-                pending.addAll(condition.children.map(Condition::toFilterExpression))
-            } else {
-                when (current) {
-                    is AndFilter -> pending.addAll(current.operands)
-                    is OrFilter -> pending.addAll(current.operands)
-                    is NorFilter -> pending.addAll(current.operands)
-                    is ElementMatchFilter -> pending.add(current.predicate)
-                    else -> Unit
-                }
+            when (current) {
+                is AndFilter -> pending.addAll(current.operands)
+                is OrFilter -> pending.addAll(current.operands)
+                is NorFilter -> pending.addAll(current.operands)
+                is ElementMatchFilter -> pending.add(current.predicate)
+                else -> Unit
             }
         }
         require(!rejectMatchAll || !filter.isMatchAll()) {
@@ -141,11 +136,10 @@ class HttpQueryGuardFilter(
     }
 
     private fun validateFilterNode(filter: FilterExpression) {
-        val legacy = filter.legacyConditionOrNull()
-        require(allowExpensiveOperators || !(legacy?.isExpensive() ?: filter.isExpensive())) {
+        require(allowExpensiveOperators || !filter.isExpensive()) {
             "HTTP query operator[${filter.operator}] is disabled because expensive operators are not allowed."
         }
-        val valueCount = legacy?.valueCount() ?: filter.valueCount()
+        val valueCount = filter.valueCount()
         if (valueCount != null) {
             require(maxFilterValues == 0 || valueCount <= maxFilterValues) {
                 "HTTP query filter values[$valueCount] must not exceed $maxFilterValues."
@@ -175,14 +169,6 @@ class HttpQueryGuardFilter(
         is AggregateIdsFilter -> values.size
         else -> null
     }
-
-    private fun Condition.valueCount(): Int? =
-        if (operator in LEGACY_COLLECTION_OPERATORS) (value as? Collection<*>)?.size else null
-
-    private fun Condition.isExpensive(): Boolean =
-        operator in LEGACY_EXPENSIVE_OPERATORS ||
-            operator == Operator.EXISTS && value == false ||
-            operator == Operator.STARTS_WITH && ((value as? String).isNullOrEmpty() || ignoreCase() == true)
 
     private fun applyIdleTimeout(context: QueryContext<*, *>, request: ServerRequest) {
         if (idleTimeout.isZero) return
@@ -219,22 +205,6 @@ class HttpQueryGuardFilter(
             FilterOperator.IS_EMPTY,
             FilterOperator.CONTAINS,
             FilterOperator.ENDS_WITH,
-        )
-        val LEGACY_EXPENSIVE_OPERATORS = setOf(
-            Operator.NE,
-            Operator.NOT_IN,
-            Operator.NOR,
-            Operator.NULL,
-            Operator.NOT_NULL,
-            Operator.CONTAINS,
-            Operator.ENDS_WITH,
-        )
-        val LEGACY_COLLECTION_OPERATORS = setOf(
-            Operator.IN,
-            Operator.NOT_IN,
-            Operator.ALL_IN,
-            Operator.IDS,
-            Operator.AGGREGATE_IDS,
         )
         val COUNTING_QUERY_TYPES = setOf(QueryType.PAGED, QueryType.DYNAMIC_PAGED, QueryType.COUNT)
     }

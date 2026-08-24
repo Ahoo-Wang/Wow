@@ -14,8 +14,6 @@
 package me.ahoo.wow.api.query
 
 import com.fasterxml.jackson.annotation.JsonIgnore
-import com.fasterxml.jackson.annotation.JsonInclude
-import com.fasterxml.jackson.annotation.JsonProperty
 
 /**
  * Interface for paginated queries that retrieve items in pages.
@@ -52,32 +50,18 @@ interface IPagedQuery : Queryable<IPagedQuery> {
  */
 data class PagedQuery(
     @get:JsonIgnore(false)
-    @get:JsonInclude(
-        value = JsonInclude.Include.CUSTOM,
-        valueFilter = LegacyConditionFilterValueFilter::class,
-    )
     override val filter: FilterExpression,
     override val projection: Projection = Projection.ALL,
     override val sort: List<Sort> = emptyList(),
     override val pagination: Pagination = Pagination.DEFAULT
 ) : IPagedQuery {
     @Deprecated("Use filter.")
-    @get:JsonIgnore
-    override val condition: Condition
-        get() = filter.toLegacyCondition()
-
-    @get:JsonProperty("condition")
-    @get:JsonInclude(JsonInclude.Include.NON_NULL)
-    internal val legacyConditionPayload: Condition?
-        get() = filter.legacyConditionOrNull()
-
-    @Deprecated("Use filter.")
     constructor(
         condition: Condition,
         projection: Projection = Projection.ALL,
         sort: List<Sort> = emptyList(),
         pagination: Pagination = Pagination.DEFAULT,
-    ) : this(LegacyConditionAdapter.adapt(condition), projection, sort, pagination)
+    ) : this(condition.toFilterExpression(), projection, sort, pagination)
 
     /**
      * Creates a new PagedQuery with the specified filter.
@@ -86,23 +70,6 @@ data class PagedQuery(
      * @return A new PagedQuery with the updated filter.
      */
     override fun withFilter(newFilter: FilterExpression): IPagedQuery = copy(filter = newFilter)
-
-    @Deprecated("Use withFilter.")
-    override fun withCondition(newCondition: Condition): IPagedQuery =
-        copy(filter = LegacyConditionAdapter.adapt(newCondition))
-
-    @Deprecated("Use copy(filter = ...).")
-    fun copy(
-        condition: Condition,
-        projection: Projection = this.projection,
-        sort: List<Sort> = this.sort,
-        pagination: Pagination = this.pagination,
-    ): PagedQuery = copy(
-        filter = LegacyConditionAdapter.adapt(condition),
-        projection = projection,
-        sort = sort,
-        pagination = pagination,
-    )
 
     /**
      * Creates a new PagedQuery with the specified projection.

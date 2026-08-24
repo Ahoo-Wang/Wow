@@ -19,7 +19,6 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.toFilterExpression
-import me.ahoo.wow.elasticsearch.query.event.EventStreamFilterConverter
 import me.ahoo.wow.elasticsearch.query.snapshot.SnapshotFilterConverter
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import org.junit.jupiter.api.Test
@@ -27,37 +26,7 @@ import org.junit.jupiter.api.Test
 class LegacyFilterScopeTest {
     @Suppress("DEPRECATION")
     @Test
-    fun `should compile legacy match inside element match`() {
-        val query = EventStreamFilterConverter.convert(
-            Condition.elemMatch("body", Condition.match("body.name", "wow")).toFilterExpression(),
-        )
-
-        query.nested().path().assert().isEqualTo("body")
-        query.nested().query().multiMatch().query().assert().isEqualTo("wow")
-        query.nested().query().multiMatch().fields().assert().containsExactly("body.name")
-    }
-
-    @Suppress("DEPRECATION")
-    @Test
-    fun `should compile legacy match inside logical element predicate`() {
-        val query = EventStreamFilterConverter.convert(
-            Condition.elemMatch(
-                "body",
-                Condition.and(
-                    Condition.match("body.name", "wow"),
-                    Condition.eq("body.active", true),
-                ),
-            ).toFilterExpression(),
-        )
-
-        val filters = query.nested().query().bool().filter()
-        filters.single { it.isMultiMatch }.multiMatch().query().assert().isEqualTo("wow")
-        filters.single { it.isTerm }.term().field().assert().isEqualTo("body.active")
-    }
-
-    @Suppress("DEPRECATION")
-    @Test
-    fun `should not reapply active deletion scope to nested legacy filter`() {
+    fun `should not reapply active deletion scope to converted legacy filter`() {
         val query = SnapshotFilterConverter.convert(
             AndFilter(
                 listOf(

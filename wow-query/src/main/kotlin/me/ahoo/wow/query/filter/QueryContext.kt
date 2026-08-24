@@ -14,13 +14,10 @@
 package me.ahoo.wow.query.filter
 
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.query.AndFilter
-import me.ahoo.wow.api.query.FilterCapable
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
-import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.RewritableFilter
 import reactor.core.publisher.Flux
@@ -49,8 +46,7 @@ interface QueryContext<Q : Any, R : Any> {
 
     fun appendFilter(append: FilterExpression): QueryContext<Q, R> {
         val rewritten = when (val query = getQuery()) {
-            is FilterExpression -> if (query === MatchAllFilter) append else AndFilter(listOf(query, append))
-            is FilterCapable<*> -> query.appendFilter(append)
+            is RewritableFilter<*> -> query.appendFilter(append)
             else -> error("Query type [${query::class}] does not support filters.")
         }
         return setQuery(rewritten as Q)
@@ -91,10 +87,6 @@ interface QueryContext<Q : Any, R : Any> {
 
     fun <E : Any> asPagedQuery(): QueryContext<IPagedQuery, Mono<PagedList<E>>> {
         return this as QueryContext<IPagedQuery, Mono<PagedList<E>>>
-    }
-
-    fun asRewritableQuery(): QueryContext<RewritableFilter<*>, R> {
-        return this as QueryContext<RewritableFilter<*>, R>
     }
 
     fun asCountQuery(): QueryContext<FilterExpression, Mono<Long>> {

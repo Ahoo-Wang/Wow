@@ -23,8 +23,6 @@ import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.api.query.toCondition
-import me.ahoo.wow.api.query.toExecutableFilter
 import me.ahoo.wow.api.query.toFilterExpression
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -44,9 +42,9 @@ interface QueryService<R : Any> : NamedAggregateDecorator {
     fun paged(pagedQuery: IPagedQuery): Mono<PagedList<R>>
     fun dynamicPaged(pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>>
 
-    fun count(filter: FilterExpression): Mono<Long> = count(filter.toCondition())
+    fun count(filter: FilterExpression): Mono<Long>
 
     @Deprecated("Use count(FilterExpression).")
     fun count(condition: Condition): Mono<Long> =
-        count(condition.toFilterExpression().toExecutableFilter())
+        count(condition.toFilterExpression())
 }
