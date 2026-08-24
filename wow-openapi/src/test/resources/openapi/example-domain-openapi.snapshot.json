@@ -5978,10 +5978,10 @@
   },
   "info" : {
     "title" : "example-service",
-    "version" : "8.11.4",
+    "version" : "8.11.5",
     "x-wow-context-alias" : "example",
     "x-wow-context-name" : "example-service",
-    "x-wow-version" : "8.11.4"
+    "x-wow-version" : "8.11.5"
   },
   "openapi" : "3.1.0",
   "paths" : {
