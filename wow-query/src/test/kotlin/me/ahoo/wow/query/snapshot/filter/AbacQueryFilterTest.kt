@@ -18,6 +18,9 @@ import me.ahoo.wow.api.abac.AbacTagValue
 import me.ahoo.wow.api.abac.AbacTags
 import me.ahoo.wow.api.abac.EMPTY_ABAC_TAGS
 import me.ahoo.wow.api.abac.wildcard
+import me.ahoo.wow.api.query.AggregationElement
+import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.ExistsFilter
 import me.ahoo.wow.api.query.LogicalField
@@ -96,6 +99,27 @@ class AbacQueryFilterTest {
             it.getQuery().assert().isInstanceOf(AndFilter::class.java)
             Mono.empty()
         }
+        MockAbacQueryFilter.filter(context, chain).test().verifyComplete()
+    }
+
+    @Test
+    fun `aggregation should append ABAC filter only to root filter`() {
+        val query = AggregationQuery(
+            filter = ExistsFilter(LogicalField("tenantId")),
+            elements = listOf(AggregationElement(LogicalField("state.items"), ExistsFilter(LogicalField("sku")))),
+            metrics = listOf(AggregationMetric.Count("count")),
+        )
+        val context = DefaultQueryContext<AggregationQuery, Any>(
+            queryType = QueryType.AGGREGATION,
+            MOCK_AGGREGATE_METADATA,
+        ).setQuery(query)
+        val chain = FilterChain<QueryContext<*, *>> {
+            val rewritten = it.getQuery() as AggregationQuery
+            rewritten.filter.assert().isInstanceOf(AndFilter::class.java)
+            rewritten.elements.assert().isEqualTo(query.elements)
+            Mono.empty()
+        }
+
         MockAbacQueryFilter.filter(context, chain).test().verifyComplete()
     }
 

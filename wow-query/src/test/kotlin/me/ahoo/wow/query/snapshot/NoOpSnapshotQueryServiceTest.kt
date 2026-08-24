@@ -14,6 +14,8 @@
 package me.ahoo.wow.query.snapshot
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.filterExpression
@@ -115,5 +117,14 @@ class NoOpSnapshotQueryServiceTest {
             .test()
             .expectNext(0L)
             .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation DSL should return a cold unsupported error`() {
+        AggregationQuery(metrics = listOf(AggregationMetric.Count("count")))
+            .query(queryService)
+            .test()
+            .expectError(UnsupportedOperationException::class.java)
+            .verify()
     }
 }

@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.snapshot
 
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
@@ -62,6 +63,10 @@ fun ISingleQuery.dynamicQuery(queryService: SnapshotQueryService<*>): Mono<Dynam
 
 fun FilterExpression.count(queryService: SnapshotQueryService<*>): Mono<Long> {
     return queryService.count(this)
+}
+
+fun AggregationQuery.query(queryService: SnapshotQueryService<*>): Flux<DynamicDocument> {
+    return queryService.aggregate(this)
 }
 
 @Deprecated("Use FilterExpression.count.")

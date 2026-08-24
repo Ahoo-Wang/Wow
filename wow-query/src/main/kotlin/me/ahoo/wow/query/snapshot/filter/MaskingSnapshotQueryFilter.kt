@@ -44,7 +44,7 @@ class MaskingSnapshotQueryFilter(maskerRegistry: StateDataMaskerRegistry) : Snap
 
     @Suppress("LongMethod")
     private fun mask(context: QueryContext<*, *>) {
-        if (context.queryType == QueryType.COUNT) {
+        if (context.queryType == QueryType.COUNT || context.queryType == QueryType.AGGREGATION) {
             return
         }
         if (context.queryType.isDynamic) {
