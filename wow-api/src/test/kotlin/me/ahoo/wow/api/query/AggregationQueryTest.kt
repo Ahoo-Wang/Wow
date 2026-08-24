@@ -42,6 +42,99 @@ class AggregationQueryTest {
     }
 
     @Test
+    fun `arithmetic expression should round trip through JSON`() {
+        val json = """
+            {
+              "metrics": [{
+                "type": "NUMERIC",
+                "function": "SUM",
+                "expression": {
+                  "type": "BINARY",
+                  "operator": "SUBTRACT",
+                  "left": {
+                    "type": "BINARY",
+                    "operator": "MULTIPLY",
+                    "left": {"field": "price"},
+                    "right": {"field": "quantity"}
+                  },
+                  "right": {"type": "CONSTANT", "value": 10.0}
+                },
+                "alias": "total"
+              }]
+            }
+        """.trimIndent()
+
+        val query = jsonMapper.readValue(json, AggregationQuery::class.java)
+        val expression = (query.metrics.single() as AggregationMetric.Numeric).expression
+
+        expression.assert().isEqualTo(
+            AggregationExpression.Binary(
+                AggregationExpressionOperator.SUBTRACT,
+                AggregationExpression.Binary(
+                    AggregationExpressionOperator.MULTIPLY,
+                    AggregationExpression.Field(LogicalField("price")),
+                    AggregationExpression.Field(LogicalField("quantity")),
+                ),
+                AggregationExpression.Constant(10.0),
+            ),
+        )
+        jsonMapper.writeValueAsString(query).assert()
+            .contains("\"type\":\"BINARY\"")
+            .contains("\"type\":\"CONSTANT\"")
+    }
+
+    @Test
+    fun `constant should require a finite double`() {
+        listOf(Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY).forEach { value ->
+            assertThrows<IllegalArgumentException> { AggregationExpression.Constant(value) }
+        }
+    }
+
+    @Test
+    fun `query should enforce expression depth and total nodes`() {
+        AggregationQuery(
+            metrics = listOf(
+                AggregationMetric.Numeric(AggregationFunction.SUM, nestedExpression(8), "total"),
+            ),
+        )
+        assertThrows<IllegalArgumentException> {
+            AggregationQuery(
+                metrics = listOf(
+                    AggregationMetric.Numeric(AggregationFunction.SUM, nestedExpression(9), "total"),
+                ),
+            )
+        }
+        assertThrows<IllegalArgumentException> {
+            AggregationQuery(
+                metrics = List(AggregationQuery.MAX_METRICS) { index ->
+                    AggregationMetric.Numeric(AggregationFunction.SUM, nestedExpression(3), "metric$index")
+                },
+            )
+        }
+    }
+
+    @Test
+    fun `query should reject unknown programmatic expression types`() {
+        val unknown = object : AggregationExpression {}
+        assertThrows<IllegalArgumentException> {
+            AggregationQuery(
+                metrics = listOf(AggregationMetric.Numeric(AggregationFunction.SUM, unknown, "total")),
+            )
+        }
+    }
+
+    private fun nestedExpression(depth: Int): AggregationExpression =
+        (2..depth).fold<Int, AggregationExpression>(
+            AggregationExpression.Field(LogicalField("amount")),
+        ) { expression, _ ->
+            AggregationExpression.Binary(
+                AggregationExpressionOperator.ADD,
+                expression,
+                AggregationExpression.Constant(1.0),
+            )
+        }
+
+    @Test
     fun `elements should preserve ordered relative paths`() {
         val query = AggregationQuery(
             elements = listOf(

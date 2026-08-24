@@ -47,6 +47,7 @@ data class AggregationQuery(
         require(sort.size <= MAX_SORT_FIELDS) { "sort must contain at most $MAX_SORT_FIELDS fields." }
         require(limit in 1..MAX_LIMIT) { "limit must be between 1 and $MAX_LIMIT." }
         require(groupBy.isNotEmpty() || sort.isEmpty()) { "sort requires at least one groupBy." }
+        metrics.requireValidExpressions()
 
         val aliases = groupBy.map(AggregationGroup::alias) + metrics.map(AggregationMetric::alias)
         require(aliases.distinct().size == aliases.size) { "aggregation aliases must be unique." }
@@ -75,6 +76,8 @@ data class AggregationQuery(
         const val MAX_GROUPS: Int = 32
         const val MAX_METRICS: Int = 64
         const val MAX_SORT_FIELDS: Int = 32
+        const val MAX_EXPRESSION_DEPTH: Int = 8
+        const val MAX_EXPRESSION_NODES: Int = 256
         private const val DEFAULT_LIMIT_TEXT = "100"
         private const val MAX_LIMIT_TEXT = "10000"
 
@@ -172,9 +175,32 @@ enum class AggregationDateUnit {
     property = "type",
     defaultImpl = AggregationExpression.Field::class,
 )
-@JsonSubTypes(JsonSubTypes.Type(AggregationExpression.Field::class, name = "FIELD"))
+@JsonSubTypes(
+    JsonSubTypes.Type(AggregationExpression.Field::class, name = "FIELD"),
+    JsonSubTypes.Type(AggregationExpression.Constant::class, name = "CONSTANT"),
+    JsonSubTypes.Type(AggregationExpression.Binary::class, name = "BINARY"),
+)
 interface AggregationExpression {
     data class Field(val field: LogicalField) : AggregationExpression
+
+    data class Constant(val value: Double) : AggregationExpression {
+        init {
+            require(value.isFinite()) { "aggregation constant must be finite." }
+        }
+    }
+
+    data class Binary(
+        val operator: AggregationExpressionOperator,
+        val left: AggregationExpression,
+        val right: AggregationExpression,
+    ) : AggregationExpression
+}
+
+enum class AggregationExpressionOperator {
+    ADD,
+    SUBTRACT,
+    MULTIPLY,
+    DIVIDE,
 }
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
@@ -213,4 +239,41 @@ private fun requireAggregationAlias(alias: String) {
     require('.' !in alias) { "aggregation alias must contain one segment." }
     require(!alias.startsWith("__wow")) { "aggregation alias must not use the reserved __wow prefix." }
     LogicalField(alias)
+}
+
+private data class PendingExpression(
+    val expression: AggregationExpression,
+    val depth: Int,
+)
+
+private fun List<AggregationMetric>.requireValidExpressions() {
+    val pending = ArrayDeque<PendingExpression>()
+    filterIsInstance<AggregationMetric.Numeric>().forEach { metric ->
+        pending.addLast(PendingExpression(metric.expression, 1))
+    }
+    var nodes = 0
+    while (pending.isNotEmpty()) {
+        val (expression, depth) = pending.removeLast()
+        require(depth <= AggregationQuery.MAX_EXPRESSION_DEPTH) {
+            "aggregation expression depth must be at most ${AggregationQuery.MAX_EXPRESSION_DEPTH}."
+        }
+        nodes++
+        require(nodes <= AggregationQuery.MAX_EXPRESSION_NODES) {
+            "aggregation expressions must contain at most ${AggregationQuery.MAX_EXPRESSION_NODES} nodes."
+        }
+        when (expression) {
+            is AggregationExpression.Field,
+            is AggregationExpression.Constant,
+            -> Unit
+
+            is AggregationExpression.Binary -> {
+                pending.addLast(PendingExpression(expression.left, depth + 1))
+                pending.addLast(PendingExpression(expression.right, depth + 1))
+            }
+
+            else -> throw IllegalArgumentException(
+                "Unsupported aggregation expression: ${expression::class.java.name}.",
+            )
+        }
+    }
 }
