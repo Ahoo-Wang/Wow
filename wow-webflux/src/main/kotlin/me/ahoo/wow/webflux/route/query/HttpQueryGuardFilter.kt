@@ -74,6 +74,19 @@ class HttpQueryGuardFilter(
 
     private fun validate(queryType: QueryType, query: Any) {
         when (query) {
+            is AggregationQuery -> {
+                validateResultSize(query.limit, "aggregation")
+                (listOf(query.filter) + query.elements.map(AggregationElement::filter))
+                    .forEach { validateFilter(it, rejectMatchAll = false, enforceLimits = false) }
+                require(allowExpensiveOperators || query.elements.isEmpty()) {
+                    "HTTP aggregation elements are disabled because expensive operators are not allowed."
+                }
+                val metricAliases = query.metrics.mapTo(hashSetOf(), AggregationMetric::alias)
+                require(allowExpensiveOperators || query.sort.none { it.field in metricAliases }) {
+                    "HTTP aggregation metric sorting is disabled because expensive operators are not allowed."
+                }
+                return
+            }
             is IListQuery -> validateList(query)
             is IPagedQuery -> validatePage(query)
         }
@@ -89,9 +102,13 @@ class HttpQueryGuardFilter(
     }
 
     private fun validateList(query: IListQuery) {
+        validateResultSize(query.limit, "list")
+    }
+
+    private fun validateResultSize(limit: Int, queryName: String) {
         val minimum = if (maxListSize == 0) 0 else 1
-        require(query.limit >= minimum && (maxListSize == 0 || query.limit <= maxListSize)) {
-            "HTTP list query limit[${query.limit}] must be between $minimum and $maxListSize."
+        require(limit >= minimum && (maxListSize == 0 || limit <= maxListSize)) {
+            "HTTP $queryName query limit[$limit] must be between $minimum and $maxListSize."
         }
     }
 
@@ -111,17 +128,19 @@ class HttpQueryGuardFilter(
         }
     }
 
-    private fun validateFilter(filter: FilterExpression, rejectMatchAll: Boolean) {
+    private fun validateFilter(filter: FilterExpression, rejectMatchAll: Boolean, enforceLimits: Boolean = true) {
         val pending = ArrayDeque<FilterExpression>()
         pending.add(filter)
         var nodes = 0
         while (pending.isNotEmpty()) {
             val current = pending.removeLast()
             nodes++
-            require(maxFilterNodes == 0 || nodes <= maxFilterNodes) {
-                "HTTP query filter nodes[$nodes] must not exceed $maxFilterNodes."
+            if (enforceLimits) {
+                require(maxFilterNodes == 0 || nodes <= maxFilterNodes) {
+                    "HTTP query filter nodes[$nodes] must not exceed $maxFilterNodes."
+                }
             }
-            validateFilterNode(current)
+            validateFilterNode(current, enforceLimits)
             when (current) {
                 is AndFilter -> pending.addAll(current.operands)
                 is OrFilter -> pending.addAll(current.operands)
@@ -135,12 +154,12 @@ class HttpQueryGuardFilter(
         }
     }
 
-    private fun validateFilterNode(filter: FilterExpression) {
+    private fun validateFilterNode(filter: FilterExpression, enforceLimits: Boolean) {
         require(allowExpensiveOperators || !filter.isExpensive()) {
             "HTTP query operator[${filter.operator}] is disabled because expensive operators are not allowed."
         }
         val valueCount = filter.valueCount()
-        if (valueCount != null) {
+        if (enforceLimits && valueCount != null) {
             require(maxFilterValues == 0 || valueCount <= maxFilterValues) {
                 "HTTP query filter values[$valueCount] must not exceed $maxFilterValues."
             }
@@ -191,6 +210,16 @@ class HttpQueryGuardFilter(
                 context.asPagedQuery<Any>().rewriteResult { it.timeout(idleTimeout) }
 
             QueryType.COUNT -> context.asCountQuery().rewriteResult { it.timeout(idleTimeout) }
+
+            QueryType.AGGREGATION -> context.asAggregationQuery().rewriteResult {
+                if (request.acceptsEventStream()) {
+                    it.timeout(idleTimeout)
+                } else {
+                    it.timeout(idleTimeout)
+                        .collectList()
+                        .flatMapMany(Flux<Any>::fromIterable)
+                }
+            }
         }
     }
 

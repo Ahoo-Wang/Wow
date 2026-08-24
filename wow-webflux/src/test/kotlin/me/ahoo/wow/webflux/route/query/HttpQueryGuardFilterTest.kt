@@ -17,6 +17,10 @@ import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.abac.AbacTags
 import me.ahoo.wow.api.query.AggregateIdsFilter
+import me.ahoo.wow.api.query.AggregationElement
+import me.ahoo.wow.api.query.AggregationGroup
+import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
@@ -120,6 +124,39 @@ class HttpQueryGuardFilterTest {
                 .expectError(IllegalArgumentException::class.java)
                 .verify()
         }
+    }
+
+    @Test
+    fun `aggregation Guard should reuse existing limits and reject expensive work`() {
+        val oversized = AggregationQuery(
+            elements = listOf(AggregationElement(LogicalField("state.orders"))),
+            metrics = listOf(AggregationMetric.Count("count")),
+            limit = 101,
+        )
+        guard(maxListSize = 100).filter(aggregationContext(oversized), unexpectedBackend())
+            .writeRawRequest(request).test().expectError(IllegalArgumentException::class.java).verify()
+
+        val expensive = oversized.copy(limit = 1)
+        guard(allowExpensiveOperators = false).filter(aggregationContext(expensive), unexpectedBackend())
+            .writeRawRequest(request).test().expectError(IllegalArgumentException::class.java).verify()
+
+        val metricSort = AggregationQuery(
+            groupBy = listOf(AggregationGroup.Terms(LogicalField("state.status"), "status")),
+            metrics = listOf(AggregationMetric.Count("count")),
+            sort = listOf(Sort("count", Sort.Direction.ASC)),
+        )
+        guard(allowExpensiveOperators = false).filter(aggregationContext(metricSort), unexpectedBackend())
+            .writeRawRequest(request).test().expectError(IllegalArgumentException::class.java).verify()
+
+        val filtered = AggregationQuery(
+            filter = filterExpression {
+                "state.customer" eq "customer-1"
+                "state.status" eq "ACTIVE"
+            },
+            metrics = listOf(AggregationMetric.Count("count")),
+        )
+        guard(maxFilterNodes = 1, idleTimeout = Duration.ZERO).filter(aggregationContext(filtered), FilterChain { Mono.empty() })
+            .writeRawRequest(request).test().verifyComplete()
     }
 
     @Test
@@ -517,6 +554,12 @@ class HttpQueryGuardFilterTest {
             QueryType.COUNT,
             MOCK_AGGREGATE_METADATA,
         ).setQuery(filter)
+
+    private fun aggregationContext(query: AggregationQuery): QueryContext<AggregationQuery, Flux<DynamicDocument>> =
+        DefaultQueryContext<AggregationQuery, Flux<DynamicDocument>>(
+            QueryType.AGGREGATION,
+            MOCK_AGGREGATE_METADATA,
+        ).setQuery(query)
 
     private fun unexpectedBackend(): FilterChain<QueryContext<*, *>> = FilterChain {
         error("Backend must not be invoked.")
