@@ -102,15 +102,43 @@ example.cart.CartAggregatedFields
 
 ## 测试策略
 
+### 模块测试
+
 - `DefaultOpenAPIComponentContextTest`：显式 schema 注册返回正确 Reference，并在 `finish()` 后进入 `schemas`；同名生成 schema 冲突失败。
 - `ExampleDomainOpenAPITest`：每个聚合只有一个 `*AggregatedFields` Schema；四类 RequestBody 的扩展引用相同 Schema；enum 包含真实嵌套字段且不含空字符串。
 - OpenAPI snapshot：字段数组只存在于 `*AggregatedFields.enum`，RequestBody 中仅出现 `$ref`。
 
-验证命令：
-
 ```bash
 ./gradlew :wow-openapi:check
 ```
+
+### 实际服务契约验证
+
+模块测试和快照不能替代运行时证明。实现完成后必须构建并启动 `example-server` 的实际 distribution，通过 HTTP 获取真实 `/v3/api-docs`；不得直接读取测试快照或在测试中调用 `RouterSpecs` 代替服务请求。
+
+验证流程：
+
+1. 运行 `./gradlew :example-server:installDist`。
+2. 从 `example/example-server/build/install/example-server` 启动发行包，使用 distribution 自带的 in-memory storage 配置，不依赖 MongoDB 或 Elasticsearch。
+3. 按条件轮询 `/actuator/health`，确认服务 ready；不使用固定 sleep。
+4. 请求 `http://127.0.0.1:<port>/v3/api-docs` 并保存本次响应到临时文件。
+5. 对实际响应至少断言：
+   - `components.schemas.example.cart.CartAggregatedFields` 存在，类型为字符串 enum；
+   - enum 包含 `state.items.productId`，且不包含空字符串；
+   - `example.cart.SingleQuery`、`CountQuery`、`ListQuery`、`PagedQuery` 的 `x-wow-query-fields.$ref` 都等于 `#/components/schemas/example.cart.CartAggregatedFields`；
+   - RequestBody 的 `x-wow-query-fields` 不再是数组；
+   - 字段枚举只在 `CartAggregatedFields` Schema 中出现一次。
+6. 无论成功或失败都停止服务；失败时输出服务日志和实际 `/v3/api-docs` 响应位置。
+
+该 smoke test 必须可由单条仓库命令重复执行并用于 CI，具体脚本只负责进程生命周期、HTTP 探测和上述断言，不引入测试框架或外部服务。
+
+验证入口：
+
+```bash
+./gradlew :example-server:verifyOpenApi
+```
+
+`verifyOpenApi` 是本次实现需要提供的任务；它依赖 `installDist`，并封装上述真实服务验证流程。
 
 ## 完成条件
 
@@ -118,3 +146,4 @@ example.cart.CartAggregatedFields
 - 四类聚合查询 RequestBody 指向同一个 `*AggregatedFields` Schema。
 - Wow OpenAPI 不再输出数组形式的 `x-wow-query-fields`。
 - `:wow-openapi:check` 通过，OpenAPI 快照符合新协议。
+- `:example-server:verifyOpenApi` 启动实际服务并通过真实 `/v3/api-docs` 契约验证。
