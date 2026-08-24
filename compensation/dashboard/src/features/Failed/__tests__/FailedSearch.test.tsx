@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { all, and, eq, id } from "@ahoo-wang/fetcher-wow";
+import { filter } from "@ahoo-wang/fetcher-wow";
 import { describe, expect, it, vi } from "vitest";
 import { FailedSearch } from "../FailedSearch.tsx";
 
@@ -28,7 +28,7 @@ describe("FailedSearch", () => {
     ).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
-    expect(onSearch).toHaveBeenCalledWith(all(), false);
+    expect(onSearch).toHaveBeenCalledWith(filter.matchAll(), false);
   });
 
   it("preserves the legacy exact-match semantics for text filters", () => {
@@ -46,7 +46,7 @@ describe("FailedSearch", () => {
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
 
     expect(onSearch).toHaveBeenCalledWith(
-      and(id("EXC-1"), eq("state.eventId.id", "EVT-1")),
+      filter.and(filter.id("EXC-1"), filter.eq("state.eventId.id", "EVT-1")),
       true,
     );
   });
@@ -75,6 +75,6 @@ describe("FailedSearch", () => {
     expect(
       screen.queryByRole("textbox", { name: "Event ID" }),
     ).not.toBeInTheDocument();
-    expect(onSearch).toHaveBeenCalledWith(all(), false);
+    expect(onSearch).toHaveBeenCalledWith(filter.matchAll(), false);
   });
 });

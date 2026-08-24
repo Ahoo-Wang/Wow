@@ -13,9 +13,9 @@
 
 import { executionFailedQueryClientFactory } from "../generated";
 import type {
-  PagedQuery,
+  FilterPagedQuery,
+  FilterSingleQuery,
   QueryClientOptions,
-  SingleQuery,
 } from "@ahoo-wang/fetcher-wow";
 
 const executionFailedQueryClientOptions: QueryClientOptions = {
@@ -28,7 +28,7 @@ const executionFailedSnapshotQueryClient =
   );
 
 export function queryExecutionFailedPage(
-  query: PagedQuery,
+  query: FilterPagedQuery,
   attributes?: Record<string, unknown>,
   abortController?: AbortController,
 ) {
@@ -40,7 +40,7 @@ export function queryExecutionFailedPage(
 }
 
 export function queryExecutionFailedState(
-  query: SingleQuery,
+  query: FilterSingleQuery,
   attributes?: Record<string, unknown>,
   abortController?: AbortController,
 ) {

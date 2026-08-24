@@ -210,7 +210,7 @@ test("loads lifecycle history through the paged EventStream REST API", async ({
   await expect
     .poll(() => historyQuery)
     .toMatchObject({
-      condition: { operator: "AGGREGATE_ID", value: execution.id },
+      filter: { op: "AGGREGATE_ID", value: execution.id },
       sort: [{ field: "version", direction: "DESC" }],
       pagination: { index: 1, size: 10 },
     });

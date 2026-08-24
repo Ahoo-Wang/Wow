@@ -13,7 +13,7 @@
 
 import type { ExecutionFailedAggregatedFields } from "../../../generated";
 import { type ExecutionFailedState } from "../../../generated";
-import { aggregateId, singleQuery } from "@ahoo-wang/fetcher-wow";
+import { filter, singleQuery } from "@ahoo-wang/fetcher-wow";
 import { FailedDetails } from "./FailedDetails.tsx";
 import { queryExecutionFailedState } from "../../../services";
 import { useSingleQuery } from "@ahoo-wang/fetcher-react";
@@ -37,7 +37,7 @@ export function FetchingFailedDetails({
   const query = useMemo(
     () =>
       singleQuery<ExecutionFailedAggregatedFields>({
-        condition: aggregateId(id),
+        filter: filter.aggregateId(id),
       }),
     [id],
   );

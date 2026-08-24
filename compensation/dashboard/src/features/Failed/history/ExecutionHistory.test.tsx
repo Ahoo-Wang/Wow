@@ -110,7 +110,7 @@ describe("ExecutionHistory", () => {
     await waitFor(() => expect(mocks.query).toHaveBeenCalled());
 
     expect(mocks.query.mock.calls[0][0]).toEqual({
-      condition: { operator: "AGGREGATE_ID", value: "failed-1" },
+      filter: { op: "AGGREGATE_ID", value: "failed-1" },
       projection: undefined,
       sort: [{ field: "version", direction: "DESC" }],
       pagination: { index: 1, size: 10 },

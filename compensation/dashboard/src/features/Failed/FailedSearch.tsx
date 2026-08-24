@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { all, and, eq, id, type Condition } from "@ahoo-wang/fetcher-wow";
+import { filter, type FilterExpression } from "@ahoo-wang/fetcher-wow";
 import { Filter, LoaderCircle, Search, X } from "lucide-react";
 import { useMemo, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,7 @@ import {
 import { ExecutionFailedAggregatedFields } from "@/generated";
 
 interface FailedSearchProps {
-  onSearch?: (condition: Condition, hasFilters: boolean) => void;
+  onSearch?: (filterExpression: FilterExpression, hasFilters: boolean) => void;
   loading?: boolean;
 }
 
@@ -34,7 +34,7 @@ interface SearchField {
   key: string;
   label: string;
   placeholder: string;
-  condition: (value: string) => Condition;
+  filter: (value: string) => FilterExpression;
 }
 
 const searchFields: SearchField[] = [
@@ -42,21 +42,21 @@ const searchFields: SearchField[] = [
     key: "_id",
     label: "Execution ID",
     placeholder: "Search by ID…",
-    condition: id,
+    filter: filter.id,
   },
   {
     key: ExecutionFailedAggregatedFields.STATE_EVENT_ID_ID,
     label: "Event ID",
     placeholder: "Filter by event ID…",
-    condition: (value) =>
-      eq(ExecutionFailedAggregatedFields.STATE_EVENT_ID_ID, value),
+    filter: (value) =>
+      filter.eq(ExecutionFailedAggregatedFields.STATE_EVENT_ID_ID, value),
   },
   {
     key: ExecutionFailedAggregatedFields.STATE_EVENT_ID_AGGREGATE_ID_AGGREGATE_ID,
     label: "Aggregate ID",
     placeholder: "Filter by aggregate ID…",
-    condition: (value) =>
-      eq(
+    filter: (value) =>
+      filter.eq(
         ExecutionFailedAggregatedFields.STATE_EVENT_ID_AGGREGATE_ID_AGGREGATE_ID,
         value,
       ),
@@ -65,8 +65,8 @@ const searchFields: SearchField[] = [
     key: ExecutionFailedAggregatedFields.STATE_EVENT_ID_AGGREGATE_ID_CONTEXT_NAME,
     label: "Aggregate context",
     placeholder: "Filter by aggregate context…",
-    condition: (value) =>
-      eq(
+    filter: (value) =>
+      filter.eq(
         ExecutionFailedAggregatedFields.STATE_EVENT_ID_AGGREGATE_ID_CONTEXT_NAME,
         value,
       ),
@@ -75,8 +75,8 @@ const searchFields: SearchField[] = [
     key: ExecutionFailedAggregatedFields.STATE_EVENT_ID_AGGREGATE_ID_AGGREGATE_NAME,
     label: "Aggregate name",
     placeholder: "Filter by aggregate name…",
-    condition: (value) =>
-      eq(
+    filter: (value) =>
+      filter.eq(
         ExecutionFailedAggregatedFields.STATE_EVENT_ID_AGGREGATE_ID_AGGREGATE_NAME,
         value,
       ),
@@ -85,15 +85,21 @@ const searchFields: SearchField[] = [
     key: ExecutionFailedAggregatedFields.STATE_FUNCTION_CONTEXT_NAME,
     label: "Processor context",
     placeholder: "Filter by processor context…",
-    condition: (value) =>
-      eq(ExecutionFailedAggregatedFields.STATE_FUNCTION_CONTEXT_NAME, value),
+    filter: (value) =>
+      filter.eq(
+        ExecutionFailedAggregatedFields.STATE_FUNCTION_CONTEXT_NAME,
+        value,
+      ),
   },
   {
     key: ExecutionFailedAggregatedFields.STATE_FUNCTION_PROCESSOR_NAME,
     label: "Processor name",
     placeholder: "Filter by processor name…",
-    condition: (value) =>
-      eq(ExecutionFailedAggregatedFields.STATE_FUNCTION_PROCESSOR_NAME, value),
+    filter: (value) =>
+      filter.eq(
+        ExecutionFailedAggregatedFields.STATE_FUNCTION_PROCESSOR_NAME,
+        value,
+      ),
   },
 ];
 
@@ -111,22 +117,28 @@ export function FailedSearch({ onSearch, loading }: FailedSearchProps) {
 
   const submit = (event?: FormEvent) => {
     event?.preventDefault();
-    const conditions = activeFields
+    const filters = activeFields
       .map((field) => {
         const value = values[field.key]?.trim();
-        return value ? field.condition(value) : undefined;
+        return value ? field.filter(value) : undefined;
       })
-      .filter((condition): condition is Condition => Boolean(condition));
+      .filter((filterExpression): filterExpression is FilterExpression =>
+        Boolean(filterExpression),
+      );
     onSearch?.(
-      conditions.length ? and(...conditions) : all(),
-      conditions.length > 0,
+      filters.length === 0
+        ? filter.matchAll()
+        : filters.length === 1
+          ? filters[0]
+          : filter.and(filters[0], ...filters.slice(1)),
+      filters.length > 0,
     );
   };
 
   const clearAll = () => {
     setActiveKeys(["_id"]);
     setValues({});
-    onSearch?.(all(), false);
+    onSearch?.(filter.matchAll(), false);
   };
 
   const setFieldActive = (key: string, checked: boolean) => {

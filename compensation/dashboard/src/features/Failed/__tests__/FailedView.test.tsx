@@ -9,8 +9,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   FunctionKind,
   RecoverableType,
-  eq,
-  type Condition,
+  filter,
+  type FilterExpression,
   type PagedList,
 } from "@ahoo-wang/fetcher-wow";
 import {
@@ -105,9 +105,11 @@ vi.mock("../FailedSearch.tsx", () => ({
   FailedSearch: ({
     onSearch,
   }: {
-    onSearch: (condition: Condition) => void;
+    onSearch: (filterExpression: FilterExpression) => void;
   }) => (
-    <button onClick={() => onSearch(eq("state.id", "failed"))}>Search</button>
+    <button onClick={() => onSearch(filter.eq("state.id", "failed"))}>
+      Search
+    </button>
   ),
 }));
 
@@ -400,7 +402,7 @@ describe("FailedView", () => {
 
     expect(mocks.setQuery).toHaveBeenCalledOnce();
     expect(mocks.setQuery).toHaveBeenCalledWith({
-      condition: expect.anything(),
+      filter: expect.anything(),
       pagination: expect.anything(),
       projection: undefined,
       sort: [{ field: "aggregateId", direction: "DESC" }],
@@ -520,7 +522,7 @@ describe("FailedView", () => {
 
     expect(screen.getByText("Page index: 2")).toBeInTheDocument();
     expect(mocks.setQuery).toHaveBeenLastCalledWith({
-      condition: expect.anything(),
+      filter: expect.anything(),
       pagination: { index: 2, size: 10 },
       projection: undefined,
       sort: [{ field: "aggregateId", direction: "DESC" }],
