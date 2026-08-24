@@ -204,7 +204,13 @@ Wow 只校验请求结构，不校验字段是否存在、路径是否为集合�
 
 HTTP 端点为 `POST /{aggregate}/snapshot/aggregation`。tenant、owner 或 space 作用域的聚合会在前面增加各自的路由前缀；以运行实例的 OpenAPI 路径为准。JSON 响应是动态对象数组；SSE 逐个流式返回对象。OpenAPI 为每个聚合发布专属 `AggregationQuery` request body，其 `x-wow-query-fields` 引用该聚合的 `*AggregatedFields` 组件，JSON schema 仍使用通用 `AggregationQuery` 合同。
 
-例如，补偿控制面可以按执行状态统计失败记录：
+#### 场景案例
+
+以下请求体都发送到对应聚合的 `snapshot/aggregation` 端点。为突出聚合结构，除第一个案例外省略重复的 `curl` 外壳。
+
+##### 按分类统计数量
+
+补偿控制面可以按执行状态统计记录数量：
 
 ```bash
 curl --request POST 'http://localhost:8080/execution_failed/snapshot/aggregation' \
@@ -231,6 +237,142 @@ curl --request POST 'http://localhost:8080/execution_failed/snapshot/aggregation
   {"status": "SUCCEEDED", "count": 3}
 ]
 ```
+
+##### 过滤后汇总整体指标
+
+不声明 `groupBy` 时，查询只返回一行。下面的查询先筛选失败记录，再统计数量、平均重试次数和最大重试次数：
+
+```json
+{
+  "filter": {"op": "EQ", "field": "state.status", "value": "FAILED"},
+  "metrics": [
+    {"type": "COUNT", "alias": "failedCount"},
+    {
+      "type": "NUMERIC",
+      "function": "AVG",
+      "expression": {"field": "state.retryState.retries"},
+      "alias": "averageRetries"
+    },
+    {
+      "type": "NUMERIC",
+      "function": "MAX",
+      "expression": {"field": "state.retryState.retries"},
+      "alias": "maxRetries"
+    }
+  ]
+}
+```
+
+```json
+[
+  {"failedCount": 12, "averageRetries": 1.5, "maxRetries": 4.0}
+]
+```
+
+即使过滤后没有数据，仍返回一行：`failedCount` 为 `0`，两个数值指标为 `null`。
+
+##### 按数值区间观察分布
+
+订单可以按总金额分桶；`interval: 100` 表示 `[0, 100)`、`[100, 200)` 等区间，响应中的 `amountRange` 是区间下界：
+
+```json
+{
+  "groupBy": [
+    {
+      "type": "HISTOGRAM",
+      "field": "state.totalAmount",
+      "alias": "amountRange",
+      "interval": 100
+    }
+  ],
+  "metrics": [
+    {"type": "COUNT", "alias": "orderCount"},
+    {
+      "type": "NUMERIC",
+      "function": "SUM",
+      "expression": {"field": "state.totalAmount"},
+      "alias": "totalAmount"
+    }
+  ],
+  "sort": [{"field": "amountRange", "direction": "ASC"}],
+  "limit": 20
+}
+```
+
+```json
+[
+  {"amountRange": 0.0, "orderCount": 8, "totalAmount": 356.0},
+  {"amountRange": 100.0, "orderCount": 5, "totalAmount": 642.0}
+]
+```
+
+##### 按业务时间查看趋势
+
+假设业务状态中的 `state.createdAt` 是可执行日期字段，可以按上海时区统计每日新增数量：
+
+```json
+{
+  "groupBy": [
+    {
+      "type": "DATE_HISTOGRAM",
+      "field": "state.createdAt",
+      "alias": "day",
+      "unit": "DAY",
+      "timeZone": "Asia/Shanghai"
+    }
+  ],
+  "metrics": [{"type": "COUNT", "alias": "createdCount"}],
+  "sort": [{"field": "day", "direction": "ASC"}],
+  "limit": 31
+}
+```
+
+```json
+[
+  {"day": 1787500800000, "createdCount": 18},
+  {"day": 1787587200000, "createdCount": 23}
+]
+```
+
+日期桶键是分桶起点的 epoch 毫秒。MongoDB 字段必须能转换为日期；Elasticsearch 字段必须映射为 `date` 或 `date_nanos`。
+
+##### 展开集合并取 Top-N
+
+订单商品是集合。先用绝对路径展开 `state.items`，再使用相对路径过滤商品、分组并汇总销量：
+
+```json
+{
+  "filter": {"op": "EQ", "field": "state.status", "value": "PAID"},
+  "elements": [
+    {
+      "path": "state.items",
+      "filter": {"op": "GT", "field": "quantity", "value": 0}
+    }
+  ],
+  "groupBy": [
+    {"type": "TERMS", "field": "productId", "alias": "productId"}
+  ],
+  "metrics": [
+    {
+      "type": "NUMERIC",
+      "function": "SUM",
+      "expression": {"field": "quantity"},
+      "alias": "totalQuantity"
+    }
+  ],
+  "sort": [{"field": "totalQuantity", "direction": "DESC"}],
+  "limit": 10
+}
+```
+
+```json
+[
+  {"productId": "product-1", "totalQuantity": 42.0},
+  {"productId": "product-2", "totalQuantity": 31.0}
+]
+```
+
+根 `filter` 仍使用快照绝对路径；Element filter、group 和 metric 字段都相对当前展开的商品。按 `totalQuantity` 这类 metric alias 排序属于高成本操作。`query.allow-expensive-operators=false` 时，本例会因 Elements 展开和 metric alias 排序被 HTTP 护栏拒绝；需要启用该配置，或移除这两项能力。
 
 同一份 `AggregationQuery` 合同可由 MongoDB 与 Elasticsearch 快照查询服务执行并返回相同的行结构；字段映射、嵌套模型及自定义序列化的后端差异仍遵循各扩展文档中的约束。
 
