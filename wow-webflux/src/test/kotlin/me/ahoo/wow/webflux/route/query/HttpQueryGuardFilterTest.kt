@@ -18,6 +18,9 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.abac.AbacTags
 import me.ahoo.wow.api.query.AggregateIdsFilter
 import me.ahoo.wow.api.query.AggregationElement
+import me.ahoo.wow.api.query.AggregationExpression
+import me.ahoo.wow.api.query.AggregationExpressionOperator
+import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
@@ -163,6 +166,36 @@ class HttpQueryGuardFilterTest {
             idleTimeout = Duration.ZERO
         ).filter(aggregationContext(filtered), unexpectedBackend())
             .writeRawRequest(request).test().expectError(IllegalArgumentException::class.java).verify()
+    }
+
+    @Test
+    fun `aggregation Guard should control computed expressions as expensive work`() {
+        val computed = AggregationQuery(
+            metrics = listOf(
+                AggregationMetric.Numeric(
+                    AggregationFunction.SUM,
+                    AggregationExpression.Binary(
+                        AggregationExpressionOperator.MULTIPLY,
+                        AggregationExpression.Field(LogicalField("state.price")),
+                        AggregationExpression.Field(LogicalField("state.quantity")),
+                    ),
+                    "total",
+                ),
+            ),
+        )
+
+        guard(allowExpensiveOperators = false).filter(aggregationContext(computed), unexpectedBackend())
+            .writeRawRequest(request).test().expectError(IllegalArgumentException::class.java).verify()
+
+        val row = SimpleDynamicDocument(mutableMapOf("total" to 10.0))
+        guard(allowExpensiveOperators = true, idleTimeout = Duration.ZERO)
+            .filter(
+                aggregationContext(computed),
+                FilterChain {
+                    it.asAggregationQuery().setResult(Flux.just(row))
+                    Mono.empty()
+                },
+            ).writeRawRequest(request).test().verifyComplete()
     }
 
     @Test

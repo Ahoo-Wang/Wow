@@ -87,6 +87,13 @@ class HttpQueryGuardFilter(
                 require(allowExpensiveOperators || query.sort.none { it.field in metricAliases }) {
                     "HTTP aggregation metric sorting is disabled because expensive operators are not allowed."
                 }
+                require(
+                    allowExpensiveOperators || query.metrics.none { metric ->
+                        metric is AggregationMetric.Numeric && metric.expression !is AggregationExpression.Field
+                    },
+                ) {
+                    "HTTP aggregation arithmetic expressions are disabled because expensive operators are not allowed."
+                }
                 return
             }
             is IListQuery -> validateList(query)
