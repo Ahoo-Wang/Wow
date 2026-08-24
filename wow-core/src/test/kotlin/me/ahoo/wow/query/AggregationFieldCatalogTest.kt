@@ -75,6 +75,8 @@ class AggregationFieldCatalogTest {
             "state.registeredValue",
             "state.formattedAt",
             "state.writeOnly",
+            "state.refinedValue",
+            "state.refinedValue.secret",
         )
         catalog.paths.keys.assert().doesNotContain("state.attributes.value")
         catalog.paths["state.scalarItems"]!!.kind.assert().isEqualTo(AggregationFieldKind.SCALAR_COLLECTION)
@@ -118,6 +120,7 @@ class AggregationFieldCatalogTest {
         catalog.paths["state.booleanStatus"]!!.isBoolean.assert().isTrue()
         catalog.paths["state.instant"]!!.isTemporal.assert().isTrue()
         catalog.paths["state.instant"]!!.supportsTerms.assert().isFalse()
+        catalog.paths.keys.assert().doesNotContain("state.formattedStatus")
     }
 
     @Test
@@ -160,6 +163,9 @@ class AggregationFieldCatalogTest {
 
         @get:JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
         val writeOnly: String = ""
+
+        @get:JsonSerialize(`as` = PublicView::class)
+        val refinedValue: ConcreteView = ConcreteView("public", "secret")
         val attributes: Map<String, String> = emptyMap()
     }
 
@@ -204,6 +210,7 @@ class AggregationFieldCatalogTest {
         val scalarValue: ScalarItem = ScalarItem("")
         val numericStatus: NumericStatus = NumericStatus.ONE
         val booleanStatus: BooleanStatus = BooleanStatus.YES
+        val formattedStatus: FormattedStatus = FormattedStatus.ACTIVE
         val numbers: IntArray = intArrayOf()
         val items: Array<Item> = emptyArray()
         val pet: Pet = Cat("cat")
@@ -214,6 +221,13 @@ class AggregationFieldCatalogTest {
     private enum class NumericStatus(@get:JsonValue val value: Int) { ONE(1) }
 
     private enum class BooleanStatus(@get:JsonValue val value: Boolean) { YES(true) }
+
+    @JsonFormat(shape = JsonFormat.Shape.NUMBER)
+    private enum class FormattedStatus { ACTIVE }
+
+    private interface PublicView { val publicValue: String }
+
+    private data class ConcreteView(override val publicValue: String, val secret: String) : PublicView
 
     private data class Item(val value: Long)
 

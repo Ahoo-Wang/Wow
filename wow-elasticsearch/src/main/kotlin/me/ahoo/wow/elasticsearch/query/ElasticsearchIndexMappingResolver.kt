@@ -455,7 +455,11 @@ private data class ElasticsearchMappedField(
             Property.Kind.CountedKeyword,
             Property.Kind.Wildcard,
         )
-        private val AGGREGATION_NUMERIC_KINDS = NUMERIC_KINDS - Property.Kind.TokenCount
+        private val AGGREGATION_NUMERIC_KINDS = NUMERIC_KINDS - setOf(
+            Property.Kind.TokenCount,
+            Property.Kind.HalfFloat,
+            Property.Kind.Float,
+        )
         private val TERMS_AGGREGATION_KINDS = AGGREGATION_NUMERIC_KINDS + BINARY_TERM_KINDS + Property.Kind.Boolean
         private val RANGE_FIELD_KINDS = setOf(
             Property.Kind.IntegerRange,
@@ -524,6 +528,8 @@ private fun Property.isPortableAggregation(): Boolean {
         _kind() == Property.Kind.ScaledFloat -> false
         property is KeywordProperty -> property.normalizer() == null && property.ignoreAbove() == null &&
             property.nullValue() == null
+        property is BooleanProperty -> property.nullValue() == null
+        property is DateProperty -> property.nullValue() == null
         hasNumericNullValue() -> false
         _kind() == Property.Kind.ConstantKeyword -> constantKeyword().value() == null
         else -> true

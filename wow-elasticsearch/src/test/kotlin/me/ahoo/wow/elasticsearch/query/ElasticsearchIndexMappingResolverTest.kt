@@ -20,6 +20,7 @@ import co.elastic.clients.elasticsearch.indices.GetMappingRequest
 import co.elastic.clients.elasticsearch.indices.GetMappingResponse
 import co.elastic.clients.elasticsearch.indices.get_mapping.IndexMappingRecord
 import co.elastic.clients.json.JsonData
+import co.elastic.clients.util.DateTime
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -383,6 +384,10 @@ class ElasticsearchIndexMappingResolverTest {
             "constantValue",
             "tokenCount",
             "nullableInteger",
+            "nullableBoolean",
+            "nullableDate",
+            "halfFloat",
+            "float",
         ).forEach { field ->
             runCatching { mapping.resolve(field, ElasticsearchFieldUsage.TERMS) }
                 .exceptionOrNull()!!.message.assert().contains("does not support")
@@ -599,6 +604,10 @@ class ElasticsearchIndexMappingResolverTest {
                 .properties("constantValue") { it.constantKeyword { field -> field.value(JsonData.of("constant")) } }
                 .properties("tokenCount") { it.tokenCount { field -> field } }
                 .properties("nullableInteger") { it.integer { field -> field.nullValue(0) } }
+                .properties("nullableBoolean") { it.boolean_ { field -> field.nullValue(false) } }
+                .properties("nullableDate") { it.date { field -> field.nullValue(DateTime.of("2024-01-01")) } }
+                .properties("halfFloat") { it.halfFloat { field -> field } }
+                .properties("float") { it.float_ { field -> field } }
                 .properties("scaledFloat") { it.scaledFloat { field -> field.scalingFactor(100.0) } }
                 .properties("dateNanos") { it.dateNanos { field -> field } }
         }

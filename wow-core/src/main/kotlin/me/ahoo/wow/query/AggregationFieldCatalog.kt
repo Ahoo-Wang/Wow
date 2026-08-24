@@ -20,6 +20,7 @@ import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toBeanDescription
 import tools.jackson.databind.JavaType
+import tools.jackson.databind.annotation.JsonSerialize
 import tools.jackson.databind.introspect.BeanPropertyDefinition
 import tools.jackson.databind.ser.bean.BeanSerializerBase
 import tools.jackson.databind.ser.impl.UnknownSerializer
@@ -172,6 +173,7 @@ private val BeanPropertyDefinition.hasCustomSerialization: Boolean
         return config.annotationIntrospector.run {
             findSerializer(config, member) != null ||
                 findSerializationConverter(config, member) != null ||
+                member.getAnnotation(JsonSerialize::class.java)?.`as`?.let { it != Void::class.java } == true ||
                 member.getAnnotation(JsonFormat::class.java) != null ||
                 findUnwrappingNameTransformer(config, member) != null
         }
@@ -206,6 +208,7 @@ private val JavaType.hasCustomSerialization: Boolean
         ) {
             return true
         }
+        if (rawClass.getAnnotation(JsonFormat::class.java) != null) return true
         if (aggregationScalarType != null) return false
         val serializer = runCatching {
             JsonSerializer._serializationContext().findValueSerializer(rawClass)

@@ -82,6 +82,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                                                 lines.nested { line ->
                                                     line
                                                         .properties("sku") { sku -> sku.keyword { keyword -> keyword } }
+                                                        .properties("amount") { amount -> amount.double_ { double -> double } }
                                                         .properties("createdAt") { createdAt ->
                                                             createdAt.date { date -> date }
                                                         }
