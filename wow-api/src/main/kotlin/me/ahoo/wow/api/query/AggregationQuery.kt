@@ -180,6 +180,14 @@ enum class AggregationDateUnit {
     JsonSubTypes.Type(AggregationExpression.Constant::class, name = "CONSTANT"),
     JsonSubTypes.Type(AggregationExpression.Binary::class, name = "BINARY"),
 )
+@Schema(
+    oneOf = [
+        AggregationExpression.Field::class,
+        AggregationExpression.Constant::class,
+        AggregationExpression.Binary::class,
+    ],
+    discriminatorProperty = "type",
+)
 interface AggregationExpression {
     data class Field(val field: LogicalField) : AggregationExpression
 

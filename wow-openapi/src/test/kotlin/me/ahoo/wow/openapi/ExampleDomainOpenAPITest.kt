@@ -115,9 +115,7 @@ internal class ExampleDomainOpenAPITest {
             querySchema.properties.getValue("filter").`$ref`
                 .assert().isEqualTo("#/components/schemas/wow.api.query.FilterExpression")
             val elementSchema = openAPI.components.schemas.getValue("wow.api.query.AggregationElement")
-            openAPI.components.schemas.getValue("wow.api.query.AggregationMetric.Numeric")
-                .properties.getValue("expression").`$ref`
-                .assert().isEqualTo("#/components/schemas/wow.api.query.AggregationExpression.Field")
+            assertAggregationExpressionSchema()
             listOf(
                 elementSchema.properties.getValue("path"),
                 openAPI.components.schemas.getValue("wow.api.query.AggregationExpression.Field")
@@ -150,6 +148,23 @@ internal class ExampleDomainOpenAPITest {
                 .filter { it.routeId.endsWith(".snapshot.count") }
                 .map { it.routeId.removeSuffix("count") + "aggregation" }
             aggregationRouteIds.assert().containsExactlyInAnyOrder(*countRouteIds.toTypedArray())
+        }
+
+        private fun assertAggregationExpressionSchema() {
+            val expressionRef = "#/components/schemas/wow.api.query.AggregationExpression"
+            openAPI.components.schemas.getValue("wow.api.query.AggregationMetric.Numeric")
+                .properties.getValue("expression").`$ref`.assert().isEqualTo(expressionRef)
+            val expressionSchema = openAPI.components.schemas.getValue("wow.api.query.AggregationExpression")
+            expressionSchema.anyOf.map { it.`$ref` }.assert().containsExactlyInAnyOrder(
+                "#/components/schemas/wow.api.query.AggregationExpression.Field",
+                "#/components/schemas/wow.api.query.AggregationExpression.Constant",
+                "#/components/schemas/wow.api.query.AggregationExpression.Binary",
+            )
+            val binarySchema = openAPI.components.schemas.getValue("wow.api.query.AggregationExpression.Binary")
+            binarySchema.properties.getValue("left").`$ref`.assert().isEqualTo(expressionRef)
+            binarySchema.properties.getValue("right").`$ref`.assert().isEqualTo(expressionRef)
+            openAPI.components.schemas.getValue("wow.api.query.AggregationExpression.Constant")
+                .properties.getValue("value").format.assert().isEqualTo("double")
         }
 
         @Test

@@ -4,6 +4,7 @@ import com.fasterxml.classmate.TypeResolver
 import com.github.victools.jsonschema.generator.Option
 import io.swagger.v3.core.util.ObjectMapperFactory
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.MaterializedSnapshot
@@ -57,6 +58,26 @@ class OpenAPISchemaBuilderTest {
         reference.`$ref`.assert().isEqualTo("#/components/schemas/wow.api.query.PagedQuery")
         schemas["wow.api.query.PagedQuery"]?.properties?.get("filter")?.`$ref`
             .assert().isEqualTo("#/components/schemas/wow.api.query.FilterExpression")
+    }
+
+    @Test
+    fun `should build aggregation expression schema with recursive reference`() {
+        val expressionRef = "#/components/schemas/wow.api.query.AggregationExpression"
+        val openAPISchemaBuilder = OpenAPISchemaBuilder()
+        openAPISchemaBuilder.generateSchema(AggregationQuery::class.java)
+
+        val schemas = openAPISchemaBuilder.build()
+        schemas.getValue("wow.api.query.AggregationExpression").anyOf.map { it.`$ref` }.assert()
+            .containsExactlyInAnyOrder(
+                "#/components/schemas/wow.api.query.AggregationExpression.Field",
+                "#/components/schemas/wow.api.query.AggregationExpression.Constant",
+                "#/components/schemas/wow.api.query.AggregationExpression.Binary",
+            )
+        schemas.getValue("wow.api.query.AggregationMetric.Numeric")
+            .properties.getValue("expression").`$ref`.assert().isEqualTo(expressionRef)
+        val binary = schemas.getValue("wow.api.query.AggregationExpression.Binary")
+        binary.properties.getValue("left").`$ref`.assert().isEqualTo(expressionRef)
+        binary.properties.getValue("right").`$ref`.assert().isEqualTo(expressionRef)
     }
 
     @Test
