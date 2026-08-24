@@ -11,12 +11,20 @@
  * limitations under the License.
  */
 
-import { describe, expect, it } from 'vitest';
-import { SnapshotQueryEndpointPaths } from '../../../src';
+import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
+import { describe, expect, expectTypeOf, it } from 'vitest';
+import type { SnapshotQueryApi, SnapshotQueryClient } from '../../../src';
+import {
+  AggregationMetricType,
+  SnapshotQueryEndpointPaths,
+  type AggregationQuery,
+  type DynamicDocument,
+} from '../../../src';
 
 describe('SnapshotQueryEndpointPaths', () => {
   it('should have correct endpoint path values', () => {
     expect(SnapshotQueryEndpointPaths.SNAPSHOT_RESOURCE_NAME).toBe('snapshot');
+    expect(SnapshotQueryEndpointPaths.AGGREGATION).toBe('snapshot/aggregation');
     expect(SnapshotQueryEndpointPaths.COUNT).toBe('snapshot/count');
     expect(SnapshotQueryEndpointPaths.LIST).toBe('snapshot/list');
     expect(SnapshotQueryEndpointPaths.LIST_STATE).toBe('snapshot/list/state');
@@ -26,5 +34,44 @@ describe('SnapshotQueryEndpointPaths', () => {
     expect(SnapshotQueryEndpointPaths.SINGLE_STATE).toBe(
       'snapshot/single/state',
     );
+  });
+
+  it('exposes typed JSON and SSE aggregation results', () => {
+    type RootFields = 'state.status';
+    type AggregationRow = DynamicDocument & {
+      product: string;
+      total: number;
+    };
+    type SnapshotApiHasAggregationKeys =
+      'aggregate' extends keyof SnapshotQueryApi<unknown, RootFields>
+        ? 'aggregateStream' extends keyof SnapshotQueryApi<unknown, RootFields>
+          ? true
+          : false
+        : false;
+    type SnapshotApiRequiresAggregation =
+      SnapshotQueryApi<unknown, RootFields> extends {
+        aggregate: unknown;
+        aggregateStream: unknown;
+      }
+        ? true
+        : false;
+
+    const query: AggregationQuery<RootFields> = {
+      metrics: [{ type: AggregationMetricType.COUNT, alias: 'total' }],
+    };
+    const assertClientTypes = (
+      client: SnapshotQueryClient<unknown, RootFields>,
+    ) => {
+      expectTypeOf(client.aggregate<AggregationRow>(query)).toEqualTypeOf<
+        Promise<AggregationRow[]>
+      >();
+      expectTypeOf(client.aggregateStream<AggregationRow>(query)).toEqualTypeOf<
+        Promise<ReadableStream<JsonServerSentEvent<AggregationRow>>>
+      >();
+    };
+
+    expectTypeOf<SnapshotApiHasAggregationKeys>().toEqualTypeOf<true>();
+    expectTypeOf<SnapshotApiRequiresAggregation>().toEqualTypeOf<false>();
+    expectTypeOf(assertClientTypes).toBeFunction();
   });
 });

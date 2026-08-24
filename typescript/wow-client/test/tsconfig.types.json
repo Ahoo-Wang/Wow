@@ -7,5 +7,10 @@
     "rootDir": "..",
     "types": ["vitest/globals"]
   },
-  "include": ["../src/**/*", "./query/filter.test.ts"]
+  "include": [
+    "../src/**/*",
+    "./query/aggregation.test.ts",
+    "./query/filter.test.ts",
+    "./query/snapshot/snapshotQueryApi.test.ts"
+  ]
 }

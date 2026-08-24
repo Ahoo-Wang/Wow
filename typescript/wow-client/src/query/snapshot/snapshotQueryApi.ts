@@ -12,6 +12,8 @@
  */
 
 import type { QueryApi } from '../queryApi';
+import type { AggregationQuery } from '../aggregation';
+import type { DynamicDocument } from '../types';
 import type { MaterializedSnapshot } from './snapshot';
 import type {
   ListQueryRequest,
@@ -31,6 +33,20 @@ export interface SnapshotQueryApi<
   S,
   FIELDS extends string = string,
 > extends QueryApi<MaterializedSnapshot<S>, FIELDS> {
+  /** Runs a snapshot aggregation and returns all result rows. */
+  aggregate?<Row extends DynamicDocument = DynamicDocument>(
+    query: AggregationQuery<FIELDS>,
+    attributes?: Record<string, any>,
+    abortController?: AbortController,
+  ): Promise<Row[]>;
+
+  /** Runs a snapshot aggregation and streams result rows as SSE. */
+  aggregateStream?<Row extends DynamicDocument = DynamicDocument>(
+    query: AggregationQuery<FIELDS>,
+    attributes?: Record<string, any>,
+    abortController?: AbortController,
+  ): Promise<ReadableStream<JsonServerSentEvent<Row>>>;
+
   /**
    * Retrieves a single snapshot state based on the provided query parameters.
    * @param singleQuery - The query parameters for retrieving a single snapshot state
@@ -109,6 +125,7 @@ export interface SnapshotQueryApi<
  */
 export class SnapshotQueryEndpointPaths {
   static readonly SNAPSHOT_RESOURCE_NAME = 'snapshot';
+  static readonly AGGREGATION = `${SnapshotQueryEndpointPaths.SNAPSHOT_RESOURCE_NAME}/aggregation`;
   static readonly COUNT = `${SnapshotQueryEndpointPaths.SNAPSHOT_RESOURCE_NAME}/count`;
   static readonly LIST = `${SnapshotQueryEndpointPaths.SNAPSHOT_RESOURCE_NAME}/list`;
   static readonly LIST_STATE = `${SnapshotQueryEndpointPaths.LIST}/state`;

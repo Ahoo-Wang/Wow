@@ -12,6 +12,7 @@
  */
 
 export * from './condition';
+export * from './aggregation';
 export * from './filter';
 export * from './operator';
 export * from './locale/operatorLocale';
