@@ -45,6 +45,30 @@ class StandaloneSchemaEmbeddingRebaserTest {
     }
 
     @Test
+    fun `should only rebase local references matching custom definition path`() {
+        val schema = objectMapper.createObjectNode()
+            .put("\$id", "urn:root")
+            .put("\$ref", "#/\$defs/node")
+        val oneOf = schema.putObject("\$defs").putObject("node").putArray("oneOf")
+        oneOf.addObject().put("\$ref", "#/\$defs/node")
+        oneOf.addObject().put("\$ref", "#/\$defs/existing")
+
+        StandaloneSchemaEmbeddingRebaser.rebase(
+            schema = schema,
+            schemaName = "wow.schema.Node~/Leaf",
+            definitionPath = "\$defs",
+        )
+
+        val componentPath = "#/\$defs/wow.schema.Node~0~1Leaf"
+        schema["\$id"].assert().isNull()
+        schema["\$ref"].stringValue().assert().isEqualTo("$componentPath/\$defs/node")
+        schema.path("\$defs").path("node").path("oneOf").path(0).path("\$ref").stringValue()
+            .assert().isEqualTo("$componentPath/\$defs/node")
+        schema.path("\$defs").path("node").path("oneOf").path(1).path("\$ref").stringValue()
+            .assert().isEqualTo("#/\$defs/existing")
+    }
+
+    @Test
     fun `should preserve nested schema resources`() {
         val schema = objectMapper.createObjectNode()
             .put("\$id", "urn:root")

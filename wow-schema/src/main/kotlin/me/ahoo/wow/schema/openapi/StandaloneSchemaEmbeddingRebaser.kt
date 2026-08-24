@@ -28,21 +28,29 @@ internal object StandaloneSchemaEmbeddingRebaser {
         if (!canRebase) return
         schema.remove("\$id")
         val componentPath = "#/$definitionPath/${schemaName.replace("~", "~0").replace("/", "~1")}"
-        schema.rebaseLocalReferences(componentPath)
+        schema.rebaseLocalReferences(schema, componentPath, definitionPath)
     }
 
-    private fun JsonNode.rebaseLocalReferences(componentPath: String) {
+    private fun JsonNode.rebaseLocalReferences(
+        rootSchema: JsonNode,
+        componentPath: String,
+        definitionPath: String,
+    ) {
         when (this) {
             is ObjectNode -> {
                 get("\$ref")?.stringValue()?.let {
                     when {
                         it == "#" -> put("\$ref", componentPath)
                         it.startsWith("#/definitions/") -> put("\$ref", componentPath + it.removePrefix("#"))
+                        it.startsWith("#/$definitionPath/") && !rootSchema.at(it.removePrefix("#")).isMissingNode ->
+                            put("\$ref", componentPath + it.removePrefix("#"))
                     }
                 }
-                properties().forEach { (_, child) -> child.rebaseLocalReferences(componentPath) }
+                properties().forEach { (_, child) ->
+                    child.rebaseLocalReferences(rootSchema, componentPath, definitionPath)
+                }
             }
-            is ArrayNode -> forEach { it.rebaseLocalReferences(componentPath) }
+            is ArrayNode -> forEach { it.rebaseLocalReferences(rootSchema, componentPath, definitionPath) }
         }
     }
 }
