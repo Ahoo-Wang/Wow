@@ -18,6 +18,7 @@ import {
   all,
   CommandHeaders,
   CommandStage,
+  DEFAULT_PAGINATION,
   ErrorCodes,
   id,
   ListQuery,
@@ -103,6 +104,7 @@ describe('cartSnapshotQueryClient Integration Test', () => {
   it('should list', async () => {
     const listQuery: ListQuery = {
       condition: all(),
+      limit: DEFAULT_PAGINATION.size,
     };
     const list = await cartSnapshotQueryClient.list(listQuery);
     for (const snapshot of list) {
@@ -113,6 +115,7 @@ describe('cartSnapshotQueryClient Integration Test', () => {
   it('should list stream', async () => {
     const listQuery: ListQuery = {
       condition: all(),
+      limit: DEFAULT_PAGINATION.size,
     };
     const listStream = await cartSnapshotQueryClient.listStream(listQuery);
     for await (const event of listStream) {
@@ -123,6 +126,7 @@ describe('cartSnapshotQueryClient Integration Test', () => {
   it('should list state', async () => {
     const listQuery: ListQuery = {
       condition: all(),
+      limit: DEFAULT_PAGINATION.size,
     };
     const list = await cartSnapshotQueryClient.listState(listQuery);
     for (const state of list) {
@@ -133,6 +137,7 @@ describe('cartSnapshotQueryClient Integration Test', () => {
   it('should list state stream', async () => {
     const listQuery: ListQuery = {
       condition: all(),
+      limit: DEFAULT_PAGINATION.size,
     };
     const listStream = await cartSnapshotQueryClient.listStateStream(listQuery);
     for await (const event of listStream) {

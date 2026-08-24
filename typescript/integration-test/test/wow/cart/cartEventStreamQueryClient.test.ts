@@ -16,6 +16,7 @@ import {
   aggregateId,
   CommandHeaders,
   CommandStage,
+  DEFAULT_PAGINATION,
   DomainEventStream,
   ErrorCodes,
   ListQuery,
@@ -85,6 +86,7 @@ describe('cartEventStreamQueryClient Integration Test', () => {
   it('should list', async () => {
     const listQuery: ListQuery = {
       condition: aggregateId(commandResult.aggregateId),
+      limit: DEFAULT_PAGINATION.size,
     };
     const list = await cartEventStreamQueryClient.list(listQuery);
     for (const domainEventStream of list) {
@@ -96,6 +98,7 @@ describe('cartEventStreamQueryClient Integration Test', () => {
   it('should list stream', async () => {
     const listQuery: ListQuery = {
       condition: aggregateId(commandResult.aggregateId),
+      limit: DEFAULT_PAGINATION.size,
     };
     const listStream = await cartEventStreamQueryClient.listStream(listQuery);
     for await (const event of listStream) {

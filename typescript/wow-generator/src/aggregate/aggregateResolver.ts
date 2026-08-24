@@ -269,14 +269,23 @@ export class AggregateResolver {
       operation.requestBody as Reference,
       this.openAPI.components,
     ) as RequestBody;
-    const conditionRefSchema = requestBody.content[
-      ContentTypeValues.APPLICATION_JSON
-    ].schema as Reference;
-    const conditionSchema = extractSchema(
-      conditionRefSchema,
-      this.openAPI.components,
-    ) as Schema;
-    const fieldRefSchema = conditionSchema.properties?.field as Reference;
+    const queryFields = requestBody['x-wow-query-fields'];
+    let fieldRefSchema: Reference;
+    if (queryFields !== undefined) {
+      if (!isReference(queryFields)) {
+        throw new TypeError('x-wow-query-fields must be a schema reference');
+      }
+      fieldRefSchema = queryFields;
+    } else {
+      const conditionRefSchema = requestBody.content[
+        ContentTypeValues.APPLICATION_JSON
+      ].schema as Reference;
+      const conditionSchema = extractSchema(
+        conditionRefSchema,
+        this.openAPI.components,
+      ) as Schema;
+      fieldRefSchema = conditionSchema.properties?.field as Reference;
+    }
     const fieldKeyedSchema = keySchema(fieldRefSchema, this.openAPI.components);
     operation.tags?.forEach(tag => {
       const aggregate = this.aggregates.get(tag);

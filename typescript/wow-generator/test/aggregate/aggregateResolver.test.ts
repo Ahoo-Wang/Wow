@@ -556,6 +556,60 @@ describe('AggregateResolver', () => {
       expect(mockAggregate.fields).toBeUndefined();
     });
 
+    it('should use the query fields schema reference', () => {
+      const operation = {
+        operationId: 'test.snapshot.count',
+        tags: ['tag1'],
+        requestBody: { $ref: '#/components/requestBodies/FilterExpression' },
+      };
+      const queryFieldsRef = {
+        $ref: '#/components/schemas/TestAggregatedFields',
+      };
+      const mockFieldSchema = { schema: { type: 'string' } };
+
+      (extractRequestBody as any).mockReturnValue({
+        'x-wow-query-fields': queryFieldsRef,
+        content: {},
+      });
+      (isReference as any).mockReturnValue(true);
+      (keySchema as any).mockReturnValue(mockFieldSchema);
+
+      (aggregateResolver as any).fields(operation);
+
+      expect(keySchema).toHaveBeenCalledWith(
+        queryFieldsRef,
+        mockOpenAPI.components,
+      );
+      expect(mockAggregate.fields).toBe(mockFieldSchema);
+    });
+
+    it('should reject the temporary query fields array protocol', () => {
+      const operation = {
+        operationId: 'test.snapshot.count',
+        tags: ['tag1'],
+        requestBody: { $ref: '#/components/requestBodies/FilterExpression' },
+      };
+
+      (extractRequestBody as any).mockReturnValue({
+        'x-wow-query-fields': ['state.id'],
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/Condition' },
+          },
+        },
+      });
+      (extractSchema as any).mockReturnValue({
+        properties: {
+          field: { $ref: '#/components/schemas/LegacyAggregatedFields' },
+        },
+      });
+      (isReference as any).mockReturnValue(false);
+
+      expect(() => (aggregateResolver as any).fields(operation)).toThrow(
+        'x-wow-query-fields must be a schema reference',
+      );
+    });
+
     it('should set fields for count operations', () => {
       const operation = {
         operationId: 'test.snapshot.count',
