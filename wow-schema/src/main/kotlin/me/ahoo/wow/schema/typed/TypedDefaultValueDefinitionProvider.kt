@@ -47,7 +47,7 @@ internal object TypedDefaultValueDefinitionProvider : Module {
             if (
                 textualDefault == "null" &&
                 context.generatorConfig.isNullable(scope) &&
-                !scope.allowsStringDefault()
+                !scope.allowsStringDefault(context)
             ) {
                 return null
             }
@@ -59,10 +59,10 @@ internal object TypedDefaultValueDefinitionProvider : Module {
             scope: FieldScope,
             context: SchemaGenerationContext,
         ) {
-            attributes.normalizeNullDefault(
-                scope.textualDefault(),
-                context.generatorConfig.isNullable(scope) && !scope.allowsStringDefault(),
-            )
+            val default = attributes.path("default")
+            if (!default.isString || default.stringValue() != "null") return
+            if (!context.generatorConfig.isNullable(scope) || scope.allowsStringDefault(context)) return
+            attributes.putNull("default")
         }
     }
 
@@ -83,14 +83,13 @@ internal object TypedDefaultValueDefinitionProvider : Module {
             ?.takeIf(String::isNotEmpty)
     }
 
-    private fun MemberScope<*, *>.allowsStringDefault(): Boolean {
+    private fun FieldScope.allowsStringDefault(context: SchemaGenerationContext): Boolean {
         val schema = getAnnotationConsideringFieldAndGetterIfSupported(Schema::class.java)
         val declaredTypes = schema?.types.orEmpty().toList() + listOfNotNull(schema?.type?.takeIf(String::isNotEmpty))
-        return if (declaredTypes.isEmpty()) type.erasedType == String::class.java else "string" in declaredTypes
-    }
-
-    private fun ObjectNode.normalizeNullDefault(textualDefault: String?, nullable: Boolean) {
-        if (textualDefault == "null" && nullable) putNull("default")
+        if (declaredTypes.isNotEmpty()) return "string" in declaredTypes
+        return context.createDefinition(type).schemaFragments()
+            .flatMap { it.path("type").typeNames() }
+            .any { it == "string" }
     }
 
     private fun JsonNode.withTypedDefault(): CustomPropertyDefinition? {

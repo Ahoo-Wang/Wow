@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.schema.typed
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import io.swagger.v3.oas.annotations.media.Schema
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.schema.SchemaGeneratorBuilder
@@ -72,6 +73,34 @@ class TypedDefaultValueDefinitionProviderTest {
     }
 
     @Test
+    fun `should preserve literal null default for nullable flattened enum`() {
+        val generator = SchemaGeneratorBuilder().customizer { }.build()
+
+        val default = generator.generateSchema(NullableEnumDefault::class.java)
+            .path("properties")
+            .path("value")
+            .path("default")
+
+        default.isString.assert().isTrue()
+        default.stringValue().assert().isEqualTo("null")
+    }
+
+    @Test
+    fun `should omit swagger default when swagger module is disabled`() {
+        val generator = SchemaGeneratorBuilder()
+            .swagger2Module(null)
+            .customizer { }
+            .build()
+
+        val default = generator.generateSchema(NullableIntegerDefault::class.java)
+            .path("properties")
+            .path("value")
+            .path("default")
+
+        default.isMissingNode.assert().isTrue()
+    }
+
+    @Test
     fun `should preserve defaults incompatible with declared type`() {
         val generator = SchemaGeneratorBuilder().customizer { }.build()
 
@@ -121,6 +150,21 @@ class TypedDefaultValueDefinitionProviderTest {
     private data class NullableStringDefault(
         @get:Schema(defaultValue = "null")
         val value: String? = "null",
+    )
+
+    private enum class FlattenedDefault {
+        @JsonProperty("null")
+        NULL,
+    }
+
+    private data class NullableEnumDefault(
+        @get:Schema(defaultValue = "null")
+        val value: FlattenedDefault? = FlattenedDefault.NULL,
+    )
+
+    private data class NullableIntegerDefault(
+        @get:Schema(defaultValue = "null")
+        val value: Int? = null,
     )
 
     private data class IncompatibleDefaults(
