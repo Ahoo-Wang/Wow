@@ -146,6 +146,18 @@ class SnapshotFilterConverterTest {
         val bson = SnapshotFilterConverter.convert(filter { "quantity" gt 1 }, "state.orders.lines")
 
         bson.toBsonDocument().toJson().assert().contains("state.orders.lines.quantity")
+        SnapshotFilterConverter.convert(filter { "state.orders.lines.quantity" gt 1 }, "state.orders.lines")
+            .toBsonDocument().toJson().assert()
+            .contains("state.orders.lines.quantity")
+            .doesNotContain("state.orders.lines.state.orders.lines.quantity")
+        SnapshotFilterConverter.convert(filter { "state.orders.lines".exists() }, "state.orders.lines")
+            .toBsonDocument().toJson().assert().contains("state.orders.lines")
+    }
+
+    @Test
+    fun `element filter conversion should not add a default deletion scope`() {
+        SnapshotFilterConverter.convertWithoutDefaultDeletion(MatchAllFilter)
+            .toBsonDocument().assert().isEqualTo(Filters.empty().toBsonDocument())
     }
 
     @Test

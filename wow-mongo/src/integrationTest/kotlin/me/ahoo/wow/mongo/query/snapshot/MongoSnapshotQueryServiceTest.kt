@@ -75,4 +75,20 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                 row.toMap().assert().isEqualTo(mapOf("minimum" to 10.0, "maximum" to 10.0))
             }.verifyComplete()
     }
+
+    @Test
+    fun `numeric aggregation should reject non-finite BSON values`() {
+        database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
+            .insertOne(
+                Document("_id", "non-finite")
+                    .append("deleted", false)
+                    .append("state", Document("value", Double.NaN)),
+            ).toMono().then().test().verifyComplete()
+
+        aggregation { sum("state.value", "total") }
+            .query(snapshotQueryService)
+            .test()
+            .expectErrorMessage("Aggregation metric [total] must be finite.")
+            .verify()
+    }
 }

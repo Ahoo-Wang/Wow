@@ -39,6 +39,7 @@ import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
+import me.ahoo.wow.api.query.SimpleDynamicDocument
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.api.query.toFilterExpression
@@ -72,7 +73,9 @@ import me.ahoo.wow.webflux.route.event.LoadEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.LoadSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
+import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import org.springframework.mock.web.server.MockServerWebExchange
@@ -205,6 +208,28 @@ class HttpQueryGuardFilterTest {
                 .filter(aggregationContext(query), unexpectedBackend())
                 .writeRawRequest(request).test().expectError(IllegalArgumentException::class.java).verify()
         }
+    }
+
+    @Test
+    fun `aggregation guard should allow safe group sorting without expensive operators`() {
+        val row = SimpleDynamicDocument(mutableMapOf("status" to "ACTIVE", "count" to 1L))
+        val context = aggregationContext(
+            AggregationQuery(
+                groupBy = listOf(AggregationGroup.Terms(LogicalField("state.status"), "status")),
+                metrics = listOf(AggregationMetric.Count("count")),
+                sort = listOf(Sort("status", Sort.Direction.ASC)),
+            ),
+        )
+
+        guard(maxListSize = 0, idleTimeout = Duration.ZERO).filter(
+            context,
+            FilterChain {
+                it.asAggregationQuery().setResult(Flux.just(row))
+                Mono.empty()
+            },
+        ).writeRawRequest(request).test().verifyComplete()
+
+        context.getRequiredResult().test().expectNext(row).verifyComplete()
     }
 
     @Test
@@ -458,6 +483,44 @@ class HttpQueryGuardFilterTest {
         ).writeRawRequest(request).test().verifyComplete()
 
         context.getRequiredResult().test()
+            .expectError(TimeoutException::class.java)
+            .verify()
+    }
+
+    @Test
+    fun `json aggregation should time out before emitting a partial response`() {
+        val row = SimpleDynamicDocument(mutableMapOf("count" to 1L))
+        val context = aggregationContext(AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))))
+        guard(idleTimeout = Duration.ofMillis(10)).filter(
+            context,
+            FilterChain {
+                it.asAggregationQuery().setResult(Flux.concat(Flux.just(row), Flux.never()))
+                Mono.empty()
+            },
+        ).writeRawRequest(request).test().verifyComplete()
+
+        context.getRequiredResult().test()
+            .expectError(TimeoutException::class.java)
+            .verify()
+    }
+
+    @Test
+    fun `event stream aggregation should emit rows before an idle timeout`() {
+        val row = SimpleDynamicDocument(mutableMapOf("count" to 1L))
+        val context = aggregationContext(AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))))
+        val eventStreamRequest = MockServerRequest.builder()
+            .header(HttpHeaders.ACCEPT, MediaType.TEXT_EVENT_STREAM_VALUE)
+            .build()
+        guard(idleTimeout = Duration.ofMillis(10)).filter(
+            context,
+            FilterChain {
+                it.asAggregationQuery().setResult(Flux.concat(Flux.just(row), Flux.never()))
+                Mono.empty()
+            },
+        ).writeRawRequest(eventStreamRequest).test().verifyComplete()
+
+        context.getRequiredResult().test()
+            .expectNext(row)
             .expectError(TimeoutException::class.java)
             .verify()
     }

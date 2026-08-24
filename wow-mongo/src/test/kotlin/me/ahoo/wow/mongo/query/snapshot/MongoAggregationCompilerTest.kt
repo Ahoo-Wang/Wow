@@ -103,6 +103,18 @@ class MongoAggregationCompilerTest {
     }
 
     @Test
+    fun `UTC date histogram should use the Mongo UTC timezone`() {
+        val query = aggregation {
+            dateHistogram("state.createdAt", AggregationDateUnit.DAY, "day", ZoneId.of("Z"))
+            count("count")
+        }
+
+        MongoAggregationCompiler(SnapshotFilterConverter).compile(query)
+            .first { it.toBsonDocument().containsKey("\$group") }
+            .toBsonDocument().toJson().assert().contains("\"timezone\": \"UTC\"")
+    }
+
+    @Test
     fun `summary compiler should retain contribution counts`() {
         val query = aggregation { sum("state.amount", "total") }
 

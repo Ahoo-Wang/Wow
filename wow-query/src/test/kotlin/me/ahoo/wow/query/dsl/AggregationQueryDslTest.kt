@@ -28,6 +28,7 @@ class AggregationQueryDslTest {
             filter { "state.status" eq "COMPLETED" }
             expand("state.orders") { "status" eq "PAID" }
             expand("lines") { "quantity" gt 0 }
+            expand("discounts")
             terms("productId", alias = "product")
             count(alias = "count")
             sum("amount", alias = "total")
@@ -35,7 +36,7 @@ class AggregationQueryDslTest {
             limit(20)
         }
 
-        query.elements.map { it.path.value }.assert().containsExactly("state.orders", "lines")
+        query.elements.map { it.path.value }.assert().containsExactly("state.orders", "lines", "discounts")
         query.groupBy.assert().hasSize(1)
         query.metrics.assert().hasSize(2)
         query.limit.assert().isEqualTo(20)

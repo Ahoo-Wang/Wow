@@ -19,6 +19,7 @@ import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogErrorHandler
@@ -26,6 +27,7 @@ import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.filter.QueryContext
+import me.ahoo.wow.query.filter.QueryHandler
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryService
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
@@ -143,5 +145,19 @@ class DefaultSnapshotQueryHandlerTest {
             .test()
             .expectNextMatches { it["count"] == 1L }
             .verifyComplete()
+    }
+
+    @Test
+    fun `legacy snapshot handler should inherit unsupported aggregation`() {
+        val fallback = object :
+            SnapshotQueryHandler,
+            QueryHandler<MaterializedSnapshot<Any>> by queryHandler {}
+
+        fallback.aggregate(
+            MOCK_AGGREGATE_METADATA,
+            AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))),
+        ).test()
+            .expectErrorMessage("Snapshot aggregation is not supported.")
+            .verify()
     }
 }

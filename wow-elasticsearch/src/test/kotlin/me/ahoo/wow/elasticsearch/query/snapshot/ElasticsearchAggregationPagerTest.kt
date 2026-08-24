@@ -31,9 +31,11 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.SimpleDynamicDocument
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterConverter
+import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
@@ -41,6 +43,19 @@ import java.time.Duration
 
 class ElasticsearchAggregationPagerTest {
     private val client = mockk<ReactiveElasticsearchClient>()
+
+    @Test
+    fun `should reject invalid paging options`() {
+        assertThrows<IllegalArgumentException> {
+            ElasticsearchAggregationPager(client, "test-index", batchSize = 0)
+        }.message.assert().contains("batchSize must be between 1 and")
+        assertThrows<IllegalArgumentException> {
+            ElasticsearchAggregationPager(client, "test-index", batchSize = DEFAULT_SEARCH_BATCH_SIZE + 1)
+        }.message.assert().contains("batchSize must be between 1 and")
+        assertThrows<IllegalArgumentException> {
+            ElasticsearchAggregationPager(client, "test-index", batchSize = 1, keepAlive = Duration.ZERO)
+        }.message.assert().isEqualTo("keepAlive must be greater than or equal to 1ms.")
+    }
 
     @Test
     fun `group sort should pass composite after key and close latest pit`() {
@@ -131,6 +146,31 @@ class ElasticsearchAggregationPagerTest {
     }
 
     @Test
+    fun `top rows should sort boolean and null values`() {
+        val rows = listOf(
+            SimpleDynamicDocument(mutableMapOf("active" to true)),
+            SimpleDynamicDocument(mutableMapOf("active" to null)),
+            SimpleDynamicDocument(mutableMapOf("active" to false)),
+        )
+
+        selectTopRows(rows, listOf(Sort("active", Sort.Direction.ASC)), limit = 3)
+            .map { it["active"] }
+            .assert().containsExactly(null, false, true)
+    }
+
+    @Test
+    fun `top rows should reject incomparable values`() {
+        val rows = listOf(
+            SimpleDynamicDocument(mutableMapOf("value" to 1)),
+            SimpleDynamicDocument(mutableMapOf("value" to "1")),
+        )
+
+        assertThrows<IllegalStateException> {
+            selectTopRows(rows, listOf(Sort("value", Sort.Direction.ASC)), limit = 2)
+        }.message.assert().contains("Aggregation sort values must have comparable types")
+    }
+
+    @Test
     fun `summary should request once and normalize empty values`() {
         stubPointInTime()
         every { client.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(summaryResponse())
@@ -155,7 +195,9 @@ class ElasticsearchAggregationPagerTest {
     @Test
     fun `group aggregation should not emit an empty row`() {
         stubPointInTime()
-        every { client.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(groupResponse("pit-2", emptyList()))
+        every { client.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(
+            groupResponse("pit-2", emptyList(), "next"),
+        )
         val plan = compiler().compile(
             aggregation {
                 terms("state.product", "product")
@@ -164,6 +206,48 @@ class ElasticsearchAggregationPagerTest {
         )
 
         pager().execute(plan).test().verifyComplete()
+        verify(exactly = 1) { client.search(any<SearchRequest>(), Map::class.java) }
+    }
+
+    @Test
+    fun `group aggregation should normalize boolean keys`() {
+        stubPointInTime()
+        every { client.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(
+            groupResponse(
+                "pit-2",
+                listOf(bucket(FieldValue.TRUE, 1)),
+            ),
+        )
+        val plan = compiler().compile(
+            aggregation {
+                terms("state.active", "product")
+                count("count")
+            },
+        )
+
+        pager().execute(plan).collectList().test()
+            .assertNext { rows -> rows.map { it["product"] }.assert().containsExactly(true) }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `group aggregation should stop after reaching the limit`() {
+        stubPointInTime()
+        every { client.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(
+            groupResponse("pit-2", listOf(bucket("a", 1), bucket("b", 1)), "b"),
+        )
+        val plan = compiler().compile(
+            aggregation {
+                terms("state.product", "product")
+                count("count")
+                limit(2)
+            },
+        )
+
+        pager(batchSize = 2).execute(plan).test()
+            .expectNextCount(2)
+            .verifyComplete()
+        verify(exactly = 1) { client.search(any<SearchRequest>(), Map::class.java) }
     }
 
     @Test
@@ -208,12 +292,11 @@ class ElasticsearchAggregationPagerTest {
 
     private fun compiler() = ElasticsearchAggregationCompiler(SnapshotFilterConverter, mapping = null)
 
-    private fun pager(batchSize: Int = 100) = ElasticsearchAggregationPager(
-        client,
-        "test-index",
-        batchSize,
-        Duration.ofMinutes(1),
-    )
+    private fun pager(batchSize: Int? = null) = if (batchSize == null) {
+        ElasticsearchAggregationPager(client, "test-index")
+    } else {
+        ElasticsearchAggregationPager(client, "test-index", batchSize)
+    }
 
     private fun stubPointInTime(closeRequest: io.mockk.CapturingSlot<ClosePointInTimeRequest>? = null) {
         every { client.openPointInTime(any<OpenPointInTimeRequest>()) } returns Mono.just(
@@ -230,6 +313,10 @@ class ElasticsearchAggregationPagerTest {
     }
 
     private fun bucket(product: String, count: Long): CompositeBucket = CompositeBucket.of {
+        it.key("product", product).docCount(count)
+    }
+
+    private fun bucket(product: FieldValue, count: Long): CompositeBucket = CompositeBucket.of {
         it.key("product", product).docCount(count)
     }
 

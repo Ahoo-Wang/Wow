@@ -14,16 +14,25 @@
 package me.ahoo.wow.query.event.filter
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
+import me.ahoo.wow.query.filter.DefaultQueryContext
 import me.ahoo.wow.query.filter.QueryContext
+import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 
 class DefaultEventStreamQueryHandlerTest {
@@ -106,5 +115,17 @@ class DefaultEventStreamQueryHandlerTest {
             .test()
             .expectNext(0)
             .verifyComplete()
+    }
+
+    @Test
+    fun `event stream tail should reject aggregation queries`() {
+        val context = DefaultQueryContext<AggregationQuery, Flux<DynamicDocument>>(
+            QueryType.AGGREGATION,
+            MOCK_AGGREGATE_METADATA,
+        ).setQuery(AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))))
+
+        assertThrows<IllegalStateException> {
+            tailSnapshotQueryFilter.filter(context, FilterChain { Mono.empty() })
+        }.message.assert().isEqualTo("Event stream query does not support aggregation.")
     }
 }

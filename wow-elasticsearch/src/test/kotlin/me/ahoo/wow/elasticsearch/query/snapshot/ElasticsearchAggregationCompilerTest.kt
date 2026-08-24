@@ -44,13 +44,17 @@ class ElasticsearchAggregationCompilerTest {
                 expand("state.orders") { "status" eq "PAID" }
                 expand("lines") { "quantity" gt 0 }
                 terms("productId", "product")
+                histogram("amount", 10.0, "amountRange")
+                dateHistogram("createdAt", AggregationDateUnit.DAY, "day")
                 sum("amount", "total")
             },
         )
 
         plan.elements.map { it.path }.assert().containsExactly("state.orders", "state.orders.lines")
-        plan.groupSources.single().value().terms().field().assert()
+        plan.groupSources[0].value().terms().field().assert()
             .isEqualTo("state.orders.lines.productId.keyword")
+        plan.groupSources[1].value().histogram().field().assert().isEqualTo("state.orders.lines.amount")
+        plan.groupSources[2].value().dateHistogram().field().assert().isEqualTo("state.orders.lines.createdAt")
         plan.metrics.single().field.assert().isEqualTo("state.orders.lines.amount")
         verifyOrder {
             mapping.requireNested("state.orders")
@@ -59,6 +63,7 @@ class ElasticsearchAggregationCompilerTest {
         verify {
             mapping.resolve("state.orders.lines.productId", ElasticsearchFieldUsage.EXACT)
             mapping.resolve("state.orders.lines.amount", ElasticsearchFieldUsage.RANGE)
+            mapping.resolve("state.orders.lines.createdAt", ElasticsearchFieldUsage.RANGE)
         }
     }
 

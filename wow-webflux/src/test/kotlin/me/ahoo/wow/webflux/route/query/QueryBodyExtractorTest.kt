@@ -79,6 +79,12 @@ class QueryBodyExtractorTest {
         client.post().uri("/sku/snapshot/aggregation").contentType(MediaType.APPLICATION_JSON)
             .bodyValue("{$metric}").exchange().expectStatus().isOk
         client.post().uri("/sku/snapshot/aggregation").contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("{\"condition\":{\"operator\":\"ALL\"},$metric}").exchange().expectStatus().isOk
+        client.post().uri("/sku/snapshot/aggregation").contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(
+                "{\"elements\":[{\"path\":\"state.items\",\"filter\":{\"op\":\"EQ\",\"field\":\"sku\",\"value\":\"a\"}}],$metric}"
+            ).exchange().expectStatus().isOk
+        client.post().uri("/sku/snapshot/aggregation").contentType(MediaType.APPLICATION_JSON)
             .bodyValue("{\"filter\":{\"op\":\"MATCH_ALL\"},\"condition\":{\"operator\":\"ALL\"},$metric}")
             .exchange().expectStatus().isBadRequest
         client.post().uri("/sku/snapshot/aggregation").contentType(MediaType.APPLICATION_JSON)
