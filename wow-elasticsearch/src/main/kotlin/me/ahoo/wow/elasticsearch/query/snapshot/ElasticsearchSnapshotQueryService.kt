@@ -14,6 +14,7 @@
 package me.ahoo.wow.elasticsearch.query.snapshot
 
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.Sort
@@ -32,6 +33,7 @@ import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.convert
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.time.Duration
 
@@ -102,4 +104,17 @@ class ElasticsearchSnapshotQueryService<S : Any>(
 
     override fun resolveSort(mapping: ElasticsearchIndexMapping, sort: List<Sort>): List<Sort> =
         mapping.resolve(sort)
+
+    override fun aggregate(query: AggregationQuery): Flux<DynamicDocument> {
+        val execute: (ElasticsearchIndexMapping?) -> Flux<DynamicDocument> = { mapping ->
+            ElasticsearchAggregationPager(
+                elasticsearchClient,
+                indexName,
+                queryBatchSize,
+                queryKeepAlive,
+            ).execute(ElasticsearchAggregationCompiler(filterConverter, mapping).compile(query))
+        }
+        return indexMappingResolver?.currentOrLoad(indexName)?.flatMapMany(execute)
+            ?: Flux.defer { execute(null) }
+    }
 }
