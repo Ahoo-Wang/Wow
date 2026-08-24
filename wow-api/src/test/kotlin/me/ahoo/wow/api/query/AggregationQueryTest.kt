@@ -79,6 +79,23 @@ class AggregationQueryTest {
     }
 
     @Test
+    fun `groups and metrics should reject internal aliases`() {
+        assertThrows<IllegalArgumentException> {
+            AggregationGroup.Terms(LogicalField("state.status"), "__wow_group")
+        }
+        assertThrows<IllegalArgumentException> {
+            AggregationMetric.Count("__wow_count")
+        }
+        assertThrows<IllegalArgumentException> {
+            AggregationMetric.Numeric(
+                AggregationFunction.SUM,
+                AggregationExpression.Field(LogicalField("state.amount")),
+                "__wow_total",
+            )
+        }
+    }
+
+    @Test
     fun `query should enforce local shape limits and stable group sort`() {
         assertThrows<IllegalArgumentException> { AggregationQuery(metrics = emptyList()) }
         assertThrows<IllegalArgumentException> {

@@ -209,5 +209,6 @@ enum class AggregationFunction {
 
 private fun requireAggregationAlias(alias: String) {
     require('.' !in alias) { "aggregation alias must contain one segment." }
+    require(!alias.startsWith("__wow")) { "aggregation alias must not use the reserved __wow prefix." }
     LogicalField(alias)
 }
