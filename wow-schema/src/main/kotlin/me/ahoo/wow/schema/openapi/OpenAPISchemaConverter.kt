@@ -22,43 +22,6 @@ internal class OpenAPISchemaConverter {
     private val openAPIObjectMapper = ObjectMapperFactory.create(null, true)
 
     fun toSchema(jsonNode: JsonNode): Schema<*> {
-        val schemaValues = jsonNode.toLinkedHashMap()
-        schemaValues.normalizeTypedDefaults()
-        return openAPIObjectMapper.convertValue(schemaValues, Schema::class.java)
-    }
-
-    private fun MutableMap<String, Any>.normalizeTypedDefaults() {
-        val types = when (val type = this["type"]) {
-            is String -> setOf(type)
-            is List<*> -> type.filterIsInstance<String>().toSet()
-            else -> emptySet()
-        }
-        val textualDefault = this["default"] as? String
-        if (textualDefault != null && "string" !in types) {
-            runCatching { openAPIObjectMapper.readValue(textualDefault, Any::class.java) }
-                .getOrNull()
-                ?.takeIf { it.matchesAny(types) }
-                ?.let { this["default"] = it }
-        }
-        values.forEach { it.normalizeNestedDefaults() }
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    private fun Any.normalizeNestedDefaults() {
-        when (this) {
-            is MutableMap<*, *> -> (this as MutableMap<String, Any>).normalizeTypedDefaults()
-            is Iterable<*> -> forEach { it?.normalizeNestedDefaults() }
-        }
-    }
-
-    private fun Any.matchesAny(types: Set<String>): Boolean = types.any { type ->
-        when (type) {
-            "integer" -> this is Byte || this is Short || this is Int || this is Long || this is java.math.BigInteger
-            "number" -> this is Number
-            "boolean" -> this is Boolean
-            "array" -> this is List<*>
-            "object" -> this is Map<*, *>
-            else -> false
-        }
+        return openAPIObjectMapper.convertValue(jsonNode.toLinkedHashMap(), Schema::class.java)
     }
 }
