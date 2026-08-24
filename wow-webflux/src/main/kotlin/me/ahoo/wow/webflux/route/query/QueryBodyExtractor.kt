@@ -73,11 +73,28 @@ class QueryBodyExtractor<Q : Any>(private val queryType: Class<Q>) : BodyExtract
         if (!hasCondition) {
             return strictDecode(objectNode)
         }
-        val condition = objectNode.remove("condition").toObject(Condition::class.java)
+        val conditionNode = objectNode.remove("condition")
+        val condition = if (queryType == AggregationQuery::class.java) {
+            strictDecodeCondition(conditionNode)
+        } else {
+            conditionNode.toObject(Condition::class.java)
+        }
+        if (queryType == AggregationQuery::class.java) {
+            objectNode.set("filter", JsonSerializer.valueToTree(condition.toFilterExpression()))
+            return strictDecode(objectNode)
+        }
         objectNode.set("filter", JsonSerializer.valueToTree(MatchAllFilter))
         val query = objectNode.toObject(queryType)
         @Suppress("UNCHECKED_CAST")
         return (query as FilterCapable<*>).withFilter(condition.toFilterExpression()) as Q
+    }
+
+    private fun strictDecodeCondition(conditionNode: tools.jackson.databind.JsonNode): Condition = try {
+        JsonSerializer.readerFor(Condition::class.java)
+            .with(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+            .readValue(conditionNode)
+    } catch (error: JacksonException) {
+        throw IllegalArgumentException("Invalid filter request body.", error)
     }
 
     @Suppress("UNCHECKED_CAST")

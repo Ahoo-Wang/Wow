@@ -89,6 +89,15 @@ class QueryBodyExtractorTest {
         client.post().uri("/sku/snapshot/aggregation").contentType(MediaType.APPLICATION_JSON)
             .bodyValue("{\"elements\":[{\"path\":\"state.items\",\"filter\":{\"op\":\"EQ\",\"field\":\"sku\",\"value\":[\"a\"]}}],$metric}")
             .exchange().expectStatus().isBadRequest
+        client.post().uri("/sku/snapshot/aggregation").contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("{\"condition\":{\"operator\":\"ALL\",\"unexpected\":true},$metric}")
+            .exchange().expectStatus().isBadRequest
+        client.post().uri("/sku/snapshot/aggregation").contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("{\"condition\":{\"field\":\"state.tags\",\"operator\":\"EQ\",\"value\":[\"a\"]},$metric}")
+            .exchange().expectStatus().isBadRequest
+        client.post().uri("/sku/snapshot/aggregation").contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("{\"condition\":{\"operator\":\"ALL\"},\"elements\":[{\"path\":\"state.items\",\"filter\":{\"op\":\"NE\",\"field\":\"sku\",\"value\":{\"value\":\"a\"},\"unexpected\":true}}],$metric}")
+            .exchange().expectStatus().isBadRequest
     }
 
     @Test
