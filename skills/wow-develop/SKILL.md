@@ -35,7 +35,7 @@ Own the complete development task. Do not route to another Wow Skill.
 | Aggregate, command, event, sourcing, lifecycle, tenant/owner routing | `references/aggregate-sourcing.md` |
 | Saga, Projection, EventProcessor, retry, idempotency | `references/saga-processors.md` |
 | CommandGateway, wait, delivery ambiguity, HTTP command routes | `references/command-delivery.md` |
-| Query DSL, read-model filtering, pagination, projection, sort | `references/query-read-model.md` |
+| FilterExpression, Query DSL, snapshot aggregation, pagination, projection, sort | `references/query-read-model.md` |
 | Spring Boot starter, feature capability, storage or bus routing | `references/starter-storage.md` |
 | Runtime ownership, readiness, fatal handling, drain or shutdown | `references/runtime-lifecycle.md` |
 | Uniqueness, reservation, rollback, or reprepare with PrepareKey | `references/prepare-key.md` |
