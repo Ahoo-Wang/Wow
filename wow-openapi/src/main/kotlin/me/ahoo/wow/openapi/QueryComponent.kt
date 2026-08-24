@@ -145,9 +145,6 @@ object QueryComponent {
             val fields = aggregateMetadata.command.aggregateType.kotlin
                 .commandAggregatedFieldPaths()
                 .sorted()
-            require(fields.isNotEmpty()) {
-                "Aggregate query fields must not be empty: ${aggregateMetadata.toStringWithAlias()}"
-            }
             val key = "${aggregateMetadata.toStringWithAlias()}." +
                 "${aggregateMetadata.command.aggregateType.simpleName}AggregatedFields"
             return componentSchema(key, StringSchema()._enum(fields))

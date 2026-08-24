@@ -26,6 +26,7 @@ import me.ahoo.wow.openapi.ApiResponseBuilder
 import me.ahoo.wow.openapi.RequestBodyBuilder
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.util.Collections
 
 internal class OpenAPIComponentContextTest {
 
@@ -64,6 +65,15 @@ internal class OpenAPIComponentContextTest {
     }
 
     @Test
+    fun `should reject a blank component schema key through the default method`() {
+        val error = assertThrows<IllegalArgumentException> {
+            LegacyOpenAPIComponentContext().componentSchema(" ", StringSchema())
+        }
+
+        error.message.assert().contains("key must not be blank")
+    }
+
+    @Test
     fun `should identify the unwritable legacy context when component schema registration fails`() {
         val error = assertThrows<IllegalStateException> {
             LegacyOpenAPIComponentContext(emptyMap()).componentSchema("example.LegacyFields", StringSchema())
@@ -71,6 +81,19 @@ internal class OpenAPIComponentContextTest {
 
         error.message.assert().contains("example.LegacyFields")
         error.message.assert().contains("LegacyOpenAPIComponentContext")
+    }
+
+    @Test
+    fun `should wrap an unsupported component schema write through the default method`() {
+        val schemas = Collections.unmodifiableMap(mutableMapOf<String, Schema<*>>())
+
+        val error = assertThrows<IllegalStateException> {
+            LegacyOpenAPIComponentContext(schemas).componentSchema("example.LegacyFields", StringSchema())
+        }
+
+        error.message.assert().contains("example.LegacyFields")
+        error.message.assert().contains("unwritable schemas map")
+        error.cause.assert().isInstanceOf(UnsupportedOperationException::class.java)
     }
 }
 
