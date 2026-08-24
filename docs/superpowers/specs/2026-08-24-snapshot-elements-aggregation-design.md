@@ -65,7 +65,15 @@ data class AggregationElement(
 )
 ```
 
-`elements` 是有序父子展开链。例如：
+`elements` 是有序父子展开链。第一层使用快照绝对路径，后续层使用相对上一层的路径。例如：
+
+```text
+state.orders
+lines
+discounts
+```
+
+每层可以声明自己的相对 filter。两个后端按数组顺序将路径规范化为：
 
 ```text
 state.orders
@@ -73,9 +81,9 @@ state.orders.lines
 state.orders.lines.discounts
 ```
 
-每层可以声明自己的 filter。数组中的后一个路径必须严格以 `前一个路径 + "."` 开头，因此重复路径和兄弟集合都会被拒绝。
+数组顺序本身定义展开链，不再校验绝对父子前缀。若调用者声明不存在的相对路径，保留后端结果或错误。
 
-公共 HTTP 模型始终使用绝对路径。Kotlin DSL 在嵌套 `expand {}` 中允许相对路径，但构建结果必须规范化为绝对路径。
+每层 element filter 字段相对当前层。有 Elements 时，group 与 metric 字段相对最内层；没有 Elements 时使用快照绝对路径。HTTP 与 Kotlin DSL 使用同一规则，编译器在生成物理计划前统一转成绝对路径。
 
 ### 分组
 
@@ -95,7 +103,11 @@ Histogram interval 必须是有限正数。DateHistogram 时区直接使用 JDK 
 ### 表达式与指标
 
 ```kotlin
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonTypeInfo(
+    use = JsonTypeInfo.Id.NAME,
+    property = "type",
+    defaultImpl = AggregationExpression.Field::class,
+)
 @JsonSubTypes(JsonSubTypes.Type(AggregationExpression.Field::class, name = "FIELD"))
 interface AggregationExpression {
     data class Field(val field: LogicalField) : AggregationExpression
@@ -114,7 +126,17 @@ sealed interface AggregationMetric {
 }
 ```
 
-首期只注册和支持 `FIELD`。表达式接口不使用 `sealed`，避免以后增加 `ADD`、`MULTIPLY` 或 `COALESCE` 时破坏调用方的穷举 `when`。当前编译器遇到非 `Field` 实现时返回 unsupported error。
+`JsonTypeInfo.defaultImpl` 设置为 `AggregationExpression.Field::class`，因此当前字段表达式可以省略 `type`：
+
+```json
+{
+  "expression": {
+    "field": "amount"
+  }
+}
+```
+
+首期只注册和支持 `FIELD`。以后增加算术表达式时，新表达式使用明确的 `type`；已有字段 JSON 保持不变。表达式接口不使用 `sealed`，避免新增表达式类型破坏调用方的穷举 `when`。当前编译器遇到非 `Field` 实现时返回 unsupported error。
 
 DSL 提供 `sum("state.amount")` 等快捷方法，调用者不需要手工构造 `AggregationExpression.Field`。
 
@@ -124,10 +146,7 @@ DSL 提供 `sum("state.amount")` 等快捷方法，调用者不需要手工构�
 
 - 数量和 limit 不超过固定上限。
 - metrics 不为空。
-- Elements 构成严格父子前缀链。
 - element filter 不包含 ID、租户、所有者、空间、删除、搜索等根级操作符。
-- element filter 中的字段属于当前 element 路径。
-- 存在 Elements 时，group 与 metric 字段属于最内层 element 路径。
 - alias 是非空的单个逻辑路径段、全局唯一，且不使用框架内部保留前缀。
 - sort 字段唯一且只引用 group/metric alias。
 - 无 groupBy 时禁止 sort。
@@ -180,6 +199,8 @@ SnapshotQueryHandler.aggregate
 
 MongoDB 使用独立的内部 `MongoAggregationCompiler`，复用现有 `SnapshotFilterConverter`：
 
+编译器先按 `elements` 顺序把相对路径和 filter 字段解析为绝对快照路径，再生成 pipeline：
+
 ```text
 根 $match
 → 对每个 element 执行 $unwind
@@ -198,6 +219,8 @@ MongoDB 使用独立的内部 `MongoAggregationCompiler`，复用现有 `Snapsho
 ## Elasticsearch 编译
 
 Elasticsearch 使用独立的内部 `ElasticsearchAggregationCompiler`：
+
+编译器先按 `elements` 顺序把相对路径、每层 filter、group 与 metric 字段解析为绝对路径，再生成 aggregation：
 
 ```text
 根 query
@@ -257,8 +280,8 @@ ApiClient 增加独立的 `SnapshotAggregationQueryApi`、`ReactiveSnapshotAggre
 
 测试只覆盖公共合同和真实执行路径：
 
-- `wow-api`：模型构造、JSON 多态、alias/sort/Elements 结构校验。
-- `wow-query`：DSL 相对路径规范化、现有 filter chain、ABAC 与 masker 跳过。
+- `wow-api`：模型构造、缺省 `FIELD` JSON、alias/sort 和请求结构校验。
+- `wow-query`：Elements/filter/group/metric 相对路径规范化、现有 filter chain、ABAC 与 masker 跳过。
 - `wow-mongo`：pipeline 编译和实际集成测试。
 - `wow-elasticsearch`：nested/composite 编译、分页、精确 metric Top-N，以及 PIT 完成/错误/取消清理。
 - 双后端 TCK：根快照聚合、单层/多层 Elements、每层 filter、三种分组、五种指标、空集、null、稳定排序和 limit。
