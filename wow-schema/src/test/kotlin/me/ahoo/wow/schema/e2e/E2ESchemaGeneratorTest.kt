@@ -18,6 +18,7 @@ import com.github.victools.jsonschema.generator.SchemaVersion
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.example.api.order.CreateOrder
 import me.ahoo.wow.example.api.order.OrderCreated
 import me.ahoo.wow.example.domain.cart.Cart
@@ -81,6 +82,12 @@ class E2ESchemaGeneratorTest {
             MockStateAggregate::class.java
         )
         schema.toPrettyString().assert().isEqualTo(loadE2EString("MockStateAggregate"))
+    }
+
+    @Test
+    fun `should generate filter expression schema matching e2e snapshot`() {
+        val schema = jsonSchemaGenerator.generateSchema(FilterExpression::class.java)
+        schema.toPrettyString().assert().isEqualTo(loadE2EString("FilterExpression"))
     }
 
     @Test
