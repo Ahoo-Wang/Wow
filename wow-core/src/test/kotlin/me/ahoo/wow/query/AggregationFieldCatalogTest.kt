@@ -60,6 +60,12 @@ class AggregationFieldCatalogTest {
         }
         catalog.paths.keys.assert().doesNotContain("state.serializedItems.sku")
         catalog.paths.keys.assert().doesNotContain("state.classSerializedItems.sku")
+        catalog.paths.keys.assert().doesNotContain(
+            "state.serializedValue",
+            "state.serializedValue.sku",
+            "state.classSerializedValue",
+            "state.classSerializedValue.sku",
+        )
         catalog.paths.keys.assert().doesNotContain("state.attributes.value")
         catalog.paths["state.scalarItems"]!!.kind.assert().isEqualTo(AggregationFieldKind.SCALAR_COLLECTION)
         catalog.paths.keys.assert().doesNotContain("state.scalarItems.value")
@@ -123,6 +129,10 @@ class AggregationFieldCatalogTest {
         @get:JsonSerialize(contentUsing = ScalarLineSerializer::class)
         val serializedItems: List<Line> = emptyList()
         val classSerializedItems: List<ClassSerializedLine> = emptyList()
+
+        @get:JsonSerialize(using = ScalarLineSerializer::class)
+        val serializedValue: Line = Line("")
+        val classSerializedValue: ClassSerializedLine = ClassSerializedLine("")
         val attributes: Map<String, String> = emptyMap()
     }
 

@@ -21,7 +21,7 @@ import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
-import me.ahoo.wow.webflux.route.query.DefaultRewriteRequestCondition
+import me.ahoo.wow.webflux.route.query.DefaultRewriteRequestFilter
 import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
@@ -104,7 +104,7 @@ class SnapshotAggregationHandlerFunctionTest {
 
     private fun aggregationHandler() = SnapshotAggregationHandlerFunctionFactory(
         RouteTestFixtures.snapshotQueryHandler,
-        DefaultRewriteRequestCondition,
+        DefaultRewriteRequestFilter,
         WebFluxRequestExceptionHandler(),
     ).create(
         testAggregateRouteContract(

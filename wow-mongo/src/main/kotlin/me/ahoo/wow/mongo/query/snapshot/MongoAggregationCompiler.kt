@@ -40,7 +40,7 @@ import me.ahoo.wow.api.query.NotInFilter
 import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.RelativeTimeFilter
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.mongo.query.AbstractMongoConditionConverter
+import me.ahoo.wow.mongo.query.AbstractMongoFilterConverter
 import me.ahoo.wow.query.FilterNormalizer
 import org.bson.BsonType
 import org.bson.Document
@@ -54,21 +54,21 @@ import java.util.Date
 internal object MongoAggregationCompiler {
     fun compile(
         query: AggregationQuery,
-        conditionConverter: AbstractMongoConditionConverter,
+        filterConverter: AbstractMongoFilterConverter,
         temporalFields: Set<String> = emptySet(),
     ): List<Bson> = buildList {
         val elementFilterNormalizer = FilterNormalizer(
             clock = Clock.fixed(Instant.now(), ZoneId.systemDefault()),
             defaultDeletionState = null,
         )
-        add(Aggregates.match(conditionConverter.convert(query.filter)))
+        add(Aggregates.match(filterConverter.convert(query.filter)))
         query.elements.forEach { element ->
             val field = SnapshotFieldConverter.convert(element.path)
             add(Aggregates.unwind("\$$field", UnwindOptions().preserveNullAndEmptyArrays(false)))
             val filters = mutableListOf<Bson>(Filters.type(field, BsonType.DOCUMENT))
             if (element.filter !== MatchAllFilter) {
                 filters += element.filter.toMongoElementFilter(
-                    conditionConverter,
+                    filterConverter,
                     elementFilterNormalizer,
                     temporalFields,
                 )
@@ -180,32 +180,32 @@ internal object MongoAggregationCompiler {
     private fun Sort.Direction.toMongoDirection(): Int = if (this == Sort.Direction.ASC) 1 else -1
 
     private fun FilterExpression.toMongoElementFilter(
-        conditionConverter: AbstractMongoConditionConverter,
+        filterConverter: AbstractMongoFilterConverter,
         normalizer: FilterNormalizer,
         temporalFields: Set<String>,
     ): Bson = when (this) {
         is AndFilter -> Filters.and(
-            operands.map { it.toMongoElementFilter(conditionConverter, normalizer, temporalFields) }
+            operands.map { it.toMongoElementFilter(filterConverter, normalizer, temporalFields) }
         )
         is OrFilter -> Filters.or(
-            operands.map { it.toMongoElementFilter(conditionConverter, normalizer, temporalFields) }
+            operands.map { it.toMongoElementFilter(filterConverter, normalizer, temporalFields) }
         )
         is NorFilter -> Filters.nor(
-            operands.map { it.toMongoElementFilter(conditionConverter, normalizer, temporalFields) }
+            operands.map { it.toMongoElementFilter(filterConverter, normalizer, temporalFields) }
         )
         is RelativeTimeFilter -> normalizer.normalize(this).toMongoRelativeTimeFilter()
         is EqualFilter,
         is NotEqualFilter,
         is InFilter,
         is NotInFilter,
-        -> temporalExact(temporalFields) ?: conditionConverter.convert(withoutDefaultDeletionScope())
+        -> temporalExact(temporalFields) ?: filterConverter.convert(withoutDefaultDeletionScope())
         is GreaterThanFilter,
         is GreaterThanOrEqualFilter,
         is LessThanFilter,
         is LessThanOrEqualFilter,
         is BetweenFilter,
-        -> temporalRange(temporalFields) ?: conditionConverter.convert(withoutDefaultDeletionScope())
-        else -> conditionConverter.convert(withoutDefaultDeletionScope())
+        -> temporalRange(temporalFields) ?: filterConverter.convert(withoutDefaultDeletionScope())
+        else -> filterConverter.convert(withoutDefaultDeletionScope())
     }
 
     private fun FilterExpression.toMongoRelativeTimeFilter(): Bson = when (this) {

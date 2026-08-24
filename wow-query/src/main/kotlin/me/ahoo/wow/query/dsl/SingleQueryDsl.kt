@@ -19,12 +19,12 @@ import me.ahoo.wow.api.query.SingleQuery
 /**
  * Represents a DSL for constructing a single query. This class extends [QueryableDsl] and is specifically
  * designed to build instances of [ISingleQuery]. It allows for the fluent and type-safe construction of queries,
- * including setting up projections, conditions, and sorting.
+ * including setting up projections, filters, and sorting.
  *
  * Example usage:
  * ```kotlin
  * val query = singleQuery {
- *     condition {
+ *     filter {
  *         "name" eq "John Doe"
  *     }
  *     projection {

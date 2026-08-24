@@ -15,9 +15,9 @@ package me.ahoo.wow.query.snapshot.filter
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AndFilter
-import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.toFilterExpression
+import me.ahoo.wow.api.query.OwnerIdFilter
+import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.query.filter.DefaultQueryContext
 import me.ahoo.wow.query.filter.QueryType
@@ -34,10 +34,8 @@ class CountSnapshotQueryContextTest {
         )
         val query = filter { }
         context.setQuery(query)
-        context.appendFilter(Condition.tenantId("tenantId").toFilterExpression())
-        context.getQuery().assert().isEqualTo(
-            Condition.tenantId("tenantId").toFilterExpression()
-        )
+        context.appendFilter(TenantIdFilter("tenantId"))
+        context.getQuery().assert().isEqualTo(TenantIdFilter("tenantId"))
     }
 
     @Test
@@ -50,9 +48,9 @@ class CountSnapshotQueryContextTest {
             "field1" eq "value1"
         }
         context.setQuery(query)
-        context.appendFilter(Condition.ownerId("ownerId").toFilterExpression())
+        context.appendFilter(OwnerIdFilter("ownerId"))
         val operands = (context.getQuery() as AndFilter).operands
         operands.assert().hasSize(2)
-        operands.last().assert().isEqualTo(Condition.ownerId("ownerId").toFilterExpression())
+        operands.last().assert().isEqualTo(OwnerIdFilter("ownerId"))
     }
 }

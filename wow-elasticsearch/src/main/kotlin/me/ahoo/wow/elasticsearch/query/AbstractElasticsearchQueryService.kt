@@ -41,7 +41,7 @@ import java.time.Duration
 
 abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
     abstract val elasticsearchClient: ReactiveElasticsearchClient
-    abstract val conditionConverter: AbstractElasticsearchConditionConverter
+    abstract val filterConverter: AbstractElasticsearchFilterConverter
     abstract val indexName: String
     protected open val queryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE
     protected open val queryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE
@@ -195,7 +195,7 @@ abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
 
     private fun compile(filter: FilterExpression, sort: List<Sort>): ResolvedQuery =
         ResolvedQuery(
-            query = conditionConverter.convert(filter),
+            query = filterConverter.convert(filter),
             sortOptions = sort.toSortOptions(),
         )
 

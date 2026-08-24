@@ -16,6 +16,7 @@ package me.ahoo.wow.query.event
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.query.dsl.condition
+import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.pagedQuery
 import me.ahoo.wow.query.dsl.singleQuery
@@ -104,7 +105,7 @@ class NoOpSnapshotQueryServiceFactoryTest {
 
     @Test
     fun `should return zero count`() {
-        condition {
+        filterExpression {
             "test" eq "test"
         }.count(queryService)
             .test()

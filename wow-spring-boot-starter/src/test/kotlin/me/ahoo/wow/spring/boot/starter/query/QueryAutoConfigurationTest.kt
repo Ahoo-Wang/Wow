@@ -7,9 +7,9 @@ import me.ahoo.wow.api.abac.AbacTags
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.exception.WowException
@@ -79,14 +79,14 @@ class QueryAutoConfigurationTest {
                 context.getBean(
                     ExistsBeanName.SNAPSHOT_QUERY_SERVICE,
                     SnapshotQueryService::class.java,
-                ).count(Condition.ALL)
+                ).count(MatchAllFilter)
                     .test()
                     .expectErrorSatisfies(::assertUnavailable)
                     .verify()
                 context.getBean(
                     ExistsBeanName.EVENT_STREAM_QUERY_SERVICE,
                     EventStreamQueryService::class.java,
-                ).count(Condition.ALL)
+                ).count(MatchAllFilter)
                     .test()
                     .expectErrorSatisfies(::assertUnavailable)
                     .verify()
@@ -117,14 +117,14 @@ class QueryAutoConfigurationTest {
                 context.getBean(
                     ExistsBeanName.SNAPSHOT_QUERY_SERVICE,
                     SnapshotQueryService::class.java,
-                ).count(Condition.ALL)
+                ).count(MatchAllFilter)
                     .test()
                     .expectNext(0L)
                     .verifyComplete()
                 context.getBean(
                     ExistsBeanName.EVENT_STREAM_QUERY_SERVICE,
                     EventStreamQueryService::class.java,
-                ).count(Condition.ALL)
+                ).count(MatchAllFilter)
                     .test()
                     .expectNext(0L)
                     .verifyComplete()

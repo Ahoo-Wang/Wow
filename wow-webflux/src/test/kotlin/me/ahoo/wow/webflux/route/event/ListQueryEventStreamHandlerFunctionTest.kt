@@ -14,14 +14,14 @@
 package me.ahoo.wow.webflux.route.event
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
-import me.ahoo.wow.webflux.route.query.DefaultRewriteRequestCondition
+import me.ahoo.wow.webflux.route.query.DefaultRewriteRequestFilter
 import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
@@ -36,7 +36,7 @@ class ListQueryEventStreamHandlerFunctionTest {
         val handlerFunction =
             ListQueryEventStreamHandlerFunctionFactory(
                 eventStreamQueryHandler = RouteTestFixtures.eventStreamQueryHandler,
-                rewriteRequestCondition = DefaultRewriteRequestCondition,
+                rewriteRequestFilter = DefaultRewriteRequestFilter,
                 exceptionHandler = WebFluxRequestExceptionHandler()
             )
                 .create(
@@ -48,7 +48,7 @@ class ListQueryEventStreamHandlerFunctionTest {
 
         val request = MockServerRequest.builder()
             .pathVariable(MessageRecords.OWNER_ID, generateGlobalId())
-            .body(ListQuery(Condition.ALL).toMono())
+            .body(ListQuery(MatchAllFilter).toMono())
         handlerFunction.handle(request)
             .test()
             .consumeNextWith {

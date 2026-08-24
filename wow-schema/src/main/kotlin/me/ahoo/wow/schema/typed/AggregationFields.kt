@@ -11,20 +11,12 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.mongo.query.snapshot
+package me.ahoo.wow.schema.typed
 
-import me.ahoo.wow.api.query.Condition
-import me.ahoo.wow.mongo.query.AbstractMongoConditionConverter
-import me.ahoo.wow.query.converter.FieldConverter
-import org.bson.conversions.Bson
+interface SnapshotAggregationTermsFields<CommandAggregateType : Any>
 
-object SnapshotConditionConverter : AbstractMongoConditionConverter() {
-    override val fieldConverter: FieldConverter = SnapshotFieldConverter
-    override fun aggregateId(condition: Condition): Bson {
-        return id(condition)
-    }
+interface SnapshotAggregationNumericFields<CommandAggregateType : Any>
 
-    override fun aggregateIds(condition: Condition): Bson {
-        return ids(condition)
-    }
-}
+interface SnapshotAggregationTemporalFields<CommandAggregateType : Any>
+
+interface SnapshotAggregationElements<CommandAggregateType : Any>

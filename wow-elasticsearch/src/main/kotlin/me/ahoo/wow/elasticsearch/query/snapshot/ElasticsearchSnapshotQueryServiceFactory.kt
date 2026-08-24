@@ -55,7 +55,7 @@ class ElasticsearchSnapshotQueryServiceFactory(
         return ElasticsearchSnapshotQueryService<Any>(
             namedAggregate,
             elasticsearchClient,
-            SnapshotConditionConverter,
+            SnapshotFilterConverter,
             queryBatchSize,
             queryKeepAlive,
             indexMappingResolver,

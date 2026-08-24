@@ -23,7 +23,7 @@ import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.query.QueryBodyExtractor.Companion.AGGREGATION_QUERY_EXTRACTOR
-import me.ahoo.wow.webflux.route.query.RewriteRequestCondition
+import me.ahoo.wow.webflux.route.query.RewriteRequestFilter
 import me.ahoo.wow.webflux.route.toServerResponse
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -33,7 +33,7 @@ import reactor.core.publisher.Mono
 class SnapshotAggregationHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val snapshotQueryHandler: SnapshotQueryHandler,
-    private val rewriteRequestCondition: RewriteRequestCondition,
+    private val rewriteRequestFilter: RewriteRequestFilter,
     private val exceptionHandler: RequestExceptionHandler,
 ) : HandlerFunction<ServerResponse> {
     override fun handle(request: ServerRequest): Mono<ServerResponse> =
@@ -41,7 +41,7 @@ class SnapshotAggregationHandlerFunction(
             .flatMapMany { query ->
                 snapshotQueryHandler.aggregate(
                     aggregateMetadata,
-                    rewriteRequestCondition.rewriteFilter(aggregateMetadata, request, query),
+                    rewriteRequestFilter.rewriteFilter(aggregateMetadata, request, query),
                 ).writeUserQuery(query)
             }.writeRawRequest(request)
             .toServerResponse(request, exceptionHandler)
@@ -49,7 +49,7 @@ class SnapshotAggregationHandlerFunction(
 
 class SnapshotAggregationHandlerFunctionFactory(
     private val snapshotQueryHandler: SnapshotQueryHandler,
-    private val rewriteRequestCondition: RewriteRequestCondition,
+    private val rewriteRequestFilter: RewriteRequestFilter,
     private val exceptionHandler: RequestExceptionHandler,
 ) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Snapshot.AGGREGATION) {
     override fun create(
@@ -58,7 +58,7 @@ class SnapshotAggregationHandlerFunctionFactory(
     ): HandlerFunction<ServerResponse> = SnapshotAggregationHandlerFunction(
         aggregateMetadata = aggregateMetadata(metadata),
         snapshotQueryHandler = snapshotQueryHandler,
-        rewriteRequestCondition = rewriteRequestCondition,
+        rewriteRequestFilter = rewriteRequestFilter,
         exceptionHandler = exceptionHandler,
     )
 }

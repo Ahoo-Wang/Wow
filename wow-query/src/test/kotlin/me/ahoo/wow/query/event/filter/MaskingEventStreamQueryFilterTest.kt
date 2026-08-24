@@ -15,11 +15,11 @@ package me.ahoo.wow.query.event.filter
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.event.DomainEventStream
@@ -97,7 +97,7 @@ class MaskingEventStreamQueryFilterTest {
 
     @Test
     fun `should return count without masking`() {
-        queryHandler.count(MOCK_AGGREGATE_METADATA, Condition.ALL)
+        queryHandler.count(MOCK_AGGREGATE_METADATA, MatchAllFilter)
             .test()
             .consumeNextWith {
                 it.assert().isOne()

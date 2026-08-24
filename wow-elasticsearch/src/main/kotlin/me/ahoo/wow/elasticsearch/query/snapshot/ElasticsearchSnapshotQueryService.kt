@@ -30,7 +30,7 @@ import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
-import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchConditionConverter
+import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterConverter
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchQueryService
 import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
@@ -54,22 +54,22 @@ import java.util.PriorityQueue
 class ElasticsearchSnapshotQueryService<S : Any>(
     override val namedAggregate: NamedAggregate,
     override val elasticsearchClient: ReactiveElasticsearchClient,
-    override val conditionConverter: AbstractElasticsearchConditionConverter = SnapshotConditionConverter
+    override val filterConverter: AbstractElasticsearchFilterConverter = SnapshotFilterConverter
 ) : AbstractElasticsearchQueryService<MaterializedSnapshot<S>>(), SnapshotQueryService<S> {
     private var configuredQueryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE
     private var configuredQueryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE
     private var configuredIndexMappingResolver: ElasticsearchIndexMappingResolver? =
-        conditionConverter
-            .takeIf { it === SnapshotConditionConverter }
+        filterConverter
+            .takeIf { it === SnapshotFilterConverter }
             ?.let { ElasticsearchIndexMappingResolver(elasticsearchClient) }
 
     constructor(
         namedAggregate: NamedAggregate,
         elasticsearchClient: ReactiveElasticsearchClient,
-        conditionConverter: AbstractElasticsearchConditionConverter,
+        filterConverter: AbstractElasticsearchFilterConverter,
         queryBatchSize: Int,
         queryKeepAlive: Duration,
-    ) : this(namedAggregate, elasticsearchClient, conditionConverter) {
+    ) : this(namedAggregate, elasticsearchClient, filterConverter) {
         configuredQueryBatchSize = queryBatchSize
         configuredQueryKeepAlive = queryKeepAlive
     }
@@ -77,13 +77,13 @@ class ElasticsearchSnapshotQueryService<S : Any>(
     constructor(
         namedAggregate: NamedAggregate,
         elasticsearchClient: ReactiveElasticsearchClient,
-        conditionConverter: AbstractElasticsearchConditionConverter,
+        filterConverter: AbstractElasticsearchFilterConverter,
         queryBatchSize: Int,
         queryKeepAlive: Duration,
         indexMappingResolver: ElasticsearchIndexMappingResolver,
-    ) : this(namedAggregate, elasticsearchClient, conditionConverter, queryBatchSize, queryKeepAlive) {
+    ) : this(namedAggregate, elasticsearchClient, filterConverter, queryBatchSize, queryKeepAlive) {
+        configuredIndexMappingResolver = indexMappingResolver.takeIf { filterConverter === SnapshotFilterConverter }
         aggregationMappingResolver = indexMappingResolver
-        configuredIndexMappingResolver = indexMappingResolver.takeIf { conditionConverter === SnapshotConditionConverter }
     }
 
     override val name: String
@@ -123,13 +123,13 @@ class ElasticsearchSnapshotQueryService<S : Any>(
     override fun aggregate(query: AggregationQuery): Flux<DynamicDocument> = Flux.defer {
         AggregationQueryValidator.validate(query, namedAggregate)
         val plan = if (configuredIndexMappingResolver == null && query.isRootCountOnly) {
-            Mono.just(ElasticsearchAggregationCompiler.compileCount(query, conditionConverter))
+            Mono.just(ElasticsearchAggregationCompiler.compileCount(query, filterConverter))
         } else {
             aggregationMappingResolver.currentOrLoad(indexName).map { mapping ->
                 ElasticsearchAggregationCompiler.compile(
                     query = query,
                     mapping = mapping,
-                    conditionConverter = conditionConverter,
+                    filterConverter = filterConverter,
                     resolveFilter = if (configuredIndexMappingResolver == null) {
                         { filter -> filter }
                     } else {

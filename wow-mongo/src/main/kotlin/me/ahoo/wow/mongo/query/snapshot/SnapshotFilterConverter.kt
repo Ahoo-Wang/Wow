@@ -11,12 +11,11 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema.typed.query
+package me.ahoo.wow.mongo.query.snapshot
 
-import me.ahoo.wow.api.query.ConditionOptions
-import me.ahoo.wow.schema.typed.TypedCustomDefinitionProvider
+import me.ahoo.wow.mongo.query.AbstractMongoFilterConverter
+import me.ahoo.wow.query.converter.FieldConverter
 
-object ConditionOptionsDefinitionProvider : TypedCustomDefinitionProvider() {
-    override val type: Class<*>
-        get() = ConditionOptions::class.java
+object SnapshotFilterConverter : AbstractMongoFilterConverter() {
+    override val fieldConverter: FieldConverter = SnapshotFieldConverter
 }

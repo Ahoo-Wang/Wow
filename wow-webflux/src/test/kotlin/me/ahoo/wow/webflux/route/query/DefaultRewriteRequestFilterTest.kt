@@ -14,14 +14,14 @@
 package me.ahoo.wow.webflux.route.query
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.AndFilter
+import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.LogicalField
-import me.ahoo.wow.api.query.MatchAllFilter
-import me.ahoo.wow.api.query.RewritableCondition
+import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.SearchFilter
-import me.ahoo.wow.api.query.toCondition
-import me.ahoo.wow.api.query.toFilterExpression
+import me.ahoo.wow.api.query.SpaceIdFilter
+import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.serialization.MessageRecords
@@ -29,14 +29,13 @@ import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
 
-class DefaultRewriteRequestConditionTest {
+class DefaultRewriteRequestFilterTest {
 
     @Test
-    fun `should not rewrite condition when no tenant or owner headers`() {
+    fun `should not rewrite filter when no tenant or owner headers`() {
         val request = MockServerRequest.builder().build()
-        val originalCondition = Condition("id")
-        val originalFilter = originalCondition.toFilterExpression()
-        val result = DefaultRewriteRequestCondition.rewrite(
+        val originalFilter = IdFilter("id")
+        val result = DefaultRewriteRequestFilter.rewrite(
             MOCK_AGGREGATE_METADATA,
             request,
             originalFilter
@@ -45,48 +44,48 @@ class DefaultRewriteRequestConditionTest {
     }
 
     @Test
-    fun `should append tenant condition from header`() {
+    fun `should append tenant filter from header`() {
         val tenantId = "tenant-123"
         val request = MockServerRequest.builder()
             .header(CommandComponent.Header.TENANT_ID, tenantId)
             .build()
-        val originalCondition = Condition("id")
-        val result = DefaultRewriteRequestCondition.rewrite(
+        val originalFilter = IdFilter("id")
+        val result = DefaultRewriteRequestFilter.rewrite(
             MOCK_AGGREGATE_METADATA,
             request,
-            ListQuery(condition = originalCondition)
+            ListQuery(originalFilter)
         )
-        result.filter.assert().isNotSameAs(originalCondition.toFilterExpression())
+        result.filter.assert().isEqualTo(AndFilter(listOf(originalFilter, TenantIdFilter(tenantId))))
     }
 
     @Test
-    fun `should append owner condition from path variable`() {
+    fun `should append owner filter from path variable`() {
         val ownerId = "owner-123"
         val request = MockServerRequest.builder()
             .pathVariable(MessageRecords.OWNER_ID, ownerId)
             .build()
-        val originalCondition = Condition("id")
-        val result = DefaultRewriteRequestCondition.rewrite(
+        val originalFilter = IdFilter("id")
+        val result = DefaultRewriteRequestFilter.rewrite(
             MOCK_AGGREGATE_METADATA,
             request,
-            ListQuery(condition = originalCondition)
+            ListQuery(originalFilter)
         )
-        result.filter.assert().isNotSameAs(originalCondition.toFilterExpression())
+        result.filter.assert().isEqualTo(AndFilter(listOf(originalFilter, OwnerIdFilter(ownerId))))
     }
 
     @Test
-    fun `should append space condition from header`() {
+    fun `should append space filter from header`() {
         val spaceId = "space-123"
         val request = MockServerRequest.builder()
             .header(CommonComponent.Header.SPACE_ID, spaceId)
             .build()
-        val originalCondition = Condition("id")
-        val result = DefaultRewriteRequestCondition.rewrite(
+        val originalFilter = IdFilter("id")
+        val result = DefaultRewriteRequestFilter.rewrite(
             MOCK_AGGREGATE_METADATA,
             request,
-            ListQuery(condition = originalCondition)
+            ListQuery(originalFilter)
         )
-        result.filter.assert().isNotSameAs(originalCondition.toFilterExpression())
+        result.filter.assert().isEqualTo(AndFilter(listOf(originalFilter, SpaceIdFilter(spaceId))))
     }
 
     @Test
@@ -96,32 +95,12 @@ class DefaultRewriteRequestConditionTest {
             fields = linkedSetOf(LogicalField("state.name"), LogicalField("state.description")),
         )
 
-        val rewritten = DefaultRewriteRequestCondition.rewrite(
+        val rewritten = DefaultRewriteRequestFilter.rewrite(
             MOCK_AGGREGATE_METADATA,
             MockServerRequest.builder().build(),
             ListQuery(search),
         )
 
         rewritten.filter.assert().isEqualTo(search)
-    }
-
-    @Suppress("DEPRECATION")
-    @Test
-    fun `new filter rewrite should delegate to a legacy implementation`() {
-        val legacy = object : RewriteRequestCondition {
-            override fun <Q : RewritableCondition<Q>> rewrite(
-                aggregateMetadata: me.ahoo.wow.modeling.metadata.AggregateMetadata<*, *>,
-                request: org.springframework.web.reactive.function.server.ServerRequest,
-                rewritableCondition: Q,
-            ): Q = rewritableCondition.appendCondition(Condition.eq("legacy", true))
-        }
-
-        val rewritten = legacy.rewrite(
-            MOCK_AGGREGATE_METADATA,
-            MockServerRequest.builder().build(),
-            MatchAllFilter,
-        )
-
-        rewritten.toCondition().assert().isEqualTo(Condition.eq("legacy", true))
     }
 }

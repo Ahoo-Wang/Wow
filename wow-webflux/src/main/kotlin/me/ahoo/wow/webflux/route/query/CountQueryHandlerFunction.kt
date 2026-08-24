@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.webflux.route.query
 
-import me.ahoo.wow.api.query.legacyConditionOrNull
+import me.ahoo.wow.api.query.toExecutableFilter
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
@@ -31,23 +31,19 @@ import reactor.core.publisher.Mono
 class CountQueryHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val queryHandler: QueryHandler<*>,
-    private val rewriteRequestCondition: RewriteRequestCondition,
+    private val rewriteRequestFilter: RewriteRequestFilter,
     private val exceptionHandler: RequestExceptionHandler,
 ) : HandlerFunction<ServerResponse> {
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         return request.body(FILTER_EXPRESSION_EXTRACTOR)
             .flatMap { filter ->
-                val result = filter.legacyConditionOrNull()?.let { condition ->
-                    queryHandler.count(
-                        aggregateMetadata,
-                        rewriteRequestCondition.rewrite(aggregateMetadata, request, condition),
-                    )
-                } ?: queryHandler.count(
+                val executable = filter.toExecutableFilter()
+                val rewritten = rewriteRequestFilter.rewrite(aggregateMetadata, request, executable)
+                queryHandler.count(
                     aggregateMetadata,
-                    rewriteRequestCondition.rewrite(aggregateMetadata, request, filter),
-                )
-                result.writeRawRequest(request)
+                    rewritten,
+                ).writeRawRequest(request)
             }.toServerResponse(request, exceptionHandler)
     }
 }
@@ -55,7 +51,7 @@ class CountQueryHandlerFunction(
 open class CountQueryHandlerFunctionFactory(
     handlerKey: String,
     private val queryHandler: QueryHandler<*>,
-    private val rewriteRequestCondition: RewriteRequestCondition,
+    private val rewriteRequestFilter: RewriteRequestFilter,
     private val exceptionHandler: RequestExceptionHandler
 ) : AggregateRouteHandlerFunctionFactorySupport(handlerKey) {
     override fun create(
@@ -69,7 +65,7 @@ open class CountQueryHandlerFunctionFactory(
         return CountQueryHandlerFunction(
             aggregateMetadata = aggregateMetadata,
             queryHandler = queryHandler,
-            rewriteRequestCondition = rewriteRequestCondition,
+            rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler
         )
     }

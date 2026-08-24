@@ -20,6 +20,7 @@ import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.query.dsl.condition
+import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.pagedQuery
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -135,7 +136,7 @@ class NoOpSnapshotQueryServiceTest {
 
     @Test
     fun `should return zero count`() {
-        condition {
+        filterExpression {
             "test" eq "test"
         }.count(queryService)
             .test()

@@ -11,18 +11,12 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.elasticsearch.query.snapshot
+package me.ahoo.wow.elasticsearch.query.event
 
-import co.elastic.clients.elasticsearch._types.query_dsl.Query
-import me.ahoo.wow.api.query.Condition
-import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchConditionConverter
+import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterConverter
+import me.ahoo.wow.serialization.MessageRecords
 
-object SnapshotConditionConverter : AbstractElasticsearchConditionConverter() {
-    override fun aggregateId(condition: Condition): Query {
-        return id(condition)
-    }
-
-    override fun aggregateIds(condition: Condition): Query {
-        return ids(condition)
-    }
-}
+object EventStreamFilterConverter : AbstractElasticsearchFilterConverter(
+    defaultDeletionState = null,
+    documentIdField = MessageRecords.ID,
+)

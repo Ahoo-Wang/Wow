@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-@file:Suppress("NoWildcardImports", "WildcardImport")
+@file:Suppress("DEPRECATION", "NoWildcardImports", "WildcardImport")
 
 package me.ahoo.wow.elasticsearch.query
 
@@ -35,8 +35,6 @@ import co.elastic.clients.elasticsearch._types.mapping.TokenCountProperty
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch.indices.GetMappingRequest
 import me.ahoo.wow.api.query.*
-import me.ahoo.wow.api.query.Condition
-import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.api.query.Sort
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
@@ -166,60 +164,34 @@ data class ElasticsearchIndexMapping private constructor(
         return field
     }
 
-    fun resolve(condition: Condition): Condition =
-        when (condition.operator) {
-            Operator.AND,
-            Operator.OR,
-            Operator.NOR,
-            -> condition.copy(children = condition.children.map(::resolve))
-
-            Operator.EQ,
-            Operator.NE,
-            Operator.IN,
-            Operator.NOT_IN,
-            Operator.ALL_IN,
-            Operator.TRUE,
-            Operator.FALSE,
-            -> condition.withResolvedField(ElasticsearchFieldUsage.EXACT)
-
-            Operator.CONTAINS,
-            Operator.STARTS_WITH,
-            Operator.ENDS_WITH,
-            -> condition.withResolvedField(ElasticsearchFieldUsage.LITERAL)
-
-            Operator.GT,
-            Operator.LT,
-            Operator.GTE,
-            Operator.LTE,
-            Operator.BETWEEN,
-            Operator.TODAY,
-            Operator.BEFORE_TODAY,
-            Operator.TOMORROW,
-            Operator.THIS_WEEK,
-            Operator.NEXT_WEEK,
-            Operator.LAST_WEEK,
-            Operator.THIS_MONTH,
-            Operator.LAST_MONTH,
-            Operator.RECENT_DAYS,
-            Operator.EARLIER_DAYS,
-            -> condition.withResolvedField(ElasticsearchFieldUsage.RANGE)
-
-            Operator.MATCH -> condition.withResolvedField(ElasticsearchFieldUsage.MATCH)
-            Operator.ELEM_MATCH -> condition.copy(
-                field = requireNested(condition.field),
-                children = condition.children.map(::resolve),
-            )
-
-            else -> condition
-        }
-
     fun resolve(filter: FilterExpression): FilterExpression = resolve(filter, null)
 
     private fun resolve(filter: FilterExpression, parent: String?): FilterExpression =
-        filter.legacyConditionOrNull()?.let { resolve(it).toFilterExpression() } ?: resolveTyped(filter, parent)
+        filter.legacyConditionOrNull()?.let { resolveLegacy(it, parent) }
+            ?: resolveTyped(filter, parent)
 
-    @Suppress("CyclomaticComplexMethod")
+    private fun resolveLegacy(condition: Condition, parent: String?): FilterExpression = when (condition.operator) {
+        Operator.AND -> AndFilter(condition.children.map { resolve(it.toFilterExpression(), parent) })
+        Operator.OR -> OrFilter(condition.children.map { resolve(it.toFilterExpression(), parent) })
+        Operator.NOR -> NorFilter(condition.children.map { resolve(it.toFilterExpression(), parent) })
+        Operator.MATCH -> condition.copy(
+            field = condition.field.takeIf(String::isNotBlank)
+                ?.let { LogicalField(it).resolve(parent, ElasticsearchFieldUsage.MATCH).value }
+                .orEmpty(),
+        ).toFilterExpression()
+        else -> resolveTyped(condition.toFilterExpression().toExecutableFilter(), parent)
+    }
+
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
     private fun resolveTyped(filter: FilterExpression, parent: String?): FilterExpression = when (filter) {
+        is IdFilter,
+        is IdsFilter,
+        is AggregateIdFilter,
+        is AggregateIdsFilter,
+        is TenantIdFilter,
+        is OwnerIdFilter,
+        is SpaceIdFilter,
+        -> filter
         is AndFilter -> AndFilter(filter.operands.map { resolve(it, parent) })
         is OrFilter -> OrFilter(filter.operands.map { resolve(it, parent) })
         is NorFilter -> NorFilter(filter.operands.map { resolve(it, parent) })
@@ -291,9 +263,6 @@ data class ElasticsearchIndexMapping private constructor(
                 )
             }
         }
-
-    private fun Condition.withResolvedField(usage: ElasticsearchFieldUsage): Condition =
-        copy(field = resolve(field, usage))
 
     private fun resolutionFailure(message: String): Nothing =
         throw ElasticsearchFieldResolutionException(message)

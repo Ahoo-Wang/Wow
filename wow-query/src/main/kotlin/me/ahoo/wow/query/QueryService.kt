@@ -24,6 +24,7 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.toCondition
+import me.ahoo.wow.api.query.toExecutableFilter
 import me.ahoo.wow.api.query.toFilterExpression
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -46,5 +47,6 @@ interface QueryService<R : Any> : NamedAggregateDecorator {
     fun count(filter: FilterExpression): Mono<Long> = count(filter.toCondition())
 
     @Deprecated("Use count(FilterExpression).")
-    fun count(condition: Condition): Mono<Long> = count(condition.toFilterExpression())
+    fun count(condition: Condition): Mono<Long> =
+        count(condition.toFilterExpression().toExecutableFilter())
 }

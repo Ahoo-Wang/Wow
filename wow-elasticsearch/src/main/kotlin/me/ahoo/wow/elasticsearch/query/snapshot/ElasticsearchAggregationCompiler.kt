@@ -31,20 +31,20 @@ import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchConditionConverter
+import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterConverter
 import me.ahoo.wow.elasticsearch.query.ElasticsearchFieldUsage
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
 
 internal object ElasticsearchAggregationCompiler {
     fun compileCount(
         query: AggregationQuery,
-        conditionConverter: AbstractElasticsearchConditionConverter,
+        filterConverter: AbstractElasticsearchFilterConverter,
     ): ElasticsearchAggregationPlan {
         require(query.isRootCountOnly) {
             "Mapping-free aggregation supports only root Count metrics."
         }
         return ElasticsearchAggregationPlan(
-            query = conditionConverter.convert(query.filter),
+            query = filterConverter.convert(query.filter),
             aggregationQuery = query,
             elements = emptyList(),
         )
@@ -53,7 +53,7 @@ internal object ElasticsearchAggregationCompiler {
     fun compile(
         query: AggregationQuery,
         mapping: ElasticsearchIndexMapping,
-        conditionConverter: AbstractElasticsearchConditionConverter,
+        filterConverter: AbstractElasticsearchFilterConverter,
         resolveFilter: (FilterExpression) -> FilterExpression = mapping::resolve,
     ): ElasticsearchAggregationPlan {
         val elements = query.elements.mapIndexed { index, element ->
@@ -62,12 +62,12 @@ internal object ElasticsearchAggregationCompiler {
             )
             ResolvedElement(
                 path = mapping.requireNested(element.path),
-                filter = conditionConverter.convert(resolveFilter(elementFilter)),
+                filter = filterConverter.convert(resolveFilter(elementFilter)),
                 index = index,
             )
         }
         return ElasticsearchAggregationPlan(
-            query = conditionConverter.convert(resolveFilter(query.filter)),
+            query = filterConverter.convert(resolveFilter(query.filter)),
             aggregationQuery = query,
             elements = elements,
             resolvedGroupFields = query.groupBy.associate { group ->

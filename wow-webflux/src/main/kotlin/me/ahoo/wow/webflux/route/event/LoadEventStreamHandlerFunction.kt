@@ -44,10 +44,10 @@ class LoadEventStreamHandlerFunction(
         val tailVersion = request.pathVariable(BatchComponent.PathVariable.TAIL_VERSION).toInt()
         val limit = tailVersion - headVersion + 1
         val listQuery = listQuery {
-            condition {
+            filter {
                 tenantId(tenantId)
                 MessageRecords.AGGREGATE_ID eq id
-                MessageRecords.VERSION between headVersion to tailVersion
+                MessageRecords.VERSION.between(headVersion, tailVersion)
             }
             limit(limit)
         }

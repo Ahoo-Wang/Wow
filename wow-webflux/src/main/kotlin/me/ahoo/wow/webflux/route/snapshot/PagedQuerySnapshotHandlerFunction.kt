@@ -17,15 +17,15 @@ import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.query.PagedQueryHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.query.RewriteRequestCondition
+import me.ahoo.wow.webflux.route.query.RewriteRequestFilter
 
 class PagedQuerySnapshotHandlerFunctionFactory(
     snapshotQueryHandler: SnapshotQueryHandler,
-    rewriteRequestCondition: RewriteRequestCondition,
+    rewriteRequestFilter: RewriteRequestFilter,
     exceptionHandler: RequestExceptionHandler
 ) : PagedQueryHandlerFunctionFactory(
     handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.PAGED_QUERY,
     queryHandler = snapshotQueryHandler,
-    rewriteRequestCondition = rewriteRequestCondition,
+    rewriteRequestFilter = rewriteRequestFilter,
     exceptionHandler = exceptionHandler
 )

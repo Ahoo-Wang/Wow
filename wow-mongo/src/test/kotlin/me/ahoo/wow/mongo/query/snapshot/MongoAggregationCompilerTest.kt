@@ -48,7 +48,7 @@ class MongoAggregationCompilerTest {
                     ),
                 ),
             ),
-            SnapshotConditionConverter,
+            SnapshotFilterConverter,
         ).map {
             it.toBsonDocument(BsonDocument::class.java, MongoClientSettings.getDefaultCodecRegistry())
         }
@@ -78,7 +78,7 @@ class MongoAggregationCompilerTest {
                 elements = listOf(AggregationElement("state.orders")),
                 metrics = listOf(AggregationMetric.Count("count")),
             ),
-            SnapshotConditionConverter,
+            SnapshotFilterConverter,
         ).map {
             it.toBsonDocument(BsonDocument::class.java, MongoClientSettings.getDefaultCodecRegistry())
         }
@@ -115,7 +115,7 @@ class MongoAggregationCompilerTest {
                 },
                 sort = listOf(Sort("sum", Sort.Direction.DESC)),
             ),
-            SnapshotConditionConverter,
+            SnapshotFilterConverter,
         ).map {
             it.toBsonDocument(BsonDocument::class.java, MongoClientSettings.getDefaultCodecRegistry())
         }

@@ -11,8 +11,6 @@
  * limitations under the License.
  */
 
-@file:Suppress("DEPRECATION")
-
 package me.ahoo.wow.schema.typed
 
 import com.fasterxml.classmate.ResolvedType
@@ -22,11 +20,9 @@ import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import com.github.victools.jsonschema.generator.SchemaKeyword
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.query.AggregationFieldCatalog
-import me.ahoo.wow.schema.AggregatedFieldPaths.commandAggregatedFieldPaths
 import me.ahoo.wow.schema.JsonSchema.Companion.toPropertyName
 
 object AggregatedFieldsDefinitionProvider : CustomDefinitionProviderV2 {
-    private val legacyType: Class<*> = AggregatedFields::class.java
     private val aggregationTermsFieldsType: Class<*> = SnapshotAggregationTermsFields::class.java
     private val aggregationNumericFieldsType: Class<*> = SnapshotAggregationNumericFields::class.java
     private val aggregationTemporalFieldsType: Class<*> = SnapshotAggregationTemporalFields::class.java
@@ -37,13 +33,11 @@ object AggregatedFieldsDefinitionProvider : CustomDefinitionProviderV2 {
         aggregationTemporalFieldsType,
         aggregationElementsType,
     )
-    private val supportedTypes = aggregationTypes + legacyType
-
     override fun provideCustomSchemaDefinition(
         javaType: ResolvedType,
         context: SchemaGenerationContext,
     ): CustomDefinition? {
-        if (supportedTypes.none(javaType::isInstanceOf)) return null
+        if (aggregationTypes.none(javaType::isInstanceOf)) return null
         val schemaVersion = context.generatorConfig.schemaVersion
         val rootNode = context.generatorConfig.createObjectNode()
         rootNode.put(
@@ -54,13 +48,11 @@ object AggregatedFieldsDefinitionProvider : CustomDefinitionProviderV2 {
         if (aggregateType == Any::class.java) return CustomDefinition(rootNode)
 
         val enumValues = javaType.aggregationPaths(aggregateType)
-            ?: aggregateType.kotlin.commandAggregatedFieldPaths()
         rootNode.putPOJO(SchemaKeyword.TAG_ENUM.toPropertyName(schemaVersion), enumValues)
         return CustomDefinition(rootNode)
     }
 
-    private fun ResolvedType.aggregationPaths(commandAggregateType: Class<*>): Set<String>? {
-        if (aggregationTypes.none(::isInstanceOf)) return null
+    private fun ResolvedType.aggregationPaths(commandAggregateType: Class<*>): Set<String> {
         val stateType = commandAggregateType.aggregateMetadata<Any, Any>().state.aggregateType
         val catalog = AggregationFieldCatalog.scan(stateType)
         return when {

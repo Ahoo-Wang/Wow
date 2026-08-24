@@ -19,6 +19,7 @@ import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toBeanDescription
 import tools.jackson.databind.JavaType
+import tools.jackson.databind.introspect.BeanPropertyDefinition
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -116,42 +117,60 @@ private fun JavaType.scan(
             .scan(paths, parent, depth, maxDepth, collectionPaths)
     }
     toBeanDescription().findProperties().forEach { property ->
-        val propertyType = property.primaryType
-        val path = if (parent.isEmpty()) property.name else "$parent.${property.name}"
-        if (propertyType.isMapLikeType) {
-            return@forEach
-        }
-        if (propertyType.isCollectionLikeType || propertyType.isArrayType) {
-            val elementType = propertyType.contentType ?: return@forEach
-            val nestedCollections = collectionPaths + path
-            val kind = if (property.hasCustomCollectionSerialization) {
-                AggregationFieldKind.UNSUPPORTED_COLLECTION
-            } else {
-                elementType.aggregationCollectionKind
-            }
-            paths[path] = AggregationField(path, elementType, kind, nestedCollections)
-            if (kind == AggregationFieldKind.OBJECT_COLLECTION) {
-                elementType.scan(paths, path, depth + 1, maxDepth, nestedCollections)
-            }
-            return@forEach
-        }
-
-        val kind = if (propertyType.isAggregationScalar) AggregationFieldKind.SCALAR else AggregationFieldKind.OBJECT
-        paths[path] = AggregationField(path, propertyType, kind, collectionPaths)
-        if (kind == AggregationFieldKind.OBJECT) {
-            propertyType.scan(paths, path, depth + 1, maxDepth, collectionPaths)
-        }
+        property.scan(paths, parent, depth, maxDepth, collectionPaths)
     }
 }
 
-private val tools.jackson.databind.introspect.BeanPropertyDefinition.hasCustomCollectionSerialization: Boolean
+private fun BeanPropertyDefinition.scan(
+    paths: MutableMap<String, AggregationField>,
+    parent: String,
+    depth: Int,
+    maxDepth: Int,
+    collectionPaths: List<String>,
+) {
+    val propertyType = primaryType
+    val path = if (parent.isEmpty()) name else "$parent.$name"
+    if (propertyType.isMapLikeType) return
+    if (propertyType.isCollectionLikeType || propertyType.isArrayType) {
+        val elementType = propertyType.contentType ?: return
+        val nestedCollections = collectionPaths + path
+        val kind = if (hasCustomCollectionSerialization) {
+            AggregationFieldKind.UNSUPPORTED_COLLECTION
+        } else {
+            elementType.aggregationCollectionKind
+        }
+        paths[path] = AggregationField(path, elementType, kind, nestedCollections)
+        if (kind == AggregationFieldKind.OBJECT_COLLECTION) {
+            elementType.scan(paths, path, depth + 1, maxDepth, nestedCollections)
+        }
+        return
+    }
+    if (hasCustomSerialization || propertyType.hasCustomSerialization) return
+
+    val kind = if (propertyType.isAggregationScalar) AggregationFieldKind.SCALAR else AggregationFieldKind.OBJECT
+    paths[path] = AggregationField(path, propertyType, kind, collectionPaths)
+    if (kind == AggregationFieldKind.OBJECT) {
+        propertyType.scan(paths, path, depth + 1, maxDepth, collectionPaths)
+    }
+}
+
+private val BeanPropertyDefinition.hasCustomSerialization: Boolean
     get() {
         val member = primaryMember ?: return false
         val config = JsonSerializer.serializationConfig()
         return config.annotationIntrospector.run {
             findSerializer(config, member) != null ||
-                findContentSerializer(config, member) != null ||
-                findSerializationConverter(config, member) != null ||
+                findSerializationConverter(config, member) != null
+        }
+    }
+
+private val BeanPropertyDefinition.hasCustomCollectionSerialization: Boolean
+    get() {
+        if (hasCustomSerialization) return true
+        val member = primaryMember ?: return false
+        val config = JsonSerializer.serializationConfig()
+        return config.annotationIntrospector.run {
+            findContentSerializer(config, member) != null ||
                 findSerializationContentConverter(config, member) != null
         }
     }

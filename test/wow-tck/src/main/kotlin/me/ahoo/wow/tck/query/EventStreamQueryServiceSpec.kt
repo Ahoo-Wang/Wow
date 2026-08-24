@@ -19,6 +19,7 @@ import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.query.dsl.condition
+import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.pagedQuery
 import me.ahoo.wow.query.dsl.singleQuery
@@ -144,7 +145,7 @@ abstract class EventStreamQueryServiceSpec {
     fun count() {
         val eventStream = generateEventStream(namedAggregate.aggregateId(tenantId = generateGlobalId()))
         eventStore.append(eventStream).block()
-        condition {
+        filterExpression {
             tenantId(eventStream.aggregateId.tenantId)
         }.count(eventStreamQueryService)
             .test()

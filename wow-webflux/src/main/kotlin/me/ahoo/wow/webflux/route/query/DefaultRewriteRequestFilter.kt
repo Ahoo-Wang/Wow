@@ -13,4 +13,4 @@
 
 package me.ahoo.wow.webflux.route.query
 
-object DefaultRewriteRequestCondition : AbstractRewriteRequestCondition()
+object DefaultRewriteRequestFilter : AbstractRewriteRequestFilter()

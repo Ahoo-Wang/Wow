@@ -11,7 +11,14 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema.typed.query
+package me.ahoo.wow.elasticsearch.query.snapshot
 
-@Deprecated("Use ListQuery with FilterExpression.")
-interface AggregatedListQuery<CommandAggregateType : Any>
+import co.elastic.clients.elasticsearch._types.query_dsl.Query
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.ids
+import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterConverter
+
+object SnapshotFilterConverter : AbstractElasticsearchFilterConverter() {
+    override fun aggregateIdEqual(value: String): Query = ids { it.values(value) }
+
+    override fun aggregateIdIn(values: List<String>): Query = ids { it.values(values) }
+}

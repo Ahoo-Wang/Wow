@@ -29,7 +29,7 @@ import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.query.dsl.condition
-import me.ahoo.wow.query.dsl.filter
+import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.pagedQuery
 import me.ahoo.wow.query.dsl.singleQuery
@@ -202,7 +202,7 @@ abstract class SnapshotQueryServiceSpec {
 
     @Test
     fun count() {
-        condition {
+        filterExpression {
             id(snapshot.aggregateId.id)
         }.count(snapshotQueryService)
             .test()
@@ -265,7 +265,7 @@ abstract class SnapshotQueryServiceSpec {
 
         snapshotQueryService.aggregate(
             AggregationQuery(
-                filter = filter { "_id" eq "missing" },
+                filter = filterExpression { "_id" eq "missing" },
                 metrics = listOf(
                     AggregationMetric.Count("count"),
                     AggregationMetric.Numeric(
@@ -308,7 +308,7 @@ abstract class SnapshotQueryServiceSpec {
                 elements = listOf(
                     AggregationElement(
                         "state.orders",
-                        filter { "state.orders.status" eq "PAID" },
+                        filterExpression { "state.orders.status" eq "PAID" },
                     ),
                 ),
                 metrics = listOf(AggregationMetric.Count("count")),
@@ -322,11 +322,11 @@ abstract class SnapshotQueryServiceSpec {
                 elements = listOf(
                     AggregationElement(
                         "state.orders",
-                        filter { "state.orders.status" eq "PAID" },
+                        filterExpression { "state.orders.status" eq "PAID" },
                     ),
                     AggregationElement(
                         "state.orders.lines",
-                        filter { "state.orders.lines.cancelled" eq false },
+                        filterExpression { "state.orders.lines.cancelled" eq false },
                     ),
                 ),
                 groupBy = listOf(AggregationGroup.Terms("state.orders.lines.sku", "sku")),
@@ -364,7 +364,7 @@ abstract class SnapshotQueryServiceSpec {
     fun rootElemMatchShouldNotFilterExpandedRows() {
         snapshotQueryService.aggregate(
             AggregationQuery(
-                filter = filter {
+                filter = filterExpression {
                     "state.orders".elementMatch { rootElementStatusField eq "PAID" }
                 },
                 elements = listOf(AggregationElement("state.orders")),
@@ -484,7 +484,7 @@ abstract class SnapshotQueryServiceSpec {
                     AggregationElement("state.orders"),
                     AggregationElement(
                         "state.orders.lines",
-                        filter {
+                        filterExpression {
                             "state.orders.lines.createdAt".today(ZoneOffset.UTC)
                             "state.orders.lines.createdAt" gte today.minusSeconds(3_600).toString()
                         },
@@ -505,7 +505,7 @@ abstract class SnapshotQueryServiceSpec {
                     AggregationElement("state.orders"),
                     AggregationElement(
                         "state.orders.lines",
-                        filter {
+                        filterExpression {
                             "state.orders.lines.createdAt" gt "2024-01-01T01:00:00.000+02:00"
                             "state.orders.lines.createdAt" gte "2024-01-01T01:00:00.000+02:00"
                             "state.orders.lines.createdAt" lt "2024-03-01T00:00:00.000Z"
@@ -529,10 +529,10 @@ abstract class SnapshotQueryServiceSpec {
         val field = "state.orders.lines.createdAt"
         val equivalent = "2023-12-31T19:00:00.000-05:00"
         listOf(
-            filter { field eq equivalent } to 1L,
-            filter { field ne equivalent } to 2L,
-            filter { field isIn listOf(equivalent) } to 1L,
-            filter { field notIn listOf(equivalent) } to 2L,
+            filterExpression { field eq equivalent } to 1L,
+            filterExpression { field ne equivalent } to 2L,
+            filterExpression { field isIn listOf(equivalent) } to 1L,
+            filterExpression { field notIn listOf(equivalent) } to 2L,
         ).forEach { (elementFilter, expected) ->
             snapshotQueryService.aggregate(
                 AggregationQuery(
@@ -551,7 +551,7 @@ abstract class SnapshotQueryServiceSpec {
             AggregationQuery(
                 elements = listOf(
                     AggregationElement("state.orders"),
-                    AggregationElement("state.orders.lines", filter { field eq "not-a-date" }),
+                    AggregationElement("state.orders.lines", filterExpression { field eq "not-a-date" }),
                 ),
                 metrics = listOf(AggregationMetric.Count("count")),
             ),
@@ -563,8 +563,8 @@ abstract class SnapshotQueryServiceSpec {
     @Test
     fun aggregateElementsShouldRejectExistencePredicates() {
         listOf(
-            filter { "state.orders.status".exists() },
-            filter { "state.orders.status".notExists() },
+            filterExpression { "state.orders.status".exists() },
+            filterExpression { "state.orders.status".notExists() },
         ).forEach { elementFilter ->
             snapshotQueryService.aggregate(
                 AggregationQuery(

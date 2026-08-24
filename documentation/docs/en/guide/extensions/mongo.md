@@ -381,7 +381,7 @@ The `wow-mongo` module provides two query service implementations that compile `
 
 ### Filter Compilation Pipeline
 
-The compilation pipeline is: `FilterExpression` -> `AbstractMongoConditionConverter` -> `Bson`.
+The compilation pipeline is: `FilterExpression` -> `AbstractMongoFilterConverter` -> `Bson`.
 
 | Wow Operator | MongoDB Equivalent |
 |---|---|
@@ -508,7 +508,7 @@ classDiagram
     class AbstractMongoQueryService~R~ {
         <<abstract>>
         #collection: MongoCollection
-        #converter: AbstractMongoConditionConverter
+        #converter: AbstractMongoFilterConverter
         +single(ISingleQuery) Mono~R~
         +list(IListQuery) Flux~R~
         +paged(IPagedQuery) Mono~PagedList~R~~

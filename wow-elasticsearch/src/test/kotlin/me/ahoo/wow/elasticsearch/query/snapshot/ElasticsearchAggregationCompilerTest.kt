@@ -54,7 +54,7 @@ class ElasticsearchAggregationCompilerTest {
             } + AggregationMetric.Count("count"),
         )
 
-        val plan = ElasticsearchAggregationCompiler.compile(query, mapping(), SnapshotConditionConverter)
+        val plan = ElasticsearchAggregationCompiler.compile(query, mapping(), SnapshotFilterConverter)
         plan.query.toString().assert().contains("state.name.keyword")
         plan.aggregationQuery.groupBy.map(AggregationGroup::field).assert()
             .containsExactly("state.name", "state.amount", "state.createdAt")
@@ -94,7 +94,7 @@ class ElasticsearchAggregationCompilerTest {
             ),
         )
 
-        val plan = ElasticsearchAggregationCompiler.compile(query, mapping(), SnapshotConditionConverter)
+        val plan = ElasticsearchAggregationCompiler.compile(query, mapping(), SnapshotFilterConverter)
 
         plan.metricAggregations().keys.assert().containsExactlyInAnyOrder("__wow_metric_0", "__wow_metric_1")
         plan.metricName(query.metrics[0] as AggregationMetric.Numeric).assert().isEqualTo("__wow_metric_0")
@@ -117,7 +117,7 @@ class ElasticsearchAggregationCompilerTest {
         )
 
         assertThrows<IllegalArgumentException> {
-            ElasticsearchAggregationCompiler.compileCount(query, SnapshotConditionConverter)
+            ElasticsearchAggregationCompiler.compileCount(query, SnapshotFilterConverter)
         }
         assertThrows<IllegalStateException> { incomplete.compositeSource(group, Sort.Direction.ASC) }
         assertThrows<IllegalStateException> { incomplete.metricAggregations() }
@@ -159,7 +159,7 @@ class ElasticsearchAggregationCompilerTest {
         val plan = ElasticsearchAggregationCompiler.compile(
             query,
             ElasticsearchIndexMapping.from("index", deepTextMapping(segments)),
-            SnapshotConditionConverter,
+            SnapshotFilterConverter,
         )
 
         plan.aggregationQuery.groupBy.single().field.assert().isEqualTo(field)
@@ -208,7 +208,7 @@ class ElasticsearchAggregationCompilerTest {
             elements = listOf(AggregationElement("state.items", filter { "state.items.status" eq "PAID" })),
             metrics = listOf(AggregationMetric.Count("count")),
         )
-        val plan = ElasticsearchAggregationCompiler.compile(query, mapping(), SnapshotConditionConverter)
+        val plan = ElasticsearchAggregationCompiler.compile(query, mapping(), SnapshotFilterConverter)
         val wrapped = plan.wrap(emptyMap())["__wow_element_0"]!!
         wrapped.nested().path().assert().isEqualTo("state.items")
         wrapped.aggregations()["__wow_filter_0"]!!.filter().bool().filter().last().term().field().assert()
