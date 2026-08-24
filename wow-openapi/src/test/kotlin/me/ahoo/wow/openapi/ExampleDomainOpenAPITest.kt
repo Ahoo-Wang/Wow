@@ -14,6 +14,7 @@
 package me.ahoo.wow.openapi
 
 import io.swagger.v3.oas.models.OpenAPI
+import io.swagger.v3.oas.models.media.Schema
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.example.domain.cart.Cart
@@ -72,11 +73,20 @@ internal class ExampleDomainOpenAPITest {
     inner class AggregateRoutes {
 
         @Test
-        fun `should expose aggregate query fields`() {
+        fun `should expose aggregate query fields through one schema`() {
+            val fieldsKey = "example.cart.CartAggregatedFields"
+            val fieldsRef = "#/components/schemas/$fieldsKey"
+            val fieldsSchema = requireNotNull(openAPI.components.schemas[fieldsKey])
+
+            fieldsSchema.type.assert().isEqualTo("string")
+            fieldsSchema.`enum`.assert()
+                .contains("state.items.productId")
+                .doesNotContain("")
+
             listOf("CountQuery", "ListQuery", "PagedQuery", "SingleQuery").forEach { queryType ->
                 val requestBody = requireNotNull(openAPI.components.requestBodies["example.cart.$queryType"])
-                val queryFields = requestBody.extensions["x-wow-query-fields"] as List<*>
-                queryFields.assert().contains("state.items.productId").doesNotContain("")
+                val queryFields = requestBody.extensions["x-wow-query-fields"] as Schema<*>
+                queryFields.`$ref`.assert().isEqualTo(fieldsRef)
             }
         }
 
