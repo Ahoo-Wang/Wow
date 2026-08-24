@@ -93,6 +93,7 @@ import java.time.Duration
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
 
+@Suppress("LargeClass")
 class HttpQueryGuardFilterTest {
     private val request = MockServerRequest.builder().build()
 
@@ -263,6 +264,21 @@ class HttpQueryGuardFilterTest {
                 Mono.empty()
             },
         ).writeUserQuery(userQuery)
+            .writeRawRequest(request)
+            .test()
+            .verifyComplete()
+
+        val matchAllUserQuery = AggregationQuery(metrics = listOf(AggregationMetric.Count("count")))
+        val scopedContext = aggregationContext(
+            matchAllUserQuery.appendFilter(filterExpression { "tenantId" eq "tenant" }),
+        )
+        guard().filterAggregation(
+            scopedContext,
+            FilterChain {
+                it.setResult(Flux.empty())
+                Mono.empty()
+            },
+        ).writeUserQuery(matchAllUserQuery)
             .writeRawRequest(request)
             .test()
             .verifyComplete()

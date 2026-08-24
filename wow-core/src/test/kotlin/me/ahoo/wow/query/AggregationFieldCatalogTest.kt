@@ -14,6 +14,7 @@
 package me.ahoo.wow.query
 
 import com.fasterxml.jackson.annotation.JsonFormat
+import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonUnwrapped
 import com.fasterxml.jackson.annotation.JsonValue
@@ -73,6 +74,7 @@ class AggregationFieldCatalogTest {
             "state.flat_sku",
             "state.registeredValue",
             "state.formattedAt",
+            "state.writeOnly",
         )
         catalog.paths.keys.assert().doesNotContain("state.attributes.value")
         catalog.paths["state.scalarItems"]!!.kind.assert().isEqualTo(AggregationFieldKind.SCALAR_COLLECTION)
@@ -110,6 +112,7 @@ class AggregationFieldCatalogTest {
         catalog.paths["state.items.value"]!!.collectionPaths.assert().containsExactly("state.items")
         catalog.paths["state.number"]!!.isNumeric.assert().isTrue()
         catalog.paths["state.number"]!!.supportsTerms.assert().isTrue()
+        catalog.paths["state.decimal"]!!.supportsTerms.assert().isFalse()
         catalog.paths["state.scalarValue"]!!.isTextual.assert().isTrue()
         catalog.paths["state.numericStatus"]!!.isNumeric.assert().isTrue()
         catalog.paths["state.booleanStatus"]!!.isBoolean.assert().isTrue()
@@ -154,6 +157,9 @@ class AggregationFieldCatalogTest {
 
         @get:JsonFormat(pattern = "yyyyMMdd")
         val formattedAt: LocalDate = LocalDate.EPOCH
+
+        @get:JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+        val writeOnly: String = ""
         val attributes: Map<String, String> = emptyMap()
     }
 

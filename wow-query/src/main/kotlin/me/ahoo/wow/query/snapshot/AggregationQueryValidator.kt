@@ -23,6 +23,12 @@ import me.ahoo.wow.query.AggregationFieldCatalog
 import me.ahoo.wow.query.AggregationFieldKind
 import tools.jackson.databind.JsonNode
 import java.math.BigInteger
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.ZonedDateTime
+import java.util.Date
 
 object AggregationQueryValidator {
     fun validate(query: AggregationQuery, namedAggregate: NamedAggregate) {
@@ -146,8 +152,22 @@ private fun AggregationField.supportsExactLiteral(value: JsonNode): Boolean = wh
 
 private fun AggregationField.supportsRangeLiteral(value: JsonNode): Boolean = when {
     isNumeric -> supportsNumericLiteral(value)
-    isTemporal || isTextual -> value.isString
+    isTemporal -> supportsTemporalLiteral(value)
+    isTextual -> value.isString
     else -> false
+}
+
+private fun AggregationField.supportsTemporalLiteral(value: JsonNode): Boolean {
+    if (!value.isString) return false
+    val parser: (String) -> Any = when (type.rawClass) {
+        Date::class.java, Instant::class.java -> Instant::parse
+        LocalDate::class.java -> LocalDate::parse
+        LocalDateTime::class.java -> LocalDateTime::parse
+        OffsetDateTime::class.java -> OffsetDateTime::parse
+        ZonedDateTime::class.java -> ZonedDateTime::parse
+        else -> return false
+    }
+    return runCatching { parser(value.stringValue()) }.isSuccess
 }
 
 private fun AggregationField.supportsNumericLiteral(value: JsonNode): Boolean {

@@ -3673,7 +3673,7 @@
                 "oneOf" : [ {
                   "properties" : {
                     "field" : {
-                      "enum" : [ "contextName", "aggregateName", "tenantId", "ownerId", "spaceId", "aggregateId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "state.id", "state.address.country", "state.address.province", "state.address.city", "state.address.district", "state.address.detail", "state.paidAmount", "state.payable", "state.status", "state.totalAmount", "snapshotTime", "deleted" ],
+                      "enum" : [ "contextName", "aggregateName", "tenantId", "ownerId", "spaceId", "aggregateId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "state.id", "state.address.country", "state.address.province", "state.address.city", "state.address.district", "state.address.detail", "state.status", "snapshotTime", "deleted" ],
                       "type" : "string"
                     },
                     "type" : {
@@ -3744,7 +3744,7 @@
                 "oneOf" : [ {
                   "properties" : {
                     "field" : {
-                      "enum" : [ "state.items.id", "state.items.productId", "state.items.price", "state.items.quantity", "state.items.totalPrice" ],
+                      "enum" : [ "state.items.id", "state.items.productId", "state.items.quantity" ],
                       "type" : "string"
                     },
                     "type" : {
@@ -4188,7 +4188,7 @@
         "type" : "string"
       },
       "example.order.OrderSnapshotAggregationTermsFields" : {
-        "enum" : [ "contextName", "aggregateName", "tenantId", "ownerId", "spaceId", "aggregateId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "state.id", "state.address.country", "state.address.province", "state.address.city", "state.address.district", "state.address.detail", "state.items.id", "state.items.productId", "state.items.price", "state.items.quantity", "state.items.totalPrice", "state.paidAmount", "state.payable", "state.status", "state.totalAmount", "snapshotTime", "deleted" ],
+        "enum" : [ "contextName", "aggregateName", "tenantId", "ownerId", "spaceId", "aggregateId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "state.id", "state.address.country", "state.address.province", "state.address.city", "state.address.district", "state.address.detail", "state.items.id", "state.items.productId", "state.items.quantity", "state.status", "snapshotTime", "deleted" ],
         "type" : "string"
       },
       "example.order.OrderStatus" : {

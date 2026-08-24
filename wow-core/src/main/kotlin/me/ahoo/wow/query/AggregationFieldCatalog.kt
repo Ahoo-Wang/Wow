@@ -25,6 +25,8 @@ import tools.jackson.databind.ser.bean.BeanSerializerBase
 import tools.jackson.databind.ser.impl.UnknownSerializer
 import tools.jackson.databind.ser.std.ReferenceTypeSerializer
 import tools.jackson.databind.ser.std.StdContainerSerializer
+import java.math.BigDecimal
+import java.math.BigInteger
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -122,7 +124,9 @@ private fun JavaType.scan(
             .scan(paths, parent, depth, maxDepth, collectionPaths)
     }
     toBeanDescription().findProperties().forEach { property ->
-        property.scan(paths, parent, depth, maxDepth, collectionPaths)
+        if (property.couldSerialize()) {
+            property.scan(paths, parent, depth, maxDepth, collectionPaths)
+        }
     }
 }
 
@@ -230,7 +234,8 @@ private val JavaType.isAggregationTextual: Boolean
         rawClass == Char::class.javaPrimitiveType || rawClass == Char::class.javaObjectType
 
 private val JavaType.isAggregationTerms: Boolean
-    get() = !isAggregationDate && isDirectAggregationScalar
+    get() = !isAggregationDate && isDirectAggregationScalar &&
+        rawClass != BigDecimal::class.java && rawClass != BigInteger::class.java
 
 private val JavaType.isAggregationNumeric: Boolean
     get() = (rawClass.isPrimitive && rawClass != Boolean::class.javaPrimitiveType && rawClass != Char::class.javaPrimitiveType) ||

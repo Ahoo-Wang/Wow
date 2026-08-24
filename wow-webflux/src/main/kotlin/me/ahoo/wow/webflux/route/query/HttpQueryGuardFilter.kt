@@ -118,7 +118,7 @@ class HttpQueryGuardFilter(
         validateAggregation(userQuery)
         validateFilters(
             filters = listOf(userQuery.filter) + userQuery.elements.map(AggregationElement::filter),
-            rejectMatchAll = userQuery.filter,
+            rejectMatchAll = context.query.filter,
         )
         val downstream = next.filter(context)
         val guardedDownstream = if (idleTimeout.isZero) downstream else downstream.timeout(idleTimeout)

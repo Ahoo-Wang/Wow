@@ -539,12 +539,29 @@ private fun RuntimeFieldType.toMappedField(): ElasticsearchMappedField? {
     )
 }
 
-private fun Property.isPortableAggregation(): Boolean = when (_kind()) {
-    Property.Kind.ScaledFloat -> false
-    Property.Kind.Keyword -> keyword().normalizer() == null && keyword().ignoreAbove() == null &&
-        keyword().nullValue() == null
-    Property.Kind.ConstantKeyword -> constantKeyword().value() == null
-    else -> true
+private fun Property.isPortableAggregation(): Boolean {
+    val property = _get()
+    return when {
+        _kind() == Property.Kind.ScaledFloat -> false
+        property is KeywordProperty -> property.normalizer() == null && property.ignoreAbove() == null &&
+            property.nullValue() == null
+        hasNumericNullValue() -> false
+        _kind() == Property.Kind.ConstantKeyword -> constantKeyword().value() == null
+        else -> true
+    }
+}
+
+private fun Property.hasNumericNullValue(): Boolean = when (_kind()) {
+    Property.Kind.Byte -> byte_().nullValue() != null
+    Property.Kind.Short -> short_().nullValue() != null
+    Property.Kind.Integer -> integer().nullValue() != null
+    Property.Kind.Long -> long_().nullValue() != null
+    Property.Kind.UnsignedLong -> unsignedLong().nullValue() != null
+    Property.Kind.HalfFloat -> halfFloat().nullValue() != null
+    Property.Kind.Float -> float_().nullValue() != null
+    Property.Kind.Double -> double_().nullValue() != null
+    Property.Kind.ScaledFloat -> scaledFloat().nullValue() != null
+    else -> false
 }
 
 private fun Property.isSortable(): Boolean =

@@ -383,6 +383,7 @@ class ElasticsearchIndexMappingResolverTest {
             "nullKeyword",
             "constantValue",
             "tokenCount",
+            "nullableInteger",
         ).forEach { field ->
             runCatching { mapping.resolve(field, ElasticsearchFieldUsage.TERMS) }
                 .exceptionOrNull()!!.message.assert().contains("does not support")
@@ -598,6 +599,7 @@ class ElasticsearchIndexMappingResolverTest {
                 .properties("nullKeyword") { it.keyword { field -> field.nullValue("NULL") } }
                 .properties("constantValue") { it.constantKeyword { field -> field.value(JsonData.of("constant")) } }
                 .properties("tokenCount") { it.tokenCount { field -> field } }
+                .properties("nullableInteger") { it.integer { field -> field.nullValue(0) } }
                 .properties("scaledFloat") { it.scaledFloat { field -> field.scalingFactor(100.0) } }
                 .properties("dateNanos") { it.dateNanos { field -> field } }
         }
