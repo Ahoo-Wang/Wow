@@ -326,7 +326,14 @@ data class ElasticsearchIndexMapping private constructor(
     ): LogicalField {
         if (parent == null && value == "_id" && usage == ElasticsearchFieldUsage.EXACT) return this
         val resolved = this@ElasticsearchIndexMapping.resolve(path(parent), usage)
-        if (aggregationFilter && fields[resolved]?.kind == Property.Kind.DateNanos) {
+        val mappedField = fields[resolved]
+        if (aggregationFilter && mappedField?.portableAggregation == false) {
+            resolutionFailure(
+                "Elasticsearch field [$resolved] does not support portable aggregation filters " +
+                    "in index [$indexName].",
+            )
+        }
+        if (aggregationFilter && mappedField?.kind == Property.Kind.DateNanos) {
             resolutionFailure(
                 "Elasticsearch date_nanos field [$resolved] does not support portable aggregation filters " +
                     "in index [$indexName].",
@@ -383,7 +390,9 @@ data class ElasticsearchIndexMapping private constructor(
                 }
             }
             aliases.forEach { (name, target) ->
-                fields[target]?.let { fields[name] = it.copy(multiFields = emptySet()) }
+                fields[target]?.let {
+                    fields[name] = it.copy(portableAggregation = false, multiFields = emptySet())
+                }
             }
             return ElasticsearchIndexMapping(indexName, fields)
         }
@@ -428,7 +437,7 @@ private data class ElasticsearchMappedField(
         portableAggregation &&
             when (usage) {
                 ElasticsearchFieldUsage.TERMS -> sortable && kind in TERMS_AGGREGATION_KINDS
-                ElasticsearchFieldUsage.NUMERIC -> sortable && kind in NUMERIC_KINDS
+                ElasticsearchFieldUsage.NUMERIC -> sortable && kind in AGGREGATION_NUMERIC_KINDS
                 ElasticsearchFieldUsage.DATE -> sortable && kind in DATE_KINDS
                 else -> error("Unsupported aggregation field usage: $usage")
             }
@@ -467,7 +476,8 @@ private data class ElasticsearchMappedField(
             Property.Kind.CountedKeyword,
             Property.Kind.Wildcard,
         )
-        private val TERMS_AGGREGATION_KINDS = NUMERIC_KINDS + BINARY_TERM_KINDS + Property.Kind.Boolean
+        private val AGGREGATION_NUMERIC_KINDS = NUMERIC_KINDS - Property.Kind.TokenCount
+        private val TERMS_AGGREGATION_KINDS = AGGREGATION_NUMERIC_KINDS + BINARY_TERM_KINDS + Property.Kind.Boolean
         private val RANGE_FIELD_KINDS = setOf(
             Property.Kind.IntegerRange,
             Property.Kind.FloatRange,
@@ -524,14 +534,16 @@ private fun RuntimeFieldType.toMappedField(): ElasticsearchMappedField? {
         kind = kind,
         indexed = true,
         sortable = true,
-        portableAggregation = true,
+        portableAggregation = false,
         multiFields = emptySet(),
     )
 }
 
 private fun Property.isPortableAggregation(): Boolean = when (_kind()) {
     Property.Kind.ScaledFloat -> false
-    Property.Kind.Keyword -> keyword().normalizer() == null && keyword().ignoreAbove() == null
+    Property.Kind.Keyword -> keyword().normalizer() == null && keyword().ignoreAbove() == null &&
+        keyword().nullValue() == null
+    Property.Kind.ConstantKeyword -> constantKeyword().value() == null
     else -> true
 }
 

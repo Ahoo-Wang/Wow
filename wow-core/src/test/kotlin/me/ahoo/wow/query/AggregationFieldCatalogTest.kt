@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query
 
+import com.fasterxml.jackson.annotation.JsonFormat
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonUnwrapped
 import com.fasterxml.jackson.annotation.JsonValue
@@ -71,6 +72,7 @@ class AggregationFieldCatalogTest {
             "state.unwrapped.sku",
             "state.flat_sku",
             "state.registeredValue",
+            "state.formattedAt",
         )
         catalog.paths.keys.assert().doesNotContain("state.attributes.value")
         catalog.paths["state.scalarItems"]!!.kind.assert().isEqualTo(AggregationFieldKind.SCALAR_COLLECTION)
@@ -149,6 +151,9 @@ class AggregationFieldCatalogTest {
         @get:JsonUnwrapped(prefix = "flat_")
         val unwrapped: Line = Line("")
         val registeredValue: AggregateId? = null
+
+        @get:JsonFormat(pattern = "yyyyMMdd")
+        val formattedAt: LocalDate = LocalDate.EPOCH
         val attributes: Map<String, String> = emptyMap()
     }
 

@@ -19,6 +19,7 @@ import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch.indices.GetMappingRequest
 import co.elastic.clients.elasticsearch.indices.GetMappingResponse
 import co.elastic.clients.elasticsearch.indices.get_mapping.IndexMappingRecord
+import co.elastic.clients.json.JsonData
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -373,7 +374,16 @@ class ElasticsearchIndexMappingResolverTest {
         listOf("keyword", "constantKeyword", "countedKeyword", "wildcard", "integer", "boolean").forEach { field ->
             mapping.resolve(field, ElasticsearchFieldUsage.TERMS).assert().isEqualTo(field)
         }
-        listOf("ip", "version", "icu", "normalizedKeyword", "ignoredKeyword").forEach { field ->
+        listOf(
+            "ip",
+            "version",
+            "icu",
+            "normalizedKeyword",
+            "ignoredKeyword",
+            "nullKeyword",
+            "constantValue",
+            "tokenCount",
+        ).forEach { field ->
             runCatching { mapping.resolve(field, ElasticsearchFieldUsage.TERMS) }
                 .exceptionOrNull()!!.message.assert().contains("does not support")
         }
@@ -395,6 +405,17 @@ class ElasticsearchIndexMappingResolverTest {
                 GreaterThanFilter(LogicalField("dateNanos"), json("2024-01-01T00:00:00.000000050Z")),
             )
         }.exceptionOrNull()!!.message.assert().contains("date_nanos")
+        runCatching {
+            mapping.resolveAggregationFilter(
+                EqualFilter(LogicalField("ignoredKeyword"), json("value")),
+            )
+        }.exceptionOrNull()!!.message.assert().contains("portable aggregation filters")
+
+        val syntheticMapping = ElasticsearchIndexMapping.from(INDEX, aliasAndRuntimeFields())
+        runCatching { syntheticMapping.resolve("state.codeAlias", ElasticsearchFieldUsage.TERMS) }
+            .exceptionOrNull()!!.message.assert().contains("does not support")
+        runCatching { syntheticMapping.resolve("state.runtimeScore", ElasticsearchFieldUsage.NUMERIC) }
+            .exceptionOrNull()!!.message.assert().contains("does not support")
     }
 
     @Test
@@ -574,6 +595,9 @@ class ElasticsearchIndexMappingResolverTest {
                 .properties("icu") { it.icuCollationKeyword { field -> field } }
                 .properties("normalizedKeyword") { it.keyword { field -> field.normalizer("lowercase") } }
                 .properties("ignoredKeyword") { it.keyword { field -> field.ignoreAbove(16) } }
+                .properties("nullKeyword") { it.keyword { field -> field.nullValue("NULL") } }
+                .properties("constantValue") { it.constantKeyword { field -> field.value(JsonData.of("constant")) } }
+                .properties("tokenCount") { it.tokenCount { field -> field } }
                 .properties("scaledFloat") { it.scaledFloat { field -> field.scalingFactor(100.0) } }
                 .properties("dateNanos") { it.dateNanos { field -> field } }
         }
