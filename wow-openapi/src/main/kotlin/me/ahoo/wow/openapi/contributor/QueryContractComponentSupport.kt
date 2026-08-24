@@ -13,12 +13,16 @@
 
 package me.ahoo.wow.openapi.contributor
 
+import io.swagger.v3.oas.models.media.ArraySchema
+import io.swagger.v3.oas.models.media.ObjectSchema
+import io.swagger.v3.oas.models.media.Schema
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.QueryComponent
+import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedAggregationQueryRequestBody
 import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedCountQueryRequestBody
 import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedListQueryRequestBody
 import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedPagedQueryRequestBody
@@ -58,6 +62,13 @@ internal fun OpenAPIComponentContext.aggregatedCountQueryRequestBodyRef(
     return aggregateMetadata.queryRequestBodyRef(QueryComponent.COUNT_QUERY_SUFFIX)
 }
 
+internal fun OpenAPIComponentContext.aggregatedAggregationQueryRequestBodyRef(
+    aggregateMetadata: AggregateMetadata<*, *>
+): HttpRequestBody {
+    aggregatedAggregationQueryRequestBody(aggregateMetadata)
+    return aggregateMetadata.queryRequestBodyRef(QueryComponent.AGGREGATION_QUERY_SUFFIX)
+}
+
 internal fun OpenAPIComponentContext.aggregatedListQueryRequestBodyRef(
     aggregateMetadata: AggregateMetadata<*, *>
 ): HttpRequestBody {
@@ -84,6 +95,19 @@ internal fun OpenAPIComponentContext.countQueryResponseRef(): HttpResponse {
     return HttpResponse(
         statusCode = Https.Code.OK,
         componentRef = QueryComponent.COUNT_QUERY_KEY
+    )
+}
+
+internal fun OpenAPIComponentContext.aggregationResponse(): HttpResponse {
+    val rowSchema = ObjectSchema().additionalProperties(Schema<Any>().nullable(true))
+    val responseSchema = ArraySchema().items(rowSchema)
+    return HttpResponse(
+        statusCode = Https.Code.OK,
+        headers = listOf(errorCodeHeaderRef()),
+        content = listOf(
+            HttpContent(Https.MediaType.APPLICATION_JSON, HttpSchema.Raw(responseSchema)),
+            HttpContent(Https.MediaType.TEXT_EVENT_STREAM, HttpSchema.Raw(responseSchema))
+        )
     )
 }
 

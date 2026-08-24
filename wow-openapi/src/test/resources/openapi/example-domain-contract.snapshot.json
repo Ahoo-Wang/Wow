@@ -26,6 +26,15 @@
   "responseCodes" : [ "200" ],
   "tagNames" : [ "customer", "example.cart" ]
 }, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.cart.snapshot.aggregation",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/cart/snapshot/aggregation",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "408", "429" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
   "accept" : [ "application/json" ],
   "id" : "example.cart.snapshot.count",
   "method" : "POST",
@@ -233,6 +242,15 @@
   "responseCodes" : [ "200", "404" ],
   "tagNames" : [ "customer", "example.cart" ]
 }, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.cart.owner.snapshot.aggregation",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.ownerId" ],
+  "path" : "/owner/{ownerId}/cart/snapshot/aggregation",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "408", "429" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
   "accept" : [ "application/json" ],
   "id" : "example.cart.owner.snapshot.count",
   "method" : "POST",
@@ -368,6 +386,15 @@
   "responseCodes" : [ "200" ],
   "tagNames" : [ "example.order" ]
 }, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.order.owner.snapshot.aggregation",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/owner/{ownerId}/sales-order/snapshot/aggregation",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "408", "429" ],
+  "tagNames" : [ "example.order" ]
+}, {
   "accept" : [ "application/json" ],
   "id" : "example.order.owner.snapshot.count",
   "method" : "POST",
@@ -456,6 +483,15 @@
   "path" : "/sales-order/event/paged",
   "requestBody" : true,
   "responseCodes" : [ "200" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.order.snapshot.aggregation",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/sales-order/snapshot/aggregation",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "408", "429" ],
   "tagNames" : [ "example.order" ]
 }, {
   "accept" : [ "application/json" ],
@@ -566,6 +602,15 @@
   "responseCodes" : [ "200" ],
   "tagNames" : [ "tck.mock_aggregate" ]
 }, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.mock_aggregate.snapshot.aggregation",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/tck/mock_aggregate/snapshot/aggregation",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "408", "429" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
   "accept" : [ "application/json" ],
   "id" : "tck.mock_aggregate.snapshot.count",
   "method" : "POST",
@@ -674,6 +719,15 @@
   "responseCodes" : [ "200" ],
   "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
 }, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.snapshot.aggregation",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/tck/modeling_command_aggregate_with_tenant_id/snapshot/aggregation",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "408", "429" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
   "accept" : [ "application/json" ],
   "id" : "tck.modeling_command_aggregate_with_tenant_id.snapshot.count",
   "method" : "POST",
@@ -780,6 +834,15 @@
   "path" : "/tck/modeling_command_aggregate_without_ctor_parameters/event/paged",
   "requestBody" : true,
   "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.snapshot.aggregation",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/tck/modeling_command_aggregate_without_ctor_parameters/snapshot/aggregation",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "408", "429" ],
   "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
 }, {
   "accept" : [ "application/json" ],
@@ -906,6 +969,15 @@
   "path" : "/tck/tenant/{tenantId}/mock_aggregate/mock_create_aggregate",
   "requestBody" : true,
   "responseCodes" : [ "200", "400", "404", "408", "409", "410", "429" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.mock_aggregate.tenant.snapshot.aggregation",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId" ],
+  "path" : "/tck/tenant/{tenantId}/mock_aggregate/snapshot/aggregation",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "408", "429" ],
   "tagNames" : [ "tck.mock_aggregate" ]
 }, {
   "accept" : [ "application/json" ],
@@ -1106,6 +1178,15 @@
   "responseCodes" : [ "200" ],
   "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
 }, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.tenant.snapshot.aggregation",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_with_tenant_id/snapshot/aggregation",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "408", "429" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
   "accept" : [ "application/json" ],
   "id" : "tck.modeling_command_aggregate_with_tenant_id.tenant.snapshot.count",
   "method" : "POST",
@@ -1293,6 +1374,15 @@
   "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_without_ctor_parameters/event/paged",
   "requestBody" : true,
   "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.tenant.snapshot.aggregation",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_without_ctor_parameters/snapshot/aggregation",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "408", "429" ],
   "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
 }, {
   "accept" : [ "application/json" ],
@@ -1581,6 +1671,15 @@
   "path" : "/tenant/{tenantId}/sales-order/event/paged",
   "requestBody" : true,
   "responseCodes" : [ "200" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.order.tenant.snapshot.aggregation",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/tenant/{tenantId}/sales-order/snapshot/aggregation",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "408", "429" ],
   "tagNames" : [ "example.order" ]
 }, {
   "accept" : [ "application/json" ],

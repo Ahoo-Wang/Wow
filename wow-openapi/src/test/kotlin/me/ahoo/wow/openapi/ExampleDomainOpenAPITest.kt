@@ -91,6 +91,47 @@ internal class ExampleDomainOpenAPITest {
         }
 
         @Test
+        fun `snapshot aggregation should reuse aggregate field schema and expose dynamic rows`() {
+            val fieldsKey = "example.cart.CartAggregatedFields"
+            val requestBody = requireNotNull(openAPI.components.requestBodies["example.cart.AggregationQuery"])
+            val queryFields = requestBody.extensions["x-wow-query-fields"] as Schema<*>
+            val responseSchema = requireNotNull(
+                openAPI.paths["/cart/snapshot/aggregation"]
+                    ?.post
+                    ?.responses
+                    ?.get("200")
+                    ?.content
+                    ?.get(Https.MediaType.APPLICATION_JSON)
+                    ?.schema
+            )
+
+            queryFields.`$ref`.assert().isEqualTo("#/components/schemas/$fieldsKey")
+            requestBody.content[Https.MediaType.APPLICATION_JSON]!!.schema.`$ref`
+                .assert().isEqualTo("#/components/schemas/wow.api.query.AggregationQuery")
+            val querySchema = requireNotNull(openAPI.components.schemas["wow.api.query.AggregationQuery"])
+            querySchema.properties.getValue("filter").`$ref`
+                .assert().isEqualTo("#/components/schemas/wow.api.query.FilterExpression")
+            querySchema.required.assert().containsExactly("metrics")
+            querySchema.properties.getValue("metrics").minItems.assert().isEqualTo(1)
+            querySchema.properties.getValue("metrics").maxItems.assert().isEqualTo(64)
+            querySchema.properties.getValue("elements").maxItems.assert().isEqualTo(5)
+            querySchema.properties.getValue("limit").minimum.assert().isEqualTo(java.math.BigDecimal.ONE)
+            querySchema.properties.getValue("limit").maximum.assert()
+                .isEqualTo(java.math.BigDecimal.valueOf(10_000))
+            responseSchema.type.assert().isEqualTo("array")
+            responseSchema.items.type.assert().isEqualTo("object")
+            (responseSchema.items.additionalProperties as Schema<*>).nullable.assert().isTrue()
+
+            val aggregationRouteIds = catalogRoutes()
+                .filter { it.routeId.endsWith(".snapshot.aggregation") }
+                .map { it.routeId }
+            val countRouteIds = catalogRoutes()
+                .filter { it.routeId.endsWith(".snapshot.count") }
+                .map { it.routeId.removeSuffix("count") + "aggregation" }
+            aggregationRouteIds.assert().containsExactlyInAnyOrder(*countRouteIds.toTypedArray())
+        }
+
+        @Test
         fun `should generate cart routes without default tenant path`() {
             // Cart has @StaticTenantId → default appendTenantPath=false
             // MockVariableCommand overrides with appendTenantPath=ALWAYS, so exclude it
