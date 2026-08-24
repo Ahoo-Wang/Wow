@@ -105,10 +105,13 @@ internal class MongoAggregationCompiler(
         )
 
         is AggregationGroup.DateHistogram -> Document(
-            "\$dateTrunc",
-            Document("date", "\$${field.resolve(parent)}")
-                .append("unit", unit.name.lowercase())
-                .append("timezone", timeZone),
+            "\$toLong",
+            Document(
+                "\$dateTrunc",
+                Document("date", Document("\$toDate", "\$${field.resolve(parent)}"))
+                    .append("unit", unit.name.lowercase())
+                    .append("timezone", if (timeZone == "Z") "UTC" else timeZone),
+            ),
         )
     }
 

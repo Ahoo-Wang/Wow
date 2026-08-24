@@ -20,6 +20,8 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
+import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
+import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.dsl.listQuery
@@ -31,11 +33,15 @@ import me.ahoo.wow.query.snapshot.count
 import me.ahoo.wow.query.snapshot.dynamicQuery
 import me.ahoo.wow.query.snapshot.query
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import me.ahoo.wow.tck.mock.MockDiscount
+import me.ahoo.wow.tck.mock.MockLine
+import me.ahoo.wow.tck.mock.MockOrder
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 import java.time.Clock
+import java.time.Instant
 
 abstract class SnapshotQueryServiceSpec {
     lateinit var snapshotStore: SnapshotStore
@@ -169,5 +175,259 @@ abstract class SnapshotQueryServiceSpec {
             .test()
             .expectNext(1L)
             .verifyComplete()
+    }
+
+    @Test
+    fun `aggregation should summarize standard root fields with every metric`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+
+        aggregation {
+            filter { aggregateIds("aggregation-a", "aggregation-b") }
+            count("count")
+            sum("version", "total")
+            avg("version", "average")
+            min("version", "minimum")
+            max("version", "maximum")
+        }.query(snapshotQueryService)
+            .test()
+            .assertNext {
+                it.toMap().assert().isEqualTo(
+                    mapOf(
+                        "count" to 2L,
+                        "total" to 2.0,
+                        "average" to 1.0,
+                        "minimum" to 1.0,
+                        "maximum" to 1.0,
+                    ),
+                )
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `aggregation should apply two element filters and every group type`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+
+        aggregation {
+            expand("state.orders") { "status" eq "PAID" }
+            expand("lines") { "quantity" gte 2 }
+            terms("productId", "product")
+            histogram("quantity", 2.0, "quantityBucket")
+            dateHistogram("createdAt", me.ahoo.wow.api.query.AggregationDateUnit.DAY, "day")
+            count("count")
+        }.query(snapshotQueryService)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                rows.map(Map<String, Any?>::toMap).assert().containsExactly(
+                    mapOf(
+                        "product" to "alpha",
+                        "quantityBucket" to 4.0,
+                        "day" to 1_767_398_400_000L,
+                        "count" to 1L,
+                    ),
+                    mapOf(
+                        "product" to "beta",
+                        "quantityBucket" to 2.0,
+                        "day" to 1_767_312_000_000L,
+                        "count" to 2L,
+                    ),
+                    mapOf(
+                        "product" to "delta",
+                        "quantityBucket" to 4.0,
+                        "day" to 1_769_990_400_000L,
+                        "count" to 1L,
+                    ),
+                )
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `aggregation should return one empty summary row`() {
+        aggregation {
+            filter { aggregateId("missing") }
+            count("count")
+            sum("version", "total")
+        }.query(snapshotQueryService)
+            .test()
+            .assertNext {
+                it.toMap().assert().isEqualTo(mapOf("count" to 0L, "total" to null))
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `aggregation should return null when no numeric value contributes`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+
+        aggregation {
+            expand("state.orders") { "status" eq "CANCELLED" }
+            expand("lines") { "productId" eq "gamma" }
+            count("count")
+            sum("amount", "total")
+            avg("amount", "average")
+            min("amount", "minimum")
+            max("amount", "maximum")
+        }.query(snapshotQueryService)
+            .test()
+            .assertNext {
+                it.toMap().assert().isEqualTo(
+                    mapOf(
+                        "count" to 1L,
+                        "total" to null,
+                        "average" to null,
+                        "minimum" to null,
+                        "maximum" to null,
+                    ),
+                )
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `aggregation should append group aliases for stable sorting`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+
+        aggregation {
+            expand("state.orders") { "status" eq "PAID" }
+            expand("lines")
+            terms("productId", "product")
+            histogram("quantity", 2.0, "quantityBucket")
+            count("count")
+            sort { "product".asc() }
+        }.query(snapshotQueryService)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                rows.map { listOf(it["product"], it["quantityBucket"], it["count"]) }.assert().containsExactly(
+                    listOf("alpha", 0.0, 1L),
+                    listOf("alpha", 4.0, 1L),
+                    listOf("beta", 2.0, 2L),
+                    listOf("delta", 4.0, 1L),
+                )
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `aggregation should select metric Top-N across nested discounts`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+
+        aggregation {
+            expand("state.orders") { "status" eq "PAID" }
+            expand("lines") { "quantity" gte 2 }
+            expand("discounts") { "amount" gt 0 }
+            terms("type", "type")
+            sum("amount", "total")
+            sort { "total".desc() }
+            limit(1)
+        }.query(snapshotQueryService)
+            .test()
+            .assertNext {
+                it.toMap().assert().isEqualTo(mapOf("type" to "PROMO", "total" to 8.0))
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `aggregation should support cancellation after a real result`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+
+        aggregation {
+            expand("state.orders")
+            expand("lines")
+            terms("productId", "product")
+            count("count")
+        }.query(snapshotQueryService)
+            .test()
+            .expectNextCount(1)
+            .thenCancel()
+            .verify()
+    }
+
+    private fun saveAggregationStates(vararg states: MockStateAggregate) {
+        states.forEach { state ->
+            snapshotStore.save(
+                SimpleSnapshot(
+                    MOCK_AGGREGATE_METADATA.toStateAggregate(state, version = 1),
+                    AGGREGATION_SNAPSHOT_TIME,
+                ),
+            ).test().verifyComplete()
+        }
+    }
+
+    private fun aggregationStates(): List<MockStateAggregate> = listOf(aggregationStateA(), aggregationStateB())
+
+    private fun aggregationStateA(): MockStateAggregate =
+        MockStateAggregate(
+            id = "aggregation-a",
+            orders = listOf(
+                MockOrder(
+                    status = "PAID",
+                    lines = listOf(
+                        MockLine(
+                            productId = "alpha",
+                            quantity = 1,
+                            amount = 10.0,
+                            createdAt = Instant.parse("2026-01-01T10:00:00Z"),
+                            discounts = listOf(
+                                MockDiscount("LOYALTY", 1.0),
+                                MockDiscount("PROMO", 2.0),
+                            ),
+                        ),
+                        MockLine(
+                            productId = "beta",
+                            quantity = 2,
+                            amount = 20.0,
+                            createdAt = Instant.parse("2026-01-02T10:00:00Z"),
+                            discounts = listOf(MockDiscount("PROMO", 3.0)),
+                        ),
+                    ),
+                ),
+                MockOrder(
+                    status = "CANCELLED",
+                    lines = listOf(
+                        MockLine(
+                            productId = "gamma",
+                            quantity = 3,
+                            amount = null,
+                            createdAt = Instant.parse("2026-02-01T10:00:00Z"),
+                            discounts = listOf(MockDiscount("LOYALTY", 4.0)),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+    private fun aggregationStateB(): MockStateAggregate =
+        MockStateAggregate(
+            id = "aggregation-b",
+            orders = listOf(
+                MockOrder(
+                    status = "PAID",
+                    lines = listOf(
+                        MockLine(
+                            productId = "alpha",
+                            quantity = 4,
+                            amount = 30.0,
+                            createdAt = Instant.parse("2026-01-03T10:00:00Z"),
+                            discounts = listOf(MockDiscount("PROMO", 5.0)),
+                        ),
+                        MockLine(
+                            productId = "beta",
+                            quantity = 2,
+                            amount = 20.0,
+                            createdAt = Instant.parse("2026-01-02T18:00:00Z"),
+                            discounts = listOf(MockDiscount("LOYALTY", 6.0)),
+                        ),
+                        MockLine(
+                            productId = "delta",
+                            quantity = 5,
+                            amount = 50.0,
+                            createdAt = Instant.parse("2026-02-02T10:00:00Z"),
+                            discounts = emptyList(),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+    private companion object {
+        const val AGGREGATION_SNAPSHOT_TIME = 1_767_225_600_000L
     }
 }

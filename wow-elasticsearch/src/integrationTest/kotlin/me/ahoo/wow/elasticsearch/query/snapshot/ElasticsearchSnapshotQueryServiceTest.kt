@@ -53,6 +53,39 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         elasticsearchClient = ReactiveElasticsearchClients.createReactiveElasticsearchClient(elasticsearch)
         elasticsearchClient.initSnapshotTemplate()
         super.setup()
+        elasticsearchClient.indices().putMapping(
+            PutMappingRequest.of { request ->
+                request.index(MOCK_AGGREGATE_METADATA.toSnapshotIndexName())
+                    .properties("state") { state ->
+                        state.`object` { stateObject ->
+                            stateObject.properties("orders") { orders ->
+                                orders.nested { ordersNested ->
+                                    ordersNested.properties("status") { it.keyword { keyword -> keyword } }
+                                        .properties("lines") { lines ->
+                                            lines.nested { linesNested ->
+                                                linesNested
+                                                    .properties("productId") { it.keyword { keyword -> keyword } }
+                                                    .properties("quantity") { it.integer { number -> number } }
+                                                    .properties("amount") { it.double_ { number -> number } }
+                                                    .properties("createdAt") { it.date { date -> date } }
+                                                    .properties("discounts") { discounts ->
+                                                        discounts.nested { discountsNested ->
+                                                            discountsNested
+                                                                .properties("type") {
+                                                                    it.keyword { keyword -> keyword }
+                                                                }.properties("amount") {
+                                                                    it.double_ { number -> number }
+                                                                }
+                                                        }
+                                                    }
+                                            }
+                                        }
+                                }
+                            }
+                        }
+                    }
+            },
+        ).block()
     }
 
     override fun createSnapshotQueryServiceFactory(): SnapshotQueryServiceFactory {
