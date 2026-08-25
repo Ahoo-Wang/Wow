@@ -41,7 +41,7 @@
 
 ---
 
-### 任务 1：发布五种 API 表达式类型
+### Task 1：发布五种 API 表达式类型
 
 **文件：**
 - 修改：`wow-api/src/main/kotlin/me/ahoo/wow/api/query/FilterExpression.kt:42-142`
@@ -261,7 +261,7 @@ git commit -m "feat(query): add relative calendar filter contracts"
 
 ---
 
-### 任务 2：添加 DSL 构造与固定时钟规范化
+### Task 2：添加 DSL 构造与固定时钟规范化
 
 **文件：**
 - 修改：`wow-query/src/main/kotlin/me/ahoo/wow/query/dsl/FilterDsl.kt:206-234`
@@ -470,7 +470,7 @@ git commit -m "feat(query): normalize relative calendar filters"
 
 ---
 
-### 任务 3：按 RANGE 解析 Elasticsearch 字段
+### Task 3：按 RANGE 解析 Elasticsearch 字段
 
 **文件：**
 - 修改：`wow-elasticsearch/src/main/kotlin/me/ahoo/wow/elasticsearch/query/ElasticsearchIndexMappingResolver.kt:167-226`
@@ -547,7 +547,7 @@ git commit -m "feat(elasticsearch): resolve relative calendar filter fields"
 
 ---
 
-### 任务 4：发布 Schema、OpenAPI 与文档
+### Task 4：发布 Schema、OpenAPI 与文档
 
 **文件：**
 - 修改：`schema/query/v2/filter-expression.schema.json:22-257`
