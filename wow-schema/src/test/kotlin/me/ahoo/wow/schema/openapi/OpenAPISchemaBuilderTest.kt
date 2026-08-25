@@ -3,6 +3,7 @@ package me.ahoo.wow.schema.openapi
 import com.fasterxml.classmate.TypeResolver
 import com.github.victools.jsonschema.generator.Option
 import io.swagger.v3.core.util.ObjectMapperFactory
+import io.swagger.v3.oas.annotations.media.Schema
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.FilterExpression
@@ -81,6 +82,17 @@ class OpenAPISchemaBuilderTest {
         val binary = schemas.getValue("wow.api.query.AggregationExpression.Binary")
         binary.properties.getValue("left").`$ref`.assert().isEqualTo(expressionRef)
         binary.properties.getValue("right").`$ref`.assert().isEqualTo(expressionRef)
+    }
+
+    @Test
+    fun `should not normalize inherited schema annotations`() {
+        val openAPISchemaBuilder = OpenAPISchemaBuilder()
+        openAPISchemaBuilder.generateSchema(InheritedUnionChild::class.java)
+
+        val schemas = openAPISchemaBuilder.build()
+        val schema = schemas.values.single()
+        schema.oneOf.assert().isNull()
+        schema.discriminator.assert().isNull()
     }
 
     @Test
@@ -186,3 +198,10 @@ class OpenAPISchemaBuilderTest {
         arrayTypeSchema.types.assert().contains("array")
     }
 }
+
+@Schema(oneOf = [InheritedUnionOption::class], discriminatorProperty = "type")
+open class InheritedUnionParent
+
+class InheritedUnionChild : InheritedUnionParent()
+
+class InheritedUnionOption

@@ -41,7 +41,7 @@ class OpenAPISchemaBuilder(
                 defaultSchemaNamePrefix = defaultSchemaNamePrefix,
                 onDefinitionName = { key, name ->
                     key.type.erasedType
-                        .getAnnotation(
+                        .getDeclaredAnnotation(
                             SchemaAnnotation::class.java,
                         )
                         ?.let { schemaAnnotations[name] = it }
