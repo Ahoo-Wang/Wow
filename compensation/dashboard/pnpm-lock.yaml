@@ -13,7 +13,7 @@ importers:
         version: 3.17.1
       '@ahoo-wang/fetcher-cosec':
         specifier: ^3.17.1
-        version: 3.17.1(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-storage@3.16.10(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.17.1)))(@ahoo-wang/fetcher@3.17.1)
+        version: 3.17.1(@ahoo-wang/fetcher-eventbus@3.17.0(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-storage@3.17.0(@ahoo-wang/fetcher-eventbus@3.17.0(@ahoo-wang/fetcher@3.17.1)))(@ahoo-wang/fetcher@3.17.1)
       '@ahoo-wang/fetcher-decorator':
         specifier: ^3.17.1
         version: 3.17.1(@ahoo-wang/fetcher@3.17.1)
@@ -22,7 +22,7 @@ importers:
         version: 3.17.1(@ahoo-wang/fetcher@3.17.1)
       '@ahoo-wang/fetcher-react':
         specifier: ^3.17.1
-        version: 3.17.1(@ahoo-wang/fetcher-cosec@3.17.1(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-storage@3.16.10(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.17.1)))(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-eventstream@3.17.1(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-storage@3.16.10(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.17.1)))(@ahoo-wang/fetcher-wow@3.17.1(@ahoo-wang/fetcher-decorator@3.17.1(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-eventstream@3.17.1(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher@3.17.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 3.17.1(@ahoo-wang/fetcher-cosec@3.17.1(@ahoo-wang/fetcher-eventbus@3.17.0(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-storage@3.17.0(@ahoo-wang/fetcher-eventbus@3.17.0(@ahoo-wang/fetcher@3.17.1)))(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-eventbus@3.17.0(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-eventstream@3.17.1(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-storage@3.17.0(@ahoo-wang/fetcher-eventbus@3.17.0(@ahoo-wang/fetcher@3.17.1)))(@ahoo-wang/fetcher-wow@3.17.1(@ahoo-wang/fetcher-decorator@3.17.1(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-eventstream@3.17.1(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher@3.17.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@ahoo-wang/fetcher-wow':
         specifier: ^3.17.1
         version: 3.17.1(@ahoo-wang/fetcher-decorator@3.17.1(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-eventstream@3.17.1(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher@3.17.1)
@@ -74,7 +74,7 @@ importers:
     devDependencies:
       '@ahoo-wang/fetcher-generator':
         specifier: ^3.17.1
-        version: 3.17.1(@ahoo-wang/fetcher-decorator@3.17.1(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-eventstream@3.17.1(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-openapi@3.16.10)(@ahoo-wang/fetcher-wow@3.17.1(@ahoo-wang/fetcher-decorator@3.17.1(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-eventstream@3.17.1(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher@3.17.1)
+        version: 3.17.1(@ahoo-wang/fetcher-decorator@3.17.1(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-eventstream@3.17.1(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-openapi@3.17.0)(@ahoo-wang/fetcher-wow@3.17.1(@ahoo-wang/fetcher-decorator@3.17.1(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-eventstream@3.17.1(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher@3.17.1)
       '@babel/core':
         specifier: 7.29.7
         version: 7.29.7(supports-color@7.2.0)
@@ -182,9 +182,9 @@ packages:
     peerDependencies:
       '@ahoo-wang/fetcher': ^3.0.0
 
-  '@ahoo-wang/fetcher-eventbus@3.16.10':
-    resolution: {integrity: sha512-ZDS07wp9d7Ay302VEr/HfKAwD43UPjmknqrrjGdZBe/KwMagQQQSMWspNrn89TuiHByUAgERMOt0RZD9uruPVg==}
-    engines: {node: '>=18.0.0'}
+  '@ahoo-wang/fetcher-eventbus@3.17.0':
+    resolution: {integrity: sha512-xOeHG7PyT1FBPwmwdVA3H20USXYVLtXy5eCqDoooB6/zqVqcF1TtlL5H5hixUKRHr/nuDyQYte+BNX1IBMLMhA==}
+    engines: {node: '>=18.20.8'}
     peerDependencies:
       '@ahoo-wang/fetcher': ^3.0.0
 
@@ -205,9 +205,9 @@ packages:
       '@ahoo-wang/fetcher-openapi': ^3.0.0
       '@ahoo-wang/fetcher-wow': ^3.0.0
 
-  '@ahoo-wang/fetcher-openapi@3.16.10':
-    resolution: {integrity: sha512-/L2ECUG4H+g/EtCIiH0tAsvVmSfRGqNdJQtRfG0/Mzroa3FcD596Lypl+XnVWgeIFErV84WuvPYh+p6pnKpQqw==}
-    engines: {node: '>=18.0.0'}
+  '@ahoo-wang/fetcher-openapi@3.17.0':
+    resolution: {integrity: sha512-Rsbw1XUuvNsmH/mLTOh5tTUcc9ViYWcbuZsbrJhgPdl+uyZNbEV9SW5kG/t6VjzvyVSpbidO+lqNy7nWKuVIvg==}
+    engines: {node: '>=18.20.8'}
 
   '@ahoo-wang/fetcher-react@3.17.1':
     resolution: {integrity: sha512-ZJppT4ubhTFFexxR95+YeafEZO1MVXX+DhOWlcmG+uXPk7C0Xc4Azni0i9ACssKZuvmSwV8KYrTE3q/kQhXtyA==}
@@ -222,9 +222,9 @@ packages:
       react: ^19.2.8
       react-dom: ^19.2.8
 
-  '@ahoo-wang/fetcher-storage@3.16.10':
-    resolution: {integrity: sha512-4KMi6XfnQkjnolzQLWGQcbT6LGFs8d/h7wqCfaWkjcUxl7fQk68BBiynNpxq+J5En80IshYFgCi2eycHzdpvvQ==}
-    engines: {node: '>=18.0.0'}
+  '@ahoo-wang/fetcher-storage@3.17.0':
+    resolution: {integrity: sha512-yMvhNMxGTAdauH0wslUUJr0CfEK1xe3uONSUnY6kaTGoLdhKwIOkScA9+FIeiQEQ19pqj9/dZEkUF7+LsRFrxw==}
+    engines: {node: '>=18.20.8'}
     peerDependencies:
       '@ahoo-wang/fetcher-eventbus': ^3.0.0
 
@@ -409,8 +409,8 @@ packages:
     resolution: {integrity: sha512-ctxtJ/eA+t+6q2++vj5j7FYX3nRu311q1wfYH3xjlLOsczhlhxAg2FWNUXhpGvAw3BWo1xBcvOV6/YLc2r5FJw==}
     hasBin: true
 
-  '@csstools/color-helpers@6.1.0':
-    resolution: {integrity: sha512-064IFJdjTfUqnjpCVpMOdbr8FLQBhinbZj6yRv2An2E41O/pLEXqfFRWqGq/SxlE5PEUYTlvWsG2r8MswAVvkg==}
+  '@csstools/color-helpers@6.1.1':
+    resolution: {integrity: sha512-gLNsunvwf3mCi5u5o46/Z/JcJMnhbHSaZ69rkgPzNM3J4s8hWwpPUQB6/tt0EDFyCiWzxANlx+2LJwpYj4zS1w==}
     engines: {node: '>=20.19.0'}
 
   '@csstools/css-calc@3.3.0':
@@ -420,8 +420,8 @@ packages:
       '@csstools/css-parser-algorithms': ^4.0.0
       '@csstools/css-tokenizer': ^4.0.0
 
-  '@csstools/css-color-parser@4.1.10':
-    resolution: {integrity: sha512-UZhQLIUyJaaMepqehrCODwCg2KW25vFvLWBmqYFaPclYvvxzj/sG8LBOhBFCp11i9uE7t1EyS+RAoV9tztPFyw==}
+  '@csstools/css-color-parser@4.2.0':
+    resolution: {integrity: sha512-5+5LEmFuY1AjXdYhmgjTJogtQnP1evJ1zrBZGUNZ0thkpwnnmKxcHdAMn/OtFjAb25zA+jKDVYVRl+5G7rjv1A==}
     engines: {node: '>=20.19.0'}
     peerDependencies:
       '@csstools/css-parser-algorithms': ^4.0.0
@@ -433,8 +433,8 @@ packages:
     peerDependencies:
       '@csstools/css-tokenizer': ^4.0.0
 
-  '@csstools/css-syntax-patches-for-csstree@1.1.7':
-    resolution: {integrity: sha512-fQ+05118eQS1cofO3aJpB5efgpBZMvIzwr/sbC8kDLVA5XLG8q1kJV5yzrUAI1f7lvhPnm8fgIjzFB8/O/5Dig==}
+  '@csstools/css-syntax-patches-for-csstree@1.1.8':
+    resolution: {integrity: sha512-CpMLjAvwQg3BL5S0IeqsZNMH7EQrEWi0kLKOC13ZBF0ZwERiLWlibNPJr8G1kdU3Ms/r2KiNrF81pUh2HwAHdg==}
     peerDependencies:
       css-tree: ^3.2.1
     peerDependenciesMeta:
@@ -518,8 +518,8 @@ packages:
   '@fontsource-variable/geist@5.3.0':
     resolution: {integrity: sha512-j0m+vLQuG5XAYoHtGCVu0spvlGreR3EzpECUVzkFmI1mTVnAO38l/NEPDCFgZ177JxzYJCLSmTQibIiYPilGrA==}
 
-  '@hono/node-server@2.1.0':
-    resolution: {integrity: sha512-XovyyCCnBzW+zKu+z/zq8hwNs4KOR5rEMAOxo2f40Q5xoOI37IMm6MIg2COOUtUApo0i6850MTBKH2u4QLGIqg==}
+  '@hono/node-server@2.1.1':
+    resolution: {integrity: sha512-ELuehkj5VCBdgEw9zs+ivkKwyzzUCSQuE96YmiPvn1ECBoZCczbFXJLeEGMTYjphP6gydh4pHMqEYPVMYUVgQg==}
     engines: {node: '>=20'}
     peerDependencies:
       hono: ^4
@@ -1744,8 +1744,8 @@ packages:
     resolution: {integrity: sha512-quJQXlTSUGL2LH9SUXo8VwsY4soanhgo6LNSm84E1LBcE8s3O0wpdiRzyR9z/ZZJMlMWv37qOOb9pdJlMUEKFQ==}
     engines: {node: '>=8'}
 
-  ansi-regex@6.2.2:
-    resolution: {integrity: sha512-Bq3SmSpyFHaWjPk8If9yc6svM8c56dB5BAtW4Qbw5jHTwwXXcTLoRMkpDJp6VL0XzlWaCHTXrkFURMYmD0sLqg==}
+  ansi-regex@6.3.0:
+    resolution: {integrity: sha512-WpDfL7NO6j7tH88IDBNVdUJxDh9nmCteAVW9dsep846XdwF4naCBK+/tGLX3KJgcpgMRXCFlTM2hKGoK9FsdrQ==}
     engines: {node: '>=12'}
 
   ansi-styles@5.2.0:
@@ -1788,8 +1788,8 @@ packages:
     resolution: {integrity: sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA==}
     engines: {node: 18 || 20 || >=22}
 
-  baseline-browser-mapping@2.11.13:
-    resolution: {integrity: sha512-k9HNuUVMlqVjQ9UHzfPjIqiDbWw7WqT1AoT7GL8VwvF3r0ZfArtgiSPAlmupyNquNgOJHTuH4CKYf8ttMTWBTQ==}
+  baseline-browser-mapping@2.11.18:
+    resolution: {integrity: sha512-1iEmLEYSiE1SeBoAfPo/Mnx3PzfzHUkDK61ASkCpuk3YXugYLH5DYK1SzqV55F8FMI6s0F+/tCP7Polz1QRjxw==}
     engines: {node: '>=6.0.0'}
     hasBin: true
 
@@ -1894,8 +1894,8 @@ packages:
     resolution: {integrity: sha512-nTjqfcBFEipKdXCv4YDQWCfmcLZKm81ldF0pAopTvyrFGVbcR6P/VAAd5G7N+0tTr8QqiU0tFadD6FK4NtJwOA==}
     engines: {node: '>= 0.6'}
 
-  content-type@2.0.0:
-    resolution: {integrity: sha512-j/O/d7GcZCyNl7/hwZAb606rzqkyvaDctLmckbxLzHvFBzTJHuGEdodATcP3yIRoDrLHkIATJuvzbFlp/ki2cQ==}
+  content-type@2.1.0:
+    resolution: {integrity: sha512-mj7UPXE0jaqaOsukNZRUEfEi2AcL7C/vwmwcHV0O97eO1E1pxBZuyjlZrx5seTaNBg1U6+o35wpa35Qfcc+7ag==}
     engines: {node: '>=18'}
 
   convert-source-map@2.0.0:
@@ -1989,8 +1989,8 @@ packages:
     resolution: {integrity: sha512-x1VCxdX4t+8wVfd1so/9w+vQ4vx7lKd2Qp5tDRutErwmR85OgmfX7RlLRMWafRMY7hbEiXIbudNrjOAPa/hL8Q==}
     engines: {node: '>=18'}
 
-  default-browser@5.5.0:
-    resolution: {integrity: sha512-H9LMLr5zwIbSxrmvikGuI/5KGhZ8E2zH3stkMgM5LpOWDutGM2JZaj460Udnf1a+946zc7YBgrqEWwbk7zHvGw==}
+  default-browser@5.5.1:
+    resolution: {integrity: sha512-m1pAzaJgZ/gssEqlOhJkPJp8Xly7QyW6xcrkUa2KKcDeDSEMP7X8xipU3snUcfisTQx0w1AGae+9UtJSfVnXGw==}
     engines: {node: '>=18'}
 
   define-lazy-prop@2.0.0:
@@ -2041,8 +2041,8 @@ packages:
   ee-first@1.1.1:
     resolution: {integrity: sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow==}
 
-  electron-to-chromium@1.5.403:
-    resolution: {integrity: sha512-MQsYmdaLzvaCX5j+ZZBr5Fm6uCCnPQcRtlvmvRlWqrXy+BH2O4ffXIAScF+JQznQWB9brWp4lSD9Z4yNmaf2BA==}
+  electron-to-chromium@1.5.412:
+    resolution: {integrity: sha512-z4rMe3esBzlzovKHj4gxJnsCGZRK5l4baUvm+gCGJBPE+gsyUMKsuU9tnEUtI1dOebXz1ytAPGjvXhmQ7rIPwA==}
 
   emoji-regex@10.6.0:
     resolution: {integrity: sha512-toUI84YS5YmxW219erniWD0CIVOo46xGKColeNQRgOzDorgBi1v4D71/OFzgD9GO2UGKIv1C3Sp8DAn0+j5w7A==}
@@ -2078,8 +2078,8 @@ packages:
     resolution: {integrity: sha512-Zf5H2Kxt2xjTvbJvP2ZWLEICxA6j+hAmMzIlypy4xcBg1vKVnx89Wy0GbS+kf5cwCVFFzdCFh2XSCFNULS6csw==}
     engines: {node: '>= 0.4'}
 
-  es-module-lexer@2.3.1:
-    resolution: {integrity: sha512-shc1dbU90Yl/xq1QrC7QRtfcwURZuVRfPhZbDoldJ1cn1gzDvBaBWlv0eFolj5+0znnPJz5TXLxsN77X/12KTA==}
+  es-module-lexer@2.3.2:
+    resolution: {integrity: sha512-poHGpORABojJJucnV9KbOavETW8lBVnphkW77ER5/BQ5Fz7oXSoCNek7IH3vR5nRjdsEz926ibFYX8KtLQmdyw==}
 
   es-object-atoms@1.1.2:
     resolution: {integrity: sha512-HWcBoN6NileqtSydK2FqHbS/LoDd2pqrnQHLyJzBj4kOp/ky2MWMN694xOfkK8/SnUsW2DH7EfyVlydKCsm1Zw==}
@@ -2167,8 +2167,8 @@ packages:
     resolution: {integrity: sha512-aIL5Fx7mawVa300al2BnEE4iNvo1qETxLrPI/o05L7z6go7fCw1J6EQmbK4FmJ2AS7kgVF/KEZWufBfdClMcPg==}
     engines: {node: '>= 0.6'}
 
-  eventsource-parser@3.1.0:
-    resolution: {integrity: sha512-kJezFj9YFAMLeORyi7aCLxLbD5/qWMQnoMVlVPyHIll7lgRJCc3JVln9Vgl9nwQi0YkMnhdGTMNn7CkRRAptMg==}
+  eventsource-parser@3.1.1:
+    resolution: {integrity: sha512-EKN1vKAMcZ8MlYMpaNuxN6R9yakzH6uajHcHVTqWJzvu5pWw9DyhbP35HH8MVBQ+dZjAfDxk+A8NiR9KWaXiyQ==}
     engines: {node: '>=18.0.0'}
 
   eventsource@3.0.7:
@@ -2210,8 +2210,8 @@ packages:
   fast-levenshtein@2.0.6:
     resolution: {integrity: sha512-DCXu6Ifhqcks7TZKY3Hxp3y6qphY5SJZmrWMDrKcERSOXWQdMhU9Ig/PYrzyw/ul9jOIyh0N4M0tbC5hodg8dw==}
 
-  fast-uri@3.1.5:
-    resolution: {integrity: sha512-gHwA1O9LDIcKunMKhObS/HimwtehO1nPUECKAu5TpKgaO19fcWEl4bliWe1jWxVFvIXztJjjQ4L8XQ1EU9f7Jw==}
+  fast-uri@3.1.6:
+    resolution: {integrity: sha512-7Ical1vFEMr0onbVzEDIreM22I4khW+fzyQPwvAFWBp1iwdshSZRsL4jjRvPG9JP1uiqMHRto+YU6R2/CzDz5Q==}
 
   fastq@1.20.1:
     resolution: {integrity: sha512-GGToxJ/w1x32s/D2EKND7kTil4n8OVk/9mycTc4VDza13lOvpUZTGX3mFSCtV9ksdGBVzvsyAVLM6mHFThxXxw==}
@@ -2372,8 +2372,8 @@ packages:
   highlightjs-vue@1.0.0:
     resolution: {integrity: sha512-PDEfEF102G23vHmPhLyPboFCD+BkMGu+GuJe2d9/eH4FsCwvgBpnc9n0pGE+ffKdph38s6foEZiEjdgHdzp+IA==}
 
-  hono@4.13.1:
-    resolution: {integrity: sha512-kdJoFVv2xmayw6cY09H7AbMJMt8Jn5jdlEdXsP7AGBdF2DIptVlKlOLKXP41yPip4/a3yQPv9gVcJYI8YY04dw==}
+  hono@4.13.3:
+    resolution: {integrity: sha512-r8AO2mYHoLxSHkgafNeC/BXyb2vWRxD3jem4Ts+ptav8oTG5FIRifAjuJEmZI4bSvvc2ns0GxmIYiZnHqN3mMw==}
     engines: {node: '>=16.9.0'}
 
   html-encoding-sniffer@6.0.0:
@@ -2407,8 +2407,8 @@ packages:
     resolution: {integrity: sha512-BAg6QkE8W+TuQLrrw0Ugr7HegXduRuuj8/ti2kSOc+jz1dmx8/WNcjr6XGnq5YpDWxFwwaavqD0+jIUOKelTsw==}
     engines: {node: '>= 4'}
 
-  immer@11.1.16:
-    resolution: {integrity: sha512-Xs7H9rBc+kti1J6RueUvbEBkmOz7jqj11XYgf+YMXAYzu8EeE7hwZ9poLXdVfVnGmJu7QAf41T7H2KuF6QoK6Q==}
+  immer@11.1.18:
+    resolution: {integrity: sha512-EQyQtLiYW029lyoczMl/Hh4Xu7cDecSc58JRYpHyL4tIAu3eqd1yJzQX04d2BZHDkzFFvm6qJEJWOtfDSWAXbQ==}
 
   import-fresh@3.3.1:
     resolution: {integrity: sha512-TR3KfrTZTYLPB6jUjfx6MF9WcWrHL9su5TObK4ZkYgBdWKPOFoSoQIdEuTuR82pmtxH2spWG9h6etwfr1pLBqQ==}
@@ -2425,8 +2425,8 @@ packages:
   inherits@2.0.4:
     resolution: {integrity: sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ==}
 
-  ip-address@10.4.0:
-    resolution: {integrity: sha512-oSK96Grm3aP6OrS263xVxbNDGVL7rzBtYdpGqlDG8iQdoenDoTs/nkki+DflYbAEE8Xl6o5YxhxlrKvI3nqKXQ==}
+  ip-address@10.5.0:
+    resolution: {integrity: sha512-R5SnVLJmgYYvf2F2ZgwSBnelz5G4q5AxIC277GDfUaNbrZKNANcBC7RHqYYePlszf4kBolVkJauG0ZjHHFh55g==}
     engines: {node: '>= 12'}
 
   ipaddr.js@1.9.1:
@@ -2552,8 +2552,8 @@ packages:
     resolution: {integrity: sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ==}
     hasBin: true
 
-  jose@6.2.8:
-    resolution: {integrity: sha512-Bsdjwm3Qsd/P0jR+BHDe3LytDfY7WBq2HmCCLIwuVRHMuEC9ae7/R474GIUdF1NgCyZjzVo/A9DOiOBtXq8ZoQ==}
+  jose@6.2.10:
+    resolution: {integrity: sha512-iiW7J9qRFlGxvCOIBDBDxFePQSn7ZMAnrYGhrrOo6siO/MIqwfyilLR27pkfDgUk+raLuzADS8A3S/KLBisc0g==}
 
   js-tokens@10.0.0:
     resolution: {integrity: sha512-lM/UBzQmfJRo9ABXbPWemivdCW8V2G8FHaHdypQaIy523snUjog0W71ayWXTjiR+ixeMyVHN2XcpnTd/liPg/Q==}
@@ -2888,9 +2888,9 @@ packages:
   natural-compare@1.4.0:
     resolution: {integrity: sha512-OWND8ei3VtNC9h7V60qff3SVobHr996CTwgxubgyQYEpg290h9J0buyECNNJexkFm5sOajh5G116RYA1c8ZMSw==}
 
-  negotiator@1.0.0:
-    resolution: {integrity: sha512-8Ofs/AUQh8MaEcrlq5xOX0CQ9ypTF5dl78mjlMNfOK08fzpgTHQRQPBxcPlEtIw0yRpws+Zo/3r+5WRby7u3Gg==}
-    engines: {node: '>= 0.6'}
+  negotiator@1.1.0:
+    resolution: {integrity: sha512-NMPBRMJgiQHjbd8phG3Vebdx4kZ1H121rbl5IkMqeOsahptB9BKo/d7oJ3zTXqTgagn2bWlNSXkh0QUGM31RYg==}
+    engines: {node: '>=18'}
 
   node-releases@2.0.53:
     resolution: {integrity: sha512-D9UOmYG3UH1V+ENW56t5QXBwJw1YEY18ruVeus89Rw+SyIgjPkCO84bRzO3uNIYosJbNwiabWVn48o3uJLjxFQ==}
@@ -2935,8 +2935,8 @@ packages:
     resolution: {integrity: sha512-VXJjc87FScF88uafS3JllDgvAm+c/Slfz06lorj2uAY34rlUu0Nt+v8wreiImcrgAjjIHp1rXpTDlLOGw29WwQ==}
     engines: {node: '>=18'}
 
-  open@11.0.0:
-    resolution: {integrity: sha512-smsWv2LzFjP03xmvFoJ331ss6h+jixfA4UUV/Bsiyuu4YJPfN+FIQGOIiv4w9/+MoHkfkJ22UIaQWRVFRfH6Vw==}
+  open@11.0.1:
+    resolution: {integrity: sha512-NzwMUB6C1D0+Kd+9iMS/H4k+Ck3cTX6Ckyfr/gAGlmvSE1LUQZnEZvWBi4PYmMwH/S5SMeTXnE+9uAz8uF+pWw==}
     engines: {node: '>=20'}
 
   open@8.4.2:
@@ -3057,6 +3057,10 @@ packages:
 
   powershell-utils@0.1.0:
     resolution: {integrity: sha512-dM0jVuXJPsDN6DvRpea484tCUaMiXWjuCn++HGTqUWzGDjv5tZkEZldAJ/UMlqRYGFrD/etByo4/xOuC/snX2A==}
+    engines: {node: '>=20'}
+
+  powershell-utils@0.2.0:
+    resolution: {integrity: sha512-ZlsFlG7MtSFCoc5xreOvBAozCJ6Pf06opgJjh9ONEv418xpZSAzNjstD36C6+JwOnfSqOW/9uDkqKjezTdxZhw==}
     engines: {node: '>=20'}
 
   prelude-ls@1.2.1:
@@ -3187,8 +3191,8 @@ packages:
     resolution: {integrity: sha512-PWaYA1L/q9u2u7xYQi+Y3L3Yfnie7XyLeaJICV1MGD6LprsBxcAqGjYyr0eY3p+QdsA+x/Irkt4Qif8D63+Sbw==}
     engines: {node: '>=0.10.0'}
 
-  recast@0.23.19:
-    resolution: {integrity: sha512-T98lym7kH+pnZmRaD8yDRdaNqyUbwnbEBx0MuchrzMFOEMray4AO3ZJoTUZ5r78Ao78X/OhzW0DL8GB85w/I2w==}
+  recast@0.23.21:
+    resolution: {integrity: sha512-mFAyJq9vUbSTARLZUvAEf1z3YxlvAwswbmxMx2mPA/MSm4KmpwvwvhsH/NIrZhyOuwD60Lzyw2qh83uCbgTPYw==}
     engines: {node: '>= 4'}
 
   redent@3.0.0:
@@ -3505,8 +3509,8 @@ packages:
     resolution: {integrity: sha512-pjy2bYhSsufwWlKwPc+l3cN7+wuJlK6uz0YdJEOlQDbl6jo/YlPi4mb8agUkVC8BF7V8NuzeyPNqRksA3hztKQ==}
     engines: {node: '>= 0.8'}
 
-  update-browserslist-db@1.3.0:
-    resolution: {integrity: sha512-x/M6q3w4Ybp91CNaS4S69UnliqR3BzRpOT6LWbksjth0S/+jhfaPJsWjt/TewpT8j9eLIojUf5jr29WextHroA==}
+  update-browserslist-db@1.3.1:
+    resolution: {integrity: sha512-ZZ61DsRsOnakl74HAmp3oSN4aXUmEWXf+i/yv0h7tIBfICc3VdrFErQKUUKPgu3AMsTUMbcongALEN4l6GSUrQ==}
     hasBin: true
     peerDependencies:
       browserslist: '>= 4.21.0'
@@ -3671,8 +3675,8 @@ packages:
   wrappy@1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
 
-  wsl-utils@0.3.1:
-    resolution: {integrity: sha512-g/eziiSUNBSsdDJtCLB8bdYEUMj4jR7AGeUo96p/3dTafgjHhpF4RiCFPiRILwjQoDXx5MqkBr4fwWtR3Ky4Wg==}
+  wsl-utils@1.0.0:
+    resolution: {integrity: sha512-Hl0ZOAs672vg+06kfujwRhoS6/jehvULrlFkuF2dRu6pHgA8U06h3xqNIqNNU1LTXPcedxByAR4GS6pwQK0mgA==}
     engines: {node: '>=20'}
 
   xml-name-validator@5.0.0:
@@ -3729,11 +3733,11 @@ snapshots:
 
   '@adobe/css-tools@4.5.0': {}
 
-  '@ahoo-wang/fetcher-cosec@3.17.1(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-storage@3.16.10(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.17.1)))(@ahoo-wang/fetcher@3.17.1)':
+  '@ahoo-wang/fetcher-cosec@3.17.1(@ahoo-wang/fetcher-eventbus@3.17.0(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-storage@3.17.0(@ahoo-wang/fetcher-eventbus@3.17.0(@ahoo-wang/fetcher@3.17.1)))(@ahoo-wang/fetcher@3.17.1)':
     dependencies:
       '@ahoo-wang/fetcher': 3.17.1
-      '@ahoo-wang/fetcher-eventbus': 3.16.10(@ahoo-wang/fetcher@3.17.1)
-      '@ahoo-wang/fetcher-storage': 3.16.10(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.17.1))
+      '@ahoo-wang/fetcher-eventbus': 3.17.0(@ahoo-wang/fetcher@3.17.1)
+      '@ahoo-wang/fetcher-storage': 3.17.0(@ahoo-wang/fetcher-eventbus@3.17.0(@ahoo-wang/fetcher@3.17.1))
       nanoid: 5.1.16
 
   '@ahoo-wang/fetcher-decorator@3.17.1(@ahoo-wang/fetcher@3.17.1)':
@@ -3741,7 +3745,7 @@ snapshots:
       '@ahoo-wang/fetcher': 3.17.1
       reflect-metadata: 0.2.2
 
-  '@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.17.1)':
+  '@ahoo-wang/fetcher-eventbus@3.17.0(@ahoo-wang/fetcher@3.17.1)':
     dependencies:
       '@ahoo-wang/fetcher': 3.17.1
 
@@ -3749,35 +3753,35 @@ snapshots:
     dependencies:
       '@ahoo-wang/fetcher': 3.17.1
 
-  '@ahoo-wang/fetcher-generator@3.17.1(@ahoo-wang/fetcher-decorator@3.17.1(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-eventstream@3.17.1(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-openapi@3.16.10)(@ahoo-wang/fetcher-wow@3.17.1(@ahoo-wang/fetcher-decorator@3.17.1(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-eventstream@3.17.1(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher@3.17.1)':
+  '@ahoo-wang/fetcher-generator@3.17.1(@ahoo-wang/fetcher-decorator@3.17.1(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-eventstream@3.17.1(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-openapi@3.17.0)(@ahoo-wang/fetcher-wow@3.17.1(@ahoo-wang/fetcher-decorator@3.17.1(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-eventstream@3.17.1(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher@3.17.1)':
     dependencies:
       '@ahoo-wang/fetcher': 3.17.1
       '@ahoo-wang/fetcher-decorator': 3.17.1(@ahoo-wang/fetcher@3.17.1)
       '@ahoo-wang/fetcher-eventstream': 3.17.1(@ahoo-wang/fetcher@3.17.1)
-      '@ahoo-wang/fetcher-openapi': 3.16.10
+      '@ahoo-wang/fetcher-openapi': 3.17.0
       '@ahoo-wang/fetcher-wow': 3.17.1(@ahoo-wang/fetcher-decorator@3.17.1(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-eventstream@3.17.1(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher@3.17.1)
       commander: 14.0.3
       ts-morph: 28.0.0
       yaml: 2.9.0
 
-  '@ahoo-wang/fetcher-openapi@3.16.10': {}
+  '@ahoo-wang/fetcher-openapi@3.17.0': {}
 
-  '@ahoo-wang/fetcher-react@3.17.1(@ahoo-wang/fetcher-cosec@3.17.1(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-storage@3.16.10(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.17.1)))(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-eventstream@3.17.1(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-storage@3.16.10(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.17.1)))(@ahoo-wang/fetcher-wow@3.17.1(@ahoo-wang/fetcher-decorator@3.17.1(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-eventstream@3.17.1(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher@3.17.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@ahoo-wang/fetcher-react@3.17.1(@ahoo-wang/fetcher-cosec@3.17.1(@ahoo-wang/fetcher-eventbus@3.17.0(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-storage@3.17.0(@ahoo-wang/fetcher-eventbus@3.17.0(@ahoo-wang/fetcher@3.17.1)))(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-eventbus@3.17.0(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-eventstream@3.17.1(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-storage@3.17.0(@ahoo-wang/fetcher-eventbus@3.17.0(@ahoo-wang/fetcher@3.17.1)))(@ahoo-wang/fetcher-wow@3.17.1(@ahoo-wang/fetcher-decorator@3.17.1(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-eventstream@3.17.1(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher@3.17.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
       '@ahoo-wang/fetcher': 3.17.1
-      '@ahoo-wang/fetcher-cosec': 3.17.1(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-storage@3.16.10(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.17.1)))(@ahoo-wang/fetcher@3.17.1)
-      '@ahoo-wang/fetcher-eventbus': 3.16.10(@ahoo-wang/fetcher@3.17.1)
+      '@ahoo-wang/fetcher-cosec': 3.17.1(@ahoo-wang/fetcher-eventbus@3.17.0(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-storage@3.17.0(@ahoo-wang/fetcher-eventbus@3.17.0(@ahoo-wang/fetcher@3.17.1)))(@ahoo-wang/fetcher@3.17.1)
+      '@ahoo-wang/fetcher-eventbus': 3.17.0(@ahoo-wang/fetcher@3.17.1)
       '@ahoo-wang/fetcher-eventstream': 3.17.1(@ahoo-wang/fetcher@3.17.1)
-      '@ahoo-wang/fetcher-storage': 3.16.10(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.17.1))
+      '@ahoo-wang/fetcher-storage': 3.17.0(@ahoo-wang/fetcher-eventbus@3.17.0(@ahoo-wang/fetcher@3.17.1))
       '@ahoo-wang/fetcher-wow': 3.17.1(@ahoo-wang/fetcher-decorator@3.17.1(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-eventstream@3.17.1(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher@3.17.1)
       dequal: 2.0.3
-      immer: 11.1.16
+      immer: 11.1.18
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
 
-  '@ahoo-wang/fetcher-storage@3.16.10(@ahoo-wang/fetcher-eventbus@3.16.10(@ahoo-wang/fetcher@3.17.1))':
+  '@ahoo-wang/fetcher-storage@3.17.0(@ahoo-wang/fetcher-eventbus@3.17.0(@ahoo-wang/fetcher@3.17.1))':
     dependencies:
-      '@ahoo-wang/fetcher-eventbus': 3.16.10(@ahoo-wang/fetcher@3.17.1)
+      '@ahoo-wang/fetcher-eventbus': 3.17.0(@ahoo-wang/fetcher@3.17.1)
 
   '@ahoo-wang/fetcher-wow@3.17.1(@ahoo-wang/fetcher-decorator@3.17.1(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher-eventstream@3.17.1(@ahoo-wang/fetcher@3.17.1))(@ahoo-wang/fetcher@3.17.1)':
     dependencies:
@@ -3791,7 +3795,7 @@ snapshots:
     dependencies:
       '@asamuzakjp/generational-cache': 1.0.1
       '@csstools/css-calc': 3.3.0(@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0))(@csstools/css-tokenizer@4.0.0)
-      '@csstools/css-color-parser': 4.1.10(@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0))(@csstools/css-tokenizer@4.0.0)
+      '@csstools/css-color-parser': 4.2.0(@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0))(@csstools/css-tokenizer@4.0.0)
       '@csstools/css-parser-algorithms': 4.0.0(@csstools/css-tokenizer@4.0.0)
       '@csstools/css-tokenizer': 4.0.0
 
@@ -4014,16 +4018,16 @@ snapshots:
     dependencies:
       css-tree: 3.2.1
 
-  '@csstools/color-helpers@6.1.0': {}
+  '@csstools/color-helpers@6.1.1': {}
 
   '@csstools/css-calc@3.3.0(@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0))(@csstools/css-tokenizer@4.0.0)':
     dependencies:
       '@csstools/css-parser-algorithms': 4.0.0(@csstools/css-tokenizer@4.0.0)
       '@csstools/css-tokenizer': 4.0.0
 
-  '@csstools/css-color-parser@4.1.10(@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0))(@csstools/css-tokenizer@4.0.0)':
+  '@csstools/css-color-parser@4.2.0(@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0))(@csstools/css-tokenizer@4.0.0)':
     dependencies:
-      '@csstools/color-helpers': 6.1.0
+      '@csstools/color-helpers': 6.1.1
       '@csstools/css-calc': 3.3.0(@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0))(@csstools/css-tokenizer@4.0.0)
       '@csstools/css-parser-algorithms': 4.0.0(@csstools/css-tokenizer@4.0.0)
       '@csstools/css-tokenizer': 4.0.0
@@ -4032,7 +4036,7 @@ snapshots:
     dependencies:
       '@csstools/css-tokenizer': 4.0.0
 
-  '@csstools/css-syntax-patches-for-csstree@1.1.7(css-tree@3.2.1)':
+  '@csstools/css-syntax-patches-for-csstree@1.1.8(css-tree@3.2.1)':
     optionalDependencies:
       css-tree: 3.2.1
 
@@ -4114,9 +4118,9 @@ snapshots:
 
   '@fontsource-variable/geist@5.3.0': {}
 
-  '@hono/node-server@2.1.0(hono@4.13.1)':
+  '@hono/node-server@2.1.1(hono@4.13.3)':
     dependencies:
-      hono: 4.13.1
+      hono: 4.13.3
 
   '@humanfs/core@0.19.2':
     dependencies:
@@ -4155,18 +4159,18 @@ snapshots:
 
   '@modelcontextprotocol/sdk@1.30.0(supports-color@7.2.0)(zod@3.25.76)':
     dependencies:
-      '@hono/node-server': 2.1.0(hono@4.13.1)
+      '@hono/node-server': 2.1.1(hono@4.13.3)
       ajv: 8.20.0
       ajv-formats: 3.0.1(ajv@8.20.0)
       content-type: 1.0.5
       cors: 2.8.6
       cross-spawn: 7.0.6
       eventsource: 3.0.7
-      eventsource-parser: 3.1.0
+      eventsource-parser: 3.1.1
       express: 5.2.1(supports-color@7.2.0)
       express-rate-limit: 8.6.2(express@5.2.1(supports-color@7.2.0))(supports-color@7.2.0)
-      hono: 4.13.1
-      jose: 6.2.8
+      hono: 4.13.3
+      jose: 6.2.10
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
       raw-body: 3.0.2
@@ -5320,7 +5324,7 @@ snapshots:
   accepts@2.0.0:
     dependencies:
       mime-types: 3.0.2
-      negotiator: 1.0.0
+      negotiator: 1.1.0
 
   acorn-jsx@5.3.2(acorn@8.18.0):
     dependencies:
@@ -5346,7 +5350,7 @@ snapshots:
   ajv@8.20.0:
     dependencies:
       fast-deep-equal: 3.1.3
-      fast-uri: 3.1.5
+      fast-uri: 3.1.6
       json-schema-traverse: 1.0.0
       require-from-string: 2.0.2
 
@@ -5354,7 +5358,7 @@ snapshots:
 
   ansi-regex@5.0.1: {}
 
-  ansi-regex@6.2.2: {}
+  ansi-regex@6.3.0: {}
 
   ansi-styles@5.2.0: {}
 
@@ -5390,7 +5394,7 @@ snapshots:
 
   balanced-match@4.0.4: {}
 
-  baseline-browser-mapping@2.11.13: {}
+  baseline-browser-mapping@2.11.18: {}
 
   bidi-js@1.0.3:
     dependencies:
@@ -5399,7 +5403,7 @@ snapshots:
   body-parser@2.3.0(supports-color@7.2.0):
     dependencies:
       bytes: 3.1.2
-      content-type: 2.0.0
+      content-type: 2.1.0
       debug: 4.4.3(supports-color@7.2.0)
       http-errors: 2.0.1
       iconv-lite: 0.7.3
@@ -5420,11 +5424,11 @@ snapshots:
 
   browserslist@4.28.8:
     dependencies:
-      baseline-browser-mapping: 2.11.13
+      baseline-browser-mapping: 2.11.18
       caniuse-lite: 1.0.30001809
-      electron-to-chromium: 1.5.403
+      electron-to-chromium: 1.5.412
       node-releases: 2.0.53
-      update-browserslist-db: 1.3.0(browserslist@4.28.8)
+      update-browserslist-db: 1.3.1(browserslist@4.28.8)
 
   bundle-name@4.1.0:
     dependencies:
@@ -5493,7 +5497,7 @@ snapshots:
 
   content-type@1.0.5: {}
 
-  content-type@2.0.0: {}
+  content-type@2.1.0: {}
 
   convert-source-map@2.0.0: {}
 
@@ -5567,7 +5571,7 @@ snapshots:
 
   default-browser-id@5.0.1: {}
 
-  default-browser@5.5.0:
+  default-browser@5.5.1:
     dependencies:
       bundle-name: 4.1.0
       default-browser-id: 5.0.1
@@ -5604,7 +5608,7 @@ snapshots:
 
   ee-first@1.1.1: {}
 
-  electron-to-chromium@1.5.403: {}
+  electron-to-chromium@1.5.412: {}
 
   emoji-regex@10.6.0: {}
 
@@ -5632,7 +5636,7 @@ snapshots:
 
   es-errors@1.3.0: {}
 
-  es-module-lexer@2.3.1: {}
+  es-module-lexer@2.3.2: {}
 
   es-object-atoms@1.1.2:
     dependencies:
@@ -5745,11 +5749,11 @@ snapshots:
 
   etag@1.8.1: {}
 
-  eventsource-parser@3.1.0: {}
+  eventsource-parser@3.1.1: {}
 
   eventsource@3.0.7:
     dependencies:
-      eventsource-parser: 3.1.0
+      eventsource-parser: 3.1.1
 
   execa@5.1.1:
     dependencies:
@@ -5784,7 +5788,7 @@ snapshots:
     dependencies:
       debug: 4.4.3(supports-color@7.2.0)
       express: 5.2.1(supports-color@7.2.0)
-      ip-address: 10.4.0
+      ip-address: 10.5.0
     transitivePeerDependencies:
       - supports-color
 
@@ -5835,7 +5839,7 @@ snapshots:
 
   fast-levenshtein@2.0.6: {}
 
-  fast-uri@3.1.5: {}
+  fast-uri@3.1.6: {}
 
   fastq@1.20.1:
     dependencies:
@@ -5987,7 +5991,7 @@ snapshots:
 
   highlightjs-vue@1.0.0: {}
 
-  hono@4.13.1: {}
+  hono@4.13.3: {}
 
   html-encoding-sniffer@6.0.0:
     dependencies:
@@ -6017,7 +6021,7 @@ snapshots:
 
   ignore@7.0.6: {}
 
-  immer@11.1.16: {}
+  immer@11.1.18: {}
 
   import-fresh@3.3.1:
     dependencies:
@@ -6030,7 +6034,7 @@ snapshots:
 
   inherits@2.0.4: {}
 
-  ip-address@10.4.0: {}
+  ip-address@10.5.0: {}
 
   ipaddr.js@1.9.1: {}
 
@@ -6114,7 +6118,7 @@ snapshots:
 
   jiti@2.7.0: {}
 
-  jose@6.2.8: {}
+  jose@6.2.10: {}
 
   js-tokens@10.0.0: {}
 
@@ -6129,7 +6133,7 @@ snapshots:
       '@asamuzakjp/css-color': 5.1.11
       '@asamuzakjp/dom-selector': 7.1.1
       '@bramus/specificity': 2.4.2
-      '@csstools/css-syntax-patches-for-csstree': 1.1.7(css-tree@3.2.1)
+      '@csstools/css-syntax-patches-for-csstree': 1.1.8(css-tree@3.2.1)
       '@exodus/bytes': 1.15.1
       css-tree: 3.2.1
       data-urls: 7.0.0
@@ -6377,7 +6381,9 @@ snapshots:
 
   natural-compare@1.4.0: {}
 
-  negotiator@1.0.0: {}
+  negotiator@1.1.0:
+    dependencies:
+      content-type: 2.1.0
 
   node-releases@2.0.53: {}
 
@@ -6414,14 +6420,14 @@ snapshots:
     dependencies:
       mimic-function: 5.0.1
 
-  open@11.0.0:
+  open@11.0.1:
     dependencies:
-      default-browser: 5.5.0
+      default-browser: 5.5.1
       define-lazy-prop: 3.0.0
       is-in-ssh: 1.0.0
       is-inside-container: 1.0.0
-      powershell-utils: 0.1.0
-      wsl-utils: 0.3.1
+      powershell-utils: 0.2.0
+      wsl-utils: 1.0.0
 
   open@8.4.2:
     dependencies:
@@ -6543,6 +6549,8 @@ snapshots:
       source-map-js: 1.2.1
 
   powershell-utils@0.1.0: {}
+
+  powershell-utils@0.2.0: {}
 
   prelude-ls@1.2.1: {}
 
@@ -6711,7 +6719,7 @@ snapshots:
 
   react@19.2.8: {}
 
-  recast@0.23.19:
+  recast@0.23.21:
     dependencies:
       ast-types: 0.16.1
       esprima: 4.0.1
@@ -6840,12 +6848,12 @@ snapshots:
       fs-extra: 11.4.0
       fuzzysort: 3.1.0
       kleur: 4.1.5
-      open: 11.0.0
+      open: 11.0.1
       ora: 8.2.0
       postcss: 8.5.26
       postcss-selector-parser: 7.1.5
       prompts: 2.4.2
-      recast: 0.23.19
+      recast: 0.23.21
       socks: 2.8.9
       stringify-object: 5.0.0
       tailwind-merge: 3.6.0
@@ -6907,7 +6915,7 @@ snapshots:
 
   socks@2.8.9:
     dependencies:
-      ip-address: 10.4.0
+      ip-address: 10.5.0
       smart-buffer: 4.2.0
 
   sonner@2.0.8(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
@@ -6949,7 +6957,7 @@ snapshots:
 
   strip-ansi@7.2.0:
     dependencies:
-      ansi-regex: 6.2.2
+      ansi-regex: 6.3.0
 
   strip-bom@3.0.0: {}
 
@@ -7038,7 +7046,7 @@ snapshots:
 
   type-is@2.1.0:
     dependencies:
-      content-type: 2.0.0
+      content-type: 2.1.0
       media-typer: 1.1.1
       mime-types: 3.0.2
 
@@ -7065,7 +7073,7 @@ snapshots:
 
   unpipe@1.0.0: {}
 
-  update-browserslist-db@1.3.0(browserslist@4.28.8):
+  update-browserslist-db@1.3.1(browserslist@4.28.8):
     dependencies:
       browserslist: 4.28.8
       escalade: 3.2.0
@@ -7120,7 +7128,7 @@ snapshots:
       '@vitest/snapshot': 4.1.11
       '@vitest/spy': 4.1.11
       '@vitest/utils': 4.1.11
-      es-module-lexer: 2.3.1
+      es-module-lexer: 2.3.2
       expect-type: 1.4.0
       magic-string: 0.30.21
       obug: 2.1.4
@@ -7173,7 +7181,7 @@ snapshots:
 
   wrappy@1.0.2: {}
 
-  wsl-utils@0.3.1:
+  wsl-utils@1.0.0:
     dependencies:
       is-wsl: 3.1.1
       powershell-utils: 0.1.0
