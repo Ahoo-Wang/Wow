@@ -67,6 +67,8 @@ import me.ahoo.wow.query.converter.FieldConverter
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import org.bson.conversions.Bson
+import java.time.Instant
+import java.util.Date
 
 abstract class AbstractMongoFilterConverter(
     defaultDeletionState: DeletionState? = DeletionState.ACTIVE,
@@ -190,7 +192,10 @@ abstract class AbstractMongoFilterConverter(
         isString -> asString()
         isNumber -> numberValue()
         isBoolean -> booleanValue()
-        isPojo -> (this as tools.jackson.databind.node.POJONode).pojo
+        isPojo -> when (val value = (this as tools.jackson.databind.node.POJONode).pojo) {
+            is Instant -> Date.from(value)
+            else -> value
+        }
         isArray -> asSequence().map { it.nativeValue() }.toList()
         else -> error("Filter value must be a scalar, scalar array, or runtime POJO.")
     }

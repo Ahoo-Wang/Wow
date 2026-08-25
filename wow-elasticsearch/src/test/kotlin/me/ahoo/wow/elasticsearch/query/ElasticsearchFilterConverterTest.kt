@@ -41,6 +41,7 @@ import me.ahoo.wow.serialization.state.StateAggregateRecords
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.JsonNodeFactory
+import java.time.Instant
 import java.util.UUID
 
 class ElasticsearchFilterConverterTest {
@@ -121,6 +122,23 @@ class ElasticsearchFilterConverterTest {
         pojoQuery.value().isAny.assert().isTrue()
         pojoQuery.value().anyValue().toJson(WowJsonpMapper).toString().assert()
             .isEqualTo("\"f0191fbe-b181-4531-84be-4e8609e32966\"")
+    }
+
+    @Test
+    fun `date range values should use epoch milliseconds`() {
+        val filter = GreaterThanOrEqualFilter(
+            LogicalField("state.createdAt", FieldType.Temporal.Date),
+            JsonNodeFactory.instance.pojoNode(Instant.parse("2026-08-22T00:00:00Z")),
+        )
+
+        assertConvert(
+            SnapshotFilterConverter.convert(filter),
+            range {
+                it.untyped { range ->
+                    range.field("state.createdAt").gte(JsonData.of(1787356800000L))
+                }
+            },
+        )
     }
 
     @Test

@@ -2,6 +2,7 @@
 
 package me.ahoo.wow.mongo.query
 
+import com.mongodb.MongoClientSettings
 import com.mongodb.client.model.Filters
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.*
@@ -11,6 +12,13 @@ import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
+import org.bson.BsonDocument
+import org.bson.BsonReader
+import org.bson.BsonWriter
+import org.bson.codecs.Codec
+import org.bson.codecs.DecoderContext
+import org.bson.codecs.EncoderContext
+import org.bson.codecs.configuration.CodecRegistries
 import org.bson.conversions.Bson
 import org.bson.types.ObjectId
 import org.junit.jupiter.api.Test
@@ -19,6 +27,8 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import tools.jackson.databind.JsonNode
+import tools.jackson.databind.node.JsonNodeFactory
+import java.time.Instant
 import java.util.Date
 import java.util.stream.Stream
 
@@ -127,6 +137,27 @@ class SnapshotFilterConverterTest {
     }
 
     @Test
+    fun `date range values should use BSON Date`() {
+        val instant = Instant.parse("2026-08-22T00:00:00Z")
+        val filter = GreaterThanOrEqualFilter(
+            LogicalField("state.createdAt", FieldType.Temporal.Date),
+            JsonNodeFactory.instance.pojoNode(instant),
+        )
+
+        val codecRegistry = CodecRegistries.fromRegistries(
+            CodecRegistries.fromCodecs(InstantSentinelCodec),
+            MongoClientSettings.getDefaultCodecRegistry(),
+        )
+        SnapshotFilterConverter.convert(filter).toBsonDocument(BsonDocument::class.java, codecRegistry).assert()
+            .isEqualTo(
+                Filters.and(
+                    Filters.eq(StateAggregateRecords.DELETED, false),
+                    Filters.gte("state.createdAt", Date.from(instant)),
+                ).toBsonDocument(BsonDocument::class.java, codecRegistry),
+            )
+    }
+
+    @Test
     fun `element predicate fields should remain relative`() {
         assertConvert(
             SnapshotFilterConverter.convert(
@@ -209,6 +240,17 @@ class SnapshotFilterConverterTest {
     }
 
     companion object {
+        private object InstantSentinelCodec : Codec<Instant> {
+            override fun encode(writer: BsonWriter, value: Instant, encoderContext: EncoderContext) {
+                writer.writeString("raw-instant")
+            }
+
+            override fun getEncoderClass(): Class<Instant> = Instant::class.java
+
+            override fun decode(reader: BsonReader, decoderContext: DecoderContext): Instant =
+                error("Decode is not used.")
+        }
+
         private fun json(value: Any?): JsonNode = JsonSerializer.valueToTree(value)
 
         @JvmStatic

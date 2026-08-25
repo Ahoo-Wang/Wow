@@ -170,6 +170,43 @@ data class ElasticsearchIndexMapping private constructor(
         return field
     }
 
+    internal fun resolveTemporal(
+        field: LogicalField,
+        docValuesRequired: Boolean,
+    ): LogicalField {
+        val type = field.temporalTypeOrDefault()
+        val mappedField = findMappedField(field.name)
+            ?: resolutionFailure(
+                "Elasticsearch temporal field [${field.name}] is not mapped in index [$indexName].",
+            )
+        fun ElasticsearchMappedField.isCompatible(): Boolean =
+            supportsTemporal(type) && supports(ElasticsearchFieldUsage.RANGE) && (!docValuesRequired || sortable)
+
+        if (mappedField.isCompatible()) return field.copy(name = field.name)
+
+        preferredSuffixes(ElasticsearchFieldUsage.RANGE).forEach { suffix ->
+            val candidate = "${field.name}.$suffix"
+            if (candidate in mappedField.multiFields && fields[candidate]?.isCompatible() == true) {
+                return field.copy(name = candidate)
+            }
+        }
+        val candidates = mappedField.multiFields.filter { fields[it]?.isCompatible() == true }
+        if (candidates.size == 1) return field.copy(name = candidates.single())
+        if (candidates.size > 1) {
+            resolutionFailure(
+                "Elasticsearch temporal field [${field.name}] in index [$indexName] declares " +
+                    "[${type.declaredName()}], but compatible mappings $candidates are ambiguous; " +
+                    "expected [${type.expectedMapping(docValuesRequired)}].",
+            )
+        }
+        resolutionFailure(
+            "Elasticsearch temporal field [${field.name}] in index [$indexName] declares " +
+                "[${type.declaredName()}], but actual mapping is " +
+                "[${mappedField.actualMapping(docValuesRequired)}]; " +
+                "expected [${type.expectedMapping(docValuesRequired)}].",
+        )
+    }
+
     fun resolve(filter: FilterExpression, parent: String? = null): FilterExpression = resolveTyped(filter, parent)
 
     @Suppress("CyclomaticComplexMethod", "LongMethod")
@@ -239,7 +276,10 @@ data class ElasticsearchIndexMapping private constructor(
         }
         is ElementMatchFilter -> {
             val nestedPath = filter.field.path(parent)
-            ElementMatchFilter(LogicalField(requireNested(nestedPath)), resolve(filter.predicate, nestedPath))
+            ElementMatchFilter(
+                filter.field.copy(name = requireNested(nestedPath)),
+                resolve(filter.predicate, nestedPath),
+            )
         }
         else -> filter
     }
@@ -322,6 +362,16 @@ private data class ElasticsearchMappedField(
     val sortable: Boolean,
     val multiFields: Set<String>,
 ) {
+    fun supportsTemporal(type: FieldType.Temporal): Boolean =
+        when (type) {
+            FieldType.Temporal.Date -> kind in DATE_KINDS
+            is FieldType.Temporal.NumericEpoch -> kind in NUMERIC_KINDS
+            is FieldType.Temporal.FormattedString -> kind in KEYWORD_KINDS
+        }
+
+    fun actualMapping(docValuesRequired: Boolean): String =
+        if (docValuesRequired && !sortable) "${kind.jsonValue()} without doc values" else kind.jsonValue()
+
     fun supports(usage: ElasticsearchFieldUsage): Boolean =
         when (usage) {
             ElasticsearchFieldUsage.EXACT -> isQueryable() && kind in EXACT_KINDS
@@ -357,6 +407,7 @@ private data class ElasticsearchMappedField(
             Property.Kind.CountedKeyword,
             Property.Kind.IcuCollationKeyword,
         )
+        private val DATE_KINDS = setOf(Property.Kind.Date, Property.Kind.DateNanos)
         private val TERM_KINDS = KEYWORD_KINDS + Property.Kind.Wildcard
         private val RANGE_FIELD_KINDS = setOf(
             Property.Kind.IntegerRange,
@@ -399,6 +450,22 @@ private data class ElasticsearchMappedField(
             ElasticsearchFieldUsage.MATCH to MATCH_KINDS,
         )
     }
+}
+
+private fun FieldType.Temporal.declaredName(): String =
+    when (this) {
+        FieldType.Temporal.Date -> "DATE"
+        is FieldType.Temporal.NumericEpoch -> "NUMBER"
+        is FieldType.Temporal.FormattedString -> "STRING"
+    }
+
+private fun FieldType.Temporal.expectedMapping(docValuesRequired: Boolean): String {
+    val mapping = when (this) {
+        FieldType.Temporal.Date -> "date or date_nanos"
+        is FieldType.Temporal.NumericEpoch -> "numeric"
+        is FieldType.Temporal.FormattedString -> "keyword-compatible string"
+    }
+    return if (docValuesRequired) "$mapping with doc values" else mapping
 }
 
 private fun RuntimeFieldType.toMappedField(): ElasticsearchMappedField? {

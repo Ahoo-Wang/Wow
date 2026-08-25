@@ -31,6 +31,7 @@ import me.ahoo.wow.api.query.ContainsFilter
 import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ExistsFilter
+import me.ahoo.wow.api.query.FieldType
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.GreaterThanFilter
 import me.ahoo.wow.api.query.IdFilter
@@ -61,6 +62,7 @@ import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchIn
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 import reactor.kotlin.test.test
+import java.util.concurrent.TimeUnit
 
 class ElasticsearchIndexMappingResolverTest {
     private val client = mockk<ReactiveElasticsearchClient>()
@@ -207,6 +209,75 @@ class ElasticsearchIndexMappingResolverTest {
         elementMatch.field.name.assert().isEqualTo("state.items")
         (elementMatch.predicate as EqualFilter).field.name.assert()
             .isEqualTo("state.items.name")
+    }
+
+    @Test
+    fun `should resolve declared temporal fields against compatible mappings`() {
+        val mapping = ElasticsearchIndexMapping.from(INDEX, temporalFields())
+        val numericType = FieldType.Temporal.NumericEpoch(TimeUnit.SECONDS)
+        val stringType = FieldType.Temporal.FormattedString("yyyy-MM-dd")
+
+        mapping.resolveTemporal(
+            LogicalField("state.date", FieldType.Temporal.Date),
+            docValuesRequired = true,
+        ).assert().isEqualTo(LogicalField("state.date", FieldType.Temporal.Date))
+        mapping.resolveTemporal(
+            LogicalField("state.dateNanos", FieldType.Temporal.Date),
+            docValuesRequired = true,
+        ).assert().isEqualTo(LogicalField("state.dateNanos", FieldType.Temporal.Date))
+        mapping.resolveTemporal(
+            LogicalField("state.epoch", numericType),
+            docValuesRequired = true,
+        ).type.assert().isEqualTo(numericType)
+        mapping.resolveTemporal(
+            LogicalField("state.score", FieldType.Temporal.NumericEpoch()),
+            docValuesRequired = true,
+        ).name.assert().isEqualTo("state.score")
+        mapping.resolveTemporal(
+            LogicalField("state.string", stringType),
+            docValuesRequired = true,
+        ).type.assert().isEqualTo(stringType)
+    }
+
+    @Test
+    fun `should reject temporal declarations that disagree with mappings`() {
+        val mapping = ElasticsearchIndexMapping.from(INDEX, temporalFields())
+        val cases = listOf(
+            LogicalField("state.epoch", FieldType.Temporal.Date) to listOf("DATE", "long", "date or date_nanos"),
+            LogicalField("state.date", FieldType.Temporal.NumericEpoch()) to listOf("NUMBER", "date", "numeric"),
+            LogicalField("state.epoch", FieldType.Temporal.FormattedString("yyyy-MM-dd")) to
+                listOf("STRING", "long", "keyword-compatible string"),
+        )
+
+        cases.forEach { (field, details) ->
+            val failure = assertThrows<ElasticsearchFieldResolutionException> {
+                mapping.resolveTemporal(field, docValuesRequired = false)
+            }
+            failure.message.assert()
+                .contains(INDEX)
+                .contains(field.name)
+                .contains(details[0])
+                .contains(details[1])
+                .contains(details[2])
+        }
+    }
+
+    @Test
+    fun `should require doc values only when requested`() {
+        val mapping = ElasticsearchIndexMapping.from(INDEX, temporalFields())
+        val field = LogicalField("state.noDocValues", FieldType.Temporal.NumericEpoch())
+
+        mapping.resolveTemporal(field, docValuesRequired = false).assert().isEqualTo(field)
+
+        val failure = assertThrows<ElasticsearchFieldResolutionException> {
+            mapping.resolveTemporal(field, docValuesRequired = true)
+        }
+        failure.message.assert()
+            .contains(INDEX)
+            .contains(field.name)
+            .contains("NUMBER")
+            .contains("long without doc values")
+            .contains("numeric with doc values")
     }
 
     @Test
@@ -483,6 +554,21 @@ class ElasticsearchIndexMappingResolverTest {
 
     private fun keywordOnly(): TypeMapping =
         stateMapping(name = Property.of { property -> property.keyword { it } })
+
+    private fun temporalFields(): TypeMapping =
+        TypeMapping.of { mapping ->
+            mapping.properties("state") { state ->
+                state.`object` { objectField ->
+                    objectField
+                        .properties("date") { it.date { field -> field } }
+                        .properties("dateNanos") { it.dateNanos { field -> field } }
+                        .properties("epoch") { it.long_ { field -> field } }
+                        .properties("score") { it.double_ { field -> field } }
+                        .properties("string") { it.keyword { field -> field } }
+                        .properties("noDocValues") { it.long_ { field -> field.docValues(false) } }
+                }
+            }
+        }
 
     private fun ambiguousText(): TypeMapping =
         stateMapping(

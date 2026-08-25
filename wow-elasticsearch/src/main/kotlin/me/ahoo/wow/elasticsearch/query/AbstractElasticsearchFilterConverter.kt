@@ -36,6 +36,7 @@ import me.ahoo.wow.api.query.*
 import me.ahoo.wow.query.FilterNormalizer
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
+import java.time.Instant
 
 abstract class AbstractElasticsearchFilterConverter(
     defaultDeletionState: DeletionState? = DeletionState.ACTIVE,
@@ -186,7 +187,10 @@ abstract class AbstractElasticsearchFilterConverter(
         isString -> asString()
         isNumber -> numberValue()
         isBoolean -> booleanValue()
-        isPojo -> (this as tools.jackson.databind.node.POJONode).pojo
+        isPojo -> when (val value = (this as tools.jackson.databind.node.POJONode).pojo) {
+            is Instant -> value.toEpochMilli()
+            else -> value
+        }
         isArray -> asSequence().map { it.nativeValue() }.toList()
         else -> error("Filter value must be a scalar, scalar array, or runtime POJO.")
     }
