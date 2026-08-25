@@ -13,29 +13,36 @@
 
 package me.ahoo.wow.api.query
 
-import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.annotation.JsonTypeName
-import com.fasterxml.jackson.annotation.JsonValue
+import io.swagger.v3.oas.annotations.media.Schema
+import tools.jackson.databind.annotation.JsonDeserialize
+import tools.jackson.databind.annotation.JsonSerialize
 
 private val LOGICAL_FIELD_PATTERN =
     Regex("@?[A-Za-z_][A-Za-z0-9_-]*(\\.(?:@?[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*")
 
+@JsonSerialize(using = LogicalFieldJsonSerializer::class)
+@JsonDeserialize(using = LogicalFieldJsonDeserializer::class)
+@Schema(types = ["string", "object"])
 data class LogicalField(
-    @get:JsonValue val value: String,
+    val name: String,
+    val type: FieldType? = null,
 ) {
     init {
-        require(LOGICAL_FIELD_PATTERN.matches(value)) { "Logical field is invalid: [$value]." }
+        require(LOGICAL_FIELD_PATTERN.matches(name)) { "Logical field is invalid: [$name]." }
     }
 
-    override fun toString(): String = value
+    override fun toString(): String = name
 
-    companion object {
-        @JvmStatic
-        @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
-        fun from(value: String): LogicalField = LogicalField(value)
+    fun temporalTypeOrDefault(): FieldType.Temporal = when (val declared = type) {
+        null -> FieldType.Temporal.NumericEpoch()
+        is FieldType.Temporal -> declared
+        else -> throw IllegalArgumentException(
+            "Logical field [$name] type [${declared::class.java.name}] is not temporal.",
+        )
     }
 }
 

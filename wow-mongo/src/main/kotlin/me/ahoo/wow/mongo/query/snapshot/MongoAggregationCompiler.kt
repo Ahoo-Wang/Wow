@@ -38,7 +38,7 @@ internal class MongoAggregationCompiler(
 
         var parent: String? = null
         query.elements.forEach { element ->
-            parent = if (parent == null) element.path.value else "$parent.${element.path.value}"
+            parent = if (parent == null) element.path.name else "$parent.${element.path.name}"
             add(Aggregates.unwind("\$$parent"))
             if (element.filter !== MatchAllFilter) {
                 add(Aggregates.match(converter.convertWithoutDefaultDeletion(element.filter, parent)))
@@ -231,7 +231,7 @@ internal class MongoAggregationCompiler(
     )
 
     private fun LogicalField.resolve(parent: String?): String =
-        SnapshotFieldConverter.convert(if (parent == null) value else "$parent.$value")
+        SnapshotFieldConverter.convert(if (parent == null) name else "$parent.$name")
 
     private fun List<Sort>.toBson(): Bson = Sorts.orderBy(
         map {

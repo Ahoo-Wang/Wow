@@ -173,7 +173,7 @@ class ElasticsearchIndexMappingResolverTest {
                 me.ahoo.wow.serialization.JsonSerializer.valueToTree("aggregate-1"),
             ),
         ) as EqualFilter
-        documentIdFilter.field.value.assert().isEqualTo("_id")
+        documentIdFilter.field.name.assert().isEqualTo("_id")
 
         val filter = mapping.resolve(
             AndFilter(
@@ -190,12 +190,12 @@ class ElasticsearchIndexMappingResolverTest {
                 ),
             ),
         ) as AndFilter
-        (filter.operands[0] as EqualFilter).field.value.assert().isEqualTo("state.name.keyword")
-        (filter.operands[1] as SearchFilter).fields.single().value.assert().isEqualTo("state.name")
+        (filter.operands[0] as EqualFilter).field.name.assert().isEqualTo("state.name.keyword")
+        (filter.operands[1] as SearchFilter).fields.single().name.assert().isEqualTo("state.name")
         (filter.operands[1] as SearchFilter).mode.assert().isEqualTo(SearchMode.PHRASE)
-        (filter.operands[2] as ContainsFilter).field.value.assert().isEqualTo("state.name.keyword")
-        (filter.operands[3] as GreaterThanFilter).field.value.assert().isEqualTo("state.age")
-        (filter.operands[4] as ExistsFilter).field.value.assert().isEqualTo("state.name")
+        (filter.operands[2] as ContainsFilter).field.name.assert().isEqualTo("state.name.keyword")
+        (filter.operands[3] as GreaterThanFilter).field.name.assert().isEqualTo("state.age")
+        (filter.operands[4] as ExistsFilter).field.name.assert().isEqualTo("state.name")
         mapping.resolve(listOf(Sort("state.name", Sort.Direction.ASC))).single().field
             .assert().isEqualTo("state.name.keyword")
         val elementMatch = mapping.resolve(
@@ -204,8 +204,8 @@ class ElasticsearchIndexMappingResolverTest {
                 EqualFilter(LogicalField("state.items.name"), json("item")),
             ),
         ) as ElementMatchFilter
-        elementMatch.field.value.assert().isEqualTo("state.items")
-        (elementMatch.predicate as EqualFilter).field.value.assert()
+        elementMatch.field.name.assert().isEqualTo("state.items")
+        (elementMatch.predicate as EqualFilter).field.name.assert()
             .isEqualTo("state.items.name")
     }
 
@@ -215,7 +215,7 @@ class ElasticsearchIndexMappingResolverTest {
 
         val filter = mapping.resolve(EqualFilter(LogicalField("name"), json("Wow")), "state") as EqualFilter
 
-        filter.field.value.assert().isEqualTo("state.name.keyword")
+        filter.field.name.assert().isEqualTo("state.name.keyword")
     }
 
     @Test
@@ -231,7 +231,7 @@ class ElasticsearchIndexMappingResolverTest {
 
         filters.forEach { filter ->
             val resolved = mapping.resolve(filter, "state") as RelativeTimeFilter
-            resolved.field.value.assert().isEqualTo("state.age")
+            resolved.field.name.assert().isEqualTo("state.age")
         }
     }
 
@@ -284,7 +284,7 @@ class ElasticsearchIndexMappingResolverTest {
 
         val resolved = mapping.resolve(executable) as EqualFilter
 
-        resolved.field.value.assert().isEqualTo("state.name.keyword")
+        resolved.field.name.assert().isEqualTo("state.name.keyword")
     }
 
     @Test
@@ -292,21 +292,21 @@ class ElasticsearchIndexMappingResolverTest {
         val mapping = ElasticsearchIndexMapping.from(INDEX, textWithKeyword())
         val nullValue = me.ahoo.wow.serialization.JsonSerializer.valueToTree<tools.jackson.databind.JsonNode>(null)
 
-        (mapping.resolve(EqualFilter(LogicalField("state.name"), nullValue)) as EqualFilter).field.value.assert()
+        (mapping.resolve(EqualFilter(LogicalField("state.name"), nullValue)) as EqualFilter).field.name.assert()
             .isEqualTo("state.name")
-        (mapping.resolve(NotEqualFilter(LogicalField("state.name"), nullValue)) as NotEqualFilter).field.value.assert()
+        (mapping.resolve(NotEqualFilter(LogicalField("state.name"), nullValue)) as NotEqualFilter).field.name.assert()
             .isEqualTo("state.name")
-        (mapping.resolve(IsEmptyFilter(LogicalField("state.name"))) as IsEmptyFilter).field.value.assert()
+        (mapping.resolve(IsEmptyFilter(LogicalField("state.name"))) as IsEmptyFilter).field.name.assert()
             .isEqualTo("state.name")
-        (mapping.resolve(IsNullFilter(LogicalField("state.name"))) as IsNullFilter).field.value.assert()
+        (mapping.resolve(IsNullFilter(LogicalField("state.name"))) as IsNullFilter).field.name.assert()
             .isEqualTo("state.name")
-        (mapping.resolve(IsNotNullFilter(LogicalField("state.name"))) as IsNotNullFilter).field.value.assert()
+        (mapping.resolve(IsNotNullFilter(LogicalField("state.name"))) as IsNotNullFilter).field.name.assert()
             .isEqualTo("state.name")
-        (mapping.resolve(ExistsFilter(LogicalField("state.name"))) as ExistsFilter).field.value.assert()
+        (mapping.resolve(ExistsFilter(LogicalField("state.name"))) as ExistsFilter).field.name.assert()
             .isEqualTo("state.name")
-        (mapping.resolve(NotExistsFilter(LogicalField("state.name"))) as NotExistsFilter).field.value.assert()
+        (mapping.resolve(NotExistsFilter(LogicalField("state.name"))) as NotExistsFilter).field.name.assert()
             .isEqualTo("state.name")
-        (mapping.resolve(NotExistsFilter(LogicalField("state.unmapped"))) as NotExistsFilter).field.value.assert()
+        (mapping.resolve(NotExistsFilter(LogicalField("state.unmapped"))) as NotExistsFilter).field.name.assert()
             .isEqualTo("state.unmapped")
     }
 

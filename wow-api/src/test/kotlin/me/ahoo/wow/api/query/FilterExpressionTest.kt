@@ -256,9 +256,9 @@ class FilterExpressionTest {
             Condition.DATE_PATTERN_OPTION_KEY to formatter,
         )
         val cases = listOf(
-            Condition.and(Condition.eq(field.value, 1)) to AndFilter(listOf(equal)),
-            Condition.or(Condition.eq(field.value, 1)) to OrFilter(listOf(equal)),
-            Condition.nor(Condition.eq(field.value, 1)) to NorFilter(listOf(equal)),
+            Condition.and(Condition.eq(field.name, 1)) to AndFilter(listOf(equal)),
+            Condition.or(Condition.eq(field.name, 1)) to OrFilter(listOf(equal)),
+            Condition.nor(Condition.eq(field.name, 1)) to NorFilter(listOf(equal)),
             Condition.id("id-1") to IdFilter("id-1"),
             Condition.ids("id-1", "id-2") to IdsFilter(listOf("id-1", "id-2")),
             Condition.aggregateId("aggregate-1") to AggregateIdFilter("aggregate-1"),
@@ -269,27 +269,27 @@ class FilterExpressionTest {
             Condition.spaceId("space-1") to SpaceIdFilter("space-1"),
             Condition.deleted(DeletionState.DELETED) to DeletionFilter(DeletionState.DELETED),
             Condition.ALL to MatchAllFilter,
-            Condition.eq(field.value, 1) to equal,
-            Condition.ne(field.value, 1) to NotEqualFilter(field, one),
-            Condition.gt(field.value, 1) to GreaterThanFilter(field, one),
-            Condition.lt(field.value, 1) to LessThanFilter(field, one),
-            Condition.gte(field.value, 1) to GreaterThanOrEqualFilter(field, one),
-            Condition.lte(field.value, 1) to LessThanOrEqualFilter(field, one),
-            Condition.contains(field.value, "Wow", ignoreCase = true) to
+            Condition.eq(field.name, 1) to equal,
+            Condition.ne(field.name, 1) to NotEqualFilter(field, one),
+            Condition.gt(field.name, 1) to GreaterThanFilter(field, one),
+            Condition.lt(field.name, 1) to LessThanFilter(field, one),
+            Condition.gte(field.name, 1) to GreaterThanOrEqualFilter(field, one),
+            Condition.lte(field.name, 1) to LessThanOrEqualFilter(field, one),
+            Condition.contains(field.name, "Wow", ignoreCase = true) to
                 ContainsFilter(field, "Wow", StringComparison.CASE_INSENSITIVE),
-            Condition.isIn(field.value, listOf<Any>(1, 2)) to InFilter(field, listOf(one, two)),
-            Condition.notIn(field.value, listOf<Any>(1, 2)) to NotInFilter(field, listOf(one, two)),
-            Condition.between(field.value, 1, 2) to BetweenFilter(field, one, two),
-            Condition.all(field.value, listOf<Any>(1, 2)) to ContainsAllFilter(field, listOf(one, two)),
-            Condition.startsWith(field.value, "Wow") to StartsWithFilter(field, "Wow"),
-            Condition.endsWith(field.value, "Wow", ignoreCase = true) to
+            Condition.isIn(field.name, listOf<Any>(1, 2)) to InFilter(field, listOf(one, two)),
+            Condition.notIn(field.name, listOf<Any>(1, 2)) to NotInFilter(field, listOf(one, two)),
+            Condition.between(field.name, 1, 2) to BetweenFilter(field, one, two),
+            Condition.all(field.name, listOf<Any>(1, 2)) to ContainsAllFilter(field, listOf(one, two)),
+            Condition.startsWith(field.name, "Wow") to StartsWithFilter(field, "Wow"),
+            Condition.endsWith(field.name, "Wow", ignoreCase = true) to
                 EndsWithFilter(field, "Wow", StringComparison.CASE_INSENSITIVE),
-            Condition.elemMatch("state.items", Condition.eq(nestedField.value, "Wow")) to
+            Condition.elemMatch("state.items", Condition.eq(nestedField.name, "Wow")) to
                 ElementMatchFilter(LogicalField("state.items"), EqualFilter(nestedField, text)),
             Condition(
                 field = "state.items",
                 operator = Operator.ELEM_MATCH,
-                children = listOf(Condition.eq(nestedField.value, "Wow"), Condition.gt("price", 1)),
+                children = listOf(Condition.eq(nestedField.name, "Wow"), Condition.gt("price", 1)),
             ) to ElementMatchFilter(
                 LogicalField("state.items"),
                 AndFilter(
@@ -299,61 +299,61 @@ class FilterExpressionTest {
                     ),
                 ),
             ),
-            Condition.isNull(field.value) to IsNullFilter(field),
-            Condition.notNull(field.value) to IsNotNullFilter(field),
-            Condition.isTrue(field.value) to EqualFilter(field, jsonMapper.valueToTree(true)),
-            Condition.isFalse(field.value) to EqualFilter(field, jsonMapper.valueToTree(false)),
-            Condition.exists(field.value) to ExistsFilter(field),
-            Condition.exists(field.value, false) to NotExistsFilter(field),
+            Condition.isNull(field.name) to IsNullFilter(field),
+            Condition.notNull(field.name) to IsNotNullFilter(field),
+            Condition.isTrue(field.name) to EqualFilter(field, jsonMapper.valueToTree(true)),
+            Condition.isFalse(field.name) to EqualFilter(field, jsonMapper.valueToTree(false)),
+            Condition.exists(field.name) to ExistsFilter(field),
+            Condition.exists(field.name, false) to NotExistsFilter(field),
             Condition(
-                field = dateField.value,
+                field = dateField.name,
                 operator = Operator.TODAY,
                 options = relativeOptions,
             ) to TodayFilter(dateField, "UTC", "yyyy-MM-dd"),
             Condition(
-                field = dateField.value,
+                field = dateField.name,
                 operator = Operator.BEFORE_TODAY,
                 value = LocalTime.of(8, 30),
                 options = formatterOptions,
             ) to BeforeTodayFilter(dateField, "08:30", "UTC", dateFormatter = formatter),
             Condition(
-                field = dateField.value,
+                field = dateField.name,
                 operator = Operator.TOMORROW,
                 options = relativeOptions,
             ) to TomorrowFilter(dateField, "UTC", "yyyy-MM-dd"),
             Condition(
-                field = dateField.value,
+                field = dateField.name,
                 operator = Operator.THIS_WEEK,
                 options = relativeOptions,
             ) to ThisWeekFilter(dateField, "UTC", "yyyy-MM-dd"),
             Condition(
-                field = dateField.value,
+                field = dateField.name,
                 operator = Operator.NEXT_WEEK,
                 options = relativeOptions,
             ) to NextWeekFilter(dateField, "UTC", "yyyy-MM-dd"),
             Condition(
-                field = dateField.value,
+                field = dateField.name,
                 operator = Operator.LAST_WEEK,
                 options = relativeOptions,
             ) to LastWeekFilter(dateField, "UTC", "yyyy-MM-dd"),
             Condition(
-                field = dateField.value,
+                field = dateField.name,
                 operator = Operator.THIS_MONTH,
                 options = relativeOptions,
             ) to ThisMonthFilter(dateField, "UTC", "yyyy-MM-dd"),
             Condition(
-                field = dateField.value,
+                field = dateField.name,
                 operator = Operator.LAST_MONTH,
                 options = relativeOptions,
             ) to LastMonthFilter(dateField, "UTC", "yyyy-MM-dd"),
             Condition(
-                field = dateField.value,
+                field = dateField.name,
                 operator = Operator.RECENT_DAYS,
                 value = 7,
                 options = relativeOptions,
             ) to RecentDaysFilter(dateField, 7, "UTC", "yyyy-MM-dd"),
             Condition(
-                field = dateField.value,
+                field = dateField.name,
                 operator = Operator.EARLIER_DAYS,
                 value = 30,
                 options = relativeOptions,
@@ -377,10 +377,10 @@ class FilterExpressionTest {
         val cases = listOf(
             Condition.ids(emptyList()) to MatchNoneFilter,
             Condition.aggregateIds(emptyList()) to MatchNoneFilter,
-            Condition.isIn(field.value, emptyList()) to MatchNoneFilter,
-            Condition.notIn(field.value, emptyList()) to MatchAllFilter,
-            Condition.all(field.value, emptyList()) to MatchNoneFilter,
-            Condition.eq(field.value, emptyList<Any>()) to EqualFilter(field, emptyArray),
+            Condition.isIn(field.name, emptyList()) to MatchNoneFilter,
+            Condition.notIn(field.name, emptyList()) to MatchAllFilter,
+            Condition.all(field.name, emptyList()) to MatchNoneFilter,
+            Condition.eq(field.name, emptyList<Any>()) to EqualFilter(field, emptyArray),
         )
 
         cases.forEach { (condition, expected) ->
@@ -394,7 +394,7 @@ class FilterExpressionTest {
         val executable = Condition.eq("@timestamp", "now")
             .toFilterExpression() as EqualFilter
 
-        executable.field.value.assert().isEqualTo("@timestamp")
+        executable.field.name.assert().isEqualTo("@timestamp")
     }
 
     @Suppress("DEPRECATION")

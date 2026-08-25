@@ -156,10 +156,10 @@ abstract class AbstractElasticsearchFilterConverter(
     }
 
     private val LogicalField.isDocumentId: Boolean
-        get() = value == "_id"
+        get() = name == "_id"
 
     private fun LogicalField.path(parent: String?): String =
-        if (parent == null || value == parent || value.startsWith("$parent.")) value else "$parent.$value"
+        if (parent == null || name == parent || name.startsWith("$parent.")) name else "$parent.$name"
 
     private fun documentIdEqual(value: String): Query = documentIdField?.let { field ->
         term { it.field(field).value(value) }

@@ -167,7 +167,7 @@ class AggregationQueryTest {
             metrics = listOf(AggregationMetric.Count("count")),
         )
 
-        query.elements.map { it.path.value }.assert().containsExactly("state.orders", "lines", "discounts")
+        query.elements.map { it.path.name }.assert().containsExactly("state.orders", "lines", "discounts")
     }
 
     @Test

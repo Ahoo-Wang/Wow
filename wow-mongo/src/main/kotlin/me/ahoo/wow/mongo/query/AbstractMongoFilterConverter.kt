@@ -180,7 +180,7 @@ abstract class AbstractMongoFilterConverter(
         path(parent).let { if (mapField) fieldConverter.convert(it) else it }
 
     private fun me.ahoo.wow.api.query.LogicalField.path(parent: String?): String =
-        if (parent == null || value == parent || value.startsWith("$parent.")) value else "$parent.$value"
+        if (parent == null || name == parent || name.startsWith("$parent.")) name else "$parent.$name"
 
     private val StringComparison.ignoreCase: Boolean
         get() = this == StringComparison.CASE_INSENSITIVE

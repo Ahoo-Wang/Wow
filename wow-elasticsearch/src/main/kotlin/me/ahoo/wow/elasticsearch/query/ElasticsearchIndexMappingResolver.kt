@@ -245,11 +245,11 @@ data class ElasticsearchIndexMapping private constructor(
     }
 
     private fun LogicalField.path(parent: String?): String =
-        if (parent == null || value == parent || value.startsWith("$parent.")) value else "$parent.$value"
+        if (parent == null || name == parent || name.startsWith("$parent.")) name else "$parent.$name"
 
     private fun LogicalField.resolve(parent: String?, usage: ElasticsearchFieldUsage): LogicalField {
-        if (parent == null && value == "_id" && usage == ElasticsearchFieldUsage.EXACT) return this
-        return LogicalField(this@ElasticsearchIndexMapping.resolve(path(parent), usage))
+        if (parent == null && name == "_id" && usage == ElasticsearchFieldUsage.EXACT) return this
+        return copy(name = this@ElasticsearchIndexMapping.resolve(path(parent), usage))
     }
 
     fun resolve(sort: List<Sort>): List<Sort> =

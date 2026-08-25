@@ -73,7 +73,7 @@ internal class ElasticsearchAggregationCompiler(
         val elements = mutableListOf<ElasticsearchAggregationElement>()
         var parent: String? = null
         query.elements.forEach { element ->
-            val absolutePath = if (parent == null) element.path.value else "$parent.${element.path.value}"
+            val absolutePath = if (parent == null) element.path.name else "$parent.${element.path.name}"
             val nestedPath = mapping?.requireNested(absolutePath) ?: absolutePath
             val unscopedFilter = AndFilter(listOf(element.filter, DeletionFilter(DeletionState.ALL)))
             val filter = mapping?.resolve(unscopedFilter, absolutePath) ?: unscopedFilter
@@ -256,5 +256,5 @@ internal class ElasticsearchAggregationCompiler(
     }
 
     private fun LogicalField.resolve(parent: String?): String =
-        if (parent == null) value else "$parent.$value"
+        if (parent == null) name else "$parent.$name"
 }

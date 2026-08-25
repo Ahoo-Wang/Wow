@@ -136,7 +136,7 @@ class FilterDsl private constructor(
      * Multiple expressions in [block] form one implicit AND operand.
      */
     fun String.path(block: FilterDsl.() -> Unit) {
-        val scoped = FilterDsl(field(this).value).apply(block)
+        val scoped = FilterDsl(field(this).name).apply(block)
         require(scoped.expressions.isNotEmpty()) { "path block cannot be empty." }
         add(scoped.build())
     }
@@ -144,7 +144,7 @@ class FilterDsl private constructor(
     @Deprecated("Use path. Unlike nested, path groups multiple expressions with AND.")
     fun String.nested(block: FilterDsl.() -> Unit) {
         val nested = FilterDsl(
-            prefix = field(this).value,
+            prefix = field(this).name,
             allowScopedExpression = prefix == "" || allowScopedExpression,
         ).apply(block)
         require(nested.expressions.isNotEmpty()) { "nested block cannot be empty." }
