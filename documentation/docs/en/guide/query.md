@@ -36,9 +36,31 @@ description: Query snapshots and event streams with FilterExpression, the query 
 | Deletion | `DELETION` | `state` | `ACTIVE`, `DELETED`, or `ALL`; deletion is part of the filter model |
 | Array element | `ELEMENT_MATCH` | `field`, `predicate` | `predicate` cannot contain `DELETION`, `SEARCH`, or metadata Filters |
 | Full-text search | `SEARCH` | `query`, `fields`, `mode` | `mode` defaults to `TERMS` and may be set to `PHRASE`; field support is backend-specific |
-| Relative time | `TODAY`, `YESTERDAY`, `BEFORE_TODAY`, `TOMORROW`, `THIS_WEEK`, `NEXT_WEEK`, `LAST_WEEK`, `THIS_MONTH`, `NEXT_MONTH`, `LAST_MONTH`, `LAST_YEAR`, `THIS_YEAR`, `NEXT_YEAR`, `RECENT_DAYS`, `EARLIER_DAYS` | `field`; operation-specific `time` or `days`; optional `zoneId`, `datePattern`, and `timeUnit` | Normalized to absolute ranges before backend compilation |
+| Relative time | `TODAY`, `YESTERDAY`, `BEFORE_TODAY`, `TOMORROW`, `THIS_WEEK`, `NEXT_WEEK`, `LAST_WEEK`, `THIS_MONTH`, `NEXT_MONTH`, `LAST_MONTH`, `LAST_YEAR`, `THIS_YEAR`, `NEXT_YEAR`, `RECENT_DAYS`, `EARLIER_DAYS` | `field`; operation-specific `time` or `days`; optional `zoneId` | Normalized to absolute ranges before backend compilation |
 
-For numeric time fields, set `timeUnit` to a `java.util.concurrent.TimeUnit` enum name; it defaults to `MILLISECONDS`. When `datePattern` is configured, the filter emits strings and ignores `timeUnit`.
+### Typed temporal fields
+
+`field` accepts either its compact string form or an object with a declared type. The object form is useful whenever the storage representation is temporal:
+
+```json
+"state.snapshotTime"
+```
+
+```json
+{
+  "name": "state.snapshotTime",
+  "type": {
+    "type": "TEMPORAL_NUMBER",
+    "timeUnit": "MILLISECONDS"
+  }
+}
+```
+
+The `FieldType` root currently contains only `Temporal`. Its JSON discriminator values are `DATE`, `TEMPORAL_NUMBER`, and `TEMPORAL_STRING`. The Kotlin leaf names remain `Date`, `NumericEpoch`, and `FormattedString`; `NUMBER` and `STRING` are not accepted JSON discriminator values. An untyped temporal field defaults to `NumericEpoch(MILLISECONDS)`.
+
+Relative-time operators accept all three temporal representations. `DATE` uses a native date, `TEMPORAL_NUMBER` uses the declared `java.util.concurrent.TimeUnit`, and `TEMPORAL_STRING` uses `datePattern`. `datePattern` follows Java `DateTimeFormatter` grammar; it is not a MongoDB or Elasticsearch mapping-format string. Formatted strings are supported only by relative-time filters, and their stored representation must use the same pattern with chronology-preserving lexical ordering.
+
+When `zoneId` or a date-histogram `timeZone` is omitted, Wow uses the current JVM system time zone. Use an explicit time zone in portable queries.
 
 `field` is a logical field path. Valid examples are:
 
@@ -362,7 +384,13 @@ Assuming `state.createdAt` is an executable date field, records can be counted p
   "groupBy": [
     {
       "type": "DATE_HISTOGRAM",
-      "field": "state.createdAt",
+      "field": {
+        "name": "state.snapshotTime",
+        "type": {
+          "type": "TEMPORAL_NUMBER",
+          "timeUnit": "MILLISECONDS"
+        }
+      },
       "alias": "day",
       "unit": "DAY",
       "timeZone": "Asia/Shanghai"
@@ -381,7 +409,9 @@ Assuming `state.createdAt` is an executable date field, records can be counted p
 ]
 ```
 
-Date bucket keys are epoch milliseconds at the start of each bucket. MongoDB fields must be convertible to dates; Elasticsearch fields must be mapped as `date` or `date_nanos`.
+Date bucket keys remain epoch milliseconds at the start of each bucket. `DATE_HISTOGRAM` accepts only untyped, `DATE`, and `TEMPORAL_NUMBER` fields; it rejects `TEMPORAL_STRING`.
+
+MongoDB uses native BSON `Date` values for `DATE`; `TEMPORAL_NUMBER` values are normalized from their declared unit to dates before bucketing. In Elasticsearch, `DATE` requires a `date` or `date_nanos` mapping, while `TEMPORAL_NUMBER` requires numeric doc values and is converted through a request runtime `date` field. `TEMPORAL_STRING` has no date-histogram support.
 
 ##### Expand a collection and select Top-N
 

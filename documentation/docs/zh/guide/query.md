@@ -36,9 +36,31 @@ description: 使用 FilterExpression、查询 DSL 与 REST API 查询快照和�
 | 删除状态 | `DELETION` | `state` | `ACTIVE`、`DELETED` 或 `ALL`；删除状态本身也是过滤器 |
 | 数组元素 | `ELEMENT_MATCH` | `field`、`predicate` | `predicate` 内不允许 `DELETION`、`SEARCH` 或元数据 Filter |
 | 全文搜索 | `SEARCH` | `query`、`fields`、`mode` | `mode` 默认为 `TERMS`，可设为 `PHRASE`；具体字段能力由后端决定 |
-| 相对时间 | `TODAY`、`YESTERDAY`、`BEFORE_TODAY`、`TOMORROW`、`THIS_WEEK`、`NEXT_WEEK`、`LAST_WEEK`、`THIS_MONTH`、`NEXT_MONTH`、`LAST_MONTH`、`LAST_YEAR`、`THIS_YEAR`、`NEXT_YEAR`、`RECENT_DAYS`、`EARLIER_DAYS` | `field`；特定操作使用 `time` 或 `days`；可选 `zoneId`、`datePattern`、`timeUnit` | 执行前统一规范化为绝对时间范围 |
+| 相对时间 | `TODAY`、`YESTERDAY`、`BEFORE_TODAY`、`TOMORROW`、`THIS_WEEK`、`NEXT_WEEK`、`LAST_WEEK`、`THIS_MONTH`、`NEXT_MONTH`、`LAST_MONTH`、`LAST_YEAR`、`THIS_YEAR`、`NEXT_YEAR`、`RECENT_DAYS`、`EARLIER_DAYS` | `field`；特定操作使用 `time` 或 `days`；可选 `zoneId` | 执行前统一规范化为绝对时间范围 |
 
-相对时间过滤器面向数值时间字段时，可将 `timeUnit` 配置为 `java.util.concurrent.TimeUnit` 的枚举名，默认值为 `MILLISECONDS`。配置 `datePattern` 时输出字符串，`timeUnit` 不参与格式化。
+### 带类型的时间字段
+
+`field` 同时接受紧凑字符串形式和带类型声明的对象形式。存储表示为时间时，使用对象形式：
+
+```json
+"state.snapshotTime"
+```
+
+```json
+{
+  "name": "state.snapshotTime",
+  "type": {
+    "type": "TEMPORAL_NUMBER",
+    "timeUnit": "MILLISECONDS"
+  }
+}
+```
+
+`FieldType` 根级当前只有 `Temporal`。其 JSON 判别值为 `DATE`、`TEMPORAL_NUMBER` 和 `TEMPORAL_STRING`。Kotlin 叶子类型仍名为 `Date`、`NumericEpoch` 与 `FormattedString`；JSON 不接受 `NUMBER` 或 `STRING` 作为判别值。未标注类型的时间字段默认使用 `NumericEpoch(MILLISECONDS)`。
+
+相对时间操作支持三种时间表示：`DATE` 使用原生日期，`TEMPORAL_NUMBER` 使用声明的 `java.util.concurrent.TimeUnit`，`TEMPORAL_STRING` 使用 `datePattern`。`datePattern` 遵循 Java `DateTimeFormatter` 语法，不是 MongoDB 或 Elasticsearch 的映射格式字符串。格式化字符串仅支持相对时间过滤器，且存储值必须使用相同模式，并保证字典序与时间顺序一致。
+
+未设置 `zoneId` 或日期直方图的 `timeZone` 时，Wow 使用当前 JVM 系统时区。为了让查询可移植，应显式指定时区。
 
 `field` 是逻辑字段路径。合法示例：
 
@@ -362,7 +384,13 @@ curl --request POST 'http://localhost:8080/execution_failed/snapshot/aggregation
   "groupBy": [
     {
       "type": "DATE_HISTOGRAM",
-      "field": "state.createdAt",
+      "field": {
+        "name": "state.snapshotTime",
+        "type": {
+          "type": "TEMPORAL_NUMBER",
+          "timeUnit": "MILLISECONDS"
+        }
+      },
       "alias": "day",
       "unit": "DAY",
       "timeZone": "Asia/Shanghai"
@@ -381,7 +409,9 @@ curl --request POST 'http://localhost:8080/execution_failed/snapshot/aggregation
 ]
 ```
 
-日期桶键是分桶起点的 epoch 毫秒。MongoDB 字段必须能转换为日期；Elasticsearch 字段必须映射为 `date` 或 `date_nanos`。
+日期桶键仍是分桶起点的 epoch 毫秒。`DATE_HISTOGRAM` 只接受未标注、`DATE` 和 `TEMPORAL_NUMBER` 字段，拒绝 `TEMPORAL_STRING`。
+
+MongoDB 对 `DATE` 使用原生 BSON `Date`；对 `TEMPORAL_NUMBER` 会先按声明的单位规范化为日期后再分桶。Elasticsearch 中，`DATE` 要求字段映射为 `date` 或 `date_nanos`；`TEMPORAL_NUMBER` 要求数值 doc values，并通过请求级 runtime `date` 字段转换。`TEMPORAL_STRING` 不支持日期直方图。
 
 ##### 展开集合并取 Top-N
 
