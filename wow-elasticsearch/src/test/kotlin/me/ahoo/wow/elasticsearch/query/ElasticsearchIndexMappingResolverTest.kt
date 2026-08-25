@@ -47,6 +47,7 @@ import me.ahoo.wow.api.query.NotExistsFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.RelativeTimeFilter
 import me.ahoo.wow.api.query.SearchFilter
+import me.ahoo.wow.api.query.SearchMode
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.TenantIdFilter
@@ -177,7 +178,11 @@ class ElasticsearchIndexMappingResolverTest {
             AndFilter(
                 listOf(
                     EqualFilter(LogicalField("state.name"), json("Wow")),
-                    SearchFilter("Wow", linkedSetOf(LogicalField("state.name"))),
+                    SearchFilter(
+                        "Wow",
+                        linkedSetOf(LogicalField("state.name")),
+                        SearchMode.PHRASE,
+                    ),
                     ContainsFilter(LogicalField("state.name"), "ow"),
                     GreaterThanFilter(LogicalField("state.age"), json(18)),
                     ExistsFilter(LogicalField("state.name")),
@@ -186,6 +191,7 @@ class ElasticsearchIndexMappingResolverTest {
         ) as AndFilter
         (filter.operands[0] as EqualFilter).field.value.assert().isEqualTo("state.name.keyword")
         (filter.operands[1] as SearchFilter).fields.single().value.assert().isEqualTo("state.name")
+        (filter.operands[1] as SearchFilter).mode.assert().isEqualTo(SearchMode.PHRASE)
         (filter.operands[2] as ContainsFilter).field.value.assert().isEqualTo("state.name.keyword")
         (filter.operands[3] as GreaterThanFilter).field.value.assert().isEqualTo("state.age")
         (filter.operands[4] as ExistsFilter).field.value.assert().isEqualTo("state.name")

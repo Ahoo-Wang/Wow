@@ -55,6 +55,7 @@ import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.RecentDaysFilter
 import me.ahoo.wow.api.query.SearchFilter
+import me.ahoo.wow.api.query.SearchMode
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.StringComparison
@@ -203,8 +204,10 @@ class FilterDsl private constructor(
 
     fun String.notExists() = add(NotExistsFilter(field(this)))
 
-    fun search(query: String, vararg fields: String) =
-        add(SearchFilter(query, fields.mapTo(linkedSetOf(), ::field)))
+    fun search(query: String, vararg fields: String) = search(query, SearchMode.TERMS, *fields)
+
+    fun search(query: String, mode: SearchMode, vararg fields: String) =
+        add(SearchFilter(query, fields.mapTo(linkedSetOf(), ::field), mode))
 
     infix fun String.search(query: String) = search(query, this)
 

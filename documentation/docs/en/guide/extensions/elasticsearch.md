@@ -206,6 +206,8 @@ For example, one logical field can support both full-text and exact operations:
 
 Clients always use the logical field and do not need to hard-code `.keyword` or `.text`.
 
+The default `TERMS` mode for `SEARCH` uses `multi_match`; `PHRASE` uses `multi_match(type = phrase)` with the same field-resolution rules.
+
 For a multi-field, Wow tries the current field, `.keyword`/`.text`, `.exact`, and finally a single compatible child.
 Multiple compatible children fail as ambiguous rather than silently changing semantics. Projection remains on the
 logical field; the parent of `ELEMENT_MATCH` must be mapped as `nested`. A custom

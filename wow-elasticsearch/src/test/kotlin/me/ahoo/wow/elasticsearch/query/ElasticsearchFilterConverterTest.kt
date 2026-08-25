@@ -28,6 +28,7 @@ import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.term
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.terms
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.termsSet
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.wildcard
+import co.elastic.clients.elasticsearch._types.query_dsl.TextQueryType
 import co.elastic.clients.json.JsonData
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.*
@@ -194,6 +195,8 @@ class ElasticsearchFilterConverterTest {
                 nested { it.path("state.items").query(term { term -> term.field("state.items.name").value("value") }) },
             SearchFilter("value", linkedSetOf(field)) to
                 multiMatch { it.query("value").fields("state.value") },
+            SearchFilter("event sourcing", linkedSetOf(field), SearchMode.PHRASE) to
+                multiMatch { it.query("event sourcing").fields("state.value").type(TextQueryType.Phrase) },
         )
 
         cases.forEach { (filter, expected) -> assertQuery(RawFilterConverter.convert(filter), expected) }

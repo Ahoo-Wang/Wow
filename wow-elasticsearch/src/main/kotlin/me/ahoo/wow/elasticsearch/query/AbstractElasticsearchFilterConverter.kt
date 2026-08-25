@@ -30,6 +30,7 @@ import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.term
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.terms
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.termsSet
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.wildcard
+import co.elastic.clients.elasticsearch._types.query_dsl.TextQueryType
 import co.elastic.clients.json.JsonData
 import me.ahoo.wow.api.query.*
 import me.ahoo.wow.query.FilterNormalizer
@@ -140,6 +141,7 @@ abstract class AbstractElasticsearchFilterConverter(
         is SearchFilter -> multiMatch {
             it.query(filter.query)
             if (filter.fields.isNotEmpty()) it.fields(filter.fields.map { field -> field.path(parent) })
+            if (filter.mode == SearchMode.PHRASE) it.type(TextQueryType.Phrase)
             it
         }
         is DeletionFilter -> when (filter.deletionState) {

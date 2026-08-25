@@ -23,6 +23,26 @@ import tools.jackson.databind.json.JsonMapper
 
 class FilterExpressionDefinitionProviderTest {
     @Test
+    fun `filter schema should publish search modes`() {
+        val schemaDocument = WowSchemaLoader.load(FilterExpression::class.java)
+        val mode = schemaDocument.path("definitions").path("search").path("properties").path("mode")
+
+        mode.path("enum").toList().map { it.stringValue() }.assert().containsExactly("TERMS", "PHRASE")
+        mode.path("default").stringValue().assert().isEqualTo("TERMS")
+
+        val schema = SchemaRegistry.withDefaultDialect(SpecificationVersion.DRAFT_7).getSchema(schemaDocument)
+        val mapper = JsonMapper.builder().build()
+        schema.validate(mapper.readTree("""{"op":"SEARCH","query":"event sourcing"}"""))
+            .assert().isEmpty()
+        schema.validate(
+            mapper.readTree("""{"op":"SEARCH","query":"event sourcing","mode":"PHRASE"}"""),
+        ).assert().isEmpty()
+        schema.validate(
+            mapper.readTree("""{"op":"SEARCH","query":"event \"sourcing\"","mode":"PHRASE"}"""),
+        ).assert().isEmpty()
+    }
+
+    @Test
     fun `filter schema should publish metadata operators`() {
         val schema = WowSchemaLoader.load(FilterExpression::class.java)
         val definitions = schema.path("definitions")

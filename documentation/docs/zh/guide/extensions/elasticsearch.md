@@ -199,6 +199,8 @@ flattened 父字段，并保留原路径执行精确和排序操作。flattened 
 
 客户端始终使用逻辑字段，不需要固定写入 `.keyword` 或 `.text`。
 
+`SEARCH` 的默认 `TERMS` 模式使用 `multi_match`；`PHRASE` 模式使用 `multi_match(type = phrase)`，字段解析规则不变。
+
 对于 multi-field，依次选择当前字段、`.keyword`/`.text`、`.exact`，最后才选择唯一的兼容子字段；存在多个兼容候选时
 查询失败，避免静默改变语义。projection 仍使用逻辑字段，`ELEMENT_MATCH` 的父路径
 必须映射为 `nested`。自定义 `AbstractElasticsearchFilterConverter` 继续负责解释自己的物理字段，不经过上述重写。

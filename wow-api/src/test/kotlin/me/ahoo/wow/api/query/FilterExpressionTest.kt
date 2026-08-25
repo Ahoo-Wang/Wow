@@ -16,13 +16,13 @@ package me.ahoo.wow.api.query
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.JsonNode
-import tools.jackson.module.kotlin.jsonMapper
+import tools.jackson.module.kotlin.jacksonObjectMapper
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 class FilterExpressionTest {
-    private val jsonMapper = jsonMapper()
+    private val jsonMapper = jacksonObjectMapper()
 
     @Test
     fun `new relative calendar filters should round trip through the common contract`() {
@@ -83,6 +83,40 @@ class FilterExpressionTest {
         json.contains("\"op\":\"AND\"").assert().isTrue()
         json.contains("\"operator\"").assert().isFalse()
         decoded.assert().isEqualTo(expression)
+    }
+
+    @Test
+    fun `search mode should default to terms`() {
+        val decoded = jsonMapper.readValue(
+            """{"op":"SEARCH","query":"wow","fields":["state.name"]}""",
+            FilterExpression::class.java,
+        ) as SearchFilter
+
+        decoded.assert().isEqualTo(SearchFilter("wow", setOf(LogicalField("state.name"))))
+        decoded.mode.assert().isEqualTo(SearchMode.TERMS)
+    }
+
+    @Test
+    fun `phrase search should round trip`() {
+        val phrase = SearchFilter(
+            query = "event sourcing",
+            fields = setOf(LogicalField("state.description")),
+            mode = SearchMode.PHRASE,
+        )
+
+        val json = jsonMapper.writeValueAsString(phrase)
+        val decoded = jsonMapper.readValue(json, FilterExpression::class.java)
+
+        json.contains("\"op\":\"SEARCH\"").assert().isTrue()
+        json.contains("\"mode\":\"PHRASE\"").assert().isTrue()
+        decoded.assert().isEqualTo(phrase)
+    }
+
+    @Test
+    fun `phrase search should preserve embedded quotes`() {
+        val filter = SearchFilter("event \"sourcing\"", mode = SearchMode.PHRASE)
+
+        filter.query.assert().isEqualTo("event \"sourcing\"")
     }
 
     @Suppress("DEPRECATION")

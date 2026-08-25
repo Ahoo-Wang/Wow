@@ -781,6 +781,11 @@
             "$ref" : "#/definitions/logicalField"
           },
           "default" : [ ]
+        },
+        "mode" : {
+          "type" : "string",
+          "enum" : [ "TERMS", "PHRASE" ],
+          "default" : "TERMS"
         }
       },
       "required" : [ "op", "query" ],

@@ -35,7 +35,7 @@ description: 使用 FilterExpression、查询 DSL 与 REST API 查询快照和�
 | 空值与存在性 | `IS_EMPTY`、`IS_NULL`、`IS_NOT_NULL`、`EXISTS`、`NOT_EXISTS` | `field` | 按各后端原生的存在性与空值语义编译 |
 | 删除状态 | `DELETION` | `state` | `ACTIVE`、`DELETED` 或 `ALL`；删除状态本身也是过滤器 |
 | 数组元素 | `ELEMENT_MATCH` | `field`、`predicate` | `predicate` 内不允许 `DELETION`、`SEARCH` 或元数据 Filter |
-| 全文搜索 | `SEARCH` | `query`、`fields` | `query` 不能为空；具体字段能力由后端决定 |
+| 全文搜索 | `SEARCH` | `query`、`fields`、`mode` | `mode` 默认为 `TERMS`，可设为 `PHRASE`；具体字段能力由后端决定 |
 | 相对时间 | `TODAY`、`YESTERDAY`、`BEFORE_TODAY`、`TOMORROW`、`THIS_WEEK`、`NEXT_WEEK`、`LAST_WEEK`、`THIS_MONTH`、`NEXT_MONTH`、`LAST_MONTH`、`LAST_YEAR`、`THIS_YEAR`、`NEXT_YEAR`、`RECENT_DAYS`、`EARLIER_DAYS` | `field`；特定操作使用 `time` 或 `days`；可选 `zoneId` | 执行前统一规范化为绝对时间范围 |
 
 `field` 是逻辑字段路径。合法示例：
@@ -52,7 +52,7 @@ state.items.0.productId
 快照查询默认使用 `DELETION = ACTIVE`。顶层 `DELETION`，或顶层 `AND` 的直接 `DELETION` 子项，可以显式覆盖该范围；嵌套在 `OR` 或 `NOR` 中的删除过滤器不会关闭 active guard。事件流查询不会自动追加删除状态过滤，以保证审计事件完整。
 
 :::info 后端差异
-MongoDB 的 `SEARCH` 使用集合文本索引，不会把查询限制到 `fields`；Elasticsearch 可解析搜索字段和多字段映射。`ELEMENT_MATCH` 的子字段建议使用相对路径，以同时兼容 MongoDB 与 Elasticsearch。
+MongoDB 的 `SEARCH` 使用集合文本索引，不会把查询限制到 `fields`；Elasticsearch 可解析搜索字段和多字段映射。`PHRASE` 在 MongoDB 中编译为带引号的 `$text` 短语，在 Elasticsearch 中编译为 `multi_match(type = phrase)`。`ELEMENT_MATCH` 的子字段建议使用相对路径，以同时兼容 MongoDB 与 Elasticsearch。
 :::
 
 ## Kotlin DSL
@@ -73,6 +73,14 @@ val orderFilter = filterExpression {
         "productId" eq "product-1"
         "quantity" gt 0
     }
+}
+```
+
+使用 `PHRASE` 搜索后端分析器识别的连续词项；省略 `mode` 时保持原有 `TERMS` 行为：
+
+```kotlin
+val phraseFilter = filterExpression {
+    search("event sourcing", SearchMode.PHRASE, "state.title", "state.description")
 }
 ```
 

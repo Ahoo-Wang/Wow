@@ -52,6 +52,7 @@ import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.RecentDaysFilter
 import me.ahoo.wow.api.query.SearchFilter
+import me.ahoo.wow.api.query.SearchMode
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.StringComparison
@@ -153,7 +154,9 @@ abstract class AbstractMongoFilterConverter(
             filter.field.convert(parent, mapField),
             compile(filter.predicate, parent = null, mapField = false),
         )
-        is SearchFilter -> Filters.text(filter.query)
+        is SearchFilter -> Filters.text(
+            if (filter.mode == SearchMode.PHRASE) "\"${filter.query}\"" else filter.query,
+        )
         is TodayFilter,
         is BeforeTodayFilter,
         is TomorrowFilter,

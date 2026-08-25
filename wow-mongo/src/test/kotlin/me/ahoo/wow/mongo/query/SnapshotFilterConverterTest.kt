@@ -252,6 +252,10 @@ class SnapshotFilterConverterTest {
                     Filters.elemMatch("state.value", Filters.eq("name", "value")),
                 ),
                 Arguments.of(SearchFilter("value", linkedSetOf(field)), Filters.text("value")),
+                Arguments.of(
+                    SearchFilter("event sourcing", mode = SearchMode.PHRASE),
+                    Filters.text("\"event sourcing\""),
+                ),
             )
         }
     }

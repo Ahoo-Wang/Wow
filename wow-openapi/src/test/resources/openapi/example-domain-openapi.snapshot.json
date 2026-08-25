@@ -5418,6 +5418,11 @@
                 "type" : "array",
                 "uniqueItems" : true
               },
+              "mode" : {
+                "default" : "TERMS",
+                "enum" : [ "TERMS", "PHRASE" ],
+                "type" : "string"
+              },
               "op" : {
                 "enum" : [ "SEARCH" ]
               },
