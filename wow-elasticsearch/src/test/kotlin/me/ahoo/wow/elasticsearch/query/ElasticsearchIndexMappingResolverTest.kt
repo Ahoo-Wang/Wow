@@ -38,14 +38,20 @@ import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.IsEmptyFilter
 import me.ahoo.wow.api.query.IsNotNullFilter
 import me.ahoo.wow.api.query.IsNullFilter
+import me.ahoo.wow.api.query.LastYearFilter
 import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.NextMonthFilter
+import me.ahoo.wow.api.query.NextYearFilter
 import me.ahoo.wow.api.query.NotEqualFilter
 import me.ahoo.wow.api.query.NotExistsFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
+import me.ahoo.wow.api.query.RelativeTimeFilter
 import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.TenantIdFilter
+import me.ahoo.wow.api.query.ThisYearFilter
+import me.ahoo.wow.api.query.YesterdayFilter
 import me.ahoo.wow.api.query.toFilterExpression
 import org.junit.jupiter.api.Test
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
@@ -203,6 +209,23 @@ class ElasticsearchIndexMappingResolverTest {
         val filter = mapping.resolve(EqualFilter(LogicalField("name"), json("Wow")), "state") as EqualFilter
 
         filter.field.value.assert().isEqualTo("state.name.keyword")
+    }
+
+    @Test
+    fun `should resolve extended relative calendar fields as ranges from parent`() {
+        val mapping = ElasticsearchIndexMapping.from(INDEX, textWithKeyword())
+        val filters = listOf<RelativeTimeFilter>(
+            YesterdayFilter(LogicalField("age")),
+            NextMonthFilter(LogicalField("age")),
+            LastYearFilter(LogicalField("age")),
+            ThisYearFilter(LogicalField("age")),
+            NextYearFilter(LogicalField("age")),
+        )
+
+        filters.forEach { filter ->
+            val resolved = mapping.resolve(filter, "state") as RelativeTimeFilter
+            resolved.field.value.assert().isEqualTo("state.age")
+        }
     }
 
     private fun json(value: Any?) = me.ahoo.wow.serialization.JsonSerializer.valueToTree<tools.jackson.databind.JsonNode>(

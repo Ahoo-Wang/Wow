@@ -214,6 +214,11 @@ data class ElasticsearchIndexMapping private constructor(
         is LastWeekFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
         is ThisMonthFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
         is LastMonthFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is YesterdayFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is NextMonthFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is LastYearFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is ThisYearFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is NextYearFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
         is RecentDaysFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
         is EarlierDaysFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
         is SearchFilter -> filter.copy(
