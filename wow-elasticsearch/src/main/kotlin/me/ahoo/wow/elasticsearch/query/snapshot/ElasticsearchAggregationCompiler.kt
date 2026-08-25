@@ -196,7 +196,7 @@ internal class ElasticsearchAggregationCompiler(
             val candidate = "c$id"
             val parameter = "f$id"
             params[parameter] = JsonData.of(field.resolveComputed(parent))
-            source.append("Double $value=null;")
+            source.append("def $value=null;")
             source.append("String $fieldVariable=params.$parameter;")
             source.append("try {")
             source.append("if(doc.containsKey($fieldVariable)&&doc[$fieldVariable].size() == 1){")
@@ -215,7 +215,7 @@ internal class ElasticsearchAggregationCompiler(
             val value = "v$id"
             val parameter = "n$id"
             params[parameter] = JsonData.of(constant)
-            source.append("Double $value=((Number)params.$parameter).doubleValue();")
+            source.append("def $value=((Number)params.$parameter).doubleValue();")
             return value
         }
 
@@ -230,7 +230,7 @@ internal class ElasticsearchAggregationCompiler(
             } else {
                 ""
             }
-            source.append("Double $value=null;")
+            source.append("def $value=null;")
             source.append("if ($left != null && $right != null$divisionGuard) {")
             source.append(
                 "double $candidate=$left.doubleValue() ${binary.operator.painlessOperator} " +
