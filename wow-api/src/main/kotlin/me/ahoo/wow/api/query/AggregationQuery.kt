@@ -20,11 +20,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import io.swagger.v3.oas.annotations.media.ArraySchema
 import io.swagger.v3.oas.annotations.media.Schema
-import tools.jackson.databind.DatabindContext
-import tools.jackson.databind.JavaType
-import tools.jackson.databind.annotation.JsonTypeIdResolver
-import tools.jackson.databind.exc.InvalidTypeIdException
-import tools.jackson.databind.jsontype.impl.TypeIdResolverBase
+import me.ahoo.wow.api.serialization.MissingTypeImpl
 import java.time.ZoneId
 
 @Schema(additionalProperties = Schema.AdditionalPropertiesValue.FALSE)
@@ -175,12 +171,8 @@ enum class AggregationDateUnit {
     SECOND,
 }
 
-@JsonTypeInfo(
-    use = JsonTypeInfo.Id.NAME,
-    property = "type",
-    defaultImpl = AggregationExpression.Field::class,
-)
-@JsonTypeIdResolver(AggregationExpressionTypeIdResolver::class)
+@MissingTypeImpl(AggregationExpression.Field::class)
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(
     JsonSubTypes.Type(AggregationExpression.Field::class, name = "FIELD"),
     JsonSubTypes.Type(AggregationExpression.Constant::class, name = "CONSTANT"),
@@ -208,48 +200,6 @@ interface AggregationExpression {
         val left: AggregationExpression,
         val right: AggregationExpression,
     ) : AggregationExpression
-}
-
-internal class AggregationExpressionTypeIdResolver : TypeIdResolverBase() {
-    private lateinit var baseType: JavaType
-
-    override fun init(baseType: JavaType) {
-        this.baseType = baseType
-    }
-
-    override fun getMechanism(): JsonTypeInfo.Id = JsonTypeInfo.Id.NAME
-
-    override fun idFromValue(context: DatabindContext, value: Any): String =
-        idFromValueAndType(context, value, value.javaClass)
-
-    override fun idFromValueAndType(context: DatabindContext, value: Any?, suggestedType: Class<*>): String =
-        when (suggestedType) {
-            AggregationExpression.Field::class.java -> FIELD
-            AggregationExpression.Constant::class.java -> CONSTANT
-            AggregationExpression.Binary::class.java -> BINARY
-            else -> throw IllegalArgumentException("Unsupported aggregation expression: ${suggestedType.name}.")
-        }
-
-    override fun typeFromId(context: DatabindContext, id: String): JavaType = when (id) {
-        FIELD -> context.constructType(AggregationExpression.Field::class.java)
-        CONSTANT -> context.constructType(AggregationExpression.Constant::class.java)
-        BINARY -> context.constructType(AggregationExpression.Binary::class.java)
-        else -> throw InvalidTypeIdException.from(
-            null,
-            "Unknown aggregation expression type id '$id'. Known type ids: $KNOWN_IDS.",
-            baseType,
-            id,
-        )
-    }
-
-    override fun getDescForKnownTypeIds(): String = KNOWN_IDS
-
-    private companion object {
-        const val FIELD = "FIELD"
-        const val CONSTANT = "CONSTANT"
-        const val BINARY = "BINARY"
-        const val KNOWN_IDS = "[BINARY, CONSTANT, FIELD]"
-    }
 }
 
 enum class AggregationExpressionOperator {

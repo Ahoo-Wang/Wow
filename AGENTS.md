@@ -163,6 +163,9 @@ Before changing release or publish behavior, inspect the workflow and Gradle pub
 - Always run the narrowest relevant Gradle, pnpm, or docs command before reporting a change as complete.
 - Always add or update tests when changing command handling, event sourcing, projections, sagas, compensation behavior, serialization, schema generation, or generated metadata.
 - Always preserve public API compatibility unless the user explicitly asks for a breaking change.
+- Prefer clean source and the smallest correct implementation. Do not add compatibility bridges, custom serialization or creators, duplicate validation, or tests of dependency behavior without a concrete requirement or reproduced failure.
+- Treat source, binary, and wire compatibility as separate scopes. Implement only the compatibility scope the user requested; do not infer binary or wire compatibility from source compatibility.
+- Trust installed framework modules and backend-native semantics. Add validation only for the public contract, security, data-loss prevention, or a demonstrated backend requirement.
 - Ask first before changing Gradle module structure, feature capabilities, generated OpenAPI/schema contracts, CI/CD workflows, publishing credentials, or release automation.
 - Ask first before adding dependencies or moving responsibilities across module boundaries.
 - Never commit secrets, signing keys, Maven credentials, GitHub tokens, generated build output, `node_modules/`, `.gradle/`, or IDE-local state.

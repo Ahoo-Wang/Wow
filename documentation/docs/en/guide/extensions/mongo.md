@@ -388,7 +388,8 @@ The compilation pipeline is: `FilterExpression` -> `AbstractMongoFilterConverter
 | `EQ` | `Filters.eq()` |
 | `GT` / `GTE` / `LT` / `LTE` | `Filters.gt()` / `gte()` / `lt()` / `lte()` |
 | `CONTAINS` | `Filters.regex()` (escaped) |
-| `SEARCH` | `Filters.text()` |
+| `SEARCH` (`TERMS`) | `Filters.text(query)` |
+| `SEARCH` (`PHRASE`) | `Filters.text("\"$query\"")` |
 | `BETWEEN` | `Filters.and(Filters.gte(), Filters.lte())` |
 | `IN` / `NOT_IN` | `Filters.in()` / `nin()` |
 | `DELETION` | `Filters.eq("deleted", true/false)` or `Filters.empty()` |

@@ -14,6 +14,7 @@ import me.ahoo.wow.serialization.state.StateAggregateRecords
 import org.bson.conversions.Bson
 import org.bson.types.ObjectId
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
@@ -194,6 +195,13 @@ class SnapshotFilterConverterTest {
             .isEqualTo(org.bson.Document("\$expr", false).toBsonDocument())
     }
 
+    @Test
+    fun `mongo phrase search should reject embedded quotes`() {
+        assertThrows<IllegalArgumentException> {
+            SnapshotFilterConverter.convert(SearchFilter("event \"sourcing\"", mode = SearchMode.PHRASE))
+        }
+    }
+
     @ParameterizedTest
     @MethodSource("mongoFilterParameters")
     fun `should compile typed filter`(filter: FilterExpression, expected: Bson) {
@@ -252,6 +260,10 @@ class SnapshotFilterConverterTest {
                     Filters.elemMatch("state.value", Filters.eq("name", "value")),
                 ),
                 Arguments.of(SearchFilter("value", linkedSetOf(field)), Filters.text("value")),
+                Arguments.of(
+                    SearchFilter("event sourcing", mode = SearchMode.PHRASE),
+                    Filters.text("\"event sourcing\""),
+                ),
             )
         }
     }

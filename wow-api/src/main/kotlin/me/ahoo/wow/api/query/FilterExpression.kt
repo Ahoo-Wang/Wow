@@ -83,6 +83,11 @@ enum class FilterOperator {
     LAST_MONTH,
     RECENT_DAYS,
     EARLIER_DAYS,
+    YESTERDAY,
+    NEXT_MONTH,
+    LAST_YEAR,
+    THIS_YEAR,
+    NEXT_YEAR,
 }
 
 enum class StringComparison {
@@ -139,6 +144,11 @@ enum class StringComparison {
     JsonSubTypes.Type(LastMonthFilter::class, name = "LAST_MONTH"),
     JsonSubTypes.Type(RecentDaysFilter::class, name = "RECENT_DAYS"),
     JsonSubTypes.Type(EarlierDaysFilter::class, name = "EARLIER_DAYS"),
+    JsonSubTypes.Type(YesterdayFilter::class, name = "YESTERDAY"),
+    JsonSubTypes.Type(NextMonthFilter::class, name = "NEXT_MONTH"),
+    JsonSubTypes.Type(LastYearFilter::class, name = "LAST_YEAR"),
+    JsonSubTypes.Type(ThisYearFilter::class, name = "THIS_YEAR"),
+    JsonSubTypes.Type(NextYearFilter::class, name = "NEXT_YEAR"),
 )
 sealed interface FilterExpression : RewritableFilter<FilterExpression> {
     @get:JsonProperty("op")
@@ -212,12 +222,18 @@ data class ElementMatchFilter(
 data class SearchFilter(
     val query: String,
     val fields: Set<LogicalField> = emptySet(),
+    val mode: SearchMode = SearchMode.TERMS,
 ) : FilterExpression {
     override val operator: FilterOperator = FilterOperator.SEARCH
 
     init {
         require(query.isNotBlank()) { "SEARCH query cannot be blank." }
     }
+}
+
+enum class SearchMode {
+    TERMS,
+    PHRASE,
 }
 
 internal fun FilterExpression.containsElementUnsupportedFilter(): Boolean = when (this) {

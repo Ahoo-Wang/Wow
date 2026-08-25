@@ -14,6 +14,7 @@
 package me.ahoo.wow.api.query
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.serialization.MissingTypeImplProblemHandler
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.exc.InvalidTypeIdException
@@ -22,9 +23,12 @@ import java.time.DateTimeException
 
 class AggregationQueryTest {
     private val jsonMapper = jsonMapper()
+    private val mapperWithMissingTypeImpl = jsonMapper {
+        addHandler(MissingTypeImplProblemHandler())
+    }
 
     @Test
-    fun `field expression should be the default JSON subtype`() {
+    fun `bare mapper should reject missing field expression type`() {
         val json = """
             {
               "metrics": [{
@@ -36,10 +40,9 @@ class AggregationQueryTest {
             }
         """.trimIndent()
 
-        val query = jsonMapper.readValue(json, AggregationQuery::class.java)
-        val metric = query.metrics.single() as AggregationMetric.Numeric
-
-        metric.expression.assert().isEqualTo(AggregationExpression.Field(LogicalField("amount")))
+        assertThrows<InvalidTypeIdException> {
+            jsonMapper.readValue(json, AggregationQuery::class.java)
+        }
     }
 
     @Test
@@ -83,7 +86,7 @@ class AggregationQueryTest {
             }
         """.trimIndent()
 
-        val query = jsonMapper.readValue(json, AggregationQuery::class.java)
+        val query = mapperWithMissingTypeImpl.readValue(json, AggregationQuery::class.java)
         val expression = (query.metrics.single() as AggregationMetric.Numeric).expression
 
         expression.assert().isEqualTo(
@@ -97,7 +100,7 @@ class AggregationQueryTest {
                 AggregationExpression.Constant(10.0),
             ),
         )
-        jsonMapper.writeValueAsString(query).assert()
+        mapperWithMissingTypeImpl.writeValueAsString(query).assert()
             .contains("\"type\":\"BINARY\"")
             .contains("\"type\":\"CONSTANT\"")
     }

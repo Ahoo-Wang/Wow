@@ -38,12 +38,15 @@ import me.ahoo.wow.api.query.IsNotNullFilter
 import me.ahoo.wow.api.query.IsNullFilter
 import me.ahoo.wow.api.query.LastMonthFilter
 import me.ahoo.wow.api.query.LastWeekFilter
+import me.ahoo.wow.api.query.LastYearFilter
 import me.ahoo.wow.api.query.LessThanFilter
 import me.ahoo.wow.api.query.LessThanOrEqualFilter
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MatchNoneFilter
+import me.ahoo.wow.api.query.NextMonthFilter
 import me.ahoo.wow.api.query.NextWeekFilter
+import me.ahoo.wow.api.query.NextYearFilter
 import me.ahoo.wow.api.query.NorFilter
 import me.ahoo.wow.api.query.NotEqualFilter
 import me.ahoo.wow.api.query.NotExistsFilter
@@ -52,14 +55,17 @@ import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.RecentDaysFilter
 import me.ahoo.wow.api.query.SearchFilter
+import me.ahoo.wow.api.query.SearchMode
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.ThisMonthFilter
 import me.ahoo.wow.api.query.ThisWeekFilter
+import me.ahoo.wow.api.query.ThisYearFilter
 import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.TomorrowFilter
+import me.ahoo.wow.api.query.YesterdayFilter
 import me.ahoo.wow.serialization.JsonSerializer
 import tools.jackson.databind.JsonNode
 import java.time.LocalTime
@@ -198,13 +204,18 @@ class FilterDsl private constructor(
 
     fun String.notExists() = add(NotExistsFilter(field(this)))
 
-    fun search(query: String, vararg fields: String) =
-        add(SearchFilter(query, fields.mapTo(linkedSetOf(), ::field)))
+    fun search(query: String, vararg fields: String) = search(query, SearchMode.TERMS, *fields)
+
+    fun search(query: String, mode: SearchMode, vararg fields: String) =
+        add(SearchFilter(query, fields.mapTo(linkedSetOf(), ::field), mode))
 
     infix fun String.search(query: String) = search(query, this)
 
     fun String.today(zoneId: ZoneId? = null, datePattern: String? = null) =
         add(TodayFilter(field(this), zoneId?.id, datePattern))
+
+    fun String.yesterday(zoneId: ZoneId? = null, datePattern: String? = null) =
+        add(YesterdayFilter(field(this), zoneId?.id, datePattern))
 
     fun String.beforeToday(time: LocalTime, zoneId: ZoneId? = null, datePattern: String? = null) =
         add(BeforeTodayFilter(field(this), time.toString(), zoneId?.id, datePattern))
@@ -226,6 +237,18 @@ class FilterDsl private constructor(
 
     fun String.lastMonth(zoneId: ZoneId? = null, datePattern: String? = null) =
         add(LastMonthFilter(field(this), zoneId?.id, datePattern))
+
+    fun String.nextMonth(zoneId: ZoneId? = null, datePattern: String? = null) =
+        add(NextMonthFilter(field(this), zoneId?.id, datePattern))
+
+    fun String.lastYear(zoneId: ZoneId? = null, datePattern: String? = null) =
+        add(LastYearFilter(field(this), zoneId?.id, datePattern))
+
+    fun String.thisYear(zoneId: ZoneId? = null, datePattern: String? = null) =
+        add(ThisYearFilter(field(this), zoneId?.id, datePattern))
+
+    fun String.nextYear(zoneId: ZoneId? = null, datePattern: String? = null) =
+        add(NextYearFilter(field(this), zoneId?.id, datePattern))
 
     fun String.recentDays(days: Int, zoneId: ZoneId? = null, datePattern: String? = null) =
         add(RecentDaysFilter(field(this), days, zoneId?.id, datePattern))

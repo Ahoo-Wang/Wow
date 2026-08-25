@@ -16,13 +16,56 @@ package me.ahoo.wow.api.query
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.JsonNode
-import tools.jackson.module.kotlin.jsonMapper
+import tools.jackson.module.kotlin.jacksonObjectMapper
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 class FilterExpressionTest {
-    private val jsonMapper = jsonMapper()
+    private val jsonMapper = jacksonObjectMapper()
+
+    @Test
+    fun `new relative calendar filters should round trip through the common contract`() {
+        val field = LogicalField("state.createTime")
+        val filters = listOf<RelativeTimeFilter>(
+            YesterdayFilter(field, "UTC", "yyyy-MM-dd"),
+            NextMonthFilter(field, "UTC", "yyyy-MM-dd"),
+            LastYearFilter(field, "UTC", "yyyy-MM-dd"),
+            ThisYearFilter(field, "UTC", "yyyy-MM-dd"),
+            NextYearFilter(field, "UTC", "yyyy-MM-dd"),
+        )
+
+        filters.forEach { filter ->
+            filter.field.assert().isEqualTo(field)
+            filter.zoneId.assert().isEqualTo("UTC")
+            filter.datePattern.assert().isEqualTo("yyyy-MM-dd")
+            filter.resolvedDateFormatter().assert().isNotNull()
+            val json = jsonMapper.writeValueAsString(filter)
+            json.contains("dateFormatter").assert().isFalse()
+            jsonMapper.readValue(json, FilterExpression::class.java).assert().isEqualTo(filter)
+        }
+
+        val runtimeFilter: RelativeTimeFilter = YesterdayFilter(
+            field = field,
+            dateFormatter = DateTimeFormatter.ISO_LOCAL_DATE,
+        )
+        jsonMapper.writeValueAsString(runtimeFilter).contains("dateFormatter").assert().isFalse()
+    }
+
+    @Test
+    fun `relative calendar filters should reject invalid common configuration`() {
+        val field = LogicalField("state.createTime")
+
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+            YesterdayFilter(field, zoneId = "")
+        }
+        org.junit.jupiter.api.assertThrows<java.time.DateTimeException> {
+            NextMonthFilter(field, zoneId = "Not/AZone")
+        }
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+            ThisYearFilter(field, datePattern = "invalid")
+        }
+    }
 
     @Test
     fun `should round trip polymorphic filter expression with op`() {
@@ -40,6 +83,40 @@ class FilterExpressionTest {
         json.contains("\"op\":\"AND\"").assert().isTrue()
         json.contains("\"operator\"").assert().isFalse()
         decoded.assert().isEqualTo(expression)
+    }
+
+    @Test
+    fun `search mode should default to terms`() {
+        val decoded = jsonMapper.readValue(
+            """{"op":"SEARCH","query":"wow","fields":["state.name"]}""",
+            FilterExpression::class.java,
+        ) as SearchFilter
+
+        decoded.assert().isEqualTo(SearchFilter("wow", setOf(LogicalField("state.name"))))
+        decoded.mode.assert().isEqualTo(SearchMode.TERMS)
+    }
+
+    @Test
+    fun `phrase search should round trip`() {
+        val phrase = SearchFilter(
+            query = "event sourcing",
+            fields = setOf(LogicalField("state.description")),
+            mode = SearchMode.PHRASE,
+        )
+
+        val json = jsonMapper.writeValueAsString(phrase)
+        val decoded = jsonMapper.readValue(json, FilterExpression::class.java)
+
+        json.contains("\"op\":\"SEARCH\"").assert().isTrue()
+        json.contains("\"mode\":\"PHRASE\"").assert().isTrue()
+        decoded.assert().isEqualTo(phrase)
+    }
+
+    @Test
+    fun `phrase search should preserve embedded quotes`() {
+        val filter = SearchFilter("event \"sourcing\"", mode = SearchMode.PHRASE)
+
+        filter.query.assert().isEqualTo("event \"sourcing\"")
     }
 
     @Suppress("DEPRECATION")

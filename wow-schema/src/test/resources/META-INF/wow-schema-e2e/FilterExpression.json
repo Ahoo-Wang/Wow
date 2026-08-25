@@ -89,6 +89,8 @@
       }, {
         "$ref" : "#/definitions/today"
       }, {
+        "$ref" : "#/definitions/yesterday"
+      }, {
         "$ref" : "#/definitions/beforeToday"
       }, {
         "$ref" : "#/definitions/tomorrow"
@@ -101,7 +103,15 @@
       }, {
         "$ref" : "#/definitions/thisMonth"
       }, {
+        "$ref" : "#/definitions/nextMonth"
+      }, {
         "$ref" : "#/definitions/lastMonth"
+      }, {
+        "$ref" : "#/definitions/lastYear"
+      }, {
+        "$ref" : "#/definitions/thisYear"
+      }, {
+        "$ref" : "#/definitions/nextYear"
       }, {
         "$ref" : "#/definitions/recentDays"
       }, {
@@ -160,6 +170,8 @@
       }, {
         "$ref" : "#/definitions/today"
       }, {
+        "$ref" : "#/definitions/yesterday"
+      }, {
         "$ref" : "#/definitions/beforeToday"
       }, {
         "$ref" : "#/definitions/tomorrow"
@@ -172,7 +184,15 @@
       }, {
         "$ref" : "#/definitions/thisMonth"
       }, {
+        "$ref" : "#/definitions/nextMonth"
+      }, {
         "$ref" : "#/definitions/lastMonth"
+      }, {
+        "$ref" : "#/definitions/lastYear"
+      }, {
+        "$ref" : "#/definitions/thisYear"
+      }, {
+        "$ref" : "#/definitions/nextYear"
       }, {
         "$ref" : "#/definitions/recentDays"
       }, {
@@ -761,6 +781,11 @@
             "$ref" : "#/definitions/logicalField"
           },
           "default" : [ ]
+        },
+        "mode" : {
+          "type" : "string",
+          "enum" : [ "TERMS", "PHRASE" ],
+          "default" : "TERMS"
         }
       },
       "required" : [ "op", "query" ],
@@ -768,6 +793,9 @@
     },
     "today" : {
       "$ref" : "#/definitions/todayShape"
+    },
+    "yesterday" : {
+      "$ref" : "#/definitions/yesterdayShape"
     },
     "tomorrow" : {
       "$ref" : "#/definitions/tomorrowShape"
@@ -784,14 +812,47 @@
     "thisMonth" : {
       "$ref" : "#/definitions/thisMonthShape"
     },
+    "nextMonth" : {
+      "$ref" : "#/definitions/nextMonthShape"
+    },
     "lastMonth" : {
       "$ref" : "#/definitions/lastMonthShape"
+    },
+    "lastYear" : {
+      "$ref" : "#/definitions/lastYearShape"
+    },
+    "thisYear" : {
+      "$ref" : "#/definitions/thisYearShape"
+    },
+    "nextYear" : {
+      "$ref" : "#/definitions/nextYearShape"
     },
     "todayShape" : {
       "type" : "object",
       "properties" : {
         "op" : {
           "enum" : [ "TODAY" ]
+        },
+        "field" : {
+          "$ref" : "#/definitions/logicalField"
+        },
+        "zoneId" : {
+          "type" : "string",
+          "minLength" : 1
+        },
+        "datePattern" : {
+          "type" : "string",
+          "minLength" : 1
+        }
+      },
+      "required" : [ "op", "field" ],
+      "additionalProperties" : false
+    },
+    "yesterdayShape" : {
+      "type" : "object",
+      "properties" : {
+        "op" : {
+          "enum" : [ "YESTERDAY" ]
         },
         "field" : {
           "$ref" : "#/definitions/logicalField"
@@ -913,11 +974,95 @@
       "required" : [ "op", "field" ],
       "additionalProperties" : false
     },
+    "nextMonthShape" : {
+      "type" : "object",
+      "properties" : {
+        "op" : {
+          "enum" : [ "NEXT_MONTH" ]
+        },
+        "field" : {
+          "$ref" : "#/definitions/logicalField"
+        },
+        "zoneId" : {
+          "type" : "string",
+          "minLength" : 1
+        },
+        "datePattern" : {
+          "type" : "string",
+          "minLength" : 1
+        }
+      },
+      "required" : [ "op", "field" ],
+      "additionalProperties" : false
+    },
     "lastMonthShape" : {
       "type" : "object",
       "properties" : {
         "op" : {
           "enum" : [ "LAST_MONTH" ]
+        },
+        "field" : {
+          "$ref" : "#/definitions/logicalField"
+        },
+        "zoneId" : {
+          "type" : "string",
+          "minLength" : 1
+        },
+        "datePattern" : {
+          "type" : "string",
+          "minLength" : 1
+        }
+      },
+      "required" : [ "op", "field" ],
+      "additionalProperties" : false
+    },
+    "lastYearShape" : {
+      "type" : "object",
+      "properties" : {
+        "op" : {
+          "enum" : [ "LAST_YEAR" ]
+        },
+        "field" : {
+          "$ref" : "#/definitions/logicalField"
+        },
+        "zoneId" : {
+          "type" : "string",
+          "minLength" : 1
+        },
+        "datePattern" : {
+          "type" : "string",
+          "minLength" : 1
+        }
+      },
+      "required" : [ "op", "field" ],
+      "additionalProperties" : false
+    },
+    "thisYearShape" : {
+      "type" : "object",
+      "properties" : {
+        "op" : {
+          "enum" : [ "THIS_YEAR" ]
+        },
+        "field" : {
+          "$ref" : "#/definitions/logicalField"
+        },
+        "zoneId" : {
+          "type" : "string",
+          "minLength" : 1
+        },
+        "datePattern" : {
+          "type" : "string",
+          "minLength" : 1
+        }
+      },
+      "required" : [ "op", "field" ],
+      "additionalProperties" : false
+    },
+    "nextYearShape" : {
+      "type" : "object",
+      "properties" : {
+        "op" : {
+          "enum" : [ "NEXT_YEAR" ]
         },
         "field" : {
           "$ref" : "#/definitions/logicalField"

@@ -35,8 +35,8 @@ description: Query snapshots and event streams with FilterExpression, the query 
 | Empty, null, and existence | `IS_EMPTY`, `IS_NULL`, `IS_NOT_NULL`, `EXISTS`, `NOT_EXISTS` | `field` | Compiled to each backend's native existence and empty-value semantics |
 | Deletion | `DELETION` | `state` | `ACTIVE`, `DELETED`, or `ALL`; deletion is part of the filter model |
 | Array element | `ELEMENT_MATCH` | `field`, `predicate` | `predicate` cannot contain `DELETION`, `SEARCH`, or metadata Filters |
-| Full-text search | `SEARCH` | `query`, `fields` | `query` cannot be blank; field support is backend-specific |
-| Relative time | `TODAY`, `BEFORE_TODAY`, `TOMORROW`, `THIS_WEEK`, `NEXT_WEEK`, `LAST_WEEK`, `THIS_MONTH`, `LAST_MONTH`, `RECENT_DAYS`, `EARLIER_DAYS` | `field`; operation-specific `time` or `days`; optional `zoneId` | Normalized to absolute ranges before backend compilation |
+| Full-text search | `SEARCH` | `query`, `fields`, `mode` | `mode` defaults to `TERMS` and may be set to `PHRASE`; field support is backend-specific |
+| Relative time | `TODAY`, `YESTERDAY`, `BEFORE_TODAY`, `TOMORROW`, `THIS_WEEK`, `NEXT_WEEK`, `LAST_WEEK`, `THIS_MONTH`, `NEXT_MONTH`, `LAST_MONTH`, `LAST_YEAR`, `THIS_YEAR`, `NEXT_YEAR`, `RECENT_DAYS`, `EARLIER_DAYS` | `field`; operation-specific `time` or `days`; optional `zoneId` | Normalized to absolute ranges before backend compilation |
 
 `field` is a logical field path. Valid examples are:
 
@@ -52,7 +52,7 @@ Aggregate-specific OpenAPI request bodies publish valid filter, projection, and 
 Snapshot queries default to `DELETION = ACTIVE`. A top-level `DELETION`, or one used directly inside the top-level `AND`, explicitly overrides that scope; nesting deletion inside `OR` or `NOR` does not disable the active guard. Event-stream queries do not add a deletion scope, preserving complete audit history.
 
 :::info Backend differences
-MongoDB `SEARCH` uses the collection text index and does not restrict the query to `fields`; Elasticsearch can resolve search fields and multi-fields. Use relative child fields inside `ELEMENT_MATCH` for portable MongoDB and Elasticsearch behavior.
+MongoDB `SEARCH` uses the collection text index and does not restrict the query to `fields`; Elasticsearch can resolve search fields and multi-fields. `PHRASE` compiles to a quoted `$text` phrase in MongoDB and to `multi_match(type = phrase)` in Elasticsearch. Use relative child fields inside `ELEMENT_MATCH` for portable MongoDB and Elasticsearch behavior.
 :::
 
 ## Kotlin DSL
@@ -73,6 +73,14 @@ val orderFilter = filterExpression {
         "productId" eq "product-1"
         "quantity" gt 0
     }
+}
+```
+
+Use `PHRASE` to match consecutive terms produced by the backend analyzer. Omitting `mode` preserves the existing `TERMS` behavior:
+
+```kotlin
+val phraseFilter = filterExpression {
+    search("event sourcing", SearchMode.PHRASE, "state.title", "state.description")
 }
 ```
 
@@ -126,6 +134,9 @@ val query = pagedQuery {
     filter {
         "state.status" eq "CREATED"
         "state.createTime".recentDays(7, ZoneId.of("Asia/Shanghai"))
+        "state.createTime".yesterday(ZoneId.of("Asia/Shanghai"))
+        "state.createTime".nextMonth(ZoneId.of("Asia/Shanghai"))
+        "state.createTime".thisYear(ZoneId.of("Asia/Shanghai"))
     }
     projection {
         include("aggregateId")

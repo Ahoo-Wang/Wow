@@ -26,19 +26,25 @@ import me.ahoo.wow.api.query.IsNotNullFilter
 import me.ahoo.wow.api.query.IsNullFilter
 import me.ahoo.wow.api.query.LastMonthFilter
 import me.ahoo.wow.api.query.LastWeekFilter
+import me.ahoo.wow.api.query.LastYearFilter
 import me.ahoo.wow.api.query.LessThanFilter
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MatchNoneFilter
+import me.ahoo.wow.api.query.NextMonthFilter
 import me.ahoo.wow.api.query.NextWeekFilter
+import me.ahoo.wow.api.query.NextYearFilter
 import me.ahoo.wow.api.query.NorFilter
 import me.ahoo.wow.api.query.NotEqualFilter
 import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.RecentDaysFilter
+import me.ahoo.wow.api.query.RelativeTimeFilter
 import me.ahoo.wow.api.query.ThisMonthFilter
 import me.ahoo.wow.api.query.ThisWeekFilter
+import me.ahoo.wow.api.query.ThisYearFilter
 import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.TomorrowFilter
+import me.ahoo.wow.api.query.YesterdayFilter
 import tools.jackson.databind.node.JsonNodeFactory
 import java.time.Clock
 import java.time.DayOfWeek
@@ -87,13 +93,18 @@ class FilterNormalizer(
         is OrFilter -> OrFilter(expression.operands.map { expandRelativeTime(it, now) })
         is NorFilter -> NorFilter(expression.operands.map { expandRelativeTime(it, now) })
         is ElementMatchFilter -> ElementMatchFilter(expression.field, expandRelativeTime(expression.predicate, now))
+        is YesterdayFilter -> expression.dayRange(now, -1)
         is TodayFilter -> expression.dayRange(now, 0)
         is TomorrowFilter -> expression.dayRange(now, 1)
+        is LastWeekFilter -> expression.weekRange(now, -1)
         is ThisWeekFilter -> expression.weekRange(now, 0)
         is NextWeekFilter -> expression.weekRange(now, 1)
-        is LastWeekFilter -> expression.weekRange(now, -1)
-        is ThisMonthFilter -> expression.monthRange(now, 0)
         is LastMonthFilter -> expression.monthRange(now, -1)
+        is ThisMonthFilter -> expression.monthRange(now, 0)
+        is NextMonthFilter -> expression.monthRange(now, 1)
+        is LastYearFilter -> expression.yearRange(now, -1)
+        is ThisYearFilter -> expression.yearRange(now, 0)
+        is NextYearFilter -> expression.yearRange(now, 1)
         is BeforeTodayFilter -> LessThanFilter(
             expression.field,
             instantNode(
@@ -124,38 +135,31 @@ class FilterNormalizer(
         else -> expression
     }
 
-    private fun TodayFilter.dayRange(now: Instant, days: Long): FilterExpression =
+    private fun RelativeTimeFilter.dayRange(now: Instant, offset: Long): FilterExpression =
         range(
             field,
-            today(now, zoneId).plusDays(days).atStartOfDay(),
-            today(now, zoneId).plusDays(days + 1).atStartOfDay(),
+            today(now, zoneId).plusDays(offset).atStartOfDay(),
+            today(now, zoneId).plusDays(offset + 1).atStartOfDay(),
             zone(zoneId),
             resolvedDateFormatter(),
         )
 
-    private fun TomorrowFilter.dayRange(now: Instant, days: Long): FilterExpression =
-        range(
+    private fun RelativeTimeFilter.weekRange(now: Instant, offset: Long): FilterExpression =
+        weekRange(field, today(now, zoneId), offset, zone(zoneId), resolvedDateFormatter())
+
+    private fun RelativeTimeFilter.monthRange(now: Instant, offset: Long): FilterExpression =
+        monthRange(field, today(now, zoneId), offset, zone(zoneId), resolvedDateFormatter())
+
+    private fun RelativeTimeFilter.yearRange(now: Instant, offset: Long): FilterExpression {
+        val start = today(now, zoneId).withDayOfYear(1).plusYears(offset)
+        return range(
             field,
-            today(now, zoneId).plusDays(days).atStartOfDay(),
-            today(now, zoneId).plusDays(days + 1).atStartOfDay(),
+            start.atStartOfDay(),
+            start.plusYears(1).atStartOfDay(),
             zone(zoneId),
             resolvedDateFormatter(),
         )
-
-    private fun ThisWeekFilter.weekRange(now: Instant, offset: Long): FilterExpression =
-        weekRange(field, today(now, zoneId), offset, zone(zoneId), resolvedDateFormatter())
-
-    private fun NextWeekFilter.weekRange(now: Instant, offset: Long): FilterExpression =
-        weekRange(field, today(now, zoneId), offset, zone(zoneId), resolvedDateFormatter())
-
-    private fun LastWeekFilter.weekRange(now: Instant, offset: Long): FilterExpression =
-        weekRange(field, today(now, zoneId), offset, zone(zoneId), resolvedDateFormatter())
-
-    private fun ThisMonthFilter.monthRange(now: Instant, offset: Long): FilterExpression =
-        monthRange(field, today(now, zoneId), offset, zone(zoneId), resolvedDateFormatter())
-
-    private fun LastMonthFilter.monthRange(now: Instant, offset: Long): FilterExpression =
-        monthRange(field, today(now, zoneId), offset, zone(zoneId), resolvedDateFormatter())
+    }
 
     private fun weekRange(
         field: LogicalField,

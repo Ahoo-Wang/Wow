@@ -38,16 +38,24 @@ import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.IsEmptyFilter
 import me.ahoo.wow.api.query.IsNotNullFilter
 import me.ahoo.wow.api.query.IsNullFilter
+import me.ahoo.wow.api.query.LastYearFilter
 import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.NextMonthFilter
+import me.ahoo.wow.api.query.NextYearFilter
 import me.ahoo.wow.api.query.NotEqualFilter
 import me.ahoo.wow.api.query.NotExistsFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
+import me.ahoo.wow.api.query.RelativeTimeFilter
 import me.ahoo.wow.api.query.SearchFilter
+import me.ahoo.wow.api.query.SearchMode
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.TenantIdFilter
+import me.ahoo.wow.api.query.ThisYearFilter
+import me.ahoo.wow.api.query.YesterdayFilter
 import me.ahoo.wow.api.query.toFilterExpression
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchIndicesClient
 import reactor.core.publisher.Mono
@@ -171,7 +179,11 @@ class ElasticsearchIndexMappingResolverTest {
             AndFilter(
                 listOf(
                     EqualFilter(LogicalField("state.name"), json("Wow")),
-                    SearchFilter("Wow", linkedSetOf(LogicalField("state.name"))),
+                    SearchFilter(
+                        "Wow",
+                        linkedSetOf(LogicalField("state.name")),
+                        SearchMode.PHRASE,
+                    ),
                     ContainsFilter(LogicalField("state.name"), "ow"),
                     GreaterThanFilter(LogicalField("state.age"), json(18)),
                     ExistsFilter(LogicalField("state.name")),
@@ -180,6 +192,7 @@ class ElasticsearchIndexMappingResolverTest {
         ) as AndFilter
         (filter.operands[0] as EqualFilter).field.value.assert().isEqualTo("state.name.keyword")
         (filter.operands[1] as SearchFilter).fields.single().value.assert().isEqualTo("state.name")
+        (filter.operands[1] as SearchFilter).mode.assert().isEqualTo(SearchMode.PHRASE)
         (filter.operands[2] as ContainsFilter).field.value.assert().isEqualTo("state.name.keyword")
         (filter.operands[3] as GreaterThanFilter).field.value.assert().isEqualTo("state.age")
         (filter.operands[4] as ExistsFilter).field.value.assert().isEqualTo("state.name")
@@ -203,6 +216,44 @@ class ElasticsearchIndexMappingResolverTest {
         val filter = mapping.resolve(EqualFilter(LogicalField("name"), json("Wow")), "state") as EqualFilter
 
         filter.field.value.assert().isEqualTo("state.name.keyword")
+    }
+
+    @Test
+    fun `should resolve extended relative calendar fields as ranges from parent`() {
+        val mapping = ElasticsearchIndexMapping.from(INDEX, textWithKeyword())
+        val filters = listOf<RelativeTimeFilter>(
+            YesterdayFilter(LogicalField("age")),
+            NextMonthFilter(LogicalField("age")),
+            LastYearFilter(LogicalField("age")),
+            ThisYearFilter(LogicalField("age")),
+            NextYearFilter(LogicalField("age")),
+        )
+
+        filters.forEach { filter ->
+            val resolved = mapping.resolve(filter, "state") as RelativeTimeFilter
+            resolved.field.value.assert().isEqualTo("state.age")
+        }
+    }
+
+    @Test
+    fun `should resolve extended relative calendar fields with range usage`() {
+        val mapping = ElasticsearchIndexMapping.from(INDEX, indexedFieldVariants())
+        val filters = listOf<RelativeTimeFilter>(
+            YesterdayFilter(LogicalField("booleanTrue")),
+            NextMonthFilter(LogicalField("booleanTrue")),
+            LastYearFilter(LogicalField("booleanTrue")),
+            ThisYearFilter(LogicalField("booleanTrue")),
+            NextYearFilter(LogicalField("booleanTrue")),
+        )
+
+        filters.forEach { filter ->
+            val failure = runCatching { mapping.resolve(filter) }.exceptionOrNull()
+                ?: error("Expected RANGE resolution to fail for ${filter.operator}")
+            failure.assert().isInstanceOf(ElasticsearchFieldResolutionException::class.java)
+            failure.message.assert().isEqualTo(
+                "Elasticsearch field [booleanTrue] does not support range queries in index [$INDEX].",
+            )
+        }
     }
 
     private fun json(value: Any?) = me.ahoo.wow.serialization.JsonSerializer.valueToTree<tools.jackson.databind.JsonNode>(
@@ -390,6 +441,21 @@ class ElasticsearchIndexMappingResolverTest {
                 Sort("_shard_doc", Sort.Direction.ASC),
             ),
         ).map { it.field }.assert().containsExactly("_score", "_doc", "_shard_doc")
+    }
+
+    @Test
+    fun `should reject phrase search on semantic text`() {
+        val mapping = ElasticsearchIndexMapping.from(INDEX, specialCapabilities())
+
+        assertThrows<ElasticsearchFieldResolutionException> {
+            mapping.resolve(
+                SearchFilter(
+                    "event sourcing",
+                    linkedSetOf(LogicalField("semanticText")),
+                    SearchMode.PHRASE,
+                ),
+            )
+        }
     }
 
     private fun mappingResponse(mapping: TypeMapping): GetMappingResponse =

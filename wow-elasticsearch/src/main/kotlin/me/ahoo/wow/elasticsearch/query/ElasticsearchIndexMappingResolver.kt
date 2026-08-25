@@ -46,6 +46,7 @@ enum class ElasticsearchFieldUsage {
     RANGE,
     PRESENCE,
     SEARCH,
+    PHRASE_SEARCH,
     MATCH,
     SORT,
 }
@@ -222,11 +223,20 @@ data class ElasticsearchIndexMapping private constructor(
         is LastWeekFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
         is ThisMonthFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
         is LastMonthFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is YesterdayFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is NextMonthFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is LastYearFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is ThisYearFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is NextYearFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
         is RecentDaysFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
         is EarlierDaysFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is SearchFilter -> filter.copy(
-            fields = filter.fields.mapTo(linkedSetOf()) { it.resolve(parent, ElasticsearchFieldUsage.SEARCH) },
-        )
+        is SearchFilter -> {
+            val usage = when (filter.mode) {
+                SearchMode.TERMS -> ElasticsearchFieldUsage.SEARCH
+                SearchMode.PHRASE -> ElasticsearchFieldUsage.PHRASE_SEARCH
+            }
+            filter.copy(fields = filter.fields.mapTo(linkedSetOf()) { it.resolve(parent, usage) })
+        }
         is ElementMatchFilter -> {
             val nestedPath = filter.field.path(parent)
             ElementMatchFilter(LogicalField(requireNested(nestedPath)), resolve(filter.predicate, nestedPath))
@@ -296,7 +306,9 @@ data class ElasticsearchIndexMapping private constructor(
 
         private fun preferredSuffixes(usage: ElasticsearchFieldUsage): List<String> =
             when (usage) {
-                ElasticsearchFieldUsage.SEARCH -> listOf("text")
+                ElasticsearchFieldUsage.SEARCH,
+                ElasticsearchFieldUsage.PHRASE_SEARCH,
+                -> listOf("text")
                 else -> listOf("keyword", "exact")
             }
 
@@ -317,6 +329,7 @@ private data class ElasticsearchMappedField(
             ElasticsearchFieldUsage.RANGE -> isQueryable() && kind in RANGE_KINDS
             ElasticsearchFieldUsage.PRESENCE -> isQueryable()
             ElasticsearchFieldUsage.SEARCH,
+            ElasticsearchFieldUsage.PHRASE_SEARCH,
             ElasticsearchFieldUsage.MATCH,
             -> indexed && kind in SEARCH_KINDS_BY_USAGE.getValue(usage)
             ElasticsearchFieldUsage.SORT ->
@@ -382,6 +395,7 @@ private data class ElasticsearchMappedField(
         private val MATCH_KINDS = SEARCH_KINDS + EXACT_KINDS
         private val SEARCH_KINDS_BY_USAGE = mapOf(
             ElasticsearchFieldUsage.SEARCH to SEARCH_KINDS,
+            ElasticsearchFieldUsage.PHRASE_SEARCH to SEARCH_KINDS - Property.Kind.SemanticText,
             ElasticsearchFieldUsage.MATCH to MATCH_KINDS,
         )
     }
