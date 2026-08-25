@@ -67,6 +67,9 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                                     }
                                 }
                                 .properties("decimalValue") { it.double_ { number -> number } }
+                                .properties("unreadableNumber") {
+                                    it.double_ { number -> number.index(false).docValues(false) }
+                                }
                                 .properties("orders") { orders ->
                                     orders.nested { ordersNested ->
                                         ordersNested.properties("status") { it.keyword { keyword -> keyword } }
@@ -110,6 +113,17 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     fun `computed metric should ignore a presence-resolved text field without fielddata`() {
         aggregation {
             sum(field("state.data") * constant(1.0), "unreadable")
+        }.query(snapshotQueryService)
+            .test()
+            .assertNext {
+                it.toMap().assert().isEqualTo(mapOf("unreadable" to null))
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `computed metric should ignore a mapped field without index or doc values`() {
+        aggregation {
+            sum(field("state.unreadableNumber") * constant(1.0), "unreadable")
         }.query(snapshotQueryService)
             .test()
             .assertNext {

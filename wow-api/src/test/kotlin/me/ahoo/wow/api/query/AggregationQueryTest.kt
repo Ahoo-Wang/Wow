@@ -16,6 +16,7 @@ package me.ahoo.wow.api.query
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import tools.jackson.databind.exc.InvalidTypeIdException
 import tools.jackson.module.kotlin.jsonMapper
 import java.time.DateTimeException
 
@@ -39,6 +40,24 @@ class AggregationQueryTest {
         val metric = query.metrics.single() as AggregationMetric.Numeric
 
         metric.expression.assert().isEqualTo(AggregationExpression.Field(LogicalField("amount")))
+    }
+
+    @Test
+    fun `unknown expression JSON subtype should fail`() {
+        val json = """
+            {
+              "metrics": [{
+                "type": "NUMERIC",
+                "function": "SUM",
+                "expression": {"type": "UNKNOWN", "field": "amount"},
+                "alias": "total"
+              }]
+            }
+        """.trimIndent()
+
+        assertThrows<InvalidTypeIdException> {
+            jsonMapper.readValue(json, AggregationQuery::class.java)
+        }
     }
 
     @Test

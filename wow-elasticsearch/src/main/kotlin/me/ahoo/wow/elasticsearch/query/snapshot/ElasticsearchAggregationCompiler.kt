@@ -34,6 +34,7 @@ import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterConverter
+import me.ahoo.wow.elasticsearch.query.ElasticsearchFieldResolutionException
 import me.ahoo.wow.elasticsearch.query.ElasticsearchFieldUsage
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
 import me.ahoo.wow.elasticsearch.query.ElasticsearchSortConverter.toSortOrder
@@ -252,7 +253,11 @@ internal class ElasticsearchAggregationCompiler(
 
     private fun LogicalField.resolveComputed(parent: String?): String {
         val absoluteField = resolve(parent)
-        return mapping?.resolve(absoluteField, ElasticsearchFieldUsage.PRESENCE) ?: absoluteField
+        return try {
+            mapping?.resolve(absoluteField, ElasticsearchFieldUsage.PRESENCE) ?: absoluteField
+        } catch (_: ElasticsearchFieldResolutionException) {
+            absoluteField
+        }
     }
 
     private fun LogicalField.resolve(parent: String?): String =

@@ -17,7 +17,7 @@ import com.github.victools.jsonschema.generator.Module
 import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder
 import com.github.victools.jsonschema.generator.impl.DefinitionKey
 
-class SchemaNamingModule(
+class SchemaNamingModule @JvmOverloads constructor(
     override val defaultSchemaNamePrefix: String = "",
     private val onDefinitionName: (DefinitionKey, String) -> Unit = { _, _ -> },
 ) : DefaultSchemaNamePrefixCapable, Module {
