@@ -108,6 +108,7 @@ internal class ElasticsearchAggregationPager(
                 .pit { pointInTime ->
                     pointInTime.id(pit.id).keepAlive { keepAlive -> keepAlive.time(this.pointInTime.keepAliveValue) }
                 }
+                .runtimeMappings(plan.runtimeMappings)
                 .aggregations(ROOT_AGGREGATION, plan.aggregation(afterKey, pageSize))
         }
         client.search(request, Map::class.java)

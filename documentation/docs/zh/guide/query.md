@@ -205,17 +205,51 @@ query.query(snapshotQueryService)
 }
 ```
 
+数值指标可以使用字段、有限常量和四则运算。例如，下面的 DSL 计算每个商品的净额：
+
+```kotlin
+val query = aggregation {
+    expand("state.items")
+    terms("productId", "product")
+    sum(
+        field("price") * field("quantity") - field("discount"),
+        "netAmount",
+    )
+}
+```
+
+等价的表达式 JSON 使用递归的 `BINARY` 节点；字段叶子可保持原有的 `{ "field": ... }` 简写：
+
+```json
+{
+  "type": "NUMERIC",
+  "function": "SUM",
+  "expression": {
+    "type": "BINARY",
+    "operator": "SUBTRACT",
+    "left": {
+      "type": "BINARY",
+      "operator": "MULTIPLY",
+      "left": {"field": "price"},
+      "right": {"field": "quantity"}
+    },
+    "right": {"field": "discount"}
+  },
+  "alias": "netAmount"
+}
+```
+
 第一个 Element 路径是快照绝对路径；后续每个 Element 路径及每个 Element filter 都相对当前已展开元素。group 与 metric 字段相对最内层 Element；没有 Elements 时，它们使用快照绝对路径。Elements 只表示一条父子链，不支持兄弟集合展开。
 
 分组支持 `TERMS`、`HISTOGRAM` 与 `DATE_HISTOGRAM`。指标支持 `COUNT`、`SUM`、`AVG`、`MIN` 与 `MAX`；`COUNT` 返回 `Long`，数值指标返回有限 `Double`，没有值参与计算时返回 `null`。没有分组的查询返回一行汇总，空数据集同样如此（`COUNT = 0`，数值指标为 `null`）。分组结果最多返回 `limit` 行；默认值为 `100`，最大值为 `10,000`。
 
-排序字段引用 group 或 metric alias。未显式排序的 group alias 会按声明顺序追加，以保证结果稳定。按 metric alias 排序成本较高，受 WebFlux `query.allow-expensive-operators` 护栏控制。固定结构上限为 5 个 Elements、32 个 groups、64 个 metrics 与 32 个有效排序字段。
+排序字段引用 group 或 metric alias。未显式排序的 group alias 会按声明顺序追加，以保证结果稳定。按 metric alias 排序成本较高，受 WebFlux `query.allow-expensive-operators` 护栏控制。固定结构上限为 5 个 Elements、32 个 groups、64 个 metrics、32 个有效排序字段；每个数值表达式最大深度为 8，单个查询中的表达式节点总数最多 256。
 
 聚合复用现有快照过滤链：ABAC 与路由 filter 仍会追加到根 filter。Masking filter 会忽略聚合查询，因此已配置的 masker 不会拒绝或重写聚合结果。
 
-Wow 只校验请求结构，不校验字段是否存在、路径是否为集合或物理字段类型；不会维护聚合字段目录，也不会使用 `TypeFieldPaths` 做校验。自定义 Jackson serializer、后端 filter converter 或 Elasticsearch mapping 不保证跨后端等价。首期不包含 Batch 聚合与算术表达式。
+Wow 只校验请求结构，不校验字段是否存在、路径是否为集合或物理字段类型；不会维护聚合字段目录，也不会使用 `TypeFieldPaths` 做校验。数值指标支持字段、有限常量和加、减、乘、除。对于包含 `Constant` 或 `Binary` 的计算表达式，数值标量或单元素数值数组贡献一个值；缺失、非数值、空数组、多值、除零或非有限中间结果不贡献指标。纯 `Field` 表达式继续保留后端原生字段聚合、错误和多值语义。自定义 Jackson serializer、后端 filter converter 或 Elasticsearch mapping 不保证跨后端等价。首期不包含 Batch 聚合。
 
-HTTP 端点为 `POST /{aggregate}/snapshot/aggregation`。tenant、owner 或 space 作用域的聚合会在前面增加各自的路由前缀；以运行实例的 OpenAPI 路径为准。JSON 响应是动态对象数组；SSE 逐个流式返回对象。OpenAPI 为每个聚合发布专属 `AggregationQuery` request body，其 `x-wow-query-fields` 引用该聚合的 `*AggregatedFields` 组件，JSON schema 仍使用通用 `AggregationQuery` 合同。
+HTTP 端点为 `POST /{aggregate}/snapshot/aggregation`。tenant、owner 或 space 作用域的聚合会在前面增加各自的路由前缀；以运行实例的 OpenAPI 路径为准。JSON 响应是动态对象数组；SSE 逐个流式返回对象。OpenAPI 为每个聚合发布专属 `AggregationQuery` request body，其 `x-wow-query-fields` 引用该聚合的 `*AggregatedFields` 组件，JSON schema 仍使用通用 `AggregationQuery` 合同；表达式是以 `type` 为 discriminator 的递归 `oneOf`。
 
 #### 场景案例
 

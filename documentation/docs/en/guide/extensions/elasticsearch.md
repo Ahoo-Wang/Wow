@@ -578,7 +578,9 @@ listQuery {
 
 ## Aggregation Queries
 
-`ElasticsearchSnapshotQueryService.aggregate()` compiles the shared `AggregationQuery` contract. It resolves the first Element as an absolute `nested` path, then resolves later Elements and their filters relative to the current nested scope. Terms groups use the existing exact-field resolver, including standard `.keyword` multi-fields; Histogram, DateHistogram, and numeric metrics resolve executable physical fields and leave type mismatches to Elasticsearch.
+`ElasticsearchSnapshotQueryService.aggregate()` compiles the shared `AggregationQuery` contract. It resolves the first Element as an absolute `nested` path, then resolves later Elements and their filters relative to the current nested scope. Terms groups use the existing exact-field resolver, including standard `.keyword` multi-fields; plain-field numeric metrics still resolve executable physical fields and leave type mismatches to Elasticsearch.
+
+Computed numeric metrics use a framework-generated, parameterized request-scoped `double` runtime field; missing, unreadable, non-numeric, multi-valued, division-by-zero, or non-finite intermediate values produce no value. They are subject to cluster `search.allow_expensive_queries`, which can still reject the query.
 
 At the innermost scope, Wow uses composite sources and metric sub-aggregations. Group-alias sorting follows composite source order and reads only the pages needed for `limit`. Metric-alias sorting is more expensive: it scans all composite buckets and keeps an exact bounded Top-N in the client instead of using an approximate `terms` or `bucket_sort` plan.
 

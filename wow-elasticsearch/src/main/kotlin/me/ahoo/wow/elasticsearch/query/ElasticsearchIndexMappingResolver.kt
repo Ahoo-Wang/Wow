@@ -102,7 +102,12 @@ data class ElasticsearchIndexMapping private constructor(
     val fieldCount: Int
         get() = fields.size
 
-    fun resolve(field: String, usage: ElasticsearchFieldUsage): String {
+    fun resolve(field: String, usage: ElasticsearchFieldUsage): String = resolve(field, usage, false)
+
+    internal fun resolveComputed(field: String): String =
+        resolve(field, ElasticsearchFieldUsage.PRESENCE, true)
+
+    private fun resolve(field: String, usage: ElasticsearchFieldUsage, allowUnsupported: Boolean): String {
         val mappedField = findMappedField(field)
             ?: if (usage == ElasticsearchFieldUsage.PRESENCE) {
                 return field
@@ -131,6 +136,9 @@ data class ElasticsearchIndexMapping private constructor(
                 "Elasticsearch field [$field] has ambiguous ${usage.name.lowercase()} mappings $candidates " +
                     "in index [$indexName].",
             )
+        }
+        if (allowUnsupported) {
+            return field
         }
         resolutionFailure(
             "Elasticsearch field [$field] does not support ${usage.name.lowercase()} queries in index [$indexName].",

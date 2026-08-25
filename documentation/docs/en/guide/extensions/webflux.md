@@ -92,7 +92,7 @@ plus `wow-webflux` for these properties to be bound.
 | `query.max-page-window` | `Long` | `10000` | Maximum HTTP `index * size` page window; `0` disables the cap |
 | `query.max-condition-nodes` | `Int` | `64` | Maximum number of HTTP query condition nodes; `0` disables the cap |
 | `query.max-condition-values` | `Int` | `1000` | Maximum values in HTTP `IN`, `NOT_IN`, `ALL_IN`, `IDS`, or `AGGREGATE_IDS` conditions; `0` disables the cap |
-| `query.allow-expensive-operators` | `Boolean` | `true` | Whether HTTP queries may use negative/existence/expensive string operators, unfiltered count/paged queries, aggregation Elements, or metric-alias aggregation sorting |
+| `query.allow-expensive-operators` | `Boolean` | `true` | Whether HTTP queries may use negative/existence/expensive string operators, unfiltered count/paged queries, aggregation Elements, metric-alias aggregation sorting, or non-`Field` numeric expressions |
 | `query.idle-timeout` | `Duration` | `10s` | Maximum wait between results or completion; JSON arrays are buffered before the response is committed, while SSE remains streaming; `0s` disables the timeout |
 
 ```yaml
@@ -121,7 +121,7 @@ The guard applies whenever the Reactor context contains a WebFlux `ServerRequest
 
 WebFlux registers `POST /{aggregate}/snapshot/aggregation`; tenant-, owner-, or space-scoped aggregates prepend their applicable route prefix. The body is an `AggregationQuery`. A normal JSON response is an array of dynamic row objects; `Accept: text/event-stream` streams one row at a time. Strict request decoding rejects unknown properties and invalid scalar equality values in both the root filter and Element filters.
 
-The existing query guard applies `query.max-list-size` to the aggregation `limit`. `query.allow-expensive-operators=false` rejects expensive operators in the root and Element filters, any Elements expansion, and sorting by a metric alias. No aggregation-specific WebFlux properties are added.
+The existing query guard applies `query.max-list-size` to the aggregation `limit`. `query.allow-expensive-operators=false` rejects expensive operators in the root and Element filters, any Elements expansion, sorting by a metric alias, and non-`Field` numeric expressions. No aggregation-specific WebFlux properties are added.
 
 ## Wait Plan Integration
 

@@ -3,7 +3,9 @@ package me.ahoo.wow.schema.openapi
 import com.fasterxml.classmate.TypeResolver
 import com.github.victools.jsonschema.generator.Option
 import io.swagger.v3.core.util.ObjectMapperFactory
+import io.swagger.v3.oas.annotations.media.Schema
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.MaterializedSnapshot
@@ -57,6 +59,61 @@ class OpenAPISchemaBuilderTest {
         reference.`$ref`.assert().isEqualTo("#/components/schemas/wow.api.query.PagedQuery")
         schemas["wow.api.query.PagedQuery"]?.properties?.get("filter")?.`$ref`
             .assert().isEqualTo("#/components/schemas/wow.api.query.FilterExpression")
+    }
+
+    @Test
+    fun `should build aggregation expression schema with recursive reference`() {
+        val expressionRef = "#/components/schemas/wow.api.query.AggregationExpression"
+        val openAPISchemaBuilder = OpenAPISchemaBuilder()
+        openAPISchemaBuilder.generateSchema(AggregationQuery::class.java)
+
+        val schemas = openAPISchemaBuilder.build()
+        val expressionSchema = schemas.getValue("wow.api.query.AggregationExpression")
+        expressionSchema.oneOf.map { it.`$ref` }.assert()
+            .containsExactlyInAnyOrder(
+                "#/components/schemas/wow.api.query.AggregationExpression.Field",
+                "#/components/schemas/wow.api.query.AggregationExpression.Constant",
+                "#/components/schemas/wow.api.query.AggregationExpression.Binary",
+            )
+        expressionSchema.anyOf.assert().isNull()
+        expressionSchema.discriminator.propertyName.assert().isEqualTo("type")
+        expressionSchema.discriminator.mapping.assert().isEqualTo(
+            mapOf(
+                "FIELD" to "#/components/schemas/wow.api.query.AggregationExpression.Field",
+                "CONSTANT" to "#/components/schemas/wow.api.query.AggregationExpression.Constant",
+                "BINARY" to "#/components/schemas/wow.api.query.AggregationExpression.Binary",
+            ),
+        )
+        schemas.getValue("wow.api.query.AggregationMetric.Numeric")
+            .properties.getValue("expression").`$ref`.assert().isEqualTo(expressionRef)
+        val binary = schemas.getValue("wow.api.query.AggregationExpression.Binary")
+        binary.properties.getValue("left").`$ref`.assert().isEqualTo(expressionRef)
+        binary.properties.getValue("right").`$ref`.assert().isEqualTo(expressionRef)
+    }
+
+    @Test
+    fun `should retain annotations after resolving duplicate schema names`() {
+        val openAPISchemaBuilder = OpenAPISchemaBuilder()
+        openAPISchemaBuilder.generateSchema(FirstCollidingUnion::class.java)
+        openAPISchemaBuilder.generateSchema(SecondCollidingUnion::class.java)
+
+        val collidingSchemas = openAPISchemaBuilder.build()
+            .filterKeys { it.contains("CollidingUnion") }
+
+        collidingSchemas.assert().hasSize(2)
+        collidingSchemas.values.mapNotNull { it.discriminator?.propertyName }.assert()
+            .containsExactlyInAnyOrder("firstType", "secondType")
+    }
+
+    @Test
+    fun `should not normalize inherited schema annotations`() {
+        val openAPISchemaBuilder = OpenAPISchemaBuilder()
+        openAPISchemaBuilder.generateSchema(InheritedUnionChild::class.java)
+
+        val schemas = openAPISchemaBuilder.build()
+        val schema = schemas.values.single()
+        schema.oneOf.assert().isNull()
+        schema.discriminator.assert().isNull()
     }
 
     @Test
@@ -162,3 +219,20 @@ class OpenAPISchemaBuilderTest {
         arrayTypeSchema.types.assert().contains("array")
     }
 }
+
+@Schema(oneOf = [InheritedUnionOption::class], discriminatorProperty = "type")
+open class InheritedUnionParent
+
+class InheritedUnionChild : InheritedUnionParent()
+
+class InheritedUnionOption
+
+@Schema(name = "CollidingUnion", oneOf = [FirstCollidingOption::class], discriminatorProperty = "firstType")
+class FirstCollidingUnion
+
+class FirstCollidingOption
+
+@Schema(name = "CollidingUnion", oneOf = [SecondCollidingOption::class], discriminatorProperty = "secondType")
+class SecondCollidingUnion
+
+class SecondCollidingOption

@@ -416,6 +416,8 @@ query.dynamicQuery(snapshotQueryService)
 
 MongoDB accumulator 实现 Terms、Histogram、DateHistogram、Count、Sum、Avg、Min 与 Max。缺失或为 null 的分组键会被排除。Count 统一为 `Long`；数值指标统一为有限 `Double`，没有值参与计算时为 `null`，空数据集的无分组单行汇总也遵循该规则。
 
+计算型数值指标会编译为受保护的原生 `$add`、`$subtract`、`$multiply` 与 `$divide` 表达式；缺失、非数值、除零或非有限结果不参与指标计算。不会使用 `$function`。
+
 编译器不检查 Java 类型或 MongoDB schema。无效或不可展开的路径保留 MongoDB 的结果或错误；自定义 Jackson serializer 或 filter converter 不保证与 Wow 标准字段映射等价。
 
 ## PrepareKey：分布式协调

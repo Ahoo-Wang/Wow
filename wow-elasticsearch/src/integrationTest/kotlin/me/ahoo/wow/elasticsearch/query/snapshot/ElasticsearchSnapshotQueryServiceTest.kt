@@ -29,8 +29,10 @@ import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.elasticsearch.query.ElasticsearchFieldUsage
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
+import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
+import me.ahoo.wow.query.snapshot.query
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockStateAggregate
@@ -58,7 +60,16 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                     mapping.properties("state") { state ->
                         state.`object` { stateObject ->
                             stateObject
+                                .properties("data") { data ->
+                                    data.text { text ->
+                                        text.fielddata(false)
+                                            .fields("keyword") { keyword -> keyword.keyword { it } }
+                                    }
+                                }
                                 .properties("decimalValue") { it.double_ { number -> number } }
+                                .properties("unreadableNumber") {
+                                    it.double_ { number -> number.index(false).docValues(false) }
+                                }
                                 .properties("orders") { orders ->
                                     orders.nested { ordersNested ->
                                         ordersNested.properties("status") { it.keyword { keyword -> keyword } }
@@ -68,6 +79,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                                                     .properties("productId") { it.keyword { keyword -> keyword } }
                                                     .properties("quantity") { it.integer { number -> number } }
                                                     .properties("amount") { it.double_ { number -> number } }
+                                                    .properties("samples") { it.double_ { number -> number } }
                                                     .properties("createdAt") { it.date { date -> date } }
                                                     .properties("discounts") { discounts ->
                                                         discounts.nested { discountsNested ->
@@ -96,6 +108,28 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
 
     override fun createSnapshotStore(): SnapshotStore {
         return ElasticsearchSnapshotStore(elasticsearchClient)
+    }
+
+    @Test
+    fun `computed metric should ignore a presence-resolved text field without fielddata`() {
+        aggregation {
+            sum(field("state.data") * constant(1.0), "unreadable")
+        }.query(snapshotQueryService)
+            .test()
+            .assertNext {
+                it.toMap().assert().isEqualTo(mapOf("unreadable" to null))
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `computed metric should ignore a mapped field without index or doc values`() {
+        aggregation {
+            sum(field("state.unreadableNumber") * constant(1.0), "unreadable")
+        }.query(snapshotQueryService)
+            .test()
+            .assertNext {
+                it.toMap().assert().isEqualTo(mapOf("unreadable" to null))
+            }.verifyComplete()
     }
 
     @Test

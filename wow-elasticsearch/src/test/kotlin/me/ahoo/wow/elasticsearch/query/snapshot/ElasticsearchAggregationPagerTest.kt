@@ -100,7 +100,7 @@ class ElasticsearchAggregationPagerTest {
         val plan = compiler().compile(
             aggregation {
                 terms("state.product", "product")
-                sum("state.total", "total")
+                sum(field("state.total") * constant(2.0), "total")
                 sort { "total".desc() }
                 limit(2)
             },
@@ -113,6 +113,9 @@ class ElasticsearchAggregationPagerTest {
             .verifyComplete()
 
         requests.assert().hasSize(2)
+        requests.forEach { request ->
+            request.runtimeMappings().assert().isEqualTo(plan.runtimeMappings)
+        }
     }
 
     @Test

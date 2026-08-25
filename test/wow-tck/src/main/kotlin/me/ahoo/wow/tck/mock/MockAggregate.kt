@@ -71,6 +71,7 @@ data class MockLine(
     val amount: Double?,
     val createdAt: Instant,
     val discounts: List<MockDiscount>,
+    val samples: List<Double> = emptyList(),
 )
 
 data class MockDiscount(val type: String, val amount: Double)

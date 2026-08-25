@@ -567,7 +567,9 @@ listQuery {
 
 ## 聚合查询
 
-`ElasticsearchSnapshotQueryService.aggregate()` 编译通用 `AggregationQuery` 合同。第一个 Element 按绝对 `nested` 路径解析，后续 Elements 及其 filters 相对当前 nested 作用域解析。Terms 分组复用现有精确字段解析器，包括标准 `.keyword` multi-field；Histogram、DateHistogram 与数值指标解析为可执行物理字段，类型不匹配时保留 Elasticsearch 错误。
+`ElasticsearchSnapshotQueryService.aggregate()` 编译通用 `AggregationQuery` 合同。第一个 Element 按绝对 `nested` 路径解析，后续 Elements 及其 filters 相对当前 nested 作用域解析。Terms 分组复用现有精确字段解析器，包括标准 `.keyword` multi-field；纯字段数值指标仍解析为可执行物理字段，类型不匹配时保留 Elasticsearch 错误。
+
+计算型数值指标使用框架生成、参数化的请求级 `double` runtime field；缺失、不可读取、非数值、多值、除零或非有限中间结果不会产生值。它受集群 `search.allow_expensive_queries` 约束，集群仍可拒绝这类查询。
 
 在最内层作用域，Wow 使用 composite sources 与 metric sub-aggregations。按 group alias 排序遵循 composite source 顺序，只读取满足 `limit` 所需的分页。按 metric alias 排序成本更高：它会遍历全部 composite buckets，并在客户端维护精确的有界 Top-N，而不使用近似的 `terms` 或 `bucket_sort` 方案。
 

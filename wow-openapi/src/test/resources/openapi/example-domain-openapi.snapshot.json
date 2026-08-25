@@ -2657,7 +2657,7 @@
         "type" : "object"
       },
       "tck.mock_aggregate.MockCommandAggregateAggregatedFields" : {
-        "enum" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.data", "state.decimalValue", "state.id", "state.orders", "state.orders.lines", "state.orders.lines.amount", "state.orders.lines.createdAt", "state.orders.lines.discounts", "state.orders.lines.discounts.amount", "state.orders.lines.discounts.type", "state.orders.lines.productId", "state.orders.lines.quantity", "state.orders.status", "tags", "tenantId", "version" ],
+        "enum" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.data", "state.decimalValue", "state.id", "state.orders", "state.orders.lines", "state.orders.lines.amount", "state.orders.lines.createdAt", "state.orders.lines.discounts", "state.orders.lines.discounts.amount", "state.orders.lines.discounts.type", "state.orders.lines.productId", "state.orders.lines.quantity", "state.orders.lines.samples", "state.orders.status", "tags", "tenantId", "version" ],
         "type" : "string"
       },
       "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedDomainEventStream" : {
@@ -3023,6 +3023,13 @@
           "quantity" : {
             "format" : "int32",
             "type" : "integer"
+          },
+          "samples" : {
+            "items" : {
+              "format" : "double",
+              "type" : "number"
+            },
+            "type" : "array"
           }
         },
         "required" : [ "amount", "createdAt", "discounts", "productId", "quantity" ],
@@ -4315,6 +4322,54 @@
         "required" : [ "path" ],
         "type" : "object"
       },
+      "wow.api.query.AggregationExpression" : {
+        "discriminator" : {
+          "mapping" : {
+            "BINARY" : "#/components/schemas/wow.api.query.AggregationExpression.Binary",
+            "CONSTANT" : "#/components/schemas/wow.api.query.AggregationExpression.Constant",
+            "FIELD" : "#/components/schemas/wow.api.query.AggregationExpression.Field"
+          },
+          "propertyName" : "type"
+        },
+        "oneOf" : [ {
+          "$ref" : "#/components/schemas/wow.api.query.AggregationExpression.Binary"
+        }, {
+          "$ref" : "#/components/schemas/wow.api.query.AggregationExpression.Constant"
+        }, {
+          "$ref" : "#/components/schemas/wow.api.query.AggregationExpression.Field"
+        } ]
+      },
+      "wow.api.query.AggregationExpression.Binary" : {
+        "properties" : {
+          "left" : {
+            "$ref" : "#/components/schemas/wow.api.query.AggregationExpression"
+          },
+          "operator" : {
+            "$ref" : "#/components/schemas/wow.api.query.AggregationExpressionOperator"
+          },
+          "right" : {
+            "$ref" : "#/components/schemas/wow.api.query.AggregationExpression"
+          },
+          "type" : {
+            "const" : "BINARY"
+          }
+        },
+        "required" : [ "left", "operator", "right", "type" ],
+        "type" : "object"
+      },
+      "wow.api.query.AggregationExpression.Constant" : {
+        "properties" : {
+          "type" : {
+            "const" : "CONSTANT"
+          },
+          "value" : {
+            "format" : "double",
+            "type" : "number"
+          }
+        },
+        "required" : [ "type", "value" ],
+        "type" : "object"
+      },
       "wow.api.query.AggregationExpression.Field" : {
         "properties" : {
           "field" : {
@@ -4326,6 +4381,10 @@
         },
         "required" : [ "field", "type" ],
         "type" : "object"
+      },
+      "wow.api.query.AggregationExpressionOperator" : {
+        "enum" : [ "ADD", "SUBTRACT", "MULTIPLY", "DIVIDE" ],
+        "type" : "string"
       },
       "wow.api.query.AggregationFunction" : {
         "enum" : [ "SUM", "AVG", "MIN", "MAX" ],
@@ -4405,7 +4464,7 @@
             "type" : "string"
           },
           "expression" : {
-            "$ref" : "#/components/schemas/wow.api.query.AggregationExpression.Field"
+            "$ref" : "#/components/schemas/wow.api.query.AggregationExpression"
           },
           "function" : {
             "$ref" : "#/components/schemas/wow.api.query.AggregationFunction"

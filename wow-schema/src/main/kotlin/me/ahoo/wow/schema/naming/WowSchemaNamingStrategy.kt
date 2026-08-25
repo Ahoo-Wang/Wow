@@ -24,7 +24,10 @@ import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import me.ahoo.wow.modeling.getContextAliasPrefix
 import me.ahoo.wow.modeling.toStringWithAlias
 
-class WowSchemaNamingStrategy(override val defaultSchemaNamePrefix: String) :
+class WowSchemaNamingStrategy @JvmOverloads constructor(
+    override val defaultSchemaNamePrefix: String,
+    private val onDefinitionName: (DefinitionKey, String) -> Unit = { _, _ -> },
+) :
     DefaultSchemaNamePrefixCapable,
     SchemaDefinitionNamingStrategy {
     companion object {
@@ -89,7 +92,15 @@ class WowSchemaNamingStrategy(override val defaultSchemaNamePrefix: String) :
     }
 
     override fun getDefinitionNameForKey(key: DefinitionKey, generationContext: SchemaGenerationContext): String {
-        return key.type.toSchemaName(defaultSchemaNamePrefix)
+        return key.type.toSchemaName(defaultSchemaNamePrefix).also { onDefinitionName(key, it) }
+    }
+
+    override fun adjustDuplicateNames(
+        duplicateNames: MutableMap<DefinitionKey, String>,
+        generationContext: SchemaGenerationContext,
+    ) {
+        super.adjustDuplicateNames(duplicateNames, generationContext)
+        duplicateNames.forEach(onDefinitionName)
     }
 
     override fun adjustNullableName(

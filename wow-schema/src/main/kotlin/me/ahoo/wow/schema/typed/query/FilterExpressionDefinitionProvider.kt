@@ -22,6 +22,7 @@ import com.github.victools.jsonschema.generator.MemberScope
 import com.github.victools.jsonschema.generator.Module
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder
+import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.schema.WowSchemaLoader
 
@@ -45,5 +46,11 @@ object FilterExpressionDefinitionProvider : CustomDefinitionProviderV2, Module {
     }
 
     private fun skipSubtypeLookup(scope: MemberScope<*, *>): List<ResolvedType>? =
-        if (scope.type.erasedType == FilterExpression::class.java) emptyList() else null
+        when (scope.type.erasedType) {
+            FilterExpression::class.java,
+            AggregationExpression::class.java,
+            -> emptyList()
+
+            else -> null
+        }
 }

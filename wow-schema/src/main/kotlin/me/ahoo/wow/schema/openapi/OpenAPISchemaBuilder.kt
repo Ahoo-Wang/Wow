@@ -14,14 +14,18 @@
 package me.ahoo.wow.schema.openapi
 
 import com.fasterxml.classmate.ResolvedType
+import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.github.victools.jsonschema.generator.SchemaGenerator
 import com.github.victools.jsonschema.generator.TypeContext
+import com.github.victools.jsonschema.generator.impl.DefinitionKey
 import io.swagger.v3.oas.models.media.Schema
 import me.ahoo.wow.schema.SchemaGeneratorBuilder
 import me.ahoo.wow.schema.naming.DefaultSchemaNamePrefixCapable
 import me.ahoo.wow.schema.naming.SchemaNamingModule
 import tools.jackson.databind.JsonNode
+import tools.jackson.databind.node.ObjectNode
 import java.lang.reflect.Type
+import io.swagger.v3.oas.annotations.media.Schema as SchemaAnnotation
 
 class OpenAPISchemaBuilder(
     override val defaultSchemaNamePrefix: String = "",
@@ -32,8 +36,14 @@ class OpenAPISchemaBuilder(
         const val DEFAULT_DEFINITION_PATH = "components/schemas"
     }
 
+    private val definitionNames = mutableMapOf<DefinitionKey, String>()
     private val schemaGenerator: SchemaGenerator = schemaGeneratorBuilder
-        .schemaNamingModule(SchemaNamingModule(defaultSchemaNamePrefix))
+        .schemaNamingModule(
+            SchemaNamingModule(
+                defaultSchemaNamePrefix = defaultSchemaNamePrefix,
+                onDefinitionName = definitionNames::put,
+            ),
+        )
         .build()
     private val typeContext: TypeContext = schemaGeneratorBuilder.requiredTypeContent
 
@@ -63,9 +73,33 @@ class OpenAPISchemaBuilder(
     fun build(): Map<String, Schema<*>> {
         val collectedDefs = schemaBuilder.collectDefinitions(definitionPath)
         schemaReferences.mergeAll()
+        val definitionKeys = definitionNames.entries.associate { (key, name) -> name to key }
         return collectedDefs.properties().associate { (name, node) ->
             StandaloneSchemaEmbeddingRebaser.rebase(node, name, definitionPath)
+            (node as? ObjectNode)?.let { normalizeSchemaAnnotation(it, definitionKeys[name]) }
             name to schemaConverter.toSchema(node)
+        }
+    }
+
+    private fun normalizeSchemaAnnotation(node: ObjectNode, definitionKey: DefinitionKey?) {
+        val type = definitionKey?.type?.erasedType ?: return
+        val annotation = type.getDeclaredAnnotation(SchemaAnnotation::class.java)
+        if (annotation == null) return
+        if (annotation.oneOf.isNotEmpty()) {
+            node.remove("anyOf")?.let { node.set("oneOf", it) }
+        }
+        annotation.discriminatorProperty.takeIf(String::isNotBlank)?.let { propertyName ->
+            val discriminator = node.putObject("discriminator").put("propertyName", propertyName)
+            val mappings = type.getDeclaredAnnotation(JsonSubTypes::class.java)?.value.orEmpty().mapNotNull { subtype ->
+                definitionNames.entries.firstOrNull { (key) -> key.type.erasedType.kotlin == subtype.value }
+                    ?.value
+                    ?.let { subtype.name to "#/$definitionPath/$it" }
+            }
+            if (mappings.isNotEmpty()) {
+                discriminator.putObject("mapping").also { mapping ->
+                    mappings.forEach { (name, reference) -> mapping.put(name, reference) }
+                }
+            }
         }
     }
 }

@@ -206,6 +206,75 @@ abstract class SnapshotQueryServiceSpec {
     }
 
     @Test
+    fun `aggregation should calculate arithmetic metrics in the innermost element scope`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+
+        aggregation {
+            expand("state.orders")
+            expand("lines")
+            count("count")
+            val net = field("amount") * field("quantity") - constant(10.0)
+            sum(net, "total")
+            avg(net, "average")
+            min(net, "minimum")
+            max(net, "maximum")
+        }.query(snapshotQueryService)
+            .test()
+            .assertNext {
+                it.toMap().assert().isEqualTo(
+                    mapOf(
+                        "count" to 6L,
+                        "total" to 410.0,
+                        "average" to 82.0,
+                        "minimum" to 0.0,
+                        "maximum" to 240.0,
+                    ),
+                )
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `aggregation should ignore invalid arithmetic values`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+
+        aggregation {
+            expand("state.orders")
+            expand("lines") { "productId" isIn listOf("alpha", "beta") }
+            sum(field("amount") / (field("quantity") - constant(2.0)), "safeDivision")
+            sum(field("quantity") / (field("quantity") - field("quantity")), "zeroDivision")
+            sum(field("productId") * constant(1.0), "text")
+            sum(field("missing") * constant(1.0), "missing")
+            sum(constant(Double.MAX_VALUE) * constant(2.0), "overflow")
+        }.query(snapshotQueryService)
+            .test()
+            .assertNext {
+                it.toMap().assert().isEqualTo(
+                    mapOf(
+                        "safeDivision" to 5.0,
+                        "zeroDivision" to null,
+                        "text" to null,
+                        "missing" to null,
+                        "overflow" to null,
+                    ),
+                )
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `aggregation should accept singleton and ignore multi-valued numeric arrays`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+
+        aggregation {
+            expand("state.orders")
+            expand("lines")
+            sum(field("samples") * constant(1.0), "total")
+        }.query(snapshotQueryService)
+            .test()
+            .assertNext { it.toMap().assert().isEqualTo(mapOf("total" to 7.0)) }
+            .verifyComplete()
+    }
+
+    @Test
     fun `aggregation should apply two element filters and every group type`() {
         saveAggregationStates(*aggregationStates().toTypedArray())
 
@@ -433,6 +502,7 @@ abstract class SnapshotQueryServiceSpec {
                                 MockDiscount("LOYALTY", 1.0),
                                 MockDiscount("PROMO", 2.0),
                             ),
+                            samples = listOf(7.0),
                         ),
                         MockLine(
                             productId = "beta",
@@ -440,6 +510,7 @@ abstract class SnapshotQueryServiceSpec {
                             amount = 20.0,
                             createdAt = Instant.parse("2026-01-02T10:00:00Z"),
                             discounts = listOf(MockDiscount("PROMO", 3.0)),
+                            samples = listOf(3.0, 4.0),
                         ),
                     ),
                 ),
