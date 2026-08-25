@@ -15,6 +15,7 @@ package me.ahoo.wow.elasticsearch.query.snapshot
 
 import co.elastic.clients.elasticsearch._types.SortOrder
 import co.elastic.clients.elasticsearch._types.mapping.RuntimeFieldType
+import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -26,6 +27,7 @@ import me.ahoo.wow.api.query.AggregationExpressionOperator
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.elasticsearch.query.ElasticsearchFieldResolutionException
 import me.ahoo.wow.elasticsearch.query.ElasticsearchFieldUsage
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
 import me.ahoo.wow.query.dsl.aggregation
@@ -71,6 +73,7 @@ class ElasticsearchAggregationCompilerTest {
     @Test
     fun `computed operands should safely resolve presence while plain fields require range`() {
         val mapping = mockk<ElasticsearchIndexMapping> {
+            every { resolveComputed(any()) } answers { firstArg() }
             every { resolve(any<String>(), any()) } answers { firstArg() }
             every { resolve(any<FilterExpression>(), any()) } answers { firstArg() }
         }
@@ -88,9 +91,40 @@ class ElasticsearchAggregationCompilerTest {
             .contains("size() == 1")
             .contains("doubleValue() != 0.0")
         verify {
-            mapping.resolve("state.unreadable", ElasticsearchFieldUsage.PRESENCE)
+            mapping.resolveComputed("state.unreadable")
             mapping.resolve("state.amount", ElasticsearchFieldUsage.RANGE)
         }
+    }
+
+    @Test
+    fun `computed operand should reject ambiguous presence mappings`() {
+        val mapping = ElasticsearchIndexMapping.from(
+            "snapshot",
+            TypeMapping.of { type ->
+                type.properties("state") { state ->
+                    state.`object` { objectField ->
+                        objectField.properties("name") { name ->
+                            name.text { text ->
+                                text.index(false)
+                                    .fields("raw") { raw -> raw.keyword { it } }
+                                    .fields("normalized") { normalized -> normalized.keyword { it } }
+                            }
+                        }
+                    }
+                }
+            },
+        )
+        runCatching { mapping.resolve("state.name", ElasticsearchFieldUsage.PRESENCE) }
+            .exceptionOrNull()!!.message.assert().contains("ambiguous")
+
+        val failure = runCatching {
+            ElasticsearchAggregationCompiler(SnapshotFilterConverter, mapping).compile(
+                aggregation { sum(field("state.name") + constant(1.0), "total") },
+            )
+        }.exceptionOrNull()!!
+
+        failure.assert().isInstanceOf(ElasticsearchFieldResolutionException::class.java)
+        failure.message.assert().contains("ambiguous")
     }
 
     @Test
