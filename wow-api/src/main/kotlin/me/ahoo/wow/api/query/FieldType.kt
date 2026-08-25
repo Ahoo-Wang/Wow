@@ -59,7 +59,7 @@ sealed interface FieldType {
 
         @JsonTypeName(STRING_TYPE)
         data class String(
-            @get:Schema(type = "string", requiredMode = Schema.RequiredMode.REQUIRED)
+            @get:Schema(type = "string", minLength = 1, requiredMode = Schema.RequiredMode.REQUIRED)
             val datePattern: kotlin.String? = null,
             @get:JsonIgnore
             @get:Schema(hidden = true)

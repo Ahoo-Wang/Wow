@@ -836,7 +836,7 @@ val numberPipeline = MongoAggregationCompiler(SnapshotFilterConverter).compile(
 ).joinToString { it.toBsonDocument().toJson() }
 
 numberPipeline.assert()
-    .contains("__wow_date_histogram_0")
+    .doesNotContain("\$set")
     .contains("\$isNumber")
     .contains("\$convert")
     .contains("\$multiply")
@@ -853,26 +853,24 @@ Add nanos/micros division and millis/minutes/hours/days multiplication factor as
 
 Expected: DATE still uses `$toDate`; Number lacks normalization.
 
-- [ ] **Step 3: Add one Number `$set` stage**
+- [ ] **Step 3: Inline the Number date expression**
 
-Collect DateHistogram groups whose resolved type is Number. Generate `__wow_date_histogram_<groupIndex>` fields:
+Collect DateHistogram aliases whose resolved type is Number so null group keys can be removed after grouping:
 
 ```kotlin
-val temporalFields = query.groupBy.mapIndexedNotNull { index, group ->
-    (group as? AggregationGroup.DateHistogram)
-        ?.takeIf { it.field.temporalTypeOrDefault() is FieldType.Temporal.Number }
-        ?.let { index to it }
-}
+val numericDateAliases = query.groupBy.filterIsInstance<AggregationGroup.DateHistogram>()
+    .filter { it.field.temporalTypeOrDefault() is FieldType.Temporal.Number }
+    .map { it.alias }
 ```
 
-`numericDate` must use a scalar directly or unwrap an array only when its size is exactly one, then apply `$isNumber`, `$convert` raw→Long, raw/integer equality, Decimal128 multiply/divide, final Long conversion and Date conversion. Set `onError: null` and `onNull: null` on conversions, then exclude null internal fields before grouping.
+`numericDate` must use a scalar directly or unwrap an array only when its size is exactly one, then apply `$isNumber`, `$convert` raw→Long, raw/integer equality, Decimal128 multiply/divide, final Long conversion and Date conversion. Set `onError: null` and `onNull: null` on conversions. Inline the result into `$dateTrunc`, then exclude `_id.<alias> == null` groups after `$group`; do not create scratch fields in the source document.
 
 - [ ] **Step 4: Split group expression**
 
 ```kotlin
 val dateInput = when (field.temporalTypeOrDefault()) {
     FieldType.Temporal.Date -> "\$${field.resolve(parent)}"
-    is FieldType.Temporal.Number -> "\$${dateHistogramField(groupIndex)}"
+    is FieldType.Temporal.Number -> numericDate(parent)
     is FieldType.Temporal.String ->
         error("DateHistogram does not support TEMPORAL_STRING fields.")
 }

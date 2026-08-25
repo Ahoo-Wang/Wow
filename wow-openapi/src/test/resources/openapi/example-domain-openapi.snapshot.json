@@ -4597,6 +4597,7 @@
       "wow.api.query.FieldType.Temporal.String" : {
         "properties" : {
           "datePattern" : {
+            "minLength" : 1,
             "type" : "string"
           },
           "type" : {

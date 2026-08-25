@@ -48,25 +48,12 @@ internal class MongoAggregationCompiler(
             }
         }
 
-        val numericDateHistograms = query.groupBy.mapIndexedNotNull { index, group ->
-            (group as? AggregationGroup.DateHistogram)
-                ?.takeIf { it.field.temporalTypeOrDefault() is FieldType.Temporal.Number }
-                ?.let { index to it }
-        }
-        if (numericDateHistograms.isNotEmpty()) {
-            add(
-                Document(
-                    "\$set",
-                    numericDateHistograms.associateTo(Document()) { (index, group) ->
-                        dateHistogramField(index) to group.numericDate(parent)
-                    },
-                ),
-            )
-        }
+        val numericDateAliases = query.groupBy.filterIsInstance<AggregationGroup.DateHistogram>()
+            .filter { it.field.temporalTypeOrDefault() is FieldType.Temporal.Number }
+            .map { it.alias }
 
         if (query.groupBy.isNotEmpty()) {
-            val groupFields = query.groupBy.map { it.field.resolve(parent) } +
-                numericDateHistograms.map { (index) -> dateHistogramField(index) }
+            val groupFields = query.groupBy.map { it.field.resolve(parent) }
             add(
                 Aggregates.match(
                     Filters.and(groupFields.flatMap { listOf(Filters.exists(it), Filters.ne(it, null)) }),
@@ -75,6 +62,18 @@ internal class MongoAggregationCompiler(
         }
 
         add(group(query, parent))
+        if (numericDateAliases.isNotEmpty()) {
+            add(
+                Aggregates.match(
+                    Filters.and(
+                        numericDateAliases.flatMap { alias ->
+                            val field = "_id.$alias"
+                            listOf(Filters.exists(field), Filters.ne(field, null))
+                        },
+                    ),
+                ),
+            )
+        }
         add(project(query))
         query.effectiveSort().takeIf { it.isNotEmpty() }?.let { add(Aggregates.sort(it.toBson())) }
         add(Aggregates.limit(query.limit))
@@ -85,8 +84,8 @@ internal class MongoAggregationCompiler(
             .takeIf { it.isNotEmpty() }
             ?.let { groups ->
                 Document().apply {
-                    groups.forEachIndexed { index, group ->
-                        this[group.alias] = group.expression(parent, index)
+                    groups.forEach { group ->
+                        this[group.alias] = group.expression(parent)
                     }
                 }
             }
@@ -122,7 +121,7 @@ internal class MongoAggregationCompiler(
         return Aggregates.project(project)
     }
 
-    private fun AggregationGroup.expression(parent: String?, groupIndex: Int): Any = when (this) {
+    private fun AggregationGroup.expression(parent: String?): Any = when (this) {
         is AggregationGroup.Terms -> "\$${field.resolve(parent)}"
         is AggregationGroup.Histogram -> Document(
             "\$multiply",
@@ -136,7 +135,7 @@ internal class MongoAggregationCompiler(
             "\$toLong",
             Document(
                 "\$dateTrunc",
-                Document("date", dateInput(parent, groupIndex))
+                Document("date", dateInput(parent))
                     .append("unit", unit.name.lowercase())
                     .append("timezone", if (timeZone == "Z") "UTC" else timeZone)
                     .apply {
@@ -146,10 +145,10 @@ internal class MongoAggregationCompiler(
         )
     }
 
-    private fun AggregationGroup.DateHistogram.dateInput(parent: String?, groupIndex: Int): String =
+    private fun AggregationGroup.DateHistogram.dateInput(parent: String?): Any =
         when (field.temporalTypeOrDefault()) {
             FieldType.Temporal.Date -> "\$${field.resolve(parent)}"
-            is FieldType.Temporal.Number -> "\$${dateHistogramField(groupIndex)}"
+            is FieldType.Temporal.Number -> numericDate(parent)
             is FieldType.Temporal.String -> error("DateHistogram does not support TEMPORAL_STRING fields.")
         }
 
@@ -340,6 +339,4 @@ internal class MongoAggregationCompiler(
 
     private val AggregationMetric.Numeric.countAlias: String
         get() = "__wow_value_count_$alias"
-
-    private fun dateHistogramField(groupIndex: Int): String = "__wow_date_histogram_$groupIndex"
 }

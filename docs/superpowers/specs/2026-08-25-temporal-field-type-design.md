@@ -91,7 +91,7 @@ sealed interface FieldType {
 }
 ```
 
-JSON subtype ID 固定为 `DATE`、`TEMPORAL_NUMBER`、`TEMPORAL_STRING`，不读取旧 `NUMBER`、`STRING` alias。Kotlin 类型名仍为 `Number`、`String`。`TEMPORAL_NUMBER` 通过 `timeUnit` 表达数值 epoch；`TEMPORAL_STRING` 通过 `datePattern` 表达格式化时间字符串。`String` 将 JSON `datePattern` 与 Condition runtime `dateFormatter` 内聚到同一个 subtype，并要求两者恰好提供一个。非空 pattern 通过 `DateTimeFormatter.ofPattern` 校验；`dateFormatter` 使用 `@JsonIgnore`，不进入 JSON/OpenAPI。`Number` 使用 `java.util.concurrent.TimeUnit`，默认 `MILLISECONDS`。
+JSON subtype ID 固定为 `DATE`、`TEMPORAL_NUMBER`、`TEMPORAL_STRING`，不读取旧 `NUMBER`、`STRING` alias。Kotlin 类型名仍为 `Number`、`String`。`TEMPORAL_NUMBER` 通过 `timeUnit` 表达数值 epoch；`TEMPORAL_STRING` 通过 `datePattern` 表达格式化时间字符串。`String` 将 JSON `datePattern` 与 Condition runtime `dateFormatter` 内聚到同一个 subtype，并要求两者恰好提供一个。非空 pattern 通过 `DateTimeFormatter.ofPattern` 校验，OpenAPI 同步发布 `minLength: 1`；`dateFormatter` 使用 `@JsonIgnore`，不进入 JSON/OpenAPI。`Number` 使用 `java.util.concurrent.TimeUnit`，默认 `MILLISECONDS`。
 
 ### LogicalField
 
@@ -299,14 +299,14 @@ DATE 将字段直接交给 `$dateTrunc`，不再生成 `$toDate`。缺失与 nul
 
 ### Number
 
-每个 Number DateHistogram 使用按 group index 生成的内部临时字段，避免重复计算和用户可控名称。pipeline 依次：
+Number DateHistogram 将日期归一化表达式直接内联到 `$group` 键，不写回源文档，因此不占用或覆盖用户字段。pipeline 依次：
 
 1. 标量直接使用；数组只在恰含一个元素时解包，空数组和多值数组不满足。
 2. 判断解包后的值为数值，通过 `$convert(onError: null, onNull: null)` 得到 `Long`，并比较原值与整数值，排除非数值、小数和 Long 范围外的值。
 3. 使用 Decimal128 中间值按 `TimeUnit` 乘或除到 epoch milliseconds，再 `$convert` 为 Long；换算溢出得到 null。
 4. 将 epoch milliseconds 转为 BSON Date，失败得到 null。
-5. 在 `$group` 前排除临时字段为 null 的文档。
-6. 对临时 Date 执行 `$dateTrunc`，最后 `$toLong` 返回桶起点。
+5. 对归一化 Date 执行 `$dateTrunc`，最后 `$toLong` 返回桶起点。
+6. 在 `$group` 后排除对应 `_id.<alias>` 为 null 的无效桶。
 
 比毫秒更细的单位向负无穷取整到 epoch milliseconds，确保 Unix epoch 之前的瞬时不会跨到 `0`；秒、分钟、小时和天使用精确倍率。时区、SECOND 固定间隔、其他 calendar interval，以及 WEEK 的 `startOfWeek: Monday` 保持现有行为。
 

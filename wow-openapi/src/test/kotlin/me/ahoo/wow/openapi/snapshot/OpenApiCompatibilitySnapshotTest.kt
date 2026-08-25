@@ -150,6 +150,7 @@ internal class OpenApiCompatibilitySnapshotTest {
             .contains("type", "datePattern")
         val datePattern = formattedString.path("properties").path("datePattern")
         datePattern.path("type").asText().assert().isEqualTo("string")
+        datePattern.path("minLength").asInt().assert().isOne()
         datePattern.path("anyOf").isMissingNode.assert().isTrue()
         mapper.writeValueAsString(openAPI).assert().doesNotContain("dateFormatter")
 

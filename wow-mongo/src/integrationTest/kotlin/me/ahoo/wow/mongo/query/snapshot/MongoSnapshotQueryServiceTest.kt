@@ -195,6 +195,32 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     }
 
     @Test
+    fun `TEMPORAL_NUMBER histogram should not overwrite user fields`() {
+        val epochMillis = 1_767_225_600_000L
+        database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
+            .insertOne(
+                Document("_id", "scratch-collision")
+                    .append("deleted", false)
+                    .append("__wow_date_histogram_0", 7L)
+                    .append("state", Document("epochMillis", epochMillis)),
+            ).toMono().then().test().verifyComplete()
+
+        aggregation {
+            dateHistogram(
+                LogicalField("state.epochMillis", FieldType.Temporal.Number()),
+                AggregationDateUnit.DAY,
+                "day",
+                ZoneOffset.UTC,
+            )
+            sum("__wow_date_histogram_0", "total")
+        }.query(snapshotQueryService)
+            .test()
+            .assertNext { row ->
+                row.toMap().assert().isEqualTo(mapOf("day" to epochMillis, "total" to 7.0))
+            }.verifyComplete()
+    }
+
+    @Test
     fun `minimum and maximum should ignore non-numeric BSON values`() {
         database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
             .insertMany(

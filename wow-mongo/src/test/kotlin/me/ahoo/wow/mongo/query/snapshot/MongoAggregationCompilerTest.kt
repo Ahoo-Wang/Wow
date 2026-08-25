@@ -67,7 +67,8 @@ class MongoAggregationCompilerTest {
         ).joinToString { it.toBsonDocument().toJson() }
 
         pipeline.assert()
-            .contains("__wow_date_histogram_0")
+            .doesNotContain("\$set")
+            .doesNotContain("__wow_date_histogram_0")
             .contains("\$isNumber")
             .contains("\$convert")
             .contains("\$multiply")
@@ -84,7 +85,7 @@ class MongoAggregationCompilerTest {
             TimeUnit.HOURS to ("\$multiply" to "3600000"),
             TimeUnit.DAYS to ("\$multiply" to "86400000"),
         ).forEach { (timeUnit, expected) ->
-            val setStage = MongoAggregationCompiler(SnapshotFilterConverter).compile(
+            val groupStage = MongoAggregationCompiler(SnapshotFilterConverter).compile(
                 aggregation {
                     dateHistogram(
                         LogicalField("state.epoch", FieldType.Temporal.Number(timeUnit)),
@@ -94,11 +95,11 @@ class MongoAggregationCompilerTest {
                     )
                     count("count")
                 },
-            ).first { it.toBsonDocument().containsKey("\$set") }
+            ).first { it.toBsonDocument().containsKey("\$group") }
                 .toBsonDocument()
                 .toJson()
 
-            setStage.assert()
+            groupStage.assert()
                 .contains(expected.first)
                 .contains("\"\$numberDecimal\": \"${expected.second}\"")
         }
@@ -106,7 +107,7 @@ class MongoAggregationCompilerTest {
 
     @Test
     fun `TEMPORAL_NUMBER sub-millisecond histogram should floor negative epochs`() {
-        val setStage = MongoAggregationCompiler(SnapshotFilterConverter).compile(
+        val groupStage = MongoAggregationCompiler(SnapshotFilterConverter).compile(
             aggregation {
                 dateHistogram(
                     LogicalField("state.epoch", FieldType.Temporal.Number(TimeUnit.MICROSECONDS)),
@@ -116,11 +117,11 @@ class MongoAggregationCompilerTest {
                 )
                 count("count")
             },
-        ).first { it.toBsonDocument().containsKey("\$set") }
+        ).first { it.toBsonDocument().containsKey("\$group") }
             .toBsonDocument()
             .toJson()
 
-        setStage.assert()
+        groupStage.assert()
             .contains("\"\$floor\"")
             .doesNotContain("\"\$trunc\"")
     }
