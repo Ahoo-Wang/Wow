@@ -200,13 +200,16 @@ class ElasticsearchIndexMappingResolverTest {
         (filter.operands[4] as ExistsFilter).field.name.assert().isEqualTo("state.name")
         mapping.resolve(listOf(Sort("state.name", Sort.Direction.ASC))).single().field
             .assert().isEqualTo("state.name.keyword")
+        val elementType = FieldType.Temporal.Date
         val elementMatch = mapping.resolve(
             ElementMatchFilter(
-                LogicalField("state.items"),
-                EqualFilter(LogicalField("state.items.name"), json("item")),
+                LogicalField("items", elementType),
+                EqualFilter(LogicalField("name"), json("item")),
             ),
+            "state",
         ) as ElementMatchFilter
         elementMatch.field.name.assert().isEqualTo("state.items")
+        elementMatch.field.type.assert().isEqualTo(elementType)
         (elementMatch.predicate as EqualFilter).field.name.assert()
             .isEqualTo("state.items.name")
     }
@@ -237,6 +240,10 @@ class ElasticsearchIndexMappingResolverTest {
             LogicalField("state.string", stringType),
             docValuesRequired = true,
         ).type.assert().isEqualTo(stringType)
+        mapping.resolveTemporal(
+            LogicalField("state.formatted", stringType),
+            docValuesRequired = true,
+        ).assert().isEqualTo(LogicalField("state.formatted.keyword", stringType))
     }
 
     @Test
@@ -565,6 +572,11 @@ class ElasticsearchIndexMappingResolverTest {
                         .properties("epoch") { it.long_ { field -> field } }
                         .properties("score") { it.double_ { field -> field } }
                         .properties("string") { it.keyword { field -> field } }
+                        .properties("formatted") { property ->
+                            property.text { text ->
+                                text.fields("keyword") { field -> field.keyword { keyword -> keyword } }
+                            }
+                        }
                         .properties("noDocValues") { it.long_ { field -> field.docValues(false) } }
                 }
             }
