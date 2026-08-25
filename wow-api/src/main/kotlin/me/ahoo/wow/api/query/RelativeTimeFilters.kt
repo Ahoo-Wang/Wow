@@ -33,6 +33,8 @@ private fun String?.toDateFormatter(): DateTimeFormatter? {
 }
 
 sealed interface RelativeTimeFilter : FilterExpression {
+    val field: LogicalField
+    val zoneId: String?
     val datePattern: String?
 
     @get:JsonIgnore
@@ -41,26 +43,30 @@ sealed interface RelativeTimeFilter : FilterExpression {
     fun resolvedDateFormatter(): DateTimeFormatter? = dateFormatter ?: datePattern.toDateFormatter()
 }
 
+private fun RelativeTimeFilter.validateConfiguration() {
+    zoneId.requireZoneId()
+    datePattern.toDateFormatter()
+}
+
 @JsonTypeName("TODAY")
 data class TodayFilter(
-    val field: LogicalField,
-    val zoneId: String? = null,
+    override val field: LogicalField,
+    override val zoneId: String? = null,
     override val datePattern: String? = null,
     @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.TODAY
 
     init {
-        zoneId.requireZoneId()
-        datePattern.toDateFormatter()
+        validateConfiguration()
     }
 }
 
 @JsonTypeName("BEFORE_TODAY")
 data class BeforeTodayFilter(
-    val field: LogicalField,
+    override val field: LogicalField,
     val time: String,
-    val zoneId: String? = null,
+    override val zoneId: String? = null,
     override val datePattern: String? = null,
     @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
 ) : RelativeTimeFilter {
@@ -68,106 +74,99 @@ data class BeforeTodayFilter(
 
     init {
         LocalTime.parse(time)
-        zoneId.requireZoneId()
-        datePattern.toDateFormatter()
+        validateConfiguration()
     }
 }
 
 @JsonTypeName("TOMORROW")
 data class TomorrowFilter(
-    val field: LogicalField,
-    val zoneId: String? = null,
+    override val field: LogicalField,
+    override val zoneId: String? = null,
     override val datePattern: String? = null,
     @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.TOMORROW
 
     init {
-        zoneId.requireZoneId()
-        datePattern.toDateFormatter()
+        validateConfiguration()
     }
 }
 
 @JsonTypeName("THIS_WEEK")
 data class ThisWeekFilter(
-    val field: LogicalField,
-    val zoneId: String? = null,
+    override val field: LogicalField,
+    override val zoneId: String? = null,
     override val datePattern: String? = null,
     @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.THIS_WEEK
 
     init {
-        zoneId.requireZoneId()
-        datePattern.toDateFormatter()
+        validateConfiguration()
     }
 }
 
 @JsonTypeName("NEXT_WEEK")
 data class NextWeekFilter(
-    val field: LogicalField,
-    val zoneId: String? = null,
+    override val field: LogicalField,
+    override val zoneId: String? = null,
     override val datePattern: String? = null,
     @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.NEXT_WEEK
 
     init {
-        zoneId.requireZoneId()
-        datePattern.toDateFormatter()
+        validateConfiguration()
     }
 }
 
 @JsonTypeName("LAST_WEEK")
 data class LastWeekFilter(
-    val field: LogicalField,
-    val zoneId: String? = null,
+    override val field: LogicalField,
+    override val zoneId: String? = null,
     override val datePattern: String? = null,
     @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.LAST_WEEK
 
     init {
-        zoneId.requireZoneId()
-        datePattern.toDateFormatter()
+        validateConfiguration()
     }
 }
 
 @JsonTypeName("THIS_MONTH")
 data class ThisMonthFilter(
-    val field: LogicalField,
-    val zoneId: String? = null,
+    override val field: LogicalField,
+    override val zoneId: String? = null,
     override val datePattern: String? = null,
     @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.THIS_MONTH
 
     init {
-        zoneId.requireZoneId()
-        datePattern.toDateFormatter()
+        validateConfiguration()
     }
 }
 
 @JsonTypeName("LAST_MONTH")
 data class LastMonthFilter(
-    val field: LogicalField,
-    val zoneId: String? = null,
+    override val field: LogicalField,
+    override val zoneId: String? = null,
     override val datePattern: String? = null,
     @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.LAST_MONTH
 
     init {
-        zoneId.requireZoneId()
-        datePattern.toDateFormatter()
+        validateConfiguration()
     }
 }
 
 @JsonTypeName("RECENT_DAYS")
 data class RecentDaysFilter(
-    val field: LogicalField,
+    override val field: LogicalField,
     val days: Int,
-    val zoneId: String? = null,
+    override val zoneId: String? = null,
     override val datePattern: String? = null,
     @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
 ) : RelativeTimeFilter {
@@ -175,16 +174,15 @@ data class RecentDaysFilter(
 
     init {
         require(days >= 1) { "RECENT_DAYS days must be greater than zero." }
-        zoneId.requireZoneId()
-        datePattern.toDateFormatter()
+        validateConfiguration()
     }
 }
 
 @JsonTypeName("EARLIER_DAYS")
 data class EarlierDaysFilter(
-    val field: LogicalField,
+    override val field: LogicalField,
     val days: Int,
-    val zoneId: String? = null,
+    override val zoneId: String? = null,
     override val datePattern: String? = null,
     @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
 ) : RelativeTimeFilter {
@@ -192,7 +190,66 @@ data class EarlierDaysFilter(
 
     init {
         require(days >= 1) { "EARLIER_DAYS days must be greater than zero." }
-        zoneId.requireZoneId()
-        datePattern.toDateFormatter()
+        validateConfiguration()
     }
+}
+
+@JsonTypeName("YESTERDAY")
+data class YesterdayFilter(
+    override val field: LogicalField,
+    override val zoneId: String? = null,
+    override val datePattern: String? = null,
+    @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
+) : RelativeTimeFilter {
+    override val operator: FilterOperator = FilterOperator.YESTERDAY
+
+    init { validateConfiguration() }
+}
+
+@JsonTypeName("NEXT_MONTH")
+data class NextMonthFilter(
+    override val field: LogicalField,
+    override val zoneId: String? = null,
+    override val datePattern: String? = null,
+    @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
+) : RelativeTimeFilter {
+    override val operator: FilterOperator = FilterOperator.NEXT_MONTH
+
+    init { validateConfiguration() }
+}
+
+@JsonTypeName("LAST_YEAR")
+data class LastYearFilter(
+    override val field: LogicalField,
+    override val zoneId: String? = null,
+    override val datePattern: String? = null,
+    @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
+) : RelativeTimeFilter {
+    override val operator: FilterOperator = FilterOperator.LAST_YEAR
+
+    init { validateConfiguration() }
+}
+
+@JsonTypeName("THIS_YEAR")
+data class ThisYearFilter(
+    override val field: LogicalField,
+    override val zoneId: String? = null,
+    override val datePattern: String? = null,
+    @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
+) : RelativeTimeFilter {
+    override val operator: FilterOperator = FilterOperator.THIS_YEAR
+
+    init { validateConfiguration() }
+}
+
+@JsonTypeName("NEXT_YEAR")
+data class NextYearFilter(
+    override val field: LogicalField,
+    override val zoneId: String? = null,
+    override val datePattern: String? = null,
+    @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
+) : RelativeTimeFilter {
+    override val operator: FilterOperator = FilterOperator.NEXT_YEAR
+
+    init { validateConfiguration() }
 }
