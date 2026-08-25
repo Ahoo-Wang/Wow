@@ -31,12 +31,33 @@ import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
+import me.ahoo.wow.api.query.FieldType
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterConverter
 import me.ahoo.wow.elasticsearch.query.ElasticsearchFieldUsage
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
 import me.ahoo.wow.elasticsearch.query.ElasticsearchSortConverter.toSortOrder
+import java.util.concurrent.TimeUnit
+
+private const val NUMERIC_DATE_SCRIPT =
+    "String field=params.field;" +
+        "if(doc.containsKey(field)&&doc[field].size()==1){" +
+        "def raw=doc[field].value;" +
+        "if(raw instanceof Number){" +
+        "double candidate=((Number)raw).doubleValue();" +
+        "if(Double.isFinite(candidate)&&candidate==Math.rint(candidate)&&" +
+        "candidate>=Long.MIN_VALUE&&candidate<=Long.MAX_VALUE){" +
+        "long value=((Number)raw).longValue();" +
+        "try{" +
+        "long millis=((Number)params.divisor).longValue()==1L" +
+        "?Math.multiplyExact(value,((Number)params.multiplier).longValue())" +
+        ":value/((Number)params.divisor).longValue();" +
+        "emit(millis);" +
+        "}catch(ArithmeticException ignored){}" +
+        "}" +
+        "}" +
+        "}"
 
 internal data class ElasticsearchAggregationPlan(
     val rootQuery: Query,
@@ -85,10 +106,14 @@ internal class ElasticsearchAggregationCompiler(
         }
 
         val effectiveSort = query.effectiveSort()
-        val groups = query.groupBy.associateBy(AggregationGroup::alias)
-        val groupSources = effectiveSort
-            .mapNotNull { sort -> groups[sort.field]?.let { it.toSource(parent, sort) } }
+        val groups = query.groupBy.withIndex().associateBy { it.value.alias }
         val runtimeMappings = linkedMapOf<String, RuntimeField>()
+        val groupSources = effectiveSort
+            .mapNotNull { sort ->
+                groups[sort.field]?.let { indexed ->
+                    indexed.value.toSource(parent, sort, indexed.index, runtimeMappings)
+                }
+            }
         val metrics = query.metrics.mapIndexed { index, metric ->
             metric.toPlan(parent, index, runtimeMappings)
         }
@@ -105,7 +130,12 @@ internal class ElasticsearchAggregationCompiler(
         )
     }
 
-    private fun AggregationGroup.toSource(parent: String?, sort: Sort): NamedValue<CompositeAggregationSource> {
+    private fun AggregationGroup.toSource(
+        parent: String?,
+        sort: Sort,
+        index: Int,
+        runtimeMappings: MutableMap<String, RuntimeField>,
+    ): NamedValue<CompositeAggregationSource> {
         val absoluteField = field.resolve(parent)
         val source = when (this) {
             is AggregationGroup.Terms -> CompositeAggregationSource.of {
@@ -124,9 +154,19 @@ internal class ElasticsearchAggregationCompiler(
             }
 
             is AggregationGroup.DateHistogram -> CompositeAggregationSource.of {
+                val resolvedField = mapping?.resolveTemporal(
+                    field.copy(name = absoluteField),
+                    docValuesRequired = true,
+                ) ?: field.copy(name = absoluteField)
+                val histogramField = when (val type = resolvedField.temporalTypeOrDefault()) {
+                    FieldType.Temporal.Date -> resolvedField.name
+                    is FieldType.Temporal.NumericEpoch -> "__wow_date_histogram_$index".also { runtimeFieldName ->
+                        runtimeMappings[runtimeFieldName] = type.toRuntimeDate(resolvedField.name)
+                    }
+                    is FieldType.Temporal.FormattedString -> error("DateHistogram does not support STRING fields.")
+                }
                 it.dateHistogram { dateHistogram ->
-                    dateHistogram
-                        .field(mapping?.resolve(absoluteField, ElasticsearchFieldUsage.RANGE) ?: absoluteField)
+                    dateHistogram.field(histogramField)
                     if (unit == AggregationDateUnit.SECOND) {
                         dateHistogram.fixedInterval { interval -> interval.time("1s") }
                     } else {
@@ -137,6 +177,27 @@ internal class ElasticsearchAggregationCompiler(
             }
         }
         return NamedValue.of(alias, source)
+    }
+
+    private fun FieldType.Temporal.NumericEpoch.toRuntimeDate(field: String): RuntimeField {
+        val multiplier = TimeUnit.MILLISECONDS.convert(1, timeUnit).coerceAtLeast(1)
+        val divisor = timeUnit.convert(1, TimeUnit.MILLISECONDS).coerceAtLeast(1)
+        return RuntimeField.of { runtime ->
+            runtime.type(RuntimeFieldType.Date)
+                .script(
+                    Script.of { script ->
+                        script.lang(ScriptLanguage.Painless)
+                            .source { it.scriptString(NUMERIC_DATE_SCRIPT) }
+                            .params(
+                                mapOf(
+                                    "field" to JsonData.of(field),
+                                    "multiplier" to JsonData.of(multiplier),
+                                    "divisor" to JsonData.of(divisor),
+                                ),
+                            )
+                    },
+                )
+        }
     }
 
     private fun AggregationMetric.toPlan(

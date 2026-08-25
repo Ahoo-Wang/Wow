@@ -28,6 +28,9 @@ import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationDateUnit
+import me.ahoo.wow.api.query.FieldType
+import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.SimpleDynamicDocument
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterConverter
@@ -40,6 +43,8 @@ import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchCl
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 import java.time.Duration
+import java.time.ZoneOffset
+import java.util.concurrent.TimeUnit
 
 class ElasticsearchAggregationPagerTest {
     private val client = mockk<ReactiveElasticsearchClient>()
@@ -115,6 +120,41 @@ class ElasticsearchAggregationPagerTest {
         requests.assert().hasSize(2)
         requests.forEach { request ->
             request.runtimeMappings().assert().isEqualTo(plan.runtimeMappings)
+        }
+    }
+
+    @Test
+    fun `NUMBER date histogram should retain runtime mappings on every page`() {
+        val requests = mutableListOf<SearchRequest>()
+        stubPointInTime()
+        every { client.search(capture(requests), Map::class.java) } returnsMany listOf(
+            Mono.just(groupResponse("pit-2", listOf(bucket("a", 2), bucket("b", 3)), "b")),
+            Mono.just(groupResponse("pit-3", listOf(bucket("c", 1)))),
+        )
+        val plan = compiler().compile(
+            aggregation {
+                dateHistogram(
+                    LogicalField(
+                        "state.epochSecond",
+                        FieldType.Temporal.NumericEpoch(TimeUnit.SECONDS),
+                    ),
+                    AggregationDateUnit.DAY,
+                    "product",
+                    ZoneOffset.UTC,
+                )
+                count("count")
+                limit(3)
+            },
+        )
+
+        pager(batchSize = 2).execute(plan).test()
+            .expectNextCount(3)
+            .verifyComplete()
+
+        requests.assert().hasSize(2)
+        requests.forEach { request ->
+            request.runtimeMappings().assert().isEqualTo(plan.runtimeMappings)
+            request.runtimeMappings().keys.assert().contains("__wow_date_histogram_0")
         }
     }
 

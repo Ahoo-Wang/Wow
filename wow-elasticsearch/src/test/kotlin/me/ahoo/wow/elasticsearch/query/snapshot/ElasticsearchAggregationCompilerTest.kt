@@ -34,6 +34,8 @@ import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
 import me.ahoo.wow.query.dsl.aggregation
 import org.junit.jupiter.api.Test
 import java.time.ZoneId
+import java.time.ZoneOffset
+import java.util.concurrent.TimeUnit
 
 class ElasticsearchAggregationCompilerTest {
     @Test
@@ -139,6 +141,119 @@ class ElasticsearchAggregationCompilerTest {
     }
 
     @Test
+    fun `DATE histogram should use native date fields without runtime mappings`() {
+        val mapping = temporalMapping()
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter, mapping).compile(
+            aggregation {
+                dateHistogram(
+                    LogicalField("state.date", FieldType.Temporal.Date),
+                    AggregationDateUnit.DAY,
+                    "date",
+                    ZoneOffset.UTC,
+                )
+                dateHistogram(
+                    LogicalField("state.dateNanos", FieldType.Temporal.Date),
+                    AggregationDateUnit.DAY,
+                    "dateNanos",
+                    ZoneOffset.UTC,
+                )
+                count("count")
+            },
+        )
+
+        plan.runtimeMappings.assert().isEmpty()
+        plan.groupSources.map { it.value().dateHistogram().field() }.assert()
+            .containsExactly("state.date", "state.dateNanos")
+    }
+
+    @Test
+    fun `NUMBER histogram should compile a parameterized date runtime field`() {
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter, temporalMapping()).compile(
+            aggregation {
+                dateHistogram(
+                    LogicalField(
+                        "state.epoch",
+                        FieldType.Temporal.NumericEpoch(TimeUnit.SECONDS),
+                    ),
+                    AggregationDateUnit.DAY,
+                    "day",
+                    ZoneOffset.UTC,
+                )
+                count("count")
+            },
+        )
+
+        val runtimeFieldName = "__wow_date_histogram_0"
+        plan.groupSources.single().value().dateHistogram().field().assert().isEqualTo(runtimeFieldName)
+        val runtime = plan.runtimeMappings.getValue(runtimeFieldName)
+        runtime.type().assert().isEqualTo(RuntimeFieldType.Date)
+        val script = requireNotNull(runtime.script())
+        requireNotNull(script.source()).scriptString().assert()
+            .contains("Math.multiplyExact")
+            .contains("Double.isFinite")
+            .contains("Math.rint")
+            .contains("catch(ArithmeticException ignored)")
+            .doesNotContain("state.epoch")
+            .doesNotContain("catch(Exception")
+        script.params().getValue("field").to(String::class.java).assert().isEqualTo("state.epoch")
+        script.params().getValue("multiplier").to(Any::class.java).assert().isEqualTo(1_000L)
+        script.params().getValue("divisor").to(Any::class.java).assert().isEqualTo(1L)
+    }
+
+    @Test
+    fun `NUMBER histogram should convert every TimeUnit to epoch milliseconds`() {
+        mapOf(
+            TimeUnit.NANOSECONDS to (1L to 1_000_000L),
+            TimeUnit.MICROSECONDS to (1L to 1_000L),
+            TimeUnit.MILLISECONDS to (1L to 1L),
+            TimeUnit.SECONDS to (1_000L to 1L),
+            TimeUnit.MINUTES to (60_000L to 1L),
+            TimeUnit.HOURS to (3_600_000L to 1L),
+            TimeUnit.DAYS to (86_400_000L to 1L),
+        ).forEach { (timeUnit, factors) ->
+            val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter, temporalMapping()).compile(
+                aggregation {
+                    dateHistogram(
+                        LogicalField("state.epoch", FieldType.Temporal.NumericEpoch(timeUnit)),
+                        AggregationDateUnit.DAY,
+                        "day",
+                        ZoneOffset.UTC,
+                    )
+                    count("count")
+                },
+            )
+            val params = plan.runtimeMappings.getValue("__wow_date_histogram_0").script()!!.params()
+
+            params.getValue("multiplier").to(Any::class.java).assert().isEqualTo(factors.first)
+            params.getValue("divisor").to(Any::class.java).assert().isEqualTo(factors.second)
+        }
+    }
+
+    @Test
+    fun `runtime date name should retain original group index after sorting`() {
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter, mapping = null).compile(
+            aggregation {
+                terms("state.category", "category")
+                dateHistogram(
+                    LogicalField(
+                        "state.epoch",
+                        FieldType.Temporal.NumericEpoch(TimeUnit.MILLISECONDS),
+                    ),
+                    AggregationDateUnit.DAY,
+                    "day",
+                    ZoneOffset.UTC,
+                )
+                count("count")
+                sort { "day".desc() }
+            },
+        )
+
+        plan.groupSources.first().value().dateHistogram().field().assert()
+            .isEqualTo("__wow_date_histogram_1")
+        plan.runtimeMappings.keys.assert().containsExactly("__wow_date_histogram_1")
+    }
+
+    @Test
     fun `compiler should nest relative elements in order and resolve exact terms`() {
         val mapping = mockk<ElasticsearchIndexMapping> {
             every { requireNested(any()) } answers { firstArg() }
@@ -146,6 +261,7 @@ class ElasticsearchAggregationCompilerTest {
                 val field = firstArg<String>()
                 if (secondArg<ElasticsearchFieldUsage>() == ElasticsearchFieldUsage.EXACT) "$field.keyword" else field
             }
+            every { resolveTemporal(any(), any()) } answers { firstArg() }
             every { resolve(any<FilterExpression>(), any()) } answers { firstArg() }
         }
         val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter, mapping).compile(
@@ -154,7 +270,12 @@ class ElasticsearchAggregationCompilerTest {
                 expand("lines") { "quantity" gt 0 }
                 terms("productId", "product")
                 histogram("amount", 10.0, "amountRange")
-                dateHistogram(LogicalField("createdAt", FieldType.Temporal.Date), AggregationDateUnit.DAY, "day", ZoneId.of("Z"))
+                dateHistogram(
+                    LogicalField("createdAt", FieldType.Temporal.Date),
+                    AggregationDateUnit.DAY,
+                    "day",
+                    ZoneId.of("Z"),
+                )
                 sum("amount", "total")
             },
         )
@@ -172,7 +293,10 @@ class ElasticsearchAggregationCompilerTest {
         verify {
             mapping.resolve("state.orders.lines.productId", ElasticsearchFieldUsage.EXACT)
             mapping.resolve("state.orders.lines.amount", ElasticsearchFieldUsage.RANGE)
-            mapping.resolve("state.orders.lines.createdAt", ElasticsearchFieldUsage.RANGE)
+            mapping.resolveTemporal(
+                LogicalField("state.orders.lines.createdAt", FieldType.Temporal.Date),
+                docValuesRequired = true,
+            )
         }
     }
 
@@ -182,7 +306,12 @@ class ElasticsearchAggregationCompilerTest {
             aggregation {
                 terms("state.productId", "product")
                 histogram("state.amount", 10.0, "amountRange")
-                dateHistogram(LogicalField("state.createdAt", FieldType.Temporal.Date), AggregationDateUnit.DAY, "day", ZoneId.of("Asia/Shanghai"))
+                dateHistogram(
+                    LogicalField("state.createdAt", FieldType.Temporal.Date),
+                    AggregationDateUnit.DAY,
+                    "day",
+                    ZoneId.of("Asia/Shanghai"),
+                )
                 count("count")
                 sum("state.amount", "total")
                 avg("state.amount", "average")
@@ -224,7 +353,12 @@ class ElasticsearchAggregationCompilerTest {
     fun `second date histogram should use a fixed interval`() {
         val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter, mapping = null).compile(
             aggregation {
-                dateHistogram(LogicalField("state.createdAt", FieldType.Temporal.Date), AggregationDateUnit.SECOND, "second", ZoneId.of("Z"))
+                dateHistogram(
+                    LogicalField("state.createdAt", FieldType.Temporal.Date),
+                    AggregationDateUnit.SECOND,
+                    "second",
+                    ZoneId.of("Z"),
+                )
                 count("count")
             },
         )
@@ -268,4 +402,18 @@ class ElasticsearchAggregationCompilerTest {
                 maximumExpression(depth - 1),
             )
         }
+
+    private fun temporalMapping(): ElasticsearchIndexMapping = ElasticsearchIndexMapping.from(
+        "snapshot",
+        TypeMapping.of { mapping ->
+            mapping.properties("state") { state ->
+                state.`object` { objectField ->
+                    objectField
+                        .properties("date") { it.date { field -> field } }
+                        .properties("dateNanos") { it.dateNanos { field -> field } }
+                        .properties("epoch") { it.long_ { field -> field } }
+                }
+            }
+        },
+    )
 }
