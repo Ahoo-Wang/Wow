@@ -4324,7 +4324,7 @@
             "const" : "FIELD"
           }
         },
-        "required" : [ "field" ],
+        "required" : [ "field", "type" ],
         "type" : "object"
       },
       "wow.api.query.AggregationFunction" : {

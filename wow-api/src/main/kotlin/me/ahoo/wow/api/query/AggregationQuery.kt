@@ -20,6 +20,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import io.swagger.v3.oas.annotations.media.ArraySchema
 import io.swagger.v3.oas.annotations.media.Schema
+import me.ahoo.wow.api.serialization.MissingTypeImpl
 import java.time.ZoneId
 
 @Schema(additionalProperties = Schema.AdditionalPropertiesValue.FALSE)
@@ -167,11 +168,8 @@ enum class AggregationDateUnit {
     SECOND,
 }
 
-@JsonTypeInfo(
-    use = JsonTypeInfo.Id.NAME,
-    property = "type",
-    defaultImpl = AggregationExpression.Field::class,
-)
+@MissingTypeImpl(AggregationExpression.Field::class)
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(JsonSubTypes.Type(AggregationExpression.Field::class, name = "FIELD"))
 interface AggregationExpression {
     data class Field(val field: LogicalField) : AggregationExpression
