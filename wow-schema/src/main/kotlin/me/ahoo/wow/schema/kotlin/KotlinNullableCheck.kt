@@ -29,7 +29,15 @@ object KotlinNullableCheck : ConfigFunction<FieldScope, Boolean> {
 
         val property = fieldScope.rawMember.kotlinProperty ?: return false
         val schemaAnnotation = property.scanAnnotation<Schema>()
-        if (schemaAnnotation?.requiredMode == Schema.RequiredMode.REQUIRED && !schemaAnnotation.nullable) {
+        val hasExplicitNonNullType = schemaAnnotation?.let { annotation ->
+            annotation.type.isNotBlank() && annotation.type != "null" ||
+                annotation.types.isNotEmpty() && annotation.types.none { it == "null" }
+        } ?: false
+        if (
+            schemaAnnotation?.requiredMode == Schema.RequiredMode.REQUIRED &&
+            !schemaAnnotation.nullable &&
+            hasExplicitNonNullType
+        ) {
             return false
         }
         if (property.returnType.isMarkedNullable) {

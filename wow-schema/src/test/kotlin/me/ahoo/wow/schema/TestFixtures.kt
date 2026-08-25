@@ -100,6 +100,8 @@ data class AnnotationFixture(
     val writeOnlyField: String?,
     @field:Schema(requiredMode = Schema.RequiredMode.REQUIRED)
     val requiredField: String?,
+    @field:Schema(type = "string", requiredMode = Schema.RequiredMode.REQUIRED)
+    val requiredNonNullField: String?,
     val enumField: TestStatus? = null,
     val enumMap: Map<TestStatus, String>? = null,
 ) {
