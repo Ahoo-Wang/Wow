@@ -128,11 +128,27 @@ internal class OpenApiCompatibilitySnapshotTest {
             "#/components/schemas/wow.api.query.FieldType.Temporal.NumericEpoch",
             "#/components/schemas/wow.api.query.FieldType.Temporal.FormattedString",
         )
-        document.findValues("mapping")
-            .flatMap { it.fieldNames().asSequence().toList() }.assert()
-            .doesNotContain("NUMBER", "STRING")
-        document.findValues("const").map { it.asText() }.assert()
-            .doesNotContain("NUMBER", "STRING")
+
+        val leafSchemas = linkedMapOf(
+            "wow.api.query.FieldType.Temporal.Date" to "DATE",
+            "wow.api.query.FieldType.Temporal.NumericEpoch" to "TEMPORAL_NUMBER",
+            "wow.api.query.FieldType.Temporal.FormattedString" to "TEMPORAL_STRING",
+        )
+        leafSchemas.forEach { (schemaName, subtypeId) ->
+            val leaf = schemas.path(schemaName)
+            leaf.path("required").map { it.asText() }.assert().contains("type")
+            leaf.path("properties").path("type").path("const").asText().assert()
+                .isEqualTo(subtypeId)
+        }
+        schemas.path("wow.api.query.FieldType.Temporal.NumericEpoch")
+            .path("properties").path("timeUnit").path("default").asText().assert()
+            .isEqualTo("MILLISECONDS")
+        val formattedString = schemas.path("wow.api.query.FieldType.Temporal.FormattedString")
+        formattedString.path("required").map { it.asText() }.assert()
+            .contains("type", "datePattern")
+        val datePattern = formattedString.path("properties").path("datePattern")
+        datePattern.path("type").asText().assert().isEqualTo("string")
+        datePattern.path("anyOf").isMissingNode.assert().isTrue()
         mapper.writeValueAsString(openAPI).assert().doesNotContain("dateFormatter")
 
         val dateHistogramFieldDescription = schemas.path("wow.api.query.AggregationGroup.DateHistogram")

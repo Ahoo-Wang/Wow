@@ -27,6 +27,7 @@ import java.util.concurrent.TimeUnit
 )
 @Schema(oneOf = [FieldType.Temporal::class])
 sealed interface FieldType {
+    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
     @JsonSubTypes(
         JsonSubTypes.Type(Temporal.Date::class, name = "DATE"),
         JsonSubTypes.Type(Temporal.NumericEpoch::class, name = "TEMPORAL_NUMBER"),
@@ -46,12 +47,13 @@ sealed interface FieldType {
 
         @JsonTypeName("TEMPORAL_NUMBER")
         data class NumericEpoch(
+            @get:Schema(defaultValue = "MILLISECONDS")
             val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
         ) : Temporal
 
         @JsonTypeName("TEMPORAL_STRING")
         data class FormattedString(
-            @get:Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+            @get:Schema(type = "string", requiredMode = Schema.RequiredMode.REQUIRED)
             val datePattern: String? = null,
             @get:JsonIgnore
             @get:Schema(hidden = true)

@@ -96,6 +96,7 @@ class LogicalFieldTest {
 
         values.forEach { value ->
             val json = mapper.writeValueAsString(value)
+            json.split("\"type\":").assert().hasSize(2)
             mapper.readValue(json, FieldType::class.java).assert().isEqualTo(value)
         }
 

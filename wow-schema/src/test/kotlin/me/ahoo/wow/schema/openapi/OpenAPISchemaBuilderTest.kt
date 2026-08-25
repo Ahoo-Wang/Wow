@@ -1,6 +1,8 @@
 package me.ahoo.wow.schema.openapi
 
 import com.fasterxml.classmate.TypeResolver
+import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.github.victools.jsonschema.generator.Option
 import io.swagger.v3.core.util.ObjectMapperFactory
 import io.swagger.v3.oas.annotations.media.Schema
@@ -99,6 +101,30 @@ class OpenAPISchemaBuilderTest {
         val binary = schemas.getValue("wow.api.query.AggregationExpression.Binary")
         binary.properties.getValue("left").`$ref`.assert().isEqualTo(expressionRef)
         binary.properties.getValue("right").`$ref`.assert().isEqualTo(expressionRef)
+    }
+
+    @Test
+    fun `should normalize single entry schema oneOf direct reference`() {
+        val openAPISchemaBuilder = OpenAPISchemaBuilder()
+        openAPISchemaBuilder.generateSchema(SingleEntryDirectRefUnion::class.java)
+
+        val schema = openAPISchemaBuilder.build().getValue("wow.schema.SingleEntryDirectRefUnion")
+        schema.`$ref`.assert().isNull()
+        schema.oneOf.map { it.`$ref` }.assert().containsExactly(
+            "#/components/schemas/wow.schema.SingleEntryDirectRefOption",
+        )
+    }
+
+    @Test
+    fun `should not normalize multi entry schema oneOf direct reference`() {
+        val openAPISchemaBuilder = OpenAPISchemaBuilder()
+        openAPISchemaBuilder.generateSchema(MultiEntryDirectRefUnion::class.java)
+
+        val schema = openAPISchemaBuilder.build().getValue("wow.schema.MultiEntryDirectRefUnion")
+        schema.oneOf.assert().isNull()
+        schema.`$ref`.assert().isEqualTo(
+            "#/components/schemas/wow.schema.MultiEntryDirectRefOption",
+        )
     }
 
     @Test
@@ -246,3 +272,19 @@ class FirstCollidingOption
 class SecondCollidingUnion
 
 class SecondCollidingOption
+
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "kind")
+@JsonSubTypes(JsonSubTypes.Type(SingleEntryDirectRefOption::class, name = "OPTION"))
+@Schema(oneOf = [SingleEntryDirectRefOption::class])
+sealed interface SingleEntryDirectRefUnion
+
+data object SingleEntryDirectRefOption : SingleEntryDirectRefUnion
+
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "kind")
+@JsonSubTypes(JsonSubTypes.Type(MultiEntryDirectRefOption::class, name = "OPTION"))
+@Schema(oneOf = [MultiEntryDirectRefOption::class, MultiEntryDocumentedOption::class])
+sealed interface MultiEntryDirectRefUnion
+
+data object MultiEntryDirectRefOption : MultiEntryDirectRefUnion
+
+class MultiEntryDocumentedOption

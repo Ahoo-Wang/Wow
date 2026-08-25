@@ -41,7 +41,7 @@
       "additionalProperties": false,
       "required": ["type"],
       "properties": {
-        "type": { "enum": ["DATE"] }
+        "type": { "const": "DATE" }
       }
     },
     "temporalNumber": {
@@ -49,7 +49,7 @@
       "additionalProperties": false,
       "required": ["type"],
       "properties": {
-        "type": { "enum": ["TEMPORAL_NUMBER"] },
+        "type": { "const": "TEMPORAL_NUMBER" },
         "timeUnit": { "$ref": "#/definitions/timeUnit" }
       }
     },
@@ -58,7 +58,7 @@
       "additionalProperties": false,
       "required": ["type", "datePattern"],
       "properties": {
-        "type": { "enum": ["TEMPORAL_STRING"] },
+        "type": { "const": "TEMPORAL_STRING" },
         "datePattern": { "type": "string", "minLength": 1 }
       }
     },

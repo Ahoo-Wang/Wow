@@ -4573,27 +4573,37 @@
         } ]
       },
       "wow.api.query.FieldType.Temporal.Date" : {
+        "properties" : {
+          "type" : {
+            "const" : "DATE"
+          }
+        },
+        "required" : [ "type" ],
         "type" : "object"
       },
       "wow.api.query.FieldType.Temporal.FormattedString" : {
         "properties" : {
           "datePattern" : {
-            "anyOf" : [ {
-              "type" : "null"
-            }, {
-              "type" : "string"
-            } ]
+            "type" : "string"
+          },
+          "type" : {
+            "const" : "TEMPORAL_STRING"
           }
         },
-        "required" : [ "datePattern" ],
+        "required" : [ "datePattern", "type" ],
         "type" : "object"
       },
       "wow.api.query.FieldType.Temporal.NumericEpoch" : {
         "properties" : {
           "timeUnit" : {
-            "$ref" : "#/components/schemas/example.TimeUnit"
+            "$ref" : "#/components/schemas/example.TimeUnit",
+            "default" : "MILLISECONDS"
+          },
+          "type" : {
+            "const" : "TEMPORAL_NUMBER"
           }
         },
+        "required" : [ "type" ],
         "type" : "object"
       },
       "wow.api.query.FilterExpression" : {
@@ -5581,7 +5591,7 @@
             "additionalProperties" : false,
             "properties" : {
               "type" : {
-                "enum" : [ "DATE" ]
+                "const" : "DATE"
               }
             },
             "required" : [ "type" ],
@@ -5603,7 +5613,7 @@
                 "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
               },
               "type" : {
-                "enum" : [ "TEMPORAL_NUMBER" ]
+                "const" : "TEMPORAL_NUMBER"
               }
             },
             "required" : [ "type" ],
@@ -5617,7 +5627,7 @@
                 "type" : "string"
               },
               "type" : {
-                "enum" : [ "TEMPORAL_STRING" ]
+                "const" : "TEMPORAL_STRING"
               }
             },
             "required" : [ "type", "datePattern" ],

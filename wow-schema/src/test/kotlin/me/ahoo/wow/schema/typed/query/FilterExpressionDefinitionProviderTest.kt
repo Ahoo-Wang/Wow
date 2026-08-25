@@ -80,7 +80,7 @@ class FilterExpressionDefinitionProviderTest {
                 "#/definitions/temporalString",
             )
         listOf("temporalDate", "temporalNumber", "temporalString").map { subtype ->
-            definitions.path(subtype).path("properties").path("type").path("enum").first().stringValue()
+            definitions.path(subtype).path("properties").path("type").path("const").stringValue()
         }.assert().containsExactly("DATE", "TEMPORAL_NUMBER", "TEMPORAL_STRING")
         definitions.path("timeUnit").path("default").stringValue().assert().isEqualTo("MILLISECONDS")
         definitions.path("temporalString").path("required").toList().map { it.stringValue() }.assert()
