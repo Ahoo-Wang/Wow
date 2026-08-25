@@ -55,6 +55,7 @@ import me.ahoo.wow.api.query.ThisYearFilter
 import me.ahoo.wow.api.query.YesterdayFilter
 import me.ahoo.wow.api.query.toFilterExpression
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchIndicesClient
 import reactor.core.publisher.Mono
@@ -440,6 +441,21 @@ class ElasticsearchIndexMappingResolverTest {
                 Sort("_shard_doc", Sort.Direction.ASC),
             ),
         ).map { it.field }.assert().containsExactly("_score", "_doc", "_shard_doc")
+    }
+
+    @Test
+    fun `should reject phrase search on semantic text`() {
+        val mapping = ElasticsearchIndexMapping.from(INDEX, specialCapabilities())
+
+        assertThrows<ElasticsearchFieldResolutionException> {
+            mapping.resolve(
+                SearchFilter(
+                    "event sourcing",
+                    linkedSetOf(LogicalField("semanticText")),
+                    SearchMode.PHRASE,
+                ),
+            )
+        }
     }
 
     private fun mappingResponse(mapping: TypeMapping): GetMappingResponse =
