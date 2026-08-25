@@ -4758,6 +4758,8 @@
             }, {
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/lastWeek"
             }, {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/lastYear"
+            }, {
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/lt"
             }, {
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/lte"
@@ -4768,7 +4770,11 @@
             }, {
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/ne"
             }, {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/nextMonth"
+            }, {
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/nextWeek"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/nextYear"
             }, {
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/notExists"
             }, {
@@ -4782,9 +4788,13 @@
             }, {
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/thisWeek"
             }, {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/thisYear"
+            }, {
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/today"
             }, {
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/tomorrow"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/yesterday"
             } ]
           },
           "endsWith" : {
@@ -4886,6 +4896,8 @@
             }, {
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/lastWeek"
             }, {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/lastYear"
+            }, {
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/lt"
             }, {
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/lte"
@@ -4896,7 +4908,11 @@
             }, {
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/ne"
             }, {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/nextMonth"
+            }, {
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/nextWeek"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/nextYear"
             }, {
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/nor"
             }, {
@@ -4922,9 +4938,13 @@
             }, {
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/thisWeek"
             }, {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/thisYear"
+            }, {
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/today"
             }, {
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/tomorrow"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/yesterday"
             } ]
           },
           "gt" : {
@@ -5102,6 +5122,30 @@
             "required" : [ "op", "field" ],
             "type" : "object"
           },
+          "lastYear" : {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/lastYearShape"
+          },
+          "lastYearShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
+              "field" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "LAST_YEAR" ]
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
           "literal" : {
             "type" : [ "null", "string", "number", "boolean" ]
           },
@@ -5186,6 +5230,30 @@
             "required" : [ "op", "field", "value" ],
             "type" : "object"
           },
+          "nextMonth" : {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/nextMonthShape"
+          },
+          "nextMonthShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
+              "field" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "NEXT_MONTH" ]
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
           "nextWeek" : {
             "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/nextWeekShape"
           },
@@ -5201,6 +5269,30 @@
               },
               "op" : {
                 "enum" : [ "NEXT_WEEK" ]
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "nextYear" : {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/nextYearShape"
+          },
+          "nextYearShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
+              "field" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "NEXT_YEAR" ]
               },
               "zoneId" : {
                 "minLength" : 1,
@@ -5435,6 +5527,30 @@
             "required" : [ "op", "field" ],
             "type" : "object"
           },
+          "thisYear" : {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/thisYearShape"
+          },
+          "thisYearShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
+              "field" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "THIS_YEAR" ]
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
           "today" : {
             "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/todayShape"
           },
@@ -5474,6 +5590,30 @@
               },
               "op" : {
                 "enum" : [ "TOMORROW" ]
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
+          "yesterday" : {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/yesterdayShape"
+          },
+          "yesterdayShape" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
+              "field" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
+              },
+              "op" : {
+                "enum" : [ "YESTERDAY" ]
               },
               "zoneId" : {
                 "minLength" : 1,

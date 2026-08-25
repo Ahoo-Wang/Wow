@@ -25,6 +25,49 @@ class FilterExpressionTest {
     private val jsonMapper = jsonMapper()
 
     @Test
+    fun `new relative calendar filters should round trip through the common contract`() {
+        val field = LogicalField("state.createTime")
+        val filters = listOf<RelativeTimeFilter>(
+            YesterdayFilter(field, "UTC", "yyyy-MM-dd"),
+            NextMonthFilter(field, "UTC", "yyyy-MM-dd"),
+            LastYearFilter(field, "UTC", "yyyy-MM-dd"),
+            ThisYearFilter(field, "UTC", "yyyy-MM-dd"),
+            NextYearFilter(field, "UTC", "yyyy-MM-dd"),
+        )
+
+        filters.forEach { filter ->
+            filter.field.assert().isEqualTo(field)
+            filter.zoneId.assert().isEqualTo("UTC")
+            filter.datePattern.assert().isEqualTo("yyyy-MM-dd")
+            filter.resolvedDateFormatter().assert().isNotNull()
+            val json = jsonMapper.writeValueAsString(filter)
+            json.contains("dateFormatter").assert().isFalse()
+            jsonMapper.readValue(json, FilterExpression::class.java).assert().isEqualTo(filter)
+        }
+
+        val runtimeFilter: RelativeTimeFilter = YesterdayFilter(
+            field = field,
+            dateFormatter = DateTimeFormatter.ISO_LOCAL_DATE,
+        )
+        jsonMapper.writeValueAsString(runtimeFilter).contains("dateFormatter").assert().isFalse()
+    }
+
+    @Test
+    fun `relative calendar filters should reject invalid common configuration`() {
+        val field = LogicalField("state.createTime")
+
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+            YesterdayFilter(field, zoneId = "")
+        }
+        org.junit.jupiter.api.assertThrows<java.time.DateTimeException> {
+            NextMonthFilter(field, zoneId = "Not/AZone")
+        }
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+            ThisYearFilter(field, datePattern = "invalid")
+        }
+    }
+
+    @Test
     fun `should round trip polymorphic filter expression with op`() {
         val expression: FilterExpression = AndFilter(
             listOf(

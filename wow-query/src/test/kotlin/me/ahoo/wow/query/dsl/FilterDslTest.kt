@@ -24,6 +24,26 @@ import java.time.ZoneOffset
 
 class FilterDslTest {
     @Test
+    fun `should build extended relative calendar filters`() {
+        val field = LogicalField("createdAt")
+        val expression = filter {
+            "createdAt".yesterday(ZoneOffset.UTC, "yyyy-MM-dd")
+            "createdAt".nextMonth(ZoneOffset.UTC, "yyyy-MM-dd")
+            "createdAt".lastYear(ZoneOffset.UTC, "yyyy-MM-dd")
+            "createdAt".thisYear(ZoneOffset.UTC, "yyyy-MM-dd")
+            "createdAt".nextYear(ZoneOffset.UTC, "yyyy-MM-dd")
+        } as AndFilter
+
+        expression.operands.assert().containsExactly(
+            YesterdayFilter(field, ZoneOffset.UTC.id, "yyyy-MM-dd"),
+            NextMonthFilter(field, ZoneOffset.UTC.id, "yyyy-MM-dd"),
+            LastYearFilter(field, ZoneOffset.UTC.id, "yyyy-MM-dd"),
+            ThisYearFilter(field, ZoneOffset.UTC.id, "yyyy-MM-dd"),
+            NextYearFilter(field, ZoneOffset.UTC.id, "yyyy-MM-dd"),
+        )
+    }
+
+    @Test
     fun `should build dedicated metadata filters`() {
         val expression = filter {
             id("id-1")

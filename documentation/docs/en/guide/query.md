@@ -36,7 +36,7 @@ description: Query snapshots and event streams with FilterExpression, the query 
 | Deletion | `DELETION` | `state` | `ACTIVE`, `DELETED`, or `ALL`; deletion is part of the filter model |
 | Array element | `ELEMENT_MATCH` | `field`, `predicate` | `predicate` cannot contain `DELETION`, `SEARCH`, or metadata Filters |
 | Full-text search | `SEARCH` | `query`, `fields` | `query` cannot be blank; field support is backend-specific |
-| Relative time | `TODAY`, `BEFORE_TODAY`, `TOMORROW`, `THIS_WEEK`, `NEXT_WEEK`, `LAST_WEEK`, `THIS_MONTH`, `LAST_MONTH`, `RECENT_DAYS`, `EARLIER_DAYS` | `field`; operation-specific `time` or `days`; optional `zoneId` | Normalized to absolute ranges before backend compilation |
+| Relative time | `TODAY`, `YESTERDAY`, `BEFORE_TODAY`, `TOMORROW`, `THIS_WEEK`, `NEXT_WEEK`, `LAST_WEEK`, `THIS_MONTH`, `NEXT_MONTH`, `LAST_MONTH`, `LAST_YEAR`, `THIS_YEAR`, `NEXT_YEAR`, `RECENT_DAYS`, `EARLIER_DAYS` | `field`; operation-specific `time` or `days`; optional `zoneId` | Normalized to absolute ranges before backend compilation |
 
 `field` is a logical field path. Valid examples are:
 
@@ -126,6 +126,9 @@ val query = pagedQuery {
     filter {
         "state.status" eq "CREATED"
         "state.createTime".recentDays(7, ZoneId.of("Asia/Shanghai"))
+        "state.createTime".yesterday(ZoneId.of("Asia/Shanghai"))
+        "state.createTime".nextMonth(ZoneId.of("Asia/Shanghai"))
+        "state.createTime".thisYear(ZoneId.of("Asia/Shanghai"))
     }
     projection {
         include("aggregateId")
