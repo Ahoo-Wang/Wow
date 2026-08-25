@@ -45,9 +45,12 @@ private const val NUMERIC_DATE_SCRIPT =
         "if(doc.containsKey(field)&&doc[field].size()==1){" +
         "def raw=doc[field].value;" +
         "if(raw instanceof Number){" +
+        "boolean integral=raw instanceof Byte||raw instanceof Short||" +
+        "raw instanceof Integer||raw instanceof Long;" +
+        "boolean floating=raw instanceof Float||raw instanceof Double;" +
         "double candidate=((Number)raw).doubleValue();" +
-        "if(Double.isFinite(candidate)&&candidate==Math.rint(candidate)&&" +
-        "candidate>=Long.MIN_VALUE&&candidate<=Long.MAX_VALUE){" +
+        "if(integral||(floating&&Double.isFinite(candidate)&&candidate==Math.rint(candidate)&&" +
+        "candidate>=Long.MIN_VALUE&&candidate<Long.MAX_VALUE)){" +
         "long value=((Number)raw).longValue();" +
         "try{" +
         "long millis=((Number)params.divisor).longValue()==1L" +

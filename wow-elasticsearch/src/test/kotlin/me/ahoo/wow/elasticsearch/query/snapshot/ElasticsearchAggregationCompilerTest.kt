@@ -201,6 +201,34 @@ class ElasticsearchAggregationCompilerTest {
     }
 
     @Test
+    fun `NUMBER histogram should distinguish integral Long max from floating upper bound`() {
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter, temporalMapping()).compile(
+            aggregation {
+                dateHistogram(
+                    LogicalField("state.epoch", FieldType.Temporal.NumericEpoch()),
+                    AggregationDateUnit.DAY,
+                    "day",
+                    ZoneOffset.UTC,
+                )
+                count("count")
+            },
+        )
+
+        val source = plan.runtimeMappings.getValue("__wow_date_histogram_0").script()!!.source()!!.scriptString()
+        source.assert()
+            .contains("raw instanceof Byte")
+            .contains("raw instanceof Short")
+            .contains("raw instanceof Integer")
+            .contains("raw instanceof Long")
+            .contains("raw instanceof Float||raw instanceof Double")
+            .contains("if(integral||(floating&&")
+            .contains("candidate<Long.MAX_VALUE")
+            .doesNotContain("candidate<=Long.MAX_VALUE")
+        acceptsNumericDate(Long.MAX_VALUE).assert().isTrue()
+        acceptsNumericDate(Math.scalb(1.0, 63)).assert().isFalse()
+    }
+
+    @Test
     fun `NUMBER histogram should convert every TimeUnit to epoch milliseconds`() {
         mapOf(
             TimeUnit.NANOSECONDS to (1L to 1_000_000L),
@@ -416,4 +444,21 @@ class ElasticsearchAggregationCompilerTest {
             }
         },
     )
+
+    private fun acceptsNumericDate(raw: Number): Boolean = when (raw) {
+        is Byte,
+        is Short,
+        is Int,
+        is Long,
+        -> true
+        is Float,
+        is Double,
+        -> raw.toDouble().let { candidate ->
+            candidate.isFinite() &&
+                candidate == Math.rint(candidate) &&
+                candidate >= Long.MIN_VALUE.toDouble() &&
+                candidate < Long.MAX_VALUE.toDouble()
+        }
+        else -> false
+    }
 }
