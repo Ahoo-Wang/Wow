@@ -12,6 +12,7 @@
 
 - 以公共可辨识联合类型表达原生日期、数值 epoch 和格式化字符串三种时间字段表示。
 - `DateHistogram` 支持原生日期与数值 epoch；默认按 `NUMBER/MILLISECONDS` 解释。
+- `DateHistogram.timeZone` 缺省时使用当前 JVM 系统时区。
 - `RelativeTimeFilter` 支持原生日期、数值 epoch 与格式化字符串，并移除分散的时间表示参数。
 - 将相对时间展开从 `FilterNormalizer` 拆到单一职责的内部归一化器。
 - MongoDB 与 Elasticsearch 对数值 epoch 使用一致的单位转换、无效值排除、时区和桶键合同。
@@ -84,6 +85,15 @@ JSON subtype ID 固定为 `DATE`、`NUMBER`、`STRING`。`FormattedString` 在�
 
 `DateHistogram` 在公共模型构造阶段拒绝 `FormattedString`；其 OpenAPI 属性只声明 DATE 与 NUMBER 两个分支。无需增加第二组 capability 接口。
 
+### 分桶单位与存储单位
+
+本设计不新增 `AggregationDateUnit`。它是现有 DateHistogram 公共类型，继续表达分桶的日历单位：YEAR、QUARTER、MONTH、WEEK、DAY、HOUR、MINUTE、SECOND。
+
+`java.util.concurrent.TimeUnit` 只用于 `NumericEpoch` 的存储单位换算。它表达固定时长，包含纳秒、微秒和毫秒，却不包含 WEEK、MONTH、QUARTER、YEAR；月份、季度、年份和受 DST 影响的日期分桶也不能用固定毫秒数表达。因此两者职责不同：
+
+- `AggregationDateUnit`：如何按日历截断和分桶。
+- `TimeUnit`：数值 epoch 字段以什么单位存储。
+
 ## API 与 JSON
 
 ### DateHistogram
@@ -96,7 +106,7 @@ data class DateHistogram(
     override val alias: String,
     val unit: AggregationDateUnit,
     val fieldType: TemporalFieldType = TemporalFieldType.NumericEpoch(),
-    val timeZone: String = "UTC",
+    val timeZone: String = ZoneId.systemDefault().id,
 ) : AggregationGroup
 ```
 
@@ -108,9 +118,11 @@ fun dateHistogram(
     unit: AggregationDateUnit,
     alias: String,
     fieldType: TemporalFieldType = TemporalFieldType.NumericEpoch(),
-    timeZone: ZoneId = ZoneOffset.UTC,
+    timeZone: ZoneId = ZoneId.systemDefault(),
 )
 ```
+
+`timeZone` 缺省时在构造查询的 JVM 上读取当前系统时区。JSON Schema/OpenAPI 无法把动态系统值写成固定 default literal，因此通过字段说明记录该语义；需要跨环境确定结果的请求应显式传入时区。
 
 默认快照时间示例：
 
@@ -308,6 +320,7 @@ Elasticsearch 数值 mapping 默认会在写入阶段拒绝非数值；真实集
 - NUMBER 默认 `MILLISECONDS`。
 - RelativeTimeFilter 三种类型及默认值。
 - DateHistogram DATE、NUMBER及默认值。
+- DateHistogram 缺省 `timeZone` 等于 `ZoneId.systemDefault().id`；跨后端 TCK 显式传入时区以保持环境无关。
 - DateHistogram + STRING、空/非法 `datePattern` 被公共模型拒绝。
 - 不增加旧 FilterExpression/AggregationQuery JSON 兼容测试。
 - Condition 未修改，不增加重复兼容测试；运行现有套件证明回归状态。
@@ -344,6 +357,7 @@ Elasticsearch 数值 mapping 默认会在写入阶段拒绝非数值；真实集
 
 - 验证 JSON Schema 与 OpenAPI 的三分支总联合及 DateHistogram 两分支限制。
 - 更新中英文 `documentation/docs/*/guide/query.md`：解释字段类型声明、默认值、RelativeTime 三种表示、DateHistogram STRING 限制、`snapshotTime` 示例和 epoch-millisecond 桶键。
+- 文档说明 DateHistogram 默认使用当前 JVM 系统时区；跨环境稳定的请求应显式声明 `timeZone`。
 - 将“Elasticsearch 必须映射为 date/date_nanos”改为按 DATE/NUMBER 声明分别说明 mapping 要求。
 
 ## 验证命令
