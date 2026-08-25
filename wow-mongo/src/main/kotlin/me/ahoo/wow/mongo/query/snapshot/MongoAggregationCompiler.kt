@@ -169,13 +169,13 @@ internal class MongoAggregationCompiler(
         val decimal = convert("\$\$integer", "decimal")
         val epochMillis = when (timeUnit) {
             TimeUnit.NANOSECONDS -> Document(
-                "\$trunc",
-                listOf(Document("\$divide", listOf(decimal, Decimal128(1_000_000L)))),
+                "\$floor",
+                Document("\$divide", listOf(decimal, Decimal128(1_000_000L))),
             )
 
             TimeUnit.MICROSECONDS -> Document(
-                "\$trunc",
-                listOf(Document("\$divide", listOf(decimal, Decimal128(1_000L)))),
+                "\$floor",
+                Document("\$divide", listOf(decimal, Decimal128(1_000L))),
             )
 
             TimeUnit.MILLISECONDS -> Document("\$multiply", listOf(decimal, Decimal128(1L)))

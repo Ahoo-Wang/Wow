@@ -308,7 +308,7 @@ DATE 将字段直接交给 `$dateTrunc`，不再生成 `$toDate`。缺失与 nul
 5. 在 `$group` 前排除临时字段为 null 的文档。
 6. 对临时 Date 执行 `$dateTrunc`，最后 `$toLong` 返回桶起点。
 
-比毫秒更细的单位按 `TimeUnit.convert` 语义向零截断；秒、分钟、小时和天使用精确倍率。时区、SECOND 固定间隔、其他 calendar interval，以及 WEEK 的 `startOfWeek: Monday` 保持现有行为。
+比毫秒更细的单位向负无穷取整到 epoch milliseconds，确保 Unix epoch 之前的瞬时不会跨到 `0`；秒、分钟、小时和天使用精确倍率。时区、SECOND 固定间隔、其他 calendar interval，以及 WEEK 的 `startOfWeek: Monday` 保持现有行为。
 
 ## Elasticsearch 字段解析
 
@@ -341,7 +341,7 @@ Number 为每个分组生成请求级 `date` runtime field，名称按 group ind
 - 通过 params 接收解析后的字段名和单位换算参数，不拼接用户输入。
 - 只读取恰好一个 doc value；缺失、空值和多值不 emit。
 - 只接受有限、处于 Long 范围且等于自身整数值的 Number。
-- 比毫秒更细的单位使用整数除法；更粗的单位在乘法前按正 multiplier 显式检查 `Long.MIN_VALUE / multiplier <= value <= Long.MAX_VALUE / multiplier`，越界不 emit，不依赖异常控制流。
+- 比毫秒更细的单位使用 floor 除法；更粗的单位在乘法前按正 multiplier 显式检查 `Long.MIN_VALUE / multiplier <= value <= Long.MAX_VALUE / multiplier`，越界不 emit，不依赖异常控制流。
 - 以 epoch milliseconds 调用 date runtime field 的 `emit(long)`。
 
 runtime field 只加入 `ElasticsearchAggregationPlan.runtimeMappings`。现有 `ElasticsearchAggregationPager` 已在每一次 PIT/composite SearchRequest 上附带该 Map，包括 after-key 后续页，因此不增加新的分页状态或传递层。

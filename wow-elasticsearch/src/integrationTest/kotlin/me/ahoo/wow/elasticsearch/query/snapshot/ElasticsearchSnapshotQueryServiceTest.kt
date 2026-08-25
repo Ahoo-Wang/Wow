@@ -266,6 +266,18 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     }
 
     @Test
+    fun `TEMPORAL_NUMBER sub-millisecond histogram should floor negative epochs`() {
+        indexDocument("negative-micros", mapOf("epoch" to -500L))
+
+        assertEpochBuckets(
+            field = "epoch",
+            timeUnit = TimeUnit.MICROSECONDS,
+            aggregateIds = listOf("negative-micros"),
+            expected = listOf(mapOf("day" to -86_400_000L, "count" to 1L)),
+        )
+    }
+
+    @Test
     fun `TEMPORAL_NUMBER histograms should accept scalar and singleton arrays only`() {
         val epochMillis = 1_767_225_600_000L
         indexDocument(

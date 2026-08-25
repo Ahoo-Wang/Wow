@@ -171,6 +171,30 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     }
 
     @Test
+    fun `TEMPORAL_NUMBER sub-millisecond histogram should floor negative epochs`() {
+        database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
+            .insertOne(
+                Document("_id", "negative-micros")
+                    .append("deleted", false)
+                    .append("state", Document("epochMicros", -500L)),
+            ).toMono().then().test().verifyComplete()
+
+        aggregation {
+            dateHistogram(
+                LogicalField("state.epochMicros", FieldType.Temporal.Number(TimeUnit.MICROSECONDS)),
+                AggregationDateUnit.DAY,
+                "day",
+                ZoneOffset.UTC,
+            )
+            count("count")
+        }.query(snapshotQueryService)
+            .test()
+            .assertNext { row ->
+                row.toMap().assert().isEqualTo(mapOf("day" to -86_400_000L, "count" to 1L))
+            }.verifyComplete()
+    }
+
+    @Test
     fun `minimum and maximum should ignore non-numeric BSON values`() {
         database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
             .insertMany(

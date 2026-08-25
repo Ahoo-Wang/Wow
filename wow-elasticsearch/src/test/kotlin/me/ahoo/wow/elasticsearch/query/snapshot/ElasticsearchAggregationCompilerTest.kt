@@ -258,6 +258,27 @@ class ElasticsearchAggregationCompilerTest {
     }
 
     @Test
+    fun `TEMPORAL_NUMBER sub-millisecond histogram should floor negative epochs`() {
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter, temporalMapping()).compile(
+            aggregation {
+                dateHistogram(
+                    LogicalField("state.epoch", FieldType.Temporal.Number(TimeUnit.MICROSECONDS)),
+                    AggregationDateUnit.DAY,
+                    "day",
+                    ZoneOffset.UTC,
+                )
+                count("count")
+            },
+        )
+
+        val source = plan.runtimeMappings.getValue("__wow_date_histogram_0").script()!!.source()!!.scriptString()
+        source.assert()
+            .contains("long quotient=value/divisor")
+            .contains("value<0L&&value%divisor!=0L")
+            .contains("emit(quotient)")
+    }
+
+    @Test
     fun `runtime date name should retain original group index after sorting`() {
         val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter, mapping = null).compile(
             aggregation {

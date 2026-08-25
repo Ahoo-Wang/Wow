@@ -411,7 +411,7 @@ The root `snapshotTime` field is stored as epoch milliseconds, so records can be
 
 Date bucket keys remain epoch milliseconds at the start of each bucket. `DATE_HISTOGRAM` accepts only untyped, `DATE`, and `TEMPORAL_NUMBER` fields; it rejects `TEMPORAL_STRING`.
 
-MongoDB uses native BSON `Date` values for `DATE`; `TEMPORAL_NUMBER` values are normalized from their declared unit to dates before bucketing. Exactly one numeric value is accepted, either a scalar or a singleton array; empty and multi-valued arrays do not form buckets. In Elasticsearch, `DATE` uses the native mapped `date` or `date_nanos` field directly and creates no runtime field. `TEMPORAL_NUMBER` requires numeric doc values and is converted through a request-level runtime `date` field. `TEMPORAL_STRING` has no date-histogram support.
+MongoDB uses native BSON `Date` values for `DATE`; `TEMPORAL_NUMBER` values are normalized from their declared unit to dates before bucketing. Negative microsecond and nanosecond epochs are floored to the preceding millisecond. Exactly one numeric value is accepted, either a scalar or a singleton array; empty and multi-valued arrays do not form buckets. In Elasticsearch, `DATE` uses the native mapped `date` or `date_nanos` field directly and creates no runtime field. `TEMPORAL_NUMBER` requires numeric doc values and is converted through a request-level runtime `date` field. `TEMPORAL_STRING` has no date-histogram support.
 
 ##### Expand a collection and select Top-N
 

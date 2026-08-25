@@ -105,6 +105,27 @@ class MongoAggregationCompilerTest {
     }
 
     @Test
+    fun `TEMPORAL_NUMBER sub-millisecond histogram should floor negative epochs`() {
+        val setStage = MongoAggregationCompiler(SnapshotFilterConverter).compile(
+            aggregation {
+                dateHistogram(
+                    LogicalField("state.epoch", FieldType.Temporal.Number(TimeUnit.MICROSECONDS)),
+                    AggregationDateUnit.DAY,
+                    "day",
+                    ZoneOffset.UTC,
+                )
+                count("count")
+            },
+        ).first { it.toBsonDocument().containsKey("\$set") }
+            .toBsonDocument()
+            .toJson()
+
+        setStage.assert()
+            .contains("\"\$floor\"")
+            .doesNotContain("\"\$trunc\"")
+    }
+
+    @Test
     fun `compiler should unwind and filter every relative element`() {
         val query = aggregation {
             expand("state.orders") { "status" eq "PAID" }

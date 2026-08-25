@@ -58,7 +58,11 @@ private const val NUMERIC_DATE_SCRIPT =
         "if(value<=Long.MAX_VALUE/multiplier&&value>=Long.MIN_VALUE/multiplier){" +
         "emit(value*multiplier);" +
         "}" +
-        "}else{emit(value/divisor);}" +
+        "}else{" +
+        "long quotient=value/divisor;" +
+        "if(value<0L&&value%divisor!=0L){quotient-=1L;}" +
+        "emit(quotient);" +
+        "}" +
         "}" +
         "}" +
         "}"
