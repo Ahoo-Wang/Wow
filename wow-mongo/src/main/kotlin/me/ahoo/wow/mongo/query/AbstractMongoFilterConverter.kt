@@ -155,7 +155,12 @@ abstract class AbstractMongoFilterConverter(
             compile(filter.predicate, parent = null, mapField = false),
         )
         is SearchFilter -> Filters.text(
-            if (filter.mode == SearchMode.PHRASE) "\"${filter.query}\"" else filter.query,
+            if (filter.mode == SearchMode.PHRASE) {
+                require('"' !in filter.query) { "MongoDB PHRASE search query cannot contain double quotes." }
+                "\"${filter.query}\""
+            } else {
+                filter.query
+            },
         )
         is TodayFilter,
         is BeforeTodayFilter,

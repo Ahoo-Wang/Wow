@@ -14,6 +14,7 @@ import me.ahoo.wow.serialization.state.StateAggregateRecords
 import org.bson.conversions.Bson
 import org.bson.types.ObjectId
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
@@ -192,6 +193,13 @@ class SnapshotFilterConverterTest {
     fun `match none should absorb the default deletion scope`() {
         SnapshotFilterConverter.convert(MatchNoneFilter).toBsonDocument().assert()
             .isEqualTo(org.bson.Document("\$expr", false).toBsonDocument())
+    }
+
+    @Test
+    fun `mongo phrase search should reject embedded quotes`() {
+        assertThrows<IllegalArgumentException> {
+            SnapshotFilterConverter.convert(SearchFilter("event \"sourcing\"", mode = SearchMode.PHRASE))
+        }
     }
 
     @ParameterizedTest
