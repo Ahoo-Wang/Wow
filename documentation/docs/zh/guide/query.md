@@ -245,7 +245,7 @@ val query = aggregation {
 
 聚合复用现有快照过滤链：ABAC 与路由 filter 仍会追加到根 filter。Masking filter 会忽略聚合查询，因此已配置的 masker 不会拒绝或重写聚合结果。
 
-Wow 只校验请求结构，不校验字段是否存在、路径是否为集合或物理字段类型；不会维护聚合字段目录，也不会使用 `TypeFieldPaths` 做校验。数值指标支持字段、有限常量和加、减、乘、除。对于包含 `Constant` 或 `Binary` 的计算表达式，缺失、非数值、多值、除零或非有限中间结果不贡献指标；纯 `Field` 表达式继续保留后端原生字段聚合、错误和多值语义。自定义 Jackson serializer、后端 filter converter 或 Elasticsearch mapping 不保证跨后端等价。首期不包含 Batch 聚合。
+Wow 只校验请求结构，不校验字段是否存在、路径是否为集合或物理字段类型；不会维护聚合字段目录，也不会使用 `TypeFieldPaths` 做校验。数值指标支持字段、有限常量和加、减、乘、除。对于包含 `Constant` 或 `Binary` 的计算表达式，数值标量或单元素数值数组贡献一个值；缺失、非数值、空数组、多值、除零或非有限中间结果不贡献指标。纯 `Field` 表达式继续保留后端原生字段聚合、错误和多值语义。自定义 Jackson serializer、后端 filter converter 或 Elasticsearch mapping 不保证跨后端等价。首期不包含 Batch 聚合。
 
 HTTP 端点为 `POST /{aggregate}/snapshot/aggregation`。tenant、owner 或 space 作用域的聚合会在前面增加各自的路由前缀；以运行实例的 OpenAPI 路径为准。JSON 响应是动态对象数组；SSE 逐个流式返回对象。OpenAPI 为每个聚合发布专属 `AggregationQuery` request body，其 `x-wow-query-fields` 引用该聚合的 `*AggregatedFields` 组件，JSON schema 仍使用通用 `AggregationQuery` 合同；表达式是以 `type` 为 discriminator 的递归 `oneOf`。
 

@@ -11,7 +11,7 @@ Wow 8.12 的 `AggregationQuery` 已支持 Elements 展开、分组和 Count、Su
 - 数值指标支持字段、有限数值常量以及 `+`、`-`、`*`、`/` 递归组合。
 - 表达式只作为 Sum、Avg、Min、Max 的输入，不改变分组模型。
 - MongoDB 与 Elasticsearch 对计算表达式返回相同的有限 `Double` 结果合同。
-- 缺失、`null`、非数值、多值、除零或非有限表达式结果不参与指标计算。
+- 缺失、`null`、非数值、空数组、多元素数组、除零或非有限表达式结果不参与指标计算。
 - 保持现有字段表达式 JSON、Kotlin DSL 和纯字段执行路径兼容。
 - 复用现有结构限制、HTTP expensive guard、OpenAPI 和双后端 TCK。
 
@@ -118,8 +118,8 @@ JSON 不接受非有限数值。未知 `type`、未知属性或缺少 `Binary` �
 
 - 没有 Elements 时，`Field` 使用快照绝对逻辑路径。
 - 有 Elements 时，`Field` 相对最内层 Element，后端先解析为绝对物理路径。
-- 每个字段操作数必须在当前文档中恰好产生一个数值标量。
-- 缺失、`null`、字符串、布尔值、对象、数组或多值字段不产生表达式值。
+- 每个字段操作数必须在当前文档中恰好产生一个数值；数值标量和单元素数值数组等价。
+- 缺失、`null`、字符串、布尔值、对象、空数组或多元素数组不产生表达式值。
 - 所有字段值和常量在运算前统一为 `Double`。
 - 任一操作数没有值时，当前 `Binary` 没有值。
 - `DIVIDE` 的右值为 `0.0` 或 `-0.0` 时，当前 `Binary` 没有值。
@@ -184,7 +184,7 @@ val query = aggregation {
 
 每个编译节点返回“有限 `Double` 或 `null`”：
 
-- `Field` 先按 Element 作用域解析，再通过数值检查和安全转换拒绝非数值、数组、转换错误与非有限值。
+- `Field` 先按 Element 作用域解析，解包单元素数组，再通过数值检查和安全转换拒绝非数值、空数组、多元素数组、转换错误与非有限值。
 - `Constant` 直接写入有限 Double 字面量。
 - `Binary` 只在左右值均有效时执行运算。
 - `DIVIDE` 在进入 `$divide` 前判断除数是否为零。
@@ -240,7 +240,7 @@ Schema 使用 `type` discriminator。`Binary.left` 与 `Binary.right` 引用通�
 
 - 非有限常量、表达式过深、节点过多或程序内未知表达式实现使用 `IllegalArgumentException`，由现有 HTTP ErrorHandler 转换。
 - 未知 JSON subtype 和格式错误由现有严格反序列化拒绝。
-- 计算表达式中的缺失、非数值、多值、除零和非有限结果按“无值”处理，不记录逐文档错误。
+- 计算表达式中的缺失、非数值、空数组、多元素数组、除零和非有限结果按“无值”处理，不记录逐文档错误。
 - Painless 编译失败、生成脚本缺陷、后端请求失败等设计外错误直接传播，不降级为空结果。
 - 纯 `Field` 指标继续保留现有后端错误和结果语义。
 - 不统一 MongoDB 与 Elasticsearch 的错误文本。
@@ -257,7 +257,7 @@ Schema 使用 `type` discriminator。`Binary.left` 与 `Binary.right` 引用通�
 ### MongoDB
 
 - 编译器测试覆盖四种运算、递归组合、Element 相对字段和有限 Double 保护。
-- 覆盖缺失、`null`、非数值、数组、除零和非有限中间结果。
+- 覆盖缺失、`null`、非数值、单元素数值数组、空数组、多元素数组、除零和非有限中间结果。
 - 验证 companion count 与 accumulator 使用同一表达式有值合同。
 - 集成测试执行真实 pipeline，不只比较 BSON 文本。
 
@@ -275,7 +275,7 @@ Schema 使用 `type` discriminator。`Binary.left` 与 `Binary.right` 引用通�
 - `SUM(price * quantity - discount)`。
 - 同一递归表达式用于 Avg、Min、Max。
 - Elements 最内层相对字段解析。
-- 缺失、`null`、非数值、数组和除零文档被忽略。
+- 单元素数值数组参与计算；缺失、`null`、非数值、空数组、多元素数组和除零文档被忽略。
 - 全部文档无有效表达式值时返回 `null`。
 
 `wow-webflux` 验证 expensive guard；`wow-openapi` 和 schema 快照验证递归联合类型；中英文查询文档增加一个算术表达式示例及空值语义说明。

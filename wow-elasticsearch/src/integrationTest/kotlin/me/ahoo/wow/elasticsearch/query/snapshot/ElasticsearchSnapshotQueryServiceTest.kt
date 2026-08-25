@@ -79,6 +79,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                                                     .properties("productId") { it.keyword { keyword -> keyword } }
                                                     .properties("quantity") { it.integer { number -> number } }
                                                     .properties("amount") { it.double_ { number -> number } }
+                                                    .properties("samples") { it.double_ { number -> number } }
                                                     .properties("createdAt") { it.date { date -> date } }
                                                     .properties("discounts") { discounts ->
                                                         discounts.nested { discountsNested ->

@@ -95,6 +95,14 @@ class WowSchemaNamingStrategy @JvmOverloads constructor(
         return key.type.toSchemaName(defaultSchemaNamePrefix).also { onDefinitionName(key, it) }
     }
 
+    override fun adjustDuplicateNames(
+        duplicateNames: MutableMap<DefinitionKey, String>,
+        generationContext: SchemaGenerationContext,
+    ) {
+        super.adjustDuplicateNames(duplicateNames, generationContext)
+        duplicateNames.forEach(onDefinitionName)
+    }
+
     override fun adjustNullableName(
         key: DefinitionKey?,
         definitionName: String?,

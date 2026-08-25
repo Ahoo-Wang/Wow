@@ -243,7 +243,6 @@ abstract class SnapshotQueryServiceSpec {
             sum(field("amount") / (field("quantity") - constant(2.0)), "safeDivision")
             sum(field("quantity") / (field("quantity") - field("quantity")), "zeroDivision")
             sum(field("productId") * constant(1.0), "text")
-            sum(field("discounts.amount") * constant(1.0), "multiValue")
             sum(field("missing") * constant(1.0), "missing")
             sum(constant(Double.MAX_VALUE) * constant(2.0), "overflow")
         }.query(snapshotQueryService)
@@ -254,12 +253,25 @@ abstract class SnapshotQueryServiceSpec {
                         "safeDivision" to 5.0,
                         "zeroDivision" to null,
                         "text" to null,
-                        "multiValue" to null,
                         "missing" to null,
                         "overflow" to null,
                     ),
                 )
             }.verifyComplete()
+    }
+
+    @Test
+    fun `aggregation should accept singleton and ignore multi-valued numeric arrays`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+
+        aggregation {
+            expand("state.orders")
+            expand("lines")
+            sum(field("samples") * constant(1.0), "total")
+        }.query(snapshotQueryService)
+            .test()
+            .assertNext { it.toMap().assert().isEqualTo(mapOf("total" to 7.0)) }
+            .verifyComplete()
     }
 
     @Test
@@ -490,6 +502,7 @@ abstract class SnapshotQueryServiceSpec {
                                 MockDiscount("LOYALTY", 1.0),
                                 MockDiscount("PROMO", 2.0),
                             ),
+                            samples = listOf(7.0),
                         ),
                         MockLine(
                             productId = "beta",
@@ -497,6 +510,7 @@ abstract class SnapshotQueryServiceSpec {
                             amount = 20.0,
                             createdAt = Instant.parse("2026-01-02T10:00:00Z"),
                             discounts = listOf(MockDiscount("PROMO", 3.0)),
+                            samples = listOf(3.0, 4.0),
                         ),
                     ),
                 ),

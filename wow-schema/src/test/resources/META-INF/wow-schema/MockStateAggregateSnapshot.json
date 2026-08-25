@@ -111,6 +111,13 @@
                     "quantity" : {
                       "type" : "integer",
                       "format" : "int32"
+                    },
+                    "samples" : {
+                      "type" : "array",
+                      "items" : {
+                        "type" : "number",
+                        "format" : "double"
+                      }
                     }
                   },
                   "required" : [ "amount", "createdAt", "discounts", "productId", "quantity" ]

@@ -141,14 +141,21 @@ internal class MongoAggregationCompiler(
     private fun AggregationExpression.toMongoExpression(parent: String?): Any = when (this) {
         is AggregationExpression.Field -> {
             val field = field.resolve(parent)
+            val fieldReference = "\$$field"
+            val isSingleton = Document("\$eq", listOf(Document("\$size", fieldReference), 1))
+            val singleton = Document(
+                "\$cond",
+                listOf(isSingleton, Document("\$arrayElemAt", listOf(fieldReference, 0)), null),
+            )
+            val value = Document("\$cond", listOf(Document("\$isArray", fieldReference), singleton, fieldReference))
             finiteDouble(
                 Document(
                     "\$cond",
                     listOf(
-                        Document("\$isNumber", "\$$field"),
+                        Document("\$isNumber", value),
                         Document(
                             "\$convert",
-                            Document("input", "\$$field")
+                            Document("input", value)
                                 .append("to", "double")
                                 .append("onError", null)
                                 .append("onNull", null),

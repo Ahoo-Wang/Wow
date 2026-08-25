@@ -77,11 +77,32 @@ class OpenAPISchemaBuilderTest {
             )
         expressionSchema.anyOf.assert().isNull()
         expressionSchema.discriminator.propertyName.assert().isEqualTo("type")
+        expressionSchema.discriminator.mapping.assert().isEqualTo(
+            mapOf(
+                "FIELD" to "#/components/schemas/wow.api.query.AggregationExpression.Field",
+                "CONSTANT" to "#/components/schemas/wow.api.query.AggregationExpression.Constant",
+                "BINARY" to "#/components/schemas/wow.api.query.AggregationExpression.Binary",
+            ),
+        )
         schemas.getValue("wow.api.query.AggregationMetric.Numeric")
             .properties.getValue("expression").`$ref`.assert().isEqualTo(expressionRef)
         val binary = schemas.getValue("wow.api.query.AggregationExpression.Binary")
         binary.properties.getValue("left").`$ref`.assert().isEqualTo(expressionRef)
         binary.properties.getValue("right").`$ref`.assert().isEqualTo(expressionRef)
+    }
+
+    @Test
+    fun `should retain annotations after resolving duplicate schema names`() {
+        val openAPISchemaBuilder = OpenAPISchemaBuilder()
+        openAPISchemaBuilder.generateSchema(FirstCollidingUnion::class.java)
+        openAPISchemaBuilder.generateSchema(SecondCollidingUnion::class.java)
+
+        val collidingSchemas = openAPISchemaBuilder.build()
+            .filterKeys { it.contains("CollidingUnion") }
+
+        collidingSchemas.assert().hasSize(2)
+        collidingSchemas.values.mapNotNull { it.discriminator?.propertyName }.assert()
+            .containsExactlyInAnyOrder("firstType", "secondType")
     }
 
     @Test
@@ -205,3 +226,13 @@ open class InheritedUnionParent
 class InheritedUnionChild : InheritedUnionParent()
 
 class InheritedUnionOption
+
+@Schema(name = "CollidingUnion", oneOf = [FirstCollidingOption::class], discriminatorProperty = "firstType")
+class FirstCollidingUnion
+
+class FirstCollidingOption
+
+@Schema(name = "CollidingUnion", oneOf = [SecondCollidingOption::class], discriminatorProperty = "secondType")
+class SecondCollidingUnion
+
+class SecondCollidingOption
