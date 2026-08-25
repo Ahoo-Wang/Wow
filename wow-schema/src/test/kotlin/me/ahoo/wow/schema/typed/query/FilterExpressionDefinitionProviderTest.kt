@@ -47,4 +47,33 @@ class FilterExpressionDefinitionProviderTest {
 
         schema.validate(filter).assert().isEmpty()
     }
+
+    @Test
+    fun `filter schema should publish extended relative calendar operators`() {
+        val schemaDocument = WowSchemaLoader.load(FilterExpression::class.java)
+        val definitions = schemaDocument.path("definitions")
+        val expected = linkedMapOf(
+            "yesterday" to "YESTERDAY",
+            "nextMonth" to "NEXT_MONTH",
+            "lastYear" to "LAST_YEAR",
+            "thisYear" to "THIS_YEAR",
+            "nextYear" to "NEXT_YEAR",
+        )
+
+        listOf("filterExpression", "elementPredicate").forEach { unionName ->
+            val references = definitions.path(unionName).path("oneOf").toList()
+                .map { it.path("\$ref").stringValue() }
+            expected.keys.forEach { name -> references.assert().contains("#/definitions/$name") }
+        }
+
+        val schema = SchemaRegistry.withDefaultDialect(SpecificationVersion.DRAFT_7)
+            .getSchema(schemaDocument)
+        val mapper = JsonMapper.builder().build()
+        expected.values.forEach { operator ->
+            val filter = mapper.readTree(
+                """{"op":"$operator","field":"state.createdAt","zoneId":"UTC","datePattern":"yyyy-MM-dd"}""",
+            )
+            schema.validate(filter).assert().isEmpty()
+        }
+    }
 }
