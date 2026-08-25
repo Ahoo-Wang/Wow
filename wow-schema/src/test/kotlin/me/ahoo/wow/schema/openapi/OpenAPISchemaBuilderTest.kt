@@ -67,12 +67,15 @@ class OpenAPISchemaBuilderTest {
         openAPISchemaBuilder.generateSchema(AggregationQuery::class.java)
 
         val schemas = openAPISchemaBuilder.build()
-        schemas.getValue("wow.api.query.AggregationExpression").anyOf.map { it.`$ref` }.assert()
+        val expressionSchema = schemas.getValue("wow.api.query.AggregationExpression")
+        expressionSchema.oneOf.map { it.`$ref` }.assert()
             .containsExactlyInAnyOrder(
                 "#/components/schemas/wow.api.query.AggregationExpression.Field",
                 "#/components/schemas/wow.api.query.AggregationExpression.Constant",
                 "#/components/schemas/wow.api.query.AggregationExpression.Binary",
             )
+        expressionSchema.anyOf.assert().isNull()
+        expressionSchema.discriminator.propertyName.assert().isEqualTo("type")
         schemas.getValue("wow.api.query.AggregationMetric.Numeric")
             .properties.getValue("expression").`$ref`.assert().isEqualTo(expressionRef)
         val binary = schemas.getValue("wow.api.query.AggregationExpression.Binary")

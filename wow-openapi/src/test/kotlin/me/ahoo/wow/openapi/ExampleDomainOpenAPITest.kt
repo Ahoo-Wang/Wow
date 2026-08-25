@@ -155,11 +155,13 @@ internal class ExampleDomainOpenAPITest {
             openAPI.components.schemas.getValue("wow.api.query.AggregationMetric.Numeric")
                 .properties.getValue("expression").`$ref`.assert().isEqualTo(expressionRef)
             val expressionSchema = openAPI.components.schemas.getValue("wow.api.query.AggregationExpression")
-            expressionSchema.anyOf.map { it.`$ref` }.assert().containsExactlyInAnyOrder(
+            expressionSchema.oneOf.map { it.`$ref` }.assert().containsExactlyInAnyOrder(
                 "#/components/schemas/wow.api.query.AggregationExpression.Field",
                 "#/components/schemas/wow.api.query.AggregationExpression.Constant",
                 "#/components/schemas/wow.api.query.AggregationExpression.Binary",
             )
+            expressionSchema.anyOf.assert().isNull()
+            expressionSchema.discriminator.propertyName.assert().isEqualTo("type")
             val binarySchema = openAPI.components.schemas.getValue("wow.api.query.AggregationExpression.Binary")
             binarySchema.properties.getValue("left").`$ref`.assert().isEqualTo(expressionRef)
             binarySchema.properties.getValue("right").`$ref`.assert().isEqualTo(expressionRef)

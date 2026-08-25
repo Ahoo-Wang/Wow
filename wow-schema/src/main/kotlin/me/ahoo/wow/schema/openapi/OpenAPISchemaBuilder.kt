@@ -21,7 +21,9 @@ import me.ahoo.wow.schema.SchemaGeneratorBuilder
 import me.ahoo.wow.schema.naming.DefaultSchemaNamePrefixCapable
 import me.ahoo.wow.schema.naming.SchemaNamingModule
 import tools.jackson.databind.JsonNode
+import tools.jackson.databind.node.ObjectNode
 import java.lang.reflect.Type
+import io.swagger.v3.oas.annotations.media.Schema as SchemaAnnotation
 
 class OpenAPISchemaBuilder(
     override val defaultSchemaNamePrefix: String = "",
@@ -32,8 +34,20 @@ class OpenAPISchemaBuilder(
         const val DEFAULT_DEFINITION_PATH = "components/schemas"
     }
 
+    private val schemaAnnotations = mutableMapOf<String, SchemaAnnotation>()
     private val schemaGenerator: SchemaGenerator = schemaGeneratorBuilder
-        .schemaNamingModule(SchemaNamingModule(defaultSchemaNamePrefix))
+        .schemaNamingModule(
+            SchemaNamingModule(
+                defaultSchemaNamePrefix = defaultSchemaNamePrefix,
+                onDefinitionName = { key, name ->
+                    key.type.erasedType
+                        .getAnnotation(
+                            SchemaAnnotation::class.java,
+                        )
+                        ?.let { schemaAnnotations[name] = it }
+                },
+            ),
+        )
         .build()
     private val typeContext: TypeContext = schemaGeneratorBuilder.requiredTypeContent
 
@@ -65,7 +79,18 @@ class OpenAPISchemaBuilder(
         schemaReferences.mergeAll()
         return collectedDefs.properties().associate { (name, node) ->
             StandaloneSchemaEmbeddingRebaser.rebase(node, name, definitionPath)
+            (node as? ObjectNode)?.let { normalizeSchemaAnnotation(it, schemaAnnotations[name]) }
             name to schemaConverter.toSchema(node)
+        }
+    }
+
+    private fun normalizeSchemaAnnotation(node: ObjectNode, annotation: SchemaAnnotation?) {
+        if (annotation == null) return
+        if (annotation.oneOf.isNotEmpty()) {
+            node.remove("anyOf")?.let { node.set("oneOf", it) }
+        }
+        annotation.discriminatorProperty.takeIf(String::isNotBlank)?.let { propertyName ->
+            node.putObject("discriminator").put("propertyName", propertyName)
         }
     }
 }

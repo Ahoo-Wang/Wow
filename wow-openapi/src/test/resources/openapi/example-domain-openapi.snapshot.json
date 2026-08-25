@@ -4316,7 +4316,10 @@
         "type" : "object"
       },
       "wow.api.query.AggregationExpression" : {
-        "anyOf" : [ {
+        "discriminator" : {
+          "propertyName" : "type"
+        },
+        "oneOf" : [ {
           "$ref" : "#/components/schemas/wow.api.query.AggregationExpression.Binary"
         }, {
           "$ref" : "#/components/schemas/wow.api.query.AggregationExpression.Constant"
