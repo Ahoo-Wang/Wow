@@ -14,12 +14,12 @@ KSP metadata → Spring auto-configuration → HTTP command → aggregate → ev
 
 ## Version Baseline
 
-These versions match the current Wow `8.12.1` source baseline:
+These versions match the current Wow `8.12.2` source baseline:
 
 | Component | Version |
 | --- | --- |
 | JDK | 17+ |
-| Wow | `8.12.1` |
+| Wow | `8.12.2` |
 | Spring Boot | `4.1.1` |
 | Kotlin | `2.4.10` |
 | KSP | `2.3.11` |
@@ -51,8 +51,8 @@ repositories {
 
 dependencies {
     implementation(platform("org.springframework.boot:spring-boot-dependencies:4.1.1"))
-    implementation(platform("me.ahoo.wow:wow-bom:8.12.1"))
-    ksp(platform("me.ahoo.wow:wow-bom:8.12.1"))
+    implementation(platform("me.ahoo.wow:wow-bom:8.12.2"))
+    ksp(platform("me.ahoo.wow:wow-bom:8.12.2"))
 
     ksp("me.ahoo.wow:wow-compiler")
     implementation("me.ahoo.wow:wow-spring-boot-starter")
