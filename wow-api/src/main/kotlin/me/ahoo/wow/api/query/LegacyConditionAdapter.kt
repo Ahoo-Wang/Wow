@@ -120,8 +120,8 @@ private val Condition.logicalField: LogicalField
     get() {
         val type = when (val format = options[Condition.DATE_PATTERN_OPTION_KEY]) {
             null -> null
-            is String -> FieldType.Temporal.FormattedString(datePattern = format)
-            is DateTimeFormatter -> FieldType.Temporal.FormattedString(dateFormatter = format)
+            is String -> FieldType.Temporal.String(datePattern = format)
+            is DateTimeFormatter -> FieldType.Temporal.String(dateFormatter = format)
             else -> error("Unsupported datePattern option: ${format::class.java.name}.")
         }
         return LogicalField(field, type)

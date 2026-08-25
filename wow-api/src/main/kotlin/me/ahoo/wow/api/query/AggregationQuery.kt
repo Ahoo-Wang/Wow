@@ -149,7 +149,7 @@ sealed interface AggregationGroup {
 
     data class DateHistogram(
         @get:Schema(
-            description = "Untyped temporal fields default to NumericEpoch(MILLISECONDS); " +
+            description = "Untyped temporal fields default to Number(MILLISECONDS); " +
                 "only untyped, DATE, and TEMPORAL_NUMBER fields are supported.",
         )
         override val field: LogicalField,
@@ -159,7 +159,7 @@ sealed interface AggregationGroup {
     ) : AggregationGroup {
         init {
             requireAggregationAlias(alias)
-            require(field.temporalTypeOrDefault() !is FieldType.Temporal.FormattedString) {
+            require(field.temporalTypeOrDefault() !is FieldType.Temporal.String) {
                 "DateHistogram does not support TEMPORAL_STRING fields."
             }
             ZoneId.of(timeZone)

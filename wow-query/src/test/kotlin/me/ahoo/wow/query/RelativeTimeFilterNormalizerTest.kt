@@ -50,7 +50,7 @@ class RelativeTimeFilterNormalizerTest {
             TodayFilter(
                 LogicalField(
                     "createdAt",
-                    FieldType.Temporal.NumericEpoch(TimeUnit.SECONDS),
+                    FieldType.Temporal.Number(TimeUnit.SECONDS),
                 ),
                 zoneId = "UTC",
             ),
@@ -69,7 +69,7 @@ class RelativeTimeFilterNormalizerTest {
             TodayFilter(
                 LogicalField(
                     "createdAt",
-                    FieldType.Temporal.FormattedString(datePattern = "yyyy-MM-dd HH:mm:ss"),
+                    FieldType.Temporal.String(datePattern = "yyyy-MM-dd HH:mm:ss"),
                 ),
                 zoneId = "UTC",
             ),
@@ -89,7 +89,7 @@ class RelativeTimeFilterNormalizerTest {
             TodayFilter(
                 LogicalField(
                     "createdAt",
-                    FieldType.Temporal.FormattedString(dateFormatter = formatter),
+                    FieldType.Temporal.String(dateFormatter = formatter),
                 ),
             ),
             now,
@@ -105,7 +105,7 @@ class RelativeTimeFilterNormalizerTest {
             BeforeTodayFilter(
                 field = LogicalField(
                     "createdAt",
-                    FieldType.Temporal.NumericEpoch(TimeUnit.NANOSECONDS),
+                    FieldType.Temporal.Number(TimeUnit.NANOSECONDS),
                 ),
                 time = "12:00:00.123456789",
                 zoneId = "UTC",

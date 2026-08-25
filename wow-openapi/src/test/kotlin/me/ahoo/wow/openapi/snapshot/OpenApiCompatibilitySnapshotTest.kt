@@ -119,22 +119,22 @@ internal class OpenApiCompatibilitySnapshotTest {
             .isEqualTo("type")
         temporal.path("oneOf").map { it.path("\$ref").asText() }.assert().containsExactly(
             "#/components/schemas/wow.api.query.FieldType.Temporal.Date",
-            "#/components/schemas/wow.api.query.FieldType.Temporal.NumericEpoch",
-            "#/components/schemas/wow.api.query.FieldType.Temporal.FormattedString",
+            "#/components/schemas/wow.api.query.FieldType.Temporal.Number",
+            "#/components/schemas/wow.api.query.FieldType.Temporal.String",
         )
         val mapping = temporal.path("discriminator").path("mapping")
         mapping.fieldNames().asSequence().toList().assert()
             .containsExactly("DATE", "TEMPORAL_NUMBER", "TEMPORAL_STRING")
         mapping.toList().map { it.asText() }.assert().containsExactly(
             "#/components/schemas/wow.api.query.FieldType.Temporal.Date",
-            "#/components/schemas/wow.api.query.FieldType.Temporal.NumericEpoch",
-            "#/components/schemas/wow.api.query.FieldType.Temporal.FormattedString",
+            "#/components/schemas/wow.api.query.FieldType.Temporal.Number",
+            "#/components/schemas/wow.api.query.FieldType.Temporal.String",
         )
 
         val leafSchemas = linkedMapOf(
             "wow.api.query.FieldType.Temporal.Date" to "DATE",
-            "wow.api.query.FieldType.Temporal.NumericEpoch" to "TEMPORAL_NUMBER",
-            "wow.api.query.FieldType.Temporal.FormattedString" to "TEMPORAL_STRING",
+            "wow.api.query.FieldType.Temporal.Number" to "TEMPORAL_NUMBER",
+            "wow.api.query.FieldType.Temporal.String" to "TEMPORAL_STRING",
         )
         leafSchemas.forEach { (schemaName, subtypeId) ->
             val leaf = schemas.path(schemaName)
@@ -142,10 +142,10 @@ internal class OpenApiCompatibilitySnapshotTest {
             leaf.path("properties").path("type").path("const").asText().assert()
                 .isEqualTo(subtypeId)
         }
-        schemas.path("wow.api.query.FieldType.Temporal.NumericEpoch")
+        schemas.path("wow.api.query.FieldType.Temporal.Number")
             .path("properties").path("timeUnit").path("default").asText().assert()
             .isEqualTo("MILLISECONDS")
-        val formattedString = schemas.path("wow.api.query.FieldType.Temporal.FormattedString")
+        val formattedString = schemas.path("wow.api.query.FieldType.Temporal.String")
         formattedString.path("required").map { it.asText() }.assert()
             .contains("type", "datePattern")
         val datePattern = formattedString.path("properties").path("datePattern")

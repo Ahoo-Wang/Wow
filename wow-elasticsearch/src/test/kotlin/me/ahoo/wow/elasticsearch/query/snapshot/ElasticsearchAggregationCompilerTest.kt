@@ -173,7 +173,7 @@ class ElasticsearchAggregationCompilerTest {
                 dateHistogram(
                     LogicalField(
                         "state.epoch",
-                        FieldType.Temporal.NumericEpoch(TimeUnit.SECONDS),
+                        FieldType.Temporal.Number(TimeUnit.SECONDS),
                     ),
                     AggregationDateUnit.DAY,
                     "day",
@@ -205,7 +205,7 @@ class ElasticsearchAggregationCompilerTest {
         val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter, temporalMapping()).compile(
             aggregation {
                 dateHistogram(
-                    LogicalField("state.epoch", FieldType.Temporal.NumericEpoch()),
+                    LogicalField("state.epoch", FieldType.Temporal.Number()),
                     AggregationDateUnit.DAY,
                     "day",
                     ZoneOffset.UTC,
@@ -242,7 +242,7 @@ class ElasticsearchAggregationCompilerTest {
             val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter, temporalMapping()).compile(
                 aggregation {
                     dateHistogram(
-                        LogicalField("state.epoch", FieldType.Temporal.NumericEpoch(timeUnit)),
+                        LogicalField("state.epoch", FieldType.Temporal.Number(timeUnit)),
                         AggregationDateUnit.DAY,
                         "day",
                         ZoneOffset.UTC,
@@ -265,7 +265,7 @@ class ElasticsearchAggregationCompilerTest {
                 dateHistogram(
                     LogicalField(
                         "state.epoch",
-                        FieldType.Temporal.NumericEpoch(TimeUnit.MILLISECONDS),
+                        FieldType.Temporal.Number(TimeUnit.MILLISECONDS),
                     ),
                     AggregationDateUnit.DAY,
                     "day",

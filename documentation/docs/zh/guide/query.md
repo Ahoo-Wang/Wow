@@ -56,7 +56,7 @@ description: 使用 FilterExpression、查询 DSL 与 REST API 查询快照和�
 }
 ```
 
-`FieldType` 根级当前只有 `Temporal`。其 JSON 判别值为 `DATE`、`TEMPORAL_NUMBER` 和 `TEMPORAL_STRING`。Kotlin 叶子类型仍名为 `Date`、`NumericEpoch` 与 `FormattedString`；JSON 不接受 `NUMBER` 或 `STRING` 作为判别值。未标注类型的时间字段默认使用 `NumericEpoch(MILLISECONDS)`。
+`FieldType` 根级当前只有 `Temporal`。其 JSON 判别值为 `DATE`、`TEMPORAL_NUMBER` 和 `TEMPORAL_STRING`。Kotlin 叶子类型仍名为 `Date`、`Number` 与 `String`；JSON 不接受 `NUMBER` 或 `STRING` 作为判别值。未标注类型的时间字段默认使用 `Number(MILLISECONDS)`。
 
 相对时间操作支持三种时间表示：`DATE` 使用原生日期，`TEMPORAL_NUMBER` 使用声明的 `java.util.concurrent.TimeUnit`，`TEMPORAL_STRING` 使用 `datePattern`。`datePattern` 遵循 Java `DateTimeFormatter` 语法，不是 MongoDB 或 Elasticsearch 的映射格式字符串。格式化字符串仅支持相对时间过滤器，且存储值必须使用相同模式，并保证字典序与时间顺序一致。
 

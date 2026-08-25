@@ -153,7 +153,7 @@ internal class RelativeTimeFilterNormalizer(
                 Instant.ofEpochMilli(dateTime.atZone(zoneId).toInstant().toEpochMilli()),
             )
 
-            is FieldType.Temporal.NumericEpoch -> dateTime.atZone(zoneId).toInstant().let { instant ->
+            is FieldType.Temporal.Number -> dateTime.atZone(zoneId).toInstant().let { instant ->
                 JsonNodeFactory.instance.numberNode(
                     Math.addExact(
                         type.timeUnit.convert(instant.epochSecond, TimeUnit.SECONDS),
@@ -162,7 +162,7 @@ internal class RelativeTimeFilterNormalizer(
                 )
             }
 
-            is FieldType.Temporal.FormattedString ->
+            is FieldType.Temporal.String ->
                 JsonNodeFactory.instance.stringNode(type.formatter.format(dateTime.atZone(zoneId)))
         }
 

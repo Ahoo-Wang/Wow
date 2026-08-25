@@ -50,7 +50,7 @@ internal class MongoAggregationCompiler(
 
         val numericDateHistograms = query.groupBy.mapIndexedNotNull { index, group ->
             (group as? AggregationGroup.DateHistogram)
-                ?.takeIf { it.field.temporalTypeOrDefault() is FieldType.Temporal.NumericEpoch }
+                ?.takeIf { it.field.temporalTypeOrDefault() is FieldType.Temporal.Number }
                 ?.let { index to it }
         }
         if (numericDateHistograms.isNotEmpty()) {
@@ -149,8 +149,8 @@ internal class MongoAggregationCompiler(
     private fun AggregationGroup.DateHistogram.dateInput(parent: String?, groupIndex: Int): String =
         when (field.temporalTypeOrDefault()) {
             FieldType.Temporal.Date -> "\$${field.resolve(parent)}"
-            is FieldType.Temporal.NumericEpoch -> "\$${dateHistogramField(groupIndex)}"
-            is FieldType.Temporal.FormattedString -> error("DateHistogram does not support TEMPORAL_STRING fields.")
+            is FieldType.Temporal.Number -> "\$${dateHistogramField(groupIndex)}"
+            is FieldType.Temporal.String -> error("DateHistogram does not support TEMPORAL_STRING fields.")
         }
 
     private fun AggregationGroup.DateHistogram.numericDate(parent: String?): Document {
@@ -165,7 +165,7 @@ internal class MongoAggregationCompiler(
         )
         val raw = Document("\$cond", listOf(Document("\$isArray", fieldReference), singleton, fieldReference))
         val integer = convert(raw, "long")
-        val timeUnit = (field.temporalTypeOrDefault() as FieldType.Temporal.NumericEpoch).timeUnit
+        val timeUnit = (field.temporalTypeOrDefault() as FieldType.Temporal.Number).timeUnit
         val decimal = convert("\$\$integer", "decimal")
         val epochMillis = when (timeUnit) {
             TimeUnit.NANOSECONDS -> Document(

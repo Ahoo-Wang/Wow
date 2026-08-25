@@ -288,7 +288,7 @@ abstract class SnapshotQueryServiceSpec {
             dateHistogram(
                 LogicalField(
                     "snapshotTime",
-                    FieldType.Temporal.NumericEpoch(TimeUnit.MILLISECONDS),
+                    FieldType.Temporal.Number(TimeUnit.MILLISECONDS),
                 ),
                 AggregationDateUnit.DAY,
                 "day",
@@ -313,7 +313,7 @@ abstract class SnapshotQueryServiceSpec {
             dateHistogram(
                 LogicalField(
                     "createdAtEpochSecond",
-                    FieldType.Temporal.NumericEpoch(TimeUnit.SECONDS),
+                    FieldType.Temporal.Number(TimeUnit.SECONDS),
                 ),
                 AggregationDateUnit.DAY,
                 "day",
@@ -344,7 +344,7 @@ abstract class SnapshotQueryServiceSpec {
             dateHistogram(
                 LogicalField(
                     "createdAtEpochMillis",
-                    FieldType.Temporal.NumericEpoch(TimeUnit.MILLISECONDS),
+                    FieldType.Temporal.Number(TimeUnit.MILLISECONDS),
                 ),
                 AggregationDateUnit.DAY,
                 "day",
@@ -388,7 +388,7 @@ abstract class SnapshotQueryServiceSpec {
             dateHistogram(
                 LogicalField(
                     "createdAtEpochMillis",
-                    FieldType.Temporal.NumericEpoch(TimeUnit.MILLISECONDS),
+                    FieldType.Temporal.Number(TimeUnit.MILLISECONDS),
                 ),
                 AggregationDateUnit.WEEK,
                 "week",
@@ -416,7 +416,7 @@ abstract class SnapshotQueryServiceSpec {
             dateHistogram(
                 LogicalField(
                     "createdAtEpochMillis",
-                    FieldType.Temporal.NumericEpoch(TimeUnit.MILLISECONDS),
+                    FieldType.Temporal.Number(TimeUnit.MILLISECONDS),
                 ),
                 AggregationDateUnit.SECOND,
                 "second",

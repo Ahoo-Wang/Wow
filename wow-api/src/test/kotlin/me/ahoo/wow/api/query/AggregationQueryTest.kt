@@ -260,7 +260,7 @@ class AggregationQueryTest {
             unit = AggregationDateUnit.DAY,
         )
         number.field.temporalTypeOrDefault().assert()
-            .isEqualTo(FieldType.Temporal.NumericEpoch())
+            .isEqualTo(FieldType.Temporal.Number())
         number.timeZone.assert().isEqualTo(ZoneId.systemDefault().id)
 
         AggregationGroup.DateHistogram(
@@ -276,7 +276,7 @@ class AggregationQueryTest {
             AggregationGroup.DateHistogram(
                 field = LogicalField(
                     "createdAt",
-                    FieldType.Temporal.FormattedString(datePattern = "yyyy-MM-dd"),
+                    FieldType.Temporal.String(datePattern = "yyyy-MM-dd"),
                 ),
                 alias = "day",
                 unit = AggregationDateUnit.DAY,

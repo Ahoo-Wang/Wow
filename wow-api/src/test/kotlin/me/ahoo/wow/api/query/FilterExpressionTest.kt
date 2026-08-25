@@ -32,13 +32,13 @@ class FilterExpressionTest {
             TodayFilter(
                 LogicalField(
                     "epochSeconds",
-                    FieldType.Temporal.NumericEpoch(TimeUnit.SECONDS),
+                    FieldType.Temporal.Number(TimeUnit.SECONDS),
                 ),
             ),
             TodayFilter(
                 LogicalField(
                     "dateText",
-                    FieldType.Temporal.FormattedString(datePattern = "yyyy-MM-dd"),
+                    FieldType.Temporal.String(datePattern = "yyyy-MM-dd"),
                 ),
             ),
         )
@@ -184,7 +184,7 @@ class FilterExpressionTest {
             TodayFilter(
                 LogicalField(
                     "createdAt",
-                    FieldType.Temporal.FormattedString(dateFormatter = formatter),
+                    FieldType.Temporal.String(dateFormatter = formatter),
                 ),
             ),
         )
@@ -250,11 +250,11 @@ class FilterExpressionTest {
         )
         val patternDateField = LogicalField(
             dateField.name,
-            FieldType.Temporal.FormattedString(datePattern = "yyyy-MM-dd"),
+            FieldType.Temporal.String(datePattern = "yyyy-MM-dd"),
         )
         val formatterDateField = LogicalField(
             dateField.name,
-            FieldType.Temporal.FormattedString(dateFormatter = formatter),
+            FieldType.Temporal.String(dateFormatter = formatter),
         )
         val cases = listOf(
             Condition.and(Condition.eq(field.name, 1)) to AndFilter(listOf(equal)),

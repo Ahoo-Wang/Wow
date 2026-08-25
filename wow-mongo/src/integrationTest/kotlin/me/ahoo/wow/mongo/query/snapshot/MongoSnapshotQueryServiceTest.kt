@@ -154,7 +154,7 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         ).forEach { (field, timeUnit) ->
             aggregation {
                 dateHistogram(
-                    LogicalField("state.$field", FieldType.Temporal.NumericEpoch(timeUnit)),
+                    LogicalField("state.$field", FieldType.Temporal.Number(timeUnit)),
                     AggregationDateUnit.DAY,
                     "day",
                     ZoneOffset.UTC,

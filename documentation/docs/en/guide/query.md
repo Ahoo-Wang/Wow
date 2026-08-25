@@ -56,7 +56,7 @@ description: Query snapshots and event streams with FilterExpression, the query 
 }
 ```
 
-The `FieldType` root currently contains only `Temporal`. Its JSON discriminator values are `DATE`, `TEMPORAL_NUMBER`, and `TEMPORAL_STRING`. The Kotlin leaf names remain `Date`, `NumericEpoch`, and `FormattedString`; `NUMBER` and `STRING` are not accepted JSON discriminator values. An untyped temporal field defaults to `NumericEpoch(MILLISECONDS)`.
+The `FieldType` root currently contains only `Temporal`. Its JSON discriminator values are `DATE`, `TEMPORAL_NUMBER`, and `TEMPORAL_STRING`. The Kotlin leaf names remain `Date`, `Number`, and `String`; `NUMBER` and `STRING` are not accepted JSON discriminator values. An untyped temporal field defaults to `Number(MILLISECONDS)`.
 
 Relative-time operators accept all three temporal representations. `DATE` uses a native date, `TEMPORAL_NUMBER` uses the declared `java.util.concurrent.TimeUnit`, and `TEMPORAL_STRING` uses `datePattern`. `datePattern` follows Java `DateTimeFormatter` grammar; it is not a MongoDB or Elasticsearch mapping-format string. Formatted strings are supported only by relative-time filters, and their stored representation must use the same pattern with chronology-preserving lexical ordering.
 

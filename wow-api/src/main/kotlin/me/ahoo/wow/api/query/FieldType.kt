@@ -29,39 +29,45 @@ import java.util.concurrent.TimeUnit
 sealed interface FieldType {
     @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
     @JsonSubTypes(
-        JsonSubTypes.Type(Temporal.Date::class, name = "DATE"),
-        JsonSubTypes.Type(Temporal.NumericEpoch::class, name = "TEMPORAL_NUMBER"),
-        JsonSubTypes.Type(Temporal.FormattedString::class, name = "TEMPORAL_STRING"),
+        JsonSubTypes.Type(Temporal.Date::class, name = Temporal.DATE_TYPE),
+        JsonSubTypes.Type(Temporal.Number::class, name = Temporal.NUMBER_TYPE),
+        JsonSubTypes.Type(Temporal.String::class, name = Temporal.STRING_TYPE),
     )
     @Schema(
         oneOf = [
             FieldType.Temporal.Date::class,
-            FieldType.Temporal.NumericEpoch::class,
-            FieldType.Temporal.FormattedString::class,
+            FieldType.Temporal.Number::class,
+            FieldType.Temporal.String::class,
         ],
         discriminatorProperty = "type",
     )
     sealed interface Temporal : FieldType {
-        @JsonTypeName("DATE")
+        companion object {
+            const val DATE_TYPE: kotlin.String = "DATE"
+            const val NUMBER_TYPE: kotlin.String = "TEMPORAL_NUMBER"
+            const val STRING_TYPE: kotlin.String = "TEMPORAL_STRING"
+        }
+
+        @JsonTypeName(DATE_TYPE)
         data object Date : Temporal
 
-        @JsonTypeName("TEMPORAL_NUMBER")
-        data class NumericEpoch(
+        @JsonTypeName(NUMBER_TYPE)
+        data class Number(
             @get:Schema(defaultValue = "MILLISECONDS")
             val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
         ) : Temporal
 
-        @JsonTypeName("TEMPORAL_STRING")
-        data class FormattedString(
+        @JsonTypeName(STRING_TYPE)
+        data class String(
             @get:Schema(type = "string", requiredMode = Schema.RequiredMode.REQUIRED)
-            val datePattern: String? = null,
+            val datePattern: kotlin.String? = null,
             @get:JsonIgnore
             @get:Schema(hidden = true)
             val dateFormatter: DateTimeFormatter? = null,
         ) : Temporal {
             init {
                 require((datePattern == null) != (dateFormatter == null)) {
-                    "FormattedString requires exactly one of datePattern or dateFormatter."
+                    "$STRING_TYPE requires exactly one of datePattern or dateFormatter."
                 }
                 datePattern?.let {
                     require(it.isNotBlank()) { "datePattern cannot be blank." }

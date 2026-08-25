@@ -176,9 +176,9 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         )
         val compatible = listOf(
             RecentDaysFilter(LogicalField("relativeDate", FieldType.Temporal.Date), 2, "UTC"),
-            RecentDaysFilter(LogicalField("relativeEpoch", FieldType.Temporal.NumericEpoch()), 2, "UTC"),
+            RecentDaysFilter(LogicalField("relativeEpoch", FieldType.Temporal.Number()), 2, "UTC"),
             RecentDaysFilter(
-                LogicalField("relativeText", FieldType.Temporal.FormattedString(pattern)),
+                LogicalField("relativeText", FieldType.Temporal.String(pattern)),
                 2,
                 "UTC",
             ),
@@ -194,9 +194,9 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         val conflicts = listOf(
             RecentDaysFilter(LogicalField("relativeEpoch", FieldType.Temporal.Date), 2, "UTC") to
                 listOf("relativeEpoch", "long", "date or date_nanos"),
-            RecentDaysFilter(LogicalField("relativeDate", FieldType.Temporal.NumericEpoch()), 2, "UTC") to
+            RecentDaysFilter(LogicalField("relativeDate", FieldType.Temporal.Number()), 2, "UTC") to
                 listOf("relativeDate", "date", "signed numeric"),
-            RecentDaysFilter(LogicalField("relativeEpoch", FieldType.Temporal.FormattedString(pattern)), 2, "UTC") to
+            RecentDaysFilter(LogicalField("relativeEpoch", FieldType.Temporal.String(pattern)), 2, "UTC") to
                 listOf("relativeEpoch", "long", "keyword-compatible string"),
         )
         conflicts.forEach { (filter, details) ->
@@ -347,7 +347,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                 dateHistogram(
                     LogicalField(
                         name,
-                        FieldType.Temporal.NumericEpoch(TimeUnit.MILLISECONDS),
+                        FieldType.Temporal.Number(TimeUnit.MILLISECONDS),
                     ),
                     AggregationDateUnit.DAY,
                     "day",
@@ -378,7 +378,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                 expand("state.orders")
                 expand("lines")
                 dateHistogram(
-                    LogicalField("createdAt", FieldType.Temporal.NumericEpoch()),
+                    LogicalField("createdAt", FieldType.Temporal.Number()),
                     AggregationDateUnit.DAY,
                     "day",
                     ZoneOffset.UTC,
@@ -398,7 +398,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     fun `unsigned_long should be rejected for numeric epochs`() {
         aggregation {
             dateHistogram(
-                LogicalField("epochUnsigned", FieldType.Temporal.NumericEpoch()),
+                LogicalField("epochUnsigned", FieldType.Temporal.Number()),
                 AggregationDateUnit.DAY,
                 "day",
                 ZoneOffset.UTC,
@@ -431,7 +431,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             dateHistogram(
                 LogicalField(
                     "createdAtEpochSecond",
-                    FieldType.Temporal.NumericEpoch(TimeUnit.SECONDS),
+                    FieldType.Temporal.Number(TimeUnit.SECONDS),
                 ),
                 AggregationDateUnit.DAY,
                 "day",
@@ -651,7 +651,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         aggregation {
             filter { aggregateIds(aggregateIds) }
             dateHistogram(
-                LogicalField(field, FieldType.Temporal.NumericEpoch(timeUnit)),
+                LogicalField(field, FieldType.Temporal.Number(timeUnit)),
                 AggregationDateUnit.DAY,
                 "day",
                 ZoneOffset.UTC,

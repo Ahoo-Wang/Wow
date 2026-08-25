@@ -228,8 +228,8 @@ class ElasticsearchIndexMappingResolverTest {
     @Test
     fun `should resolve declared temporal fields against compatible mappings`() {
         val mapping = ElasticsearchIndexMapping.from(INDEX, temporalFields())
-        val numericType = FieldType.Temporal.NumericEpoch(TimeUnit.SECONDS)
-        val stringType = FieldType.Temporal.FormattedString("yyyy-MM-dd")
+        val numericType = FieldType.Temporal.Number(TimeUnit.SECONDS)
+        val stringType = FieldType.Temporal.String("yyyy-MM-dd")
 
         mapping.resolveTemporal(
             LogicalField("state.date", FieldType.Temporal.Date),
@@ -244,7 +244,7 @@ class ElasticsearchIndexMappingResolverTest {
             docValuesRequired = true,
         ).type.assert().isEqualTo(numericType)
         mapping.resolveTemporal(
-            LogicalField("state.score", FieldType.Temporal.NumericEpoch()),
+            LogicalField("state.score", FieldType.Temporal.Number()),
             docValuesRequired = true,
         ).name.assert().isEqualTo("state.score")
         mapping.resolveTemporal(
@@ -262,11 +262,11 @@ class ElasticsearchIndexMappingResolverTest {
         val mapping = ElasticsearchIndexMapping.from(INDEX, temporalFields())
         val cases = listOf(
             LogicalField("state.epoch", FieldType.Temporal.Date) to listOf("DATE", "long", "date or date_nanos"),
-            LogicalField("state.date", FieldType.Temporal.NumericEpoch()) to
+            LogicalField("state.date", FieldType.Temporal.Number()) to
                 listOf("TEMPORAL_NUMBER", "date", "numeric"),
-            LogicalField("state.epoch", FieldType.Temporal.FormattedString("yyyy-MM-dd")) to
+            LogicalField("state.epoch", FieldType.Temporal.String("yyyy-MM-dd")) to
                 listOf("TEMPORAL_STRING", "long", "keyword-compatible string"),
-            LogicalField("state.unsignedEpoch", FieldType.Temporal.NumericEpoch()) to
+            LogicalField("state.unsignedEpoch", FieldType.Temporal.Number()) to
                 listOf("TEMPORAL_NUMBER", "unsigned_long", "signed numeric"),
         )
 
@@ -286,7 +286,7 @@ class ElasticsearchIndexMappingResolverTest {
     @Test
     fun `should require doc values only when requested`() {
         val mapping = ElasticsearchIndexMapping.from(INDEX, temporalFields())
-        val field = LogicalField("state.noDocValues", FieldType.Temporal.NumericEpoch())
+        val field = LogicalField("state.noDocValues", FieldType.Temporal.Number())
 
         mapping.resolveTemporal(field, docValuesRequired = false).assert().isEqualTo(field)
 
@@ -307,11 +307,11 @@ class ElasticsearchIndexMappingResolverTest {
         val cases = listOf(
             TodayFilter(LogicalField("date", FieldType.Temporal.Date)) to "state.date",
             BeforeTodayFilter(
-                LogicalField("epoch", FieldType.Temporal.NumericEpoch(TimeUnit.SECONDS)),
+                LogicalField("epoch", FieldType.Temporal.Number(TimeUnit.SECONDS)),
                 "12:00",
             ) to "state.epoch",
             TomorrowFilter(
-                LogicalField("formatted", FieldType.Temporal.FormattedString("yyyy-MM-dd")),
+                LogicalField("formatted", FieldType.Temporal.String("yyyy-MM-dd")),
             ) to "state.formatted.keyword",
         )
 

@@ -56,7 +56,7 @@ class MongoAggregationCompilerTest {
                 dateHistogram(
                     LogicalField(
                         "state.epochSecond",
-                        FieldType.Temporal.NumericEpoch(TimeUnit.SECONDS),
+                        FieldType.Temporal.Number(TimeUnit.SECONDS),
                     ),
                     AggregationDateUnit.DAY,
                     "day",
@@ -87,7 +87,7 @@ class MongoAggregationCompilerTest {
             val setStage = MongoAggregationCompiler(SnapshotFilterConverter).compile(
                 aggregation {
                     dateHistogram(
-                        LogicalField("state.epoch", FieldType.Temporal.NumericEpoch(timeUnit)),
+                        LogicalField("state.epoch", FieldType.Temporal.Number(timeUnit)),
                         AggregationDateUnit.DAY,
                         "day",
                         ZoneOffset.UTC,

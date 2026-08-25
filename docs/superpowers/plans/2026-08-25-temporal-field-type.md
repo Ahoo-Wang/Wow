@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 让 `LogicalField(name, type?)` 以字符串/对象双形态承载通用 `FieldType -> Temporal` 骨架，并让 RelativeTimeFilter、MongoDB/Elasticsearch DateHistogram 按显式 Date/NumericEpoch/FormattedString 合同执行。
+**Goal:** 让 `LogicalField(name, type?)` 以字符串/对象双形态承载通用 `FieldType -> Temporal` 骨架，并让 RelativeTimeFilter、MongoDB/Elasticsearch DateHistogram 按显式 Date/Number/String 合同执行。
 
-**Architecture:** `wow-api` 集中定义 FieldType、LogicalField 双形态 Jackson 边界和时间默认解析；时间操作只读取 `LogicalField.type`，不再持有 sibling fieldType。`wow-query` 用内部 RelativeTimeFilterNormalizer 展开时间范围；MongoDB 与 Elasticsearch 分别编译 Date/NumericEpoch，Elasticsearch NumericEpoch 使用请求级 date runtime field。
+**Architecture:** `wow-api` 集中定义 FieldType、LogicalField 双形态 Jackson 边界和时间默认解析；时间操作只读取 `LogicalField.type`，不再持有 sibling fieldType。`wow-query` 用内部 RelativeTimeFilterNormalizer 展开时间范围；MongoDB 与 Elasticsearch 分别编译 Date/Number，Elasticsearch Number 使用请求级 date runtime field。
 
 **Tech Stack:** Kotlin 2.4.10、JVM 17、Jackson 3.1、Swagger/OpenAPI 3.1、MongoDB aggregation、Elasticsearch Java Client/Painless、JUnit Jupiter、MockK、Reactor Test、Testcontainers、VitePress。
 
@@ -12,17 +12,17 @@
 
 ## Global Constraints
 
-- `FieldType` 当前只有子接口 `Temporal`；Temporal 叶子 JSON subtype 仅为 DATE、TEMPORAL_NUMBER、TEMPORAL_STRING。Kotlin 类型名保持 NumericEpoch、FormattedString。
+- `FieldType` 当前只有子接口 `Temporal`；Temporal 叶子 JSON subtype 仅为 DATE、TEMPORAL_NUMBER、TEMPORAL_STRING。Kotlin 类型名保持 Number、String。
 - 不读取旧 NUMBER、STRING subtype alias；近期查询协议不要求该 JSON 兼容。
 - 不增加 AUTO/INFER 或额外 TEMPORAL JSON 包装层。
 - `LogicalField` 公共属性固定为 `name: String`、`type: FieldType?`；`value` 全面重命名为 `name`。
 - LogicalField JSON：无类型序列化为字符串；带类型序列化为 `{name,type}`；读取同时接受字符串和对象，对象可省略 type，但拒绝显式 `type:null` 和未知属性。
-- 时间操作遇到 `type == null` 时默认 `FieldType.Temporal.NumericEpoch(MILLISECONDS)`。
-- RelativeTimeFilter 允许任意 Temporal；DateHistogram 拒绝 FormattedString；未来非 Temporal FieldType 由时间操作拒绝。
+- 时间操作遇到 `type == null` 时默认 `FieldType.Temporal.Number(MILLISECONDS)`。
+- RelativeTimeFilter 允许任意 Temporal；DateHistogram 拒绝 String；未来非 Temporal FieldType 由时间操作拒绝。
 - DateHistogram.timeZone 默认 `ZoneId.systemDefault()`；跨后端测试显式使用 UTC 或 Asia/Shanghai。
-- `AggregationDateUnit` 不改；`TimeUnit` 只描述 NumericEpoch 存储单位。
+- `AggregationDateUnit` 不改；`TimeUnit` 只描述 Number 存储单位。
 - Condition 协议不改；String pattern 与任意 runtime DateTimeFormatter 必须进入 LogicalField.type 并保持语义。
-- NumericEpoch 只接受恰好一个数值（标量或 singleton 数组）、有限、可无损为 Long 的整数；空数组、多值数组和其他无效值不产生桶。
+- Number 只接受恰好一个数值（标量或 singleton 数组）、有限、可无损为 Long 的整数；空数组、多值数组和其他无效值不产生桶。
 - Elasticsearch 脚本字段名只通过 params 传入；乘法使用显式有符号 Long multiplier 边界检查，越界不 emit，不依赖异常控制流。
 - 不改默认 Elasticsearch 模板，不迁移索引，不增加依赖、模块、配置、Catalog、Scanner 或持久化 runtime field。
 - 测试使用 FluentAssert `.assert()`；行为变更严格执行 RED → GREEN。
@@ -91,7 +91,7 @@ class LogicalFieldTest {
     fun `typed logical field should use name and type object JSON`() {
         val field = LogicalField(
             "snapshotTime",
-            FieldType.Temporal.NumericEpoch(TimeUnit.MILLISECONDS),
+            FieldType.Temporal.Number(TimeUnit.MILLISECONDS),
         )
 
         val json = mapper.writeValueAsString(field)
@@ -118,17 +118,17 @@ Add FieldType round-trip and formatter XOR tests:
 ```kotlin
 val values = listOf<FieldType>(
     FieldType.Temporal.Date,
-    FieldType.Temporal.NumericEpoch(TimeUnit.SECONDS),
-    FieldType.Temporal.FormattedString(datePattern = "yyyy-MM-dd"),
+    FieldType.Temporal.Number(TimeUnit.SECONDS),
+    FieldType.Temporal.String(datePattern = "yyyy-MM-dd"),
 )
 values.forEach { value ->
     val json = mapper.writeValueAsString(value)
     mapper.readValue(json, FieldType::class.java).assert().isEqualTo(value)
 }
 
-assertThrows<IllegalArgumentException> { FieldType.Temporal.FormattedString() }
+assertThrows<IllegalArgumentException> { FieldType.Temporal.String() }
 assertThrows<IllegalArgumentException> {
-    FieldType.Temporal.FormattedString(
+    FieldType.Temporal.String(
         datePattern = "yyyy-MM-dd",
         dateFormatter = DateTimeFormatter.ISO_LOCAL_DATE,
     )
@@ -158,14 +158,14 @@ Create the sealed skeleton with Jackson registration mirroring the type hierarch
 sealed interface FieldType {
     @JsonSubTypes(
         JsonSubTypes.Type(Temporal.Date::class, name = "DATE"),
-        JsonSubTypes.Type(Temporal.NumericEpoch::class, name = "TEMPORAL_NUMBER"),
-        JsonSubTypes.Type(Temporal.FormattedString::class, name = "TEMPORAL_STRING"),
+        JsonSubTypes.Type(Temporal.Number::class, name = "TEMPORAL_NUMBER"),
+        JsonSubTypes.Type(Temporal.String::class, name = "TEMPORAL_STRING"),
     )
     @Schema(
         oneOf = [
             FieldType.Temporal.Date::class,
-            FieldType.Temporal.NumericEpoch::class,
-            FieldType.Temporal.FormattedString::class,
+            FieldType.Temporal.Number::class,
+            FieldType.Temporal.String::class,
         ],
         discriminatorProperty = "type",
     )
@@ -174,12 +174,12 @@ sealed interface FieldType {
         data object Date : Temporal
 
         @JsonTypeName("TEMPORAL_NUMBER")
-        data class NumericEpoch(
+        data class Number(
             val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
         ) : Temporal
 
         @JsonTypeName("TEMPORAL_STRING")
-        data class FormattedString(
+        data class String(
             @get:Schema(requiredMode = Schema.RequiredMode.REQUIRED)
             val datePattern: String? = null,
             @get:JsonIgnore
@@ -188,7 +188,7 @@ sealed interface FieldType {
         ) : Temporal {
             init {
                 require((datePattern == null) != (dateFormatter == null)) {
-                    "FormattedString requires exactly one of datePattern or dateFormatter."
+                    "String requires exactly one of datePattern or dateFormatter."
                 }
                 datePattern?.let {
                     require(it.isNotBlank()) { "datePattern cannot be blank." }
@@ -223,7 +223,7 @@ data class LogicalField(
     override fun toString(): String = name
 
     fun temporalTypeOrDefault(): FieldType.Temporal = when (val declared = type) {
-        null -> FieldType.Temporal.NumericEpoch()
+        null -> FieldType.Temporal.Number()
         is FieldType.Temporal -> declared
         else -> throw IllegalArgumentException(
             "Logical field [$name] type [${declared::class.java.name}] is not temporal.",
@@ -357,7 +357,7 @@ Before committing, inspect `git diff --name-only --cached`; every staged file mu
 
 **Interfaces:**
 - Consumes: LogicalField.temporalTypeOrDefault().
-- Produces: DateHistogram accepts untyped/DATE/NumericEpoch fields, rejects FormattedString/non-Temporal, and defaults system time zone.
+- Produces: DateHistogram accepts untyped/DATE/Number fields, rejects String/non-Temporal, and defaults system time zone.
 
 - [ ] **Step 1: Write failing DateHistogram tests**
 
@@ -370,7 +370,7 @@ fun `date histogram should use logical field temporal type`() {
         unit = AggregationDateUnit.DAY,
     )
     number.field.temporalTypeOrDefault().assert()
-        .isEqualTo(FieldType.Temporal.NumericEpoch())
+        .isEqualTo(FieldType.Temporal.Number())
     number.timeZone.assert().isEqualTo(ZoneId.systemDefault().id)
 
     AggregationGroup.DateHistogram(
@@ -381,12 +381,12 @@ fun `date histogram should use logical field temporal type`() {
 }
 
 @Test
-fun `date histogram should reject FormattedString`() {
+fun `date histogram should reject String`() {
     assertThrows<IllegalArgumentException> {
         AggregationGroup.DateHistogram(
             field = LogicalField(
                 "createdAt",
-                FieldType.Temporal.FormattedString(datePattern = "yyyy-MM-dd"),
+                FieldType.Temporal.String(datePattern = "yyyy-MM-dd"),
             ),
             alias = "day",
             unit = AggregationDateUnit.DAY,
@@ -414,7 +414,7 @@ data class DateHistogram(
 ) : AggregationGroup {
     init {
         requireAggregationAlias(alias)
-        require(field.temporalTypeOrDefault() !is FieldType.Temporal.FormattedString) {
+        require(field.temporalTypeOrDefault() !is FieldType.Temporal.String) {
             "DateHistogram does not support TEMPORAL_STRING fields."
         }
         ZoneId.of(timeZone)
@@ -455,7 +455,7 @@ dateHistogram(
 )
 ```
 
-Keep snapshotTime strings untyped only where default NumericEpoch(MILLISECONDS) is intended.
+Keep snapshotTime strings untyped only where default Number(MILLISECONDS) is intended.
 
 - [ ] **Step 5: Run GREEN and commit**
 
@@ -501,13 +501,13 @@ val filters = listOf<RelativeTimeFilter>(
     TodayFilter(
         LogicalField(
             "epochSeconds",
-            FieldType.Temporal.NumericEpoch(TimeUnit.SECONDS),
+            FieldType.Temporal.Number(TimeUnit.SECONDS),
         ),
     ),
     TodayFilter(
         LogicalField(
             "dateText",
-            FieldType.Temporal.FormattedString(datePattern = "yyyy-MM-dd"),
+            FieldType.Temporal.String(datePattern = "yyyy-MM-dd"),
         ),
     ),
 )
@@ -525,7 +525,7 @@ Condition.today("createdAt", formatter).toFilterExpression().assert().isEqualTo(
     TodayFilter(
         LogicalField(
             "createdAt",
-            FieldType.Temporal.FormattedString(dateFormatter = formatter),
+            FieldType.Temporal.String(dateFormatter = formatter),
         ),
     ),
 )
@@ -552,7 +552,7 @@ fun `DATE should create millisecond Instant boundaries`() {
 }
 ```
 
-Add NumericEpoch(SECONDS) and FormattedString cases. Move existing calendar/DST/leap-year/Monday/nanosecond/nested tests from FilterNormalizerTest without changing expected values.
+Add Number(SECONDS) and String cases. Move existing calendar/DST/leap-year/Monday/nanosecond/nested tests from FilterNormalizerTest without changing expected values.
 
 - [ ] **Step 3: Run RED**
 
@@ -607,8 +607,8 @@ private val Condition.logicalField: LogicalField
     get() {
         val type = when (val format = options[Condition.DATE_PATTERN_OPTION_KEY]) {
             null -> null
-            is String -> FieldType.Temporal.FormattedString(datePattern = format)
-            is DateTimeFormatter -> FieldType.Temporal.FormattedString(dateFormatter = format)
+            is String -> FieldType.Temporal.String(datePattern = format)
+            is DateTimeFormatter -> FieldType.Temporal.String(dateFormatter = format)
             else -> error("Unsupported datePattern option: ${format::class.java.name}.")
         }
         return LogicalField(field, type)
@@ -643,13 +643,13 @@ return when (val type = field.temporalTypeOrDefault()) {
     FieldType.Temporal.Date -> JsonNodeFactory.instance.pojoNode(
         Instant.ofEpochMilli(instant.toEpochMilli()),
     )
-    is FieldType.Temporal.NumericEpoch -> JsonNodeFactory.instance.numberNode(
+    is FieldType.Temporal.Number -> JsonNodeFactory.instance.numberNode(
         Math.addExact(
             type.timeUnit.convert(instant.epochSecond, TimeUnit.SECONDS),
             type.timeUnit.convert(instant.nano.toLong(), TimeUnit.NANOSECONDS),
         ),
     )
-    is FieldType.Temporal.FormattedString ->
+    is FieldType.Temporal.String ->
         JsonNodeFactory.instance.stringNode(type.formatter.format(dateTime.atZone(zoneId)))
 }
 ```
@@ -718,13 +718,13 @@ mapping.resolveTemporal(
 mapping.resolveTemporal(
     LogicalField(
         "state.epoch",
-        FieldType.Temporal.NumericEpoch(TimeUnit.SECONDS),
+        FieldType.Temporal.Number(TimeUnit.SECONDS),
     ),
     docValuesRequired = true,
-).type.assert().isEqualTo(FieldType.Temporal.NumericEpoch(TimeUnit.SECONDS))
+).type.assert().isEqualTo(FieldType.Temporal.Number(TimeUnit.SECONDS))
 ```
 
-Assert DATE-on-long, NumericEpoch-on-date, FormattedString-on-long and NumericEpoch without doc values fail with clear field/declared/actual/expected messages.
+Assert DATE-on-long, Number-on-date, String-on-long and Number without doc values fail with clear field/declared/actual/expected messages.
 
 - [ ] **Step 3: Run RED**
 
@@ -766,7 +766,7 @@ internal fun resolveTemporal(
 ): LogicalField
 ```
 
-Resolve `field.temporalTypeOrDefault()` against mapping kinds: DATE→date/date_nanos, NumericEpoch→numeric, FormattedString→keyword-family range fields. Require existing sortable/doc-values capability only when requested. Return `field.copy(name = resolvedName)` so type survives multi-field resolution.
+Resolve `field.temporalTypeOrDefault()` against mapping kinds: DATE→date/date_nanos, Number→numeric, String→keyword-family range fields. Require existing sortable/doc-values capability only when requested. Return `field.copy(name = resolvedName)` so type survives multi-field resolution.
 
 Update all regular LogicalField resolver helpers to preserve type when names change.
 
@@ -789,7 +789,7 @@ git commit -m "feat(query): resolve typed temporal mappings"
 
 ---
 
-### Task 5: MongoDB DATE/NumericEpoch DateHistogram
+### Task 5: MongoDB DATE/Number DateHistogram
 
 **Files:**
 - Modify: `wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/query/snapshot/MongoAggregationCompiler.kt`
@@ -798,7 +798,7 @@ git commit -m "feat(query): resolve typed temporal mappings"
 
 **Interfaces:**
 - Reads `group.field.temporalTypeOrDefault()`.
-- DATE uses native BSON Date; NumericEpoch uses guarded internal Date.
+- DATE uses native BSON Date; Number uses guarded internal Date.
 
 - [ ] **Step 1: Write failing compiler tests**
 
@@ -817,7 +817,7 @@ val datePipeline = MongoAggregationCompiler(SnapshotFilterConverter).compile(
 datePipeline.assert().contains("\$dateTrunc").doesNotContain("\$toDate")
 ```
 
-NumericEpoch/SECONDS:
+Number/SECONDS:
 
 ```kotlin
 val numberPipeline = MongoAggregationCompiler(SnapshotFilterConverter).compile(
@@ -825,7 +825,7 @@ val numberPipeline = MongoAggregationCompiler(SnapshotFilterConverter).compile(
         dateHistogram(
             LogicalField(
                 "state.epochSecond",
-                FieldType.Temporal.NumericEpoch(TimeUnit.SECONDS),
+                FieldType.Temporal.Number(TimeUnit.SECONDS),
             ),
             AggregationDateUnit.DAY,
             "day",
@@ -851,16 +851,16 @@ Add nanos/micros division and millis/minutes/hours/days multiplication factor as
   "me.ahoo.wow.mongo.query.snapshot.MongoAggregationCompilerTest" --stacktrace
 ```
 
-Expected: DATE still uses `$toDate`; NumericEpoch lacks normalization.
+Expected: DATE still uses `$toDate`; Number lacks normalization.
 
-- [ ] **Step 3: Add one NumericEpoch `$set` stage**
+- [ ] **Step 3: Add one Number `$set` stage**
 
-Collect DateHistogram groups whose resolved type is NumericEpoch. Generate `__wow_date_histogram_<groupIndex>` fields:
+Collect DateHistogram groups whose resolved type is Number. Generate `__wow_date_histogram_<groupIndex>` fields:
 
 ```kotlin
 val temporalFields = query.groupBy.mapIndexedNotNull { index, group ->
     (group as? AggregationGroup.DateHistogram)
-        ?.takeIf { it.field.temporalTypeOrDefault() is FieldType.Temporal.NumericEpoch }
+        ?.takeIf { it.field.temporalTypeOrDefault() is FieldType.Temporal.Number }
         ?.let { index to it }
 }
 ```
@@ -872,8 +872,8 @@ val temporalFields = query.groupBy.mapIndexedNotNull { index, group ->
 ```kotlin
 val dateInput = when (field.temporalTypeOrDefault()) {
     FieldType.Temporal.Date -> "\$${field.resolve(parent)}"
-    is FieldType.Temporal.NumericEpoch -> "\$${dateHistogramField(groupIndex)}"
-    is FieldType.Temporal.FormattedString ->
+    is FieldType.Temporal.Number -> "\$${dateHistogramField(groupIndex)}"
+    is FieldType.Temporal.String ->
         error("DateHistogram does not support TEMPORAL_STRING fields.")
 }
 ```
@@ -908,7 +908,7 @@ Document("_id", "overflow")
     .append("state", Document("epoch", Long.MAX_VALUE))
 ```
 
-Run NumericEpoch(MILLISECONDS) and NumericEpoch(DAYS); only a numeric scalar or singleton numeric array may produce buckets; empty and multi arrays remain invalid.
+Run Number(MILLISECONDS) and Number(DAYS); only a numeric scalar or singleton numeric array may produce buckets; empty and multi arrays remain invalid.
 
 ```bash
 ./gradlew :wow-mongo:integrationTest --tests \
@@ -928,7 +928,7 @@ git commit -m "feat(mongo): compile typed temporal histograms"
 
 ---
 
-### Task 6: Elasticsearch NumericEpoch runtime date 与 pagination
+### Task 6: Elasticsearch Number runtime date 与 pagination
 
 **Files:**
 - Modify: `wow-elasticsearch/src/main/kotlin/me/ahoo/wow/elasticsearch/query/snapshot/ElasticsearchAggregationCompiler.kt`
@@ -937,7 +937,7 @@ git commit -m "feat(mongo): compile typed temporal histograms"
 
 **Interfaces:**
 - DATE resolves typed field with doc values.
-- NumericEpoch creates request RuntimeFieldType.Date and composite source.
+- Number creates request RuntimeFieldType.Date and composite source.
 
 - [ ] **Step 1: Write failing compiler tests**
 
@@ -947,7 +947,7 @@ val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter, mapping).co
         dateHistogram(
             LogicalField(
                 "snapshotTime",
-                FieldType.Temporal.NumericEpoch(TimeUnit.SECONDS),
+                FieldType.Temporal.Number(TimeUnit.SECONDS),
             ),
             AggregationDateUnit.DAY,
             "day",
@@ -977,7 +977,7 @@ DATE/date_nanos must use native field and leave runtimeMappings empty. Add all T
   "me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchAggregationCompilerTest" --stacktrace
 ```
 
-Expected: NumericEpoch still targets numeric field directly.
+Expected: Number still targets numeric field directly.
 
 - [ ] **Step 3: Build runtime map before group sources**
 
@@ -993,9 +993,9 @@ val groupSources = effectiveSort.mapNotNull { sort ->
 }
 ```
 
-- [ ] **Step 4: Implement NumericEpoch runtime date**
+- [ ] **Step 4: Implement Number runtime date**
 
-Resolve typed LogicalField with `docValuesRequired = true`. DATE uses resolved `name`. NumericEpoch creates `__wow_date_histogram_<index>` and passes `field`, `multiplier`, `divisor` as JsonData params.
+Resolve typed LogicalField with `docValuesRequired = true`. DATE uses resolved `name`. Number creates `__wow_date_histogram_<index>` and passes `field`, `multiplier`, `divisor` as JsonData params.
 
 Painless source:
 
@@ -1032,7 +1032,7 @@ Do not embed field.name in source.
 
 - [ ] **Step 6: Add date-runtime pagination proof**
 
-Compile a NumericEpoch DateHistogram plan, mock two pages, capture both SearchRequests:
+Compile a Number DateHistogram plan, mock two pages, capture both SearchRequests:
 
 ```kotlin
 requests.assert().hasSize(2)
@@ -1067,7 +1067,7 @@ git commit -m "feat(elasticsearch): compile typed epoch histograms"
 - Modify: `wow-elasticsearch/src/integrationTest/kotlin/me/ahoo/wow/elasticsearch/query/snapshot/ElasticsearchSnapshotQueryServiceTest.kt`
 
 **Interfaces:**
-- Produces: shared native DATE、NumericEpoch(MILLISECONDS)、NumericEpoch(SECONDS)、date_nanos evidence and Elasticsearch invalid-value/default-template evidence.
+- Produces: shared native DATE、Number(MILLISECONDS)、Number(SECONDS)、date_nanos evidence and Elasticsearch invalid-value/default-template evidence.
 
 - [ ] **Step 1: Write shared TCK tests before adding mock fields**
 
@@ -1097,7 +1097,7 @@ Add nested seconds field:
 dateHistogram(
     LogicalField(
         "createdAtEpochSecond",
-        FieldType.Temporal.NumericEpoch(TimeUnit.SECONDS),
+        FieldType.Temporal.Number(TimeUnit.SECONDS),
     ),
     AggregationDateUnit.DAY,
     "day",
@@ -1145,11 +1145,11 @@ Map numeric test fields:
 .properties("epochMulti") { it.long_ { number -> number } }
 ```
 
-Index/update documents for scalar long, singleton array, malformed string, empty array, multi array, fraction and Long.MAX_VALUE. Query typed NumericEpoch(MILLISECONDS) and NumericEpoch(DAYS). Assert only scalar and singleton integral values form buckets.
+Index/update documents for scalar long, singleton array, malformed string, empty array, multi array, fraction and Long.MAX_VALUE. Query typed Number(MILLISECONDS) and Number(DAYS). Assert only scalar and singleton integral values form buckets.
 
 - [ ] **Step 5: Verify default template time fields**
 
-Using saved real snapshots, run typed NumericEpoch(MILLISECONDS) queries for firstEventTime, eventTime and snapshotTime:
+Using saved real snapshots, run typed Number(MILLISECONDS) queries for firstEventTime, eventTime and snapshotTime:
 
 ```kotlin
 listOf("firstEventTime", "eventTime", "snapshotTime").forEach { name ->
@@ -1158,7 +1158,7 @@ listOf("firstEventTime", "eventTime", "snapshotTime").forEach { name ->
         dateHistogram(
             LogicalField(
                 name,
-                FieldType.Temporal.NumericEpoch(TimeUnit.MILLISECONDS),
+                FieldType.Temporal.Number(TimeUnit.MILLISECONDS),
             ),
             AggregationDateUnit.DAY,
             "day",
@@ -1231,14 +1231,14 @@ Update `LogicalFieldTest` expectations before production annotations:
 ```kotlin
 val numeric = LogicalField(
     "snapshotTime",
-    FieldType.Temporal.NumericEpoch(TimeUnit.MILLISECONDS),
+    FieldType.Temporal.Number(TimeUnit.MILLISECONDS),
 )
 mapper.writeValueAsString(numeric).assert()
     .contains("\"type\":\"TEMPORAL_NUMBER\"")
 
 val formatted = LogicalField(
     "createdAtText",
-    FieldType.Temporal.FormattedString(datePattern = "yyyy-MM-dd"),
+    FieldType.Temporal.String(datePattern = "yyyy-MM-dd"),
 )
 mapper.writeValueAsString(formatted).assert()
     .contains("\"type\":\"TEMPORAL_STRING\"")
@@ -1322,17 +1322,17 @@ Mirror the public hierarchy in Jackson registration while changing the leaf IDs:
 sealed interface FieldType {
     @JsonSubTypes(
         JsonSubTypes.Type(Temporal.Date::class, name = "DATE"),
-        JsonSubTypes.Type(Temporal.NumericEpoch::class, name = "TEMPORAL_NUMBER"),
-        JsonSubTypes.Type(Temporal.FormattedString::class, name = "TEMPORAL_STRING"),
+        JsonSubTypes.Type(Temporal.Number::class, name = "TEMPORAL_NUMBER"),
+        JsonSubTypes.Type(Temporal.String::class, name = "TEMPORAL_STRING"),
     )
     sealed interface Temporal : FieldType
 }
 
 @JsonTypeName("TEMPORAL_NUMBER")
-data class NumericEpoch(...)
+data class Number(...)
 
 @JsonTypeName("TEMPORAL_STRING")
-data class FormattedString(...)
+data class String(...)
 ```
 
 Keep Date as DATE and keep all Kotlin type names/hierarchy/backend behavior unchanged. Register no NUMBER/STRING aliases.
@@ -1404,7 +1404,7 @@ rg -n 'name = "(NUMBER|STRING)"|JsonTypeName\("(NUMBER|STRING)"\)|"type"\s*:\s*"
   wow-api wow-schema wow-openapi schema documentation docs/superpowers
 ```
 
-Expected: no matches. Semantic Kotlin names NumericEpoch/FormattedString and prose about numeric/string storage remain valid; only old discriminator values are forbidden.
+Expected: no matches. Semantic Kotlin names Number/String and prose about numeric/string storage remain valid; only old discriminator values are forbidden.
 
 - [ ] **Step 9: Run checks and commit**
 
@@ -1454,12 +1454,12 @@ git commit -m "feat(schema): publish typed logical fields"
 Both must document:
 - LogicalField string and `{name,type}` forms.
 - FieldType root currently has only Temporal; Temporal discriminator values are DATE/TEMPORAL_NUMBER/TEMPORAL_STRING.
-- Kotlin leaf names remain NumericEpoch/FormattedString, and old NUMBER/STRING discriminator values are not accepted.
-- Untyped temporal fields default NumericEpoch(MILLISECONDS).
-- RelativeTime accepts all Temporal; DateHistogram rejects FormattedString.
+- Kotlin leaf names remain Number/String, and old NUMBER/STRING discriminator values are not accepted.
+- Untyped temporal fields default Number(MILLISECONDS).
+- RelativeTime accepts all Temporal; DateHistogram rejects String.
 - system default timeZone and explicit-zone recommendation.
 - snapshotTime typed TEMPORAL_NUMBER/MILLISECONDS examples.
-- NumericEpoch accepts exactly one numeric scalar or singleton array; empty and multi arrays do not form buckets.
+- Number accepts exactly one numeric scalar or singleton array; empty and multi arrays do not form buckets.
 - bucket keys remain epoch-millisecond bucket starts.
 - backend mapping/runtime semantics and TEMPORAL_STRING format limitation.
 
@@ -1539,7 +1539,7 @@ gh pr create \
 - focused module checks and Detekt
 - real MongoDB and Elasticsearch integrationTest
 - VitePress documentation build
-- cross-backend NumericEpoch(MILLISECONDS) TCK
+- cross-backend Number(MILLISECONDS) TCK
 
 ## Compatibility
 FilterExpression and AggregationQuery are recent protocols and do not retain old source/wire constructors. Condition conversion preserves String patterns and runtime DateTimeFormatter semantics.

@@ -38,7 +38,7 @@ data class LogicalField(
     override fun toString(): String = name
 
     fun temporalTypeOrDefault(): FieldType.Temporal = when (val declared = type) {
-        null -> FieldType.Temporal.NumericEpoch()
+        null -> FieldType.Temporal.Number()
         is FieldType.Temporal -> declared
         else -> throw IllegalArgumentException(
             "Logical field [$name] type [${declared::class.java.name}] is not temporal.",

@@ -4559,17 +4559,17 @@
         "discriminator" : {
           "mapping" : {
             "DATE" : "#/components/schemas/wow.api.query.FieldType.Temporal.Date",
-            "TEMPORAL_NUMBER" : "#/components/schemas/wow.api.query.FieldType.Temporal.NumericEpoch",
-            "TEMPORAL_STRING" : "#/components/schemas/wow.api.query.FieldType.Temporal.FormattedString"
+            "TEMPORAL_NUMBER" : "#/components/schemas/wow.api.query.FieldType.Temporal.Number",
+            "TEMPORAL_STRING" : "#/components/schemas/wow.api.query.FieldType.Temporal.String"
           },
           "propertyName" : "type"
         },
         "oneOf" : [ {
           "$ref" : "#/components/schemas/wow.api.query.FieldType.Temporal.Date"
         }, {
-          "$ref" : "#/components/schemas/wow.api.query.FieldType.Temporal.FormattedString"
+          "$ref" : "#/components/schemas/wow.api.query.FieldType.Temporal.Number"
         }, {
-          "$ref" : "#/components/schemas/wow.api.query.FieldType.Temporal.NumericEpoch"
+          "$ref" : "#/components/schemas/wow.api.query.FieldType.Temporal.String"
         } ]
       },
       "wow.api.query.FieldType.Temporal.Date" : {
@@ -4581,19 +4581,7 @@
         "required" : [ "type" ],
         "type" : "object"
       },
-      "wow.api.query.FieldType.Temporal.FormattedString" : {
-        "properties" : {
-          "datePattern" : {
-            "type" : "string"
-          },
-          "type" : {
-            "const" : "TEMPORAL_STRING"
-          }
-        },
-        "required" : [ "datePattern", "type" ],
-        "type" : "object"
-      },
-      "wow.api.query.FieldType.Temporal.NumericEpoch" : {
+      "wow.api.query.FieldType.Temporal.Number" : {
         "properties" : {
           "timeUnit" : {
             "$ref" : "#/components/schemas/example.TimeUnit",
@@ -4604,6 +4592,18 @@
           }
         },
         "required" : [ "type" ],
+        "type" : "object"
+      },
+      "wow.api.query.FieldType.Temporal.String" : {
+        "properties" : {
+          "datePattern" : {
+            "type" : "string"
+          },
+          "type" : {
+            "const" : "TEMPORAL_STRING"
+          }
+        },
+        "required" : [ "datePattern", "type" ],
         "type" : "object"
       },
       "wow.api.query.FilterExpression" : {

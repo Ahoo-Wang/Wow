@@ -368,8 +368,8 @@ private data class ElasticsearchMappedField(
     fun supportsTemporal(type: FieldType.Temporal): Boolean =
         when (type) {
             FieldType.Temporal.Date -> kind in DATE_KINDS
-            is FieldType.Temporal.NumericEpoch -> kind in SIGNED_NUMERIC_KINDS
-            is FieldType.Temporal.FormattedString -> kind in KEYWORD_KINDS
+            is FieldType.Temporal.Number -> kind in SIGNED_NUMERIC_KINDS
+            is FieldType.Temporal.String -> kind in KEYWORD_KINDS
         }
 
     fun actualMapping(docValuesRequired: Boolean): String =
@@ -458,16 +458,16 @@ private data class ElasticsearchMappedField(
 
 private fun FieldType.Temporal.declaredName(): String =
     when (this) {
-        FieldType.Temporal.Date -> "DATE"
-        is FieldType.Temporal.NumericEpoch -> "TEMPORAL_NUMBER"
-        is FieldType.Temporal.FormattedString -> "TEMPORAL_STRING"
+        FieldType.Temporal.Date -> FieldType.Temporal.DATE_TYPE
+        is FieldType.Temporal.Number -> FieldType.Temporal.NUMBER_TYPE
+        is FieldType.Temporal.String -> FieldType.Temporal.STRING_TYPE
     }
 
 private fun FieldType.Temporal.expectedMapping(docValuesRequired: Boolean): String {
     val mapping = when (this) {
         FieldType.Temporal.Date -> "date or date_nanos"
-        is FieldType.Temporal.NumericEpoch -> "signed numeric"
-        is FieldType.Temporal.FormattedString -> "keyword-compatible string"
+        is FieldType.Temporal.Number -> "signed numeric"
+        is FieldType.Temporal.String -> "keyword-compatible string"
     }
     return if (docValuesRequired) "$mapping with doc values" else mapping
 }

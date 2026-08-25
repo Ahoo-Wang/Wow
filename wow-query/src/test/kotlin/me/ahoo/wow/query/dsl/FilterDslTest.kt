@@ -41,7 +41,7 @@ class FilterDslTest {
 
     @Test
     fun `should build extended relative calendar filters`() {
-        val type = FieldType.Temporal.FormattedString(datePattern = "yyyy-MM-dd")
+        val type = FieldType.Temporal.String(datePattern = "yyyy-MM-dd")
         val field = LogicalField("createdAt", type)
         val expression = filter {
             "createdAt".yesterday(type, ZoneOffset.UTC)
@@ -62,7 +62,7 @@ class FilterDslTest {
 
     @Test
     fun `should configure relative temporal type`() {
-        val type = FieldType.Temporal.NumericEpoch(TimeUnit.SECONDS)
+        val type = FieldType.Temporal.Number(TimeUnit.SECONDS)
         val expression = filter {
             "createdAt".beforeToday(LocalTime.NOON, type)
         }
@@ -362,7 +362,7 @@ class FilterDslTest {
             "notExists".notExists()
             search("phrase", "title", "description")
             "content" search "phrase"
-            "today".today(FieldType.Temporal.FormattedString(datePattern = "yyyy-MM-dd"), ZoneOffset.UTC)
+            "today".today(FieldType.Temporal.String(datePattern = "yyyy-MM-dd"), ZoneOffset.UTC)
             "beforeToday".beforeToday(LocalTime.NOON, zoneId = ZoneOffset.UTC)
             "tomorrow".tomorrow()
             "thisWeek".thisWeek()

@@ -136,7 +136,7 @@ class ElasticsearchAggregationPagerTest {
                 dateHistogram(
                     LogicalField(
                         "state.epochSecond",
-                        FieldType.Temporal.NumericEpoch(TimeUnit.SECONDS),
+                        FieldType.Temporal.Number(TimeUnit.SECONDS),
                     ),
                     AggregationDateUnit.DAY,
                     "product",

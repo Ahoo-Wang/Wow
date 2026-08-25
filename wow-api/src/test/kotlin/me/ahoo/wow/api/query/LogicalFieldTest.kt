@@ -35,20 +35,22 @@ class LogicalFieldTest {
     @Test
     fun `untyped logical field should default to millisecond epoch`() {
         LogicalField("snapshotTime").temporalTypeOrDefault().assert()
-            .isEqualTo(FieldType.Temporal.NumericEpoch(TimeUnit.MILLISECONDS))
+            .isEqualTo(FieldType.Temporal.Number(TimeUnit.MILLISECONDS))
     }
 
     @Test
     fun `typed logical field should use name and type object JSON`() {
         val field = LogicalField(
             "snapshotTime",
-            FieldType.Temporal.NumericEpoch(TimeUnit.MILLISECONDS),
+            FieldType.Temporal.Number(TimeUnit.MILLISECONDS),
         )
 
         val json = mapper.writeValueAsString(field)
         json.assert()
             .contains("\"name\":\"snapshotTime\"")
-            .contains("\"type\":{\"type\":\"TEMPORAL_NUMBER\",\"timeUnit\":\"MILLISECONDS\"}")
+            .contains(
+                "\"type\":{\"type\":\"${FieldType.Temporal.NUMBER_TYPE}\",\"timeUnit\":\"MILLISECONDS\"}",
+            )
         mapper.readValue(json, LogicalField::class.java).assert().isEqualTo(field)
     }
 
@@ -56,11 +58,13 @@ class LogicalFieldTest {
     fun `formatted logical field should use temporal string subtype`() {
         val field = LogicalField(
             "createdAtText",
-            FieldType.Temporal.FormattedString(datePattern = "yyyy-MM-dd"),
+            FieldType.Temporal.String(datePattern = "yyyy-MM-dd"),
         )
 
         val json = mapper.writeValueAsString(field)
-        json.assert().contains("\"type\":{\"type\":\"TEMPORAL_STRING\",\"datePattern\":\"yyyy-MM-dd\"}")
+        json.assert().contains(
+            "\"type\":{\"type\":\"${FieldType.Temporal.STRING_TYPE}\",\"datePattern\":\"yyyy-MM-dd\"}",
+        )
         mapper.readValue(json, LogicalField::class.java).assert().isEqualTo(field)
     }
 
@@ -116,21 +120,21 @@ class LogicalFieldTest {
 
     @Test
     fun `field type should round trip and formatted string should require exactly one formatter`() {
-        val values = listOf<FieldType>(
-            FieldType.Temporal.Date,
-            FieldType.Temporal.NumericEpoch(TimeUnit.SECONDS),
-            FieldType.Temporal.FormattedString(datePattern = "yyyy-MM-dd"),
+        val values = mapOf<FieldType, kotlin.String>(
+            FieldType.Temporal.Date to FieldType.Temporal.DATE_TYPE,
+            FieldType.Temporal.Number(TimeUnit.SECONDS) to FieldType.Temporal.NUMBER_TYPE,
+            FieldType.Temporal.String(datePattern = "yyyy-MM-dd") to FieldType.Temporal.STRING_TYPE,
         )
 
-        values.forEach { value ->
+        values.forEach { (value, type) ->
             val json = mapper.writeValueAsString(value)
-            json.split("\"type\":").assert().hasSize(2)
+            json.assert().contains("\"type\":\"$type\"")
             mapper.readValue(json, FieldType::class.java).assert().isEqualTo(value)
         }
 
-        assertThrows<IllegalArgumentException> { FieldType.Temporal.FormattedString() }
+        assertThrows<IllegalArgumentException> { FieldType.Temporal.String() }
         assertThrows<IllegalArgumentException> {
-            FieldType.Temporal.FormattedString(
+            FieldType.Temporal.String(
                 datePattern = "yyyy-MM-dd",
                 dateFormatter = DateTimeFormatter.ISO_LOCAL_DATE,
             )

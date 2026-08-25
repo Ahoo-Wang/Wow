@@ -164,10 +164,10 @@ internal class ElasticsearchAggregationCompiler(
                 ) ?: field.copy(name = absoluteField)
                 val histogramField = when (val type = resolvedField.temporalTypeOrDefault()) {
                     FieldType.Temporal.Date -> resolvedField.name
-                    is FieldType.Temporal.NumericEpoch -> "__wow_date_histogram_$index".also { runtimeFieldName ->
+                    is FieldType.Temporal.Number -> "__wow_date_histogram_$index".also { runtimeFieldName ->
                         runtimeMappings[runtimeFieldName] = type.toRuntimeDate(resolvedField.name)
                     }
-                    is FieldType.Temporal.FormattedString -> error(
+                    is FieldType.Temporal.String -> error(
                         "DateHistogram does not support TEMPORAL_STRING fields."
                     )
                 }
@@ -185,7 +185,7 @@ internal class ElasticsearchAggregationCompiler(
         return NamedValue.of(alias, source)
     }
 
-    private fun FieldType.Temporal.NumericEpoch.toRuntimeDate(field: String): RuntimeField {
+    private fun FieldType.Temporal.Number.toRuntimeDate(field: String): RuntimeField {
         val multiplier = TimeUnit.MILLISECONDS.convert(1, timeUnit).coerceAtLeast(1)
         val divisor = timeUnit.convert(1, TimeUnit.MILLISECONDS).coerceAtLeast(1)
         return RuntimeField.of { runtime ->
