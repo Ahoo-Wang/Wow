@@ -24,6 +24,21 @@ import java.time.ZoneOffset
 
 class FilterDslTest {
     @Test
+    fun `should build phrase search`() {
+        val expression = filter {
+            search("event sourcing", SearchMode.PHRASE, "title", "description")
+        }
+
+        expression.assert().isEqualTo(
+            SearchFilter(
+                query = "event sourcing",
+                fields = linkedSetOf(LogicalField("title"), LogicalField("description")),
+                mode = SearchMode.PHRASE,
+            ),
+        )
+    }
+
+    @Test
     fun `should build extended relative calendar filters`() {
         val field = LogicalField("createdAt")
         val expression = filter {

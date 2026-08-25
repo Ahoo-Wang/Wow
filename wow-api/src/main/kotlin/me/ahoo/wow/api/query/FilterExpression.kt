@@ -222,12 +222,18 @@ data class ElementMatchFilter(
 data class SearchFilter(
     val query: String,
     val fields: Set<LogicalField> = emptySet(),
+    val mode: SearchMode = SearchMode.TERMS,
 ) : FilterExpression {
     override val operator: FilterOperator = FilterOperator.SEARCH
 
     init {
         require(query.isNotBlank()) { "SEARCH query cannot be blank." }
     }
+}
+
+enum class SearchMode {
+    TERMS,
+    PHRASE,
 }
 
 internal fun FilterExpression.containsElementUnsupportedFilter(): Boolean = when (this) {
