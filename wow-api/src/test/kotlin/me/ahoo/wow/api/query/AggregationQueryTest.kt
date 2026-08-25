@@ -16,6 +16,7 @@ package me.ahoo.wow.api.query
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import tools.jackson.databind.exc.InvalidTypeIdException
 import tools.jackson.module.kotlin.jsonMapper
 import java.time.DateTimeException
 
@@ -23,7 +24,7 @@ class AggregationQueryTest {
     private val jsonMapper = jsonMapper()
 
     @Test
-    fun `field expression should be the default JSON subtype`() {
+    fun `bare mapper should reject missing field expression type`() {
         val json = """
             {
               "metrics": [{
@@ -35,10 +36,9 @@ class AggregationQueryTest {
             }
         """.trimIndent()
 
-        val query = jsonMapper.readValue(json, AggregationQuery::class.java)
-        val metric = query.metrics.single() as AggregationMetric.Numeric
-
-        metric.expression.assert().isEqualTo(AggregationExpression.Field(LogicalField("amount")))
+        assertThrows<InvalidTypeIdException> {
+            jsonMapper.readValue(json, AggregationQuery::class.java)
+        }
     }
 
     @Test
