@@ -133,6 +133,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'Aggregate Lifecycle', link: 'aggregate-lifecycle'},
                 {text: 'Event Bus', link: 'event-bus'},
                 {text: 'Event Evolution', link: 'event-evolution'},
+                {text: 'Serialization', link: 'serialization'},
                 {text: 'Data Flow', link: 'data-flow'},
                 {text: 'Module Dependencies', link: 'module-dependencies'},
                 {text: 'ID Generator', link: 'id-generator'},

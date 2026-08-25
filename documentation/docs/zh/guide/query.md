@@ -36,7 +36,9 @@ description: 使用 FilterExpression、查询 DSL 与 REST API 查询快照和�
 | 删除状态 | `DELETION` | `state` | `ACTIVE`、`DELETED` 或 `ALL`；删除状态本身也是过滤器 |
 | 数组元素 | `ELEMENT_MATCH` | `field`、`predicate` | `predicate` 内不允许 `DELETION`、`SEARCH` 或元数据 Filter |
 | 全文搜索 | `SEARCH` | `query`、`fields`、`mode` | `mode` 默认为 `TERMS`，可设为 `PHRASE`；具体字段能力由后端决定 |
-| 相对时间 | `TODAY`、`YESTERDAY`、`BEFORE_TODAY`、`TOMORROW`、`THIS_WEEK`、`NEXT_WEEK`、`LAST_WEEK`、`THIS_MONTH`、`NEXT_MONTH`、`LAST_MONTH`、`LAST_YEAR`、`THIS_YEAR`、`NEXT_YEAR`、`RECENT_DAYS`、`EARLIER_DAYS` | `field`；特定操作使用 `time` 或 `days`；可选 `zoneId` | 执行前统一规范化为绝对时间范围 |
+| 相对时间 | `TODAY`、`YESTERDAY`、`BEFORE_TODAY`、`TOMORROW`、`THIS_WEEK`、`NEXT_WEEK`、`LAST_WEEK`、`THIS_MONTH`、`NEXT_MONTH`、`LAST_MONTH`、`LAST_YEAR`、`THIS_YEAR`、`NEXT_YEAR`、`RECENT_DAYS`、`EARLIER_DAYS` | `field`；特定操作使用 `time` 或 `days`；可选 `zoneId`、`datePattern`、`timeUnit` | 执行前统一规范化为绝对时间范围 |
+
+相对时间过滤器面向数值时间字段时，可将 `timeUnit` 配置为 `java.util.concurrent.TimeUnit` 的枚举名，默认值为 `MILLISECONDS`。配置 `datePattern` 时输出字符串，`timeUnit` 不参与格式化。
 
 `field` 是逻辑字段路径。合法示例：
 
