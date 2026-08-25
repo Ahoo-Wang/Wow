@@ -24,6 +24,7 @@ import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.FieldType
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.RecentDaysFilter
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
@@ -48,7 +49,9 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.kotlin.test.test
+import java.time.Instant
 import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
 
 class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
@@ -70,6 +73,13 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                         .properties("epochFraction") { it.double_ { number -> number.ignoreMalformed(true) } }
                         .properties("epochMulti") { it.long_ { number -> number } }
                         .properties("epochUnsigned") { it.unsignedLong { number -> number } }
+                        .properties("relativeDate") { it.date { date -> date } }
+                        .properties("relativeEpoch") { it.long_ { number -> number } }
+                        .properties("relativeText") { property ->
+                            property.text { text ->
+                                text.fields("keyword") { field -> field.keyword { keyword -> keyword } }
+                            }
+                        }
                         .properties("state") { state ->
                             state.`object` { stateObject ->
                                 stateObject
@@ -154,6 +164,52 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     }
 
     @Test
+    fun `relative time filters should enforce declared temporal mappings`() {
+        val pattern = "yyyy-MM-dd HH:mm:ss"
+        val instant = Instant.now()
+        updateSnapshot(
+            mapOf(
+                "relativeDate" to instant,
+                "relativeEpoch" to instant.toEpochMilli(),
+                "relativeText" to DateTimeFormatter.ofPattern(pattern).withZone(ZoneOffset.UTC).format(instant),
+            ),
+        )
+        val compatible = listOf(
+            RecentDaysFilter(LogicalField("relativeDate", FieldType.Temporal.Date), 2, "UTC"),
+            RecentDaysFilter(LogicalField("relativeEpoch", FieldType.Temporal.NumericEpoch()), 2, "UTC"),
+            RecentDaysFilter(
+                LogicalField("relativeText", FieldType.Temporal.FormattedString(pattern)),
+                2,
+                "UTC",
+            ),
+        )
+
+        compatible.forEach { filter ->
+            snapshotQueryService.dynamicList(ListQuery(filter = filter, limit = 10))
+                .test()
+                .expectNextCount(1)
+                .verifyComplete()
+        }
+
+        val conflicts = listOf(
+            RecentDaysFilter(LogicalField("relativeEpoch", FieldType.Temporal.Date), 2, "UTC") to
+                listOf("relativeEpoch", "long", "date or date_nanos"),
+            RecentDaysFilter(LogicalField("relativeDate", FieldType.Temporal.NumericEpoch()), 2, "UTC") to
+                listOf("relativeDate", "date", "signed numeric"),
+            RecentDaysFilter(LogicalField("relativeEpoch", FieldType.Temporal.FormattedString(pattern)), 2, "UTC") to
+                listOf("relativeEpoch", "long", "keyword-compatible string"),
+        )
+        conflicts.forEach { (filter, details) ->
+            snapshotQueryService.dynamicList(ListQuery(filter = filter, limit = 10))
+                .test()
+                .expectErrorSatisfies { error ->
+                    error.assert().isInstanceOf(ElasticsearchFieldResolutionException::class.java)
+                    error.message.assert().contains(*details.toTypedArray())
+                }.verify()
+        }
+    }
+
+    @Test
     fun `DATE histograms should use native date and date_nanos without runtime fields`() {
         saveAggregationStates(*aggregationStates().toTypedArray())
         val mapping = ElasticsearchIndexMappingResolver(elasticsearchClient)
@@ -188,7 +244,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     }
 
     @Test
-    fun `NUMBER histograms should execute every TimeUnit conversion`() {
+    fun `TEMPORAL_NUMBER histograms should execute every TimeUnit conversion`() {
         mapOf(
             TimeUnit.NANOSECONDS to 1_767_225_600_000_000_000L,
             TimeUnit.MICROSECONDS to 1_767_225_600_000_000L,
@@ -210,13 +266,21 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     }
 
     @Test
-    fun `NUMBER histograms should ignore invalid runtime values`() {
+    fun `TEMPORAL_NUMBER histograms should accept scalar and singleton arrays only`() {
         val epochMillis = 1_767_225_600_000L
         indexDocument(
             "valid",
             mapOf(
                 "epoch" to epochMillis,
                 "epochFraction" to epochMillis.toDouble(),
+                "epochMulti" to epochMillis,
+            ),
+        )
+        indexDocument(
+            "singleton",
+            mapOf(
+                "epoch" to listOf(epochMillis),
+                "epochFraction" to listOf(epochMillis.toDouble()),
                 "epochMulti" to listOf(epochMillis),
             ),
         )
@@ -231,19 +295,27 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             ),
         )
         indexDocument("malformed", mapOf("epoch" to "not-a-number"))
-        indexDocument("multi", mapOf("epochMulti" to listOf(epochMillis, epochMillis + 86_400_000L)))
+        indexDocument(
+            "multi",
+            mapOf(
+                "epoch" to listOf(epochMillis, epochMillis + 86_400_000L),
+                "epochFraction" to listOf(epochMillis.toDouble(), epochMillis.toDouble() + 86_400_000),
+                "epochMulti" to listOf(epochMillis, epochMillis + 86_400_000L),
+            ),
+        )
         indexDocument("fraction", mapOf("epochFraction" to epochMillis + 0.5))
         indexDocument("non-finite", mapOf("epochFraction" to "NaN"))
 
-        val aggregateIds = listOf("valid", "missing", "null", "empty", "malformed", "multi", "fraction", "non-finite")
-        val expected = listOf(mapOf("day" to epochMillis, "count" to 1L))
+        val aggregateIds =
+            listOf("valid", "singleton", "missing", "null", "empty", "malformed", "multi", "fraction", "non-finite")
+        val expected = listOf(mapOf("day" to epochMillis, "count" to 2L))
         assertEpochBuckets("epoch", TimeUnit.MILLISECONDS, aggregateIds, expected)
         assertEpochBuckets("epochFraction", TimeUnit.MILLISECONDS, aggregateIds, expected)
         assertEpochBuckets("epochMulti", TimeUnit.MILLISECONDS, aggregateIds, expected)
     }
 
     @Test
-    fun `NUMBER histogram should distinguish floating upper bound from signed Long boundary`() {
+    fun `TEMPORAL_NUMBER histogram should distinguish floating upper bound from signed Long boundary`() {
         indexDocument("signed-boundary", mapOf("epoch" to Long.MAX_VALUE))
         indexDocument("floating-boundary", mapOf("epochFraction" to Math.scalb(1.0, 63)))
 
@@ -263,7 +335,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     }
 
     @Test
-    fun `default snapshot times should support NUMBER milliseconds histograms`() {
+    fun `default snapshot times should support TEMPORAL_NUMBER milliseconds histograms`() {
         val properties = elasticsearchClient.indices().getMapping(
             GetMappingRequest.of { it.index(MOCK_AGGREGATE_METADATA.toSnapshotIndexName()) },
         ).block()!!.mappings().values.single().mappings().properties()
@@ -312,7 +384,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                     ZoneOffset.UTC,
                 )
                 count("count")
-            } to listOf("state.orders.lines.createdAt", "NUMBER", "date", "signed numeric"),
+            } to listOf("state.orders.lines.createdAt", "TEMPORAL_NUMBER", "date", "signed numeric"),
         ).forEach { (query, details) ->
             query.query(snapshotQueryService).test()
                 .expectErrorSatisfies { error ->
@@ -337,14 +409,14 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                 error.assert().isInstanceOf(ElasticsearchFieldResolutionException::class.java)
                 error.message.assert()
                     .contains("epochUnsigned")
-                    .contains("NUMBER")
+                    .contains("TEMPORAL_NUMBER")
                     .contains("unsigned_long")
                     .contains("signed numeric with doc values")
             }.verify()
     }
 
     @Test
-    fun `NUMBER runtime mapping should remain available across composite pages`() {
+    fun `TEMPORAL_NUMBER runtime mapping should remain available across composite pages`() {
         saveAggregationStates(*aggregationStates().toTypedArray())
         val queryService = ElasticsearchSnapshotQueryServiceFactory(
             elasticsearchClient,

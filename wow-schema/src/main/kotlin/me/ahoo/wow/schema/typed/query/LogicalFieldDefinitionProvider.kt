@@ -32,6 +32,7 @@ object LogicalFieldDefinitionProvider : CustomDefinitionProviderV2 {
         definition.putArray(context.getKeyword(SchemaKeyword.TAG_TYPE))
             .add(context.getKeyword(SchemaKeyword.TAG_TYPE_STRING))
             .add(context.getKeyword(SchemaKeyword.TAG_TYPE_OBJECT))
+        definition.put(context.getKeyword(SchemaKeyword.TAG_ADDITIONAL_PROPERTIES), false)
         val properties = definition.get(context.getKeyword(SchemaKeyword.TAG_PROPERTIES)) as ObjectNode
         properties.set(
             "type",

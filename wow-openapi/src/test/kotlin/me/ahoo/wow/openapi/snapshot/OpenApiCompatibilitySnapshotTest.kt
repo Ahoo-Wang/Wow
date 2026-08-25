@@ -94,6 +94,7 @@ internal class OpenApiCompatibilitySnapshotTest {
             .containsExactly("FAIL", "RAW_JSON")
     }
 
+    @Suppress("LongMethod")
     @Test
     fun `generated openapi should publish typed logical fields`() {
         val openAPI = OpenAPI()
@@ -108,6 +109,7 @@ internal class OpenApiCompatibilitySnapshotTest {
             .isEqualTo("string")
         logicalField.path("properties").path("type").isMissingNode.assert().isFalse()
         logicalField.path("required").map { it.asText() }.assert().contains("name")
+        logicalField.path("additionalProperties").toString().assert().isEqualTo("false")
 
         val fieldType = schemas.path("wow.api.query.FieldType")
         fieldType.path("oneOf").size().assert().isOne()

@@ -45,7 +45,7 @@ class RelativeTimeFilterNormalizerTest {
     }
 
     @Test
-    fun `NUMBER seconds should create epoch second boundaries`() {
+    fun `TEMPORAL_NUMBER seconds should create epoch second boundaries`() {
         val normalized = normalizer.normalize(
             TodayFilter(
                 LogicalField(
@@ -64,7 +64,7 @@ class RelativeTimeFilterNormalizerTest {
     }
 
     @Test
-    fun `STRING should create formatted boundaries`() {
+    fun `TEMPORAL_STRING should create formatted boundaries`() {
         val normalized = normalizer.normalize(
             TodayFilter(
                 LogicalField(
@@ -100,7 +100,7 @@ class RelativeTimeFilterNormalizerTest {
     }
 
     @Test
-    fun `NUMBER nanoseconds should preserve subsecond boundary precision`() {
+    fun `TEMPORAL_NUMBER nanoseconds should preserve subsecond boundary precision`() {
         val normalized = normalizer.normalize(
             BeforeTodayFilter(
                 field = LogicalField(

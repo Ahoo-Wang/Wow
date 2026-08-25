@@ -167,7 +167,9 @@ internal class ElasticsearchAggregationCompiler(
                     is FieldType.Temporal.NumericEpoch -> "__wow_date_histogram_$index".also { runtimeFieldName ->
                         runtimeMappings[runtimeFieldName] = type.toRuntimeDate(resolvedField.name)
                     }
-                    is FieldType.Temporal.FormattedString -> error("DateHistogram does not support STRING fields.")
+                    is FieldType.Temporal.FormattedString -> error(
+                        "DateHistogram does not support TEMPORAL_STRING fields."
+                    )
                 }
                 it.dateHistogram { dateHistogram ->
                     dateHistogram.field(histogramField)

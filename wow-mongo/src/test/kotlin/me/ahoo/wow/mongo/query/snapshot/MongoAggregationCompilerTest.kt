@@ -50,7 +50,7 @@ class MongoAggregationCompilerTest {
     }
 
     @Test
-    fun `NUMBER seconds histogram should normalize to an internal BSON date`() {
+    fun `TEMPORAL_NUMBER seconds histogram should normalize to an internal BSON date`() {
         val pipeline = MongoAggregationCompiler(SnapshotFilterConverter).compile(
             aggregation {
                 dateHistogram(
@@ -74,7 +74,7 @@ class MongoAggregationCompilerTest {
     }
 
     @Test
-    fun `NUMBER histogram should convert every TimeUnit to epoch milliseconds`() {
+    fun `TEMPORAL_NUMBER histogram should convert every TimeUnit to epoch milliseconds`() {
         mapOf(
             TimeUnit.NANOSECONDS to ("\$divide" to "1000000"),
             TimeUnit.MICROSECONDS to ("\$divide" to "1000"),

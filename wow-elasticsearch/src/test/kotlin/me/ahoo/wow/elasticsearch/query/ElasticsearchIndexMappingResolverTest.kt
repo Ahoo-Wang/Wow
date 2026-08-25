@@ -26,8 +26,10 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregateIdsFilter
 import me.ahoo.wow.api.query.AndFilter
+import me.ahoo.wow.api.query.BeforeTodayFilter
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.ContainsFilter
+import me.ahoo.wow.api.query.EarlierDaysFilter
 import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ExistsFilter
@@ -39,20 +41,28 @@ import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.IsEmptyFilter
 import me.ahoo.wow.api.query.IsNotNullFilter
 import me.ahoo.wow.api.query.IsNullFilter
+import me.ahoo.wow.api.query.LastMonthFilter
+import me.ahoo.wow.api.query.LastWeekFilter
 import me.ahoo.wow.api.query.LastYearFilter
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.NextMonthFilter
+import me.ahoo.wow.api.query.NextWeekFilter
 import me.ahoo.wow.api.query.NextYearFilter
 import me.ahoo.wow.api.query.NotEqualFilter
 import me.ahoo.wow.api.query.NotExistsFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
+import me.ahoo.wow.api.query.RecentDaysFilter
 import me.ahoo.wow.api.query.RelativeTimeFilter
 import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.SearchMode
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.TenantIdFilter
+import me.ahoo.wow.api.query.ThisMonthFilter
+import me.ahoo.wow.api.query.ThisWeekFilter
 import me.ahoo.wow.api.query.ThisYearFilter
+import me.ahoo.wow.api.query.TodayFilter
+import me.ahoo.wow.api.query.TomorrowFilter
 import me.ahoo.wow.api.query.YesterdayFilter
 import me.ahoo.wow.api.query.toFilterExpression
 import org.junit.jupiter.api.Test
@@ -64,6 +74,7 @@ import reactor.core.publisher.Sinks
 import reactor.kotlin.test.test
 import java.util.concurrent.TimeUnit
 
+@Suppress("LargeClass")
 class ElasticsearchIndexMappingResolverTest {
     private val client = mockk<ReactiveElasticsearchClient>()
     private val indicesClient = mockk<ReactiveElasticsearchIndicesClient>()
@@ -251,11 +262,12 @@ class ElasticsearchIndexMappingResolverTest {
         val mapping = ElasticsearchIndexMapping.from(INDEX, temporalFields())
         val cases = listOf(
             LogicalField("state.epoch", FieldType.Temporal.Date) to listOf("DATE", "long", "date or date_nanos"),
-            LogicalField("state.date", FieldType.Temporal.NumericEpoch()) to listOf("NUMBER", "date", "numeric"),
+            LogicalField("state.date", FieldType.Temporal.NumericEpoch()) to
+                listOf("TEMPORAL_NUMBER", "date", "numeric"),
             LogicalField("state.epoch", FieldType.Temporal.FormattedString("yyyy-MM-dd")) to
-                listOf("STRING", "long", "keyword-compatible string"),
+                listOf("TEMPORAL_STRING", "long", "keyword-compatible string"),
             LogicalField("state.unsignedEpoch", FieldType.Temporal.NumericEpoch()) to
-                listOf("NUMBER", "unsigned_long", "signed numeric"),
+                listOf("TEMPORAL_NUMBER", "unsigned_long", "signed numeric"),
         )
 
         cases.forEach { (field, details) ->
@@ -284,9 +296,46 @@ class ElasticsearchIndexMappingResolverTest {
         failure.message.assert()
             .contains(INDEX)
             .contains(field.name)
-            .contains("NUMBER")
+            .contains("TEMPORAL_NUMBER")
             .contains("long without doc values")
             .contains("numeric with doc values")
+    }
+
+    @Test
+    fun `relative time fields should preserve parent type and compatible multi-field resolution`() {
+        val mapping = ElasticsearchIndexMapping.from(INDEX, temporalFields())
+        val cases = listOf(
+            TodayFilter(LogicalField("date", FieldType.Temporal.Date)) to "state.date",
+            BeforeTodayFilter(
+                LogicalField("epoch", FieldType.Temporal.NumericEpoch(TimeUnit.SECONDS)),
+                "12:00",
+            ) to "state.epoch",
+            TomorrowFilter(
+                LogicalField("formatted", FieldType.Temporal.FormattedString("yyyy-MM-dd")),
+            ) to "state.formatted.keyword",
+        )
+
+        cases.forEach { (filter, expectedName) ->
+            val resolved = mapping.resolve(filter, "state") as RelativeTimeFilter
+            resolved.field.name.assert().isEqualTo(expectedName)
+            resolved.field.type.assert().isEqualTo(filter.field.type)
+        }
+    }
+
+    @Test
+    fun `every relative time leaf should reject a conflicting temporal mapping`() {
+        val mapping = ElasticsearchIndexMapping.from(INDEX, temporalFields())
+        val field = LogicalField("epoch", FieldType.Temporal.Date)
+
+        relativeTimeFilters(field).forEach { filter ->
+            val failure = assertThrows<ElasticsearchFieldResolutionException> {
+                mapping.resolve(filter, "state")
+            }
+            failure.message.assert()
+                .contains("state.epoch")
+                .contains("long")
+                .contains("date or date_nanos")
+        }
     }
 
     @Test
@@ -330,9 +379,10 @@ class ElasticsearchIndexMappingResolverTest {
             val failure = runCatching { mapping.resolve(filter) }.exceptionOrNull()
                 ?: error("Expected RANGE resolution to fail for ${filter.operator}")
             failure.assert().isInstanceOf(ElasticsearchFieldResolutionException::class.java)
-            failure.message.assert().isEqualTo(
-                "Elasticsearch field [booleanTrue] does not support range queries in index [$INDEX].",
-            )
+            failure.message.assert()
+                .contains("booleanTrue")
+                .contains("boolean")
+                .contains("signed numeric")
         }
     }
 
@@ -545,6 +595,24 @@ class ElasticsearchIndexMappingResolverTest {
                 IndexMappingRecord.of { record -> record.mappings(mapping) },
             )
         }
+
+    private fun relativeTimeFilters(field: LogicalField): List<RelativeTimeFilter> = listOf(
+        TodayFilter(field),
+        BeforeTodayFilter(field, "12:00"),
+        TomorrowFilter(field),
+        ThisWeekFilter(field),
+        NextWeekFilter(field),
+        LastWeekFilter(field),
+        ThisMonthFilter(field),
+        LastMonthFilter(field),
+        RecentDaysFilter(field, 1),
+        EarlierDaysFilter(field, 1),
+        YesterdayFilter(field),
+        NextMonthFilter(field),
+        LastYearFilter(field),
+        ThisYearFilter(field),
+        NextYearFilter(field),
+    )
 
     private fun textWithKeyword(): TypeMapping =
         stateMapping(

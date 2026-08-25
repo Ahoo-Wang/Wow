@@ -16,14 +16,14 @@
 - 不读取旧 NUMBER、STRING subtype alias；近期查询协议不要求该 JSON 兼容。
 - 不增加 AUTO/INFER 或额外 TEMPORAL JSON 包装层。
 - `LogicalField` 公共属性固定为 `name: String`、`type: FieldType?`；`value` 全面重命名为 `name`。
-- LogicalField JSON：无类型序列化为字符串；带类型序列化为 `{name,type}`；读取同时接受字符串和对象。
+- LogicalField JSON：无类型序列化为字符串；带类型序列化为 `{name,type}`；读取同时接受字符串和对象，对象可省略 type，但拒绝显式 `type:null` 和未知属性。
 - 时间操作遇到 `type == null` 时默认 `FieldType.Temporal.NumericEpoch(MILLISECONDS)`。
 - RelativeTimeFilter 允许任意 Temporal；DateHistogram 拒绝 FormattedString；未来非 Temporal FieldType 由时间操作拒绝。
 - DateHistogram.timeZone 默认 `ZoneId.systemDefault()`；跨后端测试显式使用 UTC 或 Asia/Shanghai。
 - `AggregationDateUnit` 不改；`TimeUnit` 只描述 NumericEpoch 存储单位。
 - Condition 协议不改；String pattern 与任意 runtime DateTimeFormatter 必须进入 LogicalField.type 并保持语义。
-- NumericEpoch 只接受单值、有限、可无损为 Long 的整数；无效值不产生桶。
-- Elasticsearch 脚本字段名只通过 params 传入；只捕获换算溢出的 ArithmeticException。
+- NumericEpoch 只接受恰好一个数值（标量或 singleton 数组）、有限、可无损为 Long 的整数；空数组、多值数组和其他无效值不产生桶。
+- Elasticsearch 脚本字段名只通过 params 传入；乘法使用显式有符号 Long multiplier 边界检查，越界不 emit，不依赖异常控制流。
 - 不改默认 Elasticsearch 模板，不迁移索引，不增加依赖、模块、配置、Catalog、Scanner 或持久化 runtime field。
 - 测试使用 FluentAssert `.assert()`；行为变更严格执行 RED → GREEN。
 - 每次提交只 stage 明确文件，保留用户无关修改。
@@ -266,13 +266,27 @@ object LogicalFieldJsonDeserializer : StdDeserializer<LogicalField>(LogicalField
                 "LogicalField must be a string or object.",
             )
         }
+        val unknownProperties = node.properties().map { it.key }
+            .filterNot { it == "name" || it == "type" }
+        if (unknownProperties.isNotEmpty()) {
+            return context.reportInputMismatch(
+                LogicalField::class.java,
+                "LogicalField object contains unknown properties $unknownProperties.",
+            )
+        }
         val name = node["name"]?.takeIf(JsonNode::isString)?.asString()
             ?: return context.reportInputMismatch(
                 LogicalField::class.java,
                 "LogicalField object requires string property [name].",
             )
-        val type = node["type"]?.takeUnless(JsonNode::isNull)
-            ?.let { context.readTreeAsValue(it, FieldType::class.java) }
+        val typeNode = node["type"]
+        if (typeNode?.isNull == true) {
+            return context.reportInputMismatch(
+                LogicalField::class.java,
+                "LogicalField object property [type] cannot be null.",
+            )
+        }
+        val type = typeNode?.let { context.readTreeAsValue(it, FieldType::class.java) }
         return LogicalField(name, type)
     }
 }
@@ -851,7 +865,7 @@ val temporalFields = query.groupBy.mapIndexedNotNull { index, group ->
 }
 ```
 
-`numericDate` must use `$isNumber`, `$convert` raw→Long, raw/integer equality, Decimal128 multiply/divide, final Long conversion and Date conversion. Set `onError: null` and `onNull: null` on conversions, then exclude null internal fields before grouping.
+`numericDate` must use a scalar directly or unwrap an array only when its size is exactly one, then apply `$isNumber`, `$convert` raw→Long, raw/integer equality, Decimal128 multiply/divide, final Long conversion and Date conversion. Set `onError: null` and `onNull: null` on conversions, then exclude null internal fields before grouping.
 
 - [ ] **Step 4: Split group expression**
 
@@ -877,12 +891,15 @@ Expected: PASS.
 
 - [ ] **Step 6: Add real invalid-value integration**
 
-Insert valid, missing, null, empty array, multi array, string, `1.5`, and `Long.MAX_VALUE` raw documents:
+Insert scalar, singleton array, missing, null, empty array, multi array, string, `1.5`, and `Long.MAX_VALUE` raw documents:
 
 ```kotlin
 Document("_id", "valid")
     .append("deleted", false)
     .append("state", Document("epoch", 1_767_225_600_000L))
+Document("_id", "singleton")
+    .append("deleted", false)
+    .append("state", Document("epoch", listOf(1_767_225_600_000L)))
 Document("_id", "multi")
     .append("deleted", false)
     .append("state", Document("epoch", listOf(1_767_225_600_000L, 1_767_312_000_000L)))
@@ -891,7 +908,7 @@ Document("_id", "overflow")
     .append("state", Document("epoch", Long.MAX_VALUE))
 ```
 
-Run NumericEpoch(MILLISECONDS) and NumericEpoch(DAYS); only valid singleton integer values may produce buckets.
+Run NumericEpoch(MILLISECONDS) and NumericEpoch(DAYS); only a numeric scalar or singleton numeric array may produce buckets; empty and multi arrays remain invalid.
 
 ```bash
 ./gradlew :wow-mongo:integrationTest --tests \
@@ -943,8 +960,10 @@ val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter, mapping).co
 val runtime = plan.runtimeMappings.getValue("__wow_date_histogram_0")
 runtime.type().assert().isEqualTo(RuntimeFieldType.Date)
 runtime.script()!!.source()!!.scriptString().assert()
-    .contains("Math.multiplyExact")
+    .contains("value<=Long.MAX_VALUE/multiplier")
+    .contains("value>=Long.MIN_VALUE/multiplier")
     .doesNotContain("snapshotTime")
+    .doesNotContain("catch(")
 runtime.script()!!.params().getValue("field").to(String::class.java).assert()
     .isEqualTo("snapshotTime")
 ```
@@ -985,15 +1004,18 @@ String field=params.field;
 if(doc.containsKey(field)&&doc[field].size()==1){
   def raw=doc[field].value;
   if(raw instanceof Number){
+    boolean integral=raw instanceof Byte||raw instanceof Short||raw instanceof Integer||raw instanceof Long;
+    boolean floating=raw instanceof Float||raw instanceof Double;
     double candidate=((Number)raw).doubleValue();
-    if(Double.isFinite(candidate)&&candidate==Math.rint(candidate)&&candidate>=Long.MIN_VALUE&&candidate<=Long.MAX_VALUE){
+    if(integral||(floating&&Double.isFinite(candidate)&&candidate==Math.rint(candidate)&&candidate>=Long.MIN_VALUE&&candidate<Long.MAX_VALUE)){
       long value=((Number)raw).longValue();
-      try{
-        long millis=((Number)params.divisor).longValue()==1L
-          ?Math.multiplyExact(value,((Number)params.multiplier).longValue())
-          :value/((Number)params.divisor).longValue();
-        emit(millis);
-      }catch(ArithmeticException ignored){}
+      long multiplier=((Number)params.multiplier).longValue();
+      long divisor=((Number)params.divisor).longValue();
+      if(divisor==1L){
+        if(value<=Long.MAX_VALUE/multiplier&&value>=Long.MIN_VALUE/multiplier){
+          emit(value*multiplier);
+        }
+      }else{emit(value/divisor);}
     }
   }
 }
@@ -1123,7 +1145,7 @@ Map numeric test fields:
 .properties("epochMulti") { it.long_ { number -> number } }
 ```
 
-Index/update documents for valid long, malformed string, empty array, multi array, fraction and Long.MAX_VALUE. Query typed NumericEpoch(MILLISECONDS) and NumericEpoch(DAYS). Assert only valid singleton integral values form buckets.
+Index/update documents for scalar long, singleton array, malformed string, empty array, multi array, fraction and Long.MAX_VALUE. Query typed NumericEpoch(MILLISECONDS) and NumericEpoch(DAYS). Assert only scalar and singleton integral values form buckets.
 
 - [ ] **Step 5: Verify default template time fields**
 
@@ -1316,7 +1338,7 @@ data class FormattedString(...)
 Keep Date as DATE and keep all Kotlin type names/hierarchy/backend behavior unchanged. Register no NUMBER/STRING aliases.
 
 Update the existing `LogicalFieldDefinitionProvider` to reuse the standard object definition, expose both
-`string` and `object` types, and retain the `FieldType` reference. In `OpenAPISchemaBuilder`, normalize an
+`string` and `object` types, retain the `FieldType` reference, and publish `additionalProperties: false`. In `OpenAPISchemaBuilder`, normalize an
 annotated single `$ref` into `oneOf: [$ref]`, matching the same existing normalization used for generated
 `anyOf`; add a generic regression test and retain the AggregationExpression regression.
 
@@ -1437,6 +1459,7 @@ Both must document:
 - RelativeTime accepts all Temporal; DateHistogram rejects FormattedString.
 - system default timeZone and explicit-zone recommendation.
 - snapshotTime typed TEMPORAL_NUMBER/MILLISECONDS examples.
+- NumericEpoch accepts exactly one numeric scalar or singleton array; empty and multi arrays do not form buckets.
 - bucket keys remain epoch-millisecond bucket starts.
 - backend mapping/runtime semantics and TEMPORAL_STRING format limitation.
 

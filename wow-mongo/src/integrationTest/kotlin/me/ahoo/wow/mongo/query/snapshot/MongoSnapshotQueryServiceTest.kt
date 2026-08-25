@@ -85,7 +85,7 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     }
 
     @Test
-    fun `NUMBER histograms should ignore invalid scalar and non-scalar values`() {
+    fun `TEMPORAL_NUMBER histograms should accept scalar and singleton arrays only`() {
         val epochMillis = 1_767_225_600_000L
         val epochDay = 20_454L
         database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
@@ -96,6 +96,13 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                         .append(
                             "state",
                             Document("epochMillis", epochMillis).append("epochDay", epochDay),
+                        ),
+                    Document("_id", "singleton")
+                        .append("deleted", false)
+                        .append(
+                            "state",
+                            Document("epochMillis", listOf(epochMillis))
+                                .append("epochDay", listOf(epochDay)),
                         ),
                     Document("_id", "missing")
                         .append("deleted", false)
@@ -158,7 +165,7 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                 .test()
                 .assertNext { rows ->
                     rows.map(Map<String, Any?>::toMap).assert()
-                        .containsExactly(mapOf("day" to epochMillis, "count" to 1L))
+                        .containsExactly(mapOf("day" to epochMillis, "count" to 2L))
                 }.verifyComplete()
         }
     }

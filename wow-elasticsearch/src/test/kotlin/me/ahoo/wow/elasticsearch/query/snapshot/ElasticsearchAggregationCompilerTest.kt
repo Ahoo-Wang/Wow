@@ -167,7 +167,7 @@ class ElasticsearchAggregationCompilerTest {
     }
 
     @Test
-    fun `NUMBER histogram should compile a parameterized date runtime field`() {
+    fun `TEMPORAL_NUMBER histogram should compile a parameterized date runtime field`() {
         val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter, temporalMapping()).compile(
             aggregation {
                 dateHistogram(
@@ -201,7 +201,7 @@ class ElasticsearchAggregationCompilerTest {
     }
 
     @Test
-    fun `NUMBER histogram should distinguish integral Long max from floating upper bound`() {
+    fun `TEMPORAL_NUMBER histogram should distinguish integral Long max from floating upper bound`() {
         val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter, temporalMapping()).compile(
             aggregation {
                 dateHistogram(
@@ -229,7 +229,7 @@ class ElasticsearchAggregationCompilerTest {
     }
 
     @Test
-    fun `NUMBER histogram should convert every TimeUnit to epoch milliseconds`() {
+    fun `TEMPORAL_NUMBER histogram should convert every TimeUnit to epoch milliseconds`() {
         mapOf(
             TimeUnit.NANOSECONDS to (1L to 1_000_000L),
             TimeUnit.MICROSECONDS to (1L to 1_000L),

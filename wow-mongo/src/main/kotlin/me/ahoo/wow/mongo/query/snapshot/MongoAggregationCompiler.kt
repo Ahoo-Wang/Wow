@@ -150,11 +150,20 @@ internal class MongoAggregationCompiler(
         when (field.temporalTypeOrDefault()) {
             FieldType.Temporal.Date -> "\$${field.resolve(parent)}"
             is FieldType.Temporal.NumericEpoch -> "\$${dateHistogramField(groupIndex)}"
-            is FieldType.Temporal.FormattedString -> error("DateHistogram does not support STRING fields.")
+            is FieldType.Temporal.FormattedString -> error("DateHistogram does not support TEMPORAL_STRING fields.")
         }
 
     private fun AggregationGroup.DateHistogram.numericDate(parent: String?): Document {
-        val raw = "\$${field.resolve(parent)}"
+        val fieldReference = "\$${field.resolve(parent)}"
+        val singleton = Document(
+            "\$cond",
+            listOf(
+                Document("\$eq", listOf(Document("\$size", fieldReference), 1)),
+                Document("\$arrayElemAt", listOf(fieldReference, 0)),
+                null,
+            ),
+        )
+        val raw = Document("\$cond", listOf(Document("\$isArray", fieldReference), singleton, fieldReference))
         val integer = convert(raw, "long")
         val timeUnit = (field.temporalTypeOrDefault() as FieldType.Temporal.NumericEpoch).timeUnit
         val decimal = convert("\$\$integer", "decimal")

@@ -271,7 +271,7 @@ class AggregationQueryTest {
     }
 
     @Test
-    fun `date histogram should reject STRING`() {
+    fun `date histogram should reject TEMPORAL_STRING`() {
         assertThrows<IllegalArgumentException> {
             AggregationGroup.DateHistogram(
                 field = LogicalField(

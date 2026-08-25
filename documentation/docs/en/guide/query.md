@@ -43,12 +43,12 @@ description: Query snapshots and event streams with FilterExpression, the query 
 `field` accepts either its compact string form or an object with a declared type. The object form is useful whenever the storage representation is temporal:
 
 ```json
-"state.snapshotTime"
+"snapshotTime"
 ```
 
 ```json
 {
-  "name": "state.snapshotTime",
+  "name": "snapshotTime",
   "type": {
     "type": "TEMPORAL_NUMBER",
     "timeUnit": "MILLISECONDS"
@@ -375,9 +375,9 @@ Orders can be bucketed by total amount. With `interval: 100`, the buckets are `[
 ]
 ```
 
-##### Track a snapshot-time trend
+##### Track a root snapshot-time trend
 
-Assuming `state.snapshotTime` is stored as epoch milliseconds, records can be counted per day in the Shanghai time zone:
+The root `snapshotTime` field is stored as epoch milliseconds, so records can be counted per day in the Shanghai time zone:
 
 ```json
 {
@@ -385,7 +385,7 @@ Assuming `state.snapshotTime` is stored as epoch milliseconds, records can be co
     {
       "type": "DATE_HISTOGRAM",
       "field": {
-        "name": "state.snapshotTime",
+        "name": "snapshotTime",
         "type": {
           "type": "TEMPORAL_NUMBER",
           "timeUnit": "MILLISECONDS"
@@ -411,7 +411,7 @@ Assuming `state.snapshotTime` is stored as epoch milliseconds, records can be co
 
 Date bucket keys remain epoch milliseconds at the start of each bucket. `DATE_HISTOGRAM` accepts only untyped, `DATE`, and `TEMPORAL_NUMBER` fields; it rejects `TEMPORAL_STRING`.
 
-MongoDB uses native BSON `Date` values for `DATE`; `TEMPORAL_NUMBER` values are normalized from their declared unit to dates before bucketing. In Elasticsearch, `DATE` uses the native mapped `date` or `date_nanos` field directly and creates no runtime field. `TEMPORAL_NUMBER` requires numeric doc values and is converted through a request-level runtime `date` field. `TEMPORAL_STRING` has no date-histogram support.
+MongoDB uses native BSON `Date` values for `DATE`; `TEMPORAL_NUMBER` values are normalized from their declared unit to dates before bucketing. Exactly one numeric value is accepted, either a scalar or a singleton array; empty and multi-valued arrays do not form buckets. In Elasticsearch, `DATE` uses the native mapped `date` or `date_nanos` field directly and creates no runtime field. `TEMPORAL_NUMBER` requires numeric doc values and is converted through a request-level runtime `date` field. `TEMPORAL_STRING` has no date-histogram support.
 
 ##### Expand a collection and select Top-N
 

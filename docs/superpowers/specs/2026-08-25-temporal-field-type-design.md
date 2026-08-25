@@ -116,7 +116,7 @@ data class LogicalField(
 Jackson 在 LogicalField 公共序列化边界集中实现双形态：
 
 - `type == null` 序列化为字符串，字符串反序列化为 `LogicalField(name, null)`。
-- `type != null` 序列化为 `{ "name": ..., "type": ... }`，对象反序列化时要求 name，type 可选。
+- `type != null` 序列化为 `{ "name": ..., "type": ... }`；对象反序列化时要求 name，type 可省略，但显式 `type: null` 与未知属性失败。
 - 其他 JSON token 在公共边界失败；后端不识别 string/object wire shape。
 
 OpenAPI 3.1 使用 `types = ["string", "object"]` 并发布对象属性 name/type；静态 JSON Schema 使用 `oneOf` 精确表达 string 与 object。LogicalField 的 equality/hashCode 同时包含 name 与 type，typed 与 untyped 字段是不同的查询声明。
@@ -301,8 +301,8 @@ DATE 将字段直接交给 `$dateTrunc`，不再生成 `$toDate`。缺失与 nul
 
 每个 NumericEpoch DateHistogram 使用按 group index 生成的内部临时字段，避免重复计算和用户可控名称。pipeline 依次：
 
-1. 判断原值为单个数值；数组、缺失、null 和字符串不满足。
-2. 通过 `$convert(onError: null, onNull: null)` 得到 `Long`，并比较原值与整数值，排除小数和 Long 范围外的值。
+1. 标量直接使用；数组只在恰含一个元素时解包，空数组和多值数组不满足。
+2. 判断解包后的值为数值，通过 `$convert(onError: null, onNull: null)` 得到 `Long`，并比较原值与整数值，排除非数值、小数和 Long 范围外的值。
 3. 使用 Decimal128 中间值按 `TimeUnit` 乘或除到 epoch milliseconds，再 `$convert` 为 Long；换算溢出得到 null。
 4. 将 epoch milliseconds 转为 BSON Date，失败得到 null。
 5. 在 `$group` 前排除临时字段为 null 的文档。
@@ -341,7 +341,7 @@ NumericEpoch 为每个分组生成请求级 `date` runtime field，名称按 gro
 - 通过 params 接收解析后的字段名和单位换算参数，不拼接用户输入。
 - 只读取恰好一个 doc value；缺失、空值和多值不 emit。
 - 只接受有限、处于 Long 范围且等于自身整数值的 Number。
-- 比毫秒更细的单位使用整数除法；更粗的单位使用 `Math.multiplyExact`，只捕获该换算产生的 `ArithmeticException` 并不 emit，不使用宽泛异常吞掉其他脚本错误。
+- 比毫秒更细的单位使用整数除法；更粗的单位在乘法前按正 multiplier 显式检查 `Long.MIN_VALUE / multiplier <= value <= Long.MAX_VALUE / multiplier`，越界不 emit，不依赖异常控制流。
 - 以 epoch milliseconds 调用 date runtime field 的 `emit(long)`。
 
 runtime field 只加入 `ElasticsearchAggregationPlan.runtimeMappings`。现有 `ElasticsearchAggregationPager` 已在每一次 PIT/composite SearchRequest 上附带该 Map，包括 after-key 后续页，因此不增加新的分页状态或传递层。
@@ -356,15 +356,16 @@ DateHistogram 必须把每个存储字符串解析为时间点。MongoDB `$dateF
 
 ## 数值无效值合同
 
-NumericEpoch 只接受单值、有限、可无损表示为 Long 的整数 epoch。处理如下：
+NumericEpoch 只接受恰好一个数值：标量或恰含一个元素的数组；该值还必须有限且可无损表示为 Long 整数 epoch。处理如下：
 
 | 输入 | MongoDB | Elasticsearch | 结果 |
 |---|---|---|---|
-| missing/null/empty | 转换为 null | 无 doc value | 不进入桶 |
-| 多值 | 数组不满足单值数值 | `doc[field].size() != 1` | 不进入桶 |
+| 数值标量/单元素数值数组 | 标量直接使用/数组解包 | `doc[field].size() == 1` | 继续精确 Long 与单位换算 |
+| missing/null/空数组 | 转换为 null | 无 doc value | 不进入桶 |
+| 多值数组 | 数组不满足 singleton | `doc[field].size() != 1` | 不进入桶 |
 | 非数值 | `$isNumber` 失败 | 数值 mapping 下无有效 doc value；非数值 mapping 在解析阶段冲突 | 不产生桶 |
 | 小数 | 整数等值检查失败 | 整数等值检查失败 | 不进入桶 |
-| 单位换算溢出 | `$convert` 得到 null | `Math.multiplyExact` 失败 | 不进入桶 |
+| 单位换算溢出 | `$convert` 得到 null | 显式有符号 Long 乘法边界检查失败 | 不进入桶 |
 
 Elasticsearch 数值 mapping 默认会在写入阶段拒绝非数值；真实集成测试使用允许 malformed 输入的数值字段证明无 doc value 时查询会排除该文档，并另测非数值 mapping 与 NumericEpoch 声明的清晰冲突。
 
@@ -388,7 +389,7 @@ Elasticsearch 数值 mapping 默认会在写入阶段拒绝非数值；真实集
 ### 公共 API 与 JSON
 
 - FieldType Temporal 的 DATE、TEMPORAL_NUMBER、TEMPORAL_STRING JSON round-trip；旧 NUMBER、STRING subtype ID 反序列化失败。
-- LogicalField 字符串/对象双形态 round-trip；对象必须使用 name/type，非法 token 和缺失 name 失败。
+- LogicalField 字符串/对象双形态 round-trip；对象必须有 name，type 可省略，显式 null、未知属性、非法 token 和缺失 name 失败。
 - NumericEpoch 默认 `MILLISECONDS`。
 - RelativeTimeFilter 通过 field.type 使用三种类型，未声明时默认 NumericEpoch(MILLISECONDS)。
 - DateHistogram 通过 field.type 使用 Date、NumericEpoch，未声明时默认 NumericEpoch(MILLISECONDS)。
@@ -409,14 +410,14 @@ Elasticsearch 数值 mapping 默认会在写入阶段拒绝非数值；真实集
 
 - 编译测试证明 DATE 直接 `$dateTrunc`，NumericEpoch 生成单位换算和无效值排除 pipeline。
 - 真实 pipeline 集成覆盖 BSON Date、milliseconds、seconds、时区和 Monday week。
-- 向原始 collection 写入 missing、null、empty、multi、string、fraction、overflow，验证只返回有效桶。
+- 向原始 collection 写入标量、singleton 数组、missing、null、empty、multi、string、fraction、overflow，验证只返回标量与 singleton 数组的有效桶。
 
 ### Elasticsearch
 
 - mapping resolver 覆盖 date、date_nanos、数值、字符串、doc-values 缺失及声明冲突。
 - compiler 覆盖 DATE 无 runtime field、NumericEpoch runtime script 参数和各类单位换算。
 - pager 捕获多页 SearchRequest，验证每页携带同一 runtime mappings。
-- 真实集成覆盖 date、date_nanos、long、允许 malformed 的数值字段、空值、多值、小数和溢出。
+- 真实集成覆盖 date、date_nanos、long、允许 malformed 的数值字段、singleton 数组、空值、多值、小数和溢出。
 - 使用默认模板和真实快照分别验证 `firstEventTime`、`eventTime`、`snapshotTime` 可按 NumericEpoch(MILLISECONDS) 分桶。
 
 ### 跨后端 TCK

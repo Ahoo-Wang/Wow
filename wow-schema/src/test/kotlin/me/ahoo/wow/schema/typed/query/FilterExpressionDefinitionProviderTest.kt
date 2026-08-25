@@ -91,6 +91,7 @@ class FilterExpressionDefinitionProviderTest {
         val mapper = JsonMapper.builder().build()
         listOf(
             """{"op":"TODAY","field":"state.createdAt"}""",
+            """{"op":"TODAY","field":{"name":"state.createdAt"}}""",
             """{"op":"TODAY","field":{"name":"state.createdAt","type":{"type":"DATE"}}}""",
             """{"op":"TODAY","field":{"name":"state.epoch","type":{"type":"TEMPORAL_NUMBER","timeUnit":"SECONDS"}}}""",
             """{"op":"TODAY","field":{"name":"state.text","type":{"type":"TEMPORAL_STRING","datePattern":"yyyy-MM-dd"}}}""",
@@ -99,6 +100,12 @@ class FilterExpressionDefinitionProviderTest {
         }
         schema.validate(
             mapper.readTree("""{"op":"TODAY","field":{"type":{"type":"DATE"}}}"""),
+        ).assert().isNotEmpty()
+        schema.validate(
+            mapper.readTree("""{"op":"TODAY","field":{"name":"state.createdAt","type":null}}"""),
+        ).assert().isNotEmpty()
+        schema.validate(
+            mapper.readTree("""{"op":"TODAY","field":{"name":"state.createdAt","unknown":true}}"""),
         ).assert().isNotEmpty()
         listOf("NUMBER", "STRING").forEach { oldId ->
             schema.validate(

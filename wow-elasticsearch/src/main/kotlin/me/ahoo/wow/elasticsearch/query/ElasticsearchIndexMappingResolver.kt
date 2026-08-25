@@ -252,21 +252,21 @@ data class ElasticsearchIndexMapping private constructor(
         is LessThanFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
         is LessThanOrEqualFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
         is BetweenFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is TodayFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is BeforeTodayFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is TomorrowFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is ThisWeekFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is NextWeekFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is LastWeekFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is ThisMonthFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is LastMonthFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is YesterdayFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is NextMonthFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is LastYearFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is ThisYearFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is NextYearFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is RecentDaysFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is EarlierDaysFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
+        is TodayFilter -> filter.copy(field = filter.field.resolveTemporal(parent))
+        is BeforeTodayFilter -> filter.copy(field = filter.field.resolveTemporal(parent))
+        is TomorrowFilter -> filter.copy(field = filter.field.resolveTemporal(parent))
+        is ThisWeekFilter -> filter.copy(field = filter.field.resolveTemporal(parent))
+        is NextWeekFilter -> filter.copy(field = filter.field.resolveTemporal(parent))
+        is LastWeekFilter -> filter.copy(field = filter.field.resolveTemporal(parent))
+        is ThisMonthFilter -> filter.copy(field = filter.field.resolveTemporal(parent))
+        is LastMonthFilter -> filter.copy(field = filter.field.resolveTemporal(parent))
+        is YesterdayFilter -> filter.copy(field = filter.field.resolveTemporal(parent))
+        is NextMonthFilter -> filter.copy(field = filter.field.resolveTemporal(parent))
+        is LastYearFilter -> filter.copy(field = filter.field.resolveTemporal(parent))
+        is ThisYearFilter -> filter.copy(field = filter.field.resolveTemporal(parent))
+        is NextYearFilter -> filter.copy(field = filter.field.resolveTemporal(parent))
+        is RecentDaysFilter -> filter.copy(field = filter.field.resolveTemporal(parent))
+        is EarlierDaysFilter -> filter.copy(field = filter.field.resolveTemporal(parent))
         is SearchFilter -> {
             val usage = when (filter.mode) {
                 SearchMode.TERMS -> ElasticsearchFieldUsage.SEARCH
@@ -291,6 +291,9 @@ data class ElasticsearchIndexMapping private constructor(
         if (parent == null && name == "_id" && usage == ElasticsearchFieldUsage.EXACT) return this
         return copy(name = this@ElasticsearchIndexMapping.resolve(path(parent), usage))
     }
+
+    private fun LogicalField.resolveTemporal(parent: String?): LogicalField =
+        this@ElasticsearchIndexMapping.resolveTemporal(copy(name = path(parent)), docValuesRequired = false)
 
     fun resolve(sort: List<Sort>): List<Sort> =
         sort.map {
@@ -456,8 +459,8 @@ private data class ElasticsearchMappedField(
 private fun FieldType.Temporal.declaredName(): String =
     when (this) {
         FieldType.Temporal.Date -> "DATE"
-        is FieldType.Temporal.NumericEpoch -> "NUMBER"
-        is FieldType.Temporal.FormattedString -> "STRING"
+        is FieldType.Temporal.NumericEpoch -> "TEMPORAL_NUMBER"
+        is FieldType.Temporal.FormattedString -> "TEMPORAL_STRING"
     }
 
 private fun FieldType.Temporal.expectedMapping(docValuesRequired: Boolean): String {

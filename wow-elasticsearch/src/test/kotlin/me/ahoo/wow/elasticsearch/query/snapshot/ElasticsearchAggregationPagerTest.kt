@@ -124,7 +124,7 @@ class ElasticsearchAggregationPagerTest {
     }
 
     @Test
-    fun `NUMBER date histogram should retain runtime mappings on every page`() {
+    fun `TEMPORAL_NUMBER date histogram should retain runtime mappings on every page`() {
         val requests = mutableListOf<SearchRequest>()
         stubPointInTime()
         every { client.search(capture(requests), Map::class.java) } returnsMany listOf(

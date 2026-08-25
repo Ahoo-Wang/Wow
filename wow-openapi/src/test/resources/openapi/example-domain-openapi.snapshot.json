@@ -5801,6 +5801,7 @@
         "type" : "object"
       },
       "wow.api.query.LogicalField" : {
+        "additionalProperties" : false,
         "properties" : {
           "name" : {
             "type" : "string"

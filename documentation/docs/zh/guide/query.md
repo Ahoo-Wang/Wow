@@ -43,12 +43,12 @@ description: 使用 FilterExpression、查询 DSL 与 REST API 查询快照和�
 `field` 同时接受紧凑字符串形式和带类型声明的对象形式。存储表示为时间时，使用对象形式：
 
 ```json
-"state.snapshotTime"
+"snapshotTime"
 ```
 
 ```json
 {
-  "name": "state.snapshotTime",
+  "name": "snapshotTime",
   "type": {
     "type": "TEMPORAL_NUMBER",
     "timeUnit": "MILLISECONDS"
@@ -375,9 +375,9 @@ curl --request POST 'http://localhost:8080/execution_failed/snapshot/aggregation
 ]
 ```
 
-##### 按快照时间查看趋势
+##### 按根快照时间查看趋势
 
-假设 `state.snapshotTime` 以 epoch 毫秒存储，可以按上海时区统计每日快照数量：
+根字段 `snapshotTime` 以 epoch 毫秒存储，可以按上海时区统计每日快照数量：
 
 ```json
 {
@@ -385,7 +385,7 @@ curl --request POST 'http://localhost:8080/execution_failed/snapshot/aggregation
     {
       "type": "DATE_HISTOGRAM",
       "field": {
-        "name": "state.snapshotTime",
+        "name": "snapshotTime",
         "type": {
           "type": "TEMPORAL_NUMBER",
           "timeUnit": "MILLISECONDS"
@@ -411,7 +411,7 @@ curl --request POST 'http://localhost:8080/execution_failed/snapshot/aggregation
 
 日期桶键仍是分桶起点的 epoch 毫秒。`DATE_HISTOGRAM` 只接受未标注、`DATE` 和 `TEMPORAL_NUMBER` 字段，拒绝 `TEMPORAL_STRING`。
 
-MongoDB 对 `DATE` 使用原生 BSON `Date`；对 `TEMPORAL_NUMBER` 会先按声明的单位规范化为日期后再分桶。Elasticsearch 中，`DATE` 直接使用原生映射的 `date` 或 `date_nanos` 字段，不创建 runtime field；`TEMPORAL_NUMBER` 要求数值 doc values，并通过请求级 runtime `date` 字段转换。`TEMPORAL_STRING` 不支持日期直方图。
+MongoDB 对 `DATE` 使用原生 BSON `Date`；对 `TEMPORAL_NUMBER` 会先按声明的单位规范化为日期后再分桶。只接受一个数值：标量或恰含一个元素的数组；空数组和多值数组不形成桶。Elasticsearch 中，`DATE` 直接使用原生映射的 `date` 或 `date_nanos` 字段，不创建 runtime field；`TEMPORAL_NUMBER` 要求数值 doc values，并通过请求级 runtime `date` 字段转换。`TEMPORAL_STRING` 不支持日期直方图。
 
 ##### 展开集合并取 Top-N
 

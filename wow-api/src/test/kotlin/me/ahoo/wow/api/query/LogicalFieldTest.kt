@@ -87,6 +87,34 @@ class LogicalFieldTest {
     }
 
     @Test
+    fun `logical field object without type should remain untyped`() {
+        mapper.readValue(
+            """{"name":"state.createdAt"}""",
+            LogicalField::class.java,
+        ).assert().isEqualTo(LogicalField("state.createdAt"))
+    }
+
+    @Test
+    fun `logical field object should reject explicit null type`() {
+        assertThrows<JacksonException> {
+            mapper.readValue(
+                """{"name":"state.createdAt","type":null}""",
+                LogicalField::class.java,
+            )
+        }
+    }
+
+    @Test
+    fun `logical field object should reject unknown properties`() {
+        assertThrows<JacksonException> {
+            mapper.readValue(
+                """{"name":"state.createdAt","unknown":true}""",
+                LogicalField::class.java,
+            )
+        }
+    }
+
+    @Test
     fun `field type should round trip and formatted string should require exactly one formatter`() {
         val values = listOf<FieldType>(
             FieldType.Temporal.Date,
