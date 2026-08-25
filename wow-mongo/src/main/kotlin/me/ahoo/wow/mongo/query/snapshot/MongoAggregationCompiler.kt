@@ -23,12 +23,15 @@ import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.FieldType
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.mongo.query.AbstractMongoFilterConverter
 import org.bson.Document
 import org.bson.conversions.Bson
+import org.bson.types.Decimal128
+import java.util.concurrent.TimeUnit
 
 internal class MongoAggregationCompiler(
     private val converter: AbstractMongoFilterConverter,
@@ -45,8 +48,25 @@ internal class MongoAggregationCompiler(
             }
         }
 
+        val numericDateHistograms = query.groupBy.mapIndexedNotNull { index, group ->
+            (group as? AggregationGroup.DateHistogram)
+                ?.takeIf { it.field.temporalTypeOrDefault() is FieldType.Temporal.NumericEpoch }
+                ?.let { index to it }
+        }
+        if (numericDateHistograms.isNotEmpty()) {
+            add(
+                Document(
+                    "\$set",
+                    numericDateHistograms.associateTo(Document()) { (index, group) ->
+                        dateHistogramField(index) to group.numericDate(parent)
+                    },
+                ),
+            )
+        }
+
         if (query.groupBy.isNotEmpty()) {
-            val groupFields = query.groupBy.map { it.field.resolve(parent) }
+            val groupFields = query.groupBy.map { it.field.resolve(parent) } +
+                numericDateHistograms.map { (index) -> dateHistogramField(index) }
             add(
                 Aggregates.match(
                     Filters.and(groupFields.flatMap { listOf(Filters.exists(it), Filters.ne(it, null)) }),
@@ -63,7 +83,13 @@ internal class MongoAggregationCompiler(
     private fun group(query: AggregationQuery, parent: String?): Bson {
         val id = query.groupBy
             .takeIf { it.isNotEmpty() }
-            ?.associateTo(Document()) { it.alias to it.expression(parent) }
+            ?.let { groups ->
+                Document().apply {
+                    groups.forEachIndexed { index, group ->
+                        this[group.alias] = group.expression(parent, index)
+                    }
+                }
+            }
         val group = Document("_id", id)
         query.metrics.forEach { metric ->
             when (metric) {
@@ -96,7 +122,7 @@ internal class MongoAggregationCompiler(
         return Aggregates.project(project)
     }
 
-    private fun AggregationGroup.expression(parent: String?): Any = when (this) {
+    private fun AggregationGroup.expression(parent: String?, groupIndex: Int): Any = when (this) {
         is AggregationGroup.Terms -> "\$${field.resolve(parent)}"
         is AggregationGroup.Histogram -> Document(
             "\$multiply",
@@ -110,7 +136,7 @@ internal class MongoAggregationCompiler(
             "\$toLong",
             Document(
                 "\$dateTrunc",
-                Document("date", Document("\$toDate", "\$${field.resolve(parent)}"))
+                Document("date", dateInput(parent, groupIndex))
                     .append("unit", unit.name.lowercase())
                     .append("timezone", if (timeZone == "Z") "UTC" else timeZone)
                     .apply {
@@ -119,6 +145,67 @@ internal class MongoAggregationCompiler(
             ),
         )
     }
+
+    private fun AggregationGroup.DateHistogram.dateInput(parent: String?, groupIndex: Int): String =
+        when (field.temporalTypeOrDefault()) {
+            FieldType.Temporal.Date -> "\$${field.resolve(parent)}"
+            is FieldType.Temporal.NumericEpoch -> "\$${dateHistogramField(groupIndex)}"
+            is FieldType.Temporal.FormattedString -> error("DateHistogram does not support STRING fields.")
+        }
+
+    private fun AggregationGroup.DateHistogram.numericDate(parent: String?): Document {
+        val raw = "\$${field.resolve(parent)}"
+        val integer = convert(raw, "long")
+        val timeUnit = (field.temporalTypeOrDefault() as FieldType.Temporal.NumericEpoch).timeUnit
+        val decimal = convert("\$\$integer", "decimal")
+        val epochMillis = when (timeUnit) {
+            TimeUnit.NANOSECONDS -> Document(
+                "\$trunc",
+                listOf(Document("\$divide", listOf(decimal, Decimal128(1_000_000L)))),
+            )
+
+            TimeUnit.MICROSECONDS -> Document(
+                "\$trunc",
+                listOf(Document("\$divide", listOf(decimal, Decimal128(1_000L)))),
+            )
+
+            TimeUnit.MILLISECONDS -> Document("\$multiply", listOf(decimal, Decimal128(1L)))
+            TimeUnit.SECONDS -> Document("\$multiply", listOf(decimal, Decimal128(1_000L)))
+            TimeUnit.MINUTES -> Document("\$multiply", listOf(decimal, Decimal128(60_000L)))
+            TimeUnit.HOURS -> Document("\$multiply", listOf(decimal, Decimal128(3_600_000L)))
+            TimeUnit.DAYS -> Document("\$multiply", listOf(decimal, Decimal128(86_400_000L)))
+        }
+        return Document(
+            "\$let",
+            Document("vars", Document("raw", raw).append("integer", integer))
+                .append(
+                    "in",
+                    Document(
+                        "\$cond",
+                        listOf(
+                            Document(
+                                "\$and",
+                                listOf(
+                                    Document("\$isNumber", "\$\$raw"),
+                                    Document("\$ne", listOf("\$\$integer", null)),
+                                    Document("\$eq", listOf("\$\$raw", "\$\$integer")),
+                                ),
+                            ),
+                            convert(convert(epochMillis, "long"), "date"),
+                            null,
+                        ),
+                    ),
+                ),
+        )
+    }
+
+    private fun convert(input: Any, target: String): Document = Document(
+        "\$convert",
+        Document("input", input)
+            .append("to", target)
+            .append("onError", null)
+            .append("onNull", null),
+    )
 
     private fun AggregationMetric.Numeric.toMongoInput(parent: String?): Pair<Any, Any> {
         val metricExpression = expression
@@ -244,4 +331,6 @@ internal class MongoAggregationCompiler(
 
     private val AggregationMetric.Numeric.countAlias: String
         get() = "__wow_value_count_$alias"
+
+    private fun dateHistogramField(groupIndex: Int): String = "__wow_date_histogram_$groupIndex"
 }

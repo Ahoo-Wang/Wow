@@ -25,8 +25,84 @@ import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.serialization.MessageRecords
 import org.junit.jupiter.api.Test
 import java.time.ZoneId
+import java.time.ZoneOffset
+import java.util.concurrent.TimeUnit
 
 class MongoAggregationCompilerTest {
+
+    @Test
+    fun `DATE histogram should pass the native BSON date to dateTrunc`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterConverter).compile(
+            aggregation {
+                dateHistogram(
+                    LogicalField("state.createdAt", FieldType.Temporal.Date),
+                    AggregationDateUnit.DAY,
+                    "day",
+                    ZoneOffset.UTC,
+                )
+                count("count")
+            },
+        ).joinToString { it.toBsonDocument().toJson() }
+
+        pipeline.assert()
+            .contains("\$dateTrunc")
+            .doesNotContain("\$toDate")
+    }
+
+    @Test
+    fun `NUMBER seconds histogram should normalize to an internal BSON date`() {
+        val pipeline = MongoAggregationCompiler(SnapshotFilterConverter).compile(
+            aggregation {
+                dateHistogram(
+                    LogicalField(
+                        "state.epochSecond",
+                        FieldType.Temporal.NumericEpoch(TimeUnit.SECONDS),
+                    ),
+                    AggregationDateUnit.DAY,
+                    "day",
+                    ZoneOffset.UTC,
+                )
+                count("count")
+            },
+        ).joinToString { it.toBsonDocument().toJson() }
+
+        pipeline.assert()
+            .contains("__wow_date_histogram_0")
+            .contains("\$isNumber")
+            .contains("\$convert")
+            .contains("\$multiply")
+    }
+
+    @Test
+    fun `NUMBER histogram should convert every TimeUnit to epoch milliseconds`() {
+        mapOf(
+            TimeUnit.NANOSECONDS to ("\$divide" to "1000000"),
+            TimeUnit.MICROSECONDS to ("\$divide" to "1000"),
+            TimeUnit.MILLISECONDS to ("\$multiply" to "1"),
+            TimeUnit.SECONDS to ("\$multiply" to "1000"),
+            TimeUnit.MINUTES to ("\$multiply" to "60000"),
+            TimeUnit.HOURS to ("\$multiply" to "3600000"),
+            TimeUnit.DAYS to ("\$multiply" to "86400000"),
+        ).forEach { (timeUnit, expected) ->
+            val setStage = MongoAggregationCompiler(SnapshotFilterConverter).compile(
+                aggregation {
+                    dateHistogram(
+                        LogicalField("state.epoch", FieldType.Temporal.NumericEpoch(timeUnit)),
+                        AggregationDateUnit.DAY,
+                        "day",
+                        ZoneOffset.UTC,
+                    )
+                    count("count")
+                },
+            ).first { it.toBsonDocument().containsKey("\$set") }
+                .toBsonDocument()
+                .toJson()
+
+            setStage.assert()
+                .contains(expected.first)
+                .contains("\"\$numberDecimal\": \"${expected.second}\"")
+        }
+    }
 
     @Test
     fun `compiler should unwind and filter every relative element`() {
@@ -61,7 +137,12 @@ class MongoAggregationCompilerTest {
         val query = aggregation {
             terms("state.productId", "product")
             histogram("state.amount", 10.0, "amountRange")
-            dateHistogram(LogicalField("state.createdAt", FieldType.Temporal.Date), AggregationDateUnit.DAY, "day", ZoneId.of("Asia/Shanghai"))
+            dateHistogram(
+                LogicalField("state.createdAt", FieldType.Temporal.Date),
+                AggregationDateUnit.DAY,
+                "day",
+                ZoneId.of("Asia/Shanghai")
+            )
             count("count")
             sum("state.amount", "total")
             avg("state.amount", "average")
@@ -92,7 +173,12 @@ class MongoAggregationCompilerTest {
     @Test
     fun `weekly date histogram should start on Monday and preserve timezone`() {
         val query = aggregation {
-            dateHistogram(LogicalField("state.createdAt", FieldType.Temporal.Date), AggregationDateUnit.WEEK, "week", ZoneId.of("Asia/Shanghai"))
+            dateHistogram(
+                LogicalField("state.createdAt", FieldType.Temporal.Date),
+                AggregationDateUnit.WEEK,
+                "week",
+                ZoneId.of("Asia/Shanghai")
+            )
             count("count")
         }
 
@@ -107,7 +193,12 @@ class MongoAggregationCompilerTest {
     @Test
     fun `UTC date histogram should use the Mongo UTC timezone`() {
         val query = aggregation {
-            dateHistogram(LogicalField("state.createdAt", FieldType.Temporal.Date), AggregationDateUnit.DAY, "day", ZoneId.of("Z"))
+            dateHistogram(
+                LogicalField("state.createdAt", FieldType.Temporal.Date),
+                AggregationDateUnit.DAY,
+                "day",
+                ZoneId.of("Z")
+            )
             count("count")
         }
 

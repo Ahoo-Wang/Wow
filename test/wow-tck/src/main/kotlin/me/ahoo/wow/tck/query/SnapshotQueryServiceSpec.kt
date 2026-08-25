@@ -47,6 +47,7 @@ import java.math.BigDecimal
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
+import java.util.concurrent.TimeUnit
 
 abstract class SnapshotQueryServiceSpec {
     lateinit var snapshotStore: SnapshotStore
@@ -286,7 +287,15 @@ abstract class SnapshotQueryServiceSpec {
             expand("lines") { "quantity" gte 2 }
             terms("productId", "product")
             histogram("quantity", 2.0, "quantityBucket")
-            dateHistogram(LogicalField("createdAt", FieldType.Temporal.Date), AggregationDateUnit.DAY, "day", ZoneId.of("Z"))
+            dateHistogram(
+                LogicalField(
+                    "createdAtEpochMillis",
+                    FieldType.Temporal.NumericEpoch(TimeUnit.MILLISECONDS),
+                ),
+                AggregationDateUnit.DAY,
+                "day",
+                ZoneId.of("Z"),
+            )
             count("count")
         }.query(snapshotQueryService)
             .collectList()
@@ -322,7 +331,15 @@ abstract class SnapshotQueryServiceSpec {
         aggregation {
             expand("state.orders")
             expand("lines") { "productId" isIn listOf("gamma", "delta") }
-            dateHistogram(LogicalField("createdAt", FieldType.Temporal.Date), AggregationDateUnit.WEEK, "week", ZoneId.of("Z"))
+            dateHistogram(
+                LogicalField(
+                    "createdAtEpochMillis",
+                    FieldType.Temporal.NumericEpoch(TimeUnit.MILLISECONDS),
+                ),
+                AggregationDateUnit.WEEK,
+                "week",
+                ZoneId.of("Z"),
+            )
             count("count")
         }.query(snapshotQueryService)
             .collectList()
@@ -342,7 +359,15 @@ abstract class SnapshotQueryServiceSpec {
         aggregation {
             expand("state.orders")
             expand("lines") { "productId" eq "beta" }
-            dateHistogram(LogicalField("createdAt", FieldType.Temporal.Date), AggregationDateUnit.SECOND, "second", ZoneId.of("Z"))
+            dateHistogram(
+                LogicalField(
+                    "createdAtEpochMillis",
+                    FieldType.Temporal.NumericEpoch(TimeUnit.MILLISECONDS),
+                ),
+                AggregationDateUnit.SECOND,
+                "second",
+                ZoneId.of("Z"),
+            )
             count("count")
         }.query(snapshotQueryService)
             .collectList()
