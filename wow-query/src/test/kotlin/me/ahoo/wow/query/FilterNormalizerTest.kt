@@ -86,15 +86,53 @@ class FilterNormalizerTest {
     }
 
     @Test
+    fun `should expand extended calendar filters in their local zone across leap year`() {
+        val field = LogicalField("createdAt")
+        val zoneId = "Asia/Shanghai"
+        val localNormalizer = FilterNormalizer(
+            clock = Clock.fixed(Instant.parse("2024-02-29T12:00:00Z"), ZoneOffset.UTC),
+            defaultZoneId = ZoneOffset.UTC,
+            defaultDeletionState = null,
+        )
+        val cases = listOf(
+            YesterdayFilter(field, zoneId) to
+                (Instant.parse("2024-02-27T16:00:00Z") to Instant.parse("2024-02-28T16:00:00Z")),
+            NextMonthFilter(field, zoneId) to
+                (Instant.parse("2024-02-29T16:00:00Z") to Instant.parse("2024-03-31T16:00:00Z")),
+            LastYearFilter(field, zoneId) to
+                (Instant.parse("2022-12-31T16:00:00Z") to Instant.parse("2023-12-31T16:00:00Z")),
+            ThisYearFilter(field, zoneId) to
+                (Instant.parse("2023-12-31T16:00:00Z") to Instant.parse("2024-12-31T16:00:00Z")),
+            NextYearFilter(field, zoneId) to
+                (Instant.parse("2024-12-31T16:00:00Z") to Instant.parse("2025-12-31T16:00:00Z")),
+        )
+
+        cases.forEach { (relative, expected) ->
+            val normalized = localNormalizer.normalize(relative) as AndFilter
+            val start = normalized.operands[0] as GreaterThanOrEqualFilter
+            val end = normalized.operands[1] as LessThanFilter
+            start.field.assert().isEqualTo(field)
+            end.field.assert().isEqualTo(field)
+            start.value.asLong().assert().isEqualTo(expected.first.toEpochMilli())
+            end.value.asLong().assert().isEqualTo(expected.second.toEpochMilli())
+        }
+    }
+
+    @Test
     fun `should expand every relative time filter`() {
         val field = LogicalField("createdAt")
         listOf(
+            YesterdayFilter(field, "UTC"),
             TomorrowFilter(field, "UTC"),
             ThisWeekFilter(field, "UTC"),
             NextWeekFilter(field, "UTC"),
             LastWeekFilter(field, "UTC"),
             ThisMonthFilter(field, "UTC"),
             LastMonthFilter(field, "UTC"),
+            NextMonthFilter(field, "UTC"),
+            LastYearFilter(field, "UTC"),
+            ThisYearFilter(field, "UTC"),
+            NextYearFilter(field, "UTC"),
             BeforeTodayFilter(field, "12:00", "UTC"),
             RecentDaysFilter(field, 2, "UTC"),
             EarlierDaysFilter(field, 2, "UTC"),
