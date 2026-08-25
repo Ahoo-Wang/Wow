@@ -28,6 +28,7 @@ import me.ahoo.wow.api.query.EndsWithFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ExistsFilter
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.FieldType
 import me.ahoo.wow.api.query.GreaterThanFilter
 import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
 import me.ahoo.wow.api.query.IdFilter
@@ -70,7 +71,6 @@ import me.ahoo.wow.serialization.JsonSerializer
 import tools.jackson.databind.JsonNode
 import java.time.LocalTime
 import java.time.ZoneId
-import java.util.concurrent.TimeUnit
 
 @QueryDslMarker
 class FilterDsl private constructor(
@@ -213,97 +213,82 @@ class FilterDsl private constructor(
     infix fun String.search(query: String) = search(query, this)
 
     fun String.today(
+        type: FieldType.Temporal? = null,
         zoneId: ZoneId? = null,
-        datePattern: String? = null,
-        timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
-    ) = add(TodayFilter(field(this), zoneId?.id, datePattern, timeUnit = timeUnit))
+    ) = add(TodayFilter(LogicalField(field(this).name, type), zoneId?.id))
 
     fun String.yesterday(
+        type: FieldType.Temporal? = null,
         zoneId: ZoneId? = null,
-        datePattern: String? = null,
-        timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
-    ) = add(YesterdayFilter(field(this), zoneId?.id, datePattern, timeUnit = timeUnit))
+    ) = add(YesterdayFilter(LogicalField(field(this).name, type), zoneId?.id))
 
     fun String.beforeToday(
         time: LocalTime,
+        type: FieldType.Temporal? = null,
         zoneId: ZoneId? = null,
-        datePattern: String? = null,
-        timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
-    ) = add(BeforeTodayFilter(field(this), time.toString(), zoneId?.id, datePattern, timeUnit = timeUnit))
+    ) = add(BeforeTodayFilter(LogicalField(field(this).name, type), time.toString(), zoneId?.id))
 
     fun String.tomorrow(
+        type: FieldType.Temporal? = null,
         zoneId: ZoneId? = null,
-        datePattern: String? = null,
-        timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
-    ) = add(TomorrowFilter(field(this), zoneId?.id, datePattern, timeUnit = timeUnit))
+    ) = add(TomorrowFilter(LogicalField(field(this).name, type), zoneId?.id))
 
     fun String.thisWeek(
+        type: FieldType.Temporal? = null,
         zoneId: ZoneId? = null,
-        datePattern: String? = null,
-        timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
-    ) = add(ThisWeekFilter(field(this), zoneId?.id, datePattern, timeUnit = timeUnit))
+    ) = add(ThisWeekFilter(LogicalField(field(this).name, type), zoneId?.id))
 
     fun String.nextWeek(
+        type: FieldType.Temporal? = null,
         zoneId: ZoneId? = null,
-        datePattern: String? = null,
-        timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
-    ) = add(NextWeekFilter(field(this), zoneId?.id, datePattern, timeUnit = timeUnit))
+    ) = add(NextWeekFilter(LogicalField(field(this).name, type), zoneId?.id))
 
     fun String.lastWeek(
+        type: FieldType.Temporal? = null,
         zoneId: ZoneId? = null,
-        datePattern: String? = null,
-        timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
-    ) = add(LastWeekFilter(field(this), zoneId?.id, datePattern, timeUnit = timeUnit))
+    ) = add(LastWeekFilter(LogicalField(field(this).name, type), zoneId?.id))
 
     fun String.thisMonth(
+        type: FieldType.Temporal? = null,
         zoneId: ZoneId? = null,
-        datePattern: String? = null,
-        timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
-    ) = add(ThisMonthFilter(field(this), zoneId?.id, datePattern, timeUnit = timeUnit))
+    ) = add(ThisMonthFilter(LogicalField(field(this).name, type), zoneId?.id))
 
     fun String.lastMonth(
+        type: FieldType.Temporal? = null,
         zoneId: ZoneId? = null,
-        datePattern: String? = null,
-        timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
-    ) = add(LastMonthFilter(field(this), zoneId?.id, datePattern, timeUnit = timeUnit))
+    ) = add(LastMonthFilter(LogicalField(field(this).name, type), zoneId?.id))
 
     fun String.nextMonth(
+        type: FieldType.Temporal? = null,
         zoneId: ZoneId? = null,
-        datePattern: String? = null,
-        timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
-    ) = add(NextMonthFilter(field(this), zoneId?.id, datePattern, timeUnit = timeUnit))
+    ) = add(NextMonthFilter(LogicalField(field(this).name, type), zoneId?.id))
 
     fun String.lastYear(
+        type: FieldType.Temporal? = null,
         zoneId: ZoneId? = null,
-        datePattern: String? = null,
-        timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
-    ) = add(LastYearFilter(field(this), zoneId?.id, datePattern, timeUnit = timeUnit))
+    ) = add(LastYearFilter(LogicalField(field(this).name, type), zoneId?.id))
 
     fun String.thisYear(
+        type: FieldType.Temporal? = null,
         zoneId: ZoneId? = null,
-        datePattern: String? = null,
-        timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
-    ) = add(ThisYearFilter(field(this), zoneId?.id, datePattern, timeUnit = timeUnit))
+    ) = add(ThisYearFilter(LogicalField(field(this).name, type), zoneId?.id))
 
     fun String.nextYear(
+        type: FieldType.Temporal? = null,
         zoneId: ZoneId? = null,
-        datePattern: String? = null,
-        timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
-    ) = add(NextYearFilter(field(this), zoneId?.id, datePattern, timeUnit = timeUnit))
+    ) = add(NextYearFilter(LogicalField(field(this).name, type), zoneId?.id))
 
     fun String.recentDays(
         days: Int,
+        type: FieldType.Temporal? = null,
         zoneId: ZoneId? = null,
-        datePattern: String? = null,
-        timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
-    ) = add(RecentDaysFilter(field(this), days, zoneId?.id, datePattern, timeUnit = timeUnit))
+    ) = add(RecentDaysFilter(LogicalField(field(this).name, type), days, zoneId?.id))
 
     fun String.earlierDays(
         days: Int,
+        type: FieldType.Temporal? = null,
         zoneId: ZoneId? = null,
-        datePattern: String? = null,
-        timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
-    ) = add(EarlierDaysFilter(field(this), days, zoneId?.id, datePattern, timeUnit = timeUnit))
+    ) = add(EarlierDaysFilter(LogicalField(field(this).name, type), days, zoneId?.id))
 
     internal fun build(): FilterExpression = when (expressions.size) {
         0 -> MatchAllFilter

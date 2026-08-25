@@ -13,12 +13,9 @@
 
 package me.ahoo.wow.api.query
 
-import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonTypeName
 import java.time.LocalTime
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.util.concurrent.TimeUnit
 
 private fun String?.requireZoneId() {
     if (this != null) {
@@ -27,38 +24,20 @@ private fun String?.requireZoneId() {
     }
 }
 
-private fun String?.toDateFormatter(): DateTimeFormatter? {
-    if (this == null) return null
-    require(isNotBlank()) { "datePattern cannot be blank." }
-    return DateTimeFormatter.ofPattern(this)
-}
-
 sealed interface RelativeTimeFilter : FilterExpression {
     val field: LogicalField
     val zoneId: String?
-    val datePattern: String?
-
-    @get:JsonIgnore
-    val dateFormatter: DateTimeFormatter?
-
-    /** Unit used for numeric time fields; ignored when a date formatter is configured. */
-    val timeUnit: TimeUnit
-
-    fun resolvedDateFormatter(): DateTimeFormatter? = dateFormatter ?: datePattern.toDateFormatter()
 }
 
 private fun RelativeTimeFilter.validateConfiguration() {
+    field.temporalTypeOrDefault()
     zoneId.requireZoneId()
-    datePattern.toDateFormatter()
 }
 
 @JsonTypeName("TODAY")
 data class TodayFilter(
     override val field: LogicalField,
     override val zoneId: String? = null,
-    override val datePattern: String? = null,
-    @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
-    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.TODAY
 
@@ -72,9 +51,6 @@ data class BeforeTodayFilter(
     override val field: LogicalField,
     val time: String,
     override val zoneId: String? = null,
-    override val datePattern: String? = null,
-    @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
-    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.BEFORE_TODAY
 
@@ -88,9 +64,6 @@ data class BeforeTodayFilter(
 data class TomorrowFilter(
     override val field: LogicalField,
     override val zoneId: String? = null,
-    override val datePattern: String? = null,
-    @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
-    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.TOMORROW
 
@@ -103,9 +76,6 @@ data class TomorrowFilter(
 data class ThisWeekFilter(
     override val field: LogicalField,
     override val zoneId: String? = null,
-    override val datePattern: String? = null,
-    @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
-    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.THIS_WEEK
 
@@ -118,9 +88,6 @@ data class ThisWeekFilter(
 data class NextWeekFilter(
     override val field: LogicalField,
     override val zoneId: String? = null,
-    override val datePattern: String? = null,
-    @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
-    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.NEXT_WEEK
 
@@ -133,9 +100,6 @@ data class NextWeekFilter(
 data class LastWeekFilter(
     override val field: LogicalField,
     override val zoneId: String? = null,
-    override val datePattern: String? = null,
-    @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
-    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.LAST_WEEK
 
@@ -148,9 +112,6 @@ data class LastWeekFilter(
 data class ThisMonthFilter(
     override val field: LogicalField,
     override val zoneId: String? = null,
-    override val datePattern: String? = null,
-    @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
-    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.THIS_MONTH
 
@@ -163,9 +124,6 @@ data class ThisMonthFilter(
 data class LastMonthFilter(
     override val field: LogicalField,
     override val zoneId: String? = null,
-    override val datePattern: String? = null,
-    @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
-    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.LAST_MONTH
 
@@ -179,9 +137,6 @@ data class RecentDaysFilter(
     override val field: LogicalField,
     val days: Int,
     override val zoneId: String? = null,
-    override val datePattern: String? = null,
-    @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
-    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.RECENT_DAYS
 
@@ -196,9 +151,6 @@ data class EarlierDaysFilter(
     override val field: LogicalField,
     val days: Int,
     override val zoneId: String? = null,
-    override val datePattern: String? = null,
-    @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
-    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.EARLIER_DAYS
 
@@ -212,63 +164,58 @@ data class EarlierDaysFilter(
 data class YesterdayFilter(
     override val field: LogicalField,
     override val zoneId: String? = null,
-    override val datePattern: String? = null,
-    @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
-    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.YESTERDAY
 
-    init { validateConfiguration() }
+    init {
+        validateConfiguration()
+    }
 }
 
 @JsonTypeName("NEXT_MONTH")
 data class NextMonthFilter(
     override val field: LogicalField,
     override val zoneId: String? = null,
-    override val datePattern: String? = null,
-    @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
-    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.NEXT_MONTH
 
-    init { validateConfiguration() }
+    init {
+        validateConfiguration()
+    }
 }
 
 @JsonTypeName("LAST_YEAR")
 data class LastYearFilter(
     override val field: LogicalField,
     override val zoneId: String? = null,
-    override val datePattern: String? = null,
-    @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
-    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.LAST_YEAR
 
-    init { validateConfiguration() }
+    init {
+        validateConfiguration()
+    }
 }
 
 @JsonTypeName("THIS_YEAR")
 data class ThisYearFilter(
     override val field: LogicalField,
     override val zoneId: String? = null,
-    override val datePattern: String? = null,
-    @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
-    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.THIS_YEAR
 
-    init { validateConfiguration() }
+    init {
+        validateConfiguration()
+    }
 }
 
 @JsonTypeName("NEXT_YEAR")
 data class NextYearFilter(
     override val field: LogicalField,
     override val zoneId: String? = null,
-    override val datePattern: String? = null,
-    @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
-    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.NEXT_YEAR
 
-    init { validateConfiguration() }
+    init {
+        validateConfiguration()
+    }
 }

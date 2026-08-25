@@ -20,36 +20,33 @@ import tools.jackson.module.kotlin.jacksonObjectMapper
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.TimeUnit
 
 class FilterExpressionTest {
     private val jsonMapper = jacksonObjectMapper()
 
     @Test
     fun `new relative calendar filters should round trip through the common contract`() {
-        val field = LogicalField("state.createTime")
         val filters = listOf<RelativeTimeFilter>(
-            YesterdayFilter(field, "UTC", "yyyy-MM-dd"),
-            NextMonthFilter(field, "UTC", "yyyy-MM-dd"),
-            LastYearFilter(field, "UTC", "yyyy-MM-dd"),
-            ThisYearFilter(field, "UTC", "yyyy-MM-dd"),
-            NextYearFilter(field, "UTC", "yyyy-MM-dd"),
+            TodayFilter(LogicalField("nativeDate", FieldType.Temporal.Date)),
+            TodayFilter(
+                LogicalField(
+                    "epochSeconds",
+                    FieldType.Temporal.NumericEpoch(TimeUnit.SECONDS),
+                ),
+            ),
+            TodayFilter(
+                LogicalField(
+                    "dateText",
+                    FieldType.Temporal.FormattedString(datePattern = "yyyy-MM-dd"),
+                ),
+            ),
         )
 
         filters.forEach { filter ->
-            filter.field.assert().isEqualTo(field)
-            filter.zoneId.assert().isEqualTo("UTC")
-            filter.datePattern.assert().isEqualTo("yyyy-MM-dd")
-            filter.resolvedDateFormatter().assert().isNotNull()
             val json = jsonMapper.writeValueAsString(filter)
-            json.contains("dateFormatter").assert().isFalse()
             jsonMapper.readValue(json, FilterExpression::class.java).assert().isEqualTo(filter)
         }
-
-        val runtimeFilter: RelativeTimeFilter = YesterdayFilter(
-            field = field,
-            dateFormatter = DateTimeFormatter.ISO_LOCAL_DATE,
-        )
-        jsonMapper.writeValueAsString(runtimeFilter).contains("dateFormatter").assert().isFalse()
     }
 
     @Test
@@ -61,9 +58,6 @@ class FilterExpressionTest {
         }
         org.junit.jupiter.api.assertThrows<java.time.DateTimeException> {
             NextMonthFilter(field, zoneId = "Not/AZone")
-        }
-        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
-            ThisYearFilter(field, datePattern = "invalid")
         }
     }
 
@@ -181,20 +175,19 @@ class FilterExpressionTest {
         }
     }
 
+    @Suppress("DEPRECATION")
     @Test
-    fun `should round trip relative time date pattern without exposing formatter`() {
-        val expression: FilterExpression = TodayFilter(
-            LogicalField("state.createTime"),
-            zoneId = "UTC",
-            datePattern = "yyyy-MM-dd HH:mm:ss",
+    fun `should preserve legacy runtime date formatter`() {
+        val formatter = DateTimeFormatter.ISO_LOCAL_DATE
+
+        Condition.today("createdAt", formatter).toFilterExpression().assert().isEqualTo(
+            TodayFilter(
+                LogicalField(
+                    "createdAt",
+                    FieldType.Temporal.FormattedString(dateFormatter = formatter),
+                ),
+            ),
         )
-
-        val json = jsonMapper.writeValueAsString(expression)
-        val decoded = jsonMapper.readValue(json, FilterExpression::class.java) as TodayFilter
-
-        json.contains("dateFormatter").assert().isFalse()
-        decoded.datePattern.assert().isEqualTo("yyyy-MM-dd HH:mm:ss")
-        decoded.resolvedDateFormatter().assert().isNotNull()
     }
 
     @Suppress("DEPRECATION")
@@ -255,6 +248,14 @@ class FilterExpressionTest {
             Condition.ZONE_ID_OPTION_KEY to ZoneId.of("UTC"),
             Condition.DATE_PATTERN_OPTION_KEY to formatter,
         )
+        val patternDateField = LogicalField(
+            dateField.name,
+            FieldType.Temporal.FormattedString(datePattern = "yyyy-MM-dd"),
+        )
+        val formatterDateField = LogicalField(
+            dateField.name,
+            FieldType.Temporal.FormattedString(dateFormatter = formatter),
+        )
         val cases = listOf(
             Condition.and(Condition.eq(field.name, 1)) to AndFilter(listOf(equal)),
             Condition.or(Condition.eq(field.name, 1)) to OrFilter(listOf(equal)),
@@ -309,55 +310,55 @@ class FilterExpressionTest {
                 field = dateField.name,
                 operator = Operator.TODAY,
                 options = relativeOptions,
-            ) to TodayFilter(dateField, "UTC", "yyyy-MM-dd"),
+            ) to TodayFilter(patternDateField, "UTC"),
             Condition(
                 field = dateField.name,
                 operator = Operator.BEFORE_TODAY,
                 value = LocalTime.of(8, 30),
                 options = formatterOptions,
-            ) to BeforeTodayFilter(dateField, "08:30", "UTC", dateFormatter = formatter),
+            ) to BeforeTodayFilter(formatterDateField, "08:30", "UTC"),
             Condition(
                 field = dateField.name,
                 operator = Operator.TOMORROW,
                 options = relativeOptions,
-            ) to TomorrowFilter(dateField, "UTC", "yyyy-MM-dd"),
+            ) to TomorrowFilter(patternDateField, "UTC"),
             Condition(
                 field = dateField.name,
                 operator = Operator.THIS_WEEK,
                 options = relativeOptions,
-            ) to ThisWeekFilter(dateField, "UTC", "yyyy-MM-dd"),
+            ) to ThisWeekFilter(patternDateField, "UTC"),
             Condition(
                 field = dateField.name,
                 operator = Operator.NEXT_WEEK,
                 options = relativeOptions,
-            ) to NextWeekFilter(dateField, "UTC", "yyyy-MM-dd"),
+            ) to NextWeekFilter(patternDateField, "UTC"),
             Condition(
                 field = dateField.name,
                 operator = Operator.LAST_WEEK,
                 options = relativeOptions,
-            ) to LastWeekFilter(dateField, "UTC", "yyyy-MM-dd"),
+            ) to LastWeekFilter(patternDateField, "UTC"),
             Condition(
                 field = dateField.name,
                 operator = Operator.THIS_MONTH,
                 options = relativeOptions,
-            ) to ThisMonthFilter(dateField, "UTC", "yyyy-MM-dd"),
+            ) to ThisMonthFilter(patternDateField, "UTC"),
             Condition(
                 field = dateField.name,
                 operator = Operator.LAST_MONTH,
                 options = relativeOptions,
-            ) to LastMonthFilter(dateField, "UTC", "yyyy-MM-dd"),
+            ) to LastMonthFilter(patternDateField, "UTC"),
             Condition(
                 field = dateField.name,
                 operator = Operator.RECENT_DAYS,
                 value = 7,
                 options = relativeOptions,
-            ) to RecentDaysFilter(dateField, 7, "UTC", "yyyy-MM-dd"),
+            ) to RecentDaysFilter(patternDateField, 7, "UTC"),
             Condition(
                 field = dateField.name,
                 operator = Operator.EARLIER_DAYS,
                 value = 30,
                 options = relativeOptions,
-            ) to EarlierDaysFilter(dateField, 30, "UTC", "yyyy-MM-dd"),
+            ) to EarlierDaysFilter(patternDateField, 30, "UTC"),
             Condition.match("state.description", "Wow") to
                 SearchFilter("Wow", setOf(LogicalField("state.description"))),
             Condition.match("", "Wow") to SearchFilter("Wow"),

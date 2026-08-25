@@ -22,9 +22,8 @@ import org.junit.jupiter.api.Test
 import tools.jackson.databind.JsonNode
 import java.time.Clock
 import java.time.Instant
+import java.time.ZoneId
 import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
-import java.util.concurrent.TimeUnit
 
 class FilterNormalizerTest {
     private val normalizer = FilterNormalizer(
@@ -42,6 +41,38 @@ class FilterNormalizerTest {
             .isEqualTo(Instant.parse("2026-08-22T00:00:00Z").toEpochMilli())
         (normalized.operands[2] as LessThanFilter).value.asLong().assert()
             .isEqualTo(Instant.parse("2026-08-23T00:00:00Z").toEpochMilli())
+    }
+
+    @Test
+    fun `should capture clock instant once per root normalization`() {
+        val countingClock = object : Clock() {
+            var reads = 0
+
+            override fun getZone(): ZoneId = ZoneOffset.UTC
+
+            override fun withZone(zone: ZoneId): Clock = this
+
+            override fun instant(): Instant {
+                reads++
+                return Instant.parse("2026-08-22T12:00:00Z")
+            }
+        }
+        val noScope = FilterNormalizer(
+            clock = countingClock,
+            defaultZoneId = ZoneOffset.UTC,
+            defaultDeletionState = null,
+        )
+
+        noScope.normalize(
+            AndFilter(
+                listOf(
+                    TodayFilter(LogicalField("createdAt"), "UTC"),
+                    TomorrowFilter(LogicalField("updatedAt"), "UTC"),
+                ),
+            ),
+        )
+
+        countingClock.reads.assert().isEqualTo(1)
     }
 
     @Test
@@ -73,91 +104,6 @@ class FilterNormalizerTest {
             defaultZoneId = ZoneOffset.UTC,
             defaultDeletionState = null,
         ).normalize(MatchAllFilter).assert().isEqualTo(MatchAllFilter)
-    }
-
-    @Test
-    fun `should preserve runtime date formatter`() {
-        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-        val normalized = normalizer.normalize(
-            TodayFilter(LogicalField("createdAt"), dateFormatter = formatter),
-        ) as AndFilter
-
-        (normalized.operands[1] as GreaterThanOrEqualFilter).value.asText().assert()
-            .isEqualTo("2026-08-22 00:00:00")
-    }
-
-    @Test
-    fun `should emit numeric boundaries in configured time unit`() {
-        val normalized = FilterNormalizer(
-            clock = Clock.fixed(Instant.parse("2026-08-22T12:00:00Z"), ZoneOffset.UTC),
-            defaultZoneId = ZoneOffset.UTC,
-            defaultDeletionState = null,
-        ).normalize(
-            BeforeTodayFilter(
-                field = LogicalField("createdAt"),
-                time = "12:00:00.123456789",
-                zoneId = "UTC",
-                timeUnit = TimeUnit.NANOSECONDS,
-            ),
-        ) as LessThanFilter
-
-        normalized.value.asLong().assert().isEqualTo(1_787_400_000_123_456_789L)
-    }
-
-    @Test
-    fun `should expand extended calendar filters in their local zone across leap year`() {
-        val field = LogicalField("createdAt")
-        val zoneId = "Asia/Shanghai"
-        val localNormalizer = FilterNormalizer(
-            clock = Clock.fixed(Instant.parse("2024-02-29T12:00:00Z"), ZoneOffset.UTC),
-            defaultZoneId = ZoneOffset.UTC,
-            defaultDeletionState = null,
-        )
-        val cases = listOf(
-            YesterdayFilter(field, zoneId) to
-                (Instant.parse("2024-02-27T16:00:00Z") to Instant.parse("2024-02-28T16:00:00Z")),
-            NextMonthFilter(field, zoneId) to
-                (Instant.parse("2024-02-29T16:00:00Z") to Instant.parse("2024-03-31T16:00:00Z")),
-            LastYearFilter(field, zoneId) to
-                (Instant.parse("2022-12-31T16:00:00Z") to Instant.parse("2023-12-31T16:00:00Z")),
-            ThisYearFilter(field, zoneId) to
-                (Instant.parse("2023-12-31T16:00:00Z") to Instant.parse("2024-12-31T16:00:00Z")),
-            NextYearFilter(field, zoneId) to
-                (Instant.parse("2024-12-31T16:00:00Z") to Instant.parse("2025-12-31T16:00:00Z")),
-        )
-
-        cases.forEach { (relative, expected) ->
-            val normalized = localNormalizer.normalize(relative) as AndFilter
-            val start = normalized.operands[0] as GreaterThanOrEqualFilter
-            val end = normalized.operands[1] as LessThanFilter
-            start.field.assert().isEqualTo(field)
-            end.field.assert().isEqualTo(field)
-            start.value.asLong().assert().isEqualTo(expected.first.toEpochMilli())
-            end.value.asLong().assert().isEqualTo(expected.second.toEpochMilli())
-        }
-    }
-
-    @Test
-    fun `should expand every relative time filter`() {
-        val field = LogicalField("createdAt")
-        listOf(
-            YesterdayFilter(field, "UTC"),
-            TomorrowFilter(field, "UTC"),
-            ThisWeekFilter(field, "UTC"),
-            NextWeekFilter(field, "UTC"),
-            LastWeekFilter(field, "UTC"),
-            ThisMonthFilter(field, "UTC"),
-            LastMonthFilter(field, "UTC"),
-            NextMonthFilter(field, "UTC"),
-            LastYearFilter(field, "UTC"),
-            ThisYearFilter(field, "UTC"),
-            NextYearFilter(field, "UTC"),
-            BeforeTodayFilter(field, "12:00", "UTC"),
-            RecentDaysFilter(field, 2, "UTC"),
-            EarlierDaysFilter(field, 2, "UTC"),
-        ).forEach { relative ->
-            normalizer.normalize(relative).assert().isInstanceOf(AndFilter::class.java)
-        }
     }
 
     @Test

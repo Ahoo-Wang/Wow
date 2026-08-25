@@ -41,35 +41,36 @@ class FilterDslTest {
 
     @Test
     fun `should build extended relative calendar filters`() {
-        val field = LogicalField("createdAt")
+        val type = FieldType.Temporal.FormattedString(datePattern = "yyyy-MM-dd")
+        val field = LogicalField("createdAt", type)
         val expression = filter {
-            "createdAt".yesterday(ZoneOffset.UTC, "yyyy-MM-dd")
-            "createdAt".nextMonth(ZoneOffset.UTC, "yyyy-MM-dd")
-            "createdAt".lastYear(ZoneOffset.UTC, "yyyy-MM-dd")
-            "createdAt".thisYear(ZoneOffset.UTC, "yyyy-MM-dd")
-            "createdAt".nextYear(ZoneOffset.UTC, "yyyy-MM-dd")
+            "createdAt".yesterday(type, ZoneOffset.UTC)
+            "createdAt".nextMonth(type, ZoneOffset.UTC)
+            "createdAt".lastYear(type, ZoneOffset.UTC)
+            "createdAt".thisYear(type, ZoneOffset.UTC)
+            "createdAt".nextYear(type, ZoneOffset.UTC)
         } as AndFilter
 
         expression.operands.assert().containsExactly(
-            YesterdayFilter(field, ZoneOffset.UTC.id, "yyyy-MM-dd"),
-            NextMonthFilter(field, ZoneOffset.UTC.id, "yyyy-MM-dd"),
-            LastYearFilter(field, ZoneOffset.UTC.id, "yyyy-MM-dd"),
-            ThisYearFilter(field, ZoneOffset.UTC.id, "yyyy-MM-dd"),
-            NextYearFilter(field, ZoneOffset.UTC.id, "yyyy-MM-dd"),
+            YesterdayFilter(field, ZoneOffset.UTC.id),
+            NextMonthFilter(field, ZoneOffset.UTC.id),
+            LastYearFilter(field, ZoneOffset.UTC.id),
+            ThisYearFilter(field, ZoneOffset.UTC.id),
+            NextYearFilter(field, ZoneOffset.UTC.id),
         )
     }
 
     @Test
-    fun `should configure relative time unit`() {
+    fun `should configure relative temporal type`() {
+        val type = FieldType.Temporal.NumericEpoch(TimeUnit.SECONDS)
         val expression = filter {
-            "createdAt".beforeToday(LocalTime.NOON, timeUnit = TimeUnit.SECONDS)
+            "createdAt".beforeToday(LocalTime.NOON, type)
         }
 
         expression.assert().isEqualTo(
             BeforeTodayFilter(
-                field = LogicalField("createdAt"),
+                field = LogicalField("createdAt", type),
                 time = "12:00",
-                timeUnit = TimeUnit.SECONDS,
             ),
         )
     }
@@ -361,8 +362,8 @@ class FilterDslTest {
             "notExists".notExists()
             search("phrase", "title", "description")
             "content" search "phrase"
-            "today".today(ZoneOffset.UTC, "yyyy-MM-dd")
-            "beforeToday".beforeToday(LocalTime.NOON, ZoneOffset.UTC)
+            "today".today(FieldType.Temporal.FormattedString(datePattern = "yyyy-MM-dd"), ZoneOffset.UTC)
+            "beforeToday".beforeToday(LocalTime.NOON, zoneId = ZoneOffset.UTC)
             "tomorrow".tomorrow()
             "thisWeek".thisWeek()
             "nextWeek".nextWeek()
@@ -373,14 +374,14 @@ class FilterDslTest {
             "earlierDays".earlierDays(2)
             "todayDefault".today()
             "beforeTodayDefault".beforeToday(LocalTime.NOON)
-            "tomorrowUtc".tomorrow(ZoneOffset.UTC)
-            "thisWeekUtc".thisWeek(ZoneOffset.UTC)
-            "nextWeekUtc".nextWeek(ZoneOffset.UTC)
-            "lastWeekUtc".lastWeek(ZoneOffset.UTC)
-            "thisMonthUtc".thisMonth(ZoneOffset.UTC)
-            "lastMonthUtc".lastMonth(ZoneOffset.UTC)
-            "recentDaysUtc".recentDays(2, ZoneOffset.UTC)
-            "earlierDaysUtc".earlierDays(2, ZoneOffset.UTC)
+            "tomorrowUtc".tomorrow(zoneId = ZoneOffset.UTC)
+            "thisWeekUtc".thisWeek(zoneId = ZoneOffset.UTC)
+            "nextWeekUtc".nextWeek(zoneId = ZoneOffset.UTC)
+            "lastWeekUtc".lastWeek(zoneId = ZoneOffset.UTC)
+            "thisMonthUtc".thisMonth(zoneId = ZoneOffset.UTC)
+            "lastMonthUtc".lastMonth(zoneId = ZoneOffset.UTC)
+            "recentDaysUtc".recentDays(2, zoneId = ZoneOffset.UTC)
+            "earlierDaysUtc".earlierDays(2, zoneId = ZoneOffset.UTC)
         } as AndFilter
 
         expression.operands.assert().hasSize(51)

@@ -116,27 +116,32 @@ private fun Condition.elementMatchFilter(): FilterExpression {
     return ElementMatchFilter(LogicalField(field), predicates.singleOrNull() ?: AndFilter(predicates))
 }
 
-private val Condition.logicalField: LogicalField get() = LogicalField(field)
+private val Condition.logicalField: LogicalField
+    get() {
+        val type = when (val format = options[Condition.DATE_PATTERN_OPTION_KEY]) {
+            null -> null
+            is String -> FieldType.Temporal.FormattedString(datePattern = format)
+            is DateTimeFormatter -> FieldType.Temporal.FormattedString(dateFormatter = format)
+            else -> error("Unsupported datePattern option: ${format::class.java.name}.")
+        }
+        return LogicalField(field, type)
+    }
 private val Condition.zoneValue: String? get() = zoneId()?.id
-private val Condition.patternValue: String?
-    get() = options[Condition.DATE_PATTERN_OPTION_KEY] as? String
-private val Condition.formatterValue: DateTimeFormatter?
-    get() = options[Condition.DATE_PATTERN_OPTION_KEY] as? DateTimeFormatter
 
 private fun Condition.todayFilter() =
-    TodayFilter(logicalField, zoneValue, patternValue, formatterValue)
+    TodayFilter(logicalField, zoneValue)
 private fun Condition.tomorrowFilter() =
-    TomorrowFilter(logicalField, zoneValue, patternValue, formatterValue)
+    TomorrowFilter(logicalField, zoneValue)
 private fun Condition.thisWeekFilter() =
-    ThisWeekFilter(logicalField, zoneValue, patternValue, formatterValue)
+    ThisWeekFilter(logicalField, zoneValue)
 private fun Condition.nextWeekFilter() =
-    NextWeekFilter(logicalField, zoneValue, patternValue, formatterValue)
+    NextWeekFilter(logicalField, zoneValue)
 private fun Condition.lastWeekFilter() =
-    LastWeekFilter(logicalField, zoneValue, patternValue, formatterValue)
+    LastWeekFilter(logicalField, zoneValue)
 private fun Condition.thisMonthFilter() =
-    ThisMonthFilter(logicalField, zoneValue, patternValue, formatterValue)
+    ThisMonthFilter(logicalField, zoneValue)
 private fun Condition.lastMonthFilter() =
-    LastMonthFilter(logicalField, zoneValue, patternValue, formatterValue)
+    LastMonthFilter(logicalField, zoneValue)
 
 private fun Condition.beforeTodayFilter(): BeforeTodayFilter {
     val localTime = when (val raw = value) {
@@ -145,7 +150,7 @@ private fun Condition.beforeTodayFilter(): BeforeTodayFilter {
         is LocalTime -> raw
         else -> throw IllegalArgumentException("Unsupported BEFORE_TODAY value type: ${raw::class.java.name}.")
     }
-    return BeforeTodayFilter(logicalField, localTime.toString(), zoneValue, patternValue, formatterValue)
+    return BeforeTodayFilter(logicalField, localTime.toString(), zoneValue)
 }
 
 private fun Condition.recentDaysFilter() = RecentDaysFilter(
@@ -153,8 +158,6 @@ private fun Condition.recentDaysFilter() = RecentDaysFilter(
     (value as? Number)?.toInt()
         ?: throw IllegalArgumentException("RECENT_DAYS value must be a number."),
     zoneValue,
-    patternValue,
-    formatterValue,
 )
 
 private fun Condition.earlierDaysFilter() = EarlierDaysFilter(
@@ -162,6 +165,4 @@ private fun Condition.earlierDaysFilter() = EarlierDaysFilter(
     (value as? Number)?.toInt()
         ?: throw IllegalArgumentException("EARLIER_DAYS value must be a number."),
     zoneValue,
-    patternValue,
-    formatterValue,
 )
