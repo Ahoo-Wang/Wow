@@ -18,6 +18,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.TimeUnit
 
 private fun String?.requireZoneId() {
     if (this != null) {
@@ -40,6 +41,9 @@ sealed interface RelativeTimeFilter : FilterExpression {
     @get:JsonIgnore
     val dateFormatter: DateTimeFormatter?
 
+    /** Unit used for numeric time fields; ignored when a date formatter is configured. */
+    val timeUnit: TimeUnit
+
     fun resolvedDateFormatter(): DateTimeFormatter? = dateFormatter ?: datePattern.toDateFormatter()
 }
 
@@ -54,6 +58,7 @@ data class TodayFilter(
     override val zoneId: String? = null,
     override val datePattern: String? = null,
     @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
+    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.TODAY
 
@@ -69,6 +74,7 @@ data class BeforeTodayFilter(
     override val zoneId: String? = null,
     override val datePattern: String? = null,
     @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
+    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.BEFORE_TODAY
 
@@ -84,6 +90,7 @@ data class TomorrowFilter(
     override val zoneId: String? = null,
     override val datePattern: String? = null,
     @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
+    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.TOMORROW
 
@@ -98,6 +105,7 @@ data class ThisWeekFilter(
     override val zoneId: String? = null,
     override val datePattern: String? = null,
     @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
+    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.THIS_WEEK
 
@@ -112,6 +120,7 @@ data class NextWeekFilter(
     override val zoneId: String? = null,
     override val datePattern: String? = null,
     @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
+    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.NEXT_WEEK
 
@@ -126,6 +135,7 @@ data class LastWeekFilter(
     override val zoneId: String? = null,
     override val datePattern: String? = null,
     @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
+    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.LAST_WEEK
 
@@ -140,6 +150,7 @@ data class ThisMonthFilter(
     override val zoneId: String? = null,
     override val datePattern: String? = null,
     @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
+    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.THIS_MONTH
 
@@ -154,6 +165,7 @@ data class LastMonthFilter(
     override val zoneId: String? = null,
     override val datePattern: String? = null,
     @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
+    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.LAST_MONTH
 
@@ -169,6 +181,7 @@ data class RecentDaysFilter(
     override val zoneId: String? = null,
     override val datePattern: String? = null,
     @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
+    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.RECENT_DAYS
 
@@ -185,6 +198,7 @@ data class EarlierDaysFilter(
     override val zoneId: String? = null,
     override val datePattern: String? = null,
     @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
+    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.EARLIER_DAYS
 
@@ -200,6 +214,7 @@ data class YesterdayFilter(
     override val zoneId: String? = null,
     override val datePattern: String? = null,
     @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
+    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.YESTERDAY
 
@@ -212,6 +227,7 @@ data class NextMonthFilter(
     override val zoneId: String? = null,
     override val datePattern: String? = null,
     @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
+    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.NEXT_MONTH
 
@@ -224,6 +240,7 @@ data class LastYearFilter(
     override val zoneId: String? = null,
     override val datePattern: String? = null,
     @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
+    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.LAST_YEAR
 
@@ -236,6 +253,7 @@ data class ThisYearFilter(
     override val zoneId: String? = null,
     override val datePattern: String? = null,
     @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
+    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.THIS_YEAR
 
@@ -248,6 +266,7 @@ data class NextYearFilter(
     override val zoneId: String? = null,
     override val datePattern: String? = null,
     @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
+    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.NEXT_YEAR
 

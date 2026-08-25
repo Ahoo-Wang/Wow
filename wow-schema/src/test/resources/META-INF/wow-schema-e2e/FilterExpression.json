@@ -791,6 +791,11 @@
       "required" : [ "op", "query" ],
       "additionalProperties" : false
     },
+    "timeUnit" : {
+      "type" : "string",
+      "enum" : [ "NANOSECONDS", "MICROSECONDS", "MILLISECONDS", "SECONDS", "MINUTES", "HOURS", "DAYS" ],
+      "default" : "MILLISECONDS"
+    },
     "today" : {
       "$ref" : "#/definitions/todayShape"
     },
@@ -843,6 +848,9 @@
         "datePattern" : {
           "type" : "string",
           "minLength" : 1
+        },
+        "timeUnit" : {
+          "$ref" : "#/definitions/timeUnit"
         }
       },
       "required" : [ "op", "field" ],
@@ -864,6 +872,9 @@
         "datePattern" : {
           "type" : "string",
           "minLength" : 1
+        },
+        "timeUnit" : {
+          "$ref" : "#/definitions/timeUnit"
         }
       },
       "required" : [ "op", "field" ],
@@ -885,6 +896,9 @@
         "datePattern" : {
           "type" : "string",
           "minLength" : 1
+        },
+        "timeUnit" : {
+          "$ref" : "#/definitions/timeUnit"
         }
       },
       "required" : [ "op", "field" ],
@@ -906,6 +920,9 @@
         "datePattern" : {
           "type" : "string",
           "minLength" : 1
+        },
+        "timeUnit" : {
+          "$ref" : "#/definitions/timeUnit"
         }
       },
       "required" : [ "op", "field" ],
@@ -927,6 +944,9 @@
         "datePattern" : {
           "type" : "string",
           "minLength" : 1
+        },
+        "timeUnit" : {
+          "$ref" : "#/definitions/timeUnit"
         }
       },
       "required" : [ "op", "field" ],
@@ -948,6 +968,9 @@
         "datePattern" : {
           "type" : "string",
           "minLength" : 1
+        },
+        "timeUnit" : {
+          "$ref" : "#/definitions/timeUnit"
         }
       },
       "required" : [ "op", "field" ],
@@ -969,6 +992,9 @@
         "datePattern" : {
           "type" : "string",
           "minLength" : 1
+        },
+        "timeUnit" : {
+          "$ref" : "#/definitions/timeUnit"
         }
       },
       "required" : [ "op", "field" ],
@@ -990,6 +1016,9 @@
         "datePattern" : {
           "type" : "string",
           "minLength" : 1
+        },
+        "timeUnit" : {
+          "$ref" : "#/definitions/timeUnit"
         }
       },
       "required" : [ "op", "field" ],
@@ -1011,6 +1040,9 @@
         "datePattern" : {
           "type" : "string",
           "minLength" : 1
+        },
+        "timeUnit" : {
+          "$ref" : "#/definitions/timeUnit"
         }
       },
       "required" : [ "op", "field" ],
@@ -1032,6 +1064,9 @@
         "datePattern" : {
           "type" : "string",
           "minLength" : 1
+        },
+        "timeUnit" : {
+          "$ref" : "#/definitions/timeUnit"
         }
       },
       "required" : [ "op", "field" ],
@@ -1053,6 +1088,9 @@
         "datePattern" : {
           "type" : "string",
           "minLength" : 1
+        },
+        "timeUnit" : {
+          "$ref" : "#/definitions/timeUnit"
         }
       },
       "required" : [ "op", "field" ],
@@ -1074,6 +1112,9 @@
         "datePattern" : {
           "type" : "string",
           "minLength" : 1
+        },
+        "timeUnit" : {
+          "$ref" : "#/definitions/timeUnit"
         }
       },
       "required" : [ "op", "field" ],
@@ -1099,6 +1140,9 @@
         "datePattern" : {
           "type" : "string",
           "minLength" : 1
+        },
+        "timeUnit" : {
+          "$ref" : "#/definitions/timeUnit"
         }
       },
       "required" : [ "op", "field", "time" ],
@@ -1124,6 +1168,9 @@
         "datePattern" : {
           "type" : "string",
           "minLength" : 1
+        },
+        "timeUnit" : {
+          "$ref" : "#/definitions/timeUnit"
         }
       },
       "required" : [ "op", "field", "days" ],
@@ -1149,6 +1196,9 @@
         "datePattern" : {
           "type" : "string",
           "minLength" : 1
+        },
+        "timeUnit" : {
+          "$ref" : "#/definitions/timeUnit"
         }
       },
       "required" : [ "op", "field", "days" ],
