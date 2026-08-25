@@ -69,12 +69,18 @@ sealed interface TemporalFieldType {
     ) : TemporalFieldType
 
     data class FormattedString(
-        val datePattern: String,
-    ) : TemporalFieldType
+        val datePattern: String? = null,
+        @get:JsonIgnore
+        val dateFormatter: DateTimeFormatter? = null,
+    ) : TemporalFieldType {
+        init {
+            require((datePattern == null) != (dateFormatter == null))
+        }
+    }
 }
 ```
 
-JSON subtype ID 固定为 `DATE`、`NUMBER`、`STRING`。`FormattedString` 在构造时要求非空 pattern 并通过 `DateTimeFormatter.ofPattern` 校验；解析出的 formatter 是 JSON 忽略的内部属性。`NumericEpoch` 使用 `java.util.concurrent.TimeUnit`，默认 `MILLISECONDS`。
+JSON subtype ID 固定为 `DATE`、`NUMBER`、`STRING`。`FormattedString` 将 JSON `datePattern` 与 Condition 运行时 `dateFormatter` 内聚到同一个 subtype，并要求两者恰好提供一个。非空 pattern 通过 `DateTimeFormatter.ofPattern` 校验；`dateFormatter` 使用 `@JsonIgnore`，不进入 JSON/OpenAPI。JSON/OpenAPI 的 STRING 分支仍要求 `datePattern`，运行时 formatter 只用于保留 `Condition -> FilterExpression` 的现有执行语义。`NumericEpoch` 使用 `java.util.concurrent.TimeUnit`，默认 `MILLISECONDS`。
 
 能力矩阵：
 
@@ -166,7 +172,7 @@ sealed interface RelativeTimeFilter : FilterExpression {
 }
 ```
 
-各具体 Filter 删除 `datePattern`、`dateFormatter`、`timeUnit`，改为单个默认 `fieldType`。通用构造顺序是 `field`、表达式专属参数、`fieldType`、`zoneId`。Filter DSL 同样以 `fieldType` 替换旧参数，不保留源码兼容重载。
+各具体 Filter 删除分散的 `datePattern`、`dateFormatter`、`timeUnit`，改为单个默认 `fieldType`。通用构造顺序是 `field`、表达式专属参数、`fieldType`、`zoneId`。Filter DSL 同样以 `fieldType` 替换旧参数，不保留源码兼容重载。`LegacyConditionAdapter` 将 String pattern 转成 `FormattedString(datePattern = ...)`，将任意 `DateTimeFormatter` 原样转成 `FormattedString(dateFormatter = ...)`，不新增 adapter 层。
 
 格式化字符串示例：
 
@@ -215,7 +221,7 @@ internal class RelativeTimeFilterNormalizer(
 
 - `Date`：生成毫秒精度的内部 `Instant` POJO 节点。
 - `NumericEpoch`：按 `timeUnit` 生成整数边界；使用现有精确换算并保留溢出失败。
-- `FormattedString`：使用已校验的 formatter 生成字符串边界。
+- `FormattedString`：使用 pattern 解析出的 formatter 或 Condition 原样提供的 runtime formatter 生成字符串边界。
 
 DATE 使用毫秒精度，因为 MongoDB BSON Date 只有毫秒精度。MongoDB 过滤 converter 将内部 `Instant` 转为 `java.util.Date`；Elasticsearch converter 将其转为 epoch milliseconds。该 POJO 只存在于进程内归一化结果，不形成新的公开 JSON 协议。
 
@@ -280,7 +286,7 @@ date histogram 对 runtime date 执行现有 interval、time zone 和 sort 配�
 
 ## STRING 边界
 
-STRING 继续供 RelativeTimeFilter 使用：归一化器计算时间边界并按同一 `datePattern` 输出字符串，然后执行范围比较。调用方负责选择能保持时间顺序的存储格式。
+STRING 继续供 RelativeTimeFilter 使用：归一化器计算时间边界并使用 `datePattern` 解析出的 formatter 或 Condition runtime formatter 输出字符串，然后执行范围比较。调用方负责选择能保持时间顺序的存储格式。
 
 DateHistogram 必须把每个存储字符串解析为时间点。MongoDB `$dateFromString` 使用 `%Y-%m-%d` 一类格式符，Elasticsearch/Java 使用 `yyyy-MM-dd` 一类 `DateTimeFormatter` 语法，时区和 locale 规则也不同。本次不引入格式翻译 DSL，不提供单后端降级，因此 DateHistogram 在公共模型层拒绝 STRING。
 
@@ -305,7 +311,7 @@ Elasticsearch 数值 mapping 默认会在写入阶段拒绝非数值；真实集
 - `TemporalFieldType` 总体 schema 使用 DATE、NUMBER、STRING 的 `oneOf` 和 `type` discriminator。
 - RelativeTimeFilter 的 `fieldType` 引用完整联合。
 - DateHistogram 的 `fieldType` 属性显式收窄为 DATE、NUMBER。
-- 有默认值的 `fieldType` 与 `timeUnit` 在 JSON Schema/OpenAPI 中标为可选，并分别说明默认 `NUMBER/MILLISECONDS` 与 `MILLISECONDS`；`FormattedString.datePattern` 保持必填。
+- 有默认值的 `fieldType` 与 `timeUnit` 在 JSON Schema/OpenAPI 中标为可选，并分别说明默认 `NUMBER/MILLISECONDS` 与 `MILLISECONDS`；STRING JSON 中 `FormattedString.datePattern` 保持必填，`dateFormatter` 完全隐藏。
 - 更新 `schema/query/v2/filter-expression.schema.json`，使用嵌套 `fieldType` 替换旧的平铺属性。
 - 更新 wow-schema 与 wow-openapi 快照，验证 discriminator、必填属性和 `additionalProperties`。
 - 不增加旧 JSON alias、creator 或 deserializer。
@@ -322,8 +328,9 @@ Elasticsearch 数值 mapping 默认会在写入阶段拒绝非数值；真实集
 - DateHistogram DATE、NUMBER及默认值。
 - DateHistogram 缺省 `timeZone` 等于 `ZoneId.systemDefault().id`；跨后端 TCK 显式传入时区以保持环境无关。
 - DateHistogram + STRING、空/非法 `datePattern` 被公共模型拒绝。
+- `FormattedString` 拒绝 pattern/formatter 同时为空或同时存在；Condition 的 String pattern 与任意 runtime `DateTimeFormatter` 保持原有格式化语义。
 - 不增加旧 FilterExpression/AggregationQuery JSON 兼容测试。
-- Condition 未修改，不增加重复兼容测试；运行现有套件证明回归状态。
+- Condition 协议不修改；更新现有 adapter 断言以验证统一模型，不另建兼容层或重复测试套件。
 
 ### 相对时间归一化
 
