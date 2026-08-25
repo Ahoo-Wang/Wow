@@ -228,6 +228,27 @@ class ElasticsearchIndexMappingResolverTest {
         }
     }
 
+    @Test
+    fun `should resolve extended relative calendar fields with range usage`() {
+        val mapping = ElasticsearchIndexMapping.from(INDEX, indexedFieldVariants())
+        val filters = listOf<RelativeTimeFilter>(
+            YesterdayFilter(LogicalField("booleanTrue")),
+            NextMonthFilter(LogicalField("booleanTrue")),
+            LastYearFilter(LogicalField("booleanTrue")),
+            ThisYearFilter(LogicalField("booleanTrue")),
+            NextYearFilter(LogicalField("booleanTrue")),
+        )
+
+        filters.forEach { filter ->
+            val failure = runCatching { mapping.resolve(filter) }.exceptionOrNull()
+                ?: error("Expected RANGE resolution to fail for ${filter.operator}")
+            failure.assert().isInstanceOf(ElasticsearchFieldResolutionException::class.java)
+            failure.message.assert().isEqualTo(
+                "Elasticsearch field [booleanTrue] does not support range queries in index [$INDEX].",
+            )
+        }
+    }
+
     private fun json(value: Any?) = me.ahoo.wow.serialization.JsonSerializer.valueToTree<tools.jackson.databind.JsonNode>(
         value
     )
