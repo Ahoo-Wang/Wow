@@ -39,10 +39,11 @@ class WowModuleTest {
     }
 
     @Test
-    fun `should retain Kotlin getter properties for filter subtypes`() {
+    fun `should expose typed logical fields for filter subtypes`() {
         val schema = SchemaGeneratorBuilder().build().generateSchema(RelativeTimeFilter::class.java)
 
-        schema.path("properties").path("datePattern").isMissingNode.assert().isFalse()
+        schema.path("properties").path("field").isMissingNode.assert().isFalse()
+        schema.path("properties").path("datePattern").isMissingNode.assert().isTrue()
     }
 
     @Test

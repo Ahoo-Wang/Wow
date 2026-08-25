@@ -111,7 +111,7 @@ internal class ExampleDomainOpenAPITest {
             val querySchema = requireNotNull(openAPI.components.schemas["wow.api.query.AggregationQuery"])
             val logicalFieldRef = "#/components/schemas/wow.api.query.LogicalField"
             openAPI.components.schemas.getValue("wow.api.query.LogicalField").types
-                .assert().contains("string").doesNotContain("object")
+                .assert().containsExactly("string", "object")
             querySchema.properties.getValue("filter").`$ref`
                 .assert().isEqualTo("#/components/schemas/wow.api.query.FilterExpression")
             val elementSchema = openAPI.components.schemas.getValue("wow.api.query.AggregationElement")

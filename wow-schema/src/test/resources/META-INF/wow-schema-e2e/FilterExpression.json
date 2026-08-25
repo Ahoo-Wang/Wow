@@ -5,8 +5,74 @@
   "$ref" : "#/definitions/filterExpression",
   "definitions" : {
     "logicalField" : {
-      "type" : "string",
-      "pattern" : "^@?[A-Za-z_][A-Za-z0-9_-]*(\\.(?:@?[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*$"
+      "oneOf" : [ {
+        "type" : "string",
+        "pattern" : "^@?[A-Za-z_][A-Za-z0-9_-]*(\\.(?:@?[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*$"
+      }, {
+        "type" : "object",
+        "additionalProperties" : false,
+        "required" : [ "name" ],
+        "properties" : {
+          "name" : {
+            "type" : "string",
+            "pattern" : "^@?[A-Za-z_][A-Za-z0-9_-]*(\\.(?:@?[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*$"
+          },
+          "type" : {
+            "$ref" : "#/definitions/fieldType"
+          }
+        }
+      } ]
+    },
+    "fieldType" : {
+      "oneOf" : [ {
+        "$ref" : "#/definitions/temporalFieldType"
+      } ]
+    },
+    "temporalFieldType" : {
+      "oneOf" : [ {
+        "$ref" : "#/definitions/temporalDate"
+      }, {
+        "$ref" : "#/definitions/temporalNumber"
+      }, {
+        "$ref" : "#/definitions/temporalString"
+      } ]
+    },
+    "temporalDate" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "required" : [ "type" ],
+      "properties" : {
+        "type" : {
+          "enum" : [ "DATE" ]
+        }
+      }
+    },
+    "temporalNumber" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "required" : [ "type" ],
+      "properties" : {
+        "type" : {
+          "enum" : [ "TEMPORAL_NUMBER" ]
+        },
+        "timeUnit" : {
+          "$ref" : "#/definitions/timeUnit"
+        }
+      }
+    },
+    "temporalString" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "required" : [ "type", "datePattern" ],
+      "properties" : {
+        "type" : {
+          "enum" : [ "TEMPORAL_STRING" ]
+        },
+        "datePattern" : {
+          "type" : "string",
+          "minLength" : 1
+        }
+      }
     },
     "literal" : {
       "type" : [ "null", "string", "number", "boolean" ]
@@ -844,13 +910,6 @@
         "zoneId" : {
           "type" : "string",
           "minLength" : 1
-        },
-        "datePattern" : {
-          "type" : "string",
-          "minLength" : 1
-        },
-        "timeUnit" : {
-          "$ref" : "#/definitions/timeUnit"
         }
       },
       "required" : [ "op", "field" ],
@@ -868,13 +927,6 @@
         "zoneId" : {
           "type" : "string",
           "minLength" : 1
-        },
-        "datePattern" : {
-          "type" : "string",
-          "minLength" : 1
-        },
-        "timeUnit" : {
-          "$ref" : "#/definitions/timeUnit"
         }
       },
       "required" : [ "op", "field" ],
@@ -892,13 +944,6 @@
         "zoneId" : {
           "type" : "string",
           "minLength" : 1
-        },
-        "datePattern" : {
-          "type" : "string",
-          "minLength" : 1
-        },
-        "timeUnit" : {
-          "$ref" : "#/definitions/timeUnit"
         }
       },
       "required" : [ "op", "field" ],
@@ -916,13 +961,6 @@
         "zoneId" : {
           "type" : "string",
           "minLength" : 1
-        },
-        "datePattern" : {
-          "type" : "string",
-          "minLength" : 1
-        },
-        "timeUnit" : {
-          "$ref" : "#/definitions/timeUnit"
         }
       },
       "required" : [ "op", "field" ],
@@ -940,13 +978,6 @@
         "zoneId" : {
           "type" : "string",
           "minLength" : 1
-        },
-        "datePattern" : {
-          "type" : "string",
-          "minLength" : 1
-        },
-        "timeUnit" : {
-          "$ref" : "#/definitions/timeUnit"
         }
       },
       "required" : [ "op", "field" ],
@@ -964,13 +995,6 @@
         "zoneId" : {
           "type" : "string",
           "minLength" : 1
-        },
-        "datePattern" : {
-          "type" : "string",
-          "minLength" : 1
-        },
-        "timeUnit" : {
-          "$ref" : "#/definitions/timeUnit"
         }
       },
       "required" : [ "op", "field" ],
@@ -988,13 +1012,6 @@
         "zoneId" : {
           "type" : "string",
           "minLength" : 1
-        },
-        "datePattern" : {
-          "type" : "string",
-          "minLength" : 1
-        },
-        "timeUnit" : {
-          "$ref" : "#/definitions/timeUnit"
         }
       },
       "required" : [ "op", "field" ],
@@ -1012,13 +1029,6 @@
         "zoneId" : {
           "type" : "string",
           "minLength" : 1
-        },
-        "datePattern" : {
-          "type" : "string",
-          "minLength" : 1
-        },
-        "timeUnit" : {
-          "$ref" : "#/definitions/timeUnit"
         }
       },
       "required" : [ "op", "field" ],
@@ -1036,13 +1046,6 @@
         "zoneId" : {
           "type" : "string",
           "minLength" : 1
-        },
-        "datePattern" : {
-          "type" : "string",
-          "minLength" : 1
-        },
-        "timeUnit" : {
-          "$ref" : "#/definitions/timeUnit"
         }
       },
       "required" : [ "op", "field" ],
@@ -1060,13 +1063,6 @@
         "zoneId" : {
           "type" : "string",
           "minLength" : 1
-        },
-        "datePattern" : {
-          "type" : "string",
-          "minLength" : 1
-        },
-        "timeUnit" : {
-          "$ref" : "#/definitions/timeUnit"
         }
       },
       "required" : [ "op", "field" ],
@@ -1084,13 +1080,6 @@
         "zoneId" : {
           "type" : "string",
           "minLength" : 1
-        },
-        "datePattern" : {
-          "type" : "string",
-          "minLength" : 1
-        },
-        "timeUnit" : {
-          "$ref" : "#/definitions/timeUnit"
         }
       },
       "required" : [ "op", "field" ],
@@ -1108,13 +1097,6 @@
         "zoneId" : {
           "type" : "string",
           "minLength" : 1
-        },
-        "datePattern" : {
-          "type" : "string",
-          "minLength" : 1
-        },
-        "timeUnit" : {
-          "$ref" : "#/definitions/timeUnit"
         }
       },
       "required" : [ "op", "field" ],
@@ -1136,13 +1118,6 @@
         "zoneId" : {
           "type" : "string",
           "minLength" : 1
-        },
-        "datePattern" : {
-          "type" : "string",
-          "minLength" : 1
-        },
-        "timeUnit" : {
-          "$ref" : "#/definitions/timeUnit"
         }
       },
       "required" : [ "op", "field", "time" ],
@@ -1164,13 +1139,6 @@
         "zoneId" : {
           "type" : "string",
           "minLength" : 1
-        },
-        "datePattern" : {
-          "type" : "string",
-          "minLength" : 1
-        },
-        "timeUnit" : {
-          "$ref" : "#/definitions/timeUnit"
         }
       },
       "required" : [ "op", "field", "days" ],
@@ -1192,13 +1160,6 @@
         "zoneId" : {
           "type" : "string",
           "minLength" : 1
-        },
-        "datePattern" : {
-          "type" : "string",
-          "minLength" : 1
-        },
-        "timeUnit" : {
-          "$ref" : "#/definitions/timeUnit"
         }
       },
       "required" : [ "op", "field", "days" ],

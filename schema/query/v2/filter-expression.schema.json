@@ -5,8 +5,62 @@
   "$ref": "#/definitions/filterExpression",
   "definitions": {
     "logicalField": {
-      "type": "string",
-      "pattern": "^@?[A-Za-z_][A-Za-z0-9_-]*(\\.(?:@?[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*$"
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^@?[A-Za-z_][A-Za-z0-9_-]*(\\.(?:@?[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*$"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name"],
+          "properties": {
+            "name": {
+              "type": "string",
+              "pattern": "^@?[A-Za-z_][A-Za-z0-9_-]*(\\.(?:@?[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*$"
+            },
+            "type": { "$ref": "#/definitions/fieldType" }
+          }
+        }
+      ]
+    },
+    "fieldType": {
+      "oneOf": [
+        { "$ref": "#/definitions/temporalFieldType" }
+      ]
+    },
+    "temporalFieldType": {
+      "oneOf": [
+        { "$ref": "#/definitions/temporalDate" },
+        { "$ref": "#/definitions/temporalNumber" },
+        { "$ref": "#/definitions/temporalString" }
+      ]
+    },
+    "temporalDate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["DATE"] }
+      }
+    },
+    "temporalNumber": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["TEMPORAL_NUMBER"] },
+        "timeUnit": { "$ref": "#/definitions/timeUnit" }
+      }
+    },
+    "temporalString": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "datePattern"],
+      "properties": {
+        "type": { "enum": ["TEMPORAL_STRING"] },
+        "datePattern": { "type": "string", "minLength": 1 }
+      }
     },
     "literal": {
       "type": ["null", "string", "number", "boolean"]
@@ -259,22 +313,22 @@
     "lastYear": { "$ref": "#/definitions/lastYearShape" },
     "thisYear": { "$ref": "#/definitions/thisYearShape" },
     "nextYear": { "$ref": "#/definitions/nextYearShape" },
-    "todayShape": { "type": "object", "properties": { "op": { "enum": ["TODAY"] }, "field": { "$ref": "#/definitions/logicalField" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
-    "yesterdayShape": { "type": "object", "properties": { "op": { "enum": ["YESTERDAY"] }, "field": { "$ref": "#/definitions/logicalField" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
-    "tomorrowShape": { "type": "object", "properties": { "op": { "enum": ["TOMORROW"] }, "field": { "$ref": "#/definitions/logicalField" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
-    "thisWeekShape": { "type": "object", "properties": { "op": { "enum": ["THIS_WEEK"] }, "field": { "$ref": "#/definitions/logicalField" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
-    "nextWeekShape": { "type": "object", "properties": { "op": { "enum": ["NEXT_WEEK"] }, "field": { "$ref": "#/definitions/logicalField" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
-    "lastWeekShape": { "type": "object", "properties": { "op": { "enum": ["LAST_WEEK"] }, "field": { "$ref": "#/definitions/logicalField" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
-    "thisMonthShape": { "type": "object", "properties": { "op": { "enum": ["THIS_MONTH"] }, "field": { "$ref": "#/definitions/logicalField" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
-    "nextMonthShape": { "type": "object", "properties": { "op": { "enum": ["NEXT_MONTH"] }, "field": { "$ref": "#/definitions/logicalField" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
-    "lastMonthShape": { "type": "object", "properties": { "op": { "enum": ["LAST_MONTH"] }, "field": { "$ref": "#/definitions/logicalField" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
-    "lastYearShape": { "type": "object", "properties": { "op": { "enum": ["LAST_YEAR"] }, "field": { "$ref": "#/definitions/logicalField" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
-    "thisYearShape": { "type": "object", "properties": { "op": { "enum": ["THIS_YEAR"] }, "field": { "$ref": "#/definitions/logicalField" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
-    "nextYearShape": { "type": "object", "properties": { "op": { "enum": ["NEXT_YEAR"] }, "field": { "$ref": "#/definitions/logicalField" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
+    "todayShape": { "type": "object", "properties": { "op": { "enum": ["TODAY"] }, "field": { "$ref": "#/definitions/logicalField" }, "zoneId": { "type": "string", "minLength": 1 } }, "required": ["op", "field"], "additionalProperties": false },
+    "yesterdayShape": { "type": "object", "properties": { "op": { "enum": ["YESTERDAY"] }, "field": { "$ref": "#/definitions/logicalField" }, "zoneId": { "type": "string", "minLength": 1 } }, "required": ["op", "field"], "additionalProperties": false },
+    "tomorrowShape": { "type": "object", "properties": { "op": { "enum": ["TOMORROW"] }, "field": { "$ref": "#/definitions/logicalField" }, "zoneId": { "type": "string", "minLength": 1 } }, "required": ["op", "field"], "additionalProperties": false },
+    "thisWeekShape": { "type": "object", "properties": { "op": { "enum": ["THIS_WEEK"] }, "field": { "$ref": "#/definitions/logicalField" }, "zoneId": { "type": "string", "minLength": 1 } }, "required": ["op", "field"], "additionalProperties": false },
+    "nextWeekShape": { "type": "object", "properties": { "op": { "enum": ["NEXT_WEEK"] }, "field": { "$ref": "#/definitions/logicalField" }, "zoneId": { "type": "string", "minLength": 1 } }, "required": ["op", "field"], "additionalProperties": false },
+    "lastWeekShape": { "type": "object", "properties": { "op": { "enum": ["LAST_WEEK"] }, "field": { "$ref": "#/definitions/logicalField" }, "zoneId": { "type": "string", "minLength": 1 } }, "required": ["op", "field"], "additionalProperties": false },
+    "thisMonthShape": { "type": "object", "properties": { "op": { "enum": ["THIS_MONTH"] }, "field": { "$ref": "#/definitions/logicalField" }, "zoneId": { "type": "string", "minLength": 1 } }, "required": ["op", "field"], "additionalProperties": false },
+    "nextMonthShape": { "type": "object", "properties": { "op": { "enum": ["NEXT_MONTH"] }, "field": { "$ref": "#/definitions/logicalField" }, "zoneId": { "type": "string", "minLength": 1 } }, "required": ["op", "field"], "additionalProperties": false },
+    "lastMonthShape": { "type": "object", "properties": { "op": { "enum": ["LAST_MONTH"] }, "field": { "$ref": "#/definitions/logicalField" }, "zoneId": { "type": "string", "minLength": 1 } }, "required": ["op", "field"], "additionalProperties": false },
+    "lastYearShape": { "type": "object", "properties": { "op": { "enum": ["LAST_YEAR"] }, "field": { "$ref": "#/definitions/logicalField" }, "zoneId": { "type": "string", "minLength": 1 } }, "required": ["op", "field"], "additionalProperties": false },
+    "thisYearShape": { "type": "object", "properties": { "op": { "enum": ["THIS_YEAR"] }, "field": { "$ref": "#/definitions/logicalField" }, "zoneId": { "type": "string", "minLength": 1 } }, "required": ["op", "field"], "additionalProperties": false },
+    "nextYearShape": { "type": "object", "properties": { "op": { "enum": ["NEXT_YEAR"] }, "field": { "$ref": "#/definitions/logicalField" }, "zoneId": { "type": "string", "minLength": 1 } }, "required": ["op", "field"], "additionalProperties": false },
     "beforeToday": {
-      "type": "object", "properties": { "op": { "enum": ["BEFORE_TODAY"] }, "field": { "$ref": "#/definitions/logicalField" }, "time": { "type": "string", "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9](?::[0-5][0-9](?:\\.[0-9]{1,9})?)?$" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field", "time"], "additionalProperties": false
+      "type": "object", "properties": { "op": { "enum": ["BEFORE_TODAY"] }, "field": { "$ref": "#/definitions/logicalField" }, "time": { "type": "string", "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9](?::[0-5][0-9](?:\\.[0-9]{1,9})?)?$" }, "zoneId": { "type": "string", "minLength": 1 } }, "required": ["op", "field", "time"], "additionalProperties": false
     },
-    "recentDays": { "type": "object", "properties": { "op": { "enum": ["RECENT_DAYS"] }, "field": { "$ref": "#/definitions/logicalField" }, "days": { "type": "integer", "minimum": 1 }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field", "days"], "additionalProperties": false },
-    "earlierDays": { "type": "object", "properties": { "op": { "enum": ["EARLIER_DAYS"] }, "field": { "$ref": "#/definitions/logicalField" }, "days": { "type": "integer", "minimum": 1 }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field", "days"], "additionalProperties": false }
+    "recentDays": { "type": "object", "properties": { "op": { "enum": ["RECENT_DAYS"] }, "field": { "$ref": "#/definitions/logicalField" }, "days": { "type": "integer", "minimum": 1 }, "zoneId": { "type": "string", "minLength": 1 } }, "required": ["op", "field", "days"], "additionalProperties": false },
+    "earlierDays": { "type": "object", "properties": { "op": { "enum": ["EARLIER_DAYS"] }, "field": { "$ref": "#/definitions/logicalField" }, "days": { "type": "integer", "minimum": 1 }, "zoneId": { "type": "string", "minLength": 1 } }, "required": ["op", "field", "days"], "additionalProperties": false }
   }
 }

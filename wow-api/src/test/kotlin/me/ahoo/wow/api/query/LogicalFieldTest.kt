@@ -48,8 +48,32 @@ class LogicalFieldTest {
         val json = mapper.writeValueAsString(field)
         json.assert()
             .contains("\"name\":\"snapshotTime\"")
-            .contains("\"type\":{\"type\":\"NUMBER\",\"timeUnit\":\"MILLISECONDS\"}")
+            .contains("\"type\":{\"type\":\"TEMPORAL_NUMBER\",\"timeUnit\":\"MILLISECONDS\"}")
         mapper.readValue(json, LogicalField::class.java).assert().isEqualTo(field)
+    }
+
+    @Test
+    fun `formatted logical field should use temporal string subtype`() {
+        val field = LogicalField(
+            "createdAtText",
+            FieldType.Temporal.FormattedString(datePattern = "yyyy-MM-dd"),
+        )
+
+        val json = mapper.writeValueAsString(field)
+        json.assert().contains("\"type\":{\"type\":\"TEMPORAL_STRING\",\"datePattern\":\"yyyy-MM-dd\"}")
+        mapper.readValue(json, LogicalField::class.java).assert().isEqualTo(field)
+    }
+
+    @Test
+    fun `logical field should reject old temporal subtype ids`() {
+        listOf("NUMBER", "STRING").forEach { oldId ->
+            assertThrows<JacksonException> {
+                mapper.readValue(
+                    """{"name":"field","type":{"type":"$oldId"}}""",
+                    LogicalField::class.java,
+                )
+            }
+        }
     }
 
     @Test

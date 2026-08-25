@@ -95,6 +95,55 @@ internal class OpenApiCompatibilitySnapshotTest {
     }
 
     @Test
+    fun `generated openapi should publish typed logical fields`() {
+        val openAPI = OpenAPI()
+        RouterSpecs(currentContext).build().mergeOpenAPIFromCatalog(openAPI)
+
+        val document = mapper.valueToTree<com.fasterxml.jackson.databind.JsonNode>(openAPI)
+        val schemas = document.path("components").path("schemas")
+        val logicalField = schemas.path("wow.api.query.LogicalField")
+        logicalField.path("type").toList().map { it.asText() }.assert()
+            .containsExactly("string", "object")
+        logicalField.path("properties").path("name").path("type").asText().assert()
+            .isEqualTo("string")
+        logicalField.path("properties").path("type").isMissingNode.assert().isFalse()
+        logicalField.path("required").map { it.asText() }.assert().contains("name")
+
+        val fieldType = schemas.path("wow.api.query.FieldType")
+        fieldType.path("oneOf").size().assert().isOne()
+        val temporal = schemas.path("wow.api.query.FieldType.Temporal")
+        temporal.path("oneOf").size().assert().isEqualTo(3)
+        temporal.path("discriminator").path("propertyName").asText().assert()
+            .isEqualTo("type")
+        temporal.path("oneOf").map { it.path("\$ref").asText() }.assert().containsExactly(
+            "#/components/schemas/wow.api.query.FieldType.Temporal.Date",
+            "#/components/schemas/wow.api.query.FieldType.Temporal.NumericEpoch",
+            "#/components/schemas/wow.api.query.FieldType.Temporal.FormattedString",
+        )
+        val mapping = temporal.path("discriminator").path("mapping")
+        mapping.fieldNames().asSequence().toList().assert()
+            .containsExactly("DATE", "TEMPORAL_NUMBER", "TEMPORAL_STRING")
+        mapping.toList().map { it.asText() }.assert().containsExactly(
+            "#/components/schemas/wow.api.query.FieldType.Temporal.Date",
+            "#/components/schemas/wow.api.query.FieldType.Temporal.NumericEpoch",
+            "#/components/schemas/wow.api.query.FieldType.Temporal.FormattedString",
+        )
+        document.findValues("mapping")
+            .flatMap { it.fieldNames().asSequence().toList() }.assert()
+            .doesNotContain("NUMBER", "STRING")
+        document.findValues("const").map { it.asText() }.assert()
+            .doesNotContain("NUMBER", "STRING")
+        mapper.writeValueAsString(openAPI).assert().doesNotContain("dateFormatter")
+
+        val dateHistogramFieldDescription = schemas.path("wow.api.query.AggregationGroup.DateHistogram")
+            .path("properties").path("field").path("description").asText()
+        dateHistogramFieldDescription.isBlank().assert().isFalse()
+        dateHistogramFieldDescription.assert()
+            .contains("untyped", "DATE", "TEMPORAL_NUMBER")
+            .doesNotContain("TEMPORAL_STRING")
+    }
+
+    @Test
     fun `generated route contracts should match example domain compatibility snapshot`() {
         val routerSpecs = RouterSpecs(currentContext).build()
         val routeShape = routerSpecs.toRouteCatalog().routes.map { route ->

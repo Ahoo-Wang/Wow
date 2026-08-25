@@ -841,6 +841,10 @@
         },
         "type" : "object"
       },
+      "example.TimeUnit" : {
+        "enum" : [ "NANOSECONDS", "MICROSECONDS", "MILLISECONDS", "SECONDS", "MINUTES", "HOURS", "DAYS" ],
+        "type" : "string"
+      },
       "example.cart.AddCartItem" : {
         "properties" : {
           "productId" : {
@@ -2657,7 +2661,7 @@
         "type" : "object"
       },
       "tck.mock_aggregate.MockCommandAggregateAggregatedFields" : {
-        "enum" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.data", "state.decimalValue", "state.id", "state.orders", "state.orders.lines", "state.orders.lines.amount", "state.orders.lines.createdAt", "state.orders.lines.discounts", "state.orders.lines.discounts.amount", "state.orders.lines.discounts.type", "state.orders.lines.productId", "state.orders.lines.quantity", "state.orders.lines.samples", "state.orders.status", "tags", "tenantId", "version" ],
+        "enum" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.data", "state.decimalValue", "state.id", "state.orders", "state.orders.lines", "state.orders.lines.amount", "state.orders.lines.createdAt", "state.orders.lines.createdAtEpochMillis", "state.orders.lines.createdAtEpochSecond", "state.orders.lines.createdAtNanos", "state.orders.lines.discounts", "state.orders.lines.discounts.amount", "state.orders.lines.discounts.type", "state.orders.lines.productId", "state.orders.lines.quantity", "state.orders.lines.samples", "state.orders.status", "tags", "tenantId", "version" ],
         "type" : "string"
       },
       "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedDomainEventStream" : {
@@ -3008,6 +3012,19 @@
             } ]
           },
           "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "createdAtEpochMillis" : {
+            "format" : "int64",
+            "readOnly" : true,
+            "type" : "integer"
+          },
+          "createdAtEpochSecond" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "createdAtNanos" : {
             "format" : "date-time",
             "type" : "string"
           },
@@ -4533,6 +4550,52 @@
         "required" : [ "metrics" ],
         "type" : "object"
       },
+      "wow.api.query.FieldType" : {
+        "oneOf" : [ {
+          "$ref" : "#/components/schemas/wow.api.query.FieldType.Temporal"
+        } ]
+      },
+      "wow.api.query.FieldType.Temporal" : {
+        "discriminator" : {
+          "mapping" : {
+            "DATE" : "#/components/schemas/wow.api.query.FieldType.Temporal.Date",
+            "TEMPORAL_NUMBER" : "#/components/schemas/wow.api.query.FieldType.Temporal.NumericEpoch",
+            "TEMPORAL_STRING" : "#/components/schemas/wow.api.query.FieldType.Temporal.FormattedString"
+          },
+          "propertyName" : "type"
+        },
+        "oneOf" : [ {
+          "$ref" : "#/components/schemas/wow.api.query.FieldType.Temporal.Date"
+        }, {
+          "$ref" : "#/components/schemas/wow.api.query.FieldType.Temporal.FormattedString"
+        }, {
+          "$ref" : "#/components/schemas/wow.api.query.FieldType.Temporal.NumericEpoch"
+        } ]
+      },
+      "wow.api.query.FieldType.Temporal.Date" : {
+        "type" : "object"
+      },
+      "wow.api.query.FieldType.Temporal.FormattedString" : {
+        "properties" : {
+          "datePattern" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
+          }
+        },
+        "required" : [ "datePattern" ],
+        "type" : "object"
+      },
+      "wow.api.query.FieldType.Temporal.NumericEpoch" : {
+        "properties" : {
+          "timeUnit" : {
+            "$ref" : "#/components/schemas/example.TimeUnit"
+          }
+        },
+        "type" : "object"
+      },
       "wow.api.query.FilterExpression" : {
         "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/filterExpression",
         "$schema" : "http://json-schema.org/draft-07/schema#",
@@ -4587,10 +4650,6 @@
           "beforeToday" : {
             "additionalProperties" : false,
             "properties" : {
-              "datePattern" : {
-                "minLength" : 1,
-                "type" : "string"
-              },
               "field" : {
                 "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
@@ -4600,9 +4659,6 @@
               "time" : {
                 "pattern" : "^([01][0-9]|2[0-3]):[0-5][0-9](?::[0-5][0-9](?:\\.[0-9]{1,9})?)?$",
                 "type" : "string"
-              },
-              "timeUnit" : {
-                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
               },
               "zoneId" : {
                 "minLength" : 1,
@@ -4689,10 +4745,6 @@
           "earlierDays" : {
             "additionalProperties" : false,
             "properties" : {
-              "datePattern" : {
-                "minLength" : 1,
-                "type" : "string"
-              },
               "days" : {
                 "minimum" : 1,
                 "type" : "integer"
@@ -4702,9 +4754,6 @@
               },
               "op" : {
                 "enum" : [ "EARLIER_DAYS" ]
-              },
-              "timeUnit" : {
-                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
               },
               "zoneId" : {
                 "minLength" : 1,
@@ -4912,6 +4961,11 @@
             },
             "required" : [ "op", "field" ],
             "type" : "object"
+          },
+          "fieldType" : {
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/temporalFieldType"
+            } ]
           },
           "filterExpression" : {
             "oneOf" : [ {
@@ -5145,18 +5199,11 @@
           "lastMonthShape" : {
             "additionalProperties" : false,
             "properties" : {
-              "datePattern" : {
-                "minLength" : 1,
-                "type" : "string"
-              },
               "field" : {
                 "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "LAST_MONTH" ]
-              },
-              "timeUnit" : {
-                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
               },
               "zoneId" : {
                 "minLength" : 1,
@@ -5172,18 +5219,11 @@
           "lastWeekShape" : {
             "additionalProperties" : false,
             "properties" : {
-              "datePattern" : {
-                "minLength" : 1,
-                "type" : "string"
-              },
               "field" : {
                 "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "LAST_WEEK" ]
-              },
-              "timeUnit" : {
-                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
               },
               "zoneId" : {
                 "minLength" : 1,
@@ -5199,18 +5239,11 @@
           "lastYearShape" : {
             "additionalProperties" : false,
             "properties" : {
-              "datePattern" : {
-                "minLength" : 1,
-                "type" : "string"
-              },
               "field" : {
                 "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "LAST_YEAR" ]
-              },
-              "timeUnit" : {
-                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
               },
               "zoneId" : {
                 "minLength" : 1,
@@ -5224,8 +5257,23 @@
             "type" : [ "null", "string", "number", "boolean" ]
           },
           "logicalField" : {
-            "pattern" : "^@?[A-Za-z_][A-Za-z0-9_-]*(\\.(?:@?[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*$",
-            "type" : "string"
+            "oneOf" : [ {
+              "pattern" : "^@?[A-Za-z_][A-Za-z0-9_-]*(\\.(?:@?[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*$",
+              "type" : "string"
+            }, {
+              "additionalProperties" : false,
+              "properties" : {
+                "name" : {
+                  "pattern" : "^@?[A-Za-z_][A-Za-z0-9_-]*(\\.(?:@?[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*$",
+                  "type" : "string"
+                },
+                "type" : {
+                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/fieldType"
+                }
+              },
+              "required" : [ "name" ],
+              "type" : "object"
+            } ]
           },
           "lt" : {
             "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/ltShape"
@@ -5310,18 +5358,11 @@
           "nextMonthShape" : {
             "additionalProperties" : false,
             "properties" : {
-              "datePattern" : {
-                "minLength" : 1,
-                "type" : "string"
-              },
               "field" : {
                 "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "NEXT_MONTH" ]
-              },
-              "timeUnit" : {
-                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
               },
               "zoneId" : {
                 "minLength" : 1,
@@ -5337,18 +5378,11 @@
           "nextWeekShape" : {
             "additionalProperties" : false,
             "properties" : {
-              "datePattern" : {
-                "minLength" : 1,
-                "type" : "string"
-              },
               "field" : {
                 "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "NEXT_WEEK" ]
-              },
-              "timeUnit" : {
-                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
               },
               "zoneId" : {
                 "minLength" : 1,
@@ -5364,18 +5398,11 @@
           "nextYearShape" : {
             "additionalProperties" : false,
             "properties" : {
-              "datePattern" : {
-                "minLength" : 1,
-                "type" : "string"
-              },
               "field" : {
                 "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "NEXT_YEAR" ]
-              },
-              "timeUnit" : {
-                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
               },
               "zoneId" : {
                 "minLength" : 1,
@@ -5468,10 +5495,6 @@
           "recentDays" : {
             "additionalProperties" : false,
             "properties" : {
-              "datePattern" : {
-                "minLength" : 1,
-                "type" : "string"
-              },
               "days" : {
                 "minimum" : 1,
                 "type" : "integer"
@@ -5481,9 +5504,6 @@
               },
               "op" : {
                 "enum" : [ "RECENT_DAYS" ]
-              },
-              "timeUnit" : {
-                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
               },
               "zoneId" : {
                 "minLength" : 1,
@@ -5557,6 +5577,52 @@
             "enum" : [ "CASE_SENSITIVE", "CASE_INSENSITIVE" ],
             "type" : "string"
           },
+          "temporalDate" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "type" : {
+                "enum" : [ "DATE" ]
+              }
+            },
+            "required" : [ "type" ],
+            "type" : "object"
+          },
+          "temporalFieldType" : {
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/temporalDate"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/temporalNumber"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/temporalString"
+            } ]
+          },
+          "temporalNumber" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "timeUnit" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
+              },
+              "type" : {
+                "enum" : [ "TEMPORAL_NUMBER" ]
+              }
+            },
+            "required" : [ "type" ],
+            "type" : "object"
+          },
+          "temporalString" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
+              "type" : {
+                "enum" : [ "TEMPORAL_STRING" ]
+              }
+            },
+            "required" : [ "type", "datePattern" ],
+            "type" : "object"
+          },
           "tenantId" : {
             "additionalProperties" : false,
             "properties" : {
@@ -5576,18 +5642,11 @@
           "thisMonthShape" : {
             "additionalProperties" : false,
             "properties" : {
-              "datePattern" : {
-                "minLength" : 1,
-                "type" : "string"
-              },
               "field" : {
                 "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "THIS_MONTH" ]
-              },
-              "timeUnit" : {
-                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
               },
               "zoneId" : {
                 "minLength" : 1,
@@ -5603,18 +5662,11 @@
           "thisWeekShape" : {
             "additionalProperties" : false,
             "properties" : {
-              "datePattern" : {
-                "minLength" : 1,
-                "type" : "string"
-              },
               "field" : {
                 "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "THIS_WEEK" ]
-              },
-              "timeUnit" : {
-                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
               },
               "zoneId" : {
                 "minLength" : 1,
@@ -5630,18 +5682,11 @@
           "thisYearShape" : {
             "additionalProperties" : false,
             "properties" : {
-              "datePattern" : {
-                "minLength" : 1,
-                "type" : "string"
-              },
               "field" : {
                 "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "THIS_YEAR" ]
-              },
-              "timeUnit" : {
-                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
               },
               "zoneId" : {
                 "minLength" : 1,
@@ -5662,18 +5707,11 @@
           "todayShape" : {
             "additionalProperties" : false,
             "properties" : {
-              "datePattern" : {
-                "minLength" : 1,
-                "type" : "string"
-              },
               "field" : {
                 "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "TODAY" ]
-              },
-              "timeUnit" : {
-                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
               },
               "zoneId" : {
                 "minLength" : 1,
@@ -5689,18 +5727,11 @@
           "tomorrowShape" : {
             "additionalProperties" : false,
             "properties" : {
-              "datePattern" : {
-                "minLength" : 1,
-                "type" : "string"
-              },
               "field" : {
                 "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "TOMORROW" ]
-              },
-              "timeUnit" : {
-                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
               },
               "zoneId" : {
                 "minLength" : 1,
@@ -5716,18 +5747,11 @@
           "yesterdayShape" : {
             "additionalProperties" : false,
             "properties" : {
-              "datePattern" : {
-                "minLength" : 1,
-                "type" : "string"
-              },
               "field" : {
                 "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/logicalField"
               },
               "op" : {
                 "enum" : [ "YESTERDAY" ]
-              },
-              "timeUnit" : {
-                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
               },
               "zoneId" : {
                 "minLength" : 1,
@@ -5767,7 +5791,16 @@
         "type" : "object"
       },
       "wow.api.query.LogicalField" : {
-        "type" : "string"
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "type" : {
+            "$ref" : "#/components/schemas/wow.api.query.FieldType"
+          }
+        },
+        "required" : [ "name" ],
+        "type" : [ "string", "object" ]
       },
       "wow.api.query.PagedQuery" : {
         "additionalProperties" : false,

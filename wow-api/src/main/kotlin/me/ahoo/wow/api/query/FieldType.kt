@@ -23,12 +23,15 @@ import java.util.concurrent.TimeUnit
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(
-    JsonSubTypes.Type(FieldType.Temporal.Date::class, name = "DATE"),
-    JsonSubTypes.Type(FieldType.Temporal.NumericEpoch::class, name = "NUMBER"),
-    JsonSubTypes.Type(FieldType.Temporal.FormattedString::class, name = "STRING"),
+    JsonSubTypes.Type(FieldType.Temporal::class),
 )
 @Schema(oneOf = [FieldType.Temporal::class])
 sealed interface FieldType {
+    @JsonSubTypes(
+        JsonSubTypes.Type(Temporal.Date::class, name = "DATE"),
+        JsonSubTypes.Type(Temporal.NumericEpoch::class, name = "TEMPORAL_NUMBER"),
+        JsonSubTypes.Type(Temporal.FormattedString::class, name = "TEMPORAL_STRING"),
+    )
     @Schema(
         oneOf = [
             FieldType.Temporal.Date::class,
@@ -41,12 +44,12 @@ sealed interface FieldType {
         @JsonTypeName("DATE")
         data object Date : Temporal
 
-        @JsonTypeName("NUMBER")
+        @JsonTypeName("TEMPORAL_NUMBER")
         data class NumericEpoch(
             val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
         ) : Temporal
 
-        @JsonTypeName("STRING")
+        @JsonTypeName("TEMPORAL_STRING")
         data class FormattedString(
             @get:Schema(requiredMode = Schema.RequiredMode.REQUIRED)
             val datePattern: String? = null,
@@ -56,7 +59,7 @@ sealed interface FieldType {
         ) : Temporal {
             init {
                 require((datePattern == null) != (dateFormatter == null)) {
-                    "STRING requires exactly one of datePattern or dateFormatter."
+                    "FormattedString requires exactly one of datePattern or dateFormatter."
                 }
                 datePattern?.let {
                     require(it.isNotBlank()) { "datePattern cannot be blank." }

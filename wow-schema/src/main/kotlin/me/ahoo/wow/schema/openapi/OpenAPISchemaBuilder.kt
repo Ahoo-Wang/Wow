@@ -87,6 +87,9 @@ class OpenAPISchemaBuilder(
         if (annotation == null) return
         if (annotation.oneOf.isNotEmpty()) {
             node.remove("anyOf")?.let { node.set("oneOf", it) }
+                ?: node.remove("\$ref")?.let { reference ->
+                    node.putArray("oneOf").addObject().set("\$ref", reference)
+                }
         }
         annotation.discriminatorProperty.takeIf(String::isNotBlank)?.let { propertyName ->
             val discriminator = node.putObject("discriminator").put("propertyName", propertyName)

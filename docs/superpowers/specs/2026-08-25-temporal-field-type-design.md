@@ -12,7 +12,7 @@
 
 - 以通用 `FieldType` 骨架及其唯一子接口 `Temporal` 表达原生日期、数值 epoch 和格式化字符串。
 - `LogicalField` 统一持有 name 与可选 type，并在 JSON 中接受字符串或对象。
-- `DateHistogram` 支持原生日期与数值 epoch；默认按 `NUMBER/MILLISECONDS` 解释。
+- `DateHistogram` 支持原生日期与数值 epoch；默认按 `NumericEpoch(MILLISECONDS)` 解释。
 - `DateHistogram.timeZone` 缺省时使用当前 JVM 系统时区。
 - `RelativeTimeFilter` 支持原生日期、数值 epoch 与格式化字符串，并移除分散的时间表示参数。
 - 将相对时间展开从 `FilterNormalizer` 拆到单一职责的内部归一化器。
@@ -41,25 +41,28 @@
 | `LogicalField(name, type?)` | 路径与可选类型形成一个值 | 所有操作共享字段骨架 | 无类型为字符串，有类型为对象 | 采用 |
 | enum + 平铺参数 | 路径独立 | 参数散落 | 非法组合多 | 拒绝 |
 
-`AUTO/INFER` 被拒绝：Elasticsearch 可以读取 mapping，MongoDB 没有固定 schema；混合值和字符串格式无法得到确定的跨后端推断结果。时间操作遇到未声明类型的 LogicalField 时使用明确默认 `NUMBER/MILLISECONDS`，不进行推断。
+`AUTO/INFER` 被拒绝：Elasticsearch 可以读取 mapping，MongoDB 没有固定 schema；混合值和字符串格式无法得到确定的跨后端推断结果。时间操作遇到未声明类型的 LogicalField 时使用明确默认 `NumericEpoch(MILLISECONDS)`，不进行推断。
 
 ## 公共模型
 
 ### FieldType 骨架
 
-`FieldType` 是通用字段类型根接口，当前只有一个子接口 `Temporal`。DATE、NUMBER、STRING 是 Temporal 的叶子实现；JSON 不增加额外 `TEMPORAL` 包装层，仍以叶子 `type` 作为 discriminator。未来如出现真实的非时间字段类型，可新增 FieldType 子接口而不改变 LogicalField。
+`FieldType` 是通用字段类型根接口，当前只有一个子接口 `Temporal`。`DATE`、`TEMPORAL_NUMBER`、`TEMPORAL_STRING` 是 Temporal 的叶子 subtype ID；JSON 不增加额外 `TEMPORAL` 包装层，仍以叶子 `type` 作为 discriminator。`TEMPORAL_` 前缀避免与未来普通数值/字符串字段类型混淆，`DATE` 本身已有明确时间语义，无需前缀。未来如出现真实的非时间字段类型，可新增 FieldType 子接口而不改变 LogicalField。
 
 ```kotlin
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(
-    JsonSubTypes.Type(FieldType.Temporal.Date::class, name = "DATE"),
-    JsonSubTypes.Type(FieldType.Temporal.NumericEpoch::class, name = "NUMBER"),
-    JsonSubTypes.Type(FieldType.Temporal.FormattedString::class, name = "STRING"),
+    JsonSubTypes.Type(FieldType.Temporal::class),
 )
 @Schema(
     oneOf = [FieldType.Temporal::class],
 )
 sealed interface FieldType {
+    @JsonSubTypes(
+        JsonSubTypes.Type(Temporal.Date::class, name = "DATE"),
+        JsonSubTypes.Type(Temporal.NumericEpoch::class, name = "TEMPORAL_NUMBER"),
+        JsonSubTypes.Type(Temporal.FormattedString::class, name = "TEMPORAL_STRING"),
+    )
     @Schema(
         oneOf = [
             FieldType.Temporal.Date::class,
@@ -88,7 +91,7 @@ sealed interface FieldType {
 }
 ```
 
-JSON subtype ID 固定为 `DATE`、`NUMBER`、`STRING`。`FormattedString` 将 JSON `datePattern` 与 Condition runtime `dateFormatter` 内聚到同一个 subtype，并要求两者恰好提供一个。非空 pattern 通过 `DateTimeFormatter.ofPattern` 校验；`dateFormatter` 使用 `@JsonIgnore`，不进入 JSON/OpenAPI。`NumericEpoch` 使用 `java.util.concurrent.TimeUnit`，默认 `MILLISECONDS`。
+JSON subtype ID 固定为 `DATE`、`TEMPORAL_NUMBER`、`TEMPORAL_STRING`，不读取旧 `NUMBER`、`STRING` alias。Kotlin 类型名仍为 `NumericEpoch`、`FormattedString`。`TEMPORAL_NUMBER` 通过 `timeUnit` 表达数值 epoch；`TEMPORAL_STRING` 通过 `datePattern` 表达格式化时间字符串。`FormattedString` 将 JSON `datePattern` 与 Condition runtime `dateFormatter` 内聚到同一个 subtype，并要求两者恰好提供一个。非空 pattern 通过 `DateTimeFormatter.ofPattern` 校验；`dateFormatter` 使用 `@JsonIgnore`，不进入 JSON/OpenAPI。`NumericEpoch` 使用 `java.util.concurrent.TimeUnit`，默认 `MILLISECONDS`。
 
 ### LogicalField
 
@@ -122,10 +125,10 @@ OpenAPI 3.1 使用 `types = ["string", "object"]` 并发布对象属性 name/typ
 
 能力矩阵：
 
-| 使用位置 | 未声明 | DATE | NUMBER | STRING |
+| 使用位置 | 未声明 | DATE | NumericEpoch | FormattedString |
 |---|---:|---:|---:|---:|
-| `RelativeTimeFilter` | NUMBER/MILLISECONDS | 是 | 是 | 是 |
-| `AggregationGroup.DateHistogram` | NUMBER/MILLISECONDS | 是 | 是 | 否 |
+| `RelativeTimeFilter` | NumericEpoch(MILLISECONDS) | 是 | 是 | 是 |
+| `AggregationGroup.DateHistogram` | NumericEpoch(MILLISECONDS) | 是 | 是 | 否 |
 
 ### 分桶单位与存储单位
 
@@ -144,7 +147,7 @@ OpenAPI 3.1 使用 `types = ["string", "object"]` 并发布对象属性 name/typ
 
 ```kotlin
 data class DateHistogram(
-    @get:Schema(description = "Untyped fields default to NUMBER/MILLISECONDS; DATE and NUMBER are supported.")
+    @get:Schema(description = "Untyped temporal fields default to NumericEpoch(MILLISECONDS); DATE and TEMPORAL_NUMBER are supported.")
     override val field: LogicalField,
     override val alias: String,
     val unit: AggregationDateUnit,
@@ -185,7 +188,7 @@ fun dateHistogram(
   "field": {
     "name": "snapshotTime",
     "type": {
-      "type": "NUMBER",
+      "type": "TEMPORAL_NUMBER",
       "timeUnit": "MILLISECONDS"
     }
   },
@@ -209,7 +212,7 @@ fun dateHistogram(
 }
 ```
 
-field 为字符串或对象但 type 缺失时，DateHistogram 使用 `NUMBER/MILLISECONDS`。LogicalField 自定义 serializer/deserializer 是双形态字段协议的唯一公共读取边界，不承担旧 DateHistogram 后端语义兼容。
+field 为字符串或对象但 type 缺失时，DateHistogram 使用 `NumericEpoch(MILLISECONDS)`。LogicalField 自定义 serializer/deserializer 是双形态字段协议的唯一公共读取边界，不承担旧 DateHistogram 后端语义兼容。
 
 ### RelativeTimeFilter
 
@@ -239,7 +242,7 @@ fun String.today(
   "field": {
     "name": "state.createdAtText",
     "type": {
-      "type": "STRING",
+      "type": "TEMPORAL_STRING",
       "datePattern": "yyyy-MM-dd HH:mm:ss"
     }
   },
@@ -294,9 +297,9 @@ MongoDB 不持有字段 schema，完全按查询声明编译。
 
 DATE 将字段直接交给 `$dateTrunc`，不再生成 `$toDate`。缺失与 null 沿用现有分组键排除；其他与 DATE 声明冲突的值交给 MongoDB 原生错误，不增加防御分支。
 
-### NUMBER
+### NumericEpoch
 
-每个 NUMBER DateHistogram 使用按 group index 生成的内部临时字段，避免重复计算和用户可控名称。pipeline 依次：
+每个 NumericEpoch DateHistogram 使用按 group index 生成的内部临时字段，避免重复计算和用户可控名称。pipeline 依次：
 
 1. 判断原值为单个数值；数组、缺失、null 和字符串不满足。
 2. 通过 `$convert(onError: null, onNull: null)` 得到 `Long`，并比较原值与整数值，排除小数和 Long 范围外的值。
@@ -318,12 +321,12 @@ internal fun resolveTemporal(field: LogicalField, docValuesRequired: Boolean): L
 它按声明验证实际 mapping 与 doc values：
 
 - DATE：`date` 或 `date_nanos`。
-- NUMBER：具有 doc values 的数值 mapping。
-- STRING：可进行范围比较的字符串 mapping。
+- NumericEpoch：具有 doc values 的数值 mapping。
+- FormattedString：可进行范围比较的字符串 mapping。
 
 不匹配时抛出 `ElasticsearchFieldResolutionException`，错误包含索引、字段、声明类型、实际 mapping 类型和期望类型。返回值通过 `field.copy(name = resolvedName)` 保留原 type；逻辑字段与已有 multi-field 解析规则继续复用，不向 aggregation compiler 暴露 `ElasticsearchMappedField` 或 `Property.Kind`。
 
-RelativeTimeFilter 在字段解析后再由 converter 归一化，因此同一方法也验证 DATE、NUMBER、STRING 声明。没有 mapping 的自定义 converter 路径继续按调用方提供的物理字段工作，不虚构 mapping 校验。
+RelativeTimeFilter 在字段解析后再由 converter 归一化，因此同一方法也验证 Date、NumericEpoch、FormattedString 声明。没有 mapping 的自定义 converter 路径继续按调用方提供的物理字段工作，不虚构 mapping 校验。
 
 ## Elasticsearch DateHistogram
 
@@ -331,9 +334,9 @@ RelativeTimeFilter 在字段解析后再由 converter 归一化，因此同一�
 
 DATE 使用解析后的 `date/date_nanos` 字段直接建立 composite date histogram，不生成 runtime field。
 
-### NUMBER
+### NumericEpoch
 
-NUMBER 为每个分组生成请求级 `date` runtime field，名称按 group index 生成。Painless 脚本：
+NumericEpoch 为每个分组生成请求级 `date` runtime field，名称按 group index 生成。Painless 脚本：
 
 - 通过 params 接收解析后的字段名和单位换算参数，不拼接用户输入。
 - 只读取恰好一个 doc value；缺失、空值和多值不 emit。
@@ -345,15 +348,15 @@ runtime field 只加入 `ElasticsearchAggregationPlan.runtimeMappings`。现有 
 
 date histogram 对 runtime date 执行现有 interval、time zone 和 sort 配置。Elasticsearch composite 返回的日期桶键与原生 date histogram 一样，是桶起点的 epoch milliseconds。
 
-## STRING 边界
+## FormattedString 边界
 
-STRING 继续供 RelativeTimeFilter 使用：归一化器计算时间边界并使用 `datePattern` 解析出的 formatter 或 Condition runtime formatter 输出字符串，然后执行范围比较。调用方负责选择能保持时间顺序的存储格式。
+FormattedString 继续供 RelativeTimeFilter 使用：归一化器计算时间边界并使用 `datePattern` 解析出的 formatter 或 Condition runtime formatter 输出字符串，然后执行范围比较。调用方负责选择能保持时间顺序的存储格式。
 
-DateHistogram 必须把每个存储字符串解析为时间点。MongoDB `$dateFromString` 使用 `%Y-%m-%d` 一类格式符，Elasticsearch/Java 使用 `yyyy-MM-dd` 一类 `DateTimeFormatter` 语法，时区和 locale 规则也不同。本次不引入格式翻译 DSL，不提供单后端降级，因此 DateHistogram 在公共模型层拒绝 STRING。
+DateHistogram 必须把每个存储字符串解析为时间点。MongoDB `$dateFromString` 使用 `%Y-%m-%d` 一类格式符，Elasticsearch/Java 使用 `yyyy-MM-dd` 一类 `DateTimeFormatter` 语法，时区和 locale 规则也不同。本次不引入格式翻译 DSL，不提供单后端降级，因此 DateHistogram 在公共模型层拒绝 FormattedString。
 
 ## 数值无效值合同
 
-NUMBER 只接受单值、有限、可无损表示为 Long 的整数 epoch。处理如下：
+NumericEpoch 只接受单值、有限、可无损表示为 Long 的整数 epoch。处理如下：
 
 | 输入 | MongoDB | Elasticsearch | 结果 |
 |---|---|---|---|
@@ -363,17 +366,17 @@ NUMBER 只接受单值、有限、可无损表示为 Long 的整数 epoch。处�
 | 小数 | 整数等值检查失败 | 整数等值检查失败 | 不进入桶 |
 | 单位换算溢出 | `$convert` 得到 null | `Math.multiplyExact` 失败 | 不进入桶 |
 
-Elasticsearch 数值 mapping 默认会在写入阶段拒绝非数值；真实集成测试使用允许 malformed 输入的数值字段证明无 doc value 时查询会排除该文档，并另测非数值 mapping 与 NUMBER 声明的清晰冲突。
+Elasticsearch 数值 mapping 默认会在写入阶段拒绝非数值；真实集成测试使用允许 malformed 输入的数值字段证明无 doc value 时查询会排除该文档，并另测非数值 mapping 与 NumericEpoch 声明的清晰冲突。
 
 任一 DateHistogram 分组键无效时，该文档不会形成 composite/group key，因此也不参与该聚合行的指标。实现只处理合同列出的情况，不增加脚本 catch-all、后端结果再校验或推测性容错。
 
 ## Schema 与 OpenAPI
 
-- `FieldType`/`FieldType.Temporal` schema 使用 DATE、NUMBER、STRING 的 `oneOf` 和 `type` discriminator。
+- `FieldType`/`FieldType.Temporal` schema 使用 DATE、TEMPORAL_NUMBER、TEMPORAL_STRING 的 `oneOf` 和 `type` discriminator。
 - `LogicalField` 的 OpenAPI 3.1 type 同时包含 string/object；对象属性为必填 name 与可选 type。
-- DateHistogram.field 的 OpenAPI 说明明确限制为 untyped/DATE/NUMBER；公共构造验证负责拒绝 STRING 和未来非 Temporal 类型。
+- DateHistogram.field 的 OpenAPI 说明明确限制为 untyped/DATE/TEMPORAL_NUMBER；公共构造验证负责拒绝 TEMPORAL_STRING 和未来非 Temporal 类型。
 - 静态 JSON Schema 的 logicalField 使用 `oneOf` 表达字符串路径或 `{name,type}` 对象。
-- `timeUnit` 可选且默认 `MILLISECONDS`；STRING JSON 中 `FormattedString.datePattern` 必填，`dateFormatter` 完全隐藏。
+- `timeUnit` 可选且默认 `MILLISECONDS`；TEMPORAL_STRING JSON 中 `FormattedString.datePattern` 必填，`dateFormatter` 完全隐藏。
 - 更新 `schema/query/v2/filter-expression.schema.json`，让所有 logical field 位置复用双形态定义；RelativeTime 不再平铺时间参数。
 - 更新 wow-schema 与 wow-openapi 快照，验证 discriminator、必填属性和 `additionalProperties`。
 - 只为 LogicalField 双形态增加集中 serializer/deserializer，不增加操作级 alias、creator 或后端读取分支。
@@ -384,50 +387,50 @@ Elasticsearch 数值 mapping 默认会在写入阶段拒绝非数值；真实集
 
 ### 公共 API 与 JSON
 
-- FieldType Temporal 的 DATE、NUMBER、STRING JSON round-trip。
+- FieldType Temporal 的 DATE、TEMPORAL_NUMBER、TEMPORAL_STRING JSON round-trip；旧 NUMBER、STRING subtype ID 反序列化失败。
 - LogicalField 字符串/对象双形态 round-trip；对象必须使用 name/type，非法 token 和缺失 name 失败。
-- NUMBER 默认 `MILLISECONDS`。
-- RelativeTimeFilter 通过 field.type 使用三种类型，未声明时默认 NUMBER/MILLISECONDS。
-- DateHistogram 通过 field.type 使用 DATE、NUMBER，未声明时默认 NUMBER/MILLISECONDS。
+- NumericEpoch 默认 `MILLISECONDS`。
+- RelativeTimeFilter 通过 field.type 使用三种类型，未声明时默认 NumericEpoch(MILLISECONDS)。
+- DateHistogram 通过 field.type 使用 Date、NumericEpoch，未声明时默认 NumericEpoch(MILLISECONDS)。
 - DateHistogram 缺省 `timeZone` 等于 `ZoneId.systemDefault().id`；跨后端 TCK 显式传入时区以保持环境无关。
-- DateHistogram + STRING、空/非法 `datePattern` 被公共模型拒绝。
+- DateHistogram + FormattedString、空/非法 `datePattern` 被公共模型拒绝。
 - `FormattedString` 拒绝 pattern/formatter 同时为空或同时存在；Condition 的 String pattern 与任意 runtime `DateTimeFormatter` 保持原有格式化语义。
 - 不增加旧 FilterExpression/AggregationQuery JSON 兼容测试。
 - Condition 协议不修改；更新现有 adapter 断言以验证统一模型，不另建兼容层或重复测试套件。
 
 ### 相对时间归一化
 
-- 新建 `RelativeTimeFilterNormalizerTest`，使用固定 `now` 验证 DATE、milliseconds、seconds、nanoseconds 与 STRING 精确边界。
+- 新建 `RelativeTimeFilterNormalizerTest`，使用固定 `now` 验证 DATE、milliseconds、seconds、nanoseconds 与 FormattedString 精确边界。
 - 将现有相对日/周/月/年、时区、DST、闰年、Monday week 和 `[start, end)` 测试迁入新测试类。
 - `FilterNormalizerTest` 只保留结构、deletion、逻辑简化及一次委托覆盖。
 - MongoDB 与 Elasticsearch 各增加一个 DATE 范围转换测试；共享查询 TCK 使用真实原生日期证明结果一致。
 
 ### MongoDB
 
-- 编译测试证明 DATE 直接 `$dateTrunc`，NUMBER 生成单位换算和无效值排除 pipeline。
+- 编译测试证明 DATE 直接 `$dateTrunc`，NumericEpoch 生成单位换算和无效值排除 pipeline。
 - 真实 pipeline 集成覆盖 BSON Date、milliseconds、seconds、时区和 Monday week。
 - 向原始 collection 写入 missing、null、empty、multi、string、fraction、overflow，验证只返回有效桶。
 
 ### Elasticsearch
 
 - mapping resolver 覆盖 date、date_nanos、数值、字符串、doc-values 缺失及声明冲突。
-- compiler 覆盖 DATE 无 runtime field、NUMBER runtime script 参数和各类单位换算。
+- compiler 覆盖 DATE 无 runtime field、NumericEpoch runtime script 参数和各类单位换算。
 - pager 捕获多页 SearchRequest，验证每页携带同一 runtime mappings。
 - 真实集成覆盖 date、date_nanos、long、允许 malformed 的数值字段、空值、多值、小数和溢出。
-- 使用默认模板和真实快照分别验证 `firstEventTime`、`eventTime`、`snapshotTime` 可按 NUMBER/MILLISECONDS 分桶。
+- 使用默认模板和真实快照分别验证 `firstEventTime`、`eventTime`、`snapshotTime` 可按 NumericEpoch(MILLISECONDS) 分桶。
 
 ### 跨后端 TCK
 
 - 现有 `Instant createdAt` DateHistogram 场景改为显式 DATE，继续验证时区、SECOND 与 Monday week。
-- 使用固定 `snapshotTime` 和显式 NUMBER/MILLISECONDS，在 MongoDB 与 Elasticsearch 中断言完全相同的桶键和计数。
-- 增加 epoch seconds 字段与显式 NUMBER/SECONDS 场景。
+- 使用固定 `snapshotTime` 和显式 NumericEpoch(MILLISECONDS)，在 MongoDB 与 Elasticsearch 中断言完全相同的桶键和计数。
+- 增加 epoch seconds 字段与显式 NumericEpoch(SECONDS) 场景。
 
 ### Schema、OpenAPI 与文档
 
-- 验证 FieldType 骨架、Temporal 三分支、LogicalField string/object 双形态及 DateHistogram STRING 拒绝。
-- 更新中英文 `documentation/docs/*/guide/query.md`：解释字段类型声明、默认值、RelativeTime 三种表示、DateHistogram STRING 限制、`snapshotTime` 示例和 epoch-millisecond 桶键。
+- 验证 FieldType 骨架、Temporal 三分支、LogicalField string/object 双形态及 DateHistogram FormattedString 拒绝。
+- 更新中英文 `documentation/docs/*/guide/query.md`：解释字段类型声明、默认值、RelativeTime 三种表示、DateHistogram FormattedString 限制、`snapshotTime` 示例和 epoch-millisecond 桶键。
 - 文档说明 DateHistogram 默认使用当前 JVM 系统时区；跨环境稳定的请求应显式声明 `timeZone`。
-- 将“Elasticsearch 必须映射为 date/date_nanos”改为按 DATE/NUMBER 声明分别说明 mapping 要求。
+- 将“Elasticsearch 必须映射为 date/date_nanos”改为按 DATE/TEMPORAL_NUMBER 声明分别说明 mapping 要求。
 
 ## 验证命令
 
@@ -451,8 +454,8 @@ pnpm docs:build
 
 - `wow-api`：`FieldType`、LogicalField 双形态序列化、DateHistogram、RelativeTimeFilter 与 Jackson/OpenAPI 注解。
 - `wow-query`：Aggregation DSL、Filter DSL、内部 `RelativeTimeFilterNormalizer`、`FilterNormalizer` 委托。
-- `wow-mongo`：DATE/NUMBER DateHistogram 编译、Instant 范围值适配及集成测试。
-- `wow-elasticsearch`：时间 mapping 验证、NUMBER runtime date、Instant 范围值适配、分页请求验证及集成测试。
+- `wow-mongo`：Date/NumericEpoch DateHistogram 编译、Instant 范围值适配及集成测试。
+- `wow-elasticsearch`：时间 mapping 验证、NumericEpoch runtime date、Instant 范围值适配、分页请求验证及集成测试。
 - `test/wow-tck`：原生日期、epoch milliseconds 与 epoch seconds 共享场景。
 - `wow-schema`、`wow-openapi`、静态 query schema：联合类型与快照。
 - `documentation`：中英文查询合同和示例。
@@ -462,8 +465,8 @@ pnpm docs:build
 ## 完成条件
 
 - 公共 API、JSON Schema 与 OpenAPI 准确表达 `FieldType -> Temporal` 骨架、LogicalField string/object 双形态及时间操作约束。
-- RelativeTimeFilter 的 DATE、NUMBER、STRING 都能归一化并由两个后端执行。
-- DateHistogram 的 DATE 与 NUMBER 在 MongoDB、Elasticsearch 中产生一致的时间桶；STRING 在公共模型边界失败。
+- RelativeTimeFilter 的 Date、NumericEpoch、FormattedString 都能归一化并由两个后端执行。
+- DateHistogram 的 Date 与 NumericEpoch 在 MongoDB、Elasticsearch 中产生一致的时间桶；FormattedString 在公共模型边界失败。
 - 默认模板三个 long 时间字段无需重建索引即可执行 Elasticsearch DateHistogram。
 - 数值无效值合同由两个真实后端测试证明，pagination 每页携带 runtime mappings。
 - 桶键始终为桶起点 epoch milliseconds。

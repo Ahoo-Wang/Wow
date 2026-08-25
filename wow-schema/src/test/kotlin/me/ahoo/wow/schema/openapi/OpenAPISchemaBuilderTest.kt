@@ -24,12 +24,22 @@ import org.springframework.http.codec.ServerSentEvent
 class OpenAPISchemaBuilderTest {
 
     @Test
-    fun `should expose delegating logical field as a string`() {
+    fun `should expose logical field string and object forms`() {
         val openAPISchemaBuilder = OpenAPISchemaBuilder()
         openAPISchemaBuilder.generateSchema(LogicalField::class.java)
 
-        openAPISchemaBuilder.build().getValue("wow.api.query.LogicalField")
-            .types.assert().contains("string").doesNotContain("object")
+        val schemas = openAPISchemaBuilder.build()
+        val logicalField = schemas.getValue("wow.api.query.LogicalField")
+        logicalField.types.assert().containsExactly("string", "object")
+        logicalField.properties.keys.assert().containsExactly("name", "type")
+        logicalField.properties.getValue("type").`$ref`.assert()
+            .isEqualTo("#/components/schemas/wow.api.query.FieldType")
+        logicalField.required.assert().contains("name")
+        schemas.getValue("wow.api.query.FieldType").oneOf.map { it.`$ref` }.assert()
+            .containsExactly("#/components/schemas/wow.api.query.FieldType.Temporal")
+        val temporal = schemas.getValue("wow.api.query.FieldType.Temporal")
+        temporal.oneOf.assert().hasSize(3)
+        temporal.discriminator.propertyName.assert().isEqualTo("type")
     }
 
     @Test

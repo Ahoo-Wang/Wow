@@ -18,7 +18,9 @@ import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.CustomDefinitionProviderV2
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import com.github.victools.jsonschema.generator.SchemaKeyword
+import me.ahoo.wow.api.query.FieldType
 import me.ahoo.wow.api.query.LogicalField
+import tools.jackson.databind.node.ObjectNode
 
 object LogicalFieldDefinitionProvider : CustomDefinitionProviderV2 {
     override fun provideCustomSchemaDefinition(
@@ -26,10 +28,14 @@ object LogicalFieldDefinitionProvider : CustomDefinitionProviderV2 {
         context: SchemaGenerationContext,
     ): CustomDefinition? {
         if (javaType.erasedType != LogicalField::class.java) return null
-        val definition = context.generatorConfig.createObjectNode()
-        definition.put(
-            context.getKeyword(SchemaKeyword.TAG_TYPE),
-            context.getKeyword(SchemaKeyword.TAG_TYPE_STRING),
+        val definition = context.createStandardDefinition(javaType, this)
+        definition.putArray(context.getKeyword(SchemaKeyword.TAG_TYPE))
+            .add(context.getKeyword(SchemaKeyword.TAG_TYPE_STRING))
+            .add(context.getKeyword(SchemaKeyword.TAG_TYPE_OBJECT))
+        val properties = definition.get(context.getKeyword(SchemaKeyword.TAG_PROPERTIES)) as ObjectNode
+        properties.set(
+            "type",
+            context.createStandardDefinitionReference(context.typeContext.resolve(FieldType::class.java), null),
         )
         return CustomDefinition(definition)
     }

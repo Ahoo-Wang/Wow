@@ -69,6 +69,45 @@ class FilterExpressionDefinitionProviderTest {
     }
 
     @Test
+    fun `filter schema should publish typed logical fields`() {
+        val schemaDocument = WowSchemaLoader.load(FilterExpression::class.java)
+        val definitions = schemaDocument.path("definitions")
+        definitions.path("temporalFieldType").path("oneOf").toList()
+            .map { it.path("\$ref").stringValue() }.assert()
+            .containsExactly(
+                "#/definitions/temporalDate",
+                "#/definitions/temporalNumber",
+                "#/definitions/temporalString",
+            )
+        listOf("temporalDate", "temporalNumber", "temporalString").map { subtype ->
+            definitions.path(subtype).path("properties").path("type").path("enum").first().stringValue()
+        }.assert().containsExactly("DATE", "TEMPORAL_NUMBER", "TEMPORAL_STRING")
+        definitions.path("timeUnit").path("default").stringValue().assert().isEqualTo("MILLISECONDS")
+        definitions.path("temporalString").path("required").toList().map { it.stringValue() }.assert()
+            .contains("type", "datePattern")
+
+        val schema = SchemaRegistry.withDefaultDialect(SpecificationVersion.DRAFT_7)
+            .getSchema(schemaDocument)
+        val mapper = JsonMapper.builder().build()
+        listOf(
+            """{"op":"TODAY","field":"state.createdAt"}""",
+            """{"op":"TODAY","field":{"name":"state.createdAt","type":{"type":"DATE"}}}""",
+            """{"op":"TODAY","field":{"name":"state.epoch","type":{"type":"TEMPORAL_NUMBER","timeUnit":"SECONDS"}}}""",
+            """{"op":"TODAY","field":{"name":"state.text","type":{"type":"TEMPORAL_STRING","datePattern":"yyyy-MM-dd"}}}""",
+        ).forEach { payload ->
+            schema.validate(mapper.readTree(payload)).assert().isEmpty()
+        }
+        schema.validate(
+            mapper.readTree("""{"op":"TODAY","field":{"type":{"type":"DATE"}}}"""),
+        ).assert().isNotEmpty()
+        listOf("NUMBER", "STRING").forEach { oldId ->
+            schema.validate(
+                mapper.readTree("""{"op":"TODAY","field":{"name":"field","type":{"type":"$oldId"}}}"""),
+            ).assert().isNotEmpty()
+        }
+    }
+
+    @Test
     fun `filter schema should publish extended relative calendar operators`() {
         val schemaDocument = WowSchemaLoader.load(FilterExpression::class.java)
         val definitions = schemaDocument.path("definitions")
@@ -91,7 +130,7 @@ class FilterExpressionDefinitionProviderTest {
         val mapper = JsonMapper.builder().build()
         expected.values.forEach { operator ->
             val filter = mapper.readTree(
-                """{"op":"$operator","field":"state.createdAt","zoneId":"UTC","datePattern":"yyyy-MM-dd"}""",
+                """{"op":"$operator","field":{"name":"state.createdAt","type":{"type":"TEMPORAL_STRING","datePattern":"yyyy-MM-dd"}},"zoneId":"UTC"}""",
             )
             schema.validate(filter).assert().isEmpty()
         }

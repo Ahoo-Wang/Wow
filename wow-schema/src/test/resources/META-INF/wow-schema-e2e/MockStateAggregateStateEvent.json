@@ -171,6 +171,19 @@
                       "type" : "string",
                       "format" : "date-time"
                     },
+                    "createdAtEpochMillis" : {
+                      "type" : "integer",
+                      "format" : "int64",
+                      "readOnly" : true
+                    },
+                    "createdAtEpochSecond" : {
+                      "type" : "integer",
+                      "format" : "int64"
+                    },
+                    "createdAtNanos" : {
+                      "type" : "string",
+                      "format" : "date-time"
+                    },
                     "discounts" : {
                       "type" : "array",
                       "items" : {
