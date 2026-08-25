@@ -15,6 +15,8 @@ package me.ahoo.wow.tck.query
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationDateUnit
+import me.ahoo.wow.api.query.FieldType
+import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
@@ -44,6 +46,7 @@ import reactor.kotlin.test.test
 import java.math.BigDecimal
 import java.time.Clock
 import java.time.Instant
+import java.time.ZoneId
 
 abstract class SnapshotQueryServiceSpec {
     lateinit var snapshotStore: SnapshotStore
@@ -283,7 +286,7 @@ abstract class SnapshotQueryServiceSpec {
             expand("lines") { "quantity" gte 2 }
             terms("productId", "product")
             histogram("quantity", 2.0, "quantityBucket")
-            dateHistogram("createdAt", me.ahoo.wow.api.query.AggregationDateUnit.DAY, "day")
+            dateHistogram(LogicalField("createdAt", FieldType.Temporal.Date), AggregationDateUnit.DAY, "day", ZoneId.of("Z"))
             count("count")
         }.query(snapshotQueryService)
             .collectList()
@@ -319,7 +322,7 @@ abstract class SnapshotQueryServiceSpec {
         aggregation {
             expand("state.orders")
             expand("lines") { "productId" isIn listOf("gamma", "delta") }
-            dateHistogram("createdAt", AggregationDateUnit.WEEK, "week")
+            dateHistogram(LogicalField("createdAt", FieldType.Temporal.Date), AggregationDateUnit.WEEK, "week", ZoneId.of("Z"))
             count("count")
         }.query(snapshotQueryService)
             .collectList()
@@ -339,7 +342,7 @@ abstract class SnapshotQueryServiceSpec {
         aggregation {
             expand("state.orders")
             expand("lines") { "productId" eq "beta" }
-            dateHistogram("createdAt", AggregationDateUnit.SECOND, "second")
+            dateHistogram(LogicalField("createdAt", FieldType.Temporal.Date), AggregationDateUnit.SECOND, "second", ZoneId.of("Z"))
             count("count")
         }.query(snapshotQueryService)
             .collectList()

@@ -20,6 +20,7 @@ import me.ahoo.wow.api.query.AggregationExpressionOperator
 import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.FieldType
 import me.ahoo.wow.api.query.LogicalField
 import org.junit.jupiter.api.Test
 import java.time.ZoneId
@@ -62,6 +63,20 @@ class AggregationQueryDslTest {
                 AggregationDateUnit.DAY,
                 "Asia/Shanghai",
             ),
+        )
+    }
+
+    @Test
+    fun `aggregation DSL should accept a typed date histogram field`() {
+        val field = LogicalField("createdAt", FieldType.Temporal.Date)
+
+        val query = aggregation {
+            dateHistogram(field, AggregationDateUnit.DAY, "day")
+            count("count")
+        }
+
+        query.groupBy.assert().containsExactly(
+            AggregationGroup.DateHistogram(field, "day", AggregationDateUnit.DAY),
         )
     }
 

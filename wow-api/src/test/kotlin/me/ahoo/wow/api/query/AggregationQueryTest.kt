@@ -20,6 +20,7 @@ import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.exc.InvalidTypeIdException
 import tools.jackson.module.kotlin.jsonMapper
 import java.time.DateTimeException
+import java.time.ZoneId
 
 class AggregationQueryTest {
     private val jsonMapper = jsonMapper()
@@ -248,6 +249,38 @@ class AggregationQueryTest {
         }
         assertThrows<DateTimeException> {
             AggregationGroup.DateHistogram(LogicalField("createdAt"), "day", AggregationDateUnit.DAY, "invalid")
+        }
+    }
+
+    @Test
+    fun `date histogram should use logical field temporal type`() {
+        val number = AggregationGroup.DateHistogram(
+            field = LogicalField("snapshotTime"),
+            alias = "day",
+            unit = AggregationDateUnit.DAY,
+        )
+        number.field.temporalTypeOrDefault().assert()
+            .isEqualTo(FieldType.Temporal.NumericEpoch())
+        number.timeZone.assert().isEqualTo(ZoneId.systemDefault().id)
+
+        AggregationGroup.DateHistogram(
+            field = LogicalField("createdAt", FieldType.Temporal.Date),
+            alias = "day",
+            unit = AggregationDateUnit.DAY,
+        )
+    }
+
+    @Test
+    fun `date histogram should reject STRING`() {
+        assertThrows<IllegalArgumentException> {
+            AggregationGroup.DateHistogram(
+                field = LogicalField(
+                    "createdAt",
+                    FieldType.Temporal.FormattedString(datePattern = "yyyy-MM-dd"),
+                ),
+                alias = "day",
+                unit = AggregationDateUnit.DAY,
+            )
         }
     }
 }

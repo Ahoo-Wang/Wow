@@ -24,6 +24,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationExpressionOperator
+import me.ahoo.wow.api.query.FieldType
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.Sort
@@ -153,7 +154,7 @@ class ElasticsearchAggregationCompilerTest {
                 expand("lines") { "quantity" gt 0 }
                 terms("productId", "product")
                 histogram("amount", 10.0, "amountRange")
-                dateHistogram("createdAt", AggregationDateUnit.DAY, "day")
+                dateHistogram(LogicalField("createdAt", FieldType.Temporal.Date), AggregationDateUnit.DAY, "day")
                 sum("amount", "total")
             },
         )
@@ -181,7 +182,7 @@ class ElasticsearchAggregationCompilerTest {
             aggregation {
                 terms("state.productId", "product")
                 histogram("state.amount", 10.0, "amountRange")
-                dateHistogram("state.createdAt", AggregationDateUnit.DAY, "day", ZoneId.of("Asia/Shanghai"))
+                dateHistogram(LogicalField("state.createdAt", FieldType.Temporal.Date), AggregationDateUnit.DAY, "day", ZoneId.of("Asia/Shanghai"))
                 count("count")
                 sum("state.amount", "total")
                 avg("state.amount", "average")
@@ -223,7 +224,7 @@ class ElasticsearchAggregationCompilerTest {
     fun `second date histogram should use a fixed interval`() {
         val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter, mapping = null).compile(
             aggregation {
-                dateHistogram("state.createdAt", AggregationDateUnit.SECOND, "second")
+                dateHistogram(LogicalField("state.createdAt", FieldType.Temporal.Date), AggregationDateUnit.SECOND, "second")
                 count("count")
             },
         )

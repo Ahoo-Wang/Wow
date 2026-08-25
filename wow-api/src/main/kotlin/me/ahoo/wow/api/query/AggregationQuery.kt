@@ -151,10 +151,13 @@ sealed interface AggregationGroup {
         override val field: LogicalField,
         override val alias: String,
         val unit: AggregationDateUnit,
-        val timeZone: String = "UTC",
+        val timeZone: String = ZoneId.systemDefault().id,
     ) : AggregationGroup {
         init {
             requireAggregationAlias(alias)
+            require(field.temporalTypeOrDefault() !is FieldType.Temporal.FormattedString) {
+                "DateHistogram does not support STRING fields."
+            }
             ZoneId.of(timeZone)
         }
     }

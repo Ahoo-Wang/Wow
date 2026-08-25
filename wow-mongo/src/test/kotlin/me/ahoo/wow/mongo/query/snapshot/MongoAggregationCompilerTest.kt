@@ -17,6 +17,8 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
+import me.ahoo.wow.api.query.FieldType
+import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.mongo.query.AbstractMongoFilterConverter
 import me.ahoo.wow.query.converter.FieldConverter
 import me.ahoo.wow.query.dsl.aggregation
@@ -59,7 +61,7 @@ class MongoAggregationCompilerTest {
         val query = aggregation {
             terms("state.productId", "product")
             histogram("state.amount", 10.0, "amountRange")
-            dateHistogram("state.createdAt", AggregationDateUnit.DAY, "day", ZoneId.of("Asia/Shanghai"))
+            dateHistogram(LogicalField("state.createdAt", FieldType.Temporal.Date), AggregationDateUnit.DAY, "day", ZoneId.of("Asia/Shanghai"))
             count("count")
             sum("state.amount", "total")
             avg("state.amount", "average")
@@ -90,7 +92,7 @@ class MongoAggregationCompilerTest {
     @Test
     fun `weekly date histogram should start on Monday and preserve timezone`() {
         val query = aggregation {
-            dateHistogram("state.createdAt", AggregationDateUnit.WEEK, "week", ZoneId.of("Asia/Shanghai"))
+            dateHistogram(LogicalField("state.createdAt", FieldType.Temporal.Date), AggregationDateUnit.WEEK, "week", ZoneId.of("Asia/Shanghai"))
             count("count")
         }
 
@@ -105,7 +107,7 @@ class MongoAggregationCompilerTest {
     @Test
     fun `UTC date histogram should use the Mongo UTC timezone`() {
         val query = aggregation {
-            dateHistogram("state.createdAt", AggregationDateUnit.DAY, "day", ZoneId.of("Z"))
+            dateHistogram(LogicalField("state.createdAt", FieldType.Temporal.Date), AggregationDateUnit.DAY, "day", ZoneId.of("Z"))
             count("count")
         }
 
