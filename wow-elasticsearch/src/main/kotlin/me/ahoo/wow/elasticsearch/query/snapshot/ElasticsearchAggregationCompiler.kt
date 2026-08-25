@@ -52,12 +52,13 @@ private const val NUMERIC_DATE_SCRIPT =
         "if(integral||(floating&&Double.isFinite(candidate)&&candidate==Math.rint(candidate)&&" +
         "candidate>=Long.MIN_VALUE&&candidate<Long.MAX_VALUE)){" +
         "long value=((Number)raw).longValue();" +
-        "try{" +
-        "long millis=((Number)params.divisor).longValue()==1L" +
-        "?Math.multiplyExact(value,((Number)params.multiplier).longValue())" +
-        ":value/((Number)params.divisor).longValue();" +
-        "emit(millis);" +
-        "}catch(ArithmeticException ignored){}" +
+        "long multiplier=((Number)params.multiplier).longValue();" +
+        "long divisor=((Number)params.divisor).longValue();" +
+        "if(divisor==1L){" +
+        "if(value<=Long.MAX_VALUE/multiplier&&value>=Long.MIN_VALUE/multiplier){" +
+        "emit(value*multiplier);" +
+        "}" +
+        "}else{emit(value/divisor);}" +
         "}" +
         "}" +
         "}"

@@ -72,6 +72,8 @@ data class MockLine(
     val createdAt: Instant,
     val discounts: List<MockDiscount>,
     val samples: List<Double> = emptyList(),
+    val createdAtEpochSecond: Long = createdAt.epochSecond,
+    val createdAtNanos: Instant = createdAt,
 ) {
     val createdAtEpochMillis: Long = createdAt.toEpochMilli()
 }

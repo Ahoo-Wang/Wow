@@ -254,6 +254,8 @@ class ElasticsearchIndexMappingResolverTest {
             LogicalField("state.date", FieldType.Temporal.NumericEpoch()) to listOf("NUMBER", "date", "numeric"),
             LogicalField("state.epoch", FieldType.Temporal.FormattedString("yyyy-MM-dd")) to
                 listOf("STRING", "long", "keyword-compatible string"),
+            LogicalField("state.unsignedEpoch", FieldType.Temporal.NumericEpoch()) to
+                listOf("NUMBER", "unsigned_long", "signed numeric"),
         )
 
         cases.forEach { (field, details) ->
@@ -570,6 +572,7 @@ class ElasticsearchIndexMappingResolverTest {
                         .properties("date") { it.date { field -> field } }
                         .properties("dateNanos") { it.dateNanos { field -> field } }
                         .properties("epoch") { it.long_ { field -> field } }
+                        .properties("unsignedEpoch") { it.unsignedLong { field -> field } }
                         .properties("score") { it.double_ { field -> field } }
                         .properties("string") { it.keyword { field -> field } }
                         .properties("formatted") { property ->

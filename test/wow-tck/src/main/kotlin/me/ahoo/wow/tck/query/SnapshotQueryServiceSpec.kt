@@ -47,6 +47,7 @@ import java.math.BigDecimal
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
+import java.time.ZoneOffset
 import java.util.concurrent.TimeUnit
 
 abstract class SnapshotQueryServiceSpec {
@@ -279,6 +280,59 @@ abstract class SnapshotQueryServiceSpec {
     }
 
     @Test
+    fun `numeric epoch milliseconds should produce portable buckets`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+
+        aggregation {
+            filter { aggregateIds("aggregation-a", "aggregation-b") }
+            dateHistogram(
+                LogicalField(
+                    "snapshotTime",
+                    FieldType.Temporal.NumericEpoch(TimeUnit.MILLISECONDS),
+                ),
+                AggregationDateUnit.DAY,
+                "day",
+                ZoneOffset.UTC,
+            )
+            count("count")
+        }.query(snapshotQueryService).test()
+            .assertNext { row ->
+                row.toMap().assert().isEqualTo(
+                    mapOf("day" to AGGREGATION_SNAPSHOT_TIME, "count" to 2L),
+                )
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `numeric epoch seconds should produce portable buckets`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+
+        aggregation {
+            expand("state.orders") { "status" eq "PAID" }
+            expand("lines") { "quantity" gte 2 }
+            dateHistogram(
+                LogicalField(
+                    "createdAtEpochSecond",
+                    FieldType.Temporal.NumericEpoch(TimeUnit.SECONDS),
+                ),
+                AggregationDateUnit.DAY,
+                "day",
+                ZoneOffset.UTC,
+            )
+            count("count")
+        }.query(snapshotQueryService)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                rows.map(Map<String, Any?>::toMap).assert().containsExactly(
+                    mapOf("day" to 1_767_312_000_000L, "count" to 2L),
+                    mapOf("day" to 1_767_398_400_000L, "count" to 1L),
+                    mapOf("day" to 1_769_990_400_000L, "count" to 1L),
+                )
+            }.verifyComplete()
+    }
+
+    @Test
     fun `aggregation should apply two element filters and every group type`() {
         saveAggregationStates(*aggregationStates().toTypedArray())
 
@@ -501,7 +555,7 @@ abstract class SnapshotQueryServiceSpec {
             .verify()
     }
 
-    private fun saveAggregationStates(vararg states: MockStateAggregate) {
+    protected fun saveAggregationStates(vararg states: MockStateAggregate) {
         states.forEachIndexed { index, state ->
             snapshotStore.save(
                 SimpleSnapshot(
@@ -512,7 +566,7 @@ abstract class SnapshotQueryServiceSpec {
         }
     }
 
-    private fun aggregationStates(): List<MockStateAggregate> = listOf(aggregationStateA(), aggregationStateB())
+    protected fun aggregationStates(): List<MockStateAggregate> = listOf(aggregationStateA(), aggregationStateB())
 
     private fun aggregationStateA(): MockStateAggregate =
         MockStateAggregate(

@@ -14,11 +14,16 @@
 package me.ahoo.wow.elasticsearch.query.snapshot
 
 import co.elastic.clients.elasticsearch._types.Refresh
+import co.elastic.clients.elasticsearch._types.mapping.Property
 import co.elastic.clients.elasticsearch._types.mapping.RuntimeFieldType
 import co.elastic.clients.elasticsearch.core.UpdateRequest
+import co.elastic.clients.elasticsearch.indices.GetMappingRequest
 import co.elastic.clients.elasticsearch.indices.PutMappingRequest
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationDateUnit
+import me.ahoo.wow.api.query.FieldType
 import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
@@ -27,6 +32,7 @@ import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
 import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.elasticsearch.query.ElasticsearchFieldUsage
+import me.ahoo.wow.elasticsearch.query.ElasticsearchFieldResolutionException
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.query.dsl.aggregation
@@ -42,6 +48,8 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.kotlin.test.test
+import java.time.ZoneOffset
+import java.util.concurrent.TimeUnit
 
 class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     @JvmField
@@ -57,45 +65,58 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         elasticsearchClient.indices().create { request ->
             request.index(MOCK_AGGREGATE_METADATA.toSnapshotIndexName())
                 .mappings { mapping ->
-                    mapping.properties("state") { state ->
-                        state.`object` { stateObject ->
-                            stateObject
-                                .properties("data") { data ->
-                                    data.text { text ->
-                                        text.fielddata(false)
-                                            .fields("keyword") { keyword -> keyword.keyword { it } }
+                    mapping
+                        .properties("epoch") { it.long_ { number -> number.ignoreMalformed(true) } }
+                        .properties("epochFraction") { it.double_ { number -> number.ignoreMalformed(true) } }
+                        .properties("epochMulti") { it.long_ { number -> number } }
+                        .properties("epochUnsigned") { it.unsignedLong { number -> number } }
+                        .properties("state") { state ->
+                            state.`object` { stateObject ->
+                                stateObject
+                                    .properties("data") { data ->
+                                        data.text { text ->
+                                            text.fielddata(false)
+                                                .fields("keyword") { keyword -> keyword.keyword { it } }
+                                        }
                                     }
-                                }
-                                .properties("decimalValue") { it.double_ { number -> number } }
-                                .properties("unreadableNumber") {
-                                    it.double_ { number -> number.index(false).docValues(false) }
-                                }
-                                .properties("orders") { orders ->
-                                    orders.nested { ordersNested ->
-                                        ordersNested.properties("status") { it.keyword { keyword -> keyword } }
-                                        .properties("lines") { lines ->
-                                            lines.nested { linesNested ->
-                                                linesNested
-                                                    .properties("productId") { it.keyword { keyword -> keyword } }
-                                                    .properties("quantity") { it.integer { number -> number } }
-                                                    .properties("amount") { it.double_ { number -> number } }
-                                                    .properties("samples") { it.double_ { number -> number } }
-                                                    .properties("createdAt") { it.date { date -> date } }
-                                                    .properties("discounts") { discounts ->
-                                                        discounts.nested { discountsNested ->
-                                                            discountsNested
-                                                                .properties("type") {
-                                                                    it.keyword { keyword -> keyword }
-                                                                }.properties("amount") {
-                                                                    it.double_ { number -> number }
-                                                                }
+                                    .properties("decimalValue") { it.double_ { number -> number } }
+                                    .properties("unreadableNumber") {
+                                        it.double_ { number -> number.index(false).docValues(false) }
+                                    }
+                                    .properties("orders") { orders ->
+                                        orders.nested { ordersNested ->
+                                            ordersNested.properties("status") { it.keyword { keyword -> keyword } }
+                                            .properties("lines") { lines ->
+                                                lines.nested { linesNested ->
+                                                    linesNested
+                                                        .properties("productId") {
+                                                            it.keyword { keyword -> keyword }
                                                         }
-                                                    }
+                                                        .properties("quantity") { it.integer { number -> number } }
+                                                        .properties("amount") { it.double_ { number -> number } }
+                                                        .properties("samples") { it.double_ { number -> number } }
+                                                        .properties("createdAt") { it.date { date -> date } }
+                                                        .properties("createdAtEpochSecond") {
+                                                            it.long_ { number -> number }
+                                                        }
+                                                        .properties("createdAtNanos") {
+                                                            it.dateNanos { date -> date }
+                                                        }
+                                                        .properties("discounts") { discounts ->
+                                                            discounts.nested { discountsNested ->
+                                                                discountsNested
+                                                                    .properties("type") {
+                                                                        it.keyword { keyword -> keyword }
+                                                                    }.properties("amount") {
+                                                                        it.double_ { number -> number }
+                                                                    }
+                                                            }
+                                                        }
+                                                }
                                             }
                                         }
                                     }
-                                }
-                        }
+                            }
                     }
                 }
         }.block()
@@ -129,6 +150,231 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             .test()
             .assertNext {
                 it.toMap().assert().isEqualTo(mapOf("unreadable" to null))
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `DATE histograms should use native date and date_nanos without runtime fields`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        val mapping = ElasticsearchIndexMappingResolver(elasticsearchClient)
+            .currentOrLoad(MOCK_AGGREGATE_METADATA.toSnapshotIndexName()).block()!!
+
+        listOf("createdAt", "createdAtNanos").forEach { field ->
+            val query = aggregation {
+                expand("state.orders") { "status" eq "PAID" }
+                expand("lines") { "quantity" gte 2 }
+                dateHistogram(
+                    LogicalField(field, FieldType.Temporal.Date),
+                    AggregationDateUnit.DAY,
+                    "day",
+                    ZoneOffset.UTC,
+                )
+                count("count")
+            }
+            ElasticsearchAggregationCompiler(SnapshotFilterConverter, mapping).compile(query)
+                .runtimeMappings.assert().isEmpty()
+
+            query.query(snapshotQueryService)
+                .collectList()
+                .test()
+                .assertNext { rows ->
+                    rows.map(Map<String, Any?>::toMap).assert().containsExactly(
+                        mapOf("day" to 1_767_312_000_000L, "count" to 2L),
+                        mapOf("day" to 1_767_398_400_000L, "count" to 1L),
+                        mapOf("day" to 1_769_990_400_000L, "count" to 1L),
+                    )
+                }.verifyComplete()
+        }
+    }
+
+    @Test
+    fun `NUMBER histograms should execute every TimeUnit conversion`() {
+        mapOf(
+            TimeUnit.NANOSECONDS to 1_767_225_600_000_000_000L,
+            TimeUnit.MICROSECONDS to 1_767_225_600_000_000L,
+            TimeUnit.MILLISECONDS to 1_767_225_600_000L,
+            TimeUnit.SECONDS to 1_767_225_600L,
+            TimeUnit.MINUTES to 29_453_760L,
+            TimeUnit.HOURS to 490_896L,
+            TimeUnit.DAYS to 20_454L,
+        ).forEach { (timeUnit, value) ->
+            updateSnapshot(mapOf("epoch" to value))
+
+            assertEpochBuckets(
+                field = "epoch",
+                timeUnit = timeUnit,
+                aggregateIds = listOf(snapshot.aggregateId.id),
+                expected = listOf(mapOf("day" to 1_767_225_600_000L, "count" to 1L)),
+            )
+        }
+    }
+
+    @Test
+    fun `NUMBER histograms should ignore invalid runtime values`() {
+        val epochMillis = 1_767_225_600_000L
+        indexDocument(
+            "valid",
+            mapOf(
+                "epoch" to epochMillis,
+                "epochFraction" to epochMillis.toDouble(),
+                "epochMulti" to listOf(epochMillis),
+            ),
+        )
+        indexDocument("missing", emptyMap())
+        indexDocument("null", mapOf("epoch" to null, "epochFraction" to null, "epochMulti" to null))
+        indexDocument(
+            "empty",
+            mapOf(
+                "epoch" to emptyList<Long>(),
+                "epochFraction" to emptyList<Double>(),
+                "epochMulti" to emptyList<Long>(),
+            ),
+        )
+        indexDocument("malformed", mapOf("epoch" to "not-a-number"))
+        indexDocument("multi", mapOf("epochMulti" to listOf(epochMillis, epochMillis + 86_400_000L)))
+        indexDocument("fraction", mapOf("epochFraction" to epochMillis + 0.5))
+        indexDocument("non-finite", mapOf("epochFraction" to "NaN"))
+
+        val aggregateIds = listOf("valid", "missing", "null", "empty", "malformed", "multi", "fraction", "non-finite")
+        val expected = listOf(mapOf("day" to epochMillis, "count" to 1L))
+        assertEpochBuckets("epoch", TimeUnit.MILLISECONDS, aggregateIds, expected)
+        assertEpochBuckets("epochFraction", TimeUnit.MILLISECONDS, aggregateIds, expected)
+        assertEpochBuckets("epochMulti", TimeUnit.MILLISECONDS, aggregateIds, expected)
+    }
+
+    @Test
+    fun `NUMBER histogram should distinguish floating upper bound from signed Long boundary`() {
+        indexDocument("signed-boundary", mapOf("epoch" to Long.MAX_VALUE))
+        indexDocument("floating-boundary", mapOf("epochFraction" to Math.scalb(1.0, 63)))
+
+        assertEpochBuckets(
+            "epochFraction",
+            TimeUnit.NANOSECONDS,
+            listOf("floating-boundary"),
+            emptyList(),
+        )
+        assertEpochBuckets(
+            "epoch",
+            TimeUnit.NANOSECONDS,
+            listOf("signed-boundary"),
+            listOf(mapOf("day" to 9_223_286_400_000L, "count" to 1L)),
+        )
+        assertEpochBuckets("epoch", TimeUnit.DAYS, listOf("signed-boundary"), emptyList())
+    }
+
+    @Test
+    fun `default snapshot times should support NUMBER milliseconds histograms`() {
+        val properties = elasticsearchClient.indices().getMapping(
+            GetMappingRequest.of { it.index(MOCK_AGGREGATE_METADATA.toSnapshotIndexName()) },
+        ).block()!!.mappings().values.single().mappings().properties()
+
+        listOf("firstEventTime", "eventTime", "snapshotTime").forEach { name ->
+            properties.getValue(name)._kind().assert().isEqualTo(Property.Kind.Long)
+            aggregation {
+                filter { aggregateId(snapshot.aggregateId.id) }
+                dateHistogram(
+                    LogicalField(
+                        name,
+                        FieldType.Temporal.NumericEpoch(TimeUnit.MILLISECONDS),
+                    ),
+                    AggregationDateUnit.DAY,
+                    "day",
+                    ZoneOffset.UTC,
+                )
+                count("count")
+            }.query(snapshotQueryService).test()
+                .assertNext { row ->
+                    row["day"].assert().isInstanceOf(Long::class.javaObjectType)
+                    row["count"].assert().isEqualTo(1L)
+                }.verifyComplete()
+        }
+    }
+
+    @Test
+    fun `temporal mapping conflicts should fail before execution`() {
+        listOf(
+            aggregation {
+                dateHistogram(
+                    LogicalField("snapshotTime", FieldType.Temporal.Date),
+                    AggregationDateUnit.DAY,
+                    "day",
+                    ZoneOffset.UTC,
+                )
+                count("count")
+            } to listOf("snapshotTime", "DATE", "long", "date or date_nanos"),
+            aggregation {
+                expand("state.orders")
+                expand("lines")
+                dateHistogram(
+                    LogicalField("createdAt", FieldType.Temporal.NumericEpoch()),
+                    AggregationDateUnit.DAY,
+                    "day",
+                    ZoneOffset.UTC,
+                )
+                count("count")
+            } to listOf("state.orders.lines.createdAt", "NUMBER", "date", "signed numeric"),
+        ).forEach { (query, details) ->
+            query.query(snapshotQueryService).test()
+                .expectErrorSatisfies { error ->
+                    error.assert().isInstanceOf(ElasticsearchFieldResolutionException::class.java)
+                    error.message.assert().contains(*details.toTypedArray())
+                }.verify()
+        }
+    }
+
+    @Test
+    fun `unsigned_long should be rejected for numeric epochs`() {
+        aggregation {
+            dateHistogram(
+                LogicalField("epochUnsigned", FieldType.Temporal.NumericEpoch()),
+                AggregationDateUnit.DAY,
+                "day",
+                ZoneOffset.UTC,
+            )
+            count("count")
+        }.query(snapshotQueryService).test()
+            .expectErrorSatisfies { error ->
+                error.assert().isInstanceOf(ElasticsearchFieldResolutionException::class.java)
+                error.message.assert()
+                    .contains("epochUnsigned")
+                    .contains("NUMBER")
+                    .contains("unsigned_long")
+                    .contains("signed numeric with doc values")
+            }.verify()
+    }
+
+    @Test
+    fun `NUMBER runtime mapping should remain available across composite pages`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        val queryService = ElasticsearchSnapshotQueryServiceFactory(
+            elasticsearchClient,
+            1,
+            DEFAULT_PIT_KEEP_ALIVE,
+            ElasticsearchIndexMappingResolver(elasticsearchClient),
+        ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+
+        aggregation {
+            expand("state.orders") { "status" eq "PAID" }
+            expand("lines") { "quantity" gte 2 }
+            dateHistogram(
+                LogicalField(
+                    "createdAtEpochSecond",
+                    FieldType.Temporal.NumericEpoch(TimeUnit.SECONDS),
+                ),
+                AggregationDateUnit.DAY,
+                "day",
+                ZoneOffset.UTC,
+            )
+            count("count")
+        }.query(queryService)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                rows.map(Map<String, Any?>::toMap).assert().containsExactly(
+                    mapOf("day" to 1_767_312_000_000L, "count" to 2L),
+                    mapOf("day" to 1_767_398_400_000L, "count" to 1L),
+                    mapOf("day" to 1_769_990_400_000L, "count" to 1L),
+                )
             }.verifyComplete()
     }
 
@@ -297,6 +543,52 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                 ),
             ).test()
             .expectNextCount(1)
+            .verifyComplete()
+    }
+
+    private fun updateSnapshot(fields: Map<String, Any?>) {
+        @Suppress("UNCHECKED_CAST")
+        val documentClass = Map::class.java as Class<Map<String, Any?>>
+        elasticsearchClient.update(
+            UpdateRequest.of<Map<String, Any?>, Map<String, Any?>> { request ->
+                request.index(MOCK_AGGREGATE_METADATA.toSnapshotIndexName())
+                    .id(snapshot.aggregateId.id)
+                    .doc(fields)
+                    .refresh(Refresh.True)
+            },
+            documentClass,
+        ).block()
+    }
+
+    private fun indexDocument(id: String, fields: Map<String, Any?>) {
+        val document = linkedMapOf<String, Any?>("aggregateId" to id, "deleted" to false).apply { putAll(fields) }
+        elasticsearchClient.index<Map<String, Any?>> { request ->
+            request.index(MOCK_AGGREGATE_METADATA.toSnapshotIndexName())
+                .id(id)
+                .document(document)
+                .refresh(Refresh.True)
+        }.block()
+    }
+
+    private fun assertEpochBuckets(
+        field: String,
+        timeUnit: TimeUnit,
+        aggregateIds: List<String>,
+        expected: List<Map<String, Any?>>,
+    ) {
+        aggregation {
+            filter { aggregateIds(aggregateIds) }
+            dateHistogram(
+                LogicalField(field, FieldType.Temporal.NumericEpoch(timeUnit)),
+                AggregationDateUnit.DAY,
+                "day",
+                ZoneOffset.UTC,
+            )
+            count("count")
+        }.query(snapshotQueryService)
+            .collectList()
+            .test()
+            .assertNext { rows -> rows.map(Map<String, Any?>::toMap).assert().containsExactly(*expected.toTypedArray()) }
             .verifyComplete()
     }
 }
