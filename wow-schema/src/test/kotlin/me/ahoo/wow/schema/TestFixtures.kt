@@ -102,6 +102,10 @@ data class AnnotationFixture(
     val requiredField: String?,
     @field:Schema(type = "string", requiredMode = Schema.RequiredMode.REQUIRED)
     val requiredNonNullField: String?,
+    @field:Schema(types = ["string"], requiredMode = Schema.RequiredMode.REQUIRED)
+    val requiredTypesNonNullField: String?,
+    @field:Schema(types = ["string", "null"], requiredMode = Schema.RequiredMode.REQUIRED)
+    val requiredTypesNullableField: String?,
     val enumField: TestStatus? = null,
     val enumMap: Map<TestStatus, String>? = null,
 ) {
