@@ -192,17 +192,51 @@ The equivalent JSON is:
 }
 ```
 
+Numeric metrics can use fields, finite constants, and the four arithmetic operators. For example, this DSL calculates each product's net amount:
+
+```kotlin
+val query = aggregation {
+    expand("state.items")
+    terms("productId", "product")
+    sum(
+        field("price") * field("quantity") - field("discount"),
+        "netAmount",
+    )
+}
+```
+
+The equivalent expression JSON uses recursive `BINARY` nodes; field leaves can retain the existing `{ "field": ... }` shorthand:
+
+```json
+{
+  "type": "NUMERIC",
+  "function": "SUM",
+  "expression": {
+    "type": "BINARY",
+    "operator": "SUBTRACT",
+    "left": {
+      "type": "BINARY",
+      "operator": "MULTIPLY",
+      "left": {"field": "price"},
+      "right": {"field": "quantity"}
+    },
+    "right": {"field": "discount"}
+  },
+  "alias": "netAmount"
+}
+```
+
 The first Element path is an absolute snapshot path. Every later Element path and every Element filter is relative to its current expanded element. Group and metric fields are relative to the innermost Element; without Elements, they are absolute snapshot paths. Elements form one parent-child chain, not sibling expansions.
 
 `TERMS`, `HISTOGRAM`, and `DATE_HISTOGRAM` groups are supported. Metrics are `COUNT`, `SUM`, `AVG`, `MIN`, and `MAX`; `COUNT` returns `Long`, while numeric metrics return a finite `Double` or `null` when no value contributes. A query without groups returns one summary row, including an empty dataset (`COUNT = 0`, numeric metrics `null`). Grouped results contain at most `limit` rows; the default is `100` and the maximum is `10,000`.
 
-Sort fields reference group or metric aliases. Missing group-alias sorts are appended in declaration order for stable results. Sorting by a metric alias is expensive and is controlled by the WebFlux `query.allow-expensive-operators` guard. Fixed structural limits are 5 Elements, 32 groups, 64 metrics, and 32 effective sort fields.
+Sort fields reference group or metric aliases. Missing group-alias sorts are appended in declaration order for stable results. Sorting by a metric alias is expensive and is controlled by the WebFlux `query.allow-expensive-operators` guard. Fixed structural limits are 5 Elements, 32 groups, 64 metrics, and 32 effective sort fields; each numeric expression has a maximum depth of 8, and all expressions in one query can contain at most 256 nodes.
 
 Aggregation uses the existing snapshot filter chain: ABAC and route filters still extend the root filter. The masking filter ignores aggregation queries, so configured maskers do not reject or rewrite aggregation results.
 
-Wow validates the request structure, not field existence, collection shape, or physical field type. It does not maintain an aggregation field catalog or use `TypeFieldPaths` for validation. Equivalent behavior is not guaranteed for custom Jackson serializers, backend filter converters, or custom Elasticsearch mappings. Batch aggregation and arithmetic expressions are not included.
+Wow validates the request structure, not field existence, collection shape, or physical field type. It does not maintain an aggregation field catalog or use `TypeFieldPaths` for validation. Numeric metrics support fields, finite constants, addition, subtraction, multiplication, and division; missing, non-numeric, multi-valued, division-by-zero, or non-finite intermediate values do not contribute. Equivalent behavior is not guaranteed for custom Jackson serializers, backend filter converters, or custom Elasticsearch mappings. Batch aggregation is not included.
 
-The HTTP endpoint is `POST /{aggregate}/snapshot/aggregation`. Tenant-, owner-, or space-scoped aggregates prepend their applicable route prefix; use the running instance's OpenAPI paths as the source of truth. JSON responses are arrays of dynamic objects; SSE streams one object at a time. OpenAPI publishes an aggregate-specific `AggregationQuery` request body whose `x-wow-query-fields` references that aggregate's `*AggregatedFields` component, while the JSON schema remains the generic `AggregationQuery` contract.
+The HTTP endpoint is `POST /{aggregate}/snapshot/aggregation`. Tenant-, owner-, or space-scoped aggregates prepend their applicable route prefix; use the running instance's OpenAPI paths as the source of truth. JSON responses are arrays of dynamic objects; SSE streams one object at a time. OpenAPI publishes an aggregate-specific `AggregationQuery` request body whose `x-wow-query-fields` references that aggregate's `*AggregatedFields` component, while the JSON schema remains the generic `AggregationQuery` contract; expressions are a recursive `oneOf` with `type` as its discriminator.
 
 #### Scenario examples
 

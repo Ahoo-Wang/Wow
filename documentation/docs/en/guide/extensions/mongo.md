@@ -420,6 +420,8 @@ The `MongoSnapshotQueryService` uses `MaterializedSnapshot<S>` as its typed resu
 
 MongoDB accumulators implement Terms, Histogram, DateHistogram, Count, Sum, Avg, Min, and Max. Missing or null group keys are excluded. Count is normalized to `Long`; numeric metrics become finite `Double` values or `null` when nothing contributes, including the single summary row returned for an empty ungrouped query.
 
+Computed numeric metrics compile to protected native `$add`, `$subtract`, `$multiply`, and `$divide` expressions; missing, non-numeric, division-by-zero, or non-finite results do not contribute. They do not use `$function`.
+
 The compiler does not inspect Java types or a MongoDB schema. Invalid or non-expandable paths remain MongoDB results or errors, and custom Jackson serializers or filter converters are not guaranteed to behave like the standard Wow field mapping.
 
 ## PrepareKey: Distributed Coordination

@@ -119,7 +119,7 @@ Reactor Context 通过 `writeRawRequest(request)` 携带 WebFlux `ServerRequest`
 
 WebFlux 注册 `POST /{aggregate}/snapshot/aggregation`；tenant、owner 或 space 作用域的聚合会在前面增加各自的路由前缀。请求体为 `AggregationQuery`。普通 JSON 响应是动态行对象数组；`Accept: text/event-stream` 会逐行流式返回。严格请求解码会拒绝未知属性，以及根 filter 和 Element filters 中非法的标量等值条件。
 
-现有查询护栏把 `query.max-list-size` 用作聚合 `limit` 上限。`query.allow-expensive-operators=false` 时，会拒绝根 filter 与 Element filters 中的高成本操作符、任意 Elements 展开，以及按 metric alias 排序。不会增加聚合专用 WebFlux 配置。
+现有查询护栏把 `query.max-list-size` 用作聚合 `limit` 上限。`query.allow-expensive-operators=false` 时，会拒绝根 filter 与 Element filters 中的高成本操作符、任意 Elements 展开、按 metric alias 排序，以及非 `Field` 的数值表达式。不会增加聚合专用 WebFlux 配置。
 
 ## 等待计划集成
 
