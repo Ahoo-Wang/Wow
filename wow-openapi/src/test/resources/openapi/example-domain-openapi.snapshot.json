@@ -4542,6 +4542,9 @@
                 "pattern" : "^([01][0-9]|2[0-3]):[0-5][0-9](?::[0-5][0-9](?:\\.[0-9]{1,9})?)?$",
                 "type" : "string"
               },
+              "timeUnit" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
+              },
               "zoneId" : {
                 "minLength" : 1,
                 "type" : "string"
@@ -4640,6 +4643,9 @@
               },
               "op" : {
                 "enum" : [ "EARLIER_DAYS" ]
+              },
+              "timeUnit" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
               },
               "zoneId" : {
                 "minLength" : 1,
@@ -5090,6 +5096,9 @@
               "op" : {
                 "enum" : [ "LAST_MONTH" ]
               },
+              "timeUnit" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
+              },
               "zoneId" : {
                 "minLength" : 1,
                 "type" : "string"
@@ -5114,6 +5123,9 @@
               "op" : {
                 "enum" : [ "LAST_WEEK" ]
               },
+              "timeUnit" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
+              },
               "zoneId" : {
                 "minLength" : 1,
                 "type" : "string"
@@ -5137,6 +5149,9 @@
               },
               "op" : {
                 "enum" : [ "LAST_YEAR" ]
+              },
+              "timeUnit" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
               },
               "zoneId" : {
                 "minLength" : 1,
@@ -5246,6 +5261,9 @@
               "op" : {
                 "enum" : [ "NEXT_MONTH" ]
               },
+              "timeUnit" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
+              },
               "zoneId" : {
                 "minLength" : 1,
                 "type" : "string"
@@ -5270,6 +5288,9 @@
               "op" : {
                 "enum" : [ "NEXT_WEEK" ]
               },
+              "timeUnit" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
+              },
               "zoneId" : {
                 "minLength" : 1,
                 "type" : "string"
@@ -5293,6 +5314,9 @@
               },
               "op" : {
                 "enum" : [ "NEXT_YEAR" ]
+              },
+              "timeUnit" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
               },
               "zoneId" : {
                 "minLength" : 1,
@@ -5399,6 +5423,9 @@
               "op" : {
                 "enum" : [ "RECENT_DAYS" ]
               },
+              "timeUnit" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
+              },
               "zoneId" : {
                 "minLength" : 1,
                 "type" : "string"
@@ -5500,6 +5527,9 @@
               "op" : {
                 "enum" : [ "THIS_MONTH" ]
               },
+              "timeUnit" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
+              },
               "zoneId" : {
                 "minLength" : 1,
                 "type" : "string"
@@ -5523,6 +5553,9 @@
               },
               "op" : {
                 "enum" : [ "THIS_WEEK" ]
+              },
+              "timeUnit" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
               },
               "zoneId" : {
                 "minLength" : 1,
@@ -5548,6 +5581,9 @@
               "op" : {
                 "enum" : [ "THIS_YEAR" ]
               },
+              "timeUnit" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
+              },
               "zoneId" : {
                 "minLength" : 1,
                 "type" : "string"
@@ -5555,6 +5591,11 @@
             },
             "required" : [ "op", "field" ],
             "type" : "object"
+          },
+          "timeUnit" : {
+            "default" : "MILLISECONDS",
+            "enum" : [ "NANOSECONDS", "MICROSECONDS", "MILLISECONDS", "SECONDS", "MINUTES", "HOURS", "DAYS" ],
+            "type" : "string"
           },
           "today" : {
             "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/todayShape"
@@ -5571,6 +5612,9 @@
               },
               "op" : {
                 "enum" : [ "TODAY" ]
+              },
+              "timeUnit" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
               },
               "zoneId" : {
                 "minLength" : 1,
@@ -5596,6 +5640,9 @@
               "op" : {
                 "enum" : [ "TOMORROW" ]
               },
+              "timeUnit" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
+              },
               "zoneId" : {
                 "minLength" : 1,
                 "type" : "string"
@@ -5619,6 +5666,9 @@
               },
               "op" : {
                 "enum" : [ "YESTERDAY" ]
+              },
+              "timeUnit" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
               },
               "zoneId" : {
                 "minLength" : 1,

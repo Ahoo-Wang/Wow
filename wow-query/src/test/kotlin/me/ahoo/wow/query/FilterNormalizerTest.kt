@@ -24,6 +24,7 @@ import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.TimeUnit
 
 class FilterNormalizerTest {
     private val normalizer = FilterNormalizer(
@@ -83,6 +84,24 @@ class FilterNormalizerTest {
 
         (normalized.operands[1] as GreaterThanOrEqualFilter).value.asText().assert()
             .isEqualTo("2026-08-22 00:00:00")
+    }
+
+    @Test
+    fun `should emit numeric boundaries in configured time unit`() {
+        val normalized = FilterNormalizer(
+            clock = Clock.fixed(Instant.parse("2026-08-22T12:00:00Z"), ZoneOffset.UTC),
+            defaultZoneId = ZoneOffset.UTC,
+            defaultDeletionState = null,
+        ).normalize(
+            BeforeTodayFilter(
+                field = LogicalField("createdAt"),
+                time = "12:00:00.123456789",
+                zoneId = "UTC",
+                timeUnit = TimeUnit.NANOSECONDS,
+            ),
+        ) as LessThanFilter
+
+        normalized.value.asLong().assert().isEqualTo(1_787_400_000_123_456_789L)
     }
 
     @Test

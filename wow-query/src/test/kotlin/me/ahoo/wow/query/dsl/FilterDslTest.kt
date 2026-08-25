@@ -21,6 +21,7 @@ import me.ahoo.wow.query.snapshot.pathState
 import org.junit.jupiter.api.Test
 import java.time.LocalTime
 import java.time.ZoneOffset
+import java.util.concurrent.TimeUnit
 
 class FilterDslTest {
     @Test
@@ -55,6 +56,21 @@ class FilterDslTest {
             LastYearFilter(field, ZoneOffset.UTC.id, "yyyy-MM-dd"),
             ThisYearFilter(field, ZoneOffset.UTC.id, "yyyy-MM-dd"),
             NextYearFilter(field, ZoneOffset.UTC.id, "yyyy-MM-dd"),
+        )
+    }
+
+    @Test
+    fun `should configure relative time unit`() {
+        val expression = filter {
+            "createdAt".beforeToday(LocalTime.NOON, timeUnit = TimeUnit.SECONDS)
+        }
+
+        expression.assert().isEqualTo(
+            BeforeTodayFilter(
+                field = LogicalField("createdAt"),
+                time = "12:00",
+                timeUnit = TimeUnit.SECONDS,
+            ),
         )
     }
 

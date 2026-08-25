@@ -36,7 +36,9 @@ description: Query snapshots and event streams with FilterExpression, the query 
 | Deletion | `DELETION` | `state` | `ACTIVE`, `DELETED`, or `ALL`; deletion is part of the filter model |
 | Array element | `ELEMENT_MATCH` | `field`, `predicate` | `predicate` cannot contain `DELETION`, `SEARCH`, or metadata Filters |
 | Full-text search | `SEARCH` | `query`, `fields`, `mode` | `mode` defaults to `TERMS` and may be set to `PHRASE`; field support is backend-specific |
-| Relative time | `TODAY`, `YESTERDAY`, `BEFORE_TODAY`, `TOMORROW`, `THIS_WEEK`, `NEXT_WEEK`, `LAST_WEEK`, `THIS_MONTH`, `NEXT_MONTH`, `LAST_MONTH`, `LAST_YEAR`, `THIS_YEAR`, `NEXT_YEAR`, `RECENT_DAYS`, `EARLIER_DAYS` | `field`; operation-specific `time` or `days`; optional `zoneId` | Normalized to absolute ranges before backend compilation |
+| Relative time | `TODAY`, `YESTERDAY`, `BEFORE_TODAY`, `TOMORROW`, `THIS_WEEK`, `NEXT_WEEK`, `LAST_WEEK`, `THIS_MONTH`, `NEXT_MONTH`, `LAST_MONTH`, `LAST_YEAR`, `THIS_YEAR`, `NEXT_YEAR`, `RECENT_DAYS`, `EARLIER_DAYS` | `field`; operation-specific `time` or `days`; optional `zoneId`, `datePattern`, and `timeUnit` | Normalized to absolute ranges before backend compilation |
+
+For numeric time fields, set `timeUnit` to a `java.util.concurrent.TimeUnit` enum name; it defaults to `MILLISECONDS`. When `datePattern` is configured, the filter emits strings and ignores `timeUnit`.
 
 `field` is a logical field path. Valid examples are:
 
