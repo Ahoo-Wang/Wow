@@ -33,6 +33,12 @@ class LogicalFieldTest {
     }
 
     @Test
+    fun `untyped logical field should default to millisecond epoch`() {
+        LogicalField("snapshotTime").temporalTypeOrDefault().assert()
+            .isEqualTo(FieldType.Temporal.NumericEpoch(TimeUnit.MILLISECONDS))
+    }
+
+    @Test
     fun `typed logical field should use name and type object JSON`() {
         val field = LogicalField(
             "snapshotTime",
