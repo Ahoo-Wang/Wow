@@ -154,7 +154,7 @@ class ElasticsearchAggregationCompilerTest {
                 expand("lines") { "quantity" gt 0 }
                 terms("productId", "product")
                 histogram("amount", 10.0, "amountRange")
-                dateHistogram(LogicalField("createdAt", FieldType.Temporal.Date), AggregationDateUnit.DAY, "day")
+                dateHistogram(LogicalField("createdAt", FieldType.Temporal.Date), AggregationDateUnit.DAY, "day", ZoneId.of("Z"))
                 sum("amount", "total")
             },
         )
@@ -224,7 +224,7 @@ class ElasticsearchAggregationCompilerTest {
     fun `second date histogram should use a fixed interval`() {
         val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter, mapping = null).compile(
             aggregation {
-                dateHistogram(LogicalField("state.createdAt", FieldType.Temporal.Date), AggregationDateUnit.SECOND, "second")
+                dateHistogram(LogicalField("state.createdAt", FieldType.Temporal.Date), AggregationDateUnit.SECOND, "second", ZoneId.of("Z"))
                 count("count")
             },
         )
