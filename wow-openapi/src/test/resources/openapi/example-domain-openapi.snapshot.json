@@ -6230,10 +6230,10 @@
   },
   "info" : {
     "title" : "example-service",
-    "version" : "8.12.0",
+    "version" : "8.12.1",
     "x-wow-context-alias" : "example",
     "x-wow-context-name" : "example-service",
-    "x-wow-version" : "8.12.0"
+    "x-wow-version" : "8.12.1"
   },
   "openapi" : "3.1.0",
   "paths" : {
