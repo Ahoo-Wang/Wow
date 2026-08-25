@@ -375,9 +375,9 @@ Orders can be bucketed by total amount. With `interval: 100`, the buckets are `[
 ]
 ```
 
-##### Track a business-time trend
+##### Track a snapshot-time trend
 
-Assuming `state.createdAt` is an executable date field, records can be counted per day in the Shanghai time zone:
+Assuming `state.snapshotTime` is stored as epoch milliseconds, records can be counted per day in the Shanghai time zone:
 
 ```json
 {
@@ -396,7 +396,7 @@ Assuming `state.createdAt` is an executable date field, records can be counted p
       "timeZone": "Asia/Shanghai"
     }
   ],
-  "metrics": [{"type": "COUNT", "alias": "createdCount"}],
+  "metrics": [{"type": "COUNT", "alias": "snapshotCount"}],
   "sort": [{"field": "day", "direction": "ASC"}],
   "limit": 31
 }
@@ -404,14 +404,14 @@ Assuming `state.createdAt` is an executable date field, records can be counted p
 
 ```json
 [
-  {"day": 1787500800000, "createdCount": 18},
-  {"day": 1787587200000, "createdCount": 23}
+  {"day": 1787500800000, "snapshotCount": 18},
+  {"day": 1787587200000, "snapshotCount": 23}
 ]
 ```
 
 Date bucket keys remain epoch milliseconds at the start of each bucket. `DATE_HISTOGRAM` accepts only untyped, `DATE`, and `TEMPORAL_NUMBER` fields; it rejects `TEMPORAL_STRING`.
 
-MongoDB uses native BSON `Date` values for `DATE`; `TEMPORAL_NUMBER` values are normalized from their declared unit to dates before bucketing. In Elasticsearch, `DATE` requires a `date` or `date_nanos` mapping, while `TEMPORAL_NUMBER` requires numeric doc values and is converted through a request runtime `date` field. `TEMPORAL_STRING` has no date-histogram support.
+MongoDB uses native BSON `Date` values for `DATE`; `TEMPORAL_NUMBER` values are normalized from their declared unit to dates before bucketing. In Elasticsearch, `DATE` uses the native mapped `date` or `date_nanos` field directly and creates no runtime field. `TEMPORAL_NUMBER` requires numeric doc values and is converted through a request-level runtime `date` field. `TEMPORAL_STRING` has no date-histogram support.
 
 ##### Expand a collection and select Top-N
 

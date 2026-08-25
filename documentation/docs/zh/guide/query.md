@@ -375,9 +375,9 @@ curl --request POST 'http://localhost:8080/execution_failed/snapshot/aggregation
 ]
 ```
 
-##### 按业务时间查看趋势
+##### 按快照时间查看趋势
 
-假设业务状态中的 `state.createdAt` 是可执行日期字段，可以按上海时区统计每日新增数量：
+假设 `state.snapshotTime` 以 epoch 毫秒存储，可以按上海时区统计每日快照数量：
 
 ```json
 {
@@ -396,7 +396,7 @@ curl --request POST 'http://localhost:8080/execution_failed/snapshot/aggregation
       "timeZone": "Asia/Shanghai"
     }
   ],
-  "metrics": [{"type": "COUNT", "alias": "createdCount"}],
+  "metrics": [{"type": "COUNT", "alias": "snapshotCount"}],
   "sort": [{"field": "day", "direction": "ASC"}],
   "limit": 31
 }
@@ -404,14 +404,14 @@ curl --request POST 'http://localhost:8080/execution_failed/snapshot/aggregation
 
 ```json
 [
-  {"day": 1787500800000, "createdCount": 18},
-  {"day": 1787587200000, "createdCount": 23}
+  {"day": 1787500800000, "snapshotCount": 18},
+  {"day": 1787587200000, "snapshotCount": 23}
 ]
 ```
 
 日期桶键仍是分桶起点的 epoch 毫秒。`DATE_HISTOGRAM` 只接受未标注、`DATE` 和 `TEMPORAL_NUMBER` 字段，拒绝 `TEMPORAL_STRING`。
 
-MongoDB 对 `DATE` 使用原生 BSON `Date`；对 `TEMPORAL_NUMBER` 会先按声明的单位规范化为日期后再分桶。Elasticsearch 中，`DATE` 要求字段映射为 `date` 或 `date_nanos`；`TEMPORAL_NUMBER` 要求数值 doc values，并通过请求级 runtime `date` 字段转换。`TEMPORAL_STRING` 不支持日期直方图。
+MongoDB 对 `DATE` 使用原生 BSON `Date`；对 `TEMPORAL_NUMBER` 会先按声明的单位规范化为日期后再分桶。Elasticsearch 中，`DATE` 直接使用原生映射的 `date` 或 `date_nanos` 字段，不创建 runtime field；`TEMPORAL_NUMBER` 要求数值 doc values，并通过请求级 runtime `date` 字段转换。`TEMPORAL_STRING` 不支持日期直方图。
 
 ##### 展开集合并取 Top-N
 
