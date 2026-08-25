@@ -133,6 +133,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: '聚合生命周期', link: 'aggregate-lifecycle'},
                 {text: '事件总线', link: 'event-bus'},
                 {text: '事件演进', link: 'event-evolution'},
+                {text: '序列化', link: 'serialization'},
                 {text: '数据流', link: 'data-flow'},
                 {text: '模块依赖', link: 'module-dependencies'},
                 {text: 'ID 生成器', link: 'id-generator'},
