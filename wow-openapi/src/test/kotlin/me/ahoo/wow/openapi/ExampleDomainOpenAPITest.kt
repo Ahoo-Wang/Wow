@@ -16,6 +16,8 @@ package me.ahoo.wow.openapi
 import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.media.Schema
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.schema.QuerySemanticType
+import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.example.domain.cart.Cart
 import me.ahoo.wow.example.domain.disable.DisabledRouteAggregate
@@ -24,7 +26,9 @@ import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import tools.jackson.module.kotlin.jsonMapper
 import java.math.BigDecimal
+import java.util.concurrent.TimeUnit
 
 internal class ExampleDomainOpenAPITest {
 
@@ -218,6 +222,66 @@ internal class ExampleDomainOpenAPITest {
             itemSchema.allOf.orEmpty().assert().isEmpty()
             itemSchema.anyOf.orEmpty().assert().isEmpty()
             itemSchema.oneOf.orEmpty().assert().isEmpty()
+        }
+
+        @Test
+        fun `temporal semantic schemas should match runtime JSON`() {
+            val mapper = jsonMapper()
+            val temporalTypes = listOf(
+                Triple<QuerySemanticType, String, String>(
+                    Temporal.Date,
+                    "TEMPORAL_DATE",
+                    "wow.api.query.Temporal.Date",
+                ),
+                Triple<QuerySemanticType, String, String>(
+                    Temporal.Epoch(TimeUnit.SECONDS),
+                    "TEMPORAL_EPOCH",
+                    "wow.api.query.Temporal.Epoch",
+                ),
+                Triple<QuerySemanticType, String, String>(
+                    Temporal.Formatted("yyyy-MM-dd"),
+                    "TEMPORAL_FORMATTED",
+                    "wow.api.query.Temporal.Formatted",
+                ),
+            )
+            temporalTypes.forEach { (semanticType, expectedType, _) ->
+                mapper.readTree(mapper.writeValueAsString(semanticType))["type"].stringValue()
+                    .assert().isEqualTo(expectedType)
+            }
+
+            val baseRef = "#/components/schemas/wow.api.query.QuerySemanticType"
+            val metadataSemanticType = openAPI.components.schemas
+                .getValue("wow.api.query.QueryFieldSchemaMetadata")
+                .properties.getValue("semanticType")
+            metadataSemanticType.anyOf.assert().hasSize(2)
+            metadataSemanticType.anyOf.mapNotNull { it.`$ref` }.assert().containsExactly(baseRef)
+            metadataSemanticType.anyOf.single { it.types?.contains("null") == true }
+
+            val baseSchema = openAPI.components.schemas.getValue("wow.api.query.QuerySemanticType")
+            val expectedMapping = temporalTypes.associate { (_, type, component) ->
+                type to "#/components/schemas/$component"
+            }
+            baseSchema.oneOf.map { it.`$ref` }.assert()
+                .containsExactlyInAnyOrder(*expectedMapping.values.toTypedArray())
+            baseSchema.anyOf.assert().isNull()
+            baseSchema.discriminator.propertyName.assert().isEqualTo("type")
+            baseSchema.discriminator.mapping.assert().isEqualTo(expectedMapping)
+
+            temporalTypes.forEach { (_, expectedType, component) ->
+                val schema = openAPI.components.schemas.getValue(component)
+                schema.required.assert().contains("type")
+                schema.properties.getValue("type").getConst().assert().isEqualTo(expectedType)
+                schema.additionalProperties.assert().isNull()
+            }
+            openAPI.components.schemas.getValue("wow.api.query.Temporal.Date")
+                .properties.keys.assert().containsExactly("type")
+            val epochSchema = openAPI.components.schemas.getValue("wow.api.query.Temporal.Epoch")
+            epochSchema.properties.keys.assert().containsExactlyInAnyOrder("type", "timeUnit")
+            epochSchema.properties.getValue("timeUnit").`$ref`
+                .assert().isEqualTo("#/components/schemas/example.TimeUnit")
+            val formattedSchema = openAPI.components.schemas.getValue("wow.api.query.Temporal.Formatted")
+            formattedSchema.properties.keys.assert().containsExactlyInAnyOrder("type", "pattern")
+            formattedSchema.required.assert().containsExactlyInAnyOrder("type", "pattern")
         }
 
         @Test

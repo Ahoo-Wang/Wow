@@ -5592,11 +5592,7 @@
             "anyOf" : [ {
               "type" : "null"
             }, {
-              "$ref" : "#/components/schemas/wow.api.query.Temporal.Date"
-            }, {
-              "$ref" : "#/components/schemas/wow.api.query.Temporal.Epoch"
-            }, {
-              "$ref" : "#/components/schemas/wow.api.query.Temporal.Formatted"
+              "$ref" : "#/components/schemas/wow.api.query.QuerySemanticType"
             } ]
           },
           "title" : {
@@ -5640,6 +5636,23 @@
         "required" : [ "capabilities", "fields", "model" ],
         "type" : "object"
       },
+      "wow.api.query.QuerySemanticType" : {
+        "discriminator" : {
+          "mapping" : {
+            "TEMPORAL_DATE" : "#/components/schemas/wow.api.query.Temporal.Date",
+            "TEMPORAL_EPOCH" : "#/components/schemas/wow.api.query.Temporal.Epoch",
+            "TEMPORAL_FORMATTED" : "#/components/schemas/wow.api.query.Temporal.Formatted"
+          },
+          "propertyName" : "type"
+        },
+        "oneOf" : [ {
+          "$ref" : "#/components/schemas/wow.api.query.Temporal.Date"
+        }, {
+          "$ref" : "#/components/schemas/wow.api.query.Temporal.Epoch"
+        }, {
+          "$ref" : "#/components/schemas/wow.api.query.Temporal.Formatted"
+        } ]
+      },
       "wow.api.query.QueryValueType" : {
         "type" : "string"
       },
@@ -5680,23 +5693,36 @@
         "type" : "string"
       },
       "wow.api.query.Temporal.Date" : {
+        "properties" : {
+          "type" : {
+            "const" : "TEMPORAL_DATE"
+          }
+        },
+        "required" : [ "type" ],
         "type" : "object"
       },
       "wow.api.query.Temporal.Epoch" : {
         "properties" : {
           "timeUnit" : {
             "$ref" : "#/components/schemas/example.TimeUnit"
+          },
+          "type" : {
+            "const" : "TEMPORAL_EPOCH"
           }
         },
+        "required" : [ "type" ],
         "type" : "object"
       },
       "wow.api.query.Temporal.Formatted" : {
         "properties" : {
           "pattern" : {
             "type" : "string"
+          },
+          "type" : {
+            "const" : "TEMPORAL_FORMATTED"
           }
         },
-        "required" : [ "pattern" ],
+        "required" : [ "pattern", "type" ],
         "type" : "object"
       },
       "wow.command.CommandResult" : {
