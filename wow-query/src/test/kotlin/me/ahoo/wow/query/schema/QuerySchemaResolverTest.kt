@@ -89,8 +89,10 @@ import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.query.FilterNormalizer
 import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.JsonNodeFactory
+import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
 
 @Suppress("LargeClass")
@@ -327,6 +329,74 @@ class QuerySchemaResolverTest {
         )
 
         resolver.resolve(TodayFilter(field)).compatibility
+            .assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+    }
+
+    @Test
+    fun `epoch temporal should reject an opaque formatter in strict mode`() {
+        val field = LogicalField("state.createdAt")
+        val resolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    field to fieldSchema(
+                        QueryCapability.RANGE to "document.created_at",
+                        semanticType = Temporal.Epoch(TimeUnit.SECONDS),
+                    ),
+                ),
+            ),
+        )
+        val resolution = resolver.resolve(
+            TodayFilter(field, dateFormatter = DateTimeFormatter.ISO_DATE),
+        )
+
+        resolution.compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+        assertThrows<QuerySchemaValidationException> {
+            resolution.requireAccepted(QuerySchemaValidationMode.STRICT)
+        }
+    }
+
+    @Test
+    fun `formatted temporal should reject an opaque formatter with matching or missing pattern`() {
+        val field = LogicalField("state.createdAt")
+        val resolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    field to fieldSchema(
+                        QueryCapability.RANGE to "document.created_at",
+                        semanticType = Temporal.Formatted("yyyy-MM-dd"),
+                    ),
+                ),
+            ),
+        )
+
+        listOf(
+            TodayFilter(field, dateFormatter = DateTimeFormatter.ISO_DATE),
+            TodayFilter(
+                field,
+                datePattern = "yyyy-MM-dd",
+                dateFormatter = DateTimeFormatter.ISO_DATE,
+            ),
+        ).forEach { filter ->
+            resolver.resolve(filter).compatibility
+                .assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+        }
+    }
+
+    @Test
+    fun `date temporal should reject an opaque formatter`() {
+        val field = LogicalField("state.createdAt")
+        val resolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    field to fieldSchema(
+                        QueryCapability.RANGE to "document.created_at",
+                        semanticType = Temporal.Date,
+                    ),
+                ),
+            ),
+        )
+
+        resolver.resolve(TodayFilter(field, dateFormatter = DateTimeFormatter.ISO_DATE)).compatibility
             .assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
     }
 

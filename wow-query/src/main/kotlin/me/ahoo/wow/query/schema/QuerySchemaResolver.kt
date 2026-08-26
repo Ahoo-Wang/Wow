@@ -346,6 +346,9 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         if (resolved.compatibility != QueryCompatibilityLevel.EXACT) {
             return QuerySchemaResolution(filter, QueryCompatibilityLevel.INCOMPATIBLE)
         }
+        if (filter.dateFormatter != null) {
+            return QuerySchemaResolution(filter, QueryCompatibilityLevel.INCOMPATIBLE)
+        }
         val physicalField = LogicalField(resolved.value)
         val configured = when (val temporal = resolved.fieldSchema?.semanticType) {
             is Temporal.Epoch -> {
