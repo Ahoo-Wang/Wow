@@ -106,6 +106,7 @@ class ElasticsearchQuerySchemaAdapter(
             invalidNestedParents: Set<String>,
         ): QueryFieldBinding? {
             if (invalidNestedParents.any { physicalPath.startsWith("$it.") }) return null
+            if (logical.dynamicChildren && capability != QueryCapability.ELEMENT_SCOPE) return null
             val mapped = find(physicalPath) ?: return null
             val selected = if (mapped.supports(capability, logical)) {
                 physicalPath to mapped
@@ -161,12 +162,8 @@ private fun ElasticsearchMappedField.supports(
     logical: LogicalQueryFieldSchema,
 ): Boolean {
     val executable = when (capability) {
-        QueryCapability.PRESENCE -> if (logical.isDynamicObject) dynamicChildrenQueryable else queryable
-        QueryCapability.EXACT_MATCH -> if (logical.isDynamicObject) {
-            dynamicChildrenExact
-        } else {
-            queryable && kind in EXACT_KINDS
-        }
+        QueryCapability.PRESENCE -> queryable
+        QueryCapability.EXACT_MATCH -> queryable && kind in EXACT_KINDS
         QueryCapability.LITERAL_MATCH -> indexed && kind in LITERAL_KINDS
         QueryCapability.RANGE -> queryable && kind in RANGE_KINDS
         QueryCapability.FULL_TEXT_TERMS -> indexed && kind in SEARCH_KINDS
@@ -185,9 +182,6 @@ private fun ElasticsearchMappedField.supports(
     return executable && (capability == QueryCapability.PRESENCE || logical.proves(capability, kind))
 }
 
-private val LogicalQueryFieldSchema.isDynamicObject: Boolean
-    get() = dynamicChildren && QueryValueType.OBJECT in valueTypes
-
 private val LogicalQueryFieldSchema.isElementScope: Boolean
     get() = cardinality == QueryCardinality.MANY && QueryValueType.OBJECT in valueTypes
 
@@ -204,11 +198,7 @@ private fun LogicalQueryFieldSchema.proves(capability: QueryCapability, kind: Pr
 private fun LogicalQueryFieldSchema.storageRequirements(
     capability: QueryCapability,
 ): List<Set<Property.Kind>> = when (capability) {
-    QueryCapability.EXACT_MATCH -> if (isDynamicObject) {
-        listOf(DYNAMIC_OBJECT_KINDS)
-    } else {
-        valueRequirements()
-    }
+    QueryCapability.EXACT_MATCH -> valueRequirements()
     QueryCapability.LITERAL_MATCH,
     QueryCapability.FULL_TEXT_TERMS,
     QueryCapability.FULL_TEXT_PHRASE,
@@ -313,8 +303,6 @@ private val BOOLEAN_KINDS = setOf(Property.Kind.Boolean)
 private val DATE_KINDS = setOf(Property.Kind.Date, Property.Kind.DateNanos)
 
 private val NESTED_KINDS = setOf(Property.Kind.Nested)
-
-private val DYNAMIC_OBJECT_KINDS = setOf(Property.Kind.Object, Property.Kind.Nested, Property.Kind.Flattened)
 
 private val RANGE_FIELD_KINDS = setOf(
     Property.Kind.IntegerRange,

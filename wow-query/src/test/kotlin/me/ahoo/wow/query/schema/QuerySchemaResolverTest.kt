@@ -460,6 +460,23 @@ class QuerySchemaResolverTest {
     }
 
     @Test
+    fun `dynamic ancestor without requested binding should remain logical and compatible`() {
+        val filter = EqualFilter(LogicalField("state.attributes.color"), json("blue"))
+        val schema = schema(
+            mapOf(
+                LogicalField("state.attributes") to fieldSchema(dynamicChildren = true),
+            ),
+        )
+
+        val resolution = QuerySchemaResolver(schema).resolve(filter)
+
+        resolution.assert().isEqualTo(QuerySchemaResolution(filter, QueryCompatibilityLevel.COMPATIBLE))
+        assertThrows<QuerySchemaValidationException> {
+            resolution.requireAccepted(QuerySchemaValidationMode.STRICT)
+        }
+    }
+
+    @Test
     fun `known field without required capability should be incompatible`() {
         val filter = GreaterThanFilter(LogicalField("state.status"), json(1))
         val schema = schema(

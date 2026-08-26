@@ -203,29 +203,27 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     }
 
     @Test
-    fun `invalid dynamic tags root should reject ABAC and projection then recover as object`() {
+    fun `strict should reject invalid dynamic tags root then recover exact object bindings`() {
         setValidator(Document("tags", Document("bsonType", "string")))
         val abacFilter = mapOf(
             "visibility" to listOf("*"),
             "department" to listOf("eng"),
         ).toFilterExpression()
 
-        QuerySchemaValidationMode.entries.forEach { mode ->
-            val service = MongoSnapshotQueryServiceFactory(
-                database,
-                schemaSources = querySchemaSources,
-                validationMode = mode,
-            ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
-            service.dynamicList(ListQuery(filter = abacFilter, limit = 10))
-                .test().expectError(QuerySchemaValidationException::class.java).verify()
-            service.dynamicList(
-                ListQuery(
-                    filter = MatchAllFilter,
-                    projection = Projection(include = listOf("tags.department")),
-                    limit = 10,
-                ),
-            ).test().expectError(QuerySchemaValidationException::class.java).verify()
-        }
+        val invalidService = MongoSnapshotQueryServiceFactory(
+            database,
+            schemaSources = querySchemaSources,
+            validationMode = QuerySchemaValidationMode.STRICT,
+        ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+        invalidService.dynamicList(ListQuery(filter = abacFilter, limit = 10))
+            .test().expectError(QuerySchemaValidationException::class.java).verify()
+        invalidService.dynamicList(
+            ListQuery(
+                filter = MatchAllFilter,
+                projection = Projection(include = listOf("tags.department")),
+                limit = 10,
+            ),
+        ).test().expectError(QuerySchemaValidationException::class.java).verify()
 
         setValidator(Document("tags", Document("bsonType", "object")))
         database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())

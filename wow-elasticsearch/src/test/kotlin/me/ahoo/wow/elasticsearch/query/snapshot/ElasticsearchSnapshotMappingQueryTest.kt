@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.elasticsearch.query.snapshot
 
+import co.elastic.clients.elasticsearch._types.mapping.DynamicMapping
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll
 import co.elastic.clients.elasticsearch.core.SearchRequest
@@ -216,6 +217,42 @@ class ElasticsearchSnapshotMappingQueryTest {
         ).test()
             .expectError(QuerySchemaValidationException::class.java)
             .verify()
+
+        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+    }
+
+    @Test
+    fun `compatible service should preserve an unknown dynamic suffix`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(
+                TypeMapping.of { mapping ->
+                    mapping.properties("tags") {
+                        it.`object` { objectField -> objectField.dynamic(DynamicMapping.True) }
+                    }
+                },
+            ),
+        )
+
+        queryService().dynamicList(
+            ListQuery(filter = equal("tags.department", "eng"), limit = 10),
+        ).collectList().block()
+
+        searchRequest.captured.query()!!.bool().filter()[1].term().field().assert().isEqualTo("tags.department")
+    }
+
+    @Test
+    fun `strict service should reject an indexed dynamic flattened suffix before search`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(
+                TypeMapping.of { mapping ->
+                    mapping.properties("tags") { it.flattened { flattened -> flattened } }
+                },
+            ),
+        )
+
+        strictQueryService(emptyList()).dynamicList(
+            ListQuery(filter = equal("tags.department", "eng"), limit = 10),
+        ).test().expectError(QuerySchemaValidationException::class.java).verify()
 
         verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
     }

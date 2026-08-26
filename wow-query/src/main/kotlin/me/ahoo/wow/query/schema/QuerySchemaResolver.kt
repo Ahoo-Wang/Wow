@@ -453,10 +453,20 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
                 elementScopeAccepted = false,
             )
         }
-        val fieldSchema = schema.resolve(logical)
+        val declaredFieldSchema = schema.fields[logical]
+        val fieldSchema = declaredFieldSchema ?: schema.resolve(logical)
             ?: return FieldResolution(logical, field.value, null, QueryCompatibilityLevel.COMPATIBLE)
         val binding = fieldSchema.bindings[capability]
-            ?: return FieldResolution(logical, field.value, null, QueryCompatibilityLevel.INCOMPATIBLE)
+            ?: return FieldResolution(
+                logical,
+                field.value,
+                null,
+                if (declaredFieldSchema == null && fieldSchema.dynamicChildren) {
+                    QueryCompatibilityLevel.COMPATIBLE
+                } else {
+                    QueryCompatibilityLevel.INCOMPATIBLE
+                },
+            )
         val relativePath = binding.physicalPath.relativeTo(physicalParent)
             ?: return FieldResolution(logical, field.value, null, QueryCompatibilityLevel.INCOMPATIBLE)
         return FieldResolution(

@@ -17,7 +17,6 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.abac.ABAC_TAG_VALUE_MAX_LENGTH
 import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -45,13 +44,13 @@ class IndexTemplateInitializerTest {
         eventMappings["properties"]["body"]["properties"]["body"]["enabled"]
             .asBoolean().assert().isEqualTo(false)
         eventMappings["dynamic_templates"][0]["string_as_keyword"]["mapping"]["ignore_above"]
-            .asInt().assert().isEqualTo(ABAC_TAG_VALUE_MAX_LENGTH)
+            .asInt().assert().isEqualTo(8191)
 
         val snapshotMappings = readMappings("wow-snapshot-template")
         snapshotMappings["date_detection"].asBoolean().assert().isEqualTo(false)
         snapshotMappings["dynamic_templates"].forEach { template ->
             template.properties().single().value["mapping"]["ignore_above"]
-                .asInt().assert().isEqualTo(ABAC_TAG_VALUE_MAX_LENGTH)
+                .asInt().assert().isEqualTo(8191)
         }
     }
 

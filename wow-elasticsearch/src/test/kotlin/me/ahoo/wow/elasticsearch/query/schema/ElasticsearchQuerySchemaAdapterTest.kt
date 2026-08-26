@@ -298,7 +298,7 @@ class ElasticsearchQuerySchemaAdapterTest {
     }
 
     @Test
-    fun `dynamic objects without an exact template should expose only presence descendants`() {
+    fun `dynamic fields should expose no inheritable bindings`() {
         val logical = LogicalQuerySchema(
             linkedMapOf(
                 LogicalField("tags") to field(QueryValueType.OBJECT, dynamicChildren = true),
@@ -329,20 +329,33 @@ class ElasticsearchQuerySchemaAdapterTest {
             ElasticsearchIndexMapping.from(INDEX, mapping),
         )
 
-        schema.bindings("tags").assert().containsExactly(QueryCapability.PRESENCE)
-        schema.resolve(LogicalField("tags.department"))!!.bindings.let { bindings ->
-            bindings.keys.assert().containsExactly(QueryCapability.PRESENCE)
-            bindings.getValue(QueryCapability.PRESENCE).physicalPath.assert().isEqualTo("tags.department")
-        }
-        schema.bindings("state.labels").assert().containsExactlyInAnyOrder(
-            QueryCapability.PRESENCE,
-            QueryCapability.EXACT_MATCH,
-        )
+        schema.bindings("tags").assert().isEmpty()
+        schema.resolve(LogicalField("tags.department"))!!.bindings.assert().isEmpty()
+        schema.bindings("state.labels").assert().isEmpty()
         schema.bindings("state.blocked").assert().isEmpty()
         schema.bindings("state.strict").assert().isEmpty()
         schema.bindings("state.disabled").assert().isEmpty()
         schema.bindings("state.unindexed").assert().isEmpty()
         schema.bindings("state.ordinary").assert().doesNotContain(QueryCapability.EXACT_MATCH)
+    }
+
+    @Test
+    fun `dynamic nested field should retain only element scope`() {
+        val logical = LogicalQuerySchema(
+            mapOf(
+                LogicalField("state.items") to field(
+                    QueryValueType.OBJECT,
+                    QueryCardinality.MANY,
+                    dynamicChildren = true,
+                ),
+            ),
+        )
+        val mapping = TypeMapping.of { type ->
+            type.properties("state.items") { it.nested { nested -> nested.dynamic(DynamicMapping.True) } }
+        }
+
+        ElasticsearchQuerySchemaAdapter.bind(logical, ElasticsearchIndexMapping.from(INDEX, mapping))
+            .bindings("state.items").assert().containsExactly(QueryCapability.ELEMENT_SCOPE)
     }
 
     @Test
@@ -449,8 +462,7 @@ class ElasticsearchQuerySchemaAdapterTest {
             .doesNotContainKey(QueryCapability.AGGREGATE_TEMPORAL)
 
         schema.binding("state.items", QueryCapability.ELEMENT_SCOPE).assertPath("state.items", "nested")
-        schema.resolve(LogicalField("state.labels.release"))!!
-            .bindings.getValue(QueryCapability.EXACT_MATCH).assertPath("state.labels.release", "flattened")
+        schema.resolve(LogicalField("state.labels.release"))!!.bindings.assert().isEmpty()
     }
 
     @Test

@@ -16,7 +16,6 @@ package me.ahoo.wow.query.snapshot.filter
 import me.ahoo.wow.api.abac.AbacTagKey
 import me.ahoo.wow.api.abac.AbacTagValue
 import me.ahoo.wow.api.abac.AbacTags
-import me.ahoo.wow.api.abac.validateAbacTags
 import me.ahoo.wow.api.abac.wildcard
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.Order
@@ -60,12 +59,7 @@ abstract class AbacQueryFilter : SnapshotQueryFilter {
          * @return the nested query condition
          */
         fun Map.Entry<AbacTagKey, AbacTagValue>.toFilterExpression(): FilterExpression {
-            mapOf(key to value).validateAbacTags()
-            return toFilterExpressionUnchecked()
-        }
-
-        private fun Map.Entry<AbacTagKey, AbacTagValue>.toFilterExpressionUnchecked(): FilterExpression =
-            me.ahoo.wow.query.dsl.filter {
+            return me.ahoo.wow.query.dsl.filter {
                 TAGS.path {
                     if (value.wildcard) {
                         key.exists()
@@ -78,6 +72,7 @@ abstract class AbacQueryFilter : SnapshotQueryFilter {
                     }
                 }
             }
+        }
 
         /**
          * Combines all principal tags with AND semantics.
@@ -88,11 +83,10 @@ abstract class AbacQueryFilter : SnapshotQueryFilter {
             if (isEmpty()) {
                 MatchAllFilter
             } else {
-                validateAbacTags()
                 me.ahoo.wow.query.dsl.filter {
                     and {
                         for (tag in this@toFilterExpression) {
-                            expression(tag.toFilterExpressionUnchecked())
+                            expression(tag.toFilterExpression())
                         }
                     }
                 }

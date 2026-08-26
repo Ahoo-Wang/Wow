@@ -17,7 +17,6 @@ import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.abac.AbacTags
 import me.ahoo.wow.api.abac.EMPTY_ABAC_TAGS
 import me.ahoo.wow.api.abac.ResourceTagsApplied
-import me.ahoo.wow.api.abac.validateAbacTags
 import me.ahoo.wow.api.event.AggregateDeleted
 import me.ahoo.wow.api.event.AggregateRecovered
 import me.ahoo.wow.api.event.DomainEvent
@@ -53,7 +52,7 @@ import me.ahoo.wow.modeling.metadata.StateAggregateMetadata
  * @property operator The operator who initiated the last event. Defaults to an empty string.
  * @property firstEventTime The timestamp of the first event. Defaults to 0.
  * @property eventTime The timestamp of the last event. Defaults to 0.
- * @param tags The ABAC tags associated with the aggregate.
+ * @property tags The ABAC tags associated with the aggregate.
  * @property deleted Indicates whether the aggregate has been deleted. Defaults to false.
  */
 class SimpleStateAggregate<S : Any>(
@@ -68,21 +67,11 @@ class SimpleStateAggregate<S : Any>(
     override var operator: String = "",
     override var firstEventTime: Long = 0,
     override var eventTime: Long = 0,
-    tags: AbacTags = EMPTY_ABAC_TAGS,
+    override var tags: AbacTags = EMPTY_ABAC_TAGS,
     override var deleted: Boolean = false
 ) : StateAggregate<S>,
     TypedAggregate<S> by metadata {
     private val sourcingRegistry = metadata.toMessageFunctionRegistry(state)
-
-    override var tags: AbacTags = tags
-        set(value) {
-            value.validateAbacTags()
-            field = value
-        }
-
-    init {
-        tags.validateAbacTags()
-    }
 
     companion object {
         private val log = KotlinLogging.logger {}

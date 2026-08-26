@@ -32,7 +32,9 @@ interface ApplyAbacTags :
     AbacTaggable,
     CommandValidator {
     override fun validate() {
-        tags.validateAbacTags()
+        require(!tags.keys.any { it.isBlank() }) {
+            "Tags cannot contain blank keys!"
+        }
     }
 }
 

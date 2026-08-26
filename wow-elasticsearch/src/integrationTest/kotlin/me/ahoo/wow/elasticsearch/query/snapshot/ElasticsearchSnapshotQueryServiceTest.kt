@@ -32,9 +32,7 @@ import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
-import me.ahoo.wow.elasticsearch.IndexTemplateInitializer
 import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
-import me.ahoo.wow.elasticsearch.TemplateInitializer.createElasticsearchTemplate
 import me.ahoo.wow.elasticsearch.TemplateInitializer.initSnapshotTemplate
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
@@ -58,7 +56,6 @@ import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.filter.AbacQueryFilter.Companion.toFilterExpression
 import me.ahoo.wow.query.snapshot.query
 import me.ahoo.wow.query.snapshot.requiredQueryModelSchemaProvider
-import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockStateAggregate
@@ -73,7 +70,6 @@ import reactor.kotlin.test.test
 import java.time.Instant
 import java.time.ZoneOffset
 import java.util.concurrent.TimeUnit
-import tools.jackson.databind.JsonNode
 
 class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     @JvmField
@@ -216,13 +212,9 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     }
 
     @Test
-    fun `strict should execute the built-in ABAC tags filter shape`() {
-        val strictService = strictService()
-        val schema = strictService.requiredQueryModelSchemaProvider().schema().block()!!
-        schema.fields.getValue(LogicalField("tags")).bindings.keys.assert().contains(
-            QueryCapability.PRESENCE,
-            QueryCapability.EXACT_MATCH,
-        )
+    fun `compatible should execute the built-in ABAC tags filter shape`() {
+        val schema = snapshotQueryService.requiredQueryModelSchemaProvider().schema().block()!!
+        schema.fields.getValue(LogicalField("tags")).bindings.assert().isEmpty()
         updateDocument(
             mapOf(
                 "tags" to mapOf(
@@ -237,8 +229,19 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             "region" to listOf("cn"),
         ).toFilterExpression()
 
-        strictService.dynamicList(ListQuery(filter = abacFilter, limit = 10))
+        snapshotQueryService.dynamicList(ListQuery(filter = abacFilter, limit = 10))
             .test().expectNextCount(1).verifyComplete()
+    }
+
+    @Test
+    fun `strict should reject the built-in ABAC tags filter before search`() {
+        val strictService = strictService()
+        strictService.requiredQueryModelSchemaProvider().schema().block()!!
+            .fields.getValue(LogicalField("tags")).bindings.assert().isEmpty()
+
+        strictService.dynamicList(
+            ListQuery(filter = mapOf("department" to listOf("eng")).toFilterExpression(), limit = 10),
+        ).test().expectError(QuerySchemaValidationException::class.java).verify()
     }
 
     @Test
@@ -255,8 +258,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         )
         val strictService = strictService()
         strictService.requiredQueryModelSchemaProvider().schema().block()!!
-            .fields.getValue(LogicalField("tags")).bindings.keys.assert()
-            .containsExactly(QueryCapability.PRESENCE)
+            .fields.getValue(LogicalField("tags")).bindings.assert().isEmpty()
         updateDocument(mapOf("tags" to mapOf("department" to listOf("eng"))))
 
         strictService.dynamicList(
@@ -268,110 +270,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     }
 
     @Test
-    fun `strict should reject ABAC exact when an earlier text template can match`() {
-        recreateSnapshotIndex(
-            """
-            {
-              "date_detection": false,
-              "properties": {"tags": {"type": "object", "dynamic": true}},
-              "dynamic_templates": [
-                {
-                  "text_first": {
-                    "match_mapping_type": "*",
-                    "path_match": "tags.*",
-                    "mapping": {"type": "text"}
-                  }
-                },
-                {
-                  "keyword_fallback": {
-                    "match_mapping_type": "string",
-                    "path_match": "tags.*",
-                    "mapping": {"type": "keyword"}
-                  }
-                }
-              ]
-            }
-            """.trimIndent(),
-        )
-
-        assertStrictAbacExactRejected()
-    }
-
-    @Test
-    fun `strict should reject inherited ABAC exact for an explicit text child`() {
-        recreateSnapshotIndex(
-            """
-            {
-              "date_detection": false,
-              "properties": {
-                "tags": {
-                  "type": "object",
-                  "dynamic": true,
-                  "properties": {
-                    "department": {
-                      "type": "text",
-                      "fields": {"keyword": {"type": "keyword"}}
-                    }
-                  }
-                }
-              },
-              "dynamic_templates": [
-                {
-                  "tags_keyword": {
-                    "match_mapping_type": "string",
-                    "path_match": "tags.*",
-                    "mapping": {"type": "keyword"}
-                  }
-                }
-              ]
-            }
-            """.trimIndent(),
-        )
-
-        assertStrictAbacExactRejected()
-    }
-
-    @Test
-    fun `strict should reject ABAC exact below the protocol ignore above limit`() {
-        recreateSnapshotIndex(
-            """
-            {
-              "date_detection": false,
-              "properties": {"tags": {"type": "object", "dynamic": true}},
-              "dynamic_templates": [
-                {
-                  "tags_keyword": {
-                    "match_mapping_type": "string",
-                    "path_match": "tags.*",
-                    "mapping": {"type": "keyword", "ignore_above": 1024}
-                  }
-                }
-              ]
-            }
-            """.trimIndent(),
-        )
-
-        assertStrictAbacExactRejected(expectPresence = false)
-    }
-
-    @Test
-    fun `strict should reject flattened ABAC below the protocol ignore above limit`() {
-        recreateSnapshotIndex(
-            """
-            {
-              "dynamic": true,
-              "properties": {
-                "tags": {"type": "flattened", "ignore_above": 1024}
-              }
-            }
-            """.trimIndent(),
-        )
-
-        assertStrictAbacExactRejected(expectPresence = false)
-    }
-
-    @Test
-    fun `strict should execute ABAC through flattened tags under root strict`() {
+    fun `compatible should execute and strict should reject flattened dynamic tags`() {
         val current = currentMapping()
         recreateSnapshotIndex(
             TypeMapping.of { mapping ->
@@ -380,12 +279,9 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                     .properties("tags") { it.flattened { flattened -> flattened } }
             },
         )
-        val strictService = strictService()
-        strictService.requiredQueryModelSchemaProvider().schema().block()!!
-            .fields.getValue(LogicalField("tags")).bindings.keys.assert().contains(
-                QueryCapability.PRESENCE,
-                QueryCapability.EXACT_MATCH,
-            )
+        val compatibleService = compatibleService()
+        compatibleService.requiredQueryModelSchemaProvider().schema().block()!!
+            .fields.getValue(LogicalField("tags")).bindings.assert().isEmpty()
         updateDocument(
             mapOf(
                 "tags" to mapOf(
@@ -395,7 +291,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             ),
         )
 
-        strictService.dynamicList(
+        compatibleService.dynamicList(
             ListQuery(
                 filter = mapOf(
                     "visibility" to listOf("*"),
@@ -404,6 +300,10 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                 limit = 10,
             ),
         ).test().expectNextCount(1).verifyComplete()
+
+        strictService().dynamicList(
+            ListQuery(filter = mapOf("department" to listOf("eng")).toFilterExpression(), limit = 10),
+        ).test().expectError(QuerySchemaValidationException::class.java).verify()
     }
 
     @Test
@@ -696,6 +596,15 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             QuerySchemaValidationMode.STRICT,
         ).create(MOCK_AGGREGATE_METADATA)
 
+    private fun compatibleService(): SnapshotQueryService<MockStateAggregate> =
+        ElasticsearchSnapshotQueryServiceFactory(
+            elasticsearchClient,
+            me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
+            me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
+            querySchemaSources,
+            QuerySchemaValidationMode.COMPATIBLE,
+        ).create(MOCK_AGGREGATE_METADATA)
+
     private fun currentMapping(): TypeMapping = elasticsearchClient.indices().getMapping { request ->
         request.index(MOCK_AGGREGATE_METADATA.toSnapshotIndexName())
     }.block()!!.mappings().values.single().mappings()
@@ -715,50 +624,6 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         ).then(
             Mono.defer { snapshotStore.save(snapshot) },
         ).block()
-    }
-
-    private fun recreateSnapshotIndex(mappingJson: String) {
-        val indexName = MOCK_AGGREGATE_METADATA.toSnapshotIndexName()
-        val template = JsonSerializer.readValue(
-            """
-            {
-              "index_patterns": ["$indexName"],
-              "template": {"mappings": $mappingJson}
-            }
-            """.trimIndent(),
-            JsonNode::class.java,
-        )
-        val initializer = IndexTemplateInitializer(elasticsearchClient.createElasticsearchTemplate())
-        Mono.defer {
-            elasticsearchClient.indices().deleteIndexTemplate { request -> request.name("wow-snapshot-template") }
-        }.then(
-            Mono.defer { elasticsearchClient.indices().delete { request -> request.index(indexName) } },
-        ).then(
-            Mono.defer { initializer.initTemplate("wow-snapshot-template", template) },
-        ).then(
-            Mono.defer { elasticsearchClient.indices().create { request -> request.index(indexName) } },
-        ).then(
-            Mono.defer { snapshotStore.save(snapshot) },
-        ).block()
-    }
-
-    private fun assertStrictAbacExactRejected(expectPresence: Boolean = true) {
-        val strictService = strictService()
-        val bindings = strictService.requiredQueryModelSchemaProvider().schema().block()!!
-            .fields.getValue(LogicalField("tags")).bindings.keys
-        if (expectPresence) {
-            bindings.assert().containsExactly(QueryCapability.PRESENCE)
-        } else {
-            bindings.assert().isEmpty()
-        }
-        updateDocument(mapOf("tags" to mapOf("department" to listOf("eng"))))
-
-        strictService.dynamicList(
-            ListQuery(
-                filter = mapOf("department" to listOf("eng")).toFilterExpression(),
-                limit = 10,
-            ),
-        ).test().expectError(QuerySchemaValidationException::class.java).verify()
     }
 
     private fun defensiveEpochService(): SnapshotQueryService<MockStateAggregate> {
