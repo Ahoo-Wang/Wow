@@ -34,14 +34,14 @@ import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.pagedQuery
 import me.ahoo.wow.query.dsl.singleQuery
+import me.ahoo.wow.query.schema.QuerySchemaSource
+import me.ahoo.wow.query.schema.toMetadata
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.count
 import me.ahoo.wow.query.snapshot.dynamicQuery
 import me.ahoo.wow.query.snapshot.query
 import me.ahoo.wow.query.snapshot.requiredQueryModelSchemaProvider
-import me.ahoo.wow.query.schema.toMetadata
-import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.schema.query.JsonQuerySchemaSource
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
