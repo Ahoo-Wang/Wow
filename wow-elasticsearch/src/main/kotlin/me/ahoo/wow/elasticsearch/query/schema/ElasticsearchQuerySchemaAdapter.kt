@@ -150,7 +150,7 @@ class ElasticsearchQuerySchemaAdapter(
                 required = required,
                 cardinality = cardinality,
                 semanticType = semanticType,
-                dynamicChildren = dynamicChildren,
+                dynamicChildren = false,
                 bindings = bindings,
             )
     }

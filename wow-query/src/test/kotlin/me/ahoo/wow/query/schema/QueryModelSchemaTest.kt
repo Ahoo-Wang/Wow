@@ -95,6 +95,26 @@ class QueryModelSchemaTest {
     }
 
     @Test
+    fun `dynamic suffix should not inherit element scope`() {
+        val schema = QueryModelSchema(
+            QueryModel.SNAPSHOT,
+            emptySet(),
+            mapOf(
+                LogicalField("state.orders") to fieldSchema(
+                    dynamicChildren = true,
+                    bindings = mapOf(
+                        QueryCapability.EXACT_MATCH to QueryFieldBinding("document.orders", null),
+                        QueryCapability.ELEMENT_SCOPE to QueryFieldBinding("document.orders", null),
+                    ),
+                ),
+            ),
+        )
+
+        schema.resolve(LogicalField("state.orders.items"))!!.bindings.keys.assert()
+            .containsExactly(QueryCapability.EXACT_MATCH)
+    }
+
+    @Test
     fun `metadata projection should sort logical fields and omit binding details`() {
         val schema = QueryModelSchema(
             QueryModel.SNAPSHOT,

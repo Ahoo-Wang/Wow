@@ -330,7 +330,17 @@ class ElasticsearchQuerySchemaAdapterTest {
         )
 
         schema.bindings("tags").assert().isEmpty()
-        schema.resolve(LogicalField("tags.department"))!!.bindings.assert().isEmpty()
+        listOf(
+            "tags",
+            "state.labels",
+            "state.blocked",
+            "state.strict",
+            "state.disabled",
+            "state.unindexed",
+        ).forEach { path ->
+            schema.fields.getValue(LogicalField(path)).dynamicChildren.assert().isFalse()
+        }
+        schema.resolve(LogicalField("tags.department")).assert().isNull()
         schema.bindings("state.labels").assert().isEmpty()
         schema.bindings("state.blocked").assert().isEmpty()
         schema.bindings("state.strict").assert().isEmpty()
@@ -354,8 +364,11 @@ class ElasticsearchQuerySchemaAdapterTest {
             type.properties("state.items") { it.nested { nested -> nested.dynamic(DynamicMapping.True) } }
         }
 
-        ElasticsearchQuerySchemaAdapter.bind(logical, ElasticsearchIndexMapping.from(INDEX, mapping))
-            .bindings("state.items").assert().containsExactly(QueryCapability.ELEMENT_SCOPE)
+        val schema = ElasticsearchQuerySchemaAdapter.bind(logical, ElasticsearchIndexMapping.from(INDEX, mapping))
+
+        schema.bindings("state.items").assert().containsExactly(QueryCapability.ELEMENT_SCOPE)
+        schema.fields.getValue(LogicalField("state.items")).dynamicChildren.assert().isFalse()
+        schema.resolve(LogicalField("state.items.unknown")).assert().isNull()
     }
 
     @Test
@@ -462,7 +475,7 @@ class ElasticsearchQuerySchemaAdapterTest {
             .doesNotContainKey(QueryCapability.AGGREGATE_TEMPORAL)
 
         schema.binding("state.items", QueryCapability.ELEMENT_SCOPE).assertPath("state.items", "nested")
-        schema.resolve(LogicalField("state.labels.release"))!!.bindings.assert().isEmpty()
+        schema.resolve(LogicalField("state.labels.release")).assert().isNull()
     }
 
     @Test

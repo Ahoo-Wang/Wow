@@ -210,20 +210,22 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             "department" to listOf("eng"),
         ).toFilterExpression()
 
-        val invalidService = MongoSnapshotQueryServiceFactory(
-            database,
-            schemaSources = querySchemaSources,
-            validationMode = QuerySchemaValidationMode.STRICT,
-        ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
-        invalidService.dynamicList(ListQuery(filter = abacFilter, limit = 10))
-            .test().expectError(QuerySchemaValidationException::class.java).verify()
-        invalidService.dynamicList(
-            ListQuery(
-                filter = MatchAllFilter,
-                projection = Projection(include = listOf("tags.department")),
-                limit = 10,
-            ),
-        ).test().expectError(QuerySchemaValidationException::class.java).verify()
+        QuerySchemaValidationMode.entries.forEach { mode ->
+            val invalidService = MongoSnapshotQueryServiceFactory(
+                database,
+                schemaSources = querySchemaSources,
+                validationMode = mode,
+            ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+            invalidService.dynamicList(ListQuery(filter = abacFilter, limit = 10))
+                .test().expectError(QuerySchemaValidationException::class.java).verify()
+            invalidService.dynamicList(
+                ListQuery(
+                    filter = MatchAllFilter,
+                    projection = Projection(include = listOf("tags.department")),
+                    limit = 10,
+                ),
+            ).test().expectError(QuerySchemaValidationException::class.java).verify()
+        }
 
         setValidator(Document("tags", Document("bsonType", "object")))
         database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())

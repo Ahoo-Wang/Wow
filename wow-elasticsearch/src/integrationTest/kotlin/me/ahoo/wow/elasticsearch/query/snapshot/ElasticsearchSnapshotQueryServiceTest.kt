@@ -212,36 +212,20 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     }
 
     @Test
-    fun `compatible should execute the built-in ABAC tags filter shape`() {
-        val schema = snapshotQueryService.requiredQueryModelSchemaProvider().schema().block()!!
-        schema.fields.getValue(LogicalField("tags")).bindings.assert().isEmpty()
+    fun `all modes should reject dynamic ABAC before ignored values can fail open`() {
         updateDocument(
             mapOf(
                 "tags" to mapOf(
-                    "visibility" to listOf("public"),
-                    "department" to listOf("eng"),
+                    "department" to listOf("x".repeat(9000)),
                 ),
             ),
         )
-        val abacFilter = mapOf(
-            "visibility" to listOf("*"),
-            "department" to listOf("eng"),
-            "region" to listOf("cn"),
-        ).toFilterExpression()
+        val mismatchedPrincipal = mapOf("department" to listOf("eng")).toFilterExpression()
 
-        snapshotQueryService.dynamicList(ListQuery(filter = abacFilter, limit = 10))
-            .test().expectNextCount(1).verifyComplete()
-    }
-
-    @Test
-    fun `strict should reject the built-in ABAC tags filter before search`() {
-        val strictService = strictService()
-        strictService.requiredQueryModelSchemaProvider().schema().block()!!
-            .fields.getValue(LogicalField("tags")).bindings.assert().isEmpty()
-
-        strictService.dynamicList(
-            ListQuery(filter = mapOf("department" to listOf("eng")).toFilterExpression(), limit = 10),
-        ).test().expectError(QuerySchemaValidationException::class.java).verify()
+        listOf(snapshotQueryService, strictService()).forEach { service ->
+            service.dynamicList(ListQuery(filter = mismatchedPrincipal, limit = 10))
+                .test().expectError(QuerySchemaValidationException::class.java).verify()
+        }
     }
 
     @Test
@@ -270,7 +254,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     }
 
     @Test
-    fun `compatible should execute and strict should reject flattened dynamic tags`() {
+    fun `all modes should reject flattened dynamic tags`() {
         val current = currentMapping()
         recreateSnapshotIndex(
             TypeMapping.of { mapping ->
@@ -291,19 +275,11 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             ),
         )
 
-        compatibleService.dynamicList(
-            ListQuery(
-                filter = mapOf(
-                    "visibility" to listOf("*"),
-                    "department" to listOf("eng"),
-                ).toFilterExpression(),
-                limit = 10,
-            ),
-        ).test().expectNextCount(1).verifyComplete()
-
-        strictService().dynamicList(
-            ListQuery(filter = mapOf("department" to listOf("eng")).toFilterExpression(), limit = 10),
-        ).test().expectError(QuerySchemaValidationException::class.java).verify()
+        val filter = mapOf("department" to listOf("eng")).toFilterExpression()
+        listOf(compatibleService, strictService()).forEach { service ->
+            service.dynamicList(ListQuery(filter = filter, limit = 10))
+                .test().expectError(QuerySchemaValidationException::class.java).verify()
+        }
     }
 
     @Test

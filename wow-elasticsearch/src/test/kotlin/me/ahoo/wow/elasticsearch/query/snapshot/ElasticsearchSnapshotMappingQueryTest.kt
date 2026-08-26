@@ -222,7 +222,7 @@ class ElasticsearchSnapshotMappingQueryTest {
     }
 
     @Test
-    fun `compatible service should preserve an unknown dynamic suffix`() {
+    fun `compatible service should reject a known dynamic suffix before search`() {
         every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
             mappingResponse(
                 TypeMapping.of { mapping ->
@@ -235,9 +235,9 @@ class ElasticsearchSnapshotMappingQueryTest {
 
         queryService().dynamicList(
             ListQuery(filter = equal("tags.department", "eng"), limit = 10),
-        ).collectList().block()
+        ).test().expectError(QuerySchemaValidationException::class.java).verify()
 
-        searchRequest.captured.query()!!.bool().filter()[1].term().field().assert().isEqualTo("tags.department")
+        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
     }
 
     @Test

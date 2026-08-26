@@ -352,6 +352,7 @@ class MongoQuerySchemaAdapterTest {
             QueryCapability.PRESENCE,
             QueryCapability.EXACT_MATCH,
         )
+        schema.fields.getValue(LogicalField("tags")).dynamicChildren.assert().isTrue()
         schema.resolve(LogicalField("tags.department"))
             ?.bindings?.getValue(QueryCapability.EXACT_MATCH)
             ?.physicalPath.assert().isEqualTo("tags.department")
@@ -366,7 +367,8 @@ class MongoQuerySchemaAdapterTest {
         )
 
         schema.fields.getValue(LogicalField("tags")).bindings.assert().isEmpty()
-        schema.resolve(LogicalField("tags.department"))?.bindings.assert().isEmpty()
+        schema.fields.getValue(LogicalField("tags")).dynamicChildren.assert().isFalse()
+        schema.resolve(LogicalField("tags.department")).assert().isNull()
     }
 
     @Test

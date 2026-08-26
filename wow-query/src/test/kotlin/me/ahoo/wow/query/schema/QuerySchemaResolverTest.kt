@@ -433,8 +433,11 @@ class QuerySchemaResolverTest {
     @Test
     fun `unknown field without dynamic ancestor should remain unchanged and compatible`() {
         val filter = EqualFilter(LogicalField("state.unknown"), json("value"))
+        val schema = schema(
+            mapOf(LogicalField("state") to fieldSchema(dynamicChildren = false)),
+        )
 
-        QuerySchemaResolver(schema()).resolve(filter).assert().isEqualTo(
+        QuerySchemaResolver(schema).resolve(filter).assert().isEqualTo(
             QuerySchemaResolution(filter, QueryCompatibilityLevel.COMPATIBLE),
         )
     }
@@ -460,17 +463,43 @@ class QuerySchemaResolverTest {
     }
 
     @Test
-    fun `dynamic ancestor without requested binding should remain logical and compatible`() {
-        val filter = EqualFilter(LogicalField("state.attributes.color"), json("blue"))
+    fun `bound tags without dynamic support should be incompatible`() {
+        val filter = EqualFilter(LogicalField("tags.department"), json("eng"))
         val schema = schema(
             mapOf(
-                LogicalField("state.attributes") to fieldSchema(dynamicChildren = true),
+                LogicalField("tags") to fieldSchema(dynamicChildren = false),
             ),
         )
 
         val resolution = QuerySchemaResolver(schema).resolve(filter)
 
-        resolution.assert().isEqualTo(QuerySchemaResolution(filter, QueryCompatibilityLevel.COMPATIBLE))
+        resolution.assert().isEqualTo(QuerySchemaResolution(filter, QueryCompatibilityLevel.INCOMPATIBLE))
+        assertThrows<QuerySchemaValidationException> {
+            resolution.requireAccepted(QuerySchemaValidationMode.COMPATIBLE)
+        }
+    }
+
+    @Test
+    fun `dynamic nested suffix should not become an exact element scope`() {
+        val query = AggregationQuery(
+            elements = listOf(
+                AggregationElement(LogicalField("state.orders")),
+                AggregationElement(LogicalField("items")),
+            ),
+            metrics = listOf(AggregationMetric.Count("count")),
+        )
+        val schema = schema(
+            mapOf(
+                LogicalField("state.orders") to fieldSchema(
+                    QueryCapability.ELEMENT_SCOPE to "document.orders",
+                    dynamicChildren = true,
+                ),
+            ),
+        )
+
+        val resolution = QuerySchemaResolver(schema).resolve(query)
+
+        resolution.compatibility.assert().isEqualTo(QueryCompatibilityLevel.COMPATIBLE)
         assertThrows<QuerySchemaValidationException> {
             resolution.requireAccepted(QuerySchemaValidationMode.STRICT)
         }

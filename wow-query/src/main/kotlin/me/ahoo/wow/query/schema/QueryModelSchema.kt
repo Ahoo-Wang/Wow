@@ -50,9 +50,11 @@ data class QueryModelSchema(
             if (ancestor?.dynamicChildren == true) {
                 val suffix = field.value.substring(separator + 1)
                 return ancestor.copy(
-                    bindings = ancestor.bindings.mapValues { (_, binding) ->
-                        binding.copy(physicalPath = "${binding.physicalPath}.$suffix")
-                    },
+                    bindings = ancestor.bindings
+                        .filterKeys { it != QueryCapability.ELEMENT_SCOPE }
+                        .mapValues { (_, binding) ->
+                            binding.copy(physicalPath = "${binding.physicalPath}.$suffix")
+                        },
                 )
             }
             separator = ancestorPath.lastIndexOf('.')

@@ -209,7 +209,7 @@ class MongoQuerySchemaAdapter(
             required = required,
             cardinality = cardinality,
             semanticType = semanticType,
-            dynamicChildren = dynamicChildren,
+            dynamicChildren = dynamicChildren && bindings.keys.any { it != QueryCapability.ELEMENT_SCOPE },
             bindings = bindings,
         )
 

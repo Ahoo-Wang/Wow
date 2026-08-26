@@ -455,7 +455,19 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         }
         val declaredFieldSchema = schema.fields[logical]
         val fieldSchema = declaredFieldSchema ?: schema.resolve(logical)
-            ?: return FieldResolution(logical, field.value, null, QueryCompatibilityLevel.COMPATIBLE)
+            ?: return FieldResolution(
+                logical,
+                field.value,
+                null,
+                if (
+                    logical.value.startsWith("${StateAggregateRecords.TAGS}.") &&
+                    schema.fields[LogicalField(StateAggregateRecords.TAGS)]?.dynamicChildren == false
+                ) {
+                    QueryCompatibilityLevel.INCOMPATIBLE
+                } else {
+                    QueryCompatibilityLevel.COMPATIBLE
+                },
+            )
         val binding = fieldSchema.bindings[capability]
             ?: return FieldResolution(
                 logical,
