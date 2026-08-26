@@ -113,6 +113,17 @@ class MongoQuerySchemaAdapterTest {
     }
 
     @Test
+    fun `bind should keep the only non-null validator union type`() {
+        storageType("null", "string")?.value.assert().isEqualTo("string")
+    }
+
+    @Test
+    fun `bind should leave a real multi-type validator union unknown regardless of order`() {
+        storageType("string", "int").assert().isNull()
+        storageType("int", "string").assert().isNull()
+    }
+
+    @Test
     fun `resolve should read indexes and validator without reading documents`() {
         val collection = mockk<MongoCollection<Document>>()
         val database = mockk<MongoDatabase>()
@@ -305,6 +316,20 @@ class MongoQuerySchemaAdapterTest {
             ),
         ),
     )
+
+    private fun storageType(vararg bsonTypes: String) = MongoQuerySchemaAdapter.bind(
+        logicalSchema(),
+        emptyList(),
+        Document(
+            "properties",
+            Document(
+                "state",
+                Document("properties", Document("name", Document("bsonType", bsonTypes.toList()))),
+            ),
+        ),
+    ).fields.getValue(LogicalField("state.name"))
+        .bindings.getValue(QueryCapability.PRESENCE)
+        .storageType
 
     private fun field(
         valueType: QueryValueType,

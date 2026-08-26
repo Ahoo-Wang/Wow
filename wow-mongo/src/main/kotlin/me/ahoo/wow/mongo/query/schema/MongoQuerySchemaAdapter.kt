@@ -155,7 +155,7 @@ class MongoQuerySchemaAdapter(
         private fun Document.storageType(): QueryStorageType? {
             val type = when (val declared = this["bsonType"]) {
                 is String -> declared
-                is Iterable<*> -> declared.filterIsInstance<String>().firstOrNull { it != "null" }
+                is Iterable<*> -> declared.filterIsInstance<String>().filter { it != "null" }.distinct().singleOrNull()
                 else -> null
             }
             return type?.let(::QueryStorageType)
