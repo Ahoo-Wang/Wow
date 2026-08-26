@@ -23,7 +23,12 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.core.publisher.Sinks
 import reactor.test.StepVerifier
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -40,6 +45,43 @@ class DefaultQueryModelSchemaProviderTest {
 
         source.loads.get().assert().isEqualTo(1)
         adapter.resolves.get().assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `stale first load mono should reuse schema published before its subscription`() {
+        val source = CountingSource()
+        val adapter = FixedAdapter()
+        val provider = provider(source, adapter)
+        val staleFirstLoad = provider.schema()
+
+        val refreshed = provider.refresh().block()!!
+        val staleResult = staleFirstLoad.block()!!
+
+        staleResult.assert().isSameAs(refreshed)
+        provider.schema().block()!!.assert().isSameAs(refreshed)
+        source.loads.get().assert().isEqualTo(0)
+        adapter.resolves.get().assert().isEqualTo(0)
+    }
+
+    @Test
+    fun `refresh should remain published when an earlier first load completes later`() {
+        val source = CountingSource()
+        val adapter = DelayedResolveAdapter()
+        val provider = provider(source, adapter)
+        val executor = Executors.newSingleThreadExecutor()
+        try {
+            val initialFuture = CompletableFuture.supplyAsync({ provider.schema().block()!! }, executor)
+            adapter.resolveSubscribed.await(1, TimeUnit.SECONDS).assert().isTrue()
+
+            val refreshed = provider.refresh().block()!!
+            adapter.initialResult.tryEmitValue(adapter.initial).assert().isEqualTo(Sinks.EmitResult.OK)
+
+            initialFuture.get(1, TimeUnit.SECONDS).assert().isSameAs(adapter.initial)
+            provider.schema().block()!!.assert().isSameAs(refreshed)
+        } finally {
+            adapter.initialResult.tryEmitValue(adapter.initial)
+            executor.shutdownNow()
+        }
     }
 
     @Test
@@ -162,6 +204,33 @@ class DefaultQueryModelSchemaProviderTest {
                 Mono.just(newSchema())
             }
         }
+    }
+
+    private class FixedAdapter : QuerySchemaBackendAdapter {
+        val resolves = AtomicInteger()
+        private val initial = newSchema()
+        private val refreshed = newSchema()
+
+        override fun resolve(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> = Mono.fromSupplier {
+            resolves.incrementAndGet()
+            initial
+        }
+
+        override fun refresh(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> = Mono.just(refreshed)
+    }
+
+    private class DelayedResolveAdapter : QuerySchemaBackendAdapter {
+        val initial = newSchema()
+        private val refreshed = newSchema()
+        val initialResult = Sinks.one<QueryModelSchema>()
+        val resolveSubscribed = CountDownLatch(1)
+
+        override fun resolve(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> = Mono.defer {
+            resolveSubscribed.countDown()
+            initialResult.asMono()
+        }
+
+        override fun refresh(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> = Mono.just(refreshed)
     }
 
     companion object {
