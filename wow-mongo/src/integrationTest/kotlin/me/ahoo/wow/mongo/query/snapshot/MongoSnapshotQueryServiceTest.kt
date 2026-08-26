@@ -14,8 +14,11 @@
 package me.ahoo.wow.mongo.query.snapshot
 
 import com.mongodb.reactivestreams.client.MongoDatabase
+import com.mongodb.client.model.Indexes
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
@@ -24,12 +27,15 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCollectionName
 import me.ahoo.wow.mongo.MongoSnapshotStore
 import me.ahoo.wow.query.dsl.aggregation
+import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.schema.DeclarationValue
 import me.ahoo.wow.query.schema.QueryFieldDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.schema.QuerySchemaSourcePriority
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.query
 import me.ahoo.wow.tck.container.MongoTestFixture
@@ -55,11 +61,14 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     @BeforeEach
     override fun setup() {
         database = mongo.database()
+        database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
+            .createIndex(Indexes.text("state.data"))
+            .toMono().test().expectNextCount(1).verifyComplete()
         super.setup()
     }
 
     override fun createSnapshotQueryServiceFactory(): SnapshotQueryServiceFactory {
-        return MongoSnapshotQueryServiceFactory(database)
+        return MongoSnapshotQueryServiceFactory(database, querySchemaSources)
     }
 
     override fun createSnapshotStore(): SnapshotStore {
@@ -122,6 +131,42 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     }
 
     @Test
+    fun `empty search fields should be exact while explicit fields execute compatibly`() {
+        updateStateData("searchable")
+
+        snapshotQueryService.dynamicList(
+            ListQuery(
+                filter = SearchFilter("searchable", setOf(LogicalField("state.data"))),
+                limit = 10,
+            ),
+        ).test().expectNextCount(1).verifyComplete()
+
+        val strictService = MongoSnapshotQueryServiceFactory(
+            database,
+            schemaSources = querySchemaSources,
+            validationMode = QuerySchemaValidationMode.STRICT,
+        ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+        strictService.dynamicList(ListQuery(filter = SearchFilter("searchable"), limit = 10))
+            .test().expectNextCount(1).verifyComplete()
+    }
+
+    @Test
+    fun `strict should reject unknown fields while compatible executes fallback`() {
+        snapshotQueryService.dynamicList(
+            ListQuery(filter = filterExpression { "state.unknown" eq "value" }, limit = 10),
+        ).test().verifyComplete()
+
+        val strictService = MongoSnapshotQueryServiceFactory(
+            database,
+            schemaSources = querySchemaSources,
+            validationMode = QuerySchemaValidationMode.STRICT,
+        ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+        strictService.dynamicList(
+            ListQuery(filter = filterExpression { "state.unknown" eq "value" }, limit = 10),
+        ).test().expectError(QuerySchemaValidationException::class.java).verify()
+    }
+
+    @Test
     fun `epoch date histogram should floor negatives and safely group invalid or multi values as null`() {
         val collection = database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
         collection.insertMany(
@@ -157,6 +202,14 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     private fun epochDocument(id: String, value: Any): Document = Document("_id", id)
         .append("deleted", false)
         .append("state", Document("epochMicros", value))
+
+    private fun updateStateData(value: String) {
+        database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
+            .updateOne(
+                Document("_id", snapshot.aggregateId.id),
+                Document("\$set", Document("state.data", value)),
+            ).toMono().test().expectNextCount(1).verifyComplete()
+    }
 
     private fun epochSource(field: String, timeUnit: TimeUnit): QuerySchemaSource = object : QuerySchemaSource {
         override val priority: Int = QuerySchemaSourcePriority.BEAN

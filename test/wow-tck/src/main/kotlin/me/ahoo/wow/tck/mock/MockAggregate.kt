@@ -19,11 +19,13 @@ import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.annotation.VoidCommand
 import me.ahoo.wow.api.command.validation.CommandValidator
+import me.ahoo.wow.api.query.schema.QueryTemporal
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregateAware
 import java.math.BigDecimal
 import java.time.Instant
+import java.util.concurrent.TimeUnit
 
 val MOCK_AGGREGATE_METADATA = aggregateMetadata<MockCommandAggregate, MockStateAggregate>()
 
@@ -80,6 +82,8 @@ data class MockStateAggregate(
     val id: String,
     val orders: List<MockOrder> = emptyList(),
     val decimalValue: BigDecimal = BigDecimal.ZERO,
+    @field:QueryTemporal(TimeUnit.MILLISECONDS)
+    val createdAt: Long = 0,
 ) : ReadOnlyStateAggregateAware<MockStateAggregate> {
     constructor(id: String) : this(id, emptyList())
 

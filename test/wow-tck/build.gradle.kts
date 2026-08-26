@@ -3,6 +3,7 @@ description = "The Technology Compatibility Kit"
 dependencies {
     api(project(":wow-core"))
     api(project(":wow-query"))
+    implementation(project(":wow-schema"))
     api("io.projectreactor:reactor-test")
     api("me.ahoo.cosid:cosid-test")
     api(project(":wow-test"))

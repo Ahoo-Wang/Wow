@@ -2763,6 +2763,10 @@
       },
       "tck.mock_aggregate.MockStateAggregate" : {
         "properties" : {
+          "createdAt" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
           "data" : {
             "type" : "string"
           },
@@ -2980,6 +2984,10 @@
           },
           "state" : {
             "properties" : {
+              "createdAt" : {
+                "format" : "int64",
+                "type" : "integer"
+              },
               "data" : {
                 "type" : "string"
               },
@@ -3128,6 +3136,10 @@
           },
           "state" : {
             "properties" : {
+              "createdAt" : {
+                "format" : "int64",
+                "type" : "integer"
+              },
               "data" : {
                 "type" : "string"
               },

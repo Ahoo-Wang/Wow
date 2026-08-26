@@ -58,6 +58,10 @@
     "state" : {
       "type" : "object",
       "properties" : {
+        "createdAt" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
         "data" : {
           "type" : "string"
         },

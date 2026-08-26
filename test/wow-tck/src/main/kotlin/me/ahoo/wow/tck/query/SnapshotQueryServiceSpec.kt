@@ -15,6 +15,12 @@ package me.ahoo.wow.tck.query
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationDateUnit
+import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.schema.QueryCapability
+import me.ahoo.wow.api.query.schema.QueryCardinality
+import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QueryValueType
+import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
@@ -33,6 +39,11 @@ import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.count
 import me.ahoo.wow.query.snapshot.dynamicQuery
 import me.ahoo.wow.query.snapshot.query
+import me.ahoo.wow.query.snapshot.requiredQueryModelSchemaProvider
+import me.ahoo.wow.query.schema.toMetadata
+import me.ahoo.wow.query.schema.QuerySchemaSource
+import me.ahoo.wow.schema.query.JsonQuerySchemaSource
+import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockDiscount
 import me.ahoo.wow.tck.mock.MockLine
@@ -44,8 +55,10 @@ import reactor.kotlin.test.test
 import java.math.BigDecimal
 import java.time.Clock
 import java.time.Instant
+import java.util.concurrent.TimeUnit
 
 abstract class SnapshotQueryServiceSpec {
+    protected val querySchemaSources: List<QuerySchemaSource> = listOf(JsonQuerySchemaSource())
     lateinit var snapshotStore: SnapshotStore
     lateinit var snapshotQueryServiceFactory: SnapshotQueryServiceFactory
     lateinit var snapshotQueryService: SnapshotQueryService<MockStateAggregate>
@@ -180,6 +193,93 @@ abstract class SnapshotQueryServiceSpec {
     }
 
     @Test
+    fun `schema should expose system state and backend-neutral capabilities`() {
+        snapshotQueryService.requiredQueryModelSchemaProvider().schema()
+            .test()
+            .assertNext { schema ->
+                schema.model.assert().isEqualTo(QueryModel.SNAPSHOT)
+                schema.fields.keys.assert().contains(
+                    LogicalField("aggregateId"),
+                    LogicalField("eventTime"),
+                    LogicalField("state"),
+                    LogicalField("state.data"),
+                    LogicalField("state.createdAt"),
+                    LogicalField("state.orders"),
+                    LogicalField("state.decimalValue"),
+                )
+                schema.fields.getValue(LogicalField("state.data")).bindings.keys.assert().contains(
+                    QueryCapability.EXACT_MATCH,
+                    QueryCapability.SORT,
+                )
+                val createdAt = schema.fields.getValue(LogicalField("state.createdAt"))
+                createdAt.valueTypes.assert().isEqualTo(setOf(QueryValueType.INTEGER))
+                createdAt.semanticType.assert().isEqualTo(Temporal.Epoch(TimeUnit.MILLISECONDS))
+                createdAt.bindings.keys.assert().contains(
+                    QueryCapability.RANGE,
+                    QueryCapability.SORT,
+                    QueryCapability.AGGREGATE_TEMPORAL,
+                )
+                val orders = schema.fields.getValue(LogicalField("state.orders"))
+                orders.cardinality.assert().isEqualTo(QueryCardinality.MANY)
+                orders.valueTypes.assert().isEqualTo(setOf(QueryValueType.OBJECT))
+                orders.bindings.keys.assert().contains(QueryCapability.ELEMENT_SCOPE)
+                schema.fields.getValue(LogicalField("state.decimalValue")).bindings.keys.assert().contains(
+                    QueryCapability.AGGREGATE_TERMS,
+                    QueryCapability.AGGREGATE_NUMERIC,
+                )
+
+                val metadata = schema.toMetadata()
+                metadata.fields.map { it.field.value }.assert().isEqualTo(
+                    metadata.fields.map { it.field.value }.sorted(),
+                )
+                JsonSerializer.writeValueAsString(metadata).assert()
+                    .doesNotContain("physicalPath", "storageType")
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `schema refresh should replace and publish one new object`() {
+        val provider = snapshotQueryService.requiredQueryModelSchemaProvider()
+        provider.schema()
+            .flatMap { initial ->
+                provider.refresh().flatMap { refreshed ->
+                    provider.schema().map { cached -> Triple(initial, refreshed, cached) }
+                }
+            }.test()
+            .assertNext { (initial, refreshed, cached) ->
+                refreshed.assert().isNotSameAs(initial)
+                cached.assert().isSameAs(refreshed)
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `schema should execute exact range and sort bindings`() {
+        listQuery {
+            filter {
+                "state.data" eq ""
+                "state.createdAt" gte 0L
+            }
+            sort { "state.createdAt".asc() }
+            limit(10)
+        }.query(snapshotQueryService)
+            .test()
+            .expectNextCount(1)
+            .verifyComplete()
+    }
+
+    @Test
+    fun `schema should aggregate annotated epoch fields as time`() {
+        aggregation {
+            dateHistogram("state.createdAt", AggregationDateUnit.DAY, "day")
+            count("count")
+        }.query(snapshotQueryService)
+            .test()
+            .assertNext {
+                it.toMap().assert().isEqualTo(mapOf("day" to 0L, "count" to 1L))
+            }.verifyComplete()
+    }
+
+    @Test
     fun `aggregation should summarize standard root fields with every metric`() {
         saveAggregationStates(*aggregationStates().toTypedArray())
 
@@ -242,7 +342,6 @@ abstract class SnapshotQueryServiceSpec {
             expand("lines") { "productId" isIn listOf("alpha", "beta") }
             sum(field("amount") / (field("quantity") - constant(2.0)), "safeDivision")
             sum(field("quantity") / (field("quantity") - field("quantity")), "zeroDivision")
-            sum(field("productId") * constant(1.0), "text")
             sum(field("missing") * constant(1.0), "missing")
             sum(constant(Double.MAX_VALUE) * constant(2.0), "overflow")
         }.query(snapshotQueryService)
@@ -252,7 +351,6 @@ abstract class SnapshotQueryServiceSpec {
                     mapOf(
                         "safeDivision" to 5.0,
                         "zeroDivision" to null,
-                        "text" to null,
                         "missing" to null,
                         "overflow" to null,
                     ),

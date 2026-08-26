@@ -41,6 +41,8 @@ import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.schema.QuerySchemaSourcePriority
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.query
@@ -92,6 +94,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                                             .fields("keyword") { keyword -> keyword.keyword { it } }
                                     }
                                 }.properties("decimalValue") { it.double_ { number -> number } }
+                                .properties("createdAt") { it.long_ { number -> number } }
                                 .properties("unreadableNumber") {
                                     it.double_ { number -> number.index(false).docValues(false) }
                                 }.properties("epochMicros") { it.long_ { number -> number } }
@@ -132,7 +135,13 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     }
 
     override fun createSnapshotQueryServiceFactory(): SnapshotQueryServiceFactory =
-        ElasticsearchSnapshotQueryServiceFactory(elasticsearchClient)
+        ElasticsearchSnapshotQueryServiceFactory(
+            elasticsearchClient,
+            me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
+            me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
+            querySchemaSources,
+            QuerySchemaValidationMode.COMPATIBLE,
+        )
 
     override fun createSnapshotStore(): SnapshotStore = ElasticsearchSnapshotStore(elasticsearchClient)
 
@@ -145,6 +154,43 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         ).test()
             .expectNextCount(1)
             .verifyComplete()
+    }
+
+    @Test
+    fun `field specific search bindings should be exact`() {
+        updateState(mapOf("data" to "searchable"))
+        val strictService = ElasticsearchSnapshotQueryServiceFactory(
+            elasticsearchClient,
+            me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
+            me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
+            querySchemaSources,
+            QuerySchemaValidationMode.STRICT,
+        ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+
+        strictService.dynamicList(
+            ListQuery(
+                filter = SearchFilter("searchable", setOf(LogicalField("state.data"))),
+                limit = 10,
+            ),
+        ).test().expectNextCount(1).verifyComplete()
+    }
+
+    @Test
+    fun `strict should reject unknown fields while compatible executes fallback`() {
+        snapshotQueryService.dynamicList(
+            ListQuery(filter = filterExpression { "state.unknown" eq "value" }, limit = 10),
+        ).test().verifyComplete()
+
+        val strictService = ElasticsearchSnapshotQueryServiceFactory(
+            elasticsearchClient,
+            me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
+            me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
+            querySchemaSources,
+            QuerySchemaValidationMode.STRICT,
+        ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+        strictService.dynamicList(
+            ListQuery(filter = filterExpression { "state.unknown" eq "value" }, limit = 10),
+        ).test().expectError(QuerySchemaValidationException::class.java).verify()
     }
 
     @Test
@@ -163,9 +209,11 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
 
     @Test
     fun `computed metric should ignore an unreadable text field`() {
+        val service = ElasticsearchSnapshotQueryServiceFactory(elasticsearchClient)
+            .create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
         aggregation {
             sum(field("state.data") * constant(1.0), "unreadable")
-        }.query(snapshotQueryService)
+        }.query(service)
             .test()
             .assertNext { it.toMap().assert().isEqualTo(mapOf("unreadable" to null)) }
             .verifyComplete()
