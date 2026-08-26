@@ -18,6 +18,7 @@ import co.elastic.clients.elasticsearch._types.mapping.CountedKeywordProperty
 import co.elastic.clients.elasticsearch._types.mapping.DateNanosProperty
 import co.elastic.clients.elasticsearch._types.mapping.DateProperty
 import co.elastic.clients.elasticsearch._types.mapping.DocValuesPropertyBase
+import co.elastic.clients.elasticsearch._types.mapping.DynamicMapping
 import co.elastic.clients.elasticsearch._types.mapping.FlattenedProperty
 import co.elastic.clients.elasticsearch._types.mapping.IcuCollationProperty
 import co.elastic.clients.elasticsearch._types.mapping.IpProperty
@@ -92,25 +93,28 @@ data class ElasticsearchIndexMapping private constructor(
             val fields = linkedMapOf<String, ElasticsearchMappedField>()
             val aliases = linkedMapOf<String, String>()
 
-            fun visit(path: String, property: Property) {
+            fun visit(path: String, property: Property, parentDynamic: Boolean) {
                 if (property.isAlias) {
                     property.alias().path()?.let { aliases[path] = it }
                     return
                 }
                 val propertyBase = property._get() as? PropertyBase
+                val dynamic = property.hasDynamicChildren(parentDynamic)
                 val multiFields = propertyBase?.fields().orEmpty().keys.mapTo(linkedSetOf()) { "$path.$it" }
                 fields[path] = ElasticsearchMappedField(
                     kind = property._kind(),
                     indexed = property.isIndexed(),
                     sortable = property.isSortable(),
                     aggregatable = property.isAggregatable(),
+                    dynamic = dynamic,
                     multiFields = multiFields,
                 )
-                propertyBase?.fields().orEmpty().forEach { (name, field) -> visit("$path.$name", field) }
-                propertyBase?.properties().orEmpty().forEach { (name, field) -> visit("$path.$name", field) }
+                propertyBase?.fields().orEmpty().forEach { (name, field) -> visit("$path.$name", field, dynamic) }
+                propertyBase?.properties().orEmpty().forEach { (name, field) -> visit("$path.$name", field, dynamic) }
             }
 
-            typeMapping.properties().forEach { (name, property) -> visit(name, property) }
+            val rootDynamic = typeMapping.dynamic().allowsDynamicFields(parent = true)
+            typeMapping.properties().forEach { (name, property) -> visit(name, property, rootDynamic) }
             typeMapping.runtime().forEach { (name, runtimeField) ->
                 if (runtimeField.type() == RuntimeFieldType.Composite) {
                     runtimeField.fields().forEach { (fieldName, field) ->
@@ -133,6 +137,7 @@ internal data class ElasticsearchMappedField(
     val indexed: Boolean,
     val sortable: Boolean,
     val aggregatable: Boolean,
+    val dynamic: Boolean,
     val multiFields: Set<String>,
 )
 
@@ -151,9 +156,24 @@ private fun RuntimeFieldType.toMappedField(): ElasticsearchMappedField? {
         indexed = true,
         sortable = true,
         aggregatable = true,
+        dynamic = false,
         multiFields = emptySet(),
     )
 }
+
+private fun DynamicMapping?.allowsDynamicFields(parent: Boolean): Boolean = when (this) {
+    null -> parent
+    DynamicMapping.True,
+    DynamicMapping.Runtime,
+    -> true
+    DynamicMapping.False,
+    DynamicMapping.Strict,
+    -> false
+}
+
+private fun Property.hasDynamicChildren(parent: Boolean): Boolean =
+    (_get() as? PropertyBase)?.dynamic().allowsDynamicFields(parent) &&
+        (!isObject || `object`().enabled() != false)
 
 private fun Property.isAggregatable(): Boolean = when (_kind()) {
     Property.Kind.ConstantKeyword,

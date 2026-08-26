@@ -30,8 +30,10 @@ import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
@@ -85,6 +87,63 @@ class ElasticsearchSnapshotMappingQueryTest {
             .verify()
 
         verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+    }
+
+    @Test
+    fun `strict service should reject a root nested child filter before search`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(queryMapping()),
+        )
+
+        strictQueryService().dynamicList(
+            ListQuery(filter = equal("state.orders.status", "PAID"), limit = 10),
+        ).test()
+            .expectError(QuerySchemaValidationException::class.java)
+            .verify()
+
+        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+    }
+
+    @Test
+    fun `strict service should reject a root nested child sort before search`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(queryMapping()),
+        )
+
+        strictQueryService().dynamicList(
+            ListQuery(
+                filter = MatchAllFilter,
+                sort = listOf(Sort("state.orders.status", Sort.Direction.ASC)),
+                limit = 10,
+            ),
+        ).test()
+            .expectError(QuerySchemaValidationException::class.java)
+            .verify()
+
+        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+    }
+
+    @Test
+    fun `strict service should execute a nested child inside element match`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(queryMapping()),
+        )
+
+        strictQueryService().dynamicList(
+            ListQuery(
+                filter = filter {
+                    "state.orders".elementMatch {
+                        "status" eq "PAID"
+                    }
+                },
+                limit = 10,
+            ),
+        ).test().verifyComplete()
+
+        val nested = searchRequest.captured.query()!!.bool().filter()[1].nested()
+        nested.path().assert().isEqualTo("state.orders")
+        nested.query().term().field().assert().isEqualTo("state.orders.status")
+        verify(exactly = 1) { client.search(any<SearchRequest>(), Map::class.java) }
     }
 
     @Test
@@ -270,6 +329,15 @@ class ElasticsearchSnapshotMappingQueryTest {
             QuerySchemaValidationMode.COMPATIBLE,
         ).create<Any>(MOCK_AGGREGATE_METADATA) as ElasticsearchSnapshotQueryService<Any>
 
+    private fun strictQueryService(): ElasticsearchSnapshotQueryService<Any> =
+        ElasticsearchSnapshotQueryServiceFactory(
+            client,
+            DEFAULT_SEARCH_BATCH_SIZE,
+            DEFAULT_PIT_KEEP_ALIVE,
+            schemaSources(),
+            QuerySchemaValidationMode.STRICT,
+        ).create<Any>(MOCK_AGGREGATE_METADATA) as ElasticsearchSnapshotQueryService<Any>
+
     private fun schemaSources(): List<QuerySchemaSource> {
         val context = QuerySchemaContext(MOCK_AGGREGATE_METADATA.materialize(), QueryModel.SNAPSHOT)
         val fields = listOf(
@@ -278,7 +346,14 @@ class ElasticsearchSnapshotMappingQueryTest {
             "state.newField" to QueryValueType.STRING,
         ).associate { (field, type) ->
             LogicalField(field) to QueryFieldDeclaration(valueTypes = DeclarationValue.Set(setOf(type)))
-        }
+        }.toMutableMap()
+        fields[LogicalField("state.orders")] = QueryFieldDeclaration(
+            valueTypes = DeclarationValue.Set(setOf(QueryValueType.OBJECT)),
+            cardinality = DeclarationValue.Set(QueryCardinality.MANY),
+        )
+        fields[LogicalField("state.orders.status")] = QueryFieldDeclaration(
+            valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
+        )
         return listOf(
             BeanQuerySchemaSource(
                 listOf(QuerySchemaRegistration(context, QuerySchemaDeclaration(fields))),
@@ -318,6 +393,11 @@ class ElasticsearchSnapshotMappingQueryTest {
                                 text.fields("keyword") { keyword -> keyword.keyword { it } }
                             }
                         }.properties("age") { age -> age.integer { it } }
+                        .properties("orders") { orders ->
+                            orders.nested { nested ->
+                                nested.properties("status") { status -> status.keyword { it } }
+                            }
+                        }
                     if (includeNewField) {
                         objectField.properties("newField") { field -> field.keyword { it } }
                     }

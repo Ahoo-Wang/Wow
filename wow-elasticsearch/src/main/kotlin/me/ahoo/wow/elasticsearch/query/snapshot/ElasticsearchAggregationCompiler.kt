@@ -185,31 +185,39 @@ internal class ElasticsearchAggregationCompiler(
             "multiplier" to JsonData.of(multiplier),
             "divisor" to JsonData.of(divisor),
         )
-        val source = buildString {
-            append("String field=params.field;")
-            append("try {")
-            append("if(doc.containsKey(field)&&doc[field].size() == 1){")
-            append("def raw=doc[field].value;")
-            append("if(raw instanceof Number){")
-            append("boolean floating=raw instanceof Double||raw instanceof Float;")
-            append("double numeric=((Number)raw).doubleValue();")
-            append("if(Double.isFinite(numeric)&&")
-            append("(!floating||(numeric>=-9.223372036854776E18&&numeric<9.223372036854776E18))){")
-            append("long epoch=((Number)raw).longValue();")
-            append("if(!floating||numeric==(double)epoch){")
-            append("long divisor=((Number)params.divisor).longValue();")
-            append("long millis=epoch/divisor;")
-            append("if(epoch<0L&&epoch%divisor!=0L){millis-=1L;}")
-            append("long multiplier=((Number)params.multiplier).longValue();")
-            append("if(millis<=Long.MAX_VALUE/multiplier&&millis>=Long.MIN_VALUE/multiplier){")
-            append("emit(millis*multiplier);")
-            append("}")
-            append("}")
-            append("}")
-            append("}")
-            append("}")
-            append("} catch (Exception ignored) {}")
-        }
+        val source = """
+            String field = params.field;
+            try {
+                if (doc.containsKey(field) && doc[field].size() == 1) {
+                    def raw = doc[field].value;
+                    if (raw instanceof Number) {
+                        boolean floating = raw instanceof Double || raw instanceof Float;
+                        double numeric = ((Number) raw).doubleValue();
+                        if (
+                            Double.isFinite(numeric) &&
+                            (!floating ||
+                                (numeric >= -9.223372036854776E18 && numeric < 9.223372036854776E18))
+                        ) {
+                            long epoch = ((Number) raw).longValue();
+                            if (!floating || numeric == (double) epoch) {
+                                long divisor = ((Number) params.divisor).longValue();
+                                long millis = epoch / divisor;
+                                if (epoch < 0L && epoch % divisor != 0L) {
+                                    millis -= 1L;
+                                }
+                                long multiplier = ((Number) params.multiplier).longValue();
+                                if (
+                                    millis <= Long.MAX_VALUE / multiplier &&
+                                    millis >= Long.MIN_VALUE / multiplier
+                                ) {
+                                    emit(millis * multiplier);
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+        """.trimIndent()
         return RuntimeField.of { runtime ->
             runtime.type(RuntimeFieldType.Date)
                 .script(

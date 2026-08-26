@@ -15,7 +15,9 @@ package me.ahoo.wow.elasticsearch.query.schema
 
 import co.elastic.clients.elasticsearch._types.mapping.Property
 import me.ahoo.wow.api.query.schema.QueryCapability
+import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
@@ -150,23 +152,109 @@ class ElasticsearchQuerySchemaAdapter(
 private fun ElasticsearchMappedField.supports(
     capability: QueryCapability,
     logical: LogicalQueryFieldSchema,
-): Boolean = when (capability) {
-    QueryCapability.PRESENCE -> queryable
-    QueryCapability.EXACT_MATCH -> queryable && kind in EXACT_KINDS
-    QueryCapability.LITERAL_MATCH -> indexed && kind in LITERAL_KINDS
-    QueryCapability.RANGE -> queryable && kind in RANGE_KINDS
-    QueryCapability.FULL_TEXT_TERMS -> indexed && kind in SEARCH_KINDS
-    QueryCapability.FULL_TEXT_PHRASE -> indexed && kind in PHRASE_SEARCH_KINDS
-    QueryCapability.SORT -> sortable && (kind in EXACT_KINDS || (indexed && kind == Property.Kind.Text))
-    QueryCapability.ELEMENT_SCOPE -> kind == Property.Kind.Nested
-    QueryCapability.AGGREGATE_TERMS -> aggregatable && kind in EXACT_KINDS
-    QueryCapability.AGGREGATE_NUMERIC -> aggregatable && kind in NUMERIC_KINDS
-    QueryCapability.AGGREGATE_TEMPORAL -> aggregatable && when (logical.semanticType) {
-        Temporal.Date -> kind == Property.Kind.Date || kind == Property.Kind.DateNanos
-        is Temporal.Epoch -> kind in NUMERIC_KINDS
+): Boolean {
+    val executable = when (capability) {
+        QueryCapability.PRESENCE -> if (logical.isDynamicObject) supportsDynamicObject else queryable
+        QueryCapability.EXACT_MATCH -> if (logical.isDynamicObject) {
+            supportsDynamicObject
+        } else {
+            queryable && kind in EXACT_KINDS
+        }
+        QueryCapability.LITERAL_MATCH -> indexed && kind in LITERAL_KINDS
+        QueryCapability.RANGE -> queryable && kind in RANGE_KINDS
+        QueryCapability.FULL_TEXT_TERMS -> indexed && kind in SEARCH_KINDS
+        QueryCapability.FULL_TEXT_PHRASE -> indexed && kind in PHRASE_SEARCH_KINDS
+        QueryCapability.SORT -> sortable && (kind in EXACT_KINDS || (indexed && kind == Property.Kind.Text))
+        QueryCapability.ELEMENT_SCOPE -> kind == Property.Kind.Nested
+        QueryCapability.AGGREGATE_TERMS -> aggregatable && kind in EXACT_KINDS
+        QueryCapability.AGGREGATE_NUMERIC -> aggregatable && kind in NUMERIC_KINDS
+        QueryCapability.AGGREGATE_TEMPORAL -> aggregatable && when (logical.semanticType) {
+            Temporal.Date -> kind == Property.Kind.Date || kind == Property.Kind.DateNanos
+            is Temporal.Epoch -> kind in NUMERIC_KINDS
+            else -> false
+        }
         else -> false
     }
-    else -> false
+    return executable && (capability == QueryCapability.PRESENCE || logical.proves(capability, kind))
+}
+
+private val LogicalQueryFieldSchema.isDynamicObject: Boolean
+    get() = dynamicChildren && QueryValueType.OBJECT in valueTypes
+
+private val ElasticsearchMappedField.supportsDynamicObject: Boolean
+    get() = kind == Property.Kind.Flattened || kind == Property.Kind.Object && dynamic
+
+private fun LogicalQueryFieldSchema.proves(capability: QueryCapability, kind: Property.Kind): Boolean =
+    storageRequirements(capability).let { requirements ->
+        requirements.isNotEmpty() && requirements.all { kind in it }
+    }
+
+private fun LogicalQueryFieldSchema.storageRequirements(
+    capability: QueryCapability,
+): List<Set<Property.Kind>> = when (capability) {
+    QueryCapability.EXACT_MATCH -> if (isDynamicObject) {
+        listOf(DYNAMIC_OBJECT_KINDS)
+    } else {
+        valueRequirements()
+    }
+    QueryCapability.LITERAL_MATCH,
+    QueryCapability.FULL_TEXT_TERMS,
+    QueryCapability.FULL_TEXT_PHRASE,
+    -> stringRequirements()
+    QueryCapability.RANGE -> temporalRequirements().ifEmpty { numericRequirements() }
+    QueryCapability.SORT,
+    QueryCapability.AGGREGATE_TERMS,
+    -> valueRequirements()
+    QueryCapability.ELEMENT_SCOPE -> if (
+        cardinality == QueryCardinality.MANY && QueryValueType.OBJECT in valueTypes
+    ) {
+        listOf(NESTED_KINDS)
+    } else {
+        emptyList()
+    }
+    QueryCapability.AGGREGATE_NUMERIC -> numericRequirements()
+    QueryCapability.AGGREGATE_TEMPORAL -> temporalRequirements()
+    else -> emptyList()
+}
+
+private fun LogicalQueryFieldSchema.valueRequirements(): List<Set<Property.Kind>> = when (semanticType) {
+    Temporal.Date,
+    is Temporal.Epoch,
+    -> temporalRequirements()
+    else -> valueTypes.map(QueryValueType::storageKinds)
+}
+
+private fun LogicalQueryFieldSchema.stringRequirements(): List<Set<Property.Kind>> = when (semanticType) {
+    Temporal.Date,
+    is Temporal.Epoch,
+    -> emptyList()
+    else -> valueTypes.filter { it == QueryValueType.STRING }.map { STRING_KINDS }
+}
+
+private fun LogicalQueryFieldSchema.numericRequirements(): List<Set<Property.Kind>> = when (semanticType) {
+    Temporal.Date -> emptyList()
+    is Temporal.Epoch -> temporalRequirements()
+    else -> valueTypes.mapNotNull {
+        when (it) {
+            QueryValueType.INTEGER -> INTEGER_KINDS
+            QueryValueType.DECIMAL -> NUMERIC_KINDS
+            else -> null
+        }
+    }
+}
+
+private fun LogicalQueryFieldSchema.temporalRequirements(): List<Set<Property.Kind>> = when (semanticType) {
+    Temporal.Date -> if (valueTypes == setOf(QueryValueType.STRING)) listOf(DATE_KINDS) else emptyList()
+    is Temporal.Epoch -> if (valueTypes == setOf(QueryValueType.INTEGER)) listOf(INTEGER_KINDS) else emptyList()
+    else -> emptyList()
+}
+
+private fun QueryValueType.storageKinds(): Set<Property.Kind> = when (this) {
+    QueryValueType.STRING -> STRING_KINDS
+    QueryValueType.INTEGER -> INTEGER_KINDS
+    QueryValueType.DECIMAL -> NUMERIC_KINDS
+    QueryValueType.BOOLEAN -> BOOLEAN_KINDS
+    else -> emptySet()
 }
 
 private val ElasticsearchMappedField.queryable: Boolean
@@ -181,6 +269,7 @@ private val INTEGER_KINDS = setOf(
     Property.Kind.Short,
     Property.Kind.Integer,
     Property.Kind.Long,
+    Property.Kind.TokenCount,
     Property.Kind.UnsignedLong,
 )
 
@@ -189,7 +278,6 @@ private val NUMERIC_KINDS = INTEGER_KINDS + setOf(
     Property.Kind.Float,
     Property.Kind.Double,
     Property.Kind.ScaledFloat,
-    Property.Kind.TokenCount,
 )
 
 private val KEYWORD_KINDS = setOf(
@@ -200,6 +288,14 @@ private val KEYWORD_KINDS = setOf(
 )
 
 private val TERM_KINDS = KEYWORD_KINDS + Property.Kind.Wildcard
+
+private val BOOLEAN_KINDS = setOf(Property.Kind.Boolean)
+
+private val DATE_KINDS = setOf(Property.Kind.Date, Property.Kind.DateNanos)
+
+private val NESTED_KINDS = setOf(Property.Kind.Nested)
+
+private val DYNAMIC_OBJECT_KINDS = setOf(Property.Kind.Object, Property.Kind.Flattened)
 
 private val RANGE_FIELD_KINDS = setOf(
     Property.Kind.IntegerRange,
@@ -240,6 +336,8 @@ private val SEARCH_KINDS = setOf(
     Property.Kind.SearchAsYouType,
     Property.Kind.SemanticText,
 )
+
+private val STRING_KINDS = TERM_KINDS + SEARCH_KINDS
 
 private val PHRASE_SEARCH_KINDS = SEARCH_KINDS - Property.Kind.SemanticText
 private val MATCH_KINDS = SEARCH_KINDS + EXACT_KINDS

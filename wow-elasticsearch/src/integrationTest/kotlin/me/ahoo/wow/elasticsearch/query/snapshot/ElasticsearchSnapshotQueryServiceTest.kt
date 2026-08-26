@@ -21,6 +21,7 @@ import co.elastic.clients.json.JsonData
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.schema.QueryCapability
@@ -37,14 +38,20 @@ import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.schema.DeclarationValue
 import me.ahoo.wow.query.schema.QueryFieldDeclaration
+import me.ahoo.wow.query.schema.QueryFieldBinding
+import me.ahoo.wow.query.schema.QueryFieldSchema
+import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.schema.QuerySchemaSourcePriority
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
+import me.ahoo.wow.query.schema.QueryStorageType
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
+import me.ahoo.wow.query.snapshot.filter.AbacQueryFilter.Companion.toFilterExpression
 import me.ahoo.wow.query.snapshot.query
 import me.ahoo.wow.query.snapshot.requiredQueryModelSchemaProvider
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
@@ -56,6 +63,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 import java.util.concurrent.TimeUnit
 
@@ -194,6 +202,66 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     }
 
     @Test
+    fun `strict should execute the built-in ABAC tags filter shape`() {
+        val strictService = strictService()
+        val schema = strictService.requiredQueryModelSchemaProvider().schema().block()!!
+        schema.fields.getValue(LogicalField("tags")).bindings.keys.assert().contains(
+            QueryCapability.PRESENCE,
+            QueryCapability.EXACT_MATCH,
+        )
+        updateDocument(
+            mapOf(
+                "tags" to mapOf(
+                    "visibility" to listOf("public"),
+                    "department" to listOf("eng"),
+                ),
+            ),
+        )
+        val abacFilter = mapOf(
+            "visibility" to listOf("*"),
+            "department" to listOf("eng"),
+            "region" to listOf("cn"),
+        ).toFilterExpression()
+
+        strictService.dynamicList(ListQuery(filter = abacFilter, limit = 10))
+            .test().expectNextCount(1).verifyComplete()
+    }
+
+    @Test
+    fun `strict should reject a root nested child filter`() {
+        strictService().dynamicList(
+            ListQuery(filter = filterExpression { "state.orders.status" eq "PAID" }, limit = 10),
+        ).test().expectError(QuerySchemaValidationException::class.java).verify()
+    }
+
+    @Test
+    fun `strict should reject a root nested child sort`() {
+        strictService().dynamicList(
+            ListQuery(
+                filter = MatchAllFilter,
+                sort = listOf(Sort("state.orders.status", Sort.Direction.ASC)),
+                limit = 10,
+            ),
+        ).test().expectError(QuerySchemaValidationException::class.java).verify()
+    }
+
+    @Test
+    fun `strict should execute a nested child inside element match`() {
+        updateState(mapOf("orders" to listOf(mapOf("status" to "PAID"))))
+
+        strictService().dynamicList(
+            ListQuery(
+                filter = filterExpression {
+                    "state.orders".elementMatch {
+                        "status" eq "PAID"
+                    }
+                },
+                limit = 10,
+            ),
+        ).test().expectNextCount(1).verifyComplete()
+    }
+
+    @Test
     fun `direct service constructor should retain snapshot identity schema behavior`() {
         val service = ElasticsearchSnapshotQueryService<MockStateAggregate>(
             MOCK_AGGREGATE_METADATA,
@@ -296,20 +364,12 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                 "epochFraction" to 1.5,
             ),
         )
-        val service = ElasticsearchSnapshotQueryServiceFactory(
-            elasticsearchClient,
-            me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
-            me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
-            listOf(
-                source(
-                    epochField("state.epochMicros", TimeUnit.MICROSECONDS),
-                    epochField("state.epochNanos", TimeUnit.NANOSECONDS),
-                    epochField("state.epochSeconds", TimeUnit.SECONDS),
-                    epochField("state.epochFraction", TimeUnit.MILLISECONDS),
-                ),
-            ),
-            me.ahoo.wow.query.schema.QuerySchemaValidationMode.COMPATIBLE,
-        ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+        val service = epochService(
+            epochSchemaField("state.epochMicros", TimeUnit.MICROSECONDS, "long"),
+            epochSchemaField("state.epochNanos", TimeUnit.NANOSECONDS, "long"),
+            epochSchemaField("state.epochSeconds", TimeUnit.SECONDS, "long"),
+            epochSchemaField("state.epochFraction", TimeUnit.MILLISECONDS, "double"),
+        )
 
         dateHistogram(service, "state.epochMicros").test()
             .assertNext { rows ->
@@ -344,18 +404,10 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                 "epochFraction" to 9.223372036854776E18,
             ),
         )
-        val service = ElasticsearchSnapshotQueryServiceFactory(
-            elasticsearchClient,
-            me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
-            me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
-            listOf(
-                source(
-                    epochField("state.epochMillis", TimeUnit.MILLISECONDS),
-                    epochField("state.epochFraction", TimeUnit.MILLISECONDS),
-                ),
-            ),
-            me.ahoo.wow.query.schema.QuerySchemaValidationMode.COMPATIBLE,
-        ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+        val service = epochService(
+            epochSchemaField("state.epochMillis", TimeUnit.MILLISECONDS, "long"),
+            epochSchemaField("state.epochFraction", TimeUnit.MILLISECONDS, "double"),
+        )
 
         dateHistogram(service, "state.epochMillis").test()
             .assertNext { rows ->
@@ -374,16 +426,69 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
 
     @Suppress("UNCHECKED_CAST")
     private fun updateState(state: Map<String, Any>) {
+        updateDocument(mapOf("state" to state))
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun updateDocument(document: Map<String, Any>) {
         elasticsearchClient.update(
             UpdateRequest.of<Map<String, Any?>, Map<String, Any?>> { request ->
                 request.index(MOCK_AGGREGATE_METADATA.toSnapshotIndexName())
                     .id(snapshot.aggregateId.id)
-                    .doc(mapOf("state" to state))
+                    .doc(document)
                     .refresh(Refresh.True)
             },
             Map::class.java as Class<Map<String, Any?>>,
         ).block()
     }
+
+    private fun strictService(): SnapshotQueryService<MockStateAggregate> =
+        ElasticsearchSnapshotQueryServiceFactory(
+            elasticsearchClient,
+            me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
+            me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
+            querySchemaSources,
+            QuerySchemaValidationMode.STRICT,
+        ).create(MOCK_AGGREGATE_METADATA)
+
+    private fun epochService(
+        vararg fields: Pair<LogicalField, QueryFieldSchema>,
+    ): SnapshotQueryService<MockStateAggregate> {
+        val schema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), fields.toMap())
+        val provider = object : QueryModelSchemaProvider {
+            override fun schema(): Mono<QueryModelSchema> = Mono.just(schema)
+
+            override fun refresh(): Mono<QueryModelSchema> = Mono.just(schema)
+        }
+        return ElasticsearchSnapshotQueryService(
+            MOCK_AGGREGATE_METADATA,
+            elasticsearchClient,
+            provider,
+            QuerySchemaValidationMode.COMPATIBLE,
+        )
+    }
+
+    private fun epochSchemaField(
+        field: String,
+        timeUnit: TimeUnit,
+        storageType: String,
+    ) = LogicalField(field) to QueryFieldSchema(
+        title = null,
+        description = null,
+        enumValues = null,
+        valueTypes = setOf(QueryValueType.INTEGER),
+        nullable = true,
+        required = false,
+        cardinality = QueryCardinality.SINGLE,
+        semanticType = Temporal.Epoch(timeUnit),
+        dynamicChildren = false,
+        bindings = mapOf(
+            QueryCapability.AGGREGATE_TEMPORAL to QueryFieldBinding(
+                physicalPath = field,
+                storageType = QueryStorageType(storageType),
+            ),
+        ),
+    )
 
     private fun source(vararg fields: Pair<LogicalField, QueryFieldDeclaration>): QuerySchemaSource =
         object : QuerySchemaSource {
