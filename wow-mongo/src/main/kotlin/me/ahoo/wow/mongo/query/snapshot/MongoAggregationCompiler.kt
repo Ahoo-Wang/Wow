@@ -13,8 +13,11 @@
 
 package me.ahoo.wow.mongo.query.snapshot
 
+import com.mongodb.client.model.Accumulators
 import com.mongodb.client.model.Aggregates
+import com.mongodb.client.model.BsonField
 import com.mongodb.client.model.Filters
+import com.mongodb.client.model.Projections
 import com.mongodb.client.model.Sorts
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationExpression
@@ -82,36 +85,57 @@ internal class MongoAggregationCompiler(
         val id = query.groupBy
             .takeIf { it.isNotEmpty() }
             ?.associateTo(Document()) { it.alias to it.expression(parent, schema) }
-        val group = Document("_id", id)
-        query.metrics.forEach { metric ->
-            when (metric) {
-                is AggregationMetric.Count -> group[metric.alias] = Document("\$sum", 1)
-                is AggregationMetric.Numeric -> {
-                    val (input, contributes) = metric.toMongoInput(parent, schema)
-                    group[metric.alias] = Document("\$${metric.function.name.lowercase()}", input)
-                    group[metric.countAlias] = Document(
-                        "\$sum",
-                        Document("\$cond", listOf(contributes, 1, 0)),
-                    )
+        val accumulators = buildList {
+            query.metrics.forEach { metric ->
+                when (metric) {
+                    is AggregationMetric.Count -> add(Accumulators.sum(metric.alias, 1))
+                    is AggregationMetric.Numeric -> {
+                        val (input, contributes) = metric.toMongoInput(parent, schema)
+                        add(metric.function.accumulate(metric.alias, input))
+                        add(
+                            Accumulators.sum(
+                                metric.countAlias,
+                                Document("\$cond", listOf(contributes, 1, 0)),
+                            ),
+                        )
+                    }
                 }
             }
         }
-        return Document("\$group", group)
+        return Aggregates.group(id, accumulators)
     }
 
     private fun project(query: AggregationQuery): Bson {
-        val project = Document("_id", 0)
-        query.groupBy.forEach { project[it.alias] = "\$_id.${it.alias}" }
-        query.metrics.forEach { metric ->
-            project[metric.alias] = when (metric) {
-                is AggregationMetric.Count -> 1
-                is AggregationMetric.Numeric -> Document(
-                    "\$cond",
-                    listOf(Document("\$eq", listOf("\$${metric.countAlias}", 0)), null, "\$${metric.alias}"),
+        val projections = buildList {
+            add(Projections.excludeId())
+            query.groupBy.forEach { add(Projections.computed(it.alias, "\$_id.${it.alias}")) }
+            query.metrics.forEach { metric ->
+                add(
+                    when (metric) {
+                        is AggregationMetric.Count -> Projections.include(metric.alias)
+                        is AggregationMetric.Numeric -> Projections.computed(
+                            metric.alias,
+                            Document(
+                                "\$cond",
+                                listOf(
+                                    Document("\$eq", listOf("\$${metric.countAlias}", 0)),
+                                    null,
+                                    "\$${metric.alias}",
+                                ),
+                            ),
+                        )
+                    },
                 )
             }
         }
-        return Aggregates.project(project)
+        return Aggregates.project(Projections.fields(projections))
+    }
+
+    private fun AggregationFunction.accumulate(field: String, input: Any): BsonField = when (this) {
+        AggregationFunction.SUM -> Accumulators.sum(field, input)
+        AggregationFunction.AVG -> Accumulators.avg(field, input)
+        AggregationFunction.MIN -> Accumulators.min(field, input)
+        AggregationFunction.MAX -> Accumulators.max(field, input)
     }
 
     private fun AggregationGroup.expression(parent: String?, schema: QueryModelSchema?): Any = when (this) {
