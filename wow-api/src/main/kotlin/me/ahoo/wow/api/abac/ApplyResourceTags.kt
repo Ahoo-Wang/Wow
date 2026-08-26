@@ -29,7 +29,11 @@ interface ResourceTagsApplied : AbacTagsApplied
 @CommandRoute(action = "tags", method = CommandRoute.Method.PUT, appendIdPath = CommandRoute.AppendPath.ALWAYS)
 data class DefaultApplyResourceTags(
     override val tags: AbacTags
-) : ApplyResourceTags
+) : ApplyResourceTags {
+    init {
+        tags.validateAbacTags()
+    }
+}
 
 /**
  * Default event emitted after ABAC resource tags are applied.
@@ -38,4 +42,8 @@ data class DefaultApplyResourceTags(
  */
 data class DefaultResourceTagsApplied(
     override val tags: AbacTags
-) : ResourceTagsApplied
+) : ResourceTagsApplied {
+    init {
+        tags.validateAbacTags()
+    }
+}

@@ -13,13 +13,20 @@
 
 package me.ahoo.wow.elasticsearch.query
 
+import co.elastic.clients.elasticsearch._types.ErrorResponse
+import co.elastic.clients.elasticsearch._types.mapping.DynamicMapping
+import co.elastic.clients.elasticsearch._types.mapping.DynamicTemplate
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch.indices.GetMappingRequest
 import co.elastic.clients.elasticsearch.indices.GetMappingResponse
 import co.elastic.clients.elasticsearch.indices.get_mapping.IndexMappingRecord
+import co.elastic.clients.transport.ElasticsearchTransport
+import co.elastic.clients.transport.TransportOptions
+import co.elastic.clients.util.NamedValue
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import jakarta.json.JsonValue
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
@@ -27,6 +34,7 @@ import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchIn
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 import reactor.kotlin.test.test
+import java.util.concurrent.CompletableFuture
 
 class ElasticsearchIndexMappingResolverTest {
     private val client = mockk<ReactiveElasticsearchClient>()
@@ -136,6 +144,29 @@ class ElasticsearchIndexMappingResolverTest {
             }.verify()
     }
 
+    @Test
+    fun `raw mapping failure should preserve its cause and allow retry`() {
+        val transport = mockk<ElasticsearchTransport>()
+        val options = mockk<TransportOptions>()
+        val failure = IllegalStateException("raw mapping unavailable")
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returnsMany listOf(
+            Mono.just(dynamicMappingResponse()),
+            Mono.just(dynamicMappingResponse()),
+        )
+        every { client._transport() } returns transport
+        every { client._transportOptions() } returns options
+        every {
+            transport.performRequestAsync<GetMappingRequest, JsonValue, ErrorResponse>(any(), any(), options)
+        } returnsMany listOf(
+            CompletableFuture.failedFuture(failure),
+            CompletableFuture.completedFuture(rawDynamicMapping()),
+        )
+        val resolver = ElasticsearchIndexMappingResolver(client)
+
+        resolver.refresh(INDEX).test().expectErrorMatches { it === failure }.verify()
+        resolver.refresh(INDEX).test().expectNextCount(1).verifyComplete()
+    }
+
     private fun mappingResponse(field: String): GetMappingResponse = GetMappingResponse.of { response ->
         response.mappings(INDEX, IndexMappingRecord.of { record -> record.mappings(mapping(field)) })
     }
@@ -143,6 +174,51 @@ class ElasticsearchIndexMappingResolverTest {
     private fun mapping(field: String): TypeMapping = TypeMapping.of { mapping ->
         mapping.properties(field) { it.keyword { keyword -> keyword } }
     }
+
+    private fun dynamicMappingResponse(): GetMappingResponse = GetMappingResponse.of { response ->
+        response.mappings(
+            INDEX,
+            IndexMappingRecord.of { record ->
+                record.mappings { mapping ->
+                    mapping.dateDetection(false)
+                        .properties("tags") {
+                            it.`object` { objectField -> objectField.dynamic(DynamicMapping.True) }
+                        }.dynamicTemplates(
+                            NamedValue.of(
+                                "tags_keyword",
+                                DynamicTemplate.of { template ->
+                                    template.matchMappingType("string")
+                                        .pathMatch("tags.*")
+                                        .mapping { it.keyword { keyword -> keyword } }
+                                },
+                            ),
+                        )
+                }
+            },
+        )
+    }
+
+    private fun rawDynamicMapping(): JsonValue = jakarta.json.Json.createReader(
+        """
+        {
+          "$INDEX": {
+            "mappings": {
+              "date_detection": false,
+              "properties": {"tags": {"type": "object", "dynamic": true}},
+              "dynamic_templates": [
+                {
+                  "tags_keyword": {
+                    "match_mapping_type": "string",
+                    "path_match": "tags.*",
+                    "mapping": {"type": "keyword"}
+                  }
+                }
+              ]
+            }
+          }
+        }
+        """.trimIndent().reader(),
+    ).readValue()
 
     companion object {
         private const val INDEX = "wow.catalog.sku.snapshot"

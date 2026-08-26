@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.snapshot.filter
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.abac.ABAC_TAG_VALUE_MAX_LENGTH
 import me.ahoo.wow.api.abac.AbacTagValue
 import me.ahoo.wow.api.abac.AbacTags
 import me.ahoo.wow.api.abac.EMPTY_ABAC_TAGS
@@ -32,6 +33,7 @@ import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.snapshot.filter.AbacQueryFilter.Companion.toFilterExpression
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
@@ -49,6 +51,16 @@ class AbacQueryFilterTest {
 
         filter.assert().isInstanceOf(AndFilter::class.java)
         (filter as AndFilter).operands.assert().hasSize(2)
+    }
+
+    @Test
+    fun `principal tags should reject blank keys and oversized values before query construction`() {
+        assertThrows<IllegalArgumentException> {
+            mapOf(" " to listOf("eng")).toFilterExpression()
+        }
+        assertThrows<IllegalArgumentException> {
+            mapOf("department" to listOf("x".repeat(ABAC_TAG_VALUE_MAX_LENGTH + 1))).toFilterExpression()
+        }
     }
 
     @Test

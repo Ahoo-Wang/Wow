@@ -43,6 +43,51 @@ class ElasticsearchDynamicMappingQuerySchemaAdapterTest {
     }
 
     @Test
+    fun `possible string templates should obey first match order`() {
+        dynamicObjectBindings(
+            textTemplate(name = "omitted_type", matchMappingTypes = emptyList()),
+            keywordTemplate(name = "fallback"),
+        ).assert().containsExactly(QueryCapability.PRESENCE)
+        dynamicObjectBindings(
+            textTemplate(name = "all_types", matchMappingTypes = listOf("*")),
+            keywordTemplate(name = "fallback"),
+        ).assert().containsExactly(QueryCapability.PRESENCE)
+        dynamicObjectBindings(
+            textTemplate(name = "string_or_long", matchMappingTypes = listOf("string", "long")),
+            keywordTemplate(name = "fallback"),
+        ).assert().containsExactly(QueryCapability.PRESENCE)
+    }
+
+    @Test
+    fun `string only exact should require disabled date and numeric detection`() {
+        dynamicObjectBindings(keywordTemplate(), dateDetection = null)
+            .assert().containsExactly(QueryCapability.PRESENCE)
+        dynamicObjectBindings(keywordTemplate(), numericDetection = true)
+            .assert().containsExactly(QueryCapability.PRESENCE)
+        dynamicObjectBindings(keywordTemplate(), dateDetection = false, numericDetection = false)
+            .assert().containsExactlyInAnyOrder(QueryCapability.PRESENCE, QueryCapability.EXACT_MATCH)
+        dynamicObjectBindings(
+            keywordTemplate(matchMappingTypes = listOf("*")),
+            dateDetection = null,
+            numericDetection = true,
+        ).assert().containsExactlyInAnyOrder(QueryCapability.PRESENCE, QueryCapability.EXACT_MATCH)
+    }
+
+    @Test
+    fun `detection type templates should precede a wildcard exact fallback`() {
+        dynamicObjectBindings(
+            textTemplate(name = "detected_date", matchMappingTypes = listOf("date")),
+            keywordTemplate(name = "fallback", matchMappingTypes = listOf("*")),
+            dateDetection = null,
+        ).assert().containsExactly(QueryCapability.PRESENCE)
+        dynamicObjectBindings(
+            textTemplate(name = "detected_number", matchMappingTypes = listOf("long", "double")),
+            keywordTemplate(name = "fallback", matchMappingTypes = listOf("*")),
+            numericDetection = true,
+        ).assert().containsExactly(QueryCapability.PRESENCE)
+    }
+
+    @Test
     fun `partial unrelated or excluding templates should not prove every dynamic child exact`() {
         dynamicObjectBindings(keywordTemplate(pathMatch = "other.*"))
             .assert().containsExactly(QueryCapability.PRESENCE)
@@ -79,7 +124,8 @@ class ElasticsearchDynamicMappingQuerySchemaAdapterTest {
     @Test
     fun `nested dynamic children should require a complete exact template`() {
         val mapping = TypeMapping.of { type ->
-            type.properties("tags") { it.nested { nested -> nested.dynamic(DynamicMapping.True) } }
+            type.dateDetection(false)
+                .properties("tags") { it.nested { nested -> nested.dynamic(DynamicMapping.True) } }
                 .dynamicTemplates(keywordTemplate(pathMatch = "tags.*"))
         }
 
@@ -104,15 +150,71 @@ class ElasticsearchDynamicMappingQuerySchemaAdapterTest {
         bind(mapping, field = "codes").assert().isEmpty()
     }
 
+    @Test
+    fun `explicit text child should remove inherited exact even with a keyword multi-field`() {
+        val mapping = dynamicObjectMapping { objectField ->
+            objectField.properties("title") {
+                it.text { text -> text.fields("keyword") { keyword -> keyword.keyword { field -> field } } }
+            }
+        }
+
+        bind(mapping).assert().containsExactly(QueryCapability.PRESENCE)
+    }
+
+    @Test
+    fun `unindexed or container child should remove inherited presence and exact`() {
+        val unindexed = dynamicObjectMapping { objectField ->
+            objectField.properties("hidden") { it.keyword { keyword -> keyword.index(false) } }
+        }
+        val nested = dynamicObjectMapping { objectField ->
+            objectField.properties("scope") { it.nested { child -> child } }
+        }
+
+        bind(unindexed).assert().isEmpty()
+        bind(nested).assert().isEmpty()
+    }
+
+    @Test
+    fun `safe keyword children should retain inherited bindings with exact segment boundaries`() {
+        val mapping = TypeMapping.of { type ->
+            type.dateDetection(false)
+                .properties("tags") {
+                    it.`object` { objectField ->
+                        objectField.dynamic(DynamicMapping.True)
+                            .properties("department") { child -> child.keyword { keyword -> keyword } }
+                    }
+                }.properties("tagsExtra") {
+                    it.text { text -> text.fields("keyword") { keyword -> keyword.keyword { field -> field } } }
+                }.dynamicTemplates(keywordTemplate(pathMatch = "tags.*"))
+        }
+
+        bind(mapping).assert().containsExactlyInAnyOrder(QueryCapability.PRESENCE, QueryCapability.EXACT_MATCH)
+    }
+
     private fun dynamicObjectBindings(
         vararg templates: NamedValue<DynamicTemplate>,
+        dateDetection: Boolean? = false,
+        numericDetection: Boolean? = null,
     ): Set<QueryCapability> {
         val mapping = TypeMapping.of { type ->
             type.properties("tags") { it.`object` { objectField -> objectField.dynamic(DynamicMapping.True) } }
+            dateDetection?.let(type::dateDetection)
+            numericDetection?.let(type::numericDetection)
             templates.forEach(type::dynamicTemplates)
             type
         }
         return bind(mapping)
+    }
+
+    private fun dynamicObjectMapping(
+        children: (co.elastic.clients.elasticsearch._types.mapping.ObjectProperty.Builder) -> Unit,
+    ): TypeMapping = TypeMapping.of { type ->
+        type.dateDetection(false)
+            .properties("tags") {
+                it.`object` { objectField ->
+                    objectField.dynamic(DynamicMapping.True).also(children)
+                }
+            }.dynamicTemplates(keywordTemplate(pathMatch = "tags.*"))
     }
 
     private fun bind(
@@ -145,6 +247,7 @@ class ElasticsearchDynamicMappingQuerySchemaAdapterTest {
         match: String? = null,
         unmatch: String? = null,
         matchPattern: MatchType? = null,
+        matchMappingTypes: List<String> = listOf("string"),
     ): NamedValue<DynamicTemplate> = NamedValue.of(
         name,
         DynamicTemplate.of { template ->
@@ -152,18 +255,21 @@ class ElasticsearchDynamicMappingQuerySchemaAdapterTest {
             match?.let(template::match)
             unmatch?.let(template::unmatch)
             matchPattern?.let(template::matchPattern)
-            template.matchMappingType("string").mapping { it.keyword { keyword -> keyword } }
+            if (matchMappingTypes.isNotEmpty()) template.matchMappingType(matchMappingTypes)
+            template.mapping { it.keyword { keyword -> keyword } }
         },
     )
 
     private fun textTemplate(
         name: String = "text",
         match: String? = null,
+        matchMappingTypes: List<String> = listOf("string"),
     ): NamedValue<DynamicTemplate> = NamedValue.of(
         name,
         DynamicTemplate.of { template ->
             match?.let(template::match)
-            template.matchMappingType("string").mapping { it.text { text -> text } }
+            if (matchMappingTypes.isNotEmpty()) template.matchMappingType(matchMappingTypes)
+            template.mapping { it.text { text -> text } }
         },
     )
 

@@ -61,6 +61,19 @@ typealias AbacTagValue = List<String>
  */
 typealias AbacTags = Map<AbacTagKey, AbacTagValue>
 
+/** Maximum character length accepted by the ABAC tag storage and query protocol. */
+const val ABAC_TAG_VALUE_MAX_LENGTH: Int = 8191
+
+/** Validates ABAC tags at command, event, state, and query boundaries. */
+fun AbacTags.validateAbacTags() {
+    forEach { (key, value) ->
+        require(key.isNotBlank()) { "Tags cannot contain blank keys!" }
+        require(value.none { it.length > ABAC_TAG_VALUE_MAX_LENGTH }) {
+            "Tag values cannot exceed $ABAC_TAG_VALUE_MAX_LENGTH characters!"
+        }
+    }
+}
+
 /**
  * Exposes ABAC tags for a principal or resource.
  *

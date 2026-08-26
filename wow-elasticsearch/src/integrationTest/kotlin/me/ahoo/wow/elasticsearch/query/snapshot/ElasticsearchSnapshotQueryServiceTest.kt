@@ -32,7 +32,9 @@ import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
+import me.ahoo.wow.elasticsearch.IndexTemplateInitializer
 import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
+import me.ahoo.wow.elasticsearch.TemplateInitializer.createElasticsearchTemplate
 import me.ahoo.wow.elasticsearch.TemplateInitializer.initSnapshotTemplate
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
@@ -56,6 +58,7 @@ import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.filter.AbacQueryFilter.Companion.toFilterExpression
 import me.ahoo.wow.query.snapshot.query
 import me.ahoo.wow.query.snapshot.requiredQueryModelSchemaProvider
+import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockStateAggregate
@@ -70,6 +73,7 @@ import reactor.kotlin.test.test
 import java.time.Instant
 import java.time.ZoneOffset
 import java.util.concurrent.TimeUnit
+import tools.jackson.databind.JsonNode
 
 class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     @JvmField
@@ -261,6 +265,109 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                 limit = 10,
             ),
         ).test().expectError(QuerySchemaValidationException::class.java).verify()
+    }
+
+    @Test
+    fun `strict should reject ABAC exact when an earlier text template can match`() {
+        recreateSnapshotIndex(
+            """
+            {
+              "date_detection": false,
+              "properties": {"tags": {"type": "object", "dynamic": true}},
+              "dynamic_templates": [
+                {
+                  "text_first": {
+                    "match_mapping_type": "*",
+                    "path_match": "tags.*",
+                    "mapping": {"type": "text"}
+                  }
+                },
+                {
+                  "keyword_fallback": {
+                    "match_mapping_type": "string",
+                    "path_match": "tags.*",
+                    "mapping": {"type": "keyword"}
+                  }
+                }
+              ]
+            }
+            """.trimIndent(),
+        )
+
+        assertStrictAbacExactRejected()
+    }
+
+    @Test
+    fun `strict should reject inherited ABAC exact for an explicit text child`() {
+        recreateSnapshotIndex(
+            """
+            {
+              "date_detection": false,
+              "properties": {
+                "tags": {
+                  "type": "object",
+                  "dynamic": true,
+                  "properties": {
+                    "department": {
+                      "type": "text",
+                      "fields": {"keyword": {"type": "keyword"}}
+                    }
+                  }
+                }
+              },
+              "dynamic_templates": [
+                {
+                  "tags_keyword": {
+                    "match_mapping_type": "string",
+                    "path_match": "tags.*",
+                    "mapping": {"type": "keyword"}
+                  }
+                }
+              ]
+            }
+            """.trimIndent(),
+        )
+
+        assertStrictAbacExactRejected()
+    }
+
+    @Test
+    fun `strict should reject ABAC exact below the protocol ignore above limit`() {
+        recreateSnapshotIndex(
+            """
+            {
+              "date_detection": false,
+              "properties": {"tags": {"type": "object", "dynamic": true}},
+              "dynamic_templates": [
+                {
+                  "tags_keyword": {
+                    "match_mapping_type": "string",
+                    "path_match": "tags.*",
+                    "mapping": {"type": "keyword", "ignore_above": 1024}
+                  }
+                }
+              ]
+            }
+            """.trimIndent(),
+        )
+
+        assertStrictAbacExactRejected(expectPresence = false)
+    }
+
+    @Test
+    fun `strict should reject flattened ABAC below the protocol ignore above limit`() {
+        recreateSnapshotIndex(
+            """
+            {
+              "dynamic": true,
+              "properties": {
+                "tags": {"type": "flattened", "ignore_above": 1024}
+              }
+            }
+            """.trimIndent(),
+        )
+
+        assertStrictAbacExactRejected(expectPresence = false)
     }
 
     @Test
@@ -608,6 +715,50 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         ).then(
             Mono.defer { snapshotStore.save(snapshot) },
         ).block()
+    }
+
+    private fun recreateSnapshotIndex(mappingJson: String) {
+        val indexName = MOCK_AGGREGATE_METADATA.toSnapshotIndexName()
+        val template = JsonSerializer.readValue(
+            """
+            {
+              "index_patterns": ["$indexName"],
+              "template": {"mappings": $mappingJson}
+            }
+            """.trimIndent(),
+            JsonNode::class.java,
+        )
+        val initializer = IndexTemplateInitializer(elasticsearchClient.createElasticsearchTemplate())
+        Mono.defer {
+            elasticsearchClient.indices().deleteIndexTemplate { request -> request.name("wow-snapshot-template") }
+        }.then(
+            Mono.defer { elasticsearchClient.indices().delete { request -> request.index(indexName) } },
+        ).then(
+            Mono.defer { initializer.initTemplate("wow-snapshot-template", template) },
+        ).then(
+            Mono.defer { elasticsearchClient.indices().create { request -> request.index(indexName) } },
+        ).then(
+            Mono.defer { snapshotStore.save(snapshot) },
+        ).block()
+    }
+
+    private fun assertStrictAbacExactRejected(expectPresence: Boolean = true) {
+        val strictService = strictService()
+        val bindings = strictService.requiredQueryModelSchemaProvider().schema().block()!!
+            .fields.getValue(LogicalField("tags")).bindings.keys
+        if (expectPresence) {
+            bindings.assert().containsExactly(QueryCapability.PRESENCE)
+        } else {
+            bindings.assert().isEmpty()
+        }
+        updateDocument(mapOf("tags" to mapOf("department" to listOf("eng"))))
+
+        strictService.dynamicList(
+            ListQuery(
+                filter = mapOf("department" to listOf("eng")).toFilterExpression(),
+                limit = 10,
+            ),
+        ).test().expectError(QuerySchemaValidationException::class.java).verify()
     }
 
     private fun defensiveEpochService(): SnapshotQueryService<MockStateAggregate> {

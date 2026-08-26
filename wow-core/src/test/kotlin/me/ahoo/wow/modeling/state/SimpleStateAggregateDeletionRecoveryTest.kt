@@ -14,7 +14,9 @@
 package me.ahoo.wow.modeling.state
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.abac.ABAC_TAG_VALUE_MAX_LENGTH
 import me.ahoo.wow.api.abac.DefaultResourceTagsApplied
+import me.ahoo.wow.api.abac.ResourceTagsApplied
 import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.annotation.stateAggregateMetadata
@@ -23,6 +25,7 @@ import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class SimpleStateAggregateDeletionRecoveryTest {
 
@@ -87,4 +90,25 @@ class SimpleStateAggregateDeletionRecoveryTest {
 
         aggregate.tags.assert().isEqualTo(mapOf("state" to listOf("aggregate-1")))
     }
+
+    @Test
+    fun `sourcing should reject invalid tags from any resource tags event`() {
+        val aggregate = MOCK_AGGREGATE_METADATA.toStateAggregate(MockStateAggregate("aggregate-1"), version = 0)
+        val invalidEvent = UnsafeResourceTagsApplied(
+            mapOf("department" to listOf("x".repeat(ABAC_TAG_VALUE_MAX_LENGTH + 1))),
+        )
+
+        assertThrows<IllegalArgumentException> {
+            aggregate.onSourcing(
+                invalidEvent.toDomainEventStream(
+                    upstream = GivenInitializationCommand(aggregate.aggregateId),
+                    aggregateVersion = aggregate.version,
+                ),
+            )
+        }
+    }
+
+    private data class UnsafeResourceTagsApplied(
+        override val tags: me.ahoo.wow.api.abac.AbacTags,
+    ) : ResourceTagsApplied
 }
