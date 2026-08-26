@@ -17,14 +17,19 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationElement
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryCompatibilityLevel
@@ -164,6 +169,77 @@ class QuerySchemaValidationModeTest {
 
         requests.forEach { request ->
             StepVerifier.create(request)
+                .expectErrorSatisfies { error -> error.assert().isSameAs(unavailable) }
+                .verify()
+        }
+    }
+
+    @Test
+    fun `compatible mode should fall back for model search when schema is unavailable`() {
+        val unavailable = QuerySchemaUnavailableException("unavailable")
+        val provider = FixedProvider(Mono.error(unavailable))
+        val filter = SearchFilter("hello")
+
+        StepVerifier.create(provider.resolve(filter, QuerySchemaValidationMode.COMPATIBLE))
+            .expectNext(filter)
+            .verifyComplete()
+    }
+
+    @Test
+    fun `compatible mode should fall back for non-tag relative time when schema is unavailable`() {
+        val unavailable = QuerySchemaUnavailableException("unavailable")
+        val provider = FixedProvider(Mono.error(unavailable))
+        val filter = TodayFilter(LogicalField("state.createdAt"))
+
+        StepVerifier.create(provider.resolve(filter, QuerySchemaValidationMode.COMPATIBLE))
+            .expectNext(filter)
+            .verifyComplete()
+    }
+
+    @Test
+    fun `compatible mode should keep relative tags inside an element scope`() {
+        val unavailable = QuerySchemaUnavailableException("unavailable")
+        val provider = FixedProvider(Mono.error(unavailable))
+        val filter = ElementMatchFilter(
+            LogicalField("state.items"),
+            EqualFilter(LogicalField("tags.department"), JsonNodeFactory.instance.stringNode("eng")),
+        )
+
+        StepVerifier.create(provider.resolve(filter, QuerySchemaValidationMode.COMPATIBLE))
+            .expectNext(filter)
+            .verifyComplete()
+    }
+
+    @Test
+    fun `compatible mode should not treat tagsExtra as system tags`() {
+        val unavailable = QuerySchemaUnavailableException("unavailable")
+        val provider = FixedProvider(Mono.error(unavailable))
+        val filter = EqualFilter(
+            LogicalField("tagsExtra.department"),
+            JsonNodeFactory.instance.stringNode("eng"),
+        )
+
+        StepVerifier.create(provider.resolve(filter, QuerySchemaValidationMode.COMPATIBLE))
+            .expectNext(filter)
+            .verifyComplete()
+    }
+
+    @Test
+    fun `compatible mode should propagate unavailable for every root system tags reference`() {
+        val unavailable = QuerySchemaUnavailableException("unavailable")
+        val provider = FixedProvider(Mono.error(unavailable))
+        val filters = listOf(
+            SearchFilter("hello", setOf(LogicalField("tags.department"))),
+            OrFilter(
+                listOf(
+                    MatchAllFilter,
+                    EqualFilter(LogicalField("tags.department"), JsonNodeFactory.instance.stringNode("eng")),
+                ),
+            ),
+        )
+
+        filters.forEach { filter ->
+            StepVerifier.create(provider.resolve(filter, QuerySchemaValidationMode.COMPATIBLE))
                 .expectErrorSatisfies { error -> error.assert().isSameAs(unavailable) }
                 .verify()
         }
