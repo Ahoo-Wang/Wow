@@ -120,53 +120,56 @@ class MongoQuerySchemaAdapter(
             storageSchema: MongoStorageSchema?,
         ): Boolean {
             if (capability == QueryCapability.PRESENCE || storageSchema == null) return true
-            val valueTypes = if (cardinality == QueryCardinality.MANY) {
-                if (!storageSchema.types.allKnown { it.value == "array" }) return false
+            val requirements = storageRequirements(capability)
+            val storageTypes = if (cardinality == QueryCardinality.MANY) {
+                if (!storageSchema.types.proves(listOf(ARRAY_TYPES))) return false
                 storageSchema.itemTypes
             } else {
                 storageSchema.types
             }
-            return valueTypes.allKnown { supports(capability, it) }
+            return storageTypes.proves(requirements)
         }
 
-        private fun LogicalQueryFieldSchema.supports(
-            capability: QueryCapability,
-            storageType: QueryStorageType,
-        ): Boolean = when (capability) {
-            QueryCapability.LITERAL_MATCH ->
-                storageType.value == "string" && isValueCompatible(storageType)
+        private fun LogicalQueryFieldSchema.storageRequirements(capability: QueryCapability): List<Set<String>> =
+            when (capability) {
+                QueryCapability.LITERAL_MATCH -> when (semanticType) {
+                    Temporal.Date,
+                    is Temporal.Epoch,
+                    -> emptyList()
+                    else -> valueTypes.filter { it == QueryValueType.STRING }.map { STRING_TYPES }
+                }
+                QueryCapability.RANGE -> temporalRequirements().ifEmpty { numericRequirements() }
+                QueryCapability.AGGREGATE_NUMERIC -> numericRequirements()
+                QueryCapability.AGGREGATE_TEMPORAL -> temporalRequirements()
+                QueryCapability.ELEMENT_SCOPE -> valueTypes.filter { it == QueryValueType.OBJECT }.map { OBJECT_TYPES }
+                else -> temporalRequirements().ifEmpty { valueTypes.map { it.storageTypes() } }
+            }
 
-            QueryCapability.AGGREGATE_NUMERIC ->
-                storageType.value in NUMERIC_TYPES && isValueCompatible(storageType)
-
-            QueryCapability.AGGREGATE_TEMPORAL -> isTemporalCompatible(storageType)
-            QueryCapability.ELEMENT_SCOPE ->
-                QueryValueType.OBJECT in valueTypes && storageType.value == "object"
-
-            else -> isValueCompatible(storageType)
+        private fun LogicalQueryFieldSchema.numericRequirements(): List<Set<String>> = when (semanticType) {
+            Temporal.Date -> emptyList()
+            is Temporal.Epoch -> listOf(INTEGRAL_TYPES)
+            else -> valueTypes.mapNotNull {
+                when (it) {
+                    QueryValueType.INTEGER -> INTEGRAL_TYPES
+                    QueryValueType.DECIMAL -> NUMERIC_TYPES
+                    else -> null
+                }
+            }
         }
 
-        private fun LogicalQueryFieldSchema.isValueCompatible(storageType: QueryStorageType): Boolean =
-            when (semanticType) {
-                Temporal.Date -> storageType.value in DATE_TYPES
-                is Temporal.Epoch -> storageType.value in INTEGRAL_TYPES
-                else -> valueTypes.any { logicalType -> logicalType.supports(storageType) }
-            }
+        private fun LogicalQueryFieldSchema.temporalRequirements(): List<Set<String>> = when (semanticType) {
+            Temporal.Date -> listOf(DATE_TYPES)
+            is Temporal.Epoch -> listOf(INTEGRAL_TYPES)
+            else -> emptyList()
+        }
 
-        private fun LogicalQueryFieldSchema.isTemporalCompatible(storageType: QueryStorageType): Boolean =
-            when (semanticType) {
-                Temporal.Date -> storageType.value in DATE_TYPES
-                is Temporal.Epoch -> storageType.value in INTEGRAL_TYPES
-                else -> false
-            }
-
-        private fun QueryValueType.supports(storageType: QueryStorageType): Boolean = when (this) {
-            QueryValueType.STRING -> storageType.value == "string"
-            QueryValueType.BOOLEAN -> storageType.value == "bool"
-            QueryValueType.OBJECT -> storageType.value == "object"
-            QueryValueType.INTEGER -> storageType.value in INTEGRAL_TYPES
-            QueryValueType.DECIMAL -> storageType.value in NUMERIC_TYPES
-            else -> false
+        private fun QueryValueType.storageTypes(): Set<String> = when (this) {
+            QueryValueType.STRING -> STRING_TYPES
+            QueryValueType.BOOLEAN -> BOOLEAN_TYPES
+            QueryValueType.OBJECT -> OBJECT_TYPES
+            QueryValueType.INTEGER -> INTEGRAL_TYPES
+            QueryValueType.DECIMAL -> NUMERIC_TYPES
+            else -> emptySet()
         }
 
         private fun LogicalQueryFieldSchema.toFieldSchema(
@@ -224,8 +227,12 @@ class MongoQuerySchemaAdapter(
                 else -> null
             }
 
-        private fun Set<QueryStorageType>?.allKnown(predicate: (QueryStorageType) -> Boolean): Boolean =
-            this == null || isNotEmpty() && all(predicate)
+        private fun Set<QueryStorageType>?.proves(requirements: List<Set<String>>): Boolean {
+            if (this == null) return true
+            if (isEmpty() || requirements.isEmpty()) return false
+            return all { physical -> requirements.any { physical.value in it } } &&
+                requirements.all { expected -> any { physical -> physical.value in expected } }
+        }
 
         private fun String?.child(name: String): String = if (this == null) name else "$this.$name"
 
@@ -243,5 +250,9 @@ class MongoQuerySchemaAdapter(
         private val INTEGRAL_TYPES = setOf("int", "long")
         private val NUMERIC_TYPES = INTEGRAL_TYPES + setOf("double", "decimal", "number")
         private val DATE_TYPES = setOf("date", "timestamp")
+        private val STRING_TYPES = setOf("string")
+        private val BOOLEAN_TYPES = setOf("bool")
+        private val OBJECT_TYPES = setOf("object")
+        private val ARRAY_TYPES = setOf("array")
     }
 }

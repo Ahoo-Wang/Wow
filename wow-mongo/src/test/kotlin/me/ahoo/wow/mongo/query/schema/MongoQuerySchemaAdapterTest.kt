@@ -152,6 +152,54 @@ class MongoQuerySchemaAdapterTest {
     }
 
     @Test
+    fun `mixed logical union on string storage should expose only string capabilities`() {
+        val bindings = bindValueTypes(
+            setOf(QueryValueType.STRING, QueryValueType.INTEGER),
+            listOf("string"),
+        ).bindings.keys
+
+        bindings.assert().contains(QueryCapability.PRESENCE, QueryCapability.LITERAL_MATCH)
+        bindings.assert().doesNotContain(
+            QueryCapability.EXACT_MATCH,
+            QueryCapability.SORT,
+            QueryCapability.AGGREGATE_TERMS,
+            QueryCapability.RANGE,
+            QueryCapability.AGGREGATE_NUMERIC,
+        )
+    }
+
+    @Test
+    fun `mixed logical union on integral storage should expose only numeric capabilities`() {
+        val bindings = bindValueTypes(
+            setOf(QueryValueType.STRING, QueryValueType.INTEGER),
+            listOf("long"),
+        ).bindings.keys
+
+        bindings.assert().contains(
+            QueryCapability.PRESENCE,
+            QueryCapability.RANGE,
+            QueryCapability.AGGREGATE_NUMERIC,
+        )
+        bindings.assert().doesNotContain(
+            QueryCapability.EXACT_MATCH,
+            QueryCapability.LITERAL_MATCH,
+            QueryCapability.SORT,
+            QueryCapability.AGGREGATE_TERMS,
+        )
+    }
+
+    @Test
+    fun `numeric logical and physical unions should retain numeric capabilities`() {
+        bindValueTypes(
+            setOf(QueryValueType.INTEGER, QueryValueType.DECIMAL),
+            listOf("long", "double"),
+        ).bindings.keys.assert().contains(
+            QueryCapability.RANGE,
+            QueryCapability.AGGREGATE_NUMERIC,
+        )
+    }
+
+    @Test
     fun `known string storage should reject integer and native date semantics`() {
         val schema = bindState(
             Document("createdAt", Document("bsonType", "string"))
@@ -413,6 +461,31 @@ class MongoQuerySchemaAdapterTest {
             Document("state", Document("bsonType", "object").append("properties", properties)),
         ),
     )
+
+    private fun bindValueTypes(
+        valueTypes: Set<QueryValueType>,
+        bsonTypes: List<String>,
+    ) = MongoQuerySchemaAdapter.bind(
+        LogicalQuerySchema(
+            mapOf(
+                LogicalField("state.value") to field(QueryValueType.STRING).copy(valueTypes = valueTypes),
+            ),
+        ),
+        emptyList(),
+        Document(
+            "properties",
+            Document(
+                "state",
+                Document(
+                    "bsonType",
+                    "object",
+                ).append(
+                    "properties",
+                    Document("value", Document("bsonType", bsonTypes)),
+                ),
+            ),
+        ),
+    ).fields.getValue(LogicalField("state.value"))
 
     private fun storageType(vararg bsonTypes: String) = MongoQuerySchemaAdapter.bind(
         logicalSchema(),
