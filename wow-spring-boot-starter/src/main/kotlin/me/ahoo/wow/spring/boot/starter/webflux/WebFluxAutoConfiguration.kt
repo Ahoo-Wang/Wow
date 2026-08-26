@@ -24,6 +24,7 @@ import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.RouterSpecs
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
+import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
@@ -237,12 +238,14 @@ class WebFluxAutoConfiguration {
     @ConditionalOnMissingBean
     fun queryRouteModule(
         snapshotQueryHandler: SnapshotQueryHandler,
+        snapshotQueryServiceFactory: SnapshotQueryServiceFactory,
         eventStreamQueryHandler: EventStreamQueryHandler,
         rewriteRequestFilter: RewriteRequestFilter,
         exceptionHandler: RequestExceptionHandler
     ): QueryRouteModule {
         return QueryRouteModule(
             snapshotQueryHandler = snapshotQueryHandler,
+            snapshotQueryServiceFactory = snapshotQueryServiceFactory,
             eventStreamQueryHandler = eventStreamQueryHandler,
             rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler

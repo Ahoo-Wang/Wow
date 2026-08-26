@@ -17,6 +17,9 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.exception.toErrorInfo
+import me.ahoo.wow.query.schema.QuerySchemaConflictException
+import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping.toHttpStatus
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
@@ -55,6 +58,17 @@ class ErrorHttpStatusMappingTest {
     fun `should get http status for valid error code`() {
         val httpStatus = ErrorHttpStatusMapping.getHttpStatus(ErrorCodes.NOT_FOUND)
         httpStatus.assert().isEqualTo(HttpStatus.NOT_FOUND)
+    }
+
+    @Test
+    fun `should map query schema errors by handling semantics`() {
+        mapOf(
+            QuerySchemaValidationException("invalid").errorCode to HttpStatus.BAD_REQUEST,
+            QuerySchemaConflictException("conflict").errorCode to HttpStatus.INTERNAL_SERVER_ERROR,
+            QuerySchemaUnavailableException("unavailable").errorCode to HttpStatus.SERVICE_UNAVAILABLE,
+        ).forEach { (errorCode, expected) ->
+            ErrorHttpStatusMapping.getHttpStatus(errorCode).assert().isEqualTo(expected)
+        }
     }
 
     @Test

@@ -186,6 +186,27 @@ internal class ExampleDomainOpenAPITest {
         }
 
         @Test
+        fun `snapshot schema routes should be aggregate scoped and independently identified`() {
+            val get = requireNotNull(openAPI.paths["/cart/snapshot/schema"]?.get)
+            val refresh = requireNotNull(openAPI.paths["/cart/snapshot/schema/refresh"]?.post)
+
+            get.operationId.assert().isEqualTo("example.cart.snapshot_schema.get")
+            refresh.operationId.assert().isEqualTo("example.cart.snapshot_schema.refresh")
+            listOf(get, refresh).forEach { operation ->
+                operation.responses.keys.assert().containsExactlyInAnyOrder("200", "400", "500", "503")
+                operation.responses["200"]!!.content[Https.MediaType.APPLICATION_JSON]!!.schema.`$ref`
+                    .assert().isEqualTo("#/components/schemas/wow.api.query.QueryModelSchemaMetadata")
+            }
+            openAPI.paths.keys.filter { it.endsWith("/cart/snapshot/schema") }.assert()
+                .containsExactly("/cart/snapshot/schema")
+            openAPI.paths.keys.filter { it.endsWith("/cart/snapshot/schema/refresh") }.assert()
+                .containsExactly("/cart/snapshot/schema/refresh")
+            openAPI.paths.keys.filter { it.contains("/snapshot/schema") }.none { path ->
+                path.contains("{tenantId}") || path.contains("{ownerId}") || path.contains("{id}")
+            }.assert().isTrue()
+        }
+
+        @Test
         fun `should reuse query schemas in aggregate request bodies`() {
             mapOf(
                 "AggregationQuery" to "#/components/schemas/wow.api.query.AggregationQuery",

@@ -63,19 +63,22 @@ internal object OpenApiSnapshotSupport {
         return prettyJson + System.lineSeparator()
     }
 
-    private fun canonicalize(node: JsonNode): JsonNode {
+    internal fun canonicalize(node: JsonNode, schemaProperties: Boolean = false): JsonNode {
         return when (node) {
-            is ObjectNode -> canonicalizeObject(node)
+            is ObjectNode -> canonicalizeObject(node, schemaProperties)
             is ArrayNode -> canonicalizeArray(node)
             else -> node
         }
     }
 
-    private fun canonicalizeObject(node: ObjectNode): ObjectNode {
+    private fun canonicalizeObject(node: ObjectNode, schemaProperties: Boolean): ObjectNode {
         val result = mapper.createObjectNode()
         node.fieldNames().asSequence().sorted().forEach { fieldName ->
-            if (!isNoisyField(fieldName)) {
-                result.set<JsonNode>(fieldName, canonicalize(node.get(fieldName)))
+            if ((schemaProperties && fieldName == "description") || !isNoisyField(fieldName)) {
+                result.set<JsonNode>(
+                    fieldName,
+                    canonicalize(node.get(fieldName), schemaProperties = fieldName == "properties")
+                )
             }
         }
         return result
