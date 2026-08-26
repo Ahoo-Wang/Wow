@@ -17,7 +17,10 @@ package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.query.*
 import me.ahoo.wow.api.query.schema.QueryCapability
+import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryCompatibilityLevel
+import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
@@ -578,28 +581,28 @@ fun QueryModelSchemaProvider.resolve(
     mode: QuerySchemaValidationMode,
 ): Mono<ISingleQuery> = schema()
     .map { QuerySchemaResolver(it).resolve(query).requireAccepted(mode) }
-    .fallbackUnavailable(mode, query)
+    .fallbackUnavailable(mode, query, query.filter.allowsUnavailableFallback())
 
 fun QueryModelSchemaProvider.resolve(
     query: IListQuery,
     mode: QuerySchemaValidationMode,
 ): Mono<IListQuery> = schema()
     .map { QuerySchemaResolver(it).resolve(query).requireAccepted(mode) }
-    .fallbackUnavailable(mode, query)
+    .fallbackUnavailable(mode, query, query.filter.allowsUnavailableFallback())
 
 fun QueryModelSchemaProvider.resolve(
     query: IPagedQuery,
     mode: QuerySchemaValidationMode,
 ): Mono<IPagedQuery> = schema()
     .map { QuerySchemaResolver(it).resolve(query).requireAccepted(mode) }
-    .fallbackUnavailable(mode, query)
+    .fallbackUnavailable(mode, query, query.filter.allowsUnavailableFallback())
 
 fun QueryModelSchemaProvider.resolve(
     filter: FilterExpression,
     mode: QuerySchemaValidationMode,
 ): Mono<FilterExpression> = schema()
     .map { QuerySchemaResolver(it).resolve(filter).requireAccepted(mode) }
-    .fallbackUnavailable(mode, filter)
+    .fallbackUnavailable(mode, filter, filter.allowsUnavailableFallback())
 
 fun QueryModelSchemaProvider.resolve(
     query: AggregationQuery,
@@ -611,11 +614,40 @@ fun QueryModelSchemaProvider.resolve(
             schema,
         )
     }
-    .fallbackUnavailable(mode, ResolvedAggregationQuery(query, schema = null))
+    .fallbackUnavailable(
+        mode,
+        ResolvedAggregationQuery(query, schema = null),
+        query.filter.allowsUnavailableFallback(),
+    )
+
+private val SYSTEM_TAGS_FALLBACK_GUARD = QuerySchemaResolver(
+    QueryModelSchema(
+        model = QueryModel.SNAPSHOT,
+        capabilities = emptySet(),
+        fields = mapOf(
+            LogicalField(StateAggregateRecords.TAGS) to QueryFieldSchema(
+                title = null,
+                description = null,
+                enumValues = null,
+                valueTypes = setOf(QueryValueType.OBJECT),
+                nullable = false,
+                required = true,
+                cardinality = QueryCardinality.SINGLE,
+                semanticType = null,
+                dynamicChildren = false,
+                bindings = emptyMap(),
+            ),
+        ),
+    ),
+)
+
+private fun FilterExpression.allowsUnavailableFallback(): Boolean =
+    SYSTEM_TAGS_FALLBACK_GUARD.resolve(this).compatibility != QueryCompatibilityLevel.INCOMPATIBLE
 
 private fun <T : Any> Mono<T>.fallbackUnavailable(
     mode: QuerySchemaValidationMode,
     fallback: T,
+    allowFallback: Boolean,
 ): Mono<T> = onErrorResume(QuerySchemaUnavailableException::class.java) { error ->
-    if (mode == QuerySchemaValidationMode.COMPATIBLE) Mono.just(fallback) else Mono.error(error)
+    if (mode == QuerySchemaValidationMode.COMPATIBLE && allowFallback) Mono.just(fallback) else Mono.error(error)
 }

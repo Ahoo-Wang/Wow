@@ -49,6 +49,7 @@ import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaRegistration
 import me.ahoo.wow.query.schema.QuerySchemaSource
+import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.snapshot.requiredQueryModelSchemaProvider
@@ -236,6 +237,23 @@ class ElasticsearchSnapshotMappingQueryTest {
         queryService().dynamicList(
             ListQuery(filter = equal("tags.department", "eng"), limit = 10),
         ).test().expectError(QuerySchemaValidationException::class.java).verify()
+
+        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+    }
+
+    @Test
+    fun `compatible service should not search system tags when mapping is unavailable`() {
+        val failure = IllegalStateException("mapping unavailable")
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.error(failure)
+
+        queryService().dynamicList(
+            ListQuery(filter = equal("tags.department", "eng"), limit = 10),
+        ).test()
+            .expectErrorSatisfies { error ->
+                error.assert().isInstanceOf(QuerySchemaUnavailableException::class.java)
+                error.cause.assert().isSameAs(failure)
+            }
+            .verify()
 
         verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
     }

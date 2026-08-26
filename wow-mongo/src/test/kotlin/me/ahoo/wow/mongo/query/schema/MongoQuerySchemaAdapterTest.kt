@@ -468,6 +468,28 @@ class MongoQuerySchemaAdapterTest {
     }
 
     @Test
+    fun `compatible service should not find system tags when schema is unavailable`() {
+        val failure = IllegalStateException("offline")
+        val fixture = serviceFixture(failingIndexes(failure))
+        val service = MongoSnapshotQueryServiceFactory(fixture.database)
+            .create<Any>(MOCK_AGGREGATE_METADATA)
+
+        service.list(
+            ListQuery(
+                EqualFilter(LogicalField("tags.department"), StringNode.valueOf("eng")),
+                limit = 1,
+            ),
+        ).test()
+            .expectErrorSatisfies { error ->
+                error.assert().isInstanceOf(QuerySchemaUnavailableException::class.java)
+                error.cause.assert().isSameAs(failure)
+            }
+            .verify()
+
+        verify(exactly = 0) { fixture.collection.find(any<Bson>()) }
+    }
+
+    @Test
     fun `service should pass resolved filter projection and sort paths to Mongo`() {
         val fixture = serviceFixture(indexes())
         val service = MongoSnapshotQueryServiceFactory(

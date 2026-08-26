@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationElement
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.EqualFilter
@@ -120,10 +121,21 @@ class QuerySchemaValidationModeTest {
         val unavailable = QuerySchemaUnavailableException("unavailable")
         val provider = FixedProvider(Mono.error(unavailable))
         val filter = EqualFilter(LogicalField("state.name"), JsonNodeFactory.instance.stringNode("name"))
-        val single = SingleQuery(filter)
-        val list = ListQuery(filter, limit = 7)
-        val paged = PagedQuery(filter, pagination = Pagination(2, 11))
-        val aggregation = AggregationQuery(metrics = listOf(AggregationMetric.Count("count")))
+        val tagsProjection = Projection(include = listOf("tags.department"))
+        val tagsSort = listOf(Sort("tags.department", Sort.Direction.ASC))
+        val single = SingleQuery(filter, tagsProjection, tagsSort)
+        val list = ListQuery(filter, tagsProjection, tagsSort, limit = 7)
+        val paged = PagedQuery(filter, tagsProjection, tagsSort, Pagination(2, 11))
+        val aggregation = AggregationQuery(
+            filter = filter,
+            elements = listOf(
+                AggregationElement(
+                    LogicalField("state.items"),
+                    EqualFilter(LogicalField("tags.department"), JsonNodeFactory.instance.stringNode("eng")),
+                ),
+            ),
+            metrics = listOf(AggregationMetric.Count("count")),
+        )
 
         provider.resolve(filter, QuerySchemaValidationMode.COMPATIBLE).block().assert().isSameAs(filter)
         provider.resolve(single, QuerySchemaValidationMode.COMPATIBLE).block().assert().isSameAs(single)
@@ -132,6 +144,29 @@ class QuerySchemaValidationModeTest {
         provider.resolve(aggregation, QuerySchemaValidationMode.COMPATIBLE).block().assert().isEqualTo(
             ResolvedAggregationQuery(aggregation, schema = null),
         )
+    }
+
+    @Test
+    fun `compatible mode should propagate schema unavailable for system tags filters`() {
+        val unavailable = QuerySchemaUnavailableException("unavailable")
+        val provider = FixedProvider(Mono.error(unavailable))
+        val filter = EqualFilter(LogicalField("tags.department"), JsonNodeFactory.instance.stringNode("eng"))
+        val requests = listOf<Mono<*>>(
+            provider.resolve(filter, QuerySchemaValidationMode.COMPATIBLE),
+            provider.resolve(SingleQuery(filter), QuerySchemaValidationMode.COMPATIBLE),
+            provider.resolve(ListQuery(filter), QuerySchemaValidationMode.COMPATIBLE),
+            provider.resolve(PagedQuery(filter), QuerySchemaValidationMode.COMPATIBLE),
+            provider.resolve(
+                AggregationQuery(filter = filter, metrics = listOf(AggregationMetric.Count("count"))),
+                QuerySchemaValidationMode.COMPATIBLE,
+            ),
+        )
+
+        requests.forEach { request ->
+            StepVerifier.create(request)
+                .expectErrorSatisfies { error -> error.assert().isSameAs(unavailable) }
+                .verify()
+        }
     }
 
     @Test
