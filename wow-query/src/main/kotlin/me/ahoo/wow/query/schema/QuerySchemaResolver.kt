@@ -86,8 +86,11 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         val include = projection.include.map { resolvePath(it, QueryCapability.PRESENCE) }
         val exclude = projection.exclude.map { resolvePath(it, QueryCapability.PRESENCE) }
         return QuerySchemaResolution(
-            Projection(include.map(FieldResolution::value), exclude.map(FieldResolution::value)),
-            (include + exclude).map(FieldResolution::compatibility).combined(),
+            Projection(
+                include.map { it.value },
+                exclude.map { it.value },
+            ),
+            (include + exclude).map { it.compatibility }.combined(),
         )
     }
 
@@ -108,7 +111,7 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         var logicalParent: LogicalField? = null
         var physicalParent: String? = null
         query.elements.forEach { element ->
-            val container = resolveField(
+            val container = resolveAggregationField(
                 element.path,
                 QueryCapability.ELEMENT_SCOPE,
                 logicalParent,
@@ -120,7 +123,7 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
             physicalParent = container.physicalPath
         }
         query.groupBy.forEach { group ->
-            levels += resolveField(
+            levels += resolveAggregationField(
                 group.field,
                 group.capability,
                 logicalParent,
@@ -358,7 +361,15 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
     private fun resolvePath(
         path: String,
         capability: QueryCapability,
-    ): FieldResolution = resolveField(LogicalField(path), capability, null, null)
+    ): QuerySchemaResolution<String> {
+        val logicalField = try {
+            LogicalField(path)
+        } catch (_: IllegalArgumentException) {
+            return QuerySchemaResolution(path, QueryCompatibilityLevel.COMPATIBLE)
+        }
+        val resolved = resolveField(logicalField, capability, null, null)
+        return QuerySchemaResolution(resolved.value, resolved.compatibility)
+    }
 
     private fun resolveField(
         field: LogicalField,
@@ -371,9 +382,11 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
             ?: return FieldResolution(logical, field.value, null, QueryCompatibilityLevel.COMPATIBLE)
         val binding = fieldSchema.bindings[capability]
             ?: return FieldResolution(logical, field.value, null, QueryCompatibilityLevel.INCOMPATIBLE)
+        val relativePath = binding.physicalPath.relativeTo(physicalParent)
+            ?: return FieldResolution(logical, field.value, null, QueryCompatibilityLevel.INCOMPATIBLE)
         return FieldResolution(
             logical,
-            binding.physicalPath.relativeTo(physicalParent),
+            relativePath,
             binding.physicalPath,
             QueryCompatibilityLevel.EXACT,
         )
@@ -386,7 +399,7 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         levels: MutableList<QueryCompatibilityLevel>,
     ) {
         when (expression) {
-            is AggregationExpression.Field -> levels += resolveField(
+            is AggregationExpression.Field -> levels += resolveAggregationField(
                 expression.field,
                 QueryCapability.AGGREGATE_NUMERIC,
                 logicalParent,
@@ -408,6 +421,18 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         val compatibility: QueryCompatibilityLevel,
     )
 
+    private fun resolveAggregationField(
+        field: LogicalField,
+        capability: QueryCapability,
+        logicalParent: LogicalField?,
+        physicalParent: String?,
+    ): FieldResolution = resolveField(
+        if (logicalParent == null) field else LogicalField("${logicalParent.value}.${field.value}"),
+        capability,
+        logicalParent = null,
+        physicalParent,
+    )
+
     private val AggregationGroup.capability: QueryCapability
         get() = when (this) {
             is AggregationGroup.Terms -> QueryCapability.AGGREGATE_TERMS
@@ -422,8 +447,11 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
             LogicalField("${parent.value}.$value")
         }
 
-    private fun String.relativeTo(parent: String?): String =
-        if (parent != null && startsWith("$parent.")) substring(parent.length + 1) else this
+    private fun String.relativeTo(parent: String?): String? = when {
+        parent == null -> this
+        startsWith("$parent.") -> substring(parent.length + 1)
+        else -> null
+    }
 }
 
 private fun Iterable<QueryCompatibilityLevel>.combined(): QueryCompatibilityLevel = when {

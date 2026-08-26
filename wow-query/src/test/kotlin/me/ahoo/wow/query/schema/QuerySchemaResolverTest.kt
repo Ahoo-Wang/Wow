@@ -309,6 +309,27 @@ class QuerySchemaResolverTest {
     }
 
     @Test
+    fun `element match should reject a child binding outside its physical container`() {
+        val filter = ElementMatchFilter(
+            LogicalField("state.orders"),
+            EqualFilter(LogicalField("sku"), json("sku-1")),
+        )
+        val schema = schema(
+            mapOf(
+                LogicalField("state.orders") to fieldSchema(
+                    QueryCapability.ELEMENT_SCOPE to "document.orders",
+                ),
+                LogicalField("state.orders.sku") to fieldSchema(
+                    QueryCapability.EXACT_MATCH to "document.skus.keyword",
+                ),
+            ),
+        )
+
+        QuerySchemaResolver(schema).resolve(filter).compatibility
+            .assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+    }
+
+    @Test
     fun `search should use exact field bindings or an explicit model fallback`() {
         val title = LogicalField("state.title")
         val body = LogicalField("state.body")
@@ -393,6 +414,24 @@ class QuerySchemaResolverTest {
     }
 
     @Test
+    fun `projection should preserve a raw backend wildcard as compatible`() {
+        val projection = Projection(include = listOf("state.*"))
+
+        QuerySchemaResolver(schema()).resolve(projection).assert().isEqualTo(
+            QuerySchemaResolution(projection, QueryCompatibilityLevel.COMPATIBLE),
+        )
+    }
+
+    @Test
+    fun `sort should preserve a raw backend wildcard as compatible`() {
+        val sort = listOf(Sort("state.*", Sort.Direction.ASC))
+
+        QuerySchemaResolver(schema()).resolve(sort).assert().isEqualTo(
+            QuerySchemaResolution(sort, QueryCompatibilityLevel.COMPATIBLE),
+        )
+    }
+
+    @Test
     fun `aggregation should validate relative elements groups and numeric expression fields`() {
         val query = AggregationQuery(
             filter = EqualFilter(LogicalField("state.status"), json("OPEN")),
@@ -455,6 +494,65 @@ class QuerySchemaResolverTest {
 
         QuerySchemaResolver(schema).resolve(query).assert().isEqualTo(
             QuerySchemaResolution(query, QueryCompatibilityLevel.EXACT),
+        )
+    }
+
+    @Test
+    fun `aggregation elements should always append relative paths after the root element`() {
+        val query = AggregationQuery(
+            elements = listOf(
+                AggregationElement(LogicalField("state.orders")),
+                AggregationElement(LogicalField("state.orders.items")),
+            ),
+            metrics = listOf(AggregationMetric.Count("count")),
+        )
+        val schema = schema(
+            mapOf(
+                LogicalField("state.orders") to fieldSchema(
+                    QueryCapability.ELEMENT_SCOPE to "document.orders",
+                ),
+                LogicalField("state.orders.items") to fieldSchema(
+                    QueryCapability.ELEMENT_SCOPE to "document.orders.items",
+                ),
+            ),
+        )
+
+        QuerySchemaResolver(schema).resolve(query).assert().isEqualTo(
+            QuerySchemaResolution(query, QueryCompatibilityLevel.COMPATIBLE),
+        )
+    }
+
+    @Test
+    fun `aggregation groups and expressions should always append the innermost element path`() {
+        val query = AggregationQuery(
+            elements = listOf(AggregationElement(LogicalField("state.orders"))),
+            groupBy = listOf(
+                AggregationGroup.Terms(LogicalField("state.orders.category"), "category"),
+            ),
+            metrics = listOf(
+                AggregationMetric.Numeric(
+                    AggregationFunction.SUM,
+                    AggregationExpression.Field(LogicalField("state.orders.amount")),
+                    "total",
+                ),
+            ),
+        )
+        val schema = schema(
+            mapOf(
+                LogicalField("state.orders") to fieldSchema(
+                    QueryCapability.ELEMENT_SCOPE to "document.orders",
+                ),
+                LogicalField("state.orders.category") to fieldSchema(
+                    QueryCapability.AGGREGATE_TERMS to "document.orders.category",
+                ),
+                LogicalField("state.orders.amount") to fieldSchema(
+                    QueryCapability.AGGREGATE_NUMERIC to "document.orders.amount",
+                ),
+            ),
+        )
+
+        QuerySchemaResolver(schema).resolve(query).assert().isEqualTo(
+            QuerySchemaResolution(query, QueryCompatibilityLevel.COMPATIBLE),
         )
     }
 
