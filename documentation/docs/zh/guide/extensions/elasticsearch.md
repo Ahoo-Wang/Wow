@@ -212,78 +212,19 @@ Field alias 继承其目标字段的查询与排序能力，并继续使用 alia
 每个聚合必须解析到一个物理快照索引。alias 或 data stream 如果解析出多个索引，查询会失败；这种拓扑需要先收敛为
 单个物理索引，或由应用自行实现基于 `_field_caps` 的查询方案。
 
-## 主动刷新 Mapping
+## 刷新运行时查询 Schema
 
-非 Spring 场景可直接刷新默认构造路径持有的缓存：
-
-```kotlin
-queryService.refreshIndexMapping().block()
-queryServiceFactory.refreshIndexMapping(namedAggregate).block()
-```
-
-Factory 方法刷新该 Factory 创建的查询服务共享的 Resolver；直接构造的 `ElasticsearchSnapshotQueryService`
-使用实例方法刷新自身 Resolver。
-
-应用引入 `org.springframework.boot:spring-boot-starter-actuator` 后会注册可选维护端点。端点默认不可访问，必须同时配置
-access 和 Web exposure，并由管理端安全策略限制为维护角色：
-
-::: code-group
-```kotlin [Gradle(Kotlin)]
-implementation("org.springframework.boot:spring-boot-starter-actuator")
-```
-```xml [Maven]
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-actuator</artifactId>
-</dependency>
-```
-:::
-
-```yaml
-management:
-  endpoint:
-    wowElasticsearchMapping:
-      access: unrestricted
-  endpoints:
-    web:
-      exposure:
-        include: health,wowElasticsearchMapping
-```
-
-按已注册聚合刷新当前实例的 Mapping：
+先使用 `GET /{aggregate}/snapshot/schema` 查看当前聚合的逻辑字段与能力；按已注册聚合刷新当前实例的 Schema：
 
 ```bash
-curl -X POST \
-  http://localhost:8080/actuator/wowElasticsearchMapping/order-service/order
+curl -X POST http://localhost:8080/order/snapshot/schema/refresh
 ```
 
-响应示例：
+该 POST 路由使用独立授权策略，可限制为维护角色。它重新读取 Mapping、约定文件和其他 Schema 来源；成功后返回新的公共 Metadata。Elasticsearch 凭据仍需要目标索引的 `view_index_metadata` 权限，因为后端 Adapter 必须读取 Mapping。
 
-```json
-{
-  "scope": "LOCAL_INSTANCE",
-  "indexName": "wow.order-service.order.snapshot",
-  "fieldCount": 24,
-  "changed": true,
-  "refreshedAt": "2026-08-21T09:00:00Z"
-}
-```
+权限不足、索引不存在或 Mapping 无法解析时，刷新返回错误但保留已有成功缓存。刷新不修改 Elasticsearch Mapping、不重建索引，也不回填历史快照；它只影响收到请求的本实例，不广播。多副本部署需要逐 Pod 调用；在途查询继续使用开始编译时取得的旧 Schema。
 
-端点不接受任意索引表达式，索引名由聚合元数据计算。`fieldCount` 是解析到的字段路径数，`changed`
-表示新能力模型是否与刷新前不同；响应不会返回完整 Mapping。未注册的聚合返回 `400 Bad Request`。
-
-Elasticsearch 凭据需要目标索引的 `view_index_metadata` 权限；权限不足、索引不存在或 Mapping 无法解析时
-请求失败，已有成功缓存不受影响。刷新只重新加载查询能力缓存，不修改 Elasticsearch Mapping、
-不重建索引，也不回填历史快照。
-
-刷新只作用于收到请求的应用实例。多副本部署需要运维逐 Pod 调用；当前不提供广播、定时刷新或“刷新全部聚合”。
-刷新完成后的新查询使用新 Mapping，已经在途的查询继续使用其开始编译时取得的旧 Mapping。
-
-Mapping 发布必须按以下顺序执行：
-
-1. 更新目标索引 Mapping；需要历史数据转换时先完成 reindex 或快照重建。
-2. 对每个应用 Pod 调用上述刷新端点，并确认返回的 `fieldCount` 与 `changed` 符合预期。
-3. 在每个 Pod 执行代表性精确查询、全文查询和排序查询，核对结果数、顺序与快照版本后再完成发布。
+发布 Mapping 时先更新索引并完成必要的 reindex 或快照重建，再逐 Pod 刷新 Schema，并在每个 Pod 运行代表性的精确、全文和排序查询后完成发布。
 
 ## 配置事件流索引模板
 

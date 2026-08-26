@@ -49,7 +49,7 @@ state.items.0.productId
 
 字段段以字母或下划线开头，可包含字母、数字、下划线和连字符；数组索引允许使用纯数字段。物理字段映射由 MongoDB 或 Elasticsearch 查询实现负责。
 
-聚合级 OpenAPI 请求体通过 `x-wow-query-fields` 发布可用的过滤、投影和排序字段路径。即使 `/state` 响应已解包 `state` 对象，查询仍应使用这里声明的路径；例如响应中的 `status` 应查询为 `state.status`。
+OpenAPI 请求体复用通用查询 Schema，不发布静态字段目录。调用 `GET /{aggregate}/snapshot/schema` 获取当前聚合可用的逻辑字段、类型和能力；即使 `/state` 响应已解包 `state` 对象，查询路径仍使用返回的逻辑路径，例如 `state.status`。
 
 快照查询默认使用 `DELETION = ACTIVE`。顶层 `DELETION`，或顶层 `AND` 的直接 `DELETION` 子项，可以显式覆盖该范围；嵌套在 `OR` 或 `NOR` 中的删除过滤器不会关闭 active guard。事件流查询不会自动追加删除状态过滤，以保证审计事件完整。
 
@@ -247,9 +247,9 @@ val query = aggregation {
 
 聚合复用现有快照过滤链：ABAC 与路由 filter 仍会追加到根 filter。Masking filter 会忽略聚合查询，因此已配置的 masker 不会拒绝或重写聚合结果。
 
-Wow 只校验请求结构，不校验字段是否存在、路径是否为集合或物理字段类型；不会维护聚合字段目录，也不会使用 `TypeFieldPaths` 做校验。数值指标支持字段、有限常量和加、减、乘、除。对于包含 `Constant` 或 `Binary` 的计算表达式，数值标量或单元素数值数组贡献一个值；缺失、非数值、空数组、多值、除零或非有限中间结果不贡献指标。纯 `Field` 表达式继续保留后端原生字段聚合、错误和多值语义。自定义 Jackson serializer、后端 filter converter 或 Elasticsearch mapping 不保证跨后端等价。首期不包含 Batch 聚合。
+Wow 按运行时 Schema 校验字段、集合形状、能力和物理兼容性；Schema 不可用时，兼容模式的普通查询可保留既有后端编译路径。数值指标支持字段、有限常量和加、减、乘、除。对于包含 `Constant` 或 `Binary` 的计算表达式，数值标量或单元素数值数组贡献一个值；缺失、非数值、空数组、多值、除零或非有限中间结果不贡献指标。纯 `Field` 表达式继续保留后端原生字段聚合、错误和多值语义。自定义 Jackson serializer、后端 filter converter 或 Elasticsearch mapping 不保证跨后端等价。首期不包含 Batch 聚合。
 
-HTTP 端点为 `POST /{aggregate}/snapshot/aggregation`。tenant、owner 或 space 作用域的聚合会在前面增加各自的路由前缀；以运行实例的 OpenAPI 路径为准。JSON 响应是动态对象数组；SSE 逐个流式返回对象。OpenAPI 为每个聚合发布专属 `AggregationQuery` request body，其 `x-wow-query-fields` 引用该聚合的 `*AggregatedFields` 组件，JSON schema 仍使用通用 `AggregationQuery` 合同；表达式是以 `type` 为 discriminator 的递归 `oneOf`。
+HTTP 端点为 `POST /{aggregate}/snapshot/aggregation`。tenant、owner 或 space 作用域的聚合会在前面增加各自的路由前缀；以运行实例的 OpenAPI 路径为准。JSON 响应是动态对象数组；SSE 逐个流式返回对象。OpenAPI 使用通用 `AggregationQuery` 请求体；表达式是以 `type` 为 discriminator 的递归 `oneOf`。
 
 #### 场景案例
 

@@ -222,81 +222,19 @@ Each aggregate must resolve to one physical snapshot index. An alias or data str
 fails closed. Such a topology must be reduced to one physical index or handled by an application-specific `_field_caps`
 query implementation.
 
-## Actively Refresh a Mapping
+## Refresh the Runtime Query Schema
 
-Non-Spring construction paths can refresh their owned cache directly:
-
-```kotlin
-queryService.refreshIndexMapping().block()
-queryServiceFactory.refreshIndexMapping(namedAggregate).block()
-```
-
-The factory method refreshes the resolver shared by services created from that factory. A directly constructed
-`ElasticsearchSnapshotQueryService` refreshes its own resolver through the instance method.
-
-Adding `org.springframework.boot:spring-boot-starter-actuator` registers an optional maintenance endpoint. It has no
-access by default. Configure both access and Web exposure, and restrict it to a maintenance role in management endpoint
-security:
-
-::: code-group
-```kotlin [Gradle(Kotlin)]
-implementation("org.springframework.boot:spring-boot-starter-actuator")
-```
-```xml [Maven]
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-actuator</artifactId>
-</dependency>
-```
-:::
-
-```yaml
-management:
-  endpoint:
-    wowElasticsearchMapping:
-      access: unrestricted
-  endpoints:
-    web:
-      exposure:
-        include: health,wowElasticsearchMapping
-```
-
-Refresh the mapping for a registered aggregate on the current application instance:
+Use `GET /{aggregate}/snapshot/schema` to inspect the aggregate's current logical fields and capabilities, then refresh the receiving instance:
 
 ```bash
-curl -X POST \
-  http://localhost:8080/actuator/wowElasticsearchMapping/order-service/order
+curl -X POST http://localhost:8080/order/snapshot/schema/refresh
 ```
 
-Example response:
+This POST route has an independent authorization policy and can be restricted to maintenance roles. It rereads mappings, convention files, and other schema sources; on success it returns new public metadata. Elasticsearch credentials still require `view_index_metadata` on the target index because the backend adapter reads its mapping.
 
-```json
-{
-  "scope": "LOCAL_INSTANCE",
-  "indexName": "wow.order-service.order.snapshot",
-  "fieldCount": 24,
-  "changed": true,
-  "refreshedAt": "2026-08-21T09:00:00Z"
-}
-```
+Missing privileges, a missing index, or an unparseable mapping returns an error while retaining a previously successful cache. Refresh does not modify the Elasticsearch mapping, rebuild the index, or backfill old snapshots. It affects only the instance receiving the request and never broadcasts; call every Pod in a replicated deployment. In-flight queries keep the schema obtained when they began compilation.
 
-The endpoint does not accept arbitrary index expressions; it derives the index name from aggregate metadata.
-`fieldCount` is the number of parsed field paths, and `changed` reports whether the new capability model differs from
-the previous one. The response never contains the full mapping. An unregistered aggregate returns `400 Bad Request`.
-
-Elasticsearch credentials need `view_index_metadata` on the target index. Missing privileges, a missing index, or an
-unparseable mapping fails the request without damaging a previously successful cache entry. Refresh only reloads the
-query capability cache; it does not modify the Elasticsearch mapping, rebuild the index, or backfill old snapshots.
-
-Refresh is local to the instance that receives the request. In a replicated deployment, operations must call each Pod;
-there is no broadcast, scheduled refresh, or refresh-all operation. New queries use the refreshed mapping, while
-in-flight queries continue with the mapping obtained when their compilation began.
-
-Publish a mapping change in this order:
-
-1. Update the target index mapping; complete any required reindex or snapshot rebuild first.
-2. Call the refresh endpoint on every application Pod and verify the returned `fieldCount` and `changed` values.
-3. Run representative exact, full-text, and sort queries against every Pod; reconcile result count, order, and snapshot version before completing the release.
+Publish a mapping change by updating the index and completing any required reindex or snapshot rebuild, then refreshing the schema on every Pod and running representative exact, full-text, and sort queries before completing the release.
 
 ## Configure Event Stream Index Template
 

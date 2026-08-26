@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.openapi
 
-import io.swagger.v3.oas.models.media.StringSchema
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.FilterExpression
@@ -22,7 +21,6 @@ import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
-import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.openapi.CommonComponent.Response.withErrorCodeHeader
 import me.ahoo.wow.openapi.QueryComponent.Schema.aggregationQuerySchema
 import me.ahoo.wow.openapi.QueryComponent.Schema.filterSchema
@@ -30,7 +28,6 @@ import me.ahoo.wow.openapi.QueryComponent.Schema.listQuerySchema
 import me.ahoo.wow.openapi.QueryComponent.Schema.pagedQuerySchema
 import me.ahoo.wow.openapi.QueryComponent.Schema.singleQuerySchema
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
-import me.ahoo.wow.schema.AggregatedFieldPaths.commandAggregatedFieldPaths
 import me.ahoo.wow.schema.typed.AggregatedDomainEventStream
 
 object QueryComponent {
@@ -39,9 +36,11 @@ object QueryComponent {
     const val LIST_QUERY_SUFFIX = ".ListQuery"
     const val PAGED_QUERY_SUFFIX = ".PagedQuery"
     const val AGGREGATION_QUERY_SUFFIX = ".AggregationQuery"
+    const val SINGLE_QUERY_KEY = Wow.WOW + SINGLE_QUERY_SUFFIX
     const val COUNT_QUERY_KEY = Wow.WOW + COUNT_QUERY_SUFFIX
     const val LIST_QUERY_KEY = Wow.WOW + LIST_QUERY_SUFFIX
     const val PAGED_QUERY_KEY = Wow.WOW + PAGED_QUERY_SUFFIX
+    const val AGGREGATION_QUERY_KEY = Wow.WOW + AGGREGATION_QUERY_SUFFIX
 
     object Schema {
 
@@ -67,22 +66,14 @@ object QueryComponent {
 
     object RequestBody {
 
-        private const val QUERY_FIELDS_EXTENSION = "x-wow-query-fields"
-
-        fun OpenAPIComponentContext.aggregatedSingleQueryRequestBody(aggregateMetadata: AggregateMetadata<*, *>): io.swagger.v3.oas.models.parameters.RequestBody {
-            val queryFields = aggregatedFieldsSchema(aggregateMetadata)
-            return requestBody(aggregateMetadata.toStringWithAlias() + SINGLE_QUERY_SUFFIX) {
-                extension(QUERY_FIELDS_EXTENSION, queryFields)
+        fun OpenAPIComponentContext.singleQueryRequestBody(): io.swagger.v3.oas.models.parameters.RequestBody {
+            return requestBody(SINGLE_QUERY_KEY) {
                 content(schema = singleQuerySchema())
             }
         }
 
-        fun OpenAPIComponentContext.aggregatedAggregationQueryRequestBody(
-            aggregateMetadata: AggregateMetadata<*, *>
-        ): io.swagger.v3.oas.models.parameters.RequestBody {
-            val queryFields = aggregatedFieldsSchema(aggregateMetadata)
-            return requestBody(aggregateMetadata.toStringWithAlias() + AGGREGATION_QUERY_SUFFIX) {
-                extension(QUERY_FIELDS_EXTENSION, queryFields)
+        fun OpenAPIComponentContext.aggregationQueryRequestBody(): io.swagger.v3.oas.models.parameters.RequestBody {
+            return requestBody(AGGREGATION_QUERY_KEY) {
                 content(schema = aggregationQuerySchema())
             }
         }
@@ -93,26 +84,8 @@ object QueryComponent {
             }
         }
 
-        fun OpenAPIComponentContext.aggregatedCountQueryRequestBody(aggregateMetadata: AggregateMetadata<*, *>): io.swagger.v3.oas.models.parameters.RequestBody {
-            val queryFields = aggregatedFieldsSchema(aggregateMetadata)
-            return requestBody(aggregateMetadata.toStringWithAlias() + COUNT_QUERY_SUFFIX) {
-                extension(QUERY_FIELDS_EXTENSION, queryFields)
-                content(schema = filterSchema())
-            }
-        }
-
         fun OpenAPIComponentContext.listQueryRequestBody(): io.swagger.v3.oas.models.parameters.RequestBody {
             return requestBody(LIST_QUERY_KEY) {
-                content(schema = listQuerySchema())
-            }
-        }
-
-        fun OpenAPIComponentContext.aggregatedListQueryRequestBody(
-            aggregateMetadata: AggregateMetadata<*, *>
-        ): io.swagger.v3.oas.models.parameters.RequestBody {
-            val queryFields = aggregatedFieldsSchema(aggregateMetadata)
-            return requestBody(aggregateMetadata.toStringWithAlias() + LIST_QUERY_SUFFIX) {
-                extension(QUERY_FIELDS_EXTENSION, queryFields)
                 content(schema = listQuerySchema())
             }
         }
@@ -121,27 +94,6 @@ object QueryComponent {
             return requestBody(PAGED_QUERY_KEY) {
                 content(schema = pagedQuerySchema())
             }
-        }
-
-        fun OpenAPIComponentContext.aggregatedPagedQueryRequestBody(
-            aggregateMetadata: AggregateMetadata<*, *>
-        ): io.swagger.v3.oas.models.parameters.RequestBody {
-            val queryFields = aggregatedFieldsSchema(aggregateMetadata)
-            return requestBody(aggregateMetadata.toStringWithAlias() + PAGED_QUERY_SUFFIX) {
-                extension(QUERY_FIELDS_EXTENSION, queryFields)
-                content(schema = pagedQuerySchema())
-            }
-        }
-
-        private fun OpenAPIComponentContext.aggregatedFieldsSchema(
-            aggregateMetadata: AggregateMetadata<*, *>
-        ): io.swagger.v3.oas.models.media.Schema<*> {
-            val fields = aggregateMetadata.command.aggregateType.kotlin
-                .commandAggregatedFieldPaths()
-                .sorted()
-            val key = "${aggregateMetadata.toStringWithAlias()}." +
-                "${aggregateMetadata.command.aggregateType.simpleName}AggregatedFields"
-            return componentSchema(key, StringSchema()._enum(fields))
         }
     }
 

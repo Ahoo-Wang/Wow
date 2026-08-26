@@ -74,28 +74,18 @@ internal class ExampleDomainOpenAPITest {
     inner class AggregateRoutes {
 
         @Test
-        fun `should expose aggregate query fields through one schema`() {
-            val fieldsKey = "example.cart.CartAggregatedFields"
-            val fieldsRef = "#/components/schemas/$fieldsKey"
-            val fieldsSchema = requireNotNull(openAPI.components.schemas[fieldsKey])
-
-            fieldsSchema.type.assert().isEqualTo("string")
-            fieldsSchema.`enum`.assert()
-                .contains("state.items.productId")
-                .doesNotContain("")
-
-            listOf("AggregationQuery", "CountQuery", "ListQuery", "PagedQuery", "SingleQuery").forEach { queryType ->
-                val requestBody = requireNotNull(openAPI.components.requestBodies["example.cart.$queryType"])
-                val queryFields = requestBody.extensions["x-wow-query-fields"] as Schema<*>
-                queryFields.`$ref`.assert().isEqualTo(fieldsRef)
-            }
+        fun `should omit legacy query field directory from OpenAPI`() {
+            val queryFieldsExtension = "x-wow-query" + "-fields"
+            val aggregatedFieldsSuffix = "Aggregated" + "Fields"
+            openAPI.components.requestBodies.values
+                .none { queryFieldsExtension in it.extensions.orEmpty() }
+                .assert().isTrue()
+            openAPI.components.schemas.keys.none { it.endsWith(aggregatedFieldsSuffix) }.assert().isTrue()
         }
 
         @Test
-        fun `snapshot aggregation should reuse aggregate field schema and expose dynamic rows`() {
-            val fieldsKey = "example.cart.CartAggregatedFields"
-            val requestBody = requireNotNull(openAPI.components.requestBodies["example.cart.AggregationQuery"])
-            val queryFields = requestBody.extensions["x-wow-query-fields"] as Schema<*>
+        fun `snapshot aggregation should use generic query body and expose dynamic rows`() {
+            val requestBody = requireNotNull(openAPI.components.requestBodies["wow.AggregationQuery"])
             val responseSchema = requireNotNull(
                 openAPI.paths["/cart/snapshot/aggregation"]
                     ?.post
@@ -105,7 +95,6 @@ internal class ExampleDomainOpenAPITest {
                     ?.get(Https.MediaType.APPLICATION_JSON)
                     ?.schema
             )
-            queryFields.`$ref`.assert().isEqualTo("#/components/schemas/$fieldsKey")
             requestBody.content[Https.MediaType.APPLICATION_JSON]!!.schema.`$ref`
                 .assert().isEqualTo("#/components/schemas/wow.api.query.AggregationQuery")
             val querySchema = requireNotNull(openAPI.components.schemas["wow.api.query.AggregationQuery"])
@@ -232,17 +221,21 @@ internal class ExampleDomainOpenAPITest {
         }
 
         @Test
-        fun `should reuse query schemas in aggregate request bodies`() {
+        fun `should reuse generic query request bodies in snapshot routes`() {
             mapOf(
-                "AggregationQuery" to "#/components/schemas/wow.api.query.AggregationQuery",
-                "CountQuery" to "#/components/schemas/wow.api.query.FilterExpression",
-                "SingleQuery" to "#/components/schemas/wow.api.query.SingleQuery",
-                "ListQuery" to "#/components/schemas/wow.api.query.ListQuery",
-                "PagedQuery" to "#/components/schemas/wow.api.query.PagedQuery",
-            ).forEach { (queryType, schemaRef) ->
-                val requestBody = requireNotNull(openAPI.components.requestBodies["example.cart.$queryType"])
+                "AggregationQuery" to "wow.api.query.AggregationQuery",
+                "CountQuery" to "wow.api.query.FilterExpression",
+                "SingleQuery" to "wow.api.query.SingleQuery",
+                "ListQuery" to "wow.api.query.ListQuery",
+                "PagedQuery" to "wow.api.query.PagedQuery",
+            ).forEach { (queryType, schemaName) ->
+                val requestBody = requireNotNull(openAPI.components.requestBodies["wow.$queryType"])
                 requestBody.content[Https.MediaType.APPLICATION_JSON]?.schema?.`$ref`
-                    .assert().isEqualTo(schemaRef)
+                    .assert().isEqualTo("#/components/schemas/$schemaName")
+            }
+            listOf("aggregation", "count", "single", "list", "paged").forEach { operation ->
+                requireNotNull(openAPI.paths["/cart/snapshot/$operation"]?.post?.requestBody?.`$ref`)
+                    .assert().startsWith("#/components/requestBodies/wow.")
             }
             openAPI.components.schemas["wow.api.query.ListQuery"]
                 ?.properties?.get("limit")?.minimum

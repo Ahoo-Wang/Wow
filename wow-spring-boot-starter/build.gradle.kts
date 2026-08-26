@@ -68,7 +68,6 @@ dependencies {
     api("org.springframework.boot:spring-boot-starter-jackson")
     api("org.springframework.boot:spring-boot-starter-webflux")
     api("org.springframework.boot:spring-boot-starter-webclient")
-    compileOnly("org.springframework.boot:spring-boot-actuator")
     kapt("org.springframework.boot:spring-boot-configuration-processor")
     kapt("org.springframework.boot:spring-boot-autoconfigure-processor")
     testImplementation(project(":wow-test"))
