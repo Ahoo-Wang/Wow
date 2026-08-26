@@ -14,7 +14,9 @@
 package me.ahoo.wow.elasticsearch.query.snapshot
 
 import co.elastic.clients.elasticsearch._types.Refresh
+import co.elastic.clients.elasticsearch._types.mapping.DynamicMapping
 import co.elastic.clients.elasticsearch._types.mapping.RuntimeFieldType
+import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch.core.UpdateRequest
 import co.elastic.clients.elasticsearch.indices.PutMappingRequest
 import co.elastic.clients.json.JsonData
@@ -233,6 +235,68 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
 
         strictService.dynamicList(ListQuery(filter = abacFilter, limit = 10))
             .test().expectNextCount(1).verifyComplete()
+    }
+
+    @Test
+    fun `strict should reject ABAC exact before search without a keyword template`() {
+        val current = currentMapping()
+        recreateSnapshotIndex(
+            TypeMapping.of { mapping ->
+                mapping.dynamic(DynamicMapping.True)
+                    .properties(current.properties())
+                    .properties("tags") {
+                        it.`object` { objectField -> objectField.dynamic(DynamicMapping.True) }
+                    }
+            },
+        )
+        val strictService = strictService()
+        strictService.requiredQueryModelSchemaProvider().schema().block()!!
+            .fields.getValue(LogicalField("tags")).bindings.keys.assert()
+            .containsExactly(QueryCapability.PRESENCE)
+        updateDocument(mapOf("tags" to mapOf("department" to listOf("eng"))))
+
+        strictService.dynamicList(
+            ListQuery(
+                filter = mapOf("department" to listOf("eng")).toFilterExpression(),
+                limit = 10,
+            ),
+        ).test().expectError(QuerySchemaValidationException::class.java).verify()
+    }
+
+    @Test
+    fun `strict should execute ABAC through flattened tags under root strict`() {
+        val current = currentMapping()
+        recreateSnapshotIndex(
+            TypeMapping.of { mapping ->
+                mapping.dynamic(DynamicMapping.Strict)
+                    .properties(current.properties())
+                    .properties("tags") { it.flattened { flattened -> flattened } }
+            },
+        )
+        val strictService = strictService()
+        strictService.requiredQueryModelSchemaProvider().schema().block()!!
+            .fields.getValue(LogicalField("tags")).bindings.keys.assert().contains(
+                QueryCapability.PRESENCE,
+                QueryCapability.EXACT_MATCH,
+            )
+        updateDocument(
+            mapOf(
+                "tags" to mapOf(
+                    "visibility" to listOf("public"),
+                    "department" to listOf("eng"),
+                ),
+            ),
+        )
+
+        strictService.dynamicList(
+            ListQuery(
+                filter = mapOf(
+                    "visibility" to listOf("*"),
+                    "department" to listOf("eng"),
+                ).toFilterExpression(),
+                limit = 10,
+            ),
+        ).test().expectNextCount(1).verifyComplete()
     }
 
     @Test
@@ -524,6 +588,27 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             querySchemaSources,
             QuerySchemaValidationMode.STRICT,
         ).create(MOCK_AGGREGATE_METADATA)
+
+    private fun currentMapping(): TypeMapping = elasticsearchClient.indices().getMapping { request ->
+        request.index(MOCK_AGGREGATE_METADATA.toSnapshotIndexName())
+    }.block()!!.mappings().values.single().mappings()
+
+    private fun recreateSnapshotIndex(mapping: TypeMapping) {
+        val indexName = MOCK_AGGREGATE_METADATA.toSnapshotIndexName()
+        Mono.defer {
+            elasticsearchClient.indices().deleteIndexTemplate { request ->
+                request.name("wow-snapshot-template")
+            }
+        }.then(
+            Mono.defer { elasticsearchClient.indices().delete { request -> request.index(indexName) } },
+        ).then(
+            Mono.defer {
+                elasticsearchClient.indices().create { request -> request.index(indexName).mappings(mapping) }
+            },
+        ).then(
+            Mono.defer { snapshotStore.save(snapshot) },
+        ).block()
+    }
 
     private fun defensiveEpochService(): SnapshotQueryService<MockStateAggregate> {
         val field = LogicalField("state.epochFraction")

@@ -298,7 +298,7 @@ class ElasticsearchQuerySchemaAdapterTest {
     }
 
     @Test
-    fun `dynamic object roots should expose only presence and exact descendant bindings`() {
+    fun `dynamic objects without an exact template should expose only presence descendants`() {
         val logical = LogicalQuerySchema(
             linkedMapOf(
                 LogicalField("tags") to field(QueryValueType.OBJECT, dynamicChildren = true),
@@ -329,12 +329,10 @@ class ElasticsearchQuerySchemaAdapterTest {
             ElasticsearchIndexMapping.from(INDEX, mapping),
         )
 
-        schema.bindings("tags").assert().containsExactlyInAnyOrder(
-            QueryCapability.PRESENCE,
-            QueryCapability.EXACT_MATCH,
-        )
-        schema.resolve(LogicalField("tags.department"))!!.bindings.forEach { (_, binding) ->
-            binding.physicalPath.assert().isEqualTo("tags.department")
+        schema.bindings("tags").assert().containsExactly(QueryCapability.PRESENCE)
+        schema.resolve(LogicalField("tags.department"))!!.bindings.let { bindings ->
+            bindings.keys.assert().containsExactly(QueryCapability.PRESENCE)
+            bindings.getValue(QueryCapability.PRESENCE).physicalPath.assert().isEqualTo("tags.department")
         }
         schema.bindings("state.labels").assert().containsExactlyInAnyOrder(
             QueryCapability.PRESENCE,

@@ -200,6 +200,27 @@ class ElasticsearchSnapshotMappingQueryTest {
     }
 
     @Test
+    fun `strict service should reject dynamic exact without a keyword template before search`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(
+                TypeMapping.of { mapping ->
+                    mapping.properties("tags") {
+                        it.`object` { objectField -> objectField.dynamic(co.elastic.clients.elasticsearch._types.mapping.DynamicMapping.True) }
+                    }
+                },
+            ),
+        )
+
+        strictQueryService(emptyList()).dynamicList(
+            ListQuery(filter = equal("tags.department", "eng"), limit = 10),
+        ).test()
+            .expectError(QuerySchemaValidationException::class.java)
+            .verify()
+
+        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+    }
+
+    @Test
     fun `default snapshot query should compile fields from current mapping`() {
         every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
             mappingResponse(queryMapping()),

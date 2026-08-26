@@ -161,9 +161,9 @@ private fun ElasticsearchMappedField.supports(
     logical: LogicalQueryFieldSchema,
 ): Boolean {
     val executable = when (capability) {
-        QueryCapability.PRESENCE -> if (logical.isDynamicObject) supportsDynamicObject else queryable
+        QueryCapability.PRESENCE -> if (logical.isDynamicObject) dynamicChildrenQueryable else queryable
         QueryCapability.EXACT_MATCH -> if (logical.isDynamicObject) {
-            supportsDynamicObject
+            dynamicChildrenExact
         } else {
             queryable && kind in EXACT_KINDS
         }
@@ -187,9 +187,6 @@ private fun ElasticsearchMappedField.supports(
 
 private val LogicalQueryFieldSchema.isDynamicObject: Boolean
     get() = dynamicChildren && QueryValueType.OBJECT in valueTypes
-
-private val ElasticsearchMappedField.supportsDynamicObject: Boolean
-    get() = dynamic && queryable && kind in DYNAMIC_OBJECT_KINDS
 
 private val LogicalQueryFieldSchema.isElementScope: Boolean
     get() = cardinality == QueryCardinality.MANY && QueryValueType.OBJECT in valueTypes
@@ -317,7 +314,7 @@ private val DATE_KINDS = setOf(Property.Kind.Date, Property.Kind.DateNanos)
 
 private val NESTED_KINDS = setOf(Property.Kind.Nested)
 
-private val DYNAMIC_OBJECT_KINDS = setOf(Property.Kind.Object, Property.Kind.Flattened)
+private val DYNAMIC_OBJECT_KINDS = setOf(Property.Kind.Object, Property.Kind.Nested, Property.Kind.Flattened)
 
 private val RANGE_FIELD_KINDS = setOf(
     Property.Kind.IntegerRange,

@@ -19,10 +19,12 @@ import co.elastic.clients.elasticsearch._types.mapping.DateNanosProperty
 import co.elastic.clients.elasticsearch._types.mapping.DateProperty
 import co.elastic.clients.elasticsearch._types.mapping.DocValuesPropertyBase
 import co.elastic.clients.elasticsearch._types.mapping.DynamicMapping
+import co.elastic.clients.elasticsearch._types.mapping.DynamicTemplate
 import co.elastic.clients.elasticsearch._types.mapping.FlattenedProperty
 import co.elastic.clients.elasticsearch._types.mapping.IcuCollationProperty
 import co.elastic.clients.elasticsearch._types.mapping.IpProperty
 import co.elastic.clients.elasticsearch._types.mapping.KeywordProperty
+import co.elastic.clients.elasticsearch._types.mapping.MatchType
 import co.elastic.clients.elasticsearch._types.mapping.NumberPropertyBase
 import co.elastic.clients.elasticsearch._types.mapping.Property
 import co.elastic.clients.elasticsearch._types.mapping.PropertyBase
@@ -100,13 +102,19 @@ data class ElasticsearchIndexMapping private constructor(
                 }
                 val propertyBase = property._get() as? PropertyBase
                 val dynamic = property.hasDynamicChildren(parentDynamic)
+                val dynamicChildrenQueryable = property.dynamicChildrenQueryable(dynamic)
                 val multiFields = propertyBase?.fields().orEmpty().keys.mapTo(linkedSetOf()) { "$path.$it" }
                 fields[path] = ElasticsearchMappedField(
                     kind = property._kind(),
                     indexed = property.isIndexed(),
                     sortable = property.isSortable(),
                     aggregatable = property.isAggregatable(),
-                    dynamic = dynamic,
+                    dynamicChildrenQueryable = dynamicChildrenQueryable,
+                    dynamicChildrenExact = property.provesDynamicChildrenExact(
+                        path,
+                        dynamicChildrenQueryable,
+                        typeMapping,
+                    ),
                     multiFields = multiFields,
                 )
                 propertyBase?.fields().orEmpty().forEach { (name, field) -> visit("$path.$name", field, dynamic) }
@@ -125,7 +133,13 @@ data class ElasticsearchIndexMapping private constructor(
                 }
             }
             aliases.forEach { (name, target) ->
-                fields[target]?.let { fields[name] = it.copy(multiFields = emptySet()) }
+                fields[target]?.let {
+                    fields[name] = it.copy(
+                        dynamicChildrenQueryable = false,
+                        dynamicChildrenExact = false,
+                        multiFields = emptySet(),
+                    )
+                }
             }
             return ElasticsearchIndexMapping(indexName, fields.toMap())
         }
@@ -137,7 +151,8 @@ internal data class ElasticsearchMappedField(
     val indexed: Boolean,
     val sortable: Boolean,
     val aggregatable: Boolean,
-    val dynamic: Boolean,
+    val dynamicChildrenQueryable: Boolean,
+    val dynamicChildrenExact: Boolean,
     val multiFields: Set<String>,
 )
 
@@ -156,7 +171,8 @@ private fun RuntimeFieldType.toMappedField(): ElasticsearchMappedField? {
         indexed = true,
         sortable = true,
         aggregatable = true,
-        dynamic = false,
+        dynamicChildrenQueryable = false,
+        dynamicChildrenExact = false,
         multiFields = emptySet(),
     )
 }
@@ -174,6 +190,87 @@ private fun DynamicMapping?.allowsDynamicFields(parent: Boolean): Boolean = when
 private fun Property.hasDynamicChildren(parent: Boolean): Boolean =
     (_get() as? PropertyBase)?.dynamic().allowsDynamicFields(parent) &&
         (!isObject || `object`().enabled() != false)
+
+private fun Property.dynamicChildrenQueryable(dynamic: Boolean): Boolean = when (_kind()) {
+    Property.Kind.Flattened -> isIndexed()
+    Property.Kind.Object,
+    Property.Kind.Nested,
+    -> dynamic && isIndexed()
+    else -> false
+}
+
+private fun Property.provesDynamicChildrenExact(
+    path: String,
+    queryable: Boolean,
+    mapping: TypeMapping,
+): Boolean = when (_kind()) {
+    Property.Kind.Flattened -> queryable
+    Property.Kind.Object,
+    Property.Kind.Nested,
+    -> queryable && mapping.provesDynamicExact(path)
+    else -> false
+}
+
+private fun TypeMapping.provesDynamicExact(path: String): Boolean {
+    dynamicTemplates().forEach { namedTemplate ->
+        val template = namedTemplate.value()
+        if (template.matchMappingType() != listOf("string")) return@forEach
+        when (template.coverage(path)) {
+            TemplateCoverage.NONE -> Unit
+            TemplateCoverage.PARTIAL -> return false
+            TemplateCoverage.ALL -> return template.mapsExactString()
+        }
+    }
+    return false
+}
+
+private fun DynamicTemplate.mapsExactString(): Boolean =
+    isMapping && mapping().isIndexed() && mapping()._kind() in DYNAMIC_EXACT_KINDS
+
+private fun DynamicTemplate.coverage(path: String): TemplateCoverage {
+    if (matchPattern() == MatchType.Regex) return TemplateCoverage.PARTIAL
+    val nameCoverage = nameCoverage()
+    val pathCoverage = pathCoverage(path)
+    if (pathCoverage == TemplateCoverage.NONE) return TemplateCoverage.NONE
+    if (hasExclusions()) return TemplateCoverage.PARTIAL
+    return if (nameCoverage == TemplateCoverage.ALL && pathCoverage == TemplateCoverage.ALL) {
+        TemplateCoverage.ALL
+    } else {
+        TemplateCoverage.PARTIAL
+    }
+}
+
+private fun DynamicTemplate.nameCoverage(): TemplateCoverage =
+    if (match().isEmpty() || "*" in match()) TemplateCoverage.ALL else TemplateCoverage.PARTIAL
+
+private fun DynamicTemplate.pathCoverage(path: String): TemplateCoverage = when {
+    pathMatch().isEmpty() || pathMatch().any { it == "*" || it == "$path.*" } -> TemplateCoverage.ALL
+    pathMatch().any { it.couldMatchChildOf(path) } -> TemplateCoverage.PARTIAL
+    else -> TemplateCoverage.NONE
+}
+
+private fun DynamicTemplate.hasExclusions(): Boolean =
+    unmatch().isNotEmpty() || pathUnmatch().isNotEmpty() || unmatchMappingType().isNotEmpty()
+
+private fun String.couldMatchChildOf(path: String): Boolean {
+    val childPrefix = "$path."
+    val literalPrefix = takeWhile { it != '*' && it != '?' }
+    return literalPrefix.isEmpty() || childPrefix.startsWith(literalPrefix) || literalPrefix.startsWith(childPrefix)
+}
+
+private enum class TemplateCoverage {
+    NONE,
+    PARTIAL,
+    ALL,
+}
+
+private val DYNAMIC_EXACT_KINDS = setOf(
+    Property.Kind.Keyword,
+    Property.Kind.ConstantKeyword,
+    Property.Kind.CountedKeyword,
+    Property.Kind.IcuCollationKeyword,
+    Property.Kind.Wildcard,
+)
 
 private fun Property.isAggregatable(): Boolean = when (_kind()) {
     Property.Kind.ConstantKeyword,
