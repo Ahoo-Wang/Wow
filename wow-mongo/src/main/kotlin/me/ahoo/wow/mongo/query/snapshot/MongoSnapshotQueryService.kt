@@ -104,12 +104,13 @@ class MongoSnapshotQueryService<S : Any> private constructor(
     override fun resolve(filter: FilterExpression) = schemaProvider.resolve(filter, validationMode)
 
     override fun aggregate(query: AggregationQuery): Flux<DynamicDocument> {
-        return schemaProvider.resolve(query, validationMode).flatMapMany { schema ->
+        return schemaProvider.resolve(query, validationMode).flatMapMany { resolved ->
+            val executionQuery = resolved.query
             val result = collection.aggregate(
-                MongoAggregationCompiler(converter).compile(query, schema.orElse(null)),
-            ).toFlux().map { it.toAggregationResult(query) }
-            if (query.groupBy.isEmpty()) {
-                result.switchIfEmpty(Flux.just(query.emptySummary()))
+                MongoAggregationCompiler(converter).compile(executionQuery, resolved.schema),
+            ).toFlux().map { it.toAggregationResult(executionQuery) }
+            if (executionQuery.groupBy.isEmpty()) {
+                result.switchIfEmpty(Flux.just(executionQuery.emptySummary()))
             } else {
                 result
             }

@@ -22,7 +22,6 @@ import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import reactor.core.publisher.Mono
-import java.util.Optional
 import java.util.concurrent.TimeUnit
 
 enum class QuerySchemaValidationMode {
@@ -39,6 +38,11 @@ enum class QuerySchemaValidationMode {
 data class QuerySchemaResolution<T>(
     val value: T,
     val compatibility: QueryCompatibilityLevel,
+)
+
+data class ResolvedAggregationQuery(
+    val query: AggregationQuery,
+    val schema: QueryModelSchema?,
 )
 
 fun <T> QuerySchemaResolution<T>.requireAccepted(mode: QuerySchemaValidationMode): T {
@@ -113,10 +117,11 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
     }
 
     fun resolve(query: AggregationQuery): QuerySchemaResolution<AggregationQuery> {
-        val levels = mutableListOf(resolve(query.filter).compatibility)
+        val rootFilter = resolve(query.filter)
+        val levels = mutableListOf(rootFilter.compatibility)
         var logicalParent: LogicalField? = null
         var physicalParent: String? = null
-        query.elements.forEach { element ->
+        val elements = query.elements.map { element ->
             val container = resolveAggregationField(
                 element.path,
                 QueryCapability.ELEMENT_SCOPE,
@@ -124,9 +129,11 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
                 physicalParent,
             )
             levels += container.compatibility
-            levels += resolveFilter(element.filter, container.logical, container.physicalPath).compatibility
+            val filter = resolveFilter(element.filter, container.logical, container.physicalPath)
+            levels += filter.compatibility
             logicalParent = container.logical
             physicalParent = container.physicalPath
+            element.copy(filter = filter.value)
         }
         query.groupBy.forEach { group ->
             levels += resolveAggregationField(
@@ -139,7 +146,10 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         query.metrics.filterIsInstance<AggregationMetric.Numeric>().forEach { metric ->
             collectExpressionLevels(metric.expression, logicalParent, physicalParent, levels)
         }
-        return QuerySchemaResolution(query, levels.combined())
+        return QuerySchemaResolution(
+            query.copy(filter = rootFilter.value, elements = elements),
+            levels.combined(),
+        )
     }
 
     @Suppress("CyclomaticComplexMethod", "LongMethod")
@@ -572,12 +582,14 @@ fun QueryModelSchemaProvider.resolve(
 fun QueryModelSchemaProvider.resolve(
     query: AggregationQuery,
     mode: QuerySchemaValidationMode,
-): Mono<Optional<QueryModelSchema>> = schema()
+): Mono<ResolvedAggregationQuery> = schema()
     .map { schema ->
-        QuerySchemaResolver(schema).resolve(query).requireAccepted(mode)
-        Optional.of(schema)
+        ResolvedAggregationQuery(
+            QuerySchemaResolver(schema).resolve(query).requireAccepted(mode),
+            schema,
+        )
     }
-    .fallbackUnavailable(mode, Optional.empty())
+    .fallbackUnavailable(mode, ResolvedAggregationQuery(query, schema = null))
 
 private fun <T : Any> Mono<T>.fallbackUnavailable(
     mode: QuerySchemaValidationMode,

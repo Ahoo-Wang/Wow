@@ -32,6 +32,7 @@ import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.schema.QueryFieldBinding
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QuerySchemaResolver
 import org.junit.jupiter.api.Test
 import java.time.ZoneId
 import java.util.concurrent.TimeUnit
@@ -148,33 +149,33 @@ class ElasticsearchAggregationCompilerTest {
     }
 
     @Test
-    fun `compiler should nest relative elements in order and resolve exact terms`() {
+    fun `compiler should consume resolved filters and resolve logical aggregation fields`() {
         val schema = schema(
-            field("state.orders", QueryCapability.ELEMENT_SCOPE, "state.orders", "nested"),
-            field("state.orders.status", QueryCapability.EXACT_MATCH, "state.orders.status", "keyword"),
-            field("state.orders.lines", QueryCapability.ELEMENT_SCOPE, "state.orders.lines", "nested"),
-            field("state.orders.lines.quantity", QueryCapability.RANGE, "state.orders.lines.quantity", "integer"),
+            field("state.orders", QueryCapability.ELEMENT_SCOPE, "document.orders", "nested"),
+            field("state.orders.status", QueryCapability.EXACT_MATCH, "document.orders.status.keyword", "keyword"),
+            field("state.orders.lines", QueryCapability.ELEMENT_SCOPE, "document.orders.lines", "nested"),
+            field("state.orders.lines.quantity", QueryCapability.RANGE, "document.orders.lines.quantity", "integer"),
             field(
                 "state.orders.lines.productId",
                 QueryCapability.AGGREGATE_TERMS,
-                "state.orders.lines.productId.keyword",
+                "document.orders.lines.productId.keyword",
                 "keyword",
             ),
             field(
                 "state.orders.lines.amount",
                 QueryCapability.AGGREGATE_NUMERIC,
-                "state.orders.lines.amount",
+                "document.orders.lines.amount",
                 "double",
             ),
             field(
                 "state.orders.lines.createdAt",
                 QueryCapability.AGGREGATE_TEMPORAL,
-                "state.orders.lines.createdAt",
+                "document.orders.lines.createdAt",
                 "date",
                 Temporal.Date,
             ),
         )
-        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter).compile(
+        val query = QuerySchemaResolver(schema).resolve(
             aggregation {
                 expand("state.orders") { "status" eq "PAID" }
                 expand("lines") { "quantity" gt 0 }
@@ -183,15 +184,18 @@ class ElasticsearchAggregationCompilerTest {
                 dateHistogram("createdAt", AggregationDateUnit.DAY, "day")
                 sum("amount", "total")
             },
+        ).value
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter).compile(
+            query,
             schema,
         )
 
-        plan.elements.map { it.path }.assert().containsExactly("state.orders", "state.orders.lines")
+        plan.elements.map { it.path }.assert().containsExactly("document.orders", "document.orders.lines")
         plan.groupSources[0].value().terms().field().assert()
-            .isEqualTo("state.orders.lines.productId.keyword")
-        plan.groupSources[1].value().histogram().field().assert().isEqualTo("state.orders.lines.amount")
-        plan.groupSources[2].value().dateHistogram().field().assert().isEqualTo("state.orders.lines.createdAt")
-        plan.metrics.single().field.assert().isEqualTo("state.orders.lines.amount")
+            .isEqualTo("document.orders.lines.productId.keyword")
+        plan.groupSources[1].value().histogram().field().assert().isEqualTo("document.orders.lines.amount")
+        plan.groupSources[2].value().dateHistogram().field().assert().isEqualTo("document.orders.lines.createdAt")
+        plan.metrics.single().field.assert().isEqualTo("document.orders.lines.amount")
     }
 
     @Test

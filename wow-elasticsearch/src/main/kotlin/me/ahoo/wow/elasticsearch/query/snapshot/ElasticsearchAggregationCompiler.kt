@@ -31,7 +31,6 @@ import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
-import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.schema.QueryCapability
@@ -39,7 +38,6 @@ import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterConverter
 import me.ahoo.wow.elasticsearch.query.ElasticsearchSortConverter.toSortOrder
 import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.QuerySchemaResolver
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import java.util.concurrent.TimeUnit
 
@@ -72,20 +70,15 @@ internal class ElasticsearchAggregationCompiler(
     private val filterConverter: AbstractElasticsearchFilterConverter,
 ) {
     fun compile(query: AggregationQuery, schema: QueryModelSchema? = null): ElasticsearchAggregationPlan {
-        val rootFilter = schema?.let { QuerySchemaResolver(it).resolve(query.filter).value } ?: query.filter
-        val rootQuery = filterConverter.convert(rootFilter)
+        val rootQuery = filterConverter.convert(query.filter)
         val elements = mutableListOf<ElasticsearchAggregationElement>()
         var logicalParent: String? = null
         query.elements.forEach { element ->
+            val previousLogicalParent = logicalParent
             logicalParent = if (logicalParent == null) element.path.value else "$logicalParent.${element.path.value}"
-            val resolved = schema?.let {
-                QuerySchemaResolver(it).resolve(
-                    ElementMatchFilter(LogicalField(logicalParent), element.filter),
-                ).value as ElementMatchFilter
-            }
-            val nestedPath = resolved?.field?.value ?: logicalParent
+            val nestedPath = element.path.resolve(previousLogicalParent, schema, QueryCapability.ELEMENT_SCOPE)
             val unscopedFilter = AndFilter(
-                listOf(resolved?.predicate ?: element.filter, DeletionFilter(DeletionState.ALL)),
+                listOf(element.filter, DeletionFilter(DeletionState.ALL)),
             )
             elements += ElasticsearchAggregationElement(
                 path = nestedPath,

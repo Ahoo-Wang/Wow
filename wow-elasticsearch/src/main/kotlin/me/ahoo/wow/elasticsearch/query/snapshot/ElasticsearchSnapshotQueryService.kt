@@ -144,13 +144,15 @@ class ElasticsearchSnapshotQueryService<S : Any> private constructor(
     override fun resolve(filter: FilterExpression) = schemaProvider.resolve(filter, validationMode)
 
     override fun aggregate(query: AggregationQuery): Flux<DynamicDocument> =
-        schemaProvider.resolve(query, validationMode).flatMapMany { schema ->
+        schemaProvider.resolve(query, validationMode).flatMapMany { resolved ->
             ElasticsearchAggregationPager(
                 elasticsearchClient,
                 indexName,
                 queryBatchSize,
                 queryKeepAlive,
-            ).execute(ElasticsearchAggregationCompiler(filterConverter).compile(query, schema.orElse(null)))
+            ).execute(
+                ElasticsearchAggregationCompiler(filterConverter).compile(resolved.query, resolved.schema),
+            )
         }
 
     companion object {

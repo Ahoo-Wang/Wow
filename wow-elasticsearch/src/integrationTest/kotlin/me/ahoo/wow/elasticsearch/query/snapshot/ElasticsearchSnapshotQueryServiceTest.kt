@@ -65,6 +65,8 @@ import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchCl
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
+import java.time.Instant
+import java.time.ZoneOffset
 import java.util.concurrent.TimeUnit
 
 class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
@@ -121,6 +123,12 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                                                     .properties("amount") { it.double_ { number -> number } }
                                                     .properties("samples") { it.double_ { number -> number } }
                                                     .properties("createdAt") { it.date { date -> date } }
+                                                    .properties("epochSeconds") { it.long_ { number -> number } }
+                                                    .properties("productName") { productName ->
+                                                        productName.text { text ->
+                                                            text.fields("keyword") { keyword -> keyword.keyword { it } }
+                                                        }
+                                                    }
                                                     .properties("discounts") { discounts ->
                                                         discounts.nested { discountsNested ->
                                                             discountsNested
@@ -259,6 +267,50 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                 limit = 10,
             ),
         ).test().expectNextCount(1).verifyComplete()
+    }
+
+    @Test
+    fun `aggregation should execute resolved temporal and multi-field filters in two nested scopes`() {
+        val now = Instant.now()
+        val timeZone = ZoneOffset.ofHours(12 - now.atOffset(ZoneOffset.UTC).hour)
+        val nowSeconds = now.epochSecond
+        updateState(
+            mapOf(
+                "orders" to listOf(
+                    mapOf(
+                        "status" to "PAID",
+                        "lines" to listOf(
+                            mapOf(
+                                "productName" to "Widget",
+                                "epochSeconds" to nowSeconds,
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        val service = ElasticsearchSnapshotQueryServiceFactory(
+            elasticsearchClient,
+            me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
+            me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
+            querySchemaSources + source(
+                stringField("state.orders.lines.productName"),
+                epochField("state.orders.lines.epochSeconds", TimeUnit.SECONDS),
+            ),
+            QuerySchemaValidationMode.STRICT,
+        ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+
+        aggregation {
+            expand("state.orders") { "status" eq "PAID" }
+            expand("lines") {
+                "productName" eq "Widget"
+                "epochSeconds".today(timeZone)
+            }
+            count("count")
+        }.query(service)
+            .test()
+            .assertNext { row -> row.toMap().assert().isEqualTo(mapOf("count" to 1L)) }
+            .verifyComplete()
     }
 
     @Test

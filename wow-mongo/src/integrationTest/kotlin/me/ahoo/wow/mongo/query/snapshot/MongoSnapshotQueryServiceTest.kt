@@ -19,6 +19,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.SearchFilter
+import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
@@ -50,6 +51,8 @@ import org.junit.jupiter.api.extension.RegisterExtension
 import reactor.core.publisher.Flux
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
+import java.time.Instant
+import java.time.ZoneOffset
 import java.util.concurrent.TimeUnit
 
 class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
@@ -225,6 +228,39 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             .verifyComplete()
     }
 
+    @Test
+    fun `aggregation should execute resolved epoch filters at root and element scopes`() {
+        val now = Instant.now()
+        val timeZone = ZoneOffset.ofHours(12 - now.atOffset(ZoneOffset.UTC).hour)
+        val nowSeconds = now.epochSecond
+        database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
+            .updateOne(
+                Document("_id", snapshot.aggregateId.id),
+                Document(
+                    "\$set",
+                    Document("state.epochSeconds", nowSeconds)
+                        .append(
+                            "state.events",
+                            listOf(Document("occurredAt", nowSeconds)),
+                        ),
+                ),
+            ).toMono().test().expectNextCount(1).verifyComplete()
+        val service = MongoSnapshotQueryServiceFactory(
+            database,
+            schemaSources = querySchemaSources + aggregationExecutionSource(),
+            validationMode = QuerySchemaValidationMode.STRICT,
+        ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+
+        aggregation {
+            filter(TodayFilter(LogicalField("state.epochSeconds"), zoneId = timeZone.id))
+            expand("state.events") { "occurredAt".today(timeZone) }
+            count("count")
+        }.query(service)
+            .test()
+            .assertNext { row -> row.toMap().assert().isEqualTo(mapOf("count" to 1L)) }
+            .verifyComplete()
+    }
+
     private fun epochDocument(id: String, value: Any): Document = Document("_id", id)
         .append("deleted", false)
         .append("state", Document("epochMicros", value))
@@ -254,4 +290,29 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             ),
         )
     }
+
+    private fun aggregationExecutionSource(): QuerySchemaSource = object : QuerySchemaSource {
+        override val priority: Int = QuerySchemaSourcePriority.BEAN
+
+        override fun load(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> = Flux.just(
+            QuerySchemaDeclaration(
+                mapOf(
+                    LogicalField("state.epochSeconds") to epochDeclaration(),
+                    LogicalField("state.events") to QueryFieldDeclaration(
+                        valueTypes = DeclarationValue.Set(setOf(QueryValueType.OBJECT)),
+                        cardinality = DeclarationValue.Set(QueryCardinality.MANY),
+                    ),
+                    LogicalField("state.events.occurredAt") to epochDeclaration(),
+                ),
+            ),
+        )
+    }
+
+    private fun epochDeclaration() = QueryFieldDeclaration(
+        valueTypes = DeclarationValue.Set(setOf(QueryValueType.INTEGER)),
+        nullable = DeclarationValue.Set(false),
+        required = DeclarationValue.Set(true),
+        cardinality = DeclarationValue.Set(QueryCardinality.SINGLE),
+        semanticType = DeclarationValue.Set(Temporal.Epoch(TimeUnit.SECONDS)),
+    )
 }

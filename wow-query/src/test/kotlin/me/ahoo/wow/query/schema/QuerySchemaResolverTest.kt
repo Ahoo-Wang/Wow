@@ -805,8 +805,69 @@ class QuerySchemaResolverTest {
         )
 
         QuerySchemaResolver(schema).resolve(query).assert().isEqualTo(
-            QuerySchemaResolution(query, QueryCompatibilityLevel.EXACT),
+            QuerySchemaResolution(
+                query.copy(
+                    filter = EqualFilter(LogicalField("document.status"), json("OPEN")),
+                ),
+                QueryCompatibilityLevel.EXACT,
+            ),
         )
+    }
+
+    @Test
+    fun `aggregation should return rewritten root and nested element filters without mutating the request`() {
+        val rootFilter = TodayFilter(LogicalField("state.createdAt"))
+        val outerFilter = EqualFilter(LogicalField("status"), json("PAID"))
+        val innerFilter = TodayFilter(LogicalField("createdAt"))
+        val query = AggregationQuery(
+            filter = rootFilter,
+            elements = listOf(
+                AggregationElement(LogicalField("state.orders"), outerFilter),
+                AggregationElement(LogicalField("items"), innerFilter),
+            ),
+            metrics = listOf(AggregationMetric.Count("count")),
+        )
+        val schema = schema(
+            mapOf(
+                LogicalField("state.createdAt") to fieldSchema(
+                    QueryCapability.RANGE to "document.created_at",
+                    semanticType = Temporal.Epoch(TimeUnit.SECONDS),
+                ),
+                LogicalField("state.orders") to fieldSchema(
+                    QueryCapability.ELEMENT_SCOPE to "document.orders",
+                ),
+                LogicalField("state.orders.status") to fieldSchema(
+                    QueryCapability.EXACT_MATCH to "document.orders.status.keyword",
+                ),
+                LogicalField("state.orders.items") to fieldSchema(
+                    QueryCapability.ELEMENT_SCOPE to "document.orders.items",
+                ),
+                LogicalField("state.orders.items.createdAt") to fieldSchema(
+                    QueryCapability.RANGE to "document.orders.items.created_at",
+                    semanticType = Temporal.Formatted("yyyy-MM-dd"),
+                ),
+            ),
+        )
+
+        QuerySchemaResolver(schema).resolve(query).assert().isEqualTo(
+            QuerySchemaResolution(
+                query.copy(
+                    filter = TodayFilter(LogicalField("document.created_at"), timeUnit = TimeUnit.SECONDS),
+                    elements = listOf(
+                        query.elements[0].copy(
+                            filter = outerFilter.copy(field = LogicalField("status.keyword")),
+                        ),
+                        query.elements[1].copy(
+                            filter = TodayFilter(LogicalField("created_at"), datePattern = "yyyy-MM-dd"),
+                        ),
+                    ),
+                ),
+                QueryCompatibilityLevel.EXACT,
+            ),
+        )
+        query.filter.assert().isSameAs(rootFilter)
+        query.elements[0].filter.assert().isSameAs(outerFilter)
+        query.elements[1].filter.assert().isSameAs(innerFilter)
     }
 
     @Test

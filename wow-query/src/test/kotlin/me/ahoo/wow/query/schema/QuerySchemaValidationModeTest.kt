@@ -98,15 +98,21 @@ class QuerySchemaValidationModeTest {
     }
 
     @Test
-    fun `provider should return its schema after accepting an aggregation request`() {
+    fun `provider should return the rewritten aggregation request with its schema`() {
         val schema = schema()
         val provider = FixedProvider(Mono.just(schema))
-        val query = AggregationQuery(metrics = listOf(AggregationMetric.Count("count")))
+        val filter = EqualFilter(LogicalField("state.name"), JsonNodeFactory.instance.stringNode("name"))
+        val query = AggregationQuery(filter = filter, metrics = listOf(AggregationMetric.Count("count")))
 
         val resolved = provider.resolve(query, QuerySchemaValidationMode.STRICT).block()!!
 
-        resolved.isPresent.assert().isTrue()
-        resolved.get().assert().isSameAs(schema)
+        resolved.assert().isEqualTo(
+            ResolvedAggregationQuery(
+                query.copy(filter = filter.copy(field = LogicalField("document.name.keyword"))),
+                schema,
+            ),
+        )
+        query.filter.assert().isSameAs(filter)
     }
 
     @Test
@@ -123,7 +129,9 @@ class QuerySchemaValidationModeTest {
         provider.resolve(single, QuerySchemaValidationMode.COMPATIBLE).block().assert().isSameAs(single)
         provider.resolve(list, QuerySchemaValidationMode.COMPATIBLE).block().assert().isSameAs(list)
         provider.resolve(paged, QuerySchemaValidationMode.COMPATIBLE).block().assert().isSameAs(paged)
-        provider.resolve(aggregation, QuerySchemaValidationMode.COMPATIBLE).block()!!.isEmpty.assert().isTrue()
+        provider.resolve(aggregation, QuerySchemaValidationMode.COMPATIBLE).block().assert().isEqualTo(
+            ResolvedAggregationQuery(aggregation, schema = null),
+        )
     }
 
     @Test
