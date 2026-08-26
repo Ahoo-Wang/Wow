@@ -278,6 +278,7 @@ data class QuerySchemaRegistration(
 interface QuerySchemaSource {
     val priority: Int
     fun load(context: QuerySchemaContext): Flux<QuerySchemaDeclaration>
+    fun refresh(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> = load(context)
 }
 
 object QuerySchemaSourcePriority {
@@ -318,7 +319,7 @@ sealed interface DeclarationValue<out T> {
 
 `QuerySchemaDeclaration` 只表达可合并内容，不携带作用域。约定文件与 JSON Schema Source 已由 `load(context)` 获得作用域；Bean 没有调用期上下文，因此单独使用 `QuerySchemaRegistration` 关联 `QuerySchemaContext`。该包装不参与合并，不形成 Registry 或第二份 Schema。
 
-Source 使用开放的整数优先级，数值越大优先级越高；内置常量固定上述顺序。`Flux` 保留同一 Source 或同一优先级的多个声明，使合并器能够检测同级冲突，而不是由加载顺序悄悄覆盖。
+Source 使用开放的整数优先级，数值越大优先级越高；内置常量固定上述顺序。`Flux` 保留同一 Source 或同一优先级的多个声明，使合并器能够检测同级冲突，而不是由加载顺序悄悄覆盖。默认 `refresh` 等同 `load`；Classpath Source 覆盖它以清除对应 context 的资源缓存后重读，Working-directory Source 每次都直接读取文件，JSON Schema 与 Bean Source 保持静态缓存。
 
 逻辑合并先放入全局 System 骨架并锁定其已声明叶子，再合并聚合扩展声明。扩展来源优先级为：
 
@@ -483,6 +484,15 @@ SystemQuerySchemaSource
 ```
 
 最终类型仍是 `QueryModelSchema`，不使用 `BoundQuerySchema`。后端解析可以来自真实 Schema，也可以来自稳定约定。
+
+```kotlin
+interface QuerySchemaBackendAdapter {
+    fun resolve(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema>
+    fun refresh(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> = resolve(logicalSchema)
+}
+```
+
+默认 refresh 复用 resolve；持有物理事实缓存的 Adapter 覆盖 refresh，先重新读取 mapping、indexes 或 validator，再解析最终 Schema。
 
 ### MongoQuerySchemaAdapter
 
@@ -1052,6 +1062,7 @@ classDiagram
         <<interface>>
         +Int priority
         +load(context) Flux
+        +refresh(context) Flux
     }
 
     class QuerySchemaRegistration {
@@ -1079,6 +1090,7 @@ classDiagram
     class QuerySchemaBackendAdapter {
         <<interface>>
         +resolve(logicalSchema) Mono
+        +refresh(logicalSchema) Mono
     }
 
     class MongoQuerySchemaAdapter
