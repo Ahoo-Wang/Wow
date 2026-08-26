@@ -46,9 +46,13 @@ class DefaultQueryModelSchemaProvider(
         lateinit var candidate: Mono<QueryModelSchema>
         candidate = Mono.defer {
             published.get()?.let { Mono.just(it) }
-                ?: resolve(refresh = false).doOnNext { published.compareAndSet(null, it) }
+                ?: resolve(refresh = false)
         }
-            .doFinally { firstLoad.compareAndSet(candidate, null) }
+            .doOnSuccess { schema ->
+                schema?.let { published.compareAndSet(null, it) }
+                firstLoad.compareAndSet(candidate, null)
+            }
+            .doOnError { firstLoad.compareAndSet(candidate, null) }
             .cache()
         return firstLoad.compareAndExchange(null, candidate) ?: candidate
     }

@@ -128,6 +128,18 @@ class DefaultQueryModelSchemaProviderTest {
     }
 
     @Test
+    fun `immediate chained recovery should start a fresh first load after cached error`() {
+        val source = CountingSource(failLoads = AtomicInteger(1))
+        val provider = provider(source, CountingAdapter())
+
+        StepVerifier.create(provider.schema().onErrorResume { provider.schema() })
+            .expectNextCount(1)
+            .verifyComplete()
+
+        source.loads.get().assert().isEqualTo(2)
+    }
+
+    @Test
     fun `provider instances should never share final cache state`() {
         val source = CountingSource()
         val adapter = CountingAdapter()

@@ -19,6 +19,7 @@ import me.ahoo.wow.api.query.schema.QuerySemanticType
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.serialization.JsonSerializer
 import reactor.core.publisher.Flux
+import reactor.core.scheduler.Schedulers
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 import java.net.URL
@@ -43,8 +44,11 @@ class BeanQuerySchemaSource(
 
 class WorkingDirectoryQuerySchemaSource internal constructor(
     private val basePath: Path,
+    private val readText: (Path) -> String,
 ) : QuerySchemaSource {
-    constructor() : this(Path.of("config"))
+    constructor() : this(Path.of("config"), Files::readString)
+
+    internal constructor(basePath: Path) : this(basePath, Files::readString)
 
     override val priority: Int = QuerySchemaSourcePriority.WORKING_DIRECTORY
 
@@ -53,9 +57,9 @@ class WorkingDirectoryQuerySchemaSource internal constructor(
         if (Files.notExists(file)) {
             Flux.empty()
         } else {
-            Flux.just(readConventionDeclaration(file.toString()) { Files.readString(file) })
+            Flux.just(readConventionDeclaration(file.toString()) { readText(file) })
         }
-    }
+    }.subscribeOn(Schedulers.boundedElastic())
 }
 
 class ClasspathQuerySchemaSource(
@@ -69,7 +73,7 @@ class ClasspathQuerySchemaSource(
     override fun load(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> = Flux.defer {
         context.resourcePath()
         Flux.fromIterable(cache.computeIfAbsent(context, ::readDeclarations))
-    }
+    }.subscribeOn(Schedulers.boundedElastic())
 
     override fun refresh(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> = Flux.defer {
         cache.remove(context)

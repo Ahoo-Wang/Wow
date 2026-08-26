@@ -24,10 +24,16 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
 import reactor.test.StepVerifier
+import java.io.ByteArrayInputStream
+import java.net.URL
 import java.net.URLClassLoader
+import java.net.URLConnection
+import java.net.URLStreamHandler
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.Collections
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 class QuerySchemaSourcesTest {
     @TempDir
@@ -189,6 +195,52 @@ class QuerySchemaSourcesTest {
         }
     }
 
+    @Test
+    fun `classpath source should enumerate and read resources off the caller thread`() {
+        val ioThreads = mutableListOf<String>()
+        val resource = URL(
+            null,
+            "memory:snapshot.json",
+            object : URLStreamHandler() {
+                override fun openConnection(url: URL): URLConnection = object : URLConnection(url) {
+                    override fun connect() = Unit
+
+                    override fun getInputStream() = ByteArrayInputStream(
+                        conventionJson("Async").also { ioThreads += Thread.currentThread().name }.toByteArray(),
+                    )
+                }
+            },
+        )
+        val classLoader = object : ClassLoader(null) {
+            override fun getResources(name: String): java.util.Enumeration<URL> {
+                ioThreads += Thread.currentThread().name
+                return Collections.enumeration(listOf(resource))
+            }
+        }
+
+        onNamedCallerThread {
+            ClasspathQuerySchemaSource(classLoader).load(ORDER_CONTEXT).single().block()
+        }
+
+        ioThreads.assert().hasSize(2).doesNotContain(CALLER_THREAD)
+    }
+
+    @Test
+    fun `working directory source should read file off the caller thread`() {
+        writeWorkingFile(conventionJson("Async"))
+        val readThread = AtomicReference<String>()
+        val source = WorkingDirectoryQuerySchemaSource(tempDir) { file ->
+            readThread.set(Thread.currentThread().name)
+            Files.readString(file)
+        }
+
+        onNamedCallerThread {
+            source.load(ORDER_CONTEXT).single().block()
+        }
+
+        readThread.get().assert().isNotEqualTo(CALLER_THREAD)
+    }
+
     private fun writeWorkingFile(json: String): Path {
         val file = tempDir.resolve(ORDER_CONTEXT.resourcePathForTest())
         Files.createDirectories(file.parent)
@@ -219,7 +271,19 @@ class QuerySchemaSourcesTest {
             mapOf(LogicalField("state.name") to QueryFieldDeclaration(title = DeclarationValue.Set(value))),
         )
 
+    private fun <T> onNamedCallerThread(block: () -> T): T {
+        val thread = Thread.currentThread()
+        val originalName = thread.name
+        thread.name = CALLER_THREAD
+        return try {
+            block()
+        } finally {
+            thread.name = originalName
+        }
+    }
+
     companion object {
+        private const val CALLER_THREAD = "query-schema-caller"
         private val ORDER_CONTEXT = QuerySchemaContext(
             MaterializedNamedAggregate("test-context", "order"),
             QueryModel.SNAPSHOT,
