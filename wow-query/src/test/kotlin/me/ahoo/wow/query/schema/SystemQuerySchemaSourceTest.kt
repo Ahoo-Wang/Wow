@@ -21,9 +21,32 @@ import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.TimeUnit
 
 class SystemQuerySchemaSourceTest {
+    @Test
+    fun `snapshot system fields should reject forced mutable map mutation`() {
+        val declaration = SystemQuerySchemaSource.declaration(QueryModel.SNAPSHOT)
+        val state = LogicalField("state")
+        val original = declaration.fields.getValue(state)
+        val mutableFields = declaration.fields as MutableMap<LogicalField, QueryFieldDeclaration>
+
+        try {
+            assertThrows<UnsupportedOperationException> {
+                mutableFields.remove(state)
+            }
+        } finally {
+            if (state !in mutableFields) {
+                mutableFields[state] = original
+            }
+        }
+
+        SystemQuerySchemaSource.declaration(QueryModel.SNAPSHOT)
+            .assert().isSameAs(declaration)
+        declaration.fields.assert().containsKey(state)
+    }
+
     @Test
     fun `all snapshot aggregate contexts should receive equal system declarations`() {
         val order = QuerySchemaContext(MaterializedNamedAggregate("sales", "Order"), QueryModel.SNAPSHOT)

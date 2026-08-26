@@ -23,6 +23,7 @@ import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.SnapshotRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import reactor.core.publisher.Flux
+import java.util.Collections
 import java.util.concurrent.TimeUnit
 
 object SystemQuerySchemaSource : QuerySchemaSource {
@@ -39,23 +40,25 @@ object SystemQuerySchemaSource : QuerySchemaSource {
     }
 
     private val SNAPSHOT_DECLARATION = QuerySchemaDeclaration(
-        linkedMapOf(
-            MessageRecords.CONTEXT_NAME.stringField(),
-            MessageRecords.AGGREGATE_NAME.stringField(),
-            MessageRecords.AGGREGATE_ID.stringField(),
-            MessageRecords.TENANT_ID.stringField(),
-            MessageRecords.OWNER_ID.stringField(),
-            MessageRecords.SPACE_ID.stringField(),
-            MessageRecords.VERSION.integerField(),
-            StateAggregateRecords.EVENT_ID.stringField(),
-            StateAggregateRecords.FIRST_OPERATOR.stringField(),
-            StateAggregateRecords.OPERATOR.stringField(),
-            StateAggregateRecords.FIRST_EVENT_TIME.epochField(),
-            StateAggregateRecords.EVENT_TIME.epochField(),
-            StateAggregateRecords.STATE.objectField(),
-            StateAggregateRecords.TAGS.objectField(),
-            StateAggregateRecords.DELETED.booleanField(),
-            SnapshotRecords.SNAPSHOT_TIME.epochField(),
+        Collections.unmodifiableMap(
+            linkedMapOf(
+                MessageRecords.CONTEXT_NAME.stringField(),
+                MessageRecords.AGGREGATE_NAME.stringField(),
+                MessageRecords.AGGREGATE_ID.stringField(),
+                MessageRecords.TENANT_ID.stringField(),
+                MessageRecords.OWNER_ID.stringField(),
+                MessageRecords.SPACE_ID.stringField(),
+                MessageRecords.VERSION.integerField(),
+                StateAggregateRecords.EVENT_ID.stringField(),
+                StateAggregateRecords.FIRST_OPERATOR.stringField(),
+                StateAggregateRecords.OPERATOR.stringField(),
+                StateAggregateRecords.FIRST_EVENT_TIME.epochField(),
+                StateAggregateRecords.EVENT_TIME.epochField(),
+                StateAggregateRecords.STATE.objectField(),
+                StateAggregateRecords.TAGS.objectField(),
+                StateAggregateRecords.DELETED.booleanField(),
+                SnapshotRecords.SNAPSHOT_TIME.epochField(),
+            ),
         ),
     )
 
