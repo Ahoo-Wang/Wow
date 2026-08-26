@@ -73,6 +73,10 @@ class MongoQuerySchemaAdapter(
             } else {
                 emptySet()
             }
+            val invalidContainers = logicalSchema.fields.mapNotNullTo(linkedSetOf()) { (logicalField, fieldSchema) ->
+                val storageSchema = storageSchemas[SnapshotFieldConverter.convert(logicalField.value)]
+                logicalField.value.takeIf { fieldSchema.invalidContainer(storageSchema) }
+            }
             return QueryModelSchema(
                 model = QueryModel.SNAPSHOT,
                 capabilities = capabilities,
@@ -80,6 +84,9 @@ class MongoQuerySchemaAdapter(
                     val physicalPath = SnapshotFieldConverter.convert(logicalField.value)
                     val storageSchema = storageSchemas[physicalPath]
                     val binding = QueryFieldBinding(physicalPath, storageSchema?.types?.singleOrNull())
+                    if (invalidContainers.any { logicalField.value.startsWith("$it.") }) {
+                        return@mapValues logicalSchema.toFieldSchema(emptyMap())
+                    }
                     logicalSchema.toFieldSchema(
                         logicalSchema.capabilities()
                             .filter { logicalSchema.supports(it, storageSchema) }
@@ -87,6 +94,16 @@ class MongoQuerySchemaAdapter(
                     )
                 },
             )
+        }
+
+        private fun LogicalQueryFieldSchema.invalidContainer(storageSchema: MongoStorageSchema?): Boolean {
+            if (QueryValueType.OBJECT !in valueTypes || storageSchema == null) return false
+            return if (cardinality == QueryCardinality.MANY) {
+                !storageSchema.types.proves(listOf(ARRAY_TYPES)) ||
+                    !storageSchema.itemTypes.proves(listOf(OBJECT_TYPES))
+            } else {
+                !storageSchema.types.proves(listOf(OBJECT_TYPES))
+            }
         }
 
         private fun LogicalQueryFieldSchema.capabilities(): Set<QueryCapability> = buildSet {
@@ -138,7 +155,16 @@ class MongoQuerySchemaAdapter(
                     -> emptyList()
                     else -> valueTypes.filter { it == QueryValueType.STRING }.map { STRING_TYPES }
                 }
-                QueryCapability.RANGE -> temporalRequirements().ifEmpty { numericRequirements() }
+                QueryCapability.EXACT_MATCH -> if (semanticType == Temporal.Date) {
+                    emptyList()
+                } else {
+                    temporalRequirements().ifEmpty { valueTypes.map { it.storageTypes() } }
+                }
+                QueryCapability.RANGE -> if (semanticType == Temporal.Date) {
+                    emptyList()
+                } else {
+                    temporalRequirements().ifEmpty { numericRequirements() }
+                }
                 QueryCapability.AGGREGATE_NUMERIC -> numericRequirements()
                 QueryCapability.AGGREGATE_TEMPORAL -> temporalRequirements()
                 QueryCapability.ELEMENT_SCOPE -> valueTypes.filter { it == QueryValueType.OBJECT }.map { OBJECT_TYPES }

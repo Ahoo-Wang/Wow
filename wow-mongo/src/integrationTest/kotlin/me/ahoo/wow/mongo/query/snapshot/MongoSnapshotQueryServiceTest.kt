@@ -16,9 +16,13 @@ package me.ahoo.wow.mongo.query.snapshot
 import com.mongodb.reactivestreams.client.MongoDatabase
 import com.mongodb.client.model.Indexes
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationDateUnit
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.SearchFilter
+import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
@@ -45,6 +49,7 @@ import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import me.ahoo.wow.tck.query.SnapshotQueryServiceSpec
 import org.bson.Document
+import org.bson.BsonTimestamp
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
@@ -53,6 +58,7 @@ import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 import java.time.Instant
 import java.time.ZoneOffset
+import java.util.Date
 import java.util.concurrent.TimeUnit
 
 class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
@@ -196,6 +202,143 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     }
 
     @Test
+    fun `native BSON date and timestamp value filters should fail closed in every validation mode`() {
+        val now = Instant.now()
+        setStateValidator(
+            Document("nativeDate", Document("bsonType", "date"))
+                .append("nativeTimestamp", Document("bsonType", "timestamp")),
+        )
+        database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
+            .updateOne(
+                Document("_id", snapshot.aggregateId.id),
+                Document(
+                    "\$set",
+                    Document("state.nativeDate", Date.from(now))
+                        .append("state.nativeTimestamp", BsonTimestamp(now.epochSecond.toInt(), 1)),
+                ),
+            ).toMono().test().expectNextCount(1).verifyComplete()
+        val filters: List<FilterExpression> = listOf(
+            filterExpression { "state.nativeDate" eq now.toEpochMilli() },
+            filterExpression {
+                "state.nativeTimestamp".between(now.minusSeconds(60).toEpochMilli(), now.plusSeconds(60).toEpochMilli())
+            },
+            TodayFilter(LogicalField("state.nativeDate"), zoneId = "UTC"),
+        )
+
+        QuerySchemaValidationMode.entries.forEach { mode ->
+            val service = MongoSnapshotQueryServiceFactory(
+                database,
+                schemaSources = querySchemaSources + nativeTemporalSource(),
+                validationMode = mode,
+            ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+            filters.forEach { filter ->
+                service.dynamicList(ListQuery(filter = filter, limit = 10))
+                    .test().expectError(QuerySchemaValidationException::class.java).verify()
+            }
+        }
+    }
+
+    @Test
+    fun `native BSON temporal sort terms and date histogram should remain executable`() {
+        val now = Instant.now()
+        setStateValidator(
+            Document("nativeDate", Document("bsonType", "date"))
+                .append("nativeTimestamp", Document("bsonType", "timestamp")),
+        )
+        database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
+            .updateOne(
+                Document("_id", snapshot.aggregateId.id),
+                Document(
+                    "\$set",
+                    Document("state.nativeDate", Date.from(now))
+                        .append("state.nativeTimestamp", BsonTimestamp(now.epochSecond.toInt(), 1)),
+                ),
+            ).toMono().test().expectNextCount(1).verifyComplete()
+        val service = MongoSnapshotQueryServiceFactory(
+            database,
+            schemaSources = querySchemaSources + nativeTemporalSource(),
+            validationMode = QuerySchemaValidationMode.STRICT,
+        ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+
+        service.dynamicList(
+            ListQuery(
+                filter = MatchAllFilter,
+                sort = listOf(Sort("state.nativeDate", Sort.Direction.ASC)),
+                limit = 10,
+            ),
+        ).test().expectNextCount(1).verifyComplete()
+        aggregation {
+            terms("state.nativeDate", "date")
+            count("count")
+        }.query(service).test().expectNextCount(1).verifyComplete()
+        aggregation {
+            dateHistogram("state.nativeTimestamp", AggregationDateUnit.DAY, "day")
+            count("count")
+        }.query(service).test().expectNextCount(1).verifyComplete()
+    }
+
+    @Test
+    fun `strict should reject invalid container descendants and execute valid element match`() {
+        setStateValidator(
+            Document(
+                "orders",
+                Document("bsonType", "array").append("items", Document("bsonType", "string")),
+            ),
+        )
+        val invalidService = MongoSnapshotQueryServiceFactory(
+            database,
+            schemaSources = querySchemaSources,
+            validationMode = QuerySchemaValidationMode.STRICT,
+        ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+
+        invalidService.dynamicList(
+            ListQuery(
+                filter = filterExpression { "state.orders.status" eq "created" },
+                limit = 10,
+            ),
+        ).test().expectError(QuerySchemaValidationException::class.java).verify()
+        invalidService.dynamicList(
+            ListQuery(
+                filter = MatchAllFilter,
+                sort = listOf(Sort("state.orders.status", Sort.Direction.ASC)),
+                limit = 10,
+            ),
+        ).test().expectError(QuerySchemaValidationException::class.java).verify()
+
+        setStateValidator(
+            Document(
+                "orders",
+                Document("bsonType", "array").append(
+                    "items",
+                    Document("bsonType", "object").append(
+                        "properties",
+                        Document("status", Document("bsonType", "string")),
+                    ),
+                ),
+            ),
+        )
+        database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
+            .updateOne(
+                Document("_id", snapshot.aggregateId.id),
+                Document("\$set", Document("state.orders", listOf(Document("status", "created")))),
+            ).toMono().test().expectNextCount(1).verifyComplete()
+        val validService = MongoSnapshotQueryServiceFactory(
+            database,
+            schemaSources = querySchemaSources,
+            validationMode = QuerySchemaValidationMode.STRICT,
+        ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+
+        validService.dynamicList(
+            ListQuery(
+                filter = filterExpression {
+                    "state.orders".elementMatch { "status" eq "created" }
+                },
+                limit = 10,
+            ),
+        ).test().expectNextCount(1).verifyComplete()
+    }
+
+    @Test
     fun `epoch date histogram should floor negatives and safely group invalid or multi values as null`() {
         val collection = database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
         collection.insertMany(
@@ -271,6 +414,42 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                 Document("_id", snapshot.aggregateId.id),
                 Document("\$set", Document("state.data", value)),
             ).toMono().test().expectNextCount(1).verifyComplete()
+    }
+
+    private fun setStateValidator(properties: Document) {
+        database.runCommand(
+            Document("collMod", MOCK_AGGREGATE_METADATA.toSnapshotCollectionName()).append(
+                "validator",
+                Document(
+                    "\$jsonSchema",
+                    Document("bsonType", "object").append(
+                        "properties",
+                        Document(
+                            "state",
+                            Document("bsonType", "object").append("properties", properties),
+                        ),
+                    ),
+                ),
+            ),
+        ).toMono().test().expectNextCount(1).verifyComplete()
+    }
+
+    private fun nativeTemporalSource(): QuerySchemaSource = object : QuerySchemaSource {
+        override val priority: Int = QuerySchemaSourcePriority.BEAN
+
+        override fun load(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> = Flux.just(
+            QuerySchemaDeclaration(
+                listOf("state.nativeDate", "state.nativeTimestamp").associate { field ->
+                    LogicalField(field) to QueryFieldDeclaration(
+                        valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
+                        nullable = DeclarationValue.Set(false),
+                        required = DeclarationValue.Set(true),
+                        cardinality = DeclarationValue.Set(QueryCardinality.SINGLE),
+                        semanticType = DeclarationValue.Set(Temporal.Date),
+                    )
+                },
+            ),
+        )
     }
 
     private fun epochSource(field: String, timeUnit: TimeUnit): QuerySchemaSource = object : QuerySchemaSource {

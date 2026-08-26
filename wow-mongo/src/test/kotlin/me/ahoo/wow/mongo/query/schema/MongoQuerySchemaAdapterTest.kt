@@ -129,7 +129,7 @@ class MongoQuerySchemaAdapterTest {
     }
 
     @Test
-    fun `known nullable numeric unions should retain numeric and temporal capabilities`() {
+    fun `known nullable numeric unions should retain numeric capabilities while native dates fail closed`() {
         val schema = bindState(
             Document("amount", Document("bsonType", listOf("null", "int", "long", "double", "decimal")))
                 .append("createdAt", Document("bsonType", listOf("null", "int", "long")))
@@ -146,9 +146,37 @@ class MongoQuerySchemaAdapterTest {
             QueryCapability.AGGREGATE_TEMPORAL,
         )
         schema.fields.getValue(LogicalField("state.nativeDate")).bindings.keys.assert().contains(
-            QueryCapability.RANGE,
+            QueryCapability.PRESENCE,
+            QueryCapability.SORT,
+            QueryCapability.AGGREGATE_TERMS,
             QueryCapability.AGGREGATE_TEMPORAL,
         )
+        schema.fields.getValue(LogicalField("state.nativeDate")).bindings.keys.assert().doesNotContain(
+            QueryCapability.EXACT_MATCH,
+            QueryCapability.LITERAL_MATCH,
+            QueryCapability.RANGE,
+        )
+    }
+
+    @Test
+    fun `native BSON date and timestamp should expose only operand-free temporal capabilities`() {
+        listOf("date", "timestamp").forEach { bsonType ->
+            val bindings = bindState(Document("nativeDate", Document("bsonType", bsonType)))
+                .fields.getValue(LogicalField("state.nativeDate"))
+                .bindings.keys
+
+            bindings.assert().contains(
+                QueryCapability.PRESENCE,
+                QueryCapability.SORT,
+                QueryCapability.AGGREGATE_TERMS,
+                QueryCapability.AGGREGATE_TEMPORAL,
+            )
+            bindings.assert().doesNotContain(
+                QueryCapability.EXACT_MATCH,
+                QueryCapability.LITERAL_MATCH,
+                QueryCapability.RANGE,
+            )
+        }
     }
 
     @Test
@@ -232,6 +260,80 @@ class MongoQuerySchemaAdapterTest {
             ),
         ).fields.getValue(LogicalField("state.items"))
             .bindings.keys.assert().containsExactly(QueryCapability.PRESENCE)
+    }
+
+    @Test
+    @Suppress("LongMethod")
+    fun `known invalid containers should suppress descendants at segment boundaries`() {
+        val logical = LogicalQuerySchema(
+            linkedMapOf(
+                LogicalField("state.items") to field(
+                    QueryValueType.OBJECT,
+                    cardinality = QueryCardinality.MANY,
+                ),
+                LogicalField("state.items.name") to field(QueryValueType.STRING),
+                LogicalField("state.itemsExtra") to field(QueryValueType.OBJECT),
+                LogicalField("state.itemsExtra.name") to field(QueryValueType.STRING),
+            ),
+        )
+        val invalid = MongoQuerySchemaAdapter.bind(
+            logical,
+            emptyList(),
+            Document(
+                "properties",
+                Document(
+                    "state",
+                    Document("bsonType", "object").append(
+                        "properties",
+                        Document(
+                            "items",
+                            Document("bsonType", "array").append("items", Document("bsonType", "string")),
+                        ).append(
+                            "itemsExtra",
+                            Document("bsonType", "object").append(
+                                "properties",
+                                Document("name", Document("bsonType", "string")),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        invalid.fields.getValue(LogicalField("state.items.name")).bindings.assert().isEmpty()
+        invalid.fields.getValue(LogicalField("state.itemsExtra.name")).bindings.keys.assert().contains(
+            QueryCapability.EXACT_MATCH,
+        )
+
+        listOf(
+            Document("properties", Document("name", Document("bsonType", "string"))),
+            Document("bsonType", "object").append(
+                "properties",
+                Document("name", Document("bsonType", "string")),
+            ),
+        ).forEach { itemSchema ->
+            val schema = MongoQuerySchemaAdapter.bind(
+                logical,
+                emptyList(),
+                Document(
+                    "properties",
+                    Document(
+                        "state",
+                        Document("bsonType", "object").append(
+                            "properties",
+                            Document(
+                                "items",
+                                Document("bsonType", "array").append("items", itemSchema),
+                            ),
+                        ),
+                    ),
+                ),
+            )
+
+            schema.fields.getValue(LogicalField("state.items.name")).bindings.keys.assert().contains(
+                QueryCapability.EXACT_MATCH,
+            )
+        }
     }
 
     @Test
