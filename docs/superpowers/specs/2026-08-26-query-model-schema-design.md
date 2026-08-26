@@ -7,7 +7,7 @@ Wow 的查询 API 使用 `LogicalField` 表达逻辑路径，但不同查询后�
 - MongoDB 通常没有字段级固定 Schema，字段路径按文档约定转换；全文检索由集合上的 text index 整体开启。
 - Elasticsearch 可以发现 index mapping，同一逻辑字段可能按查询用途绑定到 `text`、`keyword`、`date`、数值字段或 nested 路径。
 - JSON Schema 能描述领域对象的逻辑结构，但不能证明实际后端 mapping，也不能表达数值 `long` 是金额、版本还是毫秒时间戳。
-- 开发者掌握无法从结构或后端推断的业务语义，例如 `state.createdAt` 是毫秒时间戳。
+- 开发者掌握无法从结构或后端推断的业务语义，例如 `state.createdAt` 是毫秒时间戳；这类稳定且贴近字段定义的语义可以由专用注解声明。
 - Snapshot 与 EventStream 拥有不同的系统元数据、结构和物理存储，不能共享一份未分级的字段目录。
 
 现有 `TypeFieldPaths` 只把 JSON Schema 展开为最多五层的字段字符串集合，并向 OpenAPI 发布静态 `x-wow-query-fields`。它不包含类型、基数、业务语义、后端能力或物理绑定，不能作为查询编译器和 View Engine 的共同元数据基准。
@@ -34,7 +34,7 @@ Wow 的查询 API 使用 `LogicalField` 表达逻辑路径，但不同查询后�
 逻辑字段：state.createdAt
 JSON Schema：integer
 后端事实：long（若后端可发现）
-开发者声明：TEMPORAL / EPOCH / MILLISECONDS
+开发者声明：`@QueryTemporal(MILLISECONDS)`、Bean 或约定文件
 ```
 
 最终 Schema 同时保留数值存储与毫秒时间戳语义，使相对时间过滤和日期分桶不再要求每个查询重复携带字段类型。
@@ -80,7 +80,7 @@ Schema 通常是静态的。Elasticsearch 重建索引或切换 alias、MongoDB 
 - QueryModel：`SNAPSHOT`。
 - 后端：MongoDB、Elasticsearch。
 - 消费者：Snapshot Backend Compiler、View Engine。
-- 声明方式：系统、JSON Schema、Bean、约定本地文件、约定 Classpath 文件、后端事实。
+- 声明方式：系统、JSON Schema 推断及 `@QueryTemporal` 增强、Bean、约定本地文件、约定 Classpath 文件、后端事实。
 - 校验模式：`COMPATIBLE`、`STRICT`。
 
 `QueryModel` 使用开放字符串值对象，首期提供 `SNAPSHOT` 常量。未来 EventStream 与 Projection 可以增加新的 model 值，但本期不实现相应 Provider、路由或编译支持。
@@ -95,6 +95,7 @@ Schema 通常是静态的。Elasticsearch 重建索引或切换 alias、MongoDB 
 - 不实现 EventStream、Projection 或自定义 QueryModel 的系统 Schema。
 - 不维护 QueryService 的 SINGLE/LIST/PAGED/COUNT/AGGREGATION operations 列表。
 - 不增加插件总线、Classpath Scanner 或可配置 Schema 文件位置。
+- 不增加通用 `@QuerySemantic`、元注解、注解 Resolver SPI 或用于描述后端绑定的注解。
 - 不保留旧 `wowElasticsearchMapping` Actuator 端点、`TypeFieldPaths` 或 `x-wow-query-fields` 兼容桥接。
 
 ## 核心术语与命名
@@ -203,13 +204,13 @@ data class QueryFieldSchema(
 
 字段身份已经是 `QueryModelSchema.fields` 的 Map key，因此 `QueryFieldSchema` 不重复保存 `field`。
 
-`title`、`description` 与 `enumValues` 属于逻辑 Schema 元数据，由 JSON Schema、约定文件或 Bean 声明合并产生。它们既供 View Engine 使用，也进入公共 Metadata；Backend Adapter 不修改展示元数据。
+`title`、`description` 与 `enumValues` 属于逻辑 Schema 元数据，由 JSON Schema、现有 `@Schema`、约定文件或 Bean 声明合并产生。它们既供 View Engine 使用，也进入公共 Metadata；Backend Adapter 不修改展示元数据。
 
 `valueTypes` 不包含 null；nullability 由 `nullable` 独立表达。`required` 表示 JSON Schema 声明要求该属性出现，仅供元数据和编辑器使用，不证明历史存储文档必然含有该字段。
 
 `cardinality` 首期为 `SINGLE`、`MANY`。对象通过 `QueryValueType.OBJECT` 表达，数组不是值类型。例如对象数组是 `MANY + OBJECT`。
 
-`semanticType` 首期只实现 Temporal。Temporal 至少能够表达原生日期、带 `TimeUnit` 的数值 epoch，以及带 pattern 的格式化字符串。以后出现真实需求时再增加 Money、Identifier 等语义类型。
+`semanticType` 首期只实现 Temporal。Temporal 至少能够表达原生日期、带 `TimeUnit` 的数值 epoch，以及带 pattern 的格式化字符串。原生日期从 JSON Schema 推断；整型 epoch 可由 `@QueryTemporal`、Bean 或约定文件声明；格式化字符串首期通过 Bean 或约定文件声明。以后出现真实需求时再增加 Money、Identifier 等语义类型及其专用声明方式。
 
 `dynamicChildren` 表示未枚举后代可由后端约定解析。未知路径只有在落入动态祖先时才可继续解析；物理路径由祖先 binding 与相对后缀组合，能力仍受祖先和 Backend Adapter 限制。
 
@@ -305,6 +306,7 @@ System 保留定义
 > Working-directory file
 > Bean
 > Classpath file
+> `@QueryTemporal`
 > JSON Schema
 ```
 
@@ -327,7 +329,7 @@ Backend Adapter 在逻辑合并后读取物理事实并解析 capability/binding
 
 System Source 不访问后端，不声明 MongoDB `_id` 或 Elasticsearch mapping。
 
-### JsonQuerySchemaSource
+### JsonQuerySchemaSource 与注解增强
 
 `JsonQuerySchemaSource` 使用 Wow 现有 Jackson/JSON Schema 生成配置，从聚合 State 类型转换逻辑字段声明：
 
@@ -339,6 +341,38 @@ System Source 不访问后端，不声明 MongoDB `_id` 或 Elasticsearch mappin
 - required、nullable、enum、title、description；
 - additionalProperties/dynamic children；
 - LogicalField 路径语法。
+
+同一个 Source 随后读取逻辑属性上的 `@QueryTemporal`，只覆盖该字段由 JSON Schema 推断出的 `semanticType`。这形成 Source 内部的 `Annotation > JSON Schema` 两层合并；对外仍只返回一个 `QuerySchemaDeclaration`，因此不增加 `AnnotationQuerySchemaSource`。工作目录、Bean 和 Classpath 声明仍可按总优先级覆盖注解结果。
+
+```kotlin
+@Target(
+    AnnotationTarget.FIELD,
+    AnnotationTarget.PROPERTY,
+    AnnotationTarget.PROPERTY_GETTER,
+    AnnotationTarget.VALUE_PARAMETER,
+)
+@Retention(AnnotationRetention.RUNTIME)
+annotation class QueryTemporal(
+    val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
+)
+```
+
+```kotlin
+data class OrderState(
+    @QueryTemporal(TimeUnit.MILLISECONDS)
+    val createdAt: Long,
+)
+```
+
+首期注解合同保持最小：
+
+- 仅用于 JSON Schema 为 integer 的 epoch 字段；集合字段则描述其元素语义；
+- `Instant` 等原生时间类型继续从 JSON Schema 自动推断，无须注解；
+- 格式化字符串通过 Bean 或约定文件声明 pattern，不给 `@QueryTemporal` 增加互斥参数；
+- title、description、enum 等展示信息继续复用现有 `@Schema`；
+- 字段名、`@JsonUnwrapped`、可见性与 custom serializer 继续遵循 Jackson 的逻辑属性，不用裸反射另算路径；
+- 注解不能声明 physicalPath、storageType、capability、index、pipeline 或 script；
+- 注解用于非 integer wire shape 时，逻辑声明不一致，抛出 `QuerySchemaConflictException`。
 
 不使用固定最大深度。遍历通过引用环检测终止；递归字段本身保留为对象或集合字段，但不无限枚举重复后代。
 
@@ -467,7 +501,7 @@ interface QueryModelSchemaProvider {
 ```text
 静态逻辑缓存
 ├── System：常量
-├── JSON Schema：按 State Java Type 缓存
+├── JSON Schema + 注解增强：按 State Java Type 缓存
 ├── Bean：不可变集合
 └── Classpath：按确定资源缓存，可在 refresh 重读
 
@@ -656,6 +690,7 @@ HTTP 400。
 
 - 同一优先级的同一叶子属性声明冲突；
 - 非 System 来源尝试覆盖系统保留定义。
+- `@QueryTemporal` 用于非 integer 的 JSON wire shape。
 
 HTTP 500。首次加载失败；refresh 时保留旧缓存。
 
@@ -713,6 +748,7 @@ wow-api
 ├── QueryModel / QueryCapability
 ├── QueryCompatibilityLevel / QueryValueType / QueryCardinality
 ├── QuerySemanticType 公共语义模型
+├── QueryTemporal 公共字段注解
 └── QueryModelSchemaMetadata 公共 HTTP 类型
 
 wow-query
@@ -774,7 +810,8 @@ flowchart TB
         WorkDir["Working-directory Source"]
         Bean["Bean Source"]
         Classpath["Classpath Source"]
-        Json["JSON Schema Source"]
+        Annotation["@QueryTemporal"]
+        Json["JsonQuerySchemaSource<br/>JSON Schema + 注解增强"]
     end
 
     subgraph Backends["Backend Adapters"]
@@ -798,6 +835,7 @@ flowchart TB
     SourceContract --> Bean
     SourceContract --> Classpath
     SourceContract --> Json
+    Annotation --> Json
 
     System --> Provider
     WorkDir --> Provider
@@ -834,14 +872,17 @@ flowchart LR
         S2["./config/wow-query-schema/..."]
         S3["Bean"]
         S4["classpath:wow-query-schema/..."]
-        S5["JSON Schema"]
+        S5["@QueryTemporal"]
+        S6["JSON Schema"]
     end
 
     S1 --> Declarations["QuerySchemaDeclaration[]"]
     S2 --> Declarations
     S3 --> Declarations
     S4 --> Declarations
-    S5 --> Declarations
+    S5 --> JsonSource["JsonQuerySchemaSource<br/>内部语义增强"]
+    S6 --> JsonSource
+    JsonSource --> Declarations
 
     Declarations --> Merge["QuerySchemaMerger<br/>按字段、属性合并"]
     Merge --> Logical["LogicalQuerySchema"]
@@ -856,7 +897,7 @@ flowchart LR
 
     Schema --> Cache["每 QueryService 一个缓存"]
     Cache --> Compiler["Backend Compiler"]
-    Cache --> MetadataProjection["Metadata Projector"]
+    Cache --> MetadataProjection["toMetadata()"]
 
     Compiler --> Backend["MongoDB / Elasticsearch"]
     MetadataProjection --> ViewEngine["View Engine"]
@@ -874,7 +915,7 @@ sequenceDiagram
     participant Handler as QueryHandler / Filters
     participant Service as Backend SnapshotQueryService
     participant Provider as QueryModelSchemaProvider
-    participant Sources as Schema Sources
+    participant Sources as Schema Sources（含注解增强）
     participant Merger as QuerySchemaMerger
     participant Adapter as Backend Adapter
     participant Compiler as Backend Compiler
@@ -980,6 +1021,11 @@ classDiagram
     class ClasspathQuerySchemaSource
     class JsonQuerySchemaSource
 
+    class QueryTemporal {
+        <<annotation>>
+        +TimeUnit timeUnit
+    }
+
     class QuerySchemaMerger {
         +merge(declarations) LogicalQuerySchema
     }
@@ -1075,6 +1121,7 @@ classDiagram
     QuerySchemaSource <|.. BeanQuerySchemaSource
     QuerySchemaSource <|.. ClasspathQuerySchemaSource
     QuerySchemaSource <|.. JsonQuerySchemaSource
+    JsonQuerySchemaSource ..> QueryTemporal : reads
 
     QuerySchemaBackendAdapter <|.. MongoQuerySchemaAdapter
     QuerySchemaBackendAdapter <|.. ElasticsearchQuerySchemaAdapter
@@ -1113,6 +1160,10 @@ classDiagram
 - scalar、object、array 与 object collection。
 - nullable、required、enum、title、description。
 - Jackson name、unwrapped、writeOnly、custom serializer opaque shape。
+- `@QueryTemporal` 将 integer 增强为指定 `TimeUnit` 的 epoch 语义。
+- 注解字段继续遵循 Jackson name、unwrapped、visibility 与 opaque wire shape。
+- 工作目录、Bean、Classpath 可覆盖注解；注解可覆盖 JSON Schema 的 semanticType 推断。
+- `@QueryTemporal` 用于非 integer wire shape 时冲突失败。
 - `$ref`、allOf、anyOf、oneOf、多态 discriminator 与引用环。
 - additionalProperties/dynamic children。
 - LogicalField 语法过滤。
@@ -1145,7 +1196,7 @@ classDiagram
 - `QuerySchemaValidationException` → 400。
 - `QuerySchemaConflictException` → 500。
 - `QuerySchemaUnavailableException` → 503。
-- 工作目录、Bean、Classpath 与 JSON 来源优先级。
+- 工作目录、Bean、Classpath、注解与 JSON 来源优先级。
 - 多个同名 Classpath 资源冲突与无序合并。
 - OpenAPI 包含两个新路由及 Metadata Schema。
 - OpenAPI 不再包含 `x-wow-query-fields` 与 `*AggregatedFields` components。
@@ -1179,7 +1230,7 @@ classDiagram
 
 ## 完成条件
 
-- QueryModelSchema 能由所有确认来源确定性生成。
+- QueryModelSchema 能由所有确认来源确定性生成，包括 Jackson 逻辑属性上的 `@QueryTemporal` 语义增强。
 - MongoDB 与 Elasticsearch Backend Compiler 只消费最终 Schema，不查询各个 Source。
 - View Engine 可通过 GET Schema 获取不含物理信息的完整逻辑 Metadata。
 - refresh 可重读约定文件与后端事实，成功原子替换、失败保留旧缓存。
