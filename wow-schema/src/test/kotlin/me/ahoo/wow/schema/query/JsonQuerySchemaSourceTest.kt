@@ -37,6 +37,8 @@ import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import reactor.core.publisher.Flux
+import reactor.core.scheduler.Schedulers
 import tools.jackson.core.JsonGenerator
 import tools.jackson.databind.SerializationContext
 import tools.jackson.databind.annotation.JsonSerialize
@@ -44,7 +46,9 @@ import tools.jackson.databind.ser.std.StdSerializer
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 class JsonQuerySchemaSourceTest {
     private val context = QuerySchemaContext(
@@ -56,6 +60,103 @@ class JsonQuerySchemaSourceTest {
     fun `should use JSON Schema priority`() {
         JsonQuerySchemaSource { StructuralState::class.java }.priority.assert()
             .isEqualTo(QuerySchemaSourcePriority.JSON_SCHEMA)
+    }
+
+    @Test
+    fun `should reuse inferred declaration for the same state type across contexts`() {
+        val source = JsonQuerySchemaSource { StructuralState::class.java }
+        val otherContext = context.copy(
+            namedAggregate = MaterializedNamedAggregate("other-context", "other-aggregate"),
+        )
+
+        val first = source.load(context).single().block()!!
+        val second = source.load(otherContext).single().block()!!
+
+        second.assert().isSameAs(first)
+    }
+
+    @Test
+    fun `should infer once for concurrent contexts sharing a state type`() {
+        val inferenceCount = AtomicInteger()
+        val source = JsonQuerySchemaSource(
+            stateTypeResolver = { StructuralState::class.java },
+            declarationResolver = {
+                val inference = inferenceCount.incrementAndGet()
+                QuerySchemaDeclaration(
+                    mapOf(
+                        LogicalField("state") to QueryFieldDeclaration(
+                            title = DeclarationValue.Set("inference-$inference"),
+                        ),
+                    ),
+                )
+            },
+        )
+        val contexts = (0 until 32).map { index ->
+            context.copy(namedAggregate = MaterializedNamedAggregate("context-$index", "aggregate-$index"))
+        }
+
+        val declarations = Flux.merge(
+            contexts.map { loadContext ->
+                source.load(loadContext).single().subscribeOn(Schedulers.parallel())
+            },
+        ).collectList().block()!!
+
+        inferenceCount.get().assert().isEqualTo(1)
+        declarations.all { it === declarations.first() }.assert().isTrue()
+    }
+
+    @Test
+    fun `should cache different state types independently`() {
+        val inferenceCounts = ConcurrentHashMap<Class<*>, AtomicInteger>()
+        val source = JsonQuerySchemaSource(
+            stateTypeResolver = { loadContext ->
+                if (loadContext.namedAggregate.aggregateName == "structural") {
+                    StructuralState::class.java
+                } else {
+                    JacksonState::class.java
+                }
+            },
+            declarationResolver = { stateType ->
+                inferenceCounts.computeIfAbsent(stateType) { AtomicInteger() }.incrementAndGet()
+                QuerySchemaDeclaration(emptyMap())
+            },
+        )
+        val structuralContext = context.copy(
+            namedAggregate = MaterializedNamedAggregate("test-context", "structural"),
+        )
+        val jacksonContext = context.copy(
+            namedAggregate = MaterializedNamedAggregate("test-context", "jackson"),
+        )
+
+        val structural = source.load(structuralContext).single().block()!!
+        source.load(structuralContext).single().block()
+        val jackson = source.load(jacksonContext).single().block()!!
+        source.load(jacksonContext).single().block()
+
+        inferenceCounts.getValue(StructuralState::class.java).get().assert().isEqualTo(1)
+        inferenceCounts.getValue(JacksonState::class.java).get().assert().isEqualTo(1)
+        jackson.assert().isNotSameAs(structural)
+    }
+
+    @Test
+    fun `should retry inference after a failed cache computation`() {
+        val failure = IllegalStateException("inference failed")
+        val inferenceCount = AtomicInteger()
+        val recovered = QuerySchemaDeclaration(emptyMap())
+        val source = JsonQuerySchemaSource(
+            stateTypeResolver = { StructuralState::class.java },
+            declarationResolver = {
+                if (inferenceCount.incrementAndGet() == 1) throw failure
+                recovered
+            },
+        )
+
+        assertThrows<QuerySchemaUnavailableException> {
+            source.load(context).single().block()
+        }.cause.assert().isSameAs(failure)
+        source.load(context).single().block().assert().isSameAs(recovered)
+        source.load(context).single().block().assert().isSameAs(recovered)
+        inferenceCount.get().assert().isEqualTo(2)
     }
 
     @Test

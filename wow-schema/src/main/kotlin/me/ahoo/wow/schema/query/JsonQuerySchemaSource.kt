@@ -52,6 +52,7 @@ import tools.jackson.databind.ser.impl.UnknownSerializer
 import tools.jackson.databind.ser.std.ReferenceTypeSerializer
 import tools.jackson.databind.ser.std.StdContainerSerializer
 import tools.jackson.databind.util.Converter
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 private const val TEMPORAL_UNIT = "x-wow-query-temporal-unit"
@@ -59,17 +60,24 @@ private val COMPOSITIONS = listOf("allOf", "anyOf", "oneOf")
 
 class JsonQuerySchemaSource internal constructor(
     private val stateTypeResolver: (QuerySchemaContext) -> Class<*>,
+    private val declarationResolver: (Class<*>) -> QuerySchemaDeclaration,
 ) : QuerySchemaSource {
+    internal constructor(
+        stateTypeResolver: (QuerySchemaContext) -> Class<*>,
+    ) : this(stateTypeResolver, ::inferDeclaration)
+
     constructor() : this({ context ->
         context.namedAggregate.requiredAggregateType<Any>()
             .aggregateMetadata<Any, Any>().state.aggregateType
     })
 
+    private val declarations = ConcurrentHashMap<Class<*>, QuerySchemaDeclaration>()
+
     override val priority: Int = QuerySchemaSourcePriority.JSON_SCHEMA
 
     override fun load(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> = Flux.defer {
-        val rootSchema = schemaGenerator.generateSchema(stateTypeResolver(context))
-        Flux.just(JsonSchemaWalker(rootSchema).declaration())
+        val stateType = stateTypeResolver(context)
+        Flux.just(declarations.computeIfAbsent(stateType) { declarationResolver(it) })
     }.onErrorMap { error ->
         when (error) {
             is QuerySchemaException -> error
@@ -82,6 +90,11 @@ class JsonQuerySchemaSource internal constructor(
     }
 
     private companion object {
+        fun inferDeclaration(stateType: Class<*>): QuerySchemaDeclaration {
+            val rootSchema = schemaGenerator.generateSchema(stateType)
+            return JsonSchemaWalker(rootSchema).declaration()
+        }
+
         val schemaGenerator by lazy {
             SchemaGeneratorBuilder().objectMapper(JsonSerializer).customizer { config ->
                 config.with(Option.DEFINITIONS_FOR_ALL_OBJECTS)
