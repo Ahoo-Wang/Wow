@@ -15,20 +15,22 @@ package me.ahoo.wow.spring.boot.starter.query
 
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import org.springframework.boot.context.properties.ConfigurationProperties
+import org.springframework.boot.context.properties.bind.ConstructorBinding
 import org.springframework.boot.context.properties.bind.DefaultValue
-import org.springframework.boot.context.properties.bind.Name
 
 @ConfigurationProperties(prefix = QueryProperties.PREFIX)
-class QueryProperties(
-    @Name("schema.validation-mode")
-    @DefaultValue("COMPATIBLE")
-    validationMode: String,
+class QueryProperties @ConstructorBinding constructor(
+    @DefaultValue
+    var schema: Schema,
 ) {
-    private val schema = Schema(QuerySchemaValidationMode.valueOf(validationMode))
+    constructor() : this(Schema())
 
-    fun schema(): Schema = schema
-
-    data class Schema(val validationMode: QuerySchemaValidationMode)
+    data class Schema @ConstructorBinding constructor(
+        @DefaultValue("COMPATIBLE")
+        var validationMode: QuerySchemaValidationMode,
+    ) {
+        constructor() : this(QuerySchemaValidationMode.COMPATIBLE)
+    }
 
     companion object {
         const val PREFIX = "wow.query"

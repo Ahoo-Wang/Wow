@@ -105,7 +105,7 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
             elasticsearchClient = mock(ReactiveElasticsearchClient::class.java),
             elasticsearchIndexMappingResolver = mockk<ElasticsearchIndexMappingResolver>(),
             sources = listOf(failingQuerySchemaSource(expected)),
-            schemaQueryProperties = QueryProperties("COMPATIBLE"),
+            schemaQueryProperties = QueryProperties(),
         )
 
         (factory.create<Any>(MOCK_AGGREGATE_METADATA) as QueryModelSchemaProvider)

@@ -201,7 +201,7 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
             queryProperties.keepAlive,
             elasticsearchIndexMappingResolver,
             sources,
-            schemaQueryProperties.schema().validationMode,
+            schemaQueryProperties.schema.validationMode,
         )
     }
 

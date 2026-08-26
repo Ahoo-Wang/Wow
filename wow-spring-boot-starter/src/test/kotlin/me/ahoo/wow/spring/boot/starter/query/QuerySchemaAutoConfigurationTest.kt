@@ -41,7 +41,7 @@ class QuerySchemaAutoConfigurationTest {
             .withUserConfiguration(QuerySchemaAutoConfiguration::class.java)
             .run { context ->
                 context.getBean(QueryProperties::class.java)
-                    .schema().validationMode.assert().isEqualTo(QuerySchemaValidationMode.COMPATIBLE)
+                    .schema.validationMode.assert().isEqualTo(QuerySchemaValidationMode.COMPATIBLE)
             }
     }
 
@@ -53,8 +53,17 @@ class QuerySchemaAutoConfigurationTest {
             .withUserConfiguration(QuerySchemaAutoConfiguration::class.java)
             .run { context ->
                 context.getBean(QueryProperties::class.java)
-                    .schema().validationMode.assert().isEqualTo(QuerySchemaValidationMode.STRICT)
+                    .schema.validationMode.assert().isEqualTo(QuerySchemaValidationMode.STRICT)
             }
+    }
+
+    @Test
+    fun `should expose mutable enum query schema properties`() {
+        val properties = QueryProperties()
+        properties.schema = QueryProperties.Schema()
+        properties.schema.validationMode = QuerySchemaValidationMode.STRICT
+
+        properties.schema.validationMode.assert().isEqualTo(QuerySchemaValidationMode.STRICT)
     }
 
     @Test
@@ -104,6 +113,8 @@ class QuerySchemaAutoConfigurationTest {
         val canonical = metadataProperties("META-INF/spring-configuration-metadata.json")
             .filter { it.path("name").stringValue() == propertyName }
         canonical.assert().hasSize(1)
+        canonical.single().path("type").stringValue()
+            .assert().isEqualTo("me.ahoo.wow.query.schema.QuerySchemaValidationMode")
         canonical.single().path("defaultValue").stringValue().assert().isEqualTo("COMPATIBLE")
 
         metadataProperties("META-INF/additional-spring-configuration-metadata.json")
