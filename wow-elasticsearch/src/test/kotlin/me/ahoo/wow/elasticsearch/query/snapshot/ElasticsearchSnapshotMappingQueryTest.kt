@@ -147,6 +147,59 @@ class ElasticsearchSnapshotMappingQueryTest {
     }
 
     @Test
+    fun `strict service should reject a child below a single nested parent before search`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(queryMapping()),
+        )
+
+        strictQueryService().dynamicList(
+            ListQuery(filter = equal("state.singleOrders.status", "PAID"), limit = 10),
+        ).test()
+            .expectError(QuerySchemaValidationException::class.java)
+            .verify()
+
+        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+    }
+
+    @Test
+    fun `strict service should reject a child sort below a non-object nested parent before search`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(queryMapping()),
+        )
+
+        strictQueryService().dynamicList(
+            ListQuery(
+                filter = MatchAllFilter,
+                sort = listOf(Sort("state.stringOrders.status", Sort.Direction.ASC)),
+                limit = 10,
+            ),
+        ).test()
+            .expectError(QuerySchemaValidationException::class.java)
+            .verify()
+
+        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+    }
+
+    @Test
+    fun `strict service should reject a child of an unindexed flattened field before search`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(
+                TypeMapping.of { mapping ->
+                    mapping.properties("tags") { it.flattened { flattened -> flattened.index(false) } }
+                },
+            ),
+        )
+
+        strictQueryService(emptyList()).dynamicList(
+            ListQuery(filter = equal("tags.department", "eng"), limit = 10),
+        ).test()
+            .expectError(QuerySchemaValidationException::class.java)
+            .verify()
+
+        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+    }
+
+    @Test
     fun `default snapshot query should compile fields from current mapping`() {
         every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
             mappingResponse(queryMapping()),
@@ -329,12 +382,14 @@ class ElasticsearchSnapshotMappingQueryTest {
             QuerySchemaValidationMode.COMPATIBLE,
         ).create<Any>(MOCK_AGGREGATE_METADATA) as ElasticsearchSnapshotQueryService<Any>
 
-    private fun strictQueryService(): ElasticsearchSnapshotQueryService<Any> =
+    private fun strictQueryService(
+        sources: List<QuerySchemaSource> = schemaSources(),
+    ): ElasticsearchSnapshotQueryService<Any> =
         ElasticsearchSnapshotQueryServiceFactory(
             client,
             DEFAULT_SEARCH_BATCH_SIZE,
             DEFAULT_PIT_KEEP_ALIVE,
-            schemaSources(),
+            sources,
             QuerySchemaValidationMode.STRICT,
         ).create<Any>(MOCK_AGGREGATE_METADATA) as ElasticsearchSnapshotQueryService<Any>
 
@@ -352,6 +407,20 @@ class ElasticsearchSnapshotMappingQueryTest {
             cardinality = DeclarationValue.Set(QueryCardinality.MANY),
         )
         fields[LogicalField("state.orders.status")] = QueryFieldDeclaration(
+            valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
+        )
+        fields[LogicalField("state.singleOrders")] = QueryFieldDeclaration(
+            valueTypes = DeclarationValue.Set(setOf(QueryValueType.OBJECT)),
+            cardinality = DeclarationValue.Set(QueryCardinality.SINGLE),
+        )
+        fields[LogicalField("state.singleOrders.status")] = QueryFieldDeclaration(
+            valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
+        )
+        fields[LogicalField("state.stringOrders")] = QueryFieldDeclaration(
+            valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
+            cardinality = DeclarationValue.Set(QueryCardinality.MANY),
+        )
+        fields[LogicalField("state.stringOrders.status")] = QueryFieldDeclaration(
             valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
         )
         return listOf(
@@ -394,6 +463,15 @@ class ElasticsearchSnapshotMappingQueryTest {
                             }
                         }.properties("age") { age -> age.integer { it } }
                         .properties("orders") { orders ->
+                            orders.nested { nested ->
+                                nested.properties("status") { status -> status.keyword { it } }
+                            }
+                        }
+                        .properties("singleOrders") { orders ->
+                            orders.nested { nested ->
+                                nested.properties("status") { status -> status.keyword { it } }
+                            }
+                        }.properties("stringOrders") { orders ->
                             orders.nested { nested ->
                                 nested.properties("status") { status -> status.keyword { it } }
                             }

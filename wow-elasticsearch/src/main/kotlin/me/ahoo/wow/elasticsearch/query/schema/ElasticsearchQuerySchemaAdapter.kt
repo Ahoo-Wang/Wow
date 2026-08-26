@@ -14,6 +14,7 @@
 package me.ahoo.wow.elasticsearch.query.schema
 
 import co.elastic.clients.elasticsearch._types.mapping.Property
+import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
@@ -61,24 +62,28 @@ class ElasticsearchQuerySchemaAdapter(
         internal fun bind(
             logicalSchema: LogicalQuerySchema,
             mapping: ElasticsearchIndexMapping,
-        ): QueryModelSchema = QueryModelSchema(
-            model = QueryModel.SNAPSHOT,
-            capabilities = buildSet {
-                if (mapping.fields.values.any(ElasticsearchMappedField::supportsModelFullText)) {
-                    add(QueryCapability.FULL_TEXT_TERMS)
-                }
-                if (mapping.fields.values.any(ElasticsearchMappedField::supportsModelPhraseSearch)) {
-                    add(QueryCapability.FULL_TEXT_PHRASE)
-                }
-            },
-            fields = logicalSchema.fields.mapValues { (field, logical) ->
-                logical.toFieldSchema(
-                    BUILT_IN_CAPABILITIES.mapNotNull { capability ->
-                        mapping.binding(field.value, logical, capability)?.let { capability to it }
-                    }.toMap(),
-                )
-            },
-        )
+        ): QueryModelSchema {
+            val invalidNestedParents = mapping.invalidNestedParents(logicalSchema)
+            return QueryModelSchema(
+                model = QueryModel.SNAPSHOT,
+                capabilities = buildSet {
+                    if (mapping.fields.values.any(ElasticsearchMappedField::supportsModelFullText)) {
+                        add(QueryCapability.FULL_TEXT_TERMS)
+                    }
+                    if (mapping.fields.values.any(ElasticsearchMappedField::supportsModelPhraseSearch)) {
+                        add(QueryCapability.FULL_TEXT_PHRASE)
+                    }
+                },
+                fields = logicalSchema.fields.mapValues { (field, logical) ->
+                    logical.toFieldSchema(
+                        BUILT_IN_CAPABILITIES.mapNotNull { capability ->
+                            mapping.binding(field.value, logical, capability, invalidNestedParents)
+                                ?.let { capability to it }
+                        }.toMap(),
+                    )
+                },
+            )
+        }
 
         private val BUILT_IN_CAPABILITIES = listOf(
             QueryCapability.PRESENCE,
@@ -98,7 +103,9 @@ class ElasticsearchQuerySchemaAdapter(
             physicalPath: String,
             logical: LogicalQueryFieldSchema,
             capability: QueryCapability,
+            invalidNestedParents: Set<String>,
         ): QueryFieldBinding? {
+            if (invalidNestedParents.any { physicalPath.startsWith("$it.") }) return null
             val mapped = find(physicalPath) ?: return null
             val selected = if (mapped.supports(capability, logical)) {
                 physicalPath to mapped
@@ -182,7 +189,15 @@ private val LogicalQueryFieldSchema.isDynamicObject: Boolean
     get() = dynamicChildren && QueryValueType.OBJECT in valueTypes
 
 private val ElasticsearchMappedField.supportsDynamicObject: Boolean
-    get() = kind == Property.Kind.Flattened || kind == Property.Kind.Object && dynamic
+    get() = dynamic && queryable && kind in DYNAMIC_OBJECT_KINDS
+
+private val LogicalQueryFieldSchema.isElementScope: Boolean
+    get() = cardinality == QueryCardinality.MANY && QueryValueType.OBJECT in valueTypes
+
+private fun ElasticsearchIndexMapping.invalidNestedParents(logicalSchema: LogicalQuerySchema): Set<String> =
+    fields.filterValues { it.kind == Property.Kind.Nested }.keys.filterTo(linkedSetOf()) { path ->
+        logicalSchema.fields[LogicalField(path)]?.isElementScope != true
+    }
 
 private fun LogicalQueryFieldSchema.proves(capability: QueryCapability, kind: Property.Kind): Boolean =
     storageRequirements(capability).let { requirements ->
@@ -205,9 +220,7 @@ private fun LogicalQueryFieldSchema.storageRequirements(
     QueryCapability.SORT,
     QueryCapability.AGGREGATE_TERMS,
     -> valueRequirements()
-    QueryCapability.ELEMENT_SCOPE -> if (
-        cardinality == QueryCardinality.MANY && QueryValueType.OBJECT in valueTypes
-    ) {
+    QueryCapability.ELEMENT_SCOPE -> if (isElementScope) {
         listOf(NESTED_KINDS)
     } else {
         emptyList()
@@ -245,7 +258,13 @@ private fun LogicalQueryFieldSchema.numericRequirements(): List<Set<Property.Kin
 
 private fun LogicalQueryFieldSchema.temporalRequirements(): List<Set<Property.Kind>> = when (semanticType) {
     Temporal.Date -> if (valueTypes == setOf(QueryValueType.STRING)) listOf(DATE_KINDS) else emptyList()
-    is Temporal.Epoch -> if (valueTypes == setOf(QueryValueType.INTEGER)) listOf(INTEGER_KINDS) else emptyList()
+    is Temporal.Epoch -> if (
+        valueTypes == setOf(QueryValueType.INTEGER)
+    ) {
+        listOf(SIGNED_INTEGER_KINDS)
+    } else {
+        emptyList()
+    }
     else -> emptyList()
 }
 
@@ -264,11 +283,14 @@ private fun ElasticsearchMappedField.supportsModelFullText(): Boolean = indexed 
 
 private fun ElasticsearchMappedField.supportsModelPhraseSearch(): Boolean = indexed && kind in PHRASE_SEARCH_KINDS
 
-private val INTEGER_KINDS = setOf(
+private val SIGNED_INTEGER_KINDS = setOf(
     Property.Kind.Byte,
     Property.Kind.Short,
     Property.Kind.Integer,
     Property.Kind.Long,
+)
+
+private val INTEGER_KINDS = SIGNED_INTEGER_KINDS + setOf(
     Property.Kind.TokenCount,
     Property.Kind.UnsignedLong,
 )

@@ -355,21 +355,38 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     }
 
     @Test
-    fun `epoch runtime fields should floor negatives and not emit overflow fractional or multi values`() {
+    fun `signed epoch runtime fields should use adapter and preserve floor overflow and multi guards`() {
         updateState(
             mapOf(
                 "epochMicros" to -500L,
+                "epochMillis" to 0L,
                 "epochNanos" to -500_000L,
                 "epochSeconds" to Long.MAX_VALUE,
-                "epochFraction" to 1.5,
             ),
         )
-        val service = epochService(
-            epochSchemaField("state.epochMicros", TimeUnit.MICROSECONDS, "long"),
-            epochSchemaField("state.epochNanos", TimeUnit.NANOSECONDS, "long"),
-            epochSchemaField("state.epochSeconds", TimeUnit.SECONDS, "long"),
-            epochSchemaField("state.epochFraction", TimeUnit.MILLISECONDS, "double"),
-        )
+        val service = ElasticsearchSnapshotQueryServiceFactory(
+            elasticsearchClient,
+            me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
+            me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
+            listOf(
+                source(
+                    epochField("state.epochMicros", TimeUnit.MICROSECONDS),
+                    epochField("state.epochMillis", TimeUnit.MILLISECONDS),
+                    epochField("state.epochNanos", TimeUnit.NANOSECONDS),
+                    epochField("state.epochSeconds", TimeUnit.SECONDS),
+                ),
+            ),
+            QuerySchemaValidationMode.COMPATIBLE,
+        ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+        val schema = service.requiredQueryModelSchemaProvider().schema().block()!!
+        listOf("state.epochMicros", "state.epochMillis", "state.epochNanos", "state.epochSeconds")
+            .forEach { field ->
+                schema.fields.getValue(LogicalField(field)).bindings
+                    .getValue(QueryCapability.AGGREGATE_TEMPORAL).let { binding ->
+                        binding.physicalPath.assert().isEqualTo(field)
+                        binding.storageType?.value.assert().isEqualTo("long")
+                    }
+            }
 
         dateHistogram(service, "state.epochMicros").test()
             .assertNext { rows ->
@@ -386,9 +403,19 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         dateHistogram(service, "state.epochSeconds").test()
             .assertNext { it.assert().isEmpty() }
             .verifyComplete()
-        dateHistogram(service, "state.epochFraction").test()
-            .assertNext { it.assert().isEmpty() }
-            .verifyComplete()
+        dateHistogram(service, "state.epochMillis").test()
+            .assertNext { rows ->
+                rows.map(Map<String, Any?>::toMap).assert().containsExactly(
+                    mapOf("day" to 0L, "count" to 1L),
+                )
+            }.verifyComplete()
+
+        updateState(mapOf("epochMillis" to Long.MAX_VALUE))
+        dateHistogram(service, "state.epochMillis").test()
+            .assertNext { rows ->
+                rows.assert().hasSize(1)
+                rows.single()["count"].assert().isEqualTo(1L)
+            }.verifyComplete()
 
         updateState(mapOf("epochMicros" to listOf(1_000L, 2_000L)))
         dateHistogram(service, "state.epochMicros").test()
@@ -397,24 +424,19 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     }
 
     @Test
-    fun `floating epoch at two to the sixty third should not emit while long max remains valid`() {
-        updateState(
-            mapOf(
-                "epochMillis" to Long.MAX_VALUE,
-                "epochFraction" to 9.223372036854776E18,
-            ),
-        )
-        val service = epochService(
-            epochSchemaField("state.epochMillis", TimeUnit.MILLISECONDS, "long"),
-            epochSchemaField("state.epochFraction", TimeUnit.MILLISECONDS, "double"),
-        )
+    fun `fractional epoch defensive script should not emit`() {
+        updateState(mapOf("epochFraction" to 1.5))
 
-        dateHistogram(service, "state.epochMillis").test()
-            .assertNext { rows ->
-                rows.assert().hasSize(1)
-                rows.single()["count"].assert().isEqualTo(1L)
-            }.verifyComplete()
-        dateHistogram(service, "state.epochFraction").test()
+        dateHistogram(defensiveEpochService(), "state.epochFraction").test()
+            .assertNext { it.assert().isEmpty() }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `floating epoch at two to the sixty third should not emit`() {
+        updateState(mapOf("epochFraction" to 9.223372036854776E18))
+
+        dateHistogram(defensiveEpochService(), "state.epochFraction").test()
             .assertNext { it.assert().isEmpty() }
             .verifyComplete()
     }
@@ -451,10 +473,13 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             QuerySchemaValidationMode.STRICT,
         ).create(MOCK_AGGREGATE_METADATA)
 
-    private fun epochService(
-        vararg fields: Pair<LogicalField, QueryFieldSchema>,
-    ): SnapshotQueryService<MockStateAggregate> {
-        val schema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), fields.toMap())
+    private fun defensiveEpochService(): SnapshotQueryService<MockStateAggregate> {
+        val field = LogicalField("state.epochFraction")
+        val schema = QueryModelSchema(
+            QueryModel.SNAPSHOT,
+            emptySet(),
+            mapOf(field to defensiveEpochField(field)),
+        )
         val provider = object : QueryModelSchemaProvider {
             override fun schema(): Mono<QueryModelSchema> = Mono.just(schema)
 
@@ -468,11 +493,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         )
     }
 
-    private fun epochSchemaField(
-        field: String,
-        timeUnit: TimeUnit,
-        storageType: String,
-    ) = LogicalField(field) to QueryFieldSchema(
+    private fun defensiveEpochField(field: LogicalField) = QueryFieldSchema(
         title = null,
         description = null,
         enumValues = null,
@@ -480,12 +501,12 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         nullable = true,
         required = false,
         cardinality = QueryCardinality.SINGLE,
-        semanticType = Temporal.Epoch(timeUnit),
+        semanticType = Temporal.Epoch(TimeUnit.MILLISECONDS),
         dynamicChildren = false,
         bindings = mapOf(
             QueryCapability.AGGREGATE_TEMPORAL to QueryFieldBinding(
-                physicalPath = field,
-                storageType = QueryStorageType(storageType),
+                physicalPath = field.value,
+                storageType = QueryStorageType("double"),
             ),
         ),
     )
