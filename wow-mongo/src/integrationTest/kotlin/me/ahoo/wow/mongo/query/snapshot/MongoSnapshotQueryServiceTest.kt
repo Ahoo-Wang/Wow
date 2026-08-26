@@ -21,6 +21,7 @@ import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TodayFilter
@@ -198,6 +199,51 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         ).toFilterExpression()
 
         strictService.dynamicList(ListQuery(filter = abacFilter, limit = 10))
+            .test().expectNextCount(1).verifyComplete()
+    }
+
+    @Test
+    fun `invalid dynamic tags root should reject ABAC and projection then recover as object`() {
+        setValidator(Document("tags", Document("bsonType", "string")))
+        val abacFilter = mapOf(
+            "visibility" to listOf("*"),
+            "department" to listOf("eng"),
+        ).toFilterExpression()
+
+        QuerySchemaValidationMode.entries.forEach { mode ->
+            val service = MongoSnapshotQueryServiceFactory(
+                database,
+                schemaSources = querySchemaSources,
+                validationMode = mode,
+            ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+            service.dynamicList(ListQuery(filter = abacFilter, limit = 10))
+                .test().expectError(QuerySchemaValidationException::class.java).verify()
+            service.dynamicList(
+                ListQuery(
+                    filter = MatchAllFilter,
+                    projection = Projection(include = listOf("tags.department")),
+                    limit = 10,
+                ),
+            ).test().expectError(QuerySchemaValidationException::class.java).verify()
+        }
+
+        setValidator(Document("tags", Document("bsonType", "object")))
+        database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
+            .updateOne(
+                Document("_id", snapshot.aggregateId.id),
+                Document(
+                    "\$set",
+                    Document("tags.visibility", listOf("public"))
+                        .append("tags.department", listOf("eng")),
+                ),
+            ).toMono().test().expectNextCount(1).verifyComplete()
+        val validService = MongoSnapshotQueryServiceFactory(
+            database,
+            schemaSources = querySchemaSources,
+            validationMode = QuerySchemaValidationMode.STRICT,
+        ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+
+        validService.dynamicList(ListQuery(filter = abacFilter, limit = 10))
             .test().expectNextCount(1).verifyComplete()
     }
 
@@ -417,6 +463,15 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     }
 
     private fun setStateValidator(properties: Document) {
+        setValidator(
+            Document(
+                "state",
+                Document("bsonType", "object").append("properties", properties),
+            ),
+        )
+    }
+
+    private fun setValidator(properties: Document) {
         database.runCommand(
             Document("collMod", MOCK_AGGREGATE_METADATA.toSnapshotCollectionName()).append(
                 "validator",
@@ -424,10 +479,7 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                     "\$jsonSchema",
                     Document("bsonType", "object").append(
                         "properties",
-                        Document(
-                            "state",
-                            Document("bsonType", "object").append("properties", properties),
-                        ),
+                        properties,
                     ),
                 ),
             ),

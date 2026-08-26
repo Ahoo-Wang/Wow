@@ -84,7 +84,7 @@ class MongoQuerySchemaAdapter(
                     val physicalPath = SnapshotFieldConverter.convert(logicalField.value)
                     val storageSchema = storageSchemas[physicalPath]
                     val binding = QueryFieldBinding(physicalPath, storageSchema?.types?.singleOrNull())
-                    if (invalidContainers.any { logicalField.value.startsWith("$it.") }) {
+                    if (invalidContainers.any { logicalField.value == it || logicalField.value.startsWith("$it.") }) {
                         return@mapValues logicalSchema.toFieldSchema(emptyMap())
                     }
                     logicalSchema.toFieldSchema(

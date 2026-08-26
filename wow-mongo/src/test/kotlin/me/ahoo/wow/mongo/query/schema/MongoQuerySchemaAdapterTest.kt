@@ -115,6 +115,10 @@ class MongoQuerySchemaAdapterTest {
             QueryCapability.RANGE,
             QueryCapability.AGGREGATE_NUMERIC,
         )
+        schema.resolve(LogicalField("tags.department"))?.bindings?.keys.assert().contains(
+            QueryCapability.PRESENCE,
+            QueryCapability.EXACT_MATCH,
+        )
     }
 
     @Test
@@ -259,7 +263,7 @@ class MongoQuerySchemaAdapterTest {
                 Document("bsonType", "array").append("items", Document("bsonType", "string")),
             ),
         ).fields.getValue(LogicalField("state.items"))
-            .bindings.keys.assert().containsExactly(QueryCapability.PRESENCE)
+            .bindings.assert().isEmpty()
     }
 
     @Test
@@ -351,6 +355,18 @@ class MongoQuerySchemaAdapterTest {
         schema.resolve(LogicalField("tags.department"))
             ?.bindings?.getValue(QueryCapability.EXACT_MATCH)
             ?.physicalPath.assert().isEqualTo("tags.department")
+    }
+
+    @Test
+    fun `known scalar dynamic root should expose no inheritable bindings`() {
+        val schema = MongoQuerySchemaAdapter.bind(
+            logicalSchema(),
+            emptyList(),
+            Document("properties", Document("tags", Document("bsonType", "string"))),
+        )
+
+        schema.fields.getValue(LogicalField("tags")).bindings.assert().isEmpty()
+        schema.resolve(LogicalField("tags.department"))?.bindings.assert().isEmpty()
     }
 
     @Test
