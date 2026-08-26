@@ -372,9 +372,7 @@ System Source 不访问后端，不声明 MongoDB `_id` 或 Elasticsearch mappin
 ```kotlin
 @Target(
     AnnotationTarget.FIELD,
-    AnnotationTarget.PROPERTY,
     AnnotationTarget.PROPERTY_GETTER,
-    AnnotationTarget.VALUE_PARAMETER,
 )
 @Retention(AnnotationRetention.RUNTIME)
 annotation class QueryTemporal(
