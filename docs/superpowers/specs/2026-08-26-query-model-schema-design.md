@@ -12,7 +12,7 @@ Wow 的查询 API 使用 `LogicalField` 表达逻辑路径，但不同查询后�
 
 现有 `TypeFieldPaths` 只把 JSON Schema 展开为最多五层的字段字符串集合，并向 OpenAPI 发布静态 `x-wow-query-fields`。它不包含类型、基数、业务语义、后端能力或物理绑定，不能作为查询编译器和 View Engine 的共同元数据基准。
 
-本设计建立一个按具体 QueryService 生命周期协商并缓存的查询模型 Schema。Schema 由系统、JSON Schema、开发者声明及后端事实共同形成，同时服务 Backend Compiler 与 View Engine，但不演变为中央 Schema Registry。
+本设计建立一个按具体 QueryService 生命周期协商并缓存的查询模型 Schema。Schema 由全局系统骨架、JSON Schema、开发者声明及后端事实共同形成，同时服务 Backend Compiler 与 View Engine，但不演变为中央 Schema Registry。
 
 ## 第一性目标
 
@@ -61,7 +61,7 @@ Schema 为 `ELEMENT_MATCH`、Aggregation Elements、nested 查询和数值聚合
 
 ### 系统元数据统一
 
-Snapshot 系统字段由框架统一声明，例如 `aggregateId`、`tenantId`、`ownerId`、`spaceId`、`version`、`eventTime`、`snapshotTime`、`deleted` 和 `state`。后端只补充物理路径与存储事实。
+Snapshot 系统字段是按 `QueryModel.SNAPSHOT` 全局共享的框架骨架，例如 `aggregateId`、`tenantId`、`ownerId`、`spaceId`、`version`、`eventTime`、`snapshotTime`、`deleted` 和 `state`。它不随聚合或后端变化；聚合声明只补齐 `state` 与扩展 `state.*`，后端只补充物理路径与存储事实。
 
 ### 模型级与字段级全文检索
 
@@ -80,7 +80,7 @@ Schema 通常是静态的。Elasticsearch 重建索引或切换 alias、MongoDB 
 - QueryModel：`SNAPSHOT`。
 - 后端：MongoDB、Elasticsearch。
 - 消费者：Snapshot Backend Compiler、View Engine。
-- 声明方式：系统、JSON Schema 推断及 `@QueryTemporal` 增强、Bean、约定本地文件、约定 Classpath 文件、后端事实。
+- 声明方式：全局系统骨架、JSON Schema 推断及 `@QueryTemporal` 增强、Bean、约定本地文件、约定 Classpath 文件、后端事实。
 - 校验模式：`COMPATIBLE`、`STRICT`。
 
 `QueryModel` 使用开放字符串值对象，首期提供 `SNAPSHOT` 常量。未来 EventStream 与 Projection 可以增加新的 model 值，但本期不实现相应 Provider、路由或编译支持。
@@ -299,26 +299,25 @@ sealed interface DeclarationValue<out T> {
 
 `DeclarationValue` 只属于内部合并模型，不进入公共 Metadata。Bean DSL 隐藏其构造细节；约定文件中属性缺失对应 `Unset`，显式 `null` 对应 `Set(null)`。
 
-逻辑声明来源优先级：
+逻辑合并先放入全局 System 骨架并锁定其已声明叶子，再合并聚合扩展声明。扩展来源优先级为：
 
 ```text
-System 保留定义
-> Working-directory file
+Working-directory file
 > Bean
 > Classpath file
 > `@QueryTemporal`
 > JSON Schema
 ```
 
-System 只对框架保留字段拥有最高优先级。开发者文件或 Bean 不能覆盖系统保留字段。
+System 不是聚合级的普通高优先级声明，而是合并前固定存在的全局骨架。Snapshot 的聚合来源只能补齐 `state` 上 System 未声明的叶子属性并增加 `state.*` 后代，不能增加任意顶层字段，也不能覆盖或清空 System 已声明的叶子值。
 
-同一优先级的两个来源对同一叶子属性给出不同值时抛出 `QuerySchemaConflictException`，不依赖文件、Bean 或 Classpath 顺序。
+同一优先级的两个扩展来源对同一叶子属性给出不同值时抛出 `QuerySchemaConflictException`，不依赖文件、Bean 或 Classpath 顺序。
 
 Backend Adapter 在逻辑合并后读取物理事实并解析 capability/binding。Backend 物理事实与逻辑业务语义属于不同维度，不通过上述优先级互相覆盖；物理不兼容会影响 capability 或产生不兼容结果。
 
 ### SystemQuerySchemaSource
 
-`SystemQuerySchemaSource` 根据 `model` 产生框架外壳。首期只支持 Snapshot，包括：
+`SystemQuerySchemaSource` 按 `QueryModel` 提供全局共享、不可变的框架骨架。它通过 `declaration(model)` 返回常量声明，不进入可配置的扩展 Source 列表，也不根据 `namedAggregate`、QueryService 或后端生成不同定义；不为此增加接口或 Registry。首期内置唯一的 Snapshot 骨架，包括：
 
 - `contextName`、`aggregateName`、`aggregateId`；
 - `tenantId`、`ownerId`、`spaceId`；
@@ -327,11 +326,15 @@ Backend Adapter 在逻辑合并后读取物理事实并解析 capability/binding
 - `firstEventTime`、`eventTime`、`snapshotTime`；
 - `tags`、`deleted`、`state`。
 
-System Source 不访问后端，不声明 MongoDB `_id` 或 Elasticsearch mapping。
+这些字段名及其稳定逻辑属性是所有 Snapshot 聚合共同拥有的结构，不代表各文档中的字段值相同。例如，骨架将 `state` 定义为 `SINGLE + OBJECT`，将系统时间字段定义为 Temporal；具体 nullable、required 等合同以框架真实模型为准。
+
+聚合 State 的 JSON Schema、注解、Bean 和约定文件可以补齐 `state` 上 System 保持 `Unset` 的展示或动态属性，并扩展 `state.*`；不能改变 `state` 的 `SINGLE + OBJECT` 等 System 已声明叶子。未来 EventStream 支持通过新增独立的全局骨架实现，不与 Snapshot 骨架混合。
+
+System Source 不访问后端，不声明 MongoDB `_id` 或 Elasticsearch mapping。具体后端仍可为骨架字段生成不同 binding，因此全局共享的是逻辑骨架，不是最终 `QueryModelSchema`。
 
 ### JsonQuerySchemaSource 与注解增强
 
-`JsonQuerySchemaSource` 使用 Wow 现有 Jackson/JSON Schema 生成配置，从聚合 State 类型转换逻辑字段声明：
+`JsonQuerySchemaSource` 使用 Wow 现有 Jackson/JSON Schema 生成配置，从聚合 State 类型转换以 `state` 为根的逻辑字段声明。它可以补齐 System 在 `state` 上保持 `Unset` 的属性，并产生 `state.*` 后代：
 
 - Jackson 序列化名称与 `@JsonUnwrapped`；
 - read/write visibility；
@@ -448,7 +451,8 @@ classpath:wow-query-schema/sales/order/snapshot.json
 逻辑来源无法独立产生后端 capability 与 physical binding，因此保留一个明确的后端解析阶段：
 
 ```text
-QuerySchemaSource[]
+SystemQuerySchemaSource
++ QuerySchemaSource[]
 → QuerySchemaMerger
 → LogicalQuerySchema
 → QuerySchemaBackendAdapter.resolve()
@@ -492,7 +496,7 @@ interface QueryModelSchemaProvider {
 }
 ```
 
-`DefaultQueryModelSchemaProvider` 组合 Sources、`QuerySchemaMerger` 与当前 Backend Adapter，并拥有当前具体 QueryService 的 Schema 缓存。
+`DefaultQueryModelSchemaProvider` 组合全局 System 骨架、聚合扩展 Sources、`QuerySchemaMerger` 与当前 Backend Adapter，并拥有当前具体 QueryService 的 Schema 缓存。
 
 内置 MongoDB/Elasticsearch SnapshotQueryService 通过委托实现 `QueryModelSchemaProvider`。自定义 QueryService 可以实现该接口接入 Schema HTTP 端点和严格校验；未实现时 Schema 端点返回 `QuerySchemaUnavailableException`，其查询行为仍由自定义实现负责。
 
@@ -500,7 +504,7 @@ interface QueryModelSchemaProvider {
 
 ```text
 静态逻辑缓存
-├── System：常量
+├── System：按 QueryModel 全局共享的不可变常量
 ├── JSON Schema + 注解增强：按 State Java Type 缓存
 ├── Bean：不可变集合
 └── Classpath：按确定资源缓存，可在 refresh 重读
@@ -690,6 +694,7 @@ HTTP 400。
 
 - 同一优先级的同一叶子属性声明冲突；
 - 非 System 来源尝试覆盖系统保留定义。
+- Snapshot 聚合来源声明 `state` / `state.*` 之外的字段，或覆盖 System 已声明的叶子值。
 - `@QueryTemporal` 用于非 integer 的 JSON wire shape。
 
 HTTP 500。首次加载失败；refresh 时保留旧缓存。
@@ -756,7 +761,8 @@ wow-query
 ├── QuerySchemaSource / QuerySchemaDeclaration
 ├── QuerySchemaMerger / LogicalQuerySchema
 ├── QueryModelSchemaProvider
-├── System / Bean / Working-directory / Classpath Sources
+├── SystemQuerySchemaSource 全局骨架
+├── Bean / Working-directory / Classpath 扩展 Sources
 ├── QuerySchemaValidationMode
 └── QuerySchemaException 层级
 
@@ -805,8 +811,11 @@ flowchart TB
         Exceptions["QuerySchemaException"]
     end
 
-    subgraph Sources["Schema Sources"]
-        System["System Source"]
+    subgraph SystemDefinition["Global System Definition"]
+        System["SystemQuerySchemaSource<br/>按 QueryModel 共享"]
+    end
+
+    subgraph Sources["Aggregate Extension Sources"]
         WorkDir["Working-directory Source"]
         Bean["Bean Source"]
         Classpath["Classpath Source"]
@@ -830,14 +839,13 @@ flowchart TB
         Refresh["POST /{aggregate}/snapshot/schema/refresh"]
     end
 
-    SourceContract --> System
     SourceContract --> WorkDir
     SourceContract --> Bean
     SourceContract --> Classpath
     SourceContract --> Json
     Annotation --> Json
 
-    System --> Provider
+    System -->|locked base| Provider
     WorkDir --> Provider
     Bean --> Provider
     Classpath --> Provider
@@ -867,8 +875,9 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-    subgraph Priority["逻辑声明优先级"]
-        S1["System 保留定义"]
+    System["全局 System 骨架<br/>保留字段"]
+
+    subgraph Priority["聚合扩展声明优先级"]
         S2["./config/wow-query-schema/..."]
         S3["Bean"]
         S4["classpath:wow-query-schema/..."]
@@ -876,15 +885,15 @@ flowchart LR
         S6["JSON Schema"]
     end
 
-    S1 --> Declarations["QuerySchemaDeclaration[]"]
-    S2 --> Declarations
+    S2 --> Declarations["QuerySchemaDeclaration[]"]
     S3 --> Declarations
     S4 --> Declarations
     S5 --> JsonSource["JsonQuerySchemaSource<br/>内部语义增强"]
     S6 --> JsonSource
     JsonSource --> Declarations
 
-    Declarations --> Merge["QuerySchemaMerger<br/>按字段、属性合并"]
+    System -->|先放入并锁定| Merge["QuerySchemaMerger<br/>按字段、属性合并"]
+    Declarations --> Merge
     Merge --> Logical["LogicalQuerySchema"]
 
     Logical --> Adapter["QuerySchemaBackendAdapter"]
@@ -915,7 +924,8 @@ sequenceDiagram
     participant Handler as QueryHandler / Filters
     participant Service as Backend SnapshotQueryService
     participant Provider as QueryModelSchemaProvider
-    participant Sources as Schema Sources（含注解增强）
+    participant System as Global System Skeleton
+    participant Sources as Extension Sources（含注解增强）
     participant Merger as QuerySchemaMerger
     participant Adapter as Backend Adapter
     participant Compiler as Backend Compiler
@@ -929,9 +939,11 @@ sequenceDiagram
     alt Schema 已缓存
         Provider-->>Service: QueryModelSchema
     else Schema 未缓存
+        Provider->>System: declaration(model)
+        System-->>Provider: locked base declaration
         Provider->>Sources: load()
         Sources-->>Provider: declarations
-        Provider->>Merger: merge(declarations)
+        Provider->>Merger: merge(system, declarations)
         Merger-->>Provider: LogicalQuerySchema
         Provider->>Adapter: resolve(LogicalQuerySchema)
         Adapter->>Adapter: 读取 mapping/index/validator 或应用约定
@@ -957,8 +969,10 @@ sequenceDiagram
 
     Operator->>Service: refresh schema
     Service->>Provider: refresh()
+    Provider->>System: declaration(model)
+    System-->>Provider: same immutable base declaration
     Provider->>Sources: reload()
-    Provider->>Merger: merge()
+    Provider->>Merger: merge(system, declarations)
     Provider->>Adapter: reload backend facts and resolve()
 
     alt 刷新成功
@@ -1002,6 +1016,7 @@ classDiagram
     }
 
     class DefaultQueryModelSchemaProvider {
+        -SystemQuerySchemaSource system
         -List sources
         -QuerySchemaMerger merger
         -QuerySchemaBackendAdapter adapter
@@ -1015,7 +1030,9 @@ classDiagram
         +load(context) Mono
     }
 
-    class SystemQuerySchemaSource
+    class SystemQuerySchemaSource {
+        +declaration(model) QuerySchemaDeclaration
+    }
     class WorkingDirectoryQuerySchemaSource
     class BeanQuerySchemaSource
     class ClasspathQuerySchemaSource
@@ -1027,7 +1044,7 @@ classDiagram
     }
 
     class QuerySchemaMerger {
-        +merge(declarations) LogicalQuerySchema
+        +merge(system, declarations) LogicalQuerySchema
     }
 
     class QuerySchemaBackendAdapter {
@@ -1112,11 +1129,11 @@ classDiagram
     ElasticsearchSnapshotQueryService o-- DefaultQueryModelSchemaProvider
 
     DefaultQueryModelSchemaProvider o-- QuerySchemaSource
+    DefaultQueryModelSchemaProvider o-- SystemQuerySchemaSource
     DefaultQueryModelSchemaProvider --> QuerySchemaMerger
     DefaultQueryModelSchemaProvider --> QuerySchemaBackendAdapter
     DefaultQueryModelSchemaProvider --> QueryModelSchema
 
-    QuerySchemaSource <|.. SystemQuerySchemaSource
     QuerySchemaSource <|.. WorkingDirectoryQuerySchemaSource
     QuerySchemaSource <|.. BeanQuerySchemaSource
     QuerySchemaSource <|.. ClasspathQuerySchemaSource
@@ -1145,7 +1162,8 @@ classDiagram
 ### wow-query
 
 - Source 属性合并、优先级与同级冲突。
-- System 保留字段不可覆盖。
+- 不同聚合的 Snapshot 使用同一个 System 逻辑骨架。
+- Snapshot 聚合来源只能补齐 `state` 的 System-Unset 属性并增加 `state.*`，不可增加任意顶层字段，也不可覆盖或清空 System 已声明叶子。
 - `LONG + TEMPORAL_EPOCH(MILLISECONDS)` 正交合并。
 - `EXACT / COMPATIBLE / INCOMPATIBLE` 与两种 validation mode 的接受矩阵。
 - 模型级与字段级全文检索推导。
@@ -1231,6 +1249,7 @@ classDiagram
 ## 完成条件
 
 - QueryModelSchema 能由所有确认来源确定性生成，包括 Jackson 逻辑属性上的 `@QueryTemporal` 语义增强。
+- Snapshot System 定义按 QueryModel 全局共享；聚合与后端差异只进入扩展字段、capability 和 binding。
 - MongoDB 与 Elasticsearch Backend Compiler 只消费最终 Schema，不查询各个 Source。
 - View Engine 可通过 GET Schema 获取不含物理信息的完整逻辑 Metadata。
 - refresh 可重读约定文件与后端事实，成功原子替换、失败保留旧缓存。
