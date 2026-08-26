@@ -34,8 +34,10 @@ import me.ahoo.wow.query.schema.QueryFieldDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaConflictException
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
+import me.ahoo.wow.query.schema.QuerySchemaException
 import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.schema.QuerySchemaSourcePriority
+import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.schema.SchemaGeneratorBuilder
 import me.ahoo.wow.schema.Types.isStdType
 import me.ahoo.wow.serialization.JsonSerializer
@@ -68,6 +70,15 @@ class JsonQuerySchemaSource internal constructor(
     override fun load(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> = Flux.defer {
         val rootSchema = schemaGenerator.generateSchema(stateTypeResolver(context))
         Flux.just(JsonSchemaWalker(rootSchema).declaration())
+    }.onErrorMap { error ->
+        when (error) {
+            is QuerySchemaException -> error
+            is Exception -> QuerySchemaUnavailableException(
+                "Unable to infer JSON query schema [${context.namedAggregate}/${context.model.value}].",
+                error,
+            )
+            else -> error
+        }
     }
 
     private companion object {
@@ -117,10 +128,10 @@ private class JsonSchemaWalker(
         get("properties")?.properties()?.forEach { (propertyName, propertySchema) ->
             if (propertyName.isLogicalFieldSegment() && !propertySchema.isWriteOnly()) {
                 val fullName = "$parentName.$propertyName"
-                fields.putIfAbsent(
-                    LogicalField(fullName),
-                    propertySchema.toDeclaration(propertyName in parentRequired),
-                )
+                val field = LogicalField(fullName)
+                fields.merge(field, propertySchema.toDeclaration(propertyName in parentRequired)) { current, next ->
+                    current.mergeStructural(next, field)
+                }
                 propertySchema.collectProperties(fullName, resolvingReferences)
             }
         }
@@ -168,7 +179,7 @@ private class JsonSchemaWalker(
                 if (arrayShape) QueryCardinality.MANY else QueryCardinality.SINGLE,
             ),
             semanticType = DeclarationValue.Set(semanticType),
-            dynamicChildren = DeclarationValue.Set(nodes.any(JsonNode::hasAdditionalProperties)),
+            dynamicChildren = DeclarationValue.Set(shapeNodes.any(JsonNode::hasAdditionalProperties)),
         )
     }
 
@@ -195,6 +206,39 @@ private class JsonSchemaWalker(
     private fun JsonNode.isWriteOnly(): Boolean = effectiveNodes().any {
         it.get("writeOnly")?.takeIf(JsonNode::isBoolean)?.booleanValue() == true
     }
+}
+
+private fun QueryFieldDeclaration.mergeStructural(
+    other: QueryFieldDeclaration,
+    field: LogicalField,
+): QueryFieldDeclaration = QueryFieldDeclaration(
+    title = title.requireSame(other.title, field, "title"),
+    description = description.requireSame(other.description, field, "description"),
+    enumValues = enumValues.requireSame(other.enumValues, field, "enumValues"),
+    valueTypes = valueTypes.union(other.valueTypes),
+    nullable = nullable.requireSame(other.nullable, field, "nullable"),
+    required = required.requireSame(other.required, field, "required"),
+    cardinality = cardinality.requireSame(other.cardinality, field, "cardinality"),
+    semanticType = semanticType.requireSame(other.semanticType, field, "semanticType"),
+    dynamicChildren = dynamicChildren.requireSame(other.dynamicChildren, field, "dynamicChildren"),
+)
+
+private fun DeclarationValue<Set<QueryValueType>>.union(
+    other: DeclarationValue<Set<QueryValueType>>,
+): DeclarationValue<Set<QueryValueType>> = when {
+    this is DeclarationValue.Set && other is DeclarationValue.Set -> DeclarationValue.Set(value + other.value)
+    this is DeclarationValue.Set -> this
+    else -> other
+}
+
+private fun <T> DeclarationValue<T>.requireSame(
+    other: DeclarationValue<T>,
+    field: LogicalField,
+    leaf: String,
+): DeclarationValue<T> {
+    if (this === DeclarationValue.Unset) return other
+    if (other === DeclarationValue.Unset || this == other) return this
+    throw QuerySchemaConflictException("Conflicting query schema declaration: [$field.$leaf].")
 }
 
 private class TemporalAttributeOverride<M : MemberScope<*, *>> : InstanceAttributeOverrideV2<M> {
@@ -291,7 +335,7 @@ private fun JsonNode.inferredTemporal(): QuerySemanticType? {
     return if (isArrayShape()) get("items")?.inferredTemporal() else null
 }
 
-private fun JsonNode.hasAdditionalProperties(): Boolean {
+internal fun JsonNode.hasAdditionalProperties(): Boolean {
     get("additionalProperties")?.let { additionalProperties ->
         if (additionalProperties.isObject ||
             additionalProperties.takeIf(JsonNode::isBoolean)?.booleanValue() == true

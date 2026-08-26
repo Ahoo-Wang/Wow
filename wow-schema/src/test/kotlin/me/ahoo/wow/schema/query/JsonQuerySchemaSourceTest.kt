@@ -33,7 +33,10 @@ import me.ahoo.wow.query.schema.QuerySchemaConflictException
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaSourcePriority
+import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
+import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import tools.jackson.core.JsonGenerator
 import tools.jackson.databind.SerializationContext
 import tools.jackson.databind.annotation.JsonSerialize
@@ -53,6 +56,24 @@ class JsonQuerySchemaSourceTest {
     fun `should use JSON Schema priority`() {
         JsonQuerySchemaSource { StructuralState::class.java }.priority.assert()
             .isEqualTo(QuerySchemaSourcePriority.JSON_SCHEMA)
+    }
+
+    @Test
+    fun `should wrap resolver failures as unavailable`() {
+        val failure = IllegalStateException("resolver failed")
+
+        assertThrows<QuerySchemaUnavailableException> {
+            JsonQuerySchemaSource { throw failure }.load(context).single().block()
+        }.cause.assert().isSameAs(failure)
+    }
+
+    @Test
+    fun `should preserve query schema failures`() {
+        val failure = QuerySchemaConflictException("schema conflict")
+
+        assertThrows<QuerySchemaConflictException> {
+            JsonQuerySchemaSource { throw failure }.load(context).single().block()
+        }.assert().isSameAs(failure)
     }
 
     @Test
@@ -149,6 +170,25 @@ class JsonQuerySchemaSourceTest {
     }
 
     @Test
+    fun `should merge repeated composition fields independent of branch order`() {
+        val declaration = load(RepeatedCompositionState::class.java)
+        val expectedTypes = DeclarationValue.Set(setOf(QueryValueType.STRING, QueryValueType.INTEGER))
+        val forward = declaration.field("state.forward.value")
+        val reverse = declaration.field("state.reverse.value")
+
+        forward.valueTypes.assert().isEqualTo(expectedTypes)
+        reverse.valueTypes.assert().isEqualTo(expectedTypes)
+        reverse.assert().isEqualTo(forward)
+    }
+
+    @Test
+    fun `should reject conflicting composition metadata`() {
+        assertThrows<QuerySchemaConflictException> {
+            load(ConflictingCompositionState::class.java)
+        }
+    }
+
+    @Test
     fun `should retain recursive fields without repeating descendants`() {
         val declaration = load(RecursiveState::class.java)
 
@@ -178,7 +218,23 @@ class JsonQuerySchemaSourceTest {
             attributes.valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.OBJECT)))
             attributes.dynamicChildren.assert().isEqualTo(DeclarationValue.Set(true))
         }
+        declaration.field("state.attributeGroups").let { attributeGroups ->
+            attributeGroups.valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.OBJECT)))
+            attributeGroups.cardinality.assert().isEqualTo(DeclarationValue.Set(QueryCardinality.MANY))
+            attributeGroups.dynamicChildren.assert().isEqualTo(DeclarationValue.Set(true))
+        }
         declaration.field("state.closed").dynamicChildren.assert().isEqualTo(DeclarationValue.Set(false))
+    }
+
+    @Test
+    fun `should detect object and explicit true additional properties`() {
+        mapOf(
+            """{"additionalProperties":{"type":"string"}}""" to true,
+            """{"additionalProperties":true}""" to true,
+            """{"additionalProperties":false}""" to false,
+        ).forEach { (schema, expected) ->
+            JsonSerializer.readTree(schema).hasAdditionalProperties().assert().isEqualTo(expected)
+        }
     }
 
     @Test
@@ -361,6 +417,34 @@ private data class CardPayment(val cardNumber: String) : PaymentValue
 
 private data class BankPayment(val account: String) : PaymentValue
 
+private data class RepeatedCompositionState(
+    @field:Schema(oneOf = [StringValueBranch::class, IntegerValueBranch::class])
+    val forward: RepeatedValue,
+    @field:Schema(oneOf = [IntegerValueBranch::class, StringValueBranch::class])
+    val reverse: RepeatedValue,
+)
+
+private class RepeatedValue
+
+private data class StringValueBranch(val value: String)
+
+private data class IntegerValueBranch(val value: Int)
+
+private data class ConflictingCompositionState(
+    @field:Schema(oneOf = [FirstTitledBranch::class, SecondTitledBranch::class])
+    val union: RepeatedValue,
+)
+
+private data class FirstTitledBranch(
+    @field:Schema(title = "First")
+    val value: String,
+)
+
+private data class SecondTitledBranch(
+    @field:Schema(title = "Second")
+    val value: String,
+)
+
 private data class RecursiveState(
     val name: String,
     val child: RecursiveState?,
@@ -381,6 +465,7 @@ private data class DeepLevelSix(val value: String)
 
 private data class DynamicState(
     val attributes: Map<String, String>,
+    val attributeGroups: List<Map<String, String>>,
     val closed: StructuralAddress,
 )
 
