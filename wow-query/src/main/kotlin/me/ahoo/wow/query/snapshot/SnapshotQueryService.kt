@@ -24,6 +24,8 @@ import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotStore
 import me.ahoo.wow.query.QueryService
+import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
@@ -31,6 +33,11 @@ interface SnapshotQueryService<S : Any> : Named, QueryService<MaterializedSnapsh
     fun aggregate(query: AggregationQuery): Flux<DynamicDocument> =
         Flux.error(UnsupportedOperationException("Snapshot aggregation is not supported by [$name]."))
 }
+
+fun SnapshotQueryService<*>.requiredQueryModelSchemaProvider(): QueryModelSchemaProvider =
+    this as? QueryModelSchemaProvider
+        ?: throw QuerySchemaUnavailableException("Snapshot query service [$name] does not provide QueryModelSchema.")
+
 class NoOpSnapshotQueryService<S : Any>(override val namedAggregate: NamedAggregate) : SnapshotQueryService<S> {
     override val name: String
         get() = NoOpSnapshotStore.NAME

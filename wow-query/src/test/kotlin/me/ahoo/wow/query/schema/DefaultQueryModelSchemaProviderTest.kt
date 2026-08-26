@@ -1,0 +1,179 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.query.schema
+
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryService
+import me.ahoo.wow.query.snapshot.SnapshotQueryService
+import me.ahoo.wow.query.snapshot.requiredQueryModelSchemaProvider
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
+import reactor.test.StepVerifier
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
+
+class DefaultQueryModelSchemaProviderTest {
+    @Test
+    fun `concurrent first subscribers should share one load and immutable schema`() {
+        val source = CountingSource()
+        val adapter = CountingAdapter()
+        val provider = provider(source, adapter)
+
+        StepVerifier.create(Mono.zip(provider.schema(), provider.schema()))
+            .assertNext { pair -> pair.t1.assert().isSameAs(pair.t2) }
+            .verifyComplete()
+
+        source.loads.get().assert().isEqualTo(1)
+        adapter.resolves.get().assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `successful refresh should publish the new immutable schema`() {
+        val source = CountingSource()
+        val adapter = CountingAdapter()
+        val provider = provider(source, adapter)
+        val initial = provider.schema().block()!!
+
+        val refreshed = provider.refresh().block()!!
+
+        refreshed.assert().isNotSameAs(initial)
+        provider.schema().block()!!.assert().isSameAs(refreshed)
+        source.refreshes.get().assert().isEqualTo(1)
+        adapter.refreshes.get().assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `failed refresh should return error and preserve the previous schema`() {
+        val source = CountingSource()
+        val adapter = CountingAdapter()
+        val provider = provider(source, adapter)
+        val initial = provider.schema().block()!!
+        adapter.failRefresh.set(true)
+
+        StepVerifier.create(provider.refresh())
+            .expectErrorSatisfies { error -> error.assert().isSameAs(adapter.refreshFailure) }
+            .verify()
+
+        provider.schema().block()!!.assert().isSameAs(initial)
+    }
+
+    @Test
+    fun `failed first load should clear inflight state and allow retry`() {
+        val source = CountingSource(failLoads = AtomicInteger(1))
+        val provider = provider(source, CountingAdapter())
+
+        StepVerifier.create(provider.schema())
+            .expectError(QuerySchemaUnavailableException::class.java)
+            .verify()
+
+        provider.schema().block().assert().isNotNull()
+        source.loads.get().assert().isEqualTo(2)
+    }
+
+    @Test
+    fun `provider instances should never share final cache state`() {
+        val source = CountingSource()
+        val adapter = CountingAdapter()
+        val first = provider(source, adapter).schema().block()!!
+        val second = provider(source, adapter).schema().block()!!
+
+        first.assert().isNotSameAs(second)
+        source.loads.get().assert().isEqualTo(2)
+    }
+
+    @Test
+    fun `required provider should return capable service and reject incapable service`() {
+        val capable = object :
+            SnapshotQueryService<Any> by NoOpSnapshotQueryService(CONTEXT.namedAggregate),
+            QueryModelSchemaProvider {
+            override fun schema(): Mono<QueryModelSchema> = Mono.just(newSchema())
+
+            override fun refresh(): Mono<QueryModelSchema> = schema()
+        }
+
+        capable.requiredQueryModelSchemaProvider().assert().isSameAs(capable)
+        assertThrows<QuerySchemaUnavailableException> {
+            NoOpSnapshotQueryService<Any>(CONTEXT.namedAggregate).requiredQueryModelSchemaProvider()
+        }
+    }
+
+    private fun provider(
+        source: QuerySchemaSource,
+        adapter: QuerySchemaBackendAdapter,
+    ) = DefaultQueryModelSchemaProvider(
+        context = CONTEXT,
+        sources = listOf(source),
+        adapter = adapter,
+    )
+
+    private class CountingSource(
+        private val failLoads: AtomicInteger = AtomicInteger(),
+    ) : QuerySchemaSource {
+        override val priority: Int = QuerySchemaSourcePriority.JSON_SCHEMA
+        val loads = AtomicInteger()
+        val refreshes = AtomicInteger()
+
+        override fun load(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> = Flux.defer {
+            loads.incrementAndGet()
+            if (failLoads.getAndUpdate { failures -> (failures - 1).coerceAtLeast(0) } > 0) {
+                Flux.error(QuerySchemaUnavailableException("Load failed."))
+            } else {
+                Flux.just(QuerySchemaDeclaration(emptyMap()))
+            }
+        }
+
+        override fun refresh(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> = Flux.defer {
+            refreshes.incrementAndGet()
+            Flux.just(QuerySchemaDeclaration(emptyMap()))
+        }
+    }
+
+    private class CountingAdapter : QuerySchemaBackendAdapter {
+        val resolves = AtomicInteger()
+        val refreshes = AtomicInteger()
+        val failRefresh = AtomicBoolean()
+        val refreshFailure = QuerySchemaUnavailableException("Refresh failed.")
+
+        override fun resolve(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> = Mono.fromSupplier {
+            resolves.incrementAndGet()
+            newSchema()
+        }
+
+        override fun refresh(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> = Mono.defer {
+            refreshes.incrementAndGet()
+            if (failRefresh.get()) {
+                Mono.error(refreshFailure)
+            } else {
+                Mono.just(newSchema())
+            }
+        }
+    }
+
+    companion object {
+        private val CONTEXT = QuerySchemaContext(
+            MaterializedNamedAggregate("test-context", "test-aggregate"),
+            QueryModel.SNAPSHOT,
+        )
+
+        private fun newSchema() = QueryModelSchema(
+            model = QueryModel.SNAPSHOT,
+            capabilities = emptySet(),
+            fields = emptyMap(),
+        )
+    }
+}
