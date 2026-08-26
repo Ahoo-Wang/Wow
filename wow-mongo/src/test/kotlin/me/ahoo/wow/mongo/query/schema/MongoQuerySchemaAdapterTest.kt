@@ -1,0 +1,342 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.mongo.query.schema
+
+import com.mongodb.MongoNamespace
+import com.mongodb.reactivestreams.client.FindPublisher
+import com.mongodb.reactivestreams.client.ListCollectionsPublisher
+import com.mongodb.reactivestreams.client.ListIndexesPublisher
+import com.mongodb.reactivestreams.client.MongoCollection
+import com.mongodb.reactivestreams.client.MongoDatabase
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.EqualFilter
+import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.SearchFilter
+import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.schema.QueryCapability
+import me.ahoo.wow.api.query.schema.QueryCardinality
+import me.ahoo.wow.api.query.schema.QueryCompatibilityLevel
+import me.ahoo.wow.api.query.schema.QueryValueType
+import me.ahoo.wow.api.query.schema.Temporal
+import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryServiceFactory
+import me.ahoo.wow.query.schema.LogicalQueryFieldSchema
+import me.ahoo.wow.query.schema.LogicalQuerySchema
+import me.ahoo.wow.query.schema.QuerySchemaResolver
+import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.schema.QuerySchemaValidationMode
+import me.ahoo.wow.query.snapshot.requiredQueryModelSchemaProvider
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import org.bson.Document
+import org.bson.conversions.Bson
+import org.junit.jupiter.api.Test
+import org.reactivestreams.Subscriber
+import reactor.core.publisher.Flux
+import reactor.kotlin.test.test
+import tools.jackson.databind.node.StringNode
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+
+class MongoQuerySchemaAdapterTest {
+    @Test
+    fun `bind should use conventions validator types and model capabilities`() {
+        val validator = Document("bsonType", "object").append(
+            "properties",
+            Document("_id", Document("bsonType", "string"))
+                .append(
+                    "state",
+                    Document("bsonType", "object").append(
+                        "properties",
+                        Document("name", Document("bsonType", "string"))
+                            .append(
+                                "items",
+                                Document("bsonType", "array").append(
+                                    "items",
+                                    Document("bsonType", "object"),
+                                ),
+                            ),
+                    ),
+                ),
+        )
+
+        val schema = MongoQuerySchemaAdapter.bind(
+            logicalSchema(),
+            listOf(Document("key", Document("all", "text"))),
+            validator,
+        )
+
+        schema.capabilities.assert().containsExactlyInAnyOrder(
+            QueryCapability.FULL_TEXT_TERMS,
+            QueryCapability.FULL_TEXT_PHRASE,
+        )
+        schema.fields.getValue(LogicalField("aggregateId"))
+            .bindings.getValue(QueryCapability.EXACT_MATCH).let { binding ->
+                binding.physicalPath.assert().isEqualTo("_id")
+                binding.storageType?.value.assert().isEqualTo("string")
+            }
+        schema.fields.getValue(LogicalField("state.name"))
+            .bindings.getValue(QueryCapability.LITERAL_MATCH).let { binding ->
+                binding.physicalPath.assert().isEqualTo("state.name")
+                binding.storageType?.value.assert().isEqualTo("string")
+            }
+        schema.fields.getValue(LogicalField("state.items"))
+            .bindings.getValue(QueryCapability.ELEMENT_SCOPE).let { binding ->
+                binding.physicalPath.assert().isEqualTo("state.items")
+                binding.storageType?.value.assert().isEqualTo("array")
+            }
+        schema.fields.values.flatMap { it.bindings.keys }.assert()
+            .doesNotContain(QueryCapability.FULL_TEXT_TERMS)
+            .doesNotContain(QueryCapability.FULL_TEXT_PHRASE)
+    }
+
+    @Test
+    fun `bind should leave storage type unknown without a validator`() {
+        MongoQuerySchemaAdapter.bind(logicalSchema(), emptyList(), null)
+            .fields.values.flatMap { field -> field.bindings.values }
+            .forEach { binding -> binding.storageType.assert().isNull() }
+    }
+
+    @Test
+    fun `resolve should read indexes and validator without reading documents`() {
+        val collection = mockk<MongoCollection<Document>>()
+        val database = mockk<MongoDatabase>()
+        every { collection.namespace } returns MongoNamespace("wow", "snapshots")
+        every { collection.listIndexes() } returns indexes(Document("key", Document("all", "text")))
+        every { database.listCollections() } returns collections(
+            Document("name", "snapshots").append(
+                "options",
+                Document(
+                    "validator",
+                    Document(
+                        "\$jsonSchema",
+                        Document("bsonType", "object").append(
+                            "properties",
+                            Document("_id", Document("bsonType", "objectId")),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        MongoQuerySchemaAdapter(collection, database).resolve(logicalSchema())
+            .test()
+            .assertNext { schema ->
+                schema.fields.getValue(LogicalField("aggregateId"))
+                    .bindings.getValue(QueryCapability.PRESENCE)
+                    .storageType?.value.assert().isEqualTo("objectId")
+            }
+            .verifyComplete()
+
+        verify(exactly = 1) { collection.listIndexes() }
+        verify(exactly = 1) { database.listCollections() }
+        verify(exactly = 0) { collection.find() }
+        verify(exactly = 0) { collection.find(any<Bson>()) }
+        verify(exactly = 0) { collection.aggregate(any<List<Bson>>()) }
+    }
+
+    @Test
+    fun `resolve should wrap driver failures with their cause`() {
+        val failure = IllegalStateException("indexes unavailable")
+        val collection = mockk<MongoCollection<Document>>()
+        every { collection.namespace } returns MongoNamespace("wow", "snapshots")
+        every { collection.listIndexes() } returns failingIndexes(failure)
+
+        MongoQuerySchemaAdapter(collection).resolve(logicalSchema())
+            .test()
+            .expectErrorSatisfies { error ->
+                error.assert().isInstanceOf(QuerySchemaUnavailableException::class.java)
+                error.cause.assert().isSameAs(failure)
+            }
+            .verify()
+    }
+
+    @Test
+    fun `Mongo model text index should make a field limited search compatible`() {
+        val schema = MongoQuerySchemaAdapter.bind(
+            logicalSchema(),
+            listOf(Document("key", Document("all", "text"))),
+            null,
+        )
+
+        val resolution = QuerySchemaResolver(schema).resolve(
+            SearchFilter("hello", setOf(LogicalField("state.name"))),
+        )
+
+        resolution.compatibility.assert().isEqualTo(QueryCompatibilityLevel.COMPATIBLE)
+        (resolution.value as SearchFilter).fields.assert().isEmpty()
+    }
+
+    @Test
+    fun `strict service should reject an unknown field before Mongo find`() {
+        val fixture = serviceFixture(indexes())
+        val service = MongoSnapshotQueryServiceFactory(
+            fixture.database,
+            validationMode = QuerySchemaValidationMode.STRICT,
+        ).create<Any>(MOCK_AGGREGATE_METADATA)
+
+        service.list(unknownListQuery()).test()
+            .expectError(QuerySchemaValidationException::class.java)
+            .verify()
+
+        verify(exactly = 0) { fixture.collection.find(any<Bson>()) }
+    }
+
+    @Test
+    fun `compatible service should preserve the current path when schema is unavailable`() {
+        val fixture = serviceFixture(failingIndexes(IllegalStateException("offline")))
+        val service = MongoSnapshotQueryServiceFactory(fixture.database)
+            .create<Any>(MOCK_AGGREGATE_METADATA)
+
+        service.list(unknownListQuery()).test().verifyComplete()
+
+        verify(exactly = 1) { fixture.collection.find(any<Bson>()) }
+    }
+
+    @Test
+    fun `service should pass resolved filter projection and sort paths to Mongo`() {
+        val fixture = serviceFixture(indexes())
+        val service = MongoSnapshotQueryServiceFactory(
+            fixture.database,
+            validationMode = QuerySchemaValidationMode.STRICT,
+        ).create<Any>(MOCK_AGGREGATE_METADATA)
+        val query = ListQuery(
+            filter = EqualFilter(LogicalField("aggregateId"), StringNode.valueOf("id")),
+            projection = Projection(include = listOf("aggregateId")),
+            sort = listOf(Sort("aggregateId", Sort.Direction.ASC)),
+            limit = 1,
+        )
+
+        service.list(query).test().verifyComplete()
+
+        fixture.filter.single().toBsonDocument().toJson().assert().contains("_id").doesNotContain("aggregateId")
+        fixture.projection.single().toBsonDocument().toJson().assert().contains("_id").doesNotContain("aggregateId")
+        fixture.sort.single().toBsonDocument().toJson().assert().contains("_id").doesNotContain("aggregateId")
+    }
+
+    @Test
+    fun `service refresh should reread Mongo indexes`() {
+        val reads = AtomicInteger()
+        val fixture = serviceFixture(
+            indexes = {
+                if (reads.getAndIncrement() == 0) indexes() else indexes(Document("key", Document("all", "text")))
+            },
+        )
+        val provider = MongoSnapshotQueryServiceFactory(fixture.database)
+            .create<Any>(MOCK_AGGREGATE_METADATA)
+            .requiredQueryModelSchemaProvider()
+
+        provider.schema().test()
+            .assertNext { schema -> schema.capabilities.assert().isEmpty() }
+            .verifyComplete()
+        provider.refresh().test()
+            .assertNext { schema ->
+                schema.capabilities.assert().contains(QueryCapability.FULL_TEXT_TERMS)
+            }
+            .verifyComplete()
+        reads.get().assert().isEqualTo(2)
+    }
+
+    private fun serviceFixture(indexes: ListIndexesPublisher<Document>): ServiceFixture = serviceFixture { indexes }
+
+    private fun serviceFixture(indexes: () -> ListIndexesPublisher<Document>): ServiceFixture {
+        val collection = mockk<MongoCollection<Document>>()
+        val database = mockk<MongoDatabase>()
+        val findPublisher = mockk<FindPublisher<Document>>()
+        val filters = mutableListOf<Bson>()
+        val projections = mutableListOf<Bson>()
+        val sorts = mutableListOf<Bson>()
+        every { database.getCollection(any<String>()) } returns collection
+        every { database.listCollections() } returns collections()
+        every { collection.namespace } returns MongoNamespace("wow", "snapshots")
+        every { collection.listIndexes() } answers { indexes() }
+        every { collection.find(capture(filters)) } returns findPublisher
+        every { findPublisher.projection(capture(projections)) } returns findPublisher
+        every { findPublisher.sort(capture(sorts)) } returns findPublisher
+        every { findPublisher.limit(any()) } returns findPublisher
+        every { findPublisher.subscribe(any()) } answers {
+            Flux.empty<Document>().subscribe(firstArg<Subscriber<in Document>>())
+        }
+        return ServiceFixture(database, collection, filters, projections, sorts)
+    }
+
+    private data class ServiceFixture(
+        val database: MongoDatabase,
+        val collection: MongoCollection<Document>,
+        val filter: List<Bson>,
+        val projection: List<Bson>,
+        val sort: List<Bson>,
+    )
+
+    private fun unknownListQuery() = ListQuery(
+        EqualFilter(LogicalField("state.unknown"), StringNode.valueOf("value")),
+        projection = Projection(include = listOf("state.unknown")),
+        sort = listOf(Sort("state.unknown", Sort.Direction.ASC)),
+        limit = 1,
+    )
+
+    private fun logicalSchema() = LogicalQuerySchema(
+        linkedMapOf(
+            LogicalField("aggregateId") to field(QueryValueType.STRING),
+            LogicalField("state.name") to field(QueryValueType.STRING),
+            LogicalField("state.amount") to field(QueryValueType.DECIMAL),
+            LogicalField("state.createdAt") to field(
+                QueryValueType.INTEGER,
+                semanticType = Temporal.Epoch(TimeUnit.MILLISECONDS),
+            ),
+            LogicalField("state.items") to field(
+                QueryValueType.OBJECT,
+                cardinality = QueryCardinality.MANY,
+            ),
+        ),
+    )
+
+    private fun field(
+        valueType: QueryValueType,
+        cardinality: QueryCardinality = QueryCardinality.SINGLE,
+        semanticType: Temporal? = null,
+    ) = LogicalQueryFieldSchema(
+        title = null,
+        description = null,
+        enumValues = null,
+        valueTypes = setOf(valueType),
+        nullable = false,
+        required = true,
+        cardinality = cardinality,
+        semanticType = semanticType,
+        dynamicChildren = false,
+    )
+
+    private fun indexes(vararg values: Document): ListIndexesPublisher<Document> = mockk {
+        every { subscribe(any()) } answers {
+            Flux.fromIterable(values.toList()).subscribe(firstArg<Subscriber<in Document>>())
+        }
+    }
+
+    private fun failingIndexes(failure: Throwable): ListIndexesPublisher<Document> = mockk {
+        every { subscribe(any()) } answers {
+            Flux.error<Document>(failure).subscribe(firstArg<Subscriber<in Document>>())
+        }
+    }
+
+    private fun collections(vararg values: Document): ListCollectionsPublisher<Document> = mockk {
+        every { subscribe(any()) } answers {
+            Flux.fromIterable(values.toList()).subscribe(firstArg<Subscriber<in Document>>())
+        }
+    }
+}

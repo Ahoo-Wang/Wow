@@ -15,21 +15,35 @@ package me.ahoo.wow.mongo.query.snapshot
 
 import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.schema.QueryCardinality
+import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QueryValueType
+import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCollectionName
 import me.ahoo.wow.mongo.MongoSnapshotStore
 import me.ahoo.wow.query.dsl.aggregation
+import me.ahoo.wow.query.schema.DeclarationValue
+import me.ahoo.wow.query.schema.QueryFieldDeclaration
+import me.ahoo.wow.query.schema.QuerySchemaContext
+import me.ahoo.wow.query.schema.QuerySchemaDeclaration
+import me.ahoo.wow.query.schema.QuerySchemaSource
+import me.ahoo.wow.query.schema.QuerySchemaSourcePriority
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.query
 import me.ahoo.wow.tck.container.MongoTestFixture
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import me.ahoo.wow.tck.mock.MockStateAggregate
 import me.ahoo.wow.tck.query.SnapshotQueryServiceSpec
 import org.bson.Document
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
+import reactor.core.publisher.Flux
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
+import java.util.concurrent.TimeUnit
 
 class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     @JvmField
@@ -90,5 +104,75 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             .test()
             .expectErrorMessage("Aggregation metric [total] must be finite.")
             .verify()
+    }
+
+    @Test
+    fun `direct service constructor should retain snapshot identity schema behavior`() {
+        val service = MongoSnapshotQueryService<MockStateAggregate>(
+            MOCK_AGGREGATE_METADATA,
+            database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName()),
+        )
+
+        service.schema().test()
+            .assertNext { schema ->
+                schema.model.assert().isEqualTo(QueryModel.SNAPSHOT)
+                schema.fields.keys.assert().contains(LogicalField("aggregateId"))
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `epoch date histogram should floor negatives and safely group invalid or multi values as null`() {
+        val collection = database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
+        collection.insertMany(
+            listOf(
+                epochDocument("epoch-negative", -500L),
+                epochDocument("epoch-zero", 0L),
+                epochDocument("epoch-singleton", listOf(1_000L)),
+                epochDocument("epoch-invalid", "invalid"),
+                epochDocument("epoch-multi", listOf(1_000L, 2_000L)),
+            ),
+        ).toMono().then().test().verifyComplete()
+        val service = MongoSnapshotQueryServiceFactory(
+            database,
+            schemaSources = listOf(epochSource("state.epochMicros", TimeUnit.MICROSECONDS)),
+        ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+
+        aggregation {
+            dateHistogram("state.epochMicros", me.ahoo.wow.api.query.AggregationDateUnit.DAY, "day")
+            count("count")
+        }.query(service)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                rows.map(Map<String, Any?>::toMap).assert().containsExactly(
+                    mapOf("day" to null, "count" to 2L),
+                    mapOf("day" to -86_400_000L, "count" to 1L),
+                    mapOf("day" to 0L, "count" to 2L),
+                )
+            }
+            .verifyComplete()
+    }
+
+    private fun epochDocument(id: String, value: Any): Document = Document("_id", id)
+        .append("deleted", false)
+        .append("state", Document("epochMicros", value))
+
+    private fun epochSource(field: String, timeUnit: TimeUnit): QuerySchemaSource = object : QuerySchemaSource {
+        override val priority: Int = QuerySchemaSourcePriority.BEAN
+
+        override fun load(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> = Flux.just(
+            QuerySchemaDeclaration(
+                mapOf(
+                    LogicalField(field) to QueryFieldDeclaration(
+                        valueTypes = DeclarationValue.Set(setOf(QueryValueType.INTEGER)),
+                        nullable = DeclarationValue.Set(true),
+                        required = DeclarationValue.Set(false),
+                        cardinality = DeclarationValue.Set(QueryCardinality.SINGLE),
+                        semanticType = DeclarationValue.Set(Temporal.Epoch(timeUnit)),
+                    ),
+                ),
+            ),
+        )
     }
 }

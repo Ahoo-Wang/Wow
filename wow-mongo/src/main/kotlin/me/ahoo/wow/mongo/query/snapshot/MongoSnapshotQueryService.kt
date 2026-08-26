@@ -18,17 +18,29 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.IPagedQuery
+import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
+import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
+import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToAggregateId
 import me.ahoo.wow.mongo.MongoSnapshotStore
 import me.ahoo.wow.mongo.query.AbstractMongoFilterConverter
 import me.ahoo.wow.mongo.query.AbstractMongoQueryService
 import me.ahoo.wow.mongo.query.MongoProjectionConverter
 import me.ahoo.wow.mongo.query.MongoSortConverter
+import me.ahoo.wow.mongo.query.schema.MongoQuerySchemaAdapter
 import me.ahoo.wow.mongo.toMaterializedSnapshot
+import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QuerySchemaContext
+import me.ahoo.wow.query.schema.QuerySchemaValidationMode
+import me.ahoo.wow.query.schema.resolve
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.serialization.JsonSerializer
 import org.bson.Document
@@ -36,11 +48,35 @@ import org.bson.types.Decimal128
 import reactor.core.publisher.Flux
 import reactor.kotlin.core.publisher.toFlux
 
-class MongoSnapshotQueryService<S : Any>(
+class MongoSnapshotQueryService<S : Any> private constructor(
     override val namedAggregate: NamedAggregate,
     override val collection: MongoCollection<Document>,
-    override val converter: AbstractMongoFilterConverter = SnapshotFilterConverter
-) : AbstractMongoQueryService<MaterializedSnapshot<S>>(), SnapshotQueryService<S> {
+    override val converter: AbstractMongoFilterConverter,
+    private val schemaProvider: QueryModelSchemaProvider,
+    private val validationMode: QuerySchemaValidationMode,
+) : AbstractMongoQueryService<MaterializedSnapshot<S>>(),
+    SnapshotQueryService<S>,
+    QueryModelSchemaProvider by schemaProvider {
+    constructor(
+        namedAggregate: NamedAggregate,
+        collection: MongoCollection<Document>,
+        converter: AbstractMongoFilterConverter = SnapshotFilterConverter,
+    ) : this(
+        namedAggregate,
+        collection,
+        converter,
+        defaultSchemaProvider(namedAggregate, collection),
+        QuerySchemaValidationMode.COMPATIBLE,
+    )
+
+    internal constructor(
+        namedAggregate: NamedAggregate,
+        collection: MongoCollection<Document>,
+        schemaProvider: QueryModelSchemaProvider,
+        validationMode: QuerySchemaValidationMode,
+        converter: AbstractMongoFilterConverter = SnapshotFilterConverter,
+    ) : this(namedAggregate, collection, converter, schemaProvider, validationMode)
+
     override val name: String
         get() = MongoSnapshotStore.NAME
     override val projectionConverter: MongoProjectionConverter = MongoProjectionConverter(SnapshotFieldConverter)
@@ -59,14 +95,24 @@ class MongoSnapshotQueryService<S : Any>(
         return document.replacePrimaryKeyToAggregateId().toDynamicDocument()
     }
 
+    override fun resolve(query: ISingleQuery) = schemaProvider.resolve(query, validationMode)
+
+    override fun resolve(query: IListQuery) = schemaProvider.resolve(query, validationMode)
+
+    override fun resolve(query: IPagedQuery) = schemaProvider.resolve(query, validationMode)
+
+    override fun resolve(filter: FilterExpression) = schemaProvider.resolve(filter, validationMode)
+
     override fun aggregate(query: AggregationQuery): Flux<DynamicDocument> {
-        val result = collection.aggregate(MongoAggregationCompiler(converter).compile(query))
-            .toFlux()
-            .map { it.toAggregationResult(query) }
-        return if (query.groupBy.isEmpty()) {
-            result.switchIfEmpty(Flux.just(query.emptySummary()))
-        } else {
-            result
+        return schemaProvider.resolve(query, validationMode).flatMapMany { schema ->
+            val result = collection.aggregate(
+                MongoAggregationCompiler(converter).compile(query, schema.orElse(null)),
+            ).toFlux().map { it.toAggregationResult(query) }
+            if (query.groupBy.isEmpty()) {
+                result.switchIfEmpty(Flux.just(query.emptySummary()))
+            } else {
+                result
+            }
         }
     }
 
@@ -96,5 +142,16 @@ class MongoSnapshotQueryService<S : Any>(
         }
         require(value.isFinite()) { "Aggregation metric [$alias] must be finite." }
         return value
+    }
+
+    companion object {
+        private fun defaultSchemaProvider(
+            namedAggregate: NamedAggregate,
+            collection: MongoCollection<Document>,
+        ): QueryModelSchemaProvider = DefaultQueryModelSchemaProvider(
+            context = QuerySchemaContext(namedAggregate.materialize(), QueryModel.SNAPSHOT),
+            sources = emptyList(),
+            adapter = MongoQuerySchemaAdapter(collection),
+        )
     }
 }

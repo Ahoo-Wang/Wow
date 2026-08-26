@@ -17,14 +17,109 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
+import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.schema.QueryCapability
+import me.ahoo.wow.api.query.schema.QueryCardinality
+import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QueryValueType
+import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.mongo.query.AbstractMongoFilterConverter
 import me.ahoo.wow.query.converter.FieldConverter
 import me.ahoo.wow.query.dsl.aggregation
+import me.ahoo.wow.query.schema.QueryFieldBinding
+import me.ahoo.wow.query.schema.QueryFieldSchema
+import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryStorageType
 import me.ahoo.wow.serialization.MessageRecords
 import org.junit.jupiter.api.Test
 import java.time.ZoneId
+import java.util.concurrent.TimeUnit
 
 class MongoAggregationCompilerTest {
+
+    @Test
+    fun `schema bindings should drive element group and metric physical paths`() {
+        val schema = schema(
+            field("state.orders", QueryCapability.ELEMENT_SCOPE, "document.orders", QueryValueType.OBJECT),
+            field("state.orders.productId", QueryCapability.AGGREGATE_TERMS, "document.orders.sku"),
+            field(
+                "state.orders.amount",
+                QueryCapability.AGGREGATE_NUMERIC,
+                "document.orders.total",
+                QueryValueType.DECIMAL
+            ),
+        )
+        val query = aggregation {
+            expand("state.orders")
+            terms("productId", "product")
+            sum("amount", "total")
+        }
+
+        val json = MongoAggregationCompiler(SnapshotFilterConverter).compile(query, schema)
+            .joinToString { it.toBsonDocument().toJson() }
+
+        json.assert()
+            .contains("document.orders")
+            .contains("document.orders.sku")
+            .contains("document.orders.total")
+            .doesNotContain("state.orders.productId")
+            .doesNotContain("state.orders.amount")
+    }
+
+    @Test
+    fun `epoch date histogram should compile safe singleton conversion and date truncation`() {
+        val schema = schema(
+            field(
+                "state.createdAt",
+                QueryCapability.AGGREGATE_TEMPORAL,
+                "document.created_at",
+                semanticType = Temporal.Epoch(TimeUnit.MILLISECONDS),
+            ),
+        )
+        val query = aggregation {
+            dateHistogram("state.createdAt", AggregationDateUnit.DAY, "day")
+            count("count")
+        }
+
+        val group = MongoAggregationCompiler(SnapshotFilterConverter).compile(query, schema)
+            .first { it.toBsonDocument().containsKey("\$group") }
+            .toBsonDocument().toJson()
+
+        group.assert()
+            .contains("document.created_at")
+            .contains("\$isArray")
+            .contains("\$size")
+            .contains("\$isNumber")
+            .contains("\$convert")
+            .contains("\"to\": \"long\"")
+            .contains("\"to\": \"date\"")
+            .contains("\"onError\": null")
+            .contains("\"onNull\": null")
+            .contains("\$dateTrunc")
+            .doesNotContain("state.createdAt")
+    }
+
+    @Test
+    fun `sub millisecond epoch date histogram should floor negative values`() {
+        val schema = schema(
+            field(
+                "state.createdAt",
+                QueryCapability.AGGREGATE_TEMPORAL,
+                "state.createdAt",
+                semanticType = Temporal.Epoch(TimeUnit.MICROSECONDS),
+            ),
+        )
+        val query = aggregation {
+            dateHistogram("state.createdAt", AggregationDateUnit.DAY, "day")
+            count("count")
+        }
+
+        MongoAggregationCompiler(SnapshotFilterConverter).compile(query, schema)
+            .first { it.toBsonDocument().containsKey("\$group") }
+            .toBsonDocument().toJson().assert()
+            .contains("\$floor")
+            .contains("1000")
+    }
 
     @Test
     fun `compiler should unwind and filter every relative element`() {
@@ -231,4 +326,31 @@ class MongoAggregationCompilerTest {
             .contains("physical.state.items.quantity")
             .doesNotContain("deleted")
     }
+
+    private fun schema(vararg fields: Pair<LogicalField, QueryFieldSchema>) = QueryModelSchema(
+        model = QueryModel.SNAPSHOT,
+        capabilities = emptySet(),
+        fields = fields.toMap(),
+    )
+
+    private fun field(
+        logicalPath: String,
+        capability: QueryCapability,
+        physicalPath: String,
+        valueType: QueryValueType = QueryValueType.STRING,
+        semanticType: Temporal? = null,
+    ) = LogicalField(logicalPath) to QueryFieldSchema(
+        title = null,
+        description = null,
+        enumValues = null,
+        valueTypes = setOf(valueType),
+        nullable = false,
+        required = true,
+        cardinality = QueryCardinality.SINGLE,
+        semanticType = semanticType,
+        dynamicChildren = false,
+        bindings = mapOf(
+            capability to QueryFieldBinding(physicalPath, QueryStorageType("test")),
+        ),
+    )
 }

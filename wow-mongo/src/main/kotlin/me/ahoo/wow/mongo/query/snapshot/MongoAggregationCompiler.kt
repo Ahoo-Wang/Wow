@@ -26,27 +26,45 @@ import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.schema.QueryCapability
+import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.mongo.query.AbstractMongoFilterConverter
+import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import org.bson.Document
 import org.bson.conversions.Bson
+import java.util.concurrent.TimeUnit
 
 internal class MongoAggregationCompiler(
     private val converter: AbstractMongoFilterConverter,
 ) {
-    fun compile(query: AggregationQuery): List<Bson> = buildList {
+    fun compile(query: AggregationQuery, schema: QueryModelSchema? = null): List<Bson> = buildList {
         add(Aggregates.match(converter.convert(query.filter)))
 
-        var parent: String? = null
+        var logicalParent: String? = null
+        var physicalParent: String? = null
         query.elements.forEach { element ->
-            parent = if (parent == null) element.path.value else "$parent.${element.path.value}"
-            add(Aggregates.unwind("\$$parent"))
+            val previousLogicalParent = logicalParent
+            logicalParent = if (logicalParent == null) {
+                element.path.value
+            } else {
+                "$logicalParent.${element.path.value}"
+            }
+            physicalParent = element.path.resolve(
+                parent = previousLogicalParent,
+                schema = schema,
+                capability = QueryCapability.ELEMENT_SCOPE,
+            )
+            add(Aggregates.unwind("\$$physicalParent"))
             if (element.filter !== MatchAllFilter) {
-                add(Aggregates.match(converter.convertWithoutDefaultDeletion(element.filter, parent)))
+                add(Aggregates.match(converter.convertWithoutDefaultDeletion(element.filter, physicalParent)))
             }
         }
 
         if (query.groupBy.isNotEmpty()) {
-            val groupFields = query.groupBy.map { it.field.resolve(parent) }
+            val groupFields = query.groupBy.map { group ->
+                group.field.resolve(logicalParent, schema, group.capability)
+            }
             add(
                 Aggregates.match(
                     Filters.and(groupFields.flatMap { listOf(Filters.exists(it), Filters.ne(it, null)) }),
@@ -54,22 +72,22 @@ internal class MongoAggregationCompiler(
             )
         }
 
-        add(group(query, parent))
+        add(group(query, logicalParent, schema))
         add(project(query))
         query.effectiveSort().takeIf { it.isNotEmpty() }?.let { add(Aggregates.sort(it.toBson())) }
         add(Aggregates.limit(query.limit))
     }
 
-    private fun group(query: AggregationQuery, parent: String?): Bson {
+    private fun group(query: AggregationQuery, parent: String?, schema: QueryModelSchema?): Bson {
         val id = query.groupBy
             .takeIf { it.isNotEmpty() }
-            ?.associateTo(Document()) { it.alias to it.expression(parent) }
+            ?.associateTo(Document()) { it.alias to it.expression(parent, schema) }
         val group = Document("_id", id)
         query.metrics.forEach { metric ->
             when (metric) {
                 is AggregationMetric.Count -> group[metric.alias] = Document("\$sum", 1)
                 is AggregationMetric.Numeric -> {
-                    val (input, contributes) = metric.toMongoInput(parent)
+                    val (input, contributes) = metric.toMongoInput(parent, schema)
                     group[metric.alias] = Document("\$${metric.function.name.lowercase()}", input)
                     group[metric.countAlias] = Document(
                         "\$sum",
@@ -96,12 +114,18 @@ internal class MongoAggregationCompiler(
         return Aggregates.project(project)
     }
 
-    private fun AggregationGroup.expression(parent: String?): Any = when (this) {
-        is AggregationGroup.Terms -> "\$${field.resolve(parent)}"
+    private fun AggregationGroup.expression(parent: String?, schema: QueryModelSchema?): Any = when (this) {
+        is AggregationGroup.Terms -> "\$${field.resolve(parent, schema, QueryCapability.AGGREGATE_TERMS)}"
         is AggregationGroup.Histogram -> Document(
             "\$multiply",
             listOf(
-                Document("\$floor", Document("\$divide", listOf("\$${field.resolve(parent)}", interval))),
+                Document(
+                    "\$floor",
+                    Document(
+                        "\$divide",
+                        listOf("\$${field.resolve(parent, schema, QueryCapability.AGGREGATE_NUMERIC)}", interval),
+                    ),
+                ),
                 interval,
             ),
         )
@@ -110,7 +134,7 @@ internal class MongoAggregationCompiler(
             "\$toLong",
             Document(
                 "\$dateTrunc",
-                Document("date", Document("\$toDate", "\$${field.resolve(parent)}"))
+                Document("date", dateInput(parent, schema))
                     .append("unit", unit.name.lowercase())
                     .append("timezone", if (timeZone == "Z") "UTC" else timeZone)
                     .apply {
@@ -120,10 +144,13 @@ internal class MongoAggregationCompiler(
         )
     }
 
-    private fun AggregationMetric.Numeric.toMongoInput(parent: String?): Pair<Any, Any> {
+    private fun AggregationMetric.Numeric.toMongoInput(
+        parent: String?,
+        schema: QueryModelSchema?,
+    ): Pair<Any, Any> {
         val metricExpression = expression
         if (metricExpression is AggregationExpression.Field) {
-            val field = metricExpression.field.resolve(parent)
+            val field = metricExpression.field.resolve(parent, schema, QueryCapability.AGGREGATE_NUMERIC)
             val isNumber = Document("\$isNumber", "\$$field")
             val input = when (function) {
                 AggregationFunction.MIN,
@@ -134,20 +161,15 @@ internal class MongoAggregationCompiler(
             }
             return input to isNumber
         }
-        val input = metricExpression.toMongoExpression(parent)
+        val input = metricExpression.toMongoExpression(parent, schema)
         return input to Document("\$ne", listOf(input, null))
     }
 
-    private fun AggregationExpression.toMongoExpression(parent: String?): Any = when (this) {
+    private fun AggregationExpression.toMongoExpression(parent: String?, schema: QueryModelSchema?): Any = when (this) {
         is AggregationExpression.Field -> {
-            val field = field.resolve(parent)
+            val field = field.resolve(parent, schema, QueryCapability.AGGREGATE_NUMERIC)
             val fieldReference = "\$$field"
-            val isSingleton = Document("\$eq", listOf(Document("\$size", fieldReference), 1))
-            val singleton = Document(
-                "\$cond",
-                listOf(isSingleton, Document("\$arrayElemAt", listOf(fieldReference, 0)), null),
-            )
-            val value = Document("\$cond", listOf(Document("\$isArray", fieldReference), singleton, fieldReference))
+            val value = scalarOrSingleton(fieldReference)
             finiteDouble(
                 Document(
                     "\$cond",
@@ -168,8 +190,8 @@ internal class MongoAggregationCompiler(
 
         is AggregationExpression.Constant -> value
         is AggregationExpression.Binary -> {
-            val leftValue = left.toMongoExpression(parent)
-            val rightValue = right.toMongoExpression(parent)
+            val leftValue = left.toMongoExpression(parent, schema)
+            val rightValue = right.toMongoExpression(parent, schema)
             val conditions = mutableListOf<Any>(
                 Document("\$ne", listOf("\$\$left", null)),
                 Document("\$ne", listOf("\$\$right", null)),
@@ -230,8 +252,120 @@ internal class MongoAggregationCompiler(
             ),
     )
 
-    private fun LogicalField.resolve(parent: String?): String =
-        SnapshotFieldConverter.convert(if (parent == null) value else "$parent.$value")
+    private fun AggregationGroup.DateHistogram.dateInput(parent: String?, schema: QueryModelSchema?): Any {
+        val logicalField = field.absolute(parent)
+        val fieldSchema = schema?.resolve(logicalField)
+        if (fieldSchema == null) {
+            return Document("\$toDate", "\$${SnapshotFieldConverter.convert(logicalField.value)}")
+        }
+        val physicalPath = fieldSchema.bindings[QueryCapability.AGGREGATE_TEMPORAL]?.physicalPath
+            ?: throw QuerySchemaValidationException(
+                "Query field [$logicalField] does not support [${QueryCapability.AGGREGATE_TEMPORAL}].",
+            )
+        return when (val semanticType = fieldSchema.semanticType) {
+            Temporal.Date -> convert(scalarOrSingleton("\$$physicalPath"), "date")
+            is Temporal.Epoch -> epochDate(physicalPath, semanticType.timeUnit)
+            else -> throw QuerySchemaValidationException(
+                "Query field [$logicalField] does not have a supported temporal semantic type.",
+            )
+        }
+    }
+
+    private fun epochDate(physicalPath: String, timeUnit: TimeUnit): Document {
+        val value = scalarOrSingleton("\$$physicalPath")
+        return Document(
+            "\$let",
+            Document("vars", Document("value", value)).append(
+                "in",
+                Document(
+                    "\$cond",
+                    listOf(
+                        Document("\$isNumber", "\$\$value"),
+                        Document(
+                            "\$let",
+                            Document("vars", Document("epoch", convert("\$\$value", "long"))).append(
+                                "in",
+                                Document(
+                                    "\$cond",
+                                    listOf(
+                                        Document(
+                                            "\$and",
+                                            listOf(
+                                                Document("\$ne", listOf("\$\$epoch", null)),
+                                                Document("\$eq", listOf("\$\$epoch", "\$\$value")),
+                                            ),
+                                        ),
+                                        convert(timeUnit.toEpochMillis("\$\$epoch"), "date"),
+                                        null,
+                                    ),
+                                ),
+                            ),
+                        ),
+                        null,
+                    ),
+                ),
+            ),
+        )
+    }
+
+    private fun TimeUnit.toEpochMillis(epoch: String): Any = when (this) {
+        TimeUnit.NANOSECONDS -> floorDivide(epoch, 1_000_000L)
+        TimeUnit.MICROSECONDS -> floorDivide(epoch, 1_000L)
+        TimeUnit.MILLISECONDS -> epoch
+        TimeUnit.SECONDS -> multiplyToLong(epoch, 1_000L)
+        TimeUnit.MINUTES -> multiplyToLong(epoch, 60_000L)
+        TimeUnit.HOURS -> multiplyToLong(epoch, 3_600_000L)
+        TimeUnit.DAYS -> multiplyToLong(epoch, 86_400_000L)
+    }
+
+    private fun floorDivide(epoch: String, divisor: Long): Document = convert(
+        Document("\$floor", Document("\$divide", listOf(epoch, divisor))),
+        "long",
+    )
+
+    private fun multiplyToLong(epoch: String, multiplier: Long): Document = convert(
+        Document("\$multiply", listOf(epoch, multiplier)),
+        "long",
+    )
+
+    private fun scalarOrSingleton(fieldReference: String): Document {
+        val isSingleton = Document("\$eq", listOf(Document("\$size", fieldReference), 1))
+        val singleton = Document(
+            "\$cond",
+            listOf(isSingleton, Document("\$arrayElemAt", listOf(fieldReference, 0)), null),
+        )
+        return Document("\$cond", listOf(Document("\$isArray", fieldReference), singleton, fieldReference))
+    }
+
+    private fun convert(input: Any, type: String): Document = Document(
+        "\$convert",
+        Document("input", input)
+            .append("to", type)
+            .append("onError", null)
+            .append("onNull", null),
+    )
+
+    private fun LogicalField.resolve(
+        parent: String?,
+        schema: QueryModelSchema?,
+        capability: QueryCapability,
+    ): String {
+        val logicalField = absolute(parent)
+        val fieldSchema = schema?.resolve(logicalField)
+            ?: return SnapshotFieldConverter.convert(logicalField.value)
+        return fieldSchema.bindings[capability]?.physicalPath
+            ?: throw QuerySchemaValidationException("Query field [$logicalField] does not support [$capability].")
+    }
+
+    private fun LogicalField.absolute(parent: String?): LogicalField =
+        LogicalField(if (parent == null) value else "$parent.$value")
+
+    private val AggregationGroup.capability: QueryCapability
+        get() = when (this) {
+            is AggregationGroup.Terms -> QueryCapability.AGGREGATE_TERMS
+            is AggregationGroup.Histogram -> QueryCapability.AGGREGATE_NUMERIC
+            is AggregationGroup.DateHistogram -> QueryCapability.AGGREGATE_TEMPORAL
+        }
 
     private fun List<Sort>.toBson(): Bson = Sorts.orderBy(
         map {
