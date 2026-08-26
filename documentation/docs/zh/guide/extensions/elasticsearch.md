@@ -600,13 +600,12 @@ PIT 列表查询未指定 `sort` 时只按 `_shard_doc` 扫描，结果顺序不
 
 #### 1. 查询报字段未映射、能力不兼容或 multi-field 存在歧义
 
-使用 `GET /{indexName}/_mapping` 检查当前物理 Mapping，再调用主动刷新端点。多个兼容子字段时，使用
-`.keyword`、`.text` 或 `.exact` 的约定名称消除歧义。
+使用 `GET /{aggregate}/snapshot/schema` 检查当前聚合的逻辑字段与能力；需要重读 Mapping 时，调用
+`POST /{aggregate}/snapshot/schema/refresh`。多个兼容子字段时，使用 `.keyword`、`.text` 或 `.exact` 的约定名称消除歧义。
 
 #### 2. 刷新端点不可用或刷新失败
 
-`404` 时检查 Actuator 依赖、endpoint access 和 Web exposure；`400` 时检查 `contextName` 和 `aggregateName`
-是否已注册。Elasticsearch 错误时检查索引是否存在以及 `view_index_metadata` 权限。刷新失败不会删除旧缓存。
+确认应用已注册 WebFlux query route，并且该聚合的 GET/POST 路由已按当前实例的 OpenAPI 路径 materialize。refresh 使用独立路由授权，可与普通查询分别限制。`500` 表示 Schema 声明冲突，`503` 表示 Mapping 或其他 Schema 来源不可用；后者应检查索引是否存在及 `view_index_metadata` 权限。刷新失败不会删除旧缓存。
 
 #### 3. alias 或 data stream 无法解析
 

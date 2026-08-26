@@ -608,14 +608,12 @@ Set `wow.elasticsearch.query.batch-size` no higher than the target index's `inde
 
 #### 1. Query reports an unmapped, incompatible, or ambiguous multi-field
 
-Inspect the current physical mapping with `GET /{indexName}/_mapping`, then call the active refresh endpoint. When
-multiple compatible children are ambiguous, use the conventional `.keyword`, `.text`, or `.exact` child name.
+Inspect the aggregate's current logical fields and capabilities with `GET /{aggregate}/snapshot/schema`; use
+`POST /{aggregate}/snapshot/schema/refresh` when the mapping must be reread. When multiple compatible children are ambiguous, use the conventional `.keyword`, `.text`, or `.exact` child name.
 
 #### 2. Refresh endpoint is unavailable or refresh fails
 
-A `404` means the Actuator dependency, endpoint access, or Web exposure should be checked. A `400` means the
-`contextName` or `aggregateName` is not registered. For an Elasticsearch error, verify the index and
-`view_index_metadata` privilege. A failed refresh does not delete the previous cache entry.
+Confirm the application registers the WebFlux query route and materializes this aggregate's GET/POST routes in the current instance's OpenAPI paths. Refresh has independent route authorization and can be restricted separately from ordinary queries. A `500` means schema declarations conflict; a `503` means the mapping or another schema source is unavailable, so verify the index and `view_index_metadata` privilege. A failed refresh does not delete the previous cache entry.
 
 #### 3. An alias or data stream cannot be resolved
 
