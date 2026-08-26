@@ -191,7 +191,7 @@ class MongoEventSourcingAutoConfiguration(
         return MongoSnapshotQueryServiceFactory(
             snapshotDatabase,
             sources,
-            queryProperties.schema.validationMode,
+            queryProperties.schema().validationMode,
         )
     }
 

@@ -106,7 +106,7 @@ class MongoEventSourcingAutoConfigurationTest {
             dataMongoProperties = null,
             currentBoundedContext = MaterializedNamedBoundedContext("order-service"),
             sources = listOf(source),
-            queryProperties = QueryProperties(),
+            queryProperties = QueryProperties("COMPATIBLE"),
         )
 
         (factory.create<Any>(MOCK_AGGREGATE_METADATA) as QueryModelSchemaProvider)

@@ -74,6 +74,23 @@ class ElasticsearchSnapshotQueryServiceFactory(
         this.indexMappingResolver = indexMappingResolver
     }
 
+    constructor(
+        elasticsearchClient: ReactiveElasticsearchClient,
+        queryBatchSize: Int,
+        queryKeepAlive: Duration,
+        indexMappingResolver: ElasticsearchIndexMappingResolver,
+        schemaSources: List<QuerySchemaSource>,
+        validationMode: QuerySchemaValidationMode,
+    ) : this(
+        elasticsearchClient,
+        queryBatchSize,
+        queryKeepAlive,
+        schemaSources,
+        validationMode,
+    ) {
+        this.indexMappingResolver = indexMappingResolver
+    }
+
     override fun createQueryService(namedAggregate: NamedAggregate): SnapshotQueryService<*> {
         val materialized = namedAggregate.materialize()
         val indexName = materialized.toSnapshotIndexName()

@@ -191,6 +191,7 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
     @ConditionalOnSnapshotStoreStorage(StorageType.ELASTICSEARCH)
     fun elasticsearchSnapshotQueryServiceFactory(
         elasticsearchClient: ReactiveElasticsearchClient,
+        elasticsearchIndexMappingResolver: ElasticsearchIndexMappingResolver,
         sources: List<QuerySchemaSource>,
         schemaQueryProperties: QueryProperties,
     ): ElasticsearchSnapshotQueryServiceFactory {
@@ -198,8 +199,9 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
             elasticsearchClient,
             queryProperties.batchSize,
             queryProperties.keepAlive,
+            elasticsearchIndexMappingResolver,
             sources,
-            schemaQueryProperties.schema.validationMode,
+            schemaQueryProperties.schema().validationMode,
         )
     }
 

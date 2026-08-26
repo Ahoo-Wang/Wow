@@ -25,6 +25,7 @@ import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.schema.WorkingDirectoryQuerySchemaSource
 import me.ahoo.wow.schema.query.JsonQuerySchemaSource
+import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
@@ -40,7 +41,7 @@ class QuerySchemaAutoConfigurationTest {
             .withUserConfiguration(QuerySchemaAutoConfiguration::class.java)
             .run { context ->
                 context.getBean(QueryProperties::class.java)
-                    .schema.validationMode.assert().isEqualTo(QuerySchemaValidationMode.COMPATIBLE)
+                    .schema().validationMode.assert().isEqualTo(QuerySchemaValidationMode.COMPATIBLE)
             }
     }
 
@@ -52,7 +53,7 @@ class QuerySchemaAutoConfigurationTest {
             .withUserConfiguration(QuerySchemaAutoConfiguration::class.java)
             .run { context ->
                 context.getBean(QueryProperties::class.java)
-                    .schema.validationMode.assert().isEqualTo(QuerySchemaValidationMode.STRICT)
+                    .schema().validationMode.assert().isEqualTo(QuerySchemaValidationMode.STRICT)
             }
     }
 
@@ -96,4 +97,24 @@ class QuerySchemaAutoConfigurationTest {
                     .hasSize(2)
             }
     }
+
+    @Test
+    fun `should publish one compatible validation default in canonical metadata`() {
+        val propertyName = "wow.query.schema.validation-mode"
+        val canonical = metadataProperties("META-INF/spring-configuration-metadata.json")
+            .filter { it.path("name").stringValue() == propertyName }
+        canonical.assert().hasSize(1)
+        canonical.single().path("defaultValue").stringValue().assert().isEqualTo("COMPATIBLE")
+
+        metadataProperties("META-INF/additional-spring-configuration-metadata.json")
+            .filter { it.path("name").stringValue() == propertyName }
+            .assert()
+            .isEmpty()
+    }
+
+    private fun metadataProperties(resourceName: String) = JsonSerializer.readTree(
+        requireNotNull(javaClass.classLoader.getResourceAsStream(resourceName)) {
+            "Missing metadata resource [$resourceName]."
+        }.bufferedReader().use { it.readText() },
+    ).path("properties").asSequence().toList()
 }

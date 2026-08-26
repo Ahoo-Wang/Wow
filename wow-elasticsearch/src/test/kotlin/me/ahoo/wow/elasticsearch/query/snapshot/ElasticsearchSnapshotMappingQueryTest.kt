@@ -218,6 +218,28 @@ class ElasticsearchSnapshotMappingQueryTest {
     }
 
     @Test
+    fun `factory with schema sources should use the supplied mapping resolver`() {
+        val failure = IllegalStateException("custom resolver was used")
+        val resolver = mockk<ElasticsearchIndexMappingResolver> {
+            every { currentOrLoad(any()) } returns Mono.error(failure)
+        }
+        val service = ElasticsearchSnapshotQueryServiceFactory(
+            client,
+            DEFAULT_SEARCH_BATCH_SIZE,
+            DEFAULT_PIT_KEEP_ALIVE,
+            resolver,
+            schemaSources(),
+            QuerySchemaValidationMode.COMPATIBLE,
+        ).create<Any>(MOCK_AGGREGATE_METADATA)
+
+        service.requiredQueryModelSchemaProvider().schema().test()
+            .expectErrorSatisfies { it.cause.assert().isSameAs(failure) }
+            .verify()
+
+        verify(exactly = 1) { resolver.currentOrLoad("wow.tck.mock_aggregate.snapshot") }
+    }
+
+    @Test
     fun `custom filter converter should keep physical field ownership`() {
         val convertedFilter = slot<FilterExpression>()
         val customConverter = mockk<me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterConverter> {

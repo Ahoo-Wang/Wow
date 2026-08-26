@@ -28,6 +28,7 @@ import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStore
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStoreBatchOptions
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStoreBatchOptions
+import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
 import me.ahoo.wow.elasticsearch.query.event.ElasticsearchEventStreamQueryServiceFactory
 import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryServiceFactory
 import me.ahoo.wow.metrics.WowMetrics
@@ -102,8 +103,9 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
         )
         val factory = configuration.elasticsearchSnapshotQueryServiceFactory(
             elasticsearchClient = mock(ReactiveElasticsearchClient::class.java),
+            elasticsearchIndexMappingResolver = mockk<ElasticsearchIndexMappingResolver>(),
             sources = listOf(failingQuerySchemaSource(expected)),
-            schemaQueryProperties = QueryProperties(),
+            schemaQueryProperties = QueryProperties("COMPATIBLE"),
         )
 
         (factory.create<Any>(MOCK_AGGREGATE_METADATA) as QueryModelSchemaProvider)
