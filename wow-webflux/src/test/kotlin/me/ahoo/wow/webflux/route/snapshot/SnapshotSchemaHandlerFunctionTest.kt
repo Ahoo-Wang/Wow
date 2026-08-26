@@ -39,6 +39,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.test.web.reactive.server.WebTestClient
 import org.springframework.web.reactive.function.server.RouterFunctions
 import reactor.core.publisher.Mono
+import tools.jackson.databind.node.JsonNodeFactory
 import java.util.concurrent.atomic.AtomicInteger
 
 class SnapshotSchemaHandlerFunctionTest {
@@ -59,8 +60,14 @@ class SnapshotSchemaHandlerFunctionTest {
         val json = body.toJsonNode<tools.jackson.databind.JsonNode>()
 
         json["model"].stringValue().assert().isEqualTo("SNAPSHOT")
+        json["capabilities"][0].stringValue().assert().isEqualTo("EXACT_MATCH")
         json["fields"][0]["field"].stringValue().assert().isEqualTo("state.a")
         json["fields"][1]["field"].stringValue().assert().isEqualTo("state.z")
+        json["fields"][0]["capabilities"][0].stringValue().assert().isEqualTo("EXACT_MATCH")
+        json["fields"][0]["valueTypes"][0].stringValue().assert().isEqualTo("STRING")
+        json["fields"][0]["enumValues"][0].stringValue().assert().isEqualTo("OPEN")
+        json["fields"][0]["enumValues"][1].intValue().assert().isEqualTo(2)
+        json["fields"][0]["enumValues"][2].booleanValue().assert().isTrue()
         body.assert().doesNotContain("physicalPath", "storageType")
 
         service.schemaCalls.get().assert().isOne()
@@ -144,7 +151,11 @@ class SnapshotSchemaHandlerFunctionTest {
         val FIELD_SCHEMA = QueryFieldSchema(
             title = null,
             description = null,
-            enumValues = null,
+            enumValues = listOf(
+                JsonNodeFactory.instance.stringNode("OPEN"),
+                JsonNodeFactory.instance.numberNode(2),
+                JsonNodeFactory.instance.booleanNode(true),
+            ),
             valueTypes = setOf(QueryValueType.STRING),
             nullable = false,
             required = true,

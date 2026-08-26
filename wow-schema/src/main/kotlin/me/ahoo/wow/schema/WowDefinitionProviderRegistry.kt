@@ -20,11 +20,13 @@ import me.ahoo.wow.schema.typed.CommandDefinitionProvider
 import me.ahoo.wow.schema.typed.DomainEventDefinitionProvider
 import me.ahoo.wow.schema.typed.DomainEventStreamDefinitionProvider
 import me.ahoo.wow.schema.typed.EnumTextDefinitionProvider
+import me.ahoo.wow.schema.typed.JsonNodeDefinitionProvider
 import me.ahoo.wow.schema.typed.MapDefinitionProvider
 import me.ahoo.wow.schema.typed.SnapshotDefinitionProvider
 import me.ahoo.wow.schema.typed.StateAggregateDefinitionProvider
 import me.ahoo.wow.schema.typed.StateEventDefinitionProvider
 import me.ahoo.wow.schema.typed.query.LogicalFieldDefinitionProvider
+import me.ahoo.wow.schema.typed.query.QuerySchemaValueDefinitionProvider
 import me.ahoo.wow.schema.web.ServerSentEventCustomDefinitionProvider
 
 internal object WowDefinitionProviderRegistry {
@@ -39,6 +41,8 @@ internal object WowDefinitionProviderRegistry {
         StateEventDefinitionProvider,
         ServerSentEventCustomDefinitionProvider,
         LogicalFieldDefinitionProvider,
+        QuerySchemaValueDefinitionProvider,
+        JsonNodeDefinitionProvider,
         MapDefinitionProvider,
         EnumTextDefinitionProvider
     )

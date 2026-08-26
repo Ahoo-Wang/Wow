@@ -207,6 +207,31 @@ internal class ExampleDomainOpenAPITest {
         }
 
         @Test
+        fun `query schema value objects should use their string wire shape`() {
+            listOf("QueryCapability", "QueryModel", "QueryValueType").forEach { typeName ->
+                openAPI.components.schemas.getValue("wow.api.query.$typeName").types.assert()
+                    .contains("string")
+                    .doesNotContain("object")
+            }
+        }
+
+        @Test
+        fun `query schema enum values should accept any JSON value`() {
+            val enumValues = openAPI.components.schemas
+                .getValue("wow.api.query.QueryFieldSchemaMetadata")
+                .properties.getValue("enumValues")
+            val arraySchema = enumValues.anyOf.single { it.types?.contains("array") == true }
+            val itemRef = requireNotNull(arraySchema.items.`$ref`)
+            val itemSchema = openAPI.components.schemas.getValue(itemRef.substringAfterLast('/'))
+
+            itemSchema.types.orEmpty().assert().isEmpty()
+            itemSchema.properties.orEmpty().assert().isEmpty()
+            itemSchema.allOf.orEmpty().assert().isEmpty()
+            itemSchema.anyOf.orEmpty().assert().isEmpty()
+            itemSchema.oneOf.orEmpty().assert().isEmpty()
+        }
+
+        @Test
         fun `should reuse query schemas in aggregate request bodies`() {
             mapOf(
                 "AggregationQuery" to "#/components/schemas/wow.api.query.AggregationQuery",

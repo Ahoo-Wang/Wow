@@ -829,9 +829,7 @@
       }
     },
     "schemas" : {
-      "example.JsonNode" : {
-        "type" : "object"
-      },
+      "example.JsonNode" : { },
       "example.StringObjectMap" : {
         "type" : "object"
       },
@@ -5834,7 +5832,7 @@
         "type" : "object"
       },
       "wow.api.query.QueryCapability" : {
-        "type" : "object"
+        "type" : "string"
       },
       "wow.api.query.QueryCardinality" : {
         "enum" : [ "SINGLE", "MANY" ],
@@ -5909,7 +5907,7 @@
         "type" : "object"
       },
       "wow.api.query.QueryModel" : {
-        "type" : "object"
+        "type" : "string"
       },
       "wow.api.query.QueryModelSchemaMetadata" : {
         "properties" : {
@@ -5933,7 +5931,7 @@
         "type" : "object"
       },
       "wow.api.query.QueryValueType" : {
-        "type" : "object"
+        "type" : "string"
       },
       "wow.api.query.SingleQuery" : {
         "additionalProperties" : false,
