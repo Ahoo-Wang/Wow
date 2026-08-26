@@ -512,8 +512,6 @@ git commit -m "feat(query): load and cache query schemas"
 - Modify: `wow-schema/build.gradle.kts`
 - Create: `wow-schema/src/main/kotlin/me/ahoo/wow/schema/query/JsonQuerySchemaSource.kt`
 - Create: `wow-schema/src/test/kotlin/me/ahoo/wow/schema/query/JsonQuerySchemaSourceTest.kt`
-- Delete after GREEN equivalence: `wow-schema/src/main/kotlin/me/ahoo/wow/schema/TypeFieldPaths.kt`
-- Delete after GREEN equivalence: `wow-schema/src/test/kotlin/me/ahoo/wow/schema/AggregatedFieldPathsTest.kt`
 
 **Interfaces:**
 - Consumes: Task 2 QuerySchemaSource and Task 1 QueryTemporal; existing SchemaGeneratorBuilder/Jackson configuration.
@@ -617,11 +615,11 @@ Emit a separate `state` root declaration containing only System-Unset leaves tha
 
 For array properties infer valueTypes/semanticType from items while keeping the field cardinality MANY. Apply `x-wow-query-temporal-unit` only after structural inference and require the effective non-null type set to equal `{INTEGER}`; otherwise throw QuerySchemaConflictException. Retain the recursive field itself and stop only the repeated descendant expansion.
 
-- [ ] **Step 5: Run GREEN and delete the old string directory**
+- [ ] **Step 5: Run GREEN and prove equivalence before later atomic deletion**
 
 Run: `./gradlew :wow-schema:check --stacktrace`
 
-Expected: migrated tests pass. Then delete TypeFieldPaths.kt and AggregatedFieldPathsTest.kt and rerun the same command; `rg -n "TypeFieldPaths|AggregatedFieldPaths" wow-schema` returns no matches.
+Expected: migrated Query Schema tests pass. Keep TypeFieldPaths.kt and AggregatedFieldPathsTest.kt temporarily because wow-openapi still imports them; Task 10 deletes the old source, OpenAPI consumers and snapshots atomically so every intermediate commit remains buildable.
 
 - [ ] **Step 6: Commit**
 
@@ -629,8 +627,6 @@ Expected: migrated tests pass. Then delete TypeFieldPaths.kt and AggregatedField
 git add wow-schema/build.gradle.kts \
   wow-schema/src/main/kotlin/me/ahoo/wow/schema/query \
   wow-schema/src/test/kotlin/me/ahoo/wow/schema/query
-git add -u wow-schema/src/main/kotlin/me/ahoo/wow/schema/TypeFieldPaths.kt \
-  wow-schema/src/test/kotlin/me/ahoo/wow/schema/AggregatedFieldPathsTest.kt
 git commit -m "feat(schema): infer logical query schemas"
 ```
 
@@ -888,6 +884,9 @@ git commit -m "feat(mongo): bind snapshot queries to negotiated schemas"
 - Modify: `wow-elasticsearch/src/test/kotlin/me/ahoo/wow/elasticsearch/query/snapshot/ElasticsearchSnapshotMappingQueryTest.kt`
 - Modify: `wow-elasticsearch/src/test/kotlin/me/ahoo/wow/elasticsearch/query/snapshot/ElasticsearchAggregationCompilerTest.kt`
 - Modify: `wow-elasticsearch/src/integrationTest/kotlin/me/ahoo/wow/elasticsearch/query/snapshot/ElasticsearchSnapshotQueryServiceTest.kt`
+- Delete: `wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchMappingEndpointAutoConfiguration.kt`
+- Delete: `wow-spring-boot-starter/src/test/kotlin/me/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchMappingEndpointAutoConfigurationTest.kt`
+- Modify: `wow-spring-boot-starter/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`
 
 **Interfaces:**
 - Consumes: Task 3 Provider/Adapter and Task 5 resolver.
@@ -930,6 +929,8 @@ fun refresh(indexName: String): Mono<ElasticsearchIndexMapping> =
 
 Expose mapped field facts as internal read-only data for the Adapter. Delete filter/sort resolution from ElasticsearchIndexMapping after all compiler callers move to QueryModelSchema.
 
+Delete ElasticsearchMappingEndpointAutoConfiguration.kt and its test in the same change, and remove its AutoConfiguration.imports entry before removing ElasticsearchMappingRefreshResult. This keeps the repository buildable while eliminating the only external consumer of the obsolete changed result; endpoint documentation is updated in Task 10.
+
 - [ ] **Step 5: Implement Elasticsearch bindings**
 
 For each logical field, inspect exact mapping, flattened ancestor and multi-fields. Bind capabilities to the narrowest valid path: text for FULL_TEXT, keyword/exact for EXACT/LITERAL/SORT, numeric/date for RANGE, nested for ELEMENT_SCOPE, doc-values-capable scalar fields for aggregations. Set QueryStorageType from Elasticsearch Property.Kind/runtime type. Model-level full-text exists when the mapping can execute an unscoped multi_match; field bindings remain separate.
@@ -970,7 +971,10 @@ git add wow-elasticsearch/src/main/kotlin/me/ahoo/wow/elasticsearch/query/schema
   wow-elasticsearch/src/test/kotlin/me/ahoo/wow/elasticsearch/query/ElasticsearchIndexMappingResolverTest.kt \
   wow-elasticsearch/src/test/kotlin/me/ahoo/wow/elasticsearch/query/snapshot/ElasticsearchSnapshotMappingQueryTest.kt \
   wow-elasticsearch/src/test/kotlin/me/ahoo/wow/elasticsearch/query/snapshot/ElasticsearchAggregationCompilerTest.kt \
-  wow-elasticsearch/src/integrationTest/kotlin/me/ahoo/wow/elasticsearch/query/snapshot/ElasticsearchSnapshotQueryServiceTest.kt
+  wow-elasticsearch/src/integrationTest/kotlin/me/ahoo/wow/elasticsearch/query/snapshot/ElasticsearchSnapshotQueryServiceTest.kt \
+  wow-spring-boot-starter/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports
+git add -u wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchMappingEndpointAutoConfiguration.kt \
+  wow-spring-boot-starter/src/test/kotlin/me/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchMappingEndpointAutoConfigurationTest.kt
 git commit -m "feat(elasticsearch): bind snapshot queries to negotiated schemas"
 ```
 
@@ -1193,9 +1197,8 @@ git commit -m "feat(webflux): expose aggregate query schemas"
 - Modify: `wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/contributor/aggregate/snapshot/SnapshotRouteContributor.kt`
 - Modify: `wow-openapi/src/test/kotlin/me/ahoo/wow/openapi/ExampleDomainOpenAPITest.kt`
 - Modify: `wow-openapi/src/test/resources/openapi/example-domain-openapi.snapshot.json`
-- Delete: `wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchMappingEndpointAutoConfiguration.kt`
-- Delete: `wow-spring-boot-starter/src/test/kotlin/me/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchMappingEndpointAutoConfigurationTest.kt`
-- Modify: `wow-spring-boot-starter/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`
+- Delete: `wow-schema/src/main/kotlin/me/ahoo/wow/schema/TypeFieldPaths.kt`
+- Delete: `wow-schema/src/test/kotlin/me/ahoo/wow/schema/AggregatedFieldPathsTest.kt`
 - Modify: `documentation/docs/zh/guide/query.md`
 - Modify: `documentation/docs/en/guide/query.md`
 - Modify: `documentation/docs/zh/guide/extensions/webflux.md`
@@ -1211,21 +1214,21 @@ git commit -m "feat(webflux): expose aggregate query schemas"
 
 In ExampleDomainOpenAPITest assert no request body extensions contain `x-wow-query-fields`, no component key ends with `AggregatedFields`, and the generic AggregationQuery/SingleQuery/ListQuery/PagedQuery/FilterExpression schemas remain referenced by Snapshot routes.
 
-In starter tests assert the ApplicationContext has no bean/class reference for WowElasticsearchMappingEndpoint and AutoConfiguration.imports has no ElasticsearchMappingEndpointAutoConfiguration line.
+Confirm the Task 7 commit already removed WowElasticsearchMappingEndpoint and its AutoConfiguration import; the repository-wide negative scan in Step 6 is the regression gate.
 
 - [ ] **Step 2: Run RED**
 
 Run: `./gradlew :wow-openapi:test --tests "me.ahoo.wow.openapi.ExampleDomainOpenAPITest" :wow-spring-boot-starter:test --stacktrace`
 
-Expected: existing extensions/components and Actuator endpoint make the new assertions fail.
+Expected: existing extensions/components make the new OpenAPI assertions fail; starter tests remain green with the Actuator endpoint already absent from Task 7.
 
 - [ ] **Step 3: Simplify QueryComponent request bodies**
 
 Remove QUERY_FIELDS_EXTENSION, aggregatedFieldsSchema and all `commandAggregatedFieldPaths` imports. Add reusable generic SINGLE_QUERY_KEY and AGGREGATION_QUERY_KEY request bodies alongside existing count/list/paged keys. Update QueryContractComponentSupport and SnapshotRouteContributor to reference generic bodies; remove aggregate-specific request-body helper functions.
 
-- [ ] **Step 4: Delete Actuator endpoint and obsolete mapping APIs**
+- [ ] **Step 4: Delete the old field directory and verify the earlier Actuator removal**
 
-Delete both endpoint files and its AutoConfiguration import. Remove compileOnly Actuator usage only if `rg -n "org.springframework.boot.actuate" wow-spring-boot-starter/src/main` finds no remaining production use; otherwise keep the existing dependency for the remaining endpoints. Ensure Task 7 already removed ElasticsearchMappingRefreshResult and refreshIndexMapping methods.
+Delete TypeFieldPaths.kt and AggregatedFieldPathsTest.kt after QueryComponent no longer imports them. Verify Task 7 already removed the endpoint, ElasticsearchMappingRefreshResult and refreshIndexMapping methods. Remove compileOnly Actuator usage only if `rg -n "org.springframework.boot.actuate" wow-spring-boot-starter/src/main` finds no remaining production use; otherwise keep the existing dependency for the remaining endpoints.
 
 - [ ] **Step 5: Update documentation to runtime metadata**
 
@@ -1251,12 +1254,11 @@ git add wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/QueryComponent.kt \
   wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/contributor/aggregate/snapshot/SnapshotRouteContributor.kt \
   wow-openapi/src/test/kotlin/me/ahoo/wow/openapi/ExampleDomainOpenAPITest.kt \
   wow-openapi/src/test/resources/openapi/example-domain-openapi.snapshot.json \
-  wow-spring-boot-starter/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports \
   documentation/docs/zh/guide/query.md documentation/docs/en/guide/query.md \
   documentation/docs/zh/guide/extensions/webflux.md documentation/docs/en/guide/extensions/webflux.md \
   documentation/docs/zh/guide/extensions/elasticsearch.md documentation/docs/en/guide/extensions/elasticsearch.md
-git add -u wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchMappingEndpointAutoConfiguration.kt \
-  wow-spring-boot-starter/src/test/kotlin/me/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchMappingEndpointAutoConfigurationTest.kt
+git add -u wow-schema/src/main/kotlin/me/ahoo/wow/schema/TypeFieldPaths.kt \
+  wow-schema/src/test/kotlin/me/ahoo/wow/schema/AggregatedFieldPathsTest.kt
 git commit -m "refactor(query): remove legacy query field discovery"
 ```
 
