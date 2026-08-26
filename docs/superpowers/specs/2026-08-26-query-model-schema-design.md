@@ -270,6 +270,23 @@ data class QuerySchemaDeclaration(
     val fields: Map<LogicalField, QueryFieldDeclaration>,
 )
 
+data class QuerySchemaRegistration(
+    val context: QuerySchemaContext,
+    val declaration: QuerySchemaDeclaration,
+)
+
+interface QuerySchemaSource {
+    val priority: Int
+    fun load(context: QuerySchemaContext): Flux<QuerySchemaDeclaration>
+}
+
+object QuerySchemaSourcePriority {
+    const val JSON_SCHEMA = 100
+    const val CLASSPATH = 200
+    const val BEAN = 300
+    const val WORKING_DIRECTORY = 400
+}
+
 data class QueryFieldDeclaration(
     val title: DeclarationValue<String?>,
     val description: DeclarationValue<String?>,
@@ -298,6 +315,10 @@ sealed interface DeclarationValue<out T> {
 - 同一优先级出现不同的 `Set` 值时冲突。
 
 `DeclarationValue` 只属于内部合并模型，不进入公共 Metadata。Bean DSL 隐藏其构造细节；约定文件中属性缺失对应 `Unset`，显式 `null` 对应 `Set(null)`。
+
+`QuerySchemaDeclaration` 只表达可合并内容，不携带作用域。约定文件与 JSON Schema Source 已由 `load(context)` 获得作用域；Bean 没有调用期上下文，因此单独使用 `QuerySchemaRegistration` 关联 `QuerySchemaContext`。该包装不参与合并，不形成 Registry 或第二份 Schema。
+
+Source 使用开放的整数优先级，数值越大优先级越高；内置常量固定上述顺序。`Flux` 保留同一 Source 或同一优先级的多个声明，使合并器能够检测同级冲突，而不是由加载顺序悄悄覆盖。
 
 逻辑合并先放入全局 System 骨架并锁定其已声明叶子，再合并聚合扩展声明。扩展来源优先级为：
 
@@ -383,17 +404,19 @@ JSON Source 不读取 Classpath 上的任意业务类型，不建立 Scanner。
 
 ### BeanQuerySchemaSource
 
-开发者可以注册不可变 Bean：
+开发者可以注册不可变、带明确作用域的 Bean：
 
 ```kotlin
 @Bean
-fun orderSnapshotSchema(): QuerySchemaDeclaration =
-    querySchemaDeclaration(Order::class, QueryModel.SNAPSHOT) {
+fun orderSnapshotSchema(): QuerySchemaRegistration =
+    querySchemaRegistration(Order::class, QueryModel.SNAPSHOT) {
         field("state.createdAt") {
             temporalEpoch(TimeUnit.MILLISECONDS)
         }
     }
 ```
+
+`querySchemaRegistration` 根据聚合类型解析 `NamedAggregate`，创建 `QuerySchemaContext`，并把 DSL 内容保存为 `QuerySchemaDeclaration`。`BeanQuerySchemaSource.load(context)` 只返回 context 精确相等的 registration；同一 context 的多个 Bean 作为同一优先级分别进入合并器。
 
 Bean 只声明后端无关业务语义、逻辑结构或展示元数据，不注册 MongoDB pipeline、Elasticsearch script 或任意执行入口。
 
@@ -758,7 +781,7 @@ wow-api
 
 wow-query
 ├── QueryModelSchema / QueryFieldSchema / QueryFieldBinding
-├── QuerySchemaSource / QuerySchemaDeclaration
+├── QuerySchemaSource / QuerySchemaDeclaration / QuerySchemaRegistration
 ├── QuerySchemaMerger / LogicalQuerySchema
 ├── QueryModelSchemaProvider
 ├── SystemQuerySchemaSource 全局骨架
@@ -1027,7 +1050,13 @@ classDiagram
 
     class QuerySchemaSource {
         <<interface>>
-        +load(context) Mono
+        +Int priority
+        +load(context) Flux
+    }
+
+    class QuerySchemaRegistration {
+        +QuerySchemaContext context
+        +QuerySchemaDeclaration declaration
     }
 
     class SystemQuerySchemaSource {
@@ -1139,6 +1168,7 @@ classDiagram
     QuerySchemaSource <|.. ClasspathQuerySchemaSource
     QuerySchemaSource <|.. JsonQuerySchemaSource
     JsonQuerySchemaSource ..> QueryTemporal : reads
+    BeanQuerySchemaSource o-- QuerySchemaRegistration
 
     QuerySchemaBackendAdapter <|.. MongoQuerySchemaAdapter
     QuerySchemaBackendAdapter <|.. ElasticsearchQuerySchemaAdapter
@@ -1162,6 +1192,7 @@ classDiagram
 ### wow-query
 
 - Source 属性合并、优先级与同级冲突。
+- Bean registration 只匹配完全相同的 `QuerySchemaContext`，不同聚合或 model 不串用。
 - 不同聚合的 Snapshot 使用同一个 System 逻辑骨架。
 - Snapshot 聚合来源只能补齐 `state` 的 System-Unset 属性并增加 `state.*`，不可增加任意顶层字段，也不可覆盖或清空 System 已声明叶子。
 - `LONG + TEMPORAL_EPOCH(MILLISECONDS)` 正交合并。
