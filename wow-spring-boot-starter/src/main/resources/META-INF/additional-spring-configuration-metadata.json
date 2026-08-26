@@ -13,6 +13,11 @@
   ],
   "properties": [
     {
+      "name": "wow.query.schema.validation-mode",
+      "type": "me.ahoo.wow.query.schema.QuerySchemaValidationMode",
+      "defaultValue": "COMPATIBLE"
+    },
+    {
       "name": "wow.eventsourcing.storage-routing.aggregates.*.event.storage",
       "type": "me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType",
       "description": "EventStore backend type for this aggregate. Selects an existing backend type; it does not define backend connection settings."

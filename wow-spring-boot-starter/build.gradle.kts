@@ -46,6 +46,7 @@ dependencies {
     kapt(platform(project(":wow-dependencies")))
     api(project(":wow-core"))
     api(project(":wow-spring"))
+    implementation(project(":wow-schema"))
     implementation(project(":wow-compensation-core"))
     "mongoSupportImplementation"(project(":wow-mongo"))
     "mongoSupportImplementation"("org.springframework.boot:spring-boot-starter-data-mongodb-reactive")
