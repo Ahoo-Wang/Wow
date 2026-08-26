@@ -99,6 +99,18 @@ class SystemQuerySchemaSourceTest {
     }
 
     @Test
+    fun `snapshot tags should be a dynamic single object`() {
+        val tags = SystemQuerySchemaSource.declaration(QueryModel.SNAPSHOT)
+            .fields.getValue(LogicalField("tags"))
+
+        tags.valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.OBJECT)))
+        tags.cardinality.assert().isEqualTo(DeclarationValue.Set(QueryCardinality.SINGLE))
+        tags.required.assert().isEqualTo(DeclarationValue.Set(true))
+        tags.nullable.assert().isEqualTo(DeclarationValue.Set(false))
+        tags.dynamicChildren.assert().isEqualTo(DeclarationValue.Set(true))
+    }
+
+    @Test
     fun `snapshot system time fields should be millisecond epochs`() {
         val fields = SystemQuerySchemaSource.declaration(QueryModel.SNAPSHOT).fields
         val epoch = DeclarationValue.Set(Temporal.Epoch(TimeUnit.MILLISECONDS))

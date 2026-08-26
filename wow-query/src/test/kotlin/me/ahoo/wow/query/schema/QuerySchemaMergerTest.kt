@@ -121,8 +121,8 @@ class QuerySchemaMergerTest {
     }
 
     @Test
-    fun `arbitrary snapshot top level extension should fail validation`() {
-        val exception = assertThrows<QuerySchemaValidationException> {
+    fun `arbitrary snapshot top level extension should conflict`() {
+        val exception = assertThrows<QuerySchemaConflictException> {
             merger.merge(
                 system(),
                 listOf(
@@ -138,7 +138,7 @@ class QuerySchemaMergerTest {
             )
         }
 
-        exception.errorCode.assert().isEqualTo("QuerySchemaValidation")
+        exception.errorCode.assert().isEqualTo("QuerySchemaConflict")
     }
 
     @Test

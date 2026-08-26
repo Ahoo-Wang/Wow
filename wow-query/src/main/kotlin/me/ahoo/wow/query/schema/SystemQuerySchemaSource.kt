@@ -55,7 +55,7 @@ object SystemQuerySchemaSource : QuerySchemaSource {
                 StateAggregateRecords.FIRST_EVENT_TIME.epochField(),
                 StateAggregateRecords.EVENT_TIME.epochField(),
                 StateAggregateRecords.STATE.objectField(),
-                StateAggregateRecords.TAGS.objectField(),
+                StateAggregateRecords.TAGS.objectField(DeclarationValue.Set(true)),
                 StateAggregateRecords.DELETED.booleanField(),
                 SnapshotRecords.SNAPSHOT_TIME.epochField(),
             ),
@@ -68,7 +68,9 @@ object SystemQuerySchemaSource : QuerySchemaSource {
 
     private fun String.booleanField() = field(QueryValueType.BOOLEAN)
 
-    private fun String.objectField() = field(QueryValueType.OBJECT)
+    private fun String.objectField(
+        dynamicChildren: DeclarationValue<Boolean> = DeclarationValue.Unset,
+    ) = field(QueryValueType.OBJECT, dynamicChildren = dynamicChildren)
 
     private fun String.epochField() = field(
         QueryValueType.INTEGER,
@@ -78,11 +80,13 @@ object SystemQuerySchemaSource : QuerySchemaSource {
     private fun String.field(
         valueType: QueryValueType,
         semanticType: DeclarationValue<QuerySemanticType?> = DeclarationValue.Unset,
+        dynamicChildren: DeclarationValue<Boolean> = DeclarationValue.Unset,
     ): Pair<LogicalField, QueryFieldDeclaration> = LogicalField(this) to QueryFieldDeclaration(
         valueTypes = DeclarationValue.Set(setOf(valueType)),
         nullable = DeclarationValue.Set(false),
         required = DeclarationValue.Set(true),
         cardinality = DeclarationValue.Set(QueryCardinality.SINGLE),
         semanticType = semanticType,
+        dynamicChildren = dynamicChildren,
     )
 }

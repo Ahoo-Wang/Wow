@@ -56,7 +56,7 @@ internal class QuerySchemaMerger {
 
     private fun validateExtensionPath(field: LogicalField) {
         if (field.value != "state" && !field.value.startsWith("state.")) {
-            throw QuerySchemaValidationException("Snapshot query schema extension must be under [state]: [$field].")
+            throw QuerySchemaConflictException("Snapshot query schema extension must be under [state]: [$field].")
         }
     }
 
