@@ -17,6 +17,16 @@ import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QuerySemanticType
 import me.ahoo.wow.api.query.schema.QueryValueType
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.CARDINALITY
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.DESCRIPTION
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.DYNAMIC_CHILDREN
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.ENUM_VALUES
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.FIELDS
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.NULLABLE
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.REQUIRED
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.SEMANTIC_TYPE
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.TITLE
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.VALUE_TYPES
 import me.ahoo.wow.serialization.JsonSerializer
 import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
@@ -126,8 +136,10 @@ private fun parseConventionDeclaration(json: String): QuerySchemaDeclaration {
     val root = JsonSerializer.readTree(json)
     require(root is ObjectNode) { "Query schema root must be an object." }
     root.requireOnly(ROOT_PROPERTIES)
-    val fields = root.get("fields")
-    require(fields is ObjectNode) { "Query schema [fields] must be an object." }
+    val fields = root.get(FIELDS)
+    require(fields is ObjectNode) {
+        "Query schema [$FIELDS] must be an object."
+    }
     return QuerySchemaDeclaration(
         fields.properties().associate { (field, declaration) ->
             require(declaration is ObjectNode) { "Query schema field [$field] must be an object." }
@@ -139,15 +151,15 @@ private fun parseConventionDeclaration(json: String): QuerySchemaDeclaration {
 private fun ObjectNode.toDeclaration(field: String): QueryFieldDeclaration {
     requireOnly(FIELD_PROPERTIES)
     return QueryFieldDeclaration(
-        title = nullableText("title", field),
-        description = nullableText("description", field),
+        title = nullableText(TITLE, field),
+        description = nullableText(DESCRIPTION, field),
         enumValues = nullableEnumValues(field),
         valueTypes = valueTypes(field),
-        nullable = boolean("nullable", field),
-        required = boolean("required", field),
+        nullable = boolean(NULLABLE, field),
+        required = boolean(REQUIRED, field),
         cardinality = cardinality(field),
         semanticType = semanticType(field),
-        dynamicChildren = boolean("dynamicChildren", field),
+        dynamicChildren = boolean(DYNAMIC_CHILDREN, field),
     )
 }
 
@@ -160,20 +172,26 @@ private fun ObjectNode.nullableText(name: String, field: String): DeclarationVal
 }
 
 private fun ObjectNode.nullableEnumValues(field: String): DeclarationValue<List<JsonNode>?> {
-    if (!has("enumValues")) return DeclarationValue.Unset
-    val value = get("enumValues")
+    if (!has(ENUM_VALUES)) return DeclarationValue.Unset
+    val value = get(ENUM_VALUES)
     if (value.isNull) return DeclarationValue.Set(null)
-    require(value.isArray) { "Query schema [$field.enumValues] must be an array or null." }
+    require(value.isArray) {
+        "Query schema [$field.$ENUM_VALUES] must be an array or null."
+    }
     return DeclarationValue.Set(value.toList())
 }
 
 private fun ObjectNode.valueTypes(field: String): DeclarationValue<Set<QueryValueType>> {
-    if (!has("valueTypes")) return DeclarationValue.Unset
-    val value = get("valueTypes")
-    require(value.isArray) { "Query schema [$field.valueTypes] must be an array." }
+    if (!has(VALUE_TYPES)) return DeclarationValue.Unset
+    val value = get(VALUE_TYPES)
+    require(value.isArray) {
+        "Query schema [$field.$VALUE_TYPES] must be an array."
+    }
     return DeclarationValue.Set(
         value.asSequence().map { item ->
-            require(item.isString) { "Query schema [$field.valueTypes] values must be strings." }
+            require(item.isString) {
+                "Query schema [$field.$VALUE_TYPES] values must be strings."
+            }
             QueryValueType.from(item.stringValue())
         }.toSet(),
     )
@@ -187,17 +205,21 @@ private fun ObjectNode.boolean(name: String, field: String): DeclarationValue<Bo
 }
 
 private fun ObjectNode.cardinality(field: String): DeclarationValue<QueryCardinality> {
-    if (!has("cardinality")) return DeclarationValue.Unset
-    val value = get("cardinality")
-    require(value.isString) { "Query schema [$field.cardinality] must be a string." }
+    if (!has(CARDINALITY)) return DeclarationValue.Unset
+    val value = get(CARDINALITY)
+    require(value.isString) {
+        "Query schema [$field.$CARDINALITY] must be a string."
+    }
     return DeclarationValue.Set(QueryCardinality.valueOf(value.stringValue()))
 }
 
 private fun ObjectNode.semanticType(field: String): DeclarationValue<QuerySemanticType?> {
-    if (!has("semanticType")) return DeclarationValue.Unset
-    val value = get("semanticType")
+    if (!has(SEMANTIC_TYPE)) return DeclarationValue.Unset
+    val value = get(SEMANTIC_TYPE)
     if (value.isNull) return DeclarationValue.Set(null)
-    require(value is ObjectNode) { "Query schema [$field.semanticType] must be an object or null." }
+    require(value is ObjectNode) {
+        "Query schema [$field.$SEMANTIC_TYPE] must be an object or null."
+    }
     return DeclarationValue.Set(JsonSerializer.treeToValue(value, QuerySemanticType::class.java))
 }
 
@@ -206,16 +228,16 @@ private fun ObjectNode.requireOnly(allowed: Set<String>) {
     require(unknown.isEmpty()) { "Unknown query schema properties: $unknown." }
 }
 
-private val ROOT_PROPERTIES = setOf("fields")
+private val ROOT_PROPERTIES = setOf(FIELDS)
 
 private val FIELD_PROPERTIES = setOf(
-    "title",
-    "description",
-    "enumValues",
-    "valueTypes",
-    "nullable",
-    "required",
-    "cardinality",
-    "semanticType",
-    "dynamicChildren",
+    TITLE,
+    DESCRIPTION,
+    ENUM_VALUES,
+    VALUE_TYPES,
+    NULLABLE,
+    REQUIRED,
+    CARDINALITY,
+    SEMANTIC_TYPE,
+    DYNAMIC_CHILDREN,
 )

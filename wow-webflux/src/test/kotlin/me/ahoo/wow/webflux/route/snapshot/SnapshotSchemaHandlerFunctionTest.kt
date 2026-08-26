@@ -27,6 +27,7 @@ import me.ahoo.wow.query.schema.QueryFieldBinding
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QueryStorageType
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryService
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
@@ -105,11 +106,14 @@ class SnapshotSchemaHandlerFunctionTest {
 
         client(handler).get().uri("/").exchange()
             .expectStatus().isEqualTo(503)
-            .expectHeader().valueEquals(CommonComponent.Header.ERROR_CODE, "QuerySchemaUnavailable")
+            .expectHeader().valueEquals(
+                CommonComponent.Header.ERROR_CODE,
+                QuerySchemaUnavailableException.ERROR_CODE,
+            )
             .expectBody(String::class.java)
             .value { body ->
                 body!!.toJsonNode<tools.jackson.databind.JsonNode>()["errorCode"].stringValue()
-                    .assert().isEqualTo("QuerySchemaUnavailable")
+                    .assert().isEqualTo(QuerySchemaUnavailableException.ERROR_CODE)
             }
     }
 

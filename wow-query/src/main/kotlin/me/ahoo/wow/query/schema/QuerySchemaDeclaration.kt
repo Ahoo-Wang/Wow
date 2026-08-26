@@ -19,8 +19,30 @@ import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QuerySemanticType
 import me.ahoo.wow.api.query.schema.QueryValueType
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.CARDINALITY
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.DESCRIPTION
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.DYNAMIC_CHILDREN
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.ENUM_VALUES
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.NULLABLE
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.REQUIRED
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.SEMANTIC_TYPE
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.TITLE
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.VALUE_TYPES
 import reactor.core.publisher.Flux
 import tools.jackson.databind.JsonNode
+
+internal object QuerySchemaDeclarationProperties {
+    const val FIELDS = "fields"
+    const val TITLE = "title"
+    const val DESCRIPTION = "description"
+    const val ENUM_VALUES = "enumValues"
+    const val VALUE_TYPES = "valueTypes"
+    const val NULLABLE = "nullable"
+    const val REQUIRED = "required"
+    const val CARDINALITY = "cardinality"
+    const val SEMANTIC_TYPE = "semanticType"
+    const val DYNAMIC_CHILDREN = "dynamicChildren"
+}
 
 sealed interface DeclarationValue<out T> {
     data object Unset : DeclarationValue<Nothing>
@@ -79,15 +101,15 @@ internal fun QueryFieldDeclaration.merge(
     field: LogicalField,
     rejectDifferent: Boolean,
 ): QueryFieldDeclaration = QueryFieldDeclaration(
-    title = title.merge(higher.title, field, "title", rejectDifferent),
-    description = description.merge(higher.description, field, "description", rejectDifferent),
-    enumValues = enumValues.merge(higher.enumValues, field, "enumValues", rejectDifferent),
-    valueTypes = valueTypes.merge(higher.valueTypes, field, "valueTypes", rejectDifferent),
-    nullable = nullable.merge(higher.nullable, field, "nullable", rejectDifferent),
-    required = required.merge(higher.required, field, "required", rejectDifferent),
-    cardinality = cardinality.merge(higher.cardinality, field, "cardinality", rejectDifferent),
-    semanticType = semanticType.merge(higher.semanticType, field, "semanticType", rejectDifferent),
-    dynamicChildren = dynamicChildren.merge(higher.dynamicChildren, field, "dynamicChildren", rejectDifferent),
+    title = title.merge(higher.title, field, TITLE, rejectDifferent),
+    description = description.merge(higher.description, field, DESCRIPTION, rejectDifferent),
+    enumValues = enumValues.merge(higher.enumValues, field, ENUM_VALUES, rejectDifferent),
+    valueTypes = valueTypes.merge(higher.valueTypes, field, VALUE_TYPES, rejectDifferent),
+    nullable = nullable.merge(higher.nullable, field, NULLABLE, rejectDifferent),
+    required = required.merge(higher.required, field, REQUIRED, rejectDifferent),
+    cardinality = cardinality.merge(higher.cardinality, field, CARDINALITY, rejectDifferent),
+    semanticType = semanticType.merge(higher.semanticType, field, SEMANTIC_TYPE, rejectDifferent),
+    dynamicChildren = dynamicChildren.merge(higher.dynamicChildren, field, DYNAMIC_CHILDREN, rejectDifferent),
 )
 
 private fun <T> DeclarationValue<T>.merge(

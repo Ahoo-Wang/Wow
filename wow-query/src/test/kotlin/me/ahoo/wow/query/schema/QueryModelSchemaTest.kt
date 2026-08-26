@@ -198,7 +198,7 @@ class QueryModelSchemaTest {
             }.build()
         }
 
-        exception.errorCode.assert().isEqualTo("QuerySchemaConflict")
+        exception.errorCode.assert().isEqualTo(QuerySchemaConflictException.ERROR_CODE)
     }
 
     @Test
@@ -218,9 +218,9 @@ class QueryModelSchemaTest {
         val cause = IllegalStateException("cause")
 
         listOf(
-            QuerySchemaValidationException("validation", cause) to "QuerySchemaValidation",
-            QuerySchemaConflictException("conflict", cause) to "QuerySchemaConflict",
-            QuerySchemaUnavailableException("unavailable", cause) to "QuerySchemaUnavailable",
+            QuerySchemaValidationException("validation", cause) to QuerySchemaValidationException.ERROR_CODE,
+            QuerySchemaConflictException("conflict", cause) to QuerySchemaConflictException.ERROR_CODE,
+            QuerySchemaUnavailableException("unavailable", cause) to QuerySchemaUnavailableException.ERROR_CODE,
         ).forEach { (exception, errorCode) ->
             exception.errorCode.assert().isEqualTo(errorCode)
             exception.cause.assert().isSameAs(cause)

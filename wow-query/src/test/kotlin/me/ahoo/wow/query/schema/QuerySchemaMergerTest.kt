@@ -69,7 +69,7 @@ class QuerySchemaMergerTest {
             )
         }
 
-        exception.errorCode.assert().isEqualTo("QuerySchemaConflict")
+        exception.errorCode.assert().isEqualTo(QuerySchemaConflictException.ERROR_CODE)
     }
 
     @Test
@@ -138,7 +138,7 @@ class QuerySchemaMergerTest {
             )
         }
 
-        exception.errorCode.assert().isEqualTo("QuerySchemaConflict")
+        exception.errorCode.assert().isEqualTo(QuerySchemaConflictException.ERROR_CODE)
     }
 
     @Test

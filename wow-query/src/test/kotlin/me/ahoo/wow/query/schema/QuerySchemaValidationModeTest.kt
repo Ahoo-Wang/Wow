@@ -53,7 +53,7 @@ class QuerySchemaValidationModeTest {
                 .requireAccepted(QuerySchemaValidationMode.STRICT)
         }
 
-        exception.errorCode.assert().isEqualTo("QuerySchemaValidation")
+        exception.errorCode.assert().isEqualTo(QuerySchemaValidationException.ERROR_CODE)
     }
 
     @Test

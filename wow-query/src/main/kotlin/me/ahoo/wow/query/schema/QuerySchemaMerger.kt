@@ -15,6 +15,15 @@ package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.schema.QueryCardinality
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.CARDINALITY
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.DESCRIPTION
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.DYNAMIC_CHILDREN
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.ENUM_VALUES
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.NULLABLE
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.REQUIRED
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.SEMANTIC_TYPE
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.TITLE
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.VALUE_TYPES
 
 internal class QuerySchemaMerger {
     fun merge(
@@ -64,15 +73,15 @@ internal class QuerySchemaMerger {
         field: LogicalField,
         extension: QueryFieldDeclaration,
     ) {
-        rejectSystemLeaf(field, "title", title, extension.title)
-        rejectSystemLeaf(field, "description", description, extension.description)
-        rejectSystemLeaf(field, "enumValues", enumValues, extension.enumValues)
-        rejectSystemLeaf(field, "valueTypes", valueTypes, extension.valueTypes)
-        rejectSystemLeaf(field, "nullable", nullable, extension.nullable)
-        rejectSystemLeaf(field, "required", required, extension.required)
-        rejectSystemLeaf(field, "cardinality", cardinality, extension.cardinality)
-        rejectSystemLeaf(field, "semanticType", semanticType, extension.semanticType)
-        rejectSystemLeaf(field, "dynamicChildren", dynamicChildren, extension.dynamicChildren)
+        rejectSystemLeaf(field, TITLE, title, extension.title)
+        rejectSystemLeaf(field, DESCRIPTION, description, extension.description)
+        rejectSystemLeaf(field, ENUM_VALUES, enumValues, extension.enumValues)
+        rejectSystemLeaf(field, VALUE_TYPES, valueTypes, extension.valueTypes)
+        rejectSystemLeaf(field, NULLABLE, nullable, extension.nullable)
+        rejectSystemLeaf(field, REQUIRED, required, extension.required)
+        rejectSystemLeaf(field, CARDINALITY, cardinality, extension.cardinality)
+        rejectSystemLeaf(field, SEMANTIC_TYPE, semanticType, extension.semanticType)
+        rejectSystemLeaf(field, DYNAMIC_CHILDREN, dynamicChildren, extension.dynamicChildren)
     }
 
     private fun rejectSystemLeaf(

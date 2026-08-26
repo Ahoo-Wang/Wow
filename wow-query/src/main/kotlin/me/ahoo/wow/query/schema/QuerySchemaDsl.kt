@@ -21,6 +21,15 @@ import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.modeling.materialize
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.CARDINALITY
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.DESCRIPTION
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.DYNAMIC_CHILDREN
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.ENUM_VALUES
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.NULLABLE
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.REQUIRED
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.SEMANTIC_TYPE
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.TITLE
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.VALUE_TYPES
 import tools.jackson.databind.JsonNode
 import java.util.concurrent.TimeUnit
 import kotlin.reflect.KClass
@@ -51,35 +60,35 @@ class QueryFieldDeclarationBuilder {
     private var dynamicChildren: DeclarationValue<Boolean> = DeclarationValue.Unset
 
     fun title(value: String?) {
-        title = title.set(value, "title")
+        title = title.set(value, TITLE)
     }
 
     fun description(value: String?) {
-        description = description.set(value, "description")
+        description = description.set(value, DESCRIPTION)
     }
 
     fun enumValues(value: List<JsonNode>?) {
-        enumValues = enumValues.set(value, "enumValues")
+        enumValues = enumValues.set(value, ENUM_VALUES)
     }
 
     fun valueTypes(vararg value: QueryValueType) {
-        valueTypes = valueTypes.set(value.toSet(), "valueTypes")
+        valueTypes = valueTypes.set(value.toSet(), VALUE_TYPES)
     }
 
     fun nullable(value: Boolean) {
-        nullable = nullable.set(value, "nullable")
+        nullable = nullable.set(value, NULLABLE)
     }
 
     fun required(value: Boolean) {
-        required = required.set(value, "required")
+        required = required.set(value, REQUIRED)
     }
 
     fun cardinality(value: QueryCardinality) {
-        cardinality = cardinality.set(value, "cardinality")
+        cardinality = cardinality.set(value, CARDINALITY)
     }
 
     fun semanticType(value: QuerySemanticType?) {
-        semanticType = semanticType.set(value, "semanticType")
+        semanticType = semanticType.set(value, SEMANTIC_TYPE)
     }
 
     fun temporalEpoch(unit: TimeUnit = TimeUnit.MILLISECONDS) {
@@ -87,7 +96,7 @@ class QueryFieldDeclarationBuilder {
     }
 
     fun dynamicChildren(value: Boolean = true) {
-        dynamicChildren = dynamicChildren.set(value, "dynamicChildren")
+        dynamicChildren = dynamicChildren.set(value, DYNAMIC_CHILDREN)
     }
 
     fun build(): QueryFieldDeclaration = QueryFieldDeclaration(

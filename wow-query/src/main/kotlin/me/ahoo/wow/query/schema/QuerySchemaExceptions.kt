@@ -24,14 +24,26 @@ sealed class QuerySchemaException(
 class QuerySchemaValidationException(
     message: String,
     cause: Throwable? = null,
-) : QuerySchemaException("QuerySchemaValidation", message, cause)
+) : QuerySchemaException(ERROR_CODE, message, cause) {
+    companion object {
+        const val ERROR_CODE = "QuerySchemaValidation"
+    }
+}
 
 class QuerySchemaConflictException(
     message: String,
     cause: Throwable? = null,
-) : QuerySchemaException("QuerySchemaConflict", message, cause)
+) : QuerySchemaException(ERROR_CODE, message, cause) {
+    companion object {
+        const val ERROR_CODE = "QuerySchemaConflict"
+    }
+}
 
 class QuerySchemaUnavailableException(
     message: String,
     cause: Throwable? = null,
-) : QuerySchemaException("QuerySchemaUnavailable", message, cause)
+) : QuerySchemaException(ERROR_CODE, message, cause) {
+    companion object {
+        const val ERROR_CODE = "QuerySchemaUnavailable"
+    }
+}
