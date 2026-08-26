@@ -166,24 +166,16 @@ class AbstractElasticsearchQueryServiceTest {
     }
 
     @Test
-    fun `mapping resolver should preserve fields through default hooks`() {
-        val indicesClient = mockk<ReactiveElasticsearchIndicesClient>()
+    fun `default resolution hooks should preserve fields`() {
         val request = slot<SearchRequest>()
         val convertedFilter = slot<FilterExpression>()
-        every { elasticsearchClient.indices() } returns indicesClient
-        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(emptyMappingResponse())
         every { filterConverter.convert(capture(convertedFilter)) } returns matchAll { it }
         every { elasticsearchClient.search(capture(request), Map::class.java) } returns Mono.just(
             searchResponse(total = null),
         )
         val filter = filterExpression { "logicalField" eq "value" }
-        val service = MappingTestElasticsearchQueryService(
-            elasticsearchClient,
-            filterConverter,
-            ElasticsearchIndexMappingResolver(elasticsearchClient),
-        )
 
-        service.dynamicList(
+        queryService.dynamicList(
             ListQuery(
                 filter = filter,
                 sort = listOf(Sort("logicalField", Sort.Direction.ASC)),
@@ -289,10 +281,4 @@ class AbstractElasticsearchQueryServiceTest {
 
         override fun toTypedResult(document: DynamicDocument): DynamicDocument = document
     }
-
-    private class MappingTestElasticsearchQueryService(
-        elasticsearchClient: ReactiveElasticsearchClient,
-        filterConverter: AbstractElasticsearchFilterConverter,
-        override val indexMappingResolver: ElasticsearchIndexMappingResolver,
-    ) : TestElasticsearchQueryService(elasticsearchClient, filterConverter)
 }

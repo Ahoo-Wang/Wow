@@ -318,7 +318,7 @@ class ElasticsearchAggregationPagerTest {
         verify(exactly = 0) { client.indices() }
     }
 
-    private fun compiler() = ElasticsearchAggregationCompiler(SnapshotFilterConverter, mapping = null)
+    private fun compiler() = ElasticsearchAggregationCompiler(SnapshotFilterConverter)
 
     private fun pager(batchSize: Int? = null) = if (batchSize == null) {
         ElasticsearchAggregationPager(client, "test-index")

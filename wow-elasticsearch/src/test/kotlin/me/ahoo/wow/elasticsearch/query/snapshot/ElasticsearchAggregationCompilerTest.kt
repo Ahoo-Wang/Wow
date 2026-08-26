@@ -15,29 +15,71 @@ package me.ahoo.wow.elasticsearch.query.snapshot
 
 import co.elastic.clients.elasticsearch._types.SortOrder
 import co.elastic.clients.elasticsearch._types.mapping.RuntimeFieldType
-import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.verify
-import io.mockk.verifyOrder
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationExpressionOperator
-import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.elasticsearch.query.ElasticsearchFieldResolutionException
-import me.ahoo.wow.elasticsearch.query.ElasticsearchFieldUsage
-import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
+import me.ahoo.wow.api.query.schema.QueryCapability
+import me.ahoo.wow.api.query.schema.QueryCardinality
+import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QueryValueType
+import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.query.dsl.aggregation
+import me.ahoo.wow.query.schema.QueryFieldBinding
+import me.ahoo.wow.query.schema.QueryFieldSchema
+import me.ahoo.wow.query.schema.QueryModelSchema
 import org.junit.jupiter.api.Test
 import java.time.ZoneId
+import java.util.concurrent.TimeUnit
 
 class ElasticsearchAggregationCompilerTest {
     @Test
+    fun `numeric epoch date histogram should use a request local parameterized date runtime field`() {
+        val schema = schema(
+            field(
+                "state.createdAt",
+                QueryCapability.AGGREGATE_TEMPORAL,
+                "physical.created_at",
+                "long",
+                Temporal.Epoch(TimeUnit.MICROSECONDS),
+            ),
+        )
+
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter).compile(
+            aggregation {
+                dateHistogram("state.createdAt", AggregationDateUnit.DAY, "day")
+                count("count")
+            },
+            schema,
+        )
+
+        plan.groupSources.single().value().dateHistogram().field().assert().isEqualTo("__wow_date_histogram_0")
+        val runtime = plan.runtimeMappings.getValue("__wow_date_histogram_0")
+        runtime.type().assert().isEqualTo(RuntimeFieldType.Date)
+        val script = requireNotNull(runtime.script())
+        script.params().values.map { it.to(Any::class.java) }.assert()
+            .contains("physical.created_at", 1L, 1_000L)
+        requireNotNull(script.source()).scriptString().assert()
+            .contains("doc.containsKey")
+            .contains("size() == 1")
+            .contains("instanceof Number")
+            .contains("Double.isFinite")
+            .contains("%")
+            .contains("Long.MAX_VALUE")
+            .doesNotContain("physical.created_at")
+        ElasticsearchAggregationCompiler(SnapshotFilterConverter).compile(
+            aggregation { count("count") },
+            schema,
+        ).runtimeMappings.assert().isEmpty()
+    }
+
+    @Test
     fun `maximum expression should fit the default script source limit`() {
-        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter, mapping = null).compile(
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter).compile(
             aggregation { sum(maximumExpression(), "total") },
         )
 
@@ -47,7 +89,7 @@ class ElasticsearchAggregationCompilerTest {
 
     @Test
     fun `computed metric should compile a parameterized double runtime field`() {
-        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter, mapping = null).compile(
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter).compile(
             aggregation {
                 expand("state.items")
                 sum(field("price") * field("quantity") - constant(10.0), "total")
@@ -71,17 +113,17 @@ class ElasticsearchAggregationCompilerTest {
     }
 
     @Test
-    fun `computed operands should safely resolve presence while plain fields require range`() {
-        val mapping = mockk<ElasticsearchIndexMapping> {
-            every { resolveComputed(any()) } answers { firstArg() }
-            every { resolve(any<String>(), any()) } answers { firstArg() }
-            every { resolve(any<FilterExpression>(), any()) } answers { firstArg() }
-        }
-        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter, mapping).compile(
+    fun `computed operands should use schema bindings and guard invalid values`() {
+        val schema = schema(
+            field("state.unreadable", QueryCapability.AGGREGATE_NUMERIC, "physical.unreadable", "double"),
+            field("state.amount", QueryCapability.AGGREGATE_NUMERIC, "physical.amount", "double"),
+        )
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter).compile(
             aggregation {
                 sum(field("state.unreadable") / constant(0.0), "computed")
                 sum("state.amount", "plain")
             },
+            schema,
         )
 
         val source = requireNotNull(plan.runtimeMappings.values.single().script()?.source()).scriptString()
@@ -90,46 +132,14 @@ class ElasticsearchAggregationCompilerTest {
             .contains("catch (Exception ignored)")
             .contains("size() == 1")
             .contains("doubleValue() != 0.0")
-        verify {
-            mapping.resolveComputed("state.unreadable")
-            mapping.resolve("state.amount", ElasticsearchFieldUsage.RANGE)
-        }
-    }
-
-    @Test
-    fun `computed operand should reject ambiguous presence mappings`() {
-        val mapping = ElasticsearchIndexMapping.from(
-            "snapshot",
-            TypeMapping.of { type ->
-                type.properties("state") { state ->
-                    state.`object` { objectField ->
-                        objectField.properties("name") { name ->
-                            name.text { text ->
-                                text.index(false)
-                                    .fields("raw") { raw -> raw.keyword { it } }
-                                    .fields("normalized") { normalized -> normalized.keyword { it } }
-                            }
-                        }
-                    }
-                }
-            },
-        )
-        runCatching { mapping.resolve("state.name", ElasticsearchFieldUsage.PRESENCE) }
-            .exceptionOrNull()!!.message.assert().contains("ambiguous")
-
-        val failure = runCatching {
-            ElasticsearchAggregationCompiler(SnapshotFilterConverter, mapping).compile(
-                aggregation { sum(field("state.name") + constant(1.0), "total") },
-            )
-        }.exceptionOrNull()!!
-
-        failure.assert().isInstanceOf(ElasticsearchFieldResolutionException::class.java)
-        failure.message.assert().contains("ambiguous")
+        plan.metrics.last().field.assert().isEqualTo("physical.amount")
+        plan.runtimeMappings.values.single().script()!!.params().values.map { it.to(Any::class.java) }.assert()
+            .contains("physical.unreadable")
     }
 
     @Test
     fun `plain field metric should not create a runtime field`() {
-        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter, mapping = null).compile(
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter).compile(
             aggregation { sum("state.amount", "total") },
         )
 
@@ -139,15 +149,32 @@ class ElasticsearchAggregationCompilerTest {
 
     @Test
     fun `compiler should nest relative elements in order and resolve exact terms`() {
-        val mapping = mockk<ElasticsearchIndexMapping> {
-            every { requireNested(any()) } answers { firstArg() }
-            every { resolve(any<String>(), any()) } answers {
-                val field = firstArg<String>()
-                if (secondArg<ElasticsearchFieldUsage>() == ElasticsearchFieldUsage.EXACT) "$field.keyword" else field
-            }
-            every { resolve(any<FilterExpression>(), any()) } answers { firstArg() }
-        }
-        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter, mapping).compile(
+        val schema = schema(
+            field("state.orders", QueryCapability.ELEMENT_SCOPE, "state.orders", "nested"),
+            field("state.orders.status", QueryCapability.EXACT_MATCH, "state.orders.status", "keyword"),
+            field("state.orders.lines", QueryCapability.ELEMENT_SCOPE, "state.orders.lines", "nested"),
+            field("state.orders.lines.quantity", QueryCapability.RANGE, "state.orders.lines.quantity", "integer"),
+            field(
+                "state.orders.lines.productId",
+                QueryCapability.AGGREGATE_TERMS,
+                "state.orders.lines.productId.keyword",
+                "keyword",
+            ),
+            field(
+                "state.orders.lines.amount",
+                QueryCapability.AGGREGATE_NUMERIC,
+                "state.orders.lines.amount",
+                "double",
+            ),
+            field(
+                "state.orders.lines.createdAt",
+                QueryCapability.AGGREGATE_TEMPORAL,
+                "state.orders.lines.createdAt",
+                "date",
+                Temporal.Date,
+            ),
+        )
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter).compile(
             aggregation {
                 expand("state.orders") { "status" eq "PAID" }
                 expand("lines") { "quantity" gt 0 }
@@ -156,6 +183,7 @@ class ElasticsearchAggregationCompilerTest {
                 dateHistogram("createdAt", AggregationDateUnit.DAY, "day")
                 sum("amount", "total")
             },
+            schema,
         )
 
         plan.elements.map { it.path }.assert().containsExactly("state.orders", "state.orders.lines")
@@ -164,20 +192,11 @@ class ElasticsearchAggregationCompilerTest {
         plan.groupSources[1].value().histogram().field().assert().isEqualTo("state.orders.lines.amount")
         plan.groupSources[2].value().dateHistogram().field().assert().isEqualTo("state.orders.lines.createdAt")
         plan.metrics.single().field.assert().isEqualTo("state.orders.lines.amount")
-        verifyOrder {
-            mapping.requireNested("state.orders")
-            mapping.requireNested("state.orders.lines")
-        }
-        verify {
-            mapping.resolve("state.orders.lines.productId", ElasticsearchFieldUsage.EXACT)
-            mapping.resolve("state.orders.lines.amount", ElasticsearchFieldUsage.RANGE)
-            mapping.resolve("state.orders.lines.createdAt", ElasticsearchFieldUsage.RANGE)
-        }
     }
 
     @Test
     fun `compiler should order composite sources by effective group sort`() {
-        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter, mapping = null).compile(
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter).compile(
             aggregation {
                 terms("state.productId", "product")
                 histogram("state.amount", 10.0, "amountRange")
@@ -221,7 +240,7 @@ class ElasticsearchAggregationCompilerTest {
 
     @Test
     fun `second date histogram should use a fixed interval`() {
-        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter, mapping = null).compile(
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter).compile(
             aggregation {
                 dateHistogram("state.createdAt", AggregationDateUnit.SECOND, "second")
                 count("count")
@@ -243,7 +262,7 @@ class ElasticsearchAggregationCompilerTest {
             }
         }
 
-        val plan = ElasticsearchAggregationCompiler(converter, mapping = null).compile(
+        val plan = ElasticsearchAggregationCompiler(converter).compile(
             aggregation {
                 filter { "physical.root" eq "ACTIVE" }
                 expand("physical.items") { "physical.quantity" gt 0 }
@@ -267,4 +286,44 @@ class ElasticsearchAggregationCompilerTest {
                 maximumExpression(depth - 1),
             )
         }
+
+    private fun schema(vararg fields: TestField) = QueryModelSchema(
+        QueryModel.SNAPSHOT,
+        emptySet(),
+        fields.associate { testField ->
+            LogicalField(testField.logicalPath) to QueryFieldSchema(
+                title = null,
+                description = null,
+                enumValues = null,
+                valueTypes = setOf(QueryValueType.INTEGER),
+                nullable = false,
+                required = true,
+                cardinality = QueryCardinality.SINGLE,
+                semanticType = testField.semanticType,
+                dynamicChildren = false,
+                bindings = mapOf(
+                    testField.capability to QueryFieldBinding(
+                        testField.physicalPath,
+                        me.ahoo.wow.query.schema.QueryStorageType(testField.storageType),
+                    ),
+                ),
+            )
+        },
+    )
+
+    private fun field(
+        logicalPath: String,
+        capability: QueryCapability,
+        physicalPath: String,
+        storageType: String,
+        semanticType: Temporal? = null,
+    ) = TestField(logicalPath, capability, physicalPath, storageType, semanticType)
+
+    private data class TestField(
+        val logicalPath: String,
+        val capability: QueryCapability,
+        val physicalPath: String,
+        val storageType: String,
+        val semanticType: Temporal?,
+    )
 }

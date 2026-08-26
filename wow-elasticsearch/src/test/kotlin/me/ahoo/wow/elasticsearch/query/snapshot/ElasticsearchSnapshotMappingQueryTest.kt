@@ -32,15 +32,26 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
-import me.ahoo.wow.elasticsearch.query.ElasticsearchFieldResolutionException
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
+import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.query.dsl.filter
+import me.ahoo.wow.query.schema.BeanQuerySchemaSource
+import me.ahoo.wow.query.schema.DeclarationValue
+import me.ahoo.wow.query.schema.QueryFieldDeclaration
+import me.ahoo.wow.query.schema.QuerySchemaContext
+import me.ahoo.wow.query.schema.QuerySchemaDeclaration
+import me.ahoo.wow.query.schema.QuerySchemaRegistration
+import me.ahoo.wow.query.schema.QuerySchemaSource
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.schema.QuerySchemaValidationMode
+import me.ahoo.wow.query.snapshot.requiredQueryModelSchemaProvider
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchIndicesClient
 import reactor.core.publisher.Mono
@@ -54,6 +65,26 @@ class ElasticsearchSnapshotMappingQueryTest {
     init {
         every { client.indices() } returns indicesClient
         every { client.search(capture(searchRequest), Map::class.java) } returns Mono.just(emptySearchResponse())
+    }
+
+    @Test
+    fun `strict service should reject an unknown field before search`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(queryMapping()),
+        )
+        val service = ElasticsearchSnapshotQueryServiceFactory(
+            client,
+            DEFAULT_SEARCH_BATCH_SIZE,
+            DEFAULT_PIT_KEEP_ALIVE,
+            emptyList(),
+            QuerySchemaValidationMode.STRICT,
+        ).create<Any>(MOCK_AGGREGATE_METADATA)
+
+        service.dynamicList(ListQuery(filter = equal("state.unknown", "value"), limit = 10)).test()
+            .expectError(QuerySchemaValidationException::class.java)
+            .verify()
+
+        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
     }
 
     @Test
@@ -112,7 +143,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             service.dynamicList(
                 ListQuery(filter = equal("state.newField", "new"), limit = 10),
             ).test()
-                .expectError(ElasticsearchFieldResolutionException::class.java)
+                .expectError(QuerySchemaValidationException::class.java)
                 .verify()
         }
 
@@ -148,14 +179,13 @@ class ElasticsearchSnapshotMappingQueryTest {
             Mono.just(mappingResponse(queryMapping())),
             Mono.just(mappingResponse(queryMapping(includeNewField = true))),
         )
-        val resolver = ElasticsearchIndexMappingResolver(client)
-        val service = queryService(resolver)
+        val service = queryService()
         val query = ListQuery(filter = equal("state.newField", "new"), limit = 10)
 
         service.dynamicList(query).test()
-            .expectError(ElasticsearchFieldResolutionException::class.java)
+            .expectError(QuerySchemaValidationException::class.java)
             .verify()
-        service.refreshIndexMapping().block()
+        service.requiredQueryModelSchemaProvider().refresh().block()
         service.dynamicList(query).collectList().block()
 
         searchRequest.captured.query()!!.bool().filter()[1].term().field().assert().isEqualTo("state.newField")
@@ -168,14 +198,20 @@ class ElasticsearchSnapshotMappingQueryTest {
             Mono.just(mappingResponse(queryMapping())),
             Mono.just(mappingResponse(queryMapping(includeNewField = true))),
         )
-        val factory = ElasticsearchSnapshotQueryServiceFactory(client)
+        val factory = ElasticsearchSnapshotQueryServiceFactory(
+            client,
+            DEFAULT_SEARCH_BATCH_SIZE,
+            DEFAULT_PIT_KEEP_ALIVE,
+            schemaSources(),
+            QuerySchemaValidationMode.COMPATIBLE,
+        )
         val service = factory.create<Any>(MOCK_AGGREGATE_METADATA)
         val query = ListQuery(filter = equal("state.newField", "new"), limit = 10)
 
         service.dynamicList(query).test()
-            .expectError(ElasticsearchFieldResolutionException::class.java)
+            .expectError(QuerySchemaValidationException::class.java)
             .verify()
-        factory.refreshIndexMapping(MOCK_AGGREGATE_METADATA).block()
+        service.requiredQueryModelSchemaProvider().refresh().block()
         service.dynamicList(query).collectList().block()
 
         verify(exactly = 2) { indicesClient.getMapping(any<GetMappingRequest>()) }
@@ -200,21 +236,33 @@ class ElasticsearchSnapshotMappingQueryTest {
         service.dynamicList(ListQuery(filter = filter, limit = 10)).collectList().block()
 
         convertedFilter.captured.assert().isSameAs(filter)
-        assertThrows<IllegalArgumentException> { service.refreshIndexMapping() }
         verify(exactly = 0) { client.indices() }
     }
 
-    private fun queryService(
-        resolver: ElasticsearchIndexMappingResolver = ElasticsearchIndexMappingResolver(client),
-    ): ElasticsearchSnapshotQueryService<Any> =
-        ElasticsearchSnapshotQueryService(
-            MOCK_AGGREGATE_METADATA,
+    private fun queryService(): ElasticsearchSnapshotQueryService<Any> =
+        ElasticsearchSnapshotQueryServiceFactory(
             client,
-            SnapshotFilterConverter,
             DEFAULT_SEARCH_BATCH_SIZE,
             DEFAULT_PIT_KEEP_ALIVE,
-            resolver,
+            schemaSources(),
+            QuerySchemaValidationMode.COMPATIBLE,
+        ).create<Any>(MOCK_AGGREGATE_METADATA) as ElasticsearchSnapshotQueryService<Any>
+
+    private fun schemaSources(): List<QuerySchemaSource> {
+        val context = QuerySchemaContext(MOCK_AGGREGATE_METADATA.materialize(), QueryModel.SNAPSHOT)
+        val fields = listOf(
+            "state.name" to QueryValueType.STRING,
+            "state.age" to QueryValueType.INTEGER,
+            "state.newField" to QueryValueType.STRING,
+        ).associate { (field, type) ->
+            LogicalField(field) to QueryFieldDeclaration(valueTypes = DeclarationValue.Set(setOf(type)))
+        }
+        return listOf(
+            BeanQuerySchemaSource(
+                listOf(QuerySchemaRegistration(context, QuerySchemaDeclaration(fields))),
+            ),
         )
+    }
 
     private fun equal(field: String, value: Any): EqualFilter =
         EqualFilter(LogicalField(field), JsonSerializer.valueToTree(value))

@@ -11,8 +11,6 @@
  * limitations under the License.
  */
 
-@file:Suppress("DEPRECATION", "NoWildcardImports", "WildcardImport")
-
 package me.ahoo.wow.elasticsearch.query
 
 import co.elastic.clients.elasticsearch._types.mapping.BooleanProperty
@@ -34,118 +32,44 @@ import co.elastic.clients.elasticsearch._types.mapping.TextProperty
 import co.elastic.clients.elasticsearch._types.mapping.TokenCountProperty
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch.indices.GetMappingRequest
-import me.ahoo.wow.api.query.*
-import me.ahoo.wow.api.query.Sort
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
 import java.util.concurrent.ConcurrentHashMap
-
-enum class ElasticsearchFieldUsage {
-    EXACT,
-    LITERAL,
-    RANGE,
-    PRESENCE,
-    SEARCH,
-    PHRASE_SEARCH,
-    MATCH,
-    SORT,
-}
-
-class ElasticsearchFieldResolutionException(message: String) : IllegalArgumentException(message)
-
-data class ElasticsearchMappingRefreshResult(
-    val mapping: ElasticsearchIndexMapping,
-    val changed: Boolean,
-)
 
 class ElasticsearchIndexMappingResolver(
     private val elasticsearchClient: ReactiveElasticsearchClient,
 ) {
     private val mappings = ConcurrentHashMap<String, ElasticsearchIndexMapping>()
-    private val refreshes = ConcurrentHashMap<String, Mono<ElasticsearchMappingRefreshResult>>()
+    private val refreshes = ConcurrentHashMap<String, Mono<ElasticsearchIndexMapping>>()
 
-    fun currentOrLoad(indexName: String): Mono<ElasticsearchIndexMapping> =
+    fun currentOrLoad(indexName: String): Mono<ElasticsearchIndexMapping> = Mono.defer {
+        mappings[indexName]?.let { Mono.just(it) } ?: refresh(indexName)
+    }
+
+    fun refresh(indexName: String): Mono<ElasticsearchIndexMapping> = refreshes.computeIfAbsent(indexName) {
         Mono.defer {
-            mappings[indexName]?.let { Mono.just(it) }
-                ?: refresh(indexName).map { it.mapping }
-        }
-
-    fun refresh(indexName: String): Mono<ElasticsearchMappingRefreshResult> =
-        refreshes.computeIfAbsent(indexName) {
-            Mono.defer {
-                val request = GetMappingRequest.of { it.index(indexName) }
-                elasticsearchClient.indices().getMapping(request)
-            }.map { response ->
-                require(response.mappings().size == 1) {
-                    "Elasticsearch index [$indexName] must resolve to exactly one physical index, " +
-                        "but resolved to ${response.mappings().keys}."
-                }
-                val typeMapping = response.mappings().values.single().mappings()
-                val mapping = ElasticsearchIndexMapping.from(indexName, typeMapping)
-                ElasticsearchMappingRefreshResult(
-                    mapping = mapping,
-                    changed = mappings.put(indexName, mapping) != mapping,
-                )
-            }.doOnSuccess {
-                refreshes.remove(indexName)
-            }.doOnError {
-                refreshes.remove(indexName)
-            }.cache()
-        }
+            elasticsearchClient.indices().getMapping(GetMappingRequest.of { it.index(indexName) })
+        }.map { response ->
+            require(response.mappings().size == 1) {
+                "Elasticsearch index [$indexName] must resolve to exactly one physical index, " +
+                    "but resolved to ${response.mappings().keys}."
+            }
+            ElasticsearchIndexMapping.from(indexName, response.mappings().values.single().mappings())
+        }.doOnNext { mappings[indexName] = it }
+            .doFinally { refreshes.remove(indexName) }
+            .cache()
+    }
 }
 
 @ConsistentCopyVisibility
 data class ElasticsearchIndexMapping private constructor(
     val indexName: String,
-    private val fields: Map<String, ElasticsearchMappedField>,
+    internal val fields: Map<String, ElasticsearchMappedField>,
 ) {
     val fieldCount: Int
         get() = fields.size
 
-    fun resolve(field: String, usage: ElasticsearchFieldUsage): String = resolve(field, usage, false)
-
-    internal fun resolveComputed(field: String): String =
-        resolve(field, ElasticsearchFieldUsage.PRESENCE, true)
-
-    private fun resolve(field: String, usage: ElasticsearchFieldUsage, allowUnsupported: Boolean): String {
-        val mappedField = findMappedField(field)
-            ?: if (usage == ElasticsearchFieldUsage.PRESENCE) {
-                return field
-            } else {
-                resolutionFailure(
-                    "Elasticsearch field [$field] is not mapped in index [$indexName].",
-                )
-            }
-        if (mappedField.supports(usage)) {
-            return field
-        }
-
-        preferredSuffixes(usage).forEach { suffix ->
-            val candidate = "$field.$suffix"
-            if (candidate in mappedField.multiFields && fields[candidate]?.supports(usage) == true) {
-                return candidate
-            }
-        }
-
-        val candidates = mappedField.multiFields.filter { fields[it]?.supports(usage) == true }
-        if (candidates.size == 1) {
-            return candidates.single()
-        }
-        if (candidates.size > 1) {
-            resolutionFailure(
-                "Elasticsearch field [$field] has ambiguous ${usage.name.lowercase()} mappings $candidates " +
-                    "in index [$indexName].",
-            )
-        }
-        if (allowUnsupported) {
-            return field
-        }
-        resolutionFailure(
-            "Elasticsearch field [$field] does not support ${usage.name.lowercase()} queries in index [$indexName].",
-        )
-    }
-
-    private fun findMappedField(field: String): ElasticsearchMappedField? {
+    internal fun find(field: String): ElasticsearchMappedField? {
         fields[field]?.let { return it }
         var separator = field.lastIndexOf('.')
         while (separator > 0) {
@@ -156,115 +80,6 @@ data class ElasticsearchIndexMapping private constructor(
         }
         return null
     }
-
-    fun requireNested(field: String): String {
-        val mappedField = fields[field]
-            ?: throw ElasticsearchFieldResolutionException(
-                "Elasticsearch nested field [$field] is not mapped in index [$indexName].",
-            )
-        if (mappedField.kind != Property.Kind.Nested) {
-            throw ElasticsearchFieldResolutionException(
-                "Elasticsearch field [$field] must be mapped as nested in index [$indexName].",
-            )
-        }
-        return field
-    }
-
-    fun resolve(filter: FilterExpression, parent: String? = null): FilterExpression = resolveTyped(filter, parent)
-
-    @Suppress("CyclomaticComplexMethod", "LongMethod")
-    private fun resolveTyped(filter: FilterExpression, parent: String?): FilterExpression = when (filter) {
-        is IdFilter,
-        is IdsFilter,
-        is AggregateIdFilter,
-        is AggregateIdsFilter,
-        is TenantIdFilter,
-        is OwnerIdFilter,
-        is SpaceIdFilter,
-        -> filter
-        is AndFilter -> AndFilter(filter.operands.map { resolve(it, parent) })
-        is OrFilter -> OrFilter(filter.operands.map { resolve(it, parent) })
-        is NorFilter -> NorFilter(filter.operands.map { resolve(it, parent) })
-        is EqualFilter -> filter.copy(
-            field = filter.field.resolve(
-                parent,
-                if (filter.value.isNull) ElasticsearchFieldUsage.PRESENCE else ElasticsearchFieldUsage.EXACT,
-            ),
-        )
-        is NotEqualFilter -> filter.copy(
-            field = filter.field.resolve(
-                parent,
-                if (filter.value.isNull) ElasticsearchFieldUsage.PRESENCE else ElasticsearchFieldUsage.EXACT,
-            ),
-        )
-        is InFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.EXACT))
-        is NotInFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.EXACT))
-        is ContainsAllFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.EXACT))
-        is IsEmptyFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.PRESENCE))
-        is IsNullFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.PRESENCE))
-        is IsNotNullFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.PRESENCE))
-        is ExistsFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.PRESENCE))
-        is NotExistsFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.PRESENCE))
-        is ContainsFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.LITERAL))
-        is StartsWithFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.LITERAL))
-        is EndsWithFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.LITERAL))
-        is GreaterThanFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is GreaterThanOrEqualFilter -> filter.copy(
-            field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE)
-        )
-        is LessThanFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is LessThanOrEqualFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is BetweenFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is TodayFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is BeforeTodayFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is TomorrowFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is ThisWeekFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is NextWeekFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is LastWeekFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is ThisMonthFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is LastMonthFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is YesterdayFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is NextMonthFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is LastYearFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is ThisYearFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is NextYearFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is RecentDaysFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is EarlierDaysFilter -> filter.copy(field = filter.field.resolve(parent, ElasticsearchFieldUsage.RANGE))
-        is SearchFilter -> {
-            val usage = when (filter.mode) {
-                SearchMode.TERMS -> ElasticsearchFieldUsage.SEARCH
-                SearchMode.PHRASE -> ElasticsearchFieldUsage.PHRASE_SEARCH
-            }
-            filter.copy(fields = filter.fields.mapTo(linkedSetOf()) { it.resolve(parent, usage) })
-        }
-        is ElementMatchFilter -> {
-            val nestedPath = filter.field.path(parent)
-            ElementMatchFilter(LogicalField(requireNested(nestedPath)), resolve(filter.predicate, nestedPath))
-        }
-        else -> filter
-    }
-
-    private fun LogicalField.path(parent: String?): String =
-        if (parent == null || value == parent || value.startsWith("$parent.")) value else "$parent.$value"
-
-    private fun LogicalField.resolve(parent: String?, usage: ElasticsearchFieldUsage): LogicalField {
-        if (parent == null && value == "_id" && usage == ElasticsearchFieldUsage.EXACT) return this
-        return LogicalField(this@ElasticsearchIndexMapping.resolve(path(parent), usage))
-    }
-
-    fun resolve(sort: List<Sort>): List<Sort> =
-        sort.map {
-            if (it.field in METADATA_SORT_FIELDS) {
-                it
-            } else {
-                it.copy(
-                    field = resolve(it.field, ElasticsearchFieldUsage.SORT),
-                )
-            }
-        }
-
-    private fun resolutionFailure(message: String): Nothing =
-        throw ElasticsearchFieldResolutionException(message)
 
     companion object {
         fun from(indexName: String, typeMapping: TypeMapping): ElasticsearchIndexMapping {
@@ -282,6 +97,7 @@ data class ElasticsearchIndexMapping private constructor(
                     kind = property._kind(),
                     indexed = property.isIndexed(),
                     sortable = property.isSortable(),
+                    aggregatable = property.isAggregatable(),
                     multiFields = multiFields,
                 )
                 propertyBase?.fields().orEmpty().forEach { (name, field) -> visit("$path.$name", field) }
@@ -301,105 +117,18 @@ data class ElasticsearchIndexMapping private constructor(
             aliases.forEach { (name, target) ->
                 fields[target]?.let { fields[name] = it.copy(multiFields = emptySet()) }
             }
-            return ElasticsearchIndexMapping(indexName, fields)
+            return ElasticsearchIndexMapping(indexName, fields.toMap())
         }
-
-        private fun preferredSuffixes(usage: ElasticsearchFieldUsage): List<String> =
-            when (usage) {
-                ElasticsearchFieldUsage.SEARCH,
-                ElasticsearchFieldUsage.PHRASE_SEARCH,
-                -> listOf("text")
-                else -> listOf("keyword", "exact")
-            }
-
-        private val METADATA_SORT_FIELDS = setOf("_score", "_doc", "_shard_doc")
     }
 }
 
-private data class ElasticsearchMappedField(
+internal data class ElasticsearchMappedField(
     val kind: Property.Kind,
     val indexed: Boolean,
     val sortable: Boolean,
+    val aggregatable: Boolean,
     val multiFields: Set<String>,
-) {
-    fun supports(usage: ElasticsearchFieldUsage): Boolean =
-        when (usage) {
-            ElasticsearchFieldUsage.EXACT -> isQueryable() && kind in EXACT_KINDS
-            ElasticsearchFieldUsage.LITERAL -> indexed && kind in LITERAL_KINDS
-            ElasticsearchFieldUsage.RANGE -> isQueryable() && kind in RANGE_KINDS
-            ElasticsearchFieldUsage.PRESENCE -> isQueryable()
-            ElasticsearchFieldUsage.SEARCH,
-            ElasticsearchFieldUsage.PHRASE_SEARCH,
-            ElasticsearchFieldUsage.MATCH,
-            -> indexed && kind in SEARCH_KINDS_BY_USAGE.getValue(usage)
-            ElasticsearchFieldUsage.SORT ->
-                sortable && (kind in EXACT_KINDS || (indexed && kind == Property.Kind.Text))
-        }
-
-    private fun isQueryable(): Boolean = indexed || (sortable && kind in DOC_VALUE_QUERY_KINDS)
-
-    companion object {
-        private val NUMERIC_KINDS = setOf(
-            Property.Kind.Byte,
-            Property.Kind.Short,
-            Property.Kind.Integer,
-            Property.Kind.Long,
-            Property.Kind.UnsignedLong,
-            Property.Kind.HalfFloat,
-            Property.Kind.Float,
-            Property.Kind.Double,
-            Property.Kind.ScaledFloat,
-            Property.Kind.TokenCount,
-        )
-        private val KEYWORD_KINDS = setOf(
-            Property.Kind.Keyword,
-            Property.Kind.ConstantKeyword,
-            Property.Kind.CountedKeyword,
-            Property.Kind.IcuCollationKeyword,
-        )
-        private val TERM_KINDS = KEYWORD_KINDS + Property.Kind.Wildcard
-        private val RANGE_FIELD_KINDS = setOf(
-            Property.Kind.IntegerRange,
-            Property.Kind.FloatRange,
-            Property.Kind.LongRange,
-            Property.Kind.DoubleRange,
-            Property.Kind.DateRange,
-            Property.Kind.IpRange,
-        )
-        private val DOC_VALUE_QUERY_KINDS = NUMERIC_KINDS + KEYWORD_KINDS + setOf(
-            Property.Kind.Boolean,
-            Property.Kind.Date,
-            Property.Kind.DateNanos,
-            Property.Kind.Ip,
-        )
-        private val EXACT_KINDS = NUMERIC_KINDS + TERM_KINDS + setOf(
-            Property.Kind.Boolean,
-            Property.Kind.Date,
-            Property.Kind.DateNanos,
-            Property.Kind.Flattened,
-            Property.Kind.Ip,
-            Property.Kind.Version,
-        )
-        private val LITERAL_KINDS = TERM_KINDS
-        private val RANGE_KINDS = NUMERIC_KINDS + KEYWORD_KINDS + RANGE_FIELD_KINDS + setOf(
-            Property.Kind.Date,
-            Property.Kind.DateNanos,
-            Property.Kind.Ip,
-        )
-        private val SEARCH_KINDS = setOf(
-            Property.Kind.Text,
-            Property.Kind.MatchOnlyText,
-            Property.Kind.SearchAsYouType,
-            Property.Kind.SemanticText,
-        )
-        private val MATCH_KINDS = SEARCH_KINDS + EXACT_KINDS
-        private val SEARCH_KINDS_BY_USAGE = mapOf(
-            ElasticsearchFieldUsage.SEARCH to SEARCH_KINDS,
-            ElasticsearchFieldUsage.PHRASE_SEARCH to SEARCH_KINDS - Property.Kind.SemanticText,
-            ElasticsearchFieldUsage.MATCH to MATCH_KINDS,
-        )
-    }
-}
+)
 
 private fun RuntimeFieldType.toMappedField(): ElasticsearchMappedField? {
     val kind = when (this) {
@@ -415,34 +144,41 @@ private fun RuntimeFieldType.toMappedField(): ElasticsearchMappedField? {
         kind = kind,
         indexed = true,
         sortable = true,
+        aggregatable = true,
         multiFields = emptySet(),
     )
 }
 
-private fun Property.isSortable(): Boolean =
-    when (_kind()) {
-        Property.Kind.ConstantKeyword,
-        Property.Kind.CountedKeyword,
-        -> true
+private fun Property.isAggregatable(): Boolean = when (_kind()) {
+    Property.Kind.ConstantKeyword,
+    Property.Kind.CountedKeyword,
+    -> true
+    Property.Kind.Flattened -> flattened().docValues() != false
+    Property.Kind.Text -> false
+    else -> (_get() as? DocValuesPropertyBase)?.let { it.docValues() != false } == true
+}
 
-        Property.Kind.Flattened -> flattened().docValues() != false
-        Property.Kind.Text -> text().fielddata() == true
-        else -> (_get() as? DocValuesPropertyBase)?.let { it.docValues() != false } == true
-    }
+private fun Property.isSortable(): Boolean = when (_kind()) {
+    Property.Kind.ConstantKeyword,
+    Property.Kind.CountedKeyword,
+    -> true
+    Property.Kind.Flattened -> flattened().docValues() != false
+    Property.Kind.Text -> text().fielddata() == true
+    else -> (_get() as? DocValuesPropertyBase)?.let { it.docValues() != false } == true
+}
 
-private fun Property.isIndexed(): Boolean =
-    when (val property = _get()) {
-        is BooleanProperty -> property.index() != false
-        is CountedKeywordProperty -> property.index() != false
-        is DateNanosProperty -> property.index() != false
-        is DateProperty -> property.index() != false
-        is FlattenedProperty -> property.index() != false
-        is IcuCollationProperty -> property.index() != false
-        is IpProperty -> property.index() != false
-        is KeywordProperty -> property.index() != false
-        is NumberPropertyBase -> property.index() != false
-        is SearchAsYouTypeProperty -> property.index() != false
-        is TextProperty -> property.index() != false
-        is TokenCountProperty -> property.index() != false
-        else -> (property as? RangePropertyBase)?.index() != false
-    }
+private fun Property.isIndexed(): Boolean = when (val property = _get()) {
+    is BooleanProperty -> property.index() != false
+    is CountedKeywordProperty -> property.index() != false
+    is DateNanosProperty -> property.index() != false
+    is DateProperty -> property.index() != false
+    is FlattenedProperty -> property.index() != false
+    is IcuCollationProperty -> property.index() != false
+    is IpProperty -> property.index() != false
+    is KeywordProperty -> property.index() != false
+    is NumberPropertyBase -> property.index() != false
+    is SearchAsYouTypeProperty -> property.index() != false
+    is TextProperty -> property.index() != false
+    is TokenCountProperty -> property.index() != false
+    else -> (property as? RangePropertyBase)?.index() != false
+}

@@ -14,21 +14,28 @@
 package me.ahoo.wow.elasticsearch.query.snapshot
 
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
-import me.ahoo.wow.elasticsearch.query.ElasticsearchMappingRefreshResult
+import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapter
+import me.ahoo.wow.modeling.materialize
+import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QuerySchemaContext
+import me.ahoo.wow.query.schema.QuerySchemaSource
+import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.snapshot.AbstractSnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
-import reactor.core.publisher.Mono
 import java.time.Duration
 
 class ElasticsearchSnapshotQueryServiceFactory(
     private val elasticsearchClient: ReactiveElasticsearchClient,
     private val queryBatchSize: Int,
     private val queryKeepAlive: Duration,
+    private val schemaSources: List<QuerySchemaSource>,
+    private val validationMode: QuerySchemaValidationMode,
 ) : AbstractSnapshotQueryServiceFactory() {
     private var indexMappingResolver = ElasticsearchIndexMappingResolver(elasticsearchClient)
 
@@ -36,6 +43,20 @@ class ElasticsearchSnapshotQueryServiceFactory(
         elasticsearchClient,
         DEFAULT_SEARCH_BATCH_SIZE,
         DEFAULT_PIT_KEEP_ALIVE,
+        emptyList(),
+        QuerySchemaValidationMode.COMPATIBLE,
+    )
+
+    constructor(
+        elasticsearchClient: ReactiveElasticsearchClient,
+        queryBatchSize: Int,
+        queryKeepAlive: Duration,
+    ) : this(
+        elasticsearchClient,
+        queryBatchSize,
+        queryKeepAlive,
+        emptyList(),
+        QuerySchemaValidationMode.COMPATIBLE,
     )
 
     constructor(
@@ -43,22 +64,31 @@ class ElasticsearchSnapshotQueryServiceFactory(
         queryBatchSize: Int,
         queryKeepAlive: Duration,
         indexMappingResolver: ElasticsearchIndexMappingResolver,
-    ) : this(elasticsearchClient, queryBatchSize, queryKeepAlive) {
+    ) : this(
+        elasticsearchClient,
+        queryBatchSize,
+        queryKeepAlive,
+        emptyList(),
+        QuerySchemaValidationMode.COMPATIBLE,
+    ) {
         this.indexMappingResolver = indexMappingResolver
     }
 
-    fun refreshIndexMapping(namedAggregate: NamedAggregate): Mono<ElasticsearchMappingRefreshResult> {
-        return indexMappingResolver.refresh(namedAggregate.toSnapshotIndexName())
-    }
-
     override fun createQueryService(namedAggregate: NamedAggregate): SnapshotQueryService<*> {
+        val materialized = namedAggregate.materialize()
+        val indexName = materialized.toSnapshotIndexName()
+        val provider = DefaultQueryModelSchemaProvider(
+            context = QuerySchemaContext(materialized, QueryModel.SNAPSHOT),
+            sources = schemaSources,
+            adapter = ElasticsearchQuerySchemaAdapter(indexName, indexMappingResolver),
+        )
         return ElasticsearchSnapshotQueryService<Any>(
-            namedAggregate,
+            materialized,
             elasticsearchClient,
-            SnapshotFilterConverter,
-            queryBatchSize,
-            queryKeepAlive,
-            indexMappingResolver,
+            provider,
+            validationMode,
+            queryBatchSize = queryBatchSize,
+            queryKeepAlive = queryKeepAlive,
         )
     }
 }

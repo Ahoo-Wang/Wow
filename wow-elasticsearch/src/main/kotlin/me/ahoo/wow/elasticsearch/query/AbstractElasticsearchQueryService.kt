@@ -45,25 +45,31 @@ abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
     abstract val indexName: String
     protected open val queryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE
     protected open val queryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE
-    protected open val indexMappingResolver: ElasticsearchIndexMappingResolver? = null
     abstract fun toTypedResult(document: DynamicDocument): R
 
-    protected open fun resolveFilter(mapping: ElasticsearchIndexMapping, filter: FilterExpression): FilterExpression = filter
+    protected open fun resolve(query: ISingleQuery): Mono<ISingleQuery> = Mono.just(query)
 
-    protected open fun resolveSort(mapping: ElasticsearchIndexMapping, sort: List<Sort>): List<Sort> = sort
+    protected open fun resolve(query: IListQuery): Mono<IListQuery> = Mono.just(query)
+
+    protected open fun resolve(query: IPagedQuery): Mono<IPagedQuery> = Mono.just(query)
+
+    protected open fun resolve(filter: FilterExpression): Mono<FilterExpression> = Mono.just(filter)
 
     override fun single(singleQuery: ISingleQuery): Mono<R> {
         return dynamicSingle(singleQuery).map { toTypedResult(it) }
     }
 
     override fun dynamicSingle(singleQuery: ISingleQuery): Mono<DynamicDocument> {
-        val listQuery = ListQuery(
-            filter = singleQuery.filter,
-            projection = singleQuery.projection,
-            limit = 1,
-            sort = singleQuery.sort
-        )
-        return dynamicList(listQuery).next()
+        return resolve(singleQuery).flatMap { resolved ->
+            dynamicListResolved(
+                ListQuery(
+                    filter = resolved.filter,
+                    projection = resolved.projection,
+                    limit = 1,
+                    sort = resolved.sort,
+                ),
+            ).next()
+        }
     }
 
     override fun list(listQuery: IListQuery): Flux<R> {
@@ -72,27 +78,28 @@ abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
 
     override fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument> {
         require(listQuery.limit >= 0) { "limit must be greater than or equal to 0." }
+        return resolve(listQuery).flatMapMany(::dynamicListResolved)
+    }
+
+    private fun dynamicListResolved(listQuery: IListQuery): Flux<DynamicDocument> {
+        val resolved = compile(listQuery.filter, listQuery.sort)
         if (listQuery.limit == 0 || listQuery.limit > queryBatchSize) {
-            return resolve(listQuery.filter, listQuery.sort).flatMapMany { resolved ->
-                ElasticsearchQueryPager(elasticsearchClient, indexName, queryBatchSize, queryKeepAlive).search(
-                    limit = listQuery.limit,
-                    query = resolved.query,
-                    sourceFilter = listQuery.sourceFilter(),
-                    sort = resolved.sortOptions.searchAfterSort(),
-                )
-            }
-                .mapNotNull { it.toDynamicDocument() }
+            return ElasticsearchQueryPager(elasticsearchClient, indexName, queryBatchSize, queryKeepAlive).search(
+                limit = listQuery.limit,
+                query = resolved.query,
+                sourceFilter = listQuery.sourceFilter(),
+                sort = resolved.sortOptions.searchAfterSort(),
+            ).mapNotNull { it.toDynamicDocument() }
         }
-        return resolve(listQuery.filter, listQuery.sort)
-            .map { resolved ->
-                createSearchRequest(
-                    query = listQuery,
-                    resolved = resolved,
-                    from = 0,
-                    size = listQuery.limit,
-                    trackTotalHits = false,
-                )
-            }.flatMap(::search)
+        return Mono.fromSupplier {
+            createSearchRequest(
+                query = listQuery,
+                resolved = resolved,
+                from = 0,
+                size = listQuery.limit,
+                trackTotalHits = false,
+            )
+        }.flatMap(::search)
             .flatMapIterable { it.list }
     }
 
@@ -108,13 +115,13 @@ abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
     }
 
     override fun dynamicPaged(pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>> {
-        return resolve(pagedQuery.filter, pagedQuery.sort)
+        return resolve(pagedQuery)
             .map { resolved ->
                 createSearchRequest(
-                    query = pagedQuery,
-                    resolved = resolved,
-                    from = pagedQuery.pagination.offset(),
-                    size = pagedQuery.pagination.size,
+                    query = resolved,
+                    resolved = compile(resolved.filter, resolved.sort),
+                    from = resolved.pagination.offset(),
+                    size = resolved.pagination.size,
                     trackTotalHits = true,
                 )
             }.flatMap(::search)
@@ -182,15 +189,9 @@ abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
         return resolve(filter).map { resolved ->
             CountRequest.of {
                 it.index(indexName)
-                    .query(resolved.query)
+                    .query(filterConverter.convert(resolved))
             }
         }.flatMap(elasticsearchClient::count).map { it.count() }
-    }
-
-    private fun resolve(filter: FilterExpression, sort: List<Sort> = emptyList()): Mono<ResolvedQuery> {
-        val resolver = indexMappingResolver ?: return Mono.just(compile(filter, sort))
-        return resolver.currentOrLoad(indexName)
-            .map { mapping -> compile(resolveFilter(mapping, filter), resolveSort(mapping, sort)) }
     }
 
     private fun compile(filter: FilterExpression, sort: List<Sort>): ResolvedQuery =

@@ -13,8 +13,6 @@
 
 package me.ahoo.wow.elasticsearch.query
 
-import co.elastic.clients.elasticsearch._types.mapping.Property
-import co.elastic.clients.elasticsearch._types.mapping.RuntimeFieldType
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch.indices.GetMappingRequest
 import co.elastic.clients.elasticsearch.indices.GetMappingResponse
@@ -23,39 +21,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.AggregateIdFilter
-import me.ahoo.wow.api.query.AggregateIdsFilter
-import me.ahoo.wow.api.query.AndFilter
-import me.ahoo.wow.api.query.Condition
-import me.ahoo.wow.api.query.ContainsFilter
-import me.ahoo.wow.api.query.ElementMatchFilter
-import me.ahoo.wow.api.query.EqualFilter
-import me.ahoo.wow.api.query.ExistsFilter
-import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.GreaterThanFilter
-import me.ahoo.wow.api.query.IdFilter
-import me.ahoo.wow.api.query.IdsFilter
-import me.ahoo.wow.api.query.IsEmptyFilter
-import me.ahoo.wow.api.query.IsNotNullFilter
-import me.ahoo.wow.api.query.IsNullFilter
-import me.ahoo.wow.api.query.LastYearFilter
-import me.ahoo.wow.api.query.LogicalField
-import me.ahoo.wow.api.query.NextMonthFilter
-import me.ahoo.wow.api.query.NextYearFilter
-import me.ahoo.wow.api.query.NotEqualFilter
-import me.ahoo.wow.api.query.NotExistsFilter
-import me.ahoo.wow.api.query.OwnerIdFilter
-import me.ahoo.wow.api.query.RelativeTimeFilter
-import me.ahoo.wow.api.query.SearchFilter
-import me.ahoo.wow.api.query.SearchMode
-import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.api.query.SpaceIdFilter
-import me.ahoo.wow.api.query.TenantIdFilter
-import me.ahoo.wow.api.query.ThisYearFilter
-import me.ahoo.wow.api.query.YesterdayFilter
-import me.ahoo.wow.api.query.toFilterExpression
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchIndicesClient
 import reactor.core.publisher.Mono
@@ -72,64 +38,43 @@ class ElasticsearchIndexMappingResolverTest {
 
     @Test
     fun `should cache successful mapping and actively refresh it`() {
-        val initial = mappingResponse(textWithKeyword())
-        val refreshed = mappingResponse(keywordOnly())
-        every { indicesClient.getMapping(any<GetMappingRequest>()) } returnsMany
-            listOf(Mono.just(initial), Mono.just(refreshed))
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returnsMany listOf(
+            Mono.just(mappingResponse(field = "name")),
+            Mono.just(mappingResponse(field = "code")),
+        )
         val resolver = ElasticsearchIndexMappingResolver(client)
 
-        resolver.currentOrLoad(INDEX).block()!!.resolve("state.name", ElasticsearchFieldUsage.SEARCH)
-            .assert().isEqualTo("state.name")
-        resolver.currentOrLoad(INDEX).block()!!.resolve("state.name", ElasticsearchFieldUsage.SEARCH)
-            .assert().isEqualTo("state.name")
+        resolver.currentOrLoad(INDEX).block()!!.fields.assert().containsKey("name")
+        resolver.currentOrLoad(INDEX).block()!!.fields.assert().containsKey("name")
+        resolver.refresh(INDEX).block()!!.fields.assert().containsKey("code")
+        resolver.currentOrLoad(INDEX).block()!!.fields.assert().containsKey("code")
 
-        val refreshResult = resolver.refresh(INDEX).block()!!
-        refreshResult.changed.assert().isTrue()
-        refreshResult.mapping.resolve("state.name", ElasticsearchFieldUsage.EXACT)
-            .assert().isEqualTo("state.name")
-        resolver.currentOrLoad(INDEX).block()!!.resolve("state.name", ElasticsearchFieldUsage.EXACT)
-            .assert().isEqualTo("state.name")
-    }
-
-    @Test
-    fun `refreshing an unchanged mapping should report no change`() {
-        val response = mappingResponse(textWithKeyword())
-        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(response)
-        val resolver = ElasticsearchIndexMappingResolver(client)
-
-        resolver.currentOrLoad(INDEX).block()!!.fieldCount.assert().isEqualTo(6)
-        resolver.refresh(INDEX).block()!!.changed.assert().isFalse()
+        verify(exactly = 2) { indicesClient.getMapping(any<GetMappingRequest>()) }
     }
 
     @Test
     fun `failed refresh should keep previous mapping and retry later`() {
-        val initial = mappingResponse(textWithKeyword())
-        val refreshed = mappingResponse(keywordOnly())
         every { indicesClient.getMapping(any<GetMappingRequest>()) } returnsMany listOf(
-            Mono.just(initial),
+            Mono.just(mappingResponse(field = "name")),
             Mono.error(IllegalStateException("unavailable")),
-            Mono.just(refreshed),
+            Mono.just(mappingResponse(field = "code")),
         )
         val resolver = ElasticsearchIndexMappingResolver(client)
         resolver.currentOrLoad(INDEX).block()
 
-        resolver.refresh(INDEX).test()
-            .expectErrorMessage("unavailable")
-            .verify()
-        resolver.currentOrLoad(INDEX).block()!!.resolve("state.name", ElasticsearchFieldUsage.SEARCH)
-            .assert().isEqualTo("state.name")
-
-        resolver.refresh(INDEX).block()!!.changed.assert().isTrue()
+        resolver.refresh(INDEX).test().expectErrorMessage("unavailable").verify()
+        resolver.currentOrLoad(INDEX).block()!!.fields.assert().containsKey("name")
+        resolver.refresh(INDEX).block()!!.fields.assert().containsKey("code")
     }
 
     @Test
-    fun `concurrent loads should share one mapping request`() {
+    fun `concurrent initial loads should share one mapping request`() {
         val response = Sinks.one<GetMappingResponse>()
         every { indicesClient.getMapping(any<GetMappingRequest>()) } returns response.asMono()
         val resolver = ElasticsearchIndexMappingResolver(client)
 
         val verifier = Mono.zip(resolver.currentOrLoad(INDEX), resolver.currentOrLoad(INDEX)).test()
-        response.tryEmitValue(mappingResponse(textWithKeyword()))
+        response.tryEmitValue(mappingResponse(field = "name"))
 
         verifier.expectNextCount(1).verifyComplete()
         verify(exactly = 1) { indicesClient.getMapping(any<GetMappingRequest>()) }
@@ -139,483 +84,29 @@ class ElasticsearchIndexMappingResolverTest {
     fun `multiple physical indices should fail closed`() {
         every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
             GetMappingResponse.of { response ->
-                response
-                    .mappings(
-                        "$INDEX-000001",
-                        IndexMappingRecord.of { record -> record.mappings(textWithKeyword()) },
-                    ).mappings(
-                        "$INDEX-000002",
-                        IndexMappingRecord.of { record -> record.mappings(textWithKeyword()) },
-                    )
+                response.mappings(
+                    "$INDEX-000001",
+                    IndexMappingRecord.of { record -> record.mappings(mapping("name")) },
+                ).mappings(
+                    "$INDEX-000002",
+                    IndexMappingRecord.of { record -> record.mappings(mapping("name")) },
+                )
             },
         )
 
         ElasticsearchIndexMappingResolver(client).currentOrLoad(INDEX).test()
             .expectErrorMatches {
-                it.message!!.startsWith(
-                    "Elasticsearch index [$INDEX] must resolve to exactly one physical index",
-                )
+                it.message!!.startsWith("Elasticsearch index [$INDEX] must resolve to exactly one physical index")
             }.verify()
     }
 
-    @Test
-    fun `should resolve fields by operation capability`() {
-        val mapping = ElasticsearchIndexMapping.from(INDEX, textWithKeyword())
-
-        mapping.resolve("state.name", ElasticsearchFieldUsage.EXACT).assert().isEqualTo("state.name.keyword")
-        mapping.resolve("state.name", ElasticsearchFieldUsage.LITERAL).assert().isEqualTo("state.name.keyword")
-        mapping.resolve("state.name", ElasticsearchFieldUsage.SEARCH).assert().isEqualTo("state.name")
-        mapping.resolve("state.name", ElasticsearchFieldUsage.SORT).assert().isEqualTo("state.name.keyword")
-        mapping.requireNested("state.items").assert().isEqualTo("state.items")
-        val documentIdFilter = mapping.resolve(
-            EqualFilter(
-                LogicalField("_id"),
-                me.ahoo.wow.serialization.JsonSerializer.valueToTree("aggregate-1"),
-            ),
-        ) as EqualFilter
-        documentIdFilter.field.value.assert().isEqualTo("_id")
-
-        val filter = mapping.resolve(
-            AndFilter(
-                listOf(
-                    EqualFilter(LogicalField("state.name"), json("Wow")),
-                    SearchFilter(
-                        "Wow",
-                        linkedSetOf(LogicalField("state.name")),
-                        SearchMode.PHRASE,
-                    ),
-                    ContainsFilter(LogicalField("state.name"), "ow"),
-                    GreaterThanFilter(LogicalField("state.age"), json(18)),
-                    ExistsFilter(LogicalField("state.name")),
-                ),
-            ),
-        ) as AndFilter
-        (filter.operands[0] as EqualFilter).field.value.assert().isEqualTo("state.name.keyword")
-        (filter.operands[1] as SearchFilter).fields.single().value.assert().isEqualTo("state.name")
-        (filter.operands[1] as SearchFilter).mode.assert().isEqualTo(SearchMode.PHRASE)
-        (filter.operands[2] as ContainsFilter).field.value.assert().isEqualTo("state.name.keyword")
-        (filter.operands[3] as GreaterThanFilter).field.value.assert().isEqualTo("state.age")
-        (filter.operands[4] as ExistsFilter).field.value.assert().isEqualTo("state.name")
-        mapping.resolve(listOf(Sort("state.name", Sort.Direction.ASC))).single().field
-            .assert().isEqualTo("state.name.keyword")
-        val elementMatch = mapping.resolve(
-            ElementMatchFilter(
-                LogicalField("state.items"),
-                EqualFilter(LogicalField("state.items.name"), json("item")),
-            ),
-        ) as ElementMatchFilter
-        elementMatch.field.value.assert().isEqualTo("state.items")
-        (elementMatch.predicate as EqualFilter).field.value.assert()
-            .isEqualTo("state.items.name")
+    private fun mappingResponse(field: String): GetMappingResponse = GetMappingResponse.of { response ->
+        response.mappings(INDEX, IndexMappingRecord.of { record -> record.mappings(mapping(field)) })
     }
 
-    @Test
-    fun `should resolve relative filter fields from parent`() {
-        val mapping = ElasticsearchIndexMapping.from(INDEX, textWithKeyword())
-
-        val filter = mapping.resolve(EqualFilter(LogicalField("name"), json("Wow")), "state") as EqualFilter
-
-        filter.field.value.assert().isEqualTo("state.name.keyword")
+    private fun mapping(field: String): TypeMapping = TypeMapping.of { mapping ->
+        mapping.properties(field) { it.keyword { keyword -> keyword } }
     }
-
-    @Test
-    fun `should resolve extended relative calendar fields as ranges from parent`() {
-        val mapping = ElasticsearchIndexMapping.from(INDEX, textWithKeyword())
-        val filters = listOf<RelativeTimeFilter>(
-            YesterdayFilter(LogicalField("age")),
-            NextMonthFilter(LogicalField("age")),
-            LastYearFilter(LogicalField("age")),
-            ThisYearFilter(LogicalField("age")),
-            NextYearFilter(LogicalField("age")),
-        )
-
-        filters.forEach { filter ->
-            val resolved = mapping.resolve(filter, "state") as RelativeTimeFilter
-            resolved.field.value.assert().isEqualTo("state.age")
-        }
-    }
-
-    @Test
-    fun `should resolve extended relative calendar fields with range usage`() {
-        val mapping = ElasticsearchIndexMapping.from(INDEX, indexedFieldVariants())
-        val filters = listOf<RelativeTimeFilter>(
-            YesterdayFilter(LogicalField("booleanTrue")),
-            NextMonthFilter(LogicalField("booleanTrue")),
-            LastYearFilter(LogicalField("booleanTrue")),
-            ThisYearFilter(LogicalField("booleanTrue")),
-            NextYearFilter(LogicalField("booleanTrue")),
-        )
-
-        filters.forEach { filter ->
-            val failure = runCatching { mapping.resolve(filter) }.exceptionOrNull()
-                ?: error("Expected RANGE resolution to fail for ${filter.operator}")
-            failure.assert().isInstanceOf(ElasticsearchFieldResolutionException::class.java)
-            failure.message.assert().isEqualTo(
-                "Elasticsearch field [booleanTrue] does not support range queries in index [$INDEX].",
-            )
-        }
-    }
-
-    private fun json(value: Any?) = me.ahoo.wow.serialization.JsonSerializer.valueToTree<tools.jackson.databind.JsonNode>(
-        value
-    )
-
-    @Test
-    fun `metadata filters should bypass logical field resolution`() {
-        val mapping = ElasticsearchIndexMapping.from(INDEX, keywordOnly())
-        val filters = listOf<FilterExpression>(
-            IdFilter("id-1"),
-            IdsFilter(listOf("id-1")),
-            AggregateIdFilter("aggregate-1"),
-            AggregateIdsFilter(listOf("aggregate-1")),
-            TenantIdFilter("tenant-1"),
-            OwnerIdFilter("owner-1"),
-            SpaceIdFilter("space-1"),
-        )
-
-        filters.forEach { filter -> mapping.resolve(filter).assert().isSameAs(filter) }
-    }
-
-    @Suppress("DEPRECATION")
-    @Test
-    fun `resolved legacy filter should use logical field mapping`() {
-        val mapping = ElasticsearchIndexMapping.from(INDEX, textWithKeyword())
-        val executable = Condition.eq("state.name", "Wow").toFilterExpression()
-
-        val resolved = mapping.resolve(executable) as EqualFilter
-
-        resolved.field.value.assert().isEqualTo("state.name.keyword")
-    }
-
-    @Test
-    fun `should preserve presence fields without exact mappings`() {
-        val mapping = ElasticsearchIndexMapping.from(INDEX, textWithKeyword())
-        val nullValue = me.ahoo.wow.serialization.JsonSerializer.valueToTree<tools.jackson.databind.JsonNode>(null)
-
-        (mapping.resolve(EqualFilter(LogicalField("state.name"), nullValue)) as EqualFilter).field.value.assert()
-            .isEqualTo("state.name")
-        (mapping.resolve(NotEqualFilter(LogicalField("state.name"), nullValue)) as NotEqualFilter).field.value.assert()
-            .isEqualTo("state.name")
-        (mapping.resolve(IsEmptyFilter(LogicalField("state.name"))) as IsEmptyFilter).field.value.assert()
-            .isEqualTo("state.name")
-        (mapping.resolve(IsNullFilter(LogicalField("state.name"))) as IsNullFilter).field.value.assert()
-            .isEqualTo("state.name")
-        (mapping.resolve(IsNotNullFilter(LogicalField("state.name"))) as IsNotNullFilter).field.value.assert()
-            .isEqualTo("state.name")
-        (mapping.resolve(ExistsFilter(LogicalField("state.name"))) as ExistsFilter).field.value.assert()
-            .isEqualTo("state.name")
-        (mapping.resolve(NotExistsFilter(LogicalField("state.name"))) as NotExistsFilter).field.value.assert()
-            .isEqualTo("state.name")
-        (mapping.resolve(NotExistsFilter(LogicalField("state.unmapped"))) as NotExistsFilter).field.value.assert()
-            .isEqualTo("state.unmapped")
-    }
-
-    @Test
-    fun `should fail closed for unsupported and ambiguous fields`() {
-        val mapping = ElasticsearchIndexMapping.from(INDEX, ambiguousText())
-
-        runCatching { mapping.resolve("state.name", ElasticsearchFieldUsage.EXACT) }
-            .exceptionOrNull()!!.message.assert().contains("ambiguous")
-        runCatching { mapping.resolve("state.code", ElasticsearchFieldUsage.SEARCH) }
-            .exceptionOrNull()!!.message.assert().contains("does not support")
-        runCatching { mapping.resolve("state.code", ElasticsearchFieldUsage.SORT) }
-            .exceptionOrNull()!!.message.assert().contains("does not support")
-        runCatching { mapping.requireNested("state.objectItems") }
-            .exceptionOrNull()!!.message.assert().contains("nested")
-    }
-
-    @Test
-    fun `should use a unique compatible multi-field and reject missing paths`() {
-        val mapping = ElasticsearchIndexMapping.from(INDEX, multiFieldFallbacks())
-
-        mapping.resolve("state.name", ElasticsearchFieldUsage.EXACT).assert().isEqualTo("state.name.raw")
-        mapping.resolve("state.code", ElasticsearchFieldUsage.SEARCH).assert().isEqualTo("state.code.text")
-        runCatching { mapping.resolve("state.missing", ElasticsearchFieldUsage.EXACT) }
-            .exceptionOrNull()!!.message.assert().contains("not mapped")
-        runCatching { mapping.requireNested("state.missing") }
-            .exceptionOrNull()!!.message.assert().contains("not mapped")
-    }
-
-    @Test
-    fun `should resolve concrete paths through a flattened parent`() {
-        val mapping = ElasticsearchIndexMapping.from(INDEX, flattenedFields())
-
-        mapping.resolve("state.labels.release", ElasticsearchFieldUsage.EXACT)
-            .assert().isEqualTo("state.labels.release")
-        mapping.resolve("state.labels.release", ElasticsearchFieldUsage.SORT)
-            .assert().isEqualTo("state.labels.release")
-        mapping.resolve("state.labels.host.ip", ElasticsearchFieldUsage.RANGE)
-            .assert().isEqualTo("state.labels.host.ip")
-        runCatching { mapping.resolve("state.labels.release", ElasticsearchFieldUsage.LITERAL) }
-            .exceptionOrNull()!!.message.assert().contains("does not support")
-        runCatching { mapping.resolve("state.labels.release", ElasticsearchFieldUsage.RANGE) }
-            .exceptionOrNull()!!.message.assert().contains("does not support")
-        runCatching { mapping.resolve("state.unindexedLabels.release", ElasticsearchFieldUsage.EXACT) }
-            .exceptionOrNull()!!.message.assert().contains("does not support")
-        mapping.resolve("state.unindexedLabels.release", ElasticsearchFieldUsage.SORT)
-            .assert().isEqualTo("state.unindexedLabels.release")
-    }
-
-    @Test
-    fun `should preserve field alias and runtime field query compatibility`() {
-        val mapping = ElasticsearchIndexMapping.from(INDEX, aliasAndRuntimeFields())
-
-        mapping.resolve("state.nameAlias", ElasticsearchFieldUsage.SEARCH)
-            .assert().isEqualTo("state.nameAlias")
-        mapping.resolve("state.codeAlias", ElasticsearchFieldUsage.EXACT)
-            .assert().isEqualTo("state.codeAlias")
-        mapping.resolve("state.runtimeCode", ElasticsearchFieldUsage.LITERAL)
-            .assert().isEqualTo("state.runtimeCode")
-        mapping.resolve("state.runtimeScore", ElasticsearchFieldUsage.RANGE)
-            .assert().isEqualTo("state.runtimeScore")
-        mapping.resolve("state.runtimeAt", ElasticsearchFieldUsage.SORT)
-            .assert().isEqualTo("state.runtimeAt")
-        mapping.resolve("state.runtimeEnabled", ElasticsearchFieldUsage.EXACT)
-            .assert().isEqualTo("state.runtimeEnabled")
-        mapping.resolve("state.runtimeIp", ElasticsearchFieldUsage.EXACT)
-            .assert().isEqualTo("state.runtimeIp")
-        mapping.resolve("state.runtimeLong", ElasticsearchFieldUsage.RANGE)
-            .assert().isEqualTo("state.runtimeLong")
-        mapping.resolve("state.runtime.code", ElasticsearchFieldUsage.EXACT)
-            .assert().isEqualTo("state.runtime.code")
-        runCatching { mapping.resolve("state.runtimeGeo", ElasticsearchFieldUsage.EXACT) }
-            .exceptionOrNull()!!.message.assert().contains("not mapped")
-        runCatching { mapping.resolve("state.runtime.geo", ElasticsearchFieldUsage.EXACT) }
-            .exceptionOrNull()!!.message.assert().contains("not mapped")
-        runCatching { mapping.resolve("state.missingAlias", ElasticsearchFieldUsage.EXACT) }
-            .exceptionOrNull()!!.message.assert().contains("not mapped")
-    }
-
-    @Test
-    fun `should honor index and doc values capabilities across mapped field types`() {
-        val mapping = ElasticsearchIndexMapping.from(INDEX, indexedFieldVariants())
-        val docValueUsages = mapOf(
-            "boolean" to ElasticsearchFieldUsage.EXACT,
-            "countedKeyword" to ElasticsearchFieldUsage.EXACT,
-            "dateNanos" to ElasticsearchFieldUsage.RANGE,
-            "date" to ElasticsearchFieldUsage.RANGE,
-            "icu" to ElasticsearchFieldUsage.EXACT,
-            "ip" to ElasticsearchFieldUsage.EXACT,
-            "keyword" to ElasticsearchFieldUsage.EXACT,
-            "integer" to ElasticsearchFieldUsage.RANGE,
-            "tokenCount" to ElasticsearchFieldUsage.RANGE,
-        )
-
-        docValueUsages.forEach { (field, usage) ->
-            mapping.resolve("${field}True", usage).assert().isEqualTo("${field}True")
-            mapping.resolve("${field}False", usage).assert().isEqualTo("${field}False")
-        }
-        listOf("searchAsYouType", "text").forEach { field ->
-            mapping.resolve("${field}True", ElasticsearchFieldUsage.SEARCH).assert().isEqualTo("${field}True")
-            runCatching { mapping.resolve("${field}False", ElasticsearchFieldUsage.SEARCH) }
-                .exceptionOrNull()!!.message.assert().contains("does not support")
-        }
-        runCatching { mapping.resolve("keywordFalse", ElasticsearchFieldUsage.LITERAL) }
-            .exceptionOrNull()!!.message.assert().contains("does not support")
-        mapping.resolve("keywordFalse", ElasticsearchFieldUsage.SORT).assert().isEqualTo("keywordFalse")
-        mapping.resolve("constantKeyword", ElasticsearchFieldUsage.SORT)
-            .assert().isEqualTo("constantKeyword")
-        mapping.resolve("countedKeywordTrue", ElasticsearchFieldUsage.SORT)
-            .assert().isEqualTo("countedKeywordTrue")
-    }
-
-    @Test
-    fun `should support range semantic text fielddata and metadata sorts`() {
-        val mapping = ElasticsearchIndexMapping.from(INDEX, specialCapabilities())
-
-        listOf("integerRange", "floatRange", "longRange", "doubleRange", "dateRange", "ipRange").forEach {
-            mapping.resolve(it, ElasticsearchFieldUsage.RANGE).assert().isEqualTo(it)
-        }
-        mapping.resolve("semanticText", ElasticsearchFieldUsage.SEARCH).assert().isEqualTo("semanticText")
-        mapping.resolve("fielddataText", ElasticsearchFieldUsage.SORT).assert().isEqualTo("fielddataText")
-        listOf("integerRange", "plainText", "unindexedFielddataText").forEach {
-            runCatching { mapping.resolve(it, ElasticsearchFieldUsage.SORT) }
-                .exceptionOrNull()!!.message.assert().contains("does not support")
-        }
-        runCatching { mapping.resolve("unindexedRange", ElasticsearchFieldUsage.RANGE) }
-            .exceptionOrNull()!!.message.assert().contains("does not support")
-        mapping.resolve(
-            listOf(
-                Sort("_score", Sort.Direction.DESC),
-                Sort("_doc", Sort.Direction.ASC),
-                Sort("_shard_doc", Sort.Direction.ASC),
-            ),
-        ).map { it.field }.assert().containsExactly("_score", "_doc", "_shard_doc")
-    }
-
-    @Test
-    fun `should reject phrase search on semantic text`() {
-        val mapping = ElasticsearchIndexMapping.from(INDEX, specialCapabilities())
-
-        assertThrows<ElasticsearchFieldResolutionException> {
-            mapping.resolve(
-                SearchFilter(
-                    "event sourcing",
-                    linkedSetOf(LogicalField("semanticText")),
-                    SearchMode.PHRASE,
-                ),
-            )
-        }
-    }
-
-    private fun mappingResponse(mapping: TypeMapping): GetMappingResponse =
-        GetMappingResponse.of { response ->
-            response.mappings(
-                INDEX,
-                IndexMappingRecord.of { record -> record.mappings(mapping) },
-            )
-        }
-
-    private fun textWithKeyword(): TypeMapping =
-        stateMapping(
-            name = Property.of { property ->
-                property.text { text ->
-                    text.fields("keyword") { keyword -> keyword.keyword { it } }
-                }
-            },
-            age = Property.of { property -> property.integer { it } },
-            items = Property.of { property ->
-                property.nested { nested ->
-                    nested.properties("name") { it.keyword { keyword -> keyword } }
-                }
-            },
-        )
-
-    private fun keywordOnly(): TypeMapping =
-        stateMapping(name = Property.of { property -> property.keyword { it } })
-
-    private fun ambiguousText(): TypeMapping =
-        stateMapping(
-            name = Property.of { property ->
-                property.text { text ->
-                    text.fields("raw") { keyword -> keyword.keyword { it } }
-                        .fields("normalized") { keyword -> keyword.keyword { it } }
-                }
-            },
-            code = Property.of { property -> property.keyword { it.docValues(false) } },
-            items = Property.of { property -> property.`object` { it } },
-        )
-
-    private fun multiFieldFallbacks(): TypeMapping =
-        stateMapping(
-            name = Property.of { property ->
-                property.text { text ->
-                    text.fields("keyword") { child -> child.text { it } }
-                        .fields("raw") { keyword -> keyword.keyword { it } }
-                }
-            },
-            code = Property.of { property ->
-                property.keyword { keyword ->
-                    keyword.fields("text") { text -> text.text { it } }
-                }
-            },
-        )
-
-    private fun flattenedFields(): TypeMapping =
-        TypeMapping.of { mapping ->
-            mapping.properties("state") { state ->
-                state.`object` { objectField ->
-                    objectField
-                        .properties("labels") { labels ->
-                            labels.flattened { flattened ->
-                                flattened.properties("host.ip") { field -> field.ip { it } }
-                            }
-                        }.properties("unindexedLabels") { labels ->
-                            labels.flattened { flattened -> flattened.index(false) }
-                        }
-                }
-            }
-        }
-
-    private fun aliasAndRuntimeFields(): TypeMapping =
-        TypeMapping.of { mapping ->
-            mapping
-                .properties("state") { state ->
-                    state.`object` { objectField ->
-                        objectField
-                            .properties("name") { it.text { text -> text } }
-                            .properties("code") { it.keyword { keyword -> keyword } }
-                            .properties("nameAlias") { it.alias { alias -> alias.path("state.name") } }
-                            .properties("codeAlias") { it.alias { alias -> alias.path("state.code") } }
-                            .properties("missingAlias") { it.alias { alias -> alias.path("state.missing") } }
-                    }
-                }.runtime("state.runtimeCode") { it.type(RuntimeFieldType.Keyword) }
-                .runtime("state.runtimeScore") { it.type(RuntimeFieldType.Double) }
-                .runtime("state.runtimeAt") { it.type(RuntimeFieldType.Date) }
-                .runtime("state.runtimeEnabled") { it.type(RuntimeFieldType.Boolean) }
-                .runtime("state.runtimeIp") { it.type(RuntimeFieldType.Ip) }
-                .runtime("state.runtimeLong") { it.type(RuntimeFieldType.Long) }
-                .runtime("state.runtimeGeo") { it.type(RuntimeFieldType.GeoPoint) }
-                .runtime("state.runtime") { runtime ->
-                    runtime.type(RuntimeFieldType.Composite)
-                        .fields("code") { it.type(RuntimeFieldType.Keyword) }
-                        .fields("geo") { it.type(RuntimeFieldType.GeoPoint) }
-                }
-        }
-
-    private fun indexedFieldVariants(): TypeMapping =
-        TypeMapping.of { mapping ->
-            mapping
-                .properties("booleanTrue") { it.boolean_ { field -> field.index(true) } }
-                .properties("booleanFalse") { it.boolean_ { field -> field.index(false) } }
-                .properties("constantKeyword") { it.constantKeyword { field -> field } }
-                .properties("countedKeywordTrue") { it.countedKeyword { field -> field.index(true) } }
-                .properties("countedKeywordFalse") { it.countedKeyword { field -> field.index(false) } }
-                .properties("dateNanosTrue") { it.dateNanos { field -> field.index(true) } }
-                .properties("dateNanosFalse") { it.dateNanos { field -> field.index(false) } }
-                .properties("dateTrue") { it.date { field -> field.index(true) } }
-                .properties("dateFalse") { it.date { field -> field.index(false) } }
-                .properties("icuTrue") { it.icuCollationKeyword { field -> field.index(true) } }
-                .properties("icuFalse") { it.icuCollationKeyword { field -> field.index(false) } }
-                .properties("ipTrue") { it.ip { field -> field.index(true) } }
-                .properties("ipFalse") { it.ip { field -> field.index(false) } }
-                .properties("keywordTrue") { it.keyword { field -> field.index(true) } }
-                .properties("keywordFalse") { it.keyword { field -> field.index(false) } }
-                .properties("integerTrue") { it.integer { field -> field.index(true) } }
-                .properties("integerFalse") { it.integer { field -> field.index(false) } }
-                .properties("searchAsYouTypeTrue") { it.searchAsYouType { field -> field.index(true) } }
-                .properties("searchAsYouTypeFalse") { it.searchAsYouType { field -> field.index(false) } }
-                .properties("textTrue") { it.text { field -> field.index(true) } }
-                .properties("textFalse") { it.text { field -> field.index(false) } }
-                .properties("tokenCountTrue") { it.tokenCount { field -> field.index(true) } }
-                .properties("tokenCountFalse") { it.tokenCount { field -> field.index(false) } }
-        }
-
-    private fun specialCapabilities(): TypeMapping =
-        TypeMapping.of { mapping ->
-            mapping
-                .properties("integerRange") { it.integerRange { field -> field } }
-                .properties("floatRange") { it.floatRange { field -> field } }
-                .properties("longRange") { it.longRange { field -> field } }
-                .properties("doubleRange") { it.doubleRange { field -> field } }
-                .properties("dateRange") { it.dateRange { field -> field } }
-                .properties("ipRange") { it.ipRange { field -> field } }
-                .properties("unindexedRange") { it.integerRange { field -> field.index(false) } }
-                .properties("semanticText") { it.semanticText { field -> field } }
-                .properties("plainText") { it.text { field -> field } }
-                .properties("fielddataText") { it.text { field -> field.fielddata(true) } }
-                .properties("unindexedFielddataText") { it.text { field -> field.index(false).fielddata(true) } }
-        }
-
-    private fun stateMapping(
-        name: Property,
-        code: Property? = null,
-        age: Property? = null,
-        items: Property? = null,
-    ): TypeMapping =
-        TypeMapping.of { mapping ->
-            mapping.properties("state") { state ->
-                state.`object` { objectField ->
-                    objectField.properties("name", name)
-                    code?.let { objectField.properties("code", it) }
-                    age?.let { objectField.properties("age", it) }
-                    items?.let {
-                        objectField.properties(if (it._kind() == Property.Kind.Nested) "items" else "objectItems", it)
-                    }
-                    objectField
-                }
-            }
-        }
 
     companion object {
         private const val INDEX = "wow.catalog.sku.snapshot"
