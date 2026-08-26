@@ -37,6 +37,42 @@ class ElasticsearchIndexMappingResolverTest {
     }
 
     @Test
+    fun `immediate refresh after success should issue a new mapping request`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returnsMany listOf(
+            Mono.just(mappingResponse(field = "name")),
+            Mono.just(mappingResponse(field = "code")),
+        )
+        val resolver = ElasticsearchIndexMappingResolver(client)
+
+        resolver.refresh(INDEX)
+            .flatMap { first -> resolver.refresh(INDEX).map { second -> first to second } }
+            .test()
+            .assertNext { (first, second) ->
+                first.fields.assert().containsKey("name")
+                second.fields.assert().containsKey("code")
+            }.verifyComplete()
+
+        verify(exactly = 2) { indicesClient.getMapping(any<GetMappingRequest>()) }
+    }
+
+    @Test
+    fun `immediate retry after failure should issue a new mapping request`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returnsMany listOf(
+            Mono.error(IllegalStateException("unavailable")),
+            Mono.just(mappingResponse(field = "code")),
+        )
+        val resolver = ElasticsearchIndexMappingResolver(client)
+
+        resolver.refresh(INDEX)
+            .onErrorResume { resolver.refresh(INDEX) }
+            .test()
+            .assertNext { mapping -> mapping.fields.assert().containsKey("code") }
+            .verifyComplete()
+
+        verify(exactly = 2) { indicesClient.getMapping(any<GetMappingRequest>()) }
+    }
+
+    @Test
     fun `should cache successful mapping and actively refresh it`() {
         every { indicesClient.getMapping(any<GetMappingRequest>()) } returnsMany listOf(
             Mono.just(mappingResponse(field = "name")),

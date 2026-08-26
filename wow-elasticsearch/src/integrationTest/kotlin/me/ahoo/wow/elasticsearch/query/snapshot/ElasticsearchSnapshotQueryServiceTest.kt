@@ -17,9 +17,11 @@ import co.elastic.clients.elasticsearch._types.Refresh
 import co.elastic.clients.elasticsearch._types.mapping.RuntimeFieldType
 import co.elastic.clients.elasticsearch.core.UpdateRequest
 import co.elastic.clients.elasticsearch.indices.PutMappingRequest
+import co.elastic.clients.json.JsonData
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
@@ -68,6 +70,18 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         elasticsearchClient.initSnapshotTemplate()
         elasticsearchClient.indices().create { request ->
             request.index(MOCK_AGGREGATE_METADATA.toSnapshotIndexName())
+                .settings { settings ->
+                    settings.otherSettings(
+                        "index.query.default_field",
+                        JsonData.of(
+                            listOf(
+                                "state.data",
+                                "state.decimalValue",
+                                "state.orders.lines.createdAt",
+                            ),
+                        ),
+                    )
+                }
                 .mappings { mapping ->
                     mapping.properties("state") { state ->
                         state.`object` { stateObject ->
@@ -81,6 +95,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                                 .properties("unreadableNumber") {
                                     it.double_ { number -> number.index(false).docValues(false) }
                                 }.properties("epochMicros") { it.long_ { number -> number } }
+                                .properties("epochMillis") { it.long_ { number -> number } }
                                 .properties("epochNanos") { it.long_ { number -> number } }
                                 .properties("epochSeconds") { it.long_ { number -> number } }
                                 .properties("epochFraction") { it.double_ { number -> number } }
@@ -120,6 +135,17 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         ElasticsearchSnapshotQueryServiceFactory(elasticsearchClient)
 
     override fun createSnapshotStore(): SnapshotStore = ElasticsearchSnapshotStore(elasticsearchClient)
+
+    @Test
+    fun `model level search should execute against mixed text numeric and date mappings`() {
+        updateState(mapOf("data" to "searchable"))
+
+        snapshotQueryService.dynamicList(
+            ListQuery(filter = SearchFilter("searchable"), limit = 10),
+        ).test()
+            .expectNextCount(1)
+            .verifyComplete()
+    }
 
     @Test
     fun `direct service constructor should retain snapshot identity schema behavior`() {
@@ -258,6 +284,37 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
 
         updateState(mapOf("epochMicros" to listOf(1_000L, 2_000L)))
         dateHistogram(service, "state.epochMicros").test()
+            .assertNext { it.assert().isEmpty() }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `floating epoch at two to the sixty third should not emit while long max remains valid`() {
+        updateState(
+            mapOf(
+                "epochMillis" to Long.MAX_VALUE,
+                "epochFraction" to 9.223372036854776E18,
+            ),
+        )
+        val service = ElasticsearchSnapshotQueryServiceFactory(
+            elasticsearchClient,
+            me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
+            me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
+            listOf(
+                source(
+                    epochField("state.epochMillis", TimeUnit.MILLISECONDS),
+                    epochField("state.epochFraction", TimeUnit.MILLISECONDS),
+                ),
+            ),
+            me.ahoo.wow.query.schema.QuerySchemaValidationMode.COMPATIBLE,
+        ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+
+        dateHistogram(service, "state.epochMillis").test()
+            .assertNext { rows ->
+                rows.assert().hasSize(1)
+                rows.single()["count"].assert().isEqualTo(1L)
+            }.verifyComplete()
+        dateHistogram(service, "state.epochFraction").test()
             .assertNext { it.assert().isEmpty() }
             .verifyComplete()
     }

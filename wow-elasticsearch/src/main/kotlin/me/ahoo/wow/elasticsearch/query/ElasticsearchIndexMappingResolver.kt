@@ -47,7 +47,8 @@ class ElasticsearchIndexMappingResolver(
     }
 
     fun refresh(indexName: String): Mono<ElasticsearchIndexMapping> = refreshes.computeIfAbsent(indexName) {
-        Mono.defer {
+        lateinit var candidate: Mono<ElasticsearchIndexMapping>
+        candidate = Mono.defer {
             elasticsearchClient.indices().getMapping(GetMappingRequest.of { it.index(indexName) })
         }.map { response ->
             require(response.mappings().size == 1) {
@@ -55,9 +56,14 @@ class ElasticsearchIndexMappingResolver(
                     "but resolved to ${response.mappings().keys}."
             }
             ElasticsearchIndexMapping.from(indexName, response.mappings().values.single().mappings())
-        }.doOnNext { mappings[indexName] = it }
-            .doFinally { refreshes.remove(indexName) }
+        }.doOnSuccess { mapping ->
+            mapping?.let { mappings[indexName] = it }
+            refreshes.remove(indexName, candidate)
+        }.doOnError {
+            refreshes.remove(indexName, candidate)
+        }
             .cache()
+        candidate
     }
 }
 

@@ -140,7 +140,11 @@ abstract class AbstractElasticsearchFilterConverter(
         }
         is SearchFilter -> multiMatch {
             it.query(filter.query)
-            if (filter.fields.isNotEmpty()) it.fields(filter.fields.map { field -> field.path(parent) })
+            if (filter.fields.isEmpty()) {
+                it.lenient(true)
+            } else {
+                it.fields(filter.fields.map { field -> field.path(parent) })
+            }
             if (filter.mode == SearchMode.PHRASE) it.type(TextQueryType.Phrase)
             it
         }
