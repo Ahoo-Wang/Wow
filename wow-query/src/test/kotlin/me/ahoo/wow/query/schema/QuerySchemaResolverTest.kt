@@ -38,6 +38,7 @@ import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EndsWithFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ExistsFilter
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.GreaterThanFilter
 import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
 import me.ahoo.wow.api.query.IdFilter
@@ -82,11 +83,17 @@ import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryCompatibilityLevel
 import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QuerySemanticType
 import me.ahoo.wow.api.query.schema.QueryValueType
+import me.ahoo.wow.api.query.schema.Temporal
+import me.ahoo.wow.query.FilterNormalizer
+import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.JsonNodeFactory
+import java.util.concurrent.TimeUnit
 
+@Suppress("LargeClass")
 class QuerySchemaResolverTest {
     @Test
     fun `filter capability matrix should rewrite exact literal range and presence fields`() {
@@ -138,28 +145,83 @@ class QuerySchemaResolverTest {
     }
 
     @Test
-    fun `every relative time filter should require and rewrite a range binding`() {
+    fun `null equality filters should use presence bindings without changing their shape`() {
+        val field = LogicalField("state.note")
+        val physical = LogicalField("document.note")
+        val nullValue = JsonNodeFactory.instance.nullNode()
+        val resolver = QuerySchemaResolver(
+            schema(mapOf(field to fieldSchema(QueryCapability.PRESENCE to physical.value))),
+        )
+
+        resolver.resolve(EqualFilter(field, nullValue)).assert().isEqualTo(
+            QuerySchemaResolution(
+                EqualFilter(physical, nullValue),
+                QueryCompatibilityLevel.EXACT,
+            ),
+        )
+        resolver.resolve(NotEqualFilter(field, nullValue)).assert().isEqualTo(
+            QuerySchemaResolution(
+                NotEqualFilter(physical, nullValue),
+                QueryCompatibilityLevel.EXACT,
+            ),
+        )
+    }
+
+    @Test
+    fun `deserialized null equality should resolve before normalizing to presence`() {
+        val filter = JsonSerializer.readValue(
+            """{"op":"EQ","field":"state.note","value":null}""",
+            FilterExpression::class.java,
+        )
+        val schema = schema(
+            mapOf(
+                LogicalField("state.note") to fieldSchema(
+                    QueryCapability.PRESENCE to "document.note",
+                ),
+            ),
+        )
+
+        val resolved = QuerySchemaResolver(schema).resolve(filter)
+            .requireAccepted(QuerySchemaValidationMode.STRICT)
+        val normalized = FilterNormalizer(defaultDeletionState = null).normalize(resolved)
+
+        normalized.assert().isEqualTo(IsNullFilter(LogicalField("document.note")))
+    }
+
+    @Test
+    fun `every relative time filter should apply the negotiated epoch unit and physical field`() {
         val field = LogicalField("state.createdAt")
         val physical = LogicalField("document.created_at")
         val resolver = QuerySchemaResolver(
-            schema(mapOf(field to fieldSchema(QueryCapability.RANGE to physical.value))),
+            schema(
+                mapOf(
+                    field to fieldSchema(
+                        QueryCapability.RANGE to physical.value,
+                        semanticType = Temporal.Epoch(TimeUnit.SECONDS),
+                    ),
+                ),
+            ),
         )
         val cases = listOf(
-            TodayFilter(field) to TodayFilter(physical),
-            BeforeTodayFilter(field, "12:00") to BeforeTodayFilter(physical, "12:00"),
-            TomorrowFilter(field) to TomorrowFilter(physical),
-            ThisWeekFilter(field) to ThisWeekFilter(physical),
-            NextWeekFilter(field) to NextWeekFilter(physical),
-            LastWeekFilter(field) to LastWeekFilter(physical),
-            ThisMonthFilter(field) to ThisMonthFilter(physical),
-            LastMonthFilter(field) to LastMonthFilter(physical),
-            RecentDaysFilter(field, 7) to RecentDaysFilter(physical, 7),
-            EarlierDaysFilter(field, 7) to EarlierDaysFilter(physical, 7),
-            YesterdayFilter(field) to YesterdayFilter(physical),
-            NextMonthFilter(field) to NextMonthFilter(physical),
-            LastYearFilter(field) to LastYearFilter(physical),
-            ThisYearFilter(field) to ThisYearFilter(physical),
-            NextYearFilter(field) to NextYearFilter(physical),
+            TodayFilter(field) to TodayFilter(physical, timeUnit = TimeUnit.SECONDS),
+            BeforeTodayFilter(field, "12:00") to BeforeTodayFilter(
+                physical,
+                "12:00",
+                timeUnit = TimeUnit.SECONDS,
+            ),
+            TomorrowFilter(field) to TomorrowFilter(physical, timeUnit = TimeUnit.SECONDS),
+            ThisWeekFilter(field) to ThisWeekFilter(physical, timeUnit = TimeUnit.SECONDS),
+            NextWeekFilter(field) to NextWeekFilter(physical, timeUnit = TimeUnit.SECONDS),
+            LastWeekFilter(field) to LastWeekFilter(physical, timeUnit = TimeUnit.SECONDS),
+            ThisMonthFilter(field) to ThisMonthFilter(physical, timeUnit = TimeUnit.SECONDS),
+            LastMonthFilter(field) to LastMonthFilter(physical, timeUnit = TimeUnit.SECONDS),
+            RecentDaysFilter(field, 7) to RecentDaysFilter(physical, 7, timeUnit = TimeUnit.SECONDS),
+            EarlierDaysFilter(field, 7) to EarlierDaysFilter(physical, 7, timeUnit = TimeUnit.SECONDS),
+            YesterdayFilter(field) to YesterdayFilter(physical, timeUnit = TimeUnit.SECONDS),
+            NextMonthFilter(field) to NextMonthFilter(physical, timeUnit = TimeUnit.SECONDS),
+            LastYearFilter(field) to LastYearFilter(physical, timeUnit = TimeUnit.SECONDS),
+            ThisYearFilter(field) to ThisYearFilter(physical, timeUnit = TimeUnit.SECONDS),
+            NextYearFilter(field) to NextYearFilter(physical, timeUnit = TimeUnit.SECONDS),
         )
 
         cases.forEach { (input, expected) ->
@@ -167,6 +229,105 @@ class QuerySchemaResolverTest {
                 QuerySchemaResolution(expected, QueryCompatibilityLevel.EXACT),
             )
         }
+    }
+
+    @Test
+    fun `formatted temporal should inject its pattern without changing the filter time unit`() {
+        val field = LogicalField("state.createdAt")
+        val resolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    field to fieldSchema(
+                        QueryCapability.RANGE to "document.created_at",
+                        semanticType = Temporal.Formatted("yyyy-MM-dd"),
+                    ),
+                ),
+            ),
+        )
+
+        resolver.resolve(TodayFilter(field, timeUnit = TimeUnit.SECONDS)).assert().isEqualTo(
+            QuerySchemaResolution(
+                TodayFilter(
+                    LogicalField("document.created_at"),
+                    datePattern = "yyyy-MM-dd",
+                    timeUnit = TimeUnit.SECONDS,
+                ),
+                QueryCompatibilityLevel.EXACT,
+            ),
+        )
+        resolver.resolve(TodayFilter(field, datePattern = "yyyy-MM-dd")).compatibility
+            .assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+    }
+
+    @Test
+    fun `formatted temporal should reject a conflicting explicit pattern`() {
+        val field = LogicalField("state.createdAt")
+        val resolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    field to fieldSchema(
+                        QueryCapability.RANGE to "document.created_at",
+                        semanticType = Temporal.Formatted("yyyy-MM-dd"),
+                    ),
+                ),
+            ),
+        )
+
+        resolver.resolve(TodayFilter(field, datePattern = "yyyy/MM/dd")).compatibility
+            .assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+    }
+
+    @Test
+    fun `epoch temporal should reject an explicit date pattern`() {
+        val field = LogicalField("state.createdAt")
+        val resolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    field to fieldSchema(
+                        QueryCapability.RANGE to "document.created_at",
+                        semanticType = Temporal.Epoch(TimeUnit.SECONDS),
+                    ),
+                ),
+            ),
+        )
+
+        resolver.resolve(TodayFilter(field, datePattern = "yyyy-MM-dd")).compatibility
+            .assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+    }
+
+    @Test
+    fun `date temporal should preserve native configuration and reject an explicit pattern`() {
+        val field = LogicalField("state.createdAt")
+        val resolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    field to fieldSchema(
+                        QueryCapability.RANGE to "document.created_at",
+                        semanticType = Temporal.Date,
+                    ),
+                ),
+            ),
+        )
+
+        resolver.resolve(TodayFilter(field)).assert().isEqualTo(
+            QuerySchemaResolution(
+                TodayFilter(LogicalField("document.created_at")),
+                QueryCompatibilityLevel.EXACT,
+            ),
+        )
+        resolver.resolve(TodayFilter(field, datePattern = "yyyy-MM-dd")).compatibility
+            .assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+    }
+
+    @Test
+    fun `relative time filter should reject a field without temporal semantics`() {
+        val field = LogicalField("state.createdAt")
+        val resolver = QuerySchemaResolver(
+            schema(mapOf(field to fieldSchema(QueryCapability.RANGE to "document.created_at"))),
+        )
+
+        resolver.resolve(TodayFilter(field)).compatibility
+            .assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
     }
 
     @Test
@@ -330,6 +491,45 @@ class QuerySchemaResolverTest {
     }
 
     @Test
+    fun `root filter should reject a field below an element scope`() {
+        val field = LogicalField("state.orders.price")
+        val resolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    LogicalField("state.orders") to fieldSchema(
+                        QueryCapability.ELEMENT_SCOPE to "document.orders",
+                    ),
+                    field to fieldSchema(QueryCapability.EXACT_MATCH to "document.orders.price"),
+                ),
+            ),
+        )
+
+        resolver.resolve(EqualFilter(field, json(1))).compatibility
+            .assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+    }
+
+    @Test
+    fun `root search should not downgrade an element scoped field to model full text`() {
+        val field = LogicalField("state.orders.note")
+        val resolver = QuerySchemaResolver(
+            schema(
+                fields = mapOf(
+                    LogicalField("state.orders") to fieldSchema(
+                        QueryCapability.ELEMENT_SCOPE to "document.orders",
+                    ),
+                    field to fieldSchema(QueryCapability.FULL_TEXT_TERMS to "document.orders.note"),
+                ),
+                capabilities = setOf(QueryCapability.FULL_TEXT_TERMS),
+            ),
+        )
+        val filter = SearchFilter("note", setOf(field))
+
+        resolver.resolve(filter).assert().isEqualTo(
+            QuerySchemaResolution(filter, QueryCompatibilityLevel.INCOMPATIBLE),
+        )
+    }
+
+    @Test
     fun `search should use exact field bindings or an explicit model fallback`() {
         val title = LogicalField("state.title")
         val body = LogicalField("state.body")
@@ -408,6 +608,48 @@ class QuerySchemaResolverTest {
                     sort = listOf(Sort("document.name.sort", Sort.Direction.DESC)),
                     limit = 7,
                 ),
+                QueryCompatibilityLevel.EXACT,
+            ),
+        )
+    }
+
+    @Test
+    fun `root sort should reject a field below an element scope`() {
+        val field = LogicalField("state.orders.price")
+        val sort = listOf(Sort(field.value, Sort.Direction.ASC))
+        val resolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    LogicalField("state.orders") to fieldSchema(
+                        QueryCapability.ELEMENT_SCOPE to "document.orders",
+                    ),
+                    field to fieldSchema(QueryCapability.SORT to "document.orders.price"),
+                ),
+            ),
+        )
+
+        resolver.resolve(sort).assert().isEqualTo(
+            QuerySchemaResolution(sort, QueryCompatibilityLevel.INCOMPATIBLE),
+        )
+    }
+
+    @Test
+    fun `projection should allow source fields below an element scope`() {
+        val field = LogicalField("state.orders.price")
+        val resolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    LogicalField("state.orders") to fieldSchema(
+                        QueryCapability.ELEMENT_SCOPE to "document.orders",
+                    ),
+                    field to fieldSchema(QueryCapability.PRESENCE to "document.orders.price"),
+                ),
+            ),
+        )
+
+        resolver.resolve(Projection(include = listOf(field.value))).assert().isEqualTo(
+            QuerySchemaResolution(
+                Projection(include = listOf("document.orders.price")),
                 QueryCompatibilityLevel.EXACT,
             ),
         )
@@ -564,6 +806,7 @@ class QuerySchemaResolverTest {
     private fun fieldSchema(
         vararg bindings: Pair<QueryCapability, String>,
         dynamicChildren: Boolean = false,
+        semanticType: QuerySemanticType? = null,
     ) = QueryFieldSchema(
         title = null,
         description = null,
@@ -572,7 +815,7 @@ class QuerySchemaResolverTest {
         nullable = false,
         required = true,
         cardinality = QueryCardinality.SINGLE,
-        semanticType = null,
+        semanticType = semanticType,
         dynamicChildren = dynamicChildren,
         bindings = bindings.associate { (capability, path) ->
             capability to QueryFieldBinding(path, storageType = null)
