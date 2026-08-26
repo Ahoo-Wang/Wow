@@ -107,9 +107,14 @@ class MongoQuerySchemaAdapterTest {
 
     @Test
     fun `bind should leave storage type unknown without a validator`() {
-        MongoQuerySchemaAdapter.bind(logicalSchema(), emptyList(), null)
-            .fields.values.flatMap { field -> field.bindings.values }
+        val schema = MongoQuerySchemaAdapter.bind(logicalSchema(), emptyList(), null)
+
+        schema.fields.values.flatMap { field -> field.bindings.values }
             .forEach { binding -> binding.storageType.assert().isNull() }
+        schema.fields.getValue(LogicalField("state.amount")).bindings.keys.assert().contains(
+            QueryCapability.RANGE,
+            QueryCapability.AGGREGATE_NUMERIC,
+        )
     }
 
     @Test
@@ -121,6 +126,81 @@ class MongoQuerySchemaAdapterTest {
     fun `bind should leave a real multi-type validator union unknown regardless of order`() {
         storageType("string", "int").assert().isNull()
         storageType("int", "string").assert().isNull()
+    }
+
+    @Test
+    fun `known nullable numeric unions should retain numeric and temporal capabilities`() {
+        val schema = bindState(
+            Document("amount", Document("bsonType", listOf("null", "int", "long", "double", "decimal")))
+                .append("createdAt", Document("bsonType", listOf("null", "int", "long")))
+                .append("nativeDate", Document("bsonType", listOf("null", "date", "timestamp"))),
+        )
+
+        schema.fields.getValue(LogicalField("state.amount")).bindings.keys.assert().contains(
+            QueryCapability.RANGE,
+            QueryCapability.AGGREGATE_NUMERIC,
+        )
+        schema.fields.getValue(LogicalField("state.createdAt")).bindings.keys.assert().contains(
+            QueryCapability.RANGE,
+            QueryCapability.AGGREGATE_NUMERIC,
+            QueryCapability.AGGREGATE_TEMPORAL,
+        )
+        schema.fields.getValue(LogicalField("state.nativeDate")).bindings.keys.assert().contains(
+            QueryCapability.RANGE,
+            QueryCapability.AGGREGATE_TEMPORAL,
+        )
+    }
+
+    @Test
+    fun `known string storage should reject integer and native date semantics`() {
+        val schema = bindState(
+            Document("createdAt", Document("bsonType", "string"))
+                .append("nativeDate", Document("bsonType", "string")),
+        )
+
+        schema.fields.getValue(LogicalField("state.createdAt"))
+            .bindings.keys.assert().containsExactly(QueryCapability.PRESENCE)
+        schema.fields.getValue(LogicalField("state.nativeDate"))
+            .bindings.keys.assert().containsExactly(QueryCapability.PRESENCE)
+    }
+
+    @Test
+    fun `known numeric storage should reject logical string capabilities`() {
+        val schema = bindState(Document("name", Document("bsonType", listOf("int", "long"))))
+
+        schema.fields.getValue(LogicalField("state.name"))
+            .bindings.keys.assert().containsExactly(QueryCapability.PRESENCE)
+        QuerySchemaResolver(schema).resolve(
+            EqualFilter(LogicalField("state.name"), StringNode.valueOf("value")),
+        ).compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+    }
+
+    @Test
+    fun `known array item conflict should reject element scope`() {
+        bindState(
+            Document(
+                "items",
+                Document("bsonType", "array").append("items", Document("bsonType", "string")),
+            ),
+        ).fields.getValue(LogicalField("state.items"))
+            .bindings.keys.assert().containsExactly(QueryCapability.PRESENCE)
+    }
+
+    @Test
+    fun `dynamic object root should expose exact and presence bindings to descendants`() {
+        val schema = MongoQuerySchemaAdapter.bind(
+            logicalSchema(),
+            emptyList(),
+            Document("properties", Document("tags", Document("bsonType", "object"))),
+        )
+
+        schema.fields.getValue(LogicalField("tags")).bindings.keys.assert().containsExactlyInAnyOrder(
+            QueryCapability.PRESENCE,
+            QueryCapability.EXACT_MATCH,
+        )
+        schema.resolve(LogicalField("tags.department"))
+            ?.bindings?.getValue(QueryCapability.EXACT_MATCH)
+            ?.physicalPath.assert().isEqualTo("tags.department")
     }
 
     @Test
@@ -310,10 +390,27 @@ class MongoQuerySchemaAdapterTest {
                 QueryValueType.INTEGER,
                 semanticType = Temporal.Epoch(TimeUnit.MILLISECONDS),
             ),
+            LogicalField("state.nativeDate") to field(
+                QueryValueType.STRING,
+                semanticType = Temporal.Date,
+            ),
             LogicalField("state.items") to field(
                 QueryValueType.OBJECT,
                 cardinality = QueryCardinality.MANY,
             ),
+            LogicalField("tags") to field(
+                QueryValueType.OBJECT,
+                dynamicChildren = true,
+            ),
+        ),
+    )
+
+    private fun bindState(properties: Document) = MongoQuerySchemaAdapter.bind(
+        logicalSchema(),
+        emptyList(),
+        Document(
+            "properties",
+            Document("state", Document("bsonType", "object").append("properties", properties)),
         ),
     )
 
@@ -335,6 +432,7 @@ class MongoQuerySchemaAdapterTest {
         valueType: QueryValueType,
         cardinality: QueryCardinality = QueryCardinality.SINGLE,
         semanticType: Temporal? = null,
+        dynamicChildren: Boolean = false,
     ) = LogicalQueryFieldSchema(
         title = null,
         description = null,
@@ -344,7 +442,7 @@ class MongoQuerySchemaAdapterTest {
         required = true,
         cardinality = cardinality,
         semanticType = semanticType,
-        dynamicChildren = false,
+        dynamicChildren = dynamicChildren,
     )
 
     private fun indexes(vararg values: Document): ListIndexesPublisher<Document> = mockk {

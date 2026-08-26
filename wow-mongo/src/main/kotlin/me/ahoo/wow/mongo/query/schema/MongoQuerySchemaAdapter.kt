@@ -67,7 +67,7 @@ class MongoQuerySchemaAdapter(
             indexes: List<Document>,
             validatorSchema: Document?,
         ): QueryModelSchema {
-            val storageTypes = validatorSchema.storageTypes()
+            val storageSchemas = validatorSchema.storageSchemas()
             val capabilities = if (indexes.hasTextIndex()) {
                 setOf(QueryCapability.FULL_TEXT_TERMS, QueryCapability.FULL_TEXT_PHRASE)
             } else {
@@ -78,9 +78,12 @@ class MongoQuerySchemaAdapter(
                 capabilities = capabilities,
                 fields = logicalSchema.fields.mapValues { (logicalField, logicalSchema) ->
                     val physicalPath = SnapshotFieldConverter.convert(logicalField.value)
-                    val binding = QueryFieldBinding(physicalPath, storageTypes[physicalPath])
+                    val storageSchema = storageSchemas[physicalPath]
+                    val binding = QueryFieldBinding(physicalPath, storageSchema?.types?.singleOrNull())
                     logicalSchema.toFieldSchema(
-                        logicalSchema.capabilities().associateWith { binding },
+                        logicalSchema.capabilities()
+                            .filter { logicalSchema.supports(it, storageSchema) }
+                            .associateWith { binding },
                     )
                 },
             )
@@ -89,8 +92,10 @@ class MongoQuerySchemaAdapter(
         private fun LogicalQueryFieldSchema.capabilities(): Set<QueryCapability> = buildSet {
             add(QueryCapability.PRESENCE)
             val scalar = QueryValueType.OBJECT !in valueTypes
-            if (scalar) {
+            if (scalar || dynamicChildren) {
                 add(QueryCapability.EXACT_MATCH)
+            }
+            if (scalar) {
                 add(QueryCapability.SORT)
                 add(QueryCapability.AGGREGATE_TERMS)
             }
@@ -108,6 +113,60 @@ class MongoQuerySchemaAdapter(
             if (cardinality == QueryCardinality.MANY && QueryValueType.OBJECT in valueTypes) {
                 add(QueryCapability.ELEMENT_SCOPE)
             }
+        }
+
+        private fun LogicalQueryFieldSchema.supports(
+            capability: QueryCapability,
+            storageSchema: MongoStorageSchema?,
+        ): Boolean {
+            if (capability == QueryCapability.PRESENCE || storageSchema == null) return true
+            val valueTypes = if (cardinality == QueryCardinality.MANY) {
+                if (!storageSchema.types.allKnown { it.value == "array" }) return false
+                storageSchema.itemTypes
+            } else {
+                storageSchema.types
+            }
+            return valueTypes.allKnown { supports(capability, it) }
+        }
+
+        private fun LogicalQueryFieldSchema.supports(
+            capability: QueryCapability,
+            storageType: QueryStorageType,
+        ): Boolean = when (capability) {
+            QueryCapability.LITERAL_MATCH ->
+                storageType.value == "string" && isValueCompatible(storageType)
+
+            QueryCapability.AGGREGATE_NUMERIC ->
+                storageType.value in NUMERIC_TYPES && isValueCompatible(storageType)
+
+            QueryCapability.AGGREGATE_TEMPORAL -> isTemporalCompatible(storageType)
+            QueryCapability.ELEMENT_SCOPE ->
+                QueryValueType.OBJECT in valueTypes && storageType.value == "object"
+
+            else -> isValueCompatible(storageType)
+        }
+
+        private fun LogicalQueryFieldSchema.isValueCompatible(storageType: QueryStorageType): Boolean =
+            when (semanticType) {
+                Temporal.Date -> storageType.value in DATE_TYPES
+                is Temporal.Epoch -> storageType.value in INTEGRAL_TYPES
+                else -> valueTypes.any { logicalType -> logicalType.supports(storageType) }
+            }
+
+        private fun LogicalQueryFieldSchema.isTemporalCompatible(storageType: QueryStorageType): Boolean =
+            when (semanticType) {
+                Temporal.Date -> storageType.value in DATE_TYPES
+                is Temporal.Epoch -> storageType.value in INTEGRAL_TYPES
+                else -> false
+            }
+
+        private fun QueryValueType.supports(storageType: QueryStorageType): Boolean = when (this) {
+            QueryValueType.STRING -> storageType.value == "string"
+            QueryValueType.BOOLEAN -> storageType.value == "bool"
+            QueryValueType.OBJECT -> storageType.value == "object"
+            QueryValueType.INTEGER -> storageType.value in INTEGRAL_TYPES
+            QueryValueType.DECIMAL -> storageType.value in NUMERIC_TYPES
+            else -> false
         }
 
         private fun LogicalQueryFieldSchema.toFieldSchema(
@@ -129,37 +188,44 @@ class MongoQuerySchemaAdapter(
             (index["key"] as? Document)?.values?.any { it == "text" } == true
         }
 
-        private fun Document?.storageTypes(): Map<String, QueryStorageType> {
+        private fun Document?.storageSchemas(): Map<String, MongoStorageSchema> {
             if (this == null) return emptyMap()
-            return buildMap { collectStorageTypes(this@storageTypes, path = null, includeType = false) }
+            return buildMap { collectStorageSchemas(this@storageSchemas, path = null, includeType = false) }
         }
 
-        private fun MutableMap<String, QueryStorageType>.collectStorageTypes(
+        private fun MutableMap<String, MongoStorageSchema>.collectStorageSchemas(
             schema: Document,
             path: String?,
             includeType: Boolean,
         ) {
             if (includeType && path != null) {
-                schema.storageType()?.let { put(path, it) }
+                val types = schema.storageTypes()
+                val itemTypes = schema.document("items")?.storageTypes()
+                if (types != null || itemTypes != null) {
+                    put(path, MongoStorageSchema(types, itemTypes))
+                }
             }
             schema.document("properties")?.forEach { (name, child) ->
                 (child as? Document)?.let {
-                    collectStorageTypes(it, path.child(name), includeType = true)
+                    collectStorageSchemas(it, path.child(name), includeType = true)
                 }
             }
             schema.document("items")?.let {
-                collectStorageTypes(it, path, includeType = false)
+                collectStorageSchemas(it, path, includeType = false)
             }
         }
 
-        private fun Document.storageType(): QueryStorageType? {
-            val type = when (val declared = this["bsonType"]) {
-                is String -> declared
-                is Iterable<*> -> declared.filterIsInstance<String>().filter { it != "null" }.distinct().singleOrNull()
+        private fun Document.storageTypes(): Set<QueryStorageType>? =
+            when (val declared = this["bsonType"]) {
+                is String -> setOfNotNull(declared.takeUnless { it == "null" }?.let(::QueryStorageType))
+                is Iterable<*> -> declared.filterIsInstance<String>()
+                    .filter { it != "null" }
+                    .mapTo(linkedSetOf(), ::QueryStorageType)
                 else -> null
             }
-            return type?.let(::QueryStorageType)
-        }
+
+        private fun Set<QueryStorageType>?.allKnown(predicate: (QueryStorageType) -> Boolean): Boolean =
+            this == null || isNotEmpty() && all(predicate)
 
         private fun String?.child(name: String): String = if (this == null) name else "$this.$name"
 
@@ -168,5 +234,14 @@ class MongoQuerySchemaAdapter(
         private fun Document.validatorSchema(): Document? = document("options")
             ?.document("validator")
             ?.document("\$jsonSchema")
+
+        private data class MongoStorageSchema(
+            val types: Set<QueryStorageType>?,
+            val itemTypes: Set<QueryStorageType>?,
+        )
+
+        private val INTEGRAL_TYPES = setOf("int", "long")
+        private val NUMERIC_TYPES = INTEGRAL_TYPES + setOf("double", "decimal", "number")
+        private val DATE_TYPES = setOf("date", "timestamp")
     }
 }

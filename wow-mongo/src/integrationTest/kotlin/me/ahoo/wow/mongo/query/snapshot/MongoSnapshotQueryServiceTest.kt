@@ -37,6 +37,7 @@ import me.ahoo.wow.query.schema.QuerySchemaSourcePriority
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
+import me.ahoo.wow.query.snapshot.filter.AbacQueryFilter.Companion.toFilterExpression
 import me.ahoo.wow.query.snapshot.query
 import me.ahoo.wow.tck.container.MongoTestFixture
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -164,6 +165,31 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         strictService.dynamicList(
             ListQuery(filter = filterExpression { "state.unknown" eq "value" }, limit = 10),
         ).test().expectError(QuerySchemaValidationException::class.java).verify()
+    }
+
+    @Test
+    fun `strict should execute the built-in ABAC tags filter shape`() {
+        database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
+            .updateOne(
+                Document("_id", snapshot.aggregateId.id),
+                Document(
+                    "\$set",
+                    Document("tags.visibility", listOf("public"))
+                        .append("tags.department", listOf("eng")),
+                ),
+            ).toMono().test().expectNextCount(1).verifyComplete()
+        val strictService = MongoSnapshotQueryServiceFactory(
+            database,
+            schemaSources = querySchemaSources,
+            validationMode = QuerySchemaValidationMode.STRICT,
+        ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+        val abacFilter = mapOf(
+            "visibility" to listOf("*"),
+            "department" to listOf("eng"),
+        ).toFilterExpression()
+
+        strictService.dynamicList(ListQuery(filter = abacFilter, limit = 10))
+            .test().expectNextCount(1).verifyComplete()
     }
 
     @Test
