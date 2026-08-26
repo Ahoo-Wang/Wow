@@ -105,11 +105,16 @@ private class JsonSchemaWalker(
     private val fields = linkedMapOf<LogicalField, QueryFieldDeclaration>()
 
     fun declaration(): QuerySchemaDeclaration {
+        val stateField = LogicalField(StateAggregateRecords.STATE)
         val rootNodes = rootSchema.effectiveNodes()
-        fields[LogicalField(StateAggregateRecords.STATE)] = QueryFieldDeclaration(
-            title = DeclarationValue.Set(rootNodes.firstText("title")),
-            description = DeclarationValue.Set(rootNodes.firstText("description")),
-            enumValues = DeclarationValue.Set(rootNodes.firstEnumValues()),
+        fields[stateField] = QueryFieldDeclaration(
+            title = DeclarationValue.Set(rootNodes.consistentValue(stateField, "title") { it.textValueOrNull("title") }),
+            description = DeclarationValue.Set(
+                rootNodes.consistentValue(stateField, "description") { it.textValueOrNull("description") },
+            ),
+            enumValues = DeclarationValue.Set(
+                rootNodes.consistentValue(stateField, "enumValues", JsonNode::enumValuesOrNull),
+            ),
             dynamicChildren = DeclarationValue.Set(rootNodes.any(JsonNode::hasAdditionalProperties)),
         )
         rootSchema.collectProperties(StateAggregateRecords.STATE, setOf("#"))
@@ -129,7 +134,10 @@ private class JsonSchemaWalker(
             if (propertyName.isLogicalFieldSegment() && !propertySchema.isWriteOnly()) {
                 val fullName = "$parentName.$propertyName"
                 val field = LogicalField(fullName)
-                fields.merge(field, propertySchema.toDeclaration(propertyName in parentRequired)) { current, next ->
+                fields.merge(
+                    field,
+                    propertySchema.toDeclaration(field, propertyName in parentRequired),
+                ) { current, next ->
                     current.mergeStructural(next, field)
                 }
                 propertySchema.collectProperties(fullName, resolvingReferences)
@@ -148,7 +156,10 @@ private class JsonSchemaWalker(
         get("items")?.collectProperties(parentName, resolvingReferences)
     }
 
-    private fun JsonNode.toDeclaration(required: Boolean): QueryFieldDeclaration {
+    private fun JsonNode.toDeclaration(
+        field: LogicalField,
+        required: Boolean,
+    ): QueryFieldDeclaration {
         val nodes = effectiveNodes()
         val arrayShape = nodes.any(JsonNode::isArrayShape)
         val itemNodes = if (arrayShape) {
@@ -158,8 +169,10 @@ private class JsonSchemaWalker(
         }
         val shapeNodes = if (arrayShape) nodes + itemNodes else nodes
         val valueTypes = shapeNodes.flatMap { it.nonNullValueTypes() }.toSet()
-        val temporalUnit = (nodes + itemNodes).firstText(TEMPORAL_UNIT)
-        val inferredTemporal = shapeNodes.firstNotNullOfOrNull(JsonNode::inferredTemporal)
+        val temporalUnit = (nodes + itemNodes).consistentValue(field, "semanticType") {
+            it.textValueOrNull(TEMPORAL_UNIT)
+        }
+        val inferredTemporal = shapeNodes.consistentValue(field, "semanticType", JsonNode::inferredTemporal)
         val semanticType = temporalUnit?.let { unit ->
             if (valueTypes != setOf(QueryValueType.INTEGER)) {
                 throw QuerySchemaConflictException(
@@ -169,9 +182,13 @@ private class JsonSchemaWalker(
             Temporal.Epoch(TimeUnit.valueOf(unit))
         } ?: inferredTemporal
         return QueryFieldDeclaration(
-            title = DeclarationValue.Set(nodes.firstText("title")),
-            description = DeclarationValue.Set(nodes.firstText("description")),
-            enumValues = DeclarationValue.Set(nodes.firstEnumValues()),
+            title = DeclarationValue.Set(nodes.consistentValue(field, "title") { it.textValueOrNull("title") }),
+            description = DeclarationValue.Set(
+                nodes.consistentValue(field, "description") { it.textValueOrNull("description") },
+            ),
+            enumValues = DeclarationValue.Set(
+                nodes.consistentValue(field, "enumValues", JsonNode::enumValuesOrNull),
+            ),
             valueTypes = DeclarationValue.Set(valueTypes),
             nullable = DeclarationValue.Set(nodes.any(JsonNode::allowsNull)),
             required = DeclarationValue.Set(required),
@@ -363,9 +380,17 @@ private fun JsonNode.arrayItems(): List<JsonNode> = buildList {
     }
 }
 
-private fun List<JsonNode>.firstText(name: String): String? = firstNotNullOfOrNull { it.textValueOrNull(name) }
-
-private fun List<JsonNode>.firstEnumValues(): List<JsonNode>? = firstNotNullOfOrNull(JsonNode::enumValuesOrNull)
+private inline fun <T : Any> List<JsonNode>.consistentValue(
+    field: LogicalField,
+    leaf: String,
+    value: (JsonNode) -> T?,
+): T? {
+    val values = mapNotNull(value).distinct()
+    if (values.size > 1) {
+        throw QuerySchemaConflictException("Conflicting query schema declaration: [$field.$leaf].")
+    }
+    return values.singleOrNull()
+}
 
 private fun String.isLogicalFieldSegment(): Boolean =
     '.' !in this && runCatching { LogicalField(this) }.isSuccess

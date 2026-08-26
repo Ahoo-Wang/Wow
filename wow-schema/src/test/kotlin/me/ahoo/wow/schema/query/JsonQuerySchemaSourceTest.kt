@@ -189,6 +189,31 @@ class JsonQuerySchemaSourceTest {
     }
 
     @Test
+    fun `should reject conflicting container metadata independent of branch order`() {
+        listOf(ForwardMetadataState::class.java, ReverseMetadataState::class.java).forEach { type ->
+            assertThrows<QuerySchemaConflictException> { load(type) }
+        }
+    }
+
+    @Test
+    fun `should reject conflicting container enums independent of branch order`() {
+        listOf(ForwardEnumState::class.java, ReverseEnumState::class.java).forEach { type ->
+            assertThrows<QuerySchemaConflictException> { load(type) }
+        }
+    }
+
+    @Test
+    fun `should retain equal container metadata and semantic type`() {
+        val declaration = load(EqualContainerMetadataState::class.java)
+
+        declaration.field("state.metadata").let { metadata ->
+            metadata.title.assert().isEqualTo(DeclarationValue.Set("Shared title"))
+            metadata.description.assert().isEqualTo(DeclarationValue.Set("Shared description"))
+        }
+        declaration.field("state.temporal").semanticType.assert().isEqualTo(DeclarationValue.Set(Temporal.Date))
+    }
+
+    @Test
     fun `should retain recursive fields without repeating descendants`() {
         val declaration = load(RecursiveState::class.java)
 
@@ -444,6 +469,49 @@ private data class SecondTitledBranch(
     @field:Schema(title = "Second")
     val value: String,
 )
+
+private data class ForwardMetadataState(
+    @field:Schema(oneOf = [FirstMetadataBranch::class, SecondMetadataBranch::class])
+    val value: RepeatedValue,
+)
+
+private data class ReverseMetadataState(
+    @field:Schema(oneOf = [SecondMetadataBranch::class, FirstMetadataBranch::class])
+    val value: RepeatedValue,
+)
+
+@Schema(title = "First title", description = "First description")
+private class FirstMetadataBranch
+
+@Schema(title = "Second title", description = "Second description")
+private class SecondMetadataBranch
+
+private data class ForwardEnumState(
+    @field:Schema(oneOf = [FirstChoice::class, SecondChoice::class])
+    val value: RepeatedValue,
+)
+
+private data class ReverseEnumState(
+    @field:Schema(oneOf = [SecondChoice::class, FirstChoice::class])
+    val value: RepeatedValue,
+)
+
+private enum class FirstChoice { FIRST, SHARED }
+
+private enum class SecondChoice { SECOND, SHARED }
+
+private data class EqualContainerMetadataState(
+    @field:Schema(oneOf = [SharedMetadataFirst::class, SharedMetadataSecond::class])
+    val metadata: RepeatedValue,
+    @field:Schema(oneOf = [LocalDate::class, Instant::class])
+    val temporal: RepeatedValue,
+)
+
+@Schema(title = "Shared title", description = "Shared description")
+private class SharedMetadataFirst
+
+@Schema(title = "Shared title", description = "Shared description")
+private class SharedMetadataSecond
 
 private data class RecursiveState(
     val name: String,
