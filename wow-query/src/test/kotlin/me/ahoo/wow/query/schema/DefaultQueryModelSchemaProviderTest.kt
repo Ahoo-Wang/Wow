@@ -130,26 +130,39 @@ class DefaultQueryModelSchemaProviderTest {
     }
 
     @Test
-    fun `cancelled refresh should allow a new generation`() {
-        val firstResult = Sinks.one<QuerySchemaDeclaration>()
+    fun `cancelled refresh should retain one generation until it terminates`() {
+        val cancelledResult = Sinks.one<QuerySchemaDeclaration>()
+        val resumedResult = Sinks.one<QuerySchemaDeclaration>()
         val generation = AtomicInteger()
         val source = CountingSource(
             refreshedDeclarations = {
-                if (generation.getAndIncrement() == 0) {
-                    firstResult.asMono().flux()
-                } else {
-                    Flux.just(QuerySchemaDeclaration(emptyMap()))
+                when (generation.getAndIncrement()) {
+                    0 -> cancelledResult.asMono().flux()
+                    1 -> resumedResult.asMono().flux()
+                    else -> Flux.just(QuerySchemaDeclaration(emptyMap()))
                 }
             },
         )
         val adapter = CountingAdapter()
         val provider = provider(source, adapter)
 
-        provider.refresh().subscribe().dispose()
-        provider.refresh().block().assert().isNotNull()
+        val refresh = provider.refresh()
+        refresh.subscribe().dispose()
+        val resumed = provider.refresh()
+        resumed.assert().isSameAs(refresh)
+
+        val first = refresh.toFuture()
+        val second = resumed.toFuture()
+        resumedResult.tryEmitValue(QuerySchemaDeclaration(emptyMap())).assert().isEqualTo(Sinks.EmitResult.OK)
+        val shared = first.get(1, TimeUnit.SECONDS)
+        shared.assert().isSameAs(second.get(1, TimeUnit.SECONDS))
 
         source.refreshes.get().assert().isEqualTo(2)
         adapter.refreshes.get().assert().isEqualTo(1)
+
+        provider.refresh().block()!!.assert().isNotSameAs(shared)
+        source.refreshes.get().assert().isEqualTo(3)
+        adapter.refreshes.get().assert().isEqualTo(2)
     }
 
     @Test

@@ -68,7 +68,6 @@ class DefaultQueryModelSchemaProvider(
                 refreshLoad.compareAndSet(candidate, null)
             }
             .doOnError { refreshLoad.compareAndSet(candidate, null) }
-            .doOnCancel { refreshLoad.compareAndSet(candidate, null) }
             .share()
         return refreshLoad.compareAndExchange(null, candidate) ?: candidate
     }
