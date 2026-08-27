@@ -172,6 +172,18 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
                 physicalParent,
             ).compatibility
         }
+        query.metrics.filterIsInstance<AggregationMetric.Any>().forEach { metric ->
+            val resolved = resolveAggregationField(
+                metric.field,
+                QueryCapability.AGGREGATE_TERMS,
+                logicalParent,
+                physicalParent,
+            )
+            levels += resolved.compatibility
+            if (resolved.fieldSchema?.cardinality == QueryCardinality.MANY) {
+                levels += QueryCompatibilityLevel.INCOMPATIBLE
+            }
+        }
         query.metrics.filterIsInstance<AggregationMetric.Numeric>().forEach { metric ->
             collectExpressionLevels(metric.expression, logicalParent, physicalParent, levels)
         }

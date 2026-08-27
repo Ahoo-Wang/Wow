@@ -1178,6 +1178,45 @@ class QuerySchemaResolverTest {
         )
     }
 
+    @Test
+    fun `aggregation any should require a single terms-capable field in the innermost element`() {
+        val productName = LogicalField("state.orders.lines.productName")
+        val baseFields = linkedMapOf(
+            LogicalField("state.orders") to fieldSchema(
+                QueryCapability.ELEMENT_SCOPE to "document.orders",
+                cardinality = QueryCardinality.MANY,
+                valueTypes = setOf(QueryValueType.OBJECT),
+            ),
+            LogicalField("state.orders.lines") to fieldSchema(
+                QueryCapability.ELEMENT_SCOPE to "document.orders.lines",
+                cardinality = QueryCardinality.MANY,
+                valueTypes = setOf(QueryValueType.OBJECT),
+            ),
+            productName to fieldSchema(
+                QueryCapability.AGGREGATE_TERMS to "document.orders.lines.productName.keyword",
+                valueTypes = setOf(QueryValueType.STRING),
+            ),
+        )
+        val query = AggregationQuery(
+            elements = listOf(
+                AggregationElement(LogicalField("state.orders")),
+                AggregationElement(LogicalField("lines")),
+            ),
+            metrics = listOf(AggregationMetric.Any(LogicalField("productName"), "productName")),
+        )
+
+        QuerySchemaResolver(schema(baseFields)).resolve(query).compatibility.assert()
+            .isEqualTo(QueryCompatibilityLevel.EXACT)
+
+        val manyField = baseFields.getValue(productName).copy(cardinality = QueryCardinality.MANY)
+        QuerySchemaResolver(schema(baseFields + (productName to manyField)))
+            .resolve(query).compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+
+        val withoutTerms = baseFields.getValue(productName).copy(bindings = emptyMap())
+        QuerySchemaResolver(schema(baseFields + (productName to withoutTerms)))
+            .resolve(query).compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+    }
+
     private fun schema(
         fields: Map<LogicalField, QueryFieldSchema> = emptyMap(),
         capabilities: Set<QueryCapability> = emptySet(),
