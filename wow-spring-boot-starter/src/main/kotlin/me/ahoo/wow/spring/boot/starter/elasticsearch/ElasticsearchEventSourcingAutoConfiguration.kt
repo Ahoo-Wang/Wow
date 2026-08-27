@@ -138,12 +138,18 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
     @Bean
     @ConditionalOnEventStoreStorage(StorageType.ELASTICSEARCH)
     fun elasticsearchEventStreamQueryServiceFactory(
-        elasticsearchClient: ReactiveElasticsearchClient
+        elasticsearchClient: ReactiveElasticsearchClient,
+        elasticsearchIndexMappingResolver: ElasticsearchIndexMappingResolver,
+        sources: List<QuerySchemaSource>,
+        schemaQueryProperties: QueryProperties,
     ): ElasticsearchEventStreamQueryServiceFactory {
         return ElasticsearchEventStreamQueryServiceFactory(
             elasticsearchClient,
             queryProperties.batchSize,
             queryProperties.keepAlive,
+            elasticsearchIndexMappingResolver,
+            sources,
+            schemaQueryProperties.schema.validationMode,
         )
     }
 
@@ -206,8 +212,6 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
     }
 
     @Bean
-    @ConditionalOnSnapshotEnabled
-    @ConditionalOnSnapshotStoreStorage(StorageType.ELASTICSEARCH)
     @ConditionalOnMissingBean
     fun elasticsearchIndexMappingResolver(
         elasticsearchClient: ReactiveElasticsearchClient,
