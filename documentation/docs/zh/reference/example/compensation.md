@@ -1,76 +1,124 @@
 ---
-title: 事件补偿示例
-description: 一个使用 Wow 构建的真实补偿应用，展示如何处理和恢复由事件处理失败导致的数据不一致。
+title: 事件补偿案例
+description: 从真实补偿过滤器、ExecutionFailed 聚合、调度器、生成客户端和 dashboard 追踪失败恢复闭环。
+outline: deep
 ---
 
 # 事件补偿
 
-_[事件补偿](https://github.com/Ahoo-Wang/Wow/tree/main/compensation)_ 是一个基于 _Wow_ 框架开发的真实应用案例，用于处理和恢复因事件处理失败而导致的数据不一致性。
+[`compensation`](https://github.com/Ahoo-Wang/Wow/tree/main/compensation) 本身就是一个 Wow 应用：订阅函数失败时创建 `ExecutionFailed` 聚合，调度器或人工操作准备重试，框架重新投递原事件，并把新结果写回同一聚合。
 
 ## 模块划分
 
-| 模块                      | 说明                                                                                       |
-|-------------------------|------------------------------------------------------------------------------------------|
-| wow-compensation-api    | API 层，定义聚合命令（Command）、领域事件（Domain Event）以及查询视图模型（Query View Model）。                       |
-| wow-compensation-core   | 核心层，包含补偿机制的核心实现。                                                                         |
-| wow-compensation-domain | 领域层，包含聚合根和业务约束的实现。                                                                       |
-| wow-compensation-server | 宿主服务，应用程序的启动点。负责整合其他模块，并提供应用程序的入口。                                                       |
-| dashboard               | 前端控制台，基于 React + TypeScript + Vite 开发，提供可视化的事件补偿管理界面。                                           |
+```mermaid
+flowchart LR
+    API[wow-compensation-api<br/>commands / events / state contract]
+    CORE[wow-compensation-core<br/>failure filter / re-execution]
+    DOMAIN[wow-compensation-domain<br/>ExecutionFailed aggregate]
+    SERVER[wow-compensation-server<br/>scheduler / query / hosting]
+    UI[dashboard<br/>query / prepare / force prepare]
+    API --> CORE
+    API --> DOMAIN
+    CORE --> SERVER
+    DOMAIN --> SERVER
+    SERVER --> UI
+```
+
+| 模块 | 责任 | 精确源码 |
+| --- | --- | --- |
+| `wow-compensation-api` | `ExecutionFailed` 命令、事件、状态和重试规格 | [`api` 包](https://github.com/Ahoo-Wang/Wow/tree/main/compensation/wow-compensation-api/src/main/kotlin/me/ahoo/wow/compensation/api) |
+| `wow-compensation-core` | 捕获处理失败、创建/更新失败记录、重新投递原事件 | [`CompensationFilter.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-core/src/main/kotlin/me/ahoo/wow/compensation/core/CompensationFilter.kt#L47-L126)、[`CompensationEventProcessor.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-core/src/main/kotlin/me/ahoo/wow/compensation/core/CompensationEventProcessor.kt#L27-L56) |
+| `wow-compensation-domain` | `ExecutionFailed` 决策、状态机和退避计算 | [`ExecutionFailed.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-domain/src/main/kotlin/me/ahoo/wow/compensation/domain/ExecutionFailed.kt#L36-L142)、[`ExecutionFailedState.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-domain/src/main/kotlin/me/ahoo/wow/compensation/domain/ExecutionFailedState.kt#L35-L99) |
+| `wow-compensation-server` | 查询到期失败项并发送准备命令 | [`CompensationScheduler.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-server/src/main/kotlin/me/ahoo/wow/compensation/server/scheduler/CompensationScheduler.kt#L29-L76)、[`SnapshotFindNextRetry.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-server/src/main/kotlin/me/ahoo/wow/compensation/server/failed/SnapshotFindNextRetry.kt) |
+| `dashboard` | 失败队列、详情、重试规格、准备与强制准备 | [`FailedView.tsx`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/FailedView.tsx)、[`Actions.tsx`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/Actions.tsx#L64-L224) |
 
 ## 架构概览
 
-补偿系统本身就是一个基于 Wow 的应用。当任意订阅方服务的事件处理器失败时，补偿基础设施将该失败记录为 `ExecutionFailed` 聚合，并使用指数退避自动重试。
-
 ```mermaid
-flowchart TB
-    subgraph Subscriber["订阅方服务（任意 Wow 应用）"]
-        EH["@EventProcessor / @ProjectionProcessor / @StatelessSaga<br>处理器抛出异常"]
-        CE["CompensationFilter<br>(wow-compensation-core)"]
-        EH -->|"onError"| CE
-        CE -->|"CreateExecutionFailed"| ES[(事件存储)]
+sequenceDiagram
+    participant Handler as Event/Saga/Projection Handler
+    participant Filter as EventCompensationFilter
+    participant Failed as ExecutionFailed
+    participant Scheduler
+    participant Processor as CompensationEventProcessor
+    Handler--xFilter: throws
+    Filter->>Failed: CreateExecutionFailed
+    Scheduler->>Failed: PrepareCompensation
+    Failed-->>Processor: CompensationPrepared
+    Processor->>Handler: re-deliver original event
+    alt succeeds
+        Filter->>Failed: ApplyExecutionSuccess
+    else fails again
+        Filter->>Failed: ApplyExecutionFailed
     end
-
-    subgraph CompensationServer["补偿服务"]
-        SCHED["分布式调度器"]
-        EF["ExecutionFailed 聚合"]
-        REEXEC["CompensationEventProcessor<br>重新执行原始事件"]
-        SCHED -->|"PrepareCompensation"| EF
-        EF -->|"CompensationPrepared"| REEXEC
-        REEXEC -->|"ApplyExecutionSuccess / ApplyExecutionFailed"| EF
-    end
-
-    ES -->|"ExecutionFailedCreated"| SCHED
-    DASH["补偿控制台<br>(React)"]
-    EF --> DASH
 ```
 
 ### 工作原理
 
-1. **失败检测**：当订阅方的事件处理器抛出异常时，由 `wow-compensation-core` 注册的 `CompensationFilter` 捕获错误，发送 `CreateExecutionFailed` 命令，创建一个 `ExecutionFailed` 聚合，记录事件 ID、处理器、函数、错误信息和重试规格。
+1. [`EventCompensationFilter`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-core/src/main/kotlin/me/ahoo/wow/compensation/core/CompensationFilter.kt#L68-L126) 位于事件处理、Saga、投影和快照链路；函数抛错且未显式关闭重试时，它记录 eventId、函数、错误、执行时间、重试规格和 recoverable。
+2. 首次失败发送 `CreateExecutionFailed`；补偿重放再次失败时，header 中已有 compensationId，改发 `ApplyExecutionFailed`。重放成功则发 `ApplyExecutionSuccess`。
+3. [`SnapshotFindNextRetry`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-server/src/main/kotlin/me/ahoo/wow/compensation/server/failed/SnapshotFindNextRetry.kt) 只选择可恢复/未知、未超过重试阈值且已到 `nextRetryAt` 的记录；PREPARED 记录还必须超时。
+4. [`CompensationEventProcessor`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-core/src/main/kotlin/me/ahoo/wow/compensation/core/CompensationEventProcessor.kt#L36-L56) 只重放本地聚合的原事件版本，并把目标函数和失败记录 ID 作为补偿目标。
 
-2. **自动重试**：补偿服务的分布式调度器查询待处理的 `ExecutionFailed` 聚合（status=FAILED, nextRetryAt ≤ now），发送 `PrepareCompensation` 命令。`NextRetryAtCalculator` 使用指数退避（`minBackoff * 2^retries`）计算下一次重试时间。
+```text
+CreateExecutionFailed -> FAILED
+Prepare/ForcePrepare  -> PREPARED
+ApplyExecutionFailed  -> FAILED
+ApplyExecutionSuccess -> SUCCEEDED
+```
 
-3. **重新执行**：`CompensationEventProcessor` 处理 `CompensationPrepared` 事件，将原始领域事件重新投递给目标处理器，并根据结果发送 `ApplyExecutionSuccess` 或 `ApplyExecutionFailed`。
-
-4. **状态机**：每个 `ExecutionFailed` 经过 `FAILED → PREPARED → SUCCEEDED`（或回到 `FAILED` 进行下一轮重试）的状态转换。
+`RetryState` 保存 `retries`、`retryAt`、`timeoutAt`、`nextRetryAt`；[`NextRetryAtCalculator`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-domain/src/main/kotlin/me/ahoo/wow/compensation/domain/NextRetryAtCalculator.kt) 使用 `minBackoff * 2^retries` 秒并对负数和溢出做校验。
 
 ### ExecutionFailed 聚合命令
 
-| 命令 | 触发方式 | 效果 |
-|---|---|---|
-| `CreateExecutionFailed` | 处理器错误（自动） | 创建失败记录，包含重试规格 |
-| `PrepareCompensation` | 调度器触发 | 标记执行为待重试，计算下次重试时间 |
-| `ForcePrepareCompensation` | 控制台手动操作 | 强制立即准备重试 |
-| `ApplyExecutionFailed` | 重新执行失败 | 记录新错误，调度下次重试 |
-| `ApplyExecutionSuccess` | 重新执行成功 | 标记执行为 SUCCEEDED |
-| `ApplyRetrySpec` | 控制台配置变更 | 更新 maxRetries/minBackoff/executionTimeout |
+| 命令 | 领域决策 | 事件/结果 |
+| --- | --- | --- |
+| `CreateExecutionFailed` | 校验/补全重试规格，计算初始 retryState | `ExecutionFailedCreated`, `FAILED` |
+| `PrepareCompensation` | `canRetry()` 才允许 | `CompensationPrepared`, `PREPARED` |
+| `ForcePrepareCompensation` | 忽略重试次数阈值，但成功项仍不可重试；PREPARED 必须已超时 | `CompensationPrepared` |
+| `ApplyExecutionFailed` | 仅 `PREPARED` 可写入 | `ExecutionFailedApplied`, 回到 `FAILED` |
+| `ApplyExecutionSuccess` | 仅 `PREPARED` 可写入 | `ExecutionSuccessApplied`, `SUCCEEDED` |
+| `ApplyRetrySpec` | 非负且不能产生时间溢出 | `RetrySpecApplied` |
+| `MarkRecoverable` / `ChangeFunction` | 新值必须与当前值不同 | `RecoverableMarked` / `FunctionChanged` |
 
 ## 功能特性
 
-- **分布式自动补偿**：智能解决系统数据最终一致性问题
-- **可视化控制台**：直观监控和管理补偿事件
-- **企业微信通知**：及时接收执行失败通知
-- **OpenAPI 接口**：方便集成和调用
+先验证领域、补偿过滤器和控制台：
+
+```shell
+./gradlew :wow-compensation-domain:check :wow-compensation-core:check
+pnpm --dir compensation/dashboard test
+```
+
+预期 Gradle 和 Vitest 都成功退出。领域状态机的主证据是 [`ExecutionFailedSpec`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-domain/src/test/kotlin/me/ahoo/wow/compensation/domain/ExecutionFailedSpec.kt#L61-L376)；过滤器的首次失败、再次失败和成功写回由 [`CompensationFilterTest`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-core/src/test/kotlin/me/ahoo/wow/compensation/core/CompensationFilterTest.kt) 覆盖。
+
+服务需要可用的持久化配置；配置完成后运行：
+
+```shell
+./gradlew :wow-compensation-server:run
+pnpm --dir compensation/dashboard dev
+```
+
+不要从上下文名猜命令 URL。dashboard 的当前[生成 OpenAPI 客户端](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/generated/compensation/execution_failed/commandClient.ts#L8-L20) 明确给出：
+
+```text
+PUT /execution_failed/{id}/prepare_compensation
+PUT /execution_failed/{id}/force_prepare_compensation
+PUT /execution_failed/{id}/apply_retry_spec
+```
+
+对一个已存在且可重试的失败记录执行：
+
+```shell
+curl -X PUT \
+  'http://localhost:8080/execution_failed/<execution-id>/prepare_compensation' \
+  -H 'Command-Wait-Stage: PROCESSED' \
+  -H 'Command-Request-Id: prepare-<execution-id>'
+```
+
+预期命令结果 `succeeded=true`、`stage=PROCESSED`，dashboard 刷新后状态为 `PREPARED`；处理器重放成功后变为 `SUCCEEDED`，再次失败则回到 `FAILED` 并更新错误与下一次重试时间。dashboard 实际调用与成功/失败提示见 [`Actions.tsx`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/Actions.tsx#L72-L119)。
+
+失败行为必须保留：对 PREPARED 记录重复普通 prepare 会被拒绝；对 FAILED/SUCCEEDED 记录直接 apply success/failure 会得到 `ExecutionFailed is not prepared.`；超过重试次数后普通 prepare 关闭，但 force prepare 仍受成功状态和 PREPARED 超时约束；负重试值或指数退避溢出会在聚合内失败。dashboard 的按钮禁用只是提示，最终决定仍由服务端状态机作出。
 
 ## 控制台截图
 
@@ -78,4 +126,4 @@ flowchart TB
 
 ## 详细文档
 
-关于事件补偿的详细使用说明，请参阅 [事件补偿指南](../../guide/event-compensation)。
+接入、存储、调度和告警配置见[事件补偿指南](../../guide/event-compensation)。本页的完成标准是：三个检查命令通过，能从处理器异常追踪到失败聚合，再从 `CompensationPrepared` 追踪到成功或再次失败，并能用生成客户端证明人工操作路径。

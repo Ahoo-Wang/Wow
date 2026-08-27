@@ -1,365 +1,156 @@
 ---
-title: Bank Account Transfer (JAVA)
-description: A classic DDD bank account transfer scenario implemented with Wow in Java, demonstrating event sourcing and Saga-based distributed transactions.
+title: Bank Account Transfer (Java)
+description: Trace successful and compensating transfer paths through the real Java aggregate, Saga, runtime OpenAPI, and tests.
+outline: deep
 ---
 
-# Bank Account Transfer (JAVA)
+# Bank Account Transfer (Java)
 
-The _[Bank Account Transfer Example](https://github.com/Ahoo-Wang/Wow/tree/main/example/transfer/)_ is a classic Domain-Driven Design (DDD) application scenario. Next, we will learn how to use Wow for domain-driven design and service development through a simple bank account transfer case.
+[`example/transfer`](https://github.com/Ahoo-Wang/Wow/tree/main/example/transfer) implements the account aggregate in Java and coordinates cross-account transfer with a Wow stateless Saga. This page describes only behavior proven by current source, tests, and runtime OpenAPI.
 
 ## Bank Transfer Process
-
-1. Prepare Transfer: User initiates transfer request, triggering the Prepare step. This step sends a prepare transfer request to the source account.
-2. Check Balance: After receiving the prepare transfer request, the source account performs balance checking to ensure sufficient funds for transfer.
-3. Lock Amount: If balance is sufficient, the source account locks the transfer amount to prevent interference from other operations.
-4. Entry: Next, the transfer process enters the target account and performs the entry operation.
-5. Confirm Transfer: If entry succeeds, confirm the transfer; otherwise, execute unlock amount operation.
-    1. Success Path: If everything goes smoothly, complete the transfer process.
-    2. Failure Path: If entry fails, execute unlock amount operation and handle failure situations.
-
-<center>
 
 ```mermaid
 sequenceDiagram
     autonumber
-    title TransferProcessManager (Saga)
     actor User
-    participant SourceAccount
-    participant Saga
-    participant TargetAccount
-    User ->> SourceAccount: Prepare Transfer
-    SourceAccount ->> SourceAccount: Check Balance
-    SourceAccount ->> SourceAccount: Lock Amount
-    SourceAccount -->> Saga: Prepared (Transfer Prepared)
-    SourceAccount -->> User: Prepared (Transfer Prepared)
-    Saga -->> TargetAccount: Entry (Deposit)
-    alt success: Deposit Successful
-        TargetAccount -->> Saga: Entered (Deposited)
-        Saga ->> SourceAccount: Confirm (Confirm Transfer)
-        SourceAccount -> SourceAccount: Confirmed (Transfer Confirmed)
-    else fail: Deposit Failed
-        TargetAccount -->> Saga: EntryFailed (Deposit Failed)
-        Saga ->> SourceAccount: UnlockAmount (Unlock Amount)
-        SourceAccount -> SourceAccount: AmountUnlocked (Amount Unlocked)
+    participant Source as Source Account
+    participant Saga as TransferSaga
+    participant Target as Target Account
+    User->>Source: Prepare(to, amount)
+    Source->>Source: AmountLocked
+    Source-->>Saga: Prepared
+    Saga->>Target: Entry(sourceId, amount)
+    alt target available
+        Target-->>Saga: AmountEntered
+        Saga->>Source: Confirm
+        Source->>Source: Confirmed
+    else target frozen
+        Target-->>Saga: EntryFailed
+        Saga->>Source: UnlockAmount
+        Source->>Source: AmountUnlocked
     end
-
 ```
 
-</center>
-
+On success, the source available balance decreases, its locked amount returns to zero, and the target balance increases. If the target is frozen, the Saga returns the locked amount to the source. This is event-driven compensation, not a cross-aggregate database transaction.
 
 ## Run Example
 
-- Run [TransferExampleServer.java](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-server/src/main/java/me/ahoo/wow/example/transfer/server/TransferExampleServer.java)
-- View Swagger-UI: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
-- Execute API tests: [Transfer.http](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/Transfer.http)
+```mermaid
+flowchart LR
+    API[example-transfer-api<br/>commands / events] --> DOMAIN[example-transfer-domain<br/>Account / AccountState / TransferSaga]
+    DOMAIN --> SERVER[example-transfer-server<br/>Spring Boot / WebFlux]
+```
+
+Start with the infrastructure-free domain check:
+
+```shell
+./gradlew :example-transfer-domain:check
+```
+
+Expect `BUILD SUCCESSFUL`.
+
+The current [`example-transfer-server` application mainClass](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-server/build.gradle.kts#L34-L54) names a missing `ExampleServer`, so `./gradlew :example-transfer-server:run` currently fails with `ClassNotFoundException`. This documentation task does not change Gradle. Start the same distribution with the real [`TransferExampleServer`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-server/src/main/java/me/ahoo/wow/example/transfer/server/TransferExampleServer.java#L23-L35):
+
+```shell
+mkdir -p example/transfer/example-transfer-server/logs
+./gradlew :example-transfer-server:installDist
+
+java \
+  -Dserver.port=8080 \
+  -Dspring.config.location=file:example/transfer/example-transfer-server/src/main/resources/application.yaml \
+  -cp 'example/transfer/example-transfer-server/build/install/example-transfer-server/lib/*' \
+  me.ahoo.wow.example.transfer.server.TransferExampleServer
+```
+
+Expect `Netty started on port 8080` and `Started TransferExampleServer`. The sample uses in-memory command/event buses, EventStore, and SnapshotStore, so account data disappears when the process exits.
 
 ## Auto-Generated API Endpoints
 
-> After running, access Swagger-UI: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html).
-> This RESTful API endpoint is automatically generated by Wow, no manual writing required.
+Current runtime `/v3/api-docs` exposes:
 
-![example-transfer-swagger](/images/example/transfer-swagger.png)
+| Operation | Method and path | operationId |
+| --- | --- | --- |
+| Create account | `POST /account/create_account` | `transfer.account.create_account` |
+| Prepare transfer | `POST /account/{id}/prepare` | `transfer.account.prepare` |
+| Read state | `GET /account/{id}/state` | Generated state route |
+
+These routes also match [`Transfer.http`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/Transfer.http#L1-L77). They are not inferred from the `transfer-service` name.
+
+```shell
+curl -X POST http://localhost:8080/account/create_account \
+  -H 'Content-Type: application/json' \
+  -H 'Command-Wait-Stage: PROCESSED' \
+  -H 'Command-Aggregate-Id: sourceId' \
+  -H 'Command-Request-Id: source-create-1' \
+  -d '{"name":"source","balance":100}'
+
+curl -X POST http://localhost:8080/account/create_account \
+  -H 'Content-Type: application/json' \
+  -H 'Command-Wait-Stage: PROCESSED' \
+  -H 'Command-Aggregate-Id: targetId' \
+  -H 'Command-Request-Id: target-create-1' \
+  -d '{"name":"target","balance":0}'
+
+curl -X POST http://localhost:8080/account/sourceId/prepare \
+  -H 'Content-Type: application/json' \
+  -H 'Command-Wait-Stage: PROCESSED' \
+  -H 'Command-Request-Id: transfer-1' \
+  -d '{"to":"targetId","amount":10}'
+```
+
+All three commands should return `succeeded=true` and `stage=PROCESSED`. The transfer result reports source aggregate version `2`. After the Saga completes:
+
+```shell
+curl http://localhost:8080/account/sourceId/state
+curl http://localhost:8080/account/targetId/state
+```
+
+Expect source `balanceAmount=90, lockedAmount=0` and target `balanceAmount=10`.
 
 ## Module Division
 
-| Module                   | Description                                                                                  |
-|--------------------------|----------------------------------------------------------------------------------------------|
-| example-transfer-api     | API layer, defines aggregate commands (Command), domain events (Domain Event), and query view models (Query View Model). This module acts as the "published language" for communication between modules. |
-| example-transfer-domain  | Domain layer, contains aggregate root and business constraint implementations. Aggregate root: Entry point for domain model, responsible for coordinating domain object operations. Business constraints: Include validation rules, domain event processing, etc. |
-| example-transfer-server  | Host service, application startup point. Responsible for integrating other modules and providing application entry point. Involves configuring dependencies, connecting to databases, starting API services. |
+| Module | Responsibility | Exact source |
+| --- | --- | --- |
+| `example-transfer-api` | Account commands, events, and published language | [`TransferService.java`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-api/src/main/java/me/ahoo/wow/example/transfer/TransferService.java), [`api` package](https://github.com/Ahoo-Wang/Wow/tree/main/example/transfer/example-transfer-api/src/main/java/me/ahoo/wow/example/transfer/api) |
+| `example-transfer-domain` | Account decisions, event sourcing, Saga, and tests | [`Account.java`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-domain/src/main/java/me/ahoo/wow/example/transfer/domain/Account.java#L24-L82), [`TransferSaga.java`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-domain/src/main/java/me/ahoo/wow/example/transfer/domain/TransferSaga.java#L20-L33) |
+| `example-transfer-server` | Spring Boot entry point and WebFlux/OpenAPI wiring | [`TransferExampleServer.java`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-server/src/main/java/me/ahoo/wow/example/transfer/server/TransferExampleServer.java#L23-L35), [`application.yaml`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-server/src/main/resources/application.yaml) |
 
 ## Domain Modeling
 
-The separation design of state aggregate root (`AccountState`) and command aggregate root (`Account`) ensures that the state aggregate root's state is not modified during command execution.
+The minimal domain decision is: lock the source first, enter the target second, then confirm or unlock.
+
+| Command | Event | State result |
+| --- | --- | --- |
+| `CreateAccount` | `AccountCreated` | Initialize name and balanceAmount |
+| `Prepare` | `AmountLocked`, `Prepared` | Decrease available balance and increase lockedAmount |
+| `Entry` | `AmountEntered` or `EntryFailed` | Increase target balance, or leave target unchanged |
+| `Confirm` | `Confirmed` | Decrease source lockedAmount |
+| `UnlockAmount` | `AmountUnlocked` | Return lockedAmount to balanceAmount |
+| `FreezeAccount` / `UnfreezeAccount` | `AccountFrozen` / `AccountUnfrozen` | Toggle frozen |
 
 ### State Aggregate Root (`AccountState`) Modeling
 
-```java
-public class AccountState implements Identifier {
-    private final String id;
-    private String name;
-    /**
-     * 余额
-     */
-    private long balanceAmount = 0L;
-    /**
-     * 已锁定金额
-     */
-    private long lockedAmount = 0L;
-    /**
-     * 账号已冻结标记
-     */
-    private boolean frozen = false;
-
-    @JsonCreator
-    public AccountState(@JsonProperty("id") String id) {
-        this.id = id;
-    }
-
-    @NotNull
-    @Override
-    public String getId() {
-        return id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public long getBalanceAmount() {
-        return balanceAmount;
-    }
-
-    public long getLockedAmount() {
-        return lockedAmount;
-    }
-
-    public boolean isFrozen() {
-        return frozen;
-    }
-
-    void onSourcing(AccountCreated accountCreated) {
-        this.name = accountCreated.name();
-        this.balanceAmount = accountCreated.balance();
-    }
-
-    void onSourcing(AmountLocked amountLocked) {
-        balanceAmount = balanceAmount - amountLocked.amount();
-        lockedAmount = lockedAmount + amountLocked.amount();
-    }
-
-    void onSourcing(AmountEntered amountEntered) {
-        balanceAmount = balanceAmount + amountEntered.amount();
-    }
-
-    void onSourcing(Confirmed confirmed) {
-        lockedAmount = lockedAmount - confirmed.amount();
-    }
-
-    void onSourcing(AmountUnlocked amountUnlocked) {
-        lockedAmount = lockedAmount - amountUnlocked.amount();
-        balanceAmount = balanceAmount + amountUnlocked.amount();
-    }
-
-    void onSourcing(AccountFrozen accountFrozen) {
-        this.frozen = true;
-    }
-
-    void onSourcing(AccountUnfrozen accountUnfrozen) {
-        this.frozen = false;
-    }
-
-}
-```
+[`AccountState`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-domain/src/main/java/me/ahoo/wow/example/transfer/domain/AccountState.java#L24-L89) changes `balanceAmount`, `lockedAmount`, and `frozen` only in `onSourcing`. `AmountLocked` moves money from available to locked; `Confirmed` removes locked money; `AmountUnlocked` removes locked money and restores available money.
 
 ### Command Aggregate Root (`Account`) Modeling
 
-```java
-@StaticTenantId
-@AggregateRoot
-public class Account {
-    private final AccountState state;
-
-    public Account(AccountState state) {
-        this.state = state;
-    }
-
-    AccountCreated onCommand(CreateAccount createAccount) {
-        return new AccountCreated(createAccount.name(), createAccount.balance());
-    }
-
-    @OnCommand(returns = {AmountLocked.class, Prepared.class})
-    List<?> onCommand(Prepare prepare) {
-        checkBalance(prepare.amount());
-        return List.of(new AmountLocked(prepare.amount()), new Prepared(prepare.to(), prepare.amount()));
-    }
-
-    private void checkBalance(long amount) {
-        if (state.isFrozen()) {
-            throw new IllegalStateException("账号已冻结无法转账.");
-        }
-        if (state.getBalanceAmount() < amount) {
-            throw new IllegalStateException("账号余额不足.");
-        }
-    }
-
-    Object onCommand(Entry entry) {
-        if (state.isFrozen()) {
-            return new EntryFailed(entry.sourceId(), entry.amount());
-        }
-        return new AmountEntered(entry.sourceId(), entry.amount());
-    }
-
-    Confirmed onCommand(Confirm confirm) {
-        return new Confirmed(confirm.amount());
-    }
-
-    AmountLocked onCommand(LockAmount lockAmount) {
-        return new AmountLocked(lockAmount.amount());
-    }
-
-    AmountUnlocked onCommand(UnlockAmount unlockAmount) {
-        return new AmountUnlocked(unlockAmount.amount());
-    }
-
-    AccountFrozen onCommand(FreezeAccount freezeAccount) {
-        if (state.isFrozen()) {
-            throw new IllegalStateException("账号已冻结无需再次冻结.");
-        }
-        return new AccountFrozen(freezeAccount.reason());
-    }
-
-    AccountUnfrozen onCommand(UnfreezeAccount unfreezeAccount) {
-        if (!state.isFrozen()) {
-            throw new IllegalStateException("账号未冻结无需解冻.");
-        }
-        return new AccountUnfrozen(unfreezeAccount.reason());
-    }
-}
-```
+[`Account`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-domain/src/main/java/me/ahoo/wow/example/transfer/domain/Account.java#L24-L82) never mutates state directly. `Prepare` rejects a frozen source or insufficient balance before returning `AmountLocked`, then `Prepared`. `Entry` returns the `ErrorInfo` event `EntryFailed` for a frozen target, selecting the Saga's unlock branch.
 
 ### Transfer Process Manager (`TransferSaga`)
 
-The transfer process manager (`TransferSaga`) is responsible for coordinating transfer events and generating corresponding commands.
+[`TransferSaga`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-domain/src/main/java/me/ahoo/wow/example/transfer/domain/TransferSaga.java#L20-L33) has only three mappings:
 
-- `onEvent(Prepared)`: Subscribes to transfer prepared event (`Prepared`) and generates entry command (`Entry`).
-- `onEvent(AmountEntered)`: Subscribes to transfer amount entered event (`AmountEntered`) and generates confirm transfer command (`Confirm`).
-- `onEvent(EntryFailed)`: Subscribes to transfer entry failed event (`EntryFailed`) and generates unlock amount command (`UnlockAmount`).
-
-```java
-@StatelessSaga
-public class TransferSaga {
-
-    Entry onEvent(Prepared prepared, AggregateId aggregateId) {
-        return new Entry(prepared.to(), aggregateId.getId(), prepared.amount());
-    }
-
-    Confirm onEvent(AmountEntered amountEntered) {
-        return new Confirm(amountEntered.sourceId(), amountEntered.amount());
-    }
-
-    UnlockAmount onEvent(EntryFailed entryFailed) {
-        return new UnlockAmount(entryFailed.sourceId(), entryFailed.amount());
-    }
-}
+```text
+Prepared      -> Entry(targetId, sourceId, amount)
+AmountEntered -> Confirm(sourceId, amount)
+EntryFailed   -> UnlockAmount(sourceId, amount)
 ```
+
+There is no extra process state. The event history and two account states are the audit evidence.
 
 ### Unit Testing
 
-With the Wow unit testing suite, you can easily write unit tests for aggregate roots and Sagas. This improves code coverage and ensures code quality.
+[`AccountSpec`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-domain/src/test/kotlin/me/ahoo/wow/example/transfer/domain/AccountSpec.kt#L26-L92) verifies creation, locking, entry, frozen rejection, and insufficient balance. [`TransferSagaSpec`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-domain/src/test/kotlin/me/ahoo/wow/example/transfer/domain/TransferSagaSpec.kt#L25-L57) verifies all three event-to-command mappings.
 
-![example-transfer-jacoco](/images/example/transfer-jacoco.png)
-
-> Using `AggregateSpec` for aggregate root unit testing can effectively reduce the workload of writing unit tests.
-
-> `Account` Aggregate Root Unit Test
-
-```kotlin
-class AccountSpec : AggregateSpec<Account, AccountState>({
-
-   on {
-      val createAccount = CreateAccount("name", 100)
-      whenCommand(createAccount) {
-         expectEventType(AccountCreated::class)
-         expectState {
-            name.assert().isEqualTo(createAccount.name)
-            balanceAmount.assert().isEqualTo(createAccount.balance)
-         }
-         fork {
-            val prepare = Prepare("to", 100)
-            whenCommand(prepare) {
-               expectEventType(AmountLocked::class, Prepared::class)
-               expectState {
-                  balanceAmount.assert().isEqualTo(createAccount.balance - prepare.amount)
-               }
-            }
-         }
-         fork {
-            givenEvent(AccountFrozen("")) {
-               whenCommand(Prepare("to", 100)) {
-                  expectError<IllegalStateException> {
-                     this.assert().hasMessage("账号已冻结无法转账.")
-                  }
-                  expectState {
-                     name.assert().isEqualTo(createAccount.name)
-                     balanceAmount.assert().isEqualTo(createAccount.balance)
-                     isFrozen.assert().isTrue()
-                  }
-               }
-               val entry = Entry(stateRoot.id, "sourceId", 100)
-               whenCommand(entry) {
-                  expectEventType(EntryFailed::class)
-                  expectState {
-                     balanceAmount.assert().isEqualTo(100)
-                     isFrozen.assert().isTrue()
-                  }
-               }
-            }
-         }
-         fork {
-            val prepare = Prepare("to", createAccount.balance + 1)
-            whenCommand(prepare) {
-               expectError<IllegalStateException> {
-                  this.assert().hasMessage("账号余额不足.")
-               }
-               expectState {
-                  name.assert().isEqualTo(createAccount.name)
-                  balanceAmount.assert().isEqualTo(createAccount.balance)
-               }
-            }
-         }
-         fork {
-            val entry = Entry(stateRoot.id, "sourceId", 100)
-            whenCommand(entry) {
-               expectEventType(AmountEntered::class)
-               expectState {
-                  balanceAmount.assert().isEqualTo(200)
-               }
-            }
-         }
-      }
-   }
-})
-```
-
-> Using `SagaSpec` for Saga unit testing can effectively reduce the workload of writing unit tests.
-
-> `TransferSaga` Unit Test
-
-```kotlin
-class TransferSagaSpec : SagaSpec<TransferSaga>({
-   on {
-      val prepared = Prepared("to", 1)
-      whenEvent(prepared) {
-         expectNoError()
-         expectCommandType(Entry::class)
-         expectCommandBody<Entry> {
-            id.assert().isEqualTo(prepared.to)
-            amount.assert().isEqualTo(prepared.amount)
-         }
-      }
-   }
-   on {
-      val amountEntered = AmountEntered("sourceId", 1)
-      whenEvent(amountEntered) {
-         expectNoError()
-         expectCommandType(Confirm::class)
-         expectCommandBody<Confirm> {
-            id.assert().isEqualTo(amountEntered.sourceId)
-            amount.assert().isEqualTo(amountEntered.amount)
-         }
-      }
-   }
-   on {
-      val entryFailed = EntryFailed("sourceId", 1)
-      whenEvent(entryFailed) {
-         expectCommandType(UnlockAmount::class)
-         expectCommandBody<UnlockAmount> {
-            id.assert().isEqualTo(entryFailed.sourceId)
-            amount.assert().isEqualTo(entryFailed.amount)
-         }
-      }
-   }
-})
-```
+Failure behavior is part of the contract: `Prepare` throws `IllegalStateException` and preserves balance for a frozen source or insufficient funds; a frozen target emits `EntryFailed`, then unlocks the source; repeated freeze/unfreeze is rejected. HTTP `succeeded=false` and `errorMsg` should match these test assertions.

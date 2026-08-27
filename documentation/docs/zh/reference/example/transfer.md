@@ -1,365 +1,156 @@
 ---
-title: 银行账户转账(JAVA)
-description: 一个经典的 DDD 银行账户转账场景，使用 Wow 以 Java 实现，演示事件溯源和基于 Saga 的分布式事务。
+title: 银行账户转账（Java）
+description: 从真实 Java 聚合、Saga、运行时 OpenAPI 与测试追踪转账成功和回滚路径。
+outline: deep
 ---
 
-# 银行账户转账(JAVA)
+# 银行账户转账（Java）
 
-_[银行账户转账案例](https://github.com/Ahoo-Wang/Wow/tree/main/example/transfer/)_ 是一个经典的领域驱动设计（DDD）应用场景。接下来我们通过一个简单的银行账户转账案例，来了解如何使用 Wow 进行领域驱动设计以及服务开发。
+[`example/transfer`](https://github.com/Ahoo-Wang/Wow/tree/main/example/transfer) 用 Java 实现账户聚合，用 Wow 的无状态 Saga 协调跨账户转账。本页只描述仓库当前可以从源码、测试和运行时 OpenAPI 证明的行为。
 
 ## 银行转账流程
-
-1. 准备转账（Prepare）： 用户发起转账请求，触发 Prepare 步骤。这个步骤会向源账户发送准备转账的请求。
-2. 校验余额（CheckBalance）： 源账户在收到准备转账请求后，会执行校验余额的操作，确保账户有足够的余额进行转账。
-3. 锁定金额（LockAmount）： 如果余额足够，源账户会锁定转账金额，防止其他操作干扰。
-4. 入账（Entry）： 接着，转账流程进入到目标账户，执行入账操作。
-5. 确认转账（Confirm）： 如果入账成功，确认转账；否则，执行解锁金额操作。
-    1. 成功路径（Success）： 如果一切顺利，完成转账流程。
-    2. 失败路径（Fail）： 如果入账失败，执行解锁金额操作，并处理失败情况。
-
-<center>
 
 ```mermaid
 sequenceDiagram
     autonumber
-    title TransferProcessManager (Saga)
     actor User
-    participant SourceAccount
-    participant Saga
-    participant TargetAccount
-    User ->> SourceAccount: Prepare (准备转账)
-    SourceAccount ->> SourceAccount: CheckBalance (校验余额)
-    SourceAccount ->> SourceAccount: LockAmount (锁定金额)
-    SourceAccount -->> Saga: Prepared (转账已准备就绪)
-    SourceAccount -->> User: Prepared (转账已准备就绪)
-    Saga -->> TargetAccount: Entry (入账)
-    alt success：入账成功
-        TargetAccount -->> Saga: Entered (已入账)
-        Saga ->> SourceAccount: Confirm (确认转账)
-        SourceAccount -> SourceAccount: Confirmed (转账已确认)
-    else fail：入账失败
-        TargetAccount -->> Saga: EntryFailed (入账失败)
-        Saga ->> SourceAccount: UnlockAmount (解锁金额)
-        SourceAccount -> SourceAccount: AmountUnlocked (金额已解锁)
+    participant Source as Source Account
+    participant Saga as TransferSaga
+    participant Target as Target Account
+    User->>Source: Prepare(to, amount)
+    Source->>Source: AmountLocked
+    Source-->>Saga: Prepared
+    Saga->>Target: Entry(sourceId, amount)
+    alt target available
+        Target-->>Saga: AmountEntered
+        Saga->>Source: Confirm
+        Source->>Source: Confirmed
+    else target frozen
+        Target-->>Saga: EntryFailed
+        Saga->>Source: UnlockAmount
+        Source->>Source: AmountUnlocked
     end
-
 ```
 
-</center>
-
+成功路径的最终状态是源账户可用余额减少且锁定额归零，目标账户余额增加；目标被冻结时，Saga 把源账户已锁金额退回。它是事件驱动补偿，不是跨聚合数据库事务。
 
 ## 运行案例
 
-- 运行 [TransferExampleServer.java](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-server/src/main/java/me/ahoo/wow/example/transfer/server/TransferExampleServer.java)
-- 查看 Swagger-UI : [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
-- 执行 API 测试：[Transfer.http](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/Transfer.http)
+```mermaid
+flowchart LR
+    API[example-transfer-api<br/>commands / events] --> DOMAIN[example-transfer-domain<br/>Account / AccountState / TransferSaga]
+    DOMAIN --> SERVER[example-transfer-server<br/>Spring Boot / WebFlux]
+```
+
+先运行不依赖外部基础设施的领域检查：
+
+```shell
+./gradlew :example-transfer-domain:check
+```
+
+预期结束于 `BUILD SUCCESSFUL`。
+
+当前 [`example-transfer-server` 的 application mainClass](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-server/build.gradle.kts#L34-L54) 指向不存在的 `ExampleServer`，因此 `./gradlew :example-transfer-server:run` 会以 `ClassNotFoundException` 失败。任务边界内不改 Gradle；可用真实主类 [`TransferExampleServer`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-server/src/main/java/me/ahoo/wow/example/transfer/server/TransferExampleServer.java#L23-L35) 启动同一分发包：
+
+```shell
+mkdir -p example/transfer/example-transfer-server/logs
+./gradlew :example-transfer-server:installDist
+
+java \
+  -Dserver.port=8080 \
+  -Dspring.config.location=file:example/transfer/example-transfer-server/src/main/resources/application.yaml \
+  -cp 'example/transfer/example-transfer-server/build/install/example-transfer-server/lib/*' \
+  me.ahoo.wow.example.transfer.server.TransferExampleServer
+```
+
+预期日志包含 `Netty started on port 8080` 和 `Started TransferExampleServer`。该示例配置使用内存 command/event bus、EventStore 和 SnapshotStore，进程退出后账户数据消失。
 
 ## 自动生成 API 端点
 
-> 运行之后，访问 Swagger-UI : [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html) 。
-> 该 RESTful API 端点是由 Wow 自动生成的，无需手动编写。
+当前运行时 `/v3/api-docs` 中，核心端点是：
 
-![example-transfer-swagger](/images/example/transfer-swagger.png)
+| 操作 | 方法与路径 | operationId |
+| --- | --- | --- |
+| 创建账户 | `POST /account/create_account` | `transfer.account.create_account` |
+| 准备转账 | `POST /account/{id}/prepare` | `transfer.account.prepare` |
+| 读取状态 | `GET /account/{id}/state` | 生成状态路由 |
+
+这些路径也与仓库的 [`Transfer.http`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/Transfer.http#L1-L77) 一致；它们不是从 `transfer-service` 名称推导出来的。
+
+```shell
+curl -X POST http://localhost:8080/account/create_account \
+  -H 'Content-Type: application/json' \
+  -H 'Command-Wait-Stage: PROCESSED' \
+  -H 'Command-Aggregate-Id: sourceId' \
+  -H 'Command-Request-Id: source-create-1' \
+  -d '{"name":"source","balance":100}'
+
+curl -X POST http://localhost:8080/account/create_account \
+  -H 'Content-Type: application/json' \
+  -H 'Command-Wait-Stage: PROCESSED' \
+  -H 'Command-Aggregate-Id: targetId' \
+  -H 'Command-Request-Id: target-create-1' \
+  -d '{"name":"target","balance":0}'
+
+curl -X POST http://localhost:8080/account/sourceId/prepare \
+  -H 'Content-Type: application/json' \
+  -H 'Command-Wait-Stage: PROCESSED' \
+  -H 'Command-Request-Id: transfer-1' \
+  -d '{"to":"targetId","amount":10}'
+```
+
+三个命令都应返回 `succeeded=true`、`stage=PROCESSED`。转账命令的源账户版本为 `2`；Saga 完成后：
+
+```shell
+curl http://localhost:8080/account/sourceId/state
+curl http://localhost:8080/account/targetId/state
+```
+
+预期源账户 `balanceAmount=90, lockedAmount=0`，目标账户 `balanceAmount=10`。
 
 ## 模块划分
 
-| 模块                      | 说明                                                                                         |
-|-------------------------|--------------------------------------------------------------------------------------------|
-| example-transfer-api    | API 层，定义聚合命令（Command）、领域事件（Domain Event）以及查询视图模型（Query View Model），这个模块充当了各个模块之间通信的“发布语言”。 |
-| example-transfer-domain | 领域层，包含聚合根和业务约束的实现。聚合根：领域模型的入口点，负责协调领域对象的操作。业务约束：包括验证规则、领域事件的处理等。                           |
-| example-transfer-server | 宿主服务，应用程序的启动点。负责整合其他模块，并提供应用程序的入口。涉及配置依赖项、连接数据库、启动 API 服务                                  |
+| 模块 | 职责 | 精确源码 |
+| --- | --- | --- |
+| `example-transfer-api` | `account` 的命令、事件与发布语言 | [`TransferService.java`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-api/src/main/java/me/ahoo/wow/example/transfer/TransferService.java)、[`api` 包](https://github.com/Ahoo-Wang/Wow/tree/main/example/transfer/example-transfer-api/src/main/java/me/ahoo/wow/example/transfer/api) |
+| `example-transfer-domain` | 账户决定、事件溯源、Saga 和测试 | [`Account.java`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-domain/src/main/java/me/ahoo/wow/example/transfer/domain/Account.java#L24-L82)、[`TransferSaga.java`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-domain/src/main/java/me/ahoo/wow/example/transfer/domain/TransferSaga.java#L20-L33) |
+| `example-transfer-server` | Spring Boot 入口和 WebFlux/OpenAPI 装配 | [`TransferExampleServer.java`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-server/src/main/java/me/ahoo/wow/example/transfer/server/TransferExampleServer.java#L23-L35)、[`application.yaml`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-server/src/main/resources/application.yaml) |
 
 ## 领域建模
 
-状态聚合根（`AccountState`）与命令聚合根（`Account`）分离设计保证了在执行命令过程中，不会修改状态聚合根的状态。
+领域的最小决定是“先锁源账户，再入目标账户，最后确认或解锁”。
+
+| 命令 | 事件 | 状态结果 |
+| --- | --- | --- |
+| `CreateAccount` | `AccountCreated` | 初始化 name、balanceAmount |
+| `Prepare` | `AmountLocked`, `Prepared` | 可用余额减少，lockedAmount 增加 |
+| `Entry` | `AmountEntered` 或 `EntryFailed` | 目标可用余额增加，或不改变目标状态 |
+| `Confirm` | `Confirmed` | 源 lockedAmount 减少 |
+| `UnlockAmount` | `AmountUnlocked` | lockedAmount 退回 balanceAmount |
+| `FreezeAccount` / `UnfreezeAccount` | `AccountFrozen` / `AccountUnfrozen` | 切换 frozen |
 
 ### 状态聚合根（`AccountState`）建模
 
-```java
-public class AccountState implements Identifier {
-    private final String id;
-    private String name;
-    /**
-     * 余额
-     */
-    private long balanceAmount = 0L;
-    /**
-     * 已锁定金额
-     */
-    private long lockedAmount = 0L;
-    /**
-     * 账号已冻结标记
-     */
-    private boolean frozen = false;
-
-    @JsonCreator
-    public AccountState(@JsonProperty("id") String id) {
-        this.id = id;
-    }
-
-    @NotNull
-    @Override
-    public String getId() {
-        return id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public long getBalanceAmount() {
-        return balanceAmount;
-    }
-
-    public long getLockedAmount() {
-        return lockedAmount;
-    }
-
-    public boolean isFrozen() {
-        return frozen;
-    }
-
-    void onSourcing(AccountCreated accountCreated) {
-        this.name = accountCreated.name();
-        this.balanceAmount = accountCreated.balance();
-    }
-
-    void onSourcing(AmountLocked amountLocked) {
-        balanceAmount = balanceAmount - amountLocked.amount();
-        lockedAmount = lockedAmount + amountLocked.amount();
-    }
-
-    void onSourcing(AmountEntered amountEntered) {
-        balanceAmount = balanceAmount + amountEntered.amount();
-    }
-
-    void onSourcing(Confirmed confirmed) {
-        lockedAmount = lockedAmount - confirmed.amount();
-    }
-
-    void onSourcing(AmountUnlocked amountUnlocked) {
-        lockedAmount = lockedAmount - amountUnlocked.amount();
-        balanceAmount = balanceAmount + amountUnlocked.amount();
-    }
-
-    void onSourcing(AccountFrozen accountFrozen) {
-        this.frozen = true;
-    }
-
-    void onSourcing(AccountUnfrozen accountUnfrozen) {
-        this.frozen = false;
-    }
-
-}
-```
+[`AccountState`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-domain/src/main/java/me/ahoo/wow/example/transfer/domain/AccountState.java#L24-L89) 只在 `onSourcing` 中改变 `balanceAmount`、`lockedAmount` 和 `frozen`。`AmountLocked` 把金额从可用余额移入锁定余额；`Confirmed` 只扣锁定余额；`AmountUnlocked` 同时扣锁定余额并退回可用余额。
 
 ### 命令聚合根（`Account`）建模
 
-```java
-@StaticTenantId
-@AggregateRoot
-public class Account {
-    private final AccountState state;
-
-    public Account(AccountState state) {
-        this.state = state;
-    }
-
-    AccountCreated onCommand(CreateAccount createAccount) {
-        return new AccountCreated(createAccount.name(), createAccount.balance());
-    }
-
-    @OnCommand(returns = {AmountLocked.class, Prepared.class})
-    List<?> onCommand(Prepare prepare) {
-        checkBalance(prepare.amount());
-        return List.of(new AmountLocked(prepare.amount()), new Prepared(prepare.to(), prepare.amount()));
-    }
-
-    private void checkBalance(long amount) {
-        if (state.isFrozen()) {
-            throw new IllegalStateException("账号已冻结无法转账.");
-        }
-        if (state.getBalanceAmount() < amount) {
-            throw new IllegalStateException("账号余额不足.");
-        }
-    }
-
-    Object onCommand(Entry entry) {
-        if (state.isFrozen()) {
-            return new EntryFailed(entry.sourceId(), entry.amount());
-        }
-        return new AmountEntered(entry.sourceId(), entry.amount());
-    }
-
-    Confirmed onCommand(Confirm confirm) {
-        return new Confirmed(confirm.amount());
-    }
-
-    AmountLocked onCommand(LockAmount lockAmount) {
-        return new AmountLocked(lockAmount.amount());
-    }
-
-    AmountUnlocked onCommand(UnlockAmount unlockAmount) {
-        return new AmountUnlocked(unlockAmount.amount());
-    }
-
-    AccountFrozen onCommand(FreezeAccount freezeAccount) {
-        if (state.isFrozen()) {
-            throw new IllegalStateException("账号已冻结无需再次冻结.");
-        }
-        return new AccountFrozen(freezeAccount.reason());
-    }
-
-    AccountUnfrozen onCommand(UnfreezeAccount unfreezeAccount) {
-        if (!state.isFrozen()) {
-            throw new IllegalStateException("账号未冻结无需解冻.");
-        }
-        return new AccountUnfrozen(unfreezeAccount.reason());
-    }
-}
-```
+[`Account`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-domain/src/main/java/me/ahoo/wow/example/transfer/domain/Account.java#L24-L82) 不直接写状态。`Prepare` 先拒绝冻结账户和余额不足，再按固定顺序返回 `AmountLocked`、`Prepared`；`Entry` 遇到冻结目标时返回实现 `ErrorInfo` 的 `EntryFailed`，让 Saga 进入解锁分支。
 
 ### 转账流程管理器（`TransferSaga`）
 
-转账流程管理器（`TransferSaga`）负责协调处理转账的事件，并生成相应的命令。
+[`TransferSaga`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-domain/src/main/java/me/ahoo/wow/example/transfer/domain/TransferSaga.java#L20-L33) 只有三条映射：
 
-- `onEvent(Prepared)`: 订阅转账已准备就绪事件（`Prepared`），并生成入账命令(`Entry`)。
-- `onEvent(AmountEntered)`: 订阅转账已入账事件（`AmountEntered`），并生成确认转账命令(`Confirm`)。
-- `onEvent(EntryFailed)`: 订阅转账入账失败事件（`EntryFailed`），并生成解锁金额命令(`UnlockAmount`)。
-
-```java
-@StatelessSaga
-public class TransferSaga {
-
-    Entry onEvent(Prepared prepared, AggregateId aggregateId) {
-        return new Entry(prepared.to(), aggregateId.getId(), prepared.amount());
-    }
-
-    Confirm onEvent(AmountEntered amountEntered) {
-        return new Confirm(amountEntered.sourceId(), amountEntered.amount());
-    }
-
-    UnlockAmount onEvent(EntryFailed entryFailed) {
-        return new UnlockAmount(entryFailed.sourceId(), entryFailed.amount());
-    }
-}
+```text
+Prepared      -> Entry(targetId, sourceId, amount)
+AmountEntered -> Confirm(sourceId, amount)
+EntryFailed   -> UnlockAmount(sourceId, amount)
 ```
+
+没有额外流程状态；事件历史和两个账户状态就是可审计证据。
 
 ### 单元测试
 
-借助 Wow 单元测试套件，可以轻松的编写聚合根和 Saga 的单元测试。从而提升代码覆盖率，保证代码质量。
+[`AccountSpec`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-domain/src/test/kotlin/me/ahoo/wow/example/transfer/domain/AccountSpec.kt#L26-L92) 验证开户、锁款、入账、冻结拒绝和余额不足；[`TransferSagaSpec`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-domain/src/test/kotlin/me/ahoo/wow/example/transfer/domain/TransferSagaSpec.kt#L25-L57) 验证三条事件到命令映射。
 
-![example-transfer-jacoco](/images/example/transfer-jacoco.png)
-
-> 使用 `AggregateSpec` 进行聚合根单元测试，可以有效的减少单元测试的编写工作量。
-
-> `Account` 聚合根单元测试
-
-```kotlin
-class AccountSpec : AggregateSpec<Account, AccountState>({
-
-   on {
-      val createAccount = CreateAccount("name", 100)
-      whenCommand(createAccount) {
-         expectEventType(AccountCreated::class)
-         expectState {
-            name.assert().isEqualTo(createAccount.name)
-            balanceAmount.assert().isEqualTo(createAccount.balance)
-         }
-         fork {
-            val prepare = Prepare("to", 100)
-            whenCommand(prepare) {
-               expectEventType(AmountLocked::class, Prepared::class)
-               expectState {
-                  balanceAmount.assert().isEqualTo(createAccount.balance - prepare.amount)
-               }
-            }
-         }
-         fork {
-            givenEvent(AccountFrozen("")) {
-               whenCommand(Prepare("to", 100)) {
-                  expectError<IllegalStateException> {
-                     this.assert().hasMessage("账号已冻结无法转账.")
-                  }
-                  expectState {
-                     name.assert().isEqualTo(createAccount.name)
-                     balanceAmount.assert().isEqualTo(createAccount.balance)
-                     isFrozen.assert().isTrue()
-                  }
-               }
-               val entry = Entry(stateRoot.id, "sourceId", 100)
-               whenCommand(entry) {
-                  expectEventType(EntryFailed::class)
-                  expectState {
-                     balanceAmount.assert().isEqualTo(100)
-                     isFrozen.assert().isTrue()
-                  }
-               }
-            }
-         }
-         fork {
-            val prepare = Prepare("to", createAccount.balance + 1)
-            whenCommand(prepare) {
-               expectError<IllegalStateException> {
-                  this.assert().hasMessage("账号余额不足.")
-               }
-               expectState {
-                  name.assert().isEqualTo(createAccount.name)
-                  balanceAmount.assert().isEqualTo(createAccount.balance)
-               }
-            }
-         }
-         fork {
-            val entry = Entry(stateRoot.id, "sourceId", 100)
-            whenCommand(entry) {
-               expectEventType(AmountEntered::class)
-               expectState {
-                  balanceAmount.assert().isEqualTo(200)
-               }
-            }
-         }
-      }
-   }
-})
-```
-
-> 使用 `SagaSpec` 进行 Saga 单元测试，可以有效的减少单元测试的编写工作量。
-
-> `TransferSaga` 单元测试
-
-```kotlin
-class TransferSagaSpec : SagaSpec<TransferSaga>({
-   on {
-      val prepared = Prepared("to", 1)
-      whenEvent(prepared) {
-         expectNoError()
-         expectCommandType(Entry::class)
-         expectCommandBody<Entry> {
-            id.assert().isEqualTo(prepared.to)
-            amount.assert().isEqualTo(prepared.amount)
-         }
-      }
-   }
-   on {
-      val amountEntered = AmountEntered("sourceId", 1)
-      whenEvent(amountEntered) {
-         expectNoError()
-         expectCommandType(Confirm::class)
-         expectCommandBody<Confirm> {
-            id.assert().isEqualTo(amountEntered.sourceId)
-            amount.assert().isEqualTo(amountEntered.amount)
-         }
-      }
-   }
-   on {
-      val entryFailed = EntryFailed("sourceId", 1)
-      whenEvent(entryFailed) {
-         expectCommandType(UnlockAmount::class)
-         expectCommandBody<UnlockAmount> {
-            id.assert().isEqualTo(entryFailed.sourceId)
-            amount.assert().isEqualTo(entryFailed.amount)
-         }
-      }
-   }
-})
-```
+失败行为是领域契约的一部分：冻结源账户或余额不足时 `Prepare` 抛出 `IllegalStateException` 且余额不变；冻结目标账户时产生 `EntryFailed`，随后解锁源账户；重复冻结/解冻也会被拒绝。HTTP 返回的 `succeeded=false` 和 `errorMsg` 应与这些测试断言对应。
