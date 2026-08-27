@@ -11,20 +11,17 @@ hero:
     alt: Wow
   actions:
     - theme: brand
-      text: 快速上手
+      text: 30 分钟快速上手
       link: /zh/guide/getting-started
     - theme: alt
-      text: 简介
+      text: 认识 Wow
       link: /zh/guide/introduction
     - theme: alt
-      text: 文档导览
+      text: 开发指南
       link: /zh/guide/
     - theme: alt
       text: GitHub
       link: https://github.com/Ahoo-Wang/Wow
-    - theme: alt
-      text: Gitee
-      link: https://gitee.com/AhooWang/Wow
 features:
 - title: 领域模型即服务
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>'
@@ -62,6 +59,10 @@ features:
   details: 以状态事件和命令提供具有业务语义的数据源，并生成 ClickHouse 同步脚本；实时性与数据质量由应用运维保障。
   link: /zh/guide/bi
 ---
+
+## 从价值到首次成功
+
+先读[简介](./guide/introduction.md)，判断 Wow 的价值、适用边界和采用成本；准备动手时，进入[30 分钟快速上手](./guide/getting-started.md)。领域测试、真实 HTTP 命令和版本化事件溯源状态均验证通过，才算完成第一次成功。
 
 ## 荣誉
 

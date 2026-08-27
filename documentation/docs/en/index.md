@@ -11,20 +11,17 @@ hero:
     alt: Wow
   actions:
     - theme: brand
-      text: Get Started
+      text: 30-Minute Quickstart
       link: /guide/getting-started
     - theme: alt
-      text: Introduction
+      text: Why Wow
       link: /guide/introduction
     - theme: alt
-      text: Documentation Map
+      text: Development Guide
       link: /guide/
     - theme: alt
       text: GitHub
       link: https://github.com/Ahoo-Wang/Wow
-    - theme: alt
-      text: Gitee
-      link: https://gitee.com/AhooWang/Wow
 features:
 - title: Domain Model as a Service
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>'
@@ -62,6 +59,10 @@ features:
   details: State events and commands provide business-semantic data and generated ClickHouse sync scripts; applications still own latency and data-quality guarantees.
   link: /guide/bi
 ---
+
+## From Value to First Success
+
+Read the [Introduction](./guide/introduction.md) to evaluate Wow's value, fit, and adoption cost. When you are ready to build, follow the [30-Minute Quickstart](./guide/getting-started.md). Your first success requires a passing domain test, a real HTTP command, and verified versioned event-sourced state.
 
 ## Recognition
 

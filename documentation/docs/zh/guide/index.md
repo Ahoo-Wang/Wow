@@ -6,30 +6,38 @@ outline: deep
 
 # Wow 文档导览
 
-不必按侧边栏从头读到尾。先选择你当前要完成的任务，然后只阅读必要页面。
+从第一次成功开始，再按当前任务继续。
 
-::: tip 第一次接触 Wow？
-用 15 分钟阅读[简介](./introduction.md)和[核心概念](./core-concepts.md)；想直接运行代码，进入[快速上手](./getting-started.md)。
-已有 Spring Boot 服务则从[接入现有项目](./existing-project.md)开始。
-:::
+## 30 分钟首次成功
 
-## 一张图理解主链路
+依次完成以下确认门槛：
 
-```mermaid
-flowchart LR
-    Client[客户端] -->|Command| Gateway[命令网关]
-    Gateway --> Aggregate[聚合]
-    Aggregate -->|Domain Event| EventStore[事件存储]
-    EventStore --> EventBus[事件总线]
-    EventBus --> Projection[投影]
-    Projection --> QueryModel[查询模型]
-    EventBus --> Saga[Saga]
-    Saga -->|Command| Gateway
-```
+1. 从 [wow-project-template](https://github.com/Ahoo-Wang/wow-project-template) 创建项目。
+2. 确认选定的 Wow 版本。
+3. 通过领域测试。
+4. 启动服务。
+5. 发送一条真实 HTTP 命令并检查命令结果。
+6. 读取版本化的事件溯源状态。
 
-命令由聚合执行业务决策，领域事件作为权威历史持久化；投影生成适合读取的模型，Saga 根据事件发出跨聚合命令。详细语义见[核心概念](./core-concepts.md)和[数据流](./advanced/data-flow.md)。
+完整步骤和完成语义见[快速上手](./getting-started.md)。
 
-## 按任务选择入口
+## 继续构建
+
+从[聚合建模](./modeling.md)和[测试套件](./test-suite.md)开始定义业务规则；再用[命令网关](./command-gateway.md)、[投影](./projection.md)和[查询服务](./query.md)完成读取与写入链路。
+
+## 准备生产运行
+
+先阅读[生产最佳实践](./best-practices.md)，再验证[备份、恢复与重放](./recovery.md)、[应用测试](./application-testing.md)、[可观测性](./advanced/observability.md)和[故障排查](./troubleshooting.md)。
+
+## 精确查阅
+
+需要精确配置、示例或生态资源时，使用[配置参考](../reference/config/core.md)、[示例](../reference/example/order.md)和[生态资源](../reference/ecosystem.md)；需要 Kotlin 或 Java 符号和签名时，从顶部导航进入 API 文档。
+
+## 按角色评估或参与
+
+[入门导航](../onboarding/)按贡献者、Staff Engineer、管理者和产品经理的决策分流；具体取舍见[文章](../articles/)。
+
+## 按任务继续
 
 | 你要完成的任务 | 先读 | 然后读 | 完成标志 |
 | --- | --- | --- | --- |
@@ -47,33 +55,6 @@ flowchart LR
 | 准备上生产 | [生产最佳实践](./best-practices.md) | [备份、恢复与重放](./recovery.md) | 幂等、恢复、容量、告警和回滚均有证据 |
 | 处理异常或卡住 | [故障排查](./troubleshooting.md) | 对应的核心/扩展页 | 已定位失败阶段，而不只是扩大超时 |
 | 迁移旧系统或旧版本 | [迁移指南](./migration.md) | 选定的迁移路径 | 库存、对账、切流、回滚门禁完整 |
-
-## 三条建议路径
-
-### 15 分钟：建立概念
-
-1. [简介](./introduction.md)
-2. [核心概念](./core-concepts.md)
-3. [架构概览](./advanced/architecture.md)
-
-### 60 分钟：完成一个垂直切片
-
-1. [快速上手](./getting-started.md)
-2. 已有服务改读[接入现有项目](./existing-project.md)
-3. [聚合建模](./modeling.md)
-4. [测试套件](./test-suite.md)
-5. [命令网关](./command-gateway.md)
-6. [投影](./projection.md)与[查询服务](./query.md)
-
-### 生产评估：从风险开始
-
-1. [生产最佳实践](./best-practices.md)
-2. [备份、恢复与重放](./recovery.md)
-3. [应用测试](./application-testing.md)
-4. [可观测性](./advanced/observability.md)
-5. [故障排查](./troubleshooting.md)
-6. [迁移指南](./migration.md)
-7. [事件演进](./advanced/event-evolution.md)
 
 ## 如何使用不同类型的文档
 
