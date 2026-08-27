@@ -143,6 +143,33 @@ class AggregationQueryTest {
     }
 
     @Test
+    fun `any metric should round trip through JSON`() {
+        val json = """
+            {
+              "metrics": [{
+                "type": "ANY",
+                "field": "state.productName",
+                "alias": "productName"
+              }]
+            }
+        """.trimIndent()
+
+        val query = configuredMapper.readValue(json, AggregationQuery::class.java)
+
+        query.metrics.assert().containsExactly(
+            AggregationMetric.Any(LogicalField("state.productName"), "productName"),
+        )
+        configuredMapper.writeValueAsString(query).assert().contains("\"type\":\"ANY\"")
+    }
+
+    @Test
+    fun `any metric should reject internal aliases`() {
+        assertThrows<IllegalArgumentException> {
+            AggregationMetric.Any(LogicalField("state.productName"), "__wow_productName")
+        }
+    }
+
+    @Test
     fun `constant should require a finite double`() {
         listOf(Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY).forEach { value ->
             assertThrows<IllegalArgumentException> { AggregationExpression.Constant(value) }

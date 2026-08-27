@@ -193,6 +193,15 @@ enum class AggregationExpressionOperator {
 @JsonSubTypes(
     JsonSubTypes.Type(AggregationMetric.Count::class, name = "COUNT"),
     JsonSubTypes.Type(AggregationMetric.Numeric::class, name = "NUMERIC"),
+    JsonSubTypes.Type(AggregationMetric.Any::class, name = "ANY"),
+)
+@Schema(
+    oneOf = [
+        AggregationMetric.Count::class,
+        AggregationMetric.Numeric::class,
+        AggregationMetric.Any::class,
+    ],
+    discriminatorProperty = "type",
 )
 sealed interface AggregationMetric {
     val alias: String
@@ -206,6 +215,15 @@ sealed interface AggregationMetric {
     data class Numeric(
         val function: AggregationFunction,
         val expression: AggregationExpression,
+        override val alias: String,
+    ) : AggregationMetric {
+        init {
+            requireAggregationAlias(alias)
+        }
+    }
+
+    data class Any(
+        val field: LogicalField,
         override val alias: String,
     ) : AggregationMetric {
         init {

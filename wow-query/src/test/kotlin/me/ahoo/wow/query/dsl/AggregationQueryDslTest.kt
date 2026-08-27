@@ -66,6 +66,23 @@ class AggregationQueryDslTest {
     }
 
     @Test
+    fun `aggregation DSL should add an any metric without another group`() {
+        val query = aggregation {
+            terms("productId", "productId")
+            any("productName", "productName")
+            count("count")
+        }
+
+        query.groupBy.assert().containsExactly(
+            AggregationGroup.Terms(LogicalField("productId"), "productId"),
+        )
+        query.metrics.assert().containsExactly(
+            AggregationMetric.Any(LogicalField("productName"), "productName"),
+            AggregationMetric.Count("count"),
+        )
+    }
+
+    @Test
     fun `aggregation DSL should build arithmetic metric expressions`() {
         val query = aggregation {
             sum(field("price") * field("quantity") - constant(10.0), "total")
