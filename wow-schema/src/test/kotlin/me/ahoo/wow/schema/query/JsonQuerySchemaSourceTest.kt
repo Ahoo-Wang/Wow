@@ -326,6 +326,23 @@ class JsonQuerySchemaSourceTest {
     }
 
     @Test
+    fun `should reject disjoint value types for the same allOf field`() {
+        assertThrows<QuerySchemaConflictException> {
+            load(ConflictingAllOfValueTypesState::class.java)
+        }
+    }
+
+    @Test
+    fun `should retain known value types when allOf also has opaque schemas`() {
+        val declaration = load(OpaqueAllOfValueTypesState::class.java)
+
+        declaration.field("state.known.value").valueTypes.assert()
+            .isEqualTo(DeclarationValue.Set(setOf(QueryValueType.STRING)))
+        declaration.field("state.opaque.value").valueTypes.assert()
+            .isEqualTo(DeclarationValue.Set(emptySet<QueryValueType>()))
+    }
+
+    @Test
     fun `should reject conflicting composition metadata`() {
         assertThrows<QuerySchemaConflictException> {
             load(ConflictingCompositionState::class.java)
@@ -610,6 +627,22 @@ private data class OptionalSharedValueBranch(
     @field:Schema(requiredMode = Schema.RequiredMode.NOT_REQUIRED)
     val shared: String,
 )
+
+private data class ConflictingAllOfValueTypesState(
+    @field:Schema(allOf = [StringValueBranch::class, IntegerValueBranch::class])
+    val value: RepeatedValue,
+)
+
+private data class OpaqueAllOfValueTypesState(
+    @field:Schema(allOf = [OpaqueValueBranch::class, StringValueBranch::class])
+    val known: RepeatedValue,
+    @field:Schema(allOf = [OpaqueValueBranch::class, SecondOpaqueValueBranch::class])
+    val opaque: RepeatedValue,
+)
+
+private data class OpaqueValueBranch(val value: TypeCustomSerializedValue)
+
+private data class SecondOpaqueValueBranch(val value: TypeCustomSerializedValue)
 
 private data class ConflictingCompositionState(
     @field:Schema(oneOf = [FirstTitledBranch::class, SecondTitledBranch::class])

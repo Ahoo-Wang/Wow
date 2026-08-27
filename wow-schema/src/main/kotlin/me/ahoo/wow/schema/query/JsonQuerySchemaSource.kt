@@ -247,12 +247,13 @@ private class JsonSchemaWalker(
 private fun QueryFieldDeclaration.mergeStructural(
     other: QueryFieldDeclaration,
     field: LogicalField,
+    valueTypes: DeclarationValue<Set<QueryValueType>>,
     required: Boolean,
 ): QueryFieldDeclaration = QueryFieldDeclaration(
     title = title.requireSame(other.title, field, "title"),
     description = description.requireSame(other.description, field, "description"),
     enumValues = enumValues.requireSame(other.enumValues, field, "enumValues"),
-    valueTypes = valueTypes.union(other.valueTypes),
+    valueTypes = valueTypes,
     nullable = nullable.requireSame(other.nullable, field, "nullable"),
     required = DeclarationValue.Set(required),
     cardinality = cardinality.requireSame(other.cardinality, field, "cardinality"),
@@ -265,7 +266,12 @@ private fun MutableMap<LogicalField, QueryFieldDeclaration>.mergeConjunctive(
 ) {
     other.forEach { (field, next) ->
         merge(field, next) { current, merged ->
-            current.mergeStructural(merged, field, current.isRequired() || merged.isRequired())
+            current.mergeStructural(
+                merged,
+                field,
+                current.valueTypes.intersect(merged.valueTypes, field),
+                current.isRequired() || merged.isRequired(),
+            )
         }
     }
 }
@@ -276,7 +282,12 @@ private fun List<Map<LogicalField, QueryFieldDeclaration>>.mergeAlternatives():
     forEach { alternative ->
         alternative.forEach { (field, next) ->
             merged.merge(field, next) { current, branch ->
-                current.mergeStructural(branch, field, current.isRequired() && branch.isRequired())
+                current.mergeStructural(
+                    branch,
+                    field,
+                    current.valueTypes.union(branch.valueTypes),
+                    current.isRequired() && branch.isRequired(),
+                )
             }
         }
     }
@@ -296,6 +307,20 @@ private fun DeclarationValue<Set<QueryValueType>>.union(
     this is DeclarationValue.Set && other is DeclarationValue.Set -> DeclarationValue.Set(value + other.value)
     this is DeclarationValue.Set -> this
     else -> other
+}
+
+private fun DeclarationValue<Set<QueryValueType>>.intersect(
+    other: DeclarationValue<Set<QueryValueType>>,
+    field: LogicalField,
+): DeclarationValue<Set<QueryValueType>> = when {
+    this !is DeclarationValue.Set -> other
+    other !is DeclarationValue.Set -> this
+    value.isEmpty() -> other
+    other.value.isEmpty() -> this
+    else -> DeclarationValue.Set(
+        value.intersect(other.value).takeIf(Set<QueryValueType>::isNotEmpty)
+            ?: throw QuerySchemaConflictException("Conflicting query schema declaration: [$field.valueTypes]."),
+    )
 }
 
 private fun <T> DeclarationValue<T>.requireSame(
