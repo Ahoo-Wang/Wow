@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.elasticsearch.query.snapshot
+package me.ahoo.wow.elasticsearch.query.aggregation
 
 import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.elasticsearch._types.aggregations.Aggregate

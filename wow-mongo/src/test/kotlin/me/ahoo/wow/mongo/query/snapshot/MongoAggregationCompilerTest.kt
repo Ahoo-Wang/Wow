@@ -24,6 +24,7 @@ import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.mongo.query.AbstractMongoFilterConverter
+import me.ahoo.wow.mongo.query.aggregation.MongoAggregationCompiler
 import me.ahoo.wow.query.converter.FieldConverter
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.schema.QueryFieldBinding
@@ -389,6 +390,20 @@ class MongoAggregationCompilerTest {
         pipeline[2].toBsonDocument().toJson().assert()
             .contains("physical.state.items.quantity")
             .doesNotContain("deleted")
+    }
+
+    @Test
+    fun `custom field converter should apply to aggregation fields without schema`() {
+        val converter = object : AbstractMongoFilterConverter() {
+            override val fieldConverter: FieldConverter = FieldConverter { "physical.$it" }
+        }
+        val query = aggregation {
+            terms("state.status", "status")
+            count("count")
+        }
+
+        MongoAggregationCompiler(converter).compile(query)[2].toBsonDocument().toJson().assert()
+            .contains("\$physical.state.status")
     }
 
     private fun schema(vararg fields: Pair<LogicalField, QueryFieldSchema>) = QueryModelSchema(

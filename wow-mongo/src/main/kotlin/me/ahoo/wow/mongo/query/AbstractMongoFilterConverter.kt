@@ -86,6 +86,8 @@ abstract class AbstractMongoFilterConverter(
     internal fun convertWithoutDefaultDeletion(filter: FilterExpression, parent: String? = null): Bson =
         compile(filterNormalizerWithoutDefaultDeletion.normalize(filter), parent, mapField = true)
 
+    internal fun convertField(field: String): String = fieldConverter.convert(field)
+
     @Suppress("CyclomaticComplexMethod", "LongMethod")
     private fun compile(filter: FilterExpression, parent: String?, mapField: Boolean): Bson = when (filter) {
         MatchAllFilter -> Filters.empty()

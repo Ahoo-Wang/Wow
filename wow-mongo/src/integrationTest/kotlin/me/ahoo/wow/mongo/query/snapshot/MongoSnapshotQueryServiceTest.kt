@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.mongo.query.snapshot
 
+import me.ahoo.wow.mongo.query.aggregation.MongoAggregationCompiler
 import com.mongodb.reactivestreams.client.MongoDatabase
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Indexes

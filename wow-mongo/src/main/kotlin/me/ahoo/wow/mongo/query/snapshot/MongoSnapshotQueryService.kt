@@ -15,7 +15,6 @@ package me.ahoo.wow.mongo.query.snapshot
 
 import com.mongodb.reactivestreams.client.MongoCollection
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.FilterExpression
@@ -45,10 +44,8 @@ import me.ahoo.wow.query.schema.resolve
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.serialization.JsonSerializer
 import org.bson.Document
-import org.bson.types.Decimal128
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.kotlin.core.publisher.toFlux
 
 class MongoSnapshotQueryService<S : Any> private constructor(
     override val namedAggregate: NamedAggregate,
@@ -106,49 +103,7 @@ class MongoSnapshotQueryService<S : Any> private constructor(
     override fun resolve(filter: FilterExpression) = schemaProvider.resolve(filter, validationMode)
 
     override fun aggregate(query: AggregationQuery): Flux<DynamicDocument> {
-        return schemaProvider.resolve(query, validationMode).flatMapMany { resolved ->
-            val executionQuery = resolved.query
-            val result = collection.aggregate(
-                MongoAggregationCompiler(converter).compile(executionQuery, resolved.schema),
-            ).toFlux().map { it.toAggregationResult(executionQuery) }
-            if (executionQuery.groupBy.isEmpty()) {
-                result.switchIfEmpty(Flux.just(executionQuery.emptySummary()))
-            } else {
-                result
-            }
-        }
-    }
-
-    private fun Document.toAggregationResult(query: AggregationQuery): DynamicDocument {
-        query.groupBy.forEach { group ->
-            this[group.alias] = get(group.alias).toTermsValue(group.alias)
-        }
-        query.metrics.forEach { metric ->
-            this[metric.alias] = when (metric) {
-                is AggregationMetric.Count -> (get(metric.alias) as Number).toLong()
-                is AggregationMetric.Any -> get(metric.alias).toTermsValue(metric.alias)
-                is AggregationMetric.Numeric -> get(metric.alias).toFiniteDouble(metric.alias)
-            }
-        }
-        return toDynamicDocument()
-    }
-
-    private fun Any?.toTermsValue(alias: String): Any? =
-        if (this is Decimal128) toFiniteDouble(alias) else this
-
-    private fun AggregationQuery.emptySummary(): DynamicDocument = metrics.associateTo(Document()) { metric ->
-        metric.alias to if (metric is AggregationMetric.Count) 0L else null
-    }.toDynamicDocument()
-
-    private fun Any?.toFiniteDouble(alias: String): Double? {
-        val value = when (this) {
-            null -> return null
-            is Decimal128 -> bigDecimalValue().toDouble()
-            is Number -> toDouble()
-            else -> error("Aggregation metric [$alias] must be numeric, but was [${this::class.java.name}].")
-        }
-        require(value.isFinite()) { "Aggregation metric [$alias] must be finite." }
-        return value
+        return schemaProvider.resolve(query, validationMode).flatMapMany(::executeAggregation)
     }
 
     companion object {
