@@ -1,137 +1,40 @@
 ---
-title: Ecosystem
-description: Curated resources for CQRS, microservices, and reactive programming, plus the Wow ecosystem of related projects.
+title: Ecosystem and Resources
+description: Verify ownership, in-repository integration boundaries, and installation entry points for Wow and related projects.
 ---
 
-# Ecosystem
+# Ecosystem and Resources
 
-## Wow Ecosystem Architecture
+This page answers: **does Wow, an external project, or the downstream application own this capability?**
 
-The Wow ecosystem consists of open-source projects by the same author, designed to work together seamlessly:
+The repository links below were checked for availability. External projects own their releases, compatibility, and usage documentation; Wow owns only this repository's dependency selection, adapter modules, and examples. Pinned versions in `gradle/libs.versions.toml` describe this checkout's resolution and are not a cross-version compatibility or support promise.
 
-```mermaid
-graph TB
-    subgraph Core["Wow Framework"]
-        WOW["Wow<br>CQRS + DDD + EventSourcing"]
-    end
+## Ownership and usage boundary
 
-    subgraph ID["Identity"]
-        COSID["CosId<br>Distributed ID Generation"]
-    end
+| Project | Verified relationship in this repository | Installation and usage boundary | Authoritative entry |
+|---|---|---|---|
+| Wow | Owns framework APIs, runtime, Spring, and infrastructure adapters | Downstream applications select required capabilities through the Wow BOM, modules, or Starter capabilities | [Wow](https://github.com/Ahoo-Wang/Wow) |
+| wow-project-template | Provides an independently evolving first-success project | Create from the template or clone it; verify its actual Wow version instead of assuming it matches this site | [wow-project-template](https://github.com/Ahoo-Wang/wow-project-template) |
+| CosId | `wow-core` directly uses `cosid-core`; sample servers may add CosId Starter and stores | Wow supplies ID abstractions and default factories; applications/platforms own machine-ID allocation and production configuration | [CosId](https://github.com/Ahoo-Wang/CosId) |
+| CoCache | `wow-cocache` adapts CoCache and also uses Wow API-client/query boundaries | Add `wow-cocache` only for that integration; cache consistency and backend operations remain application responsibilities | [CoCache](https://github.com/Ahoo-Wang/CoCache) |
+| CoSec | `wow-cosec` and `cosec-support` adapt request-context propagation and query rewriting | Selecting the adapter does not complete authentication, authorization, or tenant isolation; verify the application's real security chain | [CoSec](https://github.com/Ahoo-Wang/CoSec) |
+| CoApi | `wow-apiclient` uses `coapi-api`; sample servers use CoApi Starter to materialize clients | Wow defines generic client contracts; downstream configuration owns discovery, base URLs, authentication, and retry | [CoApi](https://github.com/Ahoo-Wang/CoApi) |
+| Simba | The compensation server uses Redis-backed Simba for scheduler exclusion | An ordinary Wow application does not need to install Simba merely because it uses saga or compensation APIs | [Simba](https://github.com/Ahoo-Wang/Simba) |
+| FluentAssert | The `wow-test` stack follows the FluentAssert `.assert()` convention | Applications get the Wow test DSL through `wow-test`; FluentAssert owns its complete assertion API | [FluentAssert](https://github.com/Ahoo-Wang/FluentAssert) |
+| Fetcher | The compensation dashboard uses Fetcher packages and generated clients | This is a dashboard/TypeScript-client boundary, not a required JVM runtime dependency; update generated files through OpenAPI/generator input | [Fetcher](https://github.com/Ahoo-Wang/Fetcher) |
 
-    subgraph Infra["Infrastructure"]
-        COSKY["CoSky<br>Service Governance"]
-        SIMBA["Simba<br>Distributed Lock"]
-    end
+Use [`gradle/libs.versions.toml`](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/libs.versions.toml) and [`wow-dependencies`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-dependencies/build.gradle.kts) for current dependency and BOM facts. Use [`settings.gradle.kts`](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts) for module existence.
 
-    subgraph Security["Security"]
-        COSEC["CoSec<br>RBAC + ABAC Authorization"]
-    end
+## How to choose
 
-    subgraph Cache["Caching"]
-        COCACHE["CoCache<br>Distributed Secondary Cache"]
-    end
+1. Start with [Module Dependencies](../guide/advanced/module-dependencies.md) to select the Wow module or Starter capability.
+2. Read the matching extension page, such as [CoCache](../guide/extensions/cocache.md), [CoSec](../guide/extensions/cosec.md), or [API Client](../guide/extensions/apiclient.md).
+3. Go to the external project only when that extension confirms the component is required.
+4. On upgrade, re-verify resolved dependencies, compilation, the real backend integration, and runtime path. Shared authorship, one BOM, or a current example does not establish future compatibility.
 
-    subgraph Client["HTTP Client"]
-        COAPI["CoApi<br>Declarative REST Client"]
-        FETCHER["Fetcher<br>HTTP Client + LLM Streaming"]
-    end
+## Content owned elsewhere
 
-    subgraph Test["Testing"]
-        FLUENT["FluentAssert<br>Kotlin Fluent Assertions"]
-    end
-
-    COSID -->|"Global ID + Machine ID"| WOW
-    COSKY -->|"Service Discovery + Config"| WOW
-    SIMBA -->|"Distributed Lock"| WOW
-    COSEC -->|"wow-cosec module"| WOW
-    COCACHE -->|"wow-cocache module"| WOW
-    COAPI -->|"wow-apiclient module"| WOW
-    FETCHER -->|"TypeScript client generation"| WOW
-    FLUENT -->|"Test assertions"| WOW
-
-    style Core fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style ID fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style Infra fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style Security fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style Cache fill:#3a2e4a,stroke:#9d7edb,color:#e0e0e0
-    style Client fill:#2e4a4a,stroke:#4ad4d4,color:#e0e0e0
-    style Test fill:#4a4a2e,stroke:#d4d45b,color:#e0e0e0
-```
-
-| Project | Role in Wow | Wow Module |
-|---|---|---|
-| **CosId** | Global ID, aggregate ID, machine ID generation | Built-in dependency |
-| **CoSec** | Multi-tenant reactive security (RBAC + ABAC) | `wow-cosec` |
-| **CoCache** | Distributed consistent secondary cache | `wow-cocache` |
-| **Simba** | Distributed scheduling and mutual exclusion for the compensation server | `wow-compensation-server` runtime dependency |
-| **CoSky** | Service discovery + configuration management | Optional deployment |
-| **CoApi** | Declarative HTTP client for Spring 6 | `wow-apiclient` |
-| **Fetcher** | HTTP client ecosystem + TypeScript client generation | `wow-project-template` |
-| **FluentAssert** | Kotlin fluent assertion library | `wow-test` |
-
-## CQRS Resources
-
-### Project Templates
-
-- [Project template for quickly building DDD projects based on the Wow framework](https://github.com/Ahoo-Wang/wow-project-template)
-
-### Books
-
-- "Domain-Driven Design: Tackling Complexity in the Heart of Software"
-- "Implementing Domain-Driven Design"
-
-### Free E-books
-
-- [CQRS Journey](https://msdn.microsoft.com/en-us/library/jj554200.aspx)
-
-### Open Source Frameworks
-
-- [Wow](https://github.com/Ahoo-Wang/Wow): Modern reactive CQRS architecture microservice development framework based on DDD & EventSourcing
-- [Axon Framework](https://github.com/AxonFramework/AxonFramework): A framework for building evolutionary, event-driven microservices based on Domain-Driven Design (DDD), Command Query Responsibility Segregation (CQRS), and Event Sourcing principles.
-
-### Awesome Lists
-
-- [awesome-ddd](https://github.com/heynickc/awesome-ddd?tab=readme-ov-file#jvm): A curated list of Domain-Driven Design (DDD), Command Query Responsibility Segregation (CQRS), Event Sourcing, and Event Storming resources.
-
-### Blogs
-
-- [Event Sourcing - Specifications](https://abdullin.com/post/event-sourcing-specifications/) @abdullin
-- [Testing Event Sourcing](https://event-driven.io/en/testing_event_sourcing/) @event-driven
-- [Event Sourcing and CQRS](https://www.eventstore.com/blog/event-sourcing-and-cqrs) @eventstore
-- [Event Sourcing](https://martinfowler.com/eaaDev/EventSourcing.html) @martinfowler
-- [Event Sourcing](https://docs.microsoft.com/en-us/azure/architecture/patterns/event-sourcing) @microsoft
-- [Event Sourcing](https://microservices.io/patterns/data/event-sourcing.html) @microservices
-
-## Microservices Resources
-
-- [Wow](https://github.com/Ahoo-Wang/Wow): Modern reactive CQRS architecture microservice development framework based on DDD & EventSourcing
-- [wow-project-template](https://github.com/Ahoo-Wang/wow-project-template): Project template for quickly building DDD projects based on the Wow framework
-- [FluentAssert](https://github.com/Ahoo-Wang/FluentAssert): FluentAssert is a Kotlin library that provides fluent assertions for JDK types, making your tests more readable and expressive. The library uses Kotlin extension functions to wrap AssertJ assertions for better syntax
-- [Fetcher](https://github.com/Ahoo-Wang/Fetcher): Fetcher is not just an HTTP client -- it's a complete ecosystem designed for modern web development with native LLM streaming API support. Built on the native Fetch API, Fetcher provides an Axios-like experience while maintaining minimal size
-- [CosId](https://github.com/Ahoo-Wang/CosId): Universal, flexible, high-performance distributed ID generator
-- [CoSky](https://github.com/Ahoo-Wang/CoSky): High-performance, low-cost microservice governance platform
-- [CoSec](https://github.com/Ahoo-Wang/CoSec): Multi-tenant reactive security framework based on RBAC and policies
-- [CoCache](https://github.com/Ahoo-Wang/CoCache): Distributed consistent secondary cache framework
-- [Simba](https://github.com/Ahoo-Wang/Simba): Easy-to-use, flexible distributed lock service
-- [CoApi](https://github.com/Ahoo-Wang/CoApi): Simplifies HTTP client definitions in Spring 6, providing zero-boilerplate auto-configuration for more convenient and efficient interface calls
-- [Nacos](https://github.com/alibaba/nacos): Alibaba's open source platform for building cloud-native applications with dynamic service discovery, configuration management, and service management
-
-## Reactive Resources
-
-- [Reactive Manifesto](https://www.reactivemanifesto.org/)
-- [ReactiveX](http://reactivex.io/)
-- [Reactive Streams](http://www.reactive-streams.org/)
-- [Project Reactor](https://projectreactor.io/)
-- [RxJava](https://github.com/ReactiveX/RxJava)
-
-## Wow Ecosystem
-
-The following projects are part of the Wow ecosystem and are designed to work together:
-
-- **[CosId](https://github.com/Ahoo-Wang/CosId)** - Universal, flexible, high-performance distributed ID generator
-- **[CoSec](https://github.com/Ahoo-Wang/CoSec)** - Multi-tenant reactive security framework based on RBAC and policies
-- **[CoCache](https://github.com/Ahoo-Wang/CoCache)** - Distributed consistent secondary cache framework
-- **[Simba](https://github.com/Ahoo-Wang/Simba)** - Easy-to-use, flexible distributed lock service
-- **[CoSky](https://github.com/Ahoo-Wang/CoSky)** - High-performance, low-cost microservice governance platform
-- **[FluentAssert](https://github.com/Ahoo-Wang/FluentAssert)** - Kotlin fluent assertion library for readable and expressive tests
+- Wow concepts and adoption cost: [Introduction](../guide/introduction.md)
+- Exact configuration keys and defaults: [Core Configuration Reference](./config/core.md)
+- Production backend and recovery ownership: [Best Practices](../guide/best-practices.md)
+- Agent workflows and distribution: [Agent Skills](../guide/skills.md)

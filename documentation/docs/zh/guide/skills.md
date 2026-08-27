@@ -1,144 +1,81 @@
 ---
-title: "Agent Skills"
-description: "安装并使用四个意图型 Wow Agent Skills，让 Agent 基于当前源码完成开发、评审、排障与证据门禁下的破坏性迁移。"
+title: Agent Skills
+description: 选择、安装并验证四个面向下游应用的 Wow Agent Skills。
 ---
 
 # Agent Skills
 
-Wow Agent Skills 把框架特有的工作流、架构不变量、安全边界和完成证据组织成四个可复用 Skill。它们不复制 API 文档；注解参数、配置默认值、DSL 方法和生成契约必须在当前 checkout 或精确目标 tag 中重新确认。[`skills/README.md`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/README.md)
+本页回答：**下游 Wow 任务应使用哪个 Primary Skill，以及完成如何被证明？**
 
-| 入口 | 用途 |
-|---|---|
-| [Wow `skills/`](https://github.com/Ahoo-Wang/Wow/tree/main/skills) | Skill 内容、references、assets、evals 与插件源元数据 |
-| [Ahoo Skills 站点](https://skills.ahoo.me/zh-CN/) | 插件目录、安装命令与分发说明 |
-| [Ahoo-Wang/skills](https://github.com/Ahoo-Wang/skills) | Codex 与 Claude Code 的聚合市场 |
-| [Agent Skills 规范](https://agentskills.io/) | `SKILL.md` 格式与渐进式披露模型 |
+Wow 仓库拥有 Skill 源码和验证夹具；分发仓库与客户端拥有安装和发现流程。Skills 提供工作流、架构不变量、授权边界和证据门禁，不替代目标版本的 API、配置或生成契约。
 
-Wow 仓库拥有 Skill 内容；Ahoo Skills Hub 定期同步、校验并生成 `ahoo-wow-skills` 插件。不要直接修改聚合仓库中的生成副本。[`skills/README.md`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/README.md#distribution)
+## 选择一个 Primary Skill
 
-## 四个 Primary Skills
+按用户要求的主要交付结果选择一次，并由该 Skill 负责完整任务：
 
-客户端按用户的**主要交付结果**选择一个 Primary Skill，而不是按涉及的组件名选择。选定后，该 Skill 负责整个任务，不再切换到另一个 Wow Skill。[`skills/README.md`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/README.md#selection-order)
-
-| Skill | 何时使用 | 完整生命周期 |
+| Skill | 选择条件 | 不选择的情况 |
 |---|---|---|
-| `wow-develop` | 设计、实现、测试、重构或解释 Wow 行为/API | 只读：Frame → Discover → Model → Prove facts → Verify → Report；授权变更：Frame → Discover → Model → Prove RED → Change → Verify → Report |
-| `wow-review` | 输出 findings、质量判断、合并准备度，或执行 review-and-fix | Scope → Context → Findings → 授权修复 → Post-fix review |
-| `wow-debug` | 复现和定位已有失败，或执行 diagnose-and-fix | Capture → Reproduce → Locate → Hypothesize → Test → Fix/Conclude |
-| `wow-migrate` | 破坏性版本迁移，或任意起始版本的存储/数据格式切换 | Baseline → Target → Matrix，之后仅执行已明确授权的适配、数据、验证与切换阶段 |
+| `wow-migrate` | 跨主版本、已知破坏性 source/config/generated/runtime 变化，或 Wow 管理的存储/历史数据切换 | 无历史转换的首次采用、常规同主版本非破坏升级 |
+| `wow-debug` | 已有失败、hang、错误状态或 reproducer，目标是定位根因；可在授权后修复 | 主动开发、普通 diff review、数据切换 |
+| `wow-review` | 目标是 findings、合并准备度或 review-and-fix | 症状驱动诊断、主动功能开发、破坏性迁移专项 |
+| `wow-develop` | 设计、实现、测试、重构或解释下游 Wow 行为，包括首次采用 | 已有 diff 审查、已有故障诊断、破坏性迁移 |
 
-对应源文件：[`wow-develop`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/wow-develop/SKILL.md#develop-wow-applications)、[`wow-review`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/wow-review/SKILL.md#review-wow-changes)、[`wow-debug`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/wow-debug/SKILL.md#debug-wow-failures)、[`wow-migrate`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/wow-migrate/SKILL.md#migrate-wow-across-breaking-boundaries)。
+如果任务只是通用 Kotlin、Gradle、Dashboard、文档或 DDD/CQRS 讨论，没有范围内的 `me.ahoo.wow` import、`wow-*` 依赖或明确下游 Wow 请求，则不激活这些 Skills。Wow 框架仓库自身也不属于四个 Skill 的目标。
 
-```mermaid
-flowchart TD
-    Task["用户任务"] --> Intent{"主要交付结果"}
-    Intent -->|设计、实现、测试、解释| Develop["wow-develop"]
-    Intent -->|findings 或合并判断| Review["wow-review"]
-    Intent -->|复现或根因| Debug["wow-debug"]
-    Intent -->|破坏性版本迁移或存储/数据切换| Migrate["wow-migrate"]
-    Intent -->|与 Wow 行为无关| None["不激活"]
+源契约：[`skills/README.md`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/README.md)、[`wow-develop`](https://github.com/Ahoo-Wang/Wow/tree/main/skills/wow-develop)、[`wow-review`](https://github.com/Ahoo-Wang/Wow/tree/main/skills/wow-review)、[`wow-debug`](https://github.com/Ahoo-Wang/Wow/tree/main/skills/wow-debug)、[`wow-migrate`](https://github.com/Ahoo-Wang/Wow/tree/main/skills/wow-migrate)。
 
-    classDef default fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style Intent fill:#161b22,stroke:#30363d,color:#e6edf3
-    linkStyle default stroke:#8b949e
-```
+## 所有权与安装边界
 
-### 选择顺序
+| 边界 | 所有者 | 使用方式 |
+|---|---|---|
+| Skill 行为与 references | Wow 仓库 `skills/` | 在本仓库修改并运行本地 validator；不要修改聚合仓库中的生成副本 |
+| 可分发插件清单 | Wow 仓库 [`skills/plugins.json`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/plugins.json) | 当前清单只包含四个 Primary Skills；`agents/openai.yaml` 提供客户端显示信息与默认提示 |
+| 聚合与分发 | [Ahoo-Wang/skills](https://github.com/Ahoo-Wang/skills) | 从聚合市场安装或刷新 `ahoo-wow-skills`，不把该仓库当作源内容编辑点 |
+| 当前安装说明 | [Ahoo Skills](https://skills.ahoo.me/zh-CN/) | 按客户端对应页面执行；安装命令和发布状态可能独立变化 |
+| 通用格式 | [Agent Skills specification](https://agentskills.io/) | 只定义通用 Skill 格式，不证明 Wow Skill 的行为正确 |
 
-1. 跨主版本、同主版本 source/config 破坏性变化，或任意版本起点的存储/数据切换与回滚是主问题：`wow-migrate`。
-2. 已有失败、hang、错误状态或 reproducer，目标是根因：`wow-debug`。
-3. 目标是 findings、批准或合并准备度：`wow-review`。
-4. 目标是设计、修改、测试或解释 Wow：`wow-develop`。
-5. 纯 Kotlin/Gradle、dashboard 或不涉及框架语义的文档任务：不激活。
+本仓库不会在应用构建中自动安装 Agent Skills。安装成功只证明客户端发现了插件，不证明某次任务选择正确或结果可靠。
 
-`review-and-fix` 始终留在 `wow-review`；`diagnose-and-fix` 始终留在 `wow-debug`。这样授权状态、证据和 diff 基线不会在 Skill 切换时丢失。
+## 使用请求
 
-## 渐进式加载
-
-每个 `SKILL.md` 只保存核心流程和选择规则，具体领域材料按需加载：[开发 Skill 的 reference 表](https://github.com/Ahoo-Wang/Wow/blob/main/skills/wow-develop/SKILL.md#load-one-domain-reference-first)。
-
-| 任务 | 首个 reference |
-|---|---|
-| Aggregate、command、event、sourcing | `aggregate-sourcing.md` |
-| Saga、Projection、EventProcessor | `saga-processors.md` |
-| CommandGateway、wait、HTTP command route | `command-delivery.md` |
-| Query DSL 与 read model | `query-read-model.md` |
-| Starter、storage、bus | `starter-storage.md` |
-| Runtime lifecycle | `runtime-lifecycle.md` |
-| PrepareKey 唯一性与预留 | `prepare-key.md` |
-
-references 只保存稳定决策、源码发现方法和验证边界。完整注解参数、测试 DSL 方法表、配置键、默认值和后端枚举应直接从目标版本源码发现。[`skills/README.md`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/README.md#content-model)
-
-## 安装
-
-### Codex
-
-```bash
-codex plugin marketplace add Ahoo-Wang/skills --ref main
-codex plugin add ahoo-wow-skills@ahoo-skills
-```
-
-### Claude Code
+请求至少给出四项：
 
 ```text
-/plugin marketplace add https://github.com/Ahoo-Wang/skills
-/plugin install ahoo-wow-skills
+目标：为 Order 增加取消行为
+范围：只修改下游 order-domain
+授权：允许改代码和测试，不允许发布
+证据：运行 :order-domain:test，并报告兼容性与缺失的运行证据
 ```
 
-安装命令和当前发布状态以 [Ahoo Skills 中文站点](https://skills.ahoo.me/zh-CN/) 为准。插件更新后，使用客户端的刷新机制或新任务确认四个 Skill 已被发现。
+Skill 随后应从目标 checkout 建立事实：读取定义、消费者、测试、配置与生成契约；只在授权范围内写入；运行最窄有效检查；准确报告结果与缺失证据。
 
-四 Skill 架构是有意的破坏性重写：不分发旧名称或兼容别名。既有安装需要在发布后刷新或重新安装插件。
+完整注解参数、DSL 方法、配置键、默认值和后端列表必须从目标版本重新发现。references 只提供稳定决策和发现方法，不能被当作冻结 API 手册。
 
-## 使用方式
+## 完成证据
 
-请求至少应说明目标、范围、授权模式和完成证据：
+一次 Skill 任务只有在最终报告包含下列内容时才算完成：
 
-以下示例均指使用 Wow 的下游应用；不要把 Wow 框架仓库或其模块作为这些 Skills 的目标。
+- 实际目标版本、范围和授权边界；
+- 读取或修改的行为及其事实来源；
+- 准确的命令、退出结果和失败数；
+- 公开、生成、数据或运行兼容性影响；
+- 未执行的外部、生产、数据、发布或回滚验证，明确标为缺失证据。
 
-| 信息 | 示例 |
-|---|---|
-| 目标 | “为 `Order` 增加取消能力并补测试” |
-| 范围 | “只修改下游 `order-domain`，保持公开 API 兼容” |
-| 模式 | “只 review，不修改”或“定位并修复” |
-| 验证 | “运行 `:order-domain:test` 并报告准确结果” |
+对于 `wow-review`，没有授权就保持只读；对于 `wow-debug`，先复现和定位再修复；对于 `wow-migrate`，代码、数据、切换和发布权限彼此独立。
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant User as 用户
-    participant Client as Agent 客户端
-    participant Skill as Primary Skill
-    participant Repo as 当前 checkout
-    participant Gate as 验证门禁
+## 维护验证
 
-    User->>Client: 目标、范围、授权与完成标准
-    Client->>Skill: 自动激活一个 Primary Skill
-    Skill->>Repo: 读取定义、消费者、测试和当前 diff
-    Repo-->>Skill: 返回目标版本的实际契约
-    Skill->>Gate: 运行最窄的 test/check
-    Gate-->>Skill: 返回结果与证据缺口
-    Skill-->>User: 交付变更或证据化结论
-```
-
-## 验证与维护
-
-维护者运行：
+修改本仓库中的 Skills 后运行：
 
 ```bash
 python3 -S scripts/validate_wow_skills.py
-python3 -S -m unittest scripts/test_validate_wow_skills.py
+python3 -S -m unittest scripts.test_validate_wow_skills
 ```
 
-轻量 validator 只使用 Python 标准库，校验 Skill metadata、`openai.yaml`、显式插件清单、本地资源引用的存在性与路径边界，以及 activation/behavior JSONL 的 ID 和 Skill 引用。[`skills/README.md`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/README.md#validation)
+这些命令验证 metadata、agent manifest、插件 include、本地资源路径和 eval JSONL 结构。它们不会执行行为用例，也不会证明自然语言触发、目标 API 或生产迁移正确；行为质量仍需在全新任务中用真实 diff 与命令结果评估。
 
-结构校验不会证明自然语言触发或行为正确。activation/behavior 用例是可由标准 Agent eval 工具或人工前向评估消费的测试数据：在全新任务中只提供 prompt 与必要 fixture，对 Agent 隐藏期望项，再根据真实 diff、命令结果和最终证据评分。仓库不维护专属 eval runner；安装后的 Skill 也不依赖这些维护脚本。
+## 优先下一步
 
-## 相关页面
-
-| 页面 | 关系 |
-|---|---|
-| [快速上手](./getting-started.md) | 建立可运行的 Wow 应用 |
-| [聚合建模](./modeling.md) | `wow-develop` 的 Aggregate 建模背景 |
-| [测试套件](./test-suite.md) | 当前 Aggregate/Saga 测试 API |
-| [故障排查](./troubleshooting.md) | `wow-debug` 的运行与配置排障背景 |
-| [Wow v6 迁移到 v8](./migration/v6-to-v8.md) | `wow-migrate` 的框架迁移专题 |
+1. 先选择一个 Primary Skill，并在请求中给出范围、授权与证据。
+2. 若任务是首次采用，先用[快速上手](./getting-started.md)建立可运行基线。
+3. 若任务涉及破坏性契约或历史数据，先阅读[迁移](./migration.md)并固定精确源/目标版本。
