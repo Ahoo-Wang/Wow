@@ -13,6 +13,10 @@
 
 package me.ahoo.wow.elasticsearch.query.event
 
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.schema.QueryCapability
+import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
 import me.ahoo.wow.elasticsearch.TemplateInitializer.initEventStreamTemplate
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStore
@@ -24,6 +28,7 @@ import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.count
 import me.ahoo.wow.query.event.query
+import me.ahoo.wow.query.event.requiredQueryModelSchemaProvider
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
 import me.ahoo.wow.tck.query.EventStreamQueryServiceSpec
@@ -54,6 +59,17 @@ class ElasticsearchEventStreamQueryServiceTest : EventStreamQueryServiceSpec() {
 
     override fun createEventStreamQueryServiceFactory(): EventStreamQueryServiceFactory {
         return ElasticsearchEventStreamQueryServiceFactory(elasticsearchClient)
+    }
+
+    @Test
+    fun `should provide event stream query schema`() {
+        eventStore.append(generateEventStream(namedAggregate.aggregateId(generateGlobalId()))).block()
+        val schema = eventStreamQueryService.requiredQueryModelSchemaProvider().schema().block()!!
+
+        schema.model.assert().isEqualTo(QueryModel.EVENT_STREAM)
+        schema.fields.assert().containsKey(LogicalField("body.name"))
+        schema.fields.getValue(LogicalField("body")).bindings.assert()
+            .containsKey(QueryCapability.ELEMENT_SCOPE)
     }
 
     @Test

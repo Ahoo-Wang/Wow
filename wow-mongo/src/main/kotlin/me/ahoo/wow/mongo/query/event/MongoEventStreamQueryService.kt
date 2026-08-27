@@ -15,9 +15,16 @@ package me.ahoo.wow.mongo.query.event
 
 import com.mongodb.reactivestreams.client.MongoCollection
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.IPagedQuery
+import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
+import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToId
 import me.ahoo.wow.mongo.query.AbstractMongoFilterConverter
 import me.ahoo.wow.mongo.query.AbstractMongoQueryService
@@ -25,13 +32,44 @@ import me.ahoo.wow.mongo.query.MongoProjectionConverter
 import me.ahoo.wow.mongo.query.MongoSortConverter
 import me.ahoo.wow.mongo.toDomainEventStream
 import me.ahoo.wow.query.event.EventStreamQueryService
+import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QuerySchemaContext
+import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
+import me.ahoo.wow.query.schema.QuerySchemaValidationMode
+import me.ahoo.wow.query.schema.resolve
 import org.bson.Document
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 
-class MongoEventStreamQueryService(
+class MongoEventStreamQueryService private constructor(
     override val namedAggregate: NamedAggregate,
     override val collection: MongoCollection<Document>,
-    override val converter: AbstractMongoFilterConverter = EventStreamFilterConverter
-) : AbstractMongoQueryService<DomainEventStream>(), EventStreamQueryService {
+    override val converter: AbstractMongoFilterConverter,
+    private val schemaProvider: QueryModelSchemaProvider,
+    private val validationMode: QuerySchemaValidationMode,
+) : AbstractMongoQueryService<DomainEventStream>(),
+    EventStreamQueryService,
+    QueryModelSchemaProvider by schemaProvider {
+    constructor(
+        namedAggregate: NamedAggregate,
+        collection: MongoCollection<Document>,
+        converter: AbstractMongoFilterConverter = EventStreamFilterConverter,
+    ) : this(
+        namedAggregate,
+        collection,
+        converter,
+        defaultSchemaProvider(namedAggregate, collection, converter),
+        QuerySchemaValidationMode.COMPATIBLE,
+    )
+
+    internal constructor(
+        namedAggregate: NamedAggregate,
+        collection: MongoCollection<Document>,
+        schemaProvider: QueryModelSchemaProvider,
+        validationMode: QuerySchemaValidationMode,
+        converter: AbstractMongoFilterConverter = EventStreamFilterConverter,
+    ) : this(namedAggregate, collection, converter, schemaProvider, validationMode)
 
     override val projectionConverter: MongoProjectionConverter = MongoProjectionConverter(EventStreamFieldConverter)
     override val sortConverter: MongoSortConverter = MongoSortConverter(EventStreamFieldConverter)
@@ -41,5 +79,48 @@ class MongoEventStreamQueryService(
 
     override fun toDynamicDocument(document: Document): DynamicDocument {
         return document.replacePrimaryKeyToId().toDynamicDocument()
+    }
+
+    override fun resolve(query: ISingleQuery) = schemaProvider.resolve(query, validationMode)
+
+    override fun resolve(query: IListQuery) = schemaProvider.resolve(query, validationMode)
+
+    override fun resolve(query: IPagedQuery) = schemaProvider.resolve(query, validationMode)
+
+    override fun resolve(filter: FilterExpression) = schemaProvider.resolve(filter, validationMode)
+
+    override fun aggregate(query: AggregationQuery): Flux<DynamicDocument> =
+        schemaProvider.resolve(query, validationMode).flatMapMany(::executeAggregation)
+
+    companion object {
+        private fun defaultSchemaProvider(
+            namedAggregate: NamedAggregate,
+            collection: MongoCollection<Document>,
+            converter: AbstractMongoFilterConverter,
+        ): QueryModelSchemaProvider {
+            if (converter !== EventStreamFilterConverter) {
+                return object : QueryModelSchemaProvider {
+                    override fun schema(): Mono<me.ahoo.wow.query.schema.QueryModelSchema> = unavailable()
+
+                    override fun refresh(): Mono<me.ahoo.wow.query.schema.QueryModelSchema> = unavailable()
+
+                    private fun unavailable(): Mono<me.ahoo.wow.query.schema.QueryModelSchema> = Mono.error(
+                        QuerySchemaUnavailableException(
+                            "MongoDB query schema is unavailable for custom filter converters.",
+                        ),
+                    )
+                }
+            }
+            return DefaultQueryModelSchemaProvider(
+                context = QuerySchemaContext(namedAggregate.materialize(), QueryModel.EVENT_STREAM),
+                sources = emptyList(),
+                adapter = me.ahoo.wow.mongo.query.schema.MongoQuerySchemaAdapter(
+                    collection,
+                    null,
+                    QueryModel.EVENT_STREAM,
+                    EventStreamFieldConverter,
+                ),
+            )
+        }
     }
 }

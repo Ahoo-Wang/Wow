@@ -1,6 +1,10 @@
 package me.ahoo.wow.mongo.query.event
 
 import com.mongodb.reactivestreams.client.MongoDatabase
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.schema.QueryCapability
+import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
@@ -8,6 +12,7 @@ import me.ahoo.wow.mongo.MongoEventStore
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.query
+import me.ahoo.wow.query.event.requiredQueryModelSchemaProvider
 import me.ahoo.wow.tck.container.MongoTestFixture
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
 import me.ahoo.wow.tck.query.EventStreamQueryServiceSpec
@@ -36,6 +41,16 @@ class MongoEventStreamQueryServiceTest : EventStreamQueryServiceSpec() {
 
     override fun createEventStreamQueryServiceFactory(): EventStreamQueryServiceFactory {
         return MongoEventStreamQueryServiceFactory(database)
+    }
+
+    @Test
+    fun `should provide event stream query schema`() {
+        val schema = eventStreamQueryService.requiredQueryModelSchemaProvider().schema().block()!!
+
+        schema.model.assert().isEqualTo(QueryModel.EVENT_STREAM)
+        schema.fields.assert().containsKey(LogicalField("body.name"))
+        schema.fields.getValue(LogicalField("body")).bindings.assert()
+            .containsKey(QueryCapability.ELEMENT_SCOPE)
     }
 
     @Test
