@@ -26,13 +26,13 @@ import { describe, expect, expectTypeOf, it } from 'vitest';
 describe('filter', () => {
   it('builds the Wow FilterExpression wire shape', () => {
     expect(
-      filter.and(
+      filter.and([
         filter.deletion(DeletionState.ACTIVE),
         filter.eq('state.status', 'PAID'),
         filter.elementMatch('state.items', filter.gt('quantity', 0)),
         filter.search('wow', { fields: ['state.name'] }),
         filter.today('state.createdAt', { zoneId: 'UTC' }),
-      ),
+      ]),
     ).toEqual({
       op: FilterOperator.AND,
       operands: [
@@ -133,9 +133,9 @@ describe('filter', () => {
   it('builds metadata filters', () => {
     const expressions: MetadataFilter[] = [
       filter.id('snapshot-1'),
-      filter.ids('snapshot-1', 'snapshot-2'),
+      filter.ids(['snapshot-1', 'snapshot-2']),
       filter.aggregateId('order-1'),
-      filter.aggregateIds('order-1', 'order-2'),
+      filter.aggregateIds(['order-1', 'order-2']),
       filter.tenantId('tenant-1'),
       filter.ownerId('owner-1'),
       filter.spaceId('space-1'),
@@ -153,6 +153,71 @@ describe('filter', () => {
       { op: FilterOperator.OWNER_ID, value: 'owner-1' },
       { op: FilterOperator.SPACE_ID, value: 'space-1' },
     ]);
+  });
+
+  it('accepts readonly arrays for value-list builders', () => {
+    const ids = ['snapshot-1', 'snapshot-2'] as const;
+    const aggregateIds = ['order-1', 'order-2'] as const;
+    const statuses = ['PAID', 'SHIPPED'] as const;
+    const tags = ['wow', 'cqrs'] as const;
+
+    expect([
+      filter.ids(ids),
+      filter.aggregateIds(aggregateIds),
+      filter.isIn('status', statuses),
+      filter.notIn('status', statuses),
+      filter.containsAll('tags', tags),
+    ]).toEqual([
+      { op: 'IDS', values: ['snapshot-1', 'snapshot-2'] },
+      { op: 'AGGREGATE_IDS', values: ['order-1', 'order-2'] },
+      { op: 'IN', field: 'status', values: ['PAID', 'SHIPPED'] },
+      { op: 'NOT_IN', field: 'status', values: ['PAID', 'SHIPPED'] },
+      { op: 'CONTAINS_ALL', field: 'tags', values: ['wow', 'cqrs'] },
+    ]);
+    expect(filter.aggregateIds(aggregateIds).values).not.toBe(aggregateIds);
+  });
+
+  it('accepts readonly arrays for logical builders', () => {
+    const operands = [
+      filter.eq('status', 'PAID'),
+      filter.isNotNull('paidAt'),
+    ] as const;
+
+    expect([
+      filter.and(operands),
+      filter.or(operands),
+      filter.nor(operands),
+    ]).toEqual([
+      { op: 'AND', operands },
+      { op: 'OR', operands },
+      { op: 'NOR', operands },
+    ]);
+    expect(filter.and(operands).operands).not.toBe(operands);
+  });
+
+  it.each([
+    ['AND', () => filter.and([]), 'AND operands cannot be empty.'],
+    ['OR', () => filter.or([]), 'OR operands cannot be empty.'],
+    ['NOR', () => filter.nor([]), 'NOR operands cannot be empty.'],
+    ['IDS', () => filter.ids([]), 'IDS values cannot be empty.'],
+    [
+      'AGGREGATE_IDS',
+      () => filter.aggregateIds([]),
+      'AGGREGATE_IDS values cannot be empty.',
+    ],
+    ['IN', () => filter.isIn('status', []), 'IN values cannot be empty.'],
+    [
+      'NOT_IN',
+      () => filter.notIn('status', []),
+      'NOT_IN values cannot be empty.',
+    ],
+    [
+      'CONTAINS_ALL',
+      () => filter.containsAll('tags', []),
+      'CONTAINS_ALL values cannot be empty.',
+    ],
+  ])('rejects an empty %s array', (_name, create, message) => {
+    expect(create).toThrow(message);
   });
 
   it('supports Kotlin equality values and logical fields', () => {
@@ -190,7 +255,7 @@ describe('filter', () => {
     },
     {
       name: 'or',
-      create: () => filter.or(filter.eq('status', 'PAID')),
+      create: () => filter.or([filter.eq('status', 'PAID')]),
       expected: {
         op: FilterOperator.OR,
         operands: [{ op: FilterOperator.EQ, field: 'status', value: 'PAID' }],
@@ -198,7 +263,7 @@ describe('filter', () => {
     },
     {
       name: 'nor',
-      create: () => filter.nor(filter.ne('status', null)),
+      create: () => filter.nor([filter.ne('status', null)]),
       expected: {
         op: FilterOperator.NOR,
         operands: [{ op: FilterOperator.NE, field: 'status', value: null }],
@@ -242,7 +307,7 @@ describe('filter', () => {
     },
     {
       name: 'in',
-      create: () => filter.isIn('status', 'PAID', 'SHIPPED'),
+      create: () => filter.isIn('status', ['PAID', 'SHIPPED']),
       expected: {
         op: FilterOperator.IN,
         field: 'status',
@@ -251,7 +316,7 @@ describe('filter', () => {
     },
     {
       name: 'not in',
-      create: () => filter.notIn('status', 'CANCELLED'),
+      create: () => filter.notIn('status', ['CANCELLED']),
       expected: {
         op: FilterOperator.NOT_IN,
         field: 'status',
@@ -270,7 +335,7 @@ describe('filter', () => {
     },
     {
       name: 'contains all',
-      create: () => filter.containsAll('tags', 'wow', 'cqrs'),
+      create: () => filter.containsAll('tags', ['wow', 'cqrs']),
       expected: {
         op: FilterOperator.CONTAINS_ALL,
         field: 'tags',
@@ -549,10 +614,10 @@ describe('filter', () => {
   });
 
   it('restricts element predicates recursively', () => {
-    const predicate = filter.and(
+    const predicate = filter.and([
       filter.eq('sku', 'product-1'),
       filter.gt('quantity', 0),
-    );
+    ]);
 
     expectTypeOf(predicate).toMatchTypeOf<
       ElementFilterExpression<'sku' | 'quantity'>
@@ -573,7 +638,7 @@ describe('filter', () => {
       filter.elementMatch(
         'state.items',
         // @ts-expect-error Unsupported filters remain invalid inside logical predicates.
-        filter.and(filter.eq('sku', 'product-1'), filter.search('wow')),
+        filter.and([filter.eq('sku', 'product-1'), filter.search('wow')]),
       );
     };
     expectTypeOf(invalidElementPredicates).toBeFunction();
@@ -581,10 +646,10 @@ describe('filter', () => {
 
   it('rejects unsupported element predicates at runtime', () => {
     const deletion = filter.deletion(DeletionState.ACTIVE);
-    const nestedSearch = filter.and(
+    const nestedSearch = filter.and([
       filter.eq('sku', 'product-1'),
       filter.search('wow'),
-    );
+    ]);
     const metadata = filter.id('snapshot-1');
 
     expect(() =>
@@ -614,28 +679,25 @@ describe('filter', () => {
   });
 
   it.each([
-    ['empty logical operands', () => Reflect.apply(filter.and, null, [])],
+    ['empty logical operands', () => filter.and([])],
     [
       'undefined AND operand',
-      () => Reflect.apply(filter.and, null, [undefined]),
+      () => Reflect.apply(filter.and, null, [[undefined]]),
     ],
-    ['null OR operand', () => Reflect.apply(filter.or, null, [null])],
+    ['null OR operand', () => Reflect.apply(filter.or, null, [[null]])],
     [
       'undefined NOR operand',
-      () => Reflect.apply(filter.nor, null, [undefined]),
+      () => Reflect.apply(filter.nor, null, [[undefined]]),
     ],
-    [
-      'empty collection values',
-      () => Reflect.apply(filter.isIn, null, ['status']),
-    ],
-    ['empty ids', () => Reflect.apply(filter.ids, null, [])],
+    ['empty collection values', () => filter.isIn('status', [])],
+    ['empty ids', () => filter.ids([])],
     [
       'non-string aggregate ID',
       () => Reflect.apply(filter.aggregateId, null, [1]),
     ],
     [
       'non-string aggregate IDs value',
-      () => Reflect.apply(filter.aggregateIds, null, ['order-1', 2]),
+      () => Reflect.apply(filter.aggregateIds, null, [['order-1', 2]]),
     ],
     ['invalid logical field', () => filter.eq('bad field', 'value')],
     [
@@ -657,7 +719,7 @@ describe('filter', () => {
     ['non-finite value', () => filter.gt('score', Number.POSITIVE_INFINITY)],
     [
       'null collection value',
-      () => Reflect.apply(filter.isIn, null, ['status', null]),
+      () => Reflect.apply(filter.isIn, null, ['status', [null]]),
     ],
     ['blank search query', () => filter.search(' ')],
     ['non-string search query', () => Reflect.apply(filter.search, null, [1])],

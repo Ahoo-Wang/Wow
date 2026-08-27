@@ -123,7 +123,7 @@ export function cursorQuery<FIELDS extends string = string>(
   if (queryFilter !== undefined) {
     return {
       ...query,
-      filter: filter.and(cursorFilter(options), queryFilter),
+      filter: filter.and([cursorFilter(options), queryFilter]),
       sort: [mergedSort],
     };
   }

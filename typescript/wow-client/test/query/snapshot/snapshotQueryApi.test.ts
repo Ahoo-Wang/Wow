@@ -105,3 +105,58 @@ describe('SnapshotQueryEndpointPaths', () => {
     expect(exchange).toHaveBeenCalledOnce();
   });
 });
+
+describe('SnapshotQueryClient ID helpers', () => {
+  it.each(['getByIds', 'getStateByIds'] as const)(
+    '%s sends a FilterExpression request',
+    async method => {
+      const fetcher = new NamedFetcher(`${method}-filter-test`);
+      const bodies: unknown[] = [];
+      vi.spyOn(fetcher.interceptors, 'exchange').mockImplementation(
+        async current => {
+          bodies.push(
+            typeof current.request.body === 'string'
+              ? JSON.parse(current.request.body)
+              : current.request.body,
+          );
+          current.extractResult = vi.fn().mockResolvedValue([]);
+          return current;
+        },
+      );
+      const client = new SnapshotQueryClient<unknown>({
+        basePath: '/order',
+        fetcher,
+      });
+
+      await client[method](['order-1', 'order-2']);
+
+      expect(bodies).toEqual([
+        {
+          filter: {
+            op: 'AGGREGATE_IDS',
+            values: ['order-1', 'order-2'],
+          },
+          limit: 2,
+        },
+      ]);
+    },
+  );
+});
+
+describe('SnapshotQueryClient empty ID helpers', () => {
+  it.each(['getByIds', 'getStateByIds'] as const)(
+    '%s returns locally for empty IDs',
+    async method => {
+      const fetcher = new NamedFetcher(`${method}-empty-test`);
+      vi.spyOn(fetcher.interceptors, 'exchange').mockRejectedValue(
+        new Error('unexpected HTTP exchange'),
+      );
+      const client = new SnapshotQueryClient<unknown>({
+        basePath: '/order',
+        fetcher,
+      });
+
+      await expect(client[method]([])).resolves.toEqual([]);
+    },
+  );
+});

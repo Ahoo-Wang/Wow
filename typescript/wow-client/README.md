@@ -172,7 +172,7 @@ import {
   TimeUnit,
 } from '@ahoo-wang/fetcher-wow';
 
-const expression = filter.and(
+const expression = filter.and([
   filter.deletion(DeletionState.ACTIVE),
   filter.eq('state.status', 'PAID'),
   filter.elementMatch('state.items', filter.gt('quantity', 0)),
@@ -184,12 +184,15 @@ const expression = filter.and(
     zoneId: 'Asia/Shanghai',
     timeUnit: TimeUnit.MILLISECONDS,
   }),
-);
+]);
 ```
 
 Builders are grouped under `filter`: `matchAll`, `matchNone`, `and`, `or`,
 `nor`, comparisons, string/collection predicates, presence checks,
 `elementMatch`, `search`, deletion scope, and relative-time filters.
+`and`, `or`, `nor`, `ids`, `aggregateIds`, `isIn`, `notIn`, and
+`containsAll` accept one non-empty `readonly` array and throw `TypeError` for
+an empty array.
 
 #### Condition Builder (Deprecated)
 
@@ -803,10 +806,10 @@ class ReactiveQueryManager {
         filter: filter.eq('aggregateId', userId),
       }),
       this.snapshotClient.list({
-        filter: filter.and(
+        filter: filter.and([
           filter.eq('state.userId', userId),
           filter.eq('state.type', 'activity'),
-        ),
+        ]),
         limit: 10,
       }),
       this.snapshotClient.count(filter.eq('state.userId', userId)),
@@ -832,10 +835,10 @@ console.log('Dashboard:', dashboard);
 queryManager.subscribeToQuery(
   'user-activity',
   {
-    filter: filter.and(
+    filter: filter.and([
       filter.eq('state.userId', 'user-123'),
       filter.eq('state.type', 'activity'),
-    ),
+    ]),
   },
   update => {
     console.log('New activity:', update);

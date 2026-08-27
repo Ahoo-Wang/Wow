@@ -541,51 +541,42 @@ function validateElementPredicate(predicate: FilterExpression): void {
 }
 
 function andFilter<FIELDS extends string>(
-  ...operands: [
-    ElementFilterExpression<FIELDS>,
-    ...ElementFilterExpression<FIELDS>[],
-  ]
+  operands: readonly ElementFilterExpression<FIELDS>[],
 ): ElementLogicalFilter<FIELDS>;
 function andFilter<FIELDS extends string>(
-  ...operands: [FilterExpression<FIELDS>, ...FilterExpression<FIELDS>[]]
+  operands: readonly FilterExpression<FIELDS>[],
 ): LogicalFilter<FIELDS>;
 function andFilter<FIELDS extends string>(
-  ...operands: [FilterExpression<FIELDS>, ...FilterExpression<FIELDS>[]]
+  operands: readonly FilterExpression<FIELDS>[],
 ): LogicalFilter<FIELDS> {
   requireNonEmpty('AND operands', operands);
-  return { op: FilterOperator.AND, operands };
+  return { op: FilterOperator.AND, operands: [...operands] };
 }
 
 function orFilter<FIELDS extends string>(
-  ...operands: [
-    ElementFilterExpression<FIELDS>,
-    ...ElementFilterExpression<FIELDS>[],
-  ]
+  operands: readonly ElementFilterExpression<FIELDS>[],
 ): ElementLogicalFilter<FIELDS>;
 function orFilter<FIELDS extends string>(
-  ...operands: [FilterExpression<FIELDS>, ...FilterExpression<FIELDS>[]]
+  operands: readonly FilterExpression<FIELDS>[],
 ): LogicalFilter<FIELDS>;
 function orFilter<FIELDS extends string>(
-  ...operands: [FilterExpression<FIELDS>, ...FilterExpression<FIELDS>[]]
+  operands: readonly FilterExpression<FIELDS>[],
 ): LogicalFilter<FIELDS> {
   requireNonEmpty('OR operands', operands);
-  return { op: FilterOperator.OR, operands };
+  return { op: FilterOperator.OR, operands: [...operands] };
 }
 
 function norFilter<FIELDS extends string>(
-  ...operands: [
-    ElementFilterExpression<FIELDS>,
-    ...ElementFilterExpression<FIELDS>[],
-  ]
+  operands: readonly ElementFilterExpression<FIELDS>[],
 ): ElementLogicalFilter<FIELDS>;
 function norFilter<FIELDS extends string>(
-  ...operands: [FilterExpression<FIELDS>, ...FilterExpression<FIELDS>[]]
+  operands: readonly FilterExpression<FIELDS>[],
 ): LogicalFilter<FIELDS>;
 function norFilter<FIELDS extends string>(
-  ...operands: [FilterExpression<FIELDS>, ...FilterExpression<FIELDS>[]]
+  operands: readonly FilterExpression<FIELDS>[],
 ): LogicalFilter<FIELDS> {
   requireNonEmpty('NOR operands', operands);
-  return { op: FilterOperator.NOR, operands };
+  return { op: FilterOperator.NOR, operands: [...operands] };
 }
 
 export const filter = {
@@ -598,10 +589,10 @@ export const filter = {
   id(value: string): MetadataValueFilter {
     return { op: FilterOperator.ID, value: requiredString('ID value', value) };
   },
-  ids(...values: [string, ...string[]]): MetadataValuesFilter {
+  ids(values: readonly string[]): MetadataValuesFilter {
     requireNonEmpty('IDS values', values);
     values.forEach(value => requiredString('IDS value', value));
-    return { op: FilterOperator.IDS, values };
+    return { op: FilterOperator.IDS, values: [...values] };
   },
   aggregateId(value: string): MetadataValueFilter {
     return {
@@ -609,10 +600,10 @@ export const filter = {
       value: requiredString('AGGREGATE_ID value', value),
     };
   },
-  aggregateIds(...values: [string, ...string[]]): MetadataValuesFilter {
+  aggregateIds(values: readonly string[]): MetadataValuesFilter {
     requireNonEmpty('AGGREGATE_IDS values', values);
     values.forEach(value => requiredString('AGGREGATE_IDS value', value));
-    return { op: FilterOperator.AGGREGATE_IDS, values };
+    return { op: FilterOperator.AGGREGATE_IDS, values: [...values] };
   },
   tenantId(value: string): MetadataValueFilter {
     return {
@@ -736,30 +727,38 @@ export const filter = {
   },
   isIn<FIELDS extends string>(
     field: FIELDS,
-    ...values: [ComparableFilterLiteral, ...ComparableFilterLiteral[]]
+    values: readonly ComparableFilterLiteral[],
   ): CollectionFilter<FIELDS> {
     requireNonEmpty('IN values', values);
     values.forEach(value => filterLiteral(value, false));
-    return { op: FilterOperator.IN, field: logicalField(field), values };
+    return {
+      op: FilterOperator.IN,
+      field: logicalField(field),
+      values: [...values],
+    };
   },
   notIn<FIELDS extends string>(
     field: FIELDS,
-    ...values: [ComparableFilterLiteral, ...ComparableFilterLiteral[]]
+    values: readonly ComparableFilterLiteral[],
   ): CollectionFilter<FIELDS> {
     requireNonEmpty('NOT_IN values', values);
     values.forEach(value => filterLiteral(value, false));
-    return { op: FilterOperator.NOT_IN, field: logicalField(field), values };
+    return {
+      op: FilterOperator.NOT_IN,
+      field: logicalField(field),
+      values: [...values],
+    };
   },
   containsAll<FIELDS extends string>(
     field: FIELDS,
-    ...values: [ComparableFilterLiteral, ...ComparableFilterLiteral[]]
+    values: readonly ComparableFilterLiteral[],
   ): CollectionFilter<FIELDS> {
     requireNonEmpty('CONTAINS_ALL values', values);
     values.forEach(value => filterLiteral(value, false));
     return {
       op: FilterOperator.CONTAINS_ALL,
       field: logicalField(field),
-      values,
+      values: [...values],
     };
   },
   between<FIELDS extends string>(

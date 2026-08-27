@@ -164,7 +164,7 @@ import {
   TimeUnit,
 } from '@ahoo-wang/fetcher-wow';
 
-const expression = filter.and(
+const expression = filter.and([
   filter.deletion(DeletionState.ACTIVE),
   filter.eq('state.status', 'PAID'),
   filter.elementMatch('state.items', filter.gt('quantity', 0)),
@@ -176,11 +176,13 @@ const expression = filter.and(
     zoneId: 'Asia/Shanghai',
     timeUnit: TimeUnit.MILLISECONDS,
   }),
-);
+]);
 ```
 
 所有构建器集中在 `filter`：`matchAll`、`matchNone`、`and`、`or`、`nor`、
 比较、字符串/集合谓词、存在性检查、`elementMatch`、`search`、删除范围和相对时间过滤器。
+`and`、`or`、`nor`、`ids`、`aggregateIds`、`isIn`、`notIn` 和
+`containsAll` 接收一个非空 `readonly` 数组；传入空数组时抛出 `TypeError`。
 
 #### 条件构建器（已弃用）
 

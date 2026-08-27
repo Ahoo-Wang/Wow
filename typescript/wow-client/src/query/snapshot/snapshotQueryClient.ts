@@ -15,9 +15,9 @@ import {
   type SnapshotQueryApi,
   SnapshotQueryEndpointPaths,
 } from './snapshotQueryApi';
-import { aggregateId, aggregateIds, type Condition } from '../condition';
+import { aggregateId, type Condition } from '../condition';
 import type { AggregationQuery } from '../aggregation';
-import type { FilterExpression } from '../filter';
+import { filter, type FilterExpression } from '../filter';
 import {
   listQuery,
   type ListQueryRequest,
@@ -506,8 +506,9 @@ export class SnapshotQueryClient<S, FIELDS extends string = string>
     @attribute() attributes?: Record<string, any>,
     abortController?: AbortController,
   ): Promise<MaterializedSnapshot<S>[]> {
+    if (ids.length === 0) return Promise.resolve([]);
     const query = listQuery<FIELDS>({
-      condition: aggregateIds<FIELDS>(ids),
+      filter: filter.aggregateIds(ids),
       limit: ids.length,
     });
     return this.list(query, attributes, abortController);
@@ -536,8 +537,9 @@ export class SnapshotQueryClient<S, FIELDS extends string = string>
     @attribute() attributes?: Record<string, any>,
     abortController?: AbortController,
   ): Promise<S[]> {
+    if (ids.length === 0) return Promise.resolve([]);
     const query = listQuery<FIELDS>({
-      condition: aggregateIds<FIELDS>(ids),
+      filter: filter.aggregateIds(ids),
       limit: ids.length,
     });
     return this.listState(query, attributes, abortController);

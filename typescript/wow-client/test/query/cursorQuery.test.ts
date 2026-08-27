@@ -62,14 +62,14 @@ describe('cursorQuery', () => {
     });
 
     expect(result.filter).toEqual(
-      filter.and(
+      filter.and([
         cursorFilter({
           field: 'id',
           cursorId: 'cursor123',
           direction: SortDirection.ASC,
         }),
         query.filter,
-      ),
+      ]),
     );
   });
 
