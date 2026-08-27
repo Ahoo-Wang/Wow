@@ -1,157 +1,94 @@
 ---
 title: CoCache
-description: 基于 CoCache 的投影缓存扩展，提供事件驱动的缓存刷新策略。
+description: 用 Wow 快照查询和领域/状态事件驱动 CoCache 缓存加载与刷新。
 ---
 
 # CoCache
 
-CoCache 扩展将 [CoCache](https://github.com/Ahoo-Wang/CoCache) 分布式缓存框架与 Wow 的 CQRS 读模型整合，提供事件驱动的缓存刷新能力。
+`wow-cocache` 连接 Wow 查询/事件合同与 CoCache `Cache` SPI。需要按聚合 ID 缓存读模型，并希望在领域事件到达时逐出或按状态事件主动更新时使用；它不自动创建 cache backend，也不自动注册任何业务缓存。
 
 ## 特性
 
-- **事件驱动缓存刷新**：收到领域事件时自动刷新或逐出缓存条目
-- **两种刷新策略**：逐出（Evict，移除过期条目）和更新（Set，写入最新状态）
-- **灵活的缓存加载源**：支持本地 QueryService 或远程 REST API 加载缓存
+- `QueryServiceCacheSource` 从本地 `SnapshotQueryService` 加载；
+- `QueryApiCacheSource` 从远程 `ReactiveSnapshotQueryApi` 加载，并把 404 转为空；
+- `EvictStateCacheRefresher` 消费领域事件并逐出；
+- `SetStateCacheRefresher` 消费状态事件并 set，deleted state 改为逐出。
+
+应用拥有 cache key、数据转换、TTL、backend、容量、一致性目标和 Bean 注册；CoCache backend 拥有 eviction/TTL/存储语义。
 
 ## 安装
 
-添加 `wow-cocache` 依赖：
-
-```kotlin [Gradle(Kotlin)]
+```kotlin
 implementation("me.ahoo.wow:wow-cocache")
 ```
 
-::: warning
-`wow-cocache` 是一个库，而非 Spring Boot 自动配置的特性能力。你需要手动装配缓存源、
-缓存刷新器和 CoCache `Cache` Bean。不存在 `wow.cocache.enabled` 属性 —— 该模块在你注册其 Bean 时激活。
-:::
+Starter 没有 `cocache-support` capability，也没有 `wow.cocache.*` 自动配置。最小可用条件是：一个现有 `Cache<K,D>`、一个 source（需要 miss load 时）以及一个显式注册的 refresher（需要事件刷新时）。
 
 ## 快速开始
 
+先确定聚合、key 类型、缓存 DTO 和刷新策略，再只注册所需组件。
+
 ### 1. 配置 CoCache 缓存
 
-创建一个 CoCache `Cache<String, YourCacheData>` Bean（后端配置请参阅
-[CoCache](https://github.com/Ahoo-Wang/CoCache) 文档）：
-
-```kotlin
-@Configuration
-class CacheConfiguration {
-    @Bean
-    fun orderCache(): Cache<String, OrderCacheData> = MapClientSideCache()
-}
-```
-
-`MapClientSideCache` 适用于本地示例；生产环境的缓存实现与后端配置请以 CoCache 文档为准。
+使用应用现有 CoCache 配置创建 `Cache<String, OrderView>`。`wow-cocache` 不选择 Redis、本地 map 或其他 backend，也不复制 backend 的连接/序列化校验。
 
 ### 2. 注册缓存源（缓存未命中时加载）
 
-缓存缓存在未命中时从本地 `SnapshotQueryService` 加载数据：
-
 ```kotlin
 @Bean
-fun orderCacheSource(
-    queryService: SnapshotQueryService<OrderState>
-): QueryServiceCacheSource<OrderState, OrderCacheData> {
-    return QueryServiceCacheSource(
-        queryService,
-        StateToCacheDataConverter { snapshot ->
-            OrderCacheData(
-                orderId = snapshot.state.id,
-                status = snapshot.state.status,
-                totalAmount = snapshot.state.totalAmount,
-            )
-        },
+fun orderCacheSource(queryService: SnapshotQueryService<OrderState>) =
+    QueryServiceCacheSource(
+        queryService = queryService,
+        stateToCacheDataConverter = { snapshot -> OrderView(snapshot.state) },
     )
-}
 ```
+
+默认 `LoadCacheSourceConfiguration` 为 `timeout=10s` 和 CoCache 默认 TTL/amplitude。`loadCacheValue` 是 CoCache 同步 SPI：它等待 Reactor source，超时或查询异常会传播；不要从 Reactor event loop 直接调用阻塞 miss loader。
 
 ### 3. 注册缓存刷新器（事件驱动刷新）
 
-刷新器既是 Wow 的 `MessageFunction`（自动注册为事件处理器），也是缓存更新器。
-选择 `EvictStateCacheRefresher`（在领域事件时失效）或 `SetStateCacheRefresher`（在状态事件时主动更新）：
-
 ```kotlin
-@Component
-class OrderCacheRefresher(
-    namedAggregate: NamedAggregate,        // 此缓存跟踪的聚合
-    cache: Cache<String, OrderCacheData>,  // 步骤 1 中的 CoCache 缓存
-) : EvictStateCacheRefresher<String, Any, OrderCacheData>(
-    namedAggregate = namedAggregate,
+@Bean
+fun orderCacheRefresher(
+    cache: Cache<String, OrderView>,
+) = EvictStateCacheRefresher<String, OrderState, OrderView>(
+    namedAggregate = ORDER,
     cache = cache,
 )
 ```
 
-当目标聚合的领域事件到达时，刷新器会逐出（或更新）缓存条目。在下一次缓存读取时，
-缓存源会从 `SnapshotQueryService` 重新加载最新快照。
+Refresher 是 `MessageFunction`，必须进入应用的事件处理器发现/注册流程；构造对象本身不会订阅总线。
 
 ## 缓存刷新策略
 
-两种刷新器都继承自 `StateCacheRefresher`，并绑定到一个 `Cache<K, D>`
-（即 CoCache 的 `Cache` SPI，而非 `CoCache` 协调器本身）。构造函数的第一个参数是
-该刷新器订阅的 `NamedAggregate`。
+逐出更简单，下一次读取重新加载；主动 set 减少 miss，但依赖状态事件总线、converter 和 TTL 正确。两者都只提供最终一致的缓存刷新，不是与 EventStore 同一事务。
 
 ### 逐出策略（Evict）
 
-监听**领域事件**（`FunctionKind.EVENT`），移除过期的缓存条目，下次读取时强制缓存未命中：
-
-```kotlin
-class OrderCacheRefresher(
-    namedAggregate: NamedAggregate, // 例如注入或从元数据解析
-    cache: Cache<String, OrderCacheData>
-) : EvictStateCacheRefresher<String, Any, OrderCacheData>(
-    namedAggregate = namedAggregate,
-    cache = cache,
-)
-```
-
-`EvictStateCacheRefresher<K, S : Any, D>` 默认以事件的 `aggregateId.id` 作为缓存键；
-可重写 `keyConvert` lambda 将其映射为其他键类型。
+`EvictStateCacheRefresher` 的 `functionKind=EVENT`，默认把 `aggregateId.id` 转为 key 并调用 `cache.evict`。key 类型不是 String 时提供 `keyConvert`，不要依赖 unchecked cast。
 
 ### 更新策略（Set）
 
-监听**状态事件**（`FunctionKind.STATE_EVENT`），主动将最新的聚合状态写入缓存。
-当状态被删除时改为逐出：
-
-```kotlin
-class OrderCacheRefresher(
-    namedAggregate: NamedAggregate, // 例如注入或从元数据解析
-    converter: StateToCacheDataConverter<ReadOnlyStateAggregate<OrderState>, OrderCacheData>,
-    cache: Cache<String, OrderCacheData>
-) : SetStateCacheRefresher<String, OrderState, OrderCacheData>(
-    namedAggregate = namedAggregate,
-    stateToCacheDataConverter = converter,
-    cache = cache,
-)
-```
-
-`SetStateCacheRefresher` 还实现了 CoCache 的 `TtlConfiguration`
-（`ttl` / `ttlAmplitude`，默认为 `CoCache.DEFAULT_TTL`），因此每次刷新的条目都会以
-带 TTL 的 `DefaultCacheValue` 写入。
+`SetStateCacheRefresher` 的 `functionKind=STATE_EVENT`。非 deleted 状态经 `StateToCacheDataConverter` 写成 `DefaultCacheValue.ttlAt`，deleted 状态逐出。TTL 默认来自 CoCache，也可在构造时覆盖。
 
 ## 缓存加载源
 
-`StateCacheSource<String, MaterializedSnapshot<S>, D>` 在缓存未命中时按键加载快照。
+source 只负责 miss load 与 DTO 转换。权限、tenant/space 作用域和不存在语义必须由所调用 query service/API 的公共合同保证。
 
 ### QueryServiceCacheSource
 
-使用本地 `SnapshotQueryService`（按 `aggregateId` 单结果查询）加载聚合快照到缓存：
-
-```kotlin
-val cacheSource = QueryServiceCacheSource<OrderState, OrderCacheData>(
-    snapshotQueryService,
-    StateToCacheDataConverter { snapshot -> /* 映射为 OrderCacheData */ },
-)
-```
+它构造按 `aggregateId` 的 single query。空结果返回 `null` cache value；查询错误和 timeout 不会伪装成 cache miss。
 
 ### QueryApiCacheSource
 
-`QueryApiCacheSource<S>` 是一个**接口**，它将 `wow-apiclient` 的 REST 客户端
-`ReactiveSnapshotQueryApi<S>` 与 `StateCacheSource` 组合在一起。在你的 API 客户端上实现该接口，
-它会通过 `getById(key)` 加载快照，远端返回 not-found 时转为空：
+它同时实现 `ReactiveSnapshotQueryApi` 与 `StateCacheSource`，`getById` 的 not-found 转为空，其他 HTTP/解码失败继续传播。不要把远端不可用缓存为“不存在”。
 
-```kotlin
-@Component
-class OrderQueryApiCacheSource(
-    private val delegate: ReactiveSnapshotQueryApi<OrderState>
-) : QueryApiCacheSource<OrderState>, ReactiveSnapshotQueryApi<OrderState> by delegate
+已验证失败/边界：空 source 不写缓存；deleted state 逐出；miss loader timeout/异常传播；cache 操作异常使 refresher 失败并由事件处理恢复策略处理。
+
+聚焦检查：
+
+```bash
+./gradlew :wow-cocache:check
 ```
+
+下一步阅读[查询](../query.md)和[投影](../projection.md)，再用所选 cache backend 的真实 TTL/eviction 测试验证一致性。

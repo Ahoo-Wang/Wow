@@ -1,285 +1,165 @@
 ---
 title: Spring Boot Starter
-description: Spring Boot Starter 模块集成所有 Wow 扩展并提供自动配置能力。
+description: 通过 Spring Boot 条件装配 Wow 核心、运行时生命周期与可选基础设施能力。
 ---
 
 # Spring-Boot-Starter
 
-_Spring-Boot-Starter_ 模块集成了所有 _Wow_ 扩展，提供了自动装配的能力，使 _Wow_ 框架在 _Spring Boot_ 项目中更加便捷地使用。
-
-::: tip
-该模块的公共配置文档请参考 [配置](../../reference/config/core)。
-已有 Spring Boot 服务请按[接入现有项目](../existing-project)完成 BOM、KSP、首跑配置和路由验证。
-:::
+`wow-spring-boot-starter` 是 Spring Boot 应用的装配入口：绑定 `wow.*` 属性、注册核心 Bean、收集 `RuntimeComponent`，并让唯一 `WowRuntimeLifecycle` 管理启动与关闭。它不自动决定应用应使用哪个 Broker、存储、安全或 exporter。
 
 ## 安装
 
-::: code-group
-```kotlin [Gradle(Kotlin)]
+```kotlin
 implementation("me.ahoo.wow:wow-spring-boot-starter")
 ```
-```groovy [Gradle(Groovy)]
-implementation 'me.ahoo.wow:wow-spring-boot-starter'
-```
-```xml [Maven]
-<dependency>
-    <groupId>me.ahoo.wow</groupId>
-    <artifactId>wow-spring-boot-starter</artifactId>
-    <version>${wow.version}</version>
-</dependency>
-```
-:::
+
+基础依赖提供 core/spring/schema/compensation 及 Spring WebFlux/Jackson 基线；Kafka、Mongo、Redis、Elasticsearch、OpenTelemetry、OpenAPI、CoSec 等仍是可选 capability。仅引入 starter 而保留默认 `kafka`/`mongo` 选择，不能证明相应实现已在 classpath。
 
 ## 自动配置原理
 
-Spring Boot Starter 使用 Spring Boot 的自动配置机制，根据类路径和配置属性自动装配 Wow 框架组件。
+Spring Boot 从 `AutoConfiguration.imports` 加载 Wow 配置，再由 `@ConditionalOnClass`、`@ConditionalOnProperty`、storage/bus 选择和 `@ConditionalOnMissingBean` 决定 Bean。启动成功后的实际 Bean/route/runtime component 才是装配证据。
 
 ### Gradle 特性能力（Feature Variants）
 
-`wow-spring-boot-starter` 声明了可选的 Gradle 特性能力（feature capabilities），应用模块只引入所需的基础设施。通过 `capabilities { requireCapability("<group>:<capability>") }` 请求某个能力：
-
-| 能力 | 引入 |
+| capability | 直接引入的主要能力 |
 |---|---|
-| `mongo-support` | `wow-mongo`（MongoDB EventStore / SnapshotStore / PrepareKey / 查询服务） |
-| `redis-support` | `wow-redis`（Redis EventStore / SnapshotStore / PrepareKey / 消息总线） |
-| `elasticsearch-support` | `wow-elasticsearch`（Elasticsearch EventStore / SnapshotStore / 查询服务） |
-| `kafka-support` | `wow-kafka`（分布式 CommandBus / DomainEventBus / StateEventBus） |
-| `webflux-support` | `wow-webflux`（WebFlux 命令/查询路由处理器、全局错误处理） |
-| `opentelemetry-support` | `wow-opentelemetry`（链路追踪仪表器） |
-| `openapi-support` | `wow-openapi`（OpenAPI schema/路由生成） |
-| `cosec-support` | `wow-cosec`（CoSec 授权集成） |
-| `mock-support` | `wow-mock`（进程内测试替身） |
+| `mongo-support` | `wow-mongo` + reactive Mongo starter |
+| `redis-support` | `wow-redis` + reactive Redis starter |
+| `mock-support` | `wow-mock` |
+| `kafka-support` | `wow-kafka` |
+| `webflux-support` | `wow-bi` API + `wow-webflux` |
+| `elasticsearch-support` | `wow-elasticsearch` + Spring Data Elasticsearch |
+| `opentelemetry-support` | `wow-opentelemetry` |
+| `openapi-support` | `wow-bi` API + `wow-openapi` + springdoc common |
+| `cosec-support` | `wow-cosec` |
 
-这些能力是可选的；你也可以按各扩展文档所述，直接声明单个 `wow-*` 依赖。
-
-```mermaid
-flowchart TB
-    subgraph AutoConfig["自动配置"]
-        WC[WowAutoConfiguration]
-        CC[CommandAutoConfiguration]
-        EC[EventAutoConfiguration]
-        ESC[EventSourcingAutoConfiguration]
-    end
-    
-    subgraph Components["组件"]
-        CG[CommandGateway]
-        CB[CommandBus]
-        EB[DomainEventBus / StateEventBus]
-        ES[EventStore]
-        SR[SnapshotStore]
-    end
-    
-    WC --> CC
-    WC --> EC
-    WC --> ESC
-    CC --> CG
-    CC --> CB
-    EC --> EB
-    ESC --> ES
-    ESC --> SR
-```
+请求完整坐标，例如 `requireCapability("me.ahoo.wow:mongo-support")`。Maven 不解析 Gradle feature variants，需要显式依赖相应模块。
 
 ## 自动配置类
 
-| 配置类 | 说明 | 条件 |
-|-------|------|------|
-| `WowAutoConfiguration` | 核心自动配置 | 始终启用 |
-| `CommandAutoConfiguration` | 命令总线配置 | `wow.enabled=true` |
-| `EventAutoConfiguration` | 事件总线配置 | `wow.enabled=true` |
-| `EventSourcingAutoConfiguration` | 事件溯源配置 | `wow.enabled=true` |
-| `KafkaAutoConfiguration` | Kafka 配置 | classpath 包含 Kafka |
-| `MongoEventSourcingAutoConfiguration` | MongoDB 事件/快照存储配置 | classpath 包含 Mongo 支持 |
-| `RedisEventSourcingAutoConfiguration` / `RedisMessageBusAutoConfiguration` | Redis 事件溯源/消息总线配置 | classpath 包含 Redis 支持 |
-| `WebFluxAutoConfiguration` | WebFlux 配置 | classpath 包含 WebFlux |
+核心配置按序列化、命令、事件、事件溯源、查询、投影、Saga、指标、runtime lifecycle 等拆分；扩展配置再按 classpath 与选择属性加入。不要从类名推断默认启用，检查其条件和 Bean 方法。
 
 ## 配置属性完整列表
 
+完整 key/default 以[配置参考](../../reference/config/core.md)和各扩展页为准。本页只给最小启动边界，避免复制会漂移的属性表。
+
 ### 核心配置 (wow.*)
 
-| 属性 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `wow.enabled` | Boolean | true | 是否启用 Wow 框架 |
-| `wow.context-name` | String | ${spring.application.name} | 限界上下文名称 |
+`wow.enabled=true`、`wow.shutdown-timeout=60s`、`wow.shutdown-quiet-period=1s`。`wow.context-name` 未设置时必须存在 `spring.application.name`；两者都缺失会在创建 current bounded context 时启动失败。
 
 ### 命令配置 (wow.command.*)
 
-| 属性 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `wow.command.bus.type` | BusType | kafka | 命令总线类型 |
-| `wow.command.bus.local-first.enabled` | Boolean | true | 本地优先模式 |
-| `wow.command.idempotency.enabled` | Boolean | true | 启用幂等性检查 |
-| `wow.command.idempotency.bloom-filter.ttl` | Duration | 60s | BloomFilter TTL |
-| `wow.command.idempotency.bloom-filter.expected-insertions` | Long | 1000000 | 预期插入数 |
-| `wow.command.idempotency.bloom-filter.fpp` | Double | 0.00001 | 误判率 |
+bus 默认 `kafka`、local-first 默认开启、idempotency 默认开启。若未请求 Kafka capability，应显式选择 `in_memory`、`redis` 或应用提供的实现。
 
 ### 事件配置 (wow.event.*)
 
-| 属性 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `wow.event.bus.type` | BusType | kafka | 事件总线类型 |
-| `wow.event.bus.local-first.enabled` | Boolean | true | 本地优先模式 |
+领域事件 bus 默认 `kafka`，local-first 默认开启。其选择与 state-event bus 独立，不要只改一个 key。
 
 ### 事件溯源配置 (wow.eventsourcing.*)
 
-| 属性 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `wow.eventsourcing.store.storage` | `StorageType` | mongo | 事件存储类型 |
-| `wow.eventsourcing.snapshot.enabled` | Boolean | true | 启用快照 |
-| `wow.eventsourcing.snapshot.strategy` | Strategy | all | 快照策略 |
-| `wow.eventsourcing.snapshot.version-offset` | Int | 5 | 版本偏移量 |
-| `wow.eventsourcing.snapshot.storage` | `StorageType` | mongo | 快照存储类型 |
-| `wow.eventsourcing.state.bus.type` | BusType | kafka | 状态事件总线类型 |
+EventStore 与 SnapshotStore 默认选择 `mongo`，state bus 默认 `kafka`。storage routing 通过具名 bindings 建立 primary router；普通同类型 Bean 不会自动替换已启用的 storage capability。
 
 ## Bean 装配与覆盖
 
-自动配置按命令、事件、事件溯源、存储、传输、查询、可观测性和集成能力拆分。基础设施配置由对应的 classpath capability 与配置条件激活。许多非存储扩展点使用 `@ConditionalOnMissingBean`；例如，在声明它的自动配置条件允许时，自定义 `CommandGateway` 可以替换默认实现。应检查具体的 `@Bean` 声明，不能假定所有接口都可直接覆盖。
+只在源码标注 `@ConditionalOnMissingBean` 的扩展点提供替代 Bean。`WowRuntime` 必须是当前 context 中名为 `wowRuntime` 的唯一 singleton，并由唯一 `WowRuntimeLifecycle` 独占；重复 Spring `Lifecycle`、`DisposableBean`、destroy method 或 `AutoCloseable.close` owner 会 fail fast，避免双重关闭。
 
-`EventStore` 与 `SnapshotStore` 使用不同的装配模型。存储 capability 发布 `EventStoreBinding` 和 `SnapshotStoreBinding`，`StorageRoutingAutoConfiguration` 再基于这些 binding 构建 `@Primary` 路由存储。接入自定义后端时，应注册具名 binding，并通过 `wow.eventsourcing.storage-routing` 选择它们；如果该后端还提供查询路由，则需要对应的 `EventStreamQueryServiceFactoryBinding` 与 `SnapshotQueryServiceFactoryBinding`。若要整体替换内置存储 capability，应先排除或关闭对应的存储自动配置。仅声明普通的 `EventStore` 或 `SnapshotStore` Bean，不会自动覆盖已启用的存储 capability。
-
-准确的依赖、属性和覆盖边界请以各扩展文档及[配置参考](../../reference/config/core)为准。内部实现类的构造函数不是配置 API，可能独立演进。
+Starter 保持 backend-native 语义：Kafka offset、Mongo unique index、Redis Lua、Elasticsearch mapping 等由对应 adapter/backend 拥有，不在核心自动配置里复制校验。
 
 ## 多模块项目配置
 
+API、domain 和 server 分层可保持依赖方向清晰；只有 server 请求 runtime capability。
+
 ### 项目结构
 
-```
-my-project/
-├── my-project-api/          # API 模块（命令、事件定义）
-├── my-project-domain/       # 领域模块（聚合根）
-├── my-project-server/       # 服务模块（启动入口）
-└── build.gradle.kts
+```text
+order-api -> order-domain -> order-server
 ```
 
 ### API 模块配置
 
 ```kotlin
-// my-project-api/build.gradle.kts
-dependencies {
-    api("me.ahoo.wow:wow-api")
-}
+api("me.ahoo.wow:wow-api")
 ```
 
 ### 领域模块配置
 
 ```kotlin
-// my-project-domain/build.gradle.kts
-plugins {
-    id("com.google.devtools.ksp")
-}
-
-dependencies {
-    implementation(project(":my-project-api"))
-    implementation("me.ahoo.wow:wow-core")
-    ksp("me.ahoo.wow:wow-compiler")
-    testImplementation("me.ahoo.wow:wow-test")
-}
+implementation("me.ahoo.wow:wow-core")
+ksp("me.ahoo.wow:wow-compiler")
+testImplementation("me.ahoo.wow:wow-test")
 ```
 
 ### 服务模块配置
 
-```kotlin
-// my-project-server/build.gradle.kts
-dependencies {
-    implementation(project(":my-project-domain"))
-    implementation("me.ahoo.wow:wow-spring-boot-starter")
-    implementation("me.ahoo.wow:wow-spring-boot-starter") {
-        capabilities { requireCapability("me.ahoo.wow:kafka-support") }
-    }
-    implementation("me.ahoo.wow:wow-spring-boot-starter") {
-        capabilities { requireCapability("me.ahoo.wow:mongo-support") }
-    }
-    implementation("me.ahoo.wow:wow-spring-boot-starter") {
-        capabilities { requireCapability("me.ahoo.wow:webflux-support") }
-    }
-    implementation("org.springframework.boot:spring-boot-starter-data-mongodb-reactive")
-}
-```
-
-## 元数据加载
-
-编译器将聚合元数据写入 `META-INF/wow-metadata.json`。运行时，`MetadataSearcher` 会惰性合并应用 classpath 中所有同名资源；应用无需调用 `MetadataSearcher.search()`，也无需注册额外的元数据配置 Bean。
-
-## 处理器注册
-
-### 聚合处理器
+本地无外部基础设施的最小候选可请求 `mock-support` 与 `webflux-support`：
 
 ```kotlin
-@AggregateRoot
-class Order(private val state: OrderState) {
-    // 自动注册为聚合处理器
+implementation("me.ahoo.wow:wow-spring-boot-starter") {
+    capabilities { requireCapability("me.ahoo.wow:mock-support") }
+}
+implementation("me.ahoo.wow:wow-spring-boot-starter") {
+    capabilities { requireCapability("me.ahoo.wow:webflux-support") }
 }
 ```
-
-### Saga 处理器
-
-```kotlin
-@StatelessSaga
-class OrderSaga {
-    // 自动注册为 Saga 处理器
-}
-```
-
-### 投影处理器
-
-```kotlin
-@ProjectionProcessor
-class OrderProjection {
-    // 自动注册为投影处理器
-}
-```
-
-## 完整配置示例
 
 ```yaml
 spring:
   application:
     name: order-service
-  mongodb:
-    uri: mongodb://localhost:27017/order_db
-
 wow:
-  enabled: true
-  context-name: order-service
   command:
     bus:
-      type: kafka
-      local-first:
-        enabled: true
-    idempotency:
-      enabled: true
-      bloom-filter:
-        ttl: PT60S
-        expected-insertions: 1000000
-        fpp: 0.00001
+      type: in_memory
   event:
     bus:
-      type: kafka
-      local-first:
-        enabled: true
+      type: in_memory
   eventsourcing:
     store:
-      storage: mongo
+      storage: in_memory
     snapshot:
-      enabled: true
-      strategy: all
-      storage: mongo
+      storage: in_memory
     state:
       bus:
-        type: kafka
-        local-first:
-          enabled: true
-  kafka:
-    bootstrap-servers: localhost:9092
-    topic-prefix: 'wow.'
-  mongo:
-    enabled: true
-    auto-init-schema: true
+        type: in_memory
 ```
+
+`mock-support` 只适合本地/测试，不是生产持久化证明。
+
+## 元数据加载
+
+KSP 生成 `META-INF/wow-metadata.json`；`MetadataSearcher` 惰性合并 classpath 中所有同名资源。缺少生成文件会导致聚合、处理器、route/schema 不完整，Starter 不从反射猜回全部合同。
+
+## 处理器注册
+
+聚合、Saga、投影等来自编译元数据与 Spring Bean discovery。注解存在但模块未被 server 引用、KSP 未运行或生成资源未打包，都不会形成完整 runtime 注册。
+
+### 聚合处理器
+
+聚合命令处理由 aggregate metadata 和 state factory 装配；用真实命令和状态读取验证，而不是只数 Bean。
+
+### Saga 处理器
+
+Saga 需要对应 event bus subscription 与 runtime component 启动；类存在不等于已经消费消息。
+
+### 投影处理器
+
+投影同样依赖 event subscription、processor discovery 和目标读模型；启动日志不是投影已追平的证据。
+
+## 完整配置示例
+
+生产配置应由所选 capability 的扩展页拼装，而不是复制一个“全家桶”示例。至少显式声明 context、三种 bus、event/snapshot storage，并配置对应 Spring backend connection。
 
 ## 最佳实践
 
-1. **模块分离**：将 API、领域和服务模块分离，便于维护和复用
-2. **使用编译器**：启用 wow-compiler 生成元数据和查询属性导航
-3. **配置外化**：使用 Spring Boot 配置文件外化配置
-4. **条件装配**：利用 `@ConditionalOnMissingBean` 允许自定义覆盖
-5. **审慎选择 Local-First**：仅在本地投递语义符合部署拓扑时保留默认值，并验证准入失败回退、带标记副本过滤与重复处理
+- 只请求实际使用的 capability，并显式选择 bus/store；
+- 以自动配置条件、实际 Bean、OpenAPI 和 runtime 状态验证装配；
+- 保持 `WowRuntimeLifecycle` 单一所有权；
+- backend 校验留给 adapter/backend，公共合同校验留在边界。
+
+已验证失败包括缺失 context name、缺少所选 backend Bean、重复 runtime/lifecycle owner、非 singleton runtime component 和非法扩展属性。聚焦检查：
+
+```bash
+./gradlew :wow-spring-boot-starter:check
+```
+
+下一步阅读[接入现有项目](../existing-project.md)和[模块依赖](../advanced/module-dependencies.md)。

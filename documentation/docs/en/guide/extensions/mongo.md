@@ -1,195 +1,66 @@
 ---
 title: Mongo
-description: MongoDB extension providing EventStore and SnapshotStore for production environments.
+description: Use MongoDB for event streams, snapshots, queries, and PrepareKey.
 ---
 
 # Mongo
 
-The _Mongo_ extension provides support for MongoDB and is the recommended event store and snapshot storage implementation for production environments. It implements the following interfaces:
+`wow-mongo` provides MongoDB implementations of `EventStore`, `SnapshotStore`, their query services, and `PrepareKeyFactory`. Use it when a service already operates MongoDB and needs durable event history plus snapshot queries. Use `in_memory` for process-local tests.
 
-- `EventStore` - Event storage
-- `EventStreamQueryService` - Event stream query service
-- `SnapshotStore` - Snapshot store
-- `SnapshotQueryService` - Snapshot query service
-- `PrepareKey` - Distributed key reservation with TTL-based expiration
-
-The module is designed as a drop-in backend. When `wow.eventsourcing.store.storage` is set to `mongo`, the framework replaces its default in-memory stores with MongoDB-backed implementations that handle concurrency, idempotency, and schema lifecycle automatically.
+The module does not take over storage merely by being on the classpath. Starter also needs the Mongo capability, a reactive `MongoClient`, `wow.mongo.enabled=true`, and Mongo selected independently for event, snapshot, or prepare storage.
 
 ## Architecture Overview
 
-```mermaid
-graph TB
-    subgraph App["Application Layer (wow-core)"]
-        direction LR
-        AR["Aggregate Root"]
-        CM["Command Gateway"]
-        QS["Query Services"]
-    end
+Wow owns document shape, collection names, index initialization, error mapping, and storage bindings. MongoDB owns write atomicity, unique indexes, read/write concern, replication, sharding, and recovery. One physical database belongs to one bounded context by default, recorded durably in `wow_database_metadata` during startup.
 
-    subgraph MongoEvent["MongoDB - Event Stream Database"]
-        ESColl[("{aggregateName}_event_stream<br>Collection")]
-    end
-
-    subgraph MongoSnap["MongoDB - Snapshot Database"]
-        SSCol[("{aggregateName}_snapshot<br>Collection")]
-    end
-
-    subgraph MongoPrep["MongoDB - Prepare Database"]
-        PKCol[("prepare_{keyName}<br>Collection")]
-    end
-
-    subgraph Impl["wow-mongo Implementations"]
-        direction LR
-        MES["MongoEventStore"]
-        MSR["MongoSnapshotStore"]
-        MPK["MongoPrepareKey"]
-        MESQ["MongoEventStreamQueryService"]
-        MSQS["MongoSnapshotQueryService"]
-    end
-
-    AR -->|"appendStream()"| MES
-    MES -->|"insertOne"| ESColl
-    AR -->|"save(Snapshot)"| MSR
-    MSR -->|"updateOne pipeline (upsert)"| SSCol
-    CM -->|"prepare()"| MPK
-    MPK -->|"replaceOne"| PKCol
-    QS -->|"dynamicQuery()"| MESQ
-    MESQ -->|"find()"| ESColl
-    QS -->|"dynamicQuery()"| MSQS
-    MSQS -->|"find()"| SSCol
-```
-
-Each aggregate type gets its own collection, partitioned by aggregate name. This design isolates hot aggregates from each other and enables per-aggregate sharding and index tuning.
-
-`MongoSnapshotStore.save()` uses one aggregation-pipeline `updateOne` with
-`$replaceWith` and `$cond`. The server atomically replaces the complete document
-when the candidate aggregate version is greater than or equal to the stored
-version and keeps the stored document for a lower candidate. A missing or
-non-integer stored version is treated as invalid metadata and repaired by the
-candidate. The MQL expression used by this pipeline requires MongoDB 5.2 or
-later; the integration suite verifies MongoDB 6.0.6.
-
-This collection layout assumes that one MongoDB database serves exactly one bounded context. During startup, the
-Starter atomically claims the current `wow.context-name` in `wow_database_metadata`. Instances of the same context
-can restart safely; a different context pointing to that database fails before its EventStore, SnapshotStore, query
-factory, or PrepareKeyFactory is created and reports that a separate database is required. This includes a dedicated
-`prepare-database` when event and snapshot storage use another backend, and remains active when `auto-init-schema` is
-disabled. For an existing unmarked database, the first upgraded instance checks every existing `*_event_stream` and
-`*_snapshot` collection for a document owned by another context before writing the marker. Legacy `prepare_*` records
-contain no context metadata, so audit prepare database mappings before rollout;
-the first upgraded context claims an otherwise unmarked prepare-only database. The aggregate collection scan can be
-expensive on large legacy databases, so upgrade the database's real owner first.
+`MongoEventStore` writes `{aggregateName}_event_stream`, `MongoSnapshotStore` writes `{aggregateName}_snapshot`, and `MongoPrepareKey` uses `prepare_{keyName}`. Collection names omit the context, so different contexts must not share a database.
 
 ## Installation
 
-::: code-group
-```kotlin [Gradle(Kotlin)]
+For direct Spring wiring, add the module and reactive Mongo starter:
+
+```kotlin
 implementation("me.ahoo.wow:wow-mongo")
 implementation("org.springframework.boot:spring-boot-starter-data-mongodb-reactive")
 ```
-```groovy [Gradle(Groovy)]
-implementation 'me.ahoo.wow:wow-mongo'
-implementation 'org.springframework.boot:spring-boot-starter-data-mongodb-reactive'
+
+With Wow Starter, request the capability; it carries both dependencies:
+
+```kotlin
+implementation("me.ahoo.wow:wow-spring-boot-starter") {
+    capabilities {
+        requireCapability("me.ahoo.wow:mongo-support")
+    }
+}
 ```
-```xml [Maven]
-<dependency>
-    <groupId>me.ahoo.wow</groupId>
-    <artifactId>wow-mongo</artifactId>
-    <version>${wow.version}</version>
-</dependency>
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-data-mongodb-reactive</artifactId>
-</dependency>
-```
-:::
 
 ## Core Components
 
-| Component | Contract Implemented | Key File | Responsibility |
-|---|---|---|---|
-| `MongoEventStore` | `AbstractEventStore` | [MongoEventStore.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/MongoEventStore.kt) | Append, load, and query domain event streams |
-| `MongoSnapshotStore` | `SnapshotStore` | [MongoSnapshotStore.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/MongoSnapshotStore.kt) | Save, load, and version-check aggregate snapshots |
-| `MongoPrepareKey` | `PrepareKey<V>` | [MongoPrepareKey.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/prepare/MongoPrepareKey.kt) | Distributed key reservation with TTL-based expiration |
-| `MongoEventStreamQueryService` | `EventStreamQueryService` | [MongoEventStreamQueryService.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/query/event/MongoEventStreamQueryService.kt) | Dynamic querying of raw event streams |
-| `MongoSnapshotQueryService` | `SnapshotQueryService<S>` | [MongoSnapshotQueryService.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/query/snapshot/MongoSnapshotQueryService.kt) | Dynamic querying of snapshots as materialized read models |
-| `EventStreamSchemaInitializer` | (standalone) | [EventStreamSchemaInitializer.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/EventStreamSchemaInitializer.kt) | Creates collections + indexes for event streams |
-| `SnapshotSchemaInitializer` | (standalone) | [SnapshotSchemaInitializer.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/SnapshotSchemaInitializer.kt) | Creates collections + indexes for snapshots |
+| Component | Runtime responsibility |
+|---|---|
+| `MongoEventStore` | Append and load event streams by version/time; scan aggregate IDs |
+| `MongoSnapshotStore` | Load and atomically save versioned snapshots |
+| Query service factories | Create Mongo event-stream and snapshot query implementations |
+| `MongoPrepareKeyFactory` | Create distributed reservation keys with TTL semantics |
+| Schema initializers | Create collections and reconcile indexes from loaded aggregate metadata |
+| `MongoDatabaseContextGuard` | Prevent contexts from sharing a database whose collections omit context names |
 
 ## Event Append Sequence
 
-The following sequence shows the full path from an aggregate root producing events to the MongoDB document being persisted, including the optimistic concurrency and idempotency guards.
+`append` serializes one `DomainEventStream` to one document and executes `insertOne`. When batching is explicitly enabled, independent appends are grouped into unordered `insertMany` operations. Wow maps duplicate-key failures only when they reference known index names.
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant AR as AggregateRoot
-    participant ES as MongoEventStore
-    participant Doc as Documents.toDocument()
-    participant Coll as MongoCollection
-    participant Err as ErrorMapping
-    participant DB as MongoDB
-
-    AR->>ES: appendStream(DomainEventStream)
-    ES->>ES: eventStream.toEventStreamCollectionName()
-    Note over ES: "{aggregateName}_event_stream"
-    ES->>Doc: eventStream.toDocument()
-    Doc->>Doc: toLinkedHashMap() - replaceIdToPrimaryKey() - append("size")
-
-    ES->>Coll: insertOne(document) or unordered insertMany(batch)
-    Coll->>DB: insert document(s) with _id = eventStreamId
-    DB-->>Coll: InsertOneResult or InsertManyResult
-
-    alt Write acknowledged
-        Coll-->>ES: onNext(result)
-        ES->>ES: check(wasAcknowledged())
-        ES-->>AR: Mono.empty() (success)
-    else Duplicate version (aggregateId + version)
-        DB-->>Coll: MongoWriteException or MongoBulkWriteException
-        Coll->>Err: map matching duplicate-key write error
-        Err->>Err: toWowError() - matches "aggregateId_1_version_1"
-        Err-->>ES: EventVersionConflictException
-        ES-->>AR: EventVersionConflictException
-    else Duplicate requestId
-        DB-->>Coll: MongoWriteException or MongoBulkWriteException
-        Coll->>Err: map matching duplicate-key write error
-        Err->>Err: toWowError() - matches "requestId_1"
-        Err-->>ES: DuplicateRequestIdException
-        ES-->>AR: DuplicateRequestIdException
-    end
-```
-
-The key design insight is that **MongoDB unique indexes serve dual roles**: the `{aggregateId, version}` compound unique index enforces optimistic concurrency (no two writes at the same version), while the `{requestId}` unique index provides command idempotency (no duplicate processing). On violation, `ErrorMapping.toWowError()` translates the raw single or bulk MongoDB write error into the Wow framework's typed exceptions so the framework can handle them uniformly regardless of storage backend.
+A successful append means MongoDB acknowledged the write under the configured write concern. It does not mean event consumers or snapshots have completed.
 
 ## Configuration
 
-- Configuration class: [MongoProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/mongo/MongoProperties.kt)
-- Prefix: `wow.mongo.`
-
-| Name | Data Type | Default Value | Description |
-|---|---|---|---|
-| `enabled` | `Boolean` | `true` | Whether to enable |
-| `auto-init-schema` | `Boolean` | `true` | Whether to auto-generate *Schema* |
-| `event-stream-database` | `String` | Database name configured by Spring Boot Mongo module | Event stream database name |
-| `snapshot-database` | `String` | Database name configured by Spring Boot Mongo module | Snapshot database name |
-| `prepare-database` | `String` | Database name configured by Spring Boot Mongo module | `PrepareKey` database name |
-| `event-store-batch.enabled` | `Boolean` | `false` | Batch concurrent event-store appends with unordered `insertMany` |
-| `event-store-batch.max-size` | `Int` | `128` | Maximum event streams per collection batch |
-| `event-store-batch.max-delay` | `Duration` | `1ms` | Maximum wait used to collect a partial batch |
-| `event-store-batch.max-pending-appends` | `Int` | `4096` | Maximum accepted appends waiting or being written; must be at least `max-size` |
-| `event-store-batch.lane-count` | `Int` | `1` | Number of serial write lanes; appends for the same aggregate stay on one lane |
-| `snapshot-store-batch.enabled` | `Boolean` | `false` | Batch concurrent SnapshotStore saves with unordered `bulkWrite` |
-| `snapshot-store-batch.max-size` | `Int` | `128` | Maximum snapshots per collection batch |
-| `snapshot-store-batch.max-delay` | `Duration` | `1ms` | Maximum wait used to collect a partial snapshot batch |
-| `snapshot-store-batch.max-pending-saves` | `Int` | `4096` | Maximum accepted saves waiting or being written; must be at least `max-size` |
-| `snapshot-store-batch.lane-count` | `Int` | `1` | Number of serial write lanes; saves for the same aggregate stay on one lane |
-
-**YAML Configuration Example**
+Minimum configuration for Mongo EventStore and SnapshotStore:
 
 ```yaml
 spring:
+  application:
+    name: order-service
   mongodb:
-    uri: mongodb://localhost:27017/wow_db
+    uri: mongodb://localhost:27017/order_service
 
 wow:
   eventsourcing:
@@ -197,538 +68,175 @@ wow:
       storage: mongo
     snapshot:
       storage: mongo
-  mongo:
-    enabled: true
-    auto-init-schema: true
-    event-stream-database: wow_event_db
-    snapshot-database: wow_snapshot_db
-    prepare-database: wow_prepare_db
-    event-store-batch:
-      enabled: true
-      max-size: 128
-      max-delay: 1ms
-      max-pending-appends: 4096
-      lane-count: 1
-    snapshot-store-batch:
-      enabled: true
-      max-size: 128
-      max-delay: 1ms
-      max-pending-saves: 4096
-      lane-count: 1
 ```
 
-Batching is disabled by default because a partial batch adds up to `max-delay` to an append or save. When
-enabled, each store groups a window by MongoDB collection. EventStore uses unordered `insertMany`; SnapshotStore
-coalesces saves for the same stored aggregate to the highest version and uses unordered `bulkWrite` with the
-same atomic source-version guard as direct saves. Every original append or save still completes independently.
-When a pending limit is exhausted, new requests fail before submission with a recoverable overload error instead
-of accumulating in an unbounded in-memory queue.
-
-An indexed bulk write error fails only its matching request; a write-concern error or inconsistent bulk result
-fails every affected request conservatively because its commit status cannot be proven. A batch is not atomic.
-When constructing a batch-enabled `MongoEventStore` or `MongoSnapshotStore` directly, close it (for example
-with Kotlin `use`) to flush a partial window and release worker resources; Spring closes configured beans through
-their normal lifecycle.
+Unset `wow.mongo.event-stream-database`, `snapshot-database`, and `prepare-database` fall back to Spring's Mongo database. If neither the URI nor Spring properties provide a database, auto-configuration fails with the corresponding `must not be null` message. Defaults are `wow.mongo.enabled=true` and `auto-init-schema=true`. Event/snapshot batching is disabled; when enabled, defaults are `max-size=128`, `max-delay=1ms`, `max-pending-*=4096`, and `lane-count=1`.
 
 ## Collection Schema
 
+The module generates the physical layout. Applications should not create a parallel collection model or duplicate MongoDB's schema and uniqueness checks before every write.
+
 ### Collection Naming Rules
 
-Collection names are derived from aggregate metadata using deterministic suffixes, defined in [AggregateSchemaInitializer.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/AggregateSchemaInitializer.kt):
-
-| Data Type | Collection Naming Format | Example |
-|---|---|---|
-| Event Stream | `{aggregateName}_event_stream` | `order_event_stream` |
-| Snapshot | `{aggregateName}_snapshot` | `order_snapshot` |
-| Prepare Key | `prepare_{name}` | `prepare_username_idx` |
-
-Event-stream, snapshot, and prepare collection names intentionally remain backward compatible and do not include
-`contextName`. Database ownership is recorded separately in `wow_database_metadata`; do not delete or edit this
-collection manually. To hand a database to another context, migrate or remove the original event-stream, snapshot,
-and prepare data first, then remove the ownership marker before starting the new service.
+Event streams use `{aggregateName}_event_stream`, snapshots use `{aggregateName}_snapshot`, and reservations use `prepare_{keyName}`. Only the database provides bounded-context isolation.
 
 ### Event Stream Collection (`{aggregateName}_event_stream`)
 
-Each aggregate is defined per-aggregate-type and uses the event stream ID as the primary key (`_id`). The `body` field stores an array of serialized domain events.
-
-```json
-{
-  "_id": "event-stream-id",
-  "aggregateId": "order-001",
-  "tenantId": "tenant-001",
-  "requestId": "request-001",
-  "commandId": "command-001",
-  "version": 1,
-  "header": {
-    "upstream_id": "saga-001"
-  },
-  "body": [
-    {
-      "name": "OrderCreated",
-      "revision": "1.0",
-      "bodyType": "me.ahoo.wow.example.api.order.OrderCreated"
-    }
-  ],
-  "size": 1,
-  "createTime": 1699920000000
-}
-```
-
-| Field | Type | Indexed | Description |
-|---|---|---|---|
-| `_id` | String | Primary | Event stream identifier |
-| `aggregateId` | String | Hashed + Unique (with version) | Aggregate root identifier |
-| `tenantId` | String | Hashed | Multi-tenancy partition key |
-| `requestId` | String | Unique (composite) | Command request idempotency key |
-| `commandId` | String | -- | Originating command identifier |
-| `version` | Integer | Unique (with aggregateId) | Aggregate version at time of event |
-| `header` | Object | -- | Metadata (e.g., `upstream_id` for saga tracking) |
-| `body` | Array | -- | Ordered list of domain event payloads |
-| `size` | Integer | -- | Number of events in this stream |
-| `createTime` | Long | -- | Epoch milliseconds timestamp |
+Each document represents one event-stream batch. Default indexes include a hashed aggregate ID, unique `{aggregateId, version}`, unique `{aggregateId, requestId}`, and query indexes. MongoDB atomically enforces concurrency and request idempotency through those unique indexes.
 
 ### Snapshot Collection (`{aggregateName}_snapshot`)
 
-Snapshots use the aggregate ID as the primary key (`_id`), making it a natural lookup for the latest state. The `state` field contains the serialized aggregate state object.
-
-```json
-{
-  "_id": "order-001",
-  "contextName": "order-service",
-  "aggregateName": "order",
-  "tenantId": "tenant-001",
-  "version": 10,
-  "eventId": "event-010",
-  "firstOperator": "user-001",
-  "operator": "user-002",
-  "firstEventTime": 1699920000000,
-  "eventTime": 1699930000000,
-  "snapshotTime": 1699930000000,
-  "deleted": false,
-  "state": {
-    "id": "order-001",
-    "status": "PAID",
-    "totalAmount": 100.00
-  }
-}
-```
-
-| Field | Type | Indexed | Description |
-|---|---|---|---|
-| `_id` | String | Unique | Aggregate identifier (primary key) |
-| `contextName` | String | -- | Bounded context name |
-| `aggregateName` | String | -- | Aggregate type name |
-| `tenantId` | String | Hashed | Multi-tenancy partition key |
-| `version` | Integer | -- | Aggregate version at snapshot time |
-| `eventId` | String | -- | ID of the last event included in snapshot |
-| `firstOperator` | String | -- | Initial operator who created the aggregate |
-| `operator` | String | -- | Last operator who modified the aggregate |
-| `firstEventTime` | Long | -- | Timestamp of the first event |
-| `eventTime` | Long | -- | Timestamp of the last event |
-| `snapshotTime` | Long | -- | Timestamp when snapshot was created |
-| `deleted` | Boolean | Hashed | Soft-delete flag |
-| `state` | Object | -- | Serialized aggregate state (typed) |
+The document key is the aggregate ID. Save uses an aggregation update pipeline with a version guard: replace when the candidate is not older, and keep the stored document for an older candidate. A missing or non-integer stored version is repaired by the candidate.
 
 ### PrepareKey Collection (`prepare_{keyName}`)
 
-| Field | Type | Indexed | Description |
-|---|---|---|---|
-| `_id` | String | Hashed | Key value (unique) |
-| `value` | Object | -- | Prepared value payload |
-| `ttlAt` | Date | Ascending (TTL) | Time-to-live expiration timestamp |
-
-The key document-level transformation is the **primary key mapping**: event streams store their ID internally as `_id` but the `DomainEventStream` model uses `id` -- `Documents.replaceIdToPrimaryKey()` and `replacePrimaryKeyToId()` handle the bidirectional mapping transparently. Similarly, snapshots map between `_id` and `aggregateId` via `replaceAggregateIdToPrimaryKey()` and `replacePrimaryKeyToAggregateId()`.
+`MongoPrepareKey` uses MongoDB updates and a TTL index for prepare, reprepare, and rollback. It is a coordination primitive, not a general distributed transaction or lock service.
 
 ## Schema Initialization and Indexes
 
-The `wow.mongo.auto-init-schema` flag (default `true`) controls whether collections and indexes are created automatically on startup. Three focused initializers handle this:
+With `wow.mongo.auto-init-schema=true`, Starter scans loaded Wow aggregate metadata before constructing stores, creates collections, reconciles expected indexes, and removes layouts the module explicitly identifies as conflicting. When disabled, database operations must establish the same contract before traffic starts.
 
 ### EventStreamSchemaInitializer
 
-On initialization, the `EventStreamSchemaInitializer.initSchema()` method:
-
-1. Ensures the collection exists via `database.ensureCollection(collectionName)`
-2. Creates a **hashed index** on `aggregateId` for equality lookups and hashed sharding
-3. Creates the **unique compound index** `{aggregateId: 1, version: 1}` for optimistic concurrency control
-4. Creates either a global `requestId` unique index or a compound `{aggregateId, requestId}` unique index, depending on the `enableRequestIdUniqueIndex` flag (default `false` for sharded cluster compatibility)
-5. Creates hashed indexes on `tenantId` and `ownerId` for multi-tenancy filtering
-
-| Index | Fields | Type | Purpose |
-|---|---|---|---|
-| `aggregateId_hashed` | `aggregateId` | Hashed | Equality lookups and hashed sharding |
-| `aggregateId_1_version_1` | `aggregateId`, `version` | Unique | Optimistic concurrency -- prevents version conflicts |
-| `aggregateId_1_requestId_1` | `aggregateId`, `requestId` | Unique | Request idempotency (shard-safe variant) |
-| `requestId_1` | `requestId` | Unique | Request idempotency (non-sharded variant) |
-| `tenantId_hashed` | `tenantId` | Hashed | Multi-tenancy filtering |
-| `ownerId_hashed` | `ownerId` | Hashed | Owner-based filtering |
-
-The `enableRequestIdUniqueIndex` toggle exists because MongoDB sharded clusters cannot enforce unique indexes across shards unless the shard key is part of the unique index. When `false` (the default), the compound `{aggregateId, requestId}` index is used instead, which is compatible with hashed sharding on `aggregateId`.
+Event index names participate in error mapping. Renaming them manually can stop duplicate-key failures from mapping to `EventVersionConflictException` or `DuplicateRequestIdException`.
 
 ### SnapshotSchemaInitializer
 
-The `SnapshotSchemaInitializer.initSchema()` creates:
-
-| Index | Fields | Type | Purpose |
-|---|---|---|---|
-| `tenantId_hashed` | `tenantId` | Hashed | Multi-tenancy filtering |
-| `ownerId_hashed` | `ownerId` | Hashed | Owner-based filtering |
-| `_id_hashed` | `_id` | Hashed | Fast aggregate lookup by ID |
-| `deleted_hashed` | `deleted` | Hashed | Soft-delete filtering |
+The initializer creates only module-declared snapshot collections and indexes. It does not configure replica sets, sharding, read/write concern, backup, or retention.
 
 ## Query Services
 
-The `wow-mongo` module provides two query service implementations that compile `FilterExpression` into MongoDB filter documents (`Bson`).
+Mongo query services compile Wow filters, projections, sorting, paging, and aggregations into MongoDB operations. Runtime `QuerySchema` defines supported public capabilities; arbitrary MQL support is not automatically a Wow API contract.
 
 ### Filter Compilation Pipeline
 
-The compilation pipeline is: `FilterExpression` -> `AbstractMongoFilterConverter` -> `Bson`.
-
-| Wow Operator | MongoDB Equivalent |
-|---|---|
-| `EQ` | `Filters.eq()` |
-| `GT` / `GTE` / `LT` / `LTE` | `Filters.gt()` / `gte()` / `lt()` / `lte()` |
-| `CONTAINS` | `Filters.regex()` (escaped) |
-| `SEARCH` (`TERMS`) | `Filters.text(query)` |
-| `SEARCH` (`PHRASE`) | `Filters.text("\"$query\"")` |
-| `BETWEEN` | `Filters.and(Filters.gte(), Filters.lte())` |
-| `IN` / `NOT_IN` | `Filters.in()` / `nin()` |
-| `DELETION` | `Filters.eq("deleted", true/false)` or `Filters.empty()` |
-
-The converter also applies **field name translation** via `FieldConverter`. For event streams, the `MessageRecords.ID` field is mapped to `_id`. For snapshots, `MessageRecords.AGGREGATE_ID` is mapped to `_id`. This keeps the application-layer query model consistent regardless of the underlying primary key strategy.
+Public fields pass through logical schema validation and field conversion before a Mongo filter is emitted. Unsupported or conflicting backend mappings follow `wow.query.schema.validation-mode`. Applications do not need a second validator that guesses Mongo field types.
 
 ### Snapshot Queries
 
-Snapshot storage can be used directly as a read model:
-
-```kotlin
-val query = listQuery {
-    filter {
-        "state.status" eq "PAID"
-        "state.totalAmount" gt 50.00
-    }
-    sort { "snapshotTime".desc() }
-    limit(10)
-}
-
-query.dynamicQuery(snapshotQueryService)
-```
-
-The `MongoSnapshotQueryService` uses `MaterializedSnapshot<S>` as its typed result wrapper, where `S` is the aggregate's state type resolved from the aggregate metadata. This enables type-safe dynamic queries directly against aggregate state fields -- for example, querying `state.status` or `state.totalAmount` without a separate projection processor.
+`MongoSnapshotQueryServiceFactory` creates a query service for each aggregate and binds its snapshot collection. Shared query rewriting adds tenant, owner, and space scope; the Mongo adapter executes the resulting filter.
 
 ### Snapshot Aggregation
 
-`MongoSnapshotQueryService.aggregate()` compiles the shared `AggregationQuery` contract into a native pipeline: root `$match`, ordered `$unwind` and per-Element `$match`, group-key filtering, `$group`, `$project`, `$sort`, and `$limit`. The first Element path is absolute; later Element paths, Element filters, and innermost group/metric fields are resolved from their current scope.
-
-MongoDB accumulators implement Terms, Histogram, DateHistogram, Count, Sum, Avg, Min, and Max. Missing or null group keys are excluded. Count is normalized to `Long`; numeric metrics become finite `Double` values or `null` when nothing contributes, including the single summary row returned for an empty ungrouped query.
-
-Computed numeric metrics compile to protected native `$add`, `$subtract`, `$multiply`, and `$divide` expressions; missing, non-numeric, division-by-zero, or non-finite results do not contribute. They do not use `$function`.
-
-Compilation uses the negotiated Query Schema: System, JSON Schema and annotations, beans, and convention files provide
-logical semantics, while the Mongo Adapter reads collection validators and indexes before publishing executable
-capabilities. A declared field that conflicts with its validator fails before MongoDB access; ordinary unknown paths can
-still use the existing field convention in `COMPATIBLE` mode. Without a validator the physical type remains unknown, so
-the first release does not publish range or date-aggregation capability for `Temporal.Date`; an integer epoch with a
-declared unit is still converted safely by the pipeline. Custom Jackson serializers or filter converters are not
-guaranteed to behave like the standard Wow field mapping.
+The aggregation compiler translates the Wow aggregation AST into a Mongo pipeline. Public query semantics and Mongo expressions jointly determine results. Use a real backend integration test; string snapshots do not prove pipeline execution.
 
 ## PrepareKey: Distributed Coordination
 
-`MongoPrepareKey` implements Wow's `PrepareKey<V>` interface for distributed key reservation with MongoDB as the coordination backend. Each logical key becomes a `prepare_{name}` collection.
-
-The implementation uses three MongoDB primitives to achieve coordination:
-
-| Operation | MongoDB Method | Behavior |
-|---|---|---|
-| `prepare()` | `replaceOne` with filter `{_id: key, ttlAt: {$lt: now}}` | CAS-style upsert -- only succeeds if no unexpired entry exists |
-| `rollback()` | `deleteOne` with filter `{_id: key, ttlAt: {$gt: now}}` | Removes active reservation (only if not expired) |
-| `reprepare()` | `updateOne` with `$set` on value + `ttlAt` | Extends or replaces a reservation atomically |
-
-The TTL index (`{ttlAt: 1}` with `expireAfter: 0 seconds`) ensures MongoDB automatically removes expired entries, providing a cleanup mechanism that does not require application-level intervention.
+Prepare storage defaults to Mongo. If it selects Redis, the Mongo capability does not create `MongoPrepareKeyFactory`. MongoDB atomic updates determine expiration, contention, and rollback results; callers must handle a reservation-not-acquired result as a normal branch.
 
 ## Error Mapping
 
-MongoDB duplicate key errors are translated into Wow framework exceptions via [ErrorMapping.toWowError()](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/ErrorMapping.kt):
+The current implementation verifies these mappings:
 
-```kotlin
-fun WriteError.toWowError(eventStream: DomainEventStream, cause: MongoServerException): Throwable {
-    if (ErrorCategory.fromErrorCode(code) != ErrorCategory.DUPLICATE_KEY) {
-        return cause
-    }
-    if (message.contains(AggregateSchemaInitializer.AGGREGATE_ID_AND_VERSION_UNIQUE_INDEX_NAME)) {
-        return EventVersionConflictException(eventStream = eventStream, cause = cause)
-    }
-    if (message.contains(AggregateSchemaInitializer.REQUEST_ID_UNIQUE_INDEX_NAME)) {
-        return DuplicateRequestIdException(
-            aggregateId = eventStream.aggregateId,
-            requestId = eventStream.requestId,
-            cause = cause
-        )
-    }
-    return cause
-}
-```
+- unique `{aggregateId, version}` conflict → `EventVersionConflictException`;
+- request-ID unique-index conflict → `DuplicateRequestIdException`;
+- known network, primary-transition, and timeout write errors → recoverable Mongo exceptions;
+- unacknowledged event/snapshot writes → `IllegalStateException`;
+- a different context connecting to an owned database → startup failure.
 
-The mapping relies on the index name embedded in the MongoDB error message:
-
-- `EventVersionConflictException` -- signals an optimistic concurrency conflict. The framework retries the command automatically.
-- `DuplicateRequestIdException` -- signals that the command was already processed. The framework treats this as idempotent success.
+Other MongoDB failures remain backend exceptions and are not promised as unified Wow errors.
 
 ## Class Hierarchy
 
-```mermaid
-classDiagram
-    direction TB
-
-    class AbstractEventStore {
-        <<abstract>>
-        +appendStream(DomainEventStream) Mono~Void~
-        +loadStream(AggregateId, Int, Int) Flux~DomainEventStream~
-        +last(AggregateId) Mono~DomainEventStream~
-    }
-
-    class MongoEventStore {
-        -database: MongoDatabase
-        +appendStream(DomainEventStream) Mono~Void~
-        +loadStream(...) Flux~DomainEventStream~
-        +last(AggregateId) Mono~DomainEventStream~
-        +scanAggregateId(...) Flux~AggregateId~
-    }
-
-    class SnapshotStore {
-        <<interface>>
-        +load(AggregateId) Mono~Snapshot~
-        +save(Snapshot) Mono~Void~
-    }
-
-    class MongoSnapshotStore {
-        -database: MongoDatabase
-        +load(AggregateId) Mono~Snapshot~
-        +save(Snapshot) Mono~Void~
-    }
-
-    class PrepareKey~V~ {
-        <<interface>>
-        +prepare(String, PreparedValue~V~) Mono~Boolean~
-        +getValue(String) Mono~PreparedValue~V~~
-        +rollback(String) Mono~Boolean~
-        +reprepare(String, PreparedValue~V~) Mono~Boolean~
-    }
-
-    class MongoPrepareKey~V~ {
-        -prepareCollection: MongoCollection
-        +prepare(...) Mono~Boolean~
-        +getValue(...) Mono~PreparedValue~V~~
-        +rollback(...) Mono~Boolean~
-        +reprepare(...) Mono~Boolean~
-    }
-
-    class AbstractMongoQueryService~R~ {
-        <<abstract>>
-        #collection: MongoCollection
-        #converter: AbstractMongoFilterConverter
-        +single(ISingleQuery) Mono~R~
-        +list(IListQuery) Flux~R~
-        +paged(IPagedQuery) Mono~PagedList~R~~
-        +count(FilterExpression) Mono~Long~
-    }
-
-    class MongoEventStreamQueryService {
-        -snapshotType: JavaType
-        +toTypedResult(Document) DomainEventStream
-    }
-
-    class MongoSnapshotQueryService~S~ {
-        +toTypedResult(Document) MaterializedSnapshot~S~
-    }
-
-    AbstractEventStore <|-- MongoEventStore
-    SnapshotStore <|.. MongoSnapshotStore
-    PrepareKey <|.. MongoPrepareKey
-    AbstractMongoQueryService <|-- MongoEventStreamQueryService
-    AbstractMongoQueryService <|-- MongoSnapshotQueryService
-```
-
-The class hierarchy reveals two layers of abstraction: the **Wow core interfaces** (`AbstractEventStore`, `SnapshotStore`, `PrepareKey`, `QueryService`) define the framework contract in a storage-agnostic way, while the **Mongo-specific implementations** map those contracts onto MongoDB's reactive driver primitives (`insertOne`, aggregation-pipeline `updateOne`, `replaceOne`, `find`, `countDocuments`).
+Application code depends on `EventStore`, `SnapshotStore`, and query/prepare contracts. Mongo classes are adapters. With Starter, let storage bindings and routing select the adapter instead of using internal saver/appender classes as application APIs.
 
 ## Index Optimization Recommendations
 
+Keep required unique indexes, then add indexes from real `explain` and slow-query evidence. Verify that initializer reconciliation does not identify a custom index as a conflicting legacy layout.
+
 ### Event Stream Indexes
 
-```javascript
-// Recommended additional indexes
-db.order_event_stream.createIndex(
-  { "createTime": 1 },
-  { name: "idx_create_time" }
-)
-
-db.order_event_stream.createIndex(
-  { "body.name": 1, "createTime": 1 },
-  { name: "idx_event_type_time" }
-)
-```
+Version and request-ID indexes are correctness constraints and must not be removed for write throughput. Add query indexes only for observed event-query paths.
 
 ### Snapshot Indexes
 
-```javascript
-// Create compound indexes based on query patterns
-db.order_snapshot.find({
-  tenantId: "tenant-1",
-  deleted: false,
-  "state.status": "PAID"
-}).sort({ snapshotTime: -1, _id: 1 })
-
-db.order_snapshot.createIndex(
-  {
-    "tenantId": 1,
-    "deleted": 1,
-    "state.status": 1,
-    "snapshotTime": -1,
-    "_id": 1
-  },
-  { name: "tenant_deleted_status_time" }
-)
-```
-
-For event-stream and snapshot collections, Wow auto-initialization creates only the managed indexes required by event sourcing and common filters; it does not infer application query patterns. Publish each application-owned compound index through this workflow:
-
-1. Capture the complete filter, sort, and projection from real requests, then save the pre-change `explain("executionStats")` against production-like data.
-2. Use ESR by default: equality fields → sort fields, including the unique stable field present in the query sort → range fields. When a range predicate is highly selective, compare an ERS candidate with `explain`; choose ERS only when a recorded baseline and approval accept the blocking sort. An `aggregateId` sort maps to `_id` in MongoDB snapshot collections.
-3. Create and retest the candidate in staging first. A representative query must return data. On standalone and sharded deployments, every shard's winning plan must contain neither `COLLSCAN` nor a blocking `SORT`. Both `totalKeysExamined / nReturned` and `totalDocsExamined / nReturned` must be at most `5` by default; record the baseline and approval reason for any exception. Reconcile the result count and ordered aggregate-ID list as well.
-4. Release one aggregate and one index at a time in production, recording query p95/p99, index size, and write latency before and after the change.
-5. If only the query plan regresses, use `collMod` to hide the new index on deployments that support hidden indexes, then retest. A hidden index is still maintained on writes and cannot roll back write amplification; if index size or write latency regresses, confirm that queries no longer depend on it and drop the candidate index.
+Index state fields used by filters, sorting, or aggregation. Do not index fields for Wow query capabilities that are not exposed. Arrays, nested fields, and collation follow native MongoDB rules.
 
 ## Performance Optimization
 
+Measure direct append/save first. Enable event or snapshot batching only when evidence shows per-request write overhead is the bottleneck. Batching adds queueing, shutdown draining, and partial-bulk-error boundaries.
+
 ### Connection Pool Configuration
 
-```yaml
-spring:
-  mongodb:
-    uri: mongodb://localhost:27017/wow_db?minPoolSize=10&maxPoolSize=100&maxIdleTimeMS=60000
-```
-
-| Parameter | Description | Recommended Value |
-|---|---|---|
-| `minPoolSize` | Minimum connections | 10 |
-| `maxPoolSize` | Maximum connections | 100 |
-| `maxIdleTimeMS` | Maximum idle time | 60000 |
+Spring Boot Mongo/driver configuration owns the pool; `wow.mongo.*` does not duplicate it. Tune from target concurrency, wait queues, and server connection limits.
 
 ### Write Concern Configuration
 
-For production event sourcing, `w=majority` ensures events are acknowledged by a majority of replica set members before the command returns. This prevents data loss during failover at the cost of slightly higher write latency.
-
-```yaml
-spring:
-  mongodb:
-    uri: mongodb://localhost:27017/wow_db?w=majority&wtimeoutMS=5000
-```
+Mongo client/URI configuration owns write concern. Wow checks `wasAcknowledged()` but does not choose a durability level for the application.
 
 ### Read Preference Safety
 
-Wow's Mongo event store, snapshot store, query services, and idempotency checks share the Spring-managed `MongoClient` by default. Keep that shared client on primary reads. Setting `readPreference=secondaryPreferred` on `spring.mongodb.uri` also affects `EventStore.load()` and `existsRequestId()`, so replication lag can cause stale aggregate reconstruction or idempotency decisions.
-
-The database-name separation below does not create independent clients. If snapshot or query traffic must read from secondaries, provide a separately configured client and storage integration, route it explicitly with storage bindings, and validate its consistency guarantees before production rollout.
+Event replay and read-after-write on secondaries can observe replication lag. The application chooses read preference and verifies its consistency requirement; the adapter does not silently strengthen or weaken it.
 
 ### Database Separation
 
-The three configurable databases (`event-stream-database`, `snapshot-database`, `prepare-database`) separate workloads logically within the configured MongoDB deployment:
-
-- **Event streams**: Write-heavy (append-only), benefits from fast storage
-- **Snapshots**: Read-heavy (materialized views), benefits from dedicated indexes and caching
-- **Prepare keys**: Low volume, short-lived documents, benefits from TTL index cleanup
-
-When all three default to `null`, they share the Spring-configured MongoDB database, which is sufficient for development and moderate loads. Separate database names can support different schema management, backup and retention policies, and operational ownership, but they still use the same `MongoClient` unless a custom integration is provided.
+Event, snapshot, and prepare stores may use separate databases; each database runs the context ownership guard independently. Separation can help capacity and permission governance, but it is not a mandatory abstraction.
 
 ## Sharding Strategy
 
-For large-scale data, MongoDB sharding is recommended:
-
-```javascript
-// Hashed sharding distributes writes evenly across shards
-sh.shardCollection("wow_event_db.order_event_stream", { "aggregateId": "hashed" })
-sh.shardCollection("wow_snapshot_db.order_snapshot", { "_id": "hashed" })
-```
-
-::: warning
-When using sharded collections, keep `EventStreamSchemaInitializer.enableRequestIdUniqueIndex = false` (the default). MongoDB cannot enforce a unique index across shards unless the shard key is part of the index. The compound `{aggregateId, requestId}` index is shard-compatible because `aggregateId` is the shard key.
-:::
+Shard keys, zones, and balancing belong to MongoDB operations. The module emits fixed unique-index combinations. Before selecting a shard key, verify MongoDB's native shard-key/unique-index constraints on the actual cluster.
 
 ## Troubleshooting
 
+Read the startup exception, Mongo server error code, and index name before deciding whether the problem is configuration, ownership, concurrency, or connectivity.
+
 ### Common Issues
+
+These are reproducible boundaries covered by current source and tests.
 
 #### 1. Version Conflict Exception
 
-```
-me.ahoo.wow.eventsourcing.EventVersionConflictException
-```
-
-**Cause**: Concurrent writes to the same aggregate root
-
-**Solutions**:
-- This is normal optimistic locking behavior, the framework will automatically retry
-- If it occurs frequently, consider optimizing business processes to reduce conflicts
+The database already has the same aggregate version. Do not catch and overwrite blindly; trace the command race, aggregate version, and retry policy.
 
 #### 2. Duplicate Request Exception
 
-```
-me.ahoo.wow.eventsourcing.DuplicateRequestIdException
-```
-
-**Cause**: The same `requestId` was processed repeatedly
-
-**Solutions**:
-- This is idempotency protection, indicating the request was already processed successfully
-- Check if the client has duplicate submissions
+The aggregate already records the same request ID. Before treating it as an idempotent success, reconcile the original request result with the API response contract.
 
 #### 3. Connection Timeout
 
-```
-com.mongodb.MongoTimeoutException
-```
-
-**Solutions**:
-- Check if MongoDB service is running normally
-- Increase connection pool size
-- Check network latency
+Check URI, DNS, authentication, TLS, replica-set discovery, and network policy. Wow does not add a duplicate connectivity validator ahead of the driver; the driver exception is the diagnostic evidence.
 
 ## Complete Configuration Example
 
 ```yaml
 spring:
   mongodb:
-    uri: mongodb://user:password@mongo1:27017,mongo2:27017,mongo3:27017/wow_db?replicaSet=rs0&w=majority&minPoolSize=10&maxPoolSize=100
+    uri: mongodb://mongo-0:27017/order_service?replicaSet=rs0
 
 wow:
+  mongo:
+    auto-init-schema: true
+    event-stream-database: order_event
+    snapshot-database: order_snapshot
+    prepare-database: order_prepare
+    event-store-batch:
+      enabled: false
+    snapshot-store-batch:
+      enabled: false
   eventsourcing:
     store:
       storage: mongo
     snapshot:
-      enabled: true
-      strategy: all
       storage: mongo
-  mongo:
-    enabled: true
-    auto-init-schema: true
-    event-stream-database: wow_event_db
-    snapshot-database: wow_snapshot_db
-    prepare-database: wow_prepare_db
 ```
+
+All example databases must serve only the same bounded context.
 
 ## Best Practices
 
-1. **Database Separation**: Use separate database names when event streams, snapshots, and prepare keys need distinct schema, backup, retention, or ownership policies
-2. **Enable Snapshots**: For aggregates with many events, enabling snapshots can significantly improve loading performance
-3. **Use Replica Sets**: Use replica sets in production for high availability
-4. **Index Optimization**: Create appropriate compound indexes based on query patterns
-5. **Sharding for Scale**: Use sharding for horizontal scaling when data volume is large
+- Use a database per bounded context and audit ownership before upgrades.
+- Preserve the required unique indexes and snapshot-version semantics.
+- Put schema change, backup, recovery, sharding, and read/write concern in MongoDB operations.
+- Verify concurrency, idempotency, query pipelines, and upgrades against real MongoDB.
+
+Focused check:
+
+```bash
+./gradlew :wow-mongo:check
+```
+
+The repository TCK currently uses `mongo:6.0.6`. A module check does not prove your server version, topology, data volume, or index migration.
 
 ## Related Topics
 
-| Topic | Description |
-|---|---|
-| [MongoDB Configuration Reference](../../reference/config/infrastructure) | Configuration reference for `wow.mongo.*` properties |
-| [Event Sourcing Configuration](../../reference/config/core) | Storage backend selection (`wow.eventsourcing.store.storage`) |
-| [Snapshot Configuration](../../reference/config/core) | Snapshot strategies and storage backend selection |
-| [Redis Extension](redis.md) | Alternative event store and snapshot backend |
-| [Spring Boot Starter](spring-boot-starter.md) | Auto-configuration and feature variants |
+Next, read [Event Store](../eventstore.md) for the authoritative-history boundary, then [Infrastructure configuration](../../reference/config/infrastructure.md) for connection, index, and recovery gates.

@@ -1,166 +1,94 @@
 ---
 title: CoCache
-description: CoCache-based projection caching for Wow framework, providing event-driven cache refresh strategies.
+description: Drive CoCache loading and refresh from Wow snapshot queries and domain/state events.
 ---
 
 # CoCache
 
-The CoCache extension integrates the [CoCache](https://github.com/Ahoo-Wang/CoCache) distributed caching framework with Wow's CQRS read model, providing event-driven cache refresh capabilities.
+`wow-cocache` connects Wow query/event contracts to CoCache's `Cache` SPI. Use it to cache an aggregate read model by ID and either evict on domain events or update on state events. It does not create a cache backend or register a business cache automatically.
 
 ## Features
 
-- **Event-driven cache refresh**: Automatically refresh or evict cache entries when domain events are received
-- **Two refresh strategies**: Evict (remove stale entries) and Set (update with latest state)
-- **Flexible cache sources**: Local QueryService or remote REST API for cache loading
+- `QueryServiceCacheSource` loads from a local `SnapshotQueryService`.
+- `QueryApiCacheSource` loads from a remote `ReactiveSnapshotQueryApi` and converts 404 to empty.
+- `EvictStateCacheRefresher` consumes domain events and evicts.
+- `SetStateCacheRefresher` consumes state events and sets, or evicts deleted state.
+
+The application owns cache keys, DTO conversion, TTL, backend, capacity, consistency target, and bean registration. The CoCache backend owns eviction, TTL, and storage semantics.
 
 ## Installation
 
-Add the `wow-cocache` dependency:
-
-```kotlin [Gradle(Kotlin)]
+```kotlin
 implementation("me.ahoo.wow:wow-cocache")
 ```
 
-::: warning
-`wow-cocache` is a library, not a Spring Boot auto-configured feature variant. You must
-manually wire the cache source, cache refresher, and CoCache `Cache` bean. There is no
-`wow.cocache.enabled` property — the module activates when you register its beans.
-:::
+Starter has no `cocache-support` capability or `wow.cocache.*` auto-configuration. Minimum runtime wiring is an existing `Cache<K,D>`, a source when miss loading is required, and an explicitly registered refresher when event-driven refresh is required.
 
 ## Getting Started
 
+Choose the aggregate, key type, cache DTO, and refresh strategy first, then register only the components needed.
+
 ### 1. Configure the CoCache Cache
 
-Create a CoCache `Cache<String, YourCacheData>` bean (see the
-[CoCache](https://github.com/Ahoo-Wang/CoCache) documentation for backend configuration):
-
-```kotlin
-@Configuration
-class CacheConfiguration {
-    @Bean
-    fun orderCache(): Cache<String, OrderCacheData> = MapClientSideCache()
-}
-```
-
-`MapClientSideCache` is suitable for a local example. Select and configure a production cache implementation using the CoCache documentation.
+Create `Cache<String, OrderView>` through the application's existing CoCache configuration. `wow-cocache` does not choose Redis, a local map, or another backend, and does not duplicate backend connection or serialization validation.
 
 ### 2. Register a Cache Source (cache miss loader)
 
-The cache source loads data from the local `SnapshotQueryService` when the cache misses:
-
 ```kotlin
 @Bean
-fun orderCacheSource(
-    queryService: SnapshotQueryService<OrderState>
-): QueryServiceCacheSource<OrderState, OrderCacheData> {
-    return QueryServiceCacheSource(
-        queryService,
-        StateToCacheDataConverter { snapshot ->
-            OrderCacheData(
-                orderId = snapshot.state.id,
-                status = snapshot.state.status,
-                totalAmount = snapshot.state.totalAmount,
-            )
-        },
+fun orderCacheSource(queryService: SnapshotQueryService<OrderState>) =
+    QueryServiceCacheSource(
+        queryService = queryService,
+        stateToCacheDataConverter = { snapshot -> OrderView(snapshot.state) },
     )
-}
 ```
+
+Default `LoadCacheSourceConfiguration` uses `timeout=10s` plus CoCache default TTL/amplitude. `loadCacheValue` is a synchronous CoCache SPI and waits for the Reactor source. Timeout or query errors propagate. Do not call the blocking miss loader directly from a Reactor event loop.
 
 ### 3. Register a Cache Refresher (event-driven refresh)
 
-The refresher is both a Wow `MessageFunction` (auto-registered as an event handler) and a
-cache updater. Choose `EvictStateCacheRefresher` (invalidate on domain events) or
-`SetStateCacheRefresher` (proactively update on state events):
-
 ```kotlin
-@Component
-class OrderCacheRefresher(
-    namedAggregate: NamedAggregate,        // the aggregate this cache tracks
-    cache: Cache<String, OrderCacheData>,  // the CoCache cache from step 1
-) : EvictStateCacheRefresher<String, Any, OrderCacheData>(
-    namedAggregate = namedAggregate,
+@Bean
+fun orderCacheRefresher(
+    cache: Cache<String, OrderView>,
+) = EvictStateCacheRefresher<String, OrderState, OrderView>(
+    namedAggregate = ORDER,
     cache = cache,
 )
 ```
 
-When a domain event for the target aggregate arrives, the refresher evicts (or updates) the
-cache entry. On the next cache read, the source reloads the latest snapshot from the
-`SnapshotQueryService`.
+A refresher is a `MessageFunction` and must enter the application's event-processor discovery/registration flow. Constructing it does not subscribe to a bus.
 
 ## Cache Refresh Strategies
 
-Both refreshers extend `StateCacheRefresher` and are wired to a `Cache<K, D>`
-(the CoCache `Cache` SPI, not the `CoCache` coordinator itself). The first
-constructor argument is the `NamedAggregate` the refresher subscribes to.
+Eviction is simpler and reloads on the next read. Active set reduces misses but depends on the state-event bus, converter, and TTL. Both are eventually consistent cache refresh, not the same transaction as EventStore.
 
 ### Evict Strategy
 
-Listens to **domain events** (`FunctionKind.EVENT`) and removes the stale cache
-entry, forcing a cache miss on the next read:
-
-```kotlin
-class OrderCacheRefresher(
-    namedAggregate: NamedAggregate, // e.g. injected or resolved from metadata
-    cache: Cache<String, OrderCacheData>
-) : EvictStateCacheRefresher<String, Any, OrderCacheData>(
-    namedAggregate = namedAggregate,
-    cache = cache,
-)
-```
-
-`EvictStateCacheRefresher<K, S : Any, D>` derives the cache key from the event's
-`aggregateId.id` by default; override the `keyConvert` lambda to map it to a
-different key type.
+`EvictStateCacheRefresher` has `functionKind=EVENT`, converts `aggregateId.id` to the key by default, and calls `cache.evict`. Provide `keyConvert` for non-String keys instead of relying on the unchecked default cast.
 
 ### Set Strategy
 
-Listens to **state events** (`FunctionKind.STATE_EVENT`) and proactively updates
-the cache with the latest aggregate state. When the state is deleted it evicts
-instead of setting:
-
-```kotlin
-class OrderCacheRefresher(
-    namedAggregate: NamedAggregate, // e.g. injected or resolved from metadata
-    converter: StateToCacheDataConverter<ReadOnlyStateAggregate<OrderState>, OrderCacheData>,
-    cache: Cache<String, OrderCacheData>
-) : SetStateCacheRefresher<String, OrderState, OrderCacheData>(
-    namedAggregate = namedAggregate,
-    stateToCacheDataConverter = converter,
-    cache = cache,
-)
-```
-
-`SetStateCacheRefresher` also implements CoCache `TtlConfiguration`
-(`ttl` / `ttlAmplitude`, defaulting to `CoCache.DEFAULT_TTL`), so each refreshed
-entry is written as a TTL-backed `DefaultCacheValue`.
+`SetStateCacheRefresher` has `functionKind=STATE_EVENT`. Non-deleted state passes through `StateToCacheDataConverter` and is stored as `DefaultCacheValue.ttlAt`; deleted state is evicted. TTL defaults come from CoCache and can be overridden in the constructor.
 
 ## Cache Sources
 
-A `StateCacheSource<String, MaterializedSnapshot<S>, D>` loads a snapshot by key
-when the cache misses.
+A source only loads a miss and converts a DTO. Authorization, tenant/space scope, and not-found semantics must come from the called query service/API contract.
 
 ### QueryServiceCacheSource
 
-Uses the local `SnapshotQueryService` (single-result query by `aggregateId`) to
-load aggregate snapshots into cache:
-
-```kotlin
-val cacheSource = QueryServiceCacheSource<OrderState, OrderCacheData>(
-    snapshotQueryService,
-    StateToCacheDataConverter { snapshot -> /* map to OrderCacheData */ },
-)
-```
+It creates a single query by `aggregateId`. Empty results return a null cache value. Query errors and timeouts do not masquerade as cache misses.
 
 ### QueryApiCacheSource
 
-`QueryApiCacheSource<S>` is an **interface** that combines
-`ReactiveSnapshotQueryApi<S>` (the `wow-apiclient` REST client) with
-`StateCacheSource`. Implement it on your API client and it loads snapshots via
-`getById(key)`, returning empty when the remote returns not-found:
+It combines `ReactiveSnapshotQueryApi` with `StateCacheSource`. `getById` not-found becomes empty; other HTTP and decode failures propagate. Do not cache remote unavailability as “not found.”
 
-```kotlin
-@Component
-class OrderQueryApiCacheSource(
-    private val delegate: ReactiveSnapshotQueryApi<OrderState>
-) : QueryApiCacheSource<OrderState>, ReactiveSnapshotQueryApi<OrderState> by delegate
+Verified failures and boundaries: an empty source writes no value; deleted state evicts; miss-loader timeout/errors propagate; cache operation failures fail the refresher and enter event-processing recovery.
+
+Focused check:
+
+```bash
+./gradlew :wow-cocache:check
 ```
+
+Next, read [Query](../query.md) and [Projection](../projection.md), then verify consistency with real TTL/eviction behavior from the selected cache backend.
