@@ -57,6 +57,7 @@ import java.time.Clock
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 
+@Suppress("LargeClass")
 abstract class SnapshotQueryServiceSpec {
     protected val querySchemaSources: List<QuerySchemaSource> = listOf(JsonQuerySchemaSource())
     lateinit var snapshotStore: SnapshotStore
