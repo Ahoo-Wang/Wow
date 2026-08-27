@@ -19,8 +19,7 @@ check_safety() {
   local removed_files=$2
   local changed_files=$3
   local base_files=$4
-  local head_files=$5
-  local inspected_files=$6
+  local inspected_files=$5
 
   if [[ $dependency_pr == true && $removed_files -gt 0 ]]; then
     printf '::error::Dependency PRs must not delete tracked files (%s deleted).\n' "$removed_files" >&2
@@ -39,9 +38,9 @@ check_safety() {
     printf '::error::Base tree unexpectedly contains no tracked files.\n' >&2
     return 1
   fi
-  if (( removed_files * 10 > base_files || head_files * 10 < base_files * 9 )); then
-    printf '::error::PR removes more than 10%% of the repository (%s removed; base=%s, head=%s).\n' \
-      "$removed_files" "$base_files" "$head_files" >&2
+  if (( removed_files * 10 > base_files )); then
+    printf '::error::PR removes more than 10%% of the repository (%s removed; base=%s).\n' \
+      "$removed_files" "$base_files" >&2
     return 1
   fi
 }
@@ -76,13 +75,14 @@ expect_exit() {
 
 if [[ ${1:-} == '--self-test' ]]; then
   failures=0
-  expect_exit 'normal dependency update passes' 0 check_safety true 0 2 2834 2834 2 || ((failures += 1))
-  expect_exit 'dependency update cannot delete files' 1 check_safety true 1 2 2834 2833 2 || ((failures += 1))
-  expect_exit 'ordinary PR cannot remove over ten percent of the repository' 1 check_safety false 284 284 2834 2550 284 || ((failures += 1))
-  expect_exit 'ordinary small deletion passes' 0 check_safety false 1 1 2834 2833 1 || ((failures += 1))
-  expect_exit 'PRs beyond GitHub file inspection limit fail closed' 1 check_safety false 0 3001 2834 5835 3000 || ((failures += 1))
-  expect_exit 'an empty base tree fails closed' 1 check_safety false 0 0 0 1 0 || ((failures += 1))
-  expect_exit 'incomplete PR file pages fail closed' 1 check_safety false 0 2 2834 2834 1 || ((failures += 1))
+  expect_exit 'normal dependency update passes' 0 check_safety true 0 2 2834 2 || ((failures += 1))
+  expect_exit 'dependency update cannot delete files' 1 check_safety true 1 2 2834 2 || ((failures += 1))
+  expect_exit 'ordinary PR cannot remove over ten percent of the repository' 1 check_safety false 284 284 2834 284 || ((failures += 1))
+  expect_exit 'ordinary small deletion passes' 0 check_safety false 1 1 2834 1 || ((failures += 1))
+  expect_exit 'base growth without removals passes' 0 check_safety false 0 1 3200 1 || ((failures += 1))
+  expect_exit 'PRs beyond GitHub file inspection limit fail closed' 1 check_safety false 0 3001 2834 3000 || ((failures += 1))
+  expect_exit 'an empty base tree fails closed' 1 check_safety false 0 0 0 0 || ((failures += 1))
+  expect_exit 'incomplete PR file pages fail closed' 1 check_safety false 0 2 2834 1 || ((failures += 1))
   expect_exit 'complete tree response passes' 0 count_tree_files_response test-tree '{"truncated":false,"tree":[]}' || ((failures += 1))
   expect_exit 'missing truncated flag fails closed' 1 count_tree_files_response test-tree '{"tree":[]}' || ((failures += 1))
   (( failures == 0 )) || exit 1
@@ -101,7 +101,6 @@ count_tree_files() {
 
 pr=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}")
 base_sha=$(jq -r '.base.sha' <<<"$pr")
-head_sha=$(jq -r '.head.sha' <<<"$pr")
 changed_files=$(jq -r '.changed_files' <<<"$pr")
 dependency_pr=$(jq -r \
   '(.head.ref | startswith("renovate/")) or any(.labels[]?; .name == "dependencies")' \
@@ -111,8 +110,7 @@ pr_files=$(gh api --paginate --slurp \
 inspected_files=$(jq '[.[][]] | length' <<<"$pr_files")
 removed_files=$(jq '[.[][] | select(.status == "removed")] | length' <<<"$pr_files")
 base_files=$(count_tree_files "$base_sha")
-head_files=$(count_tree_files "$head_sha")
 
-printf 'PR safety: dependency=%s, changed=%s, removed=%s, base=%s, head=%s\n' \
-  "$dependency_pr" "$changed_files" "$removed_files" "$base_files" "$head_files"
-check_safety "$dependency_pr" "$removed_files" "$changed_files" "$base_files" "$head_files" "$inspected_files"
+printf 'PR safety: dependency=%s, changed=%s, removed=%s, base=%s\n' \
+  "$dependency_pr" "$changed_files" "$removed_files" "$base_files"
+check_safety "$dependency_pr" "$removed_files" "$changed_files" "$base_files" "$inspected_files"
