@@ -121,16 +121,20 @@ class MongoSnapshotQueryService<S : Any> private constructor(
 
     private fun Document.toAggregationResult(query: AggregationQuery): DynamicDocument {
         query.groupBy.forEach { group ->
-            (get(group.alias) as? Decimal128)?.let { this[group.alias] = it.toFiniteDouble(group.alias) }
+            this[group.alias] = get(group.alias).toTermsValue(group.alias)
         }
         query.metrics.forEach { metric ->
             this[metric.alias] = when (metric) {
                 is AggregationMetric.Count -> (get(metric.alias) as Number).toLong()
+                is AggregationMetric.Any -> get(metric.alias).toTermsValue(metric.alias)
                 is AggregationMetric.Numeric -> get(metric.alias).toFiniteDouble(metric.alias)
             }
         }
         return toDynamicDocument()
     }
+
+    private fun Any?.toTermsValue(alias: String): Any? =
+        if (this is Decimal128) toFiniteDouble(alias) else this
 
     private fun AggregationQuery.emptySummary(): DynamicDocument = metrics.associateTo(Document()) { metric ->
         metric.alias to if (metric is AggregationMetric.Count) 0L else null

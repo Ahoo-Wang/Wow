@@ -97,6 +97,12 @@ internal class MongoAggregationCompiler(
             query.metrics.forEach { metric ->
                 when (metric) {
                     is AggregationMetric.Count -> add(Accumulators.sum(metric.alias, 1))
+                    is AggregationMetric.Any -> add(
+                        Accumulators.max(
+                            metric.alias,
+                            "\$${metric.field.resolve(parent, schema, QueryCapability.AGGREGATE_TERMS)}",
+                        ),
+                    )
                     is AggregationMetric.Numeric -> {
                         val (input, contributes) = metric.toMongoInput(parent, schema)
                         add(metric.function.accumulate(metric.alias, input))
@@ -121,6 +127,7 @@ internal class MongoAggregationCompiler(
                 add(
                     when (metric) {
                         is AggregationMetric.Count -> Projections.include(metric.alias)
+                        is AggregationMetric.Any -> Projections.include(metric.alias)
                         is AggregationMetric.Numeric -> Projections.computed(
                             metric.alias,
                             Document(
