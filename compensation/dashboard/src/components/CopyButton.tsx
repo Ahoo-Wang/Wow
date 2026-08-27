@@ -48,16 +48,18 @@ export function CopyButton({ value, label = "value" }: CopyButtonProps) {
 
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-xs"
-          aria-label={`Copy ${label}`}
-          onClick={copy}
-        >
-          {copied ? <Check /> : <Copy />}
-        </Button>
+      <TooltipTrigger
+        render={
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            aria-label={`Copy ${label}`}
+            onClick={copy}
+          />
+        }
+      >
+        {copied ? <Check /> : <Copy />}
       </TooltipTrigger>
       <TooltipContent>{copied ? "Copied" : `Copy ${label}`}</TooltipContent>
     </Tooltip>

@@ -83,6 +83,7 @@ export function Actions({ state, onChanged, disabled }: ActionsProps) {
 
   const forcePrepareState = useExecutePromise<CommandResult, ExchangeError>({
     onSuccess: () => {
+      setForceDialogOpen(false);
       toast.success("Compensation force prepared");
       onChanged?.();
     },
@@ -153,29 +154,31 @@ export function Actions({ state, onChanged, disabled }: ActionsProps) {
               : unavailableAction.label}
           </Button>
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon-lg"
-                className="h-11 w-12"
-                aria-label="More actions"
-                disabled={busy}
-              >
-                <EllipsisVertical />
-              </Button>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-lg"
+                  className="h-11 w-12"
+                  aria-label="More actions"
+                  disabled={busy}
+                />
+              }
+            >
+              <EllipsisVertical />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48 p-1.5">
               <DropdownMenuItem
                 variant="destructive"
                 className="py-2"
                 disabled={disabled || !capabilities.canForcePrepare}
-                onSelect={() => setForceDialogOpen(true)}
+                onClick={() => setForceDialogOpen(true)}
               >
                 <ShieldAlert />
                 Force prepare
               </DropdownMenuItem>
-              <DropdownMenuItem className="py-2" onSelect={copyExecutionId}>
+              <DropdownMenuItem className="py-2" onClick={copyExecutionId}>
                 <Clipboard />
                 Copy execution ID
               </DropdownMenuItem>
@@ -201,8 +204,8 @@ export function Actions({ state, onChanged, disabled }: ActionsProps) {
             <AlertDialogTitle>Force prepare this execution?</AlertDialogTitle>
             <AlertDialogDescription>
               This bypasses the retry limit for {state.id}. The server still
-              validates the current execution state. Use it only after
-              verifying the failure context.
+              validates the current execution state. Use it only after verifying
+              the failure context.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

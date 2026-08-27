@@ -45,9 +45,7 @@ export function ErrorDetails({
 }: ErrorDetailsProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const expandedContentRef = useRef<HTMLDivElement>(null);
-  const [expanded, setExpanded] = useState(
-    defaultExpanded ?? !historical,
-  );
+  const [expanded, setExpanded] = useState(defaultExpanded ?? !historical);
   const previousExpandedRef = useRef(expanded);
   const [fullscreen, setFullscreen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -157,33 +155,37 @@ export function ErrorDetails({
         </div>
         <div className="flex items-center gap-1">
           <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Copy stack trace"
-                onClick={copy}
-              >
-                <Clipboard />
-              </Button>
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Copy stack trace"
+                  onClick={copy}
+                />
+              }
+            >
+              <Clipboard />
             </TooltipTrigger>
             <TooltipContent>Copy stack trace</TooltipContent>
           </Tooltip>
           {expanded ? (
             <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={
-                    fullscreen ? "Exit fullscreen" : "Open fullscreen"
-                  }
-                  onClick={toggleFullscreen}
-                >
-                  {fullscreen ? <Minimize2 /> : <Maximize2 />}
-                </Button>
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={
+                      fullscreen ? "Exit fullscreen" : "Open fullscreen"
+                    }
+                    onClick={toggleFullscreen}
+                  />
+                }
+              >
+                {fullscreen ? <Minimize2 /> : <Maximize2 />}
               </TooltipTrigger>
               <TooltipContent>
                 {fullscreen ? "Exit fullscreen" : "Open fullscreen"}
@@ -193,10 +195,7 @@ export function ErrorDetails({
         </div>
       </div>
       {expanded ? (
-        <div
-          ref={expandedContentRef}
-          className="flex min-h-0 flex-1 flex-col"
-        >
+        <div ref={expandedContentRef} className="flex min-h-0 flex-1 flex-col">
           <div className="flex flex-wrap items-center gap-2 border-b bg-slate-50 px-3 py-2">
             <div className="min-w-[180px] flex-1">
               <Input

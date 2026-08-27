@@ -82,7 +82,9 @@ export function MarkRecoverable({
         disabled={disabled || promiseState.loading}
       >
         <SelectTrigger size="sm" className="min-w-28" aria-label="Recoverable">
-          <SelectValue />
+          <SelectValue>
+            {recoverable.charAt(0) + recoverable.slice(1).toLowerCase()}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           {Object.values(RecoverableType).map((value) => (

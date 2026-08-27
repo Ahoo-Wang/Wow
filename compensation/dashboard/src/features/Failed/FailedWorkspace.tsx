@@ -97,10 +97,7 @@ export function FailedWorkspace({
             className="w-full gap-0 p-0 sm:max-w-none"
             style={{ width: "100%", maxWidth: "none" }}
             showCloseButton
-            onOpenAutoFocus={(event) => {
-              event.preventDefault();
-              mobileDetailsFocusRef.current?.focus();
-            }}
+            initialFocus={mobileDetailsFocusRef}
           >
             <SheetHeader className="sr-only">
               <SheetTitle>Execution failed details</SheetTitle>

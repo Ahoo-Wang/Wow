@@ -88,6 +88,11 @@ async function openDetails(page: Page, projectName: string) {
     await expect(
       page.getByRole("dialog", { name: "Execution failed details" }),
     ).toBeVisible();
+    const closeButtonBox = await page
+      .getByRole("button", { name: "Close" })
+      .boundingBox();
+    expect(closeButtonBox?.width).toBeGreaterThanOrEqual(44);
+    expect(closeButtonBox?.height).toBeGreaterThanOrEqual(44);
   }
   await expect(
     page.getByRole("heading", { name: execution.function.name }),

@@ -123,6 +123,7 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
+    position: relative;
     margin: 0;
     min-width: 320px;
     min-height: 100svh;
@@ -137,6 +138,7 @@
 }
 
 #root {
+  isolation: isolate;
   min-height: 100svh;
 }
 

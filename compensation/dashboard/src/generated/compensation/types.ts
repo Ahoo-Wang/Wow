@@ -34,6 +34,14 @@ export interface Link {
  */
 export type StringLinkMap = Record<string, Link>;
 /**
+ * - key: compensation.JsonNode
+ * - schema: 
+ * ```json
+ * {}
+ * ```
+ */
+export type JsonNode = any;
+/**
  * - key: compensation.StringObjectMap
  * - schema: 
  * ```json
@@ -59,3 +67,31 @@ export type StringObjectMap = Record<string, any>;
  * ```
  */
 export type StringStringListMap = Record<string, string[]>;
+
+/**
+ * - key: compensation.TimeUnit
+ * - schema: 
+ * ```json
+ * {
+ *   "type": "string",
+ *   "enum": [
+ *     "NANOSECONDS",
+ *     "MICROSECONDS",
+ *     "MILLISECONDS",
+ *     "SECONDS",
+ *     "MINUTES",
+ *     "HOURS",
+ *     "DAYS"
+ *   ]
+ * }
+ * ```
+ */
+export enum TimeUnit {
+    NANOSECONDS = `NANOSECONDS`,
+    MICROSECONDS = `MICROSECONDS`,
+    MILLISECONDS = `MILLISECONDS`,
+    SECONDS = `SECONDS`,
+    MINUTES = `MINUTES`,
+    HOURS = `HOURS`,
+    DAYS = `DAYS`
+}
