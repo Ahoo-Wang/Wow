@@ -23,6 +23,8 @@ import co.elastic.clients.elasticsearch.indices.get_mapping.IndexMappingRecord
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.EqualFilter
+import me.ahoo.wow.api.query.InFilter
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.SearchFilter
@@ -164,6 +166,18 @@ class ElasticsearchQuerySchemaAdapterTest {
         QuerySchemaResolver(schema).resolve(sort).let { resolved ->
             resolved.value.assert().isEqualTo(sort)
             resolved.compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+        }
+        listOf(
+            EqualFilter(LogicalField("_id"), tools.jackson.databind.node.StringNode.valueOf("id")),
+            InFilter(
+                LogicalField("_id"),
+                listOf(tools.jackson.databind.node.StringNode.valueOf("id")),
+            ),
+        ).forEach { filter ->
+            QuerySchemaResolver(schema).resolve(filter).let { resolved ->
+                resolved.value.assert().isEqualTo(filter)
+                resolved.compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+            }
         }
     }
 

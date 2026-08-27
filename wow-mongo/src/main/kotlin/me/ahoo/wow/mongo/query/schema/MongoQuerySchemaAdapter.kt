@@ -109,6 +109,7 @@ class MongoQuerySchemaAdapter(
 
         private fun LogicalQueryFieldSchema.capabilities(): Set<QueryCapability> = buildSet {
             add(QueryCapability.PRESENCE)
+            if (valueTypes.isEmpty()) return@buildSet
             val scalar = QueryValueType.OBJECT !in valueTypes
             if (scalar || dynamicChildren) {
                 add(QueryCapability.EXACT_MATCH)
@@ -246,7 +247,7 @@ class MongoQuerySchemaAdapter(
         ) {
             if (includeType && path != null) {
                 val types = schema.storageTypes()
-                val itemTypes = schema.document("items")?.storageTypes()
+                val itemTypes = schema.itemStorageTypes()
                 if (types != null || itemTypes != null) {
                     put(path, MongoStorageSchema(types, itemTypes))
                 }
@@ -297,6 +298,37 @@ class MongoQuerySchemaAdapter(
             return schemas.mapNotNull { it.storageTypes() }
                 .reduceOrNull(Set<QueryStorageType>::intersect)
                 ?: emptySet()
+        }
+
+        private fun Document.itemStorageTypes(): Set<QueryStorageType>? {
+            val constraints = buildList {
+                document("items")?.storageTypes()?.let(::add)
+                listOf("anyOf", "oneOf").forEach { key ->
+                    unionItemStorageTypes(key)?.let(::add)
+                }
+                intersectionItemStorageTypes("allOf")?.let(::add)
+            }
+            return constraints.reduceOrNull(Set<QueryStorageType>::intersect)
+        }
+
+        private fun Document.unionItemStorageTypes(key: String): Set<QueryStorageType>? {
+            if (!containsKey(key)) return null
+            val schemas = (this[key] as? Iterable<*>)?.filterIsInstance<Document>().orEmpty()
+            val types = mutableListOf<Set<QueryStorageType>>()
+            for (schema in schemas) {
+                val storageTypes = schema.storageTypes()
+                if (storageTypes == null || storageTypes.any { it.value == "array" }) {
+                    types += schema.itemStorageTypes() ?: return null
+                }
+            }
+            return types.takeIf { it.isNotEmpty() }?.flatten()?.toSet()
+        }
+
+        private fun Document.intersectionItemStorageTypes(key: String): Set<QueryStorageType>? {
+            if (!containsKey(key)) return null
+            val schemas = (this[key] as? Iterable<*>)?.filterIsInstance<Document>().orEmpty()
+            return schemas.mapNotNull { it.itemStorageTypes() }
+                .reduceOrNull(Set<QueryStorageType>::intersect)
         }
 
         private fun Set<QueryStorageType>?.proves(requirements: List<Set<String>>): Boolean {

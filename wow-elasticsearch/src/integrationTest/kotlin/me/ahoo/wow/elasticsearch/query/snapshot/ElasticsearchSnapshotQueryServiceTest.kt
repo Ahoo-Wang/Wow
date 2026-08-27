@@ -283,6 +283,16 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     }
 
     @Test
+    fun `strict should execute generic document id equality`() {
+        strictService().dynamicList(
+            ListQuery(
+                filter = filterExpression { "_id" eq snapshot.aggregateId.id },
+                limit = 10,
+            ),
+        ).test().expectNextCount(1).verifyComplete()
+    }
+
+    @Test
     fun `strict should execute fielddata terms and string native operations`() {
         updateState(
             mapOf(

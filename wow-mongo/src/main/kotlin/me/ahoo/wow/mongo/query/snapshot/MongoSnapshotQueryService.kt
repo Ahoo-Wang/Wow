@@ -39,6 +39,7 @@ import me.ahoo.wow.mongo.toMaterializedSnapshot
 import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaContext
+import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.schema.resolve
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
@@ -46,6 +47,7 @@ import me.ahoo.wow.serialization.JsonSerializer
 import org.bson.Document
 import org.bson.types.Decimal128
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toFlux
 
 class MongoSnapshotQueryService<S : Any> private constructor(
@@ -65,7 +67,7 @@ class MongoSnapshotQueryService<S : Any> private constructor(
         namedAggregate,
         collection,
         converter,
-        defaultSchemaProvider(namedAggregate, collection),
+        defaultSchemaProvider(namedAggregate, collection, converter),
         QuerySchemaValidationMode.COMPATIBLE,
     )
 
@@ -149,10 +151,26 @@ class MongoSnapshotQueryService<S : Any> private constructor(
         private fun defaultSchemaProvider(
             namedAggregate: NamedAggregate,
             collection: MongoCollection<Document>,
-        ): QueryModelSchemaProvider = DefaultQueryModelSchemaProvider(
-            context = QuerySchemaContext(namedAggregate.materialize(), QueryModel.SNAPSHOT),
-            sources = emptyList(),
-            adapter = MongoQuerySchemaAdapter(collection),
-        )
+            converter: AbstractMongoFilterConverter,
+        ): QueryModelSchemaProvider {
+            if (converter !== SnapshotFilterConverter) {
+                return object : QueryModelSchemaProvider {
+                    override fun schema(): Mono<me.ahoo.wow.query.schema.QueryModelSchema> = unavailable()
+
+                    override fun refresh(): Mono<me.ahoo.wow.query.schema.QueryModelSchema> = unavailable()
+
+                    private fun unavailable(): Mono<me.ahoo.wow.query.schema.QueryModelSchema> = Mono.error(
+                        QuerySchemaUnavailableException(
+                            "MongoDB query schema is unavailable for custom filter converters.",
+                        ),
+                    )
+                }
+            }
+            return DefaultQueryModelSchemaProvider(
+                context = QuerySchemaContext(namedAggregate.materialize(), QueryModel.SNAPSHOT),
+                sources = emptyList(),
+                adapter = MongoQuerySchemaAdapter(collection),
+            )
+        }
     }
 }

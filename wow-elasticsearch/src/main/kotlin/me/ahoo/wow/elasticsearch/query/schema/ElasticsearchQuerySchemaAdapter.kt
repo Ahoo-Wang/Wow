@@ -92,8 +92,12 @@ class ElasticsearchQuerySchemaAdapter(
                             ),
                         )
                     }
+                    putIfAbsent(
+                        LogicalField(DOCUMENT_ID_FIELD),
+                        metadataField(DOCUMENT_ID_FIELD, QueryValueType.STRING, QueryCapability.EXACT_MATCH),
+                    )
                     METADATA_SORT_FIELDS.forEach { (path, valueType) ->
-                        putIfAbsent(LogicalField(path), metadataSortField(path, valueType))
+                        putIfAbsent(LogicalField(path), metadataField(path, valueType, QueryCapability.SORT))
                     }
                 },
             )
@@ -104,6 +108,8 @@ class ElasticsearchQuerySchemaAdapter(
             "_doc" to QueryValueType.INTEGER,
             "_shard_doc" to QueryValueType.INTEGER,
         )
+
+        private const val DOCUMENT_ID_FIELD = "_id"
 
         private val BUILT_IN_CAPABILITIES = listOf(
             QueryCapability.PRESENCE,
@@ -179,7 +185,11 @@ class ElasticsearchQuerySchemaAdapter(
                 projectionPath = projectionPath,
             )
 
-        private fun metadataSortField(path: String, valueType: QueryValueType) = QueryFieldSchema(
+        private fun metadataField(
+            path: String,
+            valueType: QueryValueType,
+            capability: QueryCapability,
+        ) = QueryFieldSchema(
             title = null,
             description = null,
             enumValues = null,
@@ -190,7 +200,7 @@ class ElasticsearchQuerySchemaAdapter(
             semanticType = null,
             dynamicChildren = false,
             bindings = mapOf(
-                QueryCapability.SORT to QueryFieldBinding(path, storageType = null),
+                capability to QueryFieldBinding(path, storageType = null),
             ),
             projectionPath = null,
         )

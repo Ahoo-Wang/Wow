@@ -35,7 +35,10 @@ import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryCompatibilityLevel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
+import me.ahoo.wow.mongo.query.AbstractMongoFilterConverter
+import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryService
 import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryServiceFactory
+import me.ahoo.wow.query.converter.FieldConverter
 import me.ahoo.wow.query.schema.LogicalQueryFieldSchema
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QuerySchemaResolver
@@ -68,6 +71,49 @@ class MongoQuerySchemaAdapterTest {
 
         schema.fields.getValue(amount).bindings.keys.assert()
             .contains(QueryCapability.RANGE, QueryCapability.AGGREGATE_NUMERIC)
+    }
+
+    @Test
+    fun `composed array validators should prove item storage types`() {
+        val field = LogicalField("state.values")
+        val logical = LogicalQuerySchema(
+            mapOf(field to field(QueryValueType.INTEGER, cardinality = QueryCardinality.MANY)),
+        )
+        val array = Document("bsonType", "array")
+            .append("items", Document("bsonType", "string"))
+        val validators = listOf(
+            Document("anyOf", listOf(array, Document("bsonType", "null"))),
+            Document("oneOf", listOf(array, Document("bsonType", "null"))),
+            Document(
+                "allOf",
+                listOf(
+                    Document("bsonType", listOf("array", "null")),
+                    Document("items", Document("bsonType", "string")),
+                ),
+            ),
+        )
+
+        validators.forEach { validator ->
+            MongoQuerySchemaAdapter.bind(
+                logical,
+                emptyList(),
+                Document(
+                    "properties",
+                    Document("state", Document("properties", Document("values", validator))),
+                ),
+            ).fields.getValue(field).bindings.keys.assert().containsExactly(QueryCapability.PRESENCE)
+        }
+    }
+
+    @Test
+    fun `opaque logical shapes should expose only presence without a validator`() {
+        val field = LogicalField("state.opaque")
+        val logical = LogicalQuerySchema(
+            mapOf(field to field(QueryValueType.STRING).copy(valueTypes = emptySet())),
+        )
+
+        MongoQuerySchemaAdapter.bind(logical, emptyList(), null)
+            .fields.getValue(field).bindings.keys.assert().containsExactly(QueryCapability.PRESENCE)
     }
 
     @Test
@@ -618,6 +664,30 @@ class MongoQuerySchemaAdapterTest {
         fixture.filter.single().toBsonDocument().toJson().assert().contains("_id").doesNotContain("aggregateId")
         fixture.projection.single().toBsonDocument().toJson().assert().contains("_id").doesNotContain("aggregateId")
         fixture.sort.single().toBsonDocument().toJson().assert().contains("_id").doesNotContain("aggregateId")
+    }
+
+    @Test
+    fun `direct service should preserve custom converter path ownership`() {
+        val fixture = serviceFixture(indexes())
+        val converter = object : AbstractMongoFilterConverter() {
+            override val fieldConverter: FieldConverter = FieldConverter { "custom.$it" }
+        }
+        val service = MongoSnapshotQueryService<Any>(
+            MOCK_AGGREGATE_METADATA,
+            fixture.collection,
+            converter,
+        )
+
+        service.dynamicList(
+            ListQuery(
+                EqualFilter(LogicalField("aggregateId"), StringNode.valueOf("id")),
+                limit = 1,
+            ),
+        ).test().verifyComplete()
+
+        fixture.filter.single().toBsonDocument().toJson().assert()
+            .contains("custom.aggregateId")
+            .doesNotContain("custom._id")
     }
 
     @Test
