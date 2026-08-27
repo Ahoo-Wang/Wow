@@ -158,7 +158,7 @@ wow:
 
 阈值来自应用 SLO 和目标硬件基线，不存在通用的“命令一秒”。至少按 stage 分解延迟，并关联：聚合重放事件数、version conflict、EventStore/SnapshotStore 延迟、Broker lag/pending、Handler retry/compensation 和 shutdown drain。没有 production-like 数据量的测量时，结论应标记为 `MISSING EVIDENCE`。
 
-框架 JMH 只能建立框架基线，不能替代应用查询计划与端到端负载；见[框架测试与基准](./test-runtime.md#基准-smoke)。
+框架 JMH 只能建立框架基线，不能替代应用查询计划与端到端负载；见[框架测试与基准](./test-runtime.md#基准分三种用途)。
 
 ## 提交可诊断的 Issue
 

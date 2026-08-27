@@ -73,7 +73,8 @@ graph LR
     ES -. elasticsearch-support .-> STARTER
     WEBFLUX -. webflux-support .-> STARTER
     OTEL -. opentelemetry-support .-> STARTER
-    OPENAPI -. openapi-support .-> STARTER
+    BI -. "openapi-support (api)" .-> STARTER
+    OPENAPI -. "openapi-support (implementation)" .-> STARTER
     COSEC -. cosec-support .-> STARTER
 ```
 
@@ -193,10 +194,12 @@ A passing TCK does not prove capacity, upgrade safety, or disaster recovery for 
 | `webflux-support` | `wow-bi` (API), `wow-webflux` | Spring WebFlux is already a base Starter dependency |
 | `elasticsearch-support` | `wow-elasticsearch` | Elasticsearch Spring Boot starter |
 | `opentelemetry-support` | `wow-opentelemetry` | OpenTelemetry instrumentation API |
-| `openapi-support` | `wow-openapi` | springdoc common |
+| `openapi-support` | `wow-bi` (API), `wow-openapi` (implementation) | springdoc common |
 | `cosec-support` | `wow-cosec` | CoSec integration chain |
 
 A capability means **code is available**. `wow.*.enabled` and bus/storage properties decide **whether it is wired**. Backend health, schemas, topics, permissions, and recovery drills decide **whether it is operable**. These layers are not interchangeable.
+
+For `openapi-support`, `openapiSupportApi(project(":wow-bi"))` exposes the BI script API to consumers, while `openapiSupportImplementation(project(":wow-openapi"))` supplies OpenAPI generation internally. Both are direct project dependencies of that feature variant.
 
 ## Build Configuration
 

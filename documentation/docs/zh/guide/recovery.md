@@ -24,7 +24,7 @@ EventStore → Aggregate/StateEvent → Snapshot/Projection/Processor/Saga
 | Snapshot | 聚合加载检查点；`all` 时也可作为当前状态查询存储 | Snapshot owner 可恢复备份或从 EventStore 重建 |
 | Projection/外部读模型 | 面向查询的派生状态 | 每个 Projection owner 提供清空、断点、重放、幂等和对账流程 |
 | Broker message/offset | 尚未完成的异步工作 | Bus owner 与 EventStore cutoff 协调，避免遗漏或未经验证的重复 |
-| Compensation 记录 | 自动/人工失败恢复状态 | Compensation owner 保留 pending、prepared、succeeded 与不可恢复状态 |
+| Compensation 记录 | 自动/人工失败恢复状态 | Compensation owner 分别保留两个独立维度：`ExecutionFailedStatus`（`FAILED` / `PREPARED` / `SUCCEEDED`）与 `RecoverableType`（`RECOVERABLE` / `UNKNOWN` / `UNRECOVERABLE`） |
 | PrepareKey、context/schema/index、storage route 配置 | 唯一性、上下文归属与实际 binding | 对应后端与应用配置 owner 一起恢复并校验 |
 | 外部副作用 | 支付、通知、第三方写入等 | 不能从 EventStore 自动回滚；应用 owner 做业务对账 |
 
@@ -66,7 +66,7 @@ EventStore → Aggregate/StateEvent → Snapshot/Projection/Processor/Saga
 - event name/revision 分布与不可反序列化计数；
 - Snapshot 数量、最大版本和 `snapshot.version <= event head` 违反数；
 - Projection 的高风险业务总量与 tenant/owner/space 隔离结果；
-- consumer offset、lag、pending、重试/补偿数量；
+- consumer offset、lag、pending、重试数量，以及分别按 `ExecutionFailedStatus` 和 `RecoverableType` 汇总的补偿数量；
 - 备份校验和、工具参数、耗时和实际 cutoff。
 
 没有恢复前基线，就无法区分恢复后的缺失、重复和历史上已经存在的异常。
@@ -80,7 +80,7 @@ EventStore → Aggregate/StateEvent → Snapshot/Projection/Processor/Saga
 5. **恢复或重建 Snapshot**：先抽样单聚合，再分页批量执行；结果版本不得超过 EventStore head。
 6. **重建 Projection/查询模型**：只运行目标函数，记录 after-id/offset、失败项和可重入点；Wow 没有替应用提供一个通用 Projection 清空命令。
 7. **协调 Broker 位点**：回退前证明 Handler 幂等；保留较新位点前证明没有恢复点后的事件被跳过。
-8. **恢复补偿状态**：区分未执行、执行中、成功与不可恢复，不能把“重新投递”当作清空失败记录。
+8. **恢复补偿的两个维度**：`ExecutionFailedStatus` 只能保留为 `FAILED`、`PREPARED` 或 `SUCCEEDED`；另行保留 `RecoverableType` 的 `RECOVERABLE`、`UNKNOWN` 或 `UNRECOVERABLE`。不能从其中一个推断另一个，也不能因“重新投递”而清空失败记录。
 9. **完成对账后逐级开放**：先只读查询，再受控测试命令，最后恢复业务入口和 scheduler。
 
 当 `webflux-support` 装配对应 aggregate route 时，运行时 OpenAPI 会列出这些恢复操作：
@@ -104,7 +104,7 @@ EventStore → Aggregate/StateEvent → Snapshot/Projection/Processor/Saga
 | Projection | 行数、高风险金额/库存/权限、tenant 隔离、删除状态、索引计划 |
 | Processor/Saga | 重投不会重复命令、扣款、通知或遗漏 |
 | Broker | topic/Stream、partition/group、offset、lag、pending 与失败队列 |
-| Compensation | 状态、重试次数、目标函数、人工决定与外部效果一致 |
+| Compensation | `ExecutionFailedStatus` 分布、独立的 `RecoverableType` 分布、重试次数、目标函数、人工决定与外部效果一致 |
 | Runtime | stage 延迟、错误率、trace、告警和优雅停止仍满足候选基线 |
 
 资金、库存、权限等高风险域需要全量业务对账；抽样只适合在全量结构校验之外增加内容核查。

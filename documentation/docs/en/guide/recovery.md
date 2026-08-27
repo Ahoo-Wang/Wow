@@ -24,7 +24,7 @@ A recovery operation may execute handlers again. Isolate traffic and external ef
 | Snapshot | Aggregate-load checkpoint; with `all`, it can also be a current-state query store | Snapshot owner restores a backup or rebuilds from EventStore |
 | Projection/external read model | Query-oriented derived state | Each projection owner supplies clear, resume, replay, idempotency, and reconciliation procedures |
 | Broker message/offset | Asynchronous work not yet complete | Bus owner coordinates it with the EventStore cutoff to avoid omissions or unverified duplicates |
-| Compensation record | Automatic/operator failure-recovery state | Compensation owner preserves pending, prepared, succeeded, and unrecoverable states |
+| Compensation record | Automatic/operator failure-recovery state | Compensation owner preserves two independent dimensions: `ExecutionFailedStatus` (`FAILED` / `PREPARED` / `SUCCEEDED`) and `RecoverableType` (`RECOVERABLE` / `UNKNOWN` / `UNRECOVERABLE`) |
 | PrepareKey, context/schema/index, storage-route configuration | Uniqueness, context ownership, and actual binding | Backend and application-configuration owners restore and validate together |
 | External side effect | Payment, notification, third-party write | Cannot be rolled back from EventStore automatically; application owner reconciles it |
 
@@ -66,7 +66,7 @@ Keep a machine-comparable baseline next to the backup:
 - event-name/revision distribution and count of deserialization failures;
 - snapshot count, maximum version, and violations of `snapshot.version <= event head`;
 - high-risk projection totals and tenant/owner/space isolation results;
-- consumer offsets, lag, pending entries, retries, and compensation counts;
+- consumer offsets, lag, pending entries, retries, and compensation counts grouped separately by `ExecutionFailedStatus` and `RecoverableType`;
 - checksums, tool arguments, elapsed time, and actual cutoff.
 
 Without a pre-restore baseline, missing or duplicated data cannot be separated from a historical defect.
@@ -80,7 +80,7 @@ Without a pre-restore baseline, missing or duplicated data cannot be separated f
 5. **Restore or rebuild snapshots** by sampling one aggregate before cursor-based batches. No result version may exceed its EventStore head.
 6. **Rebuild projections/query models** for one target function at a time while recording after-id/offset, failures, and resume points. Wow does not supply a universal application-projection clear command.
 7. **Coordinate broker offsets**: prove handler idempotency before rewinding; prove no post-cutoff event is skipped before retaining later offsets.
-8. **Restore compensation state**, distinguishing pending, running, succeeded, and unrecoverable work. Redelivery is not a reason to erase failure records.
+8. **Restore both compensation dimensions**: preserve `ExecutionFailedStatus` as `FAILED`, `PREPARED`, or `SUCCEEDED`, and independently preserve `RecoverableType` as `RECOVERABLE`, `UNKNOWN`, or `UNRECOVERABLE`. Do not infer either dimension from the other, and do not erase failure records because work was redelivered.
 9. **Open traffic in stages after reconciliation**: read-only queries, controlled test commands, then business ingress and schedulers.
 
 When `webflux-support` wires the relevant aggregate route, runtime OpenAPI lists these recovery operations:
@@ -104,7 +104,7 @@ The full prefix, tenant parameters, and operation ID depend on the aggregate rou
 | Projection | Rows, high-risk money/inventory/authorization totals, tenant isolation, deletion state, query plans |
 | Processor/Saga | Redelivery creates no duplicate commands, charges, notifications, or omissions |
 | Broker | Topic/Stream, partition/group, offsets, lag, pending entries, failure queues |
-| Compensation | Status, retry count, target function, operator decision, external effect |
+| Compensation | `ExecutionFailedStatus` distribution, independent `RecoverableType` distribution, retry count, target function, operator decision, external effect |
 | Runtime | Stage latency, error rate, traces, alerts, and graceful shutdown still meet the candidate baseline |
 
 Money, inventory, and authorization domains require full business reconciliation. Sampling supplements full structural checks; it does not replace them.

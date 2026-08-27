@@ -158,7 +158,7 @@ See [Core Configuration](../reference/config/core.md) and [Infrastructure Config
 
 Thresholds come from application SLOs and target-hardware baselines; there is no universal one-second command target. Decompose latency by stage and correlate aggregate replay count, version conflict, EventStore/SnapshotStore latency, broker lag/pending, handler retry/compensation, and shutdown drain. Without production-like data volume, label the conclusion `MISSING EVIDENCE`.
 
-Framework JMH establishes a framework baseline only; it does not replace application query plans or end-to-end load. See [Framework Tests and Benchmarks](./test-runtime.md#benchmark-smoke).
+Framework JMH establishes a framework baseline only; it does not replace application query plans or end-to-end load. See [Framework Tests and Benchmarks](./test-runtime.md#benchmarks-have-three-uses).
 
 ## File a Diagnosable Issue
 
