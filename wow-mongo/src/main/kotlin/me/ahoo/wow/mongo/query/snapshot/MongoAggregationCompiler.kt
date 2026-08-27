@@ -65,14 +65,15 @@ internal class MongoAggregationCompiler(
         }
 
         if (query.groupBy.isNotEmpty()) {
-            val groupFields = query.groupBy.map { group ->
-                group.field.resolve(logicalParent, schema, group.capability)
+            val groupFilters = query.groupBy.map { group ->
+                val field = group.field.resolve(logicalParent, schema, group.capability)
+                if (group is AggregationGroup.Histogram) {
+                    Filters.expr(Document("\$isNumber", scalarOrSingleton("\$$field")))
+                } else {
+                    Filters.and(Filters.exists(field), Filters.ne(field, null))
+                }
             }
-            add(
-                Aggregates.match(
-                    Filters.and(groupFields.flatMap { listOf(Filters.exists(it), Filters.ne(it, null)) }),
-                ),
-            )
+            add(Aggregates.match(Filters.and(groupFilters)))
         }
 
         add(group(query, logicalParent, schema))
@@ -140,19 +141,22 @@ internal class MongoAggregationCompiler(
 
     private fun AggregationGroup.expression(parent: String?, schema: QueryModelSchema?): Any = when (this) {
         is AggregationGroup.Terms -> "\$${field.resolve(parent, schema, QueryCapability.AGGREGATE_TERMS)}"
-        is AggregationGroup.Histogram -> Document(
-            "\$multiply",
-            listOf(
-                Document(
-                    "\$floor",
+        is AggregationGroup.Histogram -> {
+            val field = field.resolve(parent, schema, QueryCapability.AGGREGATE_NUMERIC)
+            Document(
+                "\$multiply",
+                listOf(
                     Document(
-                        "\$divide",
-                        listOf("\$${field.resolve(parent, schema, QueryCapability.AGGREGATE_NUMERIC)}", interval),
+                        "\$floor",
+                        Document(
+                            "\$divide",
+                            listOf(scalarOrSingleton("\$$field"), interval),
+                        ),
                     ),
+                    interval,
                 ),
-                interval,
-            ),
-        )
+            )
+        }
 
         is AggregationGroup.DateHistogram -> Document(
             "\$toLong",

@@ -209,7 +209,7 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     }
 
     @Test
-    fun `strict should delegate numeric array ranges and aggregation`() {
+    fun `strict should delegate numeric array ranges metrics and histograms`() {
         val fieldPath = "state.values"
         database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
             .updateOne(
@@ -229,6 +229,20 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             .test()
             .assertNext { row -> row.toMap().assert().isEqualTo(mapOf("total" to 7.0)) }
             .verifyComplete()
+        val histogram = aggregation {
+            histogram(fieldPath, 5.0, "bucket")
+            count("count")
+        }
+        histogram.query(service).test()
+            .assertNext { row -> row.toMap().assert().isEqualTo(mapOf("bucket" to 5.0, "count" to 1L)) }
+            .verifyComplete()
+
+        database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
+            .updateOne(
+                Document("_id", snapshot.aggregateId.id),
+                Document("\$set", Document(fieldPath, listOf(1, 2, 3))),
+            ).toMono().test().expectNextCount(1).verifyComplete()
+        histogram.query(service).test().verifyComplete()
     }
 
     @Test
