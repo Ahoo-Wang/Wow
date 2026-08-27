@@ -20,6 +20,7 @@ import me.ahoo.wow.api.query.schema.QuerySemanticType
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.serialization.event.DomainEventRecords
 import me.ahoo.wow.serialization.state.SnapshotRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import reactor.core.publisher.Flux
@@ -32,11 +33,10 @@ object SystemQuerySchemaSource : QuerySchemaSource {
     override fun load(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> =
         Flux.just(declaration(context.model))
 
-    fun declaration(model: QueryModel): QuerySchemaDeclaration {
-        if (model != QueryModel.SNAPSHOT) {
-            throw QuerySchemaValidationException("Unsupported System query model: [$model].")
-        }
-        return SNAPSHOT_DECLARATION
+    fun declaration(model: QueryModel): QuerySchemaDeclaration = when (model) {
+        QueryModel.SNAPSHOT -> SNAPSHOT_DECLARATION
+        QueryModel.EVENT_STREAM -> EVENT_STREAM_DECLARATION
+        else -> throw QuerySchemaValidationException("Unsupported System query model: [$model].")
     }
 
     private val SNAPSHOT_DECLARATION = QuerySchemaDeclaration(
@@ -62,6 +62,32 @@ object SystemQuerySchemaSource : QuerySchemaSource {
         ),
     )
 
+    private val EVENT_STREAM_DECLARATION = QuerySchemaDeclaration(
+        Collections.unmodifiableMap(
+            linkedMapOf(
+                MessageRecords.ID.stringField(),
+                MessageRecords.CONTEXT_NAME.stringField(),
+                MessageRecords.AGGREGATE_NAME.stringField(),
+                MessageRecords.NAME.stringField(),
+                MessageRecords.HEADER.objectField(DeclarationValue.Set(true)),
+                MessageRecords.AGGREGATE_ID.stringField(),
+                MessageRecords.TENANT_ID.stringField(),
+                MessageRecords.OWNER_ID.stringField(),
+                MessageRecords.SPACE_ID.stringField(),
+                MessageRecords.COMMAND_ID.stringField(),
+                MessageRecords.REQUEST_ID.stringField(),
+                MessageRecords.VERSION.integerField(),
+                MessageRecords.CREATE_TIME.epochField(),
+                MessageRecords.BODY.objectField(cardinality = QueryCardinality.MANY),
+                "${MessageRecords.BODY}.${MessageRecords.ID}".stringField(),
+                "${MessageRecords.BODY}.${MessageRecords.NAME}".stringField(),
+                "${MessageRecords.BODY}.${DomainEventRecords.REVISION}".stringField(),
+                "${MessageRecords.BODY}.${MessageRecords.BODY_TYPE}".stringField(),
+                "${MessageRecords.BODY}.${MessageRecords.BODY}".objectField(DeclarationValue.Set(false)),
+            ),
+        ),
+    )
+
     private fun String.stringField() = field(QueryValueType.STRING)
 
     private fun String.integerField() = field(QueryValueType.INTEGER)
@@ -70,7 +96,8 @@ object SystemQuerySchemaSource : QuerySchemaSource {
 
     private fun String.objectField(
         dynamicChildren: DeclarationValue<Boolean> = DeclarationValue.Unset,
-    ) = field(QueryValueType.OBJECT, dynamicChildren = dynamicChildren)
+        cardinality: QueryCardinality = QueryCardinality.SINGLE,
+    ) = field(QueryValueType.OBJECT, dynamicChildren = dynamicChildren, cardinality = cardinality)
 
     private fun String.epochField() = field(
         QueryValueType.INTEGER,
@@ -81,11 +108,12 @@ object SystemQuerySchemaSource : QuerySchemaSource {
         valueType: QueryValueType,
         semanticType: DeclarationValue<QuerySemanticType?> = DeclarationValue.Unset,
         dynamicChildren: DeclarationValue<Boolean> = DeclarationValue.Unset,
+        cardinality: QueryCardinality = QueryCardinality.SINGLE,
     ): Pair<LogicalField, QueryFieldDeclaration> = LogicalField(this) to QueryFieldDeclaration(
         valueTypes = DeclarationValue.Set(setOf(valueType)),
         nullable = DeclarationValue.Set(false),
         required = DeclarationValue.Set(true),
-        cardinality = DeclarationValue.Set(QueryCardinality.SINGLE),
+        cardinality = DeclarationValue.Set(cardinality),
         semanticType = semanticType,
         dynamicChildren = dynamicChildren,
     )

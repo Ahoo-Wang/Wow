@@ -34,6 +34,11 @@ class QuerySchemaTypesTest {
     }
 
     @Test
+    fun `should provide event stream query model`() {
+        QueryModel("EVENT_STREAM").assert().isEqualTo(QueryModel.EVENT_STREAM)
+    }
+
+    @Test
     fun `temporal variants should round trip through semantic JSON`() {
         val semantics = listOf(
             Temporal.Date to "TEMPORAL_DATE",

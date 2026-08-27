@@ -31,6 +31,7 @@ data class QueryModel(
 
     companion object {
         val SNAPSHOT = QueryModel("SNAPSHOT")
+        val EVENT_STREAM = QueryModel("EVENT_STREAM")
 
         @JvmStatic
         @JsonCreator(mode = JsonCreator.Mode.DELEGATING)

@@ -121,4 +121,45 @@ class SystemQuerySchemaSourceTest {
                 .assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.INTEGER)))
         }
     }
+
+    @Test
+    fun `event stream system declaration should match serialized fields`() {
+        val fields = SystemQuerySchemaSource.declaration(QueryModel.EVENT_STREAM).fields
+
+        fields.keys.map(LogicalField::value).toSet().assert().isEqualTo(
+            setOf(
+                "id",
+                "contextName",
+                "aggregateName",
+                "name",
+                "header",
+                "aggregateId",
+                "tenantId",
+                "ownerId",
+                "spaceId",
+                "commandId",
+                "requestId",
+                "version",
+                "createTime",
+                "body",
+                "body.id",
+                "body.name",
+                "body.revision",
+                "body.bodyType",
+                "body.body",
+            ),
+        )
+        fields.values.forEach { field ->
+            field.required.assert().isEqualTo(DeclarationValue.Set(true))
+            field.nullable.assert().isEqualTo(DeclarationValue.Set(false))
+        }
+        fields.getValue(LogicalField("body")).cardinality.assert()
+            .isEqualTo(DeclarationValue.Set(QueryCardinality.MANY))
+        fields.getValue(LogicalField("body.body")).dynamicChildren.assert()
+            .isEqualTo(DeclarationValue.Set(false))
+        fields.getValue(LogicalField("header")).dynamicChildren.assert()
+            .isEqualTo(DeclarationValue.Set(true))
+        fields.getValue(LogicalField("createTime")).semanticType.assert()
+            .isEqualTo(DeclarationValue.Set(Temporal.Epoch(TimeUnit.MILLISECONDS)))
+    }
 }

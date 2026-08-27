@@ -22,6 +22,7 @@ import com.github.victools.jsonschema.generator.MethodScope
 import com.github.victools.jsonschema.generator.Option
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import me.ahoo.wow.api.query.schema.QueryTemporal
+import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.query.schema.QuerySchemaContext
@@ -65,6 +66,9 @@ class JsonQuerySchemaSource internal constructor(
     override val priority: Int = QuerySchemaSourcePriority.JSON_SCHEMA
 
     override fun load(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> = Flux.defer {
+        if (context.model != QueryModel.SNAPSHOT) {
+            return@defer Flux.empty()
+        }
         val stateType = stateTypeResolver(context)
         Flux.just(declarations.computeIfAbsent(stateType) { declarationResolver(it) })
     }.subscribeOn(Schedulers.boundedElastic()).onErrorMap { error ->

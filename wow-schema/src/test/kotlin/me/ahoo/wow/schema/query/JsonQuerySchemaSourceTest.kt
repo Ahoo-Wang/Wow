@@ -51,6 +51,18 @@ class JsonQuerySchemaSourceTest {
     }
 
     @Test
+    fun `should not infer aggregate state for event stream model`() {
+        val resolutions = AtomicInteger()
+        val source = JsonQuerySchemaSource {
+            resolutions.incrementAndGet()
+            StructuralState::class.java
+        }
+
+        source.load(context.copy(model = QueryModel.EVENT_STREAM)).collectList().block().assert().isEmpty()
+        resolutions.get().assert().isZero()
+    }
+
+    @Test
     fun `should reuse inferred declaration for the same state type across contexts`() {
         val source = JsonQuerySchemaSource { StructuralState::class.java }
         val otherContext = context.copy(
