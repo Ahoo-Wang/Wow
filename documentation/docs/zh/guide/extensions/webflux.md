@@ -25,7 +25,7 @@ implementation("me.ahoo.wow:wow-spring-boot-starter") {
 
 ### 路由模式
 
-路径由 aggregate/command route metadata 决定，并按 tenant、owner、space 需要增加作用域。以候选 runtime `/v3/api-docs` 为最终合同，不手写猜测生产路径。
+路径由 aggregate/command route metadata 决定，并按 tenant、owner、space 需要增加作用域。只有应用另行安装与当前 Spring WebFlux 匹配的 Springdoc WebFlux starter 时，才可用候选 runtime `/v3/api-docs` 验证；仅有 `webflux-support` 时应检查 `RouterSpecs.toRouteCatalog()` 或等价 route catalog 诊断，不手写猜测生产路径。
 
 #### 聚合路由模式
 
@@ -101,7 +101,7 @@ OpenAPI 由运行时 metadata 和 route contracts 组装。schema refresh 只刷
 
 ## 最佳实践
 
-- 以候选 runtime OpenAPI 验证路由，而不是从注解猜测；
+- 已安装匹配 Springdoc WebFlux starter 时用候选 runtime OpenAPI 验证路由，否则检查 `RouterSpecs` route catalog；
 - 在 WebFlux 之前完成认证，在 query/command route 上执行授权；
 - 保持响应式链路非阻塞，显式测试取消和 timeout；
 - 只按风险调整 HTTP guard，不用 `0` 作为默认逃生开关。

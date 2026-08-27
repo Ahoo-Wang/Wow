@@ -25,7 +25,7 @@ Auto-configuration merges ordered `WebFluxRouteModule` instances and extra `Http
 
 ### Route Patterns
 
-Aggregate and command metadata determine paths and add tenant, owner, or space scope when required. Treat the candidate runtime `/v3/api-docs` as the final contract instead of guessing production paths.
+Aggregate and command metadata determine paths and add tenant, owner, or space scope when required. The candidate runtime `/v3/api-docs` is available only when the application separately installs a Springdoc WebFlux starter compatible with its Spring WebFlux version. With `webflux-support` alone, inspect `RouterSpecs.toRouteCatalog()` or an equivalent route-catalog diagnostic instead of guessing production paths.
 
 #### Aggregate Route Pattern
 
@@ -101,7 +101,7 @@ Temporarily set `me.ahoo.wow.webflux=DEBUG`, but do not log command secrets, aut
 
 ## Best Practices
 
-- Verify routes from candidate runtime OpenAPI, not annotations alone.
+- Verify routes from candidate runtime OpenAPI when a matching Springdoc WebFlux starter is installed; otherwise inspect the `RouterSpecs` route catalog.
 - Authenticate before WebFlux handlers and authorize query/command routes.
 - Keep the reactive path non-blocking and test cancellation and timeout.
 - Change HTTP guards from evidence; do not use `0` as a default escape hatch.

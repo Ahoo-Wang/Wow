@@ -73,11 +73,11 @@ The subscription receiver group becomes the Redis consumer group. `BUSYGROUP` du
 
 ### Pending-message recovery
 
-Recovery periodically scans entries idle beyond the threshold and claims them after confirming the original consumer is inactive. It recovers only pending entries still present in the Stream, never trimmed, deleted, or unpersisted data.
+Recovery periodically scans entries idle beyond the threshold and claims them after confirming the original consumer is inactive. It handles only PEL entries left unacknowledged before process termination/cancellation or a transport/decode failure and still present in the Stream; it never recovers trimmed, deleted, or unpersisted data.
 
 ## Event Bus
 
-Domain and state events share the Streams pipeline and explicit acknowledgment semantics. Failed processing can redeliver, so handlers must be idempotent.
+Domain and state events share the Streams pipeline and explicit acknowledgment semantics. A `RECOVERABLE` failure is first retried in-process by `RetryableFilter`; after exhaustion, an enabled compensation filter can record later compensation, the default `LogResumeErrorHandler` logs and resumes, and `AbstractAggregateEventDispatcher.finallyAck` acknowledges the original exchange after success or error. Ordinary business-handler failures therefore do not depend on Redis PEL recovery for redelivery. Only paths that end before acknowledgment—process termination/cancellation, transport, decode, and similar failures—may be delivered again by Redis recovery. Handlers should still be idempotent for those unacknowledged paths and explicit compensation.
 
 ### Domain Event Stream
 
@@ -165,7 +165,7 @@ Stop writes and determine whether eviction occurred. Do not delete event/request
 
 #### 3. Stream Consumption Delay
 
-Inspect lag, pending entries, idle consumers, recovery observers, and handler latency. Recovery can claim visible pending entries only; it cannot recreate trimmed records.
+Inspect lag, pending entries, idle consumers, recovery observers, and handler latency. First determine whether an entry remained unacknowledged because of a pre-ack process/transport/decode path; ordinary handler failures normally pass through retry/compensation/error handling and are acknowledged by `finallyAck`. Recovery can claim visible pending entries only and cannot recreate trimmed records.
 
 ## Monitoring Metrics
 

@@ -86,7 +86,7 @@ Each document represents one event-stream batch. Default indexes include a hashe
 
 ### Snapshot Collection (`{aggregateName}_snapshot`)
 
-The document key is the aggregate ID. Save uses an aggregation update pipeline with a version guard: replace when the candidate is not older, and keep the stored document for an older candidate. A missing or non-integer stored version is repaired by the candidate.
+The document key is the aggregate ID. Save uses an aggregation update pipeline with a version guard: replace when the candidate is not older, and keep the stored document for an older candidate. A missing or non-integer stored version is repaired by the candidate. The pipeline calls driver MQL `MqlValue.isIntegerOr`, whose `@mongodb.server.release` declares MongoDB 5.2 as the runtime floor. Deploy on 5.2+ and retain real-backend integration tests against the target server version.
 
 ### PrepareKey Collection (`prepare_{keyName}`)
 

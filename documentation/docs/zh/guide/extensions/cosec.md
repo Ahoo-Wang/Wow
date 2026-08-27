@@ -42,7 +42,7 @@ implementation("me.ahoo.wow:wow-spring-boot-starter") {
 | `CoSec-Request-Id` | `CommandBuilder.requestIdIfAbsent` |
 | `CoSec-Space-Id` | `CommandBuilder.spaceIdIfAbsent` 与查询 space fallback |
 
-标准 Wow request/space 值已存在时，`IfAbsent`/rewrite 优先保留 Wow 值；CoSec header 只补充。空 header 不产生上下文，也不会自行失败。
+标准 Wow request/space 值已存在时，`IfAbsent`/rewrite 优先保留 Wow 值；CoSec header 只补充。缺失 header 不产生上下文，也不会自行失败。
 
 ### 上下文如何流转
 

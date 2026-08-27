@@ -86,7 +86,7 @@ wow:
 
 ### 快照集合 (`{aggregateName}_snapshot`)
 
-文档主键是聚合 ID。保存使用带版本判断的 aggregation update pipeline：候选版本不低于现有版本时替换，较旧候选保持 no-op；缺失或非整数的既有版本由候选修复。
+文档主键是聚合 ID。保存使用带版本判断的 aggregation update pipeline：候选版本不低于现有版本时替换，较旧候选保持 no-op；缺失或非整数的既有版本由候选修复。该 pipeline 调用 driver MQL `MqlValue.isIntegerOr`，其 `@mongodb.server.release` 标注的运行下限是 MongoDB 5.2；部署必须使用 5.2+，并继续以目标版本的真实后端集成测试为准。
 
 ### PrepareKey 集合 (`prepare_{keyName}`)
 

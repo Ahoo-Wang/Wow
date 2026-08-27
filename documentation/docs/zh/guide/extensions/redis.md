@@ -73,11 +73,11 @@ subscription 的 receiver group 成为 Redis consumer group。group 创建时的
 
 ### Pending 消息恢复
 
-recovery 周期扫描 idle 超过阈值的 pending entry，并在确认原 consumer 不活跃后 claim。它只恢复尚在 Stream 中的 pending 消息，不恢复被 trim、删除或未持久化的数据。
+recovery 周期扫描 idle 超过阈值的 pending entry，并在确认原 consumer 不活跃后 claim。它只处理 ack 前因进程终止/取消、transport 或 decode 等路径遗留且仍在 Stream 中的 PEL entry，不恢复被 trim、删除或未持久化的数据。
 
 ## 事件总线
 
-领域事件与状态事件复用相同 Streams 管线和显式 acknowledge 语义；处理失败可能重投，因此处理器必须幂等。
+领域事件与状态事件复用相同 Streams 管线和显式 acknowledge 语义。`RECOVERABLE` 失败先由进程内 `RetryableFilter` 重试；耗尽后，已启用的 compensation filter 可记录后续补偿，默认 `LogResumeErrorHandler` 记录并恢复，而 `AbstractAggregateEventDispatcher.finallyAck` 在成功或错误后都会确认原 exchange。因此普通业务 handler 失败不依赖 Redis PEL recovery 重投；只有确认前终止/取消、transport、decode 等未确认路径才可能由 Redis redelivery/recovery 重新交付。处理器仍应保持幂等以覆盖这些未确认路径和显式补偿。
 
 ### 领域事件 Stream
 
@@ -165,7 +165,7 @@ Sentinel master、nodes、认证与 TLS 全由 Spring Boot Redis 配置。模块
 
 #### 3. Stream 消费延迟
 
-检查 lag、pending、idle consumer、recovery observer 与处理器耗时。recovery 只能 claim 可见 pending entry，不能补回已 trim 的记录。
+检查 lag、pending、idle consumer、recovery observer 与处理器耗时。先确认 entry 是否在 ack 前因进程/transport/decode 路径遗留；普通 handler 失败通常已由 retry/compensation/error handler 处理并经 `finallyAck` 确认。recovery 只能 claim 可见 pending entry，不能补回已 trim 的记录。
 
 ## 监控指标
 
