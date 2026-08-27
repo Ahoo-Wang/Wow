@@ -703,7 +703,7 @@ class ElasticsearchQuerySchemaAdapterTest {
         schema.binding("state.runtime.code", QueryCapability.AGGREGATE_TERMS)
             .assertPath("state.runtime.code", "keyword")
         QuerySchemaResolver(schema).resolve(Projection(include = listOf("state.nameAlias"))).let { resolved ->
-            resolved.value.assert().isEqualTo(Projection(include = listOf("state.nameAlias")))
+            resolved.value.assert().isEqualTo(Projection(include = listOf("state.name")))
             resolved.compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
         }
         QuerySchemaResolver(schema).resolve(Projection(include = listOf("state.runtimeCode"))).compatibility.assert()

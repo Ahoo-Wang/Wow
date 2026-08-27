@@ -130,7 +130,7 @@ data class ElasticsearchIndexMapping private constructor(
             }
             aliases.forEach { (name, target) ->
                 fields[target]?.let {
-                    fields[name] = it.copy(multiFields = emptySet(), projectionPath = name)
+                    fields[name] = it.copy(multiFields = emptySet())
                 }
             }
             return ElasticsearchIndexMapping(indexName, fields.toMap())

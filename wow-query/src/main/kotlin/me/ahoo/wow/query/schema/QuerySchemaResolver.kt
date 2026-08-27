@@ -209,7 +209,7 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         is NotInFilter -> resolveFieldFilter(filter.field, QueryCapability.EXACT_MATCH, logicalParent, physicalParent) {
             filter.copy(field = it)
         }
-        is ContainsAllFilter -> resolveFieldFilter(
+        is ContainsAllFilter -> resolveCollectionFieldFilter(
             filter.field,
             QueryCapability.EXACT_MATCH,
             logicalParent,
@@ -257,21 +257,12 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         is BetweenFilter -> resolveFieldFilter(filter.field, QueryCapability.RANGE, logicalParent, physicalParent) {
             filter.copy(field = it)
         }
-        is IsEmptyFilter -> resolveField(
+        is IsEmptyFilter -> resolveCollectionFieldFilter(
             filter.field,
             QueryCapability.PRESENCE,
             logicalParent,
             physicalParent,
-        ).let { resolved ->
-            QuerySchemaResolution(
-                filter.copy(field = LogicalField(resolved.value)),
-                if (schema.fields[resolved.logical]?.cardinality == QueryCardinality.SINGLE) {
-                    QueryCompatibilityLevel.INCOMPATIBLE
-                } else {
-                    resolved.compatibility
-                },
-            )
-        }
+        ) { filter.copy(field = it) }
         is IsNullFilter -> resolveFieldFilter(filter.field, QueryCapability.PRESENCE, logicalParent, physicalParent) {
             filter.copy(field = it)
         }
@@ -368,6 +359,22 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
     ): QuerySchemaResolution<FilterExpression> {
         val resolved = resolveField(field, capability, logicalParent, physicalParent)
         return QuerySchemaResolution(copy(LogicalField(resolved.value)), resolved.compatibility)
+    }
+
+    private inline fun resolveCollectionFieldFilter(
+        field: LogicalField,
+        capability: QueryCapability,
+        logicalParent: LogicalField?,
+        physicalParent: String?,
+        copy: (LogicalField) -> FilterExpression,
+    ): QuerySchemaResolution<FilterExpression> {
+        val resolved = resolveField(field, capability, logicalParent, physicalParent)
+        val compatibility = if (schema.fields[resolved.logical]?.cardinality == QueryCardinality.SINGLE) {
+            QueryCompatibilityLevel.INCOMPATIBLE
+        } else {
+            resolved.compatibility
+        }
+        return QuerySchemaResolution(copy(LogicalField(resolved.value)), compatibility)
     }
 
     private fun resolveRelativeTime(

@@ -114,6 +114,9 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                                             .fields("keyword") { keyword -> keyword.keyword { it } }
                                     }
                                 }.properties("formattedDate") { it.keyword { keyword -> keyword } }
+                                .properties("sourceOnlyAlias") {
+                                    it.alias { alias -> alias.path("state.sourceOnlyName") }
+                                }
                                 .properties("fielddataCategory") { it.text { text -> text.fielddata(true) } }
                                 .properties("ipValue") { it.ip { field -> field } }
                                 .properties("versionValue") { it.version { field -> field } }
@@ -215,6 +218,24 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         service.dynamicList(
             ListQuery(
                 filter = filterExpression { field gt "alpha" },
+                projection = Projection(include = listOf(field)),
+                limit = 10,
+            ),
+        ).test()
+            .assertNext { document ->
+                document.getNestedDocument("state")["sourceOnlyName"].assert().isEqualTo("visible")
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `strict projection should resolve an alias to its source target`() {
+        val field = "state.sourceOnlyAlias"
+        updateState(mapOf("sourceOnlyName" to "visible"))
+        val service = strictService(querySchemaSources + source(stringField(field)))
+
+        service.dynamicList(
+            ListQuery(
+                filter = MatchAllFilter,
                 projection = Projection(include = listOf(field)),
                 limit = 10,
             ),

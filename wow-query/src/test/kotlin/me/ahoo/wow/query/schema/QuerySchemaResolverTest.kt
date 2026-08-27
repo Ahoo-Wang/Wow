@@ -123,7 +123,6 @@ class QuerySchemaResolverTest {
             NotEqualFilter(field, one) to NotEqualFilter(exact, one),
             InFilter(field, listOf(one)) to InFilter(exact, listOf(one)),
             NotInFilter(field, listOf(one)) to NotInFilter(exact, listOf(one)),
-            ContainsAllFilter(field, listOf(one)) to ContainsAllFilter(exact, listOf(one)),
             ContainsFilter(field, "one") to ContainsFilter(literal, "one"),
             StartsWithFilter(field, "one") to StartsWithFilter(literal, "one"),
             EndsWithFilter(field, "one") to EndsWithFilter(literal, "one"),
@@ -146,31 +145,46 @@ class QuerySchemaResolverTest {
     }
 
     @Test
-    fun `is empty should require collection cardinality`() {
+    fun `collection filters should require collection cardinality`() {
         val single = LogicalField("state.single")
         val many = LogicalField("state.many")
         val resolver = QuerySchemaResolver(
             schema(
                 mapOf(
-                    single to fieldSchema(QueryCapability.PRESENCE to "document.single"),
+                    single to fieldSchema(
+                        QueryCapability.PRESENCE to "document.single",
+                        QueryCapability.EXACT_MATCH to "document.single",
+                    ),
                     many to fieldSchema(
                         QueryCapability.PRESENCE to "document.many",
+                        QueryCapability.EXACT_MATCH to "document.many",
                         cardinality = QueryCardinality.MANY,
                     ),
                 ),
             ),
         )
 
-        resolver.resolve(IsEmptyFilter(single)).compatibility.assert()
-            .isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
-        resolver.resolve(IsEmptyFilter(many)).assert().isEqualTo(
-            QuerySchemaResolution(
-                IsEmptyFilter(LogicalField("document.many")),
-                QueryCompatibilityLevel.EXACT,
-            ),
-        )
-        resolver.resolve(IsEmptyFilter(LogicalField("state.unknown"))).compatibility.assert()
-            .isEqualTo(QueryCompatibilityLevel.COMPATIBLE)
+        val values = listOf(json("value"))
+        listOf(
+            IsEmptyFilter(single),
+            ContainsAllFilter(single, values),
+        ).forEach { filter ->
+            resolver.resolve(filter).compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+        }
+        listOf(
+            IsEmptyFilter(many) to IsEmptyFilter(LogicalField("document.many")),
+            ContainsAllFilter(many, values) to ContainsAllFilter(LogicalField("document.many"), values),
+        ).forEach { (filter, expected) ->
+            resolver.resolve(filter).assert().isEqualTo(
+                QuerySchemaResolution(expected, QueryCompatibilityLevel.EXACT),
+            )
+        }
+        listOf(
+            IsEmptyFilter(LogicalField("state.unknown")),
+            ContainsAllFilter(LogicalField("state.unknown"), values),
+        ).forEach { filter ->
+            resolver.resolve(filter).compatibility.assert().isEqualTo(QueryCompatibilityLevel.COMPATIBLE)
+        }
 
         val dynamic = LogicalField("tags.department")
         QuerySchemaResolver(
@@ -178,16 +192,24 @@ class QuerySchemaResolverTest {
                 mapOf(
                     LogicalField("tags") to fieldSchema(
                         QueryCapability.PRESENCE to "document.tags",
+                        QueryCapability.EXACT_MATCH to "document.tags",
                         dynamicChildren = true,
                     ),
                 ),
             ),
-        ).resolve(IsEmptyFilter(dynamic)).assert().isEqualTo(
-            QuerySchemaResolution(
-                IsEmptyFilter(LogicalField("document.tags.department")),
-                QueryCompatibilityLevel.EXACT,
-            ),
-        )
+        ).let { dynamicResolver ->
+            listOf(
+                IsEmptyFilter(dynamic) to IsEmptyFilter(LogicalField("document.tags.department")),
+                ContainsAllFilter(dynamic, values) to ContainsAllFilter(
+                    LogicalField("document.tags.department"),
+                    values,
+                ),
+            ).forEach { (filter, expected) ->
+                dynamicResolver.resolve(filter).assert().isEqualTo(
+                    QuerySchemaResolution(expected, QueryCompatibilityLevel.EXACT),
+                )
+            }
+        }
     }
 
     @Test
