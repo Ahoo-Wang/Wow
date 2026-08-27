@@ -68,7 +68,6 @@ object SystemQuerySchemaSource : QuerySchemaSource {
                 MessageRecords.ID.stringField(),
                 MessageRecords.CONTEXT_NAME.stringField(),
                 MessageRecords.AGGREGATE_NAME.stringField(),
-                MessageRecords.NAME.stringField(),
                 MessageRecords.HEADER.objectField(DeclarationValue.Set(true)),
                 MessageRecords.AGGREGATE_ID.stringField(),
                 MessageRecords.TENANT_ID.stringField(),

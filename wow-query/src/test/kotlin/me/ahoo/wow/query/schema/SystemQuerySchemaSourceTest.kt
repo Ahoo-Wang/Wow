@@ -20,8 +20,13 @@ import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.serialization.toJsonNode
+import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.TimeUnit
 
 class SystemQuerySchemaSourceTest {
@@ -125,30 +130,15 @@ class SystemQuerySchemaSourceTest {
     @Test
     fun `event stream system declaration should match serialized fields`() {
         val fields = SystemQuerySchemaSource.declaration(QueryModel.EVENT_STREAM).fields
+        val serialized = generateEventStream(
+            MaterializedNamedAggregate("sales", "Order").aggregateId("order-1"),
+            eventCount = 1,
+        ).toJsonNode<ObjectNode>()
+        val serializedFields = serialized.properties().mapTo(mutableSetOf()) { it.key }
+        val event = serialized[MessageRecords.BODY][0] as ObjectNode
+        serializedFields += event.properties().map { "${MessageRecords.BODY}.${it.key}" }
 
-        fields.keys.map(LogicalField::value).toSet().assert().isEqualTo(
-            setOf(
-                "id",
-                "contextName",
-                "aggregateName",
-                "name",
-                "header",
-                "aggregateId",
-                "tenantId",
-                "ownerId",
-                "spaceId",
-                "commandId",
-                "requestId",
-                "version",
-                "createTime",
-                "body",
-                "body.id",
-                "body.name",
-                "body.revision",
-                "body.bodyType",
-                "body.body",
-            ),
-        )
+        fields.keys.map(LogicalField::value).toSet().assert().isEqualTo(serializedFields)
         fields.values.forEach { field ->
             field.required.assert().isEqualTo(DeclarationValue.Set(true))
             field.nullable.assert().isEqualTo(DeclarationValue.Set(false))
