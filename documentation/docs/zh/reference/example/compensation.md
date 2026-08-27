@@ -92,18 +92,17 @@ pnpm --dir compensation/dashboard exec vitest run
 
 预期 Gradle 和 Vitest 都成功退出。领域状态机的主证据是 [`ExecutionFailedSpec`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-domain/src/test/kotlin/me/ahoo/wow/compensation/domain/ExecutionFailedSpec.kt#L61-L376)；过滤器的首次失败、再次失败和成功写回由 [`CompensationFilterTest`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-core/src/test/kotlin/me/ahoo/wow/compensation/core/CompensationFilterTest.kt) 覆盖。
 
-从 clean checkout 做无持久化启动验证时，Gradle application 的 JVM 参数要求模块内先有 `logs/` 和 `config/`。下面的完整命令已验证能启动到 Netty；它只适合路由和本地状态机验证，进程退出后数据会丢失，也不会运行自动调度：
+从 clean checkout 做无持久化启动验证时，不要直接用 Gradle `run`：当前 [`applicationDefaultJvmArgs`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-server/build.gradle.kts#L43-L63) 会开启 JMX 5555，且关闭认证和 TLS。项目没有 `bootJar` 任务；安全的最小路径是先生成 distribution，再用普通 `java` 启动真实主类。下面的完整命令已验证能在 `18083` 启动到 Netty；它只适合路由和本地状态机验证，进程退出后数据会丢失，也不会运行自动调度：
 
 ```shell
-mkdir -p compensation/wow-compensation-server/logs
-test -e compensation/wow-compensation-server/config || \
-  ln -s src/main/resources compensation/wow-compensation-server/config
+./gradlew :wow-compensation-server:installDist
 
+SERVER_PORT=18083 \
 SPRING_AUTOCONFIGURE_EXCLUDE='org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchClientAutoConfiguration,org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchRestClientAutoConfiguration,org.springframework.boot.data.redis.autoconfigure.DataRedisReactiveAutoConfiguration,org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration,org.springframework.boot.mongodb.autoconfigure.MongoReactiveAutoConfiguration' \
 COSID_MACHINE_DISTRIBUTOR_TYPE=manual \
 COSID_MACHINE_DISTRIBUTOR_MANUAL_MACHINE_ID=1 \
 WOW_COMPENSATION_SCHEDULER_ENABLED=false \
-WOW_COMPENSATION_WEBHOOK_WEIXIN_URL=http://localhost:1/ \
+WOW_COMPENSATION_WEBHOOK_WEIXIN_URL=false \
 WOW_KAFKA_ENABLED=false \
 WOW_COMMAND_BUS_TYPE=in_memory \
 WOW_EVENT_BUS_TYPE=in_memory \
@@ -114,10 +113,25 @@ WOW_PREPARE_ENABLED=false \
 WOW_MONGO_ENABLED=false \
 WOW_REDIS_ENABLED=false \
 WOW_ELASTICSEARCH_ENABLED=false \
-./gradlew :wow-compensation-server:run
+java \
+  -Dspring.config.location=file:compensation/wow-compensation-server/src/main/resources/application.yaml \
+  -cp 'compensation/wow-compensation-server/build/install/wow-compensation-server/lib/*' \
+  me.ahoo.wow.compensation.server.CompensationServerKt
 ```
 
-预期日志包含 `Netty started on port 8080` 和 `Started CompensationServerKt`。占位 webhook URL 只用于满足当前 CoApi placeholder 解析；本地命令不触发通知。验证持久化补偿时，仍先创建相同的 `logs/`/`config`，再配置真实 MongoDB、Redis、Kafka 和 scheduler，去掉上述内存/禁用覆盖后启动。dashboard 单独运行：
+预期日志包含 `Netty started on port 18083` 和 `Started CompensationServerKt`。在另一个终端核对同一端口：
+
+```shell
+curl -fsS http://localhost:18083/actuator/health/liveness
+curl -fsS http://localhost:18083/v3/api-docs | \
+  jq -r '.paths["/execution_failed/{id}/prepare_compensation"].put.operationId'
+```
+
+预期分别得到 `{"status":"UP"}` 和 `compensation.execution_failed.prepare_compensation`。该进程的 JVM 命令行只包含显式 config 参数，实际 TCP listener 只有 `18083`，没有 JMX `5555`。
+
+WebHook 没有独立的 `enabled` 配置；当前 [`@ConditionalOnProperty`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-server/src/main/kotlin/me/ahoo/wow/compensation/server/webhook/weixin/ConditionalOnWeiXinWebHookEnabled.kt#L16-L20) 把字面量 `false` 视为关闭，因此不会注册 [`WeiXinWebHook` 事件处理器](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-server/src/main/kotlin/me/ahoo/wow/compensation/server/webhook/weixin/WeiXinWebHook.kt#L36-L42)。不要使用 `http://localhost:1/`：非 `false` URL 会启用处理器，默认失败事件会尝试向 loopback 投递并记录连接失败。
+
+验证持久化补偿时，仍用 distribution 的直接 `java` 路径，配置真实 MongoDB、Redis、Kafka、scheduler 和 WebHook，再去掉上述内存/禁用覆盖。只有在可信隔离环境明确需要 JMX 时，才考虑 Gradle `run` 的当前默认参数。dashboard 单独运行：
 
 ```shell
 pnpm --dir compensation/dashboard dev
@@ -135,7 +149,7 @@ PUT /execution_failed/{id}/apply_retry_spec
 
 ```shell
 curl -X PUT \
-  'http://localhost:8080/execution_failed/<execution-id>/prepare_compensation' \
+  'http://localhost:18083/execution_failed/<execution-id>/prepare_compensation' \
   -H 'Command-Wait-Stage: PROCESSED' \
   -H 'Command-Request-Id: prepare-<execution-id>'
 ```

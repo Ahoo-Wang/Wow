@@ -92,18 +92,17 @@ pnpm --dir compensation/dashboard exec vitest run
 
 Gradle and Vitest should both exit successfully. [`ExecutionFailedSpec`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-domain/src/test/kotlin/me/ahoo/wow/compensation/domain/ExecutionFailedSpec.kt#L61-L376) is the main state-machine evidence. [`CompensationFilterTest`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-core/src/test/kotlin/me/ahoo/wow/compensation/core/CompensationFilterTest.kt) covers first failure, replay failure, and successful write-back.
 
-For a clean-checkout, non-persistent startup proof, the Gradle application's JVM arguments require module-local `logs/` and `config/` first. The complete command below is verified to reach Netty startup. It is only for route and local state-machine checks: data is lost on exit and automatic scheduling is disabled.
+For a clean-checkout, non-persistent startup proof, do not invoke Gradle `run` directly: the current [`applicationDefaultJvmArgs`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-server/build.gradle.kts#L43-L63) enable JMX on port 5555 without authentication or TLS. The project has no `bootJar` task. The smallest safe path is to build the distribution and start the real main class with plain `java`. The complete command below is verified to reach Netty on port `18083`. It is only for route and local state-machine checks: data is lost on exit and automatic scheduling is disabled.
 
 ```shell
-mkdir -p compensation/wow-compensation-server/logs
-test -e compensation/wow-compensation-server/config || \
-  ln -s src/main/resources compensation/wow-compensation-server/config
+./gradlew :wow-compensation-server:installDist
 
+SERVER_PORT=18083 \
 SPRING_AUTOCONFIGURE_EXCLUDE='org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchClientAutoConfiguration,org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchRestClientAutoConfiguration,org.springframework.boot.data.redis.autoconfigure.DataRedisReactiveAutoConfiguration,org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration,org.springframework.boot.mongodb.autoconfigure.MongoReactiveAutoConfiguration' \
 COSID_MACHINE_DISTRIBUTOR_TYPE=manual \
 COSID_MACHINE_DISTRIBUTOR_MANUAL_MACHINE_ID=1 \
 WOW_COMPENSATION_SCHEDULER_ENABLED=false \
-WOW_COMPENSATION_WEBHOOK_WEIXIN_URL=http://localhost:1/ \
+WOW_COMPENSATION_WEBHOOK_WEIXIN_URL=false \
 WOW_KAFKA_ENABLED=false \
 WOW_COMMAND_BUS_TYPE=in_memory \
 WOW_EVENT_BUS_TYPE=in_memory \
@@ -114,10 +113,25 @@ WOW_PREPARE_ENABLED=false \
 WOW_MONGO_ENABLED=false \
 WOW_REDIS_ENABLED=false \
 WOW_ELASTICSEARCH_ENABLED=false \
-./gradlew :wow-compensation-server:run
+java \
+  -Dspring.config.location=file:compensation/wow-compensation-server/src/main/resources/application.yaml \
+  -cp 'compensation/wow-compensation-server/build/install/wow-compensation-server/lib/*' \
+  me.ahoo.wow.compensation.server.CompensationServerKt
 ```
 
-Expect `Netty started on port 8080` and `Started CompensationServerKt`. The placeholder webhook URL only satisfies current CoApi placeholder resolution; this local command sends no notification. For durable compensation, still create the same `logs/`/`config`, configure real MongoDB, Redis, Kafka, and the scheduler, then remove the in-memory/disable overrides. Run the dashboard separately:
+Expect `Netty started on port 18083` and `Started CompensationServerKt`. Verify the same port from another terminal:
+
+```shell
+curl -fsS http://localhost:18083/actuator/health/liveness
+curl -fsS http://localhost:18083/v3/api-docs | \
+  jq -r '.paths["/execution_failed/{id}/prepare_compensation"].put.operationId'
+```
+
+Expect `{"status":"UP"}` and `compensation.execution_failed.prepare_compensation`. The verified JVM command line contains only the explicit config property; its only TCP listener is `18083`, with no JMX `5555`.
+
+There is no separate WebHook `enabled` property. The current [`@ConditionalOnProperty`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-server/src/main/kotlin/me/ahoo/wow/compensation/server/webhook/weixin/ConditionalOnWeiXinWebHookEnabled.kt#L16-L20) treats literal `false` as disabled, so the [`WeiXinWebHook` event processor](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-server/src/main/kotlin/me/ahoo/wow/compensation/server/webhook/weixin/WeiXinWebHook.kt#L36-L42) is not registered. Do not use `http://localhost:1/`: a non-`false` URL enables the processor, and default failure events then attempt loopback delivery and log connection failure.
+
+For durable compensation, keep the distribution's direct `java` path, configure real MongoDB, Redis, Kafka, the scheduler, and WebHook, then remove the in-memory/disable overrides. Consider the current Gradle `run` defaults only in a trusted isolated environment where unauthenticated JMX is explicitly intended. Run the dashboard separately:
 
 ```shell
 pnpm --dir compensation/dashboard dev
@@ -135,7 +149,7 @@ For an existing retryable failure:
 
 ```shell
 curl -X PUT \
-  'http://localhost:8080/execution_failed/<execution-id>/prepare_compensation' \
+  'http://localhost:18083/execution_failed/<execution-id>/prepare_compensation' \
   -H 'Command-Wait-Stage: PROCESSED' \
   -H 'Command-Request-Id: prepare-<execution-id>'
 ```
