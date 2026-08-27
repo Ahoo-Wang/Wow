@@ -190,6 +190,51 @@ class ElasticsearchQuerySchemaAdapterTest {
     }
 
     @Test
+    fun `fielddata text should support terms aggregation`() {
+        val field = LogicalField("state.category")
+        val schema = ElasticsearchQuerySchemaAdapter.bind(
+            LogicalQuerySchema(mapOf(field to field(QueryValueType.STRING))),
+            ElasticsearchIndexMapping.from(
+                INDEX,
+                TypeMapping.of { mapping ->
+                    mapping.properties(field.value) { it.text { text -> text.fielddata(true) } }
+                },
+            ),
+        )
+
+        schema.binding(field.value, QueryCapability.AGGREGATE_TERMS).assertPath(field.value, "text")
+    }
+
+    @Test
+    fun `ip and version mappings should support string term operations`() {
+        val ip = LogicalField("state.ip")
+        val version = LogicalField("state.version")
+        val schema = ElasticsearchQuerySchemaAdapter.bind(
+            LogicalQuerySchema(
+                linkedMapOf(
+                    ip to field(QueryValueType.STRING),
+                    version to field(QueryValueType.STRING),
+                ),
+            ),
+            ElasticsearchIndexMapping.from(
+                INDEX,
+                TypeMapping.of { mapping ->
+                    mapping.properties(ip.value) { it.ip { field -> field } }
+                        .properties(version.value) { it.version { field -> field } }
+                },
+            ),
+        )
+
+        listOf(ip, version).forEach { field ->
+            schema.bindings(field.value).assert().contains(
+                QueryCapability.EXACT_MATCH,
+                QueryCapability.SORT,
+                QueryCapability.AGGREGATE_TERMS,
+            )
+        }
+    }
+
+    @Test
     fun `mixed logical unions should not borrow a capability producer`() {
         val logical = LogicalQuerySchema(
             linkedMapOf(
@@ -625,12 +670,12 @@ class ElasticsearchQuerySchemaAdapterTest {
             .assertPath("state.runtimeAt", "date")
         schema.binding("state.runtime.code", QueryCapability.AGGREGATE_TERMS)
             .assertPath("state.runtime.code", "keyword")
-        listOf("state.nameAlias", "state.runtimeCode").forEach { path ->
-            QuerySchemaResolver(schema).resolve(Projection(include = listOf(path))).let { resolved ->
-                resolved.value.assert().isEqualTo(Projection(include = listOf(path)))
-                resolved.compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
-            }
+        QuerySchemaResolver(schema).resolve(Projection(include = listOf("state.nameAlias"))).let { resolved ->
+            resolved.value.assert().isEqualTo(Projection(include = listOf("state.nameAlias")))
+            resolved.compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
         }
+        QuerySchemaResolver(schema).resolve(Projection(include = listOf("state.runtimeCode"))).compatibility.assert()
+            .isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
 
         schema.fields.getValue(LogicalField("state.ambiguous")).bindings.assert()
             .doesNotContainKey(QueryCapability.EXACT_MATCH)

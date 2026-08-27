@@ -14,6 +14,7 @@
 package me.ahoo.wow.elasticsearch.query
 
 import co.elastic.clients.elasticsearch._types.mapping.Property
+import co.elastic.clients.elasticsearch._types.mapping.RuntimeFieldType
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch.indices.GetMappingRequest
 import co.elastic.clients.elasticsearch.indices.GetMappingResponse
@@ -159,6 +160,22 @@ class ElasticsearchIndexMappingResolverTest {
         fields.getValue("orders").indexed.assert().isFalse()
         fields.getValue("state.name").indexed.assert().isTrue()
         fields.getValue("orders.status").indexed.assert().isTrue()
+    }
+
+    @Test
+    fun `runtime fields should not expose source projection paths`() {
+        val mapping = TypeMapping.of { type ->
+            type.runtime("runtimeCode") { it.type(RuntimeFieldType.Keyword) }
+                .runtime("runtime") { runtime ->
+                    runtime.type(RuntimeFieldType.Composite)
+                        .fields("code") { it.type(RuntimeFieldType.Keyword) }
+                }
+        }
+
+        val fields = ElasticsearchIndexMapping.from(INDEX, mapping).fields
+
+        fields.getValue("runtimeCode").projectionPath.assert().isNull()
+        fields.getValue("runtime.code").projectionPath.assert().isNull()
     }
 
     private fun mappingResponse(field: String): GetMappingResponse = GetMappingResponse.of { response ->

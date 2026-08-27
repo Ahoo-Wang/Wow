@@ -213,7 +213,7 @@ private fun ElasticsearchMappedField.supports(
         QueryCapability.FULL_TEXT_PHRASE -> indexed && kind in PHRASE_SEARCH_KINDS
         QueryCapability.SORT -> sortable && (kind in EXACT_KINDS || (indexed && kind == Property.Kind.Text))
         QueryCapability.ELEMENT_SCOPE -> kind == Property.Kind.Nested
-        QueryCapability.AGGREGATE_TERMS -> aggregatable && kind in EXACT_KINDS
+        QueryCapability.AGGREGATE_TERMS -> aggregatable && (kind in EXACT_KINDS || kind == Property.Kind.Text)
         QueryCapability.AGGREGATE_NUMERIC -> aggregatable && kind in NUMERIC_KINDS
         QueryCapability.AGGREGATE_TEMPORAL -> aggregatable && when (logical.semanticType) {
             Temporal.Date -> kind == Property.Kind.Date || kind == Property.Kind.DateNanos
@@ -371,6 +371,7 @@ private val DOC_VALUE_QUERY_KINDS = NUMERIC_KINDS + KEYWORD_KINDS + setOf(
     Property.Kind.Date,
     Property.Kind.DateNanos,
     Property.Kind.Ip,
+    Property.Kind.Version,
 )
 
 private val EXACT_KINDS = NUMERIC_KINDS + TERM_KINDS + setOf(
@@ -397,7 +398,10 @@ private val SEARCH_KINDS = setOf(
     Property.Kind.SemanticText,
 )
 
-private val STRING_KINDS = TERM_KINDS + SEARCH_KINDS
+private val STRING_KINDS = TERM_KINDS + SEARCH_KINDS + setOf(
+    Property.Kind.Ip,
+    Property.Kind.Version,
+)
 
 private val PHRASE_SEARCH_KINDS = SEARCH_KINDS - Property.Kind.SemanticText
 private val MATCH_KINDS = SEARCH_KINDS + EXACT_KINDS

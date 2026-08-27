@@ -122,10 +122,10 @@ data class ElasticsearchIndexMapping private constructor(
                 if (runtimeField.type() == RuntimeFieldType.Composite) {
                     runtimeField.fields().forEach { (fieldName, field) ->
                         val path = "$name.$fieldName"
-                        field.type().toMappedField()?.let { fields[path] = it.copy(projectionPath = path) }
+                        field.type().toMappedField()?.let { fields[path] = it }
                     }
                 } else {
-                    runtimeField.type().toMappedField()?.let { fields[name] = it.copy(projectionPath = name) }
+                    runtimeField.type().toMappedField()?.let { fields[name] = it }
                 }
             }
             aliases.forEach { (name, target) ->
@@ -172,7 +172,7 @@ private fun Property.isAggregatable(): Boolean = when (_kind()) {
     Property.Kind.CountedKeyword,
     -> true
     Property.Kind.Flattened -> flattened().docValues() != false
-    Property.Kind.Text -> false
+    Property.Kind.Text -> text().fielddata() == true
     else -> (_get() as? DocValuesPropertyBase)?.let { it.docValues() != false } == true
 }
 

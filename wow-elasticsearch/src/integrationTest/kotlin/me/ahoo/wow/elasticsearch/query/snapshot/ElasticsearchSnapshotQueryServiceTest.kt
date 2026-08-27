@@ -114,6 +114,9 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                                             .fields("keyword") { keyword -> keyword.keyword { it } }
                                     }
                                 }.properties("formattedDate") { it.keyword { keyword -> keyword } }
+                                .properties("fielddataCategory") { it.text { text -> text.fielddata(true) } }
+                                .properties("ipValue") { it.ip { field -> field } }
+                                .properties("versionValue") { it.version { field -> field } }
                                 .properties("labels") { it.flattened { flattened -> flattened } }
                                 .properties("createdAt") { it.long_ { number -> number } }
                                 .properties("unreadableNumber") {
@@ -236,6 +239,54 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                 limit = 10,
             ),
         ).test().expectNextCount(1).verifyComplete()
+    }
+
+    @Test
+    fun `strict should execute fielddata terms and string native operations`() {
+        updateState(
+            mapOf(
+                "fielddataCategory" to "alpha",
+                "ipValue" to "192.0.2.1",
+                "versionValue" to "1.2.3",
+            ),
+        )
+        val service = strictService(
+            querySchemaSources + source(
+                stringField("state.fielddataCategory"),
+                stringField("state.ipValue"),
+                stringField("state.versionValue"),
+            ),
+        )
+
+        service.dynamicList(
+            ListQuery(
+                filter = filterExpression {
+                    "state.ipValue" eq "192.0.2.1"
+                    "state.versionValue" eq "1.2.3"
+                },
+                sort = listOf(
+                    Sort("state.ipValue", Sort.Direction.ASC),
+                    Sort("state.versionValue", Sort.Direction.ASC),
+                ),
+                limit = 10,
+            ),
+        ).test().expectNextCount(1).verifyComplete()
+        aggregation {
+            terms("state.fielddataCategory", "category")
+            terms("state.ipValue", "ip")
+            terms("state.versionValue", "version")
+            count("count")
+        }.query(service).test()
+            .assertNext { row ->
+                row.toMap().assert().isEqualTo(
+                    mapOf(
+                        "category" to "alpha",
+                        "ip" to "192.0.2.1",
+                        "version" to "1.2.3",
+                        "count" to 1L,
+                    ),
+                )
+            }.verifyComplete()
     }
 
     @Test
@@ -502,6 +553,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             .bindings.getValue(QueryCapability.FULL_TEXT_TERMS).physicalPath.assert().isEqualTo("state.textOnly")
         refreshed.fields.getValue(LogicalField("state.runtimeCode"))
             .bindings.getValue(QueryCapability.SORT).physicalPath.assert().isEqualTo("state.runtimeCode")
+        refreshed.fields.getValue(LogicalField("state.runtimeCode")).projectionPath.assert().isNull()
         provider.schema().block().assert().isSameAs(refreshed)
 
         service.dynamicList(
