@@ -33,6 +33,10 @@ import me.ahoo.wow.mongo.MongoSnapshotStore
 import me.ahoo.wow.mongo.MongoSnapshotStoreBatchOptions
 import me.ahoo.wow.mongo.prepare.MongoPrepareKeyFactory
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
+import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QuerySchemaContext
+import me.ahoo.wow.query.schema.QuerySchemaDeclaration
+import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
@@ -40,6 +44,9 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
+import me.ahoo.wow.spring.boot.starter.query.QueryProperties
+import me.ahoo.wow.spring.boot.starter.query.QuerySchemaAutoConfiguration
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.bson.Document
 import org.bson.conversions.Bson
 import org.junit.jupiter.api.Test
@@ -49,12 +56,15 @@ import org.reactivestreams.Subscription
 import org.springframework.beans.factory.support.StaticListableBeanFactory
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
+import reactor.core.publisher.Flux
+import reactor.kotlin.test.test
 
 class MongoEventSourcingAutoConfigurationTest {
     private val metricsProvider = StaticListableBeanFactory(
         mapOf("wowMetrics" to WowMetrics.NONE)
     ).getBeanProvider(WowMetrics::class.java)
     private val contextRunner = ApplicationContextRunner()
+        .withUserConfiguration(QuerySchemaAutoConfiguration::class.java)
 
     @Test
     fun `constructor creates mongo snapshot store`() {
@@ -79,6 +89,31 @@ class MongoEventSourcingAutoConfigurationTest {
             snapshotStore.assert().isInstanceOf(MongoSnapshotStore::class.java)
             snapshotStore.batchOptions.assert().isEqualTo(MongoSnapshotStoreBatchOptions())
         }
+    }
+
+    @Test
+    fun `should pass query schema sources to snapshot factory`() {
+        val expected = IllegalStateException("query schema source was used")
+        val source = failingQuerySchemaSource(expected)
+        val configuration = MongoEventSourcingAutoConfiguration(
+            mongoProperties = MongoProperties(autoInitSchema = false, snapshotDatabase = "testSnapshot"),
+            eventStoreBatchProperties = MongoEventStoreBatchProperties(),
+            snapshotStoreBatchProperties = MongoSnapshotStoreBatchProperties(),
+        )
+
+        val factory = configuration.mongoSnapshotQueryServiceFactory(
+            mongoClient = mongoClient("order-service"),
+            dataMongoProperties = null,
+            currentBoundedContext = MaterializedNamedBoundedContext("order-service"),
+            sources = listOf(source),
+            queryProperties = QueryProperties(),
+        )
+
+        (factory.create<Any>(MOCK_AGGREGATE_METADATA) as QueryModelSchemaProvider)
+            .schema()
+            .test()
+            .expectErrorSatisfies { it.assert().isSameAs(expected) }
+            .verify()
     }
 
     @Test
@@ -221,6 +256,12 @@ class MongoEventSourcingAutoConfigurationTest {
         return mockk<MongoClient> {
             every { getDatabase(any()) } returns database
         }
+    }
+
+    private fun failingQuerySchemaSource(error: Throwable): QuerySchemaSource = object : QuerySchemaSource {
+        override val priority: Int = 0
+
+        override fun load(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> = Flux.error(error)
     }
 
     private fun withEmptyAggregateMetadata(block: () -> Unit) {

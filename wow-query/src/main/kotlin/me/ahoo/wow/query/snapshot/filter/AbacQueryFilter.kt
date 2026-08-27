@@ -58,8 +58,8 @@ abstract class AbacQueryFilter : SnapshotQueryFilter {
          *
          * @return the nested query condition
          */
-        fun Map.Entry<AbacTagKey, AbacTagValue>.toFilterExpression(): FilterExpression =
-            me.ahoo.wow.query.dsl.filter {
+        fun Map.Entry<AbacTagKey, AbacTagValue>.toFilterExpression(): FilterExpression {
+            return me.ahoo.wow.query.dsl.filter {
                 TAGS.path {
                     if (value.wildcard) {
                         key.exists()
@@ -72,6 +72,7 @@ abstract class AbacQueryFilter : SnapshotQueryFilter {
                     }
                 }
             }
+        }
 
         /**
          * Combines all principal tags with AND semantics.

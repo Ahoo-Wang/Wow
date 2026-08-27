@@ -16,6 +16,8 @@ package me.ahoo.wow.openapi
 import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.media.Schema
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.schema.QuerySemanticType
+import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.example.domain.cart.Cart
 import me.ahoo.wow.example.domain.disable.DisabledRouteAggregate
@@ -24,7 +26,9 @@ import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import tools.jackson.module.kotlin.jsonMapper
 import java.math.BigDecimal
+import java.util.concurrent.TimeUnit
 
 internal class ExampleDomainOpenAPITest {
 
@@ -74,28 +78,25 @@ internal class ExampleDomainOpenAPITest {
     inner class AggregateRoutes {
 
         @Test
-        fun `should expose aggregate query fields through one schema`() {
+        fun `should publish static aggregate fields through aggregate request bodies`() {
             val fieldsKey = "example.cart.CartAggregatedFields"
             val fieldsRef = "#/components/schemas/$fieldsKey"
-            val fieldsSchema = requireNotNull(openAPI.components.schemas[fieldsKey])
+            val fieldsSchema = openAPI.components.schemas.getValue(fieldsKey)
 
             fieldsSchema.type.assert().isEqualTo("string")
             fieldsSchema.`enum`.assert()
-                .contains("state.items.productId")
+                .contains("aggregateId", "state", "state.items.productId")
                 .doesNotContain("")
-
             listOf("AggregationQuery", "CountQuery", "ListQuery", "PagedQuery", "SingleQuery").forEach { queryType ->
-                val requestBody = requireNotNull(openAPI.components.requestBodies["example.cart.$queryType"])
-                val queryFields = requestBody.extensions["x-wow-query-fields"] as Schema<*>
+                val requestBody = openAPI.components.requestBodies.getValue("example.cart.$queryType")
+                val queryFields = requestBody.extensions.getValue("x-wow-query-fields") as Schema<*>
                 queryFields.`$ref`.assert().isEqualTo(fieldsRef)
             }
         }
 
         @Test
-        fun `snapshot aggregation should reuse aggregate field schema and expose dynamic rows`() {
-            val fieldsKey = "example.cart.CartAggregatedFields"
+        fun `snapshot aggregation should use generic query body and expose dynamic rows`() {
             val requestBody = requireNotNull(openAPI.components.requestBodies["example.cart.AggregationQuery"])
-            val queryFields = requestBody.extensions["x-wow-query-fields"] as Schema<*>
             val responseSchema = requireNotNull(
                 openAPI.paths["/cart/snapshot/aggregation"]
                     ?.post
@@ -105,7 +106,6 @@ internal class ExampleDomainOpenAPITest {
                     ?.get(Https.MediaType.APPLICATION_JSON)
                     ?.schema
             )
-            queryFields.`$ref`.assert().isEqualTo("#/components/schemas/$fieldsKey")
             requestBody.content[Https.MediaType.APPLICATION_JSON]!!.schema.`$ref`
                 .assert().isEqualTo("#/components/schemas/wow.api.query.AggregationQuery")
             val querySchema = requireNotNull(openAPI.components.schemas["wow.api.query.AggregationQuery"])
@@ -186,17 +186,127 @@ internal class ExampleDomainOpenAPITest {
         }
 
         @Test
-        fun `should reuse query schemas in aggregate request bodies`() {
+        fun `snapshot schema routes should be aggregate scoped and independently identified`() {
+            val get = requireNotNull(openAPI.paths["/cart/snapshot/schema"]?.get)
+            val refresh = requireNotNull(openAPI.paths["/cart/snapshot/schema/refresh"]?.post)
+
+            get.operationId.assert().isEqualTo("example.cart.snapshot_schema.get")
+            refresh.operationId.assert().isEqualTo("example.cart.snapshot_schema.refresh")
+            listOf(get, refresh).forEach { operation ->
+                operation.responses.keys.assert().containsExactlyInAnyOrder("200", "400", "500", "503")
+                operation.responses["200"]!!.content[Https.MediaType.APPLICATION_JSON]!!.schema.`$ref`
+                    .assert().isEqualTo("#/components/schemas/wow.api.query.QueryModelSchemaMetadata")
+            }
+            openAPI.paths.keys.filter { it.endsWith("/cart/snapshot/schema") }.assert()
+                .containsExactly("/cart/snapshot/schema")
+            openAPI.paths.keys.filter { it.endsWith("/cart/snapshot/schema/refresh") }.assert()
+                .containsExactly("/cart/snapshot/schema/refresh")
+            openAPI.paths.keys.filter { it.contains("/snapshot/schema") }.none { path ->
+                path.contains("{tenantId}") || path.contains("{ownerId}") || path.contains("{id}")
+            }.assert().isTrue()
+        }
+
+        @Test
+        fun `query schema value objects should use their string wire shape`() {
+            listOf("QueryCapability", "QueryModel", "QueryValueType").forEach { typeName ->
+                openAPI.components.schemas.getValue("wow.api.query.$typeName").types.assert()
+                    .contains("string")
+                    .doesNotContain("object")
+            }
+        }
+
+        @Test
+        fun `query schema enum values should accept any JSON value`() {
+            val enumValues = openAPI.components.schemas
+                .getValue("wow.api.query.QueryFieldSchemaMetadata")
+                .properties.getValue("enumValues")
+            val arraySchema = enumValues.anyOf.single { it.types?.contains("array") == true }
+            val itemRef = requireNotNull(arraySchema.items.`$ref`)
+            val itemSchema = openAPI.components.schemas.getValue(itemRef.substringAfterLast('/'))
+
+            itemSchema.types.orEmpty().assert().isEmpty()
+            itemSchema.properties.orEmpty().assert().isEmpty()
+            itemSchema.allOf.orEmpty().assert().isEmpty()
+            itemSchema.anyOf.orEmpty().assert().isEmpty()
+            itemSchema.oneOf.orEmpty().assert().isEmpty()
+        }
+
+        @Test
+        fun `temporal semantic schemas should match runtime JSON`() {
+            val mapper = jsonMapper()
+            val temporalTypes = listOf(
+                Triple<QuerySemanticType, String, String>(
+                    Temporal.Date,
+                    "TEMPORAL_DATE",
+                    "wow.api.query.Temporal.Date",
+                ),
+                Triple<QuerySemanticType, String, String>(
+                    Temporal.Epoch(TimeUnit.SECONDS),
+                    "TEMPORAL_EPOCH",
+                    "wow.api.query.Temporal.Epoch",
+                ),
+                Triple<QuerySemanticType, String, String>(
+                    Temporal.Formatted("yyyy-MM-dd"),
+                    "TEMPORAL_FORMATTED",
+                    "wow.api.query.Temporal.Formatted",
+                ),
+            )
+            temporalTypes.forEach { (semanticType, expectedType, _) ->
+                mapper.readTree(mapper.writeValueAsString(semanticType))["type"].stringValue()
+                    .assert().isEqualTo(expectedType)
+            }
+
+            val baseRef = "#/components/schemas/wow.api.query.QuerySemanticType"
+            val metadataSemanticType = openAPI.components.schemas
+                .getValue("wow.api.query.QueryFieldSchemaMetadata")
+                .properties.getValue("semanticType")
+            metadataSemanticType.anyOf.assert().hasSize(2)
+            metadataSemanticType.anyOf.mapNotNull { it.`$ref` }.assert().containsExactly(baseRef)
+            metadataSemanticType.anyOf.single { it.types?.contains("null") == true }
+
+            val baseSchema = openAPI.components.schemas.getValue("wow.api.query.QuerySemanticType")
+            val expectedMapping = temporalTypes.associate { (_, type, component) ->
+                type to "#/components/schemas/$component"
+            }
+            baseSchema.oneOf.map { it.`$ref` }.assert()
+                .containsExactlyInAnyOrder(*expectedMapping.values.toTypedArray())
+            baseSchema.anyOf.assert().isNull()
+            baseSchema.discriminator.propertyName.assert().isEqualTo("type")
+            baseSchema.discriminator.mapping.assert().isEqualTo(expectedMapping)
+
+            temporalTypes.forEach { (_, expectedType, component) ->
+                val schema = openAPI.components.schemas.getValue(component)
+                schema.required.assert().contains("type")
+                schema.properties.getValue("type").getConst().assert().isEqualTo(expectedType)
+                schema.additionalProperties.assert().isNull()
+            }
+            openAPI.components.schemas.getValue("wow.api.query.Temporal.Date")
+                .properties.keys.assert().containsExactly("type")
+            val epochSchema = openAPI.components.schemas.getValue("wow.api.query.Temporal.Epoch")
+            epochSchema.properties.keys.assert().containsExactlyInAnyOrder("type", "timeUnit")
+            epochSchema.properties.getValue("timeUnit").`$ref`
+                .assert().isEqualTo("#/components/schemas/example.TimeUnit")
+            val formattedSchema = openAPI.components.schemas.getValue("wow.api.query.Temporal.Formatted")
+            formattedSchema.properties.keys.assert().containsExactlyInAnyOrder("type", "pattern")
+            formattedSchema.required.assert().containsExactlyInAnyOrder("type", "pattern")
+        }
+
+        @Test
+        fun `should use aggregate query request bodies in snapshot routes`() {
             mapOf(
-                "AggregationQuery" to "#/components/schemas/wow.api.query.AggregationQuery",
-                "CountQuery" to "#/components/schemas/wow.api.query.FilterExpression",
-                "SingleQuery" to "#/components/schemas/wow.api.query.SingleQuery",
-                "ListQuery" to "#/components/schemas/wow.api.query.ListQuery",
-                "PagedQuery" to "#/components/schemas/wow.api.query.PagedQuery",
-            ).forEach { (queryType, schemaRef) ->
+                "AggregationQuery" to "wow.api.query.AggregationQuery",
+                "CountQuery" to "wow.api.query.FilterExpression",
+                "SingleQuery" to "wow.api.query.SingleQuery",
+                "ListQuery" to "wow.api.query.ListQuery",
+                "PagedQuery" to "wow.api.query.PagedQuery",
+            ).forEach { (queryType, schemaName) ->
                 val requestBody = requireNotNull(openAPI.components.requestBodies["example.cart.$queryType"])
                 requestBody.content[Https.MediaType.APPLICATION_JSON]?.schema?.`$ref`
-                    .assert().isEqualTo(schemaRef)
+                    .assert().isEqualTo("#/components/schemas/$schemaName")
+            }
+            listOf("aggregation", "count", "single", "list", "paged").forEach { operation ->
+                requireNotNull(openAPI.paths["/cart/snapshot/$operation"]?.post?.requestBody?.`$ref`)
+                    .assert().startsWith("#/components/requestBodies/example.cart.")
             }
             openAPI.components.schemas["wow.api.query.ListQuery"]
                 ?.properties?.get("limit")?.minimum

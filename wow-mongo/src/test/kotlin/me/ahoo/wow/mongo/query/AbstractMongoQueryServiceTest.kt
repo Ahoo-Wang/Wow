@@ -26,6 +26,9 @@ import org.bson.Document
 import org.bson.conversions.Bson
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.reactivestreams.Subscriber
+import reactor.core.publisher.Flux
+import reactor.kotlin.test.test
 
 class AbstractMongoQueryServiceTest {
     private val collection = mockk<MongoCollection<Document>>()
@@ -58,8 +61,11 @@ class AbstractMongoQueryServiceTest {
         every { publisher.projection(bson) } returns publisher
         every { publisher.sort(bson) } returns publisher
         every { publisher.limit(1) } returns publisher
+        every { publisher.subscribe(any()) } answers {
+            Flux.empty<Document>().subscribe(firstArg<Subscriber<in Document>>())
+        }
 
-        service.list(ListQuery(MatchAllFilter, limit = 1))
+        service.list(ListQuery(MatchAllFilter, limit = 1)).test().verifyComplete()
 
         verify(exactly = 1) { publisher.limit(1) }
     }

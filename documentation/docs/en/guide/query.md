@@ -40,6 +40,8 @@ description: Query snapshots and event streams with FilterExpression, the query 
 
 For numeric time fields, set `timeUnit` to a `java.util.concurrent.TimeUnit` enum name; it defaults to `MILLISECONDS`. When `datePattern` is configured, the filter emits strings and ignores `timeUnit`.
 
+When the final Query Schema declares a string as `Temporal.Formatted`, the resolver automatically applies its pattern and publishes `RANGE` only when the backend can execute a range query on that string field. Formatted strings do not support date histograms in the first release.
+
 `field` is a logical field path. Valid examples are:
 
 ```text
@@ -49,7 +51,7 @@ state.items.0.productId
 
 A named segment starts with a letter or underscore and may contain letters, digits, underscores, and hyphens. Pure numeric segments are valid array indexes. MongoDB and Elasticsearch query implementations own physical field mapping.
 
-Aggregate-specific OpenAPI request bodies publish valid filter, projection, and sort paths in `x-wow-query-fields`. Use those paths even when a `/state` response unwraps the `state` object; for example, query the response property `status` as `state.status`.
+OpenAPI request bodies reuse generic query schemas and do not publish a static field directory. Call `GET /{aggregate}/snapshot/schema` to obtain the current aggregate's logical fields, types, and capabilities. Use those logical paths even when a `/state` response unwraps the `state` object; for example, query `status` as `state.status`.
 
 Snapshot queries default to `DELETION = ACTIVE`. A top-level `DELETION`, or one used directly inside the top-level `AND`, explicitly overrides that scope; nesting deletion inside `OR` or `NOR` does not disable the active guard. Event-stream queries do not add a deletion scope, preserving complete audit history.
 
@@ -247,9 +249,9 @@ Sort fields reference group or metric aliases. Missing group-alias sorts are app
 
 Aggregation uses the existing snapshot filter chain: ABAC and route filters still extend the root filter. The masking filter ignores aggregation queries, so configured maskers do not reject or rewrite aggregation results.
 
-Wow validates the request structure, not field existence, collection shape, or physical field type. It does not maintain an aggregation field catalog or use `TypeFieldPaths` for validation. Numeric metrics support fields, finite constants, addition, subtraction, multiplication, and division. For computed expressions containing `Constant` or `Binary`, a numeric scalar or singleton numeric array contributes one value; missing, non-numeric, empty-array, multi-valued, division-by-zero, or non-finite intermediate values do not contribute. A pure `Field` expression retains backend-native field aggregation, error, and multi-value semantics. Equivalent behavior is not guaranteed for custom Jackson serializers, backend filter converters, or custom Elasticsearch mappings. Batch aggregation is not included.
+Wow validates fields, collection shape, capabilities, and physical compatibility against the runtime schema. If the schema is unavailable, compatible-mode ordinary queries may retain the existing backend compilation path. Numeric metrics support fields, finite constants, addition, subtraction, multiplication, and division. For computed expressions containing `Constant` or `Binary`, a numeric scalar or singleton numeric array contributes one value; missing, non-numeric, empty-array, multi-valued, division-by-zero, or non-finite intermediate values do not contribute. A pure `Field` expression retains backend-native field aggregation, error, and multi-value semantics. Equivalent behavior is not guaranteed for custom Jackson serializers, backend filter converters, or custom Elasticsearch mappings. Batch aggregation is not included.
 
-The HTTP endpoint is `POST /{aggregate}/snapshot/aggregation`. Tenant-, owner-, or space-scoped aggregates prepend their applicable route prefix; use the running instance's OpenAPI paths as the source of truth. JSON responses are arrays of dynamic objects; SSE streams one object at a time. OpenAPI publishes an aggregate-specific `AggregationQuery` request body whose `x-wow-query-fields` references that aggregate's `*AggregatedFields` component, while the JSON schema remains the generic `AggregationQuery` contract; expressions are a recursive `oneOf` with `type` as its discriminator.
+The HTTP endpoint is `POST /{aggregate}/snapshot/aggregation`. Tenant-, owner-, or space-scoped aggregates prepend their applicable route prefix; use the running instance's OpenAPI paths as the source of truth. JSON responses are arrays of dynamic objects; SSE streams one object at a time. OpenAPI uses the generic `AggregationQuery` request body; expressions are a recursive `oneOf` with `type` as its discriminator.
 
 #### Scenario examples
 
@@ -381,7 +383,11 @@ Assuming `state.createdAt` is an executable date field, records can be counted p
 ]
 ```
 
-Date bucket keys are epoch milliseconds at the start of each bucket. MongoDB fields must be convertible to dates; Elasticsearch fields must be mapped as `date` or `date_nanos`.
+Date bucket keys are epoch milliseconds at the start of each bucket. A field may use a backend-native date (MongoDB BSON
+Date proven by a collection validator, or Elasticsearch `date`/`date_nanos`) or an integer epoch whose unit is declared
+through `@QueryTemporal`, a bean, or a convention file. MongoDB converts the epoch, while Elasticsearch creates a
+request-scoped runtime date field. Without a MongoDB validator, native Date range and histogram operations fail closed
+because the physical BSON type cannot be proven.
 
 ##### Expand a collection and select Top-N
 

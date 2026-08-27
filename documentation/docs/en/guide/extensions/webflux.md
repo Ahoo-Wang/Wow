@@ -195,7 +195,7 @@ paths:
               $ref: '#/components/schemas/AddCartItem'
 ```
 
-Snapshot aggregation operations reference an aggregate-specific request body such as `example.cart.AggregationQuery`. Its `x-wow-query-fields.$ref` points to the aggregate's `CartAggregatedFields` component, while its `application/json` schema references the generic `wow.api.query.AggregationQuery` schema. The success response is an array whose items are dynamic objects.
+Snapshot query operations reuse generic request bodies; for example, `wow.AggregationQuery` has an `application/json` schema of `wow.api.query.AggregationQuery`. Call `GET /{aggregate}/snapshot/schema` for the aggregate's runtime schema. `POST /{aggregate}/snapshot/schema/refresh` has an independent route ID, so it can be authorized separately from ordinary aggregate queries. Refresh affects only the receiving instance; a failure preserves its old cache and returns an error, with no broadcast to other instances. Aggregation success responses are arrays of dynamic objects.
 
 ## Performance Optimization
 

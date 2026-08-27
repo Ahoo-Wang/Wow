@@ -1,0 +1,780 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.schema.query
+
+import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.JsonTypeInfo
+import com.fasterxml.jackson.annotation.JsonUnwrapped
+import io.swagger.v3.oas.annotations.media.Schema
+import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.schema.QueryCardinality
+import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QueryTemporal
+import me.ahoo.wow.api.query.schema.QueryValueType
+import me.ahoo.wow.api.query.schema.Temporal
+import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.query.schema.DeclarationValue
+import me.ahoo.wow.query.schema.QueryFieldDeclaration
+import me.ahoo.wow.query.schema.QuerySchemaConflictException
+import me.ahoo.wow.query.schema.QuerySchemaContext
+import me.ahoo.wow.query.schema.QuerySchemaDeclaration
+import me.ahoo.wow.query.schema.QuerySchemaSourcePriority
+import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
+import me.ahoo.wow.serialization.JsonSerializer
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import reactor.core.publisher.Flux
+import reactor.core.scheduler.Schedulers
+import tools.jackson.core.JsonGenerator
+import tools.jackson.databind.SerializationContext
+import tools.jackson.databind.annotation.JsonSerialize
+import tools.jackson.databind.ser.std.StdSerializer
+import java.math.BigDecimal
+import java.time.Instant
+import java.time.LocalDate
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
+
+class JsonQuerySchemaSourceTest {
+    private val context = QuerySchemaContext(
+        MaterializedNamedAggregate("test-context", "test-aggregate"),
+        QueryModel.SNAPSHOT,
+    )
+
+    @Test
+    fun `should use JSON Schema priority`() {
+        JsonQuerySchemaSource { StructuralState::class.java }.priority.assert()
+            .isEqualTo(QuerySchemaSourcePriority.JSON_SCHEMA)
+    }
+
+    @Test
+    fun `should reuse inferred declaration for the same state type across contexts`() {
+        val source = JsonQuerySchemaSource { StructuralState::class.java }
+        val otherContext = context.copy(
+            namedAggregate = MaterializedNamedAggregate("other-context", "other-aggregate"),
+        )
+
+        val first = source.load(context).single().block()!!
+        val second = source.load(otherContext).single().block()!!
+
+        second.assert().isSameAs(first)
+    }
+
+    @Test
+    fun `should infer once for concurrent contexts sharing a state type`() {
+        val inferenceCount = AtomicInteger()
+        val source = JsonQuerySchemaSource(
+            stateTypeResolver = { StructuralState::class.java },
+            declarationResolver = {
+                val inference = inferenceCount.incrementAndGet()
+                QuerySchemaDeclaration(
+                    mapOf(
+                        LogicalField("state") to QueryFieldDeclaration(
+                            title = DeclarationValue.Set("inference-$inference"),
+                        ),
+                    ),
+                )
+            },
+        )
+        val contexts = (0 until 32).map { index ->
+            context.copy(namedAggregate = MaterializedNamedAggregate("context-$index", "aggregate-$index"))
+        }
+
+        val declarations = Flux.merge(
+            contexts.map { loadContext ->
+                source.load(loadContext).single().subscribeOn(Schedulers.parallel())
+            },
+        ).collectList().block()!!
+
+        inferenceCount.get().assert().isEqualTo(1)
+        declarations.all { it === declarations.first() }.assert().isTrue()
+    }
+
+    @Test
+    fun `should infer away from the subscription calling thread`() {
+        val subscriptionThread = Thread.currentThread()
+        val stateTypeResolutionThread = AtomicReference<Thread>()
+        val declarationResolutionThread = AtomicReference<Thread>()
+        val source = JsonQuerySchemaSource(
+            stateTypeResolver = {
+                stateTypeResolutionThread.set(Thread.currentThread())
+                StructuralState::class.java
+            },
+            declarationResolver = {
+                declarationResolutionThread.set(Thread.currentThread())
+                QuerySchemaDeclaration(emptyMap())
+            },
+        )
+
+        source.load(context).single().block()
+
+        stateTypeResolutionThread.get().assert().isNotSameAs(subscriptionThread)
+        declarationResolutionThread.get().assert().isNotSameAs(subscriptionThread)
+    }
+
+    @Test
+    fun `should cache different state types independently`() {
+        val inferenceCounts = ConcurrentHashMap<Class<*>, AtomicInteger>()
+        val source = JsonQuerySchemaSource(
+            stateTypeResolver = { loadContext ->
+                if (loadContext.namedAggregate.aggregateName == "structural") {
+                    StructuralState::class.java
+                } else {
+                    JacksonState::class.java
+                }
+            },
+            declarationResolver = { stateType ->
+                inferenceCounts.computeIfAbsent(stateType) { AtomicInteger() }.incrementAndGet()
+                QuerySchemaDeclaration(emptyMap())
+            },
+        )
+        val structuralContext = context.copy(
+            namedAggregate = MaterializedNamedAggregate("test-context", "structural"),
+        )
+        val jacksonContext = context.copy(
+            namedAggregate = MaterializedNamedAggregate("test-context", "jackson"),
+        )
+
+        val structural = source.load(structuralContext).single().block()!!
+        source.load(structuralContext).single().block()
+        val jackson = source.load(jacksonContext).single().block()!!
+        source.load(jacksonContext).single().block()
+
+        inferenceCounts.getValue(StructuralState::class.java).get().assert().isEqualTo(1)
+        inferenceCounts.getValue(JacksonState::class.java).get().assert().isEqualTo(1)
+        jackson.assert().isNotSameAs(structural)
+    }
+
+    @Test
+    fun `should retry inference after a failed cache computation`() {
+        val failure = IllegalStateException("inference failed")
+        val inferenceCount = AtomicInteger()
+        val recovered = QuerySchemaDeclaration(emptyMap())
+        val source = JsonQuerySchemaSource(
+            stateTypeResolver = { StructuralState::class.java },
+            declarationResolver = {
+                if (inferenceCount.incrementAndGet() == 1) throw failure
+                recovered
+            },
+        )
+
+        assertThrows<QuerySchemaUnavailableException> {
+            source.load(context).single().block()
+        }.cause.assert().isSameAs(failure)
+        source.load(context).single().block().assert().isSameAs(recovered)
+        source.load(context).single().block().assert().isSameAs(recovered)
+        inferenceCount.get().assert().isEqualTo(2)
+    }
+
+    @Test
+    fun `should wrap resolver failures as unavailable`() {
+        val failure = IllegalStateException("resolver failed")
+
+        assertThrows<QuerySchemaUnavailableException> {
+            JsonQuerySchemaSource { throw failure }.load(context).single().block()
+        }.cause.assert().isSameAs(failure)
+    }
+
+    @Test
+    fun `should preserve query schema failures`() {
+        val failure = QuerySchemaConflictException("schema conflict")
+
+        assertThrows<QuerySchemaConflictException> {
+            JsonQuerySchemaSource { throw failure }.load(context).single().block()
+        }.assert().isSameAs(failure)
+    }
+
+    @Test
+    fun `should infer structural and descriptive declarations`() {
+        val declaration = load(StructuralState::class.java)
+
+        declaration.field("state").assert().isEqualTo(
+            QueryFieldDeclaration(
+                title = DeclarationValue.Set("State title"),
+                description = DeclarationValue.Set("State description"),
+                enumValues = DeclarationValue.Set(null),
+                dynamicChildren = DeclarationValue.Set(false),
+            ),
+        )
+        declaration.field("state.count").assert().isEqualTo(
+            declaration(
+                title = "Count title",
+                description = "Count description",
+                valueTypes = setOf(QueryValueType.INTEGER),
+                required = true,
+            ),
+        )
+        declaration.field("state.ratio").valueTypes.assert()
+            .isEqualTo(DeclarationValue.Set(setOf(QueryValueType.DECIMAL)))
+        declaration.field("state.active").valueTypes.assert()
+            .isEqualTo(DeclarationValue.Set(setOf(QueryValueType.BOOLEAN)))
+        declaration.field("state.optional").assert().isEqualTo(
+            declaration(
+                valueTypes = setOf(QueryValueType.STRING),
+                nullable = true,
+                required = false,
+            ),
+        )
+        declaration.field("state.status").let { status ->
+            status.valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.STRING)))
+            checkNotNull((status.enumValues as DeclarationValue.Set).value).map { it.stringValue() }.assert()
+                .containsExactly("ACTIVE", "INACTIVE")
+        }
+        declaration.field("state.address").valueTypes.assert()
+            .isEqualTo(DeclarationValue.Set(setOf(QueryValueType.OBJECT)))
+        declaration.field("state.address.city").valueTypes.assert()
+            .isEqualTo(DeclarationValue.Set(setOf(QueryValueType.STRING)))
+        declaration.field("state.items").let { items ->
+            items.valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.OBJECT)))
+            items.cardinality.assert().isEqualTo(DeclarationValue.Set(QueryCardinality.MANY))
+        }
+        declaration.field("state.items.quantity").valueTypes.assert()
+            .isEqualTo(DeclarationValue.Set(setOf(QueryValueType.INTEGER)))
+        declaration.field("state.tags").let { tags ->
+            tags.valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.STRING)))
+            tags.cardinality.assert().isEqualTo(DeclarationValue.Set(QueryCardinality.MANY))
+        }
+    }
+
+    @Test
+    fun `should follow Jackson property shape and reject illegal logical segments`() {
+        val declaration = load(JacksonState::class.java)
+
+        declaration.fields.keys.assert()
+            .contains(LogicalField("state.display_name"))
+            .contains(LogicalField("state.detail_nested_value"))
+            .contains(LogicalField("state.visible"))
+            .doesNotContain(LogicalField("state.secret"))
+        declaration.fields.keys.any { it.value in setOf("state.display.name", "state.display name", "state.0") }
+            .assert().isFalse()
+        declaration.fields.keys.any { it.value.startsWith("state.details") }.assert().isFalse()
+    }
+
+    @Test
+    fun `should treat custom serializer wire shapes as opaque`() {
+        val declaration = load(CustomSerializerState::class.java)
+
+        declaration.field("state.typeValue").valueTypes.assert()
+            .isEqualTo(DeclarationValue.Set(emptySet<QueryValueType>()))
+        declaration.field("state.propertyValue").valueTypes.assert()
+            .isEqualTo(DeclarationValue.Set(emptySet<QueryValueType>()))
+        declaration.fields.keys.any { it.value.endsWith(".hidden") }.assert().isFalse()
+    }
+
+    @Test
+    fun `should traverse ref and all schema composition branches`() {
+        val declaration = load(CompositionState::class.java)
+
+        declaration.fields.keys.assert()
+            .contains(LogicalField("state.allOf.inherited"))
+            .contains(LogicalField("state.allOf.own"))
+            .contains(LogicalField("state.anyOf.left"))
+            .contains(LogicalField("state.anyOf.right"))
+            .contains(LogicalField("state.oneOf.first"))
+            .contains(LogicalField("state.oneOf.second"))
+            .contains(LogicalField("state.payment.kind"))
+            .contains(LogicalField("state.payment.cardNumber"))
+            .contains(LogicalField("state.payment.account"))
+        listOf("state.allOf.inherited", "state.allOf.own").forEach { field ->
+            declaration.field(field).required.assert().isEqualTo(DeclarationValue.Set(true))
+        }
+        listOf(
+            "state.anyOf.left",
+            "state.anyOf.right",
+            "state.oneOf.first",
+            "state.oneOf.second",
+        ).forEach { field ->
+            declaration.field(field).required.assert().isEqualTo(DeclarationValue.Set(false))
+        }
+    }
+
+    @Test
+    fun `should merge repeated composition fields independent of branch order`() {
+        val declaration = load(RepeatedCompositionState::class.java)
+        val expectedTypes = DeclarationValue.Set(setOf(QueryValueType.STRING, QueryValueType.INTEGER))
+        val forward = declaration.field("state.forward.value")
+        val reverse = declaration.field("state.reverse.value")
+
+        forward.valueTypes.assert().isEqualTo(expectedTypes)
+        reverse.valueTypes.assert().isEqualTo(expectedTypes)
+        forward.required.assert().isEqualTo(DeclarationValue.Set(true))
+        reverse.required.assert().isEqualTo(DeclarationValue.Set(true))
+        reverse.assert().isEqualTo(forward)
+    }
+
+    @Test
+    fun `should mark a shared alternative field optional when only some branches require it`() {
+        load(PartiallyRequiredCompositionState::class.java)
+            .field("state.value.shared")
+            .required.assert().isEqualTo(DeclarationValue.Set(false))
+    }
+
+    @Test
+    fun `should reject disjoint value types for the same allOf field`() {
+        assertThrows<QuerySchemaConflictException> {
+            load(ConflictingAllOfValueTypesState::class.java)
+        }
+    }
+
+    @Test
+    fun `should narrow number and integer allOf fields to integer independent of branch order`() {
+        val declaration = load(NumericSubtypeAllOfValueTypesState::class.java)
+        val expected = DeclarationValue.Set(setOf(QueryValueType.INTEGER))
+
+        declaration.field("state.forward.value").valueTypes.assert().isEqualTo(expected)
+        declaration.field("state.reverse.value").valueTypes.assert().isEqualTo(expected)
+    }
+
+    @Test
+    fun `should retain known value types when allOf also has opaque schemas`() {
+        val declaration = load(OpaqueAllOfValueTypesState::class.java)
+
+        declaration.field("state.known.value").valueTypes.assert()
+            .isEqualTo(DeclarationValue.Set(setOf(QueryValueType.STRING)))
+        declaration.field("state.opaque.value").valueTypes.assert()
+            .isEqualTo(DeclarationValue.Set(emptySet<QueryValueType>()))
+    }
+
+    @Test
+    fun `should reject conflicting composition metadata`() {
+        assertThrows<QuerySchemaConflictException> {
+            load(ConflictingCompositionState::class.java)
+        }
+    }
+
+    @Test
+    fun `should reject conflicting container metadata independent of branch order`() {
+        listOf(ForwardMetadataState::class.java, ReverseMetadataState::class.java).forEach { type ->
+            assertThrows<QuerySchemaConflictException> { load(type) }
+        }
+    }
+
+    @Test
+    fun `should reject conflicting container enums independent of branch order`() {
+        listOf(ForwardEnumState::class.java, ReverseEnumState::class.java).forEach { type ->
+            assertThrows<QuerySchemaConflictException> { load(type) }
+        }
+    }
+
+    @Test
+    fun `should retain equal container metadata and semantic type`() {
+        val declaration = load(EqualContainerMetadataState::class.java)
+
+        declaration.field("state.metadata").let { metadata ->
+            metadata.title.assert().isEqualTo(DeclarationValue.Set("Shared title"))
+            metadata.description.assert().isEqualTo(DeclarationValue.Set("Shared description"))
+        }
+        declaration.field("state.temporal").semanticType.assert().isEqualTo(DeclarationValue.Set(Temporal.Date))
+    }
+
+    @Test
+    fun `should not infer temporal semantics from only one alternative`() {
+        val declaration = load(MixedTemporalAlternativeState::class.java)
+
+        listOf("state.anyOf", "state.oneOf").forEach { field ->
+            declaration.field(field).semanticType.assert().isEqualTo(DeclarationValue.Set(null))
+        }
+    }
+
+    @Test
+    fun `should retain recursive fields without repeating descendants`() {
+        val declaration = load(RecursiveState::class.java)
+
+        declaration.fields.keys.assert()
+            .contains(LogicalField("state.child"))
+            .contains(LogicalField("state.children"))
+        declaration.field("state.child").valueTypes.assert()
+            .isEqualTo(DeclarationValue.Set(setOf(QueryValueType.OBJECT)))
+        declaration.field("state.children").cardinality.assert()
+            .isEqualTo(DeclarationValue.Set(QueryCardinality.MANY))
+        declaration.fields.keys.any {
+            it.value.startsWith("state.child.") || it.value.startsWith("state.children.")
+        }.assert().isFalse()
+    }
+
+    @Test
+    fun `should not truncate deep acyclic state paths`() {
+        load(DeepLevelOne::class.java).fields.keys.assert()
+            .contains(LogicalField("state.two.three.four.five.six.value"))
+    }
+
+    @Test
+    fun `should mark object additional properties as dynamic`() {
+        val declaration = load(DynamicState::class.java)
+
+        declaration.field("state.attributes").let { attributes ->
+            attributes.valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.OBJECT)))
+            attributes.dynamicChildren.assert().isEqualTo(DeclarationValue.Set(true))
+        }
+        declaration.field("state.attributeGroups").let { attributeGroups ->
+            attributeGroups.valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.OBJECT)))
+            attributeGroups.cardinality.assert().isEqualTo(DeclarationValue.Set(QueryCardinality.MANY))
+            attributeGroups.dynamicChildren.assert().isEqualTo(DeclarationValue.Set(true))
+        }
+        declaration.field("state.closed").dynamicChildren.assert().isEqualTo(DeclarationValue.Set(false))
+    }
+
+    @Test
+    fun `should detect object and explicit true additional properties`() {
+        mapOf(
+            """{"additionalProperties":{"type":"string"}}""" to true,
+            """{"additionalProperties":true}""" to true,
+            """{"additionalProperties":false}""" to false,
+        ).forEach { (schema, expected) ->
+            JsonSerializer.readTree(schema).hasAdditionalProperties().assert().isEqualTo(expected)
+        }
+    }
+
+    @Test
+    fun `should infer native date formats`() {
+        val declaration = load(NativeTemporalState::class.java)
+
+        listOf("state.date", "state.instant", "state.instants").forEach { field ->
+            declaration.field(field).semanticType.assert().isEqualTo(DeclarationValue.Set(Temporal.Date))
+        }
+        declaration.field("state.instants").cardinality.assert()
+            .isEqualTo(DeclarationValue.Set(QueryCardinality.MANY))
+    }
+
+    @Test
+    fun `integer temporal annotation should override structural inference`() {
+        val declaration = load(AnnotatedTemporalState::class.java)
+
+        declaration.field("state.created_at").let { createdAt ->
+            createdAt.valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.INTEGER)))
+            createdAt.semanticType.assert().isEqualTo(
+                DeclarationValue.Set(Temporal.Epoch(TimeUnit.SECONDS)),
+            )
+        }
+        declaration.field("state.timestamps").let { timestamps ->
+            timestamps.valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.INTEGER)))
+            timestamps.cardinality.assert().isEqualTo(DeclarationValue.Set(QueryCardinality.MANY))
+            timestamps.semanticType.assert().isEqualTo(
+                DeclarationValue.Set(Temporal.Epoch(TimeUnit.MILLISECONDS)),
+            )
+        }
+    }
+
+    @Test
+    fun `should reject temporal annotation on non integer wire shape`() {
+        assertThrownBy<QuerySchemaConflictException> {
+            load(InvalidTemporalState::class.java)
+        }
+    }
+
+    private fun load(type: Class<*>): QuerySchemaDeclaration =
+        JsonQuerySchemaSource { type }.load(context).single().block()!!
+
+    private fun QuerySchemaDeclaration.field(name: String): QueryFieldDeclaration = fields.getValue(LogicalField(name))
+
+    private fun declaration(
+        title: String? = null,
+        description: String? = null,
+        valueTypes: Set<QueryValueType>,
+        nullable: Boolean = false,
+        required: Boolean = true,
+        cardinality: QueryCardinality = QueryCardinality.SINGLE,
+    ) = QueryFieldDeclaration(
+        title = DeclarationValue.Set(title),
+        description = DeclarationValue.Set(description),
+        enumValues = DeclarationValue.Set(null),
+        valueTypes = DeclarationValue.Set(valueTypes),
+        nullable = DeclarationValue.Set(nullable),
+        required = DeclarationValue.Set(required),
+        cardinality = DeclarationValue.Set(cardinality),
+        semanticType = DeclarationValue.Set(null),
+        dynamicChildren = DeclarationValue.Set(false),
+    )
+}
+
+@Schema(title = "State title", description = "State description")
+private data class StructuralState(
+    @field:Schema(
+        title = "Count title",
+        description = "Count description",
+        requiredMode = Schema.RequiredMode.REQUIRED,
+    )
+    val count: Int,
+    val ratio: BigDecimal,
+    val active: Boolean,
+    @field:Schema(requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+    val optional: String? = null,
+    val status: StructuralStatus,
+    val address: StructuralAddress,
+    val items: List<StructuralItem>,
+    val tags: List<String>,
+)
+
+private enum class StructuralStatus { ACTIVE, INACTIVE }
+
+private data class StructuralAddress(val city: String)
+
+private data class StructuralItem(val quantity: Int)
+
+private data class JacksonState(
+    @field:JsonProperty("display_name")
+    val displayName: String,
+    @field:JsonProperty("display.name")
+    val dottedName: String,
+    @field:JsonProperty("display name")
+    val spacedName: String,
+    @field:JsonProperty("0")
+    val numericName: String,
+    @field:JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    val secret: String,
+    @field:JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    val visible: String,
+    @get:JsonUnwrapped(prefix = "detail_", suffix = "_value")
+    val details: JacksonDetails,
+)
+
+private data class JacksonDetails(
+    @field:JsonProperty("nested")
+    val nested: String,
+)
+
+private data class CustomSerializerState(
+    val typeValue: TypeCustomSerializedValue,
+    @get:JsonSerialize(using = PropertyCustomSerializedValueSerializer::class)
+    val propertyValue: PropertyCustomSerializedValue,
+)
+
+@JsonSerialize(using = TypeCustomSerializedValueSerializer::class)
+private data class TypeCustomSerializedValue(val hidden: String)
+
+private class TypeCustomSerializedValueSerializer : StdSerializer<TypeCustomSerializedValue>(
+    TypeCustomSerializedValue::class.java,
+) {
+    override fun serialize(
+        value: TypeCustomSerializedValue,
+        generator: JsonGenerator,
+        provider: SerializationContext,
+    ) {
+        generator.writeString(value.hidden)
+    }
+}
+
+private data class PropertyCustomSerializedValue(val hidden: String)
+
+private class PropertyCustomSerializedValueSerializer : StdSerializer<PropertyCustomSerializedValue>(
+    PropertyCustomSerializedValue::class.java,
+) {
+    override fun serialize(
+        value: PropertyCustomSerializedValue,
+        generator: JsonGenerator,
+        provider: SerializationContext,
+    ) {
+        generator.writeString(value.hidden)
+    }
+}
+
+private data class CompositionState(
+    @field:Schema(allOf = [AllOfInherited::class])
+    val allOf: AllOfValue,
+    val anyOf: AnyOfValue,
+    @field:Schema(oneOf = [OneOfFirst::class, OneOfSecond::class])
+    val oneOf: OneOfValue,
+    val payment: PaymentValue,
+)
+
+private data class AllOfValue(val own: String)
+
+private data class AllOfInherited(val inherited: String)
+
+@Schema(anyOf = [AnyOfLeft::class, AnyOfRight::class])
+private interface AnyOfValue
+
+private data class AnyOfLeft(val left: String) : AnyOfValue
+
+private data class AnyOfRight(val right: String) : AnyOfValue
+
+private class OneOfValue
+
+private data class OneOfFirst(val first: String)
+
+private data class OneOfSecond(val second: String)
+
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "kind")
+@JsonSubTypes(
+    JsonSubTypes.Type(value = CardPayment::class, name = "card"),
+    JsonSubTypes.Type(value = BankPayment::class, name = "bank"),
+)
+private interface PaymentValue
+
+private data class CardPayment(val cardNumber: String) : PaymentValue
+
+private data class BankPayment(val account: String) : PaymentValue
+
+private data class RepeatedCompositionState(
+    @field:Schema(oneOf = [StringValueBranch::class, IntegerValueBranch::class])
+    val forward: RepeatedValue,
+    @field:Schema(oneOf = [IntegerValueBranch::class, StringValueBranch::class])
+    val reverse: RepeatedValue,
+)
+
+private class RepeatedValue
+
+private data class StringValueBranch(val value: String)
+
+private data class IntegerValueBranch(val value: Int)
+
+private data class PartiallyRequiredCompositionState(
+    @field:Schema(anyOf = [RequiredSharedValueBranch::class, OptionalSharedValueBranch::class])
+    val value: RepeatedValue,
+)
+
+private data class RequiredSharedValueBranch(val shared: String)
+
+private data class OptionalSharedValueBranch(
+    @field:Schema(requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+    val shared: String,
+)
+
+private data class ConflictingAllOfValueTypesState(
+    @field:Schema(allOf = [StringValueBranch::class, IntegerValueBranch::class])
+    val value: RepeatedValue,
+)
+
+private data class NumericSubtypeAllOfValueTypesState(
+    @field:Schema(allOf = [IntegerValueBranch::class, DecimalValueBranch::class])
+    val forward: RepeatedValue,
+    @field:Schema(allOf = [DecimalValueBranch::class, IntegerValueBranch::class])
+    val reverse: RepeatedValue,
+)
+
+private data class DecimalValueBranch(val value: BigDecimal)
+
+private data class OpaqueAllOfValueTypesState(
+    @field:Schema(allOf = [OpaqueValueBranch::class, StringValueBranch::class])
+    val known: RepeatedValue,
+    @field:Schema(allOf = [OpaqueValueBranch::class, SecondOpaqueValueBranch::class])
+    val opaque: RepeatedValue,
+)
+
+private data class OpaqueValueBranch(val value: TypeCustomSerializedValue)
+
+private data class SecondOpaqueValueBranch(val value: TypeCustomSerializedValue)
+
+private data class ConflictingCompositionState(
+    @field:Schema(oneOf = [FirstTitledBranch::class, SecondTitledBranch::class])
+    val union: RepeatedValue,
+)
+
+private data class FirstTitledBranch(
+    @field:Schema(title = "First")
+    val value: String,
+)
+
+private data class SecondTitledBranch(
+    @field:Schema(title = "Second")
+    val value: String,
+)
+
+private data class ForwardMetadataState(
+    @field:Schema(oneOf = [FirstMetadataBranch::class, SecondMetadataBranch::class])
+    val value: RepeatedValue,
+)
+
+private data class ReverseMetadataState(
+    @field:Schema(oneOf = [SecondMetadataBranch::class, FirstMetadataBranch::class])
+    val value: RepeatedValue,
+)
+
+@Schema(title = "First title", description = "First description")
+private class FirstMetadataBranch
+
+@Schema(title = "Second title", description = "Second description")
+private class SecondMetadataBranch
+
+private data class ForwardEnumState(
+    @field:Schema(oneOf = [FirstChoice::class, SecondChoice::class])
+    val value: RepeatedValue,
+)
+
+private data class ReverseEnumState(
+    @field:Schema(oneOf = [SecondChoice::class, FirstChoice::class])
+    val value: RepeatedValue,
+)
+
+private enum class FirstChoice { FIRST, SHARED }
+
+private enum class SecondChoice { SECOND, SHARED }
+
+private data class EqualContainerMetadataState(
+    @field:Schema(oneOf = [SharedMetadataFirst::class, SharedMetadataSecond::class])
+    val metadata: RepeatedValue,
+    @field:Schema(oneOf = [LocalDate::class, Instant::class])
+    val temporal: RepeatedValue,
+)
+
+private data class MixedTemporalAlternativeState(
+    @field:Schema(anyOf = [LocalDate::class, String::class])
+    val anyOf: RepeatedValue,
+    @field:Schema(oneOf = [LocalDate::class, String::class])
+    val oneOf: RepeatedValue,
+)
+
+@Schema(title = "Shared title", description = "Shared description")
+private class SharedMetadataFirst
+
+@Schema(title = "Shared title", description = "Shared description")
+private class SharedMetadataSecond
+
+private data class RecursiveState(
+    val name: String,
+    val child: RecursiveState?,
+    val children: List<RecursiveState>,
+)
+
+private data class DeepLevelOne(val two: DeepLevelTwo)
+
+private data class DeepLevelTwo(val three: DeepLevelThree)
+
+private data class DeepLevelThree(val four: DeepLevelFour)
+
+private data class DeepLevelFour(val five: DeepLevelFive)
+
+private data class DeepLevelFive(val six: DeepLevelSix)
+
+private data class DeepLevelSix(val value: String)
+
+private data class DynamicState(
+    val attributes: Map<String, String>,
+    val attributeGroups: List<Map<String, String>>,
+    val closed: StructuralAddress,
+)
+
+private data class NativeTemporalState(
+    val date: LocalDate,
+    val instant: Instant,
+    val instants: List<Instant>,
+)
+
+private data class AnnotatedTemporalState(
+    @field:JsonProperty("created_at")
+    @field:QueryTemporal(TimeUnit.SECONDS)
+    val createdAt: Long,
+    @field:QueryTemporal
+    val timestamps: List<Long>,
+)
+
+private data class InvalidTemporalState(
+    @field:QueryTemporal
+    val createdAt: String,
+)

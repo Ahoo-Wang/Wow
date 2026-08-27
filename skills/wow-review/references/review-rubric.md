@@ -14,7 +14,7 @@ Use this rubric after resolving the actual diff and reading the current definiti
 
 ## Compatibility and integration
 
-- Public APIs, event revisions, serialization, schema, OpenAPI (including `x-wow-query-fields` and generated query bodies/routes), generated metadata, and downstream consumers remain compatible unless breaking change is authorized.
+- Public APIs, event revisions, serialization, schema, OpenAPI (including runtime Schema GET/refresh routes and generic query request bodies), generated metadata, and downstream consumers remain compatible unless breaking change is authorized.
 - Configuration examples match current property classes and conditional auto-configuration.
 - Dependencies, module boundaries, and Gradle feature variants select the intended implementation.
 - Reactive paths do not gain blocking calls, manual subscriptions, accidental scheduler changes, or broken cancellation/backpressure.

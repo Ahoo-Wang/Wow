@@ -27,6 +27,7 @@ import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryServic
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.metrics.WowMetrics
+import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ConditionalOnEventStoreStorage
@@ -36,6 +37,8 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStreamQuerySer
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotQueryServiceFactoryBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
+import me.ahoo.wow.spring.boot.starter.query.QueryProperties
+import me.ahoo.wow.spring.boot.starter.query.QuerySchemaAutoConfiguration
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
@@ -51,7 +54,7 @@ import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchCl
 import org.springframework.data.elasticsearch.core.ReactiveElasticsearchOperations
 
 @AutoConfiguration(
-    after = [ElasticsearchRestClientAutoConfiguration::class],
+    after = [ElasticsearchRestClientAutoConfiguration::class, QuerySchemaAutoConfiguration::class],
     before = [ElasticsearchClientAutoConfiguration::class],
 )
 @ConditionalOnWowEnabled
@@ -189,12 +192,16 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
     fun elasticsearchSnapshotQueryServiceFactory(
         elasticsearchClient: ReactiveElasticsearchClient,
         elasticsearchIndexMappingResolver: ElasticsearchIndexMappingResolver,
+        sources: List<QuerySchemaSource>,
+        schemaQueryProperties: QueryProperties,
     ): ElasticsearchSnapshotQueryServiceFactory {
         return ElasticsearchSnapshotQueryServiceFactory(
             elasticsearchClient,
             queryProperties.batchSize,
             queryProperties.keepAlive,
             elasticsearchIndexMappingResolver,
+            sources,
+            schemaQueryProperties.schema.validationMode,
         )
     }
 

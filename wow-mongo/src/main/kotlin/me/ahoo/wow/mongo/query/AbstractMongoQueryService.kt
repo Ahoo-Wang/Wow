@@ -37,15 +37,25 @@ abstract class AbstractMongoQueryService<R : Any> : QueryService<R> {
     abstract fun toTypedResult(document: Document): R
     abstract fun toDynamicDocument(document: Document): DynamicDocument
 
+    protected open fun resolve(query: ISingleQuery): Mono<ISingleQuery> = Mono.just(query)
+
+    protected open fun resolve(query: IListQuery): Mono<IListQuery> = Mono.just(query)
+
+    protected open fun resolve(query: IPagedQuery): Mono<IPagedQuery> = Mono.just(query)
+
+    protected open fun resolve(filter: FilterExpression): Mono<FilterExpression> = Mono.just(filter)
+
     protected fun findDocument(queryable: Queryable<*>): FindPublisher<Document> {
         return collection.findDocument(converter, queryable, projectionConverter, sortConverter)
     }
 
     private fun singleDocument(singleQuery: ISingleQuery): Mono<Document> {
-        return findDocument(singleQuery)
-            .limit(1)
-            .first()
-            .toMono()
+        return resolve(singleQuery).flatMap { resolved ->
+            findDocument(resolved)
+                .limit(1)
+                .first()
+                .toMono()
+        }
     }
 
     override fun single(singleQuery: ISingleQuery): Mono<R> {
@@ -62,9 +72,11 @@ abstract class AbstractMongoQueryService<R : Any> : QueryService<R> {
 
     private fun listDocument(listQuery: IListQuery): Flux<Document> {
         require(listQuery.limit >= 0) { "limit must be greater than or equal to 0." }
-        return findDocument(listQuery)
-            .limit(listQuery.limit)
-            .toFlux()
+        return resolve(listQuery).flatMapMany { resolved ->
+            findDocument(resolved)
+                .limit(resolved.limit)
+                .toFlux()
+        }
     }
 
     override fun list(listQuery: IListQuery): Flux<R> {
@@ -83,24 +95,26 @@ abstract class AbstractMongoQueryService<R : Any> : QueryService<R> {
         pagedQuery: IPagedQuery,
         documentMapper: (Document) -> T
     ): Mono<PagedList<T>> {
-        val projectionBson = projectionConverter.convert(pagedQuery.projection)
-        val filter = converter.convert(pagedQuery.filter)
-        val sort = sortConverter.convert(pagedQuery.sort)
+        return resolve(pagedQuery).flatMap { resolved ->
+            val projectionBson = projectionConverter.convert(resolved.projection)
+            val filter = converter.convert(resolved.filter)
+            val sort = sortConverter.convert(resolved.sort)
 
-        val totalPublisher = collection.countDocuments(filter).toMono()
-        val listPublisher = collection.find(filter)
-            .projection(projectionBson)
-            .sort(sort)
-            .skip(pagedQuery.pagination.offset())
-            .limit(pagedQuery.pagination.size)
-            .batchSize(pagedQuery.pagination.size)
-            .toFlux()
+            val totalPublisher = collection.countDocuments(filter).toMono()
+            val listPublisher = collection.find(filter)
+                .projection(projectionBson)
+                .sort(sort)
+                .skip(resolved.pagination.offset())
+                .limit(resolved.pagination.size)
+                .batchSize(resolved.pagination.size)
+                .toFlux()
 
-        val listMappedPublisher = listPublisher.map { documentMapper(it) }.collectList()
-        return Mono.zip(totalPublisher, listMappedPublisher)
-            .map { result ->
-                PagedList(result.t1, result.t2)
-            }
+            val listMappedPublisher = listPublisher.map { documentMapper(it) }.collectList()
+            Mono.zip(totalPublisher, listMappedPublisher)
+                .map { result ->
+                    PagedList(result.t1, result.t2)
+                }
+        }
     }
 
     override fun paged(pagedQuery: IPagedQuery): Mono<PagedList<R>> {
@@ -114,6 +128,8 @@ abstract class AbstractMongoQueryService<R : Any> : QueryService<R> {
     }
 
     override fun count(filter: FilterExpression): Mono<Long> {
-        return collection.countDocuments(converter.convert(filter)).toMono()
+        return resolve(filter).flatMap { resolved ->
+            collection.countDocuments(converter.convert(resolved)).toMono()
+        }
     }
 }

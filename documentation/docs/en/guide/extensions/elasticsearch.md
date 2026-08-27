@@ -152,12 +152,21 @@ version-metadata migration is required.
 
 ## Snapshot Query Field Resolution
 
-On the first snapshot query for an aggregate index, Wow asynchronously loads the current Elasticsearch mapping and
-compiles conditions and sorts from its physical field capabilities. The mapping is the only capability source; no
-separate `QuerySchema` is maintained. The cache is isolated by index and has no TTL. A missing or incompatible cached
-field fails the query without implicitly calling the mapping API, except that presence operations preserve an unmapped
-logical field because Elasticsearch can execute `exists` against it. Refresh the cache explicitly through the maintenance
-endpoint after a mapping change.
+Snapshot queries use a negotiated runtime Query Schema. Wow first merges the System skeleton, JSON Schema and annotations,
+classpath files, beans, and working-directory files, then binds physical fields and executable capabilities from the
+Elasticsearch mapping. Declaration precedence from low to high is JSON Schema inference, the `@QueryTemporal` semantic
+override, classpath, bean, and working directory. A higher-priority source overrides only explicitly declared leaves.
+The `model` filename is always lowercase, for example `snapshot.json`. Convention files have two fixed locations:
+
+```text
+classpath:wow-query-schema/{contextName}/{aggregateName}/{model}.json
+./config/wow-query-schema/{contextName}/{aggregateName}/{model}.json
+```
+
+The final Schema is cached per QueryService without a TTL. `GET /{aggregate}/snapshot/schema` returns public metadata
+without physical bindings. After correcting declarations, mappings, or indexes, call
+`POST /{aggregate}/snapshot/schema/refresh` to renegotiate the current service instance. A failed refresh retains the
+previous cache and is not broadcast to other instances.
 
 Field selection follows these rules:
 
@@ -166,7 +175,7 @@ Field selection follows these rules:
 | `EQ`, `NE`, `IN`, `NOT_IN`, `ALL_IN`, `TRUE`, `FALSE` | Term-query compatible, including supported doc-value-only fields |
 | `CONTAINS`, `STARTS_WITH`, `ENDS_WITH` | `keyword` or `wildcard` |
 | Range operations | numeric, date, ip, keyword, or `*_range`, including applicable `doc_values=true,index=false` fields |
-| `IS_EMPTY`, null, and existence operations | Any indexed or doc-value-queryable field; an empty Elasticsearch array has no indexed value, so `IS_EMPTY` compiles as `NOT EXISTS` |
+| `IS_EMPTY`, null, and existence operations | Indexed or doc-value-queryable leaf fields; object and nested containers do not expose presence capability themselves. An empty Elasticsearch array has no indexed value, so `IS_EMPTY` compiles as `NOT EXISTS` |
 | `MATCH` | `text`, `match_only_text`, `search_as_you_type`, or `semantic_text` |
 | Sort | Sortable field with `doc_values`, indexed `text` with `fielddata`, or a sortable runtime field |
 
@@ -174,10 +183,13 @@ Field selection follows these rules:
 passed through unchanged. Because `text.fielddata=true` uses significant heap memory, a `keyword` multi-field is still
 preferred in most cases. Sorting on doc-values and runtime fields does not require `index=true`.
 
-Dynamic keys under a flattened field do not have individual mapping entries. For a concrete path such as
-`state.labels.release`, the resolver walks up to the nearest flattened parent and preserves the original path for exact
-and sort operations. Flattened values use keyword semantics, so sorting is lexicographic. Dynamic keys do not
-automatically enable range operations; explicitly mapped typed sub-fields continue to use their own type capabilities.
+Dynamic descendants do not have individual mapping entries, and the current mapping alone cannot prove identical
+semantics across index settings, historical documents, and write boundaries. In the first release, the final
+Elasticsearch Schema therefore publishes no dynamic-descendant capabilities: `STRICT` rejects unknown descendants,
+while `COMPATIBLE` preserves the existing backend fallback only for ordinary unknown paths. Fixed System `tags.*`
+fields participate in ABAC: a root filter that references them never falls back, including while Schema loading is
+unavailable. A projection or sort that alone references `tags.*` still follows ordinary `COMPATIBLE` unavailable-Schema
+fallback. Explicitly mapped typed sub-fields continue to use their own capabilities.
 
 For example, one logical field can support both full-text and exact operations:
 
@@ -222,81 +234,19 @@ Each aggregate must resolve to one physical snapshot index. An alias or data str
 fails closed. Such a topology must be reduced to one physical index or handled by an application-specific `_field_caps`
 query implementation.
 
-## Actively Refresh a Mapping
+## Refresh the Runtime Query Schema
 
-Non-Spring construction paths can refresh their owned cache directly:
-
-```kotlin
-queryService.refreshIndexMapping().block()
-queryServiceFactory.refreshIndexMapping(namedAggregate).block()
-```
-
-The factory method refreshes the resolver shared by services created from that factory. A directly constructed
-`ElasticsearchSnapshotQueryService` refreshes its own resolver through the instance method.
-
-Adding `org.springframework.boot:spring-boot-starter-actuator` registers an optional maintenance endpoint. It has no
-access by default. Configure both access and Web exposure, and restrict it to a maintenance role in management endpoint
-security:
-
-::: code-group
-```kotlin [Gradle(Kotlin)]
-implementation("org.springframework.boot:spring-boot-starter-actuator")
-```
-```xml [Maven]
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-actuator</artifactId>
-</dependency>
-```
-:::
-
-```yaml
-management:
-  endpoint:
-    wowElasticsearchMapping:
-      access: unrestricted
-  endpoints:
-    web:
-      exposure:
-        include: health,wowElasticsearchMapping
-```
-
-Refresh the mapping for a registered aggregate on the current application instance:
+Use `GET /{aggregate}/snapshot/schema` to inspect the aggregate's current logical fields and capabilities, then refresh the receiving instance:
 
 ```bash
-curl -X POST \
-  http://localhost:8080/actuator/wowElasticsearchMapping/order-service/order
+curl -X POST http://localhost:8080/order/snapshot/schema/refresh
 ```
 
-Example response:
+This POST route has an independent authorization policy and can be restricted to maintenance roles. It rereads mappings, convention files, and other schema sources; on success it returns new public metadata. Elasticsearch credentials still require `view_index_metadata` on the target index because the backend adapter reads its mapping.
 
-```json
-{
-  "scope": "LOCAL_INSTANCE",
-  "indexName": "wow.order-service.order.snapshot",
-  "fieldCount": 24,
-  "changed": true,
-  "refreshedAt": "2026-08-21T09:00:00Z"
-}
-```
+Missing privileges, a missing index, or an unparseable mapping returns an error while retaining a previously successful cache. Refresh does not modify the Elasticsearch mapping, rebuild the index, or backfill old snapshots. It affects only the instance receiving the request and never broadcasts; call every Pod in a replicated deployment. In-flight queries keep the schema obtained when they began compilation.
 
-The endpoint does not accept arbitrary index expressions; it derives the index name from aggregate metadata.
-`fieldCount` is the number of parsed field paths, and `changed` reports whether the new capability model differs from
-the previous one. The response never contains the full mapping. An unregistered aggregate returns `400 Bad Request`.
-
-Elasticsearch credentials need `view_index_metadata` on the target index. Missing privileges, a missing index, or an
-unparseable mapping fails the request without damaging a previously successful cache entry. Refresh only reloads the
-query capability cache; it does not modify the Elasticsearch mapping, rebuild the index, or backfill old snapshots.
-
-Refresh is local to the instance that receives the request. In a replicated deployment, operations must call each Pod;
-there is no broadcast, scheduled refresh, or refresh-all operation. New queries use the refreshed mapping, while
-in-flight queries continue with the mapping obtained when their compilation began.
-
-Publish a mapping change in this order:
-
-1. Update the target index mapping; complete any required reindex or snapshot rebuild first.
-2. Call the refresh endpoint on every application Pod and verify the returned `fieldCount` and `changed` values.
-3. Run representative exact, full-text, and sort queries against every Pod; reconcile result count, order, and snapshot version before completing the release.
+Publish a mapping change by updating the index and completing any required reindex or snapshot rebuild, then refreshing the schema on every Pod and running representative exact, full-text, and sort queries before completing the release.
 
 ## Configure Event Stream Index Template
 
@@ -670,14 +620,12 @@ Set `wow.elasticsearch.query.batch-size` no higher than the target index's `inde
 
 #### 1. Query reports an unmapped, incompatible, or ambiguous multi-field
 
-Inspect the current physical mapping with `GET /{indexName}/_mapping`, then call the active refresh endpoint. When
-multiple compatible children are ambiguous, use the conventional `.keyword`, `.text`, or `.exact` child name.
+Inspect the aggregate's current logical fields and capabilities with `GET /{aggregate}/snapshot/schema`; use
+`POST /{aggregate}/snapshot/schema/refresh` when the mapping must be reread. When multiple compatible children are ambiguous, use the conventional `.keyword`, `.text`, or `.exact` child name.
 
 #### 2. Refresh endpoint is unavailable or refresh fails
 
-A `404` means the Actuator dependency, endpoint access, or Web exposure should be checked. A `400` means the
-`contextName` or `aggregateName` is not registered. For an Elasticsearch error, verify the index and
-`view_index_metadata` privilege. A failed refresh does not delete the previous cache entry.
+Confirm the application registers the WebFlux query route and materializes this aggregate's GET/POST routes in the current instance's OpenAPI paths. Refresh has independent route authorization and can be restricted separately from ordinary queries. A `500` means schema declarations conflict; a `503` means the mapping or another schema source is unavailable, so verify the index and `view_index_metadata` privilege. A failed refresh does not delete the previous cache entry.
 
 #### 3. An alias or data stream cannot be resolved
 

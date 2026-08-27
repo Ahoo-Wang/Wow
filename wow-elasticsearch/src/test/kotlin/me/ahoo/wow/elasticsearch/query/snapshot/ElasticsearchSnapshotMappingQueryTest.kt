@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.elasticsearch.query.snapshot
 
+import co.elastic.clients.elasticsearch._types.mapping.DynamicMapping
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll
 import co.elastic.clients.elasticsearch.core.SearchRequest
@@ -27,20 +28,36 @@ import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.EqualFilter
+import me.ahoo.wow.api.query.ExistsFilter
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.IsEmptyFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.schema.QueryCardinality
+import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
-import me.ahoo.wow.elasticsearch.query.ElasticsearchFieldResolutionException
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
+import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.query.dsl.filter
+import me.ahoo.wow.query.schema.BeanQuerySchemaSource
+import me.ahoo.wow.query.schema.DeclarationValue
+import me.ahoo.wow.query.schema.QueryFieldDeclaration
+import me.ahoo.wow.query.schema.QuerySchemaContext
+import me.ahoo.wow.query.schema.QuerySchemaDeclaration
+import me.ahoo.wow.query.schema.QuerySchemaRegistration
+import me.ahoo.wow.query.schema.QuerySchemaSource
+import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.schema.QuerySchemaValidationMode
+import me.ahoo.wow.query.snapshot.requiredQueryModelSchemaProvider
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchIndicesClient
 import reactor.core.publisher.Mono
@@ -54,6 +71,229 @@ class ElasticsearchSnapshotMappingQueryTest {
     init {
         every { client.indices() } returns indicesClient
         every { client.search(capture(searchRequest), Map::class.java) } returns Mono.just(emptySearchResponse())
+    }
+
+    @Test
+    fun `strict service should reject an unknown field before search`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(queryMapping()),
+        )
+        val service = ElasticsearchSnapshotQueryServiceFactory(
+            client,
+            DEFAULT_SEARCH_BATCH_SIZE,
+            DEFAULT_PIT_KEEP_ALIVE,
+            emptyList(),
+            QuerySchemaValidationMode.STRICT,
+        ).create<Any>(MOCK_AGGREGATE_METADATA)
+
+        service.dynamicList(ListQuery(filter = equal("state.unknown", "value"), limit = 10)).test()
+            .expectError(QuerySchemaValidationException::class.java)
+            .verify()
+
+        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+    }
+
+    @Test
+    fun `strict service should reject a root nested child filter before search`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(queryMapping()),
+        )
+
+        strictQueryService().dynamicList(
+            ListQuery(filter = equal("state.orders.status", "PAID"), limit = 10),
+        ).test()
+            .expectError(QuerySchemaValidationException::class.java)
+            .verify()
+
+        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+    }
+
+    @Test
+    fun `strict service should reject a root nested child sort before search`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(queryMapping()),
+        )
+
+        strictQueryService().dynamicList(
+            ListQuery(
+                filter = MatchAllFilter,
+                sort = listOf(Sort("state.orders.status", Sort.Direction.ASC)),
+                limit = 10,
+            ),
+        ).test()
+            .expectError(QuerySchemaValidationException::class.java)
+            .verify()
+
+        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+    }
+
+    @Test
+    fun `strict service should reject presence checks on object containers before search`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(queryMapping()),
+        )
+        val service = strictQueryService()
+
+        listOf(
+            ExistsFilter(LogicalField("state")),
+            IsEmptyFilter(LogicalField("state.orders")),
+        ).forEach { filter ->
+            service.dynamicList(ListQuery(filter = filter, limit = 10)).test()
+                .expectError(QuerySchemaValidationException::class.java)
+                .verify()
+        }
+
+        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+    }
+
+    @Test
+    fun `strict service should execute a nested child inside element match`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(queryMapping()),
+        )
+
+        strictQueryService().dynamicList(
+            ListQuery(
+                filter = filter {
+                    "state.orders".elementMatch {
+                        "status" eq "PAID"
+                    }
+                },
+                limit = 10,
+            ),
+        ).test().verifyComplete()
+
+        val nested = searchRequest.captured.query()!!.bool().filter()[1].nested()
+        nested.path().assert().isEqualTo("state.orders")
+        nested.query().term().field().assert().isEqualTo("state.orders.status")
+        verify(exactly = 1) { client.search(any<SearchRequest>(), Map::class.java) }
+    }
+
+    @Test
+    fun `strict service should reject a child below a single nested parent before search`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(queryMapping()),
+        )
+
+        strictQueryService().dynamicList(
+            ListQuery(filter = equal("state.singleOrders.status", "PAID"), limit = 10),
+        ).test()
+            .expectError(QuerySchemaValidationException::class.java)
+            .verify()
+
+        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+    }
+
+    @Test
+    fun `strict service should reject a child sort below a non-object nested parent before search`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(queryMapping()),
+        )
+
+        strictQueryService().dynamicList(
+            ListQuery(
+                filter = MatchAllFilter,
+                sort = listOf(Sort("state.stringOrders.status", Sort.Direction.ASC)),
+                limit = 10,
+            ),
+        ).test()
+            .expectError(QuerySchemaValidationException::class.java)
+            .verify()
+
+        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+    }
+
+    @Test
+    fun `strict service should reject a child of an unindexed flattened field before search`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(
+                TypeMapping.of { mapping ->
+                    mapping.properties("tags") { it.flattened { flattened -> flattened.index(false) } }
+                },
+            ),
+        )
+
+        strictQueryService(emptyList()).dynamicList(
+            ListQuery(filter = equal("tags.department", "eng"), limit = 10),
+        ).test()
+            .expectError(QuerySchemaValidationException::class.java)
+            .verify()
+
+        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+    }
+
+    @Test
+    fun `strict service should reject dynamic exact without a keyword template before search`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(
+                TypeMapping.of { mapping ->
+                    mapping.properties("tags") {
+                        it.`object` { objectField -> objectField.dynamic(co.elastic.clients.elasticsearch._types.mapping.DynamicMapping.True) }
+                    }
+                },
+            ),
+        )
+
+        strictQueryService(emptyList()).dynamicList(
+            ListQuery(filter = equal("tags.department", "eng"), limit = 10),
+        ).test()
+            .expectError(QuerySchemaValidationException::class.java)
+            .verify()
+
+        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+    }
+
+    @Test
+    fun `compatible service should reject a known dynamic suffix before search`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(
+                TypeMapping.of { mapping ->
+                    mapping.properties("tags") {
+                        it.`object` { objectField -> objectField.dynamic(DynamicMapping.True) }
+                    }
+                },
+            ),
+        )
+
+        queryService().dynamicList(
+            ListQuery(filter = equal("tags.department", "eng"), limit = 10),
+        ).test().expectError(QuerySchemaValidationException::class.java).verify()
+
+        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+    }
+
+    @Test
+    fun `compatible service should not search system tags when mapping is unavailable`() {
+        val failure = IllegalStateException("mapping unavailable")
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.error(failure)
+
+        queryService().dynamicList(
+            ListQuery(filter = equal("tags.department", "eng"), limit = 10),
+        ).test()
+            .expectErrorSatisfies { error ->
+                error.assert().isInstanceOf(QuerySchemaUnavailableException::class.java)
+                error.cause.assert().isSameAs(failure)
+            }
+            .verify()
+
+        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+    }
+
+    @Test
+    fun `strict service should reject an indexed dynamic flattened suffix before search`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(
+                TypeMapping.of { mapping ->
+                    mapping.properties("tags") { it.flattened { flattened -> flattened } }
+                },
+            ),
+        )
+
+        strictQueryService(emptyList()).dynamicList(
+            ListQuery(filter = equal("tags.department", "eng"), limit = 10),
+        ).test().expectError(QuerySchemaValidationException::class.java).verify()
+
+        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
     }
 
     @Test
@@ -112,7 +352,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             service.dynamicList(
                 ListQuery(filter = equal("state.newField", "new"), limit = 10),
             ).test()
-                .expectError(ElasticsearchFieldResolutionException::class.java)
+                .expectError(QuerySchemaValidationException::class.java)
                 .verify()
         }
 
@@ -148,14 +388,13 @@ class ElasticsearchSnapshotMappingQueryTest {
             Mono.just(mappingResponse(queryMapping())),
             Mono.just(mappingResponse(queryMapping(includeNewField = true))),
         )
-        val resolver = ElasticsearchIndexMappingResolver(client)
-        val service = queryService(resolver)
+        val service = queryService()
         val query = ListQuery(filter = equal("state.newField", "new"), limit = 10)
 
         service.dynamicList(query).test()
-            .expectError(ElasticsearchFieldResolutionException::class.java)
+            .expectError(QuerySchemaValidationException::class.java)
             .verify()
-        service.refreshIndexMapping().block()
+        service.requiredQueryModelSchemaProvider().refresh().block()
         service.dynamicList(query).collectList().block()
 
         searchRequest.captured.query()!!.bool().filter()[1].term().field().assert().isEqualTo("state.newField")
@@ -168,17 +407,45 @@ class ElasticsearchSnapshotMappingQueryTest {
             Mono.just(mappingResponse(queryMapping())),
             Mono.just(mappingResponse(queryMapping(includeNewField = true))),
         )
-        val factory = ElasticsearchSnapshotQueryServiceFactory(client)
+        val factory = ElasticsearchSnapshotQueryServiceFactory(
+            client,
+            DEFAULT_SEARCH_BATCH_SIZE,
+            DEFAULT_PIT_KEEP_ALIVE,
+            schemaSources(),
+            QuerySchemaValidationMode.COMPATIBLE,
+        )
         val service = factory.create<Any>(MOCK_AGGREGATE_METADATA)
         val query = ListQuery(filter = equal("state.newField", "new"), limit = 10)
 
         service.dynamicList(query).test()
-            .expectError(ElasticsearchFieldResolutionException::class.java)
+            .expectError(QuerySchemaValidationException::class.java)
             .verify()
-        factory.refreshIndexMapping(MOCK_AGGREGATE_METADATA).block()
+        service.requiredQueryModelSchemaProvider().refresh().block()
         service.dynamicList(query).collectList().block()
 
         verify(exactly = 2) { indicesClient.getMapping(any<GetMappingRequest>()) }
+    }
+
+    @Test
+    fun `factory with schema sources should use the supplied mapping resolver`() {
+        val failure = IllegalStateException("custom resolver was used")
+        val resolver = mockk<ElasticsearchIndexMappingResolver> {
+            every { currentOrLoad(any()) } returns Mono.error(failure)
+        }
+        val service = ElasticsearchSnapshotQueryServiceFactory(
+            client,
+            DEFAULT_SEARCH_BATCH_SIZE,
+            DEFAULT_PIT_KEEP_ALIVE,
+            resolver,
+            schemaSources(),
+            QuerySchemaValidationMode.COMPATIBLE,
+        ).create<Any>(MOCK_AGGREGATE_METADATA)
+
+        service.requiredQueryModelSchemaProvider().schema().test()
+            .expectErrorSatisfies { it.cause.assert().isSameAs(failure) }
+            .verify()
+
+        verify(exactly = 1) { resolver.currentOrLoad("wow.tck.mock_aggregate.snapshot") }
     }
 
     @Test
@@ -200,21 +467,65 @@ class ElasticsearchSnapshotMappingQueryTest {
         service.dynamicList(ListQuery(filter = filter, limit = 10)).collectList().block()
 
         convertedFilter.captured.assert().isSameAs(filter)
-        assertThrows<IllegalArgumentException> { service.refreshIndexMapping() }
         verify(exactly = 0) { client.indices() }
     }
 
-    private fun queryService(
-        resolver: ElasticsearchIndexMappingResolver = ElasticsearchIndexMappingResolver(client),
-    ): ElasticsearchSnapshotQueryService<Any> =
-        ElasticsearchSnapshotQueryService(
-            MOCK_AGGREGATE_METADATA,
+    private fun queryService(): ElasticsearchSnapshotQueryService<Any> =
+        ElasticsearchSnapshotQueryServiceFactory(
             client,
-            SnapshotFilterConverter,
             DEFAULT_SEARCH_BATCH_SIZE,
             DEFAULT_PIT_KEEP_ALIVE,
-            resolver,
+            schemaSources(),
+            QuerySchemaValidationMode.COMPATIBLE,
+        ).create<Any>(MOCK_AGGREGATE_METADATA) as ElasticsearchSnapshotQueryService<Any>
+
+    private fun strictQueryService(
+        sources: List<QuerySchemaSource> = schemaSources(),
+    ): ElasticsearchSnapshotQueryService<Any> =
+        ElasticsearchSnapshotQueryServiceFactory(
+            client,
+            DEFAULT_SEARCH_BATCH_SIZE,
+            DEFAULT_PIT_KEEP_ALIVE,
+            sources,
+            QuerySchemaValidationMode.STRICT,
+        ).create<Any>(MOCK_AGGREGATE_METADATA) as ElasticsearchSnapshotQueryService<Any>
+
+    private fun schemaSources(): List<QuerySchemaSource> {
+        val context = QuerySchemaContext(MOCK_AGGREGATE_METADATA.materialize(), QueryModel.SNAPSHOT)
+        val fields = listOf(
+            "state.name" to QueryValueType.STRING,
+            "state.age" to QueryValueType.INTEGER,
+            "state.newField" to QueryValueType.STRING,
+        ).associate { (field, type) ->
+            LogicalField(field) to QueryFieldDeclaration(valueTypes = DeclarationValue.Set(setOf(type)))
+        }.toMutableMap()
+        fields[LogicalField("state.orders")] = QueryFieldDeclaration(
+            valueTypes = DeclarationValue.Set(setOf(QueryValueType.OBJECT)),
+            cardinality = DeclarationValue.Set(QueryCardinality.MANY),
         )
+        fields[LogicalField("state.orders.status")] = QueryFieldDeclaration(
+            valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
+        )
+        fields[LogicalField("state.singleOrders")] = QueryFieldDeclaration(
+            valueTypes = DeclarationValue.Set(setOf(QueryValueType.OBJECT)),
+            cardinality = DeclarationValue.Set(QueryCardinality.SINGLE),
+        )
+        fields[LogicalField("state.singleOrders.status")] = QueryFieldDeclaration(
+            valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
+        )
+        fields[LogicalField("state.stringOrders")] = QueryFieldDeclaration(
+            valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
+            cardinality = DeclarationValue.Set(QueryCardinality.MANY),
+        )
+        fields[LogicalField("state.stringOrders.status")] = QueryFieldDeclaration(
+            valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
+        )
+        return listOf(
+            BeanQuerySchemaSource(
+                listOf(QuerySchemaRegistration(context, QuerySchemaDeclaration(fields))),
+            ),
+        )
+    }
 
     private fun equal(field: String, value: Any): EqualFilter =
         EqualFilter(LogicalField(field), JsonSerializer.valueToTree(value))
@@ -248,6 +559,20 @@ class ElasticsearchSnapshotMappingQueryTest {
                                 text.fields("keyword") { keyword -> keyword.keyword { it } }
                             }
                         }.properties("age") { age -> age.integer { it } }
+                        .properties("orders") { orders ->
+                            orders.nested { nested ->
+                                nested.properties("status") { status -> status.keyword { it } }
+                            }
+                        }
+                        .properties("singleOrders") { orders ->
+                            orders.nested { nested ->
+                                nested.properties("status") { status -> status.keyword { it } }
+                            }
+                        }.properties("stringOrders") { orders ->
+                            orders.nested { nested ->
+                                nested.properties("status") { status -> status.keyword { it } }
+                            }
+                        }
                     if (includeNewField) {
                         objectField.properties("newField") { field -> field.keyword { it } }
                     }

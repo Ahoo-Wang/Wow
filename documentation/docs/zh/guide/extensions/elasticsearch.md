@@ -148,10 +148,17 @@ SnapshotStore 使用带 scripted upsert 的 Bulk `update`，direct 路径使用�
 
 ## 快照查询字段解析
 
-快照查询第一次访问聚合索引时会异步加载当前 Elasticsearch Mapping，并按物理字段能力编译条件和排序；Mapping
-是字段能力的唯一来源，不需要维护额外的 `QuerySchema`。缓存按索引隔离且没有 TTL。缓存中的字段缺失或能力不匹配时，
-查询直接失败且不会隐式访问 Mapping API；存在性操作除外，因为 Elasticsearch 可以对未映射逻辑字段执行 `exists`。
-Mapping 变更后通过维护端点显式刷新。
+快照查询使用协商后的运行时 Query Schema。Wow 先合并 System 骨架、JSON Schema/注解、Classpath 文件、Bean 和工作目录文件，
+再由 Elasticsearch Mapping 绑定物理字段与可执行能力。声明优先级从低到高依次为 JSON Schema 推断、`@QueryTemporal` 语义覆盖、
+Classpath、Bean、工作目录；高优先级只覆盖显式声明的叶子。`model` 文件名强制使用小写，例如 `snapshot.json`。约定文件位置固定为：
+
+```text
+classpath:wow-query-schema/{contextName}/{aggregateName}/{model}.json
+./config/wow-query-schema/{contextName}/{aggregateName}/{model}.json
+```
+
+最终 Schema 按 QueryService 缓存且没有 TTL。`GET /{aggregate}/snapshot/schema` 返回不含物理 binding 的公共元数据；Mapping、索引或
+声明修正后，调用 `POST /{aggregate}/snapshot/schema/refresh` 重新协商当前服务实例。刷新失败保留旧缓存，不会广播到其他实例。
 
 字段选择规则如下：
 
@@ -160,7 +167,7 @@ Mapping 变更后通过维护端点显式刷新。
 | `EQ`、`NE`、`IN`、`NOT_IN`、`ALL_IN`、`TRUE`、`FALSE` | 可执行 term 查询，包括受支持的 doc-value-only 字段 |
 | `CONTAINS`、`STARTS_WITH`、`ENDS_WITH` | `keyword` 或 `wildcard` |
 | 范围操作 | numeric、date、ip、keyword 或 `*_range`，支持适用的 `doc_values=true,index=false` 字段 |
-| `IS_EMPTY`、null 与存在性操作 | 任意已索引或可通过 doc values 查询的字段；Elasticsearch 空数组没有索引值，因此 `IS_EMPTY` 编译为 `NOT EXISTS` |
+| `IS_EMPTY`、null 与存在性操作 | 已索引或可通过 doc values 查询的叶子字段；object/nested 容器本身不提供存在性能力。Elasticsearch 空数组没有索引值，因此 `IS_EMPTY` 编译为 `NOT EXISTS` |
 | `MATCH` | `text`、`match_only_text`、`search_as_you_type` 或 `semantic_text` |
 | 排序 | 启用 `doc_values` 的可排序字段、启用 `fielddata` 的已索引 `text` 字段，或可排序 runtime field |
 
@@ -168,9 +175,10 @@ Mapping 变更后通过维护端点显式刷新。
 `text.fielddata=true` 会占用较多堆内存，通常仍应优先使用 `keyword` multi-field；doc-values 字段和 runtime field
 排序不要求 `index=true`。
 
-flattened 字段的动态键不会单独出现在 Mapping 中。Resolver 会从 `state.labels.release` 这类具体路径向上查找最近的
-flattened 父字段，并保留原路径执行精确和排序操作。flattened 值均按 keyword 处理，排序是字典序；
-动态键不自动启用范围操作，显式声明的 typed sub-field 仍使用自身类型能力。
+动态后代不会单独出现在 Mapping 中，也无法仅凭当前 Mapping 证明索引设置、历史文档和写入边界始终具有相同语义。因此首期
+Elasticsearch 最终 Schema 不发布动态后代能力：`STRICT` 拒绝未知后代；`COMPATIBLE` 仅对普通未知路径保留原有后端回退。
+固定 System `tags.*` 涉及 ABAC：引用它们的根过滤条件不会回退，即使 Schema 暂时不可用也会失败关闭；仅 projection/sort
+引用 `tags.*` 时仍遵循 Schema 不可用下的普通 `COMPATIBLE` 回退。显式映射的 typed sub-field 仍使用自身能力。
 
 例如，同一逻辑字段可同时支持全文搜索和精确查询：
 
@@ -212,78 +220,19 @@ Field alias 继承其目标字段的查询与排序能力，并继续使用 alia
 每个聚合必须解析到一个物理快照索引。alias 或 data stream 如果解析出多个索引，查询会失败；这种拓扑需要先收敛为
 单个物理索引，或由应用自行实现基于 `_field_caps` 的查询方案。
 
-## 主动刷新 Mapping
+## 刷新运行时查询 Schema
 
-非 Spring 场景可直接刷新默认构造路径持有的缓存：
-
-```kotlin
-queryService.refreshIndexMapping().block()
-queryServiceFactory.refreshIndexMapping(namedAggregate).block()
-```
-
-Factory 方法刷新该 Factory 创建的查询服务共享的 Resolver；直接构造的 `ElasticsearchSnapshotQueryService`
-使用实例方法刷新自身 Resolver。
-
-应用引入 `org.springframework.boot:spring-boot-starter-actuator` 后会注册可选维护端点。端点默认不可访问，必须同时配置
-access 和 Web exposure，并由管理端安全策略限制为维护角色：
-
-::: code-group
-```kotlin [Gradle(Kotlin)]
-implementation("org.springframework.boot:spring-boot-starter-actuator")
-```
-```xml [Maven]
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-actuator</artifactId>
-</dependency>
-```
-:::
-
-```yaml
-management:
-  endpoint:
-    wowElasticsearchMapping:
-      access: unrestricted
-  endpoints:
-    web:
-      exposure:
-        include: health,wowElasticsearchMapping
-```
-
-按已注册聚合刷新当前实例的 Mapping：
+先使用 `GET /{aggregate}/snapshot/schema` 查看当前聚合的逻辑字段与能力；按已注册聚合刷新当前实例的 Schema：
 
 ```bash
-curl -X POST \
-  http://localhost:8080/actuator/wowElasticsearchMapping/order-service/order
+curl -X POST http://localhost:8080/order/snapshot/schema/refresh
 ```
 
-响应示例：
+该 POST 路由使用独立授权策略，可限制为维护角色。它重新读取 Mapping、约定文件和其他 Schema 来源；成功后返回新的公共 Metadata。Elasticsearch 凭据仍需要目标索引的 `view_index_metadata` 权限，因为后端 Adapter 必须读取 Mapping。
 
-```json
-{
-  "scope": "LOCAL_INSTANCE",
-  "indexName": "wow.order-service.order.snapshot",
-  "fieldCount": 24,
-  "changed": true,
-  "refreshedAt": "2026-08-21T09:00:00Z"
-}
-```
+权限不足、索引不存在或 Mapping 无法解析时，刷新返回错误但保留已有成功缓存。刷新不修改 Elasticsearch Mapping、不重建索引，也不回填历史快照；它只影响收到请求的本实例，不广播。多副本部署需要逐 Pod 调用；在途查询继续使用开始编译时取得的旧 Schema。
 
-端点不接受任意索引表达式，索引名由聚合元数据计算。`fieldCount` 是解析到的字段路径数，`changed`
-表示新能力模型是否与刷新前不同；响应不会返回完整 Mapping。未注册的聚合返回 `400 Bad Request`。
-
-Elasticsearch 凭据需要目标索引的 `view_index_metadata` 权限；权限不足、索引不存在或 Mapping 无法解析时
-请求失败，已有成功缓存不受影响。刷新只重新加载查询能力缓存，不修改 Elasticsearch Mapping、
-不重建索引，也不回填历史快照。
-
-刷新只作用于收到请求的应用实例。多副本部署需要运维逐 Pod 调用；当前不提供广播、定时刷新或“刷新全部聚合”。
-刷新完成后的新查询使用新 Mapping，已经在途的查询继续使用其开始编译时取得的旧 Mapping。
-
-Mapping 发布必须按以下顺序执行：
-
-1. 更新目标索引 Mapping；需要历史数据转换时先完成 reindex 或快照重建。
-2. 对每个应用 Pod 调用上述刷新端点，并确认返回的 `fieldCount` 与 `changed` 符合预期。
-3. 在每个 Pod 执行代表性精确查询、全文查询和排序查询，核对结果数、顺序与快照版本后再完成发布。
+发布 Mapping 时先更新索引并完成必要的 reindex 或快照重建，再逐 Pod 刷新 Schema，并在每个 Pod 运行代表性的精确、全文和排序查询后完成发布。
 
 ## 配置事件流索引模板
 
@@ -659,13 +608,12 @@ PIT 列表查询未指定 `sort` 时只按 `_shard_doc` 扫描，结果顺序不
 
 #### 1. 查询报字段未映射、能力不兼容或 multi-field 存在歧义
 
-使用 `GET /{indexName}/_mapping` 检查当前物理 Mapping，再调用主动刷新端点。多个兼容子字段时，使用
-`.keyword`、`.text` 或 `.exact` 的约定名称消除歧义。
+使用 `GET /{aggregate}/snapshot/schema` 检查当前聚合的逻辑字段与能力；需要重读 Mapping 时，调用
+`POST /{aggregate}/snapshot/schema/refresh`。多个兼容子字段时，使用 `.keyword`、`.text` 或 `.exact` 的约定名称消除歧义。
 
 #### 2. 刷新端点不可用或刷新失败
 
-`404` 时检查 Actuator 依赖、endpoint access 和 Web exposure；`400` 时检查 `contextName` 和 `aggregateName`
-是否已注册。Elasticsearch 错误时检查索引是否存在以及 `view_index_metadata` 权限。刷新失败不会删除旧缓存。
+确认应用已注册 WebFlux query route，并且该聚合的 GET/POST 路由已按当前实例的 OpenAPI 路径 materialize。refresh 使用独立路由授权，可与普通查询分别限制。`500` 表示 Schema 声明冲突，`503` 表示 Mapping 或其他 Schema 来源不可用；后者应检查索引是否存在及 `view_index_metadata` 权限。刷新失败不会删除旧缓存。
 
 #### 3. alias 或 data stream 无法解析
 

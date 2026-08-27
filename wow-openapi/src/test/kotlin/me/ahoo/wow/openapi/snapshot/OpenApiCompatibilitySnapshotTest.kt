@@ -135,6 +135,29 @@ internal class OpenApiCompatibilitySnapshotTest {
     }
 
     @Test
+    fun `snapshot canonicalization should preserve a schema property named description`() {
+        val document = mapper.readTree(
+            """
+            {
+              "description": "Noisy document description",
+              "properties": {
+                "description": {
+                  "description": "Noisy property description",
+                  "type": "string"
+                }
+              }
+            }
+            """.trimIndent()
+        )
+
+        val canonical = OpenApiSnapshotSupport.canonicalize(document)
+
+        canonical.has("description").assert().isFalse()
+        canonical["properties"].has("description").assert().isTrue()
+        canonical["properties"]["description"].has("description").assert().isFalse()
+    }
+
+    @Test
     fun `parameter identity should preserve references and inline fallback`() {
         val refParameter = Parameter().`$ref`("#/components/parameters/CommandId")
         val fallbackParameter = Parameter().required(false)

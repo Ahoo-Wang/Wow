@@ -52,6 +52,12 @@ class AbacQueryFilterTest {
     }
 
     @Test
+    fun `principal tag values should remain backend neutral`() {
+        mapOf("department" to listOf("x".repeat(9000))).toFilterExpression()
+            .assert().isInstanceOf(AndFilter::class.java)
+    }
+
+    @Test
     fun `tag key equal to tags path should remain relative`() {
         val filter = mapOf("tags" to listOf("*")).entries.first().toFilterExpression()
 

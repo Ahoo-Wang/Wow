@@ -44,6 +44,14 @@ import tools.jackson.databind.node.JsonNodeFactory
 import java.util.UUID
 
 class ElasticsearchFilterConverterTest {
+    @Test
+    fun `model level search should be lenient while explicit fields keep strict parsing`() {
+        RawFilterConverter.convert(SearchFilter("value")).multiMatch().lenient().assert().isTrue()
+        RawFilterConverter.convert(
+            SearchFilter("value", setOf(LogicalField("state.value"))),
+        ).multiMatch().lenient().assert().isNull()
+    }
+
     private fun assertConvert(actual: Query, expected: Query) {
         actual._kind().assert().isEqualTo(Query.Kind.Bool)
         val filters = actual.bool().filter()

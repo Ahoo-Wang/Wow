@@ -28,9 +28,14 @@ import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStore
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStoreBatchOptions
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStoreBatchOptions
+import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
 import me.ahoo.wow.elasticsearch.query.event.ElasticsearchEventStreamQueryServiceFactory
 import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryServiceFactory
 import me.ahoo.wow.metrics.WowMetrics
+import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QuerySchemaContext
+import me.ahoo.wow.query.schema.QuerySchemaDeclaration
+import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
@@ -38,6 +43,9 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBindin
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.StorageRoutingProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
+import me.ahoo.wow.spring.boot.starter.query.QueryProperties
+import me.ahoo.wow.spring.boot.starter.query.QuerySchemaAutoConfiguration
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.mock
 import org.springframework.beans.factory.support.StaticListableBeanFactory
@@ -51,11 +59,14 @@ import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchCl
 import org.springframework.data.elasticsearch.core.ReactiveElasticsearchOperations
 import org.springframework.data.elasticsearch.core.ReactiveIndexOperations
 import org.springframework.data.elasticsearch.core.mapping.IndexCoordinates
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
+import reactor.kotlin.test.test
 
 internal class ElasticsearchEventSourcingAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
+        .withUserConfiguration(QuerySchemaAutoConfiguration::class.java)
     private val metricsProvider = StaticListableBeanFactory(
         mapOf("wowMetrics" to WowMetrics.NONE)
     ).getBeanProvider(WowMetrics::class.java)
@@ -83,6 +94,28 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
     }
 
     @Test
+    fun `should pass query schema sources to snapshot factory`() {
+        val expected = IllegalStateException("query schema source was used")
+        val configuration = ElasticsearchEventSourcingAutoConfiguration(
+            elasticsearchProperties = ElasticsearchProperties(autoInitTemplate = false),
+            eventStoreBatchProperties = ElasticsearchEventStoreBatchProperties(),
+            snapshotStoreBatchProperties = ElasticsearchSnapshotStoreBatchProperties(),
+        )
+        val factory = configuration.elasticsearchSnapshotQueryServiceFactory(
+            elasticsearchClient = mock(ReactiveElasticsearchClient::class.java),
+            elasticsearchIndexMappingResolver = mockk<ElasticsearchIndexMappingResolver>(),
+            sources = listOf(failingQuerySchemaSource(expected)),
+            schemaQueryProperties = QueryProperties(),
+        )
+
+        (factory.create<Any>(MOCK_AGGREGATE_METADATA) as QueryModelSchemaProvider)
+            .schema()
+            .test()
+            .expectErrorSatisfies { it.assert().isSameAs(expected) }
+            .verify()
+    }
+
+    @Test
     fun `should auto configure reactive elasticsearch infrastructure from feature dependencies`() {
         ApplicationContextRunner()
             .enableWow()
@@ -91,6 +124,7 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
                     ElasticsearchRestClientAutoConfiguration::class.java,
                     ElasticsearchClientAutoConfiguration::class.java,
                     DataElasticsearchAutoConfiguration::class.java,
+                    QuerySchemaAutoConfiguration::class.java,
                     ElasticsearchEventSourcingAutoConfiguration::class.java,
                 ),
             )
@@ -120,6 +154,7 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
                     ElasticsearchRestClientAutoConfiguration::class.java,
                     ElasticsearchClientAutoConfiguration::class.java,
                     DataElasticsearchAutoConfiguration::class.java,
+                    QuerySchemaAutoConfiguration::class.java,
                     ElasticsearchEventSourcingAutoConfiguration::class.java,
                 ),
             )
@@ -260,6 +295,12 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
             it.batchSize.assert().isEqualTo(512)
             it.keepAlive.assert().isEqualTo(java.time.Duration.ofMinutes(5))
         }
+    }
+
+    private fun failingQuerySchemaSource(error: Throwable): QuerySchemaSource = object : QuerySchemaSource {
+        override val priority: Int = 0
+
+        override fun load(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> = Flux.error(error)
     }
 
     private fun assertBatchOptions(context: AssertableApplicationContext) {

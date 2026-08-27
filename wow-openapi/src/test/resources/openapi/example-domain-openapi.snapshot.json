@@ -829,6 +829,7 @@
       }
     },
     "schemas" : {
+      "example.JsonNode" : { },
       "example.StringObjectMap" : {
         "type" : "object"
       },
@@ -840,6 +841,10 @@
           "type" : "array"
         },
         "type" : "object"
+      },
+      "example.TimeUnit" : {
+        "enum" : [ "NANOSECONDS", "MICROSECONDS", "MILLISECONDS", "SECONDS", "MINUTES", "HOURS", "DAYS" ],
+        "type" : "string"
       },
       "example.cart.AddCartItem" : {
         "properties" : {
@@ -2657,7 +2662,7 @@
         "type" : "object"
       },
       "tck.mock_aggregate.MockCommandAggregateAggregatedFields" : {
-        "enum" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.data", "state.decimalValue", "state.id", "state.orders", "state.orders.lines", "state.orders.lines.amount", "state.orders.lines.createdAt", "state.orders.lines.discounts", "state.orders.lines.discounts.amount", "state.orders.lines.discounts.type", "state.orders.lines.productId", "state.orders.lines.quantity", "state.orders.lines.samples", "state.orders.status", "tags", "tenantId", "version" ],
+        "enum" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.createdAt", "state.data", "state.decimalValue", "state.id", "state.orders", "state.orders.lines", "state.orders.lines.amount", "state.orders.lines.createdAt", "state.orders.lines.discounts", "state.orders.lines.discounts.amount", "state.orders.lines.discounts.type", "state.orders.lines.productId", "state.orders.lines.quantity", "state.orders.lines.samples", "state.orders.status", "tags", "tenantId", "version" ],
         "type" : "string"
       },
       "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedDomainEventStream" : {
@@ -3052,6 +3057,10 @@
       },
       "tck.mock_aggregate.MockStateAggregate" : {
         "properties" : {
+          "createdAt" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
           "data" : {
             "type" : "string"
           },
@@ -3269,6 +3278,10 @@
           },
           "state" : {
             "properties" : {
+              "createdAt" : {
+                "format" : "int64",
+                "type" : "integer"
+              },
               "data" : {
                 "type" : "string"
               },
@@ -3417,6 +3430,10 @@
           },
           "state" : {
             "properties" : {
+              "createdAt" : {
+                "format" : "int64",
+                "type" : "integer"
+              },
               "data" : {
                 "type" : "string"
               },
@@ -5826,6 +5843,121 @@
         },
         "type" : "object"
       },
+      "wow.api.query.QueryCapability" : {
+        "type" : "string"
+      },
+      "wow.api.query.QueryCardinality" : {
+        "enum" : [ "SINGLE", "MANY" ],
+        "type" : "string"
+      },
+      "wow.api.query.QueryFieldSchemaMetadata" : {
+        "properties" : {
+          "capabilities" : {
+            "items" : {
+              "$ref" : "#/components/schemas/wow.api.query.QueryCapability"
+            },
+            "type" : "array"
+          },
+          "cardinality" : {
+            "$ref" : "#/components/schemas/wow.api.query.QueryCardinality"
+          },
+          "description" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
+          },
+          "dynamicChildren" : {
+            "type" : "boolean"
+          },
+          "enumValues" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "items" : {
+                "$ref" : "#/components/schemas/example.JsonNode"
+              },
+              "type" : "array"
+            } ]
+          },
+          "field" : {
+            "$ref" : "#/components/schemas/wow.api.query.LogicalField"
+          },
+          "nullable" : {
+            "type" : "boolean"
+          },
+          "required" : {
+            "type" : "boolean"
+          },
+          "semanticType" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.QuerySemanticType"
+            } ]
+          },
+          "title" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
+          },
+          "valueTypes" : {
+            "items" : {
+              "$ref" : "#/components/schemas/wow.api.query.QueryValueType"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "capabilities", "cardinality", "description", "dynamicChildren", "enumValues", "field", "nullable", "required", "semanticType", "title", "valueTypes" ],
+        "type" : "object"
+      },
+      "wow.api.query.QueryModel" : {
+        "type" : "string"
+      },
+      "wow.api.query.QueryModelSchemaMetadata" : {
+        "properties" : {
+          "capabilities" : {
+            "items" : {
+              "$ref" : "#/components/schemas/wow.api.query.QueryCapability"
+            },
+            "type" : "array"
+          },
+          "fields" : {
+            "items" : {
+              "$ref" : "#/components/schemas/wow.api.query.QueryFieldSchemaMetadata"
+            },
+            "type" : "array"
+          },
+          "model" : {
+            "$ref" : "#/components/schemas/wow.api.query.QueryModel"
+          }
+        },
+        "required" : [ "capabilities", "fields", "model" ],
+        "type" : "object"
+      },
+      "wow.api.query.QuerySemanticType" : {
+        "discriminator" : {
+          "mapping" : {
+            "TEMPORAL_DATE" : "#/components/schemas/wow.api.query.Temporal.Date",
+            "TEMPORAL_EPOCH" : "#/components/schemas/wow.api.query.Temporal.Epoch",
+            "TEMPORAL_FORMATTED" : "#/components/schemas/wow.api.query.Temporal.Formatted"
+          },
+          "propertyName" : "type"
+        },
+        "oneOf" : [ {
+          "$ref" : "#/components/schemas/wow.api.query.Temporal.Date"
+        }, {
+          "$ref" : "#/components/schemas/wow.api.query.Temporal.Epoch"
+        }, {
+          "$ref" : "#/components/schemas/wow.api.query.Temporal.Formatted"
+        } ]
+      },
+      "wow.api.query.QueryValueType" : {
+        "type" : "string"
+      },
       "wow.api.query.SingleQuery" : {
         "additionalProperties" : false,
         "properties" : {
@@ -5861,6 +5993,39 @@
       "wow.api.query.Sort.Direction" : {
         "enum" : [ "ASC", "DESC" ],
         "type" : "string"
+      },
+      "wow.api.query.Temporal.Date" : {
+        "properties" : {
+          "type" : {
+            "const" : "TEMPORAL_DATE"
+          }
+        },
+        "required" : [ "type" ],
+        "type" : "object"
+      },
+      "wow.api.query.Temporal.Epoch" : {
+        "properties" : {
+          "timeUnit" : {
+            "$ref" : "#/components/schemas/example.TimeUnit"
+          },
+          "type" : {
+            "const" : "TEMPORAL_EPOCH"
+          }
+        },
+        "required" : [ "type" ],
+        "type" : "object"
+      },
+      "wow.api.query.Temporal.Formatted" : {
+        "properties" : {
+          "pattern" : {
+            "type" : "string"
+          },
+          "type" : {
+            "const" : "TEMPORAL_FORMATTED"
+          }
+        },
+        "required" : [ "pattern", "type" ],
+        "type" : "object"
       },
       "wow.command.CommandResult" : {
         "properties" : {
@@ -6052,6 +6217,9 @@
             }, {
               "type" : "string"
             } ]
+          },
+          "description" : {
+            "type" : "string"
           },
           "scopes" : {
             "items" : {
@@ -6578,6 +6746,58 @@
               }
             }
           }
+        },
+        "tags" : [ "example.cart", "customer" ]
+      }
+    },
+    "/cart/snapshot/schema" : {
+      "get" : {
+        "operationId" : "example.cart.snapshot_schema.get",
+        "parameters" : [ ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "400" : { },
+          "500" : { },
+          "503" : { }
+        },
+        "tags" : [ "example.cart", "customer" ]
+      }
+    },
+    "/cart/snapshot/schema/refresh" : {
+      "post" : {
+        "operationId" : "example.cart.snapshot_schema.refresh",
+        "parameters" : [ ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "400" : { },
+          "500" : { },
+          "503" : { }
         },
         "tags" : [ "example.cart", "customer" ]
       }
@@ -8524,6 +8744,62 @@
         "tags" : [ "example.order" ]
       }
     },
+    "/sales-order/snapshot/schema" : {
+      "get" : {
+        "operationId" : "example.order.snapshot_schema.get",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.Wow-Space-Id"
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "400" : { },
+          "500" : { },
+          "503" : { }
+        },
+        "tags" : [ "example.order" ]
+      }
+    },
+    "/sales-order/snapshot/schema/refresh" : {
+      "post" : {
+        "operationId" : "example.order.snapshot_schema.refresh",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.Wow-Space-Id"
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "400" : { },
+          "500" : { },
+          "503" : { }
+        },
+        "tags" : [ "example.order" ]
+      }
+    },
     "/sales-order/snapshot/single" : {
       "post" : {
         "operationId" : "example.order.snapshot.single",
@@ -8914,6 +9190,58 @@
         "tags" : [ "tck.mock_aggregate" ]
       }
     },
+    "/tck/mock_aggregate/snapshot/schema" : {
+      "get" : {
+        "operationId" : "tck.mock_aggregate.snapshot_schema.get",
+        "parameters" : [ ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "400" : { },
+          "500" : { },
+          "503" : { }
+        },
+        "tags" : [ "tck.mock_aggregate" ]
+      }
+    },
+    "/tck/mock_aggregate/snapshot/schema/refresh" : {
+      "post" : {
+        "operationId" : "tck.mock_aggregate.snapshot_schema.refresh",
+        "parameters" : [ ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "400" : { },
+          "500" : { },
+          "503" : { }
+        },
+        "tags" : [ "tck.mock_aggregate" ]
+      }
+    },
     "/tck/mock_aggregate/snapshot/single" : {
       "post" : {
         "operationId" : "tck.mock_aggregate.snapshot.single",
@@ -9296,6 +9624,58 @@
         "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
       }
     },
+    "/tck/modeling_command_aggregate_with_tenant_id/snapshot/schema" : {
+      "get" : {
+        "operationId" : "tck.modeling_command_aggregate_with_tenant_id.snapshot_schema.get",
+        "parameters" : [ ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "400" : { },
+          "500" : { },
+          "503" : { }
+        },
+        "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+      }
+    },
+    "/tck/modeling_command_aggregate_with_tenant_id/snapshot/schema/refresh" : {
+      "post" : {
+        "operationId" : "tck.modeling_command_aggregate_with_tenant_id.snapshot_schema.refresh",
+        "parameters" : [ ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "400" : { },
+          "500" : { },
+          "503" : { }
+        },
+        "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+      }
+    },
     "/tck/modeling_command_aggregate_with_tenant_id/snapshot/single" : {
       "post" : {
         "operationId" : "tck.modeling_command_aggregate_with_tenant_id.snapshot.single",
@@ -9674,6 +10054,58 @@
               }
             }
           }
+        },
+        "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+      }
+    },
+    "/tck/modeling_command_aggregate_without_ctor_parameters/snapshot/schema" : {
+      "get" : {
+        "operationId" : "tck.modeling_command_aggregate_without_ctor_parameters.snapshot_schema.get",
+        "parameters" : [ ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "400" : { },
+          "500" : { },
+          "503" : { }
+        },
+        "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+      }
+    },
+    "/tck/modeling_command_aggregate_without_ctor_parameters/snapshot/schema/refresh" : {
+      "post" : {
+        "operationId" : "tck.modeling_command_aggregate_without_ctor_parameters.snapshot_schema.refresh",
+        "parameters" : [ ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "400" : { },
+          "500" : { },
+          "503" : { }
         },
         "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
       }

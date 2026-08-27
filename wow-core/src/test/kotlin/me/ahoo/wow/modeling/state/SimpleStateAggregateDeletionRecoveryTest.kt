@@ -15,6 +15,7 @@ package me.ahoo.wow.modeling.state
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.abac.DefaultResourceTagsApplied
+import me.ahoo.wow.api.abac.ResourceTagsApplied
 import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.annotation.stateAggregateMetadata
@@ -87,4 +88,23 @@ class SimpleStateAggregateDeletionRecoveryTest {
 
         aggregate.tags.assert().isEqualTo(mapOf("state" to listOf("aggregate-1")))
     }
+
+    @Test
+    fun `sourcing should retain backend neutral tags from any resource tags event`() {
+        val aggregate = MOCK_AGGREGATE_METADATA.toStateAggregate(MockStateAggregate("aggregate-1"), version = 0)
+        val tags = mapOf("department" to listOf("x".repeat(9000)))
+
+        aggregate.onSourcing(
+            TestResourceTagsApplied(tags).toDomainEventStream(
+                upstream = GivenInitializationCommand(aggregate.aggregateId),
+                aggregateVersion = aggregate.version,
+            ),
+        )
+
+        aggregate.tags.assert().isEqualTo(tags)
+    }
+
+    private data class TestResourceTagsApplied(
+        override val tags: me.ahoo.wow.api.abac.AbacTags,
+    ) : ResourceTagsApplied
 }

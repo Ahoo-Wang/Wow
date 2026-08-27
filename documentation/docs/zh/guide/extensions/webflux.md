@@ -186,7 +186,7 @@ paths:
               $ref: '#/components/schemas/AddCartItem'
 ```
 
-快照聚合 operation 引用聚合专属 request body，例如 `example.cart.AggregationQuery`。其 `x-wow-query-fields.$ref` 指向该聚合的 `CartAggregatedFields` 组件，而 `application/json` schema 引用通用 `wow.api.query.AggregationQuery` schema。成功响应是以动态对象为元素的数组。
+快照查询 operation 复用通用 request body，例如 `wow.AggregationQuery` 的 `application/json` schema 引用 `wow.api.query.AggregationQuery`。调用 `GET /{aggregate}/snapshot/schema` 获取当前聚合的运行时 Schema；`POST /{aggregate}/snapshot/schema/refresh` 使用独立 route ID，因此可与普通聚合查询分别授权。刷新只影响接收请求的本实例；失败会保留旧缓存并返回错误，不会向其他实例广播。聚合成功响应是以动态对象为元素的数组。
 
 ## 性能优化
 

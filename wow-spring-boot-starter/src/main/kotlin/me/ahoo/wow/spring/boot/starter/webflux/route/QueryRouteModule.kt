@@ -14,6 +14,7 @@
 package me.ahoo.wow.spring.boot.starter.webflux.route
 
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
+import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
@@ -31,14 +32,25 @@ import me.ahoo.wow.webflux.route.snapshot.PagedQuerySnapshotStateHandlerFunction
 import me.ahoo.wow.webflux.route.snapshot.SingleSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.SingleSnapshotStateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.SnapshotAggregationHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.snapshot.SnapshotSchemaHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.snapshot.SnapshotSchemaRefreshHandlerFunctionFactory
 
 class QueryRouteModule(
     snapshotQueryHandler: SnapshotQueryHandler,
+    snapshotQueryServiceFactory: SnapshotQueryServiceFactory,
     eventStreamQueryHandler: EventStreamQueryHandler,
     rewriteRequestFilter: RewriteRequestFilter,
     exceptionHandler: RequestExceptionHandler
 ) : WebFluxRouteModule {
     override val httpFactories: List<HttpRouteHandlerFunctionFactory> = listOf(
+        SnapshotSchemaHandlerFunctionFactory(
+            snapshotQueryServiceFactory = snapshotQueryServiceFactory,
+            exceptionHandler = exceptionHandler,
+        ),
+        SnapshotSchemaRefreshHandlerFunctionFactory(
+            snapshotQueryServiceFactory = snapshotQueryServiceFactory,
+            exceptionHandler = exceptionHandler,
+        ),
         LoadSnapshotHandlerFunctionFactory(
             snapshotQueryHandler = snapshotQueryHandler,
             exceptionHandler = exceptionHandler

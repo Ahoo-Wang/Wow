@@ -33,10 +33,13 @@ import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.schema.QueryCapability
+import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterConverter
-import me.ahoo.wow.elasticsearch.query.ElasticsearchFieldUsage
-import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
 import me.ahoo.wow.elasticsearch.query.ElasticsearchSortConverter.toSortOrder
+import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import java.util.concurrent.TimeUnit
 
 internal data class ElasticsearchAggregationPlan(
     val rootQuery: Query,
@@ -65,32 +68,34 @@ internal data class ElasticsearchAggregationMetric(
 
 internal class ElasticsearchAggregationCompiler(
     private val filterConverter: AbstractElasticsearchFilterConverter,
-    private val mapping: ElasticsearchIndexMapping?,
 ) {
-    fun compile(query: AggregationQuery): ElasticsearchAggregationPlan {
-        val rootFilter = mapping?.resolve(query.filter) ?: query.filter
-        val rootQuery = filterConverter.convert(rootFilter)
+    fun compile(query: AggregationQuery, schema: QueryModelSchema? = null): ElasticsearchAggregationPlan {
+        val rootQuery = filterConverter.convert(query.filter)
         val elements = mutableListOf<ElasticsearchAggregationElement>()
-        var parent: String? = null
+        var logicalParent: String? = null
         query.elements.forEach { element ->
-            val absolutePath = if (parent == null) element.path.value else "$parent.${element.path.value}"
-            val nestedPath = mapping?.requireNested(absolutePath) ?: absolutePath
-            val unscopedFilter = AndFilter(listOf(element.filter, DeletionFilter(DeletionState.ALL)))
-            val filter = mapping?.resolve(unscopedFilter, absolutePath) ?: unscopedFilter
+            val previousLogicalParent = logicalParent
+            logicalParent = if (logicalParent == null) element.path.value else "$logicalParent.${element.path.value}"
+            val nestedPath = element.path.resolve(previousLogicalParent, schema, QueryCapability.ELEMENT_SCOPE)
+            val unscopedFilter = AndFilter(
+                listOf(element.filter, DeletionFilter(DeletionState.ALL)),
+            )
             elements += ElasticsearchAggregationElement(
                 path = nestedPath,
-                filter = filterConverter.convert(filter, absolutePath),
+                filter = filterConverter.convert(unscopedFilter, nestedPath),
             )
-            parent = absolutePath
         }
 
-        val effectiveSort = query.effectiveSort()
-        val groups = query.groupBy.associateBy(AggregationGroup::alias)
-        val groupSources = effectiveSort
-            .mapNotNull { sort -> groups[sort.field]?.let { it.toSource(parent, sort) } }
         val runtimeMappings = linkedMapOf<String, RuntimeField>()
+        val effectiveSort = query.effectiveSort()
+        val groups = query.groupBy.withIndex().associateBy { it.value.alias }
+        val groupSources = effectiveSort.mapNotNull { sort ->
+            groups[sort.field]?.let { indexed ->
+                indexed.value.toSource(logicalParent, sort, indexed.index, schema, runtimeMappings)
+            }
+        }
         val metrics = query.metrics.mapIndexed { index, metric ->
-            metric.toPlan(parent, index, runtimeMappings)
+            metric.toPlan(logicalParent, index, schema, runtimeMappings)
         }
         val metricAliases = query.metrics.mapTo(hashSetOf(), AggregationMetric::alias)
         return ElasticsearchAggregationPlan(
@@ -105,19 +110,24 @@ internal class ElasticsearchAggregationCompiler(
         )
     }
 
-    private fun AggregationGroup.toSource(parent: String?, sort: Sort): NamedValue<CompositeAggregationSource> {
-        val absoluteField = field.resolve(parent)
+    private fun AggregationGroup.toSource(
+        parent: String?,
+        sort: Sort,
+        index: Int,
+        schema: QueryModelSchema?,
+        runtimeMappings: MutableMap<String, RuntimeField>,
+    ): NamedValue<CompositeAggregationSource> {
         val source = when (this) {
             is AggregationGroup.Terms -> CompositeAggregationSource.of {
                 it.terms { terms ->
-                    terms.field(mapping?.resolve(absoluteField, ElasticsearchFieldUsage.EXACT) ?: absoluteField)
+                    terms.field(field.resolve(parent, schema, QueryCapability.AGGREGATE_TERMS))
                         .order(sort.direction.toSortOrder())
                 }
             }
 
             is AggregationGroup.Histogram -> CompositeAggregationSource.of {
                 it.histogram { histogram ->
-                    histogram.field(mapping?.resolve(absoluteField, ElasticsearchFieldUsage.RANGE) ?: absoluteField)
+                    histogram.field(field.resolve(parent, schema, QueryCapability.AGGREGATE_NUMERIC))
                         .interval(interval)
                         .order(sort.direction.toSortOrder())
                 }
@@ -125,8 +135,7 @@ internal class ElasticsearchAggregationCompiler(
 
             is AggregationGroup.DateHistogram -> CompositeAggregationSource.of {
                 it.dateHistogram { dateHistogram ->
-                    dateHistogram
-                        .field(mapping?.resolve(absoluteField, ElasticsearchFieldUsage.RANGE) ?: absoluteField)
+                    dateHistogram.field(dateField(parent, index, schema, runtimeMappings))
                     if (unit == AggregationDateUnit.SECOND) {
                         dateHistogram.fixedInterval { interval -> interval.time("1s") }
                     } else {
@@ -139,29 +148,107 @@ internal class ElasticsearchAggregationCompiler(
         return NamedValue.of(alias, source)
     }
 
+    private fun AggregationGroup.DateHistogram.dateField(
+        parent: String?,
+        index: Int,
+        schema: QueryModelSchema?,
+        runtimeMappings: MutableMap<String, RuntimeField>,
+    ): String {
+        val logicalField = field.absolute(parent)
+        val fieldSchema = schema?.resolve(logicalField) ?: return logicalField.value
+        val physicalPath = fieldSchema.bindings[QueryCapability.AGGREGATE_TEMPORAL]?.physicalPath
+            ?: throw QuerySchemaValidationException(
+                "Query field [$logicalField] does not support [${QueryCapability.AGGREGATE_TEMPORAL}].",
+            )
+        return when (val semanticType = fieldSchema.semanticType) {
+            Temporal.Date -> physicalPath
+            is Temporal.Epoch -> "__wow_date_histogram_$index".also { runtimeFieldName ->
+                runtimeMappings[runtimeFieldName] = epochDateRuntimeField(physicalPath, semanticType.timeUnit)
+            }
+            else -> throw QuerySchemaValidationException(
+                "Query field [$logicalField] does not have a supported temporal semantic type.",
+            )
+        }
+    }
+
+    private fun epochDateRuntimeField(physicalPath: String, timeUnit: TimeUnit): RuntimeField {
+        val (multiplier, divisor) = timeUnit.epochFactors
+        val params = mapOf(
+            "field" to JsonData.of(physicalPath),
+            "multiplier" to JsonData.of(multiplier),
+            "divisor" to JsonData.of(divisor),
+        )
+        val source = """
+            String field = params.field;
+            try {
+                if (doc.containsKey(field) && doc[field].size() == 1) {
+                    def raw = doc[field].value;
+                    if (raw instanceof Number) {
+                        boolean floating = raw instanceof Double || raw instanceof Float;
+                        double numeric = ((Number) raw).doubleValue();
+                        if (
+                            Double.isFinite(numeric) &&
+                            (!floating ||
+                                (numeric >= -9.223372036854776E18 && numeric < 9.223372036854776E18))
+                        ) {
+                            long epoch = ((Number) raw).longValue();
+                            if (!floating || numeric == (double) epoch) {
+                                long divisor = ((Number) params.divisor).longValue();
+                                long millis = epoch / divisor;
+                                if (epoch < 0L && epoch % divisor != 0L) {
+                                    millis -= 1L;
+                                }
+                                long multiplier = ((Number) params.multiplier).longValue();
+                                if (
+                                    millis <= Long.MAX_VALUE / multiplier &&
+                                    millis >= Long.MIN_VALUE / multiplier
+                                ) {
+                                    emit(millis * multiplier);
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+        """.trimIndent()
+        return RuntimeField.of { runtime ->
+            runtime.type(RuntimeFieldType.Date)
+                .script(
+                    Script.of { script ->
+                        script.lang(ScriptLanguage.Painless)
+                            .source { it.scriptString(source) }
+                            .params(params)
+                    },
+                )
+        }
+    }
+
     private fun AggregationMetric.toPlan(
         parent: String?,
         index: Int,
+        schema: QueryModelSchema?,
         runtimeMappings: MutableMap<String, RuntimeField>,
     ): ElasticsearchAggregationMetric = when (this) {
         is AggregationMetric.Count -> ElasticsearchAggregationMetric(alias, function = null, field = null)
         is AggregationMetric.Numeric -> {
             val metricField = when (val expression = expression) {
-                is AggregationExpression.Field -> expression.field.resolveRange(parent)
+                is AggregationExpression.Field -> expression.field.resolve(
+                    parent,
+                    schema,
+                    QueryCapability.AGGREGATE_NUMERIC,
+                )
                 else -> "__wow_expression_$index".also { runtimeFieldName ->
-                    runtimeMappings[runtimeFieldName] = RuntimeExpressionCompiler(parent).compile(expression)
+                    runtimeMappings[runtimeFieldName] = RuntimeExpressionCompiler(parent, schema).compile(expression)
                 }
             }
             ElasticsearchAggregationMetric(alias, function, metricField)
         }
     }
 
-    private fun LogicalField.resolveRange(parent: String?): String {
-        val absoluteField = resolve(parent)
-        return mapping?.resolve(absoluteField, ElasticsearchFieldUsage.RANGE) ?: absoluteField
-    }
-
-    private inner class RuntimeExpressionCompiler(private val parent: String?) {
+    private inner class RuntimeExpressionCompiler(
+        private val parent: String?,
+        private val schema: QueryModelSchema?,
+    ) {
         private val source = StringBuilder()
         private val params = linkedMapOf<String, JsonData>()
         private var nextId = 0
@@ -195,7 +282,9 @@ internal class ElasticsearchAggregationCompiler(
             val raw = "r$id"
             val candidate = "c$id"
             val parameter = "f$id"
-            params[parameter] = JsonData.of(field.resolveComputed(parent))
+            params[parameter] = JsonData.of(
+                field.resolve(parent, schema, QueryCapability.AGGREGATE_NUMERIC),
+            )
             source.append("def $value=null;")
             source.append("String $fieldVariable=params.$parameter;")
             source.append("try {")
@@ -250,11 +339,28 @@ internal class ElasticsearchAggregationCompiler(
             AggregationExpressionOperator.DIVIDE -> "/"
         }
 
-    private fun LogicalField.resolveComputed(parent: String?): String {
-        val absoluteField = resolve(parent)
-        return mapping?.resolveComputed(absoluteField) ?: absoluteField
+    private fun LogicalField.resolve(
+        parent: String?,
+        schema: QueryModelSchema?,
+        capability: QueryCapability,
+    ): String {
+        val logicalField = absolute(parent)
+        val fieldSchema = schema?.resolve(logicalField) ?: return logicalField.value
+        return fieldSchema.bindings[capability]?.physicalPath
+            ?: throw QuerySchemaValidationException("Query field [$logicalField] does not support [$capability].")
     }
 
-    private fun LogicalField.resolve(parent: String?): String =
-        if (parent == null) value else "$parent.$value"
+    private fun LogicalField.absolute(parent: String?): LogicalField =
+        LogicalField(if (parent == null) value else "$parent.$value")
+
+    private val TimeUnit.epochFactors: Pair<Long, Long>
+        get() = when (this) {
+            TimeUnit.NANOSECONDS -> 1L to 1_000_000L
+            TimeUnit.MICROSECONDS -> 1L to 1_000L
+            TimeUnit.MILLISECONDS -> 1L to 1L
+            TimeUnit.SECONDS -> 1_000L to 1L
+            TimeUnit.MINUTES -> 60_000L to 1L
+            TimeUnit.HOURS -> 3_600_000L to 1L
+            TimeUnit.DAYS -> 86_400_000L to 1L
+        }
 }

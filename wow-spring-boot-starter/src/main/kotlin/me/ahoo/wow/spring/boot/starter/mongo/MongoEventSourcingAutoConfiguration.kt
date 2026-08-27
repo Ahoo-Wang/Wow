@@ -28,6 +28,7 @@ import me.ahoo.wow.mongo.SnapshotSchemaInitializer
 import me.ahoo.wow.mongo.prepare.MongoPrepareKeyFactory
 import me.ahoo.wow.mongo.query.event.MongoEventStreamQueryServiceFactory
 import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryServiceFactory
+import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
@@ -41,6 +42,8 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnaps
 import me.ahoo.wow.spring.boot.starter.prepare.ConditionalOnPrepareEnabled
 import me.ahoo.wow.spring.boot.starter.prepare.PrepareProperties
 import me.ahoo.wow.spring.boot.starter.prepare.PrepareStorage
+import me.ahoo.wow.spring.boot.starter.query.QueryProperties
+import me.ahoo.wow.spring.boot.starter.query.QuerySchemaAutoConfiguration
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -52,7 +55,13 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.mongodb.autoconfigure.MongoReactiveAutoConfiguration
 import org.springframework.context.annotation.Bean
 
-@AutoConfiguration(after = [WowAutoConfiguration::class, MongoReactiveAutoConfiguration::class])
+@AutoConfiguration(
+    after = [
+        WowAutoConfiguration::class,
+        MongoReactiveAutoConfiguration::class,
+        QuerySchemaAutoConfiguration::class,
+    ],
+)
 @ConditionalOnWowEnabled
 @ConditionalOnMongoEnabled
 @ConditionalOnClass(MongoEventStore::class)
@@ -173,11 +182,17 @@ class MongoEventSourcingAutoConfiguration(
         dataMongoProperties: org.springframework.boot.mongodb.autoconfigure.MongoProperties?,
         @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
         currentBoundedContext: NamedBoundedContext,
+        sources: List<QuerySchemaSource>,
+        queryProperties: QueryProperties,
     ): MongoSnapshotQueryServiceFactory {
         val snapshotDatabase = getMongoSnapshotDatabase(dataMongoProperties, mongoClient)
         MongoDatabaseContextGuard(snapshotDatabase)
             .ensureContext(currentBoundedContext.contextName)
-        return MongoSnapshotQueryServiceFactory(snapshotDatabase)
+        return MongoSnapshotQueryServiceFactory(
+            snapshotDatabase,
+            sources,
+            queryProperties.schema.validationMode,
+        )
     }
 
     @Bean

@@ -17,6 +17,9 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.bi.BiDeploymentInspectionException
 import me.ahoo.wow.exception.ErrorCodes
+import me.ahoo.wow.query.schema.QuerySchemaConflictException
+import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import org.springframework.http.HttpStatus
 import java.util.concurrent.ConcurrentHashMap
 
@@ -41,6 +44,9 @@ object ErrorHttpStatusMapping {
         register(ErrorCodes.ILLEGAL_ACCESS_DELETED_AGGREGATE, HttpStatus.GONE)
         register(ErrorCodes.ILLEGAL_ACCESS_OWNER_AGGREGATE, HttpStatus.FORBIDDEN)
         register(ErrorCodes.INTERNAL_SERVER_ERROR, HttpStatus.INTERNAL_SERVER_ERROR)
+        register(QuerySchemaValidationException.ERROR_CODE, HttpStatus.BAD_REQUEST)
+        register(QuerySchemaConflictException.ERROR_CODE, HttpStatus.INTERNAL_SERVER_ERROR)
+        register(QuerySchemaUnavailableException.ERROR_CODE, HttpStatus.SERVICE_UNAVAILABLE)
         register(BiDeploymentInspectionException.INCONSISTENT_ERROR_CODE, HttpStatus.BAD_GATEWAY)
         register(BiDeploymentInspectionException.UNAVAILABLE_ERROR_CODE, HttpStatus.SERVICE_UNAVAILABLE)
         register(BiDeploymentInspectionException.TIMEOUT_ERROR_CODE, HttpStatus.GATEWAY_TIMEOUT)

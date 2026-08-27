@@ -16,8 +16,12 @@ package me.ahoo.wow.elasticsearch.query.snapshot
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.IPagedQuery
+import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
-import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
@@ -25,10 +29,16 @@ import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterConverter
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchQueryService
 import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
-import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
-import me.ahoo.wow.elasticsearch.query.ElasticsearchMappingRefreshResult
+import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapter
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
+import me.ahoo.wow.modeling.materialize
+import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QuerySchemaContext
+import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
+import me.ahoo.wow.query.schema.QuerySchemaValidationMode
+import me.ahoo.wow.query.schema.resolve
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.convert
@@ -37,17 +47,30 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.time.Duration
 
-class ElasticsearchSnapshotQueryService<S : Any>(
+class ElasticsearchSnapshotQueryService<S : Any> private constructor(
     override val namedAggregate: NamedAggregate,
     override val elasticsearchClient: ReactiveElasticsearchClient,
-    override val filterConverter: AbstractElasticsearchFilterConverter = SnapshotFilterConverter
-) : AbstractElasticsearchQueryService<MaterializedSnapshot<S>>(), SnapshotQueryService<S> {
-    private var configuredQueryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE
-    private var configuredQueryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE
-    private var configuredIndexMappingResolver: ElasticsearchIndexMappingResolver? =
-        filterConverter
-            .takeIf { it === SnapshotFilterConverter }
-            ?.let { ElasticsearchIndexMappingResolver(elasticsearchClient) }
+    override val filterConverter: AbstractElasticsearchFilterConverter,
+    override val queryBatchSize: Int,
+    override val queryKeepAlive: Duration,
+    private val schemaProvider: QueryModelSchemaProvider,
+    private val validationMode: QuerySchemaValidationMode,
+) : AbstractElasticsearchQueryService<MaterializedSnapshot<S>>(),
+    SnapshotQueryService<S>,
+    QueryModelSchemaProvider by schemaProvider {
+    constructor(
+        namedAggregate: NamedAggregate,
+        elasticsearchClient: ReactiveElasticsearchClient,
+        filterConverter: AbstractElasticsearchFilterConverter = SnapshotFilterConverter,
+    ) : this(
+        namedAggregate,
+        elasticsearchClient,
+        filterConverter,
+        DEFAULT_SEARCH_BATCH_SIZE,
+        DEFAULT_PIT_KEEP_ALIVE,
+        defaultSchemaProvider(namedAggregate, elasticsearchClient, filterConverter),
+        QuerySchemaValidationMode.COMPATIBLE,
+    )
 
     constructor(
         namedAggregate: NamedAggregate,
@@ -55,10 +78,15 @@ class ElasticsearchSnapshotQueryService<S : Any>(
         filterConverter: AbstractElasticsearchFilterConverter,
         queryBatchSize: Int,
         queryKeepAlive: Duration,
-    ) : this(namedAggregate, elasticsearchClient, filterConverter) {
-        configuredQueryBatchSize = queryBatchSize
-        configuredQueryKeepAlive = queryKeepAlive
-    }
+    ) : this(
+        namedAggregate,
+        elasticsearchClient,
+        filterConverter,
+        queryBatchSize,
+        queryKeepAlive,
+        defaultSchemaProvider(namedAggregate, elasticsearchClient, filterConverter),
+        QuerySchemaValidationMode.COMPATIBLE,
+    )
 
     constructor(
         namedAggregate: NamedAggregate,
@@ -67,54 +95,93 @@ class ElasticsearchSnapshotQueryService<S : Any>(
         queryBatchSize: Int,
         queryKeepAlive: Duration,
         indexMappingResolver: ElasticsearchIndexMappingResolver,
-    ) : this(namedAggregate, elasticsearchClient, filterConverter, queryBatchSize, queryKeepAlive) {
-        configuredIndexMappingResolver = indexMappingResolver.takeIf { filterConverter === SnapshotFilterConverter }
-    }
+    ) : this(
+        namedAggregate,
+        elasticsearchClient,
+        filterConverter,
+        queryBatchSize,
+        queryKeepAlive,
+        defaultSchemaProvider(namedAggregate, elasticsearchClient, filterConverter, indexMappingResolver),
+        QuerySchemaValidationMode.COMPATIBLE,
+    )
+
+    internal constructor(
+        namedAggregate: NamedAggregate,
+        elasticsearchClient: ReactiveElasticsearchClient,
+        schemaProvider: QueryModelSchemaProvider,
+        validationMode: QuerySchemaValidationMode,
+        filterConverter: AbstractElasticsearchFilterConverter = SnapshotFilterConverter,
+        queryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE,
+        queryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE,
+    ) : this(
+        namedAggregate,
+        elasticsearchClient,
+        filterConverter,
+        queryBatchSize,
+        queryKeepAlive,
+        schemaProvider,
+        validationMode,
+    )
 
     override val name: String
         get() = ElasticsearchSnapshotStore.NAME
     override val indexName: String = namedAggregate.toSnapshotIndexName()
-    protected override val queryBatchSize: Int
-        get() = configuredQueryBatchSize
-    protected override val queryKeepAlive: Duration
-        get() = configuredQueryKeepAlive
-    override val indexMappingResolver: ElasticsearchIndexMappingResolver?
-        get() = configuredIndexMappingResolver
-
-    fun refreshIndexMapping(): Mono<ElasticsearchMappingRefreshResult> {
-        return requireNotNull(indexMappingResolver) {
-            "Index mapping resolution is disabled for custom filter converters."
-        }.refresh(indexName)
-    }
 
     private val snapshotType = JsonSerializer.typeFactory
         .constructParametricType(
             MaterializedSnapshot::class.java,
-            namedAggregate.requiredAggregateType<Any>().aggregateMetadata<Any, S>().state.aggregateType
+            namedAggregate.requiredAggregateType<Any>().aggregateMetadata<Any, S>().state.aggregateType,
         )
 
-    override fun toTypedResult(document: DynamicDocument): MaterializedSnapshot<S> {
-        return document.convert(snapshotType)
-    }
+    override fun toTypedResult(document: DynamicDocument): MaterializedSnapshot<S> = document.convert(snapshotType)
 
-    override fun resolveFilter(
-        mapping: ElasticsearchIndexMapping,
-        filter: me.ahoo.wow.api.query.FilterExpression,
-    ): me.ahoo.wow.api.query.FilterExpression = mapping.resolve(filter)
+    override fun resolve(query: ISingleQuery) = schemaProvider.resolve(query, validationMode)
 
-    override fun resolveSort(mapping: ElasticsearchIndexMapping, sort: List<Sort>): List<Sort> =
-        mapping.resolve(sort)
+    override fun resolve(query: IListQuery) = schemaProvider.resolve(query, validationMode)
 
-    override fun aggregate(query: AggregationQuery): Flux<DynamicDocument> {
-        val execute: (ElasticsearchIndexMapping?) -> Flux<DynamicDocument> = { mapping ->
+    override fun resolve(query: IPagedQuery) = schemaProvider.resolve(query, validationMode)
+
+    override fun resolve(filter: FilterExpression) = schemaProvider.resolve(filter, validationMode)
+
+    override fun aggregate(query: AggregationQuery): Flux<DynamicDocument> =
+        schemaProvider.resolve(query, validationMode).flatMapMany { resolved ->
             ElasticsearchAggregationPager(
                 elasticsearchClient,
                 indexName,
                 queryBatchSize,
                 queryKeepAlive,
-            ).execute(ElasticsearchAggregationCompiler(filterConverter, mapping).compile(query))
+            ).execute(
+                ElasticsearchAggregationCompiler(filterConverter).compile(resolved.query, resolved.schema),
+            )
         }
-        return indexMappingResolver?.currentOrLoad(indexName)?.flatMapMany(execute)
-            ?: Flux.defer { execute(null) }
+
+    companion object {
+        private fun defaultSchemaProvider(
+            namedAggregate: NamedAggregate,
+            elasticsearchClient: ReactiveElasticsearchClient,
+            filterConverter: AbstractElasticsearchFilterConverter,
+            mappingResolver: ElasticsearchIndexMappingResolver = ElasticsearchIndexMappingResolver(elasticsearchClient),
+        ): QueryModelSchemaProvider {
+            if (filterConverter !== SnapshotFilterConverter) {
+                return object : QueryModelSchemaProvider {
+                    override fun schema(): Mono<me.ahoo.wow.query.schema.QueryModelSchema> = unavailable()
+
+                    override fun refresh(): Mono<me.ahoo.wow.query.schema.QueryModelSchema> = unavailable()
+
+                    private fun unavailable(): Mono<me.ahoo.wow.query.schema.QueryModelSchema> = Mono.error(
+                        QuerySchemaUnavailableException(
+                            "Elasticsearch query schema is unavailable for custom filter converters.",
+                        ),
+                    )
+                }
+            }
+            val materialized = namedAggregate.materialize()
+            val indexName = materialized.toSnapshotIndexName()
+            return DefaultQueryModelSchemaProvider(
+                context = QuerySchemaContext(materialized, QueryModel.SNAPSHOT),
+                sources = emptyList(),
+                adapter = ElasticsearchQuerySchemaAdapter(indexName, mappingResolver),
+            )
+        }
     }
 }

@@ -418,7 +418,10 @@ MongoDB accumulator 实现 Terms、Histogram、DateHistogram、Count、Sum、Avg
 
 计算型数值指标会编译为受保护的原生 `$add`、`$subtract`、`$multiply` 与 `$divide` 表达式；缺失、非数值、除零或非有限结果不参与指标计算。不会使用 `$function`。
 
-编译器不检查 Java 类型或 MongoDB schema。无效或不可展开的路径保留 MongoDB 的结果或错误；自定义 Jackson serializer 或 filter converter 不保证与 Wow 标准字段映射等价。
+编译前会使用协商后的 Query Schema：System、JSON Schema/注解、Bean 与约定文件提供逻辑语义，Mongo Adapter 读取 collection
+validator 和索引后发布可执行能力。已声明且与 validator 冲突的字段会在访问 MongoDB 前失败；普通未知路径在 `COMPATIBLE` 下仍可
+回退现有字段约定。没有 validator 时物理类型保持未知，首期不会为 `Temporal.Date` 发布范围或日期聚合能力；声明过单位的整数 epoch
+仍由 pipeline 安全转换。自定义 Jackson serializer 或 filter converter 不保证与 Wow 标准字段映射等价。
 
 ## PrepareKey：分布式协调
 

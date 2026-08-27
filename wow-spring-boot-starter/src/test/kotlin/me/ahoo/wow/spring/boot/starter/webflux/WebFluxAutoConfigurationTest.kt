@@ -49,6 +49,8 @@ import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
 import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyMode
 import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyRequest
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
+import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
+import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
 import me.ahoo.wow.spring.boot.starter.bi.BiScriptProperties
@@ -107,10 +109,12 @@ import java.util.stream.Stream
 
 @Suppress("LargeClass")
 internal class WebFluxAutoConfigurationTest {
-    private val contextRunner = ApplicationContextRunner().withPropertyValues(
-        "${BiScriptProperties.PREFIX}.enabled=true",
-        "${BiScriptProperties.PREFIX}.consumer-group-namespace=test",
-    )
+    private val contextRunner = ApplicationContextRunner()
+        .withBean(SnapshotQueryServiceFactory::class.java, { NoOpSnapshotQueryServiceFactory })
+        .withPropertyValues(
+            "${BiScriptProperties.PREFIX}.enabled=true",
+            "${BiScriptProperties.PREFIX}.consumer-group-namespace=test",
+        )
 
     @Test
     fun `should load context with webflux command route and exception handler`() {
@@ -611,7 +615,10 @@ internal class WebFluxAutoConfigurationTest {
 
     @Test
     fun `should not construct or validate BI generation options when disabled`() {
-        webFluxContextRunner(ApplicationContextRunner())
+        webFluxContextRunner(
+            ApplicationContextRunner()
+                .withBean(SnapshotQueryServiceFactory::class.java, { NoOpSnapshotQueryServiceFactory })
+        )
             .withPropertyValues(
                 "${BiScriptProperties.PREFIX}.enabled=false",
                 "${BiScriptProperties.PREFIX}.max-expansion-depth=0",
@@ -674,7 +681,10 @@ internal class WebFluxAutoConfigurationTest {
 
     @Test
     fun `should expose BI route by default without requiring generation configuration at startup`() {
-        webFluxContextRunner(ApplicationContextRunner())
+        webFluxContextRunner(
+            ApplicationContextRunner()
+                .withBean(SnapshotQueryServiceFactory::class.java, { NoOpSnapshotQueryServiceFactory })
+        )
             .run { context: AssertableApplicationContext ->
                 context.assert().hasNotFailed()
                 context.getBean(BiScriptProperties::class.java).enabled.assert().isTrue()
@@ -687,7 +697,10 @@ internal class WebFluxAutoConfigurationTest {
 
     @Test
     fun `should reject BI generation without a consumer group namespace at request time`() {
-        webFluxContextRunner(ApplicationContextRunner())
+        webFluxContextRunner(
+            ApplicationContextRunner()
+                .withBean(SnapshotQueryServiceFactory::class.java, { NoOpSnapshotQueryServiceFactory })
+        )
             .run { context: AssertableApplicationContext ->
                 context.assert().hasNotFailed()
                 context.biScriptClient().post()
@@ -951,6 +964,8 @@ internal class WebFluxAutoConfigurationTest {
             BuiltInHttpRouteHandlerKeys.Global.COMMAND_FACADE,
             BuiltInHttpRouteHandlerKeys.State.LOAD_AGGREGATE,
             BuiltInHttpRouteHandlerKeys.Snapshot.LOAD,
+            BuiltInHttpRouteHandlerKeys.Snapshot.SCHEMA,
+            BuiltInHttpRouteHandlerKeys.Snapshot.SCHEMA_REFRESH,
             BuiltInHttpRouteHandlerKeys.Snapshot.AGGREGATION,
             BuiltInHttpRouteHandlerKeys.Event.LOAD,
             BuiltInHttpRouteHandlerKeys.Snapshot.REGENERATE,
