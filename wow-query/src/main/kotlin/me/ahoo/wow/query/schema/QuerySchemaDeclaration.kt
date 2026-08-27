@@ -31,7 +31,7 @@ import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.VALUE_TYPES
 import reactor.core.publisher.Flux
 import tools.jackson.databind.JsonNode
 
-internal object QuerySchemaDeclarationProperties {
+object QuerySchemaDeclarationProperties {
     const val FIELDS = "fields"
     const val TITLE = "title"
     const val DESCRIPTION = "description"

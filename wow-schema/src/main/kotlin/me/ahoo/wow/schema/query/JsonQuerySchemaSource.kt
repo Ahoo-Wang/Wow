@@ -21,6 +21,8 @@ import com.github.victools.jsonschema.generator.MemberScope
 import com.github.victools.jsonschema.generator.MethodScope
 import com.github.victools.jsonschema.generator.Option
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
+import com.github.victools.jsonschema.generator.SchemaKeyword
+import com.github.victools.jsonschema.generator.SchemaVersion
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QuerySemanticType
@@ -34,6 +36,13 @@ import me.ahoo.wow.query.schema.QueryFieldDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaConflictException
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.CARDINALITY
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.DESCRIPTION
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.DYNAMIC_CHILDREN
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.ENUM_VALUES
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.NULLABLE
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.SEMANTIC_TYPE
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.TITLE
 import me.ahoo.wow.query.schema.QuerySchemaException
 import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.schema.QuerySchemaSourcePriority
@@ -57,9 +66,41 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 private const val TEMPORAL_UNIT = "x-wow-query-temporal-unit"
-private const val ALL_OF = "allOf"
-private val ALTERNATIVE_COMPOSITIONS = listOf("anyOf", "oneOf")
-private val COMPOSITIONS = listOf(ALL_OF) + ALTERNATIVE_COMPOSITIONS
+private const val ROOT_REFERENCE = "#"
+private const val LOCAL_REFERENCE_PREFIX = "#/"
+private const val DATE_FORMAT = "date"
+private const val DATE_TIME_FORMAT = "date-time"
+private val JSON_SCHEMA_VERSION = SchemaVersion.DRAFT_2020_12
+
+private object JsonSchemaProperty {
+    val REF = SchemaKeyword.TAG_REF.forVersion(JSON_SCHEMA_VERSION)
+    val TYPE = SchemaKeyword.TAG_TYPE.forVersion(JSON_SCHEMA_VERSION)
+    val PROPERTIES = SchemaKeyword.TAG_PROPERTIES.forVersion(JSON_SCHEMA_VERSION)
+    val ITEMS = SchemaKeyword.TAG_ITEMS.forVersion(JSON_SCHEMA_VERSION)
+    val REQUIRED = SchemaKeyword.TAG_REQUIRED.forVersion(JSON_SCHEMA_VERSION)
+    val ADDITIONAL_PROPERTIES = SchemaKeyword.TAG_ADDITIONAL_PROPERTIES.forVersion(JSON_SCHEMA_VERSION)
+    val ALL_OF = SchemaKeyword.TAG_ALLOF.forVersion(JSON_SCHEMA_VERSION)
+    val ANY_OF = SchemaKeyword.TAG_ANYOF.forVersion(JSON_SCHEMA_VERSION)
+    val ONE_OF = SchemaKeyword.TAG_ONEOF.forVersion(JSON_SCHEMA_VERSION)
+    val TITLE = SchemaKeyword.TAG_TITLE.forVersion(JSON_SCHEMA_VERSION)
+    val DESCRIPTION = SchemaKeyword.TAG_DESCRIPTION.forVersion(JSON_SCHEMA_VERSION)
+    val ENUM = SchemaKeyword.TAG_ENUM.forVersion(JSON_SCHEMA_VERSION)
+    val WRITE_ONLY = SchemaKeyword.TAG_WRITE_ONLY.forVersion(JSON_SCHEMA_VERSION)
+    val FORMAT = SchemaKeyword.TAG_FORMAT.forVersion(JSON_SCHEMA_VERSION)
+}
+
+private object JsonSchemaType {
+    val NULL = SchemaKeyword.TAG_TYPE_NULL.forVersion(JSON_SCHEMA_VERSION)
+    val ARRAY = SchemaKeyword.TAG_TYPE_ARRAY.forVersion(JSON_SCHEMA_VERSION)
+    val OBJECT = SchemaKeyword.TAG_TYPE_OBJECT.forVersion(JSON_SCHEMA_VERSION)
+    val BOOLEAN = SchemaKeyword.TAG_TYPE_BOOLEAN.forVersion(JSON_SCHEMA_VERSION)
+    val STRING = SchemaKeyword.TAG_TYPE_STRING.forVersion(JSON_SCHEMA_VERSION)
+    val INTEGER = SchemaKeyword.TAG_TYPE_INTEGER.forVersion(JSON_SCHEMA_VERSION)
+    val NUMBER = SchemaKeyword.TAG_TYPE_NUMBER.forVersion(JSON_SCHEMA_VERSION)
+}
+
+private val ALTERNATIVE_COMPOSITIONS = listOf(JsonSchemaProperty.ANY_OF, JsonSchemaProperty.ONE_OF)
+private val COMPOSITIONS = listOf(JsonSchemaProperty.ALL_OF) + ALTERNATIVE_COMPOSITIONS
 
 class JsonQuerySchemaSource internal constructor(
     private val stateTypeResolver: (QuerySchemaContext) -> Class<*>,
@@ -124,16 +165,22 @@ private class JsonSchemaWalker(
         val stateField = LogicalField(StateAggregateRecords.STATE)
         val rootNodes = rootSchema.effectiveNodes()
         fields[stateField] = QueryFieldDeclaration(
-            title = DeclarationValue.Set(rootNodes.consistentValue(stateField, "title") { it.textValueOrNull("title") }),
+            title = DeclarationValue.Set(
+                rootNodes.consistentValue(stateField, TITLE) {
+                    it.textValueOrNull(JsonSchemaProperty.TITLE)
+                },
+            ),
             description = DeclarationValue.Set(
-                rootNodes.consistentValue(stateField, "description") { it.textValueOrNull("description") },
+                rootNodes.consistentValue(stateField, DESCRIPTION) {
+                    it.textValueOrNull(JsonSchemaProperty.DESCRIPTION)
+                },
             ),
             enumValues = DeclarationValue.Set(
-                rootNodes.consistentValue(stateField, "enumValues", JsonNode::enumValuesOrNull),
+                rootNodes.consistentValue(stateField, ENUM_VALUES, JsonNode::enumValuesOrNull),
             ),
             dynamicChildren = DeclarationValue.Set(rootNodes.any(JsonNode::hasAdditionalProperties)),
         )
-        fields.putAll(rootSchema.collectProperties(StateAggregateRecords.STATE, setOf("#")))
+        fields.putAll(rootSchema.collectProperties(StateAggregateRecords.STATE, setOf(ROOT_REFERENCE)))
         return QuerySchemaDeclaration(fields)
     }
 
@@ -142,12 +189,12 @@ private class JsonSchemaWalker(
         resolvingReferences: Set<String>,
     ): Map<LogicalField, QueryFieldDeclaration> {
         val collected = linkedMapOf<LogicalField, QueryFieldDeclaration>()
-        val parentRequired = get("required")?.asSequence()
+        val parentRequired = get(JsonSchemaProperty.REQUIRED)?.asSequence()
             ?.filter(JsonNode::isString)
             ?.map(JsonNode::stringValue)
             ?.toSet()
             .orEmpty()
-        get("properties")?.properties()?.forEach { (propertyName, propertySchema) ->
+        get(JsonSchemaProperty.PROPERTIES)?.properties()?.forEach { (propertyName, propertySchema) ->
             if (propertyName.isLogicalFieldSegment() && !propertySchema.isWriteOnly()) {
                 val fullName = "$parentName.$propertyName"
                 val field = LogicalField(fullName)
@@ -158,12 +205,12 @@ private class JsonSchemaWalker(
             }
         }
         reference()?.takeIf { it !in resolvingReferences }?.let { reference ->
-            rootSchema.at(reference.removePrefix("#"))
+            rootSchema.at(reference.removePrefix(ROOT_REFERENCE))
                 .takeUnless(JsonNode::isMissingNode)
                 ?.collectProperties(parentName, resolvingReferences + reference)
                 ?.let(collected::mergeConjunctive)
         }
-        get(ALL_OF)?.forEach { branch ->
+        get(JsonSchemaProperty.ALL_OF)?.forEach { branch ->
             collected.mergeConjunctive(branch.collectProperties(parentName, resolvingReferences))
         }
         ALTERNATIVE_COMPOSITIONS.forEach { composition ->
@@ -171,7 +218,8 @@ private class JsonSchemaWalker(
                 alternative.collectProperties(parentName, resolvingReferences)
             }?.toList()?.mergeAlternatives()?.let(collected::mergeConjunctive)
         }
-        get("items")?.collectProperties(parentName, resolvingReferences)?.let(collected::mergeConjunctive)
+        get(JsonSchemaProperty.ITEMS)?.collectProperties(parentName, resolvingReferences)
+            ?.let(collected::mergeConjunctive)
         return collected
     }
 
@@ -188,10 +236,10 @@ private class JsonSchemaWalker(
         }
         val shapeNodes = if (arrayShape) nodes + itemNodes else nodes
         val valueTypes = shapeNodes.flatMap { it.nonNullValueTypes() }.toSet()
-        val temporalUnit = (nodes + itemNodes).consistentValue(field, "semanticType") {
+        val temporalUnit = (nodes + itemNodes).consistentValue(field, SEMANTIC_TYPE) {
             it.textValueOrNull(TEMPORAL_UNIT)
         }
-        val inferredTemporal = shapeNodes.consistentValue(field, "semanticType", JsonNode::inferredTemporal)
+        val inferredTemporal = shapeNodes.consistentValue(field, SEMANTIC_TYPE, JsonNode::inferredTemporal)
         val semanticType = temporalUnit?.let { unit ->
             if (valueTypes != setOf(QueryValueType.INTEGER)) {
                 throw QuerySchemaConflictException(
@@ -201,12 +249,16 @@ private class JsonSchemaWalker(
             Temporal.Epoch(TimeUnit.valueOf(unit))
         } ?: inferredTemporal
         return QueryFieldDeclaration(
-            title = DeclarationValue.Set(nodes.consistentValue(field, "title") { it.textValueOrNull("title") }),
+            title = DeclarationValue.Set(
+                nodes.consistentValue(field, TITLE) { it.textValueOrNull(JsonSchemaProperty.TITLE) },
+            ),
             description = DeclarationValue.Set(
-                nodes.consistentValue(field, "description") { it.textValueOrNull("description") },
+                nodes.consistentValue(field, DESCRIPTION) {
+                    it.textValueOrNull(JsonSchemaProperty.DESCRIPTION)
+                },
             ),
             enumValues = DeclarationValue.Set(
-                nodes.consistentValue(field, "enumValues", JsonNode::enumValuesOrNull),
+                nodes.consistentValue(field, ENUM_VALUES, JsonNode::enumValuesOrNull),
             ),
             valueTypes = DeclarationValue.Set(valueTypes),
             nullable = DeclarationValue.Set(nodes.any(JsonNode::allowsNull)),
@@ -224,7 +276,7 @@ private class JsonSchemaWalker(
     ): List<JsonNode> = buildList {
         add(this@effectiveNodes)
         reference()?.takeIf { it !in resolvingReferences }?.let { reference ->
-            rootSchema.at(reference.removePrefix("#"))
+            rootSchema.at(reference.removePrefix(ROOT_REFERENCE))
                 .takeUnless(JsonNode::isMissingNode)
                 ?.let { addAll(it.effectiveNodes(resolvingReferences + reference)) }
         }
@@ -236,11 +288,11 @@ private class JsonSchemaWalker(
     }
 
     private fun JsonNode.reference(): String? =
-        get("\$ref")?.takeIf(JsonNode::isString)?.stringValue()
-            ?.takeIf { it == "#" || it.startsWith("#/") }
+        get(JsonSchemaProperty.REF)?.takeIf(JsonNode::isString)?.stringValue()
+            ?.takeIf { it == ROOT_REFERENCE || it.startsWith(LOCAL_REFERENCE_PREFIX) }
 
     private fun JsonNode.isWriteOnly(): Boolean = effectiveNodes().any {
-        it.get("writeOnly")?.takeIf(JsonNode::isBoolean)?.booleanValue() == true
+        it.get(JsonSchemaProperty.WRITE_ONLY)?.takeIf(JsonNode::isBoolean)?.booleanValue() == true
     }
 }
 
@@ -250,15 +302,15 @@ private fun QueryFieldDeclaration.mergeStructural(
     valueTypes: DeclarationValue<Set<QueryValueType>>,
     required: Boolean,
 ): QueryFieldDeclaration = QueryFieldDeclaration(
-    title = title.requireSame(other.title, field, "title"),
-    description = description.requireSame(other.description, field, "description"),
-    enumValues = enumValues.requireSame(other.enumValues, field, "enumValues"),
+    title = title.requireSame(other.title, field, TITLE),
+    description = description.requireSame(other.description, field, DESCRIPTION),
+    enumValues = enumValues.requireSame(other.enumValues, field, ENUM_VALUES),
     valueTypes = valueTypes,
-    nullable = nullable.requireSame(other.nullable, field, "nullable"),
+    nullable = nullable.requireSame(other.nullable, field, NULLABLE),
     required = DeclarationValue.Set(required),
-    cardinality = cardinality.requireSame(other.cardinality, field, "cardinality"),
-    semanticType = semanticType.requireSame(other.semanticType, field, "semanticType"),
-    dynamicChildren = dynamicChildren.requireSame(other.dynamicChildren, field, "dynamicChildren"),
+    cardinality = cardinality.requireSame(other.cardinality, field, CARDINALITY),
+    semanticType = semanticType.requireSame(other.semanticType, field, SEMANTIC_TYPE),
+    dynamicChildren = dynamicChildren.requireSame(other.dynamicChildren, field, DYNAMIC_CHILDREN),
 )
 
 private fun MutableMap<LogicalField, QueryFieldDeclaration>.mergeConjunctive(
@@ -385,22 +437,22 @@ private fun JsonNode.textValueOrNull(name: String): String? =
     get(name)?.takeIf(JsonNode::isString)?.stringValue()
 
 private fun JsonNode.enumValuesOrNull(): List<JsonNode>? =
-    get("enum")?.takeIf(JsonNode::isArray)?.toList()
+    get(JsonSchemaProperty.ENUM)?.takeIf(JsonNode::isArray)?.toList()
 
 private fun JsonNode.nonNullValueTypes(): Set<QueryValueType> = buildSet {
-    val typeNames = get("type")?.schemaTypeNames().orEmpty()
+    val typeNames = get(JsonSchemaProperty.TYPE)?.schemaTypeNames().orEmpty()
     typeNames.mapNotNullTo(this) { type ->
         when (type) {
-            "string" -> QueryValueType.STRING
-            "integer" -> QueryValueType.INTEGER
-            "number" -> QueryValueType.DECIMAL
-            "boolean" -> QueryValueType.BOOLEAN
-            "object" -> QueryValueType.OBJECT
+            JsonSchemaType.STRING -> QueryValueType.STRING
+            JsonSchemaType.INTEGER -> QueryValueType.INTEGER
+            JsonSchemaType.NUMBER -> QueryValueType.DECIMAL
+            JsonSchemaType.BOOLEAN -> QueryValueType.BOOLEAN
+            JsonSchemaType.OBJECT -> QueryValueType.OBJECT
             else -> null
         }
     }
-    if ("array" in typeNames) {
-        get("items")?.nonNullValueTypes()?.let(::addAll)
+    if (JsonSchemaType.ARRAY in typeNames) {
+        get(JsonSchemaProperty.ITEMS)?.nonNullValueTypes()?.let(::addAll)
     }
     COMPOSITIONS.forEach { composition ->
         get(composition)?.forEach { alternative -> addAll(alternative.nonNullValueTypes()) }
@@ -408,7 +460,7 @@ private fun JsonNode.nonNullValueTypes(): Set<QueryValueType> = buildSet {
 }
 
 private fun JsonNode.allowsNull(): Boolean {
-    if (get("type")?.schemaTypeNames()?.contains("null") == true) {
+    if (get(JsonSchemaProperty.TYPE)?.schemaTypeNames()?.contains(JsonSchemaType.NULL) == true) {
         return true
     }
     return COMPOSITIONS.any { composition ->
@@ -417,7 +469,7 @@ private fun JsonNode.allowsNull(): Boolean {
 }
 
 private fun JsonNode.isArrayShape(): Boolean {
-    if (get("type")?.schemaTypeNames()?.contains("array") == true) {
+    if (get(JsonSchemaProperty.TYPE)?.schemaTypeNames()?.contains(JsonSchemaType.ARRAY) == true) {
         return true
     }
     return COMPOSITIONS.any { composition ->
@@ -426,17 +478,19 @@ private fun JsonNode.isArrayShape(): Boolean {
 }
 
 private fun JsonNode.inferredTemporal(): QuerySemanticType? {
-    if (get("format")?.takeIf(JsonNode::isString)?.stringValue() in setOf("date", "date-time")) {
+    if (get(JsonSchemaProperty.FORMAT)?.takeIf(JsonNode::isString)?.stringValue() in
+        setOf(DATE_FORMAT, DATE_TIME_FORMAT)
+    ) {
         return Temporal.Date
     }
     COMPOSITIONS.forEach { composition ->
         get(composition)?.firstNotNullOfOrNull(JsonNode::inferredTemporal)?.let { return it }
     }
-    return if (isArrayShape()) get("items")?.inferredTemporal() else null
+    return if (isArrayShape()) get(JsonSchemaProperty.ITEMS)?.inferredTemporal() else null
 }
 
 internal fun JsonNode.hasAdditionalProperties(): Boolean {
-    get("additionalProperties")?.let { additionalProperties ->
+    get(JsonSchemaProperty.ADDITIONAL_PROPERTIES)?.let { additionalProperties ->
         if (additionalProperties.isObject ||
             additionalProperties.takeIf(JsonNode::isBoolean)?.booleanValue() == true
         ) {
@@ -455,8 +509,8 @@ private fun JsonNode.schemaTypeNames(): Set<String> = when {
 }
 
 private fun JsonNode.arrayItems(): List<JsonNode> = buildList {
-    if (get("type")?.schemaTypeNames()?.contains("array") == true) {
-        get("items")?.let(::add)
+    if (get(JsonSchemaProperty.TYPE)?.schemaTypeNames()?.contains(JsonSchemaType.ARRAY) == true) {
+        get(JsonSchemaProperty.ITEMS)?.let(::add)
     }
     COMPOSITIONS.forEach { composition ->
         get(composition)?.forEach { alternative -> addAll(alternative.arrayItems()) }
