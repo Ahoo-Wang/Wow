@@ -128,13 +128,13 @@ starters as a temporary compilation bridge, followed by convergence on focused s
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
 // Update wow version
-implementation("me.ahoo.wow:wow-spring-boot-starter:8.13.0")
+implementation("me.ahoo.wow:wow-spring-boot-starter:8.13.1")
 ```
 ```xml [Maven]
 <dependency>
     <groupId>me.ahoo.wow</groupId>
     <artifactId>wow-spring-boot-starter</artifactId>
-    <version>8.13.0</version>
+    <version>8.13.1</version>
 </dependency>
 ```
 :::
