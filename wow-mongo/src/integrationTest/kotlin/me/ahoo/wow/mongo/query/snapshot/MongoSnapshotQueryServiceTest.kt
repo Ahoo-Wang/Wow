@@ -209,6 +209,29 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     }
 
     @Test
+    fun `strict should delegate numeric array ranges and aggregation`() {
+        val fieldPath = "state.values"
+        database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
+            .updateOne(
+                Document("_id", snapshot.aggregateId.id),
+                Document("\$set", Document(fieldPath, listOf(7))),
+            ).toMono().test().expectNextCount(1).verifyComplete()
+        val service = MongoSnapshotQueryServiceFactory(
+            database,
+            schemaSources = querySchemaSources + numericArraySource(fieldPath),
+            validationMode = QuerySchemaValidationMode.STRICT,
+        ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+
+        service.dynamicList(
+            ListQuery(filter = filterExpression { fieldPath.between(2, 8) }, limit = 10),
+        ).test().expectNextCount(1).verifyComplete()
+        aggregation { sum(field(fieldPath) * constant(1.0), "total") }.query(service)
+            .test()
+            .assertNext { row -> row.toMap().assert().isEqualTo(mapOf("total" to 7.0)) }
+            .verifyComplete()
+    }
+
+    @Test
     fun `strict should execute the built-in ABAC tags filter shape`() {
         database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
             .updateOne(
@@ -680,6 +703,21 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                 ),
             )
         }
+
+    private fun numericArraySource(field: String): QuerySchemaSource = object : QuerySchemaSource {
+        override val priority: Int = QuerySchemaSourcePriority.BEAN
+
+        override fun load(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> = Flux.just(
+            QuerySchemaDeclaration(
+                mapOf(
+                    LogicalField(field) to QueryFieldDeclaration(
+                        valueTypes = DeclarationValue.Set(setOf(QueryValueType.INTEGER)),
+                        cardinality = DeclarationValue.Set(QueryCardinality.MANY),
+                    ),
+                ),
+            ),
+        )
+    }
 
     private fun dynamicStringMapSource(): QuerySchemaSource = object : QuerySchemaSource {
         override val priority: Int = QuerySchemaSourcePriority.BEAN

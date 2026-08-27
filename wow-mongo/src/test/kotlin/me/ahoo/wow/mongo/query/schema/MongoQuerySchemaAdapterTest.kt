@@ -54,7 +54,22 @@ import tools.jackson.databind.node.StringNode
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
+@Suppress("LargeClass")
 class MongoQuerySchemaAdapterTest {
+    @Test
+    fun `numeric arrays should retain backend-supported range and aggregation bindings`() {
+        val amount = LogicalField("state.amounts")
+        val logical = LogicalQuerySchema(
+            mapOf(
+                amount to field(QueryValueType.DECIMAL, cardinality = QueryCardinality.MANY),
+            ),
+        )
+        val schema = MongoQuerySchemaAdapter.bind(logical, emptyList(), null)
+
+        schema.fields.getValue(amount).bindings.keys.assert()
+            .contains(QueryCapability.RANGE, QueryCapability.AGGREGATE_NUMERIC)
+    }
+
     @Test
     fun `formatted temporal strings should support relative ranges but not temporal aggregation`() {
         val field = LogicalField("state.formatted")

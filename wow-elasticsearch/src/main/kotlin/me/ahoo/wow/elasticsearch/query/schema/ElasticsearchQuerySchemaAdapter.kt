@@ -64,13 +64,17 @@ class ElasticsearchQuerySchemaAdapter(
             mapping: ElasticsearchIndexMapping,
         ): QueryModelSchema {
             val invalidNestedParents = mapping.invalidNestedParents(logicalSchema)
+            val nestedPaths = mapping.fields.filterValues { it.kind == Property.Kind.Nested }.keys
+            val rootSearchFields = mapping.fields.filterKeys { path ->
+                nestedPaths.none { path.startsWith("$it.") }
+            }.values
             return QueryModelSchema(
                 model = QueryModel.SNAPSHOT,
                 capabilities = buildSet {
-                    if (mapping.fields.values.any(ElasticsearchMappedField::supportsModelFullText)) {
+                    if (rootSearchFields.any(ElasticsearchMappedField::supportsModelFullText)) {
                         add(QueryCapability.FULL_TEXT_TERMS)
                     }
-                    if (mapping.fields.values.any(ElasticsearchMappedField::supportsModelPhraseSearch)) {
+                    if (rootSearchFields.any(ElasticsearchMappedField::supportsModelPhraseSearch)) {
                         add(QueryCapability.FULL_TEXT_PHRASE)
                     }
                 },
@@ -79,7 +83,9 @@ class ElasticsearchQuerySchemaAdapter(
                         put(
                             field,
                             logical.toFieldSchema(
-                                projectionPath = mapping.fields[field.value]?.projectionPath,
+                                projectionPath = mapping.fields[field.value]?.projectionPath
+                                    ?: mapping.find(field.value)?.takeIf { it.kind == Property.Kind.Flattened }
+                                        ?.let { field.value },
                                 bindings = BUILT_IN_CAPABILITIES.mapNotNull { capability ->
                                     mapping.binding(field.value, logical, capability, invalidNestedParents)
                                         ?.let { capability to it }
@@ -123,7 +129,8 @@ class ElasticsearchQuerySchemaAdapter(
             if (invalidNestedParents.any { physicalPath.startsWith("$it.") }) return null
             if (logical.dynamicChildren && capability != QueryCapability.ELEMENT_SCOPE) return null
             val mapped = find(physicalPath) ?: return null
-            val selected = if (mapped.supports(capability, logical)) {
+            val flattenedDescendant = physicalPath !in fields && mapped.kind == Property.Kind.Flattened
+            val selected = if (mapped.supports(capability, logical, flattenedDescendant)) {
                 physicalPath to mapped
             } else {
                 mapped.selectMultiField(this, capability, logical) ?: return null
@@ -195,6 +202,7 @@ class ElasticsearchQuerySchemaAdapter(
 private fun ElasticsearchMappedField.supports(
     capability: QueryCapability,
     logical: LogicalQueryFieldSchema,
+    flattenedDescendant: Boolean = false,
 ): Boolean {
     val executable = when (capability) {
         QueryCapability.PRESENCE -> queryable
@@ -214,7 +222,12 @@ private fun ElasticsearchMappedField.supports(
         }
         else -> false
     }
-    return executable && (capability == QueryCapability.PRESENCE || logical.proves(capability, kind))
+    return executable && (
+        capability == QueryCapability.PRESENCE ||
+            logical.proves(capability, kind) ||
+            flattenedDescendant && capability == QueryCapability.EXACT_MATCH &&
+            logical.valueTypes == setOf(QueryValueType.STRING)
+        )
 }
 
 private val LogicalQueryFieldSchema.isElementScope: Boolean

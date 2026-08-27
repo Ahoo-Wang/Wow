@@ -25,6 +25,7 @@ import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
@@ -54,6 +55,54 @@ import java.util.concurrent.TimeUnit
 
 @Suppress("LargeClass")
 class ElasticsearchQuerySchemaAdapterTest {
+    @Test
+    fun `nested-only search fields should not advertise root model search`() {
+        val child = LogicalField("state.orders.note")
+        val logical = LogicalQuerySchema(
+            linkedMapOf(
+                LogicalField("state.orders") to field(QueryValueType.OBJECT, QueryCardinality.MANY),
+                child to field(QueryValueType.STRING),
+            ),
+        )
+        val mapping = TypeMapping.of { type ->
+            type.properties("state.orders") { orders ->
+                orders.nested { nested ->
+                    nested.properties("note") { note -> note.text { it } }
+                }
+            }
+        }
+        val schema = ElasticsearchQuerySchemaAdapter.bind(
+            logical,
+            ElasticsearchIndexMapping.from(INDEX, mapping),
+        )
+
+        schema.capabilities.assert()
+            .doesNotContain(QueryCapability.FULL_TEXT_TERMS, QueryCapability.FULL_TEXT_PHRASE)
+        schema.fields.getValue(child).bindings.assert().containsKey(QueryCapability.FULL_TEXT_TERMS)
+        QuerySchemaResolver(schema).resolve(SearchFilter("note")).compatibility.assert()
+            .isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+    }
+
+    @Test
+    fun `declared flattened string descendants should support exact matching and projection`() {
+        val field = LogicalField("state.labels.color")
+        val schema = ElasticsearchQuerySchemaAdapter.bind(
+            LogicalQuerySchema(mapOf(field to field(QueryValueType.STRING))),
+            ElasticsearchIndexMapping.from(
+                INDEX,
+                TypeMapping.of { mapping ->
+                    mapping.properties("state.labels") { labels -> labels.flattened { it } }
+                },
+            ),
+        )
+
+        schema.binding(field.value, QueryCapability.EXACT_MATCH).assertPath(field.value, "flattened")
+        QuerySchemaResolver(schema).resolve(Projection(include = listOf(field.value))).let { resolved ->
+            resolved.value.assert().isEqualTo(Projection(include = listOf(field.value)))
+            resolved.compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+        }
+    }
+
     @Test
     fun `projection should retain the source path when presence uses a multi-field`() {
         val field = LogicalField("state.name")

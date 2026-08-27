@@ -114,6 +114,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                                             .fields("keyword") { keyword -> keyword.keyword { it } }
                                     }
                                 }.properties("formattedDate") { it.keyword { keyword -> keyword } }
+                                .properties("labels") { it.flattened { flattened -> flattened } }
                                 .properties("createdAt") { it.long_ { number -> number } }
                                 .properties("unreadableNumber") {
                                     it.double_ { number -> number.index(false).docValues(false) }
@@ -232,6 +233,21 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             ListQuery(
                 filter = TodayFilter(field, zoneId = "UTC"),
                 sort = listOf(Sort("_score", Sort.Direction.DESC)),
+                limit = 10,
+            ),
+        ).test().expectNextCount(1).verifyComplete()
+    }
+
+    @Test
+    fun `strict should query an explicitly declared flattened descendant`() {
+        val field = "state.labels.color"
+        updateState(mapOf("labels" to mapOf("color" to "green")))
+        val service = strictService(querySchemaSources + source(stringField(field)))
+
+        service.dynamicList(
+            ListQuery(
+                filter = filterExpression { field eq "green" },
+                projection = Projection(include = listOf(field)),
                 limit = 10,
             ),
         ).test().expectNextCount(1).verifyComplete()
