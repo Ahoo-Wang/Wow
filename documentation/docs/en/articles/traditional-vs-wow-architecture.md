@@ -1,98 +1,106 @@
 ---
 title: "Traditional CRUD vs Wow: From Shipping Endpoints to Shipping a Domain Model"
-description: "Compare common CRUD layering with Wow model-as-a-service: commands, events, sourcing, projections, sagas, and executable domain specifications."
+description: "Compare common CRUD layering with Wow's model-driven runtime while separating framework capability, application responsibility, and repository evidence."
 outline: deep
 ---
 
 # Traditional CRUD vs Wow: From Shipping Endpoints to Shipping a Domain Model
 
-![Traditional layered architecture compared with Wow domain model as a service](/images/articles/traditional-vs-wow-architecture/cover.png)
+![Traditional layered architecture compared with a Wow domain model service](/images/articles/traditional-vs-wow-architecture/cover.png)
 
-A traditional order feature often requires a controller, DTOs, service, repository, SQL, transactions, event publication, retries, compensation, and integration-test setup. The business rule may be small while its surrounding glue keeps growing.
+An order feature can start with a controller, service, and repository, or with commands, aggregate invariants, and domain events. Both paths can ship software. They differ in where business decisions live and which costs the team accepts.
 
-Wow moves reusable command, event-sourcing, projection, saga, and testing infrastructure into the framework so the application can organize work around business decisions.
+This article's argument is: **when domain rules, state history, and cross-aggregate collaboration dominate complexity, a domain model is usually a clearer delivery unit than an endpoint.** This is not a quality judgment about every “traditional architecture,” nor a Wow guarantee about delivery speed or defect rates.
 
-## The Difference in One Table
+## Define the Comparison First
 
-| Dimension | Common CRUD layering | Wow |
+“Conventional CRUD” here means a common workflow: a request passes through a controller and service, which reads and updates current state inside a transaction. Mature systems can also have strong domain models, events, and excellent tests; non-Wow does not mean anemic.
+
+“Wow” means the command dispatch, event sourcing, snapshots, projections, sagas, wait stages, metadata, and testing capabilities in the current repository. [Architecture Overview](../guide/advanced/architecture.md) owns exact component responsibilities; [Introduction](../guide/introduction.md#fit-boundary) owns the fit and adoption-cost boundary.
+
+## Two Ways to Organize Delivery
+
+| Decision | Common CRUD layering | Current Wow approach |
 | --- | --- | --- |
-| Starting point | controller and service | aggregate, command, and invariant |
-| API | handwritten route and DTO mapping | metadata-driven command/query routes |
-| State change | update current rows | produce immutable domain events |
-| Persistence | business code calls repositories/SQL | EventStore persists facts and sourcing rebuilds state |
-| Read model | manually synchronized tables/indexes | projections and snapshot queries |
-| Cross-aggregate flow | nested service calls | domain events and sagas |
-| Domain tests | application context and database setup | `AggregateSpec` / `SagaSpec` |
+| Modeling start | resource, endpoint, and current data | business command, aggregate boundary, and invariant |
+| State change | update current records in a transaction | aggregate produces events; sourcing functions apply them |
+| History | design a separate audit/history mechanism | EventStore retains versioned domain-event history |
+| Reads | reuse the write model or build custom queries | sourced aggregate state and projected views are distinct paths |
+| Cross-aggregate work | organize service calls, messages, or workflows | saga consumes an event and sends another command |
+| Domain verification | team selects unit/integration layers | `AggregateSpec` / `SagaSpec` express Given → When → Expect |
 
-This comparison describes a common CRUD style, not every traditional system. Architecture should still follow domain complexity and team constraints.
+This table is an architecture view, not a complete contract. [Core Concepts](../guide/core-concepts.md) owns the canonical command, event, state, projection, and saga vocabulary.
 
-## Model as a Service
+## What Wow Connects to the Domain Model
 
 ```mermaid
 flowchart LR
-    Command --> Aggregate[Aggregate Decision]
-    Aggregate --> Event[Domain Event]
-    Event --> State[Sourced State]
+    Command --> Aggregate[Aggregate decision]
+    Aggregate --> Event[Domain event]
+    Event --> State[Sourced state]
     Event --> Projection
     Event --> Saga
     Saga --> Command
 ```
 
-The model becomes the source of several capabilities:
+The current Wow runtime connects the same domain artifacts to:
 
-- aggregate entry point and invariant boundary;
-- generated command routes and OpenAPI metadata;
-- event history and state reconstruction;
-- projection and saga inputs;
-- executable Given → When → Expect specifications.
+- command messages and aggregate processing;
+- event append and state reconstruction;
+- snapshots, projections, and query paths;
+- event handlers and sagas;
+- WebFlux/OpenAPI metadata;
+- aggregate and saga specifications.
 
-The application still owns domain boundaries, event contracts, idempotency, authorization, and operations. Wow removes repeated infrastructure; it does not remove business decisions.
+That is the engineering meaning of “domain model as a service”: reusable runtime capabilities are assembled around the model. It does not mean one aggregate class automatically supplies a correct API, security, capacity, or recovery plan.
 
-## Example: Cart Behavior
+## What the Current Repository Example Proves
 
-The repository's [`Cart`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/Cart.kt) handles `AddCartItem` by returning either `CartItemAdded` or `CartQuantityChanged`. It never edits the database directly.
+The cart example separates responsibilities:
 
-[`CartState`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/CartState.kt) applies those events through sourcing functions. [`CartSaga`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/CartSaga.kt) reacts to `OrderCreated` and removes purchased products from the cart.
+- [`Cart.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/Cart.kt) handles `AddCartItem` and produces either `CartItemAdded` or `CartQuantityChanged` from current state;
+- [`CartState.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/CartState.kt) applies those events through sourcing functions;
+- [`CartSaga.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/CartSaga.kt) sends a remove-items command after an order created from a cart;
+- `CartSpec` and `CartSagaSpec` cover accepted, rejected, and no-follow-up-command branches.
 
-This keeps each concern explicit:
+[Kotlin Order and Cart](../reference/example/order.md) is the canonical walkthrough, and `./gradlew :example-domain:check` is the focused gate for this example.
 
-| Concern | Owner |
-| --- | --- |
-| accept/reject a command | command aggregate |
-| change aggregate state | sourcing function |
-| maintain a query model | projection |
-| send another aggregate command | saga |
-| recover failed asynchronous work | retry/compensation policy |
+This evidence proves the example behavior and test layer. It does not prove that every application writes a fixed percentage less code, gains a fixed productivity improvement, or reaches production capacity automatically. This rewrite removes those unsupported quantitative inferences.
 
-## Where Development Cost Drops
+## Cost Moves; It Does Not Disappear
 
-| Repeated cost | Wow mechanism |
-| --- | --- |
-| route/controller boilerplate | generated WebFlux/OpenAPI routes |
-| state mutation and audit tables | domain events and EventStore |
-| ad-hoc read-after-write sleep | explicit wait stages |
-| repeated query synchronization | snapshots and projections |
-| broad integration setup for every rule | aggregate and saga specifications |
+Wow can reduce the need for each business service to re-own command routing, event-store abstraction, state replay, wait coordination, and domain-test setup. The team still owns:
 
-The gain is largest when a domain has meaningful invariants, state history, several read models, or cross-aggregate workflows. For a simple CRUD resource with no valuable history or business rules, a conventional transaction may remain the better choice.
+- correct aggregate boundaries and event contracts;
+- authorization, tenancy, owner/space rules, and external-side-effect idempotency;
+- persisted-event evolution and replay compatibility;
+- selection and verification of storage, messaging, and query adapters;
+- environment evidence for capacity, backup, recovery, alerting, and rollback.
 
-## What Wow Does Not Give Automatically
+The value therefore depends on whether the problem needs these capabilities. If current state and one database transaction fully express the business, event history, asynchronous projections, and message recovery may be unnecessary cost.
 
-- correct aggregate boundaries;
-- unlimited scalability;
-- exactly-once external side effects;
-- authentication and command authorization;
-- production capacity, backup, recovery, or compliance evidence.
+## When Wow Is Worth Evaluating
 
-Those remain application responsibilities and are why [Production Best Practices](../guide/best-practices.md), [Application Testing](../guide/application-testing.md), and [Backup, Restore, and Replay](../guide/recovery.md) are part of the adoption path.
+Ask four questions:
 
-## A Practical Adoption Sequence
+1. Are there business invariants and illegal state transitions that need one explicit guardian?
+2. Does the reason state changed, historical versions, or replay have business value?
+3. Must writes and multiple read models evolve independently?
+4. Do cross-aggregate flows need explicit progress, idempotency, and recovery boundaries?
 
-1. model one business decision as command → event → state;
-2. prove it with `AggregateSpec`;
-3. expose one real HTTP command and read the sourced state;
-4. add a projection or saga only for an actual requirement;
-5. replace in-memory adapters one boundary at a time;
-6. prove restart, redelivery, authorization, and recovery before production.
+If most answers are no, clear CRUD is usually simpler. If most are yes, validate Wow with one real business slice before attempting a system-wide migration.
 
-Continue with the [Kotlin Order and Cart](../reference/example/order.md) walkthrough for the complete repository-backed example.
+## Minimal Adoption Path
+
+1. Write the command, invariant, event, and state for one core scenario.
+2. Prove accepted and rejected paths with the [Domain Test Suite](../guide/test-suite.md).
+3. Follow [Getting Started](../guide/getting-started.md) to expose one real command and read sourced state.
+4. Add a projection only for a real query requirement, and a saga only for a real cross-aggregate flow.
+5. Use [Application Testing](../guide/application-testing.md) for real adapters, restart, redelivery, and security boundaries.
+6. Complete [Production Best Practices](../guide/best-practices.md) and [Backup, Restore, and Replay](../guide/recovery.md) gates before production.
+
+## Conclusion
+
+“From endpoints to a domain model” does not mean replacing controllers with more architecture vocabulary. It means placing decisions, facts, and verification behind stable boundaries while the framework owns reusable runtime mechanics.
+
+Keep simple problems simple. A complex domain may justify event sourcing, eventual consistency, and operational cost; labels such as “traditional” and “modern” do not.

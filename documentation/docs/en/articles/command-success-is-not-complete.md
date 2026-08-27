@@ -1,6 +1,6 @@
 ---
 title: "HTTP 200 but the Query Is Empty: Stop Sleeping and Model Completion"
-description: "Use a delayed order query to understand SENT, PROCESSED, SNAPSHOT, PROJECTED, EVENT_HANDLED, and SAGA_HANDLED in Wow."
+description: "Use a read-after-write flow to distinguish command acceptance, aggregate processing, and selected projection completion while preserving correct timeout and retry boundaries."
 outline: deep
 ---
 
@@ -8,89 +8,91 @@ outline: deep
 
 ![A command moving through aggregate and event processing until a read model becomes queryable](/images/articles/command-success-is-not-complete/cover.png)
 
-In an asynchronous system, the important question is not whether an endpoint returned, but what the system promises at that moment.
+A user submits an order, receives HTTP 200, and immediately gets 404 from the details page. Adding `sleep(1000)` may hide the problem temporarily, but it does not answer the real question: **what did the system promise to complete before returning?**
 
-An order command can return HTTP 200 while the details query still returns 404. Adding `sleep(1000)` treats a contract problem as a timing problem: command acceptance, aggregate processing, snapshot persistence, and projection completion are different facts.
+This article's argument is that success in an asynchronous read/write path must name the completion boundary required by the product, not a guessed delay.
 
-## What Does HTTP 200 Mean?
+## Separate Four Kinds of Statements
 
-Wow WebFlux extracts a wait plan and calls `CommandGateway.sendAndWait`; the requested stage therefore defines response completion.
+- **Opinion:** a fixed delay is not a completion contract; callers should wait for the result they consume.
+- **Current Wow behavior:** the request's wait plan selects the stage the command response must observe.
+- **Repository evidence:** current implementation and tests cover wait registration, stage signals, timeout cleanup, and example-domain behavior.
+- **External research:** this article needs no external performance or productivity evidence, so it does not use historical TPS to justify the design.
 
-| Stage | What it proves | What it does not prove | Typical use |
-| --- | --- | --- | --- |
-| `SENT` | the command bus accepted the command | aggregate processing | asynchronous acceptance |
-| `PROCESSED` | the aggregate handled the command and stored its events | query-model update | domain operation completed |
-| `SNAPSHOT` | snapshot processing completed | another projection updated; `version_offset` may skip a write | current-state reads with `strategy: all` |
-| `PROJECTED` | the selected projection function completed | every projection completed | immediate read-after-write |
-| `EVENT_HANDLED` | the selected event handler completed | every external side effect completed | one required handler boundary |
-| `SAGA_HANDLED` | the selected saga handled the source event and accepted/sent its command | downstream aggregate completion or ACID commit | orchestration acceptance |
+The exact stages, function matching, chained waits, and idempotency boundary are governed by [Wait Plans in Command Gateway](../guide/command-gateway.md#wait-plans). This article only explains how to choose a promise.
 
-Sources: [`CommandStage`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt), [`CommandHandler`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/CommandHandler.kt).
+## HTTP 200 Means the Selected Response Contract Finished
 
-## Completion Branches After Aggregate Processing
+At a Wow WebFlux command endpoint, the wait policy extracts a wait plan and the gateway registers a wait handle before sending the command. The same HTTP status can therefore represent different completion boundaries:
+
+- `SENT` fits “the system accepted the request and may continue asynchronously”; it does not prove aggregate execution.
+- `PROCESSED` fits “the domain decision and current command chain completed”; it does not prove a query projection is current.
+- function-targeted `PROJECTED` fits “this read model must be ready before the response”; it does not prove unrelated consumers completed.
+
+`SNAPSHOT`, `EVENT_HANDLED`, `SAGA_HANDLED`, and chained waits have different boundaries. Do not infer them from names; use the canonical [Wait Stages](../guide/advanced/data-flow.md#_6-wait-stages).
+
+The post-processing stages are branches, not one mandatory pipeline.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> SENT: bus accepted
-    SENT --> PROCESSED: aggregate completed
-    PROCESSED --> SNAPSHOT: snapshot completed
-    PROCESSED --> PROJECTED: selected projection completed
-    PROCESSED --> EVENT_HANDLED: selected handler completed
-    PROCESSED --> SAGA_HANDLED: selected saga completed
+    [*] --> SENT: command bus accepted
+    SENT --> PROCESSED: current command processing completed
+    PROCESSED --> SNAPSHOT: selected snapshot branch
+    PROCESSED --> PROJECTED: selected projection function
+    PROCESSED --> EVENT_HANDLED: selected event-handler function
+    PROCESSED --> SAGA_HANDLED: selected saga function
 ```
 
-The stages after `PROCESSED` are branches, not one mandatory linear pipeline. Wait only for the narrowest stage that proves the caller's business goal.
+This is an article-level mental model, not the complete API reference; the canonical guide remains authoritative.
 
-## Why a Fixed Delay Is Wrong
+## Why a Fixed Delay Is Not a Contract
 
-![Fixed delay compared with an explicit completion signal](/images/articles/command-success-is-not-complete/explicit-completion.png)
+`sleep(1s)` has two immediate defects:
 
-A fixed delay has two failure modes:
+1. if the target completes in 100 ms, the remaining 900 ms adds no correctness;
+2. if the target still has not completed after one second, the read remains stale.
 
-- when processing takes 100 ms, the remaining 900 ms is wasted;
-- when processing takes longer than one second, the query is still stale.
+More importantly, a delay cannot identify which projection, function, or command completed. A targeted wait associates completion with a command and consumer; a deadline bounds that wait.
 
-An explicit wait target follows actual completion and can identify a specific projection, handler, or saga through `contextName`, `processorName`, and `functionName`.
+Ask “what result is required?” before asking “how long should we wait?”
 
-```kotlin
-val waitPlan = CommandWait.projected(
-    waitCommandId = command.commandId,
-    contextName = "order",
-    processorName = "OrderProjector",
-)
-
-gateway.sendAndWait(command, waitPlan)
-```
-
-## Choose the Contract by Product Need
-
-| Product need | Wait for | Avoid claiming |
+| Product need | Completion boundary | Claim to avoid |
 | --- | --- | --- |
-| accept work quickly | `SENT` | business rules already ran |
-| confirm the domain decision | `PROCESSED` | the read model is current |
-| return a queryable state snapshot | `SNAPSHOT` with `strategy: all` | unrelated projections completed |
-| open a page that uses one projection | targeted `PROJECTED` | every consumer completed |
-| require one saga step to accept output | targeted `SAGA_HANDLED` | the full distributed workflow committed |
+| accept work and continue later | `SENT` | business rules already ran |
+| confirm the domain decision before returning | `PROCESSED` | the query model is current |
+| open a page backed by one projection | targeted `PROJECTED` | every projection and external side effect completed |
 
-Stronger waits couple endpoint latency and availability to more downstream work. They are not automatically better.
+If the product reads sourced aggregate state rather than a projection, identify that actual read path before choosing a snapshot policy or wait stage. The canonical distinction is in [Read Paths](../guide/advanced/data-flow.md#_7-read-paths).
 
-## Timeout and Retry
+## Timeout Means “Target Not Observed,” Not “Command Failed”
 
-A timeout means the caller did not observe the target before its deadline. It does not prove that the command failed or was never processed.
+Missing the target signal before the deadline proves only that this wait timed out. The command may still be pending, its events may already be appended, or a notification or downstream consumer may be delayed.
 
-Before retrying:
+Before retrying, retain the same logical `requestId`, query the command result or authoritative state, and record the last observed stage. Retrying with a new request ID can turn an unknown outcome into a duplicate business action. See [Idempotency](../guide/command-gateway.md#idempotency) for Wow's scope and backend responsibilities.
 
-1. retain the same logical `requestId`;
-2. query the authoritative state or command result when available;
-3. inspect the last observed stage;
-4. do not issue a new request ID merely because the caller timed out.
+## What the Current Repository Proves
 
-## Practical Completion Gate
+The repository provides three kinds of evidence:
 
-- every write endpoint documents its wait stage and timeout;
-- any function-targeted wait identifies the exact processor/function;
-- the timeout path retains idempotency and returns an "outcome unknown" contract;
-- application tests prove both normal completion and delayed/failed downstream processing;
-- product flows wait only for the result they actually consume.
+- [`CommandStage.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt) and the wait implementation define and enforce stage relationships;
+- `wow-core` wait tests cover registration, signaling, and timeout cleanup;
+- [Kotlin Order and Cart](../reference/example/order.md) proves the example command, event, state, and saga behavior; `./gradlew :example-domain:check` is its focused gate.
 
-Continue with [Command Gateway](../guide/command-gateway.md), [Testing Wow Applications](../guide/application-testing.md), and [Troubleshooting](../guide/troubleshooting.md).
+That evidence has a limit. The example `OrderProjector` mainly logs events; it demonstrates registration and dispatch, not a production read model. This article therefore does not claim production query consistency from example tests. Applications still need their own real projection store, fault injection, and HTTP-flow evidence.
+
+## Adoption Checklist
+
+1. Write down what the user does immediately after the response.
+2. Identify the authoritative state or projection that action actually reads.
+3. Select the weakest stage that proves that result, targeting the required function.
+4. Define the deadline and an explicit “outcome unknown” response.
+5. Verify timeout, retry, and duplicate signals with the same request ID.
+6. Test delay, failure, and recovery with real adapters, not only a happy path.
+
+## Conclusion
+
+“The endpoint succeeded but the query is empty” is not resolved by saying “eventual consistency.” Product and engineering must define which result, at which boundary, is complete for which caller.
+
+Wow supplies declarative waits; it does not choose the correct promise for the application. Waiting for the weakest stage that satisfies the user-visible contract is more reliable—and more honest—than `sleep(1s)`.
+
+Continue with [Core Concepts](../guide/core-concepts.md#command-completion-and-wait-stages), [Command Gateway](../guide/command-gateway.md#wait-plans), [Application Testing](../guide/application-testing.md), and [Troubleshooting](../guide/troubleshooting.md).
