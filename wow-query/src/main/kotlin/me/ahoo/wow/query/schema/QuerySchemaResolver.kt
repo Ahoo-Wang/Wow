@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+@file:JvmName("QuerySchemaResolverKt")
+@file:JvmMultifileClass
 @file:Suppress("NoWildcardImports", "WildcardImport")
 
 package me.ahoo.wow.query.schema
