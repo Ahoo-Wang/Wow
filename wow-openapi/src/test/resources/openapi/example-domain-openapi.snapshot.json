@@ -2662,7 +2662,7 @@
         "type" : "object"
       },
       "tck.mock_aggregate.MockCommandAggregateAggregatedFields" : {
-        "enum" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.createdAt", "state.data", "state.decimalValue", "state.id", "state.orders", "state.orders.lines", "state.orders.lines.amount", "state.orders.lines.createdAt", "state.orders.lines.discounts", "state.orders.lines.discounts.amount", "state.orders.lines.discounts.type", "state.orders.lines.productId", "state.orders.lines.quantity", "state.orders.lines.samples", "state.orders.status", "tags", "tenantId", "version" ],
+        "enum" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.createdAt", "state.data", "state.decimalValue", "state.id", "state.orders", "state.orders.lines", "state.orders.lines.amount", "state.orders.lines.createdAt", "state.orders.lines.discounts", "state.orders.lines.discounts.amount", "state.orders.lines.discounts.type", "state.orders.lines.productId", "state.orders.lines.productName", "state.orders.lines.quantity", "state.orders.lines.samples", "state.orders.status", "tags", "tenantId", "version" ],
         "type" : "string"
       },
       "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedDomainEventStream" : {
@@ -3024,6 +3024,13 @@
           },
           "productId" : {
             "type" : "string"
+          },
+          "productName" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "quantity" : {
             "format" : "int32",
@@ -4463,6 +4470,44 @@
         "required" : [ "alias", "field", "type" ],
         "type" : "object"
       },
+      "wow.api.query.AggregationMetric" : {
+        "discriminator" : {
+          "mapping" : {
+            "ANY" : "#/components/schemas/wow.api.query.AggregationMetric.Any",
+            "COUNT" : "#/components/schemas/wow.api.query.AggregationMetric.Count",
+            "NUMERIC" : "#/components/schemas/wow.api.query.AggregationMetric.Numeric"
+          },
+          "propertyName" : "type"
+        },
+        "oneOf" : [ {
+          "$ref" : "#/components/schemas/wow.api.query.AggregationMetric.Any"
+        }, {
+          "$ref" : "#/components/schemas/wow.api.query.AggregationMetric.Count"
+        }, {
+          "$ref" : "#/components/schemas/wow.api.query.AggregationMetric.Numeric"
+        } ],
+        "properties" : {
+          "alias" : {
+            "readOnly" : true,
+            "type" : "string"
+          }
+        }
+      },
+      "wow.api.query.AggregationMetric.Any" : {
+        "properties" : {
+          "alias" : {
+            "type" : "string"
+          },
+          "field" : {
+            "$ref" : "#/components/schemas/wow.api.query.LogicalField"
+          },
+          "type" : {
+            "const" : "ANY"
+          }
+        },
+        "required" : [ "alias", "field", "type" ],
+        "type" : "object"
+      },
       "wow.api.query.AggregationMetric.Count" : {
         "properties" : {
           "alias" : {
@@ -4528,11 +4573,7 @@
           },
           "metrics" : {
             "items" : {
-              "anyOf" : [ {
-                "$ref" : "#/components/schemas/wow.api.query.AggregationMetric.Count"
-              }, {
-                "$ref" : "#/components/schemas/wow.api.query.AggregationMetric.Numeric"
-              } ]
+              "$ref" : "#/components/schemas/wow.api.query.AggregationMetric"
             },
             "maxItems" : 64,
             "minItems" : 1,

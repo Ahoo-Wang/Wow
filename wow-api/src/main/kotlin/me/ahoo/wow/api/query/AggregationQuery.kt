@@ -30,7 +30,7 @@ data class AggregationQuery(
     @get:ArraySchema(maxItems = MAX_GROUPS)
     @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
     val groupBy: List<AggregationGroup> = emptyList(),
-    @get:ArraySchema(minItems = 1, maxItems = MAX_METRICS)
+    @get:ArraySchema(minItems = 1, maxItems = MAX_METRICS, schema = Schema(implementation = AggregationMetric::class))
     val metrics: List<AggregationMetric>,
     @get:ArraySchema(maxItems = MAX_SORT_FIELDS)
     @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
