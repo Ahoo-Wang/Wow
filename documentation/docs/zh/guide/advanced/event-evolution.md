@@ -1,73 +1,55 @@
 ---
 title: 事件演进
-description: 使用事件 revision、EventUpgrader 和历史回放测试安全演进已持久化的领域事件。
+description: 使用 revision、EventUpgrader 与历史回放维护持久事件 wire 合同。
 outline: deep
 ---
 
 # 事件演进
 
-领域事件一旦持久化，就成为长期数据契约。修改 Kotlin 类并不能修改历史记录；Wow 会在历史事件反序列化之前调用 `EventUpgrader`，把旧记录转换成当前模型可读取的形态。
+持久化领域事件是长期 wire 合同。修改 Kotlin 类只改变新代码；历史 JSON 仍保留原来的事件名、类型、revision 和 body。Wow 在 `DomainEventRecord` 物化为当前事件对象前调用 `EventUpgraderFactory`：
 
 ```text
-EventStore 原始记录 → EventUpgrader 链 → 当前事件类型 → @OnSourcing
+EventStore 记录
+  → 按 context + aggregate + event name 查找 Upgrader
+  → 按 @Order 依次转换记录
+  → 按 type id + revision 解析当前事件类型
+  → @OnSourcing
 ```
 
-升级只改变本次读取使用的内存记录，不会原地重写事件存储。
+Upgrader 改变本次读取使用的 `ObjectNode`，不会把转换结果写回 EventStore。
 
-## Revision 与聚合版本不是一回事
+## 两种版本
 
-- **事件 `revision`**：事件载荷结构的版本，由 `@Event(revision = "...")` 声明；默认值是 `0.0.1`。
-- **聚合 `version`**：事件在聚合流中的顺序，用于乐观并发和重放。
+| 字段 | 含义 | 用途 |
+| --- | --- | --- |
+| `revision` | 事件载荷 Schema 修订，由 `@Event(revision = ...)` 声明，默认 `0.0.1` | 选择事件类型并驱动升级逻辑 |
+| 聚合 `version` | 事件流在一个聚合历史中的位置 | 顺序、恢复和乐观并发 |
 
-增加、删除或重命名字段时更新事件 `revision`，不要修改聚合 `version` 来表达 Schema 变化。
+Schema 变化不能通过修改聚合 version 表达。一个事件 revision 也不会自动告诉框架如何转换；每个 `EventUpgrader` 都是应用显式提供的函数。
 
-## 何时需要 Upgrader
+## 决定是否需要升级
 
-| 变化 | 建议 |
+| 变化 | 所需证据 |
 | --- | --- |
-| 增加带安全默认值的可选字段 | 可保持兼容，但仍应执行历史反序列化测试 |
-| 增加必填字段、改变字段类型或嵌套结构 | 添加 `EventUpgrader` |
-| 重命名事件或 JVM 类型 | 同时升级 `name`、`bodyType` 和 `body` |
-| 事件已无业务意义 | 仅在回放语义允许时转换为 `DroppedEvent` |
-| 只想修复错误历史数据 | 不要伪装成普通 Schema 升级；单独设计审计、备份、对账和回滚流程 |
+| 增加可选字段或安全默认值 | 用真实旧记录验证当前 Mapper 可以读取，并验证重放状态 |
+| 增加必填字段、改类型或改嵌套结构 | 提供 Upgrader，把旧 body 转为目标结构 |
+| 改事件名或 JVM 类型 | 同时评估 `name`、`bodyType`、`revision` 和 body；验证类型注册 |
+| 事件不再影响当前状态 | 只有证明重放不变量不变后，才可转为 `DroppedEvent` |
+| 修复错误业务事实 | 设计可审计的数据修复/补偿；不要伪装成无害 Schema 升级 |
 
-## 示例：为旧事件补充字段
-
-假设 `sales.order` 聚合中的 `order_created` 从 `0.0.1` 升级到 `2.0.0`，新模型要求 `currency`：
+## 实现单步 Upgrader
 
 ```kotlin
-@Event(revision = "2.0.0")
-data class OrderCreated(
-    val customerId: String,
-    val totalAmount: BigDecimal,
-    val currency: String,
-)
-```
-
-创建 Upgrader。`EventUpgraderFactory` 会对同一事件执行所有已注册 Upgrader，因此每个 Upgrader 都必须检查自己的源 revision；否则它也会错误处理已经升级或新写入的事件。
-
-```kotlin
-import me.ahoo.wow.api.annotation.Order
-import me.ahoo.wow.event.upgrader.EventNamedAggregate
-import me.ahoo.wow.event.upgrader.EventNamedAggregate.Companion.toEventNamedAggregate
-import me.ahoo.wow.event.upgrader.EventUpgrader
-import me.ahoo.wow.event.upgrader.MutableDomainEventRecord.Companion.toMutableDomainEventRecord
-import me.ahoo.wow.modeling.toNamedAggregate
-import me.ahoo.wow.serialization.event.DomainEventRecord
-
 @Order(100)
 class OrderCreatedV2Upgrader : EventUpgrader {
-    override val eventNamedAggregate: EventNamedAggregate =
-        "sales.order"
-            .toNamedAggregate()
+    override val eventNamedAggregate =
+        "sales.order".toNamedAggregate()
             .toEventNamedAggregate("order_created")
 
-    override fun upgrade(domainEventRecord: DomainEventRecord): DomainEventRecord {
-        if (domainEventRecord.revision != "0.0.1") {
-            return domainEventRecord
-        }
+    override fun upgrade(record: DomainEventRecord): DomainEventRecord {
+        if (record.revision != "0.0.1") return record
 
-        return domainEventRecord.toMutableDomainEventRecord().apply {
+        return record.toMutableDomainEventRecord().apply {
             body.put("currency", "CNY")
             revision = "2.0.0"
         }
@@ -75,85 +57,69 @@ class OrderCreatedV2Upgrader : EventUpgrader {
 }
 ```
 
-`sales.order` 和 `order_created` 必须与存储记录中的上下文、聚合和事件名称完全一致。不要根据新的类名猜测这些值；应从选定版本的元数据或真实历史记录中确认。
+`EventUpgraderFactory` 会执行该事件已注册的**所有** Upgrader，不会根据 revision 自动跳过任何一步。因此每一步必须检查自己的源 revision，并明确写出目标 revision。`eventNamedAggregate` 必须与历史记录的 context、aggregate 和 event name 完全一致。
 
-## 注册 ServiceLoader
+## 注册与顺序
 
-在包含 Upgrader 的运行时模块创建：
+在最终运行时 classpath 中提供 ServiceLoader 文件：
 
 ```text
-src/main/resources/META-INF/services/me.ahoo.wow.event.upgrader.EventUpgrader
+META-INF/services/me.ahoo.wow.event.upgrader.EventUpgrader
 ```
 
-文件内容是实现类的完全限定名，每行一个：
+内容每行一个实现类：
 
 ```text
 com.example.order.event.OrderCreatedV2Upgrader
 ```
 
-Wow 在 `EventUpgraderFactory` 初始化时通过 Java `ServiceLoader` 加载这些实现。注册文件必须进入最终运行时 classpath；修改后需要重新构建并重启应用。
-
-## 链式升级与顺序
-
-长期运行的系统通常需要多步升级：
+工厂初始化时加载并按 Wow `@Order` 排序。多步升级可以写成：
 
 ```text
-0.0.1 --Order(100)--> 1.0.0 --Order(200)--> 2.0.0
+0.0.1 --order 100--> 1.0.0 --order 200--> 2.0.0
 ```
 
-- 较小的 `@Order` 先执行；
-- 每一步只识别一个源 revision，并输出明确的目标 revision；
-- 不要把多个历史版本判断塞进一个不断增长的函数；
-- 新增升级步骤时，不要删除仍可能读取到的旧步骤。
+框架只执行排序后的函数列表；连续性、遗漏 revision 和输出合法性由应用测试负责。只要历史中仍可能存在旧 revision，就不能删除对应步骤。
 
-框架对 ServiceLoader 与排序的验证见 [`EventUpgraderFactoryTest`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/test/kotlin/me/ahoo/wow/event/upgrader/EventUpgraderFactoryTest.kt)。
+## 重命名与丢弃
 
-## 重命名与丢弃事件
+`MutableDomainEventRecord` 可修改 `name`、`bodyType`、`revision` 和 `body`。重命名后，目标 `(context, aggregate, name, revision)` 必须能解析到预期事件类型；不能只改 Kotlin 类名。
 
-`MutableDomainEventRecord` 允许修改 `name`、`bodyType`、`revision` 和 `body`。重命名时必须让这四个字段与目标事件类型保持一致，并执行完整回放测试。
+`toDroppedEventRecord()` 把 `bodyType`、`name` 和 body 改为框架的 dropped 记录，同时保留流中的聚合 version/sequence。它不是删除历史，也不会自动证明该事件对状态无影响。
 
-确实不再参与当前状态的事件可以转换为 `DroppedEvent`：
-
-```kotlin
-import me.ahoo.wow.event.upgrader.DroppedEvent.toDroppedEventRecord
-
-override fun upgrade(domainEventRecord: DomainEventRecord): DomainEventRecord {
-    if (domainEventRecord.revision != "0.0.1") {
-        return domainEventRecord
-    }
-    return domainEventRecord.toDroppedEventRecord()
-}
-```
-
-::: danger 丢弃会改变回放语义
-只有当后续状态和业务不变量完全不依赖该事件时才能丢弃。为了“让反序列化不再报错”而丢弃事件，会生成表面成功但错误的聚合状态。
+::: danger
+为了绕过反序列化错误而 drop 事件，可能让重放表面成功却产生错误状态。先证明所有后续状态和业务不变量不依赖该事件。
 :::
 
-## 必须保留的测试证据
+## 验证矩阵
 
-至少覆盖三个边界：
+1. **函数级**：每个源 revision 的输入字段、目标 revision、name/type/body。
+2. **注册级**：最终 artifact 能通过 ServiceLoader 找到实现，顺序符合 `@Order`。
+3. **反序列化级**：升级后由 `EventTypeRegistry` 解析到预期类型。
+4. **历史回放级**：从脱敏真实样本或完整夹具恢复聚合，并比较关键状态与不变量。
+5. **下游级**：投影、Saga 与 BI 对旧/新事件的处理结果一致或按迁移设计变化。
 
-1. **单步转换**：用真实旧 revision 的记录验证字段、事件名、类型和目标 revision；
-2. **注册与顺序**：验证 `EventUpgraderFactory.get(...)` 能发现实现，并按 `@Order` 排列；
-3. **历史回放**：使用生产脱敏样本或完整历史夹具重建聚合，比较最终状态和关键业务不变量。
+仓库中的最窄检查：
 
-只对 Upgrader 函数做单元测试，不能证明 ServiceLoader 注册、链式顺序或真实事件反序列化正确。
+```bash
+./gradlew :wow-core:test --tests "me.ahoo.wow.event.upgrader.EventUpgraderFactoryTest"
+./gradlew :wow-core:test --tests "me.ahoo.wow.serialization.JsonSerializerEventTest"
+```
 
-## 发布与回滚门禁
+## 发布与回滚
 
-1. 备份事件存储，并证明备份可恢复；
-2. 在隔离环境扫描各 revision 的数量和异常值；
-3. 使用候选代码回放代表性聚合及最长事件流；
-4. 对比升级前后的聚合状态、投影结果和关键业务统计；
-5. 滚动发布前确认旧实例能否读取新 revision；不能时必须停写或采用兼容的分阶段发布；
-6. 保留旧应用和 Upgrader 链的回滚路径，确认回滚不会读取到它无法理解的新事件。
+- 发布前统计真实 revision 分布并验证备份恢复；
+- 在隔离环境回放代表性与最长事件流；
+- 滚动窗口中同时存在新旧实例时，确认旧实例能否读取新写 revision；
+- 不能双向读取时，设计停写或分阶段兼容，而不是直接滚动；
+- 回滚应用时也要保留它需要的 Upgrader 链。
 
-本地回放通过不等于可以安全切流。真实存储中的 revision 分布、部署并存窗口和恢复证据必须独立确认。
+本地测试通过只证明候选代码；不证明线上数据分布、并存窗口或恢复流程。
 
-## 相关源码
+## 源码与相关页面
 
-- [`DomainEventRecord.toDomainEvent`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/serialization/event/DomainEventRecord.kt)
-- [`EventUpgrader`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/upgrader/EventUpgrader.kt)
+- [`DomainEventRecord`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/serialization/event/DomainEventRecord.kt)
 - [`EventUpgraderFactory`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/upgrader/EventUpgraderFactory.kt)
 - [`MutableDomainEventRecord`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/upgrader/MutableDomainEventRecord.kt)
-- [`DroppedEvent`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/upgrader/DroppedEvent.kt)
+- [序列化](./serialization.md)：Mapper 与事件类型解析
+- [迁移](../migration.md)：发布、对账和回滚边界

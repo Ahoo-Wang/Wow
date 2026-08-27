@@ -1,101 +1,101 @@
 ---
 title: Aggregate Scheduler
-description: Dedicated Reactor Scheduler for each aggregate to control concurrent execution and resource allocation.
+description: Cache Reactor Schedulers per named aggregate and separate thread pools, processing groups, and ordering scope.
+outline: deep
 ---
 
 # Aggregate Scheduler
 
-The aggregate scheduler provides a dedicated Reactor Scheduler for each aggregate, used to control concurrent execution and resource allocation.
+`AggregateSchedulerSupplier` provides Reactor `Scheduler` instances to command and event dispatchers. The default implementation caches one parallel Scheduler per **materialized named aggregate**. It is not one thread per aggregate ID and is not a distributed lock.
 
-## Scheduler Supplier
-
-The aggregate scheduler supplier provides or creates a dedicated scheduler for each aggregate.
-It exposes both graceful and force-stop capabilities so the runtime can dispose every cached
-scheduler on either shutdown path.
+## Supplier contract
 
 ```kotlin
 interface AggregateSchedulerSupplier : GracefullyStoppable {
     fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler
-    // inherited: stopGracefully(): Mono<Void>
     fun forceStop()
 }
 ```
 
-### Default Implementation
+`DefaultAggregateSchedulerSupplier(name, parallelism)`:
 
-`DefaultAggregateSchedulerSupplier` lazily creates one `Schedulers.newParallel` per
-materialized aggregate and caches it. The constructor accepts a `name` (used as the
-scheduler-name prefix) and an optional `parallelism` (default
-`Schedulers.DEFAULT_POOL_SIZE`); it also implements `ParallelismCapable` and `Named`.
+- creates `Schedulers.newParallel("$name-${aggregateName}", parallelism)` on first access to a named aggregate;
+- returns the cached instance on later access;
+- defaults `parallelism` to `Schedulers.DEFAULT_POOL_SIZE`;
+- rejects creation of a new Scheduler after stopping begins.
 
-```kotlin
-class DefaultAggregateSchedulerSupplier(
-    override val name: String,
-    override val parallelism: Int = Schedulers.DEFAULT_POOL_SIZE
-) : AggregateSchedulerSupplier,
-    ParallelismCapable,
-    Named {
+Concurrent `getOrInitialize` calls share the lifecycle monitor. Tests verify that the same key creates only one cached instance.
 
-    private val schedulers: MutableMap<MaterializedNamedAggregate, Scheduler> = ConcurrentHashMap()
+## Scheduler and processing groups are different
 
-    override fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler =
-        schedulers.computeIfAbsent(namedAggregate.materialize()) { _ ->
-            Schedulers.newParallel("$name-${namedAggregate.aggregateName}", parallelism)
-        }
+A dispatcher has its own `parallelism` for aggregate-ID group keys. Do not mix the two layers:
 
-    override fun stopGracefully(): Mono<Void> {
-        // disposes every cached scheduler during graceful shutdown
-    }
+| Concept | Determines |
+| --- | --- |
+| Supplier `parallelism` | Reactor worker count for each named-aggregate Scheduler |
+| Dispatcher `parallelism` | Number of logical `groupBy` groups, defaulting from `MessageParallelism.DEFAULT_PARALLELISM` |
+| `toGroupKey()` | Which group receives an AggregateId |
 
-    override fun forceStop() {
-        // synchronously disposes every cached scheduler
-    }
-}
+`AggregateDispatcher` processes each group serially and allows groups to run concurrently:
+
+```text
+exchange
+  → groupBy(aggregateId.id.hashCode().mod(dispatcherParallelism))
+  → concatMap inside each group
+  → execute groups on the named aggregate's Scheduler
 ```
 
-The first call for a named aggregate creates a parallel scheduler named
-`{supplier-name}-{aggregateName}` (for example `order-service-order`); subsequent calls
-for the same aggregate return the cached instance.
+The same aggregate ID therefore maps to the same group in one dispatcher. Different IDs may run in different groups or may collide into one serial group.
 
-## How Dispatchers Use the Scheduler
+## Supported and unsupported ordering scope
 
-Every Wow dispatcher (command, domain-event, state-event, projection, saga, snapshot)
-obtains its per-aggregate-type scheduler from the supplier and uses `publishOn(scheduler)`.
-Within that scheduler, `AggregateDispatcher` groups messages by aggregate ID hash into
-`parallelism` lanes; events in the same lane are serialized via `concatMap`, but different
-aggregate IDs within the same type may be processed concurrently across lanes.
+The default implementation supports these statements:
 
-```kotlin
-// EventStreamDispatcher — one dispatcher is created per NamedAggregate
-override fun newAggregateDispatcher(namedAggregate: NamedAggregate): AggregateEventDispatcher {
-    return AggregateEventDispatcher(
-        namedAggregate = namedAggregate,
-        messageFlux = ...,
-        scheduler = schedulerSupplier.getOrInitialize(namedAggregate), // dedicated scheduler
-        // ...
-    )
-}
+- one materialized named aggregate reuses a Scheduler;
+- one `aggregateId.id` maps to one group for a fixed dispatcher parallelism;
+- exchanges in one group enter the handler serially.
+
+It does not establish:
+
+- permanent physical-thread affinity for an AggregateId;
+- global order across runtime instances, broker partitions, or services;
+- declaration-order execution for multiple handlers matching one event;
+- replacement of EventStore version-conflict checks;
+- idempotency for handler side effects.
+
+Write consistency still depends on aggregate boundaries and EventStore append. External processing order additionally depends on bus adapters, partitions, and consumer groups.
+
+## Ownership and shutdown
+
+The supplier owns its cached Schedulers:
+
+- `stopGracefully()` atomically closes creation, snapshots the cache, invokes `disposeGracefully()`, and caches the termination result for all observers;
+- `forceStop()` uses the same terminal snapshot and calls immediate `dispose()`;
+- force can take over an in-progress graceful disposal, and new schedulers remain rejected afterward.
+
+`CompositeEventDispatcher` gives child dispatchers a `BorrowedAggregateSchedulerSupplier`. The borrowed view has no-op stop/force behavior, leaving the parent as the only owner that closes the real supplier.
+
+The reverse cleanup order and global deadline come from [Runtime Lifecycle](./runtime-lifecycle.md).
+
+## Tuning boundary
+
+More workers or dispatcher groups increase possible concurrency, but also increase queueing, context switching, and downstream load. A single hot aggregate remains serial within one group. Before tuning, observe separately:
+
+- queueing and processing latency per named aggregate;
+- whether handlers are CPU work, non-blocking I/O, or accidental blocking calls;
+- EventStore, broker, and external-system concurrency limits;
+- whether Scheduler drain completes before the Runtime deadline.
+
+Do not derive a production throughput promise from thread counts. Use the target version, hardware, parameters, and real backends for benchmark and failure evidence.
+
+## Verification and source
+
+```bash
+./gradlew :wow-core:test --tests "me.ahoo.wow.scheduler.AggregateSchedulerSupplierTest"
+./gradlew :wow-core:test --tests "me.ahoo.wow.event.dispatcher.CompositeEventDispatcherLifecycleTest"
 ```
 
-Inside `AbstractAggregateEventDispatcher`, the grouped flux is published onto that scheduler:
-
-```kotlin
-messageFlux
-    .groupBy { it.toGroupKey(parallelism) }   // spread across parallelism lanes
-    .flatMap { grouped -> grouped.publishOn(scheduler) ... } // same aggregate type -> same scheduler
-```
-
-This is the foundation of Wow's **serial-per-aggregate-instance** processing guarantee:
-within the scheduler for one aggregate type, `AggregateDispatcher` hashes aggregate IDs into
-`parallelism` lanes; events in the same lane are serialized via `concatMap`, but different
-aggregate IDs within the same type may be processed concurrently across lanes.
-
-## Why a Dedicated Scheduler Per Aggregate?
-
-| Concern | How the per-aggregate scheduler addresses it |
-|---|---|
-| **Ordering** | Events for one aggregate type share a scheduler. Within that scheduler, `AggregateDispatcher` hashes aggregate IDs into `parallelism` lanes; events in the **same lane** are serialized via `concatMap`, but events for **different aggregate IDs** may be processed concurrently across lanes. Order is guaranteed per aggregate instance, not across instances. |
-| **Isolation** | Different aggregate types (e.g. `order` vs `cart`) get separate schedulers, so a slow one does not block another. |
-| **Backpressure** | Each named aggregate's scheduler has its own queue; contention is bounded per aggregate type, not global. |
-| **Resource control** | `parallelism` caps the worker count per named aggregate type, preventing one hot type from consuming all CPU. |
-| **Shutdown** | `stopGracefully()` drains cached schedulers; `forceStop()` disposes them synchronously when the deadline wins. |
+- [`AggregateSchedulerSupplier`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/scheduler/AggregateSchedulerSupplier.kt)
+- [`AggregateDispatcher`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt)
+- [`MessageParallelism`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/MessageParallelism.kt)
+- [Event Bus](./event-bus.md): dispatch, function concurrency, and acknowledgement

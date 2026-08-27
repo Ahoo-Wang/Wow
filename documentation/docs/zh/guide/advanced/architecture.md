@@ -1,440 +1,107 @@
 ---
 title: 架构概览
-description: 深入理解 Wow 框架架构 -- 模块层级、命令处理流程、聚合生命周期以及现代响应式 CQRS 微服务框架的扩展点。
+description: 理解 Wow 的模块边界、权威数据、运行时组件与扩展责任。
 outline: deep
 ---
 
 # 架构概览
 
-Wow 框架是建立在四个基础范式之上的模块化、分层架构：**领域驱动设计**、**CQRS**、**事件溯源**和**响应式编程**。从 API 契约到底层存储后端，每个组件都设计为非阻塞 I/O、水平可扩展性和清晰的关注点分离。
+Wow 把一次业务写入表达为**命令 → 聚合决策 → 领域事件 → 溯源状态**。框架负责把这条链连接到消息、存储、等待与派生处理；应用仍负责业务边界、事件语义、外部副作用和运行证据。这就是[简介](../introduction.md)所说的“领域模型即服务”的技术边界，而不是“只写领域类，其余自动正确”的承诺。
 
-Wow 的架构围绕一个核心原则构建：**"领域模型即服务"**。编写你的聚合，框架处理其余的一切 -- 命令路由、事件持久化、投影更新和 API 生成。开发者只需编写领域模型，框架自动提供命令路由、事件持久化、投影管道、OpenAPI 端点和分布式 Saga 编排。结果是一个业务逻辑存在于纯粹、可测试的聚合中，而基础设施关注点由可插拔的扩展模块处理的系统。
+本文是机制解释页。安装 capability、配置后端和发送命令请分别使用[配置指南](../configuration.md)、[扩展指南](../extensions/spring-boot-starter.md)与[命令网关](../command-gateway.md)。
 
-## 概览摘要
+## 分层与所有权
 
-| 组件 | 职责 | 关键构件 | 源码 |
-|---|---|---|---|
-| **wow-api** | 纯 API 契约：`CommandMessage`、`DomainEvent`、`AggregateId`、`NamedBoundedContext` | `wow-api` 模块 | [Wow.kt:26-45](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/Wow.kt#L26-L45) |
-| **wow-core** | 框架引擎：聚合、命令总线、事件存储、投影、Saga、序列化 | `wow-core` 模块 | [CommandGateway.kt:63-174](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt#L63-L174) |
-| **wow-spring** | Spring 框架集成层 | `wow-spring` 模块 | [settings.gradle.kts:32](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L32) |
-| **wow-compiler** | KSP 处理器：在编译时生成命令路由、事件元数据、OpenAPI 规范 | `wow-compiler` 模块 | [settings.gradle.kts:26](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L26) |
-| **wow-test** | 单元测试 DSL：`AggregateSpec` / `SagaSpec` 配合 Given-When-Expect 模式 | `test/wow-test` | [settings.gradle.kts:44-45](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L44-L45) |
-| **wow-kafka** | 通过 Apache Kafka 实现的命令/事件总线 | `wow-kafka` 模块 | [settings.gradle.kts:27](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L27) |
-| **wow-elasticsearch** | 通过 Elasticsearch 进行投影（读模型）存储 | `wow-elasticsearch` 模块 | [settings.gradle.kts:31](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L31) |
-| **wow-opentelemetry** | Wow 操作的分布式链路追踪 | `wow-opentelemetry` 模块 | [settings.gradle.kts:35](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L35) |
-| **wow-cosec** | 授权和访问控制 | `wow-cosec` 模块 | [settings.gradle.kts:40](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L40) |
-| **wow-webflux** | Spring WebFlux 集成：自动注册命令路由处理函数 | `wow-webflux` 模块 | [settings.gradle.kts:33](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L33) |
+| 层 | 主要模块 | 拥有的责任 | 不拥有的责任 |
+| --- | --- | --- | --- |
+| 公共契约 | `wow-api` | 命令、事件、聚合标识、注解、等待等公共模型 | 运行调度与后端实现 |
+| 核心运行时 | `wow-core` | CommandGateway、聚合处理、事件溯源、分发器、等待、序列化和 Runtime | Spring Bean 发现、具体 Broker/Storage |
+| 编译期 | `wow-compiler` | 从注解生成 Wow 元数据、聚合元数据访问器和查询属性常量 | 运行时路由、OpenAPI 文档本身 |
+| 容器集成 | `wow-spring`、`wow-spring-boot-starter` | Spring 生命周期桥接、条件装配、组件发现与 capability 组合 | 业务规则与后端原生运维 |
+| Adapter | `wow-kafka`、`wow-mongo`、`wow-redis`、`wow-elasticsearch` 等 | Bus、EventStore、SnapshotStore、查询等具体实现 | 改写核心公共语义 |
+| 验证 | `wow-test`、`wow-tck` | 领域测试 DSL 与 Adapter 契约测试 | 代替真实环境的恢复、容量和故障证据 |
 
-## 模块依赖图
+依赖方向从公共契约流向核心，再由 Spring 和 Adapter 完成装配。应用若增加后端，应实现已有窄接口，并把后端原生一致性、确认、重投和恢复语义留在 Adapter 中，不在领域模型里复制一套基础设施。
 
-框架遵循严格的分层架构，每个模块具有明确的依赖方向。`wow-api` 模块位于根层，定义了零外部依赖的纯契约，而基础设施模块在叶子层提供具体实现。
-
-```mermaid
-flowchart TB
-    subgraph API["API 层<br>"]
-        A1["wow-api<br>CommandMessage, DomainEvent<br>AggregateId, NamedBoundedContext"]
-    end
-
-    subgraph CORE["核心引擎"]
-        C1["wow-core<br>AggregateProcessor, CommandGateway<br>EventStore, SagaProcessor<br>ProjectionDispatcher"]
-    end
-
-    subgraph COMPILE["编译时"]
-        K1["wow-compiler (KSP)<br>命令路由元数据<br>事件处理器元数据<br>OpenAPI 规范生成"]
-    end
-
-    subgraph EXT["扩展模块"]
-        E1["wow-kafka<br>Kafka 命令/事件总线"]
-        E2["wow-mongo<br>MongoDB 事件存储"]
-        E3["wow-redis<br>Redis 事件存储"]
-        E5["wow-elasticsearch<br>Elasticsearch 投影"]
-        E6["wow-webflux<br>WebFlux 命令端点"]
-        E7["wow-cosec<br>授权"]
-        E8["wow-opentelemetry<br>分布式链路追踪"]
-    end
-
-    subgraph SPRING["Spring 集成"]
-        S1["wow-spring<br>Spring 上下文桥接"]
-        S2["wow-spring-boot-starter<br>自动配置<br>功能特性"]
-    end
-
-    subgraph TEST["测试"]
-        T1["wow-test<br>AggregateSpec, SagaSpec<br>Given-When-Expect DSL"]
-    end
-
-    C1 --> A1
-    K1 --> A1
-    K1 --> C1
-    CORE --> API
-    EXT --> CORE
-    SPRING --> CORE
-    EXT --> SPRING
-    TEST --> CORE
-
-    style A1 fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style C1 fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style K1 fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style E1 fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style E2 fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style E3 fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style E4 fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style E5 fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style E6 fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style E7 fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style E8 fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style S1 fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style S2 fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style T1 fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-```
-
-<!-- Sources: settings.gradle.kts:19-80, wow-api/src/main/kotlin/me/ahoo/wow/api/Wow.kt:26-45 -->
-
-## 模块层级
-
-模块层级定义在 [settings.gradle.kts:19-80](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L19-L80) 中。每个模块仅依赖层级中位于它上方的模块，确保没有循环依赖。
-
-### 分层详解
-
-| 层 | 模块 | 描述 | 源码 |
-|---|---|---|---|
-| **API 契约** | `wow-api`、`wow-openapi` | 纯 Kotlin 接口和数据类。零框架依赖。定义了 `CommandMessage`、`DomainEvent`、`AggregateId`、`WaitPlan` 等。 | [wow-api](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/Wow.kt) |
-| **核心引擎** | `wow-core` | 聚合处理、命令总线、事件存储抽象、Saga 处理、投影分发、序列化。全部响应式（Project Reactor）。 | [wow-core](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt) |
-| **编译时** | `wow-compiler` | KSP 处理器。在编译时从注解生成命令路由表、事件处理器元数据和 OpenAPI 规范。 | [settings.gradle.kts:26](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L26) |
-| **Spring 集成** | `wow-spring`、`wow-spring-boot-starter` | 将核心引擎桥接到 Spring 的 `ApplicationContext`。starter 通过 Gradle 功能变体提供自动配置和可选能力。 | [WowAutoConfiguration.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt) |
-| **可观测性** | `wow-opentelemetry` | 通过 OpenTelemetry 提供端到端链路追踪；指标由 Micrometer 独立提供。 | [settings.gradle.kts:35](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L35) |
-| **安全** | `wow-cosec` | 基于策略的访问控制的命令/查询授权。 | [settings.gradle.kts:40](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L40) |
-| **测试** | `wow-test`、`wow-tck`、`wow-mock` | 聚合和 Saga 测试 DSL；集成测试技术兼容性工具包；内存模拟实现。 | [settings.gradle.kts:44-49](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L44-L49) |
-| **补偿** | `wow-compensation-api`、`wow-compensation-core`、`wow-compensation-domain`、`wow-compensation-server` | 事件补偿子系统，带有用于监控和重试失败事件的仪表板。 | [settings.gradle.kts:56-63](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L56-L63) |
-
-### 通过模块分离强制执行的设计原则
-
-1. **依赖反转**：核心模块依赖抽象（`CommandBus`、`EventStore`、`SnapshotStore`），而非具体实现。基础设施模块提供实现，并在运行时通过 Spring 的 `@ConditionalOnClass` 自动配置被发现。
-2. **开闭原则**：可以添加新的存储后端或消息传输层作为新模块，而无需修改核心代码。
-3. **单一职责**：每个模块只有一个变更理由。`wow-mongo` 处理 MongoDB 事件存储；`wow-kafka` 处理 Kafka 消息传输；它们从不重叠。
-
-### 关键设计决策
-
-| 决策 | 理由 |
-|----------|-----------|
-| 响应式（Project Reactor） | 非阻塞 I/O 实现最大吞吐量 |
-| KSP 而非 KAPT | 编译时代码生成，构建速度更快 |
-| Spring Boot 自动配置 | 零样板代码设置 |
-| 可插拔的事件存储 | 无需更改领域代码即可切换后端 |
-| Given-When-Expect 测试 | 可读、可维护的测试套件 |
-| 暗启动支持 | 灰度发布的特性开关 |
-
-## 命令处理流程
-
-命令处理流程是 Wow 框架的中枢神经系统。它通过响应式管道协调命令路由、聚合加载、业务规则验证、事件持久化、快照创建和事件发布。
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Client as 客户端
-    participant CG as CommandGateway
-    participant CB as CommandBus
-    participant CD as CommandDispatcher
-    participant AF as AggregateProcessorFilter
-    participant AP as AggregateProcessor
-    participant SR as SnapshotStore
-    participant ES as EventStore
-    participant SA as StateAggregate
-    participant CA as CommandAggregate
-    participant SF as SendDomainEventStreamFilter
-    participant EB as EventBus
-
-    Client->>CG: sendAndWait(command, waitPlan)
-    CG->>CB: route(command)
-    Note over CB: TopicKind.COMMAND
-    CB->>CD: dispatch(ServerCommandExchange)
-    CD->>AF: filter(exchange)
-    AF->>AP: process(exchange)
-
-    AP->>SR: load(aggregateId)
-    SR-->>AP: 快照 (或 null)
-    AP->>ES: load(aggregateId, version+1)
-    ES-->>AP: 增量事件 Flux
-    AP->>SA: onSourcing(events)
-    Note over SA: 从事件重建聚合状态
-    AP->>CA: process(exchange)
-    CA->>CA: 验证业务规则
-    CA->>CA: 执行命令函数
-    CA-->>AP: DomainEventStream
-
-    AP->>ES: append(eventStream)
-    Note over ES: 原子追加，含<br>版本冲突检查
-    ES-->>AP: 成功
-    AP->>SR: save(snapshot)
-    AP->>SF: filter(eventStream)
-    SF->>EB: publish(domainEvents)
-    Note over EB: 分发到投影、<br>Saga 和事件处理器
-
-    EB-->>CG: WaitSignal (阶段通知)
-    CG-->>Client: CommandResult (当 waitPlan 满足时)
-```
-
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt:63-174, wow-core/src/main/kotlin/me/ahoo/wow/command/CommandBus.kt:36-41, wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/AggregateProcessor.kt:32-49, wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt:43-80, wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/modeling/AggregateAutoConfiguration.kt:50-151 -->
-
-### 逐步流程描述
-
-| 步骤 | 组件 | 操作 | 源码 |
-|---|---|---|---|
-| 1 | **客户端** | 发送带有 `WaitPlan` 的命令，指定等待时长和等待阶段 | [CommandGateway.kt:89-91](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt#L89-L91) |
-| 2 | **CommandGateway** | 实现 `CommandBus` 的入口点。根据聚合类型将命令路由到相应处理器 | [CommandGateway.kt:75](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt#L75) |
-| 3 | **CommandDispatcher** | 将命令总线桥接到聚合处理器过滤链；在 `AggregateAutoConfiguration` 中配置 | [AggregateAutoConfiguration.kt:138-149](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/modeling/AggregateAutoConfiguration.kt#L138-L149) |
-| 4 | **AggregateProcessorFilter** | 为目标聚合构造 `AggregateProcessor`，处理分片和重试逻辑 | [AggregateAutoConfiguration.kt:91-96](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/modeling/AggregateAutoConfiguration.kt#L91-L96) |
-| 5 | **快照 + 事件加载** | 加载最新快照，然后从 `EventStore` 重放增量事件以重建当前状态 | [EventSourcingStateAggregateRepository.kt:41-60](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventSourcingStateAggregateRepository.kt#L41-L60) |
-| 6 | **业务规则执行** | 聚合根（`CommandAggregate`）验证不变量并执行命令处理函数 | [SimpleCommandAggregate.kt:68-79](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt#L68-L79) |
-| 7 | **事件持久化** | `EventStore.append()` 原子写入事件流，通过版本检查强制执行乐观并发控制 | [EventStore.kt:40-54](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L40-L54) |
-| 8 | **快照 + 发布** | 持久化后，保存快照并将领域事件发布到 `EventBus` 供下游处理 | [AggregateAutoConfiguration.kt:100-106](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/modeling/AggregateAutoConfiguration.kt#L100-L106) |
-
-### 等待计划与命令阶段
-
-`CommandGateway` 支持在返回客户端之前等待命令到达特定的处理阶段。这对于解决 CQRS 架构中固有的读写同步延迟问题至关重要。
-
-```mermaid
-stateDiagram-v2
-    [*] --> SENT : 命令被总线接受
-    SENT --> PROCESSED : 聚合执行了命令
-    SENT --> SNAPSHOT : 快照处理完成
-    PROCESSED --> SNAPSHOT : 快照处理完成
-    PROCESSED --> PROJECTED : 所有投影已更新
-    PROCESSED --> EVENT_HANDLED : 事件处理器完成
-    PROCESSED --> SAGA_HANDLED : Saga 处理完成
-
-    note right of SENT
-        最快：命令已发送到总线。
-        无处理保证。
-        典型：29 ms 平均延迟
-    end note
-
-    note right of PROCESSED
-        聚合执行完成。
-        事件已持久化。
-        典型：239 ms 平均延迟
-    end note
-
-    note right of PROJECTED
-        读模型已更新。
-        客户端看到最新数据。
-        解决同步延迟问题。
-    end note
-
-```
-
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt:25-123, wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt -->
-
-`CommandStage` 中的每个阶段都定义为一个枚举，具有显式的先决依赖关系：
-
-| 阶段 | 先决条件 | 等待函数 | 典型用例 | 源码 |
-|---|---|---|---|---|
-| `SENT` | (无) | 否 | 即发即忘命令；最大吞吐量 | [CommandStage.kt:33](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L33) |
-| `PROCESSED` | `SENT` | 否 | 确保聚合已处理命令 | [CommandStage.kt:43](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L43) |
-| `SNAPSHOT` | `SENT`、`PROCESSED` | 否 | 确保处理完成后已创建快照 | [CommandStage.kt:52](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L52) |
-| `PROJECTED` | `SENT`、`PROCESSED` | 是 | 读模型已更新；解决同步延迟问题 | [CommandStage.kt:63](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L63) |
-| `EVENT_HANDLED` | `SENT`、`PROCESSED` | 是 | 外部事件处理器已处理事件 | [CommandStage.kt:73](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L73) |
-| `SAGA_HANDLED` | `SENT`、`PROCESSED` | 是 | Saga 编排器已完成处理 | [CommandStage.kt:84](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L84) |
-
-## 聚合生命周期
-
-聚合根是 Wow 框架中领域逻辑的核心。它遵循明确定义的状态机来管理命令的处理方式、事件的溯源方式以及状态转换的发生方式。
-
-### 聚合状态机
-
-```mermaid
-stateDiagram-v2
-    [*] --> INITIAL : 创建新聚合
-    INITIAL --> STORED : 初始状态已加载
-    STORED --> SOURCED : 事件已溯源到状态
-    SOURCED --> STORED : 事件已追加到 EventStore
-    STORED --> DELETED : DeleteAggregate 命令
-    DELETED --> STORED : RecoverAggregate 命令
-```
-
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/CommandAggregate.kt:41-118, wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt:43-80 -->
-
-### CommandState 枚举
-
-`CommandState` 枚举 ([CommandAggregate.kt:65-118](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/CommandAggregate.kt#L65-L118)) 管理聚合内命令处理的生命周期：
-
-| 状态 | 有效操作 | 描述 | 源码 |
-|---|---|---|---|
-| `STORED` | `onSourcing(eventStream)` | 聚合已准备好溯源事件。这是每个命令处理周期的入口点。 | [CommandAggregate.kt:66-74](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/CommandAggregate.kt#L66-L74) |
-| `SOURCED` | `onStore(eventStore, eventStream)` | 事件已应用到状态聚合。事件流已准备好持久化。 | [CommandAggregate.kt:75-83](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/CommandAggregate.kt#L75-L83) |
-| `EXPIRED` | (无) | 终端状态。不支持进一步操作。 | [CommandAggregate.kt:84-85](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/CommandAggregate.kt#L84-L85) |
-
-### 关键生命周期规则
-
-1. **命令只能在 `STORED` 状态下处理**：聚合在溯源事件后转换到 `SOURCED`，然后在持久化后回到 `STORED`。这确保了每个聚合实例的串行命令处理，防止竞态条件，如 [AggregateProcessor.kt:41-43](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/AggregateProcessor.kt#L41-L43) 中所述。
-2. **删除和恢复是内置命令**：`DefaultDeleteAggregate` 将聚合转换到已删除状态，而 `DefaultRecoverAggregate` 将其恢复。在已删除的聚合上尝试操作会抛出 `IllegalAccessDeletedAggregateException`。
-3. **乐观并发控制**：`EventStore.append()` 方法在检测到版本冲突时拒绝写入，确保每个聚合只有一个并发写入可以成功。
-
-## 事件溯源架构
-
-Wow 实现了完整的事件溯源模式，其中聚合状态源自领域事件的有序序列，而不是直接作为关系数据库中的行持久化。
-
-### 状态重建策略
-
-```mermaid
-flowchart TD
-    A["加载聚合"] --> B{"快照是否存在?"}
-    B -->|"是"| C["从 SnapshotStore<br>加载快照"]
-    B -->|"否"| D["通过 StateAggregateFactory<br>创建初始状态"]
-    C --> E["获取快照版本"]
-    E --> F["加载增量事件<br>EventStore.load(aggregateId, version+1)"]
-    D --> G["加载所有事件<br>EventStore.load(aggregateId, 1)"]
-    F --> H["将事件应用到状态<br>state.onSourcing(eventStream)"]
-    G --> H
-    H -- "状态已重建" --> I["返回 StateAggregate"]
-
-    style A fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style B fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style C fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style D fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style F fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style G fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style I fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-```
-
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventSourcingStateAggregateRepository.kt:31-39, wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt:27-98 -->
-
-`EventSourcingStateAggregateRepository` 编排此流程。其加载过程如下：
-
-1. 对于最新版本（tailVersion = `Int.MAX_VALUE`），它首先尝试从 `SnapshotStore` 加载。
-2. 如果不存在快照，则通过 `StateAggregateFactory` 创建新的聚合实例。
-3. 从聚合的预期下一个版本开始，按顺序应用 `EventStore` 中的事件。
-
-这种方法支持时间点状态重建：通过指定 `tailVersion` 或 `tailEventTime`，仓库可以重建聚合在任何历史时刻的状态。
-
-### 事件存储接口
-
-`EventStore` 接口 ([EventStore.kt:27-98](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L27-L98)) 定义了事件持久化的契约：
-
-| 方法 | 描述 | 并发保证 |
-|---|---|---|
-| `append(eventStream)` | 原子追加领域事件流 | 版本冲突时抛出 `EventVersionConflictException`；重复 ID 时抛出 `DuplicateAggregateIdException`；重复请求时抛出 `DuplicateRequestIdException` |
-| `load(aggregateId, headVersion, tailVersion)` | 加载版本范围内的事件流（含两端） | 返回 `Flux` 用于响应式流式处理 |
-| `load(aggregateId, headEventTime, tailEventTime)` | 加载时间范围内的事件流（含两端） | 返回 `Flux` 用于响应式流式处理 |
-| `single(aggregateId, version)` | 加载特定版本的单个事件流 | 使用 `load()` 的便捷方法 |
-| `last(aggregateId)` | 加载最新的事件流 | 用于尾部版本查找 |
-
-## 扩展点与可插拔性
-
-Wow 框架自始至终遵循**策略模式**：每个基础设施关注点在 `wow-core` 中定义为接口，具体实现在扩展模块中提供。Spring 的自动配置在启动时根据类路径可用性装配适当的实现。
-
-### 核心扩展接口
-
-| 扩展点 | 接口 | 用途 | 实现 | 源码 |
-|---|---|---|---|---|
-| **命令总线** | `CommandBus` / `DistributedCommandBus` | 将命令路由到聚合处理器 | `InMemoryCommandBus`、`LocalFirstCommandBus`、Kafka 支持 | [CommandBus.kt:36-69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandBus.kt#L36-L69) |
-| **事件总线** | `DomainEventBus` / `StateEventBus` | 将领域事件与状态事件分发给投影、Saga 和处理器 | `InMemoryDomainEventBus`、`InMemoryStateEventBus`、Kafka 支持、Redis 支持 | [InMemoryDomainEventBus.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/InMemoryDomainEventBus.kt) |
-| **等待计划** | `WaitPlan` | 控制命令响应时机 | `StageWaitTarget`、`ChainWaitTarget`、`CommandWait` 工厂方法 | [WaitPlan.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt) |
-| **ID 生成器** | `IdGenerator` (via CosId) | 生成全局唯一的聚合 ID | 雪花、号段等（通过 CosId 集成） | `me.ahoo.cosid` |
-| **序列化** | `MessageSerializer` | 带类型元数据的 JSON 序列化 | 基于 Jackson 的 `JsonSerializer` | [wow-core 序列化](https://github.com/Ahoo-Wang/Wow/tree/main/wow-core/src/main/kotlin/me/ahoo/wow/serialization) |
-
-### Spring Boot 自动配置结构
-
-`wow-spring-boot-starter` 模块使用 Gradle 功能变体声明可选能力，确保你只依赖所需的功能。关键的自动配置类包括：
-
-| 自动配置类 | 条件 | 装配内容 | 源码 |
-|---|---|---|---|
-| `WowAutoConfiguration` | `@ConditionalOnWowEnabled` | `ServiceProvider`、`NamedBoundedContext`、`ErrorInfoConverterRegistrar`、`WowRuntime` | [WowAutoConfiguration.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt) |
-| `AggregateAutoConfiguration` | `@ConditionalOnWowEnabled` | `StateAggregateFactory`、`StateAggregateRepository`、`CommandAggregateFactory`、`AggregateProcessorFactory`、`CommandDispatcher`、过滤链 | [AggregateAutoConfiguration.kt:50-151](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/modeling/AggregateAutoConfiguration.kt#L50-L151) |
-| `EventAutoConfiguration` | `@ConditionalOnWowEnabled` | 事件总线、事件分发器、事件处理器注册表 | [EventAutoConfiguration.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/event/EventAutoConfiguration.kt) |
-| `KafkaAutoConfiguration` | `@ConditionalOnKafkaEnabled` | Kafka 命令总线、Kafka 事件总线 | [KafkaAutoConfiguration.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/kafka/KafkaAutoConfiguration.kt) |
-| `MongoEventSourcingAutoConfiguration` | `@ConditionalOnMongoEnabled` | MongoDB 事件存储、MongoDB 快照存储 | [MongoEventSourcingAutoConfiguration.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/mongo/MongoEventSourcingAutoConfiguration.kt) |
-| `WebFluxAutoConfiguration` | `@ConditionalOnWebfluxEnabled` | 命令路由处理函数、OpenAPI 端点 | [WebFluxAutoConfiguration.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/webflux/WebFluxAutoConfiguration.kt) |
-
-## CQRS 分离实战
-
-CQRS 模式嵌入在架构的每一层：
+## 运行时组件图
 
 ```mermaid
 flowchart LR
-    subgraph WRITE["写端（命令）"]
-        CMD["命令"] --> AR["聚合根"]
-        AR --> EVT["领域事件"]
-        EVT --> ES["事件存储"]
-    end
-
-    subgraph BUS["消息总线层"]
-        EB["EventBus<br>Kafka / Redis / 内存"]
-    end
-
-    subgraph READ["读端（查询）"]
-        SP["SagaProcessor"] --> CG["CommandGateway"]
-        QS["QueryService"] --> RM
-    end
-
-    ES --> EB
-    EB --> PP
-    EB --> SP
-    QS --> 客户端
-
-    style WRITE fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style BUS fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style READ fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
+    Client[客户端 / 应用入口] --> Gateway[CommandGateway]
+    Gateway --> CommandBus[CommandBus]
+    CommandBus --> CommandDispatcher[CommandDispatcher]
+    CommandDispatcher --> Aggregate[CommandAggregate + StateAggregate]
+    Aggregate --> EventStore[(EventStore)]
+    Aggregate --> DomainBus[DomainEventBus]
+    Aggregate --> StateBus[StateEventBus]
+    DomainBus --> EventProcessor[EventProcessor]
+    DomainBus --> Projection[Projection]
+    DomainBus --> Saga[Stateless Saga]
+    StateBus --> Snapshot[Snapshot Dispatcher]
+    Snapshot --> SnapshotStore[(SnapshotStore)]
 ```
 
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/projection/ProjectionDispatcher.kt, wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaHandler.kt -->
+这里有三类不同的所有权：
 
-### 写端职责
+- `EventStore` 保存权威事件历史；追加成功后，历史才成为聚合恢复的数据源。
+- `SnapshotStore` 与投影保存派生数据；它们可以重建，不能替代事件历史。
+- Bus 负责传输消息；投递、确认、保留与重投强度由所选实现和配置共同决定。
 
-- 通过 `CommandGateway` 接受命令
-- 在聚合根内验证业务规则
-- 产生代表状态变更的领域事件
-- 通过原子事件存储追加维护强事务一致性
+完整的逐阶段链路见[数据流](./data-flow.md)，聚合内部状态转换见[聚合生命周期](./aggregate-lifecycle.md)。
 
-### 读端职责
+## 写入与读取边界
 
-- 通过 `EventBus` 订阅领域事件
-- 投影将事件转换为优化的读模型（Elasticsearch 索引、SQL 视图）
-- Saga 通过发送后续命令响应事件，实现分布式事务编排
-- 查询服务从专门构建的读模型（而非事件存储）读取数据
+写入侧通过聚合保护单个聚合边界的不变量：恢复当前状态、执行命令函数、对新事件溯源，再将事件流追加到 EventStore。读取侧由投影或快照等派生模型提供。写入完成不自动意味着任意读取模型已经更新。
 
-### 桥梁：状态事件
+调用方通过等待计划选择可观察完成点：
 
-在写端和读端之间，Wow 引入了**状态事件**（`StateEvent`）。在命令处理后，框架将聚合的完整当前状态作为事件发布。这支持：
-- **投影**从完整的状态快照而非增量变化重建读模型
-- **商业智能**管道直接将聚合状态消费到数据仓库
-- 通过 [CoCache](../extensions/cocache) 进行**缓存预热**，实现超低延迟的查询服务
+| 阶段 | 能证明什么 | 不能据此推断什么 |
+| --- | --- | --- |
+| `SENT` | CommandBus 的发送操作完成 | 聚合已执行 |
+| `PROCESSED` | 命令 filter chain 成功完成；当前默认链包含聚合处理、事件追加以及领域/状态事件发送 | 快照、投影、事件处理器或 Saga 已完成 |
+| `SNAPSHOT` | 目标快照处理完成 | 任意投影已完成 |
+| `PROJECTED` / `EVENT_HANDLED` / `SAGA_HANDLED` | 选中的下游函数完成 | 所有外部系统全局一致 |
 
-## 编译时代码生成（wow-compiler）
+精确的目标选择和失败结果由[命令网关](../command-gateway.md#等待计划)维护，本页不复制调用示例。
 
-`wow-compiler` 模块是一个 KSP 处理器，消除了样板代码和运行时反射。在编译时，它：
+## 顺序与并发边界
 
-1. **扫描** `@CommandRoute`、`@OnEvent`、`@OnStateEvent` 和其他 Wow 注解
-2. **生成** 命令路由表、事件处理器注册表和函数元数据
-3. **生成** 基于命令和事件模型的 OpenAPI 规范
+Wow 的默认分发器把消息按聚合 ID 映射到有限数量的 group，同一 group 通过串行链处理，不同 group 可以并发；一个 `AggregateSchedulerSupplier` 按命名聚合缓存 Reactor Scheduler。由此可得到的范围是：同一聚合 ID 在同一分发器实例中会映射到同一个 group。不能由此推断跨进程、跨 Bus、跨处理器函数或跨外部系统的全局顺序。
 
-这种编译时方法意味着：
-- 无运行时注解扫描开销
-- 更快的启动时间
-- 在构建时验证的类型安全命令路由
+并发写入最终还要经过 EventStore 的版本约束。调度减少本实例内的竞争，版本追加负责拒绝冲突写入；两者不是同一个保证。后端投递与重试也不会自动让外部副作用幂等。
 
-编译器与 `wow-openapi` 集成以自动生成 OpenAPI 规范，并与 `wow-schema` 集成以为命令和事件生成 JSON Schema 定义。
+详见[聚合调度器](./aggregate-scheduler.md)、[事件总线](./event-bus.md)与[事件存储](../eventstore.md)。
 
-## 性能特性
+## 生命周期边界
 
-Wow 框架的架构选择直接支撑了其性能表现。影响性能的关键设计决策：
+`WowRuntime` 是运行时组件的单一高层所有者。启动时，所有组件先 `prepare`，全部就绪后才依次 `start`。优雅停机等待连续静默期，关闭全局准入，再调用组件 `quiesce` 并按逆序清理。致命组件错误和全局截止时间进入同一完整运行时终止路径。
 
-1. **响应式管道**：框架热路径通过 `Mono` 和 `Flux` 组合而不引入阻塞调用，应用 Handler 也必须守住这一边界。
-2. **快照优化**：`SnapshotStore` 避免了每次加载聚合时重放完整的事件历史。
-3. **本地优先路由**：`LocalFirstCommandBus` 尝试本地运行时准入，同时发送带标记的分布式副本；本地准入成功时可以避开 Broker 延迟。
-4. **历史压测样例**：一次有链接的两分钟示例应用压测中，Add To Cart 的平均吞吐量在 `SENT` 下为 59,625 TPS，在 `PROCESSED` 下为 18,696 TPS。这组与部署条件绑定的历史测量只用于说明更强等待阶段的成本，不是当前框架保证、SLA 或容量计划。参见 [README 测试条件与部署链接](https://github.com/Ahoo-Wang/Wow/blob/main/README.zh-CN.md#L96-L110)。
+Spring 只通过一个 `WowRuntimeLifecycle` 适配此所有权。Runtime 组件不应再拥有竞争性的 Spring lifecycle 或 destroy owner。完整契约见[运行时生命周期](./runtime-lifecycle.md)。
 
-## 相关页面
+## 编译期与运行期的分工
 
-| 页面 | 描述 |
-|---|---|
-| [简介](../introduction) | Wow 框架特性和价值主张概览 |
-| [运行时生命周期](runtime-lifecycle.md) | 统一就绪、活动跟踪、优雅停机与 Spring 所有权 |
-| [领域建模](../modeling) | 如何设计聚合根、命令和事件 |
-| [命令网关](../command-gateway) | 深入了解命令发送和等待计划 |
-| [事件溯源](../eventstore) | 事件存储、快照和状态重建机制 |
-| [Saga 编排](../saga) | 通过 Saga 支持分布式事务 |
-| [投影](../projection) | 构建和更新读模型 |
-| [测试](../test-suite) | AggregateSpec 和 SagaSpec 测试 DSL |
-| [Spring Boot 集成](../extensions/spring-boot-starter) | 自动配置详情和属性参考 |
-| [CoCache](../extensions/cocache) | 用于查询性能的投影缓存 |
-| [可观测性](../../reference/config/observability) | OpenTelemetry 链路追踪与 Micrometer 指标 |
+KSP 读取 `@BoundedContext`、`@AggregateRoot` 等声明并生成可打包的元数据与 Kotlin 常量。运行时和其他模块消费这些输出，完成聚合发现、路由、Schema 或 OpenAPI 组装。缺少 KSP 输出时，运行时不会根据本文描述“猜回”完整契约。
+
+编译产物、路径与验证方法见[编译器](./compiler.md)。序列化格式和持久事件演进分别见[序列化](./serialization.md)与[事件演进](./event-evolution.md)。
+
+## 扩展时的检查清单
+
+1. 公共模型放在 `wow-api`，运行行为放在 `wow-core`，具体后端放在独立 Adapter。
+2. 响应式命令与事件路径不引入阻塞调用。
+3. 明确新组件是否由 `WowRuntime` 管理；若是，只保留一个生命周期所有者。
+4. 分别验证 source、binary 与 wire 影响，不用编译通过代替历史数据兼容。
+5. 对顺序、重试、幂等和确认只声明实现与测试实际覆盖的范围。
+6. 用对应 TCK/集成测试验证 Adapter，再用真实环境证明恢复和运维结论。
+
+## 事实来源
+
+- [`wow-api`](https://github.com/Ahoo-Wang/Wow/tree/main/wow-api/src/main/kotlin/me/ahoo/wow/api)
+- [`wow-core`](https://github.com/Ahoo-Wang/Wow/tree/main/wow-core/src/main/kotlin/me/ahoo/wow)
+- [`wow-compiler`](https://github.com/Ahoo-Wang/Wow/tree/main/wow-compiler/src/main/kotlin/me/ahoo/wow/compiler)
+- [`Architecture.svg`](https://github.com/Ahoo-Wang/Wow/blob/main/document/design/assets/Architecture.svg)
+
+## 继续阅读
+
+- [核心概念](../core-concepts.md)：稳定术语与价值链
+- [模块依赖](./module-dependencies.md)：精确 capability 与 Gradle 边界
+- [生产最佳实践](../best-practices.md)：把组件边界转成发布证据

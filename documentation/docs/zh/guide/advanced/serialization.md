@@ -1,73 +1,34 @@
 ---
 title: 序列化
-description: Wow 的 Jackson 3 序列化入口、模块注册、多态缺失类型回退与兼容性边界。
+description: Wow 的 Jackson 3 Mapper、框架模块、事件类型解析与 wire 兼容边界。
+outline: deep
 ---
 
 # 序列化
 
-Wow 使用 Jackson 3 处理命令、事件流、快照、状态聚合和查询模型的 JSON 表示。框架提供两个互补入口：
+Wow 使用 Jackson 3 序列化命令、事件流、状态事件、快照和状态聚合。序列化配置可能同时影响 HTTP、消息与持久化数据，因此 Mapper 不是纯内部实现细节。
 
-- `JsonSerializer`：预配置的全局 `ObjectMapper`，供 Wow 运行时和应用辅助代码直接使用。
-- `WowModule`：Jackson 模块，为 Wow 框架类型注册 serializer、deserializer 和缺失类型处理器。
+## 两个入口
 
-序列化格式可能同时影响 HTTP 合同、消息传输和持久化数据。自定义 Mapper 或修改类型注解前，应分别评估源码、二进制与 wire 兼容性。
+| 入口 | 所有者 | 适用场景 |
+| --- | --- | --- |
+| `JsonSerializer` | `wow-core` 的预配置全局 `ObjectMapper` | Wow 内部及应用辅助转换 |
+| `WowModule` | 可注册到任意 Jackson Mapper 的模块 | Spring Boot Mapper 或应用自建 Mapper |
 
-## 选择入口
+`JsonSerializer` 通过 Kotlin `jsonMapper` 创建，设置字段可见性、忽略未知属性、允许 final 字段写入、将无类型浮点数读取为 `BigDecimal`，并调用 `findAndAddModules()`。它与应用随手创建的裸 `ObjectMapper` 不等价。
 
-| 场景 | 推荐入口 | 注册行为 |
-|---|---|---|
-| Wow Spring Boot 应用 | 注入 Spring 管理的 `ObjectMapper` | Starter 自动提供 `WowModule` Bean |
-| Wow 运行时或应用内辅助转换 | `JsonSerializer` 与扩展函数 | 自动发现 Kotlin 和 Wow Jackson 模块 |
-| 自行构建完整 Mapper | 注册 Kotlin Module 与 `WowModule` | 获得 Kotlin 与 Wow 类型序列化支持 |
-| 只依赖 `wow-api` | 注册 Kotlin Module；按需注册 `MissingTypeImplProblemHandler` | 支持 Kotlin 模型及可选的 `@MissingTypeImpl` 缺失类型回退 |
-
-裸 `ObjectMapper` 或 `JsonMapper` 不会自动具有 Kotlin、Wow 的配置和缺失类型回退。
-
-## JsonSerializer
-
-`JsonSerializer` 位于 `wow-core`，由 Kotlin `jsonMapper` 构建，并启用以下 Wow 默认值：
-
-- 所有属性访问器使用字段可见性 `ANY`。
-- 允许写入 final 字段。
-- 忽略未知 JSON 属性。
-- 无类型浮点数读取为 `BigDecimal`。
-- 忽略 parser 的 undefined token。
-- 通过 SPI 自动发现 Jackson 模块，其中包括 `WowModule`。
-
-常用扩展函数共享同一个 Mapper：
+常用辅助函数都委托给同一个 Mapper：
 
 ```kotlin
-import me.ahoo.wow.serialization.deepCopy
-import me.ahoo.wow.serialization.toJsonString
-import me.ahoo.wow.serialization.toLinkedHashMap
-import me.ahoo.wow.serialization.toObject
-import me.ahoo.wow.serialization.toObjectNode
-import java.math.BigDecimal
-
-data class OrderView(val id: String, val amount: BigDecimal)
-
-val source = OrderView("order-1", BigDecimal("12.50"))
-val json = source.toJsonString()
-val decoded = json.toObject<OrderView>()
+val json = order.toJsonString()
+val decoded = json.toObject<Order>()
 val tree = json.toObjectNode()
-val copied = decoded.deepCopy()
-val properties = decoded.toLinkedHashMap()
+val copied = order.deepCopy()
 ```
 
-| API | 用途 |
-|---|---|
-| `toJsonString()` / `toPrettyJson()` | 写入紧凑或格式化 JSON |
-| `String.toObject<T>()` | 将 JSON 读取为具体类型 |
-| `toJsonNode()` / `toObjectNode()` | 在对象与 Jackson tree model 之间转换 |
-| `convert<T>()` | 按 Jackson 属性映射转换对象 |
-| `deepCopy()` | 通过 `convertValue` 创建同类型副本 |
-| `toLinkedHashMap()` | 将对象转换为保持属性顺序的 Map |
+## WowModule 拥有的框架格式
 
-这些函数使用 Wow 的全局配置，不等价于调用方自行创建的 Mapper。
-
-## WowModule
-
-`WowModule` 为下列框架类型注册专用序列化器：
+`WowModule` 注册下列框架类型的 serializer/deserializer：
 
 - `AggregateId`
 - `CommandMessage`
@@ -76,117 +37,75 @@ val properties = decoded.toLinkedHashMap()
 - `Snapshot`
 - `StateEvent`
 
-它还注册 `MissingTypeImplProblemHandler`。不要单独复制这些 serializer 注册；直接使用模块：
+它还安装 `MissingTypeImplProblemHandler`。Spring Boot Starter 在 Jackson 自动配置前提供一个 `WowModule` Bean；这只添加 Wow 模块，不会把 `JsonSerializer` 的全部 feature 复制到 Spring 管理的 Mapper。
+
+应用若完全替换 Spring Mapper、禁用模块发现或自行创建 Mapper，必须显式注册所需 Kotlin 模块与 `WowModule`，并用真实路径测试。
+
+## 事件记录如何解析类型
+
+持久化事件记录同时保存稳定业务标识和 JVM 类型提示，包括 context、aggregate、event `name`、`revision`、`bodyType` 与 body。
+
+反序列化顺序是：
+
+1. `EventUpgraderFactory` 转换旧记录；
+2. `EventTypeRegistry` 用 `(context, aggregate, name, revision)` 查找当前元数据类型；
+3. 未命中时尝试记录中的 `bodyType`；
+4. `bodyType` 类也不存在时，保留为 `JsonDomainEvent`，body 为 JSON tree。
+
+这条 fallback 让未知历史类型仍可被表示，但不等于当前聚合能够正确重放它。若 sourcing 依赖具体事件类型，仍需提供可解析类型或[事件 Upgrader](./event-evolution.md)。
+
+一个 `DomainEventStream` 反序列化时会按 body 列表位置重新得到事件 `sequence` 与 `isLast`。不要把 JSON 数组外的自定义字段顺序当成事件顺序合同。
+
+## 缺失多态 type 的回退
+
+`@MissingTypeImpl` 只在 JSON **缺少** type id 时声明一个默认 subtype：
 
 ```kotlin
-import me.ahoo.wow.serialization.WowModule
-import tools.jackson.module.kotlin.jsonMapper
-import tools.jackson.module.kotlin.kotlinModule
-
-val mapper = jsonMapper {
-    addModule(kotlinModule())
-    addModule(WowModule())
-}
-```
-
-### 自动注册
-
-Spring Boot Starter 在 Jackson 自动配置前提供 `WowModule` Bean。`wow-core` 同时通过
-`META-INF/services/tools.jackson.databind.JacksonModule` 发布该模块，`JsonSerializer.findAndAddModules()`
-会自动发现它。
-
-Spring 管理的 Mapper 继续使用 Spring Boot 自身的 feature 配置；`WowModule` 只增加 Wow serializer、
-deserializer 与 Handler，不会复制 `JsonSerializer` 的全部全局 feature。
-
-如果应用完全替换 Spring 的 `ObjectMapper` 或禁用模块发现，需要自行注册 Kotlin Module 与 `WowModule`。
-
-## 缺失多态类型回退
-
-`MissingTypeImpl` 与 `MissingTypeImplProblemHandler` 位于公共的 `wow-api` 模块。注解只声明默认实现；
-只有注册 Handler 后，缺少 Jackson type id 的 JSON 才会使用该实现。
-
-```kotlin
-import com.fasterxml.jackson.annotation.JsonSubTypes
-import com.fasterxml.jackson.annotation.JsonTypeInfo
-import me.ahoo.wow.api.serialization.MissingTypeImpl
-
 @MissingTypeImpl(Expression.Field::class)
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-@JsonSubTypes(
-    JsonSubTypes.Type(Expression.Field::class, name = "FIELD"),
-    JsonSubTypes.Type(Expression.Constant::class, name = "CONSTANT"),
-)
-sealed interface Expression {
-    data class Field(val field: String) : Expression
-    data class Constant(val value: Double) : Expression
-}
+sealed interface Expression
 ```
 
-注册公共 Handler：
+只有 Mapper 注册 `MissingTypeImplProblemHandler` 后，缺失 type 才会使用该实现。
 
-```kotlin
-import me.ahoo.wow.api.serialization.MissingTypeImplProblemHandler
-import tools.jackson.databind.json.JsonMapper
+| 输入 | 行为 |
+| --- | --- |
+| 缺少 type，base type 有注解 | 构造注解声明的 subtype |
+| 已知 type | 使用 Jackson 正常 subtype 解析 |
+| 未知 type | Handler 不接管，保留 Mapper 的未知 type 策略 |
+| 缺少 type，base type 无注解 | 保留 Jackson 缺失 type 错误 |
 
-val mapper = JsonMapper.builder()
-    .addHandler(MissingTypeImplProblemHandler())
-    .build()
+注解不是“所有旧 JSON 都兼容”的开关。默认类必须是当前 base type 的合法 subtype，且这个运行时 fallback 不会自动把 OpenAPI/JSON Schema 中的 discriminator 改成可选。
+
+## 三种兼容性分开评估
+
+| 范围 | 例子 | 需要的验证 |
+| --- | --- | --- |
+| Source | Kotlin 属性或构造函数改变 | 重新编译调用方 |
+| Binary | 已编译调用方加载新 class/JAR | 二进制兼容检查或真实消费方运行 |
+| Wire | JSON 字段、类型、revision、默认值改变 | 历史事件/快照/消息/HTTP contract 测试 |
+
+一次 Kotlin 编译成功不能证明历史事件和快照可读；旧事件可读也不能证明旧二进制可加载。只实现发布实际需要的兼容范围。
+
+## 自定义 Mapper 前的最小验证
+
+1. 用最终运行时 Mapper 读取真实或脱敏历史事件与快照。
+2. 对已知命令、事件流、StateEvent 和 Snapshot 做 round trip。
+3. 验证 type 缺失、已知 type、未知 type 三种多态输入。
+4. 验证 event type registry 命中与 `bodyType` fallback。
+5. 用完整聚合回放验证最终状态，而不只比较 JSON 文本。
+6. 单独验证生成的 OpenAPI/Schema 合同。
+
+```bash
+./gradlew :wow-core:test --tests "me.ahoo.wow.serialization.JsonSerializerMapperTest"
+./gradlew :wow-core:test --tests "me.ahoo.wow.serialization.JsonSerializerEventTest"
+./gradlew :wow-api:test --tests "me.ahoo.wow.api.serialization.MissingTypeImplProblemHandlerTest"
 ```
 
-该 builder 示例只展示 Handler 注册；调用方仍需添加自己的 Kotlin 或其他数据类型模块。
+## 源码与相关页面
 
-### 精确语义
-
-| 输入 | 结果 |
-|---|---|
-| `{"field":"amount"}` | base type 有 `@MissingTypeImpl` 且 Handler 已注册时，读取为 `Field` |
-| `{"type":"CONSTANT","value":10}` | 继续使用 Jackson 的已知 subtype 解析 |
-| `{"type":"UNKNOWN"}` | Handler 不接管，遵循调用方的 `FAIL_ON_INVALID_SUBTYPE` 配置 |
-| 缺少 type 且 base type 没有注解 | 保留 Jackson 原生缺失类型错误 |
-
-Handler 只覆盖 `handleMissingTypeId`，不会处理未知 type id，也不会修改任何全局 Jackson 特性。
-
-`@MissingTypeImpl` 是直接契约，不沿类或接口层级继承。反序列化的具体 base type 必须显式标注；
-这避免了接口多继承优先级不明确，或父类型的默认实现并非子类型实现。默认实现还必须是 base type
-的合法 subtype，否则 Jackson 无法构造 specialized type。
-
-## AggregationExpression 兼容边界
-
-`AggregationExpression` 使用 `@MissingTypeImpl(AggregationExpression.Field::class)`。通过
-`WowModule` 或显式 Handler，旧请求仍可省略 type：
-
-```json
-{"field":"amount"}
-```
-
-新调用方应发送显式判别器：
-
-```json
-{"type":"FIELD","field":"amount"}
-```
-
-裸 Mapper 会拒绝第一种形式。由于 `JsonTypeInfo.defaultImpl` 已移除，生成的 OpenAPI Schema 也将
-`type` 标记为必填；运行时兼容旧 JSON 不代表生成合同仍将 type 描述为可选。
-
-## 持久化与测试
-
-事件流和快照是长期 wire 合同。更换 Mapper、模块或类型注解前，至少验证：
-
-1. 当前生产 Mapper 能读取真实历史事件与快照。
-2. 已知多态类型可以序列化后再反序列化。
-3. 需要兼容的缺失 type JSON 使用实际注册路径测试。
-4. 未知 type 仍按应用的失败策略处理，而不是静默回退。
-5. JSON Schema 与 OpenAPI 的判别器、required 字段和递归引用符合目标合同。
-
-相关内容：
-
-- [事件演进](./event-evolution)
-- [JSON Schema](./schema)
-- [Kafka 扩展](../extensions/kafka)
-
-源码：
-
-- [`JsonSerializer.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/serialization/JsonSerializer.kt)
-- [`WowModule.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/serialization/WowModule.kt)
-- [`MissingTypeImpl.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/serialization/MissingTypeImpl.kt)
-- [`SerializationAutoConfiguration.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/serialization/SerializationAutoConfiguration.kt)
+- [`JsonSerializer`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/serialization/JsonSerializer.kt)
+- [`WowModule`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/serialization/WowModule.kt)
+- [`DomainEventRecord`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/serialization/event/DomainEventRecord.kt)
+- [`MissingTypeImpl`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/serialization/MissingTypeImpl.kt)
+- [JSON Schema](./schema.md) / [OpenAPI](../open-api.md)：生成合同边界
