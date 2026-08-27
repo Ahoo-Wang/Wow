@@ -96,7 +96,7 @@ Schema 通常是静态的。Elasticsearch 重建索引或切换 alias、MongoDB 
 - 不维护 QueryService 的 SINGLE/LIST/PAGED/COUNT/AGGREGATION operations 列表。
 - 不增加插件总线、Classpath Scanner 或可配置 Schema 文件位置。
 - 不增加通用 `@QuerySemantic`、元注解、注解 Resolver SPI 或用于描述后端绑定的注解。
-- 不保留旧 `wowElasticsearchMapping` Actuator 端点、`TypeFieldPaths` 或 `x-wow-query-fields` 兼容桥接。
+- 不保留旧 `wowElasticsearchMapping` Actuator 端点或 `TypeFieldPaths`。`x-wow-query-fields` 作为 Fetcher 当前 OpenAPI 协议保留，但不承载运行时后端协商结果。
 
 ## 核心术语与命名
 
@@ -758,16 +758,16 @@ HTTP 503。原始异常作为 cause 保留。兼容模式的普通查询可以�
 
 原有 Jackson 命名、unwrapped、opaque serializer、多态、组合 Schema、数组和 LogicalField 语法测试迁移到新 Sources 测试。
 
-### 删除 x-wow-query-fields
+### 保留静态 OpenAPI 查询字段协议
 
-静态 OpenAPI 无法表达运行时后端协商能力，View Engine 改为读取聚合级 Schema endpoint。删除：
+静态 OpenAPI 无法表达运行时后端协商能力，View Engine 改为读取聚合级 Schema endpoint；Fetcher 生成器仍需要聚合级静态字段目录。因此保留：
 
-- `x-wow-query-fields` RequestBody extension；
-- aggregate-specific `*AggregatedFields` enum components；
-- `QueryComponent.aggregatedFieldsSchema`；
-- 相关 OpenAPI snapshot 与测试断言。
+- 五类 aggregate-specific RequestBody；
+- RequestBody 上的 `x-wow-query-fields` extension，其值必须是 Schema `$ref`；
+- aggregate-specific `*AggregatedFields` string enum component；
+- `QueryComponent.aggregatedFieldsSchema`。
 
-查询请求中的 `LogicalField` 继续使用普通字符串 Schema。
+静态字段只合并 `SystemQuerySchemaSource` 与 `JsonQuerySchemaSource` 的字段键，不依赖已删除的 `commandAggregatedFieldPaths`，也不进入声明协商、后端绑定或 QueryService 缓存。查询请求中的 `LogicalField` 继续使用普通字符串 Schema。
 
 ### 删除旧 Elasticsearch Mapping Endpoint
 
@@ -1262,7 +1262,7 @@ classDiagram
 - 工作目录、Bean、Classpath、注解与 JSON 来源优先级。
 - 多个同名 Classpath 资源冲突与无序合并。
 - OpenAPI 包含两个新路由及 Metadata Schema。
-- OpenAPI 不再包含 `x-wow-query-fields` 与 `*AggregatedFields` components。
+- OpenAPI 的五类聚合专属 RequestBody 均包含指向对应 `*AggregatedFields` string enum component 的 `x-wow-query-fields` Schema `$ref`。
 - ApplicationContext 不再提供旧 Elasticsearch Mapping Actuator endpoint。
 
 ### 后端真实集成
@@ -1291,6 +1291,19 @@ classDiagram
 
 还必须启动一次 `example-server` 实际 distribution，从生成的 OpenAPI 确认 Schema GET/refresh 的真实路径，再请求两个端点验证公共 Metadata、刷新和错误响应。不得以测试快照或直接调用 RouterSpecs 代替实际 HTTP 证明。
 
+### 实际 HTTP 证据（2026-08-27）
+
+使用本地 MongoDB 8.0.14 启动 `./gradlew :example-server:run`，实际 SpringDoc 返回：
+
+```text
+/cart/snapshot/schema          GET
+/cart/snapshot/schema/refresh  POST
+/sales-order/snapshot/schema          GET
+/sales-order/snapshot/schema/refresh  POST
+```
+
+`GET /cart/snapshot/schema` 与 `POST /cart/snapshot/schema/refresh` 均返回 HTTP 200、`model=SNAPSHOT` 和 21 个公共字段。预热 GET 后停止 MongoDB，refresh 返回 HTTP 503、`Wow-Error-Code: QuerySchemaUnavailable`；随后再次 GET 仍返回 HTTP 200 和原 21 个字段，证明失败刷新没有替换已发布缓存。
+
 ## 完成条件
 
 - QueryModelSchema 能由所有确认来源确定性生成，包括 Jackson 逻辑属性上的 `@QueryTemporal` 语义增强。
@@ -1299,6 +1312,6 @@ classDiagram
 - View Engine 可通过 GET Schema 获取不含物理信息的完整逻辑 Metadata。
 - refresh 可重读约定文件与后端事实，成功原子替换、失败保留旧缓存。
 - `COMPATIBLE` 与 `STRICT` 严格遵循三级兼容合同。
-- `TypeFieldPaths`、`AggregatedFieldPaths`、`x-wow-query-fields` 和旧 Elasticsearch Actuator endpoint 已删除。
+- `TypeFieldPaths`、`AggregatedFieldPaths` 和旧 Elasticsearch Actuator endpoint 已删除；`x-wow-query-fields` 由 System 与 JSON Schema 的静态字段恢复，并以 Schema `$ref` 发布。
 - 相关模块 check、MongoDB/Elasticsearch 集成测试、OpenAPI snapshot 与实际服务 HTTP 合同验证通过。
 - 未新增依赖、Gradle module、Scanner、Registry、后台轮询或兼容桥接。

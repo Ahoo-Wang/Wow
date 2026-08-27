@@ -96,23 +96,16 @@ object QueryComponent {
 
         fun OpenAPIComponentContext.aggregatedSingleQueryRequestBody(
             aggregateMetadata: AggregateMetadata<*, *>,
-        ): io.swagger.v3.oas.models.parameters.RequestBody {
-            val queryFields = aggregatedFieldsSchema(aggregateMetadata)
-            return requestBody(aggregateMetadata.toStringWithAlias() + SINGLE_QUERY_SUFFIX) {
-                extension(QUERY_FIELDS_EXTENSION, queryFields)
-                content(schema = singleQuerySchema())
-            }
-        }
+        ): io.swagger.v3.oas.models.parameters.RequestBody =
+            aggregatedQueryRequestBody(aggregateMetadata, SINGLE_QUERY_SUFFIX, singleQuerySchema())
 
         fun OpenAPIComponentContext.aggregatedAggregationQueryRequestBody(
             aggregateMetadata: AggregateMetadata<*, *>,
-        ): io.swagger.v3.oas.models.parameters.RequestBody {
-            val queryFields = aggregatedFieldsSchema(aggregateMetadata)
-            return requestBody(aggregateMetadata.toStringWithAlias() + AGGREGATION_QUERY_SUFFIX) {
-                extension(QUERY_FIELDS_EXTENSION, queryFields)
-                content(schema = aggregationQuerySchema())
-            }
-        }
+        ): io.swagger.v3.oas.models.parameters.RequestBody = aggregatedQueryRequestBody(
+            aggregateMetadata,
+            AGGREGATION_QUERY_SUFFIX,
+            aggregationQuerySchema(),
+        )
 
         fun OpenAPIComponentContext.singleQueryRequestBody(): io.swagger.v3.oas.models.parameters.RequestBody {
             return requestBody(SINGLE_QUERY_KEY) {
@@ -134,13 +127,8 @@ object QueryComponent {
 
         fun OpenAPIComponentContext.aggregatedCountQueryRequestBody(
             aggregateMetadata: AggregateMetadata<*, *>,
-        ): io.swagger.v3.oas.models.parameters.RequestBody {
-            val queryFields = aggregatedFieldsSchema(aggregateMetadata)
-            return requestBody(aggregateMetadata.toStringWithAlias() + COUNT_QUERY_SUFFIX) {
-                extension(QUERY_FIELDS_EXTENSION, queryFields)
-                content(schema = filterSchema())
-            }
-        }
+        ): io.swagger.v3.oas.models.parameters.RequestBody =
+            aggregatedQueryRequestBody(aggregateMetadata, COUNT_QUERY_SUFFIX, filterSchema())
 
         fun OpenAPIComponentContext.listQueryRequestBody(): io.swagger.v3.oas.models.parameters.RequestBody {
             return requestBody(LIST_QUERY_KEY) {
@@ -150,13 +138,8 @@ object QueryComponent {
 
         fun OpenAPIComponentContext.aggregatedListQueryRequestBody(
             aggregateMetadata: AggregateMetadata<*, *>,
-        ): io.swagger.v3.oas.models.parameters.RequestBody {
-            val queryFields = aggregatedFieldsSchema(aggregateMetadata)
-            return requestBody(aggregateMetadata.toStringWithAlias() + LIST_QUERY_SUFFIX) {
-                extension(QUERY_FIELDS_EXTENSION, queryFields)
-                content(schema = listQuerySchema())
-            }
-        }
+        ): io.swagger.v3.oas.models.parameters.RequestBody =
+            aggregatedQueryRequestBody(aggregateMetadata, LIST_QUERY_SUFFIX, listQuerySchema())
 
         fun OpenAPIComponentContext.pagedQueryRequestBody(): io.swagger.v3.oas.models.parameters.RequestBody {
             return requestBody(PAGED_QUERY_KEY) {
@@ -166,11 +149,18 @@ object QueryComponent {
 
         fun OpenAPIComponentContext.aggregatedPagedQueryRequestBody(
             aggregateMetadata: AggregateMetadata<*, *>,
+        ): io.swagger.v3.oas.models.parameters.RequestBody =
+            aggregatedQueryRequestBody(aggregateMetadata, PAGED_QUERY_SUFFIX, pagedQuerySchema())
+
+        private fun OpenAPIComponentContext.aggregatedQueryRequestBody(
+            aggregateMetadata: AggregateMetadata<*, *>,
+            suffix: String,
+            schema: io.swagger.v3.oas.models.media.Schema<*>,
         ): io.swagger.v3.oas.models.parameters.RequestBody {
             val queryFields = aggregatedFieldsSchema(aggregateMetadata)
-            return requestBody(aggregateMetadata.toStringWithAlias() + PAGED_QUERY_SUFFIX) {
+            return requestBody(aggregateMetadata.toStringWithAlias() + suffix) {
                 extension(QUERY_FIELDS_EXTENSION, queryFields)
-                content(schema = pagedQuerySchema())
+                content(schema = schema)
             }
         }
     }

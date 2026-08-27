@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.mongo.query.schema
 
+import com.mongodb.client.model.Filters
 import com.mongodb.reactivestreams.client.MongoCollection
 import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.api.query.schema.QueryCapability
@@ -44,8 +45,9 @@ class MongoQuerySchemaAdapter(
 
     private fun loadFacts(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> = Mono.defer {
         val indexes = collection.listIndexes().toFlux().collectList()
-        val validator = database?.listCollections()?.toFlux()
-            ?.filter { it.getString("name") == collection.namespace.collectionName }
+        val validator = database?.listCollections()
+            ?.filter(Filters.eq("name", collection.namespace.collectionName))
+            ?.toFlux()
             ?.next()
             ?.map { Optional.ofNullable(it.validatorSchema()) }
             ?.defaultIfEmpty(Optional.empty())
@@ -237,29 +239,52 @@ class MongoQuerySchemaAdapter(
 
         private fun Document?.storageSchemas(): Map<String, MongoStorageSchema> {
             if (this == null) return emptyMap()
-            return buildMap { collectStorageSchemas(this@storageSchemas, path = null, includeType = false) }
+            return collectStorageSchemas(path = null, includeType = false)
         }
 
-        private fun MutableMap<String, MongoStorageSchema>.collectStorageSchemas(
-            schema: Document,
+        private fun Document.collectStorageSchemas(
             path: String?,
             includeType: Boolean,
-        ) {
+        ): Map<String, MongoStorageSchema> = buildMap {
             if (includeType && path != null) {
-                val types = schema.storageTypes()
-                val itemTypes = schema.itemStorageTypes()
+                val types = storageTypes()
+                val itemTypes = itemStorageTypes()
                 if (types != null || itemTypes != null) {
                     put(path, MongoStorageSchema(types, itemTypes))
                 }
             }
-            schema.document("properties")?.forEach { (name, child) ->
+            document("properties")?.forEach { (name, child) ->
                 (child as? Document)?.let {
-                    collectStorageSchemas(it, path.child(name), includeType = true)
+                    mergeConjunctive(it.collectStorageSchemas(path.child(name), includeType = true))
                 }
             }
-            schema.document("items")?.let {
-                collectStorageSchemas(it, path, includeType = false)
+            document("items")?.let {
+                mergeConjunctive(it.collectStorageSchemas(path, includeType = false))
             }
+            listOf("anyOf", "oneOf").forEach { key ->
+                mergeConjunctive(compositionSchemas(key).mergeAlternatives(path))
+            }
+            compositionSchemas("allOf").forEach {
+                mergeConjunctive(it.collectStorageSchemas(path, includeType = false))
+            }
+        }
+
+        private fun Document.compositionSchemas(key: String): List<Document> =
+            (this[key] as? Iterable<*>)?.filterIsInstance<Document>().orEmpty()
+
+        private fun List<Document>.mergeAlternatives(path: String?): Map<String, MongoStorageSchema> =
+            buildMap {
+                this@mergeAlternatives.forEach { schema ->
+                    schema.collectStorageSchemas(path, includeType = false).forEach { (field, storage) ->
+                        merge(field, storage, MongoStorageSchema::union)
+                    }
+                }
+            }
+
+        private fun MutableMap<String, MongoStorageSchema>.mergeConjunctive(
+            other: Map<String, MongoStorageSchema>,
+        ) {
+            other.forEach { (field, storage) -> merge(field, storage, MongoStorageSchema::intersect) }
         }
 
         private fun Document.storageTypes(): Set<QueryStorageType>? {
@@ -297,7 +322,6 @@ class MongoQuerySchemaAdapter(
             if (schemas.isEmpty()) return emptySet()
             return schemas.mapNotNull { it.storageTypes() }
                 .reduceOrNull(Set<QueryStorageType>::intersect)
-                ?: emptySet()
         }
 
         private fun Document.itemStorageTypes(): Set<QueryStorageType>? {
@@ -349,7 +373,29 @@ class MongoQuerySchemaAdapter(
         private data class MongoStorageSchema(
             val types: Set<QueryStorageType>?,
             val itemTypes: Set<QueryStorageType>?,
-        )
+        ) {
+            fun union(other: MongoStorageSchema) = MongoStorageSchema(
+                types = types.unionConstraint(other.types),
+                itemTypes = itemTypes.unionConstraint(other.itemTypes),
+            )
+
+            fun intersect(other: MongoStorageSchema) = MongoStorageSchema(
+                types = types.intersectConstraint(other.types),
+                itemTypes = itemTypes.intersectConstraint(other.itemTypes),
+            )
+        }
+
+        private fun <T> Set<T>?.unionConstraint(other: Set<T>?): Set<T>? = when {
+            this == null -> other
+            other == null -> this
+            else -> this + other
+        }
+
+        private fun <T> Set<T>?.intersectConstraint(other: Set<T>?): Set<T>? = when {
+            this == null -> other
+            other == null -> this
+            else -> intersect(other)
+        }
 
         private val INTEGRAL_TYPES = setOf("int", "long")
         private val NUMERIC_TYPES = INTEGRAL_TYPES + setOf("double", "decimal", "number")

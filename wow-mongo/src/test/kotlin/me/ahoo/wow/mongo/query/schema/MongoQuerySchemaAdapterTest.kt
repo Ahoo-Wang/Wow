@@ -106,6 +106,93 @@ class MongoQuerySchemaAdapterTest {
     }
 
     @Test
+    fun `composed validator branches should expose nested property storage types`() {
+        listOf("allOf", "anyOf", "oneOf").forEach { composition ->
+            val objectSchema = Document("bsonType", "object").append(
+                "properties",
+                Document("createdAt", Document("bsonType", "string")),
+            )
+            val branches = if (composition == "allOf") {
+                listOf(objectSchema, Document("description", "state"))
+            } else {
+                listOf(objectSchema, Document("bsonType", "null"))
+            }
+            val stateSchema = if (composition == "allOf") {
+                Document("bsonType", "object").append(composition, branches)
+            } else {
+                Document(composition, branches)
+            }
+
+            MongoQuerySchemaAdapter.bind(
+                LogicalQuerySchema(
+                    linkedMapOf(
+                        LogicalField("state") to field(QueryValueType.OBJECT),
+                        LogicalField("state.createdAt") to field(
+                            QueryValueType.INTEGER,
+                            semanticType = Temporal.Epoch(TimeUnit.MILLISECONDS),
+                        ),
+                    ),
+                ),
+                emptyList(),
+                Document("properties", Document("state", stateSchema)),
+            ).let { schema ->
+                schema.fields.getValue(LogicalField("state")).bindings.keys.assert().contains(
+                    QueryCapability.PRESENCE,
+                )
+                schema.fields.getValue(LogicalField("state.createdAt"))
+                    .bindings.keys.assert().containsExactly(QueryCapability.PRESENCE)
+            }
+        }
+    }
+
+    @Test
+    fun `composed array item branches should expose nested property storage types`() {
+        listOf("allOf", "anyOf", "oneOf").forEach { composition ->
+            val objectSchema = Document("bsonType", "object").append(
+                "properties",
+                Document("name", Document("bsonType", "int")),
+            )
+            val branches = if (composition == "allOf") {
+                listOf(objectSchema, Document("description", "item"))
+            } else {
+                listOf(objectSchema, Document("bsonType", "null"))
+            }
+            val itemSchema = if (composition == "allOf") {
+                Document("bsonType", "object").append(composition, branches)
+            } else {
+                Document(composition, branches)
+            }
+
+            MongoQuerySchemaAdapter.bind(
+                LogicalQuerySchema(
+                    linkedMapOf(
+                        LogicalField("state.items") to field(
+                            QueryValueType.OBJECT,
+                            cardinality = QueryCardinality.MANY,
+                        ),
+                        LogicalField("state.items.name") to field(QueryValueType.STRING),
+                    ),
+                ),
+                emptyList(),
+                Document(
+                    "properties",
+                    Document(
+                        "state",
+                        Document(
+                            "properties",
+                            Document(
+                                "items",
+                                Document("bsonType", "array").append("items", itemSchema),
+                            ),
+                        ),
+                    ),
+                ),
+            ).fields.getValue(LogicalField("state.items.name"))
+                .bindings.keys.assert().containsExactly(QueryCapability.PRESENCE)
+        }
+    }
+
+    @Test
     fun `opaque logical shapes should expose only presence without a validator`() {
         val field = LogicalField("state.opaque")
         val logical = LogicalQuerySchema(
@@ -531,9 +618,7 @@ class MongoQuerySchemaAdapterTest {
     fun `resolve should read indexes and validator without reading documents`() {
         val collection = mockk<MongoCollection<Document>>()
         val database = mockk<MongoDatabase>()
-        every { collection.namespace } returns MongoNamespace("wow", "snapshots")
-        every { collection.listIndexes() } returns indexes(Document("key", Document("all", "text")))
-        every { database.listCollections() } returns collections(
+        val collectionFacts = collections(
             Document("name", "snapshots").append(
                 "options",
                 Document(
@@ -548,6 +633,9 @@ class MongoQuerySchemaAdapterTest {
                 ),
             ),
         )
+        every { collection.namespace } returns MongoNamespace("wow", "snapshots")
+        every { collection.listIndexes() } returns indexes(Document("key", Document("all", "text")))
+        every { database.listCollections() } returns collectionFacts
 
         MongoQuerySchemaAdapter(collection, database).resolve(logicalSchema())
             .test()
@@ -560,6 +648,7 @@ class MongoQuerySchemaAdapterTest {
 
         verify(exactly = 1) { collection.listIndexes() }
         verify(exactly = 1) { database.listCollections() }
+        verify(exactly = 1) { collectionFacts.filter(any()) }
         verify(exactly = 0) { collection.find() }
         verify(exactly = 0) { collection.find(any<Bson>()) }
         verify(exactly = 0) { collection.aggregate(any<List<Bson>>()) }
@@ -852,9 +941,12 @@ class MongoQuerySchemaAdapterTest {
         }
     }
 
-    private fun collections(vararg values: Document): ListCollectionsPublisher<Document> = mockk {
-        every { subscribe(any()) } answers {
+    private fun collections(vararg values: Document): ListCollectionsPublisher<Document> {
+        val publisher = mockk<ListCollectionsPublisher<Document>>()
+        every { publisher.filter(any()) } returns publisher
+        every { publisher.subscribe(any()) } answers {
             Flux.fromIterable(values.toList()).subscribe(firstArg<Subscriber<in Document>>())
         }
+        return publisher
     }
 }
