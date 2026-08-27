@@ -384,7 +384,7 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
     ): QuerySchemaResolution<FilterExpression> {
         val resolved = resolveField(filter.field, QueryCapability.RANGE, logicalParent, physicalParent)
         if (resolved.compatibility != QueryCompatibilityLevel.EXACT) {
-            return QuerySchemaResolution(filter, QueryCompatibilityLevel.INCOMPATIBLE)
+            return QuerySchemaResolution(filter, resolved.compatibility)
         }
         if (filter.dateFormatter != null) {
             return QuerySchemaResolution(filter, QueryCompatibilityLevel.INCOMPATIBLE)

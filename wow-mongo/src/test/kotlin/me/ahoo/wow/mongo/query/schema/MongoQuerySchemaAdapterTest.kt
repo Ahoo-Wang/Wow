@@ -193,6 +193,36 @@ class MongoQuerySchemaAdapterTest {
     }
 
     @Test
+    fun `alternative object branch without a property should leave its storage type unknown`() {
+        listOf("anyOf", "oneOf").forEach { composition ->
+            val stateSchema = Document(
+                composition,
+                listOf(
+                    Document("bsonType", "object").append(
+                        "properties",
+                        Document("amount", Document("bsonType", "string")),
+                    ),
+                    Document("bsonType", "object").append(
+                        "properties",
+                        Document("other", Document("bsonType", "string")),
+                    ),
+                ),
+            )
+
+            MongoQuerySchemaAdapter.bind(
+                LogicalQuerySchema(
+                    mapOf(LogicalField("state.amount") to field(QueryValueType.INTEGER)),
+                ),
+                emptyList(),
+                Document("properties", Document("state", stateSchema)),
+            ).fields.getValue(LogicalField("state.amount")).bindings.keys.assert().contains(
+                QueryCapability.RANGE,
+                QueryCapability.AGGREGATE_NUMERIC,
+            )
+        }
+    }
+
+    @Test
     fun `opaque logical shapes should expose only presence without a validator`() {
         val field = LogicalField("state.opaque")
         val logical = LogicalQuerySchema(

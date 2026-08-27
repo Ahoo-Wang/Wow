@@ -274,12 +274,25 @@ class MongoQuerySchemaAdapter(
 
         private fun List<Document>.mergeAlternatives(path: String?): Map<String, MongoStorageSchema> =
             buildMap {
-                this@mergeAlternatives.forEach { schema ->
-                    schema.collectStorageSchemas(path, includeType = false).forEach { (field, storage) ->
-                        merge(field, storage, MongoStorageSchema::union)
-                    }
+                val alternatives = this@mergeAlternatives
+                    .filter { it.canContainChildren() }
+                    .map { it.collectStorageSchemas(path, includeType = false) }
+                alternatives.flatMapTo(linkedSetOf()) { it.keys }.forEach { field ->
+                    val storage = alternatives.map { it[field] }
+                    put(
+                        field,
+                        if (storage.any { it == null }) {
+                            MongoStorageSchema(types = null, itemTypes = null)
+                        } else {
+                            storage.filterNotNull().reduce(MongoStorageSchema::union)
+                        },
+                    )
                 }
             }
+
+        private fun Document.canContainChildren(): Boolean = storageTypes()?.any {
+            it.value in OBJECT_TYPES || it.value in ARRAY_TYPES
+        } != false
 
         private fun MutableMap<String, MongoStorageSchema>.mergeConjunctive(
             other: Map<String, MongoStorageSchema>,
@@ -386,8 +399,7 @@ class MongoQuerySchemaAdapter(
         }
 
         private fun <T> Set<T>?.unionConstraint(other: Set<T>?): Set<T>? = when {
-            this == null -> other
-            other == null -> this
+            this == null || other == null -> null
             else -> this + other
         }
 

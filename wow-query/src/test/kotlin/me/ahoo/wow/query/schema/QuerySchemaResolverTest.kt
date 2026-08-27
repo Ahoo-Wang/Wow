@@ -399,6 +399,19 @@ class QuerySchemaResolverTest {
     }
 
     @Test
+    fun `unknown relative time field should preserve caller configuration as compatible`() {
+        val filter = TodayFilter(
+            LogicalField("state.createdAt"),
+            datePattern = "yyyy-MM-dd",
+            timeUnit = TimeUnit.SECONDS,
+        )
+
+        QuerySchemaResolver(schema()).resolve(filter).assert().isEqualTo(
+            QuerySchemaResolution(filter, QueryCompatibilityLevel.COMPATIBLE),
+        )
+    }
+
+    @Test
     fun `epoch temporal should reject an opaque formatter in strict mode`() {
         val field = LogicalField("state.createdAt")
         val resolver = QuerySchemaResolver(
