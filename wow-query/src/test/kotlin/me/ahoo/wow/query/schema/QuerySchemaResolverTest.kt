@@ -92,7 +92,10 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.JsonNodeFactory
+import java.math.BigDecimal
+import java.time.Instant
 import java.time.format.DateTimeFormatter
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 @Suppress("LargeClass")
@@ -140,6 +143,105 @@ class QuerySchemaResolverTest {
         cases.forEach { (input, expected) ->
             resolver.resolve(input).assert().isEqualTo(
                 QuerySchemaResolution(expected, QueryCompatibilityLevel.EXACT),
+            )
+        }
+    }
+
+    @Test
+    fun `declared built-in field types should reject incompatible predicate values`() {
+        val integer = LogicalField("state.createdAt")
+        val string = LogicalField("state.status")
+        val boolean = LogicalField("state.active")
+        val strings = LogicalField("state.labels")
+        val resolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    integer to fieldSchema(
+                        QueryCapability.EXACT_MATCH to "document.created_at",
+                        QueryCapability.RANGE to "document.created_at",
+                        valueTypes = setOf(QueryValueType.INTEGER),
+                    ),
+                    string to fieldSchema(
+                        QueryCapability.EXACT_MATCH to "document.status",
+                        valueTypes = setOf(QueryValueType.STRING),
+                    ),
+                    boolean to fieldSchema(
+                        QueryCapability.EXACT_MATCH to "document.active",
+                        valueTypes = setOf(QueryValueType.BOOLEAN),
+                    ),
+                    strings to fieldSchema(
+                        QueryCapability.EXACT_MATCH to "document.labels",
+                        valueTypes = setOf(QueryValueType.STRING),
+                        cardinality = QueryCardinality.MANY,
+                    ),
+                ),
+            ),
+        )
+        val text = JsonNodeFactory.instance.stringNode("not-a-timestamp")
+        val number = JsonNodeFactory.instance.numberNode(1)
+        val filters = listOf(
+            EqualFilter(integer, text),
+            EqualFilter(integer, JsonNodeFactory.instance.numberNode(1.5)),
+            EqualFilter(integer, JsonNodeFactory.instance.pojoNode(1.5)),
+            EqualFilter(strings, JsonNodeFactory.instance.pojoNode(listOf("value", 1))),
+            NotEqualFilter(boolean, number),
+            InFilter(string, listOf(number)),
+            NotInFilter(string, listOf(number)),
+            ContainsAllFilter(strings, listOf(number)),
+            GreaterThanFilter(integer, text),
+            GreaterThanOrEqualFilter(integer, text),
+            LessThanFilter(integer, text),
+            LessThanOrEqualFilter(integer, text),
+            BetweenFilter(integer, number, text),
+        )
+
+        filters.forEach { filter ->
+            val resolution = resolver.resolve(filter)
+
+            resolution.compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+            QuerySchemaValidationMode.entries.forEach { mode ->
+                assertThrows<QuerySchemaValidationException> {
+                    resolution.requireAccepted(mode)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `declared built-in field types should accept matching values`() {
+        val field = LogicalField("state.value")
+        val physical = LogicalField("document.value")
+
+        listOf(
+            QueryValueType.STRING to JsonNodeFactory.instance.stringNode("value"),
+            QueryValueType.INTEGER to JsonNodeFactory.instance.numberNode(1),
+            QueryValueType.INTEGER to JsonNodeFactory.instance.numberNode(1.0),
+            QueryValueType.INTEGER to JsonNodeFactory.instance.pojoNode(1.0),
+            QueryValueType.INTEGER to JsonNodeFactory.instance.pojoNode(BigDecimal("1.0")),
+            QueryValueType.DECIMAL to JsonNodeFactory.instance.numberNode(1.5),
+            QueryValueType.BOOLEAN to JsonNodeFactory.instance.booleanNode(true),
+            QueryValueType.OBJECT to JsonNodeFactory.instance.pojoNode(mapOf("id" to "value")),
+            QueryValueType.STRING to JsonNodeFactory.instance.pojoNode(listOf("one", "two")),
+            QueryValueType.INTEGER to JsonNodeFactory.instance.pojoNode(Instant.EPOCH),
+            QueryValueType.STRING to JsonNodeFactory.instance.pojoNode(UUID.randomUUID()),
+            QueryValueType.from("UUID") to JsonNodeFactory.instance.stringNode("value"),
+        ).forEach { (valueType, value) ->
+            val resolver = QuerySchemaResolver(
+                schema(
+                    mapOf(
+                        field to fieldSchema(
+                            QueryCapability.EXACT_MATCH to physical.value,
+                            valueTypes = setOf(valueType),
+                        ),
+                    ),
+                ),
+            )
+
+            resolver.resolve(EqualFilter(field, value)).assert().isEqualTo(
+                QuerySchemaResolution(
+                    EqualFilter(physical, value),
+                    QueryCompatibilityLevel.EXACT,
+                ),
             )
         }
     }
@@ -1087,11 +1189,12 @@ class QuerySchemaResolverTest {
         semanticType: QuerySemanticType? = null,
         projectionPath: String? = null,
         cardinality: QueryCardinality = QueryCardinality.SINGLE,
+        valueTypes: Set<QueryValueType> = emptySet(),
     ) = QueryFieldSchema(
         title = null,
         description = null,
         enumValues = null,
-        valueTypes = setOf(QueryValueType.STRING),
+        valueTypes = valueTypes,
         nullable = false,
         required = true,
         cardinality = cardinality,

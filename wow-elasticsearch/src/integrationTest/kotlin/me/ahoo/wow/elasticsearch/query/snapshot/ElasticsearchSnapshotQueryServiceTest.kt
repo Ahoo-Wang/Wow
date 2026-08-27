@@ -375,6 +375,18 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     }
 
     @Test
+    fun `all modes should reject invalid declared epoch literals before Elasticsearch`() {
+        listOf(snapshotQueryService, strictService()).forEach { service ->
+            service.dynamicList(
+                ListQuery(
+                    filter = filterExpression { "firstEventTime" lte "not-a-timestamp" },
+                    limit = 10,
+                ),
+            ).test().expectError(QuerySchemaValidationException::class.java).verify()
+        }
+    }
+
+    @Test
     fun `all modes should reject dynamic ABAC before ignored values can fail open`() {
         updateDocument(
             mapOf(
