@@ -1,534 +1,274 @@
 ---
 title: Command Gateway
-description: The command gateway is the core component for receiving and sending commands, handling idempotency, wait plans, and validation.
+description: Send a command, choose an observable completion stage, and interpret validation, idempotency, and downstream results.
 ---
 
 # Command Gateway
 
-The command gateway is the core component in the system for receiving and sending commands, serving as the entry point for commands.
-It is an extension of the command bus, not only responsible for command transmission, but also adds a series of important responsibilities, including command idempotency, wait plans, and command validation.
+`CommandGateway` is the application-facing command entry point. It adds command-body validation, a request-ID precheck, and stage waiting to `CommandBus`; it does not move aggregate rules into the transport layer.
+
+This guide follows one `CreateOrder` command. The same command can produce different successful responses depending on whether the caller waits for `SENT`, `PROCESSED`, `SNAPSHOT`, or `PROJECTED`.
 
 ## Send Command
 
 ![Send Command - Command Gateway](/images/command-gateway/send-command.svg)
 
+The durable path is:
+
+```text
+validate + requestId check -> command bus -> restore aggregate -> handle command
+-> append DomainEventStream -> publish state/domain events -> snapshot/process/project
+```
+
+The wait stage selects an observation point in that path. It does not change the command's business behavior.
+
 ## API Usage
 
-The `CommandGateway` interface provides several methods for sending commands and waiting for their results. Below are the main methods and their usage patterns.
+Create one `CommandMessage` and reuse its `commandId` when constructing a wait plan:
+
+```kotlin
+val command = createOrder.toCommandMessage(
+    aggregateId = "order-1",
+    requestId = "create-order-1",
+)
+```
 
 ### Basic Methods
 
-:::tip
-The `toCommandMessage()` extension function converts a command body into a `CommandMessage`. This is provided by the Wow framework and handles setting up the command ID, aggregate ID, and other metadata.
-:::
+`sendAndWait` returns one final result. `sendAndWaitStream` exposes accepted intermediate signals and is appropriate for SSE or progress displays.
 
 #### sendAndWait(command, waitPlan)
 
-Sends a command and waits for the final result. If the command fails, it throws a `CommandResultException`.
-
 ```kotlin
-val command = CreateAccount(balance = 1000, name = "John").toCommandMessage()
-val waitPlan = CommandWait.processed(command.commandId)
-
-commandGateway.sendAndWait(command, waitPlan)
-    .doOnSuccess { result ->
-        println("Command processed: ${result.commandId}")
-        println("Aggregate Version: ${result.aggregateVersion}")
-    }
-    .subscribe()
+val result = commandGateway.sendAndWait(
+    command,
+    CommandWait.processed(command.commandId),
+)
 ```
+
+A successful `PROCESSED` result proves aggregate processing completed, including event append when the handler emitted events. It does not prove that a snapshot, projection, event processor, or Saga has completed.
 
 #### sendAndWaitStream(command, waitPlan)
 
-Returns a `Flux<CommandResult>` for real-time streaming updates as the command progresses through different stages.
-
 ```kotlin
-val command = CreateAccount(balance = 1000, name = "John").toCommandMessage()
-val waitPlan = CommandWait.snapshot(command.commandId)
-
-commandGateway.sendAndWaitStream(command, waitPlan)
-    .doOnNext { result ->
-        println("Stage: ${result.stage} - Succeeded: ${result.succeeded}")
-        println("Aggregate Version: ${result.aggregateVersion}")
-    }
-    .subscribe()
+commandGateway.sendAndWaitStream(
+    command,
+    CommandWait.snapshot(command.commandId),
+).doOnNext { result ->
+    println("${result.stage}: ${result.succeeded}")
+}
 ```
+
+For a successful snapshot wait, the stream can expose `SENT`, `PROCESSED`, and `SNAPSHOT`. A failed prerequisite terminates the wait with that earlier-stage failure.
 
 #### Wait Timeout
 
-`sendAndWait` and `sendAndWaitStream` have a default maximum duration of 30 seconds. The deadline starts on subscription and covers command checks, sending, and target-stage waiting. A timeout cancels the wait and releases its registered `WaitHandle`. Override the default for one call with `withTimeout`:
+The default gateway deadline is 30 seconds. `withTimeout` changes the caller-side lifetime for this invocation; it is not propagated as a distributed message header.
 
 ```kotlin
-val waitPlan = CommandWait.processed(command.commandId)
-    .withTimeout(Duration.ofMinutes(2))
-
-commandGateway.sendAndWait(command, waitPlan)
+val plan = CommandWait.projected(
+    waitCommandId = command.commandId,
+    contextName = command.contextName,
+    processorName = "OrderSummaryProjection",
+).withTimeout(Duration.ofSeconds(10))
 ```
 
-`withTimeout` controls caller-side resource lifetime only; it is not propagated in remote message headers.
-The `sendAndWaitForSent` fast path has no `WaitPlan` parameter and always uses the 30-second default.
+A timeout means only that this caller stopped waiting. It does not cancel an already accepted command or prove that later processing failed. The gateway cancels its local `WaitHandle` when the wait terminates.
 
 ### Convenience Methods
 
-The `CommandGateway` provides convenience methods that pre-configure common wait plans:
-
 ```kotlin
-val command = CreateAccount(balance = 1000, name = "John").toCommandMessage()
-
-// Wait until command is sent to the bus
-commandGateway.sendAndWaitForSent(command)
-    .doOnSuccess { result ->
-        println("Command sent: ${result.commandId}")
-    }
-    .subscribe()
-
-// Wait until command is processed by the aggregate
-commandGateway.sendAndWaitForProcessed(command)
-    .doOnSuccess { result ->
-        if (result.succeeded) {
-            println("Command processed successfully: ${result.commandId}")
-            println("New aggregate version: ${result.aggregateVersion}")
-        }
-    }
-    .subscribe()
-
-// Wait until aggregate snapshot is created
-commandGateway.sendAndWaitForSnapshot(command)
-    .doOnSuccess { result ->
-        println("Snapshot created for aggregate: ${result.aggregateId}")
-    }
-    .subscribe()
+commandGateway.sendAndWaitForSent(command)       // SENT
+commandGateway.sendAndWaitForProcessed(command)  // PROCESSED
+commandGateway.sendAndWaitForSnapshot(command)   // SNAPSHOT
 ```
+
+Use the earliest stage that satisfies the response contract. Use `CommandWait.projected`, `eventHandled`, or `sagaHandled` when the caller needs a named downstream function.
 
 ## Core Concepts
 
 ### CommandResult
 
-`CommandResult` represents the result of a command execution at a specific processing stage. It contains comprehensive information about the command processing outcome.
+`CommandResult` is the public observation of one `WaitSignal`. Its most useful fields are:
 
-| Property | Type | Description | Source |
-|----------|------|-------------|--------|
-| `id` | `String` | Unique identifier for this result | [CommandResult.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandResult.kt#L69) |
-| `waitCommandId` | `String` | The command ID being waited on | [CommandResult.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandResult.kt#L69) |
-| `stage` | `CommandStage` | Current processing stage (SENT, PROCESSED, SNAPSHOT, etc.) | [CommandResult.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandResult.kt#L69) |
-| `contextName` | `String` | Bounded context name | [CommandResult.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandResult.kt#L69) |
-| `aggregateName` | `String` | Aggregate name | [CommandResult.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandResult.kt#L69) |
-| `tenantId` | `String` | Tenant identifier | [CommandResult.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandResult.kt#L69) |
-| `aggregateId` | `String` | Aggregate instance identifier | [CommandResult.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandResult.kt#L69) |
-| `aggregateVersion` | `Int?` | Aggregate version after processing (null on gateway validation failure or before processing) | [CommandResult.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandResult.kt#L69) |
-| `requestId` | `String` | Request identifier for idempotency | [CommandResult.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandResult.kt#L69) |
-| `commandId` | `String` | Command identifier | [CommandResult.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandResult.kt#L69) |
-| `function` | `FunctionInfoData` | Information about the processing function | [CommandResult.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandResult.kt#L69) |
-| `errorCode` | `String` | Error code ("Ok" on success) | [CommandResult.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandResult.kt#L69) |
-| `errorMsg` | `String` | Error message (empty on success) | [CommandResult.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandResult.kt#L69) |
-| `bindingErrors` | `List<BindingError>` | List of validation errors | [CommandResult.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandResult.kt#L69) |
-| `result` | `Map<String, Any>` | Additional result data | [CommandResult.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandResult.kt#L69) |
-| `signalTime` | `Long` | Timestamp when this result was generated | [CommandResult.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandResult.kt#L69) |
-| `succeeded` | `Boolean` | Whether the command processing succeeded | [CommandResult.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandResult.kt#L69) |
+| Field | Meaning |
+|---|---|
+| `stage` | Observed stage such as `SENT`, `PROCESSED`, `SNAPSHOT`, or `PROJECTED` |
+| `succeeded` | Derived from `errorCode` |
+| `aggregateVersion` | Version known at that stage; it can be `null` before aggregate processing |
+| `commandId` / `waitCommandId` | Current command and the command whose plan owns the wait |
+| `requestId` | Caller-controlled idempotency key carried by the original command |
+| `function` | Function that emitted the signal; used by function-scoped stages |
+| `errorCode`, `errorMsg`, `bindingErrors` | Observable failure details |
+| `result` | Values accumulated from accepted signals |
 
-A `CommandResult` is created from a `WaitSignal` via the `toResult()` extension function, which maps signal fields to result fields and adds the `requestId` from the original command message.
+Do not infer an unobserved stage from a successful result. In particular, `PROCESSED` is not an alias for `SNAPSHOT` or `PROJECTED`.
 
 ### WaitSignal vs CommandResult
 
-- **WaitSignal**: Internal interface used within the wait plan infrastructure. Contains processing stage information and is used for signaling between components.
-- **CommandResult**: Public API for command results. Created from `WaitSignal` and includes additional context like `requestId` and formatted aggregate information.
+`WaitSignal` is the internal stage notification. `DefaultCommandGateway` combines it with the original command's `requestId` and aggregate identity to create `CommandResult`. Local and remote notifiers transport signals; the result remains the public gateway contract.
 
 ### CommandGateway vs CommandBus
 
-`CommandGateway` extends `CommandBus` with additional high-level features:
+| Capability | `CommandBus` | `CommandGateway` |
+|---|---:|---:|
+| Route a `CommandMessage` | yes | yes |
+| Validate command body | no contract | default implementation does |
+| Precheck `requestId` | no contract | default implementation does |
+| Register and await stages | no | yes |
+| Return `CommandResult` | no | yes |
 
-| Feature | CommandBus | CommandGateway |
-|---------|------------|----------------|
-| Send commands | Yes | Yes |
-| Wait plans | No | Yes |
-| Command validation | No | Yes |
-| Idempotency checking | No | Yes |
-| Real-time result streaming | No | Yes |
-| Convenience methods | No | Yes |
-
-Use `CommandBus` when you only need basic command routing. Use `CommandGateway` for full-featured command handling with wait plans and validation.
-
-```kotlin
-// CommandBus - basic routing only
-interface CommandBus : MessageBus<CommandMessage<*>, ServerCommandExchange<*>>
-
-// CommandGateway - extends CommandBus with additional features
-interface CommandGateway : CommandBus {
-    fun <C : Any> sendAndWait(command: CommandMessage<C>, waitPlan: WaitPlan): Mono<CommandResult>
-    fun <C : Any> sendAndWaitStream(command: CommandMessage<C>, waitPlan: WaitPlan): Flux<CommandResult>
-    // ... convenience methods
-}
-```
+Code that needs only transport can use `CommandBus`. Request boundaries normally use `CommandGateway` so validation, idempotency, and wait semantics remain consistent.
 
 ## Architecture
-
-The command infrastructure is built on a layered architecture that separates concerns between the API contract, the gateway (validation/idempotency), the message bus (transport), and the aggregate dispatcher (processing).
 
 ### Component Architecture
 
 ```mermaid
-graph TB
-    Client[Client / HTTP Request]
-    Handler[CommandHandlerFunction<br>WebFlux Layer]
-    Gateway[DefaultCommandGateway<br>Validation + Idempotency]
-    Registrar[WaitCoordinator<br>In-Memory Registry]
-    LFBus[LocalFirstCommandBus]
-    InMem[InMemoryCommandBus<br>Local Sink]
-    Kafka[KafkaCommandBus<br>Distributed via Kafka]
-    Dispatcher[AggregateDispatcher<br>Reactive Message Consumer]
-    Aggregate[Aggregate Root<br>Process Command]
-    Notifier[CommandWaitNotifier<br>Signal Propagation]
-
-    Client -->|POST /aggregate/action| Handler
-    Handler -->|extractWaitPlan + send| Gateway
-    Gateway -->|1. validate<br>2. idempotencyCheck| Gateway
-    Gateway -->|3. register| Registrar
-    Gateway -->|4. send message| LFBus
-    LFBus -->|local-first| InMem
-    LFBus -->|distributed copy| Kafka
-    InMem -->|receive| Dispatcher
-    Kafka -->|receive| Dispatcher
-    Dispatcher -->|handleExchange| Aggregate
-    Aggregate -->|WaitSignal| Notifier
-    Notifier -->|next signal| Registrar
-    Registrar -->|callback| Gateway
-    Gateway -->|CommandResult| Client
-
+flowchart LR
+    Client --> Gateway[DefaultCommandGateway]
+    Gateway --> Bus[CommandBus]
+    Bus --> Dispatcher[CommandDispatcher]
+    Dispatcher --> Repository[StateAggregateRepository]
+    Repository --> SnapshotStore
+    Repository --> EventStore
+    Dispatcher --> Aggregate[Command aggregate]
+    Aggregate --> EventStore
+    EventStore --> EventBus[DomainEventBus]
+    EventBus --> Snapshot[Snapshot dispatcher]
+    EventBus --> Processor[Event processor]
+    EventBus --> Projection[Projection processor]
+    Snapshot --> Wait[WaitCoordinator]
+    Processor --> Wait
+    Projection --> Wait
+    Dispatcher --> Wait
 ```
 
-<!-- Sources:
-- CommandHandlerFunction: wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/CommandHandlerFunction.kt:39-63
-- DefaultCommandGateway: wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt:45-246
-- LocalFirstCommandBus: wow-core/src/main/kotlin/me/ahoo/wow/command/LocalFirstCommandBus.kt:29-47
-- InMemoryCommandBus: wow-core/src/main/kotlin/me/ahoo/wow/command/InMemoryCommandBus.kt:31-50
-- KafkaCommandBus: wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/KafkaCommandBus.kt:27-45
-- AggregateDispatcher: wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt:80-275
-- WaitCoordinator: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitCoordinator.kt:18-72
--->
+The event store is the authoritative history. Snapshot and processor stores are downstream state derived from that history.
 
 ### Message Bus Hierarchy
 
-The `MessageBus` interface defines the fundamental contract: `send` a message and `receive` messages for a set of named aggregates. It is specialized into three tiers:
-
-| Bus Type | Interface | Used For | Source |
-|---|---|---|---|
-| **Local** | `LocalMessageBus` | Single-JVM, in-memory message passing via Reactor `Sinks` | [MessageBus.kt:64](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/MessageBus.kt#L64) |
-| **Distributed** | `DistributedMessageBus` | Cross-instance message passing (Kafka) | [MessageBus.kt:83](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/MessageBus.kt#L83) |
-| **Local-First** | `LocalFirstMessageBus` | Hybrid: local runtime admission plus a marked distributed copy | [LocalFirstMessageBus.kt:99](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/LocalFirstMessageBus.kt#L99) |
-
-For the command domain specifically, `CommandBus` extends `MessageBus` with a fixed `TopicKind.COMMAND` and narrows the generic types:
-
-- `LocalCommandBus` extends both `CommandBus` and `LocalMessageBus`.
-- `DistributedCommandBus` extends both `CommandBus` and `DistributedMessageBus`.
-- `LocalFirstCommandBus` extends `CommandBus` and uses `LocalFirstMessageBus` delegation, automatically disabling local-first for void commands.
+`CommandBus` specializes `MessageBus` for command exchanges. The concrete bus can be in-memory, distributed, or local-first. The bus acceptance represented by `SENT` is a transport boundary, not aggregate execution.
 
 ### At-a-Glance Reference
 
-| Component | Responsibility | Key File | Source |
-|---|---|---|---|
-| `CommandMessage` | Encapsulates command body, aggregate ID, version, idempotency metadata | `wow-api/.../command/CommandMessage.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/command/CommandMessage.kt#L53) |
-| `CommandGateway` | High-level send API with validation, idempotency, wait plans | `wow-core/.../command/CommandGateway.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt#L75) |
-| `DefaultCommandGateway` | Concrete implementation of `CommandGateway` | `wow-core/.../command/DefaultCommandGateway.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L45) |
-| `CommandBus` | Core message bus abstraction for routing commands | `wow-core/.../command/CommandBus.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandBus.kt#L36) |
-| `InMemoryCommandBus` | Local in-memory bus using Reactor sinks (unicast) | `wow-core/.../command/InMemoryCommandBus.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/InMemoryCommandBus.kt#L31) |
-| `LocalFirstCommandBus` | Tries local bus first, falls back to distributed | `wow-core/.../command/LocalFirstCommandBus.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/LocalFirstCommandBus.kt#L29) |
-| `KafkaCommandBus` | Distributed command bus over Apache Kafka | `wow-kafka/.../KafkaCommandBus.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/KafkaCommandBus.kt#L27) |
-| `WaitPlan` | Defines how long and what stage to wait for command results | `wow-core/.../command/wait/WaitPlan.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt#L60) |
-| `CommandWait` | Factory for single-stage wait plans (SENT, PROCESSED, SNAPSHOT, etc.) | `wow-core/.../command/wait/CommandWait.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandWait.kt#L33) |
-| `SimpleWaitingChain` | Multi-stage chain (e.g., SAGA_HANDLED then SNAPSHOT) | `wow-core/.../command/wait/chain/SimpleWaitingChain.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/chain/SimpleWaitingChain.kt#L36) |
-| `CommandHandlerFunction` | Spring WebFlux handler that bridges HTTP to `CommandGateway` | `wow-webflux/.../command/CommandHandlerFunction.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/CommandHandlerFunction.kt#L39) |
-| `AggregateDispatcher` | Reactive dispatcher that consumes messages from the bus per-aggregate | `wow-core/.../messaging/dispatcher/AggregateDispatcher.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L80) |
+| Component | Responsibility |
+|---|---|
+| `DefaultCommandGateway` | pre-send checks, wait registration, sending, result mapping, deadline |
+| `RequestIdChecker` | fast precheck plus authoritative existence lookup when needed |
+| `WaitCoordinator` | owns in-process wait handles keyed by `waitCommandId` |
+| `RetryableAggregateProcessor` | restores aggregate state and retries recoverable aggregate processing failures |
+| `SimpleCommandAggregate` | checks aggregate invariants, invokes handler, sources and appends emitted events |
+| `EventSourcingStateAggregateRepository` | loads a current snapshot when applicable and replays later events |
+| notifier filters | emit `PROCESSED`, `SNAPSHOT`, `PROJECTED`, `EVENT_HANDLED`, and `SAGA_HANDLED` signals |
 
 ## Command Processing Chain
-
-The following sequence diagram traces a command from its arrival as an HTTP request through every processing stage to the final `CommandResult`. Each step is annotated with the file and method responsible.
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Client
-    participant Handler as CommandHandlerFunction
-    participant Gateway as DefaultCommandGateway
-    participant Store as EventStore
-    participant Registrar as WaitCoordinator
-    participant LFBus as LocalFirstCommandBus
-    participant Kafka as KafkaCommandBus
-    participant Dispatcher as AggregateDispatcher
-    participant Aggregate as Aggregate Root
-    participant Notifier as CommandWaitNotifier
+    participant C as Caller
+    participant G as DefaultCommandGateway
+    participant B as CommandBus
+    participant R as StateAggregateRepository
+    participant E as EventStore
+    participant A as Aggregate
+    participant D as Downstream dispatchers
 
-    Client->>Handler: POST /{aggregate}/{action}
-    Handler->>Handler: Extract command body + wait plan headers
-    Note over Handler: AggregateRequest.extractWaitPlan()
-    Handler->>Gateway: sendAndWait(command, waitPlan)
-    Note over Gateway: DefaultCommandGateway.send()
-
-    Gateway->>Gateway: idempotencyCheck(requestId)
-    opt Precheck reports duplicate
-        Gateway->>Store: existsRequestId(aggregateId, requestId)
-    end
-    Gateway->>Gateway: validate(commandBody)
-    Note over Gateway: Jakarta Bean Validation<br>+ CommandValidator.validate()
-
-    Gateway->>Gateway: waitPlan.propagate(endpoint, header)
-    Gateway->>Registrar: createLast(waitPlan)
-    Gateway->>LFBus: send(command)
-
-    alt Aggregate is local
-        LFBus->>LFBus: localBus.send(message)
-        Note over LFBus: InMemoryCommandBus sink
-        LFBus->>Kafka: distributedBus.send(copy)
-        Note over LFBus: Always sends copy to distributed bus
-    else Aggregate is remote or no local subscribers
-        LFBus->>Kafka: distributedBus.send(message)
-    end
-
-    Gateway->>Notifier: commandSentSignal(waitCommandId)
-    Note over Gateway,Notifier: CommandStage.SENT signal (see Post-Send Signal note)
-
-    Kafka->>Dispatcher: receive(subscription)
-    Dispatcher->>Dispatcher: Group by key, publishOn(scheduler)
-    Dispatcher->>Aggregate: handleExchange(exchange)
-    Aggregate->>Aggregate: Validate & apply command
-    Aggregate->>Aggregate: Emit domain events
-
-    Aggregate->>Notifier: WaitSignal(stage=PROCESSED)
-    Notifier->>Registrar: next(waitSignal)
-    Registrar->>Gateway: waitCoordinator.signal(signal)
-
-    opt Stage == SNAPSHOT
-        Aggregate->>Notifier: WaitSignal(stage=SNAPSHOT)
-        Notifier->>Registrar: next(waitSignal)
-    end
-    opt Stage == PROJECTED
-        Aggregate->>Notifier: WaitSignal(stage=PROJECTED)
-        Notifier->>Registrar: next(waitSignal)
-    end
-
-    Gateway->>Gateway: handle.await() -> CommandResult
-    Registrar->>Registrar: unregister(waitCommandId)
-    Gateway->>Handler: Mono<CommandResult>
-    Handler->>Client: HTTP 200 + JSON response
+    C->>G: CreateOrder CommandMessage
+    G->>G: requestId check, then body validation
+    G->>G: register WaitHandle and propagate target
+    G->>B: send
+    G-->>C: SENT signal
+    B->>R: load aggregate for non-create command
+    R->>E: replay from snapshot version + 1
+    B->>A: invoke command handler
+    A->>E: append DomainEventStream
+    E-->>B: append complete
+    B-->>C: PROCESSED signal
+    B->>D: publish resulting events/state
+    D-->>C: SNAPSHOT / PROJECTED / EVENT_HANDLED
 ```
 
-<!-- Sources:
-- CommandHandler.handle(): wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/CommandHandler.kt:26-60
-- DefaultCommandGateway.send(): wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt:114-126
-- DefaultCommandGateway.sendAndWait()/sendAndWaitStream(): wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt:138-185
-- LocalFirstCommandBus.send(): wow-core/src/main/kotlin/me/ahoo/wow/command/LocalFirstCommandBus.kt:41-46
-- LocalFirstMessageBus.send(): wow-core/src/main/kotlin/me/ahoo/wow/messaging/LocalFirstMessageBus.kt:130-149
-- AbstractKafkaBus.receive(): wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt:78-95
-- AggregateDispatcher.start(): wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt:163-173
--->
+For a creation command, `RetryableAggregateProcessor` creates a fresh state aggregate rather than restoring existing history. For later commands it delegates restoration to `StateAggregateRepository`.
 
 ### DefaultCommandGateway: Pre-Send Pipeline
 
-The `DefaultCommandGateway` enforces a strict pre-send pipeline before the command reaches the bus:
+The default order is intentional:
 
-1. **Idempotency check** -- Delegates to `RequestIdChecker`. `DefaultRequestIdChecker` first performs the aggregate's fast idempotency precheck; when that rejects the `requestId`, it asks the configured `RequestIdExistenceChecker` for authoritative confirmation. `EventStore` implements that interface. A confirmed duplicate becomes `DuplicateRequestIdException`, while a false-positive precheck can continue.
+1. `RequestIdChecker.check(aggregateId, requestId)` runs.
+2. If the fast checker rejects the ID, the configured `RequestIdExistenceChecker` confirms whether it already exists. `EventStore` provides a default history scan, while backends may provide an indexed implementation.
+3. A `CommandValidator` body runs its own `validate()` method.
+4. Jakarta Validation checks the body.
+5. Only after all checks pass does the gateway call `CommandBus.send`.
 
-2. **Validation** -- Two-phase validation:
-   - **Self-validation**: If the command body implements `CommandValidator`, its `validate()` method is called first. This allows domain-specific, programmatic validation.
-   - **Jakarta Bean Validation**: The command body is validated against `@NotBlank`, `@Min`, `@Max`, and other Jakarta annotations via the configured `jakarta.validation.Validator`.
-
-Both checks are composed in the [`check()` method](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L114).
+No guide-level claim can replace backend evidence. Duplicate protection ultimately depends on the selected event store's atomic append/version/request-ID behavior.
 
 ### DefaultCommandGateway: Post-Send Signal
 
-After the command is accepted by the command bus, the gateway publishes a `CommandStage.SENT` wait signal via the `CommandWaitNotifier`. The behavior depends on the handle kind:
-
-- **Error / failure**: the SENT signal is *always* published and carries the error, so waiters fail fast.
-- **Success**: the SENT signal is published for streaming handles (`sendAndWaitStream`) and whenever the wait target stage *is* `SENT` (`CommandWait.sent`). For a single-result wait targeting a later stage (`PROCESSED`, `SNAPSHOT`, ...) the successful SENT signal is skipped, because the single-result handle only needs the later stage to complete and the SENT event is otherwise unobservable to it.
-
-This optimization (`SkipsSuccessfulSentSignal`) removes a redundant signal from the hot command path without changing the externally observable result of any wait plan. For the overloaded `send(message)` (without explicit `WaitPlan`), the gateway extracts a wait plan from the message header (if one was propagated) and publishes the SENT signal. See [DefaultCommandGateway.kt:114-126](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L114).
+`SENT` is synthesized after `CommandBus.send` completes. The optimized `sendAndWaitForSent` path does not allocate a wait handle or propagate downstream wait headers. A bus error is represented as a failed `SENT` result wrapped by `CommandResultException`.
 
 ## Error Handling
 
+Failures are observable at the stage where they occur:
+
+| Boundary | Typical result | What is still unproven |
+|---|---|---|
+| idempotency or validation | failed `SENT` result | command was not sent |
+| command bus send | failed `SENT` result | aggregate did not acknowledge processing |
+| restore, business rule, or append | failed `PROCESSED` result | no later stage is proven |
+| snapshot strategy/store | failed `SNAPSHOT` result | projection and event processor are independent |
+| projection function/store | failed `PROJECTED` result | event history can still be authoritative |
+| event processor | failed `EVENT_HANDLED` result | retry/compensation depends on that processor policy |
+
 ### CommandResultException
 
-When command processing fails, `sendAndWait` throws a `CommandResultException` containing the full `CommandResult` with error details.
+`sendAndWait` converts unsuccessful final results into `CommandResultException`. Inspect `commandResult.stage`, `errorCode`, `bindingErrors`, and `aggregateVersion`; do not branch on message text.
 
 ```kotlin
-commandGateway.sendAndWait(command, waitPlan)
-    .doOnError { error ->
-        if (error is CommandResultException) {
-            val result = error.commandResult
-            println("Command failed at stage: ${result.stage}")
-            println("Error code: ${result.errorCode}")
-            println("Error message: ${result.errorMsg}")
-            
-            // Check for validation errors
-            if (result.bindingErrors.isNotEmpty()) {
-                result.bindingErrors.forEach { bindingError ->
-                    println("Field '${bindingError.name}': ${bindingError.msg}")
-                }
-            }
-        }
+commandGateway.sendAndWaitForProcessed(command)
+    .onErrorResume(CommandResultException::class.java) { error ->
+        audit(error.commandResult)
+        Mono.error(error)
     }
-    .onErrorResume { error ->
-        // Handle the error gracefully
-        when (error) {
-            is CommandResultException -> {
-                // Log and return a fallback value
-                Mono.empty()
-            }
-            else -> Mono.error(error)
-        }
-    }
-    .subscribe()
 ```
 
 ### CommandValidationException
 
-Thrown when command validation fails before sending. Contains validation constraint violations.
-
-```kotlin
-// Command with validation annotations
-data class CreateAccount(
-    @field:NotBlank(message = "Name is required")
-    val name: String,
-    @field:Min(value = 0, message = "Balance must be non-negative")
-    val balance: Int
-)
-
-commandGateway.sendAndWaitForProcessed(command)
-    .doOnError { error ->
-        if (error is CommandValidationException) {
-            println("Validation failed for command: ${error.command}")
-            error.bindingErrors.forEach { bindingError ->
-                println("Field '${bindingError.name}': ${bindingError.msg}")
-            }
-        }
-    }
-    .subscribe()
-```
+Self-validation and Jakarta constraints are gateway checks. They run before bus send in `DefaultCommandGateway`, so their mapped result is at `SENT` with no processed aggregate version.
 
 ### DuplicateRequestIdException
 
-Thrown when attempting to process a command with a request ID that has already been processed.
-
-```kotlin
-commandGateway.sendAndWaitForProcessed(command)
-    .doOnError { error ->
-        if (error is DuplicateRequestIdException) {
-            println("Duplicate request: ${error.requestId}")
-            println("Aggregate: ${error.aggregateId}")
-        }
-    }
-    .onErrorResume(DuplicateRequestIdException::class.java) { error ->
-        // Return cached result or ignore duplicate
-        Mono.empty()
-    }
-    .subscribe()
-```
+`requestId` is scoped to an aggregate. Reusing it for the same aggregate is rejected when the configured checker confirms prior use. Treat it as a stable operation ID and reuse it only when retrying the same intent.
 
 ### Exception Reference
 
-| Exception | Thrown When | Contains | Source |
-|---|---|---|---|
-| `DuplicateRequestIdException` | A command with the same `requestId` was already processed | `aggregateId`, `requestId` | [CommandExceptions.kt:39](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandExceptions.kt#L39) |
-| `CommandValidationException` | Jakarta Bean Validation or `CommandValidator.validate()` fails | `command` object, `bindingErrors` | [CommandExceptions.kt:90](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandExceptions.kt#L90) |
-| `CommandResultException` | Command fails during aggregate processing | Full `CommandResult` with `errorCode`, `errorMsg`, `bindingErrors` | [CommandExceptions.kt:63](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandExceptions.kt#L63) |
+| Exception | Meaning |
+|---|---|
+| `CommandValidationException` | body validation failed before sending |
+| `DuplicateRequestIdException` | the request ID was confirmed as already used for the aggregate |
+| `CommandResultException` | the final observed command result failed |
+| `TimeoutException` | caller deadline elapsed; command outcome can still be unknown |
+| `EventVersionConflictException` | event append raced with another aggregate version |
 
 ### Error Handling Best Practices
 
-1. **Use specific exception handlers**: Handle `CommandResultException`, `CommandValidationException`, and `DuplicateRequestIdException` separately for appropriate responses.
-
-2. **Log error details**: Always log the `errorCode`, `errorMsg`, and `bindingErrors` for debugging.
-
-3. **Implement retry logic for transient failures**:
-
-```kotlin
-commandGateway.sendAndWaitForProcessed(command)
-    .retryWhen(Retry.backoff(3, Duration.ofSeconds(1))
-        .filter { error -> isTransientError(error) })
-    .subscribe()
-
-// Transient errors are typically network or temporary infrastructure issues
-// Do NOT retry validation errors or duplicate request errors
-fun isTransientError(error: Throwable): Boolean {
-    return when (error) {
-        is CommandValidationException -> false  // Validation errors won't succeed on retry
-        is DuplicateRequestIdException -> false // Duplicate requests should not be retried
-        is CommandResultException -> false      // Business logic errors from aggregate
-        else -> true                            // Network/infrastructure errors may be transient
-    }
-}
-```
-
-4. **Handle timeout scenarios**: Configure appropriate timeouts for wait plans.
-
-```kotlin
-commandGateway.sendAndWaitForProcessed(command)
-    .timeout(Duration.ofSeconds(30))
-    .doOnError(TimeoutException::class.java) { error ->
-        println("Command processing timed out")
-    }
-    .subscribe()
-```
+1. Log `commandId`, `requestId`, aggregate identity, and `stage` together.
+2. Retry the same business intent with the same `requestId`; do not generate a new key merely because the response was lost.
+3. After a timeout, query an authoritative result or retry idempotently instead of assuming failure.
+4. Keep downstream side effects idempotent because event delivery and recoverable retries can invoke them again.
 
 ## Idempotency
 
-Command idempotency is the principle of ensuring that the same command is executed at most once in the system.
+The gateway uses a fast per-aggregate checker. A fast rejection is confirmed through `RequestIdExistenceChecker`; `NoopRequestIdExistenceChecker` fails closed. The event stream also records `requestId`, allowing history-backed confirmation.
 
-The command gateway uses `IdempotencyChecker` to check the `RequestId` of the command for idempotency.
-If the command has already been executed, it will throw a `DuplicateRequestIdException` exception to prevent duplicate execution of the same command.
-
-The following is an example HTTP request showing how to use `Command-Request-Id` in the request to ensure command idempotency:
-
-:::tip
-Developers can also customize the `RequestId` through the `requestId` property of `CommandMessage`.
-:::
-
-::: code-group
-```shell {6} [Http Request]
-curl -X 'POST' \
-  'http://localhost:8080/account/create_account' \
-  -H 'accept: application/json' \
-  -H 'Command-Wait-Stage: SNAPSHOT' \
-  -H 'Command-Aggregate-Id: sourceId' \
-  -H 'Command-Request-Id: {{$uuid}}' \
-  -H 'Content-Type: application/json' \
-  -d '{
-  "balance": 1000,
-  "name": "source"
-}'
-```
-
-```json [Response]
-{
-  "id": "0V3oAWI60001003",
-  "waitCommandId": "0V3oAWGt0001001",
-  "stage": "SNAPSHOT",
-  "contextName": "transfer-service",
-  "aggregateName": "account",
-  "tenantId": "(0)",
-  "aggregateId": "sourceId",
-  "aggregateVersion": 1,
-  "requestId": "0V3oAWGt0001001",
-  "commandId": "0V3oAWGt0001001",
-  "function": {
-    "functionKind": "STATE_EVENT",
-    "contextName": "wow",
-    "processorName": "SnapshotDispatcher",
-    "name": "save"
-  },
-  "errorCode": "Ok",
-  "errorMsg": "",
-  "result": {},
-  "signalTime": 1764297025846,
-  "succeeded": true
-}
-```
-:::
+This is a defense in depth, not a blanket exactly-once guarantee. The durable guarantee is backend-specific: an event-store implementation must atomically enforce the invariants it claims during append. Downstream processors own their own idempotency because their side effects are outside event-store append.
 
 ### Configuration
 
-```yaml {5-10}
+```yaml
 wow:
   command:
-    bus:
-      type: kafka
     idempotency:
       enabled: true
       bloom-filter:
@@ -537,401 +277,124 @@ wow:
         fpp: 0.00001
 ```
 
+Tune the fast checker for capacity and false positives. Do not use Bloom-filter settings as evidence of durable duplicate prevention.
+
 ## Wait Plans
 
-*Command wait plan* refers to the immutable plan that tells the command gateway which command stage should produce the response after a command is sent.
-
-*Command wait plan* is an important feature in the _Wow_ framework, aiming to solve the data synchronization delay problem in _CQRS_ and read-write separation modes.
-
-Currently supported command wait plans include:
+A `WaitPlan` contains a `waitCommandId`, a target, void-command support, and an optional caller-side timeout decorator. The gateway propagates the endpoint and target in command headers only after registering the local wait handle, avoiding a signal-before-registration race.
 
 ### CommandWait
 
-<p align="center" style="text-align:center;">
-  <img  width="95%" src="/images/wait/CommandWait.svg" alt="CommandWait"/>
-</p>
-
-The waiting signals supported by `CommandWait` are as follows:
-
-- `SENT`: Generates a completion signal when the command is published to the command bus/queue
-- `PROCESSED`: Generates a completion signal when the command is processed by the aggregate root
-- `SNAPSHOT`: Generates a completion signal when the snapshot is generated
-- `PROJECTED`: Generates a completion signal when the *projection* of the event produced by the command is completed
-- `EVENT_HANDLED`: Generates a completion signal when the event produced by the command is processed by the *event processor*
-- `SAGA_HANDLED`: Generates a completion signal when the event produced by the command is processed by *Saga*
-
-::: code-group
-```shell {4} [Http Request]
-curl -X 'POST' \
-  'http://localhost:8080/account/create_account' \
-  -H 'accept: application/json' \
-  -H 'Command-Wait-Stage: SNAPSHOT' \
-  -H 'Command-Aggregate-Id: targetId' \
-  -H 'Content-Type: application/json' \
-  -d '{
-  "balance": 1000,
-  "name": "target"
-}'
+```kotlin
+CommandWait.sent(command.commandId)
+CommandWait.processed(command.commandId)
+CommandWait.snapshot(command.commandId)
+CommandWait.projected(
+    command.commandId,
+    contextName = "example",
+    processorName = "OrderSummaryProjection",
+)
+CommandWait.eventHandled(
+    command.commandId,
+    contextName = "example",
+    processorName = "OrderEventProcessor",
+)
 ```
 
-```json [Response]
-{
-  "id": "0V3oAdHd0001007",
-  "waitCommandId": "0V3oAdHV0001005",
-  "stage": "SNAPSHOT",
-  "contextName": "transfer-service",
-  "aggregateName": "account",
-  "tenantId": "(0)",
-  "aggregateId": "targetId",
-  "aggregateVersion": 1,
-  "requestId": "0V3oAdHV0001005",
-  "commandId": "0V3oAdHV0001005",
-  "function": {
-    "functionKind": "STATE_EVENT",
-    "contextName": "wow",
-    "processorName": "SnapshotDispatcher",
-    "name": "save"
-  },
-  "errorCode": "Ok",
-  "errorMsg": "",
-  "result": {},
-  "signalTime": 1764297052692,
-  "succeeded": true
-}
-```
-```text [SSE Response]
-id:0V3oCwcv0001002
-event:SENT
-data:{"id":"0V3oCwcv0001002","waitCommandId":"0V3oCwbn0001001","stage":"SENT","contextName":"transfer-service","aggregateName":"account","tenantId":"(0)","aggregateId":"targetId","aggregateVersion":0,"requestId":"0V3oCwbn0001001","commandId":"0V3oCwbn0001001","function":{"functionKind":"COMMAND","contextName":"wow","processorName":"CommandGateway","name":"send"},"errorCode":"Ok","errorMsg":"","result":{},"signalTime":1764297603701,"succeeded":true}
-
-id:0V3oCwbn0001001
-event:PROCESSED
-data:{"id":"0V3oCwbn0001001","waitCommandId":"0V3oCwbn0001001","stage":"PROCESSED","contextName":"transfer-service","aggregateName":"account","tenantId":"(0)","aggregateId":"targetId","aggregateVersion":1,"requestId":"0V3oCwbn0001001","commandId":"0V3oCwbn0001001","function":{"functionKind":"COMMAND","contextName":"transfer-service","processorName":"Account","name":"onCommand"},"errorCode":"Ok","errorMsg":"","result":{},"signalTime":1764297603737,"succeeded":true}
-
-id:0V3oCwdB0001003
-event:SNAPSHOT
-data:{"id":"0V3oCwdB0001003","waitCommandId":"0V3oCwbn0001001","stage":"SNAPSHOT","contextName":"transfer-service","aggregateName":"account","tenantId":"(0)","aggregateId":"targetId","aggregateVersion":1,"requestId":"0V3oCwbn0001001","commandId":"0V3oCwbn0001001","function":{"functionKind":"STATE_EVENT","contextName":"wow","processorName":"SnapshotDispatcher","name":"save"},"errorCode":"Ok","errorMsg":"","result":{},"signalTime":1764297603754,"succeeded":true}
-```
-```kotlin {1}
-commandGateway.sendAndWaitForProcessed(message)
-```
-:::
+Function matching applies to `PROJECTED`, `EVENT_HANDLED`, and `SAGA_HANDLED`. Empty processor/function fields broaden matching; use explicit names when one particular consumer defines completion.
 
 #### Wait Stage Comparison
 
-| Stage | Prerequisites | Returns When | Supports Void Commands | `shouldWaitFunction` | Typical Use Case | Source |
-|---|---|---|---|---|---|---|
-| `SENT` | none | Command accepted by bus/queue | Yes | No | Fire-and-forget; fastest response | [CommandStage.kt:32](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L32) |
-| `PROCESSED` | `[SENT]` | Aggregate finished executing | No | No | Default; balance of speed and consistency | [CommandStage.kt:40](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L40) |
-| `SNAPSHOT` | `[SENT, PROCESSED]` | Snapshot processing completed; `version_offset` may skip writing | No | No | Snapshot lifecycle; read-after-write with `strategy: all` | [CommandStage.kt:53](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L53) |
-| `PROJECTED` | `[SENT, PROCESSED]` | Projection (read model) updated | No | Yes | Read-model consistency; UI refresh | [CommandStage.kt:62](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L62) |
-| `EVENT_HANDLED` | `[SENT, PROCESSED]` | External event handlers complete | No | Yes | Side-effect processing; notifications | [CommandStage.kt:72](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L72) |
-| `SAGA_HANDLED` | `[SENT, PROCESSED]` | Selected Saga function completed handling; any generated commands were accepted/sent | No | Yes | Observe source-event orchestration; not downstream command completion | [CommandStage.kt:83](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L83) |
-
-Stages with `shouldWaitFunction = true` (`PROJECTED`, `EVENT_HANDLED`, `SAGA_HANDLED`) apply additional filtering: the `WaitTarget.shouldNotify(signal)` method checks that the signal's function metadata matches the expected function name, context name, and processor name. This is critical when multiple projectors or event handlers operate on the same aggregate -- the wait plan only completes when the _specific_ function has finished, not any arbitrary one.
+| Stage | Proves | Does not prove |
+|---|---|---|
+| `SENT` | command bus accepted the message | aggregate loaded or event appended |
+| `PROCESSED` | aggregate path completed, including emitted event append | snapshot or downstream consumer completion |
+| `SNAPSHOT` | snapshot dispatcher completed its strategy | a snapshot was written under `version_offset`; projection completion |
+| `PROJECTED` | matching projection function completed; final projection marker observed | unrelated projections/processors completed |
+| `EVENT_HANDLED` | matching event processor function completed | side effect is globally exactly-once |
+| `SAGA_HANDLED` | matching Saga handled the source event | commands emitted by the Saga reached their final stages |
 
 #### Wait Plan Hierarchy
 
-```mermaid
-graph TB
-    WS[WaitPlan interface]
-    SWT[StageWaitTarget<br>single processing stage]
-    CWT[ChainWaitTarget<br>saga stage + tail]
-    CW[CommandWait<br>factory methods]
-    HC[WaitCoordinator<br>handle registry]
-    WH[WaitHandle<br>runtime contract]
-    WL[WaitLastHandle<br>Mono final result]
-    WF[WaitStreamHandle<br>Flux signal stream]
-    ST[WaitState<br>state machine]
-    SWS[StageWaitState<br>single stage]
-    CWS[ChainWaitState<br>saga chain tail]
-
-    CW -->|creates| WS
-    WS -->|target| SWT
-    WS -->|target| CWT
-    HC -->|registers by waitCommandId| WH
-    WL -->|extends| WH
-    WF -->|extends| WH
-    WH -->|owns| ST
-    ST -->|stage target| SWS
-    ST -->|chain target| CWS
-
-```
-
-<!-- Sources:
-- WaitPlan interface: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt:20-71
-- CommandWait: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandWait.kt:21-121
-- WaitHandle: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitHandle.kt:22-223
-- WaitState: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitState.kt:19-60
-- StageWaitState: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/stage/StageWaitState.kt:24-90
-- ChainWaitState: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/chain/ChainWaitState.kt:29-250
-- WaitCoordinator: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitCoordinator.kt:18-72
--->
-
-At runtime, `WaitPlan` remains immutable intent. `WaitCoordinator` registers exactly one `WaitHandle` per `waitCommandId`; `sendAndWait` uses `WaitLastHandle`, while `sendAndWaitStream` uses `WaitStreamHandle`. Both handles are single-subscriber runtime sinks. The stream handle uses a unicast sink and buffers early signals for the first subscriber with `DEFAULT_WAIT_STREAM_QUEUE_LINK_SIZE`. The handle owns the mutable `WaitState`, so stage and chain completion rules stay with the state machine instead of being split into an external reducer.
+`StageWaitTarget` represents one stage and optional function. `ChainWaitTarget` starts with a Saga function and follows the command emitted from that Saga to a tail stage. Stage ordering is not a single linear chain: `SNAPSHOT`, `PROJECTED`, `EVENT_HANDLED`, and `SAGA_HANDLED` all depend on `PROCESSED` but are otherwise independent branches.
 
 ### Chain Wait Plan
 
-<p align="center" style="text-align:center;">
-  <img  width="95%" src="/images/wait/CommandWaitChain.svg" alt="Chain wait plan"/>
-</p>
+Use a chain only when the response contract crosses from a source command, through one Saga function, to the command emitted by that Saga:
 
-
-::: code-group
-```shell {4-6} [Http Request]
-curl -X 'POST' \
-  'http://localhost:8080/account/sourceId/prepare' \
-  -H 'accept: application/json' \
-  -H 'Command-Wait-Stage: SAGA_HANDLED' \
-  -H 'Command-Wait-Tail-Stage: SNAPSHOT' \
-  -H 'Command-Wait-Tail-Processor: TransferSaga' \
-  -H 'Content-Type: application/json' \
-  -d '{
-  "amount": 100,
-  "to": "targetId"
-}'
-```
-```json [Response]
-{
-  "id": "0V3oAkw6000100G",
-  "waitCommandId": "0V3oAkvW0001009",
-  "stage": "SNAPSHOT",
-  "contextName": "transfer-service",
-  "aggregateName": "account",
-  "tenantId": "(0)",
-  "aggregateId": "targetId",
-  "aggregateVersion": 2,
-  "requestId": "0V3oAkvW0001009",
-  "commandId": "0V3oAkw2000100E",
-  "function": {
-    "functionKind": "STATE_EVENT",
-    "contextName": "wow",
-    "processorName": "SnapshotDispatcher",
-    "name": "save"
-  },
-  "errorCode": "Ok",
-  "errorMsg": "",
-  "result": {},
-  "signalTime": 1764297082107,
-  "succeeded": true
-}
-```
-```text [SSE Response]
-id:0V3oCVz9000100M
-event:SENT
-data:{"id":"0V3oCVz9000100M","waitCommandId":"0V3oCVyv000100L","stage":"SENT","contextName":"transfer-service","aggregateName":"account","tenantId":"(0)","aggregateId":"sourceId","aggregateVersion":null,"requestId":"0V3oCVyv000100L","commandId":"0V3oCVyv000100L","function":{"functionKind":"COMMAND","contextName":"wow","processorName":"CommandGateway","name":"send"},"errorCode":"Ok","errorMsg":"","result":{},"signalTime":1764297501291,"succeeded":true}
-
-id:0V3oCVyv000100L
-event:PROCESSED
-data:{"id":"0V3oCVyv000100L","waitCommandId":"0V3oCVyv000100L","stage":"PROCESSED","contextName":"transfer-service","aggregateName":"account","tenantId":"(0)","aggregateId":"sourceId","aggregateVersion":4,"requestId":"0V3oCVyv000100L","commandId":"0V3oCVyv000100L","function":{"functionKind":"COMMAND","contextName":"transfer-service","processorName":"Account","name":"onCommand"},"errorCode":"Ok","errorMsg":"","result":{},"signalTime":1764297501299,"succeeded":true}
-
-id:0V3oCVzW000100R
-event:SENT
-data:{"id":"0V3oCVzW000100R","waitCommandId":"0V3oCVyv000100L","stage":"SENT","contextName":"transfer-service","aggregateName":"account","tenantId":"(0)","aggregateId":"targetId","aggregateVersion":null,"requestId":"0V3oCVyv000100L","commandId":"0V3oCVzI000100Q","function":{"functionKind":"COMMAND","contextName":"wow","processorName":"CommandGateway","name":"send"},"errorCode":"Ok","errorMsg":"","result":{},"signalTime":1764297501314,"succeeded":true}
-
-id:0V3oCVzG000100P
-event:SAGA_HANDLED
-data:{"id":"0V3oCVzG000100P","waitCommandId":"0V3oCVyv000100L","stage":"SAGA_HANDLED","contextName":"transfer-service","aggregateName":"account","tenantId":"(0)","aggregateId":"sourceId","aggregateVersion":4,"requestId":"0V3oCVyv000100L","commandId":"0V3oCVyv000100L","function":{"functionKind":"EVENT","contextName":"transfer-service","processorName":"TransferSaga","name":"onEvent"},"errorCode":"Ok","errorMsg":"","result":{},"signalTime":1764297501314,"succeeded":true}
-
-id:0V3oCVzI000100Q
-event:PROCESSED
-data:{"id":"0V3oCVzI000100Q","waitCommandId":"0V3oCVyv000100L","stage":"PROCESSED","contextName":"transfer-service","aggregateName":"account","tenantId":"(0)","aggregateId":"targetId","aggregateVersion":3,"requestId":"0V3oCVyv000100L","commandId":"0V3oCVzI000100Q","function":{"functionKind":"COMMAND","contextName":"transfer-service","processorName":"Account","name":"onCommand"},"errorCode":"Ok","errorMsg":"","result":{},"signalTime":1764297501316,"succeeded":true}
-
-id:0V3oCVzX000100S
-event:SNAPSHOT
-data:{"id":"0V3oCVzX000100S","waitCommandId":"0V3oCVyv000100L","stage":"SNAPSHOT","contextName":"transfer-service","aggregateName":"account","tenantId":"(0)","aggregateId":"targetId","aggregateVersion":3,"requestId":"0V3oCVyv000100L","commandId":"0V3oCVzI000100Q","function":{"functionKind":"STATE_EVENT","contextName":"wow","processorName":"SnapshotDispatcher","name":"save"},"errorCode":"Ok","errorMsg":"","result":{},"signalTime":1764297501317,"succeeded":true}
-
-```
-```kotlin {1}
-val waitPlan = CommandWait.chain(
-    waitCommandId = message.commandId,
+```kotlin
+val plan = CommandWait.chain(
+    waitCommandId = command.commandId,
     function = NamedFunctionInfoData(
-        contextName = "transfer-service",
-        processorName = "TransferSaga",
+        contextName = "example",
+        processorName = "CartSaga",
         name = "onEvent",
     ),
-    tailStage = CommandStage.SNAPSHOT,
-    tailFunction = NamedFunctionInfoData(
-        contextName = "wow",
-        processorName = "SnapshotDispatcher",
-        name = "save",
-    ),
+    tailStage = CommandStage.PROCESSED,
+    tailFunction = NamedFunctionInfoData("example"),
 )
-commandGateway.sendAndWait(message, waitPlan)
 ```
-:::
+
+This is correlation, not a distributed transaction. Each command still has its own idempotency and failure boundary.
 
 ## Validation
 
-The command gateway uses `jakarta.validation.Validator` to validate the command before sending it. If validation fails, it will throw a CommandValidationException exception.
-
-By utilizing `jakarta.validation.Validator`, developers can use various validation annotations provided by `jakarta.validation` to ensure that commands meet the specified specifications and conditions.
+Use Jakarta annotations for structural input and `CommandValidator` for body-local cross-field checks. Keep state-dependent business rules in aggregate command handlers, after restoration. `CreateOrder` demonstrates both: annotations validate items/address, while `validate()` checks the supported country. Inventory, price, ownership, current version, and lifecycle checks remain aggregate/application concerns.
 
 ## LocalFirst Mode: Reducing the Impact of Network IO
 
-Normally, the process from sending a command to the aggregate root completing command processing is as follows:
-
-1. The aggregate root processor subscribes to distributed command bus messages.
-2. The client sends the command to the distributed command bus through the command gateway.
-3. The aggregate root processor receives and processes the command.
-4. The aggregate root processor sends a completion signal to the client.
-
-In the above process, steps 2 and 3 involve network IO. The goal of LocalFirst mode is to minimize the impact of this network IO. The specific process is as follows:
-
-1. The aggregate root processor subscribes to local command bus and distributed command bus messages.
-2. The client sends the command through the command gateway.
-   1. If the command gateway determines that the command cannot be processed on the local service instance, it sends the command to the distributed command bus.
-   2. If it can be processed locally, it sends the command to both the local command bus and the distributed command bus.
-3. The aggregate root processor receives the command and processes it.
-4. The aggregate root processor sends a completion signal to the client.
-
-Through _LocalFirst mode_, sending commands to the local bus and completion signal notifications do not require network IO.
-
-The `LocalFirstCommandBus` wraps a `LocalCommandBus` (typically `InMemoryCommandBus`) and a `DistributedCommandBus` (typically `KafkaCommandBus`) with a **local-first routing strategy**:
-
-1. If the aggregate is local **and** there are local subscribers, the command is first offered to the local runtime, and a copy is always sent to the distributed bus.
-2. The distributed copy is marked locally handled only after every targeted local receiver confirms runtime admission. If admission or local send is not confirmed, the copy remains eligible for distributed processing.
-3. If the aggregate is not local or has no local subscribers, the command goes only to the distributed bus.
-4. Void commands automatically skip local-first routing since they require no response.
-
-After local runtime admission succeeds, a later handler failure does not retroactively re-enable the distributed copy; normal handler retry and acknowledgement policies apply. Filtering the marked copy prevents the same locally admitted message from also being processed by this distributed receiver, while end-to-end delivery guarantees remain specific to the configured adapter and handler policy.
+`LocalFirstCommandBus` can admit a command locally when a matching local dispatcher is ready and still send the marked distributed copy as defined by the bus implementation. It does not change the meaning of `SENT` or later stages, and void commands do not use local-first routing.
 
 ### Configuration
 
-```yaml {5-6}
+```yaml
 wow:
   command:
     bus:
-      type: kafka
       local-first:
-        enabled: true # Enabled by default
+        enabled: true
 ```
+
+Use the same wait and idempotency contracts regardless of routing choice.
 
 ## Command Bus Implementations
 
 ### InMemoryCommandBus
 
-The simplest bus -- uses Reactor `Sinks.Many` (unicast, backpressure-buffered) to deliver commands within a single JVM. Each named aggregate gets its own sink, providing single-consumer semantics without implying an end-to-end delivery guarantee.
-
-```kotlin
-// Source: wow-core/src/main/kotlin/me/ahoo/wow/command/InMemoryCommandBus.kt:31-50
-class InMemoryCommandBus(
-    override val sinkSupplier: (NamedAggregate) -> Many<CommandMessage<*>> = {
-        // Internal implementation; custom suppliers may return any Sinks.Many.
-        mpscUnicastManySink()
-    }
-) : InMemoryMessageBus<CommandMessage<*>, ServerCommandExchange<*>>(),
-    LocalCommandBus
-```
+Useful for a single runtime and tests. Its `SENT` result means the in-process bus accepted the message; it is not durable across process failure.
 
 ### KafkaCommandBus
 
-The distributed command bus uses Apache Kafka as the transport layer. It extends `AbstractKafkaBus`, which handles serialization (JSON via `toJsonString`/`toObject`), topic routing, and consumer group management.
-
-```kotlin
-// Source: wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/KafkaCommandBus.kt:27-45
-class KafkaCommandBus(
-    topicConverter: CommandTopicConverter = DefaultCommandTopicConverter(),
-    senderOptions: SenderOptions<String, String>,
-    receiverOptions: ReceiverOptions<String, String>,
-    receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer
-) : DistributedCommandBus, AbstractKafkaBus<CommandMessage<*>, ServerCommandExchange<*>>(...)
-```
-
-Key implementation details:
-- Messages are serialized as JSON strings with the aggregate ID as the Kafka message key for partition ordering.
-- Consumer groups are assigned per bounded context to isolate message streams.
-- A default retry specification (`Retry.backoff(3, Duration.ofSeconds(10))`) is applied on receive errors.
-- The `KafkaServerCommandExchange` wraps the Kafka `ReceiverOffset` for acknowledgment control.
+Provides distributed transport. Broker acknowledgement, consumer retry, and ordering behavior depend on Kafka/module configuration; the gateway does not turn those settings into an exactly-once business guarantee.
 
 ## HTTP Integration (WebFlux)
 
+Generated command routes bridge HTTP requests to the same gateway contract. JSON responses return the final result; `Accept: text/event-stream` selects the result stream.
+
 ### Request Processing Flow
 
-The `CommandHandlerFunction` is a Spring WebFlux `HandlerFunction` that bridges HTTP requests to the `CommandGateway`:
+The example order route can explicitly request `SNAPSHOT`:
 
-1. **Body extraction**: Depending on whether the command has path variables or header variables, the body is extracted via `request.bodyToMono()` or a custom `CommandBodyExtractor`.
+```shell
+curl -X POST \
+  'http://localhost:8080/tenant/tenant-1/owner/customer-1/sales-order' \
+  -H 'Content-Type: application/json' \
+  -H 'Wow-Space-Id: store-1' \
+  -H 'Command-Aggregate-Id: order-1' \
+  -H 'Command-Request-Id: create-order-1' \
+  -H 'Command-Wait-Stage: SNAPSHOT' \
+  -d '{"items":[{"productId":"product-1","price":10,"quantity":2}],"address":{"country":"China","province":"Shanghai","city":"Shanghai","district":"Pudong","detail":"Road 1"},"fromCart":true}'
+```
 
-2. **Command message construction**: The `CommandMessageExtractor` builds a `CommandMessage` from the aggregate route metadata, the request headers, and the command body.
-
-3. **Wait plan extraction**: The `ServerRequest.extractWaitPlan()` extension function reads the following HTTP headers:
-
-| Header | Purpose | Default | Source |
-|---|---|---|---|
-| `Command-Wait-Stage` | The `CommandStage` to wait for | `PROCESSED` | [AggregateRequest.kt:112](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L112) |
-| `Command-Wait-Context` | Bounded context name for function filtering | current context | [AggregateRequest.kt:118](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L118) |
-| `Command-Wait-Processor` | Processor name for function filtering | (empty) | [AggregateRequest.kt:122](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L122) |
-| `Command-Wait-Function` | Function name for function filtering | (empty) | [AggregateRequest.kt:126](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L126) |
-| `Command-Wait-Tail-Stage` | Tail stage for `SimpleWaitingChain` | `null` | [AggregateRequest.kt:132](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L132) |
-| `Command-Wait-Tail-Context` | Tail context for chain | current context | [AggregateRequest.kt:138](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L138) |
-| `Command-Wait-Tail-Processor` | Tail processor for chain | (empty) | [AggregateRequest.kt:142](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L142) |
-| `Command-Wait-Tail-Function` | Tail function for chain | (empty) | [AggregateRequest.kt:146](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L146) |
-| `Command-Wait-Timeout` | Timeout in milliseconds | `30000` (30s) | [AggregateRequest.kt:104](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L104) |
-| `Command-Request-Id` | Request ID for idempotency | (generated) | [AggregateRequest.kt:48](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L48) |
-| `Command-Aggregate-Id` | Target aggregate instance ID | (from command body or path) | [AggregateRequest.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L69) |
-| `Accept` | Response format (`text/event-stream` triggers SSE) | `application/json` | [AggregateRequest.kt:100](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L100) |
-
-4. **Dispatch**: If the `Accept` header is `text/event-stream`, `sendAndWaitStream` is used (SSE streaming); otherwise `sendAndWait` (single JSON response). A configurable timeout (default 30 seconds) is applied to the reactive stream.
+The returned `stage: SNAPSHOT` proves the snapshot dispatcher completed. With the `all` strategy it includes a save; with `version_offset`, the strategy may legitimately complete without writing at that version.
 
 ### Command Route Generation
 
-The `@CommandRoute` annotation on command classes instructs the KSP compiler (`wow-compiler`) to generate REST endpoint metadata at compile time:
-
-```kotlin
-// Source: wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/CommandRoute.kt:59-155
-@CommandRoute(
-    action = "create",
-    method = CommandRoute.Method.POST,
-    appendIdPath = CommandRoute.AppendPath.NEVER,
-    appendTenantPath = CommandRoute.AppendPath.ALWAYS
-)
-data class CreateOrderCommand(...)
-// Generates: POST /orders/tenant/{tenantId}/create
-```
-
-The `@PathVariable` and `@HeaderVariable` sub-annotations map HTTP path segments and headers directly to command fields, enabling rich REST endpoint generation without boilerplate.
+The route metadata supplies command type, aggregate identity, path/header variables, and request-body decoding. The default HTTP wait stage is `PROCESSED`. Important headers include `Command-Request-Id`, `Command-Aggregate-Id`, `Command-Wait-Stage`, function selectors, tail selectors, and `Command-Wait-Timeout` in milliseconds.
 
 ## Command Rewriter
 
-The command rewriter (`CommandBuilderRewriter`) is used to rewrite the command's message metadata (`aggregateId`/`tenantId`, etc.) and command body (`body`).
-
-The following is an example of a password reset command rewriter:
-
-::: tip
-Before a user resets their password (recovers password), they cannot obtain the aggregate root ID, so this rewriter is needed to obtain the `User` aggregate root ID
-:::
-
-```kotlin
-/**
- * Password recovery (`ResetPwd`) command rewriter.
- *
- * This command needs to query the user aggregate root ID based on the phone number in the command body to meet the requirement that the command message aggregate root ID is mandatory.
- *
- */
-@Service
-class ResetPwdCommandBuilderRewriter(private val queryService: SnapshotQueryService<UserState>) :
-   CommandBuilderRewriter {
-   override val supportedCommandType: Class<ResetPwd>
-      get() = ResetPwd::class.java
-
-   override fun rewrite(commandBuilder: CommandBuilder): Mono<CommandBuilder> {
-      return singleQuery {
-         projection { include(Documents.ID_FIELD) }
-         filter {
-            "state.$PHONE_VERIFIED" eq true
-            "state.$PHONE" eq commandBuilder.bodyAs<ResetPwd>().phone
-         }
-      }.dynamicQuery(queryService)
-         .switchIfEmpty {
-            IllegalArgumentException("Phone number not bound.").toMono()
-         }.map {
-            commandBuilder.aggregateId(it.getValue(MessageRecords.AGGREGATE_ID))
-         }
-   }
-}
-```
-
-Developers can register the rewriter by using Spring's `@Service` annotation to register it in the Spring container.
+A `CommandRewriter` may enrich or redirect a command before dispatch, for example resolving an aggregate ID from a verified query. Keep authorization and ambiguity handling explicit; a rewriter does not replace aggregate validation or event-store concurrency checks.
 
 ## Configuration Reference
 
@@ -939,22 +402,15 @@ Developers can register the rewriter by using Spring's `@Service` annotation to 
 wow:
   command:
     bus:
-      type: kafka                    # "in_memory" | "kafka"
+      type: kafka
       local-first:
-        enabled: true                # Enable LocalFirst routing (default: true)
+        enabled: true
     idempotency:
-      enabled: true                  # Enable request-id idempotency checking (default: true)
+      enabled: true
       bloom-filter:
-        expected-insertions: 1000000 # Expected insertions for the Bloom filter
-        ttl: PT60S                   # Time-to-live for idempotency entries (ISO-8601 duration)
-        fpp: 0.00001                 # False positive probability for the Bloom filter
+        expected-insertions: 1000000
+        ttl: PT60S
+        fpp: 0.00001
 ```
 
-| Config Path | Type | Default | Description | Source Module |
-|---|---|---|---|---|
-| `wow.command.bus.type` | `String` | `kafka` | Command bus implementation: `in_memory` or `kafka` | `wow-spring-boot-starter` |
-| `wow.command.bus.local-first.enabled` | `Boolean` | `true` | Whether to use `LocalFirstCommandBus` for admission-aware local-first routing | `wow-spring-boot-starter` |
-| `wow.command.idempotency.enabled` | `Boolean` | `true` | Whether to check `requestId` for duplicates before sending | `wow-spring-boot-starter` |
-| `wow.command.idempotency.bloom-filter.expected-insertions` | `Long` | `1000000` | Capacity planning for the Bloom filter used in idempotency checking | `wow-spring-boot-starter` |
-| `wow.command.idempotency.bloom-filter.ttl` | `Duration` | `PT60S` | How long a `requestId` is remembered by the idempotency checker | `wow-spring-boot-starter` |
-| `wow.command.idempotency.bloom-filter.fpp` | `Double` | `0.00001` | Acceptable false-positive probability (lower = more memory) | `wow-spring-boot-starter` |
+Choose configuration from the selected runtime modules and verify it against that module's tests. The public stage meanings above remain the application contract.

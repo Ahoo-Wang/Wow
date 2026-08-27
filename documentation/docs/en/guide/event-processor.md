@@ -1,367 +1,264 @@
 ---
 title: Event Processor
-description: The event processor handles domain events published by aggregates for cross-aggregate operations and read model updates.
+description: Handle persisted domain events downstream, with explicit idempotency, retry, compensation, and EVENT_HANDLED boundaries.
 ---
 
 # Event Processor
 
-The *event processor* is a core component in the Wow framework for handling domain events published by aggregates. It enables cross-aggregate operations, read model updates, notifications, and external system integrations.
+An event processor reacts to domain events after the command has produced and appended its authoritative event stream. It is appropriate for notifications, integrations, and application side effects that do not belong inside the source aggregate transaction.
+
+An event processor is derived processing. Its database or external effect is not the event history and must have its own replay, idempotency, and recovery rules.
 
 ## Overview
 
-Event processors subscribe to domain events and execute business logic in response. They are a key part of the event-driven architecture, enabling loose coupling between aggregates and supporting complex business workflows.
+For the running `CreateOrder` example:
+
+```text
+CreateOrder -> append OrderCreated -> PROCESSED
+                              |-> snapshot strategy -> SNAPSHOT
+                              |-> projection -> PROJECTED
+                              |-> event processor -> EVENT_HANDLED
+```
+
+The three downstream branches are independent. `EVENT_HANDLED` means a matching event-processor function completed; it does not imply that snapshot or projection processing completed.
 
 ```mermaid
-flowchart TB
-    subgraph Aggregate["Aggregate Root"]
-        AR[Aggregate Root]
-        AR -->|Publish| EB[EventBus]
-    end
-    
-    subgraph EventBus["Event Bus"]
-        EB
-    end
-    
-    subgraph Processors["Event Processors"]
-        EP1[Order Event Processor]
-        EP2[Inventory Event Processor]
-        EP3[Notification Event Processor]
-    end
-    
-    EB -->|Dispatch Event| EP1
-    EB -->|Dispatch Event| EP2
-    EB -->|Dispatch Event| EP3
-
+flowchart LR
+    Store[(Authoritative EventStore)] --> Bus[DomainEventBus]
+    Bus --> EP[EventProcessor]
+    EP --> API[External API]
+    EP --> DB[(Integration state)]
+    Bus --> PP[ProjectionProcessor]
+    PP --> Read[(Read model)]
 ```
 
 ## Event Processor vs Projection Processor
 
-| Aspect | Event Processor | Projection Processor |
-|--------|----------------|---------------------|
-| Primary Purpose | Handle events, execute business logic | Update read models |
-| Return Type | Completion signal such as `Mono<Void>`; returned values are discarded | `Mono<Void>` |
-| Ordering | Preserved within processor | Preserved within processor |
-| Side Effects | May explicitly send commands or call external systems | Typically read-model updates |
-| Use Cases | Notifications, external integrations | Query model updates |
+| Concern | `@EventProcessor` | `@ProjectionProcessor` |
+|---|---|---|
+| Primary purpose | application/integration reaction | maintain a query model |
+| Wait stage | `EVENT_HANDLED` | `PROJECTED` |
+| Typical effect | send notification, call service, explicitly send command | upsert/delete a read-model row/document |
+| Return value | completion/error of function invocation | completion/error of projection update |
+| Recovery owner | processor retry/idempotency/compensation | projection replay/checkpoint/idempotency design |
+
+Use a Saga when the event must coordinate commands across aggregates. Returning a command or event body from an event processor does not implicitly publish it.
 
 ## Creating an Event Processor
 
-### Basic Structure
+`@EventProcessor` is a Spring component stereotype. The framework parses `onEvent` methods or methods explicitly annotated with `@OnEvent` and registers matching message functions.
 
-Event processors are annotated with `@EventProcessor` and contain methods annotated with `@OnEvent`:
+### Basic Structure
 
 ```kotlin
 @EventProcessor
 class OrderEventProcessor(
-    private val inventoryService: InventoryService,
-    private val notificationService: NotificationService
+    private val notificationPort: NotificationPort,
 ) {
-
     @OnEvent
-    fun onOrderCreated(event: OrderCreated): Mono<Void> {
-        return inventoryService.reserveItems(event.items)
-            .flatMap { reservedItems ->
-                notificationService.sendOrderConfirmation(
-                    customerId = event.customerId,
-                    orderId = event.orderId,
-                    items = reservedItems
-                )
-            }
-    }
-
-    @OnEvent
-    fun onOrderShipped(event: OrderShipped): Mono<Void> {
-        return notificationService.sendShippingNotification(
-            customerId = event.customerId,
-            orderId = event.orderId,
-            trackingNumber = event.trackingNumber
+    fun onOrderCreated(event: OrderCreated): Mono<Void> =
+        notificationPort.sendOrderCreated(
+            operationId = event.orderId,
+            event = event,
         )
-    }
 }
 ```
+
+The returned `Mono` must represent completion of the side effect. Starting an untracked subscription inside the method would make `EVENT_HANDLED` complete too early and detach failures from the dispatcher.
 
 ### Event Handler Methods
 
-Event handler methods can accept different parameter types:
+The first parameter determines the supported event type and can be the body, `DomainEvent<T>`, or `DomainEventExchange<T>`. Additional parameters can be injected by Wow's function-accessor infrastructure.
 
 ```kotlin
 @EventProcessor
-class OrderEventProcessor {
+class OrderAuditProcessor {
+    fun onEvent(event: OrderCreated): Mono<Void> = record(event)
 
-    // Accept specific event type
     @OnEvent
-    fun onOrderCreated(event: OrderCreated): Mono<Void> {
-        // Handle event
-    }
-
-    // Accept generic domain event wrapper
-    @OnEvent
-    fun onEvent(event: DomainEvent<OrderCreated>): Mono<Void> {
-        val aggregateId = event.aggregateId
-        val eventBody = event.body
-        // Handle event
-    }
-
-    // Multiple event types with same handler
-    @OnEvent
-    fun onStatusChanged(event: OrderStatusChanged) {
-        // Handle status change
-    }
+    fun onPaid(event: DomainEvent<OrderPaid>): Mono<Void> =
+        record(event.aggregateId, event.body)
 }
 ```
+
+The conventional method name `onEvent` works without `@OnEvent`. Use the annotation when the method has another name or needs topic/retry metadata.
 
 ### Filtering by Aggregate Name
 
-You can filter events by aggregate name:
+`@OnEvent` accepts aggregate names:
 
 ```kotlin
-@EventProcessor
-class CartEventProcessor {
-
-    @OnEvent("order")  // Only process events from 'order' aggregate
-    fun onOrderCreated(event: OrderCreated): Mono<Void> {
-        // Handle only OrderCreated events from order aggregate
-    }
-}
+@OnEvent("order")
+fun onOrderCreated(event: OrderCreated): Mono<Void> = record(event)
 ```
+
+When names are omitted, topic resolution uses the event body's metadata. Use explicit aggregate names when one event type can appear on multiple aggregate topics and the processor should handle only a subset.
 
 ## Event Processing Flow
 
 ```mermaid
 sequenceDiagram
-    participant AR as Aggregate Root
-    participant EB as Event Bus
-    participant EP as Event Processor
-    participant Ext as External System
-    
-    AR->>EB: Publish Domain Event
-    EB->>EP: Dispatch Event
-    EP->>EP: Route to Handler
-    EP->>Ext: Execute Business Logic
-    Ext-->>EP: Response
-    EP-->>EB: Acknowledge
+    participant E as EventStore
+    participant B as DomainEventBus
+    participant D as DomainEventDispatcher
+    participant P as EventProcessor function
+    participant W as Wait notifier
 
+    E-->>B: appended DomainEventStream is published
+    B->>D: DomainEventExchange
+    D->>P: invoke matching function
+    alt completes
+        P-->>D: completion
+        D->>W: EVENT_HANDLED
+    else fails after runtime retry/recovery filters
+        P-->>D: error
+        D->>W: failed EVENT_HANDLED
+    end
 ```
+
+The append happened before this flow. A processor failure must not be described as an event-store rollback.
 
 ## Reactive Event Processing
 
-Event processors support reactive programming patterns:
+Compose the whole operation and return it:
 
 ```kotlin
-@EventProcessor
-class OrderEventProcessor(
-    private val inventoryService: InventoryService
-) {
-
-    @OnEvent
-    fun onOrderCreated(event: OrderCreated): Mono<Void> {
-        return inventoryService.reserveItems(event.items)
-            .doOnSuccess { reserved ->
-                log.info("Reserved ${reserved.size} items for order ${event.orderId}")
-            }
-            .doOnError { error ->
-                log.error("Failed to reserve items for order ${event.orderId}", error)
-            }
-    }
-
-    @OnEvent
-    fun onOrderCancelled(event: OrderCancelled): Mono<Void> {
-        return inventoryService.releaseItems(event.items)
-            .then()
-    }
-}
+@OnEvent
+fun onOrderCreated(event: DomainEvent<OrderCreated>): Mono<Void> =
+    reservationPort.upsert(
+        operationId = event.id,
+        orderId = event.aggregateId.id,
+        items = event.body.items,
+    ).then()
 ```
+
+Avoid `block()` and nested `subscribe()`. The dispatcher can observe success, error, timeout, retry, and acknowledgement only through the returned publisher.
 
 ## Multiple Handlers per Processor
 
-A single event processor can handle multiple event types:
+One processor class may contain multiple event functions:
 
 ```kotlin
 @EventProcessor
-class OrderEventProcessor(
-    private val inventoryService: InventoryService,
-    private val paymentService: PaymentService,
-    private val shippingService: ShippingService
-) {
+class OrderNotificationProcessor(private val port: NotificationPort) {
+    fun onEvent(event: OrderCreated) = port.created(event)
 
     @OnEvent
-    fun onOrderCreated(event: OrderCreated): Mono<Void> {
-        return inventoryService.reserveItems(event.items)
-    }
+    fun onPaid(event: OrderPaid) = port.paid(event)
 
     @OnEvent
-    fun onOrderPaid(event: OrderPaid): Mono<Void> {
-        return shippingService.prepareShipment(event.orderId)
-    }
-
-    @OnEvent
-    fun onOrderShipped(event: OrderShipped): Mono<Void> {
-        return notificationService.notifyCustomerShipped(event)
-    }
-
-    @OnEvent
-    fun onOrderCancelled(event: OrderCancelled): Mono<Void> {
-        return inventoryService.releaseItems(event.items)
-            .then(paymentService.refund(event.paymentId))
-    }
+    fun onShipped(event: OrderShipped) = port.shipped(event)
 }
 ```
+
+Each function has its own metadata and can be selected by an `EVENT_HANDLED` wait target. Do not use an empty function selector when the response requires one specific side effect.
 
 ## Error Handling
 
+Processor failures occur after authoritative append. Choose recovery from the business consequence:
+
+- transient, repeat-safe operation: retry with a bounded policy;
+- durable work that must eventually complete: record/checkpoint and compensate or replay;
+- non-repeat-safe external operation: introduce an idempotency key at that external boundary before enabling retry;
+- permanent input/domain mismatch: fail visibly and repair code/data rather than retry forever.
+
 ### With Compensation
 
-For critical event processing, combine with event compensation:
+Two mechanisms must not be conflated:
+
+- the runtime `RetryableFilter` retries errors already classified as recoverable using its configured Reactor retry policy;
+- when compensation is enabled, the compensation filter reads `@Retry` from the selected function to classify errors and persist the durable retry specification. `@Retry(enabled = false)` opts that function out of compensation recording.
+
+Keep the side effect idempotent for both paths:
 
 ```kotlin
-@EventProcessor
-class InventoryEventProcessor(
-    private val compensationService: CompensationService
-) {
-
-    @Retry(maxRetries = 3, minBackoff = 60)
-    @OnEvent
-    fun onOrderCreated(event: OrderCreated): Mono<Void> {
-        return inventoryService.reserveItems(event.items)
-            .doOnError { error ->
-                compensationService.recordFailure(event, error)
-            }
-    }
-}
+@Retry(
+    maxRetries = 3,
+    minBackoff = 2,
+    recoverable = [TimeoutException::class],
+)
+@OnEvent
+fun onOrderCreated(event: DomainEvent<OrderCreated>): Mono<Void> =
+    reservationPort.upsert(operationId = event.id, order = event.body)
 ```
+
+Immediate retry is not durable compensation. `@Retry.maxRetries`, `minBackoff`, and `executionTimeout` describe the compensation record when that module is enabled; they are not a promise that the event dispatcher itself will synchronously perform that many attempts. When a partial external effect requires a reversing or follow-up business action, model and observe that action explicitly using compensation or a command/Saga workflow.
 
 ### Error Propagation
 
-::: warning
-Unlike `@StatelessSaga`, an `@EventProcessor` handler's return value is a
-side-effect only — it is **not** captured into a command stream and **not**
-republished as a domain event. Returning a domain-event body from an event
-processor does nothing. To react to a failure by sending another command, raise
-a compensating command explicitly (e.g. via an injected `CommandGateway`), or
-model the workflow as a saga instead.
-:::
+Return errors through the reactive publisher. The dispatcher retry/filter/error handling can then classify them and a waiting caller can observe a failed `EVENT_HANDLED` result.
 
-For expected business outcomes, publish or send commands through the explicit
-gateway, or use event compensation:
+Do not swallow an error merely to produce a successful wait signal unless the processor has durably transferred recovery responsibility somewhere else. Conversely, throwing from a processor cannot roll back the already appended source event.
+
+To trigger aggregate behavior, send a command explicitly:
 
 ```kotlin
-@EventProcessor
-class OrderEventProcessor(
-    private val commandGateway: CommandGateway
-) {
-
-    @OnEvent
-    fun onOrderCreated(event: OrderCreated): Mono<Void> {
-        return inventoryService.reserveItems(event.items)
-            .onErrorResume { InventoryUnavailableException(event.items).toMono<Void>() }
-            // The framework retries/fails this handler via @Retry; it does NOT
-            // republish the returned value. Send a command explicitly if needed.
-    }
-}
+@OnEvent
+fun onOrderCreated(event: DomainEvent<OrderCreated>): Mono<Void> =
+    commandGateway.sendAndWaitForSent(
+        ReserveInventory(event.aggregateId.id).toCommandMessage(
+            requestId = event.id,
+        ),
+    ).then()
 ```
+
+`SENT` here proves only that the new command was accepted. Use a Saga/chain wait when the caller truly needs to follow that command to a later stage.
 
 ## Best Practices
 
 ### 1. Idempotency
 
-Design event handlers to be idempotent:
+Use a stable event-derived operation key such as event ID, stream ID, or an explicitly versioned aggregate key supported by the target system. An in-memory “seen” set is not durable idempotency.
 
 ```kotlin
-@EventProcessor
-class InventoryEventProcessor {
-
-    @OnEvent
-    fun onOrderCreated(event: OrderCreated): Mono<Void> {
-        // Use idempotent operations
-        return inventoryService.upsertReservation(
-            orderId = event.orderId,
-            items = event.items
-        )
-    }
-}
+integrationRepository.upsert(
+    operationId = event.id,
+    value = map(event.body),
+)
 ```
+
+The event store's `requestId` check protects command append; it does not deduplicate an event processor's external call.
 
 ### 2. Order Preservation
 
-For events that must be processed in order:
-
-```kotlin
-@EventProcessor
-class OrderWorkflowProcessor {
-
-    @OnEvent("order")  // Filter to single aggregate type
-    fun onOrderCreated(event: OrderCreated): Mono<Void> {
-        // Processing
-    }
-
-    @OnEvent("order")
-    fun onOrderPaid(event: OrderPaid): Mono<Void> {
-        // This will only be called after OrderCreated
-    }
-}
-```
+Wow dispatchers use aggregate identity for scheduling/affinity, but application code must not infer a global order across aggregate IDs, processor functions, instances, or external systems. If the target requires order, persist the source aggregate/version and reject or defer gaps explicitly.
 
 ### 3. Performance Considerations
 
-- Use reactive types for non-blocking operations
-- Batch operations when possible
-- Monitor event processing latency
+- keep the publisher non-blocking;
+- bound remote-call concurrency and timeouts at the integration boundary;
+- avoid loading the source aggregate when the event already contains required facts;
+- batch only when the business and wait semantics allow it;
+- measure processor lag separately from command `PROCESSED` latency.
 
-```kotlin
-@EventProcessor
-class AnalyticsEventProcessor(
-    private val batchProcessor: BatchAnalyticsProcessor
-) {
-
-    private val buffer = mutableListOf<OrderCreated>()
-
-    @OnEvent
-    fun onOrderCreated(event: OrderCreated): Mono<Void> {
-        synchronized(buffer) {
-            buffer.add(event)
-            if (buffer.size >= 100) {
-                val batch = buffer.toList()
-                buffer.clear()
-                return batchProcessor.processBatch(batch)
-            }
-        }
-        return Mono.empty()
-    }
-}
-```
+Do not move a slow side effect into the aggregate transaction merely to make it synchronous; wait for the correct downstream stage instead.
 
 ### 4. Testing
 
-Event processors can be tested using standard unit testing with MockK:
+Test the function as a reactive unit and assert the idempotency key:
 
 ```kotlin
-class OrderEventProcessorTest {
-    private val orderQueryService = mockk<OrderQueryService>()
-    private val processor = OrderEventProcessor(orderQueryService)
+@Test
+fun `uses event id as notification operation id`() {
+    val event = orderCreatedDomainEvent(id = "event-1")
 
-    @Test
-    fun `on OrderCreated should create order`() {
-        val event = OrderCreated(
-            orderId = "order-001",
-            customerId = "customer-001",
-            items = listOf(OrderItem(productId = "prod-001", quantity = 2))
-        )
-        every { orderQueryService.create(any()) } returns Mono.empty()
+    StepVerifier.create(processor.onOrderCreated(event))
+        .verifyComplete()
 
-        val result = processor.onOrderCreated(event).block()
-
-        verify(exactly = 1) { orderQueryService.create(any()) }
-    }
+    verify { notificationPort.sendOrderCreated("event-1", event.body) }
 }
 ```
 
+Add dispatcher/integration coverage when relying on topic filtering, `@Retry`, function-scoped `EVENT_HANDLED`, compensation, or real external persistence.
+
 ## Configuration
 
-Event processors are automatically discovered and registered via Spring component scanning. No additional configuration is required.
+Event processors are discovered as Spring components and registered with the domain-event function registrar. Runtime bus, dispatcher, retry classification, and compensation settings determine operational behavior; component discovery alone is not a delivery guarantee.
 
 ## Related Topics
 
-- [Projection Processor](./projection) - For read model updates
-- [Saga](./saga) - For distributed transaction coordination
-- [Event Bus](./advanced/event-bus) - For event publishing and routing
-- [Event Compensation](./event-compensation) - For error handling and recovery
+- [Event Store](./eventstore) — authoritative append and replay boundary
+- [Command Gateway](./command-gateway) — function-scoped `EVENT_HANDLED` waits
+- [Projection Processor](./projection) — derived query models and `PROJECTED`
+- [Saga](./saga) — explicit cross-aggregate command coordination
+- [Event Compensation](./event-compensation) — durable failure recovery
