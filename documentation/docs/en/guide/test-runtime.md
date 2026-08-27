@@ -1,27 +1,39 @@
 ---
 title: Framework Tests and Benchmarks
-description: How Wow framework contributors run repository tests, contract tests, integration tests, coverage, and benchmarks.
+description: How Wow framework contributors select local, contract, integration, coverage, and JMH tasks and interpret their evidence.
+outline: deep
 ---
 
 # Framework Tests and Benchmarks
 
-This page is for contributors changing Wow framework source, implementing custom adapters, or reproducing framework benchmarks. Business applications should use [Testing Wow Applications](./application-testing.md) instead of copying this repository's root tasks and Codecov/benchmark workflow.
+This page applies only to the Wow framework repository. Use these tasks when changing framework source, TCKs, adapters, build logic, or benchmarks. For a business-application release, use [Testing Wow Applications](./application-testing.md) instead of copying this repository's root tasks, Codecov flags, or JMH conclusions.
 
-The Wow repository separates tests by runtime dependency so local checks stay fast while container-backed scenarios remain explicit.
+::: tip Completion signal
+A framework change is complete when the affected modules' `check` and relevant test layers pass. If benchmark entry points changed, smoke also passes. Any performance claim additionally requires baseline/confirmation results with the same workload, comparable environment, and complete provenance. The next layer is code review and CI, not turning historical figures into product promises.
+:::
 
-## Test Layers
+## Choose the Test Layer by Dependency
 
-| Layer | Source set | Root task | Runtime dependency |
-| --- | --- | --- | --- |
-| Local | `src/test` | `allLocalTest` | Local-safe framework, extension, domain, and server tests. |
-| Contract | `src/contractTest` | `allContractTest` | Local-safe TCK implementor tests. |
-| Integration | `src/integrationTest` | `allIntegrationTest` | Testcontainers-backed middleware and end-to-end tests. |
+| Layer | Source set | Root task | Runtime condition | Evidence scope |
+| --- | --- | --- | --- | --- |
+| Local | `src/test` | `allLocalTest` | No containers | Local-safe unit, domain, and component behavior |
+| Contract | `src/contractTest` | `allContractTest` | No containers | Registered TCK implementations satisfy shared contracts |
+| Integration | `src/integrationTest` | `allIntegrationTest` | Docker/Testcontainers required | Middleware adapters and end-to-end integration |
 
-`check` runs local-safe verification: standard `test` tasks plus contract tests where configured. It does not start Docker containers.
+The root build currently registers `contractTest` only for `:wow-core`, `:wow-opentelemetry`, and `:wow-mock`. It registers `integrationTest` only for `:wow-bi`, `:wow-mongo`, `:wow-redis`, `:wow-kafka`, `:wow-elasticsearch`, and `:wow-it`. Do not guess task names for modules that do not register them.
 
-Use `allLocalTest` as the root task for standard `src/test` execution.
+`check` runs standard `test` tasks and includes `contractTest` in configured modules; it does not automatically run container-backed `integrationTest`. Therefore, a green `check` does not prove every store and broker integration was verified.
 
-## Local Fast Checks
+## Narrowest Local Feedback
+
+Run directly affected modules first:
+
+```bash
+./gradlew :wow-core:check
+./gradlew :wow-test:check :example-domain:check
+```
+
+Expand only when the entire local-safe layer is needed:
 
 ```bash
 ./gradlew allLocalTest
@@ -29,39 +41,31 @@ Use `allLocalTest` as the root task for standard `src/test` execution.
 ./gradlew check
 ```
 
-Use these commands for normal development and pull-request feedback when Docker is not required.
+Domain specifications still use `AggregateSpec` and `SagaSpec` from the [Domain Test Suite](./test-suite.md). They live in the owning module's `src/test` and belong to the Local layer; they are not a separate application-release proof.
 
-## Domain Behavior Tests
+## Container-Backed Integration Tests
 
-Domain behavior tests still use the inheritance-style `AggregateSpec` and `SagaSpec` APIs documented in [Test Suite](./test-suite.md). They live in each owning domain module's standard `src/test` source set and are part of the local test layer.
-
-```bash
-./gradlew allLocalTest
-./gradlew :example-domain:test
-./gradlew :example-transfer-domain:test
-./gradlew :wow-compensation-domain:test
-```
-
-The function-style DSL is planned as a later migration stage, so runtime test layering does not require changing existing domain specs.
-
-## Integration Tests
+Run all registered integration tasks with:
 
 ```bash
-./gradlew allIntegrationTest
-./gradlew :wow-mongo:integrationTest
-./gradlew :wow-redis:integrationTest
-./gradlew :wow-kafka:integrationTest
-./gradlew :wow-elasticsearch:integrationTest
-./gradlew :wow-it:integrationTest
+./gradlew allIntegrationTest --stacktrace
 ```
 
-Integration tests use Testcontainers and require Docker. They are intentionally not wired into `check`.
+Or run only an affected adapter:
 
-### Business-Application Test Boundary
+```bash
+./gradlew :wow-mongo:integrationTest --stacktrace
+./gradlew :wow-redis:integrationTest --stacktrace
+./gradlew :wow-kafka:integrationTest --stacktrace
+./gradlew :wow-elasticsearch:integrationTest --stacktrace
+./gradlew :wow-it:integrationTest --stacktrace
+```
 
-The `:wow-it` task above validates only the Wow repository and cannot replace an application release gate. Business teams should use [Testing Wow Applications](./application-testing.md) for KSP, an HTTP vertical slice, real adapters, restart recovery, redelivery, and authorization instead of copying this page's framework root tasks.
+These tasks require Docker/Testcontainers and intentionally are not attached to `check`. `:wow-it` validates integration combinations inside the Wow repository; it cannot replace a business application's configuration, protocol, recovery, and security gates.
 
-## Coverage
+## Coverage Is Layered Evidence
+
+The current aggregate and layer report tasks are:
 
 ```bash
 ./gradlew codeCoverageReport
@@ -70,62 +74,97 @@ The `:wow-it` task above validates only the Wow repository and cannot replace an
 ./gradlew :code-coverage-report:integrationCoverageReport
 ```
 
-The aggregate report includes local, contract, and integration execution data. The XML report is written to:
+The aggregate XML is written to:
 
 ```text
 test/code-coverage-report/build/reports/jacoco/codeCoverageReport/codeCoverageReport.xml
 ```
 
-Layer reports are written under the matching `localCoverageReport`, `contractCoverageReport`, and `integrationCoverageReport` directories. Pull-request workflows upload those XML reports to Codecov with the `local`, `contract`, and `integration` flags. The main-branch Codecov workflow uploads the aggregate report as the `full` baseline flag.
+Layer reports are written under the matching `localCoverageReport`, `contractCoverageReport`, and `integrationCoverageReport` directories. Pull-request workflows upload separate `local`, `contract`, and `integration` flags. The `Codecov` workflow on `main` or manual dispatch uses `codeCoverageReport` to upload the `full` flag.
 
-Domain modules also enforce their existing coverage threshold through `jacocoTestCoverageVerification`, using standard `test` execution data.
+`:example-domain`, `:example-transfer-domain`, and `:wow-compensation-domain` currently configure a `0.8` Jacoco verification minimum. This is the current repository gate for those modules, not a Wow coverage guarantee for business applications. Coverage shows executed code and cannot replace assertions about events, state, rejection, and recovery.
 
-## Benchmark Smoke
+## Benchmarks Have Three Uses
+
+| Use | Entry point | Supported conclusion |
+| --- | --- | --- |
+| Smoke | `benchmarkSmoke` | Selected JMH jar and paths compile, start, and finish |
+| Quick | `benchmarkQuick*` | Bounded regression clues on the current machine |
+| Baseline / confirmation | `benchmarkBaseline*`, `benchmarkConfirm*` | Comparable evidence under matching methods, parameters, forks, and environment |
+
+Smoke is not a performance report, Quick is not a production-capacity model, and isolated component results are not framework end-to-end throughput promises.
+
+### Pull-Request Safety
 
 ```bash
-./gradlew :wow-benchmarks:benchmarkSmoke
+./gradlew :wow-benchmarks:test :wow-benchmarks:benchmarkSmoke --stacktrace
 ```
 
-Benchmark smoke checks that selected JMH paths still compile and execute. It is a pull-request safety check, not a performance report.
-
-## Quick Benchmarks
+This matches the current `Benchmark Smoke` CI workflow. The root alias is also available:
 
 ```bash
-./gradlew :wow-benchmarks:benchmarkQuickE2E
+./gradlew benchmarkSmoke
+```
+
+The completion signal is that selected paths execute successfully, not that a performance baseline was produced or updated.
+
+### Quick Regression and Diagnosis
+
+Generate a quick Framework E2E report:
+
+```bash
+./gradlew :wow-benchmarks:benchmarkQuickE2E \
+  :wow-benchmarks:generateBenchmarkReport
+```
+
+Run the paired batch-command-write workload with:
+
+```bash
+./gradlew :wow-benchmarks:benchmarkQuickBatchE2E \
+  :wow-benchmarks:generateBatchBenchmarkReport
+```
+
+When locating a bottleneck, select a layer instead of running the complete catalog:
+
+```bash
 ./gradlew :wow-benchmarks:benchmarkQuickComponent
+./gradlew :wow-benchmarks:benchmarkQuickWebFlux -PbenchmarkQuickWebFluxThreads=1
 ./gradlew :wow-benchmarks:benchmarkQuickInfrastructureE2E
-./gradlew :wow-benchmarks:benchmarkQuickMongoBatchAppend
-./gradlew :wow-benchmarks:benchmarkQuickElasticsearchBatchAppend
-./gradlew :wow-benchmarks:benchmarkQuickMongoBatchOptionsPaired
-./gradlew :wow-benchmarks:benchmarkQuickMongoBatchAppendCandidateE2E
-./gradlew :wow-benchmarks:benchmarkQuickMongoBatchCoordinatorConcurrency
-./gradlew :wow-benchmarks:benchmarkTuneElasticsearchBatchOptions
-./gradlew :wow-benchmarks:generateQuickBenchmarkReport
 ```
 
-Quick benchmarks use bounded representative catalogs and short JMH settings. They are useful for local regression feedback, but Baseline E2E remains the source for formal throughput and allocation conclusions.
-Quick Component defaults to one thread; scaling behavior belongs to Framework E2E rather than isolated component measurements.
-Infrastructure benchmarks require the local service selected by each suite: Redis, MongoDB, or Elasticsearch. The storage batch suites compare single writes, native Bulk writes, and end-to-end coordinated batching; use their multiple-fork confirmation tasks from a clean `HEAD` before making formal performance claims.
-Mongo batch-options quick validation uses paired representative and burst workloads, candidate E2E, and coordinator-lane diagnostics. The stopped full `benchmarkTuneMongoBatchOptions` campaign is historical and intentionally excluded from the quick recipe. Elasticsearch tuning still uses isolated, burst, representative, and saturated workloads. Screening selects candidates only; change a default only after its storage-specific multiple-fork confirmation. EventStore tuning results do not apply to SnapshotStore.
+The WebFlux suite does not start a real Netty server. The Infrastructure suite requires the selected local services such as Redis or MongoDB. Reports must retain workload, thread, JVM, service, and source provenance; do not interpret numbers across layers as directly comparable.
 
-## Baseline And Diagnostic Benchmarks
+### Formal Regression Evidence
+
+Collect comparable evidence for exact Framework E2E workloads with:
 
 ```bash
-./gradlew :wow-benchmarks:benchmarkBaselineE2E
-./gradlew :wow-benchmarks:benchmarkLatencyE2E
-./gradlew :wow-benchmarks:benchmarkDiagnosticComponent \
-  -PbenchmarkDiagnosticComponentIncludes=me.ahoo.wow.benchmark.component.CommandPipelineComponentBenchmark.handleAggregateAndSendDomainEvent
-./gradlew :wow-benchmarks:benchmarkExhaustiveComponent
-./gradlew :wow-benchmarks:benchmarkBaselineInfrastructureE2E
-./gradlew :wow-benchmarks:generateBaselineBenchmarkReport
+./gradlew :wow-benchmarks:benchmarkBaselineE2E --no-parallel
+./gradlew :wow-benchmarks:benchmarkCompare
 ```
 
-Baseline E2E is a bounded, two-fork throughput and allocation run used for formal framework comparisons. Latency E2E is optional and isolated from the default baseline cost. Diagnostic Component accepts exact benchmark includes for focused investigation; Exhaustive Component retains the complete catalog as a rare escape hatch. Generic aliases are intentionally absent; callers must select the purpose-specific task.
-Component results explain bottlenecks and should not be reported as standalone framework performance goals.
-Infrastructure E2E results expose storage-path bottlenecks when Redis and MongoDB are available.
-Mongo and Elasticsearch batch confirmation results separate the single-write, native Bulk, and end-to-end coordinated EventStore append paths. The coordinated-to-native delta also includes batch formation and possible partial flushes, so it is not a pure coordinator CPU-overhead measurement.
-`updateBenchmarkBaseline` accepts only clean manifests produced from the current clean `HEAD`. Schema v2 records source, run specification, runtime, and artifact hashes so stale or incomplete evidence fails closed.
+A threshold crossing from `benchmarkCompare` is only a regression or improvement candidate. Run `benchmarkConfirmE2E` for the affected method with the same JVM, threads, parameters, forks, warmup, measurement, and profiler before forming a confirmed conclusion.
 
-## CI Workflows
+`updateBenchmarkBaseline` accepts only a clean manifest produced from the current clean `HEAD`. Do not update a baseline from a dirty worktree, different service configuration, or missing manifest.
 
-Pull requests run separate workflows for `Local Test`, `Contract Test`, `Integration Test`, `Benchmark Smoke`, and `Static Analysis`. The `Local Test`, `Contract Test`, and `Integration Test` workflows each publish a layer-specific Codecov flag. The main `Codecov` workflow builds `codeCoverageReport` for the full baseline on `main` or manual dispatch.
+## Read Historical Reports Correctly
+
+Reports under `wow-benchmarks/results/reports/` are bound to the source, run specification, machine, JVM, and service configuration that produced them. They are qualified historical evidence or investigation starting points, not universal promises across versions, machines, or stores.
+
+Follow three rules:
+
+1. do not hand-edit report rows or frontier JSON; use the corresponding generation task;
+2. do not use Quick point estimates to claim a formal throughput change;
+3. do not use component or simulated-I/O results to claim production end-to-end capacity.
+
+## CI-to-Local Evidence Map
+
+| Workflow | Current command |
+| --- | --- |
+| `Local Test` | `allLocalTest` + `localCoverageReport` |
+| `Contract Test` | `allContractTest` + `contractCoverageReport` |
+| `Integration Test` | `allIntegrationTest` + `integrationCoverageReport` |
+| `Benchmark Smoke` | `:wow-benchmarks:test` + `:wow-benchmarks:benchmarkSmoke` |
+| `Codecov` | `codeCoverageReport` |
+
+Choose these layers locally according to change risk. CI is fresh evidence in another environment; local validation, CI validation, application release, and production verification remain separate completion conditions.

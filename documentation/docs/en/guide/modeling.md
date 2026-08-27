@@ -1,272 +1,63 @@
 ---
-title: Aggregate Root Modeling
-description: Learn how to model aggregate roots in the Wow framework using the Aggregate Pattern.
+title: Aggregate Modeling
+description: Start from business invariants and separate command decisions from event-sourced state in Wow.
+outline: deep
 ---
 
-# Aggregate Root Modeling
+# Aggregate Modeling
 
-## Patterns
+A Wow aggregate splits a business change in two directions: command handlers use current state to decide what may happen, while sourcing functions use domain events that already happened to reconstruct what the state is now. The core of modeling is not the number of annotations; it is making every state change explainable by an event.
 
-:::info
-Wow framework supports both Kotlin and Java for aggregate modeling. The [Bank Transfer example](../reference/example/transfer) demonstrates a complete Java-based aggregate. Kotlin features such as default parameter values and companion objects are not available in Java, but all core annotations (`@OnCommand`, `@OnSourcing`, `@AggregateRoot`, etc.) work identically in both languages.
+::: tip Completion signal
+Modeling is complete when every invariant has an explicit success event, rejection result, and deterministic sourcing result. The next step is to express those behaviors as Given → When → Expect specifications in the [Test Suite](./test-suite.md).
 :::
 
-### Aggregate Pattern (Recommended)
+## Write Invariants Before Handlers
 
-The aggregate pattern places command functions and sourcing functions (containing aggregate state data) in separate classes. This approach avoids the problem of command functions directly modifying aggregate state data (by setting the `setter` accessor to `private`).
-At the same time, separation of responsibilities allows the aggregate root's command functions to focus more on command processing, while sourcing functions focus on aggregate state data changes.
+For the repository's cart, the business rules can first be written as a decision table:
 
+| Current state and command | Decision result | State after sourcing |
+| --- | --- | --- |
+| Product is absent; add it | `CartItemAdded` | Add the product to `items` |
+| Product already exists; add it again | `CartQuantityChanged` | Replace that product's quantity |
+| Item count has reached `MAX_CART_ITEM_SIZE` | Reject the command | State is unchanged and no business event is emitted |
+| Remove a set of products | `CartItemRemoved` | Filter the matching `productId` values |
 
-#### Simple Aggregation Pattern
+This table determines three kinds of code: commands express intent, events express facts, and the state object changes only while sourcing events.
 
-<center>
+## Recommended Pattern: Compose Command and State Objects
 
-```mermaid
----
-title: Aggregate Modeling Using Simple Aggregation Pattern
----
-classDiagram
-    class StateAggregate {
-        +StateAggregate(id)
-        //... state fields
-        -onSourcing(domainEvent)
-    }
-    class CommandAggregate~S: StateAggregate~ {
-        <<AggregateRoot>>
-        +CommandAggregate(state)
-        -onCommand(command)
-    }
+The `Cart` and `Order` aggregates in `example-domain` separate the command-handling object from the state object:
 
-StateAggregate "1" o-- "state" CommandAggregate
-
+```text
+Command -> Command Aggregate -> Domain Event -> State Aggregate
+                    reads state                 mutates state
 ```
 
-</center>
-
-#### Complex Aggregation Pattern
-
-<center>
-
-```mermaid
----
-title: Aggregate Modeling Using Complex Aggregation Pattern
----
-classDiagram
-    class StateAggregate {
-        +StateAggregate(id)
-        //... state fields
-        -onSourcing(domainEvent)
-    }
-
-    class CommandAggregate~S: StateAggregate~ {
-        +CommandAggregate(state)
-        state: S
-        -onCommand(command)
-    }
-
-    class StateAggregateA {
-        +StateAggregateA(id)
-        //... state fields
-        -onSourcing(domainEvent)
-    }
-
-    class StateAggregateB {
-        +StateAggregateB(id)
-        //... state fields
-        -onSourcing(domainEvent)
-    }
-
-    class CommandAggregateA~StateAggregateA~ {
-        <<AggregateRoot>>
-        +CommandAggregate(state)
-        state: StateAggregateA
-        -onCommand(command)
-    }
-
-    class CommandAggregateB~StateAggregateB~ {
-        <<AggregateRoot>>
-        +CommandAggregate(state)
-        state: StateAggregateB
-        -onCommand(command)
-    }
-
-StateAggregate "1" o-- "state" CommandAggregate
-StateAggregate <|-- StateAggregateA
-StateAggregate <|-- StateAggregateB
-CommandAggregate <|-- CommandAggregateA
-CommandAggregate <|-- CommandAggregateB
-StateAggregateA "1" o-- "state" CommandAggregateA
-StateAggregateB "1" o-- "state" CommandAggregateB
-
-```
-
-</center>
-
-### Single Class Pattern
-
-The single class pattern places command functions, sourcing functions, and aggregate state data together in one class. The advantage is simplicity and directness.
-
-::: danger Violation of Event Sourcing Principles
-In the single class pattern, command functions can directly modify aggregate state data, which leads to:
-- State changes cannot be traced via events
-- Destroys the core value of Event Sourcing
-- May result in inconsistent state changes
-
-**Strongly Recommended**: Use this pattern only for simple scenarios or prototype development.
-:::
-
-<center>
-
-```mermaid
----
-title: Aggregate Modeling Using Single Class
----
-classDiagram
-    class Aggregate {
-        <<AggregateRoot>>
-        +Aggregate(id)
-        //... state fields
-        -onSourcing(domainEvent)
-        -onCommand(command)
-    }
-
-```
-
-</center>
-
-### Inheritance Pattern
-
-The inheritance pattern uses the state aggregate root as the base class and sets the `setter` accessor to `private` to prevent command aggregate roots from modifying aggregate state data in command functions.
-
-<center>
-
-```mermaid
----
-title: Aggregate Modeling Using Inheritance Pattern
----
-classDiagram
-    class StateAggregate {
-        +StateAggregate(id)
-        //... state fields
-        -onSourcing(domainEvent)
-    }
-
-    class CommandAggregate {
-        <<AggregateRoot>>
-        -onCommand(command)
-    }
-
-    StateAggregate <|-- CommandAggregate
-
-```
-
-</center>
-
-
-## Conventions
-
-### Command Aggregate Root
-
-The command aggregate root is responsible for defining command handler functions, processing commands to execute corresponding business logic, and finally returning domain events.
-
-- The command aggregate root needs to add the `@AggregateRoot` annotation so that the `wow-compiler` module can generate corresponding metadata definitions.
-- The `@OnCommand` annotation for command handler functions is not required. By default, naming a command handler function `onCommand` indicates it is a command handler function.
-
-### Disabling Route Generation
-
-Use `@AggregateRoute(enabled = false)` to prevent automatic command route registration for an aggregate:
+The command aggregate holds a read-only view of state and returns one or more events:
 
 ```kotlin
-@AggregateRoot
-@AggregateRoute(enabled = false)
-class InternalAggregate(val id: String) {
-    // This aggregate won't have REST API endpoints
-}
-```
-- The first parameter of command handler functions can be defined as: specific command (`AddCartItem`), command message (`CommandMessage<AddCartItem>`), command message exchange (`CommandExchange<AddCartItem>`).
-- The remaining parameters of command handler functions will be obtained from the `IOC` container. If you have injected an instance in the `Spring IOC` container, you can obtain it directly through parameters.
-- The return value of command handler functions is one or more domain events. These domain events will first have their state changed to the latest state by the state aggregate root through sourcing functions, then be persisted to the `EventStore`.
-  - When the return value type is not clear, it should be specified via `@OnCommand.returns`. Otherwise `wow-compiler` will not be able to identify the returned domain event type.
-- After persistence is complete, they will be published to the event bus through the `DomainEventBus`.
-
-```kotlin
-@AggregateRoot
+@AggregateRoot(commands = [MountedCommand::class, ViewCart::class, MockVariableCommand::class])
 class Cart(private val state: CartState) {
 
     @OnCommand(returns = [CartItemAdded::class, CartQuantityChanged::class])
     fun onCommand(command: AddCartItem): Any {
         require(state.items.size < MAX_CART_ITEM_SIZE) {
-            "Shopping cart can only add up to [$MAX_CART_ITEM_SIZE] items."
+            "Cart can contain at most [$MAX_CART_ITEM_SIZE] products."
         }
-        state.items.firstOrNull {
-            it.productId == command.productId
-        }?.let {
+        state.items.firstOrNull { it.productId == command.productId }?.let {
             return CartQuantityChanged(
                 changed = it.copy(quantity = it.quantity + command.quantity),
             )
         }
-        val added = CartItem(
-            productId = command.productId,
-            quantity = command.quantity,
-        )
         return CartItemAdded(
-            added = added,
+            added = CartItem(command.productId, command.quantity),
         )
     }
 }
 ```
 
-### AfterCommand Hook
-
-The `@AfterCommand` annotation defines a post-processing hook that executes after the main command handler completes. If the method returns a non-null value, it is appended as an additional domain event to the event stream.
-
-```kotlin
-class OrderAggregate(val id: String) {
-    @OnCommand
-    fun onCreateOrder(command: CreateOrder): OrderCreated {
-        return OrderCreated(...)
-    }
-
-    @AfterCommand
-    fun afterCreateOrder(exchange: ServerCommandExchange<*>): OrderConfirmed? {
-        val result = exchange.getCommandInvokeResult<OrderCreated>()
-        // Perform post-processing, optionally return additional events
-        return null
-    }
-}
-```
-
-You can filter which commands trigger the hook using `include` and `exclude`:
-
-```kotlin
-@AfterCommand(include = [CreateOrder::class], exclude = [CancelOrder::class])
-fun onAfterCommand(exchange: ServerCommandExchange<*>): AdditionalEvent? {
-    return null
-}
-```
-
-Multiple `@AfterCommand` functions are supported, with execution order controlled by `@Order`.
-
-### Error Handling with OnError
-
-The `@OnError` annotation defines an error handler that executes when command processing fails:
-
-```kotlin
-@OnError
-fun onError(command: CreateOrder, error: Throwable) {
-    // Handle the error, e.g., log or publish error event
-}
-```
-
-### State Aggregate Root
-
-The state aggregate root defines aggregate state data and sourcing functions.
-
-- The state aggregate root must define the aggregate root ID field in the constructor.
-- The role of sourcing functions is to apply domain events to aggregate state data, thereby changing aggregate state data.
-- Sourcing functions are marked with the `@OnSourcing` annotation. However, this annotation is optional. By default, when the function name is `onSourcing`, it indicates that the function is a sourcing function.
-- Sourcing functions accept parameters of: specific domain events (`CartItemAdded`), domain events (`DomainEvent<CartItemAdded>`).
-- No return value needs to be defined for sourcing functions.
+The state object keeps setters private and updates only through sourcing functions:
 
 ```kotlin
 class CartState(val id: String) {
@@ -274,8 +65,88 @@ class CartState(val id: String) {
         private set
 
     @OnSourcing
-    fun onCartItemAdded(cartItemAdded: CartItemAdded) {
-        items = items + cartItemAdded.added
+    fun onCartItemAdded(event: CartItemAdded) {
+        items = items + event.added
+    }
+
+    @OnSourcing
+    fun onCartQuantityChanged(event: CartQuantityChanged) {
+        items = items.map {
+            if (it.productId == event.changed.productId) event.changed else it
+        }
     }
 }
 ```
+
+This separation prevents a command handler from casually mutating state and allows the same event history to be replayed repeatedly.
+
+## Other Supported Organizations
+
+Wow's handler discovery does not require every aggregate to use one class structure. Choose according to model size:
+
+| Organization | When it fits | Boundary that must hold |
+| --- | --- | --- |
+| Command object composed with state object | Default for most aggregates | Command side reads state; state side handles events |
+| Command object inherits the state object | Existing models organize capabilities through inheritance | State setters remain private and command handlers do not mutate state directly |
+| Commands and state in one class | Very small models or compatibility with existing code | Structure and tests must still prevent command paths from writing state directly |
+
+Composition is usually easiest to review because the decision maker and state mutator are immediately visible. Complex aggregates may also use command and state base classes, but do not add inheritance layers for hypothetical reuse.
+
+Wow supports both Kotlin and Java. See the [Bank Transfer example](../reference/example/transfer) for a complete Java organization.
+
+## Command-Handling Conventions
+
+- `@AggregateRoot` marks aggregate intent explicitly and participates in metadata generation; public models should prefer the explicit marker.
+- The conventional name `onCommand` makes `@OnCommand` optional. Use the annotation for a custom function name or additional return-event metadata.
+- The first parameter may be a concrete command, `CommandMessage<C>`, or `ServerCommandExchange<C>`; later parameters can be resolved from the IoC container.
+- A handler may return one event, multiple events, or a reactive type. When the return type cannot statically describe the event set, declare it with `@OnCommand(returns = [...])`.
+- Keep external checks reactive. `Order` uses the injected `CreateOrderSpec` and returns `Mono<OrderCreated>` without blocking the command path.
+
+A command handler should do three things: read current state, check invariants, and return events. Database writes, event publication, and projection updates belong to the runtime, not to aggregate decisions.
+
+## Sourcing Conventions
+
+- The state constructor provides the aggregate ID; repository examples use the conventional name `id`.
+- The conventional name `onSourcing` makes `@OnSourcing` optional; other names should be marked explicitly.
+- A parameter may be the event body or a domain event containing metadata.
+- Sourcing functions do not return events, call external services, read the current time, or generate randomness.
+- The order of multiple returned events is part of the contract. State handles only events that change this aggregate; notification events for other components may leave state unchanged.
+
+Determinism is a hard requirement: the same initial state and event sequence must produce the same result, or history replay, snapshot verification, and recovery cannot be trusted.
+
+## Lifecycle Invariants
+
+The order example demonstrates state-machine invariants:
+
+| Command | Allowed state | Event and next state |
+| --- | --- | --- |
+| `ChangeAddress` | `CREATED` | `AddressChanged`; state remains `CREATED` |
+| `PayOrder` | `CREATED` | `OrderPaid`; fully paid moves to `PAID` |
+| `ShipOrder` | `PAID` | `OrderShipped`; moves to `SHIPPED` |
+| `ReceiptOrder` | `SHIPPED` | `OrderReceived`; moves to `RECEIVED` |
+
+Reject invalid transitions on the command side; the state side should not guess command intent. Delete and recover are Wow aggregate lifecycle operations and also require tests for access after deletion, successful recovery, and repeated recovery failure.
+
+## Routing, Post-Command, and Error Hooks
+
+Routing configuration is part of the public contract. For example:
+
+```kotlin
+@AggregateRoute(enabled = false)
+class InternalAggregate(val id: String)
+```
+
+Disabling routing affects automatic command routes only; it does not change the aggregate's command or sourcing semantics.
+
+`@AfterCommand` can append events after the main command succeeds. Multiple hooks can be ordered with `@Order`, while `include` and `exclude` limit command types. `@OnError` can observe command failures and perform framework-supported error handling. These hooks must not become a second write path around core invariants: any result that changes aggregate facts should still be expressed as an explicit domain event.
+
+## Move From Model to Test
+
+Prepare four items for every invariant before entering domain tests:
+
+1. Given: which historical events are replayed, or whether the aggregate starts uninitialized;
+2. When: which command runs, including owner, space, or injected services;
+3. Expect event/error: which events are emitted, or which error rejects the command;
+4. Expect state: which state fields and aggregate metadata must hold after sourcing.
+
+After domain specifications pass, move to [Testing Wow Applications](./application-testing.md) to verify KSP metadata, Spring wiring, HTTP, real storage, recovery, and security boundaries. A passing domain DSL does not mean the application is ready to release.

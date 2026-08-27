@@ -1,38 +1,36 @@
 ---
-title: 测试套件
-description: 基于 Given->When->Expect 模式的测试套件，助力开发者轻松实现 80% 以上测试覆盖率。
+title: 领域测试套件
+description: 使用 wow-test 将聚合与 Saga 行为写成 Given → When → Expect 规格。
+outline: deep
 ---
 
-# 测试套件
+# 领域测试套件
 
-*单元测试*是确保代码质量且符合预期业务需求的重要手段，但在传统架构中，单元测试往往是一项相当困难的任务，因为你需要考虑数据库连接、事务管理、数据清理等问题。
+`wow-test` 用内存中的领域运行时执行聚合与无状态 Saga 规格。它适合验证命令决策、领域事件、事件溯源后的状态和 Saga 产生的命令，不需要数据库或消息中间件。
 
-使用 _Wow_ 框架，你将会发现基于 _Given->When->Expect_ 模式的测试套件，使得单元测试变得异常简单。
-你只需关注领域模型是否符合预期，而无需为数据库连接等问题烦恼。
-
-:::tip
-在实际应用中，我们将领域模型的单元测试覆盖率下限阈值设置为 **85%**，也是可以轻松实现的。
-在没有刻意要求的情况下，开发人员甚至自觉地将覆盖率提升至 **95%**。
-因此，每次提交代码都变得轻松自在，因为你确信你的代码经过了充分的测试，并且真正意义上从单元测试中获得了收益。
+::: warning 测试边界
+领域规格通过只证明领域行为。它不证明 KSP 产物已打包、Spring 已正确装配、HTTP 路由可用、真实存储可恢复或鉴权有效。这些门禁见[Wow 应用测试](./application-testing.md)。
 :::
 
-在研发同级别的项目中，我们的测试团队在系统 _API_ 测试中发现，基于 Wow 框架的项目，其 _BUG_ 数仅为传统架构项目的 **1/3**。
-
-- Given: 先前的领域事件，用于初始化聚合根状态。
-- When：当前执行的命令，用于触发聚合根状态变更。
-- Expect：期望的结果，用于验证聚合根状态变更是否符合预期。
-
-![Test Coverage](/images/getting-started/test-coverage.png)
+::: tip 完成信号
+每条已建模不变量都应至少有一个成功或拒绝规格；状态转换同时断言事件与溯源状态。领域层完成后，运行所属模块的 `test`/`check`，再进入应用集成门禁。
+:::
 
 ## 安装
 
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
-testImplementation("me.ahoo.wow:wow-test")
+dependencies {
+    testImplementation("me.ahoo.wow:wow-test:${wowVersion}")
+}
 ```
+
 ```groovy [Gradle(Groovy)]
-testImplementation 'me.ahoo.wow:wow-test'
+dependencies {
+    testImplementation "me.ahoo.wow:wow-test:${wowVersion}"
+}
 ```
+
 ```xml [Maven]
 <dependency>
     <groupId>me.ahoo.wow</groupId>
@@ -43,80 +41,138 @@ testImplementation 'me.ahoo.wow:wow-test'
 ```
 :::
 
-## 测试聚合根
-
-使用 `AggregateSpec` 进行全面的聚合测试：
+Kotlin 断言使用项目测试栈中的 FluentAssert 扩展：
 
 ```kotlin
-class CartSpec : AggregateSpec<Cart, CartState>(
-    {
-        on {
-            val ownerId = generateGlobalId()
-            val addCartItem = AddCartItem(
-                productId = "productId",
-                quantity = 1,
-            )
-            givenOwnerId(ownerId)
-            whenCommand(addCartItem) {
-                expectNoError()
-                expectEventType(CartItemAdded::class)
-                expectState {
-                    items.assert().hasSize(1)
-                }
-                expectStateAggregate {
-                    ownerId.assert().isEqualTo(ownerId)
-                }
-                fork(name = "Remove CartItem") {
-                    val removeCartItem = RemoveCartItem(
-                        productIds = setOf(addCartItem.productId),
-                    )
-                    whenCommand(removeCartItem) {
-                        expectEventType(CartItemRemoved::class)
-                        expectState {
-                            items.assert().isEmpty()
-                        }
-                    }
-                }
-                fork(name = "Delete Aggregate") {
-                    whenCommand(DefaultDeleteAggregate) {
-                        ref("AggregateDeleted")
-                        expectEventType(DefaultAggregateDeleted::class)
-                        expectStateAggregate {
-                            deleted.assert().isTrue()
-                        }
-                    }
-                }
+import me.ahoo.test.asserts.assert
+```
+
+## Given → When → Expect
+
+| 阶段 | 要表达的问题 | 常用 DSL |
+| --- | --- | --- |
+| Given | 聚合此前发生了什么？ | `givenEvent`、`givenState`、`givenOwnerId`、`givenSpaceId`、`inject` |
+| When | 现在执行什么？ | `whenCommand`、Saga 的 `whenEvent` |
+| Expect | 结果是否符合不变量？ | `expectNoError`、`expectErrorType`、`expectEventType`、`expectState`、`expectCommand` |
+
+优先用历史事件建立 Given。`givenState` 适合明确需要从某个状态版本开始的测试，但它跳过了事件重放，不能替代溯源行为验证。
+
+## 聚合规格：事件与状态一起断言
+
+下面的最小场景来自当前 `CartSpec`。它从未初始化聚合开始，设置 owner，执行添加商品命令，然后同时验证事件、业务状态和聚合元数据：
+
+```kotlin
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.test.AggregateSpec
+
+class CartSpec : AggregateSpec<Cart, CartState>({
+    on {
+        val ownerId = generateGlobalId()
+        val addCartItem = AddCartItem(
+            productId = "productId",
+            quantity = 1,
+        )
+
+        givenOwnerId(ownerId)
+        whenCommand(addCartItem) {
+            expectNoError()
+            expectEventType(CartItemAdded::class)
+            expectState {
+                items.assert().hasSize(1)
             }
-        }
-        fork(ref = "AggregateDeleted") {
-            whenCommand(DefaultDeleteAggregate) {
-                expectErrorType(IllegalAccessDeletedAggregateException::class)
-            }
-        }
-        fork(ref = "AggregateDeleted", name = "Recover") {
-            whenCommand(DefaultRecoverAggregate) {
-                expectNoError()
-                expectStateAggregate {
-                    deleted.assert().isFalse()
-                }
-                fork(name = "Recover Again") {
-                    whenCommand(DefaultRecoverAggregate) {
-                        expectErrorType(IllegalStateException::class)
-                    }
-                }
+            expectStateAggregate {
+                this.ownerId.assert().isEqualTo(ownerId)
             }
         }
     }
-)
+})
 ```
 
-![CartSpec-Results](/images/test-suite/CartSpec-Results.png)
+事件断言证明命令决策，状态断言证明事件已经由溯源函数正确应用。只断言其中一侧会漏掉另一侧的回归。
 
-## 测试 Saga
+### 拒绝路径
 
-使用 `SagaSpec` 测试无状态 Saga 行为：
+拒绝路径应断言具体错误，并在重要场景确认状态或聚合元数据未被推进。当前 `OrderSpec` 覆盖了空商品、库存不足、价格不一致、未支付发货以及删除后继续操作等反例。
 
 ```kotlin
+fork("Ship Before Payment") {
+    val shipOrder = ShipOrder(stateAggregate.aggregateId.id)
+    whenCommand(shipOrder) {
+        expectErrorType(IllegalStateException::class)
+        expectState {
+            paidAmount.assert().isEqualTo(BigDecimal.ZERO)
+            status.assert().isEqualTo(OrderStatus.CREATED)
+        }
+    }
+}
+```
+
+不要把所有失败都写成 `expectError()`。错误类型属于业务契约时，使用 `expectErrorType(...)` 使规格能区分不同拒绝原因。
+
+### 分支与引用点
+
+`fork` 从一个已验证状态继续执行，适合订单创建后的支付、发货、收货，以及同一起点的非法转换。每个分支拥有独立的后续状态，不会污染兄弟分支。
+
+在当前 Expect 阶段直接分支：
+
+```kotlin
+fork(name = "Remove CartItem") {
+    whenCommand(RemoveCartItem(setOf(addCartItem.productId))) {
+        expectEventType(CartItemRemoved::class)
+        expectState {
+            items.assert().isEmpty()
+        }
+    }
+}
+```
+
+需要稍后从同一点展开时，先 `ref("AggregateDeleted")`，再在顶层使用 `fork(ref = "AggregateDeleted", ...)`。引用点应代表已经验证过的业务状态，而不是仅为减少几行设置代码。
+
+```kotlin
+fork(ref = "AggregateDeleted", name = "Recover") {
+    whenCommand(DefaultRecoverAggregate) {
+        expectNoError()
+        expectStateAggregate {
+            deleted.assert().isFalse()
+        }
+        fork(name = "Recover Again") {
+            whenCommand(DefaultRecoverAggregate) {
+                expectErrorType(IllegalStateException::class)
+            }
+        }
+    }
+}
+```
+
+## 注入领域依赖
+
+当命令处理函数依赖领域规格服务时，通过 `inject` 注册测试实现。当前 `OrderSpec` 为 `DefaultCreateOrderSpec` 注入库存和定价服务，从而分别覆盖成功、库存不足和价格不一致。
+
+```kotlin
+inject {
+    register(DefaultCreateOrderSpec(inventoryService, pricingService))
+}
+
+whenCommand(CreateOrder(orderItems, SHIPPING_ADDRESS, false)) {
+    expectNoError()
+    expectEventType(OrderCreated::class)
+    expectState {
+        status.assert().isEqualTo(OrderStatus.CREATED)
+        totalAmount.assert().isEqualTo(totalAmount)
+    }
+}
+```
+
+这里注入的是领域边界的测试实现。真实网络客户端、数据库和 Broker 不属于该层，应放到应用集成测试。
+
+## 无状态 Saga 规格
+
+`SagaSpec` 的 When 是输入事件，Expect 是 Saga 发送的命令。当前 `CartSagaSpec` 验证从购物车创建订单后删除对应商品：
+
+```kotlin
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.test.SagaSpec
+
 class CartSagaSpec : SagaSpec<CartSaga>({
     on {
         val ownerId = generateGlobalId()
@@ -126,16 +182,13 @@ class CartSagaSpec : SagaSpec<CartSaga>({
             price = BigDecimal.valueOf(10),
             quantity = 10,
         )
+
         whenEvent(
             event = mockk<OrderCreated> {
-                every {
-                    items
-                } returns listOf(orderItem)
-                every {
-                    fromCart
-                } returns true
+                every { items } returns listOf(orderItem)
+                every { fromCart } returns true
             },
-            ownerId = ownerId
+            ownerId = ownerId,
         ) {
             expectCommandType(RemoveCartItem::class)
             expectCommand<RemoveCartItem> {
@@ -145,219 +198,36 @@ class CartSagaSpec : SagaSpec<CartSaga>({
             }
         }
     }
-    on {
-        name("NotFromCart")
-        val orderItem = OrderItem(
-            id = generateGlobalId(),
-            productId = generateGlobalId(),
-            price = BigDecimal.valueOf(10),
-            quantity = 10,
-        )
-        whenEvent(
-            event = mockk<OrderCreated> {
-                every {
-                    items
-                } returns listOf(orderItem)
-                every {
-                    fromCart
-                } returns false
-            },
-            ownerId = generateGlobalId()
-        ) {
-            expectNoCommand()
-        }
-    }
 })
 ```
 
-![CartSagaSpec-Results](/images/test-suite/CartSagaSpec-Results.png)
+对应反例应使用 `expectNoCommand()`，例如 `OrderCreated.fromCart == false` 时不删除购物车商品。Saga 规格验证命令意图与内容；Broker 重投和外部副作用幂等仍需真实适配器测试。
 
+## 选择最窄的断言
 
-## 高级场景
+| 目标 | DSL |
+| --- | --- |
+| 没有错误 / 特定错误 | `expectNoError()` / `expectErrorType(...)` |
+| 事件数量、顺序或类型 | `expectEventCount`、`expectEventIterator`、`expectEventType` |
+| 事件体字段 | `expectEventBody<E> { ... }` |
+| 业务状态 | `expectState { ... }` |
+| owner、版本、删除标记等聚合元数据 | `expectStateAggregate { ... }` |
+| Saga 命令数量、类型或内容 | `expectCommandCount`、`expectCommandType`、`expectCommand<C>` |
 
-对于包含服务注入和错误处理的复杂工作流：
+断言业务可观察结果，不要复制框架内部实现。Kotlin 值断言统一使用 `.assert()`，避免在同一套规格中混用断言风格。
 
-```kotlin
-class OrderSpec : AggregateSpec<Order, OrderState>({
-    on {
-        val ownerId = generateGlobalId()
-        val orderItem = CreateOrder.Item(productId = generateGlobalId(), price = BigDecimal.TEN, quantity = 10)
+## 覆盖率证据怎么读
 
-        givenOwnerId(ownerId)
+当前仓库的 `:example-domain` 在 Gradle 中将 `jacocoTestCoverageVerification` 下限设为 `0.8`，并让该任务依赖 `test` 和报告生成。这是该示例模块当前的仓库门禁，不是 `wow-test` 自动保证的覆盖率，也不是所有应用都必须照搬的数值。
 
-        // 注入模拟服务
-        val inventoryService = object : InventoryService {
-            override fun getInventory(productId: String) = orderItem.quantity.toMono()
-        }
-        val pricingService = object : PricingService {
-            override fun getProductPrice(productId: String) = orderItem.price.toMono()
-        }
+旧文档截图、历史覆盖率或经验性缺陷数据只能说明当时的样本。评价当前变更时，以本次测试输出、当前覆盖率报告和项目自己的阈值为准。
 
-        inject { register(DefaultCreateOrderSpec(inventoryService, pricingService)) }
+## 运行与下一层
 
-        whenCommand(CreateOrder(listOf(orderItem), shippingAddress, false)) {
-            expectNoError()
-            expectEventType(OrderCreated::class)
-            expectState { status.assert().isEqualTo(OrderStatus.CREATED) }
+在本仓库验证示例与 DSL：
 
-            fork("Pay Order") {
-                val payOrder = PayOrder(generateGlobalId(), orderItem.price * BigDecimal(orderItem.quantity))
-                whenCommand(payOrder) {
-                    expectEventType(OrderPaid::class)
-                    expectState { status.assert().isEqualTo(OrderStatus.PAID) }
-
-                    fork("Ship Order") {
-                        whenCommand(ShipOrder(stateAggregate.aggregateId.id)) {
-                            expectEventType(OrderShipped::class)
-                            expectState { status.assert().isEqualTo(OrderStatus.SHIPPED) }
-                        }
-                    }
-
-                    fork("Duplicate Payment") {
-                        whenCommand(PayOrder(generateGlobalId(), orderItem.price * BigDecimal(orderItem.quantity))) {
-                            expectErrorType(DomainEventException::class)
-                            expectEventType(OrderPayDuplicated::class)
-                        }
-                    }
-                }
-            }
-
-            fork("Invalid Operation") {
-                whenCommand(ShipOrder(stateAggregate.aggregateId.id)) {
-                    expectErrorType(IllegalStateException::class)
-                    expectState { status.assert().isEqualTo(OrderStatus.CREATED) }
-                }
-            }
-        }
-    }
-})
+```bash
+./gradlew :wow-test:check :example-domain:check
 ```
 
-### 引用点和跨场景分支
-
-使用 `ref()` 标记验证点，并使用 `fork(ref, ...)` 从它们分支到不同的测试场景：
-
-```kotlin
-class OrderSpec : AggregateSpec<Order, OrderState>({
-    on {
-        val orderId = generateGlobalId()
-        val createOrder = CreateOrder(/*...*/)
-
-        whenCommand(createOrder) {
-            expectEventType(OrderCreated::class)
-            ref("order-created")  // 标记此验证点
-            expectState { status.assert().isEqualTo(OrderStatus.CREATED) }
-        }
-    }
-
-    // 在单独的场景中从标记点分支
-    fork("order-created", "Pay Order") {
-        val payOrder = PayOrder(/*...*/)
-        whenCommand(payOrder) {
-            expectEventType(OrderPaid::class)
-            expectState { status.assert().isEqualTo(OrderStatus.PAID) }
-        }
-    }
-
-    fork("order-created", "Cancel Order") {
-        val cancelOrder = CancelOrder(/*...*/)
-        whenCommand(cancelOrder) {
-            expectEventType(OrderCancelled::class)
-            expectState { status.assert().isEqualTo(OrderStatus.CANCELLED) }
-        }
-    }
-})
-```
-
-## API 参考
-
-### AggregateSpec
-
-使用 Given/When/Expect 模式测试聚合的规范类：
-
-- `AggregateSpec<C, S>(block: AggregateDsl<S>.() -> Unit)`：接受 DSL 块的构造函数
-
-### SagaSpec
-
-测试无状态 Saga 的规范类：
-
-- `SagaSpec<T>(block: StatelessSagaDsl<T>.() -> Unit)`：接受 DSL 块的构造函数
-- `on(block: WhenDsl<T>.() -> Unit)`：定义测试场景
-
-### DSL 接口
-
-#### AggregateDsl
-- `on(block: GivenDsl<S>.() -> Unit)`：定义完整的测试场景
-- `fork(ref: String, name: String = "", verifyError: Boolean = false, block: ForkedVerifiedStageDsl<S>.() -> Unit)`：从之前引用的 ExpectStage 创建分支测试场景
-
-#### GivenDsl
-- `name(name: String)`：设置此测试场景的名称
-- `inject(block: ServiceProvider.() -> Unit)`：注入服务或依赖项
-- `givenOwnerId(ownerId: String)`：为聚合设置所有者 ID
-- `givenSpaceId(spaceId: SpaceId)`：为多租户隔离设置空间 ID
-- `givenEvent(event: Any, block: WhenDsl<S>.() -> Unit)`：使用领域事件初始化
-- `givenEvent(events: Array<out Any>, block: WhenDsl<S>.() -> Unit)`：使用多个事件初始化
-- `givenState(state: S, version: Int, block: WhenDsl<S>.() -> Unit)`：使用直接状态初始化
-
-#### WhenDsl
-- `name(name: String)`：设置此测试场景的名称
-- `whenCommand(command: Any, header: Header, ownerId: String, spaceId: SpaceId, block: ExpectDsl<S>.() -> Unit)`：执行命令
-
-#### ExpectDsl
-- `expect(expected: ExpectedResult<S>.() -> Unit)`：定义对完整测试结果的期望
-- `expectNoError()`：断言未发生错误
-- `expectError()`：断言命令处理过程中发生了错误
-- `expectError(expected: E.() -> Unit)`：定义对特定发生的错误的期望
-- `expectErrorType(errorType: KClass<out Throwable>)`：断言特定错误类型
-- `expectEventType(eventType: KClass<out Any>)`：断言生成的事件类型
-- `expectEvent(expected: DomainEvent<E>.() -> Unit)`：定义对特定领域事件的期望
-- `expectEventBody(expected: E.() -> Unit)`：定义对领域事件主体内容的期望
-- `expectEventCount(expected: Int)`：定义对生成领域事件数量的期望
-- `expectEventStream(expected: DomainEventStream.() -> Unit)`：定义对完整领域事件流的期望
-- `expectEventIterator(expected: EventIterator.() -> Unit)`：定义对遍历领域事件的期望
-- `expectState(block: S.() -> Unit)`：验证聚合状态
-- `expectState(expected: Consumer<S>)`：使用 Consumer 定义对聚合状态的期望（Java）
-- `expectStateAggregate(block: StateAggregate<S>.() -> Unit)`：验证聚合元数据
-- `ref(ref: String)`：标记当前验证点以供后续分支使用
-- `fork(name: String = "", verifyError: Boolean = false, block: ForkedVerifiedStageDsl<S>.() -> Unit)`：从当前验证状态创建分支测试场景
-
-##### Fork 函数使用场景
-
-`fork` 函数通过从验证状态创建独立测试分支来测试复杂工作流和边界情况：
-
-- **顺序操作**：测试多步骤流程，如订单创建 → 支付 → 发货
-- **错误场景**：验证在无效状态下尝试操作时的行为
-- **替代路径**：从同一起点测试不同的命令序列
-- **聚合生命周期**：测试删除、恢复和删除后的行为
-- **业务规则**：验证跨状态转换的约束和业务逻辑
-
-**引用点与 ref()：**
-`ref()` 方法允许标记特定的验证点以供后续分支。使用 `AggregateDsl.fork(ref, ...)` 从任何之前标记的点创建分支，实现跨不同 `on` 块的复杂测试流程。
-
-**最佳实践：**
-- 为 fork 使用描述性名称以阐明测试意图
-- 使用 `ref()` 标记重要的验证点以进行跨场景分支
-- 避免深度嵌套（超过 3 层）- 使用 `ref()` 和 `fork(ref, ...)` 进行复杂分支
-- 对相关操作使用 fork，对不相关场景使用单独的 `on` 块
-
-#### StatelessSagaDsl
-- `on(block: WhenDsl<T>.() -> Unit)`：定义 Saga 测试场景
-
-#### Saga WhenDsl
-- `name(name: String)`：设置此测试场景的名称
-- `functionFilter(filter: (MessageFunction<*, *, *>) -> Boolean)`：过滤消息函数
-- `functionName(functionName: String)`：按函数名称过滤
-- `whenEvent(event: Any, state: Any?, ownerId: String, spaceId: SpaceId, block: ExpectDsl<T>.() -> Unit)`：使用事件触发 Saga
-
-#### Saga ExpectDsl
-- `expectCommandType(commandType: KClass<out Any>)`：断言发送的命令类型
-- `expectCommand(block: CommandMessage<*>.() -> Unit)`：验证命令内容
-- `expectCommandBody(block: C.() -> Unit)`：验证命令体内容
-- `expectCommandCount(expected: Int)`：断言发送的命令数量
-- `expectCommandStream(block: CommandStream.() -> Unit)`：定义对完整命令流的期望
-- `expectCommandIterator(block: CommandIterator.() -> Unit)`：定义对迭代命令的期望
-- `expectNoCommand()`：断言未发送命令
-- `expectNoError()`：断言未发生错误
-- `expectError()`：断言发生了错误
-- `expectError(block: E.() -> Unit)`：定义对特定错误的期望
-- `expectErrorType(errorType: KClass<out Throwable>)`：断言特定错误类型
+业务应用应改为自己的领域模块路径。该命令通过后，下一层是[Wow 应用测试](./application-testing.md)：验证生成元数据、运行时装配、HTTP、真实 Adapter、重启恢复与安全反例。修改 Wow 框架本身时，则使用[框架测试与基准](./test-runtime.md)中的仓库任务。
