@@ -343,7 +343,7 @@ internal class MongoAggregationCompiler(
     }
 
     private fun floorDivide(epoch: String, divisor: Long): Document = convert(
-        Document("\$floor", Document("\$divide", listOf(epoch, divisor))),
+        Document("\$floor", Document("\$divide", listOf(convert(epoch, "decimal"), divisor))),
         "long",
     )
 
@@ -375,10 +375,11 @@ internal class MongoAggregationCompiler(
         capability: QueryCapability,
     ): String {
         val logicalField = absolute(parent)
-        val fieldSchema = schema?.resolve(logicalField)
-            ?: return SnapshotFieldConverter.convert(logicalField.value)
-        return fieldSchema.bindings[capability]?.physicalPath
-            ?: throw QuerySchemaValidationException("Query field [$logicalField] does not support [$capability].")
+        schema?.resolve(logicalField)?.bindings?.get(capability)?.physicalPath?.let { return it }
+        if (schema == null || logicalField !in schema.fields) {
+            return SnapshotFieldConverter.convert(logicalField.value)
+        }
+        throw QuerySchemaValidationException("Query field [$logicalField] does not support [$capability].")
     }
 
     private fun LogicalField.absolute(parent: String?): LogicalField =

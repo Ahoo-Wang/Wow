@@ -136,7 +136,11 @@ class MongoQuerySchemaAdapter(
             capability: QueryCapability,
             storageSchema: MongoStorageSchema?,
         ): Boolean {
-            if (capability == QueryCapability.PRESENCE || storageSchema == null) return true
+            if (capability == QueryCapability.PRESENCE) return true
+            if (storageSchema == null) {
+                return semanticType != Temporal.Date ||
+                    capability != QueryCapability.RANGE && capability != QueryCapability.AGGREGATE_TEMPORAL
+            }
             val requirements = storageRequirements(capability)
             val storageTypes = if (cardinality == QueryCardinality.MANY) {
                 if (!storageSchema.types.proves(listOf(ARRAY_TYPES))) return false

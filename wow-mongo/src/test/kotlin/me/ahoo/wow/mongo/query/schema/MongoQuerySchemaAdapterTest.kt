@@ -119,6 +119,9 @@ class MongoQuerySchemaAdapterTest {
             QueryCapability.PRESENCE,
             QueryCapability.EXACT_MATCH,
         )
+        schema.fields.getValue(LogicalField("state.nativeDate")).bindings.keys.assert()
+            .contains(QueryCapability.PRESENCE, QueryCapability.SORT, QueryCapability.AGGREGATE_TERMS)
+            .doesNotContain(QueryCapability.RANGE, QueryCapability.AGGREGATE_TEMPORAL)
     }
 
     @Test

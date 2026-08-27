@@ -29,9 +29,11 @@ import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.schema.QueryFieldBinding
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryStorageType
 import me.ahoo.wow.serialization.MessageRecords
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.time.ZoneId
 import java.util.concurrent.TimeUnit
 
@@ -64,6 +66,42 @@ class MongoAggregationCompilerTest {
             .contains("document.orders.total")
             .doesNotContain("state.orders.productId")
             .doesNotContain("state.orders.amount")
+    }
+
+    @Test
+    fun `dynamic suffix without terms binding should use the conventional physical path`() {
+        val schema = schema(
+            field(
+                "state.attributes",
+                QueryCapability.EXACT_MATCH,
+                "state.attributes",
+                QueryValueType.OBJECT,
+                dynamicChildren = true,
+            ),
+        )
+        val query = aggregation {
+            terms("state.attributes.color", "color")
+            count("count")
+        }
+
+        MongoAggregationCompiler(SnapshotFilterConverter).compile(query, schema)
+            .first { it.toBsonDocument().containsKey("\$group") }
+            .toBsonDocument().toJson().assert().contains("state.attributes.color")
+    }
+
+    @Test
+    fun `declared field without terms binding should still fail compilation`() {
+        val schema = schema(
+            field("state.category", QueryCapability.PRESENCE, "state.category"),
+        )
+        val query = aggregation {
+            terms("state.category", "category")
+            count("count")
+        }
+
+        assertThrows<QuerySchemaValidationException> {
+            MongoAggregationCompiler(SnapshotFilterConverter).compile(query, schema)
+        }
     }
 
     @Test
@@ -339,6 +377,7 @@ class MongoAggregationCompilerTest {
         physicalPath: String,
         valueType: QueryValueType = QueryValueType.STRING,
         semanticType: Temporal? = null,
+        dynamicChildren: Boolean = false,
     ) = LogicalField(logicalPath) to QueryFieldSchema(
         title = null,
         description = null,
@@ -348,7 +387,7 @@ class MongoAggregationCompilerTest {
         required = true,
         cardinality = QueryCardinality.SINGLE,
         semanticType = semanticType,
-        dynamicChildren = false,
+        dynamicChildren = dynamicChildren,
         bindings = mapOf(
             capability to QueryFieldBinding(physicalPath, QueryStorageType("test")),
         ),
