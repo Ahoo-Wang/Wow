@@ -46,10 +46,14 @@ describe("MarkRecoverable", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("combobox", { name: "Recoverable" }));
-    fireEvent.click(
-      await screen.findByRole("option", { name: "Unrecoverable" }),
+    fireEvent.mouseDown(
+      screen.getByRole("combobox", { name: "Recoverable" }),
     );
+    const option = await screen.findByRole("option", {
+      name: "Unrecoverable",
+    });
+    fireEvent.pointerDown(option, { pointerType: "mouse" });
+    fireEvent.click(option);
 
     expect(mocks.markRecoverable).not.toHaveBeenCalled();
     expect(
@@ -88,10 +92,14 @@ describe("MarkRecoverable", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("combobox", { name: "Recoverable" }));
-    fireEvent.click(
-      await screen.findByRole("option", { name: "Unrecoverable" }),
+    fireEvent.mouseDown(
+      screen.getByRole("combobox", { name: "Recoverable" }),
     );
+    const option = await screen.findByRole("option", {
+      name: "Unrecoverable",
+    });
+    fireEvent.pointerDown(option, { pointerType: "mouse" });
+    fireEvent.click(option);
     fireEvent.click(screen.getByRole("button", { name: "Confirm change" }));
 
     await waitFor(() => {

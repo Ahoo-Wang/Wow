@@ -11,21 +11,22 @@
  * limitations under the License.
  */
 
-import * as React from "react";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 
-import { cn } from "@/lib/utils";
+import { Button } from "./button";
 
-function Label({ className, ...props }: React.ComponentProps<"label">) {
-  return (
-    <label
-      data-slot="label"
-      className={cn(
-        "flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50",
-        className,
-      )}
-      {...props}
-    />
-  );
-}
+describe("Button", () => {
+  it("composes a custom element through the Base UI render prop", () => {
+    render(
+      <Button nativeButton={false} render={<a href="/failed" />}>
+        Open failed
+      </Button>,
+    );
 
-export { Label };
+    const button = screen.getByRole("button", { name: "Open failed" });
+
+    expect(button.tagName).toBe("A");
+    expect(button).toHaveAttribute("href", "/failed");
+  });
+});

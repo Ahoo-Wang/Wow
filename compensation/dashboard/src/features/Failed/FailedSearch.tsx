@@ -186,18 +186,20 @@ export function FailedSearch({ onSearch, loading }: FailedSearchProps) {
           </Button>
         </div>
         <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 px-4"
-              aria-label="Add filter"
-            >
-              <Filter />
-              {appliedFilterCount > 0
-                ? `Filters (${appliedFilterCount})`
-                : "Add filter"}
-            </Button>
+          <PopoverTrigger
+            render={
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 px-4"
+                aria-label="Add filter"
+              />
+            }
+          >
+            <Filter />
+            {appliedFilterCount > 0
+              ? `Filters (${appliedFilterCount})`
+              : "Add filter"}
           </PopoverTrigger>
           <PopoverContent align="end" className="w-64 p-2">
             <div className="px-2 pb-2 text-xs font-medium text-muted-foreground">

@@ -109,13 +109,10 @@ describe("Actions", () => {
     const onChanged = vi.fn();
     render(<Actions state={state} onChanged={onChanged} />);
 
-    fireEvent.pointerDown(
-      screen.getByRole("button", { name: "More actions" }),
-      {
-        button: 0,
-        ctrlKey: false,
-      },
-    );
+    fireEvent.mouseDown(screen.getByRole("button", { name: "More actions" }), {
+      button: 0,
+      ctrlKey: false,
+    });
     fireEvent.click(
       await screen.findByRole("menuitem", { name: "Force prepare" }),
     );
@@ -138,18 +135,20 @@ describe("Actions", () => {
       "Compensation force prepared",
     );
     expect(onChanged).toHaveBeenCalledOnce();
+    expect(
+      screen.queryByRole("alertdialog", {
+        name: "Force prepare this execution?",
+      }),
+    ).not.toBeInTheDocument();
   });
 
   it("does not force prepare when confirmation is cancelled", async () => {
     render(<Actions state={state} />);
 
-    fireEvent.pointerDown(
-      screen.getByRole("button", { name: "More actions" }),
-      {
-        button: 0,
-        ctrlKey: false,
-      },
-    );
+    fireEvent.mouseDown(screen.getByRole("button", { name: "More actions" }), {
+      button: 0,
+      ctrlKey: false,
+    });
     fireEvent.click(
       await screen.findByRole("menuitem", { name: "Force prepare" }),
     );
@@ -194,13 +193,10 @@ describe("Actions", () => {
       screen.getByText("This execution has already succeeded."),
     ).toBeInTheDocument();
 
-    fireEvent.pointerDown(
-      screen.getByRole("button", { name: "More actions" }),
-      {
-        button: 0,
-        ctrlKey: false,
-      },
-    );
+    fireEvent.mouseDown(screen.getByRole("button", { name: "More actions" }), {
+      button: 0,
+      ctrlKey: false,
+    });
     expect(
       await screen.findByRole("menuitem", { name: "Force prepare" }),
     ).toHaveAttribute("data-disabled");
@@ -216,13 +212,10 @@ describe("Actions", () => {
       screen.getByText("Retry limit reached; force prepare remains available."),
     ).toBeInTheDocument();
 
-    fireEvent.pointerDown(
-      screen.getByRole("button", { name: "More actions" }),
-      {
-        button: 0,
-        ctrlKey: false,
-      },
-    );
+    fireEvent.mouseDown(screen.getByRole("button", { name: "More actions" }), {
+      button: 0,
+      ctrlKey: false,
+    });
     expect(
       await screen.findByRole("menuitem", { name: "Force prepare" }),
     ).not.toHaveAttribute("data-disabled");
@@ -232,13 +225,10 @@ describe("Actions", () => {
     mocks.writeText.mockRejectedValue(new Error("permission denied"));
     render(<Actions state={state} />);
 
-    fireEvent.pointerDown(
-      screen.getByRole("button", { name: "More actions" }),
-      {
-        button: 0,
-        ctrlKey: false,
-      },
-    );
+    fireEvent.mouseDown(screen.getByRole("button", { name: "More actions" }), {
+      button: 0,
+      ctrlKey: false,
+    });
     fireEvent.click(
       await screen.findByRole("menuitem", { name: "Copy execution ID" }),
     );
@@ -300,13 +290,10 @@ describe("Actions", () => {
     expect(
       screen.getByText("Refreshing current execution state."),
     ).toBeInTheDocument();
-    fireEvent.pointerDown(
-      screen.getByRole("button", { name: "More actions" }),
-      {
-        button: 0,
-        ctrlKey: false,
-      },
-    );
+    fireEvent.mouseDown(screen.getByRole("button", { name: "More actions" }), {
+      button: 0,
+      ctrlKey: false,
+    });
     expect(
       await screen.findByRole("menuitem", { name: "Force prepare" }),
     ).toHaveAttribute("data-disabled");

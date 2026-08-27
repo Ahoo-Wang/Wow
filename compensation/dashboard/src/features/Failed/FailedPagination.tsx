@@ -11,11 +11,7 @@
  * limitations under the License.
  */
 
-import {
-  ChevronLeft,
-  ChevronRight,
-  SlidersHorizontal,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,10 +42,7 @@ export function FailedPagination({
 }: FailedPaginationProps) {
   const [jumpPage, setJumpPage] = useState("");
   const firstItem = total === 0 ? 0 : (pageIndex - 1) * pageSize + 1;
-  const lastItem = Math.min(
-    (pageIndex - 1) * pageSize + rowCount,
-    total,
-  );
+  const lastItem = Math.min((pageIndex - 1) * pageSize + rowCount, total);
   const pageCount = Math.ceil(total / pageSize);
   const firstVisiblePage =
     pageCount === 0
@@ -127,17 +120,19 @@ export function FailedPagination({
           <ChevronRight />
         </Button>
         <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="failed-pagination-control"
-              aria-label="Pagination options"
-              disabled={loading}
-            >
-              <SlidersHorizontal />
-            </Button>
+          <PopoverTrigger
+            render={
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="failed-pagination-control"
+                aria-label="Pagination options"
+                disabled={loading}
+              />
+            }
+          >
+            <SlidersHorizontal />
           </PopoverTrigger>
           <PopoverContent align="end" className="w-64">
             <form className="space-y-4" onSubmit={submitPageJump}>
@@ -152,10 +147,7 @@ export function FailedPagination({
                     value={jumpPage}
                     onChange={(event) => setJumpPage(event.target.value)}
                   />
-                  <Button
-                    type="submit"
-                    disabled={pageCount === 0 || !jumpPage}
-                  >
+                  <Button type="submit" disabled={pageCount === 0 || !jumpPage}>
                     Go
                   </Button>
                 </div>
