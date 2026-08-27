@@ -24,11 +24,8 @@ import me.ahoo.wow.query.schema.DeclarationValue
 import me.ahoo.wow.query.schema.QueryFieldDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaConflictException
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
-import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.CARDINALITY
 import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.DESCRIPTION
-import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.DYNAMIC_CHILDREN
 import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.ENUM_VALUES
-import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.NULLABLE
 import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.SEMANTIC_TYPE
 import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.TITLE
 import me.ahoo.wow.serialization.state.StateAggregateRecords
@@ -248,103 +245,6 @@ internal class JsonSchemaWalker(
     private fun JsonNode.isWriteOnly(): Boolean = effectiveNodes().any {
         it.get(JsonSchemaProperty.WRITE_ONLY)?.takeIf(JsonNode::isBoolean)?.booleanValue() == true
     }
-}
-
-private fun QueryFieldDeclaration.mergeStructural(
-    other: QueryFieldDeclaration,
-    field: LogicalField,
-    valueTypes: DeclarationValue<Set<QueryValueType>>,
-    required: Boolean,
-): QueryFieldDeclaration = QueryFieldDeclaration(
-    title = title.requireSame(other.title, field, TITLE),
-    description = description.requireSame(other.description, field, DESCRIPTION),
-    enumValues = enumValues.requireSame(other.enumValues, field, ENUM_VALUES),
-    valueTypes = valueTypes,
-    nullable = nullable.requireSame(other.nullable, field, NULLABLE),
-    required = DeclarationValue.Set(required),
-    cardinality = cardinality.requireSame(other.cardinality, field, CARDINALITY),
-    semanticType = semanticType.requireSame(other.semanticType, field, SEMANTIC_TYPE),
-    dynamicChildren = dynamicChildren.requireSame(other.dynamicChildren, field, DYNAMIC_CHILDREN),
-)
-
-private fun MutableMap<LogicalField, QueryFieldDeclaration>.mergeConjunctive(
-    other: Map<LogicalField, QueryFieldDeclaration>,
-) {
-    other.forEach { (field, next) ->
-        merge(field, next) { current, merged ->
-            current.mergeStructural(
-                merged,
-                field,
-                current.valueTypes.intersect(merged.valueTypes, field),
-                current.isRequired() || merged.isRequired(),
-            )
-        }
-    }
-}
-
-private fun List<Map<LogicalField, QueryFieldDeclaration>>.mergeAlternatives():
-    Map<LogicalField, QueryFieldDeclaration> {
-    val merged = linkedMapOf<LogicalField, QueryFieldDeclaration>()
-    forEach { alternative ->
-        alternative.forEach { (field, next) ->
-            merged.merge(field, next) { current, branch ->
-                current.mergeStructural(
-                    branch,
-                    field,
-                    current.valueTypes.union(branch.valueTypes),
-                    current.isRequired() && branch.isRequired(),
-                )
-            }
-        }
-    }
-    return merged.mapValuesTo(linkedMapOf()) { (field, declaration) ->
-        declaration.copy(
-            required = DeclarationValue.Set(all { alternative -> alternative[field]?.isRequired() == true }),
-        )
-    }
-}
-
-private fun QueryFieldDeclaration.isRequired(): Boolean =
-    (required as? DeclarationValue.Set)?.value == true
-
-private fun DeclarationValue<Set<QueryValueType>>.union(
-    other: DeclarationValue<Set<QueryValueType>>,
-): DeclarationValue<Set<QueryValueType>> = when {
-    this is DeclarationValue.Set && other is DeclarationValue.Set -> DeclarationValue.Set(value + other.value)
-    this is DeclarationValue.Set -> this
-    else -> other
-}
-
-private fun DeclarationValue<Set<QueryValueType>>.intersect(
-    other: DeclarationValue<Set<QueryValueType>>,
-    field: LogicalField,
-): DeclarationValue<Set<QueryValueType>> = when {
-    this !is DeclarationValue.Set -> other
-    other !is DeclarationValue.Set -> this
-    value.isEmpty() -> other
-    other.value.isEmpty() -> this
-    else -> {
-        val intersection = value.intersect(other.value).toMutableSet()
-        val integerOnLeft = QueryValueType.INTEGER in value && QueryValueType.DECIMAL in other.value
-        val integerOnRight = QueryValueType.DECIMAL in value && QueryValueType.INTEGER in other.value
-        if (integerOnLeft || integerOnRight) {
-            intersection += QueryValueType.INTEGER
-        }
-        DeclarationValue.Set(
-            intersection.takeIf(Set<QueryValueType>::isNotEmpty)
-                ?: throw QuerySchemaConflictException("Conflicting query schema declaration: [$field.valueTypes]."),
-        )
-    }
-}
-
-private fun <T> DeclarationValue<T>.requireSame(
-    other: DeclarationValue<T>,
-    field: LogicalField,
-    leaf: String,
-): DeclarationValue<T> {
-    if (this === DeclarationValue.Unset) return other
-    if (other === DeclarationValue.Unset || this == other) return this
-    throw QuerySchemaConflictException("Conflicting query schema declaration: [$field.$leaf].")
 }
 
 private fun JsonNode.textValueOrNull(name: String): String? =
