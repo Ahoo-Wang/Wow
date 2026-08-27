@@ -30,7 +30,7 @@ flowchart LR
 
 | 模块 | 职责 | 精确源码 |
 | --- | --- | --- |
-| `example-api` | `example-service` 上下文、`order`/`cart` 聚合，以及命令、事件和值对象 | [`ExampleService.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-api/src/main/kotlin/me/ahoo/wow/example/api/ExampleService.kt#L24-L39)、[`CreateOrder.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-api/src/main/kotlin/me/ahoo/wow/example/api/order/CreateOrder.kt#L25-L67) |
+| `example-api` | `example-service` 上下文、`order`/`cart` 聚合，以及命令、事件和值对象 | [`ExampleService.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-api/src/main/kotlin/me/ahoo/wow/example/api/ExampleService.kt#L24-L39)、[`CreateOrder.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-api/src/main/kotlin/me/ahoo/wow/example/api/order/CreateOrder.kt#L25-L65) |
 | `example-domain` | 业务不变量、命令处理、事件溯源、Saga 与领域测试 | [`Order.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/Order.kt#L49-L197)、[`OrderState.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/OrderState.kt#L34-L108) |
 | `example-server` | Spring Boot 装配、生成 WebFlux 路由、投影与查询 | [`ExampleServer.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-server/src/main/kotlin/me/ahoo/wow/example/server/ExampleServer.kt)、[`OrderProjector.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-server/src/main/kotlin/me/ahoo/wow/example/server/order/OrderProjector.kt) |
 
@@ -102,7 +102,7 @@ Saga 处理成功只表示下游命令已发送，不会把两个聚合变成 AC
 ./gradlew :example-domain:check
 ```
 
-预期 Gradle 结束于 `BUILD SUCCESSFUL`。[`OrderSpec`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/order/OrderSpec.kt#L44-L320) 覆盖创建、支付、超额/重复支付、发货、收货、改址、删除、库存不足和价格不一致；[`CartSagaSpec`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/cart/CartSagaSpec.kt#L25-L75) 覆盖产生和不产生购物车命令的两条分支。
+预期 Gradle 结束于 `BUILD SUCCESSFUL`。[`OrderSpec`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/order/OrderSpec.kt#L44-L320) 覆盖创建、足额/重复支付、发货、收货、改址、删除、库存不足和价格不一致；[`OrderTest.should handle over payment`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/order/tradition/OrderTest.kt#L270-L294) 验证订单仍为 `CREATED` 时的真实超额支付分支；[`CartSagaSpec`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/cart/CartSagaSpec.kt#L25-L75) 覆盖产生和不产生购物车命令的两条分支。
 
 ## 8. 启动服务并提交命令
 

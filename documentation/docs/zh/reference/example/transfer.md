@@ -1,10 +1,10 @@
 ---
-title: 银行账户转账（Java）
+title: 银行账户转账(JAVA)
 description: 从真实 Java 聚合、Saga、运行时 OpenAPI 与测试追踪转账成功和回滚路径。
 outline: deep
 ---
 
-# 银行账户转账（Java）
+# 银行账户转账(JAVA)
 
 [`example/transfer`](https://github.com/Ahoo-Wang/Wow/tree/main/example/transfer) 用 Java 实现账户聚合，用 Wow 的无状态 Saga 协调跨账户转账。本页只描述仓库当前可以从源码、测试和运行时 OpenAPI 证明的行为。
 
@@ -50,7 +50,7 @@ flowchart LR
 
 预期结束于 `BUILD SUCCESSFUL`。
 
-当前 [`example-transfer-server` 的 application mainClass](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-server/build.gradle.kts#L34-L54) 指向不存在的 `ExampleServer`，因此 `./gradlew :example-transfer-server:run` 会以 `ClassNotFoundException` 失败。任务边界内不改 Gradle；可用真实主类 [`TransferExampleServer`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-server/src/main/java/me/ahoo/wow/example/transfer/server/TransferExampleServer.java#L23-L35) 启动同一分发包：
+当前 [`example-transfer-server` 的 application mainClass](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-server/build.gradle.kts#L34-L54) 指向不存在的 `ExampleServer`，因此 `./gradlew :example-transfer-server:run` 会以 `ClassNotFoundException` 失败。任务边界内不改 Gradle；可用真实主类 [`TransferExampleServer`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-server/src/main/java/me/ahoo/wow/example/transfer/server/TransferExampleServer.java#L23-L30) 启动同一分发包：
 
 ```shell
 mkdir -p example/transfer/example-transfer-server/logs
@@ -114,7 +114,7 @@ curl http://localhost:8080/account/targetId/state
 | --- | --- | --- |
 | `example-transfer-api` | `account` 的命令、事件与发布语言 | [`TransferService.java`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-api/src/main/java/me/ahoo/wow/example/transfer/TransferService.java)、[`api` 包](https://github.com/Ahoo-Wang/Wow/tree/main/example/transfer/example-transfer-api/src/main/java/me/ahoo/wow/example/transfer/api) |
 | `example-transfer-domain` | 账户决定、事件溯源、Saga 和测试 | [`Account.java`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-domain/src/main/java/me/ahoo/wow/example/transfer/domain/Account.java#L24-L82)、[`TransferSaga.java`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-domain/src/main/java/me/ahoo/wow/example/transfer/domain/TransferSaga.java#L20-L33) |
-| `example-transfer-server` | Spring Boot 入口和 WebFlux/OpenAPI 装配 | [`TransferExampleServer.java`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-server/src/main/java/me/ahoo/wow/example/transfer/server/TransferExampleServer.java#L23-L35)、[`application.yaml`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-server/src/main/resources/application.yaml) |
+| `example-transfer-server` | Spring Boot 入口和 WebFlux/OpenAPI 装配 | [`TransferExampleServer.java`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-server/src/main/java/me/ahoo/wow/example/transfer/server/TransferExampleServer.java#L23-L30)、[`application.yaml`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-server/src/main/resources/application.yaml) |
 
 ## 领域建模
 

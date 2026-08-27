@@ -1,10 +1,10 @@
 ---
-title: Kotlin Orders and Cart
+title: Kotlin Order and Cart
 description: Trace order commands, events, state, Saga, HTTP results, and failures through the repository's real source, generated OpenAPI, and tests.
 outline: deep
 ---
 
-# Kotlin Orders and Cart
+# Kotlin Order and Cart
 
 This page is a traceable reference for the real [`example`](https://github.com/Ahoo-Wang/Wow/tree/main/example), not a second simplified model. Every API contract, domain decision, runtime step, and HTTP result links back to source or tests.
 
@@ -30,7 +30,7 @@ flowchart LR
 
 | Module | Responsibility | Exact source |
 | --- | --- | --- |
-| `example-api` | The `example-service` context, `order`/`cart` aggregates, commands, events, and values | [`ExampleService.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-api/src/main/kotlin/me/ahoo/wow/example/api/ExampleService.kt#L24-L39), [`CreateOrder.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-api/src/main/kotlin/me/ahoo/wow/example/api/order/CreateOrder.kt#L25-L67) |
+| `example-api` | The `example-service` context, `order`/`cart` aggregates, commands, events, and values | [`ExampleService.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-api/src/main/kotlin/me/ahoo/wow/example/api/ExampleService.kt#L24-L39), [`CreateOrder.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-api/src/main/kotlin/me/ahoo/wow/example/api/order/CreateOrder.kt#L25-L65) |
 | `example-domain` | Invariants, command handling, sourcing, Sagas, and domain tests | [`Order.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/Order.kt#L49-L197), [`OrderState.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/OrderState.kt#L34-L108) |
 | `example-server` | Spring Boot wiring, generated WebFlux routes, projections, and queries | [`ExampleServer.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-server/src/main/kotlin/me/ahoo/wow/example/server/ExampleServer.kt), [`OrderProjector.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-server/src/main/kotlin/me/ahoo/wow/example/server/order/OrderProjector.kt) |
 
@@ -102,7 +102,7 @@ Saga success proves that the downstream command was sent; it does not make two a
 ./gradlew :example-domain:check
 ```
 
-Gradle should end with `BUILD SUCCESSFUL`. [`OrderSpec`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/order/OrderSpec.kt#L44-L320) covers create, payment, over/duplicate payment, shipping, receipt, address change, deletion, inventory shortage, and price mismatch. [`CartSagaSpec`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/cart/CartSagaSpec.kt#L25-L75) covers both the command and no-command branches.
+Gradle should end with `BUILD SUCCESSFUL`. [`OrderSpec`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/order/OrderSpec.kt#L44-L320) covers create, full/duplicate payment, shipping, receipt, address change, deletion, inventory shortage, and price mismatch. [`OrderTest.should handle over payment`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/order/tradition/OrderTest.kt#L270-L294) proves the real overpayment branch while the order is still `CREATED`. [`CartSagaSpec`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/cart/CartSagaSpec.kt#L25-L75) covers both the command and no-command branches.
 
 ## 8. Start the Service and Send a Command
 

@@ -1,10 +1,10 @@
 ---
-title: Bank Account Transfer (Java)
+title: Bank Account Transfer (JAVA)
 description: Trace successful and compensating transfer paths through the real Java aggregate, Saga, runtime OpenAPI, and tests.
 outline: deep
 ---
 
-# Bank Account Transfer (Java)
+# Bank Account Transfer (JAVA)
 
 [`example/transfer`](https://github.com/Ahoo-Wang/Wow/tree/main/example/transfer) implements the account aggregate in Java and coordinates cross-account transfer with a Wow stateless Saga. This page describes only behavior proven by current source, tests, and runtime OpenAPI.
 
@@ -50,7 +50,7 @@ Start with the infrastructure-free domain check:
 
 Expect `BUILD SUCCESSFUL`.
 
-The current [`example-transfer-server` application mainClass](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-server/build.gradle.kts#L34-L54) names a missing `ExampleServer`, so `./gradlew :example-transfer-server:run` currently fails with `ClassNotFoundException`. This documentation task does not change Gradle. Start the same distribution with the real [`TransferExampleServer`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-server/src/main/java/me/ahoo/wow/example/transfer/server/TransferExampleServer.java#L23-L35):
+The current [`example-transfer-server` application mainClass](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-server/build.gradle.kts#L34-L54) names a missing `ExampleServer`, so `./gradlew :example-transfer-server:run` currently fails with `ClassNotFoundException`. This documentation task does not change Gradle. Start the same distribution with the real [`TransferExampleServer`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-server/src/main/java/me/ahoo/wow/example/transfer/server/TransferExampleServer.java#L23-L30):
 
 ```shell
 mkdir -p example/transfer/example-transfer-server/logs
@@ -114,7 +114,7 @@ Expect source `balanceAmount=90, lockedAmount=0` and target `balanceAmount=10`.
 | --- | --- | --- |
 | `example-transfer-api` | Account commands, events, and published language | [`TransferService.java`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-api/src/main/java/me/ahoo/wow/example/transfer/TransferService.java), [`api` package](https://github.com/Ahoo-Wang/Wow/tree/main/example/transfer/example-transfer-api/src/main/java/me/ahoo/wow/example/transfer/api) |
 | `example-transfer-domain` | Account decisions, event sourcing, Saga, and tests | [`Account.java`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-domain/src/main/java/me/ahoo/wow/example/transfer/domain/Account.java#L24-L82), [`TransferSaga.java`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-domain/src/main/java/me/ahoo/wow/example/transfer/domain/TransferSaga.java#L20-L33) |
-| `example-transfer-server` | Spring Boot entry point and WebFlux/OpenAPI wiring | [`TransferExampleServer.java`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-server/src/main/java/me/ahoo/wow/example/transfer/server/TransferExampleServer.java#L23-L35), [`application.yaml`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-server/src/main/resources/application.yaml) |
+| `example-transfer-server` | Spring Boot entry point and WebFlux/OpenAPI wiring | [`TransferExampleServer.java`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-server/src/main/java/me/ahoo/wow/example/transfer/server/TransferExampleServer.java#L23-L30), [`application.yaml`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-server/src/main/resources/application.yaml) |
 
 ## Domain Modeling
 

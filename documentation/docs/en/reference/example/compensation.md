@@ -74,7 +74,7 @@ ApplyExecutionSuccess -> SUCCEEDED
 | Command | Domain decision | Event/result |
 | --- | --- | --- |
 | `CreateExecutionFailed` | Validate/materialize retry spec and calculate initial retryState | `ExecutionFailedCreated`, `FAILED` |
-| `PrepareCompensation` | Allowed only when `canRetry()` | `CompensationPrepared`, `PREPARED` |
+| `PrepareCompensation` | `FAILED`, or timed-out `PREPARED`, with retries below the limit | `CompensationPrepared`, `PREPARED` |
 | `ForcePrepareCompensation` | Ignores retry-count threshold, but not success; PREPARED must be timed out | `CompensationPrepared` |
 | `ApplyExecutionFailed` | Allowed only in `PREPARED` | `ExecutionFailedApplied`, back to `FAILED` |
 | `ApplyExecutionSuccess` | Allowed only in `PREPARED` | `ExecutionSuccessApplied`, `SUCCEEDED` |
@@ -87,15 +87,39 @@ Verify the domain, compensation filter, and dashboard first:
 
 ```shell
 ./gradlew :wow-compensation-domain:check :wow-compensation-core:check
-pnpm --dir compensation/dashboard test
+pnpm --dir compensation/dashboard exec vitest run
 ```
 
 Gradle and Vitest should both exit successfully. [`ExecutionFailedSpec`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-domain/src/test/kotlin/me/ahoo/wow/compensation/domain/ExecutionFailedSpec.kt#L61-L376) is the main state-machine evidence. [`CompensationFilterTest`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-core/src/test/kotlin/me/ahoo/wow/compensation/core/CompensationFilterTest.kt) covers first failure, replay failure, and successful write-back.
 
-The server requires working persistence configuration. Once configured, run:
+For a clean-checkout, non-persistent startup proof, the Gradle application's JVM arguments require module-local `logs/` and `config/` first. The complete command below is verified to reach Netty startup. It is only for route and local state-machine checks: data is lost on exit and automatic scheduling is disabled.
 
 ```shell
+mkdir -p compensation/wow-compensation-server/logs
+test -e compensation/wow-compensation-server/config || \
+  ln -s src/main/resources compensation/wow-compensation-server/config
+
+SPRING_AUTOCONFIGURE_EXCLUDE='org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchClientAutoConfiguration,org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchRestClientAutoConfiguration,org.springframework.boot.data.redis.autoconfigure.DataRedisReactiveAutoConfiguration,org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration,org.springframework.boot.mongodb.autoconfigure.MongoReactiveAutoConfiguration' \
+COSID_MACHINE_DISTRIBUTOR_TYPE=manual \
+COSID_MACHINE_DISTRIBUTOR_MANUAL_MACHINE_ID=1 \
+WOW_COMPENSATION_SCHEDULER_ENABLED=false \
+WOW_COMPENSATION_WEBHOOK_WEIXIN_URL=http://localhost:1/ \
+WOW_KAFKA_ENABLED=false \
+WOW_COMMAND_BUS_TYPE=in_memory \
+WOW_EVENT_BUS_TYPE=in_memory \
+WOW_EVENTSOURCING_STATE_BUS_TYPE=in_memory \
+WOW_EVENTSOURCING_STORE_STORAGE=in_memory \
+WOW_EVENTSOURCING_SNAPSHOT_STORAGE=in_memory \
+WOW_PREPARE_ENABLED=false \
+WOW_MONGO_ENABLED=false \
+WOW_REDIS_ENABLED=false \
+WOW_ELASTICSEARCH_ENABLED=false \
 ./gradlew :wow-compensation-server:run
+```
+
+Expect `Netty started on port 8080` and `Started CompensationServerKt`. The placeholder webhook URL only satisfies current CoApi placeholder resolution; this local command sends no notification. For durable compensation, still create the same `logs/`/`config`, configure real MongoDB, Redis, Kafka, and the scheduler, then remove the in-memory/disable overrides. Run the dashboard separately:
+
+```shell
 pnpm --dir compensation/dashboard dev
 ```
 
@@ -116,9 +140,9 @@ curl -X PUT \
   -H 'Command-Request-Id: prepare-<execution-id>'
 ```
 
-Expect `succeeded=true` and `stage=PROCESSED`; after dashboard refresh, status is `PREPARED`. Successful replay changes it to `SUCCEEDED`; another failure returns it to `FAILED` with a new error and next retry time. The actual dashboard call and success/error feedback are in [`Actions.tsx`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/Actions.tsx#L72-L119).
+`succeeded=true` and `stage=PROCESSED` prove only that the prepare command was processed. They do not guarantee that a later read still sees `PREPARED`: it may read the old `FAILED` before replay starts, a brief `PREPARED`, or final `SUCCEEDED`/new `FAILED`. To observe a snapshot or handler, select the corresponding wait stage, poll the generated snapshot/event query endpoints, and inspect state-event history instead of asserting one immediate read. The actual dashboard call and success/error feedback are in [`Actions.tsx`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/Actions.tsx#L72-L119).
 
-Failure behavior must remain visible: ordinary prepare rejects a PREPARED record; applying success/failure to FAILED or SUCCEEDED returns `ExecutionFailed is not prepared.`; ordinary prepare closes at the retry limit, while force prepare still respects success and PREPARED timeout; negative retry values or exponential-backoff overflow fail in the aggregate. Dashboard button state is guidance—the server state machine remains authoritative.
+Failure behavior must remain visible: ordinary prepare rejects only a PREPARED record that has not timed out; after timeout it can prepare again while below the retry limit. Ordinary prepare rejects `SUCCEEDED` or a record at the limit. Applying success/failure to FAILED or SUCCEEDED returns `ExecutionFailed is not prepared.`; force prepare still respects success and PREPARED timeout; negative retry values or exponential-backoff overflow fail in the aggregate. Dashboard button state is guidance—the server state machine remains authoritative.
 
 ## Console Screenshot
 

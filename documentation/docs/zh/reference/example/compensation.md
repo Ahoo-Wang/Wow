@@ -1,5 +1,5 @@
 ---
-title: 事件补偿案例
+title: 事件补偿示例
 description: 从真实补偿过滤器、ExecutionFailed 聚合、调度器、生成客户端和 dashboard 追踪失败恢复闭环。
 outline: deep
 ---
@@ -74,7 +74,7 @@ ApplyExecutionSuccess -> SUCCEEDED
 | 命令 | 领域决策 | 事件/结果 |
 | --- | --- | --- |
 | `CreateExecutionFailed` | 校验/补全重试规格，计算初始 retryState | `ExecutionFailedCreated`, `FAILED` |
-| `PrepareCompensation` | `canRetry()` 才允许 | `CompensationPrepared`, `PREPARED` |
+| `PrepareCompensation` | `FAILED`，或已超时的 `PREPARED`，且重试次数低于上限 | `CompensationPrepared`, `PREPARED` |
 | `ForcePrepareCompensation` | 忽略重试次数阈值，但成功项仍不可重试；PREPARED 必须已超时 | `CompensationPrepared` |
 | `ApplyExecutionFailed` | 仅 `PREPARED` 可写入 | `ExecutionFailedApplied`, 回到 `FAILED` |
 | `ApplyExecutionSuccess` | 仅 `PREPARED` 可写入 | `ExecutionSuccessApplied`, `SUCCEEDED` |
@@ -87,15 +87,39 @@ ApplyExecutionSuccess -> SUCCEEDED
 
 ```shell
 ./gradlew :wow-compensation-domain:check :wow-compensation-core:check
-pnpm --dir compensation/dashboard test
+pnpm --dir compensation/dashboard exec vitest run
 ```
 
 预期 Gradle 和 Vitest 都成功退出。领域状态机的主证据是 [`ExecutionFailedSpec`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-domain/src/test/kotlin/me/ahoo/wow/compensation/domain/ExecutionFailedSpec.kt#L61-L376)；过滤器的首次失败、再次失败和成功写回由 [`CompensationFilterTest`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-core/src/test/kotlin/me/ahoo/wow/compensation/core/CompensationFilterTest.kt) 覆盖。
 
-服务需要可用的持久化配置；配置完成后运行：
+从 clean checkout 做无持久化启动验证时，Gradle application 的 JVM 参数要求模块内先有 `logs/` 和 `config/`。下面的完整命令已验证能启动到 Netty；它只适合路由和本地状态机验证，进程退出后数据会丢失，也不会运行自动调度：
 
 ```shell
+mkdir -p compensation/wow-compensation-server/logs
+test -e compensation/wow-compensation-server/config || \
+  ln -s src/main/resources compensation/wow-compensation-server/config
+
+SPRING_AUTOCONFIGURE_EXCLUDE='org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchClientAutoConfiguration,org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchRestClientAutoConfiguration,org.springframework.boot.data.redis.autoconfigure.DataRedisReactiveAutoConfiguration,org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration,org.springframework.boot.mongodb.autoconfigure.MongoReactiveAutoConfiguration' \
+COSID_MACHINE_DISTRIBUTOR_TYPE=manual \
+COSID_MACHINE_DISTRIBUTOR_MANUAL_MACHINE_ID=1 \
+WOW_COMPENSATION_SCHEDULER_ENABLED=false \
+WOW_COMPENSATION_WEBHOOK_WEIXIN_URL=http://localhost:1/ \
+WOW_KAFKA_ENABLED=false \
+WOW_COMMAND_BUS_TYPE=in_memory \
+WOW_EVENT_BUS_TYPE=in_memory \
+WOW_EVENTSOURCING_STATE_BUS_TYPE=in_memory \
+WOW_EVENTSOURCING_STORE_STORAGE=in_memory \
+WOW_EVENTSOURCING_SNAPSHOT_STORAGE=in_memory \
+WOW_PREPARE_ENABLED=false \
+WOW_MONGO_ENABLED=false \
+WOW_REDIS_ENABLED=false \
+WOW_ELASTICSEARCH_ENABLED=false \
 ./gradlew :wow-compensation-server:run
+```
+
+预期日志包含 `Netty started on port 8080` 和 `Started CompensationServerKt`。占位 webhook URL 只用于满足当前 CoApi placeholder 解析；本地命令不触发通知。验证持久化补偿时，仍先创建相同的 `logs/`/`config`，再配置真实 MongoDB、Redis、Kafka 和 scheduler，去掉上述内存/禁用覆盖后启动。dashboard 单独运行：
+
+```shell
 pnpm --dir compensation/dashboard dev
 ```
 
@@ -116,9 +140,9 @@ curl -X PUT \
   -H 'Command-Request-Id: prepare-<execution-id>'
 ```
 
-预期命令结果 `succeeded=true`、`stage=PROCESSED`，dashboard 刷新后状态为 `PREPARED`；处理器重放成功后变为 `SUCCEEDED`，再次失败则回到 `FAILED` 并更新错误与下一次重试时间。dashboard 实际调用与成功/失败提示见 [`Actions.tsx`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/Actions.tsx#L72-L119)。
+`succeeded=true`、`stage=PROCESSED` 只证明 prepare 命令已处理，不能保证随后读取时仍能看到 `PREPARED`：重放可能尚未开始而仍读到旧 `FAILED`，短暂处于 `PREPARED`，或已经落到最终 `SUCCEEDED`/新的 `FAILED`。若要观察 snapshot 或处理函数，应选择对应等待阶段，轮询生成的 snapshot/event 查询端点，并核对状态事件历史，而不是对一次即时读取作断言。dashboard 实际调用与成功/失败提示见 [`Actions.tsx`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/Actions.tsx#L72-L119)。
 
-失败行为必须保留：对 PREPARED 记录重复普通 prepare 会被拒绝；对 FAILED/SUCCEEDED 记录直接 apply success/failure 会得到 `ExecutionFailed is not prepared.`；超过重试次数后普通 prepare 关闭，但 force prepare 仍受成功状态和 PREPARED 超时约束；负重试值或指数退避溢出会在聚合内失败。dashboard 的按钮禁用只是提示，最终决定仍由服务端状态机作出。
+失败行为必须保留：普通 prepare 只拒绝尚未超时的 `PREPARED`；已超时且低于重试上限时可以再次 prepare。`SUCCEEDED` 或达到上限时普通 prepare 被拒绝；对 `FAILED`/`SUCCEEDED` 直接 apply success/failure 会得到 `ExecutionFailed is not prepared.`；force prepare 仍受成功状态和 PREPARED 超时约束；负重试值或指数退避溢出会在聚合内失败。dashboard 的按钮禁用只是提示，最终决定仍由服务端状态机作出。
 
 ## 控制台截图
 
