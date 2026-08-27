@@ -1,102 +1,134 @@
 ---
 title: Observability
-description: End-to-end observability integration for the Wow framework.
+description: Trace and metric evidence across the Wow command, event, storage, and recovery pipeline.
 ---
 
 # Observability
 
 ![Observability](/images/observability/observability.png)
 
-Wow provides end-to-end observability through two complementary integrations:
+Wow exposes two different views of the same runtime pipeline:
 
-- **Metrics** (Micrometer/Reactor) — counters and timers for command, event, event-store, snapshot, projection, saga, and dispatcher operations. See [Metrics](./metrics) for the full metric catalogue and the `wow.metrics.enabled` switch.
-- **Distributed tracing** (OpenTelemetry) — `wow-opentelemetry` instruments every cross-cutting component with OpenTelemetry spans. See [OpenTelemetry](../extensions/opentelemetry) for the instrumenter list and attribute tags.
+- [Metrics](./metrics) aggregate finite operations, receiver streams, and batch activity with bounded Micrometer
+  tags.
+- `wow-opentelemetry` creates OpenTelemetry spans and propagates message trace context across command, event, state,
+  persistence, and wait boundaries.
+
+Use metrics to locate a failing or slow stage, then use traces to follow one execution. Neither signal replaces
+backend reconciliation, projection-lag checks, or deployment evidence.
 
 ## What the OpenTelemetry module instruments
 
-When `wow-opentelemetry` is on the classpath, the `WowOpenTelemetryAutoConfiguration` registers tracing decorators for:
+The Spring starter registers five processing filters and decorates supported infrastructure beans:
 
-| Category | Instrumented components |
-|---|---|
-| **Command path** | `CommandGateway` wait plan, `CommandBus` producer |
-| **Event path** | `DomainEventBus` / `StateEventBus` producers, event processor, projection, stateless saga |
-| **Persistence** | `EventStore`, `SnapshotStore`, snapshot repository |
-| **Aggregate** | Aggregate processing filter chain |
+| Runtime stage | Instrumentation scope | Representative span name |
+|---|---|---|
+| Command publication | `me.ahoo.wow-commandProducer` | `<aggregate>.<command>.command send` |
+| Aggregate execution | `me.ahoo.wow-aggregate` | `<aggregate>.<command>` |
+| Event persistence | `me.ahoo.wow-eventStore` | `<aggregate>.<event>.event.append`, `<aggregate>.event.load` |
+| Domain/state publication | `me.ahoo.wow-eventProducer`, `me.ahoo.wow-stateEventProducer` | `<aggregate>.<event>.event send`, `<aggregate>.<event>.state_event send` |
+| Event processing | `me.ahoo.wow-eventProcessor`, `-projection`, `-statelessSaga` | Event-function qualified name |
+| Snapshot processing/storage | `me.ahoo.wow-snapshot`, `-snapshotStore` | `<aggregate>.snapshot`, `.snapshot.save`, `.snapshot.load`, `.snapshot.version` |
+| Command wait plan | `me.ahoo.wow-wait` | `<aggregate>.<command>.waiting` |
 
-Initialize `GlobalOpenTelemetry` (via the OpenTelemetry Java agent or an SDK registered during bootstrap) **before** the Wow application context creates the tracing filters and decorators. Registering the SDK after the Wow tracing instrumenters have initialized is too late.
+Message spans add `wow.message.id`, optional `wow.message.request_id` and `wow.message.trace_id`, plus
+`wow.aggregate.context_name`, `wow.aggregate.name`, `wow.aggregate.id`, and `wow.aggregate.tenant_id` when an
+aggregate identity is present. These are trace attributes, not low-cardinality metric tags.
+
+Producer instrumenters inject the OpenTelemetry propagation headers into the Wow message header; consumer filters
+extract them. `TraceMono` and `TraceFlux` restore the OpenTelemetry `Context` for subscription and asynchronous
+signals, and end the span on completion, error, or cancellation. The wait decorator preserves the command gateway's
+runtime receiver/admission contract.
+
+All instrumenters capture `GlobalOpenTelemetry` when their singleton objects initialize. Initialize the SDK before
+the Wow ApplicationContext creates filters or decorators. The OpenTelemetry Java Agent satisfies this ordering
+because it starts before application bootstrap.
 
 ## Correlating Your Own Spans
 
-Wow propagates the OpenTelemetry `Context` through the Reactor pipeline (stored in the Reactor
-context). Any child span you create inside a command handler, saga, or projection automatically
-links to the Wow command's trace — no manual context passing required.
+Create business spans only around meaningful remote calls or expensive domain work. Keep aggregate IDs out of metric
+tags; they are appropriate trace attributes.
 
 ### In a Command Handler
 
+Wow makes its span current while invoking the nested work, so use `Context.current()` explicitly as the parent and
+scope the business call:
+
 ```kotlin
 import io.opentelemetry.api.GlobalOpenTelemetry
-import io.opentelemetry.api.trace.Tracer
+import io.opentelemetry.context.Context
 
-@AggregateRoot
-class Order(private val state: OrderState) {
-    private val tracer: Tracer = GlobalOpenTelemetry.getTracer("order-domain")
+private val tracer = GlobalOpenTelemetry.getTracer("order-domain")
 
-    @OnCommand
-    fun onCommand(command: CreateOrder, exchange: ServerCommandExchange<*>): OrderCreated {
-        val span = tracer.spanBuilder("validate-inventory")
-            .setAttribute("order.item_count", command.items.size)
-            .startSpan()
-        try {
-            // Your business logic — this span appears as a child of
-            // the Wow-generated "order.create_order" aggregate span
+@OnCommand
+fun handle(command: CreateOrder): OrderCreated {
+    val span = tracer.spanBuilder("inventory.validate")
+        .setParent(Context.current())
+        .setAttribute("order.item_count", command.items.size.toLong())
+        .startSpan()
+    return try {
+        span.makeCurrent().use {
             validateItems(command.items)
-            return OrderCreated(...)
-        } finally {
-            span.end()
+            OrderCreated(command.id)
         }
+    } catch (error: Throwable) {
+        span.recordException(error)
+        throw error
+    } finally {
+        span.end()
     }
 }
 ```
+
+This example is synchronous. Do not leave a scope open across an asynchronous boundary or a different thread.
 
 ### In a Reactive Handler (Mono/Flux)
 
-For reactive handlers, the OTel context is carried in the Reactor context. Use
-`ContextView`-aware span creation so the parent trace is preserved across async boundaries:
+Build the span at subscription time, and end it from the complete Reactor lifecycle:
 
 ```kotlin
-@ProjectionProcessor
-class OrderProjection {
-    private val tracer = GlobalOpenTelemetry.getTracer("order-projection")
+@OnEvent
+fun onOrderCreated(event: OrderCreated): Mono<Void> = Mono.defer {
+    val span = tracer.spanBuilder("order_summary.save")
+        .setParent(Context.current())
+        .setAttribute("order.id", event.orderId)
+        .startSpan()
 
-    @OnEvent
-    fun onOrderCreated(event: OrderCreated): Mono<Void> {
-        return Mono.deferContextual { ctx ->
-            // The Wow TraceFilter already stored the OTel Context in the Reactor context.
-            // GlobalOpenTelemetry picks it up automatically when you create a span here.
-            val span = tracer.spanBuilder("project-order-summary")
-                .setAttribute("order.id", event.orderId)
-                .startSpan()
-            orderSummaryRepository
-                .save(buildSummary(event))
-                .doFinally { span.end() }
-                .then()
-        }
+    orderSummaryRepository.save(buildSummary(event))
+        .doOnError(span::recordException)
+        .doFinally { span.end() }
+        .then()
+}
+```
+
+If custom operators escape the instrumented subscriber chain, propagate an OpenTelemetry `Context` deliberately and
+cover that boundary with an integration test. The module tests verify restoration across `publishOn`, nested traced
+publishers, cancellation, and source errors.
+
+For one incident, follow this evidence chain:
+
+1. select the metric stage and time window by `component`, `operation`, `context`, `aggregate`, and `outcome`;
+2. find a matching trace by service, operation, aggregate, request ID, or message ID;
+3. confirm the span reaches the expected store and downstream processor;
+4. reconcile the final backend version/read model and deployment revision separately.
+
+## Installation
+
+For a Spring Boot application, request the starter capability so auto-configuration is present:
+
+```kotlin
+implementation("me.ahoo.wow:wow-spring-boot-starter") {
+    capabilities {
+        requireCapability("me.ahoo.wow:opentelemetry-support")
     }
 }
 ```
 
-The resulting trace in Jaeger/Zipkin/Tempo shows your business span nested inside the Wow
-framework span, giving you end-to-end visibility from HTTP request through domain logic to
-read-model update.
-
-## Installation
+For non-Spring composition, depend directly on the module and apply the `Tracing.tracing()` decorators yourself:
 
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
 implementation("me.ahoo.wow:wow-opentelemetry")
-```
-```groovy [Gradle(Groovy)]
-implementation 'me.ahoo.wow:wow-opentelemetry'
 ```
 ```xml [Maven]
 <dependency>
@@ -106,3 +138,9 @@ implementation 'me.ahoo.wow:wow-opentelemetry'
 </dependency>
 ```
 :::
+
+Exporter setup and the `wow.opentelemetry.enabled` switch are documented in
+[Observability Configuration](/reference/config/observability).
+
+<!-- Sources: wow-opentelemetry/src/main/kotlin/me/ahoo/wow/opentelemetry/, its TracePublisherTest and
+TracingCommandGatewayWaitTest, and wow-spring-boot-starter/.../opentelemetry/ -->

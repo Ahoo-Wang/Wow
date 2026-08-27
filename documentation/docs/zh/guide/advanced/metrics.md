@@ -1,188 +1,151 @@
 ---
 title: 指标
-description: Wow 基于显式 MeterRegistry 的低基数语义指标。
+description: Wow 低基数运行时指标、管线含义与导出证据。
 ---
 
 # 指标
 
-Wow 使用 Micrometer 记录框架语义指标。每个 `WowMetrics` 实例只绑定一个
-`MeterRegistry`；Spring Boot 自动使用当前 ApplicationContext 中的 Registry，
-不依赖 Micrometer global registry，也不会在多个 ApplicationContext 之间共享启用状态。
+Wow 使用 Micrometer 记录框架工作。`WowMetrics` 具有实例作用域：一个实例只写入一个
+`MeterRegistry`；`WowMetrics.NONE` 则原样返回 Reactor publisher。因此，指标只证明某条运行时路径被
+观测到，不证明事件已持久化、投影已追平或生产流量已获准进入。
 
 ## 自动接入
 
-使用 `wow-spring-boot-starter` 时，应用只需提供 `MeterRegistry` Bean。最常见的方式是加入
-Actuator 和一个 Registry 实现：
+使用 `wow-spring-boot-starter` 时，为应用提供一个 `MeterRegistry`：
 
 ```kotlin
 implementation("org.springframework.boot:spring-boot-starter-actuator")
 runtimeOnly("io.micrometer:micrometer-registry-prometheus")
 ```
 
-指标默认启用，不需要额外配置 Wow；`wow.metrics.enabled` 的默认值是 `true`。项目当前使用的
-Spring Boot 4.1.1 通过 OTLP 导出时，把 Prometheus Registry 替换为 `spring-boot-opentelemetry` 和
-`micrometer-registry-otlp`；默认导出路径只需设置 `OTEL_SERVICE_NAME` 和
-`OTEL_EXPORTER_OTLP_ENDPOINT`。完整依赖参见
-[可观测性配置](/zh/reference/config/observability#通过-otlp-导出指标-opentelemetry-collector)。
+`wow.metrics.enabled` 默认是 `true`。自动配置从当前 ApplicationContext 的 Registry 创建
+`WowMetrics`，装饰消息总线、物理存储、快照策略与处理器，并把同一实例提供给 dispatcher 和 batch
+instrumentation。属性为 `false` 时，最高优先级
+的启用处理器也会把自定义 `WowMetrics` Bean 替换为 `WowMetrics.NONE`；没有 Registry 时默认 Bean 同样
+为 `NONE`。
 
-如果 `wow.metrics.enabled=false`，或者上下文中没有 `MeterRegistry`，Wow 使用
-`WowMetrics.NONE`，响应式链保持无指标的紧凑路径。
+路由存储本身不重复计数。系统装饰最终选中的 `EventStoreBinding` 或 `SnapshotStoreBinding`，让一次物理
+调用只产生一次指标；已包含 `Metered` 的装饰链不会再次包装。
 
 ## 统一指标模型
 
-| Meter | 类型 | 含义 |
+五个 meter ID 分别描述有限操作与长生命周期 receive 流：
+
+| Meter | 类型 | 运行时含义 |
 |---|---|---|
-| `wow.operation` | Timer | 有限操作的耗时、结果和异常 |
-| `wow.operation.items` | DistributionSummary | Flux 有限操作产生的元素数 |
-| `wow.stream.active` | LongTaskTimer | 长生命周期 receive 流的活跃订阅 |
-| `wow.stream.messages` | Counter | receive 流收到的消息数 |
-| `wow.stream.terminations` | Counter | receive 流的完成、错误或取消次数 |
+| `wow.operation` | Timer | 有限 `Mono` 或 `Flux` 从订阅到终止的时间 |
+| `wow.operation.items` | DistributionSummary | 有限 `Flux` 发出的元素数 |
+| `wow.stream.active` | LongTaskTimer | 当前活跃的长生命周期 receiver 订阅 |
+| `wow.stream.messages` | Counter | receiver 订阅发出的消息数 |
+| `wow.stream.terminations` | Counter | receiver 完成、错误或取消次数 |
 
-所有语义 meter 使用相同的低基数基础标签：
+五组指标统一使用低基数标签 `component`、`operation`、`context`、`aggregate`、`message`、`processor`、
+`source` 与 `subscriber`。终止指标再增加 `outcome=success|error|cancelled` 和 `exception`；缺失值为
+`none`，多聚合订阅的 aggregate 为 `multiple`。Aggregate ID、request ID、trace ID 属于高基数日志或
+追踪字段，不进入指标标签。
 
-| 标签 | 含义 |
-|---|---|
-| `component` | `command_bus`、`event_store`、`projection_handler` 等稳定组件类型 |
-| `operation` | `send`、`receive`、`append`、`handle` 等稳定操作 |
-| `context` | 限界上下文；无法确定时为 `none` |
-| `aggregate` | 聚合名称；订阅多个聚合时统一为 `multiple` |
-| `message` | 命令或事件名称；不适用时为 `none` |
-| `processor` | 事件处理器或 dispatcher 名称 |
-| `source` | Spring Bean 名称、存储 binding 名称或手动指定的来源 |
-| `subscriber` | receiver group；Reactor Context 中的 dispatcher 名称优先 |
+可以把这些标签直接读成运行管线：
 
-终止指标额外包含 `outcome=success|error|cancelled` 和 `exception`。Wow 不导出
-aggregate ID、dispatcher group key 等高基数字段。
+| 运行阶段 | `component` / 代表性 `operation` | 信号能证明什么 |
+|---|---|---|
+| 命令接收与发布 | `command_bus` / `receive`、`send`、`send_if_subscribed` | 总线 publisher 以记录的结果终止 |
+| 聚合执行 | `command_handler` / `handle` | 命令处理 publisher 已终止 |
+| 事件持久化 | `event_store` / `append`、`load_by_version`、`load_by_time`、`last` | 选中存储的调用已终止；耐久性仍以 backend acknowledgement 为准 |
+| 事件发布与接收 | `domain_event_bus`、`state_event_bus` / `send`、`receive` | 消息总线边界已执行 |
+| 下游处理 | `domain_event_handler`、`projection_handler`、`stateless_saga_handler`、`snapshot_handler` / `handle` | 对应 handler publisher 已终止，不代表所有订阅者都追平 |
+| 快照工作 | `snapshot_strategy` / `on_event`；`snapshot_store` / `load`、`get_version`、`save` | 策略或物理快照存储操作已终止 |
 
-主要组件和操作如下：
-
-| `component` | `operation` |
-|---|---|
-| `command_bus`、`domain_event_bus`、`state_event_bus` | `send`、`send_if_subscribed`、`receive` |
-| `event_store` | `append`、`load_by_version`、`load_by_time`、`exists_request_id`、`last`、`scan_aggregate_id` |
-| `snapshot_store` | `load`、`get_version`、`save` |
-| `command_handler`、`domain_event_handler`、`projection_handler`、`stateless_saga_handler`、`snapshot_handler` | `handle` |
-| `snapshot_strategy` | `on_event` |
-| `dispatcher` | `handle` |
-
-`RoutingEventStore` 和 `RoutingSnapshotStore` 对指标透明；只有最终物理 leaf store 记录操作，
-避免同一次路由调用被重复计数。
+排障时可用 context、aggregate、message、processor 等稳定字段把指标窗口与 Wow trace 对齐；指标标签
+本身不会携带 trace ID。
 
 ## 存储批处理指标
 
-MongoDB 和 Elasticsearch 的 batching 路径复用同一个 `WowMetrics` Registry：
+启用批处理的 MongoDB 与 Elasticsearch 存储复用同一个 `WowMetrics` Registry：
 
-| Meter | 类型 | 主要标签 |
+| Meter | 类型 | 标签 |
 |---|---|---|
 | `wow.batch.admission.rejected` | Counter | `coordinator`、`reason` |
 | `wow.batch.queue.wait` | Timer | `coordinator`、`lane` |
 | `wow.batch.write` | Timer | `coordinator`、`lane`、`window`、`outcome` |
-| `wow.batch.write.items` | DistributionSummary | `coordinator`、`lane`、`window`、`outcome`、`kind` |
+| `wow.batch.write.items` | DistributionSummary | write 标签加 `kind=buffered|written|failed` |
 | `wow.batch.coordinator.failed` | Counter | `coordinator` |
 | `wow.batch.close` | Timer | `coordinator`、`outcome` |
 
-只有启用 batching 并执行相应操作后，相关 meter 才会出现。
+只有对应批处理路径实际运行后才会出现这些序列。admission rejection 或 failed item 是操作信号；重试前
+还要核对调用方错误与 backend 状态，避免重复写入。
 
 ## 非 Spring 接入
 
-`wow-core` 直接公开 Micrometer 契约。手动创建一个实例，并用它分别装饰需要记录语义组件指标的
-总线、存储和处理器。构造函数中的 `metrics` 参数只为该组件自身负责的行为插桩，不会递归装饰
-它依赖的其他组件：
+先建立一个明确的 Registry 边界，再只装饰该运行时实际拥有的组件：
 
 ```kotlin
-val registry: MeterRegistry = SimpleMeterRegistry()
-val metrics = WowMetrics(registry)
+val metrics = WowMetrics(SimpleMeterRegistry())
 
-val meteredCommandBus = commandBus.metered(
-    metrics = metrics,
-    source = "command-bus",
-)
-val meteredCommandHandler = commandHandler.metered(
-    metrics = metrics,
-    source = "command-handler",
-)
-
-val eventStore: EventStore = MongoEventStore(
-    database = database,
-    batchOptions = MongoEventStoreBatchOptions(enabled = true),
-    metrics = metrics, // 批处理生命周期指标。
-).metered(
-    metrics = metrics, // EventStore 操作指标。
-    source = "primary-event-store",
-)
-
-val dispatcher = CommandDispatcher(
-    commandBus = meteredCommandBus,
-    commandHandler = meteredCommandHandler,
-    metrics = metrics,
-)
+val meteredBus = commandBus.metered(metrics, "command-bus")
+val meteredStore = eventStore.metered(metrics, "primary-event-store")
+val meteredHandler = commandHandler.metered(metrics, "command-handler")
 ```
 
-`MongoEventStore` 构造函数接收的 `WowMetrics` 用于内部批处理生命周期；`metered` 装饰器记录
-上文列出的 `EventStore` 操作。两层传入同一个实例，可以让所有 meter 写入同一 Registry，
-同时不会重复计算同一次操作。
-
-有限操作和长生命周期流也可以直接复用统一模型：
+自定义有限操作和长生命周期流也使用同一 descriptor 契约：
 
 ```kotlin
 val descriptor = MetricDescriptor(
-    component = "integration",
+    component = "partner_client",
     operation = "pull",
-    source = "partner-api",
+    source = "inventory-api",
 )
 
-val result = metrics.operation(client.pull(), descriptor)
+val response = metrics.operation(client.pull(), descriptor)
 val messages = metrics.stream(receiver.messages(), descriptor)
 ```
 
-这些 API 基于 Reactor `tap(SignalListenerFactory)`，没有使用已弃用的
-`Mono.metrics()` / `Flux.metrics()`。
+这些 API 使用 Reactor `tap`，不会阻塞，也不会配置全局 Micrometer Registry。
 
 ## 从旧指标 API 迁移
 
-统一指标模型不提供旧 API 或旧 meter 名称的兼容层。升级时按下表迁移：
+统一模型要求迁移仪表盘，而不是简单改 meter 名称：
 
-| 旧方式 | 新方式 |
+| 旧契约 | 当前契约 |
 |---|---|
-| `Metrics.metrizable()` 或 `.metrizable()` | 创建共享 `WowMetrics(registry)`，再调用 `.metered(metrics, source)` |
-| `Metrics.configureEnabled(...)` 或非 Spring 系统属性开关 | Spring 使用 `wow.metrics.enabled`；非 Spring 显式选择 `WowMetrics(registry)` 或 `WowMetrics.NONE` |
-| Micrometer global registry | 为每个应用或运行时显式传入 `MeterRegistry` |
-| Reactor sequence meter，例如 `*.flow.duration`、`*.onNext.delay` | 有限操作查询 `wow.operation` / `wow.operation.items`；长生命周期 receive 流查询 `wow.stream.*` |
+| `Metrics.metrizable()` / `.metrizable()` | 共享 `WowMetrics(registry)`，再调用 `.metered(metrics, source)` |
+| 进程级/全局启用状态 | Spring 使用 `wow.metrics.enabled`；非 Spring 显式选择 `WowMetrics` 或 `WowMetrics.NONE` |
+| Micrometer global registry | 应用或运行时自有的 `MeterRegistry` |
+| Reactor sequence 序列 | 有限工作查询 `wow.operation*`，receiver 查询 `wow.stream.*` |
 
-旧 meter 与新语义指标不是简单重命名关系。Dashboard、Recording Rule 和告警应以
-`component`、`operation`、`outcome` 等标签重写查询；完成切换前保留旧版本应用作为回滚路径。
+发布窗口内并行运行新旧仪表盘，证明流量覆盖等价后再删除旧告警。本地 scrape 成功只验证名称与标签，
+不能证明生产阈值、告警路由或值班响应已经准入。
 
 ## 导出到 Prometheus 或 OTLP
 
-Wow 只向当前应用的 `MeterRegistry` 写入 meter；导出目标由 Registry 决定：
+Wow 只写应用 Registry，导出由 Registry 负责：
 
 ```mermaid
 flowchart LR
-    Wow["WowMetrics"] --> Registry["Application MeterRegistry"]
-    Registry --> Prometheus["Prometheus"]
-    Registry --> Collector["OpenTelemetry Collector"]
-    Tracing["wow-opentelemetry spans"] --> Collector
+    Runtime["Wow 运行阶段"] --> Metrics["WowMetrics"]
+    Metrics --> Registry["应用 MeterRegistry"]
+    Registry --> Prometheus["Prometheus scrape"]
+    Registry --> OTLP["OTLP 指标 exporter"]
+    Runtime --> Tracing["wow-opentelemetry spans"]
+    Tracing --> Collector["OpenTelemetry Collector"]
+    OTLP --> Collector
 ```
 
-项目当前使用的 Spring Boot 4.1.1 通过 OTLP 导出时需要加入 `spring-boot-opentelemetry` 和
-`micrometer-registry-otlp`，再设置 `OTEL_SERVICE_NAME` 和统一的 `OTEL_EXPORTER_OTLP_ENDPOINT`；
-通常指向 Collector 的 OTLP/HTTP `4318` 端口。Spring Boot 会把该端点映射到
-`OtlpMeterRegistry`，无需手动创建 Registry Bean 或配置 Metrics YAML。
-`wow-opentelemetry` 负责 tracing，不会把 Micrometer meter 转换为 span，但 metrics 与 traces
-可以复用相同的环境变量和 Collector。
-
-完整配置和验证步骤参见[可观测性配置](/zh/reference/config/observability)。
+Prometheus 会按自身约定转换 Micrometer 点分 ID，例如把 `wow.operation` 导出为
+`wow_operation_seconds_count` 等序列。OTLP 使用 Micrometer OTLP Registry；`wow-opentelemetry` 只创建
+trace，不负责导出 Micrometer 指标。精确依赖与环境变量参见
+[可观测性配置](/zh/reference/config/observability)。
 
 ## 排查
 
-指标不可见时依次确认：
+按以下顺序补齐缺失证据：
 
-1. `wow.metrics.enabled` 未被关闭；
-2. ApplicationContext 中存在期望的 `MeterRegistry` Bean；
-3. 产生过对应组件的真实流量；
-4. 已临时暴露 Actuator `metrics` endpoint，且
-   `/actuator/metrics/wow.operation` 可见；
-5. 对于批处理指标，存储已启用 batching；
-6. 对于 OTLP，等待一个 export `step` 后确认 Collector 实际收到数据。
+1. 确认 `wow.metrics.enabled` 不是 `false`，目标 ApplicationContext 中存在预期 `MeterRegistry`；
+2. 驱动准确的运行阶段，再查看 `/actuator/metrics/wow.operation` 或对应 `wow.batch.*` ID；
+3. 检查 `component`、`operation`、`source`、`outcome`、`exception`，不要查找 aggregate ID；
+4. Prometheus 需要验证 scrape 成功及实际导出的序列名；
+5. OTLP 至少等待一个 export step，并确认 Collector 已收到；
+6. backend 状态、投影延迟、告警投递和生产准入必须另行验证。
 
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/metrics/WowMetrics.kt, wow-core/src/main/kotlin/me/ahoo/wow/metrics/MetricDescriptor.kt, wow-core/src/main/kotlin/me/ahoo/wow/infra/batch/BatchMetrics.kt, wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/metrics/MetricsAutoConfiguration.kt -->
+<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/metrics/WowMetrics.kt, MetricDescriptor.kt,
+MetricDecoratorFactory.kt, wow-core/src/main/kotlin/me/ahoo/wow/infra/batch/BatchMetrics.kt,
+wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/metrics/ -->

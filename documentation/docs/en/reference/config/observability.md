@@ -1,15 +1,18 @@
 ---
 title: Observability Configuration
-description: Configuration options for OpenAPI spec generation, OpenTelemetry tracing, and metrics export.
+description: Wow switches and exporter wiring for OpenAPI, traces, metrics, and BI operations.
 ---
 
 # Observability Configuration
 
+This page separates Wow instrumentation switches from exporter configuration. Wow creates semantic metrics and spans;
+Spring Boot, Micrometer, the OpenTelemetry SDK/Agent, and the selected backend determine where they go.
+
 ## OpenAPI
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `wow.openapi.enabled` | Boolean | `true` | Enable OpenAPI spec generation |
+| Property | Type | Default | Effect |
+|---|---|---|---|
+| `wow.openapi.enabled` | Boolean | `true` | Register runtime Wow OpenAPI routes and schemas |
 
 ```yaml
 wow:
@@ -17,17 +20,15 @@ wow:
     enabled: true
 ```
 
-When enabled, Wow builds the OpenAPI specification at **runtime** from the command and event
-models registered in the bounded context (`RouterSpecs` bean built in `OpenAPIAutoConfiguration`).
-The `wow-compiler` module contributes command routing metadata at compile time, but the spec
-itself — including routes, schemas, and the bundled Swagger UI — is assembled when the
-application context starts.
+The compiler produces command metadata, but `OpenAPIAutoConfiguration` assembles the document from runtime
+registrations. Treat the resulting specification as a deployed runtime artifact. A locally generated document does
+not prove the intended image, route security, or gateway policy is live.
 
 ## OpenTelemetry
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `wow.opentelemetry.enabled` | Boolean | `true` | Enable OpenTelemetry tracing instrumentation of the command/event pipeline |
+| Property | Type | Default | Effect |
+|---|---|---|---|
+| `wow.opentelemetry.enabled` | Boolean | `true` | Register Wow tracing filters and supported bean decorators |
 
 ```yaml
 wow:
@@ -35,16 +36,15 @@ wow:
     enabled: true
 ```
 
-With `wow-spring-boot-starter` auto-configuration active, tracing is enabled by default
-(`matchIfMissing = true`) when the `wow-opentelemetry` module and its `WowInstrumenter` class are
-on the classpath. Set it to `false` to disable distributed tracing spans across the command bus,
-event store, projections, and sagas.
+The condition also requires `me.ahoo.wow.opentelemetry.WowInstrumenter` on the classpath. `false` disables only Wow
+instrumentation; it does not stop the Java Agent, SDK exporters, HTTP client spans, or other libraries. The module
+uses `GlobalOpenTelemetry`, which must be initialized before Wow instrumenters are created.
 
 ## Metrics
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `wow.metrics.enabled` | Boolean | `true` | Enable Wow-specific Micrometer metrics collection |
+| Property | Type | Default | Effect |
+|---|---|---|---|
+| `wow.metrics.enabled` | Boolean | `true` | Record Wow semantic and batch metrics into the application registry |
 
 ```yaml
 wow:
@@ -52,73 +52,75 @@ wow:
     enabled: true
 ```
 
-Enabled by default (`matchIfMissing = true`). Spring binds the `MeterRegistry` from the current
-ApplicationContext to a context-scoped `WowMetrics` bean. That bean drives component decorators,
-dispatchers, and `wow.batch.*`. Wow uses `WowMetrics.NONE` when no registry exists or metrics are
-explicitly disabled.
-
-Wow does not use Micrometer's global registry. Multiple Spring application contexts can select
-their own registries and `wow.metrics.enabled` values without mutating process-wide state.
+When enabled and a `MeterRegistry` exists, auto-configuration creates an instance-scoped `WowMetrics` and decorates
+the runtime. When disabled or when no registry exists, it uses `WowMetrics.NONE`. This switch is independent of
+`wow.opentelemetry.enabled`; traces and metrics may be enabled separately.
 
 ## Business Intelligence Scripts
 
-The `wow.bi.script.*` property tree (ClickHouse/BI script deployment) is documented on the
-[BI Operations](/guide/bi-operations) page.
+`wow.bi.script.enabled` controls the `/wow/bi/script` operational route, its OpenAPI operation, and BI inspector
+auto-configuration. The complete `wow.bi.script.*` tree and its production ownership rules are documented in
+[BI Deployment and Recovery](/guide/bi-operations). Disabling the route does not stop existing ClickHouse consumers
+or change BI data.
 
 ## Integration Setup
 
+First decide which evidence is required:
+
+| Evidence | Component that must confirm it |
+|---|---|
+| Meter exists in-process | Actuator metrics endpoint or registry inspection |
+| Prometheus export | Successful target scrape and stored series |
+| OTLP metric export | Collector/backend receipt after an export step |
+| Wow trace export | Collector/backend receipt with Wow instrumentation scope and attributes |
+| Production readiness | Deployment revision, live traffic, alert route, and backend reconciliation |
+
 ### Enabling Metrics Export (Prometheus)
 
-Wow metrics are written to Spring Boot's application `MeterRegistry`. To expose them via Prometheus, add the
-Spring Boot Actuator + Prometheus registry dependencies and expose the endpoint:
+Add Actuator and the Prometheus registry:
+
+```kotlin
+implementation("org.springframework.boot:spring-boot-starter-actuator")
+runtimeOnly("io.micrometer:micrometer-registry-prometheus")
+```
+
+Expose only the endpoints allowed by the deployment policy:
 
 ```yaml
 management:
-  endpoint:
-    health:
-      show-details: always
-      probes:
-        enabled: true
   endpoints:
     web:
       exposure:
         include:
           - health
-          - prometheus    # Micrometer/Prometheus scrape endpoint
-          - threaddump
+          - prometheus
   metrics:
     tags:
-      application: ${spring.application.name}   # common tag on all meters
-
-springdoc:
-  show-actuator: true   # include actuator endpoints in OpenAPI
+      application: ${spring.application.name}
 ```
 
-```kotlin
-implementation("org.springframework.boot:spring-boot-starter-actuator")
-implementation("io.micrometer:micrometer-registry-prometheus")
+Prometheus scrapes `/actuator/prometheus`. Micrometer's logical `wow.operation` timer is exported using Prometheus
+naming, for example `wow_operation_seconds_count` and `wow_operation_seconds_sum`; `wow.stream.messages` becomes a
+counter series such as `wow_stream_messages_total`. Validate labels and values against real traffic, not only endpoint
+HTTP status.
+
+Temporarily exposing `metrics` can help diagnose the in-process registry:
+
+```yaml
+management:
+  endpoints:
+    web:
+      exposure:
+        include: [health, metrics]
 ```
 
-Scrape the `/actuator/prometheus` endpoint from Prometheus. The Wow-specific Micrometer meter IDs
-are `wow.operation`, `wow.stream.*`, and `wow.batch.*`; these dotted IDs are used with the Actuator
-`metrics` endpoint. Prometheus applies its naming convention at export time, for example:
-
-| Micrometer meter ID | Prometheus series example |
-|---|---|
-| `wow.operation` (Timer) | `wow_operation_seconds_count`, `wow_operation_seconds_sum` |
-| `wow.stream.messages` (Counter) | `wow_stream_messages_total` |
-
-The Wow series appear alongside standard JVM and other instrumented application meters. Generic
-Reactor Core sequence or scheduler meters appear only when the application explicitly configures
-`reactor-core-micrometer` instrumentation. See [Metrics](/guide/advanced/metrics) for the full Wow
-catalogue and the [Spring Boot metrics documentation](https://docs.spring.io/spring-boot/reference/actuator/metrics.html#actuator.metrics.endpoint)
-for the distinction between logical meter IDs and exported names.
+Query `/actuator/metrics/wow.operation`, then remove or restrict the diagnostic endpoint. This check proves
+collection only; the Prometheus target page and query result prove scrape/export.
 
 ### Exporting Metrics via OTLP (OpenTelemetry Collector)
 
-Wow records metrics with Micrometer; `wow-opentelemetry` instruments tracing and does not export
-Micrometer meters. To send Wow and standard application metrics to an OpenTelemetry Collector,
-add Spring Boot Actuator, Boot's OpenTelemetry support module, and Micrometer's OTLP registry:
+Wow metrics remain Micrometer metrics. With the current Spring Boot 4.1.1 baseline, add Boot's OpenTelemetry runtime
+support and Micrometer's OTLP registry:
 
 ```kotlin
 implementation("org.springframework.boot:spring-boot-starter-actuator")
@@ -126,14 +128,7 @@ runtimeOnly("org.springframework.boot:spring-boot-opentelemetry")
 runtimeOnly("io.micrometer:micrometer-registry-otlp")
 ```
 
-With the project's current Spring Boot 4.1.1 baseline, `spring-boot-opentelemetry` supplies the
-shared OpenTelemetry environment and resource configuration used by the OTLP metrics
-auto-configuration. The starter's
-`opentelemetry-support` capability supplies Wow tracing instrumentation, but does not replace this
-Spring Boot runtime module.
-
-Use the standard OpenTelemetry environment variables for the shortest setup. Both Micrometer's
-OTLP registry and the Java Agent understand the general endpoint and service name:
+The tested default environment path is:
 
 ```bash
 export OTEL_SERVICE_NAME=order-service
@@ -141,58 +136,24 @@ export OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
 export OTEL_EXPORTER_OTLP_HEADERS="authorization=Bearer token" # Optional.
 ```
 
-No `wow.metrics` or `management.otlp.metrics` YAML is required for the default path. Metrics are
-enabled by default; Spring Boot maps the general endpoint to the metrics exporter and appends
-`/v1/metrics`. Use `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` only when metrics must target a different
-OTLP/HTTP endpoint.
+The OTLP metrics registry sends HTTP protobuf to `/v1/metrics`; use
+`OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` when the metric endpoint must differ from the shared endpoint. Do not enable a
+second Micrometer bridge unless duplication is intentional.
 
 ```mermaid
 flowchart LR
-    Env["OTEL_* environment"] --> Otlp["Application OtlpMeterRegistry"]
-    Env --> Agent["OpenTelemetry Java Agent"]
-    Wow["WowMetrics"] --> Otlp
-    Otlp -->|"OTLP/HTTP"| Collector["OpenTelemetry Collector"]
-    Agent --> Global["GlobalOpenTelemetry"]
-    Tracing["wow-opentelemetry tracing"] --> Global
-    Global -->|"OTLP/HTTP"| Collector
-
-    classDef telemetry fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    class Env,Otlp,Agent,Wow,Collector,Global,Tracing telemetry
-```
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/metrics/WowMetrics.kt, wow-core/src/main/kotlin/me/ahoo/wow/infra/batch/BatchMetrics.kt, wow-opentelemetry/src/main/kotlin/me/ahoo/wow/opentelemetry/aggregate/AggregateInstrumenter.kt, wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/metrics/MetricsAutoConfiguration.kt -->
-
-Spring Boot auto-configures `OtlpMeterRegistry` when the registry implementation is on the runtime
-classpath. Wow injects that application registry directly, so Wow meters still reach OTLP when
-`management.metrics.use-global-registry=false`. See the
-[Spring Boot OTLP metrics documentation](https://docs.spring.io/spring-boot/reference/actuator/metrics.html#actuator.metrics.export.otlp)
-and [Micrometer OTLP registry documentation](https://docs.micrometer.io/micrometer/reference/implementations/otlp.html).
-Do not also enable the Java Agent's Micrometer bridge: `OtlpMeterRegistry` already exports these
-meters, and a second bridge can duplicate them. The bridge is disabled by default for this reason;
-see the [OpenTelemetry Java supported libraries](https://opentelemetry.io/docs/zero-code/java/agent/supported-libraries/).
-
-To verify the integration, temporarily add `metrics` to the existing Actuator exposure list:
-
-```yaml
-management:
-  endpoints:
-    web:
-      exposure:
-        include:
-          - health
-          - metrics       # temporary diagnostic endpoint
+    Runtime["WowMetrics"] --> Registry["OtlpMeterRegistry"]
+    Env["OTEL_* environment"] --> Registry
+    Registry -->|"/v1/metrics"| Collector["Collector"]
+    Agent["Java Agent / SDK"] -->|"/v1/traces"| Collector
 ```
 
-Generate real traffic, then inspect `/actuator/metrics/wow.operation`,
-`/actuator/metrics/wow.batch.write`, or another `wow.*` meter. Verify that the Collector or
-downstream backend receives it after the configured `step`. An Actuator result proves collection
-only; receipt by the Collector proves export. Batch meters appear only after a batching-enabled
-store performs the corresponding operation. Remove or restrict the diagnostic endpoint after
-verification.
+The repository smoke test starts a real Boot context, exports `wow.operation`, and decodes the OTLP request. Repeat
+the equivalent check in the target environment and retain Collector/backend receipt as release evidence.
 
 ### Enabling Distributed Tracing (OpenTelemetry)
 
-For a Gradle-based Spring Boot application, request the starter's `opentelemetry-support` capability.
-It brings in `wow-opentelemetry`; `WowOpenTelemetryAutoConfiguration` itself lives in the starter:
+Request the starter feature capability:
 
 ```kotlin
 implementation("me.ahoo.wow:wow-spring-boot-starter") {
@@ -202,9 +163,7 @@ implementation("me.ahoo.wow:wow-spring-boot-starter") {
 }
 ```
 
-The recommended tracing runtime is the OpenTelemetry Java Agent. It initializes
-`GlobalOpenTelemetry` before the Spring context starts. Reuse the same OTLP/HTTP endpoint and
-service name as metrics:
+The shortest production runtime is normally the OpenTelemetry Java Agent:
 
 ```bash
 export JAVA_TOOL_OPTIONS="-javaagent:/opt/otel/opentelemetry-javaagent.jar"
@@ -213,11 +172,13 @@ export OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
 java -jar your-app.jar
 ```
 
-The Agent appends `/v1/traces`; Micrometer appends `/v1/metrics`. This shared endpoint assumes the
-Collector exposes OTLP/HTTP on port `4318`. If tracing must use OTLP/gRPC on `4317`, configure its
-protocol and signal-specific endpoint separately. The auto-configuration registers Wow tracing
-filters and decorators automatically. Set `wow.opentelemetry.enabled=false` only to disable Wow's
-spans while keeping the Agent's other instrumentation.
+For OTLP/HTTP the general endpoint normally yields `/v1/traces`; configure signal-specific protocol/endpoints when
+using OTLP/gRPC or separate collectors. Verify a trace that includes a Wow instrumentation scope, expected aggregate
+or message attributes, a store span, and a downstream processing span. A startup log or local span test does not
+prove Collector receipt or production admission.
 
-See [Observability](/guide/advanced/observability) for the instrumentation coverage and
-[OpenTelemetry Extension](/guide/extensions/opentelemetry) for the instrumenter list.
+See [Observability](/guide/advanced/observability) for the stage/span map and
+[Metrics](/guide/advanced/metrics) for the meter catalogue.
+
+<!-- Sources: ConditionalOnOpenTelemetryEnabled.kt, ConditionalOnMetricsEnabled.kt, MetricsAutoConfiguration.kt,
+OtlpMetricsExportSmokeTest.kt, OpenAPIAutoConfiguration.kt, BiScriptProperties.kt -->

@@ -1,237 +1,156 @@
 ---
 title: Migrating from Traditional Architecture
-description: Incrementally move a CRUD system to Wow CQRS and event sourcing with one writer, replayable synchronization, and reconciliation gates.
+description: Adopt Wow one bounded context at a time with a single writer, replayable import, reconciliation, and rollback.
 ---
 
 # Migrating from Traditional Architecture
 
-This guide is for traditional CRUD systems that do not yet use Wow. The goal is not a
-big-bang rewrite. Migrate one bounded context at a time, import history, catch up live changes,
-move reads, and finally move writes while retaining **exactly one authoritative business writer**.
+This page is for a system that does not yet own Wow event history. The safe path is incremental: define one bounded
+context, build the model, import and shadow it while the legacy system remains authoritative, move reads, then move
+writes. At every moment exactly one system owns business writes.
 
-If the system already runs Wow v6, use [Migrate Wow v6 to v8](./v6-to-v8.md).
+Existing Wow v6 systems should use [Migrate Wow v6 to v8](./v6-to-v8.md) instead.
 
 ## Migration Overview
 
-| Stage | Authoritative writer | Work | Exit gate | Source |
-|---|---|---|---|---|
-| 0. Select a boundary | Legacy system | Choose a low-coupling bounded context; fix ID, tenant, and invariant mappings | Business owners approve the language, aggregate boundary, and acceptance cases | [Modeling](../modeling.md) |
-| 1. Build the Wow model | Legacy system | Define commands, aggregates, domain events, and state sourcing | `AggregateSpec` covers success, rejection, and idempotency paths | [CreateOrder.kt:31-64](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-api/src/main/kotlin/me/ahoo/wow/example/api/order/CreateOrder.kt#L31-L64), [OrderSpec.kt:44-113](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/order/OrderSpec.kt#L44-L113) |
-| 2. Shadow synchronization | Legacy system | Send replayable synchronization commands through outbox/CDC; Wow takes no production writes | Lag, failure queue, and per-aggregate reconciliation meet their thresholds | [CommandFactory.kt:60-103](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandFactory.kt#L60-L103) |
-| 3. Move reads | Legacy system | Route queries to Wow snapshots/projections while retaining fast rollback | New and old query results agree throughout the observation window | [OrderQueryController.kt:34-45](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-server/src/main/kotlin/me/ahoo/wow/example/server/order/OrderQueryController.kt#L34-L45) |
-| 4. Move writes | Wow | Stop traffic, catch up, reconcile, then route command ingress to Wow | The old writer is closed; Wow writes and monitoring are verified | [CommandGateway.kt:75-159](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt#L75-L159) |
-| 5. Retire the legacy model | Wow | Keep old data read-only through the rollback window, then remove the old write path | No rollback dependency or unresolved difference remains | [Event Store](../eventstore.md) |
+| Stage | Authoritative writer | Deliverable | Exit evidence |
+|---|---|---|---|
+| 0. Boundary | Legacy | Aggregate/ID/tenant/invariant map and accepted scenarios | Domain owners approve scope and language |
+| 1. Wow model | Legacy | Commands, aggregate behavior, domain events, state sourcing, tests | Success/rejection/idempotency cases pass |
+| 2. Import and catch-up | Legacy | Replayable import commands, outbox/CDC feed, source watermark | Lag and per-aggregate reconciliation meet thresholds |
+| 3. Read cutover | Legacy | Wow-backed query/read model for a controlled cohort | Business results and latency reconcile; rollback tested |
+| 4. Write cutover | Wow | Admission switch, drained legacy writer, Wow command path | One-writer proof, new writes reconciled, rollback procedure live |
+| 5. Closure | Wow | Removed legacy writes/synchronizer after observation window | No unresolved drift or rollback dependency |
 
-```mermaid
-%%{init: {"theme": "dark"}}%%
-flowchart LR
-    Scope["Select bounded context"] --> Model["Command / Aggregate<br>Event / State"]
-    Model --> Shadow["Historical import + live sync"]
-    Shadow --> Read["Shadow queries and move reads"]
-    Read --> Gate{"Final reconciliation passes?"}
-    Gate -->|"No"| Shadow
-    Gate -->|"Yes"| Write["Stop old writer<br>move command ingress"]
-    Write --> Observe["Observation and rollback window"]
-    classDef step fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    class Scope,Model,Shadow,Read,Gate,Write,Observe step
-```
-
-<!-- Sources:
-- documentation/docs/en/guide/modeling.md
-- example/example-api/src/main/kotlin/me/ahoo/wow/example/api/order/CreateOrder.kt:31-64
-- example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/Order.kt:55-137
-- example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/OrderState.kt:39-99
--->
+Do not start by copying tables into an event store. Events record accepted domain decisions. Historical conversion must
+go through an explicit, reviewable contract.
 
 ## 1. Migrate the Boundary Before the Tables
 
-A table often carries several business concepts and does not map directly to an aggregate.
-Derive commands from use cases, then define the invariants that must remain atomic inside one
-aggregate. Coordinate across aggregates with domain events, sagas, or projections. The current
-example models `CreateOrder` as a creation command, keeps rules in `Order`, and rebuilds state
-through `OrderState.onSourcing` instead of mutating state from command handlers.
+Choose a low-coupling business capability and write down:
 
-- [`CreateOrder.kt:31-64`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-api/src/main/kotlin/me/ahoo/wow/example/api/order/CreateOrder.kt#L31-L64)
-- [`Order.kt:55-137`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/Order.kt#L55-L137)
-- [`OrderState.kt:39-99`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/OrderState.kt#L39-L99)
+- the stable aggregate identity, tenant/owner/space mapping, and aggregate boundary;
+- commands accepted at the boundary and who is authorized to send them;
+- invariants that reject a command;
+- domain events emitted after acceptance;
+- state sourcing rules and deletion semantics;
+- external calls that belong in projections/Sagas rather than aggregate state transitions.
 
-Fix these mappings before migration:
+Follow the repository example shape: API commands/events live separately from the aggregate implementation, and
+`AggregateSpec` verifies behavior without infrastructure.
 
-| Legacy model | Wow model | Constraint |
-|---|---|---|
-| Primary key | `AggregateId.id` | It must be unique across tenants within one `NamedAggregate`; preserve a globally unique key, but audit collisions and define a deterministic mapping for tenant-local keys |
-| Tenant column | `tenantId` | Use the same mapping for import, synchronization, and online commands |
-| Optimistic-lock/update version | Command `requestId` plus source version | Use both for idempotency and ordering; a consumer offset alone is insufficient |
-| Current row state | Domain-event sequence | Express business facts; do not mechanically invent an event history from a row |
-| Join-heavy query | Snapshot/projection | Design a separate read model instead of making the aggregate query across boundaries |
+```kotlin
+class OrderSpec : AggregateSpec<Order, OrderState>({
+    on {
+        whenCommand(CreateOrder(id = "order-1", ...)) {
+            expectNoError()
+            expectEventType(OrderCreated::class)
+            expectState { id.assert().isEqualTo("order-1") }
+        }
+    }
+})
+```
 
-The uniqueness scope of `AggregateId.id` is the `NamedAggregate`, not `(tenantId, id)`.
-Redis explicitly rejects the same ID across tenants within a named aggregate; the MongoDB
-event-stream unique index and Elasticsearch document ID also omit the tenant. If a legacy key
-is unique only inside a tenant, derive a compound ID with a versioned, unambiguous deterministic
-encoding or UUID v5 and persist the mapping manifest. Historical import, CDC, online commands,
-queries, and rollback must all reuse the same mapping rather than generating a fresh ID per run.
-[`AggregateId.kt:23-26`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/modeling/AggregateId.kt#L23-L26)
-[`EventStreamSchemaInitializer.kt:65-70`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/EventStreamSchemaInitializer.kt#L65-L70)
-[`ElasticsearchEventStreamAppender.kt:38-43`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-elasticsearch/src/main/kotlin/me/ahoo/wow/elasticsearch/eventsourcing/ElasticsearchEventStreamAppender.kt#L38-L43)
+Also cover duplicate request IDs, invalid transitions, deleted aggregates, tenant/owner propagation, and serialization
+of the exact committed event shape. A compiled aggregate is source evidence; it does not prove historical rows map to
+valid domain decisions.
+
+Create an anti-corruption adapter from the legacy contract to Wow commands. Keep legacy column names and sentinel
+values out of the new public domain API unless they are real business concepts.
 
 ## 2. Import and Catch Up with One Writer
 
-Do not make an HTTP request write the legacy database and then the EventStore. If the second
-write fails, the two states cannot be atomically rolled back. Keep the legacy database as the
-single writer, publish changes from a transactional outbox or recoverable CDC stream, and let
-the migration adapter send idempotent commands.
+Use a durable, restartable migration manifest. At minimum record source partition/key, source version or update
+watermark, target aggregate ID, deterministic request ID, status, source checksum, target version/checksum, error, and
+last verified batch.
 
-```mermaid
-%%{init: {"theme": "dark"}}%%
-sequenceDiagram
-    autonumber
-    participant Client
-    participant Legacy as Legacy service
-    participant DB as Legacy database + outbox
-    participant Adapter as Migration adapter
-    participant Gateway as CommandGateway
-    participant Wow as Wow aggregate
+Recommended flow:
 
-    Client->>Legacy: Business request
-    Legacy->>DB: One transaction writes row and outbox
-    DB-->>Adapter: Replayable change
-    Adapter->>Gateway: requestId = source + id + version
-    Gateway->>Wow: sendAndWaitForProcessed
-    Wow-->>Adapter: processed / duplicate / error
-    Adapter->>DB: Verify target, then record cursor and outcome
-```
+1. take a source snapshot and record its high watermark while legacy writes continue;
+2. convert each source entity through an explicit `Import...`/`Synchronize...` command contract;
+3. use deterministic request IDs so replaying a completed batch is idempotent;
+4. persist manifest progress only after target acknowledgement and verification;
+5. consume outbox/CDC changes after the snapshot watermark in source order;
+6. repeat reconciliation until lag remains inside the approved threshold.
 
-<!-- Sources:
-- wow-core/src/main/kotlin/me/ahoo/wow/command/CommandFactory.kt:60-103
-- wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt:75-159
-- example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/Order.kt:105-137
--->
+The source row is a locator; the reviewed mapping decides which Wow command/event/state it represents. Preserve the
+source payload/checksum for audit instead of hiding conversion choices in an ad hoc script.
 
-Historical import also uses the command boundary. Reuse the deterministic business-ID mapping
-and derive a stable `requestId` to prevent duplicate writes. A duplicate `requestId` does not
-return the previous success result: `sendAndWaitForProcessed` reports `DuplicateRequestId`
-through `CommandResultException`. Treat it as already applied only after reconciling the target
-event/state and source version, then advance the cursor. Keep the batch reactive. Only the
-outermost entry point of a standalone offline process may wait for completion; never call
-`block()` in the server request chain or Wow core path.
+Never dual-write the legacy database and Wow from one request as two independent commits. Use an outbox/CDC source or
+another durable handoff. If the synchronizer fails, legacy remains the only writer and the target catches up from the
+last manifest/watermark.
 
-```kotlin
-fun importOrders(rows: Iterable<LegacyOrder>): Mono<Void> =
-    Flux.fromIterable(rows)
-        .concatMap(::importOrder)
-        .then()
+Reconciliation should compare, per aggregate and globally:
 
-private fun importOrder(row: LegacyOrder): Mono<Void> {
-    val aggregateId = legacyOrderIdMapping.requireTargetId(row.tenantId, row.id)
-    val command = ImportLegacyOrder.from(row).toCommandMessage(
-        aggregateId = aggregateId,
-        tenantId = row.tenantId,
-        requestId = legacyOrderRequestId(row),
-    )
-    return commandGateway.sendAndWaitForProcessed(command)
-        .then()
-        .onErrorResume(CommandResultException::class.java) { error ->
-            if (error.commandResult.errorCode != ErrorCodes.DUPLICATE_REQUEST_ID) {
-                return@onErrorResume Mono.error(error)
-            }
-            verifyImportedOrder(
-                tenantId = row.tenantId,
-                aggregateId = aggregateId,
-                sourceVersion = row.version,
-            )
-        }
-}
-```
-
-`toCommandMessage` accepts explicit `aggregateId`, `tenantId`, `requestId`, and expected
-version values. `sendAndWaitForProcessed` completes after the aggregate has processed the
-command. The example's `verifyImportedOrder` must load the target event/state and compare the
-source version; never swallow `DuplicateRequestId` without that verification.
-`legacyOrderRequestId` must use a versioned, unambiguous encoding rather than directly joining
-raw fields that may contain the delimiter.
-`legacyOrderIdMapping`, `legacyOrderRequestId`, and `verifyImportedOrder` are illustrative
-functions that the migration adapter must implement; they are not Wow framework APIs.
-[`CommandFactory.kt:60-103`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandFactory.kt#L60-L103)
-[`CommandGateway.kt:127-143`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt#L127-L143)
-[`DefaultCommandGateway.kt:86-95`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L86-L95)
-[`DefaultCommandGateway.kt:228-255`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L228-L255)
-
-::: warning Do not fabricate history
-Reconstruct historical domain events only when trustworthy business facts and ordering exist.
-When only the current row is available, emit an explicit `LegacyOrderImported` or
-`OrderBaselineEstablished` event containing the source, source version, and import time. Do
-not invent a sequence of business events that never happened.
-:::
+- source population versus imported IDs, including missing/extra IDs;
+- latest source revision/update time versus target aggregate version;
+- money/quantity/status/deletion and other business invariants;
+- duplicate deterministic request IDs and failed/dead-letter records;
+- event and snapshot counts, representative full replay, and read-model rows.
 
 ## 3. Reconcile, Then Move Reads and Writes Separately
 
-At minimum, reconcile existence, critical business fields, status, monetary or quantity
-values, source version, and last synchronization time per `(tenantId, aggregateId)`. Equal
-totals do not prove per-aggregate equality. Classify every difference as retryable, accepted,
-or cutover-blocking.
+Cut reads before writes when possible:
 
-```mermaid
-%%{init: {"theme": "dark"}}%%
-stateDiagram-v2
-    [*] --> LegacyWriter: Legacy system writes
-    LegacyWriter --> Shadowing: Historical import and live sync
-    Shadowing --> ReadCanary: Per-aggregate reconciliation passes
-    ReadCanary --> Shadowing: Difference found
-    ReadCanary --> Freeze: Read observation window passes
-    Freeze --> WowWriter: Stop traffic and catch up
-    WowWriter --> LegacyRollback: Failure during rollback window
-    LegacyRollback --> LegacyWriter: Reverse-sync new Wow writes
-    WowWriter --> LegacyRetired: Rollback window ends
-```
+1. shadow-query legacy and Wow read models for the same requests;
+2. classify differences as mapping defect, expected semantic change, lag, or data corruption;
+3. move a controlled read cohort while writes remain legacy-owned;
+4. observe error rate, latency, lag, business results, metrics, and traces;
+5. roll reads back without changing the writer if a gate fails.
 
-<!-- Sources:
-- example/example-server/src/main/kotlin/me/ahoo/wow/example/server/order/OrderQueryController.kt:34-45
-- wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt:75-159
-- wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SnapshotStore.kt:35-71
--->
+Write cutover is a separate maintenance action:
 
-Moving reads first is usually easier to reverse. Route selected tenants, users, or request
-percentages to `SnapshotQueryService` or a projection while continuing to compare legacy
-results in the background. Moving writes requires a short freeze:
+1. close legacy write admission and drain in-flight transactions/outbox records;
+2. record the final source watermark and reach zero approved reconciliation drift;
+3. enable the Wow command boundary for one controlled cohort/instance;
+4. verify command result, committed event, reconstructed state, projections/Sagas, and external side effects;
+5. expand traffic only after the observation gate passes.
 
-1. Close ingress and drain legacy transactions, outbox/CDC, and the migration adapter.
-2. Freeze the source cursor and run final per-aggregate reconciliation.
-3. Disable the legacy writer, then open Wow command ingress.
-4. Verify creation, update, rejection, query visibility, monitoring, and alerting.
-5. Keep legacy data read-only during the rollback window. If Wow has accepted new writes,
-   reverse-sync those writes before rolling back.
+Before the first Wow production write, rollback can return reads to legacy and discard/rebuild the shadow target. After
+the first write, rollback requires stopping Wow, transferring or reversing those writes into the legacy authority, and
+reconciling both sides. Restoring the old application alone would lose accepted decisions.
+
+Local tests, a successful import rehearsal, and a healthy canary are separate evidence. Production admission also
+requires the approved image/revision, live routing, monitoring/alerts, and an owned incident path.
 
 ## 4. Continue Evolving the Domain Model
 
-After migration, new optional fields still need safe defaults. Deleting, renaming, or changing
-types cannot rely on permissive JSON parsing alone. Before materializing a domain event, Wow
-applies ordered `EventUpgrader` instances to the `DomainEventRecord`, allowing older records
-to be transformed to the current shape.
-[`DomainEventRecord.kt:71-89`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/serialization/event/DomainEventRecord.kt#L71-L89)
-[`EventUpgraderFactory.kt:37-73`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/upgrader/EventUpgraderFactory.kt#L37-L73)
-[`EventUpgraderFactory.kt:89-115`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/upgrader/EventUpgraderFactory.kt#L89-L115)
+After cutover, evolve through new commands/events and explicit serialization contracts. Do not rewrite committed event
+history simply to make the current class shape convenient.
 
-See [Event Evolution](../advanced/event-evolution.md) for implementation, ServiceLoader registration, chain ordering, and historical replay gates.
+For each change:
+
+- prove old events still deserialize and source into the intended current state, or provide a reviewed offline history
+  conversion;
+- keep new event semantics explicit instead of silently changing an existing field;
+- rebuild snapshots and projections from events when their derived shape changes;
+- reconcile state/read models before deleting old fields or migration adapters;
+- pin the rollback version and decide how it handles events written by the new version.
+
+Snapshot or projection rebuild success does not repair an incorrect event mapping; representative and edge-case replay
+must validate business state.
 
 ## Completion Checklist
 
-- [ ] Bounded context, aggregate, cross-tenant-unique ID, tenant, and ownership mappings are fixed
-- [ ] Command handlers, state sourcing, and domain tests cover major invariants and failures
-- [ ] Historical import and live sync have stable request IDs, duplicate reconciliation, retries, dead letters, and cursors
-- [ ] Exactly one business writer exists throughout migration
-- [ ] Per-aggregate reconciliation passes and every difference has an explicit disposition
-- [ ] Reads and writes are canaried separately; cutover and rollback are rehearsed
-- [ ] Legacy data remains read-only in the rollback window, with a plan for reverse-syncing Wow writes
-- [ ] Monitoring covers synchronization lag, failures, reconciliation differences, and command outcomes
+- [ ] bounded context, aggregate identity, tenant/owner mapping, invariants, and exclusions are approved
+- [ ] command/event/state contracts and AggregateSpec rejection/idempotency cases pass
+- [ ] import/CDC manifest is durable, restartable, and deterministic
+- [ ] one authoritative writer is provable throughout every phase
+- [ ] source/target counts, versions, checksums, invariants, replay, and read models reconcile
+- [ ] read cutover and write cutover were rehearsed independently
+- [ ] rollback before and after the first Wow write was exercised
+- [ ] deployed revision, live traffic, metrics/traces, alerts, and business checks pass
+- [ ] legacy writes and temporary synchronization remain until the observation window closes
 
 ## Related Pages
 
 | Page | Relationship |
 |---|---|
-| [Migration Guide](../migration.md) | Choose the correct migration path |
-| [Migrate Wow v6 to v8](./v6-to-v8.md) | Version upgrade after Wow adoption |
-| [Modeling](../modeling.md) | Aggregate, command, event, and state design |
-| [Test Suite](../test-suite.md) | Lock domain behavior with `AggregateSpec` |
-| [Query Service](../query.md) | Snapshot/projection read models and query cutover |
-| [Event Store](../eventstore.md) | Event-stream persistence and replay |
+| [Migration Guide](../migration.md) | Scope and shared evidence gates |
+| [Modeling](../modeling.md) | Aggregate and command/event design |
+| [Testing](../test-suite.md) | Domain behavior verification |
+| [Business Intelligence](../bi.md) | Rebuildable analytical read models |
+| [Migrate Wow v6 to v8](./v6-to-v8.md) | Existing Wow version upgrade |
+
+<!-- Sources: example order API/domain/spec, CommandFactory/CommandGateway idempotency path,
+event/snapshot/query contracts, and Wow test DSL -->
