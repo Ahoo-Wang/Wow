@@ -342,11 +342,12 @@ class ElasticsearchAggregationPagerTest {
                 "pit-2",
                 listOf(
                     anyBucket("a", booleanTerms(true)),
-                    anyBucket("b", longTerms(7L)),
-                    anyBucket("c", doubleTerms(7.5)),
-                    anyBucket("d", stringTerms(null)),
-                    anyBucket("e", longTerms(null)),
-                    anyBucket("f", doubleTerms(null)),
+                    anyBucket("b", booleanTerms(false)),
+                    anyBucket("c", longTerms(7L)),
+                    anyBucket("d", doubleTerms(7.5)),
+                    anyBucket("e", stringTerms(null)),
+                    anyBucket("f", longTerms(null)),
+                    anyBucket("g", doubleTerms(null)),
                 ),
             ),
         )
@@ -359,7 +360,7 @@ class ElasticsearchAggregationPagerTest {
 
         pager().execute(plan).collectList().test()
             .assertNext { rows ->
-                rows.map { it["productName"] }.assert().containsExactly(true, 7L, 7.5, null, null, null)
+                rows.map { it["productName"] }.assert().containsExactly(true, false, 7L, 7.5, null, null, null)
             }
             .verifyComplete()
     }
@@ -522,10 +523,18 @@ class ElasticsearchAggregationPagerTest {
     }
 
     private fun booleanTerms(value: Boolean): Aggregate = Aggregate.of { aggregate ->
-        aggregate.sterms { terms ->
+        aggregate.lterms { terms ->
             terms.buckets(
-                Buckets.of<StringTermsBucket> { buckets ->
-                    buckets.array(listOf(StringTermsBucket.of { it.key(value).docCount(1) }))
+                Buckets.of<LongTermsBucket> { buckets ->
+                    buckets.array(
+                        listOf(
+                            LongTermsBucket.of {
+                                it.key(if (value) 1L else 0L)
+                                    .keyAsString(value.toString())
+                                    .docCount(1)
+                            },
+                        ),
+                    )
                 },
             )
         }

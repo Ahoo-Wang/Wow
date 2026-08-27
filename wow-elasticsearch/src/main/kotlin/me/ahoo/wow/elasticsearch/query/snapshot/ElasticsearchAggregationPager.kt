@@ -244,7 +244,9 @@ internal class ElasticsearchAggregationPager(
 
     private fun Aggregate.anyValue(alias: String): Any? = when {
         isSterms -> sterms().buckets().array().firstOrNull()?.key()?.nativeValue()
-        isLterms -> lterms().buckets().array().firstOrNull()?.key()
+        isLterms -> lterms().buckets().array().firstOrNull()?.let {
+            it.keyAsString()?.toBooleanStrictOrNull() ?: it.key()
+        }
         isDterms -> dterms().buckets().array().firstOrNull()?.key()
         isUmterms -> null
         else -> error("Aggregation ANY metric [$alias] returned unsupported Elasticsearch aggregate [${_kind()}].")
