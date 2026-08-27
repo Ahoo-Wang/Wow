@@ -161,6 +161,7 @@ internal class ExampleDomainOpenAPITest {
                 "#/components/schemas/wow.api.query.AggregationMetric.Any",
             )
             metricSchema.discriminator.propertyName.assert().isEqualTo("type")
+            (metricSchema.properties.getValue("alias").readOnly == true).assert().isFalse()
             val anySchema = openAPI.components.schemas.getValue("wow.api.query.AggregationMetric.Any")
             anySchema.required.assert().containsExactlyInAnyOrder("field", "alias", "type")
             anySchema.properties.getValue("field").`$ref`.assert().isEqualTo(logicalFieldRef)

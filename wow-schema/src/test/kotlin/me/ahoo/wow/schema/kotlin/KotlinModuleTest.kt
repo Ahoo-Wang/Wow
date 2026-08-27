@@ -54,6 +54,13 @@ class KotlinModuleTest {
     }
 
     @Test
+    fun `should respect read write getter access mode`() {
+        val schema = jsonSchemaGenerator.generateSchema(KotlinFixture::class.java)
+        val readWriteGetter = schema.get("properties").get("readWriteGetter")
+        (readWriteGetter.get("readOnly")?.booleanValue() == true).assert().isFalse()
+    }
+
+    @Test
     fun `should not include private writeOnly field in schema`() {
         val schema = jsonSchemaGenerator.generateSchema(KotlinFixture::class.java)
         val properties = schema.get("properties")

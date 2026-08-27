@@ -488,7 +488,7 @@ abstract class SnapshotQueryServiceSpec {
 
     @Test
     fun `aggregation should select any non-null value without splitting the group`() {
-        saveAggregationStates(*aggregationStates().toTypedArray())
+        saveAggregationStates(*(aggregationStates() + aggregationAnyNullState()).toTypedArray())
 
         aggregation {
             expand("state.orders")
@@ -501,7 +501,7 @@ abstract class SnapshotQueryServiceSpec {
             .assertNext { row ->
                 row["productId"].assert().isEqualTo("alpha")
                 setOf("Alpha", "Alpha 2026").contains(row["productName"]).assert().isTrue()
-                row["count"].assert().isEqualTo(2L)
+                row["count"].assert().isEqualTo(3L)
             }.verifyComplete()
     }
 
@@ -694,6 +694,26 @@ abstract class SnapshotQueryServiceSpec {
                             amount = 50.0,
                             createdAt = Instant.parse("2026-02-02T10:00:00Z"),
                             discounts = emptyList(),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+    private fun aggregationAnyNullState(): MockStateAggregate =
+        MockStateAggregate(
+            id = "aggregation-any-null",
+            orders = listOf(
+                MockOrder(
+                    status = "PAID",
+                    lines = listOf(
+                        MockLine(
+                            productId = "alpha",
+                            quantity = 1,
+                            amount = 40.0,
+                            createdAt = Instant.parse("2026-01-04T10:00:00Z"),
+                            discounts = emptyList(),
+                            productName = null,
                         ),
                     ),
                 ),

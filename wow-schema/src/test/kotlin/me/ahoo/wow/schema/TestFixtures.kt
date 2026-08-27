@@ -124,6 +124,9 @@ data class KotlinFixture(
     private var writeOnlyField: String = "writeOnly"
     val readOnlyField: String = "readOnly"
     val readOnlyGetter: String get() = "readOnlyGetter"
+
+    @get:Schema(accessMode = Schema.AccessMode.READ_WRITE)
+    val readWriteGetter: String get() = "readWriteGetter"
     val readOnlyByLazy: String by lazy { "lazy" }
 }
 

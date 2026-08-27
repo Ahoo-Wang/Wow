@@ -87,7 +87,9 @@ internal class ElasticsearchAggregationPager(
         afterKey: Map<String, FieldValue> = emptyMap(),
         fetched: Int = 0,
     ): Mono<AggregationPage> {
-        val pageSize = if (plan.metricSorted) batchSize else min(batchSize, plan.limit - fetched)
+        val bucketWidth = 1 + plan.metrics.count { it is ElasticsearchAggregationMetric.Any }
+        val pageCapacity = (batchSize / bucketWidth).coerceAtLeast(1)
+        val pageSize = if (plan.metricSorted) pageCapacity else min(pageCapacity, plan.limit - fetched)
         return search(plan, pit, afterKey, pageSize).map { response ->
             val composite = response.innermost(plan).getValue(GROUP_AGGREGATION).composite()
             val rows = composite.buckets().array().map { it.toRow(plan) }

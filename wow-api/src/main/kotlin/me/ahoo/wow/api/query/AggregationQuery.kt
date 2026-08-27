@@ -204,6 +204,7 @@ enum class AggregationExpressionOperator {
     discriminatorProperty = "type",
 )
 sealed interface AggregationMetric {
+    @get:Schema(accessMode = Schema.AccessMode.READ_WRITE)
     val alias: String
 
     data class Count(override val alias: String) : AggregationMetric {

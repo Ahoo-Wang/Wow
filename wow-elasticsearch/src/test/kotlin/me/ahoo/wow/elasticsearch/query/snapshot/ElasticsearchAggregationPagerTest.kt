@@ -287,6 +287,27 @@ class ElasticsearchAggregationPagerTest {
     }
 
     @Test
+    fun `any metrics should bound metric-sorted composite page size`() {
+        val requests = mutableListOf<SearchRequest>()
+        stubPointInTime()
+        every { client.search(capture(requests), Map::class.java) } returns Mono.just(
+            groupResponse("pit-2", emptyList()),
+        )
+        val plan = compiler().compile(
+            aggregation {
+                terms("state.productId", "product")
+                any("state.productName", "productName")
+                any("state.category", "category")
+                sort { "productName".asc() }
+            },
+        )
+
+        pager(batchSize = 10).execute(plan).test().verifyComplete()
+
+        requests.single().aggregations().values.single().composite().size().assert().isEqualTo(3)
+    }
+
+    @Test
     fun `any metric should normalize boolean long double and empty terms buckets`() {
         stubPointInTime()
         every { client.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(

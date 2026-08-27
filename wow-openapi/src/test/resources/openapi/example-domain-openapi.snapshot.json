@@ -4488,7 +4488,6 @@
         } ],
         "properties" : {
           "alias" : {
-            "readOnly" : true,
             "type" : "string"
           }
         }
