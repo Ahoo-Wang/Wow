@@ -381,7 +381,9 @@ Assuming `state.createdAt` is an executable date field, records can be counted p
 ]
 ```
 
-Date bucket keys are epoch milliseconds at the start of each bucket. MongoDB fields must be convertible to dates; Elasticsearch fields must be mapped as `date` or `date_nanos`.
+Date bucket keys are epoch milliseconds at the start of each bucket. A field may use a backend-native date (MongoDB BSON
+Date or Elasticsearch `date`/`date_nanos`) or an integer epoch whose unit is declared through `@QueryTemporal`, a bean,
+or a convention file. MongoDB converts the epoch, while Elasticsearch creates a request-scoped runtime date field.
 
 ##### Expand a collection and select Top-N
 

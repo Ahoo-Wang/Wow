@@ -152,12 +152,20 @@ version-metadata migration is required.
 
 ## Snapshot Query Field Resolution
 
-On the first snapshot query for an aggregate index, Wow asynchronously loads the current Elasticsearch mapping and
-compiles conditions and sorts from its physical field capabilities. The mapping is the only capability source; no
-separate `QuerySchema` is maintained. The cache is isolated by index and has no TTL. A missing or incompatible cached
-field fails the query without implicitly calling the mapping API, except that presence operations preserve an unmapped
-logical field because Elasticsearch can execute `exists` against it. Refresh the cache explicitly through the maintenance
-endpoint after a mapping change.
+Snapshot queries use a negotiated runtime Query Schema. Wow first merges the System skeleton, JSON Schema and annotations,
+classpath files, beans, and working-directory files, then binds physical fields and executable capabilities from the
+Elasticsearch mapping. Declaration priority from low to high is JSON Schema, classpath, bean, and working directory; a
+higher-priority source overrides only explicitly declared leaves. Convention files have two fixed locations:
+
+```text
+classpath:wow-query-schema/{contextName}/{aggregateName}/{model}.json
+./config/wow-query-schema/{contextName}/{aggregateName}/{model}.json
+```
+
+The final Schema is cached per QueryService without a TTL. `GET /{aggregate}/snapshot/schema` returns public metadata
+without physical bindings. After correcting declarations, mappings, or indexes, call
+`POST /{aggregate}/snapshot/schema/refresh` to renegotiate the current service instance. A failed refresh retains the
+previous cache and is not broadcast to other instances.
 
 Field selection follows these rules:
 
@@ -166,7 +174,7 @@ Field selection follows these rules:
 | `EQ`, `NE`, `IN`, `NOT_IN`, `ALL_IN`, `TRUE`, `FALSE` | Term-query compatible, including supported doc-value-only fields |
 | `CONTAINS`, `STARTS_WITH`, `ENDS_WITH` | `keyword` or `wildcard` |
 | Range operations | numeric, date, ip, keyword, or `*_range`, including applicable `doc_values=true,index=false` fields |
-| `IS_EMPTY`, null, and existence operations | Any indexed or doc-value-queryable field; an empty Elasticsearch array has no indexed value, so `IS_EMPTY` compiles as `NOT EXISTS` |
+| `IS_EMPTY`, null, and existence operations | Indexed or doc-value-queryable leaf fields; object and nested containers do not expose presence capability themselves. An empty Elasticsearch array has no indexed value, so `IS_EMPTY` compiles as `NOT EXISTS` |
 | `MATCH` | `text`, `match_only_text`, `search_as_you_type`, or `semantic_text` |
 | Sort | Sortable field with `doc_values`, indexed `text` with `fielddata`, or a sortable runtime field |
 
@@ -174,10 +182,12 @@ Field selection follows these rules:
 passed through unchanged. Because `text.fielddata=true` uses significant heap memory, a `keyword` multi-field is still
 preferred in most cases. Sorting on doc-values and runtime fields does not require `index=true`.
 
-Dynamic keys under a flattened field do not have individual mapping entries. For a concrete path such as
-`state.labels.release`, the resolver walks up to the nearest flattened parent and preserves the original path for exact
-and sort operations. Flattened values use keyword semantics, so sorting is lexicographic. Dynamic keys do not
-automatically enable range operations; explicitly mapped typed sub-fields continue to use their own type capabilities.
+Dynamic descendants do not have individual mapping entries, and the current mapping alone cannot prove identical
+semantics across index settings, historical documents, and write boundaries. In the first release, the final
+Elasticsearch Schema therefore publishes no dynamic-descendant capabilities: `STRICT` rejects unknown descendants,
+while `COMPATIBLE` preserves the existing backend fallback only for ordinary unknown paths. Fixed System `tags.*`
+fields participate in ABAC and never use that fallback, including while Schema loading is unavailable. Explicitly mapped
+typed sub-fields continue to use their own capabilities.
 
 For example, one logical field can support both full-text and exact operations:
 

@@ -381,7 +381,8 @@ curl --request POST 'http://localhost:8080/execution_failed/snapshot/aggregation
 ]
 ```
 
-日期桶键是分桶起点的 epoch 毫秒。MongoDB 字段必须能转换为日期；Elasticsearch 字段必须映射为 `date` 或 `date_nanos`。
+日期桶键是分桶起点的 epoch 毫秒。字段可以是后端原生日期（MongoDB BSON Date、Elasticsearch `date`/`date_nanos`），
+也可以是通过 `@QueryTemporal`、Bean 或约定文件声明了时间单位的整数 epoch；MongoDB 会转换 epoch，Elasticsearch 会生成请求级 runtime date field。
 
 ##### 展开集合并取 Top-N
 

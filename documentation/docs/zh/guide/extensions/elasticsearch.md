@@ -148,10 +148,17 @@ SnapshotStore 使用带 scripted upsert 的 Bulk `update`，direct 路径使用�
 
 ## 快照查询字段解析
 
-快照查询第一次访问聚合索引时会异步加载当前 Elasticsearch Mapping，并按物理字段能力编译条件和排序；Mapping
-是字段能力的唯一来源，不需要维护额外的 `QuerySchema`。缓存按索引隔离且没有 TTL。缓存中的字段缺失或能力不匹配时，
-查询直接失败且不会隐式访问 Mapping API；存在性操作除外，因为 Elasticsearch 可以对未映射逻辑字段执行 `exists`。
-Mapping 变更后通过维护端点显式刷新。
+快照查询使用协商后的运行时 Query Schema。Wow 先合并 System 骨架、JSON Schema/注解、Classpath 文件、Bean 和工作目录文件，
+再由 Elasticsearch Mapping 绑定物理字段与可执行能力。声明来源从低到高依次为 JSON Schema、Classpath、Bean、工作目录；高优先级
+只覆盖显式声明的叶子。约定文件位置固定为：
+
+```text
+classpath:wow-query-schema/{contextName}/{aggregateName}/{model}.json
+./config/wow-query-schema/{contextName}/{aggregateName}/{model}.json
+```
+
+最终 Schema 按 QueryService 缓存且没有 TTL。`GET /{aggregate}/snapshot/schema` 返回不含物理 binding 的公共元数据；Mapping、索引或
+声明修正后，调用 `POST /{aggregate}/snapshot/schema/refresh` 重新协商当前服务实例。刷新失败保留旧缓存，不会广播到其他实例。
 
 字段选择规则如下：
 
@@ -160,7 +167,7 @@ Mapping 变更后通过维护端点显式刷新。
 | `EQ`、`NE`、`IN`、`NOT_IN`、`ALL_IN`、`TRUE`、`FALSE` | 可执行 term 查询，包括受支持的 doc-value-only 字段 |
 | `CONTAINS`、`STARTS_WITH`、`ENDS_WITH` | `keyword` 或 `wildcard` |
 | 范围操作 | numeric、date、ip、keyword 或 `*_range`，支持适用的 `doc_values=true,index=false` 字段 |
-| `IS_EMPTY`、null 与存在性操作 | 任意已索引或可通过 doc values 查询的字段；Elasticsearch 空数组没有索引值，因此 `IS_EMPTY` 编译为 `NOT EXISTS` |
+| `IS_EMPTY`、null 与存在性操作 | 已索引或可通过 doc values 查询的叶子字段；object/nested 容器本身不提供存在性能力。Elasticsearch 空数组没有索引值，因此 `IS_EMPTY` 编译为 `NOT EXISTS` |
 | `MATCH` | `text`、`match_only_text`、`search_as_you_type` 或 `semantic_text` |
 | 排序 | 启用 `doc_values` 的可排序字段、启用 `fielddata` 的已索引 `text` 字段，或可排序 runtime field |
 
@@ -168,9 +175,9 @@ Mapping 变更后通过维护端点显式刷新。
 `text.fielddata=true` 会占用较多堆内存，通常仍应优先使用 `keyword` multi-field；doc-values 字段和 runtime field
 排序不要求 `index=true`。
 
-flattened 字段的动态键不会单独出现在 Mapping 中。Resolver 会从 `state.labels.release` 这类具体路径向上查找最近的
-flattened 父字段，并保留原路径执行精确和排序操作。flattened 值均按 keyword 处理，排序是字典序；
-动态键不自动启用范围操作，显式声明的 typed sub-field 仍使用自身类型能力。
+动态后代不会单独出现在 Mapping 中，也无法仅凭当前 Mapping 证明索引设置、历史文档和写入边界始终具有相同语义。因此首期
+Elasticsearch 最终 Schema 不发布动态后代能力：`STRICT` 拒绝未知后代；`COMPATIBLE` 仅对普通未知路径保留原有后端回退。
+固定 System `tags.*` 涉及 ABAC，不允许这种回退，即使 Schema 暂时不可用也会失败关闭。显式映射的 typed sub-field 仍使用自身能力。
 
 例如，同一逻辑字段可同时支持全文搜索和精确查询：
 
