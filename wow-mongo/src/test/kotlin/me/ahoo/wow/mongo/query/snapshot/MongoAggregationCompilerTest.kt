@@ -283,13 +283,14 @@ class MongoAggregationCompilerTest {
     }
 
     @Test
-    fun `plain field metric should retain the existing Mongo plan`() {
+    fun `plain field metric should normalize scalar or singleton values without conversion`() {
         val groupJson = MongoAggregationCompiler(SnapshotFilterConverter).compile(
             aggregation { sum("state.amount", "total") },
         )[1].toBsonDocument().toJson()
 
         groupJson.assert()
-            .contains("\"\$sum\": \"\$state.amount\"")
+            .contains("\$isArray")
+            .contains("\$arrayElemAt")
             .contains("\$isNumber")
             .doesNotContain("\$convert")
     }

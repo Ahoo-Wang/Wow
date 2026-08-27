@@ -84,8 +84,7 @@ class ElasticsearchQuerySchemaAdapter(
                             field,
                             logical.toFieldSchema(
                                 projectionPath = mapping.fields[field.value]?.projectionPath
-                                    ?: mapping.find(field.value)?.takeIf { it.kind == Property.Kind.Flattened }
-                                        ?.let { field.value },
+                                    ?: field.value.takeIf { field.value !in mapping.fields },
                                 bindings = BUILT_IN_CAPABILITIES.mapNotNull { capability ->
                                     mapping.binding(field.value, logical, capability, invalidNestedParents)
                                         ?.let { capability to it }
@@ -293,7 +292,7 @@ private fun LogicalQueryFieldSchema.numericRequirements(): List<Set<Property.Kin
 
 private fun LogicalQueryFieldSchema.rangeRequirements(): List<Set<Property.Kind>> = when (semanticType) {
     is Temporal.Formatted -> if (valueTypes == setOf(QueryValueType.STRING)) listOf(KEYWORD_KINDS) else emptyList()
-    else -> temporalRequirements().ifEmpty { numericRequirements() }
+    else -> temporalRequirements().ifEmpty { numericRequirements().ifEmpty { stringRequirements() } }
 }
 
 private fun LogicalQueryFieldSchema.temporalRequirements(): List<Set<Property.Kind>> = when (semanticType) {

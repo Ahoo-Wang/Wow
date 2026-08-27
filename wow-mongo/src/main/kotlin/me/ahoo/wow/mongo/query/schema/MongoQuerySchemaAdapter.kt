@@ -119,6 +119,7 @@ class MongoQuerySchemaAdapter(
             }
             if (QueryValueType.STRING in valueTypes) {
                 add(QueryCapability.LITERAL_MATCH)
+                add(QueryCapability.RANGE)
             }
             if (QueryValueType.INTEGER in valueTypes || QueryValueType.DECIMAL in valueTypes) {
                 add(QueryCapability.RANGE)
@@ -127,9 +128,6 @@ class MongoQuerySchemaAdapter(
             if (semanticType is Temporal.Date || semanticType is Temporal.Epoch) {
                 add(QueryCapability.RANGE)
                 add(QueryCapability.AGGREGATE_TEMPORAL)
-            }
-            if (semanticType is Temporal.Formatted) {
-                add(QueryCapability.RANGE)
             }
             if (cardinality == QueryCardinality.MANY && QueryValueType.OBJECT in valueTypes) {
                 add(QueryCapability.ELEMENT_SCOPE)
@@ -192,7 +190,11 @@ class MongoQuerySchemaAdapter(
             is Temporal.Formatted -> {
                 if (valueTypes == setOf(QueryValueType.STRING)) listOf(STRING_TYPES) else emptyList()
             }
-            else -> temporalRequirements().ifEmpty { numericRequirements() }
+            else -> temporalRequirements().ifEmpty {
+                numericRequirements().ifEmpty {
+                    valueTypes.filter { it == QueryValueType.STRING }.map { STRING_TYPES }
+                }
+            }
         }
 
         private fun LogicalQueryFieldSchema.temporalRequirements(): List<Set<String>> = when (semanticType) {
@@ -228,7 +230,8 @@ class MongoQuerySchemaAdapter(
         )
 
         private fun List<Document>.hasTextIndex(): Boolean = any { index ->
-            (index["key"] as? Document)?.values?.any { it == "text" } == true
+            index["hidden"] != true && !index.containsKey("partialFilterExpression") &&
+                (index["key"] as? Document)?.values?.any { it == "text" } == true
         }
 
         private fun Document?.storageSchemas(): Map<String, MongoStorageSchema> {
@@ -258,7 +261,18 @@ class MongoQuerySchemaAdapter(
             }
         }
 
-        private fun Document.storageTypes(): Set<QueryStorageType>? =
+        private fun Document.storageTypes(): Set<QueryStorageType>? {
+            val constraints = buildList {
+                directStorageTypes()?.let(::add)
+                listOf("anyOf", "oneOf").forEach { key ->
+                    unionStorageTypes(key)?.let(::add)
+                }
+                intersectionStorageTypes("allOf")?.let(::add)
+            }
+            return constraints.reduceOrNull(Set<QueryStorageType>::intersect)
+        }
+
+        private fun Document.directStorageTypes(): Set<QueryStorageType>? =
             when (val declared = this["bsonType"]) {
                 is String -> setOfNotNull(declared.takeUnless { it == "null" }?.let(::QueryStorageType))
                 is Iterable<*> -> declared.filterIsInstance<String>()
@@ -266,6 +280,24 @@ class MongoQuerySchemaAdapter(
                     .mapTo(linkedSetOf(), ::QueryStorageType)
                 else -> null
             }
+
+        private fun Document.unionStorageTypes(key: String): Set<QueryStorageType>? {
+            if (!containsKey(key)) return null
+            val schemas = (this[key] as? Iterable<*>)?.filterIsInstance<Document>().orEmpty()
+            if (schemas.isEmpty()) return emptySet()
+            val types = schemas.map { it.storageTypes() }
+            if (types.any { it == null }) return emptySet()
+            return types.filterNotNull().flatten().toSet()
+        }
+
+        private fun Document.intersectionStorageTypes(key: String): Set<QueryStorageType>? {
+            if (!containsKey(key)) return null
+            val schemas = (this[key] as? Iterable<*>)?.filterIsInstance<Document>().orEmpty()
+            if (schemas.isEmpty()) return emptySet()
+            return schemas.mapNotNull { it.storageTypes() }
+                .reduceOrNull(Set<QueryStorageType>::intersect)
+                ?: emptySet()
+        }
 
         private fun Set<QueryStorageType>?.proves(requirements: List<Set<String>>): Boolean {
             if (this == null) return true

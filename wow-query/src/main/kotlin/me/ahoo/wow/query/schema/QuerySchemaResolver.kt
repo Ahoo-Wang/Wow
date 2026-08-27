@@ -17,6 +17,7 @@ package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.query.*
 import me.ahoo.wow.api.query.schema.QueryCapability
+import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryCompatibilityLevel
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.serialization.MessageRecords
@@ -256,12 +257,21 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         is BetweenFilter -> resolveFieldFilter(filter.field, QueryCapability.RANGE, logicalParent, physicalParent) {
             filter.copy(field = it)
         }
-        is IsEmptyFilter -> resolveFieldFilter(
+        is IsEmptyFilter -> resolveField(
             filter.field,
             QueryCapability.PRESENCE,
             logicalParent,
             physicalParent,
-        ) { filter.copy(field = it) }
+        ).let { resolved ->
+            QuerySchemaResolution(
+                filter.copy(field = LogicalField(resolved.value)),
+                if (resolved.fieldSchema?.cardinality == QueryCardinality.SINGLE) {
+                    QueryCompatibilityLevel.INCOMPATIBLE
+                } else {
+                    resolved.compatibility
+                },
+            )
+        }
         is IsNullFilter -> resolveFieldFilter(filter.field, QueryCapability.PRESENCE, logicalParent, physicalParent) {
             filter.copy(field = it)
         }

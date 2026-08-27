@@ -172,6 +172,20 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     }
 
     @Test
+    fun `strict should execute ordinary string ranges`() {
+        updateStateData("searchable")
+
+        MongoSnapshotQueryServiceFactory(
+            database,
+            schemaSources = querySchemaSources,
+            validationMode = QuerySchemaValidationMode.STRICT,
+        ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+            .dynamicList(
+                ListQuery(filter = filterExpression { "state.data" gt "alpha" }, limit = 10),
+            ).test().expectNextCount(1).verifyComplete()
+    }
+
+    @Test
     fun `strict should reject unknown fields while compatible executes fallback`() {
         snapshotQueryService.dynamicList(
             ListQuery(filter = filterExpression { "state.unknown" eq "value" }, limit = 10),
@@ -226,6 +240,10 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             ListQuery(filter = filterExpression { fieldPath.between(2, 8) }, limit = 10),
         ).test().expectNextCount(1).verifyComplete()
         aggregation { sum(field(fieldPath) * constant(1.0), "total") }.query(service)
+            .test()
+            .assertNext { row -> row.toMap().assert().isEqualTo(mapOf("total" to 7.0)) }
+            .verifyComplete()
+        aggregation { sum(fieldPath, "total") }.query(service)
             .test()
             .assertNext { row -> row.toMap().assert().isEqualTo(mapOf("total" to 7.0)) }
             .verifyComplete()

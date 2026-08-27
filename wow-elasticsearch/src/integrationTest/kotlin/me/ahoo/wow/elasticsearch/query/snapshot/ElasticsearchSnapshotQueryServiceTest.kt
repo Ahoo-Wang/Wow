@@ -117,6 +117,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                                 .properties("fielddataCategory") { it.text { text -> text.fielddata(true) } }
                                 .properties("ipValue") { it.ip { field -> field } }
                                 .properties("versionValue") { it.version { field -> field } }
+                                .properties("opaque") { it.`object` { field -> field.enabled(false) } }
                                 .properties("labels") { it.flattened { flattened -> flattened } }
                                 .properties("createdAt") { it.long_ { number -> number } }
                                 .properties("unreadableNumber") {
@@ -213,13 +214,32 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
 
         service.dynamicList(
             ListQuery(
-                filter = MatchAllFilter,
+                filter = filterExpression { field gt "alpha" },
                 projection = Projection(include = listOf(field)),
                 limit = 10,
             ),
         ).test()
             .assertNext { document ->
                 document.getNestedDocument("state")["sourceOnlyName"].assert().isEqualTo("visible")
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `strict projection should return a declared unmapped source field`() {
+        val field = "state.opaque.name"
+        updateState(mapOf("opaque" to mapOf("name" to "visible")))
+        val service = strictService(querySchemaSources + source(stringField(field)))
+
+        service.dynamicList(
+            ListQuery(
+                filter = MatchAllFilter,
+                projection = Projection(include = listOf(field)),
+                limit = 10,
+            ),
+        ).test()
+            .assertNext { document ->
+                document.getNestedDocument("state").getNestedDocument("opaque")["name"].assert()
+                    .isEqualTo("visible")
             }.verifyComplete()
     }
 
@@ -262,6 +282,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             ListQuery(
                 filter = filterExpression {
                     "state.ipValue" eq "192.0.2.1"
+                    "state.ipValue" gt "192.0.2.0"
                     "state.versionValue" eq "1.2.3"
                 },
                 sort = listOf(

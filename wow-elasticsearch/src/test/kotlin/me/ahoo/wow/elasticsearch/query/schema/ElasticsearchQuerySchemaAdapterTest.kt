@@ -104,6 +104,32 @@ class ElasticsearchQuerySchemaAdapterTest {
     }
 
     @Test
+    fun `declared unmapped source fields should retain projection while runtime fields do not`() {
+        val source = LogicalField("state.opaque.name")
+        val runtime = LogicalField("state.runtimeCode")
+        val schema = ElasticsearchQuerySchemaAdapter.bind(
+            LogicalQuerySchema(
+                linkedMapOf(
+                    source to field(QueryValueType.STRING),
+                    runtime to field(QueryValueType.STRING),
+                ),
+            ),
+            ElasticsearchIndexMapping.from(
+                INDEX,
+                TypeMapping.of { mapping ->
+                    mapping.properties("state.opaque") { it.`object` { field -> field.enabled(false) } }
+                        .runtime(runtime.value) { it.type(RuntimeFieldType.Keyword) }
+                },
+            ),
+        )
+
+        schema.fields.getValue(source).projectionPath.assert().isEqualTo(source.value)
+        schema.fields.getValue(runtime).projectionPath.assert().isNull()
+        QuerySchemaResolver(schema).resolve(Projection(include = listOf(source.value))).compatibility.assert()
+            .isEqualTo(QueryCompatibilityLevel.EXACT)
+    }
+
+    @Test
     fun `projection should retain the source path when presence uses a multi-field`() {
         val field = LogicalField("state.name")
         val logical = LogicalQuerySchema(mapOf(field to field(QueryValueType.STRING)))
@@ -206,12 +232,14 @@ class ElasticsearchQuerySchemaAdapterTest {
     }
 
     @Test
-    fun `ip and version mappings should support string term operations`() {
+    fun `keyword ip and version mappings should support native string operations`() {
+        val keyword = LogicalField("state.keyword")
         val ip = LogicalField("state.ip")
         val version = LogicalField("state.version")
         val schema = ElasticsearchQuerySchemaAdapter.bind(
             LogicalQuerySchema(
                 linkedMapOf(
+                    keyword to field(QueryValueType.STRING),
                     ip to field(QueryValueType.STRING),
                     version to field(QueryValueType.STRING),
                 ),
@@ -219,18 +247,22 @@ class ElasticsearchQuerySchemaAdapterTest {
             ElasticsearchIndexMapping.from(
                 INDEX,
                 TypeMapping.of { mapping ->
-                    mapping.properties(ip.value) { it.ip { field -> field } }
+                    mapping.properties(keyword.value) { it.keyword { field -> field } }
+                        .properties(ip.value) { it.ip { field -> field } }
                         .properties(version.value) { it.version { field -> field } }
                 },
             ),
         )
 
-        listOf(ip, version).forEach { field ->
+        listOf(keyword, ip, version).forEach { field ->
             schema.bindings(field.value).assert().contains(
                 QueryCapability.EXACT_MATCH,
                 QueryCapability.SORT,
                 QueryCapability.AGGREGATE_TERMS,
             )
+        }
+        listOf(keyword, ip).forEach { field ->
+            schema.bindings(field.value).assert().contains(QueryCapability.RANGE)
         }
     }
 

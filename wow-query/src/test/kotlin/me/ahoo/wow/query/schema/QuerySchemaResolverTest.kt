@@ -132,7 +132,6 @@ class QuerySchemaResolverTest {
             LessThanFilter(field, two) to LessThanFilter(range, two),
             LessThanOrEqualFilter(field, two) to LessThanOrEqualFilter(range, two),
             BetweenFilter(field, one, two) to BetweenFilter(range, one, two),
-            IsEmptyFilter(field) to IsEmptyFilter(presence),
             IsNullFilter(field) to IsNullFilter(presence),
             IsNotNullFilter(field) to IsNotNullFilter(presence),
             ExistsFilter(field) to ExistsFilter(presence),
@@ -144,6 +143,34 @@ class QuerySchemaResolverTest {
                 QuerySchemaResolution(expected, QueryCompatibilityLevel.EXACT),
             )
         }
+    }
+
+    @Test
+    fun `is empty should require collection cardinality`() {
+        val single = LogicalField("state.single")
+        val many = LogicalField("state.many")
+        val resolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    single to fieldSchema(QueryCapability.PRESENCE to "document.single"),
+                    many to fieldSchema(
+                        QueryCapability.PRESENCE to "document.many",
+                        cardinality = QueryCardinality.MANY,
+                    ),
+                ),
+            ),
+        )
+
+        resolver.resolve(IsEmptyFilter(single)).compatibility.assert()
+            .isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+        resolver.resolve(IsEmptyFilter(many)).assert().isEqualTo(
+            QuerySchemaResolution(
+                IsEmptyFilter(LogicalField("document.many")),
+                QueryCompatibilityLevel.EXACT,
+            ),
+        )
+        resolver.resolve(IsEmptyFilter(LogicalField("state.unknown"))).compatibility.assert()
+            .isEqualTo(QueryCompatibilityLevel.COMPATIBLE)
     }
 
     @Test
@@ -1007,6 +1034,7 @@ class QuerySchemaResolverTest {
         dynamicChildren: Boolean = false,
         semanticType: QuerySemanticType? = null,
         projectionPath: String? = null,
+        cardinality: QueryCardinality = QueryCardinality.SINGLE,
     ) = QueryFieldSchema(
         title = null,
         description = null,
@@ -1014,7 +1042,7 @@ class QuerySchemaResolverTest {
         valueTypes = setOf(QueryValueType.STRING),
         nullable = false,
         required = true,
-        cardinality = QueryCardinality.SINGLE,
+        cardinality = cardinality,
         semanticType = semanticType,
         dynamicChildren = dynamicChildren,
         bindings = bindings.associate { (capability, path) ->

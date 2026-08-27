@@ -106,6 +106,13 @@ class MongoQuerySchemaAdapterTest {
     }
 
     @Test
+    fun `ordinary strings should support native ranges`() {
+        bindState(Document("name", Document("bsonType", "string")))
+            .fields.getValue(LogicalField("state.name"))
+            .bindings.keys.assert().contains(QueryCapability.RANGE)
+    }
+
+    @Test
     fun `bind should use conventions validator types and model capabilities`() {
         val validator = Document("bsonType", "object").append(
             "properties",
@@ -157,6 +164,18 @@ class MongoQuerySchemaAdapterTest {
     }
 
     @Test
+    fun `model search should ignore partial and hidden text indexes`() {
+        listOf(
+            Document("key", Document("all", "text"))
+                .append("partialFilterExpression", Document("active", true)),
+            Document("key", Document("all", "text")).append("hidden", true),
+        ).forEach { index ->
+            MongoQuerySchemaAdapter.bind(logicalSchema(), listOf(index), null)
+                .capabilities.assert().isEmpty()
+        }
+    }
+
+    @Test
     fun `bind should leave storage type unknown without a validator`() {
         val schema = MongoQuerySchemaAdapter.bind(logicalSchema(), emptyList(), null)
 
@@ -184,6 +203,43 @@ class MongoQuerySchemaAdapterTest {
     fun `bind should leave a real multi-type validator union unknown regardless of order`() {
         storageType("string", "int").assert().isNull()
         storageType("int", "string").assert().isNull()
+    }
+
+    @Test
+    fun `composed validators should prove nullable native date storage`() {
+        val compositions = listOf(
+            Document(
+                "anyOf",
+                listOf(Document("bsonType", "date"), Document("bsonType", "null")),
+            ),
+            Document(
+                "oneOf",
+                listOf(Document("bsonType", "date"), Document("bsonType", "null")),
+            ),
+            Document(
+                "allOf",
+                listOf(
+                    Document("bsonType", listOf("date", "null")),
+                    Document("description", "native date"),
+                ),
+            ),
+        )
+
+        compositions.forEach { validator ->
+            val bindings = bindState(Document("nativeDate", validator))
+                .fields.getValue(LogicalField("state.nativeDate"))
+                .bindings.keys
+            bindings.assert().contains(
+                QueryCapability.PRESENCE,
+                QueryCapability.SORT,
+                QueryCapability.AGGREGATE_TERMS,
+                QueryCapability.AGGREGATE_TEMPORAL,
+            ).doesNotContain(
+                QueryCapability.EXACT_MATCH,
+                QueryCapability.LITERAL_MATCH,
+                QueryCapability.RANGE,
+            )
+        }
     }
 
     @Test

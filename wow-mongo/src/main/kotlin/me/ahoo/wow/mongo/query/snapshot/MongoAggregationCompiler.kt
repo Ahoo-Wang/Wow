@@ -179,13 +179,14 @@ internal class MongoAggregationCompiler(
         val metricExpression = expression
         if (metricExpression is AggregationExpression.Field) {
             val field = metricExpression.field.resolve(parent, schema, QueryCapability.AGGREGATE_NUMERIC)
-            val isNumber = Document("\$isNumber", "\$$field")
+            val value = scalarOrSingleton("\$$field")
+            val isNumber = Document("\$isNumber", value)
             val input = when (function) {
                 AggregationFunction.MIN,
                 AggregationFunction.MAX,
-                -> Document("\$cond", listOf(isNumber, "\$$field", null))
+                -> Document("\$cond", listOf(isNumber, value, null))
 
-                else -> "\$$field"
+                else -> value
             }
             return input to isNumber
         }
