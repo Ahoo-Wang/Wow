@@ -74,16 +74,31 @@ class ElasticsearchQuerySchemaAdapter(
                         add(QueryCapability.FULL_TEXT_PHRASE)
                     }
                 },
-                fields = logicalSchema.fields.mapValues { (field, logical) ->
-                    logical.toFieldSchema(
-                        BUILT_IN_CAPABILITIES.mapNotNull { capability ->
-                            mapping.binding(field.value, logical, capability, invalidNestedParents)
-                                ?.let { capability to it }
-                        }.toMap(),
-                    )
+                fields = buildMap {
+                    logicalSchema.fields.forEach { (field, logical) ->
+                        put(
+                            field,
+                            logical.toFieldSchema(
+                                projectionPath = mapping.fields[field.value]?.projectionPath,
+                                bindings = BUILT_IN_CAPABILITIES.mapNotNull { capability ->
+                                    mapping.binding(field.value, logical, capability, invalidNestedParents)
+                                        ?.let { capability to it }
+                                }.toMap(),
+                            ),
+                        )
+                    }
+                    METADATA_SORT_FIELDS.forEach { (path, valueType) ->
+                        putIfAbsent(LogicalField(path), metadataSortField(path, valueType))
+                    }
                 },
             )
         }
+
+        private val METADATA_SORT_FIELDS = linkedMapOf(
+            "_score" to QueryValueType.DECIMAL,
+            "_doc" to QueryValueType.INTEGER,
+            "_shard_doc" to QueryValueType.INTEGER,
+        )
 
         private val BUILT_IN_CAPABILITIES = listOf(
             QueryCapability.PRESENCE,
@@ -140,7 +155,10 @@ class ElasticsearchQuerySchemaAdapter(
             else -> listOf("keyword", "exact")
         }
 
-        private fun LogicalQueryFieldSchema.toFieldSchema(bindings: Map<QueryCapability, QueryFieldBinding>) =
+        private fun LogicalQueryFieldSchema.toFieldSchema(
+            projectionPath: String?,
+            bindings: Map<QueryCapability, QueryFieldBinding>,
+        ) =
             QueryFieldSchema(
                 title = title,
                 description = description,
@@ -152,7 +170,24 @@ class ElasticsearchQuerySchemaAdapter(
                 semanticType = semanticType,
                 dynamicChildren = false,
                 bindings = bindings,
+                projectionPath = projectionPath,
             )
+
+        private fun metadataSortField(path: String, valueType: QueryValueType) = QueryFieldSchema(
+            title = null,
+            description = null,
+            enumValues = null,
+            valueTypes = setOf(valueType),
+            nullable = false,
+            required = false,
+            cardinality = QueryCardinality.SINGLE,
+            semanticType = null,
+            dynamicChildren = false,
+            bindings = mapOf(
+                QueryCapability.SORT to QueryFieldBinding(path, storageType = null),
+            ),
+            projectionPath = null,
+        )
     }
 }
 
@@ -203,7 +238,7 @@ private fun LogicalQueryFieldSchema.storageRequirements(
     QueryCapability.FULL_TEXT_TERMS,
     QueryCapability.FULL_TEXT_PHRASE,
     -> stringRequirements()
-    QueryCapability.RANGE -> temporalRequirements().ifEmpty { numericRequirements() }
+    QueryCapability.RANGE -> rangeRequirements()
     QueryCapability.SORT,
     QueryCapability.AGGREGATE_TERMS,
     -> valueRequirements()
@@ -241,6 +276,11 @@ private fun LogicalQueryFieldSchema.numericRequirements(): List<Set<Property.Kin
             else -> null
         }
     }
+}
+
+private fun LogicalQueryFieldSchema.rangeRequirements(): List<Set<Property.Kind>> = when (semanticType) {
+    is Temporal.Formatted -> if (valueTypes == setOf(QueryValueType.STRING)) listOf(KEYWORD_KINDS) else emptyList()
+    else -> temporalRequirements().ifEmpty { numericRequirements() }
 }
 
 private fun LogicalQueryFieldSchema.temporalRequirements(): List<Set<Property.Kind>> = when (semanticType) {

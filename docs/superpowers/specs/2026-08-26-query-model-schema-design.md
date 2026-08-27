@@ -199,12 +199,15 @@ data class QueryFieldSchema(
     val semanticType: QuerySemanticType?,
     val dynamicChildren: Boolean,
     val bindings: Map<QueryCapability, QueryFieldBinding>,
+    val projectionPath: String?,
 )
 ```
 
 字段身份已经是 `QueryModelSchema.fields` 的 Map key，因此 `QueryFieldSchema` 不重复保存 `field`。
 
 `title`、`description` 与 `enumValues` 属于逻辑 Schema 元数据，由 JSON Schema、现有 `@Schema`、约定文件或 Bean 声明合并产生。它们既供 View Engine 使用，也进入公共 Metadata；Backend Adapter 不修改展示元数据。
+
+`projectionPath` 是 Backend Adapter 生成的内部投影路径，不是 capability，也不进入公共 Metadata。它与查询 binding 分离：例如 Elasticsearch 查询可绑定 `state.name.keyword`，但 `_source` projection 仍使用 `state.name`；MongoDB 则通常与字段转换后的物理路径相同。
 
 `valueTypes` 不包含 null；nullability 由 `nullable` 独立表达。`required` 表示 JSON Schema 声明要求该属性出现，仅供元数据和编辑器使用，不证明历史存储文档必然含有该字段。
 
@@ -1123,6 +1126,7 @@ classDiagram
         +QuerySemanticType semanticType
         +Boolean dynamicChildren
         +Map bindings
+        +String projectionPath
     }
 
     class QueryFieldBinding {

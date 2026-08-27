@@ -85,9 +85,10 @@ class MongoQuerySchemaAdapter(
                     val storageSchema = storageSchemas[physicalPath]
                     val binding = QueryFieldBinding(physicalPath, storageSchema?.types?.singleOrNull())
                     if (invalidContainers.any { logicalField.value == it || logicalField.value.startsWith("$it.") }) {
-                        return@mapValues logicalSchema.toFieldSchema(emptyMap())
+                        return@mapValues logicalSchema.toFieldSchema(projectionPath = null, bindings = emptyMap())
                     }
                     logicalSchema.toFieldSchema(
+                        physicalPath,
                         logicalSchema.capabilities()
                             .filter { logicalSchema.supports(it, storageSchema) }
                             .associateWith { binding },
@@ -127,6 +128,9 @@ class MongoQuerySchemaAdapter(
                 add(QueryCapability.RANGE)
                 add(QueryCapability.AGGREGATE_TEMPORAL)
             }
+            if (semanticType is Temporal.Formatted) {
+                add(QueryCapability.RANGE)
+            }
             if (cardinality == QueryCardinality.MANY && QueryValueType.OBJECT in valueTypes) {
                 add(QueryCapability.ELEMENT_SCOPE)
             }
@@ -164,11 +168,7 @@ class MongoQuerySchemaAdapter(
                 } else {
                     temporalRequirements().ifEmpty { valueTypes.map { it.storageTypes() } }
                 }
-                QueryCapability.RANGE -> if (semanticType == Temporal.Date) {
-                    emptyList()
-                } else {
-                    temporalRequirements().ifEmpty { numericRequirements() }
-                }
+                QueryCapability.RANGE -> rangeRequirements()
                 QueryCapability.AGGREGATE_NUMERIC -> numericRequirements()
                 QueryCapability.AGGREGATE_TEMPORAL -> temporalRequirements()
                 QueryCapability.ELEMENT_SCOPE -> valueTypes.filter { it == QueryValueType.OBJECT }.map { OBJECT_TYPES }
@@ -187,6 +187,14 @@ class MongoQuerySchemaAdapter(
             }
         }
 
+        private fun LogicalQueryFieldSchema.rangeRequirements(): List<Set<String>> = when (semanticType) {
+            Temporal.Date -> emptyList()
+            is Temporal.Formatted -> {
+                if (valueTypes == setOf(QueryValueType.STRING)) listOf(STRING_TYPES) else emptyList()
+            }
+            else -> temporalRequirements().ifEmpty { numericRequirements() }
+        }
+
         private fun LogicalQueryFieldSchema.temporalRequirements(): List<Set<String>> = when (semanticType) {
             Temporal.Date -> listOf(DATE_TYPES)
             is Temporal.Epoch -> listOf(INTEGRAL_TYPES)
@@ -203,6 +211,7 @@ class MongoQuerySchemaAdapter(
         }
 
         private fun LogicalQueryFieldSchema.toFieldSchema(
+            projectionPath: String?,
             bindings: Map<QueryCapability, QueryFieldBinding>,
         ) = QueryFieldSchema(
             title = title,
@@ -215,6 +224,7 @@ class MongoQuerySchemaAdapter(
             semanticType = semanticType,
             dynamicChildren = dynamicChildren && bindings.keys.any { it != QueryCapability.ELEMENT_SCOPE },
             bindings = bindings,
+            projectionPath = projectionPath,
         )
 
         private fun List<Document>.hasTextIndex(): Boolean = any { index ->

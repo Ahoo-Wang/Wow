@@ -29,6 +29,7 @@ import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryCompatibilityLevel
@@ -54,6 +55,41 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 class MongoQuerySchemaAdapterTest {
+    @Test
+    fun `formatted temporal strings should support relative ranges but not temporal aggregation`() {
+        val field = LogicalField("state.formatted")
+        val logical = LogicalQuerySchema(
+            mapOf(
+                field to field(
+                    QueryValueType.STRING,
+                    semanticType = Temporal.Formatted("yyyy-MM-dd"),
+                ),
+            ),
+        )
+        val schema = MongoQuerySchemaAdapter.bind(
+            logical,
+            emptyList(),
+            Document(
+                "properties",
+                Document(
+                    "state",
+                    Document("bsonType", "object").append(
+                        "properties",
+                        Document("formatted", Document("bsonType", "string")),
+                    ),
+                ),
+            ),
+        )
+
+        schema.fields.getValue(field).bindings.keys.assert()
+            .contains(QueryCapability.RANGE)
+            .doesNotContain(QueryCapability.AGGREGATE_TEMPORAL)
+        QuerySchemaResolver(schema).resolve(TodayFilter(field)).let { resolved ->
+            resolved.compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+            (resolved.value as TodayFilter).datePattern.assert().isEqualTo("yyyy-MM-dd")
+        }
+    }
+
     @Test
     fun `bind should use conventions validator types and model capabilities`() {
         val validator = Document("bsonType", "object").append(

@@ -40,6 +40,8 @@ description: 使用 FilterExpression、查询 DSL 与 REST API 查询快照和�
 
 相对时间过滤器面向数值时间字段时，可将 `timeUnit` 配置为 `java.util.concurrent.TimeUnit` 的枚举名，默认值为 `MILLISECONDS`。配置 `datePattern` 时输出字符串，`timeUnit` 不参与格式化。
 
+当最终 Query Schema 将字符串声明为 `Temporal.Formatted` 时，Resolver 自动使用声明的 pattern；只有后端能够按该字符串字段执行范围查询时才发布 `RANGE` 能力。首期格式化字符串不支持日期分桶。
+
 `field` 是逻辑字段路径。合法示例：
 
 ```text

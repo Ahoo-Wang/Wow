@@ -90,10 +90,10 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
 
     fun resolve(projection: Projection): QuerySchemaResolution<Projection> {
         val include = projection.include.map {
-            resolvePath(it, QueryCapability.PRESENCE, enforceElementScope = false)
+            resolveProjectionPath(it)
         }
         val exclude = projection.exclude.map {
-            resolvePath(it, QueryCapability.PRESENCE, enforceElementScope = false)
+            resolveProjectionPath(it)
         }
         return QuerySchemaResolution(
             Projection(
@@ -102,6 +102,19 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
             ),
             (include + exclude).map { it.compatibility }.combined(),
         )
+    }
+
+    private fun resolveProjectionPath(path: String): QuerySchemaResolution<String> {
+        val logicalField = try {
+            LogicalField(path)
+        } catch (_: IllegalArgumentException) {
+            return QuerySchemaResolution(path, QueryCompatibilityLevel.COMPATIBLE)
+        }
+        val fieldSchema = schema.fields[logicalField] ?: schema.resolve(logicalField)
+            ?: return QuerySchemaResolution(path, QueryCompatibilityLevel.COMPATIBLE)
+        return fieldSchema.projectionPath?.let {
+            QuerySchemaResolution(it, QueryCompatibilityLevel.EXACT)
+        } ?: QuerySchemaResolution(path, QueryCompatibilityLevel.INCOMPATIBLE)
     }
 
     fun resolve(sort: List<Sort>): QuerySchemaResolution<List<Sort>> {

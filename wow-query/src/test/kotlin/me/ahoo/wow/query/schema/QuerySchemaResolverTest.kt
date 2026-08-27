@@ -730,6 +730,28 @@ class QuerySchemaResolverTest {
     }
 
     @Test
+    fun `projection should use its path without requiring a presence binding`() {
+        val field = LogicalField("state.name")
+        val resolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    field to fieldSchema(
+                        QueryCapability.EXACT_MATCH to "document.name.keyword",
+                        projectionPath = "document.name",
+                    ),
+                ),
+            ),
+        )
+
+        resolver.resolve(Projection(include = listOf(field.value))).assert().isEqualTo(
+            QuerySchemaResolution(
+                Projection(include = listOf("document.name")),
+                QueryCompatibilityLevel.EXACT,
+            ),
+        )
+    }
+
+    @Test
     fun `root sort should reject a field below an element scope`() {
         val field = LogicalField("state.orders.price")
         val sort = listOf(Sort(field.value, Sort.Direction.ASC))
@@ -984,6 +1006,7 @@ class QuerySchemaResolverTest {
         vararg bindings: Pair<QueryCapability, String>,
         dynamicChildren: Boolean = false,
         semanticType: QuerySemanticType? = null,
+        projectionPath: String? = null,
     ) = QueryFieldSchema(
         title = null,
         description = null,
@@ -997,6 +1020,8 @@ class QuerySchemaResolverTest {
         bindings = bindings.associate { (capability, path) ->
             capability to QueryFieldBinding(path, storageType = null)
         },
+        projectionPath = projectionPath
+            ?: bindings.firstOrNull { it.first == QueryCapability.PRESENCE }?.second,
     )
 
     private fun json(value: Any): JsonNode = JsonNodeFactory.instance.pojoNode(value)

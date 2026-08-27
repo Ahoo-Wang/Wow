@@ -94,7 +94,7 @@ data class ElasticsearchIndexMapping private constructor(
             val fields = linkedMapOf<String, ElasticsearchMappedField>()
             val aliases = linkedMapOf<String, String>()
 
-            fun visit(path: String, property: Property) {
+            fun visit(path: String, property: Property, projectionPath: String = path) {
                 if (property.isAlias) {
                     property.alias().path()?.let { aliases[path] = it }
                     return
@@ -107,23 +107,31 @@ data class ElasticsearchIndexMapping private constructor(
                     sortable = property.isSortable(),
                     aggregatable = property.isAggregatable(),
                     multiFields = multiFields,
+                    projectionPath = projectionPath,
                 )
-                propertyBase?.fields().orEmpty().forEach { (name, field) -> visit("$path.$name", field) }
-                propertyBase?.properties().orEmpty().forEach { (name, field) -> visit("$path.$name", field) }
+                propertyBase?.fields().orEmpty().forEach { (name, field) ->
+                    visit("$path.$name", field, projectionPath)
+                }
+                propertyBase?.properties().orEmpty().forEach { (name, field) ->
+                    visit("$path.$name", field, "$projectionPath.$name")
+                }
             }
 
             typeMapping.properties().forEach { (name, property) -> visit(name, property) }
             typeMapping.runtime().forEach { (name, runtimeField) ->
                 if (runtimeField.type() == RuntimeFieldType.Composite) {
                     runtimeField.fields().forEach { (fieldName, field) ->
-                        field.type().toMappedField()?.let { fields["$name.$fieldName"] = it }
+                        val path = "$name.$fieldName"
+                        field.type().toMappedField()?.let { fields[path] = it.copy(projectionPath = path) }
                     }
                 } else {
-                    runtimeField.type().toMappedField()?.let { fields[name] = it }
+                    runtimeField.type().toMappedField()?.let { fields[name] = it.copy(projectionPath = name) }
                 }
             }
             aliases.forEach { (name, target) ->
-                fields[target]?.let { fields[name] = it.copy(multiFields = emptySet()) }
+                fields[target]?.let {
+                    fields[name] = it.copy(multiFields = emptySet(), projectionPath = name)
+                }
             }
             return ElasticsearchIndexMapping(indexName, fields.toMap())
         }
@@ -136,6 +144,7 @@ internal data class ElasticsearchMappedField(
     val sortable: Boolean,
     val aggregatable: Boolean,
     val multiFields: Set<String>,
+    val projectionPath: String?,
 )
 
 private fun RuntimeFieldType.toMappedField(): ElasticsearchMappedField? {
@@ -154,6 +163,7 @@ private fun RuntimeFieldType.toMappedField(): ElasticsearchMappedField? {
         sortable = true,
         aggregatable = true,
         multiFields = emptySet(),
+        projectionPath = null,
     )
 }
 

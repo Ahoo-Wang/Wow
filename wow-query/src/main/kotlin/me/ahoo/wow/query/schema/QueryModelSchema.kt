@@ -55,6 +55,7 @@ data class QueryModelSchema(
                         .mapValues { (_, binding) ->
                             binding.copy(physicalPath = "${binding.physicalPath}.$suffix")
                         },
+                    projectionPath = ancestor.projectionPath?.let { "$it.$suffix" },
                 )
             }
             separator = ancestorPath.lastIndexOf('.')
@@ -74,6 +75,7 @@ data class QueryFieldSchema(
     val semanticType: QuerySemanticType?,
     val dynamicChildren: Boolean,
     val bindings: Map<QueryCapability, QueryFieldBinding>,
+    val projectionPath: String? = bindings[QueryCapability.PRESENCE]?.physicalPath,
 )
 
 data class LogicalQuerySchema(

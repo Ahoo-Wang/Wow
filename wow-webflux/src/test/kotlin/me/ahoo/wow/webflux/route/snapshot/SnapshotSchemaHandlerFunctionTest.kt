@@ -69,7 +69,7 @@ class SnapshotSchemaHandlerFunctionTest {
         json["fields"][0]["enumValues"][0].stringValue().assert().isEqualTo("OPEN")
         json["fields"][0]["enumValues"][1].intValue().assert().isEqualTo(2)
         json["fields"][0]["enumValues"][2].booleanValue().assert().isTrue()
-        body.assert().doesNotContain("physicalPath", "storageType")
+        body.assert().doesNotContain("physicalPath", "storageType", "projectionPath")
 
         service.schemaCalls.get().assert().isOne()
         service.refreshCalls.get().assert().isZero()

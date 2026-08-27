@@ -40,6 +40,8 @@ description: Query snapshots and event streams with FilterExpression, the query 
 
 For numeric time fields, set `timeUnit` to a `java.util.concurrent.TimeUnit` enum name; it defaults to `MILLISECONDS`. When `datePattern` is configured, the filter emits strings and ignores `timeUnit`.
 
+When the final Query Schema declares a string as `Temporal.Formatted`, the resolver automatically applies its pattern and publishes `RANGE` only when the backend can execute a range query on that string field. Formatted strings do not support date histograms in the first release.
+
 `field` is a logical field path. Valid examples are:
 
 ```text

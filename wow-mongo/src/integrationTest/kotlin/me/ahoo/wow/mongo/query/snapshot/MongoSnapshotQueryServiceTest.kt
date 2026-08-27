@@ -188,6 +188,27 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     }
 
     @Test
+    fun `strict should execute a client-declared formatted temporal range`() {
+        val field = LogicalField("state.formattedDate")
+        val today = Instant.now().atZone(ZoneOffset.UTC).toLocalDate().toString()
+        setStateValidator(Document("formattedDate", Document("bsonType", "string")))
+        database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
+            .updateOne(
+                Document("_id", snapshot.aggregateId.id),
+                Document("\$set", Document(field.value, today)),
+            ).toMono().test().expectNextCount(1).verifyComplete()
+        val service = MongoSnapshotQueryServiceFactory(
+            database,
+            schemaSources = querySchemaSources + formattedTemporalSource(field, "yyyy-MM-dd"),
+            validationMode = QuerySchemaValidationMode.STRICT,
+        ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+
+        service.dynamicList(
+            ListQuery(filter = TodayFilter(field, zoneId = "UTC"), limit = 10),
+        ).test().expectNextCount(1).verifyComplete()
+    }
+
+    @Test
     fun `strict should execute the built-in ABAC tags filter shape`() {
         database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
             .updateOne(
@@ -213,7 +234,7 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     }
 
     @Test
-    fun `strict should reject invalid dynamic tags root then recover exact object bindings`() {
+    fun `invalid dynamic tags should fail filters while projection respects mode then recover`() {
         setValidator(Document("tags", Document("bsonType", "string")))
         val abacFilter = mapOf(
             "visibility" to listOf("*"),
@@ -228,13 +249,18 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
             invalidService.dynamicList(ListQuery(filter = abacFilter, limit = 10))
                 .test().expectError(QuerySchemaValidationException::class.java).verify()
-            invalidService.dynamicList(
+            val projectionQuery = invalidService.dynamicList(
                 ListQuery(
                     filter = MatchAllFilter,
                     projection = Projection(include = listOf("tags.department")),
                     limit = 10,
                 ),
-            ).test().expectError(QuerySchemaValidationException::class.java).verify()
+            ).test()
+            if (mode == QuerySchemaValidationMode.COMPATIBLE) {
+                projectionQuery.expectNextCount(1).verifyComplete()
+            } else {
+                projectionQuery.expectError(QuerySchemaValidationException::class.java).verify()
+            }
         }
 
         setValidator(Document("tags", Document("bsonType", "object")))
@@ -638,6 +664,22 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             ),
         )
     }
+
+    private fun formattedTemporalSource(field: LogicalField, pattern: String): QuerySchemaSource =
+        object : QuerySchemaSource {
+            override val priority: Int = QuerySchemaSourcePriority.BEAN
+
+            override fun load(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> = Flux.just(
+                QuerySchemaDeclaration(
+                    mapOf(
+                        field to QueryFieldDeclaration(
+                            valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
+                            semanticType = DeclarationValue.Set(Temporal.Formatted(pattern)),
+                        ),
+                    ),
+                ),
+            )
+        }
 
     private fun dynamicStringMapSource(): QuerySchemaSource = object : QuerySchemaSource {
         override val priority: Int = QuerySchemaSourcePriority.BEAN

@@ -61,6 +61,7 @@ class QueryModelSchemaTest {
                 LogicalField("state.customer") to fieldSchema(
                     dynamicChildren = true,
                     bindings = mapOf(QueryCapability.SORT to QueryFieldBinding("customer_doc", QueryStorageType("keyword"))),
+                    projectionPath = "customer_doc",
                 ),
             ),
         )
@@ -75,6 +76,7 @@ class QueryModelSchemaTest {
                 ),
             ),
         )
+        resolved.projectionPath.assert().isEqualTo("customer_doc.address.city")
     }
 
     @Test
@@ -124,6 +126,7 @@ class QueryModelSchemaTest {
                     bindings = mapOf(
                         QueryCapability.EXACT_MATCH to QueryFieldBinding("private_z", QueryStorageType("keyword")),
                     ),
+                    projectionPath = "private_source_z",
                 ),
                 LogicalField("state.a") to fieldSchema(title = "A"),
             ),
@@ -231,6 +234,7 @@ class QueryModelSchemaTest {
         title: String? = null,
         dynamicChildren: Boolean = false,
         bindings: Map<QueryCapability, QueryFieldBinding> = emptyMap(),
+        projectionPath: String? = null,
     ): QueryFieldSchema = QueryFieldSchema(
         title = title,
         description = null,
@@ -242,5 +246,6 @@ class QueryModelSchemaTest {
         semanticType = null,
         dynamicChildren = dynamicChildren,
         bindings = bindings,
+        projectionPath = projectionPath,
     )
 }

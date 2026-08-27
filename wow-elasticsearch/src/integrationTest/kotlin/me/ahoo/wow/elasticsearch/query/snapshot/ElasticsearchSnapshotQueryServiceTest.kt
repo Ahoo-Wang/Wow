@@ -24,8 +24,10 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
@@ -106,6 +108,12 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                                             .fields("keyword") { keyword -> keyword.keyword { it } }
                                     }
                                 }.properties("decimalValue") { it.double_ { number -> number } }
+                                .properties("sourceOnlyName") { name ->
+                                    name.text { text ->
+                                        text.index(false)
+                                            .fields("keyword") { keyword -> keyword.keyword { it } }
+                                    }
+                                }.properties("formattedDate") { it.keyword { keyword -> keyword } }
                                 .properties("createdAt") { it.long_ { number -> number } }
                                 .properties("unreadableNumber") {
                                     it.double_ { number -> number.index(false).docValues(false) }
@@ -188,6 +196,42 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         strictService.dynamicList(
             ListQuery(
                 filter = SearchFilter("searchable", setOf(LogicalField("state.data"))),
+                limit = 10,
+            ),
+        ).test().expectNextCount(1).verifyComplete()
+    }
+
+    @Test
+    fun `strict projection should return the source field instead of its query multi-field`() {
+        val field = "state.sourceOnlyName"
+        updateState(mapOf("sourceOnlyName" to "visible"))
+        val service = strictService(querySchemaSources + source(stringField(field)))
+
+        service.dynamicList(
+            ListQuery(
+                filter = MatchAllFilter,
+                projection = Projection(include = listOf(field)),
+                limit = 10,
+            ),
+        ).test()
+            .assertNext { document ->
+                document.getNestedDocument("state")["sourceOnlyName"].assert().isEqualTo("visible")
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `strict should execute metadata sort and formatted temporal range`() {
+        val field = LogicalField("state.formattedDate")
+        val today = Instant.now().atZone(ZoneOffset.UTC).toLocalDate().toString()
+        updateState(mapOf("formattedDate" to today))
+        val service = strictService(
+            querySchemaSources + source(formattedField(field.value, "yyyy-MM-dd")),
+        )
+
+        service.dynamicList(
+            ListQuery(
+                filter = TodayFilter(field, zoneId = "UTC"),
+                sort = listOf(Sort("_score", Sort.Direction.DESC)),
                 limit = 10,
             ),
         ).test().expectNextCount(1).verifyComplete()
@@ -563,12 +607,14 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         ).block()
     }
 
-    private fun strictService(): SnapshotQueryService<MockStateAggregate> =
+    private fun strictService(
+        schemaSources: List<QuerySchemaSource> = querySchemaSources,
+    ): SnapshotQueryService<MockStateAggregate> =
         ElasticsearchSnapshotQueryServiceFactory(
             elasticsearchClient,
             me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
             me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
-            querySchemaSources,
+            schemaSources,
             QuerySchemaValidationMode.STRICT,
         ).create(MOCK_AGGREGATE_METADATA)
 
@@ -650,6 +696,11 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
 
     private fun stringField(field: String) = LogicalField(field) to QueryFieldDeclaration(
         valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
+    )
+
+    private fun formattedField(field: String, pattern: String) = LogicalField(field) to QueryFieldDeclaration(
+        valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
+        semanticType = DeclarationValue.Set(Temporal.Formatted(pattern)),
     )
 
     private fun epochField(field: String, timeUnit: TimeUnit) = LogicalField(field) to QueryFieldDeclaration(

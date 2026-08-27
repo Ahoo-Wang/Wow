@@ -24,8 +24,11 @@ import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
+import me.ahoo.wow.api.query.schema.QueryCompatibilityLevel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
@@ -39,6 +42,7 @@ import me.ahoo.wow.query.schema.QueryFieldDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaRegistration
+import me.ahoo.wow.query.schema.QuerySchemaResolver
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
@@ -48,7 +52,46 @@ import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 import java.util.concurrent.TimeUnit
 
+@Suppress("LargeClass")
 class ElasticsearchQuerySchemaAdapterTest {
+    @Test
+    fun `projection should retain the source path when presence uses a multi-field`() {
+        val field = LogicalField("state.name")
+        val logical = LogicalQuerySchema(mapOf(field to field(QueryValueType.STRING)))
+        val mapping = TypeMapping.of { type ->
+            type.properties(field.value) { property ->
+                property.text { text ->
+                    text.index(false).fields("keyword") { multiField -> multiField.keyword { it } }
+                }
+            }
+        }
+        val schema = ElasticsearchQuerySchemaAdapter.bind(
+            logical,
+            ElasticsearchIndexMapping.from(INDEX, mapping),
+        )
+
+        schema.binding(field.value, QueryCapability.PRESENCE)
+            .assertPath("${field.value}.keyword", "keyword")
+        QuerySchemaResolver(schema).resolve(Projection(include = listOf(field.value))).let { resolved ->
+            resolved.value.assert().isEqualTo(Projection(include = listOf(field.value)))
+            resolved.compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+        }
+    }
+
+    @Test
+    fun `metadata sort fields should be exact backend bindings`() {
+        val schema = ElasticsearchQuerySchemaAdapter.bind(
+            LogicalQuerySchema(emptyMap()),
+            ElasticsearchIndexMapping.from(INDEX, TypeMapping.of { it }),
+        )
+        val sort = listOf("_score", "_doc", "_shard_doc").map { Sort(it, Sort.Direction.ASC) }
+
+        QuerySchemaResolver(schema).resolve(sort).let { resolved ->
+            resolved.value.assert().isEqualTo(sort)
+            resolved.compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+        }
+    }
+
     @Test
     fun `known scalar mappings should intersect with logical value types`() {
         val logical = LogicalQuerySchema(
@@ -508,6 +551,7 @@ class ElasticsearchQuerySchemaAdapterTest {
         schema.binding("state.createdNanos", QueryCapability.AGGREGATE_TEMPORAL)
             .assertPath("state.createdNanos", "date_nanos")
         schema.binding("state.epoch", QueryCapability.AGGREGATE_TEMPORAL).assertPath("state.epoch", "long")
+        schema.binding("state.formatted", QueryCapability.RANGE).assertPath("state.formatted", "keyword")
         schema.fields.getValue(LogicalField("state.formatted")).bindings.assert()
             .doesNotContainKey(QueryCapability.AGGREGATE_TEMPORAL)
 
@@ -532,6 +576,12 @@ class ElasticsearchQuerySchemaAdapterTest {
             .assertPath("state.runtimeAt", "date")
         schema.binding("state.runtime.code", QueryCapability.AGGREGATE_TERMS)
             .assertPath("state.runtime.code", "keyword")
+        listOf("state.nameAlias", "state.runtimeCode").forEach { path ->
+            QuerySchemaResolver(schema).resolve(Projection(include = listOf(path))).let { resolved ->
+                resolved.value.assert().isEqualTo(Projection(include = listOf(path)))
+                resolved.compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+            }
+        }
 
         schema.fields.getValue(LogicalField("state.ambiguous")).bindings.assert()
             .doesNotContainKey(QueryCapability.EXACT_MATCH)
