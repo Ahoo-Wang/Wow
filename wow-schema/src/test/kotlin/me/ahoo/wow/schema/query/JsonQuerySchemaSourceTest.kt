@@ -384,6 +384,15 @@ class JsonQuerySchemaSourceTest {
     }
 
     @Test
+    fun `should not infer temporal semantics from only one alternative`() {
+        val declaration = load(MixedTemporalAlternativeState::class.java)
+
+        listOf("state.anyOf", "state.oneOf").forEach { field ->
+            declaration.field(field).semanticType.assert().isEqualTo(DeclarationValue.Set(null))
+        }
+    }
+
+    @Test
     fun `should retain recursive fields without repeating descendants`() {
         val declaration = load(RecursiveState::class.java)
 
@@ -712,6 +721,13 @@ private data class EqualContainerMetadataState(
     val metadata: RepeatedValue,
     @field:Schema(oneOf = [LocalDate::class, Instant::class])
     val temporal: RepeatedValue,
+)
+
+private data class MixedTemporalAlternativeState(
+    @field:Schema(anyOf = [LocalDate::class, String::class])
+    val anyOf: RepeatedValue,
+    @field:Schema(oneOf = [LocalDate::class, String::class])
+    val oneOf: RepeatedValue,
 )
 
 @Schema(title = "Shared title", description = "Shared description")

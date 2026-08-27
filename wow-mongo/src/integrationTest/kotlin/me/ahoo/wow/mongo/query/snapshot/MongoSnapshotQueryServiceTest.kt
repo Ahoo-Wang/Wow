@@ -527,7 +527,7 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     }
 
     @Test
-    fun `epoch date histogram should floor negatives and safely group invalid or multi values as null`() {
+    fun `epoch date histogram should floor negatives and ignore invalid or multi values`() {
         val collection = database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
         collection.insertMany(
             listOf(
@@ -551,7 +551,6 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             .test()
             .assertNext { rows ->
                 rows.map(Map<String, Any?>::toMap).assert().containsExactly(
-                    mapOf("day" to null, "count" to 2L),
                     mapOf("day" to -86_400_000L, "count" to 1L),
                     mapOf("day" to 0L, "count" to 2L),
                 )

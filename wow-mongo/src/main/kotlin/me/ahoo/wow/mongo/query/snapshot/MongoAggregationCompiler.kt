@@ -66,11 +66,18 @@ internal class MongoAggregationCompiler(
 
         if (query.groupBy.isNotEmpty()) {
             val groupFilters = query.groupBy.map { group ->
-                val field = group.field.resolve(logicalParent, schema, group.capability)
-                if (group is AggregationGroup.Histogram) {
-                    Filters.expr(Document("\$isNumber", scalarOrSingleton("\$$field")))
-                } else {
-                    Filters.and(Filters.exists(field), Filters.ne(field, null))
+                when (group) {
+                    is AggregationGroup.Histogram -> {
+                        val field = group.field.resolve(logicalParent, schema, group.capability)
+                        Filters.expr(Document("\$isNumber", scalarOrSingleton("\$$field")))
+                    }
+                    is AggregationGroup.DateHistogram -> Filters.expr(
+                        Document("\$ne", listOf(group.dateInput(logicalParent, schema), null)),
+                    )
+                    else -> {
+                        val field = group.field.resolve(logicalParent, schema, group.capability)
+                        Filters.and(Filters.exists(field), Filters.ne(field, null))
+                    }
                 }
             }
             add(Aggregates.match(Filters.and(groupFilters)))

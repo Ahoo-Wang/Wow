@@ -239,7 +239,7 @@ private class JsonSchemaWalker(
         val temporalUnit = (nodes + itemNodes).consistentValue(field, SEMANTIC_TYPE) {
             it.textValueOrNull(TEMPORAL_UNIT)
         }
-        val inferredTemporal = shapeNodes.consistentValue(field, SEMANTIC_TYPE, JsonNode::inferredTemporal)
+        val inferredTemporal = inferredTemporal()
         val semanticType = temporalUnit?.let { unit ->
             if (valueTypes != setOf(QueryValueType.INTEGER)) {
                 throw QuerySchemaConflictException(
@@ -284,6 +284,41 @@ private class JsonSchemaWalker(
             get(composition)?.forEach { alternative ->
                 addAll(alternative.effectiveNodes(resolvingReferences))
             }
+        }
+    }
+
+    private fun JsonNode.inferredTemporal(
+        resolvingReferences: Set<String> = emptySet(),
+    ): QuerySemanticType? {
+        if (get(JsonSchemaProperty.FORMAT)?.takeIf(JsonNode::isString)?.stringValue() in
+            setOf(DATE_FORMAT, DATE_TIME_FORMAT)
+        ) {
+            return Temporal.Date
+        }
+        reference()?.takeIf { it !in resolvingReferences }?.let { reference ->
+            rootSchema.at(reference.removePrefix(ROOT_REFERENCE))
+                .takeUnless(JsonNode::isMissingNode)
+                ?.inferredTemporal(resolvingReferences + reference)
+                ?.let { return it }
+        }
+        ALTERNATIVE_COMPOSITIONS.forEach { composition ->
+            val alternatives = get(composition)?.toList().orEmpty()
+            val valueBearing = alternatives.filter { alternative ->
+                alternative.effectiveNodes(resolvingReferences)
+                    .any { it.nonNullValueTypes().isNotEmpty() }
+            }
+            if (valueBearing.isNotEmpty()) {
+                return valueBearing.map { it.inferredTemporal(resolvingReferences) }
+                    .distinct().singleOrNull()
+            }
+        }
+        get(JsonSchemaProperty.ALL_OF)?.mapNotNull {
+            it.inferredTemporal(resolvingReferences)
+        }?.distinct()?.singleOrNull()?.let { return it }
+        return if (isArrayShape()) {
+            get(JsonSchemaProperty.ITEMS)?.inferredTemporal(resolvingReferences)
+        } else {
+            null
         }
     }
 
@@ -475,18 +510,6 @@ private fun JsonNode.isArrayShape(): Boolean {
     return COMPOSITIONS.any { composition ->
         get(composition)?.any(JsonNode::isArrayShape) == true
     }
-}
-
-private fun JsonNode.inferredTemporal(): QuerySemanticType? {
-    if (get(JsonSchemaProperty.FORMAT)?.takeIf(JsonNode::isString)?.stringValue() in
-        setOf(DATE_FORMAT, DATE_TIME_FORMAT)
-    ) {
-        return Temporal.Date
-    }
-    COMPOSITIONS.forEach { composition ->
-        get(composition)?.firstNotNullOfOrNull(JsonNode::inferredTemporal)?.let { return it }
-    }
-    return if (isArrayShape()) get(JsonSchemaProperty.ITEMS)?.inferredTemporal() else null
 }
 
 internal fun JsonNode.hasAdditionalProperties(): Boolean {
