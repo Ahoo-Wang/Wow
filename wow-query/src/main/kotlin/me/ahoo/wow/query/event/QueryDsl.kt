@@ -58,6 +58,7 @@ fun Condition.count(queryService: EventStreamQueryService): Mono<Long> {
     return queryService.count(this)
 }
 
+/** Executes this aggregation against persisted event-stream documents. */
 fun AggregationQuery.query(queryService: EventStreamQueryService): Flux<DynamicDocument> {
     return queryService.aggregate(this)
 }

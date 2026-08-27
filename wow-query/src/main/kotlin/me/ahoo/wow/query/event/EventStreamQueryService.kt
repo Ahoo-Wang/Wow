@@ -28,6 +28,13 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 interface EventStreamQueryService : QueryService<DomainEventStream> {
+    /**
+     * Aggregates persisted event-stream documents.
+     *
+     * The root filter applies to the event-stream envelope. Expanding `body` creates an event-item scope, so its
+     * filters, groups, and metrics use fields relative to each event item. Event payload fields are available only
+     * when an explicit EventStream query schema declares them and the selected backend indexes them.
+     */
     fun aggregate(query: AggregationQuery): Flux<DynamicDocument> =
         Flux.error(UnsupportedOperationException("Event stream aggregation is not supported."))
 }
