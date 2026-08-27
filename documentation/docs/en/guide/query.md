@@ -29,7 +29,7 @@ event -> snapshot/projection -> logical query model -> query service -> guarded 
 
 A `field` is a logical path, not a MongoDB or Elasticsearch field name. Named segments start with a letter or underscore and may contain letters, digits, underscores, and hyphens; numeric segments address array indexes. For example, `state.items.0.productId` is valid. Backend adapters own physical paths and capabilities.
 
-Snapshot queries default to `DELETION = ACTIVE`. A top-level deletion expression, or a deletion expression directly inside the top-level `AND`, overrides that default. Event-stream queries keep the complete history and do not add the snapshot deletion scope.
+Snapshot queries default to `DELETION = ACTIVE`. An explicit `DELETION` suppresses that default when it is the root expression or appears at any depth in the root's recursive `AND` conjunction tree. A deletion nested under `OR` or `NOR` is not an explicit top-level conjunction scope, so the active guard remains. Event-stream queries keep the complete history and do not add the snapshot deletion scope.
 
 ### Operators
 
@@ -141,6 +141,8 @@ Aliases are unique single-segment logical fields and cannot use the `__wow` pref
 
 The base HTTP route is `POST /{aggregate}/snapshot/aggregation`. For dynamic-tenant or owned aggregates, the catalog also contributes tenant- or owner-scoped query variants. The route uses the ordinary snapshot query filter chain, so request-scope and configured ABAC filters can extend the root filter. Result masking intentionally skips aggregation. `allow-expensive-operators=false` rejects Elements, metric-alias sorting, non-Field numeric expressions, and expensive operators in HTTP aggregation filters.
 
+The REST compatibility extractor treats aggregation independently from single/list/paged: `filter` and legacy `condition` may both be omitted (the model defaults to `MATCH_ALL`), or exactly one may be supplied; supplying both is rejected. Request-scope rewriting still appends tenant/owner/space filters after extraction.
+
 A custom `SnapshotQueryService` may inherit the default unsupported `aggregate()` implementation. Successful single/list/paged/count calls and a published route do not prove that custom service supports aggregation. Test the selected backend.
 
 #### Scenario examples
@@ -174,7 +176,7 @@ Without groups, one row summarizes the filtered input:
     {
       "type": "NUMERIC",
       "function": "AVG",
-      "expression": {"field": "state.retryState.retries"},
+      "expression": {"type": "FIELD", "field": "state.retryState.retries"},
       "alias": "averageRetries"
     }
   ]
@@ -234,7 +236,7 @@ MongoDB must prove a native BSON Date through collection metadata or use a decla
     {
       "type": "NUMERIC",
       "function": "SUM",
-      "expression": {"field": "quantity"},
+      "expression": {"type": "FIELD", "field": "quantity"},
       "alias": "totalQuantity"
     }
   ],
@@ -297,7 +299,7 @@ Use `/snapshot/list/state`, `/snapshot/paged/state`, or `/snapshot/single/state`
 
 ### Count
 
-The count body is a `FilterExpression` directly, without an outer `filter`:
+The canonical count body is a `FilterExpression` directly, without an outer `filter`:
 
 ```http
 POST /sales-order/snapshot/count
@@ -306,15 +308,21 @@ Content-Type: application/json
 {"op": "EQ", "field": "state.status", "value": "CREATED"}
 ```
 
+The REST compatibility extractor also accepts `{}` as legacy `Condition.ALL`, then applies any request-scope filters. If a discriminator is present, use either new `op` or legacy `operator`; using both is rejected. OpenAPI publishes only the canonical `FilterExpression` body.
+
 On the JVM, use `filter.count(queryService)`. Count remains exact according to the selected backend contract; HTTP cost policy may reject an unfiltered count when expensive operators are disabled.
 
 ## Compatibility and migration
 
-`Condition`, `Operator`, and `ConditionDsl` are deprecated compatibility inputs. Legacy constructors and count extensions convert them once to `FilterExpression`; the execution pipeline retains `filter`.
+`Condition`, `Operator`, and `ConditionDsl` are deprecated compatibility inputs. Legacy constructors and count extensions convert them once to `FilterExpression`; the execution pipeline retains `filter`. The REST extractor rules are endpoint-specific:
 
-- single/list/paged REST bodies accept exactly one of `filter` or legacy `condition`;
-- count accepts exactly one of the new `op` or legacy `operator` discriminators;
-- OpenAPI publishes the new `FilterExpression` contract;
+| Endpoint body | Neither representation | New representation | Legacy representation | Both |
+|---|---|---|---|---|
+| single/list/paged | rejected | `filter` accepted | `condition` accepted | rejected |
+| aggregation | accepted; omitted `filter` defaults to `MATCH_ALL` | `filter` accepted | `condition` accepted | rejected |
+| count | accepted as legacy `Condition.ALL` | top-level `op` accepted | top-level `operator` accepted | rejected |
+
+- OpenAPI publishes only the new query shapes; runtime legacy acceptance is not added to the canonical schemas;
 - legacy `MATCH` converts to `SEARCH`; it is not allowed inside element match;
 - legacy `RAW` has no replacement. Backend-native queries belong in application-owned, explicitly secured endpoints.
 
@@ -330,7 +338,9 @@ The canonical wire schemas are versioned independently from the runtime field di
 - [`paged-query.schema.json`](https://github.com/Ahoo-Wang/Wow/blob/main/schema/query/v2/paged-query.schema.json)
 - [`count-query.schema.json`](https://github.com/Ahoo-Wang/Wow/blob/main/schema/query/v2/count-query.schema.json)
 
-OpenAPI reuses these generic request shapes; it does not enumerate aggregate fields inside every request schema. `GET /{aggregate}/snapshot/schema` returns the current `QueryModelSchemaMetadata` with logical fields, value types, cardinality, semantic type, and backend-proven capabilities. `POST /{aggregate}/snapshot/schema/refresh` refreshes the provider. These schema routes deliberately omit tenant, owner, and aggregate-ID path variants because they describe the model, not caller-specific data. The common aggregate contract may still declare `Wow-Space-Id` for a spaced aggregate.
+OpenAPI publishes three separate layers. Generic component schemas define the JSON shapes of `FilterExpression`, single/list/paged queries, and aggregation. Each aggregate-specific request-body component references one of those generic schemas and adds static `x-wow-query-fields`: an enum built from system fields plus fields inferred by `JsonQuerySchemaSource`. The extension is a design-time field directory, not a list of backend-proven capabilities.
+
+`GET /{aggregate}/snapshot/schema` returns the third layer: current `QueryModelSchemaMetadata` with merged logical metadata and backend-proven capabilities; `POST /{aggregate}/snapshot/schema/refresh` refreshes it. These runtime schema routes deliberately omit tenant, owner, and aggregate-ID path variants because they describe the model, not caller-specific data. The common aggregate contract may still declare `Wow-Space-Id` for a spaced aggregate.
 
 The runtime schema merges system fields with JSON-Schema inference, classpath conventions, bean registrations, and working-directory conventions, then lets the backend adapter resolve physical bindings. KSP-generated `*Properties` constants are compile-time navigation helpers; they are not this runtime schema and do not publish an HTTP route.
 

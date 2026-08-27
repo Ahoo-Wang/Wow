@@ -29,7 +29,7 @@ Wow 读链路包含四类独立职责：
 
 `field` 是逻辑路径，不是 MongoDB 或 Elasticsearch 字段名。命名段以字母或下划线开头，可包含字母、数字、下划线和连字符；纯数字段表示数组下标，例如 `state.items.0.productId`。物理路径与能力由后端适配器负责。
 
-快照查询默认追加 `DELETION = ACTIVE`。顶层删除表达式，或顶层 `AND` 的直接删除子表达式，会覆盖该默认值。事件流查询保留完整历史，不追加快照删除作用域。
+快照查询默认追加 `DELETION = ACTIVE`。当 `DELETION` 本身是根表达式，或出现在根表达式递归 `AND` 合取树的任意深度时，会抑制该默认值。嵌套在 `OR` 或 `NOR` 下的删除条件不属于显式顶层合取作用域，因此仍保留 ACTIVE guard。事件流查询保留完整历史，不追加快照删除作用域。
 
 ### 操作符
 
@@ -141,6 +141,8 @@ alias 必须是唯一的单段逻辑字段，且不能使用 `__wow` 前缀。so
 
 基础 HTTP 路由是 `POST /{aggregate}/snapshot/aggregation`。对于动态 tenant 或 owned 聚合，目录还会贡献 tenant/owner 作用域查询变体。它复用普通快照查询过滤器链，因此请求作用域和已配置 ABAC 过滤器可以扩展根 filter；结果脱敏会刻意跳过聚合。`allow-expensive-operators=false` 时，HTTP 聚合会拒绝 Elements、按 metric alias 排序、非 Field 数值表达式和 filter 中的高成本操作符。
 
+REST 兼容 extractor 对 aggregation 的处理不同于 single/list/paged：`filter` 与旧 `condition` 可以同时省略（模型默认 `MATCH_ALL`），也可以只提供其中一个；同时提供会被拒绝。提取完成后，请求作用域重写仍会追加 tenant/owner/space filters。
+
 自定义 `SnapshotQueryService` 可能继承默认的不支持 `aggregate()` 实现。single/list/paged/count 成功且路由已发布，并不能证明自定义服务支持聚合；应对所选后端做测试。
 
 #### 场景案例
@@ -174,7 +176,7 @@ alias 必须是唯一的单段逻辑字段，且不能使用 `__wow` 前缀。so
     {
       "type": "NUMERIC",
       "function": "AVG",
-      "expression": {"field": "state.retryState.retries"},
+      "expression": {"type": "FIELD", "field": "state.retryState.retries"},
       "alias": "averageRetries"
     }
   ]
@@ -234,7 +236,7 @@ MongoDB 必须通过集合元数据证明原生 BSON Date，或使用已声明�
     {
       "type": "NUMERIC",
       "function": "SUM",
-      "expression": {"field": "quantity"},
+      "expression": {"type": "FIELD", "field": "quantity"},
       "alias": "totalQuantity"
     }
   ],
@@ -297,7 +299,7 @@ list 与 single 请求体共用 `filter`、`projection`、`sort`。list 额外�
 
 ### 计数
 
-count 请求体直接是 `FilterExpression`，外层没有 `filter`：
+规范 count 请求体直接是 `FilterExpression`，外层没有 `filter`：
 
 ```http
 POST /sales-order/snapshot/count
@@ -306,15 +308,21 @@ Content-Type: application/json
 {"op": "EQ", "field": "state.status", "value": "CREATED"}
 ```
 
+REST 兼容 extractor 还接受 `{}`，并按旧 `Condition.ALL` 处理，再应用请求作用域 filters。出现判别字段时，只能使用新 `op` 或旧 `operator` 之一；两者同时出现会被拒绝。OpenAPI 只发布规范 `FilterExpression` 请求体。
+
 JVM 侧使用 `filter.count(queryService)`。count 按所选后端合同保持精确；禁用高成本操作符时，HTTP 成本策略可能拒绝无过滤 count。
 
 ## 兼容与迁移
 
-`Condition`、`Operator`、`ConditionDsl` 是已弃用兼容输入。旧构造函数和 count 扩展会将其一次性转换为 `FilterExpression`；执行管线只保留 `filter`。
+`Condition`、`Operator`、`ConditionDsl` 是已弃用兼容输入。旧构造函数和 count 扩展会将其一次性转换为 `FilterExpression`；执行管线只保留 `filter`。REST extractor 规则按端点区分：
 
-- single/list/paged REST 请求体必须且只能包含 `filter` 或旧 `condition` 之一；
-- count 必须且只能包含新 `op` 或旧 `operator` 判别字段之一；
-- OpenAPI 只发布新 `FilterExpression` 合同；
+| 端点请求体 | 两种表达都没有 | 新表达 | 旧表达 | 两者同时存在 |
+|---|---|---|---|---|
+| single/list/paged | 拒绝 | 接受 `filter` | 接受 `condition` | 拒绝 |
+| aggregation | 接受；省略 `filter` 时默认 `MATCH_ALL` | 接受 `filter` | 接受 `condition` | 拒绝 |
+| count | 按旧 `Condition.ALL` 接受 | 接受顶层 `op` | 接受顶层 `operator` | 拒绝 |
+
+- OpenAPI 只发布新查询形状；运行时旧格式兼容不会写入规范 Schema；
 - 旧 `MATCH` 转换为 `SEARCH`，且不能放在 element match 中；
 - 旧 `RAW` 没有替代操作符。后端原生查询应由应用自有且显式保护的端点承担。
 
@@ -330,7 +338,9 @@ JVM 侧使用 `filter.count(queryService)`。count 按所选后端合同保持�
 - [`paged-query.schema.json`](https://github.com/Ahoo-Wang/Wow/blob/main/schema/query/v2/paged-query.schema.json)
 - [`count-query.schema.json`](https://github.com/Ahoo-Wang/Wow/blob/main/schema/query/v2/count-query.schema.json)
 
-OpenAPI 复用这些通用请求形状，不会在每个请求 Schema 内枚举聚合字段。`GET /{aggregate}/snapshot/schema` 返回当前 `QueryModelSchemaMetadata`，包括逻辑字段、值类型、基数、语义类型及后端已证明的能力；`POST /{aggregate}/snapshot/schema/refresh` 刷新 Provider。这些 Schema 路由刻意不生成 tenant、owner 或 aggregate-ID 路径变体，因为它们描述模型而非调用方数据；spaced 聚合的公共聚合合同仍可能声明 `Wow-Space-Id`。
+OpenAPI 发布三个不同层次。通用 component schemas 定义 `FilterExpression`、single/list/paged query 与 aggregation 的 JSON 形状；每个聚合专用 request-body component 引用其中一个通用 Schema，并增加静态 `x-wow-query-fields`：其枚举由 system fields 与 `JsonQuerySchemaSource` 推断字段组成。该扩展是设计时字段目录，不是后端已证明能力列表。
+
+`GET /{aggregate}/snapshot/schema` 返回第三层：当前 `QueryModelSchemaMetadata`，包含合并后的逻辑元数据与后端已证明能力；`POST /{aggregate}/snapshot/schema/refresh` 刷新它。这些运行时 Schema 路由刻意不生成 tenant、owner 或 aggregate-ID 路径变体，因为它们描述模型而非调用方数据；spaced 聚合的公共聚合合同仍可能声明 `Wow-Space-Id`。
 
 运行时 Schema 会把系统字段与 JSON Schema 推断、classpath 约定、Bean 注册、工作目录约定合并，再由后端适配器解析物理绑定。KSP 生成的 `*Properties` 常量是编译期路径导航辅助，不是该运行时 Schema，也不会发布 HTTP 路由。
 

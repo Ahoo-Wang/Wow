@@ -213,6 +213,12 @@ curl 'http://localhost:8080/wow/id/global' \
 | `POST` | `snapshot/count` | `FilterExpression` -> 精确计数 |
 | `POST` | `snapshot/aggregation` | `AggregationQuery` -> 动态行或 SSE |
 
-OpenAPI 请求体复用通用查询 component Schema。聚合专用逻辑字段和后端已证明能力由运行时查询 Schema 路由发布，不会复制进每个 OpenAPI 请求 Schema。
+查询合同分为三个独立层次：
+
+1. 通用 query component schemas 定义规范请求 JSON 形状。
+2. 每个聚合专用 query request-body component 引用一个通用 Schema，并公开静态 `x-wow-query-fields`；其 enum 由 system fields 与 `JsonQuerySchemaSource` 推断字段组成。
+3. 运行时 `snapshot/schema` 路由发布合并后的 `QueryModelSchemaMetadata` 与后端已证明能力。
+
+`x-wow-query-fields` 是 request-body component 上的 OpenAPI 设计时元数据，不会作为 JSON 请求属性嵌入，也不表示后端能力。
 
 `wow-apiclient` 包含手工维护的 Wow 命令与快照 CoApi 接口。Fetcher 等外部工具可以从已发布 OpenAPI 生成其他客户端。客户端生成位于 OpenAPI 下游：KSP 元数据不会生成这些客户端，重新生成客户端也不会改变服务端字段语义。OpenAPI 合同变化后必须审阅生成 diff。

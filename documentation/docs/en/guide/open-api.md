@@ -213,6 +213,12 @@ The catalog contributes command, state, event, snapshot, and query routes from a
 | `POST` | `snapshot/count` | `FilterExpression` -> exact count |
 | `POST` | `snapshot/aggregation` | `AggregationQuery` -> dynamic rows or SSE |
 
-OpenAPI request bodies reuse generic query component schemas. Aggregate-specific logical fields and backend-proven capabilities are published by the runtime query-schema route, not copied into every OpenAPI request schema.
+Query contracts appear in three distinct layers:
+
+1. Generic query component schemas define the canonical request JSON shapes.
+2. Every aggregate-specific query request-body component references a generic schema and exposes static `x-wow-query-fields`, whose enum combines system fields with fields inferred by `JsonQuerySchemaSource`.
+3. The runtime `snapshot/schema` route publishes merged `QueryModelSchemaMetadata` and backend-proven capabilities.
+
+`x-wow-query-fields` is OpenAPI design-time metadata on the request-body component; it is not embedded as JSON request properties and is not a backend capability claim.
 
 `wow-apiclient` contains hand-maintained CoApi interfaces for Wow command and snapshot contracts. External tools such as Fetcher may generate other clients from the published OpenAPI document. Client generation is downstream of OpenAPI: KSP metadata does not generate those clients, and regenerating a client does not change server field semantics. Review generated diffs whenever the OpenAPI contract changes.

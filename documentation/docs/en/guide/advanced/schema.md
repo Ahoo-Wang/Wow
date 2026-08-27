@@ -95,7 +95,13 @@ val commandSchema = context.schema(CreateOrder::class.java)
 
 Spring Boot's `OpenAPIAutoConfiguration` provides this context and a `WowOpenApiCustomizer` when Springdoc is present. The WebFlux runtime consumes the same route catalog, but the schema builder does not create Handler functions.
 
-The query request bodies in OpenAPI remain generic (`FilterExpression`, `SingleQuery`, `ListQuery`, `PagedQuery`, `AggregationQuery`). Aggregate-specific logical fields and capabilities are runtime data returned by `GET /{aggregate}/snapshot/schema`; they are not expanded into each OpenAPI request body.
+OpenAPI query publication has two static layers, followed by one runtime layer:
+
+1. Generic component schemas define the canonical JSON shape of `FilterExpression`, `SingleQuery`, `ListQuery`, `PagedQuery`, and `AggregationQuery`.
+2. Each aggregate-specific request-body component references the appropriate generic schema and adds `x-wow-query-fields`. That extension references a static enum containing system fields plus fields inferred from the aggregate state by `JsonQuerySchemaSource`; it does not contain backend bindings or proven capabilities.
+3. `GET /{aggregate}/snapshot/schema` returns runtime `QueryModelSchemaMetadata` after all configured query-schema sources are merged and the selected backend adapter resolves capabilities. `/refresh` refreshes this runtime view.
+
+The static field extension makes aggregate fields available to OpenAPI tooling without changing the generic request JSON shape. It must not be presented as equivalent to the runtime schema.
 
 Client generation is a later consumer. Fetcher or another generator reads the published OpenAPI document. Changing a Kotlin type, discriminator, component name, or route may change generated clients; KSP metadata generation itself does not generate those clients.
 

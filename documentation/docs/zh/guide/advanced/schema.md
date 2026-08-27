@@ -95,7 +95,13 @@ val commandSchema = context.schema(CreateOrder::class.java)
 
 Spring Boot `OpenAPIAutoConfiguration` 会提供该 Context；Springdoc 存在时还会提供 `WowOpenApiCustomizer`。WebFlux runtime 消费同一路由目录，但 Schema Builder 不创建 Handler function。
 
-OpenAPI 中的查询请求体保持通用（`FilterExpression`、`SingleQuery`、`ListQuery`、`PagedQuery`、`AggregationQuery`）。聚合专用逻辑字段与能力由 `GET /{aggregate}/snapshot/schema` 返回的运行时数据提供，不会展开到每个 OpenAPI 请求体中。
+OpenAPI 查询发布包含两个静态层次，以及之后的一个运行时层次：
+
+1. 通用 component schemas 定义 `FilterExpression`、`SingleQuery`、`ListQuery`、`PagedQuery` 与 `AggregationQuery` 的规范 JSON 形状。
+2. 每个聚合专用 request-body component 引用相应通用 Schema，并增加 `x-wow-query-fields`。该扩展引用一个静态 enum，其中包含 system fields 与 `JsonQuerySchemaSource` 从聚合状态推断出的字段；它不包含后端 binding 或已证明能力。
+3. `GET /{aggregate}/snapshot/schema` 返回运行时 `QueryModelSchemaMetadata`：所有已配置查询 Schema sources 合并后，再由所选后端适配器解析能力；`/refresh` 刷新该运行时视图。
+
+静态字段扩展让 OpenAPI 工具能够看到聚合字段，但不会改变通用请求 JSON 形状，也不能与运行时 Schema 等同。
 
 客户端生成是更下游的消费者。Fetcher 或其他生成器读取已发布 OpenAPI 文档；修改 Kotlin 类型、discriminator、component name 或路由都可能改变生成客户端。KSP 元数据生成本身不会生成这些客户端。
 
