@@ -33,10 +33,16 @@ import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QueryStorageType
 import reactor.core.publisher.Mono
 
-class ElasticsearchQuerySchemaAdapter(
+class ElasticsearchQuerySchemaAdapter internal constructor(
     private val indexName: String,
     private val mappingResolver: ElasticsearchIndexMappingResolver,
+    private val model: QueryModel,
 ) : QuerySchemaBackendAdapter {
+    constructor(
+        indexName: String,
+        mappingResolver: ElasticsearchIndexMappingResolver,
+    ) : this(indexName, mappingResolver, QueryModel.SNAPSHOT)
+
     override fun resolve(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> =
         load(logicalSchema, mappingResolver.currentOrLoad(indexName))
 
@@ -46,7 +52,7 @@ class ElasticsearchQuerySchemaAdapter(
     private fun load(
         logicalSchema: LogicalQuerySchema,
         mapping: Mono<ElasticsearchIndexMapping>,
-    ): Mono<QueryModelSchema> = mapping.map { bind(logicalSchema, it) }
+    ): Mono<QueryModelSchema> = mapping.map { bind(logicalSchema, it, model) }
         .onErrorMap { error ->
             if (error is QuerySchemaUnavailableException) {
                 error
@@ -62,6 +68,12 @@ class ElasticsearchQuerySchemaAdapter(
         internal fun bind(
             logicalSchema: LogicalQuerySchema,
             mapping: ElasticsearchIndexMapping,
+        ): QueryModelSchema = bind(logicalSchema, mapping, QueryModel.SNAPSHOT)
+
+        internal fun bind(
+            logicalSchema: LogicalQuerySchema,
+            mapping: ElasticsearchIndexMapping,
+            model: QueryModel,
         ): QueryModelSchema {
             val invalidNestedParents = mapping.invalidNestedParents(logicalSchema)
             val nestedPaths = mapping.fields.filterValues { it.kind == Property.Kind.Nested }.keys
@@ -69,7 +81,7 @@ class ElasticsearchQuerySchemaAdapter(
                 nestedPaths.none { path.startsWith("$it.") }
             }.values
             return QueryModelSchema(
-                model = QueryModel.SNAPSHOT,
+                model = model,
                 capabilities = buildSet {
                     if (rootSearchFields.any(ElasticsearchMappedField::supportsModelFullText)) {
                         add(QueryCapability.FULL_TEXT_TERMS)

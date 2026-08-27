@@ -22,6 +22,7 @@ import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.mongo.query.snapshot.SnapshotFieldConverter
+import me.ahoo.wow.query.converter.FieldConverter
 import me.ahoo.wow.query.schema.LogicalQueryFieldSchema
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryFieldBinding
@@ -35,10 +36,17 @@ import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toFlux
 import java.util.Optional
 
-class MongoQuerySchemaAdapter(
+class MongoQuerySchemaAdapter internal constructor(
     private val collection: MongoCollection<Document>,
-    private val database: MongoDatabase? = null,
+    private val database: MongoDatabase?,
+    private val model: QueryModel,
+    private val fieldConverter: FieldConverter,
 ) : QuerySchemaBackendAdapter {
+    constructor(
+        collection: MongoCollection<Document>,
+        database: MongoDatabase? = null,
+    ) : this(collection, database, QueryModel.SNAPSHOT, SnapshotFieldConverter)
+
     override fun resolve(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> = loadFacts(logicalSchema)
 
     private fun loadFacts(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> = Mono.defer {
@@ -51,7 +59,7 @@ class MongoQuerySchemaAdapter(
             ?.defaultIfEmpty(Optional.empty())
             ?: Mono.just(Optional.empty())
         Mono.zip(indexes, validator).map { facts ->
-            bind(logicalSchema, facts.t1, facts.t2.orElse(null))
+            bind(logicalSchema, facts.t1, facts.t2.orElse(null), model, fieldConverter)
         }
     }.onErrorMap { error ->
         if (error is QuerySchemaUnavailableException) {
@@ -66,6 +74,20 @@ class MongoQuerySchemaAdapter(
             logicalSchema: LogicalQuerySchema,
             indexes: List<Document>,
             validatorSchema: Document?,
+        ): QueryModelSchema = bind(
+            logicalSchema,
+            indexes,
+            validatorSchema,
+            QueryModel.SNAPSHOT,
+            SnapshotFieldConverter,
+        )
+
+        internal fun bind(
+            logicalSchema: LogicalQuerySchema,
+            indexes: List<Document>,
+            validatorSchema: Document?,
+            model: QueryModel,
+            fieldConverter: FieldConverter,
         ): QueryModelSchema {
             val storageSchemas = validatorSchema.storageSchemas()
             val capabilities = if (indexes.hasTextIndex()) {
@@ -74,14 +96,14 @@ class MongoQuerySchemaAdapter(
                 emptySet()
             }
             val invalidContainers = logicalSchema.fields.mapNotNullTo(linkedSetOf()) { (logicalField, fieldSchema) ->
-                val storageSchema = storageSchemas[SnapshotFieldConverter.convert(logicalField.value)]
+                val storageSchema = storageSchemas[fieldConverter.convert(logicalField.value)]
                 logicalField.value.takeIf { fieldSchema.invalidContainer(storageSchema) }
             }
             return QueryModelSchema(
-                model = QueryModel.SNAPSHOT,
+                model = model,
                 capabilities = capabilities,
                 fields = logicalSchema.fields.mapValues { (logicalField, logicalSchema) ->
-                    val physicalPath = SnapshotFieldConverter.convert(logicalField.value)
+                    val physicalPath = fieldConverter.convert(logicalField.value)
                     val storageSchema = storageSchemas[physicalPath]
                     val binding = QueryFieldBinding(physicalPath, storageSchema?.types?.singleOrNull())
                     if (invalidContainers.any { logicalField.value == it || logicalField.value.startsWith("$it.") }) {

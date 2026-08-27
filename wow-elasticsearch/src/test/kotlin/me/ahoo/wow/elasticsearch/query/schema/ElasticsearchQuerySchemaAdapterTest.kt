@@ -32,6 +32,7 @@ import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryCompatibilityLevel
+import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
@@ -57,6 +58,34 @@ import java.util.concurrent.TimeUnit
 
 @Suppress("LargeClass")
 class ElasticsearchQuerySchemaAdapterTest {
+    @Test
+    fun `event stream schema should retain model and nested body capability`() {
+        val body = LogicalField("body")
+        val name = LogicalField("body.name")
+        val logical = LogicalQuerySchema(
+            linkedMapOf(
+                body to field(QueryValueType.OBJECT, QueryCardinality.MANY),
+                name to field(QueryValueType.STRING),
+            ),
+        )
+        val mapping = TypeMapping.of { type ->
+            type.properties("body") { property ->
+                property.nested { nested ->
+                    nested.properties("name") { it.keyword { keyword -> keyword } }
+                }
+            }
+        }
+        val schema = ElasticsearchQuerySchemaAdapter.bind(
+            logical,
+            ElasticsearchIndexMapping.from(INDEX, mapping),
+            QueryModel.EVENT_STREAM,
+        )
+
+        schema.model.assert().isEqualTo(QueryModel.EVENT_STREAM)
+        schema.fields.getValue(body).bindings.assert().containsKey(QueryCapability.ELEMENT_SCOPE)
+        schema.fields.getValue(name).bindings.assert().containsKey(QueryCapability.AGGREGATE_TERMS)
+    }
+
     @Test
     fun `nested-only search fields should not advertise root model search`() {
         val child = LogicalField("state.orders.note")
