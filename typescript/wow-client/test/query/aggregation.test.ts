@@ -27,7 +27,13 @@ import {
 } from '../../src';
 
 type RootFields = 'state.status' | 'state.orders';
-type ItemFields = 'status' | 'quantity' | 'productId' | 'amount' | 'createdAt';
+type ItemFields =
+  | 'status'
+  | 'quantity'
+  | 'productId'
+  | 'productName'
+  | 'amount'
+  | 'createdAt';
 
 describe('AggregationQuery', () => {
   it('uses the Wow wire enum values', () => {
@@ -40,7 +46,7 @@ describe('AggregationQuery', () => {
       function: Object.values(AggregationFunction),
     }).toEqual({
       group: ['TERMS', 'HISTOGRAM', 'DATE_HISTOGRAM'],
-      metric: ['COUNT', 'NUMERIC'],
+      metric: ['COUNT', 'NUMERIC', 'ANY'],
       expression: ['FIELD', 'CONSTANT', 'BINARY'],
       operator: ['ADD', 'SUBTRACT', 'MULTIPLY', 'DIVIDE'],
       dateUnit: [
@@ -170,6 +176,31 @@ describe('AggregationQuery', () => {
     });
   });
 
+  it('builds an ANY metric without adding a group', () => {
+    const query: AggregationQuery<RootFields, ItemFields> = {
+      groupBy: [aggregation.terms('productId', 'product')],
+      metrics: [
+        aggregation.any('productName', 'productName'),
+        aggregation.count('count'),
+        aggregation.sum(aggregation.field('amount'), 'total'),
+      ],
+    };
+
+    expect(query).toStrictEqual({
+      groupBy: [{ type: 'TERMS', field: 'productId', alias: 'product' }],
+      metrics: [
+        { type: 'ANY', field: 'productName', alias: 'productName' },
+        { type: 'COUNT', alias: 'count' },
+        {
+          type: 'NUMERIC',
+          function: 'SUM',
+          expression: { type: 'FIELD', field: 'amount' },
+          alias: 'total',
+        },
+      ],
+    });
+  });
+
   it.each([
     ['invalid field', () => aggregation.field('bad field')],
     ['non-finite constant', () => aggregation.constant(Number.NaN)],
@@ -179,6 +210,15 @@ describe('AggregationQuery', () => {
     ],
     ['multi-segment alias', () => aggregation.terms('status', 'group.status')],
     ['reserved alias', () => aggregation.count('__wow_count')],
+    ['invalid ANY field', () => aggregation.any('bad field', 'productName')],
+    [
+      'multi-segment ANY alias',
+      () => aggregation.any('productName', 'product.name'),
+    ],
+    [
+      'reserved ANY alias',
+      () => aggregation.any('productName', '__wow_productName'),
+    ],
     [
       'blank time zone',
       () =>
@@ -260,12 +300,19 @@ describe('AggregationQuery', () => {
         aggregation.sum(aggregation.field('unknown'), 'total'),
       ],
     };
+    const invalidAnyMetric: AggregationQuery<RootFields, ItemFields> = {
+      metrics: [
+        // @ts-expect-error unknown is not an ItemFields member.
+        aggregation.any('unknown', 'name'),
+      ],
+    };
     void valid;
     void invalidAggregationField;
     void invalidRootFilter;
     void invalidElementFilter;
     void emptyMetrics;
     void invalidMetricExpression;
+    void invalidAnyMetric;
   };
   expectTypeOf(assertAggregationFields).toBeFunction();
 });

@@ -435,6 +435,7 @@ type ItemFields = 'productId' | 'price' | 'quantity';
 
 type ProductSummary = {
   product: string;
+  representativeProduct: string | null;
   itemCount: number;
   revenue: number;
 };
@@ -449,6 +450,7 @@ const aggregationQuery: AggregationQuery<CartFields, ItemFields> = {
   elements: [aggregation.element('state.items', filter.gt('quantity', 0))],
   groupBy: [aggregation.terms('productId', 'product')],
   metrics: [
+    aggregation.any('productId', 'representativeProduct'),
     aggregation.count('itemCount'),
     aggregation.sum(revenue, 'revenue'),
   ],
@@ -464,6 +466,13 @@ for await (const event of summaryStream) {
   console.log(event.data);
 }
 ```
+
+`aggregation.any(field, alias)` adds a metric, not another group. It returns one
+non-null scalar from the current group, or `null` when no value exists. The
+selected value is intentionally unspecified and may differ across backends or
+executions; use it only when every candidate is interchangeable. Its field is
+relative to the innermost element, and Wow rejects collection or non-terms-capable
+fields at runtime. Sorting by an `ANY` alias is an expensive metric sort.
 
 ##### Methods
 

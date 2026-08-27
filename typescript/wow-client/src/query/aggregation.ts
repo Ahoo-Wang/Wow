@@ -28,6 +28,7 @@ export enum AggregationGroupType {
 export enum AggregationMetricType {
   COUNT = 'COUNT',
   NUMERIC = 'NUMERIC',
+  ANY = 'ANY',
 }
 
 export enum AggregationExpressionType {
@@ -131,8 +132,16 @@ export interface NumericAggregationMetric<FIELDS extends string = string> {
   alias: string;
 }
 
+export interface AnyAggregationMetric<FIELDS extends string = string> {
+  type: AggregationMetricType.ANY;
+  field: LogicalField<FIELDS>;
+  alias: string;
+}
+
 export type AggregationMetric<FIELDS extends string = string> =
-  CountAggregationMetric | NumericAggregationMetric<FIELDS>;
+  | CountAggregationMetric
+  | NumericAggregationMetric<FIELDS>
+  | AnyAggregationMetric<FIELDS>;
 
 export interface AggregationQuery<
   ROOT_FIELDS extends string = string,
@@ -280,6 +289,16 @@ export const aggregation = {
       unit,
       alias: aggregationAlias(alias),
       timeZone,
+    };
+  },
+  any<FIELDS extends string>(
+    field: FIELDS,
+    alias: string,
+  ): AnyAggregationMetric<FIELDS> {
+    return {
+      type: AggregationMetricType.ANY,
+      field: aggregationField(field),
+      alias: aggregationAlias(alias),
     };
   },
   count(alias: string): CountAggregationMetric {

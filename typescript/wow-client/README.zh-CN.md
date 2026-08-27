@@ -425,6 +425,7 @@ type ItemFields = 'productId' | 'price' | 'quantity';
 
 type ProductSummary = {
   product: string;
+  representativeProduct: string | null;
   itemCount: number;
   revenue: number;
 };
@@ -439,6 +440,7 @@ const aggregationQuery: AggregationQuery<CartFields, ItemFields> = {
   elements: [aggregation.element('state.items', filter.gt('quantity', 0))],
   groupBy: [aggregation.terms('productId', 'product')],
   metrics: [
+    aggregation.any('productId', 'representativeProduct'),
     aggregation.count('itemCount'),
     aggregation.sum(revenue, 'revenue'),
   ],
@@ -454,6 +456,11 @@ for await (const event of summaryStream) {
   console.log(event.data);
 }
 ```
+
+`aggregation.any(field, alias)` 增加的是指标，不是新的分组。它从当前分组返回一个
+非空标量；没有值时返回 `null`。具体选择哪个值不属于契约，可能随后端或执行变化；
+只有候选值可互换时才应使用。字段相对最内层 Element，集合字段或不具备 terms 聚合
+能力的字段由 Wow 在运行时拒绝。按 `ANY` alias 排序属于昂贵的指标排序。
 
 ##### 方法
 
