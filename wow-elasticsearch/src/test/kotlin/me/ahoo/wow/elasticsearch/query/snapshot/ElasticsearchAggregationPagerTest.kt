@@ -17,6 +17,9 @@ import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.elasticsearch._types.aggregations.Aggregate
 import co.elastic.clients.elasticsearch._types.aggregations.Buckets
 import co.elastic.clients.elasticsearch._types.aggregations.CompositeBucket
+import co.elastic.clients.elasticsearch._types.aggregations.DoubleTermsBucket
+import co.elastic.clients.elasticsearch._types.aggregations.LongTermsBucket
+import co.elastic.clients.elasticsearch._types.aggregations.StringTermsBucket
 import co.elastic.clients.elasticsearch.core.ClosePointInTimeRequest
 import co.elastic.clients.elasticsearch.core.ClosePointInTimeResponse
 import co.elastic.clients.elasticsearch.core.OpenPointInTimeRequest
@@ -259,6 +262,57 @@ class ElasticsearchAggregationPagerTest {
     }
 
     @Test
+    fun `any metric should request one terms bucket and read its scalar key`() {
+        val requests = mutableListOf<SearchRequest>()
+        stubPointInTime()
+        every { client.search(capture(requests), Map::class.java) } returns Mono.just(
+            groupResponse("pit-2", listOf(anyBucket("alpha", stringTerms("Alpha")))),
+        )
+        val plan = compiler().compile(
+            aggregation {
+                terms("state.productId", "product")
+                any("state.productName", "productName")
+            },
+        )
+
+        pager().execute(plan).test()
+            .assertNext { row -> row["productName"].assert().isEqualTo("Alpha") }
+            .verifyComplete()
+
+        requests.single().aggregations().values.single()
+            .aggregations().getValue("productName").terms().apply {
+                field().assert().isEqualTo("state.productName")
+                size().assert().isEqualTo(1)
+            }
+    }
+
+    @Test
+    fun `any metric should normalize boolean long double and empty terms buckets`() {
+        stubPointInTime()
+        every { client.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(
+            groupResponse(
+                "pit-2",
+                listOf(
+                    anyBucket("a", booleanTerms(true)),
+                    anyBucket("b", longTerms(7L)),
+                    anyBucket("c", doubleTerms(7.5)),
+                    anyBucket("d", stringTerms(null)),
+                ),
+            ),
+        )
+        val plan = compiler().compile(
+            aggregation {
+                terms("state.productId", "product")
+                any("state.value", "productName")
+            },
+        )
+
+        pager().execute(plan).collectList().test()
+            .assertNext { rows -> rows.map { it["productName"] }.assert().containsExactly(true, 7L, 7.5, null) }
+            .verifyComplete()
+    }
+
+    @Test
     fun `group aggregation should stop after reaching the limit`() {
         stubPointInTime()
         every { client.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(
@@ -356,6 +410,56 @@ class ElasticsearchAggregationPagerTest {
                 "__wow_value_count_total",
                 Aggregate.of { value -> value.valueCount { count -> count.value(1.0) } },
             )
+    }
+
+    private fun stringTerms(value: String?): Aggregate = Aggregate.of { aggregate ->
+        aggregate.sterms { terms ->
+            terms.buckets(
+                Buckets.of<StringTermsBucket> { buckets ->
+                    buckets.array(
+                        value?.let {
+                            listOf(StringTermsBucket.of { bucket -> bucket.key(it).docCount(1) })
+                        }.orEmpty(),
+                    )
+                },
+            )
+        }
+    }
+
+    private fun booleanTerms(value: Boolean): Aggregate = Aggregate.of { aggregate ->
+        aggregate.sterms { terms ->
+            terms.buckets(
+                Buckets.of<StringTermsBucket> { buckets ->
+                    buckets.array(listOf(StringTermsBucket.of { it.key(value).docCount(1) }))
+                },
+            )
+        }
+    }
+
+    private fun longTerms(value: Long): Aggregate = Aggregate.of { aggregate ->
+        aggregate.lterms { terms ->
+            terms.buckets(
+                Buckets.of<LongTermsBucket> { buckets ->
+                    buckets.array(listOf(LongTermsBucket.of { it.key(value).docCount(1) }))
+                },
+            )
+        }
+    }
+
+    private fun doubleTerms(value: Double): Aggregate = Aggregate.of { aggregate ->
+        aggregate.dterms { terms ->
+            terms.buckets(
+                Buckets.of<DoubleTermsBucket> { buckets ->
+                    buckets.array(listOf(DoubleTermsBucket.of { it.key(value).docCount(1) }))
+                },
+            )
+        }
+    }
+
+    private fun anyBucket(product: String, productName: Aggregate): CompositeBucket = CompositeBucket.of {
+        it.key("product", product)
+            .docCount(1)
+            .aggregations("productName", productName)
     }
 
     private fun groupResponse(

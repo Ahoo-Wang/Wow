@@ -97,7 +97,7 @@ class ElasticsearchAggregationCompilerTest {
             },
         )
 
-        plan.metrics.single().field.assert().isEqualTo("__wow_expression_0")
+        (plan.metrics.single() as ElasticsearchAggregationMetric.Numeric).field.assert().isEqualTo("__wow_expression_0")
         val runtime = plan.runtimeMappings.getValue("__wow_expression_0")
         runtime.type().assert().isEqualTo(RuntimeFieldType.Double)
         val script = requireNotNull(runtime.script())
@@ -133,7 +133,7 @@ class ElasticsearchAggregationCompilerTest {
             .contains("catch (Exception ignored)")
             .contains("size() == 1")
             .contains("doubleValue() != 0.0")
-        plan.metrics.last().field.assert().isEqualTo("physical.amount")
+        (plan.metrics.last() as ElasticsearchAggregationMetric.Numeric).field.assert().isEqualTo("physical.amount")
         plan.runtimeMappings.values.single().script()!!.params().values.map { it.to(Any::class.java) }.assert()
             .contains("physical.unreadable")
     }
@@ -145,7 +145,28 @@ class ElasticsearchAggregationCompilerTest {
         )
 
         plan.runtimeMappings.assert().isEmpty()
-        plan.metrics.single().field.assert().isEqualTo("state.amount")
+        (plan.metrics.single() as ElasticsearchAggregationMetric.Numeric).field.assert().isEqualTo("state.amount")
+    }
+
+    @Test
+    fun `any metric should resolve a terms-capable field without a runtime mapping`() {
+        val schema = schema(
+            field(
+                "state.productName",
+                QueryCapability.AGGREGATE_TERMS,
+                "document.productName.keyword",
+                "keyword",
+            ),
+        )
+        val plan = ElasticsearchAggregationCompiler(SnapshotFilterConverter).compile(
+            aggregation { any("state.productName", "productName") },
+            schema,
+        )
+
+        val metric = plan.metrics.single() as ElasticsearchAggregationMetric.Any
+        metric.alias.assert().isEqualTo("productName")
+        metric.field.assert().isEqualTo("document.productName.keyword")
+        plan.runtimeMappings.assert().isEmpty()
     }
 
     @Test
@@ -195,7 +216,8 @@ class ElasticsearchAggregationCompilerTest {
             .isEqualTo("document.orders.lines.productId.keyword")
         plan.groupSources[1].value().histogram().field().assert().isEqualTo("document.orders.lines.amount")
         plan.groupSources[2].value().dateHistogram().field().assert().isEqualTo("document.orders.lines.createdAt")
-        plan.metrics.single().field.assert().isEqualTo("document.orders.lines.amount")
+        (plan.metrics.single() as ElasticsearchAggregationMetric.Numeric).field.assert()
+            .isEqualTo("document.orders.lines.amount")
     }
 
     @Test
