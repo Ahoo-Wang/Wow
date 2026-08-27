@@ -10,8 +10,9 @@ description: 事件失败捕获、重试默认值、调度与 Webhook 的配置�
 - 应用侧 `wow-spring-boot-starter` 捕获符合条件的 handler 失败并发送补偿命令；
 - `wow-compensation-server` 保存失败状态、调度重试准备，并可选发送通知。
 
-修改一端不会操作另一端。尤其是，关闭应用 filter 不会停止独立 server 的 scheduler，也不会删除之前
-记录的失败。
+修改一端不会操作另一端。尤其是，`wow.compensation.enabled=false` 会禁用完整的应用侧
+`CompensationAutoConfiguration`——supporter、capture filter 与 `CompensationEventProcessor`——但不会停止
+独立 server 的 scheduler，也不会删除之前记录的失败。
 
 ## Starter 级
 
@@ -27,7 +28,10 @@ wow:
 
 这些 filter 位于 domain-event、stateless-saga、projection 与 snapshot dispatcher，并在普通 retry filter
 之前执行。符合条件的 handler 失败时会发送 `CreateExecutionFailed`；补偿重试则为已有 execution 发送
-`ApplyExecutionFailed` 或 `ApplyExecutionSuccess`。原始错误仍会继续传播。
+`ApplyExecutionFailed` 或 `ApplyExecutionSuccess`。捕获路径实际执行
+`commandBus.send(compensationCommand).then(originalError)`：只有补偿命令发送成功后，原 handler error 才
+继续传播；发送失败时，响应式链改由 send failure 终止，因此监控必须同时保留 handler failure 与补偿命令
+投递结果。
 
 `@Retry` 是公开的函数级契约：
 
@@ -48,8 +52,11 @@ class OrderProjection {
 `recoverable` 与 `unrecoverable` 异常列表用于分类失败。全局开关启用时，函数仍可通过
 `@Retry(enabled=false)` 单独退出。
 
-只有在明确新失败的观测和恢复方案后，才设置 `wow.compensation.enabled=false`。它会移除新 execution 的
-自动捕获，但不会回滚已有补偿状态。
+设置 `wow.compensation.enabled=false` 必须作为两端协调切换：先停止独立 scheduler，排空在途
+`PrepareCompensation` command，并对账已有 `FAILED`/`PREPARED` execution；之后才禁用应用侧自动配置。
+否则 scheduler 仍可能产生 `CompensationPrepared`，但应用侧已没有 `CompensationEventProcessor` 调用原事件
+函数，使 execution 留在 `PREPARED` 而没有实际执行。后续 timeout cycle 可以再次调度 preparation，却不能
+替代缺失的应用侧 processor。该开关还会移除新失败的自动捕获，但不会回滚已有补偿状态。
 
 ## 服务端级
 

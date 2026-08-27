@@ -31,9 +31,12 @@ The Spring starter registers five processing filters and decorates supported inf
 | Snapshot processing/storage | `me.ahoo.wow-snapshot`, `-snapshotStore` | `<aggregate>.snapshot`, `.snapshot.save`, `.snapshot.load`, `.snapshot.version` |
 | Command wait plan | `me.ahoo.wow-wait` | `<aggregate>.<command>.waiting` |
 
-Message spans add `wow.message.id`, optional `wow.message.request_id` and `wow.message.trace_id`, plus
-`wow.aggregate.context_name`, `wow.aggregate.name`, `wow.aggregate.id`, and `wow.aggregate.tenant_id` when an
-aggregate identity is present. These are trace attributes, not low-cardinality metric tags.
+Instrumenters that register `MessageAttributesExtractor` or `ExchangeAttributesExtractor` add `wow.message.id`,
+optional `wow.message.request_id` and `wow.message.trace_id`, plus `wow.aggregate.context_name`,
+`wow.aggregate.name`, `wow.aggregate.id`, and `wow.aggregate.tenant_id` when an aggregate identity is present.
+Store operations that use `AggregateIdAttributesExtractor` add only the aggregate attributes. `WaitPlanInstrumenter`
+registers no attribute extractor, so the `.waiting` span does not automatically receive these Wow message or
+aggregate attributes. These are trace attributes, not low-cardinality metric tags.
 
 Producer instrumenters inject the OpenTelemetry propagation headers into the Wow message header; consumer filters
 extract them. `TraceMono` and `TraceFlux` restore the OpenTelemetry `Context` for subscription and asynchronous
@@ -94,12 +97,16 @@ fun onOrderCreated(event: OrderCreated): Mono<Void> = Mono.defer {
         .setAttribute("order.id", event.orderId)
         .startSpan()
 
-    orderSummaryRepository.save(buildSummary(event))
-        .doOnError(span::recordException)
+    Mono.defer {
+        orderSummaryRepository.save(buildSummary(event))
+    }.doOnError(span::recordException)
         .doFinally { span.end() }
         .then()
 }
 ```
+
+The inner `Mono.defer` is intentional: synchronous exceptions from `buildSummary` or `save` become error signals
+before `doOnError` and `doFinally` are attached. Completion, error, or cancellation therefore ends the span once.
 
 If custom operators escape the instrumented subscriber chain, propagate an OpenTelemetry `Context` deliberately and
 cover that boundary with an integration test. The module tests verify restoration across `publishOn`, nested traced

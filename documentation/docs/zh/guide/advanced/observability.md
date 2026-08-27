@@ -30,9 +30,12 @@ Spring starter 注册五个处理过滤器，并装饰受支持的基础设施 B
 | 快照处理/存储 | `me.ahoo.wow-snapshot`、`-snapshotStore` | `<aggregate>.snapshot`、`.snapshot.save`、`.snapshot.load`、`.snapshot.version` |
 | 命令等待计划 | `me.ahoo.wow-wait` | `<aggregate>.<command>.waiting` |
 
-消息 span 会增加 `wow.message.id`、可选的 `wow.message.request_id` 与 `wow.message.trace_id`；存在聚合
-身份时，还会增加 `wow.aggregate.context_name`、`wow.aggregate.name`、`wow.aggregate.id` 和
-`wow.aggregate.tenant_id`。这些是 trace attribute，不是低基数指标标签。
+注册了 `MessageAttributesExtractor` 或 `ExchangeAttributesExtractor` 的 instrumenter 会增加
+`wow.message.id`、可选的 `wow.message.request_id` 与 `wow.message.trace_id`；存在聚合身份时，还会增加
+`wow.aggregate.context_name`、`wow.aggregate.name`、`wow.aggregate.id` 和 `wow.aggregate.tenant_id`。
+使用 `AggregateIdAttributesExtractor` 的 store operation 只增加聚合属性。`WaitPlanInstrumenter` 没有注册
+attribute extractor，因此 `.waiting` span 不会自动获得这些 Wow message 或 aggregate attribute。这些是
+trace attribute，不是低基数指标标签。
 
 producer instrumenter 把 OpenTelemetry 传播头注入 Wow message header，consumer filter 再提取它们。
 `TraceMono` 与 `TraceFlux` 会在订阅和异步 signal 上恢复 OpenTelemetry `Context`，并在完成、错误或取消
@@ -91,12 +94,16 @@ fun onOrderCreated(event: OrderCreated): Mono<Void> = Mono.defer {
         .setAttribute("order.id", event.orderId)
         .startSpan()
 
-    orderSummaryRepository.save(buildSummary(event))
-        .doOnError(span::recordException)
+    Mono.defer {
+        orderSummaryRepository.save(buildSummary(event))
+    }.doOnError(span::recordException)
         .doFinally { span.end() }
         .then()
 }
 ```
+
+内层 `Mono.defer` 是有意的：`buildSummary` 或 `save` 同步抛出的异常会先转换成 error signal，再经过
+`doOnError` 与 `doFinally`，因此完成、错误或取消都只结束一次 span。
 
 如果自定义 operator 逃离已注入的 subscriber chain，应显式传播 OpenTelemetry `Context`，并用集成测试
 覆盖该边界。模块测试已经验证 `publishOn`、嵌套 traced publisher、取消与 source error 的上下文恢复。

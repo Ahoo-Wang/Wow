@@ -10,8 +10,9 @@ Compensation has two owners:
 - application-side `wow-spring-boot-starter` captures eligible handler failures and sends compensation commands;
 - `wow-compensation-server` stores failure state, schedules retry preparation, and optionally sends notifications.
 
-Changing one side does not operate the other. In particular, disabling an application filter does not stop the
-standalone server scheduler or delete previously recorded failures.
+Changing one side does not operate the other. In particular, `wow.compensation.enabled=false` disables the complete
+application-side `CompensationAutoConfiguration`—supporter, capture filters, and `CompensationEventProcessor`—but it
+does not stop the standalone server scheduler or delete previously recorded failures.
 
 ## Starter Level
 
@@ -27,7 +28,10 @@ wow:
 
 The filters run on domain-event, stateless-saga, projection, and snapshot dispatchers before the ordinary retry
 filter. On an eligible handler error they send `CreateExecutionFailed`; a compensation retry sends
-`ApplyExecutionFailed` or `ApplyExecutionSuccess` for the existing execution. The original error still propagates.
+`ApplyExecutionFailed` or `ApplyExecutionSuccess` for the existing execution. On capture, the implementation uses
+`commandBus.send(compensationCommand).then(originalError)`: the original handler error propagates only after the
+compensation command send succeeds. If that send fails, the send failure terminates the chain instead, so monitoring
+must retain both the handler failure and compensation-command delivery result.
 
 `@Retry` is the public per-function contract:
 
@@ -48,8 +52,13 @@ The annotation defaults are `maxRetries=10`, `minBackoff=180`, and `executionTim
 retry count. `recoverable` and `unrecoverable` exception lists classify failures. `@Retry(enabled=false)` opts out for
 one function even when the global switch is enabled.
 
-Set `wow.compensation.enabled=false` only after deciding how eligible failures will be observed and recovered. It
-removes automatic capture for new executions; it is not a rollback of existing compensation state.
+Set `wow.compensation.enabled=false` only as a coordinated two-sided cutover. First stop the standalone scheduler,
+drain in-flight `PrepareCompensation` commands, and reconcile existing `FAILED`/`PREPARED` executions; then disable the
+application-side auto-configuration. Otherwise the scheduler can still produce `CompensationPrepared` while no
+application-side `CompensationEventProcessor` invokes the original event function, leaving executions in `PREPARED`
+without execution. A later timeout cycle can schedule another preparation, but it cannot replace the missing
+application-side processor. The switch also removes automatic capture for new failures; it is not a rollback of
+existing compensation state.
 
 ## Server Level
 

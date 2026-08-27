@@ -20,9 +20,11 @@ message wire format，因此本身无需重写数据；如果同一发布还修�
 | 每组件 timeout | 一个 runtime `shutdownTimeout` 与 `shutdownQuietPeriod` | 为完整 graph 规划同一 deadline |
 | 重启同一 object/context | one-shot runtime | 终止后创建新 runtime/ApplicationContext |
 
-启动时所有组件先完成 prepare，之后才允许任何组件打开 processing。停机时先关闭全局 activity admission，
-再关闭组件 intake，等待稳定 quiet period，并在一个 deadline 内反向停止已 prepare 组件。启动失败会反向
-回滚已 prepare 组件；runtime fatal failure 进入同一全局停机路径。
+启动时所有组件先完成 prepare，之后才允许任何组件打开 processing。正常停机先进入 quiet window，此时
+全局 activity admission 仍开放；新接收的尾部 activity 会重置并延长该窗口。完整稳定空闲期结束后，runtime
+才关闭全局 admission，按注册顺序 quiesce component intake，等待已接收工作 drain，并在一个 deadline 内
+反向停止已 prepare 组件。启动失败会反向回滚；runtime fatal failure 则立即关闭 admission、跳过 quiet
+window，并进入完整 cleanup 路径。
 
 ## 1. 替换生命周期所有权
 
@@ -165,9 +167,9 @@ runtime 配置的 shutdown deadline。
 
 1. 所有 component prepare 完成后才出现任何 `start`；
 2. 启动失败/取消按反向顺序回滚；
-3. admission 关闭后拒绝新 activity，已接收工作继续 drain；
-4. quiet-period 内出现 activity 会重新开始 stable-quiet 等待；
-5. graceful stop 按 component 反向顺序执行；
+3. 正常停机的 quiet window 内仍允许尾部 activity admission；
+4. 尾部 activity 会重置 quiet timer；稳定空闲后先关闭 admission，再执行 component `quiesce`；
+5. component `quiesce` 按注册顺序执行，之后 graceful stop 按反向顺序执行；
 6. deadline、quiesce failure、stop failure 与显式 force stop 都只释放一次资源；
 7. 首个 terminal failure 可观测，Starter 在意外终止时关闭 Spring context。
 

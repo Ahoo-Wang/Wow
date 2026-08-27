@@ -21,10 +21,12 @@ The stable target model is described in [Runtime Lifecycle](../advanced/runtime-
 | Per-component timeout | One runtime `shutdownTimeout` and `shutdownQuietPeriod` | Size one shared deadline for the complete graph |
 | Restart the same object/context | One-shot runtime | Create a new runtime/ApplicationContext after termination |
 
-Startup prepares every component before any component opens processing. Shutdown closes global activity admission,
-closes component intake, waits for a stable quiet period, and stops prepared components in reverse order under one
-deadline. Startup failure rolls back prepared components in reverse order; fatal runtime failure enters the same
-complete-runtime shutdown path.
+Startup prepares every component before any component opens processing. Normal shutdown first enters a quiet window
+while global activity admission remains open; admitted tail activity resets and can extend that window. After one
+complete idle quiet period, the runtime closes global admission, quiesces component intake in registration order,
+waits for admitted work to drain, and stops prepared components in reverse order under one deadline. Startup failure
+rolls back prepared components in reverse order; fatal runtime failure closes admission immediately, skips the quiet
+window, and enters the complete-runtime cleanup path.
 
 ## 1. Replace Lifecycle Ownership
 
@@ -170,9 +172,9 @@ Test these cases with production-like values:
 
 1. all components prepare before any `start`;
 2. startup failure/cancellation rolls back in reverse order;
-3. closed admission rejects new activities while admitted work drains;
-4. quiet-period activity resets the stable-quiet wait;
-5. graceful stop runs in reverse component order;
+3. normal shutdown continues to admit tail activity during the quiet window;
+4. tail activity resets the quiet timer; stable idle closes admission before component `quiesce`;
+5. component `quiesce` runs in registration order, then graceful stop runs in reverse order;
 6. deadline, quiesce failure, stop failure, and explicit force stop release resources once;
 7. the first terminal failure remains observable and the Spring context closes on unexpected termination.
 
