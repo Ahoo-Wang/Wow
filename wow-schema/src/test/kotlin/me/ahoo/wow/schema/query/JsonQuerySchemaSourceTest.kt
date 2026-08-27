@@ -49,6 +49,7 @@ import java.time.LocalDate
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 
 class JsonQuerySchemaSourceTest {
     private val context = QuerySchemaContext(
@@ -103,6 +104,28 @@ class JsonQuerySchemaSourceTest {
 
         inferenceCount.get().assert().isEqualTo(1)
         declarations.all { it === declarations.first() }.assert().isTrue()
+    }
+
+    @Test
+    fun `should infer away from the subscription calling thread`() {
+        val subscriptionThread = Thread.currentThread()
+        val stateTypeResolutionThread = AtomicReference<Thread>()
+        val declarationResolutionThread = AtomicReference<Thread>()
+        val source = JsonQuerySchemaSource(
+            stateTypeResolver = {
+                stateTypeResolutionThread.set(Thread.currentThread())
+                StructuralState::class.java
+            },
+            declarationResolver = {
+                declarationResolutionThread.set(Thread.currentThread())
+                QuerySchemaDeclaration(emptyMap())
+            },
+        )
+
+        source.load(context).single().block()
+
+        stateTypeResolutionThread.get().assert().isNotSameAs(subscriptionThread)
+        declarationResolutionThread.get().assert().isNotSameAs(subscriptionThread)
     }
 
     @Test
@@ -268,6 +291,17 @@ class JsonQuerySchemaSourceTest {
             .contains(LogicalField("state.payment.kind"))
             .contains(LogicalField("state.payment.cardNumber"))
             .contains(LogicalField("state.payment.account"))
+        listOf("state.allOf.inherited", "state.allOf.own").forEach { field ->
+            declaration.field(field).required.assert().isEqualTo(DeclarationValue.Set(true))
+        }
+        listOf(
+            "state.anyOf.left",
+            "state.anyOf.right",
+            "state.oneOf.first",
+            "state.oneOf.second",
+        ).forEach { field ->
+            declaration.field(field).required.assert().isEqualTo(DeclarationValue.Set(false))
+        }
     }
 
     @Test
@@ -279,7 +313,16 @@ class JsonQuerySchemaSourceTest {
 
         forward.valueTypes.assert().isEqualTo(expectedTypes)
         reverse.valueTypes.assert().isEqualTo(expectedTypes)
+        forward.required.assert().isEqualTo(DeclarationValue.Set(true))
+        reverse.required.assert().isEqualTo(DeclarationValue.Set(true))
         reverse.assert().isEqualTo(forward)
+    }
+
+    @Test
+    fun `should mark a shared alternative field optional when only some branches require it`() {
+        load(PartiallyRequiredCompositionState::class.java)
+            .field("state.value.shared")
+            .required.assert().isEqualTo(DeclarationValue.Set(false))
     }
 
     @Test
@@ -555,6 +598,18 @@ private class RepeatedValue
 private data class StringValueBranch(val value: String)
 
 private data class IntegerValueBranch(val value: Int)
+
+private data class PartiallyRequiredCompositionState(
+    @field:Schema(anyOf = [RequiredSharedValueBranch::class, OptionalSharedValueBranch::class])
+    val value: RepeatedValue,
+)
+
+private data class RequiredSharedValueBranch(val shared: String)
+
+private data class OptionalSharedValueBranch(
+    @field:Schema(requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+    val shared: String,
+)
 
 private data class ConflictingCompositionState(
     @field:Schema(oneOf = [FirstTitledBranch::class, SecondTitledBranch::class])

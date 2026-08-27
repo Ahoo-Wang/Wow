@@ -43,6 +43,7 @@ import me.ahoo.wow.schema.Types.isStdType
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import reactor.core.publisher.Flux
+import reactor.core.scheduler.Schedulers
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.ValueSerializer
 import tools.jackson.databind.annotation.JsonSerialize
@@ -56,7 +57,9 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 private const val TEMPORAL_UNIT = "x-wow-query-temporal-unit"
-private val COMPOSITIONS = listOf("allOf", "anyOf", "oneOf")
+private const val ALL_OF = "allOf"
+private val ALTERNATIVE_COMPOSITIONS = listOf("anyOf", "oneOf")
+private val COMPOSITIONS = listOf(ALL_OF) + ALTERNATIVE_COMPOSITIONS
 
 class JsonQuerySchemaSource internal constructor(
     private val stateTypeResolver: (QuerySchemaContext) -> Class<*>,
@@ -78,7 +81,7 @@ class JsonQuerySchemaSource internal constructor(
     override fun load(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> = Flux.defer {
         val stateType = stateTypeResolver(context)
         Flux.just(declarations.computeIfAbsent(stateType) { declarationResolver(it) })
-    }.onErrorMap { error ->
+    }.subscribeOn(Schedulers.boundedElastic()).onErrorMap { error ->
         when (error) {
             is QuerySchemaException -> error
             is Exception -> QuerySchemaUnavailableException(
@@ -130,14 +133,15 @@ private class JsonSchemaWalker(
             ),
             dynamicChildren = DeclarationValue.Set(rootNodes.any(JsonNode::hasAdditionalProperties)),
         )
-        rootSchema.collectProperties(StateAggregateRecords.STATE, setOf("#"))
+        fields.putAll(rootSchema.collectProperties(StateAggregateRecords.STATE, setOf("#")))
         return QuerySchemaDeclaration(fields)
     }
 
     private fun JsonNode.collectProperties(
         parentName: String,
         resolvingReferences: Set<String>,
-    ) {
+    ): Map<LogicalField, QueryFieldDeclaration> {
+        val collected = linkedMapOf<LogicalField, QueryFieldDeclaration>()
         val parentRequired = get("required")?.asSequence()
             ?.filter(JsonNode::isString)
             ?.map(JsonNode::stringValue)
@@ -147,26 +151,28 @@ private class JsonSchemaWalker(
             if (propertyName.isLogicalFieldSegment() && !propertySchema.isWriteOnly()) {
                 val fullName = "$parentName.$propertyName"
                 val field = LogicalField(fullName)
-                fields.merge(
-                    field,
-                    propertySchema.toDeclaration(field, propertyName in parentRequired),
-                ) { current, next ->
-                    current.mergeStructural(next, field)
-                }
-                propertySchema.collectProperties(fullName, resolvingReferences)
+                collected.mergeConjunctive(
+                    mapOf(field to propertySchema.toDeclaration(field, propertyName in parentRequired)),
+                )
+                collected.mergeConjunctive(propertySchema.collectProperties(fullName, resolvingReferences))
             }
         }
         reference()?.takeIf { it !in resolvingReferences }?.let { reference ->
             rootSchema.at(reference.removePrefix("#"))
                 .takeUnless(JsonNode::isMissingNode)
                 ?.collectProperties(parentName, resolvingReferences + reference)
+                ?.let(collected::mergeConjunctive)
         }
-        COMPOSITIONS.forEach { composition ->
-            get(composition)?.forEach { alternative ->
+        get(ALL_OF)?.forEach { branch ->
+            collected.mergeConjunctive(branch.collectProperties(parentName, resolvingReferences))
+        }
+        ALTERNATIVE_COMPOSITIONS.forEach { composition ->
+            get(composition)?.asSequence()?.map { alternative ->
                 alternative.collectProperties(parentName, resolvingReferences)
-            }
+            }?.toList()?.mergeAlternatives()?.let(collected::mergeConjunctive)
         }
-        get("items")?.collectProperties(parentName, resolvingReferences)
+        get("items")?.collectProperties(parentName, resolvingReferences)?.let(collected::mergeConjunctive)
+        return collected
     }
 
     private fun JsonNode.toDeclaration(
@@ -241,17 +247,48 @@ private class JsonSchemaWalker(
 private fun QueryFieldDeclaration.mergeStructural(
     other: QueryFieldDeclaration,
     field: LogicalField,
+    required: Boolean,
 ): QueryFieldDeclaration = QueryFieldDeclaration(
     title = title.requireSame(other.title, field, "title"),
     description = description.requireSame(other.description, field, "description"),
     enumValues = enumValues.requireSame(other.enumValues, field, "enumValues"),
     valueTypes = valueTypes.union(other.valueTypes),
     nullable = nullable.requireSame(other.nullable, field, "nullable"),
-    required = required.requireSame(other.required, field, "required"),
+    required = DeclarationValue.Set(required),
     cardinality = cardinality.requireSame(other.cardinality, field, "cardinality"),
     semanticType = semanticType.requireSame(other.semanticType, field, "semanticType"),
     dynamicChildren = dynamicChildren.requireSame(other.dynamicChildren, field, "dynamicChildren"),
 )
+
+private fun MutableMap<LogicalField, QueryFieldDeclaration>.mergeConjunctive(
+    other: Map<LogicalField, QueryFieldDeclaration>,
+) {
+    other.forEach { (field, next) ->
+        merge(field, next) { current, merged ->
+            current.mergeStructural(merged, field, current.isRequired() || merged.isRequired())
+        }
+    }
+}
+
+private fun List<Map<LogicalField, QueryFieldDeclaration>>.mergeAlternatives():
+    Map<LogicalField, QueryFieldDeclaration> {
+    val merged = linkedMapOf<LogicalField, QueryFieldDeclaration>()
+    forEach { alternative ->
+        alternative.forEach { (field, next) ->
+            merged.merge(field, next) { current, branch ->
+                current.mergeStructural(branch, field, current.isRequired() && branch.isRequired())
+            }
+        }
+    }
+    return merged.mapValuesTo(linkedMapOf()) { (field, declaration) ->
+        declaration.copy(
+            required = DeclarationValue.Set(all { alternative -> alternative[field]?.isRequired() == true }),
+        )
+    }
+}
+
+private fun QueryFieldDeclaration.isRequired(): Boolean =
+    (required as? DeclarationValue.Set)?.value == true
 
 private fun DeclarationValue<Set<QueryValueType>>.union(
     other: DeclarationValue<Set<QueryValueType>>,
