@@ -15,7 +15,9 @@ import {
   DeletionState,
   filter,
   FilterOperator,
+  SearchMode,
   StringComparison,
+  TimeUnit,
   type ElementFilterExpression,
   type MetadataFilter,
 } from '../../src';
@@ -28,7 +30,7 @@ describe('filter', () => {
         filter.deletion(DeletionState.ACTIVE),
         filter.eq('state.status', 'PAID'),
         filter.elementMatch('state.items', filter.gt('quantity', 0)),
-        filter.search('wow', 'state.name'),
+        filter.search('wow', { fields: ['state.name'] }),
         filter.today('state.createdAt', { zoneId: 'UTC' }),
       ),
     ).toEqual({
@@ -41,10 +43,16 @@ describe('filter', () => {
           field: 'state.items',
           predicate: { op: FilterOperator.GT, field: 'quantity', value: 0 },
         },
-        { op: FilterOperator.SEARCH, query: 'wow', fields: ['state.name'] },
+        {
+          op: FilterOperator.SEARCH,
+          query: 'wow',
+          mode: SearchMode.TERMS,
+          fields: ['state.name'],
+        },
         {
           op: FilterOperator.TODAY,
           field: 'state.createdAt',
+          timeUnit: TimeUnit.MILLISECONDS,
           zoneId: 'UTC',
         },
       ],
@@ -60,6 +68,66 @@ describe('filter', () => {
       value: 'wow',
       stringComparison: StringComparison.CASE_INSENSITIVE,
     });
+  });
+
+  it('builds search filters with explicit defaults and phrase mode', () => {
+    expect(filter.search('wow')).toEqual({
+      op: FilterOperator.SEARCH,
+      query: 'wow',
+      mode: SearchMode.TERMS,
+      fields: [],
+    });
+    expect(
+      filter.search('event sourcing', {
+        mode: SearchMode.PHRASE,
+        fields: ['state.title', 'state.description'],
+      }),
+    ).toEqual({
+      op: FilterOperator.SEARCH,
+      query: 'event sourcing',
+      mode: SearchMode.PHRASE,
+      fields: ['state.title', 'state.description'],
+    });
+  });
+
+  const assertOldSearchSignatureRemoved = () => {
+    // @ts-expect-error The new Filter DSL does not retain rest-field compatibility.
+    filter.search('wow', 'state.name');
+  };
+  expectTypeOf(assertOldSearchSignatureRemoved).toBeFunction();
+
+  it('rejects the removed runtime search signature', () => {
+    expect(() =>
+      Reflect.apply(filter.search, null, ['wow', 'state.name']),
+    ).toThrow(TypeError);
+  });
+
+  it.each([
+    ['yesterday', filter.yesterday, FilterOperator.YESTERDAY],
+    ['next month', filter.nextMonth, FilterOperator.NEXT_MONTH],
+    ['last year', filter.lastYear, FilterOperator.LAST_YEAR],
+    ['this year', filter.thisYear, FilterOperator.THIS_YEAR],
+    ['next year', filter.nextYear, FilterOperator.NEXT_YEAR],
+  ] as const)('builds %s filters', (_name, create, op) => {
+    expect(create('createdAt')).toEqual({
+      op,
+      field: 'createdAt',
+      timeUnit: TimeUnit.MILLISECONDS,
+    });
+  });
+
+  it('emits every Wow relative-time unit', () => {
+    expect(
+      Object.values(TimeUnit).map(timeUnit =>
+        filter.today('createdAt', { timeUnit }),
+      ),
+    ).toEqual(
+      Object.values(TimeUnit).map(timeUnit => ({
+        op: FilterOperator.TODAY,
+        field: 'createdAt',
+        timeUnit,
+      })),
+    );
   });
 
   it('builds metadata filters', () => {
@@ -237,7 +305,12 @@ describe('filter', () => {
     {
       name: 'search without fields',
       create: () => filter.search('wow'),
-      expected: { op: FilterOperator.SEARCH, query: 'wow', fields: [] },
+      expected: {
+        op: FilterOperator.SEARCH,
+        query: 'wow',
+        mode: SearchMode.TERMS,
+        fields: [],
+      },
     },
     {
       name: 'nested element match',
@@ -263,7 +336,11 @@ describe('filter', () => {
     {
       name: 'today',
       create: () => filter.today('createdAt'),
-      expected: { op: FilterOperator.TODAY, field: 'createdAt' },
+      expected: {
+        op: FilterOperator.TODAY,
+        field: 'createdAt',
+        timeUnit: TimeUnit.MILLISECONDS,
+      },
     },
     {
       name: 'today with JVM boundary options',
@@ -275,6 +352,7 @@ describe('filter', () => {
       expected: {
         op: FilterOperator.TODAY,
         field: 'createdAt',
+        timeUnit: TimeUnit.MILLISECONDS,
         zoneId: '+18:00',
         datePattern: 'ppHH[',
       },
@@ -288,6 +366,7 @@ describe('filter', () => {
       expected: {
         op: FilterOperator.TODAY,
         field: 'createdAt',
+        timeUnit: TimeUnit.MILLISECONDS,
         datePattern: 'pS:mm',
       },
     },
@@ -297,6 +376,7 @@ describe('filter', () => {
       expected: {
         op: FilterOperator.TODAY,
         field: 'createdAt',
+        timeUnit: TimeUnit.MILLISECONDS,
         datePattern: 'py',
       },
     },
@@ -309,6 +389,7 @@ describe('filter', () => {
       expected: {
         op: FilterOperator.TODAY,
         field: 'createdAt',
+        timeUnit: TimeUnit.MILLISECONDS,
         datePattern: 'YYYYYYYYYYYYYYYYYYYY',
       },
     },
@@ -322,6 +403,7 @@ describe('filter', () => {
       expected: {
         op: FilterOperator.BEFORE_TODAY,
         field: 'createdAt',
+        timeUnit: TimeUnit.MILLISECONDS,
         time: '09:30',
         zoneId: 'UTC+05:30',
         datePattern: "yyyy-MM-dd 'o''clock'['T'HH:mm:ss]",
@@ -330,32 +412,56 @@ describe('filter', () => {
     {
       name: 'tomorrow',
       create: () => filter.tomorrow('createdAt'),
-      expected: { op: FilterOperator.TOMORROW, field: 'createdAt' },
+      expected: {
+        op: FilterOperator.TOMORROW,
+        field: 'createdAt',
+        timeUnit: TimeUnit.MILLISECONDS,
+      },
     },
     {
       name: 'this week',
       create: () => filter.thisWeek('createdAt'),
-      expected: { op: FilterOperator.THIS_WEEK, field: 'createdAt' },
+      expected: {
+        op: FilterOperator.THIS_WEEK,
+        field: 'createdAt',
+        timeUnit: TimeUnit.MILLISECONDS,
+      },
     },
     {
       name: 'next week',
       create: () => filter.nextWeek('createdAt'),
-      expected: { op: FilterOperator.NEXT_WEEK, field: 'createdAt' },
+      expected: {
+        op: FilterOperator.NEXT_WEEK,
+        field: 'createdAt',
+        timeUnit: TimeUnit.MILLISECONDS,
+      },
     },
     {
       name: 'last week',
       create: () => filter.lastWeek('createdAt'),
-      expected: { op: FilterOperator.LAST_WEEK, field: 'createdAt' },
+      expected: {
+        op: FilterOperator.LAST_WEEK,
+        field: 'createdAt',
+        timeUnit: TimeUnit.MILLISECONDS,
+      },
     },
     {
       name: 'this month',
       create: () => filter.thisMonth('createdAt'),
-      expected: { op: FilterOperator.THIS_MONTH, field: 'createdAt' },
+      expected: {
+        op: FilterOperator.THIS_MONTH,
+        field: 'createdAt',
+        timeUnit: TimeUnit.MILLISECONDS,
+      },
     },
     {
       name: 'last month',
       create: () => filter.lastMonth('createdAt'),
-      expected: { op: FilterOperator.LAST_MONTH, field: 'createdAt' },
+      expected: {
+        op: FilterOperator.LAST_MONTH,
+        field: 'createdAt',
+        timeUnit: TimeUnit.MILLISECONDS,
+      },
     },
     {
       name: 'recent days',
@@ -363,6 +469,7 @@ describe('filter', () => {
       expected: {
         op: FilterOperator.RECENT_DAYS,
         field: 'createdAt',
+        timeUnit: TimeUnit.MILLISECONDS,
         days: 7,
       },
     },
@@ -372,6 +479,7 @@ describe('filter', () => {
       expected: {
         op: FilterOperator.EARLIER_DAYS,
         field: 'createdAt',
+        timeUnit: TimeUnit.MILLISECONDS,
         days: 30,
       },
     },
@@ -385,6 +493,7 @@ describe('filter', () => {
       expect(filter.today('createdAt', { zoneId })).toEqual({
         op: FilterOperator.TODAY,
         field: 'createdAt',
+        timeUnit: TimeUnit.MILLISECONDS,
         zoneId,
       });
     },
@@ -409,24 +518,32 @@ describe('filter', () => {
     ] as const;
 
     calendarFilters.forEach(([op, expression]) => {
-      expect(expression).toEqual({ zoneId: 'UTC', op, field: 'createdAt' });
+      expect(expression).toEqual({
+        zoneId: 'UTC',
+        op,
+        field: 'createdAt',
+        timeUnit: TimeUnit.MILLISECONDS,
+      });
     });
     expect(filter.beforeToday('createdAt', '09:30', options)).toEqual({
       zoneId: 'UTC',
       op: FilterOperator.BEFORE_TODAY,
       field: 'createdAt',
+      timeUnit: TimeUnit.MILLISECONDS,
       time: '09:30',
     });
     expect(filter.recentDays('createdAt', 7, options)).toEqual({
       zoneId: 'UTC',
       op: FilterOperator.RECENT_DAYS,
       field: 'createdAt',
+      timeUnit: TimeUnit.MILLISECONDS,
       days: 7,
     });
     expect(filter.earlierDays('createdAt', 30, options)).toEqual({
       zoneId: 'UTC',
       op: FilterOperator.EARLIER_DAYS,
       field: 'createdAt',
+      timeUnit: TimeUnit.MILLISECONDS,
       days: 30,
     });
   });
@@ -545,6 +662,10 @@ describe('filter', () => {
     ['blank search query', () => filter.search(' ')],
     ['non-string search query', () => Reflect.apply(filter.search, null, [1])],
     [
+      'invalid search mode',
+      () => Reflect.apply(filter.search, null, ['wow', { mode: 'INVALID' }]),
+    ],
+    [
       'non-string string operand',
       () => Reflect.apply(filter.contains, null, ['name', 1]),
     ],
@@ -567,6 +688,10 @@ describe('filter', () => {
       () => filter.recentDays('createdAt', 2_147_483_648),
     ],
     ['blank zone ID', () => filter.today('createdAt', { zoneId: ' ' })],
+    [
+      'invalid time unit',
+      () => filter.today('createdAt', { timeUnit: 'INVALID' as TimeUnit }),
+    ],
     [
       'zone offset outside the JVM range',
       () => filter.today('createdAt', { zoneId: '+23:59' }),

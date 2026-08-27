@@ -34,15 +34,21 @@ export interface SnapshotQueryApi<
   FIELDS extends string = string,
 > extends QueryApi<MaterializedSnapshot<S>, FIELDS> {
   /** Runs a snapshot aggregation and returns all result rows. */
-  aggregate?<Row extends DynamicDocument = DynamicDocument>(
-    query: AggregationQuery<FIELDS>,
+  aggregate?<
+    Row extends DynamicDocument = DynamicDocument,
+    AGGREGATION_FIELDS extends string = string,
+  >(
+    query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>,
     attributes?: Record<string, any>,
     abortController?: AbortController,
   ): Promise<Row[]>;
 
   /** Runs a snapshot aggregation and streams result rows as SSE. */
-  aggregateStream?<Row extends DynamicDocument = DynamicDocument>(
-    query: AggregationQuery<FIELDS>,
+  aggregateStream?<
+    Row extends DynamicDocument = DynamicDocument,
+    AGGREGATION_FIELDS extends string = string,
+  >(
+    query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>,
     attributes?: Record<string, any>,
     abortController?: AbortController,
   ): Promise<ReadableStream<JsonServerSentEvent<Row>>>;

@@ -60,6 +60,11 @@ export enum FilterOperator {
   LAST_WEEK = 'LAST_WEEK',
   THIS_MONTH = 'THIS_MONTH',
   LAST_MONTH = 'LAST_MONTH',
+  YESTERDAY = 'YESTERDAY',
+  NEXT_MONTH = 'NEXT_MONTH',
+  LAST_YEAR = 'LAST_YEAR',
+  THIS_YEAR = 'THIS_YEAR',
+  NEXT_YEAR = 'NEXT_YEAR',
   RECENT_DAYS = 'RECENT_DAYS',
   EARLIER_DAYS = 'EARLIER_DAYS',
 }
@@ -67,6 +72,21 @@ export enum FilterOperator {
 export enum StringComparison {
   CASE_SENSITIVE = 'CASE_SENSITIVE',
   CASE_INSENSITIVE = 'CASE_INSENSITIVE',
+}
+
+export enum SearchMode {
+  TERMS = 'TERMS',
+  PHRASE = 'PHRASE',
+}
+
+export enum TimeUnit {
+  NANOSECONDS = 'NANOSECONDS',
+  MICROSECONDS = 'MICROSECONDS',
+  MILLISECONDS = 'MILLISECONDS',
+  SECONDS = 'SECONDS',
+  MINUTES = 'MINUTES',
+  HOURS = 'HOURS',
+  DAYS = 'DAYS',
 }
 
 const LOCAL_TIME_PATTERN =
@@ -195,7 +215,10 @@ function isValidOffsetZone(zoneId: string): boolean {
 function validateRelativeTimeOptions({
   zoneId,
   datePattern,
-}: RelativeTimeFilterOptions): RelativeTimeFilterOptions {
+  timeUnit = TimeUnit.MILLISECONDS,
+}: RelativeTimeFilterOptions): RelativeTimeFilterOptions & {
+  timeUnit: TimeUnit;
+} {
   if (zoneId !== undefined) {
     if (typeof zoneId !== 'string' || !zoneId.trim()) {
       throw new TypeError('zoneId cannot be blank.');
@@ -210,9 +233,13 @@ function validateRelativeTimeOptions({
   if (datePattern !== undefined) {
     validateDatePattern(datePattern);
   }
+  if (!Object.values(TimeUnit).includes(timeUnit)) {
+    throw new TypeError(`timeUnit is invalid: [${String(timeUnit)}].`);
+  }
   return {
     ...(zoneId === undefined ? {} : { zoneId }),
     ...(datePattern === undefined ? {} : { datePattern }),
+    timeUnit,
   };
 }
 
@@ -406,11 +433,18 @@ export type SearchFilter<FIELDS extends string = string> = {
   op: FilterOperator.SEARCH;
   query: string;
   fields?: LogicalField<FIELDS>[];
+  mode?: SearchMode;
 };
+
+export interface SearchFilterOptions<FIELDS extends string = string> {
+  fields?: readonly LogicalField<FIELDS>[];
+  mode?: SearchMode;
+}
 
 export interface RelativeTimeFilterOptions {
   zoneId?: string;
   datePattern?: string;
+  timeUnit?: TimeUnit;
 }
 
 export type CalendarFilter<FIELDS extends string = string> =
@@ -422,7 +456,12 @@ export type CalendarFilter<FIELDS extends string = string> =
       | FilterOperator.NEXT_WEEK
       | FilterOperator.LAST_WEEK
       | FilterOperator.THIS_MONTH
-      | FilterOperator.LAST_MONTH;
+      | FilterOperator.LAST_MONTH
+      | FilterOperator.YESTERDAY
+      | FilterOperator.NEXT_MONTH
+      | FilterOperator.LAST_YEAR
+      | FilterOperator.THIS_YEAR
+      | FilterOperator.NEXT_YEAR;
     field: LogicalField<FIELDS>;
   };
 
@@ -773,14 +812,27 @@ export const filter = {
   },
   search<FIELDS extends string>(
     query: string,
-    ...fields: LogicalField<FIELDS>[]
+    options?: SearchFilterOptions<FIELDS>,
   ): SearchFilter<FIELDS> {
     if (typeof query !== 'string' || !query.trim()) {
       throw new TypeError('SEARCH query cannot be blank.');
     }
+    if (
+      options !== undefined &&
+      (options === null ||
+        typeof options !== 'object' ||
+        Array.isArray(options))
+    ) {
+      throw new TypeError('SEARCH options must be a non-null object.');
+    }
+    const { fields = [], mode = SearchMode.TERMS } = options ?? {};
+    if (!Object.values(SearchMode).includes(mode)) {
+      throw new TypeError(`SEARCH mode is invalid: [${String(mode)}].`);
+    }
     return {
       op: FilterOperator.SEARCH,
       query,
+      mode,
       fields: fields.map(logicalField),
     };
   },
@@ -866,6 +918,56 @@ export const filter = {
     return {
       ...validateRelativeTimeOptions(options),
       op: FilterOperator.LAST_MONTH,
+      field: logicalField(field),
+    };
+  },
+  yesterday<FIELDS extends string>(
+    field: FIELDS,
+    options: RelativeTimeFilterOptions = {},
+  ): CalendarFilter<FIELDS> {
+    return {
+      ...validateRelativeTimeOptions(options),
+      op: FilterOperator.YESTERDAY,
+      field: logicalField(field),
+    };
+  },
+  nextMonth<FIELDS extends string>(
+    field: FIELDS,
+    options: RelativeTimeFilterOptions = {},
+  ): CalendarFilter<FIELDS> {
+    return {
+      ...validateRelativeTimeOptions(options),
+      op: FilterOperator.NEXT_MONTH,
+      field: logicalField(field),
+    };
+  },
+  lastYear<FIELDS extends string>(
+    field: FIELDS,
+    options: RelativeTimeFilterOptions = {},
+  ): CalendarFilter<FIELDS> {
+    return {
+      ...validateRelativeTimeOptions(options),
+      op: FilterOperator.LAST_YEAR,
+      field: logicalField(field),
+    };
+  },
+  thisYear<FIELDS extends string>(
+    field: FIELDS,
+    options: RelativeTimeFilterOptions = {},
+  ): CalendarFilter<FIELDS> {
+    return {
+      ...validateRelativeTimeOptions(options),
+      op: FilterOperator.THIS_YEAR,
+      field: logicalField(field),
+    };
+  },
+  nextYear<FIELDS extends string>(
+    field: FIELDS,
+    options: RelativeTimeFilterOptions = {},
+  ): CalendarFilter<FIELDS> {
+    return {
+      ...validateRelativeTimeOptions(options),
+      op: FilterOperator.NEXT_YEAR,
       field: logicalField(field),
     };
   },

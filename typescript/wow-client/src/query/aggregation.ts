@@ -11,10 +11,11 @@
  * limitations under the License.
  */
 
-import type {
-  ElementFilterExpression,
-  FilterExpression,
-  LogicalField,
+import {
+  filter,
+  type ElementFilterExpression,
+  type FilterExpression,
+  type LogicalField,
 } from './filter';
 import type { FieldSort } from './sort';
 
@@ -31,6 +32,15 @@ export enum AggregationMetricType {
 
 export enum AggregationExpressionType {
   FIELD = 'FIELD',
+  CONSTANT = 'CONSTANT',
+  BINARY = 'BINARY',
+}
+
+export enum AggregationExpressionOperator {
+  ADD = 'ADD',
+  SUBTRACT = 'SUBTRACT',
+  MULTIPLY = 'MULTIPLY',
+  DIVIDE = 'DIVIDE',
 }
 
 export enum AggregationDateUnit {
@@ -56,60 +66,242 @@ export interface AggregationElement {
   filter?: ElementFilterExpression;
 }
 
-interface AggregationGroupBase {
-  field: LogicalField;
+interface AggregationGroupBase<FIELDS extends string = string> {
+  field: LogicalField<FIELDS>;
   alias: string;
 }
 
-export interface TermsAggregationGroup extends AggregationGroupBase {
+export interface TermsAggregationGroup<
+  FIELDS extends string = string,
+> extends AggregationGroupBase<FIELDS> {
   type: AggregationGroupType.TERMS;
 }
 
-export interface HistogramAggregationGroup extends AggregationGroupBase {
+export interface HistogramAggregationGroup<
+  FIELDS extends string = string,
+> extends AggregationGroupBase<FIELDS> {
   type: AggregationGroupType.HISTOGRAM;
   interval: number;
 }
 
-export interface DateHistogramAggregationGroup
-  extends AggregationGroupBase {
+export interface DateHistogramAggregationGroup<
+  FIELDS extends string = string,
+> extends AggregationGroupBase<FIELDS> {
   type: AggregationGroupType.DATE_HISTOGRAM;
   unit: AggregationDateUnit;
   timeZone?: string;
 }
 
-export type AggregationGroup =
-  | TermsAggregationGroup
-  | HistogramAggregationGroup
-  | DateHistogramAggregationGroup;
+export type AggregationGroup<FIELDS extends string = string> =
+  | TermsAggregationGroup<FIELDS>
+  | HistogramAggregationGroup<FIELDS>
+  | DateHistogramAggregationGroup<FIELDS>;
 
-export interface FieldAggregationExpression {
-  type?: AggregationExpressionType.FIELD;
-  field: LogicalField;
+export interface FieldAggregationExpression<FIELDS extends string = string> {
+  type: AggregationExpressionType.FIELD;
+  field: LogicalField<FIELDS>;
 }
 
-export type AggregationExpression = FieldAggregationExpression;
+export interface ConstantAggregationExpression {
+  type: AggregationExpressionType.CONSTANT;
+  value: number;
+}
+
+export interface BinaryAggregationExpression<FIELDS extends string = string> {
+  type: AggregationExpressionType.BINARY;
+  operator: AggregationExpressionOperator;
+  left: AggregationExpression<FIELDS>;
+  right: AggregationExpression<FIELDS>;
+}
+
+export type AggregationExpression<FIELDS extends string = string> =
+  | FieldAggregationExpression<FIELDS>
+  | ConstantAggregationExpression
+  | BinaryAggregationExpression<FIELDS>;
 
 export interface CountAggregationMetric {
   type: AggregationMetricType.COUNT;
   alias: string;
 }
 
-export interface NumericAggregationMetric {
+export interface NumericAggregationMetric<FIELDS extends string = string> {
   type: AggregationMetricType.NUMERIC;
   function: AggregationFunction;
-  expression: AggregationExpression;
+  expression: AggregationExpression<FIELDS>;
   alias: string;
 }
 
-export type AggregationMetric =
-  | CountAggregationMetric
-  | NumericAggregationMetric;
+export type AggregationMetric<FIELDS extends string = string> =
+  CountAggregationMetric | NumericAggregationMetric<FIELDS>;
 
-export interface AggregationQuery<FIELDS extends string = string> {
-  filter?: FilterExpression<FIELDS>;
+export interface AggregationQuery<
+  ROOT_FIELDS extends string = string,
+  AGGREGATION_FIELDS extends string = ROOT_FIELDS,
+> {
+  filter?: FilterExpression<ROOT_FIELDS>;
   elements?: AggregationElement[];
-  groupBy?: AggregationGroup[];
-  metrics: [AggregationMetric, ...AggregationMetric[]];
+  groupBy?: AggregationGroup<AGGREGATION_FIELDS>[];
+  metrics: [
+    AggregationMetric<AGGREGATION_FIELDS>,
+    ...AggregationMetric<AGGREGATION_FIELDS>[],
+  ];
   sort?: FieldSort[];
   limit?: number;
 }
+
+export interface HistogramAggregationOptions {
+  interval: number;
+  alias: string;
+}
+
+export interface DateHistogramAggregationOptions {
+  unit: AggregationDateUnit;
+  alias: string;
+  timeZone?: string;
+}
+
+function aggregationField<FIELDS extends string>(field: FIELDS): FIELDS {
+  return filter.exists(field).field;
+}
+
+function aggregationAlias(alias: string): string {
+  aggregationField(alias);
+  if (alias.includes('.')) {
+    throw new TypeError('aggregation alias must contain one segment.');
+  }
+  if (alias.startsWith('__wow')) {
+    throw new TypeError(
+      'aggregation alias must not use the reserved __wow prefix.',
+    );
+  }
+  return alias;
+}
+
+function binary<FIELDS extends string>(
+  operator: AggregationExpressionOperator,
+  left: AggregationExpression<FIELDS>,
+  right: AggregationExpression<FIELDS>,
+): BinaryAggregationExpression<FIELDS> {
+  return { type: AggregationExpressionType.BINARY, operator, left, right };
+}
+
+function numeric<FIELDS extends string>(
+  fn: AggregationFunction,
+  expression: AggregationExpression<FIELDS>,
+  alias: string,
+): NumericAggregationMetric<FIELDS> {
+  return {
+    type: AggregationMetricType.NUMERIC,
+    function: fn,
+    expression,
+    alias: aggregationAlias(alias),
+  };
+}
+
+export const aggregation = {
+  element(
+    path: string,
+    predicate?: ElementFilterExpression,
+  ): AggregationElement {
+    const validPath = aggregationField(path);
+    if (predicate === undefined) return { path: validPath };
+    filter.elementMatch(path, predicate);
+    return { path: validPath, filter: predicate };
+  },
+  field<FIELDS extends string>(
+    field: FIELDS,
+  ): FieldAggregationExpression<FIELDS> {
+    return {
+      type: AggregationExpressionType.FIELD,
+      field: aggregationField(field),
+    };
+  },
+  constant(value: number): ConstantAggregationExpression {
+    if (!Number.isFinite(value)) {
+      throw new TypeError('aggregation constant must be finite.');
+    }
+    return { type: AggregationExpressionType.CONSTANT, value };
+  },
+  add: <FIELDS extends string>(
+    left: AggregationExpression<FIELDS>,
+    right: AggregationExpression<FIELDS>,
+  ) => binary(AggregationExpressionOperator.ADD, left, right),
+  subtract: <FIELDS extends string>(
+    left: AggregationExpression<FIELDS>,
+    right: AggregationExpression<FIELDS>,
+  ) => binary(AggregationExpressionOperator.SUBTRACT, left, right),
+  multiply: <FIELDS extends string>(
+    left: AggregationExpression<FIELDS>,
+    right: AggregationExpression<FIELDS>,
+  ) => binary(AggregationExpressionOperator.MULTIPLY, left, right),
+  divide: <FIELDS extends string>(
+    left: AggregationExpression<FIELDS>,
+    right: AggregationExpression<FIELDS>,
+  ) => binary(AggregationExpressionOperator.DIVIDE, left, right),
+  terms<FIELDS extends string>(
+    field: FIELDS,
+    alias: string,
+  ): TermsAggregationGroup<FIELDS> {
+    return {
+      type: AggregationGroupType.TERMS,
+      field: aggregationField(field),
+      alias: aggregationAlias(alias),
+    };
+  },
+  histogram<FIELDS extends string>(
+    field: FIELDS,
+    { interval, alias }: HistogramAggregationOptions,
+  ): HistogramAggregationGroup<FIELDS> {
+    if (!Number.isFinite(interval) || interval <= 0) {
+      throw new TypeError(
+        'histogram interval must be finite and greater than 0.',
+      );
+    }
+    return {
+      type: AggregationGroupType.HISTOGRAM,
+      field: aggregationField(field),
+      interval,
+      alias: aggregationAlias(alias),
+    };
+  },
+  dateHistogram<FIELDS extends string>(
+    field: FIELDS,
+    { unit, alias, timeZone = 'UTC' }: DateHistogramAggregationOptions,
+  ): DateHistogramAggregationGroup<FIELDS> {
+    if (!Object.values(AggregationDateUnit).includes(unit)) {
+      throw new TypeError('date histogram unit is invalid.');
+    }
+    if (typeof timeZone !== 'string' || !timeZone.trim()) {
+      throw new TypeError('date histogram timeZone cannot be blank.');
+    }
+    return {
+      type: AggregationGroupType.DATE_HISTOGRAM,
+      field: aggregationField(field),
+      unit,
+      alias: aggregationAlias(alias),
+      timeZone,
+    };
+  },
+  count(alias: string): CountAggregationMetric {
+    return {
+      type: AggregationMetricType.COUNT,
+      alias: aggregationAlias(alias),
+    };
+  },
+  sum: <FIELDS extends string>(
+    expression: AggregationExpression<FIELDS>,
+    alias: string,
+  ) => numeric(AggregationFunction.SUM, expression, alias),
+  avg: <FIELDS extends string>(
+    expression: AggregationExpression<FIELDS>,
+    alias: string,
+  ) => numeric(AggregationFunction.AVG, expression, alias),
+  min: <FIELDS extends string>(
+    expression: AggregationExpression<FIELDS>,
+    alias: string,
+  ) => numeric(AggregationFunction.MIN, expression, alias),
+  max: <FIELDS extends string>(
+    expression: AggregationExpression<FIELDS>,
+    alias: string,
+  ) => numeric(AggregationFunction.MAX, expression, alias),
+};

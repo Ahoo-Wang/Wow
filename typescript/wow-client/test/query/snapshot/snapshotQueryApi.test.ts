@@ -11,17 +11,32 @@
  * limitations under the License.
  */
 
+import { NamedFetcher } from '@ahoo-wang/fetcher';
 import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
-import { describe, expect, expectTypeOf, it } from 'vitest';
-import type { SnapshotQueryApi, SnapshotQueryClient } from '../../../src';
+import { describe, expect, expectTypeOf, it, vi } from 'vitest';
+import type { SnapshotQueryApi } from '../../../src';
 import {
-  AggregationMetricType,
   SnapshotQueryEndpointPaths,
+  aggregation,
+  filter,
+  SnapshotQueryClient,
   type AggregationQuery,
   type DynamicDocument,
 } from '../../../src';
 
 describe('SnapshotQueryEndpointPaths', () => {
+  type RootFields = 'state.status';
+  type ItemFields = 'productId' | 'amount';
+  type AggregationRow = DynamicDocument & {
+    product: string;
+    total: number;
+  };
+  const query: AggregationQuery<RootFields, ItemFields> = {
+    filter: filter.eq('state.status', 'PAID'),
+    groupBy: [aggregation.terms('productId', 'product')],
+    metrics: [aggregation.sum(aggregation.field('amount'), 'total')],
+  };
+
   it('should have correct endpoint path values', () => {
     expect(SnapshotQueryEndpointPaths.SNAPSHOT_RESOURCE_NAME).toBe('snapshot');
     expect(SnapshotQueryEndpointPaths.AGGREGATION).toBe('snapshot/aggregation');
@@ -37,11 +52,6 @@ describe('SnapshotQueryEndpointPaths', () => {
   });
 
   it('exposes typed JSON and SSE aggregation results', () => {
-    type RootFields = 'state.status';
-    type AggregationRow = DynamicDocument & {
-      product: string;
-      total: number;
-    };
     type SnapshotApiHasAggregationKeys =
       'aggregate' extends keyof SnapshotQueryApi<unknown, RootFields>
         ? 'aggregateStream' extends keyof SnapshotQueryApi<unknown, RootFields>
@@ -56,9 +66,6 @@ describe('SnapshotQueryEndpointPaths', () => {
         ? true
         : false;
 
-    const query: AggregationQuery<RootFields> = {
-      metrics: [{ type: AggregationMetricType.COUNT, alias: 'total' }],
-    };
     const assertClientTypes = (
       client: SnapshotQueryClient<unknown, RootFields>,
     ) => {
@@ -73,5 +80,28 @@ describe('SnapshotQueryEndpointPaths', () => {
     expectTypeOf<SnapshotApiHasAggregationKeys>().toEqualTypeOf<true>();
     expectTypeOf<SnapshotApiRequiresAggregation>().toEqualTypeOf<false>();
     expectTypeOf(assertClientTypes).toBeFunction();
+  });
+
+  it('forwards aggregation DSL output as the request body', async () => {
+    const fetcher = new NamedFetcher('aggregation-body-test');
+    const exchange = vi
+      .spyOn(fetcher.interceptors, 'exchange')
+      .mockImplementation(async current => {
+        const body =
+          typeof current.request.body === 'string'
+            ? JSON.parse(current.request.body)
+            : current.request.body;
+        expect(body).toEqual(query);
+        current.extractResult = vi.fn().mockResolvedValue([]);
+        return current;
+      });
+    const client = new SnapshotQueryClient<unknown, RootFields>({
+      basePath: '/order',
+      fetcher,
+    });
+
+    await client.aggregate(query);
+
+    expect(exchange).toHaveBeenCalledOnce();
   });
 });

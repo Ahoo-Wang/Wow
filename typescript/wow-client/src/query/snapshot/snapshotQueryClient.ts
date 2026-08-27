@@ -128,8 +128,11 @@ export class SnapshotQueryClient<S, FIELDS extends string = string>
 
   /** Runs a snapshot aggregation and returns all result rows. */
   @post(SnapshotQueryEndpointPaths.AGGREGATION)
-  aggregate<Row extends DynamicDocument = DynamicDocument>(
-    @body() query: AggregationQuery<FIELDS>,
+  aggregate<
+    Row extends DynamicDocument = DynamicDocument,
+    AGGREGATION_FIELDS extends string = string,
+  >(
+    @body() query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>,
     @attribute() attributes?: Record<string, any>,
     abortController?: AbortController,
   ): Promise<Row[]> {
@@ -141,8 +144,11 @@ export class SnapshotQueryClient<S, FIELDS extends string = string>
     headers: { Accept: ContentTypeValues.TEXT_EVENT_STREAM },
     resultExtractor: JsonEventStreamResultExtractor,
   })
-  aggregateStream<Row extends DynamicDocument = DynamicDocument>(
-    @body() query: AggregationQuery<FIELDS>,
+  aggregateStream<
+    Row extends DynamicDocument = DynamicDocument,
+    AGGREGATION_FIELDS extends string = string,
+  >(
+    @body() query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>,
     @attribute() attributes?: Record<string, any>,
     abortController?: AbortController,
   ): Promise<ReadableStream<JsonServerSentEvent<Row>>> {

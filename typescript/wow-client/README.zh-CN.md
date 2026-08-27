@@ -157,13 +157,25 @@ for await (const commandResultEvent of commandResultStream) {
 Wow 8.11+ 查询使用 `FilterExpression`：
 
 ```typescript
-import { DeletionState, filter } from '@ahoo-wang/fetcher-wow';
+import {
+  DeletionState,
+  filter,
+  SearchMode,
+  TimeUnit,
+} from '@ahoo-wang/fetcher-wow';
 
 const expression = filter.and(
   filter.deletion(DeletionState.ACTIVE),
   filter.eq('state.status', 'PAID'),
   filter.elementMatch('state.items', filter.gt('quantity', 0)),
-  filter.search('wow', 'state.name'),
+  filter.search('event sourcing', {
+    mode: SearchMode.PHRASE,
+    fields: ['state.title', 'state.description'],
+  }),
+  filter.yesterday('state.createdAt', {
+    zoneId: 'Asia/Shanghai',
+    timeUnit: TimeUnit.MILLISECONDS,
+  }),
 );
 ```
 
@@ -312,21 +324,20 @@ import {
 } from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
 import {
-  AggregationFunction,
-  AggregationGroupType,
-  AggregationMetricType,
-  AggregationQuery,
+  aggregation,
   SnapshotQueryClient,
-  SortDirection,
   filter,
   FilterListQuery,
   FilterPagedQuery,
   FilterSingleQuery,
+  type AggregationQuery,
+  Identifier,
 } from '@ahoo-wang/fetcher-wow';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 
 interface CartItem {
   productId: string;
+  price: number;
   quantity: number;
 }
 
@@ -407,33 +418,28 @@ const single = await cartSnapshotQueryClient.single(singleQuery);
 // 查询单个快照状态
 const singleState = await cartSnapshotQueryClient.singleState(singleQuery);
 
+type CartFields = 'state.status' | 'state.items';
+type ItemFields = 'productId' | 'price' | 'quantity';
+
 type ProductSummary = {
   product: string;
   itemCount: number;
-  totalQuantity: number;
+  revenue: number;
 };
 
-const aggregationQuery: AggregationQuery = {
+const revenue = aggregation.multiply(
+  aggregation.field<ItemFields>('price'),
+  aggregation.field<ItemFields>('quantity'),
+);
+
+const aggregationQuery: AggregationQuery<CartFields, ItemFields> = {
   filter: filter.eq('state.status', 'COMPLETED'),
-  elements: [{ path: 'state.items' }],
-  groupBy: [
-    {
-      type: AggregationGroupType.TERMS,
-      field: 'productId',
-      alias: 'product',
-    },
-  ],
+  elements: [aggregation.element('state.items', filter.gt('quantity', 0))],
+  groupBy: [aggregation.terms('productId', 'product')],
   metrics: [
-    { type: AggregationMetricType.COUNT, alias: 'itemCount' },
-    {
-      type: AggregationMetricType.NUMERIC,
-      function: AggregationFunction.SUM,
-      expression: { field: 'quantity' },
-      alias: 'totalQuantity',
-    },
+    aggregation.count('itemCount'),
+    aggregation.sum(revenue, 'revenue'),
   ],
-  sort: [{ field: 'totalQuantity', direction: SortDirection.DESC }],
-  limit: 10,
 };
 
 const summaries =
@@ -460,8 +466,8 @@ for await (const event of summaryStream) {
 - `pagedState(pagedQuery: FilterPagedQuery): Promise<PagedList<Partial<S>>>` - 检索快照状态的分页列表。
 - `single(singleQuery: FilterSingleQuery): Promise<Partial<MaterializedSnapshot<S>>>` - 检索单个物化快照。
 - `singleState(singleQuery: FilterSingleQuery): Promise<Partial<S>>` - 检索单个快照状态。
-- `aggregate<Row extends DynamicDocument = DynamicDocument>(query: AggregationQuery<FIELDS>): Promise<Row[]>` - 执行快照聚合并请求 `snapshot/aggregation`。
-- `aggregateStream<Row extends DynamicDocument = DynamicDocument>(query: AggregationQuery<FIELDS>): Promise<ReadableStream<JsonServerSentEvent<Row>>>` - 执行快照聚合并通过服务器发送事件（SSE）请求 `snapshot/aggregation`。
+- `aggregate<Row extends DynamicDocument = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>): Promise<Row[]>` - 执行快照聚合并请求 `snapshot/aggregation`。
+- `aggregateStream<Row extends DynamicDocument = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>): Promise<ReadableStream<JsonServerSentEvent<Row>>>` - 执行快照聚合并通过服务器发送事件（SSE）请求 `snapshot/aggregation`。
 
 #### QueryClientFactory
 
