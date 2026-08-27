@@ -241,9 +241,35 @@ val query = aggregation {
 }
 ```
 
+`ANY` 返回当前分组中的一个非空标量名称；它不增加分组键：
+
+```kotlin
+val query = aggregation {
+    expand("state.items")
+    terms("productId", "productId")
+    any("productName", "productName")
+    count("count")
+}
+```
+
+```json
+{
+  "elements": [{"path": "state.items"}],
+  "groupBy": [
+    {"type": "TERMS", "field": "productId", "alias": "productId"}
+  ],
+  "metrics": [
+    {"type": "ANY", "field": "productName", "alias": "productName"},
+    {"type": "COUNT", "alias": "count"}
+  ]
+}
+```
+
+`ANY` 不参与分组；它忽略 `null`/缺失值，全部为空时返回 `null`。MongoDB、Elasticsearch 或重复执行可能选择不同的非空名称；需要确定名称时，应修复冗余数据或使用明确的业务查询，不要依赖 `ANY`。
+
 第一个 Element 路径是快照绝对路径；后续每个 Element 路径及每个 Element filter 都相对当前已展开元素。group 与 metric 字段相对最内层 Element；没有 Elements 时，它们使用快照绝对路径。Elements 只表示一条父子链，不支持兄弟集合展开。
 
-分组支持 `TERMS`、`HISTOGRAM` 与 `DATE_HISTOGRAM`。指标支持 `COUNT`、`SUM`、`AVG`、`MIN` 与 `MAX`；`COUNT` 返回 `Long`，数值指标返回有限 `Double`，没有值参与计算时返回 `null`。没有分组的查询返回一行汇总，空数据集同样如此（`COUNT = 0`，数值指标为 `null`）。分组结果最多返回 `limit` 行；默认值为 `100`，最大值为 `10,000`。
+分组支持 `TERMS`、`HISTOGRAM` 与 `DATE_HISTOGRAM`。指标支持 `COUNT`、`SUM`、`AVG`、`MIN`、`MAX` 与 `ANY`；`COUNT` 返回 `Long`，数值指标返回有限 `Double`，没有值参与计算时返回 `null`。没有分组的查询返回一行汇总，空数据集同样如此（`COUNT = 0`，数值指标为 `null`）。分组结果最多返回 `limit` 行；默认值为 `100`，最大值为 `10,000`。
 
 排序字段引用 group 或 metric alias。未显式排序的 group alias 会按声明顺序追加，以保证结果稳定。按 metric alias 排序成本较高，受 WebFlux `query.allow-expensive-operators` 护栏控制。固定结构上限为 5 个 Elements、32 个 groups、64 个 metrics、32 个有效排序字段；每个数值表达式最大深度为 8，单个查询中的表达式节点总数最多 256。
 

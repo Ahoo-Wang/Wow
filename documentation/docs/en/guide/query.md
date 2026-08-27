@@ -241,9 +241,35 @@ The equivalent expression JSON uses recursive `BINARY` nodes; field leaves can r
 }
 ```
 
+`ANY` returns one non-null scalar name from the current group; it does not add another group key:
+
+```kotlin
+val query = aggregation {
+    expand("state.items")
+    terms("productId", "productId")
+    any("productName", "productName")
+    count("count")
+}
+```
+
+```json
+{
+  "elements": [{"path": "state.items"}],
+  "groupBy": [
+    {"type": "TERMS", "field": "productId", "alias": "productId"}
+  ],
+  "metrics": [
+    {"type": "ANY", "field": "productName", "alias": "productName"},
+    {"type": "COUNT", "alias": "count"}
+  ]
+}
+```
+
+ANY does not add another group key. It returns one non-null scalar from the current group, or `null` when no value contributes. The selected value is intentionally unstable across executions and backends. When a stable name is required, repair redundant data or use an explicit business query instead of relying on `ANY`.
+
 The first Element path is an absolute snapshot path. Every later Element path and every Element filter is relative to its current expanded element. Group and metric fields are relative to the innermost Element; without Elements, they are absolute snapshot paths. Elements form one parent-child chain, not sibling expansions.
 
-`TERMS`, `HISTOGRAM`, and `DATE_HISTOGRAM` groups are supported. Metrics are `COUNT`, `SUM`, `AVG`, `MIN`, and `MAX`; `COUNT` returns `Long`, while numeric metrics return a finite `Double` or `null` when no value contributes. A query without groups returns one summary row, including an empty dataset (`COUNT = 0`, numeric metrics `null`). Grouped results contain at most `limit` rows; the default is `100` and the maximum is `10,000`.
+`TERMS`, `HISTOGRAM`, and `DATE_HISTOGRAM` groups are supported. Metrics are `COUNT`, `SUM`, `AVG`, `MIN`, `MAX`, and `ANY`; `COUNT` returns `Long`, while numeric metrics return a finite `Double` or `null` when no value contributes. A query without groups returns one summary row, including an empty dataset (`COUNT = 0`, numeric metrics `null`). Grouped results contain at most `limit` rows; the default is `100` and the maximum is `10,000`.
 
 Sort fields reference group or metric aliases. Missing group-alias sorts are appended in declaration order for stable results. Sorting by a metric alias is expensive and is controlled by the WebFlux `query.allow-expensive-operators` guard. Fixed structural limits are 5 Elements, 32 groups, 64 metrics, and 32 effective sort fields; each numeric expression has a maximum depth of 8, and all expressions in one query can contain at most 256 nodes.
 

@@ -30,7 +30,7 @@ data class AggregationQuery(
     @get:ArraySchema(maxItems = MAX_GROUPS)
     @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
     val groupBy: List<AggregationGroup> = emptyList(),
-    @get:ArraySchema(minItems = 1, maxItems = MAX_METRICS)
+    @get:ArraySchema(minItems = 1, maxItems = MAX_METRICS, schema = Schema(implementation = AggregationMetric::class))
     val metrics: List<AggregationMetric>,
     @get:ArraySchema(maxItems = MAX_SORT_FIELDS)
     @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
@@ -193,8 +193,18 @@ enum class AggregationExpressionOperator {
 @JsonSubTypes(
     JsonSubTypes.Type(AggregationMetric.Count::class, name = "COUNT"),
     JsonSubTypes.Type(AggregationMetric.Numeric::class, name = "NUMERIC"),
+    JsonSubTypes.Type(AggregationMetric.Any::class, name = "ANY"),
+)
+@Schema(
+    oneOf = [
+        AggregationMetric.Count::class,
+        AggregationMetric.Numeric::class,
+        AggregationMetric.Any::class,
+    ],
+    discriminatorProperty = "type",
 )
 sealed interface AggregationMetric {
+    @get:Schema(accessMode = Schema.AccessMode.READ_WRITE)
     val alias: String
 
     data class Count(override val alias: String) : AggregationMetric {
@@ -206,6 +216,15 @@ sealed interface AggregationMetric {
     data class Numeric(
         val function: AggregationFunction,
         val expression: AggregationExpression,
+        override val alias: String,
+    ) : AggregationMetric {
+        init {
+            requireAggregationAlias(alias)
+        }
+    }
+
+    data class Any(
+        val field: LogicalField,
         override val alias: String,
     ) : AggregationMetric {
         init {

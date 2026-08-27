@@ -87,7 +87,9 @@ internal class ElasticsearchAggregationPager(
         afterKey: Map<String, FieldValue> = emptyMap(),
         fetched: Int = 0,
     ): Mono<AggregationPage> {
-        val pageSize = if (plan.metricSorted) batchSize else min(batchSize, plan.limit - fetched)
+        val bucketWidth = 1 + plan.metrics.count { it is ElasticsearchAggregationMetric.Any }
+        val pageCapacity = (batchSize / bucketWidth).coerceAtLeast(1)
+        val pageSize = if (plan.metricSorted) pageCapacity else min(pageCapacity, plan.limit - fetched)
         return search(plan, pit, afterKey, pageSize).map { response ->
             val composite = response.innermost(plan).getValue(GROUP_AGGREGATION).composite()
             val rows = composite.buckets().array().map { it.toRow(plan) }
@@ -151,21 +153,34 @@ internal class ElasticsearchAggregationPager(
     }
 
     private fun ElasticsearchAggregationPlan.metricAggregations(): Map<String, Aggregation> = buildMap {
-        metrics.filter { it.function != null }.forEach { metric ->
-            val field = requireNotNull(metric.field)
-            put(
-                metric.alias,
-                Aggregation.of { builder ->
-                    when (metric.function) {
-                        AggregationFunction.SUM -> builder.sum { it.field(field) }
-                        AggregationFunction.AVG -> builder.avg { it.field(field) }
-                        AggregationFunction.MIN -> builder.min { it.field(field) }
-                        AggregationFunction.MAX -> builder.max { it.field(field) }
-                        null -> error("Count does not require a metric aggregation.")
-                    }
-                },
-            )
-            put(metric.valueCountAlias, Aggregation.of { builder -> builder.valueCount { it.field(field) } })
+        metrics.forEach { metric ->
+            when (metric) {
+                is ElasticsearchAggregationMetric.Count -> Unit
+                is ElasticsearchAggregationMetric.Any -> put(
+                    metric.alias,
+                    Aggregation.of { builder ->
+                        builder.terms { terms -> terms.field(metric.field).size(1) }
+                    },
+                )
+
+                is ElasticsearchAggregationMetric.Numeric -> {
+                    put(
+                        metric.alias,
+                        Aggregation.of { builder ->
+                            when (metric.function) {
+                                AggregationFunction.SUM -> builder.sum { it.field(metric.field) }
+                                AggregationFunction.AVG -> builder.avg { it.field(metric.field) }
+                                AggregationFunction.MIN -> builder.min { it.field(metric.field) }
+                                AggregationFunction.MAX -> builder.max { it.field(metric.field) }
+                            }
+                        },
+                    )
+                    put(
+                        metric.valueCountAlias,
+                        Aggregation.of { builder -> builder.valueCount { it.field(metric.field) } },
+                    )
+                }
+            }
         }
     }
 
@@ -221,8 +236,25 @@ internal class ElasticsearchAggregationPager(
     private fun ElasticsearchAggregationMetric.value(
         docCount: Long,
         aggregations: Map<String, Aggregate>,
-    ): Any? {
-        val function = function ?: return docCount
+    ): Any? = when (this) {
+        is ElasticsearchAggregationMetric.Count -> docCount
+        is ElasticsearchAggregationMetric.Any -> aggregations.getValue(alias).anyValue(alias)
+        is ElasticsearchAggregationMetric.Numeric -> numericValue(aggregations)
+    }
+
+    private fun Aggregate.anyValue(alias: String): Any? = when {
+        isSterms -> sterms().buckets().array().firstOrNull()?.key()?.nativeValue()
+        isLterms -> lterms().buckets().array().firstOrNull()?.let {
+            it.keyAsString()?.toBooleanStrictOrNull() ?: it.key()
+        }
+        isDterms -> dterms().buckets().array().firstOrNull()?.key()
+        isUmterms -> null
+        else -> error("Aggregation ANY metric [$alias] returned unsupported Elasticsearch aggregate [${_kind()}].")
+    }
+
+    private fun ElasticsearchAggregationMetric.Numeric.numericValue(
+        aggregations: Map<String, Aggregate>,
+    ): Double? {
         if (aggregations.getValue(valueCountAlias).valueCount().value() == 0.0) return null
         val value = when (function) {
             AggregationFunction.SUM -> aggregations.getValue(alias).sum().value()

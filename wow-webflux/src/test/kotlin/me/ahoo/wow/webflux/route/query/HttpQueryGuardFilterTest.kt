@@ -93,6 +93,7 @@ import java.time.Duration
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
 
+@Suppress("LargeClass")
 class HttpQueryGuardFilterTest {
     private val request = MockServerRequest.builder().build()
 
@@ -166,6 +167,30 @@ class HttpQueryGuardFilterTest {
             idleTimeout = Duration.ZERO
         ).filter(aggregationContext(filtered), unexpectedBackend())
             .writeRawRequest(request).test().expectError(IllegalArgumentException::class.java).verify()
+    }
+
+    @Test
+    fun `aggregation Guard should treat any alias sorting as expensive but allow plain any`() {
+        val query = AggregationQuery(
+            groupBy = listOf(AggregationGroup.Terms(LogicalField("state.productId"), "productId")),
+            metrics = listOf(AggregationMetric.Any(LogicalField("state.productName"), "productName")),
+            sort = listOf(Sort("productName", Sort.Direction.ASC)),
+        )
+
+        guard(allowExpensiveOperators = false)
+            .filter(aggregationContext(query), unexpectedBackend())
+            .writeRawRequest(request).test()
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
+
+        guard(allowExpensiveOperators = false, idleTimeout = Duration.ZERO)
+            .filter(
+                aggregationContext(query.copy(sort = emptyList())),
+                FilterChain { context ->
+                    context.asAggregationQuery().setResult(Flux.empty())
+                    Mono.empty()
+                },
+            ).writeRawRequest(request).test().verifyComplete()
     }
 
     @Test

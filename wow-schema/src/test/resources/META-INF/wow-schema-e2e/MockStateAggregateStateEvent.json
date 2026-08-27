@@ -194,6 +194,13 @@
                     "productId" : {
                       "type" : "string"
                     },
+                    "productName" : {
+                      "anyOf" : [ {
+                        "type" : "null"
+                      }, {
+                        "type" : "string"
+                      } ]
+                    },
                     "quantity" : {
                       "type" : "integer",
                       "format" : "int32"

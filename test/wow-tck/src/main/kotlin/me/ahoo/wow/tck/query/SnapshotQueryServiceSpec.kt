@@ -57,6 +57,7 @@ import java.time.Clock
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 
+@Suppress("LargeClass")
 abstract class SnapshotQueryServiceSpec {
     protected val querySchemaSources: List<QuerySchemaSource> = listOf(JsonQuerySchemaSource())
     lateinit var snapshotStore: SnapshotStore
@@ -476,12 +477,50 @@ abstract class SnapshotQueryServiceSpec {
     fun `aggregation should return one empty summary row`() {
         aggregation {
             filter { aggregateId("missing") }
+            any("state.data", "anyData")
             count("count")
             sum("version", "total")
         }.query(snapshotQueryService)
             .test()
             .assertNext {
-                it.toMap().assert().isEqualTo(mapOf("count" to 0L, "total" to null))
+                it.toMap().assert().isEqualTo(mapOf("anyData" to null, "count" to 0L, "total" to null))
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `aggregation should select any non-null value without splitting the group`() {
+        saveAggregationStates(*(aggregationStates() + aggregationAnyNullState()).toTypedArray())
+
+        aggregation {
+            expand("state.orders")
+            expand("lines") { "productId" eq "alpha" }
+            terms("productId", "productId")
+            any("productName", "productName")
+            count("count")
+        }.query(snapshotQueryService)
+            .test()
+            .assertNext { row ->
+                row["productId"].assert().isEqualTo("alpha")
+                setOf("Alpha", "Alpha 2026").contains(row["productName"]).assert().isTrue()
+                row["count"].assert().isEqualTo(3L)
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `aggregation any should return null when every value is absent`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+
+        aggregation {
+            expand("state.orders")
+            expand("lines") { "productId" eq "gamma" }
+            any("productName", "productName")
+            count("count")
+        }.query(snapshotQueryService)
+            .test()
+            .assertNext { row ->
+                row.containsKey("productName").assert().isTrue()
+                row["productName"].assert().isNull()
+                row["count"].assert().isEqualTo(1L)
             }.verifyComplete()
     }
 
@@ -601,6 +640,7 @@ abstract class SnapshotQueryServiceSpec {
                                 MockDiscount("PROMO", 2.0),
                             ),
                             samples = listOf(7.0),
+                            productName = "Alpha",
                         ),
                         MockLine(
                             productId = "beta",
@@ -640,6 +680,7 @@ abstract class SnapshotQueryServiceSpec {
                             amount = 30.0,
                             createdAt = Instant.parse("2026-01-03T10:00:00Z"),
                             discounts = listOf(MockDiscount("PROMO", 5.0)),
+                            productName = "Alpha 2026",
                         ),
                         MockLine(
                             productId = "beta",
@@ -654,6 +695,26 @@ abstract class SnapshotQueryServiceSpec {
                             amount = 50.0,
                             createdAt = Instant.parse("2026-02-02T10:00:00Z"),
                             discounts = emptyList(),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+    private fun aggregationAnyNullState(): MockStateAggregate =
+        MockStateAggregate(
+            id = "aggregation-any-null",
+            orders = listOf(
+                MockOrder(
+                    status = "PAID",
+                    lines = listOf(
+                        MockLine(
+                            productId = "alpha",
+                            quantity = 1,
+                            amount = 40.0,
+                            createdAt = Instant.parse("2026-01-04T10:00:00Z"),
+                            discounts = emptyList(),
+                            productName = null,
                         ),
                     ),
                 ),

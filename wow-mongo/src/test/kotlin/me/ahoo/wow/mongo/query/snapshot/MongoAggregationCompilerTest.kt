@@ -32,12 +32,37 @@ import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryStorageType
 import me.ahoo.wow.serialization.MessageRecords
+import org.bson.BsonDocument
+import org.bson.BsonString
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.time.ZoneId
 import java.util.concurrent.TimeUnit
 
 class MongoAggregationCompilerTest {
+
+    @Test
+    fun `any metric should compile a resolved max accumulator and projection`() {
+        val schema = schema(
+            field(
+                "state.productName",
+                QueryCapability.AGGREGATE_TERMS,
+                "document.productName",
+            ),
+        )
+        val pipeline = MongoAggregationCompiler(SnapshotFilterConverter).compile(
+            aggregation {
+                any("state.productName", "productName")
+                count("count")
+            },
+            schema,
+        ).map { it.toBsonDocument() }
+
+        val group = pipeline.single { it.containsKey("\$group") }.getDocument("\$group")
+        group.getDocument("productName").assert()
+            .isEqualTo(BsonDocument("\$max", BsonString("\$document.productName")))
+        pipeline.single { it.containsKey("\$project") }.toJson().assert().contains("productName")
+    }
 
     @Test
     fun `schema bindings should drive element group and metric physical paths`() {

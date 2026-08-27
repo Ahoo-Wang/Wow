@@ -132,6 +132,7 @@ internal class ExampleDomainOpenAPITest {
             querySchema.required.assert().containsExactly("metrics")
             querySchema.properties.getValue("metrics").minItems.assert().isEqualTo(1)
             querySchema.properties.getValue("metrics").maxItems.assert().isEqualTo(64)
+            assertAggregationMetricSchema(querySchema, logicalFieldRef)
             querySchema.properties.getValue("elements").maxItems.assert().isEqualTo(5)
             querySchema.properties.getValue("limit").minimum.assert().isEqualTo(BigDecimal.ONE)
             querySchema.properties.getValue("limit").maximum.intValueExact().assert().isEqualTo(10_000)
@@ -148,6 +149,22 @@ internal class ExampleDomainOpenAPITest {
                 .filter { it.routeId.endsWith(".snapshot.count") }
                 .map { it.routeId.removeSuffix("count") + "aggregation" }
             aggregationRouteIds.assert().containsExactlyInAnyOrder(*countRouteIds.toTypedArray())
+        }
+
+        private fun assertAggregationMetricSchema(querySchema: Schema<*>, logicalFieldRef: String) {
+            val metricSchema = openAPI.components.schemas.getValue("wow.api.query.AggregationMetric")
+            querySchema.properties.getValue("metrics").items.`$ref`.assert()
+                .isEqualTo("#/components/schemas/wow.api.query.AggregationMetric")
+            metricSchema.oneOf.map { it.`$ref` }.assert().containsExactlyInAnyOrder(
+                "#/components/schemas/wow.api.query.AggregationMetric.Count",
+                "#/components/schemas/wow.api.query.AggregationMetric.Numeric",
+                "#/components/schemas/wow.api.query.AggregationMetric.Any",
+            )
+            metricSchema.discriminator.propertyName.assert().isEqualTo("type")
+            (metricSchema.properties.getValue("alias").readOnly == true).assert().isFalse()
+            val anySchema = openAPI.components.schemas.getValue("wow.api.query.AggregationMetric.Any")
+            anySchema.required.assert().containsExactlyInAnyOrder("field", "alias", "type")
+            anySchema.properties.getValue("field").`$ref`.assert().isEqualTo(logicalFieldRef)
         }
 
         private fun assertAggregationExpressionSchema() {

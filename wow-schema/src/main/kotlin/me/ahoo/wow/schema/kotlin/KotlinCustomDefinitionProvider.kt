@@ -74,12 +74,18 @@ object KotlinCustomDefinitionProvider : CustomDefinitionProviderV2 {
                 val methodScope: MethodScope =
                     context.typeContext.createMethodScope(resolvedMethod, declarationDetails)
                 val getterNode = createStandardDefinition(methodScope, context)
-                val readOnly = SchemaKeyword.TAG_READ_ONLY.toPropertyName()
-                getterNode.put(readOnly, true)
+                getterNode.markReadOnlyIfNecessary(kotlinGetter)
                 propertiesNode.set(kotlinGetter.name, getterNode)
             }
         }
         return rootSchema.asCustomDefinition()
+    }
+
+    private fun ObjectNode.markReadOnlyIfNecessary(kotlinGetter: KProperty1<*, *>) {
+        val accessMode = kotlinGetter.scanAnnotation<Schema>()?.accessMode
+        if (accessMode == null || accessMode == Schema.AccessMode.AUTO || accessMode == Schema.AccessMode.READ_ONLY) {
+            put(SchemaKeyword.TAG_READ_ONLY.toPropertyName(), true)
+        }
     }
 
     private fun createStandardDefinition(

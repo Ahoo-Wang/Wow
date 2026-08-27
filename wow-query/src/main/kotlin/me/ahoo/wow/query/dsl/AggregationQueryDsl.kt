@@ -72,6 +72,10 @@ class AggregationQueryDsl {
         metrics += AggregationMetric.Count(alias)
     }
 
+    fun any(field: String, alias: String) {
+        metrics += AggregationMetric.Any(LogicalField(field), alias)
+    }
+
     fun field(name: String): AggregationExpression = AggregationExpression.Field(LogicalField(name))
 
     fun constant(value: Double): AggregationExpression = AggregationExpression.Constant(value)

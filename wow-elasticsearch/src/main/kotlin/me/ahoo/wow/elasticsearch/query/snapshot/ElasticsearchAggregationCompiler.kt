@@ -57,13 +57,24 @@ internal data class ElasticsearchAggregationElement(
     val filter: Query,
 )
 
-internal data class ElasticsearchAggregationMetric(
-    val alias: String,
-    val function: AggregationFunction?,
-    val field: String?,
-) {
-    val valueCountAlias: String
-        get() = "__wow_value_count_$alias"
+internal sealed interface ElasticsearchAggregationMetric {
+    val alias: String
+
+    data class Count(override val alias: String) : ElasticsearchAggregationMetric
+
+    data class Numeric(
+        override val alias: String,
+        val function: AggregationFunction,
+        val field: String,
+    ) : ElasticsearchAggregationMetric {
+        val valueCountAlias: String
+            get() = "__wow_value_count_$alias"
+    }
+
+    data class Any(
+        override val alias: String,
+        val field: String,
+    ) : ElasticsearchAggregationMetric
 }
 
 internal class ElasticsearchAggregationCompiler(
@@ -229,7 +240,11 @@ internal class ElasticsearchAggregationCompiler(
         schema: QueryModelSchema?,
         runtimeMappings: MutableMap<String, RuntimeField>,
     ): ElasticsearchAggregationMetric = when (this) {
-        is AggregationMetric.Count -> ElasticsearchAggregationMetric(alias, function = null, field = null)
+        is AggregationMetric.Count -> ElasticsearchAggregationMetric.Count(alias)
+        is AggregationMetric.Any -> ElasticsearchAggregationMetric.Any(
+            alias,
+            field.resolve(parent, schema, QueryCapability.AGGREGATE_TERMS),
+        )
         is AggregationMetric.Numeric -> {
             val metricField = when (val expression = expression) {
                 is AggregationExpression.Field -> expression.field.resolve(
@@ -241,7 +256,7 @@ internal class ElasticsearchAggregationCompiler(
                     runtimeMappings[runtimeFieldName] = RuntimeExpressionCompiler(parent, schema).compile(expression)
                 }
             }
-            ElasticsearchAggregationMetric(alias, function, metricField)
+            ElasticsearchAggregationMetric.Numeric(alias, function, metricField)
         }
     }
 
