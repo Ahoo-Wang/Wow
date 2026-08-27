@@ -1,0 +1,41 @@
+@startuml
+
+!include layout.puml
+
+title
+Load Aggregate
+__Sequence Diagram__
+end title
+
+participant AggregateRepository
+participant SnapshotRepository
+participant AggregateFactory
+participant StateAggregate
+database Snapshot
+database EventStore
+
+autonumber "<b>[00]</b>"
+
+[-> AggregateRepository++: load(aggregateId)
+AggregateRepository -> SnapshotRepository++: load(aggregateId)
+SnapshotRepository -> Snapshot++: load(aggregateId)
+SnapshotRepository <-- Snapshot--: snapshot
+
+alt snapshot exist
+    create StateAggregate
+    SnapshotRepository -> StateAggregate ++: deserialize snapshot to stateAggregate
+    SnapshotRepository <-- StateAggregate: stateAggregate
+    AggregateRepository <-- SnapshotRepository--: stateAggregate
+else snapshot not exist
+    AggregateRepository -> AggregateFactory++: create(aggregateId)
+    create StateAggregate
+    AggregateFactory -> StateAggregate ++: create(aggregateId)
+    AggregateFactory <-- StateAggregate: stateAggregate
+    AggregateRepository <-- AggregateFactory--: stateAggregate
+end
+AggregateRepository -> EventStore++: loadEventStream(aggregateId, aggregateVersion)
+AggregateRepository <-- EventStore--:DomainEventStream
+AggregateRepository -> StateAggregate:sourcing(DomainEventStream)
+AggregateRepository <-- StateAggregate: stateAggregate
+[<-- AggregateRepository: stateAggregate
+@enduml

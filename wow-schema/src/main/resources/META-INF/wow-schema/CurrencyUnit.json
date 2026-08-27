@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "string",
+  "format": "currency",
+  "default": "CNY",
+  "examples": [
+    "CNY",
+    "USD",
+    "EUR"
+  ]
+}

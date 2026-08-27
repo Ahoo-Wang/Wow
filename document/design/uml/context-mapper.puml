@@ -1,0 +1,18 @@
+@startuml
+package OrderContext{
+    Order <<Aggregate Root>>
+}
+
+package PaymentContext{
+    Payment <<Aggregate Root>>
+}
+
+package OrderProcess{
+    CreateOrderProcess <<Saga>>
+}
+
+PaymentContext --> OrderProcess: PaymentPaid
+OrderContext <- OrderProcess: PayOrder
+OrderContext --> OrderProcess: OrderPaid
+
+@enduml

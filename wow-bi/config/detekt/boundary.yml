@@ -1,0 +1,42 @@
+complexity:
+  LongParameterList:
+    active: true
+    functionThreshold: 5
+    constructorThreshold: 7
+    ignoreDataClasses: true
+    excludes:
+      - '**/src/test/**'
+      - '**/src/integrationTest/**'
+  NestedBlockDepth:
+    active: true
+    threshold: 4
+  TooManyFunctions:
+    active: true
+    thresholdInFiles: 11
+    thresholdInClasses: 10
+    thresholdInInterfaces: 6
+    thresholdInObjects: 10
+    thresholdInEnums: 6
+    excludes:
+      - '**/src/test/**'
+      - '**/src/integrationTest/**'
+exceptions:
+  SwallowedException:
+    active: true
+  ThrowingExceptionsWithoutMessageOrCause:
+    active: true
+style:
+  UnusedPrivateMember:
+    active: true
+  ProtectedMemberInFinalClass:
+    active: true
+  UnnecessaryAbstractClass:
+    active: true
+  LoopWithTooManyJumpStatements:
+    active: true
+naming:
+  MemberNameEqualsClassName:
+    active: true
+performance:
+  SpreadOperator:
+    active: true

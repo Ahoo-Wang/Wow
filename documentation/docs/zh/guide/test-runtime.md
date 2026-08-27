@@ -1,0 +1,133 @@
+---
+title: 框架测试与基准
+description: Wow 框架贡献者如何运行仓库本地测试、契约测试、集成测试、覆盖率与基准。
+---
+
+# 框架测试与基准
+
+本页服务于修改 Wow 框架源码、实现自定义 Adapter 或复现框架基准的贡献者。普通业务应用请使用[Wow 应用测试](./application-testing.md)，不要复制本仓库的根任务和 Codecov/Benchmark 流程。
+
+Wow 仓库按运行时依赖拆分测试，让本地检查保持快速，并让容器依赖场景显式运行。
+
+## 测试分层
+
+| 分层 | Source set | 根任务 | 运行时依赖 |
+| --- | --- | --- | --- |
+| 本地测试 | `src/test` | `allLocalTest` | 本地安全的框架、扩展、领域和服务端测试。 |
+| 契约测试 | `src/contractTest` | `allContractTest` | 本地安全的 TCK 实现者测试。 |
+| 集成测试 | `src/integrationTest` | `allIntegrationTest` | 基于 Testcontainers 的中间件和端到端测试。 |
+
+`check` 运行本地安全的验证任务：标准 `test` 任务以及已配置的契约测试。它不会启动 Docker 容器。
+
+标准 `src/test` 执行统一使用 `allLocalTest` 根任务。
+
+## 本地快速检查
+
+```bash
+./gradlew allLocalTest
+./gradlew allContractTest
+./gradlew check
+```
+
+日常开发和不需要 Docker 的 Pull Request 反馈优先使用这些命令。
+
+## 领域测试
+
+领域行为测试继续使用[测试套件](./test-suite.md)中记录的继承式 `AggregateSpec` 和 `SagaSpec` API。它们位于各自领域模块的标准 `src/test` source set，并归属于本地测试层。
+
+```bash
+./gradlew allLocalTest
+./gradlew :example-domain:test
+./gradlew :example-transfer-domain:test
+./gradlew :wow-compensation-domain:test
+```
+
+函数式 DSL 规划在后续迁移阶段推进，因此本次测试运行分层不要求修改现有领域规格。
+
+## 集成测试
+
+```bash
+./gradlew allIntegrationTest
+./gradlew :wow-mongo:integrationTest
+./gradlew :wow-redis:integrationTest
+./gradlew :wow-kafka:integrationTest
+./gradlew :wow-elasticsearch:integrationTest
+./gradlew :wow-it:integrationTest
+```
+
+集成测试使用 Testcontainers，需要 Docker。它们有意不接入 `check`。
+
+### 业务应用测试边界
+
+上面的 `:wow-it` 只验证 Wow 仓库，不能代替应用发布门禁。业务团队应按[Wow 应用测试](./application-testing.md)覆盖 KSP、HTTP 垂直切片、真实 Adapter、重启恢复、重复投递和鉴权，不要复制本页的框架根任务。
+
+## 覆盖率
+
+```bash
+./gradlew codeCoverageReport
+./gradlew :code-coverage-report:localCoverageReport
+./gradlew :code-coverage-report:contractCoverageReport
+./gradlew :code-coverage-report:integrationCoverageReport
+```
+
+聚合覆盖率报告包含本地、契约和集成测试的执行数据。XML 报告输出到：
+
+```text
+test/code-coverage-report/build/reports/jacoco/codeCoverageReport/codeCoverageReport.xml
+```
+
+分层报告分别输出到匹配的 `localCoverageReport`、`contractCoverageReport` 和 `integrationCoverageReport` 目录。Pull Request 工作流会把这些 XML 报告分别以 `local`、`contract` 和 `integration` flag 上传到 Codecov。主分支的 `Codecov` 工作流把聚合报告作为 `full` 基线 flag 上传。
+
+领域模块也继续通过 `jacocoTestCoverageVerification` 执行既有覆盖率阈值校验，并使用标准 `test` 执行数据。
+
+## 基准 Smoke
+
+```bash
+./gradlew :wow-benchmarks:benchmarkSmoke
+```
+
+基准 Smoke 用于确认选定 JMH 路径仍可编译并执行。它是 Pull Request 安全检查，不是性能报告。
+
+## 快速基准测试
+
+```bash
+./gradlew :wow-benchmarks:benchmarkQuickE2E
+./gradlew :wow-benchmarks:benchmarkQuickComponent
+./gradlew :wow-benchmarks:benchmarkQuickInfrastructureE2E
+./gradlew :wow-benchmarks:benchmarkQuickMongoBatchAppend
+./gradlew :wow-benchmarks:benchmarkQuickElasticsearchBatchAppend
+./gradlew :wow-benchmarks:benchmarkQuickMongoBatchOptionsPaired
+./gradlew :wow-benchmarks:benchmarkQuickMongoBatchAppendCandidateE2E
+./gradlew :wow-benchmarks:benchmarkQuickMongoBatchCoordinatorConcurrency
+./gradlew :wow-benchmarks:benchmarkTuneElasticsearchBatchOptions
+./gradlew :wow-benchmarks:generateQuickBenchmarkReport
+```
+
+快速基准测试使用有边界的代表性 catalog 和较短的 JMH 设置，适合本地快速发现回归；正式吞吐与分配结论仍以 Baseline E2E 为准。
+Quick Component 默认仅运行单线程；扩展性行为由 Framework E2E 负责，而不是由隔离组件测量承担。
+Infrastructure 基准测试需要对应的本地 Redis、MongoDB 或 Elasticsearch 服务。
+Mongo 批处理参数的 quick 验证使用成对的代表性/突发负载、候选 E2E 和 coordinator lane 诊断；已停止的全量
+`benchmarkTuneMongoBatchOptions` 实验仅作历史记录，不再出现在 quick 执行清单中。Elasticsearch 调优仍覆盖
+单请求、突发、代表性和饱和负载。screening 仅用于筛选候选；
+只有通过各存储独立的多 fork confirmation 后才能修改默认值。EventStore 的调优结论不适用于 SnapshotStore。
+
+## 基线与诊断基准测试
+
+```bash
+./gradlew :wow-benchmarks:benchmarkBaselineE2E
+./gradlew :wow-benchmarks:benchmarkLatencyE2E
+./gradlew :wow-benchmarks:benchmarkDiagnosticComponent \
+  -PbenchmarkDiagnosticComponentIncludes=me.ahoo.wow.benchmark.component.CommandPipelineComponentBenchmark.handleAggregateAndSendDomainEvent
+./gradlew :wow-benchmarks:benchmarkExhaustiveComponent
+./gradlew :wow-benchmarks:benchmarkBaselineInfrastructureE2E
+./gradlew :wow-benchmarks:generateBaselineBenchmarkReport
+```
+
+Baseline E2E 是有边界的双 fork 吞吐与分配基线，用于正式框架对比。Latency E2E 为可选任务，不再把延迟测量成本强制叠加到每次基线运行。Diagnostic Component 支持精确 benchmark include；Exhaustive Component 仅作为极少执行的完整 catalog 逃生口。基准模块有意不提供泛化别名，调用方必须选择用途明确的任务。
+Component 结果用于解释瓶颈，不应作为独立框架性能目标对外报告。
+Infrastructure E2E 结果用于在 Redis 和 MongoDB 可用时暴露存储路径瓶颈。
+`updateBenchmarkBaseline` 仅接受由当前 clean `HEAD` 生成的 clean manifest。Schema v2 记录 source、run specification、runtime 与 artifact hash，使陈旧或不完整证据直接失败。
+
+## CI 工作流
+
+Pull Request 分别运行 `Local Test`、`Contract Test`、`Integration Test`、`Benchmark Smoke` 和 `Static Analysis` 工作流。`Local Test`、`Contract Test` 和 `Integration Test` 工作流分别发布分层 Codecov flag。主 `Codecov` 工作流在 `main` 或手动触发时使用 `codeCoverageReport` 构建完整基线。

@@ -1,0 +1,35 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.infra.prepare.proxy
+
+import me.ahoo.wow.infra.prepare.PrepareKey
+
+/**
+ * Factory interface for creating proxy instances of PrepareKey implementations.
+ * This factory enables dynamic proxy creation for PrepareKey interfaces, allowing
+ * for interception and decoration of prepare operations.
+ *
+ * @see PrepareKeyMetadata
+ * @see DefaultPrepareKeyProxyFactory
+ */
+interface PrepareKeyProxyFactory {
+    /**
+     * Creates a proxy instance of the specified PrepareKey type using the provided metadata.
+     *
+     * @param P the PrepareKey interface type
+     * @param metadata the metadata containing proxy configuration
+     * @return a proxy instance implementing the PrepareKey interface
+     */
+    fun <P : PrepareKey<*>> create(metadata: PrepareKeyMetadata<P>): P
+}

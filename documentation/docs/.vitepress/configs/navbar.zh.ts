@@ -1,0 +1,98 @@
+import {DefaultTheme} from "vitepress/types/default-theme";
+
+export const navbarZh: DefaultTheme.NavItem[] = [
+    {
+        text: '指南',
+        link: '/zh/guide/',
+        activeMatch: '^/zh/guide/'
+    },
+    {
+        text: '文章',
+        link: '/zh/articles/',
+        activeMatch: '^/zh/articles/'
+    },
+    {
+        text: '入门导航',
+        link: '/zh/onboarding/',
+        activeMatch: '^/zh/onboarding/'
+    },
+    {
+        text: '参考',
+        activeMatch: '^/zh/reference/',
+        items: [
+            {
+                text: '配置',
+                items: [
+                    {text: '核心配置', link: '/zh/reference/config/core'},
+                    {text: '基础设施', link: '/zh/reference/config/infrastructure'},
+                    {text: '可观测性', link: '/zh/reference/config/observability'},
+                    {text: '事件补偿', link: '/zh/reference/config/compensation'},
+                ],
+            },
+            {
+                text: '示例',
+                items: [
+                    {text: '订单与购物车(Kotlin)', link: '/zh/reference/example/order'},
+                    {text: '银行转账(JAVA)', link: '/zh/reference/example/transfer'},
+                    {text: '事件补偿', link: '/zh/reference/example/compensation'},
+                ],
+            },
+            {
+                text: '生态',
+                items: [
+                    {text: '生态资源', link: '/zh/reference/ecosystem'},
+                ],
+            },
+        ]
+    }
+    , {
+        text: 'API',
+        link: `/dokka/index.html`,
+        target: '_blank'
+    },
+    {
+        text: "资源",
+        items: [
+            {
+                text: 'Agent Skills',
+                link: '/zh/guide/skills'
+            },
+            {
+                text: '用于快速构建基于 Wow 框架的 DDD 项目模板',
+                link: 'https://github.com/Ahoo-Wang/wow-project-template'
+            },
+            {
+                text: '功能强大的 TypeScript 代码生成工具',
+                link: 'https://github.com/Ahoo-Wang/fetcher/blob/main/packages/generator/'
+            },
+            {
+                text: '流畅的 Kotlin 断言库',
+                link: 'https://github.com/Ahoo-Wang/FluentAssert'
+            },
+            {
+                text: 'CosId - 分布式 ID 生成器',
+                link: 'https://github.com/Ahoo-Wang/CosId'
+            },
+            {
+                text: 'CoSky - 微服务治理',
+                link: 'https://github.com/Ahoo-Wang/CoSky'
+            },
+            {
+                text: 'CoSec - 响应式安全框架',
+                link: 'https://github.com/Ahoo-Wang/CoSec'
+            },
+            {
+                text: 'CoCache - 分布式缓存',
+                link: 'https://github.com/Ahoo-Wang/CoCache'
+            },
+            {
+                text: 'Simba - 分布式锁',
+                link: 'https://github.com/Ahoo-Wang/Simba'
+            }
+        ]
+    },
+    {
+        text: `更新日志`,
+        link: `https://github.com/Ahoo-Wang/Wow/releases`
+    }
+]

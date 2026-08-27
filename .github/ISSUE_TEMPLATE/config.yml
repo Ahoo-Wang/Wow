@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Wow Documentation
+    url: https://wow.ahoo.me/
+    about: Read the guides and reference documentation before opening an issue.
+  - name: Security Vulnerability
+    url: https://github.com/Ahoo-Wang/Wow/security/policy
+    about: Report suspected vulnerabilities privately instead of creating a public issue.

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Wow Migrate"
+  short_description: "Verify downstream Wow migrations through runtime gates"
+  default_prompt: "Use $wow-migrate to audit this downstream application's breaking Wow migration across runtime, API, data, and rollback evidence."

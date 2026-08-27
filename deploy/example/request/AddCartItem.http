@@ -1,0 +1,18 @@
+POST {{host}}/cart/{{$uuid}}/add_cart_item
+Content-Type: application/json
+Command-Wait-Stage: PROCESSED
+Command-Wait-Timeout: 30000
+Command-Request-Id: {{$uuid}}
+
+{
+  "productId": "{{$uuid}}",
+  "quantity": 1
+}
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+%}
+
+###

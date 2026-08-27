@@ -1,0 +1,36 @@
+{
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The ID of the domain event."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The name of the domain event"
+    },
+    "revision": {
+      "type": "string",
+      "description": "The revision number of the domain event",
+      "default": "0.0.1"
+    },
+    "bodyType": {
+      "type": "string",
+      "description": "The fully qualified name of the domain event body"
+    },
+    "body": {
+      "type": "object",
+      "description": "The message body of the domain event"
+    }
+  },
+  "description": "The body of the domain event",
+  "required": [
+    "id",
+    "name",
+    "revision",
+    "bodyType",
+    "body"
+  ]
+}

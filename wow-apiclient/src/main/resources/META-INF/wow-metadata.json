@@ -1,0 +1,10 @@
+{
+  "contexts": {
+    "wow.apiclient": {
+      "alias": "wow.apiclient",
+      "scopes": [
+        "me.ahoo.wow.apiclient"
+      ]
+    }
+  }
+}

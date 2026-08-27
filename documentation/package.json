@@ -1,0 +1,33 @@
+{
+  "name": "documentation",
+  "version": "8.12.2",
+  "description": "领域模型即服务 | Modern Reactive CQRS Architecture Microservice development framework based on DDD and EventSourcing.",
+  "main": "index.js",
+  "scripts": {
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
+  },
+  "keywords": [
+    "Domain-Driven",
+    "Event-Driven",
+    "Test-Driven",
+    "Declarative-Design",
+    "Reactive Programming",
+    "Command Query Responsibility Segregation",
+    "Event Sourcing"
+  ],
+  "author": "ahoo-wang",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@types/canvas-confetti": "^1.9.0",
+    "mermaid": "^11.17.2",
+    "vitepress": "^1.6.4",
+    "vitepress-plugin-llms": "^1.13.5",
+    "vitepress-plugin-mermaid": "^2.0.17"
+  },
+  "dependencies": {
+    "canvas-confetti": "^1.9.4",
+    "medium-zoom": "^1.1.0"
+  }
+}

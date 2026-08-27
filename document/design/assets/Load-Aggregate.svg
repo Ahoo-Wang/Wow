@@ -1,0 +1,422 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><!--
+  - Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+  - Licensed under the Apache License, Version 2.0 (the "License");
+  - you may not use this file except in compliance with the License.
+  - You may obtain a copy of the License at
+  -      http://www.apache.org/licenses/LICENSE-2.0
+  - Unless required by applicable law or agreed to in writing, software
+  - distributed under the License is distributed on an "AS IS" BASIS,
+  - WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  - See the License for the specific language governing permissions and
+  - limitations under the License.
+  -->
+
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" contentStyleType="text/css"
+     height="776px" preserveAspectRatio="none" style="width:975px;height:776px;background:#FFFFFF;" version="1.1"
+     viewBox="0 0 975 776" width="975px" zoomAndPan="magnify">
+    <defs/>
+    <g>
+        <rect fill="none" height="42.9766" id="_title" style="stroke:none;stroke-width:1.0;" width="142" x="412.75"
+              y="22.7773"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" font-weight="bold" lengthAdjust="spacing"
+              textLength="112" x="427.75" y="41.3125">Load Aggregate
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="14" font-weight="bold" lengthAdjust="spacing"
+              text-decoration="underline" textLength="132" x="417.75" y="57.8008">Sequence Diagram
+        </text>
+        <rect fill="#FFFFFF" height="519.2793" style="stroke:#181818;stroke-width:1.0;" width="10" x="160"
+              y="165.5527"/>
+        <rect fill="#FFFFFF" height="183.041" style="stroke:#181818;stroke-width:1.0;" width="10" x="330" y="194.8633"/>
+        <rect fill="#FFFFFF" height="100.1094" style="stroke:#181818;stroke-width:1.0;" width="10" x="483.5"
+              y="422.1699"/>
+        <rect fill="#FFFFFF" height="367.7266" style="stroke:#181818;stroke-width:1.0;" width="10" x="729.5"
+              y="317.1055"/>
+        <rect fill="#FFFFFF" height="223.3516" style="stroke:#181818;stroke-width:1.0;" width="10" x="734.5"
+              y="461.4805"/>
+        <rect fill="#FFFFFF" height="29.3105" style="stroke:#181818;stroke-width:1.0;" width="10" x="834.5"
+              y="224.1738"/>
+        <rect fill="#FFFFFF" height="29.3105" style="stroke:#181818;stroke-width:1.0;" width="10" x="919" y="558.5898"/>
+        <rect fill="none" height="261.7949" style="stroke:#000000;stroke-width:1.5;" width="729" x="75.5" y="268.4844"/>
+        <line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="164.5" x2="164.5" y1="134.2422"
+              y2="693.832"/>
+        <line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="334.5" x2="334.5" y1="134.2422"
+              y2="693.832"/>
+        <line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="488.5" x2="488.5" y1="134.2422"
+              y2="693.832"/>
+        <line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="734.5" x2="734.5" y1="460.9141"
+              y2="693.832"/>
+        <line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="839.5" x2="839.5" y1="134.2422"
+              y2="693.832"/>
+        <line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="923.5" x2="923.5" y1="134.2422"
+              y2="693.832"/>
+        <rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="159"
+              x="85.5" y="102.7539"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="145" x="92.5"
+              y="123.2891">AggregateRepository
+        </text>
+        <rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="159"
+              x="85.5" y="692.832"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="145" x="92.5"
+              y="713.3672">AggregateRepository
+        </text>
+        <rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="151"
+              x="259.5" y="102.7539"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="137" x="266.5"
+              y="123.2891">SnapshotRepository
+        </text>
+        <rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="151"
+              x="259.5" y="692.832"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="137" x="266.5"
+              y="713.3672">SnapshotRepository
+        </text>
+        <rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="136"
+              x="420.5" y="102.7539"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="122" x="427.5"
+              y="123.2891">AggregateFactory
+        </text>
+        <rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="136"
+              x="420.5" y="692.832"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="122" x="427.5"
+              y="713.3672">AggregateFactory
+        </text>
+        <rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="120"
+              x="674.5" y="692.832"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="106" x="681.5"
+              y="713.3672">StateAggregate
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="64" x="804.5"
+              y="131.2891">Snapshot
+        </text>
+        <path d="M821.5,81.7539 C821.5,71.7539 839.5,71.7539 839.5,71.7539 C839.5,71.7539 857.5,71.7539 857.5,81.7539 L857.5,107.7539 C857.5,117.7539 839.5,117.7539 839.5,117.7539 C839.5,117.7539 821.5,117.7539 821.5,107.7539 L821.5,81.7539 "
+              fill="#E2E2F0" style="stroke:#181818;stroke-width:1.5;"/>
+        <path d="M821.5,81.7539 C821.5,91.7539 839.5,91.7539 839.5,91.7539 C839.5,91.7539 857.5,91.7539 857.5,81.7539 "
+              fill="none" style="stroke:#181818;stroke-width:1.5;"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="64" x="804.5"
+              y="706.3672">Snapshot
+        </text>
+        <path d="M821.5,719.3203 C821.5,709.3203 839.5,709.3203 839.5,709.3203 C839.5,709.3203 857.5,709.3203 857.5,719.3203 L857.5,745.3203 C857.5,755.3203 839.5,755.3203 839.5,755.3203 C839.5,755.3203 821.5,755.3203 821.5,745.3203 L821.5,719.3203 "
+              fill="#E2E2F0" style="stroke:#181818;stroke-width:1.5;"/>
+        <path d="M821.5,719.3203 C821.5,729.3203 839.5,729.3203 839.5,729.3203 C839.5,729.3203 857.5,729.3203 857.5,719.3203 "
+              fill="none" style="stroke:#181818;stroke-width:1.5;"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="73" x="884.5"
+              y="131.2891">EventStore
+        </text>
+        <path d="M906,81.7539 C906,71.7539 924,71.7539 924,71.7539 C924,71.7539 942,71.7539 942,81.7539 L942,107.7539 C942,117.7539 924,117.7539 924,117.7539 C924,117.7539 906,117.7539 906,107.7539 L906,81.7539 "
+              fill="#E2E2F0" style="stroke:#181818;stroke-width:1.5;"/>
+        <path d="M906,81.7539 C906,91.7539 924,91.7539 924,91.7539 C924,91.7539 942,91.7539 942,81.7539 " fill="none"
+              style="stroke:#181818;stroke-width:1.5;"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="73" x="884.5"
+              y="706.3672">EventStore
+        </text>
+        <path d="M906,719.3203 C906,709.3203 924,709.3203 924,709.3203 C924,709.3203 942,709.3203 942,719.3203 L942,745.3203 C942,755.3203 924,755.3203 924,755.3203 C924,755.3203 906,755.3203 906,745.3203 L906,719.3203 "
+              fill="#E2E2F0" style="stroke:#181818;stroke-width:1.5;"/>
+        <path d="M906,719.3203 C906,729.3203 924,729.3203 924,729.3203 C924,729.3203 942,729.3203 942,719.3203 "
+              fill="none" style="stroke:#181818;stroke-width:1.5;"/>
+        <rect fill="#FFFFFF" height="519.2793" style="stroke:#181818;stroke-width:1.0;" width="10" x="160"
+              y="165.5527"/>
+        <rect fill="#FFFFFF" height="183.041" style="stroke:#181818;stroke-width:1.0;" width="10" x="330" y="194.8633"/>
+        <rect fill="#FFFFFF" height="100.1094" style="stroke:#181818;stroke-width:1.0;" width="10" x="483.5"
+              y="422.1699"/>
+        <rect fill="#FFFFFF" height="367.7266" style="stroke:#181818;stroke-width:1.0;" width="10" x="729.5"
+              y="317.1055"/>
+        <rect fill="#FFFFFF" height="223.3516" style="stroke:#181818;stroke-width:1.0;" width="10" x="734.5"
+              y="461.4805"/>
+        <rect fill="#FFFFFF" height="29.3105" style="stroke:#181818;stroke-width:1.0;" width="10" x="834.5"
+              y="224.1738"/>
+        <rect fill="#FFFFFF" height="29.3105" style="stroke:#181818;stroke-width:1.0;" width="10" x="919" y="558.5898"/>
+        <polygon fill="#181818" points="148,161.5527,158,165.5527,148,169.5527,152,165.5527"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="0" x2="154" y1="165.5527" y2="165.5527"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing"
+              textLength="28" x="7" y="160.8105">[01]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="109" x="39"
+              y="160.8105">load(aggregateId)
+        </text>
+        <polygon fill="#181818" points="318,190.8633,328,194.8633,318,198.8633,322,194.8633"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="170" x2="324" y1="194.8633" y2="194.8633"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing"
+              textLength="28" x="177" y="190.1211">[02]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="109" x="209"
+              y="190.1211">load(aggregateId)
+        </text>
+        <polygon fill="#181818" points="822.5,220.1738,832.5,224.1738,822.5,228.1738,826.5,224.1738"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="340" x2="828.5" y1="224.1738" y2="224.1738"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing"
+              textLength="28" x="347" y="219.4316">[03]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="109" x="379"
+              y="219.4316">load(aggregateId)
+        </text>
+        <polygon fill="#181818" points="351,249.4844,341,253.4844,351,257.4844,347,253.4844"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:2.0,2.0;" x1="345" x2="838.5" y1="253.4844"
+              y2="253.4844"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing"
+              textLength="28" x="357" y="248.7422">[04]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="58" x="389"
+              y="248.7422">snapshot
+        </text>
+        <path d="M75.5,268.4844 L137.5,268.4844 L137.5,275.7949 L127.5,285.7949 L75.5,285.7949 L75.5,268.4844 "
+              fill="#EEEEEE" style="stroke:#000000;stroke-width:1.5;"/>
+        <rect fill="none" height="261.7949" style="stroke:#000000;stroke-width:1.5;" width="729" x="75.5" y="268.4844"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing"
+              textLength="17" x="90.5" y="282.0527">alt
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="11" font-weight="bold" lengthAdjust="spacing"
+              textLength="88" x="152.5" y="281.1191">[snapshot exist]
+        </text>
+        <polygon fill="#181818" points="662.5,303.1055,672.5,307.1055,662.5,311.1055,666.5,307.1055"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="340" x2="668.5" y1="307.1055" y2="307.1055"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing"
+              textLength="28" x="347" y="302.3633">[05]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="245" x="379"
+              y="302.3633">deserialize snapshot to stateAggregate
+        </text>
+        <rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="120"
+              x="674.5" y="285.7949"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="106" x="681.5"
+              y="306.3301">StateAggregate
+        </text>
+        <polygon fill="#181818" points="351,344.5938,341,348.5938,351,352.5938,347,348.5938"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:2.0,2.0;" x1="345" x2="728.5" y1="348.5938"
+              y2="348.5938"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing"
+              textLength="28" x="357" y="343.8516">[06]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="95" x="389"
+              y="343.8516">stateAggregate
+        </text>
+        <polygon fill="#181818" points="181,373.9043,171,377.9043,181,381.9043,177,377.9043"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:2.0,2.0;" x1="175" x2="334" y1="377.9043"
+              y2="377.9043"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing"
+              textLength="28" x="187" y="373.1621">[07]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="95" x="219"
+              y="373.1621">stateAggregate
+        </text>
+        <line style="stroke:#000000;stroke-width:1.0;stroke-dasharray:2.0,2.0;" x1="75.5" x2="804.5" y1="386.9043"
+              y2="386.9043"/>
+        <text fill="#000000" font-family="sans-serif" font-size="11" font-weight="bold" lengthAdjust="spacing"
+              textLength="110" x="80.5" y="397.5391">[snapshot not exist]
+        </text>
+        <polygon fill="#181818" points="471.5,418.1699,481.5,422.1699,471.5,426.1699,475.5,422.1699"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="170" x2="477.5" y1="422.1699" y2="422.1699"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing"
+              textLength="28" x="177" y="417.4277">[08]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="120" x="209"
+              y="417.4277">create(aggregateId)
+        </text>
+        <polygon fill="#181818" points="657.5,447.4805,667.5,451.4805,657.5,455.4805,661.5,451.4805"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="493.5" x2="663.5" y1="451.4805" y2="451.4805"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing"
+              textLength="28" x="500.5" y="446.7383">[09]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="120" x="532.5"
+              y="446.7383">create(aggregateId)
+        </text>
+        <rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="120"
+              x="674.5" y="430.1699"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="106" x="681.5"
+              y="450.7051">StateAggregate
+        </text>
+        <polygon fill="#181818" points="504.5,488.9688,494.5,492.9688,504.5,496.9688,500.5,492.9688"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:2.0,2.0;" x1="498.5" x2="733.5" y1="492.9688"
+              y2="492.9688"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing"
+              textLength="28" x="510.5" y="488.2266">[10]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="95" x="542.5"
+              y="488.2266">stateAggregate
+        </text>
+        <polygon fill="#181818" points="181,518.2793,171,522.2793,181,526.2793,177,522.2793"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:2.0,2.0;" x1="175" x2="487.5" y1="522.2793"
+              y2="522.2793"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing"
+              textLength="28" x="187" y="517.5371">[11]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="95" x="219"
+              y="517.5371">stateAggregate
+        </text>
+        <polygon fill="#181818" points="907,554.5898,917,558.5898,907,562.5898,911,558.5898"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="170" x2="913" y1="558.5898" y2="558.5898"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing"
+              textLength="28" x="177" y="553.8477">[12]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="303" x="209"
+              y="553.8477">loadEventStream(aggregateId, aggregateVersion)
+        </text>
+        <polygon fill="#181818" points="181,583.9004,171,587.9004,181,591.9004,177,587.9004"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:2.0,2.0;" x1="175" x2="923" y1="587.9004"
+              y2="587.9004"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing"
+              textLength="28" x="187" y="583.1582">[13]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="126" x="219"
+              y="583.1582">DomainEventStream
+        </text>
+        <polygon fill="#181818" points="722.5,613.2109,732.5,617.2109,722.5,621.2109,726.5,617.2109"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="170" x2="728.5" y1="617.2109" y2="617.2109"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing"
+              textLength="28" x="177" y="612.4688">[14]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="189" x="209"
+              y="612.4688">sourcing(DomainEventStream)
+        </text>
+        <polygon fill="#181818" points="181,642.5215,171,646.5215,181,650.5215,177,646.5215"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:2.0,2.0;" x1="175" x2="733.5" y1="646.5215"
+              y2="646.5215"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing"
+              textLength="28" x="187" y="641.7793">[15]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="95" x="219"
+              y="641.7793">stateAggregate
+        </text>
+        <polygon fill="#181818" points="11,671.832,1,675.832,11,679.832,7,675.832"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:2.0,2.0;" x1="5" x2="159" y1="675.832"
+              y2="675.832"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing"
+              textLength="28" x="17" y="671.0898">[16]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="95" x="49"
+              y="671.0898">stateAggregate
+        </text>
+        <rect fill="none" height="11.7773" id="_title" style="stroke:none;stroke-width:1.0;" width="183" x="784.5"
+              y="5"/>
+        <a href="https://github.com/Ahoo-Wang/Wow" target="_top" title="https://github.com/Ahoo-Wang/Wow"
+           xlink:actuate="onRequest" xlink:href="https://github.com/Ahoo-Wang/Wow" xlink:show="new"
+           xlink:title="https://github.com/Ahoo-Wang/Wow" xlink:type="simple">
+            <text fill="#808080" font-family="sans-serif" font-size="10" lengthAdjust="spacing"
+                  text-decoration="underline" textLength="183" x="784.5" y="14.668">https://github.com/Ahoo-Wang/Wow
+            </text>
+        </a>
+        <rect fill="none" height="11.7773" id="_title" style="stroke:none;stroke-width:1.0;" width="183" x="392.25"
+              y="756.3203"/>
+        <a href="https://github.com/Ahoo-Wang/Wow" target="_top" title="https://github.com/Ahoo-Wang/Wow"
+           xlink:actuate="onRequest" xlink:href="https://github.com/Ahoo-Wang/Wow" xlink:show="new"
+           xlink:title="https://github.com/Ahoo-Wang/Wow" xlink:type="simple">
+            <text fill="#808080" font-family="sans-serif" font-size="10" lengthAdjust="spacing"
+                  text-decoration="underline" textLength="183" x="392.25" y="765.9883">https://github.com/Ahoo-Wang/Wow
+            </text>
+        </a><!--MD5=[3797e8fcd368fd2e49fac1f8eaae6fcc]
+@startuml
+
+!include layout.puml
+
+title
+Load Aggregate
+__Sequence Diagram__
+end title
+
+participant AggregateRepository
+participant SnapshotRepository
+participant AggregateFactory
+participant StateAggregate
+database Snapshot
+database EventStore
+
+autonumber "<b>[00]</b>"
+
+[-> AggregateRepository++: load(aggregateId)
+AggregateRepository -> SnapshotRepository++: load(aggregateId)
+SnapshotRepository -> Snapshot++: load(aggregateId)
+SnapshotRepository <- - Snapshot- -: snapshot
+
+alt snapshot exist
+    create StateAggregate
+    SnapshotRepository -> StateAggregate ++: deserialize snapshot to stateAggregate
+    SnapshotRepository <- - StateAggregate: stateAggregate
+    AggregateRepository <- - SnapshotRepository- -: stateAggregate
+else snapshot not exist
+    AggregateRepository -> AggregateFactory++: create(aggregateId)
+    create StateAggregate
+    AggregateFactory -> StateAggregate ++: create(aggregateId)
+    AggregateFactory <- - StateAggregate: stateAggregate
+    AggregateRepository <- - AggregateFactory- -: stateAggregate
+end
+AggregateRepository -> EventStore++: loadEventStream(aggregateId, aggregateVersion)
+AggregateRepository <- - EventStore- -:DomainEventStream
+AggregateRepository -> StateAggregate:sourcing(DomainEventStream)
+AggregateRepository <- - StateAggregate: stateAggregate
+[<- - AggregateRepository: stateAggregate
+@enduml
+
+@startuml
+
+skinparam hyperlinkColor grey
+
+
+header
+[[https://github.com/Ahoo-Wang/Wow]]
+endheader
+
+center footer [[https://github.com/Ahoo-Wang/Wow]]
+
+
+title
+Load Aggregate
+__Sequence Diagram__
+end title
+
+participant AggregateRepository
+participant SnapshotRepository
+participant AggregateFactory
+participant StateAggregate
+database Snapshot
+database EventStore
+
+autonumber "<b>[00]</b>"
+
+[-> AggregateRepository++: load(aggregateId)
+AggregateRepository -> SnapshotRepository++: load(aggregateId)
+SnapshotRepository -> Snapshot++: load(aggregateId)
+SnapshotRepository <- - Snapshot- -: snapshot
+
+alt snapshot exist
+    create StateAggregate
+    SnapshotRepository -> StateAggregate ++: deserialize snapshot to stateAggregate
+    SnapshotRepository <- - StateAggregate: stateAggregate
+    AggregateRepository <- - SnapshotRepository- -: stateAggregate
+else snapshot not exist
+    AggregateRepository -> AggregateFactory++: create(aggregateId)
+    create StateAggregate
+    AggregateFactory -> StateAggregate ++: create(aggregateId)
+    AggregateFactory <- - StateAggregate: stateAggregate
+    AggregateRepository <- - AggregateFactory- -: stateAggregate
+end
+AggregateRepository -> EventStore++: loadEventStream(aggregateId, aggregateVersion)
+AggregateRepository <- - EventStore- -:DomainEventStream
+AggregateRepository -> StateAggregate:sourcing(DomainEventStream)
+AggregateRepository <- - StateAggregate: stateAggregate
+[<- - AggregateRepository: stateAggregate
+@enduml
+
+PlantUML version 1.2022.12(Mon Oct 24 02:12:26 CST 2022)
+(GPL source distribution)
+Java Runtime: OpenJDK Runtime Environment
+JVM: OpenJDK 64-Bit Server VM
+Default Encoding: UTF-8
+Language: zh
+Country: CN
+-->
+    </g>
+</svg>

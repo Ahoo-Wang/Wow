@@ -1,0 +1,16 @@
+{"id":"A05-review-diff","prompt":"审查下游订单服务当前分支相对 origin/main 的 Wow aggregate 改动，按严重度报告 findings，不要修改文件。","expectedSkills":["wow-review"],"tags":["positive","review"]}
+{"id":"A06-review-fix","prompt":"审查并修复下游应用当前的 Wow PR；先完成 findings，再处理已授权问题并复审。","expectedSkills":["wow-review"],"tags":["positive","review-fix","conflict"]}
+{"id":"A07-review-migration","prompt":"审查这个从 Wow 6.21.5 升级到 Wow 8 的 PR，重点检查数据和回滚风险。","expectedSkills":["wow-migrate"],"tags":["boundary","migration","conflict"]}
+{"id":"A08-review-vs-debug","prompt":"这个 Wow Saga 测试为什么失败？先复现并定位根因，不要修改代码。","expectedSkills":["wow-debug"],"tags":["boundary","debug","conflict"]}
+{"id":"A20-review-english","prompt":"Review a downstream service's Wow CommandGateway integration pull request against origin/main, report findings by severity, and do not edit files.","expectedSkills":["wow-review"],"tags":["positive","review","language-en"]}
+{"id":"A24-review-v8-data-cutover","prompt":"审查这个 Wow 8.8.1 到 8.9.6 的 Redis EventStore 数据切换 PR，重点核对 canonical v2 对账、切流和回滚，不要修改。","expectedSkills":["wow-migrate"],"tags":["boundary","review-data-cutover","migration","conflict"]}
+{"id":"A27-none-dashboard-review","prompt":"审查 compensation dashboard 的 React 表格组件 PR，只检查前端可访问性、状态管理和 Vitest 覆盖。","expectedSkills":[],"tags":["negative","wow-repository","dashboard"]}
+{"id":"A30-none-review-non-wow","prompt":"帮我审查这个 Spring Boot 订单服务的 PR，重点看事务边界和并发安全，可以直接合并吗？","expectedSkills":[],"tags":["negative","non-wow-project","review"]}
+{"id":"A31-none-review-non-wow-english","prompt":"Review this pull request in my Node.js Express service and tell me whether it is safe to merge.","expectedSkills":[],"tags":["negative","non-wow-project","review","language-en"]}
+{"id":"A32-none-review-axon-framework","prompt":"审查我的 Axon Framework 项目的 Saga 与 CommandGateway 改动，重点看聚合不变量和事件溯源是否正确。","expectedSkills":[],"tags":["negative","non-wow-project","review","vocabulary-collision"]}
+{"id":"A34-review-adoption-pr","prompt":"审查这个 PR：它在我们现有的 Spring Boot 订单服务中第一次引入 Wow 的 Order 聚合与 Saga，重点看建模和事件语义是否正确，不要修改文件。","expectedSkills":["wow-review"],"tags":["positive","adoption","review","conflict"]}
+{"id":"A42-none-review-compare-wow","prompt":"审查这个 Axon Framework PR，并比较它与 Wow 的 Saga 和 CommandGateway 设计；项目不使用 Wow。","expectedSkills":[],"tags":["negative","non-wow-project","review","vocabulary-collision","explicit-wow-exclusion"]}
+{"id":"A49-review-source-marker-only","fixture":"fixtures/service.gradle.kts","prompt":"审查这个下游服务的聚合补丁，按严重度报告 findings，不要修改文件。","expectedSkills":["wow-review"],"tags":["positive","source-marker","fixture","no-wow-keyword"]}
+{"id":"A56-none-framework-review","prompt":"审查 Wow 框架仓库中修改 wow-core CommandGateway 的 PR，判断能否发布。","expectedSkills":[],"tags":["negative","wow-framework-repository","review"]}
+{"id":"A62-none-review-checkout-wide-marker","fixture":"fixtures/non-wow-scope.patch","prompt":"审查 services/plain-service 的协程工具改动，判断是否可以合并。","expectedSkills":[],"tags":["negative","checkout-wide-marker","non-wow-scope","fixture","review"]}
+{"id":"A66-review-snapshot-aggregation","prompt":"审查下游 Wow 8.12 快照聚合 DSL 与 HTTP 调用改动，重点确认 elements 路径和默认路由，按严重度报告 findings。","expectedSkills":["wow-review"],"tags":["positive","review","query","aggregation"]}

@@ -1,0 +1,75 @@
+# JMH version: 1.37
+# VM version: JDK 17.0.7, OpenJDK 64-Bit Server VM, 17.0.7+7-LTS
+# VM invoker: /Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java
+# VM options: -Xmx4g -Xms4g -XX:+UseG1GC -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -XX:+AlwaysPreTouch
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 2 iterations, 5 s each
+# Measurement: 3 iterations, 10 s each
+# Timeout: 10 min per iteration
+# Threads: 14 threads, will synchronize iterations
+# Benchmark mode: Throughput, ops/time
+# Benchmark: me.ahoo.wow.benchmark.infrastructure.mongo.MongoCommandWriteE2EBenchmark.sendAndWaitProcessed
+# Parameters: (schedulerPoolSize = 14, schedulerStrategy = PARALLEL, stripeCount = 896)
+
+# Run progress: 0.00% complete, ETA 00:01:20
+# Fork: 1 of 1
+# Warmup Iteration   1: 18407.284 ops/s
+# Warmup Iteration   2: 21505.560 ops/s
+Iteration   1: 21443.960 ops/s
+Iteration   2: 21377.829 ops/s
+Iteration   3: 21595.898 ops/s
+
+
+Result "me.ahoo.wow.benchmark.infrastructure.mongo.MongoCommandWriteE2EBenchmark.sendAndWaitProcessed":
+  21472.562 ±(99.9%) 2039.876 ops/s [Average]
+  (min, avg, max) = (21377.829, 21472.562, 21595.898), stdev = 111.812
+  CI (99.9%): [19432.687, 23512.438] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 17.0.7, OpenJDK 64-Bit Server VM, 17.0.7+7-LTS
+# VM invoker: /Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java
+# VM options: -Xmx4g -Xms4g -XX:+UseG1GC -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -XX:+AlwaysPreTouch
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 2 iterations, 5 s each
+# Measurement: 3 iterations, 10 s each
+# Timeout: 10 min per iteration
+# Threads: 14 threads, will synchronize iterations
+# Benchmark mode: Throughput, ops/time
+# Benchmark: me.ahoo.wow.benchmark.infrastructure.redis.RedisCommandWriteE2EBenchmark.sendAndWaitProcessed
+# Parameters: (schedulerPoolSize = 14, schedulerStrategy = PARALLEL, stripeCount = 896)
+
+# Run progress: 50.00% complete, ETA 00:00:42
+# Fork: 1 of 1
+# Warmup Iteration   1: 24282.243 ops/s
+# Warmup Iteration   2: 27270.067 ops/s
+Iteration   1: 27109.286 ops/s
+Iteration   2: 27496.472 ops/s
+Iteration   3: 27409.658 ops/s
+
+
+Result "me.ahoo.wow.benchmark.infrastructure.redis.RedisCommandWriteE2EBenchmark.sendAndWaitProcessed":
+  27338.472 ±(99.9%) 3706.614 ops/s [Average]
+  (min, avg, max) = (27109.286, 27338.472, 27496.472), stdev = 203.172
+  CI (99.9%): [23631.858, 31045.086] (assumes normal distribution)
+
+
+# Run complete. Total time: 00:01:27
+
+REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on
+why the numbers are the way they are. Use profilers (see -prof, -lprof), design factorial
+experiments, perform baseline and negative tests that provide experimental control, make sure
+the benchmarking environment is safe on JVM/OS/HW level, ask for reviews from the domain experts.
+Do not assume the numbers tell you what you want them to tell.
+
+NOTE: Current JVM experimentally supports Compiler Blackholes, and they are in use. Please exercise
+extra caution when trusting the results, look into the generated code to check the benchmark still
+works, and factor in a small probability of new VM bugs. Additionally, while comparisons between
+different JVMs are already problematic, the performance difference caused by different Blackhole
+modes can be very significant. Please make sure you use the consistent Blackhole mode for comparisons.
+
+Benchmark                                                           (schedulerPoolSize)  (schedulerStrategy)  (stripeCount)   Mode  Cnt      Score      Error  Units
+m.a.w.b.i.mongo.MongoCommandWriteE2EBenchmark.sendAndWaitProcessed                   14             PARALLEL            896  thrpt    3  21472.562 ± 2039.876  ops/s
+m.a.w.b.i.redis.RedisCommandWriteE2EBenchmark.sendAndWaitProcessed                   14             PARALLEL            896  thrpt    3  27338.472 ± 3706.614  ops/s
+
+Benchmark result is saved to /private/tmp/wow-effective-wait/wow-benchmarks/results/jmh/pure-create-main-pr-pair/pure-create-main-pr-pair/threads-14-pure-create-main-pr-pair.json

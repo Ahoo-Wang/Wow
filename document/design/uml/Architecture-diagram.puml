@@ -1,0 +1,84 @@
+@startuml
+!include layout.puml
+
+title Command flow and command processing
+
+actor User
+
+box Command
+queue CommandBus
+participant AggregateDispatcher
+participant AggregateProcessorFactory
+participant AggregateProcessor
+database EventStore
+end box
+
+queue DomainEventBus
+
+box Query
+participant ProjectionDispatcher
+participant ProjectionProcessor
+participant ViewRepository
+database QueryDatabase
+end box
+
+autonumber "[0]"
+
+User ++
+EventStore ++
+CommandBus ++
+AggregateDispatcher ++
+AggregateProcessor ++
+DomainEventBus ++
+ProjectionDispatcher ++
+ProjectionProcessor ++
+QueryDatabase ++
+
+CommandBus <- AggregateDispatcher: Subscribe
+
+DomainEventBus <- ProjectionDispatcher: Subscribe
+
+User -> CommandBus : Command
+CommandBus --> AggregateDispatcher: Command
+
+
+
+'create GroupedAggregate
+'AggregateProcessor -> GroupedAggregate ++: Group command streams \n by aggregate ID
+'group Load Aggregate
+'    GroupedAggregate ->  AggregateRepository ++: load aggregate by ID
+'    AggregateRepository -> AggregateFactory ++: create aggregate
+'
+'    create Aggregate
+'    AggregateFactory -> Aggregate ++-- : create(aggregateID)
+'
+'    AggregateRepository -> EventStore: load event stream by aggregate ID
+'    AggregateRepository <-- EventStore: DomainEventStream
+'    AggregateRepository ->  Aggregate: sourcing(DomainEventStream)
+'    GroupedAggregate <-- AggregateRepository : aggregate
+'    AggregateRepository --
+'end
+'create AggregateSubscriber
+'GroupedAggregate -> AggregateSubscriber ++: create(Aggregate)
+'
+'note over GroupedAggregate: Destroy the aggregate \n when no command is generated \n beyond the cache timeout event
+'
+'group Transaction Boundary
+'    AggregateSubscriber -> Aggregate: Command
+'    Aggregate -> Aggregate : handle Command
+'    Aggregate -> EventStore : DomainEventStream
+'end
+'
+' Query Start
+AggregateProcessor -> DomainEventBus : DomainEventStream
+DomainEventBus --> ProjectionDispatcher : DomainEvent
+ProjectionDispatcher -> ProjectionProcessor : DomainEvent
+ProjectionProcessor -> ProjectionProcessor : Convert Event \n to Partial view model
+ProjectionProcessor -> ViewRepository ++: save(ViewModel)
+ViewRepository -> QueryDatabase --: ViewModel
+'
+'ViewRepository <- QueryProcessor++: query()
+'ViewRepository --> QueryProcessor--: ViewModel
+'QueryProcessor --> User : ViewModel
+
+@enduml

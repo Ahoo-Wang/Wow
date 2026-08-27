@@ -1,0 +1,53 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package me.ahoo.wow.infra.accessor.function
+
+import me.ahoo.wow.infra.accessor.ensureAccessible
+import me.ahoo.wow.infra.invoker.FunctionInvoker
+import me.ahoo.wow.infra.invoker.FunctionInvokerFactory
+import java.lang.reflect.Method
+import kotlin.reflect.KFunction
+import kotlin.reflect.jvm.javaMethod
+
+/**
+ * Simple implementation of FunctionAccessor that provides basic function invocation capabilities.
+ * This class automatically ensures the function is accessible during initialization,
+ * making it ready for reflection-based invocation.
+ *
+ * @param T the type of the target object
+ * @param R the return type of the function
+ * @property function the Kotlin function to be accessed
+ * @author ahoo wang
+ */
+data class SimpleFunctionAccessor<T, R>(
+    override val function: KFunction<*>
+) : FunctionAccessor<T, R> {
+    /**
+     * Initialization block that ensures the function is accessible for reflection.
+     * This automatically calls ensureAccessible() on the function to allow
+     * access to private, protected, or package-private functions.
+     */
+    init {
+        function.ensureAccessible()
+    }
+
+    override val method: Method = function.javaMethod!!
+
+    private val invoker: FunctionInvoker = FunctionInvokerFactory.create(method)
+
+    @Suppress("UNCHECKED_CAST")
+    override fun invoke(target: T, args: Array<Any?>): R = invoker.invokeFunction(function, target, args) as R
+
+    @Suppress("UNCHECKED_CAST")
+    override fun invoke1(target: T, arg: Any?): R = invoker.invokeFunction1(function, target, arg) as R
+}
