@@ -10,7 +10,9 @@ import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
 import me.ahoo.wow.mongo.MongoEventStore
+import me.ahoo.wow.mongo.query.AbstractMongoFilterConverter
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
@@ -22,6 +24,7 @@ import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.schema.QuerySchemaSourcePriority
+import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.tck.container.MongoTestFixture
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
@@ -63,6 +66,37 @@ class MongoEventStreamQueryServiceTest : EventStreamQueryServiceSpec() {
         schema.fields.assert().containsKey(LogicalField("body.name"))
         schema.fields.getValue(LogicalField("body")).bindings.assert()
             .containsKey(QueryCapability.ELEMENT_SCOPE)
+    }
+
+    @Test
+    fun `public constructor should expose default event stream schema`() {
+        val queryService = MongoEventStreamQueryService(
+            namedAggregate,
+            database.getCollection(namedAggregate.toEventStreamCollectionName()),
+        )
+
+        queryService.schema().test()
+            .assertNext { schema -> schema.model.assert().isEqualTo(QueryModel.EVENT_STREAM) }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `custom filter converter should make schema unavailable`() {
+        val converter = object : AbstractMongoFilterConverter() {
+            override val fieldConverter = EventStreamFieldConverter
+        }
+        val queryService = MongoEventStreamQueryService(
+            namedAggregate,
+            database.getCollection(namedAggregate.toEventStreamCollectionName()),
+            converter,
+        )
+
+        queryService.schema().test()
+            .expectError(QuerySchemaUnavailableException::class.java)
+            .verify()
+        queryService.refresh().test()
+            .expectError(QuerySchemaUnavailableException::class.java)
+            .verify()
     }
 
     @Test
