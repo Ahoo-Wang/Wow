@@ -267,13 +267,304 @@
       }
     },
     "requestBodies" : {
-      "wow.AggregationQuery" : {
+      "example.cart.AggregationQuery" : {
         "content" : {
           "application/json" : {
             "schema" : {
               "$ref" : "#/components/schemas/wow.api.query.AggregationQuery"
             }
           }
+        },
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/example.cart.CartAggregatedFields"
+        }
+      },
+      "example.cart.CountQuery" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+            }
+          }
+        },
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/example.cart.CartAggregatedFields"
+        }
+      },
+      "example.cart.ListQuery" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.api.query.ListQuery"
+            }
+          }
+        },
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/example.cart.CartAggregatedFields"
+        }
+      },
+      "example.cart.PagedQuery" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.api.query.PagedQuery"
+            }
+          }
+        },
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/example.cart.CartAggregatedFields"
+        }
+      },
+      "example.cart.SingleQuery" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.api.query.SingleQuery"
+            }
+          }
+        },
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/example.cart.CartAggregatedFields"
+        }
+      },
+      "example.order.AggregationQuery" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.api.query.AggregationQuery"
+            }
+          }
+        },
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/example.order.OrderAggregatedFields"
+        }
+      },
+      "example.order.CountQuery" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+            }
+          }
+        },
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/example.order.OrderAggregatedFields"
+        }
+      },
+      "example.order.ListQuery" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.api.query.ListQuery"
+            }
+          }
+        },
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/example.order.OrderAggregatedFields"
+        }
+      },
+      "example.order.PagedQuery" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.api.query.PagedQuery"
+            }
+          }
+        },
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/example.order.OrderAggregatedFields"
+        }
+      },
+      "example.order.SingleQuery" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.api.query.SingleQuery"
+            }
+          }
+        },
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/example.order.OrderAggregatedFields"
+        }
+      },
+      "tck.mock_aggregate.AggregationQuery" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.api.query.AggregationQuery"
+            }
+          }
+        },
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedFields"
+        }
+      },
+      "tck.mock_aggregate.CountQuery" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+            }
+          }
+        },
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedFields"
+        }
+      },
+      "tck.mock_aggregate.ListQuery" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.api.query.ListQuery"
+            }
+          }
+        },
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedFields"
+        }
+      },
+      "tck.mock_aggregate.PagedQuery" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.api.query.PagedQuery"
+            }
+          }
+        },
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedFields"
+        }
+      },
+      "tck.mock_aggregate.SingleQuery" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.api.query.SingleQuery"
+            }
+          }
+        },
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/tck.mock_aggregate.MockCommandAggregateAggregatedFields"
+        }
+      },
+      "tck.modeling_command_aggregate_with_tenant_id.AggregationQuery" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.api.query.AggregationQuery"
+            }
+          }
+        },
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/tck.modeling_command_aggregate_with_tenant_id.MockCommandAggregateWithTenantIdAggregatedFields"
+        }
+      },
+      "tck.modeling_command_aggregate_with_tenant_id.CountQuery" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+            }
+          }
+        },
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/tck.modeling_command_aggregate_with_tenant_id.MockCommandAggregateWithTenantIdAggregatedFields"
+        }
+      },
+      "tck.modeling_command_aggregate_with_tenant_id.ListQuery" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.api.query.ListQuery"
+            }
+          }
+        },
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/tck.modeling_command_aggregate_with_tenant_id.MockCommandAggregateWithTenantIdAggregatedFields"
+        }
+      },
+      "tck.modeling_command_aggregate_with_tenant_id.PagedQuery" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.api.query.PagedQuery"
+            }
+          }
+        },
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/tck.modeling_command_aggregate_with_tenant_id.MockCommandAggregateWithTenantIdAggregatedFields"
+        }
+      },
+      "tck.modeling_command_aggregate_with_tenant_id.SingleQuery" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.api.query.SingleQuery"
+            }
+          }
+        },
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/tck.modeling_command_aggregate_with_tenant_id.MockCommandAggregateWithTenantIdAggregatedFields"
+        }
+      },
+      "tck.modeling_command_aggregate_without_ctor_parameters.AggregationQuery" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.api.query.AggregationQuery"
+            }
+          }
+        },
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/tck.modeling_command_aggregate_without_ctor_parameters.MockCommandAggregateWithoutCtorParametersAggregatedFields"
+        }
+      },
+      "tck.modeling_command_aggregate_without_ctor_parameters.CountQuery" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+            }
+          }
+        },
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/tck.modeling_command_aggregate_without_ctor_parameters.MockCommandAggregateWithoutCtorParametersAggregatedFields"
+        }
+      },
+      "tck.modeling_command_aggregate_without_ctor_parameters.ListQuery" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.api.query.ListQuery"
+            }
+          }
+        },
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/tck.modeling_command_aggregate_without_ctor_parameters.MockCommandAggregateWithoutCtorParametersAggregatedFields"
+        }
+      },
+      "tck.modeling_command_aggregate_without_ctor_parameters.PagedQuery" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.api.query.PagedQuery"
+            }
+          }
+        },
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/tck.modeling_command_aggregate_without_ctor_parameters.MockCommandAggregateWithoutCtorParametersAggregatedFields"
+        }
+      },
+      "tck.modeling_command_aggregate_without_ctor_parameters.SingleQuery" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.api.query.SingleQuery"
+            }
+          }
+        },
+        "x-wow-query-fields" : {
+          "$ref" : "#/components/schemas/tck.modeling_command_aggregate_without_ctor_parameters.MockCommandAggregateWithoutCtorParametersAggregatedFields"
         }
       },
       "wow.CompensationTarget" : {
@@ -308,15 +599,6 @@
           "application/json" : {
             "schema" : {
               "$ref" : "#/components/schemas/wow.api.query.PagedQuery"
-            }
-          }
-        }
-      },
-      "wow.SingleQuery" : {
-        "content" : {
-          "application/json" : {
-            "schema" : {
-              "$ref" : "#/components/schemas/wow.api.query.SingleQuery"
             }
           }
         }
@@ -792,6 +1074,10 @@
         },
         "required" : [ "data" ],
         "type" : "object"
+      },
+      "example.cart.CartAggregatedFields" : {
+        "enum" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.id", "state.items", "state.items.productId", "state.items.quantity", "state.size", "tags", "tenantId", "version" ],
+        "type" : "string"
       },
       "example.cart.CartItem" : {
         "properties" : {
@@ -1599,6 +1885,10 @@
         "required" : [ "data" ],
         "type" : "object"
       },
+      "example.order.OrderAggregatedFields" : {
+        "enum" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.address", "state.address.city", "state.address.country", "state.address.detail", "state.address.district", "state.address.province", "state.id", "state.items", "state.items.id", "state.items.price", "state.items.productId", "state.items.quantity", "state.items.totalPrice", "state.paidAmount", "state.payable", "state.status", "state.totalAmount", "tags", "tenantId", "version" ],
+        "type" : "string"
+      },
       "example.order.OrderCreated" : {
         "properties" : {
           "address" : {
@@ -2370,6 +2660,10 @@
         },
         "required" : [ "data" ],
         "type" : "object"
+      },
+      "tck.mock_aggregate.MockCommandAggregateAggregatedFields" : {
+        "enum" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.createdAt", "state.data", "state.decimalValue", "state.id", "state.orders", "state.orders.lines", "state.orders.lines.amount", "state.orders.lines.createdAt", "state.orders.lines.discounts", "state.orders.lines.discounts.amount", "state.orders.lines.discounts.type", "state.orders.lines.productId", "state.orders.lines.quantity", "state.orders.lines.samples", "state.orders.status", "tags", "tenantId", "version" ],
+        "type" : "string"
       },
       "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedDomainEventStream" : {
         "$schema" : "https://json-schema.org/draft/2020-12/schema",
@@ -3921,6 +4215,14 @@
         },
         "required" : [ "data" ],
         "type" : "object"
+      },
+      "tck.modeling_command_aggregate_with_tenant_id.MockCommandAggregateWithTenantIdAggregatedFields" : {
+        "enum" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.id", "state.tenantId", "tags", "tenantId", "version" ],
+        "type" : "string"
+      },
+      "tck.modeling_command_aggregate_without_ctor_parameters.MockCommandAggregateWithoutCtorParametersAggregatedFields" : {
+        "enum" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "tags", "tenantId", "version" ],
+        "type" : "string"
       },
       "wow.api.BindingError" : {
         "properties" : {
@@ -6245,7 +6547,7 @@
         "operationId" : "example.cart.snapshot.aggregation",
         "parameters" : [ ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.AggregationQuery"
+          "$ref" : "#/components/requestBodies/example.cart.AggregationQuery"
         },
         "responses" : {
           "200" : {
@@ -6306,7 +6608,7 @@
         "operationId" : "example.cart.snapshot.count",
         "parameters" : [ ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.CountQuery"
+          "$ref" : "#/components/requestBodies/example.cart.CountQuery"
         },
         "responses" : {
           "200" : {
@@ -6327,7 +6629,7 @@
         "operationId" : "example.cart.snapshot.list_query",
         "parameters" : [ ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.ListQuery"
+          "$ref" : "#/components/requestBodies/example.cart.ListQuery"
         },
         "responses" : {
           "200" : {
@@ -6364,7 +6666,7 @@
         "operationId" : "example.cart.snapshot_state.list_query",
         "parameters" : [ ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.ListQuery"
+          "$ref" : "#/components/requestBodies/example.cart.ListQuery"
         },
         "responses" : {
           "200" : {
@@ -6401,7 +6703,7 @@
         "operationId" : "example.cart.snapshot.paged_query",
         "parameters" : [ ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.PagedQuery"
+          "$ref" : "#/components/requestBodies/example.cart.PagedQuery"
         },
         "responses" : {
           "200" : {
@@ -6427,7 +6729,7 @@
         "operationId" : "example.cart.snapshot_state.paged_query",
         "parameters" : [ ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.PagedQuery"
+          "$ref" : "#/components/requestBodies/example.cart.PagedQuery"
         },
         "responses" : {
           "200" : {
@@ -6505,7 +6807,7 @@
         "operationId" : "example.cart.snapshot.single",
         "parameters" : [ ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.SingleQuery"
+          "$ref" : "#/components/requestBodies/example.cart.SingleQuery"
         },
         "responses" : {
           "200" : {
@@ -6534,7 +6836,7 @@
         "operationId" : "example.cart.snapshot_state.single",
         "parameters" : [ ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.SingleQuery"
+          "$ref" : "#/components/requestBodies/example.cart.SingleQuery"
         },
         "responses" : {
           "200" : {
@@ -7240,7 +7542,7 @@
           "$ref" : "#/components/parameters/wow.ownerId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.AggregationQuery"
+          "$ref" : "#/components/requestBodies/example.cart.AggregationQuery"
         },
         "responses" : {
           "200" : {
@@ -7303,7 +7605,7 @@
           "$ref" : "#/components/parameters/wow.ownerId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.CountQuery"
+          "$ref" : "#/components/requestBodies/example.cart.CountQuery"
         },
         "responses" : {
           "200" : {
@@ -7326,7 +7628,7 @@
           "$ref" : "#/components/parameters/wow.ownerId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.ListQuery"
+          "$ref" : "#/components/requestBodies/example.cart.ListQuery"
         },
         "responses" : {
           "200" : {
@@ -7365,7 +7667,7 @@
           "$ref" : "#/components/parameters/wow.ownerId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.ListQuery"
+          "$ref" : "#/components/requestBodies/example.cart.ListQuery"
         },
         "responses" : {
           "200" : {
@@ -7404,7 +7706,7 @@
           "$ref" : "#/components/parameters/wow.ownerId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.PagedQuery"
+          "$ref" : "#/components/requestBodies/example.cart.PagedQuery"
         },
         "responses" : {
           "200" : {
@@ -7432,7 +7734,7 @@
           "$ref" : "#/components/parameters/wow.ownerId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.PagedQuery"
+          "$ref" : "#/components/requestBodies/example.cart.PagedQuery"
         },
         "responses" : {
           "200" : {
@@ -7460,7 +7762,7 @@
           "$ref" : "#/components/parameters/wow.ownerId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.SingleQuery"
+          "$ref" : "#/components/requestBodies/example.cart.SingleQuery"
         },
         "responses" : {
           "200" : {
@@ -7491,7 +7793,7 @@
           "$ref" : "#/components/parameters/wow.ownerId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.SingleQuery"
+          "$ref" : "#/components/requestBodies/example.cart.SingleQuery"
         },
         "responses" : {
           "200" : {
@@ -7849,7 +8151,7 @@
           "$ref" : "#/components/parameters/wow.ownerId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.AggregationQuery"
+          "$ref" : "#/components/requestBodies/example.order.AggregationQuery"
         },
         "responses" : {
           "200" : {
@@ -7914,7 +8216,7 @@
           "$ref" : "#/components/parameters/wow.ownerId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.CountQuery"
+          "$ref" : "#/components/requestBodies/example.order.CountQuery"
         },
         "responses" : {
           "200" : {
@@ -7939,7 +8241,7 @@
           "$ref" : "#/components/parameters/wow.ownerId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.ListQuery"
+          "$ref" : "#/components/requestBodies/example.order.ListQuery"
         },
         "responses" : {
           "200" : {
@@ -7980,7 +8282,7 @@
           "$ref" : "#/components/parameters/wow.ownerId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.ListQuery"
+          "$ref" : "#/components/requestBodies/example.order.ListQuery"
         },
         "responses" : {
           "200" : {
@@ -8021,7 +8323,7 @@
           "$ref" : "#/components/parameters/wow.ownerId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.PagedQuery"
+          "$ref" : "#/components/requestBodies/example.order.PagedQuery"
         },
         "responses" : {
           "200" : {
@@ -8051,7 +8353,7 @@
           "$ref" : "#/components/parameters/wow.ownerId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.PagedQuery"
+          "$ref" : "#/components/requestBodies/example.order.PagedQuery"
         },
         "responses" : {
           "200" : {
@@ -8081,7 +8383,7 @@
           "$ref" : "#/components/parameters/wow.ownerId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.SingleQuery"
+          "$ref" : "#/components/requestBodies/example.order.SingleQuery"
         },
         "responses" : {
           "200" : {
@@ -8114,7 +8416,7 @@
           "$ref" : "#/components/parameters/wow.ownerId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.SingleQuery"
+          "$ref" : "#/components/requestBodies/example.order.SingleQuery"
         },
         "responses" : {
           "200" : {
@@ -8229,7 +8531,7 @@
           "$ref" : "#/components/parameters/wow.Wow-Space-Id"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.AggregationQuery"
+          "$ref" : "#/components/requestBodies/example.order.AggregationQuery"
         },
         "responses" : {
           "200" : {
@@ -8292,7 +8594,7 @@
           "$ref" : "#/components/parameters/wow.Wow-Space-Id"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.CountQuery"
+          "$ref" : "#/components/requestBodies/example.order.CountQuery"
         },
         "responses" : {
           "200" : {
@@ -8315,7 +8617,7 @@
           "$ref" : "#/components/parameters/wow.Wow-Space-Id"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.ListQuery"
+          "$ref" : "#/components/requestBodies/example.order.ListQuery"
         },
         "responses" : {
           "200" : {
@@ -8354,7 +8656,7 @@
           "$ref" : "#/components/parameters/wow.Wow-Space-Id"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.ListQuery"
+          "$ref" : "#/components/requestBodies/example.order.ListQuery"
         },
         "responses" : {
           "200" : {
@@ -8393,7 +8695,7 @@
           "$ref" : "#/components/parameters/wow.Wow-Space-Id"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.PagedQuery"
+          "$ref" : "#/components/requestBodies/example.order.PagedQuery"
         },
         "responses" : {
           "200" : {
@@ -8421,7 +8723,7 @@
           "$ref" : "#/components/parameters/wow.Wow-Space-Id"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.PagedQuery"
+          "$ref" : "#/components/requestBodies/example.order.PagedQuery"
         },
         "responses" : {
           "200" : {
@@ -8505,7 +8807,7 @@
           "$ref" : "#/components/parameters/wow.Wow-Space-Id"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.SingleQuery"
+          "$ref" : "#/components/requestBodies/example.order.SingleQuery"
         },
         "responses" : {
           "200" : {
@@ -8536,7 +8838,7 @@
           "$ref" : "#/components/parameters/wow.Wow-Space-Id"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.SingleQuery"
+          "$ref" : "#/components/requestBodies/example.order.SingleQuery"
         },
         "responses" : {
           "200" : {
@@ -8685,7 +8987,7 @@
         "operationId" : "tck.mock_aggregate.snapshot.aggregation",
         "parameters" : [ ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.AggregationQuery"
+          "$ref" : "#/components/requestBodies/tck.mock_aggregate.AggregationQuery"
         },
         "responses" : {
           "200" : {
@@ -8746,7 +9048,7 @@
         "operationId" : "tck.mock_aggregate.snapshot.count",
         "parameters" : [ ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.CountQuery"
+          "$ref" : "#/components/requestBodies/tck.mock_aggregate.CountQuery"
         },
         "responses" : {
           "200" : {
@@ -8767,7 +9069,7 @@
         "operationId" : "tck.mock_aggregate.snapshot.list_query",
         "parameters" : [ ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.ListQuery"
+          "$ref" : "#/components/requestBodies/tck.mock_aggregate.ListQuery"
         },
         "responses" : {
           "200" : {
@@ -8804,7 +9106,7 @@
         "operationId" : "tck.mock_aggregate.snapshot_state.list_query",
         "parameters" : [ ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.ListQuery"
+          "$ref" : "#/components/requestBodies/tck.mock_aggregate.ListQuery"
         },
         "responses" : {
           "200" : {
@@ -8841,7 +9143,7 @@
         "operationId" : "tck.mock_aggregate.snapshot.paged_query",
         "parameters" : [ ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.PagedQuery"
+          "$ref" : "#/components/requestBodies/tck.mock_aggregate.PagedQuery"
         },
         "responses" : {
           "200" : {
@@ -8867,7 +9169,7 @@
         "operationId" : "tck.mock_aggregate.snapshot_state.paged_query",
         "parameters" : [ ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.PagedQuery"
+          "$ref" : "#/components/requestBodies/tck.mock_aggregate.PagedQuery"
         },
         "responses" : {
           "200" : {
@@ -8945,7 +9247,7 @@
         "operationId" : "tck.mock_aggregate.snapshot.single",
         "parameters" : [ ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.SingleQuery"
+          "$ref" : "#/components/requestBodies/tck.mock_aggregate.SingleQuery"
         },
         "responses" : {
           "200" : {
@@ -8974,7 +9276,7 @@
         "operationId" : "tck.mock_aggregate.snapshot_state.single",
         "parameters" : [ ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.SingleQuery"
+          "$ref" : "#/components/requestBodies/tck.mock_aggregate.SingleQuery"
         },
         "responses" : {
           "200" : {
@@ -9119,7 +9421,7 @@
         "operationId" : "tck.modeling_command_aggregate_with_tenant_id.snapshot.aggregation",
         "parameters" : [ ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.AggregationQuery"
+          "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_with_tenant_id.AggregationQuery"
         },
         "responses" : {
           "200" : {
@@ -9180,7 +9482,7 @@
         "operationId" : "tck.modeling_command_aggregate_with_tenant_id.snapshot.count",
         "parameters" : [ ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.CountQuery"
+          "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_with_tenant_id.CountQuery"
         },
         "responses" : {
           "200" : {
@@ -9201,7 +9503,7 @@
         "operationId" : "tck.modeling_command_aggregate_with_tenant_id.snapshot.list_query",
         "parameters" : [ ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.ListQuery"
+          "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_with_tenant_id.ListQuery"
         },
         "responses" : {
           "200" : {
@@ -9238,7 +9540,7 @@
         "operationId" : "tck.modeling_command_aggregate_with_tenant_id.snapshot_state.list_query",
         "parameters" : [ ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.ListQuery"
+          "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_with_tenant_id.ListQuery"
         },
         "responses" : {
           "200" : {
@@ -9275,7 +9577,7 @@
         "operationId" : "tck.modeling_command_aggregate_with_tenant_id.snapshot.paged_query",
         "parameters" : [ ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.PagedQuery"
+          "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_with_tenant_id.PagedQuery"
         },
         "responses" : {
           "200" : {
@@ -9301,7 +9603,7 @@
         "operationId" : "tck.modeling_command_aggregate_with_tenant_id.snapshot_state.paged_query",
         "parameters" : [ ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.PagedQuery"
+          "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_with_tenant_id.PagedQuery"
         },
         "responses" : {
           "200" : {
@@ -9379,7 +9681,7 @@
         "operationId" : "tck.modeling_command_aggregate_with_tenant_id.snapshot.single",
         "parameters" : [ ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.SingleQuery"
+          "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_with_tenant_id.SingleQuery"
         },
         "responses" : {
           "200" : {
@@ -9408,7 +9710,7 @@
         "operationId" : "tck.modeling_command_aggregate_with_tenant_id.snapshot_state.single",
         "parameters" : [ ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.SingleQuery"
+          "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_with_tenant_id.SingleQuery"
         },
         "responses" : {
           "200" : {
@@ -9553,7 +9855,7 @@
         "operationId" : "tck.modeling_command_aggregate_without_ctor_parameters.snapshot.aggregation",
         "parameters" : [ ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.AggregationQuery"
+          "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_without_ctor_parameters.AggregationQuery"
         },
         "responses" : {
           "200" : {
@@ -9614,7 +9916,7 @@
         "operationId" : "tck.modeling_command_aggregate_without_ctor_parameters.snapshot.count",
         "parameters" : [ ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.CountQuery"
+          "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_without_ctor_parameters.CountQuery"
         },
         "responses" : {
           "200" : {
@@ -9635,7 +9937,7 @@
         "operationId" : "tck.modeling_command_aggregate_without_ctor_parameters.snapshot.list_query",
         "parameters" : [ ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.ListQuery"
+          "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_without_ctor_parameters.ListQuery"
         },
         "responses" : {
           "200" : {
@@ -9672,7 +9974,7 @@
         "operationId" : "tck.modeling_command_aggregate_without_ctor_parameters.snapshot_state.list_query",
         "parameters" : [ ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.ListQuery"
+          "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_without_ctor_parameters.ListQuery"
         },
         "responses" : {
           "200" : {
@@ -9709,7 +10011,7 @@
         "operationId" : "tck.modeling_command_aggregate_without_ctor_parameters.snapshot.paged_query",
         "parameters" : [ ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.PagedQuery"
+          "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_without_ctor_parameters.PagedQuery"
         },
         "responses" : {
           "200" : {
@@ -9735,7 +10037,7 @@
         "operationId" : "tck.modeling_command_aggregate_without_ctor_parameters.snapshot_state.paged_query",
         "parameters" : [ ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.PagedQuery"
+          "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_without_ctor_parameters.PagedQuery"
         },
         "responses" : {
           "200" : {
@@ -9813,7 +10115,7 @@
         "operationId" : "tck.modeling_command_aggregate_without_ctor_parameters.snapshot.single",
         "parameters" : [ ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.SingleQuery"
+          "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_without_ctor_parameters.SingleQuery"
         },
         "responses" : {
           "200" : {
@@ -9842,7 +10144,7 @@
         "operationId" : "tck.modeling_command_aggregate_without_ctor_parameters.snapshot_state.single",
         "parameters" : [ ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.SingleQuery"
+          "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_without_ctor_parameters.SingleQuery"
         },
         "responses" : {
           "200" : {
@@ -10133,7 +10435,7 @@
           "$ref" : "#/components/parameters/wow.tenantId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.AggregationQuery"
+          "$ref" : "#/components/requestBodies/tck.mock_aggregate.AggregationQuery"
         },
         "responses" : {
           "200" : {
@@ -10196,7 +10498,7 @@
           "$ref" : "#/components/parameters/wow.tenantId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.CountQuery"
+          "$ref" : "#/components/requestBodies/tck.mock_aggregate.CountQuery"
         },
         "responses" : {
           "200" : {
@@ -10219,7 +10521,7 @@
           "$ref" : "#/components/parameters/wow.tenantId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.ListQuery"
+          "$ref" : "#/components/requestBodies/tck.mock_aggregate.ListQuery"
         },
         "responses" : {
           "200" : {
@@ -10258,7 +10560,7 @@
           "$ref" : "#/components/parameters/wow.tenantId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.ListQuery"
+          "$ref" : "#/components/requestBodies/tck.mock_aggregate.ListQuery"
         },
         "responses" : {
           "200" : {
@@ -10297,7 +10599,7 @@
           "$ref" : "#/components/parameters/wow.tenantId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.PagedQuery"
+          "$ref" : "#/components/requestBodies/tck.mock_aggregate.PagedQuery"
         },
         "responses" : {
           "200" : {
@@ -10325,7 +10627,7 @@
           "$ref" : "#/components/parameters/wow.tenantId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.PagedQuery"
+          "$ref" : "#/components/requestBodies/tck.mock_aggregate.PagedQuery"
         },
         "responses" : {
           "200" : {
@@ -10353,7 +10655,7 @@
           "$ref" : "#/components/parameters/wow.tenantId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.SingleQuery"
+          "$ref" : "#/components/requestBodies/tck.mock_aggregate.SingleQuery"
         },
         "responses" : {
           "200" : {
@@ -10384,7 +10686,7 @@
           "$ref" : "#/components/parameters/wow.tenantId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.SingleQuery"
+          "$ref" : "#/components/requestBodies/tck.mock_aggregate.SingleQuery"
         },
         "responses" : {
           "200" : {
@@ -11033,7 +11335,7 @@
           "$ref" : "#/components/parameters/wow.tenantId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.AggregationQuery"
+          "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_with_tenant_id.AggregationQuery"
         },
         "responses" : {
           "200" : {
@@ -11096,7 +11398,7 @@
           "$ref" : "#/components/parameters/wow.tenantId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.CountQuery"
+          "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_with_tenant_id.CountQuery"
         },
         "responses" : {
           "200" : {
@@ -11119,7 +11421,7 @@
           "$ref" : "#/components/parameters/wow.tenantId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.ListQuery"
+          "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_with_tenant_id.ListQuery"
         },
         "responses" : {
           "200" : {
@@ -11158,7 +11460,7 @@
           "$ref" : "#/components/parameters/wow.tenantId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.ListQuery"
+          "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_with_tenant_id.ListQuery"
         },
         "responses" : {
           "200" : {
@@ -11197,7 +11499,7 @@
           "$ref" : "#/components/parameters/wow.tenantId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.PagedQuery"
+          "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_with_tenant_id.PagedQuery"
         },
         "responses" : {
           "200" : {
@@ -11225,7 +11527,7 @@
           "$ref" : "#/components/parameters/wow.tenantId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.PagedQuery"
+          "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_with_tenant_id.PagedQuery"
         },
         "responses" : {
           "200" : {
@@ -11253,7 +11555,7 @@
           "$ref" : "#/components/parameters/wow.tenantId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.SingleQuery"
+          "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_with_tenant_id.SingleQuery"
         },
         "responses" : {
           "200" : {
@@ -11284,7 +11586,7 @@
           "$ref" : "#/components/parameters/wow.tenantId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.SingleQuery"
+          "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_with_tenant_id.SingleQuery"
         },
         "responses" : {
           "200" : {
@@ -11862,7 +12164,7 @@
           "$ref" : "#/components/parameters/wow.tenantId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.AggregationQuery"
+          "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_without_ctor_parameters.AggregationQuery"
         },
         "responses" : {
           "200" : {
@@ -11925,7 +12227,7 @@
           "$ref" : "#/components/parameters/wow.tenantId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.CountQuery"
+          "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_without_ctor_parameters.CountQuery"
         },
         "responses" : {
           "200" : {
@@ -11948,7 +12250,7 @@
           "$ref" : "#/components/parameters/wow.tenantId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.ListQuery"
+          "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_without_ctor_parameters.ListQuery"
         },
         "responses" : {
           "200" : {
@@ -11987,7 +12289,7 @@
           "$ref" : "#/components/parameters/wow.tenantId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.ListQuery"
+          "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_without_ctor_parameters.ListQuery"
         },
         "responses" : {
           "200" : {
@@ -12026,7 +12328,7 @@
           "$ref" : "#/components/parameters/wow.tenantId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.PagedQuery"
+          "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_without_ctor_parameters.PagedQuery"
         },
         "responses" : {
           "200" : {
@@ -12054,7 +12356,7 @@
           "$ref" : "#/components/parameters/wow.tenantId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.PagedQuery"
+          "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_without_ctor_parameters.PagedQuery"
         },
         "responses" : {
           "200" : {
@@ -12082,7 +12384,7 @@
           "$ref" : "#/components/parameters/wow.tenantId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.SingleQuery"
+          "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_without_ctor_parameters.SingleQuery"
         },
         "responses" : {
           "200" : {
@@ -12113,7 +12415,7 @@
           "$ref" : "#/components/parameters/wow.tenantId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.SingleQuery"
+          "$ref" : "#/components/requestBodies/tck.modeling_command_aggregate_without_ctor_parameters.SingleQuery"
         },
         "responses" : {
           "200" : {
@@ -13403,7 +13705,7 @@
           "$ref" : "#/components/parameters/wow.tenantId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.AggregationQuery"
+          "$ref" : "#/components/requestBodies/example.order.AggregationQuery"
         },
         "responses" : {
           "200" : {
@@ -13468,7 +13770,7 @@
           "$ref" : "#/components/parameters/wow.tenantId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.CountQuery"
+          "$ref" : "#/components/requestBodies/example.order.CountQuery"
         },
         "responses" : {
           "200" : {
@@ -13493,7 +13795,7 @@
           "$ref" : "#/components/parameters/wow.tenantId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.ListQuery"
+          "$ref" : "#/components/requestBodies/example.order.ListQuery"
         },
         "responses" : {
           "200" : {
@@ -13534,7 +13836,7 @@
           "$ref" : "#/components/parameters/wow.tenantId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.ListQuery"
+          "$ref" : "#/components/requestBodies/example.order.ListQuery"
         },
         "responses" : {
           "200" : {
@@ -13575,7 +13877,7 @@
           "$ref" : "#/components/parameters/wow.tenantId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.PagedQuery"
+          "$ref" : "#/components/requestBodies/example.order.PagedQuery"
         },
         "responses" : {
           "200" : {
@@ -13605,7 +13907,7 @@
           "$ref" : "#/components/parameters/wow.tenantId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.PagedQuery"
+          "$ref" : "#/components/requestBodies/example.order.PagedQuery"
         },
         "responses" : {
           "200" : {
@@ -13635,7 +13937,7 @@
           "$ref" : "#/components/parameters/wow.tenantId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.SingleQuery"
+          "$ref" : "#/components/requestBodies/example.order.SingleQuery"
         },
         "responses" : {
           "200" : {
@@ -13668,7 +13970,7 @@
           "$ref" : "#/components/parameters/wow.tenantId"
         } ],
         "requestBody" : {
-          "$ref" : "#/components/requestBodies/wow.SingleQuery"
+          "$ref" : "#/components/requestBodies/example.order.SingleQuery"
         },
         "responses" : {
           "200" : {

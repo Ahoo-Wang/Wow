@@ -78,18 +78,25 @@ internal class ExampleDomainOpenAPITest {
     inner class AggregateRoutes {
 
         @Test
-        fun `should omit legacy query field directory from OpenAPI`() {
-            val queryFieldsExtension = "x-wow-query" + "-fields"
-            val aggregatedFieldsSuffix = "Aggregated" + "Fields"
-            openAPI.components.requestBodies.values
-                .none { queryFieldsExtension in it.extensions.orEmpty() }
-                .assert().isTrue()
-            openAPI.components.schemas.keys.none { it.endsWith(aggregatedFieldsSuffix) }.assert().isTrue()
+        fun `should publish static aggregate fields through aggregate request bodies`() {
+            val fieldsKey = "example.cart.CartAggregatedFields"
+            val fieldsRef = "#/components/schemas/$fieldsKey"
+            val fieldsSchema = openAPI.components.schemas.getValue(fieldsKey)
+
+            fieldsSchema.type.assert().isEqualTo("string")
+            fieldsSchema.`enum`.assert()
+                .contains("aggregateId", "state", "state.items.productId")
+                .doesNotContain("")
+            listOf("AggregationQuery", "CountQuery", "ListQuery", "PagedQuery", "SingleQuery").forEach { queryType ->
+                val requestBody = openAPI.components.requestBodies.getValue("example.cart.$queryType")
+                val queryFields = requestBody.extensions.getValue("x-wow-query-fields") as Schema<*>
+                queryFields.`$ref`.assert().isEqualTo(fieldsRef)
+            }
         }
 
         @Test
         fun `snapshot aggregation should use generic query body and expose dynamic rows`() {
-            val requestBody = requireNotNull(openAPI.components.requestBodies["wow.AggregationQuery"])
+            val requestBody = requireNotNull(openAPI.components.requestBodies["example.cart.AggregationQuery"])
             val responseSchema = requireNotNull(
                 openAPI.paths["/cart/snapshot/aggregation"]
                     ?.post
@@ -285,7 +292,7 @@ internal class ExampleDomainOpenAPITest {
         }
 
         @Test
-        fun `should reuse generic query request bodies in snapshot routes`() {
+        fun `should use aggregate query request bodies in snapshot routes`() {
             mapOf(
                 "AggregationQuery" to "wow.api.query.AggregationQuery",
                 "CountQuery" to "wow.api.query.FilterExpression",
@@ -293,13 +300,13 @@ internal class ExampleDomainOpenAPITest {
                 "ListQuery" to "wow.api.query.ListQuery",
                 "PagedQuery" to "wow.api.query.PagedQuery",
             ).forEach { (queryType, schemaName) ->
-                val requestBody = requireNotNull(openAPI.components.requestBodies["wow.$queryType"])
+                val requestBody = requireNotNull(openAPI.components.requestBodies["example.cart.$queryType"])
                 requestBody.content[Https.MediaType.APPLICATION_JSON]?.schema?.`$ref`
                     .assert().isEqualTo("#/components/schemas/$schemaName")
             }
             listOf("aggregation", "count", "single", "list", "paged").forEach { operation ->
                 requireNotNull(openAPI.paths["/cart/snapshot/$operation"]?.post?.requestBody?.`$ref`)
-                    .assert().startsWith("#/components/requestBodies/wow.")
+                    .assert().startsWith("#/components/requestBodies/example.cart.")
             }
             openAPI.components.schemas["wow.api.query.ListQuery"]
                 ?.properties?.get("limit")?.minimum

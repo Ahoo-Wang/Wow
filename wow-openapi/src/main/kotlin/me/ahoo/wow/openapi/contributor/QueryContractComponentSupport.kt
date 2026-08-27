@@ -21,8 +21,14 @@ import io.swagger.v3.oas.models.media.StringSchema
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
+import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.QueryComponent
+import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedAggregationQueryRequestBody
+import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedCountQueryRequestBody
+import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedListQueryRequestBody
+import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedPagedQueryRequestBody
+import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedSingleQueryRequestBody
 import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregationQueryRequestBody
 import me.ahoo.wow.openapi.QueryComponent.RequestBody.countQueryRequestBody
 import me.ahoo.wow.openapi.QueryComponent.RequestBody.listQueryRequestBody
@@ -61,6 +67,41 @@ internal fun OpenAPIComponentContext.singleQueryRequestBodyRef(): HttpRequestBod
 internal fun OpenAPIComponentContext.aggregationQueryRequestBodyRef(): HttpRequestBody {
     aggregationQueryRequestBody()
     return HttpRequestBody(componentRef = QueryComponent.AGGREGATION_QUERY_KEY)
+}
+
+internal fun OpenAPIComponentContext.aggregatedCountQueryRequestBodyRef(
+    aggregateMetadata: AggregateMetadata<*, *>,
+): HttpRequestBody {
+    aggregatedCountQueryRequestBody(aggregateMetadata)
+    return aggregateMetadata.queryRequestBodyRef(QueryComponent.COUNT_QUERY_SUFFIX)
+}
+
+internal fun OpenAPIComponentContext.aggregatedAggregationQueryRequestBodyRef(
+    aggregateMetadata: AggregateMetadata<*, *>,
+): HttpRequestBody {
+    aggregatedAggregationQueryRequestBody(aggregateMetadata)
+    return aggregateMetadata.queryRequestBodyRef(QueryComponent.AGGREGATION_QUERY_SUFFIX)
+}
+
+internal fun OpenAPIComponentContext.aggregatedListQueryRequestBodyRef(
+    aggregateMetadata: AggregateMetadata<*, *>,
+): HttpRequestBody {
+    aggregatedListQueryRequestBody(aggregateMetadata)
+    return aggregateMetadata.queryRequestBodyRef(QueryComponent.LIST_QUERY_SUFFIX)
+}
+
+internal fun OpenAPIComponentContext.aggregatedPagedQueryRequestBodyRef(
+    aggregateMetadata: AggregateMetadata<*, *>,
+): HttpRequestBody {
+    aggregatedPagedQueryRequestBody(aggregateMetadata)
+    return aggregateMetadata.queryRequestBodyRef(QueryComponent.PAGED_QUERY_SUFFIX)
+}
+
+internal fun OpenAPIComponentContext.aggregatedSingleQueryRequestBodyRef(
+    aggregateMetadata: AggregateMetadata<*, *>,
+): HttpRequestBody {
+    aggregatedSingleQueryRequestBody(aggregateMetadata)
+    return aggregateMetadata.queryRequestBodyRef(QueryComponent.SINGLE_QUERY_SUFFIX)
 }
 
 internal fun OpenAPIComponentContext.countQueryResponseRef(): HttpResponse {
@@ -166,6 +207,9 @@ internal fun OpenAPIComponentContext.stateSingleResponse(
 ): HttpResponse {
     return responseWithJson(schema = schemaRef(aggregateMetadata.state.aggregateType))
 }
+
+private fun AggregateMetadata<*, *>.queryRequestBodyRef(suffix: String): HttpRequestBody =
+    HttpRequestBody(componentRef = toStringWithAlias() + suffix)
 
 private fun OpenAPIComponentContext.listResponse(
     mainTargetType: Type,
