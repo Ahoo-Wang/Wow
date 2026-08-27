@@ -149,8 +149,8 @@ SnapshotStore 使用带 scripted upsert 的 Bulk `update`，direct 路径使用�
 ## 快照查询字段解析
 
 快照查询使用协商后的运行时 Query Schema。Wow 先合并 System 骨架、JSON Schema/注解、Classpath 文件、Bean 和工作目录文件，
-再由 Elasticsearch Mapping 绑定物理字段与可执行能力。声明来源从低到高依次为 JSON Schema、Classpath、Bean、工作目录；高优先级
-只覆盖显式声明的叶子。约定文件位置固定为：
+再由 Elasticsearch Mapping 绑定物理字段与可执行能力。声明优先级从低到高依次为 JSON Schema 推断、`@QueryTemporal` 语义覆盖、
+Classpath、Bean、工作目录；高优先级只覆盖显式声明的叶子。`model` 文件名强制使用小写，例如 `snapshot.json`。约定文件位置固定为：
 
 ```text
 classpath:wow-query-schema/{contextName}/{aggregateName}/{model}.json
@@ -177,7 +177,8 @@ classpath:wow-query-schema/{contextName}/{aggregateName}/{model}.json
 
 动态后代不会单独出现在 Mapping 中，也无法仅凭当前 Mapping 证明索引设置、历史文档和写入边界始终具有相同语义。因此首期
 Elasticsearch 最终 Schema 不发布动态后代能力：`STRICT` 拒绝未知后代；`COMPATIBLE` 仅对普通未知路径保留原有后端回退。
-固定 System `tags.*` 涉及 ABAC，不允许这种回退，即使 Schema 暂时不可用也会失败关闭。显式映射的 typed sub-field 仍使用自身能力。
+固定 System `tags.*` 涉及 ABAC：引用它们的根过滤条件不会回退，即使 Schema 暂时不可用也会失败关闭；仅 projection/sort
+引用 `tags.*` 时仍遵循 Schema 不可用下的普通 `COMPATIBLE` 回退。显式映射的 typed sub-field 仍使用自身能力。
 
 例如，同一逻辑字段可同时支持全文搜索和精确查询：
 

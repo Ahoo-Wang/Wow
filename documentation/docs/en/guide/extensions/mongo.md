@@ -423,7 +423,13 @@ MongoDB accumulators implement Terms, Histogram, DateHistogram, Count, Sum, Avg,
 
 Computed numeric metrics compile to protected native `$add`, `$subtract`, `$multiply`, and `$divide` expressions; missing, non-numeric, division-by-zero, or non-finite results do not contribute. They do not use `$function`.
 
-The compiler does not inspect Java types or a MongoDB schema. Invalid or non-expandable paths remain MongoDB results or errors, and custom Jackson serializers or filter converters are not guaranteed to behave like the standard Wow field mapping.
+Compilation uses the negotiated Query Schema: System, JSON Schema and annotations, beans, and convention files provide
+logical semantics, while the Mongo Adapter reads collection validators and indexes before publishing executable
+capabilities. A declared field that conflicts with its validator fails before MongoDB access; ordinary unknown paths can
+still use the existing field convention in `COMPATIBLE` mode. Without a validator the physical type remains unknown, so
+the first release does not publish range or date-aggregation capability for `Temporal.Date`; an integer epoch with a
+declared unit is still converted safely by the pipeline. Custom Jackson serializers or filter converters are not
+guaranteed to behave like the standard Wow field mapping.
 
 ## PrepareKey: Distributed Coordination
 

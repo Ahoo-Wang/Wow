@@ -154,8 +154,9 @@ version-metadata migration is required.
 
 Snapshot queries use a negotiated runtime Query Schema. Wow first merges the System skeleton, JSON Schema and annotations,
 classpath files, beans, and working-directory files, then binds physical fields and executable capabilities from the
-Elasticsearch mapping. Declaration priority from low to high is JSON Schema, classpath, bean, and working directory; a
-higher-priority source overrides only explicitly declared leaves. Convention files have two fixed locations:
+Elasticsearch mapping. Declaration precedence from low to high is JSON Schema inference, the `@QueryTemporal` semantic
+override, classpath, bean, and working directory. A higher-priority source overrides only explicitly declared leaves.
+The `model` filename is always lowercase, for example `snapshot.json`. Convention files have two fixed locations:
 
 ```text
 classpath:wow-query-schema/{contextName}/{aggregateName}/{model}.json
@@ -186,8 +187,9 @@ Dynamic descendants do not have individual mapping entries, and the current mapp
 semantics across index settings, historical documents, and write boundaries. In the first release, the final
 Elasticsearch Schema therefore publishes no dynamic-descendant capabilities: `STRICT` rejects unknown descendants,
 while `COMPATIBLE` preserves the existing backend fallback only for ordinary unknown paths. Fixed System `tags.*`
-fields participate in ABAC and never use that fallback, including while Schema loading is unavailable. Explicitly mapped
-typed sub-fields continue to use their own capabilities.
+fields participate in ABAC: a root filter that references them never falls back, including while Schema loading is
+unavailable. A projection or sort that alone references `tags.*` still follows ordinary `COMPATIBLE` unavailable-Schema
+fallback. Explicitly mapped typed sub-fields continue to use their own capabilities.
 
 For example, one logical field can support both full-text and exact operations:
 
