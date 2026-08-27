@@ -51,6 +51,8 @@ class KotlinModuleTest {
         val schema = jsonSchemaGenerator.generateSchema(KotlinFixture::class.java)
         val readOnlyGetter = schema.get("properties").get("readOnlyGetter")
         readOnlyGetter.get("readOnly").booleanValue().assert().isTrue()
+        val explicitReadOnlyGetter = schema.get("properties").get("explicitReadOnlyGetter")
+        explicitReadOnlyGetter.get("readOnly").booleanValue().assert().isTrue()
     }
 
     @Test
