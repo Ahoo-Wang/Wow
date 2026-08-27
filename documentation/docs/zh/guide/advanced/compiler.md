@@ -41,9 +41,11 @@ dependencies {
 资源按 context name 保存：
 
 - context alias、description 与 package scopes；
-- aggregate name、command/state type scopes；
+- aggregate name、aggregate type 与 package scopes；
 - 可选静态 tenant ID 与 ID generator name；
 - 命令和事件类型名称集合。
+
+`wow-metadata.json` 不单独保存 state type。command/state 的组合类型只出现在后续生成的 `AggregatesMetadata.kt` 中，作为 `aggregateMetadata<CommandType, StateType>()` 的两个类型参数。
 
 `MetadataSymbolProcessor` 以 aggregating KSP output 写入该资源。运行时 `MetadataSearcher` 从 classpath 查找所有同名资源并合并；缺失某个模块的资源时，该模块的聚合/命令/事件不会凭反射自动完整恢复。
 

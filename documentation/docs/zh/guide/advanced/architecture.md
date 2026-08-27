@@ -14,7 +14,7 @@ Wow 把一次业务写入表达为**命令 → 聚合决策 → 领域事件 →
 
 | 层 | 主要模块 | 拥有的责任 | 不拥有的责任 |
 | --- | --- | --- | --- |
-| 公共契约 | `wow-api` | 命令、事件、聚合标识、注解、等待等公共模型 | 运行调度与后端实现 |
+| 公共契约 | `wow-api` | 命令、事件、聚合标识、注解等公共模型 | 运行调度与后端实现 |
 | 核心运行时 | `wow-core` | CommandGateway、聚合处理、事件溯源、分发器、等待、序列化和 Runtime | Spring Bean 发现、具体 Broker/Storage |
 | 编译期 | `wow-compiler` | 从注解生成 Wow 元数据、聚合元数据访问器和查询属性常量 | 运行时路由、OpenAPI 文档本身 |
 | 容器集成 | `wow-spring`、`wow-spring-boot-starter` | Spring 生命周期桥接、条件装配、组件发现与 capability 组合 | 业务规则与后端原生运维 |

@@ -14,7 +14,7 @@ This is a mechanism explanation. Use [Configuration](../configuration.md), the [
 
 | Layer | Main modules | Owns | Does not own |
 | --- | --- | --- | --- |
-| Public contracts | `wow-api` | Commands, events, aggregate identity, annotations, waiting, and other public models | Runtime scheduling or backend implementations |
+| Public contracts | `wow-api` | Commands, events, aggregate identity, annotations, and other public models | Runtime scheduling or backend implementations |
 | Core runtime | `wow-core` | CommandGateway, aggregate processing, event sourcing, dispatchers, waiting, serialization, and Runtime | Spring bean discovery or a concrete broker/storage |
 | Compile time | `wow-compiler` | Wow metadata, aggregate metadata accessors, and query-property constants derived from annotations | Runtime routing or the OpenAPI document itself |
 | Container integration | `wow-spring`, `wow-spring-boot-starter` | Spring lifecycle bridge, conditional assembly, component discovery, and capability composition | Business rules or backend-native operations |

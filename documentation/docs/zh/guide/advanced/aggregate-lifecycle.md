@@ -44,10 +44,12 @@ sequenceDiagram
 1. 可选 `aggregateVersion` 是否等于当前版本；
 2. 非创建且不允许创建的命令是否指向已初始化聚合；
 3. 非空 `ownerId` 与 `spaceId` 是否匹配当前状态；
-4. 普通命令是否错误地访问已删除聚合，或恢复命令是否指向未删除聚合；
-5. 元数据中是否存在该命令类型的处理函数。
+4. `commandState` 是否仍为 `STORED`，防止复用已进入 sourcing/store 周期的聚合对象；
+5. 普通命令是否错误地访问已删除聚合，或恢复命令是否指向未删除聚合；
+6. 元数据中是否存在该命令类型的处理函数。
 
 这些是当前核心实现的公共处理边界，不替代业务命令自身的不变量校验。
+该顺序来自 [`SimpleCommandAggregate.process`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt)，并由 [`SimpleCommandAggregateProcessingTest`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/test/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregateProcessingTest.kt) 中“当前 command state 不是 stored 时拒绝命令”的用例覆盖。
 
 ## CommandState 状态机
 

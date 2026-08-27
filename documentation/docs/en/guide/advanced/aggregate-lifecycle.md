@@ -44,10 +44,12 @@ Before invoking the command function, `SimpleCommandAggregate` checks:
 1. an optional `aggregateVersion` against the current version;
 2. whether a non-create, non-allow-create command targets initialized state;
 3. non-blank `ownerId` and `spaceId` against current state;
-4. whether a normal command targets deleted state, or a recovery command targets non-deleted state;
-5. whether metadata contains a function for the command type.
+4. whether `commandState` is still `STORED`, preventing reuse of an aggregate object already inside a sourcing/store cycle;
+5. whether a normal command targets deleted state, or a recovery command targets non-deleted state;
+6. whether metadata contains a function for the command type.
 
 These are core public processing boundaries. They do not replace business invariants inside the command function.
+This order follows [`SimpleCommandAggregate.process`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt) and is covered by the “process rejects command when current command state is not stored” case in [`SimpleCommandAggregateProcessingTest`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/test/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregateProcessingTest.kt).
 
 ## CommandState machine
 

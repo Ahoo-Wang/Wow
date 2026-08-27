@@ -41,9 +41,11 @@ These are build outputs. Do not edit or commit them. Change annotations/domain t
 The resource records data by context name:
 
 - context alias, description, and package scopes;
-- aggregate name and command/state type scopes;
+- aggregate name, aggregate type, and package scopes;
 - optional static tenant ID and ID-generator name;
 - command and event type-name sets.
+
+`wow-metadata.json` does not store a state type separately. The command/state pairing appears only in the later generated `AggregatesMetadata.kt`, as the two type parameters of `aggregateMetadata<CommandType, StateType>()`.
 
 `MetadataSymbolProcessor` writes it as an aggregating KSP output. At runtime, `MetadataSearcher` finds every resource with that name on the classpath and merges them. If a module's resource is absent, its aggregate/command/event contract is not reconstructed completely through reflection.
 
