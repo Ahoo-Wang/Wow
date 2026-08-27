@@ -92,12 +92,13 @@ pnpm --dir compensation/dashboard exec vitest run
 
 Gradle and Vitest should both exit successfully. [`ExecutionFailedSpec`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-domain/src/test/kotlin/me/ahoo/wow/compensation/domain/ExecutionFailedSpec.kt#L61-L376) is the main state-machine evidence. [`CompensationFilterTest`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-core/src/test/kotlin/me/ahoo/wow/compensation/core/CompensationFilterTest.kt) covers first failure, replay failure, and successful write-back.
 
-For a clean-checkout, non-persistent startup proof, do not invoke Gradle `run` directly: the current [`applicationDefaultJvmArgs`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-server/build.gradle.kts#L43-L63) enable JMX on port 5555 without authentication or TLS. The project has no `bootJar` task. The smallest safe path is to build the distribution and start the real main class with plain `java`. The complete command below is verified to reach Netty on port `18083`. It is only for route and local state-machine checks: data is lost on exit and automatic scheduling is disabled.
+For a clean-checkout, non-persistent startup proof, do not invoke Gradle `run` directly: the current [`applicationDefaultJvmArgs`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-server/build.gradle.kts#L43-L63) enable JMX on port 5555 without authentication or TLS. The project has no `bootJar` task. The smallest local path is to build the distribution and start the real main class with plain `java`. The complete command below is verified to bind Netty only to `127.0.0.1:18083`. It is only for route and local state-machine checks: data is lost on exit and automatic scheduling is disabled.
 
 ```shell
 ./gradlew :wow-compensation-server:installDist
 
 SERVER_PORT=18083 \
+SERVER_ADDRESS=127.0.0.1 \
 SPRING_AUTOCONFIGURE_EXCLUDE='org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchClientAutoConfiguration,org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchRestClientAutoConfiguration,org.springframework.boot.data.redis.autoconfigure.DataRedisReactiveAutoConfiguration,org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration,org.springframework.boot.mongodb.autoconfigure.MongoReactiveAutoConfiguration' \
 COSID_MACHINE_DISTRIBUTOR_TYPE=manual \
 COSID_MACHINE_DISTRIBUTOR_MANUAL_MACHINE_ID=1 \
@@ -119,15 +120,15 @@ java \
   me.ahoo.wow.compensation.server.CompensationServerKt
 ```
 
-Expect `Netty started on port 18083` and `Started CompensationServerKt`. Verify the same port from another terminal:
+Expect `Netty started on port 18083` and `Started CompensationServerKt`. Verify the same loopback address and port from another terminal:
 
 ```shell
-curl -fsS http://localhost:18083/actuator/health/liveness
-curl -fsS http://localhost:18083/v3/api-docs | \
+curl -fsS http://127.0.0.1:18083/actuator/health/liveness
+curl -fsS http://127.0.0.1:18083/v3/api-docs | \
   jq -r '.paths["/execution_failed/{id}/prepare_compensation"].put.operationId'
 ```
 
-Expect `{"status":"UP"}` and `compensation.execution_failed.prepare_compensation`. The verified JVM command line contains only the explicit config property; its only TCP listener is `18083`, with no JMX `5555`.
+Expect `{"status":"UP"}` and `compensation.execution_failed.prepare_compensation`. The verified JVM command line contains only the explicit config property; its TCP listener is `127.0.0.1:18083`, not every interface, with no JMX `5555`. This limits only the configured HTTP listener's bind address; it is not a general security claim. Durable environments still require authentication, authorization, TLS, network policy, and credential governance.
 
 There is no separate WebHook `enabled` property. The current [`@ConditionalOnProperty`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-server/src/main/kotlin/me/ahoo/wow/compensation/server/webhook/weixin/ConditionalOnWeiXinWebHookEnabled.kt#L16-L20) treats literal `false` as disabled, so the [`WeiXinWebHook` event processor](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-server/src/main/kotlin/me/ahoo/wow/compensation/server/webhook/weixin/WeiXinWebHook.kt#L36-L42) is not registered. Do not use `http://localhost:1/`: a non-`false` URL enables the processor, and default failure events then attempt loopback delivery and log connection failure.
 
@@ -149,7 +150,7 @@ For an existing retryable failure:
 
 ```shell
 curl -X PUT \
-  'http://localhost:18083/execution_failed/<execution-id>/prepare_compensation' \
+  'http://127.0.0.1:18083/execution_failed/<execution-id>/prepare_compensation' \
   -H 'Command-Wait-Stage: PROCESSED' \
   -H 'Command-Request-Id: prepare-<execution-id>'
 ```

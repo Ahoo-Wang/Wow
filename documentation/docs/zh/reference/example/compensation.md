@@ -92,12 +92,13 @@ pnpm --dir compensation/dashboard exec vitest run
 
 预期 Gradle 和 Vitest 都成功退出。领域状态机的主证据是 [`ExecutionFailedSpec`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-domain/src/test/kotlin/me/ahoo/wow/compensation/domain/ExecutionFailedSpec.kt#L61-L376)；过滤器的首次失败、再次失败和成功写回由 [`CompensationFilterTest`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-core/src/test/kotlin/me/ahoo/wow/compensation/core/CompensationFilterTest.kt) 覆盖。
 
-从 clean checkout 做无持久化启动验证时，不要直接用 Gradle `run`：当前 [`applicationDefaultJvmArgs`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-server/build.gradle.kts#L43-L63) 会开启 JMX 5555，且关闭认证和 TLS。项目没有 `bootJar` 任务；安全的最小路径是先生成 distribution，再用普通 `java` 启动真实主类。下面的完整命令已验证能在 `18083` 启动到 Netty；它只适合路由和本地状态机验证，进程退出后数据会丢失，也不会运行自动调度：
+从 clean checkout 做无持久化启动验证时，不要直接用 Gradle `run`：当前 [`applicationDefaultJvmArgs`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-server/build.gradle.kts#L43-L63) 会开启 JMX 5555，且关闭认证和 TLS。项目没有 `bootJar` 任务；本地最小路径是先生成 distribution，再用普通 `java` 启动真实主类。下面的完整命令已验证只在 `127.0.0.1:18083` 启动 Netty；它只适合路由和本地状态机验证，进程退出后数据会丢失，也不会运行自动调度：
 
 ```shell
 ./gradlew :wow-compensation-server:installDist
 
 SERVER_PORT=18083 \
+SERVER_ADDRESS=127.0.0.1 \
 SPRING_AUTOCONFIGURE_EXCLUDE='org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchClientAutoConfiguration,org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchRestClientAutoConfiguration,org.springframework.boot.data.redis.autoconfigure.DataRedisReactiveAutoConfiguration,org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration,org.springframework.boot.mongodb.autoconfigure.MongoReactiveAutoConfiguration' \
 COSID_MACHINE_DISTRIBUTOR_TYPE=manual \
 COSID_MACHINE_DISTRIBUTOR_MANUAL_MACHINE_ID=1 \
@@ -119,15 +120,15 @@ java \
   me.ahoo.wow.compensation.server.CompensationServerKt
 ```
 
-预期日志包含 `Netty started on port 18083` 和 `Started CompensationServerKt`。在另一个终端核对同一端口：
+预期日志包含 `Netty started on port 18083` 和 `Started CompensationServerKt`。在另一个终端核对同一 loopback 地址与端口：
 
 ```shell
-curl -fsS http://localhost:18083/actuator/health/liveness
-curl -fsS http://localhost:18083/v3/api-docs | \
+curl -fsS http://127.0.0.1:18083/actuator/health/liveness
+curl -fsS http://127.0.0.1:18083/v3/api-docs | \
   jq -r '.paths["/execution_failed/{id}/prepare_compensation"].put.operationId'
 ```
 
-预期分别得到 `{"status":"UP"}` 和 `compensation.execution_failed.prepare_compensation`。该进程的 JVM 命令行只包含显式 config 参数，实际 TCP listener 只有 `18083`，没有 JMX `5555`。
+预期分别得到 `{"status":"UP"}` 和 `compensation.execution_failed.prepare_compensation`。该进程的 JVM 命令行只包含显式 config 参数，实际 TCP listener 是 `127.0.0.1:18083`，不是所有网卡，也没有 JMX `5555`。这只限制了当前 HTTP listener 的绑定地址，不代表服务已经具备通用安全性；持久化环境仍需认证、授权、TLS、网络策略与凭据治理。
 
 WebHook 没有独立的 `enabled` 配置；当前 [`@ConditionalOnProperty`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-server/src/main/kotlin/me/ahoo/wow/compensation/server/webhook/weixin/ConditionalOnWeiXinWebHookEnabled.kt#L16-L20) 把字面量 `false` 视为关闭，因此不会注册 [`WeiXinWebHook` 事件处理器](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-server/src/main/kotlin/me/ahoo/wow/compensation/server/webhook/weixin/WeiXinWebHook.kt#L36-L42)。不要使用 `http://localhost:1/`：非 `false` URL 会启用处理器，默认失败事件会尝试向 loopback 投递并记录连接失败。
 
@@ -149,7 +150,7 @@ PUT /execution_failed/{id}/apply_retry_spec
 
 ```shell
 curl -X PUT \
-  'http://localhost:18083/execution_failed/<execution-id>/prepare_compensation' \
+  'http://127.0.0.1:18083/execution_failed/<execution-id>/prepare_compensation' \
   -H 'Command-Wait-Stage: PROCESSED' \
   -H 'Command-Request-Id: prepare-<execution-id>'
 ```
