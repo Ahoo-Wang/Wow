@@ -43,11 +43,13 @@ Use a disposable clone for the first pass so local runtime files cannot pollute 
 ```shell
 git clone https://github.com/Ahoo-Wang/wow-project-template.git
 cd wow-project-template
+git fetch --depth 1 origin 1dc9267b7f276c8c3bd9b2fad3186e3e3c3e82f9
+git checkout --detach FETCH_HEAD
 git rev-parse HEAD
 grep '^wow = ' gradle/libs.versions.toml
 ```
 
-If you create a repository with the template button instead, rename `rootProject.name` in `settings.gradle.kts` after the first successful run.
+The checkout command pins the exact commit used for the expected results below. If you intentionally keep a different template `HEAD`, do not mix it with this page's fixed expectations: repeat the domain check, startup, route, command, and versioned-state validation against that `HEAD` and record the new baseline. If you create a repository with the template button instead, rename `rootProject.name` in `settings.gradle.kts` after the first successful run.
 
 ## The 30-Minute Verified Path
 
@@ -96,9 +98,17 @@ Started ServerKt
 
 The sourced configuration is [`server/src/main/resources/application.yaml`](https://github.com/Ahoo-Wang/wow-project-template/blob/1dc9267b7f276c8c3bd9b2fad3186e3e3c3e82f9/server/src/main/resources/application.yaml). It selects `in_memory` command/event buses, event store, snapshot store, and state-event bus, plus a manual CosId machine ID for one local instance.
 
-`server/config` and `server/logs/` are local runtime artifacts and are not ignored by the verified template. Before committing an application repository, confirm them with `git status --short` and remove them. On Windows, create an equivalent directory link or point `spring.config.location` at the checked-in resource directory for the local run.
+`server/config` and `server/logs/` are local runtime artifacts and are not ignored by the verified template. A Metaspace crash may also leave an untracked heap dump such as `java_pid*.hprof` in the repository root. Before committing an application repository, inspect all three with:
+
+```shell
+git status --short -- '*.hprof' server/config server/logs
+```
+
+Remove only the listed local artifacts after inspection. On Windows, create an equivalent directory link or point `spring.config.location` at the checked-in resource directory for the local run.
 
 Open [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html). The generated OpenAPI should include `POST /tenant/{tenantId}/demo` and `/tenant/{tenantId}/demo/{id}/state/{version}`.
+
+<a id="send-the-first-real-command"></a>
 
 ### 3. Send the First Real Command
 

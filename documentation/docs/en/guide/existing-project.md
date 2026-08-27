@@ -205,7 +205,7 @@ For a concrete verified request and response, use [Getting Started](./getting-st
 | Command returns duplicate request | Reuse of the same `requestId` | Disable idempotency to make the request pass |
 | State route is `404` | Full context/aggregate/tenant/ID, command result, and returned version | Assume HTTP `200` on the command proved state persistence |
 
-If routes are missing, continue with [Troubleshooting: Missing Metadata or Generated Code](./troubleshooting.md#missing-metadata-or-generated-code).
+If routes are missing, continue with [Troubleshooting: Missing Metadata or Handler Registration](./troubleshooting.md#missing-metadata-or-handler-registration).
 
 ## Rollback Boundary
 

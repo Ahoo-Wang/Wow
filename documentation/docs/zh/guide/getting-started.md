@@ -43,11 +43,13 @@ outline: deep
 ```shell
 git clone https://github.com/Ahoo-Wang/wow-project-template.git
 cd wow-project-template
+git fetch --depth 1 origin 1dc9267b7f276c8c3bd9b2fad3186e3e3c3e82f9
+git checkout --detach FETCH_HEAD
 git rev-parse HEAD
 grep '^wow = ' gradle/libs.versions.toml
 ```
 
-如果通过模板按钮创建正式仓库，请在首次成功后再修改 `settings.gradle.kts` 中的 `rootProject.name`。
+上述 checkout 命令会固定本文预期结果对应的精确提交。如果有意保留不同的模板 `HEAD`，不要把它与本文固定预期混用：应针对该 `HEAD` 重新执行领域检查、启动、路由、命令与版本化状态验证，并记录新的基线。如果通过模板按钮创建正式仓库，请在首次成功后再修改 `settings.gradle.kts` 中的 `rootProject.name`。
 
 ## 30 分钟验证路径
 
@@ -96,9 +98,17 @@ Started ServerKt
 
 实际读取的配置是 [`server/src/main/resources/application.yaml`](https://github.com/Ahoo-Wang/wow-project-template/blob/1dc9267b7f276c8c3bd9b2fad3186e3e3c3e82f9/server/src/main/resources/application.yaml)。它为命令/事件总线、事件存储、快照存储和状态事件总线选择 `in_memory`，并为单个本地实例配置手动 CosId machine ID。
 
-`server/config` 与 `server/logs/` 是本地运行产物，已验证模板并未忽略它们。正式仓库提交前，先用 `git status --short` 确认并删除。Windows 上可创建等价目录链接，或在本地运行时把 `spring.config.location` 指向受版本控制的资源目录。
+`server/config` 与 `server/logs/` 是本地运行产物，已验证模板并未忽略它们。Metaspace 崩溃还可能在仓库根目录留下 `java_pid*.hprof` 等未跟踪堆转储。正式仓库提交前，用下面的命令一起检查三类产物：
+
+```shell
+git status --short -- '*.hprof' server/config server/logs
+```
+
+检查后只删除列出的本地产物。Windows 上可创建等价目录链接，或在本地运行时把 `spring.config.location` 指向受版本控制的资源目录。
 
 打开 [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)。生成的 OpenAPI 应包含 `POST /tenant/{tenantId}/demo` 与 `/tenant/{tenantId}/demo/{id}/state/{version}`。
+
+<a id="提交第一条真实命令"></a>
 
 ### 3. 提交第一条真实命令
 
