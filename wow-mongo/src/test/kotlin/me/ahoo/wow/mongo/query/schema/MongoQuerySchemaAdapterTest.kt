@@ -223,6 +223,22 @@ class MongoQuerySchemaAdapterTest {
     }
 
     @Test
+    fun `typeless field alternative should leave its storage type unknown`() {
+        listOf("anyOf", "oneOf").forEach { composition ->
+            val validator = Document(
+                composition,
+                listOf(Document("bsonType", "int"), Document()),
+            )
+
+            bindState(Document("amount", validator))
+                .fields.getValue(LogicalField("state.amount")).bindings.keys.assert().contains(
+                    QueryCapability.RANGE,
+                    QueryCapability.AGGREGATE_NUMERIC,
+                )
+        }
+    }
+
+    @Test
     fun `opaque logical shapes should expose only presence without a validator`() {
         val field = LogicalField("state.opaque")
         val logical = LogicalQuerySchema(

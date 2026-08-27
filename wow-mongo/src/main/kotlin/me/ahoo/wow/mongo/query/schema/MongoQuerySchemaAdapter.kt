@@ -325,7 +325,7 @@ class MongoQuerySchemaAdapter(
             val schemas = (this[key] as? Iterable<*>)?.filterIsInstance<Document>().orEmpty()
             if (schemas.isEmpty()) return emptySet()
             val types = schemas.map { it.storageTypes() }
-            if (types.any { it == null }) return emptySet()
+            if (types.any { it == null }) return null
             return types.filterNotNull().flatten().toSet()
         }
 
