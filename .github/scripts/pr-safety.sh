@@ -20,6 +20,7 @@ check_safety() {
   local changed_files=$3
   local base_files=$4
   local head_files=$5
+  local inspected_files=$6
 
   if [[ $dependency_pr == true && $removed_files -gt 0 ]]; then
     printf '::error::Dependency PRs must not delete tracked files (%s deleted).\n' "$removed_files" >&2
@@ -27,6 +28,11 @@ check_safety() {
   fi
   if (( changed_files > 3000 )); then
     printf '::error::PR changes %s files; GitHub only exposes the first 3000 files for inspection.\n' "$changed_files" >&2
+    return 1
+  fi
+  if (( inspected_files != changed_files )); then
+    printf '::error::GitHub returned %s of %s changed files; refusing to inspect incomplete PR data.\n' \
+      "$inspected_files" "$changed_files" >&2
     return 1
   fi
   if (( base_files == 0 )); then
@@ -40,13 +46,24 @@ check_safety() {
   fi
 }
 
-run_case() {
+count_tree_files_response() {
+  local tree_sha=$1
+  local response=$2
+
+  if ! jq -e '.truncated == false and (.tree | type == "array")' >/dev/null <<<"$response"; then
+    printf '::error::GitHub returned an incomplete tree for %s.\n' "$tree_sha" >&2
+    return 1
+  fi
+  jq -r '[.tree[] | select(.type == "blob")] | length' <<<"$response"
+}
+
+expect_exit() {
   local name=$1
   local expected=$2
   shift 2
 
   local actual
-  if check_safety "$@" >/dev/null 2>&1; then
+  if "$@" >/dev/null 2>&1; then
     actual=0
   else
     actual=$?
@@ -59,12 +76,15 @@ run_case() {
 
 if [[ ${1:-} == '--self-test' ]]; then
   failures=0
-  run_case 'normal dependency update passes' 0 true 0 2 2834 2834 || ((failures += 1))
-  run_case 'dependency update cannot delete files' 1 true 1 2 2834 2833 || ((failures += 1))
-  run_case 'ordinary PR cannot remove over ten percent of the repository' 1 false 284 284 2834 2550 || ((failures += 1))
-  run_case 'ordinary small deletion passes' 0 false 1 1 2834 2833 || ((failures += 1))
-  run_case 'PRs beyond GitHub file inspection limit fail closed' 1 false 0 3001 2834 5835 || ((failures += 1))
-  run_case 'an empty base tree fails closed' 1 false 0 0 0 1 || ((failures += 1))
+  expect_exit 'normal dependency update passes' 0 check_safety true 0 2 2834 2834 2 || ((failures += 1))
+  expect_exit 'dependency update cannot delete files' 1 check_safety true 1 2 2834 2833 2 || ((failures += 1))
+  expect_exit 'ordinary PR cannot remove over ten percent of the repository' 1 check_safety false 284 284 2834 2550 284 || ((failures += 1))
+  expect_exit 'ordinary small deletion passes' 0 check_safety false 1 1 2834 2833 1 || ((failures += 1))
+  expect_exit 'PRs beyond GitHub file inspection limit fail closed' 1 check_safety false 0 3001 2834 5835 3000 || ((failures += 1))
+  expect_exit 'an empty base tree fails closed' 1 check_safety false 0 0 0 1 0 || ((failures += 1))
+  expect_exit 'incomplete PR file pages fail closed' 1 check_safety false 0 2 2834 2834 1 || ((failures += 1))
+  expect_exit 'complete tree response passes' 0 count_tree_files_response test-tree '{"truncated":false,"tree":[]}' || ((failures += 1))
+  expect_exit 'missing truncated flag fails closed' 1 count_tree_files_response test-tree '{"tree":[]}' || ((failures += 1))
   (( failures == 0 )) || exit 1
   printf 'PR safety self-test passed.\n'
   exit 0
@@ -76,11 +96,7 @@ fi
 count_tree_files() {
   local response
   response=$(gh api "repos/${GH_REPO}/git/trees/$1?recursive=1")
-  if [[ $(jq -r '.truncated' <<<"$response") == true ]]; then
-    printf '::error::GitHub truncated tree %s; refusing to evaluate an incomplete repository.\n' "$1" >&2
-    return 1
-  fi
-  jq -r '[.tree[] | select(.type == "blob")] | length' <<<"$response"
+  count_tree_files_response "$1" "$response"
 }
 
 pr=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}")
@@ -90,12 +106,13 @@ changed_files=$(jq -r '.changed_files' <<<"$pr")
 dependency_pr=$(jq -r \
   '(.head.ref | startswith("renovate/")) or any(.labels[]?; .name == "dependencies")' \
   <<<"$pr")
-removed_files=$(gh api --paginate --slurp \
-  "repos/${GH_REPO}/pulls/${PR_NUMBER}/files?per_page=100" |
-  jq '[.[][] | select(.status == "removed")] | length')
+pr_files=$(gh api --paginate --slurp \
+  "repos/${GH_REPO}/pulls/${PR_NUMBER}/files?per_page=100")
+inspected_files=$(jq '[.[][]] | length' <<<"$pr_files")
+removed_files=$(jq '[.[][] | select(.status == "removed")] | length' <<<"$pr_files")
 base_files=$(count_tree_files "$base_sha")
 head_files=$(count_tree_files "$head_sha")
 
 printf 'PR safety: dependency=%s, changed=%s, removed=%s, base=%s, head=%s\n' \
   "$dependency_pr" "$changed_files" "$removed_files" "$base_files" "$head_files"
-check_safety "$dependency_pr" "$removed_files" "$changed_files" "$base_files" "$head_files"
+check_safety "$dependency_pr" "$removed_files" "$changed_files" "$base_files" "$head_files" "$inspected_files"
