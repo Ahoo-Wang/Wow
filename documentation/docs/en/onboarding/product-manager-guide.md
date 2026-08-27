@@ -18,7 +18,7 @@ Select one real workflow and answer these questions with domain and engineering 
 | User intent | What does the user ask the system to do? Is it a command that can be accepted or rejected? |
 | Business fact | What immutable fact happened after acceptance? Can business stakeholders understand the event name? |
 | Current state | Which state is rebuilt from events, and which data is only a derived read model? |
-| Completion stage | Does the user need to know the request was sent, processed, snapshotted, or visible in a projection? |
+| Completion stage | Does the user only need to know the request was sent, processed, snapshotted, or handled by the matching projection function, or must the product actually query the read model? |
 | Failure experience | How do validation, domain rejection, duplicate requests, timeouts, and downstream failures differ? |
 | Recovery ownership | Which failures retry automatically, and which need an operator? Compensation does not erase facts that happened. |
 | Data and security | Who defines identity, tenant scope, retention, deletion, audit, and sensitive-field policy? |
@@ -31,7 +31,7 @@ Use [Command Gateway](../guide/command-gateway.md) for exact command stages and 
 
 - The workflow has business invariants that need one protected boundary.
 - The business needs traceable change history or versioned state reconstruction.
-- Write acceptance, domain processing, snapshot completion, and projection visibility must be expressed separately.
+- Write acceptance, domain processing, snapshot completion, matching projection-function completion, and read-model query visibility must be expressed separately.
 - Duplicate requests, asynchronous processing, and recovery are explicit product cases.
 
 ### Prefer a simpler design first
@@ -58,8 +58,8 @@ And    timeout, duplicate, and downstream failure have actionable paths
 Completion evidence includes at least:
 
 - a domain specification covering acceptance and rejection;
-- a real interface result with aggregate ID, version, and observable requested stage;
-- separate proof of `PROJECTED` or actual read-model visibility when the product depends on a query screen;
+- a real interface result with aggregate ID and the observable requested stage; record `aggregateVersion` only when that stage knows it. `SENT` may be `null` or carry only the command's expected version. If acceptance needs the post-processing version, wait for `PROCESSED` or a later stage, or read state/events separately;
+- an actual query proving the target read model is visible when the product depends on a query screen. `PROJECTED` is only additional stage evidence that the matching projection processor completed; it cannot replace read-after-write verification, especially for work started outside the returned reactive chain;
 - retry and operator recovery described without claiming transaction rollback;
 - application or platform ownership for retention, deletion, permissions, and operator audit;
 - latency, throughput, availability, and cost targets derived from this product's environment and acceptance baseline—not framework samples.
@@ -69,6 +69,6 @@ Repository examples and tests can establish framework behavior; they cannot repl
 ## Prioritized next path
 
 1. **Workflow fits**: turn commands, events, state, and invariants into a specification with [Modeling](../guide/modeling.md).
-2. **An asynchronous read model is required**: continue with [Projection](../guide/projection.md) and [Query](../guide/query.md), and choose the user-visible completion stage.
+2. **An asynchronous read model is required**: continue with [Projection](../guide/projection.md) and [Query](../guide/query.md), choose the user-visible completion stage, and keep actual query visibility as a separate acceptance check.
 3. **Failure recovery is required**: use [Event Compensation](../guide/event-compensation.md) and [Recovery](../guide/recovery.md) to define automatic and operator boundaries.
 4. **Workflow does not fit**: stop introducing Wow; choosing the simpler design needs no extra ceremony.
