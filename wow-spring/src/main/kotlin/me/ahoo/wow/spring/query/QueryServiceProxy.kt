@@ -26,7 +26,10 @@ import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.query.QueryService
 import me.ahoo.wow.query.event.EventStreamQueryService
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
+import me.ahoo.wow.query.event.requiredQueryModelSchemaProvider
 import me.ahoo.wow.query.filter.QueryHandler
+import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import reactor.core.publisher.Flux
@@ -48,12 +51,19 @@ internal class SnapshotQueryServiceProxy<S : Any>(
 }
 
 internal class EventStreamQueryServiceProxy(
-    delegate: EventStreamQueryService,
+    private val delegate: EventStreamQueryService,
     private val handler: EventStreamQueryHandler,
 ) : QueryServiceProxy<DomainEventStream>(delegate.namedAggregate, handler),
-    EventStreamQueryService {
+    EventStreamQueryService,
+    QueryModelSchemaProvider {
     override fun aggregate(query: AggregationQuery): Flux<DynamicDocument> =
         handler.aggregate(namedAggregate, query)
+
+    override fun schema(): Mono<QueryModelSchema> =
+        Mono.defer { delegate.requiredQueryModelSchemaProvider().schema() }
+
+    override fun refresh(): Mono<QueryModelSchema> =
+        Mono.defer { delegate.requiredQueryModelSchemaProvider().refresh() }
 }
 
 internal abstract class QueryServiceProxy<R : Any>(

@@ -153,6 +153,14 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
         )
     }
 
+    fun elasticsearchEventStreamQueryServiceFactory(
+        elasticsearchClient: ReactiveElasticsearchClient,
+    ): ElasticsearchEventStreamQueryServiceFactory = ElasticsearchEventStreamQueryServiceFactory(
+        elasticsearchClient,
+        queryProperties.batchSize,
+        queryProperties.keepAlive,
+    )
+
     @Bean
     @ConditionalOnEventStoreStorage(StorageType.ELASTICSEARCH)
     fun elasticsearchEventStreamQueryServiceFactoryBinding(

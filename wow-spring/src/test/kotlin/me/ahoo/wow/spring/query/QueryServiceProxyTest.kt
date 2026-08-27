@@ -24,6 +24,7 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.filter.EmptyFilterChain
 import me.ahoo.wow.filter.FilterChain
@@ -35,11 +36,16 @@ import me.ahoo.wow.query.event.EventStreamQueryService
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.NoOpEventStreamQueryService
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
+import me.ahoo.wow.query.event.requiredQueryModelSchemaProvider
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryService
 import me.ahoo.wow.query.snapshot.filter.DefaultSnapshotQueryHandler
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.support.DefaultListableBeanFactory
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -72,6 +78,40 @@ class QueryServiceProxyTest {
             QueryType.AGGREGATION,
         )
         handler.namedAggregates.toSet().assert().containsExactly(namedAggregate)
+    }
+
+    @Test
+    fun `event stream proxy should preserve schema provider capability`() {
+        val initial = QueryModelSchema(QueryModel.EVENT_STREAM, emptySet(), emptyMap())
+        val refreshed = QueryModelSchema(QueryModel.EVENT_STREAM, emptySet(), emptyMap())
+        val delegate = object :
+            EventStreamQueryService by NoOpEventStreamQueryService(namedAggregate),
+            QueryModelSchemaProvider {
+            override fun schema(): Mono<QueryModelSchema> = Mono.just(initial)
+
+            override fun refresh(): Mono<QueryModelSchema> = Mono.just(refreshed)
+        }
+        val provider = EventStreamQueryServiceProxy(
+            delegate,
+            RecordingEventStreamQueryHandler(),
+        ).requiredQueryModelSchemaProvider()
+
+        provider.schema().block().assert().isSameAs(initial)
+        provider.refresh().block().assert().isSameAs(refreshed)
+    }
+
+    @Test
+    fun `event stream proxy should report unavailable schema reactively`() {
+        val proxy = EventStreamQueryServiceProxy(
+            NoOpEventStreamQueryService(namedAggregate),
+            RecordingEventStreamQueryHandler(),
+        )
+
+        val unavailableSchema = proxy.requiredQueryModelSchemaProvider().schema()
+
+        assertThrows<QuerySchemaUnavailableException> {
+            unavailableSchema.block()
+        }
     }
 
     @Test

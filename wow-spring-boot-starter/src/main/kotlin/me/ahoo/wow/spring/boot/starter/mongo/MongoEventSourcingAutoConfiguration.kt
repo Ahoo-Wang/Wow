@@ -127,6 +127,18 @@ class MongoEventSourcingAutoConfiguration(
         )
     }
 
+    fun mongoEventStreamQueryServiceFactory(
+        mongoClient: MongoClient,
+        dataMongoProperties: org.springframework.boot.mongodb.autoconfigure.MongoProperties?,
+        currentBoundedContext: NamedBoundedContext,
+    ): MongoEventStreamQueryServiceFactory = mongoEventStreamQueryServiceFactory(
+        mongoClient,
+        dataMongoProperties,
+        currentBoundedContext,
+        emptyList(),
+        QueryProperties(),
+    )
+
     @Bean
     @ConditionalOnEventStoreStorage(StorageType.MONGO)
     fun mongoEventStreamQueryServiceFactoryBinding(

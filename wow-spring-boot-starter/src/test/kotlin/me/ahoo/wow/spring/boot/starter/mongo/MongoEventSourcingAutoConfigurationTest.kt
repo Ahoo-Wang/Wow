@@ -67,6 +67,20 @@ class MongoEventSourcingAutoConfigurationTest {
         .withUserConfiguration(QuerySchemaAutoConfiguration::class.java)
 
     @Test
+    fun `should preserve legacy event stream query factory JVM signature`() {
+        val method = MongoEventSourcingAutoConfiguration::class.java.getMethod(
+            "mongoEventStreamQueryServiceFactory",
+            MongoClient::class.java,
+            org.springframework.boot.mongodb.autoconfigure.MongoProperties::class.java,
+            me.ahoo.wow.api.naming.NamedBoundedContext::class.java,
+        )
+
+        method.returnType.assert().isEqualTo(
+            me.ahoo.wow.mongo.query.event.MongoEventStreamQueryServiceFactory::class.java,
+        )
+    }
+
+    @Test
     fun `constructor creates mongo snapshot store`() {
         val configuration = MongoEventSourcingAutoConfiguration(
             mongoProperties = MongoProperties(
