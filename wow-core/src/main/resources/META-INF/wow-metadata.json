@@ -1,0 +1,58 @@
+{
+  "contexts": {
+    "wow": {
+      "alias": "wow",
+      "scopes": [
+        "me.ahoo.wow"
+      ]
+    },
+    "wow.command": {
+      "alias": "wow.command",
+      "scopes": [
+        "me.ahoo.wow.command"
+      ]
+    },
+    "wow.configuration": {
+      "alias": "wow.configuration",
+      "scopes": [
+        "me.ahoo.wow.configuration"
+      ]
+    },
+    "wow.event": {
+      "alias": "wow.event",
+      "scopes": [
+        "me.ahoo.wow.event"
+      ]
+    },
+    "wow.sourcing": {
+      "alias": "wow.sourcing",
+      "scopes": [
+        "me.ahoo.wow.eventsourcing"
+      ]
+    },
+    "wow.exception": {
+      "alias": "wow.exception",
+      "scopes": [
+        "me.ahoo.wow.modeling"
+      ]
+    },
+    "wow.messaging": {
+      "alias": "wow.messaging",
+      "scopes": [
+        "me.ahoo.wow.messaging"
+      ]
+    },
+    "wow.modeling": {
+      "alias": "wow.modeling",
+      "scopes": [
+        "me.ahoo.wow.modeling"
+      ]
+    },
+    "wow.naming": {
+      "alias": "wow.naming",
+      "scopes": [
+        "me.ahoo.wow.naming"
+      ]
+    }
+  }
+}

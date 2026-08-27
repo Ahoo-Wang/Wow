@@ -1,0 +1,85 @@
+# JMH version: 1.37
+# VM version: JDK 17.0.7, OpenJDK 64-Bit Server VM, 17.0.7+7-LTS
+# VM invoker: /Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java
+# VM options: -Xms4g -Xmx4g -XX:+UseG1GC -XX:+AlwaysPreTouch -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 2 iterations, 5 s each
+# Measurement: 3 iterations, 10 s each
+# Timeout: 10 min per iteration
+# Threads: 14 threads, will synchronize iterations
+# Benchmark mode: Throughput, ops/time
+# Benchmark: me.ahoo.wow.benchmark.infrastructure.redis.RedisCommandWriteE2EBenchmark.sendAndWaitProcessed
+# Parameters: (schedulerPoolSize = 14, schedulerStrategy = PARALLEL, stripeCount = 896)
+
+# Run progress: 0.00% complete, ETA 00:00:40
+# Fork: 1 of 1
+# Warmup Iteration   1: 20537.309 ops/s
+# Warmup Iteration   2: 24489.580 ops/s
+Iteration   1: 25236.271 ops/s
+                 gc.alloc.rate:      99.378 MB/sec
+                 gc.alloc.rate.norm: 4323.014 B/op
+                 gc.count:           4.000 counts
+                 gc.time:            15.000 ms
+
+Iteration   2: 25996.237 ops/s
+                 gc.alloc.rate:      102.886 MB/sec
+                 gc.alloc.rate.norm: 4318.531 B/op
+                 gc.count:           4.000 counts
+                 gc.time:            11.000 ms
+
+Iteration   3: 25282.455 ops/s
+                 gc.alloc.rate:      99.174 MB/sec
+                 gc.alloc.rate.norm: 4322.252 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            10.000 ms
+
+
+
+Result "me.ahoo.wow.benchmark.infrastructure.redis.RedisCommandWriteE2EBenchmark.sendAndWaitProcessed":
+  25504.988 ±(99.9%) 7772.936 ops/s [Average]
+  (min, avg, max) = (25236.271, 25504.988, 25996.237), stdev = 426.061
+  CI (99.9%): [17732.052, 33277.923] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.infrastructure.redis.RedisCommandWriteE2EBenchmark.sendAndWaitProcessed:gc.alloc.rate":
+  100.479 ±(99.9%) 38.064 MB/sec [Average]
+  (min, avg, max) = (99.174, 100.479, 102.886), stdev = 2.086
+  CI (99.9%): [62.416, 138.543] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.infrastructure.redis.RedisCommandWriteE2EBenchmark.sendAndWaitProcessed:gc.alloc.rate.norm":
+  4321.266 ±(99.9%) 43.758 B/op [Average]
+  (min, avg, max) = (4318.531, 4321.266, 4323.014), stdev = 2.399
+  CI (99.9%): [4277.507, 4365.024] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.infrastructure.redis.RedisCommandWriteE2EBenchmark.sendAndWaitProcessed:gc.count":
+  11.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (3.000, 3.667, 4.000), stdev = 0.577
+  CI (99.9%): [11.000, 11.000] (assumes normal distribution)
+
+Secondary result "me.ahoo.wow.benchmark.infrastructure.redis.RedisCommandWriteE2EBenchmark.sendAndWaitProcessed:gc.time":
+  36.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (10.000, 12.000, 15.000), stdev = 2.646
+  CI (99.9%): [36.000, 36.000] (assumes normal distribution)
+
+
+# Run complete. Total time: 00:00:44
+
+REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on
+why the numbers are the way they are. Use profilers (see -prof, -lprof), design factorial
+experiments, perform baseline and negative tests that provide experimental control, make sure
+the benchmarking environment is safe on JVM/OS/HW level, ask for reviews from the domain experts.
+Do not assume the numbers tell you what you want them to tell.
+
+NOTE: Current JVM experimentally supports Compiler Blackholes, and they are in use. Please exercise
+extra caution when trusting the results, look into the generated code to check the benchmark still
+works, and factor in a small probability of new VM bugs. Additionally, while comparisons between
+different JVMs are already problematic, the performance difference caused by different Blackhole
+modes can be very significant. Please make sure you use the consistent Blackhole mode for comparisons.
+
+Benchmark                                                              (schedulerPoolSize)  (schedulerStrategy)  (stripeCount)   Mode  Cnt      Score      Error   Units
+RedisCommandWriteE2EBenchmark.sendAndWaitProcessed                                      14             PARALLEL            896  thrpt    3  25504.988 ± 7772.936   ops/s
+RedisCommandWriteE2EBenchmark.sendAndWaitProcessed:gc.alloc.rate                        14             PARALLEL            896  thrpt    3    100.479 ±   38.064  MB/sec
+RedisCommandWriteE2EBenchmark.sendAndWaitProcessed:gc.alloc.rate.norm                   14             PARALLEL            896  thrpt    3   4321.266 ±   43.758    B/op
+RedisCommandWriteE2EBenchmark.sendAndWaitProcessed:gc.count                             14             PARALLEL            896  thrpt    3     11.000             counts
+RedisCommandWriteE2EBenchmark.sendAndWaitProcessed:gc.time                              14             PARALLEL            896  thrpt    3     36.000                 ms
+
+Benchmark result is saved to /private/tmp/wow-main-07b46a-e2e-profile.Za4QQw/gc-redis-1.json

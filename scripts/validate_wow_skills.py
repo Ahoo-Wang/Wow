@@ -1,0 +1,557 @@
+#!/usr/bin/env python3
+"""Validate the repository-owned Wow Skills package with the Python stdlib."""
+
+from __future__ import annotations
+
+import json
+import re
+import sys
+from pathlib import Path, PurePosixPath
+from typing import Any
+
+
+EXPECTED_SKILLS = {
+    "wow-debug",
+    "wow-develop",
+    "wow-migrate",
+    "wow-review",
+}
+NAME_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+RESOURCE_PATTERN = re.compile(
+    r"(?<![A-Za-z0-9_/])((?:references|assets|scripts)/[A-Za-z0-9_.\-/]+)"
+)
+NON_RUNTIME_RESOURCE_MARKERS = ("agents/", "evals/")
+PARENT_PATH_PATTERN = re.compile(r"(?<![A-Za-z0-9_.-])\.\.[/\\]")
+EXPLICIT_ABSOLUTE_FILESYSTEM_PATTERN = re.compile(
+    r"(?<![A-Za-z0-9])(?:file://|~[/\\]|\$(?:HOME|CODEX_HOME)[/\\]|"
+    r"\$\{(?:HOME|CODEX_HOME)\}[/\\]|[A-Za-z]:[/\\]|\\\\[^\\\s]+\\[^\\\s]+)"
+)
+UNIX_ABSOLUTE_PATH_PATTERN = re.compile(
+    r"(?<![A-Za-z0-9:./])/(?!/)[A-Za-z0-9._{}-]+(?:/[A-Za-z0-9._{}-]+)*"
+)
+GLOB_ARGUMENT_PATTERN = re.compile(r"--glob(?:=|\s+)(?:'[^']*'|\"[^\"]*\"|\S+)")
+HTTP_ROUTE_PREFIX_PATTERN = re.compile(
+    r"^/(?:api(?:/|$)|v\d+(?:/|$)|actuator(?:/|$)|swagger-ui(?:[./]|$)|wow(?:/|$))",
+    re.IGNORECASE,
+)
+HTTP_PATH_CONTEXT_PATTERN = re.compile(
+    r"\b(?:http|endpoint|route|request|browser|get|post|put|patch|delete|head|options)\b",
+    re.IGNORECASE,
+)
+FILESYSTEM_PATH_CONTEXT_PATTERN = re.compile(
+    r"\b(?:read|open|inspect|load|write|edit|delete|remove|copy|move|execute|run|source|"
+    r"cat|head|tail|less|more|rm|cp|mv|"
+    r"file|directory|filesystem|config(?:uration)?\s+(?:file|path|lives)|path\s+(?:is|at))\b",
+    re.IGNORECASE,
+)
+FILESYSTEM_ROOTS = {
+    "Users", "Volumes", "bin", "boot", "dev", "etc", "home",
+    "lib", "lib64", "media", "mnt", "opt", "private", "proc", "root",
+    "run", "sbin", "secrets", "srv", "sys", "tmp", "usr", "var", "workspace", "workspaces",
+}
+FILESYSTEM_SUFFIXES = {
+    ".env", ".key", ".pem",
+}
+
+
+def _is_glob_argument(line: str, start: int, end: int) -> bool:
+    return any(match.start() <= start and end <= match.end() for match in GLOB_ARGUMENT_PATTERN.finditer(line))
+
+
+def _is_http_route(path: str, line: str) -> bool:
+    return (
+        HTTP_ROUTE_PREFIX_PATTERN.search(path) is not None
+        or ("{" in path and "}" in path)
+        or (
+            HTTP_PATH_CONTEXT_PATTERN.search(line) is not None
+            and FILESYSTEM_PATH_CONTEXT_PATTERN.search(line) is None
+        )
+    )
+
+
+def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate key {key!r}")
+        result[key] = value
+    return result
+
+
+def _reject_json_constant(value: str) -> Any:
+    raise ValueError(f"invalid constant {value}")
+
+
+def _validate_filesystem_paths(
+    source: Path,
+    value: str,
+    errors: list[str],
+    *,
+    script: bool = False,
+) -> None:
+    if PARENT_PATH_PATTERN.search(value):
+        errors.append(f"{source}: runtime content references a parent path")
+    if EXPLICIT_ABSOLUTE_FILESYSTEM_PATTERN.search(value):
+        errors.append(f"{source}: runtime content references an absolute filesystem path")
+        return
+    for line in value.splitlines():
+        for match in UNIX_ABSOLUTE_PATH_PATTERN.finditer(line):
+            path = match.group(0)
+            if script and (path == "/dev/null" or _is_glob_argument(line, match.start(), match.end())):
+                continue
+            parts = path.lstrip("/").split("/")
+            filesystem_marker = (
+                parts[0] in FILESYSTEM_ROOTS
+                or any(part.startswith(".") for part in parts)
+                or any(path.endswith(suffix) for suffix in FILESYSTEM_SUFFIXES)
+            )
+            if _is_http_route(path, line) and not filesystem_marker:
+                continue
+            if filesystem_marker or FILESYSTEM_PATH_CONTEXT_PATTERN.search(line) is not None:
+                errors.append(f"{source}: runtime content references an absolute filesystem path")
+                return
+
+
+def _validate_runtime_text(source: Path, value: str, errors: list[str]) -> None:
+    for marker in NON_RUNTIME_RESOURCE_MARKERS:
+        if marker in value:
+            errors.append(f"{source}: runtime content references maintainer-only content: {marker}")
+    _validate_filesystem_paths(source, value, errors)
+
+
+def _validate_script_text(source: Path, value: str, errors: list[str]) -> None:
+    _validate_filesystem_paths(source, value, errors, script=True)
+
+
+def _scalar(raw: str, source: Path, line: int, errors: list[str]) -> str | None:
+    value = raw.strip()
+    if not value:
+        errors.append(f"{source}:{line}: missing scalar value")
+        return None
+    if value[0] != '\"':
+        errors.append(f"{source}:{line}: value must be a double-quoted string")
+        return None
+    try:
+        parsed = json.loads(value)
+    except (ValueError, RecursionError):
+        errors.append(f"{source}:{line}: invalid quoted scalar")
+        return None
+    if not isinstance(parsed, str):
+        errors.append(f"{source}:{line}: scalar must be a string")
+        return None
+    return parsed
+
+
+def _frontmatter(path: Path, errors: list[str]) -> tuple[dict[str, str], str]:
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        errors.append(f"{path}: cannot read UTF-8 text: {exc}")
+        return {}, ""
+
+    lines = text.splitlines()
+    if not lines or lines[0] != "---":
+        errors.append(f"{path}: frontmatter must start with ---")
+        return {}, text
+    try:
+        closing = lines.index("---", 1)
+    except ValueError:
+        errors.append(f"{path}: frontmatter is not closed")
+        return {}, ""
+
+    values: dict[str, str] = {}
+    for index, line in enumerate(lines[1:closing], start=2):
+        match = re.fullmatch(r"([A-Za-z_][A-Za-z0-9_-]*):\s*(.*)", line)
+        if match is None:
+            errors.append(f"{path}:{index}: frontmatter must use flat key: value entries")
+            continue
+        key, raw = match.groups()
+        if key in values:
+            errors.append(f"{path}:{index}: duplicate frontmatter key {key!r}")
+            continue
+        value = _scalar(raw, path, index, errors)
+        if value is not None:
+            values[key] = value
+
+    return values, "\n".join(lines[closing + 1 :]).strip()
+
+
+def _validate_skill_file(skill_dir: Path, errors: list[str]) -> str:
+    skill_file = skill_dir / "SKILL.md"
+    if skill_dir.is_symlink() or skill_file.is_symlink():
+        errors.append(f"{skill_file}: Skill directories and SKILL.md must not be links")
+        return ""
+    if not skill_file.is_file():
+        errors.append(f"{skill_file}: missing SKILL.md")
+        return ""
+
+    metadata, body = _frontmatter(skill_file, errors)
+    unknown = sorted(set(metadata) - {"name", "description"})
+    if unknown:
+        errors.append(f"{skill_file}: unsupported frontmatter keys: {', '.join(unknown)}")
+
+    name = metadata.get("name", "")
+    description = metadata.get("description", "")
+    if name != skill_dir.name:
+        errors.append(f"{skill_file}: name {name!r} must match directory {skill_dir.name!r}")
+    if not NAME_PATTERN.fullmatch(name) or len(name) > 64:
+        errors.append(f"{skill_file}: invalid skill name {name!r}")
+    if not description.strip() or len(description) > 1024 or "<" in description or ">" in description:
+        errors.append(f"{skill_file}: description must be 1-1024 characters without angle brackets")
+    _validate_runtime_text(skill_file, description, errors)
+    if not body:
+        errors.append(f"{skill_file}: body must not be empty")
+    return body
+
+
+def _validate_openai_yaml(skill_dir: Path, errors: list[str]) -> None:
+    agents_dir = skill_dir / "agents"
+    path = agents_dir / "openai.yaml"
+    if agents_dir.is_symlink() or path.is_symlink() or not _contained(path, skill_dir):
+        errors.append(f"{path}: agents and openai.yaml must stay inside the Skill and must not be links")
+        return
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeError) as exc:
+        errors.append(f"{path}: cannot read UTF-8 text: {exc}")
+        return
+
+    content = [(index, line) for index, line in enumerate(lines, start=1) if line.strip()]
+    if not content or content[0][1] != "interface:":
+        errors.append(f"{path}: expected a top-level interface mapping")
+        return
+
+    values: dict[str, str] = {}
+    for index, line in content[1:]:
+        match = re.fullmatch(r"  ([a-z_]+):\s*(.*)", line)
+        if match is None:
+            errors.append(f"{path}:{index}: expected a two-space-indented interface scalar")
+            continue
+        key, raw = match.groups()
+        if key in values:
+            errors.append(f"{path}:{index}: duplicate interface key {key!r}")
+            continue
+        value = _scalar(raw, path, index, errors)
+        if value is not None:
+            values[key] = value
+
+    required = {"display_name", "short_description", "default_prompt"}
+    if set(values) != required:
+        errors.append(f"{path}: interface keys must be exactly {', '.join(sorted(required))}")
+        return
+    if not values["display_name"].strip() or len(values["display_name"]) > 64:
+        errors.append(f"{path}: display_name must be 1-64 characters")
+    if not values["short_description"].strip() or not 25 <= len(values["short_description"]) <= 64:
+        errors.append(f"{path}: short_description must be 25-64 characters")
+    _validate_runtime_text(path, values["default_prompt"], errors)
+    skill_token = re.compile(
+        rf"(?<![A-Za-z0-9_-])\${re.escape(skill_dir.name)}(?![A-Za-z0-9_-])"
+    )
+    if skill_token.search(values["default_prompt"]) is None:
+        errors.append(f"{path}: default_prompt must reference ${skill_dir.name}")
+
+
+def _contained(candidate: Path, parent: Path) -> bool:
+    try:
+        candidate.resolve().relative_to(parent.resolve())
+        return True
+    except (OSError, ValueError):
+        return False
+
+
+def _has_link_component(candidate: Path, parent: Path) -> bool:
+    try:
+        relative = candidate.relative_to(parent)
+    except ValueError:
+        return False
+    current = parent
+    if current.is_symlink():
+        return True
+    for part in relative.parts:
+        current /= part
+        if current.is_symlink():
+            return True
+    return False
+
+
+def _validate_resources(skill_dir: Path, body: str, errors: list[str]) -> None:
+    referenced = set(RESOURCE_PATTERN.findall(body))
+    for raw in sorted(referenced):
+        relative = PurePosixPath(raw)
+        if relative.is_absolute() or ".." in relative.parts:
+            errors.append(f"{skill_dir / 'SKILL.md'}: resource path escapes the Skill: {raw}")
+            continue
+        target = skill_dir.joinpath(*relative.parts)
+        if not _contained(target, skill_dir):
+            errors.append(f"{skill_dir / 'SKILL.md'}: resource path escapes the Skill: {raw}")
+        elif not target.exists():
+            errors.append(f"{skill_dir / 'SKILL.md'}: referenced resource does not exist: {raw}")
+        elif target.is_symlink() or not target.is_file():
+            errors.append(f"{skill_dir / 'SKILL.md'}: referenced resource must be a regular file: {raw}")
+
+    for directory in ("references", "assets", "scripts"):
+        root = skill_dir / directory
+        if root.is_symlink():
+            errors.append(f"{root}: resource directories must stay inside the Skill and must not be links")
+            continue
+        if not root.exists():
+            continue
+        if not _contained(root, skill_dir):
+            errors.append(f"{root}: resource directories must stay inside the Skill and must not be links")
+            continue
+        if not root.is_dir():
+            errors.append(f"{root}: resource root must be a regular directory")
+            continue
+        for path in sorted(root.rglob("*")):
+            if path.is_symlink():
+                errors.append(f"{path}: resource links are not allowed")
+                continue
+            if path.is_dir():
+                continue
+            if not path.is_file():
+                errors.append(f"{path}: resource must be a regular file")
+                continue
+            relative = path.relative_to(skill_dir).as_posix()
+            if relative not in referenced:
+                errors.append(f"{path}: resource is not referenced directly from SKILL.md")
+
+    documents = [(skill_dir / "SKILL.md", body)]
+    for directory in ("references", "assets"):
+        document_root = skill_dir / directory
+        if document_root.is_dir() and not document_root.is_symlink() and _contained(document_root, skill_dir):
+            for path in sorted(document_root.rglob("*.md")):
+                if path.is_symlink() or not _contained(path, skill_dir):
+                    continue
+                try:
+                    documents.append((path, path.read_text(encoding="utf-8")))
+                except (OSError, UnicodeError) as exc:
+                    errors.append(f"{path}: cannot read UTF-8 text: {exc}")
+    script_root = skill_dir / "scripts"
+    if script_root.is_dir() and not script_root.is_symlink() and _contained(script_root, skill_dir):
+        for path in sorted(script_root.rglob("*")):
+            if path.is_symlink() or not path.is_file() or not _contained(path, skill_dir):
+                continue
+            try:
+                lines = path.read_text(encoding="utf-8").splitlines()
+                if lines and lines[0].startswith("#!"):
+                    lines = lines[1:]
+                _validate_script_text(path, "\n".join(lines), errors)
+            except (OSError, UnicodeError) as exc:
+                errors.append(f"{path}: cannot read UTF-8 text: {exc}")
+    for source, text in documents:
+        _validate_runtime_text(source, text, errors)
+
+
+def _load_jsonl(path: Path, errors: list[str]) -> list[tuple[int, dict[str, Any]]]:
+    records: list[tuple[int, dict[str, Any]]] = []
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeError) as exc:
+        errors.append(f"{path}: cannot read UTF-8 text: {exc}")
+        return records
+    for number, line in enumerate(lines, start=1):
+        if not line.strip():
+            continue
+        try:
+            record = json.loads(
+                line,
+                object_pairs_hook=_unique_json_object,
+                parse_constant=_reject_json_constant,
+            )
+        except (ValueError, RecursionError) as exc:
+            message = exc.msg if isinstance(exc, json.JSONDecodeError) else str(exc)
+            errors.append(f"{path}:{number}: invalid JSON: {message}")
+            continue
+        if not isinstance(record, dict):
+            errors.append(f"{path}:{number}: each JSONL record must be an object")
+            continue
+        records.append((number, record))
+    return records
+
+
+def _validate_evals(skills_root: Path, skill_names: set[str], errors: list[str]) -> None:
+    seen_ids: dict[str, str] = {}
+    for skill_name in sorted(skill_names):
+        skill_dir = skills_root / skill_name
+        if skill_dir.is_symlink() or not skill_dir.is_dir() or not _contained(skill_dir, skills_root):
+            continue
+        eval_dir = skill_dir / "evals"
+        if eval_dir.is_symlink() or not _contained(eval_dir, skill_dir):
+            errors.append(f"{eval_dir}: evals must stay inside the Skill and must not be a link")
+            continue
+        fixtures_root = eval_dir / "fixtures"
+        fixtures_valid = False
+        if fixtures_root.is_symlink() or (
+            fixtures_root.exists()
+            and (not fixtures_root.is_dir() or not _contained(fixtures_root, eval_dir))
+        ):
+            errors.append(f"{fixtures_root}: evals/fixtures must be a regular directory inside evals")
+        elif fixtures_root.is_dir():
+            fixtures_valid = True
+            for entry in sorted(fixtures_root.rglob("*")):
+                if entry.is_symlink():
+                    errors.append(f"{entry}: fixture links are not allowed")
+                elif not entry.is_dir() and not entry.is_file():
+                    errors.append(f"{entry}: fixture entries must be regular files or directories")
+        for kind in ("activation", "behavior"):
+            path = eval_dir / f"{kind}.jsonl"
+            if path.is_symlink() or not _contained(path, eval_dir):
+                errors.append(f"{path}: eval data files must stay inside evals and must not be links")
+                continue
+            if not path.is_file():
+                errors.append(f"{path}: missing eval data")
+                continue
+            records = _load_jsonl(path, errors)
+            if not records:
+                errors.append(f"{path}: eval data must contain at least one valid record")
+                continue
+            for number, record in records:
+                location = f"{path}:{number}"
+                case_id = record.get("id")
+                prompt = record.get("prompt")
+                if not isinstance(case_id, str) or not case_id.strip():
+                    errors.append(f"{location}: id must be a non-empty string")
+                elif case_id in seen_ids:
+                    errors.append(f"{location}: duplicate id {case_id!r}; first seen at {seen_ids[case_id]}")
+                else:
+                    seen_ids[case_id] = location
+                if not isinstance(prompt, str) or not prompt.strip():
+                    errors.append(f"{location}: prompt must be a non-empty string")
+
+                if kind == "activation":
+                    expected = record.get("expectedSkills")
+                    if not isinstance(expected, list) or any(not isinstance(item, str) for item in expected):
+                        errors.append(f"{location}: expectedSkills must be a list of Skill names")
+                    elif len(expected) > 1 or len(expected) != len(set(expected)) or not set(expected) <= skill_names:
+                        errors.append(f"{location}: expectedSkills must contain zero or one known Primary Skill")
+                else:
+                    referenced_skill = record.get("skill")
+                    if not isinstance(referenced_skill, str) or referenced_skill not in skill_names:
+                        errors.append(f"{location}: behavior case references unknown Skill {referenced_skill!r}")
+                    rubric = record.get("expectedBehavior")
+                    if (
+                        not isinstance(rubric, list)
+                        or not rubric
+                        or any(not isinstance(item, str) or not item.strip() for item in rubric)
+                    ):
+                        errors.append(f"{location}: expectedBehavior must be a non-empty list of criteria")
+
+                fixture = record.get("fixture")
+                if fixture is not None:
+                    if not isinstance(fixture, str) or not fixture:
+                        errors.append(f"{location}: fixture must be a non-empty relative path")
+                        continue
+                    if not fixtures_valid:
+                        errors.append(f"{location}: fixture requires a regular evals/fixtures directory")
+                        continue
+                    relative = PurePosixPath(fixture)
+                    target = eval_dir.joinpath(*relative.parts)
+                    if (
+                        relative.is_absolute()
+                        or ".." in relative.parts
+                        or not target.is_relative_to(fixtures_root)
+                        or not _contained(target, fixtures_root)
+                    ):
+                        errors.append(f"{location}: fixture path must stay under evals/fixtures")
+                    elif _has_link_component(target, fixtures_root):
+                        errors.append(f"{location}: fixture path must not contain links")
+                    elif not target.exists():
+                        errors.append(f"{location}: fixture does not exist: {fixture}")
+                    elif not target.is_dir() and not target.is_file():
+                        errors.append(f"{location}: fixture must be a regular file or directory")
+
+
+def validate_repository(root: Path) -> list[str]:
+    errors: list[str] = []
+    skills_root = root / "skills"
+    manifest_path = skills_root / "plugins.json"
+    if skills_root.is_symlink() or not skills_root.is_dir():
+        return [f"{skills_root}: skills must be a regular directory, not a link"]
+    if manifest_path.is_symlink() or not manifest_path.is_file() or not _contained(manifest_path, skills_root):
+        return [f"{manifest_path}: plugin manifest must be a regular file inside skills"]
+    try:
+        manifest = json.loads(
+            manifest_path.read_text(encoding="utf-8"),
+            object_pairs_hook=_unique_json_object,
+            parse_constant=_reject_json_constant,
+        )
+        plugins = manifest["plugins"]
+        included = plugins[0]["skills"]["include"]
+    except (OSError, UnicodeError, ValueError, RecursionError, KeyError, IndexError, TypeError) as exc:
+        return [f"{manifest_path}: invalid plugin manifest: {exc}"]
+
+    schema_version = manifest.get("schemaVersion")
+    if (
+        type(schema_version) is not int
+        or schema_version != 1
+        or not isinstance(plugins, list)
+        or len(plugins) != 1
+    ):
+        errors.append(f"{manifest_path}: expected schemaVersion 1 and exactly one plugin")
+        included = []
+    if isinstance(plugins, list) and len(plugins) == 1 and isinstance(plugins[0], dict):
+        plugin = plugins[0]
+        for key in ("name", "version", "description"):
+            value = plugin.get(key)
+            if not isinstance(value, str) or not value.strip():
+                errors.append(f"{manifest_path}: plugin {key} must be a non-empty string")
+            elif key == "description":
+                _validate_runtime_text(manifest_path, value, errors)
+        interface = plugin.get("interface")
+        if not isinstance(interface, dict):
+            errors.append(f"{manifest_path}: plugin interface must be an object")
+        else:
+            for key in ("displayName", "defaultPrompt"):
+                value = interface.get(key)
+                if not isinstance(value, str) or not value.strip():
+                    errors.append(f"{manifest_path}: plugin interface.{key} must be a non-empty string")
+                elif key == "defaultPrompt":
+                    _validate_runtime_text(manifest_path, value, errors)
+    if not isinstance(included, list) or any(not isinstance(item, str) for item in included):
+        errors.append(f"{manifest_path}: skills.include must be a list of Skill names")
+        included_names: set[str] = set()
+    else:
+        included_names = set(included)
+        if len(included_names) != len(included):
+            errors.append(f"{manifest_path}: skills.include must not contain duplicates")
+
+    actual_names = {
+        path.name
+        for path in skills_root.iterdir()
+        if not path.is_symlink() and path.is_dir() and (path / "SKILL.md").exists()
+    }
+    if included_names != actual_names or actual_names != EXPECTED_SKILLS:
+        errors.append(
+            f"{manifest_path}: included, installed, and expected Skills must match: "
+            f"{', '.join(sorted(EXPECTED_SKILLS))}"
+        )
+
+    for skill_name in sorted(EXPECTED_SKILLS):
+        skill_dir = skills_root / skill_name
+        if skill_dir.is_symlink() or not skill_dir.is_dir() or not _contained(skill_dir, skills_root):
+            errors.append(f"{skill_dir}: Skill must be a regular directory inside skills")
+            continue
+        body = _validate_skill_file(skill_dir, errors)
+        _validate_openai_yaml(skill_dir, errors)
+        _validate_resources(skill_dir, body, errors)
+    _validate_evals(skills_root, EXPECTED_SKILLS, errors)
+    return sorted(errors)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = list(sys.argv[1:] if argv is None else argv)
+    if len(args) > 1:
+        print("usage: validate_wow_skills.py [repository-root]", file=sys.stderr)
+        return 2
+    root = Path(args[0]).resolve() if args else Path(__file__).resolve().parents[1]
+    errors = validate_repository(root)
+    if errors:
+        for error in errors:
+            print(f"ERROR: {error}", file=sys.stderr)
+        return 1
+    print("Wow Skills validation passed: 4 Skills; activation and behavior eval data are valid.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,14 @@
+description = "Wow OpenAPI Specification"
+
+dependencies {
+    api(project(":wow-core"))
+    api(project(":wow-query"))
+    api(project(":wow-schema"))
+    implementation(kotlin("reflect"))
+    implementation("org.springframework:spring-web")
+    api("io.swagger.core.v3:swagger-core-jakarta")
+    testImplementation(project(":wow-models"))
+    testImplementation(project(":wow-tck"))
+    testImplementation(project(":example-domain"))
+    testImplementation(project(":example-api"))
+}

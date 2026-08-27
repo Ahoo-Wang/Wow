@@ -1,0 +1,11 @@
+wow:
+  eventsourcing:
+    store:
+      storage: mongo
+    snapshot:
+      storage: mongo
+
+spring:
+  data:
+    mongodb:
+      database: wow-v6-fixture

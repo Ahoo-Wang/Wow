@@ -1,0 +1,34 @@
+{
+  "contexts": {
+    "order-service": {
+      "scopes": [
+        "me.ahoo.wow.domains.order"
+      ],
+      "aggregates": {
+        "order": {
+          "type": "me.ahoo.wow.domains.order.model.Order",
+          "scopes": [
+            "me.ahoo.wow.domains.order"
+          ]
+        }
+      }
+    },
+    "payment-service": {
+      "scopes": [
+        "me.ahoo.wow.domains.payment"
+      ],
+      "aggregates": {
+        "payment": {
+          "scopes": [
+            "me.ahoo.wow.domains.payment"
+          ]
+        }
+      }
+    },
+    "warehouse-service": {
+      "scopes": [
+        "me.ahoo.wow.domains.warehouse"
+      ]
+    }
+  }
+}

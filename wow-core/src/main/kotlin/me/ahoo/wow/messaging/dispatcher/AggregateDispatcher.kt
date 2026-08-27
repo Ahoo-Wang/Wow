@@ -1,0 +1,588 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.messaging.dispatcher
+
+import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.api.modeling.NamedAggregateDecorator
+import me.ahoo.wow.infra.lifecycle.TerminatedSignalCapable
+import me.ahoo.wow.infra.sink.terminated
+import me.ahoo.wow.messaging.LocalDeliveryTicket
+import me.ahoo.wow.messaging.handler.MessageExchange
+import me.ahoo.wow.messaging.rejectLocalDelivery
+import me.ahoo.wow.messaging.takeLocalDeliveryTicket
+import me.ahoo.wow.metrics.MetricDescriptor
+import me.ahoo.wow.metrics.WowMetrics
+import me.ahoo.wow.runtime.RuntimeActivity
+import me.ahoo.wow.runtime.RuntimeContext
+import me.ahoo.wow.runtime.internal.RuntimeCleanupExecutor
+import me.ahoo.wow.runtime.internal.publishTerminalSignal
+import reactor.core.Exceptions
+import reactor.core.publisher.Flux
+import reactor.core.publisher.GroupedFlux
+import reactor.core.publisher.Mono
+import reactor.core.publisher.Sinks
+import reactor.core.publisher.SynchronousSink
+import reactor.core.scheduler.Scheduler
+import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
+
+/**
+ * Abstract dispatcher for handling message exchanges for a specific aggregate with graceful shutdown support.
+ *
+ * This dispatcher provides a robust framework for processing message exchanges in parallel,
+ * with built-in metrics collection, error handling, and graceful shutdown capabilities.
+ * Message exchanges are grouped by key for parallel processing, ensuring ordered execution
+ * within each group while allowing concurrent processing across different groups.
+ *
+ * Key features:
+ * - Parallel message processing with configurable parallelism level
+ * - Metrics collection for monitoring dispatcher performance
+ * - Graceful shutdown that waits for active tasks to complete
+ * - Error handling through SafeSubscriber integration
+ * - Scheduler-based execution for resource management
+ *
+ * Example usage:
+ * ```kotlin
+ * class CustomAggregateDispatcher(
+ *     private val receiver: MessageReceiver<CommandExchange>,
+ *     override val parallelism: Int = 4,
+ *     override val scheduler: Scheduler = Schedulers.boundedElastic(),
+ * ) : AggregateDispatcher<CommandExchange>(
+ *     messageReadiness = receiver.readiness,
+ *     processingAdmission = receiver::openProcessing,
+ *     processingQuiescence = receiver::closeProcessing,
+ * ) {
+ *     override val messageFlux: Flux<CommandExchange> = receiver.messages
+ *
+ *     override fun CommandExchange.toGroupKey(): Int {
+ *         return command.aggregateId.hashCode() % parallelism
+ *     }
+ *
+ *     override fun handleExchange(exchange: CommandExchange): Mono<Void> {
+ *         return commandHandler.handle(exchange)
+ *             .doOnSuccess { exchange.acknowledge() }
+ *     }
+ * }
+ *
+ * // Usage
+ * val dispatcher = CustomAggregateDispatcher(commandBus.runtimeReceiver(subscription))
+ * val runtime = WowRuntime(
+ *     components = listOf(dispatcher),
+ *     shutdownTimeout = Duration.ofSeconds(30),
+ *     shutdownQuietPeriod = Duration.ZERO,
+ * )
+ * runtime.start().block()
+ * runtime.stopGracefully().block()
+ * ```
+ *
+ * @param T The type of message exchange being handled, must implement MessageExchange
+ * @param cleanupDispatcher Bounded dispatcher used for detached physical
+ * cancellation.
+ * @param messageReadiness Completion signal for asynchronous message-source
+ * initialization. The message flux is subscribed before this signal is
+ * awaited.
+ * @param processingAdmission Explicit transport-processing gate opened by
+ * [start] after dispatcher demand opens.
+ * @param processingQuiescence Prompt logical transport gate closed before
+ * physical source cancellation is detached.
+ * @param metrics Instance-scoped metrics recorder for handled exchanges.
+ *
+ * @see MessageDispatcher for the interface this class implements
+ * @see SafeSubscriber for error handling capabilities
+ * @see MessageExchange for the exchange type contract
+ */
+abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected constructor(
+    private val cleanupDispatcher: (Runnable) -> Boolean = { action ->
+        RuntimeCleanupExecutor.execute(action)
+    },
+    private val messageReadiness: Mono<Void> = Mono.empty(),
+    private val processingAdmission: () -> Unit = {},
+    private val processingQuiescence: () -> Unit = {},
+    private val metrics: WowMetrics = WowMetrics.NONE,
+) :
+    SafeSubscriber<Void>(),
+    MessageDispatcher,
+    ParallelismCapable,
+    NamedAggregateDecorator,
+    TerminatedSignalCapable<Void> {
+    companion object {
+        private val log = KotlinLogging.logger {}
+    }
+
+    /**
+     * The level of parallelism for processing grouped exchanges.
+     *
+     * This value determines how many groups can be processed concurrently.
+     * Each group processes exchanges sequentially, but different groups
+     * can be processed in parallel. A higher parallelism value allows
+     * more concurrent processing but may increase resource consumption.
+     *
+     * Typical values range from 1 (sequential processing) to the number
+     * of available CPU cores or higher for I/O-bound workloads.
+     */
+    abstract override val parallelism: Int
+
+    /**
+     * The scheduler to use for processing message exchanges.
+     *
+     * The scheduler determines the thread pool and execution context
+     * where message processing occurs. Common choices include:
+     * - Schedulers.boundedElastic() for I/O-bound operations
+     * - Schedulers.parallel() for CPU-bound operations
+     * - Custom schedulers for specific resource management needs
+     *
+     * The scheduler is used via publishOn() to ensure message processing
+     * happens on the appropriate threads.
+     */
+    abstract val scheduler: Scheduler
+
+    /**
+     * The flux of message exchanges to be processed.
+     *
+     * This reactive stream provides the source of messages that the dispatcher
+     * will handle. The flux is grouped by key and processed in parallel
+     * according to the configured parallelism level.
+     *
+     * The flux should emit MessageExchange instances that can be processed
+     * by the handleExchange() method implementation.
+     */
+    abstract val messageFlux: Flux<T>
+
+    private val handleMetricDescriptor by lazy {
+        MetricDescriptor(
+            component = "dispatcher",
+            operation = "handle",
+            context = namedAggregate.contextName,
+            aggregate = namedAggregate.aggregateName,
+            processor = name,
+            source = name,
+        )
+    }
+
+    private val terminatedSink = Sinks.empty<Void>()
+    private val stopRequestedSink = Sinks.empty<Void>()
+    private val rawTerminatedSignal = terminatedSink.asMono()
+
+    @Volatile
+    private var demandGate: DemandGateFlux<T>? = null
+
+    override val terminatedSignal: Mono<Void> =
+        rawTerminatedSignal.publishTerminalSignal()
+
+    @Volatile
+    private var runtimeContext: RuntimeContext? = null
+
+    private val lifecycleMonitor = Any()
+    private val processingMonitor = Any()
+    private var processingOpened = false
+    private var processingClosed = false
+
+    private enum class State {
+        NEW,
+        PREPARED,
+        RUNNING,
+        STOPPING,
+        STOPPED,
+    }
+
+    private enum class StopSignal {
+        NONE,
+        REQUEST_STOP,
+        TERMINATE,
+    }
+
+    @Volatile
+    private var state = State.NEW
+
+    private fun tryEmitTerminated(error: Throwable? = null) {
+        if (terminatedSink.terminated) {
+            return
+        }
+        log.info {
+            "[$name] Emitting terminated signal."
+        }
+        val result = if (error == null) {
+            terminatedSink.tryEmitEmpty()
+        } else {
+            terminatedSink.tryEmitError(error)
+        }
+        if (result != Sinks.EmitResult.OK) {
+            log.warn {
+                "[$name] Failed to emit terminated signal: $result."
+            }
+        }
+    }
+
+    /**
+     * Prepares the dispatcher by subscribing without requesting messages.
+     *
+     * The shared runtime prepares every dispatcher before opening demand. This
+     * readiness barrier prevents message loss across cyclic command/event/saga
+     * pipelines during startup.
+     *
+     * [start] opens this dispatcher's demand gate.
+     *
+     * @throws Exception if subscription fails or initial setup encounters errors
+     * @see stopGracefully for graceful shutdown
+     * @see toGroupKey for grouping logic
+     */
+    final override fun prepare(runtimeContext: RuntimeContext): Mono<Void> =
+        Mono.fromRunnable<Void> {
+            val preparedDemandGate = DemandGateFlux(messageFlux) { cancellation ->
+                scheduleDetachedCleanup("late source cancellation", cancellation)
+            }
+            synchronized(lifecycleMonitor) {
+                check(state == State.NEW) {
+                    "[$name] Dispatcher can only be prepared once. Current state: $state."
+                }
+                this.runtimeContext = runtimeContext
+                demandGate = preparedDemandGate
+                state = State.PREPARED
+            }
+            log.info {
+                "[$name] Prepare subscription to $namedAggregate."
+            }
+            subscribeMessagePipeline(runtimeContext, preparedDemandGate)
+        }
+            .then(messageReadiness)
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun subscribeMessagePipeline(
+        runtimeContext: RuntimeContext,
+        demandGate: DemandGateFlux<T>,
+    ) {
+        val terminalFailure = AtomicReference<Throwable?>()
+        demandGate
+            .takeUntilOther(stopRequestedSink.asMono())
+            .handle<TrackedExchange<T>> { exchange, sink ->
+                admitExchange(runtimeContext, exchange, sink)
+            }
+            .doOnNext(TrackedExchange<T>::confirmLocalDelivery)
+            .groupBy { trackedExchange -> trackedExchange.groupKey }
+            .flatMap({ grouped ->
+                handleGroupedExchange(grouped)
+            }, parallelism, parallelism)
+            .doOnDiscard(TrackedExchange::class.java) {
+                it.rejectLocalDelivery()
+                it.complete()
+            }
+            .doOnError { error ->
+                terminalFailure.compareAndSet(null, error)
+                runtimeContext.reportFailure(error)
+            }
+            .doFinally {
+                val processingFailure = synchronized(lifecycleMonitor) {
+                    state = State.STOPPED
+                    revokeProcessing()
+                }
+                if (processingFailure != null) {
+                    terminalFailure.compareAndSet(null, processingFailure)
+                    runtimeContext.reportFailure(processingFailure)
+                }
+                tryEmitTerminated(terminalFailure.get())
+            }
+            .subscribe(this)
+        terminalFailure.get()?.let { error ->
+            throw error
+        }
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun admitExchange(
+        runtimeContext: RuntimeContext,
+        exchange: T,
+        sink: SynchronousSink<TrackedExchange<T>>,
+    ) {
+        val activity = try {
+            runtimeContext.tryAcquire()
+        } catch (error: Throwable) {
+            exchange.rejectLocalDelivery()
+            throw error
+        }
+        if (activity == null) {
+            exchange.rejectLocalDelivery()
+            log.warn {
+                "[$name] Reject an exchange received after runtime admission closed; " +
+                    "the exchange remains unacknowledged."
+            }
+            return
+        }
+        var trackedExchange: TrackedExchange<T>? = null
+        try {
+            trackedExchange = TrackedExchange(
+                exchange = exchange,
+                groupKey = exchange.toGroupKey(),
+                activity = activity,
+                localDeliveryTicket = exchange.takeLocalDeliveryTicket(),
+            )
+            sink.next(trackedExchange)
+        } catch (error: Throwable) {
+            activity.close()
+            trackedExchange?.rejectLocalDelivery() ?: exchange.rejectLocalDelivery()
+            Exceptions.throwIfFatal(error)
+            sink.error(error)
+        }
+    }
+
+    final override fun start() {
+        synchronized(lifecycleMonitor) {
+            if (state == State.RUNNING || state == State.STOPPED) {
+                return
+            }
+            check(state == State.PREPARED) {
+                "[$name] Dispatcher cannot start from state: $state."
+            }
+            state = State.RUNNING
+        }
+        checkNotNull(demandGate).open()
+        openProcessing()
+        log.info {
+            "[$name] Start processing $namedAggregate."
+        }
+    }
+
+    final override fun quiesce() {
+        requestStop()
+    }
+
+    /**
+     * Converts a message exchange to a grouping key for parallel processing.
+     *
+     * This extension function determines how message exchanges are grouped
+     * for parallel processing. Exchanges with the same key will be processed
+     * sequentially within their group, while different groups can be processed
+     * concurrently based on the parallelism level.
+     *
+     * A good grouping strategy distributes load evenly across groups while
+     * maintaining ordering requirements. Common approaches include:
+     * - Hash-based grouping for even distribution
+     * - Aggregate ID-based grouping for per-aggregate ordering
+     * - Round-robin assignment for simple load balancing
+     *
+     * @receiver The message exchange to group
+     * @return An integer key for grouping exchanges. Should distribute evenly across available groups.
+     */
+    abstract fun T.toGroupKey(): Int
+
+    /**
+     * Handles a grouped flux of message exchanges.
+     *
+     * This private method processes a group of message exchanges that share
+     * the same grouping key. It applies metrics collection, schedules execution
+     * on the configured scheduler, and processes exchanges sequentially within
+     * the group. Task counting is managed for graceful shutdown support.
+     *
+     * Metrics are collected for monitoring dispatcher processing time and
+     * outcomes. Group keys are intentionally excluded from tags to keep label
+     * cardinality bounded.
+     *
+     * @param grouped The grouped flux of message exchanges to process
+     * @return A Mono that completes when all exchanges in the group are handled
+     */
+    private fun handleGroupedExchange(grouped: GroupedFlux<Int, TrackedExchange<T>>): Mono<Void> =
+        grouped
+            .publishOn(scheduler)
+            .concatMap { trackedExchange ->
+                val handledExchange = Mono.defer { handleExchange(trackedExchange.exchange) }
+                val measuredExchange = if (metrics.enabled) {
+                    metrics.operation(handledExchange, handleMetricDescriptor)
+                } else {
+                    handledExchange
+                }
+                measuredExchange.doFinally { trackedExchange.complete() }
+            }.then()
+
+    /**
+     * Handles a single message exchange.
+     *
+     * Implementations should process the message exchange, perform any necessary
+     * business logic, and return a Mono that completes when processing is finished.
+     * The exchange may be acknowledged or additional processing may occur.
+     *
+     * This method is called for each message exchange in the processing pipeline.
+     * Implementations should be idempotent and handle errors appropriately.
+     *
+     * @param exchange The message exchange to handle
+     * @return A Mono that completes when the exchange is handled. The Mono may emit errors for failed processing.
+     */
+    abstract fun handleExchange(exchange: T): Mono<Void>
+
+    /**
+     * Performs a graceful shutdown of the dispatcher.
+     *
+     * After [quiesce] closes the source side, this method waits for every
+     * already accepted exchange to complete naturally.
+     *
+     * The method returns a Mono that completes when shutdown is fully finished,
+     * allowing for reactive shutdown coordination. This ensures no message
+     * processing is interrupted mid-flight.
+     *
+     * @return A Mono that completes when all active tasks have finished and shutdown is complete
+     * @see forceStop for deadline-expiry cancellation
+     */
+    final override fun stopGracefully(): Mono<Void> {
+        log.info {
+            "[$name] Stop gracefully."
+        }
+        return rawTerminatedSignal.doFinally {
+            log.info {
+                "[$name] [$it] Graceful shutdown complete."
+            }
+        }
+    }
+
+    private fun requestStop() {
+        val (stopSignal, sourceCancellation, processingFailure) = synchronized(lifecycleMonitor) {
+            val signal = when (state) {
+                State.NEW -> {
+                    state = State.STOPPED
+                    StopSignal.TERMINATE
+                }
+
+                State.PREPARED,
+                State.RUNNING,
+                -> {
+                    state = State.STOPPING
+                    StopSignal.REQUEST_STOP
+                }
+
+                State.STOPPING,
+                State.STOPPED,
+                -> StopSignal.NONE
+            }
+            val failure = revokeProcessing()
+            val cancellation = if (signal == StopSignal.REQUEST_STOP) {
+                demandGate?.detachCancellation()
+            } else {
+                null
+            }
+            Triple(signal, cancellation, failure)
+        }
+        sourceCancellation?.let { cancellation ->
+            scheduleDetachedCleanup("source cancellation", cancellation)
+        }
+        when (stopSignal) {
+            StopSignal.NONE -> Unit
+            StopSignal.REQUEST_STOP -> stopRequestedSink.tryEmitEmpty()
+            StopSignal.TERMINATE -> tryEmitTerminated()
+        }
+        processingFailure?.let { throw it }
+    }
+
+    final override fun forceStop() {
+        forceStopDispatcher()
+    }
+
+    private fun forceStopDispatcher() {
+        val (newlyStopped, sourceCancellation, processingFailure) = synchronized(lifecycleMonitor) {
+            val changed = state != State.STOPPED
+            state = State.STOPPED
+            val failure = revokeProcessing()
+            Triple(changed, demandGate?.detachCancellation(), failure)
+        }
+        if (newlyStopped) {
+            tryEmitTerminated()
+        }
+        sourceCancellation?.let { cancellation ->
+            scheduleDetachedCleanup("source cancellation", cancellation)
+        }
+        if (newlyStopped) {
+            scheduleDetachedCleanup("processing pipeline cancellation", ::cancel)
+        }
+        processingFailure?.let { throw it }
+    }
+
+    private fun openProcessing() {
+        synchronized(processingMonitor) {
+            if (processingOpened || processingClosed) {
+                return
+            }
+            processingOpened = true
+            processingAdmission()
+        }
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun revokeProcessing(): Throwable? =
+        synchronized(processingMonitor) {
+            if (processingClosed) {
+                return@synchronized null
+            }
+            processingClosed = true
+            try {
+                processingQuiescence()
+                null
+            } catch (error: Throwable) {
+                Exceptions.throwIfFatal(error)
+                error
+            }
+        }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun scheduleDetachedCleanup(
+        cleanupName: String,
+        cleanup: () -> Unit,
+    ) {
+        val accepted = cleanupDispatcher(
+            Runnable {
+                Thread.currentThread().interrupt()
+                try {
+                    cleanup()
+                } catch (error: Throwable) {
+                    Exceptions.throwIfFatal(error)
+                    runtimeContext?.reportFailure(error)
+                    log.warn(error) {
+                        "[$name] Failed to execute detached $cleanupName."
+                    }
+                } finally {
+                    Thread.interrupted()
+                }
+            },
+        )
+        if (!accepted) {
+            val rejection = RejectedExecutionException(
+                "[$name] Cannot schedule detached $cleanupName because the bounded " +
+                    "runtime cleanup executor is saturated.",
+            )
+            runtimeContext?.reportFailure(rejection)
+            log.warn(rejection) {
+                "[$name] Skip detached $cleanupName."
+            }
+        }
+    }
+
+    private class TrackedExchange<T : MessageExchange<*, *>>(
+        val exchange: T,
+        val groupKey: Int,
+        private val activity: RuntimeActivity,
+        private val localDeliveryTicket: LocalDeliveryTicket?,
+    ) {
+        private val completed = AtomicBoolean()
+
+        fun complete() {
+            if (completed.compareAndSet(false, true)) {
+                activity.close()
+            }
+        }
+
+        fun confirmLocalDelivery() {
+            localDeliveryTicket?.confirm()
+        }
+
+        fun rejectLocalDelivery() {
+            localDeliveryTicket?.reject()
+        }
+    }
+}

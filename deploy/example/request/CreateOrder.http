@@ -1,0 +1,31 @@
+POST {{host}}/customer/{{$uuid}}/tenant/{{$uuid}}/order
+Content-Type: application/json
+Command-Wait-Stage: PROCESSED
+Command-Wait-Timeout: 30000
+Command-Request-Id: {{$uuid}}
+
+{
+  "fromCart": false,
+  "items": [
+    {
+      "productId": "{{$uuid}}",
+      "price": 10,
+      "quantity": 10
+    }
+  ],
+  "address": {
+    "country": "china",
+    "province": "shanghai",
+    "city": "shanghai",
+    "district": "huangpu",
+    "detail": "renmin road 1000"
+  }
+}
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+%}
+
+###

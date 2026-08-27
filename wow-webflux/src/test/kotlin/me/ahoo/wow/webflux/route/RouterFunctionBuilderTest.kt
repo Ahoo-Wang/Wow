@@ -1,0 +1,119 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.webflux.route
+
+import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.openapi.Https
+import me.ahoo.wow.openapi.RouterSpecs
+import me.ahoo.wow.openapi.catalog.RouteCategory
+import me.ahoo.wow.openapi.catalog.RouteContributor
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
+import me.ahoo.wow.openapi.contract.HttpRouteContract
+import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
+import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import org.junit.jupiter.api.Test
+import org.springframework.web.reactive.function.server.HandlerFunction
+import org.springframework.web.reactive.function.server.ServerResponse
+
+class RouterFunctionBuilderTest {
+
+    @Test
+    fun `should build router function with manually provided specs`() {
+        val contract = loadAggregateContract()
+        val routerSpecs = routerSpecsWith(contract)
+        val expectedHandlerKey = BuiltInHttpRouteHandlerKeys.State.LOAD_AGGREGATE
+        contract.handlerKey.assert().isEqualTo(expectedHandlerKey)
+        val factory = TestBuilderHttpRouteHandlerFunctionFactory(expectedHandlerKey)
+        val registrar = RouteHandlerFunctionRegistrar(httpFactories = listOf(factory))
+
+        val builder = RouterFunctionBuilder(routerSpecs, registrar)
+        val routerFunction = builder.build()
+
+        routerFunction.assert().isNotNull()
+        factory.createdContract.assert().isEqualTo(contract)
+        factory.createdMetadata.assert().isEqualTo(contract.handlerMetadata)
+        factory.createdMetadata.assert().isSameAs(factory.createdContract.handlerMetadata)
+    }
+
+    @Test
+    fun `should report route details when factory is missing`() {
+        val contract = loadAggregateContract()
+        val routerSpecs = routerSpecsWith(contract)
+        val builder = RouterFunctionBuilder(routerSpecs, RouteHandlerFunctionRegistrar())
+
+        assertThrownBy<IllegalArgumentException> {
+            builder.build()
+        }.hasMessage(
+            "HttpRouteHandlerFunctionFactory not found - " +
+                "handlerKey:[${contract.handlerKey}], " +
+                "method:[${contract.method}], " +
+                "path:[${contract.path}], " +
+                "routeId:[${contract.routeId}]."
+        )
+    }
+}
+
+private fun loadAggregateContract(): HttpRouteContract {
+    return HttpRouteContract(
+        routeId = "test.load",
+        method = Https.Method.GET,
+        path = "/test",
+        handlerKey = BuiltInHttpRouteHandlerKeys.State.LOAD_AGGREGATE,
+        handlerMetadata = HttpRouteHandlerMetadata.Aggregate(
+            MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata()
+        )
+    )
+}
+
+private fun routerSpecsWith(contract: HttpRouteContract): RouterSpecs {
+    return RouterSpecs(
+        currentContext = MOCK_AGGREGATE_METADATA,
+        routeContributors = listOf(StaticRouteContributor(contract))
+    ).build()
+}
+
+private class StaticRouteContributor(private val contract: HttpRouteContract) : RouteContributor {
+    override val id: String = "test-static"
+    override val category: RouteCategory = RouteCategory.GLOBAL
+    override val order: Int = 0
+
+    override fun contributeGlobal(
+        currentContext: NamedBoundedContext,
+        componentContext: OpenAPIComponentContext
+    ): List<HttpRouteContract> {
+        return listOf(contract)
+    }
+}
+
+private class TestBuilderHttpRouteHandlerFunctionFactory(
+    override val handlerKey: String
+) : HttpRouteHandlerFunctionFactory {
+    lateinit var createdContract: HttpRouteContract
+    lateinit var createdMetadata: HttpRouteHandlerMetadata
+
+    override fun create(
+        contract: HttpRouteContract,
+        metadata: HttpRouteHandlerMetadata
+    ): HandlerFunction<ServerResponse> {
+        createdContract = contract
+        createdMetadata = metadata
+        return HandlerFunction {
+            ServerResponse.ok().build()
+        }
+    }
+}

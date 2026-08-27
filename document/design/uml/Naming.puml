@@ -1,0 +1,39 @@
+@startmindmap Naming Domain
++ domain
+++ bounded context : namespace
++++ command
+++++ aggregate
++++++ command-bus \n {bounded context}.{aggregate}
+++++++ command
+++++++ ...
++++++ domain-event-bus \n {bounded context}.{aggregate}
+++++++ domain-event
+++++++ ...
+++++ ...
++++ query
+++++ query-bus
++++++ query \n {bounded context}.{query}
++++++ ...
+++ ...
+@endmindmap
+
+@startmindmap Naming Topic
++ Naming Topic
+-- {namespace}
+---_ Bounded context name \n (Resolve naming conflicts)
+-- {aggregate}
+---_ Aggregate name
+++ command
++++ {namespace}.{aggregate}.command
+++ domain event
++++ {namespace}.{aggregate}.event
+++ integration event
++++ {namespace}.{aggregate}.integration.{event_name}
+++ event sourcing
++++ {namespace}.{aggregate}_event_stream
++++ {namespace}.{aggregate}_snapshot
+++ query
++++ {namespace}.query
+++ feedback
++++ {namespace}.feedback
+@endmindmap

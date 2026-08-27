@@ -1,0 +1,17 @@
+{
+  "contexts": {
+    "order-service": {
+      "aggregates": {
+        "order": {
+          "type": "me.ahoo.wow.spring.boot.starter.eventsourcing.routing.OrderAggregate"
+        },
+        "cart": {
+          "type": "me.ahoo.wow.spring.boot.starter.eventsourcing.routing.CartAggregate"
+        },
+        "audit": {
+          "type": "me.ahoo.wow.spring.boot.starter.eventsourcing.routing.AuditAggregate"
+        }
+      }
+    }
+  }
+}

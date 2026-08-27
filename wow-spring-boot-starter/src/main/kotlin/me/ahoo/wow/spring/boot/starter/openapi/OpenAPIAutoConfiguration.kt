@@ -1,0 +1,77 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.spring.boot.starter.openapi
+
+import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.modeling.getContextAliasPrefix
+import me.ahoo.wow.openapi.RouterSpecs
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.contributor.DefaultRouteContributors
+import me.ahoo.wow.openapi.contributor.global.GenerateBIScriptRouteContributor
+import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
+import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration.Companion.WOW_CURRENT_BOUNDED_CONTEXT
+import me.ahoo.wow.spring.boot.starter.bi.BiScriptProperties
+import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.boot.autoconfigure.AutoConfiguration
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
+import org.springframework.boot.context.properties.EnableConfigurationProperties
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
+
+@AutoConfiguration
+@ConditionalOnWowEnabled
+@ConditionalOnClass(name = ["me.ahoo.wow.openapi.RouterSpecs"])
+@EnableConfigurationProperties(OpenAPIProperties::class, BiScriptProperties::class)
+class OpenAPIAutoConfiguration {
+
+    @Bean
+    @ConditionalOnMissingBean(OpenAPIComponentContext::class)
+    fun openAPIComponentContext(
+        @Qualifier(WOW_CURRENT_BOUNDED_CONTEXT) currentContext: NamedBoundedContext
+    ): OpenAPIComponentContext {
+        val openAPIComponentContext = OpenAPIComponentContext
+            .default(
+                inline = false,
+                defaultSchemaNamePrefix = currentContext.getContextAliasPrefix()
+            )
+        return openAPIComponentContext
+    }
+
+    @Bean
+    fun routerSpecs(
+        @Qualifier(WOW_CURRENT_BOUNDED_CONTEXT) boundedContext: NamedBoundedContext,
+        openAPIComponentContext: OpenAPIComponentContext,
+        biScriptProperties: BiScriptProperties,
+    ): RouterSpecs {
+        val contributors = DefaultRouteContributors.all().filterNot { contributor ->
+            contributor === GenerateBIScriptRouteContributor && !biScriptProperties.enabled
+        }
+        return RouterSpecs(
+            boundedContext,
+            componentContext = openAPIComponentContext,
+            routeContributors = contributors,
+        ).build()
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnOpenAPIEnabled
+    @ConditionalOnClass(name = ["org.springdoc.core.customizers.OpenApiCustomizer"])
+    class SpringdocConfiguration {
+        @Bean
+        fun wowOpenApiCustomizer(routerSpecs: RouterSpecs): WowOpenApiCustomizer {
+            return WowOpenApiCustomizer(routerSpecs)
+        }
+    }
+}

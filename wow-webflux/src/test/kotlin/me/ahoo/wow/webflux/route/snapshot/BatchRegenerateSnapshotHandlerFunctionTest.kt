@@ -1,0 +1,260 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.webflux.route.snapshot
+
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.event.IgnoreSourcing
+import me.ahoo.wow.api.exception.ErrorInfo
+import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.event.toDomainEventStream
+import me.ahoo.wow.eventsourcing.AggregateIdScanner.Companion.FIRST_ID
+import me.ahoo.wow.eventsourcing.InMemoryEventStore
+import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
+import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotStore
+import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
+import me.ahoo.wow.eventsourcing.snapshot.Snapshot
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
+import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
+import me.ahoo.wow.openapi.BatchComponent
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
+import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import me.ahoo.wow.tck.mock.MockAggregateCreated
+import me.ahoo.wow.tck.mock.MockCommandAggregate
+import me.ahoo.wow.tck.mock.MockCreateAggregate
+import me.ahoo.wow.tck.mock.MockStateAggregate
+import me.ahoo.wow.test.aggregate.GivenInitializationCommand
+import me.ahoo.wow.test.aggregate.whenCommand
+import me.ahoo.wow.test.aggregateVerifier
+import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
+import me.ahoo.wow.webflux.route.RouteTestFixtures
+import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
+import me.ahoo.wow.webflux.route.testAggregateRouteContract
+import org.junit.jupiter.api.Test
+import org.springframework.http.HttpStatus
+import org.springframework.mock.web.reactive.function.server.MockServerRequest
+import reactor.core.publisher.Mono
+import reactor.kotlin.test.test
+
+class BatchRegenerateSnapshotHandlerFunctionTest {
+
+    @Test
+    fun `factory should create batch regenerate snapshot handler`() {
+        val factory = BatchRegenerateSnapshotHandlerFunctionFactory(
+            stateAggregateFactory = ConstructorStateAggregateFactory,
+            eventStore = InMemoryEventStore(),
+            snapshotStore = NoOpSnapshotStore,
+            exceptionHandler = WebFluxRequestExceptionHandler(),
+            batchExecutionPolicy = BatchExecutionPolicy(),
+        )
+
+        factory.handlerKey.assert().isEqualTo(BuiltInHttpRouteHandlerKeys.Snapshot.BATCH_REGENERATE)
+        factory.create(
+            testAggregateRouteContract(
+                handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.BATCH_REGENERATE,
+                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA
+            )
+        ).assert().isInstanceOf(BatchRegenerateSnapshotHandlerFunction::class.java)
+    }
+
+    @Test
+    fun `should handle batch regenerate snapshot request`() {
+        val handlerFunction = BatchRegenerateSnapshotHandlerFunction(
+            aggregateMetadata = MOCK_AGGREGATE_METADATA,
+            stateAggregateFactory = ConstructorStateAggregateFactory,
+            eventStore = InMemoryEventStore(),
+            snapshotStore = NoOpSnapshotStore,
+            exceptionHandler = WebFluxRequestExceptionHandler(),
+            batchExecutionPolicy = BatchExecutionPolicy(),
+        )
+
+        val request = MockServerRequest.builder()
+            .pathVariable(BatchComponent.PathVariable.BATCH_AFTER_ID, FIRST_ID)
+            .pathVariable(BatchComponent.PathVariable.BATCH_LIMIT, Int.MAX_VALUE.toString())
+            .build()
+        handlerFunction.handle(request)
+            .test()
+            .consumeNextWith {
+                it.statusCode().assert().isEqualTo(HttpStatus.OK)
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `should regenerate scanned aggregate snapshots`() {
+        val eventStore = InMemoryEventStore()
+        val aggregateId = generateGlobalId()
+        aggregateVerifier<MockCommandAggregate, MockStateAggregate>(eventStore = eventStore)
+            .whenCommand(MockCreateAggregate(id = aggregateId, data = "snapshot-data"))
+            .expectNoError()
+            .expectEventType(MockAggregateCreated::class.java)
+            .verify()
+        val snapshotStore = CapturingSnapshotStore()
+        val handlerFunction = BatchRegenerateSnapshotHandlerFunction(
+            aggregateMetadata = MOCK_AGGREGATE_METADATA,
+            stateAggregateFactory = ConstructorStateAggregateFactory,
+            eventStore = eventStore,
+            snapshotStore = snapshotStore,
+            exceptionHandler = WebFluxRequestExceptionHandler(),
+            batchExecutionPolicy = BatchExecutionPolicy(),
+        )
+
+        val request = MockServerRequest.builder()
+            .pathVariable(BatchComponent.PathVariable.BATCH_AFTER_ID, FIRST_ID)
+            .pathVariable(BatchComponent.PathVariable.BATCH_LIMIT, "1")
+            .build()
+
+        handlerFunction.handle(request)
+            .test()
+            .consumeNextWith {
+                it.statusCode().assert().isEqualTo(HttpStatus.OK)
+            }
+            .verifyComplete()
+
+        snapshotStore.savedSnapshots.assert().hasSize(1)
+        val savedSnapshot = snapshotStore.savedSnapshots.single()
+        savedSnapshot.aggregateId.id.assert().isEqualTo(aggregateId)
+        savedSnapshot.version.assert().isOne()
+    }
+
+    @Test
+    fun `should replace a stored snapshot when regeneration produces the same version`() {
+        val eventStore = InMemoryEventStore()
+        val aggregateIdValue = generateGlobalId()
+        aggregateVerifier<MockCommandAggregate, MockStateAggregate>(eventStore = eventStore)
+            .whenCommand(MockCreateAggregate(id = aggregateIdValue, data = "rebuilt"))
+            .expectNoError()
+            .expectEventType(MockAggregateCreated::class.java)
+            .verify()
+        val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(aggregateIdValue)
+        val staleStateAggregate =
+            ConstructorStateAggregateFactory.create(MOCK_AGGREGATE_METADATA.state, aggregateId)
+        staleStateAggregate.onSourcing(
+            listOf(MockAggregateCreated("stale")).toDomainEventStream(
+                upstream = GivenInitializationCommand(aggregateId),
+                aggregateVersion = staleStateAggregate.version,
+            )
+        )
+        val snapshotStore = InMemorySnapshotStore()
+        snapshotStore.save(SimpleSnapshot(staleStateAggregate, snapshotTime = 1))
+            .test()
+            .verifyComplete()
+        val handler = RegenerateSnapshotHandler(
+            aggregateMetadata = MOCK_AGGREGATE_METADATA,
+            stateAggregateFactory = ConstructorStateAggregateFactory,
+            eventStore = eventStore,
+            snapshotStore = snapshotStore,
+        )
+
+        handler.handle(aggregateId)
+            .then(Mono.defer { snapshotStore.load<MockStateAggregate>(aggregateId) })
+            .test()
+            .consumeNextWith {
+                it.version.assert().isEqualTo(staleStateAggregate.version)
+                it.state.data.assert().isEqualTo("rebuilt")
+                it.snapshotTime.assert().isNotEqualTo(1)
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `should skip snapshot regeneration when initial stream did not source state`() {
+        val eventStore = InMemoryEventStore()
+        val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId("snapshot-unsourced-later")
+        val snapshotStore = CapturingSnapshotStore()
+        val handler = RegenerateSnapshotHandler(
+            aggregateMetadata = MOCK_AGGREGATE_METADATA,
+            stateAggregateFactory = ConstructorStateAggregateFactory,
+            eventStore = eventStore,
+            snapshotStore = snapshotStore,
+        )
+
+        eventStore.appendUnsourcedStreams(aggregateId)
+        handler.handle(aggregateId)
+            .test()
+            .verifyComplete()
+
+        snapshotStore.savedSnapshots.assert().isEmpty()
+    }
+
+    @Test
+    fun `should skip unsourced streams during batch snapshot regeneration`() {
+        val eventStore = InMemoryEventStore()
+        val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId("batch-snapshot-unsourced-later")
+        val snapshotStore = CapturingSnapshotStore()
+        val handlerFunction = BatchRegenerateSnapshotHandlerFunction(
+            aggregateMetadata = MOCK_AGGREGATE_METADATA,
+            stateAggregateFactory = ConstructorStateAggregateFactory,
+            eventStore = eventStore,
+            snapshotStore = snapshotStore,
+            exceptionHandler = WebFluxRequestExceptionHandler(),
+            batchExecutionPolicy = BatchExecutionPolicy(),
+        )
+
+        eventStore.appendUnsourcedStreams(aggregateId)
+        val request = MockServerRequest.builder()
+            .pathVariable(BatchComponent.PathVariable.BATCH_AFTER_ID, FIRST_ID)
+            .pathVariable(BatchComponent.PathVariable.BATCH_LIMIT, "1")
+            .build()
+        handlerFunction.handle(request)
+            .test()
+            .consumeNextWith {
+                it.statusCode().assert().isEqualTo(HttpStatus.OK)
+            }
+            .verifyComplete()
+
+        snapshotStore.savedSnapshots.assert().isEmpty()
+    }
+
+    private fun InMemoryEventStore.appendUnsourcedStreams(aggregateId: AggregateId) {
+        val ignoredInitialErrorStream = generateEventStream(
+            aggregateId = aggregateId,
+            aggregateVersion = 0,
+            eventCount = 1,
+            createdEventSupplier = { IgnoredSnapshotErrorEvent("failed", "failed create") },
+        )
+        val laterStream = generateEventStream(
+            aggregateId = aggregateId,
+            aggregateVersion = 1,
+            eventCount = 1,
+            createdEventSupplier = { MockAggregateCreated("snapshot-v2") },
+        )
+
+        append(ignoredInitialErrorStream).test().verifyComplete()
+        append(laterStream).test().verifyComplete()
+    }
+
+    private class CapturingSnapshotStore : SnapshotStore {
+        override val name: String
+            get() = "capturing"
+
+        val savedSnapshots = mutableListOf<Snapshot<*>>()
+
+        override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> {
+            return Mono.empty()
+        }
+
+        override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {
+            return Mono.fromRunnable {
+                savedSnapshots += snapshot
+            }
+        }
+    }
+
+    private data class IgnoredSnapshotErrorEvent(
+        override val errorCode: String,
+        override val errorMsg: String,
+    ) : ErrorInfo, IgnoreSourcing
+}

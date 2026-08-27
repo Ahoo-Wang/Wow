@@ -1,0 +1,87 @@
+{
+  "index_patterns": [
+    "wow.*.es"
+  ],
+  "template": {
+    "mappings": {
+      "date_detection": false,
+      "properties": {
+        "aggregateId": {
+          "type": "keyword"
+        },
+        "aggregateName": {
+          "type": "keyword"
+        },
+        "body": {
+          "type": "nested",
+          "properties": {
+            "body": {
+              "type": "object",
+              "enabled": false
+            },
+            "bodyType": {
+              "type": "keyword"
+            },
+            "id": {
+                "type": "keyword"
+            },
+            "name": {
+              "type": "keyword"
+            },
+            "revision": {
+              "type": "keyword"
+            }
+          }
+        },
+        "commandId": {
+          "type": "keyword"
+        },
+        "contextName": {
+          "type": "keyword"
+        },
+        "createTime": {
+          "type": "long"
+        },
+        "header": {
+          "properties": {
+            "upstream_id": {
+              "type": "keyword"
+            },
+            "upstream_name": {
+              "type": "keyword"
+            }
+          }
+        },
+        "id": {
+          "type": "keyword"
+        },
+        "requestId": {
+          "type": "keyword"
+        },
+        "tenantId": {
+          "type": "keyword"
+        },
+        "ownerId": {
+          "type": "keyword"
+        },
+        "spaceId": {
+          "type": "keyword"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "dynamic_templates": [
+        {
+          "string_as_keyword": {
+            "match_mapping_type": "string",
+            "mapping": {
+              "type": "keyword",
+              "ignore_above": 8191
+            }
+          }
+        }
+      ]
+    }
+  }
+}

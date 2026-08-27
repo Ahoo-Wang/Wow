@@ -1,0 +1,51 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package me.ahoo.wow.eventsourcing
+
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.tck.eventsourcing.EventStoreSpec
+import me.ahoo.wow.tck.metrics.meteredForTck
+import org.junit.jupiter.api.Test
+
+/**
+ * InMemoryEventStoreTest .
+ *
+ * @author ahoo wang
+ */
+internal class InMemoryEventStoreTest : EventStoreSpec() {
+    override fun createEventStore(): EventStore {
+        return InMemoryEventStore().meteredForTck()
+    }
+
+    @Test
+    fun `last should return copied event stream`() {
+        val eventStore = createEventStore()
+        val eventStream = generateEventStream()
+        eventStore.append(eventStream).block()
+
+        eventStore.last(eventStream.aggregateId).block()!!.header["polluted"] = "true"
+
+        eventStore.last(eventStream.aggregateId).block()!!.header["polluted"].assert().isNull()
+    }
+
+    @Test
+    fun `load should return copied domain event headers`() {
+        val eventStore = createEventStore()
+        val eventStream = generateEventStream()
+        eventStore.append(eventStream).block()
+
+        eventStore.load(eventStream.aggregateId).blockFirst()!!.first().header["polluted"] = "true"
+
+        eventStore.load(eventStream.aggregateId).blockFirst()!!.first().header["polluted"].assert().isNull()
+    }
+}

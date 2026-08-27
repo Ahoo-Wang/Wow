@@ -1,0 +1,299 @@
+{
+    "schemaVersion": 2,
+    "suite": "framework-e2e",
+    "profile": "baseline",
+    "generatedAt": "2026-07-22T10:07:29.239328Z",
+    "projectVersion": "8.9.0",
+    "source": {
+        "commit": "fcedf1090454ff7fdb511f303771d3c663ac9c6e",
+        "dirty": false,
+        "jmhJarSha256": "1d5902b9f334f5f771736a2933ad577f157440513808ff2bd5a15179acf3332e",
+        "runId": "50c53461-4f94-4684-b165-85937d1f244d"
+    },
+    "runSpec": {
+        "taskName": "benchmarkBaselineE2E",
+        "suite": "framework-e2e",
+        "profile": "baseline",
+        "includePattern": "\\Qme.ahoo.wow.benchmark.e2e.CommandWriteE2EBenchmark\\E.*|\\Qme.ahoo.wow.benchmark.e2e.CommandSendE2EBenchmark\\E.*",
+        "threads": [
+            1,
+            4
+        ],
+        "modes": [
+            "thrpt"
+        ],
+        "warmupIterations": 2,
+        "warmupTime": "3s",
+        "measurementIterations": 3,
+        "measurementTime": "5s",
+        "forks": 2,
+        "parameters": {
+            
+        },
+        "jvmArgs": [
+            "-Xmx4g",
+            "-Xms4g",
+            "-XX:+UseG1GC",
+            "-XX:+UnlockDiagnosticVMOptions",
+            "-XX:+DebugNonSafepoints",
+            "-XX:+AlwaysPreTouch"
+        ],
+        "profilers": [
+            "gc"
+        ]
+    },
+    "runtime": {
+        "javaVersion": "17.0.7",
+        "vmName": "OpenJDK 64-Bit Server VM",
+        "vmVersion": "17.0.7+7-LTS",
+        "osName": "Mac OS X",
+        "osVersion": "26.5.2",
+        "osArch": "aarch64",
+        "availableProcessors": 14,
+        "physicalMemoryBytes": 25769803776
+    },
+    "artifacts": [
+        {
+            "taskPath": ":wow-benchmarks:benchmarkBaselineE2EThread1",
+            "startedAt": "2026-07-22T09:55:45.617125Z",
+            "completedAt": "2026-07-22T10:01:39.828092Z",
+            "threads": 1,
+            "resultSha256": "b06ca50144f805636ed12822f072e1dabe2a43f8ff6ca55736c1d9d06d2dcddf",
+            "resultRowCount": 8
+        },
+        {
+            "taskPath": ":wow-benchmarks:benchmarkBaselineE2EThread4",
+            "startedAt": "2026-07-22T10:01:39.891081Z",
+            "completedAt": "2026-07-22T10:07:29.113914Z",
+            "threads": 4,
+            "resultSha256": "3de252b2f8304f1fc7570b26f7d36a17e85f7e9b42c98ea4434701b09f55f08e",
+            "resultRowCount": 8
+        }
+    ],
+    "results": [
+        {
+            "suite": "framework-e2e",
+            "suiteDisplayName": "Primary Framework E2E",
+            "profile": "baseline",
+            "threads": 1,
+            "benchmark": "me.ahoo.wow.benchmark.e2e.CommandSendE2EBenchmark.sendAndWaitSent (gatewayScenario=ceiling)",
+            "displayName": "CommandSendE2EBenchmark.sendAndWaitSent (gatewayScenario=ceiling)",
+            "mode": "thrpt",
+            "score": 1479392.653981027,
+            "scoreError": 138522.95844635568,
+            "unit": "ops/s",
+            "allocationBytesPerOp": 2260.1728111649163,
+            "allocationErrorBytesPerOp": 1.1318965543666197E-4
+        },
+        {
+            "suite": "framework-e2e",
+            "suiteDisplayName": "Primary Framework E2E",
+            "profile": "baseline",
+            "threads": 1,
+            "benchmark": "me.ahoo.wow.benchmark.e2e.CommandSendE2EBenchmark.sendAndWaitSent (gatewayScenario=validated)",
+            "displayName": "CommandSendE2EBenchmark.sendAndWaitSent (gatewayScenario=validated)",
+            "mode": "thrpt",
+            "score": 1316266.2409780924,
+            "scoreError": 42163.18512253227,
+            "unit": "ops/s",
+            "allocationBytesPerOp": 2668.1728506053782,
+            "allocationErrorBytesPerOp": 1.64259136302333E-4
+        },
+        {
+            "suite": "framework-e2e",
+            "suiteDisplayName": "Primary Framework E2E",
+            "profile": "baseline",
+            "threads": 1,
+            "benchmark": "me.ahoo.wow.benchmark.e2e.CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling, schedulerStrategy=PARALLEL)",
+            "displayName": "CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling, schedulerStrategy=PARALLEL)",
+            "mode": "thrpt",
+            "score": 63212.02568750068,
+            "scoreError": 7433.85066473187,
+            "unit": "ops/s",
+            "allocationBytesPerOp": 3950.7995882992004,
+            "allocationErrorBytesPerOp": 2.1949175256189517
+        },
+        {
+            "suite": "framework-e2e",
+            "suiteDisplayName": "Primary Framework E2E",
+            "profile": "baseline",
+            "threads": 1,
+            "benchmark": "me.ahoo.wow.benchmark.e2e.CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling, schedulerStrategy=IMMEDIATE)",
+            "displayName": "CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling, schedulerStrategy=IMMEDIATE)",
+            "mode": "thrpt",
+            "score": 294719.46016227175,
+            "scoreError": 12676.136411144284,
+            "unit": "ops/s",
+            "allocationBytesPerOp": 12353.352737064391,
+            "allocationErrorBytesPerOp": 49.19785307599559
+        },
+        {
+            "suite": "framework-e2e",
+            "suiteDisplayName": "Primary Framework E2E",
+            "profile": "baseline",
+            "threads": 1,
+            "benchmark": "me.ahoo.wow.benchmark.e2e.CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store, schedulerStrategy=PARALLEL)",
+            "displayName": "CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store, schedulerStrategy=PARALLEL)",
+            "mode": "thrpt",
+            "score": 60673.318730093655,
+            "scoreError": 12980.423723651442,
+            "unit": "ops/s",
+            "allocationBytesPerOp": 4893.496289788894,
+            "allocationErrorBytesPerOp": 80.11700208128744
+        },
+        {
+            "suite": "framework-e2e",
+            "suiteDisplayName": "Primary Framework E2E",
+            "profile": "baseline",
+            "threads": 1,
+            "benchmark": "me.ahoo.wow.benchmark.e2e.CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store, schedulerStrategy=IMMEDIATE)",
+            "displayName": "CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store, schedulerStrategy=IMMEDIATE)",
+            "mode": "thrpt",
+            "score": 226039.65127189385,
+            "scoreError": 35495.67333035084,
+            "unit": "ops/s",
+            "allocationBytesPerOp": 13284.95509538724,
+            "allocationErrorBytesPerOp": 5.544017480511424
+        },
+        {
+            "suite": "framework-e2e",
+            "suiteDisplayName": "Primary Framework E2E",
+            "profile": "baseline",
+            "threads": 1,
+            "benchmark": "me.ahoo.wow.benchmark.e2e.CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate, schedulerStrategy=PARALLEL)",
+            "displayName": "CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate, schedulerStrategy=PARALLEL)",
+            "mode": "thrpt",
+            "score": 89366.68458043144,
+            "scoreError": 2919.162146374272,
+            "unit": "ops/s",
+            "allocationBytesPerOp": 4596.872247809541,
+            "allocationErrorBytesPerOp": 2.654117389712042
+        },
+        {
+            "suite": "framework-e2e",
+            "suiteDisplayName": "Primary Framework E2E",
+            "profile": "baseline",
+            "threads": 1,
+            "benchmark": "me.ahoo.wow.benchmark.e2e.CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate, schedulerStrategy=IMMEDIATE)",
+            "displayName": "CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate, schedulerStrategy=IMMEDIATE)",
+            "mode": "thrpt",
+            "score": 213381.5512237995,
+            "scoreError": 31658.13450909698,
+            "unit": "ops/s",
+            "allocationBytesPerOp": 13446.603672064693,
+            "allocationErrorBytesPerOp": 8.956971078076123
+        },
+        {
+            "suite": "framework-e2e",
+            "suiteDisplayName": "Primary Framework E2E",
+            "profile": "baseline",
+            "threads": 4,
+            "benchmark": "me.ahoo.wow.benchmark.e2e.CommandSendE2EBenchmark.sendAndWaitSent (gatewayScenario=ceiling)",
+            "displayName": "CommandSendE2EBenchmark.sendAndWaitSent (gatewayScenario=ceiling)",
+            "mode": "thrpt",
+            "score": 1209601.2188860443,
+            "scoreError": 63617.21907004077,
+            "unit": "ops/s",
+            "allocationBytesPerOp": 2261.3130970031166,
+            "allocationErrorBytesPerOp": 0.18656879534869938
+        },
+        {
+            "suite": "framework-e2e",
+            "suiteDisplayName": "Primary Framework E2E",
+            "profile": "baseline",
+            "threads": 4,
+            "benchmark": "me.ahoo.wow.benchmark.e2e.CommandSendE2EBenchmark.sendAndWaitSent (gatewayScenario=validated)",
+            "displayName": "CommandSendE2EBenchmark.sendAndWaitSent (gatewayScenario=validated)",
+            "mode": "thrpt",
+            "score": 1283271.6611559156,
+            "scoreError": 159073.2888565671,
+            "unit": "ops/s",
+            "allocationBytesPerOp": 2669.899195409845,
+            "allocationErrorBytesPerOp": 0.4270826705697511
+        },
+        {
+            "suite": "framework-e2e",
+            "suiteDisplayName": "Primary Framework E2E",
+            "profile": "baseline",
+            "threads": 4,
+            "benchmark": "me.ahoo.wow.benchmark.e2e.CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling, schedulerStrategy=PARALLEL)",
+            "displayName": "CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling, schedulerStrategy=PARALLEL)",
+            "mode": "thrpt",
+            "score": 160275.22607966492,
+            "scoreError": 10896.73204284761,
+            "unit": "ops/s",
+            "allocationBytesPerOp": 3951.402150805008,
+            "allocationErrorBytesPerOp": 1.3746312451170477
+        },
+        {
+            "suite": "framework-e2e",
+            "suiteDisplayName": "Primary Framework E2E",
+            "profile": "baseline",
+            "threads": 4,
+            "benchmark": "me.ahoo.wow.benchmark.e2e.CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling, schedulerStrategy=IMMEDIATE)",
+            "displayName": "CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling, schedulerStrategy=IMMEDIATE)",
+            "mode": "thrpt",
+            "score": 222971.2007343953,
+            "scoreError": 20214.560001959933,
+            "unit": "ops/s",
+            "allocationBytesPerOp": 12372.217591114488,
+            "allocationErrorBytesPerOp": 2.48458462108325
+        },
+        {
+            "suite": "framework-e2e",
+            "suiteDisplayName": "Primary Framework E2E",
+            "profile": "baseline",
+            "threads": 4,
+            "benchmark": "me.ahoo.wow.benchmark.e2e.CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store, schedulerStrategy=PARALLEL)",
+            "displayName": "CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store, schedulerStrategy=PARALLEL)",
+            "mode": "thrpt",
+            "score": 132123.97790156992,
+            "scoreError": 37103.28585713969,
+            "unit": "ops/s",
+            "allocationBytesPerOp": 4846.621118729062,
+            "allocationErrorBytesPerOp": 84.51766275320469
+        },
+        {
+            "suite": "framework-e2e",
+            "suiteDisplayName": "Primary Framework E2E",
+            "profile": "baseline",
+            "threads": 4,
+            "benchmark": "me.ahoo.wow.benchmark.e2e.CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store, schedulerStrategy=IMMEDIATE)",
+            "displayName": "CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store, schedulerStrategy=IMMEDIATE)",
+            "mode": "thrpt",
+            "score": 136071.37597738547,
+            "scoreError": 5154.121310094462,
+            "unit": "ops/s",
+            "allocationBytesPerOp": 13324.163607258606,
+            "allocationErrorBytesPerOp": 25.261967827676976
+        },
+        {
+            "suite": "framework-e2e",
+            "suiteDisplayName": "Primary Framework E2E",
+            "profile": "baseline",
+            "threads": 4,
+            "benchmark": "me.ahoo.wow.benchmark.e2e.CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate, schedulerStrategy=PARALLEL)",
+            "displayName": "CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate, schedulerStrategy=PARALLEL)",
+            "mode": "thrpt",
+            "score": 116094.60191243196,
+            "scoreError": 6353.939657924246,
+            "unit": "ops/s",
+            "allocationBytesPerOp": 4589.016099575952,
+            "allocationErrorBytesPerOp": 3.207776671339319
+        },
+        {
+            "suite": "framework-e2e",
+            "suiteDisplayName": "Primary Framework E2E",
+            "profile": "baseline",
+            "threads": 4,
+            "benchmark": "me.ahoo.wow.benchmark.e2e.CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate, schedulerStrategy=IMMEDIATE)",
+            "displayName": "CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate, schedulerStrategy=IMMEDIATE)",
+            "mode": "thrpt",
+            "score": 125394.64882365851,
+            "scoreError": 8535.519083952573,
+            "unit": "ops/s",
+            "allocationBytesPerOp": 13500.449591918963,
+            "allocationErrorBytesPerOp": 75.98368952704898
+        }
+    ]
+}

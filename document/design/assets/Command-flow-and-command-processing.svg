@@ -1,0 +1,990 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><!--
+  - Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+  - Licensed under the Apache License, Version 2.0 (the "License");
+  - you may not use this file except in compliance with the License.
+  - You may obtain a copy of the License at
+  -      http://www.apache.org/licenses/LICENSE-2.0
+  - Unless required by applicable law or agreed to in writing, software
+  - distributed under the License is distributed on an "AS IS" BASIS,
+  - WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  - See the License for the specific language governing permissions and
+  - limitations under the License.
+  -->
+
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" contentStyleType="text/css"
+     height="1603px" preserveAspectRatio="none" style="width:2804px;height:1603px;background:#FFFFFF;" version="1.1"
+     viewBox="0 0 2804 1603" width="2804px" zoomAndPan="magnify">
+    <defs/>
+    <g>
+        <rect fill="none" height="26.4883" id="_title" style="stroke:none;stroke-width:1.0;" width="309" x="1243.5"
+              y="22.7773"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" font-weight="bold" lengthAdjust="spacing"
+              textLength="299" x="1248.5" y="41.3125">Command flow and command processing
+        </text>
+        <rect fill="#DDDDDD" height="1526.7715" style="stroke:#181818;stroke-width:0.5;" width="1691" x="80"
+              y="56.2656"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing"
+              textLength="69" x="891" y="68.834">Command
+        </text>
+        <rect fill="#DDDDDD" height="1526.7715" style="stroke:#181818;stroke-width:0.5;" width="823" x="1973"
+              y="56.2656"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing"
+              textLength="42" x="2363.5" y="68.834">Query
+        </text>
+        <rect fill="#FFFFFF" height="1346.4844" style="stroke:#181818;stroke-width:1.0;" width="10" x="18.5"
+              y="148.0645"/>
+        <rect fill="#FFFFFF" height="1346.4844" style="stroke:#181818;stroke-width:1.0;" width="10" x="136.5"
+              y="148.0645"/>
+        <rect fill="#FFFFFF" height="1346.4844" style="stroke:#181818;stroke-width:1.0;" width="10" x="280.5"
+              y="148.0645"/>
+        <rect fill="#FFFFFF" height="1044.0684" style="stroke:#181818;stroke-width:1.0;" width="10" x="572.5"
+              y="450.4805"/>
+        <rect fill="#FFFFFF" height="188.041" style="stroke:#181818;stroke-width:1.0;" width="10" x="751.5"
+              y="507.457"/>
+        <rect fill="#FFFFFF" height="29.3105" style="stroke:#181818;stroke-width:1.0;" width="10" x="912.5"
+              y="536.7676"/>
+        <rect fill="#FFFFFF" height="752.7402" style="stroke:#181818;stroke-width:1.0;" width="10" x="1071"
+              y="741.8086"/>
+        <rect fill="#FFFFFF" height="918.4707" style="stroke:#181818;stroke-width:1.0;" width="10" x="1204.5"
+              y="576.0781"/>
+        <rect fill="#FFFFFF" height="1346.4844" style="stroke:#181818;stroke-width:1.0;" width="10" x="1392.5"
+              y="148.0645"/>
+        <rect fill="#FFFFFF" height="1346.4844" style="stroke:#181818;stroke-width:1.0;" width="10" x="1509"
+              y="148.0645"/>
+        <rect fill="#FFFFFF" height="1346.4844" style="stroke:#181818;stroke-width:1.0;" width="10" x="1674"
+              y="148.0645"/>
+        <rect fill="#FFFFFF" height="1346.4844" style="stroke:#181818;stroke-width:1.0;" width="10" x="1866"
+              y="148.0645"/>
+        <rect fill="#FFFFFF" height="1346.4844" style="stroke:#181818;stroke-width:1.0;" width="10" x="2031"
+              y="148.0645"/>
+        <rect fill="#FFFFFF" height="1346.4844" style="stroke:#181818;stroke-width:1.0;" width="10" x="2200"
+              y="148.0645"/>
+        <rect fill="#FFFFFF" height="29.3105" style="stroke:#181818;stroke-width:1.0;" width="10" x="2379"
+              y="1309.6855"/>
+        <rect fill="#FFFFFF" height="29.3105" style="stroke:#181818;stroke-width:1.0;" width="10" x="2379"
+              y="1426.9277"/>
+        <rect fill="#FFFFFF" height="1346.4844" style="stroke:#181818;stroke-width:1.0;" width="10" x="2503.5"
+              y="148.0645"/>
+        <rect fill="#FFFFFF" height="1346.4844" style="stroke:#181818;stroke-width:1.0;" width="10" x="2611"
+              y="148.0645"/>
+        <rect fill="#FFFFFF" height="1346.4844" style="stroke:#181818;stroke-width:1.0;" width="10" x="2726"
+              y="148.0645"/>
+        <rect fill="none" height="234.6621" style="stroke:#000000;stroke-width:1.5;" width="960.5" x="486.5"
+              y="468.8359"/>
+        <rect fill="none" height="118.2422" style="stroke:#000000;stroke-width:1.5;" width="461.5" x="985.5"
+              y="841.4063"/>
+        <line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="23" x2="23" y1="138.0645"
+              y2="1503.5488"/>
+        <line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="141" x2="141" y1="138.0645"
+              y2="1503.5488"/>
+        <line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="285" x2="285" y1="138.0645"
+              y2="1503.5488"/>
+        <line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="577.5" x2="577.5" y1="442.8477"
+              y2="1503.5488"/>
+        <line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="756" x2="756" y1="138.0645"
+              y2="1503.5488"/>
+        <line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="917.5" x2="917.5" y1="138.0645"
+              y2="1503.5488"/>
+        <line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="1075.5" x2="1075.5" y1="749.4863"
+              y2="1503.5488"/>
+        <line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="1209.5" x2="1209.5" y1="575.5117"
+              y2="1503.5488"/>
+        <line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="1397" x2="1397" y1="138.0645"
+              y2="1503.5488"/>
+        <line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="1514" x2="1514" y1="138.0645"
+              y2="1503.5488"/>
+        <line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="1679" x2="1679" y1="138.0645"
+              y2="1503.5488"/>
+        <line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="1870.5" x2="1870.5" y1="138.0645"
+              y2="1503.5488"/>
+        <line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="2036" x2="2036" y1="138.0645"
+              y2="1503.5488"/>
+        <line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="2205" x2="2205" y1="138.0645"
+              y2="1503.5488"/>
+        <line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="2383.5" x2="2383.5" y1="138.0645"
+              y2="1503.5488"/>
+        <line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="2508.5" x2="2508.5" y1="138.0645"
+              y2="1503.5488"/>
+        <line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="2615.5" x2="2615.5" y1="138.0645"
+              y2="1503.5488"/>
+        <line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="2731" x2="2731" y1="138.0645"
+              y2="1503.5488"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="31" x="5"
+              y="135.1113">User
+        </text>
+        <ellipse cx="23.5" cy="70.0762" fill="#E2E2F0" rx="8" ry="8" style="stroke:#181818;stroke-width:0.5;"/>
+        <path d="M23.5,78.0762 L23.5,105.0762 M10.5,86.0762 L36.5,86.0762 M23.5,105.0762 L10.5,120.0762 M23.5,105.0762 L36.5,120.0762 "
+              fill="none" style="stroke:#181818;stroke-width:0.5;"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="31" x="5"
+              y="1516.084">User
+        </text>
+        <ellipse cx="23.5" cy="1527.5371" fill="#E2E2F0" rx="8" ry="8" style="stroke:#181818;stroke-width:0.5;"/>
+        <path d="M23.5,1535.5371 L23.5,1562.5371 M10.5,1543.5371 L36.5,1543.5371 M23.5,1562.5371 L10.5,1577.5371 M23.5,1562.5371 L36.5,1577.5371 "
+              fill="none" style="stroke:#181818;stroke-width:0.5;"/>
+        <path d="M89,111.5762 L194,111.5762 C199,111.5762 199,124.8203 199,124.8203 C199,124.8203 199,138.0645 194,138.0645 L89,138.0645 C84,138.0645 84,124.8203 84,124.8203 C84,124.8203 84,111.5762 89,111.5762 "
+              fill="#E2E2F0" style="stroke:#181818;stroke-width:0.5;"/>
+        <path d="M194,111.5762 C189,111.5762 189,124.8203 189,124.8203 C189,138.0645 194,138.0645 194,138.0645 "
+              fill="none" style="stroke:#181818;stroke-width:0.5;"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="95" x="89"
+              y="130.1113">CommandBus
+        </text>
+        <path d="M89,1502.5488 L194,1502.5488 C199,1502.5488 199,1515.793 199,1515.793 C199,1515.793 199,1529.0371 194,1529.0371 L89,1529.0371 C84,1529.0371 84,1515.793 84,1515.793 C84,1515.793 84,1502.5488 89,1502.5488 "
+              fill="#E2E2F0" style="stroke:#181818;stroke-width:0.5;"/>
+        <path d="M194,1502.5488 C189,1502.5488 189,1515.793 189,1515.793 C189,1529.0371 194,1529.0371 194,1529.0371 "
+              fill="none" style="stroke:#181818;stroke-width:0.5;"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="95" x="89"
+              y="1521.084">CommandBus
+        </text>
+        <rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="153"
+              x="209" y="106.5762"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="139" x="216"
+              y="127.1113">AggregateProcessor
+        </text>
+        <rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="153"
+              x="209" y="1502.5488"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="139" x="216"
+              y="1523.084">AggregateProcessor
+        </text>
+        <rect fill="#E2E2F0" height="46.9766" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="162"
+              x="496.5" y="1502.5488"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="132" x="509.5"
+              y="1523.084">GroupedAggregate
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="144" x="507.5"
+              y="1539.5723">CommandSubscriber
+        </text>
+        <rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="159"
+              x="677" y="106.5762"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="145" x="684"
+              y="127.1113">AggregateRepository
+        </text>
+        <rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="159"
+              x="677" y="1502.5488"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="145" x="684"
+              y="1523.084">AggregateRepository
+        </text>
+        <rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="136"
+              x="849.5" y="106.5762"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="122" x="856.5"
+              y="127.1113">AggregateFactory
+        </text>
+        <rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="136"
+              x="849.5" y="1502.5488"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="122" x="856.5"
+              y="1523.084">AggregateFactory
+        </text>
+        <rect fill="#E2E2F0" height="46.9766" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="161"
+              x="995.5" y="1502.5488"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="143" x="1002.5"
+              y="1523.084">AggregateCommand
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="73" x="1041.5"
+              y="1539.5723">Subscriber
+        </text>
+        <rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="86"
+              x="1166.5" y="1502.5488"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="72" x="1173.5"
+              y="1523.084">Aggregate
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="73" x="1358"
+              y="135.1113">EventStore
+        </text>
+        <path d="M1379.5,85.5762 C1379.5,75.5762 1397.5,75.5762 1397.5,75.5762 C1397.5,75.5762 1415.5,75.5762 1415.5,85.5762 L1415.5,111.5762 C1415.5,121.5762 1397.5,121.5762 1397.5,121.5762 C1397.5,121.5762 1379.5,121.5762 1379.5,111.5762 L1379.5,85.5762 "
+              fill="#E2E2F0" style="stroke:#181818;stroke-width:1.5;"/>
+        <path d="M1379.5,85.5762 C1379.5,95.5762 1397.5,95.5762 1397.5,95.5762 C1397.5,95.5762 1415.5,95.5762 1415.5,85.5762 "
+              fill="none" style="stroke:#181818;stroke-width:1.5;"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="73" x="1358"
+              y="1516.084">EventStore
+        </text>
+        <path d="M1379.5,1529.0371 C1379.5,1519.0371 1397.5,1519.0371 1397.5,1519.0371 C1397.5,1519.0371 1415.5,1519.0371 1415.5,1529.0371 L1415.5,1555.0371 C1415.5,1565.0371 1397.5,1565.0371 1397.5,1565.0371 C1397.5,1565.0371 1379.5,1565.0371 1379.5,1555.0371 L1379.5,1529.0371 "
+              fill="#E2E2F0" style="stroke:#181818;stroke-width:1.5;"/>
+        <path d="M1379.5,1529.0371 C1379.5,1539.0371 1397.5,1539.0371 1397.5,1539.0371 C1397.5,1539.0371 1415.5,1539.0371 1415.5,1529.0371 "
+              fill="none" style="stroke:#181818;stroke-width:1.5;"/>
+        <path d="M1452,111.5762 L1576,111.5762 C1581,111.5762 1581,124.8203 1581,124.8203 C1581,124.8203 1581,138.0645 1576,138.0645 L1452,138.0645 C1447,138.0645 1447,124.8203 1447,124.8203 C1447,124.8203 1447,111.5762 1452,111.5762 "
+              fill="#E2E2F0" style="stroke:#181818;stroke-width:0.5;"/>
+        <path d="M1576,111.5762 C1571,111.5762 1571,124.8203 1571,124.8203 C1571,138.0645 1576,138.0645 1576,138.0645 "
+              fill="none" style="stroke:#181818;stroke-width:0.5;"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="114" x="1452"
+              y="130.1113">DomainEventBus
+        </text>
+        <path d="M1452,1502.5488 L1576,1502.5488 C1581,1502.5488 1581,1515.793 1581,1515.793 C1581,1515.793 1581,1529.0371 1576,1529.0371 L1452,1529.0371 C1447,1529.0371 1447,1515.793 1447,1515.793 C1447,1515.793 1447,1502.5488 1452,1502.5488 "
+              fill="#E2E2F0" style="stroke:#181818;stroke-width:0.5;"/>
+        <path d="M1576,1502.5488 C1571,1502.5488 1571,1515.793 1571,1515.793 C1571,1529.0371 1576,1529.0371 1576,1529.0371 "
+              fill="none" style="stroke:#181818;stroke-width:0.5;"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="114" x="1452"
+              y="1521.084">DomainEventBus
+        </text>
+        <rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="176"
+              x="1591" y="106.5762"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="162" x="1598"
+              y="127.1113">DomainEventPublishing
+        </text>
+        <rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="176"
+              x="1591" y="1502.5488"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="162" x="1598"
+              y="1523.084">DomainEventPublishing
+        </text>
+        <path d="M1797.5,111.5762 L1944.5,111.5762 C1949.5,111.5762 1949.5,124.8203 1949.5,124.8203 C1949.5,124.8203 1949.5,138.0645 1944.5,138.0645 L1797.5,138.0645 C1792.5,138.0645 1792.5,124.8203 1792.5,124.8203 C1792.5,124.8203 1792.5,111.5762 1797.5,111.5762 "
+              fill="#E2E2F0" style="stroke:#181818;stroke-width:0.5;"/>
+        <path d="M1944.5,111.5762 C1939.5,111.5762 1939.5,124.8203 1939.5,124.8203 C1939.5,138.0645 1944.5,138.0645 1944.5,138.0645 "
+              fill="none" style="stroke:#181818;stroke-width:0.5;"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="137" x="1797.5"
+              y="130.1113">IntegrationEventBus
+        </text>
+        <path d="M1797.5,1502.5488 L1944.5,1502.5488 C1949.5,1502.5488 1949.5,1515.793 1949.5,1515.793 C1949.5,1515.793 1949.5,1529.0371 1944.5,1529.0371 L1797.5,1529.0371 C1792.5,1529.0371 1792.5,1515.793 1792.5,1515.793 C1792.5,1515.793 1792.5,1502.5488 1797.5,1502.5488 "
+              fill="#E2E2F0" style="stroke:#181818;stroke-width:0.5;"/>
+        <path d="M1944.5,1502.5488 C1939.5,1502.5488 1939.5,1515.793 1939.5,1515.793 C1939.5,1529.0371 1944.5,1529.0371 1944.5,1529.0371 "
+              fill="none" style="stroke:#181818;stroke-width:0.5;"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="137" x="1797.5"
+              y="1521.084">IntegrationEventBus
+        </text>
+        <rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="118"
+              x="1977" y="106.5762"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="104" x="1984"
+              y="127.1113">EventProcessor
+        </text>
+        <rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="118"
+              x="1977" y="1502.5488"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="104" x="1984"
+              y="1523.084">EventProcessor
+        </text>
+        <rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="108"
+              x="2151" y="106.5762"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="94" x="2158"
+              y="127.1113">ViewProjector
+        </text>
+        <rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="108"
+              x="2151" y="1502.5488"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="94" x="2158"
+              y="1523.084">ViewProjector
+        </text>
+        <rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="119"
+              x="2324.5" y="106.5762"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="105" x="2331.5"
+              y="127.1113">ViewRepository
+        </text>
+        <rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="119"
+              x="2324.5" y="1502.5488"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="105" x="2331.5"
+              y="1523.084">ViewRepository
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="104" x="2453.5"
+              y="135.1113">QueryDatabase
+        </text>
+        <path d="M2490.5,85.5762 C2490.5,75.5762 2508.5,75.5762 2508.5,75.5762 C2508.5,75.5762 2526.5,75.5762 2526.5,85.5762 L2526.5,111.5762 C2526.5,121.5762 2508.5,121.5762 2508.5,121.5762 C2508.5,121.5762 2490.5,121.5762 2490.5,111.5762 L2490.5,85.5762 "
+              fill="#E2E2F0" style="stroke:#181818;stroke-width:1.5;"/>
+        <path d="M2490.5,85.5762 C2490.5,95.5762 2508.5,95.5762 2508.5,95.5762 C2508.5,95.5762 2526.5,95.5762 2526.5,85.5762 "
+              fill="none" style="stroke:#181818;stroke-width:1.5;"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="104" x="2453.5"
+              y="1516.084">QueryDatabase
+        </text>
+        <path d="M2490.5,1529.0371 C2490.5,1519.0371 2508.5,1519.0371 2508.5,1519.0371 C2508.5,1519.0371 2526.5,1519.0371 2526.5,1529.0371 L2526.5,1555.0371 C2526.5,1565.0371 2508.5,1565.0371 2508.5,1565.0371 C2508.5,1565.0371 2490.5,1565.0371 2490.5,1555.0371 L2490.5,1529.0371 "
+              fill="#E2E2F0" style="stroke:#181818;stroke-width:1.5;"/>
+        <path d="M2490.5,1529.0371 C2490.5,1539.0371 2508.5,1539.0371 2508.5,1539.0371 C2508.5,1539.0371 2526.5,1539.0371 2526.5,1529.0371 "
+              fill="none" style="stroke:#181818;stroke-width:1.5;"/>
+        <path d="M2578.5,111.5762 L2653.5,111.5762 C2658.5,111.5762 2658.5,124.8203 2658.5,124.8203 C2658.5,124.8203 2658.5,138.0645 2653.5,138.0645 L2578.5,138.0645 C2573.5,138.0645 2573.5,124.8203 2573.5,124.8203 C2573.5,124.8203 2573.5,111.5762 2578.5,111.5762 "
+              fill="#E2E2F0" style="stroke:#181818;stroke-width:0.5;"/>
+        <path d="M2653.5,111.5762 C2648.5,111.5762 2648.5,124.8203 2648.5,124.8203 C2648.5,138.0645 2653.5,138.0645 2653.5,138.0645 "
+              fill="none" style="stroke:#181818;stroke-width:0.5;"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="65" x="2578.5"
+              y="130.1113">QueryBus
+        </text>
+        <path d="M2578.5,1502.5488 L2653.5,1502.5488 C2658.5,1502.5488 2658.5,1515.793 2658.5,1515.793 C2658.5,1515.793 2658.5,1529.0371 2653.5,1529.0371 L2578.5,1529.0371 C2573.5,1529.0371 2573.5,1515.793 2573.5,1515.793 C2573.5,1515.793 2573.5,1502.5488 2578.5,1502.5488 "
+              fill="#E2E2F0" style="stroke:#181818;stroke-width:0.5;"/>
+        <path d="M2653.5,1502.5488 C2648.5,1502.5488 2648.5,1515.793 2648.5,1515.793 C2648.5,1529.0371 2653.5,1529.0371 2653.5,1529.0371 "
+              fill="none" style="stroke:#181818;stroke-width:0.5;"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="65" x="2578.5"
+              y="1521.084">QueryBus
+        </text>
+        <rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="122"
+              x="2670" y="106.5762"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="108" x="2677"
+              y="127.1113">QueryProcessor
+        </text>
+        <rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="122"
+              x="2670" y="1502.5488"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="108" x="2677"
+              y="1523.084">QueryProcessor
+        </text>
+        <rect fill="#FFFFFF" height="1346.4844" style="stroke:#181818;stroke-width:1.0;" width="10" x="18.5"
+              y="148.0645"/>
+        <rect fill="#FFFFFF" height="1346.4844" style="stroke:#181818;stroke-width:1.0;" width="10" x="136.5"
+              y="148.0645"/>
+        <rect fill="#FFFFFF" height="1346.4844" style="stroke:#181818;stroke-width:1.0;" width="10" x="280.5"
+              y="148.0645"/>
+        <rect fill="#FFFFFF" height="1044.0684" style="stroke:#181818;stroke-width:1.0;" width="10" x="572.5"
+              y="450.4805"/>
+        <rect fill="#FFFFFF" height="188.041" style="stroke:#181818;stroke-width:1.0;" width="10" x="751.5"
+              y="507.457"/>
+        <rect fill="#FFFFFF" height="29.3105" style="stroke:#181818;stroke-width:1.0;" width="10" x="912.5"
+              y="536.7676"/>
+        <rect fill="#FFFFFF" height="752.7402" style="stroke:#181818;stroke-width:1.0;" width="10" x="1071"
+              y="741.8086"/>
+        <rect fill="#FFFFFF" height="918.4707" style="stroke:#181818;stroke-width:1.0;" width="10" x="1204.5"
+              y="576.0781"/>
+        <rect fill="#FFFFFF" height="1346.4844" style="stroke:#181818;stroke-width:1.0;" width="10" x="1392.5"
+              y="148.0645"/>
+        <rect fill="#FFFFFF" height="1346.4844" style="stroke:#181818;stroke-width:1.0;" width="10" x="1509"
+              y="148.0645"/>
+        <rect fill="#FFFFFF" height="1346.4844" style="stroke:#181818;stroke-width:1.0;" width="10" x="1674"
+              y="148.0645"/>
+        <rect fill="#FFFFFF" height="1346.4844" style="stroke:#181818;stroke-width:1.0;" width="10" x="1866"
+              y="148.0645"/>
+        <rect fill="#FFFFFF" height="1346.4844" style="stroke:#181818;stroke-width:1.0;" width="10" x="2031"
+              y="148.0645"/>
+        <rect fill="#FFFFFF" height="1346.4844" style="stroke:#181818;stroke-width:1.0;" width="10" x="2200"
+              y="148.0645"/>
+        <rect fill="#FFFFFF" height="29.3105" style="stroke:#181818;stroke-width:1.0;" width="10" x="2379"
+              y="1309.6855"/>
+        <rect fill="#FFFFFF" height="29.3105" style="stroke:#181818;stroke-width:1.0;" width="10" x="2379"
+              y="1426.9277"/>
+        <rect fill="#FFFFFF" height="1346.4844" style="stroke:#181818;stroke-width:1.0;" width="10" x="2503.5"
+              y="148.0645"/>
+        <rect fill="#FFFFFF" height="1346.4844" style="stroke:#181818;stroke-width:1.0;" width="10" x="2611"
+              y="148.0645"/>
+        <rect fill="#FFFFFF" height="1346.4844" style="stroke:#181818;stroke-width:1.0;" width="10" x="2726"
+              y="148.0645"/>
+        <polygon fill="#181818" points="157.5,165.375,147.5,169.375,157.5,173.375,153.5,169.375"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="151.5" x2="279.5" y1="169.375" y2="169.375"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="16" x="163.5"
+              y="164.6328">[1]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="61" x="183.5"
+              y="164.6328">Subscribe
+        </text>
+        <polygon fill="#181818" points="1530,194.6855,1520,198.6855,1530,202.6855,1526,198.6855"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="1524" x2="1673" y1="198.6855" y2="198.6855"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="16" x="1536"
+              y="193.9434">[2]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="61" x="1556"
+              y="193.9434">Subscribe
+        </text>
+        <path d="M2065,211.6855 L2065,251.6855 L2345,251.6855 L2345,221.6855 L2335,211.6855 L2065,211.6855 "
+              fill="#FEFFDD" style="stroke:#181818;stroke-width:0.5;"/>
+        <path d="M2335,211.6855 L2335,221.6855 L2345,221.6855 L2335,211.6855 " fill="#FEFFDD"
+              style="stroke:#181818;stroke-width:0.5;"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="259" x="2071"
+              y="229.2539">1： 订阅应用内的领域事件投影到查询数据库
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="259" x="2071"
+              y="244.5645">2： 订阅应用外的集成事件投影到查询数据库
+        </text>
+        <polygon fill="#181818" points="1530,274.6172,1520,278.6172,1530,282.6172,1526,278.6172"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="1524" x2="2030" y1="278.6172" y2="278.6172"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="16" x="1536"
+              y="273.875">[3]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="61" x="1556"
+              y="273.875">Subscribe
+        </text>
+        <polygon fill="#181818" points="1887,303.9277,1877,307.9277,1887,311.9277,1883,307.9277"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="1881" x2="2030" y1="307.9277" y2="307.9277"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="16" x="1893"
+              y="303.1855">[4]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="61" x="1913"
+              y="303.1855">Subscribe
+        </text>
+        <polygon fill="#181818" points="2632,333.2383,2622,337.2383,2632,341.2383,2628,337.2383"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="2626" x2="2725" y1="337.2383" y2="337.2383"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="16" x="2638"
+              y="332.4961">[5]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="61" x="2658"
+              y="332.4961">Subscribe
+        </text>
+        <polygon fill="#181818" points="124.5,362.5488,134.5,366.5488,124.5,370.5488,128.5,366.5488"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="28.5" x2="130.5" y1="366.5488" y2="366.5488"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="16" x="35.5"
+              y="361.8066">[6]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="64" x="55.5"
+              y="361.8066">Command
+        </text>
+        <polygon fill="#181818" points="268.5,391.8594,278.5,395.8594,268.5,399.8594,272.5,395.8594"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:2.0,2.0;" x1="146.5" x2="274.5" y1="395.8594"
+              y2="395.8594"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="16" x="153.5"
+              y="391.1172">[7]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="64" x="173.5"
+              y="391.1172">Command
+        </text>
+        <polygon fill="#181818" points="484.5,436.4805,494.5,440.4805,484.5,444.4805,488.5,440.4805"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="290.5" x2="490.5" y1="440.4805" y2="440.4805"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="16" x="297.5"
+              y="428.083">[8]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="158" x="317.5"
+              y="420.4277">Group command streams
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="99" x="321.5"
+              y="435.7383">by aggregate ID
+        </text>
+        <rect fill="#E2E2F0" height="46.9766" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="162"
+              x="496.5" y="403.8594"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="132" x="509.5"
+              y="424.3945">GroupedAggregate
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="144" x="507.5"
+              y="440.8828">CommandSubscriber
+        </text>
+        <path d="M486.5,468.8359 L640.5,468.8359 L640.5,476.1465 L630.5,486.1465 L486.5,486.1465 L486.5,468.8359 "
+              fill="#EEEEEE" style="stroke:#000000;stroke-width:1.5;"/>
+        <rect fill="none" height="234.6621" style="stroke:#000000;stroke-width:1.5;" width="960.5" x="486.5"
+              y="468.8359"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing"
+              textLength="109" x="501.5" y="482.4043">Load Aggregate
+        </text>
+        <polygon fill="#181818" points="739.5,503.457,749.5,507.457,739.5,511.457,743.5,507.457"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="582.5" x2="745.5" y1="507.457" y2="507.457"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="16" x="589.5"
+              y="502.7148">[9]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="130" x="609.5"
+              y="502.7148">load aggregate by ID
+        </text>
+        <polygon fill="#181818" points="900.5,532.7676,910.5,536.7676,900.5,540.7676,904.5,536.7676"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="761.5" x2="906.5" y1="536.7676" y2="536.7676"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="768.5"
+              y="532.0254">[10]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="104" x="796.5"
+              y="532.0254">create aggregate
+        </text>
+        <polygon fill="#181818" points="1154.5,562.0781,1164.5,566.0781,1154.5,570.0781,1158.5,566.0781"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="917.5" x2="1160.5" y1="566.0781" y2="566.0781"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="924.5"
+              y="561.3359">[11]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="122" x="952.5"
+              y="561.3359">create(aggregateID)
+        </text>
+        <rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="86"
+              x="1166.5" y="544.7676"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="72" x="1173.5"
+              y="565.3027">Aggregate
+        </text>
+        <polygon fill="#181818" points="1380.5,603.5664,1390.5,607.5664,1380.5,611.5664,1384.5,607.5664"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="761.5" x2="1386.5" y1="607.5664" y2="607.5664"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="768.5"
+              y="602.8242">[12]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="215" x="796.5"
+              y="602.8242">load event stream by aggregate ID
+        </text>
+        <polygon fill="#181818" points="772.5,632.877,762.5,636.877,772.5,640.877,768.5,636.877"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:2.0,2.0;" x1="766.5" x2="1391.5" y1="636.877"
+              y2="636.877"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="778.5"
+              y="632.1348">[13]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="126" x="806.5"
+              y="632.1348">DomainEventStream
+        </text>
+        <polygon fill="#181818" points="1192.5,662.1875,1202.5,666.1875,1192.5,670.1875,1196.5,666.1875"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="761.5" x2="1198.5" y1="666.1875" y2="666.1875"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="768.5"
+              y="661.4453">[14]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="189" x="796.5"
+              y="661.4453">sourcing(DomainEventStream)
+        </text>
+        <polygon fill="#181818" points="593.5,691.498,583.5,695.498,593.5,699.498,589.5,695.498"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:2.0,2.0;" x1="587.5" x2="755.5" y1="695.498"
+              y2="695.498"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="599.5"
+              y="690.7559">[15]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="62" x="627.5"
+              y="690.7559">aggregate
+        </text>
+        <polygon fill="#181818" points="983.5,727.8086,993.5,731.8086,983.5,735.8086,987.5,731.8086"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="582.5" x2="989.5" y1="731.8086" y2="731.8086"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="589.5"
+              y="727.0664">[16]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="110" x="617.5"
+              y="727.0664">create(Aggregate)
+        </text>
+        <rect fill="#E2E2F0" height="46.9766" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="161"
+              x="995.5" y="710.498"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="143" x="1002.5"
+              y="731.0332">AggregateCommand
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="73" x="1041.5"
+              y="747.5215">Subscriber
+        </text>
+        <path d="M463,773.4746 L463,828.4746 L692,828.4746 L692,783.4746 L682,773.4746 L463,773.4746 " fill="#FEFFDD"
+              style="stroke:#181818;stroke-width:0.5;"/>
+        <path d="M682,773.4746 L682,783.4746 L692,783.4746 L682,773.4746 " fill="#FEFFDD"
+              style="stroke:#181818;stroke-width:0.5;"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="139" x="469"
+              y="791.043">Destroy the aggregate
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="200" x="473"
+              y="806.3535">when no command is generated
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="201" x="473"
+              y="821.6641">beyond the cache timeout event
+        </text>
+        <path d="M985.5,841.4063 L1179.5,841.4063 L1179.5,848.7168 L1169.5,858.7168 L985.5,858.7168 L985.5,841.4063 "
+              fill="#EEEEEE" style="stroke:#000000;stroke-width:1.5;"/>
+        <rect fill="none" height="118.2422" style="stroke:#000000;stroke-width:1.5;" width="461.5" x="985.5"
+              y="841.4063"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing"
+              textLength="149" x="1000.5" y="854.9746">Transaction Boundary
+        </text>
+        <polygon fill="#181818" points="1192.5,876.0273,1202.5,880.0273,1192.5,884.0273,1196.5,880.0273"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="1081" x2="1198.5" y1="880.0273" y2="880.0273"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="1088"
+              y="875.2852">[17]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="64" x="1116"
+              y="875.2852">Command
+        </text>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="1214.5" x2="1256.5" y1="909.3379" y2="909.3379"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="1256.5" x2="1256.5" y1="909.3379" y2="922.3379"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="1215.5" x2="1256.5" y1="922.3379" y2="922.3379"/>
+        <polygon fill="#181818" points="1225.5,918.3379,1215.5,922.3379,1225.5,926.3379,1221.5,922.3379"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="1221.5"
+              y="904.5957">[18]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="110" x="1249.5"
+              y="904.5957">handle Command
+        </text>
+        <polygon fill="#181818" points="1380.5,947.6484,1390.5,951.6484,1380.5,955.6484,1384.5,951.6484"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="1214.5" x2="1386.5" y1="951.6484" y2="951.6484"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="1221.5"
+              y="946.9063">[19]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="126" x="1249.5"
+              y="946.9063">DomainEventStream
+        </text>
+        <polygon fill="#181818" points="1497,983.959,1507,987.959,1497,991.959,1501,987.959"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="1214.5" x2="1503" y1="987.959" y2="987.959"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="1221.5"
+              y="983.2168">[20]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="126" x="1249.5"
+              y="983.2168">DomainEventStream
+        </text>
+        <polygon fill="#181818" points="1662,1013.2695,1672,1017.2695,1662,1021.2695,1666,1017.2695"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:2.0,2.0;" x1="1519" x2="1668" y1="1017.2695"
+              y2="1017.2695"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="1526"
+              y="1012.5273">[21]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="83" x="1554"
+              y="1012.5273">DomainEvent
+        </text>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="1684" x2="1726" y1="1061.8906" y2="1061.8906"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="1726" x2="1726" y1="1061.8906" y2="1074.8906"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="1685" x2="1726" y1="1074.8906" y2="1074.8906"/>
+        <polygon fill="#181818" points="1695,1070.8906,1685,1074.8906,1695,1078.8906,1691,1074.8906"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="1691"
+              y="1049.4932">[22]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="136" x="1719"
+              y="1041.8379">Convert DomainEvent
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="123" x="1723"
+              y="1057.1484">To IntegrationEvent
+        </text>
+        <polygon fill="#181818" points="1854,1115.5117,1864,1119.5117,1854,1123.5117,1858,1119.5117"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="1684" x2="1860" y1="1119.5117" y2="1119.5117"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="1691"
+              y="1107.1143">[23]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="47" x="1719"
+              y="1099.459">publish
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="103" x="1723"
+              y="1114.7695">IntegrationEvent
+        </text>
+        <polygon fill="#181818" points="2019,1144.8223,2029,1148.8223,2019,1152.8223,2023,1148.8223"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="1519" x2="2025" y1="1148.8223" y2="1148.8223"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="1526"
+              y="1144.0801">[24]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="83" x="1554"
+              y="1144.0801">DomainEvent
+        </text>
+        <polygon fill="#181818" points="2019,1174.1328,2029,1178.1328,2019,1182.1328,2023,1178.1328"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="1876" x2="2025" y1="1178.1328" y2="1178.1328"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="1883"
+              y="1173.3906">[25]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="103" x="1911"
+              y="1173.3906">IntegrationEvent
+        </text>
+        <polygon fill="#181818" points="2188,1218.7539,2198,1222.7539,2188,1226.7539,2192,1222.7539"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="2041" x2="2194" y1="1222.7539" y2="1222.7539"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="2048"
+              y="1210.3564">[26]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="94" x="2076"
+              y="1202.7012">DomainEvent /
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="103" x="2080"
+              y="1218.0117">IntegrationEvent
+        </text>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="2210" x2="2252" y1="1267.375" y2="1267.375"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="2252" x2="2252" y1="1267.375" y2="1280.375"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="2211" x2="2252" y1="1280.375" y2="1280.375"/>
+        <polygon fill="#181818" points="2221,1276.375,2211,1280.375,2221,1284.375,2217,1280.375"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="2217"
+              y="1254.9775">[27]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="87" x="2245"
+              y="1247.3223">Convert Event
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="123" x="2249"
+              y="1262.6328">to Partial view state
+        </text>
+        <polygon fill="#181818" points="2367,1305.6855,2377,1309.6855,2367,1313.6855,2371,1309.6855"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="2210" x2="2373" y1="1309.6855" y2="1309.6855"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="2217"
+              y="1304.9434">[28]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="95" x="2245"
+              y="1304.9434">save(viewState)
+        </text>
+        <polygon fill="#181818" points="2491.5,1334.9961,2501.5,1338.9961,2491.5,1342.9961,2495.5,1338.9961"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="2384" x2="2497.5" y1="1338.9961" y2="1338.9961"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="2391"
+              y="1334.2539">[29]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="60" x="2419"
+              y="1334.2539">ViewState
+        </text>
+        <polygon fill="#181818" points="2599,1364.3066,2609,1368.3066,2599,1372.3066,2603,1368.3066"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="28.5" x2="2605" y1="1368.3066" y2="1368.3066"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="35.5"
+              y="1363.5645">[30]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="37" x="63.5"
+              y="1363.5645">Query
+        </text>
+        <polygon fill="#181818" points="2714,1393.6172,2724,1397.6172,2714,1401.6172,2718,1397.6172"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:2.0,2.0;" x1="2621" x2="2720" y1="1397.6172"
+              y2="1397.6172"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="2628"
+              y="1392.875">[31]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="37" x="2656"
+              y="1392.875">Query
+        </text>
+        <polygon fill="#181818" points="2400,1422.9277,2390,1426.9277,2400,1430.9277,2396,1426.9277"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="2394" x2="2725" y1="1426.9277" y2="1426.9277"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="2406"
+              y="1422.1855">[32]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="43" x="2434"
+              y="1422.1855">query()
+        </text>
+        <polygon fill="#181818" points="2714,1452.2383,2724,1456.2383,2714,1460.2383,2718,1456.2383"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:2.0,2.0;" x1="2384" x2="2720" y1="1456.2383"
+              y2="1456.2383"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="2391"
+              y="1451.4961">[33]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="67" x="2419"
+              y="1451.4961">ViewModel
+        </text>
+        <polygon fill="#181818" points="39.5,1481.5488,29.5,1485.5488,39.5,1489.5488,35.5,1485.5488"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:2.0,2.0;" x1="33.5" x2="2725" y1="1485.5488"
+              y2="1485.5488"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="45.5"
+              y="1480.8066">[34]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="67" x="73.5"
+              y="1480.8066">ViewModel
+        </text>
+        <rect fill="none" height="11.7773" id="_title" style="stroke:none;stroke-width:1.0;" width="183" x="2613"
+              y="5"/>
+        <a href="https://github.com/Ahoo-Wang/Wow" target="_top" title="https://github.com/Ahoo-Wang/Wow"
+           xlink:actuate="onRequest" xlink:href="https://github.com/Ahoo-Wang/Wow" xlink:show="new"
+           xlink:title="https://github.com/Ahoo-Wang/Wow" xlink:type="simple">
+            <text fill="#808080" font-family="sans-serif" font-size="10" lengthAdjust="spacing"
+                  text-decoration="underline" textLength="183" x="2613" y="14.668">https://github.com/Ahoo-Wang/Wow
+            </text>
+        </a>
+        <rect fill="none" height="11.7773" id="_title" style="stroke:none;stroke-width:1.0;" width="183" x="1306.5"
+              y="1584.0371"/>
+        <a href="https://github.com/Ahoo-Wang/Wow" target="_top" title="https://github.com/Ahoo-Wang/Wow"
+           xlink:actuate="onRequest" xlink:href="https://github.com/Ahoo-Wang/Wow" xlink:show="new"
+           xlink:title="https://github.com/Ahoo-Wang/Wow" xlink:type="simple">
+            <text fill="#808080" font-family="sans-serif" font-size="10" lengthAdjust="spacing"
+                  text-decoration="underline" textLength="183" x="1306.5" y="1593.7051">https://github.com/Ahoo-Wang/Wow
+            </text>
+        </a><!--MD5=[d3b3ce166ab045b5a5031d30c8656511]
+@startuml
+!include layout.puml
+
+title Command flow and command processing
+
+actor User
+box Command
+queue CommandBus
+participant AggregateProcessor
+participant "GroupedAggregate \n CommandSubscriber" as GroupedAggregate
+participant AggregateRepository
+participant AggregateFactory
+participant "AggregateCommand \n Subscriber" as AggregateSubscriber
+
+'box Consistency Boundary
+participant Aggregate
+database EventStore
+'end box
+
+queue DomainEventBus
+participant DomainEventPublishing
+end box
+
+queue IntegrationEventBus
+
+box Query
+participant EventProcessor
+participant ViewProjector
+participant ViewRepository
+database QueryDatabase
+queue QueryBus
+participant QueryProcessor
+end box
+autonumber "[0]"
+
+User ++
+EventStore ++
+CommandBus ++
+AggregateProcessor ++
+DomainEventBus ++
+DomainEventPublishing ++
+IntegrationEventBus ++
+EventProcessor ++
+ViewProjector ++
+QueryDatabase++
+QueryBus++
+QueryProcessor++
+
+CommandBus <- AggregateProcessor: Subscribe
+DomainEventBus <- DomainEventPublishing: Subscribe
+note over ViewProjector
+1： 订阅应用内的领域事件投影到查询数据库
+2： 订阅应用外的集成事件投影到查询数据库
+end note
+DomainEventBus <- EventProcessor: Subscribe
+IntegrationEventBus <- EventProcessor: Subscribe
+QueryBus <- QueryProcessor: Subscribe
+
+
+User -> CommandBus : Command
+CommandBus - -> AggregateProcessor: Command
+create GroupedAggregate
+AggregateProcessor -> GroupedAggregate ++: Group command streams \n by aggregate ID
+group Load Aggregate
+    GroupedAggregate ->  AggregateRepository ++: load aggregate by ID
+    AggregateRepository -> AggregateFactory ++: create aggregate
+
+    create Aggregate
+    AggregateFactory -> Aggregate ++- - : create(aggregateID)
+
+    AggregateRepository -> EventStore: load event stream by aggregate ID
+    AggregateRepository <- - EventStore: DomainEventStream
+    AggregateRepository ->  Aggregate: sourcing(DomainEventStream)
+    GroupedAggregate <- - AggregateRepository : aggregate
+    AggregateRepository - -
+end
+create AggregateSubscriber
+GroupedAggregate -> AggregateSubscriber ++: create(Aggregate)
+
+note over GroupedAggregate: Destroy the aggregate \n when no command is generated \n beyond the cache timeout event
+
+group Transaction Boundary
+    AggregateSubscriber -> Aggregate: Command
+    Aggregate -> Aggregate : handle Command
+    Aggregate -> EventStore : DomainEventStream
+end
+
+Aggregate -> DomainEventBus : DomainEventStream
+
+DomainEventBus - -> DomainEventPublishing: DomainEvent
+
+DomainEventPublishing -> DomainEventPublishing : Convert DomainEvent \n To IntegrationEvent
+DomainEventPublishing -> IntegrationEventBus : publish \n IntegrationEvent
+
+DomainEventBus -> EventProcessor: DomainEvent
+IntegrationEventBus -> EventProcessor: IntegrationEvent
+EventProcessor -> ViewProjector: DomainEvent /\n IntegrationEvent
+ViewProjector -> ViewProjector : Convert Event \n to Partial view state
+ViewProjector -> ViewRepository ++: save(viewState)
+ViewRepository -> QueryDatabase - -: ViewState
+
+User -> QueryBus : Query
+QueryBus - -> QueryProcessor: Query
+ViewRepository <- QueryProcessor++: query()
+ViewRepository - -> QueryProcessor- -: ViewModel
+QueryProcessor - -> User : ViewModel
+
+@enduml
+
+@startuml
+skinparam hyperlinkColor grey
+
+
+header
+[[https://github.com/Ahoo-Wang/Wow]]
+endheader
+
+center footer [[https://github.com/Ahoo-Wang/Wow]]
+
+
+title Command flow and command processing
+
+actor User
+box Command
+queue CommandBus
+participant AggregateProcessor
+participant "GroupedAggregate \n CommandSubscriber" as GroupedAggregate
+participant AggregateRepository
+participant AggregateFactory
+participant "AggregateCommand \n Subscriber" as AggregateSubscriber
+
+participant Aggregate
+database EventStore
+
+queue DomainEventBus
+participant DomainEventPublishing
+end box
+
+queue IntegrationEventBus
+
+box Query
+participant EventProcessor
+participant ViewProjector
+participant ViewRepository
+database QueryDatabase
+queue QueryBus
+participant QueryProcessor
+end box
+autonumber "[0]"
+
+User ++
+EventStore ++
+CommandBus ++
+AggregateProcessor ++
+DomainEventBus ++
+DomainEventPublishing ++
+IntegrationEventBus ++
+EventProcessor ++
+ViewProjector ++
+QueryDatabase++
+QueryBus++
+QueryProcessor++
+
+CommandBus <- AggregateProcessor: Subscribe
+DomainEventBus <- DomainEventPublishing: Subscribe
+note over ViewProjector
+1： 订阅应用内的领域事件投影到查询数据库
+2： 订阅应用外的集成事件投影到查询数据库
+end note
+DomainEventBus <- EventProcessor: Subscribe
+IntegrationEventBus <- EventProcessor: Subscribe
+QueryBus <- QueryProcessor: Subscribe
+
+
+User -> CommandBus : Command
+CommandBus - -> AggregateProcessor: Command
+create GroupedAggregate
+AggregateProcessor -> GroupedAggregate ++: Group command streams \n by aggregate ID
+group Load Aggregate
+    GroupedAggregate ->  AggregateRepository ++: load aggregate by ID
+    AggregateRepository -> AggregateFactory ++: create aggregate
+
+    create Aggregate
+    AggregateFactory -> Aggregate ++- - : create(aggregateID)
+
+    AggregateRepository -> EventStore: load event stream by aggregate ID
+    AggregateRepository <- - EventStore: DomainEventStream
+    AggregateRepository ->  Aggregate: sourcing(DomainEventStream)
+    GroupedAggregate <- - AggregateRepository : aggregate
+    AggregateRepository - -
+end
+create AggregateSubscriber
+GroupedAggregate -> AggregateSubscriber ++: create(Aggregate)
+
+note over GroupedAggregate: Destroy the aggregate \n when no command is generated \n beyond the cache timeout event
+
+group Transaction Boundary
+    AggregateSubscriber -> Aggregate: Command
+    Aggregate -> Aggregate : handle Command
+    Aggregate -> EventStore : DomainEventStream
+end
+
+Aggregate -> DomainEventBus : DomainEventStream
+
+DomainEventBus - -> DomainEventPublishing: DomainEvent
+
+DomainEventPublishing -> DomainEventPublishing : Convert DomainEvent \n To IntegrationEvent
+DomainEventPublishing -> IntegrationEventBus : publish \n IntegrationEvent
+
+DomainEventBus -> EventProcessor: DomainEvent
+IntegrationEventBus -> EventProcessor: IntegrationEvent
+EventProcessor -> ViewProjector: DomainEvent /\n IntegrationEvent
+ViewProjector -> ViewProjector : Convert Event \n to Partial view state
+ViewProjector -> ViewRepository ++: save(viewState)
+ViewRepository -> QueryDatabase - -: ViewState
+
+User -> QueryBus : Query
+QueryBus - -> QueryProcessor: Query
+ViewRepository <- QueryProcessor++: query()
+ViewRepository - -> QueryProcessor- -: ViewModel
+QueryProcessor - -> User : ViewModel
+
+@enduml
+
+PlantUML version 1.2022.12(Mon Oct 24 02:12:26 CST 2022)
+(GPL source distribution)
+Java Runtime: OpenJDK Runtime Environment
+JVM: OpenJDK 64-Bit Server VM
+Default Encoding: UTF-8
+Language: zh
+Country: CN
+-->
+    </g>
+</svg>

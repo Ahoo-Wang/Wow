@@ -1,0 +1,116 @@
+{
+    "schemaVersion": 1,
+    "status": "SUCCESS",
+    "runId": "3a185c7a-f84d-4c93-bb0a-a6de7a1a7630",
+    "taskPath": ":wow-benchmarks:benchmarkPureCreateMainPrPairThread14",
+    "startedAt": "2026-07-24T11:30:24.645786Z",
+    "projectVersion": "8.9.1",
+    "source": {
+        "commit": "b8dbb0da67dc8b471ffe1e8b5e3418fb744da6ea",
+        "dirty": false,
+        "jmhJarSha256": "239148992aee05ce23d0e8bf1c1112f87064d5f2e48d62197f6820c2e941a91c"
+    },
+    "runSpec": {
+        "suite": "pure-create-main-pr-pair",
+        "profile": "pure-create-main-pr-pair",
+        "threads": 14,
+        "includePattern": "\\Qme.ahoo.wow.benchmark.infrastructure.redis.RedisCommandWriteE2EBenchmark\\E.*|\\Qme.ahoo.wow.benchmark.infrastructure.mongo.MongoCommandWriteE2EBenchmark\\E.*",
+        "modes": [
+            "thrpt"
+        ],
+        "warmupIterations": 2,
+        "warmupTime": "5s",
+        "measurementIterations": 3,
+        "measurementTime": "10s",
+        "forks": 1,
+        "parameters": {
+            "schedulerStrategy": "PARALLEL",
+            "schedulerPoolSize": "14",
+            "stripeCount": "896"
+        },
+        "jvmArgs": [
+            "-Xmx4g",
+            "-Xms4g",
+            "-XX:+UseG1GC",
+            "-XX:+UnlockDiagnosticVMOptions",
+            "-XX:+DebugNonSafepoints",
+            "-XX:+AlwaysPreTouch"
+        ],
+        "requestedProfilers": [
+            
+        ],
+        "resolvedJmhArgs": [
+            "\\Qme.ahoo.wow.benchmark.infrastructure.redis.RedisCommandWriteE2EBenchmark\\E.*|\\Qme.ahoo.wow.benchmark.infrastructure.mongo.MongoCommandWriteE2EBenchmark\\E.*",
+            "-bm",
+            "thrpt",
+            "-t",
+            "14",
+            "-wi",
+            "2",
+            "-w",
+            "5s",
+            "-i",
+            "3",
+            "-r",
+            "10s",
+            "-f",
+            "1",
+            "-foe",
+            "true",
+            "-p",
+            "schedulerStrategy=PARALLEL",
+            "-p",
+            "schedulerPoolSize=14",
+            "-p",
+            "stripeCount=896",
+            "-rf",
+            "json",
+            "-rff",
+            "/private/tmp/wow-effective-baseline/wow-benchmarks/results/jmh/pure-create-main-pr-pair/pure-create-main-pr-pair/threads-14-pure-create-main-pr-pair.json",
+            "-o",
+            "/private/tmp/wow-effective-baseline/wow-benchmarks/results/jmh/pure-create-main-pr-pair/pure-create-main-pr-pair/threads-14-pure-create-main-pr-pair-human.txt",
+            "-jvmArgs",
+            "-Xmx4g -Xms4g -XX:+UseG1GC -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -XX:+AlwaysPreTouch"
+        ],
+        "resolvedProfilerArgs": [
+            
+        ],
+        "requiredServices": [
+            {
+                "service": "Redis",
+                "host": "localhost",
+                "port": 6379
+            },
+            {
+                "service": "MongoDB",
+                "host": "localhost",
+                "port": 27017
+            }
+        ]
+    },
+    "runtime": {
+        "javaVersion": "17.0.7",
+        "vmName": "OpenJDK 64-Bit Server VM",
+        "vmVersion": "17.0.7+7-LTS",
+        "javaExecutable": "/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java",
+        "osName": "Mac OS X",
+        "osVersion": "26.5.2",
+        "osArch": "aarch64",
+        "availableProcessors": 14,
+        "physicalMemoryBytes": 25769803776
+    },
+    "completedAt": "2026-07-24T11:31:52.274132Z",
+    "artifacts": {
+        "result": {
+            "path": "threads-14-pure-create-main-pr-pair.json",
+            "size": 4073,
+            "sha256": "0357782e025be100f7bb64746195637dbcf6df21fc4ec875cdf79623e4e8bc83",
+            "rowCount": 2
+        },
+        "human": {
+            "path": "threads-14-pure-create-main-pr-pair-human.txt",
+            "size": 4240,
+            "sha256": "d1132c3b9dd06153ada50f0ec7e7f8d4d9b0a5611ce0a2fb454b912512b36447"
+        }
+    }
+}

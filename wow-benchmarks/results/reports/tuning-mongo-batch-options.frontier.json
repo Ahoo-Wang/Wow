@@ -1,0 +1,21 @@
+{
+    "schemaVersion": 2,
+    "suite": "mongo-batch-options-tuning",
+    "currentOptions": "128x1000us",
+    "orderedFrontier": [
+        "512x200us",
+        "128x200us",
+        "192x250us",
+        "512x250us",
+        "256x250us",
+        "128x375us",
+        "192x375us",
+        "512x375us"
+    ],
+    "sourceCommit": "f6d87771d7085b63d7bbdec1579f4955d422178f",
+    "jmhJarSha256": "70cf811dc6cebb489639cd02bf1d508b521ef65a87fd70771d3c203c3b291324",
+    "benchmarkHarnessSha256": "e4194b3e33e0f091159245074a7ee6d3d6fab093283e84e09de272c2a62e4734",
+    "resultSha256": "10344411da4a9e45f2d205d9642eb808d6e5deabc54ae92979c1df7040553910",
+    "manifestSha256": "3501d2e860524f34c9c365f411e60167b585430acf955534cb32f47be32d03ce",
+    "evidenceSha256": "62a04175cf83936edb887bfa983863f16de00877823c66cffcfad0b3b7161c86"
+}

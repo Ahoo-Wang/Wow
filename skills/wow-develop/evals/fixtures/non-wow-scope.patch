@@ -1,0 +1,12 @@
+diff --git a/services/plain-service/build.gradle.kts b/services/plain-service/build.gradle.kts
+new file mode 100644
+--- /dev/null
++++ b/services/plain-service/build.gradle.kts
+@@ -0,0 +1 @@
++plugins { kotlin("jvm") }
+diff --git a/services/wow-service/build.gradle.kts b/services/wow-service/build.gradle.kts
+new file mode 100644
+--- /dev/null
++++ b/services/wow-service/build.gradle.kts
+@@ -0,0 +1 @@
++dependencies { implementation("me.ahoo.wow:wow-spring-boot-starter:8.12.2") }

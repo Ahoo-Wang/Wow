@@ -1,0 +1,73 @@
+@startuml(id=event)
+
+!include layout.puml
+
+title
+Event
+__Class Diagram__
+end title
+
+interface Event{
+    String id()
+    String eventName()
+}
+interface DomainEvent{
+    String aggregateId()
+    long version()
+}
+interface IntegrationEvent{
+    String namespace()
+}
+
+note left of DomainEvent
+The scope of the domain event
+is the aggregate root.
+Event names are unique
+within the aggregate root
+end note
+
+note top of IntegrationEvent
+Integration events serve as join points
+between aggregates for integrating Bounded Context aggregates
+end note
+
+note right of IntegrationEvent::namespace
+Bounded Context Identifier,
+Prevent naming conflicts.
+end note
+
+Event <|-- DomainEvent
+Event <|-- IntegrationEvent
+
+'interface DomainEventAdapter{
+'    IntegrationEvent adapt(domainEvent)
+'}
+
+'DomainEventAdapter -- DomainEvent
+'DomainEventAdapter -- IntegrationEvent
+
+@enduml
+
+@startuml
+!include layout.puml
+
+interface EventBus<Event> {
+    send(event)
+    receive(eventType)
+}
+
+interface InAppEventBus<DomainEvent> {
+    send(domainEvent)
+    receive(domainEventType)
+}
+
+interface IntegrationEventBus<IntegrationEvent> {
+    send(integrationEvent)
+    receive(integrationEventType)
+}
+
+EventBus <|-- InAppEventBus
+
+EventBus <|-- IntegrationEventBus
+
+@enduml

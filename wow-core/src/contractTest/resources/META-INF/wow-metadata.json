@@ -1,0 +1,70 @@
+{
+  "contexts": {
+    "wow-core-test": {
+      "scopes": [
+        "me.ahoo.wow"
+      ],
+      "aggregates": {
+        "command_aggregate": {
+          "scopes": [
+            "me.ahoo.wow.command"
+          ]
+        },
+        "event_aggregate": {
+          "scopes": [
+            "me.ahoo.wow.event"
+          ]
+        },
+        "modeling_state_aggregate": {
+          "scopes": [
+            "me.ahoo.wow.modeling.state"
+          ]
+        },
+        "mock_static_aggregate": {
+          "type": "me.ahoo.wow.modeling.MockStaticAggregate"
+        },
+        "modeling_annotation_command_aggregate": {
+          "type": "me.ahoo.wow.modeling.annotation.MockCommandAggregate"
+        },
+        "modeling_annotation_aggregate": {
+          "type": "me.ahoo.wow.modeling.annotation.MockAggregate"
+        },
+        "modeling_annotation_aggregate_with_aggregate_id": {
+          "type": "me.ahoo.wow.modeling.annotation.MockAggregateWithAggregateId"
+        },
+        "modeling_command_aggregate": {
+          "type": "me.ahoo.wow.modeling.command.MockCommandAggregate",
+          "scopes": [
+            "me.ahoo.wow.modeling.command"
+          ]
+        },
+        "messaging_aggregate": {
+          "scopes": [
+            "me.ahoo.wow.messaging"
+          ]
+        },
+        "modeling_annotation_mock_mount_aggregate": {
+          "type": "me.ahoo.wow.modeling.annotation.MockMountAggregate"
+        },
+        "modeling_annotation_mock_after_command_aggregate": {
+          "type": "me.ahoo.wow.modeling.annotation.MockAfterCommandAggregate"
+        },
+        "modeling_annotation_mock_async_after_command_aggregate": {
+          "type": "me.ahoo.wow.modeling.annotation.MockAsyncAfterCommandAggregate"
+        },
+        "modeling_annotation_mock_default_after_command_aggregate": {
+          "type": "me.ahoo.wow.modeling.annotation.MockDefaultAfterCommandAggregate"
+        },
+        "modeling_annotation_mock_multiple_after_command_aggregate": {
+          "type": "me.ahoo.wow.modeling.annotation.MockMultipleAfterCommandAggregate"
+        },
+        "MockStateAggregateWithoutCtorCommand": {
+          "type": "me.ahoo.wow.modeling.annotation.MockStateAggregateWithoutCtorCommand"
+        },
+        "MockStateAggregateWithoutRedundantCtorCommand": {
+          "type": "me.ahoo.wow.modeling.annotation.MockStateAggregateWithoutRedundantCtorCommand"
+        }
+      }
+    }
+  }
+}
