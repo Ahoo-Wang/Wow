@@ -18,10 +18,10 @@ Wow 使用 Jackson 3 处理命令、事件流、快照、状态聚合和查询�
 |---|---|---|
 | Wow Spring Boot 应用 | 注入 Spring 管理的 `ObjectMapper` | Starter 自动提供 `WowModule` Bean |
 | Wow 运行时或应用内辅助转换 | `JsonSerializer` 与扩展函数 | 自动发现 Kotlin 和 Wow Jackson 模块 |
-| 自行构建完整 Mapper | 注册 `WowModule` | 获得全部 Wow 类型序列化支持 |
-| 只依赖 `wow-api` | 注册 `MissingTypeImplProblemHandler` | 只获得 `@MissingTypeImpl` 缺失类型回退 |
+| 自行构建完整 Mapper | 注册 Kotlin Module 与 `WowModule` | 获得 Kotlin 与 Wow 类型序列化支持 |
+| 只依赖 `wow-api` | 注册 Kotlin Module；按需注册 `MissingTypeImplProblemHandler` | 支持 Kotlin 模型及可选的 `@MissingTypeImpl` 缺失类型回退 |
 
-裸 `ObjectMapper` 或 `JsonMapper` 不会自动具有 Wow 的配置和缺失类型回退。
+裸 `ObjectMapper` 或 `JsonMapper` 不会自动具有 Kotlin、Wow 的配置和缺失类型回退。
 
 ## JsonSerializer
 
@@ -81,8 +81,10 @@ val properties = decoded.toLinkedHashMap()
 ```kotlin
 import me.ahoo.wow.serialization.WowModule
 import tools.jackson.module.kotlin.jsonMapper
+import tools.jackson.module.kotlin.kotlinModule
 
 val mapper = jsonMapper {
+    addModule(kotlinModule())
     addModule(WowModule())
 }
 ```
@@ -96,7 +98,7 @@ Spring Boot Starter 在 Jackson 自动配置前提供 `WowModule` Bean。`wow-co
 Spring 管理的 Mapper 继续使用 Spring Boot 自身的 feature 配置；`WowModule` 只增加 Wow serializer、
 deserializer 与 Handler，不会复制 `JsonSerializer` 的全部全局 feature。
 
-如果应用完全替换 Spring 的 `ObjectMapper` 或禁用模块发现，需要自行注册 `WowModule`。
+如果应用完全替换 Spring 的 `ObjectMapper` 或禁用模块发现，需要自行注册 Kotlin Module 与 `WowModule`。
 
 ## 缺失多态类型回退
 

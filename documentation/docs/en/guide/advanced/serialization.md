@@ -18,10 +18,10 @@ A serialization shape can be an HTTP, messaging, and persistence contract at the
 |---|---|---|
 | Wow Spring Boot application | Inject Spring's `ObjectMapper` | The starter provides a `WowModule` bean automatically |
 | Wow runtime or in-application conversion | `JsonSerializer` and its extensions | Kotlin and Wow Jackson modules are discovered automatically |
-| Fully custom mapper | Register `WowModule` | Enables all Wow type serialization support |
-| `wow-api`-only consumer | Register `MissingTypeImplProblemHandler` | Enables only `@MissingTypeImpl` fallback |
+| Fully custom mapper | Register the Kotlin module and `WowModule` | Enables Kotlin and Wow type serialization support |
+| `wow-api`-only consumer | Register the Kotlin module; optionally register `MissingTypeImplProblemHandler` | Supports Kotlin models and optional `@MissingTypeImpl` fallback |
 
-A bare `ObjectMapper` or `JsonMapper` does not automatically inherit Wow configuration or missing-type fallback.
+A bare `ObjectMapper` or `JsonMapper` does not automatically inherit Kotlin or Wow configuration or missing-type fallback.
 
 ## JsonSerializer
 
@@ -81,8 +81,10 @@ It also registers `MissingTypeImplProblemHandler`. Do not duplicate individual s
 ```kotlin
 import me.ahoo.wow.serialization.WowModule
 import tools.jackson.module.kotlin.jsonMapper
+import tools.jackson.module.kotlin.kotlinModule
 
 val mapper = jsonMapper {
+    addModule(kotlinModule())
     addModule(WowModule())
 }
 ```
@@ -93,7 +95,7 @@ The Spring Boot starter contributes a `WowModule` bean before Jackson auto-confi
 
 Spring's mapper keeps its Spring Boot feature configuration. `WowModule` adds Wow serializers, deserializers, and the handler; it does not copy every global feature from `JsonSerializer`.
 
-Applications that replace Spring's `ObjectMapper` completely or disable module discovery must register `WowModule` themselves.
+Applications that replace Spring's `ObjectMapper` completely or disable module discovery must register the Kotlin module and `WowModule` themselves.
 
 ## Missing Polymorphic Type Fallback
 

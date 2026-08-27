@@ -13,9 +13,7 @@
 
 package me.ahoo.wow.api.query
 
-import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonInclude
-import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import io.swagger.v3.oas.annotations.media.ArraySchema
@@ -81,24 +79,6 @@ data class AggregationQuery(
         const val MAX_EXPRESSION_NODES: Int = 256
         private const val DEFAULT_LIMIT_TEXT = "100"
         private const val MAX_LIMIT_TEXT = "10000"
-
-        @JvmStatic
-        @JsonCreator
-        internal fun fromJson(
-            @JsonProperty("filter") filter: FilterExpression?,
-            @JsonProperty("elements") elements: List<AggregationElement>?,
-            @JsonProperty("groupBy") groupBy: List<AggregationGroup>?,
-            @JsonProperty("metrics") metrics: List<AggregationMetric>?,
-            @JsonProperty("sort") sort: List<Sort>?,
-            @JsonProperty("limit") limit: Int?,
-        ): AggregationQuery = AggregationQuery(
-            filter = filter ?: MatchAllFilter,
-            elements = elements.orEmpty(),
-            groupBy = groupBy.orEmpty(),
-            metrics = metrics.orEmpty(),
-            sort = sort.orEmpty(),
-            limit = limit ?: DEFAULT_LIMIT,
-        )
     }
 }
 
