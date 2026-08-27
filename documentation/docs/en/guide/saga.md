@@ -16,13 +16,11 @@ Commands such as `UnlockAmount` are explicit **business compensation**. They do 
 
 | Capability | Purpose | Current contract |
 | --- | --- | --- |
-| `@StatelessSaga` | Registers a stateless process orchestrator | The processor stores no workflow-instance state |
-| `@OnEvent` / `@OnStateEvent` | Declares domain-event or state-event functions | The `onEvent` / `onStateEvent` naming conventions also work |
-| Handler result | Generates 0..N commands | Supports command bodies, `CommandBuilder`, `CommandMessage`, `Iterable`, and reactive results |
-| `@Retry` | Describes durable compensation policy for failure records | It does not define saga steps or the immediate runtime retry count |
-| `SagaSpec` | Verifies an isolated event-to-command mapping | Covers normal, ignored, and business-compensation branches |
-
-<!-- Sources: wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/StatelessSaga.kt; wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaFunction.kt; test/wow-test/src/main/kotlin/me/ahoo/wow/test/SagaSpec.kt -->
+| [`@StatelessSaga`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/StatelessSaga.kt) | Registers a stateless process orchestrator | The processor stores no workflow-instance state |
+| [`@OnEvent`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/OnEvent.kt) / [`@OnStateEvent`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/OnStateEvent.kt) | Declares domain-event or state-event functions | The `onEvent` / `onStateEvent` naming conventions also work |
+| [`StatelessSagaFunction`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaFunction.kt) result | Generates 0..N commands | Supports command bodies, `CommandBuilder`, `CommandMessage`, `Iterable`, and reactive results |
+| [`@Retry`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/Retry.kt) | Describes durable compensation policy for failure records | It does not define saga steps or the immediate runtime retry count |
+| [`SagaSpec`](https://github.com/Ahoo-Wang/Wow/blob/main/test/wow-test/src/main/kotlin/me/ahoo/wow/test/SagaSpec.kt) | Verifies an isolated event-to-command mapping | Covers normal, ignored, and business-compensation branches |
 
 ## Orchestration vs. Choreography
 
@@ -63,15 +61,13 @@ Saga handling completes when the handler finishes and `CommandGateway.send` comp
 
 ### The Internal Pipeline
 
-1. `StatelessSagaFunctionRegistrar` parses `@StatelessSaga` metadata and registers event functions.
-2. `StatelessSagaDispatcher` creates an event exchange for each matching function and runs its filter chain.
-3. `StatelessSagaFunction` converts results into commands, propagates tenant, space, upstream, and trace information, and sends them in result order.
-4. Without an explicit request ID, a generated command uses `${domainEvent.id}-${index}`; an explicit request ID is preserved.
-5. If the function or command send fails, the error first passes through immediate event-processing retry. Only a still-failing execution reaches the enabled durable-compensation filter.
+1. [`StatelessSagaMetadataParser`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/annotation/StatelessSagaMetadataParser.kt) parses metadata, and [`StatelessSagaFunctionRegistrar`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaFunctionRegistrar.kt) registers event functions.
+2. [`StatelessSagaDispatcher`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaDispatcher.kt) creates an event exchange for each matching function, then [`StatelessSagaHandler`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaHandler.kt) runs the filter chain.
+3. [`StatelessSagaFunction`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaFunction.kt) converts and sends results in order. It records them as a [`CommandStream`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/CommandStream.kt) associated with the exchange through [`ExchangeCommandStream`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/ExchangeCommandStream.kt).
+4. Without an explicit request ID, a generated command uses `${domainEvent.id}-${index}`; an explicit request ID is preserved, as covered by the [request-ID test](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/test/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaFunctionRequestIdTest.kt).
+5. If the function or command send fails, the error first passes through [`RetryableFilter`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/handler/RetryableFilter.kt). Only a still-failing execution reaches the enabled [event-compensation filter](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-core/src/main/kotlin/me/ahoo/wow/compensation/core/CompensationFilter.kt).
 
 The deterministic request ID lets a replay of the same event and command order cooperate with command-gateway idempotency checks. It does not replace idempotency for side effects outside the aggregate, and replay code must not casually reorder generated commands.
-
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaFunction.kt; wow-core/src/test/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaFunctionRequestIdTest.kt -->
 
 ## Defining a Saga
 
@@ -105,7 +101,7 @@ public class TransferSaga {
 }
 ```
 
-The normal path is `Prepared -> Entry -> AmountEntered -> Confirm`; the failure path is `EntryFailed -> UnlockAmount`. `TransferSagaSpec` separately asserts the generated command type and body for all three event inputs.
+The normal path is `Prepared -> Entry -> AmountEntered -> Confirm`; the failure path is `EntryFailed -> UnlockAmount`. [`TransferSaga`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-domain/src/main/java/me/ahoo/wow/example/transfer/domain/TransferSaga.java) implements these branches, and [`TransferSagaSpec`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-domain/src/test/kotlin/me/ahoo/wow/example/transfer/domain/TransferSagaSpec.kt) verifies them.
 
 ### Example: Cart Cleanup Saga with Retry (Kotlin)
 
@@ -128,7 +124,7 @@ class CartSaga {
 }
 ```
 
-An order created from a cart sends `RemoveCartItem` to the cart identified by `event.ownerId`; another order returns `null`. Here, `@Retry` supplies durable compensation parameters for a failure record from this function. It does not change the workflow branch.
+For an order created from a cart, [`CartSaga`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/CartSaga.kt) sends `RemoveCartItem` to the cart identified by `event.ownerId`; another order returns `null`. [`CartSagaSpec`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/cart/CartSagaSpec.kt) verifies both paths. Here, `@Retry` supplies durable compensation parameters for a failure record; it does not change the branch.
 
 ## Event Compensation
 
@@ -151,11 +147,13 @@ stateDiagram-v2
     [*] --> FAILED: ExecutionFailedCreated
     FAILED --> PREPARED: PrepareCompensation
     FAILED --> PREPARED: ForcePrepareCompensation
+    PREPARED --> PREPARED: PrepareCompensation (timed out)
+    PREPARED --> PREPARED: ForcePrepareCompensation (timed out)
     PREPARED --> SUCCEEDED: ExecutionSuccessApplied
     PREPARED --> FAILED: ExecutionFailedApplied
 ```
 
-Normal `PrepareCompensation` requires a non-succeeded record below its retry limit. `ForcePrepareCompensation` may bypass the retry limit, but it cannot retry a succeeded record or preempt a `PREPARED` attempt that has not timed out.
+The real guards live in [`IExecutionFailedState`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-api/src/main/kotlin/me/ahoo/wow/compensation/api/IExecutionFailedState.kt). Normal `PrepareCompensation` accepts only `FAILED` or timed-out `PREPARED` while `retries < maxRetries`; it rejects `SUCCEEDED`, a non-timed-out `PREPARED`, and a record at the limit. `ForcePrepareCompensation` accepts `FAILED` or timed-out `PREPARED` and may bypass the limit, but still rejects `SUCCEEDED` and non-timed-out `PREPARED`. Either repeated prepare increments `retries`, emits another `CompensationPrepared`, and stays `PREPARED`; see [`ExecutionFailed`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-domain/src/main/kotlin/me/ahoo/wow/compensation/domain/ExecutionFailed.kt) and [`ExecutionFailedSpec`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-domain/src/test/kotlin/me/ahoo/wow/compensation/domain/ExecutionFailedSpec.kt).
 
 ### Exponential Backoff Retry Strategy
 
@@ -166,7 +164,7 @@ nextRetryAt = retryAt + minBackoff * 2^retries * 1000
 timeoutAt   = retryAt + executionTimeout * 1000
 ```
 
-A new failure record starts with `retries = 0`; preparing compensation increments it. `maxRetries`, `minBackoff`, and `executionTimeout` must be non-negative, and retry specs whose backoff arithmetic overflows are rejected.
+A new failure record starts with `retries = 0`; preparing compensation increments it. [`NextRetryAtCalculator`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-domain/src/main/kotlin/me/ahoo/wow/compensation/domain/NextRetryAtCalculator.kt) requires non-negative `maxRetries`, `minBackoff`, and `executionTimeout`, and rejects retry specs whose backoff arithmetic overflows.
 
 ### Event Compensation Dashboard
 
@@ -178,7 +176,7 @@ The current dashboard groups records into **To Retry, Executing, Next Retry, Non
 - change the `EVENT` / `STATE_EVENT` target function;
 - filter exactly by execution, event, aggregate, and processor fields.
 
-The dashboard cannot decide whether replay is safe for the business. The current UI exposes no delete or recover action; the generated OpenAPI client does contain default aggregate delete and recover endpoints, which is a separate capability.
+The dashboard cannot decide whether replay is safe for the business. The current UI exposes no delete or recover action; the generated OpenAPI client does contain default aggregate delete and recover endpoints, which is a separate capability. Verify category conditions in [`RetryConditions`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/RetryConditions.ts), and action constraints in [`Actions`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/Actions.tsx) and its [tests](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/__tests__/Actions.test.tsx).
 
 ## Configuration
 
@@ -203,7 +201,7 @@ Keep the two retry layers separate:
 | Immediate retry | Retries only runtime-classified `RECOVERABLE` errors 3 times with a 2-second minimum backoff | `RetryableFilter` |
 | Durable compensation | Up to 10 retries, 180-second first backoff, and 120-second attempt timeout | `@Retry` or the compensation server's default `RetrySpec` |
 
-`@Retry(recoverable = [...], unrecoverable = [...])` classifies the durable failure record. `@Retry(enabled = false)` prevents a failure in that function from creating or updating a compensation record. It does not rewrite the immediate `RetryableFilter` strategy.
+[`@Retry`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/Retry.kt) `recoverable = [...]` / `unrecoverable = [...]` classifies the durable failure record. `@Retry(enabled = false)` prevents a failure in that function from creating or updating a compensation record. It does not rewrite the immediate `RetryableFilter` strategy.
 
 ### Compensation Configuration
 
@@ -246,7 +244,7 @@ class CartSagaSpec : SagaSpec<CartSaga>({
 })
 ```
 
-The repository's `CartSagaSpec` covers the normal and no-command paths. `TransferSagaSpec` covers normal follow-up commands and the business-compensation command.
+The repository's [`CartSagaSpec`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/cart/CartSagaSpec.kt) covers the normal and no-command paths. [`TransferSagaSpec`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-domain/src/test/kotlin/me/ahoo/wow/example/transfer/domain/TransferSagaSpec.kt) covers normal follow-up commands and the business-compensation command.
 
 ### SagaVerifier (Fluent API)
 
@@ -259,7 +257,7 @@ SagaVerifier.sagaVerifier<OrderSaga>()
     .verify()
 ```
 
-`SagaVerifier` uses a test command bus and a no-op idempotency checker. It verifies saga mapping, not production message deduplication or idempotency of external side effects.
+[`SagaVerifier`](https://github.com/Ahoo-Wang/Wow/blob/main/test/wow-test/src/main/kotlin/me/ahoo/wow/test/SagaVerifier.kt) uses a test command bus and a no-op idempotency checker. It verifies saga mapping, not production message deduplication or idempotency of external side effects.
 
 ### Available Test Assertions
 
@@ -294,4 +292,5 @@ A wait plan proves only that its configured processing signals arrived. It does 
 | [Event Compensation](event-compensation.md) | Immediate retry, durable failure records, scheduling, and operator actions |
 | [Command Gateway](command-gateway.md) | Command sending, idempotency checks, and wait plans |
 | [Event Processor](event-processor.md) | Non-saga event functions |
+| [Modeling](modeling.md) | Aggregates, commands, and domain events |
 | [Test Suite](test-suite.md) | `AggregateSpec` and `SagaSpec` test DSLs |

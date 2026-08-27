@@ -16,13 +16,11 @@ Saga 中的 `UnlockAmount` 等命令是显式的**业务补偿**。它们不会�
 
 | 能力 | 用途 | 当前契约 |
 | --- | --- | --- |
-| `@StatelessSaga` | 注册无状态流程编排器 | 处理器不保存流程实例状态 |
-| `@OnEvent` / `@OnStateEvent` | 声明领域事件或带状态事件处理函数 | 也支持约定方法名 `onEvent` / `onStateEvent` |
-| 处理函数返回值 | 生成 0..N 条命令 | 支持命令体、`CommandBuilder`、`CommandMessage`、`Iterable` 与响应式结果 |
-| `@Retry` | 描述失败记录的持久化补偿策略 | 不是 Saga 步骤定义，也不是运行时即时重试次数 |
-| `SagaSpec` | 隔离验证“事件 -> 命令” | 覆盖正常、条件不匹配和补偿命令分支 |
-
-<!-- Sources: wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/StatelessSaga.kt; wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaFunction.kt; test/wow-test/src/main/kotlin/me/ahoo/wow/test/SagaSpec.kt -->
+| [`@StatelessSaga`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/StatelessSaga.kt) | 注册无状态流程编排器 | 处理器不保存流程实例状态 |
+| [`@OnEvent`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/OnEvent.kt) / [`@OnStateEvent`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/OnStateEvent.kt) | 声明领域事件或带状态事件处理函数 | 也支持约定方法名 `onEvent` / `onStateEvent` |
+| [`StatelessSagaFunction`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaFunction.kt) 返回值 | 生成 0..N 条命令 | 支持命令体、`CommandBuilder`、`CommandMessage`、`Iterable` 与响应式结果 |
+| [`@Retry`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/Retry.kt) | 描述失败记录的持久化补偿策略 | 不是 Saga 步骤定义，也不是运行时即时重试次数 |
+| [`SagaSpec`](https://github.com/Ahoo-Wang/Wow/blob/main/test/wow-test/src/main/kotlin/me/ahoo/wow/test/SagaSpec.kt) | 隔离验证“事件 -> 命令” | 覆盖正常、条件不匹配和补偿命令分支 |
 
 ## 编排模式 vs. 协同模式
 
@@ -63,15 +61,13 @@ Saga 处理完成只表示处理函数完成，并且生成的命令已由 `Comm
 
 ### 内部管道
 
-1. `StatelessSagaFunctionRegistrar` 解析 `@StatelessSaga` 元数据并注册事件函数。
-2. `StatelessSagaDispatcher` 为每个匹配函数创建事件交换对象并执行过滤器链。
-3. `StatelessSagaFunction` 将返回值转换为命令，传播租户、空间、上游和链路信息，并按返回顺序发送。
-4. 未显式提供请求 ID 时，生成命令使用 `${domainEvent.id}-${index}`；显式请求 ID 保持不变。
-5. 处理函数或命令发送失败后，错误先经过事件处理的即时重试；仍失败时，启用的事件补偿过滤器才记录持久化失败。
+1. [`StatelessSagaMetadataParser`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/annotation/StatelessSagaMetadataParser.kt) 解析元数据，[`StatelessSagaFunctionRegistrar`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaFunctionRegistrar.kt) 注册事件函数。
+2. [`StatelessSagaDispatcher`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaDispatcher.kt) 为每个匹配函数创建事件交换对象，并由 [`StatelessSagaHandler`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaHandler.kt) 执行过滤器链。
+3. [`StatelessSagaFunction`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaFunction.kt) 将返回值转换并按顺序发送；结果记录为 [`CommandStream`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/CommandStream.kt)，并通过 [`ExchangeCommandStream`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/ExchangeCommandStream.kt) 关联到事件交换。
+4. 未显式提供请求 ID 时，生成命令使用 `${domainEvent.id}-${index}`；显式请求 ID 保持不变，见[请求 ID 测试](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/test/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaFunctionRequestIdTest.kt)。
+5. 处理函数或命令发送失败后，错误先经过 [`RetryableFilter`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/handler/RetryableFilter.kt)；仍失败时，启用的[事件补偿过滤器](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-core/src/main/kotlin/me/ahoo/wow/compensation/core/CompensationFilter.kt)才记录持久化失败。
 
 确定性的请求 ID 让同一事件、同一命令顺序的重放能够与命令网关的幂等检查配合。它不替代处理器对数据库外副作用的幂等设计，也要求重放时不要随意改变命令顺序。
-
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaFunction.kt; wow-core/src/test/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaFunctionRequestIdTest.kt -->
 
 ## 定义 Saga
 
@@ -105,7 +101,7 @@ public class TransferSaga {
 }
 ```
 
-正常路径是 `Prepared -> Entry -> AmountEntered -> Confirm`；失败路径是 `EntryFailed -> UnlockAmount`。`TransferSagaSpec` 分别断言三种输入生成的命令类型和命令体。
+正常路径是 `Prepared -> Entry -> AmountEntered -> Confirm`；失败路径是 `EntryFailed -> UnlockAmount`。[`TransferSaga`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-domain/src/main/java/me/ahoo/wow/example/transfer/domain/TransferSaga.java) 及其 [`TransferSagaSpec`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-domain/src/test/kotlin/me/ahoo/wow/example/transfer/domain/TransferSagaSpec.kt)分别实现并验证这些分支。
 
 ### 示例：购物车清理 Saga（带重试，Kotlin）
 
@@ -128,7 +124,7 @@ class CartSaga {
 }
 ```
 
-从购物车下单时，Saga 向 `event.ownerId` 对应的购物车发送 `RemoveCartItem`；非购物车订单返回 `null`。这里的 `@Retry` 为该函数产生的持久化失败记录提供补偿参数，不改变这段流程的分支。
+从购物车下单时，[`CartSaga`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/CartSaga.kt) 向 `event.ownerId` 对应的购物车发送 `RemoveCartItem`；非购物车订单返回 `null`。[`CartSagaSpec`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/cart/CartSagaSpec.kt)验证两条路径。这里的 `@Retry` 为该函数产生的持久化失败记录提供补偿参数，不改变流程分支。
 
 ## 事件补偿
 
@@ -151,11 +147,13 @@ stateDiagram-v2
     [*] --> FAILED: ExecutionFailedCreated
     FAILED --> PREPARED: PrepareCompensation
     FAILED --> PREPARED: ForcePrepareCompensation
+    PREPARED --> PREPARED: PrepareCompensation（已超时）
+    PREPARED --> PREPARED: ForcePrepareCompensation（已超时）
     PREPARED --> SUCCEEDED: ExecutionSuccessApplied
     PREPARED --> FAILED: ExecutionFailedApplied
 ```
 
-普通 `PrepareCompensation` 需要记录未成功且仍低于重试上限；`ForcePrepareCompensation` 可以越过重试上限，但不能重试已成功记录，也不能抢占尚未超时的 `PREPARED` 执行。
+真实 guard 定义在 [`IExecutionFailedState`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-api/src/main/kotlin/me/ahoo/wow/compensation/api/IExecutionFailedState.kt)：普通 `PrepareCompensation` 只接受 `FAILED` 或已超时的 `PREPARED`，并且 `retries < maxRetries`；因此 `SUCCEEDED`、未超时的 `PREPARED` 或已达上限都会被拒绝。`ForcePrepareCompensation` 接受 `FAILED` 或已超时的 `PREPARED`，可越过重试上限，但仍拒绝 `SUCCEEDED` 和未超时的 `PREPARED`。两种再次准备都会增加 `retries` 并产生新的 `CompensationPrepared`，保持 `PREPARED` 状态；聚合命令及测试见 [`ExecutionFailed`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-domain/src/main/kotlin/me/ahoo/wow/compensation/domain/ExecutionFailed.kt) 和 [`ExecutionFailedSpec`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-domain/src/test/kotlin/me/ahoo/wow/compensation/domain/ExecutionFailedSpec.kt)。
 
 ### 指数退避重试策略
 
@@ -166,7 +164,7 @@ nextRetryAt = retryAt + minBackoff * 2^retries * 1000
 timeoutAt   = retryAt + executionTimeout * 1000
 ```
 
-创建失败记录时 `retries = 0`；每次准备补偿时计数加一。`maxRetries`、`minBackoff`、`executionTimeout` 必须非负，过大的退避值会因溢出校验被拒绝。
+创建失败记录时 `retries = 0`；每次准备补偿时计数加一。[`NextRetryAtCalculator`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-domain/src/main/kotlin/me/ahoo/wow/compensation/domain/NextRetryAtCalculator.kt)要求 `maxRetries`、`minBackoff`、`executionTimeout` 非负，并拒绝会导致退避计算溢出的规格。
 
 ### 事件补偿仪表板
 
@@ -178,7 +176,7 @@ timeoutAt   = retryAt + executionTimeout * 1000
 - 修改 `EVENT` / `STATE_EVENT` 目标函数；
 - 按执行、事件、聚合和处理器字段精确筛选。
 
-Dashboard 不替运营人员判断重放是否安全。当前 UI 不提供删除/恢复按钮；生成的 OpenAPI 客户端包含聚合删除/恢复端点，两者不能混为一谈。
+Dashboard 不替运营人员判断重放是否安全。当前 UI 不提供删除/恢复按钮；生成的 OpenAPI 客户端包含聚合删除/恢复端点，两者不能混为一谈。分类条件与操作约束可分别核对 [`RetryConditions`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/RetryConditions.ts) 和 [`Actions`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/Actions.tsx) 及其[测试](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/__tests__/Actions.test.tsx)。
 
 ## 配置
 
@@ -203,7 +201,7 @@ Saga 使用已有事件基础设施，不需要单独的流程存储：
 | 即时重试 | 只对被运行时分类为 `RECOVERABLE` 的异常退避重试 3 次，最小退避 2 秒 | `RetryableFilter` |
 | 持久化补偿 | 默认最多 10 次，首轮退避 180 秒，单轮超时 120 秒 | `@Retry` 或补偿服务默认 `RetrySpec` |
 
-`@Retry(recoverable = [...], unrecoverable = [...])` 决定失败记录的恢复性分类；`@Retry(enabled = false)` 让该函数失败时不创建或更新补偿记录。它不会改写 `RetryableFilter` 的即时重试策略。
+[`@Retry`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/Retry.kt) 的 `recoverable = [...]` / `unrecoverable = [...]` 决定失败记录的恢复性分类；`@Retry(enabled = false)` 让该函数失败时不创建或更新补偿记录。它不会改写 `RetryableFilter` 的即时重试策略。
 
 ### 补偿配置
 
@@ -246,7 +244,7 @@ class CartSagaSpec : SagaSpec<CartSaga>({
 })
 ```
 
-仓库中的 `CartSagaSpec` 覆盖正常和无命令分支，`TransferSagaSpec` 覆盖正常后续命令与业务补偿命令。
+仓库中的 [`CartSagaSpec`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/cart/CartSagaSpec.kt) 覆盖正常和无命令分支，[`TransferSagaSpec`](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/example-transfer-domain/src/test/kotlin/me/ahoo/wow/example/transfer/domain/TransferSagaSpec.kt) 覆盖正常后续命令与业务补偿命令。
 
 ### SagaVerifier（流式 API）
 
@@ -259,7 +257,7 @@ SagaVerifier.sagaVerifier<OrderSaga>()
     .verify()
 ```
 
-`SagaVerifier` 使用测试用命令总线与 No-op 幂等检查器；因此它验证 Saga 映射，不证明生产环境的消息去重或外部副作用幂等性。
+[`SagaVerifier`](https://github.com/Ahoo-Wang/Wow/blob/main/test/wow-test/src/main/kotlin/me/ahoo/wow/test/SagaVerifier.kt) 使用测试用命令总线与 No-op 幂等检查器；因此它验证 Saga 映射，不证明生产环境的消息去重或外部副作用幂等性。
 
 ### 可用的测试断言
 
@@ -294,4 +292,5 @@ SagaVerifier.sagaVerifier<OrderSaga>()
 | [事件补偿](event-compensation.md) | 即时重试、持久化失败记录、调度和人工处理 |
 | [命令网关](command-gateway.md) | 命令发送、幂等检查和等待计划 |
 | [事件处理器](event-processor.md) | 非 Saga 事件处理函数 |
+| [建模](modeling.md) | 聚合、命令与领域事件 |
 | [测试套件](test-suite.md) | `AggregateSpec` 与 `SagaSpec` 测试 DSL |
