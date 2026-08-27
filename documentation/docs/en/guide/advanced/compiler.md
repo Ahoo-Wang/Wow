@@ -45,7 +45,7 @@ The resource records data by context name:
 - optional static tenant ID and ID-generator name;
 - command and event type-name sets.
 
-`wow-metadata.json` does not store a state type separately. The command/state pairing appears only in the later generated `AggregatesMetadata.kt`, as the two type parameters of `aggregateMetadata<CommandType, StateType>()`.
+`wow-metadata.json` does not store a state-aggregate type separately. The command-aggregate/state-aggregate pairing appears only in the later generated `AggregatesMetadata.kt`, as the two type parameters of `aggregateMetadata<CommandAggregateType, StateAggregateType>()`.
 
 `MetadataSymbolProcessor` writes it as an aggregating KSP output. At runtime, `MetadataSearcher` finds every resource with that name on the classpath and merges them. If a module's resource is absent, its aggregate/command/event contract is not reconstructed completely through reflection.
 
@@ -67,7 +67,7 @@ object AggregatesMetadata {
 }
 ```
 
-A single-class aggregate has the same command/state type; the composition pattern retains two different type parameters. This file is a convenient metadata reference, not a new public business API and not a replacement for `wow-metadata.json`.
+A single-class aggregate has the same command-aggregate/state-aggregate type; the composition pattern retains two different type parameters. This file is a convenient metadata reference, not a new public business API and not a replacement for `wow-metadata.json`.
 
 ## Query-property constants
 
