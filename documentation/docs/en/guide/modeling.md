@@ -106,7 +106,7 @@ A command handler should do three things: read current state, check invariants, 
 
 ## Sourcing Conventions
 
-- The state constructor provides the aggregate ID; repository examples use the conventional name `id`.
+- A state type must expose one supported constructor: `ctor()`, `ctor(id)`, or `ctor(id, tenantId)`. It may have at most two parameters, and every parameter must be a `String`. Repository examples normally use the conventional name `id`, such as `CartState(val id: String)`.
 - The conventional name `onSourcing` makes `@OnSourcing` optional; other names should be marked explicitly.
 - A parameter may be the event body or a domain event containing metadata.
 - Sourcing functions do not return events, call external services, read the current time, or generate randomness.
@@ -136,7 +136,7 @@ Routing configuration is part of the public contract. For example:
 class InternalAggregate(val id: String)
 ```
 
-Disabling routing affects automatic command routes only; it does not change the aggregate's command or sourcing semantics.
+Disabling it suppresses every automatically generated HTTP route for that aggregate, including command routes and the state, snapshot, and event query contributors. It does not change the aggregate's domain-command or sourcing semantics.
 
 `@AfterCommand` can append events after the main command succeeds. Multiple hooks can be ordered with `@Order`, while `include` and `exclude` limit command types. `@OnError` can observe command failures and perform framework-supported error handling. These hooks must not become a second write path around core invariants: any result that changes aggregate facts should still be expressed as an explicit domain event.
 

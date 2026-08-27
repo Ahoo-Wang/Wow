@@ -218,7 +218,7 @@ class CartSagaSpec : SagaSpec<CartSaga>({
 
 ## 覆盖率证据怎么读
 
-当前仓库的 `:example-domain` 在 Gradle 中将 `jacocoTestCoverageVerification` 下限设为 `0.8`，并让该任务依赖 `test` 和报告生成。这是该示例模块当前的仓库门禁，不是 `wow-test` 自动保证的覆盖率，也不是所有应用都必须照搬的数值。
+当前仓库的 `:example-domain` 在 Gradle 中为 `jacocoTestCoverageVerification` 配置 `0.8` 下限，并让该任务依赖 `test` 和报告生成。只有显式运行 `:example-domain:jacocoTestCoverageVerification` 才会执行这个阈值；当前 `:example-domain:check` 和 CI 工作流都没有自动挂载它。这是可选择执行的仓库覆盖率门禁，不是 `wow-test` 自动保证的覆盖率，也不是所有应用都必须照搬的数值。
 
 旧文档截图、历史覆盖率或经验性缺陷数据只能说明当时的样本。评价当前变更时，以本次测试输出、当前覆盖率报告和项目自己的阈值为准。
 
@@ -227,7 +227,8 @@ class CartSagaSpec : SagaSpec<CartSaga>({
 在本仓库验证示例与 DSL：
 
 ```bash
-./gradlew :wow-test:check :example-domain:check
+./gradlew :wow-test:check :example-domain:check \
+  :example-domain:jacocoTestCoverageVerification
 ```
 
-业务应用应改为自己的领域模块路径。该命令通过后，下一层是[Wow 应用测试](./application-testing.md)：验证生成元数据、运行时装配、HTTP、真实 Adapter、重启恢复与安全反例。修改 Wow 框架本身时，则使用[框架测试与基准](./test-runtime.md)中的仓库任务。
+业务应用应改为自己的领域模块路径，并只在项目确实配置阈值时加入对应 verification task。该命令通过后，下一层是[Wow 应用测试](./application-testing.md)：验证生成元数据、运行时装配、HTTP、真实 Adapter、重启恢复与安全反例。修改 Wow 框架本身时，则使用[框架测试与基准](./test-runtime.md)中的仓库任务。

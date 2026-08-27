@@ -218,7 +218,7 @@ Assert business-observable results instead of copying framework internals. Use `
 
 ## Reading Coverage Evidence
 
-The current repository configures `:example-domain` with a `0.8` minimum in `jacocoTestCoverageVerification`, and that task depends on `test` and report generation. This is the current repository gate for that example module. It is not a coverage level automatically guaranteed by `wow-test`, nor a number every application must copy.
+The current repository configures a `0.8` minimum for `:example-domain:jacocoTestCoverageVerification`, and that task depends on `test` and report generation. The threshold runs only when `:example-domain:jacocoTestCoverageVerification` is invoked explicitly; neither the current `:example-domain:check` nor the CI workflows attach it automatically. This is an optional repository coverage gate, not a coverage level automatically guaranteed by `wow-test` or a number every application must copy.
 
 Old documentation screenshots, historical coverage figures, or anecdotal defect data describe only their original samples. Evaluate a current change using the current test output, current coverage report, and the application's own threshold.
 
@@ -227,7 +227,8 @@ Old documentation screenshots, historical coverage figures, or anecdotal defect 
 Verify the example and DSL in this repository with:
 
 ```bash
-./gradlew :wow-test:check :example-domain:check
+./gradlew :wow-test:check :example-domain:check \
+  :example-domain:jacocoTestCoverageVerification
 ```
 
-Business applications should substitute their own domain-module path. After this command passes, move to [Testing Wow Applications](./application-testing.md) for generated metadata, runtime wiring, HTTP, real adapters, restart recovery, and security negatives. When changing the Wow framework itself, use the repository tasks in [Framework Tests and Benchmarks](./test-runtime.md).
+Business applications should substitute their own domain-module path and include its verification task only when the project actually configures a threshold. After this command passes, move to [Testing Wow Applications](./application-testing.md) for generated metadata, runtime wiring, HTTP, real adapters, restart recovery, and security negatives. When changing the Wow framework itself, use the repository tasks in [Framework Tests and Benchmarks](./test-runtime.md).

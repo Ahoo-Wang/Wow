@@ -72,6 +72,7 @@ outline: deep
 ./gradlew :code-coverage-report:localCoverageReport
 ./gradlew :code-coverage-report:contractCoverageReport
 ./gradlew :code-coverage-report:integrationCoverageReport
+./gradlew :example-domain:jacocoTestCoverageVerification
 ```
 
 聚合 XML 输出到：
@@ -82,7 +83,7 @@ test/code-coverage-report/build/reports/jacoco/codeCoverageReport/codeCoverageRe
 
 分层报告分别位于同名 `localCoverageReport`、`contractCoverageReport` 和 `integrationCoverageReport` 目录。PR 工作流以 `local`、`contract`、`integration` flag 分别上传；`main` 或手动触发的 `Codecov` 工作流用 `codeCoverageReport` 上传 `full` flag。
 
-`:example-domain`、`:example-transfer-domain` 和 `:wow-compensation-domain` 当前各自配置 `0.8` 的 Jacoco verification 下限。这是这些模块当前的仓库门禁，不是 Wow 对业务应用覆盖率的保证。覆盖率只表示执行过代码，不能替代事件、状态、拒绝和恢复断言。
+`:example-domain`、`:example-transfer-domain` 和 `:wow-compensation-domain` 当前各自配置 `0.8` 的 Jacoco verification 下限。该阈值仅在显式运行对应的 `jacocoTestCoverageVerification` 任务时执行；这些模块的 `check` 与当前 CI 工作流都没有自动挂载 verification task。它是可选择执行的仓库门禁，不是 Wow 对业务应用覆盖率的保证。覆盖率只表示执行过代码，不能替代事件、状态、拒绝和恢复断言。
 
 ## 基准分三种用途
 
@@ -132,7 +133,7 @@ Smoke 不是性能报告，Quick 不是生产容量模型，隔离组件结果�
 ./gradlew :wow-benchmarks:benchmarkQuickInfrastructureE2E
 ```
 
-WebFlux suite 不启动真实 Netty server；Infrastructure suite 需要对应的本地 Redis/Mongo 等服务。报告必须保留工作负载、线程、JVM、服务和源码 provenance，不能把层间数字直接横向解释。
+WebFlux suite 不启动真实 Netty server。当前 `benchmarkQuickInfrastructureE2E` 同时包含 Redis 与 Mongo workload，因此本地 Redis 和 MongoDB 都是 required services，缺少任一服务都不满足该 suite 的运行条件。报告必须保留工作负载、线程、JVM、服务和源码 provenance，不能把层间数字直接横向解释。
 
 ### 正式回归证据
 

@@ -72,6 +72,7 @@ The current aggregate and layer report tasks are:
 ./gradlew :code-coverage-report:localCoverageReport
 ./gradlew :code-coverage-report:contractCoverageReport
 ./gradlew :code-coverage-report:integrationCoverageReport
+./gradlew :example-domain:jacocoTestCoverageVerification
 ```
 
 The aggregate XML is written to:
@@ -82,7 +83,7 @@ test/code-coverage-report/build/reports/jacoco/codeCoverageReport/codeCoverageRe
 
 Layer reports are written under the matching `localCoverageReport`, `contractCoverageReport`, and `integrationCoverageReport` directories. Pull-request workflows upload separate `local`, `contract`, and `integration` flags. The `Codecov` workflow on `main` or manual dispatch uses `codeCoverageReport` to upload the `full` flag.
 
-`:example-domain`, `:example-transfer-domain`, and `:wow-compensation-domain` currently configure a `0.8` Jacoco verification minimum. This is the current repository gate for those modules, not a Wow coverage guarantee for business applications. Coverage shows executed code and cannot replace assertions about events, state, rejection, and recovery.
+`:example-domain`, `:example-transfer-domain`, and `:wow-compensation-domain` currently configure a `0.8` Jacoco verification minimum. The threshold runs only when the corresponding `jacocoTestCoverageVerification` task is invoked explicitly; these modules' `check` tasks and the current CI workflows do not attach a verification task automatically. It is an optional repository gate, not a Wow coverage guarantee for business applications. Coverage shows executed code and cannot replace assertions about events, state, rejection, and recovery.
 
 ## Benchmarks Have Three Uses
 
@@ -132,7 +133,7 @@ When locating a bottleneck, select a layer instead of running the complete catal
 ./gradlew :wow-benchmarks:benchmarkQuickInfrastructureE2E
 ```
 
-The WebFlux suite does not start a real Netty server. The Infrastructure suite requires the selected local services such as Redis or MongoDB. Reports must retain workload, thread, JVM, service, and source provenance; do not interpret numbers across layers as directly comparable.
+The WebFlux suite does not start a real Netty server. The current `benchmarkQuickInfrastructureE2E` includes both Redis and Mongo workloads, so local Redis and MongoDB are both required services; either one missing leaves the suite's runtime requirements unmet. Reports must retain workload, thread, JVM, service, and source provenance; do not interpret numbers across layers as directly comparable.
 
 ### Formal Regression Evidence
 

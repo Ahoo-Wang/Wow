@@ -106,7 +106,7 @@ Wow 同时支持 Kotlin 与 Java。完整的 Java 组织方式见[银行转账�
 
 ## 溯源约定
 
-- 状态构造函数提供聚合 ID；仓库示例使用约定名 `id`。
+- 状态类型必须提供以下任一受支持构造函数：`ctor()`、`ctor(id)` 或 `ctor(id, tenantId)`；构造参数最多两个且都必须是 `String`。仓库示例通常使用约定名 `id`，例如 `CartState(val id: String)`。
 - 约定名 `onSourcing` 可以省略 `@OnSourcing`；其他命名应显式标记。
 - 参数可以是事件体，也可以是包含元数据的领域事件。
 - 溯源函数不返回事件，不访问外部服务，不读取当前时间或随机数。
@@ -136,7 +136,7 @@ Wow 同时支持 Kotlin 与 Java。完整的 Java 组织方式见[银行转账�
 class InternalAggregate(val id: String)
 ```
 
-禁用路由只影响自动命令路由，不改变聚合本身的命令与溯源语义。
+禁用后，该聚合的全部自动 HTTP routes 都不会生成，包括命令以及状态、快照、事件等查询 contributor；聚合本身的领域命令与溯源语义不变。
 
 `@AfterCommand` 可在主命令成功后追加事件，多个钩子可通过 `@Order` 排序；`include` 与 `exclude` 用于限定命令类型。`@OnError` 可观察命令失败并执行框架允许的错误处理。它们不应成为绕过核心不变量的第二条写路径：会改变聚合事实的结果仍应由明确的领域事件表达。
 
