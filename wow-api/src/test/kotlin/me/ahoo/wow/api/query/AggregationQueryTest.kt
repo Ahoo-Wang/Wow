@@ -17,14 +17,51 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.serialization.MissingTypeImplProblemHandler
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import tools.jackson.core.JacksonException
 import tools.jackson.databind.exc.InvalidTypeIdException
 import tools.jackson.module.kotlin.jsonMapper
+import tools.jackson.module.kotlin.kotlinModule
 import java.time.DateTimeException
 
 class AggregationQueryTest {
-    private val jsonMapper = jsonMapper()
-    private val mapperWithMissingTypeImpl = jsonMapper {
+    private val bareMapper = jsonMapper()
+    private val configuredMapper = jsonMapper {
+        addModule(kotlinModule())
         addHandler(MissingTypeImplProblemHandler())
+    }
+
+    @Test
+    fun `configured mapper should apply omitted query defaults`() {
+        val json = """{"metrics":[{"type":"COUNT","alias":"count"}]}"""
+
+        val query = configuredMapper.readValue(json, AggregationQuery::class.java)
+
+        query.filter.assert().isEqualTo(MatchAllFilter)
+        query.elements.assert().isEmpty()
+        query.groupBy.assert().isEmpty()
+        query.sort.assert().isEmpty()
+        query.limit.assert().isEqualTo(100)
+    }
+
+    @Test
+    fun `configured mapper should reject explicit null`() {
+        val json = """
+            {
+              "filter": null,
+              "metrics": [{"type": "COUNT", "alias": "count"}]
+            }
+        """.trimIndent()
+
+        assertThrows<JacksonException> {
+            configuredMapper.readValue(json, AggregationQuery::class.java)
+        }
+    }
+
+    @Test
+    fun `configured mapper should reject missing metrics`() {
+        assertThrows<JacksonException> {
+            configuredMapper.readValue("{}", AggregationQuery::class.java)
+        }
     }
 
     @Test
@@ -41,7 +78,7 @@ class AggregationQueryTest {
         """.trimIndent()
 
         assertThrows<InvalidTypeIdException> {
-            jsonMapper.readValue(json, AggregationQuery::class.java)
+            bareMapper.readValue(json, AggregationQuery::class.java)
         }
     }
 
@@ -59,7 +96,7 @@ class AggregationQueryTest {
         """.trimIndent()
 
         assertThrows<InvalidTypeIdException> {
-            jsonMapper.readValue(json, AggregationQuery::class.java)
+            bareMapper.readValue(json, AggregationQuery::class.java)
         }
     }
 
@@ -86,7 +123,7 @@ class AggregationQueryTest {
             }
         """.trimIndent()
 
-        val query = mapperWithMissingTypeImpl.readValue(json, AggregationQuery::class.java)
+        val query = configuredMapper.readValue(json, AggregationQuery::class.java)
         val expression = (query.metrics.single() as AggregationMetric.Numeric).expression
 
         expression.assert().isEqualTo(
@@ -100,7 +137,7 @@ class AggregationQueryTest {
                 AggregationExpression.Constant(10.0),
             ),
         )
-        mapperWithMissingTypeImpl.writeValueAsString(query).assert()
+        configuredMapper.writeValueAsString(query).assert()
             .contains("\"type\":\"BINARY\"")
             .contains("\"type\":\"CONSTANT\"")
     }

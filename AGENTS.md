@@ -164,6 +164,7 @@ Before changing release or publish behavior, inspect the workflow and Gradle pub
 - Always add or update tests when changing command handling, event sourcing, projections, sagas, compensation behavior, serialization, schema generation, or generated metadata.
 - Always preserve public API compatibility unless the user explicitly asks for a breaking change.
 - Prefer clean source and the smallest correct implementation. Do not add compatibility bridges, custom serialization or creators, duplicate validation, or tests of dependency behavior without a concrete requirement or reproduced failure.
+- Do not add `@JsonCreator` factories solely to reproduce Kotlin constructor defaults. Configure the Kotlin Jackson module instead; reserve creators for non-object wire shapes or Java constructors and cover them with contract tests.
 - Treat source, binary, and wire compatibility as separate scopes. Implement only the compatibility scope the user requested; do not infer binary or wire compatibility from source compatibility.
 - Trust installed framework modules and backend-native semantics. Add validation only for the public contract, security, data-loss prevention, or a demonstrated backend requirement.
 - Ask first before changing Gradle module structure, feature capabilities, generated OpenAPI/schema contracts, CI/CD workflows, publishing credentials, or release automation.
