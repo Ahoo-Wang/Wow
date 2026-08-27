@@ -317,10 +317,18 @@ private fun DeclarationValue<Set<QueryValueType>>.intersect(
     other !is DeclarationValue.Set -> this
     value.isEmpty() -> other
     other.value.isEmpty() -> this
-    else -> DeclarationValue.Set(
-        value.intersect(other.value).takeIf(Set<QueryValueType>::isNotEmpty)
-            ?: throw QuerySchemaConflictException("Conflicting query schema declaration: [$field.valueTypes]."),
-    )
+    else -> {
+        val intersection = value.intersect(other.value).toMutableSet()
+        val integerOnLeft = QueryValueType.INTEGER in value && QueryValueType.DECIMAL in other.value
+        val integerOnRight = QueryValueType.DECIMAL in value && QueryValueType.INTEGER in other.value
+        if (integerOnLeft || integerOnRight) {
+            intersection += QueryValueType.INTEGER
+        }
+        DeclarationValue.Set(
+            intersection.takeIf(Set<QueryValueType>::isNotEmpty)
+                ?: throw QuerySchemaConflictException("Conflicting query schema declaration: [$field.valueTypes]."),
+        )
+    }
 }
 
 private fun <T> DeclarationValue<T>.requireSame(

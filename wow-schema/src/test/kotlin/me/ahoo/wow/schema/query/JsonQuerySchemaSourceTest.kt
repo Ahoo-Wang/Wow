@@ -333,6 +333,15 @@ class JsonQuerySchemaSourceTest {
     }
 
     @Test
+    fun `should narrow number and integer allOf fields to integer independent of branch order`() {
+        val declaration = load(NumericSubtypeAllOfValueTypesState::class.java)
+        val expected = DeclarationValue.Set(setOf(QueryValueType.INTEGER))
+
+        declaration.field("state.forward.value").valueTypes.assert().isEqualTo(expected)
+        declaration.field("state.reverse.value").valueTypes.assert().isEqualTo(expected)
+    }
+
+    @Test
     fun `should retain known value types when allOf also has opaque schemas`() {
         val declaration = load(OpaqueAllOfValueTypesState::class.java)
 
@@ -632,6 +641,15 @@ private data class ConflictingAllOfValueTypesState(
     @field:Schema(allOf = [StringValueBranch::class, IntegerValueBranch::class])
     val value: RepeatedValue,
 )
+
+private data class NumericSubtypeAllOfValueTypesState(
+    @field:Schema(allOf = [IntegerValueBranch::class, DecimalValueBranch::class])
+    val forward: RepeatedValue,
+    @field:Schema(allOf = [DecimalValueBranch::class, IntegerValueBranch::class])
+    val reverse: RepeatedValue,
+)
+
+private data class DecimalValueBranch(val value: BigDecimal)
 
 private data class OpaqueAllOfValueTypesState(
     @field:Schema(allOf = [OpaqueValueBranch::class, StringValueBranch::class])
