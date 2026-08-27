@@ -14,13 +14,14 @@ description: 在事件持久化后处理下游逻辑，并明确幂等、重试�
 沿用 `CreateOrder` 示例：
 
 ```text
-CreateOrder -> 追加 OrderCreated -> PROCESSED
-                              |-> 快照策略 -> SNAPSHOT
-                              |-> 投影 -> PROJECTED
-                              |-> 事件处理器 -> EVENT_HANDLED
+CreateOrder -> 追加 OrderCreated -> 发送领域/状态消息
+                                      |-> 命令链完成 -> PROCESSED
+                                      |-> 快照策略 -> SNAPSHOT
+                                      |-> 投影 -> PROJECTED
+                                      |-> 事件处理器 -> EVENT_HANDLED
 ```
 
-三个下游分支彼此独立。`EVENT_HANDLED` 表示匹配的事件处理器函数完成，不表示快照或投影处理完成。
+下游分支彼此独立。`EVENT_HANDLED` 表示匹配的事件处理器函数完成，不表示快照或投影处理完成。快速下游函数可能先于 `PROCESSED` 发出信号；等待状态会暂存该目标并等待 `PROCESSED` 前置阶段，而不会强制信号到达顺序。
 
 ```mermaid
 flowchart LR

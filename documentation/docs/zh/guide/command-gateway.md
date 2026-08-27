@@ -46,7 +46,7 @@ val result = commandGateway.sendAndWait(
 )
 ```
 
-成功的 `PROCESSED` 证明聚合处理已完成；处理器产生事件时，这也包括事件追加完成。它不证明快照、投影、事件处理器或 Saga 已完成。
+成功的 `PROCESSED` 证明完整命令 filter chain 没有传播错误并已完成。处理器产生事件时，这条链包括事件追加以及后续领域/状态事件发送 filter。它不证明快照、投影、事件处理器或 Saga 函数已完成。
 
 #### sendAndWaitStream(command, waitPlan)
 
@@ -59,7 +59,7 @@ commandGateway.sendAndWaitStream(
 }
 ```
 
-成功等待快照时，流可以依次暴露 `SENT`、`PROCESSED` 与 `SNAPSHOT`。任一前置阶段失败，会用该较早阶段的失败结束等待。
+等待快照时，流可以按实际到达顺序暴露 `SENT`、`PROCESSED` 与 `SNAPSHOT`；不要依赖阶段顺序。下游目标信号早于 `PROCESSED` 到达时，`StageWaitState` 会暂存它，但直到观察到 `PROCESSED` 才完成等待。任一前置阶段失败，会用该较早阶段的失败结束等待。
 
 #### 等待超时
 
@@ -160,7 +160,7 @@ flowchart LR
 | `RetryableAggregateProcessor` | 恢复聚合，并对可恢复的聚合处理失败重试 |
 | `SimpleCommandAggregate` | 检查聚合约束、调用处理器、溯源并追加事件 |
 | `EventSourcingStateAggregateRepository` | 在适用时加载当前快照并重放后续事件 |
-| notifier filters | 产生 `PROCESSED`、`SNAPSHOT`、`PROJECTED`、`EVENT_HANDLED`、`SAGA_HANDLED` 信号 |
+| notifier filters | 包裹各自完整 filter chain，然后产生 `PROCESSED`、`SNAPSHOT`、`PROJECTED`、`EVENT_HANDLED` 或 `SAGA_HANDLED` |
 
 ## 命令处理链
 
@@ -185,12 +185,19 @@ sequenceDiagram
     B->>A: 调用命令处理函数
     A->>E: 追加 DomainEventStream
     E-->>B: 追加完成
-    B-->>C: PROCESSED 信号
-    B->>D: 发布结果事件/状态
-    D-->>C: SNAPSHOT / PROJECTED / EVENT_HANDLED
+    B->>D: 在命令链内发送领域/状态消息
+    D-->>B: 发送操作返回
+    alt 命令 filter chain 完成
+        B-->>C: 成功的 PROCESSED
+    else 后续链操作传播错误
+        B-->>C: 失败的 PROCESSED（事件可能已追加）
+    end
+    D-->>C: 下游阶段信号可能与 PROCESSED 竞争到达
 ```
 
 对于创建命令，`RetryableAggregateProcessor` 创建新状态聚合，不恢复既有历史；后续命令才委托 `StateAggregateRepository` 恢复。
+
+`ProcessedNotifierFilter` 标注 `ORDER_FIRST`，因此它包裹 `AggregateProcessorFilter`、`SendDomainEventStreamFilter`、`SendStateEventFilter` 与命令链的其余部分，只在 `next.filter(exchange)` 完成或出错后通知。`DomainEventBus.send` 会传播错误，所以事件成功追加后仍可能得到失败的 `PROCESSED`。当前状态事件 filter 使用 `logErrorResume()`，因此 `StateEventBus.send` 失败会记录日志，但本身不会使 `PROCESSED` 失败。
 
 ### DefaultCommandGateway：发送前管道
 
@@ -216,7 +223,8 @@ sequenceDiagram
 |---|---|---|
 | 幂等或验证 | 失败的 `SENT` | 命令没有发送 |
 | 命令总线发送 | 失败的 `SENT` | 聚合未确认完成处理 |
-| 恢复、业务规则或追加 | 失败的 `PROCESSED` | 未证明任何更晚阶段 |
+| 恢复、业务规则或追加 | 失败的 `PROCESSED` | 未证明事件已追加 |
+| 追加后传播的命令 filter 错误，例如领域事件总线发送 | 失败的 `PROCESSED` | 历史可能已有该事件流；按聚合/request ID 查询 |
 | 快照策略/存储 | 失败的 `SNAPSHOT` | 投影与事件处理器彼此独立 |
 | 投影函数/存储 | 失败的 `PROJECTED` | 事件历史仍可保持权威 |
 | 事件处理器 | 失败的 `EVENT_HANDLED` | 重试/补偿取决于处理器策略 |
@@ -308,7 +316,7 @@ CommandWait.eventHandled(
 | 阶段 | 证明 | 不证明 |
 |---|---|---|
 | `SENT` | 命令总线已接受消息 | 已加载聚合或已追加事件 |
-| `PROCESSED` | 聚合路径完成，包括已产生事件的追加 | 快照或下游消费者完成 |
+| `PROCESSED` | 完整命令 filter chain 完成；已产生事件完成追加，链内消息发送遵守各自错误策略 | 快照或下游消费者函数完成 |
 | `SNAPSHOT` | 快照分发器完成其策略 | `version_offset` 下一定写入；投影完成 |
 | `PROJECTED` | 匹配的投影函数完成，且观察到最后投影标记 | 无关投影/处理器完成 |
 | `EVENT_HANDLED` | 匹配的事件处理器函数完成 | 副作用全局 exactly-once |
@@ -316,7 +324,7 @@ CommandWait.eventHandled(
 
 #### 等待计划层级
 
-`StageWaitTarget` 表示单个阶段与可选函数；`ChainWaitTarget` 从一个 Saga 函数开始，继续跟踪该 Saga 发出的命令直到尾阶段。阶段不是单一线性链：`SNAPSHOT`、`PROJECTED`、`EVENT_HANDLED` 与 `SAGA_HANDLED` 都依赖 `PROCESSED`，但彼此是独立分支。
+`StageWaitTarget` 表示单个阶段与可选函数；`ChainWaitTarget` 从一个 Saga 函数开始，继续跟踪该 Saga 发出的命令直到尾阶段。阶段不是单一线性链：`SNAPSHOT`、`PROJECTED`、`EVENT_HANDLED` 与 `SAGA_HANDLED` 都要求观察到 `PROCESSED` 才能完成等待，但彼此是独立分支。`StageWaitState` 可以暂存早到的下游信号；这种依赖不保证信号到达顺序。
 
 ### 链式等待计划
 
@@ -331,7 +339,11 @@ val plan = CommandWait.chain(
         name = "onEvent",
     ),
     tailStage = CommandStage.PROCESSED,
-    tailFunction = NamedFunctionInfoData("example"),
+    tailFunction = NamedFunctionInfoData(
+        contextName = "example",
+        processorName = "",
+        name = "",
+    ),
 )
 ```
 
@@ -394,7 +406,7 @@ curl -X POST \
 
 ## Command Rewriter
 
-`CommandRewriter` 可以在分发前补充或重定向命令，例如从经过验证的查询结果中解析聚合 ID。授权与歧义处理仍须明确；rewriter 不能替代聚合验证或事件存储并发检查。
+真实 SPI 是 [`me.ahoo.wow.command.factory.CommandBuilderRewriter`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/factory/CommandBuilderRewriter.kt)。它在 `SimpleCommandMessageFactory` 创建消息前重写 `CommandBuilder`，例如从经过验证的查询结果中解析聚合 ID。把实现注册为 Spring Bean 后，starter 会将其加入 `CommandBuilderRewriterRegistry`。授权与歧义处理仍须明确：builder rewriter 不能替代网关验证、聚合规则或事件存储并发检查。
 
 ## 配置参考
 

@@ -5,7 +5,7 @@ description: 持久化聚合权威历史、恢复状态，并区分事件追加�
 
 # 事件存储
 
-事件存储保存 Wow 的聚合权威历史。命令产生领域事件时，在 `DomainEventStream` 追加完成之前不能视为 `PROCESSED`。快照用于加速加载，投影与事件处理器用于派生其他状态或副作用；二者都不能取代事件历史。
+事件存储保存 Wow 的聚合权威历史。命令产生的 `DomainEventStream` 完成追加，是成功 `PROCESSED` 的必要条件，但不是充分条件：`ProcessedNotifierFilter` 还会等待命令 filter chain 的其余部分，包括链内事件总线发送。快照用于加速加载，投影与事件处理器用于派生其他状态或副作用；二者都不能取代事件历史。
 
 ## 事件溯源
 
@@ -55,7 +55,7 @@ interface EventStore :
 
 ### 领域事件流
 
-`DomainEventStream` 是一次命令执行产生的非空有序事件批次。所有事件属于同一聚合，版本/序列单调推进。事件流保留 `commandId` 与 `requestId`，可用于审计与重复查询。
+`DomainEventStream` 是一次命令执行产生的非空有序事件批次。流内所有事件属于同一聚合，并共享同一个事件流/聚合 `version`；事件在流内按从 1 开始递增的 `sequence` 排序。事件流保留 `commandId` 与 `requestId`，可用于审计与重复查询。
 
 ```kotlin
 eventStore.append(eventStream)
@@ -106,11 +106,11 @@ flowchart LR
 3. 执行：聚合规则返回 `DomainEventStream`。
 4. 溯源：新事件流更新工作内存状态。
 5. 追加：`EventStore.append` 提交新的权威历史。
-6. `PROCESSED`：命令分发管道完成，其中包括追加。
-7. 发布：事件流/状态事件进入下游快照、投影、Saga 与事件处理路径。
-8. `SNAPSHOT`、`PROJECTED` 或 `EVENT_HANDLED`：选中的下游路径完成。
+6. 发送：`SendDomainEventStreamFilter` 发送已追加事件流，然后 `SendStateEventFilter` 在命令 filter chain 内尝试发送结果状态事件。
+7. `PROCESSED`：以 `ORDER_FIRST` 包裹整条链的 `ProcessedNotifierFilter`，只在链完成或出错后发送信号。
+8. 与之独立地，`SNAPSHOT`、`PROJECTED` 或 `EVENT_HANDLED` 表示选中的下游路径完成；其信号可能早于或晚于 `PROCESSED` 到达。
 
-这些下游阶段是 `PROCESSED` 之后的并列分支，不是单一全局事务。
+`DomainEventBus.send` 会传播失败，所以追加已经提交权威历史后，调用方仍可能观察到失败的 `PROCESSED`。当前状态事件 filter 使用 `logErrorResume()`：`StateEventBus.send` 失败会记录并吞掉，不会使 `PROCESSED` 失败。下游阶段信号可能抢先于 `PROCESSED` 到达；`StageWaitState` 会暂存早到的目标信号，直到观察到 `PROCESSED` 前置阶段才最终完成。这些路径不属于单一全局事务。
 
 ## 架构
 
@@ -122,8 +122,8 @@ flowchart TB
     Restore --> Handler[命令处理器]
     Handler --> Stream[DomainEventStream]
     Stream --> EventStore
-    EventStore --> Processed[PROCESSED]
-    Processed --> Bus[领域/状态事件总线]
+    EventStore --> Bus[链内领域/状态消息发送]
+    Bus --> Processed[命令链之后的 PROCESSED]
     Bus --> Snapshot[快照：派生检查点]
     Bus --> Projection[投影：派生读模型]
     Bus --> Processor[事件处理器：副作用]
@@ -136,6 +136,8 @@ flowchart TB
 `EventStore.append` 声明 `EventVersionConflictException`、`DuplicateAggregateIdException` 与 `DuplicateRequestIdException`。`AbstractEventStore` 把初始版本冲突映射为 `DuplicateAggregateIdException`；存储实现负责把实际存储错误映射到该契约。
 
 不能因为接口声明了异常，就假设每个自定义后端都会原子检查版本、聚合创建与请求 ID。必须验证所选实现及其契约测试。
+
+失败的 `PROCESSED` 不能证明追加失败。错误发生在追加之后时，重试取决于稳定 `requestId` 处理与所选存储的重复契约；把命令视为不存在之前，应按聚合/request ID 查询权威历史。
 
 `RetryableAggregateProcessor` 只对分类为可恢复的错误执行有界退避重试。重试可能重新执行恢复与命令处理，所以处理器及其注入服务必须遵守自己的重试/幂等边界。不可恢复的业务错误会立即失败。
 
@@ -182,7 +184,7 @@ wow:
 
 1. 保持事件体为不可变事实，并测试溯源行为。
 2. 重试同一命令意图时复用一个稳定的 `requestId`。
-3. 把 `PROCESSED` 视为事件追加边界，不要当成下游可见性证明。
+3. 把成功的 `PROCESSED` 视为完整命令 filter chain 完成，而不只是追加；失败时检查权威历史，因为追加可能已经成功。
 4. 通过 `StateAggregateRepository` 恢复，不要在应用代码中再写一套重放算法。
 5. 测试所选后端的并发与重复行为，不要从 `EventStore` KDoc 泛化。
 6. 让投影与外部副作用可安全重放/幂等，并明确重试或补偿的归属。

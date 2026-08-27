@@ -5,7 +5,7 @@ description: Persist authoritative aggregate history, restore state, and separat
 
 # Event Store
 
-The event store is Wow's authoritative aggregate history. A command that emits domain events is not `PROCESSED` until its `DomainEventStream` has been appended. Snapshots accelerate loading, while projections and event processors derive other state or side effects; neither replaces event history.
+The event store is Wow's authoritative aggregate history. Appending a command's `DomainEventStream` is required for a successful `PROCESSED` result, but it is not sufficient: `ProcessedNotifierFilter` waits for the rest of the command filter chain, including in-chain event-bus sends. Snapshots accelerate loading, while projections and event processors derive other state or side effects; neither replaces event history.
 
 ## Event Sourcing
 
@@ -55,7 +55,7 @@ Version and time ranges are inclusive. `AbstractEventStore` validates range argu
 
 ### Domain Event Stream
 
-A `DomainEventStream` is the non-empty, ordered event batch produced by one command execution. Its events belong to the same aggregate and carry monotonically advancing versions/sequences. The stream retains `commandId` and `requestId`, which supports audit and duplicate lookup.
+A `DomainEventStream` is the non-empty, ordered event batch produced by one command execution. All events in that stream belong to the same aggregate and share one stream/aggregate `version`; their `sequence` values increase from 1 within the stream. The stream retains `commandId` and `requestId`, which supports audit and duplicate lookup.
 
 ```kotlin
 eventStore.append(eventStream)
@@ -106,11 +106,11 @@ One successful command follows these ownership transitions:
 3. Execute: aggregate rules return a `DomainEventStream`.
 4. Source: the new stream updates the working in-memory state.
 5. Append: `EventStore.append` commits the new authoritative history.
-6. `PROCESSED`: the command dispatcher pipeline completed, including append.
-7. Publish: the stream/state event is offered to downstream snapshot, projection, Saga, and event-processor paths.
-8. `SNAPSHOT`, `PROJECTED`, or `EVENT_HANDLED`: a selected downstream path completed.
+6. Send: `SendDomainEventStreamFilter` sends the appended stream, then `SendStateEventFilter` attempts to send the resulting state event inside the command filter chain.
+7. `PROCESSED`: `ProcessedNotifierFilter`, which wraps the chain with `ORDER_FIRST`, signals only after that chain completes or errors.
+8. Independently, `SNAPSHOT`, `PROJECTED`, or `EVENT_HANDLED` reports that a selected downstream path completed; its signal may arrive before or after `PROCESSED`.
 
-Those downstream stages are siblings after `PROCESSED`, not a single global transaction.
+`DomainEventBus.send` propagates failure, so the caller can observe a failed `PROCESSED` even though append already committed authoritative history. The current state-event filter applies `logErrorResume()`: `StateEventBus.send` failures are logged and swallowed rather than failing `PROCESSED`. Downstream stage signals can race ahead of `PROCESSED`; `StageWaitState` retains an early target signal and waits for the `PROCESSED` prerequisite before final completion. These paths are not one global transaction.
 
 ## Architecture
 
@@ -122,8 +122,8 @@ flowchart TB
     Restore --> Handler[Command handler]
     Handler --> Stream[DomainEventStream]
     Stream --> EventStore
-    EventStore --> Processed[PROCESSED]
-    Processed --> Bus[Domain/state event buses]
+    EventStore --> Bus[In-chain domain/state message sends]
+    Bus --> Processed[PROCESSED after command chain]
     Bus --> Snapshot[Snapshot: derived checkpoint]
     Bus --> Projection[Projection: derived read model]
     Bus --> Processor[Event processor: side effect]
@@ -136,6 +136,8 @@ Applications should load aggregates through `StateAggregateRepository`, not manu
 `EventStore.append` declares `EventVersionConflictException`, `DuplicateAggregateIdException`, and `DuplicateRequestIdException`. `AbstractEventStore` maps an initial-version conflict to `DuplicateAggregateIdException`; storage implementations are responsible for mapping their actual storage failures to the contract.
 
 Do not assume every custom backend atomically checks version, aggregate creation, and request ID merely because the interface declares exceptions. Verify the chosen implementation and its contract tests.
+
+A failed `PROCESSED` result is not proof that append failed. If an error occurred after append, retrying the command depends on stable `requestId` handling and the selected store's duplicate contract; query authoritative history by aggregate/request ID before treating the command as absent.
 
 `RetryableAggregateProcessor` retries only failures classified as recoverable, with bounded backoff. That can re-run restoration and command processing, so handlers and injected services must respect their own retry/idempotency boundaries. Unrecoverable business errors fail immediately.
 
@@ -182,7 +184,7 @@ The event and snapshot stores may use the same technology, but they remain separ
 
 1. Keep event payloads as immutable facts and test sourcing behavior.
 2. Reuse one stable `requestId` when retrying the same command intent.
-3. Treat `PROCESSED` as the event-append boundary, not as proof of downstream visibility.
+3. Treat successful `PROCESSED` as completion of the full command filter chain, not just append; on failure, check authoritative history because append may already have succeeded.
 4. Restore through `StateAggregateRepository`; do not build a second replay algorithm in application code.
 5. Test the selected backend's concurrency and duplicate behavior instead of generalizing from `EventStore` KDoc.
 6. Make projections and external side effects replay-safe/idempotent, with explicit retry or compensation ownership.

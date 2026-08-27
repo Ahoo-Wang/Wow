@@ -14,13 +14,14 @@ An event processor is derived processing. Its database or external effect is not
 For the running `CreateOrder` example:
 
 ```text
-CreateOrder -> append OrderCreated -> PROCESSED
-                              |-> snapshot strategy -> SNAPSHOT
-                              |-> projection -> PROJECTED
-                              |-> event processor -> EVENT_HANDLED
+CreateOrder -> append OrderCreated -> send domain/state messages
+                                      |-> command chain completes -> PROCESSED
+                                      |-> snapshot strategy -> SNAPSHOT
+                                      |-> projection -> PROJECTED
+                                      |-> event processor -> EVENT_HANDLED
 ```
 
-The three downstream branches are independent. `EVENT_HANDLED` means a matching event-processor function completed; it does not imply that snapshot or projection processing completed.
+The downstream branches are independent. `EVENT_HANDLED` means a matching event-processor function completed; it does not imply that snapshot or projection processing completed. A fast downstream function can signal before `PROCESSED`; the wait state retains that target and waits for the `PROCESSED` prerequisite rather than imposing signal arrival order.
 
 ```mermaid
 flowchart LR

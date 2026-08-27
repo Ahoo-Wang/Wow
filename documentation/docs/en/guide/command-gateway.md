@@ -46,7 +46,7 @@ val result = commandGateway.sendAndWait(
 )
 ```
 
-A successful `PROCESSED` result proves aggregate processing completed, including event append when the handler emitted events. It does not prove that a snapshot, projection, event processor, or Saga has completed.
+A successful `PROCESSED` result proves the complete command filter chain finished without a propagated error. When the handler emitted events, that chain includes append and the subsequent domain/state-event send filters. It does not prove that a snapshot, projection, event processor, or Saga function completed.
 
 #### sendAndWaitStream(command, waitPlan)
 
@@ -59,7 +59,7 @@ commandGateway.sendAndWaitStream(
 }
 ```
 
-For a successful snapshot wait, the stream can expose `SENT`, `PROCESSED`, and `SNAPSHOT`. A failed prerequisite terminates the wait with that earlier-stage failure.
+For a snapshot wait, the stream can expose `SENT`, `PROCESSED`, and `SNAPSHOT` in observed arrival order; do not rely on stage order. If a downstream target signal arrives before `PROCESSED`, `StageWaitState` retains it but does not complete the wait until `PROCESSED` is observed. A failed prerequisite terminates the wait with that earlier-stage failure.
 
 #### Wait Timeout
 
@@ -160,7 +160,7 @@ The event store is the authoritative history. Snapshot and processor stores are 
 | `RetryableAggregateProcessor` | restores aggregate state and retries recoverable aggregate processing failures |
 | `SimpleCommandAggregate` | checks aggregate invariants, invokes handler, sources and appends emitted events |
 | `EventSourcingStateAggregateRepository` | loads a current snapshot when applicable and replays later events |
-| notifier filters | emit `PROCESSED`, `SNAPSHOT`, `PROJECTED`, `EVENT_HANDLED`, and `SAGA_HANDLED` signals |
+| notifier filters | wrap their complete filter chains, then emit `PROCESSED`, `SNAPSHOT`, `PROJECTED`, `EVENT_HANDLED`, or `SAGA_HANDLED` |
 
 ## Command Processing Chain
 
@@ -185,12 +185,19 @@ sequenceDiagram
     B->>A: invoke command handler
     A->>E: append DomainEventStream
     E-->>B: append complete
-    B-->>C: PROCESSED signal
-    B->>D: publish resulting events/state
-    D-->>C: SNAPSHOT / PROJECTED / EVENT_HANDLED
+    B->>D: send domain/state messages inside command chain
+    D-->>B: send operations return
+    alt command filter chain completes
+        B-->>C: successful PROCESSED
+    else a later chain operation propagates an error
+        B-->>C: failed PROCESSED (append may already exist)
+    end
+    D-->>C: downstream stage signals may race with PROCESSED
 ```
 
 For a creation command, `RetryableAggregateProcessor` creates a fresh state aggregate rather than restoring existing history. For later commands it delegates restoration to `StateAggregateRepository`.
+
+`ProcessedNotifierFilter` has `ORDER_FIRST`, so it wraps `AggregateProcessorFilter`, `SendDomainEventStreamFilter`, `SendStateEventFilter`, and the rest of the command chain. It notifies only after `next.filter(exchange)` completes or errors. `DomainEventBus.send` propagates its error, so a failed `PROCESSED` can occur after a successful append. The current state-event filter uses `logErrorResume()`, so a `StateEventBus.send` failure is logged and does not itself fail `PROCESSED`.
 
 ### DefaultCommandGateway: Pre-Send Pipeline
 
@@ -216,7 +223,8 @@ Failures are observable at the stage where they occur:
 |---|---|---|
 | idempotency or validation | failed `SENT` result | command was not sent |
 | command bus send | failed `SENT` result | aggregate did not acknowledge processing |
-| restore, business rule, or append | failed `PROCESSED` result | no later stage is proven |
+| restore, business rule, or append | failed `PROCESSED` result | append is not proven |
+| propagated command-filter failure after append, such as domain-event bus send | failed `PROCESSED` result | history may already contain the stream; inspect by aggregate/request ID |
 | snapshot strategy/store | failed `SNAPSHOT` result | projection and event processor are independent |
 | projection function/store | failed `PROJECTED` result | event history can still be authoritative |
 | event processor | failed `EVENT_HANDLED` result | retry/compensation depends on that processor policy |
@@ -308,7 +316,7 @@ Function matching applies to `PROJECTED`, `EVENT_HANDLED`, and `SAGA_HANDLED`. E
 | Stage | Proves | Does not prove |
 |---|---|---|
 | `SENT` | command bus accepted the message | aggregate loaded or event appended |
-| `PROCESSED` | aggregate path completed, including emitted event append | snapshot or downstream consumer completion |
+| `PROCESSED` | the complete command filter chain finished; emitted events were appended and in-chain message sends followed their error policies | snapshot or downstream consumer function completion |
 | `SNAPSHOT` | snapshot dispatcher completed its strategy | a snapshot was written under `version_offset`; projection completion |
 | `PROJECTED` | matching projection function completed; final projection marker observed | unrelated projections/processors completed |
 | `EVENT_HANDLED` | matching event processor function completed | side effect is globally exactly-once |
@@ -316,7 +324,7 @@ Function matching applies to `PROJECTED`, `EVENT_HANDLED`, and `SAGA_HANDLED`. E
 
 #### Wait Plan Hierarchy
 
-`StageWaitTarget` represents one stage and optional function. `ChainWaitTarget` starts with a Saga function and follows the command emitted from that Saga to a tail stage. Stage ordering is not a single linear chain: `SNAPSHOT`, `PROJECTED`, `EVENT_HANDLED`, and `SAGA_HANDLED` all depend on `PROCESSED` but are otherwise independent branches.
+`StageWaitTarget` represents one stage and optional function. `ChainWaitTarget` starts with a Saga function and follows the command emitted from that Saga to a tail stage. Stage ordering is not a single linear chain: `SNAPSHOT`, `PROJECTED`, `EVENT_HANDLED`, and `SAGA_HANDLED` all require `PROCESSED` for wait completion but are otherwise independent branches. `StageWaitState` can retain an early downstream signal; this dependency does not guarantee signal arrival order.
 
 ### Chain Wait Plan
 
@@ -331,7 +339,11 @@ val plan = CommandWait.chain(
         name = "onEvent",
     ),
     tailStage = CommandStage.PROCESSED,
-    tailFunction = NamedFunctionInfoData("example"),
+    tailFunction = NamedFunctionInfoData(
+        contextName = "example",
+        processorName = "",
+        name = "",
+    ),
 )
 ```
 
@@ -394,7 +406,7 @@ The route metadata supplies command type, aggregate identity, path/header variab
 
 ## Command Rewriter
 
-A `CommandRewriter` may enrich or redirect a command before dispatch, for example resolving an aggregate ID from a verified query. Keep authorization and ambiguity handling explicit; a rewriter does not replace aggregate validation or event-store concurrency checks.
+The real SPI is [`me.ahoo.wow.command.factory.CommandBuilderRewriter`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/factory/CommandBuilderRewriter.kt). It rewrites a `CommandBuilder` before `SimpleCommandMessageFactory` creates the message, for example resolving an aggregate ID from a verified query. Register an implementation as a Spring bean; the starter adds it to `CommandBuilderRewriterRegistry`. Keep authorization and ambiguity handling explicit: a builder rewriter does not replace gateway validation, aggregate rules, or event-store concurrency checks.
 
 ## Configuration Reference
 
