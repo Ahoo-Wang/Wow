@@ -265,7 +265,7 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         ).let { resolved ->
             QuerySchemaResolution(
                 filter.copy(field = LogicalField(resolved.value)),
-                if (resolved.fieldSchema?.cardinality == QueryCardinality.SINGLE) {
+                if (schema.fields[resolved.logical]?.cardinality == QueryCardinality.SINGLE) {
                     QueryCompatibilityLevel.INCOMPATIBLE
                 } else {
                     resolved.compatibility

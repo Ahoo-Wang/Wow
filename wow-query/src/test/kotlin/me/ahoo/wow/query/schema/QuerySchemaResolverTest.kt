@@ -171,6 +171,23 @@ class QuerySchemaResolverTest {
         )
         resolver.resolve(IsEmptyFilter(LogicalField("state.unknown"))).compatibility.assert()
             .isEqualTo(QueryCompatibilityLevel.COMPATIBLE)
+
+        val dynamic = LogicalField("tags.department")
+        QuerySchemaResolver(
+            schema(
+                mapOf(
+                    LogicalField("tags") to fieldSchema(
+                        QueryCapability.PRESENCE to "document.tags",
+                        dynamicChildren = true,
+                    ),
+                ),
+            ),
+        ).resolve(IsEmptyFilter(dynamic)).assert().isEqualTo(
+            QuerySchemaResolution(
+                IsEmptyFilter(LogicalField("document.tags.department")),
+                QueryCompatibilityLevel.EXACT,
+            ),
+        )
     }
 
     @Test
