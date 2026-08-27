@@ -58,7 +58,7 @@ And    timeout, duplicate, and downstream failure have actionable paths
 Completion evidence includes at least:
 
 - a domain specification covering acceptance and rejection;
-- a real interface result with aggregate ID and the observable requested stage; record `aggregateVersion` only when that stage knows it. `SENT` may be `null` or carry only the command's expected version. If acceptance needs the post-processing version, wait for `PROCESSED` or a later stage, or read state/events separately;
+- a real interface result with aggregate ID and the observable requested stage; record `aggregateVersion` only when that stage knows it. At `SENT`, `aggregateVersion` may be `null` or carry only the command's expected version. If acceptance needs the post-processing version, wait for `PROCESSED` or a later stage, or read state/events separately;
 - an actual query proving the target read model is visible when the product depends on a query screen. `PROJECTED` is only additional stage evidence that the matching projection processor completed; it cannot replace read-after-write verification, especially for work started outside the returned reactive chain;
 - retry and operator recovery described without claiming transaction rollback;
 - application or platform ownership for retention, deletion, permissions, and operator audit;
