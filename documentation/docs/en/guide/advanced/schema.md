@@ -1,142 +1,141 @@
 ---
 title: JSON Schema
-description: Automatic JSON Schema and OpenAPI Schema generation from Wow domain models using jsonschema-generator.
+description: Generate JSON Schema and OpenAPI components from domain types while keeping compile metadata and runtime query-model schemas separate.
 ---
 
 # JSON Schema
 
-The Schema module automatically generates JSON Schema and OpenAPI Schema from Wow domain models (Commands, Events, Snapshots, AggregateIds, and query models).
+Wow uses the word "schema" for different artifacts. They must not be treated as interchangeable:
 
-Built on [jsonschema-generator](https://github.com/victools/jsonschema-generator), it integrates with Jackson annotations, Jakarta Validation, Swagger annotations, and Kotlin type system.
+| Artifact | Producer | Consumer | Purpose |
+|---|---|---|---|
+| `META-INF/wow-metadata.json` | `wow-compiler` KSP | `MetadataSearcher` | bounded contexts, aggregates, commands, events, routes |
+| JSON Schema | `SchemaGeneratorBuilder` / bundled resources | validation, tooling, OpenAPI conversion | wire shape of a Java/Kotlin type |
+| OpenAPI components | `OpenAPISchemaBuilder` | `RouterSpecs`, Springdoc, generators | schemas referenced by HTTP operations |
+| Query-model schema | query schema sources + backend adapter | query resolver and `snapshot/schema` route | logical fields and backend-proven query capabilities |
+
+KSP also generates `*Properties` path constants for aggregate state navigation. Those constants do not enumerate runtime backend capabilities and do not replace the query-model schema.
 
 ## Features
 
-- Auto-generate JSON Schema from Command, Event, and Snapshot types
-- Support for Jackson, Jakarta Validation, and Swagger annotations
-- Kotlin-specific type handling (nullable, ranges, etc.)
-- OpenAPI 3.x Schema output
-- Joda Money type support
+- Generates JSON Schema from command, event, snapshot, and application types.
+- Respects Jackson, Jakarta Validation, Swagger, Kotlin, and Joda Money metadata.
+- Supports OpenAPI 3.1-compatible nullable shapes.
+- Uses stable bundled definitions for framework types whose wire contract should not depend on reflection internals.
+- Converts accumulated definitions into OpenAPI `Schema` components and references.
+
+Schema generation describes serialization shape. It does not register a route, create a database mapping, authorize a field, or prove that MongoDB/Elasticsearch can execute an operator.
 
 ## Installation
 
-Add the `wow-schema` dependency:
-
-=== "Gradle (Kotlin)"
-
-```kotlin
+```kotlin [Gradle(Kotlin)]
 implementation("me.ahoo.wow:wow-schema")
 ```
+
+Applications normally receive it through the relevant Wow capabilities. Add it directly only when application code calls the builders or consumes their types.
 
 ## Usage
 
 ### Generate JSON Schema
 
-`SchemaGeneratorBuilder` is configured through fluent property setters (there is
-no `standard()` factory). Each builder builds one `com.github.victools.jsonschema.generator.SchemaGenerator`:
+`SchemaGeneratorBuilder` is a fluent builder; there is no `standard()` factory:
 
 ```kotlin
-val generator = SchemaGeneratorBuilder()
-    .build()
-
-// victools SchemaGenerator.generateSchema returns JsonNode directly
-val jsonNode: JsonNode = generator.generateSchema(CreateOrder::class.java)
+val generator = SchemaGeneratorBuilder().build()
+val schema: JsonNode = generator.generateSchema(CreateOrder::class.java)
 ```
 
-The builder is pre-configured with the Wow modules (Jackson, Jakarta Validation,
-Swagger2, Kotlin, Joda Money, Wow naming) and sensible defaults
-(`openapi31 = true`, `DRAFT_7`, `PLAIN_JSON` preset). Override any property
-before calling `build()`.
+The default builder uses `SchemaVersion.DRAFT_7`, `OptionPreset.PLAIN_JSON`, and `openapi31 = true`. It installs Wow's Jackson, Jakarta Validation, Swagger2, Kotlin, Joda Money, naming, and framework modules. Call `build()` before reading `requiredTypeContent`.
+
+Generation happens from runtime types and registered serializers. KSP's metadata JSON is not an input to this call.
 
 ### Generate OpenAPI Schema
 
-`OpenAPISchemaBuilder` produces OpenAPI `io.swagger.v3.oas.models.media.Schema`
-references and collects them under `components/schemas`. Generate a single type
-reference with `generateSchema(...)`; collect all referenced schemas with
-`build()` (no arguments):
+`OpenAPISchemaBuilder.generateSchema(...)` returns a reference (or an inline schema when configured) and records all required definitions. Call `build()` with no arguments to collect components:
 
 ```kotlin
-val openApiBuilder = OpenAPISchemaBuilder(defaultSchemaNamePrefix = "")
-// Reference (or inline) schema for one type
-val schema: Schema<*> = openApiBuilder.generateSchema(CreateOrder::class.java)
-// All schemas accumulated so far, keyed by component name
-val components: Map<String, Schema<*>> = openApiBuilder.build()
+val builder = OpenAPISchemaBuilder(defaultSchemaNamePrefix = "example.")
+
+val requestSchema: Schema<*> = builder.generateSchema(CreateOrder::class.java)
+val components: Map<String, Schema<*>> = builder.build()
 ```
 
-The first constructor argument is `defaultSchemaNamePrefix` (used by the
-`SchemaNamingModule` to prefix component names), not a context name.
+`defaultSchemaNamePrefix` prefixes component names; it is not a bounded-context selector. `definitionPath` defaults to `components/schemas`, and generated `$ref` values are rebased to that location.
+
+Do not call `build()` after every type in an application pipeline. Let all route contributors request their schemas, then finish the component context once so references can be merged consistently.
 
 ## Supported Types
 
-Wow ships dedicated `TypedCustomDefinitionProvider` implementations and modules
-that supply schemas for framework and Kotlin/Joda types:
+| Type / module | Schema behavior |
+|---|---|
+| `AggregateId`, messages, event streams, snapshots, state aggregates | bundled framework definitions loaded through `WowSchemaLoader` |
+| `FilterExpression` | canonical v2 query schema bundled as `META-INF/wow-schema/FilterExpression.json` |
+| `AggregationExpression`, `QuerySemanticType` | polymorphic schemas with explicit `type` discriminator |
+| `Map<K, V>` | object with additional properties |
+| `CharRange`, `IntRange`, `LongRange` | object with `start` and `end` |
+| `CurrencyUnit` | string with `currency` format |
+| `Money` | object containing currency and amount |
+| Kotlin nullable types | null is included in the schema union |
+| Jackson enums | flattened string enum where configured |
+| `@Summary`, `@Description`, Swagger `@Schema` | title, description, discriminator, and composition metadata |
 
-| Type / Module | Schema Handling |
-|------|----------------|
-| `AggregateId`, `DomainEventStream`, `FilterExpression` query models | Loaded from bundled JSON Schema resources via `WowSchemaLoader` (complex objects, not flattened primitives) |
-| `Map<K, V>` (`MapDefinitionProvider`) | Object with additional properties |
-| `CharRange` / `IntRange` / `LongRange` (`KotlinModule`) | Object with `start` and `end` properties |
-| `CurrencyUnit` (`JodaMoneyModule`) | String with `format: currency` |
-| `Money` (`JodaMoneyModule`) | Structured object with `currency` and `amount` |
-| Enums (Jackson) | String enum definitions (`FLATTENED_ENUMS_FROM_JSONVALUE`/`JSONPROPERTY`) |
-| Nullable Kotlin types (`KotlinNullableCheck`) | `null` added to the type union |
-| `@Summary` / `@Description` | Resolved into schema `title` / `description` metadata |
-
-Query contracts use the v2 `FilterExpression` schemas.
+The canonical single/list/paged/count JSON files live under `schema/query/v2`. Only the `FilterExpression` type is copied into `wow-schema` as the custom framework definition used during reflective generation.
 
 ## How the OpenAPI Module Uses Schemas
 
-The `wow-openapi` module wires schema generation into the OpenAPI spec via
-`OpenAPIComponentContext`. At context startup, it builds an `OpenAPISchemaBuilder`
-backed by a `SchemaGeneratorBuilder` and calls `generateSchema(type)` for every
-command body, event payload, and snapshot state registered in the bounded context.
-The resulting `io.swagger.v3.oas.models.media.Schema` instances populate the
-OpenAPI `components/schemas` section, which the Swagger UI renders. TypeScript clients
-can be generated from the spec using the [Fetcher](https://github.com/Ahoo-Wang/Fetcher) toolchain.
+`OpenAPIComponentContext.default(...)` creates a `SchemaGeneratorBuilder` using Draft 2020-12 for OpenAPI components. Route contributors ask the context for command, event, snapshot, state, query, response, header, and request-body schemas. `RouterSpecs` renders their references into OpenAPI 3.1 and merges the finished component maps.
 
 ```kotlin
-// Simplified wiring inside wow-openapi (OpenAPIComponentContext.of)
-val schemaGeneratorBuilder = SchemaGeneratorBuilder().schemaVersion(SchemaVersion.DRAFT_2020_12)
-val schemaBuilder = OpenAPISchemaBuilder(
-    defaultSchemaNamePrefix = "",
-    schemaGeneratorBuilder = schemaGeneratorBuilder,
+val context = OpenAPIComponentContext.default(
+    inline = false,
+    defaultSchemaNamePrefix = currentContext.getContextAliasPrefix(),
 )
-// For each command/event type encountered while building routes:
-val commandSchema: Schema<*> = schemaBuilder.generateSchema(CreateOrder::class.java)
+val commandSchema = context.schema(CreateOrder::class.java)
 ```
 
-You normally never call this directly — applying `wow-compiler` (KSP) and adding
-`wow-spring-boot-starter` (with the `openapi-support` capability) plus `wow-openapi` to the
-server is enough. Schema generation is automatic at runtime via `OpenAPIAutoConfiguration` in
-the starter.
+Spring Boot's `OpenAPIAutoConfiguration` provides this context and a `WowOpenApiCustomizer` when Springdoc is present. The WebFlux runtime consumes the same route catalog, but the schema builder does not create Handler functions.
+
+The query request bodies in OpenAPI remain generic (`FilterExpression`, `SingleQuery`, `ListQuery`, `PagedQuery`, `AggregationQuery`). Aggregate-specific logical fields and capabilities are runtime data returned by `GET /{aggregate}/snapshot/schema`; they are not expanded into each OpenAPI request body.
+
+Client generation is a later consumer. Fetcher or another generator reads the published OpenAPI document. Changing a Kotlin type, discriminator, component name, or route may change generated clients; KSP metadata generation itself does not generate those clients.
 
 ## Customizing the Generator
 
-`SchemaGeneratorBuilder` exposes fluent property setters. Override any before
-calling `build()`:
+Override builder properties before `build()`:
 
 ```kotlin
 val generator = SchemaGeneratorBuilder()
-    .schemaVersion(SchemaVersion.DRAFT_2020_12)   // default DRAFT_7
-    .openapi31(false)                              // default true
-    .customizer {                                  // add victools Option/Module tweaks
-        it.without(Option.SCHEMA_VERSION_INDICATOR)
+    .schemaVersion(SchemaVersion.DRAFT_2020_12)
+    .openapi31(false)
+    .customizer { config ->
+        config.without(Option.SCHEMA_VERSION_INDICATOR)
     }
     .build()
 ```
 
-| Builder property | Default | Purpose |
+| Builder property | Default | Effect |
 |---|---|---|
-| `openapi31` | `true` | Emit OpenAPI 3.1-compatible constructs (`nullable` as a type-union member) |
-| `schemaVersion` | `DRAFT_7` | JSON Schema dialect keyword resolution |
-| `optionPreset` | `PLAIN_JSON` | Which members to include (fields, getters, etc.) |
-| `jacksonModule` | Wow Jackson module | Respect `@JsonProperty`/`@JsonIgnore`/enum flattening |
-| `jakartaValidationModule` | enabled | Surface `@NotNull`/`@Size`/`@Min` as schema constraints |
-| `swagger2Module` | enabled | Surface `@Schema` annotations as OpenAPI metadata |
+| `openapi31` | `true` | OpenAPI 3.1-compatible nullable handling |
+| `schemaVersion` | `DRAFT_7` | JSON Schema keyword dialect |
+| `optionPreset` | `PLAIN_JSON` | baseline field/getter inclusion |
+| `jacksonModule` | Wow Jackson module | Jackson names, ignores, enum values, order |
+| `jakartaValidationModule` | enabled | Jakarta constraints |
+| `swagger2Module` | enabled | Swagger schema annotations |
+| `kotlinModule` | enabled | Kotlin nullability, required/read-only/write-only details |
+| `jodaMoneyModule` | enabled | Joda Money wire types |
+| `wowModule` | enabled | framework definitions and query discriminator handling |
+
+Passing `null` disables an optional module. This changes generated contracts; cover custom settings with schema snapshots or focused assertions before publishing them.
 
 ## Framework Type Schemas
 
-Framework types that cannot be derived by reflection (`AggregateId`,
-`DomainEventStream`, query models) are bundled as JSON Schema resources under
-`META-INF/wow-schema/<TypeName>.json` and loaded by `WowSchemaLoader`. This keeps
-the generated schemas stable across Wow versions even when the in-memory
-representation changes.
+`WowSchemaLoader` reads `META-INF/wow-schema/{TypeName}.json`. Bundled files keep stable public shapes for framework wrappers whose internal class graph is not the wire contract.
+
+This stability is scoped to the schema resource and its serialized contract. It does not promise source or binary compatibility for every implementation class. When a schema resource changes, validate:
+
+1. `wow-schema` generation tests;
+2. `wow-openapi` component and route snapshots;
+3. actual JSON serialization/deserialization;
+4. downstream client generation where that OpenAPI is consumed.
+
+For aggregate fields, distinguish the reflective JSON shape from the runtime query model. A property can exist in JSON Schema yet lack `SORT`, `RANGE`, `FULL_TEXT`, or aggregation capability because the selected backend cannot prove a compatible physical binding.

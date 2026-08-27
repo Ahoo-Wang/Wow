@@ -1,190 +1,217 @@
 ---
 title: API Client
-description: RESTful API client for Wow based on CoApi, providing reactive and synchronous command sending and snapshot query interfaces.
+description: Call Wow command and snapshot HTTP contracts through CoApi while preserving route, wait-stage, query-schema, and server-guard boundaries.
 ---
 
 # API Client
 
-The API Client module provides a declarative RESTful client for Wow services based on [CoApi](https://github.com/Ahoo-Wang/CoApi). It offers both reactive and synchronous interfaces for sending commands and querying snapshots.
+`wow-apiclient` provides hand-maintained CoApi interfaces for Wow's generic command facade and snapshot query routes. It is a transport adapter:
+
+```text
+CommandRequest / Query DTO
+  -> CoApi HTTP exchange
+  -> generated WebFlux route
+  -> command or guarded query pipeline
+```
+
+It does not generate server routes, discover aggregate-specific fields, create authorization headers, or turn a projection into a query service. The running server's OpenAPI document remains the source of truth for the path and wire contract.
 
 ## Features
 
-- **Reactive and Synchronous APIs** — Choose between `Mono`-based reactive or blocking synchronous interfaces
-- **Service Discovery** — Built-in support via `@CoApi` and `@LoadBalanced` annotations
-- **Command Gateway** — Send commands with wait plans through REST endpoints
-- **Snapshot Query** — Single, list, paged, count, and independent aggregation query interfaces
+- Reactive command and query APIs using `Mono` and `Flux`.
+- Blocking synchronous variants for callers that deliberately use synchronous I/O.
+- Generic command sending through `/wow/command/send` with wait-plan headers.
+- Typed, state-only, and dynamic snapshot query response shapes.
+- Single, list, paged, exact count, and separately opted-in aggregation calls.
+- CoApi load-balanced command gateway support.
+
+`wow-apiclient` is not an OpenAPI code generator. Fetcher or another downstream tool may generate a separate client from `/v3/api-docs`; review that generated diff independently.
 
 ## Installation
 
-Add the `wow-apiclient` dependency and the CoApi Spring Boot starter (required for auto-registration):
+Add the Wow client and CoApi Spring Boot starter:
 
 ```kotlin [Gradle(Kotlin)]
 implementation("me.ahoo.wow:wow-apiclient")
 implementation("me.ahoo.coapi:coapi-spring-boot-starter")
 ```
 
-You must also enable CoApi client scanning on your application class:
+Register the exact interfaces CoApi should materialize:
 
 ```kotlin
-@EnableCoApi(clients = [OrderCommandClient::class, CartQueryClient::class])
+@EnableCoApi(
+    clients = [
+        ReactiveRestCommandGateway::class,
+        CartQueryClient::class,
+    ],
+)
 @SpringBootApplication
-class ExampleServer
+class ClientApplication
 ```
+
+The client application must also carry the Wow metadata needed to resolve a command's context when `CommandRequest.context` and `serviceUri` are absent.
 
 ## Getting Started
 
 ### 1. Declare a Query Client
 
-Create a `@CoApi` interface that extends `ReactiveSnapshotQueryApi<S>` (or
-`SynchronousSnapshotQueryApi<S>` for blocking calls). The `@HttpExchange` annotation
-binds the client to a specific aggregate's snapshot endpoint:
+Bind a query interface to the aggregate route base. This example targets the unscoped `/cart/...` routes:
 
 ```kotlin
-import me.ahoo.coapi.api.CoApi
-import me.ahoo.wow.apiclient.query.ReactiveSnapshotQueryApi
-import me.ahoo.wow.example.api.cart.CartData
-import org.springframework.web.service.annotation.HttpExchange
-
 @CoApi(baseUrl = "http://order-service:8080")
-@HttpExchange("cart") // aggregate name = the snapshot endpoint base path
+@HttpExchange("cart")
 interface CartQueryClient : ReactiveSnapshotQueryApi<CartData>
 ```
 
-You can override individual methods to customize `@RequestBody` annotations, or simply
-inherit all default implementations (single, list, paged, count, and their state/dynamic variants).
+`ReactiveSnapshotQueryApi<S>` composes single, list, paged, and count interfaces. Their inherited `@PostExchange` paths are relative to `@HttpExchange`: `snapshot/single`, `snapshot/list`, `snapshot/paged`, and `snapshot/count`, plus state-only variants.
+
+When CoApi or application conventions require concrete generic metadata, redeclare methods with the concrete return type and `@RequestBody`, as the repository example clients do. Do not duplicate the route path on every method.
+
+`@HttpExchange("cart")` calls the base, unscoped snapshot-query variant. To call a tenant- or owner-scoped variant, bind an application-owned interface or routing layer to that generated path and supply the required values. Protect the base route explicitly; choosing the scoped client path is not authorization. Do not guess a context-prefixed URL—inspect the server OpenAPI.
 
 ### 2. Declare a Command Client
 
-Command clients extend `ReactiveRestCommandGateway` or `SyncRestCommandGateway` directly:
+The built-in gateways are already `@CoApi` and `@LoadBalanced`; they can be registered directly. A named application interface is optional:
 
 ```kotlin
-@CoApi(baseUrl = "http://order-service:8080")
+@CoApi
 interface OrderCommandClient : ReactiveRestCommandGateway
 ```
+
+Both forms call the generic command facade. They do not call the aggregate-specific command route declared in OpenAPI.
 
 ### 3. Inject and Use
 
-CoApi auto-configures the client as a Spring bean — inject it directly:
-
 ```kotlin
 @Service
-class CartService(
-    private val queryClient: CartQueryClient,
-    private val commandClient: OrderCommandClient,
+class CartApplicationService(
+    private val carts: CartQueryClient,
+    private val commands: ReactiveRestCommandGateway,
 ) {
-    fun getCart(cartId: String): Mono<CartData> {
-        return queryClient.getStateById(cartId) // Mono<CartData>
-    }
+    fun getCart(id: String): Mono<CartData> = carts.getStateById(id)
 
-    fun placeOrder(orderId: String, items: List<CreateOrder.Item>, address: ShippingAddress): Mono<CommandResult> {
-        val request = CommandRequest(
-            body = CreateOrder(items = items, address = address, fromCart = false),
-            aggregateId = orderId,
-            waitPlan = CommandRequest.WaitPlan(waitStage = CommandStage.PROCESSED),
+    fun createOrder(id: String, command: CreateOrder): Mono<CommandResult> =
+        commands.send(
+            CommandRequest(
+                body = command,
+                aggregateId = id,
+                serviceUri = "http://order-service:8080",
+                waitPlan = CommandRequest.WaitPlan(
+                    waitStage = CommandStage.PROCESSED,
+                ),
+            ),
         )
-        return commandClient.send(request) // Mono<CommandResult>
-    }
 }
 ```
 
+`getStateById` turns HTTP 404 into an empty `Mono`; other query errors propagate. Command sending validates `CommandValidator` bodies before the exchange.
+
 ### Service Discovery
 
-`ReactiveRestCommandGateway` and `SyncRestCommandGateway` are annotated with `@LoadBalanced`,
-so you can use a service-registry URL instead of a fixed host:
+`CommandRequest.sendUri` is computed as:
 
-```kotlin
-@CoApi(baseUrl = "http://order-service") // resolved by Spring Cloud LoadBalancer / Nacos / etc.
-interface OrderCommandClient : ReactiveRestCommandGateway
+```text
+(serviceUri ?: "http://" + serviceId) + "/wow/command/send"
 ```
 
-::: tip CommandRequest serviceUri
-For `send(CommandRequest)`, the command gateway constructs the send URI from
-`CommandRequest.serviceUri` or the command metadata's context name — it does **not** use the
-`@CoApi(baseUrl)` for command sends. To target a fixed host for commands, set
-`CommandRequest(serviceUri = "http://localhost:8080", ...)`.
-:::
+`serviceId` is the explicit `context`, or the command type's context resolved through `MetadataSearcher`. Because `send(CommandRequest)` passes an absolute URI argument, a command gateway's `@CoApi(baseUrl)` does not select the command destination.
+
+Set `serviceUri` for a fixed address. Otherwise, the `@LoadBalanced` gateway uses the context-derived service host and requires the application's load-balancer integration to resolve it.
+
+Query clients are different: their `@CoApi(baseUrl)` and `@HttpExchange` base determine the target. Service discovery and route scoping are application configuration, not inferred from the query DTO.
 
 ## Command Gateway
 
-`ReactiveRestCommandGateway` and `SyncRestCommandGateway` are concrete `@CoApi`
-interfaces (no extra type parameters). Declare your own `@CoApi` interface that
-extends one of them to inherit the `send(CommandRequest)` method.
+`CommandRequest` carries the command body plus routing/message headers:
+
+- `aggregateId`, `aggregateVersion`, `tenantId`, `ownerId`, `spaceId`;
+- `requestId`, `localFirst`, `context`, `aggregate`, and optional wire `type`;
+- `serviceUri` for transport destination;
+- `WaitPlan` for the server-side command wait contract.
+
+`type` defaults to `body::class.java.name`. `context` affects both command metadata and default service discovery. Do not set a context or aggregate merely to route around missing KSP metadata; the values must describe the actual command contract.
+
+The default wait stage is `PROCESSED`. Other stages are `SENT`, `SNAPSHOT`, `PROJECTED`, `EVENT_HANDLED`, and `SAGA_HANDLED`. `waitContext` and `waitProcessor` narrow function-based stages. `waitTimeout` is sent in milliseconds.
+
+A wait result reports the selected Wow processing signal. `PROJECTED` is meaningful only for projection work registered in Wow and completed inside the handler's returned chain; it does not wait for detached `subscribe()` calls or an unrelated external pipeline.
 
 ### Reactive Command Gateway
 
 ```kotlin
-@CoApi
-interface OrderCommandGateway : ReactiveRestCommandGateway
-```
-
-`send(request)` returns `Mono<CommandResult>`:
-
-```kotlin
-val request = CommandRequest(
-    body = CreateOrder(orderId = "order-001", items = listOf(...)),
-    waitPlan = CommandRequest.WaitPlan(
-        waitStage = CommandStage.PROJECTED,
-        waitContext = "order",
-        waitProcessor = "OrderProjector",
+val result: Mono<CommandResult> = commandGateway.send(
+    CommandRequest(
+        body = createOrder,
+        aggregateId = "order-1",
+        waitPlan = CommandRequest.WaitPlan(
+            waitStage = CommandStage.PROJECTED,
+            waitContext = "order-service",
+            waitProcessor = "OrderSummaryProjector",
+            waitTimeout = 5_000,
+        ),
     ),
 )
-val result: CommandResult = orderCommandGateway.send(request).block()
 ```
+
+The reactive gateway returns `Mono<CommandResult>` and maps command HTTP errors to `RestCommandGatewayException`.
 
 ### Synchronous Command Gateway
 
 ```kotlin
-@CoApi
-interface OrderCommandGateway : SyncRestCommandGateway
+@EnableCoApi(clients = [SyncRestCommandGateway::class])
+class ClientConfiguration
+
+val result: CommandResult = syncGateway.send(request)
 ```
 
-`send(request)` returns `CommandResult` directly (blocking). A
-`WebClientResponseException` is unwrapped into a `RestCommandGatewayException`
-carrying the `CommandResult` / `ErrorInfo` body.
+The synchronous gateway blocks the calling thread and returns `CommandResult`. Use it only on a blocking application path; do not call it from Reactor event-loop or core Wow reactive processing code.
 
 ## Snapshot Query
+
+Snapshot clients post the same DTOs defined by `wow-query`. They do not fetch `GET /{aggregate}/snapshot/schema` or prevalidate logical fields. The server resolves the runtime query-model schema, appends configured policies, and applies HTTP guards.
+
+Typed methods return `MaterializedSnapshot<S>`. State methods unwrap `S`. Dynamic methods return maps and are appropriate when projection selects a shape that is not `S`; they give up compile-time field typing.
 
 ### Reactive Query API
 
 ```kotlin
-@CoApi
-interface OrderQueryApi : ReactiveSnapshotQueryApi<OrderState>
+val state: Mono<CartData> = cartClient.getStateById("cart-1")
+
+val snapshots: Flux<MaterializedSnapshot<CartData>> = listQuery {
+    filter {
+        "state.items".elementMatch { "quantity" gt 0 }
+    }
+    limit(20)
+}.query(cartClient)
+
+val page: Mono<PagedList<CartData>> = pagedQuery {
+    filter {
+        "state.items".elementMatch { "quantity" gt 0 }
+    }
+    pagination { index(1); size(20) }
+}.queryState(cartClient)
+
+val count: Mono<Long> = filterExpression {
+    "state.items".elementMatch { "quantity" gt 0 }
+}.count(cartClient)
 ```
 
-`ReactiveSnapshotQueryApi<S>` composes single, list, paged, and count operations,
-all returning `Mono`/`Flux`:
-
-```kotlin
-// Single: returns Mono<MaterializedSnapshot<OrderState>> (empty if not found)
-val snapshot = queryApi.getById("order-001").block()
-// Use getStateById to obtain the state directly: Mono<OrderState>
-val state = queryApi.getStateById("order-001").block()
-
-// Paged: takes an IPagedQuery (1-indexed Pagination); returns Mono<PagedList<...>>
-val paged = queryApi.paged(
-    PagedQuery(
-        filter = MatchAllFilter,
-        pagination = Pagination(index = 1, size = 10),
-    ),
-).block()
-
-// Count: takes a FilterExpression; returns Mono<Long>
-val total = queryApi.count(MatchAllFilter).block()
-```
+Count posts a `FilterExpression` directly. Server-side WebFlux limits may reject a query that is valid as an in-process DTO.
 
 ### Synchronous Query API
 
 ```kotlin
-@CoApi
-interface OrderQueryApi : SynchronousSnapshotQueryApi<OrderState>
+@CoApi(baseUrl = "http://order-service:8080")
+@HttpExchange("cart")
+interface CartQuerySyncClient : SynchronousSnapshotQueryApi<CartData>
+
+val cart: CartData? = cartQuerySyncClient.getStateById("cart-1")
 ```
 
-The synchronous variant mirrors the reactive API but returns values directly
-(blocking).
+The synchronous single helpers convert HTTP 404 to `null`; list, page, count, and other errors propagate. Keep this client out of non-blocking execution paths.
 
 ### Snapshot Aggregation API
 
-Aggregation is intentionally separate from the composite snapshot query interfaces. Extend `ReactiveSnapshotAggregationQueryApi` or `SynchronousSnapshotAggregationQueryApi` explicitly:
+Aggregation is deliberately not part of `ReactiveSnapshotQueryApi` or `SynchronousSnapshotQueryApi`. Opt in explicitly:
 
 ```kotlin
 @CoApi(baseUrl = "http://order-service:8080")
@@ -192,25 +219,27 @@ Aggregation is intentionally separate from the composite snapshot query interfac
 interface CartAggregationClient : ReactiveSnapshotAggregationQueryApi
 
 val rows: Flux<Map<String, Any?>> = aggregation {
-    expand("state.orders") { "status" eq "PAID" }
-    expand("lines") { "quantity" gt 0 }
+    expand("state.items") { "quantity" gt 0 }
     terms("productId", "product")
-    sum("amount", "total")
-    sort { "total".desc() }
+    sum("quantity", "totalQuantity")
+    sort { "totalQuantity".desc() }
     limit(20)
 }.query(cartAggregationClient)
 ```
 
-The reactive API returns `Flux<Map<String, Any?>>`; the synchronous API returns `List<Map<String, Any?>>`. Both post the same `AggregationQuery` JSON to `snapshot/aggregation`.
+The reactive API returns `Flux<Map<String, Any?>>`; the synchronous API returns `List<Map<String, Any?>>`. Both post `AggregationQuery` to `snapshot/aggregation`. Path relativity, backend schema capability, masking exclusion, and expensive-operator guards are server contracts unchanged by the client.
 
 ## Error Handling
 
-`RestCommandGatewayException` wraps command errors with full request context:
+For command calls, `RestCommandGatewayException` retains the `CommandRequest`, error code, message, and binding errors when the response can be decoded as `CommandResult` or `DefaultErrorInfo`:
 
 ```kotlin
-try {
-    orderCommandGateway.send(request).block()
-} catch (ex: RestCommandGatewayException) {
-    println("Command failed: ${ex.message}")
-}
+commandGateway.send(request)
+    .doOnError(RestCommandGatewayException::class.java) { error ->
+        log.warn("Command failed: {}", error.errorCode)
+    }
 ```
+
+Blank or unknown error bodies still become `RestCommandGatewayException` with the HTTP exception as cause. Query clients only normalize single-query 404 as empty/null; validation, authorization, rate-limit, timeout, and backend errors remain transport errors for the application to handle.
+
+Do not retry commands blindly at the HTTP layer. Reuse a stable request/command identity and follow the command idempotency contract. For queries, retry only errors the application's policy classifies as transient; a query-schema validation or HTTP guard rejection will not become valid by repetition.

@@ -1,394 +1,252 @@
 ---
 title: "数据权限"
-description: "了解 Wow 的多层数据隔离模型：租户、拥有者、命名空间以及基于属性的访问控制（ABAC），实现细粒度权限管理。"
+description: "通过租户、拥有者、空间与应用提供的 ABAC 过滤器约束 Wow 路由和查询，同时不把路由数据误当成授权。"
 outline: deep
 ---
 
 # 数据权限
 
-Wow 提供三个可选的路由/数据作用域，以及一个可插入的 ABAC 查询过滤机制：
+Wow 在写链路和读链路中携带四类数据访问上下文：
 
-1. **租户（Tenant）** — 按组织/客户隔离数据（可选）
-2. **拥有者（Owner）** — 在租户内按用户身份隔离数据（可选）
-3. **命名空间（Space）** — 在租户内提供基于命名空间的分区（可选）
-4. **ABAC** — 由应用提供主体标签解析器的查询过滤机制
+1. **Tenant** — 聚合存储与路由作用域；
+2. **Owner** — 可选拥有者元数据与路由作用域；
+3. **Space** — 通过请求头提供的可选命名空间元数据；
+4. **ABAC tags** — 资源标签与应用提供的 Principal 过滤器。
 
-这三层隔离都是**可选**的，可以独立启用或自由组合。单租户应用无需启用任何隔离层；SaaS 应用可以按需组合租户、拥有者、命名空间和 ABAC。
+在 WebFlux 查询路由中，`RewriteRequestFilter` 会在生成的查询服务到达后端前追加 tenant、owner、space 元数据过滤器。已配置的 `AbacQueryFilter` 可以在同一 Handler 链中追加资源标签条件。
 
-::: danger 这不是默认认证或命令授权
-路径中的 `tenantId`/`ownerId`、请求头中的 `spaceId` 以及消息中的标签都是作用域数据，不能证明调用方有权使用这些值。Wow 不会替应用认证用户，也不会自动为生成的命令路由执行授权决策。应用必须在 Spring Security、CoSec 策略或自定义 WebFilter/Handler Filter 中完成身份认证、把身份绑定到允许的作用域，并保护所有自动生成的命令与查询端点。
+::: danger 作用域不是身份认证
+tenant/owner 路径、`Wow-Space-Id` 请求头或 ABAC 标签都是路由与过滤数据，不能证明谁发送了请求，也不能证明该 Principal 有权选择这些值。应用必须先认证身份，在服务端绑定允许的作用域，授权命令和查询路由，并避免让不受信请求访问原始查询 Factory。
 :::
-
-```mermaid
-graph TB
-    subgraph Isolation_Layers["数据隔离层级"]
-        T["租户 Tenant"]
-        S["命名空间 Space"]
-        O["拥有者 Owner"]
-        A["ABAC 标签"]
-    end
-
-    T -->|包含| S
-    S -->|包含| O
-    O -->|受保护于| A
-
-    style T fill:#e8f5e9
-    style S fill:#e3f2fd
-    style O fill:#fff3e0
-    style A fill:#fce4ec
-```
 
 ## RESTful URL 模式
 
-数据隔离层级直接体现在自动生成的 RESTful API 路径中：
+生成的聚合路由遵循以下形状，各可选段由聚合元数据决定是否启用：
 
+```text
+[tenant/{tenantId}/][owner/{ownerId}/]{resourceName}[/{resourceId}]/{action}
 ```
-[tenant/{tenantId}]/[owner/{ownerId}]/resource/[{resourceId}]/action
-```
 
-| 层级 | 路径 / 请求头 | 生效条件 |
-|------|--------------|---------|
-| 租户 | `tenant/{tenantId}` 路径前缀 | 聚合**未**标记 `@StaticTenantId` |
-| 拥有者 | `owner/{ownerId}` 路径前缀 | `@AggregateRoute(owner ≠ NEVER)` |
-| 命名空间 | `Wow-Space-Id` 请求头 | `@AggregateRoute(spaced = true)` |
+| 作用域 | 线协议值 | 路由条件 |
+|---|---|---|
+| Tenant | `tenant/{tenantId}` | 聚合没有静态 tenant ID |
+| Owner | `owner/{ownerId}` | 有效 `AggregateRoute.Owner` 不是 `NEVER` |
+| Space | `Wow-Space-Id` 请求头 | 有效路由启用 spaced |
 
-框架根据 `@AggregateRoute` 和可选的 `@CommandRoute` 覆盖，为每个命令生成一条确定的路由。命令级 `ALWAYS` 或 `NEVER` 会覆盖聚合默认值；同一个命令不会同时暴露多种作用域路由。
+`AGGREGATE_ID` 拥有者策略在 owner ID 已标识聚合时移除独立 resource-ID 段。命令级 `@CommandRoute` 可以覆盖聚合路由默认值。快照查询贡献者始终发布基础聚合路由，并在适用时增加 tenant/owner 变体，因此无作用域查询路由必须有显式安全策略。准确路由以运行服务的 OpenAPI 为准；限界上下文 alias 不会自动成为 URL 前缀。
+
+查询 Schema 路由（`/{aggregate}/snapshot/schema` 与 `/refresh`）刻意不生成 tenant、owner 或 aggregate-ID 路径变体：它们描述聚合查询模型，而不是某个调用方的数据；spaced 聚合的公共聚合合同仍可能声明 `Wow-Space-Id`。
 
 ## 租户（Tenant）
 
-租户是最高层级的数据隔离边界。在 SaaS 应用中，每个客户（组织）通常是一个独立的租户。Wow 自动在命令和事件中传播租户上下文，确保数据在存储层面被隔离。
+Tenant 是 `AggregateId` 以及持久化消息/快照元数据的一部分。同一 named aggregate 内的 aggregate ID 仍需全局唯一；tenant 不会允许复用相同 aggregate ID。
 
 ### 基于注解的租户 ID
 
-使用 `@TenantId` 注解标记命令或聚合状态中的租户标识字段：
-
-```kotlin
-@AggregateRoot
-class OrderAggregate(
-    @AggregateId
-    val orderId: String,
-
-    @TenantId
-    val tenantId: String  // 该订单所属的组织
-)
-```
+标记携带动态 tenant 标识的命令属性：
 
 ```kotlin
 data class CreateOrder(
-    @AggregateId
-    val orderId: String,
-
-    @TenantId
-    val tenantId: String, // 自动从请求上下文填充
-
-    val items: List<OrderItem>
+    @AggregateId val orderId: String,
+    @TenantId val tenantId: String,
+    val items: List<OrderItem>,
 )
 ```
 
-框架利用此注解实现：
-- 从请求中自动设置租户上下文
-- 按租户隔离事件存储和快照存储
-- 在查询操作中强制租户边界
-- 在 RESTful API 中生成 `tenant/{tenantId}` 路径前缀
+KSP 元数据记录 tenant 的解析方式。运行时 WebFlux 路由从路径读取 tenant，并将其带入命令或查询上下文。注解本身不会验证调用方是否属于该 tenant。
 
 ### 静态租户 ID
 
-对于始终属于固定租户的聚合（如系统配置），使用 `@StaticTenantId`：
+当一个聚合的所有实例都属于固定 tenant 时使用 `@StaticTenantId`：
 
 ```kotlin
 @AggregateRoot
-@StaticTenantId("system-tenant")
-class SystemConfigurationAggregate {
-    // 始终属于系统租户
-    // 生成的 API 不会包含 tenant/{tenantId} 路径前缀
-}
+@StaticTenantId("system")
+class SystemConfiguration(private val state: SystemConfigurationState)
 ```
+
+生成路由不会包含动态 tenant 前缀。这只是路由/存储选择，并不表示资源公开。
 
 ### 默认租户
 
-未指定租户时，Wow 使用默认租户 ID `(0)`。这对单租户应用是透明的 — 无需处理租户 ID。
+`TenantId.DEFAULT_TENANT_ID` 是 `(0)`。静态单租户聚合通常使用该值。当预期动态 tenant 时，不要把默认值作为授权回退。
 
 ## 拥有者（Owner）
 
-在租户内部，**拥有者**层级按用户身份隔离数据，确保用户只能访问自己的数据（如"我的订单"、"我的购物车"）。
+Owner 是聚合内的快照和消息元数据，可以约束生成路由与快照查询；调用方身份仍必须由应用安全层绑定。
 
 ### 基于注解的拥有者 ID
 
-使用 `@OwnerId` 注解标记拥有者标识：
+标记提供拥有者元数据的命令字段：
 
 ```kotlin
-data class AddToCart(
-    @AggregateId
-    val cartId: String,
-
-    @OwnerId
-    val userId: String,  // 拥有此购物车的用户
-
-    val productId: String,
-    val quantity: Int
+data class CreateCart(
+    @AggregateId val cartId: String,
+    @OwnerId val userId: String,
 )
 ```
+
+不要仅因客户端字段带 `@OwnerId` 就信任其 `userId`。应在应用边界用已认证 Principal 比对或替换它。
 
 ### 拥有者路由策略
 
-`@AggregateRoute` 注解通过 `owner` 参数控制拥有权的强制方式：
-
 ```kotlin
 @AggregateRoot
-@AggregateRoute(
-    resourceName = "orders",
-    owner = AggregateRoute.Owner.ALWAYS
-)
-class OrderAggregate(
-    @AggregateId
-    val orderId: String,
-
-    @OwnerId
-    val customerId: String
-)
-```
-
-可用策略：
-
-| 策略 | `owned` | 说明 | API 路径 | 适用场景 |
-|------|---------|------|---------|---------|
-| `NEVER` | `false` | 无需拥有者上下文 | `/orders/{id}` | 公共资源、系统聚合 |
-| `ALWAYS` | `true` | 始终需要拥有者上下文 | `/owner/{ownerId}/orders/{id}` | 用户专属数据（订单、个人资料） |
-| `AGGREGATE_ID` | `true` | 聚合 ID 即拥有者 ID | `/owner/{ownerId}/orders`（无 `{id}`） | 每用户聚合（用户资料、设置） |
-
-当使用 `AGGREGATE_ID` 时，`{resourceId}` 路径参数会被移除，因为拥有者 ID 已经标识了聚合。
-
-### 拥有权转移
-
-当需要变更拥有者时（如将任务转交给其他用户），实现 `OwnerTransferred` 事件接口：
-
-```kotlin
-data class TaskTransferred(
-    override val toOwnerId: String
-) : OwnerTransferred
-```
-
-框架识别此事件并自动更新聚合的拥有者上下文。
-
-## 命名空间（Space）
-
-**命名空间**在租户内提供基于命名空间的数据分区，增加了第三个隔离维度，适用于：
-
-- 环境隔离（dev / staging / prod）
-- 业务域分区（primary / archive）
-- 组织单元边界
-
-### 启用命名空间
-
-在 `@AggregateRoute` 中设置 `spaced = true`：
-
-```kotlin
-@AggregateRoot
-@AggregateRoute(
-    resourceName = "sales-order",
-    spaced = true,
-    owner = AggregateRoute.Owner.ALWAYS
-)
+@AggregateRoute(resourceName = "orders", owner = AggregateRoute.Owner.ALWAYS)
 class Order(private val state: OrderState)
 ```
 
-当 `spaced = true` 时，生成的 API 会添加 `Wow-Space-Id` 请求头参数。默认命名空间 ID 为空字符串 `""`，即所有未显式指定命名空间的聚合都在默认空间中。
+| 策略 | Owner 路径 | Resource ID | 含义 |
+|---|---|---|---|
+| `NEVER` | 无 | 正常保留 | 没有 owner 路由元数据 |
+| `ALWAYS` | 必填 | 正常保留 | owner 与 aggregate ID 独立 |
+| `AGGREGATE_ID` | 必填 | 移除 | owner ID 同时标识聚合 |
 
-### 命名空间转移
+生成路由与 `OwnerAggregatePrecondition` 可以保证已加载聚合的 owner 元数据与路由值一致，但不能证明已认证调用方拥有该路由值。
 
-命名空间转移遵循与拥有权转移相同的模式 — 实现 `SpaceTransferred`：
+### 拥有权转移
 
-```kotlin
-data class OrderArchived(
-    override val toSpaceId: SpaceId
-) : SpaceTransferred
-```
-
-框架识别此事件并自动更新聚合的命名空间上下文。
-
-## ABAC（基于属性的访问控制）
-
-租户、拥有者和命名空间提供结构性隔离，而 **ABAC** 提供细粒度的、基于属性的访问控制。它通过为**主体**（用户/服务）和**资源**（聚合）附加标签，然后在查询时进行匹配来实现。
-
-### 核心概念
-
-```mermaid
-graph LR
-    P["主体标签"] -->|匹配| R["资源标签"]
-    R -->|产生| A["访问决策"]
-
-    subgraph Principal["主体（用户/服务）"]
-        PT1["dept: [eng, pm]"]
-        PT2["role: [admin]"]
-    end
-
-    subgraph Resource["资源（聚合）"]
-        RT1["dept: [eng]"]
-    end
-
-    P --> PT1
-    P --> PT2
-    R --> RT1
-```
-
-**AbacTags** — 键值对映射，每个键对应一个值列表：
+实现 `OwnerTransferred` 的事件会在溯源时修改状态聚合的 owner 元数据：
 
 ```kotlin
-// 用户标签：属于工程部和产品部，角色为管理员
-val userTags: AbacTags = mapOf(
-    "dept" to listOf("eng", "pm"),
-    "role" to listOf("admin")
-)
-
-// 资源标签：仅允许工程部访问
-val resourceTags: AbacTags = mapOf(
-    "dept" to listOf("eng")
-)
-
-// 公开资源：无标签 = 所有人可访问
-val publicResource: AbacTags = emptyMap()
+data class OrderAssigned(
+    override val toOwnerId: String,
+) : OwnerTransferred
 ```
 
-**通配符** — 值 `["*"]` 匹配该键下的所有值：
+领域模型决定何时允许转移。发出事件前应授权转移命令；标记接口只负责应用新元数据。
 
-```kotlin
-// 可以访问任何部门的资源
-val adminTags: AbacTags = mapOf(
-    "dept" to listOf("*")
-)
-```
+## 命名空间（Space）
 
-### 应用资源标签
+Space 是随消息和快照存储的字符串命名空间，与 tenant、owner 相互独立，默认值为空字符串。
 
-使用 `ApplyAbacTags` 命令接口为聚合设置标签：
+### 启用命名空间
 
 ```kotlin
 @AggregateRoot
-class DocumentAggregate(
-    @AggregateId
-    val docId: String,
-    var tags: AbacTags = emptyMap()
-) {
-    @OnCommand
-    fun onCommand(command: ApplyAbacTags): AbacTagsApplied {
-        // 验证并合并标签
-        return DefaultResourceTagsApplied(command.tags)
-    }
-}
+@AggregateRoute(resourceName = "sales-order", spaced = true)
+class Order(private val state: OrderState)
 ```
 
-或者使用内置的 `DefaultApplyResourceTags` 命令，它提供了开箱即用的标签管理端点：
+WebFlux 读取 `Wow-Space-Id`，并在查询路由中追加 `SPACE_ID` 过滤器。请求头不会变成 URL 段，也不会认证调用方是否有权访问该 space。
+
+### 命名空间转移
+
+实现 `SpaceTransferred` 的事件会修改状态聚合的 space 元数据：
 
 ```kotlin
-// PUT /{resourceName}/{id}/tags
-// Body: { "tags": { "dept": ["eng"], "role": ["admin"] } }
+data class OrderArchived(
+    override val toSpaceId: SpaceId,
+) : SpaceTransferred
 ```
+
+与拥有权转移相同，该事件只应用状态变更；是否允许变更由命令侧策略决定。
+
+## ABAC（基于属性的访问控制）
+
+Wow 保存资源标签，并以 `AbacQueryFilter` 提供扩展点。应用从已认证上下文提供 Principal 标签，并决定缺少上下文时公开还是拒绝。
+
+### 核心概念
+
+`AbacTags` 是 `Map<String, List<String>>`：
+
+```kotlin
+val principalTags = mapOf(
+    "department" to listOf("engineering", "product"),
+    "role" to listOf("reader"),
+)
+
+val resourceTags = mapOf(
+    "department" to listOf("engineering"),
+)
+```
+
+对于每个 Principal 标签 key，普通值会匹配“资源缺少该 key / 值为空 / 与 Principal 值有交集”中的任一情况。`listOf("*")` 会映射为该 key 的 `EXISTS` 条件。多个 Principal key 之间用 `AND` 组合。
+
+因此，在内置标签匹配表达式中，无标签资源是公开的。如果这不是业务规则，应覆盖策略，而不是把标签机制当成完整授权系统。
+
+### 应用资源标签
+
+`DefaultApplyResourceTags` 是内置命令，使用 `PUT`、action `tags` 和 ID 路径。当聚合没有注册自己的 `ApplyResourceTags` 处理函数时，Wow 可以使用默认命令函数，并把 `DefaultResourceTagsApplied` 溯源到状态聚合元数据。
+
+```kotlin
+val command = DefaultApplyResourceTags(
+    tags = mapOf("department" to listOf("engineering")),
+)
+```
+
+该命令与其他改变授权状态的操作一样必须受到保护。发布生成路由不等于该端点只允许管理员调用。
 
 ### 标签合并
 
-使用 `merge` 扩展函数合并标签。对于相同的键，双方的值会合并（并集）：
+`merge` 合并同一 key 的值：
 
 ```kotlin
-val tags1 = mapOf("dept" to listOf("eng"), "role" to listOf("admin"))
-val tags2 = mapOf("dept" to listOf("pm"), "team" to listOf("backend"))
-
-tags1.merge(tags2)
-// 结果：{ "dept": ["eng", "pm"], "role": ["admin"], "team": ["backend"] }
+val effective = mapOf("department" to listOf("engineering"))
+    .merge(mapOf("department" to listOf("product"), "role" to listOf("reader")))
 ```
+
+应明确选择“替换”还是“合并”。`DefaultResourceTagsApplied` 会替换状态聚合中保存的资源标签，不会自动合并。
 
 ### 动态标签提取（StateAggregateTagsExtractor）
 
-标签可以在查询时从聚合状态中动态提取，而非仅依赖静态存储。在状态类上实现 `StateAggregateTagsExtractor`：
+需要从物化聚合派生标签时，在状态上实现 `StateAggregateTagsExtractor<S>`：
 
 ```kotlin
 class OrderState(
-    val id: String
+    val department: String,
 ) : StateAggregateTagsExtractor<OrderState> {
-
-    lateinit var address: ShippingAddress
-    // ... 其他字段 ...
-
-    override fun extract(source: ReadOnlyStateAggregate<OrderState>): AbacTags {
-        val stateTags = mapOf(
-            "address-country" to listOf(address.country),
-            "address-province" to listOf(address.province),
-        )
-        // 与聚合上显式存储的标签合并
-        return stateTags.merge(source.tags)
-    }
+    override fun extract(source: ReadOnlyStateAggregate<OrderState>): AbacTags =
+        mapOf("department" to listOf(department)).merge(source.tags)
 }
 ```
 
-这种模式允许 ABAC 规则基于聚合状态字段（如地址）与显式分配的标签组合进行匹配。
+Extractor 在状态物化期间计算资源元数据，不负责解析 Principal 身份。
 
 ### ABAC 查询过滤器
 
-查询快照时，`AbacQueryFilter` 根据主体的标签自动注入权限过滤条件。匹配规则如下：
-
-`AbacQueryFilter` 是抽象扩展点，不会仅因启用 Wow、WebFlux 或 CoSec 自动出现。应用未注册该 Bean、返回空标签或返回 `Mono.empty()` 时，默认使用 `MatchAllFilter`，即不增加 ABAC 限制。受保护的查询必须在缺少安全上下文或主体标签时显式拒绝请求。
-
-| 主体标签 | 资源标签 | 结果 |
-|---------|---------|------|
-| `["*"]`（通配符） | 任意 | ✅ 匹配 |
-| `["a", "b"]` | `["a"]` | ✅ 匹配 |
-| `["a", "b"]` | `["c"]` | ❌ 不匹配 |
-| 任意 | 键不存在 | ✅ 匹配（该键对应的资源为公开） |
-
-过滤器将主体标签转换为查询条件，所有标签键之间使用 AND 逻辑：
-- **通配符**标签：检查资源上该键是否存在（`EXISTS`）
-- **普通**标签：匹配键不存在、值为空、或值在主体列表中的资源
-
-实现自定义的主体标签解析，继承 `AbacQueryFilter`：
+继承 `AbacQueryFilter`，并让受保护查询失败关闭：
 
 ```kotlin
 @Component
 class MemberAbacQueryFilter(
-    private val memberCache: MemberCache
+    private val memberships: MembershipRepository,
 ) : AbacQueryFilter() {
-
     override fun getPrincipalTags(
         contextView: ContextView,
-        context: QueryContext<*, *>
-    ): Mono<AbacTags> {
-        val securityContext = contextView.getSecurityContextOrEmpty()
-            ?: return Mono.error(AccessDeniedException("Missing security context"))
-        val principal = securityContext.principal
-
-        // 根据用户 + 租户 + 应用从缓存查找成员标签
-        val memberId = memberId(userId = principal.id, tenantId = principal.tenantId)
-        val tags = memberCache[memberId]?.tags?.get(appId)
-        return tags?.let { Mono.just(it) }
-            ?: Mono.error(AccessDeniedException("Missing principal tags"))
-    }
+        context: QueryContext<*, *>,
+    ): Mono<AbacTags> = contextView.getOrEmpty<Principal>(Principal::class.java)
+        .map { principal -> memberships.tags(principal.name, context) }
+        .orElseGet { Mono.error(AccessDeniedException("Missing principal")) }
 }
 ```
 
-上例中的 `AccessDeniedException` 代表应用采用的拒绝异常。公开查询与受保护查询应使用明确的不同策略，不要通过“缺少标签等于公开”隐式区分。
+该示例代表应用策略，应根据实际安全上下文调整。框架对空 tags 或 `Mono.empty()` 的默认结果是 `MatchAllFilter`，所以受保护应用必须显式拒绝缺失身份或标签。
 
 ### 查询入口与策略执行
 
-Spring 自动生成的聚合专属 `SnapshotQueryService` 与 `EventStreamQueryService` 默认经过 `QueryHandler` 过滤链，因此会执行 ABAC 条件追加、查询改写和结果脱敏。普通应用代码应使用这些生成的查询服务。
+Spring 注册的聚合 `SnapshotQueryService` 与 `EventStreamQueryService` 代理通过 `QueryHandler` 执行。请求作用域重写、已配置 ABAC 过滤器与结果脱敏都在该链中应用。
 
-`SnapshotQueryServiceFactory` 与 `EventStreamQueryServiceFactory` 是可信的原始后端入口。直接通过 Factory 创建的服务会绕过上述策略，仅应用于明确需要原始数据访问的基础设施、运维或迁移代码。
+`SnapshotQueryServiceFactory` 与 `EventStreamQueryServiceFactory` 是原始后端入口。直接创建的服务会绕过生成 Handler 链；注册在生成服务名下的自定义 Bean 也会按原样使用，不会再包装。两者都应视为受信基础设施访问。
 
-使用生成服务名称显式注册的自定义 Bean 会被原样保留，不会再包装代理；未提供对应 `QueryHandler` 而单独导入 Registrar 时，也会保留原有的原始服务行为。这两种配置都应视为可信的原始访问。
+聚合查询会复用快照过滤器链处理根 filter，但结果脱敏会跳过动态聚合行。不能仅因普通快照存在脱敏就开放聚合接口。
 
 ## 必须完成的安全闭环
 
-1. **认证**：在进入 Wow 路由前建立可信 `Principal`；匿名访问是否允许必须显式配置。
-2. **作用域绑定**：从服务端身份/成员关系推导允许的 tenant、owner 和 space，不能只信任客户端路径或请求头。
-3. **命令授权**：为自动生成的命令路由配置 Spring Security/CoSec 策略，必要时在命令 Filter 中再次校验业务权限。
-4. **查询授权**：为受保护查询注册 fail-closed 的 `AbacQueryFilter` 或等价 `QueryFilter`；缺少上下文、标签或策略时拒绝。
-5. **原始入口隔离**：不要把 `*QueryServiceFactory` 或绕过 `QueryHandler` 的自定义 Bean 暴露给普通应用请求。
-6. **测试**：至少覆盖匿名请求、伪造 tenant/owner/space、跨租户读取、缺失主体标签、无权限命令和原始 Factory 误用。
+1. 请求进入生成路由前完成身份认证。
+2. 从受信的服务端成员关系数据推导允许的 tenant、owner、space。
+3. 授权命令，特别是 owner/space 转移和资源标签变更。
+4. 为受保护数据注册失败关闭的查询策略。
+5. 让原始 Factory 和未包装自定义服务远离不受信请求路径。
+6. 测试匿名、伪造作用域、跨租户、缺少标签、聚合以及原始入口等负例。
 
 ## 隔离层级总结
 
-| 层级 | 作用范围 | 机制 | API 表现 | 典型场景 |
-|------|---------|------|---------|---------|
-| 租户 | 组织 | `@TenantId` / `@StaticTenantId` + 存储隔离 | `tenant/{tenantId}` 路径前缀 | SaaS 多租户 |
-| 命名空间 | 租户内的命名空间 | `@AggregateRoute(spaced = true)` + 存储分区 | `Wow-Space-Id` 请求头 | 环境、业务域隔离 |
-| 拥有者 | 个人用户 | `@OwnerId` + `@AggregateRoute(owner)` | `owner/{ownerId}` 路径前缀 | "我的数据"隔离 |
-| ABAC | 基于属性 | 主体标签 + 资源标签 + 查询过滤器 | 内部过滤（无 API 表面） | 细粒度权限（部门、角色、级别） |
+| 层级 | 存储/查询元数据 | HTTP 表达 | Wow 提供 | 应用必须提供 |
+|---|---|---|---|---|
+| Tenant | `tenantId` | 动态时使用路径前缀 | 传播与查询约束 | 已认证作用域绑定 |
+| Owner | `ownerId` | 可选路径前缀 | 路由形状、前置检查、查询约束 | 调用方到 owner 的授权 |
+| Space | `spaceId` | `Wow-Space-Id` 请求头 | 传播与查询约束 | 调用方到 space 的授权 |
+| ABAC | `tags` | 内部查询过滤器 | 标签存储与扩展点 | Principal 解析和失败关闭策略 |
 
-这些层级只有在身份绑定、命令授权和查询过滤全部配置后才形成安全边界。未注册过滤器、缺少主体标签或直接使用原始 Factory 时，查询可能不受 ABAC 限制；不要把路由中出现 tenant、owner 或 space 当作授权已经完成。
+只有应用完成身份绑定与授权后，这些机制才形成安全边界。路由形状、元数据传播、查询 Schema 校验与 HTTP 成本护栏都不能替代该策略。
