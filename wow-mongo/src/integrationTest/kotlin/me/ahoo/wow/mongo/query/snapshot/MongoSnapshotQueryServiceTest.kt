@@ -202,6 +202,24 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     }
 
     @Test
+    fun `all modes should reject invalid declared epoch literals before MongoDB`() {
+        QuerySchemaValidationMode.entries.forEach { mode ->
+            val service = MongoSnapshotQueryServiceFactory(
+                database,
+                schemaSources = querySchemaSources,
+                validationMode = mode,
+            ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+
+            service.dynamicList(
+                ListQuery(
+                    filter = filterExpression { "firstEventTime" lte "not-a-timestamp" },
+                    limit = 10,
+                ),
+            ).test().expectError(QuerySchemaValidationException::class.java).verify()
+        }
+    }
+
+    @Test
     fun `strict should execute a client-declared formatted temporal range`() {
         val field = LogicalField("state.formattedDate")
         val today = Instant.now().atZone(ZoneOffset.UTC).toLocalDate().toString()

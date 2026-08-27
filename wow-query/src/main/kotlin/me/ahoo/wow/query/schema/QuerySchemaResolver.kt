@@ -19,11 +19,26 @@ import me.ahoo.wow.api.query.*
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryCompatibilityLevel
+import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import reactor.core.publisher.Mono
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.node.JsonNodeFactory
+import tools.jackson.databind.node.POJONode
+import java.math.BigDecimal
+import java.math.BigInteger
 import java.util.concurrent.TimeUnit
+import java.lang.reflect.Array as ReflectArray
+
+private val BUILT_IN_QUERY_VALUE_TYPES = setOf(
+    QueryValueType.STRING,
+    QueryValueType.INTEGER,
+    QueryValueType.DECIMAL,
+    QueryValueType.BOOLEAN,
+    QueryValueType.OBJECT,
+)
 
 enum class QuerySchemaValidationMode {
     COMPATIBLE,
@@ -194,6 +209,7 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
             if (filter.value.isNull) QueryCapability.PRESENCE else QueryCapability.EXACT_MATCH,
             logicalParent,
             physicalParent,
+            filter.value.queryValues(),
         ) {
             filter.copy(field = it)
         }
@@ -202,11 +218,24 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
             if (filter.value.isNull) QueryCapability.PRESENCE else QueryCapability.EXACT_MATCH,
             logicalParent,
             physicalParent,
+            filter.value.queryValues(),
         ) { filter.copy(field = it) }
-        is InFilter -> resolveFieldFilter(filter.field, QueryCapability.EXACT_MATCH, logicalParent, physicalParent) {
+        is InFilter -> resolveFieldFilter(
+            filter.field,
+            QueryCapability.EXACT_MATCH,
+            logicalParent,
+            physicalParent,
+            filter.values,
+        ) {
             filter.copy(field = it)
         }
-        is NotInFilter -> resolveFieldFilter(filter.field, QueryCapability.EXACT_MATCH, logicalParent, physicalParent) {
+        is NotInFilter -> resolveFieldFilter(
+            filter.field,
+            QueryCapability.EXACT_MATCH,
+            logicalParent,
+            physicalParent,
+            filter.values,
+        ) {
             filter.copy(field = it)
         }
         is ContainsAllFilter -> resolveCollectionFieldFilter(
@@ -214,6 +243,7 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
             QueryCapability.EXACT_MATCH,
             logicalParent,
             physicalParent,
+            filter.values,
         ) { filter.copy(field = it) }
         is ContainsFilter -> resolveFieldFilter(
             filter.field,
@@ -238,14 +268,22 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
             QueryCapability.RANGE,
             logicalParent,
             physicalParent,
+            listOf(filter.value),
         ) { filter.copy(field = it) }
         is GreaterThanOrEqualFilter -> resolveFieldFilter(
             filter.field,
             QueryCapability.RANGE,
             logicalParent,
             physicalParent,
+            listOf(filter.value),
         ) { filter.copy(field = it) }
-        is LessThanFilter -> resolveFieldFilter(filter.field, QueryCapability.RANGE, logicalParent, physicalParent) {
+        is LessThanFilter -> resolveFieldFilter(
+            filter.field,
+            QueryCapability.RANGE,
+            logicalParent,
+            physicalParent,
+            listOf(filter.value),
+        ) {
             filter.copy(field = it)
         }
         is LessThanOrEqualFilter -> resolveFieldFilter(
@@ -253,8 +291,15 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
             QueryCapability.RANGE,
             logicalParent,
             physicalParent,
+            listOf(filter.value),
         ) { filter.copy(field = it) }
-        is BetweenFilter -> resolveFieldFilter(filter.field, QueryCapability.RANGE, logicalParent, physicalParent) {
+        is BetweenFilter -> resolveFieldFilter(
+            filter.field,
+            QueryCapability.RANGE,
+            logicalParent,
+            physicalParent,
+            listOf(filter.lowerBound, filter.upperBound),
+        ) {
             filter.copy(field = it)
         }
         is IsEmptyFilter -> resolveCollectionFieldFilter(
@@ -355,10 +400,14 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         capability: QueryCapability,
         logicalParent: LogicalField?,
         physicalParent: String?,
+        values: Iterable<JsonNode> = emptyList(),
         copy: (LogicalField) -> FilterExpression,
     ): QuerySchemaResolution<FilterExpression> {
         val resolved = resolveField(field, capability, logicalParent, physicalParent)
-        return QuerySchemaResolution(copy(LogicalField(resolved.value)), resolved.compatibility)
+        return QuerySchemaResolution(
+            copy(LogicalField(resolved.value)),
+            listOf(resolved.compatibility, resolved.valueCompatibility(values)).combined(),
+        )
     }
 
     private inline fun resolveCollectionFieldFilter(
@@ -366,14 +415,20 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         capability: QueryCapability,
         logicalParent: LogicalField?,
         physicalParent: String?,
+        values: Iterable<JsonNode> = emptyList(),
         copy: (LogicalField) -> FilterExpression,
     ): QuerySchemaResolution<FilterExpression> {
         val resolved = resolveField(field, capability, logicalParent, physicalParent)
-        val compatibility = if (schema.fields[resolved.logical]?.cardinality == QueryCardinality.SINGLE) {
+        val cardinality = if (schema.fields[resolved.logical]?.cardinality == QueryCardinality.SINGLE) {
             QueryCompatibilityLevel.INCOMPATIBLE
         } else {
-            resolved.compatibility
+            QueryCompatibilityLevel.EXACT
         }
+        val compatibility = listOf(
+            resolved.compatibility,
+            cardinality,
+            resolved.valueCompatibility(values),
+        ).combined()
         return QuerySchemaResolution(copy(LogicalField(resolved.value)), compatibility)
     }
 
@@ -517,6 +572,7 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
             binding.physicalPath,
             QueryCompatibilityLevel.EXACT,
             fieldSchema = fieldSchema,
+            declaredValueTypes = declaredFieldSchema?.valueTypes.orEmpty(),
         )
     }
 
@@ -548,8 +604,23 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         val physicalPath: String?,
         val compatibility: QueryCompatibilityLevel,
         val fieldSchema: QueryFieldSchema? = null,
+        val declaredValueTypes: Set<QueryValueType> = emptySet(),
         val elementScopeAccepted: Boolean = true,
-    )
+    ) {
+        fun valueCompatibility(values: Iterable<JsonNode>): QueryCompatibilityLevel {
+            if (declaredValueTypes.isEmpty() || declaredValueTypes.any { it !in BUILT_IN_QUERY_VALUE_TYPES }) {
+                return QueryCompatibilityLevel.EXACT
+            }
+            return if (values.all { value ->
+                    value.isNull || declaredValueTypes.any { type -> value.matches(type) }
+                }
+            ) {
+                QueryCompatibilityLevel.EXACT
+            } else {
+                QueryCompatibilityLevel.INCOMPATIBLE
+            }
+        }
+    }
 
     private fun resolveAggregationField(
         field: LogicalField,
@@ -588,6 +659,64 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         startsWith("$parent.") -> substring(parent.length + 1)
         else -> null
     }
+}
+
+private fun JsonNode.queryValues(): Iterable<JsonNode> {
+    val pojo = pojoValue
+    return when {
+        isArray -> this
+        pojo is Iterable<*> -> pojo.map { JsonNodeFactory.instance.pojoNode(it) }
+        pojo?.javaClass?.isArray == true -> (0 until ReflectArray.getLength(pojo)).map {
+            JsonNodeFactory.instance.pojoNode(ReflectArray.get(pojo, it))
+        }
+        else -> listOf(this)
+    }
+}
+
+private fun JsonNode.matches(type: QueryValueType): Boolean {
+    if (isPojo) return pojoValue.matches(type)
+    return when (type) {
+        QueryValueType.STRING -> isString
+        QueryValueType.INTEGER -> isNumber && canConvertToExactIntegral()
+        QueryValueType.DECIMAL -> isNumber
+        QueryValueType.BOOLEAN -> isBoolean
+        QueryValueType.OBJECT -> isObject
+        else -> true
+    }
+}
+
+private val JsonNode.pojoValue: Any?
+    get() = (this as? POJONode)?.pojo
+
+private fun Any?.matches(type: QueryValueType): Boolean = when (this) {
+    is CharSequence,
+    is Char,
+    is Enum<*>,
+    -> type == QueryValueType.STRING
+    is Boolean -> type == QueryValueType.BOOLEAN
+    is Byte,
+    is Short,
+    is Int,
+    is Long,
+    is BigInteger,
+    -> type == QueryValueType.INTEGER || type == QueryValueType.DECIMAL
+    is Float,
+    is Double,
+    is BigDecimal,
+    -> type.matchesNumber(this as Number)
+    else -> true
+}
+
+private fun QueryValueType.matchesNumber(value: Number): Boolean {
+    if (this == QueryValueType.DECIMAL) return true
+    if (this != QueryValueType.INTEGER) return false
+    val node = when (value) {
+        is Float -> JsonNodeFactory.instance.numberNode(value)
+        is Double -> JsonNodeFactory.instance.numberNode(value)
+        is BigDecimal -> JsonNodeFactory.instance.numberNode(value)
+        else -> return true
+    }
+    return node.canConvertToExactIntegral()
 }
 
 private fun Iterable<QueryCompatibilityLevel>.combined(): QueryCompatibilityLevel = when {
