@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.event
 
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
@@ -21,10 +22,21 @@ import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.query.QueryService
+import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-interface EventStreamQueryService : QueryService<DomainEventStream>
+interface EventStreamQueryService : QueryService<DomainEventStream> {
+    fun aggregate(query: AggregationQuery): Flux<DynamicDocument> =
+        Flux.error(UnsupportedOperationException("Event stream aggregation is not supported."))
+}
+
+fun EventStreamQueryService.requiredQueryModelSchemaProvider(): QueryModelSchemaProvider =
+    this as? QueryModelSchemaProvider
+        ?: throw QuerySchemaUnavailableException(
+            "Event stream query service [$namedAggregate] does not provide QueryModelSchema.",
+        )
 
 class NoOpEventStreamQueryService(override val namedAggregate: NamedAggregate) : EventStreamQueryService {
     override fun single(singleQuery: ISingleQuery): Mono<DomainEventStream> {

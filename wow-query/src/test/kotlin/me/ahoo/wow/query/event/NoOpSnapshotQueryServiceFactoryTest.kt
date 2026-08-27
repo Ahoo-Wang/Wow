@@ -15,6 +15,7 @@ package me.ahoo.wow.query.event
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.modeling.toNamedAggregate
+import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.dsl.listQuery
@@ -111,5 +112,13 @@ class NoOpSnapshotQueryServiceFactoryTest {
             .test()
             .expectNext(0)
             .verifyComplete()
+    }
+
+    @Test
+    fun `should report unsupported aggregation through query extension`() {
+        aggregation { count("count") }.query(queryService)
+            .test()
+            .expectError(UnsupportedOperationException::class.java)
+            .verify()
     }
 }

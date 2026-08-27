@@ -49,9 +49,12 @@ internal class SnapshotQueryServiceProxy<S : Any>(
 
 internal class EventStreamQueryServiceProxy(
     delegate: EventStreamQueryService,
-    handler: EventStreamQueryHandler,
+    private val handler: EventStreamQueryHandler,
 ) : QueryServiceProxy<DomainEventStream>(delegate.namedAggregate, handler),
-    EventStreamQueryService
+    EventStreamQueryService {
+    override fun aggregate(query: AggregationQuery): Flux<DynamicDocument> =
+        handler.aggregate(namedAggregate, query)
+}
 
 internal abstract class QueryServiceProxy<R : Any>(
     final override val namedAggregate: NamedAggregate,

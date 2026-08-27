@@ -59,6 +59,7 @@ class QueryServiceProxyTest {
         proxy.paged(pagedQuery { })
         proxy.dynamicPaged(pagedQuery { })
         proxy.count(MatchAllFilter)
+        proxy.aggregate(AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))))
 
         handler.queryTypes.assert().containsExactly(
             QueryType.SINGLE,
@@ -68,6 +69,7 @@ class QueryServiceProxyTest {
             QueryType.PAGED,
             QueryType.DYNAMIC_PAGED,
             QueryType.COUNT,
+            QueryType.AGGREGATION,
         )
         handler.namedAggregates.toSet().assert().containsExactly(namedAggregate)
     }
@@ -150,6 +152,11 @@ class QueryServiceProxyTest {
 
         override fun count(namedAggregate: NamedAggregate, filter: FilterExpression): Mono<Long> =
             record(QueryType.COUNT, namedAggregate, Mono.just(0L))
+
+        override fun aggregate(
+            namedAggregate: NamedAggregate,
+            query: AggregationQuery,
+        ): Flux<DynamicDocument> = record(QueryType.AGGREGATION, namedAggregate, Flux.empty())
 
         private fun <T> record(queryType: QueryType, namedAggregate: NamedAggregate, result: T): T {
             queryTypes += queryType
