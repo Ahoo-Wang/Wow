@@ -1,124 +1,137 @@
 ---
 title: 备份、恢复与重放
-description: 从 Wow 应用视角设计 EventStore 恢复、状态重建、投影对账、消息位点和回滚门禁。
+description: 以 EventStore 为聚合权威，恢复 Wow 快照、投影、消息位点、补偿状态并建立可回滚证据。
 outline: deep
 ---
 
 # 备份、恢复与重放
 
-数据库供应商文档负责说明“怎样备份一个库”；本页定义恢复后 Wow 应用必须满足什么条件。目标不是让进程启动，而是证明以下链路仍然一致：
+数据库工具负责生成备份文件；Wow 恢复的完成条件是重新建立并证明这条链路：
 
 ```text
-EventStore → 聚合状态/快照 → 投影与查询模型 → Saga/事件处理器
+EventStore → Aggregate/StateEvent → Snapshot/Projection/Processor/Saga
+                     ↕
+                Broker offsets
 ```
+
+恢复命令可能再次执行 Handler。任何重放前都要隔离流量与外部副作用，并先证明幂等。
 
 ## 先划分权威数据与派生数据
 
-| 数据 | 角色 | 恢复要求 |
+| 数据 | Wow 角色 | 恢复所有者与要求 |
 | --- | --- | --- |
-| 领域事件流 | 聚合状态的权威历史 | 必须恢复；版本顺序、事件数量和 `requestId` 不能丢失 |
-| 快照 | 聚合加载检查点和可选查询存储 | 可从事件重建，但备份可缩短 RTO |
-| 自定义投影/查询模型 | 面向读取的派生数据 | 必须能够重放、重建或通过独立备份恢复 |
-| Broker 消息与消费者位点 | 尚未完成的异步工作 | 必须与 EventStore 的恢复时间点协调 |
-| 补偿记录 | 失败处理和人工恢复状态 | 不能因恢复而丢失仍未完成的失败任务 |
-| 唯一索引、上下文所有权和路由元数据 | 幂等、租户隔离和后端所有权 | 必须和业务数据一起恢复并验证 |
+| DomainEventStream | 聚合状态的权威历史 | EventStore owner 恢复版本顺序、revision、request-id 与唯一约束 |
+| Snapshot | 聚合加载检查点；`all` 时也可作为当前状态查询存储 | Snapshot owner 可恢复备份或从 EventStore 重建 |
+| Projection/外部读模型 | 面向查询的派生状态 | 每个 Projection owner 提供清空、断点、重放、幂等和对账流程 |
+| Broker message/offset | 尚未完成的异步工作 | Bus owner 与 EventStore cutoff 协调，避免遗漏或未经验证的重复 |
+| Compensation 记录 | 自动/人工失败恢复状态 | Compensation owner 保留 pending、prepared、succeeded 与不可恢复状态 |
+| PrepareKey、context/schema/index、storage route 配置 | 唯一性、上下文归属与实际 binding | 对应后端与应用配置 owner 一起恢复并校验 |
+| 外部副作用 | 支付、通知、第三方写入等 | 不能从 EventStore 自动回滚；应用 owner 做业务对账 |
 
-事件流是状态权威来源，但不代表其他数据可以忽略。外部副作用、补偿任务和消费者位点不能仅靠重放聚合状态自动恢复。
+“事件可重放”只说明聚合状态可重建。它不自动恢复 Broker 中已丢消息，也不能撤销已经发生的外部副作用。
 
 ## 恢复计划必须先回答的问题
 
-1. RPO 和 RTO 分别是多少？
-2. 恢复点是数据库时间点、事件版本还是一次发布窗口？
-3. 恢复期间怎样阻止命令、消费者和定时任务写入？
-4. 哪些 Projection、Saga 或事件处理器会调用不可重复的外部系统？
-5. Broker 位点早于恢复点时怎样处理重复投递，晚于恢复点时怎样补回遗漏？
-6. 回滚到旧应用时，它能否读取恢复点之后已经存在的事件 revision？
+1. 每个 EventStore binding、SnapshotStore binding、Projection store 与 Broker 的 RPO/RTO 是什么？
+2. 一致 cutoff 用数据库时间点、事件版本、consumer offset 还是停机窗口表示？
+3. 谁能关闭命令入口、Dispatcher、定时任务和真实外部系统？
+4. 哪些 Handler 可以安全重复，幂等键是什么？
+5. offset 早于 EventStore cutoff 时怎样接受重复；晚于 cutoff 时怎样补回遗漏？
+6. 候选及回滚应用能否读取备份中的所有 event name/revision 与后端布局？
+7. 修改性内置 route 由谁鉴权、审计、限流并批准？
 
-没有这些答案，不要把“备份成功”写成“恢复能力已验证”。
+缺少任一答案时，只能声明“已生成备份”，不能声明“已验证恢复”。
 
 ## 备份流程
 
 ### 1. 固化清单
 
-记录每个 bounded context 和 aggregate 使用的：
+从生效配置和 `storage-routing` 生成实际清单，而不是假设所有聚合使用默认后端：
 
-- EventStore、SnapshotStore 和查询后端；
-- topic、consumer group、partition 和位点；
-- tenant、owner、space 与存储路由；
-- `requestId`/聚合唯一索引；
-- 补偿库、上下文所有权记录和加密密钥版本；
-- 应用版本、Wow 版本、配置摘要和 Schema/revision 分布。
+- `context.aggregate` 到 EventStore/SnapshotStore binding 的映射；
+- Kafka topic/partition/group/offset，或 Redis Stream/group/pending 状态；
+- EventStore、Snapshot、Projection、PrepareKey、补偿与 schema/index 存储；
+- 应用构建标识、Wow 依赖锁定、脱敏配置摘要和 event revision 分布；
+- 每个修改性 Handler 的幂等键、外部系统和负责人。
 
 ### 2. 选择一致的截止点
 
-最简单且最可靠的做法是停止命令入口和异步消费者，等待已接纳工作排空，再创建备份。必须在线备份时，应使用后端支持的时间点快照，并记录各数据库与 Broker 的实际截止点；不要假设多个系统的快照天然原子。
+最容易证明的流程是：先摘除命令入口，停止产生新工作的 scheduler，等待已准入的 WowRuntime 工作静默，再停止消费者并记录位点，最后对所有后端取备份。在线快照必须记录每个系统的实际 cutoff；多个数据库与 Broker 不会因为同一时间执行命令就自动成为原子快照。
 
 ### 3. 同时保存证据
 
-备份产物旁至少保存：
+备份旁保存可机器比较的基线：
 
-- 每个 aggregate/tenant 的事件流数量与最大版本；
-- revision 和事件名分布；
-- 快照数量、最大版本和更新时间；
-- 投影关键行数与业务汇总；
-- consumer group 位点与 lag；
-- 备份校验和、工具版本和恢复命令。
+- 每个 context/aggregate/tenant 的 stream 数、事件数和 head version；
+- event name/revision 分布与不可反序列化计数；
+- Snapshot 数量、最大版本和 `snapshot.version <= event head` 违反数；
+- Projection 的高风险业务总量与 tenant/owner/space 隔离结果；
+- consumer offset、lag、pending、重试/补偿数量；
+- 备份校验和、工具参数、耗时和实际 cutoff。
 
-只有备份文件、没有基线数据，就无法判断恢复后的缺失和重复。
+没有恢复前基线，就无法区分恢复后的缺失、重复和历史上已经存在的异常。
 
 ## 隔离恢复顺序
 
-1. **创建隔离环境**：禁止业务流量和外部副作用，使用独立数据库、topic 和凭据。
-2. **恢复 EventStore 及其辅助元数据**：包括唯一索引、上下文所有权和路由所需记录。
-3. **验证事件流结构**：逐 aggregate 检查版本连续、末版本、事件数量、revision 和反序列化。
-4. **启动候选应用但保持入口关闭**：确认配置指向恢复副本，且不会连接生产外部系统。
-5. **重建或恢复快照**：通过应用生成的快照重建端点或适配器支持的批处理，确保快照版本不超过 EventStore head。
-6. **重建投影与查询模型**：每个投影必须有明确的清空、重放、幂等和断点恢复策略。
-7. **协调 Broker 位点**：回退位点前确认所有处理器可重复；保留较新位点前证明没有事件被跳过。
-8. **恢复补偿任务**：区分未执行、执行中、已成功和不可恢复状态，避免重复外部调用。
-9. **执行对账和验收**：所有门禁通过后才能开放只读流量，再逐步开放命令入口。
+1. **建立空白隔离环境**：使用独立 database/index/topic/Stream/consumer group/凭据；阻断真实支付、通知和第三方写入。
+2. **恢复 EventStore 及其约束**：恢复事件、context/schema、唯一索引和 route 指向的每个实际 binding。
+3. **验证事件历史**：逐 stream 检查初始版本、连续版本、head、request-id、event name/revision 与反序列化。
+4. **启动候选但保持入口关闭**：核对生效配置只指向恢复副本；确认 capability、template/index 与 Bean 装配。
+5. **恢复或重建 Snapshot**：先抽样单聚合，再分页批量执行；结果版本不得超过 EventStore head。
+6. **重建 Projection/查询模型**：只运行目标函数，记录 after-id/offset、失败项和可重入点；Wow 没有替应用提供一个通用 Projection 清空命令。
+7. **协调 Broker 位点**：回退前证明 Handler 幂等；保留较新位点前证明没有恢复点后的事件被跳过。
+8. **恢复补偿状态**：区分未执行、执行中、成功与不可恢复，不能把“重新投递”当作清空失败记录。
+9. **完成对账后逐级开放**：先只读查询，再受控测试命令，最后恢复业务入口和 scheduler。
 
-不要直接在生产库上试验重放，也不要让恢复环境向真实支付、通知或第三方 API 发送请求。
+当 `webflux-support` 装配对应 aggregate route 时，运行时 OpenAPI 会列出这些恢复操作：
+
+| 操作 | 方法与 route 后缀 | 实际行为 |
+| --- | --- | --- |
+| Regenerate Aggregate Snapshot | `PUT .../{aggregateId}/snapshot` | 从 EventStore 重放该聚合并保存 Snapshot |
+| Batch Regenerate Aggregate Snapshot | `PUT .../snapshot/{afterId}/{limit}` | 按 aggregate-id 游标分页重建 |
+| Resend State Event | `POST .../state/{afterId}/{limit}` | 从 EventStore 重建状态并发送带 compensation target 的 StateEvent |
+| Event Compensate | `PUT .../{aggregateId}/{version}/compensate` | 向请求体指定的目标补偿单个 DomainEventStream |
+
+完整前缀、tenant 参数和 operationId 由 aggregate route 合同决定，必须从**候选运行时的 OpenAPI**读取，不能从示例猜测。上述修改性 route 没有独立的通用管理开关；应用必须放在受控管理面并配置鉴权、审计、批量上限和审批。StateEvent resend 不等于重放所有 DomainEvent Handler，Event compensate 也不是全量 Projection rebuild。
 
 ## 对账矩阵
 
 | 边界 | 至少验证 |
 | --- | --- |
-| 事件流 | aggregate/tenant 数量、版本连续性、最大版本、事件名与 revision 分布 |
-| 幂等 | 同一 aggregate 的 `requestId` 唯一性；重试已处理请求仍被拒绝 |
-| 状态 | 从版本 `1..head` 重放所得状态与恢复前基线或业务汇总一致 |
-| 快照 | `snapshot.version <= event head`；抽样状态与完整重放一致 |
-| 投影 | 行数、关键金额/数量、tenant 隔离、删除状态和索引查询计划 |
-| Saga/处理器 | 重投不产生重复命令、重复扣款、重复通知或遗漏 |
-| Broker | topic/partition、consumer group 位点、lag 和死信/重试队列 |
-| 运行时 | 健康检查、追踪、指标、告警和优雅停止仍然有效 |
+| EventStore | stream 数、版本连续、head、request-id 唯一、event name/revision |
+| Aggregate state | 从 `1..head` 完整 sourcing 的状态与业务基线一致 |
+| Snapshot | `snapshot.version <= event head`，抽样内容等于完整重放 |
+| Projection | 行数、高风险金额/库存/权限、tenant 隔离、删除状态、索引计划 |
+| Processor/Saga | 重投不会重复命令、扣款、通知或遗漏 |
+| Broker | topic/Stream、partition/group、offset、lag、pending 与失败队列 |
+| Compensation | 状态、重试次数、目标函数、人工决定与外部效果一致 |
+| Runtime | stage 延迟、错误率、trace、告警和优雅停止仍满足候选基线 |
 
-抽样只能发现部分错误。资金、库存、权限等高风险域需要全量业务对账。
+资金、库存、权限等高风险域需要全量业务对账；抽样只适合在全量结构校验之外增加内容核查。
 
 ## 验收请求
 
-至少保留以下可重复证据：
+恢复环境至少执行并保存以下证据：
 
-1. 读取一个仅靠完整事件流才能重建的聚合；
-2. 读取恢复的快照，并与完整重放结果比较；
-3. 查询一个自定义投影并核对源事件；
-4. 用固定 `requestId` 重试历史命令，确认不会重复执行；
-5. 提交一个新的测试命令，分别验证 `PROCESSED`、`SNAPSHOT` 和必要的 `PROJECTED` 阶段；
-6. 重启恢复环境，再次验证状态和消费者位点。
+1. 加载一个没有可用 Snapshot、必须完整重放的聚合。
+2. 重建同一聚合 Snapshot，并与完整重放状态及版本比较。
+3. 查询一个重建后的 Projection，并追溯到源 event revision。
+4. 使用历史 `requestId` 重试同一逻辑命令，确认没有第二次业务执行。
+5. 发送新测试命令，分别验证所需的 `PROCESSED`、`SNAPSHOT` 和精确函数 stage。
+6. 重启候选实例，确认 EventStore head、Snapshot、consumer offset 与补偿状态不回退。
+7. 执行一次可回滚的失败注入，证明失败项能从 after-id/offset 继续，而不是从头盲目重放。
 
 ## 回滚门禁
 
-- 原始备份保持只读，不覆盖最后一个已知良好的恢复点；
-- 恢复演练产生的新写入与生产命名空间隔离；
-- 记录应用、配置、事件 Upgrader 和数据库 Schema 的组合版本；
-- 回滚前确认旧应用可以读取当前事件 revision；
-- 如果开放流量后才发现问题，先再次停流并固化增量写入，再决定前滚修复或回滚。
-
-“把数据库恢复回去”不是完整回滚：Broker 位点、外部副作用和恢复后新增事件也必须处理。
+- 原始备份和第一次恢复结果保持只读；重建写入使用可丢弃的隔离 namespace。
+- 回滚二进制必须先读取全部现有 event revision、配置键和存储布局；“能启动”不等于能处理新事件。
+- 开放流量后产生的新事件、Broker offset 和外部副作用不在旧备份中。回滚前先再次停流、记录增量并选择前滚修复或数据/代码协同回滚。
+- 重建 Snapshot/Projection 可丢弃并重来；EventStore、补偿记录或外部副作用不可用同一方式回滚。
+- 每个批量操作保留 after-id/limit、目标函数、调用者、时间、结果与失败明细。
 
 ## 演练频率与完成标志
 
-定期在空白环境从备份开始演练，而不是在已有测试库上覆盖恢复。完成记录应包含耗时、数据量、校验结果、未覆盖边界和责任人。只有实际恢复时间满足 RTO、数据损失满足 RPO、全量高风险对账通过，才能把恢复门禁标记为完成。
+按业务 RPO/RTO 和变化风险安排演练，并在空白环境从真实备份开始。只有测得恢复耗时满足 RTO、实际数据损失满足 RPO、所有结构校验与高风险业务对账通过、回滚边界已验证，才能标记完成。未覆盖的后端、Handler 或外部系统必须明确记录为 `MISSING EVIDENCE`，不能被绿色单元测试替代。
 
 ## 相关页面
 

@@ -1,124 +1,137 @@
 ---
 title: Backup, Restore, and Replay
-description: Design EventStore recovery, state rebuilds, projection reconciliation, message offsets, and rollback gates for a Wow application.
+description: Treat EventStore as aggregate authority, then restore Wow snapshots, projections, message offsets, compensation state, and rollback evidence.
 outline: deep
 ---
 
 # Backup, Restore, and Replay
 
-Database vendor documentation explains how to back up a database. This page defines what a restored Wow application must prove. The goal is not merely to start a process, but to restore a consistent flow:
+Database tools create backup files. Wow recovery is complete only after this flow is restored and proven:
 
 ```text
-EventStore → aggregate state/snapshots → projections and queries → sagas/event processors
+EventStore → Aggregate/StateEvent → Snapshot/Projection/Processor/Saga
+                     ↕
+                Broker offsets
 ```
+
+A recovery operation may execute handlers again. Isolate traffic and external effects and prove idempotency before any replay.
 
 ## Separate Authoritative and Derived Data
 
-| Data | Role | Recovery requirement |
+| Data | Wow role | Recovery owner and requirement |
 | --- | --- | --- |
-| Domain event streams | Authoritative aggregate history | Must be restored without losing event order, count, or `requestId` |
-| Snapshots | Aggregate-loading checkpoints and optional query store | Rebuildable from events, but backups can reduce RTO |
-| Custom projections/query models | Read-oriented derived data | Must have a replay/rebuild procedure or an independently verified backup |
-| Broker messages and consumer offsets | Asynchronous work that may still be pending | Must be coordinated with the EventStore recovery point |
-| Compensation records | Failure processing and operator recovery state | Incomplete failures cannot disappear during restore |
-| Unique indexes, context ownership, and routing metadata | Idempotency, tenant isolation, and backend ownership | Restore and validate them with business data |
+| DomainEventStream | Authoritative aggregate history | EventStore owner restores version order, revisions, request IDs, and uniqueness constraints |
+| Snapshot | Aggregate-load checkpoint; with `all`, it can also be a current-state query store | Snapshot owner restores a backup or rebuilds from EventStore |
+| Projection/external read model | Query-oriented derived state | Each projection owner supplies clear, resume, replay, idempotency, and reconciliation procedures |
+| Broker message/offset | Asynchronous work not yet complete | Bus owner coordinates it with the EventStore cutoff to avoid omissions or unverified duplicates |
+| Compensation record | Automatic/operator failure-recovery state | Compensation owner preserves pending, prepared, succeeded, and unrecoverable states |
+| PrepareKey, context/schema/index, storage-route configuration | Uniqueness, context ownership, and actual binding | Backend and application-configuration owners restore and validate together |
+| External side effect | Payment, notification, third-party write | Cannot be rolled back from EventStore automatically; application owner reconciles it |
 
-The event stream is authoritative for aggregate state, but that does not make every other store disposable. External side effects, compensation work, and consumer offsets cannot be recovered by aggregate replay alone.
+“Events can be replayed” means aggregate state can be reconstructed. It does not restore a broker record that is already gone or reverse an external effect that already occurred.
 
 ## Questions the Recovery Plan Must Answer
 
-1. What are the RPO and RTO?
-2. Is the recovery point a database timestamp, event version, or release window?
-3. How are commands, consumers, and scheduled jobs prevented from writing during recovery?
-4. Which projections, sagas, or processors call non-repeatable external systems?
-5. If broker offsets are earlier than the restore point, how are duplicates handled? If later, how are skipped events recovered?
-6. Can the rollback application read event revisions written after the selected restore point?
+1. What are the RPO and RTO for every EventStore binding, SnapshotStore binding, projection store, and broker?
+2. Is a consistent cutoff represented by database time, event version, consumer offset, or a shutdown window?
+3. Who can close command ingress, dispatchers, schedulers, and real external systems?
+4. Which handlers are safe to repeat, and what is each idempotency key?
+5. How are duplicates handled when an offset precedes the EventStore cutoff? How are omissions recovered when it follows the cutoff?
+6. Can the candidate and rollback application read every event name/revision and backend layout in the backup?
+7. Who authorizes, audits, rate-limits, and approves modifying built-in routes?
 
-Without these answers, “backup succeeded” is not evidence that recovery works.
+Without every answer, the valid claim is “a backup was created,” not “recovery was verified.”
 
 ## Backup Procedure
 
 ### 1. Freeze the Inventory
 
-Record, for each bounded context and aggregate:
+Build the actual inventory from effective configuration and `storage-routing` instead of assuming every aggregate uses the default backend:
 
-- EventStore, SnapshotStore, and query backends;
-- topics, consumer groups, partitions, and offsets;
-- tenant, owner, space, and storage routing;
-- `requestId` and aggregate uniqueness indexes;
-- compensation stores, context ownership records, and encryption-key versions;
-- application version, Wow version, configuration digest, and schema/revision distribution.
+- `context.aggregate` to EventStore/SnapshotStore binding mapping;
+- Kafka topic/partition/group/offset or Redis Stream/group/pending state;
+- EventStore, Snapshot, Projection, PrepareKey, compensation, and schema/index stores;
+- application build identity, locked Wow dependencies, redacted configuration digest, and event-revision distribution;
+- idempotency key, external system, and owner for every modifying handler.
 
 ### 2. Choose a Consistent Cutoff
 
-The simplest reliable method is to stop command ingress and asynchronous consumers, drain admitted work, and then create backups. For online backups, use backend point-in-time snapshots and record the actual cutoff of every database and broker. Do not assume snapshots across systems are atomic.
+The easiest flow to prove is: remove command ingress, stop schedulers that create work, wait for admitted WowRuntime work to quiesce, stop consumers and record offsets, then back up every backend. For online snapshots, record the actual cutoff of each system. Databases and a broker do not become one atomic snapshot merely because commands started at the same time.
 
 ### 3. Preserve Evidence with the Backup
 
-Keep at least:
+Keep a machine-comparable baseline next to the backup:
 
-- event-stream count and maximum version per aggregate/tenant;
-- revision and event-name distribution;
-- snapshot count, maximum version, and update time;
-- critical projection counts and business totals;
-- consumer-group offsets and lag;
-- backup checksums, tool versions, and restore commands.
+- stream count, event count, and head version per context/aggregate/tenant;
+- event-name/revision distribution and count of deserialization failures;
+- snapshot count, maximum version, and violations of `snapshot.version <= event head`;
+- high-risk projection totals and tenant/owner/space isolation results;
+- consumer offsets, lag, pending entries, retries, and compensation counts;
+- checksums, tool arguments, elapsed time, and actual cutoff.
 
-A backup file without a baseline cannot reveal missing or duplicated data after restore.
+Without a pre-restore baseline, missing or duplicated data cannot be separated from a historical defect.
 
 ## Isolated Restore Sequence
 
-1. **Create an isolated environment** with no business traffic or external side effects and separate databases, topics, and credentials.
-2. **Restore the EventStore and auxiliary metadata**, including uniqueness indexes, context ownership, and routing records.
-3. **Validate stream structure** per aggregate: contiguous versions, head version, event count, revisions, and deserialization.
-4. **Start the candidate with ingress closed**, pointing only to restored copies and non-production external systems.
-5. **Restore or rebuild snapshots** through generated snapshot-regeneration routes or adapter batch tooling; no snapshot version may exceed the EventStore head.
-6. **Rebuild projections and query models** with an explicit clear, replay, idempotency, and resume policy for each projection.
-7. **Coordinate broker offsets**: before rewinding, prove every handler is repeatable; before keeping later offsets, prove no event will be skipped.
-8. **Restore compensation work**, distinguishing pending, running, succeeded, and unrecoverable operations to prevent duplicate external calls.
-9. **Reconcile and accept** before opening read-only traffic and then gradually restoring command ingress.
+1. **Create an empty isolated environment** with separate databases/indexes/topics/Streams/consumer groups/credentials and no path to real payment, notification, or third-party writes.
+2. **Restore EventStore and its constraints**, including events, context/schema data, unique indexes, and every actual binding selected by routing.
+3. **Validate event history** per stream: initial version, continuity, head, request IDs, event names/revisions, and deserialization.
+4. **Start the candidate with ingress closed** and prove effective configuration points only to restored copies; verify capabilities, templates/indexes, and bean wiring.
+5. **Restore or rebuild snapshots** by sampling one aggregate before cursor-based batches. No result version may exceed its EventStore head.
+6. **Rebuild projections/query models** for one target function at a time while recording after-id/offset, failures, and resume points. Wow does not supply a universal application-projection clear command.
+7. **Coordinate broker offsets**: prove handler idempotency before rewinding; prove no post-cutoff event is skipped before retaining later offsets.
+8. **Restore compensation state**, distinguishing pending, running, succeeded, and unrecoverable work. Redelivery is not a reason to erase failure records.
+9. **Open traffic in stages after reconciliation**: read-only queries, controlled test commands, then business ingress and schedulers.
 
-Never experiment with replay directly against production stores, and do not allow a recovery environment to call real payment, notification, or third-party APIs.
+When `webflux-support` wires the relevant aggregate route, runtime OpenAPI lists these recovery operations:
+
+| Operation | Method and route suffix | Actual behavior |
+| --- | --- | --- |
+| Regenerate Aggregate Snapshot | `PUT .../{aggregateId}/snapshot` | Replay one aggregate from EventStore and save its Snapshot |
+| Batch Regenerate Aggregate Snapshot | `PUT .../snapshot/{afterId}/{limit}` | Rebuild by aggregate-id cursor |
+| Resend State Event | `POST .../state/{afterId}/{limit}` | Reconstruct state from EventStore and send StateEvents with a compensation target |
+| Event Compensate | `PUT .../{aggregateId}/{version}/compensate` | Compensate one DomainEventStream for the target in the request body |
+
+The full prefix, tenant parameters, and operation ID depend on the aggregate route contract. Read them from the **candidate runtime OpenAPI** instead of guessing from an example. These modifying routes have no separate universal management switch. Put them on a controlled management plane with authorization, audit, batch bounds, and approval. StateEvent resend is not replay of every DomainEvent handler, and Event Compensate is not a full projection rebuild.
 
 ## Reconciliation Matrix
 
 | Boundary | Verify at least |
 | --- | --- |
-| Event streams | Aggregate/tenant counts, contiguous versions, head version, event names, and revision distribution |
-| Idempotency | `requestId` uniqueness per aggregate; retrying a handled request is still rejected |
-| State | Replay from versions `1..head` matches the pre-restore baseline or business totals |
-| Snapshots | `snapshot.version <= event head`; sampled state matches a full replay |
-| Projections | Row counts, critical monetary/quantity totals, tenant isolation, deletion state, and index plans |
-| Sagas/processors | Redelivery creates no duplicate commands, charges, notifications, or omissions |
-| Broker | Topics/partitions, consumer-group offsets, lag, and dead-letter/retry queues |
-| Runtime | Health checks, traces, metrics, alerts, and graceful shutdown still work |
+| EventStore | Stream counts, version continuity, heads, request-id uniqueness, event names/revisions |
+| Aggregate state | Full sourcing from `1..head` matches the business baseline |
+| Snapshot | `snapshot.version <= event head`; sampled content equals full replay |
+| Projection | Rows, high-risk money/inventory/authorization totals, tenant isolation, deletion state, query plans |
+| Processor/Saga | Redelivery creates no duplicate commands, charges, notifications, or omissions |
+| Broker | Topic/Stream, partition/group, offsets, lag, pending entries, failure queues |
+| Compensation | Status, retry count, target function, operator decision, external effect |
+| Runtime | Stage latency, error rate, traces, alerts, and graceful shutdown still meet the candidate baseline |
 
-Sampling finds only some defects. High-risk domains such as money, inventory, and authorization require full business reconciliation.
+Money, inventory, and authorization domains require full business reconciliation. Sampling supplements full structural checks; it does not replace them.
 
 ## Acceptance Requests
 
-Keep repeatable evidence for at least:
+Execute and retain evidence for at least:
 
-1. loading an aggregate that requires its full event stream;
-2. reading a restored snapshot and comparing it with full replay;
-3. querying one custom projection and tracing it to source events;
-4. retrying a historical command with its stable `requestId` and observing no duplicate execution;
-5. submitting a new test command and verifying `PROCESSED`, `SNAPSHOT`, and any required `PROJECTED` stage;
-6. restarting the recovery environment and rechecking state and consumer offsets.
+1. Loading an aggregate with no usable Snapshot that requires full replay.
+2. Rebuilding that aggregate's Snapshot and comparing its state and version with full replay.
+3. Querying a rebuilt projection and tracing it to source event revisions.
+4. Retrying the same logical command with a historical `requestId` and observing no second business execution.
+5. Sending a new test command and verifying the required `PROCESSED`, `SNAPSHOT`, and exact function stages.
+6. Restarting candidate instances and proving EventStore head, Snapshot, consumer offset, and compensation state do not regress.
+7. Injecting one recoverable failure and proving the operation resumes from after-id/offset instead of blindly replaying from the beginning.
 
 ## Rollback Gates
 
-- Keep the original backup read-only and do not overwrite the last known-good restore point.
-- Isolate writes produced by the recovery drill from production namespaces.
-- Record the combination of application, configuration, event upgraders, and database schema versions.
-- Prove the previous application can read the current event revisions before rollback.
-- If traffic has already reopened, stop it and freeze incremental writes before choosing roll-forward or rollback.
-
-“Restore the database” is not a complete rollback. Broker offsets, external side effects, and events written after recovery must also be handled.
+- Keep the original backup and first restore result read-only. Put rebuild writes in a disposable isolated namespace.
+- Prove the rollback binary can read every current event revision, configuration key, and storage layout. Starting is not proof it can process newer events.
+- Events, broker offsets, and external effects created after traffic opens are absent from the old backup. Stop traffic and freeze the delta before choosing roll-forward or a coordinated code/data rollback.
+- Snapshot/projection rebuilds can be discarded and repeated. EventStore history, compensation records, and external effects cannot be rolled back the same way.
+- Retain after-id/limit, target function, caller, timestamp, result, and failure detail for every batch operation.
 
 ## Drill Completion
 
-Run drills from an empty environment rather than restoring over an existing test database. Record duration, data volume, reconciliation results, untested boundaries, and ownership. Mark recovery complete only when measured restore time meets RTO, data loss meets RPO, and full reconciliation passes for high-risk domains.
+Schedule drills by business RPO/RTO and change risk, starting from a real backup in an empty environment. Completion requires measured restore time within RTO, actual data loss within RPO, all structural checks and high-risk business reconciliation passing, and rollback boundaries verified. Record any uncovered backend, handler, or external system as `MISSING EVIDENCE`; green unit tests cannot replace it.
 
 ## Related Pages
 

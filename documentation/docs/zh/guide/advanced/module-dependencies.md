@@ -1,175 +1,83 @@
 ---
 title: 模块依赖
-description: Wow 框架中每个模块的详细分析，包括依赖图、模块表和构建结构。
+description: 按职责、直接 Gradle 依赖和 Starter feature capability 选择 Wow 模块。
+outline: deep
 ---
 
 # 模块依赖
 
-Wow 框架由 20 多个 Gradle 模块组成，每个模块都有单一且定义明确的职责。本页映射了每个模块、其依赖以及它们之间的关系。
+本页回答两个问题：代码属于哪个模块，应用运行时应请求哪个 capability。依赖事实以 `settings.gradle.kts`、各模块 `build.gradle.kts` 与 `wow-spring-boot-starter/build.gradle.kts` 为准；配置属性不会替代 classpath 选择。
 
 ## 模块概览表
 
-| 模块 | 层级 | 说明 |
-|--------|-------|-------------|
-| `wow-api` | API | 纯契约：`CommandMessage`、`DomainEvent`、`AggregateId`、命名类型。零依赖。 |
-| `wow-core` | Core | 框架引擎：聚合根、命令总线、Event Sourcing、投影、Saga、等待计划。 |
-| `wow-spring` | Spring | Spring `ApplicationContext` 桥接、Bean 注册。 |
-| `wow-spring-boot-starter` | Spring | 带 Gradle Feature Variants 的自动配置，支持可选基础设施。 |
-| `wow-kafka` | Infra | 通过 Apache Kafka 实现分布式命令、领域事件和状态事件总线。 |
-| `wow-mongo` | Infra | 通过 MongoDB 实现 `EventStore`、`SnapshotStore`、PrepareKey 和查询服务。 |
-| `wow-redis` | Infra | 通过 Redis / Lettuce 实现消息总线、`EventStore`、`SnapshotStore` 和 PrepareKey。 |
-| `wow-elasticsearch` | Infra | 通过 Elasticsearch 实现 `EventStore`、`SnapshotStore` 和查询服务。 |
-| `wow-webflux` | Infra | Spring WebFlux 命令、事件流和快照查询端点集成。 |
-| `wow-opentelemetry` | Infra | 通过 OpenTelemetry 为 Wow 操作提供分布式链路追踪。 |
-| `wow-cosec` | Infra | 提取和传播 CoSec 请求上下文并改写查询 space；认证与授权策略由应用提供。 |
-| `wow-compiler` | Tooling | KSP 处理器 — 在编译时生成命令路由、事件处理元数据和 OpenAPI 规范。 |
-| `wow-test` | Testing | 单元测试 DSL：`AggregateSpec`、`SagaSpec`，Given-When-Expect 模式。 |
-| `wow-tck` | Testing | 技术兼容性套件 — 使用 Testcontainers 的集成测试。 |
-| `wow-mock` | Testing | Mock 支持模块。 |
-| `wow-query` | Query | 查询模型支持类型和接口。 |
-| `wow-schema` | Tooling | 从 Wow 命令/事件模型生成 JSON Schema。 |
-| `wow-openapi` | Tooling | OpenAPI 规范生成。 |
-| `wow-bi` | Tooling | BI 同步脚本生成器。 |
-| `wow-models` | Domain | 共享领域模型抽象。 |
-| `wow-cocache` | Caching | 基于 CoCache 的投影缓存。 |
-| `wow-apiclient` | Client | 使用 CoApi 的 RESTful API 客户端。 |
+| 模块 | 主要职责 | 应用何时直接依赖 |
+| --- | --- | --- |
+| `wow-api` | 命令、事件、命名、Header、AggregateId 等公共契约 | API/领域契约模块 |
+| `wow-core` | CommandGateway、Dispatcher、EventStore 接口、事件溯源、投影、Saga、等待链 | 非 Spring 运行时或领域实现 |
+| `wow-query` | 查询模型、Schema 解析、Snapshot/Event 查询接口 | 编写查询扩展时 |
+| `wow-models` | 仓库共享的模型与 KSP 生成示例 | 使用这些共享模型时 |
+| `wow-spring` | Spring 容器桥接与查询服务注册 | 自定义 Spring 集成时 |
+| `wow-spring-boot-starter` | 核心自动配置与可选 feature variants | Spring Boot 服务 |
+| `wow-kafka` | Kafka Command/DomainEvent/StateEvent Bus | 非 Starter 的 Kafka 集成 |
+| `wow-mongo` | Mongo EventStore、SnapshotStore、PrepareKey 与查询服务 | 非 Starter 的 Mongo 集成 |
+| `wow-redis` | Redis Bus、EventStore、SnapshotStore 与 PrepareKey | 非 Starter 的 Redis 集成 |
+| `wow-elasticsearch` | Elasticsearch EventStore、SnapshotStore 与查询服务 | 非 Starter 的 Elasticsearch 集成 |
+| `wow-webflux` | 内置命令、事件、状态、查询与运维 route 处理器 | 非 Starter 的 WebFlux 集成 |
+| `wow-opentelemetry` | Wow 链路的 OpenTelemetry instrumenter | 非 Starter 的追踪集成 |
+| `wow-cosec` | CoSec 请求上下文传播与查询 space 改写 | 应用已使用 CoSec 时 |
+| `wow-compiler` | KSP 元数据与 API 合同生成 | 使用 `ksp(...)`，不放进运行时 |
+| `wow-schema` | JSON Schema 生成 | 扩展 Schema/OpenAPI 工具时 |
+| `wow-openapi` | 内置 route/OpenAPI 合同生成 | 扩展 OpenAPI 时 |
+| `wow-bi` | BI/ClickHouse 同步脚本生成 | 生成或部署 BI 脚本时 |
+| `wow-test` | `AggregateSpec`、`SagaSpec` 测试 DSL | 领域测试 |
+| `wow-tck` | Adapter 合同与 Testcontainers 夹具 | 实现或验证 Adapter |
+| `wow-mock` | mock/delay 存储支持 | 测试，不用于生产 |
+| `wow-apiclient` | CoApi/Wow REST API client | JVM 客户端 |
+| `wow-cocache` | CoCache 投影缓存集成 | 已采用 CoCache 时 |
+| `wow-bom` / `wow-dependencies` | 发布 BOM 与仓库内依赖平台 | 对齐版本，不提供运行时能力 |
+
+`test/wow-it` 与 `code-coverage-report` 是仓库验证模块；`compensation/*`、`example/*` 是补偿产品与示例应用，不应被当作基础 Starter 的隐式依赖。
 
 ## 依赖图
 
-下图展示了模块之间的主要依赖关系。箭头从依赖提供方向使用方，便于直接看到 API 暴露与 Feature Variant 边界。
+箭头从依赖指向使用者；虚线表示 Starter feature variant，而不是基础变体依赖。
 
 ```mermaid
 graph LR
-    subgraph API["API 层"]
-        wow_api["wow-api"]
-    end
+    API[wow-api] --> CORE[wow-core]
+    CORE --> QUERY[wow-query]
+    CORE --> SPRING[wow-spring]
+    QUERY --> SPRING
+    CORE --> STARTER[wow-spring-boot-starter]
+    SPRING --> STARTER
 
-    subgraph CORE["Core 层"]
-        wow_core["wow-core"]
-        wow_query["wow-query"]
-        wow_models["wow-models"]
-    end
+    CORE --> KAFKA[wow-kafka]
+    CORE --> MONGO[wow-mongo]
+    QUERY --> MONGO
+    CORE --> REDIS[wow-redis]
+    CORE --> ES[wow-elasticsearch]
+    QUERY --> ES
 
-    subgraph TOOLING["工具层"]
-        wow_compiler["wow-compiler"]
-        wow_schema["wow-schema"]
-        wow_openapi["wow-openapi"]
-        wow_bi["wow-bi"]
-    end
+    CORE --> OPENAPI[wow-openapi]
+    QUERY --> OPENAPI
+    SCHEMA[wow-schema] --> OPENAPI
+    CORE --> WEBFLUX[wow-webflux]
+    OPENAPI --> WEBFLUX
+    BI[wow-bi] --> WEBFLUX
+    CORE --> OTEL[wow-opentelemetry]
+    WEBFLUX --> COSEC[wow-cosec]
 
-    subgraph SPRING["Spring 层"]
-        wow_spring["wow-spring"]
-        wow_boot["wow-spring-boot-starter"]
-    end
-
-    subgraph INFRA["基础设施层"]
-        wow_kafka["wow-kafka"]
-        wow_mongo["wow-mongo"]
-        wow_redis["wow-redis"]
-        wow_es["wow-elasticsearch"]
-        wow_webflux["wow-webflux"]
-        wow_otel["wow-opentelemetry"]
-        wow_cosec["wow-cosec"]
-    end
-
-    subgraph CLIENT["客户端与缓存"]
-        wow_apiclient["wow-apiclient"]
-        wow_cocache["wow-cocache"]
-    end
-
-    subgraph TESTING["测试层"]
-        wow_test["wow-test"]
-        wow_tck["wow-tck"]
-        wow_mock["wow-mock"]
-    end
-
-    %% Core 依赖
-    wow_api --> wow_core
-
-    %% 工具依赖
-    wow_core --> wow_compiler
-    wow_api --> wow_schema
-    wow_core --> wow_schema
-    wow_models --> wow_schema
-    wow_core --> wow_openapi
-    wow_query --> wow_openapi
-    wow_schema --> wow_openapi
-    wow_api -->|"api"| wow_bi
-    wow_core -->|"implementation"| wow_bi
-
-    %% Spring 依赖
-    wow_core --> wow_spring
-    wow_query --> wow_spring
-    wow_core --> wow_boot
-    wow_spring --> wow_boot
-
-    %% 基础设施依赖
-    wow_core --> wow_kafka
-    wow_core --> wow_mongo
-    wow_query --> wow_mongo
-    wow_core --> wow_redis
-    wow_core --> wow_es
-    wow_query --> wow_es
-    wow_core --> wow_webflux
-    wow_openapi --> wow_webflux
-    wow_bi -->|"api"| wow_webflux
-    wow_core --> wow_otel
-    wow_webflux --> wow_cosec
-
-    %% 客户端与缓存
-    wow_core --> wow_apiclient
-    wow_openapi --> wow_apiclient
-    wow_apiclient --> wow_cocache
-    wow_query --> wow_cocache
-
-    %% 测试
-    wow_core --> wow_test
-    wow_core --> wow_tck
-    wow_query --> wow_tck
-    wow_test --> wow_tck
-    wow_core --> wow_mock
-
-    %% wow_boot 消费的 Feature Variant 依赖
-    wow_kafka -.->|"feature variant"| wow_boot
-    wow_mongo -.->|"feature variant"| wow_boot
-    wow_redis -.->|"feature variant"| wow_boot
-    wow_es -.->|"feature variant"| wow_boot
-    wow_bi -.->|"webfluxSupportApi"| wow_boot
-    wow_webflux -.->|"webfluxSupportImplementation"| wow_boot
-    wow_otel -.->|"feature variant"| wow_boot
-    wow_cosec -.->|"feature variant"| wow_boot
-    wow_openapi -.->|"feature variant"| wow_boot
-    wow_mock -.->|"feature variant"| wow_boot
-
-
-
+    KAFKA -. kafka-support .-> STARTER
+    MONGO -. mongo-support .-> STARTER
+    REDIS -. redis-support .-> STARTER
+    ES -. elasticsearch-support .-> STARTER
+    WEBFLUX -. webflux-support .-> STARTER
+    OTEL -. opentelemetry-support .-> STARTER
+    OPENAPI -. openapi-support .-> STARTER
+    COSEC -. cosec-support .-> STARTER
 ```
 
-<!-- Sources:
-  settings.gradle.kts (all module includes)
-  wow-api/build.gradle.kts
-  wow-core/build.gradle.kts
-  wow-spring/build.gradle.kts
-  wow-spring-boot-starter/build.gradle.kts
-  wow-kafka/build.gradle.kts
-  wow-mongo/build.gradle.kts
-  wow-redis/build.gradle.kts
-  wow-elasticsearch/build.gradle.kts
-  wow-webflux/build.gradle.kts
-  wow-opentelemetry/build.gradle.kts
-  wow-cosec/build.gradle.kts
-  wow-compiler/build.gradle.kts
-  wow-schema/build.gradle.kts
-  wow-openapi/build.gradle.kts
-  wow-bi/build.gradle.kts
-  wow-cocache/build.gradle.kts
-  wow-apiclient/build.gradle.kts
-  wow-query/build.gradle.kts
-  test/wow-test/build.gradle.kts
-  test/wow-tck/build.gradle.kts
-  test/wow-mock/build.gradle.kts
-  wow-models/build.gradle.kts
--->
+该图只展示项目模块依赖。Jackson、Reactor、Spring Data、Kafka client 等外部库仍以各模块 Gradle 文件为准。
 
 ## 模块详情
 
@@ -177,278 +85,129 @@ graph LR
 
 #### wow-api
 
-基础模块，除了可选注解外**零外部依赖**。它定义了整个框架使用的所有契约。
+`wow-api` 是公共合同层，但并非“零依赖”：它通过 API 暴露 Jackson Databind，并以 compile-only 方式使用 Jackson annotations、Swagger annotations 与 Spring Context。不要把运行时 Dispatcher、存储或 Spring 自动配置放进此模块。
 
-```kotlin
-// wow-api/build.gradle.kts
-dependencies {
-    compileOnly("com.fasterxml.jackson.core:jackson-annotations")
-    compileOnly("io.swagger.core.v3:swagger-annotations-jakarta")
-    compileOnly("org.springframework:spring-context")
-}
-```
-
-[[wow-api/build.gradle.kts](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/build.gradle.kts)]
-
-核心类型：`CommandMessage`、`DomainEvent`、`AggregateId`、`NamedAggregate`、`Wow`（命名空间常量）、`Header`、`Message`、`TopicKind`。
+常见类型包括 `CommandMessage`、`DomainEvent`、`AggregateId`、`NamedAggregate`、`Header` 与 `TopicKind`。
 
 ### Core 层
 
 #### wow-core
 
-框架的引擎室。依赖 `wow-api` 以及响应式基础设施。
-
-```kotlin
-dependencies {
-    api(project(":wow-api"))
-    api("io.projectreactor:reactor-core")
-    api("tools.jackson.core:jackson-databind")
-    api("jakarta.validation:jakarta.validation-api")
-    // ... 更多
-}
-```
-
-[[wow-core/build.gradle.kts](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/build.gradle.kts)]
-
-包含：`CommandGateway`、`CommandBus`、`EventStore`、`DomainEventBus`、`StateAggregate`、`CommandAggregate`、`ProjectionHandler`、`StatelessSagaHandler`、`WaitPlan`、快照基础设施和过滤器链框架。
+`wow-core` 通过 API 依赖 `wow-api`，并公开 Reactor、Jackson、Validation、CosId、Micrometer 等运行时合同。它拥有命令处理、事件溯源、Snapshot/Projection/Saga 接口、WaitPlan 和运行时生命周期，但不拥有具体 Broker、数据库或 HTTP Server。
 
 #### wow-query
 
-查询模型支持类型和接口。依赖 `wow-core`。
-
-[[wow-query/build.gradle.kts](https://github.com/Ahoo-Wang/Wow/blob/main/wow-query/build.gradle.kts)]
+`wow-query` 通过 API 依赖 `wow-core`。MongoDB 与 Elasticsearch 查询模块复用它；Redis EventStore/SnapshotStore 并不因此获得通用动态查询能力。
 
 #### wow-models
 
-共享领域模型抽象。使用 `wow-api` 和 `wow-compiler`（KSP）进行注解处理。
-
-```kotlin
-ksp(project(":wow-compiler"))
-```
-
-[[wow-models/build.gradle.kts](https://github.com/Ahoo-Wang/Wow/blob/main/wow-models/build.gradle.kts)]
+`wow-models` 以 implementation 方式使用 `wow-api`，并对自身源码运行 `wow-compiler` KSP。它是共享模型模块，不是所有应用领域模块的必选依赖。
 
 ### Spring 层
 
 #### wow-spring
 
-将 `wow-core` 桥接到 Spring 的 `ApplicationContext`。依赖 `wow-core` 和 `wow-query`。
-
-[[wow-spring/build.gradle.kts](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring/build.gradle.kts)]
+`wow-spring` 通过 API 暴露 `wow-core`，以 implementation 使用 `wow-query`，负责 Spring `ApplicationContext` 桥接与查询服务注册。它不选择存储或消息实现。
 
 #### wow-spring-boot-starter
 
-一站式自动配置模块。使用 **Gradle Feature Variants** 声明可选能力：
+基础变体通过 API 引入 `wow-core` 与 `wow-spring`，并提供核心自动配置。基础变体本身不等于 Kafka/Mongo/Redis/Elasticsearch capability。
 
 ```kotlin
-java {
-    registerFeature("mongoSupport") { capability(group, "mongo-support", version) }
-    registerFeature("redisSupport") { capability(group, "redis-support", version) }
-    registerFeature("kafkaSupport") { capability(group, "kafka-support", version) }
-    registerFeature("webfluxSupport") { capability(group, "webflux-support", version) }
-    registerFeature("elasticsearchSupport") { capability(group, "elasticsearch-support", version) }
-    registerFeature("opentelemetrySupport") { capability(group, "opentelemetry-support", version) }
-    registerFeature("openapiSupport") { capability(group, "openapi-support", version) }
-    registerFeature("cosecSupport") { capability(group, "cosec-support", version) }
+dependencies {
+    implementation(platform("me.ahoo.wow:wow-bom:<aligned-version>"))
+    implementation("me.ahoo.wow:wow-spring-boot-starter")
+
+    implementation("me.ahoo.wow:wow-spring-boot-starter") {
+        capabilities { requireCapability("me.ahoo.wow:kafka-support") }
+    }
+    implementation("me.ahoo.wow:wow-spring-boot-starter") {
+        capabilities { requireCapability("me.ahoo.wow:mongo-support") }
+    }
 }
 ```
 
-[[wow-spring-boot-starter/build.gradle.kts:6](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/build.gradle.kts#L6)]
-
-Feature Variants 允许消费者只声明所需的基础设施：
-
-```kotlin
-// 消费者的 build.gradle.kts
-implementation("me.ahoo.wow:wow-spring-boot-starter")
-implementation("me.ahoo.wow:wow-spring-boot-starter") {
-    capabilities { requireCapability("me.ahoo.wow:mongo-support") }
-}
-implementation("me.ahoo.wow:wow-spring-boot-starter") {
-    capabilities { requireCapability("me.ahoo.wow:kafka-support") }
-}
-```
+每个 capability 使用一条独立依赖声明。`mongo-support`、`redis-support`、`elasticsearch-support` 已包含对应 Spring Boot Data starter；只有应用直接使用额外 API 时才另行声明，不要为了“保险”重复添加。
 
 ### 基础设施模块
 
-每个基础设施模块提供一个或多个核心接口的具体实现：
+| 模块 | 具体能力 | 不负责 |
+| --- | --- | --- |
+| `wow-kafka` | 三类分布式 Bus、topic converter、receiver policy | topic/ACL/retention/位点备份 |
+| `wow-mongo` | EventStore、SnapshotStore、PrepareKey、事件/快照查询 | 业务索引、分片、备份 |
+| `wow-redis` | 三类 Redis Streams Bus、EventStore、SnapshotStore、PrepareKey | 通用动态查询、Redis 持久化策略 |
+| `wow-elasticsearch` | EventStore、SnapshotStore、事件/快照查询、template 初始化 | ILM、集群容量、快照仓库 |
+| `wow-webflux` | 合同驱动的 HTTP handler、query guard、批处理 route | 业务认证授权和管理面隔离 |
+| `wow-opentelemetry` | Wow instrumenter | SDK/exporter/采样器部署 |
+| `wow-cosec` | CoSec 上下文适配 | 完整认证流程或应用授权策略 |
 
-```mermaid
-graph TB
-    subgraph Interfaces["核心接口"]
-        CB["CommandBus"]
-        DEB["DomainEventBus"]
-        ES["EventStore"]
-        SR["SnapshotStore"]
-    end
-
-    subgraph Implementations["基础设施实现"]
-        direction TB
-        K["wow-kafka<br>KafkaCommandBus<br>KafkaDomainEventBus"]
-        M["wow-mongo<br>MongoEventStore<br>MongoSnapshotStore"]
-        R["wow-redis<br>RedisEventStore<br>RedisSnapshotStore"]
-        ES_IMPL["wow-elasticsearch<br>ElasticsearchEventStore<br>ElasticsearchSnapshotStore"]
-    end
-
-    K --> CB
-    K --> DEB
-    M --> ES
-    M --> SR
-    R --> ES
-    R --> SR
-    ES_IMPL --> ES
-
-
-
-```
-
-<!-- Sources:
-  wow-kafka/build.gradle.kts
-  wow-mongo/build.gradle.kts
-  wow-redis/build.gradle.kts
--->
-
-| 模块 | 实现接口 | 外部依赖 |
-|--------|-----------|-------------------|
-| `wow-kafka` | `DistributedCommandBus`、`DistributedDomainEventBus` | `reactor-kafka` |
-| `wow-mongo` | `EventStore`、`SnapshotStore` | `mongodb-driver-reactivestreams` |
-| `wow-redis` | `EventStore`、`SnapshotStore` | `spring-data-redis`、`lettuce-core` |
-| `wow-elasticsearch` | 投影存储 | `spring-data-elasticsearch` |
-| `wow-webflux` | 命令端点 | `spring-webflux` |
-| `wow-opentelemetry` | 分布式链路追踪 | `opentelemetry-instrumentation-api` |
-| `wow-cosec` | 授权 | （依赖 wow-webflux） |
+基础设施模块实现 Core 接口；是否达到生产要求取决于部署拓扑、配置、备份恢复和真实负载证据，而不是模块出现在依赖图中。
 
 ### 工具模块
 
 #### wow-compiler
 
-**KSP（Kotlin Symbol Processing）** 处理器，在编译时运行，生成：
-
-- 命令路由元数据
-- 事件处理函数注册
-- OpenAPI 规范片段
-
-```kotlin
-dependencies {
-    implementation(project(":wow-core"))
-    implementation(libs.ksp.symbol.processing.api)
-}
-```
-
-[[wow-compiler/build.gradle.kts](https://github.com/Ahoo-Wang/Wow/blob/main/wow-compiler/build.gradle.kts)]
-
-领域项目通过在构建脚本中添加 `ksp(project(":wow-compiler"))` 来应用。
+`wow-compiler` 是 KSP processor。领域模块用 `ksp("me.ahoo.wow:wow-compiler")` 生成 `META-INF/wow-metadata.json` 等编译产物；服务运行时只需要生成结果，不应把 compiler 当作 runtime dependency。
 
 #### wow-schema
 
-使用 `jsonschema-generator` 及 Jackson、Jakarta Validation 和 Swagger 模块从 Wow 命令/事件模型生成 JSON Schema。
-
-[[wow-schema/build.gradle.kts](https://github.com/Ahoo-Wang/Wow/blob/main/wow-schema/build.gradle.kts)]
+`wow-schema` 依赖 `wow-api`、`wow-core`、`wow-query`，并使用 JSON Schema generator、Jackson、Validation 与 Swagger 模块。它同时打包查询 FilterExpression schema。
 
 #### wow-openapi
 
-从 Wow 领域模型生成 OpenAPI 规范。其 API 使用 `wow-core`、`wow-query` 和 `wow-schema`；模块不引用 `wow-bi`。
-
-[[wow-openapi/build.gradle.kts](https://github.com/Ahoo-Wang/Wow/blob/main/wow-openapi/build.gradle.kts)]
+`wow-openapi` 通过 API 依赖 `wow-core`、`wow-query`、`wow-schema`，生成内置 HTTP route 合同。实际 WebFlux handler 由 `wow-webflux` 提供。
 
 #### wow-bi
 
-BI 同步脚本生成器。由于 `BiScriptGenerator` 接收 `NamedAggregate`，该模块通过 API 暴露 `wow-api`，并以 implementation 方式使用 `wow-core` 的元数据与序列化能力。`wow-webflux` 通过 API 暴露 `wow-bi`，Starter 则只在 `webflux-support` Feature 中暴露它。
-
-[[wow-bi/build.gradle.kts](https://github.com/Ahoo-Wang/Wow/blob/main/wow-bi/build.gradle.kts)]
+`wow-bi` 通过 API 暴露 `wow-api`，以 implementation 使用 `wow-core` 与 ClickHouse client。它生成/管理 BI 脚本，不自动部署 Kafka、ClickHouse 或恢复流程。
 
 ### 测试模块
 
-```mermaid
-graph TB
-    subgraph Testing["测试模块"]
-        wow_test["wow-test<br>单元测试 DSL"]
-        wow_tck["wow-tck<br>技术兼容性套件"]
-        wow_mock["wow-mock<br>Mock 支持"]
-        wow_it["wow-it<br>集成测试"]
-    end
+| 模块 | 验证范围 | 典型使用者 |
+| --- | --- | --- |
+| `wow-test` | 聚合、Saga、事件与状态行为 | 应用领域模块 |
+| `wow-tck` | EventStore、SnapshotStore、Bus、查询等 Adapter 合同 | Adapter 实现与框架模块 |
+| `wow-mock` | mock/delay 后端 | 测试服务 |
+| `wow-it` | Kafka + Mongo 等真实组合链路 | 仓库 CI/集成测试 |
 
-    wow_tck --> wow_test
-    wow_it --> wow_tck
-
-    wow_test --> wow_core["wow-core"]
-    wow_tck --> wow_core
-    wow_mock --> wow_core
-
-
-
-```
-
-<!-- Sources:
-  test/wow-test/build.gradle.kts
-  test/wow-tck/build.gradle.kts
-  test/wow-mock/build.gradle.kts
--->
-
-| 模块 | 用途 | 关键依赖 |
-|--------|---------|-----------------|
-| `wow-test` | `AggregateSpec`/`AggregateVerifier`、`SagaSpec`/`SagaVerifier`、Given-When-Expect DSL | `wow-core`、`reactor-test`、`fluent-assert-core`、`hibernate-validator` |
-| `wow-tck` | 使用 Testcontainers（Kafka、MongoDB、Elasticsearch）的集成测试 | `wow-test`、`wow-query`、Testcontainers |
-| `wow-mock` | Mock 基础设施支持 | `wow-core` |
-| `wow-it` | 端到端集成测试 | `wow-tck` |
+TCK 通过不等于应用拓扑的容量、升级或灾难恢复已经验证；这些证据仍由应用负责。
 
 ### 客户端与缓存模块
 
 #### wow-apiclient
 
-基于 CoApi 构建的 RESTful API 客户端。从 OpenAPI 规范生成类型安全的客户端接口。
-
-```kotlin
-dependencies {
-    api(project(":wow-core"))
-    api(project(":wow-openapi"))
-    api("io.projectreactor:reactor-core")
-    implementation("me.ahoo.coapi:coapi-api")
-}
-```
-
-[[wow-apiclient/build.gradle.kts](https://github.com/Ahoo-Wang/Wow/blob/main/wow-apiclient/build.gradle.kts)]
+`wow-apiclient` 通过 API 暴露 `wow-core`、`wow-openapi` 与 Reactor，以 implementation 使用 CoApi 和 Spring Web/WebFlux。它是 JVM HTTP client，不启动服务端 route。
 
 #### wow-cocache
 
-基于 CoCache 的投影缓存层。依赖 `wow-apiclient` 和 `wow-query`。
-
-[[wow-cocache/build.gradle.kts](https://github.com/Ahoo-Wang/Wow/blob/main/wow-cocache/build.gradle.kts)]
+`wow-cocache` 通过 API 依赖 `wow-apiclient`、`wow-query` 和 CoCache Core，提供投影缓存集成。没有 CoCache 需求时不应引入。
 
 ## Feature Variant 矩阵
 
-`wow-spring-boot-starter` 模块声明以下可选 Feature Capabilities。每个 Feature 会拉入对应的基础设施模块：
+| capability | 直接引入的项目模块 | 额外外部集成 |
+| --- | --- | --- |
+| `mongo-support` | `wow-mongo` | Reactive MongoDB Spring Boot starter |
+| `redis-support` | `wow-redis` | Reactive Redis Spring Boot starter |
+| `mock-support` | `wow-mock` | 测试用途 |
+| `kafka-support` | `wow-kafka` | Reactor Kafka |
+| `webflux-support` | `wow-bi`（API）、`wow-webflux` | Spring WebFlux 已由 Starter 基础依赖提供 |
+| `elasticsearch-support` | `wow-elasticsearch` | Elasticsearch Spring Boot starter |
+| `opentelemetry-support` | `wow-opentelemetry` | OpenTelemetry instrumentation API |
+| `openapi-support` | `wow-openapi` | springdoc common |
+| `cosec-support` | `wow-cosec` | CoSec 集成链路 |
 
-| Feature Capability | 拉入的模块 | Spring Boot Starter |
-|-------------------|-----------------|---------------------|
-| `mongo-support` | `wow-mongo` | `spring-boot-starter-data-mongodb-reactive` |
-| `redis-support` | `wow-redis` | `spring-boot-starter-data-redis-reactive` |
-| `kafka-support` | `wow-kafka` | （通过 reactor-kafka） |
-| `webflux-support` | `wow-bi`、`wow-webflux` | （通过 spring-webflux） |
-| `elasticsearch-support` | `wow-elasticsearch` | `spring-boot-starter-data-elasticsearch` |
-| `opentelemetry-support` | `wow-opentelemetry` | （通过 otel instrumentation） |
-| `openapi-support` | `wow-openapi` | `springdoc-openapi-starter-common` |
-| `cosec-support` | `wow-cosec` | （通过 wow-cosec） |
-| `mock-support` | `wow-mock` | （仅用于测试） |
-
-[[wow-spring-boot-starter/build.gradle.kts:6](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/build.gradle.kts#L6)]
+capability 表示**代码可用**；`wow.*.enabled` 和 Bus/Storage 属性决定**是否装配**；后端健康、Schema、topic、权限和恢复演练决定**是否可运行**。三个层次不能互相替代。
 
 ## 构建配置
 
-所有模块都在根 [`settings.gradle.kts`](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts) 中注册：
+所有项目模块由根 `settings.gradle.kts` 注册，第三方版本集中在 `gradle/libs.versions.toml` 与 `wow-dependencies`。应用应使用一个对齐的 Wow BOM，不在本页复制可能漂移的具体版本。
 
-```kotlin
-include(":wow-api")
-include(":wow-core")
-include(":wow-spring")
-include(":wow-spring-boot-starter")
-include(":wow-kafka")
-include(":wow-mongo")
-// ... 完整列表见 settings.gradle.kts
-```
-
-`wow-dependencies` 模块作为所有第三方依赖版本的集中 BOM/platform，确保整个项目的版本一致性。
+修改模块职责、feature capability 或 API/implementation 暴露关系会改变消费者 classpath，属于构建合同变更；应同时检查 Starter Gradle 文件、发布元数据与下游 dependency insight。
 
 ## 相关页面
 
-- [架构概览](./architecture) — 高层架构和 CQRS 模式
-- [数据流](./data-flow) — 命令和事件管道的逐步追踪
+- [架构概览](./architecture.md)
+- [数据流](./data-flow.md)
+- [Spring Boot Starter](../extensions/spring-boot-starter.md)
+- [配置 Wow 应用](../configuration.md)
+- [核心配置参考](../../reference/config/core.md)

@@ -1,40 +1,33 @@
 ---
 title: Configuring a Wow Application
-description: Configure Wow by development stage, production backend, environment, and secret boundary; use reference pages for exact properties.
+description: Configure Wow by capability, runtime stage, backend ownership, and environment evidence; use reference pages for exact properties.
 outline: deep
 ---
 
 # Configuring a Wow Application
 
-This page helps application developers make configuration decisions. Exact properties, types, and defaults live only in [Configuration References](#configuration-references), avoiding multiple manually maintained sources of truth.
+Configuring Wow is not a matter of copying one large YAML file. Decide which capabilities belong in the runtime, which bus owns each of the three message channels, who persists EventStore and SnapshotStore data, and who can recover every stage. This page provides the task flow; exact keys and defaults live only in [Configuration References](#configuration-references).
 
 ## Choose a Starting Point
 
-| Scenario | Bus | EventStore / SnapshotStore | Next step |
-| --- | --- | --- | --- |
-| Initial adoption and domain tests | `in_memory` | `in_memory` | prove command → event → state first |
-| Common production baseline | Kafka | MongoDB | verify persistence, restart, offsets, and recovery |
-| Existing Redis platform | Redis Streams | Redis | evaluate query capability, capacity, and canonical v2 layout |
-| Search/complex snapshot queries | Kafka/Redis | Elasticsearch or MongoDB | establish indexes, query plans, and rebuild procedures |
+| Capability to prove | Minimum selection | Completion evidence |
+| --- | --- | --- |
+| Domain command → event → state | Base Starter + `in_memory` | Aggregate specs and a single-process functional path before restart |
+| Cross-instance command/event/state delivery | `kafka-support` or `redis-support` | Redelivery, lag, shutdown, and failure-injection results |
+| Authoritative event history | Mongo/Redis/Elasticsearch EventStore | Version continuity, conflict, backup, and isolated-restore results |
+| Current-state queries | `strategy: all` + Mongo/Elasticsearch SnapshotStore | `SNAPSHOT` read-after-write, query plans, and rebuild results |
+| HTTP/OpenAPI | `webflux-support`; add `openapi-support` only for separate OpenAPI tooling | Runtime OpenAPI, authorization, and route tests |
 
-Do not introduce Kafka, MongoDB, Redis, Elasticsearch, compensation, and telemetry together on the first run. Complete an in-memory vertical slice, then replace one boundary at a time while retaining test evidence.
+Replace one boundary at a time. Keep the in-memory vertical slice, then add EventStore, then a bus, then query and operation entry points. A failure then maps to one Wow stage instead of several external systems at once.
 
 ## First Run: In-Memory Configuration
+
+Request only the base Starter—no infrastructure capability—and override every core default that points to Kafka or MongoDB:
 
 ```yaml
 spring:
   application:
     name: order-service
-
-cosid:
-  machine:
-    enabled: true
-    distributor:
-      type: manual
-      manual:
-        machine-id: 1
-  generator:
-    enabled: true
 
 wow:
   prepare:
@@ -56,20 +49,27 @@ wow:
         type: in_memory
 ```
 
-This configuration is only for single-process validation: data disappears on restart and it provides no cross-instance delivery, durable recovery, or general dynamic query support. A manual machine ID is also unsafe for multiple instances.
+This proves only a single-process path. Events and snapshots disappear at process exit, with no cross-instance delivery, broker offsets, durable recovery, or general dynamic query support. If a development classpath still contains a capability, also set the corresponding `wow.kafka.enabled`, `wow.mongo.enabled`, `wow.redis.enabled`, or `wow.elasticsearch.enabled` to `false`—or remove the unused capability.
 
 ## Production Starting Point: Kafka + MongoDB
 
-Request the matching Starter capabilities before configuring a backend. Configuration keys alone do not add runtime dependencies:
+The following is a **candidate topology**, not a production-readiness claim. Use separate dependency declarations for the base variant and each capability. The feature already includes its backend module and Spring Data starter.
 
 ```kotlin
-implementation("me.ahoo.wow:wow-spring-boot-starter") {
-    capabilities { requireCapability("me.ahoo.wow:kafka-support") }
+dependencies {
+    implementation(platform("me.ahoo.wow:wow-bom:<aligned-version>"))
+    implementation("me.ahoo.wow:wow-spring-boot-starter")
+
+    implementation("me.ahoo.wow:wow-spring-boot-starter") {
+        capabilities { requireCapability("me.ahoo.wow:kafka-support") }
+    }
+    implementation("me.ahoo.wow:wow-spring-boot-starter") {
+        capabilities { requireCapability("me.ahoo.wow:mongo-support") }
+    }
+    implementation("me.ahoo.wow:wow-spring-boot-starter") {
+        capabilities { requireCapability("me.ahoo.wow:webflux-support") }
+    }
 }
-implementation("me.ahoo.wow:wow-spring-boot-starter") {
-    capabilities { requireCapability("me.ahoo.wow:mongo-support") }
-}
-implementation("org.springframework.boot:spring-boot-starter-data-mongodb-reactive")
 ```
 
 ```yaml
@@ -80,109 +80,115 @@ spring:
     uri: ${MONGODB_URI}
 
 wow:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
   command:
     bus:
       type: kafka
   event:
     bus:
       type: kafka
-  kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
   eventsourcing:
     store:
       storage: mongo
     snapshot:
-      storage: mongo
+      enabled: true
       strategy: all
+      storage: mongo
     state:
       bus:
         type: kafka
+  prepare:
+    storage: mongo
 ```
 
-This is only a production starting point. Before release, verify authentication/TLS, topics and consumer groups, indexes, capacity, backup/restore, shutdown, alerts, and rolling upgrades.
+Accept it by runtime stage instead of substituting “the process started”:
+
+| Stage/boundary | The application or platform owner must prove |
+| --- | --- |
+| Startup | Capability, property binding, Mongo schema/index, and Kafka client wiring succeeded |
+| `SENT` | CommandBus send succeeds and topics, ACLs, and serialization work |
+| `PROCESSED` | Aggregate load, business decision, EventStore append, and DomainEventBus send completed |
+| `SNAPSHOT` | StateEventBus consumption and target SnapshotStore save/skip policy match expectations |
+| `PROJECTED` / `EVENT_HANDLED` / `SAGA_HANDLED` | The exact target function completes and redelivery does not duplicate external effects |
+| Shutdown | Ingress is removed and admitted work quiesces within `wow.shutdown-timeout` |
+| Recovery | EventStore, snapshots, projections, broker offsets, and compensation state pass isolated restore and reconciliation |
 
 ## Backend Boundaries
 
 ### Bus
 
-| Type | Good fit | Main boundary |
+| Type | Capability | Does not provide |
 | --- | --- | --- |
-| `in_memory` | single-process development and tests | no persistence or cross-instance delivery |
-| `kafka` | multiple instances and durable messaging | topics, partitions, offsets, redelivery, and capacity |
-| `redis` | services already using Redis Streams | pending recovery, consumer groups, and capacity |
-| `no_op` | explicit cases that do not process a message kind | messages do not produce real business processing |
+| `in_memory` | Fast single-instance validation | Durability or cross-instance delivery |
+| `kafka` | Distributed Kafka bus | Automatic topic/ACL/retention/offset-backup governance |
+| `redis` | Distributed Redis Streams bus and pending recovery | Recovery of trimmed Streams or EventStore backups |
+| `no_op` | Explicitly disables a processing kind | Business execution or recoverable delivery |
+
+Command, domain-event, and state-event channels can select different buses. Record the owner and recovery policy for each. Proving CommandBus does not prove projection or snapshot delivery.
 
 ### Storage
 
-| Backend | EventStore | SnapshotStore | Dynamic query | Verify before adoption |
+| Backend | EventStore | SnapshotStore | Dynamic query | Must prove before adoption |
 | --- | --- | --- | --- | --- |
-| MongoDB | yes | yes | event stream and snapshot | indexes, sharding, write concern, backup, recovery |
-| Redis | yes | yes | no general dynamic snapshot query | canonical v2, capacity, persistence, pending recovery |
-| Elasticsearch | yes | yes | event stream and snapshot | templates/ILM, bulk, PIT, rebuild, recovery |
-| In-memory | yes | yes | tests only | process exit loses all data |
+| MongoDB | yes | yes | events and snapshots | schema/indexes, write concern, backup, restore, query plans |
+| Redis | yes | yes | no general implementation | canonical key layout, persistence, capacity, restart recovery |
+| Elasticsearch | yes | yes | events and snapshots | templates, Bulk, PIT, cluster snapshots, rebuild |
+| In-memory | yes | yes | not for production | explicit data-loss boundary |
+| Delay | tests | tests | no | comes from `mock-support`; never use in production |
 
-Use `wow.eventsourcing.storage-routing` when one aggregate needs a dedicated backend; do not select storage manually in business code. See [Spring Boot Starter](./extensions/spring-boot-starter.md#bean-wiring-and-overrides) for binding rules.
+Use `wow.eventsourcing.storage-routing` for per-aggregate routing. The `event` and `snapshot` channels are independent. Rollback, backups, and query factories must cover each actual binding, not only the default store.
 
 ## Configuration and Secret Boundaries
 
-Split configuration into three groups:
-
-| Type | Examples | Location |
+| Owner | Examples | Recommended carrier |
 | --- | --- | --- |
-| Versioned policy | bus/storage type, snapshot strategy, timeouts | repository `application.yaml` |
-| Environment value | broker addresses, database names, OTLP endpoint | deployment environment/configuration |
-| Secret | database password, token, webhook, certificate private key | secret manager |
+| Application contract | Bus/storage types, snapshot strategy, HTTP query guard | Versioned configuration reviewed with code |
+| Environment topology | Broker/database endpoints, database/topic prefix | Deployment configuration or environment variables |
+| Secret | Usernames, passwords, tokens, private keys | Secret manager |
+| Operations baseline | Effective configuration digest, topics/indexes/templates, backup point | Redacted release evidence |
 
-- never put real credentials in documentation, examples, or ConfigMaps;
-- reference environment values with `${ENV_NAME}` and fail startup when required values are missing;
-- do not keep `me.ahoo.wow: DEBUG` enabled in production;
-- retain a redacted effective-configuration summary for recovery and audit;
-- review configuration changes with the application version instead of treating YAML-only changes as risk-free.
+Reference external values with `${ENV_NAME}` and prove missing values stop the candidate at startup. Never store real URI credentials in examples, ConfigMaps, logs, or issues. A configuration change can alter delivery, storage, or recovery boundaries and must be reviewed with the application version.
 
 ## Environment Layers
 
 ### Development
 
-- prefer in-memory adapters or isolated local backends;
-- use a single-instance manual machine ID;
-- keep Swagger, detailed logs, and fast domain tests;
-- make data-loss expectations explicit and never copy local settings to production.
+1. Run aggregate specs and one complete command path with in-memory configuration.
+2. Add only the capability under test and explicitly disable unused integrations that remain on the classpath.
+3. Use isolated namespaces for external backends. Never reuse production topics, databases, consumer groups, or credentials.
+4. Preserve the failing test, effective configuration, and backend-health evidence before replacing the next boundary.
 
 ### Production
 
-- use a distributor that guarantees unique machine IDs;
-- configure durable bus, EventStore, and SnapshotStore implementations;
-- protect command, query, and Actuator endpoints with authentication and authorization;
-- verify idempotency indexes, partitioning/sharding, consumer offsets, and graceful shutdown;
-- complete [Application Testing](./application-testing.md) and [Backup, Restore, and Replay](./recovery.md) gates.
+A production candidate must map configuration to Wow stages: the bus owner controls delivery and offsets, the EventStore owner controls authoritative history, the Snapshot/Projection owner controls derived state, and the application owner controls handler idempotency, HTTP authorization, and shutdown. Evidence must come from a production-like environment and cover failure paths, backup/restore, redelivery/reconciliation, rolling shutdown, and capacity. Module checks or a YAML file alone do not prove production readiness.
+
+See [Production Best Practices](./best-practices.md), [Backup, Restore, and Replay](./recovery.md), and [Troubleshooting](./troubleshooting.md).
 
 ## BI Script Configuration
 
-The BI script service uses `wow.bi.script.*`; enable it only when generating or deploying ClickHouse scripts:
+Enable `wow.bi.script.*` only when actually generating or deploying ClickHouse scripts. `NO_OP` inspection supports offline generation but does not prove ClickHouse catalog reconciliation. `RESET` requires a controlled inspector and the destructive-operation gates.
 
 ```yaml
 wow:
   bi:
     script:
       enabled: true
-      database: wow
-      consumer-database: wow_consumer
-      timezone: UTC
-      kafka-bootstrap-servers: ${BI_KAFKA_BOOTSTRAP_SERVERS:${KAFKA_BOOTSTRAP_SERVERS}}
-      topic-prefix: ${BI_TOPIC_PREFIX:wow.}
+      database: ${BI_DATABASE}
+      consumer-database: ${BI_CONSUMER_DATABASE}
+      kafka-bootstrap-servers: ${BI_KAFKA_BOOTSTRAP_SERVERS}
+      topic-prefix: ${BI_TOPIC_PREFIX}
       inspector:
-        type: NO_OP # offline generation only; deployment/reset needs a controlled ClickHouse inspector
+        type: NO_OP # offline generation only
 ```
 
-Explicit `wow.bi.script.kafka-bootstrap-servers` and `topic-prefix` values override `wow.kafka.*`. A `NO_OP` inspector supports offline generation and does not prove catalog reconciliation. Before `RESET`, use a real inspector and complete the destructive gates in [BI Deployment and Recovery](./bi-operations.md).
+See [Observability Configuration](../reference/config/observability.md) and [BI Deployment and Recovery](./bi-operations.md) for exact BI properties and operations.
 
 ## Configuration References
 
-Use configuration classes and these pages for exact properties:
+- [Core](../reference/config/core.md): runtime, buses, EventStore, Snapshot, storage routing, query schema, and PrepareKey.
+- [Infrastructure](../reference/config/infrastructure.md): Kafka, MongoDB, Redis, Elasticsearch, and WebFlux.
+- [Observability](../reference/config/observability.md): OpenAPI, OpenTelemetry, metrics, and BI.
+- [Event Compensation](../reference/config/compensation.md): compensation switches, scheduling, and notifications.
 
-- [Core](../reference/config/core.md): Wow, buses, event sourcing, snapshots, storage routing, and PrepareKey;
-- [Infrastructure](../reference/config/infrastructure.md): Kafka, MongoDB, Redis, Elasticsearch, and WebFlux;
-- [Observability](../reference/config/observability.md): OpenAPI, OpenTelemetry, metrics, and BI;
-- [Event Compensation](../reference/config/compensation.md): compensation switch, scheduler, and notifications.
-
-When upgrading Wow, use the target tag's configuration classes and release notes; do not apply `main` defaults to an older release.
+For upgrades, use configuration metadata and classes from the target release. Do not apply `main` properties or defaults to an older version.

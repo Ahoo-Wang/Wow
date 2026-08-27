@@ -1,29 +1,29 @@
 ---
 title: 故障排查
-description: 按命令、聚合、事件存储、投影与 Saga 阶段定位 Wow 故障，并收集可复现证据。
+description: 用最后完成的 Wow stage、配置装配条件和后端证据定位命令、存储、快照、投影与 Saga 故障。
 outline: deep
 ---
 
 # 故障排查
 
-排障的目标不是先扩大超时，而是回答两个问题：**消息最后到达了哪个阶段？下一个阶段为什么没有完成？**
+先回答：**最后完成了哪个 stage？下一个 stage 由哪个 Bus、Store 或 Handler 拥有？** 不要先扩大超时或切换后端。
 
-::: warning 超时不等于命令失败
-调用方超时只表示没有在截止时间前观测到目标信号。命令可能尚未处理、正在处理，或已经完成但结果信号未到达。在确认状态前，不要用新 `requestId` 盲目重试。
+::: warning 超时不是失败证明
+调用方超时只表示截止时间前没有收到目标信号。命令可能尚未处理、仍在处理，或已经完成但通知未到达。在查询权威状态前，不要换新 `requestId` 重试。
 :::
 
 ## 先收集最小证据包
 
-在修改配置或代码前，保留以下信息：
+在修改代码或配置前保存同一时间窗口的：
 
-- Wow 版本、JDK 版本与启用的 `wow-*` 模块。
-- 完整异常链，不只是最后一行。
-- `commandId`、`requestId`、`contextName`、`aggregateName`、`aggregateId` 和已知的聚合版本。
-- 调用方请求的 `CommandStage` 与最后观测到的 `CommandResult.stage`。
-- 生效的 `wow.*`、`spring.*` 后端配置（密码、Token 和 URI 凭据必须脱敏）。
-- 同一时间窗口内的日志、span、指标、消费积压和存储健康状态。
+- 应用构建标识、JDK、Wow BOM/依赖锁定和 runtime classpath 中的 capability；
+- 完整异常链与 Spring condition evaluation report；
+- `requestId`、`commandId`、`contextName`、`aggregateName`、`aggregateId`、已知版本；
+- 请求的 `CommandStage`、函数目标与最后收到的 `CommandResult.stage`；
+- 脱敏后的 `wow.*`、相关 `spring.*` 生效配置和 storage route；
+- Broker offset/lag/pending、EventStore/SnapshotStore 健康、trace 与指标。
 
-临时提高 Wow 日志级别时，优先在可复现环境中开启，并限制时间窗口：
+只在受控复现窗口临时开启：
 
 ```yaml
 logging:
@@ -31,163 +31,135 @@ logging:
     me.ahoo.wow: DEBUG
 ```
 
-Debug 日志可能包含业务标识和消息上下文；不要在生产环境长期开启，也不要将未脱敏日志附到公开 Issue。
+Debug 日志可能包含业务 ID、Header 和错误上下文；公开 Issue 前必须脱敏，生产中不得长期启用。
 
 ## 症状到阶段的速查表
 
-| 症状 | 先确认 | 最常见的下一步 |
+| 最后证据 | 下一 owner | 先检查 |
 | --- | --- | --- |
-| 命令没有任何结果 | 是否到达 `SENT` | 检查 CommandBus 连接、路由和发送错误 |
-| 只到 `SENT` | 聚合元数据和处理函数是否注册 | 检查 KSP 输出、限界上下文和聚合加载 |
-| 只到 `PROCESSED` | 实际等待的是否为 `SNAPSHOT`、`PROJECTED` 或 `SAGA_HANDLED` | 进入对应处理器，核对目标函数和消费积压 |
-| HTTP 写入成功，立即查询不到 | 写入等待阶段是否覆盖该投影 | 使用精确 `PROJECTED` 目标，不要固定 `sleep` |
-| 同一事件的副作用重复执行 | 处理器是否幂等 | 先修正副作用幂等，再分析重投或 ACK |
-| 聚合加载慢 | 加载了多少事件，是否命中快照 | 检查快照策略与 EventStore 查询延迟 |
-| 启动时缺少 Bean 或聚合 | 依赖、capability 和自动配置条件是否成立 | 打开 Spring condition report，核对配置键 |
-| 关停卡住 | 哪个运行时组件仍有活动任务 | 按[运行时生命周期](./advanced/runtime-lifecycle.md)核对拥有权和超时 |
+| 应用未启动 | capability / 自动配置 | 依赖变体、`*.enabled`、必填连接、缺失/重复 Bean |
+| 没有 `SENT` | CommandBus | 发送错误、topic/Stream、ACL、序列化、网络 |
+| 只有 `SENT` | Command Dispatcher / Aggregate | 元数据、Handler、聚合加载、业务异常 |
+| `PROCESSED` 缺失 | EventStore / DomainEventBus | append、版本冲突、request-id、Broker send |
+| 只有 `PROCESSED` | StateEvent/Snapshot 或目标函数 | StateEvent lag、SnapshotStore、函数标识、consumer lag |
+| `SNAPSHOT` 已到但查询旧 | Snapshot strategy / query binding | `version_offset` 是否跳过、查询是否路由到同一后端 |
+| Projection/副作用重复 | Handler | 幂等键、ACK/offset、重投、补偿记录 |
+| Redis pending 增长 | Redis Bus recovery | group、idle time、claim 失败、Stream trimming |
+| Kafka receiver 重复失败 | decode/receiver policy | 首个坏记录、`decode-failure-strategy`、退避与 offset |
+| 关停超时 | WowRuntime component owner | 入口是否摘除、活动任务、不可取消 I/O、批处理 drain |
 
 ## 命令超时
 
 ### 1. 先确认等待的阶段
 
-| 阶段 | 表示 | 未到达时检查 |
-| --- | --- | --- |
-| `SENT` | 命令已被命令总线接受 | CommandBus 实现、网络、序列化和路由 |
-| `PROCESSED` | 聚合决策与事件追加已完成 | 处理函数注册、聚合加载、业务异常和 EventStore |
-| `SNAPSHOT` | 快照处理已完成 | 状态事件总线、快照处理器和 SnapshotStore |
-| `PROJECTED` | 特定投影函数已完成 | 目标函数是否匹配、投影异常、消费积压和读库 |
-| `EVENT_HANDLED` | 特定事件处理函数已完成 | 处理器过滤、重试、补偿和外部依赖 |
-| `SAGA_HANDLED` | 特定 Saga 函数已处理源事件 | Saga 匹配、处理异常和派生命令发送；该阶段不代表下游命令已完成 |
+| Stage | 未到达时沿链路检查 |
+| --- | --- |
+| `SENT` | Gateway → 选中的 CommandBus send |
+| `PROCESSED` | Command Dispatcher → 聚合加载/处理 → EventStore append → DomainEventBus send |
+| `SNAPSHOT` | StateEventBus → Snapshot Dispatcher → SnapshotStrategy/Store |
+| `PROJECTED` | 目标 Projection function、last-projection 信号、读模型写入 |
+| `EVENT_HANDLED` | 目标 Event Handler、外部依赖、重试/补偿 |
+| `SAGA_HANDLED` | 目标 Saga 与派生命令 send；不要继续推断下游聚合已完成 |
 
-等待函数型阶段时，还要核对 `contextName`、`processorName` 和 `functionName`。目标函数写错时，其他投影或 Saga 完成也不会满足等待计划。
+函数型 stage 同时核对 `contextName`、`processorName`、`functionName`。另一个函数成功不能满足错误目标。
 
 ### 2. 用同一组标识追踪链路
 
-使用客户端在 `Command-Request-Id` 中提供的 `requestId` 关联 HTTP 请求。`CommandResult` 还会返回服务端生成的 `commandId`；如果没有返回结果，则通过 `requestId` 关联服务端日志或 span，从中找回 `commandId`。不要依赖固定英文日志文本；日志消息可随实现演进，标识与阶段更稳定。
+HTTP 客户端通过 `Command-Request-Id` 传入稳定 `requestId`。有响应时 `CommandResult` 提供服务端 `commandId`；没有响应时，用 request-id 在日志/span 找到 command-id，再沿 AggregateId 和 stage 关联。不要依赖固定英文日志句子，标识和 stage 更稳定。
 
 ### 3. 不要用超时掩盖根因
 
-- `SENT` 都未到达：延长 `PROJECTED` 超时没有意义。
-- 总在 `PROCESSED` 后超时：优先检查目标投影/Saga 和消费积压。
-- 只有少数请求超时：对比聚合热点、事件数量、后端延迟和重试。
+- 没有 `SENT`：增大 `PROJECTED` 等待时间无效。
+- 总在 `PROCESSED` 后停止：检查目标消费链路，不要重跑聚合命令。
+- 只有热点聚合超时：比较事件重放数、版本冲突与后端延迟。
+- 调用方超时后需要重试：先查询权威状态，并复用原 `requestId`。
 
-详细等待契约见[命令网关](./command-gateway.md#等待计划)。
+`WaitPlan.withTimeout` 是调用方本地截止时间，不传播到命令 Header。完整语义见[命令网关](./command-gateway.md#等待计划)。
 
 ## 聚合、幂等与并发异常
 
 ### `DuplicateRequestIdException`
 
-表示同一聚合上的 `requestId` 重复。先判断这是客户端对同一逻辑请求的重试，还是错误复用了标识。对同一逻辑请求，重试时应保留原 `requestId`；换新标识会绕过幂等保护。
+EventStore 已确认同一 aggregate 上存在该 `requestId`。如果是同一逻辑命令的重试，这是幂等结果；如果不是，修复 request-id 生成/作用域。换新 ID 会绕过该保护。
 
 ### `DuplicateAggregateIdException`
 
-创建命令尝试初始化已存在的聚合。核对 ID 生成、创建语义和客户端重试，不要把它当作普通版本冲突无限重试。
+创建命令尝试初始化已经存在的聚合。核对 ID 分配、`isCreate` 语义与调用方重试；不要把它当作普通网络失败无限重试。
 
 ### `EventVersionConflictException`
 
-表示事件流的预期版本与存储中的当前版本不同。Wow 会对可恢复异常执行有限重试，但持续冲突通常意味着聚合是写入热点或业务边界需要调整。记录冲突频率和聚合标识，不要把无限重试当作解决方案。
+append 的 expected version 与 EventStore head 不同。Wow 只对 recoverable 错误做有限退避重试。持续冲突应检查热点聚合、陈旧 `aggregateVersion` 或违反单聚合顺序的自定义 Bus/Store，而不是增加无限重试。
 
 ## 元数据或处理函数未注册
 
-典型表现是运行时无法找到 context、aggregate 或处理函数。
-
-1. 确认领域模块应用 KSP 并引入 `wow-compiler`。
-2. 确认聚合类和处理函数符合[建模约定](./modeling.md#约定)。
-3. 清理并重新编译相关模块，然后检查生成的 `META-INF/wow-metadata.json`。
-4. 确认宿主服务实际依赖了该领域模块。
-
-```kotlin
-plugins {
-    id("com.google.devtools.ksp")
-}
-
-dependencies {
-    ksp("me.ahoo.wow:wow-compiler")
-}
-```
+1. 确认领域模块应用 KSP，并在 `ksp(...)` 中使用 `wow-compiler`。
+2. 确认服务 runtime classpath 包含该领域模块，不只是 API 模块。
+3. 对目标模块 clean/build，并检查产物中的 `META-INF/wow-metadata.json`。
+4. 核对 `spring.application.name` / `wow.context-name`、aggregate 名和函数元数据。
+5. 若 HTTP route 缺失，再核对 `webflux-support`；不要添加一个重复 Controller 掩盖元数据问题。
 
 ## 投影延迟或重复副作用
 
 ### 先区分积压与单次处理慢
 
-- **积压增长**：检查消费并发度、分区、实例数、持续失败和下游容量。
-- **单次处理慢**：从 span 或处理时间分布定位外部 I/O、大对象序列化或读库写入。
-- **只有等待超时**：核对 `PROJECTED` 目标函数；处理器可能已完成，但不匹配等待目标。
+- lag/pending 持续增长：定位分区/consumer group、持续失败和下游容量。
+- lag 稳定但单次慢：分开测量反序列化、业务函数与外部 I/O。
+- 处理完成但等待不结束：核对函数目标与 `isLastProjection`，不是先扩容。
 
-优先使用响应式客户端。只有处理函数确实调用不可避免的阻塞 API 时，才使用 `@Blocking` 显式隔离；它不会修复慢查询或下游容量不足。
+只有不可避免的阻塞 API 才用 `@Blocking`/受限 Scheduler 隔离；它不会改善慢查询或无界队列。
 
 ### 处理器必须可重试
 
-不要把分布式消息投递当作“恰好一次”。以业务唯一键、事件 ID 或目标版本建立幂等写入，并在重试前确认外部副作用的当前状态。对无法自动恢复的失败，进入[事件补偿](./event-compensation.md)流程。
+使用业务唯一键、event ID 或目标 version 做幂等。重试外部调用前先查询其当前状态。自动重试耗尽后保留补偿记录与原错误，按目标函数补偿；不要通过 ACK 丢弃来“消除”积压。
 
 ## 聚合加载慢或快照异常
 
-1. 记录聚合当前版本、快照版本和本次重放的事件数。
-2. 分开测量 SnapshotStore 加载、EventStore 加载和溯源函数执行时间。
-3. 如果快照与完整事件重放结果不同，先停止依赖该快照的读取路径，用聚合规格测试检查每个 `onSourcing` 函数。
-4. 调整快照策略前，先用实际事件分布验证收益；不要只因单个热聚合就全局改策略。
-
-配置和语义见[快照](./snapshot.md)。
+1. 记录 EventStore head、Snapshot version、本次重放 stream 数和 sourcing 耗时。
+2. 分开测量 SnapshotStore load、EventStore load 与 sourcing function。
+3. 若 Snapshot 与完整重放不一致，停止依赖该快照的读路径，先用聚合规格定位非确定 sourcing。
+4. 若 `SNAPSHOT` 已完成但没有写入，确认策略是否为 `version_offset` 且阈值未达到。
+5. 若查询返回旧数据，核对 storage route 的 SnapshotStore 与 SnapshotQueryServiceFactory 是否指向同一 binding。
 
 ## 连接与自动配置
 
 ### 先隔离框架与外部后端
 
-在本地或最小复现中，可暂时使用内存实现确认领域模型与路由是否正常：
+在最小复现中用纯内存配置定位领域/元数据问题，并显式关闭可能仍在 classpath 的集成：
 
 ```yaml
 wow:
-  kafka:
-    enabled: false
-  command:
-    bus:
-      type: in_memory
-  event:
-    bus:
-      type: in_memory
-  eventsourcing:
-    store:
-      storage: in_memory
-    snapshot:
-      storage: in_memory
-    state:
-      bus:
-        type: in_memory
+  kafka.enabled: false
+  mongo.enabled: false
+  redis.enabled: false
+  elasticsearch.enabled: false
+  prepare.enabled: false
+  command.bus.type: in_memory
+  event.bus.type: in_memory
+  eventsourcing.store.storage: in_memory
+  eventsourcing.snapshot.storage: in_memory
+  eventsourcing.state.bus.type: in_memory
 ```
 
-如果内存路径通过而外部后端失败，再进入 [Kafka](./extensions/kafka.md)、[MongoDB](./extensions/mongo.md)、[Redis](./extensions/redis.md) 或 [Elasticsearch](./extensions/elasticsearch.md) 页面。该方法只用于定位，不是生产降级方案。
+内存路径通过只能把故障缩小到外部 Adapter；它不是生产降级方案，也不能证明真实后端语义。
 
 ### Bean 装配失败
 
-1. 检查对应模块或 starter capability 是否在运行时 classpath。
-2. 打开 Spring Boot condition evaluation report，查看具体哪个 `@Conditional*` 未满足。
-3. 核对配置前缀和默认值，使用[配置参考](../reference/config/core.md)而不是猜测配置键。
-4. 检查是否同时提供了多个候选实现，或用自定义 Bean 覆盖了自动配置。
+按顺序检查：
+
+1. 对应 capability 是否在 `runtimeClasspath`；
+2. `wow.*.enabled`、Bus/Storage 类型与 Spring Boot 连接属性是否一致；
+3. condition report 中第一个未满足的 `@Conditional*`；
+4. storage route 的 `storage`/`binding` 是否恰好一个，store 与 query factory binding 是否都存在；
+5. 自定义 Bean 是否导致多个候选或替换了自动配置。
+
+属性和默认值见[核心配置](../reference/config/core.md)与[基础设施配置](../reference/config/infrastructure.md)。
 
 ## 性能与告警
 
-没有通用的“命令 1 秒”或“投影 5 秒”告警阈值。阈值应来自应用 SLO、当前代码与硬件上的基线，并区分 p50、p95、p99 和最大值。
+阈值来自应用 SLO 和目标硬件基线，不存在通用的“命令一秒”。至少按 stage 分解延迟，并关联：聚合重放事件数、version conflict、EventStore/SnapshotStore 延迟、Broker lag/pending、Handler retry/compensation 和 shutdown drain。没有 production-like 数据量的测量时，结论应标记为 `MISSING EVIDENCE`。
 
-建议至少观测：
-
-- 按 `CommandStage` 分解的端到端延迟。
-- 聚合加载时间、重放事件数和版本冲突率。
-- EventStore/SnapshotStore 读写延迟与错误率。
-- 命令、事件、投影和 Saga 的消费积压与失败率。
-- 重试、补偿和不可恢复任务数量。
-
-对框架当前版本建立可复现性能基线时，使用[框架测试与基准](./test-runtime.md#基准-smoke)中的 JMH 任务。
+框架 JMH 只能建立框架基线，不能替代应用查询计划与端到端负载；见[框架测试与基准](./test-runtime.md#基准-smoke)。
 
 ## 提交可诊断的 Issue
 
-如果仍无法定位，在 [GitHub Issues](https://github.com/Ahoo-Wang/Wow/issues) 搜索完整异常类名和 `errorCode`。新 Issue 至少应包含：
-
-- Wow/JDK 版本与依赖模块。
-- 期望阶段、实际最后阶段和完整异常链。
-- 脱敏后的有关配置。
-- 最小可复现示例或可执行失败测试。
-- 如涉及外部后端，提供后端版本、拓扑和健康/积压证据。
-
-::: tip
-一个能稳定失败的最小测试，比一整段脱离上下文的 Debug 日志更容易解决问题。
-:::
+在 [GitHub Issues](https://github.com/Ahoo-Wang/Wow/issues) 搜索完整异常类名和 `errorCode`。新 Issue 提供最小失败测试、完整异常链、最后 stage、脱敏配置、相关 capability 与后端健康/lag 证据。删除密码、Token、证书、真实 URI 凭据和敏感业务 payload。
