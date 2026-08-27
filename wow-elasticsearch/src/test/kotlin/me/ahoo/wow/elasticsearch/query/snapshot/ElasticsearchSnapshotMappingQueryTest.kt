@@ -28,7 +28,9 @@ import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.EqualFilter
+import me.ahoo.wow.api.query.ExistsFilter
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.IsEmptyFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.MatchAllFilter
@@ -121,6 +123,25 @@ class ElasticsearchSnapshotMappingQueryTest {
         ).test()
             .expectError(QuerySchemaValidationException::class.java)
             .verify()
+
+        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+    }
+
+    @Test
+    fun `strict service should reject presence checks on object containers before search`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(queryMapping()),
+        )
+        val service = strictQueryService()
+
+        listOf(
+            ExistsFilter(LogicalField("state")),
+            IsEmptyFilter(LogicalField("state.orders")),
+        ).forEach { filter ->
+            service.dynamicList(ListQuery(filter = filter, limit = 10)).test()
+                .expectError(QuerySchemaValidationException::class.java)
+                .verify()
+        }
 
         verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
     }

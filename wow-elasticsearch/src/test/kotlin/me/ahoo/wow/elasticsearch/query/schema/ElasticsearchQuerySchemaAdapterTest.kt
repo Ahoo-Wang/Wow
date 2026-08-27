@@ -298,6 +298,43 @@ class ElasticsearchQuerySchemaAdapterTest {
     }
 
     @Test
+    fun `object and nested containers should not expose presence`() {
+        val logical = LogicalQuerySchema(
+            linkedMapOf(
+                LogicalField("state") to field(QueryValueType.OBJECT),
+                LogicalField("state.orders") to field(QueryValueType.OBJECT, QueryCardinality.MANY),
+                LogicalField("state.orders.status") to field(QueryValueType.STRING),
+            ),
+        )
+        val mapping = TypeMapping.of { type ->
+            type.properties("state") { state ->
+                state.`object` { objectField ->
+                    objectField.properties("orders") { orders ->
+                        orders.nested { nested ->
+                            nested.properties("status") { status -> status.keyword { it } }
+                        }
+                    }
+                }
+            }
+        }
+
+        val schema = ElasticsearchQuerySchemaAdapter.bind(
+            logical,
+            ElasticsearchIndexMapping.from(INDEX, mapping),
+        )
+
+        schema.bindings("state").assert().doesNotContain(QueryCapability.PRESENCE)
+        schema.bindings("state.orders").assert().containsExactly(QueryCapability.ELEMENT_SCOPE)
+        schema.bindings("state.orders.status").assert().contains(
+            QueryCapability.PRESENCE,
+            QueryCapability.EXACT_MATCH,
+            QueryCapability.LITERAL_MATCH,
+            QueryCapability.SORT,
+            QueryCapability.AGGREGATE_TERMS,
+        )
+    }
+
+    @Test
     fun `dynamic fields should expose no inheritable bindings`() {
         val logical = LogicalQuerySchema(
             linkedMapOf(

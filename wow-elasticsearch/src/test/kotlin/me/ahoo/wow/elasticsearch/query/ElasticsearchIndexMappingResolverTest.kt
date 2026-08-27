@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.elasticsearch.query
 
+import co.elastic.clients.elasticsearch._types.mapping.Property
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch.indices.GetMappingRequest
 import co.elastic.clients.elasticsearch.indices.GetMappingResponse
@@ -134,6 +135,30 @@ class ElasticsearchIndexMappingResolverTest {
             .expectErrorMatches {
                 it.message!!.startsWith("Elasticsearch index [$INDEX] must resolve to exactly one physical index")
             }.verify()
+    }
+
+    @Test
+    fun `object and nested containers should not be indexed`() {
+        val mapping = TypeMapping.of { type ->
+            type.properties("state") { state ->
+                state.`object` { objectField ->
+                    objectField.properties("name") { name -> name.keyword { it } }
+                }
+            }.properties("orders") { orders ->
+                orders.nested { nested ->
+                    nested.properties("status") { status -> status.keyword { it } }
+                }
+            }
+        }
+
+        val fields = ElasticsearchIndexMapping.from(INDEX, mapping).fields
+
+        fields.getValue("state").kind.assert().isEqualTo(Property.Kind.Object)
+        fields.getValue("state").indexed.assert().isFalse()
+        fields.getValue("orders").kind.assert().isEqualTo(Property.Kind.Nested)
+        fields.getValue("orders").indexed.assert().isFalse()
+        fields.getValue("state.name").indexed.assert().isTrue()
+        fields.getValue("orders.status").indexed.assert().isTrue()
     }
 
     private fun mappingResponse(field: String): GetMappingResponse = GetMappingResponse.of { response ->

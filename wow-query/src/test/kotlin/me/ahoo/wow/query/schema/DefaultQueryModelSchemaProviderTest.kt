@@ -100,7 +100,60 @@ class DefaultQueryModelSchemaProviderTest {
     }
 
     @Test
-    fun `failed refresh should return error and preserve the previous schema`() {
+    fun `concurrent refresh subscribers should share one generation`() {
+        val result = Sinks.one<QuerySchemaDeclaration>()
+        val source = CountingSource(refreshedDeclarations = { result.asMono().flux() })
+        val adapter = CountingAdapter()
+        val provider = provider(source, adapter)
+
+        val first = provider.refresh().toFuture()
+        val second = provider.refresh().toFuture()
+        result.tryEmitValue(QuerySchemaDeclaration(emptyMap())).assert().isEqualTo(Sinks.EmitResult.OK)
+
+        first.get(1, TimeUnit.SECONDS).assert().isSameAs(second.get(1, TimeUnit.SECONDS))
+        source.refreshes.get().assert().isEqualTo(1)
+        adapter.refreshes.get().assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `completed refresh should allow a new generation`() {
+        val source = CountingSource()
+        val adapter = CountingAdapter()
+        val provider = provider(source, adapter)
+
+        val first = provider.refresh().block()!!
+        val second = provider.refresh().block()!!
+
+        second.assert().isNotSameAs(first)
+        source.refreshes.get().assert().isEqualTo(2)
+        adapter.refreshes.get().assert().isEqualTo(2)
+    }
+
+    @Test
+    fun `cancelled refresh should allow a new generation`() {
+        val firstResult = Sinks.one<QuerySchemaDeclaration>()
+        val generation = AtomicInteger()
+        val source = CountingSource(
+            refreshedDeclarations = {
+                if (generation.getAndIncrement() == 0) {
+                    firstResult.asMono().flux()
+                } else {
+                    Flux.just(QuerySchemaDeclaration(emptyMap()))
+                }
+            },
+        )
+        val adapter = CountingAdapter()
+        val provider = provider(source, adapter)
+
+        provider.refresh().subscribe().dispose()
+        provider.refresh().block().assert().isNotNull()
+
+        source.refreshes.get().assert().isEqualTo(2)
+        adapter.refreshes.get().assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `failed refresh should preserve the previous schema and allow retry`() {
         val source = CountingSource()
         val adapter = CountingAdapter()
         val provider = provider(source, adapter)
@@ -112,6 +165,10 @@ class DefaultQueryModelSchemaProviderTest {
             .verify()
 
         provider.schema().block()!!.assert().isSameAs(initial)
+        adapter.failRefresh.set(false)
+        val refreshed = provider.refresh().block()!!
+        provider.schema().block()!!.assert().isSameAs(refreshed)
+        adapter.refreshes.get().assert().isEqualTo(2)
     }
 
     @Test
@@ -177,6 +234,9 @@ class DefaultQueryModelSchemaProviderTest {
 
     private class CountingSource(
         private val failLoads: AtomicInteger = AtomicInteger(),
+        private val refreshedDeclarations: () -> Flux<QuerySchemaDeclaration> = {
+            Flux.just(QuerySchemaDeclaration(emptyMap()))
+        },
     ) : QuerySchemaSource {
         override val priority: Int = QuerySchemaSourcePriority.JSON_SCHEMA
         val loads = AtomicInteger()
@@ -193,7 +253,7 @@ class DefaultQueryModelSchemaProviderTest {
 
         override fun refresh(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> = Flux.defer {
             refreshes.incrementAndGet()
-            Flux.just(QuerySchemaDeclaration(emptyMap()))
+            refreshedDeclarations()
         }
     }
 

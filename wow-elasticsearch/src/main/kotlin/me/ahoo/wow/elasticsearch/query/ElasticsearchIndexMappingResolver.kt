@@ -22,7 +22,9 @@ import co.elastic.clients.elasticsearch._types.mapping.FlattenedProperty
 import co.elastic.clients.elasticsearch._types.mapping.IcuCollationProperty
 import co.elastic.clients.elasticsearch._types.mapping.IpProperty
 import co.elastic.clients.elasticsearch._types.mapping.KeywordProperty
+import co.elastic.clients.elasticsearch._types.mapping.NestedProperty
 import co.elastic.clients.elasticsearch._types.mapping.NumberPropertyBase
+import co.elastic.clients.elasticsearch._types.mapping.ObjectProperty
 import co.elastic.clients.elasticsearch._types.mapping.Property
 import co.elastic.clients.elasticsearch._types.mapping.PropertyBase
 import co.elastic.clients.elasticsearch._types.mapping.RangePropertyBase
@@ -173,7 +175,11 @@ private fun Property.isSortable(): Boolean = when (_kind()) {
     else -> (_get() as? DocValuesPropertyBase)?.let { it.docValues() != false } == true
 }
 
+@Suppress("CyclomaticComplexMethod")
 private fun Property.isIndexed(): Boolean = when (val property = _get()) {
+    is ObjectProperty,
+    is NestedProperty,
+    -> false
     is BooleanProperty -> property.index() != false
     is CountedKeywordProperty -> property.index() != false
     is DateNanosProperty -> property.index() != false

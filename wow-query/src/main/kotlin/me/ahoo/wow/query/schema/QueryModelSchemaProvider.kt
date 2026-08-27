@@ -37,6 +37,7 @@ class DefaultQueryModelSchemaProvider(
     private val sources = sources.toList()
     private val published = AtomicReference<QueryModelSchema>()
     private val firstLoad = AtomicReference<Mono<QueryModelSchema>>()
+    private val refreshLoad = AtomicReference<Mono<QueryModelSchema>>()
     private val merger = QuerySchemaMerger()
 
     override fun schema(): Mono<QueryModelSchema> {
@@ -57,8 +58,19 @@ class DefaultQueryModelSchemaProvider(
         return firstLoad.compareAndExchange(null, candidate) ?: candidate
     }
 
-    override fun refresh(): Mono<QueryModelSchema> = Mono.defer {
-        resolve(refresh = true).doOnNext(published::set)
+    override fun refresh(): Mono<QueryModelSchema> {
+        refreshLoad.get()?.let { return it }
+
+        lateinit var candidate: Mono<QueryModelSchema>
+        candidate = Mono.defer { resolve(refresh = true) }
+            .doOnSuccess { schema ->
+                schema?.let(published::set)
+                refreshLoad.compareAndSet(candidate, null)
+            }
+            .doOnError { refreshLoad.compareAndSet(candidate, null) }
+            .doOnCancel { refreshLoad.compareAndSet(candidate, null) }
+            .share()
+        return refreshLoad.compareAndExchange(null, candidate) ?: candidate
     }
 
     private fun resolve(refresh: Boolean): Mono<QueryModelSchema> =
