@@ -78,7 +78,7 @@ flowchart LR
 
 The stages mean different things: `SENT` means accepted by the command bus, `PROCESSED` means aggregate processing completed, `SNAPSHOT` means snapshot processing completed, and `PROJECTED` means the selected projection completed. See [Data Flow](./advanced/data-flow.md) and [Runtime Lifecycle](./advanced/runtime-lifecycle.md).
 
-The complete component relationships are shown below:
+The complete runtime architecture and data flow are shown below:
 
 <p align="center" style="text-align:center">
   <img width="95%" src="/images/Architecture.svg" alt="Wow architecture and modules"/>
