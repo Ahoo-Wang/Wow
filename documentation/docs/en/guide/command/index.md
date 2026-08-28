@@ -8,6 +8,18 @@ outline: deep
 
 A command expresses one business intent to change aggregate state. Define its payload and target aggregate first, then send it through an in-process `CommandGateway`, an aggregate HTTP route, or the global command facade, and wait only for the completion stage the caller actually needs.
 
+A command starts as business intent and connects to downstream collaboration through durable facts and observable completion signals.
+
+```mermaid
+flowchart LR
+    Intent["Business intent"] --> Definition["Define command"]
+    Definition --> Send["Send command"]
+    Send --> Process["Process in aggregate"]
+    Process --> Append["Append domain events"]
+    Append --> Completion["Observe completion stages"]
+    Completion --> Collaboration["Events and collaboration"]
+```
+
 ## Quick Paths
 
 | Goal | Entry point |

@@ -8,6 +8,19 @@ outline: deep
 
 The same command can enter Wow through an in-process or HTTP boundary. The entry point does not change aggregate business rules, but it does change route metadata, response shape, and whether the caller can observe intermediate stages.
 
+All three entry points reach the same CommandGateway, but route discovery, protocol capabilities, and response forms differ.
+
+```mermaid
+flowchart TB
+    Caller["Caller"] --> Entry{"Choose an entry point"}
+    Entry -->|Same process| Gateway["CommandGateway"]
+    Entry -->|Aggregate-specific HTTP| AggregateRoute["Generated aggregate command route"]
+    Entry -->|Dynamic global HTTP| Facade["POST /wow/command/send"]
+    AggregateRoute --> WebFlux["WebFlux Command Handler"]
+    Facade --> WebFlux
+    WebFlux --> Gateway
+```
+
 ## Choose an Invocation Entry Point
 
 | Scenario | Entry point | Return |

@@ -8,6 +8,24 @@ outline: deep
 
 `wow-apiclient` provides hand-maintained CoApi command interfaces for Kotlin services calling a remote Wow application. The current implementation calls only global `POST /wow/command/send` and returns one final `CommandResult`.
 
+The API Client is a remote final-result client for the global JSON facade, not an equivalent of the local Gateway or SSE.
+
+```mermaid
+sequenceDiagram
+    participant App as Caller
+    participant Client as wow-apiclient.command
+    participant Resolver as Target service resolution
+    participant CoApi as CoApi HTTP client
+    participant Server as /wow/command/send
+    App->>Client: Synchronous or reactive call
+    Client->>Resolver: Resolve target service
+    Resolver-->>Client: serviceId
+    Client->>CoApi: CommandRequest + HTTP Headers
+    CoApi->>Server: POST JSON
+    Server-->>CoApi: Final CommandResult
+    CoApi-->>App: Successful result or mapped error
+```
+
 ## Capability Boundary
 
 `ReactiveRestCommandGateway` and `SyncRestCommandGateway` are HTTP transport adapters, not equivalents of the local `CommandGateway`:

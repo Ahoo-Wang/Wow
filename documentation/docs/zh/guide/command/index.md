@@ -8,6 +8,18 @@ outline: deep
 
 命令表达一次改变聚合状态的业务意图。应用先定义载荷和目标聚合，再选择应用内 `CommandGateway`、聚合 HTTP 路由或全局命令门面发送，并只等待调用方真正需要的完成阶段。
 
+命令从业务意图开始，以持久事实和可观察的完成信号连接下游协作。
+
+```mermaid
+flowchart LR
+    Intent["业务意图"] --> Definition["定义命令"]
+    Definition --> Send["发送命令"]
+    Send --> Process["聚合处理"]
+    Process --> Append["追加领域事件"]
+    Append --> Completion["观察完成阶段"]
+    Completion --> Collaboration["事件与协作"]
+```
+
 ## 快速入口
 
 | 目标 | 入口 |

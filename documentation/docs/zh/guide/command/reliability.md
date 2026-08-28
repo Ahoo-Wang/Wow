@@ -8,6 +8,18 @@ outline: deep
 
 可靠的命令调用不依赖“只发送一次”，而是让同一业务意图可以被安全识别、确认和重试。诊断时同时保留聚合身份、`commandId`、`requestId`、等待 `stage`、错误码和调用方超时信息。
 
+未知结果不能直接重发；先确认权威历史，再决定是否复用稳定 requestId 重试。
+
+```mermaid
+flowchart TB
+    Unknown["失败或超时：结果未知"] --> Check["查询权威结果"]
+    Check --> Exists{"相同 requestId 已产生事件？"}
+    Exists -->|是| Keep["接受既有结果，不重复发送"]
+    Exists -->|否| Valid{"业务意图仍然有效？"}
+    Valid -->|是| Retry["复用相同 requestId 重试"]
+    Valid -->|否| Stop["停止并人工处理"]
+```
+
 ## 失败发生在哪一层
 
 | 层 | 常见结果 | 已知边界 |

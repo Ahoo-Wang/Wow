@@ -8,6 +8,24 @@ outline: deep
 
 `wow-apiclient` 提供手工维护的 CoApi 命令接口，用于 Kotlin 服务调用远程 Wow 应用。当前实现只调用全局 `POST /wow/command/send`，并返回一个最终 `CommandResult`。
 
+API Client 是全局 JSON 门面的远程最终结果客户端，不是本地 Gateway 或 SSE 的等价实现。
+
+```mermaid
+sequenceDiagram
+    participant App as 调用方
+    participant Client as wow-apiclient.command
+    participant Resolver as 目标服务解析
+    participant CoApi as CoApi HTTP 客户端
+    participant Server as /wow/command/send
+    App->>Client: 同步或响应式调用
+    Client->>Resolver: 解析目标服务
+    Resolver-->>Client: serviceId
+    Client->>CoApi: CommandRequest + HTTP Headers
+    CoApi->>Server: POST JSON
+    Server-->>CoApi: 最终 CommandResult
+    CoApi-->>App: 成功结果或错误映射
+```
+
 ## 能力边界
 
 `ReactiveRestCommandGateway` 与 `SyncRestCommandGateway` 都是 HTTP 传输适配器，不是本地 `CommandGateway` 的等价替身：

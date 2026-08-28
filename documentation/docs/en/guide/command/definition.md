@@ -8,6 +8,18 @@ outline: deep
 
 A command is an imperative payload requesting a state change. It describes what a caller wants to happen; the [aggregate](../domain/aggregate.md) decides from current state whether it is allowed and represents the fact that happened as domain events.
 
+Regular commands let an aggregate Handler produce events from current state; Void commands are acknowledged at the Dispatcher layer.
+
+```mermaid
+flowchart LR
+    Command["Command payload + metadata"] --> Void{"Void command?"}
+    Void -->|Yes| Ack["Dispatcher acknowledges without aggregate Handler"]
+    Void -->|No| Handler["Command handler"]
+    State["Current aggregate state"] --> Handler
+    Handler --> Events["0..N domain events"]
+    Events --> Sourcing["onSourcing updates state"]
+```
+
 ## Command Payloads and Command Messages
 
 A command payload is usually a Kotlin `data class` or `object`. When sent, `toCommandMessage()` wraps the payload with a command ID, request ID, aggregate identity, owner, space, headers, expected version, and creation flags in `CommandMessage<C>`.

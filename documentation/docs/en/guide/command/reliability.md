@@ -8,6 +8,18 @@ outline: deep
 
 A reliable command call does not depend on “sending only once.” It makes the same business intent safe to identify, confirm, and retry. Preserve the aggregate identity, `commandId`, `requestId`, wait `stage`, error code, and caller timeout details when diagnosing an outcome.
 
+Do not resend an unknown outcome immediately; confirm authoritative history before retrying with the stable requestId.
+
+```mermaid
+flowchart TB
+    Unknown["Failure or timeout: outcome unknown"] --> Check["Query the authoritative result"]
+    Check --> Exists{"Events already exist for this requestId?"}
+    Exists -->|Yes| Keep["Accept the existing result; do not resend"]
+    Exists -->|No| Valid{"Business intent still valid?"}
+    Valid -->|Yes| Retry["Retry with the same requestId"]
+    Valid -->|No| Stop["Stop and handle manually"]
+```
+
 ## Where Failure Occurs
 
 | Layer | Typical result | Known boundary |
