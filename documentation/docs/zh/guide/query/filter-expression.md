@@ -150,7 +150,7 @@ val filter = filterExpression {
 
 ## 安全与兼容边界
 
-查询模型 Schema 负责把逻辑字段解析为后端已证明的能力；请参阅[查询总览中的 Schema 说明](../query.md#json-schema)。MongoDB、Elasticsearch 或自定义后端可以支持不同的比较、存在性、全文搜索或时间语义，公共操作符列表不承诺跨后端一致性。
+查询模型 Schema 负责把逻辑字段解析为后端已证明的能力；请参阅[查询总览中的 Schema 说明](./query-model-schema.md)。MongoDB、Elasticsearch 或自定义后端可以支持不同的比较、存在性、全文搜索或时间语义，公共操作符列表不承诺跨后端一致性。
 
 HTTP 请求在 WebFlux `ServerRequest` context 中会经过 `HttpQueryGuardFilter`。`wow.webflux.query.allow-expensive-operators=false` 时，会拒绝 `NE`、`NOT_IN`、`NOR`、`IS_NULL`、`IS_NOT_NULL`、`NOT_EXISTS`、`IS_EMPTY`、`CONTAINS`、`ENDS_WITH`，以及空字符串或大小写不敏感的 `STARTS_WITH`；HTTP guard 还限制 filter 节点和值数量。该配置的兼容默认值不是容量证明，详见[基础设施配置](../../reference/config/infrastructure)。进程内查询不因这项 HTTP 专用保护而获得或失去后端能力。
 
