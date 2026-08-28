@@ -227,7 +227,7 @@ class MemberAbacQueryFilter(
 
 Spring 注册的聚合 `SnapshotQueryService` 与 `EventStreamQueryService` 代理通过 `QueryGateway` 执行。请求作用域重写、已配置 ABAC 过滤器与结果脱敏都在该链中应用。
 
-`SnapshotQueryServiceFactory` 与 `EventStreamQueryServiceFactory` 是原始后端入口。直接创建的服务会绕过生成 Handler 链；注册在生成服务名下的自定义 Bean 也会按原样使用，不会再包装。两者都应视为受信基础设施访问。
+`SnapshotQueryServiceFactory` 与 `EventStreamQueryServiceFactory` 是原始后端入口。直接创建的服务会绕过生成的代理 / `QueryGateway` 策略链；注册在生成服务名下的自定义 Bean 也会按原样使用，不会再包装。两者都应视为受信基础设施访问。
 
 聚合查询会复用快照过滤器链处理根 filter，但结果脱敏会跳过动态聚合行。不能仅因普通快照存在脱敏就开放聚合接口。
 

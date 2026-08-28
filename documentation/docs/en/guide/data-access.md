@@ -227,7 +227,7 @@ This example represents an application policy; adapt it to the actual security c
 
 Spring-registered aggregate `SnapshotQueryService` and `EventStreamQueryService` proxies execute through `QueryGateway`. That chain is where request-scope rewriting, configured ABAC filters, and result masking apply.
 
-`SnapshotQueryServiceFactory` and `EventStreamQueryServiceFactory` are raw backend entry points. Directly created services bypass the generated handler chain. A custom bean registered under a generated service name is also used as supplied rather than wrapped. Treat both as trusted infrastructure access.
+`SnapshotQueryServiceFactory` and `EventStreamQueryServiceFactory` are raw backend entry points. Directly created services bypass the generated proxy / `QueryGateway` policy chain. A custom bean registered under a generated service name is also used as supplied rather than wrapped. Treat both as trusted infrastructure access.
 
 Aggregation uses the snapshot filter chain for its root filter, but result masking skips dynamic aggregation rows. Do not present aggregation merely because ordinary snapshot masking exists.
 
