@@ -8,6 +8,18 @@ outline: deep
 
 事件处理器在领域事件已经追加后执行普通应用副作用。它不是源聚合事务的延伸：处理失败不会撤销事件，处理成功也不会让副作用成为权威事件历史。
 
+事件处理器只有在匹配函数的响应式工作完成后才产生完成信号；失败进入重试或补偿边界。
+
+```mermaid
+flowchart LR
+    Event["领域事件或状态事件"] --> Dispatcher["Event Dispatcher"]
+    Dispatcher --> Match["函数匹配与过滤"]
+    Match --> Filters["Dispatcher Filter chain"]
+    Filters --> Function["响应式事件函数"]
+    Function -->|完成| Signal["EVENT_HANDLED 信号"]
+    Function -->|失败| Recovery["重试或补偿入口"]
+```
+
 ## 何时使用普通事件处理器
 
 适合使用 Processor 的工作包括发送通知、写审计记录、调用外部服务、更新集成状态或失效缓存。若事件需要生成其他聚合的后续命令，选择 [Saga](../event/saga.md)。

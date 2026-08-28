@@ -22,13 +22,18 @@ Both implement `MessageBus`, but their topic kinds, subscriptions, and transport
 `DomainEventDispatcher`, `ProjectionDispatcher`, and `StatelessSagaDispatcher` are all based on `CompositeEventDispatcher`. One Composite Dispatcher creates two child dispatchers and shares an aggregate scheduler:
 
 ```mermaid
-flowchart LR
-    D[DomainEventBus] --> ED[EventStreamDispatcher]
-    S[StateEventBus] --> SD[StateEventDispatcher]
-    ED --> E[EVENT functions]
-    SD --> SE[STATE_EVENT functions]
-    E --> H[Dispatcher-specific FilterChain]
-    SE --> H
+flowchart TB
+    DomainBus["DomainEventBus"] --> DomainDispatcher["Domain / Saga Dispatcher"]
+    StateBus["StateEventBus"] --> StateDispatcher["State / Snapshot / Projection Dispatcher"]
+    DomainDispatcher --> Chain["Dispatcher-specific Filter chain"]
+    StateDispatcher --> Chain
+    Chain --> Notifier["Notifier Filter"]
+    Notifier --> Compensation["Compensation Filter (when enabled)"]
+    Notifier -. "No compensation Filter" .-> Function["Event function"]
+    Compensation --> Retryable["Retryable Filter (when present)"]
+    Compensation --> Function
+    Retryable --> Function
+    Function --> Ack["Error handling and finallyAck"]
 ```
 
 `EventStreamDispatcher` retains only `FunctionKind.EVENT`; `StateEventDispatcher` retains only `FunctionKind.STATE_EVENT`. Each creates subscriptions from the aggregate topics supported by its registered functions. An aggregate without a corresponding function does not get a consumption path for that dispatcher.

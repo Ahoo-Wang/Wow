@@ -8,6 +8,18 @@ outline: deep
 
 An event processor runs ordinary application side effects after a domain event has been appended. It does not extend the source aggregate transaction: a processing failure cannot remove the event, and a successful side effect does not become authoritative event history.
 
+An event processor emits completion only after the matched reactive function completes; failures enter retry or compensation boundaries.
+
+```mermaid
+flowchart LR
+    Event["Domain event or state event"] --> Dispatcher["Event Dispatcher"]
+    Dispatcher --> Match["Function matching and filtering"]
+    Match --> Filters["Dispatcher Filter chain"]
+    Filters --> Function["Reactive event function"]
+    Function -->|Complete| Signal["EVENT_HANDLED signal"]
+    Function -->|Fail| Recovery["Retry or compensation entry"]
+```
+
 ## When to Use an Ordinary Event Processor
 
 Use a Processor to send notifications, write audit records, call external services, update integration state, or invalidate caches. Use a [Saga](../event/saga.md) when an event must generate follow-up commands for other aggregates.
