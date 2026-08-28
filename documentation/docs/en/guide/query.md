@@ -3,6 +3,8 @@ title: Query
 description: Enter snapshot and event-stream data queries, aggregation queries, query backends, and API clients through the Query Gateway.
 ---
 
+<a id="query-service"></a>
+
 # Query
 
 In Wow, “Query” covers query models, the server-side Query Gateway, JVM query backends, HTTP/OpenAPI contracts, and remote API clients. Together they form the read path, while retaining separate model, policy, execution, protocol, and caller responsibilities.
@@ -73,6 +75,8 @@ See [Snapshot Queries](./query/snapshot-query.md), [Event Stream Queries](./quer
 ## JSON Schema
 
 Generic JSON Schema defines the wire protocol, OpenAPI describes published requests, and runtime Query Model Schema proves logical-field backend capabilities. Snapshots and event streams publish `snapshot/schema` and `event/schema`, plus their refresh routes. See [Query Model Schema](./query/query-model-schema.md) for sources, validation modes, and Provider differences.
+
+<a id="query-service-registrar"></a>
 
 ## Query Service Registrars
 
