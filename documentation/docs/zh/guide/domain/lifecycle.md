@@ -10,6 +10,7 @@ outline: deep
 
 ```mermaid
 stateDiagram-v2
+    direction LR
     state "未初始化聚合" as Empty
     state "活动聚合" as Active
     state "已删除聚合" as Deleted

@@ -10,6 +10,7 @@ Events drive the lifecycle; deletion and recovery remain part of aggregate state
 
 ```mermaid
 stateDiagram-v2
+    direction LR
     state "Uninitialized aggregate" as Empty
     state "Active aggregate" as Active
     state "Deleted aggregate" as Deleted
