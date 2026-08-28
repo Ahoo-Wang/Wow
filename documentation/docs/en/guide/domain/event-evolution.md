@@ -6,15 +6,19 @@ outline: deep
 
 # Event Evolution
 
-When historical events are read, Upgraders advance Revision by Revision until the current shape or an explicit drop is reached.
+When historical events are read, `EventUpgraderFactory` invokes every Upgrader registered for that event once in `@Order` order. Each invocation may return the record unchanged, upgraded, or as a `DroppedEvent` record; the application must verify that the final record is resolvable.
 
 ```mermaid
 flowchart LR
-    Persisted["Persisted event Revision 1"] --> Lookup{"Next Revision Upgrader exists?"}
-    Lookup -->|Yes| Upgrade["Upgrade to the next Revision"]
-    Upgrade --> Lookup
-    Lookup -->|No| Current["Current event shape"]
-    Upgrade -. "Explicitly drop" .-> Dropped["DroppedEvent"]
+    Persisted["Persisted event record"] --> Ordered["Upgrader list for this event<br/>sorted once by @Order"]
+    Ordered --> Apply["Invoke each Upgrader exactly once"]
+    Apply --> Result{"Each invocation returns"}
+    Result -->|Unchanged| Unchanged["Record unchanged"]
+    Result -->|Upgraded| Upgraded["Upgraded record"]
+    Result -->|Explicit drop| Dropped["DroppedEvent record"]
+    Unchanged --> Final["Final record<br/>must be validated as resolvable"]
+    Upgraded --> Final
+    Dropped --> Final
 ```
 
 ## Why Persisted Events Need Long-Term Compatibility

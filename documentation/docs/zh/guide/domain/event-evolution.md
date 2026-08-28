@@ -6,15 +6,19 @@ outline: deep
 
 # 事件演进
 
-读取历史事件时，Upgrader 按 Revision 逐步推进，直到得到当前形态或显式丢弃事件。
+读取历史事件时，`EventUpgraderFactory` 按 `@Order` 调用该事件已注册的全部 Upgrader，每个恰好一次；每次调用都可返回原记录、升级记录或 `DroppedEvent` 记录，应用必须验证最终记录可解析。
 
 ```mermaid
 flowchart LR
-    Persisted["持久事件 Revision 1"] --> Lookup{"存在下一 Revision Upgrader？"}
-    Lookup -->|是| Upgrade["升级到下一 Revision"]
-    Upgrade --> Lookup
-    Lookup -->|否| Current["当前事件形态"]
-    Upgrade -. "显式删除" .-> Dropped["DroppedEvent"]
+    Persisted["持久事件记录"] --> Ordered["该事件的 Upgrader 列表<br/>按 @Order 排序一次"]
+    Ordered --> Apply["每个 Upgrader 恰好调用一次"]
+    Apply --> Result{"每次调用返回"}
+    Result -->|原样| Unchanged["记录不变"]
+    Result -->|升级| Upgraded["升级后的记录"]
+    Result -->|显式丢弃| Dropped["DroppedEvent 记录"]
+    Unchanged --> Final["最终记录<br/>必须验证可解析"]
+    Upgraded --> Final
+    Dropped --> Final
 ```
 
 ## 为什么持久事件需要长期兼容

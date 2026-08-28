@@ -17,14 +17,18 @@ sequenceDiagram
     participant Saga as Stateless Saga
     participant Gateway as CommandGateway
     participant CommandBus as CommandBus
+    participant Notifier as SagaHandledNotifierFilter
+    participant WaitNotifier as CommandWaitNotifier
     Source->>EventBus: Domain event
-    EventBus->>Saga: Invoke matching Saga function
+    EventBus->>Notifier: Dispatch to matching Saga
+    Notifier->>Saga: Invoke Saga function
     loop 0..N commands
         Saga->>Gateway: Send follow-up command in order
         Gateway->>CommandBus: Send command
         CommandBus-->>Gateway: Send boundary completed
     end
-    Saga-->>EventBus: SAGA_HANDLED + commandIds
+    Saga-->>Notifier: Function completes and records commandIds
+    Notifier-->>WaitNotifier: SAGA_HANDLED + commandIds
     Note over Gateway,CommandBus: Target aggregate processing is outside<br/>the SAGA_HANDLED guarantee
 ```
 

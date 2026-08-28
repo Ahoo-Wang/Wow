@@ -8,23 +8,24 @@ outline: deep
 
 等待运行时把“处理到哪里”建模为可路由的 `WaitSignal`，而不是阻塞命令线程。应用如何选择阶段见[完成语义](../completion.md)，如何调用 Gateway 见[发送命令](../sending.md)；本页只解释信号如何产生、传输和归约。
 
-等待运行时先注册 Handle，再通过 Coordinator 把乱序 WaitSignal 归约到阶段或链式状态。
+等待运行时先按 `waitCommandId` 注册 Handle。Notifier 把 WaitSignal 交给 Coordinator，Coordinator 路由到 Handle；Handle 持有并归约 WaitState。
 
 ```mermaid
 sequenceDiagram
     participant Gateway as CommandGateway
-    participant Coordinator as WaitCoordinator
-    participant State as WaitState
     participant Notifier as CommandWaitNotifier
+    participant Coordinator as WaitCoordinator
     participant Handle as WaitHandle
-    Gateway->>Coordinator: 注册 commandId + WaitPlan
-    Coordinator->>State: 创建阶段或链式状态
+    participant State as WaitState
+    Gateway->>Coordinator: 注册 waitCommandId + WaitPlan
+    Coordinator->>Handle: 创建持有 WaitState 的 Handle
     Coordinator-->>Gateway: 返回已注册 Handle
     Notifier-->>Coordinator: WaitSignal（允许早到）
-    Coordinator->>State: 归约信号
+    Coordinator->>Handle: 按 waitCommandId 路由 next(signal)
+    Handle->>State: 在锁内归约信号
     State-->>Handle: acceptedSignal / finalSignal
     Handle-->>Gateway: 结果流或最终结果
-    Handle->>Coordinator: 完成、取消或超时后清理
+    Handle->>Coordinator: 完成、取消或超时后注销
 ```
 
 ## WaitPlan Header
