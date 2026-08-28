@@ -11,22 +11,20 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.snapshot.filter
+package me.ahoo.wow.query.snapshot
 
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.LogErrorHandler
-import me.ahoo.wow.query.filter.AbstractQueryHandler
+import me.ahoo.wow.query.AbstractQueryGateway
+import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.filter.QueryContext
-import me.ahoo.wow.query.filter.QueryHandler
 
-interface SnapshotQueryHandler : QueryHandler<MaterializedSnapshot<Any>>
+interface SnapshotQueryGateway : QueryGateway<MaterializedSnapshot<Any>>
 
-class DefaultSnapshotQueryHandler(
+class DefaultSnapshotQueryGateway(
     chain: FilterChain<QueryContext<*, *>>,
-    errorHandler: ErrorHandler<QueryContext<*, *>> = LogErrorHandler()
-) : SnapshotQueryHandler, AbstractQueryHandler<MaterializedSnapshot<Any>>(
-    chain,
-    errorHandler,
-)
+    errorHandler: ErrorHandler<QueryContext<*, *>> = LogErrorHandler(),
+) : SnapshotQueryGateway,
+    AbstractQueryGateway<MaterializedSnapshot<Any>>(chain, errorHandler)

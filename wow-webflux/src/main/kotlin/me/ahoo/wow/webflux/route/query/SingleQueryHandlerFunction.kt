@@ -18,8 +18,8 @@ import me.ahoo.wow.exception.throwNotFoundIfEmpty
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
+import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.filter.Contexts.writeRawRequest
-import me.ahoo.wow.query.filter.QueryHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.query.QueryBodyExtractor.Companion.SINGLE_QUERY_EXTRACTOR
@@ -31,7 +31,7 @@ import reactor.core.publisher.Mono
 
 class SingleQueryHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val queryHandler: QueryHandler<*>,
+    private val queryGateway: QueryGateway<*>,
     private val rewriteRequestFilter: RewriteRequestFilter,
     private val exceptionHandler: RequestExceptionHandler,
     private val rewriteResult: (Mono<DynamicDocument>) -> Mono<DynamicDocument>
@@ -41,7 +41,7 @@ class SingleQueryHandlerFunction(
         return request.body(SINGLE_QUERY_EXTRACTOR)
             .flatMap {
                 val query = rewriteRequestFilter.rewrite(aggregateMetadata, request, it)
-                val result = queryHandler.dynamicSingle(aggregateMetadata, query)
+                val result = queryGateway.dynamicSingle(aggregateMetadata, query)
                 rewriteResult(result)
                     .writeRawRequest(request)
                     .throwNotFoundIfEmpty()
@@ -51,7 +51,7 @@ class SingleQueryHandlerFunction(
 
 open class SingleQueryHandlerFunctionFactory(
     handlerKey: String,
-    private val queryHandler: QueryHandler<*>,
+    private val queryGateway: QueryGateway<*>,
     private val rewriteRequestFilter: RewriteRequestFilter,
     private val exceptionHandler: RequestExceptionHandler,
     private val rewriteResult: (Mono<DynamicDocument>) -> Mono<DynamicDocument> = { it }
@@ -66,7 +66,7 @@ open class SingleQueryHandlerFunctionFactory(
     private fun create(aggregateMetadata: AggregateMetadata<*, *>): HandlerFunction<ServerResponse> {
         return SingleQueryHandlerFunction(
             aggregateMetadata = aggregateMetadata,
-            queryHandler = queryHandler,
+            queryGateway = queryGateway,
             rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler,
             rewriteResult = rewriteResult

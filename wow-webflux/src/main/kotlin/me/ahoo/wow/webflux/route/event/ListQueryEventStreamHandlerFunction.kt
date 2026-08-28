@@ -14,18 +14,18 @@
 package me.ahoo.wow.webflux.route.event
 
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
-import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
+import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.query.ListQueryHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.query.RewriteRequestFilter
 
 class ListQueryEventStreamHandlerFunctionFactory(
-    eventStreamQueryHandler: EventStreamQueryHandler,
+    eventStreamQueryGateway: EventStreamQueryGateway,
     rewriteRequestFilter: RewriteRequestFilter,
     exceptionHandler: RequestExceptionHandler
 ) : ListQueryHandlerFunctionFactory(
     handlerKey = BuiltInHttpRouteHandlerKeys.Event.LIST_QUERY,
-    queryHandler = eventStreamQueryHandler,
+    queryGateway = eventStreamQueryGateway,
     rewriteRequestFilter = rewriteRequestFilter,
     exceptionHandler = exceptionHandler
 )

@@ -53,20 +53,20 @@ import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.BatchComponent
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.dsl.filterExpression
+import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
+import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
-import me.ahoo.wow.query.event.filter.DefaultEventStreamQueryHandler
-import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.query.event.filter.TailEventStreamQueryFilter
 import me.ahoo.wow.query.filter.Contexts.writeRawRequest
 import me.ahoo.wow.query.filter.DefaultQueryContext
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
+import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.filter.AbacQueryFilter
-import me.ahoo.wow.query.snapshot.filter.DefaultSnapshotQueryHandler
-import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.query.snapshot.filter.TailSnapshotQueryFilter
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -585,12 +585,12 @@ class HttpQueryGuardFilterTest {
 
     @Test
     fun `should run before concrete abac filters in the real snapshot chain`() {
-        val handler = snapshotQueryHandler(
+        val gateway = snapshotQueryGateway(
             guard = guard(maxFilterNodes = 1),
             abacQueryFilter = TestAbacQueryFilter,
         )
 
-        handler.dynamicList(
+        gateway.dynamicList(
             MOCK_AGGREGATE_METADATA,
             ListQuery(filterExpression { "state.status" eq "ACTIVE" }, limit = 1),
         ).writeRawRequest(request).test().verifyComplete()
@@ -598,7 +598,7 @@ class HttpQueryGuardFilterTest {
 
     @Test
     fun `built-in http route should map default unlimited list to bad request`() {
-        val response = listHandler(snapshotQueryHandler()).handle(
+        val response = listHandler(snapshotQueryGateway()).handle(
             MockServerRequest.builder().body(ListQuery(MatchAllFilter).toMono()),
         ).block()!!
         val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/test").build())
@@ -621,7 +621,7 @@ class HttpQueryGuardFilterTest {
             io.mockk.every { create<Any>(any()) } returns service
         }
         val response = listHandler(
-            snapshotQueryHandler(
+            snapshotQueryGateway(
                 guard = guard(idleTimeout = Duration.ofMillis(10)),
                 queryServiceFactory = factory,
             ),
@@ -643,7 +643,7 @@ class HttpQueryGuardFilterTest {
             .pathVariable(BatchComponent.PathVariable.HEAD_VERSION, "0")
             .pathVariable(BatchComponent.PathVariable.TAIL_VERSION, "1000")
             .build()
-        val response = loadEventStreamHandler(eventStreamQueryHandler()).handle(request).block()!!
+        val response = loadEventStreamHandler(eventStreamQueryGateway()).handle(request).block()!!
         val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/test").build())
 
         response.writeTo(exchange, SERVER_RESPONSE_CONTEXT).block()
@@ -658,7 +658,7 @@ class HttpQueryGuardFilterTest {
             .pathVariable(BatchComponent.PathVariable.HEAD_VERSION, "0")
             .pathVariable(BatchComponent.PathVariable.TAIL_VERSION, "1")
             .build()
-        val response = loadEventStreamHandler(eventStreamQueryHandler()).handle(request).block()!!
+        val response = loadEventStreamHandler(eventStreamQueryGateway()).handle(request).block()!!
         val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/test").build())
 
         response.writeTo(exchange, SERVER_RESPONSE_CONTEXT).block()
@@ -679,7 +679,7 @@ class HttpQueryGuardFilterTest {
             .build()
 
         val response = loadSnapshotHandler(
-            snapshotQueryHandler(
+            snapshotQueryGateway(
                 guard = guard(idleTimeout = Duration.ofMillis(10)),
                 queryServiceFactory = factory,
             ),
@@ -734,11 +734,11 @@ class HttpQueryGuardFilterTest {
         error("Backend must not be invoked.")
     }
 
-    private fun snapshotQueryHandler(
+    private fun snapshotQueryGateway(
         guard: HttpQueryGuardFilter = guard(),
         queryServiceFactory: SnapshotQueryServiceFactory = NoOpSnapshotQueryServiceFactory,
         abacQueryFilter: AbacQueryFilter? = null,
-    ): SnapshotQueryHandler {
+    ): SnapshotQueryGateway {
         val filters = buildList {
             add(guard)
             if (abacQueryFilter != null) add(abacQueryFilter)
@@ -746,22 +746,22 @@ class HttpQueryGuardFilterTest {
         }
         val chain = FilterChainBuilder<QueryContext<*, *>>()
             .addFilters(filters)
-            .filterCondition(SnapshotQueryHandler::class)
+            .filterCondition(SnapshotQueryGateway::class)
             .build()
-        return DefaultSnapshotQueryHandler(chain, LogErrorHandler())
+        return DefaultSnapshotQueryGateway(chain, LogErrorHandler())
     }
 
-    private fun eventStreamQueryHandler(guard: HttpQueryGuardFilter = guard()): EventStreamQueryHandler {
+    private fun eventStreamQueryGateway(guard: HttpQueryGuardFilter = guard()): EventStreamQueryGateway {
         val chain = FilterChainBuilder<QueryContext<*, *>>()
             .addFilters(listOf(guard, TailEventStreamQueryFilter(NoOpEventStreamQueryServiceFactory)))
-            .filterCondition(EventStreamQueryHandler::class)
+            .filterCondition(EventStreamQueryGateway::class)
             .build()
-        return DefaultEventStreamQueryHandler(chain, LogErrorHandler())
+        return DefaultEventStreamQueryGateway(chain, LogErrorHandler())
     }
 
-    private fun listHandler(queryHandler: SnapshotQueryHandler) = ListQueryHandlerFunctionFactory(
+    private fun listHandler(queryGateway: SnapshotQueryGateway) = ListQueryHandlerFunctionFactory(
         handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY,
-        queryHandler = queryHandler,
+        queryGateway = queryGateway,
         rewriteRequestFilter = DefaultRewriteRequestFilter,
         exceptionHandler = WebFluxRequestExceptionHandler(),
     ).create(
@@ -771,16 +771,16 @@ class HttpQueryGuardFilterTest {
         ),
     )
 
-    private fun loadEventStreamHandler(queryHandler: EventStreamQueryHandler) =
-        LoadEventStreamHandlerFunctionFactory(queryHandler, WebFluxRequestExceptionHandler()).create(
+    private fun loadEventStreamHandler(queryGateway: EventStreamQueryGateway) =
+        LoadEventStreamHandlerFunctionFactory(queryGateway, WebFluxRequestExceptionHandler()).create(
             testAggregateRouteContract(
                 handlerKey = BuiltInHttpRouteHandlerKeys.Event.LOAD,
                 aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
             ),
         )
 
-    private fun loadSnapshotHandler(queryHandler: SnapshotQueryHandler) =
-        LoadSnapshotHandlerFunctionFactory(queryHandler, WebFluxRequestExceptionHandler()).create(
+    private fun loadSnapshotHandler(queryGateway: SnapshotQueryGateway) =
+        LoadSnapshotHandlerFunctionFactory(queryGateway, WebFluxRequestExceptionHandler()).create(
             testAggregateRouteContract(
                 handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.LOAD,
                 aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,

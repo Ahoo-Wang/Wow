@@ -24,6 +24,7 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.query.filter.QueryContext
+import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.serialization.state.StateAggregateRecords.TAGS
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
@@ -47,7 +48,7 @@ import reactor.util.context.ContextView
  * @see SnapshotQueryFilter
  */
 @Order(ORDER_FIRST + 1)
-@FilterType(SnapshotQueryHandler::class)
+@FilterType(SnapshotQueryGateway::class)
 abstract class AbacQueryFilter : SnapshotQueryFilter {
     companion object {
         /**

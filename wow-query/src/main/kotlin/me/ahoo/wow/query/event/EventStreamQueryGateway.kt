@@ -11,22 +11,20 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.event.filter
+package me.ahoo.wow.query.event
 
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.LogErrorHandler
-import me.ahoo.wow.query.filter.AbstractQueryHandler
+import me.ahoo.wow.query.AbstractQueryGateway
+import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.filter.QueryContext
-import me.ahoo.wow.query.filter.QueryHandler
 
-interface EventStreamQueryHandler : QueryHandler<DomainEventStream>
+interface EventStreamQueryGateway : QueryGateway<DomainEventStream>
 
-class DefaultEventStreamQueryHandler(
+class DefaultEventStreamQueryGateway(
     chain: FilterChain<QueryContext<*, *>>,
-    errorHandler: ErrorHandler<QueryContext<*, *>> = LogErrorHandler()
-) : EventStreamQueryHandler, AbstractQueryHandler<DomainEventStream>(
-    chain,
-    errorHandler,
-)
+    errorHandler: ErrorHandler<QueryContext<*, *>> = LogErrorHandler(),
+) : EventStreamQueryGateway,
+    AbstractQueryGateway<DomainEventStream>(chain, errorHandler)

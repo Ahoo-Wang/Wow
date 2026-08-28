@@ -24,10 +24,11 @@ import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.mask.StateDataMaskerRegistry
 import me.ahoo.wow.query.mask.StateDynamicDocumentMasker
 import me.ahoo.wow.query.mask.tryMask
+import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import reactor.core.publisher.Mono
 
 @Order(ORDER_LAST, before = [TailSnapshotQueryFilter::class])
-@FilterType(SnapshotQueryHandler::class)
+@FilterType(SnapshotQueryGateway::class)
 class MaskingSnapshotQueryFilter(maskerRegistry: StateDataMaskerRegistry) : SnapshotQueryFilter,
     MaskingDynamicDocumentQueryFilter<StateDynamicDocumentMasker>(maskerRegistry) {
     override fun filter(

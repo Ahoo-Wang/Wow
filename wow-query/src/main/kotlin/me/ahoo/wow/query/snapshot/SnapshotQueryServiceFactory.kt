@@ -21,7 +21,7 @@ import java.util.concurrent.ConcurrentHashMap
  * Creates direct snapshot query backend services.
  *
  * This is a trusted low-level entry point. Services created through this factory bypass
- * [me.ahoo.wow.query.filter.QueryHandler] filters, including authorization, query rewriting, and data masking.
+ * [SnapshotQueryGateway] filters, including authorization, query rewriting, and data masking.
  * Application code should normally use the policy-enforced [SnapshotQueryService] provided by its integration layer.
  */
 interface SnapshotQueryServiceFactory {

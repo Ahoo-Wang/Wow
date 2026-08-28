@@ -31,7 +31,7 @@ class LoadEventStreamHandlerFunctionTest {
     @Test
     fun `should handle load event stream request`() {
         val handlerFunction = LoadEventStreamHandlerFunctionFactory(
-            eventStreamQueryHandler = RouteTestFixtures.eventStreamQueryHandler,
+            eventStreamQueryGateway = RouteTestFixtures.eventStreamQueryGateway,
             WebFluxRequestExceptionHandler()
         )
             .create(

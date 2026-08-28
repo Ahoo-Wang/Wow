@@ -19,7 +19,7 @@ import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.query.dsl.listQuery
-import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
+import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.query.filter.Contexts.writeRawRequest
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
@@ -33,7 +33,7 @@ import reactor.core.publisher.Mono
 
 class LoadEventStreamHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val eventStreamQueryHandler: EventStreamQueryHandler,
+    private val eventStreamQueryGateway: EventStreamQueryGateway,
     private val exceptionHandler: RequestExceptionHandler
 ) : HandlerFunction<ServerResponse> {
 
@@ -51,14 +51,14 @@ class LoadEventStreamHandlerFunction(
             }
             limit(limit)
         }
-        return eventStreamQueryHandler.dynamicList(aggregateMetadata, listQuery)
+        return eventStreamQueryGateway.dynamicList(aggregateMetadata, listQuery)
             .writeRawRequest(request)
             .toServerResponse(request, exceptionHandler)
     }
 }
 
 class LoadEventStreamHandlerFunctionFactory(
-    private val eventStreamQueryHandler: EventStreamQueryHandler,
+    private val eventStreamQueryGateway: EventStreamQueryGateway,
     private val exceptionHandler: RequestExceptionHandler
 ) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Event.LOAD) {
     override fun create(
@@ -69,6 +69,6 @@ class LoadEventStreamHandlerFunctionFactory(
     }
 
     private fun create(aggregateMetadata: AggregateMetadata<*, *>): HandlerFunction<ServerResponse> {
-        return LoadEventStreamHandlerFunction(aggregateMetadata, eventStreamQueryHandler, exceptionHandler)
+        return LoadEventStreamHandlerFunction(aggregateMetadata, eventStreamQueryGateway, exceptionHandler)
     }
 }

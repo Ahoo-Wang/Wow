@@ -16,14 +16,14 @@ package me.ahoo.wow.webflux.route
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
+import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
+import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
-import me.ahoo.wow.query.event.filter.DefaultEventStreamQueryHandler
-import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.query.event.filter.TailEventStreamQueryFilter
 import me.ahoo.wow.query.filter.QueryContext
+import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
-import me.ahoo.wow.query.snapshot.filter.DefaultSnapshotQueryHandler
-import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
+import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.filter.TailSnapshotQueryFilter
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 
@@ -34,9 +34,9 @@ internal object RouteTestFixtures {
     private val tailSnapshotQueryFilter = TailSnapshotQueryFilter<Any>(NoOpSnapshotQueryServiceFactory)
     private val snapshotQueryFilterChain = FilterChainBuilder<QueryContext<*, *>>()
         .addFilters(listOf(tailSnapshotQueryFilter))
-        .filterCondition(SnapshotQueryHandler::class)
+        .filterCondition(SnapshotQueryGateway::class)
         .build()
-    val snapshotQueryHandler = DefaultSnapshotQueryHandler(
+    val snapshotQueryGateway = DefaultSnapshotQueryGateway(
         snapshotQueryFilterChain,
         LogErrorHandler()
     )
@@ -44,9 +44,9 @@ internal object RouteTestFixtures {
     private val tailEventStreamQueryFilter = TailEventStreamQueryFilter(NoOpEventStreamQueryServiceFactory)
     private val eventStreamQueryFilterChain = FilterChainBuilder<QueryContext<*, *>>()
         .addFilters(listOf(tailEventStreamQueryFilter))
-        .filterCondition(EventStreamQueryHandler::class)
+        .filterCondition(EventStreamQueryGateway::class)
         .build()
-    val eventStreamQueryHandler = DefaultEventStreamQueryHandler(
+    val eventStreamQueryGateway = DefaultEventStreamQueryGateway(
         eventStreamQueryFilterChain,
         LogErrorHandler()
     )

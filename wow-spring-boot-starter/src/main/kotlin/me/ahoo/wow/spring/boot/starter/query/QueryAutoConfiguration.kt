@@ -17,11 +17,11 @@ import me.ahoo.wow.filter.Filter
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogErrorHandler
+import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
+import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
-import me.ahoo.wow.query.event.filter.DefaultEventStreamQueryHandler
 import me.ahoo.wow.query.event.filter.EventStreamQueryFilter
-import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.query.event.filter.MaskingEventStreamQueryFilter
 import me.ahoo.wow.query.event.filter.TailEventStreamQueryFilter
 import me.ahoo.wow.query.filter.QueryContext
@@ -29,12 +29,12 @@ import me.ahoo.wow.query.mask.EventStreamDynamicDocumentMasker
 import me.ahoo.wow.query.mask.EventStreamMaskerRegistry
 import me.ahoo.wow.query.mask.StateDataMaskerRegistry
 import me.ahoo.wow.query.mask.StateDynamicDocumentMasker
+import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
+import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
-import me.ahoo.wow.query.snapshot.filter.DefaultSnapshotQueryHandler
 import me.ahoo.wow.query.snapshot.filter.MaskingSnapshotQueryFilter
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryFilter
-import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.query.snapshot.filter.TailSnapshotQueryFilter
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.query.EventStreamQueryServiceRegistrar
@@ -108,7 +108,7 @@ class QueryAutoConfiguration {
     ): FilterChain<QueryContext<*, *>> {
         return FilterChainBuilder<QueryContext<*, *>>()
             .addFilters(filters)
-            .filterCondition(SnapshotQueryHandler::class)
+            .filterCondition(SnapshotQueryGateway::class)
             .build()
     }
 
@@ -118,7 +118,7 @@ class QueryAutoConfiguration {
     ): FilterChain<QueryContext<*, *>> {
         return FilterChainBuilder<QueryContext<*, *>>()
             .addFilters(filters)
-            .filterCondition(EventStreamQueryHandler::class)
+            .filterCondition(EventStreamQueryGateway::class)
             .build()
     }
 
@@ -135,19 +135,19 @@ class QueryAutoConfiguration {
     }
 
     @Bean
-    fun snapshotQueryHandler(
+    fun snapshotQueryGateway(
         @Qualifier("snapshotQueryFilterChain") chain: FilterChain<QueryContext<*, *>>,
         @Qualifier("snapshotQueryErrorHandler") queryErrorHandler: ErrorHandler<QueryContext<*, *>>
-    ): SnapshotQueryHandler {
-        return DefaultSnapshotQueryHandler(chain, queryErrorHandler)
+    ): SnapshotQueryGateway {
+        return DefaultSnapshotQueryGateway(chain, queryErrorHandler)
     }
 
     @Bean
-    fun eventStreamQueryHandler(
+    fun eventStreamQueryGateway(
         @Qualifier("eventStreamQueryFilterChain") chain: FilterChain<QueryContext<*, *>>,
         @Qualifier("eventStreamQueryErrorHandler") queryErrorHandler: ErrorHandler<QueryContext<*, *>>
-    ): EventStreamQueryHandler {
-        return DefaultEventStreamQueryHandler(chain, queryErrorHandler)
+    ): EventStreamQueryGateway {
+        return DefaultEventStreamQueryGateway(chain, queryErrorHandler)
     }
 
     @Bean("noOpSnapshotQueryServiceFactory")

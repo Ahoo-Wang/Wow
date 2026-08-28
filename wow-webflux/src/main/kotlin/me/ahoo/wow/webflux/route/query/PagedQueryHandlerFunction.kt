@@ -18,8 +18,8 @@ import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
+import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.filter.Contexts.writeRawRequest
-import me.ahoo.wow.query.filter.QueryHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.query.QueryBodyExtractor.Companion.PAGED_QUERY_EXTRACTOR
@@ -31,7 +31,7 @@ import reactor.core.publisher.Mono
 
 class PagedQueryHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val queryHandler: QueryHandler<*>,
+    private val queryGateway: QueryGateway<*>,
     private val rewriteRequestFilter: RewriteRequestFilter,
     private val exceptionHandler: RequestExceptionHandler,
     private val rewriteResult: (Mono<PagedList<DynamicDocument>>) -> Mono<PagedList<DynamicDocument>>
@@ -41,7 +41,7 @@ class PagedQueryHandlerFunction(
         return request.body(PAGED_QUERY_EXTRACTOR)
             .flatMap {
                 val query = rewriteRequestFilter.rewrite(aggregateMetadata, request, it)
-                val result = queryHandler.dynamicPaged(aggregateMetadata, query)
+                val result = queryGateway.dynamicPaged(aggregateMetadata, query)
                 rewriteResult(result)
                     .writeRawRequest(request)
             }.toServerResponse(request, exceptionHandler)
@@ -50,7 +50,7 @@ class PagedQueryHandlerFunction(
 
 open class PagedQueryHandlerFunctionFactory(
     handlerKey: String,
-    private val queryHandler: QueryHandler<*>,
+    private val queryGateway: QueryGateway<*>,
     private val rewriteRequestFilter: RewriteRequestFilter,
     private val exceptionHandler: RequestExceptionHandler,
     private val rewriteResult: (Mono<PagedList<DynamicDocument>>) -> Mono<PagedList<DynamicDocument>> = { it }
@@ -65,7 +65,7 @@ open class PagedQueryHandlerFunctionFactory(
     private fun create(aggregateMetadata: AggregateMetadata<*, *>): HandlerFunction<ServerResponse> {
         return PagedQueryHandlerFunction(
             aggregateMetadata = aggregateMetadata,
-            queryHandler = queryHandler,
+            queryGateway = queryGateway,
             rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler,
             rewriteResult = rewriteResult

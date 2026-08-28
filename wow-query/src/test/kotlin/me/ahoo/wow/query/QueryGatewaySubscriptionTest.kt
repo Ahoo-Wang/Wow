@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.filter
+package me.ahoo.wow.query
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationMetric
@@ -20,8 +20,6 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
-import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedList
@@ -38,6 +36,8 @@ import me.ahoo.wow.filter.SimpleFilterChain
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.pagedQuery
 import me.ahoo.wow.query.dsl.singleQuery
+import me.ahoo.wow.query.filter.QueryContext
+import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import org.reactivestreams.Publisher
@@ -48,7 +48,7 @@ import reactor.kotlin.test.test
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
 
-class QueryHandlerSubscriptionTest {
+class QueryGatewaySubscriptionTest {
     @Suppress("DEPRECATION")
     @Test
     fun `custom list query should retain implementation during executable conversion`() {
@@ -59,7 +59,7 @@ class QueryHandlerSubscriptionTest {
             listContext.setResult(Flux.empty())
             Mono.empty()
         }
-        val handler = TestQueryHandler(chain)
+        val handler = TestQueryGateway(chain)
 
         handler.list(
             MOCK_AGGREGATE_METADATA,
@@ -70,47 +70,10 @@ class QueryHandlerSubscriptionTest {
         captured.filter.assert().isEqualTo(TenantIdFilter("tenant-1"))
     }
 
-    @Suppress("DEPRECATION")
-    @Test
-    fun `legacy count should delegate once to filter query handler implementation`() {
-        lateinit var captured: FilterExpression
-        val handler = object : QueryHandler<Any> {
-            override fun handle(context: QueryContext<*, *>): Mono<Void> = Mono.empty()
-            override fun single(namedAggregate: me.ahoo.wow.api.modeling.NamedAggregate, singleQuery: ISingleQuery) =
-                Mono.empty<Any>()
-            override fun dynamicSingle(
-                namedAggregate: me.ahoo.wow.api.modeling.NamedAggregate,
-                singleQuery: ISingleQuery,
-            ) = Mono.empty<DynamicDocument>()
-            override fun list(namedAggregate: me.ahoo.wow.api.modeling.NamedAggregate, listQuery: IListQuery) =
-                Flux.empty<Any>()
-            override fun dynamicList(
-                namedAggregate: me.ahoo.wow.api.modeling.NamedAggregate,
-                listQuery: IListQuery,
-            ) = Flux.empty<DynamicDocument>()
-            override fun paged(namedAggregate: me.ahoo.wow.api.modeling.NamedAggregate, pagedQuery: IPagedQuery) =
-                Mono.empty<PagedList<Any>>()
-            override fun dynamicPaged(
-                namedAggregate: me.ahoo.wow.api.modeling.NamedAggregate,
-                pagedQuery: IPagedQuery,
-            ) = Mono.empty<PagedList<DynamicDocument>>()
-            override fun count(
-                namedAggregate: me.ahoo.wow.api.modeling.NamedAggregate,
-                filter: FilterExpression,
-            ): Mono<Long> {
-                captured = filter
-                return Mono.just(1L)
-            }
-        }
-
-        handler.count(MOCK_AGGREGATE_METADATA, Condition.id("id-1")).test().expectNext(1).verifyComplete()
-        captured.assert().isEqualTo(IdFilter("id-1"))
-    }
-
     @Test
     fun `should isolate all query operations when repeated`() {
         val filter = NonIdempotentTestFilter()
-        val handler = TestQueryHandler(filter.chain())
+        val handler = TestQueryGateway(filter.chain())
         val publishers = operationPublishers(handler)
         filter.assertNoContexts()
 
@@ -128,7 +91,7 @@ class QueryHandlerSubscriptionTest {
     @Test
     fun `should isolate context when retried`() {
         val filter = NonIdempotentTestFilter(failures = 1)
-        val handler = TestQueryHandler(filter.chain())
+        val handler = TestQueryGateway(filter.chain())
 
         handler.single(MOCK_AGGREGATE_METADATA, singleQuery { })
             .retry(1)
@@ -142,7 +105,7 @@ class QueryHandlerSubscriptionTest {
     @Test
     fun `should isolate concurrent subscriptions`() {
         val filter = NonIdempotentTestFilter()
-        val handler = TestQueryHandler(filter.chain())
+        val handler = TestQueryGateway(filter.chain())
         val publisher = handler.dynamicList(MOCK_AGGREGATE_METADATA, listQuery { })
 
         Flux.merge(
@@ -155,7 +118,7 @@ class QueryHandlerSubscriptionTest {
         filter.assertIsolated(QueryType.DYNAMIC_LIST, 2)
     }
 
-    private fun operationPublishers(handler: TestQueryHandler): List<Pair<QueryType, Publisher<*>>> =
+    private fun operationPublishers(handler: TestQueryGateway): List<Pair<QueryType, Publisher<*>>> =
         listOf(
             QueryType.SINGLE to handler.single(MOCK_AGGREGATE_METADATA, singleQuery { }),
             QueryType.DYNAMIC_SINGLE to handler.dynamicSingle(MOCK_AGGREGATE_METADATA, singleQuery { }),
@@ -170,8 +133,8 @@ class QueryHandlerSubscriptionTest {
             QueryType.COUNT to handler.count(MOCK_AGGREGATE_METADATA, MatchAllFilter),
         )
 
-    private class TestQueryHandler(chain: FilterChain<QueryContext<*, *>>) :
-        AbstractQueryHandler<String>(
+    private class TestQueryGateway(chain: FilterChain<QueryContext<*, *>>) :
+        AbstractQueryGateway<String>(
             chain,
             ErrorHandler<QueryContext<*, *>> { _, error -> Mono.error(error) }
         )

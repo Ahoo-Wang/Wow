@@ -21,7 +21,7 @@ import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.filter.Contexts.getRawRequest
-import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
+import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
 import me.ahoo.wow.webflux.route.query.DefaultRewriteRequestFilter
@@ -41,7 +41,7 @@ class SnapshotAggregationHandlerFunctionTest {
     @Test
     fun `aggregation route should stream handler rows`() {
         val subscribed = AtomicBoolean()
-        val handler = mockk<SnapshotQueryHandler> {
+        val gateway = mockk<SnapshotQueryGateway> {
             every { aggregate(any(), any()) } returns Flux.deferContextual {
                 it.getRawRequest<MockServerRequest>().assert().isNotNull()
                 subscribed.set(true)
@@ -49,7 +49,7 @@ class SnapshotAggregationHandlerFunctionTest {
             }
         }
         val function = SnapshotAggregationHandlerFunctionFactory(
-            snapshotQueryHandler = handler,
+            snapshotQueryGateway = gateway,
             rewriteRequestFilter = DefaultRewriteRequestFilter,
             exceptionHandler = WebFluxRequestExceptionHandler(),
         ).create(

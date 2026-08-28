@@ -13,9 +13,9 @@
 
 package me.ahoo.wow.spring.boot.starter.webflux.route
 
-import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
+import me.ahoo.wow.query.event.EventStreamQueryGateway
+import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
-import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.CountEventStreamHandlerFunctionFactory
@@ -36,9 +36,9 @@ import me.ahoo.wow.webflux.route.snapshot.SnapshotSchemaHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.SnapshotSchemaRefreshHandlerFunctionFactory
 
 class QueryRouteModule(
-    snapshotQueryHandler: SnapshotQueryHandler,
+    snapshotQueryGateway: SnapshotQueryGateway,
     snapshotQueryServiceFactory: SnapshotQueryServiceFactory,
-    eventStreamQueryHandler: EventStreamQueryHandler,
+    eventStreamQueryGateway: EventStreamQueryGateway,
     rewriteRequestFilter: RewriteRequestFilter,
     exceptionHandler: RequestExceptionHandler
 ) : WebFluxRouteModule {
@@ -52,65 +52,65 @@ class QueryRouteModule(
             exceptionHandler = exceptionHandler,
         ),
         LoadSnapshotHandlerFunctionFactory(
-            snapshotQueryHandler = snapshotQueryHandler,
+            snapshotQueryGateway = snapshotQueryGateway,
             exceptionHandler = exceptionHandler
         ),
         ListQuerySnapshotHandlerFunctionFactory(
-            snapshotQueryHandler = snapshotQueryHandler,
+            snapshotQueryGateway = snapshotQueryGateway,
             rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler
         ),
         ListQuerySnapshotStateHandlerFunctionFactory(
-            snapshotQueryHandler = snapshotQueryHandler,
+            snapshotQueryGateway = snapshotQueryGateway,
             rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler
         ),
         PagedQuerySnapshotHandlerFunctionFactory(
-            snapshotQueryHandler = snapshotQueryHandler,
+            snapshotQueryGateway = snapshotQueryGateway,
             rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler
         ),
         PagedQuerySnapshotStateHandlerFunctionFactory(
-            snapshotQueryHandler = snapshotQueryHandler,
+            snapshotQueryGateway = snapshotQueryGateway,
             rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler
         ),
         SingleSnapshotHandlerFunctionFactory(
-            snapshotQueryHandler = snapshotQueryHandler,
+            snapshotQueryGateway = snapshotQueryGateway,
             rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler
         ),
         SingleSnapshotStateHandlerFunctionFactory(
-            snapshotQueryHandler = snapshotQueryHandler,
+            snapshotQueryGateway = snapshotQueryGateway,
             rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler
         ),
         CountSnapshotHandlerFunctionFactory(
-            snapshotQueryHandler = snapshotQueryHandler,
+            snapshotQueryGateway = snapshotQueryGateway,
             rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler
         ),
         SnapshotAggregationHandlerFunctionFactory(
-            snapshotQueryHandler = snapshotQueryHandler,
+            snapshotQueryGateway = snapshotQueryGateway,
             rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler
         ),
         LoadEventStreamHandlerFunctionFactory(
-            eventStreamQueryHandler = eventStreamQueryHandler,
+            eventStreamQueryGateway = eventStreamQueryGateway,
             exceptionHandler = exceptionHandler
         ),
         ListQueryEventStreamHandlerFunctionFactory(
-            eventStreamQueryHandler = eventStreamQueryHandler,
+            eventStreamQueryGateway = eventStreamQueryGateway,
             rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler
         ),
         PagedQueryEventStreamHandlerFunctionFactory(
-            eventStreamQueryHandler = eventStreamQueryHandler,
+            eventStreamQueryGateway = eventStreamQueryGateway,
             rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler
         ),
         CountEventStreamHandlerFunctionFactory(
-            eventStreamQueryHandler = eventStreamQueryHandler,
+            eventStreamQueryGateway = eventStreamQueryGateway,
             rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler
         ),

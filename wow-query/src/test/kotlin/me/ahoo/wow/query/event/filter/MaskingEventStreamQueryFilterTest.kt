@@ -29,6 +29,8 @@ import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.singleQuery
+import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
+import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.query.event.EventStreamQueryService
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.filter.QueryContext
@@ -50,9 +52,9 @@ class MaskingEventStreamQueryFilterTest {
     private val tailSnapshotQueryFilter = TailEventStreamQueryFilter(MockEventStreamQueryServiceFactory)
     private val queryFilterChain = FilterChainBuilder<QueryContext<*, *>>()
         .addFilters(listOf(tailSnapshotQueryFilter, MaskingEventStreamQueryFilter(eventStreamMaskerRegistry)))
-        .filterCondition(EventStreamQueryHandler::class)
+        .filterCondition(EventStreamQueryGateway::class)
         .build()
-    private val queryHandler = DefaultEventStreamQueryHandler(
+    private val queryGateway = DefaultEventStreamQueryGateway(
         queryFilterChain,
         LogErrorHandler()
     )
@@ -64,7 +66,7 @@ class MaskingEventStreamQueryFilterTest {
     @Test
     fun `should mask dynamic event stream list results`() {
         val query = listQuery { }
-        queryHandler.dynamicList(MOCK_AGGREGATE_METADATA, query)
+        queryGateway.dynamicList(MOCK_AGGREGATE_METADATA, query)
             .test()
             .consumeNextWith {
                 it.assert().doesNotContainKey(MessageRecords.CONTEXT_NAME)
@@ -75,7 +77,7 @@ class MaskingEventStreamQueryFilterTest {
     @Test
     fun `should mask dynamic single event stream result`() {
         val query = singleQuery { }
-        queryHandler.dynamicSingle(MOCK_AGGREGATE_METADATA, query)
+        queryGateway.dynamicSingle(MOCK_AGGREGATE_METADATA, query)
             .test()
             .consumeNextWith {
                 it.assert().doesNotContainKey(MessageRecords.CONTEXT_NAME)
@@ -86,7 +88,7 @@ class MaskingEventStreamQueryFilterTest {
     @Test
     fun `should mask dynamic paged event stream results`() {
         val pagedQuery = me.ahoo.wow.query.dsl.pagedQuery { }
-        queryHandler.dynamicPaged(MOCK_AGGREGATE_METADATA, pagedQuery)
+        queryGateway.dynamicPaged(MOCK_AGGREGATE_METADATA, pagedQuery)
             .test()
             .consumeNextWith {
                 it.total.assert().isOne()
@@ -97,7 +99,7 @@ class MaskingEventStreamQueryFilterTest {
 
     @Test
     fun `should return count without masking`() {
-        queryHandler.count(MOCK_AGGREGATE_METADATA, MatchAllFilter)
+        queryGateway.count(MOCK_AGGREGATE_METADATA, MatchAllFilter)
             .test()
             .consumeNextWith {
                 it.assert().isOne()

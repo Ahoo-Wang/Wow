@@ -23,24 +23,24 @@ import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.QueryService
+import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.query.event.EventStreamQueryService
-import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.query.event.requiredQueryModelSchemaProvider
-import me.ahoo.wow.query.filter.QueryHandler
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
-import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 internal class SnapshotQueryServiceProxy<S : Any>(
     private val delegate: SnapshotQueryService<S>,
-    handler: SnapshotQueryHandler,
+    gateway: SnapshotQueryGateway,
 ) : QueryServiceProxy<MaterializedSnapshot<S>>(
     delegate.namedAggregate,
-    handler.cast(),
+    gateway.cast(),
 ),
     SnapshotQueryService<S> {
     override val name: String
@@ -49,8 +49,8 @@ internal class SnapshotQueryServiceProxy<S : Any>(
 
 internal class EventStreamQueryServiceProxy(
     private val delegate: EventStreamQueryService,
-    handler: EventStreamQueryHandler,
-) : QueryServiceProxy<DomainEventStream>(delegate.namedAggregate, handler),
+    gateway: EventStreamQueryGateway,
+) : QueryServiceProxy<DomainEventStream>(delegate.namedAggregate, gateway),
     EventStreamQueryService,
     QueryModelSchemaProvider {
     override fun schema(): Mono<QueryModelSchema> =
@@ -62,28 +62,28 @@ internal class EventStreamQueryServiceProxy(
 
 internal abstract class QueryServiceProxy<R : Any>(
     final override val namedAggregate: NamedAggregate,
-    private val handler: QueryHandler<R>,
+    private val gateway: QueryGateway<R>,
 ) : QueryService<R> {
-    override fun single(singleQuery: ISingleQuery): Mono<R> = handler.single(namedAggregate, singleQuery)
+    override fun single(singleQuery: ISingleQuery): Mono<R> = gateway.single(namedAggregate, singleQuery)
 
     override fun dynamicSingle(singleQuery: ISingleQuery): Mono<DynamicDocument> =
-        handler.dynamicSingle(namedAggregate, singleQuery)
+        gateway.dynamicSingle(namedAggregate, singleQuery)
 
-    override fun list(listQuery: IListQuery): Flux<R> = handler.list(namedAggregate, listQuery)
+    override fun list(listQuery: IListQuery): Flux<R> = gateway.list(namedAggregate, listQuery)
 
     override fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument> =
-        handler.dynamicList(namedAggregate, listQuery)
+        gateway.dynamicList(namedAggregate, listQuery)
 
-    override fun paged(pagedQuery: IPagedQuery): Mono<PagedList<R>> = handler.paged(namedAggregate, pagedQuery)
+    override fun paged(pagedQuery: IPagedQuery): Mono<PagedList<R>> = gateway.paged(namedAggregate, pagedQuery)
 
     override fun dynamicPaged(pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>> =
-        handler.dynamicPaged(namedAggregate, pagedQuery)
+        gateway.dynamicPaged(namedAggregate, pagedQuery)
 
-    override fun aggregate(query: AggregationQuery): Flux<DynamicDocument> = handler.aggregate(namedAggregate, query)
+    override fun aggregate(query: AggregationQuery): Flux<DynamicDocument> = gateway.aggregate(namedAggregate, query)
 
-    override fun count(filter: FilterExpression): Mono<Long> = handler.count(namedAggregate, filter)
+    override fun count(filter: FilterExpression): Mono<Long> = gateway.count(namedAggregate, filter)
 }
 
 @Suppress("UNCHECKED_CAST")
-private fun <S : Any> SnapshotQueryHandler.cast(): QueryHandler<MaterializedSnapshot<S>> =
-    this as QueryHandler<MaterializedSnapshot<S>>
+private fun <S : Any> SnapshotQueryGateway.cast(): QueryGateway<MaterializedSnapshot<S>> =
+    this as QueryGateway<MaterializedSnapshot<S>>

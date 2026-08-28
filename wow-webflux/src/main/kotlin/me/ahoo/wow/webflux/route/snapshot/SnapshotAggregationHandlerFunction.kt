@@ -18,7 +18,7 @@ import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.query.filter.Contexts.writeRawRequest
-import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
+import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.query.QueryBodyExtractor.Companion.AGGREGATION_QUERY_EXTRACTOR
@@ -31,14 +31,14 @@ import reactor.core.publisher.Mono
 
 class SnapshotAggregationHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val queryHandler: SnapshotQueryHandler,
+    private val queryGateway: SnapshotQueryGateway,
     private val rewriteRequestFilter: RewriteRequestFilter,
     private val exceptionHandler: RequestExceptionHandler,
 ) : HandlerFunction<ServerResponse> {
     override fun handle(request: ServerRequest): Mono<ServerResponse> =
         request.body(AGGREGATION_QUERY_EXTRACTOR)
             .flatMapMany { query ->
-                queryHandler.aggregate(
+                queryGateway.aggregate(
                     aggregateMetadata,
                     rewriteRequestFilter.rewrite(aggregateMetadata, request, query)
                 )
@@ -48,7 +48,7 @@ class SnapshotAggregationHandlerFunction(
 }
 
 class SnapshotAggregationHandlerFunctionFactory(
-    private val snapshotQueryHandler: SnapshotQueryHandler,
+    private val snapshotQueryGateway: SnapshotQueryGateway,
     private val rewriteRequestFilter: RewriteRequestFilter,
     private val exceptionHandler: RequestExceptionHandler,
 ) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Snapshot.AGGREGATION) {
@@ -57,7 +57,7 @@ class SnapshotAggregationHandlerFunctionFactory(
         metadata: HttpRouteHandlerMetadata.Aggregate,
     ): HandlerFunction<ServerResponse> = SnapshotAggregationHandlerFunction(
         aggregateMetadata = aggregateMetadata(metadata),
-        queryHandler = snapshotQueryHandler,
+        queryGateway = snapshotQueryGateway,
         rewriteRequestFilter = rewriteRequestFilter,
         exceptionHandler = exceptionHandler,
     )
