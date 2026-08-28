@@ -253,7 +253,7 @@ For a command that must wait for projection processing, use a command wait plan 
 
 - [Snapshot](./snapshot) — default current-state read model, strategies, and query boundaries
 - [Event Processor](./event-processor) — general event processing
-- [Query Service](./query) — query models, DSL, aggregation, and HTTP guards
+- [Query](./query) — query models, DSL, aggregation, and HTTP guards
 - [Data Access Control](./data-access) — request scopes, query filters, and authorization boundary
 - [OpenAPI](./open-api) — runtime route and interface publication
 - [Event Sourcing](./eventstore) — event persistence and aggregate recovery

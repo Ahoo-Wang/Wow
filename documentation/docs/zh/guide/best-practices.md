@@ -112,7 +112,7 @@ Saga 表达跨聚合编排，不是 ACID 分布式事务。`SAGA_HANDLED` 只覆
 - [聚合建模](./modeling.md)
 - [命令网关](./command-gateway.md)
 - [快照](./snapshot.md)
-- [查询服务](./query.md)
+- [查询](./query.md)
 - [分布式事务（Saga）](./saga.md)
 - [事件补偿](./event-compensation.md)
 - [备份、恢复与重放](./recovery.md)

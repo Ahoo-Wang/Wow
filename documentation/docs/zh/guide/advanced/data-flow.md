@@ -100,7 +100,7 @@ WaitSignal 通过 `CommandWaitNotifier` 路由给当前 wait handle。timeout �
 - 聚合恢复读取快照 + EventStore，服务于下一次业务决策；
 - 查询 API 读取投影/快照等查询存储，服务于用户读取。
 
-`PROCESSED` 后立即查询投影可能仍看到旧值。应使用精确 `PROJECTED` target 观察匹配函数返回的响应式链完成，而不是固定 sleep；用户契约需要读模型可见时，再执行实际查询证明可见性。返回链之外的工作、缓存、副本和无关查询管线仍需独立证据。查询接口见[投影](../projection.md)与[查询服务](../query.md)。
+`PROCESSED` 后立即查询投影可能仍看到旧值。应使用精确 `PROJECTED` target 观察匹配函数返回的响应式链完成，而不是固定 sleep；用户契约需要读模型可见时，再执行实际查询证明可见性。返回链之外的工作、缓存、副本和无关查询管线仍需独立证据。查询接口见[投影](../projection.md)与[查询](../query.md)。
 
 ## 失败定位表
 

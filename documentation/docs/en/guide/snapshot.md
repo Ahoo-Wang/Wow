@@ -199,5 +199,5 @@ Measure with real aggregate history and selected backend. Snapshot serialization
 
 - [Event Store](./eventstore) — authoritative history and aggregate restoration
 - [Command Gateway](./command-gateway) — `PROCESSED` and `SNAPSHOT` wait semantics
-- [Query Service](./query) — querying supported snapshot stores
+- [Query](./query) — querying supported snapshot stores
 - [Projection](./projection) — custom derived read models

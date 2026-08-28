@@ -112,7 +112,7 @@ Only evidence from the target topology and production-like data volume supports 
 - [Aggregate Modeling](./modeling.md)
 - [Command Gateway](./command-gateway.md)
 - [Snapshot](./snapshot.md)
-- [Query Service](./query.md)
+- [Query](./query.md)
 - [Distributed Transactions (Saga)](./saga.md)
 - [Event Compensation](./event-compensation.md)
 - [Backup, Restore, and Replay](./recovery.md)

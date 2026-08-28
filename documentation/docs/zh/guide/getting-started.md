@@ -206,5 +206,5 @@ curl -sS \
 - 替换 Demo 模型：[聚合建模](./modeling.md)
 - 选择完成语义：[命令网关](./command-gateway.md)
 - 建立应用门禁：[Wow 应用测试](./application-testing.md)
-- 建立读模型：[投影](./projection.md)与[查询服务](./query.md)
+- 建立读模型：[投影](./projection.md)与[查询](./query.md)
 - 选择运行时集成：[配置](./configuration.md)与 [Spring Boot Starter](./extensions/spring-boot-starter.md)

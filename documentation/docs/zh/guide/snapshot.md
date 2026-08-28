@@ -199,5 +199,5 @@ Repository 负责快照选择、回退与从 `expectedNextVersion` 开始的事�
 
 - [事件存储](./eventstore) -- 权威历史与聚合恢复
 - [命令网关](./command-gateway) -- `PROCESSED` 与 `SNAPSHOT` 等待语义
-- [查询服务](./query) -- 查询受支持的快照存储
+- [查询](./query) -- 查询受支持的快照存储
 - [投影](./projection) -- 自定义派生读模型
