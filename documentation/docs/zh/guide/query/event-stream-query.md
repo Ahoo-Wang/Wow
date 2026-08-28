@@ -35,13 +35,19 @@ fun findRecentStreams(queryService: EventStreamQueryService) = pagedQuery {
 
 ## HTTP 路由
 
-以下为 `sales-order` 当前实际发布的事件流路由：
+以下为 `sales-order` 当前发布的基础事件流数据查询路由：
 
 ```text
 POST /sales-order/event/list
 POST /sales-order/event/paged
 POST /sales-order/event/count
-GET /tenant/{tenantId}/sales-order/{id}/event/{headVersion}/{tailVersion}
+```
+
+相同的 list、paged 与 count 操作还发布 tenant 与 owner 作用域变体：
+
+```text
+POST /tenant/{tenantId}/sales-order/event/{list|paged|count}
+POST /owner/{ownerId}/sales-order/event/{list|paged|count}
 ```
 
 聚合与 Schema 是独立于上述数据查询形态的合同：
@@ -54,7 +60,7 @@ GET /sales-order/event/schema
 POST /sales-order/event/schema/refresh
 ```
 
-当前仍没有事件流 `single` HTTP 路由，也没有 EventStream API Client。聚合请求与 JSON/SSE 响应见[事件流聚合](./event-stream-aggregation.md)；Schema 路由是无 tenant/owner 变体的模型级入口。
+当前仍没有事件流 `single` HTTP 路由，也没有 EventStream API Client。聚合请求与 JSON/SSE 响应见[事件流聚合](./event-stream-aggregation.md)；Schema 路由是无 tenant/owner 变体的模型级入口。精确路径以运行实例生成的 OpenAPI 为准。
 
 ## 按版本加载事件流
 
@@ -65,7 +71,7 @@ GET /tenant/tenant-a/sales-order/order-1/event/3/8
 Accept: application/json
 ```
 
-它按 `aggregateId` 与 `version` 范围构造列表查询；`sales-order` 的实际路由包含 tenant 路径前缀。列表加载可协商 JSON 或 SSE；其他聚合的作用域变体以应用生成的 OpenAPI 为准。
+它按 `aggregateId` 与 `version` 范围构造列表查询；`sales-order` 的已发布路径包含 tenant 前缀，不声明 owner 变体。列表加载可协商 JSON 或 SSE；其他聚合的作用域变体以应用生成的 OpenAPI 为准。
 
 ## 空结果
 

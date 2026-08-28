@@ -5,7 +5,7 @@ description: 使用 FilterExpression、JSON 表达式和 Kotlin DSL 构造可组
 
 # 过滤条件
 
-`FilterExpression` 是当前过滤合同。JSON 以 `op` 判别过滤器类型；嵌套的过滤器也必须使用 `op`。逻辑字段是点分路径，每一段须匹配 `[A-Za-z_][A-Za-z0-9_-]*`（首段和后续段可带 `@`，后续段也可为数组下标）。
+`FilterExpression` 是当前过滤合同。JSON 以 `op` 判别过滤器类型；嵌套的过滤器也必须使用 `op`。逻辑字段是点分路径：第一段必须是命名段，后续段可以是命名段或十进制数组下标；命名段可带 `@` 前缀，名称以 ASCII 字母或 `_` 开头，后续可含 ASCII 字母、数字、`_` 或 `-`。
 
 ## FilterExpression 结构
 
@@ -63,7 +63,7 @@ description: 使用 FilterExpression、JSON 表达式和 Kotlin DSL 构造可组
 | `IS_NULL` / `IS_NOT_NULL` | `{ "op": "IS_NULL", "field": "state.note" }` | `"note".isNull()` / `"note".isNotNull()` |
 | `EXISTS` / `NOT_EXISTS` | `{ "op": "EXISTS", "field": "state.note" }` | `"note".exists()` / `"note".notExists()` |
 
-`IN`、`NOT_IN` 与 `CONTAINS_ALL` 的 `values` 不能为空；`BETWEEN` 的两个边界不可为 `null`。
+要求可比较值的 `GT`、`GTE`、`LT`、`LTE` 以及 `BETWEEN` 的两个边界不接受 `null`。`IN`、`NOT_IN` 与 `CONTAINS_ALL` 的 `values` 不能为空，也不能包含 `null`。检查 null、存在性或空集合时使用无操作数的专用操作符 `IS_NULL`、`IS_NOT_NULL`、`EXISTS`、`NOT_EXISTS` 或 `IS_EMPTY`。
 
 ## 数组元素匹配
 

@@ -25,7 +25,7 @@ description: 使用 wow-apiclient 的响应式、同步、类型化与独立快�
 | `ReactiveSnapshotAggregationQueryApi` | `Flux<Map<String, Any?>>` | 独立 aggregation 客户端 |
 | `SynchronousSnapshotAggregationQueryApi` | `List<Map<String, Any?>>` | 独立 aggregation 客户端 |
 
-前五个基础接口通过继承的 `@PostExchange` 注解声明上表路径。
+前五个基础接口的方法直接使用 `@PostExchange` 声明上表路径；对应的 Reactive 与 Synchronous 接口通过继承复用这些方法，普通组合接口再继承相应的细分接口。
 
 Reactive 与 Synchronous 的细分接口已经由两个普通组合接口继承。通常直接选择组合接口即可；只有客户端只需一种能力时，才单独继承细分接口，不必把每个派生接口重复声明成公共客户端。
 

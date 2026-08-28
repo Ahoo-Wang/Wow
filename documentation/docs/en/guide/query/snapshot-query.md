@@ -48,7 +48,7 @@ After injecting aggregate-scoped `SnapshotQueryService<S>`, extensions execute t
 
 ## HTTP Routes
 
-These are the published snapshot data-query routes for `sales-order`; aggregation and Schema are intentionally not in this table:
+These are the published base snapshot data-query routes for `sales-order`; aggregation and Schema are intentionally not in this table:
 
 ```text
 POST /sales-order/snapshot/single
@@ -60,7 +60,14 @@ POST /sales-order/snapshot/paged/state
 POST /sales-order/snapshot/count
 ```
 
-List can negotiate JSON or SSE; single and paged return JSON. Aggregation and [Query Model Schema (current guidance)](./query-model-schema.md) routes are separate contracts; use generated [OpenAPI](../open-api.md) as the source of truth. An HTTP guard can still limit a DTO that is otherwise valid.
+The same single, single/state, list, list/state, paged, paged/state, and count operations are also published with tenant and owner scopes:
+
+```text
+POST /tenant/{tenantId}/sales-order/snapshot/{operation}
+POST /owner/{ownerId}/sales-order/snapshot/{operation}
+```
+
+Here, `{operation}` is one of the seven operations above. List can negotiate JSON or SSE; single and paged return JSON. Aggregation and [Query Model Schema (current guidance)](./query-model-schema.md) routes are separate contracts. Generated [OpenAPI](../open-api.md) from the running application is the source of truth for exact paths. An HTTP guard can still limit a DTO that is otherwise valid.
 
 ## Complete Snapshot, State-only, and Dynamic Results
 

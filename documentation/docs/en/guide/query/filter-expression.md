@@ -5,7 +5,7 @@ description: Build composable query conditions with FilterExpression, JSON expre
 
 # Filter Expressions
 
-`FilterExpression` is the current filter contract. JSON uses `op` to discriminate filter types; nested filters must use `op` too. A logical field is a dot-separated path whose segments match `[A-Za-z_][A-Za-z0-9_-]*` (the first and later segments may start with `@`, and later segments may also be array indexes).
+`FilterExpression` is the current filter contract. JSON uses `op` to discriminate filter types; nested filters must use `op` too. A logical field is a dot-separated path: the first segment must be a named segment, and later segments can be named segments or decimal array indexes. A named segment can have an `@` prefix; its name starts with an ASCII letter or `_`, followed by ASCII letters, digits, `_`, or `-`.
 
 ## FilterExpression Structure
 
@@ -63,7 +63,7 @@ String comparison defaults to `CASE_SENSITIVE`. Comparison and string capabiliti
 | `IS_NULL` / `IS_NOT_NULL` | `{ "op": "IS_NULL", "field": "state.note" }` | `"note".isNull()` / `"note".isNotNull()` |
 | `EXISTS` / `NOT_EXISTS` | `{ "op": "EXISTS", "field": "state.note" }` | `"note".exists()` / `"note".notExists()` |
 
-`IN`, `NOT_IN`, and `CONTAINS_ALL` require non-empty `values`; neither `BETWEEN` bound may be `null`.
+`GT`, `GTE`, `LT`, `LTE`, and both `BETWEEN` bounds require comparable values and reject `null`. `IN`, `NOT_IN`, and `CONTAINS_ALL` require non-empty `values` that contain no `null`. To test null, presence, or an empty collection, use the dedicated operand-free `IS_NULL`, `IS_NOT_NULL`, `EXISTS`, `NOT_EXISTS`, or `IS_EMPTY` operator.
 
 ## Array Element Matching
 
