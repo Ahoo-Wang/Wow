@@ -78,7 +78,7 @@ flowchart LR
 
 各阶段含义不同：`SENT` 表示命令总线已接收，`PROCESSED` 表示聚合处理完成，`SNAPSHOT` 表示快照处理完成，`PROJECTED` 表示选定投影完成。组件与调度细节见[数据流](./advanced/data-flow.md)和[运行时生命周期](./advanced/runtime-lifecycle.md)。
 
-完整的组件关系如下：
+完整的运行时架构与数据流如下：
 
 <p align="center" style="text-align:center">
   <img width="95%" src="/images/Architecture.svg" alt="Wow 架构与模块"/>
