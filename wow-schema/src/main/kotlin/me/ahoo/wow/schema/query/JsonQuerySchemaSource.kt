@@ -51,23 +51,17 @@ import java.util.concurrent.ConcurrentHashMap
 
 internal const val TEMPORAL_UNIT = "x-wow-query-temporal-unit"
 
-class JsonQuerySchemaSource internal constructor(
-    private val typeResolver: (QuerySchemaContext) -> Class<*>,
-    private val declarationResolver: (QueryModel, Class<*>) -> QuerySchemaDeclaration,
-) : QuerySchemaSource {
-    internal constructor(
-        typeResolver: (QuerySchemaContext) -> Class<*>,
-    ) : this(typeResolver = typeResolver, declarationResolver = ::inferDeclaration)
-
-    constructor() : this(typeResolver = { context ->
+class JsonQuerySchemaSource(
+    private val typeResolver: (QuerySchemaContext) -> Class<*> = { context ->
         val aggregateType = context.namedAggregate.requiredAggregateType<Any>()
         if (context.model == QueryModel.EVENT_STREAM) {
             aggregateType
         } else {
             aggregateType.aggregateMetadata<Any, Any>().state.aggregateType
         }
-    })
-
+    },
+    private val declarationResolver: (QueryModel, Class<*>) -> QuerySchemaDeclaration = ::inferDeclaration,
+) : QuerySchemaSource {
     private val declarations = ConcurrentHashMap<Pair<QueryModel, Class<*>>, QuerySchemaDeclaration>()
 
     override val priority: Int = QuerySchemaSourcePriority.JSON_SCHEMA

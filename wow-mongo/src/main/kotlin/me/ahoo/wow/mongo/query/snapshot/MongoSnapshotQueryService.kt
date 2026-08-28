@@ -47,41 +47,16 @@ import org.bson.Document
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-class MongoSnapshotQueryService<S : Any> private constructor(
+class MongoSnapshotQueryService<S : Any>(
     override val namedAggregate: NamedAggregate,
     override val collection: MongoCollection<Document>,
-    override val converter: AbstractMongoFilterConverter,
-    private val schemaProvider: QueryModelSchemaProvider,
-    private val validationMode: QuerySchemaValidationMode,
+    override val converter: AbstractMongoFilterConverter = SnapshotFilterConverter,
+    private val schemaProvider: QueryModelSchemaProvider =
+        defaultSchemaProvider(namedAggregate, collection, converter),
+    private val validationMode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
 ) : AbstractMongoQueryService<MaterializedSnapshot<S>>(),
     SnapshotQueryService<S>,
     QueryModelSchemaProvider by schemaProvider {
-    constructor(
-        namedAggregate: NamedAggregate,
-        collection: MongoCollection<Document>,
-        converter: AbstractMongoFilterConverter = SnapshotFilterConverter,
-    ) : this(
-        namedAggregate,
-        collection,
-        converter,
-        defaultSchemaProvider(namedAggregate, collection, converter),
-        QuerySchemaValidationMode.COMPATIBLE,
-    )
-
-    internal constructor(
-        namedAggregate: NamedAggregate,
-        collection: MongoCollection<Document>,
-        schemaProvider: QueryModelSchemaProvider,
-        validationMode: QuerySchemaValidationMode,
-        converter: AbstractMongoFilterConverter = SnapshotFilterConverter,
-    ) : this(
-        namedAggregate,
-        collection,
-        converter,
-        schemaProvider,
-        validationMode,
-    )
-
     override val name: String
         get() = MongoSnapshotStore.NAME
     override val projectionConverter: MongoProjectionConverter = MongoProjectionConverter(SnapshotFieldConverter)
