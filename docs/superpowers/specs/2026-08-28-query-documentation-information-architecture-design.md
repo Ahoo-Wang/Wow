@@ -111,6 +111,7 @@ Provider 暴露也不完全对称：Snapshot Schema HTTP handler 直接从原始
 
 - 顶层查询入口统一命名为“查询” / “Query”。
 - 保留现有 `guide/query.md` URL，将其改为能力总览和选择入口。
+- 将原“读模型与查询” / “Read Models and Queries”导航分组融合为可点击的“查询” / “Query”父级；现有投影与数据权限页面作为该父级下的独立专题保留。
 - 为查询后端 QueryService、Query API Client、QueryGateway、FilterExpression 与 Query Model Schema 建立独立权威页面。
 - 先定义数据查询与聚合查询的公共合同，再分别解释快照和事件流模型差异。
 - 为快照聚合与事件流聚合增加任务导向的分析场景和可执行示例。
@@ -128,7 +129,7 @@ Provider 暴露也不完全对称：Snapshot Schema HTTP handler 直接从原始
 
 ## 信息架构
 
-最终查询分区包含十二个页面：
+查询核心文档包含十二个页面；导航同时纳入已有的投影与数据权限页面：
 
 ```text
 查询                                              guide/query.md
@@ -142,7 +143,9 @@ Provider 暴露也不完全对称：Snapshot Schema HTTP handler 直接从原始
 ├── 聚合查询                                      guide/query/aggregation-query.md
 │   ├── 快照聚合查询                              guide/query/snapshot-aggregation.md
 │   └── 事件流聚合查询                            guide/query/event-stream-aggregation.md
-└── 查询模型 Schema                               guide/query/query-model-schema.md
+├── 查询模型 Schema                               guide/query/query-model-schema.md
+├── 投影                                          guide/projection.md
+└── 数据权限                                      guide/data-access.md
 ```
 
 英文镜像使用相同路径与结构：
@@ -159,8 +162,10 @@ Provider 暴露也不完全对称：Snapshot Schema HTTP handler 直接从原始
 - Snapshot Aggregation
 - Event Stream Aggregation
 - Query Model Schema
+- Projection
+- Data Access Control
 
-不新增 `query/index.md`。VitePress 使用现有 `query.md` 作为父级入口，`query/` 目录只承载子页面；仓库已有 `migration.md` 与 `migration/` 子目录的同类结构。
+不新增 `query/index.md`。VitePress 使用现有 `query.md` 作为“查询”导航父级入口，`query/` 目录只承载十一篇新增子页面；投影与数据权限保持原路径和独立内容职责。仓库已有 `migration.md` 与 `migration/` 子目录的同类结构。
 
 ## 页面内容合同
 
@@ -362,8 +367,10 @@ Provider 暴露也不完全对称：Snapshot Schema HTTP handler 直接从原始
 ## 导航与链接兼容
 
 - `documentation/docs/{zh,en}/guide/query.md` 保留原路径并成为可点击父级；
-- `sidebar.zh.ts` 与 `sidebar.en.ts` 把原单一 Query item 改为结构一致的可折叠组；
+- `sidebar.zh.ts` 与 `sidebar.en.ts` 把原“读模型与查询” / “Read Models and Queries”分组整体改为“查询” / “Query”可折叠父级，不再保留同名子项；
+- 查询总览后的第一项固定为查询网关，随后是查询后端与查询 API 客户端；
 - 数据查询与聚合查询自身可点击，并各包含两个模型子页面；
+- 投影与数据权限排在查询核心子页面之后，保留现有 URL 与独立权威内容，不把正文并入查询总览；
 - 新增十一对中英文子页面，不创建只包含链接的空壳页；
 - 现有指向 `query.md` 的链接保持可用；
 - 原来以“查询服务”/“Query Service”指代整个查询分区的链接文字改为“查询”/“Query”；
@@ -405,7 +412,7 @@ pnpm docs:build
 另外完成以下静态核对：
 
 - 十一个新增中文页面与十一个英文镜像一一对应；
-- 两个 sidebar 的层级、顺序和链接一致；
+- 两个 sidebar 的“查询”父级、核心主题、投影与数据权限层级、顺序和链接一致；
 - 中英文页面的章节职责、代码、限制、默认值和能力矩阵一致；
 - 所有原 `query.md` 入链仍可解析，更新后的深链目标存在；
 - 搜索旧标题“查询服务”/“Query Service”，逐项区分它是在指查询分区还是具体 QueryService；
@@ -417,7 +424,8 @@ MongoDB 与 Elasticsearch EventStream aggregation 的现有共享 TCK 是后端�
 
 ## 完成条件
 
-- 查询侧栏呈现最终十二页结构，中文入口名称为“查询”，英文为“Query”；
+- 查询侧栏以“查询” / “Query”为可点击父级，呈现十二篇查询核心文档及已有的投影、数据权限专题；
+- 查询总览后的首项是查询网关，投影与数据权限保留独立页面并归入同一导航父级；
 - 原 `guide/query.md` URL 保持可用并成为有效总览，不是跳转空壳；
 - QueryGateway、查询后端 QueryService 与 Query API Client 三种入口责任明确；
 - 数据查询和聚合查询的公共合同只维护一份；
