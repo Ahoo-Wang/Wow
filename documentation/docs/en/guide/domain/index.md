@@ -10,6 +10,18 @@ Wow uses an aggregate as a consistency boundary: the command side decides from c
 
 This section covers domain boundaries, state evolution, historical compatibility, and restoration cost. Complete Gateway, Dispatcher, Filter, and wait-stage behavior belongs to the [Command Processing Pipeline](../command/internals/pipeline.md), not to the domain model.
 
+The capability map below shows how the domain-model pages grow from the aggregate boundary.
+
+```mermaid
+flowchart TB
+    Start["Start with the domain boundary"] --> Aggregate["Aggregate and invariants"]
+    Aggregate --> History["Event sourcing: authoritative history"]
+    History --> Evolution["Event evolution: long-term compatibility"]
+    History --> Snapshot["Snapshots: recovery optimization"]
+    Aggregate --> Lifecycle["Aggregate lifecycle"]
+    Aggregate --> Command["Define commands"]
+```
+
 ## Choose a Reading Path
 
 ### First Modeling

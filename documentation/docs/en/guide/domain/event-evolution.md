@@ -6,6 +6,17 @@ outline: deep
 
 # Event Evolution
 
+When historical events are read, Upgraders advance Revision by Revision until the current shape or an explicit drop is reached.
+
+```mermaid
+flowchart LR
+    Persisted["Persisted event Revision 1"] --> Lookup{"Next Revision Upgrader exists?"}
+    Lookup -->|Yes| Upgrade["Upgrade to the next Revision"]
+    Upgrade --> Lookup
+    Lookup -->|No| Current["Current event shape"]
+    Upgrade -. "Explicitly drop" .-> Dropped["DroppedEvent"]
+```
+
 ## Why Persisted Events Need Long-Term Compatibility
 
 A persisted domain event is a long-lived wire contract. Changing a Kotlin type affects new code only; old EventStore records retain their event name, `bodyType`, `revision`, and body. On reads, Wow upgrades each `DomainEventRecord` before resolving it to the current event type and passing it to state sourcing.

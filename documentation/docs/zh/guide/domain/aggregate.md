@@ -8,6 +8,21 @@ outline: deep
 
 聚合是一条事件流的一致性边界。它把一次业务变更分成两个明确职责：命令侧根据当前状态作出决策，状态侧只通过已发生的领域事件重建结果。每个状态变化都应能由事件解释。
 
+聚合把状态、业务决策和不变量封装在同一个一致性边界中。
+
+```mermaid
+flowchart TB
+    Context["限界上下文"] --> Aggregate["聚合边界"]
+    Intent["业务意图"] --> Decision["聚合决策"]
+    Aggregate --> State["当前状态"]
+    Aggregate --> Decision
+    State --> Decision
+    Decision --> Invariant{"不变量满足？"}
+    Invariant -->|是| Event["领域事件"]
+    Invariant -->|否| Reject["拒绝命令"]
+    Event --> State
+```
+
 ## 从业务边界开始
 
 先写不变量，再写代码。以购物车为例，业务规则可以先写成决策表：

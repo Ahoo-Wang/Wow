@@ -10,6 +10,18 @@ Wow 的领域模型以聚合为一致性边界：命令侧根据当前状态作�
 
 本区域只回答领域边界、状态演进、历史兼容和恢复成本。完整 Gateway、Dispatcher、Filter 与等待阶段属于[命令处理管线](../command/internals/pipeline.md)，不在领域模型中展开。
 
+下面的能力地图展示领域模型各页怎样从聚合边界展开。
+
+```mermaid
+flowchart TB
+    Start["从领域边界开始"] --> Aggregate["聚合与不变量"]
+    Aggregate --> History["事件溯源：权威历史"]
+    History --> Evolution["事件演进：长期兼容"]
+    History --> Snapshot["快照：恢复优化"]
+    Aggregate --> Lifecycle["聚合生命周期"]
+    Aggregate --> Command["定义命令"]
+```
+
 ## 选择阅读路径
 
 ### 首次建模

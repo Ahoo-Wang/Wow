@@ -6,6 +6,20 @@ outline: deep
 
 # Aggregate Lifecycle
 
+Events drive the lifecycle; deletion and recovery remain part of aggregate state evolution.
+
+```mermaid
+stateDiagram-v2
+    state "Uninitialized aggregate" as Empty
+    state "Active aggregate" as Active
+    state "Deleted aggregate" as Deleted
+    [*] --> Empty
+    Empty --> Active: Creation event
+    Active --> Active: Regular domain event
+    Active --> Deleted: Deletion event
+    Deleted --> Active: Recovery event
+```
+
 ## Create or Restore State
 
 `StateAggregateFactory` creates an uninitialized state aggregate from state metadata and a complete `AggregateId`. Load an existing aggregate through `StateAggregateRepository`:

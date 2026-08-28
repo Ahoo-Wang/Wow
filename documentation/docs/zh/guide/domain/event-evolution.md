@@ -6,6 +6,17 @@ outline: deep
 
 # 事件演进
 
+读取历史事件时，Upgrader 按 Revision 逐步推进，直到得到当前形态或显式丢弃事件。
+
+```mermaid
+flowchart LR
+    Persisted["持久事件 Revision 1"] --> Lookup{"存在下一 Revision Upgrader？"}
+    Lookup -->|是| Upgrade["升级到下一 Revision"]
+    Upgrade --> Lookup
+    Lookup -->|否| Current["当前事件形态"]
+    Upgrade -. "显式删除" .-> Dropped["DroppedEvent"]
+```
+
 ## 为什么持久事件需要长期兼容
 
 持久化领域事件是长期 wire 合同。修改 Kotlin 类型只影响新代码；EventStore 中的旧记录仍保留原来的事件名、`bodyType`、`revision` 和 body。读取时，Wow 先升级 `DomainEventRecord`，再把它解析为当前事件类型并交给状态溯源。
