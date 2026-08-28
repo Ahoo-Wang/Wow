@@ -1,0 +1,224 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)]
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { useEffect, useState } from "react";
+import { aggregateExecutionFailedSnapshots } from "../../services";
+import {
+  bucketRetryRows,
+  createPressureQuery,
+  createPressureStatusQuery,
+  createRecoverabilityQuery,
+  createRetryHistogramQuery,
+  createSnapshotSummaryQueries,
+  mergePressureRows,
+} from "./analyticsQueries.ts";
+import type {
+  PressureCluster,
+  PressureClusterRow,
+  PressureStatusRow,
+  RecoverabilityRow,
+  RetryDistribution,
+  RetryHistogramRow,
+  SnapshotSummary,
+} from "./analyticsQueries.ts";
+
+export interface AnalyticsSection<T> {
+  data?: T;
+  error?: Error;
+  loading: boolean;
+  updatedAt?: number;
+}
+
+export interface SnapshotAnalyticsResult {
+  pressure: AnalyticsSection<PressureCluster[]>;
+  recoverability: AnalyticsSection<RecoverabilityRow[]>;
+  retries: AnalyticsSection<RetryDistribution>;
+  summary: AnalyticsSection<SnapshotSummary>;
+}
+
+interface CountRow {
+  count: number;
+}
+
+export function useSnapshotAnalytics(
+  refreshToken: number,
+): SnapshotAnalyticsResult {
+  const [state, setState] = useState<SnapshotAnalyticsResult>({
+    pressure: { loading: true },
+    recoverability: { loading: true },
+    retries: { loading: true },
+    summary: { loading: true },
+  });
+
+  useEffect(() => {
+    const abortController = new AbortController();
+    const now = Date.now();
+
+    const loads = {
+      summary: loadSummary(now, abortController),
+      pressure: loadPressure(abortController),
+      recoverability: loadRecoverability(abortController),
+      retries: loadRetries(abortController),
+    };
+
+    queueMicrotask(() => {
+      if (!abortController.signal.aborted) {
+        setState(markSnapshotLoading);
+      }
+    });
+
+    void Promise.allSettled(Object.values(loads)).then((results) => {
+      if (!abortController.signal.aborted) {
+        setState((current) => settleSnapshotSections(current, results, now));
+      }
+    });
+
+    return () => abortController.abort();
+  }, [refreshToken]);
+
+  return state;
+}
+
+async function loadSummary(
+  now: number,
+  abortController: AbortController,
+): Promise<SnapshotSummary> {
+  const queries = createSnapshotSummaryQueries(now);
+  const [actionableNow, timedOut, unrecoverable] = await Promise.all([
+    aggregateExecutionFailedSnapshots<CountRow>(
+      queries.actionableNow,
+      undefined,
+      abortController,
+    ),
+    aggregateExecutionFailedSnapshots<CountRow>(
+      queries.timedOut,
+      undefined,
+      abortController,
+    ),
+    aggregateExecutionFailedSnapshots<CountRow>(
+      queries.unrecoverable,
+      undefined,
+      abortController,
+    ),
+  ]);
+  return {
+    actionableNow: actionableNow[0]?.count ?? 0,
+    timedOut: timedOut[0]?.count ?? 0,
+    unrecoverable: unrecoverable[0]?.count ?? 0,
+  };
+}
+
+async function loadPressure(
+  abortController: AbortController,
+): Promise<PressureCluster[]> {
+  const rows = await aggregateExecutionFailedSnapshots<PressureClusterRow>(
+    createPressureQuery(),
+    undefined,
+    abortController,
+  );
+  if (rows.length === 0) {
+    return [];
+  }
+  const statuses = await aggregateExecutionFailedSnapshots<PressureStatusRow>(
+    createPressureStatusQuery(rows),
+    undefined,
+    abortController,
+  );
+  return mergePressureRows(rows, statuses);
+}
+
+async function loadRecoverability(
+  abortController: AbortController,
+): Promise<RecoverabilityRow[]> {
+  return aggregateExecutionFailedSnapshots<RecoverabilityRow>(
+    createRecoverabilityQuery(),
+    undefined,
+    abortController,
+  );
+}
+
+async function loadRetries(
+  abortController: AbortController,
+): Promise<RetryDistribution> {
+  const rows = await aggregateExecutionFailedSnapshots<RetryHistogramRow>(
+    createRetryHistogramQuery(),
+    undefined,
+    abortController,
+  );
+  return bucketRetryRows(rows);
+}
+
+function markSnapshotLoading(
+  current: SnapshotAnalyticsResult,
+): SnapshotAnalyticsResult {
+  const loading = <T>(section: AnalyticsSection<T>): AnalyticsSection<T> => ({
+    ...section,
+    error: undefined,
+    loading: true,
+  });
+  return {
+    pressure: loading(current.pressure),
+    recoverability: loading(current.recoverability),
+    retries: loading(current.retries),
+    summary: loading(current.summary),
+  };
+}
+
+function settleSnapshotSections(
+  current: SnapshotAnalyticsResult,
+  results: PromiseSettledResult<unknown>[],
+  updatedAt: number,
+): SnapshotAnalyticsResult {
+  const settle = <T>(
+    section: AnalyticsSection<T>,
+    result: PromiseSettledResult<T>,
+  ): AnalyticsSection<T> => {
+    if (result.status === "fulfilled") {
+      return { data: result.value, loading: false, updatedAt };
+    }
+    if (
+      typeof result.reason === "object" &&
+      result.reason !== null &&
+      "name" in result.reason &&
+      result.reason.name === "AbortError"
+    ) {
+      return { ...section, loading: false };
+    }
+    return {
+      ...section,
+      error:
+        result.reason instanceof Error
+          ? result.reason
+          : new Error(String(result.reason)),
+      loading: false,
+    };
+  };
+  return {
+    summary: settle(
+      current.summary,
+      results[0] as PromiseSettledResult<SnapshotSummary>,
+    ),
+    pressure: settle(
+      current.pressure,
+      results[1] as PromiseSettledResult<PressureCluster[]>,
+    ),
+    recoverability: settle(
+      current.recoverability,
+      results[2] as PromiseSettledResult<RecoverabilityRow[]>,
+    ),
+    retries: settle(
+      current.retries,
+      results[3] as PromiseSettledResult<RetryDistribution>,
+    ),
+  };
+}
