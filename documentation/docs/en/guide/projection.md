@@ -1,6 +1,6 @@
 ---
 title: Projection Processor
-description: Build application-owned read models from Wow domain and state events, then query them through an explicit read contract.
+description: Projections are optional; use live snapshots for single-aggregate current state by default, and project only when the read model materially differs.
 ---
 
 # Projection Processor
@@ -12,6 +12,14 @@ command -> domain event -> projection processor -> read model -> query/API clien
 ```
 
 Wow dispatches domain events and state events to registered processors. The processor owns the write to its read store; `wow-query` owns query contracts and backend compilation. A projection annotation does not create a repository, collection, index, HTTP route, or authorization policy.
+
+::: tip Default decision: start with live snapshots
+A projection is not required in a Wow application. For most screens and APIs that read the current state of one aggregate, configure `snapshot.strategy: all` first and use a snapshot store that supports dynamic queries. The latest snapshot can serve directly as the read model, without copying the same aggregate state into a dedicated projection.
+:::
+
+Skipping a projection also removes its processor, separate read model and storage shape, plus the associated idempotency, replay, compensation, lag monitoring, and integration testing. This can greatly reduce development and operating cost. Pay that cost only when the read requirement truly exceeds current aggregate state. See [Snapshots as the Default Read Model](./snapshot#snapshots-as-the-default-read-model).
+
+“Live” remains bounded by the selected strategy and backend contract: `all` runs snapshot persistence for every state event, while waiting for `SNAPSHOT` proves only that the strategy's returned reactive chain completed. Verify cache, replica, and actual query visibility with a real query.
 
 ## Overview
 
@@ -31,6 +39,8 @@ flowchart LR
 This path is eventually consistent unless the caller explicitly waits for a projection stage. A successful command result at `PROCESSED` means command processing completed; it does not prove that an external read model has been updated.
 
 ## When to Use Projections
+
+Skip the projection by default and add one only after a live snapshot cannot satisfy the read requirement. A projection solves the need for a different read model; it is not a mandatory Event Sourcing step.
 
 ### Use Projections When
 
@@ -232,7 +242,7 @@ For a command that must wait for projection processing, use a command wait plan 
 
 ## Best Practices
 
-1. Give each projection one explicit read purpose.
+1. Prove that a live snapshot is insufficient first; then give each projection one explicit read purpose.
 2. Keep external writes reactive, acknowledged, and replay-safe.
 3. Store or atomically enforce event identity when duplicates matter.
 4. Treat projection lag and failures as observable production signals.
@@ -241,6 +251,7 @@ For a command that must wait for projection processing, use a command wait plan 
 
 ## Related Topics
 
+- [Snapshot](./snapshot) — default current-state read model, strategies, and query boundaries
 - [Event Processor](./event-processor) — general event processing
 - [Query Service](./query) — query models, DSL, aggregation, and HTTP guards
 - [Data Access Control](./data-access) — request scopes, query filters, and authorization boundary
