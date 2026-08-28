@@ -47,18 +47,87 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.time.Duration
 
-class ElasticsearchSnapshotQueryService<S : Any>(
+class ElasticsearchSnapshotQueryService<S : Any> private constructor(
     override val namedAggregate: NamedAggregate,
     override val elasticsearchClient: ReactiveElasticsearchClient,
-    override val filterConverter: AbstractElasticsearchFilterConverter = SnapshotFilterConverter,
-    override val queryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE,
-    override val queryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE,
-    private val schemaProvider: QueryModelSchemaProvider =
-        defaultSchemaProvider(namedAggregate, elasticsearchClient, filterConverter),
-    private val validationMode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
+    override val filterConverter: AbstractElasticsearchFilterConverter,
+    override val queryBatchSize: Int,
+    override val queryKeepAlive: Duration,
+    private val schemaProvider: QueryModelSchemaProvider,
+    private val validationMode: QuerySchemaValidationMode,
 ) : AbstractElasticsearchQueryService<MaterializedSnapshot<S>>(),
     SnapshotQueryService<S>,
     QueryModelSchemaProvider by schemaProvider {
+    constructor(
+        namedAggregate: NamedAggregate,
+        elasticsearchClient: ReactiveElasticsearchClient,
+        filterConverter: AbstractElasticsearchFilterConverter = SnapshotFilterConverter,
+    ) : this(
+        namedAggregate,
+        elasticsearchClient,
+        filterConverter,
+        DEFAULT_SEARCH_BATCH_SIZE,
+        DEFAULT_PIT_KEEP_ALIVE,
+        defaultSchemaProvider(namedAggregate, elasticsearchClient, filterConverter),
+        QuerySchemaValidationMode.COMPATIBLE,
+    )
+
+    constructor(
+        namedAggregate: NamedAggregate,
+        elasticsearchClient: ReactiveElasticsearchClient,
+        filterConverter: AbstractElasticsearchFilterConverter,
+        queryBatchSize: Int,
+        queryKeepAlive: Duration,
+    ) : this(
+        namedAggregate,
+        elasticsearchClient,
+        filterConverter,
+        queryBatchSize,
+        queryKeepAlive,
+        defaultSchemaProvider(namedAggregate, elasticsearchClient, filterConverter),
+        QuerySchemaValidationMode.COMPATIBLE,
+    )
+
+    constructor(
+        namedAggregate: NamedAggregate,
+        elasticsearchClient: ReactiveElasticsearchClient,
+        filterConverter: AbstractElasticsearchFilterConverter,
+        queryBatchSize: Int,
+        queryKeepAlive: Duration,
+        indexMappingResolver: ElasticsearchIndexMappingResolver,
+    ) : this(
+        namedAggregate,
+        elasticsearchClient,
+        filterConverter,
+        queryBatchSize,
+        queryKeepAlive,
+        defaultSchemaProvider(
+            namedAggregate,
+            elasticsearchClient,
+            filterConverter,
+            indexMappingResolver,
+        ),
+        QuerySchemaValidationMode.COMPATIBLE,
+    )
+
+    internal constructor(
+        namedAggregate: NamedAggregate,
+        elasticsearchClient: ReactiveElasticsearchClient,
+        schemaProvider: QueryModelSchemaProvider,
+        validationMode: QuerySchemaValidationMode,
+        filterConverter: AbstractElasticsearchFilterConverter = SnapshotFilterConverter,
+        queryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE,
+        queryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE,
+    ) : this(
+        namedAggregate,
+        elasticsearchClient,
+        filterConverter,
+        queryBatchSize,
+        queryKeepAlive,
+        schemaProvider,
+        validationMode,
+    )
+
     override val name: String
         get() = ElasticsearchSnapshotStore.NAME
     override val indexName: String = namedAggregate.toSnapshotIndexName()

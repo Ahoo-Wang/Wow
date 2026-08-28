@@ -26,7 +26,7 @@ import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.snapshot.AbstractSnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 
-class MongoSnapshotQueryServiceFactory(
+class MongoSnapshotQueryServiceFactory @JvmOverloads constructor(
     private val database: MongoDatabase,
     private val schemaSources: List<QuerySchemaSource> = emptyList(),
     private val validationMode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,

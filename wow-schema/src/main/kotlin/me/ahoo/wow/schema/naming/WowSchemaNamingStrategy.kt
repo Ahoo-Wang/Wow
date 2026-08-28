@@ -24,7 +24,7 @@ import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import me.ahoo.wow.modeling.getContextAliasPrefix
 import me.ahoo.wow.modeling.toStringWithAlias
 
-class WowSchemaNamingStrategy(
+class WowSchemaNamingStrategy @JvmOverloads constructor(
     override val defaultSchemaNamePrefix: String,
     private val onDefinitionName: (DefinitionKey, String) -> Unit = { _, _ -> },
 ) :

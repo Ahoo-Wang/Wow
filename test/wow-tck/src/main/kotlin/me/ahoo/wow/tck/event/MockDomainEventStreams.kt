@@ -28,6 +28,7 @@ const val DEFAULT_AGGREGATE_VERSION = 0
 const val DEFAULT_EVENT_COUNT = 10
 
 object MockDomainEventStreams {
+    @JvmOverloads
     fun generateEventStream(
         aggregateId: AggregateId,
         aggregateVersion: Int = DEFAULT_AGGREGATE_VERSION,

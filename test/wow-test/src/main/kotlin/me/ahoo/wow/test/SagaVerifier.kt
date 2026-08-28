@@ -130,6 +130,7 @@ object SagaVerifier {
      * @throws IllegalArgumentException if saga metadata cannot be resolved from class annotations
      */
     @JvmStatic
+    @JvmOverloads
     fun <T : Any> Class<T>.sagaVerifier(
         serviceProvider: ServiceProvider = SimpleServiceProvider(),
         commandGateway: CommandGateway = defaultCommandGateway(),
