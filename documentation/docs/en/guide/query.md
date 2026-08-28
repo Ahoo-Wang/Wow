@@ -30,8 +30,17 @@ Data queries return snapshot or event-stream documents. Aggregation queries retu
 
 ## Execution Chain
 
-```text
-query DTO / DSL -> QueryServiceProxy -> QueryGateway -> QueryFilter chain -> QueryServiceFactory -> backend
+```mermaid
+flowchart LR
+    Local["Typed JVM Bean"] --> Proxy["QueryServiceProxy"]
+    Client["Remote API Client"] --> HTTP["WebFlux / OpenAPI"]
+    HTTP --> Rewrite["Request-scope rewrite"]
+    Proxy --> Gateway["Query Gateway"]
+    Rewrite --> Gateway
+    Gateway --> Filters["QueryFilter chain"]
+    Filters --> Backend["Query backend"]
+    Models["Snapshot / projection / event stream"] --> Backend
+    Backend --> Storage["MongoDB / Elasticsearch"]
 ```
 
 The Gateway is the policy boundary for managed queries; calling a Factory directly bypasses it. See [Query Gateway](./query/query-gateway.md) for filter applicability, the WebFlux request context, and bypass conditions.

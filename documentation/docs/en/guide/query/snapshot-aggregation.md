@@ -21,6 +21,20 @@ Without `elements`, the root filter, groups, and metrics use absolute snapshot l
 
 After `expand("state.items")`, the counting unit becomes one expanded order item. The first Element path remains absolute, while its filter and all following group, metric, and expression fields are relative to that element. Use `quantity`, `productId`, and `price`, not `state.items.quantity`. Groups only bucket records and do not change the counting unit; `COUNT` always counts the current innermost scope.
 
+```mermaid
+flowchart TB
+    Unit{"Counting unit"} --> Root["Root snapshot document"]
+    Unit --> Item["Expanded state.items"]
+    Root --> S1["1 Status breakdown"]
+    Root --> S2["2 Filtered KPIs"]
+    Root --> S3["3 Numeric ranges"]
+    Root --> S4["4 Business-time trend"]
+    Root --> S7["7 Multidimensional analysis"]
+    Item --> S5["5 Line-item Top-N"]
+    Item --> S6["6 Derived amount"]
+    Item --> S8["8 ANY display field"]
+```
+
 ## Scenario 1: Status Breakdown
 
 **Business question**

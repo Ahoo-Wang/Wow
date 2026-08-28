@@ -15,14 +15,24 @@ Business code should not normally bypass the Gateway. Use a Factory directly onl
 
 The complete chain is:
 
-```text
-QueryServiceProxy / WebFlux Handler
-  -> SnapshotQueryGateway / EventStreamQueryGateway
-  -> QueryContext + QueryType
-  -> model-specific QueryFilter chain
-  -> Tail Filter
-  -> raw QueryServiceFactory
-  -> backend QueryService
+```mermaid
+sequenceDiagram
+    participant Caller as Caller
+    participant Entry as Proxy / WebFlux Handler
+    participant Gateway as QueryGateway
+    participant Filters as QueryFilter chain
+    participant Tail as Tail Filter
+    participant Factory as QueryServiceFactory
+    participant Backend as Backend QueryService
+    Caller->>Entry: Query DTO / DSL
+    Entry->>Gateway: Query after scope rewriting
+    Gateway->>Gateway: Create QueryContext + QueryType
+    Gateway->>Filters: Run model-specific filters
+    Filters->>Tail: Pass the final query
+    Tail->>Factory: Resolve the aggregate-scoped raw service
+    Factory->>Backend: Execute query
+    Backend-->>Gateway: Mono / Flux result
+    Gateway-->>Caller: Policy-processed result
 ```
 
 `QueryServiceProxy` serves in-process typed Beans; a WebFlux Handler calls the same kind of service after deserialization and request rewriting. The Tail Filter creates the raw aggregate service, stores the result, and the Gateway returns the corresponding `Mono` or `Flux`.

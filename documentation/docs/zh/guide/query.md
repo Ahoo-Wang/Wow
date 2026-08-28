@@ -30,8 +30,17 @@ Wow 的“查询”覆盖查询模型、服务端 Query Gateway、JVM 查询后�
 
 ## 执行链
 
-```text
-查询 DTO / DSL -> QueryServiceProxy -> QueryGateway -> QueryFilter chain -> QueryServiceFactory -> Backend
+```mermaid
+flowchart LR
+    Local["JVM 类型化 Bean"] --> Proxy["QueryServiceProxy"]
+    Client["远程 API Client"] --> HTTP["WebFlux / OpenAPI"]
+    HTTP --> Rewrite["请求作用域重写"]
+    Proxy --> Gateway["Query Gateway"]
+    Rewrite --> Gateway
+    Gateway --> Filters["QueryFilter 链"]
+    Filters --> Backend["查询后端"]
+    Models["快照 / 投影 / 事件流"] --> Backend
+    Backend --> Storage["MongoDB / Elasticsearch"]
 ```
 
 Gateway 是受管查询的策略边界；直接调用 Factory 会绕过它。过滤器适用范围、WebFlux 请求上下文和绕过条件见[查询网关](./query/query-gateway.md)。

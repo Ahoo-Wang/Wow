@@ -23,6 +23,19 @@ HTTP handler 严格解码请求后，`RewriteRequestFilter` 会依据 aggregate 
 
 `body` 是事件数组。调用 `expand("body")` 后，一条记录变为展开后的单个事件；Element filter、group、metric 与表达式字段都相对该事件，因此使用 `name`、`revision`、`bodyType` 和 `body.data`，不能重复根前缀写成 `body.name` 或 `body.body.data`。根 filter 仍使用根文档的绝对路径。`COUNT` 统计当前作用域，所以根事件流数量与展开后的事件数量不是同一指标。
 
+```mermaid
+flowchart TB
+    Unit{"统计单位"} --> Root["事件流根文档"]
+    Unit --> Event["展开后的 body 事件"]
+    Root --> S3["3 创建趋势"]
+    Root --> S4["4 租户 / Owner 活跃度"]
+    Root --> S5Root["5 事件流数量"]
+    Event --> S1["1 事件名称频次"]
+    Event --> S2["2 Revision × BodyType"]
+    Event --> S5Event["5 事件数量"]
+    Event --> S6["6 Payload 分析"]
+```
+
 ## 场景 1：事件名称频次
 
 **业务问题**

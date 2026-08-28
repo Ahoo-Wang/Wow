@@ -15,16 +15,18 @@ It differs from [general JSON Schema](../advanced/schema.md): JSON Schema descri
 
 The runtime source chain is below. A larger number means a higher priority:
 
-```text
-System
- + JsonQuerySchemaSource (100)
- + ClasspathQuerySchemaSource (200)
- + BeanQuerySchemaSource (300)
- + WorkingDirectoryQuerySchemaSource (400)
- -> QuerySchemaMerger
- -> MongoDB / Elasticsearch Adapter
- -> QueryModelSchema
- -> QuerySchemaResolver
+```mermaid
+flowchart LR
+    System["System fields"] --> Merger["QuerySchemaMerger"]
+    Json["JSON Schema 100"] --> Merger
+    Classpath["Classpath 200"] --> Merger
+    Bean["Bean 300"] --> Merger
+    Working["Working Directory 400"] --> Merger
+    Merger --> Adapter["MongoDB / Elasticsearch Adapter"]
+    Adapter --> Schema["QueryModelSchema"]
+    Schema --> Resolver["QuerySchemaResolver"]
+    Resolver --> Query["Filter / Sort / Aggregation"]
+    Schema --> HTTP["Schema / refresh HTTP"]
 ```
 
 - `System` supplies model-specific fields for Snapshot and EventStream. Extensions must remain under the Snapshot `state` root or the EventStream `body.body` root; a field leaf already set by System cannot be overwritten.

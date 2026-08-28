@@ -142,6 +142,14 @@ val filter = filterExpression {
 
 `pathState` expands its inner fields to `state.*`, while `items.elementMatch` creates an independent single-element scope, so `quantity` is not expanded to `state.items.quantity`. Multiple expressions in `path { ... }` likewise form one implicit `AND`.
 
+```mermaid
+flowchart TB
+    And["AND: root scope"] --> Tenant["TENANT_ID = tenant-a"]
+    And --> Status["EQ state.status = PAID"]
+    And --> Items["ELEMENT_MATCH state.items"]
+    Items --> Quantity["GT quantity &gt; 1: element scope"]
+```
+
 ## Field Path Rules
 
 `field` is a logical path, not an arbitrary backend physical field name. The root depends on the query model: snapshot business fields are under `state`; event-stream root fields and expanded event fields are different, and event payload is under `body.body`. Do not copy snapshot `state.*` paths into event-stream queries or infer logical fields from physical mappings.

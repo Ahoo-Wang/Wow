@@ -11,12 +11,16 @@ description: Define the public AggregationQuery AST, counting unit, and dynamic 
 
 ```mermaid
 flowchart LR
-    Q[AggregationQuery] --> F[filter]
-    Q --> E[elements]
-    Q --> G[groupBy]
-    Q --> M[metrics]
-    Q --> S[sort]
-    Q --> L[limit]
+    Q["AggregationQuery"] --> F["filter: root filter"]
+    F --> E{"elements?"}
+    E -->|No expansion| RootUnit["Counting unit: root document"]
+    E -->|Expand collection| ElementUnit["Counting unit: innermost element"]
+    RootUnit --> G["groupBy: buckets"]
+    ElementUnit --> G
+    G --> M["metrics: calculations"]
+    M --> Rows["Dynamic result rows"]
+    Rows --> S["sort"]
+    S --> L["limit"]
 ```
 
 `filter`, ordered `elements`, `groupBy`, `metrics`, `sort`, and `limit` together determine the result. `metrics` cannot be empty; `elements`, `groupBy`, and `sort` can be empty. With no group, the result is a whole-input summary rather than dimension buckets.

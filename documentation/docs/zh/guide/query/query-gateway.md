@@ -15,14 +15,24 @@ description: 理解查询请求如何经过上下文、过滤器链、权限与�
 
 完整链路如下：
 
-```text
-QueryServiceProxy / WebFlux Handler
-  -> SnapshotQueryGateway / EventStreamQueryGateway
-  -> QueryContext + QueryType
-  -> model-specific QueryFilter chain
-  -> Tail Filter
-  -> raw QueryServiceFactory
-  -> backend QueryService
+```mermaid
+sequenceDiagram
+    participant Caller as 调用方
+    participant Entry as Proxy / WebFlux Handler
+    participant Gateway as QueryGateway
+    participant Filters as QueryFilter 链
+    participant Tail as Tail Filter
+    participant Factory as QueryServiceFactory
+    participant Backend as Backend QueryService
+    Caller->>Entry: Query DTO / DSL
+    Entry->>Gateway: 作用域重写后的查询
+    Gateway->>Gateway: 创建 QueryContext + QueryType
+    Gateway->>Filters: 执行模型专属过滤链
+    Filters->>Tail: 传递最终查询
+    Tail->>Factory: 获取聚合级原始服务
+    Factory->>Backend: 执行查询
+    Backend-->>Gateway: Mono / Flux 结果
+    Gateway-->>Caller: 策略处理后的结果
 ```
 
 `QueryServiceProxy` 供进程内的类型化 Bean 使用；WebFlux Handler 在反序列化和请求重写后调用同一类服务。Tail Filter 按聚合创建原始服务并写入结果，随后由 Gateway 返回对应的 `Mono` 或 `Flux`。

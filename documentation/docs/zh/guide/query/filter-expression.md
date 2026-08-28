@@ -142,6 +142,14 @@ val filter = filterExpression {
 
 `pathState` 将内部字段补为 `state.*`，而 `items.elementMatch` 创建独立的单元素作用域，所以 `quantity` 不会被补成 `state.items.quantity`。`path { ... }` 内的多个表达式同样形成一个隐式 `AND`。
 
+```mermaid
+flowchart TB
+    And["AND：根作用域"] --> Tenant["TENANT_ID = tenant-a"]
+    And --> Status["EQ state.status = PAID"]
+    And --> Items["ELEMENT_MATCH state.items"]
+    Items --> Quantity["GT quantity &gt; 1：元素作用域"]
+```
+
 ## 字段路径规则
 
 `field` 是逻辑路径，不是任意后端的物理字段名。根路径取决于查询模型：快照的业务字段位于 `state`；事件流的根字段与展开后的事件字段不同，事件 payload 位于 `body.body`。因此不要把快照的 `state.*` 路径复制到事件流查询，也不要从物理 mapping 猜测逻辑字段。

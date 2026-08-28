@@ -15,16 +15,18 @@ Query Model Schema 是运行时查询能力合同，分别描述 `QueryModel.SNA
 
 运行时来源链如下，括号内数字越大，优先级越高：
 
-```text
-System
- + JsonQuerySchemaSource (100)
- + ClasspathQuerySchemaSource (200)
- + BeanQuerySchemaSource (300)
- + WorkingDirectoryQuerySchemaSource (400)
- -> QuerySchemaMerger
- -> MongoDB / Elasticsearch Adapter
- -> QueryModelSchema
- -> QuerySchemaResolver
+```mermaid
+flowchart LR
+    System["System 字段"] --> Merger["QuerySchemaMerger"]
+    Json["JSON Schema 100"] --> Merger
+    Classpath["Classpath 200"] --> Merger
+    Bean["Bean 300"] --> Merger
+    Working["Working Directory 400"] --> Merger
+    Merger --> Adapter["MongoDB / Elasticsearch Adapter"]
+    Adapter --> Schema["QueryModelSchema"]
+    Schema --> Resolver["QuerySchemaResolver"]
+    Resolver --> Query["Filter / Sort / Aggregation"]
+    Schema --> HTTP["Schema / refresh HTTP"]
 ```
 
 - `System` 为 Snapshot 和 EventStream 提供各自的系统字段。扩展只能位于 Snapshot 的 `state` 或 EventStream 的 `body.body` 根下；已经由系统设置的字段叶不能被覆盖。

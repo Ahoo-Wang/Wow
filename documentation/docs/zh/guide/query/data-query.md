@@ -16,6 +16,22 @@ description: 使用统一的查询形态读取快照或事件流数据。
 | `PagedQuery` | `filter`、`projection`、`sort`、`pagination` | 当前页数据和总数 |
 | Count | 直接提交 `FilterExpression` | 精确计数（`Long`） |
 
+```mermaid
+flowchart LR
+    Source{"选择数据源"} --> Snapshot["Snapshot：当前 state"]
+    Source --> Event["EventStream：历史 body"]
+    Shape{"选择返回形态"} --> Single["SingleQuery：至多一条"]
+    Shape --> List["ListQuery：列表"]
+    Shape --> Paged["PagedQuery：当前页 + total"]
+    Shape --> Count["FilterExpression：计数"]
+    Snapshot --> Execute["查询入口"]
+    Event --> Execute
+    Single --> Execute
+    List --> Execute
+    Paged --> Execute
+    Count --> Execute
+```
+
 这些形态可以作用于不同的数据模型；字段路径和模型默认行为分别见[快照查询](./snapshot-query.md)与[事件流查询](./event-stream-query.md)。本页不预设 `state.*` 或 `body.*` 路径。
 
 ## SingleQuery

@@ -23,6 +23,19 @@ Without Elements, one record is one root `DomainEventStream` document. Root filt
 
 `body` is the event array. After `expand("body")`, one record becomes one expanded event. Element filters, groups, metrics, and expression fields are relative to that event, so use `name`, `revision`, `bodyType`, and `body.data`, not the repeated root-prefixed forms `body.name` or `body.body.data`. The root filter still uses absolute root-document paths. `COUNT` counts the current scope, so root event-stream count and expanded event count are different metrics.
 
+```mermaid
+flowchart TB
+    Unit{"Counting unit"} --> Root["Root event-stream document"]
+    Unit --> Event["Expanded body event"]
+    Root --> S3["3 Creation trend"]
+    Root --> S4["4 Tenant / owner activity"]
+    Root --> S5Root["5 Event-stream count"]
+    Event --> S1["1 Event-name frequency"]
+    Event --> S2["2 Revision × bodyType"]
+    Event --> S5Event["5 Event count"]
+    Event --> S6["6 Payload analysis"]
+```
+
 ## Scenario 1: Event Name Frequency
 
 **Business question**
