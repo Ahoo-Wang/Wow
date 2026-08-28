@@ -9,6 +9,8 @@ Use this rubric after resolving the actual diff and reading the current definiti
 - Events contain enough durable meaning to rebuild state and preserve compatibility.
 - Saga branches, Projection/EventProcessor side effects, duplicate delivery, retry, and idempotency are verified at the correct boundary.
 - Query filters preserve tenant/owner/deletion/authorization constraints, `FilterExpression` scope semantics, deterministic pagination, and backend null/numeric behavior. Aggregation `elements` keep the first path absolute, later paths relative, and sort by the effective output field.
+- Runtime query schemas preserve declaration merge, validation mode, backend bindings, and cache/refresh locality. OpenAPI `x-wow-query-fields` is not backend capability proof; refreshing one instance does not update other replicas, mappings, or historical data.
+- EventStream aggregation uses the managed `EventStreamQueryService`/`QueryGateway`, `EVENT_STREAM` schema, and event-relative `body` paths. Do not infer an EventStream HTTP, OpenAPI, or Schema route from in-process support.
 - Request-facing and ordinary application queries use the managed aggregate `QueryService` or an explicit `QueryGateway`. Direct `QueryServiceFactory` access is trusted infrastructure that bypasses `QueryServiceProxy` and the Gateway policy chain; the same backend is not policy equivalence. WebFlux request-scope rewriting happens before the Gateway and is not inherited by in-process calls.
 - Gateway/wait changes preserve identity, propagation, cancellation cleanup, timeout semantics, and ambiguous outcomes.
 - Runtime changes preserve one owner, admission/drain ordering, fatal cause, readiness, deadlines, and repeated-signal safety.

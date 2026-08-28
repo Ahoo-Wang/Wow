@@ -3,7 +3,7 @@
   "plugins": [
     {
       "name": "ahoo-wow-skills",
-      "version": "0.0.4",
+      "version": "0.0.5",
       "description": "Intent-focused Agent Skills for developing, reviewing, debugging, and migrating Wow reactive DDD, Event Sourcing, and CQRS services.",
       "skills": {
         "include": [
