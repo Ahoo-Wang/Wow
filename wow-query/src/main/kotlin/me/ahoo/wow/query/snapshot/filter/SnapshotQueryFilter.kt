@@ -23,14 +23,15 @@ import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import reactor.core.publisher.Mono
 
-@FilterType(SnapshotQueryHandler::class)
+@FilterType(SnapshotQueryGateway::class)
 interface SnapshotQueryFilter : QueryFilter<QueryContext<*, *>>
 
 @Order(ORDER_LAST)
-@FilterType(SnapshotQueryHandler::class)
+@FilterType(SnapshotQueryGateway::class)
 class TailSnapshotQueryFilter<S : Any>(private val queryServiceFactory: SnapshotQueryServiceFactory) :
     SnapshotQueryFilter {
     override fun filter(

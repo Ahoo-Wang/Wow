@@ -11,19 +11,19 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.exception.WowException
+import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.query.event.EventStreamQueryService
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
-import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.query.mask.EventStreamDynamicDocumentMasker
 import me.ahoo.wow.query.mask.StateDynamicDocumentMasker
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryService
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
+import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.filter.AbacQueryFilter
 import me.ahoo.wow.query.snapshot.filter.MaskingSnapshotQueryFilter
-import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.query.snapshot.filter.TailSnapshotQueryFilter
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -65,8 +65,8 @@ class QueryAutoConfigurationTest {
                     .hasBean("eventStreamQueryFilterChain")
                     .hasBean("snapshotQueryErrorHandler")
                     .hasBean("eventStreamQueryErrorHandler")
-                    .hasSingleBean(SnapshotQueryHandler::class.java)
-                    .hasSingleBean(EventStreamQueryHandler::class.java)
+                    .hasSingleBean(SnapshotQueryGateway::class.java)
+                    .hasSingleBean(EventStreamQueryGateway::class.java)
 
                 context.getBean(
                     ExistsBeanName.SNAPSHOT_QUERY_SERVICE,

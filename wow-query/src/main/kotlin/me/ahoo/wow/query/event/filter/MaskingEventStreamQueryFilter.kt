@@ -16,13 +16,14 @@ package me.ahoo.wow.query.event.filter
 import me.ahoo.wow.api.annotation.ORDER_LAST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.filter.FilterType
+import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.query.filter.MaskingDynamicDocumentQueryFilter
 import me.ahoo.wow.query.mask.EventStreamDynamicDocumentMasker
 import me.ahoo.wow.query.mask.EventStreamMaskerRegistry
 
 @Suppress("UNCHECKED_CAST")
 @Order(ORDER_LAST, before = [TailEventStreamQueryFilter::class])
-@FilterType(EventStreamQueryHandler::class)
+@FilterType(EventStreamQueryGateway::class)
 class MaskingEventStreamQueryFilter(
     maskerRegistry: EventStreamMaskerRegistry
 ) : EventStreamQueryFilter, MaskingDynamicDocumentQueryFilter<EventStreamDynamicDocumentMasker>(maskerRegistry)

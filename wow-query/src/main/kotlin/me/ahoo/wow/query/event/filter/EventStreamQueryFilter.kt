@@ -20,17 +20,18 @@ import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterType
+import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
 import reactor.core.publisher.Mono
 
-@FilterType(EventStreamQueryHandler::class)
+@FilterType(EventStreamQueryGateway::class)
 interface EventStreamQueryFilter : QueryFilter<QueryContext<*, *>>
 
 @Order(ORDER_LAST)
-@FilterType(EventStreamQueryHandler::class)
+@FilterType(EventStreamQueryGateway::class)
 @Suppress("UNCHECKED_CAST")
 class TailEventStreamQueryFilter(private val queryServiceFactory: EventStreamQueryServiceFactory) :
     EventStreamQueryFilter {

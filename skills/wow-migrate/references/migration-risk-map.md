@@ -22,6 +22,21 @@ For each item record current evidence, target-tag evidence, required action, own
 
 Source compatibility is not runtime capability: a new default interface method and generated route can compile while a custom `SnapshotQueryService` still falls into an unsupported `aggregate` implementation. When the target publishes aggregation, prove the selected service overrides or delegates `aggregate`, then call the generated endpoint for every snapshot backend actually used.
 
+## Wow 8.14.x to 8.15.0 query entry rename
+
+When the pinned source is 8.14.x and the target is 8.15.0 or later, apply this source/configuration migration without compatibility aliases:
+
+| 8.14.x | 8.15.0+ |
+|---|---|
+| `me.ahoo.wow.query.filter.QueryHandler` / `AbstractQueryHandler` | `me.ahoo.wow.query.QueryGateway` / `AbstractQueryGateway` |
+| `me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler` / `DefaultSnapshotQueryHandler` | `me.ahoo.wow.query.snapshot.SnapshotQueryGateway` / `DefaultSnapshotQueryGateway` |
+| `me.ahoo.wow.query.event.filter.EventStreamQueryHandler` / `DefaultEventStreamQueryHandler` | `me.ahoo.wow.query.event.EventStreamQueryGateway` / `DefaultEventStreamQueryGateway` |
+| `snapshotQueryHandler` / `eventStreamQueryHandler` bean | `snapshotQueryGateway` / `eventStreamQueryGateway` bean |
+
+Change custom query-filter `@FilterType` targets to the corresponding Gateway. `QueryGateway` no longer extends `Handler` or exposes `handle(QueryContext)`; direct implementations must implement `aggregate`, and Gateway `count` accepts only `FilterExpression`. Do not remove aggregate `QueryService` injection, `QueryServiceProxy`, either `QueryServiceRegistrar`, backend `QueryService`, or its factory: managed aggregate services route through the Gateway, while direct factory access remains a trusted raw path that bypasses its policy chain.
+
+The rename alone does not change HTTP/OpenAPI query shapes, wire formats, or stored events/snapshots, so it needs source compilation, Spring bean/qualifier startup, and representative managed-service/WebFlux query verification, but no data conversion. Reassess that conclusion if the same release also changes application schemas, storage layouts, or writers.
+
 ## Runtime and data coupling
 
 Identify every writer, reader, database/namespace, bounded context, aggregate route, ownership marker, stream/topic, snapshot/event format, PrepareKey store, index, and background process. Determine whether source and target versions can safely coexist; assume they cannot unless the pinned contract proves otherwise.

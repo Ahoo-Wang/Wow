@@ -13,7 +13,7 @@ Wow carries four kinds of data-access context through the write and read paths:
 3. **Space** — optional namespace metadata supplied by a request header;
 4. **ABAC tags** — resource tags plus an application-supplied principal filter.
 
-On WebFlux query routes, `RewriteRequestFilter` appends tenant, owner, and space metadata filters before the generated query service reaches its backend. A configured `AbacQueryFilter` can append resource-tag conditions in the same handler chain.
+On WebFlux query routes, `RewriteRequestFilter` appends tenant, owner, and space metadata filters before invoking `QueryGateway`. A configured `AbacQueryFilter` then appends resource-tag conditions inside the Gateway filter chain.
 
 ::: danger Scope is not authentication
 A tenant or owner path, `Wow-Space-Id` header, or ABAC tag is data used by routing and filtering. It does not prove who sent the request or whether that principal may choose the value. Authenticate first, bind allowed scopes on the server, authorize command and query routes, and keep raw query factories out of untrusted request paths.
@@ -225,9 +225,9 @@ This example represents an application policy; adapt it to the actual security c
 
 ### Query Entry Points and Policy Enforcement
 
-Spring-registered aggregate `SnapshotQueryService` and `EventStreamQueryService` proxies execute through `QueryHandler`. That chain is where request-scope rewriting, configured ABAC filters, and result masking apply.
+Spring-registered aggregate `SnapshotQueryService` and `EventStreamQueryService` proxies execute through `QueryGateway`, where configured ABAC filters and result masking apply. In-process calls do not execute WebFlux `RewriteRequestFilter`; callers must provide tenant, owner, and space scope explicitly in the query or through a trusted context supported by their filters.
 
-`SnapshotQueryServiceFactory` and `EventStreamQueryServiceFactory` are raw backend entry points. Directly created services bypass the generated handler chain. A custom bean registered under a generated service name is also used as supplied rather than wrapped. Treat both as trusted infrastructure access.
+`SnapshotQueryServiceFactory` and `EventStreamQueryServiceFactory` are raw backend entry points. Directly created services bypass the generated proxy / `QueryGateway` policy chain. A custom bean registered under a generated service name is also used as supplied rather than wrapped. Treat both as trusted infrastructure access.
 
 Aggregation uses the snapshot filter chain for its root filter, but result masking skips dynamic aggregation rows. Do not present aggregation merely because ordinary snapshot masking exists.
 

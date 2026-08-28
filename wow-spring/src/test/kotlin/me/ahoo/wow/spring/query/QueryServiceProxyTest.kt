@@ -32,18 +32,18 @@ import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.pagedQuery
 import me.ahoo.wow.query.dsl.singleQuery
+import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.query.event.EventStreamQueryService
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.NoOpEventStreamQueryService
-import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.query.event.requiredQueryModelSchemaProvider
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
+import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryService
-import me.ahoo.wow.query.snapshot.filter.DefaultSnapshotQueryHandler
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.support.DefaultListableBeanFactory
@@ -54,9 +54,9 @@ class QueryServiceProxyTest {
     private val namedAggregate = MaterializedNamedAggregate("test", "proxy")
 
     @Test
-    fun `event stream proxy should delegate every operation to handler`() {
-        val handler = RecordingEventStreamQueryHandler()
-        val proxy = EventStreamQueryServiceProxy(NoOpEventStreamQueryService(namedAggregate), handler)
+    fun `event stream proxy should delegate every operation to gateway`() {
+        val gateway = RecordingEventStreamQueryGateway()
+        val proxy = EventStreamQueryServiceProxy(NoOpEventStreamQueryService(namedAggregate), gateway)
 
         proxy.single(singleQuery { })
         proxy.dynamicSingle(singleQuery { })
@@ -67,7 +67,7 @@ class QueryServiceProxyTest {
         proxy.count(MatchAllFilter)
         proxy.aggregate(AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))))
 
-        handler.queryTypes.assert().containsExactly(
+        gateway.queryTypes.assert().containsExactly(
             QueryType.SINGLE,
             QueryType.DYNAMIC_SINGLE,
             QueryType.LIST,
@@ -77,7 +77,7 @@ class QueryServiceProxyTest {
             QueryType.COUNT,
             QueryType.AGGREGATION,
         )
-        handler.namedAggregates.toSet().assert().containsExactly(namedAggregate)
+        gateway.namedAggregates.toSet().assert().containsExactly(namedAggregate)
     }
 
     @Test
@@ -93,7 +93,7 @@ class QueryServiceProxyTest {
         }
         val provider = EventStreamQueryServiceProxy(
             delegate,
-            RecordingEventStreamQueryHandler(),
+            RecordingEventStreamQueryGateway(),
         ).requiredQueryModelSchemaProvider()
 
         provider.schema().block().assert().isSameAs(initial)
@@ -104,7 +104,7 @@ class QueryServiceProxyTest {
     fun `event stream proxy should report unavailable schema reactively`() {
         val proxy = EventStreamQueryServiceProxy(
             NoOpEventStreamQueryService(namedAggregate),
-            RecordingEventStreamQueryHandler(),
+            RecordingEventStreamQueryGateway(),
         )
 
         val unavailableSchema = proxy.requiredQueryModelSchemaProvider().schema()
@@ -117,23 +117,23 @@ class QueryServiceProxyTest {
     @Test
     fun `snapshot proxy should preserve delegate identity`() {
         val delegate = NoOpSnapshotQueryService<Any>(namedAggregate)
-        val handler = DefaultSnapshotQueryHandler(EmptyFilterChain.instance<QueryContext<*, *>>())
-        val proxy = SnapshotQueryServiceProxy(delegate, handler)
+        val gateway = DefaultSnapshotQueryGateway(EmptyFilterChain.instance<QueryContext<*, *>>())
+        val proxy = SnapshotQueryServiceProxy(delegate, gateway)
 
         proxy.name.assert().isEqualTo(delegate.name)
         proxy.namedAggregate.assert().isSameAs(delegate.namedAggregate)
     }
 
     @Test
-    fun `snapshot proxy should route aggregation through handler`() {
-        val handler = DefaultSnapshotQueryHandler(
+    fun `snapshot proxy should route aggregation through gateway`() {
+        val gateway = DefaultSnapshotQueryGateway(
             FilterChain { context ->
                 context.queryType.assert().isEqualTo(QueryType.AGGREGATION)
                 context.asAggregationQuery().setResult(Flux.empty())
                 Mono.empty()
             }
         )
-        val proxy = SnapshotQueryServiceProxy(NoOpSnapshotQueryService<Any>(namedAggregate), handler)
+        val proxy = SnapshotQueryServiceProxy(NoOpSnapshotQueryService<Any>(namedAggregate), gateway)
 
         proxy.aggregate(AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))))
             .collectList()
@@ -143,7 +143,7 @@ class QueryServiceProxyTest {
     }
 
     @Test
-    fun `registrar should preserve raw service when handler is unavailable`() {
+    fun `registrar should preserve raw service when gateway is unavailable`() {
         val beanFactory = DefaultListableBeanFactory()
         val rawService = NoOpEventStreamQueryService(namedAggregate)
         beanFactory.registerSingleton(
@@ -159,11 +159,9 @@ class QueryServiceProxyTest {
         beanFactory.getBean(EventStreamQueryService::class.java).assert().isSameAs(rawService)
     }
 
-    private class RecordingEventStreamQueryHandler : EventStreamQueryHandler {
+    private class RecordingEventStreamQueryGateway : EventStreamQueryGateway {
         val queryTypes = mutableListOf<QueryType>()
         val namedAggregates = mutableListOf<NamedAggregate>()
-
-        override fun handle(context: QueryContext<*, *>): Mono<Void> = Mono.empty()
 
         override fun single(namedAggregate: NamedAggregate, singleQuery: ISingleQuery): Mono<DomainEventStream> =
             record(QueryType.SINGLE, namedAggregate, Mono.empty())

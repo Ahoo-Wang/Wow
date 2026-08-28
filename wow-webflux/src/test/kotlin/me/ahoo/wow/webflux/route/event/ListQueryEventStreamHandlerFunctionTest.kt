@@ -35,7 +35,7 @@ class ListQueryEventStreamHandlerFunctionTest {
     fun `should handle list query event stream request`() {
         val handlerFunction =
             ListQueryEventStreamHandlerFunctionFactory(
-                eventStreamQueryHandler = RouteTestFixtures.eventStreamQueryHandler,
+                eventStreamQueryGateway = RouteTestFixtures.eventStreamQueryGateway,
                 rewriteRequestFilter = DefaultRewriteRequestFilter,
                 exceptionHandler = WebFluxRequestExceptionHandler()
             )

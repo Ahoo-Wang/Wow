@@ -20,7 +20,7 @@ import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.filter.Contexts.writeRawRequest
-import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
+import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.command.getAggregateId
@@ -34,7 +34,7 @@ import reactor.core.publisher.Mono
 
 class LoadSnapshotHandlerFunction(
     private val aggregateRouteMetadata: AggregateRouteMetadata<*>,
-    private val snapshotQueryHandler: SnapshotQueryHandler,
+    private val snapshotQueryGateway: SnapshotQueryGateway,
     private val exceptionHandler: RequestExceptionHandler
 ) : HandlerFunction<ServerResponse> {
     private val aggregateMetadata = aggregateRouteMetadata.aggregateMetadata
@@ -51,7 +51,7 @@ class LoadSnapshotHandlerFunction(
                 }
             }
         }
-        return snapshotQueryHandler.dynamicSingle(aggregateMetadata, singleQuery)
+        return snapshotQueryGateway.dynamicSingle(aggregateMetadata, singleQuery)
             .writeRawRequest(request)
             .throwNotFoundIfEmpty()
             .toServerResponse(request, exceptionHandler)
@@ -59,7 +59,7 @@ class LoadSnapshotHandlerFunction(
 }
 
 class LoadSnapshotHandlerFunctionFactory(
-    private val snapshotQueryHandler: SnapshotQueryHandler,
+    private val snapshotQueryGateway: SnapshotQueryGateway,
     private val exceptionHandler: RequestExceptionHandler
 ) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Snapshot.LOAD) {
     override fun create(
@@ -70,6 +70,6 @@ class LoadSnapshotHandlerFunctionFactory(
     }
 
     private fun create(aggregateRouteMetadata: AggregateRouteMetadata<*>): HandlerFunction<ServerResponse> {
-        return LoadSnapshotHandlerFunction(aggregateRouteMetadata, snapshotQueryHandler, exceptionHandler)
+        return LoadSnapshotHandlerFunction(aggregateRouteMetadata, snapshotQueryGateway, exceptionHandler)
     }
 }

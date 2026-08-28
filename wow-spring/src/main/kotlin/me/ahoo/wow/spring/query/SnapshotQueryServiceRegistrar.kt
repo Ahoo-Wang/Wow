@@ -18,9 +18,9 @@ import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
+import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
-import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.support.BeanDefinitionBuilder
 import org.springframework.beans.factory.support.BeanDefinitionRegistry
@@ -55,7 +55,7 @@ class SnapshotQueryServiceRegistrar : QueryServiceRegistrar() {
         val beanDefinitionBuilder = BeanDefinitionBuilder.rootBeanDefinition(snapshotQueryServiceType) {
             val queryServiceFactory = appContext.getBean(SnapshotQueryServiceFactory::class.java)
             val queryService = queryServiceFactory.create<Any>(namedAggregate)
-            appContext.getBeanProvider(SnapshotQueryHandler::class.java).getIfAvailable()
+            appContext.getBeanProvider(SnapshotQueryGateway::class.java).getIfAvailable()
                 ?.let { SnapshotQueryServiceProxy(queryService, it) }
                 ?: queryService
         }

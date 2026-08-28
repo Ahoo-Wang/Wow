@@ -16,8 +16,8 @@ package me.ahoo.wow.webflux.route.query
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
+import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.filter.Contexts.writeRawRequest
-import me.ahoo.wow.query.filter.QueryHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.query.QueryBodyExtractor.Companion.FILTER_EXPRESSION_EXTRACTOR
@@ -29,7 +29,7 @@ import reactor.core.publisher.Mono
 
 class CountQueryHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val queryHandler: QueryHandler<*>,
+    private val queryGateway: QueryGateway<*>,
     private val rewriteRequestFilter: RewriteRequestFilter,
     private val exceptionHandler: RequestExceptionHandler,
 ) : HandlerFunction<ServerResponse> {
@@ -38,7 +38,7 @@ class CountQueryHandlerFunction(
         return request.body(FILTER_EXPRESSION_EXTRACTOR)
             .flatMap { filter ->
                 val rewritten = rewriteRequestFilter.rewrite(aggregateMetadata, request, filter)
-                queryHandler.count(
+                queryGateway.count(
                     aggregateMetadata,
                     rewritten,
                 ).writeRawRequest(request)
@@ -48,7 +48,7 @@ class CountQueryHandlerFunction(
 
 open class CountQueryHandlerFunctionFactory(
     handlerKey: String,
-    private val queryHandler: QueryHandler<*>,
+    private val queryGateway: QueryGateway<*>,
     private val rewriteRequestFilter: RewriteRequestFilter,
     private val exceptionHandler: RequestExceptionHandler
 ) : AggregateRouteHandlerFunctionFactorySupport(handlerKey) {
@@ -62,7 +62,7 @@ open class CountQueryHandlerFunctionFactory(
     private fun create(aggregateMetadata: AggregateMetadata<*, *>): HandlerFunction<ServerResponse> {
         return CountQueryHandlerFunction(
             aggregateMetadata = aggregateMetadata,
-            queryHandler = queryHandler,
+            queryGateway = queryGateway,
             rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler
         )

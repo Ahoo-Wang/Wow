@@ -22,12 +22,12 @@ import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterType
-import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
+import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.query.filter.Contexts.getRawRequest
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
-import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
+import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.webflux.route.acceptsEventStream
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.core.publisher.Flux
@@ -36,7 +36,7 @@ import java.time.Duration
 import java.util.ArrayDeque
 
 @Order(ORDER_FIRST)
-@FilterType(SnapshotQueryHandler::class, EventStreamQueryHandler::class)
+@FilterType(SnapshotQueryGateway::class, EventStreamQueryGateway::class)
 class HttpQueryGuardFilter(
     private val maxListSize: Int = 1000,
     private val maxPageSize: Int = 100,

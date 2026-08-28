@@ -38,6 +38,8 @@ import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.mask.DataMasking
 import me.ahoo.wow.query.mask.StateDataMaskerRegistry
 import me.ahoo.wow.query.mask.StateDynamicDocumentMasker
+import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
+import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.filter.MaskingSnapshotQueryFilterTest.DataMaskable.Companion.MASKED_PWD
@@ -54,9 +56,9 @@ class MaskingSnapshotQueryFilterTest {
     private val stateDataMaskerRegistry = StateDataMaskerRegistry()
     private val snapshotQueryFilterChain = FilterChainBuilder<QueryContext<*, *>>()
         .addFilters(listOf(tailSnapshotQueryFilter, MaskingSnapshotQueryFilter(stateDataMaskerRegistry)))
-        .filterCondition(SnapshotQueryHandler::class)
+        .filterCondition(SnapshotQueryGateway::class)
         .build()
-    private val queryHandler = DefaultSnapshotQueryHandler(
+    private val queryGateway = DefaultSnapshotQueryGateway(
         snapshotQueryFilterChain,
         LogErrorHandler()
     )
@@ -68,7 +70,7 @@ class MaskingSnapshotQueryFilterTest {
     @Test
     fun `should mask single snapshot result`() {
         val query = singleQuery { }
-        queryHandler.single(MockSnapshotQueryService.namedAggregate, query)
+        queryGateway.single(MockSnapshotQueryService.namedAggregate, query)
             .test()
             .consumeNextWith {
                 val state = it.state as DataMaskable
@@ -80,7 +82,7 @@ class MaskingSnapshotQueryFilterTest {
     @Test
     fun `should mask dynamic single snapshot result`() {
         val query = singleQuery { }
-        queryHandler.dynamicSingle(MockSnapshotQueryService.namedAggregate, query)
+        queryGateway.dynamicSingle(MockSnapshotQueryService.namedAggregate, query)
             .test()
             .consumeNextWith {
                 it.getNestedDocument("state").getValue<String>("pwd").assert().isEqualTo(MASKED_PWD)
@@ -91,7 +93,7 @@ class MaskingSnapshotQueryFilterTest {
     @Test
     fun `should mask list snapshot results`() {
         val query = listQuery { }
-        queryHandler.list(MockSnapshotQueryService.namedAggregate, query)
+        queryGateway.list(MockSnapshotQueryService.namedAggregate, query)
             .test()
             .consumeNextWith {
                 val state = it.state as DataMaskable
@@ -103,7 +105,7 @@ class MaskingSnapshotQueryFilterTest {
     @Test
     fun `should mask dynamic list snapshot results`() {
         val query = listQuery { }
-        queryHandler.dynamicList(MockSnapshotQueryService.namedAggregate, query)
+        queryGateway.dynamicList(MockSnapshotQueryService.namedAggregate, query)
             .test()
             .consumeNextWith {
                 it.getNestedDocument("state").getValue<String>("pwd").assert().isEqualTo(MASKED_PWD)
@@ -114,7 +116,7 @@ class MaskingSnapshotQueryFilterTest {
     @Test
     fun `should mask paged snapshot results`() {
         val pagedQuery = me.ahoo.wow.query.dsl.pagedQuery { }
-        queryHandler.paged(MockSnapshotQueryService.namedAggregate, pagedQuery)
+        queryGateway.paged(MockSnapshotQueryService.namedAggregate, pagedQuery)
             .test()
             .consumeNextWith {
                 it.total.assert().isOne()
@@ -127,7 +129,7 @@ class MaskingSnapshotQueryFilterTest {
     @Test
     fun `should mask dynamic paged snapshot results`() {
         val pagedQuery = me.ahoo.wow.query.dsl.pagedQuery { }
-        queryHandler.dynamicPaged(MockSnapshotQueryService.namedAggregate, pagedQuery)
+        queryGateway.dynamicPaged(MockSnapshotQueryService.namedAggregate, pagedQuery)
             .test()
             .consumeNextWith {
                 it.total.assert().isOne()
@@ -138,7 +140,7 @@ class MaskingSnapshotQueryFilterTest {
 
     @Test
     fun `should return count without masking`() {
-        queryHandler.count(MockSnapshotQueryService.namedAggregate, MatchAllFilter)
+        queryGateway.count(MockSnapshotQueryService.namedAggregate, MatchAllFilter)
             .test()
             .consumeNextWith {
                 it.assert().isOne()

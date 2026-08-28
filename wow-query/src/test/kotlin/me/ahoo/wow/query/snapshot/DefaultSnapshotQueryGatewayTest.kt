@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.snapshot.filter
+package me.ahoo.wow.query.snapshot
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
@@ -19,31 +19,27 @@ import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.MatchAllFilter
-import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
+import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.filter.QueryContext
-import me.ahoo.wow.query.filter.QueryHandler
-import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryService
-import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
-import me.ahoo.wow.query.snapshot.SnapshotQueryService
-import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
+import me.ahoo.wow.query.snapshot.filter.TailSnapshotQueryFilter
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.kotlin.test.test
 
-class DefaultSnapshotQueryHandlerTest {
+class DefaultSnapshotQueryGatewayTest {
     private val tailSnapshotQueryFilter = TailSnapshotQueryFilter<Any>(NoOpSnapshotQueryServiceFactory)
     private val snapshotQueryFilterChain = FilterChainBuilder<QueryContext<*, *>>()
         .addFilters(listOf(tailSnapshotQueryFilter))
-        .filterCondition(SnapshotQueryHandler::class)
+        .filterCondition(SnapshotQueryGateway::class)
         .build()
-    private val queryHandler = DefaultSnapshotQueryHandler(
+    private val queryGateway = DefaultSnapshotQueryGateway(
         snapshotQueryFilterChain,
         LogErrorHandler()
     )
@@ -58,10 +54,10 @@ class DefaultSnapshotQueryHandlerTest {
         override fun <S : Any> create(namedAggregate: NamedAggregate): SnapshotQueryService<S> =
             aggregateQueryService as SnapshotQueryService<S>
     }
-    private val aggregateQueryHandler = DefaultSnapshotQueryHandler(
+    private val aggregateQueryGateway = DefaultSnapshotQueryGateway(
         FilterChainBuilder<QueryContext<*, *>>()
             .addFilters(listOf(TailSnapshotQueryFilter<Any>(aggregateQueryServiceFactory)))
-            .filterCondition(SnapshotQueryHandler::class)
+            .filterCondition(SnapshotQueryGateway::class)
             .build(),
         LogErrorHandler()
     )
@@ -71,7 +67,7 @@ class DefaultSnapshotQueryHandlerTest {
         val query = singleQuery {
         }
 
-        queryHandler.single(MOCK_AGGREGATE_METADATA, query)
+        queryGateway.single(MOCK_AGGREGATE_METADATA, query)
             .test().verifyComplete()
     }
 
@@ -80,28 +76,28 @@ class DefaultSnapshotQueryHandlerTest {
         val query = singleQuery {
         }
 
-        queryHandler.dynamicSingle(MOCK_AGGREGATE_METADATA, query)
+        queryGateway.dynamicSingle(MOCK_AGGREGATE_METADATA, query)
             .test().verifyComplete()
     }
 
     @Test
     fun `should execute list query`() {
         val query = listQuery { }
-        queryHandler.list(MOCK_AGGREGATE_METADATA, query)
+        queryGateway.list(MOCK_AGGREGATE_METADATA, query)
             .test().verifyComplete()
     }
 
     @Test
     fun `should execute dynamic list query`() {
         val query = listQuery { }
-        queryHandler.dynamicList(MOCK_AGGREGATE_METADATA, query)
+        queryGateway.dynamicList(MOCK_AGGREGATE_METADATA, query)
             .test().verifyComplete()
     }
 
     @Test
     fun `should execute paged query`() {
         val pagedQuery = me.ahoo.wow.query.dsl.pagedQuery { }
-        queryHandler.paged(MOCK_AGGREGATE_METADATA, pagedQuery)
+        queryGateway.paged(MOCK_AGGREGATE_METADATA, pagedQuery)
             .test()
             .consumeNextWith {
                 it.total.assert().isZero()
@@ -112,7 +108,7 @@ class DefaultSnapshotQueryHandlerTest {
     @Test
     fun `should execute dynamic paged query`() {
         val pagedQuery = me.ahoo.wow.query.dsl.pagedQuery { }
-        queryHandler.dynamicPaged(MOCK_AGGREGATE_METADATA, pagedQuery)
+        queryGateway.dynamicPaged(MOCK_AGGREGATE_METADATA, pagedQuery)
             .test()
             .consumeNextWith {
                 it.total.assert().isZero()
@@ -125,13 +121,13 @@ class DefaultSnapshotQueryHandlerTest {
         val condition = condition {
             id("1")
         }
-        queryHandler.count(MOCK_AGGREGATE_METADATA, condition)
+        queryGateway.count(MOCK_AGGREGATE_METADATA, condition.toFilterExpression())
             .test()
             .consumeNextWith {
                 it.assert().isZero()
             }
             .verifyComplete()
-        queryHandler.count(MOCK_AGGREGATE_METADATA, MatchAllFilter)
+        queryGateway.count(MOCK_AGGREGATE_METADATA, MatchAllFilter)
             .test()
             .expectNext(0)
             .verifyComplete()
@@ -141,28 +137,9 @@ class DefaultSnapshotQueryHandlerTest {
     fun `aggregation should use the existing snapshot chain`() {
         val query = AggregationQuery(metrics = listOf(AggregationMetric.Count("count")))
 
-        aggregateQueryHandler.aggregate(MOCK_AGGREGATE_METADATA, query)
+        aggregateQueryGateway.aggregate(MOCK_AGGREGATE_METADATA, query)
             .test()
             .expectNextMatches { it["count"] == 1L }
             .verifyComplete()
-    }
-
-    @Test
-    fun `snapshot handler should inherit generic unsupported aggregation`() {
-        val fallback = object :
-            SnapshotQueryHandler,
-            QueryHandler<MaterializedSnapshot<Any>> by queryHandler {
-            override fun aggregate(
-                namedAggregate: NamedAggregate,
-                query: AggregationQuery,
-            ): Flux<DynamicDocument> = super<SnapshotQueryHandler>.aggregate(namedAggregate, query)
-        }
-
-        fallback.aggregate(
-            MOCK_AGGREGATE_METADATA,
-            AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))),
-        ).test()
-            .expectErrorMessage("Aggregation is not supported.")
-            .verify()
     }
 }

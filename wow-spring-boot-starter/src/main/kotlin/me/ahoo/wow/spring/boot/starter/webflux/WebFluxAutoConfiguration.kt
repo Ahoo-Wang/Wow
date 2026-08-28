@@ -23,9 +23,9 @@ import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.RouterSpecs
-import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
+import me.ahoo.wow.query.event.EventStreamQueryGateway
+import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
-import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
 import me.ahoo.wow.spring.boot.starter.bi.BiScriptProperties
@@ -237,16 +237,16 @@ class WebFluxAutoConfiguration {
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @ConditionalOnMissingBean
     fun queryRouteModule(
-        snapshotQueryHandler: SnapshotQueryHandler,
+        snapshotQueryGateway: SnapshotQueryGateway,
         snapshotQueryServiceFactory: SnapshotQueryServiceFactory,
-        eventStreamQueryHandler: EventStreamQueryHandler,
+        eventStreamQueryGateway: EventStreamQueryGateway,
         rewriteRequestFilter: RewriteRequestFilter,
         exceptionHandler: RequestExceptionHandler
     ): QueryRouteModule {
         return QueryRouteModule(
-            snapshotQueryHandler = snapshotQueryHandler,
+            snapshotQueryGateway = snapshotQueryGateway,
             snapshotQueryServiceFactory = snapshotQueryServiceFactory,
-            eventStreamQueryHandler = eventStreamQueryHandler,
+            eventStreamQueryGateway = eventStreamQueryGateway,
             rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler
         )
