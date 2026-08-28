@@ -109,61 +109,61 @@ enum class StringComparison {
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
     include = JsonTypeInfo.As.EXISTING_PROPERTY,
-    property = "op",
+    property = QueryProtocol.FilterExpression.OP,
 )
 @JsonSubTypes(
-    JsonSubTypes.Type(MatchAllFilter::class, name = "MATCH_ALL"),
-    JsonSubTypes.Type(MatchNoneFilter::class, name = "MATCH_NONE"),
-    JsonSubTypes.Type(IdFilter::class, name = "ID"),
-    JsonSubTypes.Type(IdsFilter::class, name = "IDS"),
-    JsonSubTypes.Type(AggregateIdFilter::class, name = "AGGREGATE_ID"),
-    JsonSubTypes.Type(AggregateIdsFilter::class, name = "AGGREGATE_IDS"),
-    JsonSubTypes.Type(TenantIdFilter::class, name = "TENANT_ID"),
-    JsonSubTypes.Type(OwnerIdFilter::class, name = "OWNER_ID"),
-    JsonSubTypes.Type(SpaceIdFilter::class, name = "SPACE_ID"),
-    JsonSubTypes.Type(AndFilter::class, name = "AND"),
-    JsonSubTypes.Type(OrFilter::class, name = "OR"),
-    JsonSubTypes.Type(NorFilter::class, name = "NOR"),
-    JsonSubTypes.Type(EqualFilter::class, name = "EQ"),
-    JsonSubTypes.Type(NotEqualFilter::class, name = "NE"),
-    JsonSubTypes.Type(GreaterThanFilter::class, name = "GT"),
-    JsonSubTypes.Type(GreaterThanOrEqualFilter::class, name = "GTE"),
-    JsonSubTypes.Type(LessThanFilter::class, name = "LT"),
-    JsonSubTypes.Type(LessThanOrEqualFilter::class, name = "LTE"),
-    JsonSubTypes.Type(ContainsFilter::class, name = "CONTAINS"),
-    JsonSubTypes.Type(StartsWithFilter::class, name = "STARTS_WITH"),
-    JsonSubTypes.Type(EndsWithFilter::class, name = "ENDS_WITH"),
-    JsonSubTypes.Type(InFilter::class, name = "IN"),
-    JsonSubTypes.Type(NotInFilter::class, name = "NOT_IN"),
-    JsonSubTypes.Type(BetweenFilter::class, name = "BETWEEN"),
-    JsonSubTypes.Type(ContainsAllFilter::class, name = "CONTAINS_ALL"),
-    JsonSubTypes.Type(IsEmptyFilter::class, name = "IS_EMPTY"),
-    JsonSubTypes.Type(IsNullFilter::class, name = "IS_NULL"),
-    JsonSubTypes.Type(IsNotNullFilter::class, name = "IS_NOT_NULL"),
-    JsonSubTypes.Type(ExistsFilter::class, name = "EXISTS"),
-    JsonSubTypes.Type(NotExistsFilter::class, name = "NOT_EXISTS"),
-    JsonSubTypes.Type(DeletionFilter::class, name = "DELETION"),
-    JsonSubTypes.Type(ElementMatchFilter::class, name = "ELEMENT_MATCH"),
-    JsonSubTypes.Type(SearchFilter::class, name = "SEARCH"),
-    JsonSubTypes.Type(TodayFilter::class, name = "TODAY"),
-    JsonSubTypes.Type(BeforeTodayFilter::class, name = "BEFORE_TODAY"),
-    JsonSubTypes.Type(TomorrowFilter::class, name = "TOMORROW"),
-    JsonSubTypes.Type(ThisWeekFilter::class, name = "THIS_WEEK"),
-    JsonSubTypes.Type(NextWeekFilter::class, name = "NEXT_WEEK"),
-    JsonSubTypes.Type(LastWeekFilter::class, name = "LAST_WEEK"),
-    JsonSubTypes.Type(ThisMonthFilter::class, name = "THIS_MONTH"),
-    JsonSubTypes.Type(LastMonthFilter::class, name = "LAST_MONTH"),
-    JsonSubTypes.Type(RecentDaysFilter::class, name = "RECENT_DAYS"),
-    JsonSubTypes.Type(EarlierDaysFilter::class, name = "EARLIER_DAYS"),
-    JsonSubTypes.Type(YesterdayFilter::class, name = "YESTERDAY"),
-    JsonSubTypes.Type(NextMonthFilter::class, name = "NEXT_MONTH"),
-    JsonSubTypes.Type(LastYearFilter::class, name = "LAST_YEAR"),
-    JsonSubTypes.Type(ThisYearFilter::class, name = "THIS_YEAR"),
-    JsonSubTypes.Type(NextYearFilter::class, name = "NEXT_YEAR"),
+    JsonSubTypes.Type(MatchAllFilter::class, name = QueryProtocol.FilterExpression.Operator.MATCH_ALL),
+    JsonSubTypes.Type(MatchNoneFilter::class, name = QueryProtocol.FilterExpression.Operator.MATCH_NONE),
+    JsonSubTypes.Type(IdFilter::class, name = QueryProtocol.FilterExpression.Operator.ID),
+    JsonSubTypes.Type(IdsFilter::class, name = QueryProtocol.FilterExpression.Operator.IDS),
+    JsonSubTypes.Type(AggregateIdFilter::class, name = QueryProtocol.FilterExpression.Operator.AGGREGATE_ID),
+    JsonSubTypes.Type(AggregateIdsFilter::class, name = QueryProtocol.FilterExpression.Operator.AGGREGATE_IDS),
+    JsonSubTypes.Type(TenantIdFilter::class, name = QueryProtocol.FilterExpression.Operator.TENANT_ID),
+    JsonSubTypes.Type(OwnerIdFilter::class, name = QueryProtocol.FilterExpression.Operator.OWNER_ID),
+    JsonSubTypes.Type(SpaceIdFilter::class, name = QueryProtocol.FilterExpression.Operator.SPACE_ID),
+    JsonSubTypes.Type(AndFilter::class, name = QueryProtocol.FilterExpression.Operator.AND),
+    JsonSubTypes.Type(OrFilter::class, name = QueryProtocol.FilterExpression.Operator.OR),
+    JsonSubTypes.Type(NorFilter::class, name = QueryProtocol.FilterExpression.Operator.NOR),
+    JsonSubTypes.Type(EqualFilter::class, name = QueryProtocol.FilterExpression.Operator.EQ),
+    JsonSubTypes.Type(NotEqualFilter::class, name = QueryProtocol.FilterExpression.Operator.NE),
+    JsonSubTypes.Type(GreaterThanFilter::class, name = QueryProtocol.FilterExpression.Operator.GT),
+    JsonSubTypes.Type(GreaterThanOrEqualFilter::class, name = QueryProtocol.FilterExpression.Operator.GTE),
+    JsonSubTypes.Type(LessThanFilter::class, name = QueryProtocol.FilterExpression.Operator.LT),
+    JsonSubTypes.Type(LessThanOrEqualFilter::class, name = QueryProtocol.FilterExpression.Operator.LTE),
+    JsonSubTypes.Type(ContainsFilter::class, name = QueryProtocol.FilterExpression.Operator.CONTAINS),
+    JsonSubTypes.Type(StartsWithFilter::class, name = QueryProtocol.FilterExpression.Operator.STARTS_WITH),
+    JsonSubTypes.Type(EndsWithFilter::class, name = QueryProtocol.FilterExpression.Operator.ENDS_WITH),
+    JsonSubTypes.Type(InFilter::class, name = QueryProtocol.FilterExpression.Operator.IN),
+    JsonSubTypes.Type(NotInFilter::class, name = QueryProtocol.FilterExpression.Operator.NOT_IN),
+    JsonSubTypes.Type(BetweenFilter::class, name = QueryProtocol.FilterExpression.Operator.BETWEEN),
+    JsonSubTypes.Type(ContainsAllFilter::class, name = QueryProtocol.FilterExpression.Operator.CONTAINS_ALL),
+    JsonSubTypes.Type(IsEmptyFilter::class, name = QueryProtocol.FilterExpression.Operator.IS_EMPTY),
+    JsonSubTypes.Type(IsNullFilter::class, name = QueryProtocol.FilterExpression.Operator.IS_NULL),
+    JsonSubTypes.Type(IsNotNullFilter::class, name = QueryProtocol.FilterExpression.Operator.IS_NOT_NULL),
+    JsonSubTypes.Type(ExistsFilter::class, name = QueryProtocol.FilterExpression.Operator.EXISTS),
+    JsonSubTypes.Type(NotExistsFilter::class, name = QueryProtocol.FilterExpression.Operator.NOT_EXISTS),
+    JsonSubTypes.Type(DeletionFilter::class, name = QueryProtocol.FilterExpression.Operator.DELETION),
+    JsonSubTypes.Type(ElementMatchFilter::class, name = QueryProtocol.FilterExpression.Operator.ELEMENT_MATCH),
+    JsonSubTypes.Type(SearchFilter::class, name = QueryProtocol.FilterExpression.Operator.SEARCH),
+    JsonSubTypes.Type(TodayFilter::class, name = QueryProtocol.FilterExpression.Operator.TODAY),
+    JsonSubTypes.Type(BeforeTodayFilter::class, name = QueryProtocol.FilterExpression.Operator.BEFORE_TODAY),
+    JsonSubTypes.Type(TomorrowFilter::class, name = QueryProtocol.FilterExpression.Operator.TOMORROW),
+    JsonSubTypes.Type(ThisWeekFilter::class, name = QueryProtocol.FilterExpression.Operator.THIS_WEEK),
+    JsonSubTypes.Type(NextWeekFilter::class, name = QueryProtocol.FilterExpression.Operator.NEXT_WEEK),
+    JsonSubTypes.Type(LastWeekFilter::class, name = QueryProtocol.FilterExpression.Operator.LAST_WEEK),
+    JsonSubTypes.Type(ThisMonthFilter::class, name = QueryProtocol.FilterExpression.Operator.THIS_MONTH),
+    JsonSubTypes.Type(LastMonthFilter::class, name = QueryProtocol.FilterExpression.Operator.LAST_MONTH),
+    JsonSubTypes.Type(RecentDaysFilter::class, name = QueryProtocol.FilterExpression.Operator.RECENT_DAYS),
+    JsonSubTypes.Type(EarlierDaysFilter::class, name = QueryProtocol.FilterExpression.Operator.EARLIER_DAYS),
+    JsonSubTypes.Type(YesterdayFilter::class, name = QueryProtocol.FilterExpression.Operator.YESTERDAY),
+    JsonSubTypes.Type(NextMonthFilter::class, name = QueryProtocol.FilterExpression.Operator.NEXT_MONTH),
+    JsonSubTypes.Type(LastYearFilter::class, name = QueryProtocol.FilterExpression.Operator.LAST_YEAR),
+    JsonSubTypes.Type(ThisYearFilter::class, name = QueryProtocol.FilterExpression.Operator.THIS_YEAR),
+    JsonSubTypes.Type(NextYearFilter::class, name = QueryProtocol.FilterExpression.Operator.NEXT_YEAR),
 )
 @JsonTypeResolver(FilterExpressionTypeResolverBuilder::class)
 sealed interface FilterExpression : RewritableFilter<FilterExpression> {
-    @get:JsonProperty("op")
+    @get:JsonProperty(QueryProtocol.FilterExpression.OP)
     val operator: FilterOperator
 
     override fun withFilter(newFilter: FilterExpression): FilterExpression = newFilter
@@ -195,8 +195,10 @@ private class FilterExpressionTypeDeserializer(
         ctxt: DeserializationContext,
     ): Any {
         val node = ctxt.readTree(p)
-        require(!(node.has("op") && node.has("operator"))) { "op and operator cannot be used together." }
-        if (!node.has("op")) {
+        require(
+            !(node.has(QueryProtocol.FilterExpression.OP) && node.has(QueryProtocol.Condition.OPERATOR))
+        ) { "op and operator cannot be used together." }
+        if (!node.has(QueryProtocol.FilterExpression.OP)) {
             if (property != null) {
                 return ctxt.reportInputMismatch(
                     FilterExpression::class.java,
@@ -215,10 +217,14 @@ private class FilterExpressionTypeDeserializer(
 }
 
 private fun JsonNode.requireCanonicalFilterPayload() {
-    require(has("op")) { "Nested filter expression must use op." }
-    when (get("op").asString()) {
-        "AND", "OR", "NOR" -> get("operands")?.forEach { it.requireCanonicalFilterPayload() }
-        "ELEMENT_MATCH" -> get("predicate")?.requireCanonicalFilterPayload()
+    require(has(QueryProtocol.FilterExpression.OP)) { "Nested filter expression must use op." }
+    when (get(QueryProtocol.FilterExpression.OP).asString()) {
+        QueryProtocol.FilterExpression.Operator.AND,
+        QueryProtocol.FilterExpression.Operator.OR,
+        QueryProtocol.FilterExpression.Operator.NOR ->
+            get(QueryProtocol.FilterExpression.OPERANDS)?.forEach { it.requireCanonicalFilterPayload() }
+        QueryProtocol.FilterExpression.Operator.ELEMENT_MATCH ->
+            get(QueryProtocol.FilterExpression.PREDICATE)?.requireCanonicalFilterPayload()
     }
 }
 
@@ -236,17 +242,17 @@ private fun JsonNode.requireScalarEqualityValue(operator: String) {
     }
 }
 
-@JsonTypeName("MATCH_ALL")
+@JsonTypeName(QueryProtocol.FilterExpression.Operator.MATCH_ALL)
 data object MatchAllFilter : FilterExpression {
     override val operator: FilterOperator = FilterOperator.MATCH_ALL
 }
 
-@JsonTypeName("MATCH_NONE")
+@JsonTypeName(QueryProtocol.FilterExpression.Operator.MATCH_NONE)
 data object MatchNoneFilter : FilterExpression {
     override val operator: FilterOperator = FilterOperator.MATCH_NONE
 }
 
-@JsonTypeName("AND")
+@JsonTypeName(QueryProtocol.FilterExpression.Operator.AND)
 data class AndFilter(val operands: List<FilterExpression>) : FilterExpression {
     override val operator: FilterOperator = FilterOperator.AND
 
@@ -255,7 +261,7 @@ data class AndFilter(val operands: List<FilterExpression>) : FilterExpression {
     }
 }
 
-@JsonTypeName("OR")
+@JsonTypeName(QueryProtocol.FilterExpression.Operator.OR)
 data class OrFilter(val operands: List<FilterExpression>) : FilterExpression {
     override val operator: FilterOperator = FilterOperator.OR
 
@@ -264,7 +270,7 @@ data class OrFilter(val operands: List<FilterExpression>) : FilterExpression {
     }
 }
 
-@JsonTypeName("NOR")
+@JsonTypeName(QueryProtocol.FilterExpression.Operator.NOR)
 data class NorFilter(val operands: List<FilterExpression>) : FilterExpression {
     override val operator: FilterOperator = FilterOperator.NOR
 
@@ -273,14 +279,14 @@ data class NorFilter(val operands: List<FilterExpression>) : FilterExpression {
     }
 }
 
-@JsonTypeName("DELETION")
+@JsonTypeName(QueryProtocol.FilterExpression.Operator.DELETION)
 data class DeletionFilter(
     @get:JsonProperty("state") val deletionState: DeletionState,
 ) : FilterExpression {
     override val operator: FilterOperator = FilterOperator.DELETION
 }
 
-@JsonTypeName("ELEMENT_MATCH")
+@JsonTypeName(QueryProtocol.FilterExpression.Operator.ELEMENT_MATCH)
 data class ElementMatchFilter(
     val field: LogicalField,
     val predicate: FilterExpression,
@@ -294,7 +300,7 @@ data class ElementMatchFilter(
     }
 }
 
-@JsonTypeName("SEARCH")
+@JsonTypeName(QueryProtocol.FilterExpression.Operator.SEARCH)
 data class SearchFilter(
     val query: String,
     val fields: Set<LogicalField> = emptySet(),

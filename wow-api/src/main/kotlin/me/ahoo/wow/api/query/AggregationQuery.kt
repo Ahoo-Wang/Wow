@@ -94,7 +94,7 @@ data class AggregationElement(
     }
 }
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = QueryProtocol.Polymorphic.TYPE)
 @JsonSubTypes(
     JsonSubTypes.Type(AggregationGroup.Terms::class, name = "TERMS"),
     JsonSubTypes.Type(AggregationGroup.Histogram::class, name = "HISTOGRAM"),
@@ -152,7 +152,7 @@ enum class AggregationDateUnit {
 }
 
 @MissingTypeImpl(AggregationExpression.Field::class)
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = QueryProtocol.Polymorphic.TYPE)
 @JsonSubTypes(
     JsonSubTypes.Type(AggregationExpression.Field::class, name = "FIELD"),
     JsonSubTypes.Type(AggregationExpression.Constant::class, name = "CONSTANT"),
@@ -164,7 +164,7 @@ enum class AggregationDateUnit {
         AggregationExpression.Constant::class,
         AggregationExpression.Binary::class,
     ],
-    discriminatorProperty = "type",
+    discriminatorProperty = QueryProtocol.Polymorphic.TYPE,
 )
 interface AggregationExpression {
     data class Field(val field: LogicalField) : AggregationExpression
@@ -189,7 +189,7 @@ enum class AggregationExpressionOperator {
     DIVIDE,
 }
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = QueryProtocol.Polymorphic.TYPE)
 @JsonSubTypes(
     JsonSubTypes.Type(AggregationMetric.Count::class, name = "COUNT"),
     JsonSubTypes.Type(AggregationMetric.Numeric::class, name = "NUMERIC"),
@@ -201,7 +201,7 @@ enum class AggregationExpressionOperator {
         AggregationMetric.Numeric::class,
         AggregationMetric.Any::class,
     ],
-    discriminatorProperty = "type",
+    discriminatorProperty = QueryProtocol.Polymorphic.TYPE,
 )
 sealed interface AggregationMetric {
     @get:Schema(accessMode = Schema.AccessMode.READ_WRITE)
