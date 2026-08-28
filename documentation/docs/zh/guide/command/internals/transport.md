@@ -8,6 +8,24 @@ outline: deep
 
 命令传输负责把 `CommandMessage` 路由为 `ServerCommandExchange`，不负责执行聚合业务规则。如何选择和安装扩展以对应扩展文档与[核心配置参考](../../../reference/config/core.md)为准；本页不复制依赖或配置表。
 
+不同传输对 SENT 的证据锚点不同，但都不代表命令已经完成处理。
+
+```mermaid
+flowchart TB
+    Command["CommandMessage"] --> Transport{"CommandBus 实现"}
+    Transport --> InMemory["InMemory：本地 sink 准入"]
+    Transport --> Kafka["Kafka：producer result"]
+    Transport --> Redis["Redis：Stream XADD"]
+    Transport --> LocalFirst["LocalFirst：本地 receipt + 分布式准入"]
+    Void["Void 命令"] --> Distributed["强制分布式路径"]
+    Distributed --> LocalFirst
+    InMemory --> Sent["SENT"]
+    Kafka --> Sent
+    Redis --> Sent
+    LocalFirst --> Sent
+    Sent --> Boundary["只证明 transport 接受，不证明 PROCESSED"]
+```
+
 ## CommandBus 契约
 
 `CommandBus` 是 `MessageBus<CommandMessage<*>, ServerCommandExchange<*>>`，固定 `TopicKind.COMMAND`。三个核心动作具有不同边界：
