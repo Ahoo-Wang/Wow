@@ -6,12 +6,13 @@
 
 Wow 当前主线已经提供公共 `AggregationQuery`、Snapshot/EventStream WebFlux 聚合路由、MongoDB/Elasticsearch 聚合实现和 Fetcher 3.18.1 聚合客户端。本功能只消费这些既有能力，不新增后端 API、查询 AST 或专用分析端点。
 
-开发环境核对得到两个不同状态：
+开发环境升级前后的核对得到两个阶段：
 
 - `POST /execution_failed/snapshot/aggregation` 已存在并成功执行；运行时 Snapshot Schema 也声明了本设计所需字段的 TERMS、NUMERIC 和 RANGE 能力。
-- 当前开发环境部署的 `v8.15.0` 尚未暴露 `/execution_failed/event/aggregation`，请求返回 `404`。该路由已经在当前主线提交 `3cc7d0158` 中实现，因此开发环境需要升级到包含该提交的构建后，历史趋势才能进入验收。
+- 原开发环境部署的 `v8.15.0` 尚未暴露 `/execution_failed/event/aggregation`，请求返回 `404`。该路由已经在当前主线提交 `3cc7d0158` 中实现。
+- 开发环境升级到 Wow `8.16.0` 后，OpenAPI 已同时声明 Snapshot/EventStream aggregation；Snapshot COUNT 与四个补偿事件名称的 7 日、`Asia/Shanghai` 日期分桶查询全部返回 HTTP 200。
 
-开发环境升级是部署前置条件，不是本功能的后端代码变更。
+开发环境升级已经完成且没有要求本功能新增后端代码。实现完成后仍需用页面实际生成的请求复验一次，避免客户端 AST 与设计阶段探针发生偏差。
 
 ## 证据状态
 
@@ -19,8 +20,9 @@ Wow 当前主线已经提供公共 `AggregationQuery`、Snapshot/EventStream Web
 
 - 开发环境 OpenAPI 声明 `/execution_failed/snapshot/aggregation`，实际 COUNT 聚合请求成功。
 - 开发环境 Snapshot Schema 声明本设计所需字段能力。
-- 开发环境 OpenAPI 未声明 `/execution_failed/event/aggregation`，实际请求返回 `404`。
 - 当前主线 `EventRouteContributor` 已声明 `event/aggregation`，Fetcher 3.18.1 的两个 Query Client 均提供 `aggregate()`。
+- 升级后的开发环境为 Wow `8.16.0`，OpenAPI 同时声明 `/execution_failed/snapshot/aggregation` 与 `/execution_failed/event/aggregation`。
+- `execution_failed_created`、`compensation_prepared`、`execution_failed_applied`、`execution_success_applied` 四条 7 日 EventStream DATE_HISTOGRAM 查询均返回 HTTP 200；成功事件只返回五个非空日桶，前端必须补齐另外两个 0 桶。
 
 ### LOCAL VALIDATION
 
@@ -44,9 +46,8 @@ Wow 当前主线已经提供公共 `AggregationQuery`、Snapshot/EventStream Web
 
 ### MISSING EVIDENCE
 
-- 开发环境升级后 `/execution_failed/event/aggregation` 的真实成功响应。
-- 四个补偿事件名称在开发环境真实数据上的字段能力、日期分桶和时区结果。
 - 尚未实现的 dashboard 页面、依赖构建、单元测试、浏览器测试与可访问性结果。
+- 页面最终生成的 24h/7d/30d 请求与开发环境的端到端结果。
 - 任何生产发布、部署或运行证据。
 
 ## 目标
@@ -370,7 +371,7 @@ git diff --check
 
 ## 开发环境验收
 
-补偿控制面开发环境升级后执行以下只读验收：
+补偿控制面开发环境升级到 Wow `8.16.0` 后，设计阶段已经完成路由、Snapshot COUNT 与四类 7 日事件查询探针。实现完成后执行以下只读复验：
 
 1. `/v3/api-docs` 同时包含 `/execution_failed/snapshot/aggregation` 和 `/execution_failed/event/aggregation`；
 2. Snapshot Schema 仍声明本设计字段的所需能力；
