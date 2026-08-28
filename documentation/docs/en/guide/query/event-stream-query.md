@@ -1,0 +1,75 @@
+---
+title: Event Stream Queries
+description: Query aggregate event history, event-stream field paths, and published HTTP entries.
+---
+
+# Event Stream Queries
+
+## Query Model
+
+`EventStreamQueryService` queries `DomainEventStream`. An event stream is the event collection produced by one command execution. Its system envelope includes fields such as `id`, `aggregateId`, `tenantId`, `ownerId`, `spaceId`, `version`, `createTime`, `requestId`, and `commandId`; its event collection is `body`. It retains the full history and does not automatically add the snapshot `DELETION = ACTIVE` condition.
+
+## Root Fields and Event Body
+
+Query root fields directly, such as `aggregateId`, `tenantId`, `version`, and `createTime`. `body` is an event array; one event's metadata is `body.id`, `body.name`, `body.revision`, and `body.bodyType`, while its payload is `body.body`. Payload fields must be declared by Query Model Schema and are constrained by MongoDB queryable storage or Elasticsearch `body.body` mapping capability.
+
+## JVM Queries
+
+`EventStreamQueryService` supports typed and dynamic single/list/paged/count queries on the JVM; `dynamicQuery` returns `DynamicDocument`. The service interface also has JVM aggregation, whose semantics and examples belong to the event-stream aggregation page; it does not imply an HTTP route.
+
+This example pages through root fields:
+
+```kotlin
+import me.ahoo.wow.query.dsl.pagedQuery
+import me.ahoo.wow.query.event.EventStreamQueryService
+import me.ahoo.wow.query.event.query
+
+fun findRecentStreams(queryService: EventStreamQueryService) = pagedQuery {
+    filter { tenantId("tenant-a") }
+    sort { "createTime".desc() }
+    pagination { index(1); size(20) }
+}.query(queryService)
+```
+
+A Spring-managed service enters QueryGateway; see [Query Backends](./query-backend.md) and [Query Gateway](./query-gateway.md) for the direct-Factory bypass boundary.
+
+## HTTP Routes
+
+These are the currently published event-stream routes for `sales-order`:
+
+```text
+POST /sales-order/event/list
+POST /sales-order/event/paged
+POST /sales-order/event/count
+GET /sales-order/{id}/event/{headVersion}/{tailVersion}
+```
+
+There is currently no event-stream `single`, aggregation, or Schema HTTP route, and no event-stream API Client. The event-stream aggregation page describes JVM aggregation; do not use a nonexistent HTTP request to represent it.
+
+## Loading an Event Stream by Version
+
+Load an aggregate ID and contiguous version range through the GET route, for example:
+
+```http
+GET /sales-order/order-1/event/3/8
+Accept: application/json
+```
+
+It constructs a list query by `aggregateId` and version range. For a tenant aggregate, generated OpenAPI may require a tenant path prefix. List loading can negotiate JSON or SSE; application OpenAPI is the source of truth for the actual path and scope variants.
+
+## Empty Results
+
+A JVM single query returns an empty `Mono` for no match; list returns an empty `Flux`, and paged returns an empty page. HTTP list, paged, and version-range loading return an empty collection or page for no match; they have no single-query 404 semantics. HTTP guard, Schema resolution, or authorization failures remain errors and must not be confused with an empty result.
+
+## Differences from Snapshot Queries
+
+| Aspect | Event stream | Snapshot |
+| --- | --- | --- |
+| Business-data root | `body` event array; payload is `body.body` | `state` current business state |
+| Deletion default | No deletion condition | `DELETION = ACTIVE` by default |
+| HTTP data queries | list, paged, count, version-range load | single, list, paged, count, and state-only |
+| HTTP aggregation/Schema/API Client | None | Separate snapshot contracts exist |
+
+## When to Use Event Stream Queries
+
+Use event-stream queries for complete event history, the events produced by one command, version ranges, or event payloads. Use [Snapshot Queries](./snapshot-query.md) to read or filter current business state.
