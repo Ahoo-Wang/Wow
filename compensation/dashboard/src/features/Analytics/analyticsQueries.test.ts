@@ -256,7 +256,7 @@ describe("analyticsQueries", () => {
         },
       ],
       metrics: [{ type: "COUNT", alias: "count" }],
-      limit: 10_000,
+      limit: 1_000,
     });
   });
 
@@ -302,7 +302,7 @@ describe("analyticsQueries", () => {
   });
 
   it("refuses a retry distribution that reaches the aggregation limit", () => {
-    const rows = Array.from({ length: 10_000 }, (_, retries) => ({
+    const rows = Array.from({ length: 1_000 }, (_, retries) => ({
       retries,
       count: 1,
     }));

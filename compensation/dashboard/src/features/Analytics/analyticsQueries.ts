@@ -200,6 +200,7 @@ const activeFilter = filter.isIn(ExecutionFailedAggregatedFields.STATE_STATUS, [
   ExecutionFailedStatus.FAILED,
   ExecutionFailedStatus.PREPARED,
 ]);
+const RETRY_HISTOGRAM_LIMIT = 1_000;
 
 const clusterId = (key: PressureClusterKey) =>
   JSON.stringify([
@@ -372,7 +373,7 @@ export function createRetryHistogramQuery(): SnapshotAggregationQuery {
       ),
     ],
     metrics: [countMetric()],
-    limit: 10_000,
+    limit: RETRY_HISTOGRAM_LIMIT,
   };
 }
 
@@ -400,7 +401,7 @@ export function mergePressureRows(
 }
 
 export function bucketRetryRows(rows: RetryHistogramRow[]): RetryDistribution {
-  if (rows.length >= 10_000) {
+  if (rows.length >= RETRY_HISTOGRAM_LIMIT) {
     return { buckets: [], truncated: true };
   }
   const buckets: RetryDistribution["buckets"] = [
