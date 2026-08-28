@@ -132,6 +132,7 @@ object AggregateVerifier {
      * @throws IllegalArgumentException if aggregate metadata cannot be resolved from the command class
      */
     @JvmStatic
+    @JvmOverloads
     @Suppress("UnusedParameter")
     fun <C : Any, S : Any> aggregateVerifier(
         commandAggregateType: Class<C>,
