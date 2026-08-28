@@ -53,4 +53,4 @@ command payload
 | Command definition, invocation, and results | [Commands](./command/), [Define Commands](./command/definition.md), [Send Commands](./command/sending.md), [API Client](./command/api-client.md), [Completion Semantics](./command/completion.md), [Failures and Idempotency](./command/reliability.md) |
 | Command runtime internals | [Command Processing Pipeline](./command/internals/pipeline.md), [Command Wait Runtime](./command/internals/wait-runtime.md), [Command Transport and Routing](./command/internals/transport.md) |
 | Event processing and cross-aggregate collaboration | [Events and Collaboration](./event/), [Event Processor](./event/processor.md), [Saga](./event/saga.md), [Event Compensation](./event/compensation.md), [Event Dispatch Pipeline](./event/dispatch.md) |
-| Read models and queries | [Projection](./projection.md), [Query Service](./query.md), [Data Access Control](./data-access.md) |
+| Read models and queries | [Projection](./projection.md), [Query](./query.md), [Data Access Control](./data-access.md) |

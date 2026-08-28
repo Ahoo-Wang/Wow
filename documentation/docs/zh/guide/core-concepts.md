@@ -53,4 +53,4 @@ outline: deep
 | 命令定义、调用与结果 | [命令](./command/)、[定义命令](./command/definition.md)、[发送命令](./command/sending.md)、[API Client](./command/api-client.md)、[完成语义](./command/completion.md)、[失败与幂等](./command/reliability.md) |
 | 命令运行时原理 | [命令处理管线](./command/internals/pipeline.md)、[命令等待运行时](./command/internals/wait-runtime.md)、[命令传输与路由](./command/internals/transport.md) |
 | 事件处理与跨聚合协作 | [事件与协作](./event/)、[事件处理器](./event/processor.md)、[Saga](./event/saga.md)、[事件补偿](./event/compensation.md)、[事件分发管线](./event/dispatch.md) |
-| 读模型与查询 | [投影](./projection.md)、[查询服务](./query.md)、[数据权限](./data-access.md) |
+| 读模型与查询 | [投影](./projection.md)、[查询](./query.md)、[数据权限](./data-access.md) |

@@ -56,7 +56,7 @@ flowchart LR
 | 聚合决策、事件历史、快照与恢复 | [领域模型](../domain/) |
 | 命令定义、发送、完成与可靠性 | [命令](../command/) |
 | Processor、Saga、补偿与事件分发 | [事件与协作](../event/) |
-| 投影、查询与数据权限 | [投影](../projection.md)、[查询服务](../query.md)、[数据权限](../data-access.md) |
+| 投影、查询与数据权限 | [投影](../projection.md)、[查询](../query.md)、[数据权限](../data-access.md) |
 
 写入完成不自动意味着任意读模型已经更新。调用方完成语义由[完成语义](../command/completion.md)定义，本文不复制阶段表或调用示例。
 

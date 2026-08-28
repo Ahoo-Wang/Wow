@@ -54,7 +54,7 @@ With `all`, a successful `SNAPSHOT` means the save for that state event complete
 
 Snapshots reduce the events replayed during a latest load, while adding serialization, write, index, and storage costs. `all` suits a single aggregate's current state as a routine read model; `version_offset` trades fewer writes for more restoration replay and potentially stale reads. Measure with real aggregate history and the selected backend.
 
-A snapshot can be the default current-state read model; routes, schemas, and backend capabilities belong to the current [Query](../query) entry. Use a projection for a read model that joins aggregates, has a different lifecycle or schema, supports analytics, or synchronizes an external system.
+A snapshot can be the default current-state read model; routes, schemas, and backend capabilities belong to the current [Snapshot Queries](../query/snapshot-query.md) entry. Use a projection for a read model that joins aggregates, has a different lifecycle or schema, supports analytics, or synchronizes an external system.
 
 ## When Snapshots Are Unnecessary
 
@@ -64,4 +64,4 @@ Snapshots can be disabled or `NoOp` can be used when event streams are short, la
 
 Run the contract tests for the selected `SnapshotStore`, at least covering an empty load, the uninitialized version, load after save, and retaining the highest version after out-of-order or concurrent saves. Then validate restoration latency, write volume, and query visibility with a realistic workload.
 
-Next, use [Query](../query) to determine queryable backends, query models, and HTTP contracts; choose a projection only when its read model materially differs from current aggregate state.
+Next, use [Snapshot Queries](../query/snapshot-query.md) to determine queryable backends, query models, and HTTP contracts; choose a projection only when its read model materially differs from current aggregate state.

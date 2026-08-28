@@ -56,7 +56,7 @@ See [Data Flow](./data-flow.md) for cross-capability handoffs and [Aggregate Lif
 | Aggregate decisions, event history, snapshots, and restoration | [Domain Model](../domain/) |
 | Command definition, sending, completion, and reliability | [Commands](../command/) |
 | Processors, sagas, compensation, and event dispatch | [Events and Collaboration](../event/) |
-| Projections, queries, and data access | [Projection](../projection.md), [Query Service](../query.md), [Data Access Control](../data-access.md) |
+| Projections, queries, and data access | [Projection](../projection.md), [Query](../query.md), [Data Access Control](../data-access.md) |
 
 Completing a write does not automatically mean an arbitrary read model is current. [Completion Semantics](../command/completion.md) owns the caller-visible contract; this page does not duplicate its stage table or call examples.
 
