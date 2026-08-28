@@ -8,6 +8,24 @@ outline: deep
 
 Command transport routes a `CommandMessage` into a `ServerCommandExchange`; it does not execute aggregate business rules. Use each extension's documentation and the [Core Configuration Reference](../../../reference/config/core.md) to select and install a transport. This page does not duplicate dependency or configuration tables.
 
+Each transport anchors SENT to different evidence, but none means the command has finished processing.
+
+```mermaid
+flowchart TB
+    Command["CommandMessage"] --> Transport{"CommandBus implementation"}
+    Transport --> InMemory["InMemory: local sink admission"]
+    Transport --> Kafka["Kafka: producer result"]
+    Transport --> Redis["Redis: Stream XADD"]
+    Transport --> LocalFirst["LocalFirst: local receipt + distributed admission"]
+    Void["Void command"] --> Distributed["Force distributed path"]
+    Distributed --> LocalFirst
+    InMemory --> Sent["SENT"]
+    Kafka --> Sent
+    Redis --> Sent
+    LocalFirst --> Sent
+    Sent --> Boundary["Proves transport acceptance, not PROCESSED"]
+```
+
 ## CommandBus contract
 
 `CommandBus` is a `MessageBus<CommandMessage<*>, ServerCommandExchange<*>>` with `TopicKind.COMMAND`. Its three core operations expose different boundaries:

@@ -8,6 +8,25 @@ outline: deep
 
 The wait runtime models “how far processing got” as routable `WaitSignal` instances instead of blocking a command thread. See [Completion Semantics](../completion.md) for choosing a stage and [Send Commands](../sending.md) for Gateway APIs; this page explains signal production, transport, and reduction.
 
+The wait runtime registers a Handle first, then uses the Coordinator to reduce out-of-order WaitSignals into stage or chain state.
+
+```mermaid
+sequenceDiagram
+    participant Gateway as CommandGateway
+    participant Coordinator as WaitCoordinator
+    participant State as WaitState
+    participant Notifier as CommandWaitNotifier
+    participant Handle as WaitHandle
+    Gateway->>Coordinator: Register commandId + WaitPlan
+    Coordinator->>State: Create stage or chain state
+    Coordinator-->>Gateway: Return registered Handle
+    Notifier-->>Coordinator: WaitSignal (may arrive early)
+    Coordinator->>State: Reduce signal
+    State-->>Handle: acceptedSignal / finalSignal
+    Handle-->>Gateway: Result stream or final result
+    Handle->>Coordinator: Clean up after completion, cancellation, or timeout
+```
+
 ## WaitPlan Header
 
 A `WaitPlan` contains a `waitCommandId`, a `WaitTarget`, and `supportVoidCommand`. `DefaultCommandGateway` registers the local handle first and then uses `WaitPlan.propagate` to put three categories into the command Header:
