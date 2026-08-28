@@ -41,7 +41,7 @@ fun findRecentStreams(queryService: EventStreamQueryService) = pagedQuery {
 POST /sales-order/event/list
 POST /sales-order/event/paged
 POST /sales-order/event/count
-GET /sales-order/{id}/event/{headVersion}/{tailVersion}
+GET /tenant/{tenantId}/sales-order/{id}/event/{headVersion}/{tailVersion}
 ```
 
 当前没有事件流 `single`、聚合或 Schema HTTP 路由，也没有事件流 API Client。JVM 聚合能力由事件流聚合页说明；不要用不存在的 HTTP 请求来表达它。
@@ -51,11 +51,11 @@ GET /sales-order/{id}/event/{headVersion}/{tailVersion}
 按聚合 ID 和连续版本范围加载使用 GET 路由，例如：
 
 ```http
-GET /sales-order/order-1/event/3/8
+GET /tenant/tenant-a/sales-order/order-1/event/3/8
 Accept: application/json
 ```
 
-它按 `aggregateId` 与 `version` 范围构造列表查询；对 tenant 聚合，生成的 OpenAPI 可能要求 tenant 路径前缀。列表加载可协商 JSON 或 SSE，实际路径和作用域变体以应用的 OpenAPI 为准。
+它按 `aggregateId` 与 `version` 范围构造列表查询；`sales-order` 的实际路由包含 tenant 路径前缀。列表加载可协商 JSON 或 SSE；其他聚合的作用域变体以应用生成的 OpenAPI 为准。
 
 ## 空结果
 
