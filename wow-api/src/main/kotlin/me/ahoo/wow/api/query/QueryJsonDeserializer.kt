@@ -66,15 +66,15 @@ private fun ObjectNode.prepareCompatibleFilter(
     ctxt: DeserializationContext,
     inputType: Class<*>,
 ) {
-    val hasFilter = has("filter")
-    val hasCondition = has("condition")
+    val hasFilter = has(QueryProtocol.QueryEnvelope.FILTER)
+    val hasCondition = has(QueryProtocol.QueryEnvelope.CONDITION)
     if (hasFilter && hasCondition) {
         ctxt.reportInputMismatch<Nothing>(inputType, "filter and condition cannot be used together.")
     }
     if (!hasFilter && !hasCondition) {
         ctxt.reportInputMismatch<Nothing>(inputType, "Exactly one of filter or condition is required.")
     }
-    listOf("filter", "condition").forEach { property ->
+    listOf(QueryProtocol.QueryEnvelope.FILTER, QueryProtocol.QueryEnvelope.CONDITION).forEach { property ->
         if (get(property)?.isNull == true) {
             ctxt.reportInputMismatch<Nothing>(inputType, "$property cannot be null.")
         }
@@ -84,24 +84,47 @@ private fun ObjectNode.prepareCompatibleFilter(
     }
 }
 
-private val LEGACY_CONDITION_PROPERTIES = setOf("field", "operator", "value", "children", "options")
-private val LEGACY_PROJECTION_PROPERTIES = setOf("include", "exclude")
-private val LEGACY_SORT_PROPERTIES = setOf("field", "direction")
-private val LEGACY_PAGINATION_PROPERTIES = setOf("index", "size")
+private val LEGACY_CONDITION_PROPERTIES = setOf(
+    QueryProtocol.Condition.FIELD,
+    QueryProtocol.Condition.OPERATOR,
+    QueryProtocol.Condition.VALUE,
+    QueryProtocol.Condition.CHILDREN,
+    QueryProtocol.Condition.OPTIONS,
+)
+private val LEGACY_PROJECTION_PROPERTIES = setOf(
+    QueryProtocol.Projection.INCLUDE,
+    QueryProtocol.Projection.EXCLUDE,
+)
+private val LEGACY_SORT_PROPERTIES = setOf(QueryProtocol.Sort.FIELD, QueryProtocol.Sort.DIRECTION)
+private val LEGACY_PAGINATION_PROPERTIES = setOf(QueryProtocol.Pagination.INDEX, QueryProtocol.Pagination.SIZE)
 
 // The legacy WebFlux path ignored unknown properties across the entire query body.
 private fun ObjectNode.removeUnknownLegacyQueryProperties(inputType: Class<*>) {
     val queryProperties = when (inputType) {
-        ListQueryJson::class.java -> setOf("condition", "projection", "sort", "limit")
-        PagedQueryJson::class.java -> setOf("condition", "projection", "sort", "pagination")
-        SingleQueryJson::class.java -> setOf("condition", "projection", "sort")
+        ListQueryJson::class.java -> setOf(
+            QueryProtocol.QueryEnvelope.CONDITION,
+            QueryProtocol.QueryEnvelope.PROJECTION,
+            QueryProtocol.QueryEnvelope.SORT,
+            QueryProtocol.QueryEnvelope.LIMIT,
+        )
+        PagedQueryJson::class.java -> setOf(
+            QueryProtocol.QueryEnvelope.CONDITION,
+            QueryProtocol.QueryEnvelope.PROJECTION,
+            QueryProtocol.QueryEnvelope.SORT,
+            QueryProtocol.QueryEnvelope.PAGINATION,
+        )
+        SingleQueryJson::class.java -> setOf(
+            QueryProtocol.QueryEnvelope.CONDITION,
+            QueryProtocol.QueryEnvelope.PROJECTION,
+            QueryProtocol.QueryEnvelope.SORT,
+        )
         else -> error("Unsupported legacy query type: ${inputType.name}.")
     }
     remove(propertyNames().filterNot(queryProperties::contains))
-    get("condition")?.removeUnknownLegacyConditionProperties()
-    get("projection")?.removeUnknownProperties(LEGACY_PROJECTION_PROPERTIES)
-    get("sort")?.forEach { it.removeUnknownProperties(LEGACY_SORT_PROPERTIES) }
-    get("pagination")?.removeUnknownProperties(LEGACY_PAGINATION_PROPERTIES)
+    get(QueryProtocol.QueryEnvelope.CONDITION)?.removeUnknownLegacyConditionProperties()
+    get(QueryProtocol.QueryEnvelope.PROJECTION)?.removeUnknownProperties(LEGACY_PROJECTION_PROPERTIES)
+    get(QueryProtocol.QueryEnvelope.SORT)?.forEach { it.removeUnknownProperties(LEGACY_SORT_PROPERTIES) }
+    get(QueryProtocol.QueryEnvelope.PAGINATION)?.removeUnknownProperties(LEGACY_PAGINATION_PROPERTIES)
 }
 
 private fun JsonNode.removeUnknownProperties(properties: Set<String>) {
@@ -115,7 +138,7 @@ private fun JsonNode.removeUnknownLegacyConditionProperties() {
         return
     }
     remove(propertyNames().filterNot(LEGACY_CONDITION_PROPERTIES::contains))
-    get("children")?.forEach(JsonNode::removeUnknownLegacyConditionProperties)
+    get(QueryProtocol.Condition.CHILDREN)?.forEach(JsonNode::removeUnknownLegacyConditionProperties)
 }
 
 internal fun JsonNode.toLegacyFilterExpression(ctxt: DeserializationContext): FilterExpression {

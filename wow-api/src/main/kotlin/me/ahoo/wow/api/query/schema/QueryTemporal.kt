@@ -17,10 +17,11 @@ import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.annotation.JsonTypeName
 import io.swagger.v3.oas.annotations.media.Schema
+import me.ahoo.wow.api.query.QueryProtocol
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = QueryProtocol.Polymorphic.TYPE)
 @JsonSubTypes(
     JsonSubTypes.Type(Temporal.Date::class, name = "TEMPORAL_DATE"),
     JsonSubTypes.Type(Temporal.Epoch::class, name = "TEMPORAL_EPOCH"),
@@ -28,7 +29,7 @@ import java.util.concurrent.TimeUnit
 )
 @Schema(
     oneOf = [Temporal.Date::class, Temporal.Epoch::class, Temporal.Formatted::class],
-    discriminatorProperty = "type",
+    discriminatorProperty = QueryProtocol.Polymorphic.TYPE,
 )
 interface QuerySemanticType
 

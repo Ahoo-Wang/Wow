@@ -15,12 +15,12 @@ package me.ahoo.wow.api.query
 
 import com.fasterxml.jackson.annotation.JsonTypeName
 
-@JsonTypeName("ID")
+@JsonTypeName(QueryProtocol.FilterExpression.Operator.ID)
 data class IdFilter(val value: String) : FilterExpression {
     override val operator = FilterOperator.ID
 }
 
-@JsonTypeName("IDS")
+@JsonTypeName(QueryProtocol.FilterExpression.Operator.IDS)
 data class IdsFilter(val values: List<String>) : FilterExpression {
     override val operator = FilterOperator.IDS
 
@@ -29,12 +29,12 @@ data class IdsFilter(val values: List<String>) : FilterExpression {
     }
 }
 
-@JsonTypeName("AGGREGATE_ID")
+@JsonTypeName(QueryProtocol.FilterExpression.Operator.AGGREGATE_ID)
 data class AggregateIdFilter(val value: String) : FilterExpression {
     override val operator = FilterOperator.AGGREGATE_ID
 }
 
-@JsonTypeName("AGGREGATE_IDS")
+@JsonTypeName(QueryProtocol.FilterExpression.Operator.AGGREGATE_IDS)
 data class AggregateIdsFilter(val values: List<String>) : FilterExpression {
     override val operator = FilterOperator.AGGREGATE_IDS
 
@@ -43,17 +43,17 @@ data class AggregateIdsFilter(val values: List<String>) : FilterExpression {
     }
 }
 
-@JsonTypeName("TENANT_ID")
+@JsonTypeName(QueryProtocol.FilterExpression.Operator.TENANT_ID)
 data class TenantIdFilter(val value: String) : FilterExpression {
     override val operator = FilterOperator.TENANT_ID
 }
 
-@JsonTypeName("OWNER_ID")
+@JsonTypeName(QueryProtocol.FilterExpression.Operator.OWNER_ID)
 data class OwnerIdFilter(val value: String) : FilterExpression {
     override val operator = FilterOperator.OWNER_ID
 }
 
-@JsonTypeName("SPACE_ID")
+@JsonTypeName(QueryProtocol.FilterExpression.Operator.SPACE_ID)
 data class SpaceIdFilter(val value: String) : FilterExpression {
     override val operator = FilterOperator.SPACE_ID
 }

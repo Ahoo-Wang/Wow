@@ -52,7 +52,7 @@ private fun RelativeTimeFilter.validateConfiguration() {
     datePattern.toDateFormatter()
 }
 
-@JsonTypeName("TODAY")
+@JsonTypeName(QueryProtocol.FilterExpression.Operator.TODAY)
 data class TodayFilter(
     override val field: LogicalField,
     override val zoneId: String? = null,
@@ -67,7 +67,7 @@ data class TodayFilter(
     }
 }
 
-@JsonTypeName("BEFORE_TODAY")
+@JsonTypeName(QueryProtocol.FilterExpression.Operator.BEFORE_TODAY)
 data class BeforeTodayFilter(
     override val field: LogicalField,
     val time: String,
@@ -84,7 +84,7 @@ data class BeforeTodayFilter(
     }
 }
 
-@JsonTypeName("TOMORROW")
+@JsonTypeName(QueryProtocol.FilterExpression.Operator.TOMORROW)
 data class TomorrowFilter(
     override val field: LogicalField,
     override val zoneId: String? = null,
@@ -99,7 +99,7 @@ data class TomorrowFilter(
     }
 }
 
-@JsonTypeName("THIS_WEEK")
+@JsonTypeName(QueryProtocol.FilterExpression.Operator.THIS_WEEK)
 data class ThisWeekFilter(
     override val field: LogicalField,
     override val zoneId: String? = null,
@@ -114,7 +114,7 @@ data class ThisWeekFilter(
     }
 }
 
-@JsonTypeName("NEXT_WEEK")
+@JsonTypeName(QueryProtocol.FilterExpression.Operator.NEXT_WEEK)
 data class NextWeekFilter(
     override val field: LogicalField,
     override val zoneId: String? = null,
@@ -129,7 +129,7 @@ data class NextWeekFilter(
     }
 }
 
-@JsonTypeName("LAST_WEEK")
+@JsonTypeName(QueryProtocol.FilterExpression.Operator.LAST_WEEK)
 data class LastWeekFilter(
     override val field: LogicalField,
     override val zoneId: String? = null,
@@ -144,7 +144,7 @@ data class LastWeekFilter(
     }
 }
 
-@JsonTypeName("THIS_MONTH")
+@JsonTypeName(QueryProtocol.FilterExpression.Operator.THIS_MONTH)
 data class ThisMonthFilter(
     override val field: LogicalField,
     override val zoneId: String? = null,
@@ -159,7 +159,7 @@ data class ThisMonthFilter(
     }
 }
 
-@JsonTypeName("LAST_MONTH")
+@JsonTypeName(QueryProtocol.FilterExpression.Operator.LAST_MONTH)
 data class LastMonthFilter(
     override val field: LogicalField,
     override val zoneId: String? = null,
@@ -174,7 +174,7 @@ data class LastMonthFilter(
     }
 }
 
-@JsonTypeName("RECENT_DAYS")
+@JsonTypeName(QueryProtocol.FilterExpression.Operator.RECENT_DAYS)
 data class RecentDaysFilter(
     override val field: LogicalField,
     val days: Int,
@@ -191,7 +191,7 @@ data class RecentDaysFilter(
     }
 }
 
-@JsonTypeName("EARLIER_DAYS")
+@JsonTypeName(QueryProtocol.FilterExpression.Operator.EARLIER_DAYS)
 data class EarlierDaysFilter(
     override val field: LogicalField,
     val days: Int,
@@ -208,7 +208,7 @@ data class EarlierDaysFilter(
     }
 }
 
-@JsonTypeName("YESTERDAY")
+@JsonTypeName(QueryProtocol.FilterExpression.Operator.YESTERDAY)
 data class YesterdayFilter(
     override val field: LogicalField,
     override val zoneId: String? = null,
@@ -221,7 +221,7 @@ data class YesterdayFilter(
     init { validateConfiguration() }
 }
 
-@JsonTypeName("NEXT_MONTH")
+@JsonTypeName(QueryProtocol.FilterExpression.Operator.NEXT_MONTH)
 data class NextMonthFilter(
     override val field: LogicalField,
     override val zoneId: String? = null,
@@ -234,7 +234,7 @@ data class NextMonthFilter(
     init { validateConfiguration() }
 }
 
-@JsonTypeName("LAST_YEAR")
+@JsonTypeName(QueryProtocol.FilterExpression.Operator.LAST_YEAR)
 data class LastYearFilter(
     override val field: LogicalField,
     override val zoneId: String? = null,
@@ -247,7 +247,7 @@ data class LastYearFilter(
     init { validateConfiguration() }
 }
 
-@JsonTypeName("THIS_YEAR")
+@JsonTypeName(QueryProtocol.FilterExpression.Operator.THIS_YEAR)
 data class ThisYearFilter(
     override val field: LogicalField,
     override val zoneId: String? = null,
@@ -260,7 +260,7 @@ data class ThisYearFilter(
     init { validateConfiguration() }
 }
 
-@JsonTypeName("NEXT_YEAR")
+@JsonTypeName(QueryProtocol.FilterExpression.Operator.NEXT_YEAR)
 data class NextYearFilter(
     override val field: LogicalField,
     override val zoneId: String? = null,
