@@ -27,22 +27,14 @@ flowchart TB
     StateBus["StateEventBus"] --> StateEvent["StateEventDispatcher"]
     StateBus --> SnapshotDispatcher["SnapshotDispatcher"]
     subgraph Composite["CompositeEventDispatcher"]
-        EventStream --> EventKind["FunctionKind.EVENT matching"]
-        StateEvent --> StateKind["FunctionKind.STATE_EVENT matching"]
-        EventKind --> Matched["Match Processor / Saga / Projection function"]
-        StateKind --> Matched
+        EventStream --> EventKind["FunctionKind.EVENT<br/>match Processor / Saga /<br/>Projection<br/>&nbsp;"]
+        StateEvent --> StateKind["FunctionKind.STATE_EVENT<br/>match Processor / Saga /<br/>Projection<br/>&nbsp;"]
     end
-    Matched --> EventNotifier["Notifier Filter"]
-    EventNotifier -->|"No Compensation"| Retryable["Retryable Filter"]
-    EventNotifier -->|"Compensation enabled"| DomainCompensation["Compensation Filter (domain event)"]
-    DomainCompensation --> Retryable
-    Retryable --> EventFunction["Invoke matched function"]
-    SnapshotDispatcher --> SnapshotNotifier["Notifier Filter"]
-    SnapshotNotifier -->|"No Compensation"| SnapshotFunction["Snapshot function"]
-    SnapshotNotifier -->|"Compensation enabled"| StateCompensation["Compensation Filter (state event)"]
-    StateCompensation --> SnapshotFunction
-    EventFunction --> EventBoundary["Handler error boundary and finallyAck"]
-    SnapshotFunction --> SnapshotBoundary["Snapshot error boundary and finallyAck"]
+    EventKind --> EventChain["Processor / Saga /<br/>Projection<br/>Notifier → Retryable<br/>→ Function<br/>or<br/>Notifier<br/>→ Compensation<br/>→ Retryable<br/>→ Function<br/>&nbsp;"]
+    StateKind --> EventChain
+    SnapshotDispatcher --> SnapshotChain["Snapshot<br/>Notifier<br/>→ Function<br/>or<br/>Notifier<br/>→ Compensation<br/>→ Function<br/>&nbsp;"]
+    EventChain --> Boundary["Error handling and finallyAck"]
+    SnapshotChain --> Boundary
 ```
 
 `EventStreamDispatcher` retains only `FunctionKind.EVENT`; `StateEventDispatcher` retains only `FunctionKind.STATE_EVENT`. Each creates subscriptions from the aggregate topics supported by its registered functions. An aggregate without a corresponding function does not get a consumption path for that dispatcher.

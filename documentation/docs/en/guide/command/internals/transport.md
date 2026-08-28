@@ -17,7 +17,7 @@ flowchart TB
     Transport --> Kafka["Kafka: producer result"]
     Transport --> Redis["Redis: Stream XADD"]
     Transport --> LocalFirst["LocalFirst: local receipt + distributed admission"]
-    Void["Void command"] --> Distributed["Force distributed path"]
+    Void["Void + LocalFirst"] --> Distributed["Force distributed path"]
     Distributed --> Sent
     InMemory --> Sent["SENT"]
     Kafka --> Sent

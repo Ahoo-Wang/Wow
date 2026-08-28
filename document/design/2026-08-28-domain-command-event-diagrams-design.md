@@ -79,7 +79,7 @@
 | `domain/index` | 新增 | `flowchart TB` | 展示聚合边界如何连接事件溯源、事件演进、快照、生命周期与命令定义阅读入口。 |
 | `domain/aggregate` | 新增 | `flowchart TB` | 展示限界上下文、聚合边界、状态、命令处理、领域事件和不变量的关系。 |
 | `domain/event-sourcing` | 保留 | `flowchart LR` | 展示最新/历史版本恢复如何选择快照或空聚合，并从 `expectedNextVersion` 顺序溯源。 |
-| `domain/event-evolution` | 新增 | `flowchart LR` | 展示持久事件从旧 Revision 经过有序 Upgrader 链得到当前形态；DroppedEvent 是显式终点。 |
+| `domain/event-evolution` | 新增 | `flowchart LR` | 展示 `EventUpgraderFactory` 按 `@Order` 对每条记录恰好调用每个已注册 Upgrader 一次；每步可返回原样、升级或 DroppedEvent 记录，并验证最终记录可解析。 |
 | `domain/snapshot` | 重做 | `flowchart TB` | 对照完整事件回放与“快照 + 尾部事件”两条恢复路径，并汇聚到相同聚合状态。 |
 | `domain/lifecycle` | 新增 | `stateDiagram-v2` | 展示未初始化、活动、删除和恢复状态及其合法转换，不复制完整命令管线。 |
 

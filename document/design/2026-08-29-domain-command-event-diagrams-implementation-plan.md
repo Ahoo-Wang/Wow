@@ -133,31 +133,38 @@ An aggregate encloses state, business decisions, and invariants within one consi
 
 ```mermaid
 flowchart LR
-    Persisted["持久事件 Revision 1"] --> Lookup{"存在下一 Revision Upgrader？"}
-    Lookup -->|是| Upgrade["升级到下一 Revision"]
-    Upgrade --> Lookup
-    Lookup -->|否| Current["当前事件形态"]
-    Upgrade -. "显式删除" .-> Dropped["DroppedEvent"]
+    Persisted["持久事件记录"] --> Ordered["该事件的 Upgrader 列表<br/>按 @Order 排序一次"]
+    Ordered --> Apply["每个 Upgrader 恰好调用一次"]
+    Apply --> Result{"每次调用返回"}
+    Result -->|原样| Unchanged["记录不变"]
+    Result -->|升级| Upgraded["升级后的记录"]
+    Result -->|显式丢弃| Dropped["DroppedEvent 记录"]
+    Unchanged --> Final["最终记录<br/>必须验证可解析"]
+    Upgraded --> Final
+    Dropped --> Final
 ```
 
 英文标签：
 
 ```text
-Persisted="Persisted event Revision 1"
-Lookup="Next Revision Upgrader exists?"
-yes edge="Yes"
-Upgrade="Upgrade to the next Revision"
-no edge="No"
-Current="Current event shape"
-dotted edge="Explicitly drop"
-Dropped="DroppedEvent"
+Persisted="Persisted event record"
+Ordered="Upgrader list for this event<br/>sorted once by @Order"
+Apply="Invoke each Upgrader exactly once"
+Result="Each invocation returns"
+unchanged edge="Unchanged"
+Unchanged="Record unchanged"
+upgraded edge="Upgraded"
+Upgraded="Upgraded record"
+drop edge="Explicit drop"
+Dropped="DroppedEvent record"
+Final="Final record<br/>must be validated as resolvable"
 ```
 
 图前说明句：
 
 ```text
-读取历史事件时，Upgrader 按 Revision 逐步推进，直到得到当前形态或显式丢弃事件。
-When historical events are read, Upgraders advance Revision by Revision until the current shape or an explicit drop is reached.
+读取历史事件时，`EventUpgraderFactory` 按 `@Order` 调用该事件已注册的全部 Upgrader，每个恰好一次；每次调用都可返回原记录、升级记录或 `DroppedEvent` 记录，应用必须验证最终记录可解析。
+When historical events are read, `EventUpgraderFactory` invokes every Upgrader registered for that event once in `@Order` order. Each invocation may return the record unchanged, upgraded, or as a `DroppedEvent` record; the application must verify that the final record is resolvable.
 ```
 
 - [ ] **Step 5: 重做双语 `domain/snapshot` 主图**
@@ -555,43 +562,45 @@ Expected: exit `1`，因为 `wait-runtime` 与 `transport` 尚无图。
 ```mermaid
 sequenceDiagram
     participant Gateway as CommandGateway
-    participant Coordinator as WaitCoordinator
-    participant State as WaitState
     participant Notifier as CommandWaitNotifier
+    participant Coordinator as WaitCoordinator
     participant Handle as WaitHandle
-    Gateway->>Coordinator: 注册 commandId + WaitPlan
-    Coordinator->>State: 创建阶段或链式状态
+    participant State as WaitState
+    Gateway->>Coordinator: 注册 waitCommandId + WaitPlan
+    Coordinator->>Handle: 创建持有 WaitState 的 Handle
     Coordinator-->>Gateway: 返回已注册 Handle
     Notifier-->>Coordinator: WaitSignal（允许早到）
-    Coordinator->>State: 归约信号
+    Coordinator->>Handle: 按 waitCommandId 路由 next(signal)
+    Handle->>State: 在锁内归约信号
     State-->>Handle: acceptedSignal / finalSignal
     Handle-->>Gateway: 结果流或最终结果
-    Handle->>Coordinator: 完成、取消或超时后清理
+    Handle->>Coordinator: 完成、取消或超时后注销
 ```
 
 英文参与者标签和消息：
 
 ```text
 Gateway="CommandGateway"
-Coordinator="WaitCoordinator"
-State="WaitState"
 Notifier="CommandWaitNotifier"
+Coordinator="WaitCoordinator"
 Handle="WaitHandle"
-Gateway -> Coordinator="Register commandId + WaitPlan"
-Coordinator -> State="Create stage or chain state"
+State="WaitState"
+Gateway -> Coordinator="Register waitCommandId + WaitPlan"
+Coordinator -> Handle="Create Handle that owns WaitState"
 Coordinator -> Gateway="Return registered Handle"
 Notifier -> Coordinator="WaitSignal (may arrive early)"
-Coordinator -> State="Reduce signal"
+Coordinator -> Handle="Route next(signal) by waitCommandId"
+Handle -> State="Reduce signal under lock"
 State -> Handle="acceptedSignal / finalSignal"
 Handle -> Gateway="Result stream or final result"
-Handle -> Coordinator="Clean up after completion, cancellation, or timeout"
+Handle -> Coordinator="Unregister after completion, cancellation, or timeout"
 ```
 
 图前说明句：
 
 ```text
-等待运行时先注册 Handle，再通过 Coordinator 把乱序 WaitSignal 归约到阶段或链式状态。
-The wait runtime registers a Handle first, then uses the Coordinator to reduce out-of-order WaitSignals into stage or chain state.
+等待运行时先按 `waitCommandId` 注册 Handle。Notifier 把 WaitSignal 交给 Coordinator，Coordinator 路由到 Handle；Handle 持有并归约 WaitState。
+The wait runtime first registers a Handle by `waitCommandId`. A Notifier sends each WaitSignal to the Coordinator, which routes it to the Handle; the Handle owns and reduces its WaitState.
 ```
 
 - [ ] **Step 3: 在双语 `transport` 增加 SENT 证据对照图**
@@ -605,8 +614,8 @@ flowchart TB
     Transport --> Kafka["Kafka：producer result"]
     Transport --> Redis["Redis：Stream XADD"]
     Transport --> LocalFirst["LocalFirst：本地 receipt + 分布式准入"]
-    Void["Void 命令"] --> Distributed["强制分布式路径"]
-    Distributed --> LocalFirst
+    Void["Void + LocalFirst"] --> Distributed["强制分布式路径"]
+    Distributed --> Sent
     InMemory --> Sent["SENT"]
     Kafka --> Sent
     Redis --> Sent
@@ -623,7 +632,7 @@ InMemory="InMemory: local sink admission"
 Kafka="Kafka: producer result"
 Redis="Redis: Stream XADD"
 LocalFirst="LocalFirst: local receipt + distributed admission"
-Void="Void command"
+Void="Void + LocalFirst"
 Distributed="Force distributed path"
 Sent="SENT"
 Boundary="Proves transport acceptance, not PROCESSED"
@@ -791,14 +800,20 @@ sequenceDiagram
     participant EventBus as DomainEventBus
     participant Saga as Stateless Saga
     participant Gateway as CommandGateway
-    participant Target as 目标聚合
+    participant CommandBus as CommandBus
+    participant Notifier as SagaHandledNotifierFilter
+    participant WaitNotifier as CommandWaitNotifier
     Source->>EventBus: 领域事件
-    EventBus->>Saga: 调用匹配的 Saga 函数
+    EventBus->>Notifier: 分发到匹配 Saga
+    Notifier->>Saga: 调用 Saga 函数
     loop 0..N 条命令
         Saga->>Gateway: 顺序发送后续命令
-        Gateway->>Target: 处理命令
+        Gateway->>CommandBus: 发送命令
+        CommandBus-->>Gateway: 发送边界完成
     end
-    Saga-->>EventBus: SAGA_HANDLED + commandIds
+    Saga-->>Notifier: 函数完成并记录 commandIds
+    Notifier-->>WaitNotifier: SAGA_HANDLED + commandIds
+    Note over Gateway,CommandBus: 目标聚合处理不在<br/>SAGA_HANDLED 保证内
 ```
 
 英文参与者标签和消息：
@@ -808,13 +823,19 @@ Source="Source aggregate"
 EventBus="DomainEventBus"
 Saga="Stateless Saga"
 Gateway="CommandGateway"
-Target="Target aggregate"
+CommandBus="CommandBus"
+Notifier="SagaHandledNotifierFilter"
+WaitNotifier="CommandWaitNotifier"
 Source -> EventBus="Domain event"
-EventBus -> Saga="Invoke matching Saga function"
+EventBus -> Notifier="Dispatch to matching Saga"
+Notifier -> Saga="Invoke Saga function"
 loop="0..N commands"
 Saga -> Gateway="Send follow-up command in order"
-Gateway -> Target="Process command"
-Saga -> EventBus="SAGA_HANDLED + commandIds"
+Gateway -> CommandBus="Send command"
+CommandBus -> Gateway="Send boundary completed"
+Saga -> Notifier="Function completes and records commandIds"
+Notifier -> WaitNotifier="SAGA_HANDLED + commandIds"
+note="Target aggregate processing is outside the SAGA_HANDLED guarantee"
 ```
 
 图前说明句：
@@ -830,34 +851,37 @@ A Stateless Saga converts an occurred fact into 0..N follow-up commands sent in 
 
 ```mermaid
 flowchart TB
-    DomainBus["DomainEventBus"] --> DomainDispatcher["Domain / Saga Dispatcher"]
-    StateBus["StateEventBus"] --> StateDispatcher["State / Snapshot / Projection Dispatcher"]
-    DomainDispatcher --> Chain["Dispatcher-specific Filter chain"]
-    StateDispatcher --> Chain
-    Chain --> Notifier["Notifier Filter"]
-    Notifier --> Compensation["Compensation Filter（启用时）"]
-    Compensation --> Retryable["Retryable Filter（存在时）"]
-    Compensation --> Function["事件函数"]
-    Retryable --> Function
-    Function --> Ack["错误处理与 finallyAck"]
+    DomainBus["DomainEventBus"] --> EventStream["EventStreamDispatcher"]
+    StateBus["StateEventBus"] --> StateEvent["StateEventDispatcher"]
+    StateBus --> SnapshotDispatcher["SnapshotDispatcher"]
+    subgraph Composite["CompositeEventDispatcher"]
+        EventStream --> EventKind["FunctionKind.EVENT<br/>匹配 Processor / Saga /<br/>Projection<br/>&nbsp;"]
+        StateEvent --> StateKind["FunctionKind.STATE_EVENT<br/>匹配 Processor / Saga /<br/>Projection<br/>&nbsp;"]
+    end
+    EventKind --> EventChain["Processor / Saga /<br/>Projection<br/>Notifier → Retryable<br/>→ Function<br/>或<br/>Notifier<br/>→ Compensation<br/>→ Retryable<br/>→ Function<br/>&nbsp;"]
+    StateKind --> EventChain
+    SnapshotDispatcher --> SnapshotChain["Snapshot<br/>Notifier<br/>→ Function<br/>或<br/>Notifier<br/>→ Compensation<br/>→ Function<br/>&nbsp;"]
+    EventChain --> Boundary["错误处理与 finallyAck"]
+    SnapshotChain --> Boundary
 ```
 
 英文标签：
 
 ```text
 DomainBus="DomainEventBus"
-DomainDispatcher="Domain / Saga Dispatcher"
+EventStream="EventStreamDispatcher"
 StateBus="StateEventBus"
-StateDispatcher="State / Snapshot / Projection Dispatcher"
-Chain="Dispatcher-specific Filter chain"
-Notifier="Notifier Filter"
-Compensation="Compensation Filter (when enabled)"
-Retryable="Retryable Filter (when present)"
-Function="Event function"
-Ack="Error handling and finallyAck"
+StateEvent="StateEventDispatcher"
+SnapshotDispatcher="SnapshotDispatcher"
+Composite="CompositeEventDispatcher"
+EventKind="FunctionKind.EVENT<br/>match Processor / Saga /<br/>Projection<br/>&nbsp;"
+StateKind="FunctionKind.STATE_EVENT<br/>match Processor / Saga /<br/>Projection<br/>&nbsp;"
+EventChain="Processor / Saga /<br/>Projection<br/>Notifier → Retryable<br/>→ Function<br/>or<br/>Notifier<br/>→ Compensation<br/>→ Retryable<br/>→ Function<br/>&nbsp;"
+SnapshotChain="Snapshot<br/>Notifier<br/>→ Function<br/>or<br/>Notifier<br/>→ Compensation<br/>→ Function<br/>&nbsp;"
+Boundary="Error handling and finallyAck"
 ```
 
-保留图后正文对 Filter 进入/退出方向、失败信号、Snapshot 无即时 Retryable 层和 ACK 边界的精确解释。图中的直接 `Compensation --> Function` 表示某些链没有 Retryable Filter，不表示跳过 Compensation。
+两个链节点折叠显示四条可选路径，不改变 Filter 相对顺序：Processor / Saga / Projection 使用 `Notifier -> Retryable -> Function` 或 `Notifier -> Compensation -> Retryable -> Function`；Snapshot 使用 `Notifier -> Function` 或 `Notifier -> Compensation -> Function`。保留图后正文对 Filter 进入/退出方向、失败信号、Snapshot 无即时 Retryable 层和 ACK 边界的精确解释。
 
 - [ ] **Step 6: 运行 20/20 覆盖、双语与范围检查**
 
