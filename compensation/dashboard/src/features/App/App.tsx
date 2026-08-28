@@ -15,6 +15,7 @@ import {
   CircleAlert,
   CircleCheck,
   CircleX,
+  ChartNoAxesCombined,
   Clock3,
   GitCommitHorizontal,
   PanelLeftClose,
@@ -34,6 +35,7 @@ interface AppProps {
 }
 
 const navIcons: Record<string, ComponentType<{ className?: string }>> = {
+  "/analytics": ChartNoAxesCombined,
   "/to-retry": RefreshCcw,
   "/executing": Play,
   "/next-retry": Clock3,

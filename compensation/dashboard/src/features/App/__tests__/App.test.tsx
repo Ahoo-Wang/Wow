@@ -58,6 +58,10 @@ const navItems = [
     category: FindCategory.Executing,
     component: () => null,
   },
+  {
+    label: "Analytics",
+    path: "/analytics",
+  },
 ];
 
 describe("App", () => {
@@ -151,5 +155,16 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Expand navigation" }));
 
     expect(sidebar).not.toHaveClass("is-collapsed");
+  });
+
+  it("shows Analytics as a primary workspace", () => {
+    mocks.pathname = "/analytics";
+    render(<App navItems={navItems} />);
+
+    expect(screen.getByRole("heading", { name: "Analytics" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Analytics" })).toHaveAttribute(
+      "href",
+      "/analytics",
+    );
   });
 });

@@ -1,9 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { NavItemPaths, NavItems } from "../constants.tsx";
+import {
+  AnalyticsNavItem,
+  NavItemPaths,
+  NavItems,
+  PrimaryNavItems,
+} from "../constants.tsx";
 
 describe("routes/constants", () => {
   describe("NavItemPaths", () => {
     it("has correct path values", () => {
+      expect(NavItemPaths.Analytics).toBe("/analytics");
       expect(NavItemPaths.ToRetry).toBe("/to-retry");
       expect(NavItemPaths.Executing).toBe("/executing");
       expect(NavItemPaths.NextRetry).toBe("/next-retry");
@@ -38,6 +44,15 @@ describe("routes/constants", () => {
         NavItemPaths.Succeeded,
         NavItemPaths.Unrecoverable,
       ]);
+    });
+  });
+
+  it("keeps queue navigation separate from the analytics primary item", () => {
+    expect(NavItems).toHaveLength(6);
+    expect(PrimaryNavItems).toHaveLength(7);
+    expect(AnalyticsNavItem).toEqual({
+      label: "Analytics",
+      path: "/analytics",
     });
   });
 });

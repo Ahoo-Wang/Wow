@@ -26,7 +26,8 @@ vi.mock("../../features/App/App.tsx", () => ({
 }));
 
 vi.mock("../constants.tsx", () => ({
-  NavItemPaths: { ToRetry: "/to-retry" },
+  NavItemPaths: { Analytics: "/analytics", ToRetry: "/to-retry" },
+  AnalyticsNavItem: { label: "Analytics", path: "/analytics" },
   NavItems: [
     {
       category: "ToRetry",
@@ -41,6 +42,7 @@ vi.mock("../constants.tsx", () => ({
       path: "/executing",
     },
   ],
+  PrimaryNavItems: [],
 }));
 
 describe("AppRouter", () => {
@@ -53,12 +55,13 @@ describe("AppRouter", () => {
         { index: true, path: undefined },
         { index: undefined, path: "/to-retry" },
         { index: undefined, path: "/executing" },
+        { index: undefined, path: "/analytics" },
         { index: undefined, path: "*" },
       ],
     );
 
     const indexRedirect = root?.children?.[0].element;
-    const fallbackRedirect = root?.children?.[3].element;
+    const fallbackRedirect = root?.children?.[4].element;
     expect(indexRedirect?.props).toMatchObject({
       replace: true,
       to: "/to-retry",

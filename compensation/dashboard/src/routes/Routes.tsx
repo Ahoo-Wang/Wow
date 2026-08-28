@@ -14,12 +14,18 @@
 import { Suspense } from "react";
 import { createBrowserRouter, Navigate } from "react-router";
 import App from "../features/App/App.tsx";
-import { NavItems, NavItemPaths } from "./constants.tsx";
+import {
+  AnalyticsNavItem,
+  NavItems,
+  NavItemPaths,
+  PrimaryNavItems,
+} from "./constants.tsx";
+import LazyAnalyticsView from "./LazyAnalyticsView.tsx";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export const AppRouter = createBrowserRouter([
   {
-    element: <App navItems={NavItems} />,
+    element: <App navItems={PrimaryNavItems} />,
     children: [
       {
         index: true,
@@ -43,6 +49,21 @@ export const AppRouter = createBrowserRouter([
           </Suspense>
         ),
       })),
+      {
+        path: AnalyticsNavItem.path,
+        element: (
+          <Suspense
+            fallback={
+              <div className="h-full space-y-4 p-5">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-[70vh] w-full" />
+              </div>
+            }
+          >
+            <LazyAnalyticsView />
+          </Suspense>
+        ),
+      },
       {
         path: "*",
         element: <Navigate to={NavItemPaths.ToRetry} replace />,
