@@ -3,6 +3,8 @@ title: 查询
 description: 从查询网关进入快照与事件流的数据查询、聚合查询、查询后端和 API 客户端。
 ---
 
+<a id="查询服务"></a>
+
 # 查询
 
 Wow 的“查询”覆盖查询模型、服务端 Query Gateway、JVM 查询后端、HTTP/OpenAPI 合同和远程 API Client；它们共同组成读链路，但分别承担模型、策略、执行、协议和调用职责。
@@ -66,6 +68,8 @@ Content-Type: application/json
 
 快照、事件流和聚合路由分别见[快照查询](./query/snapshot-query.md)、[事件流查询](./query/event-stream-query.md)、[快照聚合](./query/snapshot-aggregation.md)与[事件流聚合](./query/event-stream-aggregation.md)。
 
+<a id="兼容与迁移"></a>
+
 ## 兼容性与迁移
 
 `Condition`、`Operator` 与 `ConditionDsl` 是已弃用兼容输入；规范合同使用 `FilterExpression`。查询执行入口从 `QueryHandler` 迁移到 `QueryGateway`，但聚合级 `QueryService` 与 Factory 保持不变。输入兼容规则见[过滤条件](./query/filter-expression.md)，执行边界迁移见[查询网关](./query/query-gateway.md)。
@@ -73,6 +77,8 @@ Content-Type: application/json
 ## JSON Schema
 
 通用 JSON Schema 定义线协议，OpenAPI 描述已发布请求，运行时 Query Model Schema 证明逻辑字段的后端能力。快照和事件流分别发布 `snapshot/schema` 与 `event/schema`，以及对应的 refresh 路由。来源、校验模式和 Provider 差异见[查询模型 Schema](./query/query-model-schema.md)。
+
+<a id="查询服务注册器"></a>
 
 ## Query Service Registrars
 
