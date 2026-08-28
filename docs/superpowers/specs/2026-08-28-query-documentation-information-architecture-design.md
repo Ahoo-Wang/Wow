@@ -92,16 +92,16 @@ Schema 不可用时，`COMPATIBLE` 只允许不引用系统 tags 的查询沿用
 
 MongoDB 根据索引与可选 validator 证明能力；Elasticsearch 根据 mapping、multi-field、nested、doc values 与 runtime field 证明能力。自定义 filter converter 会使内置 Query Model Schema 不可用，除非调用方提供相应能力实现。
 
-只有快照发布 `snapshot/schema` 与 `snapshot/schema/refresh` HTTP 路由。EventStream Query Model Schema 只能通过 JVM provider 使用。
+快照与事件流分别发布 `snapshot/schema`、`event/schema` 及各自的 `schema/refresh` HTTP 路由。这些模型级路由不生成 tenant、owner 或 aggregate-ID 变体。
 
-Provider 暴露也不完全对称：Snapshot Schema HTTP handler 直接从原始 Factory 取得 provider，Spring `SnapshotQueryServiceProxy` 本身不实现 `QueryModelSchemaProvider`；`EventStreamQueryServiceProxy` 会委托 provider，但框架没有为它发布 Schema HTTP 路由。
+Provider 暴露仍不完全对称：Spring `SnapshotQueryServiceProxy` 本身不实现 `QueryModelSchemaProvider`，`EventStreamQueryServiceProxy` 会委托 provider；但两类 Schema HTTP handler 都直接从对应原始 Factory 取得 provider，因此不能由 Proxy 是否实现 Provider 推断 HTTP 暴露能力。
 
 ### HTTP 与 API Client 能力矩阵
 
-| 数据模型 | HTTP 数据查询 | HTTP 聚合 | API Client |
-|---|---|---|---|
-| SNAPSHOT | single/list/paged/count，并提供 state-only 变体 | `snapshot/aggregation`，JSON 或 SSE | 响应式与同步接口 |
-| EVENT_STREAM | list/paged/count，以及按 ID/version load；没有 single 查询路由 | 无 | 无内置事件流查询客户端 |
+| 数据模型 | HTTP 数据查询 | HTTP 聚合 | HTTP Schema | API Client |
+|---|---|---|---|---|
+| SNAPSHOT | single/list/paged/count，并提供 state-only 变体 | `snapshot/aggregation`，JSON 或 SSE | `snapshot/schema` 与 `snapshot/schema/refresh` | 响应式与同步接口 |
+| EVENT_STREAM | list/paged/count，以及按 ID/version load；没有 single 查询路由 | `event/aggregation`，JSON 或 SSE | `event/schema` 与 `event/schema/refresh` | 无内置事件流查询客户端 |
 
 `wow-apiclient.query` 的 `ReactiveSnapshotQueryApi<S>` 与 `SynchronousSnapshotQueryApi<S>`组合 single/list/paged/count。Aggregation 刻意使用独立的 `ReactiveSnapshotAggregationQueryApi` 与 `SynchronousSnapshotAggregationQueryApi`，没有合并进普通 SnapshotQueryApi。
 
@@ -121,7 +121,7 @@ Provider 暴露也不完全对称：Snapshot Schema HTTP handler 直接从原始
 ## 非目标
 
 - 不修改查询 API、后端行为、路由、Schema、配置或客户端实现。
-- 不新增 EventStream HTTP、OpenAPI、Schema HTTP 路由或 API Client。
+- 不修改已由当前 `main` 提供的 EventStream HTTP/OpenAPI/Schema 路由，也不新增 EventStream API Client。
 - 不把所有操作符、single/list/paged/count 各拆成一个薄页面。
 - 不复制数据权限安全闭环、完整 WebFlux 配置、OpenAPI 生成流程或后端 mapping 手册。
 - 不移动或删除现有 `guide/query.md`。
@@ -275,8 +275,8 @@ Provider 暴露也不完全对称：Snapshot Schema HTTP handler 直接从原始
 - 事件元数据与 `body.body` payload 路径；
 - 不追加快照删除 guard；
 - JVM single/list/paged/count 与 typed/dynamic 调用；
-- HTTP 只发布 list/paged/count/load，没有 single 查询路由；
-- 当前没有 EventStream API Client 或 Schema HTTP 路由；
+- HTTP 数据查询只发布 list/paged/count/load，没有 single 查询路由；
+- aggregation 与 Schema 使用独立的 EventStream HTTP/OpenAPI 合同；当前没有 EventStream API Client；
 - payload 字段能力依赖声明与后端 mapping。
 
 ### 聚合查询
@@ -314,12 +314,12 @@ Provider 暴露也不完全对称：Snapshot Schema HTTP handler 直接从原始
 
 1. 展开 `body` 后按事件名称统计频率；
 2. 按 revision 或 bodyType 分析事件版本；
-3. 在根作用域按 createTime 统计 EventStream 写入趋势；
+3. 在根作用域按首个事件的 createTime 统计 EventStream 创建趋势；
 4. 按 tenant 或 owner 分析历史活动量；
 5. 对比根级 EventStream 数量与展开后的领域事件数量；
 6. 按事件 payload 字段分析业务变化。
 
-每个场景必须声明统计单位。事件流聚合以 Kotlin/JVM 示例为主，不提供会暗示存在 HTTP 路由的请求示例。payload 场景必须说明 Query Schema 声明、MongoDB 可查询存储与 Elasticsearch `body.body` mapping 限制。页面明确没有内置 EventStream aggregation HTTP、OpenAPI、Schema HTTP 或 API Client。
+每个场景必须声明统计单位，并提供 Kotlin/JVM 与等价 HTTP JSON；页面说明 `event/aggregation` 的基础、tenant、owner 路由变体以及 JSON/SSE 响应。payload 场景必须说明 Query Schema 声明、MongoDB 可查询存储、Elasticsearch 外层 `body` nested 关系以及 `body.body` payload 字段的可聚合 mapping 限制。页面明确当前仍没有内置 EventStream API Client。
 
 ### 查询模型 Schema
 
@@ -334,8 +334,8 @@ Provider 暴露也不完全对称：Snapshot Schema HTTP handler 直接从原始
 - Schema unavailable 与 custom converter 边界；
 - 仅用于聚合专用快照 request body 的静态 OpenAPI `x-wow-query-fields`、通用 JSON Schema 与运行时 Query Model Schema 的区别；
 - COMPATIBLE 的 Schema unavailable 回退不会放宽系统 tags 查询；
-- snapshot schema/refresh HTTP 与 EventStream JVM-only provider；
-- Snapshot handler 从原始 Factory 读取 provider，而 EventStream proxy 只在 JVM 内委托 provider；
+- snapshot 与 event 的 schema/refresh HTTP 路由及其无 tenant/owner 变体；
+- 两类 handler 从各自原始 Factory 读取 provider，以及 Snapshot/EventStream proxy 的实现差异；
 - refresh 只更新当前进程缓存，不修改 mapping 或历史数据。
 
 ## 分析案例模板
@@ -344,7 +344,7 @@ Provider 暴露也不完全对称：Snapshot Schema HTTP handler 直接从原始
 
 1. **业务问题**：案例回答什么决策；
 2. **统计单位**：快照、EventStream 文档还是展开后的元素/事件；
-3. **查询**：Kotlin DSL；快照 HTTP 场景再给等价 JSON；
+3. **查询**：Kotlin DSL；实际暴露聚合 HTTP 的快照与事件流场景再给等价 JSON；
 4. **结果**：展示一到两行代表性动态表格结果；
 5. **边界**：路径相对性、Schema capability、后端和传输限制。
 
@@ -416,7 +416,7 @@ pnpm docs:build
 - 中英文页面的章节职责、代码、限制、默认值和能力矩阵一致；
 - 所有原 `query.md` 入链仍可解析，更新后的深链目标存在；
 - 搜索旧标题“查询服务”/“Query Service”，逐项区分它是在指查询分区还是具体 QueryService；
-- 搜索 EventStream aggregation HTTP、OpenAPI、Schema route 和 API Client 表述，确保没有虚构传输能力；
+- 搜索 EventStream aggregation HTTP、OpenAPI、Schema route 和 API Client 表述，确保准确表达已新增的 HTTP/Schema 能力与仍缺失的 EventStream Client；
 - 搜索 Factory 示例，确保都标记为受信原始入口；
 - 搜索聚合案例中的每个 `expand`，确认统计单位与路径相对性一致。
 

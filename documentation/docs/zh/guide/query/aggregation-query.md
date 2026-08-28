@@ -99,7 +99,7 @@ val query = aggregation {
 }
 ```
 
-等价 JSON 仅适用于实际暴露该协议的入口；它不能推导出事件流存在 HTTP 聚合。
+等价 JSON 适用于实际暴露聚合协议的 Snapshot 与 EventStream HTTP 入口；字段根和 capability 仍由各自的 Query Model Schema 决定。
 
 ```json
 {
@@ -137,6 +137,4 @@ val query = aggregation {
 | 统计对象 | 临时入口 | 选择原因 |
 | --- | --- | --- |
 | 当前聚合状态与状态集合 | [快照聚合](./snapshot-aggregation.md) | 快照以当前状态为事实来源 |
-| 完整事件历史与事件数组 | [事件流聚合](./event-stream-aggregation.md) | 事件流以历史事件为事实来源，当前仅有 JVM 聚合合同 |
-
-不要从 JSON 示例推断事件流有 HTTP 聚合入口。
+| 完整事件历史与事件数组 | [事件流聚合](./event-stream-aggregation.md) | 事件流以历史事件为事实来源，支持 JVM 与 HTTP/OpenAPI 聚合及 JSON/SSE；仍无 EventStream API Client |

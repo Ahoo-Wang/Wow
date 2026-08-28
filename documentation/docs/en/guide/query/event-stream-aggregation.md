@@ -1,19 +1,21 @@
 ---
 title: Event Stream Aggregation
-description: Apply JVM event-stream aggregation to root documents and expanded events through six business scenarios.
+description: Apply JVM and WebFlux HTTP/OpenAPI event-stream aggregation to root documents and expanded events through six business scenarios.
 ---
 
 # Event Stream Aggregation
 
-Event-stream aggregation is supported by the JVM `EventStreamQueryGateway` and `EventStreamQueryService`. There is currently no corresponding WebFlux HTTP aggregation route, OpenAPI operation, Schema HTTP route, or API Client. This page therefore provides only Kotlin DSL and result rows, with no HTTP JSON request that would imply those entries exist.
+Event-stream aggregation is supported through the JVM `EventStreamQueryGateway` / `EventStreamQueryService` and WebFlux HTTP/OpenAPI. There is no EventStream API Client; HTTP callers use the shared `AggregationQuery` JSON contract directly.
 
 ## Capabilities and Entry Points
 
 - **JVM Gateway**: `EventStreamQueryGateway.aggregate(namedAggregate, query)` executes aggregation through the policy chain.
 - **JVM Service**: an aggregate-specific `EventStreamQueryService` executes `query.query(queryService)`. A Spring-managed service normally enters the policy chain through [Query Gateway](./query-gateway.md); see [Query Backends](./query-backend.md) for direct-Factory and custom-Bean bypass boundaries.
+- **WebFlux HTTP/OpenAPI**: current `sales-order` OpenAPI proves `POST /sales-order/event/aggregation`, `POST /tenant/{tenantId}/sales-order/event/aggregation`, and `POST /owner/{ownerId}/sales-order/event/aggregation`. The base route adds no scope; tenant/owner variants narrow scope from their path parameter.
+- **Schema HTTP**: `GET /sales-order/event/schema` and `POST /sales-order/event/schema/refresh` are separate model-level routes without tenant/owner variants.
 - **Shared contract**: see [Aggregation Queries](./aggregation-query.md) for Elements, groups, metrics, aliases, sorting, and limits; see [Filter Expressions](./filter-expression.md) for the root-filter Kotlin DSL; field capabilities come from [Query Model Schema (current reference)](../query.md#json-schema).
 
-Aggregation returns `Flux<DynamicDocument>`. The results below are representative dynamic rows, not fixed business data.
+After strict request decoding, the HTTP handler first uses `RewriteRequestFilter` to add path scope, then enters `EventStreamQueryGateway`. The Gateway policy chain applies the HTTP guard, its tail filter invokes the selected QueryService, and the Schema resolver validates and resolves the query before backend aggregation. The response negotiates a JSON array or SSE through `Accept`. JVM aggregation returns `Flux<DynamicDocument>`. The results below are representative dynamic rows, not fixed business data.
 
 ## Root Documents, body, and Counting Units
 
@@ -46,6 +48,27 @@ fun eventNameFrequency(queryService: EventStreamQueryService) = aggregation {
     sort { "eventCount".desc() }
     limit(10)
 }.query(queryService)
+```
+
+**HTTP JSON**
+
+```json
+{
+  "filter": {"op": "TENANT_ID", "value": "tenant-a"},
+  "elements": [
+    {"path": "body"}
+  ],
+  "groupBy": [
+    {"type": "TERMS", "field": "name", "alias": "eventName"}
+  ],
+  "metrics": [
+    {"type": "COUNT", "alias": "eventCount"}
+  ],
+  "sort": [
+    {"field": "eventCount", "direction": "DESC"}
+  ],
+  "limit": 10
+}
 ```
 
 **Result interpretation**
@@ -81,6 +104,23 @@ val query = aggregation {
     terms("revision", "revision")
     terms("bodyType", "bodyType")
     count("eventCount")
+}
+```
+
+**HTTP JSON**
+
+```json
+{
+  "elements": [
+    {"path": "body"}
+  ],
+  "groupBy": [
+    {"type": "TERMS", "field": "revision", "alias": "revision"},
+    {"type": "TERMS", "field": "bodyType", "alias": "bodyType"}
+  ],
+  "metrics": [
+    {"type": "COUNT", "alias": "eventCount"}
+  ]
 }
 ```
 
@@ -123,6 +163,25 @@ val query = aggregation {
 }
 ```
 
+**HTTP JSON**
+
+```json
+{
+  "groupBy": [
+    {
+      "type": "DATE_HISTOGRAM",
+      "field": "createTime",
+      "alias": "day",
+      "unit": "DAY",
+      "timeZone": "UTC"
+    }
+  ],
+  "metrics": [
+    {"type": "COUNT", "alias": "streamCount"}
+  ]
+}
+```
+
 **Result interpretation**
 
 ```json
@@ -155,6 +214,20 @@ val query = aggregation {
     terms("tenantId", "tenantId")
     terms("ownerId", "ownerId")
     count("streamCount")
+}
+```
+
+**HTTP JSON**
+
+```json
+{
+  "groupBy": [
+    {"type": "TERMS", "field": "tenantId", "alias": "tenantId"},
+    {"type": "TERMS", "field": "ownerId", "alias": "ownerId"}
+  ],
+  "metrics": [
+    {"type": "COUNT", "alias": "streamCount"}
+  ]
 }
 ```
 
@@ -195,6 +268,31 @@ val eventCountQuery = aggregation {
     filter { tenantId("tenant-a") }
     expand("body")
     count("eventCount")
+}
+```
+
+**HTTP JSON request 1**
+
+```json
+{
+  "filter": {"op": "TENANT_ID", "value": "tenant-a"},
+  "metrics": [
+    {"type": "COUNT", "alias": "streamCount"}
+  ]
+}
+```
+
+**HTTP JSON request 2**
+
+```json
+{
+  "filter": {"op": "TENANT_ID", "value": "tenant-a"},
+  "elements": [
+    {"path": "body"}
+  ],
+  "metrics": [
+    {"type": "COUNT", "alias": "eventCount"}
+  ]
 }
 ```
 
@@ -240,6 +338,22 @@ val query = aggregation {
 }
 ```
 
+**HTTP JSON**
+
+```json
+{
+  "elements": [
+    {"path": "body"}
+  ],
+  "groupBy": [
+    {"type": "TERMS", "field": "body.data", "alias": "data"}
+  ],
+  "metrics": [
+    {"type": "COUNT", "alias": "eventCount"}
+  ]
+}
+```
+
 **Result interpretation**
 
 ```json
@@ -253,12 +367,12 @@ val query = aggregation {
 
 **Boundary**
 
-`body.body.data` is not a wildcard promise from the system fields. The actual Query Model Schema must declare it and prove TERMS capability. MongoDB must also store the payload in a queryable form, while Elasticsearch needs a `body.body` mapping that preserves event association and provides an aggregatable field.
+`body.body.data` is not a wildcard promise from the system fields. The actual Query Model Schema must declare it and prove TERMS capability. MongoDB must also store the payload in a queryable form. In Elasticsearch, the outer `body` must remain nested to preserve fields from the same event, and `body.body.data` must also have an aggregatable mapping.
 
 ## Field Availability and Backend Boundaries
 
 - System Schema declares root `createTime`, `tenantId`, and `ownerId`, plus event metadata `body.name`, `body.revision`, and `body.bodyType`. Runtime Schema and the MongoDB or Elasticsearch adapter still resolve the concrete operation capabilities.
 - After expanding `body`, Element filters, groups, metrics, and expression fields are relative to one event. Payload Schema root paths remain `body.body.*`, while relative query paths become `body.*`.
-- MongoDB and Elasticsearch share the public AST but do not promise identical physical pipelines, mappings, null behavior, or bucket details. Elasticsearch needs a nested `body` mapping that preserves fields from the same event.
+- MongoDB and Elasticsearch share the public AST but do not promise identical physical pipelines, mappings, null behavior, or bucket details. Elasticsearch's outer `body` must remain nested to preserve fields from the same event; each `body.body.*` payload field also needs mapping capabilities for the operation being used.
 - A custom `EventStreamQueryService` may retain the default unsupported aggregation implementation. Working event-stream data queries alone do not prove that such a custom backend executes aggregation.
-- This page is JVM-only. There is currently no event-stream aggregation HTTP, OpenAPI, Schema HTTP, or API Client entry; do not infer one from Kotlin DSL or result JSON.
+- EventStream aggregation HTTP/OpenAPI and separate Schema HTTP routes exist. There is still no EventStream API Client. HTTP availability also does not prove that a specific backend supports an example field; actual capability comes from runtime Query Model Schema and backend mapping.

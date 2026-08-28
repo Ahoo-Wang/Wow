@@ -15,7 +15,7 @@ Query root fields directly, such as `aggregateId`, `tenantId`, `version`, and `c
 
 ## JVM Queries
 
-`EventStreamQueryService` supports typed and dynamic single/list/paged/count queries on the JVM; `dynamicQuery` returns `DynamicDocument`. The service interface also has JVM aggregation, whose semantics and examples belong to the event-stream aggregation page; it does not imply an HTTP route.
+`EventStreamQueryService` supports typed and dynamic single/list/paged/count queries on the JVM; `dynamicQuery` returns `DynamicDocument`. The service interface also has JVM aggregation; see [Event Stream Aggregation](./event-stream-aggregation.md) for its JVM and HTTP/OpenAPI contracts and examples.
 
 This example pages through root fields:
 
@@ -44,7 +44,17 @@ POST /sales-order/event/count
 GET /tenant/{tenantId}/sales-order/{id}/event/{headVersion}/{tailVersion}
 ```
 
-There is currently no event-stream `single`, aggregation, or Schema HTTP route, and no event-stream API Client. The event-stream aggregation page describes JVM aggregation; do not use a nonexistent HTTP request to represent it.
+Aggregation and Schema are contracts separate from the data-query shapes above:
+
+```text
+POST /sales-order/event/aggregation
+POST /tenant/{tenantId}/sales-order/event/aggregation
+POST /owner/{ownerId}/sales-order/event/aggregation
+GET /sales-order/event/schema
+POST /sales-order/event/schema/refresh
+```
+
+There is still no event-stream `single` HTTP route and no EventStream API Client. See [Event Stream Aggregation](./event-stream-aggregation.md) for aggregation requests and JSON/SSE responses. The Schema routes are model-level entries without tenant/owner variants.
 
 ## Loading an Event Stream by Version
 
@@ -68,7 +78,9 @@ A JVM single query returns an empty `Mono` for no match; list returns an empty `
 | Business-data root | `body` event array; payload is `body.body` | `state` current business state |
 | Deletion default | No deletion condition | `DELETION = ACTIVE` by default |
 | HTTP data queries | list, paged, count, version-range load | single, list, paged, count, and state-only |
-| HTTP aggregation/Schema/API Client | None | Separate snapshot contracts exist |
+| HTTP aggregation | `event/aggregation`, JSON or SSE | `snapshot/aggregation`, JSON or SSE |
+| HTTP Schema | `event/schema` and refresh | `snapshot/schema` and refresh |
+| API Client | None | Separate snapshot contracts exist |
 
 ## When to Use Event Stream Queries
 

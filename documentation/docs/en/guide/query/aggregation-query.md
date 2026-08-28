@@ -99,7 +99,7 @@ val query = aggregation {
 }
 ```
 
-The equivalent JSON applies only to an entry that actually exposes this protocol; it does not imply HTTP aggregation for event streams.
+The equivalent JSON applies to Snapshot and EventStream HTTP entries that expose the aggregation protocol. Field roots and capabilities still come from the Query Model Schema for the selected model.
 
 ```json
 {
@@ -137,6 +137,4 @@ In addition to the capacity limits above, `metrics` has a minimum of 1, `limit` 
 | What to count | Temporary entry | Why choose it |
 | --- | --- | --- |
 | Current aggregate state and state collections | [Snapshot Aggregation](./snapshot-aggregation.md) | Snapshot is the source of truth for current state |
-| Complete event history and event arrays | [Event Stream Aggregation](./event-stream-aggregation.md) | Event stream is the source of truth for historical events and currently has a JVM aggregation contract only |
-
-Do not infer an event-stream HTTP aggregation entry from the JSON example.
+| Complete event history and event arrays | [Event Stream Aggregation](./event-stream-aggregation.md) | Event stream is the source of truth for historical events and supports JVM and HTTP/OpenAPI aggregation with JSON/SSE; there is still no EventStream API Client |
