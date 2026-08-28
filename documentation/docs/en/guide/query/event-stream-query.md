@@ -35,13 +35,19 @@ A Spring-managed service enters QueryGateway; see [Query Backends](./query-backe
 
 ## HTTP Routes
 
-These are the currently published event-stream routes for `sales-order`:
+These are the currently published base event-stream data-query routes for `sales-order`:
 
 ```text
 POST /sales-order/event/list
 POST /sales-order/event/paged
 POST /sales-order/event/count
-GET /tenant/{tenantId}/sales-order/{id}/event/{headVersion}/{tailVersion}
+```
+
+The same list, paged, and count operations are also published with tenant and owner scopes:
+
+```text
+POST /tenant/{tenantId}/sales-order/event/{list|paged|count}
+POST /owner/{ownerId}/sales-order/event/{list|paged|count}
 ```
 
 Aggregation and Schema are contracts separate from the data-query shapes above:
@@ -54,7 +60,7 @@ GET /sales-order/event/schema
 POST /sales-order/event/schema/refresh
 ```
 
-There is still no event-stream `single` HTTP route and no EventStream API Client. See [Event Stream Aggregation](./event-stream-aggregation.md) for aggregation requests and JSON/SSE responses. The Schema routes are model-level entries without tenant/owner variants.
+There is still no event-stream `single` HTTP route and no EventStream API Client. See [Event Stream Aggregation](./event-stream-aggregation.md) for aggregation requests and JSON/SSE responses. The Schema routes are model-level entries without tenant/owner variants. Generated OpenAPI from the running application is the source of truth for exact paths.
 
 ## Loading an Event Stream by Version
 
@@ -65,7 +71,7 @@ GET /tenant/tenant-a/sales-order/order-1/event/3/8
 Accept: application/json
 ```
 
-It constructs a list query by `aggregateId` and version range. The actual `sales-order` route has a tenant path prefix. List loading can negotiate JSON or SSE; generated application OpenAPI is the source of truth for other aggregates' scope variants.
+It constructs a list query by `aggregateId` and version range. The published `sales-order` path has a tenant prefix; no owner variant is declared. List loading can negotiate JSON or SSE; generated application OpenAPI is the source of truth for other aggregates' scope variants.
 
 ## Empty Results
 

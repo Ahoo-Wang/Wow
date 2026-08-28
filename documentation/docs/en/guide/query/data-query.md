@@ -16,7 +16,7 @@ description: Use shared query shapes to read snapshot or event-stream data.
 | `PagedQuery` | `filter`, `projection`, `sort`, `pagination` | Current-page data and total |
 | Count | A `FilterExpression` directly | An exact count (`Long`) |
 
-These shapes can operate on different data models. Field paths and model-specific defaults will be defined by the snapshot and event-stream child pages; for now, see the [query entries](../query.md#rest-api). This page does not assume `state.*` or `body.*` paths.
+These shapes can operate on different data models. See [Snapshot Queries](./snapshot-query.md) and [Event Stream Queries](./event-stream-query.md) for their field paths and model-specific defaults. This page does not assume `state.*` or `body.*` paths.
 
 ## SingleQuery
 

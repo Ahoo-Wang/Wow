@@ -25,7 +25,7 @@ These clients are snapshot-only. They do not read the runtime Query Model Schema
 | `ReactiveSnapshotAggregationQueryApi` | `Flux<Map<String, Any?>>` | separate aggregation client |
 | `SynchronousSnapshotAggregationQueryApi` | `List<Map<String, Any?>>` | separate aggregation client |
 
-The first five base interfaces declare the listed paths through inherited `@PostExchange` annotations.
+Methods on the first five base interfaces declare the listed paths directly with `@PostExchange`. Their Reactive and Synchronous interfaces reuse those methods through inheritance, and the regular composite interfaces inherit the corresponding specialized interfaces.
 
 The specialized Reactive and Synchronous interfaces are already inherited by the two regular composite interfaces. Usually choose a composite interface directly; inherit one specialized interface only when a client needs that single capability. There is no need to expose every derived interface as a separate public client.
 

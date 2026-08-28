@@ -120,7 +120,7 @@ val query = aggregation {
 ]
 ```
 
-空输入、无 group 汇总是否产生行，以及行中 null 的表示，遵循所选 `QueryService` 或传输入口的实际行为；不要把一种入口的空语义推广到其他入口。
+没有 group 时始终返回一行汇总：空输入时 `COUNT = 0`、`ANY = null`，数值 metric = `null`。有 group 的空输入不产生结果行。自定义 `QueryService` 若偏离公共 TCK，必须由该实现独立声明和验证，不能将差异泛化为框架公共合同。
 
 ## 先确定统计单位
 
@@ -134,7 +134,7 @@ val query = aggregation {
 
 ## 选择快照还是事件流
 
-| 统计对象 | 临时入口 | 选择原因 |
+| 统计对象 | 专题 | 选择原因 |
 | --- | --- | --- |
 | 当前聚合状态与状态集合 | [快照聚合](./snapshot-aggregation.md) | 快照以当前状态为事实来源 |
 | 完整事件历史与事件数组 | [事件流聚合](./event-stream-aggregation.md) | 事件流以历史事件为事实来源，支持 JVM 与 HTTP/OpenAPI 聚合及 JSON/SSE；仍无 EventStream API Client |

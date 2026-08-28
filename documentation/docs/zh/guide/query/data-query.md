@@ -16,7 +16,7 @@ description: 使用统一的查询形态读取快照或事件流数据。
 | `PagedQuery` | `filter`、`projection`、`sort`、`pagination` | 当前页数据和总数 |
 | Count | 直接提交 `FilterExpression` | 精确计数（`Long`） |
 
-这些形态可以作用于不同的数据模型。字段路径和模型默认行为将在快照与事件流子页面分别定义；当前可先参阅[查询入口](../query.md#rest-api)。本页不预设 `state.*` 或 `body.*` 路径。
+这些形态可以作用于不同的数据模型；字段路径和模型默认行为分别见[快照查询](./snapshot-query.md)与[事件流查询](./event-stream-query.md)。本页不预设 `state.*` 或 `body.*` 路径。
 
 ## SingleQuery
 

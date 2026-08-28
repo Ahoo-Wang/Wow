@@ -120,7 +120,7 @@ The result columns use the group and metric aliases exactly:
 ]
 ```
 
-For empty input, whether an ungrouped summary emits a row, and how a row represents null, follow the selected `QueryService` or transport entry's actual behavior. Do not generalize one entry's empty-result semantics to another.
+With no group, aggregation always returns one summary row: for empty input, `COUNT = 0`, `ANY = null`, and numeric metrics are `null`. With groups, empty input produces no rows. A custom `QueryService` that differs from the shared TCK must declare and verify that behavior independently; the difference is not the framework's shared contract.
 
 ## Decide the Counting Unit First
 
@@ -134,7 +134,7 @@ In addition to the capacity limits above, `metrics` has a minimum of 1, `limit` 
 
 ## Choose Snapshot or Event Stream
 
-| What to count | Temporary entry | Why choose it |
+| What to count | Topic | Why choose it |
 | --- | --- | --- |
 | Current aggregate state and state collections | [Snapshot Aggregation](./snapshot-aggregation.md) | Snapshot is the source of truth for current state |
 | Complete event history and event arrays | [Event Stream Aggregation](./event-stream-aggregation.md) | Event stream is the source of truth for historical events and supports JVM and HTTP/OpenAPI aggregation with JSON/SSE; there is still no EventStream API Client |

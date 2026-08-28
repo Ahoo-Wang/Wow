@@ -48,7 +48,7 @@ fun findPaidOrders(queryService: SnapshotQueryService<OrderState>) = pagedQuery 
 
 ## HTTP 路由
 
-以下为 `sales-order` 的已发布快照数据查询路由；聚合与 Schema 不在本表中：
+以下为 `sales-order` 已发布的基础快照数据查询路由；聚合与 Schema 不在本表中：
 
 ```text
 POST /sales-order/snapshot/single
@@ -60,7 +60,14 @@ POST /sales-order/snapshot/paged/state
 POST /sales-order/snapshot/count
 ```
 
-list 可以协商 JSON 或 SSE；single 与 paged 返回 JSON。聚合路由及 [Query Model Schema（当前说明）](./query-model-schema.md) 路由是独立合同，以生成的 [OpenAPI](../open-api.md) 为准；HTTP guard 仍可能限制本来有效的 DTO。
+相同的 single、single/state、list、list/state、paged、paged/state 和 count 操作还发布 tenant 与 owner 作用域变体：
+
+```text
+POST /tenant/{tenantId}/sales-order/snapshot/{operation}
+POST /owner/{ownerId}/sales-order/snapshot/{operation}
+```
+
+其中 `{operation}` 是上述七种操作之一。list 可以协商 JSON 或 SSE；single 与 paged 返回 JSON。聚合路由及 [Query Model Schema（当前说明）](./query-model-schema.md) 路由是独立合同；精确路径以运行实例生成的 [OpenAPI](../open-api.md) 为准。HTTP guard 仍可能限制本来有效的 DTO。
 
 ## 完整快照、state-only 与动态结果
 
