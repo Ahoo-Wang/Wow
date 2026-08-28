@@ -8,7 +8,7 @@ outline: deep
 
 Wow expresses a business write as **command → aggregate decision → domain event → sourced state**. The framework connects that path to messaging, storage, waiting, and derived processing. The application still owns business boundaries, event semantics, external side effects, and operational evidence. That is the technical boundary of “Domain Model as a Service” from the [Introduction](../introduction.md), not a promise that everything outside the domain class is automatically correct.
 
-This is a mechanism explanation. Use [Configuration](../configuration.md), the [Spring Boot Starter](../extensions/spring-boot-starter.md), and the [Command Gateway](../command-gateway.md) to select capabilities, configure backends, and send commands.
+This is a mechanism explanation. Use [Configuration](../configuration.md), the [Spring Boot Starter](../extensions/spring-boot-starter.md), and [Send Commands](../command/sending.md) to select capabilities, configure backends, and send commands.
 
 ## Layers and ownership
 
@@ -47,22 +47,18 @@ Three ownership categories matter:
 - `SnapshotStore` and projections hold derived data. They can be rebuilt and do not replace event history.
 - A Bus transports messages. Delivery, acknowledgement, retention, and redelivery strength depend on the selected implementation and configuration.
 
-See [Data Flow](./data-flow.md) for the stage-by-stage path and [Aggregate Lifecycle](./aggregate-lifecycle.md) for aggregate-internal transitions.
+See [Data Flow](./data-flow.md) for cross-capability handoffs and [Aggregate Lifecycle](../domain/lifecycle.md) for aggregate-internal transitions.
 
-## Write and read boundaries
+## Capability boundaries
 
-The write side protects invariants within one aggregate boundary: restore current state, invoke the command function, source the new events, and append the event stream. The read side is served by projections, snapshots, or other derived models. Completing the write does not automatically mean an arbitrary read model is current.
+| Boundary | Authoritative pages |
+| --- | --- |
+| Aggregate decisions, event history, snapshots, and restoration | [Domain Model](../domain/) |
+| Command definition, sending, completion, and reliability | [Commands](../command/) |
+| Processors, sagas, compensation, and event dispatch | [Events and Collaboration](../event/) |
+| Projections, queries, and data access | [Projection](../projection.md), [Query Service](../query.md), [Data Access Control](../data-access.md) |
 
-The caller selects an observable completion point with a wait plan:
-
-| Stage | What it proves | What it does not prove |
-| --- | --- | --- |
-| `SENT` | The CommandBus send operation completed | The aggregate ran |
-| `PROCESSED` | The command filter chain completed successfully; the current default chain includes aggregate processing, event append, and domain/state event sends | Snapshot, projection, event processor, or Saga completion |
-| `SNAPSHOT` | The targeted snapshot processing completed | Any projection completed |
-| `PROJECTED` / `EVENT_HANDLED` / `SAGA_HANDLED` | The selected downstream function completed | Global consistency across external systems |
-
-The [Command Gateway wait-plan section](../command-gateway.md#wait-plans) owns exact target selection and failure results; this page does not duplicate call examples.
+Completing a write does not automatically mean an arbitrary read model is current. [Completion Semantics](../command/completion.md) owns the caller-visible contract; this page does not duplicate its stage table or call examples.
 
 ## Ordering and concurrency boundary
 
@@ -70,7 +66,7 @@ Default dispatchers map messages by aggregate ID into a finite set of groups. A 
 
 Concurrent writes still pass through EventStore version constraints. Scheduling reduces contention inside one instance; append rejects conflicting persistent writes. These are different controls. Backend redelivery also does not make an external side effect idempotent.
 
-See [Aggregate Scheduler](./aggregate-scheduler.md), [Event Bus](./event-bus.md), and [Event Store](../eventstore.md).
+See [Aggregate Scheduler](./aggregate-scheduler.md), [Event Dispatch Pipeline](../event/dispatch.md), and [Event Sourcing](../domain/event-sourcing.md).
 
 ## Lifecycle boundary
 
@@ -82,7 +78,7 @@ Spring adapts that ownership through one `WowRuntimeLifecycle`. A runtime compon
 
 KSP reads declarations such as `@BoundedContext` and `@AggregateRoot`, then produces packaged metadata and Kotlin constants. Runtime and interface modules consume those outputs to assemble aggregate discovery, routes, schemas, or OpenAPI. If KSP output is absent, the runtime does not reconstruct the complete contract from this documentation.
 
-See [Compiler](./compiler.md) for generated artifacts, paths, and checks. [Serialization](./serialization.md) and [Event Evolution](./event-evolution.md) own wire format and persisted-event changes.
+See [Compiler](./compiler.md) for generated artifacts, paths, and checks. [Serialization](./serialization.md) and [Event Evolution](../domain/event-evolution.md) own wire format and persisted-event changes.
 
 ## Extension checklist
 

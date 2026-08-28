@@ -23,7 +23,7 @@ Select one real workflow and answer these questions with domain and engineering 
 | Recovery ownership | Which failures retry automatically, and which need an operator? Compensation does not erase facts that happened. |
 | Data and security | Who defines identity, tenant scope, retention, deletion, audit, and sensitive-field policy? |
 
-Use [Command Gateway](../guide/command-gateway.md) for exact command stages and [Projection](../guide/projection.md) for the read-model boundary.
+Use [Completion Semantics](../guide/command/completion.md) for exact command stages and [Projection](../guide/projection.md) for the read-model boundary.
 
 ## Fit and non-fit
 
@@ -68,7 +68,7 @@ Repository examples and tests can establish framework behavior; they cannot repl
 
 ## Prioritized next path
 
-1. **Workflow fits**: turn commands, events, state, and invariants into a specification with [Modeling](../guide/modeling.md).
+1. **Workflow fits**: turn commands, events, state, and invariants into a specification with [Aggregate and Invariants](../guide/domain/aggregate.md).
 2. **An asynchronous read model is required**: continue with [Projection](../guide/projection.md) and [Query](../guide/query.md), choose the user-visible completion stage, and keep actual query visibility as a separate acceptance check.
-3. **Failure recovery is required**: use [Event Compensation](../guide/event-compensation.md) and [Recovery](../guide/recovery.md) to define automatic and operator boundaries.
+3. **Failure recovery is required**: use [Event Compensation](../guide/event/compensation.md) and [Recovery](../guide/recovery.md) to define automatic and operator boundaries.
 4. **Workflow does not fit**: stop introducing Wow; choosing the simpler design needs no extra ceremony.

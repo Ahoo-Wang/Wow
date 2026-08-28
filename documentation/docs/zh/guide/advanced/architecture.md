@@ -8,7 +8,7 @@ outline: deep
 
 Wow 把一次业务写入表达为**命令 → 聚合决策 → 领域事件 → 溯源状态**。框架负责把这条链连接到消息、存储、等待与派生处理；应用仍负责业务边界、事件语义、外部副作用和运行证据。这就是[简介](../introduction.md)所说的“领域模型即服务”的技术边界，而不是“只写领域类，其余自动正确”的承诺。
 
-本文是机制解释页。安装 capability、配置后端和发送命令请分别使用[配置指南](../configuration.md)、[扩展指南](../extensions/spring-boot-starter.md)与[命令网关](../command-gateway.md)。
+本文是机制解释页。安装 capability、配置后端和发送命令请分别使用[配置指南](../configuration.md)、[扩展指南](../extensions/spring-boot-starter.md)与[发送命令](../command/sending.md)。
 
 ## 分层与所有权
 
@@ -47,22 +47,18 @@ flowchart LR
 - `SnapshotStore` 与投影保存派生数据；它们可以重建，不能替代事件历史。
 - Bus 负责传输消息；投递、确认、保留与重投强度由所选实现和配置共同决定。
 
-完整的逐阶段链路见[数据流](./data-flow.md)，聚合内部状态转换见[聚合生命周期](./aggregate-lifecycle.md)。
+跨能力交接见[数据流](./data-flow.md)，聚合内部状态转换见[聚合生命周期](../domain/lifecycle.md)。
 
-## 写入与读取边界
+## 能力边界
 
-写入侧通过聚合保护单个聚合边界的不变量：恢复当前状态、执行命令函数、对新事件溯源，再将事件流追加到 EventStore。读取侧由投影或快照等派生模型提供。写入完成不自动意味着任意读取模型已经更新。
+| 边界 | 权威页面 |
+| --- | --- |
+| 聚合决策、事件历史、快照与恢复 | [领域模型](../domain/) |
+| 命令定义、发送、完成与可靠性 | [命令](../command/) |
+| Processor、Saga、补偿与事件分发 | [事件与协作](../event/) |
+| 投影、查询与数据权限 | [投影](../projection.md)、[查询服务](../query.md)、[数据权限](../data-access.md) |
 
-调用方通过等待计划选择可观察完成点：
-
-| 阶段 | 能证明什么 | 不能据此推断什么 |
-| --- | --- | --- |
-| `SENT` | CommandBus 的发送操作完成 | 聚合已执行 |
-| `PROCESSED` | 命令 filter chain 成功完成；当前默认链包含聚合处理、事件追加以及领域/状态事件发送 | 快照、投影、事件处理器或 Saga 已完成 |
-| `SNAPSHOT` | 目标快照处理完成 | 任意投影已完成 |
-| `PROJECTED` / `EVENT_HANDLED` / `SAGA_HANDLED` | 选中的下游函数完成 | 所有外部系统全局一致 |
-
-精确的目标选择和失败结果由[命令网关](../command-gateway.md#等待计划)维护，本页不复制调用示例。
+写入完成不自动意味着任意读模型已经更新。调用方完成语义由[完成语义](../command/completion.md)定义，本文不复制阶段表或调用示例。
 
 ## 顺序与并发边界
 
@@ -70,7 +66,7 @@ Wow 的默认分发器把消息按聚合 ID 映射到有限数量的 group，同
 
 并发写入最终还要经过 EventStore 的版本约束。调度减少本实例内的竞争，版本追加负责拒绝冲突写入；两者不是同一个保证。后端投递与重试也不会自动让外部副作用幂等。
 
-详见[聚合调度器](./aggregate-scheduler.md)、[事件总线](./event-bus.md)与[事件存储](../eventstore.md)。
+详见[聚合调度器](./aggregate-scheduler.md)、[事件分发管线](../event/dispatch.md)与[事件溯源](../domain/event-sourcing.md)。
 
 ## 生命周期边界
 
@@ -82,7 +78,7 @@ Spring 只通过一个 `WowRuntimeLifecycle` 适配此所有权。Runtime 组件
 
 KSP 读取 `@BoundedContext`、`@AggregateRoot` 等声明并生成可打包的元数据与 Kotlin 常量。运行时和其他模块消费这些输出，完成聚合发现、路由、Schema 或 OpenAPI 组装。缺少 KSP 输出时，运行时不会根据本文描述“猜回”完整契约。
 
-编译产物、路径与验证方法见[编译器](./compiler.md)。序列化格式和持久事件演进分别见[序列化](./serialization.md)与[事件演进](./event-evolution.md)。
+编译产物、路径与验证方法见[编译器](./compiler.md)。序列化格式和持久事件演进分别见[序列化](./serialization.md)与[事件演进](../domain/event-evolution.md)。
 
 ## 扩展时的检查清单
 

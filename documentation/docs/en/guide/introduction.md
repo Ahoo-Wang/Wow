@@ -38,7 +38,7 @@ Aggregate boundaries, append-oriented event storage, and messaging abstractions 
 
 ### 3. Read-Write Separation and Synchronization Delay
 
-CQRS permits query models optimized for reads, but those models may update after the write. A fixed sleep neither proves completion nor uses fast paths well. Wow wait plans let a caller request the stage it needs—such as `PROCESSED`, `SNAPSHOT`, or `PROJECTED`—and receive the matching signal. See [Command Wait Plans](./command-gateway.md#wait-plans).
+CQRS permits query models optimized for reads, but those models may update after the write. A fixed sleep neither proves completion nor uses fast paths well. Wow wait plans let a caller request the stage it needs—such as `PROCESSED`, `SNAPSHOT`, or `PROJECTED`—and receive the matching signal. See [Completion Semantics](./command/completion.md).
 
 ### 4. Engineering Quality
 
@@ -69,14 +69,7 @@ flowchart LR
     Store --> Saga[Saga / next command]
 ```
 
-1. `CommandGateway` validates and sends a command message with its request ID and wait plan.
-2. The runtime restores aggregate state from a snapshot plus subsequent events.
-3. The command handler checks invariants and returns domain events; it does not mutate state directly.
-4. Sourcing handlers apply the events, and `EventStore` appends the event stream under optimistic concurrency.
-5. Event dispatchers deliver persisted events to projections, sagas, and other processors.
-6. The caller returns at the declared wait stage, not at an assumed delay.
-
-The stages mean different things: `SENT` means accepted by the command bus, `PROCESSED` means aggregate processing completed, `SNAPSHOT` means snapshot processing completed, and `PROJECTED` means the selected projection completed. See [Data Flow](./advanced/data-flow.md) and [Runtime Lifecycle](./advanced/runtime-lifecycle.md).
+[Domain Model](./domain/) owns aggregate boundaries, event history, snapshots, and lifecycle. [Commands](./command/) owns definition, sending, completion, and reliability. [Events and Collaboration](./event/) owns processors, sagas, compensation, and event dispatch. [Projection](./projection.md) and [Query Service](./query.md) continue to own the read side. See [Data Flow](./advanced/data-flow.md) for cross-capability handoffs and [Runtime Lifecycle](./advanced/runtime-lifecycle.md) for startup and shutdown.
 
 The complete runtime architecture and data flow are shown below:
 
@@ -110,17 +103,17 @@ Wow does not discover a domain boundary, and compensation is not a database roll
 
 | Need | Continue with |
 | --- | --- |
-| Model aggregate decisions and sourced state | [Aggregate Modeling](./modeling.md), [Event Store](./eventstore.md), [Snapshot](./snapshot.md) |
-| Declare command completion | [Command Gateway](./command-gateway.md) |
+| Model aggregate decisions and sourced state | [Domain Model](./domain/) |
+| Define, send, and declare command completion | [Commands](./command/) |
 | Build query-oriented views | [Projection](./projection.md), [Query Service](./query.md) |
-| Coordinate and recover workflows | [Saga](./saga.md), [Event Compensation](./event-compensation.md) |
+| Process events and coordinate across aggregates | [Events and Collaboration](./event/) |
 | Verify domain and application behavior | [Test Suite](./test-suite.md), [Application Testing](./application-testing.md) |
 | Expose generated contracts and routes | [OpenAPI](./open-api.md), [WebFlux](./extensions/webflux.md) |
 | Observe runtime pipelines | [OpenTelemetry](./extensions/opentelemetry.md), [Metrics](./advanced/metrics.md) |
 
 ## Next Steps
 
-- New application: [Getting Started](./getting-started.md) → [Aggregate Modeling](./modeling.md) → [Test Suite](./test-suite.md)
+- New application: [Getting Started](./getting-started.md) → [Domain Model](./domain/) → [Commands](./command/) → [Test Suite](./test-suite.md)
 - Existing application: [Add Wow to an Existing Project](./existing-project.md) → [Spring Boot Starter](./extensions/spring-boot-starter.md)
 - Architecture and operations: [Architecture](./advanced/architecture.md) → [Production Best Practices](./best-practices.md) → [Observability](./advanced/observability.md)
 - Role-specific route: [Onboarding](../onboarding/)

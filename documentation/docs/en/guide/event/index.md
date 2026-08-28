@@ -13,8 +13,8 @@ After a domain event enters EventStore, it is authoritative history. The downstr
 | Need | Choose | Responsibility boundary |
 | --- | --- | --- |
 | Ordinary side effects such as notifications, audit, cache invalidation, or external integration | [Processor](./processor.md) | Invoke matching functions; the side effect owns idempotency and recovery |
-| An event must generate cross-aggregate follow-up commands | [Saga](./saga.md) | Map the event to 0..N commands and cross the command-send boundary |
-| A failed processing function needs durable recording, scheduling, and replay | Compensation (planned path: `/en/guide/event/compensation`) | Persist failure-recovery state; it does not express a business reverse action |
+| An event must generate cross-aggregate follow-up commands | [Saga](../event/saga.md) | Map the event to 0..N commands and cross the command-send boundary |
+| A failed processing function needs durable recording, scheduling, and replay | [Event Compensation](./compensation.md) | Persist failure-recovery state; it does not express a business reverse action |
 | Maintain a query read model | Projection | Own only the read model, not ordinary integrations or cross-aggregate orchestration |
 
 Choose from the required business result, not from annotation names. One flow may use several branches, but their completion signals remain independent.
@@ -36,5 +36,5 @@ command -> aggregate -> append domain event
 ## Reading Order
 
 1. Start with [Event Processor](./processor.md) for ordinary application or integration side effects.
-2. Read [Saga](./saga.md) when an event must drive other aggregates.
-3. When a processing failure needs durable recovery, continue to the event-compensation page that will live at `event/compensation`.
+2. Read [Saga](../event/saga.md) when an event must drive other aggregates.
+3. When a processing failure needs durable recovery, continue to [Event Compensation](./compensation.md).

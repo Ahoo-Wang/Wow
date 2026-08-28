@@ -46,7 +46,7 @@ During Spring startup, the AutoRegistrar for a Processor, Saga, or Projection re
 
 Dispatch first splits the registrar by `FunctionKind`, then selects by topic and event-body type. An ordinary message matches every eligible function. A compensation message must also match the context, processor, and function name carried in its header. After selection, the dispatcher stores the function on the exchange, and the function filter retrieves and invokes it.
 
-See [Event Processor](./processor.md) and [Saga](./saga.md) for application declarations. This page owns only the runtime pipeline after registration.
+See [Event Processor](./processor.md) and [Saga](../event/saga.md) for application declarations. This page owns only the runtime pipeline after registration.
 
 ## Filter Order
 

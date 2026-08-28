@@ -25,7 +25,7 @@ outline: deep
 
 ## 继续构建
 
-从[聚合建模](./modeling.md)和[测试套件](./test-suite.md)开始定义业务规则；再用[命令网关](./command-gateway.md)、[投影](./projection.md)和[查询服务](./query.md)完成读取与写入链路。
+从[领域模型](./domain/)、[命令](./command/)和[事件与协作](./event/)三个入口继续；再用[投影](./projection.md)和[查询服务](./query.md)建立读取侧。
 
 ## 准备生产运行
 
@@ -47,12 +47,12 @@ outline: deep
 | 运行第一个应用 | [快速上手](./getting-started.md) | [配置](./configuration.md) | 领域测试通过，真实命令到达 `SNAPSHOT`，状态可读回 |
 | 接入现有 Spring Boot 服务 | [接入现有项目](./existing-project.md) | [Spring Boot Starter](./extensions/spring-boot-starter.md) | KSP 元数据、自动路由、命令和快照闭环均通过 |
 | 学习完整 Kotlin 应用 | [订单与购物车](../reference/example/order.md) | [应用测试](./application-testing.md) | 能追踪命令、事件、状态、Saga、投影和重启恢复 |
-| 设计聚合和业务约束 | [聚合建模](./modeling.md) | [测试套件](./test-suite.md) | 命令产生领域事件，溯源后状态可验证 |
+| 设计聚合和业务约束 | [领域模型](./domain/) | [聚合与不变量](./domain/aggregate.md) | 命令产生领域事件，溯源后状态可验证 |
 | 建立应用发布门禁 | [应用测试](./application-testing.md) | [生产最佳实践](./best-practices.md) | 领域、HTTP、真实 Adapter、恢复和安全反例都有证据 |
-| 演进已持久化事件 | [事件演进](./advanced/event-evolution.md) | [事件存储](./eventstore.md) | Upgrader 注册、顺序、历史回放与回滚均有证据 |
-| 提供写入 API 和完成语义 | [命令网关](./command-gateway.md) | [OpenAPI](./open-api.md) | 能区分 `SENT`、`PROCESSED`、`SNAPSHOT` 和 `PROJECTED` |
+| 演进已持久化事件 | [事件演进](./domain/event-evolution.md) | [事件溯源](./domain/event-sourcing.md) | Upgrader 注册、顺序、历史回放与回滚均有证据 |
+| 提供写入 API 和完成语义 | [命令](./command/) | [完成语义](./command/completion.md) | 能区分 `SENT`、`PROCESSED`、`SNAPSHOT` 和 `PROJECTED` |
 | 建立查询模型 | [投影](./projection.md) | [查询服务](./query.md) | 投影可重试且幂等，查询边界清晰 |
-| 编排跨聚合流程 | [Saga](./saga.md) | [事件补偿](./event-compensation.md) | 正常、重试、不可恢复路径都有测试 |
+| 编排跨聚合流程 | [事件与协作](./event/) | [Saga](./event/saga.md) | 正常、重试、不可恢复路径都有测试 |
 | 选择存储和消息实现 | [模块依赖](./advanced/module-dependencies.md) | [扩展](./extensions/spring-boot-starter.md) | 只引入实际需要的后端和 Starter capability |
 | 准备上生产 | [生产最佳实践](./best-practices.md) | [备份、恢复与重放](./recovery.md) | 幂等、恢复、容量、告警和回滚均有证据 |
 | 处理异常或卡住 | [故障排查](./troubleshooting.md) | 对应的核心/扩展页 | 已定位失败阶段，而不只是扩大超时 |

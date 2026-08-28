@@ -239,4 +239,4 @@ wow:
 
 ## 相关主题
 
-下一步阅读[事件存储](../eventstore.md)确认权威历史边界，并阅读[基础设施配置](../../reference/config/infrastructure.md)完成连接、索引与恢复门禁。
+下一步阅读[事件溯源](../domain/event-sourcing.md)确认权威历史边界，并阅读[基础设施配置](../../reference/config/infrastructure.md)完成连接、索引与恢复门禁。

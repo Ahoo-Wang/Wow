@@ -68,4 +68,4 @@ class Cart(private val state: CartState) {
 
 ## 下一步：发送命令
 
-命令定义完成后，使用[命令网关](../command-gateway.md)发送 `CommandMessage`，并选择满足调用方响应契约的等待阶段。
+命令定义完成后，使用[发送命令](./sending.md)发送 `CommandMessage`，并通过[完成语义](./completion.md)选择满足调用方响应契约的等待阶段。

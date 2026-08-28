@@ -14,7 +14,7 @@ outline: deep
 - For a specified historical version or time, restoration starts from an empty aggregate and must not use a latest snapshot that may be later than the target.
 - `EventStoreStateAggregateRepository` always loads events from an empty aggregate and never uses snapshots.
 
-Application code should not compose snapshot and event reads itself. Event streams remain authoritative history; a snapshot is only a replaceable restoration starting point. See [Event Sourcing](./event-sourcing.md) and [Snapshots](./snapshot.md).
+Application code should not compose snapshot and event reads itself. Event streams remain authoritative history; a snapshot is only a replaceable restoration starting point. See [Event Sourcing](./event-sourcing.md) and [Snapshots](../domain/snapshot.md).
 
 ## State Sourcing Lifecycle
 
@@ -64,7 +64,7 @@ This gives deterministic restoration within one aggregate object; it is not a cr
 
 ## Boundary With the Command Processing Pipeline
 
-This page ends at `StateAggregate` creation, restoration, and sourcing. When `CommandAggregate` invokes state sourcing, when EventStore appends, how Gateway/Dispatcher/Filter components propagate errors, and when wait stages complete all belong to `command/internals/pipeline`.
+This page ends at `StateAggregate` creation, restoration, and sourcing. When `CommandAggregate` invokes state sourcing, when EventStore appends, how Gateway/Dispatcher/Filter components propagate errors, and when wait stages complete all belong to the [Command Processing Pipeline](../command/internals/pipeline.md).
 
 The domain boundary requires only that the command side decide facts from current state, the state side evolve only from events that happened, and in-memory state before event-history persistence is not authoritative. Do not duplicate the complete command pipeline in the domain lifecycle page.
 

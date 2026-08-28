@@ -112,4 +112,4 @@ curl -X POST http://order-service:8080/wow/command/send \
 
 ## 下一步：选择完成语义
 
-根据读后可见性、副作用和延迟目标，阅读“完成语义”（`command/completion`）并选择满足响应合同的最早阶段。超时、重复请求或下游失败的处理见“命令可靠性”（`command/reliability`）。
+根据读后可见性、副作用和延迟目标，阅读[完成语义](./completion.md)并选择满足响应合同的最早阶段。超时、重复请求或下游失败的处理见[失败与幂等](./reliability.md)。

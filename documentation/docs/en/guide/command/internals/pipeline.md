@@ -97,7 +97,7 @@ EventStore.append
 
 When the aggregate fails before producing a stream, the exchange is still acknowledged but the event-send Filter is not entered. If events were appended and `DomainEventBus.send` then fails, the transport acknowledgement has already happened, the error propagates outward, `StateEventBus.send` is not attempted, and `PROCESSED` observes failure. Domain-event publication failure cannot be read as “events were not stored,” and the command transport cannot be assumed to redeliver it.
 
-`StateEventBus.send` has a different failure boundary: `SendStateEventFilter` uses `logErrorResume()` to log the error and resume with empty completion before continuing the Filter chain. A successful `PROCESSED` therefore proves only that state-event publication was attempted and returned, not that the StateEvent was published; snapshots and projections that depend on that input may not receive it. A future `event/dispatch` page will cover event-side consumption; no active link is created here yet.
+`StateEventBus.send` has a different failure boundary: `SendStateEventFilter` uses `logErrorResume()` to log the error and resume with empty completion before continuing the Filter chain. A successful `PROCESSED` therefore proves only that state-event publication was attempted and returned, not that the StateEvent was published; snapshots and projections that depend on that input may not receive it. See [Event Dispatch Pipeline](../../event/dispatch.md) for event-side consumption.
 
 ## `PROCESSED` error boundary
 

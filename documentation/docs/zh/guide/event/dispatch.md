@@ -46,7 +46,7 @@ Spring 启动时，Processor、Saga 和 Projection 的 AutoRegistrar 把已解�
 
 分发时先按 `FunctionKind` 拆分注册表，再按 topic 与事件体类型选择函数。普通消息匹配所有符合条件的函数；补偿消息还必须匹配 header 中记录的 context、processor 与函数名。选择完成后，dispatcher 把函数写入 exchange，函数 Filter 再从 exchange 取出并调用它。
 
-应用如何声明 Processor 或 Saga 函数分别见[事件处理器](./processor.md)和 [Saga](./saga.md)；本页只定义注册后的运行管线。
+应用如何声明 Processor 或 Saga 函数分别见[事件处理器](./processor.md)和 [Saga](../event/saga.md)；本页只定义注册后的运行管线。
 
 ## Filter 顺序
 

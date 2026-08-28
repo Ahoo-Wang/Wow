@@ -19,7 +19,7 @@ outline: deep
 - **仓库证据**：当前实现与测试覆盖等待注册、阶段信号、超时清理和示例领域行为。
 - **外部研究**：本文不需要外部性能或生产率数据，因此不引用历史 TPS 来证明架构选择。
 
-精确阶段、函数匹配、链式等待和幂等边界以[命令网关的等待计划](../guide/command-gateway.md#等待计划)为准；本文只讨论怎样选择承诺。
+精确阶段、函数匹配和链式等待以[完成语义](../guide/command/completion.md)为准，幂等边界见[失败与幂等](../guide/command/reliability.md)；本文只讨论怎样选择承诺。
 
 ## HTTP 200 只说明这次响应按所选合同结束
 
@@ -29,7 +29,7 @@ outline: deep
 - `PROCESSED` 适合“领域决策与当前命令处理链已经完成”；它不能证明查询投影已更新。
 - 精确到函数的 `PROJECTED` 只证明匹配投影函数返回的响应式链已经完成；它不能证明查询路径、缓存或副本已经能返回变更，也不能证明其他消费者完成。
 
-`SNAPSHOT`、`EVENT_HANDLED`、`SAGA_HANDLED` 与链式等待有各自边界。不要从名称猜语义，直接查阅[数据流中的等待阶段](../guide/advanced/data-flow.md#_6-等待阶段)。
+`SNAPSHOT`、`EVENT_HANDLED`、`SAGA_HANDLED` 与链式等待有各自边界。不要从名称猜语义，直接查阅[完成语义](../guide/command/completion.md)。
 
 这几个阶段不是一条每次都会走完的直线。聚合处理完成后，快照、投影、事件处理器与 Saga 是可独立等待的分支。
 
@@ -62,13 +62,13 @@ stateDiagram-v2
 | 响应前确认领域决策 | `PROCESSED` | 查询模型已经更新 |
 | 打开依赖某个投影的页面 | 精确 `PROJECTED` + 实际查询/读模型可见性检查 | 处理器信号到达就代表查询已可见 |
 
-若产品读取的是聚合溯源状态而不是投影视图，先确认实际读取路径，再选择快照策略或等待阶段。读取路径的权威说明见[数据流](../guide/advanced/data-flow.md#_7-读取路径)。
+若产品读取的是聚合溯源状态而不是投影视图，先确认实际读取路径，再选择快照策略或等待阶段。读取路径的权威说明见[数据流](../guide/advanced/data-flow.md#读取路径)。
 
 ## 超时表示“未观察到目标”，不是“命令失败”
 
 调用方在 deadline 前没有收到目标信号，只能证明这次等待超时。命令可能尚未处理，也可能已经追加事件、但通知丢失或下游尚未完成。
 
-重试前应保留同一个逻辑 `requestId`，查询命令结果或权威状态，并记录最后观察到的阶段。换一个新 request ID 重新提交，可能把“结果未知”变成重复业务动作。Wow 的幂等性范围和后端责任见[命令网关](../guide/command-gateway.md#幂等性)。
+重试前应保留同一个逻辑 `requestId`，查询命令结果或权威状态，并记录最后观察到的阶段。换一个新 request ID 重新提交，可能把“结果未知”变成重复业务动作。Wow 的幂等性范围和后端责任见[失败与幂等](../guide/command/reliability.md)。
 
 ## 当前仓库能证明什么
 
@@ -95,4 +95,4 @@ stateDiagram-v2
 
 Wow 提供可声明的等待机制；它不会替应用选择正确承诺。精确 `PROJECTED` 可以限定匹配投影函数返回链已经完成，但实际查询可见性仍是独立的产品验收。明确组合这两项，才是比 `sleep(1s)` 更可靠、也更诚实的设计。
 
-继续阅读：[核心概念](../guide/core-concepts.md#命令完成与等待阶段)、[命令网关](../guide/command-gateway.md#等待计划)、[应用测试](../guide/application-testing.md)和[故障排查](../guide/troubleshooting.md)。
+继续阅读：[核心概念](../guide/core-concepts.md)、[完成语义](../guide/command/completion.md)、[应用测试](../guide/application-testing.md)和[故障排查](../guide/troubleshooting.md)。

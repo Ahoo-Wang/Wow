@@ -84,7 +84,7 @@ fun onEntryFailed(event: EntryFailed): UnlockAmount =
 
 这条命令表达业务上如何抵消先前效果。它不会删除 `Prepared`、`EntryFailed` 等已提交事件，也不是数据库回滚。
 
-不要把业务补偿与处理失败恢复混为一谈。Saga 决定“失败事实之后应发什么业务命令”；Compensation 决定“同一处理函数失败后如何持久记录并重投”。后者的权威说明将在 `event/compensation` 页面提供。
+不要把业务补偿与处理失败恢复混为一谈。Saga 决定“失败事实之后应发什么业务命令”；Compensation 决定“同一处理函数失败后如何持久记录并重投”。后者的权威说明见[事件补偿](./compensation.md)。
 
 ## 等待集成
 

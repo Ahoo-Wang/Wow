@@ -14,7 +14,7 @@ outline: deep
 - 加载指定历史版本或历史时间时，从空聚合开始重放，不能使用可能晚于目标时间点的最新快照。
 - `EventStoreStateAggregateRepository` 始终从空聚合加载事件，不使用快照。
 
-应用代码不应自行拼接快照与事件读取。事件流仍是权威历史；快照只提供可替换的恢复起点。详见[事件溯源](./event-sourcing.md)与[快照](./snapshot.md)。
+应用代码不应自行拼接快照与事件读取。事件流仍是权威历史；快照只提供可替换的恢复起点。详见[事件溯源](./event-sourcing.md)与[快照](../domain/snapshot.md)。
 
 ## 状态溯源生命周期
 
@@ -64,7 +64,7 @@ outline: deep
 
 ## 与命令处理管线的边界
 
-本页止于 `StateAggregate` 的创建、恢复和溯源。`CommandAggregate` 何时调用状态溯源、EventStore 何时追加、Gateway/Dispatcher/Filter 如何传播错误，以及等待阶段何时完成，统一属于 `command/internals/pipeline`。
+本页止于 `StateAggregate` 的创建、恢复和溯源。`CommandAggregate` 何时调用状态溯源、EventStore 何时追加、Gateway/Dispatcher/Filter 如何传播错误，以及等待阶段何时完成，统一属于[命令处理管线](../command/internals/pipeline.md)。
 
 领域层只要求：命令侧根据当前状态决定事实，状态侧仅从已发生事件演进，事件历史持久化前的内存状态不是权威历史。不要把完整命令管线复制进领域生命周期页面。
 

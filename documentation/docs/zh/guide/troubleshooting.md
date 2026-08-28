@@ -74,7 +74,7 @@ HTTP 客户端通过 `Command-Request-Id` 传入稳定 `requestId`。有响应�
 - 只有热点聚合超时：比较事件重放数、版本冲突与后端延迟。
 - 调用方超时后需要重试：先查询权威状态，并复用原 `requestId`。
 
-`WaitPlan.withTimeout` 是调用方本地截止时间，不传播到命令 Header。完整语义见[命令网关](./command-gateway.md#等待计划)。
+`WaitPlan.withTimeout` 是调用方本地截止时间，不传播到命令 Header。完整语义见[完成语义](./command/completion.md#超时取消与未知结果)。
 
 ## 聚合、幂等与并发异常
 

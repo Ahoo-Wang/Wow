@@ -97,7 +97,7 @@ EventStore.append
 
 如果聚合在形成事件流前失败，仍会 ack，但不会进入事件发送 Filter。若事件已经追加，而 `DomainEventBus.send` 失败，transport ack 已经发生，错误会继续传播，`StateEventBus.send` 不会执行，`PROCESSED` 会观察到失败；因此不能把领域事件发布失败解释为“事件未保存”，也不能假定 command transport 会重投它。
 
-`StateEventBus.send` 的失败边界不同：`SendStateEventFilter` 使用 `logErrorResume()` 记录错误并恢复为空完成，随后继续 Filter chain。于是成功的 `PROCESSED` 只证明 StateEvent 发布已经被尝试并返回，不证明 StateEvent 已经发布；依赖该输入的快照与投影可能没有收到消息。未来的 `event/dispatch` 页面会说明事件侧消费过程；本页不提前建立活动链接。
+`StateEventBus.send` 的失败边界不同：`SendStateEventFilter` 使用 `logErrorResume()` 记录错误并恢复为空完成，随后继续 Filter chain。于是成功的 `PROCESSED` 只证明 StateEvent 发布已经被尝试并返回，不证明 StateEvent 已经发布；依赖该输入的快照与投影可能没有收到消息。事件侧消费过程见[事件分发管线](../../event/dispatch.md)。
 
 ## `PROCESSED` 错误边界
 

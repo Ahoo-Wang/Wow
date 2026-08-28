@@ -135,10 +135,10 @@ Schedule drills by business RPO/RTO and change risk, starting from a real backup
 
 ## Related Pages
 
-- [Event Store](./eventstore.md)
-- [Snapshot](./snapshot.md)
-- [Event Evolution](./advanced/event-evolution.md)
-- [Event Compensation](./event-compensation.md)
+- [Event Sourcing](./domain/event-sourcing.md)
+- [Snapshots](./domain/snapshot.md)
+- [Event Evolution](./domain/event-evolution.md)
+- [Event Compensation](./event/compensation.md)
 - [MongoDB](./extensions/mongo.md), [Redis](./extensions/redis.md), and [Elasticsearch](./extensions/elasticsearch.md)
 - [BI Deployment and Recovery](./bi-operations.md)
 - [Production Best Practices](./best-practices.md)

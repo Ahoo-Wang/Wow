@@ -109,12 +109,12 @@ Only evidence from the target topology and production-like data volume supports 
 ## Related Pages
 
 - [Core Concepts](./core-concepts.md)
-- [Aggregate Modeling](./modeling.md)
-- [Command Gateway](./command-gateway.md)
-- [Snapshot](./snapshot.md)
+- [Aggregate and Invariants](./domain/aggregate.md)
+- [Send Commands](./command/sending.md)
+- [Snapshots](./domain/snapshot.md)
 - [Query Service](./query.md)
-- [Distributed Transactions (Saga)](./saga.md)
-- [Event Compensation](./event-compensation.md)
+- [Saga](./event/saga.md)
+- [Event Compensation](./event/compensation.md)
 - [Backup, Restore, and Replay](./recovery.md)
 - [Test Suite](./test-suite.md)
 - [Observability](./advanced/observability.md)

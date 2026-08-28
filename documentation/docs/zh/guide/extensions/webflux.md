@@ -74,13 +74,9 @@ Snapshot 与 EventStream 都接收 `AggregationQuery`：
 
 EventStream 的根 filter 作用于事件流文档；使用 `elements = [{"path":"body"}]` 展开事件数组后，group 和 metric 字段相对事件项。Elasticsearch 当前不索引 `body.body` payload，因此跨后端聚合范围是事件流 envelope 与 `body` 事件元数据；需要 payload 聚合时必须先单独设计 mapping 与历史数据重建。
 
-## 等待计划集成
+## 命令 HTTP 合同
 
-命令请求头选择等待阶段与 timeout；handler 把命令交给 `CommandGateway`/`WaitCoordinator`。HTTP 连接断开、timeout 或 runtime shutdown 都可能在业务仍有后续处理时终止等待。
-
-### 支持的等待计划
-
-支持 `SENT`、`PROCESSED`、`SNAPSHOT`、`PROJECTED`、`EVENT_HANDLED`、`SAGA_HANDLED`。阶段表示对应 notifier 条件完成，不是任意跨服务事务提交。详见[命令网关](../command-gateway.md#等待计划)。
+WebFlux 物化命令路由并把请求交给命令运行时。命令路由、媒体类型与请求构造见[发送命令](../command/sending.md)；等待阶段、函数匹配、timeout 和未知结果见[完成语义](../command/completion.md)。本页不复制命令 Header 或等待状态机。
 
 ## 错误处理
 

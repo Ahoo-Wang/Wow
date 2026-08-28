@@ -8,7 +8,7 @@ outline: deep
 
 Wow uses an aggregate as a consistency boundary: the command side decides from current state, the state side evolves only through domain events, event streams in EventStore preserve authoritative history, and snapshots only accelerate latest-state restoration.
 
-This section covers domain boundaries, state evolution, historical compatibility, and restoration cost. Complete Gateway, Dispatcher, Filter, and wait-stage behavior belongs to `command/internals/pipeline`, not to the domain model.
+This section covers domain boundaries, state evolution, historical compatibility, and restoration cost. Complete Gateway, Dispatcher, Filter, and wait-stage behavior belongs to the [Command Processing Pipeline](../command/internals/pipeline.md), not to the domain model.
 
 ## Choose a Reading Path
 
@@ -35,7 +35,7 @@ This section covers domain boundaries, state evolution, historical compatibility
 ### Restoration Performance
 
 1. Use [Event Sourcing](./event-sourcing.md) to measure the number and duration of events replayed for latest-state restoration.
-2. Read [Snapshots](./snapshot.md) and select a strategy and store only when performance evidence exists.
+2. Read [Snapshots](../domain/snapshot.md) and select a strategy and store only when performance evidence exists.
 3. Use [Aggregate Lifecycle](./lifecycle.md) to ensure latest restoration and point-in-time restoration do not mix snapshot rules.
 
 **Completion signal:** The selected strategy meets a measurable restoration target, and missing or stale snapshots can still be rebuilt from authoritative event history.
@@ -48,6 +48,6 @@ This section covers domain boundaries, state evolution, historical compatibility
 | --- | --- |
 | [Aggregate and Invariants](./aggregate.md) | How are consistency boundaries, identity, and business rules modeled? |
 | [Event Sourcing](./event-sourcing.md) | Which history is authoritative, and how is state restored deterministically? |
-| [Snapshots](./snapshot.md) | When should a replaceable checkpoint optimize latest-state restoration? |
+| [Snapshots](../domain/snapshot.md) | When should a replaceable checkpoint optimize latest-state restoration? |
 | [Event Evolution](./event-evolution.md) | How can persisted event-schema changes remain compatible with old history? |
 | [Aggregate Lifecycle](./lifecycle.md) | How is a StateAggregate created, restored, and evolved in order? |

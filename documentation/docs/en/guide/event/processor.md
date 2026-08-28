@@ -10,7 +10,7 @@ An event processor runs ordinary application side effects after a domain event h
 
 ## When to Use an Ordinary Event Processor
 
-Use a Processor to send notifications, write audit records, call external services, update integration state, or invalidate caches. Use a [Saga](./saga.md) when an event must generate follow-up commands for other aggregates.
+Use a Processor to send notifications, write audit records, call external services, update integration state, or invalidate caches. Use a [Saga](../event/saga.md) when an event must generate follow-up commands for other aggregates.
 
 The ordinary event processor owns its side-effect contract: completion, idempotency key, permitted retries, ordering requirements, and failure recovery must all be explicit at this boundary.
 
@@ -94,7 +94,7 @@ Propagate failures through the returned publisher. Swallowing an error makes the
 
 The current runtime `RetryableFilter` performs bounded immediate retry only for errors marked `RECOVERABLE`, with a default of up to 3 retries and a 2-second minimum backoff. This retry exists only in the current processing call and does not recover work after a process crash.
 
-Failures that must eventually be handled belong in Compensation. When that module is enabled, a still-failing event function can produce a durable failure record. `@Retry` supplies classification and retry specifications, while `@Retry(enabled = false)` opts that function out of durable recording. The complete lifecycle belongs to “Event Compensation” (planned path: `/en/guide/event/compensation`); this page does not duplicate its state machine, configuration, Dashboard, or deployment.
+Failures that must eventually be handled belong in Compensation. When that module is enabled, a still-failing event function can produce a durable failure record. `@Retry` supplies classification and retry specifications, while `@Retry(enabled = false)` opts that function out of durable recording. See [Event Compensation](./compensation.md) for the complete lifecycle; this page does not duplicate its state machine, configuration, Dashboard, or deployment.
 
 ## Testing and Completion Signal
 

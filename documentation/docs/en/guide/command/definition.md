@@ -68,4 +68,4 @@ Do not skip aggregate checks because field validation passed: the same command m
 
 ## Next: Send Commands
 
-Once the command is defined, use the [Command Gateway](../command-gateway.md) to send its `CommandMessage` and choose a wait stage that meets the caller's response contract.
+Once the command is defined, use [Send Commands](./sending.md) to send its `CommandMessage`, then use [Completion Semantics](./completion.md) to choose a wait stage that meets the caller's response contract.

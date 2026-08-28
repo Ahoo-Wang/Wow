@@ -84,7 +84,7 @@ fun onEntryFailed(event: EntryFailed): UnlockAmount =
 
 This command describes how the business offsets an earlier effect. It does not delete committed events such as `Prepared` or `EntryFailed`, and it is not a database rollback.
 
-Do not conflate business compensation with processing-failure recovery. A Saga decides which business command follows a failure fact. Compensation decides how a failed invocation of the same processing function is durably recorded and replayed. The authoritative recovery guide will live at `event/compensation`.
+Do not conflate business compensation with processing-failure recovery. A Saga decides which business command follows a failure fact. Compensation decides how a failed invocation of the same processing function is durably recorded and replayed. See [Event Compensation](./compensation.md) for the authoritative recovery guide.
 
 ## Wait Integration
 

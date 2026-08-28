@@ -10,7 +10,7 @@ outline: deep
 
 ## 何时使用普通事件处理器
 
-适合使用 Processor 的工作包括发送通知、写审计记录、调用外部服务、更新集成状态或失效缓存。若事件需要生成其他聚合的后续命令，选择 [Saga](./saga.md)。
+适合使用 Processor 的工作包括发送通知、写审计记录、调用外部服务、更新集成状态或失效缓存。若事件需要生成其他聚合的后续命令，选择 [Saga](../event/saga.md)。
 
 普通事件处理器拥有自己的副作用合同：完成条件、幂等键、允许的重试、顺序要求以及失败后的恢复方式都必须在这个边界内明确。
 
@@ -94,7 +94,7 @@ fun onOrderCreated(event: DomainEvent<OrderCreated>): Mono<Void> =
 
 当前运行时 `RetryableFilter` 只对标记为 `RECOVERABLE` 的错误执行有界即时重试，默认最多重试 3 次、最小退避 2 秒。即时重试只存在于本次处理调用中，不提供进程崩溃后的恢复。
 
-必须最终处理的失败应进入 Compensation。启用该模块时，最终仍失败的事件函数可形成持久失败记录；`@Retry` 提供分类和重试规格，`@Retry(enabled = false)` 可关闭该函数的持久记录。完整生命周期属于“事件补偿”（计划路径：`/zh/guide/event/compensation`），本页不复制其状态机、配置、Dashboard 或部署说明。
+必须最终处理的失败应进入 Compensation。启用该模块时，最终仍失败的事件函数可形成持久失败记录；`@Retry` 提供分类和重试规格，`@Retry(enabled = false)` 可关闭该函数的持久记录。完整生命周期见[事件补偿](./compensation.md)，本页不复制其状态机、配置、Dashboard 或部署说明。
 
 ## 测试与完成标志
 

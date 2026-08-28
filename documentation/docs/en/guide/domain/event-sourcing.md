@@ -10,7 +10,7 @@ Event sourcing keeps an aggregate's facts that have already happened as ordered 
 
 ## Authoritative History Model
 
-An event stream is the aggregate's consistency history. Snapshots, projections, and event-processor results cannot replace it. The complete command-execution phases are documented at `command/internals/pipeline`; this page defines only when history becomes authoritative and the boundaries used for recovery.
+An event stream is the aggregate's consistency history. Snapshots, projections, and event-processor results cannot replace it. The complete command-execution phases are documented in the [Command Processing Pipeline](../command/internals/pipeline.md); this page defines only when history becomes authoritative and the boundaries used for recovery.
 
 | Data | Role | Can replace authoritative history? |
 | --- | --- | --- |

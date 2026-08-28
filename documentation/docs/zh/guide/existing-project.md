@@ -107,7 +107,7 @@ dependencies {
 
 ## 3. 生成并检查元数据
 
-按[聚合建模](./modeling.md)定义限界上下文、命令/事件、聚合、状态和至少一个 `AggregateSpec`。业务不变量保留在聚合中，不要复制到 Controller。
+按[聚合与不变量](./domain/aggregate.md)定义限界上下文、命令/事件、聚合、状态和至少一个 `AggregateSpec`。业务不变量保留在聚合中，不要复制到 Controller。
 
 在实际注解模型模块中运行 KSP 与测试：
 
@@ -234,7 +234,7 @@ Wow 命令已经追加领域事件后，回滚含义发生变化：
 ## 下一步
 
 - 选择持久化 Adapter：[Spring Boot Starter](./extensions/spring-boot-starter.md)
-- 定义完成语义：[命令网关](./command-gateway.md)
+- 定义完成语义：[完成语义](./command/completion.md)
 - 建立发布门禁：[Wow 应用测试](./application-testing.md)
-- 建立持久化事件策略：[事件演进](./advanced/event-evolution.md)
+- 建立持久化事件策略：[事件演进](./domain/event-evolution.md)
 - 规划模块边界：[模块依赖](./advanced/module-dependencies.md)

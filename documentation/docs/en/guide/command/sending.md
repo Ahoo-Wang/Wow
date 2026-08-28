@@ -112,4 +112,4 @@ A successful result proves only the observation point named by `stage`. Do not i
 
 ## Next: Choose Completion Semantics
 
-Based on read-after-write visibility, side effects, and latency goals, read “Completion semantics” (`command/completion`) and choose the earliest stage that satisfies the response contract. See “Command reliability” (`command/reliability`) for timeouts, duplicate requests, and downstream failures.
+Based on read-after-write visibility, side effects, and latency goals, read [Completion Semantics](./completion.md) and choose the earliest stage that satisfies the response contract. See [Failures and Idempotency](./reliability.md) for timeouts, duplicate requests, and downstream failures.

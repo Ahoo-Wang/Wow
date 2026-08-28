@@ -203,8 +203,8 @@ The template also wires [CosId](https://github.com/Ahoo-Wang/CosId) for IDs and 
 ## Next Steps
 
 - Understand the terms used above: [Core Concepts](./core-concepts.md)
-- Replace the demo model: [Aggregate Modeling](./modeling.md)
-- Choose completion semantics: [Command Gateway](./command-gateway.md)
+- Replace the demo model: [Aggregate and Invariants](./domain/aggregate.md)
+- Choose completion semantics: [Completion Semantics](./command/completion.md)
 - Add application gates: [Testing Wow Applications](./application-testing.md)
 - Build a read model: [Projection](./projection.md) and [Query Service](./query.md)
 - Select runtime integrations: [Configuration](./configuration.md) and [Spring Boot Starter](./extensions/spring-boot-starter.md)

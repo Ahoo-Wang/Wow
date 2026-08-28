@@ -147,7 +147,7 @@ must validate business state.
 | Page | Relationship |
 |---|---|
 | [Migration Guide](../migration.md) | Scope and shared evidence gates |
-| [Modeling](../modeling.md) | Aggregate and command/event design |
+| [Aggregate and Invariants](../domain/aggregate.md) | Aggregate and command/event design |
 | [Testing](../test-suite.md) | Domain behavior verification |
 | [Business Intelligence](../bi.md) | Rebuildable analytical read models |
 | [Migrate Wow v6 to v8](./v6-to-v8.md) | Existing Wow version upgrade |

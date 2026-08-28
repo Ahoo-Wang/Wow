@@ -52,7 +52,7 @@ val copied = order.deepCopy()
 3. 未命中时尝试记录中的 `bodyType`；
 4. `bodyType` 类也不存在时，保留为 `JsonDomainEvent`，body 为 JSON tree。
 
-这条 fallback 让未知历史类型仍可被表示，但不等于当前聚合能够正确重放它。若 sourcing 依赖具体事件类型，仍需提供可解析类型或[事件 Upgrader](./event-evolution.md)。
+这条 fallback 让未知历史类型仍可被表示，但不等于当前聚合能够正确重放它。若 sourcing 依赖具体事件类型，仍需提供可解析类型或[事件 Upgrader](../domain/event-evolution.md)。
 
 一个 `DomainEventStream` 反序列化时会按 body 列表位置重新得到事件 `sequence` 与 `isLast`。不要把 JSON 数组外的自定义字段顺序当成事件顺序合同。
 

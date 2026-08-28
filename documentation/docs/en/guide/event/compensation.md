@@ -26,7 +26,7 @@ committed state event -> first SnapshotFunctionFilter failure -> ExecutionFailed
 ExecutionFailed -> scheduled or operator preparation -> original event + target function replay
 ```
 
-It owns only “invoke the failed function again.” When the business needs a reverse command to offset an earlier effect, model that business compensation in a [Saga](./saga.md) instead of using `ExecutionFailed` as a domain decision.
+It owns only “invoke the failed function again.” When the business needs a reverse command to offset an earlier effect, model that business compensation in a [Saga](../event/saga.md) instead of using `ExecutionFailed` as a domain decision.
 
 ## Immediate Retry and Durable Compensation
 
