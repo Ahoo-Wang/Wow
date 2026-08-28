@@ -70,14 +70,14 @@ The interface declares that append can raise `EventVersionConflictException`, `D
 
 ## Deterministic State Sourcing
 
-The same initial state and the same ordered event streams must produce the same state. `SimpleStateAggregate.onSourcing` first validates aggregate identity and `expectedNextVersion`, then updates version, operator, time, owner, space, and other metadata before invoking registered sourcing functions in order.
+The same initial state and the same ordered event streams must produce the same state. `SimpleStateAggregate.onSourcing` first checks an initial error stream marked `IgnoreSourcing` and returns directly; only for a non-ignored stream does it validate aggregate identity and `expectedNextVersion`, then update version, operator, time, owner, space, and other metadata before invoking registered sourcing functions in order.
 
 | Condition | Recovery behavior |
 | --- | --- |
-| The stream's aggregate identity differs | Throws `IllegalArgumentException` |
-| The stream version is not `expectedNextVersion` | Throws `SourcingVersionConflictException` |
-| No sourcing function exists for an event body | The stream still advances the version; business state does not change |
 | Initial-version stream whose events are all `IgnoreSourcing` with `ErrorInfo` | Ignores the whole stream without advancing state |
+| A non-ignored stream's aggregate identity differs | Throws `IllegalArgumentException` |
+| A non-ignored stream version is not `expectedNextVersion` | Throws `SourcingVersionConflictException` |
+| No sourcing function exists for an event body | The stream still advances the version; business state does not change |
 
 Sourcing functions update state only from events; do not read the current time, randomness, or external services. That gives replay, snapshot validation, and failure recovery the same result.
 
