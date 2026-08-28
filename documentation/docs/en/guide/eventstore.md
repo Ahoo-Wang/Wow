@@ -9,10 +9,7 @@ The event store is Wow's authoritative aggregate history. Appending a command's 
 
 ## Event Sourcing
 
-<center>
-
 ![EventSourcing](/images/eventstore/eventsourcing.svg)
-</center>
 
 For the example `CreateOrder` command, the aggregate returns `OrderCreated`. Wow wraps that event in a stream containing the aggregate identity, `commandId`, `requestId`, version, headers, and ordered event bodies. Later commands restore `OrderState` by replaying that history.
 

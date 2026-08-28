@@ -51,7 +51,9 @@ grep '^wow = ' gradle/libs.versions.toml
 
 The checkout command pins the exact commit used for the expected results below. If you intentionally keep a different template `HEAD`, do not mix it with this page's fixed expectations: repeat the domain check, startup, route, command, and versioned-state validation against that `HEAD` and record the new baseline. If you create a repository with the template button instead, rename `rootProject.name` in `settings.gradle.kts` after the first successful run.
 
-## The 30-Minute Verified Path
+## The 30-Minute Target Path
+
+The functional path below has been exercised end to end. Thirty minutes remains a target because first-time developer wall-clock completion has not been measured; this is not a completed human usability study.
 
 ### 1. Prove the Domain Model
 

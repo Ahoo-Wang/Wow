@@ -72,7 +72,7 @@ EventStore 追加已经发生后，任何 Bus、投影、Saga 或外部处理器
 
 DomainEventBus 的事件流进入不同分发器：
 
-- Projection 更新查询模型，并可发送 `PROJECTED`；
+- Projection 运行匹配函数，并可在该函数返回的响应式链完成后发送 `PROJECTED`；
 - EventProcessor 执行应用副作用，并可发送 `EVENT_HANDLED`；
 - Stateless Saga 发送后续命令，并可发送 `SAGA_HANDLED`。
 
@@ -87,7 +87,7 @@ StateEventBus 组合事件流与当前溯源状态，Snapshot Dispatcher 按策�
 | `SENT` | CommandBus send | 聚合执行、事件追加 |
 | `PROCESSED` | 命令 filter chain 成功；包括聚合处理/追加与当前领域、状态事件发送 filter | Snapshot、Projection、EventProcessor、Saga 函数完成 |
 | `SNAPSHOT` | 选定快照处理链完成 | 查询投影完成 |
-| `PROJECTED` | 选定投影函数完成 | 其他投影或外部系统完成 |
+| `PROJECTED` | 匹配投影函数返回的响应式链完成 | 查询/读模型可见性、缓存或副本、其他投影或外部系统完成 |
 | `EVENT_HANDLED` | 选定事件处理函数完成 | 其他函数完成 |
 | `SAGA_HANDLED` | 选定 Saga 函数完成 | Saga 发出的尾部命令达到任意阶段；链式等待需显式选择 |
 
@@ -100,7 +100,7 @@ WaitSignal 通过 `CommandWaitNotifier` 路由给当前 wait handle。timeout �
 - 聚合恢复读取快照 + EventStore，服务于下一次业务决策；
 - 查询 API 读取投影/快照等查询存储，服务于用户读取。
 
-`PROCESSED` 后立即查询投影可能仍看到旧值。若用户契约需要读模型完成，应等待精确 `PROJECTED` target，而不是固定 sleep。查询接口见[投影](../projection.md)与[查询服务](../query.md)。
+`PROCESSED` 后立即查询投影可能仍看到旧值。应使用精确 `PROJECTED` target 观察匹配函数返回的响应式链完成，而不是固定 sleep；用户契约需要读模型可见时，再执行实际查询证明可见性。返回链之外的工作、缓存、副本和无关查询管线仍需独立证据。查询接口见[投影](../projection.md)与[查询服务](../query.md)。
 
 ## 失败定位表
 

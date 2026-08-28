@@ -6,9 +6,7 @@ outline: deep
 
 # 简介
 
-<center>
-  <img width="150" src="/images/logo.svg" alt="Wow 项目标志"/>
-</center>
+![Wow 项目标志](/images/logo.svg)
 
 Wow 是面向 Kotlin/Java 的响应式 CQRS 与事件溯源框架。它把一次业务写入明确表达为**命令 → 聚合决策 → 领域事件 → 溯源状态**，再让投影、Saga 和其他处理器响应已持久化的事件。
 

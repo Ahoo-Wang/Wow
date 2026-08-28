@@ -46,7 +46,7 @@ HTTP 命令 → 聚合决策 → 领域事件 → 溯源状态 → 投影 / Saga
 
 当业务规则复杂，需要状态历史、多种读模型或跨聚合流程时，这套模型更有价值。若问题只是简单 CRUD，且一个数据库事务已经能完整表达需求，引入事件演进和最终一致性的成本可能得不偿失。
 
-## 30 分钟证明第一条链路
+## 30 分钟首条链路目标
 
 [![Use this template](https://img.shields.io/badge/Use%20this%20template-2ea44f?style=for-the-badge&logo=github)](https://github.com/new?template_name=wow-project-template&template_owner=Ahoo-Wang)
 
@@ -54,7 +54,7 @@ HTTP 命令 → 聚合决策 → 领域事件 → 溯源状态 → 投影 / Saga
 2. 运行 `./gradlew :domain:check`，再以文档中的内存配置启动 `./gradlew :server:run`。
 3. 按[快速上手](documentation/docs/zh/guide/getting-started.md)发送真实 `CreateDemo` 命令，等待 `SNAPSHOT`，并读取聚合版本 `1` 的状态。
 
-这条路径会同时证明领域测试、生成路由、命令管道、事件溯源、快照等待和版本化状态读取。若要在已有服务中接入，请改走[接入现有项目](documentation/docs/zh/guide/existing-project.md)。
+这条路径会同时证明领域测试、生成路由、命令管道、事件溯源、快照等待和版本化状态读取。30 分钟是目标时长：功能链路已经过演练，但尚未测量新开发者首次完成的墙钟时间。若要在已有服务中接入，请改走[接入现有项目](documentation/docs/zh/guide/existing-project.md)。
 
 ## 仓库内的能力证据
 
@@ -81,7 +81,7 @@ HTTP 命令 → 聚合决策 → 领域事件 → 溯源状态 → 投影 / Saga
 | Kotlin | `2.4.10` |
 | KSP | `2.3.11` |
 
-项目模板独立演进。教程会记录实际验证的模板提交与其固定的 Wow 版本；开始前仍应检查模板的 [`gradle/libs.versions.toml`](https://github.com/Ahoo-Wang/wow-project-template/blob/main/gradle/libs.versions.toml)。使用其他框架版本时，先固定精确 [Release](https://github.com/Ahoo-Wang/Wow/releases) 再查看对应 tag：例如 [`v6.8.0`](https://github.com/Ahoo-Wang/Wow/blob/v6.8.0/gradle/libs.versions.toml) 使用 Spring Boot 3，而 [`v6.21.5`](https://github.com/Ahoo-Wang/Wow/blob/v6.21.5/gradle/libs.versions.toml) 使用 Spring Boot 4.0。
+项目模板独立演进。教程会记录实际验证的模板提交与其固定的 Wow 版本；开始前仍应检查模板的 [`gradle/libs.versions.toml`](https://github.com/Ahoo-Wang/wow-project-template/blob/main/gradle/libs.versions.toml)。使用其他框架版本时，先固定精确 [Release](https://github.com/Ahoo-Wang/Wow/releases) 再查看对应 tag：例如 [`v6.20.16`](https://github.com/Ahoo-Wang/Wow/blob/v6.20.16/gradle/libs.versions.toml) 声明 Wow `6.20.16` 与 Spring Boot `3.5.11`。
 
 源码、二进制和线协议兼容是三个不同范围。升级时只验证真正需要的范围，并重点检查持久化事件与生成的 HTTP 契约。
 

@@ -9,10 +9,7 @@ description: 持久化聚合权威历史、恢复状态，并区分事件追加�
 
 ## 事件溯源
 
-<center>
-
 ![EventSourcing](/images/eventstore/eventsourcing.svg)
-</center>
 
 以示例 `CreateOrder` 命令为例，聚合返回 `OrderCreated`。Wow 把它包装成事件流，其中包含聚合身份、`commandId`、`requestId`、版本、消息头与有序事件体。后续命令通过重放该历史恢复 `OrderState`。
 

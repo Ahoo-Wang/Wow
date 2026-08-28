@@ -72,7 +72,7 @@ After EventStore append, a Bus, projection, Saga, or external-handler failure ca
 
 DomainEventBus streams reach separate dispatchers:
 
-- Projection updates a query model and may emit `PROJECTED`;
+- Projection runs its matching function and may emit `PROJECTED` after that function's returned reactive chain completes;
 - EventProcessor runs application side effects and may emit `EVENT_HANDLED`;
 - Stateless Saga sends a later command and may emit `SAGA_HANDLED`.
 
@@ -87,7 +87,7 @@ Each function-level wait target tracks only selected functions. Other consumers 
 | `SENT` | CommandBus send | Aggregate execution or event append |
 | `PROCESSED` | Successful command filter chain, including aggregate processing/append and the current domain/state event-send filters | Snapshot, Projection, EventProcessor, or Saga function completion |
 | `SNAPSHOT` | Selected snapshot processing chain | Query projection completion |
-| `PROJECTED` | Selected projection function | Other projections or external systems |
+| `PROJECTED` | Matching projection function's returned reactive chain | Query/read-model visibility, caches or replicas, other projections, or external systems |
 | `EVENT_HANDLED` | Selected event-handler function | Other functions |
 | `SAGA_HANDLED` | Selected Saga function | Any stage of the tail command sent by the Saga; chain waiting must be explicit |
 
@@ -100,7 +100,7 @@ Aggregate-state reads and projection reads have different purposes:
 - aggregate restoration reads snapshots plus EventStore for the next business decision;
 - query APIs read projections, snapshots, or another query store for users.
 
-A projection may still be stale immediately after `PROCESSED`. If the user contract requires the read model, wait for the exact `PROJECTED` target instead of sleeping for a fixed interval. See [Projection](../projection.md) and [Query](../query.md).
+A projection may still be stale immediately after `PROCESSED`. Target the exact `PROJECTED` function to observe completion of its returned reactive chain instead of sleeping for a fixed interval, then execute the actual query to prove visibility. Work outside that chain, caches, replicas, and unrelated query pipelines remain separate evidence. See [Projection](../projection.md) and [Query](../query.md).
 
 ## Failure-location table
 

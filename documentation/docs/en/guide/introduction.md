@@ -6,9 +6,7 @@ outline: deep
 
 # Introduction
 
-<center>
-  <img width="150" src="/images/logo.svg" alt="Wow project logo"/>
-</center>
+![Wow project logo](/images/logo.svg)
 
 Wow is a reactive CQRS and Event Sourcing framework for Kotlin and Java. It makes a business write explicit as **command → aggregate decision → domain event → sourced state**, then lets projections, sagas, and other processors react to the persisted events.
 

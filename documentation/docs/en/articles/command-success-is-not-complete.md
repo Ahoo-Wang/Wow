@@ -27,7 +27,7 @@ At a Wow WebFlux command endpoint, the wait policy extracts a wait plan and the 
 
 - `SENT` fits “the system accepted the request and may continue asynchronously”; it does not prove aggregate execution.
 - `PROCESSED` fits “the domain decision and current command chain completed”; it does not prove a query projection is current.
-- function-targeted `PROJECTED` fits “this read model must be ready before the response”; it does not prove unrelated consumers completed.
+- function-targeted `PROJECTED` proves only that the matching projection function's returned reactive chain completed. It does not prove that the query path, cache, or replica can already return the change, nor that unrelated consumers completed.
 
 `SNAPSHOT`, `EVENT_HANDLED`, `SAGA_HANDLED`, and chained waits have different boundaries. Do not infer them from names; use the canonical [Wait Stages](../guide/advanced/data-flow.md#_6-wait-stages).
 
@@ -60,7 +60,7 @@ Ask “what result is required?” before asking “how long should we wait?”
 | --- | --- | --- |
 | accept work and continue later | `SENT` | business rules already ran |
 | confirm the domain decision before returning | `PROCESSED` | the query model is current |
-| open a page backed by one projection | targeted `PROJECTED` | every projection and external side effect completed |
+| open a page backed by one projection | targeted `PROJECTED` plus an actual query/read-model visibility check | the query is visible because the processor signal arrived |
 
 If the product reads sourced aggregate state rather than a projection, identify that actual read path before choosing a snapshot policy or wait stage. The canonical distinction is in [Read Paths](../guide/advanced/data-flow.md#_7-read-paths).
 
@@ -84,7 +84,7 @@ That evidence has a limit. The example `OrderProjector` mainly logs events; it d
 
 1. Write down what the user does immediately after the response.
 2. Identify the authoritative state or projection that action actually reads.
-3. Select the weakest stage that proves that result, targeting the required function.
+3. Select the weakest stage that scopes the required function; when the user consumes a query, execute that query as a separate visibility check.
 4. Define the deadline and an explicit “outcome unknown” response.
 5. Verify timeout, retry, and duplicate signals with the same request ID.
 6. Test delay, failure, and recovery with real adapters, not only a happy path.
@@ -93,6 +93,6 @@ That evidence has a limit. The example `OrderProjector` mainly logs events; it d
 
 “The endpoint succeeded but the query is empty” is not resolved by saying “eventual consistency.” Product and engineering must define which result, at which boundary, is complete for which caller.
 
-Wow supplies declarative waits; it does not choose the correct promise for the application. Waiting for the weakest stage that satisfies the user-visible contract is more reliable—and more honest—than `sleep(1s)`.
+Wow supplies declarative waits; it does not choose the correct promise for the application. A targeted `PROJECTED` wait can bound the matching projection function's returned chain, but actual query visibility remains a separate product acceptance check. That explicit pair is more reliable—and more honest—than `sleep(1s)`.
 
 Continue with [Core Concepts](../guide/core-concepts.md#command-completion-and-wait-stages), [Command Gateway](../guide/command-gateway.md#wait-plans), [Application Testing](../guide/application-testing.md), and [Troubleshooting](../guide/troubleshooting.md).

@@ -8,7 +8,7 @@ outline: deep
 
 Start with first success, then continue with the task in front of you.
 
-## First Success in 30 Minutes
+## 30-Minute First-Success Target
 
 Complete these confirmed gates in order:
 
@@ -20,6 +20,8 @@ Complete these confirmed gates in order:
 6. Load versioned sourced state.
 
 See [Getting Started](./getting-started.md) for the complete steps and completion semantics.
+
+The functional gates are verified; 30 minutes remains a target because first-time developer wall-clock completion has not been measured.
 
 ## Continue Building
 

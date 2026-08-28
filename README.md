@@ -46,7 +46,7 @@ You define commands, events, aggregate rules, and sourcing handlers. Wow supplie
 
 This is most useful when business rules, state history, multiple read models, or cross-aggregate workflows justify Event Sourcing. For simple CRUD where one database transaction already expresses the whole problem, the added event-evolution and eventual-consistency costs may not pay off.
 
-## Prove the First Slice in 30 Minutes
+## 30-Minute First-Slice Target
 
 [![Use this template](https://img.shields.io/badge/Use%20this%20template-2ea44f?style=for-the-badge&logo=github)](https://github.com/new?template_name=wow-project-template&template_owner=Ahoo-Wang)
 
@@ -54,7 +54,7 @@ This is most useful when business rules, state history, multiple read models, or
 2. Run `./gradlew :domain:check`, then start `./gradlew :server:run` with the documented in-memory configuration.
 3. Follow [Getting Started](documentation/docs/en/guide/getting-started.md) to send a real `CreateDemo` command, wait for `SNAPSHOT`, and read state at aggregate version `1`.
 
-That path proves the domain test, generated route, command pipeline, event sourcing, snapshot wait, and versioned state read. If you are adding Wow to an existing service, use [Add Wow to an Existing Project](documentation/docs/en/guide/existing-project.md).
+That path proves the domain test, generated route, command pipeline, event sourcing, snapshot wait, and versioned state read. The 30-minute duration is a target: the functional path has been exercised, but a first-time developer's wall-clock completion has not been measured. If you are adding Wow to an existing service, use [Add Wow to an Existing Project](documentation/docs/en/guide/existing-project.md).
 
 ## Evidence in This Repository
 
@@ -81,7 +81,7 @@ The current source tree declares:
 | Kotlin | `2.4.10` |
 | KSP | `2.3.11` |
 
-The project template evolves independently. The tutorial records the exact template commit and its pinned Wow version; inspect its [`gradle/libs.versions.toml`](https://github.com/Ahoo-Wang/wow-project-template/blob/main/gradle/libs.versions.toml) before starting. For another framework line, pin the exact [release](https://github.com/Ahoo-Wang/Wow/releases) and inspect that tag: for example, [`v6.8.0`](https://github.com/Ahoo-Wang/Wow/blob/v6.8.0/gradle/libs.versions.toml) uses Spring Boot 3, while [`v6.21.5`](https://github.com/Ahoo-Wang/Wow/blob/v6.21.5/gradle/libs.versions.toml) uses Spring Boot 4.0.
+The project template evolves independently. The tutorial records the exact template commit and its pinned Wow version; inspect its [`gradle/libs.versions.toml`](https://github.com/Ahoo-Wang/wow-project-template/blob/main/gradle/libs.versions.toml) before starting. For another framework line, pin the exact [release](https://github.com/Ahoo-Wang/Wow/releases) and inspect that tag: for example, [`v6.20.16`](https://github.com/Ahoo-Wang/Wow/blob/v6.20.16/gradle/libs.versions.toml) declares Wow `6.20.16` and Spring Boot `3.5.11`.
 
 Source, binary, and wire compatibility are separate concerns. Validate the one your upgrade requires, especially persisted events and generated HTTP contracts.
 
