@@ -35,6 +35,8 @@ import me.ahoo.wow.openapi.contributor.aggregate.aggregateTags
 import me.ahoo.wow.openapi.contributor.aggregate.defaultAppendOwnerPath
 import me.ahoo.wow.openapi.contributor.aggregate.defaultAppendTenantPath
 import me.ahoo.wow.openapi.contributor.aggregate.versionPathParameterRef
+import me.ahoo.wow.openapi.contributor.aggregationQueryRequestBodyRef
+import me.ahoo.wow.openapi.contributor.aggregationResponse
 import me.ahoo.wow.openapi.contributor.badRequestResponseRef
 import me.ahoo.wow.openapi.contributor.batchAfterIdPathParameterRef
 import me.ahoo.wow.openapi.contributor.batchLimitPathParameterRef
@@ -73,6 +75,7 @@ object EventRouteContributor : RouteContributor {
         }
     }
 
+    @Suppress("LongMethod")
     private fun queryRoutes(
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>,
@@ -81,6 +84,21 @@ object EventRouteContributor : RouteContributor {
     ): List<HttpRouteContract> {
         val aggregateMetadata = aggregateRouteMetadata.aggregateMetadata
         return listOf(
+            eventRoute(
+                currentContext = currentContext,
+                aggregateRouteMetadata = aggregateRouteMetadata,
+                componentContext = componentContext,
+                handlerKey = BuiltInHttpRouteHandlerKeys.Event.AGGREGATION,
+                resourceName = EVENT,
+                operation = "aggregation",
+                operationSummary = "Aggregate Event Stream",
+                appendTenantPath = variant.appendTenantPath,
+                appendOwnerPath = variant.appendOwnerPath,
+                appendPathSuffix = "event/aggregation",
+                accept = STREAMING_ACCEPT,
+                requestBody = componentContext.aggregationQueryRequestBodyRef(),
+                responses = listOf(componentContext.aggregationResponse()),
+            ),
             eventRoute(
                 currentContext = currentContext,
                 aggregateRouteMetadata = aggregateRouteMetadata,
