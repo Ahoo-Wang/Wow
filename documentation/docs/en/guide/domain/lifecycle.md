@@ -46,7 +46,7 @@ The command side decides whether deleted state can accept a normal or recovery c
 
 ## Version, Concurrency, and Order
 
-`expectedNextVersion` is the only event-stream version the current aggregate can accept next. An identity mismatch is rejected, a discontinuous version throws `SourcingVersionConflictException`, and events within a stream are then applied in sequence order.
+`expectedNextVersion` is the only event-stream version the current aggregate can accept next. An identity mismatch is rejected, a discontinuous version throws `SourcingVersionConflictException`, and events within a stream are applied in `eventStream` iteration order; sourcing does not reorder or validate them by numeric `sequence`.
 
 This gives deterministic restoration within one aggregate object; it is not a cross-instance global lock. Persistent concurrency remains the EventStore append version constraint. A caller can include `aggregateVersion` in a command for compare-and-set semantics, but aggregate version cannot replace idempotency for external side effects.
 

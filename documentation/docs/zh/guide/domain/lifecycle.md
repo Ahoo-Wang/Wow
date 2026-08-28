@@ -46,7 +46,7 @@ outline: deep
 
 ## 版本、并发与顺序
 
-`expectedNextVersion` 是当前聚合唯一可接受的下一条事件流版本。身份不匹配会被拒绝，版本不连续会抛出 `SourcingVersionConflictException`；同一流中的事件再按 sequence 顺序应用。
+`expectedNextVersion` 是当前聚合唯一可接受的下一条事件流版本。身份不匹配会被拒绝，版本不连续会抛出 `SourcingVersionConflictException`；同一流中的事件按 `eventStream` 的迭代顺序应用，溯源时不会按 `sequence` 数值重排或校验。
 
 这保证一个聚合对象内的确定性恢复，但不是跨实例全局锁。持久并发仍由 EventStore 追加时的版本约束负责。调用方需要 compare-and-set 语义时，可在命令中携带 `aggregateVersion`；外部副作用的幂等不能由聚合版本代替。
 
