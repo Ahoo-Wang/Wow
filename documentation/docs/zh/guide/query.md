@@ -346,7 +346,7 @@ OpenAPI 发布三个不同层次。通用 component schemas 定义 `FilterExpres
 
 ## 查询服务注册器
 
-`SnapshotQueryServiceRegistrar` 与 `EventStreamQueryServiceRegistrar` 为本地聚合注册 `order.SnapshotQueryService` 等服务。这些生成服务经过 `QueryHandler`，在到达后端前执行查询重写、已配置的 ABAC 过滤和脱敏。
+`SnapshotQueryServiceRegistrar` 与 `EventStreamQueryServiceRegistrar` 为本地聚合注册 `order.SnapshotQueryService` 等服务。这些类型安全的聚合级服务通过 `QueryServiceProxy` 委托 `QueryGateway`，在到达后端前执行查询重写、已配置的 ABAC 过滤和脱敏。
 
 ```kotlin
 class OrderReader(

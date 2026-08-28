@@ -346,7 +346,7 @@ The runtime schema merges system fields with JSON-Schema inference, classpath co
 
 ## Query service registrar
 
-`SnapshotQueryServiceRegistrar` and `EventStreamQueryServiceRegistrar` register local aggregate services under names such as `order.SnapshotQueryService`. Those generated services execute through `QueryHandler`, where query rewriting, configured ABAC filters, and masking run before the backend.
+`SnapshotQueryServiceRegistrar` and `EventStreamQueryServiceRegistrar` register local aggregate services such as `order.SnapshotQueryService`. These type-safe aggregate services delegate through `QueryServiceProxy` to `QueryGateway`, where query rewriting, configured ABAC filters, and masking run before the backend.
 
 ```kotlin
 class OrderReader(
