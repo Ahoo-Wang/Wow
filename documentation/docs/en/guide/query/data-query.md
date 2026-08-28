@@ -74,7 +74,7 @@ Queries may return typed, state-only, or dynamic results; the concrete entry poi
 
 | Need | Entry |
 | --- | --- |
-| Read current aggregate state and query business-state fields | [Snapshot Queries (current query entry)](../query.md#rest-api) |
-| Read the complete event history and query event-stream fields | [Event Stream Queries (current query entry)](../query.md#rest-api) |
+| Read current aggregate state and query business-state fields | [Snapshot Queries](./snapshot-query.md) |
+| Read the complete event history and query event-stream fields | [Event Stream Queries](./event-stream-query.md) |
 
 Both models support the shared data-query shapes, but their field roots, deletion semantics, available transport entries, and result models may differ. Choose the model from the source of truth first, then confirm field paths, entry points, and empty-result behavior on its page.
