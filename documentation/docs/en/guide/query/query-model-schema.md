@@ -36,7 +36,7 @@ System
 
 ## Backend Adaptation
 
-The [MongoDB](../extensions/mongo.md) adapter maps logical fields through a `FieldConverter` and reads collection indexes plus an optional `$jsonSchema` validator to prove storage types. It derives Element scope from MongoDB array/object types and publishes model-level full-text capabilities only when a suitable text index exists. The type guarantees available without a validator differ from those available with one.
+The [MongoDB](../extensions/mongo.md) adapter maps logical fields through a `FieldConverter` and reads collection indexes plus an optional `$jsonSchema` validator to prove storage types. An Element-scope candidate first comes from a logical declaration with `MANY` + `OBJECT`. When the validator supplies physical type constraints for that field, the adapter uses array/object types to confirm or reject the candidate. Without a validator or a field type constraint, it retains the logical candidate without physical-type proof. The adapter publishes model-level full-text capabilities only when a suitable text index exists.
 
 The [Elasticsearch](../extensions/elasticsearch.md) adapter reads the target mapping and separately accounts for field types, multi-fields, nested mappings, doc values, aliases, and runtime fields. Full text may bind to a text path, while exact matching, sorting, or TERMS aggregation may bind to a keyword multi-field. An object array receives Element scope only when the corresponding nested mapping supports it.
 
