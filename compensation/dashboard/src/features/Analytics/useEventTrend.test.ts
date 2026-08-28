@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AnalyticsRange, TrendRow } from "./analyticsQueries.ts";
 import { useEventTrend } from "./useEventTrend.ts";
@@ -42,6 +42,14 @@ const successRows = (streamCount: number): TrendRow[] => [
   },
 ];
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((nextResolve) => {
+    resolve = nextResolve;
+  });
+  return { promise, resolve };
+}
+
 describe("useEventTrend", () => {
   it("loads exactly four event aggregations for one shared window", async () => {
     mocks.aggregate.mockResolvedValue([]);
@@ -50,13 +58,25 @@ describe("useEventTrend", () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(mocks.aggregate).toHaveBeenCalledTimes(4);
-    const windows = mocks.aggregate.mock.calls.map(([query]) => ({
-      filter: query.filter,
-      groupBy: query.groupBy,
-    }));
+    const windows = mocks.aggregate.mock.calls.map(
+      ([query, , controller]) => {
+        const filters: Array<{ op: string; value: unknown }> =
+          query.filter.operands;
+        return {
+          end: filters.find((operand) => operand.op === "LT")?.value,
+          groupBy: query.groupBy,
+          start: filters.find((operand) => operand.op === "GTE")?.value,
+          controller,
+        };
+      },
+    );
     expect(new Set(windows.map(({ groupBy }) => groupBy[0].timeZone)).size).toBe(
       1,
     );
+    expect(new Set(windows.map(({ start, end }) => `${start}:${end}`)).size).toBe(
+      1,
+    );
+    expect(new Set(windows.map(({ controller }) => controller)).size).toBe(1);
   });
 
   it("keeps the last complete trend when one refreshed series fails", async () => {
@@ -79,6 +99,48 @@ describe("useEventTrend", () => {
       expect(result.current.error?.message).toBe("route unavailable"),
     );
     expect(result.current.data).toBe(lastGood);
+  });
+
+  it("replaces the trend only after all four refreshed series complete", async () => {
+    const initialLoads = Array.from({ length: 4 }, () => deferred<TrendRow[]>());
+    const refreshedLoads = Array.from({ length: 4 }, () =>
+      deferred<TrendRow[]>(),
+    );
+    let calls = 0;
+    let loads = initialLoads;
+    mocks.aggregate.mockImplementation(() => loads[calls++].promise);
+
+    const { result, rerender } = renderHook(
+      ({ token }) => useEventTrend("7d", token),
+      { initialProps: { token: 0 } },
+    );
+    await waitFor(() => expect(mocks.aggregate).toHaveBeenCalledTimes(4));
+    await act(async () => {
+      initialLoads.forEach((load, index) => load.resolve(successRows(index + 1)));
+      await Promise.all(initialLoads.map(({ promise }) => promise));
+    });
+    await waitFor(() => expect(result.current.data?.at(-1)?.newFailures).toBe(1));
+    const lastGood = result.current.data;
+
+    calls = 0;
+    loads = refreshedLoads;
+    rerender({ token: 1 });
+    await waitFor(() => expect(mocks.aggregate).toHaveBeenCalledTimes(8));
+    await act(async () => {
+      refreshedLoads
+        .slice(0, 3)
+        .forEach((load, index) => load.resolve(successRows(index + 5)));
+      await Promise.all(refreshedLoads.slice(0, 3).map(({ promise }) => promise));
+    });
+
+    expect(result.current.loading).toBe(true);
+    expect(result.current.data).toBe(lastGood);
+
+    await act(async () => {
+      refreshedLoads[3].resolve(successRows(8));
+      await refreshedLoads[3].promise;
+    });
+    await waitFor(() => expect(result.current.data?.at(-1)?.newFailures).toBe(5));
   });
 
   it("aborts the old four requests when range changes before starting four new ones", async () => {
@@ -105,6 +167,51 @@ describe("useEventTrend", () => {
       true,
     );
   });
+
+  it.each(["range", "refreshToken"] as const)(
+    "does not let a late stale %s batch overwrite refreshed data",
+    async (trigger) => {
+      const staleLoads = Array.from({ length: 4 }, () => deferred<TrendRow[]>());
+      const refreshedLoads = Array.from({ length: 4 }, () =>
+        deferred<TrendRow[]>(),
+      );
+      let calls = 0;
+      let loads = staleLoads;
+      mocks.aggregate.mockImplementation(() => loads[calls++].promise);
+
+      const { result, rerender } = renderHook(
+        ({ range, token }: { range: AnalyticsRange; token: number }) =>
+          useEventTrend(range, token),
+        { initialProps: { range: "7d" as AnalyticsRange, token: 0 } },
+      );
+      await waitFor(() => expect(mocks.aggregate).toHaveBeenCalledTimes(4));
+
+      calls = 0;
+      loads = refreshedLoads;
+      rerender(
+        trigger === "range"
+          ? { range: "30d", token: 0 }
+          : { range: "7d", token: 1 },
+      );
+      await waitFor(() => expect(mocks.aggregate).toHaveBeenCalledTimes(8));
+      await act(async () => {
+        refreshedLoads.forEach((load, index) =>
+          load.resolve(successRows(index + 5)),
+        );
+        await Promise.all(refreshedLoads.map(({ promise }) => promise));
+      });
+      await waitFor(() =>
+        expect(result.current.data?.at(-1)?.newFailures).toBe(5),
+      );
+      const refreshedData = result.current.data;
+
+      await act(async () => {
+        staleLoads.forEach((load, index) => load.resolve(successRows(index + 1)));
+        await Promise.all(staleLoads.map(({ promise }) => promise));
+      });
+      expect(result.current.data).toBe(refreshedData);
+    },
+  );
 
   it("does not replace the last complete trend with an AbortError", async () => {
     mocks.aggregate.mockResolvedValue(successRows(1));
