@@ -20,6 +20,7 @@ import io.swagger.v3.oas.models.media.Schema
 import io.swagger.v3.oas.models.media.StringSchema
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.schema.QueryModelSchemaMetadata
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.openapi.Https
@@ -132,6 +133,22 @@ internal fun OpenAPIComponentContext.aggregationResponse(): HttpResponse {
         )
     )
 }
+
+internal fun OpenAPIComponentContext.querySchemaResponses(): List<HttpResponse> = listOf(
+    HttpResponse(
+        statusCode = Https.Code.OK,
+        headers = listOf(errorCodeHeaderRef()),
+        content = listOf(
+            HttpContent(
+                Https.MediaType.APPLICATION_JSON,
+                HttpSchema.TypeRef(QueryModelSchemaMetadata::class.java),
+            )
+        ),
+    ),
+    HttpResponse(Https.Code.BAD_REQUEST),
+    HttpResponse(Https.Code.INTERNAL_SERVER_ERROR),
+    HttpResponse(Https.Code.SERVICE_UNAVAILABLE),
+)
 
 internal fun OpenAPIComponentContext.eventStreamListResponse(
     aggregateMetadata: AggregateMetadata<*, *>

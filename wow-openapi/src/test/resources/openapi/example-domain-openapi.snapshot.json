@@ -567,6 +567,15 @@
           "$ref" : "#/components/schemas/tck.modeling_command_aggregate_without_ctor_parameters.MockCommandAggregateWithoutCtorParametersAggregatedFields"
         }
       },
+      "wow.AggregationQuery" : {
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.api.query.AggregationQuery"
+            }
+          }
+        }
+      },
       "wow.CompensationTarget" : {
         "content" : {
           "application/json" : {
@@ -6504,6 +6513,61 @@
   },
   "openapi" : "3.1.0",
   "paths" : {
+    "/cart/event/aggregation" : {
+      "post" : {
+        "operationId" : "example.cart.event.aggregation",
+        "parameters" : [ ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/wow.AggregationQuery"
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "additionalProperties" : { },
+                    "type" : "object"
+                  },
+                  "type" : "array"
+                }
+              },
+              "text/event-stream" : {
+                "schema" : {
+                  "items" : {
+                    "properties" : {
+                      "data" : {
+                        "additionalProperties" : { },
+                        "type" : "object"
+                      },
+                      "event" : {
+                        "type" : "string"
+                      },
+                      "id" : {
+                        "type" : "string"
+                      },
+                      "retry" : {
+                        "format" : "int32",
+                        "type" : "integer"
+                      }
+                    },
+                    "required" : [ "data" ],
+                    "type" : "object"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          }
+        },
+        "tags" : [ "example.cart", "customer" ]
+      }
+    },
     "/cart/event/count" : {
       "post" : {
         "operationId" : "example.cart.event.count",
@@ -6578,6 +6642,58 @@
               }
             }
           }
+        },
+        "tags" : [ "example.cart", "customer" ]
+      }
+    },
+    "/cart/event/schema" : {
+      "get" : {
+        "operationId" : "example.cart.event_schema.get",
+        "parameters" : [ ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "400" : { },
+          "500" : { },
+          "503" : { }
+        },
+        "tags" : [ "example.cart", "customer" ]
+      }
+    },
+    "/cart/event/schema/refresh" : {
+      "post" : {
+        "operationId" : "example.cart.event_schema.refresh",
+        "parameters" : [ ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "400" : { },
+          "500" : { },
+          "503" : { }
         },
         "tags" : [ "example.cart", "customer" ]
       }
@@ -7251,6 +7367,63 @@
           },
           "429" : {
             "$ref" : "#/components/responses/wow.CommandTooManyRequests"
+          }
+        },
+        "tags" : [ "example.cart", "customer" ]
+      }
+    },
+    "/owner/{ownerId}/cart/event/aggregation" : {
+      "post" : {
+        "operationId" : "example.cart.owner.event.aggregation",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.ownerId"
+        } ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/wow.AggregationQuery"
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "additionalProperties" : { },
+                    "type" : "object"
+                  },
+                  "type" : "array"
+                }
+              },
+              "text/event-stream" : {
+                "schema" : {
+                  "items" : {
+                    "properties" : {
+                      "data" : {
+                        "additionalProperties" : { },
+                        "type" : "object"
+                      },
+                      "event" : {
+                        "type" : "string"
+                      },
+                      "id" : {
+                        "type" : "string"
+                      },
+                      "retry" : {
+                        "format" : "int32",
+                        "type" : "integer"
+                      }
+                    },
+                    "required" : [ "data" ],
+                    "type" : "object"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
           }
         },
         "tags" : [ "example.cart", "customer" ]
@@ -8092,6 +8265,65 @@
         "tags" : [ "example.cart", "customer" ]
       }
     },
+    "/owner/{ownerId}/sales-order/event/aggregation" : {
+      "post" : {
+        "operationId" : "example.order.owner.event.aggregation",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.Wow-Space-Id"
+        }, {
+          "$ref" : "#/components/parameters/wow.ownerId"
+        } ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/wow.AggregationQuery"
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "additionalProperties" : { },
+                    "type" : "object"
+                  },
+                  "type" : "array"
+                }
+              },
+              "text/event-stream" : {
+                "schema" : {
+                  "items" : {
+                    "properties" : {
+                      "data" : {
+                        "additionalProperties" : { },
+                        "type" : "object"
+                      },
+                      "event" : {
+                        "type" : "string"
+                      },
+                      "id" : {
+                        "type" : "string"
+                      },
+                      "retry" : {
+                        "format" : "int32",
+                        "type" : "integer"
+                      }
+                    },
+                    "required" : [ "data" ],
+                    "type" : "object"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          }
+        },
+        "tags" : [ "example.order" ]
+      }
+    },
     "/owner/{ownerId}/sales-order/event/count" : {
       "post" : {
         "operationId" : "example.order.owner.event.count",
@@ -8480,6 +8712,63 @@
         "tags" : [ "example.order" ]
       }
     },
+    "/sales-order/event/aggregation" : {
+      "post" : {
+        "operationId" : "example.order.event.aggregation",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.Wow-Space-Id"
+        } ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/wow.AggregationQuery"
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "additionalProperties" : { },
+                    "type" : "object"
+                  },
+                  "type" : "array"
+                }
+              },
+              "text/event-stream" : {
+                "schema" : {
+                  "items" : {
+                    "properties" : {
+                      "data" : {
+                        "additionalProperties" : { },
+                        "type" : "object"
+                      },
+                      "event" : {
+                        "type" : "string"
+                      },
+                      "id" : {
+                        "type" : "string"
+                      },
+                      "retry" : {
+                        "format" : "int32",
+                        "type" : "integer"
+                      }
+                    },
+                    "required" : [ "data" ],
+                    "type" : "object"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          }
+        },
+        "tags" : [ "example.order" ]
+      }
+    },
     "/sales-order/event/count" : {
       "post" : {
         "operationId" : "example.order.event.count",
@@ -8560,6 +8849,62 @@
               }
             }
           }
+        },
+        "tags" : [ "example.order" ]
+      }
+    },
+    "/sales-order/event/schema" : {
+      "get" : {
+        "operationId" : "example.order.event_schema.get",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.Wow-Space-Id"
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "400" : { },
+          "500" : { },
+          "503" : { }
+        },
+        "tags" : [ "example.order" ]
+      }
+    },
+    "/sales-order/event/schema/refresh" : {
+      "post" : {
+        "operationId" : "example.order.event_schema.refresh",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.Wow-Space-Id"
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "400" : { },
+          "500" : { },
+          "503" : { }
         },
         "tags" : [ "example.order" ]
       }
@@ -8944,6 +9289,61 @@
         "tags" : [ "example.order" ]
       }
     },
+    "/tck/mock_aggregate/event/aggregation" : {
+      "post" : {
+        "operationId" : "tck.mock_aggregate.event.aggregation",
+        "parameters" : [ ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/wow.AggregationQuery"
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "additionalProperties" : { },
+                    "type" : "object"
+                  },
+                  "type" : "array"
+                }
+              },
+              "text/event-stream" : {
+                "schema" : {
+                  "items" : {
+                    "properties" : {
+                      "data" : {
+                        "additionalProperties" : { },
+                        "type" : "object"
+                      },
+                      "event" : {
+                        "type" : "string"
+                      },
+                      "id" : {
+                        "type" : "string"
+                      },
+                      "retry" : {
+                        "format" : "int32",
+                        "type" : "integer"
+                      }
+                    },
+                    "required" : [ "data" ],
+                    "type" : "object"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          }
+        },
+        "tags" : [ "tck.mock_aggregate" ]
+      }
+    },
     "/tck/mock_aggregate/event/count" : {
       "post" : {
         "operationId" : "tck.mock_aggregate.event.count",
@@ -9018,6 +9418,58 @@
               }
             }
           }
+        },
+        "tags" : [ "tck.mock_aggregate" ]
+      }
+    },
+    "/tck/mock_aggregate/event/schema" : {
+      "get" : {
+        "operationId" : "tck.mock_aggregate.event_schema.get",
+        "parameters" : [ ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "400" : { },
+          "500" : { },
+          "503" : { }
+        },
+        "tags" : [ "tck.mock_aggregate" ]
+      }
+    },
+    "/tck/mock_aggregate/event/schema/refresh" : {
+      "post" : {
+        "operationId" : "tck.mock_aggregate.event_schema.refresh",
+        "parameters" : [ ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "400" : { },
+          "500" : { },
+          "503" : { }
         },
         "tags" : [ "tck.mock_aggregate" ]
       }
@@ -9378,6 +9830,61 @@
         "tags" : [ "tck.mock_aggregate" ]
       }
     },
+    "/tck/modeling_command_aggregate_with_tenant_id/event/aggregation" : {
+      "post" : {
+        "operationId" : "tck.modeling_command_aggregate_with_tenant_id.event.aggregation",
+        "parameters" : [ ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/wow.AggregationQuery"
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "additionalProperties" : { },
+                    "type" : "object"
+                  },
+                  "type" : "array"
+                }
+              },
+              "text/event-stream" : {
+                "schema" : {
+                  "items" : {
+                    "properties" : {
+                      "data" : {
+                        "additionalProperties" : { },
+                        "type" : "object"
+                      },
+                      "event" : {
+                        "type" : "string"
+                      },
+                      "id" : {
+                        "type" : "string"
+                      },
+                      "retry" : {
+                        "format" : "int32",
+                        "type" : "integer"
+                      }
+                    },
+                    "required" : [ "data" ],
+                    "type" : "object"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          }
+        },
+        "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+      }
+    },
     "/tck/modeling_command_aggregate_with_tenant_id/event/count" : {
       "post" : {
         "operationId" : "tck.modeling_command_aggregate_with_tenant_id.event.count",
@@ -9452,6 +9959,58 @@
               }
             }
           }
+        },
+        "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+      }
+    },
+    "/tck/modeling_command_aggregate_with_tenant_id/event/schema" : {
+      "get" : {
+        "operationId" : "tck.modeling_command_aggregate_with_tenant_id.event_schema.get",
+        "parameters" : [ ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "400" : { },
+          "500" : { },
+          "503" : { }
+        },
+        "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+      }
+    },
+    "/tck/modeling_command_aggregate_with_tenant_id/event/schema/refresh" : {
+      "post" : {
+        "operationId" : "tck.modeling_command_aggregate_with_tenant_id.event_schema.refresh",
+        "parameters" : [ ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "400" : { },
+          "500" : { },
+          "503" : { }
         },
         "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
       }
@@ -9812,6 +10371,61 @@
         "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
       }
     },
+    "/tck/modeling_command_aggregate_without_ctor_parameters/event/aggregation" : {
+      "post" : {
+        "operationId" : "tck.modeling_command_aggregate_without_ctor_parameters.event.aggregation",
+        "parameters" : [ ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/wow.AggregationQuery"
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "additionalProperties" : { },
+                    "type" : "object"
+                  },
+                  "type" : "array"
+                }
+              },
+              "text/event-stream" : {
+                "schema" : {
+                  "items" : {
+                    "properties" : {
+                      "data" : {
+                        "additionalProperties" : { },
+                        "type" : "object"
+                      },
+                      "event" : {
+                        "type" : "string"
+                      },
+                      "id" : {
+                        "type" : "string"
+                      },
+                      "retry" : {
+                        "format" : "int32",
+                        "type" : "integer"
+                      }
+                    },
+                    "required" : [ "data" ],
+                    "type" : "object"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          }
+        },
+        "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+      }
+    },
     "/tck/modeling_command_aggregate_without_ctor_parameters/event/count" : {
       "post" : {
         "operationId" : "tck.modeling_command_aggregate_without_ctor_parameters.event.count",
@@ -9886,6 +10500,58 @@
               }
             }
           }
+        },
+        "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+      }
+    },
+    "/tck/modeling_command_aggregate_without_ctor_parameters/event/schema" : {
+      "get" : {
+        "operationId" : "tck.modeling_command_aggregate_without_ctor_parameters.event_schema.get",
+        "parameters" : [ ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "400" : { },
+          "500" : { },
+          "503" : { }
+        },
+        "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+      }
+    },
+    "/tck/modeling_command_aggregate_without_ctor_parameters/event/schema/refresh" : {
+      "post" : {
+        "operationId" : "tck.modeling_command_aggregate_without_ctor_parameters.event_schema.refresh",
+        "parameters" : [ ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "400" : { },
+          "500" : { },
+          "503" : { }
         },
         "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
       }
@@ -10244,6 +10910,63 @@
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+      }
+    },
+    "/tck/tenant/{tenantId}/mock_aggregate/event/aggregation" : {
+      "post" : {
+        "operationId" : "tck.mock_aggregate.tenant.event.aggregation",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.tenantId"
+        } ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/wow.AggregationQuery"
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "additionalProperties" : { },
+                    "type" : "object"
+                  },
+                  "type" : "array"
+                }
+              },
+              "text/event-stream" : {
+                "schema" : {
+                  "items" : {
+                    "properties" : {
+                      "data" : {
+                        "additionalProperties" : { },
+                        "type" : "object"
+                      },
+                      "event" : {
+                        "type" : "string"
+                      },
+                      "id" : {
+                        "type" : "string"
+                      },
+                      "retry" : {
+                        "format" : "int32",
+                        "type" : "integer"
+                      }
+                    },
+                    "required" : [ "data" ],
+                    "type" : "object"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          }
+        },
+        "tags" : [ "tck.mock_aggregate" ]
       }
     },
     "/tck/tenant/{tenantId}/mock_aggregate/event/count" : {
@@ -11284,6 +12007,63 @@
         "tags" : [ "tck.mock_aggregate" ]
       }
     },
+    "/tck/tenant/{tenantId}/modeling_command_aggregate_with_tenant_id/event/aggregation" : {
+      "post" : {
+        "operationId" : "tck.modeling_command_aggregate_with_tenant_id.tenant.event.aggregation",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.tenantId"
+        } ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/wow.AggregationQuery"
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "additionalProperties" : { },
+                    "type" : "object"
+                  },
+                  "type" : "array"
+                }
+              },
+              "text/event-stream" : {
+                "schema" : {
+                  "items" : {
+                    "properties" : {
+                      "data" : {
+                        "additionalProperties" : { },
+                        "type" : "object"
+                      },
+                      "event" : {
+                        "type" : "string"
+                      },
+                      "id" : {
+                        "type" : "string"
+                      },
+                      "retry" : {
+                        "format" : "int32",
+                        "type" : "integer"
+                      }
+                    },
+                    "required" : [ "data" ],
+                    "type" : "object"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          }
+        },
+        "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+      }
+    },
     "/tck/tenant/{tenantId}/modeling_command_aggregate_with_tenant_id/event/count" : {
       "post" : {
         "operationId" : "tck.modeling_command_aggregate_with_tenant_id.tenant.event.count",
@@ -12111,6 +12891,63 @@
           }
         },
         "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+      }
+    },
+    "/tck/tenant/{tenantId}/modeling_command_aggregate_without_ctor_parameters/event/aggregation" : {
+      "post" : {
+        "operationId" : "tck.modeling_command_aggregate_without_ctor_parameters.tenant.event.aggregation",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.tenantId"
+        } ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/wow.AggregationQuery"
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "additionalProperties" : { },
+                    "type" : "object"
+                  },
+                  "type" : "array"
+                }
+              },
+              "text/event-stream" : {
+                "schema" : {
+                  "items" : {
+                    "properties" : {
+                      "data" : {
+                        "additionalProperties" : { },
+                        "type" : "object"
+                      },
+                      "event" : {
+                        "type" : "string"
+                      },
+                      "id" : {
+                        "type" : "string"
+                      },
+                      "retry" : {
+                        "format" : "int32",
+                        "type" : "integer"
+                      }
+                    },
+                    "required" : [ "data" ],
+                    "type" : "object"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          }
+        },
+        "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
       }
     },
     "/tck/tenant/{tenantId}/modeling_command_aggregate_without_ctor_parameters/event/count" : {
@@ -13641,6 +14478,65 @@
           },
           "429" : {
             "$ref" : "#/components/responses/wow.CommandTooManyRequests"
+          }
+        },
+        "tags" : [ "example.order" ]
+      }
+    },
+    "/tenant/{tenantId}/sales-order/event/aggregation" : {
+      "post" : {
+        "operationId" : "example.order.tenant.event.aggregation",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.Wow-Space-Id"
+        }, {
+          "$ref" : "#/components/parameters/wow.tenantId"
+        } ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/wow.AggregationQuery"
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "additionalProperties" : { },
+                    "type" : "object"
+                  },
+                  "type" : "array"
+                }
+              },
+              "text/event-stream" : {
+                "schema" : {
+                  "items" : {
+                    "properties" : {
+                      "data" : {
+                        "additionalProperties" : { },
+                        "type" : "object"
+                      },
+                      "event" : {
+                        "type" : "string"
+                      },
+                      "id" : {
+                        "type" : "string"
+                      },
+                      "retry" : {
+                        "format" : "int32",
+                        "type" : "integer"
+                      }
+                    },
+                    "required" : [ "data" ],
+                    "type" : "object"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
           }
         },
         "tags" : [ "example.order" ]

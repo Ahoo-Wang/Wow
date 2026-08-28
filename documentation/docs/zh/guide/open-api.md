@@ -106,7 +106,7 @@ class Order(private val state: OrderState)
 class Cart(private val state: CartState)
 ```
 
-查询 Schema 路由是例外：`/{aggregate}/snapshot/schema` 与 `/refresh` 描述聚合模型，因此没有 tenant/owner 路径变体；spaced 聚合的公共合同仍可能声明 `Wow-Space-Id`。
+查询 Schema 路由是例外：`/{aggregate}/snapshot/schema`、`/{aggregate}/event/schema` 及各自的 `/refresh` 描述查询模型，因此没有 tenant/owner 路径变体；spaced 聚合的公共合同仍可能声明 `Wow-Space-Id`。
 
 ## 全局路由
 
@@ -206,6 +206,8 @@ curl 'http://localhost:8080/wow/id/global' \
 |---|---|---|
 | `GET` | `snapshot/schema` | 运行时 `QueryModelSchemaMetadata` |
 | `POST` | `snapshot/schema/refresh` | 刷新后的查询模型 Schema |
+| `GET` | `event/schema` | 运行时 EventStream `QueryModelSchemaMetadata` |
+| `POST` | `event/schema/refresh` | 刷新后的 EventStream 查询模型 Schema |
 | `POST` | `snapshot/single` | `SingleQuery` -> 物化快照 |
 | `POST` | `snapshot/single/state` | `SingleQuery` -> 仅状态 |
 | `POST` | `snapshot/list` / `list/state` | `ListQuery` -> 数组或 SSE |
@@ -217,7 +219,7 @@ curl 'http://localhost:8080/wow/id/global' \
 
 1. 通用 query component schemas 定义规范请求 JSON 形状。
 2. 每个聚合专用 query request-body component 引用一个通用 Schema，并公开静态 `x-wow-query-fields`；其 enum 由 system fields 与 `JsonQuerySchemaSource` 推断字段组成。
-3. 运行时 `snapshot/schema` 路由发布合并后的 `QueryModelSchemaMetadata` 与后端已证明能力。
+3. 运行时 `snapshot/schema` 与 `event/schema` 路由分别发布合并后的 `QueryModelSchemaMetadata` 与后端已证明能力。
 
 `x-wow-query-fields` 是 request-body component 上的 OpenAPI 设计时元数据，不会作为 JSON 请求属性嵌入，也不表示后端能力。
 

@@ -12,7 +12,7 @@ Wow 中的“Schema”可能指不同产物，不能相互混用：
 | `META-INF/wow-metadata.json` | `wow-compiler` KSP | `MetadataSearcher` | 限界上下文、聚合、命令、事件、路由 |
 | JSON Schema | `SchemaGeneratorBuilder` / 内置资源 | 校验、工具、OpenAPI 转换 | Java/Kotlin 类型的线协议形状 |
 | OpenAPI components | `OpenAPISchemaBuilder` | `RouterSpecs`、Springdoc、生成器 | HTTP operation 引用的 Schema |
-| 查询模型 Schema | 查询 Schema sources + 后端适配器 | 查询 resolver 与 `snapshot/schema` 路由 | 逻辑字段及后端已证明能力 |
+| 查询模型 Schema | 查询 Schema sources + 后端适配器 | 查询 resolver 与 `snapshot/schema`、`event/schema` 路由 | 逻辑字段及后端已证明能力 |
 
 KSP 还会为聚合状态导航生成 `*Properties` 路径常量。这些常量不会枚举运行时后端能力，也不能替代查询模型 Schema。
 
@@ -99,7 +99,7 @@ OpenAPI 查询发布包含两个静态层次，以及之后的一个运行时层
 
 1. 通用 component schemas 定义 `FilterExpression`、`SingleQuery`、`ListQuery`、`PagedQuery` 与 `AggregationQuery` 的规范 JSON 形状。
 2. 每个聚合专用 request-body component 引用相应通用 Schema，并增加 `x-wow-query-fields`。该扩展引用一个静态 enum，其中包含 system fields 与 `JsonQuerySchemaSource` 从聚合状态推断出的字段；它不包含后端 binding 或已证明能力。
-3. `GET /{aggregate}/snapshot/schema` 返回运行时 `QueryModelSchemaMetadata`：所有已配置查询 Schema sources 合并后，再由所选后端适配器解析能力；`/refresh` 刷新该运行时视图。
+3. `GET /{aggregate}/snapshot/schema` 与 `GET /{aggregate}/event/schema` 分别返回 Snapshot、EventStream 的运行时 `QueryModelSchemaMetadata`：所有已配置查询 Schema sources 合并后，再由所选后端适配器解析能力；对应的 `/refresh` 刷新该运行时视图。
 
 静态字段扩展让 OpenAPI 工具能够看到聚合字段，但不会改变通用请求 JSON 形状，也不能与运行时 Schema 等同。
 
