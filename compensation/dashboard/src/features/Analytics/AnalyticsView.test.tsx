@@ -162,7 +162,7 @@ describe("AnalyticsView", () => {
       content.indexOf("Recoverability distribution"),
     );
     expect(content.indexOf("Recoverability distribution")).toBeLessThan(
-      content.indexOf("Compensation history"),
+      content.indexOf("Compensation outcomes"),
     );
   });
 });

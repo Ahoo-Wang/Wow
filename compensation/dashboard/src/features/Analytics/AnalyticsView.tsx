@@ -12,7 +12,8 @@
  */
 
 import { RefreshCw } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { ExchangeError } from "@ahoo-wang/fetcher";
 import { formatAge, formatDate } from "../../utils/dates.ts";
 import { Button } from "@/components/ui/button";
 import { useNow } from "@/hooks/useNow.ts";
@@ -38,6 +39,31 @@ import {
 
 const ranges: readonly AnalyticsRange[] = ["24h", "7d", "30d"];
 
+function SectionError({ error }: { error: Error }) {
+  const [resolved, setResolved] = useState({ error, message: error.message });
+  const message = resolved.error === error ? resolved.message : error.message;
+
+  useEffect(() => {
+    if (error instanceof ExchangeError) {
+      void error.exchange
+        .extractResult<{ errorMsg?: unknown; message?: unknown }>()
+        .then((result) => {
+          const resultMessage = result.message ?? result.errorMsg;
+          if (typeof resultMessage === "string") {
+            setResolved({ error, message: resultMessage });
+          }
+        })
+        .catch(() => undefined);
+    }
+  }, [error]);
+
+  return (
+    <p role="alert" className="text-sm text-red-700">
+      {message}
+    </p>
+  );
+}
+
 function SectionMeta<T>({ section }: { section: AnalyticsSection<T> }) {
   return (
     <>
@@ -46,11 +72,7 @@ function SectionMeta<T>({ section }: { section: AnalyticsSection<T> }) {
           Refreshing…
         </p>
       ) : null}
-      {section.error ? (
-        <p role="alert" className="text-sm text-red-700">
-          {section.error.message}
-        </p>
-      ) : null}
+      {section.error ? <SectionError error={section.error} /> : null}
       {section.updatedAt ? (
         <p className="text-xs text-muted-foreground">
           Last updated {formatDate(section.updatedAt)}
@@ -237,7 +259,7 @@ export default function AnalyticsView() {
       <section aria-labelledby="analytics-history-title">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 id="analytics-history-title" className="text-lg font-semibold">
-            Compensation history
+            Compensation outcomes
           </h2>
           <div className="flex gap-2" aria-label="History range">
             {ranges.map((item) => (

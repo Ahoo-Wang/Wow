@@ -80,6 +80,115 @@ const executionHistory = {
   ],
 };
 
+async function mockAnalyticsAggregations(
+  page: Page,
+  callbacks: {
+    failSnapshotAlias?: string;
+    onEvent: () => void;
+    onSnapshot: () => void;
+  },
+) {
+  await page.route("**/execution_failed/snapshot/aggregation", async (route) => {
+    callbacks.onSnapshot();
+    const query = route.request().postDataJSON() as {
+      filter?: unknown;
+      groupBy?: Array<{ alias: string }>;
+    };
+    const aliases = query.groupBy?.map(({ alias }) => alias) ?? [];
+    if (
+      callbacks.failSnapshotAlias &&
+      aliases.includes(callbacks.failSnapshotAlias)
+    ) {
+      await route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ message: "analytics section unavailable" }),
+      });
+      return;
+    }
+    const serializedFilter = JSON.stringify(query.filter ?? {});
+    let rows: Array<Record<string, unknown>>;
+
+    if (aliases.includes("errorCode") && aliases.includes("status")) {
+      rows = [
+        {
+          errorCode: "TEST_TIMEOUT",
+          contextName: "billing",
+          processorName: "OrderProcessor",
+          functionName: "run",
+          functionKind: "EVENT",
+          status: "FAILED",
+          statusCount: 9,
+        },
+        {
+          errorCode: "TEST_TIMEOUT",
+          contextName: "billing",
+          processorName: "OrderProcessor",
+          functionName: "run",
+          functionKind: "EVENT",
+          status: "PREPARED",
+          statusCount: 3,
+        },
+      ];
+    } else if (aliases.includes("errorCode")) {
+      rows = [
+        {
+          errorCode: "TEST_TIMEOUT",
+          contextName: "billing",
+          processorName: "OrderProcessor",
+          functionName: "run",
+          functionKind: "EVENT",
+          currentCount: 12,
+          oldestExecuteAt: 1_787_846_400_000,
+          nextRetryAt: 1_787_932_800_000,
+        },
+      ];
+    } else if (aliases.includes("recoverable")) {
+      rows = [
+        { recoverable: "RECOVERABLE", count: 7 },
+        { recoverable: "UNKNOWN", count: 3 },
+        { recoverable: "UNRECOVERABLE", count: 2 },
+      ];
+    } else if (aliases.includes("retries")) {
+      rows = [
+        { retries: 0, count: 5 },
+        { retries: 1, count: 4 },
+        { retries: 3, count: 2 },
+        { retries: 6, count: 1 },
+      ];
+    } else if (serializedFilter.includes("nextRetryAt")) {
+      rows = [{ count: 128 }];
+    } else if (serializedFilter.includes("timeoutAt")) {
+      rows = [{ count: 34 }];
+    } else {
+      rows = [{ count: 9 }];
+    }
+    await route.fulfill({ json: rows });
+  });
+
+  await page.route("**/execution_failed/event/aggregation", async (route) => {
+    callbacks.onEvent();
+    const query = route.request().postDataJSON() as Record<string, unknown>;
+    const name = JSON.stringify(query).match(
+      /execution_(?:failed_created|failed_applied|success_applied)|compensation_prepared/,
+    )?.[0];
+    const counts: Record<string, number> = {
+      execution_failed_created: 12,
+      compensation_prepared: 6,
+      execution_failed_applied: 4,
+      execution_success_applied: 2,
+    };
+    await route.fulfill({
+      json: [
+        {
+          bucket: new Date(2026, 7, 28).getTime(),
+          streamCount: name ? counts[name] : 0,
+        },
+      ],
+    });
+  });
+}
+
 async function openDetails(page: Page, projectName: string) {
   if (projectName === "mobile-chromium") {
     await page
@@ -285,4 +394,63 @@ test("preserves and freezes last-known-good data after refresh fails", async ({
   await expect(
     page.getByRole("button", { name: "Refreshing state" }),
   ).toBeDisabled();
+});
+
+test("loads analytics and scopes range changes to event aggregation", async ({
+  page,
+}, testInfo) => {
+  let snapshotRequests = 0;
+  let eventRequests = 0;
+  await mockAnalyticsAggregations(page, {
+    onEvent: () => eventRequests++,
+    onSnapshot: () => snapshotRequests++,
+  });
+
+  await page.goto("/analytics");
+
+  await expect(page.getByRole("heading", { name: "Analytics" })).toBeVisible();
+  await expect(page.getByText("Current failure pressure")).toBeVisible();
+  await expect(page.getByText("TEST_TIMEOUT")).toBeVisible();
+  await expect(
+    page.getByRole("table", { name: "Compensation outcomes data" }),
+  ).toBeAttached();
+  await expect.poll(() => snapshotRequests).toBe(7);
+  await expect.poll(() => eventRequests).toBe(4);
+
+  if (testInfo.project.name === "mobile-chromium") {
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
+    const pressureContainer = page
+      .getByRole("table", { name: "Current failure pressure" })
+      .locator("..");
+    expect(
+      await pressureContainer.evaluate(
+        (element) => element.scrollWidth >= element.clientWidth,
+      ),
+    ).toBe(true);
+  }
+
+  await page.getByRole("button", { name: "24h" }).click();
+
+  await expect.poll(() => eventRequests).toBe(8);
+  expect(snapshotRequests).toBe(7);
+});
+
+test("isolates one failed analytics region", async ({ page }) => {
+  await mockAnalyticsAggregations(page, {
+    failSnapshotAlias: "recoverable",
+    onEvent: () => undefined,
+    onSnapshot: () => undefined,
+  });
+
+  await page.goto("/analytics");
+
+  await expect(page.getByText("TEST_TIMEOUT")).toBeVisible();
+  await expect(page.getByRole("alert")).toContainText(
+    "analytics section unavailable",
+  );
+  await expect(page.getByText("Compensation outcomes")).toBeVisible();
 });
