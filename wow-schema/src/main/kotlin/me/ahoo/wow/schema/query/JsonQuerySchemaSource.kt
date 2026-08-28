@@ -21,6 +21,7 @@ import com.github.victools.jsonschema.generator.MemberScope
 import com.github.victools.jsonschema.generator.MethodScope
 import com.github.victools.jsonschema.generator.Option
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
+import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryTemporal
 import me.ahoo.wow.configuration.requiredAggregateType
@@ -33,7 +34,9 @@ import me.ahoo.wow.query.schema.QuerySchemaSourcePriority
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.schema.SchemaGeneratorBuilder
 import me.ahoo.wow.schema.Types.isStdType
+import me.ahoo.wow.schema.typed.AggregatedDomainEventStream
 import me.ahoo.wow.serialization.JsonSerializer
+import me.ahoo.wow.serialization.MessageRecords
 import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
 import tools.jackson.databind.ValueSerializer
@@ -49,28 +52,33 @@ import java.util.concurrent.ConcurrentHashMap
 internal const val TEMPORAL_UNIT = "x-wow-query-temporal-unit"
 
 class JsonQuerySchemaSource internal constructor(
-    private val stateTypeResolver: (QuerySchemaContext) -> Class<*>,
-    private val declarationResolver: (Class<*>) -> QuerySchemaDeclaration,
+    private val typeResolver: (QuerySchemaContext) -> Class<*>,
+    private val declarationResolver: (QueryModel, Class<*>) -> QuerySchemaDeclaration,
 ) : QuerySchemaSource {
     internal constructor(
-        stateTypeResolver: (QuerySchemaContext) -> Class<*>,
-    ) : this(stateTypeResolver, ::inferDeclaration)
+        typeResolver: (QuerySchemaContext) -> Class<*>,
+    ) : this(typeResolver, ::inferDeclaration)
 
     constructor() : this({ context ->
-        context.namedAggregate.requiredAggregateType<Any>()
-            .aggregateMetadata<Any, Any>().state.aggregateType
+        val aggregateType = context.namedAggregate.requiredAggregateType<Any>()
+        if (context.model == QueryModel.EVENT_STREAM) {
+            aggregateType
+        } else {
+            aggregateType.aggregateMetadata<Any, Any>().state.aggregateType
+        }
     })
 
-    private val declarations = ConcurrentHashMap<Class<*>, QuerySchemaDeclaration>()
+    private val declarations = ConcurrentHashMap<Pair<QueryModel, Class<*>>, QuerySchemaDeclaration>()
 
     override val priority: Int = QuerySchemaSourcePriority.JSON_SCHEMA
 
     override fun load(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> = Flux.defer {
-        if (context.model != QueryModel.SNAPSHOT) {
+        if (context.model != QueryModel.SNAPSHOT && context.model != QueryModel.EVENT_STREAM) {
             return@defer Flux.empty()
         }
-        val stateType = stateTypeResolver(context)
-        Flux.just(declarations.computeIfAbsent(stateType) { declarationResolver(it) })
+        val type = typeResolver(context)
+        val key = context.model to type
+        Flux.just(declarations.computeIfAbsent(key) { declarationResolver(context.model, type) })
     }.subscribeOn(Schedulers.boundedElastic()).onErrorMap { error ->
         when (error) {
             is QuerySchemaException -> error
@@ -83,9 +91,29 @@ class JsonQuerySchemaSource internal constructor(
     }
 
     private companion object {
-        fun inferDeclaration(stateType: Class<*>): QuerySchemaDeclaration {
-            val rootSchema = schemaGenerator.generateSchema(stateType)
-            return JsonSchemaWalker(rootSchema).declaration()
+        val eventPayloadField = LogicalField("${MessageRecords.BODY}.${MessageRecords.BODY}")
+
+        fun inferDeclaration(model: QueryModel, type: Class<*>): QuerySchemaDeclaration =
+            if (model == QueryModel.EVENT_STREAM) {
+                inferEventStreamDeclaration(type)
+            } else {
+                JsonSchemaWalker(schemaGenerator.generateSchema(type)).declaration()
+            }
+
+        fun inferEventStreamDeclaration(aggregateType: Class<*>): QuerySchemaDeclaration {
+            val rootSchema = schemaGenerator.generateSchema(AggregatedDomainEventStream::class.java, aggregateType)
+            val eventSchemas = rootSchema.path("properties").path(MessageRecords.BODY).path("items").path("anyOf")
+            val payloadSchema = JsonSerializer.createObjectNode()
+            val payloadAlternatives = payloadSchema.putArray("anyOf")
+            eventSchemas.forEach { eventSchema ->
+                eventSchema.path("properties").path(MessageRecords.BODY)
+                    .takeUnless { it.isMissingNode }
+                    ?.let(payloadAlternatives::add)
+            }
+            if (payloadAlternatives.isEmpty) {
+                return QuerySchemaDeclaration(emptyMap())
+            }
+            return JsonSchemaWalker(payloadSchema, rootSchema).declaration(eventPayloadField, includeRoot = false)
         }
 
         val schemaGenerator by lazy {

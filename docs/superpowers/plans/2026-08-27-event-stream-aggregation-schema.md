@@ -4,7 +4,7 @@
 
 **Goal:** 为 `EventStreamQueryService` 增加完整 `AggregationQuery` 能力，并让所有 EventStream 查询通过可扩展、跨 MongoDB/Elasticsearch 的 `EVENT_STREAM` Query Schema。
 
-**Architecture:** 在现有 Query Schema 核心增加 `EVENT_STREAM` model 与固定 wire-shape 声明；现有 MongoDB/Elasticsearch Adapter 通过保留旧构造签名的内部参数支持不同 model。EventStream 服务复用 Snapshot 的 resolver、聚合 compiler/pager 和默认 `COMPATIBLE` 行为，不新增 HTTP 路由或 payload 自动推断。
+**Architecture:** 在现有 Query Schema 核心增加 `EVENT_STREAM` model 与固定 wire-shape 声明；`JsonQuerySchemaSource` 复用参数化 `AggregatedDomainEventStream` JSON Schema 推断各聚合根的事件 payload；现有 MongoDB/Elasticsearch Adapter 通过保留旧构造签名的内部参数支持不同 model。EventStream 服务复用 Snapshot 的 resolver、聚合 compiler/pager 和默认 `COMPATIBLE` 行为，不新增 HTTP 路由。
 
 **Tech Stack:** Kotlin 2.4.10、JVM 17、Reactor、JUnit Jupiter、FluentAssert、MongoDB Reactive Streams、Spring Data Elasticsearch。
 
@@ -14,7 +14,7 @@
 
 - 默认使用中文文档与说明。
 - 不新增依赖、Gradle 模块、配置项、HTTP/OpenAPI/Schema HTTP 端点、CI/CD 或发布逻辑。
-- `body.body.*` 不从 aggregate state 或事件类型自动推断；只允许现有显式 `QuerySchemaSource` 声明。
+- `body.body.*` 从当前聚合根的已知事件类型推断；不从 aggregate state 投射，也不复制事件发现逻辑。
 - 默认 `QuerySchemaValidationMode.COMPATIBLE` 保留未知 payload 字段透传；`STRICT` 保持 fail-closed。
 - 保留现有公开构造函数 JVM 签名和第三方 `EventStreamQueryService`/`EventStreamQueryHandler` 实现兼容性。
 - 不把 `aggregate` 提升到通用 `QueryService`/`QueryHandler`。
@@ -34,7 +34,7 @@
 
 **Interfaces:**
 - Consumes: `MessageRecords`、`DomainEventRecords`、现有 `QuerySchemaDeclaration`。
-- Produces: `QueryModel.EVENT_STREAM`；`SystemQuerySchemaSource.declaration(QueryModel.EVENT_STREAM)`；Snapshot-only 默认 `JsonQuerySchemaSource`。
+- Produces: `QueryModel.EVENT_STREAM`；`SystemQuerySchemaSource.declaration(QueryModel.EVENT_STREAM)`；按 QueryModel 推断的默认 `JsonQuerySchemaSource`。
 
 - [ ] **Step 1: 写 QueryModel 与系统字段失败测试**
 
@@ -52,7 +52,7 @@ fun `should provide event stream query model`() {
 ```kotlin
 val fields = SystemQuerySchemaSource.declaration(QueryModel.EVENT_STREAM).fields
 fields.keys.map(LogicalField::value).assert().contains(
-    "id", "contextName", "aggregateName", "name", "header",
+    "id", "contextName", "aggregateName", "header",
     "aggregateId", "tenantId", "ownerId", "spaceId", "commandId",
     "requestId", "version", "createTime", "body", "body.id",
     "body.name", "body.revision", "body.bodyType", "body.body",
@@ -86,22 +86,20 @@ val EVENT_STREAM = QueryModel("EVENT_STREAM")
 
 将 `SystemQuerySchemaSource.declaration` 改为穷尽式 model 分派，并新增不可变 `EVENT_STREAM_DECLARATION`。复用现有 `stringField`、`integerField`、`objectField`、`epochField`，只给 `body` 设置 `QueryCardinality.MANY`，只给 `header` 设置 `dynamicChildren = true`，给 `body.body` 明确设置 `dynamicChildren = false`。给 `field` helper 增加带默认值的 `cardinality` 参数，不新增第二套 builder。
 
-- [ ] **Step 4: 写 JsonQuerySchemaSource model 隔离失败测试**
+- [ ] **Step 4: 写 EventStream payload 推断与 model 缓存隔离失败测试**
 
-在 `JsonQuerySchemaSourceTest` 使用计数 resolver：
+在 `JsonQuerySchemaSourceTest` 使用真实 `Cart` 聚合根，断言其已知事件 payload 被合并到 `body.body.*`；再使用同一 source 依次加载 Snapshot 和 EventStream，断言不会复用错误 model 的缓存声明：
 
 ```kotlin
-var resolutions = 0
-val source = JsonQuerySchemaSource(
-    stateTypeResolver = { resolutions++; StructuralState::class.java },
-)
-val context = QuerySchemaContext(MOCK_AGGREGATE_METADATA, QueryModel.EVENT_STREAM)
-
-source.load(context).collectList().block().assert().isEmpty()
-resolutions.assert().isZero()
+val declaration = JsonQuerySchemaSource()
+    .load(QuerySchemaContext(CART_NAMED_AGGREGATE, QueryModel.EVENT_STREAM))
+    .single().block()!!
+declaration.fields.keys.assert()
+    .contains(LogicalField("body.body.added.productId"))
+    .contains(LogicalField("body.body.productIds"))
 ```
 
-- [ ] **Step 5: 运行测试确认失败并实现 Snapshot-only 推断**
+- [ ] **Step 5: 运行测试确认失败并实现 model-aware 推断**
 
 Run:
 
@@ -109,15 +107,9 @@ Run:
 ./gradlew :wow-schema:test --tests "me.ahoo.wow.schema.query.JsonQuerySchemaSourceTest"
 ```
 
-Expected: FAIL，resolver 被调用并产生状态声明。
+Expected: FAIL，EventStream source 返回空流。
 
-在 `load` 的 `Flux.defer` 开头增加：
-
-```kotlin
-if (context.model != QueryModel.SNAPSHOT) {
-    return@defer Flux.empty()
-}
-```
+缓存键使用 `(QueryModel, Class<*>)`。Snapshot 保持现有状态类型推断；EventStream 生成 `AggregatedDomainEventStream<CommandAggregateType>` JSON Schema，抽取 `body.items.anyOf[*].body`，复用 `JsonSchemaWalker` 的 alternative 合并并以 `body.body` 为逻辑根。事件集合为空时返回空声明。
 
 - [ ] **Step 6: 运行三个模块测试并提交**
 

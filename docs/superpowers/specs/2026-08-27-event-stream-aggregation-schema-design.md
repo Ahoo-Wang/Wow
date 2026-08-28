@@ -14,6 +14,7 @@
 - MongoDB 与 Elasticsearch EventStream 服务执行相同的聚合合同。
 - 新增 `QueryModel.EVENT_STREAM`，为 EventStream 固定 wire shape 提供系统 Schema。
 - EventStream 的 single、list、paged、count 和 aggregation 统一经过同一个 Schema Provider。
+- `JsonQuerySchemaSource` 按聚合根推断其事件类型，并把事件 payload 字段声明到 `body.body.*`。
 - 默认 `COMPATIBLE` 模式保持未声明 payload 字段的现有透传行为；`STRICT` 模式要求字段和 capability 完整声明。
 - 复用现有 Schema source、resolver、compiler 和 backend adapter，不复制平行实现。
 - 现有第三方 `EventStreamQueryService` 与 `EventStreamQueryHandler` 实现仍可加载和编译。
@@ -21,7 +22,7 @@
 ## 非目标
 
 - 不新增 EventStream HTTP、OpenAPI 或 Schema HTTP 端点。
-- 不从聚合状态类型推断事件 payload，也不扫描或合并领域事件类型。
+- 不新增独立的事件发现或合并逻辑；复用 `AggregatedDomainEventStreamDefinitionProvider` 已有的聚合元数据推断。
 - 不改变 Elasticsearch EventStream 模板中 `body.body.enabled = false` 的约束。
 - 不增加依赖、Gradle 模块、配置项、CI/CD 或发布逻辑。
 - 不把 `aggregate` 提升到通用 `QueryService`/`QueryHandler`。
@@ -57,7 +58,6 @@ fun aggregate(query: AggregationQuery): Flux<DynamicDocument> =
 | `id` | STRING | SINGLE | EventStream 消息 ID |
 | `contextName` | STRING | SINGLE | 限界上下文 |
 | `aggregateName` | STRING | SINGLE | 聚合名 |
-| `name` | STRING | SINGLE | EventStream 消息名 |
 | `header` | OBJECT | SINGLE | 允许动态子字段 |
 | `aggregateId` | STRING | SINGLE | 聚合 ID |
 | `tenantId` | STRING | SINGLE | 租户 ID |
@@ -74,9 +74,9 @@ fun aggregate(query: AggregationQuery): Flux<DynamicDocument> =
 | `body.bodyType` | STRING | SINGLE | 事件 payload 类型 |
 | `body.body` | OBJECT | SINGLE | payload 容器，不允许未声明动态子字段 |
 
-系统字段声明不包含 `body.body.*`。现有 `BeanQuerySchemaSource`、working-directory 和 classpath 约定已经按 `QuerySchemaContext(namedAggregate, model)` 精确匹配；调用方可为 `EVENT_STREAM` 显式声明允许查询的 payload 字段。
+系统字段声明不包含 `body.body.*`。`JsonQuerySchemaSource` 通过参数化的 `AggregatedDomainEventStream<CommandAggregateType>` JSON Schema 获取当前聚合根的事件集合，合并各事件的 payload 分支并映射为 `body.body.*`。现有 `BeanQuerySchemaSource`、working-directory 和 classpath source 仍可按 `QuerySchemaContext(namedAggregate, model)` 增补或覆盖声明。
 
-`JsonQuerySchemaSource` 默认只为 `QueryModel.SNAPSHOT` 推断聚合状态类型；收到其他 model 时返回空流。这样 EventStream 不会错误地出现 `state.*` 或把聚合状态字段投射到事件 payload。
+`JsonQuerySchemaSource` 对 Snapshot 推断聚合状态类型，对 EventStream 推断命令聚合类型对应的事件 payload。两种 model 的缓存键相互隔离；无法发现事件类型时返回空声明，由其他 source 和兼容模式处理。
 
 ## Schema 解析与兼容模式
 
@@ -89,7 +89,7 @@ EventStream 后端服务像 Snapshot 服务一样实现 `QueryModelSchemaProvide
 
 默认 `QuerySchemaValidationMode.COMPATIBLE` 的现有规则保持不变：未声明字段是 `COMPATIBLE`，按原始路径透传；已声明但缺少所需 capability 的字段是 `INCOMPATIBLE` 并被拒绝。因此已有 MongoDB payload 查询不会仅因新增系统 Schema 而失效，严格治理可通过现有 `STRICT` 配置启用。
 
-`body.body` 系统字段明确设置 `dynamicChildren = false`。显式 source 可以增加具体子字段；未声明 payload 字段在 `COMPATIBLE` 下仍沿用全局兼容语义，但在 `STRICT` 下被拒绝。
+`body.body` 系统字段明确设置 `dynamicChildren = false`。自动推断和显式 source 可以增加具体子字段；仍未声明的 payload 字段在 `COMPATIBLE` 下沿用全局兼容语义，但在 `STRICT` 下被拒绝。
 
 ## 后端 Schema Adapter
 
@@ -124,7 +124,7 @@ aggregation {
 
 ## payload 边界
 
-MongoDB 保存可查询的 `body.body`，显式 EventStream Schema source 可以为 payload 字段提供能力。Elasticsearch 当前模板把 `body.body` 设置为 `enabled = false`，Adapter 因而不会为其子字段提供物理 capability；这些查询在严格解析时失败，不能伪装为空结果或降级为 `_source` 扫描。
+MongoDB 保存可查询的 `body.body`，自动推断或显式 EventStream Schema source 可以为 payload 字段提供逻辑声明。Elasticsearch 当前模板把 `body.body` 设置为 `enabled = false`，Adapter 因而不会为其子字段提供物理 capability；这些查询在严格解析时失败，不能伪装为空结果或降级为 `_source` 扫描。
 
 本次跨后端保证范围是 EventStream envelope 与 `body` 事件元数据。若未来需要 Elasticsearch payload 聚合，应单独设计 mapping、索引迁移、历史数据重建和回滚方案。
 
@@ -143,7 +143,7 @@ MongoDB 保存可查询的 `body.body`，显式 EventStream Schema source 可以
 
 - `wow-api` 验证 `QueryModel.EVENT_STREAM` 值与 JSON 往返。
 - `SystemQuerySchemaSourceTest` 验证完整 EventStream wire 字段、`body` MANY、`body.body` 非动态和 `createTime` epoch。
-- `JsonQuerySchemaSourceTest` 验证 EventStream 不触发状态类型推断。
+- `JsonQuerySchemaSourceTest` 使用真实 `Cart` 聚合元数据验证不同事件 payload 合并为 `body.body.*`，并验证 Snapshot/EventStream 缓存隔离。
 - Query Schema source 测试验证 `EVENT_STREAM` classpath/working-directory/bean 声明按 model 隔离。
 
 ### 查询链路
@@ -192,7 +192,7 @@ MongoDB 保存可查询的 `body.body`，显式 EventStream Schema source 可以
 
 - EventStream 的所有查询形态使用同一 `EVENT_STREAM` Schema Provider。
 - EventStream 聚合经 handler/proxy/filter 链执行，MongoDB 与 Elasticsearch 行为通过共享 TCK。
-- 系统 Schema 与权威序列化 wire shape 一致，payload 不被自动推断。
+- 系统 Schema 与权威序列化 wire shape 一致，payload 由当前聚合根的已知事件类型推断。
 - 默认兼容模式不收紧未声明 payload 字段；严格模式和 capability 错误保持 fail-closed。
 - 不存在复制的 EventStream backend Schema Adapter 或聚合编译器。
 - 未新增 EventStream HTTP/OpenAPI 路由、依赖、配置项或模块。

@@ -20,7 +20,9 @@ import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
+import me.ahoo.wow.example.domain.cart.Cart
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.query.schema.DeclarationValue
 import me.ahoo.wow.query.schema.QueryFieldDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaConflictException
@@ -28,6 +30,7 @@ import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaSourcePriority
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
+import me.ahoo.wow.schema.MockEmptyAggregate
 import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -51,14 +54,66 @@ class JsonQuerySchemaSourceTest {
     }
 
     @Test
-    fun `should not infer aggregate state for event stream model`() {
+    fun `should infer event payload fields for event stream model`() {
+        val eventStreamContext = QuerySchemaContext(
+            Cart::class.java.aggregateMetadata<Any, Any>().namedAggregate,
+            QueryModel.EVENT_STREAM,
+        )
+        val declaration = JsonQuerySchemaSource().load(eventStreamContext).single().block()!!
+
+        declaration.fields.keys.assert()
+            .contains(LogicalField("body.body.added.productId"))
+            .contains(LogicalField("body.body.added.quantity"))
+            .contains(LogicalField("body.body.productIds"))
+            .contains(LogicalField("body.body.changed.productId"))
+            .contains(LogicalField("body.body.changed.quantity"))
+        declaration.field("body.body.added.productId").valueTypes.assert()
+            .isEqualTo(DeclarationValue.Set(setOf(QueryValueType.STRING)))
+        declaration.field("body.body.productIds").cardinality.assert()
+            .isEqualTo(DeclarationValue.Set(QueryCardinality.MANY))
+        declaration.field("body.body.changed.quantity").valueTypes.assert()
+            .isEqualTo(DeclarationValue.Set(setOf(QueryValueType.INTEGER)))
+        declaration.field("body.body.added").required.assert()
+            .isEqualTo(DeclarationValue.Set(false))
+    }
+
+    @Test
+    fun `should infer aggregate state fields for snapshot model`() {
+        val snapshotContext = QuerySchemaContext(
+            Cart::class.java.aggregateMetadata<Any, Any>().namedAggregate,
+            QueryModel.SNAPSHOT,
+        )
+
+        JsonQuerySchemaSource().load(snapshotContext).single().block()!!
+            .fields.keys.assert().contains(LogicalField("state.items.productId"))
+    }
+
+    @Test
+    fun `should cache the same type independently by query model`() {
+        val source = JsonQuerySchemaSource { Cart::class.java }
+
+        source.load(context).single().block()!!
+        val eventStream = source.load(context.copy(model = QueryModel.EVENT_STREAM)).single().block()!!
+
+        eventStream.fields.keys.assert().contains(LogicalField("body.body.added.productId"))
+    }
+
+    @Test
+    fun `should return an empty declaration when aggregate events are unknown`() {
+        JsonQuerySchemaSource { MockEmptyAggregate::class.java }
+            .load(context.copy(model = QueryModel.EVENT_STREAM)).single().block()!!
+            .fields.assert().isEmpty()
+    }
+
+    @Test
+    fun `should ignore unsupported query models`() {
         val resolutions = AtomicInteger()
         val source = JsonQuerySchemaSource {
             resolutions.incrementAndGet()
             StructuralState::class.java
         }
 
-        source.load(context.copy(model = QueryModel.EVENT_STREAM)).collectList().block().assert().isEmpty()
+        source.load(context.copy(model = QueryModel("OTHER"))).collectList().block().assert().isEmpty()
         resolutions.get().assert().isZero()
     }
 
@@ -79,8 +134,8 @@ class JsonQuerySchemaSourceTest {
     fun `should infer once for concurrent contexts sharing a state type`() {
         val inferenceCount = AtomicInteger()
         val source = JsonQuerySchemaSource(
-            stateTypeResolver = { StructuralState::class.java },
-            declarationResolver = {
+            typeResolver = { StructuralState::class.java },
+            declarationResolver = { _, _ ->
                 val inference = inferenceCount.incrementAndGet()
                 QuerySchemaDeclaration(
                     mapOf(
@@ -111,11 +166,11 @@ class JsonQuerySchemaSourceTest {
         val stateTypeResolutionThread = AtomicReference<Thread>()
         val declarationResolutionThread = AtomicReference<Thread>()
         val source = JsonQuerySchemaSource(
-            stateTypeResolver = {
+            typeResolver = {
                 stateTypeResolutionThread.set(Thread.currentThread())
                 StructuralState::class.java
             },
-            declarationResolver = {
+            declarationResolver = { _, _ ->
                 declarationResolutionThread.set(Thread.currentThread())
                 QuerySchemaDeclaration(emptyMap())
             },
@@ -131,14 +186,14 @@ class JsonQuerySchemaSourceTest {
     fun `should cache different state types independently`() {
         val inferenceCounts = ConcurrentHashMap<Class<*>, AtomicInteger>()
         val source = JsonQuerySchemaSource(
-            stateTypeResolver = { loadContext ->
+            typeResolver = { loadContext ->
                 if (loadContext.namedAggregate.aggregateName == "structural") {
                     StructuralState::class.java
                 } else {
                     JacksonState::class.java
                 }
             },
-            declarationResolver = { stateType ->
+            declarationResolver = { _, stateType ->
                 inferenceCounts.computeIfAbsent(stateType) { AtomicInteger() }.incrementAndGet()
                 QuerySchemaDeclaration(emptyMap())
             },
@@ -166,8 +221,8 @@ class JsonQuerySchemaSourceTest {
         val inferenceCount = AtomicInteger()
         val recovered = QuerySchemaDeclaration(emptyMap())
         val source = JsonQuerySchemaSource(
-            stateTypeResolver = { StructuralState::class.java },
-            declarationResolver = {
+            typeResolver = { StructuralState::class.java },
+            declarationResolver = { _, _ ->
                 if (inferenceCount.incrementAndGet() == 1) throw failure
                 recovered
             },

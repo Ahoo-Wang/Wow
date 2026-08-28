@@ -73,30 +73,35 @@ private val COMPOSITIONS by lazy {
 }
 
 internal class JsonSchemaWalker(
-    private val rootSchema: JsonNode,
+    private val schema: JsonNode,
+    private val rootSchema: JsonNode = schema,
 ) {
     private val fields = linkedMapOf<LogicalField, QueryFieldDeclaration>()
 
-    fun declaration(): QuerySchemaDeclaration {
-        val stateField = LogicalField(StateAggregateRecords.STATE)
-        val rootNodes = rootSchema.effectiveNodes()
-        fields[stateField] = QueryFieldDeclaration(
-            title = DeclarationValue.Set(
-                rootNodes.consistentValue(stateField, TITLE) {
-                    it.textValueOrNull(JsonSchemaProperty.TITLE)
-                },
-            ),
-            description = DeclarationValue.Set(
-                rootNodes.consistentValue(stateField, DESCRIPTION) {
-                    it.textValueOrNull(JsonSchemaProperty.DESCRIPTION)
-                },
-            ),
-            enumValues = DeclarationValue.Set(
-                rootNodes.consistentValue(stateField, ENUM_VALUES, JsonNode::enumValuesOrNull),
-            ),
-            dynamicChildren = DeclarationValue.Set(rootNodes.any(JsonNode::hasAdditionalProperties)),
-        )
-        fields.putAll(rootSchema.collectProperties(StateAggregateRecords.STATE, setOf(ROOT_REFERENCE)))
+    fun declaration(
+        rootField: LogicalField = LogicalField(StateAggregateRecords.STATE),
+        includeRoot: Boolean = true,
+    ): QuerySchemaDeclaration {
+        if (includeRoot) {
+            val rootNodes = schema.effectiveNodes()
+            fields[rootField] = QueryFieldDeclaration(
+                title = DeclarationValue.Set(
+                    rootNodes.consistentValue(rootField, TITLE) {
+                        it.textValueOrNull(JsonSchemaProperty.TITLE)
+                    },
+                ),
+                description = DeclarationValue.Set(
+                    rootNodes.consistentValue(rootField, DESCRIPTION) {
+                        it.textValueOrNull(JsonSchemaProperty.DESCRIPTION)
+                    },
+                ),
+                enumValues = DeclarationValue.Set(
+                    rootNodes.consistentValue(rootField, ENUM_VALUES, JsonNode::enumValuesOrNull),
+                ),
+                dynamicChildren = DeclarationValue.Set(rootNodes.any(JsonNode::hasAdditionalProperties)),
+            )
+        }
+        fields.putAll(schema.collectProperties(rootField.value, setOf(ROOT_REFERENCE)))
         return QuerySchemaDeclaration(fields)
     }
 
