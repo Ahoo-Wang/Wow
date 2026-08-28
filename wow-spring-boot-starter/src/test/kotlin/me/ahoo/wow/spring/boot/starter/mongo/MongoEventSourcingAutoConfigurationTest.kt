@@ -144,7 +144,9 @@ class MongoEventSourcingAutoConfigurationTest {
             currentBoundedContext = MaterializedNamedBoundedContext("order-service"),
             sources = listOf(failingQuerySchemaSource(expected)),
             queryProperties = QueryProperties(
-                QueryProperties.Schema(me.ahoo.wow.query.schema.QuerySchemaValidationMode.STRICT)
+                schema = QueryProperties.Schema(
+                    validationMode = me.ahoo.wow.query.schema.QuerySchemaValidationMode.STRICT,
+                ),
             ),
         )
 

@@ -32,65 +32,13 @@ import java.time.Duration
 
 class ElasticsearchSnapshotQueryServiceFactory(
     private val elasticsearchClient: ReactiveElasticsearchClient,
-    private val queryBatchSize: Int,
-    private val queryKeepAlive: Duration,
-    private val schemaSources: List<QuerySchemaSource>,
-    private val validationMode: QuerySchemaValidationMode,
+    private val queryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE,
+    private val queryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE,
+    private val indexMappingResolver: ElasticsearchIndexMappingResolver =
+        ElasticsearchIndexMappingResolver(elasticsearchClient),
+    private val schemaSources: List<QuerySchemaSource> = emptyList(),
+    private val validationMode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
 ) : AbstractSnapshotQueryServiceFactory() {
-    private var indexMappingResolver = ElasticsearchIndexMappingResolver(elasticsearchClient)
-
-    constructor(elasticsearchClient: ReactiveElasticsearchClient) : this(
-        elasticsearchClient,
-        DEFAULT_SEARCH_BATCH_SIZE,
-        DEFAULT_PIT_KEEP_ALIVE,
-        emptyList(),
-        QuerySchemaValidationMode.COMPATIBLE,
-    )
-
-    constructor(
-        elasticsearchClient: ReactiveElasticsearchClient,
-        queryBatchSize: Int,
-        queryKeepAlive: Duration,
-    ) : this(
-        elasticsearchClient,
-        queryBatchSize,
-        queryKeepAlive,
-        emptyList(),
-        QuerySchemaValidationMode.COMPATIBLE,
-    )
-
-    constructor(
-        elasticsearchClient: ReactiveElasticsearchClient,
-        queryBatchSize: Int,
-        queryKeepAlive: Duration,
-        indexMappingResolver: ElasticsearchIndexMappingResolver,
-    ) : this(
-        elasticsearchClient,
-        queryBatchSize,
-        queryKeepAlive,
-        emptyList(),
-        QuerySchemaValidationMode.COMPATIBLE,
-    ) {
-        this.indexMappingResolver = indexMappingResolver
-    }
-
-    constructor(
-        elasticsearchClient: ReactiveElasticsearchClient,
-        queryBatchSize: Int,
-        queryKeepAlive: Duration,
-        indexMappingResolver: ElasticsearchIndexMappingResolver,
-        schemaSources: List<QuerySchemaSource>,
-        validationMode: QuerySchemaValidationMode,
-    ) : this(
-        elasticsearchClient,
-        queryBatchSize,
-        queryKeepAlive,
-        schemaSources,
-        validationMode,
-    ) {
-        this.indexMappingResolver = indexMappingResolver
-    }
-
     override fun createQueryService(namedAggregate: NamedAggregate): SnapshotQueryService<*> {
         val materialized = namedAggregate.materialize()
         val indexName = materialized.toSnapshotIndexName()
@@ -100,12 +48,12 @@ class ElasticsearchSnapshotQueryServiceFactory(
             adapter = ElasticsearchQuerySchemaAdapter(indexName, indexMappingResolver),
         )
         return ElasticsearchSnapshotQueryService<Any>(
-            materialized,
-            elasticsearchClient,
-            provider,
-            validationMode,
+            namedAggregate = materialized,
+            elasticsearchClient = elasticsearchClient,
             queryBatchSize = queryBatchSize,
             queryKeepAlive = queryKeepAlive,
+            schemaProvider = provider,
+            validationMode = validationMode,
         )
     }
 }

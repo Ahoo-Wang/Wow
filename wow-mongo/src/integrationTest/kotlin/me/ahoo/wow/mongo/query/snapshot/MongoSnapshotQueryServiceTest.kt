@@ -90,7 +90,10 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     }
 
     override fun createSnapshotQueryServiceFactory(): SnapshotQueryServiceFactory {
-        return MongoSnapshotQueryServiceFactory(database, querySchemaSources)
+        return MongoSnapshotQueryServiceFactory(
+            database = database,
+            schemaSources = querySchemaSources,
+        )
     }
 
     override fun createSnapshotStore(): SnapshotStore {
@@ -140,8 +143,8 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     @Test
     fun `direct service constructor should retain snapshot identity schema behavior`() {
         val service = MongoSnapshotQueryService<MockStateAggregate>(
-            MOCK_AGGREGATE_METADATA,
-            database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName()),
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+            collection = database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName()),
         )
 
         service.schema().test()
@@ -164,7 +167,7 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         ).test().expectNextCount(1).verifyComplete()
 
         val strictService = MongoSnapshotQueryServiceFactory(
-            database,
+            database = database,
             schemaSources = querySchemaSources,
             validationMode = QuerySchemaValidationMode.STRICT,
         ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
@@ -177,7 +180,7 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         updateStateData("searchable")
 
         MongoSnapshotQueryServiceFactory(
-            database,
+            database = database,
             schemaSources = querySchemaSources,
             validationMode = QuerySchemaValidationMode.STRICT,
         ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
@@ -193,7 +196,7 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         ).test().verifyComplete()
 
         val strictService = MongoSnapshotQueryServiceFactory(
-            database,
+            database = database,
             schemaSources = querySchemaSources,
             validationMode = QuerySchemaValidationMode.STRICT,
         ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
@@ -206,7 +209,7 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     fun `all modes should reject invalid declared epoch literals before MongoDB`() {
         QuerySchemaValidationMode.entries.forEach { mode ->
             val service = MongoSnapshotQueryServiceFactory(
-                database,
+                database = database,
                 schemaSources = querySchemaSources,
                 validationMode = mode,
             ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
@@ -231,7 +234,7 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                 Document("\$set", Document(field.value, today)),
             ).toMono().test().expectNextCount(1).verifyComplete()
         val service = MongoSnapshotQueryServiceFactory(
-            database,
+            database = database,
             schemaSources = querySchemaSources + formattedTemporalSource(field, "yyyy-MM-dd"),
             validationMode = QuerySchemaValidationMode.STRICT,
         ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
@@ -250,7 +253,7 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                 Document("\$set", Document(fieldPath, listOf(7))),
             ).toMono().test().expectNextCount(1).verifyComplete()
         val service = MongoSnapshotQueryServiceFactory(
-            database,
+            database = database,
             schemaSources = querySchemaSources + numericArraySource(fieldPath),
             validationMode = QuerySchemaValidationMode.STRICT,
         ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
@@ -294,7 +297,7 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                 ),
             ).toMono().test().expectNextCount(1).verifyComplete()
         val strictService = MongoSnapshotQueryServiceFactory(
-            database,
+            database = database,
             schemaSources = querySchemaSources,
             validationMode = QuerySchemaValidationMode.STRICT,
         ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
@@ -317,7 +320,7 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
 
         QuerySchemaValidationMode.entries.forEach { mode ->
             val invalidService = MongoSnapshotQueryServiceFactory(
-                database,
+                database = database,
                 schemaSources = querySchemaSources,
                 validationMode = mode,
             ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
@@ -348,7 +351,7 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                 ),
             ).toMono().test().expectNextCount(1).verifyComplete()
         val validService = MongoSnapshotQueryServiceFactory(
-            database,
+            database = database,
             schemaSources = querySchemaSources,
             validationMode = QuerySchemaValidationMode.STRICT,
         ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
@@ -383,7 +386,7 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
 
         QuerySchemaValidationMode.entries.forEach { mode ->
             val service = MongoSnapshotQueryServiceFactory(
-                database,
+                database = database,
                 schemaSources = querySchemaSources + nativeTemporalSource(),
                 validationMode = mode,
             ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
@@ -411,7 +414,7 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                 ),
             ).toMono().test().expectNextCount(1).verifyComplete()
         val service = MongoSnapshotQueryServiceFactory(
-            database,
+            database = database,
             schemaSources = querySchemaSources + nativeTemporalSource(),
             validationMode = QuerySchemaValidationMode.STRICT,
         ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
@@ -438,7 +441,7 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         clearValidator()
         QuerySchemaValidationMode.entries.forEach { mode ->
             val service = MongoSnapshotQueryServiceFactory(
-                database,
+                database = database,
                 schemaSources = querySchemaSources + nativeTemporalSource(),
                 validationMode = mode,
             ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
@@ -470,14 +473,14 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         val sources = querySchemaSources + dynamicStringMapSource()
 
         query.query(
-            MongoSnapshotQueryServiceFactory(database, schemaSources = sources)
+            MongoSnapshotQueryServiceFactory(database = database, schemaSources = sources)
                 .create<MockStateAggregate>(MOCK_AGGREGATE_METADATA),
         ).test()
             .assertNext { row -> row.toMap().assert().isEqualTo(mapOf("color" to "red", "count" to 1L)) }
             .verifyComplete()
         query.query(
             MongoSnapshotQueryServiceFactory(
-                database,
+                database = database,
                 schemaSources = sources,
                 validationMode = QuerySchemaValidationMode.STRICT,
             ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA),
@@ -493,7 +496,7 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             ),
         )
         val invalidService = MongoSnapshotQueryServiceFactory(
-            database,
+            database = database,
             schemaSources = querySchemaSources,
             validationMode = QuerySchemaValidationMode.STRICT,
         ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
@@ -530,7 +533,7 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                 Document("\$set", Document("state.orders", listOf(Document("status", "created")))),
             ).toMono().test().expectNextCount(1).verifyComplete()
         val validService = MongoSnapshotQueryServiceFactory(
-            database,
+            database = database,
             schemaSources = querySchemaSources,
             validationMode = QuerySchemaValidationMode.STRICT,
         ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
@@ -558,7 +561,7 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             ),
         ).toMono().then().test().verifyComplete()
         val service = MongoSnapshotQueryServiceFactory(
-            database,
+            database = database,
             schemaSources = listOf(epochSource("state.epochMicros", TimeUnit.MICROSECONDS)),
         ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
 
@@ -592,7 +595,7 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             count("count")
         }
         val service = MongoSnapshotQueryServiceFactory(
-            database,
+            database = database,
             schemaSources = listOf(epochSource("state.epochMicros", TimeUnit.MICROSECONDS)),
         ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
         val dateInput = MongoAggregationCompiler(SnapshotFilterConverter)
@@ -642,7 +645,7 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                 ),
             ).toMono().test().expectNextCount(1).verifyComplete()
         val service = MongoSnapshotQueryServiceFactory(
-            database,
+            database = database,
             schemaSources = querySchemaSources + aggregationExecutionSource(),
             validationMode = QuerySchemaValidationMode.STRICT,
         ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)

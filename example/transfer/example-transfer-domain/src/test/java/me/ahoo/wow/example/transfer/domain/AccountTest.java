@@ -15,6 +15,11 @@ package me.ahoo.wow.example.transfer.domain;
 
 import me.ahoo.wow.example.transfer.api.AccountCreated;
 import me.ahoo.wow.example.transfer.api.CreateAccount;
+import me.ahoo.wow.api.modeling.TenantId;
+import me.ahoo.wow.eventsourcing.InMemoryEventStore;
+import me.ahoo.wow.id.GlobalIdGenerator;
+import me.ahoo.wow.ioc.SimpleServiceProvider;
+import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory;
 import org.junit.jupiter.api.Test;
 
 import static me.ahoo.wow.test.AggregateVerifier.*;
@@ -24,7 +29,15 @@ class AccountTest {
 
     @Test
     void createAccount() {
-        aggregateVerifier(Account.class, AccountState.class)
+        aggregateVerifier(
+                Account.class,
+                AccountState.class,
+                GlobalIdGenerator.INSTANCE.generateAsString(),
+                TenantId.DEFAULT_TENANT_ID,
+                ConstructorStateAggregateFactory.INSTANCE,
+                new InMemoryEventStore(),
+                new SimpleServiceProvider()
+        )
                 .given()
                 .whenCommand(new CreateAccount("name", 100L))
                 .expectEventType(AccountCreated.class)

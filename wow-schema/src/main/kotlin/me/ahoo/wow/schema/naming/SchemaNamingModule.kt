@@ -17,13 +17,16 @@ import com.github.victools.jsonschema.generator.Module
 import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder
 import com.github.victools.jsonschema.generator.impl.DefinitionKey
 
-class SchemaNamingModule @JvmOverloads constructor(
+class SchemaNamingModule(
     override val defaultSchemaNamePrefix: String = "",
     private val onDefinitionName: (DefinitionKey, String) -> Unit = { _, _ -> },
 ) : DefaultSchemaNamePrefixCapable, Module {
     override fun applyToConfigBuilder(builder: SchemaGeneratorConfigBuilder) {
         builder.forTypesInGeneral().withDefinitionNamingStrategy(
-            WowSchemaNamingStrategy(defaultSchemaNamePrefix, onDefinitionName)
+            WowSchemaNamingStrategy(
+                defaultSchemaNamePrefix = defaultSchemaNamePrefix,
+                onDefinitionName = onDefinitionName,
+            )
         )
     }
 }

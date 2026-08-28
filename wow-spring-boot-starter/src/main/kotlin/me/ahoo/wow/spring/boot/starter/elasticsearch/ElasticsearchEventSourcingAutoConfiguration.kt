@@ -71,19 +71,8 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
     private val elasticsearchProperties: ElasticsearchProperties,
     private val eventStoreBatchProperties: ElasticsearchEventStoreBatchProperties,
     private val snapshotStoreBatchProperties: ElasticsearchSnapshotStoreBatchProperties,
-    private val queryProperties: ElasticsearchQueryProperties,
+    private val queryProperties: ElasticsearchQueryProperties = ElasticsearchQueryProperties(),
 ) {
-    constructor(
-        elasticsearchProperties: ElasticsearchProperties,
-        eventStoreBatchProperties: ElasticsearchEventStoreBatchProperties,
-        snapshotStoreBatchProperties: ElasticsearchSnapshotStoreBatchProperties,
-    ) : this(
-        elasticsearchProperties,
-        eventStoreBatchProperties,
-        snapshotStoreBatchProperties,
-        ElasticsearchQueryProperties(),
-    )
-
     @Bean
     @ConditionalOnProperty(ElasticsearchProperties.COMPATIBILITY_VERSION_KEY)
     @ConditionalOnMissingBean(Rest5ClientOptions::class)
@@ -203,12 +192,12 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
         schemaQueryProperties: QueryProperties,
     ): ElasticsearchSnapshotQueryServiceFactory {
         return ElasticsearchSnapshotQueryServiceFactory(
-            elasticsearchClient,
-            queryProperties.batchSize,
-            queryProperties.keepAlive,
-            elasticsearchIndexMappingResolver,
-            sources,
-            schemaQueryProperties.schema.validationMode,
+            elasticsearchClient = elasticsearchClient,
+            queryBatchSize = queryProperties.batchSize,
+            queryKeepAlive = queryProperties.keepAlive,
+            indexMappingResolver = elasticsearchIndexMappingResolver,
+            schemaSources = sources,
+            validationMode = schemaQueryProperties.schema.validationMode,
         )
     }
 

@@ -52,14 +52,10 @@ class BeanQuerySchemaSource(
             .map(QuerySchemaRegistration::declaration)
 }
 
-class WorkingDirectoryQuerySchemaSource internal constructor(
-    private val basePath: Path,
-    private val readText: (Path) -> String,
+class WorkingDirectoryQuerySchemaSource(
+    private val basePath: Path = Path.of("config"),
+    private val readText: (Path) -> String = Files::readString,
 ) : QuerySchemaSource {
-    constructor() : this(Path.of("config"), Files::readString)
-
-    internal constructor(basePath: Path) : this(basePath, Files::readString)
-
     override val priority: Int = QuerySchemaSourcePriority.WORKING_DIRECTORY
 
     override fun load(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> = Flux.defer {

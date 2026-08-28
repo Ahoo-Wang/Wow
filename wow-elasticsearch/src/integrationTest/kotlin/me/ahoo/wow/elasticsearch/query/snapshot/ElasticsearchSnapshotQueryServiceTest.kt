@@ -170,11 +170,11 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
 
     override fun createSnapshotQueryServiceFactory(): SnapshotQueryServiceFactory =
         ElasticsearchSnapshotQueryServiceFactory(
-            elasticsearchClient,
-            me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
-            me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
-            querySchemaSources,
-            QuerySchemaValidationMode.COMPATIBLE,
+            elasticsearchClient = elasticsearchClient,
+            queryBatchSize = me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
+            queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
+            schemaSources = querySchemaSources,
+            validationMode = QuerySchemaValidationMode.COMPATIBLE,
         )
 
     override fun createSnapshotStore(): SnapshotStore = ElasticsearchSnapshotStore(elasticsearchClient)
@@ -194,11 +194,11 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     fun `field specific search bindings should be exact`() {
         updateState(mapOf("data" to "searchable"))
         val strictService = ElasticsearchSnapshotQueryServiceFactory(
-            elasticsearchClient,
-            me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
-            me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
-            querySchemaSources,
-            QuerySchemaValidationMode.STRICT,
+            elasticsearchClient = elasticsearchClient,
+            queryBatchSize = me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
+            queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
+            schemaSources = querySchemaSources,
+            validationMode = QuerySchemaValidationMode.STRICT,
         ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
 
         strictService.dynamicList(
@@ -363,11 +363,11 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         ).test().verifyComplete()
 
         val strictService = ElasticsearchSnapshotQueryServiceFactory(
-            elasticsearchClient,
-            me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
-            me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
-            querySchemaSources,
-            QuerySchemaValidationMode.STRICT,
+            elasticsearchClient = elasticsearchClient,
+            queryBatchSize = me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
+            queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
+            schemaSources = querySchemaSources,
+            validationMode = QuerySchemaValidationMode.STRICT,
         ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
         strictService.dynamicList(
             ListQuery(filter = filterExpression { "state.unknown" eq "value" }, limit = 10),
@@ -512,14 +512,14 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             ),
         )
         val service = ElasticsearchSnapshotQueryServiceFactory(
-            elasticsearchClient,
-            me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
-            me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
-            querySchemaSources + source(
+            elasticsearchClient = elasticsearchClient,
+            queryBatchSize = me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
+            queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
+            schemaSources = querySchemaSources + source(
                 stringField("state.orders.lines.productName"),
                 epochField("state.orders.lines.epochSeconds", TimeUnit.SECONDS),
             ),
-            QuerySchemaValidationMode.STRICT,
+            validationMode = QuerySchemaValidationMode.STRICT,
         ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
 
         aggregation {
@@ -538,8 +538,8 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     @Test
     fun `direct service constructor should retain snapshot identity schema behavior`() {
         val service = ElasticsearchSnapshotQueryService<MockStateAggregate>(
-            MOCK_AGGREGATE_METADATA,
-            elasticsearchClient,
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+            elasticsearchClient = elasticsearchClient,
         )
 
         service.schema().test()
@@ -551,7 +551,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
 
     @Test
     fun `computed metric should ignore an unreadable text field`() {
-        val service = ElasticsearchSnapshotQueryServiceFactory(elasticsearchClient)
+        val service = ElasticsearchSnapshotQueryServiceFactory(elasticsearchClient = elasticsearchClient)
             .create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
         aggregation {
             sum(field("state.data") * constant(1.0), "unreadable")
@@ -575,17 +575,17 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     fun `provider refresh should publish new mapping alias and runtime capabilities`() {
         val indexName = MOCK_AGGREGATE_METADATA.toSnapshotIndexName()
         val service = ElasticsearchSnapshotQueryServiceFactory(
-            elasticsearchClient,
-            me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
-            me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
-            listOf(
+            elasticsearchClient = elasticsearchClient,
+            queryBatchSize = me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
+            queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
+            schemaSources = listOf(
                 source(
                     stringField("state.keywordOnly"),
                     stringField("state.textOnly"),
                     stringField("state.runtimeCode"),
                 ),
             ),
-            me.ahoo.wow.query.schema.QuerySchemaValidationMode.COMPATIBLE,
+            validationMode = me.ahoo.wow.query.schema.QuerySchemaValidationMode.COMPATIBLE,
         ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
         val provider = service.requiredQueryModelSchemaProvider()
         val initial = provider.schema().block()!!
@@ -640,10 +640,10 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             ),
         )
         val service = ElasticsearchSnapshotQueryServiceFactory(
-            elasticsearchClient,
-            me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
-            me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
-            listOf(
+            elasticsearchClient = elasticsearchClient,
+            queryBatchSize = me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
+            queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
+            schemaSources = listOf(
                 source(
                     epochField("state.epochMicros", TimeUnit.MICROSECONDS),
                     epochField("state.epochMillis", TimeUnit.MILLISECONDS),
@@ -651,7 +651,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                     epochField("state.epochSeconds", TimeUnit.SECONDS),
                 ),
             ),
-            QuerySchemaValidationMode.COMPATIBLE,
+            validationMode = QuerySchemaValidationMode.COMPATIBLE,
         ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
         val schema = service.requiredQueryModelSchemaProvider().schema().block()!!
         listOf("state.epochMicros", "state.epochMillis", "state.epochNanos", "state.epochSeconds")
@@ -743,20 +743,20 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         schemaSources: List<QuerySchemaSource> = querySchemaSources,
     ): SnapshotQueryService<MockStateAggregate> =
         ElasticsearchSnapshotQueryServiceFactory(
-            elasticsearchClient,
-            me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
-            me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
-            schemaSources,
-            QuerySchemaValidationMode.STRICT,
+            elasticsearchClient = elasticsearchClient,
+            queryBatchSize = me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
+            queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
+            schemaSources = schemaSources,
+            validationMode = QuerySchemaValidationMode.STRICT,
         ).create(MOCK_AGGREGATE_METADATA)
 
     private fun compatibleService(): SnapshotQueryService<MockStateAggregate> =
         ElasticsearchSnapshotQueryServiceFactory(
-            elasticsearchClient,
-            me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
-            me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
-            querySchemaSources,
-            QuerySchemaValidationMode.COMPATIBLE,
+            elasticsearchClient = elasticsearchClient,
+            queryBatchSize = me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
+            queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
+            schemaSources = querySchemaSources,
+            validationMode = QuerySchemaValidationMode.COMPATIBLE,
         ).create(MOCK_AGGREGATE_METADATA)
 
     private fun currentMapping(): TypeMapping = elasticsearchClient.indices().getMapping { request ->
@@ -793,10 +793,10 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             override fun refresh(): Mono<QueryModelSchema> = Mono.just(schema)
         }
         return ElasticsearchSnapshotQueryService(
-            MOCK_AGGREGATE_METADATA,
-            elasticsearchClient,
-            provider,
-            QuerySchemaValidationMode.COMPATIBLE,
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+            elasticsearchClient = elasticsearchClient,
+            schemaProvider = provider,
+            validationMode = QuerySchemaValidationMode.COMPATIBLE,
         )
     }
 
