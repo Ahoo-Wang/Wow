@@ -38,6 +38,7 @@ export interface EventStreamQueryApi<
  */
 export class EventStreamQueryEndpointPaths {
   static readonly EVENT_STREAM_RESOURCE_NAME = 'event';
+  static readonly AGGREGATION = `${EventStreamQueryEndpointPaths.EVENT_STREAM_RESOURCE_NAME}/aggregation`;
   static readonly COUNT = `${EventStreamQueryEndpointPaths.EVENT_STREAM_RESOURCE_NAME}/count`;
   static readonly LIST = `${EventStreamQueryEndpointPaths.EVENT_STREAM_RESOURCE_NAME}/list`;
   static readonly PAGED = `${EventStreamQueryEndpointPaths.EVENT_STREAM_RESOURCE_NAME}/paged`;

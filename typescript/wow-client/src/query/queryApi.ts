@@ -18,8 +18,10 @@ import type {
   SingleQueryRequest,
 } from './queryable';
 import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
+import type { AggregationQuery } from './aggregation';
 import type { Condition } from './condition';
 import type { FilterExpression } from './filter';
+import type { DynamicDocument } from './types';
 
 /**
  * Interface for generic query API operations.
@@ -31,6 +33,26 @@ import type { FilterExpression } from './filter';
  * @template R - The type of resource being queried
  */
 export interface QueryApi<R, FIELDS extends string = string> {
+  /** Runs an aggregation and returns all result rows. */
+  aggregate?<
+    Row extends DynamicDocument = DynamicDocument,
+    AGGREGATION_FIELDS extends string = string,
+  >(
+    query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>,
+    attributes?: Record<string, any>,
+    abortController?: AbortController,
+  ): Promise<Row[]>;
+
+  /** Runs an aggregation and streams result rows as SSE. */
+  aggregateStream?<
+    Row extends DynamicDocument = DynamicDocument,
+    AGGREGATION_FIELDS extends string = string,
+  >(
+    query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>,
+    attributes?: Record<string, any>,
+    abortController?: AbortController,
+  ): Promise<ReadableStream<JsonServerSentEvent<Row>>>;
+
   /**
    * Retrieves a single resource based on the provided query parameters.
    * @param singleQuery - The query parameters for retrieving a single resource
