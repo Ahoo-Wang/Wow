@@ -111,7 +111,7 @@ describe("AnalyticsView", () => {
     mocks.snapshotResult.pressure.data = [
       {
         contextName: "billing",
-        currentCount: 10,
+        currentCount: 20,
         errorCode: "TIMEOUT",
         failedCount: 6,
         functionKind: "EVENT",
@@ -136,11 +136,19 @@ describe("AnalyticsView", () => {
     ];
     render(<AnalyticsView />);
 
-    expect(screen.getByText(/EVENT/)).toBeInTheDocument();
-    expect(screen.getByText(/COMMAND/)).toBeInTheDocument();
-    expect(screen.getByText("6 (60%)")).toBeInTheDocument();
-    expect(screen.getByText("4 (40%)")).toBeInTheDocument();
+    const pressureTable = screen.getByRole("table", {
+      name: "Current failure pressure",
+    });
+    expect(pressureTable).toHaveTextContent("TIMEOUT");
+    expect(pressureTable).toHaveTextContent("billing");
+    expect(pressureTable).toHaveTextContent("PaymentProcessor");
+    expect(pressureTable).toHaveTextContent("charge");
+    expect(pressureTable).toHaveTextContent("EVENT");
+    expect(pressureTable).toHaveTextContent("COMMAND");
+    expect(screen.getByText("6 (30%)")).toBeInTheDocument();
+    expect(screen.getByText("4 (20%)")).toBeInTheDocument();
     expect(screen.getAllByText("0 (0%)")).toHaveLength(2);
+    expect(document.body).not.toHaveTextContent(/NaN|Infinity/);
   });
 
   it("keeps summary, pressure, distributions, then history in reading order", () => {
