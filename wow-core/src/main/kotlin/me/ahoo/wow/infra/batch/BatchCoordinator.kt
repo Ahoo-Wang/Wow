@@ -36,28 +36,14 @@ import java.util.concurrent.atomic.AtomicInteger
  * global capacity shared by lanes, and the result dispatcher isolates
  * per-item subscriber callbacks.
  */
-class BatchCoordinator<T : Any> internal constructor(
+class BatchCoordinator<T : Any>(
     val name: String,
     val options: BatchOptions,
     private val writer: BatchWriter<T>,
-    private val laneCount: Int,
-    private val laneSelector: (T) -> Int,
+    private val laneCount: Int = 1,
+    private val laneSelector: (T) -> Int = { 0 },
     metrics: WowMetrics = WowMetrics.NONE,
 ) : GracefullyStoppable {
-    constructor(
-        name: String,
-        options: BatchOptions,
-        writer: BatchWriter<T>,
-        metrics: WowMetrics = WowMetrics.NONE,
-    ) : this(
-        name = name,
-        options = options,
-        writer = writer,
-        laneCount = 1,
-        laneSelector = { 0 },
-        metrics = metrics,
-    )
-
     init {
         require(name.isNotBlank()) {
             "name must not be blank."

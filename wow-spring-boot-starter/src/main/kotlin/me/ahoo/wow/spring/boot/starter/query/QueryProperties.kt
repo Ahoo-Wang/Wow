@@ -23,13 +23,13 @@ class QueryProperties @ConstructorBinding constructor(
     @DefaultValue
     var schema: Schema,
 ) {
-    constructor() : this(Schema())
+    constructor() : this(schema = Schema())
 
     data class Schema @ConstructorBinding constructor(
         @DefaultValue("COMPATIBLE")
         var validationMode: QuerySchemaValidationMode,
     ) {
-        constructor() : this(QuerySchemaValidationMode.COMPATIBLE)
+        constructor() : this(validationMode = QuerySchemaValidationMode.COMPATIBLE)
     }
 
     companion object {

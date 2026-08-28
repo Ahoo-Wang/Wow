@@ -79,11 +79,11 @@ class ElasticsearchSnapshotMappingQueryTest {
             mappingResponse(queryMapping()),
         )
         val service = ElasticsearchSnapshotQueryServiceFactory(
-            client,
-            DEFAULT_SEARCH_BATCH_SIZE,
-            DEFAULT_PIT_KEEP_ALIVE,
-            emptyList(),
-            QuerySchemaValidationMode.STRICT,
+            elasticsearchClient = client,
+            queryBatchSize = DEFAULT_SEARCH_BATCH_SIZE,
+            queryKeepAlive = DEFAULT_PIT_KEEP_ALIVE,
+            schemaSources = emptyList(),
+            validationMode = QuerySchemaValidationMode.STRICT,
         ).create<Any>(MOCK_AGGREGATE_METADATA)
 
         service.dynamicList(ListQuery(filter = equal("state.unknown", "value"), limit = 10)).test()
@@ -408,11 +408,11 @@ class ElasticsearchSnapshotMappingQueryTest {
             Mono.just(mappingResponse(queryMapping(includeNewField = true))),
         )
         val factory = ElasticsearchSnapshotQueryServiceFactory(
-            client,
-            DEFAULT_SEARCH_BATCH_SIZE,
-            DEFAULT_PIT_KEEP_ALIVE,
-            schemaSources(),
-            QuerySchemaValidationMode.COMPATIBLE,
+            elasticsearchClient = client,
+            queryBatchSize = DEFAULT_SEARCH_BATCH_SIZE,
+            queryKeepAlive = DEFAULT_PIT_KEEP_ALIVE,
+            schemaSources = schemaSources(),
+            validationMode = QuerySchemaValidationMode.COMPATIBLE,
         )
         val service = factory.create<Any>(MOCK_AGGREGATE_METADATA)
         val query = ListQuery(filter = equal("state.newField", "new"), limit = 10)
@@ -433,12 +433,12 @@ class ElasticsearchSnapshotMappingQueryTest {
             every { currentOrLoad(any()) } returns Mono.error(failure)
         }
         val service = ElasticsearchSnapshotQueryServiceFactory(
-            client,
-            DEFAULT_SEARCH_BATCH_SIZE,
-            DEFAULT_PIT_KEEP_ALIVE,
-            resolver,
-            schemaSources(),
-            QuerySchemaValidationMode.COMPATIBLE,
+            elasticsearchClient = client,
+            queryBatchSize = DEFAULT_SEARCH_BATCH_SIZE,
+            queryKeepAlive = DEFAULT_PIT_KEEP_ALIVE,
+            indexMappingResolver = resolver,
+            schemaSources = schemaSources(),
+            validationMode = QuerySchemaValidationMode.COMPATIBLE,
         ).create<Any>(MOCK_AGGREGATE_METADATA)
 
         service.requiredQueryModelSchemaProvider().schema().test()
@@ -456,12 +456,11 @@ class ElasticsearchSnapshotMappingQueryTest {
         }
         val filter = equal("custom.physical", "value")
         val service = ElasticsearchSnapshotQueryService<Any>(
-            MOCK_AGGREGATE_METADATA,
-            client,
-            customConverter,
-            DEFAULT_SEARCH_BATCH_SIZE,
-            DEFAULT_PIT_KEEP_ALIVE,
-            ElasticsearchIndexMappingResolver(client),
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+            elasticsearchClient = client,
+            filterConverter = customConverter,
+            queryBatchSize = DEFAULT_SEARCH_BATCH_SIZE,
+            queryKeepAlive = DEFAULT_PIT_KEEP_ALIVE,
         )
 
         service.dynamicList(ListQuery(filter = filter, limit = 10)).collectList().block()
@@ -472,22 +471,22 @@ class ElasticsearchSnapshotMappingQueryTest {
 
     private fun queryService(): ElasticsearchSnapshotQueryService<Any> =
         ElasticsearchSnapshotQueryServiceFactory(
-            client,
-            DEFAULT_SEARCH_BATCH_SIZE,
-            DEFAULT_PIT_KEEP_ALIVE,
-            schemaSources(),
-            QuerySchemaValidationMode.COMPATIBLE,
+            elasticsearchClient = client,
+            queryBatchSize = DEFAULT_SEARCH_BATCH_SIZE,
+            queryKeepAlive = DEFAULT_PIT_KEEP_ALIVE,
+            schemaSources = schemaSources(),
+            validationMode = QuerySchemaValidationMode.COMPATIBLE,
         ).create<Any>(MOCK_AGGREGATE_METADATA) as ElasticsearchSnapshotQueryService<Any>
 
     private fun strictQueryService(
         sources: List<QuerySchemaSource> = schemaSources(),
     ): ElasticsearchSnapshotQueryService<Any> =
         ElasticsearchSnapshotQueryServiceFactory(
-            client,
-            DEFAULT_SEARCH_BATCH_SIZE,
-            DEFAULT_PIT_KEEP_ALIVE,
-            sources,
-            QuerySchemaValidationMode.STRICT,
+            elasticsearchClient = client,
+            queryBatchSize = DEFAULT_SEARCH_BATCH_SIZE,
+            queryKeepAlive = DEFAULT_PIT_KEEP_ALIVE,
+            schemaSources = sources,
+            validationMode = QuerySchemaValidationMode.STRICT,
         ).create<Any>(MOCK_AGGREGATE_METADATA) as ElasticsearchSnapshotQueryService<Any>
 
     private fun schemaSources(): List<QuerySchemaSource> {

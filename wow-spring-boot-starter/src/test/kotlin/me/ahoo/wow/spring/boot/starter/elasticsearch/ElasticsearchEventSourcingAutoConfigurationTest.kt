@@ -139,7 +139,9 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
             elasticsearchIndexMappingResolver = mockk<ElasticsearchIndexMappingResolver>(),
             sources = listOf(failingQuerySchemaSource(expected)),
             schemaQueryProperties = QueryProperties(
-                QueryProperties.Schema(me.ahoo.wow.query.schema.QuerySchemaValidationMode.STRICT),
+                schema = QueryProperties.Schema(
+                    validationMode = me.ahoo.wow.query.schema.QuerySchemaValidationMode.STRICT,
+                ),
             ),
         )
 

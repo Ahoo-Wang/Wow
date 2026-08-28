@@ -22,7 +22,7 @@ class SchemaNamingModuleTest {
 
     @Test
     fun `should have default schema name prefix`() {
-        val module = SchemaNamingModule("TestPrefix.")
+        val module = SchemaNamingModule(defaultSchemaNamePrefix = "TestPrefix.")
         module.defaultSchemaNamePrefix.assert().isEqualTo("TestPrefix.")
     }
 
@@ -34,14 +34,18 @@ class SchemaNamingModuleTest {
 
     @Test
     fun `should generate schema with definition naming strategy`() {
-        val generator = SchemaGeneratorBuilder().schemaNamingModule(SchemaNamingModule("TestPrefix.")).build()
+        val generator = SchemaGeneratorBuilder()
+            .schemaNamingModule(SchemaNamingModule(defaultSchemaNamePrefix = "TestPrefix."))
+            .build()
         val schema = generator.generateSchema(CreateTestAggregate::class.java)
         schema.assert().isNotNull()
     }
 
     @Test
     fun `should generate schema without prefix when default is empty`() {
-        val generator = SchemaGeneratorBuilder().schemaNamingModule(SchemaNamingModule("")).build()
+        val generator = SchemaGeneratorBuilder()
+            .schemaNamingModule(SchemaNamingModule(defaultSchemaNamePrefix = ""))
+            .build()
         val schema = generator.generateSchema(CreateTestAggregate::class.java)
         schema.assert().isNotNull()
     }

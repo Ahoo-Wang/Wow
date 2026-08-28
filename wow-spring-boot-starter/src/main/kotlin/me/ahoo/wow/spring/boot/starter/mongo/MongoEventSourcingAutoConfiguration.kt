@@ -195,9 +195,9 @@ class MongoEventSourcingAutoConfiguration(
         MongoDatabaseContextGuard(snapshotDatabase)
             .ensureContext(currentBoundedContext.contextName)
         return MongoSnapshotQueryServiceFactory(
-            snapshotDatabase,
-            sources,
-            queryProperties.schema.validationMode,
+            database = snapshotDatabase,
+            schemaSources = sources,
+            validationMode = queryProperties.schema.validationMode,
         )
     }
 

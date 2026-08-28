@@ -15,6 +15,10 @@ package me.ahoo.wow.example.transfer.domain;
 
 import me.ahoo.wow.example.transfer.api.Entry;
 import me.ahoo.wow.example.transfer.api.Prepared;
+import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry;
+import me.ahoo.wow.command.factory.SimpleCommandMessageFactory;
+import me.ahoo.wow.ioc.SimpleServiceProvider;
+import me.ahoo.wow.test.validation.TestValidatorKt;
 import org.junit.jupiter.api.Test;
 
 import static me.ahoo.wow.test.SagaVerifier.*;
@@ -25,7 +29,15 @@ public class TransferSagaTest {
     @Test
     void onPrepared() {
         var event = new Prepared("to", 1L);
-        sagaVerifier(TransferSaga.class)
+        sagaVerifier(
+                TransferSaga.class,
+                new SimpleServiceProvider(),
+                defaultCommandGateway(),
+                new SimpleCommandMessageFactory(
+                        TestValidatorKt.getTestValidator(),
+                        new SimpleCommandBuilderRewriterRegistry()
+                )
+        )
                 .whenEvent(event)
                 .expectCommandBody((Entry entry) -> {
                     assertThat(entry.id()).isEqualTo(event.to());
@@ -37,4 +49,3 @@ public class TransferSagaTest {
 
 
 }
-
