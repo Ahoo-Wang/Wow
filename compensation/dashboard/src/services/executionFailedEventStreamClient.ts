@@ -12,8 +12,24 @@
  */
 
 import { executionFailedQueryClientFactory } from "../generated";
+import type {
+  AggregationQuery,
+  DynamicDocument,
+} from "@ahoo-wang/fetcher-wow";
 
 export const executionFailedEventStreamQueryClient =
   executionFailedQueryClientFactory.createEventStreamQueryClient({
     contextAlias: "",
   });
+
+export function aggregateExecutionFailedEvents<Row extends DynamicDocument>(
+  query: AggregationQuery<string>,
+  attributes?: Record<string, unknown>,
+  abortController?: AbortController,
+) {
+  return executionFailedEventStreamQueryClient.aggregate<Row>(
+    query,
+    attributes,
+    abortController,
+  );
+}
