@@ -21,10 +21,11 @@ flowchart LR
     Aggregate --> Store[EventStore.append]
     Processor --> Ack[exchange.acknowledge]
     Ack --> EventBus[DomainEventBus.send]
-    EventBus --> Processed[PROCESSED notifier]
+    EventBus --> StateBus[StateEventBus.send attempt]
+    StateBus --> Processed[PROCESSED notifier]
 ```
 
-`CommandBus` 只负责投递和接收信封；`CommandDispatcher` 按具名聚合建立处理器，并把同一聚合 ID 映射到稳定的调度组；`CommandFilter` 链定义处理前后边界；聚合执行、事件持久化、transport ack 与事件发布是不同步骤。
+`CommandBus` 只负责投递和接收信封；`CommandDispatcher` 按具名聚合建立处理器，并把同一聚合 ID 映射到稳定的调度组；`CommandFilter` 链定义处理前后边界；聚合执行、事件持久化、transport ack、领域事件发布与状态事件发布是不同步骤。
 
 ## 发送前管道
 
@@ -50,6 +51,7 @@ flowchart LR
 ProcessedNotifierFilter
   -> AggregateProcessorFilter
     -> SendDomainEventStreamFilter
+      -> SendStateEventFilter
 ```
 
 第一个 Filter 位于最外层，因此它观察的是内部整条管线的完成或错误，而不是只观察聚合函数返回。
@@ -81,7 +83,7 @@ append 前 exchange 的 aggregate version 已更新为事件流版本；只有 a
 
 ## ack/事件发送顺序
 
-`AggregateProcessorFilter` 对聚合处理结果使用 `finallyAck`。因此无论聚合处理成功还是报错，都会先执行 exchange 的 transport ack；成功路径再进入下一个 Filter。`SendDomainEventStreamFilter` 从 exchange 取得事件流，并在继续链之前等待 `DomainEventBus.send` 完成。
+`AggregateProcessorFilter` 对聚合处理结果使用 `finallyAck`。因此无论聚合处理成功还是报错，都会先执行 exchange 的 transport ack；成功路径再进入下一个 Filter。`SendDomainEventStreamFilter` 从 exchange 取得事件流，并在继续链之前等待 `DomainEventBus.send` 完成。其后的 `SendStateEventFilter` 在状态已初始化时复制事件流与当前状态，转换成 `StateEvent` 并尝试 `StateEventBus.send`。
 
 实际顺序是：
 
@@ -89,11 +91,13 @@ append 前 exchange 的 aggregate version 已更新为事件流版本；只有 a
 EventStore.append
   -> command exchange ack
   -> DomainEventBus.send
-  -> remaining filters complete
+  -> StateEventBus.send attempt
   -> PROCESSED signal
 ```
 
-如果聚合在形成事件流前失败，仍会 ack，但不会进入事件发送 Filter。若事件已经追加，而 `DomainEventBus.send` 失败，transport ack 已经发生；因此不能把后续发布失败解释为“事件未保存”，也不能假定 command transport 会重投它。未来的 `event/dispatch` 页面会说明事件侧消费过程；本页不提前建立活动链接。
+如果聚合在形成事件流前失败，仍会 ack，但不会进入事件发送 Filter。若事件已经追加，而 `DomainEventBus.send` 失败，transport ack 已经发生，错误会继续传播，`StateEventBus.send` 不会执行，`PROCESSED` 会观察到失败；因此不能把领域事件发布失败解释为“事件未保存”，也不能假定 command transport 会重投它。
+
+`StateEventBus.send` 的失败边界不同：`SendStateEventFilter` 使用 `logErrorResume()` 记录错误并恢复为空完成，随后继续 Filter chain。于是成功的 `PROCESSED` 只证明 StateEvent 发布已经被尝试并返回，不证明 StateEvent 已经发布；依赖该输入的快照与投影可能没有收到消息。未来的 `event/dispatch` 页面会说明事件侧消费过程；本页不提前建立活动链接。
 
 ## `PROCESSED` 错误边界
 
@@ -104,7 +108,7 @@ EventStore.append
 - 没有等待 Header，或目标阶段不需要 `PROCESSED` 时，不生成信号；
 - 通知采用 fire-and-forget，通知失败只记录日志，不改写命令处理结果。
 
-所以 `PROCESSED` 成功表示聚合执行、事件追加、command ack 和 `DomainEventBus.send` 这条命令链已经完成；它不表示快照、投影、事件处理器或 Saga 已完成。失败信号也不能单独证明事件未追加，必须按[失败与幂等](../reliability.md)检查权威历史。
+所以 `PROCESSED` 成功表示聚合执行、事件追加、command ack 和 `DomainEventBus.send` 已经完成，`SendStateEventFilter` 也已完成；状态已初始化时，`StateEventBus.send` 尝试已经返回。它不保证 StateEvent 发布成功，也不表示快照、投影、事件处理器或 Saga 已完成。失败信号也不能单独证明事件未追加，必须按[失败与幂等](../reliability.md)检查权威历史。
 
 ## 源码入口
 
@@ -112,4 +116,4 @@ EventStore.append
 - [`CommandDispatcher`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/dispatcher/CommandDispatcher.kt) 与 [`AggregateCommandDispatcher`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/dispatcher/AggregateCommandDispatcher.kt)
 - [`AggregateProcessorFilter`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/dispatcher/AggregateProcessorFilter.kt) 与 [`SendDomainEventStreamFilter`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/dispatcher/SendDomainEventStreamFilter.kt)
 - [`RetryableAggregateProcessor`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/RetryableAggregateProcessor.kt) 与 [`SimpleCommandAggregate`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt)
-- [`EventStore`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt) 与 [`NotifierFilters`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/NotifierFilters.kt)
+- [`EventStore`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt)、[`SendStateEventFilter`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/state/SendStateEventFilter.kt) 与 [`NotifierFilters`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/NotifierFilters.kt)

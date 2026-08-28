@@ -21,10 +21,11 @@ flowchart LR
     Aggregate --> Store[EventStore.append]
     Processor --> Ack[exchange.acknowledge]
     Ack --> EventBus[DomainEventBus.send]
-    EventBus --> Processed[PROCESSED notifier]
+    EventBus --> StateBus[StateEventBus.send attempt]
+    StateBus --> Processed[PROCESSED notifier]
 ```
 
-`CommandBus` transports envelopes; `CommandDispatcher` creates processors by named aggregate and maps the same aggregate ID to a stable scheduling group; the `CommandFilter` chain defines processing boundaries. Aggregate execution, event persistence, transport acknowledgement, and event publication are separate operations.
+`CommandBus` transports envelopes; `CommandDispatcher` creates processors by named aggregate and maps the same aggregate ID to a stable scheduling group; the `CommandFilter` chain defines processing boundaries. Aggregate execution, event persistence, transport acknowledgement, domain-event publication, and state-event publication are separate operations.
 
 ## Pre-send pipeline
 
@@ -50,6 +51,7 @@ Each `AggregateCommandDispatcher` resolves aggregate metadata and calculates a g
 ProcessedNotifierFilter
   -> AggregateProcessorFilter
     -> SendDomainEventStreamFilter
+      -> SendStateEventFilter
 ```
 
 The first Filter is the outermost wrapper, so it observes completion or failure of the entire inner pipeline, not just the aggregate function return.
@@ -81,7 +83,7 @@ Before append, the exchange aggregate version is set to the event-stream version
 
 ## Ack/event-send order
 
-`AggregateProcessorFilter` applies `finallyAck` to aggregate processing. The exchange transport acknowledgement therefore runs whether aggregate processing completes or fails; only the successful path enters the next Filter. `SendDomainEventStreamFilter` obtains the stream from the exchange and waits for `DomainEventBus.send` before continuing.
+`AggregateProcessorFilter` applies `finallyAck` to aggregate processing. The exchange transport acknowledgement therefore runs whether aggregate processing completes or fails; only the successful path enters the next Filter. `SendDomainEventStreamFilter` obtains the stream from the exchange and waits for `DomainEventBus.send` before continuing. The following `SendStateEventFilter`, when state is initialized, copies the event stream and current state into a `StateEvent` and attempts `StateEventBus.send`.
 
 The effective order is:
 
@@ -89,11 +91,13 @@ The effective order is:
 EventStore.append
   -> command exchange ack
   -> DomainEventBus.send
-  -> remaining filters complete
+  -> StateEventBus.send attempt
   -> PROCESSED signal
 ```
 
-When the aggregate fails before producing a stream, the exchange is still acknowledged but the event-send Filter is not entered. If events were appended and `DomainEventBus.send` then fails, the transport acknowledgement has already happened. That failure cannot be read as “events were not stored,” and the command transport cannot be assumed to redeliver it. A future `event/dispatch` page will cover event-side consumption; no active link is created here yet.
+When the aggregate fails before producing a stream, the exchange is still acknowledged but the event-send Filter is not entered. If events were appended and `DomainEventBus.send` then fails, the transport acknowledgement has already happened, the error propagates outward, `StateEventBus.send` is not attempted, and `PROCESSED` observes failure. Domain-event publication failure cannot be read as “events were not stored,” and the command transport cannot be assumed to redeliver it.
+
+`StateEventBus.send` has a different failure boundary: `SendStateEventFilter` uses `logErrorResume()` to log the error and resume with empty completion before continuing the Filter chain. A successful `PROCESSED` therefore proves only that state-event publication was attempted and returned, not that the StateEvent was published; snapshots and projections that depend on that input may not receive it. A future `event/dispatch` page will cover event-side consumption; no active link is created here yet.
 
 ## `PROCESSED` error boundary
 
@@ -104,7 +108,7 @@ When the aggregate fails before producing a stream, the exchange is still acknow
 - no signal is produced when there is no wait Header or the target does not require `PROCESSED`;
 - notification is fire-and-forget, so notification failure is logged without replacing the command result.
 
-Successful `PROCESSED` therefore means aggregate execution, event append, command acknowledgement, and `DomainEventBus.send` completed for this command chain. It does not mean snapshot, projection, event handler, or Saga completion. A failed signal alone also cannot prove that no event was appended; inspect authoritative history as described in [Failures and Idempotency](../reliability.md).
+Successful `PROCESSED` therefore means aggregate execution, event append, command acknowledgement, and `DomainEventBus.send` completed, and `SendStateEventFilter` also completed; when state is initialized, the `StateEventBus.send` attempt returned. It does not guarantee successful StateEvent publication or mean snapshot, projection, event handler, or Saga completion. A failed signal alone also cannot prove that no event was appended; inspect authoritative history as described in [Failures and Idempotency](../reliability.md).
 
 ## Source entry points
 
@@ -112,4 +116,4 @@ Successful `PROCESSED` therefore means aggregate execution, event append, comman
 - [`CommandDispatcher`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/dispatcher/CommandDispatcher.kt) and [`AggregateCommandDispatcher`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/dispatcher/AggregateCommandDispatcher.kt)
 - [`AggregateProcessorFilter`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/dispatcher/AggregateProcessorFilter.kt) and [`SendDomainEventStreamFilter`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/dispatcher/SendDomainEventStreamFilter.kt)
 - [`RetryableAggregateProcessor`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/RetryableAggregateProcessor.kt) and [`SimpleCommandAggregate`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt)
-- [`EventStore`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt) and [`NotifierFilters`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/NotifierFilters.kt)
+- [`EventStore`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt), [`SendStateEventFilter`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/state/SendStateEventFilter.kt), and [`NotifierFilters`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/NotifierFilters.kt)
