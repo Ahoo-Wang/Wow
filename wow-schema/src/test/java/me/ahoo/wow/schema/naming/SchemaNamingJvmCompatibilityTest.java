@@ -13,21 +13,14 @@
 
 package me.ahoo.wow.schema.naming;
 
-import kotlin.Unit;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class SchemaNamingJvmCompatibilityTest {
     @Test
-    void shouldUseFullConstructors() {
-        assertEquals(
-                "TestPrefix.",
-                new SchemaNamingModule("TestPrefix.", (key, name) -> Unit.INSTANCE).getDefaultSchemaNamePrefix()
-        );
-        assertEquals(
-                "TestPrefix.",
-                new WowSchemaNamingStrategy("TestPrefix.", (key, name) -> Unit.INSTANCE).getDefaultSchemaNamePrefix()
-        );
+    void shouldKeepSingleStringConstructors() {
+        assertEquals("TestPrefix.", new SchemaNamingModule("TestPrefix.").getDefaultSchemaNamePrefix());
+        assertEquals("TestPrefix.", new WowSchemaNamingStrategy("TestPrefix.").getDefaultSchemaNamePrefix());
     }
 }

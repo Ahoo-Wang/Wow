@@ -40,7 +40,7 @@ import me.ahoo.wow.webflux.route.snapshot.SnapshotAggregationHandlerFunctionFact
 import me.ahoo.wow.webflux.route.snapshot.SnapshotSchemaHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.SnapshotSchemaRefreshHandlerFunctionFactory
 
-class QueryRouteModule(
+class QueryRouteModule @JvmOverloads constructor(
     snapshotQueryGateway: SnapshotQueryGateway,
     snapshotQueryServiceFactory: SnapshotQueryServiceFactory,
     eventStreamQueryGateway: EventStreamQueryGateway,
