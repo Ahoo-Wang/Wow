@@ -107,6 +107,42 @@ describe("AnalyticsView", () => {
     expect(screen.queryByText("Retry distribution")).not.toBeInTheDocument();
   });
 
+  it("distinguishes pressure identities and shows zero-safe status shares", () => {
+    mocks.snapshotResult.pressure.data = [
+      {
+        contextName: "billing",
+        currentCount: 10,
+        errorCode: "TIMEOUT",
+        failedCount: 6,
+        functionKind: "EVENT",
+        functionName: "charge",
+        nextRetryAt: null,
+        oldestExecuteAt: null,
+        preparedCount: 4,
+        processorName: "PaymentProcessor",
+      },
+      {
+        contextName: "billing",
+        currentCount: 0,
+        errorCode: "TIMEOUT",
+        failedCount: 0,
+        functionKind: "COMMAND",
+        functionName: "charge",
+        nextRetryAt: null,
+        oldestExecuteAt: null,
+        preparedCount: 0,
+        processorName: "PaymentProcessor",
+      },
+    ];
+    render(<AnalyticsView />);
+
+    expect(screen.getByText(/EVENT/)).toBeInTheDocument();
+    expect(screen.getByText(/COMMAND/)).toBeInTheDocument();
+    expect(screen.getByText("6 (60%)")).toBeInTheDocument();
+    expect(screen.getByText("4 (40%)")).toBeInTheDocument();
+    expect(screen.getAllByText("0 (0%)")).toHaveLength(2);
+  });
+
   it("keeps summary, pressure, distributions, then history in reading order", () => {
     render(<AnalyticsView />);
 

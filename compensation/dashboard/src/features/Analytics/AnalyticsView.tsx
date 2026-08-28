@@ -60,6 +60,11 @@ function SectionMeta<T>({ section }: { section: AnalyticsSection<T> }) {
   );
 }
 
+function formatStatusShare(count: number, total: number): string {
+  const percentage = total === 0 ? 0 : Math.round((count / total) * 100);
+  return `${count} (${percentage}%)`;
+}
+
 function PressureTable({ clusters }: { clusters: PressureCluster[] }) {
   const now = useNow();
   return (
@@ -89,12 +94,17 @@ function PressureTable({ clusters }: { clusters: PressureCluster[] }) {
               <TableCell>
                 <div className="font-medium">{cluster.errorCode}</div>
                 <div className="text-xs text-muted-foreground">
-                  {cluster.contextName} · {cluster.processorName}/{cluster.functionName}
+                  {cluster.contextName} · {cluster.processorName}/
+                  {cluster.functionName} · {cluster.functionKind}
                 </div>
               </TableCell>
               <TableCell className="text-right tabular-nums">{cluster.currentCount}</TableCell>
-              <TableCell className="text-right tabular-nums">{cluster.failedCount}</TableCell>
-              <TableCell className="text-right tabular-nums">{cluster.preparedCount}</TableCell>
+              <TableCell className="text-right tabular-nums">
+                {formatStatusShare(cluster.failedCount, cluster.currentCount)}
+              </TableCell>
+              <TableCell className="text-right tabular-nums">
+                {formatStatusShare(cluster.preparedCount, cluster.currentCount)}
+              </TableCell>
               <TableCell title={formatDate(cluster.oldestExecuteAt ?? undefined)}>
                 {cluster.oldestExecuteAt ? formatAge(cluster.oldestExecuteAt, now) : "-"}
               </TableCell>
