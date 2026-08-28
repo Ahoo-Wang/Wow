@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.filter
 
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.FilterExpression
@@ -36,6 +37,8 @@ interface QueryHandler<R : Any> : Handler<QueryContext<*, *>> {
     fun dynamicList(namedAggregate: NamedAggregate, listQuery: IListQuery): Flux<DynamicDocument>
     fun paged(namedAggregate: NamedAggregate, pagedQuery: IPagedQuery): Mono<PagedList<R>>
     fun dynamicPaged(namedAggregate: NamedAggregate, pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>>
+    fun aggregate(namedAggregate: NamedAggregate, query: AggregationQuery): Flux<DynamicDocument> =
+        Flux.error(UnsupportedOperationException("Aggregation is not supported."))
     fun count(namedAggregate: NamedAggregate, filter: FilterExpression): Mono<Long>
 
     @Deprecated("Use count with FilterExpression.")
@@ -96,6 +99,9 @@ abstract class AbstractQueryHandler<R : Any>(
         namedAggregate: NamedAggregate,
         pagedQuery: IPagedQuery
     ): Mono<PagedList<DynamicDocument>> = mono(namedAggregate, QueryType.DYNAMIC_PAGED, pagedQuery)
+
+    override fun aggregate(namedAggregate: NamedAggregate, query: AggregationQuery): Flux<DynamicDocument> =
+        flux(namedAggregate, QueryType.AGGREGATION, query)
 
     override fun count(namedAggregate: NamedAggregate, filter: FilterExpression): Mono<Long> =
         mono(namedAggregate, QueryType.COUNT, filter)

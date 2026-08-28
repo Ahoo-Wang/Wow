@@ -14,6 +14,8 @@
 package me.ahoo.wow.query.filter
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.FilterExpression
@@ -161,6 +163,10 @@ class QueryHandlerSubscriptionTest {
             QueryType.DYNAMIC_LIST to handler.dynamicList(MOCK_AGGREGATE_METADATA, listQuery { }),
             QueryType.PAGED to handler.paged(MOCK_AGGREGATE_METADATA, pagedQuery { }),
             QueryType.DYNAMIC_PAGED to handler.dynamicPaged(MOCK_AGGREGATE_METADATA, pagedQuery { }),
+            QueryType.AGGREGATION to handler.aggregate(
+                MOCK_AGGREGATE_METADATA,
+                AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))),
+            ),
             QueryType.COUNT to handler.count(MOCK_AGGREGATE_METADATA, MatchAllFilter),
         )
 
@@ -247,7 +253,9 @@ class QueryHandlerSubscriptionTest {
                 )
 
                 QueryType.COUNT -> context.asCountQuery().setResult(Mono.just(1L))
-                QueryType.AGGREGATION -> error("Test query handler does not support aggregation.")
+                QueryType.AGGREGATION -> context.asAggregationQuery().setResult(
+                    Flux.just(mutableMapOf("count" to 1L).toDynamicDocument())
+                )
             }
             return next.filter(context)
         }

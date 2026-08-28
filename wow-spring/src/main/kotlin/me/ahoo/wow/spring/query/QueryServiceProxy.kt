@@ -37,7 +37,7 @@ import reactor.core.publisher.Mono
 
 internal class SnapshotQueryServiceProxy<S : Any>(
     private val delegate: SnapshotQueryService<S>,
-    private val handler: SnapshotQueryHandler,
+    handler: SnapshotQueryHandler,
 ) : QueryServiceProxy<MaterializedSnapshot<S>>(
     delegate.namedAggregate,
     handler.cast(),
@@ -45,20 +45,14 @@ internal class SnapshotQueryServiceProxy<S : Any>(
     SnapshotQueryService<S> {
     override val name: String
         get() = delegate.name
-
-    override fun aggregate(query: AggregationQuery): Flux<DynamicDocument> =
-        handler.aggregate(namedAggregate, query)
 }
 
 internal class EventStreamQueryServiceProxy(
     private val delegate: EventStreamQueryService,
-    private val handler: EventStreamQueryHandler,
+    handler: EventStreamQueryHandler,
 ) : QueryServiceProxy<DomainEventStream>(delegate.namedAggregate, handler),
     EventStreamQueryService,
     QueryModelSchemaProvider {
-    override fun aggregate(query: AggregationQuery): Flux<DynamicDocument> =
-        handler.aggregate(namedAggregate, query)
-
     override fun schema(): Mono<QueryModelSchema> =
         Mono.defer { delegate.requiredQueryModelSchemaProvider().schema() }
 
@@ -84,6 +78,8 @@ internal abstract class QueryServiceProxy<R : Any>(
 
     override fun dynamicPaged(pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>> =
         handler.dynamicPaged(namedAggregate, pagedQuery)
+
+    override fun aggregate(query: AggregationQuery): Flux<DynamicDocument> = handler.aggregate(namedAggregate, query)
 
     override fun count(filter: FilterExpression): Mono<Long> = handler.count(namedAggregate, filter)
 }

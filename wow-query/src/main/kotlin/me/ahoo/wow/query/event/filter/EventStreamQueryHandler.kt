@@ -13,9 +13,6 @@
 
 package me.ahoo.wow.query.event.filter
 
-import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.FilterChain
@@ -23,13 +20,8 @@ import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.query.filter.AbstractQueryHandler
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryHandler
-import me.ahoo.wow.query.filter.QueryType
-import reactor.core.publisher.Flux
 
-interface EventStreamQueryHandler : QueryHandler<DomainEventStream> {
-    fun aggregate(namedAggregate: NamedAggregate, query: AggregationQuery): Flux<DynamicDocument> =
-        Flux.error(UnsupportedOperationException("Event stream aggregation is not supported."))
-}
+interface EventStreamQueryHandler : QueryHandler<DomainEventStream>
 
 class DefaultEventStreamQueryHandler(
     chain: FilterChain<QueryContext<*, *>>,
@@ -37,7 +29,4 @@ class DefaultEventStreamQueryHandler(
 ) : EventStreamQueryHandler, AbstractQueryHandler<DomainEventStream>(
     chain,
     errorHandler,
-) {
-    override fun aggregate(namedAggregate: NamedAggregate, query: AggregationQuery): Flux<DynamicDocument> =
-        flux(namedAggregate, QueryType.AGGREGATION, query)
-}
+)

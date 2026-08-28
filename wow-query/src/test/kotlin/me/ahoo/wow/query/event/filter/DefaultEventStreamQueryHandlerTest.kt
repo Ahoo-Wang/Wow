@@ -19,7 +19,6 @@ import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
-import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogErrorHandler
@@ -32,7 +31,6 @@ import me.ahoo.wow.query.event.NoOpEventStreamQueryService
 import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
 import me.ahoo.wow.query.filter.DefaultQueryContext
 import me.ahoo.wow.query.filter.QueryContext
-import me.ahoo.wow.query.filter.QueryHandler
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
@@ -138,19 +136,5 @@ class DefaultEventStreamQueryHandlerTest {
             .block()
 
         context.getRequiredResult().test().expectNext(row).verifyComplete()
-    }
-
-    @Test
-    fun `event stream handler should inherit unsupported aggregation`() {
-        val handler = object :
-            EventStreamQueryHandler,
-            QueryHandler<DomainEventStream> by queryHandler {}
-
-        handler.aggregate(
-            MOCK_AGGREGATE_METADATA,
-            AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))),
-        ).test()
-            .expectErrorMessage("Event stream aggregation is not supported.")
-            .verify()
     }
 }
