@@ -50,6 +50,7 @@ import me.ahoo.wow.openapi.contributor.eventStreamPagedResponse
 import me.ahoo.wow.openapi.contributor.headVersionPathParameterRef
 import me.ahoo.wow.openapi.contributor.listQueryRequestBodyRef
 import me.ahoo.wow.openapi.contributor.pagedQueryRequestBodyRef
+import me.ahoo.wow.openapi.contributor.querySchemaResponses
 import me.ahoo.wow.openapi.contributor.requestTimeoutResponseRef
 import me.ahoo.wow.openapi.contributor.tailVersionPathParameterRef
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
@@ -66,6 +67,8 @@ object EventRouteContributor : RouteContributor {
         componentContext: OpenAPIComponentContext
     ): List<HttpRouteContract> {
         return buildList {
+            add(eventSchemaRoute(currentContext, aggregateRouteMetadata, componentContext))
+            add(eventSchemaRefreshRoute(currentContext, aggregateRouteMetadata, componentContext))
             tenantOwnerVariants(aggregateRouteMetadata).forEach { variant ->
                 addAll(queryRoutes(currentContext, aggregateRouteMetadata, componentContext, variant))
             }
@@ -74,6 +77,43 @@ object EventRouteContributor : RouteContributor {
             add(resendStateEventRoute(currentContext, aggregateRouteMetadata, componentContext))
         }
     }
+
+    private fun eventSchemaRoute(
+        currentContext: NamedBoundedContext,
+        aggregateRouteMetadata: AggregateRouteMetadata<*>,
+        componentContext: OpenAPIComponentContext,
+    ): HttpRouteContract = eventRoute(
+        currentContext = currentContext,
+        aggregateRouteMetadata = aggregateRouteMetadata,
+        componentContext = componentContext,
+        handlerKey = BuiltInHttpRouteHandlerKeys.Event.SCHEMA,
+        resourceName = "event_schema",
+        operation = "get",
+        operationSummary = "Get Event Stream Schema",
+        method = Https.Method.GET,
+        appendTenantPath = false,
+        appendOwnerPath = false,
+        appendPathSuffix = "event/schema",
+        responses = componentContext.querySchemaResponses(),
+    )
+
+    private fun eventSchemaRefreshRoute(
+        currentContext: NamedBoundedContext,
+        aggregateRouteMetadata: AggregateRouteMetadata<*>,
+        componentContext: OpenAPIComponentContext,
+    ): HttpRouteContract = eventRoute(
+        currentContext = currentContext,
+        aggregateRouteMetadata = aggregateRouteMetadata,
+        componentContext = componentContext,
+        handlerKey = BuiltInHttpRouteHandlerKeys.Event.SCHEMA_REFRESH,
+        resourceName = "event_schema",
+        operation = "refresh",
+        operationSummary = "Refresh Event Stream Schema",
+        appendTenantPath = false,
+        appendOwnerPath = false,
+        appendPathSuffix = "event/schema/refresh",
+        responses = componentContext.querySchemaResponses(),
+    )
 
     @Suppress("LongMethod")
     private fun queryRoutes(

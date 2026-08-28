@@ -6646,6 +6646,58 @@
         "tags" : [ "example.cart", "customer" ]
       }
     },
+    "/cart/event/schema" : {
+      "get" : {
+        "operationId" : "example.cart.event_schema.get",
+        "parameters" : [ ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "400" : { },
+          "500" : { },
+          "503" : { }
+        },
+        "tags" : [ "example.cart", "customer" ]
+      }
+    },
+    "/cart/event/schema/refresh" : {
+      "post" : {
+        "operationId" : "example.cart.event_schema.refresh",
+        "parameters" : [ ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "400" : { },
+          "500" : { },
+          "503" : { }
+        },
+        "tags" : [ "example.cart", "customer" ]
+      }
+    },
     "/cart/snapshot/aggregation" : {
       "post" : {
         "operationId" : "example.cart.snapshot.aggregation",
@@ -8801,6 +8853,62 @@
         "tags" : [ "example.order" ]
       }
     },
+    "/sales-order/event/schema" : {
+      "get" : {
+        "operationId" : "example.order.event_schema.get",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.Wow-Space-Id"
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "400" : { },
+          "500" : { },
+          "503" : { }
+        },
+        "tags" : [ "example.order" ]
+      }
+    },
+    "/sales-order/event/schema/refresh" : {
+      "post" : {
+        "operationId" : "example.order.event_schema.refresh",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.Wow-Space-Id"
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "400" : { },
+          "500" : { },
+          "503" : { }
+        },
+        "tags" : [ "example.order" ]
+      }
+    },
     "/sales-order/snapshot/aggregation" : {
       "post" : {
         "operationId" : "example.order.snapshot.aggregation",
@@ -9314,6 +9422,58 @@
         "tags" : [ "tck.mock_aggregate" ]
       }
     },
+    "/tck/mock_aggregate/event/schema" : {
+      "get" : {
+        "operationId" : "tck.mock_aggregate.event_schema.get",
+        "parameters" : [ ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "400" : { },
+          "500" : { },
+          "503" : { }
+        },
+        "tags" : [ "tck.mock_aggregate" ]
+      }
+    },
+    "/tck/mock_aggregate/event/schema/refresh" : {
+      "post" : {
+        "operationId" : "tck.mock_aggregate.event_schema.refresh",
+        "parameters" : [ ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "400" : { },
+          "500" : { },
+          "503" : { }
+        },
+        "tags" : [ "tck.mock_aggregate" ]
+      }
+    },
     "/tck/mock_aggregate/snapshot/aggregation" : {
       "post" : {
         "operationId" : "tck.mock_aggregate.snapshot.aggregation",
@@ -9803,6 +9963,58 @@
         "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
       }
     },
+    "/tck/modeling_command_aggregate_with_tenant_id/event/schema" : {
+      "get" : {
+        "operationId" : "tck.modeling_command_aggregate_with_tenant_id.event_schema.get",
+        "parameters" : [ ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "400" : { },
+          "500" : { },
+          "503" : { }
+        },
+        "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+      }
+    },
+    "/tck/modeling_command_aggregate_with_tenant_id/event/schema/refresh" : {
+      "post" : {
+        "operationId" : "tck.modeling_command_aggregate_with_tenant_id.event_schema.refresh",
+        "parameters" : [ ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "400" : { },
+          "500" : { },
+          "503" : { }
+        },
+        "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+      }
+    },
     "/tck/modeling_command_aggregate_with_tenant_id/snapshot/aggregation" : {
       "post" : {
         "operationId" : "tck.modeling_command_aggregate_with_tenant_id.snapshot.aggregation",
@@ -10288,6 +10500,58 @@
               }
             }
           }
+        },
+        "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+      }
+    },
+    "/tck/modeling_command_aggregate_without_ctor_parameters/event/schema" : {
+      "get" : {
+        "operationId" : "tck.modeling_command_aggregate_without_ctor_parameters.event_schema.get",
+        "parameters" : [ ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "400" : { },
+          "500" : { },
+          "503" : { }
+        },
+        "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+      }
+    },
+    "/tck/modeling_command_aggregate_without_ctor_parameters/event/schema/refresh" : {
+      "post" : {
+        "operationId" : "tck.modeling_command_aggregate_without_ctor_parameters.event_schema.refresh",
+        "parameters" : [ ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "400" : { },
+          "500" : { },
+          "503" : { }
         },
         "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
       }

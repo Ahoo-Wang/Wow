@@ -15,7 +15,6 @@ package me.ahoo.wow.openapi.contributor.aggregate.snapshot
 
 import me.ahoo.wow.api.annotation.AggregateRoute
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.api.query.schema.QueryModelSchemaMetadata
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.openapi.BatchComponent.PathVariable.BATCH_AFTER_ID
 import me.ahoo.wow.openapi.BatchComponent.PathVariable.BATCH_LIMIT
@@ -52,6 +51,7 @@ import me.ahoo.wow.openapi.contributor.materializedSnapshotListResponse
 import me.ahoo.wow.openapi.contributor.materializedSnapshotPagedResponse
 import me.ahoo.wow.openapi.contributor.materializedSnapshotSingleResponse
 import me.ahoo.wow.openapi.contributor.notFoundResponseRef
+import me.ahoo.wow.openapi.contributor.querySchemaResponses
 import me.ahoo.wow.openapi.contributor.requestTimeoutResponseRef
 import me.ahoo.wow.openapi.contributor.stateListResponse
 import me.ahoo.wow.openapi.contributor.statePagedResponse
@@ -97,7 +97,7 @@ object SnapshotRouteContributor : RouteContributor {
         appendTenantPath = false,
         appendOwnerPath = false,
         appendPathSuffix = "snapshot/schema",
-        responses = schemaResponses(componentContext),
+        responses = componentContext.querySchemaResponses(),
     )
 
     private fun snapshotSchemaRefreshRoute(
@@ -115,23 +115,7 @@ object SnapshotRouteContributor : RouteContributor {
         appendTenantPath = false,
         appendOwnerPath = false,
         appendPathSuffix = "snapshot/schema/refresh",
-        responses = schemaResponses(componentContext),
-    )
-
-    private fun schemaResponses(componentContext: OpenAPIComponentContext): List<HttpResponse> = listOf(
-        HttpResponse(
-            statusCode = Https.Code.OK,
-            headers = listOf(componentContext.errorCodeHeaderRef()),
-            content = listOf(
-                HttpContent(
-                    Https.MediaType.APPLICATION_JSON,
-                    HttpSchema.TypeRef(QueryModelSchemaMetadata::class.java),
-                )
-            ),
-        ),
-        HttpResponse(Https.Code.BAD_REQUEST),
-        HttpResponse(Https.Code.INTERNAL_SERVER_ERROR),
-        HttpResponse(Https.Code.SERVICE_UNAVAILABLE),
+        responses = componentContext.querySchemaResponses(),
     )
 
     private fun queryRoutes(

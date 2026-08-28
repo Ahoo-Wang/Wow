@@ -106,7 +106,7 @@ class Order(private val state: OrderState)
 class Cart(private val state: CartState)
 ```
 
-Query-schema routes are an exception: `/{aggregate}/snapshot/schema` and `/refresh` describe the aggregate model and therefore do not have tenant/owner path variants. A spaced aggregate's common contract may still declare `Wow-Space-Id`.
+Query-schema routes are an exception: `/{aggregate}/snapshot/schema`, `/{aggregate}/event/schema`, and their `/refresh` routes describe query models and therefore do not have tenant/owner path variants. A spaced aggregate's common contract may still declare `Wow-Space-Id`.
 
 ## Global Routes
 
@@ -206,6 +206,8 @@ The catalog contributes command, state, event, snapshot, and query routes from a
 |---|---|---|
 | `GET` | `snapshot/schema` | runtime `QueryModelSchemaMetadata` |
 | `POST` | `snapshot/schema/refresh` | refreshed query-model schema |
+| `GET` | `event/schema` | runtime EventStream `QueryModelSchemaMetadata` |
+| `POST` | `event/schema/refresh` | refreshed EventStream query-model schema |
 | `POST` | `snapshot/single` | `SingleQuery` -> materialized snapshot |
 | `POST` | `snapshot/single/state` | `SingleQuery` -> state only |
 | `POST` | `snapshot/list` / `list/state` | `ListQuery` -> array or SSE |
@@ -217,7 +219,7 @@ Query contracts appear in three distinct layers:
 
 1. Generic query component schemas define the canonical request JSON shapes.
 2. Every aggregate-specific query request-body component references a generic schema and exposes static `x-wow-query-fields`, whose enum combines system fields with fields inferred by `JsonQuerySchemaSource`.
-3. The runtime `snapshot/schema` route publishes merged `QueryModelSchemaMetadata` and backend-proven capabilities.
+3. The runtime `snapshot/schema` and `event/schema` routes publish their merged `QueryModelSchemaMetadata` and backend-proven capabilities.
 
 `x-wow-query-fields` is OpenAPI design-time metadata on the request-body component; it is not embedded as JSON request properties and is not a backend capability claim.
 

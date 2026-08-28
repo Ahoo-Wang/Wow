@@ -11,60 +11,60 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.webflux.route.snapshot
+package me.ahoo.wow.webflux.route.event
 
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
-import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
-import me.ahoo.wow.query.snapshot.requiredQueryModelSchemaProvider
+import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
+import me.ahoo.wow.query.event.requiredQueryModelSchemaProvider
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.query.QuerySchemaHandlerFunction
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerResponse
 
-class SnapshotSchemaHandlerFunction(
-    private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val snapshotQueryServiceFactory: SnapshotQueryServiceFactory,
+class EventStreamSchemaHandlerFunctionFactory(
+    private val eventStreamQueryServiceFactory: EventStreamQueryServiceFactory,
     private val exceptionHandler: RequestExceptionHandler,
-    private val refresh: Boolean,
-) : HandlerFunction<ServerResponse> by QuerySchemaHandlerFunction(
-    provider = {
-        snapshotQueryServiceFactory.create<Any>(aggregateMetadata)
-            .requiredQueryModelSchemaProvider()
-    },
-    exceptionHandler = exceptionHandler,
-    refresh = refresh,
-)
-
-class SnapshotSchemaHandlerFunctionFactory(
-    private val snapshotQueryServiceFactory: SnapshotQueryServiceFactory,
-    private val exceptionHandler: RequestExceptionHandler,
-) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Snapshot.SCHEMA) {
+) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Event.SCHEMA) {
     override fun create(
         contract: HttpRouteContract,
         metadata: HttpRouteHandlerMetadata.Aggregate,
-    ): HandlerFunction<ServerResponse> = SnapshotSchemaHandlerFunction(
+    ): HandlerFunction<ServerResponse> = eventStreamSchemaHandler(
         aggregateMetadata = aggregateMetadata(metadata),
-        snapshotQueryServiceFactory = snapshotQueryServiceFactory,
+        eventStreamQueryServiceFactory = eventStreamQueryServiceFactory,
         exceptionHandler = exceptionHandler,
         refresh = false,
     )
 }
 
-class SnapshotSchemaRefreshHandlerFunctionFactory(
-    private val snapshotQueryServiceFactory: SnapshotQueryServiceFactory,
+class EventStreamSchemaRefreshHandlerFunctionFactory(
+    private val eventStreamQueryServiceFactory: EventStreamQueryServiceFactory,
     private val exceptionHandler: RequestExceptionHandler,
-) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Snapshot.SCHEMA_REFRESH) {
+) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Event.SCHEMA_REFRESH) {
     override fun create(
         contract: HttpRouteContract,
         metadata: HttpRouteHandlerMetadata.Aggregate,
-    ): HandlerFunction<ServerResponse> = SnapshotSchemaHandlerFunction(
+    ): HandlerFunction<ServerResponse> = eventStreamSchemaHandler(
         aggregateMetadata = aggregateMetadata(metadata),
-        snapshotQueryServiceFactory = snapshotQueryServiceFactory,
+        eventStreamQueryServiceFactory = eventStreamQueryServiceFactory,
         exceptionHandler = exceptionHandler,
         refresh = true,
     )
 }
+
+private fun eventStreamSchemaHandler(
+    aggregateMetadata: AggregateMetadata<*, *>,
+    eventStreamQueryServiceFactory: EventStreamQueryServiceFactory,
+    exceptionHandler: RequestExceptionHandler,
+    refresh: Boolean,
+): HandlerFunction<ServerResponse> = QuerySchemaHandlerFunction(
+    provider = {
+        eventStreamQueryServiceFactory.create(aggregateMetadata)
+            .requiredQueryModelSchemaProvider()
+    },
+    exceptionHandler = exceptionHandler,
+    refresh = refresh,
+)

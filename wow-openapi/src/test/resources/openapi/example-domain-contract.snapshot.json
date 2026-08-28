@@ -35,6 +35,24 @@
   "responseCodes" : [ "200" ],
   "tagNames" : [ "customer", "example.cart" ]
 }, {
+  "accept" : [ "application/json" ],
+  "id" : "example.cart.event_schema.get",
+  "method" : "GET",
+  "parameterNames" : [ ],
+  "path" : "/cart/event/schema",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "400", "500", "503" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.cart.event_schema.refresh",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/cart/event/schema/refresh",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "400", "500", "503" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
   "accept" : [ "application/json", "text/event-stream" ],
   "id" : "example.cart.snapshot.aggregation",
   "method" : "POST",
@@ -539,6 +557,24 @@
   "responseCodes" : [ "200" ],
   "tagNames" : [ "example.order" ]
 }, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.event_schema.get",
+  "method" : "GET",
+  "parameterNames" : [ "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/sales-order/event/schema",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "400", "500", "503" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.event_schema.refresh",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/sales-order/event/schema/refresh",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "400", "500", "503" ],
+  "tagNames" : [ "example.order" ]
+}, {
   "accept" : [ "application/json", "text/event-stream" ],
   "id" : "example.order.snapshot.aggregation",
   "method" : "POST",
@@ -681,6 +717,24 @@
   "path" : "/tck/mock_aggregate/event/paged",
   "requestBody" : true,
   "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.mock_aggregate.event_schema.get",
+  "method" : "GET",
+  "parameterNames" : [ ],
+  "path" : "/tck/mock_aggregate/event/schema",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "400", "500", "503" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.mock_aggregate.event_schema.refresh",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/tck/mock_aggregate/event/schema/refresh",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "400", "500", "503" ],
   "tagNames" : [ "tck.mock_aggregate" ]
 }, {
   "accept" : [ "application/json", "text/event-stream" ],
@@ -827,6 +881,24 @@
   "responseCodes" : [ "200" ],
   "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
 }, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.event_schema.get",
+  "method" : "GET",
+  "parameterNames" : [ ],
+  "path" : "/tck/modeling_command_aggregate_with_tenant_id/event/schema",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "400", "500", "503" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.event_schema.refresh",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/tck/modeling_command_aggregate_with_tenant_id/event/schema/refresh",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "400", "500", "503" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
   "accept" : [ "application/json", "text/event-stream" ],
   "id" : "tck.modeling_command_aggregate_with_tenant_id.snapshot.aggregation",
   "method" : "POST",
@@ -969,6 +1041,24 @@
   "path" : "/tck/modeling_command_aggregate_without_ctor_parameters/event/paged",
   "requestBody" : true,
   "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.event_schema.get",
+  "method" : "GET",
+  "parameterNames" : [ ],
+  "path" : "/tck/modeling_command_aggregate_without_ctor_parameters/event/schema",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "400", "500", "503" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.event_schema.refresh",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/tck/modeling_command_aggregate_without_ctor_parameters/event/schema/refresh",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "400", "500", "503" ],
   "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
 }, {
   "accept" : [ "application/json", "text/event-stream" ],
