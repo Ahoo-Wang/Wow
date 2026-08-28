@@ -16,6 +16,22 @@ description: Use shared query shapes to read snapshot or event-stream data.
 | `PagedQuery` | `filter`, `projection`, `sort`, `pagination` | Current-page data and total |
 | Count | A `FilterExpression` directly | An exact count (`Long`) |
 
+```mermaid
+flowchart LR
+    Source{"Choose the data source"} --> Snapshot["Snapshot: current state"]
+    Source --> Event["EventStream: historical body"]
+    Shape{"Choose the result shape"} --> Single["SingleQuery: at most one"]
+    Shape --> List["ListQuery: list"]
+    Shape --> Paged["PagedQuery: page + total"]
+    Shape --> Count["FilterExpression: count"]
+    Snapshot --> Execute["Query entry point"]
+    Event --> Execute
+    Single --> Execute
+    List --> Execute
+    Paged --> Execute
+    Count --> Execute
+```
+
 These shapes can operate on different data models. See [Snapshot Queries](./snapshot-query.md) and [Event Stream Queries](./event-stream-query.md) for their field paths and model-specific defaults. This page does not assume `state.*` or `body.*` paths.
 
 ## SingleQuery

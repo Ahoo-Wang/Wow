@@ -11,12 +11,16 @@ description: 定义 AggregationQuery 的公共 AST、统计单位和动态表格
 
 ```mermaid
 flowchart LR
-    Q[AggregationQuery] --> F[filter]
-    Q --> E[elements]
-    Q --> G[groupBy]
-    Q --> M[metrics]
-    Q --> S[sort]
-    Q --> L[limit]
+    Q["AggregationQuery"] --> F["filter：根过滤"]
+    F --> E{"elements？"}
+    E -->|不展开| RootUnit["统计单位：根文档"]
+    E -->|展开集合| ElementUnit["统计单位：最内层元素"]
+    RootUnit --> G["groupBy：分桶"]
+    ElementUnit --> G
+    G --> M["metrics：计算指标"]
+    M --> Rows["动态结果行"]
+    Rows --> S["sort"]
+    S --> L["limit"]
 ```
 
 `filter`、有序的 `elements`、`groupBy`、`metrics`、`sort` 与 `limit` 共同决定结果。`metrics` 不可为空；`elements`、`groupBy` 与 `sort` 可为空。没有 group 时，结果是整体汇总而非按维度分桶。

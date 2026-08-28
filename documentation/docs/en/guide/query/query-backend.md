@@ -9,6 +9,19 @@ description: Learn how QueryService, Spring typed Beans, Factory caching, and st
 
 `QueryService<R>` is the aggregate query-backend contract. It provides typed and dynamic single, list, paged, count, and aggregation operations. `SnapshotQueryService<S>` returns `MaterializedSnapshot<S>`, while `EventStreamQueryService` returns `DomainEventStream`. Aggregation always returns dynamic-document rows; the default `aggregate` fails when a backend does not support it.
 
+```mermaid
+flowchart TB
+    SnapshotRegistrar["SnapshotQueryServiceRegistrar"] --> SnapshotBean["Typed SnapshotQueryService&lt;STATE&gt; Bean"]
+    EventRegistrar["EventStreamQueryServiceRegistrar"] --> EventBean["EventStreamQueryService Bean"]
+    SnapshotBean --> Proxy["QueryServiceProxy"]
+    EventBean --> Proxy
+    Proxy --> Gateway["QueryGateway"]
+    Gateway --> Factory["QueryServiceFactory cache and routing"]
+    Factory --> Mongo["MongoDB QueryService"]
+    Factory --> Elastic["Elasticsearch QueryService"]
+    Infra["Trusted infrastructure"] -. "Direct call bypasses Gateway" .-> Factory
+```
+
 ## Injecting a typed SnapshotQueryService Bean
 
 Spring can inject a snapshot query service by its state type:

@@ -9,6 +9,19 @@ description: 了解 QueryService、Spring 类型化 Bean、Factory 缓存与存�
 
 `QueryService<R>` 是聚合查询后端契约，提供类型化（typed）与动态（dynamic）的单条（single）、列表（list）、分页（paged）、计数（count）和聚合（aggregation）操作。`SnapshotQueryService<S>` 返回 `MaterializedSnapshot<S>`，而 `EventStreamQueryService` 返回 `DomainEventStream`。聚合始终返回动态文档行；后端未支持时，默认 `aggregate` 会失败。
 
+```mermaid
+flowchart TB
+    SnapshotRegistrar["SnapshotQueryServiceRegistrar"] --> SnapshotBean["SnapshotQueryService&lt;STATE&gt; 类型化 Bean"]
+    EventRegistrar["EventStreamQueryServiceRegistrar"] --> EventBean["EventStreamQueryService Bean"]
+    SnapshotBean --> Proxy["QueryServiceProxy"]
+    EventBean --> Proxy
+    Proxy --> Gateway["QueryGateway"]
+    Gateway --> Factory["QueryServiceFactory 缓存与路由"]
+    Factory --> Mongo["MongoDB QueryService"]
+    Factory --> Elastic["Elasticsearch QueryService"]
+    Infra["受信基础设施"] -. "直接调用，绕过 Gateway" .-> Factory
+```
+
 ## 注入类型化的 SnapshotQueryService Bean
 
 Spring 可按状态类型注入快照查询服务：

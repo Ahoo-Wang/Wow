@@ -21,6 +21,20 @@ description: 用八个业务场景说明快照根文档与集合元素的聚合�
 
 调用 `expand("state.items")` 后，统计单位变为展开后的单个订单项。首个 Element 路径仍是绝对路径；它的 filter 以及后续 group、metric 和表达式字段都相对该元素，因此使用 `quantity`、`productId`、`price`，不能再写成 `state.items.quantity`。Group 只负责分桶，不改变统计单位；`COUNT` 始终统计当前最内层作用域。
 
+```mermaid
+flowchart TB
+    Unit{"统计单位"} --> Root["快照根文档"]
+    Unit --> Item["展开后的 state.items"]
+    Root --> S1["1 状态分类"]
+    Root --> S2["2 过滤 KPI"]
+    Root --> S3["3 数值区间"]
+    Root --> S4["4 业务时间趋势"]
+    Root --> S7["7 多维交叉分析"]
+    Item --> S5["5 明细项 Top-N"]
+    Item --> S6["6 派生金额"]
+    Item --> S8["8 ANY 展示字段"]
+```
+
 ## 场景 1：状态分类统计
 
 **业务问题**
