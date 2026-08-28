@@ -22,7 +22,7 @@ Compensation configuration belongs to two runtimes. The application-side starter
 | Compensation server | `wow.compensation.scheduler.batch-size` | Integer | `100` | Maximum failure records processed per tick |
 | Compensation server | `wow.compensation.scheduler.initial-delay` | Duration | `PT60S` | Delay before the first tick |
 | Compensation server | `wow.compensation.scheduler.period` | Duration | `PT60S` | Delay between ticks |
-| Compensation server | `wow.compensation.webhook.weixin.url` | String | absent | WeCom group-bot endpoint; its presence enables the integration |
+| Compensation server | `wow.compensation.webhook.weixin.url` | String | absent | WeCom group-bot endpoint; enabled when configured and its value is not `false` |
 | Compensation server | `wow.compensation.webhook.weixin.events` | Set | below | Events that produce bot messages |
 
 ## Complete YAML
@@ -116,7 +116,7 @@ Base period and batch changes on measured backlog and processing time. Before pa
 
 ## WeCom Webhook
 
-The WeCom integration is registered only when `wow.compensation.webhook.weixin.url` exists. Its default events are:
+The WeCom integration is registered only when `wow.compensation.webhook.weixin.url` is configured and its value is not `false`. Its default events are:
 
 - `execution_failed_created`
 - `execution_failed_applied`

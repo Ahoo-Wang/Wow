@@ -26,7 +26,7 @@ Each stage is observed by an outer Filter on its Dispatcher: `PROCESSED`, `SNAPS
 
 Two checks suppress irrelevant notifications: the processing stage must belong to the target's required stage set, and the concrete signal must match the target stage and optional function. `PROJECTED` carries `isLastProjection`; `SAGA_HANDLED` also carries the IDs of commands actually sent by that Saga.
 
-`SENT` does not come from these Dispatcher Filters. Ordinary `send` with a wait Header notifies when `CommandBus.send` completes or fails. `sendAndWait*` delivers `SENT` directly to the registered handle. A last-result handle may skip a successful `SENT` when waiting for a later stage; a stream handle retains it.
+`SENT` does not come from these Dispatcher Filters. Ordinary `send` with a wait Header notifies when `CommandBus.send` completes or fails. `sendAndWait` and `sendAndWaitStream` deliver `SENT` directly to the registered handle; `sendAndWaitForSent` is the no-handle fast path. A last-result handle may skip a successful `SENT` when waiting for a later stage; a stream handle retains it.
 
 ## WaitSignal
 

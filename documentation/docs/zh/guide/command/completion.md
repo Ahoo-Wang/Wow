@@ -49,8 +49,8 @@ flowchart LR
 三个函数型下游阶段分别观察不同 Dispatcher：
 
 - `PROJECTED`：投影函数；等待状态只有在匹配函数的 `isLastProjection == true` 信号到达后，才把该阶段视为完成。
-- `EVENT_HANDLED`：事件处理函数。
-- `SAGA_HANDLED`：无状态 Saga 函数；信号还可以携带该函数发出的后续 `commandId`。
+- `EVENT_HANDLED`：[事件处理函数](../event/processor.md)。
+- `SAGA_HANDLED`：[无状态 Saga 函数](../event/saga.md)；信号还可以携带该函数发出的后续 `commandId`。
 
 等待其中一个分支不会隐式等待另外两个分支。若响应必须同时满足多个独立分支，应由应用明确组合这些合同，而不是选择一个“最晚”阶段来代替。
 

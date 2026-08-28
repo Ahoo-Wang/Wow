@@ -64,7 +64,7 @@ Filters enter from left to right and observe completion or error from right to l
 
 ## Notifiers
 
-Within this critical filter set, a notifier is outermost and sends its wait signal only after the inner chain completes successfully:
+Within this critical filter set, a notifier is outermost. When the inner chain completes or fails, it emits the corresponding success or failure wait signal; notification delivery itself remains fire-and-forget:
 
 | Dispatcher | Notification stage |
 | --- | --- |

@@ -38,7 +38,7 @@ Register `SyncRestCommandGateway::class` instead for a synchronous application. 
 
 ## CommandRequest
 
-`CommandRequest` requires `body` and maps its other values to the destination or `Command-*` request headers:
+`CommandRequest` requires `body` and maps its other values to the destination or HTTP headers:
 
 ```kotlin
 val request = CommandRequest(

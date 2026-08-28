@@ -57,7 +57,7 @@ A function can synchronously, asynchronously, or reactively return these results
 | `CommandMessage<*>` | Preserve the existing message and send 1 command |
 | `Iterable<*>`, `Flux`, `Publisher`, or `Flow` | Collect and send N commands in result order |
 
-`StatelessSagaFunction` uses `concatMap` for multiple commands: the next `CommandGateway.send` starts only after the previous one completes. Keep result order stable. Reordering changes both the business flow and the default request IDs.
+`StatelessSagaFunction` uses `concatMap` for multiple commands: the next [`CommandGateway.send`](../command/sending.md) starts only after the previous one completes. Keep result order stable. Reordering changes both the business flow and the default request IDs.
 
 ## requestId and Context Propagation
 
@@ -70,7 +70,7 @@ For a command body or `CommandBuilder`, the framework fills only missing fields:
 
 A prebuilt `CommandMessage` keeps its message and `requestId` while receiving source-event header propagation.
 
-Replaying the same event with the same result order produces stable default request IDs that can cooperate with command-gateway idempotency checks. This does not make external side effects idempotent and does not deduplicate semantically repeated commands generated from different events.
+Replaying the same event with the same result order produces stable default request IDs that can cooperate with [command-gateway idempotency checks](../command/reliability.md). This does not make external side effects idempotent and does not deduplicate semantically repeated commands generated from different events.
 
 ## Business Compensation
 

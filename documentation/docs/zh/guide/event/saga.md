@@ -57,7 +57,7 @@ class CartSaga {
 | `CommandMessage<*>` | 保留现有消息并发送 1 条 |
 | `Iterable<*>`、`Flux`、`Publisher` 或 `Flow` | 收集并按结果顺序发送 N 条 |
 
-`StatelessSagaFunction` 对多条命令使用 `concatMap`：前一条 `CommandGateway.send` 完成后才发送下一条。保持返回顺序稳定；顺序变化不仅改变业务流程，也会改变默认 request ID。
+`StatelessSagaFunction` 对多条命令使用 `concatMap`：前一条 [`CommandGateway.send`](../command/sending.md) 完成后才发送下一条。保持返回顺序稳定；顺序变化不仅改变业务流程，也会改变默认 request ID。
 
 ## requestId 与上下文传播
 
@@ -70,7 +70,7 @@ class CartSaga {
 
 预构造的 `CommandMessage` 保留自己的消息与 `requestId`，同时传播源事件 header。
 
-同一事件以相同顺序重投时，默认 request ID 保持稳定，可与命令网关的幂等检查协作。它不保证外部副作用幂等，也不能保护不同事件生成的语义重复命令。
+同一事件以相同顺序重投时，默认 request ID 保持稳定，可与[命令网关的幂等检查](../command/reliability.md)协作。它不保证外部副作用幂等，也不能保护不同事件生成的语义重复命令。
 
 ## 业务补偿
 

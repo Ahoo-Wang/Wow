@@ -38,7 +38,7 @@ class ClientApplication
 
 ## CommandRequest
 
-`CommandRequest` 以 `body` 为必填字段，并把其余值映射为目的地或 `Command-*` 请求头：
+`CommandRequest` 以 `body` 为必填字段，并把其余值映射为目的地或 HTTP 请求头：
 
 ```kotlin
 val request = CommandRequest(

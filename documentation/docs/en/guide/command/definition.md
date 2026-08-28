@@ -6,7 +6,7 @@ outline: deep
 
 # Define Commands
 
-A command is an imperative payload requesting a state change. It describes what a caller wants to happen; the aggregate decides from current state whether it is allowed and represents the fact that happened as domain events.
+A command is an imperative payload requesting a state change. It describes what a caller wants to happen; the [aggregate](../domain/aggregate.md) decides from current state whether it is allowed and represents the fact that happened as domain events.
 
 ## Command Payloads and Command Messages
 

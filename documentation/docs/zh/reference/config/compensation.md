@@ -22,7 +22,7 @@ outline: deep
 | 补偿服务 | `wow.compensation.scheduler.batch-size` | Integer | `100` | 每个 tick 最多处理的失败记录数 |
 | 补偿服务 | `wow.compensation.scheduler.initial-delay` | Duration | `PT60S` | 首个 tick 前的延迟 |
 | 补偿服务 | `wow.compensation.scheduler.period` | Duration | `PT60S` | tick 间隔 |
-| 补偿服务 | `wow.compensation.webhook.weixin.url` | String | 未配置 | 企业微信群机器人 endpoint；存在时启用集成 |
+| 补偿服务 | `wow.compensation.webhook.weixin.url` | String | 未配置 | 企业微信群机器人 endpoint；已配置且值不为 `false` 时启用集成 |
 | 补偿服务 | `wow.compensation.webhook.weixin.events` | Set | 见下文 | 触发机器人消息的事件集合 |
 
 ## 完整 YAML
@@ -116,7 +116,7 @@ timeoutAt   = retryAt + executionTimeout
 
 ## 企业微信 Webhook
 
-只有存在 `wow.compensation.webhook.weixin.url` 时才注册企业微信集成。默认事件为：
+只有 `wow.compensation.webhook.weixin.url` 已配置且值不为 `false` 时才注册企业微信集成。默认事件为：
 
 - `execution_failed_created`
 - `execution_failed_applied`

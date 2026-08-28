@@ -49,8 +49,8 @@ Observing `PROJECTED` therefore does not mean `SNAPSHOT` or `SAGA_HANDLED` has c
 The three function-oriented downstream stages observe different dispatchers:
 
 - `PROJECTED`: a projection function. The wait state completes this stage only after a matching signal has `isLastProjection == true`.
-- `EVENT_HANDLED`: an event-processing function.
-- `SAGA_HANDLED`: a stateless Saga function. Its signal can also carry the downstream `commandId` values emitted by that function.
+- `EVENT_HANDLED`: an [event-processing function](../event/processor.md).
+- `SAGA_HANDLED`: a [stateless Saga function](../event/saga.md). Its signal can also carry the downstream `commandId` values emitted by that function.
 
 Waiting for one branch does not implicitly wait for either of the others. If a response must satisfy several independent branches, the application must compose those contracts explicitly instead of treating one stage as a global “latest” stage.
 

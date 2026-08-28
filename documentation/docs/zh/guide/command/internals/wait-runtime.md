@@ -26,7 +26,7 @@ outline: deep
 
 通知前有两层裁剪：处理阶段必须属于目标所需的阶段集合，具体信号还必须满足目标阶段和可选函数匹配。`PROJECTED` 信号携带 `isLastProjection`；`SAGA_HANDLED` 信号还携带该 Saga 实际发送的后续 `commandId`。
 
-`SENT` 不来自这些 Dispatcher Filter。带等待 Header 的普通 `send` 在 `CommandBus.send` 完成或报错时通知；`sendAndWait*` 则直接把 `SENT` 信号交给已注册 handle。非流式 handle 等待后续阶段时可跳过成功 `SENT`，流式 handle 会保留它。
+`SENT` 不来自这些 Dispatcher Filter。带等待 Header 的普通 `send` 在 `CommandBus.send` 完成或报错时通知；`sendAndWait` 和 `sendAndWaitStream` 则直接把 `SENT` 信号交给已注册 handle，`sendAndWaitForSent` 是不注册 handle 的快路径。非流式 handle 等待后续阶段时可跳过成功 `SENT`，流式 handle 会保留它。
 
 ## WaitSignal
 

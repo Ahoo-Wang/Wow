@@ -64,7 +64,7 @@ Filter 从左到右进入、从右到左观察完成或错误。唯一的 `Retry
 
 ## 通知器
 
-在这组关键 Filter 中，通知器位于最外层，并只在内层处理链成功完成后发送对应 wait signal：
+在这组关键 Filter 中，通知器位于最外层；内层处理链完成或失败时，会发送对应的成功或失败 wait signal，通知交付本身保持 fire-and-forget：
 
 | Dispatcher | 通知阶段 |
 | --- | --- |
