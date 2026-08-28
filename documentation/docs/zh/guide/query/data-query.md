@@ -16,7 +16,7 @@ description: 使用统一的查询形态读取快照或事件流数据。
 | `PagedQuery` | `filter`、`projection`、`sort`、`pagination` | 当前页数据和总数 |
 | Count | 直接提交 `FilterExpression` | 精确计数（`Long`） |
 
-这些形态可以作用于不同的数据模型。字段路径和模型默认行为由[快照查询](./snapshot-query.md)与[事件流查询](./event-stream-query.md)分别定义，本页不预设 `state.*` 或 `body.*` 路径。
+这些形态可以作用于不同的数据模型。字段路径和模型默认行为将在快照与事件流子页面分别定义；当前可先参阅[查询入口](../query.md#rest-api)。本页不预设 `state.*` 或 `body.*` 路径。
 
 ## SingleQuery
 
@@ -74,7 +74,7 @@ JVM 中可使用 `filter.count(queryService)`。计数是否可执行以及精�
 
 | 需求 | 入口 |
 | --- | --- |
-| 读取聚合当前状态、面向业务状态字段查询 | [快照查询](./snapshot-query.md) |
-| 读取完整事件历史、面向事件流字段查询 | [事件流查询](./event-stream-query.md) |
+| 读取聚合当前状态、面向业务状态字段查询 | [快照查询（当前查询入口）](../query.md#rest-api) |
+| 读取完整事件历史、面向事件流字段查询 | [事件流查询（当前查询入口）](../query.md#rest-api) |
 
 两种模型都支持公共数据查询形态，但字段根、删除语义、可用传输入口和结果模型可能不同。先按数据的事实来源选择模型，再在对应页面确认字段路径、入口和空结果行为。

@@ -16,7 +16,7 @@ description: Use shared query shapes to read snapshot or event-stream data.
 | `PagedQuery` | `filter`, `projection`, `sort`, `pagination` | Current-page data and total |
 | Count | A `FilterExpression` directly | An exact count (`Long`) |
 
-These shapes can operate on different data models. Field paths and model-specific defaults are defined by [Snapshot Queries](./snapshot-query.md) and [Event Stream Queries](./event-stream-query.md); this page does not assume `state.*` or `body.*` paths.
+These shapes can operate on different data models. Field paths and model-specific defaults will be defined by the snapshot and event-stream child pages; for now, see the [query entries](../query.md#rest-api). This page does not assume `state.*` or `body.*` paths.
 
 ## SingleQuery
 
@@ -74,7 +74,7 @@ Queries may return typed, state-only, or dynamic results; the concrete entry poi
 
 | Need | Entry |
 | --- | --- |
-| Read current aggregate state and query business-state fields | [Snapshot Queries](./snapshot-query.md) |
-| Read the complete event history and query event-stream fields | [Event Stream Queries](./event-stream-query.md) |
+| Read current aggregate state and query business-state fields | [Snapshot Queries (current query entry)](../query.md#rest-api) |
+| Read the complete event history and query event-stream fields | [Event Stream Queries (current query entry)](../query.md#rest-api) |
 
 Both models support the shared data-query shapes, but their field roots, deletion semantics, available transport entries, and result models may differ. Choose the model from the source of truth first, then confirm field paths, entry points, and empty-result behavior on its page.
