@@ -41,7 +41,7 @@ These are the currently published event-stream routes for `sales-order`:
 POST /sales-order/event/list
 POST /sales-order/event/paged
 POST /sales-order/event/count
-GET /sales-order/{id}/event/{headVersion}/{tailVersion}
+GET /tenant/{tenantId}/sales-order/{id}/event/{headVersion}/{tailVersion}
 ```
 
 There is currently no event-stream `single`, aggregation, or Schema HTTP route, and no event-stream API Client. The event-stream aggregation page describes JVM aggregation; do not use a nonexistent HTTP request to represent it.
@@ -51,11 +51,11 @@ There is currently no event-stream `single`, aggregation, or Schema HTTP route, 
 Load an aggregate ID and contiguous version range through the GET route, for example:
 
 ```http
-GET /sales-order/order-1/event/3/8
+GET /tenant/tenant-a/sales-order/order-1/event/3/8
 Accept: application/json
 ```
 
-It constructs a list query by `aggregateId` and version range. For a tenant aggregate, generated OpenAPI may require a tenant path prefix. List loading can negotiate JSON or SSE; application OpenAPI is the source of truth for the actual path and scope variants.
+It constructs a list query by `aggregateId` and version range. The actual `sales-order` route has a tenant path prefix. List loading can negotiate JSON or SSE; generated application OpenAPI is the source of truth for other aggregates' scope variants.
 
 ## Empty Results
 
