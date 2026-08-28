@@ -212,10 +212,10 @@ export function useFailedQueueController({
       clearSelection();
       updateQuery(
         pagedQuery({
-          filter: filter.and(
+          filter: filter.and([
             RetryConditions.categoryToCondition(category, Date.now()),
             nextSearchFilter,
-          ),
+          ]),
           sort: executionFailedSort(),
         }),
       );
@@ -234,10 +234,10 @@ export function useFailedQueueController({
       clearSelection();
       updateQuery({
         ...query,
-        filter: filter.and(
+        filter: filter.and([
           RetryConditions.categoryToCondition(category, Date.now()),
           searchFilter,
-        ),
+        ]),
         sort: executionFailedSort(),
         pagination: { index: nextPage, size: nextPageSize },
       });
@@ -256,10 +256,10 @@ export function useFailedQueueController({
     setQueryTransition("refresh");
     updateQuery({
       ...query,
-      filter: filter.and(
+      filter: filter.and([
         RetryConditions.categoryToCondition(category, Date.now()),
         searchFilter,
-      ),
+      ]),
       sort: executionFailedSort(),
     });
   }, [category, query, searchFilter, updateQuery]);
