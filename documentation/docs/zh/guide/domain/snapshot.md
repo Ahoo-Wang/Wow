@@ -17,11 +17,14 @@ outline: deep
 `EventSourcingStateAggregateRepository` 只在加载最新版本时先读取快照：有快照则将其物化为聚合，再从 `expectedNextVersion` 重放剩余事件；没有快照则创建空聚合并从初始版本重放。
 
 ```mermaid
-flowchart LR
-    Load[加载最新聚合] --> Snapshot[加载快照或创建空聚合]
-    Snapshot --> Events[从 expectedNextVersion 加载事件]
-    Events --> Source[按顺序 onSourcing]
-    Source --> Ready[恢复后的聚合]
+flowchart TB
+    Target["恢复最新聚合"] --> Choice{"存在可用快照？"}
+    Choice -->|否| All["加载全部事件"]
+    Choice -->|是| Snapshot["加载快照"]
+    Snapshot --> Tail["从 expectedNextVersion 加载尾部事件"]
+    All --> Source["按顺序 onSourcing"]
+    Tail --> Source
+    Source --> Ready["相同的当前聚合状态"]
 ```
 
 应用代码应依赖 `StateAggregateRepository`，不要自行拼接快照和事件加载逻辑。

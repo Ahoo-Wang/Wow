@@ -17,11 +17,14 @@ A snapshot is a versioned aggregate-state checkpoint derived from event history.
 `EventSourcingStateAggregateRepository` reads a snapshot first only when loading the latest version: it materializes that snapshot into the aggregate and replays remaining events from `expectedNextVersion`; without one, it creates an empty aggregate and replays from the initial version.
 
 ```mermaid
-flowchart LR
-    Load[Load latest aggregate] --> Snapshot[Load snapshot or create empty aggregate]
-    Snapshot --> Events[Load events from expectedNextVersion]
-    Events --> Source[onSourcing in order]
-    Source --> Ready[Restored aggregate]
+flowchart TB
+    Target["Restore the latest aggregate"] --> Choice{"Usable snapshot exists?"}
+    Choice -->|No| All["Load all events"]
+    Choice -->|Yes| Snapshot["Load snapshot"]
+    Snapshot --> Tail["Load tail events from expectedNextVersion"]
+    All --> Source["Apply onSourcing in order"]
+    Tail --> Source
+    Source --> Ready["Same current aggregate state"]
 ```
 
 Application code should depend on `StateAggregateRepository`, rather than composing snapshot and event loading itself.

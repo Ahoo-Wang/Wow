@@ -8,6 +8,21 @@ outline: deep
 
 An aggregate is the consistency boundary for one event stream. It separates a business change into two clear responsibilities: the command side decides from current state, while the state side reconstructs the result only from domain events that already happened. Every state change should be explainable by an event.
 
+An aggregate encloses state, business decisions, and invariants within one consistency boundary.
+
+```mermaid
+flowchart TB
+    Context["Bounded context"] --> Aggregate["Aggregate boundary"]
+    Intent["Business intent"] --> Decision["Aggregate decision"]
+    Aggregate --> State["Current state"]
+    Aggregate --> Decision
+    State --> Decision
+    Decision --> Invariant{"Invariants satisfied?"}
+    Invariant -->|Yes| Event["Domain event"]
+    Invariant -->|No| Reject["Reject command"]
+    Event --> State
+```
+
 ## Start With Business Boundaries
 
 Write invariants before code. For a cart, the business rules can first be expressed as a decision table:

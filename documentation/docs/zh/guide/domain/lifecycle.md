@@ -6,6 +6,20 @@ outline: deep
 
 # 聚合生命周期
 
+生命周期由事件驱动；删除和恢复仍然是聚合状态演进的一部分。
+
+```mermaid
+stateDiagram-v2
+    state "未初始化聚合" as Empty
+    state "活动聚合" as Active
+    state "已删除聚合" as Deleted
+    [*] --> Empty
+    Empty --> Active: 创建事件
+    Active --> Active: 普通领域事件
+    Active --> Deleted: 删除事件
+    Deleted --> Active: 恢复事件
+```
+
 ## 创建或恢复状态
 
 `StateAggregateFactory` 根据状态元数据和完整 `AggregateId` 创建未初始化的状态聚合。加载现有聚合应通过 `StateAggregateRepository`：
