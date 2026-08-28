@@ -19,6 +19,7 @@ import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.CountEventStreamHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.event.EventStreamAggregationHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.ListQueryEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.LoadEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.PagedQueryEventStreamHandlerFunctionFactory
@@ -98,6 +99,11 @@ class QueryRouteModule(
         LoadEventStreamHandlerFunctionFactory(
             eventStreamQueryGateway = eventStreamQueryGateway,
             exceptionHandler = exceptionHandler
+        ),
+        EventStreamAggregationHandlerFunctionFactory(
+            eventStreamQueryGateway = eventStreamQueryGateway,
+            rewriteRequestFilter = rewriteRequestFilter,
+            exceptionHandler = exceptionHandler,
         ),
         ListQueryEventStreamHandlerFunctionFactory(
             eventStreamQueryGateway = eventStreamQueryGateway,

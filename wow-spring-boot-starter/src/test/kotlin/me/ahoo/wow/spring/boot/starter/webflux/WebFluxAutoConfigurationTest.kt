@@ -968,6 +968,7 @@ internal class WebFluxAutoConfigurationTest {
             BuiltInHttpRouteHandlerKeys.Snapshot.SCHEMA_REFRESH,
             BuiltInHttpRouteHandlerKeys.Snapshot.AGGREGATION,
             BuiltInHttpRouteHandlerKeys.Event.LOAD,
+            BuiltInHttpRouteHandlerKeys.Event.AGGREGATION,
             BuiltInHttpRouteHandlerKeys.Snapshot.REGENERATE,
             BuiltInHttpRouteHandlerKeys.Event.RESEND_STATE,
             BuiltInHttpRouteHandlerKeys.Global.GLOBAL_ID,
