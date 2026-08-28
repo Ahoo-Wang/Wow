@@ -35,6 +35,9 @@ import me.ahoo.wow.api.query.SimpleDynamicDocument
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterConverter
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
+import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationCompiler
+import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationPager
+import me.ahoo.wow.elasticsearch.query.aggregation.selectTopRows
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test

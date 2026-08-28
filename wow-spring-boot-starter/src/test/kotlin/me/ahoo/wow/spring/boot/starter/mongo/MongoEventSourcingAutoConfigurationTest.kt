@@ -67,6 +67,19 @@ class MongoEventSourcingAutoConfigurationTest {
         .withUserConfiguration(QuerySchemaAutoConfiguration::class.java)
 
     @Test
+    fun `event stream query factory should use default schema collaborators`() {
+        MongoEventSourcingAutoConfiguration(
+            mongoProperties = MongoProperties(autoInitSchema = false, eventStreamDatabase = "testEventStream"),
+            eventStoreBatchProperties = MongoEventStoreBatchProperties(),
+            snapshotStoreBatchProperties = MongoSnapshotStoreBatchProperties(),
+        ).mongoEventStreamQueryServiceFactory(
+            mongoClient = mongoClient("order-service"),
+            dataMongoProperties = null,
+            currentBoundedContext = MaterializedNamedBoundedContext("order-service"),
+        ).assert().isInstanceOf(me.ahoo.wow.mongo.query.event.MongoEventStreamQueryServiceFactory::class.java)
+    }
+
+    @Test
     fun `constructor creates mongo snapshot store`() {
         val configuration = MongoEventSourcingAutoConfiguration(
             mongoProperties = MongoProperties(
@@ -110,6 +123,32 @@ class MongoEventSourcingAutoConfigurationTest {
         )
 
         (factory.create<Any>(MOCK_AGGREGATE_METADATA) as QueryModelSchemaProvider)
+            .schema()
+            .test()
+            .expectErrorSatisfies { it.assert().isSameAs(expected) }
+            .verify()
+    }
+
+    @Test
+    fun `should pass query schema sources to event stream factory`() {
+        val expected = IllegalStateException("query schema source was used")
+        val configuration = MongoEventSourcingAutoConfiguration(
+            mongoProperties = MongoProperties(autoInitSchema = false, eventStreamDatabase = "testEventStream"),
+            eventStoreBatchProperties = MongoEventStoreBatchProperties(),
+            snapshotStoreBatchProperties = MongoSnapshotStoreBatchProperties(),
+        )
+
+        val factory = configuration.mongoEventStreamQueryServiceFactory(
+            mongoClient = mongoClient("order-service"),
+            dataMongoProperties = null,
+            currentBoundedContext = MaterializedNamedBoundedContext("order-service"),
+            sources = listOf(failingQuerySchemaSource(expected)),
+            queryProperties = QueryProperties(
+                QueryProperties.Schema(me.ahoo.wow.query.schema.QuerySchemaValidationMode.STRICT)
+            ),
+        )
+
+        (factory.create(MOCK_AGGREGATE_METADATA) as QueryModelSchemaProvider)
             .schema()
             .test()
             .expectErrorSatisfies { it.assert().isSameAs(expected) }

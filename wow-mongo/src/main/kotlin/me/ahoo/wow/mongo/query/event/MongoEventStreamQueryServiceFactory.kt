@@ -15,17 +15,42 @@ package me.ahoo.wow.mongo.query.event
 
 import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
 import me.ahoo.wow.query.event.AbstractEventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.EventStreamQueryService
+import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QuerySchemaContext
+import me.ahoo.wow.query.schema.QuerySchemaSource
+import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 
-class MongoEventStreamQueryServiceFactory(private val database: MongoDatabase) :
+class MongoEventStreamQueryServiceFactory(
+    private val database: MongoDatabase,
+    private val schemaSources: List<QuerySchemaSource> = emptyList(),
+    private val validationMode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
+) :
     AbstractEventStreamQueryServiceFactory() {
 
     override fun createQueryService(namedAggregate: NamedAggregate): EventStreamQueryService {
         val collectionName = namedAggregate.toEventStreamCollectionName()
         val collection = database.getCollection(collectionName)
-        return MongoEventStreamQueryService(namedAggregate.materialize(), collection)
+        val materialized = namedAggregate.materialize()
+        val provider = DefaultQueryModelSchemaProvider(
+            context = QuerySchemaContext(materialized, QueryModel.EVENT_STREAM),
+            sources = schemaSources,
+            adapter = me.ahoo.wow.mongo.query.schema.MongoQuerySchemaAdapter(
+                collection,
+                database,
+                QueryModel.EVENT_STREAM,
+                EventStreamFieldConverter,
+            ),
+        )
+        return MongoEventStreamQueryService(
+            namedAggregate = materialized,
+            collection = collection,
+            schemaProvider = provider,
+            validationMode = validationMode,
+        )
     }
 }

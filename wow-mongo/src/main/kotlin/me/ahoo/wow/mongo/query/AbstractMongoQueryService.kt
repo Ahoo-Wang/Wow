@@ -15,6 +15,8 @@ package me.ahoo.wow.mongo.query
 
 import com.mongodb.reactivestreams.client.FindPublisher
 import com.mongodb.reactivestreams.client.MongoCollection
+import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
@@ -22,8 +24,12 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.Queryable
+import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
+import me.ahoo.wow.mongo.query.aggregation.MongoAggregationCompiler
 import me.ahoo.wow.query.QueryService
+import me.ahoo.wow.query.schema.ResolvedAggregationQuery
 import org.bson.Document
+import org.bson.types.Decimal128
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toFlux
@@ -131,5 +137,49 @@ abstract class AbstractMongoQueryService<R : Any> : QueryService<R> {
         return resolve(filter).flatMap { resolved ->
             collection.countDocuments(converter.convert(resolved)).toMono()
         }
+    }
+
+    protected fun executeAggregation(resolved: ResolvedAggregationQuery): Flux<DynamicDocument> {
+        val query = resolved.query
+        val result = collection.aggregate(
+            MongoAggregationCompiler(converter).compile(query, resolved.schema),
+        ).toFlux().map { it.toAggregationResult(query) }
+        return if (query.groupBy.isEmpty()) {
+            result.switchIfEmpty(Flux.just(query.emptySummary()))
+        } else {
+            result
+        }
+    }
+
+    private fun Document.toAggregationResult(query: AggregationQuery): DynamicDocument {
+        query.groupBy.forEach { group ->
+            this[group.alias] = get(group.alias).toTermsValue(group.alias)
+        }
+        query.metrics.forEach { metric ->
+            this[metric.alias] = when (metric) {
+                is AggregationMetric.Count -> (get(metric.alias) as Number).toLong()
+                is AggregationMetric.Any -> get(metric.alias).toTermsValue(metric.alias)
+                is AggregationMetric.Numeric -> get(metric.alias).toFiniteDouble(metric.alias)
+            }
+        }
+        return toDynamicDocument()
+    }
+
+    private fun Any?.toTermsValue(alias: String): Any? =
+        if (this is Decimal128) toFiniteDouble(alias) else this
+
+    private fun AggregationQuery.emptySummary(): DynamicDocument = metrics.associateTo(Document()) { metric ->
+        metric.alias to if (metric is AggregationMetric.Count) 0L else null
+    }.toDynamicDocument()
+
+    private fun Any?.toFiniteDouble(alias: String): Double? {
+        val value = when (this) {
+            null -> return null
+            is Decimal128 -> bigDecimalValue().toDouble()
+            is Number -> toDouble()
+            else -> error("Aggregation metric [$alias] must be numeric, but was [${this::class.java.name}].")
+        }
+        require(value.isFinite()) { "Aggregation metric [$alias] must be finite." }
+        return value
     }
 }

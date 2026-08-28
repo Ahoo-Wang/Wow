@@ -114,11 +114,17 @@ class MongoEventSourcingAutoConfiguration(
         dataMongoProperties: org.springframework.boot.mongodb.autoconfigure.MongoProperties?,
         @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
         currentBoundedContext: NamedBoundedContext,
+        sources: List<QuerySchemaSource> = emptyList(),
+        queryProperties: QueryProperties = QueryProperties(),
     ): MongoEventStreamQueryServiceFactory {
         val eventStoreDatabase = getEventStreamDatabase(dataMongoProperties, mongoClient)
         MongoDatabaseContextGuard(eventStoreDatabase)
             .ensureContext(currentBoundedContext.contextName)
-        return MongoEventStreamQueryServiceFactory(eventStoreDatabase)
+        return MongoEventStreamQueryServiceFactory(
+            eventStoreDatabase,
+            sources,
+            queryProperties.schema.validationMode,
+        )
     }
 
     @Bean

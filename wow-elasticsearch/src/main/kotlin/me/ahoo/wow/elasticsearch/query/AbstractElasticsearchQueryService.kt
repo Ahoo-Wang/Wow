@@ -33,7 +33,10 @@ import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.isEmpty
 import me.ahoo.wow.elasticsearch.query.ElasticsearchProjectionConverter.toSourceFilter
 import me.ahoo.wow.elasticsearch.query.ElasticsearchSortConverter.toSortOptions
+import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationCompiler
+import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationPager
 import me.ahoo.wow.query.QueryService
+import me.ahoo.wow.query.schema.ResolvedAggregationQuery
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -193,6 +196,16 @@ abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
             }
         }.flatMap(elasticsearchClient::count).map { it.count() }
     }
+
+    protected fun executeAggregation(resolved: ResolvedAggregationQuery): Flux<DynamicDocument> =
+        ElasticsearchAggregationPager(
+            elasticsearchClient,
+            indexName,
+            queryBatchSize,
+            queryKeepAlive,
+        ).execute(
+            ElasticsearchAggregationCompiler(filterConverter).compile(resolved.query, resolved.schema),
+        )
 
     private fun compile(filter: FilterExpression, sort: List<Sort>): ResolvedQuery =
         ResolvedQuery(

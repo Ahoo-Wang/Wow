@@ -20,11 +20,23 @@ import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.serialization.toJsonNode
+import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.TimeUnit
 
 class SystemQuerySchemaSourceTest {
+    @Test
+    fun `unsupported query model should be rejected`() {
+        assertThrows<QuerySchemaValidationException> {
+            SystemQuerySchemaSource.declaration(QueryModel("OTHER"))
+        }
+    }
+
     @Test
     fun `snapshot system fields should reject forced mutable map mutation`() {
         val declaration = SystemQuerySchemaSource.declaration(QueryModel.SNAPSHOT)
@@ -120,5 +132,31 @@ class SystemQuerySchemaSourceTest {
             fields.getValue(LogicalField(field)).valueTypes
                 .assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.INTEGER)))
         }
+    }
+
+    @Test
+    fun `event stream system declaration should match serialized fields`() {
+        val fields = SystemQuerySchemaSource.declaration(QueryModel.EVENT_STREAM).fields
+        val serialized = generateEventStream(
+            MaterializedNamedAggregate("sales", "Order").aggregateId("order-1"),
+            eventCount = 1,
+        ).toJsonNode<ObjectNode>()
+        val serializedFields = serialized.properties().mapTo(mutableSetOf()) { it.key }
+        val event = serialized[MessageRecords.BODY][0] as ObjectNode
+        serializedFields += event.properties().map { "${MessageRecords.BODY}.${it.key}" }
+
+        fields.keys.map(LogicalField::value).toSet().assert().isEqualTo(serializedFields)
+        fields.values.forEach { field ->
+            field.required.assert().isEqualTo(DeclarationValue.Set(true))
+            field.nullable.assert().isEqualTo(DeclarationValue.Set(false))
+        }
+        fields.getValue(LogicalField("body")).cardinality.assert()
+            .isEqualTo(DeclarationValue.Set(QueryCardinality.MANY))
+        fields.getValue(LogicalField("body.body")).dynamicChildren.assert()
+            .isEqualTo(DeclarationValue.Set(false))
+        fields.getValue(LogicalField("header")).dynamicChildren.assert()
+            .isEqualTo(DeclarationValue.Set(true))
+        fields.getValue(LogicalField("createTime")).semanticType.assert()
+            .isEqualTo(DeclarationValue.Set(Temporal.Epoch(TimeUnit.MILLISECONDS)))
     }
 }

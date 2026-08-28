@@ -121,6 +121,16 @@ class QuerySchemaMergerTest {
     }
 
     @Test
+    fun `event stream payload descendants should be allowed`() {
+        val payload = declaration("body.body.data", valueTypes = setOf(QueryValueType.STRING))
+
+        merger.merge(
+            SystemQuerySchemaSource.declaration(QueryModel.EVENT_STREAM),
+            listOf(PrioritizedQuerySchemaDeclaration(300, payload)),
+        ).fields.assert().containsKey(LogicalField("body.body.data"))
+    }
+
+    @Test
     fun `arbitrary snapshot top level extension should conflict`() {
         val exception = assertThrows<QuerySchemaConflictException> {
             merger.merge(

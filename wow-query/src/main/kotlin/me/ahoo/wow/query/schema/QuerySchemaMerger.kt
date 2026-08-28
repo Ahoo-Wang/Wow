@@ -24,15 +24,22 @@ import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.REQUIRED
 import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.SEMANTIC_TYPE
 import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.TITLE
 import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.VALUE_TYPES
+import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.serialization.state.StateAggregateRecords
 
 internal class QuerySchemaMerger {
     fun merge(
         system: QuerySchemaDeclaration,
         extensions: List<PrioritizedQuerySchemaDeclaration>,
     ): LogicalQuerySchema {
+        val extensionRoot = if (LogicalField(StateAggregateRecords.STATE) in system.fields) {
+            StateAggregateRecords.STATE
+        } else {
+            "${MessageRecords.BODY}.${MessageRecords.BODY}"
+        }
         extensions.forEach { extension ->
             extension.declaration.fields.forEach { (field, declaration) ->
-                validateExtensionPath(field)
+                validateExtensionPath(field, extensionRoot)
                 system.fields[field]?.rejectSystemOverwrite(field, declaration)
             }
         }
@@ -63,9 +70,9 @@ internal class QuerySchemaMerger {
         )
     }
 
-    private fun validateExtensionPath(field: LogicalField) {
-        if (field.value != "state" && !field.value.startsWith("state.")) {
-            throw QuerySchemaConflictException("Snapshot query schema extension must be under [state]: [$field].")
+    private fun validateExtensionPath(field: LogicalField, extensionRoot: String) {
+        if (field.value != extensionRoot && !field.value.startsWith("$extensionRoot.")) {
+            throw QuerySchemaConflictException("Query schema extension must be under [$extensionRoot]: [$field].")
         }
     }
 

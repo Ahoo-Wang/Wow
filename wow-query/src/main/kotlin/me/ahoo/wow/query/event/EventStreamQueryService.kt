@@ -21,10 +21,18 @@ import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.query.QueryService
+import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 interface EventStreamQueryService : QueryService<DomainEventStream>
+
+fun EventStreamQueryService.requiredQueryModelSchemaProvider(): QueryModelSchemaProvider =
+    this as? QueryModelSchemaProvider
+        ?: throw QuerySchemaUnavailableException(
+            "Event stream query service [$namedAggregate] does not provide QueryModelSchema.",
+        )
 
 class NoOpEventStreamQueryService(override val namedAggregate: NamedAggregate) : EventStreamQueryService {
     override fun single(singleQuery: ISingleQuery): Mono<DomainEventStream> {

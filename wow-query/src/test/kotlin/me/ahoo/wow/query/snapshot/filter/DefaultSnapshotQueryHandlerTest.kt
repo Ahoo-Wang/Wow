@@ -148,16 +148,21 @@ class DefaultSnapshotQueryHandlerTest {
     }
 
     @Test
-    fun `legacy snapshot handler should inherit unsupported aggregation`() {
+    fun `snapshot handler should inherit generic unsupported aggregation`() {
         val fallback = object :
             SnapshotQueryHandler,
-            QueryHandler<MaterializedSnapshot<Any>> by queryHandler {}
+            QueryHandler<MaterializedSnapshot<Any>> by queryHandler {
+            override fun aggregate(
+                namedAggregate: NamedAggregate,
+                query: AggregationQuery,
+            ): Flux<DynamicDocument> = super<SnapshotQueryHandler>.aggregate(namedAggregate, query)
+        }
 
         fallback.aggregate(
             MOCK_AGGREGATE_METADATA,
             AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))),
         ).test()
-            .expectErrorMessage("Snapshot aggregation is not supported.")
+            .expectErrorMessage("Aggregation is not supported.")
             .verify()
     }
 }

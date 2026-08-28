@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.event
 
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.FilterExpression
@@ -55,4 +56,9 @@ fun FilterExpression.count(queryService: EventStreamQueryService): Mono<Long> {
 @Deprecated("Use FilterExpression.count.")
 fun Condition.count(queryService: EventStreamQueryService): Mono<Long> {
     return queryService.count(this)
+}
+
+/** Executes this aggregation against persisted event-stream documents. */
+fun AggregationQuery.query(queryService: EventStreamQueryService): Flux<DynamicDocument> {
+    return queryService.aggregate(this)
 }

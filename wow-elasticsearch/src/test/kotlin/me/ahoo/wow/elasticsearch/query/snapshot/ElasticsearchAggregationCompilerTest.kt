@@ -28,6 +28,8 @@ import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
+import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationCompiler
+import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationMetric
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.schema.QueryFieldBinding
 import me.ahoo.wow.query.schema.QueryFieldSchema

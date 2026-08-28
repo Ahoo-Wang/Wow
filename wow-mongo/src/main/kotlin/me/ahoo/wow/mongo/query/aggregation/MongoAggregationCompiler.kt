@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.mongo.query.snapshot
+package me.ahoo.wow.mongo.query.aggregation
 
 import com.mongodb.client.model.Accumulators
 import com.mongodb.client.model.Aggregates
@@ -299,7 +299,7 @@ internal class MongoAggregationCompiler(
         val logicalField = field.absolute(parent)
         val fieldSchema = schema?.resolve(logicalField)
         if (fieldSchema == null) {
-            return Document("\$toDate", "\$${SnapshotFieldConverter.convert(logicalField.value)}")
+            return Document("\$toDate", "\$${converter.convertField(logicalField.value)}")
         }
         val physicalPath = fieldSchema.bindings[QueryCapability.AGGREGATE_TEMPORAL]?.physicalPath
             ?: throw QuerySchemaValidationException(
@@ -396,7 +396,7 @@ internal class MongoAggregationCompiler(
         val logicalField = absolute(parent)
         schema?.resolve(logicalField)?.bindings?.get(capability)?.physicalPath?.let { return it }
         if (schema == null || logicalField !in schema.fields) {
-            return SnapshotFieldConverter.convert(logicalField.value)
+            return converter.convertField(logicalField.value)
         }
         throw QuerySchemaValidationException("Query field [$logicalField] does not support [$capability].")
     }

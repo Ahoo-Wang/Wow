@@ -33,9 +33,11 @@ import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryCompatibilityLevel
+import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.mongo.query.AbstractMongoFilterConverter
+import me.ahoo.wow.mongo.query.event.EventStreamFieldConverter
 import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryService
 import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryServiceFactory
 import me.ahoo.wow.query.converter.FieldConverter
@@ -59,6 +61,22 @@ import java.util.concurrent.atomic.AtomicInteger
 
 @Suppress("LargeClass")
 class MongoQuerySchemaAdapterTest {
+    @Test
+    fun `event stream schema should bind logical id to MongoDB document id`() {
+        val id = LogicalField("id")
+        val schema = MongoQuerySchemaAdapter.bind(
+            logicalSchema = LogicalQuerySchema(mapOf(id to field(QueryValueType.STRING))),
+            indexes = emptyList(),
+            validatorSchema = null,
+            model = QueryModel.EVENT_STREAM,
+            fieldConverter = EventStreamFieldConverter,
+        )
+
+        schema.model.assert().isEqualTo(QueryModel.EVENT_STREAM)
+        schema.fields.getValue(id).bindings.getValue(QueryCapability.EXACT_MATCH).physicalPath.assert()
+            .isEqualTo("_id")
+    }
+
     @Test
     fun `numeric arrays should retain backend-supported range and aggregation bindings`() {
         val amount = LogicalField("state.amounts")

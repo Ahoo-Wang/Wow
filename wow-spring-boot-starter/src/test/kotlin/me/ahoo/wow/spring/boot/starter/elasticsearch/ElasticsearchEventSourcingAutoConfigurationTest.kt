@@ -72,6 +72,17 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
     ).getBeanProvider(WowMetrics::class.java)
 
     @Test
+    fun `event stream query factory should use default schema collaborators`() {
+        ElasticsearchEventSourcingAutoConfiguration(
+            elasticsearchProperties = ElasticsearchProperties(autoInitTemplate = false),
+            eventStoreBatchProperties = ElasticsearchEventStoreBatchProperties(),
+            snapshotStoreBatchProperties = ElasticsearchSnapshotStoreBatchProperties(),
+        ).elasticsearchEventStreamQueryServiceFactory(
+            mock(ReactiveElasticsearchClient::class.java),
+        ).assert().isInstanceOf(ElasticsearchEventStreamQueryServiceFactory::class.java)
+    }
+
+    @Test
     fun `default batch properties should be used`() {
         val autoConfiguration = ElasticsearchEventSourcingAutoConfiguration(
             elasticsearchProperties = ElasticsearchProperties(autoInitTemplate = false),
@@ -109,6 +120,30 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
         )
 
         (factory.create<Any>(MOCK_AGGREGATE_METADATA) as QueryModelSchemaProvider)
+            .schema()
+            .test()
+            .expectErrorSatisfies { it.assert().isSameAs(expected) }
+            .verify()
+    }
+
+    @Test
+    fun `should pass query schema sources to event stream factory`() {
+        val expected = IllegalStateException("query schema source was used")
+        val configuration = ElasticsearchEventSourcingAutoConfiguration(
+            elasticsearchProperties = ElasticsearchProperties(autoInitTemplate = false),
+            eventStoreBatchProperties = ElasticsearchEventStoreBatchProperties(),
+            snapshotStoreBatchProperties = ElasticsearchSnapshotStoreBatchProperties(),
+        )
+        val factory = configuration.elasticsearchEventStreamQueryServiceFactory(
+            elasticsearchClient = mock(ReactiveElasticsearchClient::class.java),
+            elasticsearchIndexMappingResolver = mockk<ElasticsearchIndexMappingResolver>(),
+            sources = listOf(failingQuerySchemaSource(expected)),
+            schemaQueryProperties = QueryProperties(
+                QueryProperties.Schema(me.ahoo.wow.query.schema.QuerySchemaValidationMode.STRICT),
+            ),
+        )
+
+        (factory.create(MOCK_AGGREGATE_METADATA) as QueryModelSchemaProvider)
             .schema()
             .test()
             .expectErrorSatisfies { it.assert().isSameAs(expected) }

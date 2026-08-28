@@ -14,6 +14,8 @@
 package me.ahoo.wow.query
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.FilterExpression
@@ -33,14 +35,7 @@ class QueryServiceCompatibilityTest {
     @Test
     fun `legacy count should delegate once to filter implementation`() {
         lateinit var captured: FilterExpression
-        val service = object : QueryService<Any> {
-            override val namedAggregate = "test.test".toNamedAggregate()
-            override fun single(singleQuery: ISingleQuery): Mono<Any> = Mono.empty()
-            override fun dynamicSingle(singleQuery: ISingleQuery): Mono<DynamicDocument> = Mono.empty()
-            override fun list(listQuery: IListQuery): Flux<Any> = Flux.empty()
-            override fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument> = Flux.empty()
-            override fun paged(pagedQuery: IPagedQuery): Mono<PagedList<Any>> = Mono.empty()
-            override fun dynamicPaged(pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>> = Mono.empty()
+        val service = object : LegacyQueryService() {
             override fun count(filter: FilterExpression): Mono<Long> {
                 captured = filter
                 return Mono.just(1)
@@ -49,5 +44,25 @@ class QueryServiceCompatibilityTest {
 
         service.count(Condition.id("id-1")).test().expectNext(1).verifyComplete()
         captured.assert().isEqualTo(IdFilter("id-1"))
+    }
+
+    @Test
+    fun `query service should inherit unsupported aggregation`() {
+        LegacyQueryService().aggregate(
+            AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))),
+        ).test()
+            .expectErrorMessage("Aggregation is not supported.")
+            .verify()
+    }
+
+    private open class LegacyQueryService : QueryService<Any> {
+        override val namedAggregate = "test.test".toNamedAggregate()
+        override fun single(singleQuery: ISingleQuery): Mono<Any> = Mono.empty()
+        override fun dynamicSingle(singleQuery: ISingleQuery): Mono<DynamicDocument> = Mono.empty()
+        override fun list(listQuery: IListQuery): Flux<Any> = Flux.empty()
+        override fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument> = Flux.empty()
+        override fun paged(pagedQuery: IPagedQuery): Mono<PagedList<Any>> = Mono.empty()
+        override fun dynamicPaged(pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>> = Mono.empty()
+        override fun count(filter: FilterExpression): Mono<Long> = Mono.just(0)
     }
 }

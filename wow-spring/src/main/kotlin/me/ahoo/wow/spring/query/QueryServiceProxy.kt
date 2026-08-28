@@ -26,7 +26,10 @@ import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.query.QueryService
 import me.ahoo.wow.query.event.EventStreamQueryService
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
+import me.ahoo.wow.query.event.requiredQueryModelSchemaProvider
 import me.ahoo.wow.query.filter.QueryHandler
+import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import reactor.core.publisher.Flux
@@ -34,7 +37,7 @@ import reactor.core.publisher.Mono
 
 internal class SnapshotQueryServiceProxy<S : Any>(
     private val delegate: SnapshotQueryService<S>,
-    private val handler: SnapshotQueryHandler,
+    handler: SnapshotQueryHandler,
 ) : QueryServiceProxy<MaterializedSnapshot<S>>(
     delegate.namedAggregate,
     handler.cast(),
@@ -42,16 +45,20 @@ internal class SnapshotQueryServiceProxy<S : Any>(
     SnapshotQueryService<S> {
     override val name: String
         get() = delegate.name
-
-    override fun aggregate(query: AggregationQuery): Flux<DynamicDocument> =
-        handler.aggregate(namedAggregate, query)
 }
 
 internal class EventStreamQueryServiceProxy(
-    delegate: EventStreamQueryService,
+    private val delegate: EventStreamQueryService,
     handler: EventStreamQueryHandler,
 ) : QueryServiceProxy<DomainEventStream>(delegate.namedAggregate, handler),
-    EventStreamQueryService
+    EventStreamQueryService,
+    QueryModelSchemaProvider {
+    override fun schema(): Mono<QueryModelSchema> =
+        Mono.defer { delegate.requiredQueryModelSchemaProvider().schema() }
+
+    override fun refresh(): Mono<QueryModelSchema> =
+        Mono.defer { delegate.requiredQueryModelSchemaProvider().refresh() }
+}
 
 internal abstract class QueryServiceProxy<R : Any>(
     final override val namedAggregate: NamedAggregate,
@@ -71,6 +78,8 @@ internal abstract class QueryServiceProxy<R : Any>(
 
     override fun dynamicPaged(pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>> =
         handler.dynamicPaged(namedAggregate, pagedQuery)
+
+    override fun aggregate(query: AggregationQuery): Flux<DynamicDocument> = handler.aggregate(namedAggregate, query)
 
     override fun count(filter: FilterExpression): Mono<Long> = handler.count(namedAggregate, filter)
 }

@@ -18,6 +18,7 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.dsl.listQuery
@@ -150,6 +151,38 @@ abstract class EventStreamQueryServiceSpec {
         }.count(eventStreamQueryService)
             .test()
             .expectNextCount(1)
+            .verifyComplete()
+    }
+
+    @Test
+    fun aggregateEventsByName() {
+        val tenantId = generateGlobalId()
+        eventStore.append(generateEventStream(namedAggregate.aggregateId(tenantId = tenantId))).block()
+
+        aggregation {
+            filter { tenantId(tenantId) }
+            expand("body")
+            terms("name", "eventName")
+            count("count")
+        }.query(eventStreamQueryService)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                rows.map { it.getValue<Long>("count") }.sorted().assert().containsExactly(1L, 9L)
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun aggregateEmptySummary() {
+        eventStore.append(generateEventStream(namedAggregate.aggregateId(tenantId = generateGlobalId()))).block()
+
+        aggregation {
+            filter { tenantId(generateGlobalId()) }
+            count("count")
+        }.query(eventStreamQueryService)
+            .test()
+            .assertNext { it.getValue<Long>("count").assert().isZero() }
             .verifyComplete()
     }
 }

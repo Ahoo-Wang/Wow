@@ -14,14 +14,29 @@
 package me.ahoo.wow.elasticsearch.query.event
 
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.IPagedQuery
+import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterConverter
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchQueryService
 import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
+import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
+import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapter
 import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.query.event.EventStreamQueryService
+import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QuerySchemaContext
+import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
+import me.ahoo.wow.query.schema.QuerySchemaValidationMode
+import me.ahoo.wow.query.schema.resolve
 import me.ahoo.wow.serialization.convert
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import java.time.Duration
@@ -29,29 +44,65 @@ import java.time.Duration
 class ElasticsearchEventStreamQueryService(
     override val namedAggregate: NamedAggregate,
     override val elasticsearchClient: ReactiveElasticsearchClient,
-    override val filterConverter: AbstractElasticsearchFilterConverter = EventStreamFilterConverter
-) : AbstractElasticsearchQueryService<DomainEventStream>(), EventStreamQueryService {
-    private var configuredQueryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE
-    private var configuredQueryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE
-
-    constructor(
-        namedAggregate: NamedAggregate,
-        elasticsearchClient: ReactiveElasticsearchClient,
-        filterConverter: AbstractElasticsearchFilterConverter,
-        queryBatchSize: Int,
-        queryKeepAlive: Duration,
-    ) : this(namedAggregate, elasticsearchClient, filterConverter) {
-        configuredQueryBatchSize = queryBatchSize
-        configuredQueryKeepAlive = queryKeepAlive
-    }
-
+    override val filterConverter: AbstractElasticsearchFilterConverter = EventStreamFilterConverter,
+    override val queryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE,
+    override val queryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE,
+    private val schemaProvider: QueryModelSchemaProvider =
+        defaultSchemaProvider(namedAggregate, elasticsearchClient, filterConverter),
+    private val validationMode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
+) : AbstractElasticsearchQueryService<DomainEventStream>(),
+    EventStreamQueryService,
+    QueryModelSchemaProvider by schemaProvider {
     override val indexName: String = namedAggregate.toEventStreamIndexName()
-    protected override val queryBatchSize: Int
-        get() = configuredQueryBatchSize
-    protected override val queryKeepAlive: Duration
-        get() = configuredQueryKeepAlive
 
     override fun toTypedResult(document: DynamicDocument): DomainEventStream {
         return document.convert<DomainEventStream>()
+    }
+
+    override fun resolve(query: ISingleQuery) = schemaProvider.resolve(query, validationMode)
+
+    override fun resolve(query: IListQuery) = schemaProvider.resolve(query, validationMode)
+
+    override fun resolve(query: IPagedQuery) = schemaProvider.resolve(query, validationMode)
+
+    override fun resolve(filter: FilterExpression) = schemaProvider.resolve(filter, validationMode)
+
+    override fun aggregate(query: AggregationQuery): reactor.core.publisher.Flux<DynamicDocument> =
+        schemaProvider.resolve(query, validationMode).flatMapMany(::executeAggregation)
+
+    companion object {
+        private fun defaultSchemaProvider(
+            namedAggregate: NamedAggregate,
+            elasticsearchClient: ReactiveElasticsearchClient,
+            filterConverter: AbstractElasticsearchFilterConverter,
+            mappingResolver: ElasticsearchIndexMappingResolver = ElasticsearchIndexMappingResolver(elasticsearchClient),
+        ): QueryModelSchemaProvider {
+            if (filterConverter !== EventStreamFilterConverter) {
+                return object : QueryModelSchemaProvider {
+                    override fun schema(): reactor.core.publisher.Mono<me.ahoo.wow.query.schema.QueryModelSchema> =
+                        unavailable()
+
+                    override fun refresh(): reactor.core.publisher.Mono<me.ahoo.wow.query.schema.QueryModelSchema> =
+                        unavailable()
+
+                    private fun unavailable(): reactor.core.publisher.Mono<me.ahoo.wow.query.schema.QueryModelSchema> =
+                        reactor.core.publisher.Mono.error(
+                            QuerySchemaUnavailableException(
+                                "Elasticsearch query schema is unavailable for custom filter converters.",
+                            ),
+                        )
+                }
+            }
+            val materialized = namedAggregate.materialize()
+            return DefaultQueryModelSchemaProvider(
+                context = QuerySchemaContext(materialized, QueryModel.EVENT_STREAM),
+                sources = emptyList(),
+                adapter = ElasticsearchQuerySchemaAdapter(
+                    materialized.toEventStreamIndexName(),
+                    mappingResolver,
+                    QueryModel.EVENT_STREAM,
+                ),
+            )
+        }
     }
 }
