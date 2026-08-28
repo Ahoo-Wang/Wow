@@ -131,7 +131,7 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
         elasticsearchIndexMappingResolver: ElasticsearchIndexMappingResolver =
             ElasticsearchIndexMappingResolver(elasticsearchClient),
         sources: List<QuerySchemaSource> = emptyList(),
-        schemaQueryProperties: QueryProperties = QueryProperties(),
+        schemaQueryProperties: QueryProperties,
     ): ElasticsearchEventStreamQueryServiceFactory {
         return ElasticsearchEventStreamQueryServiceFactory(
             elasticsearchClient,

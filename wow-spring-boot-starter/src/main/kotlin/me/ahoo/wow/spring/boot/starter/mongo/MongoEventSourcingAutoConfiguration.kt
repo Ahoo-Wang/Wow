@@ -115,7 +115,7 @@ class MongoEventSourcingAutoConfiguration(
         @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
         currentBoundedContext: NamedBoundedContext,
         sources: List<QuerySchemaSource> = emptyList(),
-        queryProperties: QueryProperties = QueryProperties(),
+        queryProperties: QueryProperties,
     ): MongoEventStreamQueryServiceFactory {
         val eventStoreDatabase = getEventStreamDatabase(dataMongoProperties, mongoClient)
         MongoDatabaseContextGuard(eventStoreDatabase)
