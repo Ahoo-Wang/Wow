@@ -71,19 +71,8 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
     private val elasticsearchProperties: ElasticsearchProperties,
     private val eventStoreBatchProperties: ElasticsearchEventStoreBatchProperties,
     private val snapshotStoreBatchProperties: ElasticsearchSnapshotStoreBatchProperties,
-    private val queryProperties: ElasticsearchQueryProperties,
+    private val queryProperties: ElasticsearchQueryProperties = ElasticsearchQueryProperties(),
 ) {
-    constructor(
-        elasticsearchProperties: ElasticsearchProperties,
-        eventStoreBatchProperties: ElasticsearchEventStoreBatchProperties,
-        snapshotStoreBatchProperties: ElasticsearchSnapshotStoreBatchProperties,
-    ) : this(
-        elasticsearchProperties = elasticsearchProperties,
-        eventStoreBatchProperties = eventStoreBatchProperties,
-        snapshotStoreBatchProperties = snapshotStoreBatchProperties,
-        queryProperties = ElasticsearchQueryProperties(),
-    )
-
     @Bean
     @ConditionalOnProperty(ElasticsearchProperties.COMPATIBILITY_VERSION_KEY)
     @ConditionalOnMissingBean(Rest5ClientOptions::class)
