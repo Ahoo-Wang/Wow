@@ -137,6 +137,6 @@ In addition to the capacity limits above, `metrics` has a minimum of 1, `limit` 
 | What to count | Temporary entry | Why choose it |
 | --- | --- | --- |
 | Current aggregate state and state collections | [Snapshot Aggregation](./snapshot-aggregation.md) | Snapshot is the source of truth for current state |
-| Complete event history and event arrays | [aggregation section in the query overview](../query.md#snapshot-aggregation) | Event stream is the source of truth for historical events and currently has a JVM aggregation contract only |
+| Complete event history and event arrays | [Event Stream Aggregation](./event-stream-aggregation.md) | Event stream is the source of truth for historical events and currently has a JVM aggregation contract only |
 
-The dedicated event-stream-aggregation page has not been created yet, so its link temporarily returns to the existing aggregation explanation. Do not infer an event-stream HTTP aggregation entry from the JSON example.
+Do not infer an event-stream HTTP aggregation entry from the JSON example.
