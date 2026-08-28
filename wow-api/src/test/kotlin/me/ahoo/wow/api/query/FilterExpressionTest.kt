@@ -86,6 +86,43 @@ class FilterExpressionTest {
     }
 
     @Test
+    fun `should deserialize legacy condition as filter expression`() {
+        val decoded = jsonMapper.readValue(
+            """{"field":"state.status","operator":"EQ","value":"PAID"}""",
+            FilterExpression::class.java,
+        )
+
+        decoded.assert().isEqualTo(
+            EqualFilter(LogicalField("state.status"), jsonMapper.valueToTree<JsonNode>("PAID")),
+        )
+    }
+
+    @Test
+    fun `should reject mixed filter expression discriminators`() {
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+            jsonMapper.readValue(
+                """{"op":"MATCH_ALL","operator":"ALL"}""",
+                FilterExpression::class.java,
+            )
+        }
+    }
+
+    @Test
+    fun `canonical filter tree should reject nested legacy condition`() {
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+            jsonMapper.readValue(
+                """
+                    {
+                      "op":"AND",
+                      "operands":[{"field":"state.status","operator":"EQ","value":"PAID"}]
+                    }
+                """.trimIndent(),
+                FilterExpression::class.java,
+            )
+        }
+    }
+
+    @Test
     fun `search mode should default to terms`() {
         val decoded = jsonMapper.readValue(
             """{"op":"SEARCH","query":"wow","fields":["state.name"]}""",
@@ -165,6 +202,18 @@ class FilterExpressionTest {
     fun `should accept scalar array equality value`() {
         EqualFilter(LogicalField("state.tags"), jsonMapper.valueToTree<JsonNode>(listOf("a", "b")))
         NotEqualFilter(LogicalField("state.tags"), jsonMapper.valueToTree<JsonNode>(listOf("a", "b")))
+    }
+
+    @Test
+    fun `canonical equality JSON should reject array value`() {
+        listOf("EQ", "NE").forEach { operator ->
+            org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+                jsonMapper.readValue(
+                    """{"op":"$operator","field":"state.tags","value":["a","b"]}""",
+                    FilterExpression::class.java,
+                )
+            }
+        }
     }
 
     @Test
@@ -417,6 +466,62 @@ class FilterExpressionTest {
 
         json.contains("\"filter\"").assert().isTrue()
         json.contains("\"condition\"").assert().isFalse()
+    }
+
+    @Test
+    fun `query models should deserialize legacy condition property`() {
+        val condition = """{"field":"state.status","operator":"EQ","value":"PAID"}"""
+        val expected = EqualFilter(
+            LogicalField("state.status"),
+            jsonMapper.valueToTree<JsonNode>("PAID"),
+        )
+        val filters = listOf(
+            jsonMapper.readValue("""{"condition":$condition}""", ListQuery::class.java).filter,
+            jsonMapper.readValue("""{"condition":$condition}""", PagedQuery::class.java).filter,
+            jsonMapper.readValue("""{"condition":$condition}""", SingleQuery::class.java).filter,
+            jsonMapper.readValue(
+                """{"condition":$condition,"metrics":[{"type":"COUNT","alias":"count"}]}""",
+                AggregationQuery::class.java,
+            ).filter,
+        )
+
+        filters.forEach { it.assert().isEqualTo(expected) }
+    }
+
+    @Test
+    fun `query models should reject filter and condition together`() {
+        val body = """{"filter":{"op":"MATCH_ALL"},"condition":{"operator":"ALL"}}"""
+        val aggregationBody =
+            """{"filter":{"op":"MATCH_ALL"},"condition":{"operator":"ALL"},"metrics":[{"type":"COUNT","alias":"count"}]}"""
+        val accepted = listOf(
+            runCatching { jsonMapper.readValue(body, ListQuery::class.java) }.isSuccess,
+            runCatching { jsonMapper.readValue(body, PagedQuery::class.java) }.isSuccess,
+            runCatching { jsonMapper.readValue(body, SingleQuery::class.java) }.isSuccess,
+            runCatching {
+                jsonMapper.readValue(aggregationBody, AggregationQuery::class.java)
+            }.isSuccess,
+        )
+
+        accepted.assert().containsExactly(false, false, false, false)
+    }
+
+    @Test
+    fun `query models should reject explicit null compatibility fields`() {
+        val bodies = listOf(
+            """{"filter":null,"condition":{"operator":"ALL"}}""",
+            """{"filter":{"op":"MATCH_ALL"},"condition":null}""",
+        )
+        val accepted = bodies.flatMap { body ->
+            val aggregationBody = body.dropLast(1) + ",\"metrics\":[{\"type\":\"COUNT\",\"alias\":\"count\"}]}"
+            listOf(
+                runCatching { jsonMapper.readValue(body, ListQuery::class.java) }.isSuccess,
+                runCatching { jsonMapper.readValue(body, PagedQuery::class.java) }.isSuccess,
+                runCatching { jsonMapper.readValue(body, SingleQuery::class.java) }.isSuccess,
+                runCatching { jsonMapper.readValue(aggregationBody, AggregationQuery::class.java) }.isSuccess,
+            )
+        }
+
+        accepted.assert().containsExactly(false, false, false, false, false, false, false, false)
     }
 
     @Suppress("DEPRECATION")

@@ -14,6 +14,9 @@
 package me.ahoo.wow.api.query
 
 import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.annotation.JsonSetter
+import com.fasterxml.jackson.annotation.Nulls
 import io.swagger.v3.oas.annotations.media.Schema
 
 /**
@@ -57,6 +60,14 @@ data class PagedQuery(
     override val sort: List<Sort> = emptyList(),
     override val pagination: Pagination = Pagination.DEFAULT
 ) : IPagedQuery {
+    private constructor(
+        @JsonProperty("filter") @JsonSetter(nulls = Nulls.FAIL) filter: FilterExpression? = null,
+        @JsonProperty("condition") @JsonSetter(nulls = Nulls.FAIL) condition: FilterExpression? = null,
+        @JsonProperty("projection") projection: Projection = Projection.ALL,
+        @JsonProperty("sort") sort: List<Sort> = emptyList(),
+        @JsonProperty("pagination") pagination: Pagination = Pagination.DEFAULT,
+    ) : this(resolveCompatibleFilter(filter, condition), projection, sort, pagination)
+
     @Deprecated("Use filter.")
     constructor(
         condition: Condition,

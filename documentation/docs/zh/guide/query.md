@@ -141,7 +141,7 @@ alias 必须是唯一的单段逻辑字段，且不能使用 `__wow` 前缀。so
 
 基础 HTTP 路由是 `POST /{aggregate}/snapshot/aggregation`。对于动态 tenant 或 owned 聚合，目录还会贡献 tenant/owner 作用域查询变体。它复用普通快照查询过滤器链，因此请求作用域和已配置 ABAC 过滤器可以扩展根 filter；结果脱敏会刻意跳过聚合。`allow-expensive-operators=false` 时，HTTP 聚合会拒绝 Elements、按 metric alias 排序、非 Field 数值表达式和 filter 中的高成本操作符。
 
-REST 兼容 extractor 对 aggregation 的处理不同于 single/list/paged：`filter` 与旧 `condition` 可以同时省略（模型默认 `MATCH_ALL`），也可以只提供其中一个；同时提供会被拒绝。提取完成后，请求作用域重写仍会追加 tenant/owner/space filters。
+查询模型兼容反序列化器对 aggregation 的处理不同于 single/list/paged：`filter` 与旧 `condition` 可以同时省略（模型默认 `MATCH_ALL`），也可以只提供其中一个；同时提供会被拒绝。反序列化完成后，请求作用域重写仍会追加 tenant/owner/space filters。
 
 自定义 `SnapshotQueryService` 可能继承默认的不支持 `aggregate()` 实现。single/list/paged/count 成功且路由已发布，并不能证明自定义服务支持聚合；应对所选后端做测试。
 
@@ -308,13 +308,13 @@ Content-Type: application/json
 {"op": "EQ", "field": "state.status", "value": "CREATED"}
 ```
 
-REST 兼容 extractor 还接受 `{}`，并按旧 `Condition.ALL` 处理，再应用请求作用域 filters。出现判别字段时，只能使用新 `op` 或旧 `operator` 之一；两者同时出现会被拒绝。OpenAPI 只发布规范 `FilterExpression` 请求体。
+`FilterExpression` 兼容反序列化器还接受 `{}`，并按旧 `Condition.ALL` 处理，再应用请求作用域 filters。出现判别字段时，只能使用新 `op` 或旧 `operator` 之一；两者同时出现会被拒绝。OpenAPI 只发布规范 `FilterExpression` 请求体。
 
 JVM 侧使用 `filter.count(queryService)`。count 按所选后端合同保持精确；禁用高成本操作符时，HTTP 成本策略可能拒绝无过滤 count。
 
 ## 兼容与迁移
 
-`Condition`、`Operator`、`ConditionDsl` 是已弃用兼容输入。旧构造函数和 count 扩展会将其一次性转换为 `FilterExpression`；执行管线只保留 `filter`。REST extractor 规则按端点区分：
+`Condition`、`Operator`、`ConditionDsl` 是已弃用兼容输入。旧构造函数和 count 扩展会将其一次性转换为 `FilterExpression`；执行管线只保留 `filter`。API 反序列化规则按端点区分：
 
 | 端点请求体 | 两种表达都没有 | 新表达 | 旧表达 | 两者同时存在 |
 |---|---|---|---|---|

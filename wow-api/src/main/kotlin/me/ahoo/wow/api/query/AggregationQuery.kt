@@ -14,8 +14,11 @@
 package me.ahoo.wow.api.query
 
 import com.fasterxml.jackson.annotation.JsonInclude
+import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.annotation.JsonSetter
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import com.fasterxml.jackson.annotation.Nulls
 import io.swagger.v3.oas.annotations.media.ArraySchema
 import io.swagger.v3.oas.annotations.media.Schema
 import me.ahoo.wow.api.serialization.MissingTypeImpl
@@ -38,6 +41,16 @@ data class AggregationQuery(
     @get:Schema(defaultValue = DEFAULT_LIMIT_TEXT, minimum = "1", maximum = MAX_LIMIT_TEXT)
     val limit: Int = DEFAULT_LIMIT,
 ) : FilterCapable<AggregationQuery>, SortCapable {
+    private constructor(
+        @JsonProperty("metrics") metrics: List<AggregationMetric>,
+        @JsonProperty("filter") @JsonSetter(nulls = Nulls.FAIL) filter: FilterExpression? = null,
+        @JsonProperty("condition") @JsonSetter(nulls = Nulls.FAIL) condition: FilterExpression? = null,
+        @JsonProperty("elements") elements: List<AggregationElement> = emptyList(),
+        @JsonProperty("groupBy") groupBy: List<AggregationGroup> = emptyList(),
+        @JsonProperty("sort") sort: List<Sort> = emptyList(),
+        @JsonProperty("limit") limit: Int = DEFAULT_LIMIT,
+    ) : this(resolveAggregationFilter(filter, condition), elements, groupBy, metrics, sort, limit)
+
     init {
         require(elements.size <= MAX_ELEMENTS) { "elements must contain at most $MAX_ELEMENTS paths." }
         require(groupBy.size <= MAX_GROUPS) { "groupBy must contain at most $MAX_GROUPS dimensions." }
@@ -79,6 +92,15 @@ data class AggregationQuery(
         const val MAX_EXPRESSION_NODES: Int = 256
         private const val DEFAULT_LIMIT_TEXT = "100"
         private const val MAX_LIMIT_TEXT = "10000"
+    }
+}
+
+private fun resolveAggregationFilter(
+    filter: FilterExpression?,
+    condition: FilterExpression?,
+): FilterExpression = resolveCompatibleFilter(filter, condition, MatchAllFilter).also {
+    if (condition != null) {
+        it.requireScalarEqualityValues()
     }
 }
 

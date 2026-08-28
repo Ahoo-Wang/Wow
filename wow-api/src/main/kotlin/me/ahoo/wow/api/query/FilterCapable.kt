@@ -18,3 +18,12 @@ interface FilterCapable<Q : FilterCapable<Q>> : RewritableFilter<Q> {
 
     override fun appendFilter(append: FilterExpression): Q = withFilter(filter.appendFilter(append))
 }
+
+internal fun resolveCompatibleFilter(
+    filter: FilterExpression?,
+    condition: FilterExpression?,
+    default: FilterExpression? = null,
+): FilterExpression {
+    require(filter == null || condition == null) { "filter and condition cannot be used together." }
+    return filter ?: condition ?: requireNotNull(default) { "Exactly one of filter or condition is required." }
+}
