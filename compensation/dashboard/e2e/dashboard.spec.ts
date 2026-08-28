@@ -426,11 +426,15 @@ test("loads analytics and scopes range changes to event aggregation", async ({
     const pressureContainer = page
       .getByRole("table", { name: "Current failure pressure" })
       .locator("..");
-    expect(
-      await pressureContainer.evaluate(
-        (element) => element.scrollWidth >= element.clientWidth,
-      ),
-    ).toBe(true);
+    const pressureOverflow = await pressureContainer.evaluate((element) => ({
+      clientWidth: element.clientWidth,
+      overflowX: getComputedStyle(element).overflowX,
+      scrollWidth: element.scrollWidth,
+    }));
+    expect(pressureOverflow.scrollWidth).toBeGreaterThan(
+      pressureOverflow.clientWidth,
+    );
+    expect(["auto", "scroll"]).toContain(pressureOverflow.overflowX);
   }
 
   await page.getByRole("button", { name: "24h" }).click();

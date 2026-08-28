@@ -90,7 +90,7 @@ function formatStatusShare(count: number, total: number): string {
 function PressureTable({ clusters }: { clusters: PressureCluster[] }) {
   const now = useNow();
   return (
-    <Table aria-label="Current failure pressure">
+    <Table aria-label="Current failure pressure" className="min-w-[48rem]">
       <TableHeader>
         <TableRow>
           <TableHead>Cluster</TableHead>
@@ -190,7 +190,10 @@ export default function AnalyticsView() {
       </section>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(20rem,1fr)]">
-        <section aria-labelledby="analytics-pressure-title">
+        <section
+          aria-labelledby="analytics-pressure-title"
+          className="min-w-0"
+        >
           <h2 id="analytics-pressure-title" className="text-lg font-semibold">
             Current failure pressure
           </h2>
