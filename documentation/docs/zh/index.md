@@ -26,7 +26,7 @@ features:
 - title: 领域模型即服务
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>'
   details: 围绕领域模型定义命令、事件与状态，Wow 生成 OpenAPI 元数据并装配运行链路，减少重复基础设施代码。
-  link: /zh/guide/modeling
+  link: /zh/guide/domain/
 - title: 测试套件
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6l3 7-6 11-6-11 3-7Z"/><path d="M9 3 3 10h18L15 3"/></svg>'
   details: Given->When->Expect 测试套件直接验证命令、事件与状态；覆盖率和交付质量仍由应用门禁证明。
@@ -42,11 +42,11 @@ features:
 - title: 分布式事务 (Saga)
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>'
   details: 利用 Saga 编排模式精心管理复杂多服务之间的事务流程，以降低分布式事务的复杂性
-  link: /zh/guide/saga
+  link: /zh/guide/event/saga
 - title: 事件补偿自动化
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>'
   details: 记录事件处理失败并提供重试、通知和可视化运维入口，帮助应用建立可验证的恢复流程。
-  link: /zh/guide/event-compensation
+  link: /zh/guide/event/compensation
 - title: 端到端可观测 (Observability)
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>'
   details: 为命令、事件、投影、Saga 与存储链路提供 OpenTelemetry 观测点，支持应用定位异步阶段和失败边界。

@@ -17,7 +17,7 @@ Wow dispatches domain events and state events to registered processors. The proc
 A projection is not required in a Wow application. For most screens and APIs that read the current state of one aggregate, configure `snapshot.strategy: all` first and use a snapshot store that supports dynamic queries. The latest snapshot can serve directly as the read model, without copying the same aggregate state into a dedicated projection.
 :::
 
-Skipping a projection also removes its processor, separate read model and storage shape, plus the associated idempotency, replay, compensation, lag monitoring, and integration testing. This can greatly reduce development and operating cost. Pay that cost only when the read requirement truly exceeds current aggregate state. See [Snapshots as the Default Read Model](./snapshot#snapshots-as-the-default-read-model).
+Skipping a projection also removes its processor, separate read model and storage shape, plus the associated idempotency, replay, compensation, lag monitoring, and integration testing. This can greatly reduce development and operating cost. Pay that cost only when the read requirement truly exceeds current aggregate state. See [Snapshots as the Default Read Model](./domain/snapshot.md#restoration-optimization-and-cost).
 
 “Live” remains bounded by the selected strategy and backend contract: `all` runs snapshot persistence for every state event, while waiting for `SNAPSHOT` proves only that the strategy's returned reactive chain completed. Verify cache, replica, and actual query visibility with a real query.
 
@@ -251,9 +251,9 @@ For a command that must wait for projection processing, use a command wait plan 
 
 ## Related Topics
 
-- [Snapshot](./snapshot) — default current-state read model, strategies, and query boundaries
-- [Event Processor](./event-processor) — general event processing
+- [Snapshot](./domain/snapshot.md) — default current-state read model, strategies, and query boundaries
+- [Event Processor](./event/processor.md) — general event processing
 - [Query](./query) — query models, DSL, aggregation, and HTTP guards
 - [Data Access Control](./data-access) — request scopes, query filters, and authorization boundary
 - [OpenAPI](./open-api) — runtime route and interface publication
-- [Event Sourcing](./eventstore) — event persistence and aggregate recovery
+- [Event Sourcing](./domain/event-sourcing.md) — event persistence and aggregate recovery

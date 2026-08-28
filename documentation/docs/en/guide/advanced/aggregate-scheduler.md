@@ -98,4 +98,4 @@ Do not derive a production throughput promise from thread counts. Use the target
 - [`AggregateSchedulerSupplier`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/scheduler/AggregateSchedulerSupplier.kt)
 - [`AggregateDispatcher`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt)
 - [`MessageParallelism`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/MessageParallelism.kt)
-- [Event Bus](./event-bus.md): dispatch, function concurrency, and acknowledgement
+- [Event Dispatch Pipeline](../event/dispatch.md): dispatch, function concurrency, and acknowledgement

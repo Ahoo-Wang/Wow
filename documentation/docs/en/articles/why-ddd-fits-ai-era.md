@@ -75,7 +75,7 @@ Suppose the request is “allow a paid but unshipped order to change its address
 4. makes the smallest invariant change that satisfies the new contract;
 5. runs domain tests, then verifies HTTP, persistence, and migration effects.
 
-DDD does not make the business decision in step 1. It gives the later change explicit decision and verification boundaries. In Wow, [Aggregate Modeling](../guide/modeling.md) and the [Domain Test Suite](../guide/test-suite.md) own those exact contracts.
+DDD does not make the business decision in step 1. It gives the later change explicit decision and verification boundaries. In Wow, [Aggregate and Invariants](../guide/domain/aggregate.md) and the [Domain Test Suite](../guide/test-suite.md) own those exact contracts.
 
 ## DDD Is Not the Default Answer for the AI Era
 

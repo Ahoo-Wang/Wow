@@ -74,7 +74,7 @@ An HTTP client supplies a stable `requestId` in `Command-Request-Id`. With a res
 - When only hot aggregates time out, compare replay length, version conflicts, and backend latency.
 - After caller timeout, query authoritative state and preserve the original `requestId` before retrying.
 
-`WaitPlan.withTimeout` is a caller-local deadline and is not propagated in the command header. See [Command Gateway](./command-gateway.md#wait-plans) for the full contract.
+`WaitPlan.withTimeout` is a caller-local deadline and is not propagated in the command header. See [Completion Semantics](./command/completion.md#timeout-cancellation-and-unknown-outcomes) for the full contract.
 
 ## Aggregate, Idempotency, and Concurrency Errors
 

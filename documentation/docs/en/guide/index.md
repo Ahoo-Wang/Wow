@@ -25,7 +25,7 @@ The functional gates are verified; 30 minutes remains a target because first-tim
 
 ## Continue Building
 
-Use [Aggregate Modeling](./modeling.md) and [Test Suite](./test-suite.md) to define business rules, then connect the write and read paths with [Command Gateway](./command-gateway.md), [Projection](./projection.md), and [Query](./query.md).
+Continue from the three entry points: [Domain Model](./domain/), [Commands](./command/), and [Events and Collaboration](./event/). Then use [Projection](./projection.md) and [Query](./query.md) for the read side.
 
 ## Prepare for Production
 
@@ -47,12 +47,12 @@ Use [Configuration Reference](../reference/config/core.md), [Examples](../refere
 | Run a first application | [Getting Started](./getting-started.md) | [Configuration](./configuration.md) | Domain tests pass, a real command reaches `SNAPSHOT`, and state can be loaded |
 | Add Wow to an existing Spring Boot service | [Existing Project](./existing-project.md) | [Spring Boot Starter](./extensions/spring-boot-starter.md) | KSP metadata, generated routes, command handling, and snapshot loading all work |
 | Study a complete Kotlin application | [Order and Cart](../reference/example/order.md) | [Application Testing](./application-testing.md) | You can trace commands, events, state, sagas, projections, and restart recovery |
-| Model an aggregate and invariants | [Aggregate Modeling](./modeling.md) | [Test Suite](./test-suite.md) | Commands emit domain events and replay produces verified state |
+| Model an aggregate and invariants | [Domain Model](./domain/) | [Aggregate and Invariants](./domain/aggregate.md) | Commands emit domain events and replay produces verified state |
 | Build application release gates | [Application Testing](./application-testing.md) | [Production Best Practices](./best-practices.md) | Domain, HTTP, real-adapter, recovery, and security-negative evidence exists |
-| Evolve persisted events | [Event Evolution](./advanced/event-evolution.md) | [Event Store](./eventstore.md) | Upgrader registration, ordering, historical replay, and rollback have evidence |
-| Expose writes and completion semantics | [Command Gateway](./command-gateway.md) | [OpenAPI](./open-api.md) | You can distinguish `SENT`, `PROCESSED`, `SNAPSHOT`, and `PROJECTED` |
+| Evolve persisted events | [Event Evolution](./domain/event-evolution.md) | [Event Sourcing](./domain/event-sourcing.md) | Upgrader registration, ordering, historical replay, and rollback have evidence |
+| Expose writes and completion semantics | [Commands](./command/) | [Completion Semantics](./command/completion.md) | You can distinguish `SENT`, `PROCESSED`, `SNAPSHOT`, and `PROJECTED` |
 | Build a query model | [Projection](./projection.md) | [Query](./query.md) | The projection is retry-safe and idempotent, with a clear query boundary |
-| Coordinate across aggregates | [Saga](./saga.md) | [Event Compensation](./event-compensation.md) | Success, retry, and unrecoverable paths are tested |
+| Coordinate across aggregates | [Events and Collaboration](./event/) | [Saga](./event/saga.md) | Success, retry, and unrecoverable paths are tested |
 | Choose messaging and storage | [Module Dependencies](./advanced/module-dependencies.md) | [Extensions](./extensions/spring-boot-starter.md) | Only the required backends and starter capabilities are included |
 | Prepare for production | [Production Best Practices](./best-practices.md) | [Backup, Restore, and Replay](./recovery.md) | Idempotency, recovery, capacity, alerts, and rollback have evidence |
 | Diagnose a failure or hang | [Troubleshooting](./troubleshooting.md) | The relevant core or extension page | The failed stage is known instead of merely having a larger timeout |

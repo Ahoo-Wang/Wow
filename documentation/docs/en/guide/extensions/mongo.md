@@ -239,4 +239,4 @@ The repository TCK currently uses `mongo:6.0.6`. A module check does not prove y
 
 ## Related Topics
 
-Next, read [Event Store](../eventstore.md) for the authoritative-history boundary, then [Infrastructure configuration](../../reference/config/infrastructure.md) for connection, index, and recovery gates.
+Next, read [Event Sourcing](../domain/event-sourcing.md) for the authoritative-history boundary, then [Infrastructure configuration](../../reference/config/infrastructure.md) for connection, index, and recovery gates.

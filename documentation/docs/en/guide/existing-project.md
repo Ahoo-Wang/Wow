@@ -107,7 +107,7 @@ The repository's verified automatic metadata pipeline is Gradle + KSP. Maven can
 
 ## 3. Generate and Inspect Metadata
 
-Define the bounded context, commands/events, aggregate, state, and one `AggregateSpec` by following [Aggregate Modeling](./modeling.md). Keep business invariants in the aggregate, not duplicated in a controller.
+Define the bounded context, commands/events, aggregate, state, and one `AggregateSpec` by following [Aggregate and Invariants](./domain/aggregate.md). Keep business invariants in the aggregate, not duplicated in a controller.
 
 Run KSP and tests in the actual annotated modules:
 
@@ -234,7 +234,7 @@ Adoption is ready for a separate cutover decision only when:
 ## Next Steps
 
 - Select durable adapters: [Spring Boot Starter](./extensions/spring-boot-starter.md)
-- Define completion semantics: [Command Gateway](./command-gateway.md)
+- Define completion semantics: [Completion Semantics](./command/completion.md)
 - Build release gates: [Testing Wow Applications](./application-testing.md)
-- Establish persisted-event policy: [Event Evolution](./advanced/event-evolution.md)
+- Establish persisted-event policy: [Event Evolution](./domain/event-evolution.md)
 - Plan module boundaries: [Module Dependencies](./advanced/module-dependencies.md)

@@ -98,4 +98,4 @@ Supplier 拥有它缓存的 Scheduler：
 - [`AggregateSchedulerSupplier`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/scheduler/AggregateSchedulerSupplier.kt)
 - [`AggregateDispatcher`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt)
 - [`MessageParallelism`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/MessageParallelism.kt)
-- [事件总线](./event-bus.md)：分发、函数并发与确认
+- [事件分发管线](../event/dispatch.md)：分发、函数并发与确认

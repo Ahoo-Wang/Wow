@@ -11,7 +11,7 @@ description: "按读者问题选择关于命令完成语义、架构取舍与 AI
 
 [接口返回 200，查询却查不到：别再 `sleep(1s)`，理解 Wow 的一致性等待](./command-success-is-not-complete.md)
 
-适合正在设计“写入后立即读取”流程的产品与开发人员。文章解释为什么命令接收、聚合处理和指定投影完成是不同承诺，并把精确等待合同交给[命令网关](../guide/command-gateway.md#等待计划)。
+适合正在设计“写入后立即读取”流程的产品与开发人员。文章解释为什么命令接收、聚合处理和指定投影完成是不同承诺，并把精确等待合同交给[完成语义](../guide/command/completion.md)。
 
 ## 该选普通 CRUD，还是 Wow？
 
@@ -32,4 +32,4 @@ description: "按读者问题选择关于命令完成语义、架构取舍与 AI
 - **仓库证据**只证明当前示例、源码或测试覆盖的范围。
 - **外部研究**直接链接一手来源，并保留样本、时间和适用边界。
 
-要直接执行任务，请从[快速上手](../guide/getting-started.md)、[聚合建模](../guide/modeling.md)或[生产最佳实践](../guide/best-practices.md)开始。
+要直接执行任务，请从[快速上手](../guide/getting-started.md)、[领域模型](../guide/domain/)或[生产最佳实践](../guide/best-practices.md)开始。

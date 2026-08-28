@@ -23,7 +23,7 @@ Wow 是应用框架，不是现成的业务产品。产品决策应从用户意�
 | 恢复责任 | 哪些失败可自动重试，哪些需要人工处置？补偿不会撤销已经发生的事实。 |
 | 数据与安全 | 谁定义身份、租户范围、保留期、删除、审计与敏感字段政策？ |
 
-命令阶段的精确定义见[命令网关](../guide/command-gateway.md)，读模型边界见[投影](../guide/projection.md)。
+命令阶段的精确定义见[完成语义](../guide/command/completion.md)，读模型边界见[投影](../guide/projection.md)。
 
 ## 适合与不适合
 
@@ -68,7 +68,7 @@ And    超时、重复和下游失败有可操作路径
 
 ## 优先下一步
 
-1. **工作流匹配**：与工程师在[建模](../guide/modeling.md)中把命令、事件、状态和不变量变成一个 Spec。
+1. **工作流匹配**：与工程师在[聚合与不变量](../guide/domain/aggregate.md)中把命令、事件、状态和不变量变成一个 Spec。
 2. **需要异步读模型**：继续[投影](../guide/projection.md)与[查询](../guide/query.md)，明确用户等待到哪个阶段，并把实际查询可见性作为独立验收。
-3. **需要失败恢复**：阅读[事件补偿](../guide/event-compensation.md)与[恢复](../guide/recovery.md)，定义自动和人工边界。
+3. **需要失败恢复**：阅读[事件补偿](../guide/event/compensation.md)与[恢复](../guide/recovery.md)，定义自动和人工边界。
 4. **工作流不匹配**：停止引入 Wow；采用更简单方案不需要额外论证。

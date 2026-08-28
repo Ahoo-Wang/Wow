@@ -1,100 +1,37 @@
 ---
 title: Event Compensation Example
-description: Trace the failure-recovery loop through the real compensation filter, ExecutionFailed aggregate, scheduler, generated client, and dashboard.
+description: Run the compensation service and verify its Dashboard, management endpoints, notifications, and deployment recovery loop.
 outline: deep
 ---
 
-# Event Compensation
+# Event Compensation Example
 
-[`compensation`](https://github.com/Ahoo-Wang/Wow/tree/main/compensation) is itself a Wow application. A subscriber failure creates an `ExecutionFailed` aggregate; a scheduler or operator prepares a retry; Wow redelivers the original event; and the new result is written back to the same aggregate.
+[`compensation`](https://github.com/Ahoo-Wang/Wow/tree/main/compensation) is a runnable Wow application and operator console. This page owns runtime and operator verification. See [Event Compensation](../../guide/event/compensation.md) for immediate retry, the `ExecutionFailed` state machine, and replay semantics, and [Compensation Configuration](../config/compensation.md) for complete properties.
 
-## Module Structure
+## Modules and Verification Baseline
 
-```mermaid
-flowchart LR
-    API[wow-compensation-api<br/>commands / events / state contract]
-    CORE[wow-compensation-core<br/>failure filter / re-execution]
-    DOMAIN[wow-compensation-domain<br/>ExecutionFailed aggregate]
-    SERVER[wow-compensation-server<br/>scheduler / query / hosting]
-    UI[dashboard<br/>query / prepare / force prepare]
-    API --> CORE
-    API --> DOMAIN
-    CORE --> SERVER
-    DOMAIN --> SERVER
-    SERVER --> UI
-```
+| Module | Runtime responsibility |
+| --- | --- |
+| `wow-compensation-api` | Command, event, state, and query contracts |
+| `wow-compensation-domain` | `ExecutionFailed` aggregate and backoff calculation |
+| `wow-compensation-core` | Failure capture, result write-back, and source-event replay |
+| `wow-compensation-server` | Snapshot query, scheduling, OpenAPI, notification, and Dashboard hosting when a frontend build is present |
+| `dashboard` | Failure queues, details, and operator actions |
 
-| Module | Responsibility | Exact source |
-| --- | --- | --- |
-| `wow-compensation-api` | `ExecutionFailed` commands, events, state, and retry specification | [`api` package](https://github.com/Ahoo-Wang/Wow/tree/main/compensation/wow-compensation-api/src/main/kotlin/me/ahoo/wow/compensation/api) |
-| `wow-compensation-core` | Capture failures, create/update records, and redeliver original events | [`CompensationFilter.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-core/src/main/kotlin/me/ahoo/wow/compensation/core/CompensationFilter.kt#L47-L126), [`CompensationEventProcessor.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-core/src/main/kotlin/me/ahoo/wow/compensation/core/CompensationEventProcessor.kt#L27-L56) |
-| `wow-compensation-domain` | `ExecutionFailed` decisions, state machine, and backoff calculation | [`ExecutionFailed.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-domain/src/main/kotlin/me/ahoo/wow/compensation/domain/ExecutionFailed.kt#L36-L142), [`ExecutionFailedState.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-domain/src/main/kotlin/me/ahoo/wow/compensation/domain/ExecutionFailedState.kt#L35-L99) |
-| `wow-compensation-server` | Find due failures and send prepare commands | [`CompensationScheduler.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-server/src/main/kotlin/me/ahoo/wow/compensation/server/scheduler/CompensationScheduler.kt#L29-L76), [`SnapshotFindNextRetry.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-server/src/main/kotlin/me/ahoo/wow/compensation/server/failed/SnapshotFindNextRetry.kt) |
-| `dashboard` | Failure queue, details, retry specification, prepare, and force prepare | [`FailedView.tsx`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/FailedView.tsx), [`Actions.tsx`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/Actions.tsx#L64-L224) |
+Check the domain, core, and console first:
 
-## Architecture Overview
-
-```mermaid
-sequenceDiagram
-    participant Handler as Event/Saga/Projection Handler
-    participant Filter as EventCompensationFilter
-    participant Failed as ExecutionFailed
-    participant Scheduler
-    participant Processor as CompensationEventProcessor
-    Handler--xFilter: throws
-    Filter->>Failed: CreateExecutionFailed
-    Scheduler->>Failed: PrepareCompensation
-    Failed-->>Processor: CompensationPrepared
-    Processor->>Handler: redeliver original event
-    alt succeeds
-        Filter->>Failed: ApplyExecutionSuccess
-    else fails again
-        Filter->>Failed: ApplyExecutionFailed
-    end
-```
-
-### How It Works
-
-1. [`EventCompensationFilter`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-core/src/main/kotlin/me/ahoo/wow/compensation/core/CompensationFilter.kt#L68-L126) sits in event processor, Saga, projection, and snapshot flows. When a function throws and retry is not disabled, it records eventId, function, error, execution time, retry specification, and recoverability.
-2. The first failure sends `CreateExecutionFailed`. A replay failure already has a compensationId header, so it sends `ApplyExecutionFailed`. A successful replay sends `ApplyExecutionSuccess`.
-3. [`SnapshotFindNextRetry`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-server/src/main/kotlin/me/ahoo/wow/compensation/server/failed/SnapshotFindNextRetry.kt) selects recoverable/unknown records below the retry threshold and past `nextRetryAt`; PREPARED records must also be timed out.
-4. [`CompensationEventProcessor`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-core/src/main/kotlin/me/ahoo/wow/compensation/core/CompensationEventProcessor.kt#L36-L56) replays only a local aggregate's exact original event version, with the target function and failure-record ID.
-
-```text
-CreateExecutionFailed -> FAILED
-Prepare/ForcePrepare  -> PREPARED
-ApplyExecutionFailed  -> FAILED
-ApplyExecutionSuccess -> SUCCEEDED
-```
-
-`RetryState` stores `retries`, `retryAt`, `timeoutAt`, and `nextRetryAt`. [`NextRetryAtCalculator`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-domain/src/main/kotlin/me/ahoo/wow/compensation/domain/NextRetryAtCalculator.kt) uses `minBackoff * 2^retries` seconds and rejects negative values or overflow.
-
-### ExecutionFailed Aggregate Commands
-
-| Command | Domain decision | Event/result |
-| --- | --- | --- |
-| `CreateExecutionFailed` | Validate/materialize retry spec and calculate initial retryState | `ExecutionFailedCreated`, `FAILED` |
-| `PrepareCompensation` | `FAILED`, or timed-out `PREPARED`, with retries below the limit | `CompensationPrepared`, `PREPARED` |
-| `ForcePrepareCompensation` | Ignores retry-count threshold, but not success; PREPARED must be timed out | `CompensationPrepared` |
-| `ApplyExecutionFailed` | Allowed only in `PREPARED` | `ExecutionFailedApplied`, back to `FAILED` |
-| `ApplyExecutionSuccess` | Allowed only in `PREPARED` | `ExecutionSuccessApplied`, `SUCCEEDED` |
-| `ApplyRetrySpec` | Values must be non-negative and cannot overflow time calculation | `RetrySpecApplied` |
-| `MarkRecoverable` / `ChangeFunction` | New value must differ from current value | `RecoverableMarked` / `FunctionChanged` |
-
-## Features
-
-Verify the domain, compensation filter, and dashboard first:
-
-```shell
+```bash
 ./gradlew :wow-compensation-domain:check :wow-compensation-core:check
 pnpm --dir compensation/dashboard exec vitest run
 ```
 
-Gradle and Vitest should both exit successfully. [`ExecutionFailedSpec`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-domain/src/test/kotlin/me/ahoo/wow/compensation/domain/ExecutionFailedSpec.kt#L61-L376) is the main state-machine evidence. [`CompensationFilterTest`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-core/src/test/kotlin/me/ahoo/wow/compensation/core/CompensationFilterTest.kt) covers first failure, replay failure, and successful write-back.
+`ExecutionFailedSpec` covers prepare, force prepare, success, another failure, and retry-specification changes. `CompensationFilterTest` covers filter error boundaries, while Dashboard tests cover queue conditions and action state. Successful commands prove only these local gates, not real messaging, storage, notifications, or a deployment environment.
 
-For a clean-checkout, non-persistent startup proof, do not invoke Gradle `run` directly: the current [`applicationDefaultJvmArgs`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-server/build.gradle.kts#L43-L63) enable JMX on port 5555 without authentication or TLS. The project has no `bootJar` task. The smallest local path is to build the distribution and start the real main class with plain `java`. The complete command below is verified to bind Netty only to `127.0.0.1:18083`. It is only for route and local state-machine checks: data is lost on exit and automatic scheduling is disabled.
+## Local Service Startup, Health, and Route Check
 
-```shell
+The current default JVM arguments for `:wow-compensation-server:run` enable JMX on port 5555 without authentication or TLS. For the smallest safe local route check, build the distribution and use plain `java` bound only to loopback. `installDist` copies an existing `compensation/dashboard/dist`; it does not build the frontend, so this flow does not verify Dashboard assets when that output is absent.
+
+```bash
 ./gradlew :wow-compensation-server:installDist
 
 SERVER_PORT=18083 \
@@ -120,49 +57,137 @@ java \
   me.ahoo.wow.compensation.server.CompensationServerKt
 ```
 
-Expect `Netty started on port 18083` and `Started CompensationServerKt`. Verify the same loopback address and port from another terminal:
+Expect `Netty started on port 18083` and `Started CompensationServerKt`. Verify the same address and port from another terminal:
 
-```shell
+```bash
 curl -fsS http://127.0.0.1:18083/actuator/health/liveness
 curl -fsS http://127.0.0.1:18083/v3/api-docs | \
   jq -r '.paths["/execution_failed/{id}/prepare_compensation"].put.operationId'
 ```
 
-Expect `{"status":"UP"}` and `compensation.execution_failed.prepare_compensation`. The verified JVM command line contains only the explicit config property; its TCP listener is `127.0.0.1:18083`, not every interface, with no JMX `5555`. This limits only the configured HTTP listener's bind address; it is not a general security claim. Durable environments still require authentication, authorization, TLS, network policy, and credential governance.
+Expect `{"status":"UP"}` and `compensation.execution_failed.prepare_compensation`. These checks prove only service startup, the health endpoint, and presence of the prepare route. They do not request Dashboard assets, send a compensation command, or execute a state transition, so they do not verify the Dashboard or local state machine. This mode also loses data when the process exits and disables automatic scheduling; it is not durable-recovery evidence.
 
-There is no separate WebHook `enabled` property. The current [`@ConditionalOnProperty`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-server/src/main/kotlin/me/ahoo/wow/compensation/server/webhook/weixin/ConditionalOnWeiXinWebHookEnabled.kt#L16-L20) treats literal `false` as disabled, so the [`WeiXinWebHook` event processor](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-server/src/main/kotlin/me/ahoo/wow/compensation/server/webhook/weixin/WeiXinWebHook.kt#L36-L42) is not registered. Do not use `http://localhost:1/`: a non-`false` URL enables the processor, and default failure events then attempt loopback delivery and log connection failure.
+Run and verify the Dashboard separately:
 
-For durable compensation, keep the distribution's direct `java` path, configure real MongoDB, Redis, Kafka, the scheduler, and WebHook, then remove the in-memory/disable overrides. Consider the current Gradle `run` defaults only in a trusted isolated environment where unauthenticated JMX is explicitly intended. Run the dashboard separately:
-
-```shell
+```bash
 pnpm --dir compensation/dashboard dev
 ```
 
-Do not infer command URLs from the context name. The dashboard's current [generated OpenAPI client](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/generated/compensation/execution_failed/commandClient.ts#L8-L20) defines:
+## Dashboard
 
-```text
-PUT /execution_failed/{id}/prepare_compensation
-PUT /execution_failed/{id}/force_prepare_compensation
-PUT /execution_failed/{id}/apply_retry_spec
-```
+The current Dashboard supplies these queues:
 
-For an existing retryable failure:
+| Queue | Condition |
+| --- | --- |
+| **To Retry** | `RECOVERABLE` / `UNKNOWN` records below the limit that are `FAILED` or timed-out `PREPARED` |
+| **Executing** | `PREPARED` records that have not timed out |
+| **Next Retry** | Automatic-scheduling candidates whose `nextRetryAt` is due |
+| **Non Retryable** | Active records at the ordinary retry limit |
+| **Succeeded** | `SUCCEEDED` history |
+| **Unrecoverable** | Active `UNRECOVERABLE` records |
 
-```shell
+The list supports exact filters by execution ID, event ID, aggregate ID, aggregate context/name, and processor context/name. Details show error and stack trace, event and aggregate identity, tenant, function, recoverability, RetrySpec, timing, state, and paginated event-stream history.
+
+Available actions are:
+
+- **Prepare compensation**: ordinary preparation, subject to state, timeout, and retry limit;
+- **Force prepare**: after confirmation, cross the retry limit but not success or an unexpired `PREPARED`;
+- **Apply retry spec**: change non-negative `maxRetries`, `minBackoff`, and `executionTimeout`;
+- **Mark recoverable**: change recoverability and therefore automatic-scheduling eligibility;
+- **Change function**: change context, processor, function name, and `EVENT` / `STATE_EVENT` kind.
+
+The current UI has no delete or deleted-aggregate recovery button and defines no operator role model, approval flow, or audit-retention policy. A deployment must supply those controls through network, authentication, authorization, and audit layers.
+
+![Event-Compensation-Dashboard](/images/compensation/dashboard.png)
+
+![Event-Compensation-Dashboard-Apply-Retry-Spec](/images/compensation/dashboard-apply-retry-spec.png)
+
+![Event-Compensation-Dashboard-Succeeded](/images/compensation/dashboard-succeeded.png)
+
+![Event-Compensation-Dashboard-Error](/images/compensation/dashboard-error.png)
+
+## Management Endpoints
+
+The generated Dashboard client currently uses an empty `basePath`, so its default command routes are:
+
+| Action | Route |
+| --- | --- |
+| Ordinary prepare | `PUT /execution_failed/{id}/prepare_compensation` |
+| Force prepare | `PUT /execution_failed/{id}/force_prepare_compensation` |
+| Change retry specification | `PUT /execution_failed/{id}/apply_retry_spec` |
+| Change recoverability | `PUT /execution_failed/{id}/mark_recoverable` |
+| Change target function | `PUT /execution_failed/{id}/change_function` |
+
+An API Gateway may add an external context prefix; the running instance's OpenAPI is the final route evidence. The generated client also contains default aggregate delete and recovery routes, but the current Dashboard does not call them.
+
+Prepare an existing retryable record:
+
+```bash
 curl -X PUT \
   'http://127.0.0.1:18083/execution_failed/<execution-id>/prepare_compensation' \
   -H 'Command-Wait-Stage: PROCESSED' \
   -H 'Command-Request-Id: prepare-<execution-id>'
 ```
 
-`succeeded=true` and `stage=PROCESSED` prove only that the prepare command was processed. They do not guarantee that a later read still sees `PREPARED`: it may read the old `FAILED` before replay starts, a brief `PREPARED`, or final `SUCCEEDED`/new `FAILED`. To observe a snapshot or handler, select the corresponding wait stage, poll the generated snapshot/event query endpoints, and inspect state-event history instead of asserting one immediate read. The actual dashboard call and success/error feedback are in [`Actions.tsx`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/Actions.tsx#L72-L119).
+`succeeded=true` and `stage=PROCESSED` prove only that the prepare command was handled. A later read may still see the old `FAILED`, a brief `PREPARED`, or final `SUCCEEDED` / new `FAILED`. To observe the complete result, poll snapshot/event queries and inspect state-event history instead of asserting one immediate read.
 
-Failure behavior must remain visible: ordinary prepare rejects only a PREPARED record that has not timed out; after timeout it can prepare again while below the retry limit. Ordinary prepare rejects `SUCCEEDED` or a record at the limit. Applying success/failure to FAILED or SUCCEEDED returns `ExecutionFailed is not prepared.`; force prepare still respects success and PREPARED timeout; negative retry values or exponential-backoff overflow fail in the aggregate. Dashboard button state is guidance—the server state machine remains authoritative.
+Verify failure paths too. Ordinary prepare rejects `SUCCEEDED`, an unexpired `PREPARED`, and a record at the limit. Force prepare still rejects success and an unexpired state. Applying success/failure directly to a non-`PREPARED` record returns `ExecutionFailed is not prepared.` Dashboard button state is guidance; the server state machine is authoritative.
 
-## Console Screenshot
+## Notification Verification
 
-![Event-Compensation-Dashboard](/images/compensation/dashboard.png)
+After configuring WeCom, use controlled failure and success events to verify bot delivery, quick-navigation links, and sensitive-data boundaries. Successful WebHook delivery proves notification reachability only; reconcile authoritative state in the Dashboard or query result.
 
-## Detailed Documentation
+| Failure notification | Success notification |
+| --- | --- |
+| ![Execution Failed](/images/compensation/execution-failed.png) | ![Execution Succeeded](/images/compensation/execution-success.png) |
 
-See the [Event Compensation guide](../../guide/event-compensation) for adoption, storage, scheduling, and notification configuration. Completion means the three checks pass, a handler failure can be traced into the failure aggregate and from `CompensationPrepared` to success or failure, and manual action paths are proven by the generated client.
+## Durable Deployment and Verification
+
+For a durable environment, keep the distribution's direct `java` startup path, configure real MongoDB, Redis, Kafka, scheduler, and notification infrastructure, and remove the local example's in-memory/disable overrides. The repository supplies the service host and Dashboard build, not a production-ready cluster policy.
+
+The smallest Kubernetes shape is below. An actual release and capacity check must determine the image digest, resources, replica count, and Secret names:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: compensation-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: compensation-service
+  template:
+    metadata:
+      labels:
+        app: compensation-service
+    spec:
+      containers:
+        - name: compensation-service
+          image: <registry>/wow-compensation-server@sha256:<digest>
+          envFrom:
+            - secretRef:
+                name: wow-compensation-secrets
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+```
+
+Deployment verification should include at least:
+
+1. pin an immutable image digest built from the selected Wow tag and use the same digest in test and production;
+2. inject messaging, storage, notification, and authentication credentials through Secrets;
+3. verify EventStore and SnapshotStore indexes, capacity, backup, and restore;
+4. verify readiness/liveness, scheduler mutex behavior, backlog, failure age, restart counts, and error logs;
+5. restrict the Dashboard and management endpoints to a protected operator network with TLS, authentication, fine-grained authorization, and audit;
+6. exercise normal, retryable, unrecoverable, idempotent, and operator-recovery paths in test before promoting the same image.
+
+`replicas: 2` does not prove high availability. Multiple replicas still depend on real failure verification of messaging, storage, and scheduler mutual exclusion.

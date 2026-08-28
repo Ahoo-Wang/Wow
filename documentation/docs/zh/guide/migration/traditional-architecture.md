@@ -138,7 +138,7 @@ snapshot 或 projection 重建成功不能修复错误 event mapping；代表性
 | 页面 | 关系 |
 |---|---|
 | [迁移指南](../migration.md) | 范围与共同证据门禁 |
-| [建模](../modeling.md) | Aggregate 与 command/event 设计 |
+| [聚合与不变量](../domain/aggregate.md) | Aggregate 与 command/event 设计 |
 | [测试](../test-suite.md) | 领域行为验证 |
 | [商业智能](../bi.md) | 可重建的分析读模型 |
 | [Wow v6 迁移到 v8](./v6-to-v8.md) | 既有 Wow 版本升级 |

@@ -74,13 +74,9 @@ Normal JSON collects dynamic rows into an array; `Accept: text/event-stream` str
 
 An EventStream root filter applies to the event-stream document. After `elements = [{"path":"body"}]` expands the event array, group and metric fields are relative to each event item. Elasticsearch currently does not index the `body.body` payload, so the cross-backend aggregation scope is the event-stream envelope and `body` event metadata. Payload aggregation requires a separate mapping and historical reindex design first.
 
-## Wait Plan Integration
+## Command HTTP Contract
 
-Command headers choose a wait stage and timeout. The handler delegates to `CommandGateway`/`WaitCoordinator`. Client disconnect, timeout, or runtime shutdown can end the HTTP wait while later business processing still continues.
-
-### Supported Wait Plans
-
-Supported stages are `SENT`, `PROCESSED`, `SNAPSHOT`, `PROJECTED`, `EVENT_HANDLED`, and `SAGA_HANDLED`. A stage means its notifier condition completed, not that an arbitrary cross-service transaction committed. See [Command Gateway](../command-gateway.md#wait-plans).
+WebFlux materializes command routes and delegates requests to the command runtime. See [Send Commands](../command/sending.md) for routes, media types, and request construction. See [Completion Semantics](../command/completion.md) for wait stages, function matching, timeouts, and unknown outcomes. This page does not duplicate command headers or the wait state machine.
 
 ## Error Handling
 

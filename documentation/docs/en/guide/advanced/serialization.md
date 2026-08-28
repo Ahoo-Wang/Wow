@@ -52,7 +52,7 @@ Deserialization proceeds as follows:
 3. If not found, deserialization attempts the stored `bodyType`.
 4. If that class is also unavailable, the record remains a `JsonDomainEvent` whose body is a JSON tree.
 
-This fallback preserves a representation for an unknown historical type; it does not prove that a current aggregate can replay it correctly. If sourcing depends on a concrete type, supply a resolvable type or an [Event Upgrader](./event-evolution.md).
+This fallback preserves a representation for an unknown historical type; it does not prove that a current aggregate can replay it correctly. If sourcing depends on a concrete type, supply a resolvable type or an [Event Upgrader](../domain/event-evolution.md).
 
 When a `DomainEventStream` is deserialized, event `sequence` and `isLast` are derived again from body-list position. Do not treat custom JSON property order outside that array as an event-order contract.
 

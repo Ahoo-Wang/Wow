@@ -38,7 +38,7 @@ Wow 统一命令调度、聚合加载、事件持久化、快照、投影、Saga
 
 ### 3. 读写分离与同步延迟
 
-CQRS 允许为读取建立专用查询模型，但读模型可能晚于写入完成。固定等待既不能证明完成，也会浪费快速路径。Wow 等待计划允许调用方声明实际需要的 `PROCESSED`、`SNAPSHOT` 或 `PROJECTED` 等阶段，并接收对应信号。详见[命令等待计划](./command-gateway.md#等待计划)。
+CQRS 允许为读取建立专用查询模型，但读模型可能晚于写入完成。固定等待既不能证明完成，也会浪费快速路径。Wow 等待计划允许调用方声明实际需要的 `PROCESSED`、`SNAPSHOT` 或 `PROJECTED` 等阶段，并接收对应信号。详见[完成语义](./command/completion.md)。
 
 ### 4. 工程质量
 
@@ -69,14 +69,7 @@ flowchart LR
     Store --> Saga[Saga / 后续命令]
 ```
 
-1. `CommandGateway` 校验并发送带请求 ID 和等待计划的命令消息。
-2. 运行时从快照与后续事件恢复聚合状态。
-3. 命令处理函数校验不变量并返回领域事件，不直接修改状态。
-4. 溯源函数应用事件，`EventStore` 在乐观并发约束下追加事件流。
-5. 事件分发器把已持久化事件交给投影、Saga 和其他处理器。
-6. 调用方在声明的等待阶段返回，而不是依赖猜测的延迟。
-
-各阶段含义不同：`SENT` 表示命令总线已接收，`PROCESSED` 表示聚合处理完成，`SNAPSHOT` 表示快照处理完成，`PROJECTED` 表示选定投影完成。组件与调度细节见[数据流](./advanced/data-flow.md)和[运行时生命周期](./advanced/runtime-lifecycle.md)。
+[领域模型](./domain/)负责聚合边界、事件历史、快照与生命周期；[命令](./command/)负责命令定义、发送、完成与可靠性；[事件与协作](./event/)负责 Processor、Saga、补偿与事件分发。投影和查询仍由[投影](./projection.md)与[查询](./query.md)负责。跨能力交接见[数据流](./advanced/data-flow.md)，运行时启停见[运行时生命周期](./advanced/runtime-lifecycle.md)。
 
 完整的运行时架构与数据流如下：
 
@@ -110,17 +103,17 @@ Wow 不会自动发现领域边界，补偿也不等于数据库回滚。选择�
 
 | 需求 | 继续阅读 |
 | --- | --- |
-| 建模聚合决策与溯源状态 | [聚合建模](./modeling.md)、[事件存储](./eventstore.md)、[快照](./snapshot.md) |
-| 声明命令完成语义 | [命令网关](./command-gateway.md) |
+| 建模聚合决策与溯源状态 | [领域模型](./domain/) |
+| 定义、发送命令并声明完成语义 | [命令](./command/) |
 | 建立面向查询的视图 | [投影](./projection.md)、[查询](./query.md) |
-| 编排与恢复业务流程 | [Saga](./saga.md)、[事件补偿](./event-compensation.md) |
+| 处理事件并编排跨聚合流程 | [事件与协作](./event/) |
 | 验证领域与应用行为 | [测试套件](./test-suite.md)、[应用测试](./application-testing.md) |
 | 暴露生成契约与路由 | [OpenAPI](./open-api.md)、[WebFlux](./extensions/webflux.md) |
 | 观测运行管道 | [OpenTelemetry](./extensions/opentelemetry.md)、[指标](./advanced/metrics.md) |
 
 ## 下一步
 
-- 新应用：[快速上手](./getting-started.md) → [聚合建模](./modeling.md) → [测试套件](./test-suite.md)
+- 新应用：[快速上手](./getting-started.md) → [领域模型](./domain/) → [命令](./command/) → [测试套件](./test-suite.md)
 - 已有应用：[接入现有项目](./existing-project.md) → [Spring Boot Starter](./extensions/spring-boot-starter.md)
 - 架构与运维：[架构概览](./advanced/architecture.md) → [生产最佳实践](./best-practices.md) → [可观测性](./advanced/observability.md)
 - 按角色阅读：[入门导航](../onboarding/)

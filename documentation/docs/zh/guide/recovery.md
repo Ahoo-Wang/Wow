@@ -135,10 +135,10 @@ EventStore → Aggregate/StateEvent → Snapshot/Projection/Processor/Saga
 
 ## 相关页面
 
-- [事件存储](./eventstore.md)
-- [快照](./snapshot.md)
-- [事件演进](./advanced/event-evolution.md)
-- [事件补偿](./event-compensation.md)
+- [事件溯源](./domain/event-sourcing.md)
+- [快照](./domain/snapshot.md)
+- [事件演进](./domain/event-evolution.md)
+- [事件补偿](./event/compensation.md)
 - [MongoDB](./extensions/mongo.md)、[Redis](./extensions/redis.md)、[Elasticsearch](./extensions/elasticsearch.md)
 - [BI 部署与恢复](./bi-operations.md)
 - [生产最佳实践](./best-practices.md)

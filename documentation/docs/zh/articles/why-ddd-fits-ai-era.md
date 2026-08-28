@@ -75,7 +75,7 @@ ReceiptOrder → OrderReceived
 4. 修改最小不变量，使测试表达新合同。
 5. 运行领域测试，再验证 HTTP、持久化与迁移影响。
 
-DDD 没有替 AI 做第 1 步的业务决策。它让后续改动落在明确的决策与验证边界内。Wow 中对应的建模和测试合同分别由[聚合建模](../guide/modeling.md)与[领域测试套件](../guide/test-suite.md)维护。
+DDD 没有替 AI 做第 1 步的业务决策。它让后续改动落在明确的决策与验证边界内。Wow 中对应的建模和测试合同分别由[聚合与不变量](../guide/domain/aggregate.md)与[领域测试套件](../guide/test-suite.md)维护。
 
 ## DDD 不是 AI 时代的默认答案
 

@@ -19,7 +19,7 @@ This article's argument is that success in an asynchronous read/write path must 
 - **Repository evidence:** current implementation and tests cover wait registration, stage signals, timeout cleanup, and example-domain behavior.
 - **External research:** this article needs no external performance or productivity evidence, so it does not use historical TPS to justify the design.
 
-The exact stages, function matching, chained waits, and idempotency boundary are governed by [Wait Plans in Command Gateway](../guide/command-gateway.md#wait-plans). This article only explains how to choose a promise.
+The exact stages, function matching, and chained waits are governed by [Completion Semantics](../guide/command/completion.md); [Failures and Idempotency](../guide/command/reliability.md) owns the idempotency boundary. This article only explains how to choose a promise.
 
 ## HTTP 200 Means the Selected Response Contract Finished
 
@@ -29,7 +29,7 @@ At a Wow WebFlux command endpoint, the wait policy extracts a wait plan and the 
 - `PROCESSED` fits “the domain decision and current command chain completed”; it does not prove a query projection is current.
 - function-targeted `PROJECTED` proves only that the matching projection function's returned reactive chain completed. It does not prove that the query path, cache, or replica can already return the change, nor that unrelated consumers completed.
 
-`SNAPSHOT`, `EVENT_HANDLED`, `SAGA_HANDLED`, and chained waits have different boundaries. Do not infer them from names; use the canonical [Wait Stages](../guide/advanced/data-flow.md#_6-wait-stages).
+`SNAPSHOT`, `EVENT_HANDLED`, `SAGA_HANDLED`, and chained waits have different boundaries. Do not infer them from names; use [Completion Semantics](../guide/command/completion.md).
 
 The post-processing stages are branches, not one mandatory pipeline.
 
@@ -62,13 +62,13 @@ Ask “what result is required?” before asking “how long should we wait?”
 | confirm the domain decision before returning | `PROCESSED` | the query model is current |
 | open a page backed by one projection | targeted `PROJECTED` plus an actual query/read-model visibility check | the query is visible because the processor signal arrived |
 
-If the product reads sourced aggregate state rather than a projection, identify that actual read path before choosing a snapshot policy or wait stage. The canonical distinction is in [Read Paths](../guide/advanced/data-flow.md#_7-read-paths).
+If the product reads sourced aggregate state rather than a projection, identify that actual read path before choosing a snapshot policy or wait stage. The canonical distinction is in [Read Paths](../guide/advanced/data-flow.md#read-paths).
 
 ## Timeout Means “Target Not Observed,” Not “Command Failed”
 
 Missing the target signal before the deadline proves only that this wait timed out. The command may still be pending, its events may already be appended, or a notification or downstream consumer may be delayed.
 
-Before retrying, retain the same logical `requestId`, query the command result or authoritative state, and record the last observed stage. Retrying with a new request ID can turn an unknown outcome into a duplicate business action. See [Idempotency](../guide/command-gateway.md#idempotency) for Wow's scope and backend responsibilities.
+Before retrying, retain the same logical `requestId`, query the command result or authoritative state, and record the last observed stage. Retrying with a new request ID can turn an unknown outcome into a duplicate business action. See [Failures and Idempotency](../guide/command/reliability.md) for Wow's scope and backend responsibilities.
 
 ## What the Current Repository Proves
 
@@ -95,4 +95,4 @@ That evidence has a limit. The example `OrderProjector` mainly logs events; it d
 
 Wow supplies declarative waits; it does not choose the correct promise for the application. A targeted `PROJECTED` wait can bound the matching projection function's returned chain, but actual query visibility remains a separate product acceptance check. That explicit pair is more reliable—and more honest—than `sleep(1s)`.
 
-Continue with [Core Concepts](../guide/core-concepts.md#command-completion-and-wait-stages), [Command Gateway](../guide/command-gateway.md#wait-plans), [Application Testing](../guide/application-testing.md), and [Troubleshooting](../guide/troubleshooting.md).
+Continue with [Core Concepts](../guide/core-concepts.md), [Completion Semantics](../guide/command/completion.md), [Application Testing](../guide/application-testing.md), and [Troubleshooting](../guide/troubleshooting.md).

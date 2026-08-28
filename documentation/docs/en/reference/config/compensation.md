@@ -1,134 +1,51 @@
 ---
 title: Compensation Configuration
-description: Event-failure capture, retry defaults, scheduling, and webhook configuration boundaries.
+description: Complete property reference for event-failure capture, per-function retry, server scheduling, and WeCom notifications.
+outline: deep
 ---
 
 # Compensation Configuration
 
-Compensation has two owners:
+Compensation configuration belongs to two runtimes. The application-side starter captures and replays processing failures. The standalone `wow-compensation-server` stores failure state, schedules preparation commands, and sends optional notifications. Sharing the `wow.compensation` prefix does not make a switch in one process operate the other process.
 
-- application-side `wow-spring-boot-starter` captures eligible handler failures and sends compensation commands;
-- `wow-compensation-server` stores failure state, schedules retry preparation, and optionally sends notifications.
+## Property Summary
 
-Changing one side does not operate the other. In particular, `wow.compensation.enabled=false` disables the complete
-application-side `CompensationAutoConfiguration`—supporter, capture filters, and `CompensationEventProcessor`—but it
-does not stop the standalone server scheduler or delete previously recorded failures.
+| Owner | Property | Type | Default | Effect |
+| --- | --- | --- | --- | --- |
+| Application starter | `wow.compensation.enabled` | Boolean | `true` | Register compensation supporter, domain/state failure filters, and `CompensationEventProcessor` |
+| Compensation server | `wow.compensation.host` | String | empty | Base host for quick-navigation links in notifications |
+| Compensation server | `wow.compensation.max-retries` | Integer | `10` | Maximum retry count when no function specification exists |
+| Compensation server | `wow.compensation.min-backoff` | Integer | `180` | Base backoff in seconds when no function specification exists |
+| Compensation server | `wow.compensation.execution-timeout` | Integer | `120` | Per-attempt timeout in seconds when no function specification exists |
+| Compensation server | `wow.compensation.scheduler.enabled` | Boolean | `true` | Create the automatic preparation worker |
+| Compensation server | `wow.compensation.scheduler.mutex` | String | `compensation_mutex` | Distributed mutex key for the scheduler |
+| Compensation server | `wow.compensation.scheduler.batch-size` | Integer | `100` | Maximum failure records processed per tick |
+| Compensation server | `wow.compensation.scheduler.initial-delay` | Duration | `PT60S` | Delay before the first tick |
+| Compensation server | `wow.compensation.scheduler.period` | Duration | `PT60S` | Delay between ticks |
+| Compensation server | `wow.compensation.webhook.weixin.url` | String | absent | WeCom group-bot endpoint; enabled when configured and its value is not `false` |
+| Compensation server | `wow.compensation.webhook.weixin.events` | Set | below | Events that produce bot messages |
 
-## Starter Level
+## Complete YAML
 
-| Property | Type | Default | Effect |
-|---|---|---|---|
-| `wow.compensation.enabled` | Boolean | `true` | Register compensation support, domain/state failure filters, and the compensation event processor |
+This block shows every compensation-specific property. An application process normally uses only `enabled`; the remaining properties belong to the standalone compensation server. Remove the entire `webhook.weixin` block when WeCom is not required instead of configuring a fake URL.
 
 ```yaml
 wow:
   compensation:
+    # Application starter
     enabled: true
-```
 
-The filters run on domain-event, stateless-saga, projection, and snapshot dispatchers before the ordinary retry
-filter. On an eligible handler error they send `CreateExecutionFailed`; a compensation retry sends
-`ApplyExecutionFailed` or `ApplyExecutionSuccess` for the existing execution. On capture, the implementation uses
-`commandBus.send(compensationCommand).then(originalError)`: the original handler error propagates only after the
-compensation command send succeeds. If that send fails, the send failure terminates the chain instead, so monitoring
-must retain both the handler failure and compensation-command delivery result.
-
-`@Retry` is the public per-function contract:
-
-```kotlin
-@ProjectionProcessor
-class OrderProjection {
-    @Retry(maxRetries = 3, minBackoff = 60, executionTimeout = 10)
-    @OnEvent
-    fun onOrderPaid(event: OrderPaid): Mono<Void> = project(event)
-
-    @Retry(enabled = false)
-    @OnEvent
-    fun onOrderDeleted(event: OrderDeleted): Mono<Void> = delete(event)
-}
-```
-
-The annotation defaults are `maxRetries=10`, `minBackoff=180`, and `executionTimeout=120`, all in seconds except the
-retry count. `recoverable` and `unrecoverable` exception lists classify failures. `@Retry(enabled=false)` opts out for
-one function even when the global switch is enabled.
-
-Set `wow.compensation.enabled=false` only as a coordinated two-sided cutover. First stop the standalone scheduler,
-drain in-flight `PrepareCompensation` commands, and reconcile existing `FAILED`/`PREPARED` executions; then disable the
-application-side auto-configuration. Otherwise the scheduler can still produce `CompensationPrepared` while no
-application-side `CompensationEventProcessor` invokes the original event function, leaving executions in `PREPARED`
-without execution. A later timeout cycle can schedule another preparation, but it cannot replace the missing
-application-side processor. The switch also removes automatic capture for new failures; it is not a rollback of
-existing compensation state.
-
-## Server Level
-
-The following properties belong to the standalone `wow-compensation-server`. Its `CompensationProperties` also acts
-as the default `IRetrySpec` when a `CreateExecutionFailed` command carries no function-specific retry spec.
-
-### Retry Policy
-
-| Property | Type | Default | Effect |
-|---|---|---|---|
-| `wow.compensation.host` | String | empty | Base host used for compensation navigation links |
-| `wow.compensation.max-retries` | Integer | `10` | Default maximum retry count |
-| `wow.compensation.min-backoff` | Integer | `180` | Default first backoff in seconds |
-| `wow.compensation.execution-timeout` | Integer | `120` | Default execution timeout in seconds |
-
-```yaml
-wow:
-  compensation:
+    # Standalone compensation server
     host: https://compensation.example.internal
     max-retries: 10
     min-backoff: 180
     execution-timeout: 120
-```
-
-For retry number `n`, `NextRetryAtCalculator` computes `minBackoff * 2^n` seconds from the retry timestamp. The domain
-rejects negative counts/backoffs/timeouts and arithmetic overflow. A retry spec is materialized into the
-`ExecutionFailedCreated` event, so changing server defaults affects new failures without silently rewriting existing
-records.
-
-### Scheduler
-
-| Property | Type | Default | Effect |
-|---|---|---|---|
-| `wow.compensation.scheduler.enabled` | Boolean | `true` | Create the scheduled retry worker |
-| `wow.compensation.scheduler.mutex` | String | `compensation_mutex` | Distributed mutex used by the scheduler |
-| `wow.compensation.scheduler.batch-size` | Integer | `100` | Maximum failures selected per tick |
-| `wow.compensation.scheduler.initial-delay` | Duration | `PT60S` | Delay before the first tick |
-| `wow.compensation.scheduler.period` | Duration | `PT60S` | Delay between ticks |
-
-```yaml
-wow:
-  compensation:
     scheduler:
       enabled: true
       mutex: compensation_mutex
       batch-size: 100
       initial-delay: PT60S
       period: PT60S
-```
-
-The scheduler queries retryable failed snapshots and sends `PrepareCompensation` commands. The mutex prevents normal
-concurrent ownership, but it is not recovery evidence by itself. Monitor worker execution, failed-state age, prepared
-timeouts, command outcomes, and backlog. Before pausing the scheduler, record who owns manual recovery and how pending
-`PREPARED` executions will be reconciled.
-
-### WeChat Webhook (optional)
-
-The WeCom integration is created only when `wow.compensation.webhook.weixin.url` is present.
-
-| Property | Type | Default | Effect |
-|---|---|---|---|
-| `wow.compensation.webhook.weixin.url` | String | required to enable | WeCom group-bot endpoint |
-| `wow.compensation.webhook.weixin.events` | Set&lt;HookEvent&gt; | four events below | Events that generate a message |
-
-Default events are `execution_failed_created`, `execution_failed_applied`, `execution_success_applied`, and
-`recoverable_marked`. `compensation_prepared` is also valid but is not enabled by default.
-
-```yaml
-wow:
-  compensation:
     webhook:
       weixin:
         url: ${COMPENSATION_WEIXIN_WEBHOOK_URL}
@@ -139,8 +56,74 @@ wow:
           - recoverable_marked
 ```
 
-Keep the URL in a secret store. A successful application start proves binding only; verify a controlled event reaches
-the bot, and keep the compensation dashboard/query path as the authoritative recovery state when notification fails.
+The WeCom URL is a credential and should be injected through a secret. Successful property binding proves only that configuration was read, not that the bot is reachable.
 
-<!-- Sources: starter CompensationProperties/AutoConfiguration, server CompensationProperties, SchedulerProperties,
-WeiXinWebHookProperties, CompensationFilter, ExecutionFailed, and NextRetryAtCalculator -->
+## Application-side Switch
+
+`wow.compensation.enabled=false` removes the complete application-side `CompensationAutoConfiguration`:
+
+- `EventCompensateSupporter`;
+- `DomainEventCompensationFilter` and `StateEventCompensationFilter`;
+- `CompensationEventProcessor`.
+
+It does not disable Saga, change immediate retry in `RetryableFilter`, stop the standalone scheduler, or delete existing `ExecutionFailed` records. Treat shutdown as a coordinated two-sided cutover: stop the scheduler, drain in-flight `PrepareCompensation`, reconcile `FAILED` / `PREPARED`, and only then disable application-side compensation. Otherwise the scheduler can still produce `CompensationPrepared` while the application no longer has a processor to replay the source event.
+
+## Per-function @Retry
+
+`@Retry` is the durable-compensation policy for one processing function:
+
+```kotlin
+@Retry(
+    maxRetries = 5,
+    minBackoff = 60,
+    executionTimeout = 10,
+    recoverable = [TimeoutException::class],
+    unrecoverable = [IllegalArgumentException::class],
+)
+@OnEvent
+fun onOrderPaid(event: OrderPaid): Mono<Void> = project(event)
+```
+
+| Parameter | Type | Default | Effect |
+| --- | --- | --- | --- |
+| `enabled` | Boolean | `true` | `false` prevents failure-record creation and `ApplyExecutionFailed`; an existing compensation success still sends `ApplyExecutionSuccess` |
+| `maxRetries` | Int | `10` | Maximum ordinary preparation count |
+| `minBackoff` | Int | `180` | Exponential-backoff base in seconds |
+| `executionTimeout` | Int | `120` | Timeout in seconds for one `PREPARED` execution |
+| `recoverable` | exception-type array | empty | Classify matching errors as `RECOVERABLE` |
+| `unrecoverable` | exception-type array | empty | Classify matching errors as `UNRECOVERABLE` |
+
+A function specification wins when the failure record is created. Without one, the server's `max-retries`, `min-backoff`, and `execution-timeout` supply the default `IRetrySpec`. The final specification is stored in `ExecutionFailedCreated`, so changing server defaults affects only later records and does not rewrite existing failures.
+
+## Backoff and Exception Classification
+
+`NextRetryAtCalculator` calculates from the current retry timestamp:
+
+```text
+nextRetryAt = retryAt + minBackoff * 2^retries
+timeoutAt   = retryAt + executionTimeout
+```
+
+Count, backoff, and timeout must be non-negative, and time calculation must not overflow. The first failure starts with `retries = 0`; every preparation increments it.
+
+`recoverable` / `unrecoverable` use assignable-type matching and the nearest inheritance distance; `recoverable` wins a tie. Without a function-level match, runtime global classification applies: `RecoverableException` and `TimeoutException` are `RECOVERABLE` by default, while other unregistered exceptions are `UNKNOWN`.
+
+## Scheduler
+
+An enabled scheduler runs with `initial-delay` / `period` and submits at most `batch-size` `PrepareCompensation` commands per tick. `mutex` prevents normal concurrent worker ownership across instances, but it is not recovery proof. Monitor worker execution, failure age, `PREPARED` timeout, command outcomes, and backlog.
+
+Base period and batch changes on measured backlog and processing time. Before pausing the scheduler, assign an operator owner and define reconciliation for in-flight `PREPARED` records.
+
+## WeCom Webhook
+
+The WeCom integration is registered only when `wow.compensation.webhook.weixin.url` is configured and its value is not `false`. Its default events are:
+
+- `execution_failed_created`
+- `execution_failed_applied`
+- `execution_success_applied`
+- `recoverable_marked`
+
+`compensation_prepared` is also valid but is disabled by default. When notification fails, the compensation query result remains the authoritative recovery-state entry point; see the [Event Compensation Example](../example/compensation.md) for operator verification.
+
+<!-- Sources: starter/server CompensationProperties, CompensationAutoConfiguration, Retry,
+NextRetryAtCalculator, SchedulerProperties, CompensationScheduler, and WeiXinWebHookProperties -->

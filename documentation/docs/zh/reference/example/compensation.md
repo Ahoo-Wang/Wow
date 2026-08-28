@@ -1,100 +1,37 @@
 ---
 title: 事件补偿示例
-description: 从真实补偿过滤器、ExecutionFailed 聚合、调度器、生成客户端和 dashboard 追踪失败恢复闭环。
+description: 运行补偿服务，验证 Dashboard、管理端点、通知与部署恢复闭环。
 outline: deep
 ---
 
-# 事件补偿
+# 事件补偿示例
 
-[`compensation`](https://github.com/Ahoo-Wang/Wow/tree/main/compensation) 本身就是一个 Wow 应用：订阅函数失败时创建 `ExecutionFailed` 聚合，调度器或人工操作准备重试，框架重新投递原事件，并把新结果写回同一聚合。
+[`compensation`](https://github.com/Ahoo-Wang/Wow/tree/main/compensation) 是可运行的 Wow 应用和运营控制台。本页只负责运行与运营验证；即时重试、`ExecutionFailed` 状态机和重放语义见[事件补偿指南](../../guide/event/compensation.md)，完整属性见[事件补偿配置](../config/compensation.md)。
 
-## 模块划分
+## 模块与验证基线
 
-```mermaid
-flowchart LR
-    API[wow-compensation-api<br/>commands / events / state contract]
-    CORE[wow-compensation-core<br/>failure filter / re-execution]
-    DOMAIN[wow-compensation-domain<br/>ExecutionFailed aggregate]
-    SERVER[wow-compensation-server<br/>scheduler / query / hosting]
-    UI[dashboard<br/>query / prepare / force prepare]
-    API --> CORE
-    API --> DOMAIN
-    CORE --> SERVER
-    DOMAIN --> SERVER
-    SERVER --> UI
-```
+| 模块 | 运行职责 |
+| --- | --- |
+| `wow-compensation-api` | 命令、事件、状态与查询契约 |
+| `wow-compensation-domain` | `ExecutionFailed` 聚合与退避计算 |
+| `wow-compensation-core` | 失败捕获、结果写回与原事件重放 |
+| `wow-compensation-server` | 快照查询、调度、OpenAPI、通知，以及存在前端构建产物时的 Dashboard 托管 |
+| `dashboard` | 失败队列、详情与人工操作 |
 
-| 模块 | 责任 | 精确源码 |
-| --- | --- | --- |
-| `wow-compensation-api` | `ExecutionFailed` 命令、事件、状态和重试规格 | [`api` 包](https://github.com/Ahoo-Wang/Wow/tree/main/compensation/wow-compensation-api/src/main/kotlin/me/ahoo/wow/compensation/api) |
-| `wow-compensation-core` | 捕获处理失败、创建/更新失败记录、重新投递原事件 | [`CompensationFilter.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-core/src/main/kotlin/me/ahoo/wow/compensation/core/CompensationFilter.kt#L47-L126)、[`CompensationEventProcessor.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-core/src/main/kotlin/me/ahoo/wow/compensation/core/CompensationEventProcessor.kt#L27-L56) |
-| `wow-compensation-domain` | `ExecutionFailed` 决策、状态机和退避计算 | [`ExecutionFailed.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-domain/src/main/kotlin/me/ahoo/wow/compensation/domain/ExecutionFailed.kt#L36-L142)、[`ExecutionFailedState.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-domain/src/main/kotlin/me/ahoo/wow/compensation/domain/ExecutionFailedState.kt#L35-L99) |
-| `wow-compensation-server` | 查询到期失败项并发送准备命令 | [`CompensationScheduler.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-server/src/main/kotlin/me/ahoo/wow/compensation/server/scheduler/CompensationScheduler.kt#L29-L76)、[`SnapshotFindNextRetry.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-server/src/main/kotlin/me/ahoo/wow/compensation/server/failed/SnapshotFindNextRetry.kt) |
-| `dashboard` | 失败队列、详情、重试规格、准备与强制准备 | [`FailedView.tsx`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/FailedView.tsx)、[`Actions.tsx`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/Actions.tsx#L64-L224) |
+先验证领域、核心与控制台：
 
-## 架构概览
-
-```mermaid
-sequenceDiagram
-    participant Handler as Event/Saga/Projection Handler
-    participant Filter as EventCompensationFilter
-    participant Failed as ExecutionFailed
-    participant Scheduler
-    participant Processor as CompensationEventProcessor
-    Handler--xFilter: throws
-    Filter->>Failed: CreateExecutionFailed
-    Scheduler->>Failed: PrepareCompensation
-    Failed-->>Processor: CompensationPrepared
-    Processor->>Handler: re-deliver original event
-    alt succeeds
-        Filter->>Failed: ApplyExecutionSuccess
-    else fails again
-        Filter->>Failed: ApplyExecutionFailed
-    end
-```
-
-### 工作原理
-
-1. [`EventCompensationFilter`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-core/src/main/kotlin/me/ahoo/wow/compensation/core/CompensationFilter.kt#L68-L126) 位于事件处理、Saga、投影和快照链路；函数抛错且未显式关闭重试时，它记录 eventId、函数、错误、执行时间、重试规格和 recoverable。
-2. 首次失败发送 `CreateExecutionFailed`；补偿重放再次失败时，header 中已有 compensationId，改发 `ApplyExecutionFailed`。重放成功则发 `ApplyExecutionSuccess`。
-3. [`SnapshotFindNextRetry`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-server/src/main/kotlin/me/ahoo/wow/compensation/server/failed/SnapshotFindNextRetry.kt) 只选择可恢复/未知、未超过重试阈值且已到 `nextRetryAt` 的记录；PREPARED 记录还必须超时。
-4. [`CompensationEventProcessor`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-core/src/main/kotlin/me/ahoo/wow/compensation/core/CompensationEventProcessor.kt#L36-L56) 只重放本地聚合的原事件版本，并把目标函数和失败记录 ID 作为补偿目标。
-
-```text
-CreateExecutionFailed -> FAILED
-Prepare/ForcePrepare  -> PREPARED
-ApplyExecutionFailed  -> FAILED
-ApplyExecutionSuccess -> SUCCEEDED
-```
-
-`RetryState` 保存 `retries`、`retryAt`、`timeoutAt`、`nextRetryAt`；[`NextRetryAtCalculator`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-domain/src/main/kotlin/me/ahoo/wow/compensation/domain/NextRetryAtCalculator.kt) 使用 `minBackoff * 2^retries` 秒并对负数和溢出做校验。
-
-### ExecutionFailed 聚合命令
-
-| 命令 | 领域决策 | 事件/结果 |
-| --- | --- | --- |
-| `CreateExecutionFailed` | 校验/补全重试规格，计算初始 retryState | `ExecutionFailedCreated`, `FAILED` |
-| `PrepareCompensation` | `FAILED`，或已超时的 `PREPARED`，且重试次数低于上限 | `CompensationPrepared`, `PREPARED` |
-| `ForcePrepareCompensation` | 忽略重试次数阈值，但成功项仍不可重试；PREPARED 必须已超时 | `CompensationPrepared` |
-| `ApplyExecutionFailed` | 仅 `PREPARED` 可写入 | `ExecutionFailedApplied`, 回到 `FAILED` |
-| `ApplyExecutionSuccess` | 仅 `PREPARED` 可写入 | `ExecutionSuccessApplied`, `SUCCEEDED` |
-| `ApplyRetrySpec` | 非负且不能产生时间溢出 | `RetrySpecApplied` |
-| `MarkRecoverable` / `ChangeFunction` | 新值必须与当前值不同 | `RecoverableMarked` / `FunctionChanged` |
-
-## 功能特性
-
-先验证领域、补偿过滤器和控制台：
-
-```shell
+```bash
 ./gradlew :wow-compensation-domain:check :wow-compensation-core:check
 pnpm --dir compensation/dashboard exec vitest run
 ```
 
-预期 Gradle 和 Vitest 都成功退出。领域状态机的主证据是 [`ExecutionFailedSpec`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-domain/src/test/kotlin/me/ahoo/wow/compensation/domain/ExecutionFailedSpec.kt#L61-L376)；过滤器的首次失败、再次失败和成功写回由 [`CompensationFilterTest`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-core/src/test/kotlin/me/ahoo/wow/compensation/core/CompensationFilterTest.kt) 覆盖。
+`ExecutionFailedSpec` 覆盖 prepare、force prepare、成功、再次失败和规格变更；`CompensationFilterTest` 覆盖过滤器错误边界；Dashboard 测试覆盖队列条件与操作状态。命令成功只证明这些本地 gate，不证明真实消息、存储、通知或部署环境。
 
-从 clean checkout 做无持久化启动验证时，不要直接用 Gradle `run`：当前 [`applicationDefaultJvmArgs`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-server/build.gradle.kts#L43-L63) 会开启 JMX 5555，且关闭认证和 TLS。项目没有 `bootJar` 任务；本地最小路径是先生成 distribution，再用普通 `java` 启动真实主类。下面的完整命令已验证只在 `127.0.0.1:18083` 启动 Netty；它只适合路由和本地状态机验证，进程退出后数据会丢失，也不会运行自动调度：
+## 本地服务启动、健康与路由验证
 
-```shell
+当前 `:wow-compensation-server:run` 的默认 JVM 参数会在 5555 开启无认证、无 TLS 的 JMX。最小安全的本地路由验证先生成 distribution，再用普通 `java` 只绑定 loopback。`installDist` 只复制已经存在的 `compensation/dashboard/dist`，不会构建前端；当前端产物不存在时，这条流程不验证 Dashboard 静态资源。
+
+```bash
 ./gradlew :wow-compensation-server:installDist
 
 SERVER_PORT=18083 \
@@ -120,49 +57,137 @@ java \
   me.ahoo.wow.compensation.server.CompensationServerKt
 ```
 
-预期日志包含 `Netty started on port 18083` 和 `Started CompensationServerKt`。在另一个终端核对同一 loopback 地址与端口：
+预期日志包含 `Netty started on port 18083` 和 `Started CompensationServerKt`。在另一个终端验证同一地址与端口：
 
-```shell
+```bash
 curl -fsS http://127.0.0.1:18083/actuator/health/liveness
 curl -fsS http://127.0.0.1:18083/v3/api-docs | \
   jq -r '.paths["/execution_failed/{id}/prepare_compensation"].put.operationId'
 ```
 
-预期分别得到 `{"status":"UP"}` 和 `compensation.execution_failed.prepare_compensation`。该进程的 JVM 命令行只包含显式 config 参数，实际 TCP listener 是 `127.0.0.1:18083`，不是所有网卡，也没有 JMX `5555`。这只限制了当前 HTTP listener 的绑定地址，不代表服务已经具备通用安全性；持久化环境仍需认证、授权、TLS、网络策略与凭据治理。
+预期分别得到 `{"status":"UP"}` 和 `compensation.execution_failed.prepare_compensation`。这组检查只验证服务启动、健康端点和 prepare 路由存在；它没有请求 Dashboard 静态资源，也没有发送补偿命令或执行状态转换，因此不验证 Dashboard 或本地状态机。该模式还会在进程退出后丢失数据并禁用自动调度，不是持久恢复证明。
 
-WebHook 没有独立的 `enabled` 配置；当前 [`@ConditionalOnProperty`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-server/src/main/kotlin/me/ahoo/wow/compensation/server/webhook/weixin/ConditionalOnWeiXinWebHookEnabled.kt#L16-L20) 把字面量 `false` 视为关闭，因此不会注册 [`WeiXinWebHook` 事件处理器](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-server/src/main/kotlin/me/ahoo/wow/compensation/server/webhook/weixin/WeiXinWebHook.kt#L36-L42)。不要使用 `http://localhost:1/`：非 `false` URL 会启用处理器，默认失败事件会尝试向 loopback 投递并记录连接失败。
+Dashboard 需要单独启动并验证：
 
-验证持久化补偿时，仍用 distribution 的直接 `java` 路径，配置真实 MongoDB、Redis、Kafka、scheduler 和 WebHook，再去掉上述内存/禁用覆盖。只有在可信隔离环境明确需要 JMX 时，才考虑 Gradle `run` 的当前默认参数。dashboard 单独运行：
-
-```shell
+```bash
 pnpm --dir compensation/dashboard dev
 ```
 
-不要从上下文名猜命令 URL。dashboard 的当前[生成 OpenAPI 客户端](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/generated/compensation/execution_failed/commandClient.ts#L8-L20) 明确给出：
+## Dashboard
 
-```text
-PUT /execution_failed/{id}/prepare_compensation
-PUT /execution_failed/{id}/force_prepare_compensation
-PUT /execution_failed/{id}/apply_retry_spec
-```
+当前 Dashboard 提供以下队列：
 
-对一个已存在且可重试的失败记录执行：
+| 队列 | 条件 |
+| --- | --- |
+| **To Retry** | `RECOVERABLE` / `UNKNOWN`、低于重试上限，且为 `FAILED` 或已超时 `PREPARED` 的记录 |
+| **Executing** | 尚未超时的 `PREPARED` |
+| **Next Retry** | 已到 `nextRetryAt` 的自动调度候选 |
+| **Non Retryable** | 已达到普通重试上限的活动记录 |
+| **Succeeded** | `SUCCEEDED` 历史记录 |
+| **Unrecoverable** | `UNRECOVERABLE` 活动记录 |
 
-```shell
+列表支持按 execution ID、事件 ID、聚合 ID、聚合 context/name、processor context/name 精确筛选。详情页展示错误与堆栈、事件和聚合身份、租户、函数、恢复性、RetrySpec、时间、状态及分页事件流历史。
+
+可用操作：
+
+- **Prepare compensation**：普通准备，受状态、超时和重试上限约束；
+- **Force prepare**：经确认越过重试上限，但不越过成功状态或未超时的 `PREPARED`；
+- **Apply retry spec**：修改非负的 `maxRetries`、`minBackoff` 与 `executionTimeout`；
+- **Mark recoverable**：修改恢复性并改变自动调度资格；
+- **Change function**：修改 context、processor、函数名与 `EVENT` / `STATE_EVENT` 类型。
+
+当前 UI 不提供删除或恢复已删除聚合的按钮，也没有定义运营角色、审批流或审计保留策略。部署方必须在网络、认证、授权与审计层提供这些控制。
+
+![Event-Compensation-Dashboard](/images/compensation/dashboard.png)
+
+![Event-Compensation-Dashboard-Apply-Retry-Spec](/images/compensation/dashboard-apply-retry-spec.png)
+
+![Event-Compensation-Dashboard-Succeeded](/images/compensation/dashboard-succeeded.png)
+
+![Event-Compensation-Dashboard-Error](/images/compensation/dashboard-error.png)
+
+## 管理端点
+
+Dashboard 的生成客户端当前使用空 `basePath`，默认命令路由为：
+
+| 操作 | 路由 |
+| --- | --- |
+| 普通准备 | `PUT /execution_failed/{id}/prepare_compensation` |
+| 强制准备 | `PUT /execution_failed/{id}/force_prepare_compensation` |
+| 修改重试规格 | `PUT /execution_failed/{id}/apply_retry_spec` |
+| 修改恢复性 | `PUT /execution_failed/{id}/mark_recoverable` |
+| 修改目标函数 | `PUT /execution_failed/{id}/change_function` |
+
+API Gateway 可以在外部添加 context 前缀；运行实例的 OpenAPI 是最终路由证据。生成客户端还包含默认聚合删除与恢复路由，但当前 Dashboard 不调用它们。
+
+对一个已存在且可重试的失败记录执行普通准备：
+
+```bash
 curl -X PUT \
   'http://127.0.0.1:18083/execution_failed/<execution-id>/prepare_compensation' \
   -H 'Command-Wait-Stage: PROCESSED' \
   -H 'Command-Request-Id: prepare-<execution-id>'
 ```
 
-`succeeded=true`、`stage=PROCESSED` 只证明 prepare 命令已处理，不能保证随后读取时仍能看到 `PREPARED`：重放可能尚未开始而仍读到旧 `FAILED`，短暂处于 `PREPARED`，或已经落到最终 `SUCCEEDED`/新的 `FAILED`。若要观察 snapshot 或处理函数，应选择对应等待阶段，轮询生成的 snapshot/event 查询端点，并核对状态事件历史，而不是对一次即时读取作断言。dashboard 实际调用与成功/失败提示见 [`Actions.tsx`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/Failed/Actions.tsx#L72-L119)。
+`succeeded=true`、`stage=PROCESSED` 只证明 prepare 命令已处理。随后读取可能仍看到旧 `FAILED`、短暂 `PREPARED`，或已经看到最终 `SUCCEEDED` / 新的 `FAILED`。若要观察完整结果，应轮询 snapshot/event 查询并核对状态事件历史，而不是对一次即时读取断言。
 
-失败行为必须保留：普通 prepare 只拒绝尚未超时的 `PREPARED`；已超时且低于重试上限时可以再次 prepare。`SUCCEEDED` 或达到上限时普通 prepare 被拒绝；对 `FAILED`/`SUCCEEDED` 直接 apply success/failure 会得到 `ExecutionFailed is not prepared.`；force prepare 仍受成功状态和 PREPARED 超时约束；负重试值或指数退避溢出会在聚合内失败。dashboard 的按钮禁用只是提示，最终决定仍由服务端状态机作出。
+失败路径也要验证：普通 prepare 拒绝 `SUCCEEDED`、未超时的 `PREPARED` 和达到上限的记录；force prepare 仍拒绝成功或未超时状态；对非 `PREPARED` 直接 apply success/failure 会返回 `ExecutionFailed is not prepared.`。Dashboard 按钮只是操作提示，服务端状态机才是最终决定。
 
-## 控制台截图
+## 通知验证
 
-![Event-Compensation-Dashboard](/images/compensation/dashboard.png)
+配置企业微信后，以受控失败和成功事件分别验证机器人消息、快速导航链接与敏感信息边界。WebHook 发送成功只证明通知可达，仍需在 Dashboard 或查询结果中核对权威状态。
 
-## 详细文档
+| 失败通知 | 成功通知 |
+| --- | --- |
+| ![执行失败](/images/compensation/execution-failed.png) | ![执行成功](/images/compensation/execution-success.png) |
 
-接入、存储、调度和告警配置见[事件补偿指南](../../guide/event-compensation)。本页的完成标准是：三个检查命令通过，能从处理器异常追踪到失败聚合，再从 `CompensationPrepared` 追踪到成功或再次失败，并能用生成客户端证明人工操作路径。
+## 持久化部署与验证
+
+持久化环境继续使用 distribution 的直接 `java` 启动路径，配置真实 MongoDB、Redis、Kafka、scheduler 与通知，然后移除本地示例中的 in-memory / disable 覆盖。仓库提供服务宿主和 Dashboard 构建，不提供可直接投产的集群策略。
+
+最小 Kubernetes 形状如下；镜像摘要、资源、副本与 Secret 名称必须由实际发布和容量验证决定：
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: compensation-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: compensation-service
+  template:
+    metadata:
+      labels:
+        app: compensation-service
+    spec:
+      containers:
+        - name: compensation-service
+          image: <registry>/wow-compensation-server@sha256:<digest>
+          envFrom:
+            - secretRef:
+                name: wow-compensation-secrets
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+```
+
+部署验证至少包括：
+
+1. 固定选定 Wow tag 构建的不可变镜像摘要，并在测试与生产使用同一摘要；
+2. 通过 Secret 注入消息、存储、通知与认证凭据；
+3. 验证 EventStore 与 SnapshotStore 的索引、容量、备份和恢复；
+4. 验证 readiness/liveness、scheduler 互斥、积压、失败年龄、重启数与错误日志；
+5. 将 Dashboard 与管理端点限制在受保护的运营网络，启用 TLS、认证、细粒度授权和审计；
+6. 在测试环境走通正常、可重试、不可恢复、幂等和人工恢复，再推广同一镜像。
+
+`replicas: 2` 本身不证明高可用；多个副本还依赖消息、存储和 scheduler 互斥的真实故障验证。

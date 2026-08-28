@@ -16,6 +16,8 @@ CommandRequest / Query DTO
 
 It does not generate server routes, discover aggregate-specific fields, create authorization headers, or turn a projection into a query service. The running server's OpenAPI document remains the source of truth for the path and wire contract.
 
+For command-client registration, `CommandRequest`, target-service resolution, reactive/synchronous invocation, wait capabilities, and error mapping, use the authoritative [Command API Client](../command/api-client.md). This page retains extension installation and snapshot-query contracts.
+
 ## Features
 
 - Reactive command and query APIs using `Mono` and `Flux`.
@@ -41,15 +43,12 @@ Register the exact interfaces CoApi should materialize:
 ```kotlin
 @EnableCoApi(
     clients = [
-        ReactiveRestCommandGateway::class,
         CartQueryClient::class,
     ],
 )
 @SpringBootApplication
 class ClientApplication
 ```
-
-The client application must also carry the Wow metadata needed to resolve a command's context when `CommandRequest.context` and `serviceUri` are absent.
 
 ## Getting Started
 
@@ -71,14 +70,7 @@ When CoApi or application conventions require concrete generic metadata, redecla
 
 ### 2. Declare a Command Client
 
-The built-in gateways are already `@CoApi` and `@LoadBalanced`; they can be registered directly. A named application interface is optional:
-
-```kotlin
-@CoApi
-interface OrderCommandClient : ReactiveRestCommandGateway
-```
-
-Both forms call the generic command facade. They do not call the aggregate-specific command route declared in OpenAPI.
+See the [Command API Client](../command/api-client.md) for command-client registration and invocation.
 
 ### 3. Inject and Use
 
@@ -86,84 +78,16 @@ Both forms call the generic command facade. They do not call the aggregate-speci
 @Service
 class CartApplicationService(
     private val carts: CartQueryClient,
-    private val commands: ReactiveRestCommandGateway,
 ) {
     fun getCart(id: String): Mono<CartData> = carts.getStateById(id)
-
-    fun createOrder(id: String, command: CreateOrder): Mono<CommandResult> =
-        commands.send(
-            CommandRequest(
-                body = command,
-                aggregateId = id,
-                serviceUri = "http://order-service:8080",
-                waitPlan = CommandRequest.WaitPlan(
-                    waitStage = CommandStage.PROCESSED,
-                ),
-            ),
-        )
 }
 ```
 
-`getStateById` turns HTTP 404 into an empty `Mono`; other query errors propagate. Command sending validates `CommandValidator` bodies before the exchange.
+`getStateById` turns HTTP 404 into an empty `Mono`; other query errors propagate.
 
 ### Service Discovery
 
-`CommandRequest.sendUri` is computed as:
-
-```text
-(serviceUri ?: "http://" + serviceId) + "/wow/command/send"
-```
-
-`serviceId` is the explicit `context`, or the command type's context resolved through `MetadataSearcher`. Because `send(CommandRequest)` passes an absolute URI argument, a command gateway's `@CoApi(baseUrl)` does not select the command destination.
-
-Set `serviceUri` for a fixed address. Otherwise, the `@LoadBalanced` gateway uses the context-derived service host and requires the application's load-balancer integration to resolve it.
-
-Query clients are different: their `@CoApi(baseUrl)` and `@HttpExchange` base determine the target. Service discovery and route scoping are application configuration, not inferred from the query DTO.
-
-## Command Gateway
-
-`CommandRequest` carries the command body plus routing/message headers:
-
-- `aggregateId`, `aggregateVersion`, `tenantId`, `ownerId`, `spaceId`;
-- `requestId`, `localFirst`, `context`, `aggregate`, and optional wire `type`;
-- `serviceUri` for transport destination;
-- `WaitPlan` for the server-side command wait contract.
-
-`type` defaults to `body::class.java.name`. `context` affects both command metadata and default service discovery. Do not set a context or aggregate merely to route around missing KSP metadata; the values must describe the actual command contract.
-
-The default wait stage is `PROCESSED`. Other stages are `SENT`, `SNAPSHOT`, `PROJECTED`, `EVENT_HANDLED`, and `SAGA_HANDLED`. `waitContext` and `waitProcessor` narrow function-based stages. `waitTimeout` is sent in milliseconds.
-
-A wait result reports the selected Wow processing signal. `PROJECTED` is meaningful only for projection work registered in Wow and completed inside the handler's returned chain; it does not wait for detached `subscribe()` calls or an unrelated external pipeline.
-
-### Reactive Command Gateway
-
-```kotlin
-val result: Mono<CommandResult> = commandGateway.send(
-    CommandRequest(
-        body = createOrder,
-        aggregateId = "order-1",
-        waitPlan = CommandRequest.WaitPlan(
-            waitStage = CommandStage.PROJECTED,
-            waitContext = "order-service",
-            waitProcessor = "OrderSummaryProjector",
-            waitTimeout = 5_000,
-        ),
-    ),
-)
-```
-
-The reactive gateway returns `Mono<CommandResult>` and maps command HTTP errors to `RestCommandGatewayException`.
-
-### Synchronous Command Gateway
-
-```kotlin
-@EnableCoApi(clients = [SyncRestCommandGateway::class])
-class ClientConfiguration
-
-val result: CommandResult = syncGateway.send(request)
-```
-
-The synchronous gateway blocks the calling thread and returns `CommandResult`. Use it only on a blocking application path; do not call it from Reactor event-loop or core Wow reactive processing code.
+Query clients are different: their `@CoApi(baseUrl)` and `@HttpExchange` base determine the target. Service discovery and route scoping are application configuration, not inferred from the query DTO. Command target resolution belongs to the [Command API Client](../command/api-client.md#target-service-resolution).
 
 ## Snapshot Query
 
@@ -171,15 +95,4 @@ See [Query API Client](../query/query-api-client.md) for snapshot data queries, 
 
 ## Error Handling
 
-For command calls, `RestCommandGatewayException` retains the `CommandRequest`, error code, message, and binding errors when the response can be decoded as `CommandResult` or `DefaultErrorInfo`:
-
-```kotlin
-commandGateway.send(request)
-    .doOnError(RestCommandGatewayException::class.java) { error ->
-        log.warn("Command failed: {}", error.errorCode)
-    }
-```
-
-Blank or unknown error bodies still become `RestCommandGatewayException` with the HTTP exception as cause. Query clients only normalize single-query 404 as empty/null; validation, authorization, rate-limit, timeout, and backend errors remain transport errors for the application to handle.
-
-Do not retry commands blindly at the HTTP layer. Reuse a stable request/command identity and follow the command idempotency contract. For queries, retry only errors the application's policy classifies as transient; a query-schema validation or HTTP guard rejection will not become valid by repetition.
+Query clients only normalize single-query 404 as empty/null; validation, authorization, rate-limit, timeout, and backend errors remain transport errors for the application to handle. For queries, retry only errors the application's policy classifies as transient; a query-schema validation or HTTP guard rejection will not become valid by repetition. See [Command API Client](../command/api-client.md#error-mapping) and [Failures and Idempotency](../command/reliability.md) for command error and retry boundaries.
