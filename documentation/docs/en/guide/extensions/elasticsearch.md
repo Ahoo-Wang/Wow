@@ -1,82 +1,40 @@
 ---
 title: Elasticsearch
-description: Elasticsearch extension for full-text search and complex query support.
+description: Use Elasticsearch for event streams, snapshots, and backend-aware queries.
 ---
 
 # Elasticsearch
 
-The _Elasticsearch_ extension provides support for _Elasticsearch_, suitable for scenarios requiring full-text search and complex queries. It implements the following interfaces:
-
-- `EventStore` - Event storage
-- `EventStreamQueryService` - Event stream query service
-- `SnapshotStore` - Snapshot store
-- `SnapshotQueryService` - Snapshot query service
+`wow-elasticsearch` implements Elasticsearch-backed `EventStore`, `SnapshotStore`, and event-stream/snapshot query services. Use it when Elasticsearch is already operated and the read side needs full text, aggregations, or large cursor scans. Do not add a search cluster only for event persistence.
 
 ## Architecture Overview
 
-```mermaid
-flowchart TB
-    subgraph Application["Application Layer"]
-        AR[Aggregate Root]
-        QS[Query Service]
-    end
-    
-    subgraph Elasticsearch["Elasticsearch Cluster"]
-        subgraph EventIndex["Event Index"]
-            ES["wow.*.es"]
-        end
-        subgraph SnapshotIndex["Snapshot Index"]
-            SS["wow.*.snapshot"]
-        end
-    end
-    
-    AR -->|Append Events| ES
-    AR -->|Save Snapshot| SS
-    QS -->|Full-text Search| SS
-    QS -->|Aggregation Query| SS
-
-```
+Wow owns index names, templates, document shape, version guards, query schema, and storage bindings. Elasticsearch owns mappings, analyzers, shards, replicas, refresh, PIT, `search_after`, and bulk execution. Classpath presence is not wiring; event or snapshot storage must select `elasticsearch`.
 
 ## Installation
 
-::: code-group
-```kotlin [Gradle(Kotlin)]
+Direct dependencies:
+
+```kotlin
 implementation("me.ahoo.wow:wow-elasticsearch")
 implementation("org.springframework.boot:spring-boot-starter-data-elasticsearch")
 ```
-```groovy [Gradle(Groovy)]
-implementation 'me.ahoo.wow:wow-elasticsearch'
-implementation 'org.springframework.boot:spring-boot-starter-data-elasticsearch'
+
+Starter capability:
+
+```kotlin
+implementation("me.ahoo.wow:wow-spring-boot-starter") {
+    capabilities { requireCapability("me.ahoo.wow:elasticsearch-support") }
+}
 ```
-```xml [Maven]
-<dependency>
-    <groupId>me.ahoo.wow</groupId>
-    <artifactId>wow-elasticsearch</artifactId>
-    <version>${wow.version}</version>
-</dependency>
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-data-elasticsearch</artifactId>
-</dependency>
-```
-:::
 
 ## Configuration
-
-### Spring Data Elasticsearch Configuration
 
 ```yaml
 spring:
   elasticsearch:
-    uris:
-      - http://localhost:9200
-    username: elastic
-    password: ${ELASTICSEARCH_PASSWORD}
-```
+    uris: http://localhost:9200
 
-### Wow Configuration
-
-```yaml
 wow:
   eventsourcing:
     store:
@@ -85,596 +43,143 @@ wow:
       storage: elasticsearch
 ```
 
-- Configuration class: [ElasticsearchProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchProperties.kt)
-- Query configuration class: [ElasticsearchQueryProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchQueryProperties.kt)
-- Prefix: `wow.elasticsearch.`
+Defaults are `wow.elasticsearch.enabled=true`, `auto-init-template=true`, `query.batch-size=10000`, and `query.keep-alive=1m`; `compatibility-version` is unset. Event/snapshot batching is disabled. Enabled defaults are `max-size=128`, `max-delay=1ms`, `max-pending-*=4096`, and `lane-count=1`.
 
-| Name | Data Type | Default Value | Description |
-|---|---|---|---|
-| `enabled` | `Boolean` | `true` | Whether to enable the Elasticsearch extension |
-| `auto-init-template` | `Boolean` | `true` | Install required index templates before startup completes |
-| `event-store-batch.enabled` | `Boolean` | `false` | Batch concurrent EventStore appends with Bulk `create` |
-| `event-store-batch.max-size` | `Int` | `128` | Maximum event streams per bulk batch |
-| `event-store-batch.max-delay` | `Duration` | `1ms` | Maximum wait used to collect a partial batch |
-| `event-store-batch.max-pending-appends` | `Int` | `4096` | Maximum accepted appends waiting or being written; must be at least `max-size` |
-| `event-store-batch.lane-count` | `Int` | `1` | Number of serial write lanes; appends for the same aggregate stay on one lane |
-| `snapshot-store-batch.enabled` | `Boolean` | `false` | Batch concurrent SnapshotStore saves with Bulk scripted upserts |
-| `snapshot-store-batch.max-size` | `Int` | `128` | Maximum snapshots per bulk batch |
-| `snapshot-store-batch.max-delay` | `Duration` | `1ms` | Maximum wait used to collect a partial snapshot batch |
-| `snapshot-store-batch.max-pending-saves` | `Int` | `4096` | Maximum accepted saves waiting or being written; must be at least `max-size` |
-| `snapshot-store-batch.lane-count` | `Int` | `1` | Number of serial write lanes; saves for the same aggregate stay on one lane |
-| `query.batch-size` | `Int` | `10000` | Internal PIT + `search_after` list-query batch size, in the range `1..10000` |
-| `query.keep-alive` | `Duration` | `1m` | PIT keep-alive, which must be greater than `0` |
+### Spring Data Elasticsearch Configuration
 
-Required index templates are installed before application startup completes. A failed or unacknowledged request fails
-startup. Set `wow.elasticsearch.auto-init-template=false` only when templates are managed externally. The built-in
-templates intentionally leave shard and replica counts to the cluster or to a higher-priority operator template.
+`spring.elasticsearch.*` owns connection, authentication, TLS, and client timeouts. Wow uses Spring's reactive client and operations rather than duplicating those properties.
+
+### Wow Configuration
+
+`query.batch-size` must be in `1..10000`, and `keep-alive` must be at least `1ms`. Set `compatibility-version` only when the deployment requires REST compatibility headers, then verify the value against the target cluster.
 
 ## Write Batching
 
-EventStore and SnapshotStore write batching is opt-in:
-
-```yaml
-wow:
-  elasticsearch:
-    event-store-batch:
-      enabled: true
-      max-size: 128
-      max-delay: 1ms
-      max-pending-appends: 4096
-      lane-count: 1
-    snapshot-store-batch:
-      enabled: true
-      max-size: 128
-      max-delay: 1ms
-      max-pending-saves: 4096
-      lane-count: 1
-```
-
-EventStore batches use Bulk `create`, so an existing event document is never
-overwritten and an individual 409 remains an event-version conflict for only
-that append. Bulk partial successes are returned to their corresponding callers.
-
-SnapshotStore batches use Bulk `update` with scripted upserts. Direct saves use
-the same atomic script: an incoming snapshot whose version is greater than or
-equal to `_source.version` replaces the complete stored source, while a lower
-version is a no-op. Equal-version replacement supports snapshot regeneration.
-This also keeps pre-upgrade documents safe when their Elasticsearch
-`_version` is an internal write counter rather than the aggregate version; no
-version-metadata migration is required.
+EventStore batching uses Bulk `create`. Both direct and batched SnapshotStore writes atomically guard on `_source.version`, so an older snapshot cannot overwrite a newer one. Enable batching only from throughput evidence; queue bounds, shutdown draining, and partial bulk failures become new runtime boundaries.
 
 ## Index Naming Rules
 
-| Data Type | Index Naming Format | Example |
-|---------|------------|------|
-| Event Stream | `wow.{contextName}.{aggregateName}.es` | `wow.order-service.order.es` |
-| Snapshot | `wow.{contextName}.{aggregateName}.snapshot` | `wow.order-service.order.snapshot` |
+Default event indexes are `wow.${contextAlias}.${aggregateName}.es`; snapshot indexes are `wow.${contextAlias}.${aggregateName}.snapshot`. Names participate in storage and query routing, so renaming is a data migration.
 
 ## Snapshot Query Field Resolution
 
-Snapshot queries use a negotiated runtime Query Schema. Wow first merges the System skeleton, JSON Schema and annotations,
-classpath files, beans, and working-directory files, then binds physical fields and executable capabilities from the
-Elasticsearch mapping. Declaration precedence from low to high is JSON Schema inference, the `@QueryTemporal` semantic
-override, classpath, bean, and working directory. A higher-priority source overrides only explicitly declared leaves.
-The `model` filename is always lowercase, for example `snapshot.json`. Convention files have two fixed locations:
-
-```text
-classpath:wow-query-schema/{contextName}/{aggregateName}/{model}.json
-./config/wow-query-schema/{contextName}/{aggregateName}/{model}.json
-```
-
-The final Schema is cached per QueryService without a TTL. `GET /{aggregate}/snapshot/schema` returns public metadata
-without physical bindings. After correcting declarations, mappings, or indexes, call
-`POST /{aggregate}/snapshot/schema/refresh` to renegotiate the current service instance. A failed refresh retains the
-previous cache and is not broadcast to other instances.
-
-Field selection follows these rules:
-
-| Query operation | Mapping requirement |
-|---|---|
-| `EQ`, `NE`, `IN`, `NOT_IN`, `ALL_IN`, `TRUE`, `FALSE` | Term-query compatible, including supported doc-value-only fields |
-| `CONTAINS`, `STARTS_WITH`, `ENDS_WITH` | `keyword` or `wildcard` |
-| Range operations | numeric, date, ip, keyword, or `*_range`, including applicable `doc_values=true,index=false` fields |
-| `IS_EMPTY`, null, and existence operations | Indexed or doc-value-queryable leaf fields; object and nested containers do not expose presence capability themselves. An empty Elasticsearch array has no indexed value, so `IS_EMPTY` compiles as `NOT EXISTS` |
-| `MATCH` | `text`, `match_only_text`, `search_as_you_type`, or `semantic_text` |
-| Sort | Sortable field with `doc_values`, indexed `text` with `fielddata`, or a sortable runtime field |
-
-`_score`, `_doc`, and `_shard_doc` are Elasticsearch metadata sort fields. They bypass mapping field resolution and are
-passed through unchanged. Because `text.fielddata=true` uses significant heap memory, a `keyword` multi-field is still
-preferred in most cases. Sorting on doc-values and runtime fields does not require `index=true`.
-
-Dynamic descendants do not have individual mapping entries, and the current mapping alone cannot prove identical
-semantics across index settings, historical documents, and write boundaries. In the first release, the final
-Elasticsearch Schema therefore publishes no dynamic-descendant capabilities: `STRICT` rejects unknown descendants,
-while `COMPATIBLE` preserves the existing backend fallback only for ordinary unknown paths. Fixed System `tags.*`
-fields participate in ABAC: a root filter that references them never falls back, including while Schema loading is
-unavailable. A projection or sort that alone references `tags.*` still follows ordinary `COMPATIBLE` unavailable-Schema
-fallback. Explicitly mapped typed sub-fields continue to use their own capabilities.
-
-For example, one logical field can support both full-text and exact operations:
-
-```json
-{
-  "properties": {
-    "state": {
-      "properties": {
-        "customerName": {
-          "type": "text",
-          "fields": {
-            "keyword": { "type": "keyword" }
-          }
-        }
-      }
-    }
-  }
-}
-```
-
-| Query operation | Client field | Resolved field |
-|---|---|---|
-| `SEARCH` | `state.customerName` | `state.customerName` |
-| `EQ`, `IN`, sort | `state.customerName` | `state.customerName.keyword` |
-| projection | `state.customerName` | `state.customerName` (unchanged) |
-
-Clients always use the logical field and do not need to hard-code `.keyword` or `.text`.
-
-The default `TERMS` mode for `SEARCH` uses `multi_match`; `PHRASE` uses `multi_match(type = phrase)` with the same field-resolution rules.
-
-For a multi-field, Wow tries the current field, `.keyword`/`.text`, `.exact`, and finally a single compatible child.
-Multiple compatible children fail as ambiguous rather than silently changing semantics. Projection remains on the
-logical field; the parent of `ELEMENT_MATCH` must be mapped as `nested`. A custom
-`AbstractElasticsearchFilterConverter` retains ownership of its physical fields and bypasses this rewriting.
-
-A field alias inherits the query and sort capabilities of its target while queries continue to use the alias name.
-Runtime fields declared in the mapping also participate according to their type. They are evaluated at query time and
-may be rejected by the cluster when `search.allow_expensive_queries=false`. Projection still applies its logical path
-to `_source`; it does not rewrite a field alias or runtime field to its target.
-
-Each aggregate must resolve to one physical snapshot index. An alias or data stream that resolves to multiple indices
-fails closed. Such a topology must be reduced to one physical index or handled by an application-specific `_field_caps`
-query implementation.
+The query factory combines logical `QuerySchema` with target mappings to resolve physical paths for exact match, range, sorting, presence, and projection. Multi-fields, runtime fields, and disabled objects follow Elasticsearch mappings; do not guess `.keyword` in the HTTP layer.
 
 ## Refresh the Runtime Query Schema
 
-Use `GET /{aggregate}/snapshot/schema` to inspect the aggregate's current logical fields and capabilities, then refresh the receiving instance:
-
-```bash
-curl -X POST http://localhost:8080/order/snapshot/schema/refresh
-```
-
-This POST route has an independent authorization policy and can be restricted to maintenance roles. It rereads mappings, convention files, and other schema sources; on success it returns new public metadata. Elasticsearch credentials still require `view_index_metadata` on the target index because the backend adapter reads its mapping.
-
-Missing privileges, a missing index, or an unparseable mapping returns an error while retaining a previously successful cache. Refresh does not modify the Elasticsearch mapping, rebuild the index, or backfill old snapshots. It affects only the instance receiving the request and never broadcasts; call every Pod in a replicated deployment. In-flight queries keep the schema obtained when they began compilation.
-
-Publish a mapping change by updating the index and completing any required reindex or snapshot rebuild, then refreshing the schema on every Pod and running representative exact, full-text, and sort queries before completing the release.
+After mappings change, the runtime schema must be resolved again. When WebFlux/OpenAPI capabilities register a schema-refresh route, obtain its actual path from the candidate runtime OpenAPI and authorize it. Refresh updates in-memory schema only; it does not backfill documents or change mappings.
 
 ## Configure Event Stream Index Template
 
-The built-in templates disable automatic date detection; map domain date fields explicitly in an aggregate-specific
-template. Event entries are `nested`, while `body[].body` remains available in `_source` but is not indexed, preventing
-arbitrary payloads from breaking persistence through mapping conflicts. One event stream is limited to 10,000 events,
-matching Elasticsearch's default nested-object limit.
-
-Use relative child paths inside `ELEMENT_MATCH`; the resolver qualifies them against the nested parent:
-
-```kotlin
-filter {
-    "body".elementMatch {
-        "name" eq "Created"
-    }
-}
-```
-
-```json
-{
-  "filter": {
-    "op": "ELEMENT_MATCH",
-    "field": "body",
-    "predicate": { "op": "EQ", "field": "name", "value": "Created" }
-  }
-}
-```
-
-Payload search or custom nested semantics require an application-owned higher-priority template and matching query
-converter. That template must reproduce the complete built-in baseline because composable templates do not merge by
-priority.
-
-```http request
-POST _index_template/wow-event-stream-template
-{
-  "index_patterns": [
-    "wow.*.es"
-  ],
-  "template": {
-    "mappings": {
-      "date_detection": false,
-      "properties": {
-        "aggregateId": {
-          "type": "keyword"
-        },
-        "aggregateName": {
-          "type": "keyword"
-        },
-        "body": {
-          "type": "nested",
-          "properties": {
-            "body": {
-              "type": "object",
-              "enabled": false
-            },
-            "bodyType": {
-              "type": "keyword"
-            },
-            "id": {
-                "type": "keyword"
-            },
-            "name": {
-              "type": "keyword"
-            },
-            "revision": {
-              "type": "keyword"
-            }
-          }
-        },
-        "commandId": {
-          "type": "keyword"
-        },
-        "contextName": {
-          "type": "keyword"
-        },
-        "createTime": {
-          "type": "long"
-        },
-        "header": {
-          "properties": {
-            "upstream_id": {
-              "type": "keyword"
-            },
-            "upstream_name": {
-              "type": "keyword"
-            }
-          }
-        },
-        "id": {
-          "type": "keyword"
-        },
-        "requestId": {
-          "type": "keyword"
-        },
-        "tenantId": {
-          "type": "keyword"
-        },
-        "ownerId": {
-          "type": "keyword"
-        },
-        "spaceId": {
-          "type": "keyword"
-        },
-        "version": {
-          "type": "integer"
-        }
-      },
-      "dynamic_templates": [
-        {
-          "string_as_keyword": {
-            "match_mapping_type": "string",
-            "mapping": {
-              "type": "keyword",
-              "ignore_above": 8191
-            }
-          }
-        }
-      ]
-    }
-  }
-}
-```
+With `auto-init-template=true`, `IndexTemplateInitializer` verifies the event template. Request failure, empty response, or missing acknowledgment fails storage wiring. If the platform owns templates, disable initialization only with versioned template and deployment evidence.
 
 ## Configure Snapshot Index Template
 
-```http request
-POST _index_template/wow-snapshot-template
-{
-  "index_patterns": [
-    "wow.*.snapshot"
-  ],
-  "template": {
-    "mappings": {
-      "date_detection": false,
-      "properties": {
-        "contextName": {
-          "type": "keyword"
-        },
-        "aggregateName": {
-          "type": "keyword"
-        },
-        "tenantId": {
-          "type": "keyword"
-        },
-        "aggregateId": {
-          "type": "keyword"
-        },
-        "version": {
-          "type": "integer"
-        },
-        "eventId": {
-          "type": "keyword"
-        },
-        "ownerId": {
-          "type": "keyword"
-        },
-        "spaceId": {
-          "type": "keyword"
-        },
-        "firstOperator": {
-          "type": "keyword"
-        },
-        "operator": {
-          "type": "keyword"
-        },
-        "firstEventTime": {
-          "type": "long"
-        },
-        "eventTime": {
-          "type": "long"
-        },
-        "snapshotTime": {
-          "type": "long"
-        },
-        "deleted": {
-          "type": "boolean"
-        },
-        "tags": {
-          "type": "object",
-          "dynamic": true
-        },
-        "state": {
-          "properties": {
-            "id": {
-              "type": "keyword"
-            },
-            "tenantId": {
-              "type": "keyword"
-            }
-          }
-        }
-      },
-      "dynamic_templates": [
-        {
-          "tags_strings_as_keyword": {
-            "match_mapping_type": "string",
-            "path_match": "tags.*",
-            "mapping": {
-              "type": "keyword",
-              "ignore_above": 8191
-            }
-          }
-        },
-        {
-          "id_string_as_keyword": {
-            "match": "id",
-            "match_mapping_type": "string",
-            "mapping": {
-              "type": "keyword",
-              "ignore_above": 8191
-            }
-          }
-        },
-        {
-          "id_suffix_string_as_keyword": {
-            "match": "*Id",
-            "match_mapping_type": "string",
-            "mapping": {
-              "type": "keyword",
-              "ignore_above": 8191
-            }
-          }
-        }
-      ]
-    }
-  }
-}
-```
+The snapshot template defines system fields and the dynamic-state baseline. A template affects new indexes or later mapping behavior; it does not repair an existing index.
 
 ## Full-Text Search
 
-Leverage Elasticsearch's full-text search capabilities for complex queries on snapshot state:
+Full text comes from a target field's text mapping and analyzer. `wow-elasticsearch` does not promise it for every string.
 
 ### Add Full-Text Index for State Fields
 
-The following is only the custom `state.properties` fragment; do not submit it as an index template:
-
-```json
-{
-  "state": {
-    "properties": {
-      "description": {
-        "type": "text",
-        "analyzer": "standard"
-      },
-      "customerName": {
-        "type": "text",
-        "fields": {
-          "keyword": {
-            "type": "keyword"
-          }
-        }
-      }
-    }
-  }
-}
-```
-
-To publish `wow-order-snapshot-template`, copy the complete built-in snapshot template shown above, merge this fragment
-into `mappings.properties`, narrow `index_patterns`, and then set `priority: 100`. A higher-priority composable template
-replaces Wow's default template instead of merging with it; never publish the fragment alone. Alternatively, build the
-complete mapping from operator-owned baseline and custom component templates.
+Declare analyzers and text/multi-fields in platform-owned templates without replacing required Wow system fields. Verify mappings for both old and new indexes.
 
 ### Execute Full-Text Search
 
-```kotlin
-// Use QueryService for full-text search
-listQuery {
-    filter {
-        search("phone", "state.description")
-        "state.totalAmount".between(100, 500)
-    }
-    sort {
-        "state.customerName".asc()
-    }
-    limit(10)
-}.dynamicQuery(snapshotQueryService)
-```
+Use a field through the Wow query API only when runtime schema publishes the corresponding capability. Native Elasticsearch DSL is not automatically part of the public Wow request model.
 
 ## Aggregation Queries
 
-`ElasticsearchSnapshotQueryService.aggregate()` compiles the shared `AggregationQuery` contract. It resolves the first Element as an absolute `nested` path, then resolves later Elements and their filters relative to the current nested scope. Terms groups use the existing exact-field resolver, including standard `.keyword` multi-fields; plain-field numeric metrics still resolve executable physical fields and leave type mismatches to Elasticsearch.
-
-Computed numeric metrics use a framework-generated, parameterized request-scoped `double` runtime field; missing, unreadable, non-numeric, multi-valued, division-by-zero, or non-finite intermediate values produce no value. They are subject to cluster `search.allow_expensive_queries`, which can still reject the query.
-
-At the innermost scope, Wow uses composite sources and metric sub-aggregations. Group-alias sorting follows composite source order and reads only the pages needed for `limit`. Metric-alias sorting is more expensive: it scans all composite buckets and keeps an exact bounded Top-N in the client instead of using an approximate `terms` or `bucket_sort` plan.
-
-Composite paging reuses the normal query pager's point-in-time lifecycle. The latest PIT is closed after completion, error, or cancellation. Custom filter converters and custom mappings such as runtime fields, `copy_to`, `null_value`, or type coercion receive no portability guarantees; callers must provide executable physical paths.
+The Wow aggregation AST compiles to Elasticsearch aggregations. Nested elements, numeric/time types, and missing-value semantics depend on both the public contract and mappings. Verify them with real backend TCK/integration tests.
 
 ## Index Design Recommendations
 
+Design indexes from query, write, retention, and recovery objectives. Do not add text/keyword multi-fields to every state field by default.
+
 ### Sharding Strategy
 
-```http request
-PUT wow.order-service.order.snapshot
-{
-  "settings": {
-    "number_of_shards": 5,
-    "number_of_replicas": 1
-  }
-}
-```
-
-| Data Volume | Recommended Shards | Recommended Replicas |
-|--------|---------|---------|
-| < 1M | 1-3 | 1 |
-| 1M-10M | 3-5 | 1-2 |
-| > 10M | 5-10 | 2 |
+Elasticsearch owns shards, replicas, and routing. Validate actual shard size, write concurrency, and query fan-out; Wow does not select a topology.
 
 ### Index Lifecycle Management (ILM)
 
-```http request
-PUT _ilm/policy/wow-snapshot-policy
-{
-  "policy": {
-    "phases": {
-      "hot": {
-        "actions": {
-          "rollover": {
-            "max_size": "50gb",
-            "max_age": "30d"
-          }
-        }
-      },
-      "warm": {
-        "min_age": "30d",
-        "actions": {
-          "shrink": {
-            "number_of_shards": 1
-          }
-        }
-      },
-      "cold": {
-        "min_age": "90d",
-        "actions": {
-          "freeze": {}
-        }
-      }
-    }
-  }
-}
-```
+If EventStore is authoritative, deleting events through ILM breaks replay. Configure rollover/delete only when data ownership and recovery explicitly permit it. Snapshot lifecycle must match its rebuild path.
 
 ## Performance Optimization
 
+Observe bulk latency/errors, refresh, segments, heap, PIT count, and query latency before changing batch, mappings, or topology.
+
 ### Bulk Indexing
 
-The Elasticsearch extension supports bulk operations for optimized indexing performance:
-
-```yaml
-spring:
-  elasticsearch:
-    connection-timeout: 5s
-    socket-timeout: 30s
-```
+Batch options require `max-size>1`, positive `max-delay`, pending capacity no smaller than batch size, and `lane-count>0`. One aggregate remains in one lane. Increase lanes only for a measured concurrency bottleneck.
 
 ### Query Optimization
 
-1. **Use Filter Instead of Query**: Use filter for exact matches to improve cache hit rate
-2. **Limit Returned Fields**: Use `_source` filtering to return only needed fields
-3. **Full List Queries**: `ListQuery.limit=0` streams all matches with PIT + `search_after`; by default, limits from 1 through 10,000 use one request, while larger limits use the same internal pager. The 10,000 value is only the default internal batch size, not a result cap.
-4. **Paged Queries**: `PagedQuery` keeps its `from/size` contract and remains subject to Elasticsearch `index.max_result_window`. Use a list query when the complete result set is required.
-
-PIT list queries without an explicit `sort` scan only by `_shard_doc`, and their result order is not part of the contract. Add `_score DESC` explicitly when relevance order is required.
-
-Set `wow.elasticsearch.query.batch-size` no higher than the target index's `index.max_result_window` when it is below 10,000. Increase `wow.elasticsearch.query.keep-alive` above its `1m` default when a slow subscriber may take longer than that to consume one batch.
+Full scans use PIT plus `search_after`, with configured batch size and keep-alive. Batch size also cannot exceed target `index.max_result_window`. Fix mappings and query shape before blindly increasing it.
 
 ## Troubleshooting
 
+Verified failures include template request/empty/unacknowledged responses, invalid query or batch bounds, bulk item errors, stale-snapshot guards, and mapping/schema conflicts.
+
 ### Common Issues
+
+Retain index/alias, resolved mapping, request, item-level response error, and runtime schema as evidence.
 
 #### 1. Query reports an unmapped, incompatible, or ambiguous multi-field
 
-Inspect the aggregate's current logical fields and capabilities with `GET /{aggregate}/snapshot/schema`; use
-`POST /{aggregate}/snapshot/schema/refresh` when the mapping must be reread. When multiple compatible children are ambiguous, use the conventional `.keyword`, `.text`, or `.exact` child name.
+Inspect the actual mapping and runtime schema. Do not hard-code `.keyword` for every field. Correct templates/mappings or the explicit public field contract, then refresh schema.
 
 #### 2. Refresh endpoint is unavailable or refresh fails
 
-Confirm the application registers the WebFlux query route and materializes this aggregate's GET/POST routes in the current instance's OpenAPI paths. Refresh has independent route authorization and can be restricted separately from ordinary queries. A `500` means schema declarations conflict; a `503` means the mapping or another schema source is unavailable, so verify the index and `view_index_metadata` privilege. A failed refresh does not delete the previous cache entry.
+Verify WebFlux/OpenAPI capabilities, route authorization, and query-factory wiring. Mapping-read failure must remain a failure rather than degrading to “all fields are queryable.”
 
 #### 3. An alias or data stream cannot be resolved
 
-Ensure the snapshot alias resolves to exactly one physical index. The resolver does not merge mappings from multiple
-indices; applications that require that topology must implement a `_field_caps`-based query strategy.
+The current converter emits concrete index names. Introducing aliases or data streams requires a migration consistent across reads, writes, and mapping resolution.
 
 #### 4. Old data is still unqueryable after updating a template and refreshing
 
-An index template affects only indices created afterward, and mapping refresh only updates Wow's capability cache.
-Depending on the mapping change, use `PUT /{indexName}/_mapping`, reindex, or rebuild snapshots, then reconcile result
-counts, ordering, and snapshot versions.
+Templates do not rewrite historical mappings or data. Reindex or migrate explicitly; schema refresh only rereads current backend capability.
 
 #### 5. A runtime-field query is rejected
 
-Check the cluster's `search.allow_expensive_queries` setting. If the restriction must remain, materialize frequently
-queried fields in the physical mapping instead of relying on runtime fields.
+Runtime-field projection and some capabilities are deliberately limited by mapping resolution. Follow the runtime schema instead of bypassing public query validation.
 
 ## Complete Configuration Example
 
 ```yaml
 spring:
   elasticsearch:
-    uris:
-      - http://es-node-1:9200
-      - http://es-node-2:9200
-      - http://es-node-3:9200
-    username: elastic
-    password: ${ELASTICSEARCH_PASSWORD}
-    connection-timeout: 5s
-    socket-timeout: 30s
+    uris: ${ELASTICSEARCH_URIS}
 
 wow:
   elasticsearch:
+    auto-init-template: true
     query:
       batch-size: 10000
       keep-alive: 1m
+    event-store-batch:
+      enabled: false
+    snapshot-store-batch:
+      enabled: false
   eventsourcing:
     store:
       storage: elasticsearch
     snapshot:
-      enabled: true
-      strategy: all
       storage: elasticsearch
 ```
 
 ## Best Practices
 
-1. **Pre-define Mappings**: Install a higher-priority aggregate template before the first snapshot write so dynamic mapping cannot lock in the wrong type
-2. **Appropriate Sharding**: Set appropriate shard count based on data volume, avoid too many small shards
-3. **Limit Alias Topology**: An alias or data stream used by Wow snapshot queries must resolve to one physical index
-4. **Reconcile After Rebuilds**: When a mapping change requires reindexing or snapshot rebuilding, verify result counts, ordering, and snapshot versions
-5. **Monitor the Cluster**: Monitor cluster health, open PIT contexts, and query latency
+- Select event/snapshot storage explicitly and inspect resulting bindings.
+- Let the platform own mappings, templates, ILM, backups, and reindexing.
+- Preserve snapshot version guards and item-level bulk failures.
+- Verify mappings, PIT, aggregations, and upgrades on a real cluster.
+
+Focused check:
+
+```bash
+./gradlew :wow-elasticsearch:check
+```
+
+Next, read [Query](../query.md) and [Infrastructure configuration](../../reference/config/infrastructure.md).

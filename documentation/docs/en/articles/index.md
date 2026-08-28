@@ -1,14 +1,35 @@
 ---
 title: "Articles"
-description: "Perspectives and practices on domain-driven design, event-driven architecture, and modern software engineering."
+description: "Choose an opinion article by reader question: command completion, architecture trade-offs, or domain modeling in the AI era."
 ---
 
 # Articles
 
-Perspectives and practices on domain-driven design, event-driven architecture, and modern software engineering.
+These articles frame questions and trade-offs. They do not replace the exact contracts in the guides. Start with the question closest to your current decision.
 
-## Latest Articles
+## Why Is a Read Still Stale After a Successful Write?
 
-- [HTTP 200 but the Query Is Empty: Stop Sleeping and Model Completion](./command-success-is-not-complete.md)
-- [Traditional CRUD vs Wow: From Shipping Endpoints to Shipping a Domain Model](./traditional-vs-wow-architecture.md)
-- [As AI Gets Better, Code Gets Cheaper: The Business Domain Model Is What Really Matters](./why-ddd-fits-ai-era.md)
+[HTTP 200 but the Query Is Empty: Stop Sleeping and Model Completion](./command-success-is-not-complete.md)
+
+For product and engineering teams designing read-after-write flows. It explains why command acceptance, aggregate processing, and completion of a selected projection are different promises. The exact wait contract remains in [Command Gateway](../guide/command-gateway.md#wait-plans).
+
+## Should We Use Conventional CRUD or Wow?
+
+[Traditional CRUD vs Wow: From Shipping Endpoints to Shipping a Domain Model](./traditional-vs-wow-architecture.md)
+
+For architecture evaluation. It compares two ways of organizing delivery, states what Wow currently owns, and keeps application responsibilities and the simple-CRUD alternative explicit. See [Introduction](../guide/introduction.md#fit-boundary) for the canonical fit boundary.
+
+## Does AI Change the Value of DDD?
+
+[As AI Gets Better, Code Gets Cheaper: The Business Domain Model Is What Really Matters](./why-ddd-fits-ai-era.md)
+
+For teams thinking about AI collaboration, business knowledge, and executable specifications. It separates the author's argument, external research, DDD method, and Wow repository evidence instead of turning one study into a universal productivity claim.
+
+## How to Read These Articles
+
+- **Opinion** frames a judgment; it is not a framework guarantee.
+- **Current Wow behavior** is governed by the rewritten canonical guides.
+- **Repository evidence** proves only the current example, source, or test scope.
+- **External research** links primary sources and retains their sample, time, and applicability limits.
+
+For task-oriented instructions, continue with [Getting Started](../guide/getting-started.md), [Aggregate Modeling](../guide/modeling.md), or [Production Best Practices](../guide/best-practices.md).

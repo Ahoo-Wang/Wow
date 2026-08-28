@@ -1,140 +1,131 @@
 ---
 title: Wow 应用测试
-description: 为使用 Wow 的业务应用建立领域、HTTP、真实适配器、恢复与安全测试门禁。
+description: 在领域规格之后，验证 Wow 应用的生成元数据、运行时装配、真实适配器、恢复与安全边界。
 outline: deep
 ---
 
 # Wow 应用测试
 
-本页面向使用 Wow 构建业务系统的团队。目标不是复用 Wow 框架仓库的测试任务，而是证明你的领域模型、生成元数据、运行时装配和生产适配器能够一起工作。
+本页面面向使用 Wow 构建业务应用的团队。领域 DSL 回答“模型是否按不变量工作”，应用测试回答“这个模型能否在实际装配、协议和基础设施中安全运行”。两者是连续门禁，不能互相替代。
 
-## 测试分层
+::: tip 完成信号
+应用测试完成时，应有当前构建产生的元数据证据、至少一个端到端业务入口、生产同型 Adapter 的重启/重投证据和安全反例。下一层是在目标环境执行发布、恢复与可观测性验收，而不是运行 Wow 框架仓库的基准。
+:::
 
-| 层次 | 证明什么 | 推荐入口 |
+## 三类测试不要混在一起
+
+| 范围 | 证明什么 | 不证明什么 |
 | --- | --- | --- |
-| 领域规格 | 命令、业务拒绝、事件和溯源状态正确 | `AggregateSpec`、`SagaSpec` |
-| 编译契约 | KSP 生成非空 `META-INF/wow-metadata.json` | `clean kspKotlin test` |
-| HTTP 垂直切片 | Spring 装配、WebFlux 路由、等待阶段和状态读取闭环 | `@SpringBootTest` + `WebTestClient` |
-| 真实适配器 | 生产 EventStore、SnapshotStore、Broker 与序列化契约 | Testcontainers 或隔离测试环境 |
-| 恢复与升级 | 重启、历史事件、快照、投影和事件 revision 可恢复 | 备份恢复/重放测试 |
-| 安全边界 | 匿名、越权、跨租户和原始查询入口均 fail closed | Spring Security/CoSec 集成测试 |
+| [领域 DSL](./test-suite.md) | 命令决策、拒绝、事件、溯源状态、Saga 命令 | Spring、HTTP、KSP 打包、真实存储或 Broker |
+| 应用集成门禁 | 应用自己的模块、配置、入口和生产 Adapter 能闭环 | Wow 框架在其他配置下的通用性能或正确性 |
+| [框架仓库测试与基准](./test-runtime.md) | Wow 源码、TCK、容器集成和指定 JMH 工作负载 | 你的应用已具备发布条件或生产容量 |
 
-日常提交应先运行最窄的业务模块：
+业务应用不需要复制 `allLocalTest`、`allContractTest`、`allIntegrationTest` 或 Codecov flag 结构。这些是 Wow 仓库的维护任务。应用应按自己的模块和发布风险设置门禁。
 
-```shell
-./gradlew :domain:test
-./gradlew :server:test
-./gradlew check
+## 应用测试阶梯
+
+| 层次 | 最小证据 | 失败时先查 |
+| --- | --- | --- |
+| 领域规格 | 所属领域模块的 `test`/`check` 通过 | 不变量、事件和溯源函数 |
+| 编译元数据 | 注解模块生成非空 `META-INF/wow-metadata.json` | KSP 与 `wow-compiler` 是否应用在正确模块 |
+| 运行时装配 | 服务加载元数据并暴露预期命令/状态入口 | Starter capability、模块运行时依赖、配置 |
+| 协议垂直切片 | 一个业务命令从入口到持久化结果可观察 | 请求契约、路由、等待语义、错误映射 |
+| 真实 Adapter | 生产同型存储/Broker 上读写和重投正确 | 序列化、版本冲突、幂等和网络边界 |
+| 恢复与安全 | 重启/重放后状态一致，越权请求 fail closed | 快照、位点、租户/owner/space 与 ABAC |
+
+每天先运行最窄的受影响模块，合并或发布前再逐层扩大。不要因为根 `build` 很大就跳过能直接指向失败层的模块任务。
+
+## 1. 领域门禁
+
+每条聚合不变量至少覆盖：
+
+- 成功命令产生的事件和最终状态；
+- 业务拒绝及状态不变；
+- 关键生命周期转换；
+- 删除、恢复或其他启用的框架生命周期；
+- Saga 对正反两类输入事件产生正确命令或不产生命令。
+
+本仓库的可运行参考是：
+
+```bash
+./gradlew :example-domain:check
 ```
 
-将 `domain` 和 `server` 替换为应用的实际模块名。
+业务应用应替换为自己的领域模块。详细 DSL 见[领域测试套件](./test-suite.md)。
 
-## 1. 领域规格
+## 2. 生成元数据门禁
 
-每条聚合规则至少覆盖：
+含 Wow 注解模型的模块必须应用 KSP 和 `wow-compiler`，并把生成资源带入服务运行时 classpath。可用仓库示例验证完整生成链路：
 
-- 成功命令产生的事件及最终状态；
-- 业务规则拒绝路径；
-- 创建、更新、删除和恢复等必要状态分支；
-- 相同历史事件重放得到相同状态；
-- Saga 为源事件产生正确且幂等的下游命令。
-
-具体 DSL 见[测试套件](./test-suite.md)。
-
-## 2. 元数据门禁
-
-每个包含 Wow 注解模型的模块都必须生成元数据：
-
-```shell
-./gradlew clean kspKotlin test
-test -s domain/build/generated/ksp/main/resources/META-INF/wow-metadata.json
+```bash
+./gradlew :example-domain:clean :example-domain:kspKotlin :example-domain:test
+test -s example/example-domain/build/generated/ksp/main/resources/META-INF/wow-metadata.json
 ```
 
-不要手写或提交生成文件。多模块应用应逐个检查实际应用 KSP 的模块。
+在业务应用中替换模块路径，并检查每个含注解的模块。完成信号不只是 KSP 任务退出 0：文件必须非空，服务模块必须依赖该模块，启动证据必须显示资源已被加载。不要手写或提交生成文件。
 
-## 3. 最小 HTTP 垂直切片
+## 3. 运行时与协议垂直切片
 
-下面的测试使用内存适配器，不需要 Docker。把路由和请求体替换为你的首个聚合：
+为至少一个真实业务聚合保留应用级测试，覆盖以下闭环：
 
-```kotlin
-import org.junit.jupiter.api.Test
-import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.boot.test.web.server.LocalServerPort
-import org.springframework.test.web.reactive.server.WebTestClient
-import java.util.UUID
+1. 使用与生产入口相同的 Spring 配置启动应用；
+2. 通过公开协议发送一个带唯一聚合 ID 和请求 ID 的命令；
+3. 断言协议状态、命令结果和错误映射；
+4. 从公开状态或查询入口读取结果；
+5. 证明读到的状态来自刚才持久化的事件，而不是测试内共享对象。
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class WowCommandFlowIntegrationTest {
-    @LocalServerPort
-    private var port: Int = 0
+这个切片应使用应用现有的 Cart、Order 或其他真实模型，不要另造一个只为测试路由的“演示聚合”。内存 Adapter 可以作为快速门禁，但测试报告必须明确它没有覆盖生产存储、Broker、重启和鉴权。
 
-    @Test
-    fun `http command reaches sourced state`() {
-        val aggregateId = "it-${UUID.randomUUID()}"
-        val client = WebTestClient.bindToServer()
-            .baseUrl("http://127.0.0.1:$port")
-            .build()
+## 4. 真实 Adapter 与失败语义
 
-        client.post()
-            .uri("/tenant/test/demo")
-            .header("Command-Wait-Stage", "SNAPSHOT")
-            .header("Command-Aggregate-Id", aggregateId)
-            .header("Command-Request-Id", "request-$aggregateId")
-            .bodyValue(mapOf("data" to "integration"))
-            .exchange()
-            .expectStatus().isOk
-            .expectBody()
-            .jsonPath("$.succeeded").isEqualTo(true)
-            .jsonPath("$.stage").isEqualTo("SNAPSHOT")
-            .jsonPath("$.aggregateId").isEqualTo(aggregateId)
+生产使用的每种持久化或传输能力至少有一个容器或隔离环境测试：
 
-        client.get()
-            .uri("/tenant/test/demo/$aggregateId/state/1")
-            .exchange()
-            .expectStatus().isOk
-            .expectBody()
-            .jsonPath("$.id").isEqualTo(aggregateId)
-            .jsonPath("$.data").isEqualTo("integration")
-    }
-}
-```
+- 使用与生产一致的 Starter capability 和序列化配置；
+- 写入真实 EventStore 后能加载同一事件流；
+- 相同请求 ID 或 Broker 重投不会重复产生业务副作用；
+- 乐观锁或版本冲突以应用定义的方式返回，不丢失已成功数据；
+- 外部依赖失败不会把部分结果报告为完整成功；
+- SnapshotStore 启用时，快照加载结果与完整事件重放一致。
 
-该测试证明 KSP 元数据、Spring 装配、路由、命令处理、`SNAPSHOT` 等待和历史状态重建已连通。它不证明 Kafka 投递、持久化存储、重启恢复或生产鉴权。
+按应用拥有的 Adapter 取舍，不要为了“完整”测试未使用的数据库或 Broker。
 
-## 4. 真实适配器与重启
+## 5. 重启、重放与升级
 
-对生产使用的每个 Adapter 增加容器或隔离环境测试，并至少验证：
+进程内成功不等于可恢复。至少证明：
 
-1. 使用与生产一致的 Starter capabilities 和配置；
-2. 命令写入真实 EventStore，重启应用后仍能读取状态；
-3. 相同 `requestId` 不会重复执行；
-4. Broker 重投不会重复更新投影或调用外部副作用；
-5. 快照与完整事件重放结果一致；
-6. 投影重建、消费者位点和补偿任务有可重复流程。
+1. 写入事件后停止应用；
+2. 使用同一持久化数据重新启动；
+3. 读取状态并与重启前结果比较；
+4. 在禁用或清除快照后从完整事件历史得到相同状态；
+5. 投影、消费者位点和补偿任务能够按已记录步骤恢复；
+6. 若事件 revision 或序列化形状发生变化，旧历史数据有明确的兼容或迁移证据。
 
-## 5. 安全与隔离
+恢复测试必须保留输入数据版本和环境配置，否则一次成功截图无法作为后续发布证据。
 
-受保护应用至少保留以下反例测试：
+## 6. 安全与隔离反例
+
+安全测试优先覆盖失败路径：
 
 | 场景 | 期望 |
 | --- | --- |
-| 匿名访问受保护命令/查询 | `401` 或 `403` |
-| 伪造 tenant、owner 或 space | 被拒绝，不能扩大作用域 |
-| 缺少主体 ABAC 标签 | fail closed，不得退化为 `MatchAllFilter` |
-| 跨租户/拥有者查询 | 不返回任何越权记录 |
-| 普通请求访问原始 `*QueryServiceFactory` | 没有可达入口 |
+| 匿名访问受保护命令或查询 | `401` 或 `403` |
+| 伪造 tenant、owner 或 space | 请求被拒绝且作用域不扩大 |
+| 主体缺少必要 ABAC 标签 | fail closed，不退化为全量匹配 |
+| 跨租户或跨 owner 查询 | 不返回越权数据 |
+| 普通请求尝试访问原始查询工厂 | 没有可达入口 |
 
-完整安全边界见[数据权限](./data-access.md#必须完成的安全闭环)。
+完整边界见[数据权限](./data-access.md#必须完成的安全闭环)。安全通过需要实际应用的 Spring Security/CoSec 配置，领域规格无法替代。
 
-## 6. 发布完成门禁
+## 发布前证据表
 
-- 领域成功、拒绝和恢复分支通过；
-- KSP 元数据非空且进入运行时；
-- HTTP 垂直切片通过；
-- 真实存储重启后状态可恢复；
-- 重复投递、版本冲突和外部依赖失败路径通过；
-- 鉴权、租户隔离和 ABAC 反例通过；
-- 备份、恢复、重放和回滚演练有证据；
-- 目标环境中的 Trace、指标和告警可观测。
+| 证据 | 完成条件 |
+| --- | --- |
+| 领域 | 成功、拒绝、关键生命周期规格通过 |
+| 生成 | 每个注解模块的元数据非空并被运行时加载 |
+| 协议 | 公开入口到可读取结果的垂直切片通过 |
+| 基础设施 | 生产同型 Adapter 的写入、重投、冲突和失败路径通过 |
+| 恢复 | 重启与无快照重放得到一致状态 |
+| 安全 | 鉴权、租户隔离和 ABAC 反例全部 fail closed |
+| 运维 | 备份、恢复、回滚、Trace、指标与告警在目标环境有证据 |
 
-修改 Wow 框架本身时，再使用[框架测试与基准](./test-runtime.md)中的仓库任务。
+只有修改 Wow 框架源码、实现 Adapter 或调查框架性能时，才进入[框架测试与基准](./test-runtime.md)。框架 CI 绿色或历史基准数字都不能替代这张应用证据表。

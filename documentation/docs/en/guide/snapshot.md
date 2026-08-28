@@ -1,121 +1,94 @@
 ---
 title: Snapshot
-description: Use snapshots as aggregate loading checkpoints and the default current-state query store with Wow's built-in query service and routes.
+description: Use replaceable aggregate-state checkpoints for faster restoration and understand exactly what the SNAPSHOT stage proves.
 ---
 
 # Snapshot
 
-Snapshots save aggregate-state checkpoints to reduce event replay. With the recommended `all` strategy, the same data also serves as the default materialized current-state query store through `SnapshotQueryService` and Wow's built-in query routes.
+A snapshot is a versioned copy of aggregate state derived from event history. It can accelerate current-state restoration and, with a query-capable backend, serve standard current-state queries. It is not the authoritative business history.
+
+For the running `CreateOrder` example, `PROCESSED` proves `OrderCreated` was appended. The later `SNAPSHOT` stage proves the snapshot dispatcher completed the configured strategy for the resulting state event.
 
 ## Snapshot Mechanism
 
-In event sourcing, the state of an aggregate root is reconstructed by replaying all historical events. As the number of events increases, replaying all events becomes slower and slower. The snapshot mechanism solves this problem by periodically saving the current state of the aggregate root.
-
 ```kotlin
-interface Snapshot<S : Any> : ReadOnlyStateAggregate<S>, SnapshotTimeCapable
+interface Snapshot<S : Any> :
+    ReadOnlyStateAggregate<S>,
+    SnapshotTimeCapable
 
 data class SimpleSnapshot<S : Any>(
     override val delegate: ReadOnlyStateAggregate<S>,
-    override val snapshotTime: Long = System.currentTimeMillis()
+    override val snapshotTime: Long = System.currentTimeMillis(),
 ) : Snapshot<S>
 ```
 
+The snapshot contains state and aggregate metadata at a known version. The event store still owns the events that explain how that state was reached.
+
 ## Snapshot Loading Flow
 
-When loading an aggregate, the snapshot store is consulted first. If a snapshot exists, only events after the snapshot version need to be replayed.
+`EventSourcingStateAggregateRepository` uses snapshots only for a latest-version load:
 
 ```mermaid
 sequenceDiagram
-    autonumber
-    participant CB as Command Bus
-    participant AG as Aggregate
-    participant SS as Snapshot Store
-    participant ES as Event Store
+    participant R as StateAggregateRepository
+    participant S as SnapshotStore
+    participant E as EventStore
+    participant A as StateAggregate
 
-    CB->>AG: Load Aggregate(id)
-    AG->>SS: Get Latest Snapshot(id)
-    alt Snapshot Found
-        SS-->>AG: Snapshot(v=50)
-        AG->>ES: Get Events After(v=50)
-        ES-->>AG: Events [51..55]
-    else No Snapshot
-        SS-->>AG: null
-        AG->>ES: Get All Events(id)
-        ES-->>AG: Events [1..55]
+    R->>S: load(aggregateId)
+    alt snapshot exists
+        S-->>R: snapshot at version N
+        R->>A: materialize snapshot state
+        R->>E: load from expectedNextVersion (N + 1)
+    else no snapshot
+        R->>A: create empty state aggregate
+        R->>E: load from initial expectedNextVersion
     end
-    AG->>AG: Replay Events -> State
-    AG-->>CB: Aggregate Ready
+    E-->>R: ordered event streams
+    R->>A: onSourcing(stream) for each stream
 ```
 
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/, wow-api/src/main/kotlin/me/ahoo/wow/api/modeling/ -->
+Historical version/time loads start from an empty aggregate and replay authoritative events; they do not apply a latest snapshot from after the requested point.
 
 ## Snapshot Strategies
 
-Snapshot strategies react to each state event and decide whether to persist a new
-snapshot. The strategy contract is reactive and processes one `StateEventExchange`
-at a time instead of returning a boolean predicate:
-
-```kotlin
-interface SnapshotStrategy {
-    fun onEvent(stateEventExchange: StateEventExchange<*>): Mono<Void>
-}
-```
-
-The Wow framework provides the following built-in strategies:
+`SnapshotStrategy.onEvent(StateEventExchange<*>)` is a reactive processing contract. Completion means that the selected strategy has finished for the state event; the strategy decides whether a write was required.
 
 ### Version Offset Strategy (VersionOffset)
 
-Creates a snapshot when the difference between the aggregate root version and the
-last snapshot version reaches the configured threshold. The strategy reads the
-stored version via `SnapshotStore.getVersion()` and only saves when the offset is
-met, so snapshot frequency is independent of concurrent state events.
+`VersionOffsetSnapshotStrategy` reads the stored snapshot version and saves only when:
 
-```kotlin
-class VersionOffsetSnapshotStrategy(
-    private val versionOffset: Int = DEFAULT_VERSION_OFFSET, // 5
-    private val snapshotStore: SnapshotStore
-) : SnapshotStrategy
+```text
+stateEvent.version - storedSnapshotVersion >= versionOffset
 ```
+
+The default offset is 5. When the threshold is not reached, the strategy completes successfully without calling `SnapshotStore.save`. Therefore `stage: SNAPSHOT` under this strategy does not by itself prove that this command wrote a new snapshot.
 
 ### All Strategy (All)
 
-Saves a snapshot for every state event.
+`SimpleSnapshotStrategy` creates `SimpleSnapshot(stateEvent)` and calls `SnapshotStore.save` for every state event. With this strategy, successful `SNAPSHOT` completion includes the save operation for that state event.
 
-```kotlin
-class SimpleSnapshotStrategy(
-    private val snapshotStore: SnapshotStore
-) : SnapshotStrategy
-```
+This is the straightforward choice when snapshot queries are the application's standard current-state read path.
 
 ### No Operation Strategy (NoOp)
 
-Does not create any snapshots. `NoOp` is nested inside the `SnapshotStrategy` interface as a companion object:
-
-```kotlin
-interface SnapshotStrategy {
-    // ...
-    companion object NoOp : SnapshotStrategy {
-        override fun onEvent(stateEventExchange: StateEventExchange<*>): Mono<Void> = Mono.empty()
-    }
-}
-```
+`SnapshotStrategy.NoOp` returns `Mono.empty()` and writes nothing. It is useful when snapshots are disabled or intentionally not part of the runtime. Do not wait for snapshot-backed visibility when using a no-op strategy.
 
 ## Snapshot Lifecycle
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Create: Every N Events
-    Create --> Store: Serialize State
-    Store --> Active: Available for Loading
-    Active --> Stale: New Events Added
-    Stale --> Create: Interval Reached
+    [*] --> Derived: state event produced after event append
+    Derived --> Evaluated: SnapshotStrategy.onEvent
+    Evaluated --> Stored: strategy requires save
+    Evaluated --> Skipped: strategy requires no save
+    Stored --> Older: later event history appended
+    Older --> Evaluated: later state event processed
 ```
 
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SnapshotMaterializer.kt, wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotHandler.kt -->
+A snapshot can lag or be rebuilt without changing event history. If a snapshot is missing, aggregate restoration falls back to replay.
 
 ## Snapshot Store
-
-The snapshot store is responsible for storing and retrieving snapshots. Batch aggregate ID scanning belongs to `EventStore.scanAggregateId(...)`, not to the snapshot store.
 
 ```kotlin
 interface SnapshotStore : Named, AutoCloseable {
@@ -125,63 +98,36 @@ interface SnapshotStore : Named, AutoCloseable {
 }
 ```
 
-`SnapshotStore` extends `AutoCloseable`. The default `close()` is a no-op, but
-storage-backed implementations (and batching wrappers) release workers and flush
-partial windows on close; Spring closes configured beans through their normal
-lifecycle.
+`save` must keep each aggregate's stored version monotonically non-decreasing. A candidate with a higher or equal version replaces the stored value; a lower version is ignored. Compare-and-write must be atomic per aggregate in the storage implementation.
 
-`SnapshotStore.save()` atomically maintains the latest snapshot for each aggregate.
-A candidate whose aggregate version is greater than or equal to the stored version
-replaces the complete stored snapshot; only a lower-version candidate is a no-op.
-Allowing equal-version replacement lets snapshot regeneration repair state without
-changing the aggregate version. Storage implementations must enforce the comparison
-in the same atomic operation as the write to prevent out-of-order state events from
-regressing the snapshot.
+This contract protects against out-of-order state-event processing. It does not define backend transactions, indexes, durability, or query consistency beyond what the chosen implementation proves.
 
 ### In-Memory Implementation
 
-```kotlin
-class InMemorySnapshotStore : SnapshotStore {
-    private val snapshots = ConcurrentHashMap<AggregateId, ObjectNode>()
-
-    override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> =
-        Mono.defer {
-            Mono.justOrEmpty(snapshots[aggregateId]?.toObject<Snapshot<S>>())
-        }
-
-    override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> =
-        Mono.fromRunnable {
-            val candidate = snapshot.toJsonNode<ObjectNode>()
-            val candidateVersion = candidate[MessageRecords.VERSION].asInt()
-            snapshots.compute(snapshot.aggregateId) { _, stored ->
-                if (
-                    stored == null ||
-                    candidateVersion >= stored[MessageRecords.VERSION].asInt()
-                ) {
-                    candidate
-                } else {
-                    stored
-                }
-            }
-        }
-}
-```
+`InMemorySnapshotStore` is suitable for tests and a single process. It is volatile. Its behavior is useful for contract tests but is not evidence for a production backend's durability or concurrency implementation.
 
 ### Supported Backends
 
-| Backend | Module | Snapshot storage | Dynamic snapshot query |
-|---------|--------|------------------|------------------------|
-| In-memory | `wow-core` | Development/testing | No built-in query factory |
-| MongoDB | `wow-mongo` | Production-ready | Yes |
-| Redis | `wow-redis` | Production-ready | No built-in query factory |
-| Elasticsearch | `wow-elasticsearch` | Production-ready | Yes |
+| Module | Snapshot save/load | Dynamic snapshot query |
+|---|---:|---:|
+| `wow-core` in-memory | yes | no built-in query factory |
+| `wow-mongo` | yes | provided by module |
+| `wow-redis` | yes | no built-in query factory |
+| `wow-elasticsearch` | yes | provided by module |
+
+Verify selected-module tests and configuration before relying on query, atomic save, or operational behavior.
 
 ## Snapshot Processing Flow
 
-1. **State Event Publishing**: When aggregate root state changes, publish state events
-2. **Strategy Evaluation**: Snapshot strategy evaluates whether a snapshot needs to be created
-3. **Snapshot Creation**: If needed, create a snapshot of the current state
-4. **Snapshot Storage**: Save the snapshot to the snapshot store
+After an event stream has been appended and command processing completes:
+
+1. the resulting aggregate state is carried by a `StateEvent`;
+2. `SnapshotDispatcher` routes the exchange;
+3. `SnapshotFunctionFilter` calls the configured `SnapshotStrategy`;
+4. the strategy saves or deliberately skips;
+5. `SnapshotNotifierFilter` emits `SNAPSHOT` after the filter chain completes.
+
+A snapshot failure is a downstream failure after authoritative event append. Recovery should retry/rebuild the snapshot path from events; it should not fabricate or edit event history to match a failed cache.
 
 ## Configuration
 
@@ -189,102 +135,69 @@ class InMemorySnapshotStore : SnapshotStore {
 wow:
   eventsourcing:
     snapshot:
-      enabled: true  # Whether to enable snapshots
-      strategy: all  # Snapshot strategy (all, version_offset)
-      storage: mongo  # Snapshot storage backend (mongo, redis, elasticsearch, in_memory)
+      enabled: true
+      strategy: all
+      version-offset: 5
+      storage: mongo
 ```
 
-| Property | Default | Description |
-|----------|---------|-------------|
-| `wow.eventsourcing.snapshot.enabled` | `true` | Enable latest snapshots |
-| `wow.eventsourcing.snapshot.strategy` | `all` | Snapshot strategy (`all` or `version_offset`) |
-| `wow.eventsourcing.snapshot.version-offset` | `5` | Version offset threshold (only used by `version_offset`) |
-| `wow.eventsourcing.snapshot.storage` | `mongo` | Snapshot storage backend (shared `StorageType` enum) |
+Choose `version_offset` only when reduced snapshot writes justify additional replay and possible query staleness.
 
 ## Snapshots as the Default Read Model
 
-Use `strategy: all` by default. `SimpleSnapshotStrategy` materializes the state produced by every state event, making the snapshot store a real-time current-state query store after the `SNAPSHOT` stage completes, as well as an aggregate-loading checkpoint. For standard queries over one aggregate type, this removes the need to write a projection that duplicates aggregate state.
-
-| Strategy | Stored state | Query consequence | Recommendation |
-|---|---|---|---|
-| `all` | Every processed state event updates the latest snapshot | Queries read the latest materialized aggregate state after snapshot processing completes | Recommended |
-| `version_offset` | A snapshot is written only after the version gap reaches `version-offset` | Snapshot queries can lag behind the aggregate | Use only when staleness is accepted or another read model serves current queries |
+With `strategy: all` and a query-capable store, the latest snapshot is a natural current-state read model for one aggregate type. Generated snapshot query services/routes can cover single, list, paged, and count use cases without copying the same aggregate state into another projection.
 
 ```mermaid
 flowchart LR
-    Command[Command] --> Aggregate[Aggregate]
-    Aggregate --> Event[State event]
-    Event --> Strategy[SimpleSnapshotStrategy all]
-    Strategy --> Store[Query-capable snapshot store]
-    Store --> Service[SnapshotQueryService]
-    Service --> Routes[Built-in WebFlux routes]
-    Routes --> Client[Client]
-    Event -. cross-aggregate or custom view .-> Projection[Projection]
-
-    classDef primary fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    classDef secondary fill:#161b22,stroke:#30363d,color:#e6edf3
-    class Command,Aggregate,Event,Strategy primary
-    class Store,Service,Routes,Client,Projection secondary
+    EventHistory[Authoritative event history] --> StateEvent
+    StateEvent --> Strategy[all strategy]
+    Strategy --> SnapshotStore[Queryable SnapshotStore]
+    SnapshotStore --> Query[SnapshotQueryService]
+    StateEvent --> Projection[Custom projection]
 ```
 
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SimpleSnapshotStrategy.kt:19-38, wow-query/src/main/kotlin/me/ahoo/wow/query/snapshot/SnapshotQueryService.kt:30-61, wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/contributor/aggregate/snapshot/SnapshotRouteContributor.kt:59-281, wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/webflux/route/QueryRouteModule.kt:34-79 -->
+Use a projection when the read model joins aggregates, has a different lifecycle/schema, supports analytics, or feeds another system.
 
-When WebFlux support is enabled, Wow generates standard snapshot query endpoints for each aggregate:
-
-| Query shape | Route suffix | Result |
-|---|---|---|
-| Count | `/snapshot/count` | Number of matching snapshots |
-| List | `/snapshot/list` and `/snapshot/list/state` | Bounded snapshot or state list |
-| Paged | `/snapshot/paged` and `/snapshot/paged/state` | Paged snapshots or states |
-| Single | `/snapshot/single` and `/snapshot/single/state` | One snapshot or state |
-
-These routes are backed by the same `SnapshotQueryService` contract used by the Query DSL, and Spring registers a typed `<aggregate>.SnapshotQueryService` bean for each aggregate. Applications therefore do not need to hand-write query API endpoints for these standard shapes ([SnapshotQueryService.kt:30-61](https://github.com/Ahoo-Wang/Wow/blob/main/wow-query/src/main/kotlin/me/ahoo/wow/query/snapshot/SnapshotQueryService.kt#L30-L61), [SnapshotQueryServiceRegistrar.kt:28-61](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring/src/main/kotlin/me/ahoo/wow/spring/query/SnapshotQueryServiceRegistrar.kt#L28-L61), [SnapshotRouteContributor.kt:59-281](https://github.com/Ahoo-Wang/Wow/blob/main/wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/contributor/aggregate/snapshot/SnapshotRouteContributor.kt#L59-L281)).
-
-:::warning Query capability and consistency boundaries
-A query-capable backend is required. MongoDB and Elasticsearch provide `SnapshotQueryServiceFactory`; a custom backend must provide the matching binding. Redis and in-memory snapshot stores support persistence and loading but do not by themselves provide dynamic snapshot queries. Keep tenant/owner filtering, authorization, and indexes explicit. Snapshot processing consumes state events asynchronously. With `strategy: all` and the query service bound to the same backend, a caller that requires read-after-write visibility must wait for the `SNAPSHOT` command stage. The stage only proves snapshot processing completed; `version_offset` can complete without writing when its threshold is not met. The event stream remains the source of truth.
+::: warning Consistency boundary
+For `all`, waiting for `SNAPSHOT` is the command-level evidence that snapshot strategy/save completed. It still does not prove client cache refresh, replica visibility, authorization correctness, or an unrelated projection. For `version_offset`, the same stage may complete without a new write.
 :::
-
-Continue to use a projection when the read model joins multiple aggregates, needs a denormalized schema that differs from aggregate state, feeds analytics, or synchronizes an external system.
 
 ## Aggregate Loading Optimization
 
-Aggregate loading should reuse the framework's `StateAggregateRepository` instead of
-manually composing `SnapshotStore`, `EventStore`, and event replay in application code:
+Application code should depend on `StateAggregateRepository`:
 
 ```kotlin
-val aggregateId = namedAggregate.aggregateId(id = orderId, tenantId = tenantId)
 val aggregate: Mono<StateAggregate<OrderState>> =
     stateAggregateRepository.load(aggregateId)
 ```
 
-When the latest version is requested, `EventSourcingStateAggregateRepository` first tries the
-snapshot. It then reads `EventStore` from `stateAggregate.expectedNextVersion` and applies each
-incremental stream through `stateAggregate.onSourcing(eventStream)`. Historical-version queries
-do not use the latest snapshot.
+The repository owns snapshot selection, fallback, and event replay from `expectedNextVersion`. Duplicating that composition in application code creates a second recovery algorithm and risks using a stale/future checkpoint incorrectly.
 
 ## Performance Impact
 
-- **`all` Strategy**: Once snapshot processing completes, the latest snapshot already contains the state produced by the latest state event
-- **`version_offset` Strategy**: Aggregate loading replays only events after the last snapshot, bounded by the configured offset
-- **Snapshots Disabled**: Every load requires replaying all historical events
-- **Storage Cost**: Requires additional storage space to save snapshot data
+| Strategy | Writes | Latest-load replay | Snapshot-query freshness |
+|---|---|---|---|
+| `all` | every state event | normally events after the latest state event | current after successful `SNAPSHOT` and backend visibility |
+| `version_offset` | only at threshold | at most the configured gap under sequential processing | can lag by the same gap |
+| no-op/disabled | none | full event history | unavailable from snapshots |
 
-For example, explicitly choosing `strategy: version_offset` with `version-offset: 50` limits aggregate loading to at most 49 replayed events, but the same lag also applies to direct snapshot queries. The recommended `all` strategy favors a current query store over reducing snapshot writes.
+Measure with real aggregate history and selected backend. Snapshot serialization, writes, query indexes, and restore replay all contribute to cost.
 
 ## Best Practices
 
-1. **Prefer `all`**: Use the latest snapshot as the default current-state read model.
-2. **Reuse the query service and routes**: Do not duplicate aggregate state in a projection or write a controller for standard single/list/paged/count queries.
-3. **Select a query-capable backend**: Use MongoDB, Elasticsearch, or a custom `SnapshotQueryServiceFactory` when dynamic queries are required.
-4. **Design query safety and performance**: Verify authorization, tenant/owner filters, indexes, and query plans with production-like data.
-5. **Define read-after-write behavior**: With `all` and the same query-capable backend, wait for `SNAPSHOT` when the response must be visible through snapshot queries.
-6. **Treat `version_offset` as an explicit trade-off**: Use it only after accepting query staleness or providing another current-state read model.
+1. Keep event history as the recovery authority.
+2. Prefer `all` when standard current-state snapshot queries matter.
+3. Wait for `SNAPSHOT` only when that is the response's actual visibility requirement.
+4. Interpret `SNAPSHOT` together with the configured strategy.
+5. Test monotonic atomic save behavior in the selected backend.
+6. Rebuild missing/corrupt snapshots from events; do not edit history to repair a cache.
+7. Use projections only for read models that differ materially from aggregate state.
 
-`SnapshotStore` currently has no generic deletion API. Physical cleanup, when required, must be
-designed and verified for the selected backend rather than treated as a Wow lifecycle capability.
+`SnapshotStore` has no generic delete API. Cleanup and retention are backend-specific operational work.
 
 ## Related Topics
 
-- [Production Best Practices](./best-practices.md) — Apply snapshots as the default query store in a complete production checklist
-- [Query Service](./query.md) — Build filters and use the generated snapshot query endpoints
-- [Projection](./projection.md) — Build cross-aggregate or purpose-specific read models
+- [Event Store](./eventstore) — authoritative history and aggregate restoration
+- [Command Gateway](./command-gateway) — `PROCESSED` and `SNAPSHOT` wait semantics
+- [Query Service](./query) — querying supported snapshot stores
+- [Projection](./projection) — custom derived read models

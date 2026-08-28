@@ -1,121 +1,108 @@
 ---
 title: 预分配 Key
-description: 事件溯源架构中应用级别的 Key 唯一性机制。
+description: PrepareKey 的条件预留、TTL、回滚和换 Key 语义及其事务边界。
+outline: deep
 ---
 
 # 预分配 Key
 
-相比传统数据库，开发者可以通过为字段设置 `UNIQUE KEY` 来增加唯一性约束。
-但在 _EventSourcing_ 架构中，我们需要在应用层面保证 `Key` 的唯一性，`PrepareKey` 规范就是为此而生。
+`PrepareKey<V>` 为用户名、SKU 等跨聚合唯一键提供应用级预留。它把“某个 key 当前归哪个 value”交给 MongoDB、Redis 等 Adapter 原子实现；它不是 EventStore 的一部分，也不是跨 EventStore 与外部存储的数据库事务。
 
-## 定义 PrepareKey
-
-要使用 `PrepareKey`，需要定义一个接口，并使用 `@PreparableKey` 注解标注，该接口需要继承 `PrepareKey<T>`，其中 `T` 为 Key 的类型。
+## 声明与装配
 
 ```kotlin
-import me.ahoo.wow.api.annotation.PreparableKey
-import me.ahoo.wow.infra.prepare.PrepareKey
-
-@PreparableKey(name = "username_idx")
-interface UsernamePrepare : PrepareKey<String>
+@PreparableKey(name = "username")
+interface UsernamePrepareKey : PrepareKey<UsernameIndex>
 ```
 
-- `@PreparableKey(name = "username_idx")`：指定预分配 Key 的名称，用于标识该 Key 在存储中的索引。
-- `PrepareKey<String>`：泛型参数 `String` 表示 Key 的类型为字符串。
+Starter 在应用 base package 与 `wow.prepare.base-packages` 中扫描带 `@PreparableKey` 的接口。接口必须直接暴露 `PrepareKey<V>` 的具体 value 类型。注解 name 为空时使用接口简单名；Spring Bean 名也使用接口简单名。
 
-框架会自动扫描标注了 `@PreparableKey` 注解的接口，并通过 `PrepareKeyProxyFactory` 创建代理实例，将其注册为 Spring Bean，Bean 名称为接口的简单名称。这样就可以在聚合中使用依赖注入的方式获取 `PrepareKey` 实例。
+只有存在 `PrepareKeyFactory` 时，默认 proxy factory 才能创建后端 delegate。后端与开关配置见[核心配置参考](../../reference/config/core.md)及 [MongoDB](../extensions/mongo.md)/[Redis](../extensions/redis.md)扩展页。
 
-## PrepareKey 接口方法
+## 操作合同
 
-`PrepareKey<V>` 接口提供了以下核心方法：
+| 操作 | 成功条件 | `false` 表示 |
+| --- | --- | --- |
+| `prepare(key, value)` | key 可被当前 value 预留 | key 已被占用 |
+| `get(key)` | 存在且 `PreparedValue` 未过期 | 返回 empty 表示不存在或已过期 |
+| `getValue(key)` | 存在记录 | 返回完整 value 与 `ttlAt`，即使已过期 |
+| `rollback(key)` | 无条件删除当前记录 | 没有可删除记录 |
+| `rollback(key, value)` | 当前 value 匹配后删除 | key 不存在或 value 不匹配 |
+| `reprepare(key, old, new)` | 当前 value 等于 old，并替换为 new | key 不存在或 old 不匹配 |
 
-### 准备 Key
+原子性由具体 `PrepareKeyFactory` 实现。应用不能从接口本身推断锁范围、隔离级别或跨区域一致性。
 
-- `prepare(key: String, value: V)`：永久准备一个 Key，确保其他操作无法使用相同的 Key 直到显式回滚。
-- `prepare(key: String, value: PreparedValue<V>)`：准备一个 Key，支持 TTL（生存时间），过期后自动失效。
+## TTL
 
-### 获取准备的值
-
-- `get(key: String)`：获取已准备的非过期值。
-- `getValue(key: String)`：获取完整的准备值信息，包括过期状态。
-
-### 回滚 Key
-
-- `rollback(key: String)`：无条件回滚指定的 Key。
-- `rollback(key: String, value: V)`：条件回滚，只有当值匹配时才回滚，确保原子性。
-
-### 重新准备 Key
-
-- `reprepare(key: String, oldValue: V, newValue: V)`：更新现有 Key 的值，使用旧值进行并发控制。
-- `reprepare(oldKey: String, oldValue: V, newKey: String, newValue: V)`：原子性地释放旧 Key 并准备新 Key，常用于用户名变更等场景。
-
-### 使用准备上下文执行操作
-
-- `usingPrepare(key: String, value: V, then: (Boolean) -> Mono<R>)`：在准备上下文中执行操作，如果操作失败自动回滚准备，提供事务-like 语义。
-
-## PreparedValue 与 TTL 支持
-
-`PreparedValue<V>` 封装了值和可选的 TTL 配置：
-
-- 永久准备：`value.toForever()`
-- 带 TTL 准备：`PreparedValue(value, Duration.ofMinutes(5))`
-
-TTL 支持允许临时预留 Key，过期后自动清理，适用于需要清理的临时操作。
-
-## 用户注册场景
-
-例如当用户注册时，需要保证用户名的唯一性：
+`PreparedValue` 保存 value 和绝对过期时间 `ttlAt`（Unix epoch 毫秒）：
 
 ```kotlin
-@AggregateRoot
-class User(private val state: UserState) {
-    @OnCommand
-    private fun onRegister(
-        register: Register,
-        passwordEncoder: PasswordEncoder,
-        usernamePrepare: UsernamePrepare,
-    ): Mono<Registered> {
-        val encodedPassword = passwordEncoder.encode(register.password)
-        return usernamePrepare.usingPrepare(
-            key = register.username,
-            value = UsernameIndexValue(
-                userId = state.id,
-                password = encodedPassword,
-            ),
-        ) {
-            require(it) {
-                "username[${register.username}] is already registered."
-            }
-            Registered(username = register.username, password = encodedPassword).toMono()
-        }
-    }
+val forever = value.toForever()
+val temporary = value.toTtlAt(System.currentTimeMillis() + 5 * 60_000)
+```
+
+`get` 在客户端接口层过滤已过期值；具体后端负责让过期 key 可以再次 prepare。TTL 依赖调用方/后端时钟，不能作为精确业务定时器。永久值使用框架常量 `TTL_FOREVER`，不要自行复制数值。
+
+## `usingPrepare` 的精确边界
+
+```kotlin
+return usernamePrepareKey.usingPrepare(command.username, index) { prepared ->
+    require(prepared) { "username is already reserved" }
+    Registered(command.username).toMono()
 }
 ```
 
-## 用户修改用户名场景
+流程是：
 
-例如当用户修改用户名时，需要保证新用户名的唯一性，以及回滚掉旧的用户名：
+1. 调用 `prepare`；
+2. 把 Boolean 结果交给 `then`，无论 true/false；
+3. 只有 `prepared == true` 且 `then` 以 error 终止时，调用条件 rollback；
+4. rollback 完成后继续传播原始 error；若 rollback 自身失败，响应式链会传播该 rollback error。
+
+当前实现使用 `onErrorResume`，没有为 cancellation 注册自动 rollback。成功结果也不会“commit”另一份记录：预留本身继续存在，直到显式 rollback、reprepare 或 TTL 过期。因此“事务-like”只指错误路径的条件释放，不能扩展成跨存储事务保证。
+
+## 改变 Key
 
 ```kotlin
-    @OnCommand
-    private fun onChangeUsername(
-        changeUsername: ChangeUsername,
-        usernamePrepare: UsernamePrepare
-    ): Mono<UsernameChanged> {
-        val usernameIndexValue = UsernameIndexValue(
-            userId = state.id,
-            password = state.password,
-        )
-        return usernamePrepare.reprepare(
-            oldKey = state.username,
-            oldValue = usernameIndexValue,
-            newKey = changeUsername.newUsername,
-            newValue = usernameIndexValue
-        ).map {
-            require(it) {
-                "username[${changeUsername.newUsername}] is already registered."
-            }
-            UsernameChanged(username = changeUsername.newUsername)
-        }
-    }
+prepareKey.reprepare(
+    oldKey = state.username,
+    oldValue = currentIndex,
+    newKey = command.newUsername,
+    newValue = currentIndex,
+)
 ```
+
+默认组合实现先 `prepare(newKey)`，成功后再条件 `rollback(oldKey, oldValue)`：
+
+- 新 key 已占用：返回 `false`，旧 key 保持不变；
+- old key/value 不匹配：抛出 `IllegalStateException`，错误路径尝试释放刚预留的新 key；
+- oldKey 与 newKey 相同：立即拒绝，调用方应使用同 key 的 `reprepare` overload。
+
+这是两个后端操作的补偿式组合，不应描述成不可分割的跨 key 事务。进程崩溃、超时或取消发生在两步之间时，恢复策略仍需结合后端与 TTL 验证。
+
+## 与聚合命令配合
+
+PrepareKey 适合在命令决策需要独占外部唯一 key 时调用，但要明确 EventStore append 可能随后失败。选择永久预留时，应设计命令失败后的释放/对账；选择 TTL 时，应证明业务可接受预留过期及再次申请。
+
+不要把 `requestId` 幂等、EventStore 版本并发和 PrepareKey 唯一性混成一个机制：
+
+- request ID 识别重复命令请求；
+- aggregate version 保护一条聚合事件流；
+- PrepareKey 协调多个聚合争用同一应用 key。
+
+## 验证
+
+```bash
+./gradlew :wow-core:test --tests "me.ahoo.wow.infra.prepare.PrepareKeyTest"
+./gradlew :wow-core:test --tests "me.ahoo.wow.infra.prepare.proxy.PrepareKeyProxyAndMetadataTest"
+./gradlew :wow-mongo:integrationTest --tests "*PrepareKey*"
+./gradlew :wow-redis:integrationTest --tests "*PrepareKey*"
+```
+
+后两项需要对应基础设施。应用还应覆盖崩溃窗口、TTL/时钟和失败后的对账。
+
+## 源码
+
+- [`PrepareKey`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/infra/prepare/PrepareKey.kt)
+- [`PreparedValue`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/infra/prepare/PreparedValue.kt)
+- [`PrepareKeyAutoRegistrar`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/prepare/PrepareKeyAutoRegistrar.kt)

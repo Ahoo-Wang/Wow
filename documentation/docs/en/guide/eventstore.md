@@ -1,32 +1,28 @@
 ---
 title: Event Store
-description: The Event Store is the core persistence engine of the event sourcing architecture — an immutable, append-only ledger of domain events that powers aggregate reconstruction, audit trails, and cross-service integration.
+description: Persist authoritative aggregate history, restore state, and separate event append from snapshots and downstream processors.
 ---
 
 # Event Store
 
-The Event Store is the persistence backbone of the event sourcing architecture. Unlike traditional CRUD databases that overwrite state and discard history, the event store acts as an **immutable, append-only ledger** of every domain event. Every state change — an `OrderCreated`, an `ItemAdded`, a `PaymentProcessed` — is recorded and can never be modified or deleted.
+The event store is Wow's authoritative aggregate history. Appending a command's `DomainEventStream` is required for a successful `PROCESSED` result, but it is not sufficient: `ProcessedNotifierFilter` waits for the rest of the command filter chain, including in-chain event-bus sends. Snapshots accelerate loading, while projections and event processors derive other state or side effects; neither replaces event history.
 
 ## Event Sourcing
 
-<center>
-
 ![EventSourcing](/images/eventstore/eventsourcing.svg)
-</center>
 
-In traditional architectures, databases only store the current state, and historical change records are often lost. In event sourcing architecture:
+For the example `CreateOrder` command, the aggregate returns `OrderCreated`. Wow wraps that event in a stream containing the aggregate identity, `commandId`, `requestId`, version, headers, and ordered event bodies. Later commands restore `OrderState` by replaying that history.
 
-- **Complete History**: Every state change is permanently stored as an event
-- **Traceability**: State at any point in time can be reconstructed by replaying events
-- **Audit-Friendly**: Naturally supports operation auditing and data analysis
-- **Decoupled Consumers**: Projections, sagas, and external systems independently subscribe to the same event stream
+The key ownership boundary is:
+
+| Data | Role | Recovery source |
+|---|---|---|
+| domain event streams | authoritative business history | event store |
+| snapshots | replaceable loading checkpoint/current-state materialization | rebuild from event history |
+| projections | purpose-specific read model | replay/reprocess events according to projection recovery design |
+| event-processor side effects | integration/application outcome | processor's idempotency, retry, and compensation design |
 
 ## Core Interface
-
-The `EventStore` interface defines the core operations for event storage. It extends
-`RequestIdExistenceChecker` (command idempotency lookup), `AggregateIdScanner`
-(paginated aggregate-ID scanning), and `AutoCloseable` (storage-backed implementations
-release resources on close):
 
 ```kotlin
 interface EventStore :
@@ -34,197 +30,137 @@ interface EventStore :
     AggregateIdScanner,
     AutoCloseable {
     fun append(eventStream: DomainEventStream): Mono<Void>
+
     fun load(
         aggregateId: AggregateId,
-        headVersion: Int = DEFAULT_HEAD_VERSION,        // 1
-        tailVersion: Int = DEFAULT_TAIL_VERSION         // Int.MAX_VALUE - 1
+        headVersion: Int = 1,
+        tailVersion: Int = Int.MAX_VALUE - 1,
     ): Flux<DomainEventStream>
+
     fun load(
         aggregateId: AggregateId,
         headEventTime: Long,
-        tailEventTime: Long
+        tailEventTime: Long,
     ): Flux<DomainEventStream>
-    fun single(aggregateId: AggregateId, version: Int): Mono<DomainEventStream> // default
-    fun last(aggregateId: AggregateId): Mono<DomainEventStream>
 
-    // Inherited from AggregateIdScanner (default returns UnsupportedOperationException):
-    // fun scanAggregateId(namedAggregate, afterId = "(0)", limit = 10): Flux<AggregateId>
-    // Inherited from RequestIdExistenceChecker; default scans the event stream.
-    // override fun existsRequestId(aggregateId, requestId): Mono<Boolean>
+    fun single(aggregateId: AggregateId, version: Int): Mono<DomainEventStream>
+    fun last(aggregateId: AggregateId): Mono<DomainEventStream>
 }
 ```
 
-MongoDB and Redis override both `scanAggregateId` and `existsRequestId` with indexed lookups.
-The Elasticsearch backend overrides `scanAggregateId` but **not** `existsRequestId` — it
-inherits the default stream-scanning implementation. The defaults exist for source compatibility
-with custom event stores.
+Version and time ranges are inclusive. `AbstractEventStore` validates range arguments; the interface does not prescribe a storage engine, schema, transaction technology, or retry policy.
 
 ### Domain Event Stream
 
-`DomainEventStream` represents a collection of domain events produced by a single command:
+A `DomainEventStream` is the non-empty, ordered event batch produced by one command execution. All events in that stream belong to the same aggregate and share one stream/aggregate `version`; their `sequence` values increase from 1 within the stream. The stream retains `commandId` and `requestId`, which supports audit and duplicate lookup.
 
 ```kotlin
-interface DomainEventStream : EventMessage<DomainEventStream, List<DomainEvent<*>>> {
-    val aggregateId: AggregateId
-    val size: Int
-}
+eventStore.append(eventStream)
+    .thenReturn(eventStream)
 ```
 
-Key characteristics:
-- **One-to-One**: One command produces one event stream
-- **Atomicity**: All events in a stream are persisted as a single unit
-- **Immutability**: Events cannot be modified once created
+`SimpleCommandAggregate` applies the emitted stream to its in-memory state before append, then calls `EventStore.append`. If append fails, command processing fails and the aggregate instance is expired; a retry restores state again rather than treating the uncommitted in-memory state as authoritative.
 
 ### Key Concepts
 
-| Concept | Description | Source |
-|---|---|---|
-| `DomainEvent` | Immutable fact about a past business action within an aggregate | [DomainEvent.kt:52-90](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/event/DomainEvent.kt#L52-L90) |
-| `DomainEventStream` | Ordered batch of domain events produced by a single command | [DomainEventStream.kt:51-125](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/DomainEventStream.kt#L51-L125) |
-| `EventStore` | Core interface for appending, loading event streams, and scanning aggregate IDs | [EventStore.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt) |
-| `SnapshotStore` | Optimizes aggregate loading with versioned state checkpoints | [SnapshotStore.kt:27-58](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SnapshotStore.kt#L27-L58) |
+| Concept | Contract |
+|---|---|
+| `DomainEvent<T>` | immutable, named and revisioned business fact |
+| `DomainEventStream` | events emitted by one command, correlated by command/request IDs |
+| aggregate version | optimistic ordering boundary for append and replay |
+| `requestId` | operation identity recorded with the stream; checked per aggregate |
+| `EventStore` | append and history-load contract |
+| `SnapshotStore` | separate replaceable checkpoint store |
 
 ## Aggregate State Reconstruction
 
-The framework does **not** store current aggregate state in a traditional database. Instead, every aggregate's state is a **function of its event history**.
+For non-create commands, `RetryableAggregateProcessor` asks `StateAggregateRepository` for current state. `EventSourcingStateAggregateRepository`:
+
+1. requests the latest snapshot when loading the latest version;
+2. creates a fresh state aggregate when no snapshot exists;
+3. loads event streams from `stateAggregate.expectedNextVersion` through the requested tail;
+4. applies each stream with `stateAggregate.onSourcing`.
 
 ```mermaid
-flowchart TD
-    A[Load Aggregate] --> B{Request Latest Version?}
-    B -->|Yes| C[Try Load Snapshot]
-    B -->|No| D[Create New Aggregate Instance]
-    C --> E{Snapshot Exists?}
-    E -->|Yes| F[Restore State from Snapshot]
-    E -->|No| D
-    F --> G[Load Incremental Events]
-    D --> H[Load All Events]
-    G --> I[Apply Events]
-    H --> I
-    I --> J[Return Aggregate]
+flowchart LR
+    Load[Load aggregate] --> Snapshot{Latest load?}
+    Snapshot -->|yes| Checkpoint[Load snapshot or create empty state]
+    Snapshot -->|historical version/time| Empty[Create empty state]
+    Checkpoint --> History[Load EventStore from expectedNextVersion]
+    Empty --> History
+    History --> Replay[Apply streams in order]
+    Replay --> Ready[StateAggregate ready]
 ```
 
-The `EventSourcingStateAggregateRepository` implements this reconstruction:
-
-1. **Snapshot-first loading**: When requesting the latest version, the repository first loads from the snapshot store. If a snapshot exists, it serves as the starting point for incremental replay.
-2. **Fresh aggregate creation**: If no snapshot exists, a new aggregate instance is created via the `StateAggregateFactory`.
-3. **Event application**: Events are replayed in version order, each calling `stateAggregate.onSourcing(it)` to mutate the in-memory state.
+Historical version/time reconstruction does not use the latest snapshot, because a checkpoint from the future would corrupt the requested point in time.
 
 ## Event Sourcing Lifecycle
 
-The following diagram illustrates the complete lifecycle from command receipt through event persistence, bus publication, and downstream processing:
+One successful command follows these ownership transitions:
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant Client
-    participant CommandGateway
-    participant CommandBus
-    participant Dispatcher as Command Dispatcher
-    participant Aggregate
-    participant Repository as State Aggregate Repository
-    participant EventStore
-    participant SnapshotStore
-    participant DomainEventBus
-    participant Projection
-    participant Saga
+1. `SENT`: the command bus accepted the command; no history append is proven.
+2. Restore: non-create commands load snapshot plus later event history.
+3. Execute: aggregate rules return a `DomainEventStream`.
+4. Source: the new stream updates the working in-memory state.
+5. Append: `EventStore.append` commits the new authoritative history.
+6. Send: `SendDomainEventStreamFilter` sends the appended stream, then `SendStateEventFilter` attempts to send the resulting state event inside the command filter chain.
+7. `PROCESSED`: `ProcessedNotifierFilter`, which wraps the chain with `ORDER_FIRST`, signals only after that chain completes or errors.
+8. Independently, `SNAPSHOT`, `PROJECTED`, or `EVENT_HANDLED` reports that a selected downstream path completed; its signal may arrive before or after `PROCESSED`.
 
-    Client->>CommandGateway: Send Command
-    CommandGateway->>CommandBus: Validate and send CommandMessage
-    CommandBus->>Dispatcher: Deliver ServerCommandExchange
-    Dispatcher->>Aggregate: Create AggregateProcessor and process command
-    Aggregate->>Repository: Load current state
-    Repository->>SnapshotStore: Try latest snapshot
-    SnapshotStore-->>Repository: Snapshot (or empty)
-    Repository->>EventStore: Load events after snapshot
-    EventStore-->>Repository: DomainEventStream (version order)
-    Repository-->>Aggregate: Reconstructed StateAggregate
-    Aggregate->>Aggregate: Invoke handler and produce DomainEventStream
-    Aggregate->>EventStore: Atomically append event stream
-    EventStore-->>Aggregate: Complete or raise storage error
-    Dispatcher->>DomainEventBus: Publish via SendDomainEventStreamFilter
-    DomainEventBus-->>Projection: Receive event stream
-    DomainEventBus-->>Saga: Receive event stream
-    Projection->>Projection: Update read model
-    Saga->>Saga: Evaluate saga progression
-    Client-->>CommandGateway: Response
-```
+`DomainEventBus.send` propagates failure, so the caller can observe a failed `PROCESSED` even though append already committed authoritative history. The current state-event filter applies `logErrorResume()`: `StateEventBus.send` failures are logged and swallowed rather than failing `PROCESSED`. Downstream stage signals can race ahead of `PROCESSED`; `StageWaitState` retains an early target signal and waits for the `PROCESSED` prerequisite before final completion. These paths are not one global transaction.
 
 ## Architecture
 
-The framework defines a clean interface hierarchy with multiple persistence backends. Every implementation extends `AbstractEventStore` which provides centralized logging, input validation, and error mapping.
-
 ```mermaid
-classDiagram
-    class EventStore {
-        <<interface>>
-        +append(DomainEventStream) Mono~Void~
-        +load(AggregateId, headVersion, tailVersion) Flux~DomainEventStream~
-        +load(AggregateId, headEventTime, tailEventTime) Flux~DomainEventStream~
-        +scanAggregateId(NamedAggregate, String, Int) Flux~AggregateId~
-    }
-    class AbstractEventStore {
-        <<abstract>>
-        #appendStream(DomainEventStream)* Mono~Void~
-        #loadStream(AggregateId, head, tail)* Flux~DomainEventStream~
-        +append(DomainEventStream) Mono~Void~
-        +load(...) Flux~DomainEventStream~
-    }
-    class InMemoryEventStore
-    class MongoEventStore
-    class RedisEventStore
-
-    EventStore <|.. AbstractEventStore : implements
-    AbstractEventStore <|-- InMemoryEventStore : extends
-    AbstractEventStore <|-- MongoEventStore : extends
-    AbstractEventStore <|-- RedisEventStore : extends
+flowchart TB
+    Command[Command] --> Restore[Restore aggregate]
+    EventStore[(EventStore: authoritative)] --> Restore
+    SnapshotStore[(SnapshotStore: checkpoint)] --> Restore
+    Restore --> Handler[Command handler]
+    Handler --> Stream[DomainEventStream]
+    Stream --> EventStore
+    EventStore --> Bus[In-chain domain/state message sends]
+    Bus --> Processed[PROCESSED after command chain]
+    Bus --> Snapshot[Snapshot: derived checkpoint]
+    Bus --> Projection[Projection: derived read model]
+    Bus --> Processor[Event processor: side effect]
 ```
 
-The `AbstractEventStore` applies the **template method pattern** to centralize cross-cutting concerns:
-
-- **`append()`** (public, concrete): Logs the operation, delegates to `appendStream()`, and upgrades version-conflict exceptions.
-- **`load()`** (public, concrete): Validates version/time ranges, then delegates to `loadStream()`.
-- **`appendStream()` / `loadStream()`** (protected, abstract): Each backend implements storage-specific logic.
+Applications should load aggregates through `StateAggregateRepository`, not manually merge event and snapshot data.
 
 ## Exception Handling
 
-The event store defines a hierarchy of typed exceptions:
+`EventStore.append` declares `EventVersionConflictException`, `DuplicateAggregateIdException`, and `DuplicateRequestIdException`. `AbstractEventStore` maps an initial-version conflict to `DuplicateAggregateIdException`; storage implementations are responsible for mapping their actual storage failures to the contract.
 
-| Exception Type | Description | Behavior |
-|---|---|---|
-| `EventVersionConflictException` | Version conflict from concurrent writes | Implements `RecoverableException` — safe to retry |
-| `DuplicateAggregateIdException` | Attempt to create an already-existing aggregate | Fatal — indicates ID collision |
-| `DuplicateRequestIdException` | The same request ID was already processed | The framework rejects the duplicate; a caller may interpret it as an idempotent outcome when its business contract allows that |
+Do not assume every custom backend atomically checks version, aggregate creation, and request ID merely because the interface declares exceptions. Verify the chosen implementation and its contract tests.
 
-```mermaid
-stateDiagram-v2
-    [*] --> AppendRequested: append(eventStream)
-    AppendRequested --> Success: Event stored
-    AppendRequested --> VersionConflict: version <= storedTailVersion
-    AppendRequested --> DuplicateRequest: requestId already exists
+A failed `PROCESSED` result is not proof that append failed. If an error occurred after append, retrying the command depends on stable `requestId` handling and the selected store's duplicate contract; query authoritative history by aggregate/request ID before treating the command as absent.
 
-    VersionConflict --> DuplicateAggregateId: if version == INITIAL_VERSION
-    VersionConflict --> EventVersionConflictException: otherwise
-    DuplicateRequest --> DuplicateRequestIdException
-    Success --> [*]
-```
+`RetryableAggregateProcessor` retries only failures classified as recoverable, with bounded backoff. That can re-run restoration and command processing, so handlers and injected services must respect their own retry/idempotency boundaries. Unrecoverable business errors fail immediately.
 
 ## Implementation Comparison
 
-| Feature | MongoDB | Redis | In-Memory |
-|---|---|---|---|
-| **Persistence** | Durable (disk) | Configurable | Volatile (memory) |
-| **Version range query** | Yes | Yes (ZRANGEBYSCORE) | Yes (in-memory) |
-| **Time range query** | Yes | No | Yes (in-memory) |
-| **Concurrency control** | Unique compound index | Lua script (atomic) | Synchronized map |
-| **Sharding support** | Sharded collections | Redis cluster | N/A |
-| **Production readiness** | High | Medium | Dev/Test only |
+| Implementation | Typical role | Contract note |
+|---|---|---|
+| `InMemoryEventStore` | tests and local examples | volatile; not a production durability claim |
+| MongoDB module | persistent event storage | validate actual indexes, write concern, topology, and module tests |
+| Redis module | persistent event storage | validate Lua/script behavior, durability mode, and module tests |
+| custom `EventStore` | application-specific backend | must define append atomicity, conflict mapping, ordering, and close behavior |
+
+The core interface deliberately does not promise that all backends support identical operational features. For example, time-range loading or aggregate scanning may be unsupported by an implementation.
 
 ### Storage Schema Per Implementation
 
-**MongoDB** uses per-aggregate-type collections. The collection name is derived from the aggregate's context name and aggregate name (e.g., `order_event_stream`). Documents are indexed with a unique compound index on `(aggregate_id, version)` and another on `(aggregate_id, request_id)` ([EventStreamSchemaInitializer.kt:51-69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/EventStreamSchemaInitializer.kt#L51-L69)).
+Schema and atomicity belong to the selected storage module, not `wow-core`. Before production use, verify at least:
 
-**Redis** stores event streams in a **sorted set** keyed by aggregate ID. Each member is a JSON-serialized `DomainEventStream`, scored by version number. Append operations use a Lua script for atomicity — checking version conflicts, duplicate request IDs, and cross-tenant aggregate-ID uniqueness in a single transaction ([RedisEventStore.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-redis/src/main/kotlin/me/ahoo/wow/redis/eventsourcing/RedisEventStore.kt)). Time-range loading is not supported.
+- uniqueness and ordering keys for one aggregate stream;
+- how `requestId` lookup is indexed or scanned;
+- atomic behavior under concurrent append;
+- serialization compatibility and event revision policy;
+- backup, restore, retention, and corruption detection;
+- behavior of range loading and aggregate scanning.
 
+Do not copy a schema from this guide and treat it as proof of the running backend.
 
 ## Configuration
 
@@ -235,35 +171,26 @@ wow:
       storage: mongo
     snapshot:
       enabled: true
-      strategy: all  # Recommended: persist the state produced by every state event
+      strategy: all
       storage: mongo
 ```
 
-| Property | Type | Default | Description |
-|---|---|---|---|
-| `wow.eventsourcing.store.storage` | `StorageType` | `mongo` | Event store backend |
-| `wow.eventsourcing.snapshot.enabled` | `Boolean` | `true` | Enable snapshot mechanism |
-| `wow.eventsourcing.snapshot.strategy` | `Strategy` | `all` | Snapshot strategy (all, version_offset) |
-| `wow.eventsourcing.snapshot.version-offset` | `Int` | `5` | Version gap threshold |
-| `wow.eventsourcing.snapshot.storage` | `StorageType` | `mongo` | Snapshot storage backend |
+The event and snapshot stores may use the same technology, but they remain separate contracts. Losing a snapshot should affect loading cost or current-state query availability, not redefine the authoritative history.
 
 ## Best Practices
 
-1. **Use snapshots as the default current-state query store**: Keep the recommended `strategy: all` so every processed state event updates the latest snapshot. With a query-capable backend and WebFlux support, `SnapshotQueryService` and the built-in single/list/paged/count routes replace duplicate projection code and hand-written query endpoints for standard single-aggregate queries. Use `version_offset` only when stale snapshot queries are acceptable or another read model serves current queries.
-
-2. **Monitor version conflicts**: Occasional `EventVersionConflictException`s are normal. High frequency indicates contention — consider redesigning aggregate boundaries.
-
-3. **Leverage request idempotency**: The `requestId` field guarantees that retrying a command does not produce duplicate events — essential for at-least-once delivery.
-
-4. **Keep events immutable and declarative**: Events should represent simple facts rather than conditional logic. The aggregate's sourcing function simply overlays events onto state.
-
-5. **Use In-Memory for testing only**: `InMemoryEventStore` is thread-safe but volatile. Do not deploy to production.
+1. Keep event payloads as immutable facts and test sourcing behavior.
+2. Reuse one stable `requestId` when retrying the same command intent.
+3. Treat successful `PROCESSED` as completion of the full command filter chain, not just append; on failure, check authoritative history because append may already have succeeded.
+4. Restore through `StateAggregateRepository`; do not build a second replay algorithm in application code.
+5. Test the selected backend's concurrency and duplicate behavior instead of generalizing from `EventStore` KDoc.
+6. Make projections and external side effects replay-safe/idempotent, with explicit retry or compensation ownership.
+7. Monitor version conflicts; persistent contention can indicate an aggregate-boundary problem.
 
 ## Related Topics
 
-- [Snapshot](./snapshot) — Use snapshots for aggregate loading and current-state queries
-- [Query Service](./query) — Query snapshots through the DSL and built-in endpoints
-- [Command Gateway](./command-gateway) — How commands are routed to aggregates
-- [Saga](./saga) — Distributed transactions across aggregates
-- [Projection](./projection) — How projections consume event streams
-- [Business Intelligence](./bi) — Leverage event streams for data analysis
+- [Snapshot](./snapshot) — loading checkpoints and `SNAPSHOT` semantics
+- [Command Gateway](./command-gateway) — validation, idempotency, and wait stages
+- [Event Processor](./event-processor) — downstream side effects and `EVENT_HANDLED`
+- [Projection](./projection) — purpose-specific read models and `PROJECTED`
+- [Saga](./saga) — cross-aggregate coordination

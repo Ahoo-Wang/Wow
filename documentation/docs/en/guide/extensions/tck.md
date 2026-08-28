@@ -1,60 +1,43 @@
 ---
 title: Technology Compatibility Kit
-description: TCK test cases for verifying that interface implementations conform to specifications.
+description: Verify Wow adapters against shared public runtime contracts.
 ---
 
 # Technology Compatibility Kit
 
-The Technology Compatibility Kit (_TCK_) is a set of test cases used to verify that specific interface implementations conform to specifications.
+`wow-tck` publishes inheritable JUnit specifications that verify custom and built-in buses, stores, queries, and prepare implementations with the same assertions. Use it when developing an adapter or upgrading its backend driver. Business domain tests should use `wow-test` instead.
 
-Through _TCK_, developers can ensure that extensions run correctly in different scenarios, providing convenience and correctness guarantees for custom extensions.
-This standardized verification method not only simplifies extension development and reduces potential error risks, but also ensures the consistency and stability of the entire ecosystem.
+TCK owns public contract assertions. Adapter tests own fixtures, connections, implementation construction, and cleanup. The real backend still owns atomicity, uniqueness, ordering, and failure semantics. TCK passing is not proof of production topology, capacity, or migration.
 
 ## Installation
-::: code-group
-```kotlin [Gradle(Kotlin)]
+
+```kotlin
 testImplementation("me.ahoo.wow:wow-tck")
 ```
-```groovy [Gradle(Groovy)]
-testImplementation 'me.ahoo.wow:wow-tck'
-```
-```xml [Maven]
-<dependency>
-    <groupId>me.ahoo.wow</groupId>
-    <artifactId>wow-tck</artifactId>
-    <version>${wow.version}</version>
-    <scope>test</scope>
-</dependency>
-```
-:::
+
+Container-backed adapters normally place specifications in an `integrationTest` source set and use TCK Kafka, Mongo, Redis, or Elasticsearch Testcontainers fixtures. Missing Docker, image-pull failure, or backend-readiness failure must fail integration testing rather than being reported as compatibility.
+
+Published specifications include `CommandBusSpec`, `DomainEventBusSpec`, `StateEventBusSpec`, `EventStoreSpec`, `SnapshotStoreSpec`, `PrepareKeySpec`, both query-service specs, and dispatcher/repository/modeling specs.
 
 ## Redis Extension Example
+
+Repository Redis adapter tests live in `wow-redis/src/integrationTest` and create a real `ReactiveStringRedisTemplate` through `RedisTestFixture`. These snippets show only the minimum override; reuse shared fixtures instead of copying specification assertions.
 
 ### CommandBus
 
 ```kotlin
 class RedisCommandBusTest : CommandBusSpec() {
-    @JvmField
-    @RegisterExtension
-    val redis = RedisTestFixture()
-
-    override fun createMessageBus(): CommandBus {
-        return RedisCommandBus(redis.redisTemplate)
-    }
+    override fun createMessageBus(): CommandBus = RedisCommandBus(redis.redisTemplate)
 }
 ```
+
+The specification verifies common send, subscription, exchange, and acknowledgment behavior. Redis Streams group/claim behavior still needs adapter-specific integration tests.
 
 ### DomainEventBus
 
 ```kotlin
 class RedisDomainEventBusTest : DomainEventBusSpec() {
-    @JvmField
-    @RegisterExtension
-    val redis = RedisTestFixture()
-
-    override fun createMessageBus(): DomainEventBus {
-        return RedisDomainEventBus(redis.redisTemplate)
-    }
+    override fun createMessageBus(): DomainEventBus = RedisDomainEventBus(redis.redisTemplate)
 }
 ```
 
@@ -62,13 +45,7 @@ class RedisDomainEventBusTest : DomainEventBusSpec() {
 
 ```kotlin
 class RedisStateEventBusTest : StateEventBusSpec() {
-    @JvmField
-    @RegisterExtension
-    val redis = RedisTestFixture()
-
-    override fun createMessageBus(): StateEventBus {
-        return RedisStateEventBus(redis.redisTemplate)
-    }
+    override fun createMessageBus(): StateEventBus = RedisStateEventBus(redis.redisTemplate)
 }
 ```
 
@@ -76,46 +53,46 @@ class RedisStateEventBusTest : StateEventBusSpec() {
 
 ```kotlin
 class RedisEventStoreTest : EventStoreSpec() {
-    @JvmField
-    @RegisterExtension
-    val redis = RedisTestFixture()
-
-    override fun createEventStore(): EventStore {
-        return RedisEventStore(redis.redisTemplate)
-    }
-
-    override fun loadEventStreamByEventTime() = Unit
+    override fun createEventStore(): EventStore = RedisEventStore(redis.redisTemplate)
 }
 ```
+
+EventStore spec covers common append, version conflict, request idempotency, loading, and scanning. Redis canonical key layout and legacy-layout fail-closed behavior remain module-specific tests.
 
 ### SnapshotStore
 
 ```kotlin
 class RedisSnapshotStoreTest : SnapshotStoreSpec() {
-    @JvmField
-    @RegisterExtension
-    val redis = RedisTestFixture()
-
-    override fun createSnapshotStore(): SnapshotStore {
-        return RedisSnapshotStore(redis.redisTemplate)
-    }
+    override fun createSnapshotStore(): SnapshotStore = RedisSnapshotStore(redis.redisTemplate)
 }
 ```
 
-The shared specification verifies lower-version no-op behavior, equal-version
-replacement, and concurrent saves retaining the highest aggregate version.
+The shared spec verifies older-version no-op, same-version replacement, and highest-version retention under concurrency. An adapter must use backend atomicity rather than an in-process precheck.
 
 ### RedisPrepareKey
 
 ```kotlin
 class StringRedisPrepareKeyTest : RedisPrepareKeySpec<String>() {
-    override val name: String
-        get() = "string"
-    override val valueType: Class<String>
-        get() = String::class.java
-
-    override fun generateValue(): String {
-        return GlobalIdGenerator.generateAsString()
-    }
+    override val name: String = "string"
+    override val valueType: Class<String> = String::class.java
+    override fun generateValue(): String = GlobalIdGenerator.generateAsString()
+    override fun createPrepareKey(name: String): PrepareKey<String> =
+        prepareKeyFactory.create(name, valueType)
 }
 ```
+
+Verified failure boundaries include shared assertion failure, fixture/readiness failure, implementation errors, or publishers that do not terminate as contracted. Add adapter-specific tests only for backend-native behavior outside the TCK.
+
+Focused check for TCK itself:
+
+```bash
+./gradlew :wow-tck:check
+```
+
+Run Redis real contract tests with:
+
+```bash
+./gradlew :wow-redis:integrationTest
+```
+
+Next, read [Application testing](../application-testing.md) and [Test runtime](../test-runtime.md) to separate domain, contract, integration, and production evidence.

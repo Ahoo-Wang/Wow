@@ -11,20 +11,17 @@ hero:
     alt: Wow
   actions:
     - theme: brand
-      text: 快速上手
+      text: 30 分钟快速上手
       link: /zh/guide/getting-started
     - theme: alt
-      text: 简介
+      text: 认识 Wow
       link: /zh/guide/introduction
     - theme: alt
-      text: 文档导览
+      text: 开发指南
       link: /zh/guide/
     - theme: alt
       text: GitHub
       link: https://github.com/Ahoo-Wang/Wow
-    - theme: alt
-      text: Gitee
-      link: https://gitee.com/AhooWang/Wow
 features:
 - title: 领域模型即服务
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>'
@@ -37,11 +34,11 @@ features:
 - title: 可复现的性能基线
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>'
   details: 提供按用途分层的 JMH 基准任务；性能结论必须绑定当前代码、运行环境与结果清单，避免复用失去上下文的历史数据
-  link: /zh/guide/test-runtime#基准-smoke
+  link: /zh/guide/test-runtime#基准分三种用途
 - title: 可伸缩性
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="m21 3-7 7"/><path d="m3 21 7-7"/></svg>'
   details: 聚合、事件存储与消息抽象降低领域规则对存储拓扑的耦合；实际伸缩能力取决于热点、后端和部署验证。
-  link: /zh/guide/introduction.html#性能与伸缩性
+  link: /zh/guide/introduction.html#_2-性能与伸缩性
 - title: 分布式事务 (Saga)
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>'
   details: 利用 Saga 编排模式精心管理复杂多服务之间的事务流程，以降低分布式事务的复杂性
@@ -62,6 +59,10 @@ features:
   details: 以状态事件和命令提供具有业务语义的数据源，并生成 ClickHouse 同步脚本；实时性与数据质量由应用运维保障。
   link: /zh/guide/bi
 ---
+
+## 从价值到首次成功
+
+先读[简介](./guide/introduction.md)，判断 Wow 的价值、适用边界和采用成本；准备动手时，进入[30 分钟快速上手](./guide/getting-started.md)。领域测试、真实 HTTP 命令和版本化事件溯源状态均验证通过，才算完成第一次成功。
 
 ## 荣誉
 

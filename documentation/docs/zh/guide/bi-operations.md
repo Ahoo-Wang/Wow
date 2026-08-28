@@ -1,109 +1,119 @@
 ---
 title: BI 部署与恢复
-description: Wow BI 当前布局的发布、Reset、中断恢复、回滚与验收手册。
+description: Wow BI 的归属、Deploy、Reset、中断恢复、验收与回滚。
 ---
 
 # BI 部署与恢复
 
-本手册只适用于当前 BI 布局。BI 模块不读取旧布局、不执行原地迁移，也不承诺旧客户端、
-旧 registry 或旧 SQL 的兼容性。
+本手册只适用于当前 Wow BI protocol/layout，不会原地迁移旧 registry 或 SQL layout。引入当前 owner 前，
+必须归档旧物理范围与 offset。
 
 ## 操作边界
 
-- `DEPLOY`：非破坏性对账。可首次安装、补齐中断的创建/删除、更新计算视图，以及恢复缺失的
-  Kafka ingress。
-- `RESET`：破坏性重建。必须同时提交 `replayFromEarliestConfirmed=true`，并配置
-  `consumerGroupNamespace`。
-- SQL 执行器必须严格按返回顺序执行，并在第一条错误处停止。
-- 同一物理 BI 对象命名空间只能有一个写者。生成、检查、执行三个阶段都必须纳入同一外部锁。
-- `wow.bi.script.enabled` 默认开启，前提是 `/wow/bi/script` 仅通过安全网关暴露。
+一个写者拥有一个物理 BI scope：`database`、`consumerDatabase`、`consumerGroupNamespace` 与 topology。
+catalog inspection、脚本生成、审阅和顺序执行必须由同一把外部锁覆盖。内部 ownership registry 让中断的
+DDL 可恢复，但它不是分布式锁。
 
-生产环境必须使用 `wow.bi.script.inspector.type=CLICKHOUSE`。默认的 NoOp inspector 只适合首次部署
-或离线预览，不能安全执行 Reset 或清理旧对象。
+| 操作 | 数据影响 | 必需 inspection |
+|---|---|---|
+| `DEPLOY` | 创建缺失对象、修复计算对象、恢复受管 pending 工作，并按计划退役/删除受管旧对象 | 生产必须使用 ClickHouse inspector |
+| `RESET` | 删除并重建受管当前布局，启动 replay generation | 可用的权威 inspection 加 `replayFromEarliestConfirmed=true` |
+
+`wow.bi.script.enabled` 默认是 `true`。必须把 `/wow/bi/script` 作为管理路由保护，或将其关闭。默认 NoOp
+inspector 只适合首次/离线预览，不能批准 Reset。
+
+SQL executor 必须保持 statement 顺序，并在第一条错误时停止。禁止并发运行两个脚本，也禁止 catalog
+变化后重放旧文件。
 
 ## 操作决策
 
-```mermaid
-flowchart TD
-    A[使用 CLICKHOUSE inspector 重新生成脚本] --> B{inspection 结果}
-    B -->|当前布局且无持久契约漂移| C[DEPLOY]
-    B -->|仅计算视图定义变化| C
-    B -->|PENDING_CREATE / PENDING_UPDATE / PENDING_DROP| C
-    B -->|缺失 ACTIVE/RETIRED 或残留 TOMBSTONE| D[确认 RESET]
-    B -->|Store 或 Queue 契约漂移| D
-    B -->|registry 物理契约不匹配或旧布局| E[停止 consumer 并归档旧范围]
-    E --> F[删除不兼容 registry 或整个旧范围]
-    F --> D
-    B -->|anchor 为 RESETTING| G[使用相同配置继续 RESET]
-```
-
-| 观测状态 | 操作 | 说明 |
+| 观测到的 catalog/registry 状态 | 操作 | 原因 |
 |---|---|---|
-| 首次部署，目标范围内没有旧 BI 对象 | `DEPLOY` | 建立当前布局、registry 与 `STABLE` anchor |
-| 当前布局稳定且契约一致 | `DEPLOY` | 生成幂等对账 SQL |
-| View 或 consumer materialized view 定义变化 | `DEPLOY` | registry 经 `PENDING_UPDATE` 更新后回到 `ACTIVE` |
-| `PENDING_CREATE`、`PENDING_UPDATE` 或 `PENDING_DROP` | `DEPLOY` | 使用相同配置重新生成，不要重放旧 SQL |
-| registry 引用的 `ACTIVE/RETIRED` 对象缺失，或 `TOMBSTONE` 对象仍存在 | 确认的 `RESET` | 普通 Deploy 会 fail-closed；Reset 使用 registry 的归属范围清理和重建 |
-| Store、Kafka Queue 或拓扑契约漂移 | 确认的 `RESET` | 不执行原地变更 |
-| registry Engine、复制路径、排序键、Comment 或列结构不匹配 | 手动归档/删除后 `RESET` | inspector 不信任不兼容 registry，不能直接从中推断归属 |
-| anchor 为 `RESETTING` | 使用原配置继续 `RESET` | 保留已记录的 consumer identity；此时拒绝 Deploy |
-| anchor 为 `STABLE` 但 Kafka ingress 不完整 | `DEPLOY` | 补齐 Queue 和 consumer materialized view |
+| 空目标 scope | `DEPLOY` | 安装 registry、store、ingress、view 与 `STABLE` anchor |
+| 当前 scope 且持久契约一致 | `DEPLOY` | 幂等对账 |
+| 计算 view/materialized-view 漂移 | `DEPLOY` | 先记录 `PENDING_UPDATE`，替换并验证定义，再回到 `ACTIVE` |
+| 受管 `PENDING_CREATE`、`PENDING_UPDATE` 或 `PENDING_DROP` | 重新生成同一 `DEPLOY` | registry 是 write-ahead 恢复证据 |
+| 缺失 `ACTIVE`/`RETIRED` 对象或仍存在 `TOMBSTONE` | 备份后确认 `RESET` | catalog 已不符合可恢复归属状态 |
+| Store、Kafka queue 或 topology 契约漂移 | 确认 `RESET` | generator 不原地修改这些持久契约 |
+| registry engine/Comment/sort key/column 非法或旧 protocol/layout | 归档/删除不兼容 scope 后 `RESET` | 无法信任归属 |
+| anchor phase 为 `RESETTING` | 用完全相同物理范围配置继续 `RESET` | 复用已记录的 reset consumer identity |
+| anchor 为 `STABLE` 但 ingress 不完整 | `DEPLOY` | 重建缺失 queue/consumer materialized view |
+
+不能根据熟悉的 table name 推断归属。只有通过校验的当前 registry 与 `wow-bi:` metadata 才能授权破坏性
+清理。
 
 ## 发布前检查
 
-1. 固定应用、`wow-bi` 和 OpenAPI 客户端版本，禁止新旧节点同时操作 BI 范围。
-2. 确认安全网关保护 `/wow/bi/script`，或显式设置 `wow.bi.script.enabled=false`。
-3. 配置 ClickHouse inspector、唯一的 `consumerGroupNamespace` 和正确的 ClickHouse 拓扑。
-4. 确认 `database`、`consumerDatabase`、拓扑模式、cluster name、installation 和 topic 配置没有意外变化。
-5. 停止旧 BI consumer，获取覆盖整个物理对象命名空间的外部互斥锁。
-6. 备份或归档旧 BI 数据库、Kafka offset 证据和当前应用版本。
-7. 确认新 consumer generation 的 `auto.offset.reset=earliest`；使用 Keeper offset 时确认 Keeper 可用。
-8. 先生成并审阅脚本及 diagnostics，不得执行含未解释诊断的脚本。
+1. 固定 application/Wow version、BI protocol/layout、request options 与 generated client version。
+2. 停止该 scope 的全部旧 BI consumer/writer，并获取外部锁。
+3. 配置 `wow.bi.script.inspector.type=CLICKHOUSE`；验证 endpoints、credential、timeout 与 replica access。
+4. 记录 database、consumer database、namespace、topology、cluster/installation、topic prefix、Kafka
+   servers、offset storage 与 configuration fingerprint。
+5. 备份/克隆 ClickHouse scope；保存 registry HEAD/entries、anchor Comment、对象 DDL、行数、aggregate 最大
+   version、Kafka offset 与 retention 证据。
+6. Reset 前证明所需历史仍在，且新 group 会从 earliest 开始；使用 Keeper offset 时验证其前提。
+7. 生成 JSON，审阅 `destructive` 和全部 diagnostic，再审阅有序 SQL。任何未解释 diagnostic 都必须停止。
+
+本地 generator/module 检查只能验证代码与确定性 SQL，不能证明 credential、replica 一致、Kafka
+retention、真实流量或生产变更准入。
 
 ## 执行 Deploy
 
-1. 在持有外部锁的同一变更窗口中重新生成 `DEPLOY`。
-2. 保存请求配置、diagnostics 和 SQL 摘要作为审计证据。
-3. 严格顺序执行 SQL；第一条失败后立即停止。
-4. 失败后重新 inspection 并生成新脚本。不得从失败位置猜测续跑，也不得重放原 SQL 文件。
-5. 成功后检查 anchor 为 `STABLE`，registry 最新状态符合预期，Kafka ingress 已建立。
+1. 持锁重新 inspection 并生成 `DEPLOY`，保存请求与 inspection 时间。
+2. 严格按响应顺序执行 statement，第一条失败后停止。
+3. 中断后丢弃旧脚本，检查新的 catalog 状态，并用完全相同 scope 配置重新生成 `DEPLOY`。
+4. SQL 完成后再次执行权威 inspection，要求 anchor 为 `STABLE`、registry HEAD 一致、没有未解释 pending
+   状态且 ingress 完整。
+5. 下方验收完成前不得释放外部锁。
 
-计算对象更新会先写入 `PENDING_UPDATE`，再修复 View 或 consumer materialized view，最后确认
-`ACTIVE`。Store 与 Queue identity 不会因为计算视图更新而变化。
+registry 会在对象 DDL 前持久化 pending mutation，验证后才记录 `ACTIVE`/`TOMBSTONE`。因此重新生成安全，
+猜测 statement 续跑点不安全。
 
 ## 执行 Reset
 
-Reset 会删除并重建归属范围内的数据和消费链路，只能在业务明确接受全量 Kafka 重放时执行：
+Reset 会删除受管 BI scope 内的数据并重放：
 
-1. 停止所有旧 consumer，并保持外部锁。
-2. 验证备份、Kafka 保留期和 `auto.offset.reset=earliest`。
-3. 以 `operation=RESET`、`replayFromEarliestConfirmed=true` 重新生成脚本。
-4. 确认返回结果的 `destructive=true`，再逐条执行。
-5. 若执行中断：
-   - anchor 为 `RESETTING`：使用完全相同的物理范围配置重新生成 `RESET`；
-   - anchor 已为 `STABLE`：生成 `DEPLOY` 补齐 ingress；
-   - 不得重放原 Reset SQL。
-6. Reset 完成后再执行一次 authoritative `DEPLOY`，建立并确认精确的当前 registry。
+1. 取得全量重建的明确审批，确认备份和 Kafka retention，保持所有 consumer 停止。
+2. 以 `replayFromEarliestConfirmed=true` 生成 `RESET`，要求 `destructive=true`。
+3. 顺序执行；若中断，再次 inspection：
+   - anchor 为 `RESETTING` → 使用完全相同 scope/configuration 重新生成 `RESET`；
+   - anchor 为 `STABLE` 但缺少 ingress → 生成 `DEPLOY`；
+   - registry 不兼容/缺失 → 停止并恢复或人工归档，不能猜测归属。
+4. Reset 完成后再生成并执行一次新的权威 `DEPLOY`，完成剩余对账。
+5. 回滚窗口内保持旧 scope/backup 不可变。
 
 ## 验收
 
-- anchor 为 `STABLE`，且其 registry revision 不领先于 registry HEAD。
-- registry 的 Engine、复制路径、排序键、Comment 和完整列结构通过 inspector 校验。
-- 所需对象存在；没有残留的 `TOMBSTONE` 对象；registry 无未解释的 pending 状态。
-- View 查询和 materialized view 的 `TO` target 与当前 renderer 定义一致。
-- Kafka Queue 与 consumer materialized view 正常消费；抽样核对最早、最新 offset 和业务数据。
-- 集群拓扑下所有副本的对象、Comment、Engine 和列结构一致。
+只有记录下全部适用证据后才能接受部署：
+
+- inspector 验证 registry engine、复制路径、sorting key、Comment、完整 column schema、HEAD revision 与
+  object snapshot fingerprint；
+- anchor 为 `STABLE`，没有未解释 pending entry，也没有 `TOMBSTONE` 对象残留；
+- 所需 store、queue、consumer、public view、expansion view 存在，计算 SQL/`TO` target 一致；
+- cluster 每个 replica 的对象结构与 metadata 一致；
+- Kafka consumption 持续推进，保留 earliest/latest offset 样本，consumer error 为零；
+- command/state/latest/expansion 行数及代表性 aggregate 最大 version 与源对账；
+- dashboard、alert 与操作路由授权已针对部署 revision 验证。
+
+本地 build 绿色或 SQL exit code 为零只是其中一项，不等于生产准入。
 
 ## 回滚
 
-BI 没有原地向后兼容回滚。旧版本可能无法识别当前 registry 状态，尤其不能在
-`PENDING_UPDATE` 或 `RESETTING` 时直接回滚应用：
+registry 仍处于当前 pending 状态时，应优先使用当前版本完成恢复。旧客户端可能拒绝 protocol/layout 3/7，
+或错误理解 pending phase。
 
-1. 首选使用当前版本完成 `DEPLOY` 或中断恢复。
-2. 必须回退版本时，同时恢复旧应用、旧 BI 数据库和与其匹配的 offset/配置快照。
-3. 不要让旧 inspector 读取当前 registry，也不要使用旧 SQL 覆盖当前布局。
-4. 紧急隔离可设置 `wow.bi.script.enabled=false`，但这只移除 HTTP 路由、OpenAPI operation 和
-   inspector，不会回滚 ClickHouse 数据。
+必须回滚时：
 
-版本升级的跨模块顺序参见 [Wow v6 迁移到 v8](./migration/v6-to-v8)，配置项参见
-[BI 脚本配置](./configuration#bi-脚本配置)。
+1. 停止 consumer，重新取得同一 scope lock；
+2. 保存切换后的写入/offset 进度；
+3. 把旧 application、ClickHouse scope、offset state 与 configuration snapshot 作为一个整体恢复；
+4. 按已审批计划对账或明确丢弃切换后的分析数据；
+5. 验证恢复后的 reader，再重新开放流量。
+
+设置 `wow.bi.script.enabled=false` 只移除 route/OpenAPI operation/inspector wiring，不会停止 ClickHouse
+Kafka engine、恢复数据或回滚 offset。
+
+生成契约见 [商业智能](./bi)，跨版本门禁见 [Wow v6 迁移到 v8](./migration/v6-to-v8)。
+
+<!-- Sources: BiOwnershipRegistry/Plan, ClickHouseOwnershipRegistryRenderer/CatalogReader,
+BiScriptAssembly/Operation, ClickHouseBiDeploymentInspector, and related tests -->

@@ -1,307 +1,106 @@
 ---
 title: "传统架构 VS Wow：从写接口到交付领域模型"
-description: "传统 CRUD 架构与 Wow 模型即服务的开发成本对比：少写胶水代码，把命令、事件、存储、查询和协作交给框架。"
+description: "把常见 CRUD 分层与 Wow 的模型驱动运行方式放在同一决策框架中，区分框架能力、应用责任与仓库证据。"
 outline: deep
 ---
 
 # 传统架构 VS Wow：从写接口到交付领域模型
 
-![传统架构 VS Wow 架构：从多层胶水代码到领域模型即服务](/images/articles/traditional-vs-wow-architecture/cover.png)
+![传统分层架构与 Wow 领域模型服务的对比](/images/articles/traditional-vs-wow-architecture/cover.png)
 
-_传统架构交付接口，Wow 交付领域模型。_
+一个订单功能可以从 Controller、Service 和 Repository 开始，也可以从命令、聚合不变量与领域事件开始。两条路径都能交付软件；差别在于业务决策放在哪里，以及团队愿意承担哪一组成本。
 
-开发一个订单功能，传统架构通常要同时维护 `Controller`、`DTO`、`Service`、`Repository`、SQL、事务、事件通知、重试、补偿和集成测试。
+本文的观点是：**当领域规则、状态历史和跨聚合协作构成主要复杂度时，以领域模型作为交付单位通常比以接口作为交付单位更清晰。** 这不是对所有“传统架构”的质量判断，也不是 Wow 对交付速度或缺陷率的保证。
 
-真正的业务规则可能只有几十行，但外围代码会不断增加。Wow 的目标正是把这些重复的基础设施能力沉淀到框架中，让开发者专注于领域模型和业务规则。项目 README 将 Wow 定义为“领域模型即服务”，并明确强调自动生成 OpenAPI、命令事件链、读写分离和 Given → When → Expect 测试能力。[README.zh-CN.md:7-9](https://github.com/Ahoo-Wang/Wow/blob/main/README.zh-CN.md#L7-L9)、[README.zh-CN.md:60-89](https://github.com/Ahoo-Wang/Wow/blob/main/README.zh-CN.md#L60-L89)
+## 先区分比较对象
 
-## 先给结论
+本文中的“传统 CRUD”指一种常见工作方式：请求经 Controller/Service，在事务中读写当前状态。成熟系统同样可以拥有清晰领域模型、事件和优秀测试，不能把所有非 Wow 系统归为贫血模型。
 
-| 对比维度 | 传统 CRUD 架构 | Wow | 项目依据 |
-|---|---|---|---|
-| 开发入口 | 从 Controller 和 Service 开始 | 从 `AggregateRoot`、command 和领域规则开始 | [Cart.kt:35-77](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/Cart.kt#L35-L77) |
-| 服务接口 | 手写 Controller、DTO 和路由 | 根据领域模型元数据生成 OpenAPI 路由 | [README.zh-CN.md:77-80](https://github.com/Ahoo-Wang/Wow/blob/main/README.zh-CN.md#L77-L80) |
-| 状态变化 | 直接修改当前表记录 | 由 command 产生 domain event | [Cart.kt:40-77](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/Cart.kt#L40-L77) |
-| 持久化 | 业务代码依赖 Repository 和 SQL | Event Store 保存事件，仓储负责回放状态 | [EventStore.kt:27-98](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L27-L98) |
-| 读模型 | 手工同步、轮询或延迟刷新 | Projection 产生读模型，可等待 `PROJECTED` | [CommandStage.kt:54-68](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L54-L68) |
-| 跨服务流程 | Service 嵌套调用与分散补偿 | Domain Event 驱动 Saga | [CartSagaSpec.kt:28-75](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/cart/CartSagaSpec.kt#L28-L75) |
-| 业务测试 | 依赖 Spring、数据库和接口链路 | `AggregateSpec` / `SagaSpec` 直接验证行为 | [CartSpec.kt:28-84](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/cart/CartSpec.kt#L28-L84) |
+“Wow”则指当前仓库实现的命令调度、事件溯源、快照、投影、Saga、等待阶段、元数据与测试能力。精确组件所有权见[架构概览](../guide/advanced/architecture.md)，适用边界与采用成本见[简介](../guide/introduction.md#适用边界)。
 
-本文中的“传统架构”是对常见 CRUD 分层方式的抽象对比，不代表所有传统系统都采用完全相同的实现；实际选型仍应以领域复杂度和团队约束为准。[项目简介](../guide/introduction.md#背景)
+## 两种工作组织方式
 
-## 传统架构的隐形成本
+| 决策维度 | 常见 CRUD 分层 | Wow 当前方式 |
+| --- | --- | --- |
+| 建模起点 | 资源、接口与当前数据 | 业务命令、聚合边界与不变量 |
+| 状态变化 | 在事务中更新当前记录 | 聚合产生事件，溯源函数应用事件 |
+| 历史 | 需要另行设计审计或历史表 | EventStore 保存带版本的领域事件历史 |
+| 读取 | 常由写模型或专用查询实现 | 聚合状态读取与投影视图是不同路径 |
+| 跨聚合协作 | 服务调用、消息或工作流自行组织 | Saga 消费事件并发送下一条命令 |
+| 领域验证 | 由团队选择单元或集成测试层 | `AggregateSpec` / `SagaSpec` 表达 Given → When → Expect |
 
-传统架构的优势是容易开始：一个请求进入 Controller，经过 Service，最后写入数据库。
+这张表是架构视角，不是完整合同。命令、事件、状态、投影与 Saga 的规范术语以[核心概念](../guide/core-concepts.md)为准。
+
+## Wow 把哪些能力连到领域模型
 
 ```mermaid
-%%{init: {"theme": "dark"}}%%
 flowchart LR
-    A["HTTP Request"] --> B["Controller"]
-    B --> C["DTO / Mapper"]
-    C --> D["Service"]
-    D --> E["Repository"]
-    E --> F["Database"]
-    D --> G["Retry / Compensation"]
-
-    classDef layer fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    class A,B,C,D,E,F,G layer
-    linkStyle default stroke:#8b949e
+    Command[命令] --> Aggregate[聚合决策]
+    Aggregate --> Event[领域事件]
+    Event --> State[溯源状态]
+    Event --> Projection[投影]
+    Event --> Saga[Saga]
+    Saga --> Command
 ```
 
-<!-- Sources: documentation/docs/zh/guide/introduction.md:20-37, README.zh-CN.md:54-71 -->
+当前 Wow 运行时围绕同一组领域工件连接：
 
-问题在于，每增加一个复杂业务规则，通常都要在多个层之间重复传递：参数对象要转换，事务边界要判断，异常要翻译，数据表要更新，异步通知要补发，测试还要重新准备数据库状态。
+- 命令消息与聚合处理；
+- 事件追加与状态重建；
+- 快照、投影和查询路径；
+- 事件处理器与 Saga；
+- WebFlux/OpenAPI 元数据；
+- 聚合与 Saga 规格测试。
 
-这类代码未必难写，却会持续消耗交付时间，并让真正的业务规则分散在多个文件中。
+这就是“领域模型即服务”的工程含义：通用运行能力围绕模型装配。它不表示只写一个聚合类就自动获得正确 API、安全、容量或恢复能力。
 
-## Wow 的核心转变：模型即服务
+## 当前仓库示例能证明什么
 
-Wow 不要求开发者先写 Controller，而是让领域模型成为服务的核心入口。
+购物车示例把职责分开：
 
-```mermaid
-%%{init: {"theme": "dark"}}%%
-classDiagram
-    class Cart {
-        <<AggregateRoot>>
-        -CartState state
-        +onCommand(AddCartItem) Any
-        +onCommand(RemoveCartItem) CartItemRemoved
-    }
-    class CartState {
-        +String id
-        +List~CartItem~ items
-        +onSourcing(DomainEvent)
-    }
-    class AddCartItem {
-        +String productId
-        +Int quantity
-    }
-    class CartItemAdded {
-        +CartItem added
-    }
-    class CartQuantityChanged {
-        +CartItem changed
-    }
+- [`Cart.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/Cart.kt) 接收 `AddCartItem`，根据当前状态产生 `CartItemAdded` 或 `CartQuantityChanged`；
+- [`CartState.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/CartState.kt) 通过溯源函数应用这些事件；
+- [`CartSaga.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/CartSaga.kt) 在购物车来源的订单创建后发送移除商品命令；
+- `CartSpec` 与 `CartSagaSpec` 验证允许、拒绝与不产生后续命令的分支。
 
-    Cart "1" *-- "1" CartState : owns
-    AddCartItem --> Cart : command
-    Cart --> CartItemAdded : produces
-    Cart --> CartQuantityChanged : produces
+[Kotlin 订单与购物车](../reference/example/order.md)是这组事实的 canonical walkthrough；`./gradlew :example-domain:check` 是当前示例的聚焦门禁。
 
-    classDef domain fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    class Cart domain
-    class CartState domain
-    class AddCartItem domain
-    class CartItemAdded domain
-    class CartQuantityChanged domain
-```
+这些证据证明示例领域行为和测试层，不证明任何应用都能少写固定比例代码、提高固定比例生产率，或自动达到生产容量。本文删除了这类无法由当前仓库支持的量化推断。
 
-<!-- Sources: example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/Cart.kt:35-77, example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/CartState.kt:28-67 -->
+## 成本没有消失，只是移动了
 
-当前示例中的 `Cart` 使用 `@AggregateRoot`、`@AggregateRoute` 和 `@OnCommand` 描述聚合和命令处理规则。`AddCartItem` 到来后，模型根据当前状态产生 `CartItemAdded` 或 `CartQuantityChanged`，而不是让业务代码直接更新数据库。[Cart.kt:35-77](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/Cart.kt#L35-L77)
+Wow 可以减少每个业务服务重复拥有命令路由、事件存储抽象、状态回放、等待协调和领域测试装配的需要。但团队仍然必须负责：
 
-这意味着一个领域模型可以同时成为：
+- 找到正确聚合边界与事件契约；
+- 设计授权、租户、owner/space 与外部副作用幂等；
+- 处理持久化事件演进和重放兼容；
+- 选择并验证存储、消息与查询 Adapter；
+- 为容量、备份、恢复、告警和回滚提供环境证据。
 
-| 能力 | 作用 | 项目依据 |
-|---|---|---|
-| 聚合入口 | 接收 command，保护领域不变量 | [AggregateRoot.kt:27-66](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/AggregateRoot.kt#L27-L66) |
-| 命令路由 | 将 command 绑定到聚合函数 | [Cart.kt:40-77](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/Cart.kt#L40-L77) |
-| API 来源 | 根据模型元数据生成 OpenAPI 路由和 schema | [README.zh-CN.md:77-80](https://github.com/Ahoo-Wang/Wow/blob/main/README.zh-CN.md#L77-L80) |
-| 事件来源 | 以领域事件表达状态变化 | [EventStore.kt:27-98](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L27-L98) |
+因此，架构收益取决于问题是否真的需要这些能力。如果当前状态和单数据库事务已经完整表达业务，引入事件历史、异步投影和消息恢复反而会增加无效负担。
 
-因此，开发者写的是“购物车允许什么行为”，而不是重复编写“Controller 如何调用 Service、Service 如何调用 Repository”。
+## 什么时候值得考虑 Wow
 
-## 一条 command 如何变成完整服务
+可以用四个问题筛选：
 
-```mermaid
-%%{init: {"theme": "dark"}}%%
-sequenceDiagram
-    autonumber
-    participant Client as Client
-    participant Gateway as CommandGateway
-    participant Bus as CommandBus
-    participant Aggregate as Aggregate
-    participant Store as EventStore
-    participant Projection as Projection
-    participant Saga as Saga
+1. 是否存在必须集中守护的业务不变量与非法状态迁移？
+2. 状态为什么变化、历史版本或重放是否有业务价值？
+3. 写入与多个读模型是否需要独立演进？
+4. 跨聚合流程是否需要显式进度、幂等和恢复边界？
 
-    Client->>Gateway: send(command)
-    Gateway->>Gateway: 幂等检查 + 参数校验
-    Gateway->>Bus: send(command)
-    Bus->>Aggregate: dispatch(command)
-    Aggregate-->>Bus: DomainEventStream
-    Bus->>Store: append(eventStream)
-    Store-->>Bus: append completed
-    Bus-->>Gateway: PROCESSED
-    Store-->>Projection: publish(domain event)
-    Store-->>Saga: publish(domain event)
-    Projection-->>Client: PROJECTED
-    Saga-->>Client: SAGA_HANDLED
-```
+大多为“否”时，清晰 CRUD 通常更简单。大多为“是”时，再用一个真实业务切片验证 Wow，而不是先改造整套系统。
 
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt:94-187, wow-core/src/main/kotlin/me/ahoo/wow/command/wait/NotifierFilters.kt:40-118 -->
+## 最小采用路径
 
-`DefaultCommandGateway` 在发送命令前执行 request ID 幂等检查和 command validation；`sendAndWaitForSent` 只代表命令总线接受了命令，`sendAndWait` 则根据 `WaitPlan` 等待后续阶段。[DefaultCommandGateway.kt:94-187](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L94-L187)
+1. 在一个核心场景中写下命令、不变量、事件和状态。
+2. 用[领域测试套件](../guide/test-suite.md)证明成功与拒绝路径。
+3. 按[快速上手](../guide/getting-started.md)暴露一条真实命令并读取溯源状态。
+4. 只有真实查询需求出现时才添加投影；只有真实跨聚合流程出现时才添加 Saga。
+5. 按[应用测试](../guide/application-testing.md)验证真实 Adapter、重启、重复投递与安全边界。
+6. 在生产前完成[生产最佳实践](../guide/best-practices.md)和[备份、恢复与重放](../guide/recovery.md)门禁。
 
-这解决了传统系统中常见的“先 `sleep(1000)` 再查询”问题：调用方可以明确选择自己真正需要的完成阶段，而不是猜测异步同步是否已经结束。
+## 结语
 
-## 不再用时间猜测业务是否完成
+“从写接口到交付领域模型”不是把 Controller 换成更多架构名词，而是把业务决策、事实与验证放在稳定边界内，再让框架承担可复用的运行机制。
 
-```mermaid
-%%{init: {"theme": "dark"}}%%
-stateDiagram-v2
-    [*] --> SENT: CommandBus accepted
-    SENT --> PROCESSED: Aggregate handled
-    PROCESSED --> SNAPSHOT: Snapshot generated
-    PROCESSED --> PROJECTED: Read model updated
-    PROCESSED --> EVENT_HANDLED: Event processor completed
-    PROCESSED --> SAGA_HANDLED: Saga handled event
-
-    classDef stage fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    class SENT,PROCESSED,SNAPSHOT,PROJECTED,EVENT_HANDLED,SAGA_HANDLED stage
-```
-
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt:25-125, wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandWait.kt:23-72 -->
-
-Wow 当前定义了 `SENT`、`PROCESSED`、`SNAPSHOT`、`PROJECTED`、`EVENT_HANDLED` 和 `SAGA_HANDLED` 等阶段。[CommandStage.kt:25-125](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L25-L125)
-
-它们对应不同的产品和系统需求：
-
-| 调用方需求 | 推荐阶段 | 原因 | 项目依据 |
-|---|---|---|---|
-| 只需要快速接收请求 | `SENT` | 不等待聚合和下游处理 | [DefaultCommandGateway.kt:145-187](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L145-L187) |
-| 需要确认业务规则已执行 | `PROCESSED` | 聚合已处理 command | [CommandStage.kt:40-51](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L40-L51) |
-| 页面必须读到最新结果 | `PROJECTED` | 读模型已完成投影 | [CommandStage.kt:54-68](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L54-L68) |
-| 需要确认 Saga 已继续推进 | `SAGA_HANDLED` | Saga 已处理领域事件 | [CommandStage.kt:79-90](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L79-L90) |
-
-## 事件溯源：少写持久化代码，多获得业务能力
-
-传统 CRUD 主要保存当前状态：
-
-```text
-Order.status = PAID
-```
-
-Wow 保存形成状态的业务事实：
-
-```text
-OrderCreated
-OrderPaid
-OrderShipped
-OrderReceived
-```
-
-`EventSourcingStateAggregateRepository` 在加载最新聚合时，会优先尝试快照；如果没有快照，则创建初始状态，再从事件存储加载后续事件并回放。[EventSourcingStateAggregateRepository.kt:41-125](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventSourcingStateAggregateRepository.kt#L41-L125)
-
-```mermaid
-%%{init: {"theme": "dark"}}%%
-flowchart TB
-    A["AggregateId"] --> B{"Latest snapshot?"}
-    B -->|"yes"| C["Load Snapshot"]
-    B -->|"no"| D["Create Initial State"]
-    C --> E["Load Events from expectedNextVersion"]
-    D --> E
-    E --> F["Replay DomainEventStream"]
-    F --> G["Current State"]
-    F --> H["Historical State by Version or Time"]
-
-    classDef store fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    class A,B,C,D,E,F,G,H store
-    linkStyle default stroke:#8b949e
-```
-
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventSourcingStateAggregateRepository.kt:41-155, wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt:27-98 -->
-
-同一条事件流还可以被 Projection、事件处理器和 Saga 消费。订单创建后，当前示例的 `CartSagaSpec` 验证了：当订单来自购物车时，Saga 发送 `RemoveCartItem`；订单不是来自购物车时，不发送命令。[CartSagaSpec.kt:28-75](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/cart/CartSagaSpec.kt#L28-L75)
-
-这让审计、读模型、跨服务协作和补偿流程共享同一组业务事实，不需要为每个场景重新设计一套数据库同步机制。
-
-## 开发成本为什么会下降
-
-| 成本来源 | 传统架构 | Wow 的做法 | 结果 |
-|---|---|---|---|
-| 重复接口代码 | 每个资源手写 Controller、DTO、路由 | 模型元数据驱动 API 和路由 | 少写样板代码 |
-| 重复状态代码 | Service 直接更新多个表字段 | 聚合处理 command，产生事件 | 规则集中在领域边界 |
-| 重复同步代码 | 手写事件通知、轮询和延迟重试 | 事件总线、Projection、Saga 复用事件流 | 少维护旁路链路 |
-| 重复测试准备 | 启动上下文、数据库和清理脚本 | `AggregateSpec` / `SagaSpec` DSL | 更快验证业务行为 |
-| 重复审计代码 | 额外设计操作日志和历史表 | 领域事件保留业务事实 | 审计与回放能力复用 |
-
-Wow 的“低开发成本”不是把业务规则删掉，而是把通用能力从业务服务中抽出来。开发者仍然需要设计聚合边界、事件契约和跨服务协作，但不必在每个项目中重复搭建命令路由、事件存储、状态回放和等待阶段。
-
-## 测试：把领域模型变成可执行规格
-
-`AggregateSpec` 使用 Given → When → Expect 描述聚合行为。当前 `CartSpec` 不只验证加入商品，还从场景分支验证移除商品、删除聚合、恢复聚合和非法重复恢复。[CartSpec.kt:28-84](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/cart/CartSpec.kt#L28-L84)
-
-```kotlin
-class CartSpec : AggregateSpec<Cart, CartState>({
-    on {
-        givenOwnerId(ownerId)
-
-        whenCommand(AddCartItem(productId = "productId", quantity = 1)) {
-            expectNoError()
-            expectEventType(CartItemAdded::class)
-            expectState {
-                items.assert().hasSize(1)
-            }
-        }
-    }
-})
-```
-
-测试表达的是业务语言：
-
-```text
-Given：购物车属于某个用户
-When：加入一个商品
-Expect：产生 CartItemAdded
-Expect：购物车包含一个商品
-```
-
-这比只断言某个数据库字段更接近产品真正关心的结果：允许什么行为、拒绝什么行为，以及一次行为会产生什么业务事实。
-
-## Wow 不是所有系统的默认答案
-
-如果系统只是简单 CRUD，传统架构的低启动成本可能更合适。
-
-Wow 更适合以下场景：
-
-- 领域状态复杂，存在明确的不变量和非法迁移
-- 订单、库存、支付、购物车需要跨服务协作
-- 需要审计、事件回放或历史状态重建
-- 需要读写分离和明确的最终一致性阶段
-- 团队希望用领域测试直接固化业务行为
-
-选择 Wow 的核心理由，不是为了多引入几个架构名词，而是为了让一个领域模型承载更多服务能力：
-
-```text
-一次建模
-多处复用
-
-一个领域模型
-连接命令、事件、存储、查询和协作
-
-少写基础设施
-多写业务规则
-```
-
-## 结语：从“写接口”转向“交付领域模型”
-
-传统架构的基本单位是接口：一个接口、一套 Controller、一套 Service、一套 Repository、一套测试。
-
-Wow 的基本单位是领域模型：一个聚合、一组命令、一组事件、一套可回放的业务状态。
-
-传统架构让团队不断重复搭建业务外围设施；Wow 把这些通用能力沉淀到框架中，让开发者专注于真正决定产品价值的部分：
-
-> 业务规则，而不是胶水代码。
-
-当系统从简单 CRUD 走向订单、库存、支付、履约和复杂协作时，Wow 的“模型即服务”不仅是一种架构理念，更是一种降低长期开发成本的工程方法。
-
-## Related Pages
-
-| 页面 | 关系 |
-|---|---|
-| [简介](../guide/introduction.md) | 了解 Wow 的定位、低开发成本和模型即服务理念 |
-| [核心概念](../guide/core-concepts.md) | 理解聚合根、command、event、projection 和 Saga |
-| [聚合建模](../guide/modeling.md) | 学习如何把领域模型写成 Wow 聚合 |
-| [命令网关](../guide/command-gateway.md) | 了解命令发送、等待计划和处理阶段 |
-| [测试套件](../guide/test-suite.md) | 使用 `AggregateSpec` 和 `SagaSpec` 验证业务行为 |
-| [事件存储](../guide/eventstore.md) | 了解事件持久化、回放和状态恢复 |
+简单问题应保持简单；复杂领域才值得支付事件溯源、最终一致性与运维成本。选择 Wow 的理由应来自具体业务复杂度和可验证证据，而不是“传统”或“现代”的标签。

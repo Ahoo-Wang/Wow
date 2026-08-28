@@ -1,73 +1,34 @@
 ---
 title: Serialization
-description: Jackson 3 entry points, module registration, missing polymorphic type fallback, and compatibility boundaries in Wow.
+description: Wow's Jackson 3 mapper, framework module, event-type resolution, and wire-compatibility boundary.
+outline: deep
 ---
 
 # Serialization
 
-Wow uses Jackson 3 for the JSON representation of commands, event streams, snapshots, state aggregates, and query models. The framework exposes two complementary entry points:
+Wow uses Jackson 3 for commands, event streams, state events, snapshots, and state aggregates. Serialization configuration may affect HTTP, messaging, and persisted data at the same time, so a mapper is not merely an internal implementation detail.
 
-- `JsonSerializer`: a preconfigured global `ObjectMapper` used by the Wow runtime and application helper code.
-- `WowModule`: a Jackson module that registers serializers, deserializers, and the missing-type handler for Wow framework types.
+## Two entry points
 
-A serialization shape can be an HTTP, messaging, and persistence contract at the same time. Evaluate source, binary, and wire compatibility separately before replacing a mapper or changing type annotations.
+| Entry point | Owner | Use |
+| --- | --- | --- |
+| `JsonSerializer` | A preconfigured global `ObjectMapper` in `wow-core` | Wow internals and application conversion helpers |
+| `WowModule` | A module that can be registered with any Jackson mapper | Spring Boot's mapper or an application-built mapper |
 
-## Choose an Entry Point
+`JsonSerializer` is built with Kotlin `jsonMapper`. It configures field visibility, ignores unknown properties, allows final-field mutation, materializes untyped floating numbers as `BigDecimal`, and calls `findAndAddModules()`. It is not equivalent to a bare `ObjectMapper` created by the application.
 
-| Scenario | Recommended entry point | Registration behavior |
-|---|---|---|
-| Wow Spring Boot application | Inject Spring's `ObjectMapper` | The starter provides a `WowModule` bean automatically |
-| Wow runtime or in-application conversion | `JsonSerializer` and its extensions | Kotlin and Wow Jackson modules are discovered automatically |
-| Fully custom mapper | Register the Kotlin module and `WowModule` | Enables Kotlin and Wow type serialization support |
-| `wow-api`-only consumer | Register the Kotlin module; optionally register `MissingTypeImplProblemHandler` | Supports Kotlin models and optional `@MissingTypeImpl` fallback |
-
-A bare `ObjectMapper` or `JsonMapper` does not automatically inherit Kotlin or Wow configuration or missing-type fallback.
-
-## JsonSerializer
-
-`JsonSerializer` lives in `wow-core`. It is built with Kotlin's `jsonMapper` and applies these Wow defaults:
-
-- Field visibility `ANY` for all accessors.
-- Final fields may be used as mutators.
-- Unknown JSON properties are ignored.
-- Untyped floating-point values are read as `BigDecimal`.
-- Undefined parser tokens are ignored.
-- Jackson modules, including `WowModule`, are discovered through SPI.
-
-The convenience extensions share that mapper:
+Common helpers delegate to that mapper:
 
 ```kotlin
-import me.ahoo.wow.serialization.deepCopy
-import me.ahoo.wow.serialization.toJsonString
-import me.ahoo.wow.serialization.toLinkedHashMap
-import me.ahoo.wow.serialization.toObject
-import me.ahoo.wow.serialization.toObjectNode
-import java.math.BigDecimal
-
-data class OrderView(val id: String, val amount: BigDecimal)
-
-val source = OrderView("order-1", BigDecimal("12.50"))
-val json = source.toJsonString()
-val decoded = json.toObject<OrderView>()
+val json = order.toJsonString()
+val decoded = json.toObject<Order>()
 val tree = json.toObjectNode()
-val copied = decoded.deepCopy()
-val properties = decoded.toLinkedHashMap()
+val copied = order.deepCopy()
 ```
 
-| API | Purpose |
-|---|---|
-| `toJsonString()` / `toPrettyJson()` | Write compact or formatted JSON |
-| `String.toObject<T>()` | Read JSON as a concrete type |
-| `toJsonNode()` / `toObjectNode()` | Convert between values and Jackson's tree model |
-| `convert<T>()` | Map values using Jackson property conversion |
-| `deepCopy()` | Create a same-type copy through `convertValue` |
-| `toLinkedHashMap()` | Convert a value to an insertion-ordered property map |
+## Framework formats owned by WowModule
 
-These functions use Wow's global mapper configuration. They are not equivalent to a mapper created by the caller.
-
-## WowModule
-
-`WowModule` registers dedicated serializers for:
+`WowModule` registers serializers and deserializers for:
 
 - `AggregateId`
 - `CommandMessage`
@@ -76,109 +37,75 @@ These functions use Wow's global mapper configuration. They are not equivalent t
 - `Snapshot`
 - `StateEvent`
 
-It also registers `MissingTypeImplProblemHandler`. Do not duplicate individual serializer registrations; install the module instead:
+It also installs `MissingTypeImplProblemHandler`. The Spring Boot Starter provides a `WowModule` bean before Jackson auto-configuration. That adds the Wow module but does not copy all `JsonSerializer` features into the Spring-managed mapper.
+
+An application that replaces the Spring mapper, disables module discovery, or builds a mapper itself must explicitly register the required Kotlin modules and `WowModule`, then test the actual runtime path.
+
+## Event-record type resolution
+
+A persisted event record stores both stable business identity and a JVM type hint, including context, aggregate, event `name`, `revision`, `bodyType`, and body.
+
+Deserialization proceeds as follows:
+
+1. `EventUpgraderFactory` transforms an old record.
+2. `EventTypeRegistry` looks up a current metadata type using `(context, aggregate, name, revision)`.
+3. If not found, deserialization attempts the stored `bodyType`.
+4. If that class is also unavailable, the record remains a `JsonDomainEvent` whose body is a JSON tree.
+
+This fallback preserves a representation for an unknown historical type; it does not prove that a current aggregate can replay it correctly. If sourcing depends on a concrete type, supply a resolvable type or an [Event Upgrader](./event-evolution.md).
+
+When a `DomainEventStream` is deserialized, event `sequence` and `isLast` are derived again from body-list position. Do not treat custom JSON property order outside that array as an event-order contract.
+
+## Missing polymorphic type fallback
+
+`@MissingTypeImpl` declares a default subtype only when JSON is **missing** its type ID:
 
 ```kotlin
-import me.ahoo.wow.serialization.WowModule
-import tools.jackson.module.kotlin.jsonMapper
-import tools.jackson.module.kotlin.kotlinModule
-
-val mapper = jsonMapper {
-    addModule(kotlinModule())
-    addModule(WowModule())
-}
-```
-
-### Automatic Registration
-
-The Spring Boot starter contributes a `WowModule` bean before Jackson auto-configuration. `wow-core` also publishes the module through `META-INF/services/tools.jackson.databind.JacksonModule`, which is discovered by `JsonSerializer.findAndAddModules()`.
-
-Spring's mapper keeps its Spring Boot feature configuration. `WowModule` adds Wow serializers, deserializers, and the handler; it does not copy every global feature from `JsonSerializer`.
-
-Applications that replace Spring's `ObjectMapper` completely or disable module discovery must register the Kotlin module and `WowModule` themselves.
-
-## Missing Polymorphic Type Fallback
-
-`MissingTypeImpl` and `MissingTypeImplProblemHandler` are public APIs in `wow-api`. The annotation declares a default implementation; a missing Jackson type id uses it only when the handler is registered.
-
-```kotlin
-import com.fasterxml.jackson.annotation.JsonSubTypes
-import com.fasterxml.jackson.annotation.JsonTypeInfo
-import me.ahoo.wow.api.serialization.MissingTypeImpl
-
 @MissingTypeImpl(Expression.Field::class)
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-@JsonSubTypes(
-    JsonSubTypes.Type(Expression.Field::class, name = "FIELD"),
-    JsonSubTypes.Type(Expression.Constant::class, name = "CONSTANT"),
-)
-sealed interface Expression {
-    data class Field(val field: String) : Expression
-    data class Constant(val value: Double) : Expression
-}
+sealed interface Expression
 ```
 
-Register the public handler directly:
+The fallback runs only when the mapper has `MissingTypeImplProblemHandler` registered.
 
-```kotlin
-import me.ahoo.wow.api.serialization.MissingTypeImplProblemHandler
-import tools.jackson.databind.json.JsonMapper
+| Input | Behavior |
+| --- | --- |
+| Missing type, annotated base type | Construct the annotated subtype |
+| Known type | Use normal Jackson subtype resolution |
+| Unknown type | The handler does not intercept; retain the mapper's unknown-type policy |
+| Missing type, unannotated base type | Retain Jackson's missing-type error |
 
-val mapper = JsonMapper.builder()
-    .addHandler(MissingTypeImplProblemHandler())
-    .build()
+The annotation is not a blanket old-JSON compatibility switch. Its implementation must be a valid subtype of the current base type, and this runtime fallback does not make an OpenAPI/JSON Schema discriminator optional.
+
+## Assess three compatibility scopes separately
+
+| Scope | Example | Required verification |
+| --- | --- | --- |
+| Source | Kotlin property or constructor changes | Recompile callers |
+| Binary | Existing compiled callers load new classes/JARs | Binary compatibility check or real consumer execution |
+| Wire | JSON fields, types, revisions, or defaults change | Historical event/snapshot/message/HTTP contract tests |
+
+A successful Kotlin compilation does not prove historical events and snapshots are readable. Reading an old event does not prove an old binary can load. Implement only the compatibility scope the release requires.
+
+## Minimum checks before customizing a mapper
+
+1. Read real or sanitized historical events and snapshots with the final runtime mapper.
+2. Round-trip known commands, event streams, StateEvents, and Snapshots.
+3. Test missing, known, and unknown polymorphic type IDs.
+4. Test EventTypeRegistry resolution and `bodyType` fallback.
+5. Replay a complete aggregate and assert final state, not only JSON text.
+6. Verify generated OpenAPI/Schema separately.
+
+```bash
+./gradlew :wow-core:test --tests "me.ahoo.wow.serialization.JsonSerializerMapperTest"
+./gradlew :wow-core:test --tests "me.ahoo.wow.serialization.JsonSerializerEventTest"
+./gradlew :wow-api:test --tests "me.ahoo.wow.api.serialization.MissingTypeImplProblemHandlerTest"
 ```
 
-This builder example demonstrates handler registration only. Callers must still install the Kotlin and other datatype modules their models require.
+## Source and related pages
 
-### Exact Semantics
-
-| Input | Result |
-|---|---|
-| `{"field":"amount"}` | Deserializes as `Field` when the base has `@MissingTypeImpl` and the handler is registered |
-| `{"type":"CONSTANT","value":10}` | Uses normal Jackson known-subtype resolution |
-| `{"type":"UNKNOWN"}` | Is not handled; behavior follows the caller's `FAIL_ON_INVALID_SUBTYPE` setting |
-| Missing type id on an unannotated base | Preserves Jackson's native missing-type error |
-
-The handler overrides only `handleMissingTypeId`. It does not handle unknown type ids or modify any global Jackson feature.
-
-`@MissingTypeImpl` is a direct contract and is not inherited through class or interface hierarchies. Annotate the concrete base type being deserialized. This avoids ambiguous interface precedence and prevents a parent default from being selected when it is not a subtype of the narrower base. The implementation must be a valid subtype or Jackson cannot construct the specialized type.
-
-## AggregationExpression Compatibility Boundary
-
-`AggregationExpression` declares `@MissingTypeImpl(AggregationExpression.Field::class)`. With `WowModule` or the explicit handler, the legacy payload may still omit the type id:
-
-```json
-{"field":"amount"}
-```
-
-New callers should send the explicit discriminator:
-
-```json
-{"type":"FIELD","field":"amount"}
-```
-
-A bare mapper rejects the first form. Because `JsonTypeInfo.defaultImpl` is no longer present, the generated OpenAPI schema also marks `type` as required. Runtime acceptance of legacy JSON does not make the generated contract describe `type` as optional.
-
-## Persistence and Testing
-
-Event streams and snapshots are long-lived wire contracts. Before changing a mapper, module, or type annotation, verify at least:
-
-1. The production mapper can read representative historical events and snapshots.
-2. Known polymorphic types survive a serialization round trip.
-3. Required missing-type compatibility is tested through the actual registration path.
-4. Unknown type ids still follow the application's failure policy instead of silently falling back.
-5. JSON Schema and OpenAPI discriminators, required fields, and recursive references match the intended contract.
-
-Related guides:
-
-- [Event Evolution](./event-evolution)
-- [JSON Schema](./schema)
-- [Kafka Extension](../extensions/kafka)
-
-Sources:
-
-- [`JsonSerializer.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/serialization/JsonSerializer.kt)
-- [`WowModule.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/serialization/WowModule.kt)
-- [`MissingTypeImpl.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/serialization/MissingTypeImpl.kt)
-- [`SerializationAutoConfiguration.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/serialization/SerializationAutoConfiguration.kt)
+- [`JsonSerializer`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/serialization/JsonSerializer.kt)
+- [`WowModule`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/serialization/WowModule.kt)
+- [`DomainEventRecord`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/serialization/event/DomainEventRecord.kt)
+- [`MissingTypeImpl`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/serialization/MissingTypeImpl.kt)
+- [JSON Schema](./schema.md) / [OpenAPI](../open-api.md): generated-contract boundaries

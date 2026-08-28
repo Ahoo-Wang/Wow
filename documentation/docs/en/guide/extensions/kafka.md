@@ -1,227 +1,69 @@
 ---
 title: Kafka
-description: Apache Kafka extension implementing CommandBus, DomainEventBus, and StateEventBus for production environments.
+description: Use Kafka for distributed command, domain-event, and state-event buses.
 ---
 
 # Kafka
 
-The _Kafka_ extension provides support for Apache Kafka, implementing `CommandBus`, `DomainEventBus`, and `StateEventBus`. It is the **default and recommended distributed message bus** implementation for production environments. All three concrete bus implementations -- `KafkaCommandBus`, `KafkaDomainEventBus`, and `KafkaStateEventBus` -- are built on top of a shared reactive pipeline powered by [reactor-kafka](https://projectreactor.io/docs/kafka/release/reference/).
+`wow-kafka` implements distributed `CommandBus`, `DomainEventBus`, and `StateEventBus` contracts. Use it when one bounded context runs across processes and Kafka consumer groups must distribute messages. Prefer `in_memory` for a single-process development or test runtime; do not add a broker only for speculative scale.
+
+Having the module on the classpath only makes the implementation available. Starter creates a bus only when the classpath, `wow.kafka.enabled`, the corresponding `*.bus.type`, and Kafka connection properties all match.
 
 ## Architecture Overview
 
+Wow converts framework messages to Kafka records and wraps received records in acknowledgeable exchanges. Kafka owns topics, partitions, replication, retention, consumer groups, and offset persistence. The application still owns broker operations, topic policy, and business idempotency.
+
 ### High-Level Flow
 
-```mermaid
-flowchart TB
-    subgraph Producer["Producer"]
-        CG[CommandGateway]
-        EB[EventBus]
-    end
-    
-    subgraph Kafka["Kafka Cluster"]
-        CT[Command Topic]
-        DET[DomainEvent Topic]
-        SET[StateEvent Topic]
-    end
-    
-    subgraph Consumer["Consumer"]
-        CP[CommandProcessor]
-        EP[EventProcessor]
-        PP[ProjectionProcessor]
-    end
-    
-    CG -->|Send Command| CT
-    EB -->|Publish Domain Event| DET
-    EB -->|Publish State Event| SET
-    
-    CT -->|Consume Command| CP
-    DET -->|Consume Domain Event| EP
-    SET -->|Consume State Event| PP
-```
+The send path is `CommandGateway`/event publisher → Wow bus → Kafka. The receive path is Kafka → Wow exchange → command, event, projection, or Saga processor. Both `send` and `receive` retain Reactor's non-blocking contract.
 
 ### Class Hierarchy
 
-All three Kafka bus implementations extend `AbstractKafkaBus`, which itself implements the `DistributedMessageBus` interface. Each bus specializes in one message type, producing and consuming from dedicated Kafka topics.
-
-```mermaid
-classDiagram
-    direction TB
-    class MessageBus~M,E~ {
-        <<interface>>
-        +send(M) Mono~Void~
-        +receive(MessageSubscription) Flux~E~
-    }
-    class DistributedMessageBus~M,E~ {
-        <<interface>>
-    }
-    class AbstractKafkaBus~M,E~ {
-        <<abstract>>
-        -topicConverter: AggregateTopicConverter
-        -senderOptions: SenderOptions
-        -receiverOptions: ReceiverOptions
-        -receiverOptionsCustomizer
-        #sender: KafkaSender
-        +send(M) Mono~Void~
-        +receive(MessageSubscription) Flux~E~
-        #encode(M) SenderRecord
-        #decode(ReceiverRecord) M?
-    }
-    class KafkaCommandBus {
-        +messageType: Class~CommandMessage~
-        +toExchange(ReceiverOffset) ServerCommandExchange
-    }
-    class KafkaDomainEventBus {
-        +messageType: Class~DomainEventStream~
-        +toExchange(ReceiverOffset) EventStreamExchange
-    }
-    class KafkaStateEventBus {
-        +messageType: Class~StateEvent~
-        +toExchange(ReceiverOffset) StateEventExchange
-    }
-    class AggregateTopicConverter {
-        <<interface>>
-        +convert(NamedAggregate) String
-    }
-    class CommandTopicConverter {
-        <<interface>>
-    }
-    class EventStreamTopicConverter {
-        <<interface>>
-    }
-    class StateEventTopicConverter {
-        <<interface>>
-    }
-    class DefaultCommandTopicConverter
-    class DefaultEventStreamTopicConverter
-    class DefaultStateEventTopicConverter
-
-    MessageBus~M,E~ <|-- DistributedMessageBus~M,E~
-    DistributedMessageBus~M,E~ <|-- AbstractKafkaBus~M,E~
-    AbstractKafkaBus~M,E~ <|-- KafkaCommandBus
-    AbstractKafkaBus~M,E~ <|-- KafkaDomainEventBus
-    AbstractKafkaBus~M,E~ <|-- KafkaStateEventBus
-    AggregateTopicConverter <|-- CommandTopicConverter
-    AggregateTopicConverter <|-- EventStreamTopicConverter
-    AggregateTopicConverter <|-- StateEventTopicConverter
-    CommandTopicConverter <|-- DefaultCommandTopicConverter
-    EventStreamTopicConverter <|-- DefaultEventStreamTopicConverter
-    StateEventTopicConverter <|-- DefaultStateEventTopicConverter
-    KafkaCommandBus --> CommandTopicConverter
-    KafkaDomainEventBus --> EventStreamTopicConverter
-    KafkaStateEventBus --> StateEventTopicConverter
-```
-
-The `AbstractKafkaBus` base class centralizes the entire reactive send/receive pipeline using `reactor-kafka`. It wraps a `KafkaSender` for producing messages and configures a `KafkaReceiver` per subscription for consuming them. Each concrete subclass only needs to declare its `messageType` (used for JSON deserialization) and a `toExchange` factory method that constructs the acknowledgment-bearing exchange object.
+`KafkaCommandBus`, `KafkaDomainEventBus`, and `KafkaStateEventBus` share the send, receive, retry, and decode pipeline in `AbstractKafkaBus`. They differ only in message type, topic converter, and exchange type.
 
 ### Three Buses, Three Topic Kinds
 
-| Bus | Core Interface | Message Type | Exchange Type | Topic Suffix | Source |
-|---|---|---|---|---|---|
-| `KafkaCommandBus` | `DistributedCommandBus` | `CommandMessage<*>` | `KafkaServerCommandExchange` | `.command` | [KafkaCommandBus.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/KafkaCommandBus.kt) |
-| `KafkaDomainEventBus` | `DistributedDomainEventBus` | `DomainEventStream` | `KafkaEventStreamExchange` | `.event` | [KafkaDomainEventBus.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/KafkaDomainEventBus.kt) |
-| `KafkaStateEventBus` | `DistributedStateEventBus` | `StateEvent<*>` | `KafkaStateEventExchange` | `.state` | [KafkaStateEventBus.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/KafkaStateEventBus.kt) |
+| Bus | Selection property | Default suffix |
+|---|---|---|
+| Command | `wow.command.bus.type=kafka` | `.command` |
+| Domain event | `wow.event.bus.type=kafka` | `.event` |
+| State event | `wow.eventsourcing.state.bus.type=kafka` | `.state` |
 
 ## End-to-End Message Flow
 
-The following sequence diagram traces the lifecycle of a command through the Kafka bus, from the `CommandGateway` through Kafka to the `CommandProcessor` on the receiving end. Domain events and state events follow an identical pattern with their respective topic converters and exchange types.
+The sender marks a message read-only, uses its aggregate ID as the record key, and waits for the `KafkaSender` result. The receiver derives topics from the subscription, joins a consumer group, decodes each record, and creates an exchange. The processor acknowledges the offset through that exchange after handling completes.
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant CG as CommandGateway
-    participant KCB as KafkaCommandBus
-    participant KS as KafkaSender
-    participant K as Kafka Broker
-    participant KR as KafkaReceiver
-    participant CP as CommandProcessor
-
-    CG->>KCB: send(commandMessage)
-    Note over KCB: message.withReadOnly()
-    KCB->>KCB: encode(message)
-    Note over KCB: ProducerRecord(topic, key=aggregateId, value=json)
-    KCB->>KS: sender.send(senderRecord)
-    KS->>K: produce to {prefix}.{context}.{aggregate}.command
-    K-->>KS: ack (partition, offset)
-    KS-->>KCB: SenderResult
-    KCB-->>CG: Mono<Void> complete
-
-    Note over KR,K: On consumer side (separate JVM)
-    K->>KR: poll from subscribed topics
-    KR->>KCB: receive - decode(receiverRecord)
-    Note over KCB: JSON to CommandMessage
-    KCB->>KCB: message.toExchange(receiverOffset)
-    KCB-->>CP: KafkaServerCommandExchange(message, offset)
-    CP->>CP: process command
-    CP->>KR: exchange.acknowledge()
-    Note over KR: commit offset
-```
-
-Key behavioral characteristics visible in the flow:
-
-1. **Non-blocking reactive pipeline**: Both `send` and `receive` return reactive types (`Mono<Void>`, `Flux<E>`) -- the sender never blocks.
-2. **Read-only marking**: Every message is marked read-only before serialization at [AbstractKafkaBus.kt:57](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt#L57), preventing accidental mutation.
-3. **Partition key is aggregate ID**: The record key is always set to `message.aggregateId.id` at [AbstractKafkaBus.kt:106](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt#L106), guaranteeing ordered processing per aggregate.
-4. **Gap-safe manual offset management**: Offsets are acknowledged explicitly via `exchange.acknowledge()`. Deferred commits prevent a later completed record from committing past an earlier in-flight record.
+This is not an exactly-once business guarantee. Broker redelivery, handler failure, and process termination still require idempotent command and event handling.
 
 ## Installation
 
-::: code-group
-```kotlin [Gradle(Kotlin)]
-implementation("me.ahoo.wow:wow-kafka")
-```
-```groovy [Gradle(Groovy)]
-implementation 'me.ahoo.wow:wow-kafka'
-```
-```xml [Maven]
-<dependency>
-    <groupId>me.ahoo.wow</groupId>
-    <artifactId>wow-kafka</artifactId>
-    <version>${wow.version}</version>
-</dependency>
-```
-:::
-
-When using `wow-spring-boot-starter`, the Kafka integration is included as an optional feature capability (`kafka-support`). Add it explicitly if the starter is used without the full dependency set:
+Use the module directly:
 
 ```kotlin
-implementation("me.ahoo.wow:wow-spring-boot-starter")
 implementation("me.ahoo.wow:wow-kafka")
 ```
+
+With Starter, request the actual Gradle capability:
+
+```kotlin
+implementation("me.ahoo.wow:wow-spring-boot-starter") {
+    capabilities {
+        requireCapability("me.ahoo.wow:kafka-support")
+    }
+}
+```
+
+Do not declare both the capability and `wow-kafka` unless dependency resolution requires it.
 
 ## Configuration
 
-- Configuration class: [KafkaProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/kafka/KafkaProperties.kt)
-- Prefix: `wow.kafka.`
-
-| Name | Data Type | Required | Default Value | Description |
-|---|---|---|---|---|
-| `enabled` | `Boolean` | No | `true` | Whether to enable |
-| `bootstrap-servers` | `List<String>` | **Yes** | -- | Kafka server addresses |
-| `topic-prefix` | `String` | No | `wow.` | Topic prefix |
-| `properties` | `Map<String, String>` | No | `{}` | Common configuration |
-| `producer` | `Map<String, String>` | No | `{}` | Producer configuration |
-| `consumer` | `Map<String, String>` | No | `{}` | Consumer configuration |
-| `receiver.prefetch-batches` | `Int` | No | `1` | Number of Kafka poll batches prefetched by the reactive receiver |
-| `receiver.max-deferred-commits` | `Int` | No | `1` | Maximum number of out-of-order commits retained to preserve offset gaps |
-| `receiver.retry-attempts` | `Long` | No | `3` | Retry attempts for each consecutive receiver failure burst |
-| `receiver.retry-backoff` | `Duration` | No | `10s` | Minimum receiver retry backoff |
-| `receiver.decode-failure-strategy` | `FAIL` / `ACKNOWLEDGE` | No | `FAIL` | Whether an invalid record stops the receiver or is explicitly skipped |
-
-### Bus Type Selection
-
-Each bus (command, domain event, state event) can independently select its implementation via the `*.bus.type` property. Kafka is the **default** for all three:
-
-| Property | Default |
-|---|---|
-| `wow.command.bus.type` | `kafka` |
-| `wow.event.bus.type` | `kafka` |
-| `wow.eventsourcing.state.bus.type` | `kafka` |
-
-Valid values are: `kafka`, `redis`, `in_memory`, `no_op`.
-
-**YAML Configuration Example**
+This is the minimum explicit configuration when Kafka carries all three buses:
 
 ```yaml
+spring:
+  application:
+    name: order-service
+
 wow:
   command:
     bus:
@@ -234,297 +76,120 @@ wow:
       bus:
         type: kafka
   kafka:
-    bootstrap-servers: localhost:9092
-    topic-prefix: 'wow.'
-    receiver:
-      prefetch-batches: 1
-      max-deferred-commits: 1
-      retry-attempts: 3
-      retry-backoff: 10s
-      decode-failure-strategy: FAIL
+    bootstrap-servers:
+      - localhost:9092
 ```
+
+`wow.kafka.bootstrap-servers` has no default. Defaults are `enabled=true`, `topic-prefix=wow.`, `receiver.prefetch-batches=1`, `receiver.max-deferred-commits=1`, `receiver.retry-attempts=3`, `receiver.retry-backoff=10s`, and `receiver.decode-failure-strategy=FAIL`.
+
+### Bus Type Selection
+
+Each bus independently supports `kafka`, `redis`, `in_memory`, or `no_op`. Do not infer that every bus uses Kafka merely because the capability is present; verify all three `*.bus.type` values and the resulting bean types.
 
 ### SenderOptions and ReceiverOptions
 
-The `KafkaProperties` class provides two builder methods that merge the common `properties` map with the type-specific `producer` or `consumer` maps:
-
-- `buildSenderOptions()` -- merges `properties` + `producer`, auto-sets `KEY_SERIALIZER_CLASS_CONFIG` and `VALUE_SERIALIZER_CLASS_CONFIG` to `StringSerializer`.
-- `buildReceiverOptions()` -- merges `properties` + `consumer`, auto-sets deserializers to `StringDeserializer`.
-
-All serialization is performed at the application layer as JSON strings (via `message.toJsonString()` in [AbstractKafkaBus.kt:108](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt#L108)), so the Kafka client only needs to transport raw strings. This avoids coupling the broker to any domain-specific serialization format.
+`wow.kafka.properties` applies to producer and consumer, while `wow.kafka.producer` and `wow.kafka.consumer` override common entries for one side. Starter fixes string serializers/deserializers. Authentication, TLS, acks, timeouts, and consumption policy remain native Kafka client properties.
 
 ### Receiver Retry Policy
 
-When a `KafkaReceiver` encounters an error, it retries up to **3 times with a 10-second minimum backoff** before propagating the error. Retry accounting uses `transientErrors(true)`, so a successfully received record resets the retry budget for the next consecutive failure burst.
-
-```kotlin
-Retry.backoff(3, Duration.ofSeconds(10))
-    .transientErrors(true)
-```
-
-Use `wow.kafka.receiver.retry-attempts` and `wow.kafka.receiver.retry-backoff` to tune this policy.
+The receive stream retries consecutive failures according to `retry-attempts` and `retry-backoff`. `prefetch-batches` and `max-deferred-commits` must be positive; attempts and backoff must not be negative. `KafkaReceiverPolicy` rejects invalid values while the runtime is wired.
 
 ### Decode Failure Policy
 
-The receiver validates JSON decoding and the transport invariants that the Kafka key equals the decoded aggregate ID and that the record topic matches the decoded aggregate. The default `FAIL` strategy leaves an invalid record unacknowledged and terminates the receive stream with payload-free metadata diagnostics.
-
-Set `wow.kafka.receiver.decode-failure-strategy: ACKNOWLEDGE` only when explicitly accepting data loss for invalid records. The record is acknowledged only after the failure handler completes. Applications that require a dead-letter queue can provide a custom `KafkaRecordDecodeFailureHandler`: completion authorizes acknowledgment, while an error keeps the record unacknowledged.
+`FAIL` is the default: a malformed record terminates the current receive stream and enters retry. `ACKNOWLEDGE` acknowledges and skips the record, which can cause unrecoverable data loss. Use it only with a dead-letter, audit, and replay procedure.
 
 ## Topic Naming Rules
 
-Topics are derived from three components: the configurable **prefix**, the **named aggregate** (context + aggregate name), and a **fixed suffix** per bus type.
-
-```mermaid
-graph LR
-    Config[Config<br>wow.kafka.topic-prefix] --> Prefix["wow."]
-    Named[NamedAggregate] --> Ident["order-service.order"]
-    Prefix --> Topic
-    Ident --> Topic
-    Suffix[".command / .event / .state"] --> Topic
-    Topic["wow.order-service.order.command"]
-```
-
-| Message Type | Topic Naming Format | Example |
-|---|---|---|
-| Command | `{prefix}{contextName}.{aggregateName}.command` | `wow.order-service.order.command` |
-| DomainEvent | `{prefix}{contextName}.{aggregateName}.event` | `wow.order-service.order.event` |
-| StateEvent | `{prefix}{contextName}.{aggregateName}.state` | `wow.order-service.order.state` |
-
-::: tip
-The `topic-prefix` configuration allows you to add a uniform prefix to all Topics, making it easier to distinguish between multiple environments or projects. The topic prefix defaults to `"wow."` (the `Wow.WOW_PREFIX` constant defined at [Wow.kt:37](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/Wow.kt#L37)), but can be customized for multi-tenant or multi-environment deployments.
-:::
+Default names are `${topic-prefix}${contextAlias}.${aggregateName}.command|event|state`. Applications can provide `CommandTopicConverter`, `EventStreamTopicConverter`, or `StateEventTopicConverter`. These converters do not create topics or manage partition count, replication, or retention.
 
 ## Partition Strategy
 
-The Kafka extension uses the aggregate root ID as the partition key by default, ensuring that all messages for the same aggregate root are sent to the same partition, guaranteeing message ordering.
-
-```mermaid
-flowchart LR
-    subgraph Messages["Messages"]
-        C1["Order-001<br>Command"]
-        C2["Order-002<br>Command"]
-        E1["Order-001<br>DomainEvent"]
-    end
-    subgraph Partitions["Kafka Partitions"]
-        P0["Partition 0"]
-        P1["Partition 1"]
-        P2["Partition 2"]
-    end
-    C1 -->|"hash(Order-001)"| P0
-    C2 -->|"hash(Order-002)"| P2
-    E1 -->|"hash(Order-001)"| P0
-```
-
-This design is foundational for Event Sourcing: events must be consumed in publish-order to reconstruct aggregate state correctly. The partition key enforcement at the broker level makes this resilient across consumer rebalances.
+The record key is `aggregateId.id`, so Kafka's partitioner normally routes records for one aggregate to one partition and preserves partition order. Changing partition count or the partitioner changes that mapping and must be evaluated under Kafka's native migration and ordering semantics.
 
 ## Auto-Configuration
 
-The `KafkaAutoConfiguration` class wires all beans when Kafka is enabled and the `wow-kafka` module is on the classpath.
+`KafkaAutoConfiguration` requires Wow to be enabled, `wow-kafka` classes to exist, and `wow.kafka.enabled=true`. It then creates each implementation only when that bus selects Kafka.
 
 ### Bean Wiring
 
-```mermaid
-graph TB
-    subgraph Conditions["Condition Annotations"]
-        C1["@ConditionalOnWowEnabled"]
-        C2["@ConditionalOnKafkaEnabled"]
-        C3["@ConditionalOnClass(KafkaCommandBus)"]
-    end
-    subgraph Beans["Auto-Configured Beans"]
-        B1["ReceiverOptionsCustomizer"]
-        B2["CommandTopicConverter<br>(DefaultCommandTopicConverter)"]
-        B3["kafkaCommandBus<br>(KafkaCommandBus)"]
-        B4["EventStreamTopicConverter<br>(DefaultEventStreamTopicConverter)"]
-        B5["kafkaDomainEventBus<br>(KafkaDomainEventBus)"]
-        B6["StateEventTopicConverter<br>(DefaultStateEventTopicConverter)"]
-        B7["kafkaStateEventBus<br>(KafkaStateEventBus)"]
-    end
-    Config["KafkaProperties<br>(wow.kafka.*)"] --> B2
-    Config --> B3
-    Config --> B4
-    Config --> B5
-    Config --> B6
-    Config --> B7
-
-    B2 --> B3
-    B4 --> B5
-    B6 --> B7
-
-    C1 --> Beans
-    C2 --> Beans
-    C3 --> Beans
-```
-
-Each bus bean is guarded by a `@ConditionalOnProperty` check against the corresponding `*.bus.type` property. This means you can selectively disable Kafka for specific message types:
-
-```yaml
-wow:
-  command:
-    bus:
-      type: kafka       # Commands via Kafka (default)
-  event:
-    bus:
-      type: in_memory   # Domain events locally only
-  eventsourcing:
-    state:
-      bus:
-        type: kafka     # State events via Kafka
-```
+Auto-configuration provides topic converters, a `ReceiverOptionsCustomizer`, `KafkaReceiverPolicy`, a decode-failure handler, and the selected distributed buses. `@ConditionalOnMissingBean` applies only to extension points marked in source; it does not make every Kafka bean freely replaceable.
 
 ### ConditionalOnKafkaEnabled
 
-The custom `@ConditionalOnKafkaEnabled` annotation is a focused composition that enables/disables the entire `KafkaAutoConfiguration` class. It checks `wow.kafka.enabled = true` (matching if missing).
+`wow.kafka.enabled=false` disables Kafka auto-configuration but does not rewrite `*.bus.type=kafka`. Select another available bus at the same time, or the runtime will be missing the required distributed bean.
 
 ### ReceiverOptionsCustomizer
 
-The `ReceiverOptionsCustomizer` interface allows injecting custom behavior into the `KafkaReceiver` creation pipeline. Each concrete bus accepts an optional customizer, and the auto-configuration registers a `NoOpReceiverOptionsCustomizer` as the default.
+Provide the existing `ReceiverOptionsCustomizer` only for receiver changes that native `wow.kafka.consumer` properties cannot express. Avoid a customizer for ordinary Kafka client options.
 
 ## Producer Optimization
 
-```yaml
-wow:
-  kafka:
-    producer:
-      # Batch configuration
-      batch.size: 16384
-      linger.ms: 5
-      # Compression configuration
-      compression.type: lz4
-      # Reliability configuration
-      acks: all
-      retries: 3
-      # Idempotence
-      enable.idempotence: true
-```
-
-| Configuration | Description | Recommended Value |
-|---|---|---|
-| `batch.size` | Batch size (bytes) | 16384 |
-| `linger.ms` | Wait time (milliseconds) | 5 |
-| `compression.type` | Compression type | lz4 |
-| `acks` | Acknowledgment level | all |
-| `enable.idempotence` | Idempotence | true |
+Batching, compression, acks, and retries are Kafka producer settings. Use broker and producer evidence first, then tune through `wow.kafka.producer`; Wow does not duplicate Kafka's validation or compatibility rules.
 
 ## Consumer Optimization
 
-```yaml
-wow:
-  kafka:
-    consumer:
-      # Fetch configuration
-      fetch.min.bytes: 1024
-      fetch.max.wait.ms: 500
-      max.poll.records: 500
-      # Auto commit configuration
-      enable.auto.commit: false
-      # Session timeout
-      session.timeout.ms: 30000
-      heartbeat.interval.ms: 10000
-```
-
-| Configuration | Description | Recommended Value |
-|---|---|---|
-| `fetch.min.bytes` | Minimum fetch bytes | 1024 |
-| `max.poll.records` | Maximum poll records | 500 |
-| `enable.auto.commit` | Auto commit | false |
-| `session.timeout.ms` | Session timeout | 30000 |
+Throughput depends on partitions, consumer instances, handler latency, and poll/commit settings. Prefer native consumer tuning and handler concurrency evidence; increasing `prefetch-batches` alone can hide a slow processor.
 
 ## Consumer Groups
 
-Each processor corresponds to an independent Kafka consumer group. The consumer group ID format is:
-
-```
-{contextName}.{processorName}
-```
-
-For example: `order-service.OrderProjectionProcessor`
-
-This is set at [AbstractKafkaBus.kt:81-84](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt#L81-L84), where the `ConsumerConfig.GROUP_ID_CONFIG` property is dynamically injected into the `ReceiverOptions` based on the current processing context. This ensures each processor instance independently tracks its own offset, enabling parallel consumption across processor types while maintaining ordering within each consumer group.
+`MessageSubscription.receiverGroup` becomes Kafka `group.id`. Kafka owns assignment and rebalance. Before deployment, verify that each runtime uses the intended group and that unrelated logical processors do not accidentally compete in one group.
 
 ## Key Design Decisions
 
+These constraints come from the current `AbstractKafkaBus` and its tests, not from a general Kafka tutorial.
+
 ### 1. String Serialization at the Kafka Layer
 
-The Kafka client always uses `StringSerializer`/`StringDeserializer`. Domain objects are serialized to JSON strings by the application (`message.toJsonString()`) before being handed to the producer. This decouples the Kafka wire format from the domain serialization format -- you can change serialization strategies without touching Kafka configuration.
+Wow writes framework JSON into the record value and uses string serializers at the Kafka client layer. Wow/Jackson model evolution owns wire compatibility; Kafka stores the bytes.
 
 ### 2. Read-Only Message Protection
 
-Before serialization, each message is marked as read-only via `message.withReadOnly()` at [AbstractKafkaBus.kt:57](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt#L57). This prevents accidental mutation of message state during transmission, a critical invariant for Event Sourcing where events must be immutable.
+The sender calls `message.withReadOnly()` before asynchronous delivery. This prevents later mutation of the same in-process message object; it is not cross-process tamper protection or signing.
 
 ### 3. Manual Offset Acknowledgment
 
-Auto-commit is disabled by the framework. Each `Exchange` wraps a `ReceiverOffset` and exposes an `acknowledge()` method. Deferred commits preserve gaps when aggregate groups finish out of order, so a later acknowledgment cannot commit past an earlier in-flight record.
-
-The core processor uses `finallyAck`, so business-handler errors are acknowledged after the error path completes. Redelivery therefore depends on where the failure occurs; receiver/decode failures under the default `FAIL` strategy remain unacknowledged, while completed exchange processing is acknowledged even when the handler reports an error.
+The exchange's `acknowledge()` commits handled offsets, while `max-deferred-commits` retains gaps caused by out-of-order completion. Unacknowledged messages may be delivered again, which is the expected at-least-once recovery boundary.
 
 ### 4. Correlation Metadata for Send Feedback
 
-When sending, each `SenderRecord` carries a `Sinks.Empty<Void>` as correlation metadata. The send result is either an error-emit or an empty-completion, providing back-pressure-aware send confirmation to the caller.
+Each send uses correlation metadata to receive `KafkaSender` success or failure. The returned `Mono<Void>` completes after producer feedback, not after a downstream consumer processes the message.
 
 ## Monitoring and Observability
 
-While Kafka broker metrics (consumer lag, request rate, ISR) should be monitored at the infrastructure level, the Wow framework contributes several application-level signals:
-
-| Signal | Source | What It Reveals |
-|---|---|---|
-| Send errors | `doOnNext` in [AbstractKafkaBus.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt) | Kafka broker unavailability, topic creation issues |
-| Decode errors | `KafkaRecordDecodeFailureHandler` | Schema/version mismatch, corrupted messages, key/topic invariant violations |
-| Receiver retry | `KafkaReceiverPolicy.retrySpec` | Consecutive broker/network failure bursts |
-| Close events | `close()` in [AbstractKafkaBus.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt) | Graceful shutdown coverage |
+Observe broker availability, producer errors, consumer lag, rebalances, decode failures, and handler errors. Add `opentelemetry-support` when Wow spans are required; the Kafka capability does not configure an exporter or Collector.
 
 ## Troubleshooting
 
+The current properties, implementation, or tests verify these failures:
+
+- missing `wow.kafka.bootstrap-servers`: required `KafkaProperties` binding cannot complete;
+- unsafe receiver bounds: runtime wiring throws `IllegalArgumentException`;
+- failure to anchor the initial assigned offset: receiver readiness fails and must not be reported as ready;
+- malformed JSON: retry under `FAIL`, or skip only under explicit `ACKNOWLEDGE`.
+
 ### Common Issues
+
+Separate connection, topic, consumer-group, and message-content failures before inspecting the corresponding client logs and broker state.
 
 #### 1. Connection Timeout
 
-```
-org.apache.kafka.common.errors.TimeoutException: Failed to update metadata
-```
-
-**Solutions**:
-- Verify `wow.kafka.bootstrap-servers` addresses are reachable from the application host.
-- Check network connectivity and firewall rules between the application and Kafka brokers.
-- Confirm the Kafka broker process is running and listening on the configured ports.
+Check `bootstrap-servers`, DNS, TLS/SASL, and network policy. Wow does not pre-validate Kafka addresses or credentials.
 
 #### 2. Unknown Topic or Partition
 
-```
-org.apache.kafka.common.errors.UnknownTopicOrPartitionException
-```
-
-**Solutions**:
-- Ensure the Kafka broker has `auto.create.topics.enable=true` (default), or pre-create the required topics manually.
-- Verify the `topic-prefix` configuration matches the expected topic names.
+Check the fully converted topic name and the broker's topic-creation policy. A Kafka module on the classpath is not evidence that a topic exists.
 
 #### 3. Frequent Consumer Rebalancing
 
-**Symptom**: Consumer groups experience repeated rebalances, causing processing pauses.
-
-**Solutions**:
-- Increase `session.timeout.ms` and `heartbeat.interval.ms` in the consumer configuration.
-- Reduce `max.poll.records` to shorten the time between polls.
-- Ensure message processing time is consistently below `max.poll.interval.ms` (default 5 minutes).
+Inspect instance churn, processing time, `max.poll.interval.ms`, and group settings. Rebalance belongs to Kafka; Wow reacts to assignment and revoke events.
 
 #### 4. Message Decoding Failures
 
-**Symptom**: Error logs from `decode()` showing `Failed to decode ReceiverRecord`
-
-**Solutions**:
-- Verify all producers and consumers are running the same version of `wow-kafka` and domain model classes.
-- Check that the domain event or command class has not been modified in a backward-incompatible way.
-- Use schema evolution strategies for production deployments.
+Retain the raw record, topic/partition/offset, and exception. The default `FAIL` prevents silent loss. Prepare isolation and replay before selecting `ACKNOWLEDGE`.
 
 ### Monitoring Metrics
 
-The following Kafka metrics should be monitored:
-
-| Metric | Description | Alert Threshold |
-|---|---|---|
-| Consumer Lag | Consumption delay | > 10000 |
-| Request Rate | Request rate | Based on business |
-| Error Rate | Error rate | > 1% |
-| Replication ISR | In-sync replicas | < Replication factor |
+Start with Kafka client and broker producer-error, request-latency, consumer-lag, rebalance, and commit metrics. Wow metrics and traces add framework-processing context.
 
 ## Complete Configuration Example
 
@@ -533,68 +198,45 @@ wow:
   command:
     bus:
       type: kafka
-      local-first:
-        enabled: true
   event:
     bus:
       type: kafka
-      local-first:
-        enabled: true
   eventsourcing:
     state:
       bus:
         type: kafka
-        local-first:
-          enabled: true
   kafka:
-    enabled: true
-    bootstrap-servers:
-      - kafka-0:9092
-      - kafka-1:9092
-      - kafka-2:9092
+    bootstrap-servers: [kafka-0:9092, kafka-1:9092]
     topic-prefix: 'wow.'
+    producer:
+      acks: all
+    consumer:
+      auto.offset.reset: earliest
     receiver:
       prefetch-batches: 1
       max-deferred-commits: 1
       retry-attempts: 3
       retry-backoff: 10s
       decode-failure-strategy: FAIL
-    properties:
-      security.protocol: SASL_SSL
-      sasl.mechanism: PLAIN
-    producer:
-      acks: all
-      retries: 3
-      batch.size: 16384
-      linger.ms: 5
-      compression.type: lz4
-      enable.idempotence: true
-    consumer:
-      fetch.min.bytes: 1024
-      fetch.max.wait.ms: 500
-      max.poll.records: 500
-      enable.auto.commit: false
-      session.timeout.ms: 30000
-      heartbeat.interval.ms: 10000
 ```
+
+The producer and consumer values are examples, not a universal cluster recommendation. Choose them from the Kafka version, durability target, and capacity tests.
 
 ## Best Practices
 
-1. **Enable LocalFirst Mode**: The `local-first` bus configuration (enabled by default) routes messages locally within the same JVM when the handler is co-located, reducing Kafka round-trips for intra-service communication.
-2. **Enable Idempotent Producer**: Set `enable.idempotence: true` in the producer configuration to guarantee exactly-once delivery at the producer level, preventing duplicate messages during retry scenarios.
-3. **Use Compression**: Enable `compression.type: lz4` in the producer configuration to reduce network bandwidth and storage overhead. LZ4 offers an excellent balance of compression ratio and CPU cost.
-4. **Match Partition Count to Topology**: Configure the number of Kafka partitions based on the expected consumer parallelism. Since ordering is per-partition (per aggregate ID), a higher partition count increases parallelism but does not affect ordering guarantees.
-5. **Monitor Consumer Lag**: Track consumer group lag as a primary health metric. Lag exceeding the business SLA threshold indicates processing bottlenecks that need investigation.
-6. **Test with Testcontainers**: The `wow-kafka` test dependencies include `testcontainers-kafka`. Use `wow-tck` (Technology Compatibility Kit) tests as a reference for integration testing patterns.
-7. **Customize the Topic Prefix Per Environment**: Use distinct `topic-prefix` values for development, staging, and production to isolate message streams (e.g., `dev.wow.`, `staging.wow.`, `wow.`).
+- Select every bus explicitly instead of using defaults as production architecture.
+- Operate topics, consumer groups, retention, and replay through an explicit runbook.
+- Keep handlers idempotent and verify redelivery with fault injection.
+- Rehearse compatibility and recovery before changing partitions, topic converters, or decode policy.
+
+Focused check:
+
+```bash
+./gradlew :wow-kafka:check
+```
+
+This checks module unit and contract tests. It does not prove that your Kafka cluster, ACLs, topic policy, or target-environment wiring works.
 
 ## Related Topics
 
-| Topic | Description |
-|---|---|
-| [Configuration Reference](../../reference/config/infrastructure.md#kafka) | Complete property reference for `wow.kafka.*` |
-| [Spring Boot Starter](spring-boot-starter.md) | Auto-configuration and feature variants |
-| [Command Gateway](../command-gateway.md) | Command gateway and wait plans |
-| [Event Processor](../event-processor.md) | Event processing pipeline |
-| [Observability](../advanced/observability.md) | Monitoring and tracing integration |
-| [Configuration](../configuration.md) | Framework configuration principles |
+Next, read [Infrastructure configuration](../../reference/config/infrastructure.md) to establish broker, configuration, recovery, and admission evidence. Read [OpenTelemetry](./opentelemetry.md) when tracing is required.

@@ -6,30 +6,40 @@ outline: deep
 
 # Wow Documentation Map
 
-You do not need to read the sidebar from top to bottom. Pick the task you need to complete, then read only the pages required for it.
+Start with first success, then continue with the task in front of you.
 
-::: tip New to Wow?
-Spend 15 minutes on the [Introduction](./introduction.md) and [Core Concepts](./core-concepts.md). To run code immediately, start with [Getting Started](./getting-started.md).
-For an existing Spring Boot service, start with [Add Wow to an Existing Project](./existing-project.md).
-:::
+## 30-Minute First-Success Target
 
-## The Main Flow in One Diagram
+Complete these confirmed gates in order:
 
-```mermaid
-flowchart LR
-    Client -->|Command| Gateway[Command Gateway]
-    Gateway --> Aggregate
-    Aggregate -->|Domain Event| EventStore[Event Store]
-    EventStore --> EventBus[Event Bus]
-    EventBus --> Projection
-    Projection --> QueryModel[Query Model]
-    EventBus --> Saga
-    Saga -->|Command| Gateway
-```
+1. Create from [wow-project-template](https://github.com/Ahoo-Wang/wow-project-template).
+2. Confirm the selected Wow version.
+3. Pass the domain test.
+4. Start the server.
+5. Send a real HTTP command and inspect the command result.
+6. Load versioned sourced state.
 
-An aggregate makes business decisions, and its domain events are persisted as the authoritative history. Projections build read-optimized models, while sagas react to events by sending commands across aggregate boundaries. See [Core Concepts](./core-concepts.md) and [Data Flow](./advanced/data-flow.md) for the precise semantics.
+See [Getting Started](./getting-started.md) for the complete steps and completion semantics.
 
-## Choose an Entry Point by Task
+The functional gates are verified; 30 minutes remains a target because first-time developer wall-clock completion has not been measured.
+
+## Continue Building
+
+Use [Aggregate Modeling](./modeling.md) and [Test Suite](./test-suite.md) to define business rules, then connect the write and read paths with [Command Gateway](./command-gateway.md), [Projection](./projection.md), and [Query Service](./query.md).
+
+## Prepare for Production
+
+Start with [Production Best Practices](./best-practices.md), then verify [Backup, Restore, and Replay](./recovery.md), [Application Testing](./application-testing.md), [Observability](./advanced/observability.md), and [Troubleshooting](./troubleshooting.md).
+
+## Look Up Exact Facts
+
+Use [Configuration Reference](../reference/config/core.md), [Examples](../reference/example/order.md), and [Ecosystem](../reference/ecosystem.md) for exact facts. Use the API documentation in the top navigation for Kotlin and Java symbols and signatures.
+
+## Evaluate or Contribute by Role
+
+[Onboarding](../onboarding/) routes contributors, staff engineers, executives, and product managers by the decision they need to make; [Articles](../articles/) explain specific trade-offs.
+
+## Continue by Task
 
 | Task | Read first | Then read | Done when |
 | --- | --- | --- | --- |
@@ -47,33 +57,6 @@ An aggregate makes business decisions, and its domain events are persisted as th
 | Prepare for production | [Production Best Practices](./best-practices.md) | [Backup, Restore, and Replay](./recovery.md) | Idempotency, recovery, capacity, alerts, and rollback have evidence |
 | Diagnose a failure or hang | [Troubleshooting](./troubleshooting.md) | The relevant core or extension page | The failed stage is known instead of merely having a larger timeout |
 | Migrate a system or version | [Migration Guide](./migration.md) | The selected migration path | Inventory, reconciliation, cutover, and rollback gates are complete |
-
-## Three Suggested Paths
-
-### 15 minutes: build the mental model
-
-1. [Introduction](./introduction.md)
-2. [Core Concepts](./core-concepts.md)
-3. [Architecture](./advanced/architecture.md)
-
-### 60 minutes: complete a vertical slice
-
-1. [Getting Started](./getting-started.md)
-2. For an existing service, use [Existing Project](./existing-project.md) instead
-3. [Aggregate Modeling](./modeling.md)
-4. [Test Suite](./test-suite.md)
-5. [Command Gateway](./command-gateway.md)
-6. [Projection](./projection.md) and [Query Service](./query.md)
-
-### Production assessment: start with risk
-
-1. [Production Best Practices](./best-practices.md)
-2. [Backup, Restore, and Replay](./recovery.md)
-3. [Application Testing](./application-testing.md)
-4. [Observability](./advanced/observability.md)
-5. [Troubleshooting](./troubleshooting.md)
-6. [Migration Guide](./migration.md)
-7. [Event Evolution](./advanced/event-evolution.md)
 
 ## Use Each Documentation Type for Its Job
 

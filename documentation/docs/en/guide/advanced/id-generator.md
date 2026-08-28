@@ -1,182 +1,92 @@
 ---
 title: ID Generator
-description: Message ID and aggregate root ID generation powered by CosId.
+description: Separate message-ID and aggregate-ID generation, SPI selection, caching, and deployment responsibility.
+outline: deep
 ---
 
 # ID Generator
 
-The Wow framework's *message ID* and *aggregate root ID* generation relies on the powerful support provided by [CosId](https://github.com/Ahoo-Wang/CosId).
+Wow uses CosId through two ID paths: global IDs for runtime envelopes and aggregate IDs selected per named aggregate. They share infrastructure but have different selection and cache boundaries.
 
-## Production Configuration
+## Two paths
 
-CosId uses a Snowflake-based algorithm that requires a unique **machine ID** per service instance.
-In production, you must configure the machine ID distributor to avoid collisions across instances.
+| Path | API | Main use | Selection key |
+| --- | --- | --- | --- |
+| Global ID | `generateGlobalId()` / `GlobalIdGenerator` | Message IDs for commands, domain events, event streams, waits, and compensation records | System property `wow.cosid`, defaulting to CosId's `cosid` name |
+| Aggregate ID | `NamedAggregate.generateId()` / `AggregateIdGeneratorRegistrar` | Create an aggregate ID when the command does not supply one | Aggregate metadata `id`, otherwise aggregate name |
 
-### Manual Machine ID (single instance / development)
+Do not use message IDs and business aggregate IDs interchangeably. A domain with an existing natural ID can supply it explicitly; Wow does not require every aggregate to use one generated identifier format.
 
-You need `cosid-spring-boot-starter` (and `cosid-mongo` for MongoDB distribution) in addition to the Wow dependencies:
+## Global generator
+
+`GlobalIdGenerator` is a lazy singleton. On first access it loads `GlobalIdGeneratorFactory` implementations through Java `ServiceLoader`, sorts them with Wow `@Order`, and selects the first factory returning a non-null `CosIdGenerator`. If none can create one, access fails with `NotInitializedGlobalIdGeneratorError`.
+
+The built-in `CosIdGlobalIdGeneratorFactory` looks up its configured name in `IdGeneratorProvider`. A custom factory implements the interface and registers through:
+
+```text
+META-INF/services/me.ahoo.wow.id.GlobalIdGeneratorFactory
+```
+
+Do not create a new global generator per request; selection happens once at lazy initialization.
+
+## Aggregate generator
+
+`AggregateIdGeneratorRegistrar` caches a generator by materialized `NamedAggregate`. On first use it calls ordered `AggregateIdGeneratorFactory` instances and selects the first non-null result.
+
+The built-in `CosIdAggregateIdGeneratorFactory` selects in this order:
+
+1. read the aggregate's generator `id` from `META-INF/wow-metadata.json`;
+2. use aggregate name when metadata has no `id`;
+3. return the same-named generator from `IdGeneratorProvider` when present;
+4. otherwise create `Radix62CosIdGenerator` with the global generator's machine ID and wrap it in `ClockSyncCosIdGenerator`.
+
+That fallback depends on an available global generator and its machine ID. It does not allocate machine IDs for a deployment.
+
+## Deployment responsibility
+
+The selected CosId configuration owns algorithm details, clock handling, and machine-ID allocation. Wow only selects and invokes a generator. A multi-instance deployment must prove:
+
+- every instance receives a machine ID valid for the selected CosId generator;
+- restart, scale-out, and lease reclamation do not reuse an active instance's machine ID;
+- clock rollback, provider unavailability, and missing configuration have acceptable startup/generation behavior;
+- ID length and character set fit downstream database and API contracts.
+
+A unit test showing non-blank or increasing IDs in one JVM does not prove cross-node uniqueness, global ordering, or production capacity. Use [Configuration](../configuration.md) and metadata for the selected CosId version for production setup.
+
+## Custom selection
+
+Add an `AggregateIdGeneratorFactory` only when aggregates genuinely need different formats or providers. A factory may return `null` for aggregates it does not own, allowing later factories to participate. Do not reproduce metadata's `id` mapping as a global branch table.
 
 ```kotlin
-implementation("me.ahoo.cosid:cosid-spring-boot-starter")
-implementation("me.ahoo.cosid:cosid-mongo") // only for MongoDB machine ID distribution
-```
-
-```yaml
-cosid:
-  machine:
-    enabled: true
-    distributor:
-      type: manual
-      manual:
-        machine-id: 1
-  generator:
-    enabled: true
-```
-
-### MongoDB Machine ID (production, multi-instance)
-
-For multi-instance production deployments, use MongoDB as the machine ID distributor so each
-instance automatically receives a unique machine ID:
-
-```yaml
-cosid:
-  machine:
-    enabled: true
-    distributor:
-      type: mongo
-  generator:
-    enabled: true
-```
-
-### Custom Per-Aggregate ID Generator
-
-To assign a specific CosId generator (e.g. a different Snowflake provider) to a particular
-aggregate, define the generator name in the `@BoundedContext` metadata, then configure that
-generator in CosId:
-
-```yaml
-cosid:
-  snowflake:
-    enabled: true
-    provider:
-      order:               # matches the aggregate's `id` field below
-        converter:
-          type: radix      # Radix62 URL-safe encoding
-```
-
-```kotlin
-@BoundedContext(
-    name = "order-service",
-    aggregates = [
-        Aggregate(name = "order", id = "order"),  // ← uses the "order" CosId generator
-    ],
-)
-object OrderService
-```
-
-If the named generator is not found in CosId's `IdGeneratorProvider`, Wow falls back to a
-`Radix62CosIdGenerator` using the global generator's `machineId`.
-
-## Global ID Generator
-
-The *global ID generator* is mainly used to generate message IDs (`Command`, `DomainEvent`, `DomainEventStream`).
-
-By default, the *global ID generator* will obtain the ID generator named `cosid` from CosId's *ID generator container* (`IdGeneratorProvider`).
-
-### Customize Global ID Generator via SPI
-
-Developers can customize the global ID generator through the `GlobalIdGeneratorFactory` SPI extension point.
-
-1. Implement the `GlobalIdGeneratorFactory` interface
-2. Add the fully qualified class name of the implementation class in the `META-INF/services/me.ahoo.wow.id.GlobalIdGeneratorFactory` file
-
-```kotlin
-@Order(ORDER_LAST)
-class TestGlobalIdGeneratorFactory : GlobalIdGeneratorFactory {
-    companion object {
-        private val log = LoggerFactory.getLogger(TestGlobalIdGeneratorFactory::class.java)
-        private const val TEST_MACHINE_ID: Int = 1048575
-    }
-
-    override fun create(): CosIdGenerator {
-        val idGenerator = Radix62CosIdGenerator(TEST_MACHINE_ID)
-        val clockSyncCosIdGenerator = ClockSyncCosIdGenerator(idGenerator)
-        if (log.isInfoEnabled) {
-            log.info("Create - [$clockSyncCosIdGenerator].")
-        }
-        return clockSyncCosIdGenerator
-    }
+@Order(100)
+class InvoiceIdGeneratorFactory : AggregateIdGeneratorFactory {
+    override fun create(namedAggregate: NamedAggregate): IdGenerator? =
+        if (namedAggregate.aggregateName == "invoice") invoiceGenerator else null
 }
 ```
 
-## Aggregate ID Generator
+Register it through:
 
-The *aggregate ID generator* is mainly used to generate aggregate root IDs.
-Users can obtain the corresponding ID generator from CosId's *ID generator container* (`IdGeneratorProvider`) by defining the ID name in the aggregate root metadata.
-
-```kotlin
-@BoundedContext(
-    name = SERVICE_NAME,
-    alias = SERVICE_ALIAS,
-    aggregates = [
-        Aggregate(
-            name = ORDER_AGGREGATE_NAME,
-            id = "<You customize the ID name>", // [!code focus]
-            packageScopes = [CreateOrder::class]
-        ),
-    ],
-)
-object ExampleService {
-    const val SERVICE_NAME = "example-service"
-    const val SERVICE_ALIAS = "example"
-    const val ORDER_AGGREGATE_NAME = "order"
-}
+```text
+META-INF/services/me.ahoo.wow.id.AggregateIdGeneratorFactory
 ```
 
-1. First obtain the ID name from the metadata, if not defined, use the aggregate root name as the ID name.
-2. After obtaining the name, get the corresponding ID generator from the *ID generator container*.
-3. If not obtained, create a new `Radix62CosIdGenerator` instance that uses the global ID generator's `machineId` as its `machineId`.
+Factories and the registrar can be accessed concurrently; a custom generator must satisfy the concurrency contract its callers need.
 
-### Custom ID Generator
+## Verification
 
-Developers can customize the ID generator through the `AggregateIdGeneratorFactory` SPI extension point.
-
-1. Implement the `AggregateIdGeneratorFactory` interface
-2. Add the fully qualified class name of the implementation class in the `META-INF/services/me.ahoo.wow.id.AggregateIdGeneratorFactory` file
-
-```kotlin
-@Order(ORDER_LAST)
-class CosIdAggregateIdGeneratorFactory(
-    private val idProvider: IdGeneratorProvider = DefaultIdGeneratorProvider.INSTANCE
-) :
-    AggregateIdGeneratorFactory {
-    companion object {
-        private val log = LoggerFactory.getLogger(CosIdAggregateIdGeneratorFactory::class.java)
-    }
-
-    override fun create(namedAggregate: NamedAggregate): IdGenerator {
-        val idGenName = MetadataSearcher.metadata
-            .contexts[namedAggregate.contextName]
-            ?.aggregates
-            ?.get(namedAggregate.aggregateName)
-            ?.id
-            ?: namedAggregate.aggregateName
-
-        val idGeneratorOp = idProvider.get(idGenName)
-        if (idGeneratorOp.isPresent) {
-            val idGenerator = idGeneratorOp.get()
-            if (log.isInfoEnabled) {
-                log.info("Create $idGenerator to $namedAggregate from DefaultIdGeneratorProvider[$idGenName].")
-            }
-            return idGenerator
-        }
-
-        val idGenerator = Radix62CosIdGenerator(GlobalIdGenerator.machineId)
-        val clockSyncCosIdGenerator = ClockSyncCosIdGenerator(idGenerator)
-        if (log.isInfoEnabled) {
-            log.info("Create $clockSyncCosIdGenerator to $namedAggregate.")
-        }
-        return clockSyncCosIdGenerator
-    }
-}
+```bash
+./gradlew :wow-core:test --tests "me.ahoo.wow.id.GlobalIdGeneratorTest"
+./gradlew :wow-core:test --tests "me.ahoo.wow.id.AggregateIdGeneratorRegistrarTest"
+./gradlew :wow-core:test --tests "me.ahoo.wow.id.CosIdAggregateIdGeneratorFactoryTest"
 ```
+
+The application must also test multi-instance collisions and restarts with a production-like machine-ID allocator. Repository unit tests do not provide that evidence.
+
+## Source and related pages
+
+- [`GlobalIdGenerator`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/id/GlobalIdGenerator.kt)
+- [`AggregateIdGeneratorRegistrar`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/id/AggregateIdGenerator.kt)
+- [`CosIdAggregateIdGeneratorFactory`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/id/CosIdAggregateIdGeneratorFactory.kt)
+- [Compiler](./compiler.md): source of aggregate `id` metadata
+- [Core Concepts](../core-concepts.md#bounded-context-and-aggregate-identity): complete AggregateId boundary

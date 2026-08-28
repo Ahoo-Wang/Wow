@@ -1,38 +1,36 @@
 ---
-title: Test Suite
-description: Test suite based on Given->When->Expect pattern, helping developers easily achieve over 80% test coverage.
+title: Domain Test Suite
+description: Use wow-test to express aggregate and saga behavior as Given → When → Expect specifications.
+outline: deep
 ---
 
-# Test Suite
+# Domain Test Suite
 
-*Unit testing* is an important means to ensure code quality and meet expected business requirements, but in traditional architectures, unit testing is often a quite difficult task because you need to consider database connections, transaction management, data cleanup, and other issues.
+`wow-test` runs aggregate and stateless saga specifications with an in-memory domain runtime. It verifies command decisions, domain events, event-sourced state, and commands produced by sagas without requiring a database or message broker.
 
-With the _Wow_ framework, you will discover that the test suite based on the _Given->When->Expect_ pattern makes unit testing exceptionally simple.
-You only need to focus on whether the domain model meets expectations, without worrying about database connections and other issues.
-
-:::tip
-In actual applications, we set the lower threshold for domain model unit test coverage to **85%**, which can be easily achieved.
-Without deliberate requirements, developers even voluntarily increase coverage to **95%**.
-Therefore, each code commit becomes relaxed and comfortable, because you are confident that your code has been thoroughly tested and truly benefits from unit testing.
+::: warning Test boundary
+A passing domain specification proves domain behavior only. It does not prove that KSP output is packaged, Spring is wired correctly, HTTP routes work, real storage recovers, or authorization is enforced. See [Testing Wow Applications](./application-testing.md) for those gates.
 :::
 
-In projects of the same R&D level, our testing team found in system _API_ testing that Wow framework-based projects have only **1/3** the number of _BUGs_ compared to traditional architecture projects.
-
-- Given: Previous domain events, used to initialize aggregate root state.
-- When: Current command executed, used to trigger aggregate root state changes.
-- Expect: Expected results, used to verify whether aggregate root state changes meet expectations.
-
-![Test Coverage](/images/getting-started/test-coverage.png)
+::: tip Completion signal
+Every modeled invariant should have at least one success or rejection specification, and state transitions should assert both the event and sourced state. When the domain layer is complete, run its owning module's `test`/`check`, then move to application integration gates.
+:::
 
 ## Installation
 
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
-testImplementation("me.ahoo.wow:wow-test")
+dependencies {
+    testImplementation("me.ahoo.wow:wow-test:${wowVersion}")
+}
 ```
+
 ```groovy [Gradle(Groovy)]
-testImplementation 'me.ahoo.wow:wow-test'
+dependencies {
+    testImplementation "me.ahoo.wow:wow-test:${wowVersion}"
+}
 ```
+
 ```xml [Maven]
 <dependency>
     <groupId>me.ahoo.wow</groupId>
@@ -43,80 +41,138 @@ testImplementation 'me.ahoo.wow:wow-test'
 ```
 :::
 
-## Testing Aggregate Roots
-
-Use `AggregateSpec` for comprehensive aggregate testing:
+Kotlin assertions use the FluentAssert extension from the project's test stack:
 
 ```kotlin
-class CartSpec : AggregateSpec<Cart, CartState>(
-    {
-        on {
-            val ownerId = generateGlobalId()
-            val addCartItem = AddCartItem(
-                productId = "productId",
-                quantity = 1,
-            )
-            givenOwnerId(ownerId)
-            whenCommand(addCartItem) {
-                expectNoError()
-                expectEventType(CartItemAdded::class)
-                expectState {
-                    items.assert().hasSize(1)
-                }
-                expectStateAggregate {
-                    ownerId.assert().isEqualTo(ownerId)
-                }
-                fork(name = "Remove CartItem") {
-                    val removeCartItem = RemoveCartItem(
-                        productIds = setOf(addCartItem.productId),
-                    )
-                    whenCommand(removeCartItem) {
-                        expectEventType(CartItemRemoved::class)
-                        expectState {
-                            items.assert().isEmpty()
-                        }
-                    }
-                }
-                fork(name = "Delete Aggregate") {
-                    whenCommand(DefaultDeleteAggregate) {
-                        ref("AggregateDeleted")
-                        expectEventType(DefaultAggregateDeleted::class)
-                        expectStateAggregate {
-                            deleted.assert().isTrue()
-                        }
-                    }
-                }
+import me.ahoo.test.asserts.assert
+```
+
+## Given → When → Expect
+
+| Stage | Question to express | Common DSL |
+| --- | --- | --- |
+| Given | What happened to the aggregate before now? | `givenEvent`, `givenState`, `givenOwnerId`, `givenSpaceId`, `inject` |
+| When | What happens now? | `whenCommand`, or `whenEvent` for a saga |
+| Expect | Does the result satisfy the invariant? | `expectNoError`, `expectErrorType`, `expectEventType`, `expectState`, `expectCommand` |
+
+Prefer historical events for Given. `givenState` is useful when a test explicitly needs to start at a state version, but it bypasses event replay and cannot replace sourcing-behavior verification.
+
+## Aggregate Specifications: Assert Event and State Together
+
+This minimal scenario comes from the current `CartSpec`. It starts with an uninitialized aggregate, sets the owner, executes an add-item command, and verifies the event, business state, and aggregate metadata together:
+
+```kotlin
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.test.AggregateSpec
+
+class CartSpec : AggregateSpec<Cart, CartState>({
+    on {
+        val ownerId = generateGlobalId()
+        val addCartItem = AddCartItem(
+            productId = "productId",
+            quantity = 1,
+        )
+
+        givenOwnerId(ownerId)
+        whenCommand(addCartItem) {
+            expectNoError()
+            expectEventType(CartItemAdded::class)
+            expectState {
+                items.assert().hasSize(1)
             }
-        }
-        fork(ref = "AggregateDeleted") {
-            whenCommand(DefaultDeleteAggregate) {
-                expectErrorType(IllegalAccessDeletedAggregateException::class)
-            }
-        }
-        fork(ref = "AggregateDeleted", name = "Recover") {
-            whenCommand(DefaultRecoverAggregate) {
-                expectNoError()
-                expectStateAggregate {
-                    deleted.assert().isFalse()
-                }
-                fork(name = "Recover Again") {
-                    whenCommand(DefaultRecoverAggregate) {
-                        expectErrorType(IllegalStateException::class)
-                    }
-                }
+            expectStateAggregate {
+                this.ownerId.assert().isEqualTo(ownerId)
             }
         }
     }
-)
+})
 ```
 
-![CartSpec-Results](/images/test-suite/CartSpec-Results.png)
+The event assertion proves the command decision; the state assertion proves the sourcing function applied that event correctly. Asserting only one side misses regressions on the other.
 
-## Testing Saga
+### Rejection Paths
 
-Use `SagaSpec` to test stateless Saga behavior:
+Rejection paths should assert a specific error and, where important, confirm that state or aggregate metadata did not advance. The current `OrderSpec` covers empty items, insufficient inventory, inconsistent prices, shipping before payment, and access after deletion.
 
 ```kotlin
+fork("Ship Before Payment") {
+    val shipOrder = ShipOrder(stateAggregate.aggregateId.id)
+    whenCommand(shipOrder) {
+        expectErrorType(IllegalStateException::class)
+        expectState {
+            paidAmount.assert().isEqualTo(BigDecimal.ZERO)
+            status.assert().isEqualTo(OrderStatus.CREATED)
+        }
+    }
+}
+```
+
+Do not reduce every failure to `expectError()`. When the error type is part of the business contract, use `expectErrorType(...)` so the specification distinguishes rejection reasons.
+
+### Branches and Reference Points
+
+`fork` continues from an already verified state. It fits payment, shipment, and receipt after order creation, as well as invalid transitions from the same starting point. Each branch has independent subsequent state and does not contaminate sibling branches.
+
+Branch directly from the current Expect stage:
+
+```kotlin
+fork(name = "Remove CartItem") {
+    whenCommand(RemoveCartItem(setOf(addCartItem.productId))) {
+        expectEventType(CartItemRemoved::class)
+        expectState {
+            items.assert().isEmpty()
+        }
+    }
+}
+```
+
+When a later scenario must branch from the same point, call `ref("AggregateDeleted")` first and then use top-level `fork(ref = "AggregateDeleted", ...)`. A reference should represent a verified business state, not merely save a few setup lines.
+
+```kotlin
+fork(ref = "AggregateDeleted", name = "Recover") {
+    whenCommand(DefaultRecoverAggregate) {
+        expectNoError()
+        expectStateAggregate {
+            deleted.assert().isFalse()
+        }
+        fork(name = "Recover Again") {
+            whenCommand(DefaultRecoverAggregate) {
+                expectErrorType(IllegalStateException::class)
+            }
+        }
+    }
+}
+```
+
+## Inject Domain Dependencies
+
+When a command handler depends on a domain specification service, register a test implementation with `inject`. The current `OrderSpec` injects inventory and pricing services into `DefaultCreateOrderSpec` to cover success, insufficient inventory, and inconsistent prices.
+
+```kotlin
+inject {
+    register(DefaultCreateOrderSpec(inventoryService, pricingService))
+}
+
+whenCommand(CreateOrder(orderItems, SHIPPING_ADDRESS, false)) {
+    expectNoError()
+    expectEventType(OrderCreated::class)
+    expectState {
+        status.assert().isEqualTo(OrderStatus.CREATED)
+        totalAmount.assert().isEqualTo(totalAmount)
+    }
+}
+```
+
+These are test implementations at the domain boundary. Real network clients, databases, and brokers belong in application integration tests, not this layer.
+
+## Stateless Saga Specifications
+
+For `SagaSpec`, When is an input event and Expect is the command sent by the saga. The current `CartSagaSpec` verifies that creating an order from a cart removes the corresponding products:
+
+```kotlin
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.test.SagaSpec
+
 class CartSagaSpec : SagaSpec<CartSaga>({
     on {
         val ownerId = generateGlobalId()
@@ -126,16 +182,13 @@ class CartSagaSpec : SagaSpec<CartSaga>({
             price = BigDecimal.valueOf(10),
             quantity = 10,
         )
+
         whenEvent(
             event = mockk<OrderCreated> {
-                every {
-                    items
-                } returns listOf(orderItem)
-                every {
-                    fromCart
-                } returns true
+                every { items } returns listOf(orderItem)
+                every { fromCart } returns true
             },
-            ownerId = ownerId
+            ownerId = ownerId,
         ) {
             expectCommandType(RemoveCartItem::class)
             expectCommand<RemoveCartItem> {
@@ -145,219 +198,37 @@ class CartSagaSpec : SagaSpec<CartSaga>({
             }
         }
     }
-    on {
-        name("NotFromCart")
-        val orderItem = OrderItem(
-            id = generateGlobalId(),
-            productId = generateGlobalId(),
-            price = BigDecimal.valueOf(10),
-            quantity = 10,
-        )
-        whenEvent(
-            event = mockk<OrderCreated> {
-                every {
-                    items
-                } returns listOf(orderItem)
-                every {
-                    fromCart
-                } returns false
-            },
-            ownerId = generateGlobalId()
-        ) {
-            expectNoCommand()
-        }
-    }
 })
 ```
 
-![CartSagaSpec-Results](/images/test-suite/CartSagaSpec-Results.png)
+Use `expectNoCommand()` for the corresponding negative path, such as `OrderCreated.fromCart == false`. A saga specification verifies command intent and content; broker redelivery and external-side-effect idempotency still require real-adapter tests.
 
+## Choose the Narrowest Assertion
 
-## Advanced Scenarios
+| Goal | DSL |
+| --- | --- |
+| No error / a specific error | `expectNoError()` / `expectErrorType(...)` |
+| Event count, order, or type | `expectEventCount`, `expectEventIterator`, `expectEventType` |
+| Event-body fields | `expectEventBody<E> { ... }` |
+| Business state | `expectState { ... }` |
+| Aggregate metadata such as owner, version, or deleted flag | `expectStateAggregate { ... }` |
+| Saga command count, type, or content | `expectCommandCount`, `expectCommandType`, `expectCommand<C>` |
 
-For complex workflows that include service injection and error handling:
+Assert business-observable results instead of copying framework internals. Use `.assert()` consistently for Kotlin values rather than mixing assertion styles in the same specification suite.
 
-```kotlin
-class OrderSpec : AggregateSpec<Order, OrderState>({
-    on {
-        val ownerId = generateGlobalId()
-        val orderItem = CreateOrder.Item(productId = generateGlobalId(), price = BigDecimal.TEN, quantity = 10)
+## Reading Coverage Evidence
 
-        givenOwnerId(ownerId)
+The current repository configures a `0.8` minimum for `:example-domain:jacocoTestCoverageVerification`, and that task depends on `test` and report generation. The threshold runs only when `:example-domain:jacocoTestCoverageVerification` is invoked explicitly; neither the current `:example-domain:check` nor the CI workflows attach it automatically. This is an optional repository coverage gate, not a coverage level automatically guaranteed by `wow-test` or a number every application must copy.
 
-        // Inject mock services
-        val inventoryService = object : InventoryService {
-            override fun getInventory(productId: String) = orderItem.quantity.toMono()
-        }
-        val pricingService = object : PricingService {
-            override fun getProductPrice(productId: String) = orderItem.price.toMono()
-        }
+Old documentation screenshots, historical coverage figures, or anecdotal defect data describe only their original samples. Evaluate a current change using the current test output, current coverage report, and the application's own threshold.
 
-        inject { register(DefaultCreateOrderSpec(inventoryService, pricingService)) }
+## Run and Move to the Next Layer
 
-        whenCommand(CreateOrder(listOf(orderItem), shippingAddress, false)) {
-            expectNoError()
-            expectEventType(OrderCreated::class)
-            expectState { status.assert().isEqualTo(OrderStatus.CREATED) }
+Verify the example and DSL in this repository with:
 
-            fork("Pay Order") {
-                val payOrder = PayOrder(generateGlobalId(), orderItem.price * BigDecimal(orderItem.quantity))
-                whenCommand(payOrder) {
-                    expectEventType(OrderPaid::class)
-                    expectState { status.assert().isEqualTo(OrderStatus.PAID) }
-
-                    fork("Ship Order") {
-                        whenCommand(ShipOrder(stateAggregate.aggregateId.id)) {
-                            expectEventType(OrderShipped::class)
-                            expectState { status.assert().isEqualTo(OrderStatus.SHIPPED) }
-                        }
-                    }
-
-                    fork("Duplicate Payment") {
-                        whenCommand(PayOrder(generateGlobalId(), orderItem.price * BigDecimal(orderItem.quantity))) {
-                            expectErrorType(DomainEventException::class)
-                            expectEventType(OrderPayDuplicated::class)
-                        }
-                    }
-                }
-            }
-
-            fork("Invalid Operation") {
-                whenCommand(ShipOrder(stateAggregate.aggregateId.id)) {
-                    expectErrorType(IllegalStateException::class)
-                    expectState { status.assert().isEqualTo(OrderStatus.CREATED) }
-                }
-            }
-        }
-    }
-})
+```bash
+./gradlew :wow-test:check :example-domain:check \
+  :example-domain:jacocoTestCoverageVerification
 ```
 
-### Reference Points and Cross-Scenario Branching
-
-Use `ref()` to mark verification points and use `fork(ref, ...)` to branch from them to different test scenarios:
-
-```kotlin
-class OrderSpec : AggregateSpec<Order, OrderState>({
-    on {
-        val orderId = generateGlobalId()
-        val createOrder = CreateOrder(/*...*/)
-
-        whenCommand(createOrder) {
-            expectEventType(OrderCreated::class)
-            ref("order-created")  // Mark this verification point
-            expectState { status.assert().isEqualTo(OrderStatus.CREATED) }
-        }
-    }
-
-    // Branch from the marked point in a separate scenario
-    fork("order-created", "Pay Order") {
-        val payOrder = PayOrder(/*...*/)
-        whenCommand(payOrder) {
-            expectEventType(OrderPaid::class)
-            expectState { status.assert().isEqualTo(OrderStatus.PAID) }
-        }
-    }
-
-    fork("order-created", "Cancel Order") {
-        val cancelOrder = CancelOrder(/*...*/)
-        whenCommand(cancelOrder) {
-            expectEventType(OrderCancelled::class)
-            expectState { status.assert().isEqualTo(OrderStatus.CANCELLED) }
-        }
-    }
-})
-```
-
-## API Reference
-
-### AggregateSpec
-
-Specification class for testing aggregates using the Given/When/Expect pattern:
-
-- `AggregateSpec<C, S>(block: AggregateDsl<S>.() -> Unit)`: Constructor that accepts a DSL block
-
-### SagaSpec
-
-Specification class for testing stateless Sagas:
-
-- `SagaSpec<T>(block: StatelessSagaDsl<T>.() -> Unit)`: Constructor that accepts a DSL block
-- `on(block: WhenDsl<T>.() -> Unit)`: Define test scenarios
-
-### DSL Interfaces
-
-#### AggregateDsl
-- `on(block: GivenDsl<S>.() -> Unit)`: Define complete test scenarios
-- `fork(ref: String, name: String = "", verifyError: Boolean = false, block: ForkedVerifiedStageDsl<S>.() -> Unit)`: Create branch test scenarios from previously referenced ExpectStage
-
-#### GivenDsl
-- `name(name: String)`: Set the name for this test scenario
-- `inject(block: ServiceProvider.() -> Unit)`: Inject services or dependencies
-- `givenOwnerId(ownerId: String)`: Set owner ID for the aggregate
-- `givenSpaceId(spaceId: SpaceId)`: Set space ID for multi-tenancy isolation
-- `givenEvent(event: Any, block: WhenDsl<S>.() -> Unit)`: Initialize with domain events
-- `givenEvent(events: Array<out Any>, block: WhenDsl<S>.() -> Unit)`: Initialize with multiple events
-- `givenState(state: S, version: Int, block: WhenDsl<S>.() -> Unit)`: Initialize with direct state
-
-#### WhenDsl
-- `name(name: String)`: Set the name for this test scenario
-- `whenCommand(command: Any, header: Header, ownerId: String, spaceId: SpaceId, block: ExpectDsl<S>.() -> Unit)`: Execute command
-
-#### ExpectDsl
-- `expect(expected: ExpectedResult<S>.() -> Unit)`: Define expectations for complete test results
-- `expectNoError()`: Assert no errors occurred
-- `expectError()`: Assert an error occurred during command processing
-- `expectError(expected: E.() -> Unit)`: Define expectations for specific errors that occurred
-- `expectErrorType(errorType: KClass<out Throwable>)`: Assert specific error type
-- `expectEventType(eventType: KClass<out Any>)`: Assert generated event type
-- `expectEvent(expected: DomainEvent<E>.() -> Unit)`: Define expectations for specific domain events
-- `expectEventBody(expected: E.() -> Unit)`: Define expectations for domain event body content
-- `expectEventCount(expected: Int)`: Define expectations for number of domain events generated
-- `expectEventStream(expected: DomainEventStream.() -> Unit)`: Define expectations for complete domain event stream
-- `expectEventIterator(expected: EventIterator.() -> Unit)`: Define expectations for iterating domain events
-- `expectState(block: S.() -> Unit)`: Verify aggregate state
-- `expectState(expected: Consumer<S>)`: Define expectations for aggregate state using Consumer (Java)
-- `expectStateAggregate(block: StateAggregate<S>.() -> Unit)`: Verify aggregate metadata
-- `ref(ref: String)`: Mark current verification point for subsequent branching
-- `fork(name: String = "", verifyError: Boolean = false, block: ForkedVerifiedStageDsl<S>.() -> Unit)`: Create branch test scenarios from current verification state
-
-##### Fork Function Use Cases
-
-The `fork` function tests complex workflows and edge cases by creating independent test branches from verification states:
-
-- **Sequential Operations**: Test multi-step processes like Order Creation → Payment → Shipping
-- **Error Scenarios**: Verify behavior when attempting operations in invalid states
-- **Alternative Paths**: Test different command sequences from the same starting point
-- **Aggregate Lifecycle**: Test deletion, recovery, and behavior after deletion
-- **Business Rules**: Verify constraints and business logic across state transitions
-
-**Reference Points and ref():**
-The `ref()` method allows marking specific verification points for subsequent branching. Use `AggregateDsl.fork(ref, ...)` to create branches from any previously marked point, enabling complex test flows across different `on` blocks.
-
-**Best Practices:**
-- Use descriptive names for fork to clarify test intent
-- Use `ref()` to mark important verification points for cross-scenario branching
-- Avoid deep nesting (over 3 levels) - use `ref()` and `fork(ref, ...)` for complex branching
-- Use fork for related operations, separate `on` blocks for unrelated scenarios
-
-#### StatelessSagaDsl
-- `on(block: WhenDsl<T>.() -> Unit)`: Define Saga test scenarios
-
-#### Saga WhenDsl
-- `name(name: String)`: Sets the name for this test scenario
-- `functionFilter(filter: (MessageFunction<*, *, *>) -> Boolean)`: Filter message functions
-- `functionName(functionName: String)`: Filter by function name
-- `whenEvent(event: Any, state: Any?, ownerId: String, spaceId: SpaceId, block: ExpectDsl<T>.() -> Unit)`: Trigger Saga with event
-
-#### Saga ExpectDsl
-- `expectCommandType(commandType: KClass<out Any>)`: Assert sent command type
-- `expectCommand(block: CommandMessage<*>.() -> Unit)`: Verify command content
-- `expectCommandBody(block: C.() -> Unit)`: Verify command body content
-- `expectCommandCount(expected: Int)`: Assert number of commands sent
-- `expectCommandStream(block: CommandStream.() -> Unit)`: Define expectations for complete command stream
-- `expectCommandIterator(block: CommandIterator.() -> Unit)`: Define expectations for iterating commands
-- `expectNoCommand()`: Assert no commands were sent
-- `expectNoError()`: Assert no errors occurred
-- `expectError()`: Assert an error occurred
-- `expectError(block: E.() -> Unit)`: Define expectations for specific errors
-- `expectErrorType(errorType: KClass<out Throwable>)`: Assert specific error type
+Business applications should substitute their own domain-module path and include its verification task only when the project actually configures a threshold. After this command passes, move to [Testing Wow Applications](./application-testing.md) for generated metadata, runtime wiring, HTTP, real adapters, restart recovery, and security negatives. When changing the Wow framework itself, use the repository tasks in [Framework Tests and Benchmarks](./test-runtime.md).

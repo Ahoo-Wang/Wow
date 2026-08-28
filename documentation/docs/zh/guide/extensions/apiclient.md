@@ -1,184 +1,217 @@
 ---
 title: API 客户端
-description: 基于 CoApi 的 RESTful API 客户端，提供响应式和同步的命令发送与快照查询接口。
+description: 通过 CoApi 调用 Wow 命令与快照 HTTP 合同，并保持路由、等待阶段、查询 Schema 与服务端护栏边界。
 ---
 
 # API 客户端
 
-API 客户端模块基于 [CoApi](https://github.com/Ahoo-Wang/CoApi) 提供声明式 RESTful 客户端，支持响应式和同步两种接口模式。
+`wow-apiclient` 为 Wow 通用命令入口与快照查询路由提供手工维护的 CoApi 接口。它是传输适配器：
+
+```text
+CommandRequest / Query DTO
+  -> CoApi HTTP exchange
+  -> 生成的 WebFlux 路由
+  -> 命令管线或受护栏约束的查询管线
+```
+
+它不会生成服务端路由、发现聚合专用字段、创建授权请求头，也不会把投影变成查询服务。运行服务的 OpenAPI 文档仍是路径和线协议的事实来源。
 
 ## 特性
 
-- **响应式与同步 API** — 可选择基于 `Mono` 的响应式接口或阻塞式同步接口
-- **服务发现** — 通过 `@CoApi` 和 `@LoadBalanced` 注解内置服务发现支持
-- **命令网关** — 通过 REST 端点发送命令，支持等待计划
-- **快照查询** — 单条、列表、分页、计数及独立的聚合查询接口
+- 使用 `Mono`、`Flux` 的响应式命令与查询 API。
+- 为明确采用同步 I/O 的调用方提供阻塞式同步 API。
+- 通过 `/wow/command/send` 发送通用命令并携带等待计划请求头。
+- typed、仅状态和 dynamic 三种快照查询响应形状。
+- single、list、paged、精确 count，以及显式选择的 aggregation 调用。
+- 支持 CoApi load-balanced 命令网关。
+
+`wow-apiclient` 不是 OpenAPI 代码生成器。Fetcher 或其他下游工具可以从 `/v3/api-docs` 生成另一套客户端；生成 diff 必须单独审阅。
 
 ## 安装
 
-添加 `wow-apiclient` 依赖和 CoApi Spring Boot Starter（自动注册所需）：
+添加 Wow client 与 CoApi Spring Boot Starter：
 
 ```kotlin [Gradle(Kotlin)]
 implementation("me.ahoo.wow:wow-apiclient")
 implementation("me.ahoo.coapi:coapi-spring-boot-starter")
 ```
 
-还需在应用类上启用 CoApi 客户端扫描：
+注册需要由 CoApi 物化的准确接口：
 
 ```kotlin
-@EnableCoApi(clients = [OrderCommandClient::class, CartQueryClient::class])
+@EnableCoApi(
+    clients = [
+        ReactiveRestCommandGateway::class,
+        CartQueryClient::class,
+    ],
+)
 @SpringBootApplication
-class ExampleServer
+class ClientApplication
 ```
+
+当 `CommandRequest.context` 与 `serviceUri` 都缺失时，客户端应用还必须携带解析命令 context 所需的 Wow 元数据。
 
 ## 快速开始
 
 ### 1. 声明查询客户端
 
-创建一个继承 `ReactiveSnapshotQueryApi<S>`（或 `SynchronousSnapshotQueryApi<S>` 用于阻塞调用）的
-`@CoApi` 接口。`@HttpExchange` 注解将客户端绑定到特定聚合的快照端点：
+把查询接口绑定到聚合路由基址。以下示例指向无作用域的 `/cart/...` 路由：
 
 ```kotlin
-import me.ahoo.coapi.api.CoApi
-import me.ahoo.wow.apiclient.query.ReactiveSnapshotQueryApi
-import me.ahoo.wow.example.api.cart.CartData
-import org.springframework.web.service.annotation.HttpExchange
-
 @CoApi(baseUrl = "http://order-service:8080")
-@HttpExchange("cart") // 聚合名 = 快照端点的基础路径
+@HttpExchange("cart")
 interface CartQueryClient : ReactiveSnapshotQueryApi<CartData>
 ```
 
-你可以覆盖单个方法以自定义 `@RequestBody` 注解，或直接继承所有默认实现
-（single、list、paged、count 及其 state/dynamic 变体）。
+`ReactiveSnapshotQueryApi<S>` 组合 single、list、paged、count 接口。其继承的 `@PostExchange` 路径都相对 `@HttpExchange`：`snapshot/single`、`snapshot/list`、`snapshot/paged`、`snapshot/count`，以及仅状态变体。
+
+当 CoApi 或应用约定需要具体泛型元数据时，应像仓库示例客户端一样，以具体返回类型和 `@RequestBody` 重新声明方法。不要在每个方法重复路由路径。
+
+`@HttpExchange("cart")` 调用基础无作用域快照查询变体。调用 tenant/owner 作用域变体时，应通过应用自有接口或路由层绑定生成路径并提供所需值。基础路由必须被显式保护；选择作用域客户端路径并不等于授权。不要猜测带 context 前缀的 URL，应检查服务端 OpenAPI。
 
 ### 2. 声明命令客户端
 
-命令客户端直接继承 `ReactiveRestCommandGateway` 或 `SyncRestCommandGateway`：
+内置网关已经带 `@CoApi` 与 `@LoadBalanced`，可以直接注册。应用专用命名接口是可选的：
 
 ```kotlin
-@CoApi(baseUrl = "http://order-service:8080")
+@CoApi
 interface OrderCommandClient : ReactiveRestCommandGateway
 ```
+
+两种方式都调用通用命令入口，不会调用 OpenAPI 中的聚合专用命令路由。
 
 ### 3. 注入并使用
 
-CoApi 自动将客户端配置为 Spring Bean —— 直接注入即可：
-
 ```kotlin
 @Service
-class CartService(
-    private val queryClient: CartQueryClient,
-    private val commandClient: OrderCommandClient,
+class CartApplicationService(
+    private val carts: CartQueryClient,
+    private val commands: ReactiveRestCommandGateway,
 ) {
-    fun getCart(cartId: String): Mono<CartData> {
-        return queryClient.getStateById(cartId) // Mono<CartData>
-    }
+    fun getCart(id: String): Mono<CartData> = carts.getStateById(id)
 
-    fun placeOrder(orderId: String, items: List<CreateOrder.Item>, address: ShippingAddress): Mono<CommandResult> {
-        val request = CommandRequest(
-            body = CreateOrder(items = items, address = address, fromCart = false),
-            aggregateId = orderId,
-            waitPlan = CommandRequest.WaitPlan(waitStage = CommandStage.PROCESSED),
+    fun createOrder(id: String, command: CreateOrder): Mono<CommandResult> =
+        commands.send(
+            CommandRequest(
+                body = command,
+                aggregateId = id,
+                serviceUri = "http://order-service:8080",
+                waitPlan = CommandRequest.WaitPlan(
+                    waitStage = CommandStage.PROCESSED,
+                ),
+            ),
         )
-        return commandClient.send(request) // Mono<CommandResult>
-    }
 }
 ```
 
+`getStateById` 会把 HTTP 404 转换为空 `Mono`，其他查询错误继续传播。发送命令前会在本地校验实现 `CommandValidator` 的命令体。
+
 ### 服务发现
 
-`ReactiveRestCommandGateway` 和 `SyncRestCommandGateway` 标注了 `@LoadBalanced`，
-因此可以使用服务注册中心的 URL 而非固定主机：
+`CommandRequest.sendUri` 按以下方式计算：
 
-```kotlin
-@CoApi(baseUrl = "http://order-service") // 由 Spring Cloud LoadBalancer / Nacos 等解析
-interface OrderCommandClient : ReactiveRestCommandGateway
+```text
+(serviceUri ?: "http://" + serviceId) + "/wow/command/send"
 ```
 
-::: tip CommandRequest serviceUri
-对于 `send(CommandRequest)`，命令网关从 `CommandRequest.serviceUri` 或命令元数据的上下文名称构建发送 URI —— 它**不会**使用 `@CoApi(baseUrl)` 发送命令。要将命令发送到固定主机，设置
-`CommandRequest(serviceUri = "http://localhost:8080", ...)`。
-:::
+`serviceId` 是显式 `context`，否则通过 `MetadataSearcher` 根据命令类型解析。因为 `send(CommandRequest)` 会传入绝对 URI 参数，命令网关的 `@CoApi(baseUrl)` 不会选择命令目的地。
+
+固定地址应设置 `serviceUri`。否则 `@LoadBalanced` 网关使用 context 推导的 service host，并要求应用的负载均衡集成可以解析它。
+
+查询客户端不同：目标由 `@CoApi(baseUrl)` 与 `@HttpExchange` 基址决定。服务发现和路由作用域属于应用配置，不会从 Query DTO 推导。
 
 ## 命令网关
 
-`ReactiveRestCommandGateway` 与 `SyncRestCommandGateway` 是具体的 `@CoApi` 接口
-（无额外类型参数）。声明你自己的 `@CoApi` 接口并继承其中之一，即可获得
-`send(CommandRequest)` 方法。
+`CommandRequest` 携带命令体以及路由/消息请求头：
+
+- `aggregateId`、`aggregateVersion`、`tenantId`、`ownerId`、`spaceId`；
+- `requestId`、`localFirst`、`context`、`aggregate` 与可选线协议 `type`；
+- 传输目的地 `serviceUri`；
+- 服务端命令等待合同 `WaitPlan`。
+
+`type` 默认为 `body::class.java.name`。`context` 同时影响命令元数据与默认服务发现。不要仅为了绕过缺失 KSP 元数据而设置 context 或 aggregate；这些值必须描述真实命令合同。
+
+默认等待阶段是 `PROCESSED`。其他阶段为 `SENT`、`SNAPSHOT`、`PROJECTED`、`EVENT_HANDLED`、`SAGA_HANDLED`。`waitContext` 与 `waitProcessor` 用于收窄基于函数的阶段；`waitTimeout` 以毫秒发送。
+
+等待结果表示所选 Wow 处理信号。`PROJECTED` 仅对注册在 Wow 中且在 Handler 返回链内完成的投影工作有意义；它不会等待脱离链路的 `subscribe()` 或无关外部管线。
 
 ### 响应式命令网关
 
 ```kotlin
-@CoApi
-interface OrderCommandGateway : ReactiveRestCommandGateway
-```
-
-`send(request)` 返回 `Mono<CommandResult>`：
-
-```kotlin
-val request = CommandRequest(
-    body = CreateOrder(orderId = "order-001", items = listOf(...)),
-    waitPlan = CommandRequest.WaitPlan(
-        waitStage = CommandStage.PROJECTED,
-        waitContext = "order",
-        waitProcessor = "OrderProjector",
+val result: Mono<CommandResult> = commandGateway.send(
+    CommandRequest(
+        body = createOrder,
+        aggregateId = "order-1",
+        waitPlan = CommandRequest.WaitPlan(
+            waitStage = CommandStage.PROJECTED,
+            waitContext = "order-service",
+            waitProcessor = "OrderSummaryProjector",
+            waitTimeout = 5_000,
+        ),
     ),
 )
-val result: CommandResult = orderCommandGateway.send(request).block()
 ```
+
+响应式网关返回 `Mono<CommandResult>`，并把命令 HTTP 错误转换为 `RestCommandGatewayException`。
 
 ### 同步命令网关
 
 ```kotlin
-@CoApi
-interface OrderCommandGateway : SyncRestCommandGateway
+@EnableCoApi(clients = [SyncRestCommandGateway::class])
+class ClientConfiguration
+
+val result: CommandResult = syncGateway.send(request)
 ```
 
-`send(request)` 直接返回 `CommandResult`（阻塞）。`WebClientResponseException`
-会被解包为 `RestCommandGatewayException`，其中携带 `CommandResult` / `ErrorInfo` 响应体。
+同步网关阻塞调用线程并返回 `CommandResult`。它只能用于阻塞式应用路径，不应从 Reactor event loop 或 Wow 核心响应式处理代码调用。
 
 ## 快照查询
+
+快照客户端提交 `wow-query` 定义的相同 DTO。它们不会获取 `GET /{aggregate}/snapshot/schema`，也不会在客户端预校验逻辑字段。服务端负责解析运行时查询模型 Schema、追加已配置策略并应用 HTTP 护栏。
+
+typed 方法返回 `MaterializedSnapshot<S>`；state 方法解包为 `S`；dynamic 方法返回 Map，适合 projection 选择出不同于 `S` 的形状，但会失去编译期字段类型。
 
 ### 响应式查询 API
 
 ```kotlin
-@CoApi
-interface OrderQueryApi : ReactiveSnapshotQueryApi<OrderState>
+val state: Mono<CartData> = cartClient.getStateById("cart-1")
+
+val snapshots: Flux<MaterializedSnapshot<CartData>> = listQuery {
+    filter {
+        "state.items".elementMatch { "quantity" gt 0 }
+    }
+    limit(20)
+}.query(cartClient)
+
+val page: Mono<PagedList<CartData>> = pagedQuery {
+    filter {
+        "state.items".elementMatch { "quantity" gt 0 }
+    }
+    pagination { index(1); size(20) }
+}.queryState(cartClient)
+
+val count: Mono<Long> = filterExpression {
+    "state.items".elementMatch { "quantity" gt 0 }
+}.count(cartClient)
 ```
 
-`ReactiveSnapshotQueryApi<S>` 组合了单条、列表、分页与计数操作，全部返回 `Mono`/`Flux`：
-
-```kotlin
-// 单条查询：返回 Mono<MaterializedSnapshot<OrderState>>（未找到时为空）
-val snapshot = queryApi.getById("order-001").block()
-// 使用 getStateById 直接获取状态：Mono<OrderState>
-val state = queryApi.getStateById("order-001").block()
-
-// 分页查询：接收 IPagedQuery（Pagination 从 1 开始）；返回 Mono<PagedList<...>>
-val paged = queryApi.paged(
-    PagedQuery(
-        filter = MatchAllFilter,
-        pagination = Pagination(index = 1, size = 10),
-    ),
-).block()
-
-// 计数：接收 FilterExpression；返回 Mono<Long>
-val total = queryApi.count(MatchAllFilter).block()
-```
+count 直接提交 `FilterExpression`。在进程内 DTO 合法的请求，仍可能被服务端 WebFlux 限制拒绝。
 
 ### 同步查询 API
 
 ```kotlin
-@CoApi
-interface OrderQueryApi : SynchronousSnapshotQueryApi<OrderState>
+@CoApi(baseUrl = "http://order-service:8080")
+@HttpExchange("cart")
+interface CartQuerySyncClient : SynchronousSnapshotQueryApi<CartData>
+
+val cart: CartData? = cartQuerySyncClient.getStateById("cart-1")
 ```
 
-同步版本与响应式 API 对应，但直接返回值（阻塞）。
+同步 single helper 会把 HTTP 404 转换为 `null`；list、page、count 与其他错误继续传播。不要把该客户端放入非阻塞执行路径。
 
 ### 快照聚合 API
 
-聚合接口有意保持独立，不包含在组合式快照查询接口中。需要显式继承 `ReactiveSnapshotAggregationQueryApi` 或 `SynchronousSnapshotAggregationQueryApi`：
+Aggregation 刻意不属于 `ReactiveSnapshotQueryApi` 或 `SynchronousSnapshotQueryApi`，必须显式选择：
 
 ```kotlin
 @CoApi(baseUrl = "http://order-service:8080")
@@ -186,25 +219,27 @@ interface OrderQueryApi : SynchronousSnapshotQueryApi<OrderState>
 interface CartAggregationClient : ReactiveSnapshotAggregationQueryApi
 
 val rows: Flux<Map<String, Any?>> = aggregation {
-    expand("state.orders") { "status" eq "PAID" }
-    expand("lines") { "quantity" gt 0 }
+    expand("state.items") { "quantity" gt 0 }
     terms("productId", "product")
-    sum("amount", "total")
-    sort { "total".desc() }
+    sum("quantity", "totalQuantity")
+    sort { "totalQuantity".desc() }
     limit(20)
 }.query(cartAggregationClient)
 ```
 
-响应式 API 返回 `Flux<Map<String, Any?>>`；同步 API 返回 `List<Map<String, Any?>>`。两者都把同一份 `AggregationQuery` JSON 发送到 `snapshot/aggregation`。
+响应式 API 返回 `Flux<Map<String, Any?>>`，同步 API 返回 `List<Map<String, Any?>>`；两者都把 `AggregationQuery` 提交到 `snapshot/aggregation`。路径相对性、后端 Schema 能力、跳过脱敏和高成本操作符护栏都是服务端合同，不会因客户端而改变。
 
 ## 错误处理
 
-`RestCommandGatewayException` 封装命令错误并携带完整的请求上下文：
+命令调用中，如果响应可以解码为 `CommandResult` 或 `DefaultErrorInfo`，`RestCommandGatewayException` 会保留 `CommandRequest`、错误码、消息与绑定错误：
 
 ```kotlin
-try {
-    orderCommandGateway.send(request).block()
-} catch (ex: RestCommandGatewayException) {
-    println("Command failed: ${ex.message}")
-}
+commandGateway.send(request)
+    .doOnError(RestCommandGatewayException::class.java) { error ->
+        log.warn("Command failed: {}", error.errorCode)
+    }
 ```
+
+空白或未知错误体仍会转换为 `RestCommandGatewayException`，并以 HTTP 异常为 cause。查询客户端只会把 single 查询的 404 规范化为空/null；校验、授权、限流、超时与后端错误仍作为传输错误交给应用处理。
+
+不要在 HTTP 层盲目重试命令。应复用稳定 request/command identity，并遵循命令幂等合同。查询也只应重试被应用策略认定为瞬态的错误；查询 Schema 校验或 HTTP 护栏拒绝不会因重复请求而变为合法。

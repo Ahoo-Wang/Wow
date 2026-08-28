@@ -1,73 +1,55 @@
 ---
 title: Event Evolution
-description: Safely evolve persisted domain events with event revisions, EventUpgrader, and historical replay tests.
+description: Maintain persisted-event wire contracts with revision, EventUpgrader, and historical replay.
 outline: deep
 ---
 
 # Event Evolution
 
-Once persisted, a domain event becomes a long-lived data contract. Changing a Kotlin class does not change historical records. Before deserialization, Wow invokes `EventUpgrader` to transform old records into a shape the current model can read.
+A persisted domain event is a long-lived wire contract. Changing a Kotlin class affects new code; historical JSON retains its old event name, type, revision, and body. Before a `DomainEventRecord` becomes a current event object, Wow invokes `EventUpgraderFactory`:
 
 ```text
-raw EventStore record → EventUpgrader chain → current event type → @OnSourcing
+EventStore record
+  → locate upgraders by context + aggregate + event name
+  → transform the record in @Order sequence
+  → resolve the current event type by type id + revision
+  → @OnSourcing
 ```
 
-An upgrade changes the in-memory record used for that read. It does not rewrite the authoritative event store in place.
+An upgrader changes the `ObjectNode` used for this read. It does not write the transformed record back to EventStore.
 
-## Revision Is Not Aggregate Version
+## Two kinds of version
 
-- **Event `revision`** describes the event payload schema and is declared with `@Event(revision = "...")`; its default is `0.0.1`.
-- **Aggregate `version`** is the event's position in one aggregate stream and supports replay and optimistic concurrency.
+| Field | Meaning | Use |
+| --- | --- | --- |
+| `revision` | Event-body schema revision declared by `@Event(revision = ...)`, default `0.0.1` | Type resolution and explicit upgrade logic |
+| Aggregate `version` | Position of an event stream in one aggregate history | Ordering, restoration, and optimistic concurrency |
 
-When fields are added, removed, renamed, or retyped, change the event revision. Do not use aggregate version to represent a schema change.
+Do not express schema evolution by changing aggregate version. An event revision also does not tell the framework how to transform data; every `EventUpgrader` is an explicit application function.
 
-## When an Upgrader Is Required
+## Decide whether an upgrader is required
 
-| Change | Direction |
+| Change | Required evidence |
 | --- | --- |
-| Add an optional field with a safe default | It may remain compatible, but still run historical deserialization tests |
-| Add a required field or change a field type or nested shape | Add an `EventUpgrader` |
-| Rename an event or JVM type | Upgrade `name`, `bodyType`, and `body` together |
-| Event no longer has business meaning | Convert to `DroppedEvent` only when replay semantics permit it |
-| Repair incorrect historical business data | Do not disguise it as schema evolution; design separate audit, backup, reconciliation, and rollback controls |
+| Add an optional field or safe default | Prove the current mapper reads real old records and replay preserves state |
+| Add a required field, change a type, or reshape nesting | Add an upgrader that converts the old body to the target shape |
+| Rename an event or JVM type | Evaluate `name`, `bodyType`, `revision`, and body together; verify type registration |
+| Event no longer affects current state | Convert to `DroppedEvent` only after proving replay invariants are unchanged |
+| Repair an incorrect business fact | Use an auditable data repair or compensation; do not disguise it as harmless schema evolution |
 
-## Example: Add a Field to an Old Event
-
-Assume `order_created` in aggregate `sales.order` moves from `0.0.1` to `2.0.0`, and the current type requires `currency`:
+## Implement one upgrade step
 
 ```kotlin
-@Event(revision = "2.0.0")
-data class OrderCreated(
-    val customerId: String,
-    val totalAmount: BigDecimal,
-    val currency: String,
-)
-```
-
-Create an upgrader. `EventUpgraderFactory` invokes every registered upgrader for the same event, so each upgrader must check its own source revision. Without that guard, it would also transform already-upgraded and newly written events.
-
-```kotlin
-import me.ahoo.wow.api.annotation.Order
-import me.ahoo.wow.event.upgrader.EventNamedAggregate
-import me.ahoo.wow.event.upgrader.EventNamedAggregate.Companion.toEventNamedAggregate
-import me.ahoo.wow.event.upgrader.EventUpgrader
-import me.ahoo.wow.event.upgrader.MutableDomainEventRecord.Companion.toMutableDomainEventRecord
-import me.ahoo.wow.modeling.toNamedAggregate
-import me.ahoo.wow.serialization.event.DomainEventRecord
-
 @Order(100)
 class OrderCreatedV2Upgrader : EventUpgrader {
-    override val eventNamedAggregate: EventNamedAggregate =
-        "sales.order"
-            .toNamedAggregate()
+    override val eventNamedAggregate =
+        "sales.order".toNamedAggregate()
             .toEventNamedAggregate("order_created")
 
-    override fun upgrade(domainEventRecord: DomainEventRecord): DomainEventRecord {
-        if (domainEventRecord.revision != "0.0.1") {
-            return domainEventRecord
-        }
+    override fun upgrade(record: DomainEventRecord): DomainEventRecord {
+        if (record.revision != "0.0.1") return record
 
-        return domainEventRecord.toMutableDomainEventRecord().apply {
+        return record.toMutableDomainEventRecord().apply {
             body.put("currency", "CNY")
             revision = "2.0.0"
         }
@@ -75,85 +57,69 @@ class OrderCreatedV2Upgrader : EventUpgrader {
 }
 ```
 
-`sales.order` and `order_created` must exactly match the context, aggregate, and event names in storage. Do not infer them from a new class name; confirm them from the selected release's metadata or real historical records.
+`EventUpgraderFactory` executes **every** registered upgrader for that event. It does not skip a step based on revision. Each step must therefore recognize its own source revision and write an explicit target revision. `eventNamedAggregate` must exactly match the context, aggregate, and event name stored in history.
 
-## Register with ServiceLoader
+## Registration and ordering
 
-Create the following file in the runtime module containing the upgrader:
+Put a ServiceLoader file on the final runtime classpath:
 
 ```text
-src/main/resources/META-INF/services/me.ahoo.wow.event.upgrader.EventUpgrader
+META-INF/services/me.ahoo.wow.event.upgrader.EventUpgrader
 ```
 
-List one fully qualified implementation class per line:
+List one implementation class per line:
 
 ```text
 com.example.order.event.OrderCreatedV2Upgrader
 ```
 
-Wow loads these implementations through Java `ServiceLoader` when `EventUpgraderFactory` initializes. The registration file must be present on the final runtime classpath; rebuild and restart after changing it.
-
-## Chained Upgrades and Ordering
-
-A long-lived system commonly needs multiple steps:
+The factory loads implementations during initialization and sorts them with Wow `@Order`. A multi-step chain can be represented as:
 
 ```text
-0.0.1 --Order(100)--> 1.0.0 --Order(200)--> 2.0.0
+0.0.1 --order 100--> 1.0.0 --order 200--> 2.0.0
 ```
 
-- a lower `@Order` runs first;
-- every step accepts one explicit source revision and emits one explicit target revision;
-- do not grow one function into a branch for every historical version;
-- do not remove an old step while that revision can still be read.
+The framework only runs the ordered function list. Continuity, missing revisions, and valid output remain application test responsibilities. Keep every step while history may still contain its source revision.
 
-The framework's ServiceLoader and ordering evidence is in [`EventUpgraderFactoryTest`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/test/kotlin/me/ahoo/wow/event/upgrader/EventUpgraderFactoryTest.kt).
+## Rename or drop an event
 
-## Rename or Drop an Event
+`MutableDomainEventRecord` can change `name`, `bodyType`, `revision`, and body. After a rename, the target `(context, aggregate, name, revision)` must resolve to the expected event type; changing only the Kotlin class name is insufficient.
 
-`MutableDomainEventRecord` can change `name`, `bodyType`, `revision`, and `body`. When renaming, keep all four consistent with the target event type and run a full replay test.
+`toDroppedEventRecord()` changes `bodyType`, `name`, and body to the framework's dropped record while retaining aggregate version and sequence in the stream. It does not delete history or prove that the event has no state effect.
 
-An event that truly no longer participates in current state can become `DroppedEvent`:
-
-```kotlin
-import me.ahoo.wow.event.upgrader.DroppedEvent.toDroppedEventRecord
-
-override fun upgrade(domainEventRecord: DomainEventRecord): DomainEventRecord {
-    if (domainEventRecord.revision != "0.0.1") {
-        return domainEventRecord
-    }
-    return domainEventRecord.toDroppedEventRecord()
-}
-```
-
-::: danger Dropping changes replay semantics
-Drop an event only when all later state and invariants are independent of it. Dropping merely to suppress a deserialization failure can produce an apparently successful but incorrect aggregate state.
+::: danger
+Dropping an event merely to bypass deserialization can produce an apparently successful replay with incorrect state. First prove that every later state and business invariant is independent of the event.
 :::
 
-## Required Test Evidence
+## Verification matrix
 
-Cover at least three boundaries:
+1. **Function:** source revision input, fields, target revision, name, type, and body for each step.
+2. **Registration:** the final artifact loads implementations through ServiceLoader in the expected `@Order`.
+3. **Deserialization:** upgraded records resolve through `EventTypeRegistry` to the intended type.
+4. **Historical replay:** restore aggregates from sanitized production samples or complete fixtures and compare critical state and invariants.
+5. **Downstream:** verify projections, Sagas, and BI process old/new events consistently or according to migration design.
 
-1. **Single-step transformation**: use a real old-revision record and verify fields, event name, type, and target revision;
-2. **Registration and order**: prove `EventUpgraderFactory.get(...)` discovers the implementations in `@Order` sequence;
-3. **Historical replay**: rebuild aggregates from sanitized production samples or complete historical fixtures and compare final state and critical invariants.
+The narrow repository checks are:
 
-A unit test that calls only the upgrader function does not prove ServiceLoader registration, chain order, or real event deserialization.
+```bash
+./gradlew :wow-core:test --tests "me.ahoo.wow.event.upgrader.EventUpgraderFactoryTest"
+./gradlew :wow-core:test --tests "me.ahoo.wow.serialization.JsonSerializerEventTest"
+```
 
-## Release and Rollback Gates
+## Release and rollback
 
-1. Back up the event store and prove the backup can be restored.
-2. Inventory revision counts and malformed records in an isolated environment.
-3. Replay representative aggregates and the longest streams with the candidate code.
-4. Compare aggregate state, projections, and critical business totals before and after the upgrade.
-5. Before a rolling deployment, decide whether old instances can read the new revision; otherwise stop writes or use a compatible staged rollout.
-6. Retain the previous application and upgrader chain as a rollback path, and prove rollback will not encounter events it cannot understand.
+- Count real revisions and prove backup restore before release.
+- Replay representative aggregates and the longest streams in isolation.
+- If old and new instances coexist during rollout, prove old instances can read newly written revisions.
+- When bidirectional reading is impossible, design write suspension or staged compatibility instead of a direct rolling update.
+- Keep the upgrader chain required by the application version used for rollback.
 
-A local replay is not production cutover evidence. Revision distribution, mixed-version deployment windows, and restore evidence must be verified independently.
+Passing local tests proves candidate code only. It does not prove production revision distribution, coexistence windows, or recovery procedures.
 
-## Source References
+## Source and related pages
 
-- [`DomainEventRecord.toDomainEvent`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/serialization/event/DomainEventRecord.kt)
-- [`EventUpgrader`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/upgrader/EventUpgrader.kt)
+- [`DomainEventRecord`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/serialization/event/DomainEventRecord.kt)
 - [`EventUpgraderFactory`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/upgrader/EventUpgraderFactory.kt)
 - [`MutableDomainEventRecord`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/upgrader/MutableDomainEventRecord.kt)
-- [`DroppedEvent`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/upgrader/DroppedEvent.kt)
+- [Serialization](./serialization.md): mapper and event-type resolution
+- [Migration](../migration.md): release, reconciliation, and rollback boundaries

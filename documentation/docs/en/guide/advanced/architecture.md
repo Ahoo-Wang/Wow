@@ -1,440 +1,107 @@
 ---
 title: Architecture Overview
-description: Deep-dive into the Wow Framework architecture — module hierarchy, command processing flow, aggregate lifecycle, and extension points of the modern reactive CQRS microservice framework.
+description: Understand Wow's module boundaries, authoritative data, runtime components, and extension responsibilities.
 outline: deep
 ---
 
 # Architecture Overview
 
-The Wow Framework is a modular, layered architecture built on four foundational paradigms: **Domain-Driven Design**, **CQRS**, **Event Sourcing**, and **Reactive Programming**. Every component from the API contracts down to the storage backends is designed for non-blocking I/O, horizontal scalability, and clean separation of concerns.
+Wow expresses a business write as **command → aggregate decision → domain event → sourced state**. The framework connects that path to messaging, storage, waiting, and derived processing. The application still owns business boundaries, event semantics, external side effects, and operational evidence. That is the technical boundary of “Domain Model as a Service” from the [Introduction](../introduction.md), not a promise that everything outside the domain class is automatically correct.
 
-Wow's architecture is built around a single core principle: **"Domain Model as a Service"**. Write your aggregate, and the framework handles everything else -- command routing, event persistence, projection updates, and API generation. Developers write only the domain model, and the framework automatically provides command routing, event persistence, projection pipelines, OpenAPI endpoints, and distributed saga orchestration. The result is a system where business logic lives in pure, testable aggregates, while infrastructure concerns are handled by pluggable extension modules.
+This is a mechanism explanation. Use [Configuration](../configuration.md), the [Spring Boot Starter](../extensions/spring-boot-starter.md), and the [Command Gateway](../command-gateway.md) to select capabilities, configure backends, and send commands.
 
-## At-a-Glance Summary
+## Layers and ownership
 
-| Component | Responsibility | Key Artifact | Source |
-|---|---|---|---|
-| **wow-api** | Pure API contracts: `CommandMessage`, `DomainEvent`, `AggregateId`, `NamedBoundedContext` | `wow-api` module | [Wow.kt:26-45](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/Wow.kt#L26-L45) |
-| **wow-core** | Framework engine: aggregates, command bus, event store, projections, sagas, serialization | `wow-core` module | [CommandGateway.kt:63-174](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt#L63-L174) |
-| **wow-spring** | Spring Framework integration layer | `wow-spring` module | [settings.gradle.kts:32](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L32) |
-| **wow-compiler** | KSP processor: generates command routing, event metadata, OpenAPI specs at compile time | `wow-compiler` module | [settings.gradle.kts:26](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L26) |
-| **wow-test** | Unit testing DSL: `AggregateSpec` / `SagaSpec` with Given-When-Expect pattern | `test/wow-test` | [settings.gradle.kts:44-45](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L44-L45) |
-| **wow-kafka** | Command/event bus implementation via Apache Kafka | `wow-kafka` module | [settings.gradle.kts:27](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L27) |
-| **wow-elasticsearch** | Projection (read model) storage via Elasticsearch | `wow-elasticsearch` module | [settings.gradle.kts:31](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L31) |
-| **wow-opentelemetry** | Distributed tracing for Wow operations | `wow-opentelemetry` module | [settings.gradle.kts:35](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L35) |
-| **wow-cosec** | Authorization and access control | `wow-cosec` module | [settings.gradle.kts:40](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L40) |
-| **wow-webflux** | Spring WebFlux integration: auto-registers command route handler functions | `wow-webflux` module | [settings.gradle.kts:33](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L33) |
+| Layer | Main modules | Owns | Does not own |
+| --- | --- | --- | --- |
+| Public contracts | `wow-api` | Commands, events, aggregate identity, annotations, and other public models | Runtime scheduling or backend implementations |
+| Core runtime | `wow-core` | CommandGateway, aggregate processing, event sourcing, dispatchers, waiting, serialization, and Runtime | Spring bean discovery or a concrete broker/storage |
+| Compile time | `wow-compiler` | Wow metadata, aggregate metadata accessors, and query-property constants derived from annotations | Runtime routing or the OpenAPI document itself |
+| Container integration | `wow-spring`, `wow-spring-boot-starter` | Spring lifecycle bridge, conditional assembly, component discovery, and capability composition | Business rules or backend-native operations |
+| Adapters | `wow-kafka`, `wow-mongo`, `wow-redis`, `wow-elasticsearch`, and others | Concrete Bus, EventStore, SnapshotStore, and query implementations | Redefining core public semantics |
+| Verification | `wow-test`, `wow-tck` | Domain test DSL and adapter contract tests | Replacing real recovery, capacity, or failure evidence |
 
-## Module Dependency Graph
+Dependencies flow from public contracts to the core, with Spring and adapters completing composition. A new backend should implement an existing narrow interface and retain its native consistency, acknowledgement, redelivery, and recovery semantics in the adapter instead of reproducing infrastructure in the domain model.
 
-The framework follows strict layered architecture where each module has a clear dependency direction. The `wow-api` module sits at the root, defining pure contracts with zero external dependencies, while infrastructure modules at the leaf level provide concrete implementations.
-
-```mermaid
-flowchart TB
-    subgraph API["API Layer<br>"]
-        A1["wow-api<br>CommandMessage, DomainEvent<br>AggregateId, NamedBoundedContext"]
-    end
-
-    subgraph CORE["Core Engine"]
-        C1["wow-core<br>AggregateProcessor, CommandGateway<br>EventStore, SagaProcessor<br>ProjectionDispatcher"]
-    end
-
-    subgraph COMPILE["Compile-Time"]
-        K1["wow-compiler (KSP)<br>Command routing metadata<br>Event handler metadata<br>OpenAPI spec generation"]
-    end
-
-    subgraph EXT["Extension Modules"]
-        E1["wow-kafka<br>Kafka command/event bus"]
-        E2["wow-mongo<br>MongoDB event store"]
-        E3["wow-redis<br>Redis event store"]
-        E5["wow-elasticsearch<br>Elasticsearch projection"]
-        E6["wow-webflux<br>WebFlux command endpoint"]
-        E7["wow-cosec<br>Authorization"]
-        E8["wow-opentelemetry<br>Distributed tracing"]
-    end
-
-    subgraph SPRING["Spring Integration"]
-        S1["wow-spring<br>Spring context bridge"]
-        S2["wow-spring-boot-starter<br>Auto-configuration<br>Feature capabilities"]
-    end
-
-    subgraph TEST["Testing"]
-        T1["wow-test<br>AggregateSpec, SagaSpec<br>Given-When-Expect DSL"]
-    end
-
-    C1 --> A1
-    K1 --> A1
-    K1 --> C1
-    CORE --> API
-    EXT --> CORE
-    SPRING --> CORE
-    EXT --> SPRING
-    TEST --> CORE
-
-    style A1 fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style C1 fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style K1 fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style E1 fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style E2 fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style E3 fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style E4 fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style E5 fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style E6 fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style E7 fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style E8 fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style S1 fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style S2 fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style T1 fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-```
-
-<!-- Sources: settings.gradle.kts:19-80, wow-api/src/main/kotlin/me/ahoo/wow/api/Wow.kt:26-45 -->
-
-## Module Hierarchy
-
-The module hierarchy is defined in [settings.gradle.kts:19-80](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L19-L80). Every module depends only on modules above it in the hierarchy, ensuring no circular dependencies.
-
-### Layer Breakdown
-
-| Layer | Modules | Description | Source |
-|---|---|---|---|
-| **API Contracts** | `wow-api`, `wow-openapi` | Pure Kotlin interfaces and data classes. Zero framework dependencies. Defines `CommandMessage`, `DomainEvent`, `AggregateId`, `WaitPlan`, etc. | [wow-api](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/Wow.kt) |
-| **Core Engine** | `wow-core` | Aggregate processing, command bus, event store abstraction, saga processing, projection dispatch, serialization. All reactive (Project Reactor). | [wow-core](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt) |
-| **Compile-Time** | `wow-compiler` | KSP processor. Generates command routing tables, event handler metadata, and OpenAPI specs from annotations at compile time. | [settings.gradle.kts:26](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L26) |
-| **Spring Integration** | `wow-spring`, `wow-spring-boot-starter` | Bridges the core engine into Spring's `ApplicationContext`. The starter provides auto-configuration with Gradle feature variants for optional capabilities. | [WowAutoConfiguration.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt) |
-| **Observability** | `wow-opentelemetry` | End-to-end tracing integration via OpenTelemetry. Metrics are provided separately through Micrometer. | [settings.gradle.kts:35](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L35) |
-| **Security** | `wow-cosec` | Command/query authorization with policy-based access control. | [settings.gradle.kts:40](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L40) |
-| **Testing** | `wow-test`, `wow-tck`, `wow-mock` | Aggregate and saga testing DSL; Technology Compatibility Kit for integration tests; in-memory mock implementations. | [settings.gradle.kts:44-49](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L44-L49) |
-| **Compensation** | `wow-compensation-api`, `wow-compensation-core`, `wow-compensation-domain`, `wow-compensation-server` | Event compensation subsystem with dashboard for monitoring and retrying failed events. | [settings.gradle.kts:56-63](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L56-L63) |
-
-### Design Principles Enforced by Module Separation
-
-1. **Dependency Inversion**: Core modules depend on abstractions (`CommandBus`, `EventStore`, `SnapshotStore`), not concrete implementations. Infrastructure modules provide the implementations and are discovered at runtime via Spring's `@ConditionalOnClass` auto-configuration.
-2. **Open-Closed Principle**: New storage backends or message transports can be added as new modules without touching core code.
-3. **Single Responsibility**: Each module has exactly one reason to change. `wow-mongo` handles MongoDB event storage; `wow-kafka` handles Kafka message transport; they never overlap.
-
-### Key Design Decisions
-
-| Decision | Rationale |
-|----------|-----------|
-| Reactive (Project Reactor) | Non-blocking I/O for maximum throughput |
-| KSP over KAPT | Compile-time code generation, faster builds |
-| Spring Boot auto-configuration | Zero-boilerplate setup |
-| Pluggable event store | Swap backends without changing domain code |
-| Given-When-Expect testing | Readable, maintainable test suite |
-| Dark launch support | Feature flags for gradual rollouts |
-
-## Command Processing Flow
-
-The command processing flow is the central nervous system of the Wow Framework. It coordinates command routing, aggregate loading, business rule validation, event persistence, snapshot creation, and event publication through a reactive pipeline.
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Client
-    participant CG as CommandGateway
-    participant CB as CommandBus
-    participant CD as CommandDispatcher
-    participant AF as AggregateProcessorFilter
-    participant AP as AggregateProcessor
-    participant SR as SnapshotStore
-    participant ES as EventStore
-    participant SA as StateAggregate
-    participant CA as CommandAggregate
-    participant SF as SendDomainEventStreamFilter
-    participant EB as EventBus
-
-    Client->>CG: sendAndWait(command, waitPlan)
-    CG->>CB: route(command)
-    Note over CB: TopicKind.COMMAND
-    CB->>CD: dispatch(ServerCommandExchange)
-    CD->>AF: filter(exchange)
-    AF->>AP: process(exchange)
-
-    AP->>SR: load(aggregateId)
-    SR-->>AP: snapshot (or null)
-    AP->>ES: load(aggregateId, version+1)
-    ES-->>AP: incremental events Flux
-    AP->>SA: onSourcing(events)
-    Note over SA: Rebuild aggregate state<br>from events
-    AP->>CA: process(exchange)
-    CA->>CA: validate business rules
-    CA->>CA: execute command function
-    CA-->>AP: DomainEventStream
-
-    AP->>ES: append(eventStream)
-    Note over ES: Atomic append with<br>version conflict check
-    ES-->>AP: success
-    AP->>SR: save(snapshot)
-    AP->>SF: filter(eventStream)
-    SF->>EB: publish(domainEvents)
-    Note over EB: Distribute to projections,<br>sagas, and event handlers
-
-    EB-->>CG: WaitSignal (stage notification)
-    CG-->>Client: CommandResult (when waitPlan satisfied)
-```
-
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt:63-174, wow-core/src/main/kotlin/me/ahoo/wow/command/CommandBus.kt:36-41, wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/AggregateProcessor.kt:32-49, wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt:43-80, wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/modeling/AggregateAutoConfiguration.kt:50-151 -->
-
-### Step-by-Step Flow Description
-
-| Step | Component | Action | Source |
-|---|---|---|---|
-| 1 | **Client** | Sends a command with a `WaitPlan` specifying how long to wait and at what stage | [CommandGateway.kt:89-91](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt#L89-L91) |
-| 2 | **CommandGateway** | Entry point implementing `CommandBus`. Routes command to the appropriate handler based on aggregate type | [CommandGateway.kt:75](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt#L75) |
-| 3 | **CommandDispatcher** | Bridges the command bus to the aggregate processor filter chain; configured in `AggregateAutoConfiguration` | [AggregateAutoConfiguration.kt:138-149](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/modeling/AggregateAutoConfiguration.kt#L138-L149) |
-| 4 | **AggregateProcessorFilter** | Constructs an `AggregateProcessor` for the target aggregate, handling sharding and retry logic | [AggregateAutoConfiguration.kt:91-96](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/modeling/AggregateAutoConfiguration.kt#L91-L96) |
-| 5 | **Snapshot + Event Loading** | Loads the latest snapshot, then replays incremental events from the `EventStore` to rebuild current state | [EventSourcingStateAggregateRepository.kt:41-60](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventSourcingStateAggregateRepository.kt#L41-L60) |
-| 6 | **Business Rule Execution** | The aggregate root (`CommandAggregate`) validates invariants and executes the command handler function | [SimpleCommandAggregate.kt:68-79](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt#L68-L79) |
-| 7 | **Event Persistence** | `EventStore.append()` atomically writes the event stream, enforcing optimistic concurrency via version checks | [EventStore.kt:40-54](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L40-L54) |
-| 8 | **Snapshot + Publish** | After persistence, a snapshot is saved and domain events are published to the `EventBus` for downstream processing | [AggregateAutoConfiguration.kt:100-106](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/modeling/AggregateAutoConfiguration.kt#L100-L106) |
-
-### Wait Plans and Command Stages
-
-The `CommandGateway` supports waiting for the command to reach specific processing stages before returning to the client. This is critical for solving the read-write synchronization delay problem inherent in CQRS architectures.
-
-```mermaid
-stateDiagram-v2
-    [*] --> SENT : command accepted by bus
-    SENT --> PROCESSED : aggregate executed command
-    SENT --> SNAPSHOT : snapshot processing complete
-    PROCESSED --> SNAPSHOT : snapshot processing complete
-    PROCESSED --> PROJECTED : all projections updated
-    PROCESSED --> EVENT_HANDLED : event handlers complete
-    PROCESSED --> SAGA_HANDLED : saga processing complete
-
-    note right of SENT
-        Fastest: command sent to bus.
-        No processing guarantee.
-        Typical: 29 ms avg latency
-    end note
-
-    note right of PROCESSED
-        Aggregate execution complete.
-        Events persisted.
-        Typical: 239 ms avg latency
-    end note
-
-    note right of PROJECTED
-        Read model updated.
-        Client sees latest data.
-        Solves sync delay problem.
-    end note
-
-```
-
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt:25-123, wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt -->
-
-Each stage in `CommandStage` is defined as an enum with explicit prerequisite dependencies:
-
-| Stage | Prerequisites | Waits for Functions | Typical Use Case | Source |
-|---|---|---|---|---|
-| `SENT` | (none) | No | Fire-and-forget commands; maximum throughput | [CommandStage.kt:33](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L33) |
-| `PROCESSED` | `SENT` | No | Ensure aggregate has processed the command | [CommandStage.kt:43](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L43) |
-| `SNAPSHOT` | `SENT`, `PROCESSED` | No | Ensure snapshot has been created after processing | [CommandStage.kt:52](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L52) |
-| `PROJECTED` | `SENT`, `PROCESSED` | Yes | Read model updated; solves sync delay problem | [CommandStage.kt:63](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L63) |
-| `EVENT_HANDLED` | `SENT`, `PROCESSED` | Yes | External event handlers have processed the events | [CommandStage.kt:73](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L73) |
-| `SAGA_HANDLED` | `SENT`, `PROCESSED` | Yes | Saga orchestrators have completed processing | [CommandStage.kt:84](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L84) |
-
-## Aggregate Lifecycle
-
-The aggregate root is the heart of domain logic in the Wow Framework. It follows a well-defined state machine that governs how commands are processed, events are sourced, and state transitions occur.
-
-### Aggregate State Machine
-
-```mermaid
-stateDiagram-v2
-    [*] --> INITIAL : create new aggregate
-    INITIAL --> STORED : initial state loaded
-    STORED --> SOURCED : events sourced into state
-    SOURCED --> STORED : events appended to EventStore
-    STORED --> DELETED : DeleteAggregate command
-    DELETED --> STORED : RecoverAggregate command
-```
-
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/CommandAggregate.kt:41-118, wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt:43-80 -->
-
-### CommandState Enum
-
-The `CommandState` enum ([CommandAggregate.kt:65-118](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/CommandAggregate.kt#L65-L118)) governs the lifecycle of command processing within an aggregate:
-
-| State | Valid Operations | Description | Source |
-|---|---|---|---|
-| `STORED` | `onSourcing(eventStream)` | The aggregate is ready to source events. This is the entry point for each command processing cycle. | [CommandAggregate.kt:66-74](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/CommandAggregate.kt#L66-L74) |
-| `SOURCED` | `onStore(eventStore, eventStream)` | Events have been applied to the state aggregate. The event stream is ready to be persisted. | [CommandAggregate.kt:75-83](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/CommandAggregate.kt#L75-L83) |
-| `EXPIRED` | (none) | Terminal state. No further operations are supported. | [CommandAggregate.kt:84-85](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/CommandAggregate.kt#L84-L85) |
-
-### Key Lifecycle Rules
-
-1. **Commands can only be processed in `STORED` state**: The aggregate transitions to `SOURCED` after sourcing events, then back to `STORED` after persisting. This ensures serial command processing per aggregate instance, preventing race conditions, as documented in [AggregateProcessor.kt:41-43](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/AggregateProcessor.kt#L41-L43).
-2. **Delete and Recover are built-in commands**: `DefaultDeleteAggregate` transitions the aggregate to a deleted state, while `DefaultRecoverAggregate` restores it. Attempting operations on a deleted aggregate throws `IllegalAccessDeletedAggregateException`.
-3. **Optimistic concurrency**: The `EventStore.append()` method rejects writes when a version conflict is detected, ensuring that only one concurrent write can succeed per aggregate.
-
-## Event Sourcing Architecture
-
-Wow implements a full event sourcing pattern where the aggregate state is derived from the ordered sequence of domain events rather than being directly persisted as a row in a relational database.
-
-### State Rebuild Strategy
-
-```mermaid
-flowchart TD
-    A["Load Aggregate"] --> B{"Snapshot exists?"}
-    B -->|"Yes"| C["Load Snapshot<br>from SnapshotStore"]
-    B -->|"No"| D["Create Initial State<br>via StateAggregateFactory"]
-    C --> E["Get snapshot version"]
-    E --> F["Load incremental events<br>EventStore.load(aggregateId, version+1)"]
-    D --> G["Load all events<br>EventStore.load(aggregateId, 1)"]
-    F --> H["Apply events to state<br>state.onSourcing(eventStream)"]
-    G --> H
-    H -- "State rebuilt" --> I["Return StateAggregate"]
-
-    style A fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style B fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style C fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style D fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style F fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style G fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style I fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-```
-
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventSourcingStateAggregateRepository.kt:31-39, wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt:27-98 -->
-
-The `EventSourcingStateAggregateRepository` orchestrates this flow. Its loading process works as follows:
-
-1. For the latest version (tailVersion = `Int.MAX_VALUE`), it first attempts to load from the `SnapshotStore`.
-2. If no snapshot exists, it creates a new aggregate instance via `StateAggregateFactory`.
-3. Events from the `EventStore` are applied sequentially starting from the aggregate's expected next version.
-
-This approach enables point-in-time state reconstruction: by specifying a `tailVersion` or `tailEventTime`, the repository can rebuild the aggregate state as it existed at any historical point.
-
-### Event Store Interface
-
-The `EventStore` interface ([EventStore.kt:27-98](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L27-L98)) defines the contract for event persistence:
-
-| Method | Description | Concurrency Guarantees |
-|---|---|---|
-| `append(eventStream)` | Atomically appends a domain event stream | Throws `EventVersionConflictException` on version conflict; `DuplicateAggregateIdException` for duplicate IDs; `DuplicateRequestIdException` for duplicate requests |
-| `load(aggregateId, headVersion, tailVersion)` | Loads event streams within version range (inclusive) | Returns `Flux` for reactive streaming |
-| `load(aggregateId, headEventTime, tailEventTime)` | Loads event streams within time range (inclusive) | Returns `Flux` for reactive streaming |
-| `single(aggregateId, version)` | Loads a single event stream at a specific version | Convenience method using `load()` |
-| `last(aggregateId)` | Loads the most recent event stream | Used for tail version lookup |
-
-## Extension Points and Pluggability
-
-The Wow Framework follows the **Strategy Pattern** throughout: every infrastructure concern is defined as an interface in `wow-core`, with concrete implementations in extension modules. Spring's auto-configuration wires the appropriate implementation at startup based on classpath availability.
-
-### Core Extension Interfaces
-
-| Extension Point | Interface | Purpose | Implementations | Source |
-|---|---|---|---|---|
-| **Command Bus** | `CommandBus` / `DistributedCommandBus` | Routes commands to aggregate processors | `InMemoryCommandBus`, `LocalFirstCommandBus`, Kafka-backed | [CommandBus.kt:36-69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandBus.kt#L36-L69) |
-| **Event Bus** | `DomainEventBus` / `StateEventBus` | Distributes domain and state events to projections, sagas, and handlers | `InMemoryDomainEventBus`, `InMemoryStateEventBus`, Kafka-backed, Redis-backed | [InMemoryDomainEventBus.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/InMemoryDomainEventBus.kt) |
-| **Wait Plan** | `WaitPlan` | Controls command response timing | `StageWaitTarget`, `ChainWaitTarget`, `CommandWait` factories | [WaitPlan.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt) |
-| **ID Generator** | `IdGenerator` (via CosId) | Generates globally unique aggregate IDs | Snowflake, segment, etc. (via CosId integration) | `me.ahoo.cosid` |
-| **Serialization** | `MessageSerializer` | JSON serialization with type metadata | Jackson-based `JsonSerializer` | [wow-core serialization](https://github.com/Ahoo-Wang/Wow/tree/main/wow-core/src/main/kotlin/me/ahoo/wow/serialization) |
-
-### Spring Boot Auto-Configuration Structure
-
-The `wow-spring-boot-starter` module uses Gradle feature variants to declare optional capabilities, ensuring that you only depend on what you need. Key auto-configuration classes include:
-
-| Auto-Configuration Class | Condition | Wires | Source |
-|---|---|---|---|
-| `WowAutoConfiguration` | `@ConditionalOnWowEnabled` | `ServiceProvider`, `NamedBoundedContext`, `ErrorInfoConverterRegistrar`, `WowRuntime` | [WowAutoConfiguration.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt) |
-| `AggregateAutoConfiguration` | `@ConditionalOnWowEnabled` | `StateAggregateFactory`, `StateAggregateRepository`, `CommandAggregateFactory`, `AggregateProcessorFactory`, `CommandDispatcher`, filter chain | [AggregateAutoConfiguration.kt:50-151](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/modeling/AggregateAutoConfiguration.kt#L50-L151) |
-| `EventAutoConfiguration` | `@ConditionalOnWowEnabled` | Event bus, event dispatcher, event processor registry | [EventAutoConfiguration.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/event/EventAutoConfiguration.kt) |
-| `KafkaAutoConfiguration` | `@ConditionalOnKafkaEnabled` | Kafka command bus, Kafka event bus | [KafkaAutoConfiguration.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/kafka/KafkaAutoConfiguration.kt) |
-| `MongoEventSourcingAutoConfiguration` | `@ConditionalOnMongoEnabled` | MongoDB event store, MongoDB snapshot store | [MongoEventSourcingAutoConfiguration.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/mongo/MongoEventSourcingAutoConfiguration.kt) |
-| `WebFluxAutoConfiguration` | `@ConditionalOnWebfluxEnabled` | Command routing handler functions, OpenAPI endpoints | [WebFluxAutoConfiguration.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/webflux/WebFluxAutoConfiguration.kt) |
-
-## CQRS Separation in Action
-
-The CQRS pattern is embedded at every level of the architecture:
+## Runtime component view
 
 ```mermaid
 flowchart LR
-    subgraph WRITE["Write Side (Command)"]
-        CMD["Command"] --> AR["Aggregate Root"]
-        AR --> EVT["Domain Events"]
-        EVT --> ES["Event Store"]
-    end
-
-    subgraph BUS["Message Bus Layer"]
-        EB["EventBus<br>Kafka / Redis / In-Memory"]
-    end
-
-    subgraph READ["Read Side (Query)"]
-        SP["SagaProcessor"] --> CG["CommandGateway"]
-        QS["QueryService"] --> RM
-    end
-
-    ES --> EB
-    EB --> PP
-    EB --> SP
-    QS --> Client
-
-    style WRITE fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style BUS fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style READ fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
+    Client[Client / application ingress] --> Gateway[CommandGateway]
+    Gateway --> CommandBus[CommandBus]
+    CommandBus --> CommandDispatcher[CommandDispatcher]
+    CommandDispatcher --> Aggregate[CommandAggregate + StateAggregate]
+    Aggregate --> EventStore[(EventStore)]
+    Aggregate --> DomainBus[DomainEventBus]
+    Aggregate --> StateBus[StateEventBus]
+    DomainBus --> EventProcessor[EventProcessor]
+    DomainBus --> Projection[Projection]
+    DomainBus --> Saga[Stateless Saga]
+    StateBus --> Snapshot[Snapshot Dispatcher]
+    Snapshot --> SnapshotStore[(SnapshotStore)]
 ```
 
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/projection/ProjectionDispatcher.kt, wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaHandler.kt -->
+Three ownership categories matter:
 
-### Write Side Responsibilities
+- `EventStore` holds authoritative event history. A stream becomes recovery input only after append succeeds.
+- `SnapshotStore` and projections hold derived data. They can be rebuilt and do not replace event history.
+- A Bus transports messages. Delivery, acknowledgement, retention, and redelivery strength depend on the selected implementation and configuration.
 
-- Accepts commands via `CommandGateway`
-- Validates business rules within the aggregate root
-- Produces domain events that represent state changes
-- Maintains strong transactional consistency via atomic event store appends
+See [Data Flow](./data-flow.md) for the stage-by-stage path and [Aggregate Lifecycle](./aggregate-lifecycle.md) for aggregate-internal transitions.
 
-### Read Side Responsibilities
+## Write and read boundaries
 
-- Subscribes to domain events via the `EventBus`
-- Projections transform events into optimized read models (Elasticsearch indices, SQL views)
-- Sagas react to events by sending follow-up commands, enabling distributed transaction orchestration
-- Query services read from purpose-built read models, not the event store
+The write side protects invariants within one aggregate boundary: restore current state, invoke the command function, source the new events, and append the event stream. The read side is served by projections, snapshots, or other derived models. Completing the write does not automatically mean an arbitrary read model is current.
 
-### The Bridge: State Events
+The caller selects an observable completion point with a wait plan:
 
-Between the write and read sides, Wow introduces **state events** (`StateEvent`). After command processing, the framework publishes the full current state of the aggregate as an event. This enables:
-- **Projections** that rebuild read models from complete state snapshots rather than incremental deltas
-- **Business Intelligence** pipelines that consume aggregate states directly into data warehouses
-- **Cache warming** via [CoCache](../extensions/cocache) for ultra-low-latency query services
+| Stage | What it proves | What it does not prove |
+| --- | --- | --- |
+| `SENT` | The CommandBus send operation completed | The aggregate ran |
+| `PROCESSED` | The command filter chain completed successfully; the current default chain includes aggregate processing, event append, and domain/state event sends | Snapshot, projection, event processor, or Saga completion |
+| `SNAPSHOT` | The targeted snapshot processing completed | Any projection completed |
+| `PROJECTED` / `EVENT_HANDLED` / `SAGA_HANDLED` | The selected downstream function completed | Global consistency across external systems |
 
-## Compile-Time Code Generation (wow-compiler)
+The [Command Gateway wait-plan section](../command-gateway.md#wait-plans) owns exact target selection and failure results; this page does not duplicate call examples.
 
-The `wow-compiler` module is a KSP processor that eliminates boilerplate and runtime reflection. At compile time, it:
+## Ordering and concurrency boundary
 
-1. **Scans** `@CommandRoute`, `@OnEvent`, `@OnStateEvent`, and other Wow annotations
-2. **Generates** command routing tables, event handler registries, and function metadata
-3. **Produces** OpenAPI specifications from command and event models
+Default dispatchers map messages by aggregate ID into a finite set of groups. A group is processed serially while different groups may run concurrently. An `AggregateSchedulerSupplier` caches a Reactor Scheduler per named aggregate. The supported scope is therefore that the same aggregate ID maps to the same group within the same dispatcher instance. It does not establish global order across processes, buses, handler functions, or external systems.
 
-This compile-time approach means:
-- No runtime annotation scanning overhead
-- Faster startup time
-- Type-safe command routing verified at build time
+Concurrent writes still pass through EventStore version constraints. Scheduling reduces contention inside one instance; append rejects conflicting persistent writes. These are different controls. Backend redelivery also does not make an external side effect idempotent.
 
-The compiler integrates with `wow-openapi` to automatically generate OpenAPI specs, and with `wow-schema` to produce JSON Schema definitions for commands and events.
+See [Aggregate Scheduler](./aggregate-scheduler.md), [Event Bus](./event-bus.md), and [Event Store](../eventstore.md).
 
-## Performance Characteristics
+## Lifecycle boundary
 
-The architectural choices of the Wow Framework directly enable its performance profile. Key design decisions that impact performance:
+`WowRuntime` is the single high-level owner of runtime components. Every component is prepared before any component starts. Graceful shutdown observes a continuous quiet period, closes global admission, quiesces component intake, and cleans up in reverse order. Fatal component failures and the global deadline enter the same whole-runtime termination path.
 
-1. **Reactive pipelines**: framework hot paths compose `Mono` and `Flux` without introducing blocking calls, while application handlers must preserve that boundary.
-2. **Snapshot optimization**: `SnapshotStore` avoids replaying the full event history on every aggregate load.
-3. **Local-first routing**: `LocalFirstCommandBus` attempts local runtime admission while sending a marked distributed copy, avoiding broker latency when local admission succeeds.
-4. **Historical stress sample**: one linked two-minute example run reported average Add To Cart throughput of 59,625 TPS with `SENT` and 18,696 TPS with `PROCESSED`. These deployment-specific historical measurements illustrate the cost of stronger wait stages; they are not current framework guarantees, an SLA, or a capacity plan. See the [README test conditions and deployment links](https://github.com/Ahoo-Wang/Wow/blob/main/README.md#L94-L109).
+Spring adapts that ownership through one `WowRuntimeLifecycle`. A runtime component must not have a competing Spring lifecycle or destroy owner. See [Runtime Lifecycle](./runtime-lifecycle.md) for the complete contract.
 
-## Related Pages
+## Compile-time and runtime responsibilities
 
-| Page | Description |
-|---|---|
-| [Introduction](../introduction) | Overview of Wow framework features and value proposition |
-| [Runtime Lifecycle](runtime-lifecycle.md) | Unified readiness, activity tracking, graceful shutdown, and Spring ownership |
-| [Domain Modeling](../modeling) | How to design aggregate roots, commands, and events |
-| [Command Gateway](../command-gateway) | Deep-dive into command sending and wait plans |
-| [Event Sourcing](../eventstore) | Event store, snapshots, and state rebuild mechanics |
-| [Saga Orchestration](../saga) | Distributed transaction support via sagas |
-| [Projections](../projection) | Building and updating read models |
-| [Testing](../test-suite) | AggregateSpec and SagaSpec testing DSL |
-| [Spring Boot Integration](../extensions/spring-boot-starter) | Auto-configuration details and property reference |
-| [CoCache](../extensions/cocache) | Projection caching for query performance |
-| [Observability](../../reference/config/observability) | OpenTelemetry tracing and Micrometer metrics |
+KSP reads declarations such as `@BoundedContext` and `@AggregateRoot`, then produces packaged metadata and Kotlin constants. Runtime and interface modules consume those outputs to assemble aggregate discovery, routes, schemas, or OpenAPI. If KSP output is absent, the runtime does not reconstruct the complete contract from this documentation.
+
+See [Compiler](./compiler.md) for generated artifacts, paths, and checks. [Serialization](./serialization.md) and [Event Evolution](./event-evolution.md) own wire format and persisted-event changes.
+
+## Extension checklist
+
+1. Keep public models in `wow-api`, runtime behavior in `wow-core`, and concrete backends in their adapters.
+2. Do not introduce blocking calls into reactive command or event paths.
+3. Decide whether `WowRuntime` owns the new component; if it does, keep one lifecycle owner.
+4. Verify source, binary, and wire impact separately; compilation does not prove historical-data compatibility.
+5. State only the ordering, retry, idempotency, and acknowledgement scope proven by implementation and tests.
+6. Verify adapters with their TCK/integration tests, then gather real-environment recovery and operational evidence.
+
+## Fact sources
+
+- [`wow-api`](https://github.com/Ahoo-Wang/Wow/tree/main/wow-api/src/main/kotlin/me/ahoo/wow/api)
+- [`wow-core`](https://github.com/Ahoo-Wang/Wow/tree/main/wow-core/src/main/kotlin/me/ahoo/wow)
+- [`wow-compiler`](https://github.com/Ahoo-Wang/Wow/tree/main/wow-compiler/src/main/kotlin/me/ahoo/wow/compiler)
+- [`Architecture.svg`](https://github.com/Ahoo-Wang/Wow/blob/main/document/design/assets/Architecture.svg)
+
+## Continue reading
+
+- [Core Concepts](../core-concepts.md): stable vocabulary and value flow
+- [Module Dependencies](./module-dependencies.md): exact capabilities and Gradle boundaries
+- [Production Best Practices](../best-practices.md): turn component boundaries into release evidence

@@ -2,23 +2,27 @@ import {DefaultTheme} from "vitepress/types/default-theme";
 
 export const navbarEn: DefaultTheme.NavItem[] = [
     {
-        text: 'Guide',
-        link: '/guide/',
-        activeMatch: '^/guide/'
+        text: 'Start',
+        items: [
+            {text: 'Why Wow', link: '/guide/introduction'},
+            {text: '30-Minute Quickstart', link: '/guide/getting-started'},
+            {text: 'Adopt in an Existing Project', link: '/guide/existing-project'},
+            {text: 'Evaluate or Contribute by Role', link: '/onboarding/'},
+        ],
     },
+    {text: 'Development Guide', link: '/guide/'},
     {
-        text: 'Articles',
-        link: '/articles/',
-        activeMatch: '^/articles/'
-    },
-    {
-        text: 'Onboarding',
-        link: '/onboarding/',
-        activeMatch: '^/onboarding/'
+        text: 'Production Operations',
+        items: [
+            {text: 'Production Best Practices', link: '/guide/best-practices'},
+            {text: 'Backup, Restore, and Replay', link: '/guide/recovery'},
+            {text: 'Observability', link: '/guide/advanced/observability'},
+            {text: 'Troubleshooting', link: '/guide/troubleshooting'},
+            {text: 'Migration Guide', link: '/guide/migration'},
+        ],
     },
     {
         text: 'Reference',
-        activeMatch: '^/reference/',
         items: [
             {
                 text: 'Configuration',
@@ -33,66 +37,21 @@ export const navbarEn: DefaultTheme.NavItem[] = [
                 text: 'Examples',
                 items: [
                     {text: 'Order and Cart (Kotlin)', link: '/reference/example/order'},
-                    {text: 'Bank Transfer (JAVA)', link: '/reference/example/transfer'},
+                    {text: 'Bank Transfer (Java)', link: '/reference/example/transfer'},
                     {text: 'Event Compensation', link: '/reference/example/compensation'},
                 ],
             },
-            {
-                text: 'Ecosystem',
-                items: [
-                    {text: 'Ecosystem', link: '/reference/ecosystem'},
-                ],
-            },
-        ]
-    }
-    , {
-        text: 'API',
-        link: `/dokka/index.html`,
-        target: '_blank'
+        ],
     },
+    {text: 'API', link: '/dokka/index.html', target: '_blank'},
     {
-        text: "Resources",
+        text: 'Resources',
         items: [
-            {
-                text: 'Agent Skills',
-                link: '/guide/skills'
-            },
-            {
-                text: 'Project template for quickly building DDD projects based on Wow framework',
-                link: 'https://github.com/Ahoo-Wang/wow-project-template'
-            },
-            {
-                text: 'Powerful TypeScript code generation tool',
-                link: 'https://github.com/Ahoo-Wang/fetcher/blob/main/packages/generator/'
-            },
-            {
-                text: 'Fluent Kotlin Assertion Library',
-                link: 'https://github.com/Ahoo-Wang/FluentAssert'
-            },
-            {
-                text: 'CosId - Distributed ID Generator',
-                link: 'https://github.com/Ahoo-Wang/CosId'
-            },
-            {
-                text: 'CoSky - Microservice Governance',
-                link: 'https://github.com/Ahoo-Wang/CoSky'
-            },
-            {
-                text: 'CoSec - Reactive Security Framework',
-                link: 'https://github.com/Ahoo-Wang/CoSec'
-            },
-            {
-                text: 'CoCache - Distributed Cache',
-                link: 'https://github.com/Ahoo-Wang/CoCache'
-            },
-            {
-                text: 'Simba - Distributed Lock',
-                link: 'https://github.com/Ahoo-Wang/Simba'
-            }
-        ]
+            {text: 'Articles', link: '/articles/'},
+            {text: 'Agent Skills', link: '/guide/skills'},
+            {text: 'Project Template', link: 'https://github.com/Ahoo-Wang/wow-project-template'},
+            {text: 'Ecosystem', link: '/reference/ecosystem'},
+            {text: 'Changelog', link: 'https://github.com/Ahoo-Wang/Wow/releases'},
+        ],
     },
-    {
-        text: `Changelog`,
-        link: `https://github.com/Ahoo-Wang/Wow/releases`
-    }
 ]

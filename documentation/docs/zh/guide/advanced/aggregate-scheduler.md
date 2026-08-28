@@ -1,95 +1,101 @@
 ---
 title: 聚合调度器
-description: 为每个聚合提供专用 Reactor 调度器，控制并发执行和资源分配。
+description: 按命名聚合缓存 Reactor Scheduler，并区分线程池、处理 group 与顺序边界。
+outline: deep
 ---
 
 # 聚合调度器
 
-聚合调度器为每个聚合提供专用的 Reactor Scheduler，用于控制并发执行和资源分配。
+`AggregateSchedulerSupplier` 为命令和事件分发器提供 Reactor `Scheduler`。默认实现按 **materialized named aggregate** 缓存一个 parallel Scheduler；它不是“每个聚合 ID 一条线程”，也不是分布式锁。
 
-## 调度器供应器
-
-聚合调度器供应器为每个聚合提供或创建专用的调度器。它同时提供优雅与强制停机能力，
-使运行时能在任一停机路径释放所有缓存的调度器。
+## Supplier 合同
 
 ```kotlin
 interface AggregateSchedulerSupplier : GracefullyStoppable {
     fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler
-    // 继承方法：stopGracefully(): Mono<Void>
     fun forceStop()
 }
 ```
 
-### 默认实现
+`DefaultAggregateSchedulerSupplier(name, parallelism)`：
 
-`DefaultAggregateSchedulerSupplier` 为每个具象化聚合延迟创建一个
-`Schedulers.newParallel` 并缓存。构造函数接收 `name`（作为调度器名前缀）和可选的
-`parallelism`（默认 `Schedulers.DEFAULT_POOL_SIZE`）；它还实现了 `ParallelismCapable` 与 `Named`。
+- 首次访问某个命名聚合时创建 `Schedulers.newParallel("$name-${aggregateName}", parallelism)`；
+- 后续访问返回缓存实例；
+- `parallelism` 默认是 `Schedulers.DEFAULT_POOL_SIZE`；
+- stop 开始后拒绝创建新 Scheduler。
 
-```kotlin
-class DefaultAggregateSchedulerSupplier(
-    override val name: String,
-    override val parallelism: Int = Schedulers.DEFAULT_POOL_SIZE
-) : AggregateSchedulerSupplier,
-    ParallelismCapable,
-    Named {
+并发调用 `getOrInitialize` 由同一个生命周期 monitor 串行化，测试验证同一 key 只创建一个缓存实例。
 
-    private val schedulers: MutableMap<MaterializedNamedAggregate, Scheduler> = ConcurrentHashMap()
+## Scheduler 与处理 group 不同
 
-    override fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler =
-        schedulers.computeIfAbsent(namedAggregate.materialize()) { _ ->
-            Schedulers.newParallel("$name-${namedAggregate.aggregateName}", parallelism)
-        }
+分发器还有自己的 `parallelism`，用于计算聚合 ID 的 group key。两层概念不要混用：
 
-    override fun stopGracefully(): Mono<Void> {
-        // 在优雅关闭时释放所有缓存的调度器
-    }
+| 概念 | 决定什么 |
+| --- | --- |
+| Supplier `parallelism` | 每个命名聚合 Scheduler 的 Reactor worker 数 |
+| Dispatcher `parallelism` | `groupBy` 的逻辑并发 group 数；默认来自 `MessageParallelism.DEFAULT_PARALLELISM` |
+| `toGroupKey()` | 把 AggregateId 映射到其中一个 group |
 
-    override fun forceStop() {
-        // 同步释放所有缓存的调度器
-    }
-}
+`AggregateDispatcher` 对每个 group 使用串行处理链，并让不同 group 并发：
+
+```text
+exchange
+  → groupBy(aggregateId.id.hashCode().mod(dispatcherParallelism))
+  → 每个 group 内 concatMap
+  → group 在该命名聚合的 Scheduler 上执行
 ```
 
-首次为某个命名聚合调用时会创建一个名为 `{supplier-name}-{aggregateName}` 的并行调度器
-（例如 `order-service-order`）；后续对同一聚合的调用返回缓存实例。
+所以同一聚合 ID 在同一分发器实例中稳定映射到同一 group；不同 ID 可能映射到不同 group 并发，也可能哈希碰撞后共享串行 group。
 
-## 分发器如何使用调度器
+## 能依赖与不能推断的范围
 
-每个 Wow 分发器（命令、领域事件、状态事件、投影、Saga、快照）都从供应器获取其按聚合类型的调度器，
-并通过 `publishOn(scheduler)` 处理。在该调度器内，`AggregateDispatcher` 按聚合 ID 哈希将消息分组到
-`parallelism` 通道；同一通道内的事件通过 `concatMap` 串行化，但同一聚合类型内的不同聚合 ID 可能跨通道并发处理。
+可以从默认实现得到：
 
-```kotlin
-// EventStreamDispatcher —— 每个命名聚合创建一个分发器
-override fun newAggregateDispatcher(namedAggregate: NamedAggregate): AggregateEventDispatcher {
-    return AggregateEventDispatcher(
-        namedAggregate = namedAggregate,
-        messageFlux = ...,
-        scheduler = schedulerSupplier.getOrInitialize(namedAggregate), // 专用调度器
-        // ...
-    )
-}
+- 同一 materialized named aggregate 复用 Scheduler；
+- 同一 `aggregateId.id` 在同一 dispatcher parallelism 下映射到同一 group；
+- 同一 group 中 exchange 串行进入 handler。
+
+不能据此推断：
+
+- AggregateId 永久绑定某个物理线程；
+- 跨 Runtime 实例、Broker partition 或服务的全局顺序；
+- 同一事件匹配的多个 handler 函数按声明顺序执行；
+- 串行调度能替代 EventStore 版本冲突检查；
+- handler 副作用天然幂等。
+
+写入一致性最终仍由聚合边界与 EventStore append 约束；外部处理顺序还取决于 Bus Adapter、分区和消费组。
+
+## 所有权与停止
+
+Supplier 拥有它缓存的 Scheduler：
+
+- `stopGracefully()` 原子关闭新建入口，取出全部缓存并调用 `disposeGracefully()`；结果被 cache，多个观察者共享同一次终止；
+- `forceStop()` 取得同一终止快照并立即 `dispose()`；
+- force 可以接管进行中的 graceful disposal；完成后仍拒绝新 Scheduler。
+
+`CompositeEventDispatcher` 把 `BorrowedAggregateSchedulerSupplier` 交给子分发器。借用视图的 stop/force 是 no-op，只有父组件关闭真实 Supplier，避免重复释放。
+
+这套生命周期由[运行时生命周期](./runtime-lifecycle.md)的逆序清理和全局 deadline 约束。
+
+## 调优边界
+
+增加 worker 或 dispatcher group 只会提高可并发执行的上限，也会增加队列、上下文切换和下游并发。热点单聚合仍在同一 group 内串行。调优前至少分别观察：
+
+- 每个命名聚合的队列与处理延迟；
+- handler 是 CPU、非阻塞 I/O 还是误用了阻塞调用；
+- EventStore/Broker/外部系统的并发上限；
+- 停机时 Scheduler 排空是否落在 Runtime deadline 内。
+
+不要从线程数计算生产吞吐保证；使用目标版本、硬件、参数和真实后端的基准/故障证据。
+
+## 验证与源码
+
+```bash
+./gradlew :wow-core:test --tests "me.ahoo.wow.scheduler.AggregateSchedulerSupplierTest"
+./gradlew :wow-core:test --tests "me.ahoo.wow.event.dispatcher.CompositeEventDispatcherLifecycleTest"
 ```
 
-在 `AbstractAggregateEventDispatcher` 内部，分组后的 Flux 被发布到该调度器：
-
-```kotlin
-messageFlux
-    .groupBy { it.toGroupKey(parallelism) }   // 按 parallelism 通道分散
-    .flatMap { grouped -> grouped.publishOn(scheduler) ... } // 同一聚合类型 -> 同一调度器
-```
-
-这是 Wow **按聚合实例串行处理** 保证的基础：同一聚合类型的调度器内，`AggregateDispatcher`
-将聚合 ID 哈希到 `parallelism` 通道，同一通道内的事件通过 `concatMap` 串行化，
-但同一聚合类型内的不同聚合 ID 可能跨通道并发处理。
-
-## 为什么需要按聚合的专用调度器？
-
-| 关注点 | 按聚合的调度器如何解决 |
-|---|---|
-| **顺序性** | 同一聚合类型的事件共享一个调度器。在该调度器内，`AggregateDispatcher` 将聚合 ID 哈希到 `parallelism` 通道；**同一通道**内的事件通过 `concatMap` 串行化，但**不同聚合 ID** 的事件可能跨通道并发处理。顺序保证是按聚合实例的，而非跨实例。 |
-| **隔离性** | 不同聚合类型（例如 `order` 与 `cart`）获得各自的调度器，慢速类型不会阻塞另一类型。 |
-| **背压** | 每个命名聚合的调度器有自己的队列；竞争以聚合类型为单位受限，而非全局。 |
-| **资源控制** | `parallelism` 限制每个命名聚合类型的工作线程数，防止某个热点类型耗尽所有 CPU。 |
-| **关闭** | `stopGracefully()` 排空缓存的调度器；截止时间到达时，`forceStop()` 同步释放它们。 |
+- [`AggregateSchedulerSupplier`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/scheduler/AggregateSchedulerSupplier.kt)
+- [`AggregateDispatcher`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt)
+- [`MessageParallelism`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/MessageParallelism.kt)
+- [事件总线](./event-bus.md)：分发、函数并发与确认

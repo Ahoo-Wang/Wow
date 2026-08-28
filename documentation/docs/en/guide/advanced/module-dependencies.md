@@ -1,175 +1,84 @@
 ---
 title: Module Dependencies
-description: Detailed analysis of every module in the Wow framework, including dependency graph, module table, and build structure.
+description: Select Wow modules by responsibility, direct Gradle dependencies, and Starter feature capabilities.
+outline: deep
 ---
 
 # Module Dependencies
 
-The Wow framework is composed of over 20 Gradle modules, each with a single, well-defined responsibility. This page maps out every module, its dependencies, and how they relate to one another.
+This page answers two questions: which module owns code, and which capability an application should request at runtime. Dependency facts come from `settings.gradle.kts`, module `build.gradle.kts` files, and `wow-spring-boot-starter/build.gradle.kts`. Configuration properties do not replace classpath selection.
 
 ## Module Overview Table
 
-| Module | Layer | Description |
-|--------|-------|-------------|
-| `wow-api` | API | Pure contracts: `CommandMessage`, `DomainEvent`, `AggregateId`, naming types. Zero dependencies. |
-| `wow-core` | Core | Framework engine: aggregates, command bus, event sourcing, projections, sagas, wait plans. |
-| `wow-spring` | Spring | Spring `ApplicationContext` bridge, bean registration. |
-| `wow-spring-boot-starter` | Spring | Auto-configuration with Gradle feature variants for optional infrastructure. |
-| `wow-kafka` | Infra | Distributed command, domain-event, and state-event buses via Apache Kafka. |
-| `wow-mongo` | Infra | MongoDB `EventStore`, `SnapshotStore`, PrepareKey, and query services. |
-| `wow-redis` | Infra | Redis/Lettuce message buses, `EventStore`, `SnapshotStore`, and PrepareKey. |
-| `wow-elasticsearch` | Infra | Elasticsearch `EventStore`, `SnapshotStore`, and query services. |
-| `wow-webflux` | Infra | Spring WebFlux command, event-stream, and snapshot-query endpoints. |
-| `wow-opentelemetry` | Infra | Distributed tracing for Wow operations via OpenTelemetry. |
-| `wow-cosec` | Infra | Extracts/propagates CoSec request context and rewrites query space; the application owns authentication and authorization policy. |
-| `wow-compiler` | Tooling | KSP processor — generates command routing, event handling metadata, OpenAPI specs at compile time. |
-| `wow-test` | Testing | Unit testing DSL: `AggregateSpec`, `SagaSpec`, Given-When-Expect pattern. |
-| `wow-tck` | Testing | Technology Compatibility Kit — integration tests with Testcontainers. |
-| `wow-mock` | Testing | Mock support module. |
-| `wow-query` | Query | Query model support types and interfaces. |
-| `wow-schema` | Tooling | JSON Schema generation from Wow command/event models. |
-| `wow-openapi` | Tooling | OpenAPI specification generation. |
-| `wow-bi` | Tooling | BI sync script generator. |
-| `wow-models` | Domain | Shared domain model abstractions. |
-| `wow-cocache` | Caching | CoCache-based projection caching. |
-| `wow-apiclient` | Client | RESTful API client using CoApi. |
+| Module | Primary responsibility | When an application depends on it directly |
+| --- | --- | --- |
+| `wow-api` | Public command, event, naming, header, and AggregateId contracts | API/domain contract modules |
+| `wow-core` | CommandGateway, dispatchers, EventStore interfaces, event sourcing, projections, sagas, wait chains | Non-Spring runtime or domain implementation |
+| `wow-query` | Query models, schema resolution, snapshot/event query interfaces | Query extensions |
+| `wow-models` | Repository shared models and KSP-generated examples | Consumers of those shared models |
+| `wow-spring` | Spring container bridge and query-service registration | Custom Spring integration |
+| `wow-spring-boot-starter` | Core auto-configuration and optional feature variants | Spring Boot services |
+| `wow-kafka` | Kafka Command/DomainEvent/StateEvent buses | Kafka without the Starter |
+| `wow-mongo` | Mongo EventStore, SnapshotStore, PrepareKey, and query services | Mongo without the Starter |
+| `wow-redis` | Redis buses, EventStore, SnapshotStore, and PrepareKey | Redis without the Starter |
+| `wow-elasticsearch` | Elasticsearch EventStore, SnapshotStore, and query services | Elasticsearch without the Starter |
+| `wow-webflux` | Built-in command, event, state, query, and operation route handlers | WebFlux without the Starter |
+| `wow-opentelemetry` | OpenTelemetry instrumenters for Wow flows | Tracing without the Starter |
+| `wow-cosec` | CoSec request-context propagation and query-space rewriting | Applications already using CoSec |
+| `wow-compiler` | KSP metadata and API-contract generation | Use with `ksp(...)`, never as a runtime dependency |
+| `wow-schema` | JSON Schema generation | Schema/OpenAPI tooling extensions |
+| `wow-openapi` | Built-in route and OpenAPI contract generation | OpenAPI extensions |
+| `wow-bi` | BI/ClickHouse synchronization script generation | BI script generation or deployment |
+| `wow-test` | `AggregateSpec` and `SagaSpec` DSL | Domain tests |
+| `wow-tck` | Adapter contracts and Testcontainers fixtures | Adapter implementation/verification |
+| `wow-mock` | Mock and delayed storage support | Tests, not production |
+| `wow-apiclient` | CoApi/Wow REST API client | JVM clients |
+| `wow-cocache` | CoCache projection-cache integration | CoCache adopters |
+| `wow-bom` / `wow-dependencies` | Published BOM and repository dependency platform | Version alignment; no runtime capability |
+
+`test/wow-it` and `code-coverage-report` are repository verification modules. `compensation/*` and `example/*` are the compensation product and sample applications, not implicit dependencies of the base Starter.
 
 ## Dependency Graph
 
-The following diagram shows the primary dependency relationships between modules. Arrows point from a dependency to its consumer, so API exposure and feature-variant boundaries remain visible.
+Arrows point from a dependency to its consumer. Dashed edges are Starter feature variants, not base-variant dependencies.
 
 ```mermaid
 graph LR
-    subgraph API["API Layer"]
-        wow_api["wow-api"]
-    end
+    API[wow-api] --> CORE[wow-core]
+    CORE --> QUERY[wow-query]
+    CORE --> SPRING[wow-spring]
+    QUERY --> SPRING
+    CORE --> STARTER[wow-spring-boot-starter]
+    SPRING --> STARTER
 
-    subgraph CORE["Core Layer"]
-        wow_core["wow-core"]
-        wow_query["wow-query"]
-        wow_models["wow-models"]
-    end
+    CORE --> KAFKA[wow-kafka]
+    CORE --> MONGO[wow-mongo]
+    QUERY --> MONGO
+    CORE --> REDIS[wow-redis]
+    CORE --> ES[wow-elasticsearch]
+    QUERY --> ES
 
-    subgraph TOOLING["Tooling"]
-        wow_compiler["wow-compiler"]
-        wow_schema["wow-schema"]
-        wow_openapi["wow-openapi"]
-        wow_bi["wow-bi"]
-    end
+    CORE --> OPENAPI[wow-openapi]
+    QUERY --> OPENAPI
+    SCHEMA[wow-schema] --> OPENAPI
+    CORE --> WEBFLUX[wow-webflux]
+    OPENAPI --> WEBFLUX
+    BI[wow-bi] --> WEBFLUX
+    CORE --> OTEL[wow-opentelemetry]
+    WEBFLUX --> COSEC[wow-cosec]
 
-    subgraph SPRING["Spring Layer"]
-        wow_spring["wow-spring"]
-        wow_boot["wow-spring-boot-starter"]
-    end
-
-    subgraph INFRA["Infrastructure"]
-        wow_kafka["wow-kafka"]
-        wow_mongo["wow-mongo"]
-        wow_redis["wow-redis"]
-        wow_es["wow-elasticsearch"]
-        wow_webflux["wow-webflux"]
-        wow_otel["wow-opentelemetry"]
-        wow_cosec["wow-cosec"]
-    end
-
-    subgraph CLIENT["Client &amp; Cache"]
-        wow_apiclient["wow-apiclient"]
-        wow_cocache["wow-cocache"]
-    end
-
-    subgraph TESTING["Testing"]
-        wow_test["wow-test"]
-        wow_tck["wow-tck"]
-        wow_mock["wow-mock"]
-    end
-
-    %% Core dependencies
-    wow_api --> wow_core
-
-    %% Tooling dependencies
-    wow_core --> wow_compiler
-    wow_api --> wow_schema
-    wow_core --> wow_schema
-    wow_models --> wow_schema
-    wow_core --> wow_openapi
-    wow_query --> wow_openapi
-    wow_schema --> wow_openapi
-    wow_api -->|"api"| wow_bi
-    wow_core -->|"implementation"| wow_bi
-
-    %% Spring dependencies
-    wow_core --> wow_spring
-    wow_query --> wow_spring
-    wow_core --> wow_boot
-    wow_spring --> wow_boot
-
-    %% Infrastructure dependencies
-    wow_core --> wow_kafka
-    wow_core --> wow_mongo
-    wow_query --> wow_mongo
-    wow_core --> wow_redis
-    wow_core --> wow_es
-    wow_query --> wow_es
-    wow_core --> wow_webflux
-    wow_openapi --> wow_webflux
-    wow_bi -->|"api"| wow_webflux
-    wow_core --> wow_otel
-    wow_webflux --> wow_cosec
-
-    %% Client & cache
-    wow_core --> wow_apiclient
-    wow_openapi --> wow_apiclient
-    wow_apiclient --> wow_cocache
-    wow_query --> wow_cocache
-
-    %% Testing
-    wow_core --> wow_test
-    wow_core --> wow_tck
-    wow_query --> wow_tck
-    wow_test --> wow_tck
-    wow_core --> wow_mock
-
-    %% Feature variant dependencies consumed by wow_boot
-    wow_kafka -.->|"feature variant"| wow_boot
-    wow_mongo -.->|"feature variant"| wow_boot
-    wow_redis -.->|"feature variant"| wow_boot
-    wow_es -.->|"feature variant"| wow_boot
-    wow_bi -.->|"webfluxSupportApi"| wow_boot
-    wow_webflux -.->|"webfluxSupportImplementation"| wow_boot
-    wow_otel -.->|"feature variant"| wow_boot
-    wow_cosec -.->|"feature variant"| wow_boot
-    wow_openapi -.->|"feature variant"| wow_boot
-    wow_mock -.->|"feature variant"| wow_boot
-
-
-
+    KAFKA -. kafka-support .-> STARTER
+    MONGO -. mongo-support .-> STARTER
+    REDIS -. redis-support .-> STARTER
+    ES -. elasticsearch-support .-> STARTER
+    WEBFLUX -. webflux-support .-> STARTER
+    OTEL -. opentelemetry-support .-> STARTER
+    BI -. "openapi-support (api)" .-> STARTER
+    OPENAPI -. "openapi-support (implementation)" .-> STARTER
+    COSEC -. cosec-support .-> STARTER
 ```
 
-<!-- Sources:
-  settings.gradle.kts (all module includes)
-  wow-api/build.gradle.kts
-  wow-core/build.gradle.kts
-  wow-spring/build.gradle.kts
-  wow-spring-boot-starter/build.gradle.kts
-  wow-kafka/build.gradle.kts
-  wow-mongo/build.gradle.kts
-  wow-redis/build.gradle.kts
-  wow-elasticsearch/build.gradle.kts
-  wow-webflux/build.gradle.kts
-  wow-opentelemetry/build.gradle.kts
-  wow-cosec/build.gradle.kts
-  wow-compiler/build.gradle.kts
-  wow-schema/build.gradle.kts
-  wow-openapi/build.gradle.kts
-  wow-bi/build.gradle.kts
-  wow-cocache/build.gradle.kts
-  wow-apiclient/build.gradle.kts
-  wow-query/build.gradle.kts
-  test/wow-test/build.gradle.kts
-  test/wow-tck/build.gradle.kts
-  test/wow-mock/build.gradle.kts
-  wow-models/build.gradle.kts
--->
+The diagram shows project-module dependencies only. External libraries such as Jackson, Reactor, Spring Data, and Kafka clients remain defined by each module's Gradle file.
 
 ## Module Details
 
@@ -177,278 +86,131 @@ graph LR
 
 #### wow-api
 
-The foundation module with **zero external dependencies** beyond optional annotations. It defines all contracts used across the framework.
+`wow-api` is the public contract layer, but it is not dependency-free: it exposes Jackson Databind through its API and uses Jackson annotations, Swagger annotations, and Spring Context as compile-only dependencies. Runtime dispatchers, storage, and Spring auto-configuration do not belong here.
 
-```kotlin
-// wow-api/build.gradle.kts
-dependencies {
-    compileOnly("com.fasterxml.jackson.core:jackson-annotations")
-    compileOnly("io.swagger.core.v3:swagger-annotations-jakarta")
-    compileOnly("org.springframework:spring-context")
-}
-```
-
-[[wow-api/build.gradle.kts](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/build.gradle.kts)]
-
-Key types: `CommandMessage`, `DomainEvent`, `AggregateId`, `NamedAggregate`, `Wow` (namespace constants), `Header`, `Message`, `TopicKind`.
+Representative types include `CommandMessage`, `DomainEvent`, `AggregateId`, `NamedAggregate`, `Header`, and `TopicKind`.
 
 ### Core Layer
 
 #### wow-core
 
-The engine room of the framework. Depends on `wow-api` plus reactive infrastructure.
-
-```kotlin
-dependencies {
-    api(project(":wow-api"))
-    api("io.projectreactor:reactor-core")
-    api("tools.jackson.core:jackson-databind")
-    api("jakarta.validation:jakarta.validation-api")
-    // ... and more
-}
-```
-
-[[wow-core/build.gradle.kts](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/build.gradle.kts)]
-
-Contains: `CommandGateway`, `CommandBus`, `EventStore`, `DomainEventBus`, `StateAggregate`, `CommandAggregate`, `ProjectionHandler`, `StatelessSagaHandler`, `WaitPlan`, snapshot infrastructure, and the filter chain framework.
+`wow-core` exposes `wow-api` and runtime contracts from Reactor, Jackson, Validation, CosId, and Micrometer. It owns command processing, event sourcing, Snapshot/Projection/Saga interfaces, WaitPlan, and runtime lifecycle. It does not own a concrete broker, database, or HTTP server.
 
 #### wow-query
 
-Query model support types and interfaces. Depends on `wow-core`.
-
-[[wow-query/build.gradle.kts](https://github.com/Ahoo-Wang/Wow/blob/main/wow-query/build.gradle.kts)]
+`wow-query` exposes `wow-core`. MongoDB and Elasticsearch query modules reuse it. That dependency does not give Redis EventStore/SnapshotStore a general dynamic-query implementation.
 
 #### wow-models
 
-Shared domain model abstractions. Uses `wow-api` and `wow-compiler` (KSP) for annotation processing.
-
-```kotlin
-ksp(project(":wow-compiler"))
-```
-
-[[wow-models/build.gradle.kts](https://github.com/Ahoo-Wang/Wow/blob/main/wow-models/build.gradle.kts)]
+`wow-models` uses `wow-api` as an implementation dependency and runs `wow-compiler` KSP for its own sources. It is a shared-model module, not a mandatory dependency for every application domain.
 
 ### Spring Layer
 
 #### wow-spring
 
-Bridges `wow-core` into Spring's `ApplicationContext`. Depends on `wow-core` and `wow-query`.
-
-[[wow-spring/build.gradle.kts](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring/build.gradle.kts)]
+`wow-spring` exposes `wow-core`, uses `wow-query` as an implementation dependency, and owns the Spring `ApplicationContext` bridge and query-service registration. It does not select storage or messaging implementations.
 
 #### wow-spring-boot-starter
 
-The one-stop auto-configuration module. Uses **Gradle feature variants** to declare optional capabilities:
+The base variant exposes `wow-core` and `wow-spring` and provides core auto-configuration. The base variant itself is not the Kafka, MongoDB, Redis, or Elasticsearch capability.
 
 ```kotlin
-java {
-    registerFeature("mongoSupport") { capability(group, "mongo-support", version) }
-    registerFeature("redisSupport") { capability(group, "redis-support", version) }
-    registerFeature("kafkaSupport") { capability(group, "kafka-support", version) }
-    registerFeature("webfluxSupport") { capability(group, "webflux-support", version) }
-    registerFeature("elasticsearchSupport") { capability(group, "elasticsearch-support", version) }
-    registerFeature("opentelemetrySupport") { capability(group, "opentelemetry-support", version) }
-    registerFeature("openapiSupport") { capability(group, "openapi-support", version) }
-    registerFeature("cosecSupport") { capability(group, "cosec-support", version) }
+dependencies {
+    implementation(platform("me.ahoo.wow:wow-bom:<aligned-version>"))
+    implementation("me.ahoo.wow:wow-spring-boot-starter")
+
+    implementation("me.ahoo.wow:wow-spring-boot-starter") {
+        capabilities { requireCapability("me.ahoo.wow:kafka-support") }
+    }
+    implementation("me.ahoo.wow:wow-spring-boot-starter") {
+        capabilities { requireCapability("me.ahoo.wow:mongo-support") }
+    }
 }
 ```
 
-[[wow-spring-boot-starter/build.gradle.kts:6](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/build.gradle.kts#L6)]
-
-Feature variants allow consumers to declare only the infrastructure they need:
-
-```kotlin
-// Consumer's build.gradle.kts
-implementation("me.ahoo.wow:wow-spring-boot-starter")
-implementation("me.ahoo.wow:wow-spring-boot-starter") {
-    capabilities { requireCapability("me.ahoo.wow:mongo-support") }
-}
-implementation("me.ahoo.wow:wow-spring-boot-starter") {
-    capabilities { requireCapability("me.ahoo.wow:kafka-support") }
-}
-```
+Use one dependency declaration per capability. `mongo-support`, `redis-support`, and `elasticsearch-support` already include the matching Spring Boot Data starter. Add it separately only when application code directly requires an additional API, not as a duplicate precaution.
 
 ### Infrastructure Modules
 
-Each infrastructure module provides a concrete implementation of one or more core interfaces:
+| Module | Concrete capability | Does not own |
+| --- | --- | --- |
+| `wow-kafka` | Three distributed buses, topic converters, receiver policy | Topics, ACLs, retention, offset backups |
+| `wow-mongo` | EventStore, SnapshotStore, PrepareKey, event/snapshot queries | Business indexes, sharding, backups |
+| `wow-redis` | Three Redis Streams buses, EventStore, SnapshotStore, PrepareKey | General dynamic queries, Redis persistence policy |
+| `wow-elasticsearch` | EventStore, SnapshotStore, event/snapshot queries, template initialization | ILM, cluster capacity, snapshot repositories |
+| `wow-webflux` | Contract-driven HTTP handlers, query guard, batch routes | Business authorization and management-plane isolation |
+| `wow-opentelemetry` | Wow instrumenters | SDK/exporter/sampler deployment |
+| `wow-cosec` | CoSec context adaptation | Complete authentication flow or application authorization policy |
 
-```mermaid
-graph TB
-    subgraph Interfaces["Core Interfaces"]
-        CB["CommandBus"]
-        DEB["DomainEventBus"]
-        ES["EventStore"]
-        SR["SnapshotStore"]
-    end
-
-    subgraph Implementations["Infrastructure Implementations"]
-        direction TB
-        K["wow-kafka<br>KafkaCommandBus<br>KafkaDomainEventBus"]
-        M["wow-mongo<br>MongoEventStore<br>MongoSnapshotStore"]
-        R["wow-redis<br>RedisEventStore<br>RedisSnapshotStore"]
-        ES_IMPL["wow-elasticsearch<br>ElasticsearchEventStore<br>ElasticsearchSnapshotStore"]
-    end
-
-    K --> CB
-    K --> DEB
-    M --> ES
-    M --> SR
-    R --> ES
-    R --> SR
-    ES_IMPL --> ES
-
-
-
-```
-
-<!-- Sources:
-  wow-kafka/build.gradle.kts
-  wow-mongo/build.gradle.kts
-  wow-redis/build.gradle.kts
--->
-
-| Module | Implements | External Dependency |
-|--------|-----------|-------------------|
-| `wow-kafka` | `DistributedCommandBus`, `DistributedDomainEventBus` | `reactor-kafka` |
-| `wow-mongo` | `EventStore`, `SnapshotStore` | `mongodb-driver-reactivestreams` |
-| `wow-redis` | `EventStore`, `SnapshotStore` | `spring-data-redis`, `lettuce-core` |
-| `wow-elasticsearch` | Projection storage | `spring-data-elasticsearch` |
-| `wow-webflux` | Command endpoints | `spring-webflux` |
-| `wow-opentelemetry` | Distributed tracing | `opentelemetry-instrumentation-api` |
-| `wow-cosec` | Authorization | (depends on wow-webflux) |
+Infrastructure modules implement Core interfaces. Production suitability depends on deployment topology, configuration, backup/restore, and real-load evidence—not the module's presence in a dependency graph.
 
 ### Tooling Modules
 
 #### wow-compiler
 
-A **KSP (Kotlin Symbol Processing)** processor that runs at compile time to generate:
-
-- Command routing metadata
-- Event handling function registration
-- OpenAPI specification fragments
-
-```kotlin
-dependencies {
-    implementation(project(":wow-core"))
-    implementation(libs.ksp.symbol.processing.api)
-}
-```
-
-[[wow-compiler/build.gradle.kts](https://github.com/Ahoo-Wang/Wow/blob/main/wow-compiler/build.gradle.kts)]
-
-Domain projects apply it via `ksp(project(":wow-compiler"))` in their build script.
+`wow-compiler` is a KSP processor. Domain modules use `ksp("me.ahoo.wow:wow-compiler")` to generate compile-time outputs such as `META-INF/wow-metadata.json`. The service runtime needs the generated result, not the compiler as a runtime dependency.
 
 #### wow-schema
 
-Generates JSON Schema from Wow command/event models using `jsonschema-generator` with Jackson, Jakarta Validation, and Swagger modules.
-
-[[wow-schema/build.gradle.kts](https://github.com/Ahoo-Wang/Wow/blob/main/wow-schema/build.gradle.kts)]
+`wow-schema` depends on `wow-api`, `wow-core`, and `wow-query` and combines JSON Schema Generator with Jackson, Validation, and Swagger modules. It also packages the query FilterExpression schema.
 
 #### wow-openapi
 
-Generates OpenAPI specifications from Wow domain models. Its API dependencies are `wow-core`, `wow-query`, and `wow-schema`; it has no dependency on `wow-bi`.
-
-[[wow-openapi/build.gradle.kts](https://github.com/Ahoo-Wang/Wow/blob/main/wow-openapi/build.gradle.kts)]
+`wow-openapi` exposes `wow-core`, `wow-query`, and `wow-schema` to generate built-in HTTP route contracts. `wow-webflux` provides the actual handlers.
 
 #### wow-bi
 
-BI sync script generator. It exposes `wow-api` through its API because `BiScriptGenerator` accepts `NamedAggregate`, and uses `wow-core` as an implementation dependency for metadata and serialization support. `wow-webflux` exposes `wow-bi` through its API, while the Starter exposes it only from the `webflux-support` feature.
-
-[[wow-bi/build.gradle.kts](https://github.com/Ahoo-Wang/Wow/blob/main/wow-bi/build.gradle.kts)]
+`wow-bi` exposes `wow-api` and uses `wow-core` and the ClickHouse client as implementation dependencies. It generates/manages BI scripts; it does not deploy Kafka or ClickHouse or provide a recovery process by itself.
 
 ### Testing Modules
 
-```mermaid
-graph TB
-    subgraph Testing["Testing Modules"]
-        wow_test["wow-test<br>Unit Testing DSL"]
-        wow_tck["wow-tck<br>Technology Compatibility Kit"]
-        wow_mock["wow-mock<br>Mock Support"]
-        wow_it["wow-it<br>Integration Tests"]
-    end
+| Module | Verification scope | Typical consumer |
+| --- | --- | --- |
+| `wow-test` | Aggregate, saga, event, and state behavior | Application domain modules |
+| `wow-tck` | EventStore, SnapshotStore, bus, query, and other adapter contracts | Adapter implementations and framework modules |
+| `wow-mock` | Mock/delayed backends | Test services |
+| `wow-it` | Real combinations such as Kafka + MongoDB | Repository CI/integration tests |
 
-    wow_tck --> wow_test
-    wow_it --> wow_tck
-
-    wow_test --> wow_core["wow-core"]
-    wow_tck --> wow_core
-    wow_mock --> wow_core
-
-
-
-```
-
-<!-- Sources:
-  test/wow-test/build.gradle.kts
-  test/wow-tck/build.gradle.kts
-  test/wow-mock/build.gradle.kts
--->
-
-| Module | Purpose | Key Dependencies |
-|--------|---------|-----------------|
-| `wow-test` | `AggregateSpec`/`AggregateVerifier`, `SagaSpec`/`SagaVerifier`, Given-When-Expect DSL | `wow-core`, `reactor-test`, `fluent-assert-core`, `hibernate-validator` |
-| `wow-tck` | Integration tests with Testcontainers (Kafka, MongoDB, Elasticsearch) | `wow-test`, `wow-query`, Testcontainers |
-| `wow-mock` | Mock infrastructure support | `wow-core` |
-| `wow-it` | End-to-end integration tests | `wow-tck` |
+A passing TCK does not prove capacity, upgrade safety, or disaster recovery for an application's topology. The application still owns that evidence.
 
 ### Client &amp; Caching Modules
 
 #### wow-apiclient
 
-RESTful API client built on CoApi. Generates type-safe client interfaces from OpenAPI specs.
-
-```kotlin
-dependencies {
-    api(project(":wow-core"))
-    api(project(":wow-openapi"))
-    api("io.projectreactor:reactor-core")
-    implementation("me.ahoo.coapi:coapi-api")
-}
-```
-
-[[wow-apiclient/build.gradle.kts](https://github.com/Ahoo-Wang/Wow/blob/main/wow-apiclient/build.gradle.kts)]
+`wow-apiclient` exposes `wow-core`, `wow-openapi`, and Reactor and uses CoApi and Spring Web/WebFlux as implementation dependencies. It is a JVM HTTP client and does not start server routes.
 
 #### wow-cocache
 
-CoCache-based projection caching layer. Depends on `wow-apiclient` and `wow-query`.
-
-[[wow-cocache/build.gradle.kts](https://github.com/Ahoo-Wang/Wow/blob/main/wow-cocache/build.gradle.kts)]
+`wow-cocache` exposes `wow-apiclient`, `wow-query`, and CoCache Core for projection-cache integration. Do not add it without a CoCache requirement.
 
 ## Feature Variant Matrix
 
-The `wow-spring-boot-starter` module declares the following optional feature capabilities. Each feature pulls in its corresponding infrastructure module:
+| Capability | Direct project modules | Additional external integration |
+| --- | --- | --- |
+| `mongo-support` | `wow-mongo` | Reactive MongoDB Spring Boot starter |
+| `redis-support` | `wow-redis` | Reactive Redis Spring Boot starter |
+| `mock-support` | `wow-mock` | Test only |
+| `kafka-support` | `wow-kafka` | Reactor Kafka |
+| `webflux-support` | `wow-bi` (API), `wow-webflux` | Spring WebFlux is already a base Starter dependency |
+| `elasticsearch-support` | `wow-elasticsearch` | Elasticsearch Spring Boot starter |
+| `opentelemetry-support` | `wow-opentelemetry` | OpenTelemetry instrumentation API |
+| `openapi-support` | `wow-bi` (API), `wow-openapi` (implementation) | springdoc common |
+| `cosec-support` | `wow-cosec` | CoSec integration chain |
 
-| Feature Capability | Module Pulled In | Spring Boot Starter |
-|-------------------|-----------------|---------------------|
-| `mongo-support` | `wow-mongo` | `spring-boot-starter-data-mongodb-reactive` |
-| `redis-support` | `wow-redis` | `spring-boot-starter-data-redis-reactive` |
-| `kafka-support` | `wow-kafka` | (via reactor-kafka) |
-| `webflux-support` | `wow-bi`, `wow-webflux` | (via spring-webflux) |
-| `elasticsearch-support` | `wow-elasticsearch` | `spring-boot-starter-data-elasticsearch` |
-| `opentelemetry-support` | `wow-opentelemetry` | (via otel instrumentation) |
-| `openapi-support` | `wow-openapi` | `springdoc-openapi-starter-common` |
-| `cosec-support` | `wow-cosec` | (via wow-cosec) |
-| `mock-support` | `wow-mock` | (testing only) |
+A capability means **code is available**. `wow.*.enabled` and bus/storage properties decide **whether it is wired**. Backend health, schemas, topics, permissions, and recovery drills decide **whether it is operable**. These layers are not interchangeable.
 
-[[wow-spring-boot-starter/build.gradle.kts:6](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/build.gradle.kts#L6)]
+For `openapi-support`, `openapiSupportApi(project(":wow-bi"))` exposes the BI script API to consumers, while `openapiSupportImplementation(project(":wow-openapi"))` supplies OpenAPI generation internally. Both are direct project dependencies of that feature variant.
 
 ## Build Configuration
 
-All modules are registered in the root [`settings.gradle.kts`](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts):
+The root `settings.gradle.kts` registers project modules. Third-party versions are centralized in `gradle/libs.versions.toml` and `wow-dependencies`. Applications should use one aligned Wow BOM; this page does not duplicate a version that can drift.
 
-```kotlin
-include(":wow-api")
-include(":wow-core")
-include(":wow-spring")
-include(":wow-spring-boot-starter")
-include(":wow-kafka")
-include(":wow-mongo")
-// ... see settings.gradle.kts for the complete list
-```
-
-The `wow-dependencies` module acts as a centralized BOM/platform for all third-party dependency versions, ensuring version consistency across the project.
+Changing module ownership, a feature capability, or an API/implementation exposure changes the consumer classpath. Treat it as a build-contract change and inspect the Starter Gradle file, published metadata, and downstream dependency insight together.
 
 ## Related Pages
 
-- [Architecture Overview](./architecture) — high-level architecture and CQRS patterns
-- [Data Flow](./data-flow) — step-by-step trace through the command and event pipeline
+- [Architecture Overview](./architecture.md)
+- [Data Flow](./data-flow.md)
+- [Spring Boot Starter](../extensions/spring-boot-starter.md)
+- [Configuring a Wow Application](../configuration.md)
+- [Core Configuration Reference](../../reference/config/core.md)

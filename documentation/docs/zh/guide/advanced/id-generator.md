@@ -1,180 +1,92 @@
 ---
 title: ID 生成器
-description: 基于 CosId 的消息 ID 和聚合根 ID 生成机制。
+description: 区分消息 ID 与聚合 ID 的生成、SPI 选择、缓存和部署责任。
+outline: deep
 ---
 
 # ID 生成器
 
-Wow 框架的*消息ID*、*聚合根ID*生成依赖于 [CosId](https://github.com/Ahoo-Wang/CosId) 提供的强大支持。
+Wow 基于 CosId 提供两条 ID 路径：全局 ID 用于消息等运行时信封，聚合 ID 按命名聚合选择生成器。二者共享基础设施，但拥有不同的选择与缓存边界。
 
-## 生产环境配置
+## 两条路径
 
-CosId 使用基于 Snowflake 的算法，要求每个服务实例拥有唯一的 **machine ID**。
-在生产环境中，你必须配置 machine ID 分配器以避免多实例间的冲突。
+| 路径 | API | 主要用途 | 选择键 |
+| --- | --- | --- | --- |
+| 全局 ID | `generateGlobalId()` / `GlobalIdGenerator` | Command、DomainEvent、DomainEventStream、等待与补偿记录的消息 ID | 系统属性 `wow.cosid`，默认 CosId 的 `cosid` 名称 |
+| 聚合 ID | `NamedAggregate.generateId()` / `AggregateIdGeneratorRegistrar` | 命令未提供 ID 时创建聚合 ID | 聚合元数据 `id`，为空时使用 aggregate name |
 
-### 手动 Machine ID（单实例 / 开发环境）
+消息 ID 与业务聚合 ID 不应混用。业务已经拥有自然 ID 时，可以在命令中显式提供；框架生成器不是强制所有聚合改用同一种标识。
 
-除 Wow 依赖外，还需要 `cosid-spring-boot-starter`（以及 MongoDB 分配所需的 `cosid-mongo`）：
+## 全局生成器
+
+`GlobalIdGenerator` 是惰性单例。首次使用时，它通过 Java `ServiceLoader` 查找 `GlobalIdGeneratorFactory`，按 Wow `@Order` 排序，并采用第一个返回非空 `CosIdGenerator` 的工厂。若没有工厂能够创建实例，会抛出 `NotInitializedGlobalIdGeneratorError`。
+
+内置 `CosIdGlobalIdGeneratorFactory` 从 `IdGeneratorProvider` 读取配置名称。自定义工厂需要实现接口并注册：
+
+```text
+META-INF/services/me.ahoo.wow.id.GlobalIdGeneratorFactory
+```
+
+不要在请求处理中重复创建全局生成器；选择只在惰性初始化时发生。
+
+## 聚合生成器
+
+`AggregateIdGeneratorRegistrar` 以 materialized `NamedAggregate` 为 key 缓存生成器。首次请求时，同样按 `@Order` 调用 `AggregateIdGeneratorFactory`，使用第一个非空结果。
+
+内置 `CosIdAggregateIdGeneratorFactory` 的选择顺序是：
+
+1. 从 `META-INF/wow-metadata.json` 读取聚合的 `id` 生成器名称；
+2. 未声明时使用 aggregate name；
+3. 若 `IdGeneratorProvider` 中存在同名生成器，直接使用；
+4. 否则以全局生成器的 machine ID 创建 `Radix62CosIdGenerator`，并包装为 `ClockSyncCosIdGenerator`。
+
+这个 fallback 依赖可用的全局生成器和它的 machine ID；它不会为部署自动分配 machine ID。
+
+## 部署责任
+
+CosId 的具体算法、时钟处理和 machine ID 分配由 CosId 配置拥有。Wow 只选择并调用生成器。多实例部署必须验证：
+
+- 每个实例取得的 machine ID 满足所选 CosId 生成器的要求；
+- 重启、扩缩容与租约回收不会复用活跃实例的 machine ID；
+- 时钟回拨、Provider 不可用和配置缺失时的启动/生成行为；
+- 生成 ID 的长度、字符集与下游数据库/API 合同兼容。
+
+单元测试中的“非空”或单 JVM 递增结果不能证明跨节点唯一性、全局排序或生产容量。生产配置流程见[配置指南](../configuration.md)与当前 CosId 版本的配置元数据。
+
+## 自定义选择
+
+只有不同聚合确实需要不同格式或 Provider 时，才增加 `AggregateIdGeneratorFactory`。工厂可以对不负责的聚合返回 `null`，让后续工厂继续选择；不要用一个全局分支表复制元数据已有的 `id` 映射。
 
 ```kotlin
-implementation("me.ahoo.cosid:cosid-spring-boot-starter")
-implementation("me.ahoo.cosid:cosid-mongo") // 仅用于 MongoDB machine ID 分配
-```
-
-```yaml
-cosid:
-  machine:
-    enabled: true
-    distributor:
-      type: manual
-      manual:
-        machine-id: 1
-  generator:
-    enabled: true
-```
-
-### MongoDB Machine ID（生产环境，多实例）
-
-对于多实例生产部署，使用 MongoDB 作为 machine ID 分配器，使每个实例自动获得唯一的 machine ID：
-
-```yaml
-cosid:
-  machine:
-    enabled: true
-    distributor:
-      type: mongo
-  generator:
-    enabled: true
-```
-
-### 自定义按聚合 ID 生成器
-
-要为特定聚合分配专用的 CosId 生成器（例如不同的 Snowflake provider），在 `@BoundedContext` 元数据中
-定义生成器名称，然后在 CosId 中配置该生成器：
-
-```yaml
-cosid:
-  snowflake:
-    enabled: true
-    provider:
-      order:               # 与下方聚合的 `id` 字段对应
-        converter:
-          type: radix      # Radix62 URL 安全编码
-```
-
-```kotlin
-@BoundedContext(
-    name = "order-service",
-    aggregates = [
-        Aggregate(name = "order", id = "order"),  // ← 使用名为 "order" 的 CosId 生成器
-    ],
-)
-object OrderService
-```
-
-如果在 CosId 的 `IdGeneratorProvider` 中找不到指定名称的生成器，Wow 会回退到使用
-全局生成器 `machineId` 的 `Radix62CosIdGenerator`。
-
-## 全局 ID 生成器
-
-*全局ID生成器*主要用于生成消息ID(`Command` 、`DomainEvent` 、`DomainEventStream`)。
-
-默认情况下*全局ID生成器*将从*CosId*的*ID生成器容器*(`IdGeneratorProvider`)中获取以 `cosid` 为名称的ID生成器。
-
-### 通过 SPI 自定义全局 ID 生成器
-
-开发者可以通过 `GlobalIdGeneratorFactory` SPI 扩展点自定义全局 ID 生成器。
-
-1. 实现 `GlobalIdGeneratorFactory` 接口
-2. 在 `META-INF/services/me.ahoo.wow.id.GlobalIdGeneratorFactory` 文件中添加实现类的全限定类名
-
-```kotlin
-@Order(ORDER_LAST)
-class TestGlobalIdGeneratorFactory : GlobalIdGeneratorFactory {
-    companion object {
-        private val log = LoggerFactory.getLogger(TestGlobalIdGeneratorFactory::class.java)
-        private const val TEST_MACHINE_ID: Int = 1048575
-    }
-
-    override fun create(): CosIdGenerator {
-        val idGenerator = Radix62CosIdGenerator(TEST_MACHINE_ID)
-        val clockSyncCosIdGenerator = ClockSyncCosIdGenerator(idGenerator)
-        if (log.isInfoEnabled) {
-            log.info("Create - [$clockSyncCosIdGenerator].")
-        }
-        return clockSyncCosIdGenerator
-    }
+@Order(100)
+class InvoiceIdGeneratorFactory : AggregateIdGeneratorFactory {
+    override fun create(namedAggregate: NamedAggregate): IdGenerator? =
+        if (namedAggregate.aggregateName == "invoice") invoiceGenerator else null
 }
 ```
 
-## 聚合 ID 生成器
+并注册：
 
-*聚合ID生成器*主要用于生成聚合根ID。
-用户可以通过定义聚合根元数据中的ID名称，来从 _CosId_ 的*ID生成器容器*(`IdGeneratorProvider`)中获取对应的ID生成器。
-
-```kotlin
-@BoundedContext(
-    name = SERVICE_NAME,
-    alias = SERVICE_ALIAS,
-    aggregates = [
-        Aggregate(
-            name = ORDER_AGGREGATE_NAME,
-            id = "<You customize the ID name>", // [!code focus]
-            packageScopes = [CreateOrder::class]
-        ),
-    ],
-)
-object ExampleService {
-    const val SERVICE_NAME = "example-service"
-    const val SERVICE_ALIAS = "example"
-    const val ORDER_AGGREGATE_NAME = "order"
-}
+```text
+META-INF/services/me.ahoo.wow.id.AggregateIdGeneratorFactory
 ```
 
-1. 首先获取元数据中的ID名称，如果未定义则使用聚合根名称作为ID名称。
-2. 获取到该名称之后再从*ID生成器容器*中获取对应的ID生成器。
-3. 如果未获取到则创建新的 `Radix62CosIdGenerator` 实例，其使用全局ID生成器的 `machineId` 作为它的 `machineId`。
+工厂与 Registrar 都可能被并发访问；自定义生成器本身必须满足调用方所需的并发合同。
 
-### 自定义 ID 生成器
+## 验证
 
-开发者可以通过 `AggregateIdGeneratorFactory` SPI 扩展点自定义 ID 生成器。
-
-1. 实现 `AggregateIdGeneratorFactory` 接口
-2. 在 `META-INF/services/me.ahoo.wow.id.AggregateIdGeneratorFactory` 文件中添加实现类的全限定类名
-
-```kotlin
-@Order(ORDER_LAST)
-class CosIdAggregateIdGeneratorFactory(
-    private val idProvider: IdGeneratorProvider = DefaultIdGeneratorProvider.INSTANCE
-) :
-    AggregateIdGeneratorFactory {
-    companion object {
-        private val log = LoggerFactory.getLogger(CosIdAggregateIdGeneratorFactory::class.java)
-    }
-
-    override fun create(namedAggregate: NamedAggregate): IdGenerator {
-        val idGenName = MetadataSearcher.metadata
-            .contexts[namedAggregate.contextName]
-            ?.aggregates
-            ?.get(namedAggregate.aggregateName)
-            ?.id
-            ?: namedAggregate.aggregateName
-
-        val idGeneratorOp = idProvider.get(idGenName)
-        if (idGeneratorOp.isPresent) {
-            val idGenerator = idGeneratorOp.get()
-            if (log.isInfoEnabled) {
-                log.info("Create $idGenerator to $namedAggregate from DefaultIdGeneratorProvider[$idGenName].")
-            }
-            return idGenerator
-        }
-
-        val idGenerator = Radix62CosIdGenerator(GlobalIdGenerator.machineId)
-        val clockSyncCosIdGenerator = ClockSyncCosIdGenerator(idGenerator)
-        if (log.isInfoEnabled) {
-            log.info("Create $clockSyncCosIdGenerator to $namedAggregate.")
-        }
-        return clockSyncCosIdGenerator
-    }
-}
+```bash
+./gradlew :wow-core:test --tests "me.ahoo.wow.id.GlobalIdGeneratorTest"
+./gradlew :wow-core:test --tests "me.ahoo.wow.id.AggregateIdGeneratorRegistrarTest"
+./gradlew :wow-core:test --tests "me.ahoo.wow.id.CosIdAggregateIdGeneratorFactoryTest"
 ```
+
+应用还应在与生产同构的 machine ID 分配环境运行多实例冲突与重启测试；仓库单元测试不覆盖该证据。
+
+## 源码与相关页面
+
+- [`GlobalIdGenerator`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/id/GlobalIdGenerator.kt)
+- [`AggregateIdGeneratorRegistrar`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/id/AggregateIdGenerator.kt)
+- [`CosIdAggregateIdGeneratorFactory`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/id/CosIdAggregateIdGeneratorFactory.kt)
+- [编译器](./compiler.md)：聚合 `id` 元数据的来源
+- [核心概念](../core-concepts.md#限界上下文与聚合标识)：完整 AggregateId 边界

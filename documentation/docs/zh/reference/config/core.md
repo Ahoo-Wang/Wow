@@ -1,339 +1,25 @@
 ---
 title: 核心配置
-description: Wow 框架的基础配置选项，包括命令总线、事件总线、事件溯源、快照、状态事件和 Prepare Key。
+description: Wow 核心运行时、消息总线、事件溯源、快照、存储路由、查询 Schema 与 PrepareKey 的精确配置参考。
+outline: deep
 ---
 
 # 核心配置
 
+本页只记录配置键、类型、默认值和装配边界。如何为某个环境选择这些值，请看[配置 Wow 应用](../../guide/configuration.md)。表中的默认值来自 `wow-spring-boot-starter` 配置类；“运行时回退”与“绑定默认值”分开说明。
+
 ## WowProperties
 
-- 配置类：[WowProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowProperties.kt)
-- 前缀：`wow`
-
-| 名称 | 数据类型 | 描述 | 默认值 |
-|------|-----------|-------------|---------------|
-| `enabled` | Boolean | 启用/禁用 Wow 框架 | `true` |
-| `context-name` | String | 服务的限界上下文名称 | 回退为（必需的）`spring.application.name` |
-| `shutdown-timeout` | Duration | 整个 Wow 运行时静默与停止的全局截止时间 | `60s` |
-| `shutdown-quiet-period` | Duration | 关闭 Dispatcher 接收前必须连续空闲的时间；新活动会重新计时 | `1s` |
-
-`shutdown-timeout` 必须大于零；`shutdown-quiet-period` 必须大于等于零，
-并且严格小于 `shutdown-timeout`；二者都必须能表示为 64 位有符号纳秒值。
-
-```yaml
-wow:
-  enabled: true
-  context-name: order-service
-  shutdown-timeout: 120s
-  shutdown-quiet-period: 2s
-```
-
-## BusProperties
-
-`BusProperties` 是 `CommandBus`、`EventBus` 和 `StateEventBus` 的公共配置。
-
-- 配置类：[BusProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/BusProperties.kt)
-
-| 名称 | 数据类型 | 描述 | 默认值 |
-|------|-----------|-------------|---------------|
-| `type` | BusType | 消息总线实现类型 | `kafka` |
-| `local-first` | LocalFirstProperties | LocalFirst 模式配置 | |
-
-### BusType
-
-```kotlin
-enum class BusType {
-    KAFKA,      // Apache Kafka（生产环境推荐）
-    REDIS,      // Redis Streams
-    IN_MEMORY,  // 内存模式（用于测试）
-    NO_OP;      // 无操作模式（用于特殊场景）
-}
-```
-
-### LocalFirst 模式
-
-LocalFirst 模式先尝试本地运行时准入，同时始终发送分布式副本。只有所有目标本地 Receiver 都确认准入后，副本才会标记为已在本地处理；否则仍可由分布式消费者处理。
-
-```mermaid
-flowchart TB
-    subgraph Local["本地服务实例"]
-        CG[命令网关]
-        LocalBus[本地总线]
-        Processor[处理器]
-    end
-
-    subgraph Distributed["分布式消息总线"]
-        Kafka[Kafka]
-    end
-
-    Client --> CG
-    CG -->|尝试本地准入| LocalBus
-    CG -->|分布式副本| Kafka
-    LocalBus --> Processor
-    Kafka -->|未标记本地处理时| Processor
-```
-
-#### 行为与失败边界
-
-1. **降低延迟**：已在本地准入的消息无需等待 Broker 往返即可处理。
-2. **准入感知回退**：没有订阅者、处理入口已关闭或本地发送失败时，分布式副本仍可被处理。
-3. **不会追溯重路由**：本地准入成功后的 Handler 失败遵循普通 Handler 的重试与确认策略，不会重新启用分布式副本。
-
-来源：[LocalFirstMessageBus](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/LocalFirstMessageBus.kt#L142-L199)。
-
-| 名称 | 数据类型 | 描述 | 默认值 |
-|------|-----------|-------------|---------------|
-| `local-first.enabled` | Boolean | 启用 LocalFirst 模式 | `true` |
-
-## 命令总线
-
-- 配置类：[CommandProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/command/CommandProperties.kt)
-- 前缀：`wow.command.`
-
-| 名称 | 数据类型 | 描述 | 默认值 |
-|------|-----------|-------------|---------------|
-| `bus` | `BusProperties` | 命令总线配置 | |
-| `idempotency` | `IdempotencyProperties` | 命令幂等性 | |
-
-```yaml
-wow:
-  command:
-    bus:
-      type: kafka
-      local-first:
-        enabled: true
-    idempotency:
-      enabled: true
-      bloom-filter:
-        expected-insertions: 1000000
-        ttl: PT60S
-        fpp: 0.00001
-```
-
-### IdempotencyProperties
-
-- 配置类：[IdempotencyProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/command/CommandProperties.kt)
-
-| 名称 | 数据类型 | 描述 | 默认值 |
-|------|-----------|-------------|---------------|
-| `enabled` | `boolean` | 是否启用 | `true` |
-| `bloom-filter` | `BloomFilter` | 布隆过滤器 | |
-
-#### BloomFilter
-
-| 名称 | 数据类型 | 描述 | 默认值 |
-|------|-----------|-------------|---------------|
-| `ttl` | `Duration` | 存活时间 | `Duration.ofMinutes(1)` |
-| `expected-insertions` | `Long` | 预期插入数量 | `1000_000` |
-| `fpp` | `Double` | 误判率 | `0.00001` |
-
-## 事件总线
-
-- 配置类：[EventProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/event/EventProperties.kt)
-- 前缀：`wow.event.`
-
-| 名称 | 数据类型 | 描述 | 默认值 |
-|------|-----------|-------------|---------------|
-| `bus` | `BusProperties` | 事件总线配置 | |
-
-```yaml
-wow:
-  event:
-    bus:
-      type: kafka
-      local-first:
-        enabled: true
-```
-
-## 事件溯源
-
-### EventStoreProperties
-
-- 配置类：[EventStoreProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/eventsourcing/store/EventStoreProperties.kt)
-- 前缀：`wow.eventsourcing.store`
-
-| 名称 | 数据类型 | 描述 | 默认值 |
-|------|-----------|-------------|---------------|
-| `storage` | `StorageType` | 事件存储后端 | `mongo` |
-
-```yaml
-wow:
-  eventsourcing:
-    store:
-      storage: mongo
-```
-
-#### StorageType
-
-`StorageType` 枚举由事件存储和快照存储共享使用。
-
-```kotlin
-enum class StorageType {
-    MONGO,
-    REDIS,
-    ELASTICSEARCH,
-    IN_MEMORY,
-    DELAY
-    ;
-}
-```
-
-### SnapshotProperties
-
-- 配置类：[SnapshotProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/SnapshotProperties.kt)
-- 前缀：`wow.eventsourcing.snapshot`
-
-| 名称 | 数据类型 | 描述 | 默认值 |
-|------|-----------|-------------|---------------|
-| `enabled` | `Boolean` | 是否启用快照 | `true` |
-| `strategy` | `Strategy` | 快照策略 | `all` |
-| `version-offset` | `Int` | 版本偏移阈值 | `5` |
-| `storage` | `StorageType` | 快照存储后端 | `mongo` |
-
-```yaml
-wow:
-  eventsourcing:
-    snapshot:
-      enabled: true
-      strategy: all
-      storage: mongo
-```
-
-#### Strategy
-
-```kotlin
-enum class Strategy {
-    ALL,
-    VERSION_OFFSET,
-    ;
-}
-```
-
-快照的 `storage` 属性复用共享的 [`StorageType`](#storagetype) 枚举。
-
-### StorageRoutingProperties
-
-将不同的聚合路由到单个服务内的不同存储后端。当配置了匹配的路由时，Wow 会安装一个
-`RoutingEventStore` / `RoutingSnapshotStore`，按聚合并分派到绑定的存储，对于未列出的聚合则
-回退到默认存储（`wow.eventsourcing.store.storage` / `wow.eventsourcing.snapshot.storage`）。
-
-- 配置类：[StorageRoutingProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageRoutingProperties.kt)
-- 前缀：`wow.eventsourcing.storage-routing`
-
-| 名称 | 数据类型 | 描述 | 默认值 |
-|------|-----------|-------------|---------------|
-| `aggregates` | `Map<String, AggregateStorageRouteProperties>` | 按聚合名称索引的逐聚合路由 | `{}`（空） |
-
-每个聚合路由接受一个 `event` 和/或 `snapshot` 通道。**配置的通道必须设置 `storage` 或 `binding` 二者之一**——空通道（如 `event: {}`）会在启动时快速失败。只有完全省略通道才会回退到默认存储。
-
-| 名称 | 数据类型 | 描述 | 默认值 |
-|------|-----------|-------------|---------------|
-| `storage` | `StorageType` | 该通道的存储后端（覆盖默认值） | _（`binding` 缺失时必填）_ |
-| `binding` | `String` | 要使用的已绑定存储/查询服务 Bean 名称 | _（`storage` 缺失时必填）_ |
-
-```yaml
-wow:
-  eventsourcing:
-    storage-routing:
-      aggregates:
-        # 热点聚合：将事件和快照保留在 Redis 中以实现低延迟
-        HotAggregate:
-          event:
-            storage: redis
-          snapshot:
-            storage: redis
-        # 冷聚合：回退到默认的 MongoDB 存储
-        # （无需路由条目 —— 应用默认值）
-```
-
-## 状态事件总线
-
-- 配置类：[StateProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/eventsourcing/state/StateProperties.kt)
-- 前缀：`wow.eventsourcing.state`
-
-| 名称 | 数据类型 | 描述 | 默认值 |
-|------|-----------|-------------|---------------|
-| `bus` | `BusProperties` | 状态事件总线配置 | |
-
-```yaml
-wow:
-  eventsourcing:
-    state:
-      bus:
-        type: kafka
-        local-first:
-          enabled: true
-```
-
-## Prepare Key
-
-- 前缀：`wow.prepare`
-
-| 名称 | 数据类型 | 描述 | 默认值 |
-|------|-----------|-------------|---------------|
-| `enabled` | Boolean | 启用 PrepareKey 功能 | `true` |
-| `storage` | PrepareStorage | PrepareKey 存储后端 | `MONGO` |
-| `base-packages` | List\<String\> | 扫描 PrepareKey 定义的基础包路径 | `[]` |
-
-### PrepareStorage 值
-
-| 值 | 描述 |
-|-------|-------------|
-| `MONGO` | MongoDB（推荐） |
-| `REDIS` | Redis |
-
-```yaml
-wow:
-  prepare:
-    enabled: true
-    storage: mongo
-    base-packages:
-      - com.example.domain
-```
-
-## 环境特定配置
-
-### 开发环境
-
-```yaml
-wow:
-  command:
-    bus:
-      type: in_memory
-  event:
-    bus:
-      type: in_memory
-  eventsourcing:
-    store:
-      storage: in_memory
-    snapshot:
-      storage: in_memory
-```
-
-### 生产环境
-
-```yaml
-wow:
-  command:
-    bus:
-      type: kafka
-      local-first:
-        enabled: true
-  event:
-    bus:
-      type: kafka
-      local-first:
-        enabled: true
-  eventsourcing:
-    store:
-      storage: mongo
-    snapshot:
-      enabled: true
-      strategy: all
-      storage: mongo
-```
-
-## 完整配置示例
+配置类：`WowProperties`；前缀：`wow`。
+
+| 属性 | 类型 | 默认值 | 运行时含义 |
+| --- | --- | --- | --- |
+| `wow.enabled` | Boolean | `true` | 总开关；设为 `false` 时 Wow 自动配置不生效 |
+| `wow.context-name` | String? | `null` | 未配置时读取必需的 `spring.application.name` |
+| `wow.shutdown-timeout` | Duration | `60s` | 整个 `WowRuntime` 静默和逆序停止共享的截止时间 |
+| `wow.shutdown-quiet-period` | Duration | `1s` | 停止接收前必须连续保持无活动的时间；新活动会重新计时 |
+
+`shutdown-timeout` 必须大于零；`shutdown-quiet-period` 必须非负且小于 `shutdown-timeout`。二者还必须能够精确表示为有符号 64 位纳秒值。
 
 ```yaml
 spring:
@@ -341,23 +27,224 @@ spring:
     name: order-service
 
 wow:
-  enabled: true
-  context-name: order-service
-  shutdown-timeout: 120s
-  shutdown-quiet-period: 2s
+  shutdown-timeout: 60s
+  shutdown-quiet-period: 1s
+```
 
+## BusProperties
+
+`BusProperties` 由命令、领域事件和状态事件三个通道复用。
+
+| 相对属性 | 类型 | 默认值 | 含义 |
+| --- | --- | --- | --- |
+| `bus.type` | [`BusType`](#bustype) | `kafka` | 为当前通道选择总线实现 |
+| `bus.local-first.enabled` | Boolean | `true` | 分布式总线存在时启用 LocalFirst 组合 |
+
+“默认 `kafka`”只表示属性默认值。运行时仍必须包含 `kafka-support` capability，并提供 `wow.kafka.bootstrap-servers`；否则不能据此声称 Kafka 已可用。
+
+### BusType
+
+| 值 | 所需实现 | 边界 |
+| --- | --- | --- |
+| `kafka` | `wow-kafka` / `kafka-support` | 分布式 Kafka 总线 |
+| `redis` | `wow-redis` / `redis-support` | Redis Streams 总线；必须显式配置该值 |
+| `in_memory` | 基础 Starter | 单进程、非持久化 |
+| `no_op` | 基础 Starter | 接受调用但不提供真实消息处理；仅用于明确的禁用场景 |
+
+### LocalFirst 模式
+
+LocalFirst 同时发送分布式副本并尝试本地准入。所有目标本地 Receiver 都确认准入后，分布式副本才标记为本地已处理；没有订阅者、入口关闭或本地发送失败时，分布式副本仍可处理。
+
+#### 行为与失败边界
+
+- LocalFirst 优化的是 Broker 往返延迟，不是 exactly-once 保证。
+- 本地准入成功后的 Handler 失败按 Handler 自身的重试/确认策略处理；不会追溯性地重新启用分布式副本。
+- `no_op` 和 `in_memory` 没有可组合的分布式 Bus，不能把 LocalFirst 配置当作跨实例能力。
+
+## 命令总线
+
+配置类：`CommandProperties`；前缀：`wow.command`。
+
+| 属性 | 类型 | 默认值 | 含义 |
+| --- | --- | --- | --- |
+| `wow.command.bus.type` | `BusType` | `kafka` | 命令总线 |
+| `wow.command.bus.local-first.enabled` | Boolean | `true` | 命令 LocalFirst |
+| `wow.command.idempotency.enabled` | Boolean | `true` | 启用命令幂等预检 |
+| `wow.command.idempotency.bloom-filter.ttl` | Duration | `1m` | Bloom Filter 的存活时间 |
+| `wow.command.idempotency.bloom-filter.expected-insertions` | Long | `1000000` | 预期插入量 |
+| `wow.command.idempotency.bloom-filter.fpp` | Double | `0.00001` | 目标误判率 |
+
+### IdempotencyProperties
+
+Bloom Filter 是进程内的快速预检，不是业务真相来源。预检拒绝后，`DefaultCommandGateway` 仍会通过 EventStore 的 request-id 检查确认是否真的重复。关闭此配置会安装 no-op 预检，但不会把客户端重试自动变成 exactly-once。
+
+#### BloomFilter
+
+```yaml
+wow:
+  command:
+    idempotency:
+      enabled: true
+      bloom-filter:
+        ttl: 1m
+        expected-insertions: 1000000
+        fpp: 0.00001
+```
+
+## 事件总线
+
+配置类：`EventProperties`；前缀：`wow.event`。
+
+| 属性 | 类型 | 默认值 |
+| --- | --- | --- |
+| `wow.event.bus.type` | `BusType` | `kafka` |
+| `wow.event.bus.local-first.enabled` | Boolean | `true` |
+
+领域事件在 EventStore append 成功后发送到该总线。该总线的 ACK 只覆盖所选 Adapter 的发送边界，不证明投影、事件处理器或 Saga 已完成。
+
+## 事件溯源
+
+### EventStoreProperties
+
+配置类：`EventStoreProperties`；前缀：`wow.eventsourcing.store`。
+
+| 属性 | 类型 | 默认值 | 含义 |
+| --- | --- | --- | --- |
+| `wow.eventsourcing.store.storage` | [`StorageType`](#storagetype) | `mongo` | 默认 EventStore binding |
+
+#### StorageType
+
+| 值 | 实现来源 | 说明 |
+| --- | --- | --- |
+| `mongo` | `mongo-support` | MongoDB EventStore / SnapshotStore / 查询服务 |
+| `redis` | `redis-support` | Redis EventStore / SnapshotStore；无通用动态查询实现 |
+| `elasticsearch` | `elasticsearch-support` | Elasticsearch EventStore / SnapshotStore / 查询服务 |
+| `in_memory` | 基础 Starter | 进程退出即丢失 |
+| `delay` | `mock-support` | 延迟测试实现，不是生产后端 |
+
+选择值不会引入实现模块。缺少对应 capability 或应用自定义 binding 时，自动配置会因找不到目标存储而失败。
+
+### SnapshotProperties
+
+配置类：`SnapshotProperties`；前缀：`wow.eventsourcing.snapshot`。
+
+| 属性 | 类型 | 默认值 | 含义 |
+| --- | --- | --- | --- |
+| `wow.eventsourcing.snapshot.enabled` | Boolean | `true` | 启用 Snapshot Dispatcher 与 SnapshotStore |
+| `wow.eventsourcing.snapshot.strategy` | [`Strategy`](#strategy) | `all` | 何时保存快照 |
+| `wow.eventsourcing.snapshot.version-offset` | Int | `5` | `version_offset` 策略的版本间隔 |
+| `wow.eventsourcing.snapshot.storage` | `StorageType` | `mongo` | 默认 SnapshotStore binding |
+
+关闭快照时基础配置提供 `NoOpSnapshotStore`；同时配置 snapshot storage route 会启动失败。
+
+#### Strategy
+
+| 值 | 行为 |
+| --- | --- |
+| `all` | 每个已处理的 StateEvent 都保存快照 |
+| `version_offset` | 与已保存版本至少相差 `version-offset` 时保存 |
+
+`SNAPSHOT` 阶段表示 Snapshot Dispatcher 的本次处理完成。使用 `version_offset` 时，该阶段可能在没有新写快照的情况下完成。
+
+### StorageRoutingProperties
+
+配置类：`StorageRoutingProperties`；前缀：`wow.eventsourcing.storage-routing`。
+
+| 属性 | 类型 | 默认值 |
+| --- | --- | --- |
+| `wow.eventsourcing.storage-routing.aggregates` | `Map<String, AggregateStorageRouteProperties>` | `{}` |
+
+Map key 必须是当前上下文中的 `aggregate`，或完整的 `context.aggregate`。每个 route 可含 `event`、`snapshot` 两个通道；完全省略的通道回退到默认存储。
+
+| 精确属性模式 | 类型 | 规则 |
+| --- | --- | --- |
+| `wow.eventsourcing.storage-routing.aggregates.<route>.event.storage` | `StorageType?` | 选择 EventStore 类型 binding |
+| `wow.eventsourcing.storage-routing.aggregates.<route>.event.binding` | String? | 选择具名 EventStore binding |
+| `wow.eventsourcing.storage-routing.aggregates.<route>.snapshot.storage` | `StorageType?` | 选择 SnapshotStore 类型 binding |
+| `wow.eventsourcing.storage-routing.aggregates.<route>.snapshot.binding` | String? | 选择具名 SnapshotStore binding |
+
+一个已配置通道必须在 `storage` 与 `binding` 中恰好设置一个。空通道、二者同时设置、未知聚合、缺失 store binding，或缺失对应 query-service factory binding，都会快速失败。
+
+```yaml
+wow:
+  eventsourcing:
+    storage-routing:
+      aggregates:
+        order-service.Audit:
+          event:
+            binding: archiveEventStore
+          snapshot:
+            storage: mongo
+```
+
+## 状态事件总线
+
+配置类：`StateProperties`；前缀：`wow.eventsourcing.state`。
+
+| 属性 | 类型 | 默认值 |
+| --- | --- | --- |
+| `wow.eventsourcing.state.bus.type` | `BusType` | `kafka` |
+| `wow.eventsourcing.state.bus.local-first.enabled` | Boolean | `true` |
+
+StateEvent 驱动快照处理。选择分布式实现时，应把该通道的积压与失败纳入 `SNAPSHOT` 阶段诊断。
+
+## Prepare Key
+
+配置类：`PrepareProperties`；前缀：`wow.prepare`。
+
+| 属性 | 类型 | 默认值 | 含义 |
+| --- | --- | --- | --- |
+| `wow.prepare.enabled` | Boolean | `true` | 启用 PrepareKey |
+| `wow.prepare.storage` | `PrepareStorage` | `mongo` | PrepareKey 存储 |
+| `wow.prepare.base-packages` | List\<String\> | `[]` | 扫描 PrepareKey 定义的包 |
+
+### PrepareStorage 值
+
+| 值 | 所需能力 |
+| --- | --- |
+| `mongo` | `mongo-support` |
+| `redis` | `redis-support` |
+
+纯内存应用没有 PrepareStorage 实现，应显式设置 `wow.prepare.enabled: false`。
+
+## QueryProperties
+
+配置类：`QueryProperties`；前缀：`wow.query`。
+
+| 属性 | 类型 | 默认值 | 取值 |
+| --- | --- | --- | --- |
+| `wow.query.schema.validation-mode` | `QuerySchemaValidationMode` | `compatible` | `compatible`、`strict` |
+
+`compatible` 接受 exact 与 compatible 的 Schema 解析结果；`strict` 只接受 exact。该属性控制 Query Schema 解析，不替代 HTTP 查询成本限制；后者见[基础设施配置](./infrastructure.md#webflux)。
+
+## 环境特定配置
+
+参考页不定义“开发”或“生产”配置模板。选择环境时必须显式决定三种 Bus、EventStore、SnapshotStore、PrepareStorage 和所需 capability；任务步骤见[配置 Wow 应用](../../guide/configuration.md#环境分层)。
+
+### 开发环境
+
+纯内存模式至少需要把三个 Bus 与两个 Store 设为 `in_memory`，并关闭 PrepareKey。否则未覆盖的核心默认值仍指向 Kafka/Mongo。
+
+### 生产环境
+
+生产值没有隐藏的安全默认值。对每个通道记录实现、所有者、持久性、恢复方式和已验证证据；不能只依赖本页的属性默认值。
+
+## 完整配置示例
+
+以下示例只展示完整的**核心选择**；连接、凭据和基础设施调优不属于本页。
+
+```yaml
+spring:
+  application:
+    name: order-service
+
+wow:
   command:
     bus:
       type: kafka
-      local-first:
-        enabled: true
-
   event:
     bus:
       type: kafka
-      local-first:
-        enabled: true
-
   eventsourcing:
     store:
       storage: mongo
@@ -368,25 +255,9 @@ wow:
     state:
       bus:
         type: kafka
-        local-first:
-          enabled: true
-
-  kafka:
-    bootstrap-servers:
-      - kafka-0:9092
-      - kafka-1:9092
-      - kafka-2:9092
-    topic-prefix: 'wow.'
-
-  mongo:
-    enabled: true
-    auto-init-schema: true
-
-  openapi:
-    enabled: true
-
-  webflux:
-    enabled: true
-    global-error:
-      enabled: true
+  prepare:
+    storage: mongo
+  query:
+    schema:
+      validation-mode: compatible
 ```

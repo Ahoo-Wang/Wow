@@ -1,309 +1,217 @@
 ---
 title: Runtime Orchestration Migration
-description: Migrate custom dispatchers, message buses, and Spring applications to the single-owner WowRuntime lifecycle.
+description: Move custom dispatchers, message sources, and Spring ownership to the one-shot WowRuntime.
 ---
 
 # Runtime Orchestration Migration
 
-This guide covers the breaking migration from independent dispatcher launchers to
-the one-shot `WowRuntime`. It owns only the upgrade procedure. For the stable
-runtime model and shutdown semantics, see
-[Runtime Lifecycle](../advanced/runtime-lifecycle.md).
+This is a source/runtime migration from independent lifecycle owners to one `WowRuntime`. It does not change the
+event, snapshot, or message wire formats, so it requires no data rewrite by itself. If the same release also changes a
+storage layout, treat that as a separate storage/data gate.
 
-Event, snapshot, and message formats are unchanged. No data migration is required,
-but custom lifecycle integrations must be recompiled and migrated.
+The stable target model is described in [Runtime Lifecycle](../advanced/runtime-lifecycle.md).
 
 ## Migration at a Glance
 
-| Previous integration | Required replacement | Source |
+| Previous contract | Current contract | Migration consequence |
 |---|---|---|
-| Independent `MessageDispatcherLauncher` instances | One `WowRuntime` owns all `RuntimeComponent` instances | [`WowRuntime.kt:47-76`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L47-L76) |
-| Generic Wow lifecycle implementation | `RuntimeComponent` for runtime-owned work, or `GracefullyStoppable` for independently owned shutdown only | [`RuntimeComponent.kt:18-62`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeComponent.kt#L18-L62), [`GracefullyStoppable.kt:19-37`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/infra/lifecycle/GracefullyStoppable.kt#L19-L37) |
-| Constructor, `@PostConstruct`, or Spring destruction owns resources | Inert construction; acquire in `prepare` or `start`; release only through the runtime | [`RuntimeComponent.kt:18-33`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeComponent.kt#L18-L33) |
-| Subscription or demand implies readiness | Explicit `MessageReceiver.readiness` and processing admission callbacks | [`MessageReceiver.kt:20-89`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/MessageReceiver.kt#L20-L89) |
-| Per-dispatcher shutdown timeout | One runtime-wide deadline plus a stable quiet period | [`WowRuntime.kt:103-125`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L103-L125) |
+| `Lifecycle`/independent `MessageDispatcherLauncher` | `RuntimeComponent` graph owned by one `WowRuntime` | Remove competing start/stop owners |
+| Constructor or Spring destruction acquires/releases runtime resources | Inert construction; acquire in `prepare`/`start`, release through runtime | Remove `@PostConstruct`, `@PreDestroy`, `DisposableBean`, inferred `close()` ownership |
+| Subscription/demand implies ready | `MessageReceiver.messages`, hot replayable `readiness`, explicit open/close processing | Preserve readiness and admission callbacks |
+| Per-component timeout | One runtime `shutdownTimeout` and `shutdownQuietPeriod` | Size one shared deadline for the complete graph |
+| Restart the same object/context | One-shot runtime | Create a new runtime/ApplicationContext after termination |
 
-```mermaid
-%%{init: {"theme": "dark"}}%%
-flowchart LR
-    subgraph Before["Before: multiple lifecycle owners"]
-        Spring["Spring lifecycle"]
-        LauncherA["Launcher A"]
-        LauncherB["Launcher B"]
-        DispatcherA["Dispatcher A"]
-        DispatcherB["Dispatcher B"]
-        Spring --> LauncherA --> DispatcherA
-        Spring --> LauncherB --> DispatcherB
-    end
-
-    subgraph After["After: one ownership boundary"]
-        Bridge["WowRuntimeLifecycle"]
-        Runtime["WowRuntime"]
-        Components["ordered RuntimeComponent graph"]
-        Bridge --> Runtime --> Components
-    end
-
-    Before -->|"remove launchers and competing owners"| After
-
-    classDef owner fill:#1d4ed8,stroke:#93c5fd,color:#ffffff
-    classDef runtime fill:#047857,stroke:#6ee7b7,color:#ffffff
-    class Spring,LauncherA,LauncherB owner
-    class Bridge,Runtime,Components runtime
-```
-
-<!-- Sources:
-- [WowRuntime.kt:47-76](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L47-L76)
-- [WowAutoConfiguration.kt:118-152](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt#L118-L152)
--->
+Startup prepares every component before any component opens processing. Normal shutdown first enters a quiet window
+while global activity admission remains open; admitted tail activity resets and can extend that window. After one
+complete idle quiet period, the runtime closes global admission, quiesces component intake in registration order,
+waits for admitted work to drain, and stops prepared components in reverse order under one deadline. Startup failure
+rolls back prepared components in reverse order; fatal runtime failure closes admission immediately, skips the quiet
+window, and enters the complete-runtime cleanup path.
 
 ## 1. Replace Lifecycle Ownership
 
-Remove:
-
-- `MessageDispatcherLauncher` beans, factories, injections, and direct dispatcher
-  lifecycle calls;
-- application-defined `WowRuntimeLifecycle` beans in Starter applications;
-- Spring `Lifecycle`, `SmartLifecycle`, `DisposableBean`, `@PreDestroy`, and
-  explicit destroy methods from runtime-owned component beans.
-
-Dispatcher lifecycle methods are final templates. Recompile every subclass.
-Additional lifecycle ownership belongs in a separate `RuntimeComponent`, not in a
-dispatcher override. `MainDispatcher` retains only narrow cleanup hooks for
-framework implementations that own schedulers.
-[`MainDispatcher.kt:193-357`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/MainDispatcher.kt#L193-L357)
+Delete application-defined dispatcher launchers and every direct `dispatcher.start()`, `stop()`, or `close()` call.
+Recompile custom dispatcher subclasses because dispatcher lifecycle is now the runtime template. Put additional owned
+resources in a separate `RuntimeComponent` rather than overriding framework lifecycle.
 
 ### Non-Spring applications
 
-Construct exactly one runtime. `start()` returns a cold `Mono<Void>` and must be
-subscribed.
+Construct exactly one runtime from the ordered component list. `start()` is cold and must be subscribed:
 
 ```kotlin
-val runtime = WowRuntime(components, shutdownTimeout, shutdownQuietPeriod)
+val runtime = WowRuntime(
+    components = listOf(commandDispatcher, eventDispatcher, customComponent),
+    shutdownTimeout = Duration.ofSeconds(60),
+    shutdownQuietPeriod = Duration.ofSeconds(1),
+)
+
 runtime.start().block()
-// application work
-runtime.stop()
-```
-
-### Spring Boot applications
-
-The Starter owns the canonical `wowRuntimeLifecycle` bridge. Runtime-owned
-components must be singleton beans whose declared return type exposes
-`RuntimeComponent` or a subtype. The runtime invokes the Spring-exposed proxy;
-there is no target unwrapping.
-
-A custom runtime must be a direct singleton bean named `wowRuntime`, must be the
-only local `WowRuntime`, and must disable Spring's inferred
-`AutoCloseable.close()` owner:
-
-```kotlin
-@Bean(WOW_RUNTIME_BEAN_NAME, destroyMethod = "")
-fun customWowRuntime(): WowRuntime =
-    WowRuntime(components, shutdownTimeout, shutdownQuietPeriod)
-```
-
-A `FactoryBean` product is rejected because the Starter cannot prove exclusive
-destruction ownership. When the application provides the canonical runtime, that
-runtime owns its component topology; automatic discovery applies only to the
-Starter-created default runtime. A child `ApplicationContext` owns only its local
-components.
-[`WowAutoConfiguration.kt:118-213`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt#L118-L213)
-
-```mermaid
-%%{init: {"theme": "dark"}}%%
-sequenceDiagram
-    autonumber
-    participant Spring
-    participant Bridge as WowRuntimeLifecycle
-    participant Runtime as WowRuntime
-    participant Components as RuntimeComponent graph
-    participant Ingress
-
-    Spring->>Bridge: start()
-    Bridge->>Runtime: subscribe start()
-    Runtime->>Components: prepare(runtimeContext)
-    Components-->>Runtime: readiness complete
-    Runtime->>Components: start() in order
-    Runtime-->>Bridge: running
-    Bridge-->>Spring: start complete
-    Spring->>Ingress: open later phase
-
-    Ingress->>Ingress: close earlier phase
-    Spring->>Bridge: stop(callback)
-    Bridge->>Runtime: stopGracefully()
-    Runtime->>Components: quiesce, drain, reverse stop
-    Runtime-->>Bridge: termination
-    Bridge-->>Spring: callback
-```
-
-<!-- Sources:
-- [WowRuntimeLifecycle.kt:27-44](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring/src/main/kotlin/me/ahoo/wow/spring/WowRuntimeLifecycle.kt#L27-L44)
-- [WowRuntimeLifecycle.kt:76-118](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring/src/main/kotlin/me/ahoo/wow/spring/WowRuntimeLifecycle.kt#L76-L118)
-- [WowRuntimeLifecycle.kt:211-258](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring/src/main/kotlin/me/ahoo/wow/spring/WowRuntimeLifecycle.kt#L211-L258)
--->
-
-If a custom ingress implements `SmartLifecycle`, use a phase greater than
-`WOW_RUNTIME_PHASE`: ingress then starts after runtime readiness and stops before
-the runtime. If the application replaces `lifecycleProcessor` with a
-`DefaultLifecycleProcessor`, Wow derives the runtime phase timeout from the
-selected runtime's `shutdownTimeout` and adds the configured completion margin.
-[`WowAutoConfiguration.kt:65-89`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt#L65-L89)
-
-## 2. Migrate Custom Runtime Participants
-
-Implement `RuntimeComponent` directly:
-
-```kotlin
-class CustomRuntimeComponent : RuntimeComponent {
-    override fun prepare(runtimeContext: RuntimeContext): Mono<Void> =
-        prepareResourcesWithoutOpeningProcessing(runtimeContext)
-
-    override fun start() = openIntake()
-
-    override fun quiesce() = closeIntake()
-
-    override fun stopGracefully(): Mono<Void> = drainAndClose()
-
-    override fun forceStop() {
-        closeIntake()
-        disposeOwnedResources()
-    }
+try {
+    runApplication()
+} finally {
+    runtime.stopGracefully().block()
 }
 ```
 
-The lifecycle contract is strict:
+Blocking is appropriate here only at the process/bootstrap boundary. Core handlers and dispatch paths remain reactive.
 
-- `prepare` completes when the component can retain admitted work without loss,
-  while processing remains closed;
-- `start` opens processing;
-- `quiesce` closes intake promptly, synchronously, and idempotently;
-- `stopGracefully` drains accepted work;
-- `forceStop` is prompt, non-blocking, repeat-safe, and safe before preparation.
+### Spring Boot applications
 
-Acquire a `RuntimeActivity` through `RuntimeContext.tryAcquire()` before accepting
-each complete asynchronous operation. Close it only when that complete chain
-terminates. Report terminal pipeline failures with `reportFailure`.
-[`RuntimeContext.kt:16-45`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeContext.kt#L16-L45)
+The starter creates the canonical `wowRuntime` and `wowRuntimeLifecycle`. Declare runtime participants as local
+singleton `RuntimeComponent` beans and use `@Order` when ordering matters. The default runtime discovers only
+components owned by the current ApplicationContext; parent/child contexts remain separate ownership scopes.
 
-```mermaid
-%%{init: {"theme": "dark"}}%%
-stateDiagram-v2
-    [*] --> Inert
-    Inert --> Ready: prepare completes
-    Ready --> Running: start
-    Running --> Quiescing: global admission closes
-    Quiescing --> Draining: quiesce
-    Draining --> Stopped: stopGracefully completes
-    Inert --> Forced: forceStop
-    Ready --> Forced: forceStop
-    Running --> Forced: fatal failure or deadline
-    Quiescing --> Forced: fatal failure or deadline
-    Draining --> Forced: fatal failure or deadline
-    Forced --> Stopped: cleanup completes
-    Stopped --> [*]
+A custom runtime must be the only local `WowRuntime`, be named `wowRuntime`, be declared directly rather than through
+a `FactoryBean`, and suppress Spring's inferred close owner:
+
+```kotlin
+@Bean(WOW_RUNTIME_BEAN_NAME, destroyMethod = "")
+fun customWowRuntime(): WowRuntime = WowRuntime(
+    components = components,
+    shutdownTimeout = Duration.ofSeconds(60),
+    shutdownQuietPeriod = Duration.ofSeconds(1),
+)
 ```
 
-<!-- Sources:
-- [RuntimeComponent.kt:18-62](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeComponent.kt#L18-L62)
-- [WowRuntime.kt:470-565](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L470-L565)
--->
+When a custom canonical runtime is supplied, its component topology is authoritative; starter discovery does not add
+more components. Do not declare another `WowRuntimeLifecycle` or make runtime components independently implement
+Spring `Lifecycle`/`SmartLifecycle`, `DisposableBean`, `@PreDestroy`, or an explicit destroy method. The starter checks
+singleton and competing-owner invariants and fails startup rather than accepting ambiguous destruction.
 
-Cancelling the `start()` subscription aborts and force-stops this one-shot
-runtime. Preparation publishers must therefore release or terminate promptly
-when `forceStop` runs. A terminated runtime or Spring context cannot restart;
-create a new instance instead.
+A custom ingress `SmartLifecycle` should have a phase greater than `WOW_RUNTIME_PHASE`, so it starts after runtime
+readiness and stops before Wow. The starter configures the runtime phase timeout from the selected runtime deadline
+plus its small completion margin.
+
+## 2. Migrate Custom Runtime Participants
+
+Implement the full contract with inert construction:
+
+```kotlin
+class PartnerFeed : RuntimeComponent {
+    private lateinit var runtimeContext: RuntimeContext
+
+    override fun prepare(runtimeContext: RuntimeContext): Mono<Void> = Mono.fromRunnable {
+        this.runtimeContext = runtimeContext
+        prepareSourceWithoutOpeningProcessing()
+    }
+
+    override fun start() = openIntake()
+    override fun quiesce() = closeIntake()
+    override fun stopGracefully(): Mono<Void> = drainAndClose()
+    override fun forceStop() = disposePromptly()
+}
+```
+
+Contract checklist:
+
+- `prepare` completes only when admitted work can be retained without loss, while processing is still closed;
+- `start` is prompt and opens processing after the global readiness barrier;
+- `quiesce` promptly and idempotently closes intake;
+- `stopGracefully` drains already accepted work and releases resources;
+- `forceStop` is non-blocking, idempotent, repeat-safe, and safe even before `prepare`;
+- construction does not open threads, subscriptions, sockets, or schedulers owned by the runtime.
+
+Before accepting one complete asynchronous operation, call `runtimeContext.tryAcquire()`. A `null` result means global
+admission is closed. Close the returned `RuntimeActivity` only after the complete chain terminates, including nested
+asynchronous side effects. Call `runtimeContext.reportFailure(error)` for a terminal pipeline failure that should stop
+the whole runtime.
+
+Cancelling the startup subscription force-stops the one-shot runtime. Preparation publishers must respond to
+cancellation/force cleanup promptly.
 
 ## 3. Migrate Message Sources
 
-A custom `MessageBus` whose subscription is not immediately able to retain new
-work must override `receiver` and return:
+Custom asynchronous transports must return a `MessageReceiver` with four preserved pieces:
 
-1. a single-use message stream;
-2. a hot, replayable readiness signal;
-3. an idempotent `openProcessing` callback;
-4. an idempotent `closeProcessing` callback.
+```kotlin
+override fun receiver(subscription: MessageSubscription): MessageReceiver<Exchange> = MessageReceiver(
+    messages = singleUseMessages,
+    readiness = hotReplayableReadiness,
+    processingAdmission = ::openConsumption,
+    processingQuiescence = ::closeConsumption,
+)
+```
 
-Preserve all four when mapping a receiver. The runtime subscribes before awaiting
-readiness, opens processing only during the global start pass, and closes logical
-processing before detached physical cancellation.
-[`MessageReceiver.kt:20-89`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/MessageReceiver.kt#L20-L89)
+The runtime subscribes to `messages` first, then waits for `readiness`; after every component is ready, it calls
+`openProcessing`. On shutdown it calls `closeProcessing` before physical cancellation. `mapMessages` preserves these
+callbacks. A receiver supports exactly one message subscriber.
 
-Transport-specific checks:
+Use `runtimeReceiver()` only for a dispatcher owned by `WowRuntime`; ordinary custom consumers should use
+`receiver()` unless they implement the same local admission receipt protocol. The conservative default
+`LocalMessageBus.sendIfSubscribed()` is `false`. Subscriber count or sink acceptance alone cannot prove that every
+targeted receiver acquired processing admission.
 
-- Redis readiness creates all consumer groups without starting stream reads
-  before processing admission.
-  [`AbstractRedisMessageBus.kt:76-146`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-redis/src/main/kotlin/me/ahoo/wow/redis/bus/AbstractRedisMessageBus.kt#L76-L146)
-- Kafka readiness persists a conservative assignment boundary before publishing
-  readiness. Provision topics before runtime startup.
-  [`AbstractKafkaBus.kt:128-185`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt#L128-L185)
-  [`AbstractKafkaBus.kt:260-273`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt#L260-L273)
+Transport checks:
 
-For a custom `LocalMessageBus`, the default `sendIfSubscribed` deliberately
-returns `false`. Override it only when `true` proves that every targeted local
-receiver acquired processing admission; `subscriberCount()` plus `send()` is not
-an atomic receipt. Ordinary `receiver()` consumers need no receipt protocol.
-Runtime-owned custom consumers of the built-in in-memory bus opt in with
-`runtimeReceiver()` and then call `confirmLocalDelivery()` after admission and
-handoff, or `rejectLocalDelivery()` when they filter or cannot admit the exchange.
-[`MessageBus.kt:54-107`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/MessageBus.kt#L54-L107)
-[`LocalDeliveryReceipt.kt:252-273`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/LocalDeliveryReceipt.kt#L252-L273)
+- Redis readiness must create the required consumer groups without processing messages before admission opens;
+- Kafka readiness must complete only after its conservative assignment boundary is established; provision topics
+  before runtime startup;
+- wrappers for tracing or metrics must delegate `runtimeReceiver()` unchanged, not fall back to `receiver()`.
 
 ## 4. Update Adjacent Extensions
 
-- A custom `AggregateSchedulerSupplier` must implement both
-  `stopGracefully()` and `forceStop()`. Force stop synchronously disposes every
-  scheduler that graceful shutdown could own.
-  [`AggregateSchedulerSupplier.kt:40-65`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/scheduler/AggregateSchedulerSupplier.kt#L40-L65)
-- `AutoRegistrar` is initialization work and now implements
-  `SmartInitializingSingleton`. Remove lifecycle calls and references to the
-  deleted `AUTO_REGISTRAR_PHASE`.
-  [`AutoRegistrar.kt:20-44`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring/src/main/kotlin/me/ahoo/wow/spring/AutoRegistrar.kt#L20-L44)
+- Custom `AggregateSchedulerSupplier` implementations must support both graceful and force shutdown; force cleanup
+  synchronously disposes every scheduler the graceful path could own.
+- `AutoRegistrar` is initialization work (`SmartInitializingSingleton`), not a runtime lifecycle owner. Remove calls or
+  ordering based on the deleted launcher phase.
+- Custom store/message-bus decorators must preserve original delegate close ownership and avoid closing it twice.
+- Tests that instantiated individual launchers should instead start one `WowRuntime` and assert the complete component
+  order and shared termination result.
 
 ## 5. Review Shutdown Configuration
 
-- `wow.shutdown-timeout` is one deadline for quiescing and stopping the complete
-  runtime, not an allowance per dispatcher.
-- `wow.shutdown-quiet-period` defaults to `1s`, must be non-negative, strictly
-  shorter than the timeout, and both durations must fit signed 64-bit nanoseconds.
-- Runtime termination can carry the original pipeline error. Unexpected fatal
-  termination in a Starter application closes the application context.
+| Property | Default | Constraint |
+|---|---|---|
+| `wow.shutdown-timeout` | `60s` | Positive; one deadline for the complete runtime |
+| `wow.shutdown-quiet-period` | `1s` | Non-negative and strictly shorter than the timeout |
 
-The runtime closes global admission first, quiesces component intake, waits for a
-stable quiet period, and then stops components in reverse order. Deadline expiry
-or cleanup failure enters force stop.
-[`WowRuntime.kt:325-468`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt#L325-L468)
-[`WowProperties.kt:24-47`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowProperties.kt#L24-L47)
+Both durations must fit signed 64-bit nanoseconds. `stop(timeout)` changes only that caller's blocking wait; it does
+not replace the runtime's configured shutdown deadline.
+
+Test these cases with production-like values:
+
+1. all components prepare before any `start`;
+2. startup failure/cancellation rolls back in reverse order;
+3. normal shutdown continues to admit tail activity during the quiet window;
+4. tail activity resets the quiet timer; stable idle closes admission before component `quiesce`;
+5. component `quiesce` runs in registration order, then graceful stop runs in reverse order;
+6. deadline, quiesce failure, stop failure, and explicit force stop release resources once;
+7. the first terminal failure remains observable and the Spring context closes on unexpected termination.
 
 ## Deployment and Rollback
 
-Before deployment:
+Deploy the lifecycle migration as one topology: do not mix old launchers with the canonical runtime. Before cutover,
+run module/application-context tests, a real startup/readiness check, message-flow smoke tests, graceful shutdown, and
+fatal/deadline drills.
 
-- recompile every custom dispatcher and lifecycle extension;
-- verify that each runtime-owned resource has exactly one owner;
-- run application-context startup and graceful-shutdown tests with production
-  timeout values;
-- test fatal failure, startup cancellation, and deadline expiry;
-- provision Kafka topics before starting the runtime.
+During rollout verify the exact deployed revision, readiness before ingress opens, absence of duplicate consumers,
+receiver lag, termination logs/traces, and process exit on fatal failure. Local tests prove the implementation only;
+they do not prove production admission.
 
-Do not use a mixed lifecycle topology. To roll back, completely stop the new
-application context and deploy the previous binaries together with the previous
-launcher configuration. Do not restart a context whose runtime has terminated.
+Rollback by completely stopping the new ApplicationContext and deploying the previous binary together with its
+previous launcher configuration. Never attempt to restart a terminated runtime or restore old launchers inside the
+same context. Because this migration alone changes no wire/storage format, rollback needs no data conversion unless
+another change in the same release created new-format writes.
 
 ## References
 
-| Source | Responsibility |
+| Source | Contract |
 |---|---|
-| [`WowRuntime.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt) | One-shot orchestration, shared deadline, fatal shutdown |
-| [`RuntimeComponent.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeComponent.kt) | Runtime-owned lifecycle contract |
-| [`RuntimeContext.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeContext.kt) | Activity admission and fatal failure reporting |
+| [`WowRuntime.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/WowRuntime.kt) | Readiness barrier, one-shot state, shared deadline, terminal failure |
+| [`RuntimeComponent.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeComponent.kt) | Participant lifecycle |
+| [`RuntimeContext.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeContext.kt) | Activity admission and failure reporting |
 | [`MessageReceiver.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/MessageReceiver.kt) | Readiness and processing admission |
-| [`WowRuntimeLifecycle.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring/src/main/kotlin/me/ahoo/wow/spring/WowRuntimeLifecycle.kt) | Spring lifecycle bridge |
-| [`WowAutoConfiguration.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt) | Starter composition root and ownership validation |
+| [`WowRuntimeLifecycle.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring/src/main/kotlin/me/ahoo/wow/spring/WowRuntimeLifecycle.kt) | Spring bridge |
+| [`WowAutoConfiguration.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt) | Composition and exclusive-owner validation |
 
 ## Related Pages
 
 | Page | Relationship |
 |---|---|
-| [Migration Guide](../migration.md) | Upgrade overview and other migration topics |
-| [Runtime Lifecycle](../advanced/runtime-lifecycle.md) | Stable runtime architecture and shutdown semantics |
-| [Configuration](../configuration.md) | Application decisions, environments, and secret boundaries with links to exact references |
-| [Spring Boot Starter](../extensions/spring-boot-starter.md) | Starter auto-configuration and application integration |
+| [Migration Guide](../migration.md) | Migration scopes and evidence gates |
+| [Runtime Lifecycle](../advanced/runtime-lifecycle.md) | Stable target behavior |
+| [Configuration](../configuration.md) | Runtime settings and environment boundaries |
+| [Spring Boot Starter](../extensions/spring-boot-starter.md) | Starter integration |
+
+<!-- Sources: current runtime implementation/tests, v6.21.5 launcher sources, Spring auto-configuration/tests,
+MessageBus/MessageReceiver and Kafka/Redis receivers -->

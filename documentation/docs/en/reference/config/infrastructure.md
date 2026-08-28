@@ -1,210 +1,164 @@
 ---
 title: Infrastructure Configuration
-description: Configuration options for infrastructure integrations including Kafka, MongoDB, Redis, Elasticsearch, and WebFlux.
+description: Exact properties, defaults, and ownership boundaries for Kafka, MongoDB, Redis, Elasticsearch, and WebFlux integrations.
+outline: deep
 ---
 
 # Infrastructure Configuration
 
+This page describes only configuration owned by Wow. Backend client settings such as pools, TLS, authentication, and timeouts remain owned by Spring Boot or the native client. Check the Spring Boot version used by the application instead of copying external properties into the Wow reference.
+
+::: warning Capabilities and properties are separate gates
+`wow.*.enabled=true` does not add an implementation to the classpath. The application must request the matching Starter capability first. Conversely, these integrations are enabled by default when their capability is present. Do not add unused capabilities in advance.
+:::
+
 ## Kafka
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `wow.kafka.enabled` | Boolean | `true` | Enable Kafka integration |
-| `wow.kafka.bootstrap-servers` | List\<String\> | (required) | Kafka bootstrap server addresses |
-| `wow.kafka.topic-prefix` | String | `wow.` | Topic name prefix |
-| `wow.kafka.properties` | Map\<String, String\> | `{}` | Additional Kafka client properties |
-| `wow.kafka.producer` | Map\<String, String\> | `{}` | Kafka producer-specific properties |
-| `wow.kafka.consumer` | Map\<String, String\> | `{}` | Kafka consumer-specific properties |
-| `wow.kafka.receiver.prefetch-batches` | Integer | `1` | Kafka poll batches prefetched by the reactive receiver |
-| `wow.kafka.receiver.max-deferred-commits` | Integer | `1` | Out-of-order commits retained to preserve offset gaps |
-| `wow.kafka.receiver.retry-attempts` | Long | `3` | Retry attempts per consecutive receiver failure burst |
+Configuration classes: `KafkaProperties`, `KafkaReceiverProperties`; required capability: `kafka-support`.
+
+| Property | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `wow.kafka.enabled` | Boolean | `true` | Enables Kafka auto-configuration |
+| `wow.kafka.bootstrap-servers` | List\<String\> | none; required | Bootstrap addresses for senders and receivers |
+| `wow.kafka.topic-prefix` | String | `wow.` | Command/DomainEvent/StateEvent topic prefix |
+| `wow.kafka.properties` | Map\<String, String\> | `{}` | Common Kafka producer and consumer properties |
+| `wow.kafka.producer` | Map\<String, String\> | `{}` | Producer overrides; higher precedence than common properties |
+| `wow.kafka.consumer` | Map\<String, String\> | `{}` | Consumer overrides; higher precedence than common properties |
+| `wow.kafka.receiver.prefetch-batches` | Int | `1` | Reactor Kafka poll batches to prefetch |
+| `wow.kafka.receiver.max-deferred-commits` | Int | `1` | Maximum deferred commits retained for out-of-order completion |
+| `wow.kafka.receiver.retry-attempts` | Long | `3` | Maximum attempts for one consecutive receive-failure burst |
 | `wow.kafka.receiver.retry-backoff` | Duration | `10s` | Minimum receiver retry backoff |
-| `wow.kafka.receiver.decode-failure-strategy` | Enum | `FAIL` | Invalid record policy: `FAIL` or `ACKNOWLEDGE` |
+| `wow.kafka.receiver.decode-failure-strategy` | Enum | `fail` | `fail` or `acknowledge` |
 
 ```yaml
 wow:
   kafka:
-    enabled: true
-    bootstrap-servers:
-      - localhost:9092
-    topic-prefix: "wow."
-    receiver:
-      prefetch-batches: 1
-      max-deferred-commits: 1
-      retry-attempts: 3
-      retry-backoff: 10s
-      decode-failure-strategy: FAIL
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
     producer:
       acks: all
-      retries: 3
-    consumer:
-      auto-offset-reset: earliest
-      group-id: wow-consumer
+    receiver:
+      decode-failure-strategy: fail
 ```
+
+`fail` terminates the current receive path and enters receiver retry for an invalid record. `acknowledge` acknowledges and skips it. The latter abandons that record and is appropriate only with an isolation, audit, and operator-recovery path. Wow creates bus clients; the application platform still owns topics/partitions, ACLs, retention, consumer lag, backups, and offset recovery.
 
 ## MongoDB
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `wow.mongo.enabled` | Boolean | `true` | Enable MongoDB integration |
-| `wow.mongo.auto-init-schema` | Boolean | `true` | Automatically initialize database schema on startup |
-| `wow.mongo.event-stream-database` | String? | `null` | Separate database for event streams (defaults to main database) |
-| `wow.mongo.snapshot-database` | String? | `null` | Separate database for snapshots (defaults to main database) |
-| `wow.mongo.prepare-database` | String? | `null` | Separate database for PrepareKey storage (defaults to main database) |
-| `wow.mongo.event-store-batch.enabled` | Boolean | `false` | Batch concurrent event-store appends with MongoDB `insertMany` |
-| `wow.mongo.event-store-batch.max-size` | Int | `128` | Maximum event streams in one collection batch |
-| `wow.mongo.event-store-batch.max-delay` | Duration | `1ms` | Maximum time to collect a partial batch |
-| `wow.mongo.event-store-batch.max-pending-appends` | Int | `4096` | Maximum accepted appends waiting or being written; must be at least `max-size` |
-| `wow.mongo.event-store-batch.lane-count` | Int | `1` | Number of serial write lanes; appends for the same aggregate stay on one lane |
-| `wow.mongo.snapshot-store-batch.enabled` | Boolean | `false` | Batch concurrent SnapshotStore saves with MongoDB unordered `bulkWrite` |
-| `wow.mongo.snapshot-store-batch.max-size` | Int | `128` | Maximum snapshots in one collection batch |
-| `wow.mongo.snapshot-store-batch.max-delay` | Duration | `1ms` | Maximum time to collect a partial snapshot batch |
-| `wow.mongo.snapshot-store-batch.max-pending-saves` | Int | `4096` | Maximum accepted saves waiting or being written; must be at least `max-size` |
-| `wow.mongo.snapshot-store-batch.lane-count` | Int | `1` | Number of serial write lanes; saves for the same aggregate stay on one lane |
+Configuration classes: `MongoProperties`, `MongoEventStoreBatchProperties`, `MongoSnapshotStoreBatchProperties`; required capability: `mongo-support`.
+
+| Property | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `wow.mongo.enabled` | Boolean | `true` | Enables Mongo auto-configuration |
+| `wow.mongo.auto-init-schema` | Boolean | `true` | Initializes Wow collection/index schema at startup |
+| `wow.mongo.event-stream-database` | String? | `null` | EventStore database; absent uses the primary Spring database |
+| `wow.mongo.snapshot-database` | String? | `null` | SnapshotStore/query database; absent uses the primary Spring database |
+| `wow.mongo.prepare-database` | String? | `null` | PrepareKey database; absent uses the primary Spring database |
+
+Spring Boot owns the connection through `spring.mongodb.*`:
 
 ```yaml
-wow:
-  mongo:
-    enabled: true
-    auto-init-schema: true
-    event-stream-database: wow_events
-    snapshot-database: wow_snapshots
-    event-store-batch:
-      enabled: true
-      max-size: 128
-      max-delay: 1ms
-      max-pending-appends: 4096
-      lane-count: 1
-    snapshot-store-batch:
-      enabled: true
-      max-size: 128
-      max-delay: 1ms
-      max-pending-saves: 4096
-      lane-count: 1
+spring:
+  mongodb:
+    uri: ${MONGODB_URI}
 ```
+
+Both batchers are disabled by default. When enabled, they collect concurrent writes per collection.
+
+| Exact property | Default |
+| --- | --- |
+| `wow.mongo.event-store-batch.enabled` | `false` |
+| `wow.mongo.event-store-batch.max-size` | `128` |
+| `wow.mongo.event-store-batch.max-delay` | `1ms` |
+| `wow.mongo.event-store-batch.max-pending-appends` | `4096` |
+| `wow.mongo.event-store-batch.lane-count` | `1` |
+| `wow.mongo.snapshot-store-batch.enabled` | `false` |
+| `wow.mongo.snapshot-store-batch.max-size` | `128` |
+| `wow.mongo.snapshot-store-batch.max-delay` | `1ms` |
+| `wow.mongo.snapshot-store-batch.max-pending-saves` | `4096` |
+| `wow.mongo.snapshot-store-batch.lane-count` | `1` |
+
+`max-size` must exceed `1`, `max-delay` must be positive, a pending limit must be at least `max-size`, and `lane-count` must be positive. Writes for one aggregate stay on one lane. Increase lanes only with throughput evidence. `auto-init-schema=true` owns Wow schema initialization; it does not replace database backup, sharding design, or business-query index verification.
 
 ## Redis
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `wow.redis.enabled` | Boolean | `true` | Enable Redis integration |
-| `wow.redis.message-bus.recovery.enabled` | Boolean | `true` | Recover abandoned Redis Stream pending messages |
-| `wow.redis.message-bus.recovery.min-idle-time` | Duration | `5m` | Minimum idle time before a pending message is recoverable |
-| `wow.redis.message-bus.recovery.interval` | Duration | `30s` | Interval between pending-message sweeps |
-| `wow.redis.message-bus.recovery.batch-size` | Long | `100` | Maximum records per `XPENDING` page |
+Configuration classes: `RedisProperties`, `RedisStreamRecoveryProperties`; required capability: `redis-support`.
 
-Redis connection is configured through Spring Boot's standard `spring.data.redis.*` properties.
+| Property | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `wow.redis.enabled` | Boolean | `true` | Enables Redis auto-configuration |
+| `wow.redis.message-bus.recovery.enabled` | Boolean | `true` | Recovers abandoned pending messages in Redis Streams consumer groups |
+| `wow.redis.message-bus.recovery.min-idle-time` | Duration | `5m` | Minimum idle time before a pending entry can be claimed |
+| `wow.redis.message-bus.recovery.interval` | Duration | `30s` | Interval between recovery sweeps |
+| `wow.redis.message-bus.recovery.batch-size` | Long | `100` | Pending records per page |
+
+`min-idle-time` and `interval` must be at least `1ms`; `batch-size` must be positive. Spring Boot owns the connection through `spring.data.redis.*`.
 
 ```yaml
 spring:
   data:
     redis:
-      host: localhost
-      port: 6379
-
-wow:
-  redis:
-    enabled: true
-    message-bus:
-      recovery:
-        enabled: true
-        min-idle-time: 5m
-        interval: 30s
-        batch-size: 100
+      url: ${REDIS_URL}
 ```
 
+Pending recovery applies only to consumer-group pending entries for Wow Redis Streams buses. It is not a Redis EventStore/SnapshotStore backup and cannot restore Stream records that were trimmed or deleted. The platform still owns persistence mode, capacity, Stream trimming, consumer groups, and backup/restore.
 
 ## Elasticsearch
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `wow.elasticsearch.enabled` | Boolean | `true` | Enable Elasticsearch integration |
-| `wow.elasticsearch.auto-init-template` | Boolean | `true` | Initialize required index templates before startup completes |
-| `wow.elasticsearch.query.batch-size` | Int | `10000` | PIT + `search_after` batch size; configure no higher than the target index's `index.max_result_window` |
-| `wow.elasticsearch.query.keep-alive` | Duration | `1m` | PIT lifetime refreshed by each full-list search request; increase for slow subscribers |
-| `wow.elasticsearch.event-store-batch.enabled` | Boolean | `false` | Enable transparent EventStore Bulk `create` batching |
-| `wow.elasticsearch.event-store-batch.max-size` | Int | `128` | Maximum event streams per Bulk request |
-| `wow.elasticsearch.event-store-batch.max-delay` | Duration | `1ms` | Maximum wait used to collect a partial event batch |
-| `wow.elasticsearch.event-store-batch.max-pending-appends` | Int | `4096` | Maximum accepted appends waiting or being written; must be at least `max-size` |
-| `wow.elasticsearch.event-store-batch.lane-count` | Int | `1` | Number of serial write lanes; appends for the same aggregate stay on one lane |
-| `wow.elasticsearch.snapshot-store-batch.enabled` | Boolean | `false` | Enable transparent SnapshotStore Bulk `update` batching |
-| `wow.elasticsearch.snapshot-store-batch.max-size` | Int | `128` | Maximum snapshots per Bulk request |
-| `wow.elasticsearch.snapshot-store-batch.max-delay` | Duration | `1ms` | Maximum wait used to collect a partial snapshot batch |
-| `wow.elasticsearch.snapshot-store-batch.max-pending-saves` | Int | `4096` | Maximum accepted saves waiting or being written; must be at least `max-size` |
-| `wow.elasticsearch.snapshot-store-batch.lane-count` | Int | `1` | Number of serial write lanes; saves for the same aggregate stay on one lane |
+Configuration classes: `ElasticsearchProperties`, `ElasticsearchQueryProperties`, and the two batch-property classes; required capability: `elasticsearch-support`.
 
-Elasticsearch connection is configured through Spring Boot's standard `spring.elasticsearch.*` properties.
-When automatic initialization is enabled, a failed, empty, or unacknowledged template request fails application startup.
-Set `auto-init-template` to `false` only when templates are managed externally.
+| Property | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `wow.elasticsearch.enabled` | Boolean | `true` | Enables Elasticsearch auto-configuration |
+| `wow.elasticsearch.auto-init-template` | Boolean | `true` | Creates/confirms Wow event and snapshot index templates |
+| `wow.elasticsearch.compatibility-version` | Int? | `null` | Adds REST compatibility media-type headers when configured |
+| `wow.elasticsearch.query.batch-size` | Int | `10000` | Batch size for PIT + `search_after` |
+| `wow.elasticsearch.query.keep-alive` | Duration | `1m` | PIT keep-alive refreshed by every full-query request |
+
+`query.batch-size` must be in `1..10000` and no greater than the target index's `index.max_result_window`; `keep-alive` must be at least `1ms`. Spring Boot owns the connection through `spring.elasticsearch.*`:
 
 ```yaml
 spring:
   elasticsearch:
-    uris: http://localhost:9200
-
-wow:
-  elasticsearch:
-    enabled: true
-    auto-init-template: true
-    event-store-batch:
-      enabled: true
-      max-size: 128
-      max-delay: 1ms
-      max-pending-appends: 4096
-      lane-count: 1
-    snapshot-store-batch:
-      enabled: true
-      max-size: 128
-      max-delay: 1ms
-      max-pending-saves: 4096
-      lane-count: 1
+    uris: ${ELASTICSEARCH_URIS}
 ```
 
-Batching is opt-in. EventStore batching uses Bulk `create`; SnapshotStore uses
-an atomic `_source.version` guarded update in both direct and batch modes to
-prevent stale snapshots, including legacy documents, from overwriting newer
-snapshots.
+`compatibility-version` has no default. Set it only when the deployed topology requires Elasticsearch REST compatibility headers, and verify the value against that server. This documentation does not pin a server major version.
+
+| Exact property | Default |
+| --- | --- |
+| `wow.elasticsearch.event-store-batch.enabled` | `false` |
+| `wow.elasticsearch.event-store-batch.max-size` | `128` |
+| `wow.elasticsearch.event-store-batch.max-delay` | `1ms` |
+| `wow.elasticsearch.event-store-batch.max-pending-appends` | `4096` |
+| `wow.elasticsearch.event-store-batch.lane-count` | `1` |
+| `wow.elasticsearch.snapshot-store-batch.enabled` | `false` |
+| `wow.elasticsearch.snapshot-store-batch.max-size` | `128` |
+| `wow.elasticsearch.snapshot-store-batch.max-delay` | `1ms` |
+| `wow.elasticsearch.snapshot-store-batch.max-pending-saves` | `4096` |
+| `wow.elasticsearch.snapshot-store-batch.lane-count` | `1` |
+
+Batch validation matches MongoDB. EventStore batching uses Bulk `create`. Both direct and batch SnapshotStore paths use an atomic `_source.version` guarded update so an older snapshot cannot overwrite a newer one. With `auto-init-template=true`, a failed, empty, or unacknowledged template request fails startup. Disable it only when an external platform explicitly owns templates, and retain template version and validation evidence.
 
 ## WebFlux
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `wow.webflux.enabled` | Boolean | `true` | Enable WebFlux command endpoint auto-registration |
-| `wow.webflux.global-error.enabled` | Boolean | `true` | Enable global error handling |
-| `wow.webflux.batch.concurrency` | Integer | `1` | Concurrency for batch command requests |
-| `wow.webflux.batch.prefetch` | Integer | `1` | Prefetch count for batch command requests |
-| `wow.webflux.query.max-list-size` | Integer | `1000` | Maximum HTTP list-query limit; `0` disables the cap |
-| `wow.webflux.query.max-page-size` | Integer | `100` | Maximum HTTP page size; `0` disables the cap |
-| `wow.webflux.query.max-page-window` | Long | `10000` | Maximum HTTP page window; `0` disables the cap |
-| `wow.webflux.query.max-condition-nodes` | Integer | `64` | Maximum HTTP query condition nodes; `0` disables the cap |
-| `wow.webflux.query.max-condition-values` | Integer | `1000` | Maximum values in HTTP `IN`, `NOT_IN`, `ALL_IN`, `IDS`, or `AGGREGATE_IDS` conditions; `0` disables the cap |
-| `wow.webflux.query.allow-expensive-operators` | Boolean | `true` | Allow HTTP negative/existence/expensive string operators or unfiltered count/paged queries |
-| `wow.webflux.query.idle-timeout` | Duration | `10s` | Maximum wait between results or completion; JSON arrays are buffered before commit, while SSE remains streaming; `0s` disables it |
-| `wow.webflux.command.request.appender.agent.enabled` | Boolean | `true` | Append the client `User-Agent` to the command request context (set `false` to disable) |
-| `wow.webflux.command.request.appender.ip.enabled` | Boolean | `true` | Append the client IP to the command request context (set `false` to disable) |
+Configuration class: `WebFluxProperties`; required capability: `webflux-support`.
 
-```yaml
-wow:
-  webflux:
-    enabled: true
-    global-error:
-      enabled: true
-    batch:
-      concurrency: 1
-      prefetch: 1
-    query:
-      max-list-size: 1000
-      max-page-size: 100
-      max-page-window: 10000
-      max-condition-nodes: 64
-      max-condition-values: 1000
-      allow-expensive-operators: true
-      idle-timeout: 10s
-    command:
-      request:
-        appender:
-          agent:
-            enabled: true
-          ip:
-            enabled: true
-```
+| Property | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `wow.webflux.enabled` | Boolean | `true` | Enables built-in Wow HTTP route wiring |
+| `wow.webflux.global-error.enabled` | Boolean | `true` | Registers Wow's global `WebExceptionHandler` |
+| `wow.webflux.batch.concurrency` | Int | `1` | Concurrency for batch operation/command tasks |
+| `wow.webflux.batch.prefetch` | Int | `1` | Batch-task prefetch |
+| `wow.webflux.query.max-list-size` | Int | `1000` | List/aggregation limit; `0` removes the cap and permits limit `0` |
+| `wow.webflux.query.max-page-size` | Int | `100` | Page-size cap; `0` disables it |
+| `wow.webflux.query.max-page-window` | Long | `10000` | `page.index * page.size` cap; `0` disables it |
+| `wow.webflux.query.max-condition-nodes` | Int | `64` | FilterExpression node cap; `0` disables it |
+| `wow.webflux.query.max-condition-values` | Int | `1000` | Value-count cap for collection filters; `0` disables it |
+| `wow.webflux.query.allow-expensive-operators` | Boolean | `true` | Allows expensive filters, Elements, metric sorting/arithmetic, and match-all count/paged requests |
+| `wow.webflux.query.idle-timeout` | Duration | `10s` | Maximum idle wait for the next result or completion; `0s` disables it |
+| `wow.webflux.command.request.appender.agent.enabled` | Boolean | `true` | Adds `User-Agent` to command context |
+| `wow.webflux.command.request.appender.ip.enabled` | Boolean | `true` | Adds the resolved remote IP to command context |
+
+All numeric query caps must be non-negative. Ordinary page size must still be at least `1`, and page offset cannot exceed `Int.MAX_VALUE`. `allow-expensive-operators=true` is the compatibility default, not capacity evidence. Test existing requests and the upgrade path before tightening it.
+
+`webflux-support` wires built-in command, event, snapshot-query, rebuild, and compensation routes. It does not provide business authentication, authorization, or management-plane isolation. Read actual paths from the runtime OpenAPI and protect modifying operation routes with authorization, audit, rate limits, and a controlled network entry point.

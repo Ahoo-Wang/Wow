@@ -1,13 +1,27 @@
 ---
 title: OpenAPI
-description: The Wow OpenAPI module provides API interfaces based on the OpenAPI specification.
+description: Publish Wow route contracts from generated metadata while keeping compile-time metadata, runtime WebFlux routes, schemas, and clients distinct.
 ---
 
 # OpenAPI
 
-> The Wow OpenAPI module provides API interfaces based on the [OpenAPI](https://swagger.io/specification/) specification.
+`wow-openapi` builds OpenAPI 3.1 operations and components for Wow's route contracts. The complete path is:
+
+```text
+Wow annotations
+  -> KSP: META-INF/wow-metadata.json
+  -> MetadataSearcher: runtime aggregate metadata
+  -> RouterSpecs / RouteCatalog
+       -> WebFlux RouterFunction
+       -> OpenAPI paths and components
+  -> API client or external client generator
+```
+
+The shared `RouteCatalog` is the important boundary: runtime WebFlux handlers and the OpenAPI renderer consume the same route contracts. KSP does not generate a running HTTP server, and OpenAPI does not prove that a backend, query capability, authentication policy, or client deployment works.
 
 ## Installation
+
+`wow-openapi` supplies route contracts and schema components:
 
 ::: code-group
 
@@ -20,7 +34,6 @@ implementation 'me.ahoo.wow:wow-openapi'
 ```
 
 ```xml [Maven]
-
 <dependency>
     <groupId>me.ahoo.wow</groupId>
     <artifactId>wow-openapi</artifactId>
@@ -30,7 +43,7 @@ implementation 'me.ahoo.wow:wow-openapi'
 
 :::
 
-The dependency above provides Wow's OpenAPI model and route specifications. To publish those specifications from a Spring Boot WebFlux application, also use `wow-spring-boot-starter` with the WebFlux module. Swagger UI itself is supplied by Springdoc:
+For a Spring Boot application, use the starter and WebFlux runtime. Add Springdoc only when the service should publish `/v3/api-docs` or Swagger UI:
 
 ```kotlin
 implementation("me.ahoo.wow:wow-spring-boot-starter")
@@ -38,129 +51,102 @@ implementation("me.ahoo.wow:wow-webflux")
 implementation("org.springdoc:springdoc-openapi-starter-webflux-ui")
 ```
 
+`OpenAPIAutoConfiguration` creates `RouterSpecs`; `WebFluxAutoConfiguration` materializes the catalog into `RouterFunction`; `WowOpenApiCustomizer` merges the same catalog into Springdoc. `wow.openapi.enabled=false` disables Springdoc customization, not the WebFlux route catalog itself.
+
+Modules containing Wow annotations still need KSP plus `wow-compiler`, and their generated `META-INF/wow-metadata.json` resources must be present on the service runtime classpath. Do not hand-write or commit generated resources.
+
 ## Swagger-UI
 
-> Swagger-UI is an API documentation tool based on the OpenAPI specification, which can be used to view and test API interfaces through Swagger-UI.
+Swagger UI is a Springdoc application feature, not part of the route contract itself. The default Springdoc pages are normally available at `/swagger-ui.html` and `/v3/api-docs` when the matching starter is present and enabled.
 
 ![Swagger-UI](/images/compensation/open-api.png)
 
+Use the JSON document as the source for exact paths, methods, parameters, media types, operation IDs, and component references. A screenshot is not contract evidence.
+
 ## Aggregate Resource Ownership
 
-An aggregate-root resource can belong to one or more of a tenant, a space, and an owner.
+Aggregate metadata combines `@AggregateRoute`, command-level `@CommandRoute`, tenant metadata, and generated command/event types. Route ownership affects path shape; it is not caller authorization.
+
+The route catalog also controls whether an aggregate is published at all (`@AggregateRoute(enabled = false)`). This does not remove command handling or storage behavior outside HTTP.
 
 ## RESTful URL PATH Spec
 
-`[tenant/{tenantId}]/[owner/{ownerId}]/resource/[{resourceId}]/action`
+The general aggregate route shape is:
+
+```text
+[tenant/{tenantId}/][owner/{ownerId}/]{resourceName}[/{resourceId}]/{action}
+```
+
+The default route starts at the resource name. Wow does not prepend a bounded-context alias to local paths. Do not construct paths from naming conventions in client code; inspect generated OpenAPI.
 
 ### Tenant Resources
 
-When an aggregate root is a tenant resource (not marked with static tenant ID), the automatically generated RESTful API adds the `tenant/{tenantId}` path prefix.
+A dynamic tenant aggregate's default command/state routes receive the `tenant/{tenantId}` prefix. Snapshot query contributors also retain a base route and add the tenant-scoped variant. Tenant path data is passed to runtime handlers and query rewriting, but the application must bind it to the authenticated principal and protect the unscoped query route explicitly.
 
 ### Space Resources
 
-When an aggregate root is marked with space ID, the automatically generated RESTful API adds the `Wow-Space-Id` header parameter.
+Spaced routes declare the `Wow-Space-Id` request header. Space does not add a path segment. The header participates in command context and query scoping; it is not authentication.
 
 ### Owner Resources
 
-When an aggregate root is marked as an owner resource, the automatically generated RESTful API adds the `owner/{ownerId}` path prefix.
+`AggregateRoute.Owner.ALWAYS` adds `owner/{ownerId}` and keeps the resource ID on default owned routes; snapshot queries publish both base and owner-scoped variants:
 
 ```kotlin
 @AggregateRoot
-@AggregateRoute(owner = AggregateRoute.Owner.ALWAYS)
+@AggregateRoute(resourceName = "orders", owner = AggregateRoute.Owner.ALWAYS)
 class Order(private val state: OrderState)
 ```
 
-When the aggregate root ID is the same as the owner ID, the automatically generated RESTful API removes the `{resourceId}` path parameter. For example, when the user cart ID is the user ID:
+`AGGREGATE_ID` uses owner ID as aggregate ID and omits the separate resource-ID segment:
 
 ```kotlin
-@StaticTenantId
 @AggregateRoot
-@AggregateRoute(owner = AggregateRoute.Owner.AGGREGATE_ID)
+@StaticTenantId
+@AggregateRoute(resourceName = "cart", owner = AggregateRoute.Owner.AGGREGATE_ID)
 class Cart(private val state: CartState)
 ```
 
+Query-schema routes are an exception: `/{aggregate}/snapshot/schema` and `/refresh` describe the aggregate model and therefore do not have tenant/owner path variants. A spaced aggregate's common contract may still declare `Wow-Space-Id`.
+
 ## Global Routes
+
+Global contracts are contributed independently of aggregate routes:
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/wow/command/send` | Generic command facade used by the API client |
+| `POST` | `/wow/command/wait` | Wait-signal receiving endpoint |
+| `GET` | `/wow/metadata` | Loaded Wow metadata |
+| `POST` | `/wow/bi/script` | BI synchronization script generation |
+| `GET` | `/wow/id/global` | Global ID generation |
+
+Publishing one of these routes does not secure it. Apply the service's authentication, authorization, rate-limit, and network-exposure policy.
 
 ### Get Wow Metadata
 
-This route provides the ability to obtain *Wow compile-time metadata* through RESTful API to verify the correctness of Wow metadata (`WowMetadata`) definitions.
+`GET /wow/metadata` returns the `WowMetadata` assembled from compile-time resources on the runtime classpath. It is useful for diagnosing missing annotated modules:
 
-::: code-group
-
-```shell [OpenAPI]
-curl -X 'GET' \
-  'http://localhost:8080/wow/metadata' \
+```shell
+curl 'http://localhost:8080/wow/metadata' \
   -H 'accept: application/json'
 ```
 
-```json [Response]
+Representative response shape:
+
+```json
 {
   "contexts": {
     "example-service": {
       "alias": "example",
-      "scopes": [
-        "me.ahoo.wow.example.server",
-        "me.ahoo.wow.example.domain",
-        "me.ahoo.wow.example.api"
-      ],
+      "scopes": ["me.ahoo.wow.example.api"],
       "aggregates": {
-        "cart": {
-          "scopes": [
-            "me.ahoo.wow.example.api.cart"
-          ],
-          "type": "me.ahoo.wow.example.domain.cart.Cart",
-          "tenantId": "(0)",
-          "id": null,
-          "commands": [
-            "me.ahoo.wow.example.api.cart.ChangeQuantity",
-            "me.ahoo.wow.example.api.cart.RemoveCartItem",
-            "me.ahoo.wow.example.api.cart.AddCartItem"
-          ],
-          "events": [
-            "me.ahoo.wow.example.api.cart.CartItemAdded",
-            "me.ahoo.wow.example.api.cart.CartQuantityChanged",
-            "me.ahoo.wow.example.api.cart.CartItemRemoved"
-          ]
-        },
         "order": {
-          "scopes": [
-            "me.ahoo.wow.example.api.order"
-          ],
+          "scopes": ["me.ahoo.wow.example.api.order"],
           "type": "me.ahoo.wow.example.domain.order.Order",
           "tenantId": null,
           "id": null,
-          "commands": [
-            "me.ahoo.wow.example.api.order.ChangeAddress",
-            "me.ahoo.wow.example.api.order.ShipOrder",
-            "me.ahoo.wow.example.api.order.PayOrder",
-            "me.ahoo.wow.example.api.order.ReceiptOrder",
-            "me.ahoo.wow.example.api.order.CreateOrder"
-          ],
-          "events": [
-            "me.ahoo.wow.example.api.order.OrderShipped",
-            "me.ahoo.wow.example.api.order.OrderCreated",
-            "me.ahoo.wow.example.api.order.AddressChanged",
-            "me.ahoo.wow.example.api.order.OrderReceived",
-            "me.ahoo.wow.example.api.order.OrderPaid"
-          ]
-        }
-      }
-    },
-    "compensation-service": {
-      "alias": "compensation",
-      "scopes": [
-        "me.ahoo.wow.compensation"
-      ],
-      "aggregates": {
-        "execution_failed": {
-          "scopes": [
-            "me.ahoo.wow.compensation.api"
-          ],
-          "type": null,
-          "tenantId": "(0)",
-          "id": null,
-          "commands": [],
-          "events": []
+          "commands": ["me.ahoo.wow.example.api.order.CreateOrder"],
+          "events": ["me.ahoo.wow.example.api.order.OrderCreated"]
         }
       }
     }
@@ -168,89 +154,71 @@ curl -X 'GET' \
 }
 ```
 
-:::
+The response is runtime evidence that metadata was loaded. It is not proof that every generated route was materialized; inspect `/v3/api-docs` or the route catalog as the next gate.
 
 ### Generate BI Sync Script
 
-`POST /wow/bi/script` generates ClickHouse synchronization and expansion SQL for the current local aggregates. The route and this OpenAPI operation are registered by default; set `wow.bi.script.enabled=false` to remove both. Enablement does not add authentication, so protect the management endpoint with the application's security policy. It requires an `application/json` request body. The OpenAPI schema lists deployment overrides plus `operation` and `replayFromEarliestConfirmed`; `previousManifest` is no longer part of the contract. Nested cluster fields are only `name` and `installation`. It also lists the enum values `DEPLOY` / `RESET`, `CLUSTER` / `STANDALONE`, and `FAIL` / `RAW_JSON`. A request may lower `maxExpansionDepth`, but cannot exceed the server-configured value, which is the endpoint's safety ceiling.
+`POST /wow/bi/script` generates ClickHouse synchronization and expansion SQL for current local aggregates. The route and OpenAPI operation are present by default and are both removed when `wow.bi.script.enabled=false`. Enabling the route does not authorize it.
 
-The same maximum lengths apply to server configuration and every non-null request override: `database` 128 characters, `consumerDatabase` 128, `timezone` 64, `topicPrefix` 128, `kafkaBootstrapServers` 4096, and `topology.cluster.name` and `topology.cluster.installation` 128 each. A value exactly at its limit is accepted. A longer server value fails application startup; a longer override returns `400`.
+The endpoint requires an `application/json` body. `{}` means `DEPLOY` with server options unchanged. Request fields include deployment overrides, `operation`, and `replayFromEarliestConfirmed`; `previousManifest` is not part of the contract. `topology.mode` is required when `topology` is present. `STANDALONE` rejects a cluster object; `CLUSTER` accepts only cluster `name` and `installation` overrides.
 
-| Status | `Content-Type` | Body |
-|--------|----------------|------|
-| `200` | `application/sql` | SQL text only; `Wow-BI-Diagnostic-Count` reports diagnostics omitted from the body |
-| `200` | `application/json` | SQL, destructive flag, and diagnostics; `Wow-BI-Diagnostic-Count` reports the same diagnostic count |
-| `400` | Error response | Empty or invalid JSON body, over-limit override, another invalid option value, or invalid topology combination |
-| `406` | Error response | No requested representation is supported, or every supported representation has `q=0`; runtime `Wow-Error-Code` is `NotAcceptable` |
-| `415` | Common `wow.UnsupportedMediaType` response | Missing or unsupported request `Content-Type`; runtime `Wow-Error-Code` is `UnsupportedMediaType` |
-| `500` | Error response | Unexpected BI script generation failure |
-| `502` | Error response | The owned ClickHouse catalog is inconsistent across inspected replicas |
-| `503` | Error response | ClickHouse catalog inspection is unavailable |
-| `504` | Error response | ClickHouse catalog inspection timed out |
+`maxExpansionDepth` may be lowered by a request but cannot exceed the server ceiling. Length limits apply equally to server configuration and non-null overrides: `database` and `consumerDatabase` 128, `timezone` 64, `topicPrefix` 128, `kafkaBootstrapServers` 4096, and cluster `name`/`installation` 128. An over-limit server value fails startup; an over-limit request returns `400`.
 
-`{}` performs `DEPLOY` with the server-side options unchanged; callers do not persist deployment history. The default NoOp inspector returns an unreconciled diagnostic, while a registered ClickHouse inspector restores history from the catalog. `RESET` carries `replayFromEarliestConfirmed=true`, requires a configured server-side `consumerGroupNamespace` even for an empty aggregate scope, and returns `400` unless inspection is available. When `topology` is present, `topology.mode` is mandatory. In `CLUSTER` mode, omitted cluster fields inherit the current Cluster server base, or the domain Cluster defaults when the server base is Standalone. `STANDALONE` rejects a `cluster` object. `DEPLOY` and `RESET` do not migrate databases, consumer-group namespace, or ClickHouse topology; stop and clean the old physical scope before deploying a new one. The legacy `GET` method has no route for this path and returns `404`.
+| Status | Contract |
+|---|---|
+| `200 application/sql` | SQL text; `Wow-BI-Diagnostic-Count` reports omitted diagnostics |
+| `200 application/json` | SQL, destructive flag, diagnostics, and the same count header |
+| `400` | malformed body, invalid override/topology, or unsupported RESET precondition |
+| `406` | no acceptable representation; `Wow-Error-Code: NotAcceptable` |
+| `415` | missing/unsupported content type; `Wow-Error-Code: UnsupportedMediaType` |
+| `500` | unexpected generation failure |
+| `502` / `503` / `504` | catalog inconsistency / unavailable inspection / timeout |
 
-::: code-group
+`RESET` requires `replayFromEarliestConfirmed=true`, a configured server-side `consumerGroupNamespace`, and an available inspector. `DEPLOY` and `RESET` do not migrate databases, consumer-group namespace, or topology. The old `GET` method has no route.
 
-```shell [Empty Override Request]
+```shell
 curl -X POST 'http://localhost:8080/wow/bi/script' \
   -H 'content-type: application/json' \
   -H 'accept: application/sql' \
   --data '{}'
 ```
 
-```json [Standalone Request]
-{
-  "database": "analytics",
-  "topology": {
-    "mode": "STANDALONE"
-  }
-}
-```
-
-```json [Partial Cluster Request]
-{
-  "topology": {
-    "mode": "CLUSTER",
-    "cluster": {
-      "name": "production"
-    }
-  },
-  "kafkaBootstrapServers": "kafka:9092",
-  "topicPrefix": "analytics."
-}
-```
-
-```http [Representative Response Start]
-HTTP/1.1 200 OK
-Content-Type: application/sql
-Wow-BI-Diagnostic-Count: 0
-
--- global --
-CREATE DATABASE IF NOT EXISTS "bi_db" ON CLUSTER '{cluster}';
-CREATE DATABASE IF NOT EXISTS "bi_db_consumer" ON CLUSTER '{cluster}';
-```
-
-:::
-
-See [Business Intelligence](./bi) for the current expansion schema, structural types, raw-value semantics, and lossless scalar mappings. See [BI Script Configuration](./configuration#bi-script-configuration) for route settings and Kafka/topic precedence.
+See [Business Intelligence](./bi) for expansion semantics and [BI Script Configuration](./configuration#bi-script-configuration) for server options.
 
 ### Generate Global ID
 
-This route provides the ability to generate *global IDs* through RESTful API.
-
-::: code-group
-
-```shell [OpenAPI]
-curl -X 'GET' \
-  'http://localhost:8080/wow/id/global' \
+```shell
+curl 'http://localhost:8080/wow/id/global' \
   -H 'accept: text/plain'
 ```
 
-```text [Response]
+```text
 0U2MNGBQ0001001
 ```
 
-:::
+The returned value is text. Client code should treat its layout as opaque unless a separate CosId contract is explicitly required.
 
 ## Aggregate Routing Specification
+
+The catalog contributes command, state, event, snapshot, and query routes from aggregate metadata. Common snapshot query suffixes are:
+
+| Method | Suffix | Request / response |
+|---|---|---|
+| `GET` | `snapshot/schema` | runtime `QueryModelSchemaMetadata` |
+| `POST` | `snapshot/schema/refresh` | refreshed query-model schema |
+| `POST` | `snapshot/single` | `SingleQuery` -> materialized snapshot |
+| `POST` | `snapshot/single/state` | `SingleQuery` -> state only |
+| `POST` | `snapshot/list` / `list/state` | `ListQuery` -> array or SSE |
+| `POST` | `snapshot/paged` / `paged/state` | `PagedQuery` -> `PagedList` |
+| `POST` | `snapshot/count` | `FilterExpression` -> exact count |
+| `POST` | `snapshot/aggregation` | `AggregationQuery` -> dynamic rows or SSE |
+
+Query contracts appear in three distinct layers:
+
+1. Generic query component schemas define the canonical request JSON shapes.
+2. Every aggregate-specific query request-body component references a generic schema and exposes static `x-wow-query-fields`, whose enum combines system fields with fields inferred by `JsonQuerySchemaSource`.
+3. The runtime `snapshot/schema` route publishes merged `QueryModelSchemaMetadata` and backend-proven capabilities.
+
+`x-wow-query-fields` is OpenAPI design-time metadata on the request-body component; it is not embedded as JSON request properties and is not a backend capability claim.
+
+`wow-apiclient` contains hand-maintained CoApi interfaces for Wow command and snapshot contracts. External tools such as Fetcher may generate other clients from the published OpenAPI document. Client generation is downstream of OpenAPI: KSP metadata does not generate those clients, and regenerating a client does not change server field semantics. Review generated diffs whenever the OpenAPI contract changes.

@@ -1,107 +1,56 @@
 ---
 title: WebFlux
-description: Spring WebFlux 扩展，自动注册命令路由处理函数。
+description: 将 Wow 运行时路由合同物化为 Spring WebFlux 函数式端点。
 ---
 
 # WebFlux
 
-_WebFlux_ 扩展提供了对 _Spring WebFlux_ 的支持，依赖 `wow-openapi` 模块生成的路由规范，自动注册命令路由处理函数，实现声明式的 REST API。
+`wow-webflux` 根据 `wow-openapi` 的运行时 route contracts 创建命令、状态、快照、事件和查询 Handler。需要 Wow 声明式 HTTP API 时使用；已有自定义 controller 且不需要自动路由时无需引入。
+
+模块负责响应式 handler、请求提取、等待策略和错误映射；Spring WebFlux/Netty 负责监听端口、连接、codec、资源和网络超时，应用负责认证授权与网关策略。
 
 ## 安装
 
-::: code-group
-```kotlin [Gradle(Kotlin)]
-implementation("me.ahoo.wow:wow-webflux")
+```kotlin
+implementation("me.ahoo.wow:wow-spring-boot-starter") {
+    capabilities { requireCapability("me.ahoo.wow:webflux-support") }
+}
 ```
-```groovy [Gradle(Groovy)]
-implementation 'me.ahoo.wow:wow-webflux'
-```
-```xml [Maven]
-<dependency>
-    <groupId>me.ahoo.wow</groupId>
-    <artifactId>wow-webflux</artifactId>
-    <version>${wow.version}</version>
-</dependency>
-```
-:::
+
+直接依赖 `wow-webflux` 只获得 API/实现类，不会获得 Starter 的 `WebFluxAutoConfiguration` 和属性绑定。
 
 ## 自动路由注册
 
-WebFlux 扩展自动为所有命令生成 REST API 端点：
+自动配置合并 ordered `WebFluxRouteModule` 与额外 `HttpRouteHandlerFunctionFactory`，再用 `RouterSpecs` 构建一个 `RouterFunction`。只有已加载元数据和实际注册的 contributor 会产生路由；模块存在不等于某个业务端点存在。
 
 ### 路由模式
 
-支持多种路由模式：
+路径由 aggregate/command route metadata 决定，并按 tenant、owner、space 需要增加作用域。只有应用另行安装与当前 Spring WebFlux 匹配的 Springdoc WebFlux starter 时，才可用候选 runtime `/v3/api-docs` 验证；仅有 `webflux-support` 时应检查 `RouterSpecs.toRouteCatalog()` 或等价 route catalog 诊断，不手写猜测生产路径。
 
 #### 聚合路由模式
-```kotlin
-@StaticTenantId
-@AggregateRoot
-@AggregateRoute(owner = AggregateRoute.Owner.AGGREGATE_ID)
-class Cart(private val state: CartState)
 
-// 生成路由: POST /owner/{ownerId}/cart/add_cart_item
-```
+`AggregateRoute.Owner.AGGREGATE_ID` 等 metadata 决定 owner 与 aggregate ID 是否合并；命令 handler 仍从 path/header/body 创建 `CommandMessage`。
 
 #### 拥有者路由模式
-```kotlin
-@AggregateRoot
-@AggregateRoute(
-    resourceName = "sales-order",
-    spaced = true,
-    owner = AggregateRoute.Owner.ALWAYS,
-)
-class Order(private val state: OrderState)
 
-@CommandRoute(action = "")
-@CreateAggregate
-data class CreateOrder(/* ... */)
-
-// 生成路由: POST /tenant/{tenantId}/owner/{ownerId}/sales-order
-// Wow-Space-Id 是可选请求头；省略时使用默认 space。
-```
+owner/tenant/space 路由只表达资源作用域，不自动认证请求者。安全层必须把主体与这些值绑定并拒绝越权。
 
 ### HTTP 方法映射
 
-| 命令注解                             | HTTP 方法 | 默认路径                    |
-|----------------------------------|---------|-------------------------|
-| `@CreateAggregate`               | POST    | `/{resource}`           |
-| `@CommandRoute(method = POST)`   | POST    | `/{resource}/{command}` |
-| `@CommandRoute(method = PUT)`    | PUT     | `/{resource}/{command}` |
-| `@CommandRoute(method = DELETE)` | DELETE  | `/{resource}/{command}` |
+`@CreateAggregate` 和 `@CommandRoute` 生成的 method/path 来自编译元数据；WebFlux 只执行合同。修改注解或生成元数据后必须重新构建并检查 OpenAPI。
 
 ## 配置
 
-::: tip 前置条件
-`WebFluxProperties` 与 `WebFluxAutoConfiguration` 位于 `wow-spring-boot-starter`，不在 `wow-webflux` 中。需要同时引入 `wow-spring-boot-starter`（或请求 `webflux-support` capability）与 `wow-webflux`，这些属性才会绑定并启用自动配置。
-:::
-
-- 配置类：[WebFluxProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties.kt)
-- 前缀：`wow.webflux.`
-
-| 名称 | 数据类型 | 默认值 | 描述 |
-|---|---|---|---|
-| `enabled` | `Boolean` | `true` | 是否启用 WebFlux 扩展（路由注册） |
-| `global-error.enabled` | `Boolean` | `true` | 是否安装全局异常处理器，将错误映射为统一的 `ErrorInfo` 响应 |
-| `batch.concurrency` | `Int` | `1` | 单次批量执行中并发处理的最大请求数 |
-| `batch.prefetch` | `Int` | `1` | 批量请求处理的预取窗口 |
-| `query.max-list-size` | `Int` | `1000` | HTTP 列表查询允许的最大正数 limit；`0` 关闭上限并恢复 `limit=0` 全量查询 |
-| `query.max-page-size` | `Int` | `100` | HTTP 分页查询的最大页大小；`0` 关闭上限 |
-| `query.max-page-window` | `Long` | `10000` | HTTP 分页查询允许的最大 `index * size`；`0` 关闭上限 |
-| `query.max-condition-nodes` | `Int` | `64` | HTTP 查询条件树的最大节点数；`0` 关闭上限 |
-| `query.max-condition-values` | `Int` | `1000` | HTTP `IN`、`NOT_IN`、`ALL_IN`、`IDS`、`AGGREGATE_IDS` 条件的最大值数量；`0` 关闭上限 |
-| `query.allow-expensive-operators` | `Boolean` | `true` | 是否允许 HTTP 查询使用负向/存在性/高成本字符串操作符、无过滤 count/paged 查询、聚合 Elements、按 metric alias 排序或非 `Field` 数值表达式 |
-| `query.idle-timeout` | `Duration` | `10s` | 等待下一条结果或完成的最长时间；普通 JSON 数组在提交响应前缓冲，SSE 保持流式；`0s` 关闭超时 |
+最小配置只有 capability；默认 `wow.webflux.enabled=true`。常用默认值：
 
 ```yaml
 wow:
   webflux:
-    enabled: true
     global-error:
       enabled: true
     batch:
-      concurrency: 4
-      prefetch: 4
+      concurrency: 1
+      prefetch: 1
     query:
       max-list-size: 1000
       max-page-size: 100
@@ -112,123 +61,55 @@ wow:
       idle-timeout: 10s
 ```
 
-使用 `wow-spring-boot-starter` 时，WebFlux 作为 `webflux-support` 特性能力包含在内。全局异常处理器默认启用；仅当你提供自己的 `WebExceptionHandler` 时才需关闭。
-Reactor Context 通过 `writeRawRequest(request)` 携带 WebFlux `ServerRequest` 时都会启用护栏，包括内置路由和自定义 HTTP Handler；程序内注入的查询服务和非 WebFlux 请求上下文保持原行为。升级后如需临时恢复旧 HTTP 行为，可将数值限制和 `idle-timeout` 设为 `0`，并启用两个 `allow-*` 开关。
+数值上限为 `0` 时关闭对应 HTTP guard；`idle-timeout=0s` 关闭 idle timeout。不要复制后端已负责的字段类型、mapping 或唯一性校验。`HttpQueryGuardFilter` 只保护带 WebFlux request context 的 HTTP 查询，程序内查询保持公共 service 行为。
 
 ## 快照聚合路由
 
-WebFlux 注册 `POST /{aggregate}/snapshot/aggregation`；tenant、owner 或 space 作用域的聚合会在前面增加各自的路由前缀。请求体为 `AggregationQuery`。普通 JSON 响应是动态行对象数组；`Accept: text/event-stream` 会逐行流式返回。严格请求解码会拒绝未知属性，以及根 filter 和 Element filters 中非法的标量等值条件。
-
-现有查询护栏把 `query.max-list-size` 用作聚合 `limit` 上限。`query.allow-expensive-operators=false` 时，会拒绝根 filter 与 Element filters 中的高成本操作符、任意 Elements 展开、按 metric alias 排序，以及非 `Field` 的数值表达式。不会增加聚合专用 WebFlux 配置。
+聚合 route 接收 `AggregationQuery`，普通 JSON 会先收集动态行数组，`Accept: text/event-stream` 则逐行流式返回。query guards 同样限制 condition、values、limit、Elements、metric sort 和高成本表达式。
 
 ## 等待计划集成
 
-WebFlux 扩展支持通过 HTTP 头指定等待计划：
-
-```http
-POST /owner/cart-123/cart/add_cart_item
-Content-Type: application/json
-Command-Wait-Stage: PROCESSED
-Command-Wait-Timeout: 30000
-
-{
-  "productId": "product-456",
-  "quantity": 2
-}
-```
+命令请求头选择等待阶段与 timeout；handler 把命令交给 `CommandGateway`/`WaitCoordinator`。HTTP 连接断开、timeout 或 runtime shutdown 都可能在业务仍有后续处理时终止等待。
 
 ### 支持的等待计划
 
-全部六个命令阶段都可作为等待计划（前置条件与语义参见 [命令网关](../command-gateway.md#等待计划)）：
-
-- `SENT`：命令已被总线接受
-- `PROCESSED`：聚合已执行命令
-- `SNAPSHOT`：快照处理已完成；`version_offset` 可能跳过写入
-- `PROJECTED`：读模型投影已更新（按函数匹配）
-- `EVENT_HANDLED`：外部事件处理器已完成（按函数匹配）
-- `SAGA_HANDLED`：Saga 已完成事件处理（按函数匹配）
-
-当请求头包含 `Accept: text/event-stream` 时，处理器通过 SSE 按阶段流式返回 `CommandResult` 事件，而不是返回单个 JSON 响应。
+支持 `SENT`、`PROCESSED`、`SNAPSHOT`、`PROJECTED`、`EVENT_HANDLED`、`SAGA_HANDLED`。阶段表示对应 notifier 条件完成，不是任意跨服务事务提交。详见[命令网关](../command-gateway.md#等待计划)。
 
 ## 错误处理
 
-WebFlux 扩展提供统一的错误响应格式：
-
-```json
-{
-  "errorCode": "VALIDATION_ERROR",
-  "errorMsg": "Product not found",
-  "requestId": "req-123"
-}
-```
-
-响应的 HTTP 状态码由错误推导：Wow 的 `ErrorInfoCapable` / `ErrorInfo` 异常以及 Spring 的 `ErrorResponse` 自带状态码；绑定与校验错误映射为 `400`；`IllegalArgumentException`/`IllegalStateException` 映射为 `400`；`TimeoutException` 映射为 **408**（`REQUEST_TIMEOUT`）；`FileNotFoundException` 映射为 `404`；否则回退为 **500**。仅特殊错误如 `BiDeploymentInspectionException.Timeout` 映射为 **504**（网关超时）。响应头 `Wow-Error-Code` 携带 Wow 的 `errorCode`，便于程序化处理。
+默认 `RequestExceptionHandler` 把框架错误转换为 `ErrorInfo` 响应，并写 `Wow-Error-Code`；全局 `WebExceptionHandler` 默认启用。已验证映射包括参数/状态错误 400、not found 404、wait timeout 408、未知错误 500。自定义 error strategy 时必须保留原异常失败路径，避免空响应吞掉错误。
 
 ## OpenAPI 集成
 
-自动生成 OpenAPI 文档：
-
-```yaml
-paths:
-  /owner/{ownerId}/cart/add_cart_item:
-    post:
-      summary: "Add item to cart"
-      parameters:
-        - name: ownerId
-          in: path
-          required: true
-          schema:
-            type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AddCartItem'
-```
-
-快照查询 operation 复用通用 request body，例如 `wow.AggregationQuery` 的 `application/json` schema 引用 `wow.api.query.AggregationQuery`。调用 `GET /{aggregate}/snapshot/schema` 获取当前聚合的运行时 Schema；`POST /{aggregate}/snapshot/schema/refresh` 使用独立 route ID，因此可与普通聚合查询分别授权。刷新只影响接收请求的本实例；失败会保留旧缓存并返回错误，不会向其他实例广播。聚合成功响应是以动态对象为元素的数组。
+OpenAPI 由运行时 metadata 和 route contracts 组装。schema refresh 只刷新接收请求实例的 query schema，失败保留旧 cache；它不广播、不修改后端 mapping。将刷新 route 与普通查询分开授权。
 
 ## 性能优化
 
+先观察 event-loop 阻塞、序列化、handler latency、等待连接数和 query guard rejection，再调整 batch 或 server 设置。
+
 ### 响应式处理
 
-所有端点都使用响应式编程：
-
-```kotlin
-@RestController
-class CustomController(
-    private val commandGateway: CommandGateway
-) {
-
-    @PostMapping("/custom/{id}")
-    fun customCommand(@PathVariable id: String): Mono<CommandResult> {
-        val command = CustomCommand(id = id).toCommandMessage()
-        return commandGateway.sendAndWait(
-            command,
-            CommandWait.processed(command.commandId)
-        )
-    }
-}
-```
-
-Wow 的处理器保持非阻塞。编解码、Reactor Netty 资源和服务端超时应通过对应的 Spring Boot 能力配置；Wow WebFlux 扩展自身不定义连接池或会话超时属性。
+内置路径返回 `Mono`/`Flux`，不在核心 handler 中阻塞。自定义 controller 也必须保持这一边界；阻塞 cache source 或驱动调用应隔离到合适 scheduler，并用负载测试验证。
 
 ## 监控和调试
 
+记录 route ID、request ID、error code、HTTP status、latency 和 cancellation。需要框架 span 时加入 `opentelemetry-support`；WebFlux capability 不配置 exporter。
+
 ### 请求日志
 
-```yaml
-logging:
-  level:
-    me.ahoo.wow.webflux: DEBUG
-```
-
-Wow 运行时的专用指标由可观测性集成提供，而不是由 `wow-webflux` 自动采集。支持的埋点参见 [OpenTelemetry](./opentelemetry)。
+可临时开启 `me.ahoo.wow.webflux=DEBUG`，但不要记录命令机密、认证 header 或完整敏感 payload。诊断后恢复生产日志级别。
 
 ## 最佳实践
 
-1. **使用等待计划**: 根据业务需求选择合适的等待计划
-2. **错误处理**: 实现全局异常处理器
-3. **安全**: 启用认证和授权检查
-4. **可观测性**: 需要 Wow 运行时链路和指标时引入 OpenTelemetry capability
-5. **运行时调优**: 在应用边界配置 Reactor Netty 与 Spring Boot 服务端限制
+- 已安装匹配 Springdoc WebFlux starter 时用候选 runtime OpenAPI 验证路由，否则检查 `RouterSpecs` route catalog；
+- 在 WebFlux 之前完成认证，在 query/command route 上执行授权；
+- 保持响应式链路非阻塞，显式测试取消和 timeout；
+- 只按风险调整 HTTP guard，不用 `0` 作为默认逃生开关。
+
+聚焦检查：
+
+```bash
+./gradlew :wow-webflux:check
+```
+
+该命令不证明目标网关、安全策略或真实路由已部署。下一步阅读 [OpenAPI](../open-api.md)和[数据权限](../data-access.md)。

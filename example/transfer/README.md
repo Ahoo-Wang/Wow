@@ -1,362 +1,56 @@
-# 银行账户转账案例
+# Java 银行转账 Saga 示例
 
-银行账户转账案例是一个经典的领域驱动设计（DDD）应用场景。接下来我们通过一个简单的银行账户转账案例，来了解如何使用 Wow 进行领域驱动设计以及服务开发。
+该示例用 Java 聚合实现账户业务，用 Wow 无状态 Saga 协调跨账户转账。成功路径是 `Prepared -> Entry -> AmountEntered -> Confirm`；目标账户冻结时走 `EntryFailed -> UnlockAmount`，将源账户的已锁金额退回。这是事件驱动补偿，不是跨聚合数据库事务。
 
-## 银行转账流程
+## 模块
 
-1. 准备转账（Prepare）： 用户发起转账请求，触发 Prepare 步骤。这个步骤会向源账户发送准备转账的请求。
-2. 校验余额（CheckBalance）： 源账户在收到准备转账请求后，会执行校验余额的操作，确保账户有足够的余额进行转账。
-3. 锁定金额（LockAmount）： 如果余额足够，源账户会锁定转账金额，防止其他操作干扰。
-4. 入账（Entry）： 接着，转账流程进入到目标账户，执行入账操作。
-5. 确认转账（Confirm）： 如果入账成功，确认转账；否则，执行解锁金额操作。
-    1. 成功路径（Success）： 如果一切顺利，完成转账流程。
-    2. 失败路径（Fail）： 如果入账失败，执行解锁金额操作，并处理失败情况。
+| 模块 | 职责 |
+| --- | --- |
+| [`example-transfer-api`](example-transfer-api/) | `account` 的命令、事件与发布语言 |
+| [`example-transfer-domain`](example-transfer-domain/) | `Account` / `AccountState` 的决策与溯源，以及 `TransferSaga` |
+| [`example-transfer-server`](example-transfer-server/) | Spring Boot 入口，组装 WebFlux 与 OpenAPI |
 
-<p align="center" style="text-align:center">
-  <img src="../../document/design/assets/Saga-Transfer.svg" alt="Saga-Transfer"/>
-</p>
+## 先验证领域
 
-## 运行案例
-
-- 运行 [TransferExampleServer.java](example-transfer-server/src/main/java/me/ahoo/wow/example/transfer/server/TransferExampleServer.java)
-- 查看 Swagger-UI : http://localhost:8080/swagger-ui.html
-- 执行 API 测试：[Transfer.http](Transfer.http)
-
-## 自动生成 API 端点
-
-> 运行之后，访问 Swagger-UI : http://localhost:8080/swagger-ui.html 。
-> 该 RESTful API 端点是由 Wow 自动生成的，无需手动编写。
-
-<p align="center" style="text-align:center">
-  <img src="../../document/design/assets/example-transfer-swagger.png" alt="Saga-Transfer"/>
-</p>
-
-## 模块划分
-
-| 模块                      | 说明                                                                                         |
-|-------------------------|--------------------------------------------------------------------------------------------|
-| example-transfer-api    | API 层，定义聚合命令（Command）、领域事件（Domain Event）以及查询视图模型（Query View Model），这个模块充当了各个模块之间通信的“发布语言”。 |
-| example-transfer-domain | 领域层，包含聚合根和业务约束的实现。聚合根：领域模型的入口点，负责协调领域对象的操作。业务约束：包括验证规则、领域事件的处理等。                           |
-| example-transfer-server | 宿主服务，应用程序的启动点。负责整合其他模块，并提供应用程序的入口。涉及配置依赖项、连接数据库、启动 API 服务                                  |
-
-## 领域建模
-
-状态聚合根（`AccountState`）与命令聚合根（`Account`）分离设计保证了在执行命令过程中，不会修改状态聚合根的状态。
-
-### 状态聚合根（`AccountState`）建模
-
-```java
-public class AccountState implements Identifier {
-    private final String id;
-    private String name;
-    /**
-     * 余额
-     */
-    private long balanceAmount = 0L;
-    /**
-     * 已锁定金额
-     */
-    private long lockedAmount = 0L;
-    /**
-     * 账号已冻结标记
-     */
-    private boolean frozen = false;
-
-    @JsonCreator
-    public AccountState(@JsonProperty("id") String id) {
-        this.id = id;
-    }
-
-    @NotNull
-    @Override
-    public String getId() {
-        return id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public long getBalanceAmount() {
-        return balanceAmount;
-    }
-
-    public long getLockedAmount() {
-        return lockedAmount;
-    }
-
-    public boolean isFrozen() {
-        return frozen;
-    }
-
-    void onSourcing(AccountCreated accountCreated) {
-        this.name = accountCreated.name();
-        this.balanceAmount = accountCreated.balance();
-    }
-
-    void onSourcing(AmountLocked amountLocked) {
-        balanceAmount = balanceAmount - amountLocked.amount();
-        lockedAmount = lockedAmount + amountLocked.amount();
-    }
-
-    void onSourcing(AmountEntered amountEntered) {
-        balanceAmount = balanceAmount + amountEntered.amount();
-    }
-
-    void onSourcing(Confirmed confirmed) {
-        lockedAmount = lockedAmount - confirmed.amount();
-    }
-
-    void onSourcing(AmountUnlocked amountUnlocked) {
-        lockedAmount = lockedAmount - amountUnlocked.amount();
-        balanceAmount = balanceAmount + amountUnlocked.amount();
-    }
-
-    void onSourcing(AccountFrozen accountFrozen) {
-        this.frozen = true;
-    }
-
-}
+```shell
+./gradlew :example-transfer-domain:check
 ```
 
-### 命令聚合根（`Account`）建模
+该检查覆盖账户冻结、余额不足、锁款/解锁，以及 `Prepared` / `AmountEntered` / `EntryFailed` 到 Saga 命令的三条映射。
 
-```java
-@StaticTenantId
-@AggregateRoot
-public class Account {
-    private final AccountState state;
+## 启动真实 Java 入口
 
-    public Account(AccountState state) {
-        this.state = state;
-    }
+当前 `example-transfer-server` 的 Gradle `application.mainClass` 仍指向不存在的 `me.ahoo.wow.example.transfer.server.ExampleServer`，因此不要用 `./gradlew :example-transfer-server:run` 掩盖该已知构建配置缺陷。先生成 distribution，再直接启动实际主类：
 
-    AccountCreated onCommand(CreateAccount createAccount) {
-        return new AccountCreated(createAccount.name(), createAccount.balance());
-    }
+```shell
+./gradlew :example-transfer-server:installDist
 
-    @OnCommand(returns = {AmountLocked.class, Prepared.class})
-    List<?> onCommand(Prepare prepare) {
-        checkBalance(prepare.amount());
-        return List.of(new AmountLocked(prepare.amount()), new Prepared(prepare.to(), prepare.amount()));
-    }
-
-    private void checkBalance(long amount) {
-        if (state.isFrozen()) {
-            throw new IllegalStateException("账号已冻结无法转账.");
-        }
-        if (state.getBalanceAmount() < amount) {
-            throw new IllegalStateException("账号余额不足.");
-        }
-    }
-
-    Object onCommand(Entry entry) {
-        if (state.isFrozen()) {
-            return new EntryFailed(entry.sourceId(), entry.amount());
-        }
-        return new AmountEntered(entry.sourceId(), entry.amount());
-    }
-
-    Confirmed onCommand(Confirm confirm) {
-        return new Confirmed(confirm.amount());
-    }
-
-    AmountUnlocked onCommand(UnlockAmount unlockAmount) {
-        return new AmountUnlocked(unlockAmount.amount());
-    }
-
-    AccountFrozen onCommand(FreezeAccount freezeAccount) {
-        return new AccountFrozen(freezeAccount.reason());
-    }
-}
+java \
+  -Dserver.address=127.0.0.1 \
+  -Dserver.port=8080 \
+  -Dspring.config.location=file:example/transfer/example-transfer-server/src/main/resources/application.yaml \
+  -cp 'example/transfer/example-transfer-server/build/install/example-transfer-server/lib/*' \
+  me.ahoo.wow.example.transfer.server.TransferExampleServer
 ```
 
-### 转账流程管理器（`TransferSaga`）
+这条路径不执行 distribution 中的启动脚本，因此不继承当前 application 插件里未认证的 JMX 5555 参数。已验证的进程只在 `127.0.0.1:8080` 监听；应用使用内存 command/event bus、EventStore 和 SnapshotStore，进程退出后账户数据消失。
 
-转账流程管理器（`TransferSaga`）负责协调处理转账的事件，并生成相应的命令。
+在另一个终端检查：
 
-- `onEvent(Prepared)`: 订阅转账已准备就绪事件（`Prepared`），并生成入账命令(`Entry`)。
-- `onEvent(AmountEntered)`: 订阅转账已入账事件（`AmountEntered`），并生成确认转账命令(`Confirm`)。
-- `onEvent(EntryFailed)`: 订阅转账入账失败事件（`EntryFailed`），并生成解锁金额命令(`UnlockAmount`)。
-
-```java
-@StatelessSaga
-public class TransferSaga {
-
-    Entry onEvent(Prepared prepared, AggregateId aggregateId) {
-        return new Entry(prepared.to(), aggregateId.getId(), prepared.amount());
-    }
-
-    Confirm onEvent(AmountEntered amountEntered) {
-        return new Confirm(amountEntered.sourceId(), amountEntered.amount());
-    }
-
-    UnlockAmount onEvent(EntryFailed entryFailed) {
-        return new UnlockAmount(entryFailed.sourceId(), entryFailed.amount());
-    }
-}
+```shell
+curl -fsS http://127.0.0.1:8080/actuator/health/liveness
+curl -fsS http://127.0.0.1:8080/v3/api-docs | \
+  jq -r '.paths["/account/{id}/prepare"].post.operationId'
 ```
 
-### 单元测试
+预期分别得到 `{"status":"UP"}` 和 `transfer.account.prepare`。核心路由是：
 
-借助 Wow 单元测试套件，可以轻松的编写聚合根和 Saga 的单元测试。从而提升代码覆盖率，保证代码质量。
+| 操作 | 方法与路径 |
+| --- | --- |
+| 创建账户 | `POST /account/create_account` |
+| 准备转账 | `POST /account/{id}/prepare` |
+| 读取账户状态 | `GET /account/{id}/state` |
 
-<p align="center" style="text-align:center">
-  <img src="../../document/design/assets/example-transfer-jacoco.png" alt="example-transfer-jacoco"/>
-</p>
+可用 [`Transfer.http`](Transfer.http) 执行两个账户的成功路径。从 100 转出 10 后，预期源账户 `balanceAmount=90, lockedAmount=0`，目标账户 `balanceAmount=10`。
 
-> 使用 `aggregateVerifier` 进行聚合根单元测试，可以有效的减少单元测试的编写工作量。
-
-> `Account` 聚合根单元测试
-
-```kotlin
-internal class AccountKTest {
-    @Test
-    fun createAccount() {
-        aggregateVerifier<Account, AccountState>()
-            .given()
-            .`when`(CreateAccount("name", 100))
-            .expectEventType(AccountCreated::class.java)
-            .expectState {
-                assertThat(it.name, equalTo("name"))
-                assertThat(it.balanceAmount, equalTo(100))
-            }
-            .verify()
-    }
-
-    @Test
-    fun prepare() {
-        aggregateVerifier<Account, AccountState>()
-            .given(AccountCreated("name", 100))
-            .`when`(Prepare("name", 100))
-            .expectEventType(AmountLocked::class.java, Prepared::class.java)
-            .expectState {
-                assertThat(it.name, equalTo("name"))
-                assertThat(it.balanceAmount, equalTo(0))
-            }
-            .verify()
-    }
-
-    @Test
-    fun entry() {
-        val aggregateId = GlobalIdGenerator.generateAsString()
-        aggregateVerifier<Account, AccountState>(aggregateId)
-            .given(AccountCreated("name", 100))
-            .`when`(Entry(aggregateId, "sourceId", 100))
-            .expectEventType(AmountEntered::class.java)
-            .expectState {
-                assertThat(it.name, equalTo("name"))
-                assertThat(it.balanceAmount, equalTo(200))
-            }
-            .verify()
-    }
-
-    @Test
-    fun entryGivenFrozen() {
-        val aggregateId = GlobalIdGenerator.generateAsString()
-        aggregateVerifier<Account, AccountState>(aggregateId)
-            .given(AccountCreated("name", 100), AccountFrozen(""))
-            .`when`(Entry(aggregateId, "sourceId", 100))
-            .expectEventType(EntryFailed::class.java)
-            .expectState {
-                assertThat(it.name, equalTo("name"))
-                assertThat(it.balanceAmount, equalTo(100))
-                assertThat(it.isFrozen, equalTo(true))
-            }
-            .verify()
-    }
-
-    @Test
-    fun confirm() {
-        val aggregateId = GlobalIdGenerator.generateAsString()
-        aggregateVerifier<Account, AccountState>(aggregateId)
-            .given(AccountCreated("name", 100), AmountLocked(100))
-            .`when`(Confirm(aggregateId, 100))
-            .expectEventType(Confirmed::class.java)
-            .expectState {
-                assertThat(it.name, equalTo("name"))
-                assertThat(it.balanceAmount, equalTo(0))
-                assertThat(it.lockedAmount, equalTo(0))
-                assertThat(it.isFrozen, equalTo(false))
-            }
-            .verify()
-    }
-
-    @Test
-    fun unlockAmount() {
-        val aggregateId = GlobalIdGenerator.generateAsString()
-        aggregateVerifier<Account, AccountState>(aggregateId)
-            .given(AccountCreated("name", 100), AmountLocked(100))
-            .`when`(UnlockAmount(aggregateId, 100))
-            .expectEventType(AmountUnlocked::class.java)
-            .expectState {
-                assertThat(it.name, equalTo("name"))
-                assertThat(it.balanceAmount, equalTo(100))
-                assertThat(it.lockedAmount, equalTo(0))
-                assertThat(it.isFrozen, equalTo(false))
-            }
-            .verify()
-    }
-
-    @Test
-    fun freezeAccount() {
-        val aggregateId = GlobalIdGenerator.generateAsString()
-        aggregateVerifier<Account, AccountState>(aggregateId)
-            .given(AccountCreated("name", 100))
-            .`when`(FreezeAccount(""))
-            .expectEventType(AccountFrozen::class.java)
-            .expectState {
-                assertThat(it.name, equalTo("name"))
-                assertThat(it.balanceAmount, equalTo(100))
-                assertThat(it.lockedAmount, equalTo(0))
-                assertThat(it.isFrozen, equalTo(true))
-            }
-            .verify()
-    }
-}
-```
-
-> 使用 `sagaVerifier` 进行 Saga 单元测试，可以有效的减少单元测试的编写工作量。
-
-> `TransferSaga` 单元测试
-
-```kotlin
-internal class TransferSagaTest {
-
-    @Test
-    fun onPrepared() {
-        val event = Prepared("to", 1)
-        sagaVerifier<TransferSaga>()
-            .`when`(event)
-            .expectCommandBody<Entry> {
-                assertThat(it.id, equalTo(event.to))
-                assertThat(it.amount, equalTo(event.amount))
-            }
-            .verify()
-    }
-
-    @Test
-    fun onAmountEntered() {
-        val event = AmountEntered("sourceId", 1)
-        sagaVerifier<TransferSaga>()
-            .`when`(event)
-            .expectCommandBody<Confirm> {
-                assertThat(it.id, equalTo(event.sourceId))
-                assertThat(it.amount, equalTo(event.amount))
-            }
-            .verify()
-    }
-
-    @Test
-    fun onEntryFailed() {
-        val event = EntryFailed("sourceId", 1)
-        sagaVerifier<TransferSaga>()
-            .`when`(event)
-            .expectCommandBody<UnlockAmount> {
-                assertThat(it.id, equalTo(event.sourceId))
-                assertThat(it.amount, equalTo(event.amount))
-            }
-            .verify()
-    }
-}
-```
+完整的命令/事件/状态对照、失败路径和源码索引见 [Java 转账参考案例](../../documentation/docs/zh/reference/example/transfer.md)；Saga 机制与补偿边界见[分布式事务（Saga）](../../documentation/docs/zh/guide/saga.md)。

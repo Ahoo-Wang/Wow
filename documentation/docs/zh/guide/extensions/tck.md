@@ -1,60 +1,43 @@
 ---
 title: 兼容性测试套件
-description: 用于验证接口实现是否符合规范的测试用例集。
+description: 用共享规格验证 Wow adapter 是否满足公共运行时合同。
 ---
 
 # 兼容性测试套件
 
-兼容性测试套件（_TCK_）是一组用于验证特定接口实现是否符合规范的测试用例。
+`wow-tck` 发布可继承的 JUnit 规格，用同一组断言验证自定义或内置 bus、store、query、prepare 等实现。开发 adapter 或升级后端驱动时使用；普通业务领域测试使用 `wow-test`，无需直接依赖 TCK。
 
-通过 _TCK_，开发者能够确保扩展在不同情境下正确运行，为自定义扩展提供了便捷和正确性保障。
-这种标准化验证方式不仅简化了扩展开发，降低了潜在错误风险，还确保了整个生态系统的一致性和稳定性。
+TCK 拥有公共合同断言，adapter test 拥有 fixture、连接、实现构造和清理，真实 backend 仍拥有原子性、唯一性、排序和故障语义。TCK 通过不等于生产拓扑、容量或迁移通过。
 
 ## 安装
-::: code-group
-```kotlin [Gradle(Kotlin)]
+
+```kotlin
 testImplementation("me.ahoo.wow:wow-tck")
 ```
-```groovy [Gradle(Groovy)]
-testImplementation 'me.ahoo.wow:wow-tck'
-```
-```xml [Maven]
-<dependency>
-    <groupId>me.ahoo.wow</groupId>
-    <artifactId>wow-tck</artifactId>
-    <version>${wow.version}</version>
-    <scope>test</scope>
-</dependency>
-```
-:::
+
+容器型 adapter 通常把规格放在 `integrationTest` source set，并使用 TCK 的 Kafka、Mongo、Redis 或 Elasticsearch Testcontainers fixture。Docker 不可用、镜像拉取失败或 backend readiness 失败会使集成测试失败，不应被跳过后报告为兼容。
+
+当前公开规格包括 `CommandBusSpec`、`DomainEventBusSpec`、`StateEventBusSpec`、`EventStoreSpec`、`SnapshotStoreSpec`、`PrepareKeySpec`、两个 query service spec，以及 dispatcher/repository/modeling 规格。
 
 ## Redis 扩展案例
+
+Redis adapter 的仓库测试位于 `wow-redis/src/integrationTest`，由真实 `RedisTestFixture` 创建 `ReactiveStringRedisTemplate`。以下片段只展示最小覆盖点；复用共享 fixture，不要复制规格内部断言。
 
 ### CommandBus
 
 ```kotlin
 class RedisCommandBusTest : CommandBusSpec() {
-    @JvmField
-    @RegisterExtension
-    val redis = RedisTestFixture()
-
-    override fun createMessageBus(): CommandBus {
-        return RedisCommandBus(redis.redisTemplate)
-    }
+    override fun createMessageBus(): CommandBus = RedisCommandBus(redis.redisTemplate)
 }
 ```
+
+规格验证发送、订阅、exchange 与确认等公共 bus 行为；Redis Streams group/claim 仍需 adapter 专有集成测试。
 
 ### DomainEventBus
 
 ```kotlin
 class RedisDomainEventBusTest : DomainEventBusSpec() {
-    @JvmField
-    @RegisterExtension
-    val redis = RedisTestFixture()
-
-    override fun createMessageBus(): DomainEventBus {
-        return RedisDomainEventBus(redis.redisTemplate)
-    }
+    override fun createMessageBus(): DomainEventBus = RedisDomainEventBus(redis.redisTemplate)
 }
 ```
 
@@ -62,13 +45,7 @@ class RedisDomainEventBusTest : DomainEventBusSpec() {
 
 ```kotlin
 class RedisStateEventBusTest : StateEventBusSpec() {
-    @JvmField
-    @RegisterExtension
-    val redis = RedisTestFixture()
-
-    override fun createMessageBus(): StateEventBus {
-        return RedisStateEventBus(redis.redisTemplate)
-    }
+    override fun createMessageBus(): StateEventBus = RedisStateEventBus(redis.redisTemplate)
 }
 ```
 
@@ -76,45 +53,46 @@ class RedisStateEventBusTest : StateEventBusSpec() {
 
 ```kotlin
 class RedisEventStoreTest : EventStoreSpec() {
-    @JvmField
-    @RegisterExtension
-    val redis = RedisTestFixture()
-
-    override fun createEventStore(): EventStore {
-        return RedisEventStore(redis.redisTemplate)
-    }
-
-    override fun loadEventStreamByEventTime() = Unit
+    override fun createEventStore(): EventStore = RedisEventStore(redis.redisTemplate)
 }
 ```
+
+EventStore spec 覆盖追加、版本冲突、请求幂等、加载与扫描的公共合同；Redis canonical key layout 和旧布局 fail-closed 另由模块测试验证。
 
 ### SnapshotStore
 
 ```kotlin
 class RedisSnapshotStoreTest : SnapshotStoreSpec() {
-    @JvmField
-    @RegisterExtension
-    val redis = RedisTestFixture()
-
-    override fun createSnapshotStore(): SnapshotStore {
-        return RedisSnapshotStore(redis.redisTemplate)
-    }
+    override fun createSnapshotStore(): SnapshotStore = RedisSnapshotStore(redis.redisTemplate)
 }
 ```
 
-共享规范会验证低版本 no-op、同版本替换，以及并发保存后保留最高聚合版本。
+共享规格验证较旧版本 no-op、同版本替换和并发后保留最高版本，adapter 必须依赖 backend 原子机制实现，不能用进程内预检查冒充。
 
 ### RedisPrepareKey
 
 ```kotlin
 class StringRedisPrepareKeyTest : RedisPrepareKeySpec<String>() {
-    override val name: String
-        get() = "string"
-    override val valueType: Class<String>
-        get() = String::class.java
-
-    override fun generateValue(): String {
-        return GlobalIdGenerator.generateAsString()
-    }
+    override val name: String = "string"
+    override val valueType: Class<String> = String::class.java
+    override fun generateValue(): String = GlobalIdGenerator.generateAsString()
+    override fun createPrepareKey(name: String): PrepareKey<String> =
+        prepareKeyFactory.create(name, valueType)
 }
 ```
+
+已验证失败边界包括公共断言失败、fixture/readiness 失败、实现抛出错误或 publisher 未按合同结束。为 adapter 增加专有测试时只覆盖 TCK 未表达的 backend-native 行为。
+
+聚焦检查 TCK 自身：
+
+```bash
+./gradlew :wow-tck:check
+```
+
+运行 Redis 的真实合同测试：
+
+```bash
+./gradlew :wow-redis:integrationTest
+```
+
+下一步阅读[应用测试](../application-testing.md)和[测试运行时](../test-runtime.md)，区分领域、合同、集成与生产证据。

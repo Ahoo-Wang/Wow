@@ -1,416 +1,213 @@
 ---
 title: Business Intelligence
-description: Wow exposes real-time aggregate state events and commands as business intelligence data sources.
+description: Generate and operate ClickHouse read models from Wow command and state-event streams.
 ---
 
 # Business Intelligence
 
 ## Traditional Architecture VS Event Sourcing
 
-<center>
+In a traditional reporting pipeline, an ETL job reads mutable business tables and has to infer what changed. Wow BI
+instead projects immutable command and state-event Kafka topics into ClickHouse. The event store remains the source of
+truth; ClickHouse is a rebuildable analytical read model.
 
-![Event Sourcing VS Traditional Architecture](/images/eventstore/eventsourcing.svg)
-</center>
+That ownership boundary has operational consequences:
 
-A traditional real-time ETL pipeline usually follows `DB -> CDC -> Process -> DB`. CDC records data changes, so the analytics side must reconstruct business meaning from those changes. Wow publishes commands and state events with business semantics and generates ClickHouse synchronization and expansion SQL, shortening the real-time analytics path.
+- application metadata defines the desired schema and view graph;
+- Kafka retention and offsets define what can be replayed;
+- ClickHouse object comments and the ownership registry identify objects managed by the current BI deployment;
+- BI rows must be reconciled with the event/state source before a cutover is accepted.
 
-- Aggregate command (`Command`): a command submitted by a user.
-- State event (`StateEvent`): the complete aggregate-state change history and its related events.
-- Latest-state view (`*_state_last`): the latest state for each tenant and aggregate root.
-- Snapshot expansion view: a relational view expanded from one-to-one and one-to-many structures inside an aggregate.
-
-![Business Intelligence](/images/bi/bi.svg)
+Do not write domain state back from BI tables, and do not treat a successful SQL generation as proof that ClickHouse
+is current.
 
 ## Generate and Retrieve ETL Scripts
 
 ### Structured Result API
 
-Kotlin callers obtain SQL and diagnostics through `BiScriptGenerator`:
+`BiScriptGenerator` returns SQL plus an explicit operation and diagnostics:
 
 ```kotlin
-val result = BiScriptGenerator(
-    BiScriptOptions(
-        topology = ClickHouseTopology.Standalone,
-        consumerGroupNamespace = "orders-production-blue",
-        unsupportedTypeStrategy = UnsupportedTypeStrategy.RAW_JSON,
-    )
-).generate(aggregates)
-
-val sql: String = result.script
-val diagnostics: List<BiScriptDiagnostic> = result.diagnostics
+val options = BiScriptOptions(
+    database = "bi_db",
+    consumerDatabase = "bi_db_consumer",
+    topology = ClickHouseTopology.Standalone,
+    consumerGroupNamespace = "orders-blue",
+)
+val generator = BiScriptGenerator(options)
+val preparation = generator.prepare(namedAggregates)
+val result: Mono<BiScriptResult> = inspector
+    .inspect(options, BiScriptOperation.Deploy, preparation)
+    .map { inspection ->
+        generator.generate(preparation, BiScriptOperation.Deploy, inspection)
+    }
 ```
 
-The public contract also includes `BiScriptOperation`, `BiDeploymentInspector`, `BiDeploymentInspection`, `ObservedBiDeployment`, and `KafkaOffsetStorage`. Callers no longer persist or submit a manifest. `Deploy` reconciles against ownership markers in the ClickHouse catalog. `Reset` is the only destructive operation and rebuilds the current layout.
+`BiScriptResult` exposes `script`, `diagnostics`, `operation`, and `destructive`; statement boundaries are internal so
+an executor must still run the rendered SQL in order and stop on the first failure. `Reset(true)` is the only
+destructive operation. It requires an available deployment inspection and explicit confirmation that a new Kafka
+consumer generation may replay from earliest.
 
-`BiScriptResult` contains:
+`consumerGroupNamespace` is mandatory whenever aggregate consumers are generated. It separates an application's BI
+ownership scope from another deployment using the same Kafka cluster.
 
-| Field | Meaning |
-|-------|---------|
-| `script` | Complete ClickHouse deployment SQL. `Deploy` preserves data tables; `Reset` contains destructive clear statements. |
-| `diagnostics` | An immutable diagnostic list with stable aggregate and property-path ordering. |
-| `destructive` | Whether the generated operation drops data tables. |
+Diagnostics are a stable structured review surface:
 
-Each `BiScriptDiagnostic` contains `code`, `aggregate`, `path`, `sourceType`, `decision`, and `message`. The current diagnostic protocol contains only:
+| Code | Meaning |
+|---|---|
+| `RAW_JSON_FALLBACK` | A value is preserved as scoped raw JSON instead of a typed projection |
+| `MAX_DEPTH_REACHED` | Expansion stopped at `maxExpansionDepth` |
+| `INSPECTION_UNAVAILABLE` | Desired SQL was generated without an authoritative catalog observation |
+| `ORPHANED_DATA_TABLE` | Managed data is retained because ownership/reconciliation cannot safely remove it |
+| `CLUSTER_INTERNAL_REPLICATION_REQUIRED` | Cluster-side `internal_replication` must be configured externally |
+| `COMPUTED_OBJECT_DRIFT` | A view/materialized-view definition differs and reconciliation is planned |
 
-| `code` | `decision` | Meaning |
-|--------|------------|---------|
-| `RAW_JSON_FALLBACK` | `RAW_JSON` | An unsupported property uses a scoped JSON convenience projection and authoritative `__state` recovery. |
-| `MAX_DEPTH_REACHED` | `MAX_DEPTH_RAW_JSON` | The maximum expansion depth was reached, so the same recovery contract is used. |
-| `INSPECTION_UNAVAILABLE` | `RECONCILIATION_SKIPPED` | The inspector is unavailable, so only current desired state is generated and stale reconciliation is not claimed. |
-| `ORPHANED_DATA_TABLE` | `DATA_TABLE_RETAINED` | A removed aggregate had its consumers and views retired while its data tables were deliberately preserved. |
-| `CLUSTER_INTERNAL_REPLICATION_REQUIRED` | `EXTERNAL_CONFIGURATION_REQUIRED` | Cluster server configuration must enable `internal_replication=true`. |
-
-The default `unsupportedTypeStrategy` is `RAW_JSON`. With `FAIL`, an unsupported property stops generation immediately, and the exception message includes the aggregate, property path, and source type. Object-valued maps use the same strategy; fallback remains exactly recoverable through `__state` and the current recovery path.
+`UnsupportedTypeStrategy.RAW_JSON` is the default; `FAIL` rejects unsupported or unverifiable shapes instead of
+emitting fallback columns.
 
 ### HTTP Route
 
-The Spring WebFlux route and its Swagger/OpenAPI operation are enabled by default and are both omitted when
-`wow.bi.script.enabled=false`. The default assumes that the service is exposed only through a security gateway:
-the Starter does not add authentication, and the route shares the main application port and WebFlux filter chain,
-so the gateway must restrict `/wow/bi/script`. Disable the route explicitly in any environment that does not meet
-this deployment precondition. Configure a deployment-unique `wow.bi.script.consumer-group-namespace` whenever `DEPLOY`
-generates Kafka consumers and for every `RESET`, including an empty aggregate scope. Missing configuration returns
-`400` instead of preventing application startup. An empty `DEPLOY` without a namespace remains unanchored; supplying
-one gives the empty scope a durable deployment identity that later aggregate additions can reuse. While disabled,
-the Starter does not construct or validate BI generation options or an inspector. The route uses the same
-`BiScriptOptions`:
+When `wow.bi.script.enabled=true`, WebFlux exposes `POST /wow/bi/script`. The request body is required; `{}` means
+`DEPLOY` with server-side options. Ask for JSON when diagnostics and the destructive flag are needed:
 
-```yaml
-wow:
-  bi:
-    script:
-      enabled: true
-      consumer-group-namespace: orders-production-blue
+```bash
+curl --fail-with-body \
+  -X POST http://localhost:8080/wow/bi/script \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json' \
+  -d '{"operation":"DEPLOY"}'
 ```
 
-```shell
-curl -X POST 'http://localhost:8080/wow/bi/script' \
-  -H 'content-type: application/json' \
-  -H 'accept: application/sql' \
-  --data '{}'
-```
+The JSON response is `{ "script", "destructive", "diagnostics" }`; every response also includes
+`Wow-BI-Diagnostic-Count`. `Accept: application/sql` returns only SQL and therefore must not be the approval surface
+for a destructive operation.
 
-The JSON body is required. `{}` uses the server-side `BiScriptOptions` unchanged. Non-null request fields override the corresponding server options for this generation only. For example, select Standalone topology and override the database with:
+Request fields may lower `maxExpansionDepth` and override non-null generation options, but the server owns
+`consumerGroupNamespace` and offset storage. An authoritative inspector rejects request overrides of `database`,
+`consumerDatabase`, or `topology` so inspection and generation cannot observe different physical scopes. `RESET`
+requires `replayFromEarliestConfirmed=true`; that field is invalid for `DEPLOY`.
 
-```json
-{
-  "database": "analytics",
-  "topology": {
-    "mode": "STANDALONE"
-  }
-}
-```
-
-Or select Cluster topology, inherit omitted cluster fields from the server base, and override Kafka settings with:
-
-```json
-{
-  "topology": {
-    "mode": "CLUSTER",
-    "cluster": {
-      "name": "production"
-    }
-  },
-  "kafkaBootstrapServers": "kafka:9092",
-  "topicPrefix": "analytics."
-}
-```
-
-The server configuration and every non-null `POST` override use the same maximum lengths: `database` 128 characters, `consumerDatabase` 128, `timezone` 64, `topicPrefix` 128, `kafkaBootstrapServers` 4096, and each of `topology.cluster.name` and `topology.cluster.installation` 128. A value exactly at its limit is accepted. A longer server value fails application startup, while a longer request override returns `400`. `maxExpansionDepth` is governed separately: the server-configured value is the ceiling for an HTTP override.
-
-When `topology` is present, `topology.mode` is mandatory. In `CLUSTER` mode, omitted `cluster` fields inherit the current Cluster base, or the domain Cluster defaults when the server base is Standalone. `STANDALONE` rejects a `cluster` object. An invalid or empty body returns `400`; a missing or unsupported `Content-Type` returns `415`. `Accept` quality values are honored; JSON returns SQL, diagnostics, and the destructive flag, while SQL and wildcards return only `result.script`. No supported requested representation, or assigning `q=0` to all supported representations, returns `406`. Every successful response includes `Wow-BI-Diagnostic-Count`. Generation runs on the bounded-elastic scheduler.
-
-By default the Starter injects `NoOpBiDeploymentInspector`. It returns explicit `Unavailable`: ordinary `DEPLOY` remains available for an initial deployment or offline preview but emits `INSPECTION_UNAVAILABLE`, cannot clean up stale objects, and cannot recover a consumer identity created by `RESET`; configuration changes can therefore select a different consumer group. `RESET` is rejected. For full reconciliation, configure `wow.bi.script.inspector.type=CLICKHOUSE` together with `inspector.clickhouse.endpoints` to enable the official ClickHouse Java `client-v2` implementation. Errors from a real inspector propagate and are never degraded to NoOp; selecting `CLICKHOUSE` without the client-v2 classes fails startup. A custom `BiDeploymentInspector` bean still has the highest priority.
-
-The production request path passes one immutable preparation through ClickHouse inspection and final rendering. For a stable deployment, the inspector compares every desired View and consumer materialized view against the renderer-owned query manifest. It canonicalizes both SELECT bodies with ClickHouse `formatQuerySingleLineOrNull`, reads the observed body from `system.tables.as_select`, and validates a materialized view's exact `TO` target separately. A mismatch emits `COMPUTED_OBJECT_DRIFT` and keeps the inspection available so the generated `DEPLOY` can repair it: the ownership registry first persists the new definition fingerprint as `PENDING_UPDATE`; ordinary Views use `CREATE OR REPLACE`, consumer materialized views are paused and recreated; after verification the registry returns to `ACTIVE`, while stores and Kafka queue identities are retained. Durable store or queue contract drift remains fail-closed and requires `RESET`.
-
-To intentionally rebuild all BI data, send `operation=RESET` with `replayFromEarliestConfirmed=true`. Reset also requires a configured `consumerGroupNamespace` so its recovery state has a durable canonical anchor. Only an available inspector can enumerate all owned catalog objects. Every generated object and a zero-row deployment anchor store protocol/layout version, deployment phase, fingerprint, aggregate owner, object kind, and identity in `system.tables.comment`. Service restarts recover from that catalog state without Wow service memory or an external manifest.
-
-Before reading HEAD/OBJECT state, the inspector validates the ownership registry's engine, replication path, sorting key, comment, and complete column schema. An ordinary `DEPLOY` still rejects missing registry-referenced `ACTIVE/RETIRED` objects or surviving `TOMBSTONE` objects. A confirmed `RESET` treats those conditions as recoverable physical drift, retains the registry's exact ownership scope, and generates complete cleanup and rebuild SQL.
-
-The current metadata protocol makes Reset recoverable across process or SQL-client interruption. Generated statements must be executed in order and the executor must stop on the first error:
-
-1. Write the canonical anchor as `RESETTING` with a new consumer identity.
-2. Keep that anchor, drop the old ownership registry, then drop other owned objects and rebuild the durable
-   table/view graph.
-3. Replace the anchor as `STABLE`.
-4. Create Kafka queue tables and Kafka consumer materialized views last.
-
-Dropping the old registry after the `RESETTING` anchor is intentional: its former `ACTIVE` rows must not reject the
-temporarily absent objects during interrupted-reset inspection. The next authoritative `DEPLOY` bootstraps a fresh
-exact registry from the rebuilt catalog. Until that deploy finishes, inspection uses the explicit no-registry
-bootstrap path rather than treating the stale pre-reset snapshot as authoritative.
-
-If execution stops, never replay the original SQL file blindly: inspect the catalog and regenerate from its current phase. While the anchor is `RESETTING`, generate `RESET` with the same configuration; the generator reuses the recorded identity, while `DEPLOY` is rejected. If the anchor is already `STABLE` but Kafka ingress is incomplete, generate `DEPLOY` to finish it. Replaying a completed Reset could delete rebuilt data while reusing already-committed Kafka offsets; generating another Reset after `STABLE` deliberately creates a new reset identity. Metadata and ownership-registry rows from earlier BI layouts are rejected rather than interpreted or migrated; stop old consumers, remove or archive the old BI databases, and deploy a clean current-layout scope. External coordination must guarantee one writer for the entire physical BI object namespace, not merely one writer per `deploymentId`; deployments that share databases and normalized object names can otherwise race after inspection. ClickHouse `ON CLUSTER` DDL is not a cross-replica transaction, so replica divergence remains a fail-closed operational recovery case.
-
-`DEPLOY` and `RESET` reconcile only the current physical ownership scope; they do not migrate `database`, `consumerDatabase`, `consumerGroupNamespace`, topology mode, cluster name, or installation. Visible topology-fingerprint drift is rejected. A scope change can make old objects undiscoverable, so stop old consumers, explicitly clean the old scope, and only then deploy the new scope.
-
-See [BI Deployment and Recovery](./bi-operations) for production rollout, operation selection, interruption
-recovery, acceptance, and rollback procedures.
+The default `NoOpBiDeploymentInspector` returns explicit `Unavailable`. It supports initial/offline `DEPLOY` preview
+with a diagnostic, but cannot clean stale objects, recover a prior consumer identity, or execute `RESET`. Production
+reconciliation requires `wow.bi.script.inspector.type=CLICKHOUSE` and ClickHouse endpoints, or a custom authoritative
+`BiDeploymentInspector`. Protect this operational route with the deployment gateway.
 
 ## Generated SQL Contract
 
-The following fragments show only stable structure. Actual database names, deployment topology, Kafka address, topic, and aggregate table names come from `BiScriptOptions` and aggregate metadata.
-
-Generated BI SQL requires ClickHouse 24.8 LTS or later. The module integration suite pins the minimum line to a 24.8 image.
+The current renderer owns protocol `3`, layout `7`. Each managed ClickHouse object carries a `wow-bi:` JSON comment
+with deployment/configuration/topology fingerprints, object kind, aggregate owner where applicable, and consumer
+identity. The `__wow_bi_deployment` anchor records deployment phase and registry revision. Unknown protocol/layout or
+an inconsistent registry fails closed; object names alone never establish ownership.
 
 ### Kafka Offset Lifecycle
 
-ClickHouse 24.8 initializes a new Kafka consumer group with `auto.offset.reset=earliest`. Operators may override it through the server-side `<kafka><consumer><auto_offset_reset>` configuration. The first deployment and every `Reset` must keep that value at `earliest` (or the librdkafka synonym `smallest`) so a fresh consumer generation does not skip existing messages. `replayFromEarliestConfirmed=true` confirms this external precondition for a destructive Reset; generated table DDL cannot inspect or override it.
+`KafkaOffsetStorage.BROKER` is the default. ClickHouse Kafka engine consumer groups include the deployment's consumer
+identity. A normal `DEPLOY` preserves the identity observed in a stable current layout; a confirmed `RESET` creates or
+continues a reset generation that starts from earliest.
 
-`KafkaOffsetStorage.KEEPER` adds `kafka_keeper_path` and `kafka_replica_name` as Kafka-engine settings and emits the separate CREATE-query setting `allow_experimental_kafka_offsets_storage_in_keeper=1`. ClickHouse 24.8 still marks Keeper-backed Kafka offsets experimental, and the target ClickHouse server must have a reachable Keeper configuration.
-
-Context aliases remain unchanged in Kafka topic names. For ClickHouse object names, `.` and `-` in the context alias are normalized to `_`; for example, `wow.api.command.order` uses the table prefix `wow_api_command_order`. Generation fails when two logical aggregates normalize to the same object name.
+`KafkaOffsetStorage.KEEPER` adds `kafka_keeper_path`, `kafka_replica_name`, and
+`allow_experimental_kafka_offsets_storage_in_keeper=1`. Keeper availability, replication, Kafka retention, and
+earliest-offset behavior are external prerequisites, not properties the generator can prove.
 
 ### Deployment Topologies
 
-`BiScriptOptions.topology` selects one of two physical DDL graphs:
+`ClickHouseTopology.Standalone` creates `ReplacingMergeTree` stores directly. Cluster mode creates
+`ReplicatedReplacingMergeTree` local stores and `Distributed` facades, using `ON CLUSTER` and the configured
+installation/cluster macros. The operator owns the matching ClickHouse cluster configuration and
+`internal_replication` setting.
 
-Before applying clustered DDL, every shard in the ClickHouse `remote_servers` configuration must set `internal_replication=true`. The generator emits `CLUSTER_INTERNAL_REPLICATION_REQUIRED` because this external server setting cannot be verified from generated SQL.
-
-| Topology | Physical tables | Logical access | DDL scope |
-|----------|-----------------|----------------|-----------|
-| `ClickHouseTopology.Standalone` | `*_store` tables use `ReplacingMergeTree` directly | `command`, `state`, and `state_last` are read-only views applying `FINAL` to their stores | No `ON CLUSTER`, replicated engine, `_local` table, or replication path |
-| `ClickHouseTopology.Cluster(...)` | `*_store_local` tables use replicated engines and `*_store` provides the `Distributed` write facade | `command`, `state`, and `state_last` remain read-only deduplicated views | Every database, table, materialized view, and expansion view uses `ON CLUSTER` |
-
-Standalone command storage is a single physical table:
-
-```sql
-CREATE TABLE IF NOT EXISTS "bi_db"."example_order_command_store"
-(
-    "id" String,
-    "aggregate_id" String,
-    "create_time" DateTime64(3, 'Asia/Shanghai')
-) ENGINE = ReplacingMergeTree
-  PARTITION BY toYYYYMM("create_time")
-  ORDER BY "id";
-
-CREATE OR REPLACE VIEW "bi_db"."example_order_command"
-AS SELECT * FROM "bi_db"."example_order_command_store" FINAL;
-```
-
-The clustered graph retains a replicated local table plus a distributed facade:
-
-```sql
-CREATE TABLE IF NOT EXISTS "bi_db"."example_order_command_store_local" ON CLUSTER '{cluster}'
-(
-    "id" String,
-    "aggregate_id" String,
-    "create_time" DateTime64(3, 'Asia/Shanghai')
-) ENGINE = ReplicatedReplacingMergeTree(
-    '/clickhouse/{installation}/{cluster}/tables/{shard}/{database}/{table}', '{replica}')
-  PARTITION BY toYYYYMM("create_time")
-  ORDER BY "id";
-
-CREATE TABLE IF NOT EXISTS "bi_db"."example_order_command_store" ON CLUSTER '{cluster}'
-AS "bi_db"."example_order_command_store_local"
-ENGINE = Distributed('{cluster}', "bi_db",
-                     'example_order_command_store_local', sipHash64("aggregate_id"));
-
-CREATE OR REPLACE VIEW "bi_db"."example_order_command" ON CLUSTER '{cluster}'
-AS SELECT * FROM "bi_db"."example_order_command_store" FINAL;
-```
+Changing database, consumer database, consumer-group namespace, or topology changes a durable contract. Inspect and
+plan it as a deployment/cutover, not a harmless SQL regeneration.
 
 ### Aggregate Commands
 
-The command table includes tenant, owner, space, request, version, and command-body metadata. In cluster mode the physical table uses the `_local` suffix shown above. The Kafka materialized view extracts the same semantics from message JSON:
-
-```sql
-CREATE TABLE IF NOT EXISTS "bi_db"."example_order_command_store_local" ON CLUSTER '{cluster}'
-(
-    "id" String,
-    "aggregate_id" String,
-    "tenant_id" String,
-    "owner_id" String,
-    "space_id" String,
-    "aggregate_version" Nullable(UInt32),
-    "body" String,
-    "create_time" DateTime64(3, 'Asia/Shanghai')
-) ENGINE = ReplicatedReplacingMergeTree(
-    '/clickhouse/{installation}/{cluster}/tables/{shard}/{database}/{table}', '{replica}')
-  PARTITION BY toYYYYMM("create_time")
-  ORDER BY "id";
-
-SELECT JSONExtractString("data", 'ownerId') AS "owner_id",
-       JSONExtractString("data", 'spaceId') AS "space_id",
-       simpleJSONExtractRaw(
-           replaceOne("data",
-                      concat('"header":', simpleJSONExtractRaw("data", 'header')),
-                      '"header":{}'),
-           'body') AS "body";
-```
-
-The lexical extractor masks the top-level `header` before reading `body`, so a nested header key named `body` cannot shadow the command payload. Unlike a full JSON parse and reserialization, this preserves the original body token.
+For each aggregate, the command topic feeds a Kafka queue table, a consumer materialized view, a physical command
+store, and a public `..._command` view. Stable columns include message/aggregate identity, owner/space/request fields,
+aggregate version, create/void flags, command body, and create time. The public view reads the store with `FINAL`.
 
 ### Full State Events
 
-The state table stores the complete state JSON in `state`, the event JSON array in `body`, and structured tags in a Map. The event view then expands `body` in event order:
-
-```sql
-"state" String,
-"body" Array(String),
-"tags" Map(String, Array(String))
-
-JSONExtractArrayRaw("data", 'body') AS "body",
-JSONExtract("data", 'tags', 'Map(String, Array(String))') AS "tags"
-
-WITH arrayJoin(arrayZip(arrayEnumerate("body"), "body")) AS "events"
-SELECT "events".1 AS "event_sequence",
-       JSONExtractRaw("events".2, 'body') AS "event_body";
-```
-
-The same header-masking lexical extraction is used for top-level `state`, preventing a nested header key named `state` from replacing the authoritative state token.
-
-The writable state store is partitioned monthly by `create_time` and ordered by `(tenant_id, aggregate_id, version)`. `tenant_id` is the aggregate-ID namespace, so different tenants may reuse the same `aggregate_id` without colliding. In cluster mode, state and latest-state stores are sharded with `sipHash64(tenant_id, aggregate_id)`. Standalone mode writes `example_order_state_store`; cluster mode writes through the distributed store into `example_order_state_store_local`. `example_order_state` is always a deduplicated read view.
+The state topic feeds the same queue → materialized view → store pattern. The public `..._state` view exposes complete
+state-event records; `..._state_event` expands the event-body array with a one-based event sequence and event metadata.
+The stored `state` JSON is retained for authoritative recovery.
 
 ### Latest State
 
-The latest-state store receives all columns from the state store and is partitioned by first-event time. Its sorting key is `(tenant_id, aggregate_id)`, matching the state identity boundary. `example_order_state_last` is the authoritative public view and always applies `FINAL`; storage tables are intentionally separated behind the `*_store` suffix.
-
-```sql
-CREATE TABLE IF NOT EXISTS "bi_db"."example_order_state_last_store"
-(
-    "tenant_id" String,
-    "aggregate_id" String,
-    "version" UInt32,
-    "first_event_time" DateTime64(3, 'Asia/Shanghai')
-) ENGINE = ReplacingMergeTree("version")
-  PARTITION BY toYYYYMM("first_event_time")
-  ORDER BY ("tenant_id", "aggregate_id");
-
-CREATE MATERIALIZED VIEW IF NOT EXISTS "bi_db_consumer"."example_order_state_last_consumer"
-TO "bi_db"."example_order_state_last_store"
-AS SELECT * FROM "bi_db"."example_order_state_store";
-
-CREATE OR REPLACE VIEW "bi_db"."example_order_state_last"
-AS SELECT * FROM "bi_db"."example_order_state_last_store" FINAL;
-```
-
-Cluster mode retains the replicated local table and targets its distributed facade:
-
-```sql
-CREATE TABLE IF NOT EXISTS "bi_db"."example_order_state_last_store_local" ON CLUSTER '{cluster}'
-(
-    "tenant_id" String,
-    "aggregate_id" String,
-    "version" UInt32,
-    "first_event_time" DateTime64(3, 'Asia/Shanghai')
-) ENGINE = ReplicatedReplacingMergeTree(
-    '/clickhouse/{installation}/{cluster}/tables/{shard}/{database}/{table}',
-    '{replica}', "version")
-PARTITION BY toYYYYMM("first_event_time")
-ORDER BY ("tenant_id", "aggregate_id");
-
-CREATE MATERIALIZED VIEW IF NOT EXISTS "bi_db_consumer"."example_order_state_last_consumer"
-TO "bi_db"."example_order_state_last_store"
-AS SELECT * FROM "bi_db"."example_order_state_store";
-```
+The `..._state_last_store` is populated from the state store and ordered by tenant/aggregate identity so the public
+`..._state_last` view yields the latest version with `FINAL`. It is a derived latest-state read model, not the source
+event stream. Reconcile aggregate count, maximum version, deleted state, and representative replay before using it for
+business cutover.
 
 ### Root Expansion View
 
-The root view expands one-to-one objects into columns and inherits state-event metadata through `__*` columns. Physical input columns are qualified through the fixed `__source` table alias so domain output aliases cannot shadow metadata columns:
-
-```sql
-CREATE OR REPLACE VIEW "bi_db"."example_order_state_last_root" ON CLUSTER '{cluster}' AS
-WITH JSONExtractRaw("__source"."state", 'address') AS "address"
-SELECT JSONExtract("address", 'city', 'String') AS "address__city",
-       JSONExtract("__source"."state", 'id', 'String') AS "id",
-       JSONExtractArrayRaw("__source"."state", 'items') AS "items",
-       "__source"."state" AS "__state",
-       '' AS "__path",
-       "__source"."owner_id" AS "__owner_id",
-       "__source"."space_id" AS "__space_id",
-       "__source"."tags" AS "__tags"
-FROM "bi_db"."example_order_state_last" AS "__source";
-```
+The expansion planner reads the configured Jackson wire shape and creates a root view over `state_last`. Scalar and
+verified structural properties become typed columns. Every root row also retains `__state` and uses the empty RFC
+6901 pointer in `__path`, so typed projection never removes the recovery source.
 
 ### Child Expansion View
 
-An object collection produces a child view. `arrayJoin` expands each object element into one row while inheriting parent columns and metadata:
-
-```sql
-CREATE OR REPLACE VIEW "bi_db"."example_order_state_last_root_items" ON CLUSTER '{cluster}' AS
-WITH arrayJoin(arrayZip(arrayEnumerate(JSONExtractArrayRaw("__source"."state", 'items')),
-                        JSONExtractArrayRaw("__source"."state", 'items'))) AS "__cursor__items",
-     tupleElement("__cursor__items", 2) AS "items"
-SELECT JSONExtract("items", 'id', 'String') AS "items__id",
-       JSONExtract("items", 'quantity', 'Int32') AS "items__quantity",
-       "__source"."state" AS "__state",
-       toUInt64(tupleElement("__cursor__items", 1) - 1) AS "__index",
-       concat('/items/', toString(tupleElement("__cursor__items", 1) - 1)) AS "__path",
-       "__source"."aggregate_id" AS "__aggregate_id",
-       "__source"."version" AS "__version"
-FROM "bi_db"."example_order_state_last" AS "__source";
-```
+Each verified collection of objects becomes a child view. `arrayJoin` emits one row per element while preserving
+parent identity, `__state`, zero-based `__index`, and an RFC 6901 `__path` such as `/orders/2/lines/5`. Property
+segments escape `~` as `~0` and `/` as `~1`.
 
 ### Nullable Types and Raw Values
 
-Types are generated from structural property nullability. `Nullable` may appear at scalar, array-element, and Map-value levels:
-
-```sql
-JSONExtract("__source"."state", 'name', 'Nullable(String)') AS "name",
-JSONExtractRaw("__source"."state", 'name') AS "__raw__name",
-JSONExtract("__source"."state", 'scores', 'Array(Nullable(Int32))') AS "scores",
-JSONExtract("__source"."state", 'ratings', 'Map(String, Nullable(Int32))') AS "ratings"
-```
+Nullability is structural: nullable scalar → `Nullable(T)`, nullable element → `Array(Nullable(T))`, nullable map
+value → `Map(String, Nullable(T))`. When typed extraction cannot distinguish missing, explicit `null`, and a nullable
+container, the view adds a scoped `__raw__<property>` convenience column.
 
 ## Structural Types and Lossless Semantics
 
 ### Nullability Propagation Rules
 
-- A nullable scalar maps to `Nullable(T)`.
-- A nullable collection element maps to `Array(Nullable(T))`; a nullable Map value maps to `Map(String, Nullable(T))`.
-- When the collection or Map property itself is nullable, the generator keeps the typed column and adds a `__raw__<target>` companion.
-- When an object property itself is nullable, all typed descendants become nullable and only the nullable ancestor gets one raw companion; descendants do not get duplicate raw columns.
-- When an object collection element is nullable, the child view keeps the current `arrayJoin` element in `__raw__<target>`, and descendant columns use nullable extraction types.
-- A whole-value fallback target is already the scoped JSON convenience value and does not get a duplicate `__raw__*` companion.
-
-Unannotated Java reference types are treated as potentially nullable; explicit Kotlin and Java non-null contracts remain non-null.
+- A nullable object ancestor makes its typed descendants nullable.
+- Only the nullable ancestor receives the raw companion; descendants do not duplicate it.
+- A nullable object element keeps the current raw element in its child view.
+- Unannotated Java reference types are potentially nullable; proved Kotlin/Java non-null contracts remain non-null.
+- A whole-value fallback is already raw and receives no second raw column.
 
 ### Authoritative State Recovery
 
-Every expansion view projects `state_last.state` directly as `__state`. This column is the only lexical authority: it is never parsed or reserialized by ClickHouse. Root views expose the empty RFC 6901 pointer as `__path`. Collection child views additionally expose the current zero-based `__index` and a complete `__path`, such as `/orders/2/lines/5`. Property segments encode `~` as `~0` and `/` as `~1`.
+`__state` is the lexical authority because it projects the stored state string without parsing and reserializing it.
+Use `__path` to source-slice the required subtree or token. Root rows use the empty path; child rows carry the complete
+pointer. `__raw__*` is convenient for queries but is not lexical-authoritative.
 
-Consumers that need an exact child token or subtree must source-slice `__state` at `__path`. Parsing and reserializing JSON is not lexical recovery.
-
-The `__raw__` prefix, `__state`, `__path`, `__index`, and the internal `__cursor__` prefix are reserved by the generator. Domain-property serialized names must not occupy these targets.
+The prefixes/names `__raw__`, `__state`, `__path`, `__index`, and `__cursor__` are reserved by the generator.
 
 ### Scoped Raw Convenience Values
 
-`__raw__*` and fallback columns use scoped `JSONExtractRaw`. They are useful for querying and for distinguishing missing, explicit null, and empty values, but ClickHouse may normalize number spelling inside them. They are never lexical-authoritative.
-
-Raw columns distinguish states that typed extraction cannot always distinguish:
-
-| JSON input | Scoped `JSONExtractRaw` result | Typed extraction |
-|------------|-------------------------|------------------|
-| Missing property | Empty string `""` | Nullable scalar becomes SQL `NULL`; array/Map may become empty. |
-| Explicit `null` | String `"null"` | Nullable scalar becomes SQL `NULL`; array/Map may become empty. |
-| Empty array / object | String `"[]"` / `"{}"` | Empty array / Map. |
-
-The scoped columns distinguish these structural states; `__state` and `__path` remain the exact recovery channel.
+`JSONExtractRaw` can distinguish missing (`''`), explicit null (`'null'`), and empty array/object (`'[]'`/`'{}'`) in
+many query cases. ClickHouse may normalize numeric spelling, so exact recovery still comes from `__state` plus
+`__path`.
 
 ### Unsupported Types
 
-Object-valued maps, Map keys that are non-String or potentially nullable, platform objects, and unresolved generic shapes cannot be mapped safely to a direct ClickHouse type. The default strategy emits a scoped `JSONExtractRaw` convenience column and a diagnostic; the exact value remains recoverable through `__state` and the current recovery path. `FAIL` rejects generation. Reaching `maxExpansionDepth` follows the same recovery contract with a separate depth diagnostic.
+Object-valued maps, non-String or nullable map keys, unresolved generics, and platform-specific objects cannot be
+projected safely. `RAW_JSON` emits a diagnostic and preserves a scoped raw value; `FAIL` stops generation. Reaching the
+configured maximum expansion depth follows the same recovery rule with `MAX_DEPTH_REACHED`.
 
 ### Opaque Jackson Shapes
 
-Recursive expansion is enabled only when the configured Wow `JsonSerializer` proves that the declared object and its serialized JSON object have the same property shape. Polymorphic, abstract, sealed, `@JsonValue`, `@JsonUnwrapped`, `@JsonAnyGetter`, custom-serialized, converted, and otherwise unverifiable objects are opaque. An opaque property is preserved as one complete raw JSON value or rejected by `FAIL`; an opaque root preserves the complete `state`. Collections and maps receive typed projections only with Jackson's built-in container serializers and verified element, key, and value mappings.
+Recursive expansion is allowed only when the configured Wow `JsonSerializer` proves that the declared object shape
+matches its JSON object. Polymorphic/abstract/sealed objects, `@JsonValue`, `@JsonUnwrapped`, `@JsonAnyGetter`, custom
+serializers/converters, and otherwise unverifiable shapes remain opaque. They are kept raw or rejected by `FAIL`.
 
 ### Lossless Scalar Mappings
 
-Scalar mappings must agree with both the configured Jackson wire format and the target ClickHouse type. A mismatch follows the same raw/fail policy as any other opaque value.
+| Wire value | Representative JVM values | ClickHouse projection |
+|---|---|---|
+| String | `String`, `Char`, ordinary enum | `String` |
+| Integer | integer primitives, `Year` | exact signed integer / `Int32` |
+| Boolean | `Boolean` | `Bool` |
+| Number | `Float`, `Double` | `Float32`, `Float64` |
+| UUID string | `UUID` | `UUID` |
+| ISO/string time | Java time/date/duration values | `String` |
+| Arbitrary precision number | `BigDecimal` | scoped raw plus `__state` recovery |
 
-| JVM value | Jackson wire value | ClickHouse projection |
-|-----------|--------------------|-----------------------|
-| `String` | String | `String` |
-| Integer primitives/boxed values | Integer | Exact signed integer type |
-| `Boolean` | Boolean | `Bool` |
-| `Char` and ordinary string enums | String | `String` |
-| `Float` / `Double` | Number, or Jackson's strings for non-finite values | `Float32` / `Float64` |
-| `UUID` | UUID-formatted string | `UUID` |
-| `Duration`, `Date`, `java.sql.Date`, `Instant`, and other `java.time` values | ISO/string representation | `String` |
-| `Year` | Signed integer | `Int32` |
-| `BigDecimal` | Arbitrary-precision number | Scoped `JSONExtractRaw` convenience plus authoritative `__state` recovery |
-| Kotlin `Duration` | Resolver-provided `Long` wire value | `Int64` |
-| Enum with a non-string wire format | Unverified scalar | Scoped raw convenience plus `__state` recovery, or `FAIL` |
+A configured serializer that changes one of these wire shapes makes the property opaque unless the resolver can prove
+the new mapping.
+
+See [BI Deployment and Recovery](./bi-operations) before executing generated SQL.
+
+<!-- Sources: wow-bi BiScriptGenerator/Options/PreparationPlanner, renderer package, expansion planner/type package,
+BiDeploymentInspection, and expected_bi_*_script.sql; WebFlux GenerateBIScriptHandlerFunction -->

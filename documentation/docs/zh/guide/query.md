@@ -1,321 +1,172 @@
 ---
 title: 查询服务
-description: 使用 FilterExpression、查询 DSL 与 REST API 查询快照和事件流。
+description: 使用逻辑字段、FilterExpression、运行时查询 Schema 与受护栏约束的 WebFlux 路由查询快照和事件流。
 ---
 
 # 查询服务
 
-`wow-mongo` 与 `wow-elasticsearch` 提供查询服务实现。查询 API 使用单层 `FilterExpression` 描述过滤语义；存储模块负责将其编译为后端查询。
+Wow 读链路包含四类独立职责：
+
+```text
+事件 -> 快照/投影 -> 逻辑查询模型 -> 查询服务 -> 受保护的 HTTP 路由/API 客户端
+```
+
+`wow-query` 定义查询模型与过滤器链；`wow-mongo`、`wow-elasticsearch` 把逻辑字段映射为后端原生查询；`wow-webflux` 增加请求作用域重写和 HTTP 成本护栏；OpenAPI 描述线协议，API 客户端只调用已发布路由。这些层都不会创建身份认证或应用专用投影。
 
 ## FilterExpression
 
-`FilterExpression` 是密封接口。每个表达式只使用 `op` 作为 JSON 类型判别字段，不再同时声明 `type` 与 `operator`。
+`FilterExpression` 是当前过滤合同。JSON 只使用 `op` 作为类型判别字段：
 
 ```json
 {
   "op": "AND",
   "operands": [
-    { "op": "EQ", "field": "state.status", "value": "CREATED" },
-    { "op": "DELETION", "state": "ACTIVE" }
+    {"op": "EQ", "field": "state.status", "value": "CREATED"},
+    {"op": "DELETION", "state": "ACTIVE"}
   ]
 }
 ```
 
+`field` 是逻辑路径，不是 MongoDB 或 Elasticsearch 字段名。命名段以字母或下划线开头，可包含字母、数字、下划线和连字符；纯数字段表示数组下标，例如 `state.items.0.productId`。物理路径与能力由后端适配器负责。
+
+快照查询默认追加 `DELETION = ACTIVE`。当 `DELETION` 本身是根表达式，或出现在根表达式递归 `AND` 合取树的任意深度时，会抑制该默认值。嵌套在 `OR` 或 `NOR` 下的删除条件不属于显式顶层合取作用域，因此仍保留 ACTIVE guard。事件流查询保留完整历史，不追加快照删除作用域。
+
 ### 操作符
 
-| 分类 | `op` | 主要字段 | 说明 |
+| 类别 | `op` | 主要字段 | 合同 |
 |---|---|---|---|
-| 常量 | `MATCH_ALL`、`MATCH_NONE` | - | 匹配全部或不匹配任何记录 |
-| 元数据 | `ID`、`IDS`、`AGGREGATE_ID`、`AGGREGATE_IDS`、`TENANT_ID`、`OWNER_ID`、`SPACE_ID` | `value` 或 `values` | 查询文档 ID、聚合 ID 或消息元数据；只能作为查询根表达式 |
-| 逻辑 | `AND`、`OR`、`NOR` | `operands` | `operands` 至少包含一个表达式 |
-| 比较 | `EQ`、`NE`、`GT`、`GTE`、`LT`、`LTE` | `field`、`value` | `EQ`、`NE` 允许 `null`，并规范化为判空表达式 |
-| 字符串 | `CONTAINS`、`STARTS_WITH`、`ENDS_WITH` | `field`、`value`、`stringComparison` | `stringComparison` 默认为 `CASE_SENSITIVE` |
-| 集合 | `IN`、`NOT_IN`、`CONTAINS_ALL` | `field`、`values` | `values` 非空且元素不能为 `null` |
-| 范围 | `BETWEEN` | `field`、`lowerBound`、`upperBound` | 两个边界都包含在范围内 |
-| 空值与存在性 | `IS_EMPTY`、`IS_NULL`、`IS_NOT_NULL`、`EXISTS`、`NOT_EXISTS` | `field` | 按各后端原生的存在性与空值语义编译 |
-| 删除状态 | `DELETION` | `state` | `ACTIVE`、`DELETED` 或 `ALL`；删除状态本身也是过滤器 |
-| 数组元素 | `ELEMENT_MATCH` | `field`、`predicate` | `predicate` 内不允许 `DELETION`、`SEARCH` 或元数据 Filter |
-| 全文搜索 | `SEARCH` | `query`、`fields`、`mode` | `mode` 默认为 `TERMS`，可设为 `PHRASE`；具体字段能力由后端决定 |
-| 相对时间 | `TODAY`、`YESTERDAY`、`BEFORE_TODAY`、`TOMORROW`、`THIS_WEEK`、`NEXT_WEEK`、`LAST_WEEK`、`THIS_MONTH`、`NEXT_MONTH`、`LAST_MONTH`、`LAST_YEAR`、`THIS_YEAR`、`NEXT_YEAR`、`RECENT_DAYS`、`EARLIER_DAYS` | `field`；特定操作使用 `time` 或 `days`；可选 `zoneId`、`datePattern`、`timeUnit` | 执行前统一规范化为绝对时间范围 |
+| 常量 | `MATCH_ALL`, `MATCH_NONE` | - | 匹配全部或完全不匹配 |
+| 元数据 | `ID`, `IDS`, `AGGREGATE_ID`, `AGGREGATE_IDS`, `TENANT_ID`, `OWNER_ID`, `SPACE_ID` | `value` / `values` | 仅查询根可用的文档和消息元数据过滤器 |
+| 逻辑 | `AND`, `OR`, `NOR` | `operands` | 至少一个操作数 |
+| 比较 | `EQ`, `NE`, `GT`, `GTE`, `LT`, `LTE` | `field`, `value` | `EQ`/`NE` 会把 `null` 规范化为空值谓词 |
+| 字符串 | `CONTAINS`, `STARTS_WITH`, `ENDS_WITH` | `field`, `value`, `stringComparison` | 默认 `CASE_SENSITIVE` |
+| 集合 | `IN`, `NOT_IN`, `CONTAINS_ALL` | `field`, `values` | 非空且不能包含 `null` |
+| 区间 | `BETWEEN` | `field`, `lowerBound`, `upperBound` | 两端均包含 |
+| 形状 | `IS_EMPTY`, `IS_NULL`, `IS_NOT_NULL`, `EXISTS`, `NOT_EXISTS` | `field` | 使用后端原生空值/null/存在性语义 |
+| 删除 | `DELETION` | `state` | `ACTIVE`、`DELETED` 或 `ALL` |
+| 数组元素 | `ELEMENT_MATCH` | `field`, `predicate` | 子谓词相对元素，排除仅查询根可用的过滤器 |
+| 全文 | `SEARCH` | `query`, `fields`, `mode` | 默认 `TERMS`，可选 `PHRASE`；后端支持不同 |
+| 相对时间 | `TODAY`, `YESTERDAY`, `BEFORE_TODAY`, `TOMORROW`, `THIS_WEEK`, `NEXT_WEEK`, `LAST_WEEK`, `THIS_MONTH`, `NEXT_MONTH`, `LAST_MONTH`, `LAST_YEAR`, `THIS_YEAR`, `NEXT_YEAR`, `RECENT_DAYS`, `EARLIER_DAYS` | `field` 与时间选项 | 后端编译前转换为绝对区间 |
 
-相对时间过滤器面向数值时间字段时，可将 `timeUnit` 配置为 `java.util.concurrent.TimeUnit` 的枚举名，默认值为 `MILLISECONDS`。配置 `datePattern` 时输出字符串，`timeUnit` 不参与格式化。
+数值时间字段使用 `timeUnit`，默认 `MILLISECONDS`。设置 `datePattern` 后会生成格式化字符串并忽略 `timeUnit`。运行时查询模型 Schema 可以声明 `Temporal.Date`、`Temporal.Epoch` 或 `Temporal.Formatted`；最终发布的能力仍取决于后端能够证明的物理映射。
 
-当最终 Query Schema 将字符串声明为 `Temporal.Formatted` 时，Resolver 自动使用声明的 pattern；只有后端能够按该字符串字段执行范围查询时才发布 `RANGE` 能力。首期格式化字符串不支持日期分桶。
-
-`field` 是逻辑字段路径。合法示例：
-
-```text
-state.status
-state.items.0.productId
-```
-
-字段段以字母或下划线开头，可包含字母、数字、下划线和连字符；数组索引允许使用纯数字段。物理字段映射由 MongoDB 或 Elasticsearch 查询实现负责。
-
-OpenAPI 请求体复用通用查询 Schema，不发布静态字段目录。调用 `GET /{aggregate}/snapshot/schema` 获取当前聚合可用的逻辑字段、类型和能力；即使 `/state` 响应已解包 `state` 对象，查询路径仍使用返回的逻辑路径，例如 `state.status`。
-
-快照查询默认使用 `DELETION = ACTIVE`。顶层 `DELETION`，或顶层 `AND` 的直接 `DELETION` 子项，可以显式覆盖该范围；嵌套在 `OR` 或 `NOR` 中的删除过滤器不会关闭 active guard。事件流查询不会自动追加删除状态过滤，以保证审计事件完整。
-
-:::info 后端差异
-MongoDB 的 `SEARCH` 使用集合文本索引，不会把查询限制到 `fields`；Elasticsearch 可解析搜索字段和多字段映射。`PHRASE` 在 MongoDB 中编译为带引号的 `$text` 短语，在 Elasticsearch 中编译为 `multi_match(type = phrase)`。`ELEMENT_MATCH` 的子字段建议使用相对路径，以同时兼容 MongoDB 与 Elasticsearch。
+::: info 后端边界
+MongoDB 全文搜索使用集合文本索引，无法把 `$text` 限定到请求中的 `fields`；Elasticsearch 会解析支持的搜索字段和 multi-fields。应通过运行时查询模型 Schema 发现能力，不要从公共 JSON 类型推断后端完全一致。
 :::
 
 ## Kotlin DSL
 
-使用 `filterExpression` 构造独立过滤器：
-
-```kotlin
-val orderFilter = filterExpression {
-    deletion(DeletionState.ACTIVE)
-    "state.status" eq "CREATED"
-    "state.totalAmount" gte 100
-    "state.customerName".contains(
-        "wang",
-        StringComparison.CASE_INSENSITIVE,
-    )
-    "state.tags" containsAll listOf("priority", "online")
-    "state.items".elementMatch {
-        "productId" eq "product-1"
-        "quantity" gt 0
-    }
-}
-```
-
-使用 `PHRASE` 搜索后端分析器识别的连续词项；省略 `mode` 时保持原有 `TERMS` 行为：
-
-```kotlin
-val phraseFilter = filterExpression {
-    search("event sourcing", SearchMode.PHRASE, "state.title", "state.description")
-}
-```
-
-使用专用函数查询聚合与消息元数据：
+使用 `filterExpression` 构建独立表达式：
 
 ```kotlin
 val filter = filterExpression {
     aggregateId("order-1")
-    tenantId("tenant-1")
-}
-```
-
-元数据 Filter 是查询根表达式，不能嵌套到 `elementMatch` 中。
-
-同一 DSL 块内的多个表达式自动组合为 `AND`。需要显式逻辑关系时使用 `and`、`or` 或 `nor`：
-
-```kotlin
-val filter = filterExpression {
-    or {
-        "state.status" eq "CREATED"
-        "state.status" eq "PAID"
-    }
-    nor {
-        "state.channel" eq "TEST"
-    }
-}
-```
-
-使用 `String.path` 为块内的相对字段设置词法路径作用域，`pathState` 等价于 `"state".path`。嵌套 `path` 会追加相对路径。只有以当前作用域加 `.` 开头的路径才视为已经限定，因此与作用域同名的字段仍按相对字段处理。退出代码块后自动回到父级路径。`path` 块内的多个表达式组成一个隐式 `AND` 操作数，即使它位于 `or` 或 `nor` 中也不会被摊平：
-
-```kotlin
-val filter = filterExpression {
     pathState {
         "status" eq "CREATED"
-        "customer".path {
-            "id" eq customerId
+        "totalAmount" gte 100
+        "items".elementMatch {
+            "productId" eq "product-1"
+            "quantity" gt 0
         }
     }
-    "tenantId" eq tenantId
 }
 ```
 
-`expression(...)` 只能在当前查询上下文根直接加入已经构造的表达式，不能在 `path` 作用域内调用，包括经由已弃用的 `nested` 块调用。`deletion(...)` 同样属于查询根作用域，在 `path` 内会被拒绝。预构造表达式中的 `LogicalField` 必须已经适配插入位置的查询上下文；例如，`elementMatch` 的独立元素根上下文使用元素相对路径。
+同一块内的表达式用 `AND` 合并；使用 `or`、`nor`、`and` 显式分组。`String.path` 创建词法路径作用域，嵌套作用域继续追加相对名称；`pathState` 是 `"state".path` 的简写。
+
+`ELEMENT_MATCH` 会创建独立的元素相对作用域。元数据过滤器、`DELETION` 和 `SEARCH` 是查询根表达式，不能放入其中。`expression(...)` 只在当前查询根插入已构建表达式；预构建的 `LogicalField` 不会自动重定基准。
 
 ### 查询 DSL
 
-`singleQuery`、`listQuery` 和 `pagedQuery` 统一使用 `filter {}`：
+`singleQuery`、`listQuery` 与 `pagedQuery` 共用 filter、projection 和 sort 合同：
 
 ```kotlin
 val query = pagedQuery {
     filter {
-        "state.status" eq "CREATED"
-        "state.createTime".recentDays(7, ZoneId.of("Asia/Shanghai"))
-        "state.createTime".yesterday(ZoneId.of("Asia/Shanghai"))
-        "state.createTime".nextMonth(ZoneId.of("Asia/Shanghai"))
-        "state.createTime".thisYear(ZoneId.of("Asia/Shanghai"))
+        pathState {
+            "status" eq "CREATED"
+            "createTime".recentDays(7, ZoneId.of("Asia/Shanghai"))
+        }
     }
     projection {
         include("aggregateId")
         include("state.status")
     }
-    sort {
-        "state.createTime".desc()
-    }
+    sort { "state.createTime".desc() }
     pagination {
         index(1)
         size(20)
     }
 }
 
-query.query(queryService)
+query.query(snapshotQueryService)
 ```
 
-`ListQuery.limit = 0` 表示不限制结果数量；HTTP 查询仍会受到 WebFlux 查询成本保护配置约束。
+分页从 1 开始。在 JVM 查询服务边界，`ListQuery.limit = 0` 表示无限制。WebFlux HTTP 护栏根据 `wow.webflux.query.*` 拒绝或限制请求，其默认值不会改变进程内查询模型。
+
+后端执行前，`QuerySchemaResolver` 会解析逻辑字段与能力。`wow.query.schema.validation-mode=COMPATIBLE` 接受 `EXACT` 和 `COMPATIBLE`，`STRICT` 只接受 `EXACT`。兼容回退并不能证明一个字段在所有后端具有相同物理行为。
 
 ### 快照聚合
 
-使用 `aggregation {}` 按顺序展开状态中的集合链，并返回表格型结果：
+`AggregationQuery` 返回动态表格行，并且至少需要一个 metric：
 
 ```kotlin
 val query = aggregation {
-    expand("state.orders") { "status" eq "PAID" }
-    expand("lines") { "quantity" gt 0 }
+    filter { "state.status" eq "PAID" }
+    expand("state.items") { "quantity" gt 0 }
     terms("productId", "product")
-    sum("amount", "total")
-    sort { "total".desc() }
+    sum(field("price") * field("quantity"), "revenue")
+    count("lineCount")
+    sort { "revenue".desc() }
     limit(20)
 }
 
 query.query(snapshotQueryService)
 ```
 
-等价 JSON 为：
+路径相对性属于公共合同：
 
-```json
-{
-  "elements": [
-    {
-      "path": "state.orders",
-      "filter": { "op": "EQ", "field": "status", "value": "PAID" }
-    },
-    {
-      "path": "lines",
-      "filter": { "op": "GT", "field": "quantity", "value": 0 }
-    }
-  ],
-  "groupBy": [
-    { "type": "TERMS", "field": "productId", "alias": "product" }
-  ],
-  "metrics": [
-    {
-      "type": "NUMERIC",
-      "function": "SUM",
-      "expression": { "field": "amount" },
-      "alias": "total"
-    }
-  ],
-  "sort": [{ "field": "total", "direction": "DESC" }],
-  "limit": 20
-}
-```
+- 根 `filter` 使用快照绝对路径；
+- 第一个 Element 路径是绝对路径；
+- 后续每个 Element 路径都相对当前已展开元素；
+- 每个 Element filter 相对自身元素；
+- group 和 metric 字段相对最内层 Element；没有 Element 时使用快照绝对路径；
+- Elements 是一条有序父子链，不是多个同级展开。
 
-数值指标可以使用字段、有限常量和四则运算。例如，下面的 DSL 计算每个商品的净额：
+group 支持 `TERMS`、`HISTOGRAM`、`DATE_HISTOGRAM`；metric 支持 `COUNT`、`ANY` 以及数值 `SUM`、`AVG`、`MIN`、`MAX`。数值表达式支持有限常量和 `ADD`、`SUBTRACT`、`MULTIPLY`、`DIVIDE`。`COUNT` 返回 `Long`；没有值参与时，数值 metric 返回 `null`，否则返回有限 `Double`。
 
-```kotlin
-val query = aggregation {
-    expand("state.items")
-    terms("productId", "product")
-    sum(
-        field("price") * field("quantity") - field("discount"),
-        "netAmount",
-    )
-}
-```
+`ANY` 从组内选择一个非 null 标量。该值在不同执行和后端间刻意不保证稳定，不能替代确定性的 group key。没有 group 的查询会返回一行汇总；输入为空时仍返回一行，其中 `COUNT = 0`、数值 metric 为 `null`。
 
-等价的表达式 JSON 使用递归的 `BINARY` 节点；字段叶子可保持原有的 `{ "field": ... }` 简写：
+alias 必须是唯一的单段逻辑字段，且不能使用 `__wow` 前缀。sort 字段引用 alias；Wow 会按声明顺序追加缺失的 group alias，以形成稳定排序。结构上限为 5 个 Elements、32 个 groups、64 个 metrics、32 个有效 sort 字段、表达式深度 8、表达式节点总数 256、结果行 10,000；默认行数上限为 100。
 
-```json
-{
-  "type": "NUMERIC",
-  "function": "SUM",
-  "expression": {
-    "type": "BINARY",
-    "operator": "SUBTRACT",
-    "left": {
-      "type": "BINARY",
-      "operator": "MULTIPLY",
-      "left": {"field": "price"},
-      "right": {"field": "quantity"}
-    },
-    "right": {"field": "discount"}
-  },
-  "alias": "netAmount"
-}
-```
+基础 HTTP 路由是 `POST /{aggregate}/snapshot/aggregation`。对于动态 tenant 或 owned 聚合，目录还会贡献 tenant/owner 作用域查询变体。它复用普通快照查询过滤器链，因此请求作用域和已配置 ABAC 过滤器可以扩展根 filter；结果脱敏会刻意跳过聚合。`allow-expensive-operators=false` 时，HTTP 聚合会拒绝 Elements、按 metric alias 排序、非 Field 数值表达式和 filter 中的高成本操作符。
 
-`ANY` 返回当前分组中的一个非空标量名称；它不增加分组键：
+REST 兼容 extractor 对 aggregation 的处理不同于 single/list/paged：`filter` 与旧 `condition` 可以同时省略（模型默认 `MATCH_ALL`），也可以只提供其中一个；同时提供会被拒绝。提取完成后，请求作用域重写仍会追加 tenant/owner/space filters。
 
-```kotlin
-val query = aggregation {
-    expand("state.items")
-    terms("productId", "productId")
-    any("productName", "productName")
-    count("count")
-}
-```
-
-```json
-{
-  "elements": [{"path": "state.items"}],
-  "groupBy": [
-    {"type": "TERMS", "field": "productId", "alias": "productId"}
-  ],
-  "metrics": [
-    {"type": "ANY", "field": "productName", "alias": "productName"},
-    {"type": "COUNT", "alias": "count"}
-  ]
-}
-```
-
-`ANY` 不参与分组；它忽略 `null`/缺失值，全部为空时返回 `null`。MongoDB、Elasticsearch 或重复执行可能选择不同的非空名称；需要确定名称时，应修复冗余数据或使用明确的业务查询，不要依赖 `ANY`。
-
-第一个 Element 路径是快照绝对路径；后续每个 Element 路径及每个 Element filter 都相对当前已展开元素。group 与 metric 字段相对最内层 Element；没有 Elements 时，它们使用快照绝对路径。Elements 只表示一条父子链，不支持兄弟集合展开。
-
-分组支持 `TERMS`、`HISTOGRAM` 与 `DATE_HISTOGRAM`。指标支持 `COUNT`、`SUM`、`AVG`、`MIN`、`MAX` 与 `ANY`；`COUNT` 返回 `Long`，数值指标返回有限 `Double`，没有值参与计算时返回 `null`。没有分组的查询返回一行汇总，空数据集同样如此（`COUNT = 0`，数值指标为 `null`）。分组结果最多返回 `limit` 行；默认值为 `100`，最大值为 `10,000`。
-
-排序字段引用 group 或 metric alias。未显式排序的 group alias 会按声明顺序追加，以保证结果稳定。按 metric alias 排序成本较高，受 WebFlux `query.allow-expensive-operators` 护栏控制。固定结构上限为 5 个 Elements、32 个 groups、64 个 metrics、32 个有效排序字段；每个数值表达式最大深度为 8，单个查询中的表达式节点总数最多 256。
-
-聚合复用现有快照过滤链：ABAC 与路由 filter 仍会追加到根 filter。Masking filter 会忽略聚合查询，因此已配置的 masker 不会拒绝或重写聚合结果。
-
-Wow 按运行时 Schema 校验字段、集合形状、能力和物理兼容性；Schema 不可用时，兼容模式的普通查询可保留既有后端编译路径。数值指标支持字段、有限常量和加、减、乘、除。对于包含 `Constant` 或 `Binary` 的计算表达式，数值标量或单元素数值数组贡献一个值；缺失、非数值、空数组、多值、除零或非有限中间结果不贡献指标。纯 `Field` 表达式继续保留后端原生字段聚合、错误和多值语义。自定义 Jackson serializer、后端 filter converter 或 Elasticsearch mapping 不保证跨后端等价。首期不包含 Batch 聚合。
-
-HTTP 端点为 `POST /{aggregate}/snapshot/aggregation`。tenant、owner 或 space 作用域的聚合会在前面增加各自的路由前缀；以运行实例的 OpenAPI 路径为准。JSON 响应是动态对象数组；SSE 逐个流式返回对象。OpenAPI 使用通用 `AggregationQuery` 请求体；表达式是以 `type` 为 discriminator 的递归 `oneOf`。
+自定义 `SnapshotQueryService` 可能继承默认的不支持 `aggregate()` 实现。single/list/paged/count 成功且路由已发布，并不能证明自定义服务支持聚合；应对所选后端做测试。
 
 #### 场景案例
 
-以下请求体都发送到对应聚合的 `snapshot/aggregation` 端点。为突出聚合结构，除第一个案例外省略重复的 `curl` 外壳。
+以下请求体都发送到相应聚合的 `snapshot/aggregation` 路由。带作用域的准确路径以运行实例 OpenAPI 为准。
 
 ##### 按分类统计数量
 
-补偿控制面可以按执行状态统计记录数量：
-
-```bash
-curl --request POST 'http://localhost:8080/execution_failed/snapshot/aggregation' \
-  --header 'Content-Type: application/json' \
-  --data '{
-    "groupBy": [
-      {"type": "TERMS", "field": "state.status", "alias": "status"}
-    ],
-    "metrics": [
-      {"type": "COUNT", "alias": "count"}
-    ],
-    "sort": [
-      {"field": "status", "direction": "ASC"}
-    ],
-    "limit": 10
-  }'
-```
-
-响应结构如下，具体计数取决于当前数据：
-
 ```json
-[
-  {"status": "FAILED", "count": 12},
-  {"status": "SUCCEEDED", "count": 3}
-]
+{
+  "groupBy": [
+    {"type": "TERMS", "field": "state.status", "alias": "status"}
+  ],
+  "metrics": [
+    {"type": "COUNT", "alias": "count"}
+  ],
+  "sort": [{"field": "status", "direction": "ASC"}],
+  "limit": 10
+}
 ```
 
 ##### 过滤后汇总整体指标
 
-不声明 `groupBy` 时，查询只返回一行。下面的查询先筛选失败记录，再统计数量、平均重试次数和最大重试次数：
+没有 group 时，一行结果汇总过滤后的输入：
 
 ```json
 {
@@ -325,65 +176,30 @@ curl --request POST 'http://localhost:8080/execution_failed/snapshot/aggregation
     {
       "type": "NUMERIC",
       "function": "AVG",
-      "expression": {"field": "state.retryState.retries"},
+      "expression": {"type": "FIELD", "field": "state.retryState.retries"},
       "alias": "averageRetries"
-    },
-    {
-      "type": "NUMERIC",
-      "function": "MAX",
-      "expression": {"field": "state.retryState.retries"},
-      "alias": "maxRetries"
     }
   ]
 }
 ```
 
-```json
-[
-  {"failedCount": 12, "averageRetries": 1.5, "maxRetries": 4.0}
-]
-```
-
-即使过滤后没有数据，仍返回一行：`failedCount` 为 `0`，两个数值指标为 `null`。
-
 ##### 按数值区间观察分布
 
-订单可以按总金额分桶；`interval: 100` 表示 `[0, 100)`、`[100, 200)` 等区间，响应中的 `amountRange` 是区间下界：
+`HISTOGRAM` 返回每个桶的下界：
 
 ```json
 {
   "groupBy": [
-    {
-      "type": "HISTOGRAM",
-      "field": "state.totalAmount",
-      "alias": "amountRange",
-      "interval": 100
-    }
+    {"type": "HISTOGRAM", "field": "state.totalAmount", "alias": "amountRange", "interval": 100}
   ],
-  "metrics": [
-    {"type": "COUNT", "alias": "orderCount"},
-    {
-      "type": "NUMERIC",
-      "function": "SUM",
-      "expression": {"field": "state.totalAmount"},
-      "alias": "totalAmount"
-    }
-  ],
-  "sort": [{"field": "amountRange", "direction": "ASC"}],
-  "limit": 20
+  "metrics": [{"type": "COUNT", "alias": "orderCount"}],
+  "sort": [{"field": "amountRange", "direction": "ASC"}]
 }
-```
-
-```json
-[
-  {"amountRange": 0.0, "orderCount": 8, "totalAmount": 356.0},
-  {"amountRange": 100.0, "orderCount": 5, "totalAmount": 642.0}
-]
 ```
 
 ##### 按业务时间查看趋势
 
-假设业务状态中的 `state.createdAt` 是可执行日期字段，可以按上海时区统计每日新增数量：
+`DATE_HISTOGRAM` 要求运行时 Schema 发布时间聚合能力。桶 key 是桶起点的 epoch 毫秒：
 
 ```json
 {
@@ -396,26 +212,13 @@ curl --request POST 'http://localhost:8080/execution_failed/snapshot/aggregation
       "timeZone": "Asia/Shanghai"
     }
   ],
-  "metrics": [{"type": "COUNT", "alias": "createdCount"}],
-  "sort": [{"field": "day", "direction": "ASC"}],
-  "limit": 31
+  "metrics": [{"type": "COUNT", "alias": "createdCount"}]
 }
 ```
 
-```json
-[
-  {"day": 1787500800000, "createdCount": 18},
-  {"day": 1787587200000, "createdCount": 23}
-]
-```
-
-日期桶键是分桶起点的 epoch 毫秒。字段可以是后端原生日期（由 collection validator 证明的 MongoDB BSON Date，或 Elasticsearch
-`date`/`date_nanos`），也可以是通过 `@QueryTemporal`、Bean 或约定文件声明了时间单位的整数 epoch；MongoDB 会转换 epoch，
-Elasticsearch 会生成请求级 runtime date field。MongoDB 没有 validator 时无法证明原生 Date，日期范围与分桶会失败关闭。
+MongoDB 必须通过集合元数据证明原生 BSON Date，或使用已声明的数值 epoch；Elasticsearch 使用原生 date/date_nanos 映射，或为已声明 epoch 创建请求级 runtime date。格式化时间字符串不会仅因存在 date pattern 就获得 date-histogram 能力。
 
 ##### 展开集合并取 Top-N
-
-订单商品是集合。先用绝对路径展开 `state.items`，再使用相对路径过滤商品、分组并汇总销量：
 
 ```json
 {
@@ -433,7 +236,7 @@ Elasticsearch 会生成请求级 runtime date field。MongoDB 没有 validator �
     {
       "type": "NUMERIC",
       "function": "SUM",
-      "expression": {"field": "quantity"},
+      "expression": {"type": "FIELD", "field": "quantity"},
       "alias": "totalQuantity"
     }
   ],
@@ -442,29 +245,24 @@ Elasticsearch 会生成请求级 runtime date field。MongoDB 没有 validator �
 }
 ```
 
-```json
-[
-  {"productId": "product-1", "totalQuantity": 42.0},
-  {"productId": "product-2", "totalQuantity": 31.0}
-]
-```
-
-根 `filter` 仍使用快照绝对路径；Element filter、group 和 metric 字段都相对当前展开的商品。按 `totalQuantity` 这类 metric alias 排序属于高成本操作。`query.allow-expensive-operators=false` 时，本例会因 Elements 展开和 metric alias 排序被 HTTP 护栏拒绝；需要启用该配置，或移除这两项能力。
-
-同一份 `AggregationQuery` 合同可由 MongoDB 与 Elasticsearch 快照查询服务执行并返回相同的行结构；字段映射、嵌套模型及自定义序列化的后端差异仍遵循各扩展文档中的约束。
-
 ### 重写查询
 
-查询过滤器通过 `withFilter` 或 `appendFilter` 重写，不再操作内部 `Condition`：
+filter 是不可变值。策略过滤器追加新表达式，而不是更改字段含义：
 
 ```kotlin
-val warehouseFilter = filterExpression {
+val requiredScope = filterExpression {
     "state.warehouseId" eq warehouseId
 }
-context.appendFilter(warehouseFilter)
+context.appendFilter(requiredScope)
 ```
 
+WebFlux `RewriteRequestFilter` 会追加由路由和请求头解析出的 tenant、owner、space 元数据过滤器。这会约束后端查询，但不会认证调用方，也不能证明调用方有权选择这些作用域值。
+
 ## REST API
+
+内置 WebFlux Handler 会把 `ServerRequest` 写入 Reactor Context；只有这时 `HttpQueryGuardFilter` 才会约束列表/分页窗口、过滤节点与值数量、高成本操作符策略和空闲超时。注入式查询服务及其他非 WebFlux 上下文不受这些 HTTP 专用限制。
+
+Schema resolver 校验逻辑字段与后端能力；HTTP guard 限制请求成本；应用安全过滤器授权 Principal。三者是不同边界。
 
 ### 分页查询
 
@@ -476,87 +274,63 @@ Wow-Space-Id: space-1
 
 ```json
 {
-  "filter": {
-    "op": "AND",
-    "operands": [
-      { "op": "EQ", "field": "state.status", "value": "CREATED" },
-      { "op": "DELETION", "state": "ACTIVE" }
-    ]
-  },
-  "projection": {
-    "include": ["aggregateId", "state.status"]
-  },
-  "sort": [
-    { "field": "state.createTime", "direction": "DESC" }
-  ],
-  "pagination": {
-    "index": 1,
-    "size": 20
-  }
+  "filter": {"op": "EQ", "field": "state.status", "value": "CREATED"},
+  "projection": {"include": ["aggregateId", "state.status"]},
+  "sort": [{"field": "state.createTime", "direction": "DESC"}],
+  "pagination": {"index": 1, "size": 20}
 }
 ```
 
+以上前缀只是租户资源示例。默认本地路由不会添加限界上下文 alias，实际路径以生成 OpenAPI 为准。
+
 ### 列表与单条查询
 
-列表和单条查询同样使用 `filter`。列表请求使用 `limit`，单条请求不需要分页字段：
+list 与 single 请求体共用 `filter`、`projection`、`sort`。list 额外包含 `limit`，single 没有分页字段：
 
 ```json
 {
-  "filter": { "op": "AGGREGATE_ID", "value": "order-1" },
+  "filter": {"op": "AGGREGATE_ID", "value": "order-1"},
   "limit": 1,
   "sort": []
 }
 ```
 
+使用 `/snapshot/list/state`、`/snapshot/paged/state`、`/snapshot/single/state` 获取仅状态响应。逻辑查询字段仍基于完整快照模型，例如 `state.status`；响应解包不会重命名请求字段。
+
 ### 计数
 
-在 JVM 中直接调用 typed 扩展：`filter.count(queryService)`。`Condition.count(...)` 扩展仍保留，但已标记弃用。
-
-计数请求体就是一个 `FilterExpression`，外层没有 `filter`：
+规范 count 请求体直接是 `FilterExpression`，外层没有 `filter`：
 
 ```http
-POST /tenant/tenant-1/sales-order/snapshot/count
+POST /sales-order/snapshot/count
 Content-Type: application/json
+
+{"op": "EQ", "field": "state.status", "value": "CREATED"}
 ```
 
-```json
-{
-  "op": "EQ",
-  "field": "state.status",
-  "value": "CREATED"
-}
-```
+REST 兼容 extractor 还接受 `{}`，并按旧 `Condition.ALL` 处理，再应用请求作用域 filters。出现判别字段时，只能使用新 `op` 或旧 `operator` 之一；两者同时出现会被拒绝。OpenAPI 只发布规范 `FilterExpression` 请求体。
 
-新格式执行严格反序列化：未知字段、缺少必填字段、空逻辑操作数、非法逻辑字段或不符合类型约束的值都会返回请求错误。
+JVM 侧使用 `filter.count(queryService)`。count 按所选后端合同保持精确；禁用高成本操作符时，HTTP 成本策略可能拒绝无过滤 count。
 
 ## 兼容与迁移
 
-旧 `Condition` DTO、`Operator` 和 `ConditionDsl` 仍保留但已标记弃用。旧查询构造器、`QueryService.count(Condition)` 和 `Condition.count(...)` 会立即把 `Condition` 转换为 `FilterExpression`；查询对象与执行链此后只保留 `filter`。
+`Condition`、`Operator`、`ConditionDsl` 是已弃用兼容输入。旧构造函数和 count 扩展会将其一次性转换为 `FilterExpression`；执行管线只保留 `filter`。REST extractor 规则按端点区分：
 
-REST 迁移期间：
+| 端点请求体 | 两种表达都没有 | 新表达 | 旧表达 | 两者同时存在 |
+|---|---|---|---|---|
+| single/list/paged | 拒绝 | 接受 `filter` | 接受 `condition` | 拒绝 |
+| aggregation | 接受；省略 `filter` 时默认 `MATCH_ALL` | 接受 `filter` | 接受 `condition` | 拒绝 |
+| count | 按旧 `Condition.ALL` 接受 | 接受顶层 `op` | 接受顶层 `operator` | 拒绝 |
 
-- `single`、`list`、`paged` 请求必须且只能提供 `filter` 或 `condition` 之一；
-- `count` 请求必须且只能提供新格式的 `op` 或旧格式的 `operator` 之一；
-- OpenAPI 只发布新的 `FilterExpression` 格式；
-- 旧 `condition` 请求仅在可转换为合法 `FilterExpression` 时接受；`MATCH` 现在遵循 `SEARCH` 语义，不能出现在 `ELEM_MATCH` 内，也不再使用原 Elasticsearch 精确字段映射；
-- `RAW` 已删除且没有替代操作符。需要后端原生查询时，应由应用自有端点和安全策略负责。
+- OpenAPI 只发布新查询形状；运行时旧格式兼容不会写入规范 Schema；
+- 旧 `MATCH` 转换为 `SEARCH`，且不能放在 element match 中；
+- 旧 `RAW` 没有替代操作符。后端原生查询应由应用自有且显式保护的端点承担。
 
-旧格式示例：
-
-```json
-{
-  "condition": {
-    "field": "state.status",
-    "operator": "EQ",
-    "value": "CREATED"
-  },
-  "limit": 20
-}
-```
+迁移期间不要偷偷改变已有字段含义。应增加新逻辑字段或显式 Schema 覆盖，并在目标兼容模式下验证新旧请求。
 
 ## JSON Schema
 
-规范文件：
+规范线协议 Schema 与运行时字段目录分别版本化：
 
 - [`filter-expression.schema.json`](https://github.com/Ahoo-Wang/Wow/blob/main/schema/query/v2/filter-expression.schema.json)
 - [`single-query.schema.json`](https://github.com/Ahoo-Wang/Wow/blob/main/schema/query/v2/single-query.schema.json)
@@ -564,18 +338,24 @@ REST 迁移期间：
 - [`paged-query.schema.json`](https://github.com/Ahoo-Wang/Wow/blob/main/schema/query/v2/paged-query.schema.json)
 - [`count-query.schema.json`](https://github.com/Ahoo-Wang/Wow/blob/main/schema/query/v2/count-query.schema.json)
 
+OpenAPI 发布三个不同层次。通用 component schemas 定义 `FilterExpression`、single/list/paged query 与 aggregation 的 JSON 形状；每个聚合专用 request-body component 引用其中一个通用 Schema，并增加静态 `x-wow-query-fields`：其枚举由 system fields 与 `JsonQuerySchemaSource` 推断字段组成。该扩展是设计时字段目录，不是后端已证明能力列表。
+
+`GET /{aggregate}/snapshot/schema` 返回第三层：当前 `QueryModelSchemaMetadata`，包含合并后的逻辑元数据与后端已证明能力；`POST /{aggregate}/snapshot/schema/refresh` 刷新它。这些运行时 Schema 路由刻意不生成 tenant、owner 或 aggregate-ID 路径变体，因为它们描述模型而非调用方数据；spaced 聚合的公共聚合合同仍可能声明 `Wow-Space-Id`。
+
+运行时 Schema 会把系统字段与 JSON Schema 推断、classpath 约定、Bean 注册、工作目录约定合并，再由后端适配器解析物理绑定。KSP 生成的 `*Properties` 常量是编译期路径导航辅助，不是该运行时 Schema，也不会发布 HTTP 路由。
+
 ## 查询服务注册器
 
-`SnapshotQueryServiceRegistrar` 会把本地聚合根查询服务注册到 Spring 容器。Bean 名称为 `聚合根名称 + ".SnapshotQueryService"`。
+`SnapshotQueryServiceRegistrar` 与 `EventStreamQueryServiceRegistrar` 为本地聚合注册 `order.SnapshotQueryService` 等服务。这些生成服务经过 `QueryHandler`，在到达后端前执行查询重写、已配置的 ABAC 过滤和脱敏。
 
 ```kotlin
-class OrderService(
+class OrderReader(
     private val queryService: SnapshotQueryService<OrderState>,
 ) {
-    fun getById(id: String): Mono<OrderState> = singleQuery {
-        filter {
-            aggregateId(id)
-        }
+    fun get(id: String): Mono<OrderState> = singleQuery {
+        filter { aggregateId(id) }
     }.query(queryService).toState().throwNotFoundIfEmpty()
 }
 ```
+
+Factory 是更底层的后端入口。直接通过 `SnapshotQueryServiceFactory` 或 `EventStreamQueryServiceFactory` 创建的服务会绕过生成的 Handler 链。原始 Factory 应只放在受信基础设施代码中，不要作为普通请求路径暴露。

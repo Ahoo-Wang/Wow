@@ -30,10 +30,10 @@ export const sidebarZh: DefaultTheme.Sidebar = {
     '/zh/onboarding/': [
         {
             base: '/zh/onboarding/',
-            text: '入门导航',
+            text: '评估与参与',
             collapsed: false,
             items: [
-                {text: '选择阅读路径', link: 'index.html'},
+                {text: '按角色选择', link: 'index.html'},
                 {text: '贡献者指南', link: 'contributor-guide'},
                 {text: '资深工程师指南', link: 'staff-engineer-guide'},
                 {text: '管理者指南', link: 'executive-guide'},
@@ -44,7 +44,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
     '/zh/guide/': [
         {
             base: '/zh/guide/',
-            text: '基础',
+            text: '开始使用',
             collapsed: false,
             items: [
                 {text: '指南导览', link: 'index.html'},
@@ -52,44 +52,59 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: '快速上手', link: 'getting-started'},
                 {text: '接入现有项目', link: 'existing-project'},
                 {text: '核心概念', link: 'core-concepts'},
-                {text: '聚合建模', link: 'modeling'},
-                {text: '配置', link: 'configuration'},
             ],
         },
         {
             base: '/zh/guide/',
-            text: '核心',
+            text: '领域开发',
             collapsed: false,
             items: [
+                {text: '聚合建模', link: 'modeling'},
                 {text: '事件存储', link: 'eventstore'},
                 {text: '快照', link: 'snapshot'},
                 {text: '命令网关', link: 'command-gateway'},
                 {text: '分布式事务(Saga)', link: 'saga'},
-                {text: '投影', link: 'projection'},
-                {text: '查询服务', link: 'query'},
-                {text: '数据权限', link: 'data-access'},
                 {text: '事件处理器', link: 'event-processor'},
-            ],
-        },
-        {
-            base: '/zh/guide/',
-            text: '工具',
-            collapsed: false,
-            items: [
-                {text: 'Open API', link: 'open-api'},
-                {text: '测试套件', link: 'test-suite'},
-                {text: '应用测试', link: 'application-testing'},
-                {text: 'Agent Skills', link: 'skills'},
-                {text: '商业智能', link: 'bi'},
-                {text: 'BI 部署与恢复', link: 'bi-operations'},
                 {text: '事件补偿', link: 'event-compensation'},
             ],
         },
         {
             base: '/zh/guide/',
-            text: '最佳实践',
+            text: '读模型与查询',
             collapsed: false,
             items: [
+                {text: '投影', link: 'projection'},
+                {text: '查询服务', link: 'query'},
+                {text: '数据权限', link: 'data-access'},
+            ],
+        },
+        {
+            base: '/zh/guide/',
+            text: '接口与自动化',
+            collapsed: false,
+            items: [
+                {text: 'Open API', link: 'open-api'},
+                {text: 'Agent Skills', link: 'skills'},
+                {text: '商业智能', link: 'bi'},
+            ],
+        },
+        {
+            base: '/zh/guide/',
+            text: '测试与交付',
+            collapsed: false,
+            items: [
+                {text: '测试套件', link: 'test-suite'},
+                {text: '应用测试', link: 'application-testing'},
+                {text: '框架测试与基准', link: 'test-runtime'},
+            ],
+        },
+        {
+            base: '/zh/guide/',
+            text: '生产运维',
+            collapsed: false,
+            items: [
+                {text: '配置', link: 'configuration'},
+                {text: 'BI 部署与恢复', link: 'bi-operations'},
                 {text: '生产最佳实践', link: 'best-practices'},
                 {text: '备份、恢复与重放', link: 'recovery'},
                 {text: '故障排查', link: 'troubleshooting'},
@@ -125,7 +140,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
         },
         {
             base: '/zh/guide/advanced/',
-            text: '深入',
+            text: '深入原理',
             collapsed: true,
             items: [
                 {text: '架构', link: 'architecture'},

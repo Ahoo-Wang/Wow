@@ -1,40 +1,33 @@
 ---
 title: 配置 Wow 应用
-description: 按开发、生产后端、环境与密钥边界配置 Wow；精确属性由配置参考提供。
+description: 按 capability、运行时阶段、后端所有权和环境证据配置 Wow；精确属性由配置参考维护。
 outline: deep
 ---
 
 # 配置 Wow 应用
 
-本页帮助应用开发者做配置决策。精确属性、类型和默认值只在[配置参考](#配置参考)维护，避免指南与源码出现多份事实来源。
+配置 Wow 不是先复制一份大 YAML，而是依次决定：运行时需要哪些 capability、三个消息通道使用什么 Bus、EventStore 与 SnapshotStore 由谁持久化，以及每个阶段由谁恢复。本页提供任务流程；精确键和默认值只在[配置参考](#配置参考)维护。
 
 ## 选择起点
 
-| 场景 | Bus | EventStore / SnapshotStore | 下一步 |
-| --- | --- | --- | --- |
-| 首次接入、领域测试 | `in_memory` | `in_memory` | 先证明命令 → 事件 → 状态 |
-| 常规生产基线 | Kafka | MongoDB | 验证持久化、重启、位点和恢复 |
-| 已有 Redis 基础设施 | Redis Streams | Redis | 评估查询能力、容量和 canonical v2 布局 |
-| 搜索/复杂快照查询 | Kafka/Redis | Elasticsearch 或 MongoDB | 建立索引、查询计划和重建流程 |
+| 需要证明的能力 | 最小选择 | 完成证据 |
+| --- | --- | --- |
+| 领域命令 → 事件 → 状态 | 基础 Starter + `in_memory` | 聚合规格和单进程重启前功能测试 |
+| 跨实例命令/事件/状态投递 | `kafka-support` 或 `redis-support` | Broker 重投、积压、停机与故障注入结果 |
+| 权威事件历史 | Mongo/Redis/Elasticsearch EventStore | 版本连续、并发冲突、备份与隔离恢复结果 |
+| 当前状态查询 | `strategy: all` + Mongo/Elasticsearch SnapshotStore | `SNAPSHOT` 写后读、索引计划和重建结果 |
+| HTTP/OpenAPI | `webflux-support`，需要独立 OpenAPI 工具时再加 `openapi-support` | 实际运行时 OpenAPI、鉴权和 route 测试 |
 
-不要在首次运行时同时引入 Kafka、MongoDB、Redis、Elasticsearch、补偿和遥测。先完成内存垂直切片，再一次替换一个边界并保留测试证据。
+一次只替换一个边界。先保留内存垂直切片，再接入 EventStore，然后 Bus，再接入查询/运维入口。这样失败可以定位到具体 Wow stage，而不是同时落入多个外部系统。
 
 ## 首次运行：内存配置
+
+只请求基础 Starter，不请求基础设施 capability，并覆盖所有指向 Kafka/Mongo 的核心默认值：
 
 ```yaml
 spring:
   application:
     name: order-service
-
-cosid:
-  machine:
-    enabled: true
-    distributor:
-      type: manual
-      manual:
-        machine-id: 1
-  generator:
-    enabled: true
 
 wow:
   prepare:
@@ -56,20 +49,27 @@ wow:
         type: in_memory
 ```
 
-该配置只适合单进程验证：重启后数据丢失，不提供多实例投递、持久恢复或通用动态查询。`manual.machine-id` 也不能用于多实例。
+这只证明单进程链路。进程退出后事件和快照都丢失，没有跨实例投递、Broker 位点、持久恢复或通用动态查询。如果开发 classpath 仍保留某个 capability，还要把相应 `wow.kafka.enabled`、`wow.mongo.enabled`、`wow.redis.enabled` 或 `wow.elasticsearch.enabled` 设为 `false`，或直接删除未使用 capability。
 
 ## 生产起点：Kafka + MongoDB
 
-先请求对应 Starter capabilities，再配置后端。不要只写配置键却忘记运行时依赖：
+以下是一个**候选拓扑**，不是生产就绪声明。基础变体与每个 capability 使用独立依赖声明；feature 已包含对应后端模块和 Spring Data starter。
 
 ```kotlin
-implementation("me.ahoo.wow:wow-spring-boot-starter") {
-    capabilities { requireCapability("me.ahoo.wow:kafka-support") }
+dependencies {
+    implementation(platform("me.ahoo.wow:wow-bom:<aligned-version>"))
+    implementation("me.ahoo.wow:wow-spring-boot-starter")
+
+    implementation("me.ahoo.wow:wow-spring-boot-starter") {
+        capabilities { requireCapability("me.ahoo.wow:kafka-support") }
+    }
+    implementation("me.ahoo.wow:wow-spring-boot-starter") {
+        capabilities { requireCapability("me.ahoo.wow:mongo-support") }
+    }
+    implementation("me.ahoo.wow:wow-spring-boot-starter") {
+        capabilities { requireCapability("me.ahoo.wow:webflux-support") }
+    }
 }
-implementation("me.ahoo.wow:wow-spring-boot-starter") {
-    capabilities { requireCapability("me.ahoo.wow:mongo-support") }
-}
-implementation("org.springframework.boot:spring-boot-starter-data-mongodb-reactive")
 ```
 
 ```yaml
@@ -80,109 +80,115 @@ spring:
     uri: ${MONGODB_URI}
 
 wow:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
   command:
     bus:
       type: kafka
   event:
     bus:
       type: kafka
-  kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
   eventsourcing:
     store:
       storage: mongo
     snapshot:
-      storage: mongo
+      enabled: true
       strategy: all
+      storage: mongo
     state:
       bus:
         type: kafka
+  prepare:
+    storage: mongo
 ```
 
-这只是生产配置起点。发布前还要验证认证/TLS、Topic 与 consumer group、索引、容量、备份恢复、停机、告警和滚动升级。
+按运行时 stage 验收，不要用“应用启动了”代替：
+
+| Stage/边界 | 应用或平台所有者必须证明 |
+| --- | --- |
+| 启动 | capability、配置绑定、Mongo schema/index 与 Kafka 客户端装配成功 |
+| `SENT` | CommandBus 发送成功，topic/ACL/序列化可用 |
+| `PROCESSED` | 聚合加载、业务决策、EventStore append 与 DomainEventBus send 完成 |
+| `SNAPSHOT` | StateEventBus 消费与目标 SnapshotStore 保存/跳过策略符合预期 |
+| `PROJECTED` / `EVENT_HANDLED` / `SAGA_HANDLED` | 精确目标函数完成，且重投不会重复外部副作用 |
+| 停机 | 入口摘流后在 `wow.shutdown-timeout` 内静默并排空已准入工作 |
+| 恢复 | EventStore、快照、投影、Broker 位点和补偿状态通过隔离恢复与对账 |
 
 ## 后端选择边界
 
 ### Bus
 
-| 类型 | 适用场景 | 主要边界 |
+| 类型 | 能力 | 不提供 |
 | --- | --- | --- |
-| `in_memory` | 单进程开发和测试 | 无持久化、无跨实例投递 |
-| `kafka` | 多实例、可持久化消息 | 需要 Topic、分区、位点、重投与容量治理 |
-| `redis` | 已使用 Redis Streams 的服务 | 需要 pending recovery、consumer group 与容量治理 |
-| `no_op` | 明确不处理某类消息的特殊场景 | 消息不会产生真实业务处理 |
+| `in_memory` | 单实例快速验证 | 持久性、跨实例投递 |
+| `kafka` | Kafka 分布式 Bus | topic/ACL/retention/offset 备份的自动治理 |
+| `redis` | Redis Streams 分布式 Bus 与 pending recovery | 已裁剪 Stream 的恢复、EventStore 备份 |
+| `no_op` | 明确关闭某类处理 | 业务执行或可恢复投递 |
+
+命令、领域事件、状态事件可以分别选择 Bus。三者的 owner 与恢复策略也必须分别记录；只验证 CommandBus 不能证明投影或快照链路。
 
 ### Storage
 
-| 后端 | EventStore | SnapshotStore | 动态查询 | 采用前验证 |
+| 后端 | EventStore | SnapshotStore | 动态查询 | 采用前必须证明 |
 | --- | --- | --- | --- | --- |
-| MongoDB | 是 | 是 | 事件流与快照 | 索引、分片、写关注、备份与恢复 |
-| Redis | 是 | 是 | 不提供通用动态快照查询 | canonical v2、容量、持久化与 pending 恢复 |
-| Elasticsearch | 是 | 是 | 事件流与快照 | Template/ILM、Bulk、PIT、重建与恢复 |
-| In-memory | 是 | 是 | 仅测试用途 | 进程退出即丢失 |
+| MongoDB | 是 | 是 | 事件与快照 | schema/index、写关注、备份、恢复、查询计划 |
+| Redis | 是 | 是 | 无通用实现 | canonical key 布局、持久化、容量、重启恢复 |
+| Elasticsearch | 是 | 是 | 事件与快照 | template、Bulk、PIT、cluster snapshot 与重建 |
+| In-memory | 是 | 是 | 不用于生产 | 数据可丢失边界 |
+| Delay | 测试 | 测试 | 否 | 只来自 `mock-support`，不得用于生产 |
 
-同一聚合需要专属后端时使用 `wow.eventsourcing.storage-routing`，不要在业务代码中按聚合手工选择存储。精确 binding 规则见 [Spring Boot Starter](./extensions/spring-boot-starter.md#bean-装配与覆盖)。
+按聚合分流时使用 `wow.eventsourcing.storage-routing`。每个 route 的 `event` 与 `snapshot` 独立；回滚、备份与查询 factory 也必须覆盖实际 binding，而不是只覆盖默认存储。
 
 ## 配置与密钥边界
 
-建议把配置分成三类：
-
-| 类型 | 示例 | 存放位置 |
+| 所有权 | 示例 | 建议载体 |
 | --- | --- | --- |
-| 可版本化策略 | Bus/Storage 类型、快照策略、超时 | 仓库内 `application.yaml` |
-| 环境值 | broker 地址、数据库名、OTLP endpoint | 部署环境变量或环境配置 |
-| 密钥 | 数据库密码、Token、Webhook、证书私钥 | Secret 管理系统 |
+| 应用合同 | Bus/Storage 类型、快照策略、HTTP query guard | 版本库内配置，与代码一起评审 |
+| 环境拓扑 | Broker/数据库 endpoint、database/topic prefix | 部署配置或环境变量 |
+| 密钥 | 用户名、密码、Token、私钥 | Secret 管理系统 |
+| 运维基线 | 生效配置摘要、topic/index/template、备份点 | 发布证据库，必须脱敏 |
 
-- 不在文档、示例或 ConfigMap 中写真实凭据；
-- 使用 `${ENV_NAME}` 引用环境值，并在部署门禁中验证缺失值会阻止启动；
-- 生产不要长期启用 `me.ahoo.wow: DEBUG`；
-- 记录发布时生效配置的脱敏摘要，便于恢复与审计；
-- 配置变更与应用版本一起评审，不能把“只改 YAML”视为无风险。
+使用 `${ENV_NAME}` 引用外部值，并在候选环境验证缺失值会阻止启动。不要在示例、ConfigMap、日志或 Issue 中保存真实 URI 凭据。配置变更会改变消息、存储或恢复边界，必须与应用版本一起评审。
 
 ## 环境分层
 
 ### 开发环境
 
-- 首选内存 Adapter 或隔离的本地后端；
-- 使用单实例 manual machine-id；
-- 保留 Swagger、详细日志和快速领域测试；
-- 明确数据可丢失，不把本地配置复制到生产。
+1. 先用内存配置跑聚合规格与一个完整命令链路。
+2. 只引入当前要验证的 capability，并显式关闭 classpath 上未使用的集成。
+3. 对外部后端使用隔离 namespace；不得复用生产 topic、database、consumer group 或凭据。
+4. 保存失败测试、实际配置和后端健康证据，随后再替换下一个边界。
 
 ### 生产环境
 
-- 使用能保证 machine-id 唯一性的分配器；
-- 配置持久化 Bus、EventStore 与 SnapshotStore；
-- 为命令、查询和 Actuator 配置认证与授权；
-- 验证幂等索引、分区/分片、消费者位点和优雅停机；
-- 完成[应用测试](./application-testing.md)与[备份、恢复和重放](./recovery.md)门禁。
+生产候选必须把配置映射到 Wow stage：Bus owner 负责投递与位点，EventStore owner 负责权威历史，Snapshot/Projection owner 负责派生状态，应用 owner 负责 Handler 幂等、HTTP 鉴权与停机。发布证据至少来自生产同构环境的失败路径、备份恢复、重投/对账、滚动停机和容量测试；模块 checks 或一份 YAML 不能证明生产就绪。
+
+详见[生产最佳实践](./best-practices.md)、[备份、恢复与重放](./recovery.md)和[故障排查](./troubleshooting.md)。
 
 ## BI 脚本配置
 
-BI 脚本服务使用 `wow.bi.script.*`，仅在实际生成或部署 ClickHouse 脚本时启用：
+只有实际生成或部署 ClickHouse 脚本时才启用 `wow.bi.script.*`。离线生成可使用 `NO_OP` inspector，但这不证明 ClickHouse catalog 已对账；`RESET` 必须使用受控 inspector 并完成 destructive 门禁。
 
 ```yaml
 wow:
   bi:
     script:
       enabled: true
-      database: wow
-      consumer-database: wow_consumer
-      timezone: UTC
-      kafka-bootstrap-servers: ${BI_KAFKA_BOOTSTRAP_SERVERS:${KAFKA_BOOTSTRAP_SERVERS}}
-      topic-prefix: ${BI_TOPIC_PREFIX:wow.}
+      database: ${BI_DATABASE}
+      consumer-database: ${BI_CONSUMER_DATABASE}
+      kafka-bootstrap-servers: ${BI_KAFKA_BOOTSTRAP_SERVERS}
+      topic-prefix: ${BI_TOPIC_PREFIX}
       inspector:
-        type: NO_OP # 仅离线生成；部署/Reset 使用受控的 ClickHouse inspector
+        type: NO_OP # 仅离线生成
 ```
 
-显式 `wow.bi.script.kafka-bootstrap-servers` 和 `topic-prefix` 优先于 `wow.kafka.*`。`NO_OP` inspector 适合离线生成，不应被当作已经完成 catalog 对账；执行 `RESET` 前必须使用真实 inspector 并按[BI 部署与恢复](./bi-operations.md)完成 destructive 门禁。
+精确 BI 属性与操作流程见[可观测性配置](../reference/config/observability.md)和[BI 部署与恢复](./bi-operations.md)。
 
 ## 配置参考
 
-精确属性以配置类和以下参考页为准：
+- [核心配置](../reference/config/core.md)：运行时、Bus、EventStore、Snapshot、storage routing、query schema 与 PrepareKey。
+- [基础设施配置](../reference/config/infrastructure.md)：Kafka、MongoDB、Redis、Elasticsearch 与 WebFlux。
+- [可观测性配置](../reference/config/observability.md)：OpenAPI、OpenTelemetry、指标与 BI。
+- [事件补偿配置](../reference/config/compensation.md)：补偿开关、调度与通知。
 
-- [核心配置](../reference/config/core.md)：Wow、Bus、事件溯源、快照、存储路由和 PrepareKey；
-- [基础设施](../reference/config/infrastructure.md)：Kafka、MongoDB、Redis、Elasticsearch 和 WebFlux；
-- [可观测性](../reference/config/observability.md)：OpenAPI、OpenTelemetry、指标和 BI；
-- [事件补偿](../reference/config/compensation.md)：补偿开关、调度器和通知。
-
-升级 Wow 时对照目标 tag 的配置类和发布说明；不要把 `main` 文档默认值套用到旧版本。
+升级时以目标发布版本的配置元数据与配置类为准；不要把 `main` 的键或默认值套用到旧版本。

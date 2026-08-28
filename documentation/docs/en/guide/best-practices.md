@@ -1,229 +1,120 @@
 ---
-title: "Production Best Practices"
-description: "Evidence-based practices for modeling, command delivery, consistency, snapshots, compensation, testing, and operating Wow services."
+title: Production Best Practices
+description: Apply modeling, non-blocking execution, idempotency, snapshots, compensation, testing, and production evidence along Wow command stages.
 outline: deep
 ---
 
 # Production Best Practices
 
-Wow removes much of the infrastructure plumbing around CQRS and event sourcing, but it does not remove the need to choose explicit domain boundaries, consistency targets, and failure policies. This guide turns the framework's current contracts into a production checklist.
+Wow provides commands, event sourcing, message handling, and observable wait stages. The application still owns business invariants, external effects, backend topology, and recovery results. Practices must map to a concrete runtime stage and repeatable evidence. Generic operational checklists unrelated to the Wow flow are outside this page.
 
 ## Practice Map
 
-| Concern | Recommended default | Avoid | Source |
-|---|---|---|---|
-| Domain logic | Validate invariants in command handlers; mutate state only from events | CRUD-style public state mutation | [Cart.kt:38-76](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/Cart.kt#L38-L76), [CartState.kt:23-46](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/CartState.kt#L23-L46) |
-| Reactive execution | Keep the full handler and storage path non-blocking | `block()`, blocking I/O, or hidden thread waits in runtime paths | [AggregateProcessorFilter.kt:31-49](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/dispatcher/AggregateProcessorFilter.kt#L31-L49) |
-| Command results | Wait for the smallest stage that proves the caller's business outcome | Treating `SENT` as successful domain processing | [CommandStage.kt:25-102](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L25-L102) |
-| Duplicate requests | Reuse a stable `requestId` for the same logical operation | Generating a new request ID for every transport retry | [DefaultCommandGateway.kt:86-118](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L86-L118) |
-| Concurrency | Send `aggregateVersion` when the caller must reject stale writes | Assuming all concurrent business commands are interchangeable | [CommandMessage.kt:85-95](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/command/CommandMessage.kt#L85-L95) |
-| Snapshots | Use `strategy: all` so the latest aggregate state is the default query store | Using `version_offset` while expecting every query to see the latest state | [SnapshotProperties.kt:23-45](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/SnapshotProperties.kt#L23-L45) |
-| Cross-aggregate work | Use Saga for orchestration and compensation for recoverable failures | Calling Saga completion a distributed transaction commit | [StatelessSagaFunction.kt:57-69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaFunction.kt#L57-L69) |
+| Wow boundary | Preferred practice | Evidence to retain |
+| --- | --- | --- |
+| Command → Aggregate | Commands express intent; aggregates protect invariants | `AggregateSpec` success, rejection, and concurrency branches |
+| Aggregate → EventStore | Change state only through domain events | Version continuity, conflict, and request-id tests |
+| EventStore → DomainEventBus | Retry-safe handlers and idempotent side effects | Redelivery/failure injection and broker-ACK evidence |
+| StateEvent → Snapshot | Use `strategy: all` for current-state queries | `SNAPSHOT` read-after-write and full-replay reconciliation |
+| Projection/Processor/Saga | Wait for an exact function target | Function identity, lag, compensation, and side-effect reconciliation |
+| WowRuntime | Remove ingress, quiesce, then stop in reverse order | Shutdown result and remaining lag within the termination window |
 
 ## Model Business Decisions, Not Data Updates
 
-| Element | Responsibility | Rule of thumb | Source |
-|---|---|---|---|
-| Command | Express intent | Name it after a business action, such as `AddCartItem` | [Cart.kt:40-63](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/Cart.kt#L40-L63) |
-| Command aggregate | Enforce invariants and decide facts | Return domain events; do not directly expose mutable state | [Cart.kt:44-60](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/Cart.kt#L44-L60) |
-| Domain event | Record an accepted business fact | Use past-tense names such as `CartItemAdded` | [Cart.kt:50-60](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/Cart.kt#L50-L60) |
-| State aggregate | Rebuild state deterministically | Apply changes only in `@OnSourcing` functions | [CartState.kt:27-45](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/CartState.kt#L27-L45) |
+A command names a business action, a command aggregate decides whether it is allowed, a domain event records the accepted fact, and a state aggregate deterministically applies events only in sourcing functions.
 
-```mermaid
-flowchart LR
-    Intent[Business intent] --> Command[Command]
-    Command --> Decision[Aggregate invariant and decision]
-    Decision -->|accepted| Event[Domain event]
-    Decision -->|rejected| Error[Domain error]
-    Event --> State[State rebuilt by OnSourcing]
-    Event --> Consumers[Projection, processor, or Saga]
+| Element | Application responsibility | Avoid |
+| --- | --- | --- |
+| Command | Carry decision input and a stable request ID | Arbitrary field-update APIs |
+| Command aggregate | Enforce invariants and return domain events | Mutating a public state store directly |
+| Domain event | Record an evolvable past-tense business fact | Treating a temporary DTO as an event contract |
+| State aggregate | Rebuild state deterministically in event order | Network, time, or randomness during sourcing |
 
-    classDef primary fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    classDef secondary fill:#161b22,stroke:#30363d,color:#e6edf3
-    class Intent,Command,Decision,Event primary
-    class Error,State,Consumers secondary
-```
-
-<!-- Sources: example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/Cart.kt:38-76, example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/cart/CartState.kt:23-46 -->
-
-Keep an aggregate as small as the invariant allows. If two concepts do not need one atomic decision, connect them with an event and a Saga instead of growing a shared aggregate. The framework routes each command by `AggregateId`, and the dispatcher creates aggregate-specific processing through the configured scheduler ([CommandDispatcher.kt:37-75](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/dispatcher/CommandDispatcher.kt#L37-L75)).
+An aggregate boundary covers only invariants that require one atomic decision. Connect cross-aggregate work with events and sagas instead of expanding a shared aggregate to remove one asynchronous stage.
 
 ## Preserve the Reactive Boundary
 
-| Layer | Framework contract | Application responsibility | Source |
-|---|---|---|---|
-| Gateway and bus | `Mono`/`Flux` based dispatch | Compose, do not synchronously wait | [DefaultCommandGateway.kt:129-143](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L129-L143) |
-| Dispatcher | Receives a `Flux` and routes by aggregate | Keep filters non-blocking | [CommandDispatcher.kt:46-75](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/dispatcher/CommandDispatcher.kt#L46-L75) |
-| Aggregate processing | Chains processing and acknowledgement as `Mono` | Return reactive work instead of hiding I/O | [AggregateProcessorFilter.kt:31-49](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/dispatcher/AggregateProcessorFilter.kt#L31-L49) |
-| Event store | Appends and loads through `Mono`/`Flux` | Use the provided reactive storage adapters | [EventStore.kt:41-54](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L41-L54) |
+`CommandGateway`, buses, dispatchers, EventStore, projections, and sagas compose `Mono`/`Flux`. A `block()`, synchronous database driver, or hidden thread wait in the core path consumes processing resources and prevents `wow.shutdown-timeout` from proving admitted work can drain.
 
-```mermaid
-%%{init: {"theme":"base","themeVariables":{"primaryColor":"#2d333b","primaryBorderColor":"#6d5dfc","primaryTextColor":"#e6edf3","lineColor":"#8b949e","secondaryColor":"#161b22","tertiaryColor":"#161b22"}}}%%
-sequenceDiagram
-    autonumber
-    actor Caller
-    participant Gateway as CommandGateway
-    participant Bus as CommandBus
-    participant Dispatcher as CommandDispatcher
-    participant Handler as Command filter chain
-    participant Aggregate as AggregateProcessor
-    participant Store as EventStore
-    participant EventBus as DomainEventBus
-
-    Caller->>Gateway: send CommandMessage
-    Gateway->>Bus: send after validation and idempotency check
-    Bus->>Dispatcher: deliver exchange
-    Dispatcher->>Handler: handle exchange reactively
-    Handler->>Aggregate: process command
-    Aggregate->>Store: append DomainEventStream
-    Store-->>Aggregate: append completed
-    Aggregate-->>Handler: stored DomainEventStream
-    Handler->>EventBus: publish stored event stream
-```
-
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt:114-143, wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/dispatcher/CommandDispatcher.kt:37-75, wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/CommandAggregate.kt:65-82, wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/dispatcher/SendDomainEventStreamFilter.kt:25-46 -->
-
-When a legacy SDK or database driver blocks, isolate it behind a bounded adapter and scheduler outside the core command, event-store, projection, and Saga paths. Treat that boundary as a measured exception, not the default programming model.
+When an external SDK truly cannot be non-blocking, isolate it at an application-adapter boundary on a capacity-bounded scheduler and observe queueing, timeouts, and rejection. `@Blocking` is an isolation marker; it does not repair a slow query, unbounded concurrency, or non-cancellable I/O.
 
 ## Wait for the Business Outcome You Need
 
-| Stage | What it proves | What it does not prove | Typical caller | Source |
-|---|---|---|---|---|
-| `SENT` | The command bus accepted the command | Aggregate processing | Fire-and-observe workflows | [CommandStage.kt:26-34](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L26-L34) |
-| `PROCESSED` | The aggregate processed the command | Projection or external handler completion | Write APIs returning domain results | [CommandStage.kt:36-44](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L36-L44) |
-| `SNAPSHOT` | Snapshot processing completed; with `strategy: all`, the current state was saved | Other projections or external read models; `version_offset` may have skipped the write | Read-after-write snapshot queries using `all` and the same query-capable backend | [CommandStage.kt:46-54](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L46-L54) |
-| `PROJECTED` | A `PROJECTED` signal matching the optional function target | Every projection in the system | Read-after-write UI/API | [CommandStage.kt:56-65](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L56-L65) |
-| `EVENT_HANDLED` | An `EVENT_HANDLED` signal matching the optional function target | Saga-generated command processing | A caller depending on one side effect | [CommandStage.kt:67-75](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L67-L75) |
-| `SAGA_HANDLED` | A matching Saga handled the source event and any generated commands were accepted/sent | Downstream aggregate completion or a distributed transaction commit | Observing orchestration acceptance | [CommandStage.kt:77-86](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L77-L86), [StatelessSagaFunction.kt:57-69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaFunction.kt#L57-L69) |
+| Stage | Proves | Does not prove |
+| --- | --- | --- |
+| `SENT` | CommandBus accepted the send | Aggregate execution |
+| `PROCESSED` | Command filter chain completed, including aggregate decision, EventStore append, and DomainEventBus send | Downstream consumers completed |
+| `SNAPSHOT` | Snapshot Dispatcher completed this StateEvent | All projections completed; `version_offset` wrote a new snapshot |
+| `PROJECTED` | Target projection completed; without a function target, the last-projection signal arrived | Event processors or sagas completed |
+| `EVENT_HANDLED` | Target event-processing function completed | Saga-derived commands completed |
+| `SAGA_HANDLED` | Target saga handled the source event and any derived command was sent/accepted | Downstream aggregate completion or distributed transaction commit |
 
-For `PROJECTED`, `EVENT_HANDLED`, and `SAGA_HANDLED`, provide a function target when one specific processor must complete. Without one, the wait target accepts a signal at the requested stage without function matching ([WaitPlan.kt:32-57](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt#L32-L57)).
-
-```mermaid
-flowchart TD
-    Start{What must the response prove?}
-    Start -->|Bus acceptance only| Sent[SENT]
-    Start -->|Aggregate decision| Processed[PROCESSED]
-    Start -->|Target read model updated| Projected[PROJECTED]
-    Start -->|Target external handler done| Handled[EVENT_HANDLED]
-    Start -->|Target Saga accepted its output| Saga[SAGA_HANDLED]
-    Start -->|Snapshot processing completed| Snapshot[SNAPSHOT]
-
-    classDef primary fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    classDef secondary fill:#161b22,stroke:#30363d,color:#e6edf3
-    class Start primary
-    class Sent,Processed,Projected,Handled,Saga,Snapshot secondary
-```
-
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt:25-102, wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaFunction.kt:57-69 -->
-
-Prefer the narrowest sufficient stage: wider waits couple API latency and availability to more asynchronous consumers. The default wait deadline is 30 seconds, and `WaitPlan.withTimeout` changes a caller-side execution deadline rather than a propagated message header ([WaitTimeout.kt:18-53](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitTimeout.kt#L18-L53)). Set an explicit timeout from the caller's latency budget and handle timeouts as an unknown observation result, not proof that the command was never processed.
+Function stages should name `contextName`, `processorName`, and `functionName` so an unrelated processor cannot satisfy the contract. `WaitPlan.withTimeout` bounds only the caller's local wait; it is not propagated in the command header. A timeout means the result is unknown, not that the command did not execute. Select the narrowest stage that proves the API contract.
 
 ## Make Retry, Concurrency, and LocalFirst Semantics Explicit
 
-| Mechanism | Use it for | Boundary | Source |
-|---|---|---|---|
-| `requestId` | Deduplicating the same logical command | The gateway checks the target aggregate and request ID before send | [DefaultCommandGateway.kt:86-118](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L86-L118) |
-| `aggregateVersion` | Rejecting stale commands with optimistic concurrency | Optional; omit only when stale writes are acceptable to domain rules | [CommandMessage.kt:85-95](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/command/CommandMessage.kt#L85-L95) |
-| LocalFirst | Avoiding broker latency after local runtime admission | It does not provide end-to-end exactly-once delivery | [LocalFirstMessageBus.kt:141-199](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/LocalFirstMessageBus.kt#L141-L199) |
-| Aggregate retry | Retrying framework-classified recoverable processing failures | Limited to three backoff retries in the current processor | [RetryableAggregateProcessor.kt:30-70](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/RetryableAggregateProcessor.kt#L30-L70) |
+| Mechanism | Purpose | Boundary |
+| --- | --- | --- |
+| `requestId` | Identifies one logical command across retries | Reuse it for the same business action; a new ID is a new command |
+| `aggregateVersion` | Rejects a write based on stale state | Omit only when the business accepts any current version |
+| Aggregate retry | Retries aggregate failures classified as recoverable | Bounded backoff; persistent conflicts require hot-spot or boundary work |
+| LocalFirst | Removes broker round-trip after local admission | Not exactly once; handler failure after admission does not re-enable the distributed copy |
 
-For a client retry of the same business request, preserve `requestId`; otherwise the duplicate check sees a new command. Use `aggregateVersion` when the command was prepared from a specific state version—for example, approving an order only if it has not changed since review.
-
-For an eligible local, non-void command, LocalFirst first attempts local runtime admission and sends a distributed copy. The copy is marked locally handled only when every targeted local receiver confirms admission; otherwise it stays eligible for distributed processing. Void commands explicitly disable LocalFirst, and a later Handler failure after successful admission does not retroactively reactivate the distributed copy ([LocalFirstCommandBus.kt:29-46](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/LocalFirstCommandBus.kt#L29-L46), [LocalFirstMessageBus.kt:141-199](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/LocalFirstMessageBus.kt#L141-L199)). Design Handler retry and adapter acknowledgement policy separately.
+Idempotency must extend through external effects. Use a business key, event ID, or target version and read current effect state before retrying. Broker redelivery, caller timeout retries, and operator compensation are independent duplicate sources; test all three.
 
 ## Use Snapshots as the Default Query Store
 
-`strategy: all` is the recommended strategy. It saves the state produced by every state event, so after the `SNAPSHOT` stage completes, the snapshot collection is both an aggregate-loading checkpoint and a real-time current-state query store. For standard queries over one aggregate type, applications do not need to write a projection processor that copies the same state elsewhere.
+For current state of one aggregate, prefer `strategy: all` with a query-capable SnapshotStore instead of copying the same state into another projection. MongoDB and Elasticsearch provide SnapshotQueryService. Redis and in-memory stores can save/load snapshots but provide no general dynamic-query implementation.
 
-| Choice | Query semantics | Recommendation | Source |
-|---|---|---|---|
-| `strategy: all` | Every processed state event updates the latest snapshot | Recommended default for current-state queries | [SnapshotAutoConfiguration.kt:67-92](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/SnapshotAutoConfiguration.kt#L67-L92), [SimpleSnapshotStrategy.kt:19-38](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SimpleSnapshotStrategy.kt#L19-L38) |
-| `strategy: version_offset` | The stored snapshot may trail the aggregate by as many events as the configured threshold allows | Use only when stale snapshot queries are acceptable or another read model serves current queries | [VersionOffsetSnapshotStrategy.kt:24-63](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/VersionOffsetSnapshotStrategy.kt#L24-L63) |
-| Custom projection | Maintains a purpose-built read schema | Reserve for cross-aggregate joins, denormalized views, analytics, or external systems | [ProjectionHandler.kt:23-43](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/projection/ProjectionHandler.kt#L23-L43) |
+| Requirement | Selection | Acceptance |
+| --- | --- | --- |
+| Current state and read-after-write | `all` + the same query backend | Wait for `SNAPSHOT`, then query the target version |
+| Aggregate-load optimization with tolerated query staleness | `version_offset` | Record the allowed version gap and sample full EventStore replay |
+| Cross-aggregate, denormalized, or external read model | Projection | Exact `PROJECTED` target, idempotency, rebuild, and reconciliation |
 
-```mermaid
-flowchart LR
-    Command[Command] --> Aggregate[Aggregate]
-    Aggregate --> StateEvent[State event]
-    StateEvent --> All[SimpleSnapshotStrategy all]
-    All --> Store[Query-capable SnapshotStore]
-    Store --> Service[SnapshotQueryService]
-    Service --> Routes[Built-in WebFlux query routes]
-    Routes --> Client[Client]
-    StateEvent -. cross-aggregate or custom view .-> Projection[Projection]
-
-    classDef primary fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    classDef secondary fill:#161b22,stroke:#30363d,color:#e6edf3
-    class Command,Aggregate,StateEvent,All primary
-    class Store,Service,Routes,Client,Projection secondary
-```
-
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SimpleSnapshotStrategy.kt:19-38, wow-query/src/main/kotlin/me/ahoo/wow/query/snapshot/SnapshotQueryService.kt:30-61, wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/contributor/aggregate/snapshot/SnapshotRouteContributor.kt:59-281, wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/webflux/route/QueryRouteModule.kt:34-79 -->
-
-With WebFlux support enabled, Wow contributes single, list, paged, count, and state-only snapshot endpoints, so applications do not need to hand-write controllers for these standard query shapes ([SnapshotRouteContributor.kt:59-281](https://github.com/Ahoo-Wang/Wow/blob/main/wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/contributor/aggregate/snapshot/SnapshotRouteContributor.kt#L59-L281), [QueryRouteModule.kt:34-79](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/webflux/route/QueryRouteModule.kt#L34-L79)). The same service is registered per aggregate as `<aggregate>.SnapshotQueryService` for in-process queries ([SnapshotQueryServiceRegistrar.kt:28-61](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring/src/main/kotlin/me/ahoo/wow/spring/query/SnapshotQueryServiceRegistrar.kt#L28-L61)).
-
-This read path requires a query-capable snapshot backend: MongoDB and Elasticsearch provide `SnapshotQueryServiceFactory`; a custom backend must provide the matching factory binding. Redis and in-memory snapshot stores persist/load snapshots but do not by themselves implement dynamic snapshot queries. Keep authorization, tenant/owner filtering, and database indexes explicit. With `strategy: all` and the query service bound to the same backend, read-after-write callers should wait for `SNAPSHOT`; snapshot processing consumes state events asynchronously. The stage only proves processing completed—`version_offset` may complete without writing when its threshold is not met. The event stream remains the source of truth.
+A snapshot is a derived checkpoint; EventStore remains authoritative aggregate history. Query indexes, tenant/owner/space filtering, and authorization remain application-owned.
 
 ## Orchestrate and Compensate Deliberately
 
-| Situation | Mechanism | Required decision | Source |
-|---|---|---|---|
-| One event triggers commands for another aggregate | Stateless Saga | Define command idempotency and downstream observation | [StatelessSagaFunction.kt:57-69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaFunction.kt#L57-L69) |
-| A recoverable asynchronous execution fails | Compensation | Define retry threshold, backoff, timeout, and operator path | [CompensationProperties.kt:21-33](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-server/src/main/kotlin/me/ahoo/wow/compensation/server/configuration/CompensationProperties.kt#L21-L33) |
-| Recovery reaches a terminal result | Compensation state | Distinguish `FAILED`, `PREPARED`, and `SUCCEEDED` | [ExecutionFailedState.kt:44-85](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-domain/src/main/kotlin/me/ahoo/wow/compensation/domain/ExecutionFailedState.kt#L44-L85) |
+A saga expresses cross-aggregate orchestration, not an ACID distributed transaction. `SAGA_HANDLED` covers the source-event function and possible command-send boundary. If a caller needs downstream aggregate completion, use a wait chain or read a verifiable state instead of expanding that stage's meaning.
 
-```mermaid
-%%{init: {"theme":"base","themeVariables":{"primaryColor":"#2d333b","primaryBorderColor":"#6d5dfc","primaryTextColor":"#e6edf3","lineColor":"#8b949e","secondaryColor":"#161b22","tertiaryColor":"#161b22"}}}%%
-stateDiagram-v2
-    [*] --> FAILED: failure recorded
-    FAILED --> PREPARED: retry prepared
-    PREPARED --> FAILED: retry failed
-    PREPARED --> SUCCEEDED: retry succeeded
-    PREPARED --> PREPARED: timed-out attempt reclaimed
-    SUCCEEDED --> [*]
-```
-
-<!-- Sources: compensation/wow-compensation-domain/src/main/kotlin/me/ahoo/wow/compensation/domain/ExecutionFailed.kt:59-106, compensation/wow-compensation-domain/src/main/kotlin/me/ahoo/wow/compensation/domain/ExecutionFailedState.kt:44-85, compensation/wow-compensation-api/src/main/kotlin/me/ahoo/wow/compensation/api/IExecutionFailedState.kt:138-164 -->
-
-Do not describe a Saga as an ACID transaction. Saga completion observes the source-event handler and command-send boundary; downstream aggregate execution may be concurrent or later. For compensation, set finite retry and execution limits, expose exhausted or unrecoverable work to operators, and make the retried side effect idempotent.
+When automatic retries are exhausted or an error is unrecoverable, compensation data should retain the target function, error, retry state, and operator decision. Before resending, prove handler idempotency and distinguish resending a domain event, a reconstructed state event, or one failed function. Their blast radii differ.
 
 ## Test Behavior at the Narrowest Useful Layer
 
-| Test layer | What to assert | Framework support | Source |
-|---|---|---|---|
-| Aggregate specification | Error, emitted event type/body, and resulting state | `AggregateSpec` | [AggregateSpec.kt:32-70](https://github.com/Ahoo-Wang/Wow/blob/main/test/wow-test/src/main/kotlin/me/ahoo/wow/test/AggregateSpec.kt#L32-L70) |
-| Saga specification | Commands emitted for a source event | `SagaSpec` | [SagaSpec.kt:28-70](https://github.com/Ahoo-Wang/Wow/blob/main/test/wow-test/src/main/kotlin/me/ahoo/wow/test/SagaSpec.kt#L28-L70) |
-| Adapter contract | Message bus, event store, snapshot store, projection, and query behavior | `wow-tck` specifications | [EventStoreSpec.kt:47-80](https://github.com/Ahoo-Wang/Wow/blob/main/test/wow-tck/src/main/kotlin/me/ahoo/wow/tck/eventsourcing/EventStoreSpec.kt#L47-L80) |
-| Integration path | Serialization, generated contracts, storage, broker, and Spring wiring | TCK-backed integration tests with real adapters | [KafkaMongoCommandDispatcher.kt:31-72](https://github.com/Ahoo-Wang/Wow/blob/main/test/wow-it/src/integrationTest/kotlin/me/ahoo/wow/it/KafkaMongoCommandDispatcher.kt#L31-L72) |
+| Test layer | Minimum assertion | Tool |
+| --- | --- | --- |
+| Aggregate | Command acceptance/rejection, event, state | `AggregateSpec` |
+| Saga | Commands and branches from a source event | `SagaSpec` |
+| Adapter | EventStore/SnapshotStore/bus/query contracts | `wow-tck` |
+| Application integration | Generated metadata, serialization, real bus/store, Spring wiring | Production-like integration test |
+| Operations | Redelivery, rebuild, backup/restore, reconciliation, shutdown | Isolated drill |
 
-Every aggregate rule should have a success case, a rejection case, and relevant state-transition forks. The Cart specification demonstrates event and state assertions plus delete/recover branches ([CartSpec.kt:28-86](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/cart/CartSpec.kt#L28-L86)). Add broader integration tests only where infrastructure behavior matters; this keeps failures local and diagnostics precise.
+Reproduce at the narrowest layer first, then add integration tests only for infrastructure behavior. String assertions or mocks do not prove actual MongoDB, Redis, Kafka, or Elasticsearch behavior.
 
 ## Production Readiness Checklist
 
-| Gate | Ready when | Evidence to keep | Source |
-|---|---|---|---|
-| Domain | Invariants and event/state transitions have focused specs | Aggregate and Saga test reports | [CartSpec.kt:28-86](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/cart/CartSpec.kt#L28-L86) |
-| Consistency | Every endpoint documents its wait stage and timeout | API contract and latency budget | [WaitTimeout.kt:18-53](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitTimeout.kt#L18-L53) |
-| Delivery | Retry, idempotency, concurrency, and LocalFirst boundaries are explicit | Failure-path tests and adapter settings | [DefaultCommandGateway.kt:86-143](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L86-L143) |
-| Snapshot query | `all` is enabled on a query-capable backend; filters, indexes, routes, and `SNAPSHOT` read-after-write behavior are verified | API tests and query plans with production-like data | [SnapshotQueryService.kt:30-61](https://github.com/Ahoo-Wang/Wow/blob/main/wow-query/src/main/kotlin/me/ahoo/wow/query/snapshot/SnapshotQueryService.kt#L30-L61) |
-| Recovery | Retry exhaustion and unrecoverable failures have an operator workflow | Compensation dashboard/runbook | [IExecutionFailedState.kt:138-164](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-api/src/main/kotlin/me/ahoo/wow/compensation/api/IExecutionFailedState.kt#L138-L164) |
-| Disaster recovery | EventStore, snapshots, projections, and broker offsets pass an isolated restore and reconciliation | Backup checksums, RPO/RTO, and business reconciliation results | [Backup, Restore, and Replay](./recovery.md) |
-| Observability | Command waits, bus sends, and storage calls are traceable | Trace and metric screenshots from staging | [TracingCommandGateway.kt:31-66](https://github.com/Ahoo-Wang/Wow/blob/main/wow-opentelemetry/src/main/kotlin/me/ahoo/wow/opentelemetry/wait/TracingCommandGateway.kt#L31-L66), [TracingEventStore.kt:28-66](https://github.com/Ahoo-Wang/Wow/blob/main/wow-opentelemetry/src/main/kotlin/me/ahoo/wow/opentelemetry/eventsourcing/TracingEventStore.kt#L28-L66) |
-| Lifecycle | Shutdown drains accepted work within an explicit deadline | Deployment termination test | [CommandDispatcher.kt:78-83](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/dispatcher/CommandDispatcher.kt#L78-L83) |
+| Gate | Pass condition | Evidence |
+| --- | --- | --- |
+| `SENT` | Target bus send, authentication, topic/Stream, and error path verified | Broker tests, ACLs, lag/ACK records |
+| `PROCESSED` | Aggregate specs, EventStore concurrency/idempotency, and event evolution pass | Test reports and version/revision samples |
+| `SNAPSHOT` | Strategy, StateEvent consumption, query backend, and rebuild pass | Read-after-write, full-replay reconciliation, query plan |
+| Function stages | Target matching, redelivery idempotency, and compensation are operable | Function identity, failure injection, compensation records |
+| HTTP | Actual routes are protected by authorization and query guards | Runtime OpenAPI and authorization/rate-limit tests |
+| Lifecycle | Ingress removal, quiescence, reverse stop, and fatal close meet budget | Rolling-shutdown timeline and remaining lag |
+| Recovery | EventStore, derived state, offsets, and compensation pass isolated restore | Checksums, RPO/RTO, business reconciliation |
 
-Promote only after validating the actual storage adapter, broker, deployment topology, and data distribution. Green unit tests establish domain behavior; they do not by themselves prove capacity, recovery, or shutdown behavior in production.
+Only evidence from the target topology and production-like data volume supports a production claim. Framework module checks prove source regression; they do not prove capacity, deployment, or recovery by themselves.
 
 ## Related Pages
 
-| Page | Relationship |
-|---|---|
-| [Core Concepts](./core-concepts.md) | Defines commands, events, aggregates, and CQRS |
-| [Aggregate Modeling](./modeling.md) | Shows how to model command and state aggregates |
-| [Command Gateway](./command-gateway.md) | Documents wait plans and command delivery |
-| [Snapshot](./snapshot.md) | Explains snapshot stores and strategies |
-| [Query Service](./query.md) | Documents snapshot query DSL and built-in endpoints |
-| [Distributed Transactions (Saga)](./saga.md) | Covers cross-aggregate orchestration |
-| [Event Compensation](./event-compensation.md) | Covers failure recovery and operator workflows |
-| [Backup, Restore, and Replay](./recovery.md) | Defines EventStore restore, replay, reconciliation, and rollback gates |
-| [Test Suite](./test-suite.md) | Describes the aggregate and Saga testing DSL |
-| [Observability](./advanced/observability.md) | Covers traces and runtime observability |
+- [Core Concepts](./core-concepts.md)
+- [Aggregate Modeling](./modeling.md)
+- [Command Gateway](./command-gateway.md)
+- [Snapshot](./snapshot.md)
+- [Query Service](./query.md)
+- [Distributed Transactions (Saga)](./saga.md)
+- [Event Compensation](./event-compensation.md)
+- [Backup, Restore, and Replay](./recovery.md)
+- [Test Suite](./test-suite.md)
+- [Observability](./advanced/observability.md)

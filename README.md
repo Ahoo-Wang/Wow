@@ -6,7 +6,7 @@
 
 <p align="center"><strong>Domain Model as a Service</strong></p>
 
-<p align="center">Modern Reactive CQRS Architecture Microservice Development Framework<br>Based on DDD & Event Sourcing</p>
+<p align="center">A reactive CQRS and Event Sourcing framework for explicit, testable, and traceable domain decisions.</p>
 
 <p align="center">
   <a href="https://www.kaicode.org/2026.html"><img width="280" src="documentation/docs/public/images/kaicode-2026-wow.svg" alt="KaiCode'26 Excellent Award"/></a><br/>
@@ -25,215 +25,75 @@
 </p>
 
 <p align="center">
-  <strong>Domain-Driven</strong> &middot; <strong>Event-Driven</strong> &middot; <strong>Test-Driven</strong> &middot; <strong>Declarative Design</strong> &middot; <strong>Reactive</strong> &middot; <strong>CQRS</strong> &middot; <strong>Event Sourcing</strong>
+  <strong>Domain-Driven</strong> &middot; <strong>Event-Driven</strong> &middot; <strong>Test-Driven</strong> &middot; <strong>Declarative</strong> &middot; <strong>Reactive</strong>
 </p>
 
 <p align="center">
-  <a href="https://wow.ahoo.me/">English</a> &middot; <a href="https://wow.ahoo.me/zh/">中文</a>
+  <a href="https://wow.ahoo.me/">English documentation</a> &middot; <a href="https://wow.ahoo.me/zh/">中文文档</a>
 </p>
 
 ---
 
-## Recognition
+## What Wow Gives You
 
-Wow received the [KaiCode’26 Excellent Award](https://www.kaicode.org/2026.html). The official results highlighted its modular DDD/CQRS design, disciplined multi-reviewer code review, Testcontainers-based integration testing, enforced test coverage thresholds, Detekt static analysis, bilingual documentation, and long history of semantically versioned releases on Maven Central.
+Wow turns each write into an observable domain flow:
 
-## Quick Start
+```text
+HTTP command → aggregate decision → domain event → sourced state → projection / saga
+```
+
+You define commands, events, aggregate rules, and sourcing handlers. Wow supplies the reactive command pipeline, event persistence, snapshots, wait stages, projections, sagas, generated metadata, WebFlux routes, and a Given → When → Expect test DSL.
+
+This is most useful when business rules, state history, multiple read models, or cross-aggregate workflows justify Event Sourcing. For simple CRUD where one database transaction already expresses the whole problem, the added event-evolution and eventual-consistency costs may not pay off.
+
+## 30-Minute First-Slice Target
 
 [![Use this template](https://img.shields.io/badge/Use%20this%20template-2ea44f?style=for-the-badge&logo=github)](https://github.com/new?template_name=wow-project-template&template_owner=Ahoo-Wang)
 
-Click the button above to create a new repository from [Wow Project Template](https://github.com/Ahoo-Wang/wow-project-template), then clone it and start writing your domain model.
+1. Create or clone the [Wow Project Template](https://github.com/Ahoo-Wang/wow-project-template).
+2. Run `./gradlew :domain:check`, then start `./gradlew :server:run` with the documented in-memory configuration.
+3. Follow [Getting Started](documentation/docs/en/guide/getting-started.md) to send a real `CreateDemo` command, wait for `SNAPSHOT`, and read state at aggregate version `1`.
 
-> **Wow 8.x** supports Spring Boot 4.x, Java 17+
-> 
-> **Wow 6.x** requires Java 17+, but its Spring Boot baseline depends on the exact tag:
-> earlier tags such as [`v6.8.0`](https://github.com/Ahoo-Wang/Wow/blob/v6.8.0/gradle/libs.versions.toml)
-> use Spring Boot 3, while [`v6.21.5`](https://github.com/Ahoo-Wang/Wow/blob/v6.21.5/gradle/libs.versions.toml)
-> uses Spring Boot 4.0. Pin the source tag before planning an upgrade.
+That path proves the domain test, generated route, command pipeline, event sourcing, snapshot wait, and versioned state read. The 30-minute duration is a target: the functional path has been exercised, but a first-time developer's wall-clock completion has not been measured. If you are adding Wow to an existing service, use [Add Wow to an Existing Project](documentation/docs/en/guide/existing-project.md).
 
-## Why Wow?
+## Evidence in This Repository
 
-As business complexity grows, traditional CRUD architectures hit bottlenecks — tangled database schemas, painful sharding, and fragile distributed transactions. *Domain-Driven Design* and *Event Sourcing* address these problems, but often come with steep learning curves and implementation overhead.
+| Capability | What to inspect |
+| --- | --- |
+| Aggregate decisions and event-sourced state | [Order and cart example](example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain) and its [domain specifications](example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain) |
+| Command dispatch, event persistence, projections, and sagas | [wow-core](wow-core/src/main/kotlin/me/ahoo/wow) |
+| Given → When → Expect verification | [wow-test](test/wow-test/src/main/kotlin/me/ahoo/wow/test) |
+| Generated HTTP command and state routes | [wow-webflux](wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route) |
+| Optional storage, messaging, security, and telemetry integrations | [wow-spring-boot-starter feature capabilities](wow-spring-boot-starter/build.gradle.kts) |
+| Compensation and recovery operations | [Compensation domain](compensation) and [dashboard](documentation/docs/public/images/compensation/dashboard.png) |
 
-Wow was built to change that. After years of production validation, it distills DDD + ES into a developer-friendly framework where you focus on the domain model, and Wow handles the rest.
+<p align="center"><img src="documentation/docs/public/images/Architecture.svg" alt="Wow architecture" width="95%"/></p>
 
-**For developers:**
-- **Focus on business, not infrastructure** — Write only the domain model; Wow auto-generates OpenAPI interfaces
-- **Effortless testing** — The Given→When→Expect pattern makes 85%+ unit test coverage the norm, not the exception
-- **Elegant read-write separation** — Wait for the `PROJECTED` signal instead of guessing sync delays; no more "wait 1 second and refresh"
-- **Scale without code changes** — Horizontal scaling without sharding rules or database relationship refactoring
+## Compatibility Baseline
 
-**For enterprises:**
-- **Business Intelligence** — State events and commands serve as rich, real-time data sources, reducing ETL to simple SQL scripts
-- **Operation Audit** — Every command and its resulting domain events are recorded with clear business semantics
-- **Engineering Quality** — In API testing, Wow-based projects showed only **1/3** the bug count of traditional-architecture projects at the same skill level
+The current source tree declares:
 
-## Features
+| Component | Baseline |
+| --- | --- |
+| Wow | `8.13.1` |
+| Java | 17+ |
+| Spring Boot | `4.1.1` |
+| Kotlin | `2.4.10` |
+| KSP | `2.3.11` |
 
-<p align="center"><img src="documentation/docs/public/images/Features.png" alt="Wow Features" width="95%"/></p>
+The project template evolves independently. The tutorial records the exact template commit and its pinned Wow version; inspect its [`gradle/libs.versions.toml`](https://github.com/Ahoo-Wang/wow-project-template/blob/main/gradle/libs.versions.toml) before starting. For another framework line, pin the exact [release](https://github.com/Ahoo-Wang/Wow/releases) and inspect that tag: for example, [`v6.20.16`](https://github.com/Ahoo-Wang/Wow/blob/v6.20.16/gradle/libs.versions.toml) declares Wow `6.20.16` and Spring Boot `3.5.11`.
 
-| Feature | Description |
-|---------|-------------|
-| **Domain Model as a Service** | Just write the domain model, Wow auto-generates OpenAPI interfaces — no controller boilerplate needed |
-| **Test Suite** | Given→When→Expect pattern (`AggregateSpec` / `SagaSpec`), 80%+ coverage made easy |
-| **High Performance** | AppendOnly writes to event store, query-oriented search engines for reads — 59k+ TPS in stress tests |
-| **Horizontal Scalability** | No sharding rules needed, business code unchanged when scaling out |
-| **Distributed Transactions** | Saga orchestration pattern for carefully managed multi-service transactions |
-| **Event Compensation** | Visual dashboard + automatic retry with configurable `RetrySpec` for eventual consistency |
-| **Read-Write Separation** | `SENT` / `PROCESSED` / `PROJECTED` wait plans eliminate sync-delay guesswork |
-| **Observability** | End-to-end OpenTelemetry integration for tracing, metrics, and debugging |
-| **Reactive** | Non-blocking async messaging with Project Reactor throughout the entire stack |
-| **Event Sourcing** | Full state history via event replay, enabling powerful audit and time-travel debugging |
-| **Business Intelligence** | Rich event-sourced data with real-time sync to data warehouses, minimal ETL cost |
+Source, binary, and wire compatibility are separate concerns. Validate the one your upgrade requires, especially persisted events and generated HTTP contracts.
 
-## Architecture
+## Continue
 
-<p align="center"><img src="documentation/docs/public/images/Architecture.svg" alt="Architecture" width="95%"/></p>
+- Start with the [Introduction](documentation/docs/en/guide/introduction.md), [Core Concepts](documentation/docs/en/guide/core-concepts.md), and [documentation map](documentation/docs/en/guide/index.md).
+- Read the Kotlin [Order Service](example) or Java [Bank Transfer](example/transfer) example.
+- Explore runtime completion in [Command Gateway](documentation/docs/en/guide/command-gateway.md), read models in [Projection](documentation/docs/en/guide/projection.md), and recovery in [Event Compensation](documentation/docs/en/guide/event-compensation.md).
+- Review [Contributing](CONTRIBUTING.md), the [Code of Conduct](CODE_OF_CONDUCT.md), and the [Security Policy](SECURITY.md).
+- Wow received the [KaiCode’26 Excellent Award](https://www.kaicode.org/2026.html) for evidence including its modular design, review discipline, testing, static analysis, bilingual documentation, and Maven Central release history.
 
-### Command Processing Propagation Chain
-
-<p align="center"><img src="documentation/docs/public/images/wait/CommandWaitChain.svg" alt="Command Processing Chain" width="95%"/></p>
-
-## Performance
-
-Stress test of the example application (2 min):
-
-| Operation | Wait Plan | Avg TPS | Peak TPS | Avg Latency |
-|-----------|--------------|---------|----------|-------------|
-| Add To Cart | `SENT` | 59,625 | 82,312 | 29 ms |
-| Add To Cart | `PROCESSED` | 18,696 | 24,141 | 239 ms |
-| Create Order | `SENT` | 47,838 | 86,200 | 217 ms |
-| Create Order | `PROCESSED` | 18,230 | 25,506 | 268 ms |
-
-<details>
-<summary>Performance Details & Deployment</summary>
-
-- Test Code: [Example](./example)
-- Deployment: [Redis](deploy/example/perf/redis.yaml) / [MongoDB](deploy/example/perf/mongo.yaml) / [Kafka](deploy/example/perf/kafka.yaml)
-
-<p align="center">
-  <img src="./document/example/perf/Example.Cart.Add@SENT.png" alt="AddCartItem-SENT"/>
-</p>
-
-<p align="center">
-  <img src="./document/example/perf/Example.Order.Create@SENT.png" alt="CreateOrder-SENT"/>
-</p>
-
-</details>
-
-## Test Suite
-
-> Given → When → Expect
-
-<p align="center"><img src="document/design/assets/CI-Flow.png" alt="CI Flow" width="80%"/></p>
-
-### Aggregate Test (`AggregateVerifier`)
-
-```kotlin
-class CartSpec : AggregateSpec<Cart, CartState>({
-  on {
-    whenCommand(AddCartItem(productId = "productId", quantity = 1)) {
-      expectNoError()
-      expectEventType(CartItemAdded::class)
-      expectState {
-        items.assert().hasSize(1)
-      }
-    }
-  }
-})
-```
-
-### Saga Test (`SagaVerifier`)
-
-```kotlin
-class CartSagaSpec : SagaSpec<CartSaga>({
-  on {
-    whenEvent(event = mockk<OrderCreated> {
-      every { items } returns listOf(orderItem)
-      every { fromCart } returns true
-    }, ownerId = ownerId) {
-      expectCommandType(RemoveCartItem::class)
-    }
-  }
-})
-```
-
-## Design
-
-### Modeling Patterns
-
-| Single Class | Inheritance | Aggregation |
-|:---:|:---:|:---:|
-| ![Single Class](./document/design/assets/Modeling-Single-Class-Pattern.svg) | ![Inheritance](./document/design/assets/Modeling-Inheritance-Pattern.svg) | ![Aggregation](./document/design/assets/Modeling-Aggregation-Pattern.svg) |
-
-### Core Flows
-
-<p align="center"><img src="./document/design/assets/Command-Event-Flow.svg" alt="Command And Event Flow" width="95%"/></p>
-
-<p align="center"><img src="./document/design/assets/EventSourcing.svg" alt="Event Sourcing" width="80%"/></p>
-
-<details>
-<summary>More Design Diagrams</summary>
-
-**Load Aggregate**
-
-<p align="center"><img src="./document/design/assets/Load-Aggregate.svg" alt="Load Aggregate" width="95%"/></p>
-
-**Aggregate State Flow**
-
-<p align="center"><img src="./document/design/assets/Aggregate-State-Flow.svg" alt="Aggregate State Flow" width="95%"/></p>
-
-**Send Command**
-
-<p align="center"><img src="./document/design/assets/Send-Command.svg" alt="Send Command" width="95%"/></p>
-
-**Observability**
-
-<p align="center"><img src="./document/design/assets/OpenTelemetry.png" alt="Observability" width="80%"/></p>
-
-</details>
-
-## Event Compensation
-
-<p align="center"><img src="documentation/docs/public/images/compensation/dashboard.png" alt="Compensation Dashboard" width="80%"/></p>
-
-<details>
-<summary>Compensation Details</summary>
-
-<p align="center"><img src="documentation/docs/public/images/compensation/usercase.svg" alt="Compensation Use Case" width="80%"/></p>
-
-<p align="center"><img src="documentation/docs/public/images/compensation/process-sequence-diagram.svg" alt="Compensation Sequence" width="80%"/></p>
-
-<p align="center"><img src="documentation/docs/public/images/compensation/dashboard-apply-retry-spec.png" alt="Apply Retry Spec" width="80%"/></p>
-
-<p align="center"><img src="documentation/docs/public/images/compensation/dashboard-succeeded.png" alt="Compensation Succeeded" width="80%"/></p>
-
-</details>
-
-## Ecosystem
-
-| Project | Description |
-|---------|-------------|
-| [CosId](https://github.com/Ahoo-Wang/CosId) | Universal, flexible, high-performance distributed ID generator |
-| [CoSec](https://github.com/Ahoo-Wang/CoSec) | Multi-tenant reactive security framework based on RBAC and policies |
-| [CoCache](https://github.com/Ahoo-Wang/CoCache) | Distributed consistent secondary cache framework |
-| [Simba](https://github.com/Ahoo-Wang/Simba) | Easy-to-use, flexible distributed lock service |
-| [CoSky](https://github.com/Ahoo-Wang/CoSky) | High-performance, low-cost microservice governance platform |
-| [CoApi](https://github.com/Ahoo-Wang/CoApi) | Zero-boilerplate HTTP client auto-configuration for Spring 6 |
-| [FluentAssert](https://github.com/Ahoo-Wang/FluentAssert) | Kotlin fluent assertion library for readable and expressive tests |
-
-## Examples
-
-| Example | Language | Description |
-|---------|----------|-------------|
-| [Order Service](./example) | Kotlin | Aggregates, sagas, projections — full DDD demo |
-| [Bank Transfer](./example/transfer) | Java | Simple event sourcing demo |
-
-## Community
-
-- [Contributing Guide](CONTRIBUTING.md)
-- [Code of Conduct](CODE_OF_CONDUCT.md)
-- [Security Policy](SECURITY.md)
+Related projects: [CosId](https://github.com/Ahoo-Wang/CosId), [CoSec](https://github.com/Ahoo-Wang/CoSec), [CoCache](https://github.com/Ahoo-Wang/CoCache), [Simba](https://github.com/Ahoo-Wang/Simba), [CoSky](https://github.com/Ahoo-Wang/CoSky), [CoApi](https://github.com/Ahoo-Wang/CoApi), and [FluentAssert](https://github.com/Ahoo-Wang/FluentAssert).
 
 ## License
 

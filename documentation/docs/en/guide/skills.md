@@ -1,144 +1,81 @@
 ---
-title: "Agent Skills"
-description: "Install four intent-focused Wow Agent Skills for source-backed development, review, debugging, and evidence-gated breaking migrations."
+title: Agent Skills
+description: Select, install, and verify the four Wow Agent Skills for downstream applications.
 ---
 
 # Agent Skills
 
-Wow Agent Skills package framework-specific workflows, architectural invariants, safety boundaries, and completion evidence into four reusable skills. They do not copy the API documentation: annotation parameters, configuration defaults, DSL methods, and generated contracts must be re-established from the current checkout or the pinned target tag. [`skills/README.md`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/README.md)
+This page answers: **which Primary Skill should a downstream Wow task use, and how is completion proved?**
 
-| Entry | Purpose |
-|---|---|
-| [Wow `skills/`](https://github.com/Ahoo-Wang/Wow/tree/main/skills) | Skill content, references, assets, evals, and source plugin metadata |
-| [Ahoo Skills site](https://skills.ahoo.me/) | Plugin catalogue, installation commands, and distribution documentation |
-| [Ahoo-Wang/skills](https://github.com/Ahoo-Wang/skills) | Aggregated marketplace for Codex and Claude Code |
-| [Agent Skills specification](https://agentskills.io/) | `SKILL.md` format and progressive-disclosure model |
+The Wow repository owns Skill source and validation fixtures; the distribution repository and client own installation and discovery. Skills provide workflows, architectural invariants, authorization boundaries, and evidence gates. They do not replace target-version APIs, configuration, or generated contracts.
 
-The Wow repository owns the content. Ahoo Skills Hub periodically synchronizes, validates, and generates the `ahoo-wow-skills` plugin. Do not edit generated copies in the aggregation repository. [`skills/README.md`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/README.md#distribution)
+## Select one Primary Skill
 
-## Four primary skills
+Choose once from the user's primary requested outcome, then let that Skill own the complete task:
 
-The client selects one Primary Skill from the user's **primary outcome**, not from the component names mentioned in the request. That Skill owns the task through completion without switching to another Wow Skill. [`skills/README.md`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/README.md#selection-order)
-
-| Skill | Use it when | Complete lifecycle |
+| Skill | Select when | Do not select when |
 |---|---|---|
-| `wow-develop` | Designing, implementing, testing, refactoring, or explaining Wow behavior/APIs | Read-only: Frame → Discover → Model → Prove facts → Verify → Report; authorized change: Frame → Discover → Model → Prove RED → Change → Verify → Report |
-| `wow-review` | Producing findings, readiness evidence, or completing review-and-fix | Scope → Context → Findings → Authorized fix → Post-fix review |
-| `wow-debug` | Reproducing and locating an observed failure, or completing diagnose-and-fix | Capture → Reproduce → Locate → Hypothesize → Test → Fix/Conclude |
-| `wow-migrate` | Breaking release migration, or storage/data-format cutover from any starting version | Baseline → Target → Matrix, then only explicitly authorized adapt/data/validate/cutover stages |
+| `wow-migrate` | Cross-major or known breaking source/config/generated/runtime change, or a Wow-managed store/history cutover | First adoption without history conversion; routine same-major non-breaking upgrade |
+| `wow-debug` | There is a failure, hang, bad state, or reproducer and the outcome is root cause; fix only after authorization | Proactive development, ordinary diff review, or data cutover |
+| `wow-review` | The outcome is findings, merge readiness, or review-and-fix | Symptom-driven diagnosis, proactive feature work, or a breaking migration review |
+| `wow-develop` | Design, implement, test, refactor, or explain downstream Wow behavior, including first adoption | Existing-diff review, existing-failure diagnosis, or breaking migration |
 
-Source entries: [`wow-develop`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/wow-develop/SKILL.md#develop-wow-applications), [`wow-review`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/wow-review/SKILL.md#review-wow-changes), [`wow-debug`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/wow-debug/SKILL.md#debug-wow-failures), and [`wow-migrate`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/wow-migrate/SKILL.md#migrate-wow-across-breaking-boundaries).
+Do not activate these Skills for generic Kotlin, Gradle, dashboard, documentation, or DDD/CQRS work without scoped `me.ahoo.wow` imports, `wow-*` dependencies, or an explicit downstream Wow request. The Wow framework repository itself is also outside all four Skills' target scope.
 
-```mermaid
-flowchart TD
-    Task["User task"] --> Intent{"Primary outcome"}
-    Intent -->|Design, implement, test, explain| Develop["wow-develop"]
-    Intent -->|Findings or merge readiness| Review["wow-review"]
-    Intent -->|Reproducer or root cause| Debug["wow-debug"]
-    Intent -->|Breaking release or data/storage cutover| Migrate["wow-migrate"]
-    Intent -->|No Wow behavior involved| None["Do not activate"]
+Source contracts: [`skills/README.md`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/README.md), [`wow-develop`](https://github.com/Ahoo-Wang/Wow/tree/main/skills/wow-develop), [`wow-review`](https://github.com/Ahoo-Wang/Wow/tree/main/skills/wow-review), [`wow-debug`](https://github.com/Ahoo-Wang/Wow/tree/main/skills/wow-debug), and [`wow-migrate`](https://github.com/Ahoo-Wang/Wow/tree/main/skills/wow-migrate).
 
-    classDef default fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style Intent fill:#161b22,stroke:#30363d,color:#e6edf3
-    linkStyle default stroke:#8b949e
-```
+## Ownership and installation boundary
 
-### Selection order
+| Boundary | Owner | Usage |
+|---|---|---|
+| Skill behavior and references | Wow repository `skills/` | Edit here and run the local validator; do not edit generated copies in the aggregation repository |
+| Distributable plugin manifest | Wow repository [`skills/plugins.json`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/plugins.json) | The current manifest includes only the four Primary Skills; `agents/openai.yaml` supplies client display metadata and default prompts |
+| Aggregation and distribution | [Ahoo-Wang/skills](https://github.com/Ahoo-Wang/skills) | Install or refresh `ahoo-wow-skills` from the aggregate marketplace; do not treat it as the source-content edit point |
+| Current installation instructions | [Ahoo Skills](https://skills.ahoo.me/) | Follow the page for the relevant client; commands and publication state may evolve independently |
+| Generic format | [Agent Skills specification](https://agentskills.io/) | Defines the generic Skill format; it does not prove Wow Skill behavior |
 
-1. If a cross-major or same-major source/config breaking change, or storage/data cutover and rollback from any version, is primary, use `wow-migrate`.
-2. If there is an observed failure, hang, incorrect state, or reproducer and the goal is root cause, use `wow-debug`.
-3. If the goal is findings, approval evidence, or merge readiness, use `wow-review`.
-4. If the goal is designing, changing, testing, or explaining Wow, use `wow-develop`.
-5. Do not activate for unrelated Kotlin/Gradle, dashboard, or documentation-only work.
+This repository does not install Agent Skills through an application build. Successful installation proves only that a client discovered the plugin, not that a task selected the right Skill or produced a reliable result.
 
-Keep review-and-fix inside `wow-review` and diagnose-and-fix inside `wow-debug`. This preserves authorization, evidence, and diff baselines throughout the task.
+## Usage request
 
-## Progressive loading
-
-Each `SKILL.md` contains only the core procedure and selection rules. Domain material loads on demand from the [development reference table](https://github.com/Ahoo-Wang/Wow/blob/main/skills/wow-develop/SKILL.md#load-one-domain-reference-first).
-
-| Task | First reference |
-|---|---|
-| Aggregate, command, event, sourcing | `aggregate-sourcing.md` |
-| Saga, Projection, EventProcessor | `saga-processors.md` |
-| CommandGateway, waits, HTTP command routes | `command-delivery.md` |
-| Query DSL and read models | `query-read-model.md` |
-| Starter, storage, and buses | `starter-storage.md` |
-| Runtime lifecycle | `runtime-lifecycle.md` |
-| PrepareKey uniqueness and reservation | `prepare-key.md` |
-
-References contain stable decisions, source-discovery methods, and verification boundaries. Discover complete annotation parameters, test DSL APIs, configuration keys, defaults, and backend lists from the target version. [`skills/README.md`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/README.md#content-model)
-
-## Installation
-
-### Codex
-
-```bash
-codex plugin marketplace add Ahoo-Wang/skills --ref main
-codex plugin add ahoo-wow-skills@ahoo-skills
-```
-
-### Claude Code
+Provide at least four inputs:
 
 ```text
-/plugin marketplace add https://github.com/Ahoo-Wang/skills
-/plugin install ahoo-wow-skills
+Goal: add cancellation behavior to Order
+Scope: change only the downstream order-domain module
+Authorization: code and test edits allowed; release not allowed
+Evidence: run :order-domain:test and report compatibility plus missing runtime evidence
 ```
 
-Treat the [Ahoo Skills site](https://skills.ahoo.me/) as the source for current installation commands and publication state. After an update, use the client's refresh mechanism or a new task to confirm that all four Skills are discoverable.
+The Skill should then establish facts from the target checkout: read definitions, consumers, tests, configuration, and generated contracts; write only within authorization; run the narrowest valid check; and report results plus missing evidence accurately.
 
-This four-Skill architecture is intentionally breaking: legacy names and compatibility aliases are not distributed. Existing installations must refresh or reinstall the plugin after publication.
+Rediscover complete annotation parameters, DSL methods, configuration keys, defaults, and backend lists from the target version. References provide stable decisions and discovery methods, not a frozen API manual.
 
-## Usage
+## Completion evidence
 
-Provide at least the objective, scope, authorization mode, and completion evidence:
+A Skill task is complete only when its final report includes:
 
-These examples target a downstream application that uses Wow; never target the Wow framework repository or its modules with these Skills.
+- actual target version, scope, and authorization boundary;
+- behavior read or changed and its fact sources;
+- exact commands, exit results, and failure counts;
+- public, generated, data, or runtime compatibility impact;
+- unexecuted external, production, data, release, or rollback validation marked as missing evidence.
 
-| Information | Example |
-|---|---|
-| Objective | "Add cancellation behavior and tests to `Order`" |
-| Scope | "Only change the downstream `order-domain`; preserve public API compatibility" |
-| Mode | "Review only; do not edit" or "Diagnose and fix" |
-| Verification | "Run `:order-domain:test` and report the exact result" |
+`wow-review` remains read-only without authorization; `wow-debug` reproduces and locates before fixing; `wow-migrate` treats code, data, cutover, and release authority separately.
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant User
-    participant Client as Agent client
-    participant Skill as Primary Skill
-    participant Repo as Current checkout
-    participant Gate as Verification gate
+## Maintainer validation
 
-    User->>Client: Objective, scope, authorization, completion criteria
-    Client->>Skill: Activate one Primary Skill
-    Skill->>Repo: Read definitions, consumers, tests, and current diff
-    Repo-->>Skill: Return the target version's actual contract
-    Skill->>Gate: Run the narrowest test/check
-    Gate-->>Skill: Return results and evidence gaps
-    Skill-->>User: Deliver the change or evidence-backed conclusion
-```
-
-## Validation and maintenance
-
-Maintainers run:
+After changing Skills in this repository, run:
 
 ```bash
 python3 -S scripts/validate_wow_skills.py
-python3 -S -m unittest scripts/test_validate_wow_skills.py
+python3 -S -m unittest scripts.test_validate_wow_skills
 ```
 
-The lightweight validator uses only the Python standard library. It checks Skill metadata, `openai.yaml`, the explicit plugin list, local resource existence and path containment, plus IDs and Skill references in activation/behavior JSONL. [`skills/README.md`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/README.md#validation)
+These commands validate metadata, agent manifests, plugin includes, local resource paths, and eval JSONL structure. They do not execute behavior cases or prove natural-language activation, target APIs, or production migration. Evaluate behavior in fresh tasks against real diffs and command results.
 
-Structural validation does not prove natural-language activation or behavior. Activation and behavior cases are test data for a standard Agent eval tool or human forward evaluation: give a fresh task only the prompt and required fixture, keep expectations hidden from the Agent, then score the real diff, command results, and final evidence. The repository does not maintain a dedicated eval runner, and installed Skills do not depend on these maintenance scripts.
+## Prioritized next path
 
-## Related pages
-
-| Page | Relationship |
-|---|---|
-| [Getting Started](./getting-started.md) | Build a runnable Wow application |
-| [Aggregate Modeling](./modeling.md) | Aggregate background for `wow-develop` |
-| [Test Suite](./test-suite.md) | Current Aggregate/Saga testing APIs |
-| [Troubleshooting](./troubleshooting.md) | Runtime and configuration context for `wow-debug` |
-| [Migrate Wow v6 to v8](./migration/v6-to-v8.md) | Framework migration topic for `wow-migrate` |
+1. Select one Primary Skill and include scope, authorization, and evidence in the request.
+2. For first adoption, establish a runnable baseline with [Getting Started](./getting-started.md).
+3. For breaking contracts or historical data, read [Migration](./migration.md) and pin exact source and target versions first.

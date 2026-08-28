@@ -1,121 +1,108 @@
 ---
 title: Prepare Key
-description: Application-level key uniqueness mechanism for the EventSourcing architecture.
+description: PrepareKey conditional reservation, TTL, rollback, key change, and transaction boundaries.
+outline: deep
 ---
 
 # Prepare Key
 
-Compared to traditional databases, developers can add uniqueness constraints by setting `UNIQUE KEY` for fields.
-But in the _EventSourcing_ architecture, we need to ensure `Key` uniqueness at the application level, and the `PrepareKey` specification was born for this purpose.
+`PrepareKey<V>` provides application-level reservation for keys such as usernames or SKUs that contend across aggregates. A MongoDB, Redis, or other adapter atomically owns the mapping from key to current value. PrepareKey is not part of EventStore and is not a database transaction spanning EventStore and an external store.
 
-## Define PrepareKey
-
-To use `PrepareKey`, you need to define an interface annotated with `@PreparableKey`, which must extend `PrepareKey<T>`, where `T` is the type of the key.
+## Declaration and assembly
 
 ```kotlin
-import me.ahoo.wow.api.annotation.PreparableKey
-import me.ahoo.wow.infra.prepare.PrepareKey
-
-@PreparableKey(name = "username_idx")
-interface UsernamePrepare : PrepareKey<String>
+@PreparableKey(name = "username")
+interface UsernamePrepareKey : PrepareKey<UsernameIndex>
 ```
 
-- `@PreparableKey(name = "username_idx")`: Specifies the name of the prepared key, used to identify the key's index in storage.
-- `PrepareKey<String>`: The generic parameter `String` indicates the key type is string.
+The Starter scans application base packages and `wow.prepare.base-packages` for interfaces annotated with `@PreparableKey`. The interface must expose a concrete value type through `PrepareKey<V>`. A blank annotation name falls back to the interface simple name; the Spring bean name also uses the interface simple name.
 
-The framework automatically scans interfaces annotated with `@PreparableKey`, creates proxy instances through `PrepareKeyProxyFactory`, and registers them as Spring Beans with the interface's simple name as the bean name. This allows dependency injection to obtain `PrepareKey` instances in aggregates.
+The default proxy factory can create a backend delegate only when a `PrepareKeyFactory` exists. Backend selection and enablement live in the [Core Configuration Reference](../../reference/config/core.md) and the [MongoDB](../extensions/mongo.md) / [Redis](../extensions/redis.md) extension pages.
 
-## PrepareKey Interface Methods
+## Operation contract
 
-The `PrepareKey<V>` interface provides the following core methods:
+| Operation | Success condition | Meaning of `false` |
+| --- | --- | --- |
+| `prepare(key, value)` | The key can be reserved for this value | The key is occupied |
+| `get(key)` | A record exists and its `PreparedValue` is not expired | Empty means absent or expired |
+| `getValue(key)` | A record exists | Returns value and `ttlAt`, even when expired |
+| `rollback(key)` | Delete the current record unconditionally | No record to delete |
+| `rollback(key, value)` | Delete only when current value matches | Key absent or value mismatch |
+| `reprepare(key, old, new)` | Current value equals old and is replaced with new | Key absent or old value mismatch |
 
-### Prepare Key
+The concrete `PrepareKeyFactory` owns atomicity. The interface alone does not establish lock scope, isolation level, or cross-region consistency.
 
-- `prepare(key: String, value: V)`: Permanently prepares a key, ensuring other operations cannot use the same key until explicitly rolled back.
-- `prepare(key: String, value: PreparedValue<V>)`: Prepares a key with TTL (Time-To-Live) support, automatically expiring after the specified time.
+## TTL
 
-### Get Prepared Value
-
-- `get(key: String)`: Retrieves a non-expired prepared value.
-- `getValue(key: String)`: Retrieves complete prepared value information, including expiration status.
-
-### Rollback Key
-
-- `rollback(key: String)`: Unconditionally rolls back the specified key.
-- `rollback(key: String, value: V)`: Conditionally rolls back only if the value matches, ensuring atomicity.
-
-### Reprepare Key
-
-- `reprepare(key: String, oldValue: V, newValue: V)`: Updates the value of an existing key, using the old value for concurrency control.
-- `reprepare(oldKey: String, oldValue: V, newKey: String, newValue: V)`: Atomically releases the old key and prepares the new key, commonly used for scenarios like username changes.
-
-### Execute Operation in Prepare Context
-
-- `usingPrepare(key: String, value: V, then: (Boolean) -> Mono<R>)`: Executes an operation within a prepare context, automatically rolling back preparation if the operation fails, providing transaction-like semantics.
-
-## PreparedValue and TTL Support
-
-`PreparedValue<V>` encapsulates the value and optional TTL configuration:
-
-- Permanent preparation: `value.toForever()`
-- TTL preparation: `PreparedValue(value, Duration.ofMinutes(5))`
-
-TTL support allows temporary key reservations that automatically clean up after expiration, suitable for temporary operations requiring cleanup.
-
-## User Registration Scenario
-
-For example, when a user registers, the uniqueness of the username needs to be guaranteed:
+`PreparedValue` stores a value and absolute expiration time `ttlAt` in Unix epoch milliseconds:
 
 ```kotlin
-@AggregateRoot
-class User(private val state: UserState) {
-    @OnCommand
-    private fun onRegister(
-        register: Register,
-        passwordEncoder: PasswordEncoder,
-        usernamePrepare: UsernamePrepare,
-    ): Mono<Registered> {
-        val encodedPassword = passwordEncoder.encode(register.password)
-        return usernamePrepare.usingPrepare(
-            key = register.username,
-            value = UsernameIndexValue(
-                userId = state.id,
-                password = encodedPassword,
-            ),
-        ) {
-            require(it) {
-                "username[${register.username}] is already registered."
-            }
-            Registered(username = register.username, password = encodedPassword).toMono()
-        }
-    }
+val forever = value.toForever()
+val temporary = value.toTtlAt(System.currentTimeMillis() + 5 * 60_000)
+```
+
+`get` filters expired values at the client-interface layer; the backend is responsible for allowing an expired key to be prepared again. TTL depends on caller/backend clocks and is not a precise business timer. Permanent values use framework constant `TTL_FOREVER`; do not copy its numeric value.
+
+## Exact `usingPrepare` boundary
+
+```kotlin
+return usernamePrepareKey.usingPrepare(command.username, index) { prepared ->
+    require(prepared) { "username is already reserved" }
+    Registered(command.username).toMono()
 }
 ```
 
-## User Change Username Scenario
+The flow is:
 
-For example, when a user changes their username, the uniqueness of the new username needs to be guaranteed, and the old username needs to be rolled back:
+1. invoke `prepare`;
+2. pass the Boolean result to `then`, whether true or false;
+3. only when `prepared == true` and `then` terminates with an error, invoke conditional rollback;
+4. after rollback completes, propagate the original error; if rollback itself fails, the reactive chain propagates that rollback error.
+
+The current implementation uses `onErrorResume` and does not register automatic rollback for cancellation. A successful result also does not “commit” another record: the reservation remains until explicit rollback, reprepare, or TTL expiry. “Transaction-like” therefore refers only to conditional release on the error path and must not be expanded into a cross-storage transaction guarantee.
+
+## Change a key
 
 ```kotlin
-    @OnCommand
-    private fun onChangeUsername(
-        changeUsername: ChangeUsername,
-        usernamePrepare: UsernamePrepare
-    ): Mono<UsernameChanged> {
-        val usernameIndexValue = UsernameIndexValue(
-            userId = state.id,
-            password = state.password,
-        )
-        return usernamePrepare.reprepare(
-            oldKey = state.username,
-            oldValue = usernameIndexValue,
-            newKey = changeUsername.newUsername,
-            newValue = usernameIndexValue
-        ).map {
-            require(it) {
-                "username[${changeUsername.newUsername}] is already registered."
-            }
-            UsernameChanged(username = changeUsername.newUsername)
-        }
-    }
+prepareKey.reprepare(
+    oldKey = state.username,
+    oldValue = currentIndex,
+    newKey = command.newUsername,
+    newValue = currentIndex,
+)
 ```
+
+The default composition first executes `prepare(newKey)`, then conditional `rollback(oldKey, oldValue)`:
+
+- if the new key is occupied, return `false` and retain the old key;
+- if old key/value does not match, throw `IllegalStateException` and use the error path to attempt release of the newly reserved key;
+- if old and new keys are equal, reject immediately; use the same-key `reprepare` overload instead.
+
+These are two backend operations composed with compensation, not an indivisible cross-key transaction. Recovery still needs backend/TTL evidence when the process crashes, times out, or is cancelled between the two operations.
+
+## Use with aggregate commands
+
+PrepareKey fits a command decision that must reserve an external unique key, but EventStore append may fail afterward. A permanent reservation needs an explicit release/reconciliation design for command failure. A TTL reservation needs evidence that expiry and reacquisition are acceptable to the business.
+
+Do not collapse request-ID idempotency, EventStore version concurrency, and PrepareKey uniqueness into one mechanism:
+
+- request ID identifies a repeated command request;
+- aggregate version protects one aggregate event stream;
+- PrepareKey coordinates aggregates contending for one application key.
+
+## Verification
+
+```bash
+./gradlew :wow-core:test --tests "me.ahoo.wow.infra.prepare.PrepareKeyTest"
+./gradlew :wow-core:test --tests "me.ahoo.wow.infra.prepare.proxy.PrepareKeyProxyAndMetadataTest"
+./gradlew :wow-mongo:integrationTest --tests "*PrepareKey*"
+./gradlew :wow-redis:integrationTest --tests "*PrepareKey*"
+```
+
+The last two require their infrastructure. Applications should additionally test crash windows, TTL/clock behavior, and reconciliation after failure.
+
+## Source
+
+- [`PrepareKey`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/infra/prepare/PrepareKey.kt)
+- [`PreparedValue`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/infra/prepare/PreparedValue.kt)
+- [`PrepareKeyAutoRegistrar`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/prepare/PrepareKeyAutoRegistrar.kt)

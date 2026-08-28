@@ -1,140 +1,131 @@
 ---
 title: Testing Wow Applications
-description: Build domain, HTTP, real-adapter, recovery, and security release gates for applications using Wow.
+description: After domain specifications, verify generated metadata, runtime wiring, real adapters, recovery, and security boundaries in a Wow application.
 outline: deep
 ---
 
 # Testing Wow Applications
 
-This page is for teams building business systems with Wow. The goal is not to reuse the Wow repository test tasks, but to prove that your domain model, generated metadata, runtime wiring, and production adapters work together.
+This page is for teams building business applications with Wow. The domain DSL answers “does the model follow its invariants?” Application testing answers “can this model run safely with the actual wiring, protocol, and infrastructure?” They are consecutive gates and cannot replace each other.
 
-## Test Layers
+::: tip Completion signal
+Application testing is complete when the current build provides metadata evidence, at least one end-to-end business entry point, restart/redelivery evidence for production-equivalent adapters, and security negatives. The next layer is release, recovery, and observability acceptance in the target environment, not a Wow framework-repository benchmark.
+:::
 
-| Layer | What it proves | Recommended entry point |
+## Keep Three Test Categories Separate
+
+| Scope | What it proves | What it does not prove |
 | --- | --- | --- |
-| Domain specification | Commands, rejection rules, events, and sourced state are correct | `AggregateSpec`, `SagaSpec` |
-| Compile contract | KSP generates non-empty `META-INF/wow-metadata.json` | `clean kspKotlin test` |
-| HTTP vertical slice | Spring wiring, WebFlux routes, wait stages, and state loading form a closed loop | `@SpringBootTest` + `WebTestClient` |
-| Real adapters | Production EventStore, SnapshotStore, broker, and serialization contracts | Testcontainers or an isolated environment |
-| Recovery and upgrade | Restarts, historical events, snapshots, projections, and event revisions remain recoverable | backup/restore and replay tests |
-| Security boundary | Anonymous, unauthorized, cross-tenant, and raw-query access fails closed | Spring Security/CoSec integration tests |
+| [Domain DSL](./test-suite.md) | Command decisions, rejections, events, sourced state, and saga commands | Spring, HTTP, KSP packaging, real storage, or a broker |
+| Application integration gates | The application's own modules, configuration, entry points, and production adapters form a closed loop | General Wow correctness or performance under other configurations |
+| [Framework repository tests and benchmarks](./test-runtime.md) | Wow source, TCKs, container integration, and specified JMH workloads | Your application is releasable or has production capacity |
 
-Run the narrowest business modules first for daily changes:
+Business applications do not need to copy `allLocalTest`, `allContractTest`, `allIntegrationTest`, or the Codecov flag structure. Those are Wow repository maintenance tasks. Applications should set gates around their own modules and release risks.
 
-```shell
-./gradlew :domain:test
-./gradlew :server:test
-./gradlew check
+## Application Test Ladder
+
+| Layer | Minimum evidence | First place to investigate on failure |
+| --- | --- | --- |
+| Domain specification | The owning domain module's `test`/`check` passes | Invariants, events, and sourcing functions |
+| Compile metadata | The annotated module generates a non-empty `META-INF/wow-metadata.json` | Whether KSP and `wow-compiler` are applied to the correct module |
+| Runtime wiring | The service loads metadata and exposes expected command/state entry points | Starter capabilities, module runtime dependencies, configuration |
+| Protocol vertical slice | One business command is observable from entry point to persisted result | Request contract, routing, wait semantics, error mapping |
+| Real adapter | Reads, writes, and redelivery work on production-equivalent stores/brokers | Serialization, version conflict, idempotency, network boundary |
+| Recovery and security | State agrees after restart/replay and unauthorized requests fail closed | Snapshots, offsets, tenant/owner/space, and ABAC |
+
+Run the narrowest affected module every day, then expand layer by layer before merge or release. Do not skip a module task that directly identifies the failing layer merely because a root `build` is larger.
+
+## 1. Domain Gate
+
+Every aggregate invariant should cover at least:
+
+- events and final state for a successful command;
+- business rejection with unchanged state;
+- critical lifecycle transitions;
+- delete, recover, or any other enabled framework lifecycle;
+- correct command or no command from a saga for positive and negative input events.
+
+The runnable reference in this repository is:
+
+```bash
+./gradlew :example-domain:check
 ```
 
-Replace `domain` and `server` with the actual application module names.
+Business applications should substitute their own domain module. See the [Domain Test Suite](./test-suite.md) for the DSL.
 
-## 1. Domain Specifications
+## 2. Generated-Metadata Gate
 
-Every aggregate rule should cover:
+Modules containing Wow-annotated models must apply KSP and `wow-compiler`, and the generated resources must reach the service runtime classpath. Verify the complete generation path with the repository example:
 
-- emitted events and final state for a successful command;
-- business-rule rejection;
-- required create, update, delete, and recovery branches;
-- deterministic state from the same historical events;
-- correct and idempotent downstream commands from a saga.
-
-See [Test Suite](./test-suite.md) for the DSL.
-
-## 2. Metadata Gate
-
-Every module containing Wow-annotated models must generate metadata:
-
-```shell
-./gradlew clean kspKotlin test
-test -s domain/build/generated/ksp/main/resources/META-INF/wow-metadata.json
+```bash
+./gradlew :example-domain:clean :example-domain:kspKotlin :example-domain:test
+test -s example/example-domain/build/generated/ksp/main/resources/META-INF/wow-metadata.json
 ```
 
-Do not hand-write or commit generated files. Check every module that actually applies KSP in a multi-module application.
+Substitute module paths in a business application and check every annotated module. A successful KSP task is not the entire completion signal: the file must be non-empty, the service module must depend on that module, and startup evidence must show the resource was loaded. Do not hand-write or commit generated files.
 
-## 3. Minimal HTTP Vertical Slice
+## 3. Runtime and Protocol Vertical Slice
 
-The following test uses in-memory adapters and needs no Docker. Replace the route and body with the first aggregate in your application:
+Keep an application-level test for at least one real business aggregate that closes this loop:
 
-```kotlin
-import org.junit.jupiter.api.Test
-import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.boot.test.web.server.LocalServerPort
-import org.springframework.test.web.reactive.server.WebTestClient
-import java.util.UUID
+1. start the application with the same Spring configuration used by the production entry point;
+2. send a command through the public protocol with unique aggregate and request IDs;
+3. assert protocol status, command result, and error mapping;
+4. read the result through a public state or query entry point;
+5. prove the state came from the events just persisted, not a shared test object.
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class WowCommandFlowIntegrationTest {
-    @LocalServerPort
-    private var port: Int = 0
+Use an existing Cart, Order, or another real application model. Do not invent a “demo aggregate” solely to test routing. In-memory adapters can provide a fast gate, but the test report must state that they do not cover production storage, brokers, restart, or authorization.
 
-    @Test
-    fun `http command reaches sourced state`() {
-        val aggregateId = "it-${UUID.randomUUID()}"
-        val client = WebTestClient.bindToServer()
-            .baseUrl("http://127.0.0.1:$port")
-            .build()
+## 4. Real Adapters and Failure Semantics
 
-        client.post()
-            .uri("/tenant/test/demo")
-            .header("Command-Wait-Stage", "SNAPSHOT")
-            .header("Command-Aggregate-Id", aggregateId)
-            .header("Command-Request-Id", "request-$aggregateId")
-            .bodyValue(mapOf("data" to "integration"))
-            .exchange()
-            .expectStatus().isOk
-            .expectBody()
-            .jsonPath("$.succeeded").isEqualTo(true)
-            .jsonPath("$.stage").isEqualTo("SNAPSHOT")
-            .jsonPath("$.aggregateId").isEqualTo(aggregateId)
+Every persistence or transport capability used in production should have at least one container or isolated-environment test:
 
-        client.get()
-            .uri("/tenant/test/demo/$aggregateId/state/1")
-            .exchange()
-            .expectStatus().isOk
-            .expectBody()
-            .jsonPath("$.id").isEqualTo(aggregateId)
-            .jsonPath("$.data").isEqualTo("integration")
-    }
-}
-```
+- use the same Starter capability and serialization configuration as production;
+- load the same event stream after writing it to the real EventStore;
+- prevent a repeated request ID or broker redelivery from repeating business side effects;
+- surface optimistic-lock or version conflicts as the application defines without losing successful data;
+- avoid reporting partial results as complete success when an external dependency fails;
+- when SnapshotStore is enabled, make snapshot loading agree with full event replay.
 
-This proves that KSP metadata, Spring wiring, routing, command processing, `SNAPSHOT` waiting, and historical state reconstruction are connected. It does not prove Kafka delivery, persistent storage, restart recovery, or production authorization.
+Choose according to adapters the application actually owns. Do not test unused databases or brokers for the sake of completeness.
 
-## 4. Real Adapters and Restart
+## 5. Restart, Replay, and Upgrade
 
-Add a container or isolated-environment test for every production adapter and verify at least:
+In-process success is not recoverability. Prove at least:
 
-1. the same Starter capabilities and configuration used in production;
-2. commands write to the real EventStore and state remains readable after restart;
-3. the same `requestId` cannot execute twice;
-4. broker redelivery does not repeat projections or external side effects;
-5. snapshots match a full event replay;
-6. projection rebuild, consumer offsets, and compensation tasks have repeatable procedures.
+1. write events, then stop the application;
+2. restart with the same persisted data;
+3. read state and compare it with the pre-restart result;
+4. disable or clear snapshots and obtain the same state from full event history;
+5. recover projections, consumer offsets, and compensation tasks with a recorded procedure;
+6. when event revisions or serialization shapes change, provide explicit compatibility or migration evidence for old history.
 
-## 5. Security and Isolation
+Recovery evidence must retain the input-data version and environment configuration. A single success screenshot cannot support later releases without them.
 
-Protected applications should retain these negative tests:
+## 6. Security and Isolation Negatives
+
+Prioritize failure paths in security tests:
 
 | Scenario | Expected result |
 | --- | --- |
-| Anonymous protected command/query | `401` or `403` |
-| Forged tenant, owner, or space | rejected without expanding scope |
-| Missing principal ABAC tags | fail closed; never fall back to `MatchAllFilter` |
-| Cross-tenant/owner query | no unauthorized records returned |
-| Ordinary request reaches raw `*QueryServiceFactory` | no reachable entry point |
+| Anonymous access to a protected command or query | `401` or `403` |
+| Forged tenant, owner, or space | Rejected without widening scope |
+| Principal lacks required ABAC tags | Fail closed; never degrade to an all-record match |
+| Cross-tenant or cross-owner query | No unauthorized data returned |
+| Ordinary request attempts to reach a raw query factory | No reachable entry point |
 
-See [Data Access Control](./data-access.md#required-security-closure) for the complete boundary.
+See [Data Access Control](./data-access.md#required-security-closure) for the complete boundary. Security requires the application's actual Spring Security/CoSec configuration; domain specifications cannot substitute for it.
 
-## 6. Release Completion Gates
+## Pre-Release Evidence Table
 
-- domain success, rejection, and recovery branches pass;
-- KSP metadata is non-empty and loaded by the runtime;
-- the HTTP vertical slice passes;
-- state survives restart with the real store;
-- redelivery, version conflict, and external-dependency failure paths pass;
-- authentication, tenant isolation, and ABAC negative tests pass;
-- backup, restore, replay, and rollback drills have evidence;
-- traces, metrics, and alerts work in the target environment.
+| Evidence | Completion condition |
+| --- | --- |
+| Domain | Success, rejection, and critical lifecycle specifications pass |
+| Generation | Metadata for every annotated module is non-empty and loaded by the runtime |
+| Protocol | A vertical slice from public entry point to readable result passes |
+| Infrastructure | Production-equivalent adapter write, redelivery, conflict, and failure paths pass |
+| Recovery | Restart and replay without snapshots produce consistent state |
+| Security | Authentication, tenant isolation, and ABAC negatives all fail closed |
+| Operations | Backup, recovery, rollback, traces, metrics, and alerts have target-environment evidence |
 
-When changing the Wow framework itself, use the repository tasks in [Framework Tests and Benchmarks](./test-runtime.md).
+Move to [Framework Tests and Benchmarks](./test-runtime.md) only when changing Wow framework source, implementing an adapter, or investigating framework performance. Green framework CI or historical benchmark figures cannot replace this application evidence table.

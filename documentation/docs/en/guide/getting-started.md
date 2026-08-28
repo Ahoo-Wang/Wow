@@ -1,50 +1,123 @@
 ---
 title: Getting Started
-description: Get started with the Wow framework using the project template to quickly create a DDD project.
+description: Prove a complete Wow command, event, snapshot, and versioned-state path with the current project template.
+outline: deep
 ---
 
 # Getting Started
 
-> Use the [Wow Project Template](https://github.com/Ahoo-Wang/wow-project-template) to quickly create a DDD project based on the _Wow_ framework.
+Use the [Wow Project Template](https://github.com/Ahoo-Wang/wow-project-template) to prove one complete vertical slice before replacing the demo domain:
 
-This page completes one minimal vertical slice: verify the rules with a domain test, then use a real HTTP command to prove **command → event → sourced state**.
+```text
+domain test → generated route → HTTP command → SNAPSHOT wait → state at version 1
+```
+
+This path uses the template's checked-in in-memory buses, event store, and snapshot store. It does not require Kafka, MongoDB, or Redis.
+
+## Verified Baseline
+
+This page was executed on 2026-08-27 against template commit [`1dc9267b7f276c8c3bd9b2fad3186e3e3c3e82f9`](https://github.com/Ahoo-Wang/wow-project-template/tree/1dc9267b7f276c8c3bd9b2fad3186e3e3c3e82f9):
+
+| Component | Verified value |
+| --- | --- |
+| Template Wow version | `8.13.0` |
+| Spring Boot | `4.1.1` |
+| Kotlin | `2.4.10` |
+| KSP | `2.3.11` |
+| Gradle Wrapper | `9.7.1` |
+| JDK used for the run | `17.0.7` |
+
+The current Wow documentation source is `8.13.1`, while the verified template pins `8.13.0`. The repositories evolve independently. Always inspect the cloned template's [`gradle/libs.versions.toml`](https://github.com/Ahoo-Wang/wow-project-template/blob/main/gradle/libs.versions.toml); change versions only as one reviewed compatibility baseline for a selected [Wow release](https://github.com/Ahoo-Wang/Wow/releases).
 
 ## Before You Start
 
-- JDK 17 or later.
-- Git.
-- Use the checked-in Gradle Wrapper; no global Gradle installation is required.
-- The template defaults to in-memory buses, event storage, and snapshot storage, so the first run does not require Kafka, MongoDB, or Redis.
+- JDK 17 or later
+- Git
+- `curl`
+- the checked-in Gradle Wrapper; no global Gradle installation is required
 
-::: warning Confirm the version first
-The Wow Project Template evolves independently and is not guaranteed to match the Wow source tag documented by this site. After creating a project, inspect the template's [`gradle/libs.versions.toml`](https://github.com/Ahoo-Wang/wow-project-template/blob/main/gradle/libs.versions.toml), then pin the version for your selected [Wow release](https://github.com/Ahoo-Wang/Wow/releases).
-:::
+Use a disposable clone for the first pass so local runtime files cannot pollute an application repository:
 
-## The 10-Minute Path
-
-1. Create a repository from the template and clone it locally.
-2. Change `rootProject.name` in `settings.gradle.kts` to your project name.
-3. Run the domain checks and start the service:
+[![Use this template](https://img.shields.io/badge/Use%20this%20template-2ea44f?style=for-the-badge&logo=github)](https://github.com/new?template_name=wow-project-template&template_owner=Ahoo-Wang)
 
 ```shell
-./gradlew :domain:check
-mkdir -p server/logs
-test -e server/config || ln -s src/main/resources server/config
-./gradlew :server:run
+git clone https://github.com/Ahoo-Wang/wow-project-template.git
+cd wow-project-template
+git fetch --depth 1 origin 1dc9267b7f276c8c3bd9b2fad3186e3e3c3e82f9
+git checkout --detach FETCH_HEAD
+git rev-parse HEAD
+grep '^wow = ' gradle/libs.versions.toml
 ```
 
-4. Open [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html).
-5. Submit one `CreateDemo` command as shown below and wait for `SNAPSHOT`.
-6. Load version `1` of `demo-1` and confirm that `DemoCreated` produced the state.
+The checkout command pins the exact commit used for the expected results below. If you intentionally keep a different template `HEAD`, do not mix it with this page's fixed expectations: repeat the domain check, startup, route, command, and versioned-state validation against that `HEAD` and record the new baseline. If you create a repository with the template button instead, rename `rootProject.name` in `settings.gradle.kts` after the first successful run.
 
-The first vertical slice is complete only when the domain test, HTTP command, and versioned-state read all pass. The remaining sections explain how to understand and replace the template's `Demo` model.
+## The 30-Minute Target Path
 
-### Send the First Real Command
+The functional path below has been exercised end to end. Thirty minutes remains a target because first-time developer wall-clock completion has not been measured; this is not a completed human usability study.
 
-The template's `CreateDemo` generates `POST /tenant/{tenantId}/demo`. Keep the service running and execute this in another terminal:
+### 1. Prove the Domain Model
+
+Run the exact module check defined by the template:
 
 ```shell
-curl -X POST \
+./gradlew :domain:check --console=plain
+```
+
+The check compiles KSP metadata, runs `DemoSpec` and `DemoSagaSpec`, and enforces the domain coverage rule. Success ends with `BUILD SUCCESSFUL`.
+
+In the verification environment, the first run exhausted Gradle's default `384 MiB` Metaspace during `:api:kspKotlin`. If the failure is specifically `OutOfMemoryError: Metaspace`, retry without editing the template:
+
+```shell
+./gradlew :domain:check --console=plain \
+  -Dorg.gradle.jvmargs='-Xmx1g -XX:MaxMetaspaceSize=1g'
+```
+
+Do not use this retry to hide a compilation, test, coverage, or dependency failure.
+
+The behavior under test comes from the template itself:
+
+- [`Demo`](https://github.com/Ahoo-Wang/wow-project-template/blob/1dc9267b7f276c8c3bd9b2fad3186e3e3c3e82f9/domain/src/main/kotlin/me/ahoo/wow/template/domain/demo/Demo.kt) returns `DemoCreated` and `DemoUpdated`;
+- [`DemoState`](https://github.com/Ahoo-Wang/wow-project-template/blob/1dc9267b7f276c8c3bd9b2fad3186e3e3c3e82f9/domain/src/main/kotlin/me/ahoo/wow/template/domain/demo/DemoState.kt) applies those events;
+- [`DemoSpec`](https://github.com/Ahoo-Wang/wow-project-template/blob/1dc9267b7f276c8c3bd9b2fad3186e3e3c3e82f9/domain/src/test/kotlin/me/ahoo/wow/template/domain/demo/DemoSpec.kt) verifies command → event → state;
+- [`DemoSaga`](https://github.com/Ahoo-Wang/wow-project-template/blob/1dc9267b7f276c8c3bd9b2fad3186e3e3c3e82f9/domain/src/main/kotlin/me/ahoo/wow/template/domain/demo/DemoSaga.kt) reacts to creation with an update command.
+
+### 2. Start the Service with Versioned Configuration
+
+The template's `:server:run` task uses `server/` as its working directory and expects `server/config/`. Point that path to the checked-in `server/src/main/resources` instead of copying configuration:
+
+```shell
+mkdir -p server/logs
+test -e server/config || ln -s src/main/resources server/config
+./gradlew :server:run --console=plain
+```
+
+If the earlier Metaspace failure occurred, apply the same command-line JVM setting to `:server:run`. Wait until the log contains both:
+
+```text
+Netty started on port 8080 (http)
+Started ServerKt
+```
+
+The sourced configuration is [`server/src/main/resources/application.yaml`](https://github.com/Ahoo-Wang/wow-project-template/blob/1dc9267b7f276c8c3bd9b2fad3186e3e3c3e82f9/server/src/main/resources/application.yaml). It selects `in_memory` command/event buses, event store, snapshot store, and state-event bus, plus a manual CosId machine ID for one local instance.
+
+`server/config` and `server/logs/` are local runtime artifacts and are not ignored by the verified template. A Metaspace crash may also leave an untracked heap dump such as `java_pid*.hprof` in the repository root. Before committing an application repository, inspect all three with:
+
+```shell
+git status --short -- '*.hprof' server/config server/logs
+```
+
+Remove only the listed local artifacts after inspection. On Windows, create an equivalent directory link or point `spring.config.location` at the checked-in resource directory for the local run.
+
+Open [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html). The generated OpenAPI should include `POST /tenant/{tenantId}/demo` and `/tenant/{tenantId}/demo/{id}/state/{version}`.
+
+<a id="send-the-first-real-command"></a>
+
+### 3. Send the First Real Command
+
+Keep the service running and execute this in another terminal:
+
+```shell
+curl -sS -X POST \
   'http://localhost:8080/tenant/tenant-1/demo' \
   -H 'accept: application/json' \
   -H 'Command-Wait-Stage: SNAPSHOT' \
@@ -54,285 +127,84 @@ curl -X POST \
   -d '{"data":"hello-wow"}'
 ```
 
-Inspect the command result rather than relying on the HTTP status alone:
+The generated route comes from the template's [`CreateDemo`](https://github.com/Ahoo-Wang/wow-project-template/blob/1dc9267b7f276c8c3bd9b2fad3186e3e3c3e82f9/api/src/main/kotlin/me/ahoo/wow/template/api/demo/CreateDemo.kt). Verify these response fields rather than relying on HTTP `200` alone:
 
-- `succeeded` is `true`;
-- `stage` is `SNAPSHOT`;
-- `aggregateId` is `demo-1`;
-- `aggregateVersion` is `1`.
+```json
+{
+  "stage": "SNAPSHOT",
+  "aggregateId": "demo-1",
+  "aggregateVersion": 1,
+  "requestId": "quickstart-demo-1",
+  "errorCode": "Ok",
+  "succeeded": true
+}
+```
 
-Then load the event-sourced aggregate state at version `1`:
+The response contains additional generated IDs and timing data; those values vary by run.
+
+### 4. Read the Versioned Sourced State
+
+Read the aggregate at exactly version `1`:
 
 ```shell
-curl \
+curl -sS \
   'http://localhost:8080/tenant/tenant-1/demo/demo-1/state/1' \
   -H 'accept: application/json'
 ```
 
-The response should be `{"id":"demo-1","data":"hello-wow"}`. This proves more than route availability: the aggregate processed the command and `DemoCreated` can rebuild state at version `1`.
+The verified response is:
 
-The template also contains `DemoSaga`. After `DemoCreated`, it sends `UpdateDemo(data = "updated")`. As a result, the unversioned current-state endpoint `/tenant/tenant-1/demo/demo-1/state` eventually returns `data = "updated"`, demonstrating the asynchronous Saga flow that follows creation.
+```json
+{"id":"demo-1","data":"hello-wow"}
+```
 
-::: tip Repeating the request
-`Command-Request-Id` is the idempotency key. Repeating the same request is detected as a duplicate. For another trial, change both the request ID and aggregate ID, or restart the service that uses in-memory storage.
+This proves the `CreateDemo` route, aggregate decision, `DemoCreated` persistence, sourcing handler, snapshot wait, and versioned state reconstruction. It also avoids a race with `DemoSaga`: that saga subsequently sends `UpdateDemo(data = "updated")`, so the unversioned current-state endpoint eventually returns:
+
+```shell
+curl -sS \
+  'http://localhost:8080/tenant/tenant-1/demo/demo-1/state' \
+  -H 'accept: application/json'
+```
+
+```json
+{"id":"demo-1","data":"updated"}
+```
+
+::: tip Repeating the path
+`Command-Request-Id` is the idempotency key. For another trial, change both the request ID and aggregate ID, or restart the service to clear its in-memory data.
 :::
 
-## Create Project
+## Completion Gate
 
-[![Use this template](https://img.shields.io/badge/Use%20this%20template-2ea44f?style=for-the-badge&logo=github)](https://github.com/new?template_name=wow-project-template&template_owner=Ahoo-Wang)
+The first slice is complete only when all five observations hold:
 
-Click the button above to create a new repository from [Wow Project Template](https://github.com/Ahoo-Wang/wow-project-template), then clone it locally.
+- `:domain:check` succeeds;
+- startup loads the generated `META-INF/wow-metadata.json` resources and listens on 8080;
+- Swagger/OpenAPI contains the generated command and versioned-state routes;
+- the HTTP command returns `succeeded: true`, `stage: SNAPSHOT`, and aggregate version `1`;
+- the version `1` state is exactly `{"id":"demo-1","data":"hello-wow"}`.
 
-- Modify the `settings.gradle.kts` file, change `rootProject.name` to the project name
-- Modify `api/{package}/DemoService`
-- Modify `domain/{package}/DemoBoundedContext`
+## Replace the Demo Safely
 
+The template's module responsibilities are the migration path:
 
-## Project Structure
-
-| Directory/file | Responsibility |
+| Module/path | Replace or preserve |
 | --- | --- |
-| `api` | Commands, domain events, and query view models that form the published language between modules |
-| `domain` | Aggregates, business invariants, sourcing handlers, and domain tests |
-| `server` | Host wiring for the domain and Wow extensions, plus the application entry point and `Dockerfile` |
-| `config` | Versioned starting points for application and environment configuration |
-| `client` | Type-safe TypeScript clients generated with [fetcher-generator](https://github.com/Ahoo-Wang/fetcher) |
-| `code-coverage-report` | Aggregated coverage reports and verification gates |
-| `dependencies` / `bom` | Central dependency constraints and BOM publication |
-| `gradle/libs.versions.toml` | Pinned Wow and third-party dependency versions |
-| `deploy` | Kubernetes manifests that require review for the target environment |
-| `document` | Context maps, UML, and other project-level design material |
+| `api` | Replace demo commands/events and update `DemoService` aggregate metadata |
+| `domain` | Replace `Demo`, `DemoState`, `DemoSaga`, and their specs together |
+| `server` | Preserve runtime wiring; add only extensions required by the target environment |
+| `server/src/main/resources` | Keep configuration versioned; split environment values without committing secrets |
+| `gradle/libs.versions.toml` | Pin one tested dependency baseline |
 
-## Add External Infrastructure (Optional)
+After each domain change, rerun `./gradlew :domain:check`. Do not add Kafka, MongoDB, Redis, or Elasticsearch until durable storage, multi-instance messaging, or a specific query backend is an actual requirement.
 
-Keep the template's `in_memory` configuration for the first run. Add an extension only when durable storage, multi-instance messaging, or a specific query backend becomes an actual requirement.
-
-1. Use _Kafka_ as the messaging engine: command bus and event bus
-
-::: code-group
-```kotlin [Gradle(Kotlin)]
-implementation("me.ahoo.wow:wow-kafka")
-```
-```groovy [Gradle(Groovy)]
-implementation 'me.ahoo.wow:wow-kafka'
-```
-```xml [Maven]
-<dependency>
-    <groupId>me.ahoo.wow</groupId>
-    <artifactId>wow-kafka</artifactId>
-    <version>${wow.version}</version>
-</dependency>
-```
-:::
-
-2. Use _MongoDB_ as event store and snapshot store
-
-::: code-group
-```kotlin [Gradle(Kotlin)]
-implementation("me.ahoo.wow:wow-mongo")
-implementation("org.springframework.boot:spring-boot-starter-data-mongodb-reactive")
-```
-```groovy [Gradle(Groovy)]
-implementation 'me.ahoo.wow:wow-mongo'
-implementation 'org.springframework.boot:spring-boot-starter-data-mongodb-reactive'
-```
-```xml [Maven]
-  <dependencies>
-    <dependency>
-        <groupId>me.ahoo.wow</groupId>
-        <artifactId>wow-mongo</artifactId>
-        <version>${wow.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-data-mongodb-reactive</artifactId>
-    </dependency>
-  </dependencies>
-```
-:::
-
-3. Use [CosId](https://github.com/Ahoo-Wang/CosId) as global and aggregate root ID generator
-
-::: code-group
-```kotlin [Gradle(Kotlin)]
-implementation("me.ahoo.cosid:cosid-mongo")
-```
-```groovy [Gradle(Groovy)]
-implementation 'me.ahoo.cosid:cosid-mongo'
-```
-```xml [Maven]
-<dependency>
-    <groupId>me.ahoo.cosid</groupId>
-    <artifactId>cosid-mongo</artifactId>
-    <version>${cosid.version}</version>
-</dependency>
-```
-:::
-
-## External Infrastructure Configuration Example
-
-The following example replaces the in-memory first-run setup with Kafka and MongoDB. It is a configuration starting point, not a production manifest: authentication, TLS, capacity, backup/restore, and alerting must be designed for the target environment.
-
-```yaml {20,23,29,34}
-management:
-  endpoint:
-    health:
-      show-details: always
-      probes:
-        enabled: true
-  endpoints:
-    web:
-      exposure:
-        include:
-          - health
-          - wow
-          - cosid
-          - cosidGenerator
-          - cosidStringGenerator
-springdoc:
-  show-actuator: true
-spring:
-  application:
-    name: <your-service-name>
-  mongodb:
-    uri: <mongodb-uri>
-
-cosid:
-  machine:
-    enabled: true
-    distributor:
-      type: mongo
-  generator:
-    enabled: true
-wow:
-  kafka:
-    bootstrap-servers: <kafka-bootstrap-servers>
-```
-
-## Start Service
-
-```shell
-mkdir -p server/logs
-test -e server/config || ln -s src/main/resources server/config
-./gradlew :server:run
-```
-
-The template's `run` task uses `server/` as its working directory, reads runtime configuration there, and writes GC logs there. The symlink above makes `server/config` point directly to the version-controlled `server/src/main/resources`, avoiding two configuration copies; it is only for local execution and must not be committed. On Windows, create an equivalent directory link or update `spring.config.location` in `server/build.gradle.kts` to the actual configuration directory.
-
-![Start Service](/images/getting-started/run-server.png)
-
-> Access: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
-
-![Swagger-UI](/images/getting-started/swagger-ui.png)
-
-## Domain Modeling
-
-::: tip Aggregate Pattern
-In the following examples, we will use the [aggregate pattern](modeling) for modeling.
-:::
-
-### Command Aggregate Root
-
-The *command aggregate root* is responsible for receiving command handler functions, executing corresponding business logic, and returning domain events.
-
-```kotlin {2,5}
-@Suppress("unused")
-@AggregateRoot
-class Demo(private val state: DemoState) {
-
-    @OnCommand
-    fun onCreate(command: CreateDemo): DemoCreated {
-        return DemoCreated(
-            data = command.data,
-        )
-    }
-
-    @OnCommand
-    fun onUpdate(command: UpdateDemo): DemoUpdated {
-        return DemoUpdated(
-            data = command.data
-        )
-    }
-}
-```
-
-### State Aggregate Root
-
-The *state aggregate root* is responsible for maintaining aggregate state data, receiving and processing domain events, and changing aggregate state data.
-
-::: warning
-The state aggregate root's `setter` accessor is set to `private` to prevent the command aggregate root from directly changing aggregate state data.
-:::
-
-```kotlin {3,5}
-class DemoState(override val id: String) : Identifier {
-    var data: String? = null
-        private set
-
-    @OnSourcing
-    fun onCreated(event: DemoCreated) {
-        data = event.data
-    }
-
-    @OnSourcing
-    fun onUpdated(event: DemoUpdated) {
-        data = event.data
-    }
-}
-```
-
-## Writing Unit Tests
-
-To ensure code quality, we need to write unit tests to verify that aggregate root behavior meets expectations.
-
-### Test Aggregate Root
-
-```kotlin
-class DemoSpec : AggregateSpec<Demo, DemoState>({
-  on {
-    val create = CreateDemo(
-      data = "data"
-    )
-    whenCommand(create) {
-      expectNoError()
-      expectEventType(DemoCreated::class)
-      expectState {
-        data.assert().isEqualTo(create.data)
-      }
-      fork {
-        val update = UpdateDemo(
-          data = "newData"
-        )
-        whenCommand(update) {
-          expectNoError()
-          expectEventType(DemoUpdated::class)
-          expectState {
-            data.assert().isEqualTo(update.data)
-          }
-        }
-      }
-    }
-  }
-})
-```
-
-## Verify Changes
-
-In an application created from the template, begin with the narrow checks that directly cover the domain model:
-
-```shell
-./gradlew :domain:check
-./gradlew :domain:jacocoTestCoverageVerification
-./gradlew detekt
-```
-
-If you are changing the Wow framework itself, use the [Contributor Guide](../onboarding/contributor-guide.md) and [Framework Tests and Benchmarks](./test-runtime.md) instead. Application repositories should design release and deployment for their own registry and runtime environment rather than copying a pipeline tied to a specific cloud provider or credential model.
+The template also wires [CosId](https://github.com/Ahoo-Wang/CosId) for IDs and contains a TypeScript client generated with [Fetcher](https://github.com/Ahoo-Wang/fetcher); keep or remove those pieces according to the application's published contract.
 
 ## Next Steps
 
-- Replace the example domain: [Aggregate Modeling](./modeling.md)
-- Understand write APIs and completion stages: [Command Gateway](./command-gateway.md)
-- Build application tests and release gates: [Testing Wow Applications](./application-testing.md)
-- Read the complete Kotlin business example: [Order and Cart](../reference/example/order.md)
+- Understand the terms used above: [Core Concepts](./core-concepts.md)
+- Replace the demo model: [Aggregate Modeling](./modeling.md)
+- Choose completion semantics: [Command Gateway](./command-gateway.md)
+- Add application gates: [Testing Wow Applications](./application-testing.md)
 - Build a read model: [Projection](./projection.md) and [Query Service](./query.md)
-- Switch to external storage or messaging: [Configuration](./configuration.md) and [Extensions](./extensions/spring-boot-starter.md)
+- Select runtime integrations: [Configuration](./configuration.md) and [Spring Boot Starter](./extensions/spring-boot-starter.md)

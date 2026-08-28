@@ -1,133 +1,85 @@
 ---
 title: Migrate Wow v6 to v8
-description: A staged guide for moving from an exact Wow v6 baseline to Wow v8, including conditional platform upgrades, data cutover, and rollback.
+description: Upgrade a pinned Wow v6 system to a pinned v8 target with separate source, runtime, storage, data, and cutover gates.
 ---
 
 # Migrate Wow v6 to v8
 
-This page is only for systems already running Wow v6 and moving to Wow v8. For a first
-adoption from CRUD, use [Migrating from Traditional Architecture](./traditional-architecture.md).
+This guide is for an application with existing Wow v6 event/storage history. It is not a rolling dependency bump.
+Pin the exact source and target tags, commits, build contracts, backend layouts, and rollback datasets.
 
-Wow v6 and v8 both require Java 17+, but the platform delta depends on the exact v6 tag.
-Earlier v6 lines such as `v6.8.0` use Spring Boot 3.5 and Kotlin 2.2, while the latest
-`v6.21.5` already uses Spring Boot 4.0 and Kotlin 2.3. Pin and inspect the source tag rather
-than treating “v6” as one platform. The current v8 baseline includes Spring Boot 4.1,
-Kotlin 2.4, CosId 3.2, CoAPI 2.1, and CoCache 4.2.
-[`v6.8.0 versions`](https://github.com/Ahoo-Wang/Wow/blob/v6.8.0/gradle/libs.versions.toml)
-[`v6.21.5 versions`](https://github.com/Ahoo-Wang/Wow/blob/v6.21.5/gradle/libs.versions.toml)
-[`gradle/libs.versions.toml:3-18`](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/libs.versions.toml#L3-L18)
-[`gradle/libs.versions.toml:32-33`](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/libs.versions.toml#L32-L33)
+The worked matrix uses self-consistent tags verified from repository objects:
+
+| Contract | Source `v6.20.16` (`744d4b1358a3`) | Target `v8.13.1` (`67402d32a76d`) |
+|---|---|---|
+| `gradle.properties` version | `6.20.16` | `8.13.1` |
+| Java toolchain | 17 | 17 |
+| Gradle wrapper | 9.4.1 | 9.7.1 |
+| Spring Boot | 3.5.11 | 4.1.1 |
+| Kotlin / KSP | 2.3.20 / 2.3.6 | 2.4.10 / 2.3.11 |
+| CosId / CoAPI / CoCache | 2.15.2 / 1.12.8 / 3.10.5 | 3.2.1 / 2.2.0 / 4.3.0 |
+
+Verify the tag name, `tag^{commit}`, `gradle.properties`, version catalog, wrapper URL/checksum, and your deployed
+dependency graph together. Do not substitute another “latest v6” or current `main` and assume the matrix still holds.
 
 ## Migration Overview
 
-| Stage | Goal | Exit gate | Main risk | Source |
-|---|---|---|---|---|
-| 0. Stabilize v6 | Move to the latest v6 and remove deprecated API use | Full v6 test suite passes; event, snapshot, and message counts are baselined | Carrying old failures across the platform boundary | [v6.21.5 Release](https://github.com/Ahoo-Wang/Wow/releases/tag/v6.21.5) |
-| 1. Align the platform | Diff the exact source tag against the target; upgrade Boot, Jackson, Kotlin, and related dependencies only where required | Compilation, unit tests, and integration tests pass | Assuming every v6 tag is Boot 3, Boot modularization, `tools.jackson`, and incompatible third-party starters | [v6.21.5 versions](https://github.com/Ahoo-Wang/Wow/blob/v6.21.5/gradle/libs.versions.toml), [v8.0.0 Release](https://github.com/Ahoo-Wang/Wow/releases/tag/v8.0.0) |
-| 2. Adapt Wow APIs | Resolve source breaks accumulated across v8 minors | Domain, messaging, query, and test DSL code all recompiles | `CommandGateway`, lifecycle extensions, and storage internals changed | [CommandGateway.kt:75-159](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt#L75-L159) |
-| 3. Prepare data | Audit and convert Redis/Mongo data while traffic is stopped | Checksums, versions, ID indexes, and representative replay match | v8.9 Redis canonical v2 is incompatible with legacy layouts | [RedisEventSourcingAutoConfiguration.kt:200-243](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/redis/RedisEventSourcingAutoConfiguration.kt#L200-L243) |
-| 4. Isolated cutover | Validate one v8 instance before scaling | Read/write, replay, snapshot, query, and shutdown checks pass | Mixed old/new writers break snapshot and Redis rollback guarantees | [SnapshotStore.kt:57-71](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SnapshotStore.kt#L57-L71) |
+| Stage | Gate | Required evidence |
+|---|---|---|
+| 0. Pin baseline | Scope/source | deployed v6 artifact/version, tag commit, clean tests, storage inventory, restorable backup |
+| 1. Align platform | Source/runtime | Gradle/JDK/Boot/Jackson/Kotlin/KSP and third-party starter matrix; dependency report |
+| 2. Adapt application | Source/runtime | compiled domain/server/tests, regenerated KSP/OpenAPI/schema, startup/readiness/shutdown |
+| 3. Convert storage | Storage/data | offline manifest, key/collection/index inventory, checksums, versions, request IDs, replay |
+| 4. Hard cutover | Runtime/data | stopped/drained old writers, one target instance, isolated read/write/replay/query checks |
+| 5. Production admission | Cutover | approved image/revision, live traffic, metrics/traces/alerts, reconciliation, rollback window |
 
-```mermaid
-%%{init: {"theme": "dark"}}%%
-flowchart LR
-    V6["Exact Wow v6 tag<br>green baseline"] --> Platform["Pin and align<br>platform matrix"]
-    Platform --> Compile["Fix source and tests<br>regenerate metadata"]
-    Compile --> Data["Offline data audit<br>and hard cutover"]
-    Data --> Canary["Single-instance validation"]
-    Canary --> V8["Wow v8<br>gradual scale-out"]
-    classDef step fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    class V6,Platform,Compile,Data,Canary,V8 step
-```
+Do not run old and new writers against a changed storage contract. Rehearse on a copy, then stop ingress, drain all
+v6 writers, take the final backup/watermark, migrate once, and start one v8 instance. Scale only after acceptance.
 
-<!-- Sources:
-- https://github.com/Ahoo-Wang/Wow/releases/tag/v8.0.0
-- README.md:47-49
-- gradle/libs.versions.toml:3-18
-- gradle/libs.versions.toml:32-33
--->
-
-Do not run this as a mixed-version rolling upgrade. Prove the platform and data procedure
-in an isolated environment, then stop ingress, drain every old writer, cut over the data,
-and start exactly one v8 instance for validation.
-
-```mermaid
-%%{init: {"theme": "dark"}}%%
-sequenceDiagram
-    autonumber
-    participant Traffic as Ingress
-    participant V6 as Wow v6 cluster
-    participant Migrator as Offline migrator
-    participant Store as Target store
-    participant V8 as Single Wow v8 instance
-
-    Traffic->>V6: Stop new writes
-    V6->>V6: Drain in-flight work
-    V6-->>Migrator: Stop every writer
-    Migrator->>Store: Inventory, convert, checksum
-    Migrator-->>V8: Data gate passes
-    V8->>Store: Isolated-ID write and replay
-    V8-->>Traffic: Shift canary traffic after smoke test
-```
-
-<!-- Sources:
-- wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/redis/RedisEventSourcingAutoConfiguration.kt:200-243
-- wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SnapshotStore.kt:57-71
-- wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/MongoDatabaseContextGuard.kt:30-65
--->
-
-```mermaid
-%%{init: {"theme": "dark"}}%%
-stateDiagram-v2
-    [*] --> V6Running: Stable v6
-    V6Running --> Offline: Stop traffic and back up
-    Offline --> V8Canary: Data gate passes
-    V8Canary --> V8Running: Smoke test passes
-    V8Canary --> V6Rollback: No v8 production writes
-    V8Running --> ReverseMigration: v8 production writes exist
-    ReverseMigration --> V6Rollback: Reverse migration or replay completes
-    V6Rollback --> V6Running
-```
-
-<!-- Sources:
-- wow-redis/src/main/kotlin/me/ahoo/wow/redis/eventsourcing/RedisEventStore.kt
-- wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/redis/RedisEventSourcingAutoConfiguration.kt:236-243
-- wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SnapshotStore.kt:57-71
--->
+Rollback has two branches: before the first v8 production write, reconnect the immutable v6 dataset and binary;
+afterwards, stop v8 and reverse-migrate/replay the new writes before starting v6. Restoring only the cutover backup
+would lose accepted work.
 
 ## Spring Boot 4 and Jackson 3
 
-If the pinned v6 source tag still uses Spring Boot 3 and Jackson 2, the v8 migration must include
-the Spring Boot 4 and Jackson 3 source transition. Applications on those tags that directly
-reference Jackson `ObjectMapper` or `JsonNode`, Spring Boot auto-configuration types, or custom
-starters need explicit source migration. `v6.21.5` already uses Spring Boot 4.0 and the
-`tools.jackson` namespace, so from that baseline audit only the exact source/target delta; do not
-repeat a platform-major migration that already happened. In either case, do not force Spring Boot
-3 or Jackson 2 under the pinned v8 target. Spring Boot's official guidance permits classic
-starters as a temporary compilation bridge, followed by convergence on focused starters.
+The pinned source `v6.20.16` uses Spring Boot 3.5.11; the target uses Boot 4.1.1. Audit application code and every
+third-party starter for Boot 4 modularization and configuration changes. In this repository, most Jackson 3 classes
+move from `com.fasterxml.jackson` to `tools.jackson`; Jackson annotations remain in their compatible annotation
+namespace. Diff the actual source imports and configured `ObjectMapper` modules rather than applying a blind rename.
 
-- [Wow v8.0.0 Release](https://github.com/Ahoo-Wang/Wow/releases/tag/v8.0.0)
-- [Spring Boot 4.0 Migration Guide](https://github.com/spring-projects/spring-boot/wiki/Spring-Boot-4.0-Migration-Guide)
-- [`v6.21.5 JsonSerializer.kt`](https://github.com/Ahoo-Wang/Wow/blob/v6.21.5/wow-core/src/main/kotlin/me/ahoo/wow/serialization/JsonSerializer.kt)
-- [`v6.21.5 SerializationAutoConfiguration.kt`](https://github.com/Ahoo-Wang/Wow/blob/v6.21.5/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/serialization/SerializationAutoConfiguration.kt)
-- [`JsonSerializer.kt:14-51`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/serialization/JsonSerializer.kt#L14-L51)
-- [`SerializationAutoConfiguration.kt:14-30`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/serialization/SerializationAutoConfiguration.kt#L14-L30)
+Pay particular attention to:
+
+- custom serializers/deserializers, mix-ins, modules, and direct `ObjectMapper`/`JsonNode` use;
+- Boot auto-configuration imports and starter names;
+- remote configuration keys whose Boot 4 prefix changed;
+- Mongo/Redis/Elasticsearch client and property binding;
+- generated OpenAPI/schema and downstream client compatibility.
+
+Compile success does not prove wire compatibility. Deserialize representative v6 commands/events/snapshots with the
+target serializer and compare their materialized state and regenerated contracts.
+
+- [`v6.20.16` version catalog](https://github.com/Ahoo-Wang/Wow/blob/v6.20.16/gradle/libs.versions.toml)
+- [`v8.13.1` version catalog](https://github.com/Ahoo-Wang/Wow/blob/v8.13.1/gradle/libs.versions.toml)
+- [Spring Boot 4 migration guide](https://github.com/spring-projects/spring-boot/wiki/Spring-Boot-4.0-Migration-Guide)
 
 ## General Upgrade Steps
 
 ### Upgrade Steps
 
-1. **Backup Data**: Backup event store and snapshot data before upgrading
-2. **Read Changelog**: Check [Release Notes](https://github.com/Ahoo-Wang/Wow/releases)
-3. **Update Dependency Version**: Modify build.gradle.kts or pom.xml
-4. **Run Tests**: Ensure all tests pass
-5. **Canary after hard cutover**: Stop traffic and finish the data cutover, validate one v8 instance, then shift canary traffic and scale only v8 instances
+1. Capture `./gradlew dependencies` and module-specific `dependencyInsight` output for Wow, Boot, Jackson, Reactor,
+   Kotlin, and storage clients.
+2. Pin the target platform; update wrapper and version constraints as one reviewed change.
+3. Compile production and test sources; fix public API breaks without adding speculative compatibility bridges.
+4. Regenerate KSP metadata, OpenAPI/schema, and clients; review the contract diff with consumers.
+5. Run unit/module/integration tests plus real startup, readiness, message flow, and graceful shutdown.
+6. Execute the storage/data rehearsal and reconciliation below before scheduling cutover.
 
 ### Dependency Version Update
 
+Pin one target version through the application's existing version-management mechanism:
+
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
-// Update wow version
 implementation("me.ahoo.wow:wow-spring-boot-starter:8.13.1")
 ```
 ```xml [Maven]
@@ -139,195 +91,140 @@ implementation("me.ahoo.wow:wow-spring-boot-starter:8.13.1")
 ```
 :::
 
+Verify the resolved graph; a declared version does not prove every feature capability or transitive module selected
+the same train.
+
 ### Breaking Changes Check
 
-Before upgrading, check the following:
+Classify every finding before implementation:
 
-1. **API Changes**: Check for interface signature changes
-2. **Configuration Changes**: Check for configuration property changes
-3. **Metadata Changes**: Regenerate metadata files
+| Finding | Compatibility scope | Required action |
+|---|---|---|
+| Removed/changed Kotlin type or method | Source/JVM binary | Recompile callers and replace only used APIs |
+| Changed JSON/message/schema | Wire | Contract test old payloads and downstream consumers |
+| Changed lifecycle/config binding | Runtime | Startup/shutdown and environment configuration test |
+| Changed key/collection/index/layout | Storage | Offline inventory/migration; no mixed writers |
+| Changed derived snapshot/projection/BI shape | Data | Rebuild and reconcile from authoritative events |
+
+Do not infer wire or storage compatibility from source compatibility.
 
 ## Unified Runtime Orchestration
 
-The runtime lifecycle migration is now documented separately so this page can
-remain an upgrade index:
+Current v8 replaces independent dispatcher launchers with one `WowRuntime` and the `RuntimeComponent` contract. This
+is source/runtime breaking but does not change event/snapshot/message formats. Migrate custom lifecycle owners,
+`MessageReceiver` readiness/admission, Spring bean destruction, and shared shutdown settings using
+[Runtime Orchestration Migration](./runtime-orchestration.md).
 
-- [Runtime Orchestration Migration](./runtime-orchestration.md) covers
-  source-breaking changes, custom components and message buses, Spring ownership,
-  verification, and rollback.
-- [Runtime Lifecycle](../advanced/runtime-lifecycle.md) describes the stable
-  post-migration architecture and shutdown semantics.
-
-This migration changes lifecycle extension contracts but does not change event,
-snapshot, or message formats. No data migration is required.
+Verify all components prepare before processing opens, fatal errors stop the complete runtime, and graceful shutdown
+closes admission and drains accepted work. Do not mix old launchers and the canonical runtime.
 
 ## Versioned Snapshot Checkpoint Removal
 
-The versioned snapshot checkpoint capability introduced in v8.9.0 has been removed without a compatibility layer.
-`VersionedSnapshotStore`, `VersionIntervalCheckpointStrategy`, `CompositeSnapshotStrategy`, their metrics and tracing
-decorators, and `SnapshotCheckpointProperties` no longer exist. The `wow.eventsourcing.snapshot.checkpoint.*`
-properties are ignored, and the `wow.snapshot.checkpoint.*` metrics and checkpoint spans are no longer emitted.
-There is no replacement API; applications should use `SnapshotStore`, which stores and loads only the latest snapshot.
+The versioned checkpoint feature that existed in earlier v8 releases is absent from the current target. Removed
+contracts include `VersionedSnapshotStore`, `VersionIntervalCheckpointStrategy`, `CompositeSnapshotStrategy`, their
+metrics/tracing decorators, and `SnapshotCheckpointProperties`. `wow.eventsourcing.snapshot.checkpoint.*` no longer
+controls runtime behavior; checkpoint metrics/spans are not emitted.
 
-MongoDB `*_snapshot_checkpoint` collections are no longer read, written, scanned, or automatically deleted. Back up
-event and snapshot data before upgrading, stop all old-version writers, and remove those collections only after
-confirming they are no longer needed. Rollback requires restoring the old runtime and retaining its checkpoint data;
-mixed-version deployment is unsupported.
-
-Sources: [`refactor(snapshot): remove versioned checkpoint support (#2831)`](https://github.com/Ahoo-Wang/Wow/pull/2831),
-[`SnapshotStore.kt:24-71`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SnapshotStore.kt#L24-L71).
+Mongo `*_snapshot_checkpoint` collections are not read, written, scanned, migrated, or automatically deleted by the
+target. Inventory and back them up before cutover. Retain them for a v6/earlier-v8 rollback, then remove them only after
+the rollback window. The target uses `SnapshotStore` for the latest snapshot; missing target snapshots require event
+replay and explicit regeneration if persistence is desired.
 
 ## Atomic SnapshotStore Saves
 
-`SnapshotStore.save()` keeps the same JVM signature and snapshot formats, but its
-storage contract is stronger: each aggregate must use one atomic compare-and-write
-operation. A candidate whose aggregate version is greater than or equal to the
-stored version replaces the complete snapshot; a lower candidate completes
-successfully without writing. Equal-version replacement is intentional so the
-snapshot-regeneration routes can repair a stale payload.
+The current `SnapshotStore.save()` contract requires one atomic compare-and-write per aggregate:
 
-Custom `SnapshotStore` implementations must use a backend CAS, conditional update,
-transaction, or equivalent atomic primitive. A client-side `load()` followed by an
-unconditional write is not conformant. Materialize the candidate once and derive the
-comparison version from that same payload. Stop and drain all old writers before
-relying on this guarantee: old MongoDB or Redis writers can still regress a newer
-snapshot, and an old Elasticsearch writer does not perform equal-version replacement.
-No data rewrite is required. Rollback restores the old save behavior, so do not run
-old and new writers concurrently.
+- candidate version greater than or equal to stored version → replace the complete snapshot;
+- candidate version lower than stored version → complete without writing;
+- the compared version must come from the same materialized payload that is written.
 
-For `wow-mongo`, the guarded update uses MongoDB MQL expressions that require
-MongoDB 5.2 or later; the integration suite verifies MongoDB 6.0.6. Upgrade the
-MongoDB server before deploying this runtime when the existing server is older.
+Equal-version replacement intentionally permits regeneration to repair a stale payload. A client-side `load()` plus
+unconditional write is not conformant. Audit every custom `SnapshotStore` and backend implementation for CAS,
+conditional update, transaction, or an equivalent atomic primitive.
 
-Sources: [`SnapshotStore.kt:57-71`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SnapshotStore.kt#L57-L71),
-[`MongoSnapshotStore.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/MongoSnapshotStore.kt),
-[`RedisSnapshotStore.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-redis/src/main/kotlin/me/ahoo/wow/redis/eventsourcing/RedisSnapshotStore.kt),
-and [`ElasticsearchSnapshotStore.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-elasticsearch/src/main/kotlin/me/ahoo/wow/elasticsearch/eventsourcing/ElasticsearchSnapshotStore.kt).
+No snapshot data rewrite is required solely for this rule, but old writers can violate it; stop them before relying on
+the guarantee. Mongo's implementation uses expressions requiring MongoDB 5.2+; the repository TCK pins MongoDB 6.0.6.
 
 ## Redis EventStore Canonical v2 Layout (introduced in v8.9.0)
 
-When upgrading from v6.x, v8.6.x, or v8.8.x to v8.9.0+, treat Redis persistence as a hard
-storage-format cutover. v6.21.5 and v8.6.x use legacy event keys and a shared request-ID SET;
-v8.8.x uses per-stream request SETs and bucketed ID indexes. Redis EventStore, Redis
-SnapshotStore, and Redis PrepareKey read and write canonical v2 keys only. There is no legacy
-fallback, dual write, or built-in migrator, and old runtimes cannot read new v2 writes. The new
-EventStore also enforces that `AggregateId.id` is unique within a named aggregate across all
-tenants.
+Current Redis EventStore, SnapshotStore, and PrepareKey use canonical v2 keys only. The runtime neither reads nor
+migrates incompatible layouts. Published v6/shared and v8.8 bucketed layouts use different event/request-ID/index
+keys, and old runtimes cannot read new v2 writes. Treat Redis as a hard offline storage cutover.
 
-The Spring Boot starter checks the exact sentinel keys created by successful writes in the
-published v6/v8.6 shared layout and v8.8 bucketed layout. It checks local aggregates resolved to
-the auto-configured `RedisEventStore`, supports Redis Cluster without runtime `SCAN`, and blocks
-startup when incompatible data is found. It does not cover direct-library usage, independently
-constructed custom stores, retired aggregate metadata, or snapshot-only Redis routes. A legacy
-snapshot has no aggregate-independent exact sentinel. Canonical v2 ignores legacy snapshot keys.
-A missing v2 snapshot causes aggregate loading to replay events, but normal loading does not
-persist a rebuilt snapshot automatically.
+The starter checks exact legacy sentinel keys for configured local aggregates and blocks startup when it finds one.
+That guard is useful but incomplete: it does not scan Redis Cluster, discover removed metadata, cover direct/custom
+stores, prove snapshot-only scopes, or detect evicted/corrupted sentinels. Passing startup is not migration evidence.
 
-The exact-key guard is not a substitute for an offline data audit. A historical alias change, key eviction, or a
-manually deleted or corrupted legacy index can hide the sentinel while orphaned streams remain. The resolved context
-alias (the configured alias, or `contextName` when no alias is configured) and aggregate name form the persistent v2
-key scope. The migration manifest must pin every historical source alias to the target resolved alias. Changing the
-resolved alias or aggregate name after a write requires a separate offline key migration.
+Canonical v2 also requires one `AggregateId.id` owner within a named aggregate across tenants and uses a 128-bucket
+aggregate-ID index. Before migration:
 
-Use an offline cutover:
+1. stop ingress and every old writer; drain appends; take a consistent backup and final event/version baseline;
+2. inventory every logical database/cluster primary for legacy event ZSETs, shared/per-stream request-ID SETs,
+   aggregate-ID indexes, snapshots, and PrepareKey hashes;
+3. pin historical context alias + aggregate name to the target canonical scope and resolve cross-tenant duplicate IDs;
+4. use an empty target namespace/database where possible; never `FLUSHDB` a shared database;
+5. run a separately reviewed, idempotent offline migrator with a durable manifest of source/target keys, types,
+   cardinalities, checksums, status, and last verified batch;
+6. preserve event ZSET members/scores and contiguous versions; derive target request-ID sets from committed event JSON,
+   reporting any source/event symmetric difference instead of hiding it;
+7. rebuild all 128 aggregate-ID buckets with the target codec and verify aggregate scans;
+8. verify ordered checksums, first/last versions, request IDs, ID index, representative full state replay, and counts;
+9. remove/move inventoried legacy keys only after verification, deleting sentinel keys last; keep the original dataset
+   immutable through rollback;
+10. start one v8 instance, test isolated IDs, explicitly regenerate/verify snapshots, then move controlled traffic.
 
-1. Stop traffic and every old-version writer, drain in-flight appends to zero, and create a consistent Redis backup
-   together with event-count and version baselines. Do not use a mixed-version rolling deployment.
-2. Inventory all legacy event ZSETs, v6/v8.6 shared request SETs, v8.8 per-stream request SETs, v8.8 bucketed ID ZSETs,
-   and legacy snapshot and PrepareKey hashes in every logical database on every Cluster primary. Record source key,
-   Redis type, cardinality, checksum, and target mapping. Use identity embedded in event or snapshot JSON as the
-   authority; an ambiguous historical key is only a locator.
-3. Audit each named aggregate for duplicate `AggregateId.id` values across tenants. Resolve every collision before
-   migration; canonical v2 intentionally cannot represent two owners of one ID.
-4. Use an empty v2 target scope on the first run. For disposable data, remove only the inventoried legacy keys from
-   the target or use an empty dedicated database. Never use `FLUSHDB` on a database shared with message-bus or
-   application data. Keep the complete source dataset immutable for rollback.
-5. Run a separately reviewed offline migrator. Its durable manifest must record source key, target keys, source and
-   target checksums, status, and last completed batch. Resume may reuse a target only when manifest and checksum
-   match; otherwise fail without overwriting. Copy operations must be idempotent, and partial target data must not be
-   accepted without manifest-backed re-verification.
-6. Preserve every event ZSET member and score, and verify identity consistency plus contiguous score/version order.
-   Treat committed event JSON as authoritative for v2 request-ID SETs. For v6/v8.6, compare the shared SET with
-   `union(event.requestId)` in both directions and report shared-only and event-only differences separately; never
-   fan it out to streams. For v8.8, compute the symmetric difference between each source per-stream SET and that
-   stream's event request IDs. A non-empty difference fails migration unless an explicit reviewed disposition is
-   recorded.
-7. Rebuild every non-empty aggregate-ID index in the 128-bucket space. The bucket is
-   `aggregateId.id.hashCode().mod(128)` using Java/Kotlin UTF-16 `String.hashCode`; keys and members must use the exact
-   canonical v2 codec. The runtime does not perform this conversion.
-8. Verify ordered member-and-score checksums, first/last versions, request-ID equality, the complete ID index,
-   aggregate-ID scan results, and representative state replay. A failed run must retain its manifest and last verified
-   cursor, then either clean the partial target or resume from that cursor; the application must not start meanwhile.
-9. After full verification, an in-place migration must remove or move every legacy key in the recorded inventory.
-   Delete sentinel keys last, rerun inventory, and require zero legacy keys. With a separate target database, keep the
-   complete source dataset read-only through the rollback window.
-10. Start one new instance against the target and run isolated-ID read/write smoke tests. Explicitly regenerate
-    snapshots, then verify snapshot counts and versions before switching traffic and scaling out. Use the single-ID
-    regenerate route from the complete inventory. The batch route may be treated as exhaustive only when the audited
-    ID domain is strictly above `AggregateIdScanner.FIRST_ID`; otherwise it can omit lower IDs.
+A partial migration is resumable only when its manifest and source/target checksums match. Otherwise clean the target
+or restart into a new empty scope; never allow the application to accept it as complete.
 
-Rollback is a coordinated application-and-data operation. Before production v2 writes, reconnect the untouched
-legacy dataset and old runtime. After any production v2 write, first stop traffic and v2 writers, then reverse-migrate
-or replay those writes before restarting the old runtime; restoring only the cutover backup loses every later v2
-write. Prefer a separate target database or namespace.
+Before any v2 production write, rollback reconnects the untouched legacy dataset. After a v2 write, reverse-migrate or
+replay those writes before v6 starts. Application code should depend on public `EventStore`, `SnapshotStore`, and
+`PrepareKey`, not removed Redis key-converter internals.
 
-The mandatory exact-key check is an internal startup invariant. It is intentionally neither optional nor exposed as
-a compatibility or migration setting.
-
-Source, JVM binary, and behavioral compatibility are intentionally broken for Redis layout internals. Removed APIs
-include `AggregateKeyConverter`, `RedisWrappedKey`, `RedisSnapshotRepository`, `EventStreamKeyConverter`,
-`DefaultSnapshotKeyConverter`, `PrepareKeyConverter`, and `RedisEventStore.SCRIPT_EVENT_STEAM_APPEND`; the
-`redisSnapshotRepository` bean alias and custom snapshot-key converter constructor are also removed. The new
-`SCRIPT_EVENT_STREAM_APPEND` is internal, with no public replacement. Canonical converter outputs changed, PrepareKey
-now includes its `name`, and v2 rejects empty aggregate/prepare IDs and unpaired UTF-16 surrogates. Application code
-should use `EventStore`, `SnapshotStore`, and `PrepareKey`; reviewed offline tooling must independently implement and
-verify the documented v2 codec.
-
-Sources: [`RedisEventStore.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-redis/src/main/kotlin/me/ahoo/wow/redis/eventsourcing/RedisEventStore.kt),
-[`RedisKeyComponentCodec.kt:22-69`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-redis/src/main/kotlin/me/ahoo/wow/redis/RedisKeyComponentCodec.kt#L22-L69),
-[`RedisEventSourcingAutoConfiguration.kt:166-185`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/redis/RedisEventSourcingAutoConfiguration.kt#L166-L185),
-[`v6.21.5 EventStreamKeyConverter.kt:21-33`](https://github.com/Ahoo-Wang/Wow/blob/v6.21.5/wow-redis/src/main/kotlin/me/ahoo/wow/redis/eventsourcing/EventStreamKeyConverter.kt#L21-L33),
-and [`v6.21.5 event_steam_append.lua:12-27`](https://github.com/Ahoo-Wang/Wow/blob/v6.21.5/wow-redis/src/main/resources/event_steam_append.lua#L12-L27).
+Sources: [`RedisEventStore.kt`](https://github.com/Ahoo-Wang/Wow/blob/v8.13.1/wow-redis/src/main/kotlin/me/ahoo/wow/redis/eventsourcing/RedisEventStore.kt),
+[`EventStreamKeyLayout.kt`](https://github.com/Ahoo-Wang/Wow/blob/v8.13.1/wow-redis/src/main/kotlin/me/ahoo/wow/redis/eventsourcing/EventStreamKeyLayout.kt),
+[`RedisEventSourcingAutoConfiguration.kt`](https://github.com/Ahoo-Wang/Wow/blob/v8.13.1/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/redis/RedisEventSourcingAutoConfiguration.kt).
 
 ## Mongo Ownership Guard
 
-This upgrade keeps aggregate-name-only Mongo collection names, but adds a durable
-`wow_database_metadata` ownership marker. The supported deployment layout is one bounded context per MongoDB
-database.
+The target retains aggregate-name-only collection names and adds a durable `wow_database_metadata` record whose
+`boundedContext` owner uses layout version `1`. One Mongo database may belong to one bounded context.
 
-Before rollout:
+Before deployment:
 
-1. Inspect every configured event-stream, snapshot, and prepare database. Check all `*_event_stream`, `*_snapshot`,
-   and `prepare_*` collections.
-2. Confirm that each database belongs to only one `wow.context-name`; a mixed database must be split before upgrade.
-3. Upgrade the database's real owner first. The first upgraded instance scans legacy aggregate collections before
-   atomically claiming the marker. Legacy `prepare_*` records contain no context metadata, so a prepare-only database
-   is claimed by the first upgraded context and must be audited before rollout.
-4. Audit existing managed indexes. Missing indexes are created, but incompatible key order, uniqueness, TTL,
-   partial-filter, collation, sparse, or hidden options block startup and require a controlled migration.
+1. inventory every event-stream, snapshot, and prepare database plus `*_event_stream`, `*_snapshot`, and `prepare_*`
+   collections;
+2. split any database whose aggregate collections contain more than one context;
+3. map prepare-only databases explicitly—the guard cannot infer context from legacy prepare documents, so the first
+   target context would claim an unmarked database;
+4. inspect managed indexes including key order, uniqueness, TTL, partial filter, collation, sparse, and hidden options;
+5. deploy the verified owner first and retain the marker/collection inventory as evidence.
 
-Do not edit the marker to bypass a context mismatch. Move or remove the old data, then remove the marker only when
-the database is intentionally reassigned.
+Do not edit/delete the ownership marker to bypass a conflict. Move or remove the conflicting data first; delete a
+marker only when an empty database is intentionally reassigned.
 
-Source: [`MongoDatabaseContextGuard.kt:30-132`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/MongoDatabaseContextGuard.kt#L30-L132).
+Source: [`MongoDatabaseContextGuard.kt`](https://github.com/Ahoo-Wang/Wow/blob/v8.13.1/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/MongoDatabaseContextGuard.kt).
 
 ## Verification Checklist
 
-- [ ] v6 is on its latest maintenance release and deprecated API use is gone
-- [ ] Spring Boot 4, Jackson 3, and every third-party starter have passed compatibility review
-- [ ] All domain, server, integration-test, and KSP metadata code has been recompiled
-- [ ] Event, snapshot, PrepareKey, Redis key, and Mongo database inventories are complete
-- [ ] Migration manifests, checksums, ID indexes, and representative event replay agree
-- [ ] One v8 instance passes read/write, query, snapshot regeneration, monitoring, and graceful shutdown tests
-- [ ] The rollback window, legacy read-only retention, and reverse migration of v8 writes have been rehearsed
+- [ ] exact source/target tags, commits, build versions, wrapper, catalogs, JDK, and resolved dependencies are recorded
+- [ ] source, test, KSP, OpenAPI/schema, and downstream contract diffs are reviewed
+- [ ] target startup/readiness/message flow/graceful shutdown and fatal failure paths pass
+- [ ] event, snapshot, Redis, Mongo, PrepareKey, projection, and BI scopes are inventoried
+- [ ] offline migration manifest, checksums, versions, request IDs, ID indexes, and replay reconcile
+- [ ] all old writers are stopped before storage cutover; one target instance passes isolated read/write verification
+- [ ] metrics/traces and Collector/backend receipt cover command, store, and downstream processing stages
+- [ ] production image/revision, live traffic, alerts, business invariants, and rollback window are verified
+- [ ] rollback before and after the first v8 write has an exercised data procedure
 
 ## Related Pages
 
 | Page | Relationship |
 |---|---|
-| [Migration Guide](../migration.md) | Choose the correct migration path |
-| [Migrating from Traditional Architecture](./traditional-architecture.md) | First-time Wow adoption |
-| [Runtime Orchestration Migration](./runtime-orchestration.md) | Current v8 lifecycle source breaks and extension migration |
-| [Runtime Lifecycle](../advanced/runtime-lifecycle.md) | Stable post-migration runtime model |
-| [Redis Extension](../extensions/redis.md) | Redis configuration and the canonical-v2 startup guard |
-| [Mongo Extension](../extensions/mongo.md) | Mongo storage and database ownership constraints |
+| [Migration Guide](../migration.md) | Scope and evidence model |
+| [Runtime Orchestration Migration](./runtime-orchestration.md) | Lifecycle source/runtime migration |
+| [Runtime Lifecycle](../advanced/runtime-lifecycle.md) | Stable v8 runtime semantics |
+| [Redis Extension](../extensions/redis.md) | Current Redis configuration and guards |
+| [Mongo Extension](../extensions/mongo.md) | Current Mongo configuration and ownership |
+| [BI Deployment and Recovery](../bi-operations.md) | BI ownership, reconciliation, and Reset |
+
+<!-- Version facts verified from local v6.20.16 and v8.13.1 tags; storage/runtime facts from current source/tests. -->

@@ -30,10 +30,10 @@ export const sidebarEn: DefaultTheme.Sidebar = {
     '/onboarding/': [
         {
             base: '/onboarding/',
-            text: 'Onboarding',
+            text: 'Evaluate and Contribute',
             collapsed: false,
             items: [
-                {text: 'Choose Your Path', link: 'index.html'},
+                {text: 'Choose by Role', link: 'index.html'},
                 {text: 'Contributor Guide', link: 'contributor-guide'},
                 {text: 'Staff Engineer Guide', link: 'staff-engineer-guide'},
                 {text: 'Executive Guide', link: 'executive-guide'},
@@ -44,7 +44,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
     '/guide/': [
         {
             base: '/guide/',
-            text: 'Basics',
+            text: 'Start',
             collapsed: false,
             items: [
                 {text: 'Guide Overview', link: 'index.html'},
@@ -52,44 +52,59 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'Getting Started', link: 'getting-started'},
                 {text: 'Existing Spring Boot Project', link: 'existing-project'},
                 {text: 'Core Concepts', link: 'core-concepts'},
-                {text: 'Aggregate Modeling', link: 'modeling'},
-                {text: 'Configuration', link: 'configuration'},
             ],
         },
         {
             base: '/guide/',
-            text: 'Core',
+            text: 'Domain Development',
             collapsed: false,
             items: [
+                {text: 'Aggregate Modeling', link: 'modeling'},
                 {text: 'Event Store', link: 'eventstore'},
                 {text: 'Snapshot', link: 'snapshot'},
                 {text: 'Command Gateway', link: 'command-gateway'},
                 {text: 'Distributed Transactions (Saga)', link: 'saga'},
-                {text: 'Projection', link: 'projection'},
-                {text: 'Query Service', link: 'query'},
-                {text: 'Data Access Control', link: 'data-access'},
                 {text: 'Event Processor', link: 'event-processor'},
-            ],
-        },
-        {
-            base: '/guide/',
-            text: 'Tooling',
-            collapsed: false,
-            items: [
-                {text: 'Open API', link: 'open-api'},
-                {text: 'Test Suite', link: 'test-suite'},
-                {text: 'Application Testing', link: 'application-testing'},
-                {text: 'Agent Skills', link: 'skills'},
-                {text: 'Business Intelligence', link: 'bi'},
-                {text: 'BI Deployment and Recovery', link: 'bi-operations'},
                 {text: 'Event Compensation', link: 'event-compensation'},
             ],
         },
         {
             base: '/guide/',
-            text: 'Best Practices',
+            text: 'Read Models and Queries',
             collapsed: false,
             items: [
+                {text: 'Projection', link: 'projection'},
+                {text: 'Query Service', link: 'query'},
+                {text: 'Data Access Control', link: 'data-access'},
+            ],
+        },
+        {
+            base: '/guide/',
+            text: 'Interfaces and Automation',
+            collapsed: false,
+            items: [
+                {text: 'Open API', link: 'open-api'},
+                {text: 'Agent Skills', link: 'skills'},
+                {text: 'Business Intelligence', link: 'bi'},
+            ],
+        },
+        {
+            base: '/guide/',
+            text: 'Testing and Delivery',
+            collapsed: false,
+            items: [
+                {text: 'Test Suite', link: 'test-suite'},
+                {text: 'Application Testing', link: 'application-testing'},
+                {text: 'Framework Tests and Benchmarks', link: 'test-runtime'},
+            ],
+        },
+        {
+            base: '/guide/',
+            text: 'Production Operations',
+            collapsed: false,
+            items: [
+                {text: 'Configuration', link: 'configuration'},
+                {text: 'BI Deployment and Recovery', link: 'bi-operations'},
                 {text: 'Production Best Practices', link: 'best-practices'},
                 {text: 'Backup, Restore, and Replay', link: 'recovery'},
                 {text: 'Troubleshooting', link: 'troubleshooting'},
@@ -125,7 +140,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
         },
         {
             base: '/guide/advanced/',
-            text: 'Advanced',
+            text: 'How Wow Works',
             collapsed: true,
             items: [
                 {text: 'Architecture', link: 'architecture'},

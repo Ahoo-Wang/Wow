@@ -1,113 +1,65 @@
 ---
 title: CoSec
-description: CoSec 安全框架集成，处理命令和查询端点的安全上下文注入与传播。
+description: 在 Wow WebFlux 命令与查询中提取并传播 CoSec 上下文。
 ---
 
 # CoSec
 
-CoSec 扩展将 [CoSec](https://github.com/Ahoo-Wang/CoSec) 安全框架与 Wow 的 WebFlux 命令和查询端点集成，处理安全上下文的注入与传播。
+`wow-cosec` 把 `CoSec-*` 请求头映射到 Wow 命令 header/builder 和查询 space filter，并把 app/device 上下文传播到下游消息。只有应用已经采用这些 CoSec header 约定时使用。
 
-::: danger 集成不等于授权策略
-`wow-cosec` 读取并传播 CoSec 上下文，但不会仅凭请求头认证调用方，也不会自动授权命令。应用必须配置可信的 CoSec/Spring Security 认证链和路由策略；客户端提供的 tenant、owner、space、app 或 device 值不能直接作为授权证据。查询 ABAC 还需要应用注册 fail-closed 的 `AbacQueryFilter`。完整边界见[数据权限](../data-access.md#必须完成的安全闭环)。
+::: danger 安全边界
+该模块不认证请求、不验证 header 真伪、不自动授权命令，也不把 tenant/owner/space 与服务端主体绑定。认证、路由授权和 fail-closed 数据权限仍由应用安全链负责。
 :::
 
 ## 工作原理
 
-CoSec 集成提供四个核心组件：
-
-1. **CommandRequestHeaderAppender** — 从 HTTP 请求头中提取 `CoSec-App-Id` 和 `CoSec-Device-Id`，附加到命令 Header 中
-2. **CommandBuilderExtractor** — 从 HTTP 请求头中提取 `CoSec-Request-Id` 和 `CoSec-Space-Id`，注入到 CommandBuilder 中
-3. **MessagePropagator** — 在处理链中将 `app_id` 和 `device_id` 从上游消息 Header 向下游传播
-4. **RewriteRequestFilter** — 从 `CoSec-Space-Id` 请求头（兜底取请求 space）解析查询的 `spaceId`，使快照/事件流查询按调用方的 space 隔离
+四个行为构成完整集成：`CoSecCommandRequestHeaderAppender` 提取 app/device，`CoSecCommandBuilderExtractor` 补充 request/space，service-loaded `CoSecMessagePropagator` 传播 app/device，`CoSecRewriteRequestFilter` 为查询解析 space。Wow 只拥有上下文搬运；安全框架拥有可信身份与策略决定。
 
 ## 安装
 
-添加 `wow-cosec` 依赖，并在 Spring Boot Starter 中启用 `cosec-support` 能力：
-
-```kotlin [Gradle(Kotlin)]
+```kotlin
 implementation("me.ahoo.wow:wow-spring-boot-starter") {
-    capabilities { requireCapability("cosec-support") }
+    capabilities { requireCapability("me.ahoo.wow:cosec-support") }
 }
 ```
+
+`cosec-support` 带入 `wow-cosec`，后者依赖 `wow-webflux` 实现类；HTTP 路由仍需要 WebFlux 自动配置实际启用。没有 `wow.cosec.*` 配置树。
 
 ## 自动配置
 
-当 `wow-cosec` 和 CoSec 同时在 classpath 上时，`CoSecAutoConfiguration` 会自动注册安全集成 Bean，无需额外配置。
+`CoSecAutoConfiguration` 只要求 Wow 启用且 `CoSecCommandRequestHeaderAppender` 在 classpath，然后注册三个 WebFlux 扩展 Bean。它没有 `enabled` 开关，也没有 `@ConditionalOnMissingBean`；若不需要该行为，移除 capability 或显式排除该自动配置，而不是信任空配置。
 
 ## 使用方式
 
-该集成是透明的：客户端在每个命令 HTTP 请求上发送 CoSec 头，框架会沿命令管道传播这些上下文，
-使下游的 Saga、投影和事件处理器都能观察到调用方的 app、device、request 与 space 上下文。
+最小运行配置是 capability 加上应用自己的认证/授权链；CoSec 集成本身无需 YAML。发送 header 前先确保网关删除不可信的外部身份 header，并由服务端重新建立可信上下文。
 
 ### 发送 CoSec 头
 
-```http
-POST /tenant/{tenantId}/owner/{ownerId}/sales-order
-Content-Type: application/json
-Command-Wait-Stage: PROCESSED
-CoSec-App-Id: wow-shop
-CoSec-Device-Id: 7f6e5d4c-3b2a-1f0e-9d8c-7b6a5f4e3d2c
-CoSec-Request-Id: 550e8400-e29b-41d4-a716-446655440000
-CoSec-Space-Id: production
+| Header | 目标 |
+|---|---|
+| `CoSec-App-Id` | 命令 header `app_id` |
+| `CoSec-Device-Id` | 命令 header `device_id` |
+| `CoSec-Request-Id` | `CommandBuilder.requestIdIfAbsent` |
+| `CoSec-Space-Id` | `CommandBuilder.spaceIdIfAbsent` 与查询 space fallback |
 
-{
-  "items": [...]
-}
-```
-
-启用 CoSec 后，对于命令请求，如果标准的 `Wow-Space-Id` 请求头缺失或为空，`CoSec-Space-Id` 会提供命令的 `spaceId`。若两个请求头均为非空值，`Wow-Space-Id` 优先，因为默认提取器会先设置该值，而 `CoSecCommandBuilderExtractor` 仅在尚未设置 `spaceId` 时补充该值。因此，尽管生成的 OpenAPI 仍会列出可选的 `Wow-Space-Id` 请求头，本示例有意只发送 `CoSec-Space-Id`。
+标准 Wow request/space 值已存在时，`IfAbsent`/rewrite 优先保留 Wow 值；CoSec header 只补充。缺失 header 不产生上下文，也不会自行失败。
 
 ### 上下文如何流转
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant Client
-    participant WebFlux as WebFlux 路由
-    participant Appender as CoSecCommandRequestHeaderAppender
-    participant Extractor as CoSecCommandBuilderExtractor
-    participant Gateway as CommandGateway
-    participant Propagator as CoSecMessagePropagator
-    participant Handler as 下游处理器（Saga/投影）
+app/device 随 Wow message header 传播到下游命令/事件；request ID 与 space ID 进入命令 identity/scope。查询 filter 先读取 Wow space，再回退 `CoSec-Space-Id`。传播值仅可用于审计或已验证策略，不能因“来自 header”就视为授权事实。
 
-    Client->>WebFlux: POST + CoSec-* 头
-    WebFlux->>Appender: append(request, header)
-    Note over Appender: CoSec-App-Id → header.app_id<br>CoSec-Device-Id → header.device_id
-    WebFlux->>Extractor: extract(metadata, body, request)
-    Note over Extractor: CoSec-Request-Id → commandBuilder.requestId<br>CoSec-Space-Id → commandBuilder.spaceId
-    Extractor-->>WebFlux: CommandBuilder
-    WebFlux->>Gateway: send(CommandMessage)
-    Gateway->>Propagator: propagate(header, upstream)
-    Note over Propagator: 将 app_id/device_id<br>复制到每个下游命令/事件
-    Propagator-->>Handler: 携带 app_id/device_id 的消息
-```
-
-| 头 | 提取者 | 注入位置 |
-|---|---|---|
-| `CoSec-App-Id` | `CoSecCommandRequestHeaderAppender` | 命令 `header.app_id`，并传播到下游消息 |
-| `CoSec-Device-Id` | `CoSecCommandRequestHeaderAppender` | 命令 `header.device_id`，并传播到下游消息 |
-| `CoSec-Request-Id` | `CoSecCommandBuilderExtractor` | `CommandBuilder.requestId`（幂等性） |
-| `CoSec-Space-Id` | `CoSecCommandBuilderExtractor` + `CoSecRewriteRequestFilter` | `CommandBuilder.spaceId`；对于读侧查询，`CoSecRewriteRequestFilter` 先解析 `Wow-Space-Id` 头，仅在其为空时才回退到 `CoSec-Space-Id` |
-
-要在处理器内访问传播的上下文，从消息头读取即可：
-
-```kotlin
-@StatelessSaga
-class OrderSaga {
-    fun onEvent(event: OrderCreated, exchange: DomainEventExchange<*>): Mono<Void> {
-        val appId = exchange.message.header["app_id"]
-        val deviceId = exchange.message.header["device_id"]
-        // ... 使用调用方的 app/device 上下文
-        return Mono.empty()
-    }
-}
-```
+已验证失败/边界：缺失 header 得到空上下文；已有 request/space 不被 CoSec 覆盖；查询 space 只形成 `SpaceIdFilter`，不执行主体授权；伪造 header 会被忠实传播，因此安全链缺失是部署失败而非模块可修复的输入校验问题。
 
 ## 完成门禁
 
-- 未认证请求不能访问受保护的命令和查询路由；
-- 伪造 `CoSec-*`、`Wow-Space-Id`、tenant 或 owner 不能扩大权限；
-- 身份与作用域由服务端策略绑定，而不是由请求头自行声明；
-- 受保护查询缺少主体标签时拒绝，而不是退化为 `MatchAllFilter`；
-- Saga、投影和事件处理器只把传播上下文用于审计或经验证的授权决策；
-- 集成测试覆盖匿名、越权、跨租户和正常授权路径。
+- 匿名、伪造 header、跨 tenant/owner/space 请求被服务端策略拒绝；
+- 查询缺少授权标签时 fail closed，不退化为 match-all；
+- 下游处理器区分传播上下文与可信主体；
+- 候选环境覆盖正常、匿名、越权与跨作用域测试；
+- 聚焦模块检查通过：
+
+```bash
+./gradlew :wow-cosec:check
+```
+
+下一步阅读[数据权限](../data-access.md)完成认证、授权、过滤与审计闭环。

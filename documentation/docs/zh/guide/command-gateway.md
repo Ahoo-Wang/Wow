@@ -1,534 +1,282 @@
 ---
 title: 命令网关
-description: 命令网关是接收和发送命令的核心组件，负责处理幂等性、等待计划和验证。
+description: 发送命令、选择可观测完成阶段，并正确解释验证、幂等与下游处理结果。
 ---
 
 # 命令网关
 
-命令网关是系统中接收和发送命令的核心组件，是命令的入口点。
-它是命令总线的扩展，不仅负责命令传输，还增加了一系列重要职责，包括命令幂等性、等待计划和命令验证。
+`CommandGateway` 是面向应用的命令入口。它在 `CommandBus` 之上增加命令体验证、请求 ID 预检与阶段等待；它不会把聚合业务规则搬到传输层。
+
+本指南沿用同一个 `CreateOrder` 命令。调用方等待 `SENT`、`PROCESSED`、`SNAPSHOT` 或 `PROJECTED` 时，即使命令最终成功，响应所证明的事实也不同。
 
 ## 发送命令
 
 ![发送命令 - 命令网关](/images/command-gateway/send-command.svg)
 
+持久化主路径是：
+
+```text
+验证 + requestId 检查 -> 命令总线 -> 恢复聚合 -> 处理命令
+-> 追加 DomainEventStream -> 发布状态/领域事件 -> 快照/事件处理/投影
+```
+
+等待阶段只选择这条路径中的观测点，不改变命令的业务行为。
+
 ## API 使用
 
-`CommandGateway` 接口提供了多种发送命令并等待其结果的方法。以下是主要方法及其使用模式。
+创建一个 `CommandMessage`，构造等待计划时复用它的 `commandId`：
+
+```kotlin
+val command = createOrder.toCommandMessage(
+    aggregateId = "order-1",
+    requestId = "create-order-1",
+)
+```
 
 ### 基础方法
 
-:::tip
-`toCommandMessage()` 扩展函数将命令体转换为 `CommandMessage`。该函数由 Wow 框架提供，负责设置命令 ID、聚合 ID 和其他元数据。
-:::
+`sendAndWait` 返回一个最终结果；`sendAndWaitStream` 暴露已接受的中间信号，适合 SSE 或进度展示。
 
 #### sendAndWait(command, waitPlan)
 
-发送命令并等待最终结果。如果命令失败，则抛出 `CommandResultException`。
-
 ```kotlin
-val command = CreateAccount(balance = 1000, name = "John").toCommandMessage()
-val waitPlan = CommandWait.processed(command.commandId)
-
-commandGateway.sendAndWait(command, waitPlan)
-    .doOnSuccess { result ->
-        println("Command processed: ${result.commandId}")
-        println("Aggregate Version: ${result.aggregateVersion}")
-    }
-    .subscribe()
+val result = commandGateway.sendAndWait(
+    command,
+    CommandWait.processed(command.commandId),
+)
 ```
+
+成功的 `PROCESSED` 证明完整命令 filter chain 没有传播错误并已完成。处理器产生事件时，这条链包括事件追加以及后续领域/状态事件发送 filter。它不证明快照、投影、事件处理器或 Saga 函数已完成。
 
 #### sendAndWaitStream(command, waitPlan)
 
-返回 `Flux<CommandResult>`，在命令经过不同阶段时提供实时流式更新。
-
 ```kotlin
-val command = CreateAccount(balance = 1000, name = "John").toCommandMessage()
-val waitPlan = CommandWait.snapshot(command.commandId)
-
-commandGateway.sendAndWaitStream(command, waitPlan)
-    .doOnNext { result ->
-        println("Stage: ${result.stage} - Succeeded: ${result.succeeded}")
-        println("Aggregate Version: ${result.aggregateVersion}")
-    }
-    .subscribe()
+commandGateway.sendAndWaitStream(
+    command,
+    CommandWait.snapshot(command.commandId),
+).doOnNext { result ->
+    println("${result.stage}: ${result.succeeded}")
+}
 ```
+
+等待快照时，流可以按实际到达顺序暴露 `SENT`、`PROCESSED` 与 `SNAPSHOT`；不要依赖阶段顺序。下游目标信号早于 `PROCESSED` 到达时，`StageWaitState` 会暂存它，但直到观察到 `PROCESSED` 才完成等待。任一前置阶段失败，会用该较早阶段的失败结束等待。
 
 #### 等待超时
 
-`sendAndWait` 和 `sendAndWaitStream` 默认最多等待 30 秒。该期限从订阅开始计算，覆盖命令检查、发送以及目标阶段等待；超时会取消等待并释放已注册的 `WaitHandle`。可通过 `withTimeout` 为单次调用覆盖默认值：
+网关默认期限为 30 秒。`withTimeout` 只改变本次调用的调用方等待生命周期，不会作为分布式消息头传播。
 
 ```kotlin
-val waitPlan = CommandWait.processed(command.commandId)
-    .withTimeout(Duration.ofMinutes(2))
-
-commandGateway.sendAndWait(command, waitPlan)
+val plan = CommandWait.projected(
+    waitCommandId = command.commandId,
+    contextName = command.contextName,
+    processorName = "OrderSummaryProjection",
+).withTimeout(Duration.ofSeconds(10))
 ```
 
-`withTimeout` 只控制调用方本地资源生命周期，不会传播到远端消息头。
-`sendAndWaitForSent` 快路径没有 `WaitPlan` 参数，因此始终使用 30 秒默认期限。
+超时只表示当前调用方停止等待，不会撤销已经被总线接受的命令，也不能证明后续处理失败。等待终止时，网关会取消本地 `WaitHandle`。
 
 ### 便捷方法
 
-`CommandGateway` 提供了预配置常用等待计划的便捷方法：
-
 ```kotlin
-val command = CreateAccount(balance = 1000, name = "John").toCommandMessage()
-
-// 等待命令发送到总线
-commandGateway.sendAndWaitForSent(command)
-    .doOnSuccess { result ->
-        println("Command sent: ${result.commandId}")
-    }
-    .subscribe()
-
-// 等待命令被聚合根处理
-commandGateway.sendAndWaitForProcessed(command)
-    .doOnSuccess { result ->
-        if (result.succeeded) {
-            println("Command processed successfully: ${result.commandId}")
-            println("New aggregate version: ${result.aggregateVersion}")
-        }
-    }
-    .subscribe()
-
-// 等待聚合快照创建
-commandGateway.sendAndWaitForSnapshot(command)
-    .doOnSuccess { result ->
-        println("Snapshot created for aggregate: ${result.aggregateId}")
-    }
-    .subscribe()
+commandGateway.sendAndWaitForSent(command)       // SENT
+commandGateway.sendAndWaitForProcessed(command)  // PROCESSED
+commandGateway.sendAndWaitForSnapshot(command)   // SNAPSHOT
 ```
+
+选择满足响应契约的最早阶段。调用方需要某个具名下游函数时，使用 `CommandWait.projected`、`eventHandled` 或 `sagaHandled`。
 
 ## 核心概念
 
 ### CommandResult
 
-`CommandResult` 表示命令在特定处理阶段的执行结果。它包含有关命令处理结果的全面信息。
+`CommandResult` 是一个 `WaitSignal` 的公开观测结果。最重要的字段如下：
 
-| 属性 | 类型 | 描述 | Source |
-|----------|------|-------------|--------|
-| `id` | `String` | 此结果的唯一标识符 | [CommandResult.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandResult.kt#L69) |
-| `waitCommandId` | `String` | 正在等待的命令 ID | [CommandResult.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandResult.kt#L69) |
-| `stage` | `CommandStage` | 当前处理阶段（SENT、PROCESSED、SNAPSHOT 等） | [CommandResult.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandResult.kt#L69) |
-| `contextName` | `String` | 限界上下文名称 | [CommandResult.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandResult.kt#L69) |
-| `aggregateName` | `String` | 聚合名称 | [CommandResult.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandResult.kt#L69) |
-| `tenantId` | `String` | 租户标识符 | [CommandResult.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandResult.kt#L69) |
-| `aggregateId` | `String` | 聚合实例标识符 | [CommandResult.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandResult.kt#L69) |
-| `aggregateVersion` | `Int?` | 处理后的聚合版本（网关验证失败或处理前为 null） | [CommandResult.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandResult.kt#L69) |
-| `requestId` | `String` | 用于幂等性的请求标识符 | [CommandResult.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandResult.kt#L69) |
-| `commandId` | `String` | 命令标识符 | [CommandResult.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandResult.kt#L69) |
-| `function` | `FunctionInfoData` | 处理函数的信息 | [CommandResult.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandResult.kt#L69) |
-| `errorCode` | `String` | 错误码（成功时为 "Ok"） | [CommandResult.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandResult.kt#L69) |
-| `errorMsg` | `String` | 错误消息（成功时为空） | [CommandResult.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandResult.kt#L69) |
-| `bindingErrors` | `List<BindingError>` | 验证错误列表 | [CommandResult.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandResult.kt#L69) |
-| `result` | `Map<String, Any>` | 额外的结果数据 | [CommandResult.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandResult.kt#L69) |
-| `signalTime` | `Long` | 此结果生成的时间戳 | [CommandResult.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandResult.kt#L69) |
-| `succeeded` | `Boolean` | 命令处理是否成功 | [CommandResult.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandResult.kt#L69) |
+| 字段 | 含义 |
+|---|---|
+| `stage` | 已观测阶段，如 `SENT`、`PROCESSED`、`SNAPSHOT` 或 `PROJECTED` |
+| `succeeded` | 由 `errorCode` 推导的成功标志 |
+| `aggregateVersion` | 该阶段已知的版本；聚合处理前可为 `null` |
+| `commandId` / `waitCommandId` | 当前命令，以及拥有等待计划的命令 |
+| `requestId` | 原始命令携带的调用方幂等键 |
+| `function` | 产生信号的函数，供函数级阶段匹配 |
+| `errorCode`、`errorMsg`、`bindingErrors` | 可观测失败详情 |
+| `result` | 从已接受信号累积的结果值 |
 
-`CommandResult` 通过 `toResult()` 扩展函数从 `WaitSignal` 创建，该函数将信号字段映射到结果字段，并添加来自原始命令消息的 `requestId`。
+不要从成功结果推断未观测阶段。尤其不能把 `PROCESSED` 当成 `SNAPSHOT` 或 `PROJECTED` 的别名。
 
 ### WaitSignal 与 CommandResult
 
-- **WaitSignal**：在等待计划基础设施中使用的内部接口。包含处理阶段信息，用于组件之间的信号传递。
-- **CommandResult**：命令结果的公共 API。从 `WaitSignal` 创建，包含额外的上下文信息，如 `requestId` 和格式化的聚合信息。
+`WaitSignal` 是内部阶段通知。`DefaultCommandGateway` 将其与原命令的 `requestId`、聚合身份组合成 `CommandResult`。本地或远程 notifier 负责传递信号，网关结果才是公开契约。
 
 ### CommandGateway 与 CommandBus
 
-`CommandGateway` 扩展了 `CommandBus`，增加了额外的高级功能：
+| 能力 | `CommandBus` | `CommandGateway` |
+|---|---:|---:|
+| 路由 `CommandMessage` | 是 | 是 |
+| 验证命令体 | 契约未规定 | 默认实现会执行 |
+| 预检 `requestId` | 契约未规定 | 默认实现会执行 |
+| 注册并等待阶段 | 否 | 是 |
+| 返回 `CommandResult` | 否 | 是 |
 
-| 功能 | CommandBus | CommandGateway |
-|---------|------------|----------------|
-| 发送命令 | 是 | 是 |
-| 等待计划 | 否 | 是 |
-| 命令验证 | 否 | 是 |
-| 幂等性检查 | 否 | 是 |
-| 实时结果流式传输 | 否 | 是 |
-| 便捷方法 | 否 | 是 |
-
-当只需要基本命令路由时使用 `CommandBus`。使用 `CommandGateway` 可以获取带等待计划和验证的完整命令处理功能。
-
-```kotlin
-// CommandBus - 仅基本路由
-interface CommandBus : MessageBus<CommandMessage<*>, ServerCommandExchange<*>>
-
-// CommandGateway - 扩展 CommandBus，增加额外功能
-interface CommandGateway : CommandBus {
-    fun <C : Any> sendAndWait(command: CommandMessage<C>, waitPlan: WaitPlan): Mono<CommandResult>
-    fun <C : Any> sendAndWaitStream(command: CommandMessage<C>, waitPlan: WaitPlan): Flux<CommandResult>
-    // ... 便捷方法
-}
-```
+仅需要传输时可使用 `CommandBus`。请求边界通常使用 `CommandGateway`，让验证、幂等与等待语义保持一致。
 
 ## 架构
-
-命令基础设施构建于分层架构之上，将 API 契约、网关（验证/幂等性）、消息总线（传输）和聚合分发器（处理）的关注点分离。
 
 ### 组件架构
 
 ```mermaid
-graph TB
-    Client[Client / HTTP Request]
-    Handler[CommandHandlerFunction<br>WebFlux Layer]
-    Gateway[DefaultCommandGateway<br>验证 + 幂等性]
-    Registrar[WaitCoordinator<br>内存注册表]
-    LFBus[LocalFirstCommandBus]
-    InMem[InMemoryCommandBus<br>本地 Sink]
-    Kafka[KafkaCommandBus<br>通过 Kafka 分布式传输]
-    Dispatcher[AggregateDispatcher<br>响应式消息消费者]
-    Aggregate[Aggregate Root<br>处理命令]
-    Notifier[CommandWaitNotifier<br>信号传播]
-
-    Client -->|POST /aggregate/action| Handler
-    Handler -->|提取WaitPlan + 发送| Gateway
-    Gateway -->|1. 验证<br>2. 幂等性检查| Gateway
-    Gateway -->|3. 注册| Registrar
-    Gateway -->|4. 发送消息| LFBus
-    LFBus -->|本地优先| InMem
-    LFBus -->|分布式副本| Kafka
-    InMem -->|接收| Dispatcher
-    Kafka -->|接收| Dispatcher
-    Dispatcher -->|处理Exchange| Aggregate
-    Aggregate -->|WaitSignal| Notifier
-    Notifier -->|下一个信号| Registrar
-    Registrar -->|回调| Gateway
-    Gateway -->|CommandResult| Client
-
+flowchart LR
+    Client[调用方] --> Gateway[DefaultCommandGateway]
+    Gateway --> Bus[CommandBus]
+    Bus --> Dispatcher[CommandDispatcher]
+    Dispatcher --> Repository[StateAggregateRepository]
+    Repository --> SnapshotStore
+    Repository --> EventStore
+    Dispatcher --> Aggregate[命令聚合]
+    Aggregate --> EventStore
+    EventStore --> EventBus[DomainEventBus]
+    EventBus --> Snapshot[快照分发器]
+    EventBus --> Processor[事件处理器]
+    EventBus --> Projection[投影处理器]
+    Snapshot --> Wait[WaitCoordinator]
+    Processor --> Wait
+    Projection --> Wait
+    Dispatcher --> Wait
 ```
 
-<!-- Sources:
-- CommandHandlerFunction: wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/CommandHandlerFunction.kt:39-63
-- DefaultCommandGateway: wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt:45-246
-- LocalFirstCommandBus: wow-core/src/main/kotlin/me/ahoo/wow/command/LocalFirstCommandBus.kt:29-47
-- InMemoryCommandBus: wow-core/src/main/kotlin/me/ahoo/wow/command/InMemoryCommandBus.kt:31-50
-- KafkaCommandBus: wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/KafkaCommandBus.kt:27-45
-- AggregateDispatcher: wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt:80-275
-- WaitCoordinator: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitCoordinator.kt:18-72
--->
+事件存储保存权威历史；快照与处理器存储保存从该历史派生的下游状态。
 
 ### 消息总线层级
 
-`MessageBus` 接口定义了基本契约：发送消息并为一组命名聚合接收消息。它被特化为三个层级：
-
-| 总线类型 | 接口 | 用途 | Source |
-|---|---|---|---|
-| **本地** | `LocalMessageBus` | 单 JVM、通过 Reactor `Sinks` 进行内存消息传递 | [MessageBus.kt:64](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/MessageBus.kt#L64) |
-| **分布式** | `DistributedMessageBus` | 跨实例消息传递（Kafka） | [MessageBus.kt:83](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/MessageBus.kt#L83) |
-| **本地优先** | `LocalFirstMessageBus` | 混合：本地运行时准入与带标记的分布式副本 | [LocalFirstMessageBus.kt:99](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/LocalFirstMessageBus.kt#L99) |
-
-对于命令领域，`CommandBus` 扩展了 `MessageBus`，并固定 `TopicKind.COMMAND` 并缩小了泛型类型：
-
-- `LocalCommandBus` 同时扩展了 `CommandBus` 和 `LocalMessageBus`。
-- `DistributedCommandBus` 同时扩展了 `CommandBus` 和 `DistributedMessageBus`。
-- `LocalFirstCommandBus` 扩展了 `CommandBus` 并使用 `LocalFirstMessageBus` 委托，自动为空命令禁用本地优先。
+`CommandBus` 是面向命令 exchange 的 `MessageBus` 特化。具体实现可以是内存、分布式或本地优先总线。`SENT` 表示总线接受，是传输边界，不是聚合执行完成。
 
 ### 速查参考
 
-| 组件 | 职责 | 关键文件 | Source |
-|---|---|---|---|
-| `CommandMessage` | 封装命令体、聚合 ID、版本、幂等性元数据 | `wow-api/.../command/CommandMessage.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/command/CommandMessage.kt#L53) |
-| `CommandGateway` | 高级发送 API，带有验证、幂等性、等待计划 | `wow-core/.../command/CommandGateway.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt#L75) |
-| `DefaultCommandGateway` | `CommandGateway` 的具体实现 | `wow-core/.../command/DefaultCommandGateway.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L45) |
-| `CommandBus` | 用于路由命令的核心消息总线抽象 | `wow-core/.../command/CommandBus.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandBus.kt#L36) |
-| `InMemoryCommandBus` | 使用 Reactor sinks 的本地内存总线（单播） | `wow-core/.../command/InMemoryCommandBus.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/InMemoryCommandBus.kt#L31) |
-| `LocalFirstCommandBus` | 先尝试本地总线，回退到分布式总线 | `wow-core/.../command/LocalFirstCommandBus.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/LocalFirstCommandBus.kt#L29) |
-| `KafkaCommandBus` | 基于 Apache Kafka 的分布式命令总线 | `wow-kafka/.../KafkaCommandBus.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/KafkaCommandBus.kt#L27) |
-| `WaitPlan` | 定义等待命令结果的时长和阶段 | `wow-core/.../command/wait/WaitPlan.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt#L60) |
-| `CommandWait` | 单阶段等待计划工厂（SENT、PROCESSED、SNAPSHOT 等） | `wow-core/.../command/wait/CommandWait.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandWait.kt#L33) |
-| `SimpleWaitingChain` | 多阶段链（例如 SAGA_HANDLED 然后 SNAPSHOT） | `wow-core/.../command/wait/chain/SimpleWaitingChain.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/chain/SimpleWaitingChain.kt#L36) |
-| `CommandHandlerFunction` | 将 HTTP 请求桥接到 `CommandGateway` 的 Spring WebFlux 处理器 | `wow-webflux/.../command/CommandHandlerFunction.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/CommandHandlerFunction.kt#L39) |
-| `AggregateDispatcher` | 按聚合从总线消费消息的响应式分发器 | `wow-core/.../messaging/dispatcher/AggregateDispatcher.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L80) |
+| 组件 | 职责 |
+|---|---|
+| `DefaultCommandGateway` | 发送前检查、等待注册、发送、结果映射与期限控制 |
+| `RequestIdChecker` | 快速预检，必要时查询权威存在性 |
+| `WaitCoordinator` | 维护以 `waitCommandId` 为键的进程内等待句柄 |
+| `RetryableAggregateProcessor` | 恢复聚合，并对可恢复的聚合处理失败重试 |
+| `SimpleCommandAggregate` | 检查聚合约束、调用处理器、溯源并追加事件 |
+| `EventSourcingStateAggregateRepository` | 在适用时加载当前快照并重放后续事件 |
+| notifier filters | 包裹各自完整 filter chain，然后产生 `PROCESSED`、`SNAPSHOT`、`PROJECTED`、`EVENT_HANDLED` 或 `SAGA_HANDLED` |
 
 ## 命令处理链
-
-以下时序图追踪了命令从 HTTP 请求到最终 `CommandResult` 的每个处理阶段。每个步骤都标注了负责的文件和方法。
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Client
-    participant Handler as CommandHandlerFunction
-    participant Gateway as DefaultCommandGateway
-    participant Store as EventStore
-    participant Registrar as WaitCoordinator
-    participant LFBus as LocalFirstCommandBus
-    participant Kafka as KafkaCommandBus
-    participant Dispatcher as AggregateDispatcher
-    participant Aggregate as 聚合根
-    participant Notifier as CommandWaitNotifier
+    participant C as 调用方
+    participant G as DefaultCommandGateway
+    participant B as CommandBus
+    participant R as StateAggregateRepository
+    participant E as EventStore
+    participant A as 聚合
+    participant D as 下游分发器
 
-    Client->>Handler: POST /{aggregate}/{action}
-    Handler->>Handler: 提取命令体 + 等待计划头
-    Note over Handler: AggregateRequest.extractWaitPlan()
-    Handler->>Gateway: sendAndWait(command, waitPlan)
-    Note over Gateway: DefaultCommandGateway.send()
-
-    Gateway->>Gateway: idempotencyCheck(requestId)
-    opt 预检命中重复
-        Gateway->>Store: existsRequestId(aggregateId, requestId)
+    C->>G: CreateOrder CommandMessage
+    G->>G: requestId 检查，再验证命令体
+    G->>G: 注册 WaitHandle 并传播目标
+    G->>B: 发送
+    G-->>C: SENT 信号
+    B->>R: 非创建命令加载聚合
+    R->>E: 从快照版本 + 1 开始重放
+    B->>A: 调用命令处理函数
+    A->>E: 追加 DomainEventStream
+    E-->>B: 追加完成
+    B->>D: 在命令链内发送领域/状态消息
+    D-->>B: 发送操作返回
+    alt 命令 filter chain 完成
+        B-->>C: 成功的 PROCESSED
+    else 后续链操作传播错误
+        B-->>C: 失败的 PROCESSED（事件可能已追加）
     end
-    Gateway->>Gateway: validate(commandBody)
-    Note over Gateway: Jakarta Bean Validation<br>+ CommandValidator.validate()
-
-    Gateway->>Gateway: waitPlan.propagate(endpoint, header)
-    Gateway->>Registrar: createLast(waitPlan)
-    Gateway->>LFBus: send(command)
-
-    alt 聚合是本地
-        LFBus->>LFBus: localBus.send(message)
-        Note over LFBus: InMemoryCommandBus sink
-        LFBus->>Kafka: distributedBus.send(copy)
-        Note over LFBus: 始终发送副本到分布式总线
-    else 聚合是远程或无本地订阅者
-        LFBus->>Kafka: distributedBus.send(message)
-    end
-
-    Gateway->>Notifier: commandSentSignal(waitCommandId)
-    Note over Gateway,Notifier: CommandStage.SENT 信号（见“发送后信号”说明）
-
-    Kafka->>Dispatcher: receive(subscription)
-    Dispatcher->>Dispatcher: 按键分组, publishOn(scheduler)
-    Dispatcher->>Aggregate: handleExchange(exchange)
-    Aggregate->>Aggregate: 验证并应用命令
-    Aggregate->>Aggregate: 发布领域事件
-
-    Aggregate->>Notifier: WaitSignal(stage=PROCESSED)
-    Notifier->>Registrar: next(waitSignal)
-    Registrar->>Gateway: waitCoordinator.signal(signal)
-
-    opt Stage == SNAPSHOT
-        Aggregate->>Notifier: WaitSignal(stage=SNAPSHOT)
-        Notifier->>Registrar: next(waitSignal)
-    end
-    opt Stage == PROJECTED
-        Aggregate->>Notifier: WaitSignal(stage=PROJECTED)
-        Notifier->>Registrar: next(waitSignal)
-    end
-
-    Gateway->>Gateway: handle.await() -> CommandResult
-    Registrar->>Registrar: unregister(waitCommandId)
-    Gateway->>Handler: Mono<CommandResult>
-    Handler->>Client: HTTP 200 + JSON 响应
+    D-->>C: 下游阶段信号可能与 PROCESSED 竞争到达
 ```
 
-<!-- Sources:
-- CommandHandler.handle(): wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/CommandHandler.kt:26-60
-- DefaultCommandGateway.send(): wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt:114-126
-- DefaultCommandGateway.sendAndWait()/sendAndWaitStream(): wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt:138-185
-- LocalFirstCommandBus.send(): wow-core/src/main/kotlin/me/ahoo/wow/command/LocalFirstCommandBus.kt:41-46
-- LocalFirstMessageBus.send(): wow-core/src/main/kotlin/me/ahoo/wow/messaging/LocalFirstMessageBus.kt:130-149
-- AbstractKafkaBus.receive(): wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt:78-95
-- AggregateDispatcher.start(): wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt:163-173
--->
+对于创建命令，`RetryableAggregateProcessor` 创建新状态聚合，不恢复既有历史；后续命令才委托 `StateAggregateRepository` 恢复。
+
+`ProcessedNotifierFilter` 标注 `ORDER_FIRST`，因此它包裹 `AggregateProcessorFilter`、`SendDomainEventStreamFilter`、`SendStateEventFilter` 与命令链的其余部分，只在 `next.filter(exchange)` 完成或出错后通知。`DomainEventBus.send` 会传播错误，所以事件成功追加后仍可能得到失败的 `PROCESSED`。当前状态事件 filter 使用 `logErrorResume()`，因此 `StateEventBus.send` 失败会记录日志，但本身不会使 `PROCESSED` 失败。
 
 ### DefaultCommandGateway：发送前管道
 
-`DefaultCommandGateway` 在命令到达总线之前强制执行严格的发送前管道：
+默认顺序是明确的：
 
-1. **幂等性检查** -- 委托给 `RequestIdChecker`。`DefaultRequestIdChecker` 先执行聚合的快速幂等预检；当预检拒绝 `requestId` 时，再通过配置的 `RequestIdExistenceChecker` 做权威确认，`EventStore` 实现了该接口。确认重复后抛出 `DuplicateRequestIdException`，预检误判则可继续执行。
+1. 调用 `RequestIdChecker.check(aggregateId, requestId)`。
+2. 快速检查器拒绝该 ID 时，由配置的 `RequestIdExistenceChecker` 确认是否已存在。`EventStore` 提供默认历史扫描，后端可提供索引实现。
+3. 命令体实现 `CommandValidator` 时调用其 `validate()`。
+4. 使用 Jakarta Validation 验证命令体。
+5. 全部通过后才调用 `CommandBus.send`。
 
-2. **验证** -- 两阶段验证：
-   - **自验证**：如果命令体实现了 `CommandValidator`，则首先调用其 `validate()` 方法。这允许进行特定于领域的编程验证。
-   - **Jakarta Bean Validation**：通过配置的 `jakarta.validation.Validator`，根据 `@NotBlank`、`@Min`、`@Max` 等 Jakarta 注解验证命令体。
-
-两项检查在 [`check()` 方法](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L114)中组合执行。
+文档描述不能替代后端证据。重复保护最终仍取决于所选事件存储在追加时是否原子执行其声明的版本与请求 ID 约束。
 
 ### DefaultCommandGateway：发送后信号
 
-命令被命令总线接受后，网关通过 `CommandWaitNotifier` 发布 `CommandStage.SENT` 等待信号。其行为取决于等待句柄类型：
-
-- **失败/出错**：SENT 信号*总是*发布并携带错误信息，等待方可快速失败。
-- **成功**：对流式句柄（`sendAndWaitStream`）以及等待目标阶段*就是* `SENT`（`CommandWait.sent`）时会发布 SENT 信号。对于等待后续阶段（`PROCESSED`、`SNAPSHOT` …）的单结果等待，成功的 SENT 信号会被跳过，因为单结果句柄只需后续阶段完成，对该信号而言 SENT 本身不可观测。
-
-该优化（`SkipsSuccessfulSentSignal`）在不改变任何等待计划对外可观测结果的前提下，移除了命令热路径上的冗余信号。对于重载的 `send(message)`（没有显式 `WaitPlan`），网关从消息头中提取等待计划（如果有传播的话）并发布 SENT 信号。参见 [DefaultCommandGateway.kt:114-126](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L114)。
+`CommandBus.send` 完成后，网关合成 `SENT`。优化后的 `sendAndWaitForSent` 不分配等待句柄，也不传播下游等待消息头。总线错误会映射成失败的 `SENT` 结果，并包装为 `CommandResultException`。
 
 ## 错误处理
 
+失败在发生阶段可观测：
+
+| 边界 | 典型结果 | 尚未证明的事实 |
+|---|---|---|
+| 幂等或验证 | 失败的 `SENT` | 命令没有发送 |
+| 命令总线发送 | 失败的 `SENT` | 聚合未确认完成处理 |
+| 恢复、业务规则或追加 | 失败的 `PROCESSED` | 未证明事件已追加 |
+| 追加后传播的命令 filter 错误，例如领域事件总线发送 | 失败的 `PROCESSED` | 历史可能已有该事件流；按聚合/request ID 查询 |
+| 快照策略/存储 | 失败的 `SNAPSHOT` | 投影与事件处理器彼此独立 |
+| 投影函数/存储 | 失败的 `PROJECTED` | 事件历史仍可保持权威 |
+| 事件处理器 | 失败的 `EVENT_HANDLED` | 重试/补偿取决于处理器策略 |
+
 ### CommandResultException
 
-当命令处理失败时，`sendAndWait` 会抛出包含完整 `CommandResult` 和错误详情的 `CommandResultException`。
+`sendAndWait` 把失败的最终结果转换为 `CommandResultException`。应检查 `commandResult.stage`、`errorCode`、`bindingErrors` 与 `aggregateVersion`，不要按错误消息文本分支。
 
 ```kotlin
-commandGateway.sendAndWait(command, waitPlan)
-    .doOnError { error ->
-        if (error is CommandResultException) {
-            val result = error.commandResult
-            println("Command failed at stage: ${result.stage}")
-            println("Error code: ${result.errorCode}")
-            println("Error message: ${result.errorMsg}")
-            
-            // 检查验证错误
-            if (result.bindingErrors.isNotEmpty()) {
-                result.bindingErrors.forEach { bindingError ->
-                    println("Field '${bindingError.name}': ${bindingError.msg}")
-                }
-            }
-        }
+commandGateway.sendAndWaitForProcessed(command)
+    .onErrorResume(CommandResultException::class.java) { error ->
+        audit(error.commandResult)
+        Mono.error(error)
     }
-    .onErrorResume { error ->
-        // 优雅处理错误
-        when (error) {
-            is CommandResultException -> {
-                // 记录日志并返回回退值
-                Mono.empty()
-            }
-            else -> Mono.error(error)
-        }
-    }
-    .subscribe()
 ```
 
 ### CommandValidationException
 
-在命令发送前验证失败时抛出。包含验证约束违规信息。
-
-```kotlin
-// 带验证注解的命令
-data class CreateAccount(
-    @field:NotBlank(message = "Name is required")
-    val name: String,
-    @field:Min(value = 0, message = "Balance must be non-negative")
-    val balance: Int
-)
-
-commandGateway.sendAndWaitForProcessed(command)
-    .doOnError { error ->
-        if (error is CommandValidationException) {
-            println("Validation failed for command: ${error.command}")
-            error.bindingErrors.forEach { bindingError ->
-                println("Field '${bindingError.name}': ${bindingError.msg}")
-            }
-        }
-    }
-    .subscribe()
-```
+自验证与 Jakarta 约束是网关检查。`DefaultCommandGateway` 在总线发送前执行，因此映射结果处于 `SENT`，没有已处理的聚合版本。
 
 ### DuplicateRequestIdException
 
-当尝试处理具有已处理过的请求 ID 的命令时抛出。
-
-```kotlin
-commandGateway.sendAndWaitForProcessed(command)
-    .doOnError { error ->
-        if (error is DuplicateRequestIdException) {
-            println("Duplicate request: ${error.requestId}")
-            println("Aggregate: ${error.aggregateId}")
-        }
-    }
-    .onErrorResume(DuplicateRequestIdException::class.java) { error ->
-        // 返回缓存结果或忽略重复
-        Mono.empty()
-    }
-    .subscribe()
-```
+`requestId` 以聚合为作用域。配置的检查器确认同一聚合已使用该值时会拒绝请求。把它作为稳定操作 ID，仅在重试同一业务意图时复用。
 
 ### 异常参考
 
-| 异常 | 抛出时机 | 包含的内容 | Source |
-|---|---|---|---|
-| `DuplicateRequestIdException` | 具有相同 `requestId` 的命令已被处理 | `aggregateId`、`requestId` | [CommandExceptions.kt:39](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandExceptions.kt#L39) |
-| `CommandValidationException` | Jakarta Bean Validation 或 `CommandValidator.validate()` 失败 | `command` 对象、`bindingErrors` | [CommandExceptions.kt:90](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandExceptions.kt#L90) |
-| `CommandResultException` | 命令在聚合处理期间失败 | 完整的 `CommandResult`，包含 `errorCode`、`errorMsg`、`bindingErrors` | [CommandExceptions.kt:63](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandExceptions.kt#L63) |
+| 异常 | 含义 |
+|---|---|
+| `CommandValidationException` | 发送前命令体验证失败 |
+| `DuplicateRequestIdException` | 请求 ID 被确认已用于该聚合 |
+| `CommandResultException` | 最终观测的命令结果失败 |
+| `TimeoutException` | 调用方期限结束，命令结果可能仍未知 |
+| `EventVersionConflictException` | 事件追加与其他聚合版本竞争 |
 
 ### 错误处理最佳实践
 
-1. **使用特定的异常处理器**：分别处理 `CommandResultException`、`CommandValidationException` 和 `DuplicateRequestIdException` 以提供适当的响应。
-
-2. **记录错误详情**：始终记录 `errorCode`、`errorMsg` 和 `bindingErrors` 以便调试。
-
-3. **为瞬时故障实现重试逻辑**：
-
-```kotlin
-commandGateway.sendAndWaitForProcessed(command)
-    .retryWhen(Retry.backoff(3, Duration.ofSeconds(1))
-        .filter { error -> isTransientError(error) })
-    .subscribe()
-
-// 瞬时错误通常是网络或临时基础设施问题
-// 不要重试验证错误或重复请求错误
-fun isTransientError(error: Throwable): Boolean {
-    return when (error) {
-        is CommandValidationException -> false  // 验证错误重试不会成功
-        is DuplicateRequestIdException -> false // 重复请求不应重试
-        is CommandResultException -> false      // 来自聚合的业务逻辑错误
-        else -> true                            // 网络/基础设施错误可能是瞬时的
-    }
-}
-```
-
-4. **处理超时场景**：为等待计划配置适当的超时时间。
-
-```kotlin
-commandGateway.sendAndWaitForProcessed(command)
-    .timeout(Duration.ofSeconds(30))
-    .doOnError(TimeoutException::class.java) { error ->
-        println("Command processing timed out")
-    }
-    .subscribe()
-```
+1. 一起记录 `commandId`、`requestId`、聚合身份与 `stage`。
+2. 重试同一业务意图时复用同一 `requestId`；不要因为响应丢失就生成新键。
+3. 超时后查询权威结果或进行幂等重试，不要直接认定失败。
+4. 下游副作用必须幂等，因为事件投递与可恢复重试可能再次调用它们。
 
 ## 幂等性
 
-命令幂等性是确保同一命令在系统中最多执行一次的原则。
+网关使用按聚合划分的快速检查器。快速拒绝会通过 `RequestIdExistenceChecker` 确认；`NoopRequestIdExistenceChecker` 采用 fail-closed。事件流也记录 `requestId`，因此可以用历史确认。
 
-命令网关使用 `IdempotencyChecker` 来检查命令的 `RequestId` 以实现幂等性。
-如果命令已被执行，将抛出 `DuplicateRequestIdException` 异常以防止同一命令的重复执行。
-
-以下是一个 HTTP 请求示例，展示了如何在请求中使用 `Command-Request-Id` 来确保命令幂等性：
-
-:::tip
-开发者也可以通过 `CommandMessage` 的 `requestId` 属性自定义 `RequestId`。
-:::
-
-::: code-group
-```shell {6} [Http Request]
-curl -X 'POST' \
-  'http://localhost:8080/account/create_account' \
-  -H 'accept: application/json' \
-  -H 'Command-Wait-Stage: SNAPSHOT' \
-  -H 'Command-Aggregate-Id: sourceId' \
-  -H 'Command-Request-Id: {{$uuid}}' \
-  -H 'Content-Type: application/json' \
-  -d '{
-  "balance": 1000,
-  "name": "source"
-}'
-```
-
-```json [Response]
-{
-  "id": "0V3oAWI60001003",
-  "waitCommandId": "0V3oAWGt0001001",
-  "stage": "SNAPSHOT",
-  "contextName": "transfer-service",
-  "aggregateName": "account",
-  "tenantId": "(0)",
-  "aggregateId": "sourceId",
-  "aggregateVersion": 1,
-  "requestId": "0V3oAWGt0001001",
-  "commandId": "0V3oAWGt0001001",
-  "function": {
-    "functionKind": "STATE_EVENT",
-    "contextName": "wow",
-    "processorName": "SnapshotDispatcher",
-    "name": "save"
-  },
-  "errorCode": "Ok",
-  "errorMsg": "",
-  "result": {},
-  "signalTime": 1764297025846,
-  "succeeded": true
-}
-```
-:::
+这是纵深防御，不是对全链路 exactly-once 的承诺。持久保证与后端有关：事件存储实现必须在追加时原子执行它所声明的约束。下游处理器的副作用位于事件追加事务之外，需要自己承担幂等责任。
 
 ### 配置
 
-```yaml {5-10}
+```yaml
 wow:
   command:
-    bus:
-      type: kafka
     idempotency:
       enabled: true
       bloom-filter:
@@ -537,401 +285,128 @@ wow:
         fpp: 0.00001
 ```
 
+应按容量与误判率调整快速检查器；Bloom 过滤器配置不能作为持久防重证据。
+
 ## 等待计划
 
-*命令等待计划* 是指命令网关在发送命令后等待命令执行结果的计划。
-
-*命令等待计划* 是 _Wow_ 框架中的重要功能，旨在解决 _CQRS_ 和读写分离模式中的数据同步延迟问题。
-
-目前支持的命令等待计划包括：
+`WaitPlan` 包含 `waitCommandId`、目标、是否支持 void 命令，以及可选的调用方超时装饰。网关先注册本地等待句柄，再把 endpoint 与目标写入命令头，避免信号先于注册到达。
 
 ### CommandWait
 
-<p align="center" style="text-align:center;">
-  <img  width="95%" src="/images/wait/CommandWait.svg" alt="CommandWait"/>
-</p>
-
-`CommandWait` 支持的等待信号如下：
-
-- `SENT`：命令发布到命令总线/队列时生成完成信号
-- `PROCESSED`：命令被聚合根处理时生成完成信号
-- `SNAPSHOT`：快照生成时生成完成信号
-- `PROJECTED`：命令产生的事件的 *投影* 完成时生成完成信号
-- `EVENT_HANDLED`：命令产生的事件被 *事件处理器* 处理时生成完成信号
-- `SAGA_HANDLED`：命令产生的事件被 *Saga* 处理时生成完成信号
-
-::: code-group
-```shell {4} [Http Request]
-curl -X 'POST' \
-  'http://localhost:8080/account/create_account' \
-  -H 'accept: application/json' \
-  -H 'Command-Wait-Stage: SNAPSHOT' \
-  -H 'Command-Aggregate-Id: targetId' \
-  -H 'Content-Type: application/json' \
-  -d '{
-  "balance": 1000,
-  "name": "target"
-}'
+```kotlin
+CommandWait.sent(command.commandId)
+CommandWait.processed(command.commandId)
+CommandWait.snapshot(command.commandId)
+CommandWait.projected(
+    command.commandId,
+    contextName = "example",
+    processorName = "OrderSummaryProjection",
+)
+CommandWait.eventHandled(
+    command.commandId,
+    contextName = "example",
+    processorName = "OrderEventProcessor",
+)
 ```
 
-```json [Response]
-{
-  "id": "0V3oAdHd0001007",
-  "waitCommandId": "0V3oAdHV0001005",
-  "stage": "SNAPSHOT",
-  "contextName": "transfer-service",
-  "aggregateName": "account",
-  "tenantId": "(0)",
-  "aggregateId": "targetId",
-  "aggregateVersion": 1,
-  "requestId": "0V3oAdHV0001005",
-  "commandId": "0V3oAdHV0001005",
-  "function": {
-    "functionKind": "STATE_EVENT",
-    "contextName": "wow",
-    "processorName": "SnapshotDispatcher",
-    "name": "save"
-  },
-  "errorCode": "Ok",
-  "errorMsg": "",
-  "result": {},
-  "signalTime": 1764297052692,
-  "succeeded": true
-}
-```
-```text [SSE Response]
-id:0V3oCwcv0001002
-event:SENT
-data:{"id":"0V3oCwcv0001002","waitCommandId":"0V3oCwbn0001001","stage":"SENT","contextName":"transfer-service","aggregateName":"account","tenantId":"(0)","aggregateId":"targetId","aggregateVersion":0,"requestId":"0V3oCwbn0001001","commandId":"0V3oCwbn0001001","function":{"functionKind":"COMMAND","contextName":"wow","processorName":"CommandGateway","name":"send"},"errorCode":"Ok","errorMsg":"","result":{},"signalTime":1764297603701,"succeeded":true}
-
-id:0V3oCwbn0001001
-event:PROCESSED
-data:{"id":"0V3oCwbn0001001","waitCommandId":"0V3oCwbn0001001","stage":"PROCESSED","contextName":"transfer-service","aggregateName":"account","tenantId":"(0)","aggregateId":"targetId","aggregateVersion":1,"requestId":"0V3oCwbn0001001","commandId":"0V3oCwbn0001001","function":{"functionKind":"COMMAND","contextName":"transfer-service","processorName":"Account","name":"onCommand"},"errorCode":"Ok","errorMsg":"","result":{},"signalTime":1764297603737,"succeeded":true}
-
-id:0V3oCwdB0001003
-event:SNAPSHOT
-data:{"id":"0V3oCwdB0001003","waitCommandId":"0V3oCwbn0001001","stage":"SNAPSHOT","contextName":"transfer-service","aggregateName":"account","tenantId":"(0)","aggregateId":"targetId","aggregateVersion":1,"requestId":"0V3oCwbn0001001","commandId":"0V3oCwbn0001001","function":{"functionKind":"STATE_EVENT","contextName":"wow","processorName":"SnapshotDispatcher","name":"save"},"errorCode":"Ok","errorMsg":"","result":{},"signalTime":1764297603754,"succeeded":true}
-```
-```kotlin {1}
-commandGateway.sendAndWaitForProcessed(message)
-```
-:::
+函数匹配用于 `PROJECTED`、`EVENT_HANDLED` 与 `SAGA_HANDLED`。空 processor/function 会扩大匹配；由某个特定消费者定义完成时应给出明确名称。
 
 #### 等待阶段对比
 
-| 阶段 | 前置条件 | 返回时机 | 支持空命令 | `shouldWaitFunction` | 典型用例 | Source |
-|---|---|---|---|---|---|---|
-| `SENT` | 无 | 命令被总线/队列接受 | 是 | 否 | 发后即忘；最快响应 | [CommandStage.kt:32](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L32) |
-| `PROCESSED` | `[SENT]` | 聚合执行完成 | 否 | 否 | 默认；速度与一致性平衡 | [CommandStage.kt:40](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L40) |
-| `SNAPSHOT` | `[SENT, PROCESSED]` | 快照处理已完成；`version_offset` 可能跳过写入 | 否 | 否 | 快照生命周期；`strategy: all` 时写后读 | [CommandStage.kt:53](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L53) |
-| `PROJECTED` | `[SENT, PROCESSED]` | 投影（读模型）已更新 | 否 | 是 | 读模型一致性；UI 刷新 | [CommandStage.kt:62](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L62) |
-| `EVENT_HANDLED` | `[SENT, PROCESSED]` | 外部事件处理器完成 | 否 | 是 | 副作用处理；通知 | [CommandStage.kt:72](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L72) |
-| `SAGA_HANDLED` | `[SENT, PROCESSED]` | 指定 Saga 函数已完成处理；若生成了命令，则已被接受/发送 | 否 | 是 | 观察源事件编排；不代表下游命令完成 | [CommandStage.kt:83](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L83) |
-
-具有 `shouldWaitFunction = true` 的阶段（`PROJECTED`、`EVENT_HANDLED`、`SAGA_HANDLED`）会应用额外的过滤：`WaitTarget.shouldNotify(signal)` 方法检查信号的函数元数据是否与预期的函数名、上下文名称和处理器名称匹配。这在多个投影处理器或事件处理器对同一聚合操作时至关重要——等待计划只有在 *特定* 函数完成时才完成，而不是任意一个函数。
+| 阶段 | 证明 | 不证明 |
+|---|---|---|
+| `SENT` | 命令总线已接受消息 | 已加载聚合或已追加事件 |
+| `PROCESSED` | 完整命令 filter chain 完成；已产生事件完成追加，链内消息发送遵守各自错误策略 | 快照或下游消费者函数完成 |
+| `SNAPSHOT` | 快照分发器完成其策略 | `version_offset` 下一定写入；投影完成 |
+| `PROJECTED` | 匹配的投影函数完成，且观察到最后投影标记 | 无关投影/处理器完成 |
+| `EVENT_HANDLED` | 匹配的事件处理器函数完成 | 副作用全局 exactly-once |
+| `SAGA_HANDLED` | 匹配的 Saga 已处理源事件 | Saga 发出的命令到达最终阶段 |
 
 #### 等待计划层级
 
-```mermaid
-graph TB
-    WS[WaitPlan 接口]
-    SWT[StageWaitTarget<br>单个处理阶段]
-    CWT[ChainWaitTarget<br>Saga 阶段 + tail]
-    CW[CommandWait<br>工厂方法]
-    HC[WaitCoordinator<br>handle 注册表]
-    WH[WaitHandle<br>运行态契约]
-    WL[WaitLastHandle<br>Mono 最终结果]
-    WF[WaitStreamHandle<br>Flux 信号流]
-    ST[WaitState<br>状态机]
-    SWS[StageWaitState<br>单阶段]
-    CWS[ChainWaitState<br>Saga 链 tail]
-
-    CW -->|creates| WS
-    WS -->|target| SWT
-    WS -->|target| CWT
-    HC -->|按 waitCommandId 注册| WH
-    WL -->|extends| WH
-    WF -->|extends| WH
-    WH -->|owns| ST
-    ST -->|stage target| SWS
-    ST -->|chain target| CWS
-
-```
-
-<!-- Sources:
-- WaitPlan interface: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt:20-71
-- CommandWait: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandWait.kt:21-121
-- WaitHandle: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitHandle.kt:22-223
-- WaitState: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitState.kt:19-60
-- StageWaitState: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/stage/StageWaitState.kt:24-90
-- ChainWaitState: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/chain/ChainWaitState.kt:29-250
-- WaitCoordinator: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitCoordinator.kt:18-72
--->
-
-运行时，`WaitPlan` 只表达不可变的等待意图。`WaitCoordinator` 为每个 `waitCommandId` 注册一个 `WaitHandle`；`sendAndWait` 使用 `WaitLastHandle`，`sendAndWaitStream` 使用 `WaitStreamHandle`。两种 handle 都是单订阅者运行态 sink。stream handle 使用 unicast sink，并通过 `DEFAULT_WAIT_STREAM_QUEUE_LINK_SIZE` 为第一个订阅者缓冲提前到达的信号。handle 内部持有可变的 `WaitState`，阶段和链式完成规则聚合在状态机内，而不是拆到外部 reducer。
+`StageWaitTarget` 表示单个阶段与可选函数；`ChainWaitTarget` 从一个 Saga 函数开始，继续跟踪该 Saga 发出的命令直到尾阶段。阶段不是单一线性链：`SNAPSHOT`、`PROJECTED`、`EVENT_HANDLED` 与 `SAGA_HANDLED` 都要求观察到 `PROCESSED` 才能完成等待，但彼此是独立分支。`StageWaitState` 可以暂存早到的下游信号；这种依赖不保证信号到达顺序。
 
 ### 链式等待计划
 
-<p align="center" style="text-align:center;">
-  <img  width="95%" src="/images/wait/CommandWaitChain.svg" alt="链式等待计划"/>
-</p>
+仅当响应契约需要从源命令，经一个 Saga 函数，再跟踪该 Saga 发出的命令时使用链：
 
-
-::: code-group
-```shell {4-6} [Http Request]
-curl -X 'POST' \
-  'http://localhost:8080/account/sourceId/prepare' \
-  -H 'accept: application/json' \
-  -H 'Command-Wait-Stage: SAGA_HANDLED' \
-  -H 'Command-Wait-Tail-Stage: SNAPSHOT' \
-  -H 'Command-Wait-Tail-Processor: TransferSaga' \
-  -H 'Content-Type: application/json' \
-  -d '{
-  "amount": 100,
-  "to": "targetId"
-}'
-```
-```json [Response]
-{
-  "id": "0V3oAkw6000100G",
-  "waitCommandId": "0V3oAkvW0001009",
-  "stage": "SNAPSHOT",
-  "contextName": "transfer-service",
-  "aggregateName": "account",
-  "tenantId": "(0)",
-  "aggregateId": "targetId",
-  "aggregateVersion": 2,
-  "requestId": "0V3oAkvW0001009",
-  "commandId": "0V3oAkw2000100E",
-  "function": {
-    "functionKind": "STATE_EVENT",
-    "contextName": "wow",
-    "processorName": "SnapshotDispatcher",
-    "name": "save"
-  },
-  "errorCode": "Ok",
-  "errorMsg": "",
-  "result": {},
-  "signalTime": 1764297082107,
-  "succeeded": true
-}
-```
-```text [SSE Response]
-id:0V3oCVz9000100M
-event:SENT
-data:{"id":"0V3oCVz9000100M","waitCommandId":"0V3oCVyv000100L","stage":"SENT","contextName":"transfer-service","aggregateName":"account","tenantId":"(0)","aggregateId":"sourceId","aggregateVersion":null,"requestId":"0V3oCVyv000100L","commandId":"0V3oCVyv000100L","function":{"functionKind":"COMMAND","contextName":"wow","processorName":"CommandGateway","name":"send"},"errorCode":"Ok","errorMsg":"","result":{},"signalTime":1764297501291,"succeeded":true}
-
-id:0V3oCVyv000100L
-event:PROCESSED
-data:{"id":"0V3oCVyv000100L","waitCommandId":"0V3oCVyv000100L","stage":"PROCESSED","contextName":"transfer-service","aggregateName":"account","tenantId":"(0)","aggregateId":"sourceId","aggregateVersion":4,"requestId":"0V3oCVyv000100L","commandId":"0V3oCVyv000100L","function":{"functionKind":"COMMAND","contextName":"transfer-service","processorName":"Account","name":"onCommand"},"errorCode":"Ok","errorMsg":"","result":{},"signalTime":1764297501299,"succeeded":true}
-
-id:0V3oCVzW000100R
-event:SENT
-data:{"id":"0V3oCVzW000100R","waitCommandId":"0V3oCVyv000100L","stage":"SENT","contextName":"transfer-service","aggregateName":"account","tenantId":"(0)","aggregateId":"targetId","aggregateVersion":null,"requestId":"0V3oCVyv000100L","commandId":"0V3oCVzI000100Q","function":{"functionKind":"COMMAND","contextName":"wow","processorName":"CommandGateway","name":"send"},"errorCode":"Ok","errorMsg":"","result":{},"signalTime":1764297501314,"succeeded":true}
-
-id:0V3oCVzG000100P
-event:SAGA_HANDLED
-data:{"id":"0V3oCVzG000100P","waitCommandId":"0V3oCVyv000100L","stage":"SAGA_HANDLED","contextName":"transfer-service","aggregateName":"account","tenantId":"(0)","aggregateId":"sourceId","aggregateVersion":4,"requestId":"0V3oCVyv000100L","commandId":"0V3oCVyv000100L","function":{"functionKind":"EVENT","contextName":"transfer-service","processorName":"TransferSaga","name":"onEvent"},"errorCode":"Ok","errorMsg":"","result":{},"signalTime":1764297501314,"succeeded":true}
-
-id:0V3oCVzI000100Q
-event:PROCESSED
-data:{"id":"0V3oCVzI000100Q","waitCommandId":"0V3oCVyv000100L","stage":"PROCESSED","contextName":"transfer-service","aggregateName":"account","tenantId":"(0)","aggregateId":"targetId","aggregateVersion":3,"requestId":"0V3oCVyv000100L","commandId":"0V3oCVzI000100Q","function":{"functionKind":"COMMAND","contextName":"transfer-service","processorName":"Account","name":"onCommand"},"errorCode":"Ok","errorMsg":"","result":{},"signalTime":1764297501316,"succeeded":true}
-
-id:0V3oCVzX000100S
-event:SNAPSHOT
-data:{"id":"0V3oCVzX000100S","waitCommandId":"0V3oCVyv000100L","stage":"SNAPSHOT","contextName":"transfer-service","aggregateName":"account","tenantId":"(0)","aggregateId":"targetId","aggregateVersion":3,"requestId":"0V3oCVyv000100L","commandId":"0V3oCVzI000100Q","function":{"functionKind":"STATE_EVENT","contextName":"wow","processorName":"SnapshotDispatcher","name":"save"},"errorCode":"Ok","errorMsg":"","result":{},"signalTime":1764297501317,"succeeded":true}
-
-```
-```kotlin {1}
-val waitPlan = CommandWait.chain(
-    waitCommandId = message.commandId,
+```kotlin
+val plan = CommandWait.chain(
+    waitCommandId = command.commandId,
     function = NamedFunctionInfoData(
-        contextName = "transfer-service",
-        processorName = "TransferSaga",
+        contextName = "example",
+        processorName = "CartSaga",
         name = "onEvent",
     ),
-    tailStage = CommandStage.SNAPSHOT,
+    tailStage = CommandStage.PROCESSED,
     tailFunction = NamedFunctionInfoData(
-        contextName = "wow",
-        processorName = "SnapshotDispatcher",
-        name = "save",
+        contextName = "example",
+        processorName = "",
+        name = "",
     ),
 )
-commandGateway.sendAndWait(message, waitPlan)
 ```
-:::
+
+这只是关联，不是分布式事务。每个命令仍有独立的幂等与失败边界。
 
 ## 验证
 
-命令网关在发送命令之前使用 `jakarta.validation.Validator` 来验证命令。如果验证失败，将抛出 `CommandValidationException` 异常。
-
-通过使用 `jakarta.validation.Validator`，开发者可以利用 `jakarta.validation` 提供的各种验证注解来确保命令符合指定的规范和条件。
+结构输入使用 Jakarta 注解；仅依赖命令体的跨字段检查使用 `CommandValidator`。依赖当前状态的业务规则应保留在聚合命令处理器中，并在恢复之后执行。`CreateOrder` 同时展示两者：注解验证 items/address，`validate()` 检查支持的国家；库存、价格、所有权、当前版本与生命周期仍属于聚合/应用职责。
 
 ## LocalFirst 模式：减少网络 IO 的影响
 
-通常情况下，从发送命令到聚合根完成命令处理的过程如下：
-
-1. 聚合根处理器订阅分布式命令总线消息。
-2. 客户端通过命令网关将命令发送到分布式命令总线。
-3. 聚合根处理器接收并处理命令。
-4. 聚合根处理器向客户端发送完成信号。
-
-在上述过程中，步骤 2 和 3 涉及网络 IO。LocalFirst 模式的目标是最小化此网络 IO 的影响。具体过程如下：
-
-1. 聚合根处理器订阅本地命令总线和分布式命令总线消息。
-2. 客户端通过命令网关发送命令。
-   1. 如果命令网关判断命令无法在本地服务实例上处理，则将命令发送到分布式命令总线。
-   2. 如果可以本地处理，则将命令同时发送到本地命令总线和分布式命令总线。
-3. 聚合根处理器接收命令并处理它。
-4. 聚合根处理器向客户端发送完成信号。
-
-通过 _LocalFirst 模式_，将命令发送到本地总线和完成信号通知不需要网络 IO。
-
-`LocalFirstCommandBus` 包装了一个 `LocalCommandBus`（通常是 `InMemoryCommandBus`）和一个 `DistributedCommandBus`（通常是 `KafkaCommandBus`），采用 **本地优先路由策略**：
-
-1. 如果聚合是本地 **且** 有本地订阅者，命令首先提交给本地运行时，同时始终向分布式总线发送副本。
-2. 只有所有目标本地 Receiver 都确认运行时准入后，分布式副本才会标记为已在本地处理；准入或本地发送未确认时，该副本仍可由分布式消费者处理。
-3. 如果聚合不是本地或没有本地订阅者，命令仅发送到分布式总线。
-4. 空命令自动跳过本地优先路由，因为它们不需要响应。
-
-本地运行时准入成功后，后续 Handler 失败不会追溯性地重新启用分布式副本；此时遵循普通 Handler 的重试与确认策略。过滤已标记副本可以避免同一条已准入本地的消息又被该分布式 Receiver 处理；端到端投递保证仍取决于具体 Adapter 与 Handler 策略。
+本地匹配分发器就绪时，`LocalFirstCommandBus` 可以在本地准入命令，并按总线实现发送带标记的分布式副本。它不改变 `SENT` 或后续阶段语义；void 命令不使用本地优先路由。
 
 ### 配置
 
-```yaml {5-6}
+```yaml
 wow:
   command:
     bus:
-      type: kafka
       local-first:
-        enabled: true # 默认启用
+        enabled: true
 ```
+
+无论选择哪种路由，都使用相同的等待与幂等契约。
 
 ## 命令总线实现
 
 ### InMemoryCommandBus
 
-最简单的总线——使用 Reactor `Sinks.Many`（单播，背压缓冲）在单个 JVM 内传递命令。每个命名聚合获得自己的 sink，提供单消费者语义，但不表示端到端投递保证。
-
-```kotlin
-// Source: wow-core/src/main/kotlin/me/ahoo/wow/command/InMemoryCommandBus.kt:31-50
-class InMemoryCommandBus(
-    override val sinkSupplier: (NamedAggregate) -> Many<CommandMessage<*>> = {
-        // 内部实现；自定义 supplier 可以返回任意 Sinks.Many。
-        mpscUnicastManySink()
-    }
-) : InMemoryMessageBus<CommandMessage<*>, ServerCommandExchange<*>>(),
-    LocalCommandBus
-```
+适用于单运行时与测试。其 `SENT` 只表示进程内总线接受消息，进程故障后不具备持久性。
 
 ### KafkaCommandBus
 
-分布式命令总线使用 Apache Kafka 作为传输层。它扩展了 `AbstractKafkaBus`，该抽象类处理序列化（通过 `toJsonString`/`toObject` 进行 JSON 序列化）、主题路由和消费者组管理。
-
-```kotlin
-// Source: wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/KafkaCommandBus.kt:27-45
-class KafkaCommandBus(
-    topicConverter: CommandTopicConverter = DefaultCommandTopicConverter(),
-    senderOptions: SenderOptions<String, String>,
-    receiverOptions: ReceiverOptions<String, String>,
-    receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer
-) : DistributedCommandBus, AbstractKafkaBus<CommandMessage<*>, ServerCommandExchange<*>>(...)
-```
-
-关键实现细节：
-- 消息序列化为 JSON 字符串，以聚合 ID 作为 Kafka 消息键，确保分区内有序。
-- 消费者组按限界上下文分配，以隔离消息流。
-- 在接收错误时应用默认重试策略（`Retry.backoff(3, Duration.ofSeconds(10))`）。
-- `KafkaServerCommandExchange` 包装了 Kafka `ReceiverOffset` 以实现确认控制。
+提供分布式传输。Broker 确认、消费者重试与顺序行为取决于 Kafka/模块配置；网关不会把这些设置转换成 exactly-once 业务保证。
 
 ## HTTP 集成（WebFlux）
 
+生成的命令路由把 HTTP 请求接入同一个网关契约。JSON 响应返回最终结果；`Accept: text/event-stream` 选择结果流。
+
 ### 请求处理流程
 
-`CommandHandlerFunction` 是一个 Spring WebFlux `HandlerFunction`，将 HTTP 请求桥接到 `CommandGateway`：
+示例订单路由可显式请求 `SNAPSHOT`：
 
-1. **请求体提取**：根据命令是否有路径变量或请求头变量，通过 `request.bodyToMono()` 或自定义的 `CommandBodyExtractor` 提取请求体。
+```shell
+curl -X POST \
+  'http://localhost:8080/tenant/tenant-1/owner/customer-1/sales-order' \
+  -H 'Content-Type: application/json' \
+  -H 'Wow-Space-Id: store-1' \
+  -H 'Command-Aggregate-Id: order-1' \
+  -H 'Command-Request-Id: create-order-1' \
+  -H 'Command-Wait-Stage: SNAPSHOT' \
+  -d '{"items":[{"productId":"product-1","price":10,"quantity":2}],"address":{"country":"China","province":"Shanghai","city":"Shanghai","district":"Pudong","detail":"Road 1"},"fromCart":true}'
+```
 
-2. **命令消息构造**：`CommandMessageExtractor` 从聚合路由元数据、请求头和命令体构建 `CommandMessage`。
-
-3. **等待计划提取**：`ServerRequest.extractWaitPlan()` 扩展函数读取以下 HTTP 请求头：
-
-| 请求头 | 用途 | 默认值 | Source |
-|---|---|---|---|
-| `Command-Wait-Stage` | 要等待的 `CommandStage` | `PROCESSED` | [AggregateRequest.kt:112](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L112) |
-| `Command-Wait-Context` | 用于函数过滤的限界上下文名称 | 当前上下文 | [AggregateRequest.kt:118](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L118) |
-| `Command-Wait-Processor` | 用于函数过滤的处理器名称 | （空） | [AggregateRequest.kt:122](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L122) |
-| `Command-Wait-Function` | 用于函数过滤的函数名称 | （空） | [AggregateRequest.kt:126](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L126) |
-| `Command-Wait-Tail-Stage` | `SimpleWaitingChain` 的尾阶段 | `null` | [AggregateRequest.kt:132](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L132) |
-| `Command-Wait-Tail-Context` | 链的尾上下文 | 当前上下文 | [AggregateRequest.kt:138](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L138) |
-| `Command-Wait-Tail-Processor` | 链的尾处理器 | （空） | [AggregateRequest.kt:142](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L142) |
-| `Command-Wait-Tail-Function` | 链的尾函数 | （空） | [AggregateRequest.kt:146](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L146) |
-| `Command-Wait-Timeout` | 超时时间（毫秒） | `30000`（30秒） | [AggregateRequest.kt:104](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L104) |
-| `Command-Request-Id` | 用于幂等性的请求 ID | （自动生成） | [AggregateRequest.kt:48](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L48) |
-| `Command-Aggregate-Id` | 目标聚合实例 ID | （来自命令体或路径） | [AggregateRequest.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L69) |
-| `Accept` | 响应格式（`text/event-stream` 触发 SSE） | `application/json` | [AggregateRequest.kt:100](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt#L100) |
-
-4. **分发**：如果 `Accept` 头为 `text/event-stream`，则使用 `sendAndWaitStream`（SSE 流式传输）；否则使用 `sendAndWait`（单个 JSON 响应）。响应式流应用了可配置的超时时间（默认 30 秒）。
+返回 `stage: SNAPSHOT` 证明快照分发器完成。`all` 策略下这包括保存；`version_offset` 下该版本可能合法地完成但不写入。
 
 ### 命令路由生成
 
-命令类上的 `@CommandRoute` 注解指示 KSP 编译器（`wow-compiler`）在编译时生成 REST 端点元数据：
-
-```kotlin
-// Source: wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/CommandRoute.kt:59-155
-@CommandRoute(
-    action = "create",
-    method = CommandRoute.Method.POST,
-    appendIdPath = CommandRoute.AppendPath.NEVER,
-    appendTenantPath = CommandRoute.AppendPath.ALWAYS
-)
-data class CreateOrderCommand(...)
-// 生成: POST /orders/tenant/{tenantId}/create
-```
-
-`@PathVariable` 和 `@HeaderVariable` 子注解将 HTTP 路径段和请求头直接映射到命令字段，无需样板代码即可实现丰富的 REST 端点生成。
+路由元数据提供命令类型、聚合身份、路径/消息头变量与请求体解码。HTTP 默认等待阶段是 `PROCESSED`。重要消息头包括 `Command-Request-Id`、`Command-Aggregate-Id`、`Command-Wait-Stage`、函数选择器、链尾选择器，以及毫秒单位的 `Command-Wait-Timeout`。
 
 ## Command Rewriter
 
-命令重写器（`CommandBuilderRewriter`）用于重写命令的消息元数据（`aggregateId`/`tenantId` 等）和命令体（`body`）。
-
-以下是密码重置命令重写器的示例：
-
-::: tip
-用户重置密码（找回密码）之前，无法获取聚合根 ID，因此需要此重写器来获取 `User` 聚合根 ID
-:::
-
-```kotlin
-/**
- * 密码找回（`ResetPwd`）命令重写器。
- *
- * 此命令需要根据命令体中的手机号码查询用户聚合根 ID，以满足命令消息中聚合根 ID 为必填的要求。
- *
- */
-@Service
-class ResetPwdCommandBuilderRewriter(private val queryService: SnapshotQueryService<UserState>) :
-   CommandBuilderRewriter {
-   override val supportedCommandType: Class<ResetPwd>
-      get() = ResetPwd::class.java
-
-   override fun rewrite(commandBuilder: CommandBuilder): Mono<CommandBuilder> {
-      return singleQuery {
-         projection { include(Documents.ID_FIELD) }
-         filter {
-            "state.$PHONE_VERIFIED" eq true
-            "state.$PHONE" eq commandBuilder.bodyAs<ResetPwd>().phone
-         }
-      }.dynamicQuery(queryService)
-         .switchIfEmpty {
-            IllegalArgumentException("Phone number not bound.").toMono()
-         }.map {
-            commandBuilder.aggregateId(it.getValue(MessageRecords.AGGREGATE_ID))
-         }
-   }
-}
-```
-
-开发者可以通过使用 Spring 的 `@Service` 注解将重写器注册到 Spring 容器中。
+真实 SPI 是 [`me.ahoo.wow.command.factory.CommandBuilderRewriter`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/factory/CommandBuilderRewriter.kt)。它在 `SimpleCommandMessageFactory` 创建消息前重写 `CommandBuilder`，例如从经过验证的查询结果中解析聚合 ID。把实现注册为 Spring Bean 后，starter 会将其加入 `CommandBuilderRewriterRegistry`。授权与歧义处理仍须明确：builder rewriter 不能替代网关验证、聚合规则或事件存储并发检查。
 
 ## 配置参考
 
@@ -939,22 +414,15 @@ class ResetPwdCommandBuilderRewriter(private val queryService: SnapshotQueryServ
 wow:
   command:
     bus:
-      type: kafka                    # "in_memory" | "kafka"
+      type: kafka
       local-first:
-        enabled: true                # 启用 LocalFirst 路由（默认：true）
+        enabled: true
     idempotency:
-      enabled: true                  # 启用 request-id 幂等性检查（默认：true）
+      enabled: true
       bloom-filter:
-        expected-insertions: 1000000 # Bloom 过滤器的预期插入量
-        ttl: PT60S                   # 幂等性条目的生存时间（ISO-8601 格式）
-        fpp: 0.00001                 # Bloom 过滤器的误判率
+        expected-insertions: 1000000
+        ttl: PT60S
+        fpp: 0.00001
 ```
 
-| 配置路径 | 类型 | 默认值 | 描述 | Source Module |
-|---|---|---|---|---|
-| `wow.command.bus.type` | `String` | `kafka` | 命令总线实现：`in_memory` 或 `kafka` | `wow-spring-boot-starter` |
-| `wow.command.bus.local-first.enabled` | `Boolean` | `true` | 是否使用 `LocalFirstCommandBus` 进行准入感知的本地优先路由 | `wow-spring-boot-starter` |
-| `wow.command.idempotency.enabled` | `Boolean` | `true` | 是否在发送前检查 `requestId` 是否重复 | `wow-spring-boot-starter` |
-| `wow.command.idempotency.bloom-filter.expected-insertions` | `Long` | `1000000` | 用于幂等性检查的 Bloom 过滤器的容量规划 | `wow-spring-boot-starter` |
-| `wow.command.idempotency.bloom-filter.ttl` | `Duration` | `PT60S` | 幂等性检查器记住 `requestId` 的时长 | `wow-spring-boot-starter` |
-| `wow.command.idempotency.bloom-filter.fpp` | `Double` | `0.00001` | 可接受的误判率（越低 = 更多内存） | `wow-spring-boot-starter` |
+配置应来自实际选择的运行时模块，并以该模块测试验证。上文公开阶段含义保持为应用契约。

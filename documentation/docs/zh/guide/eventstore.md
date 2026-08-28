@@ -1,31 +1,28 @@
 ---
 title: 事件存储
-description: 事件存储是事件溯源架构的核心持久化引擎 -- 不可变、仅追加的领域事件账本，支持聚合重建、审计追踪和跨服务集成。
+description: 持久化聚合权威历史、恢复状态，并区分事件追加、快照与下游处理器。
 ---
 
 # 事件存储
 
-事件存储是事件溯源架构的持久化基石。与传统的 CRUD 数据库覆盖状态并丢弃历史不同，事件存储充当每个领域事件的**不可变、仅追加的账本**。每一次状态变更 -- `OrderCreated`、`ItemAdded`、`PaymentProcessed` -- 都被记录且永远不能被修改或删除。
+事件存储保存 Wow 的聚合权威历史。命令产生的 `DomainEventStream` 完成追加，是成功 `PROCESSED` 的必要条件，但不是充分条件：`ProcessedNotifierFilter` 还会等待命令 filter chain 的其余部分，包括链内事件总线发送。快照用于加速加载，投影与事件处理器用于派生其他状态或副作用；二者都不能取代事件历史。
 
 ## 事件溯源
 
-<center>
-
 ![EventSourcing](/images/eventstore/eventsourcing.svg)
-</center>
 
-在传统架构中，数据库只存储当前状态，历史变更记录往往会丢失。而在事件溯源架构中：
+以示例 `CreateOrder` 命令为例，聚合返回 `OrderCreated`。Wow 把它包装成事件流，其中包含聚合身份、`commandId`、`requestId`、版本、消息头与有序事件体。后续命令通过重放该历史恢复 `OrderState`。
 
-- **完整历史**：每一次状态变更都作为事件永久存储
-- **可追溯性**：通过重放事件可以重建任意时间点的状态
-- **审计友好**：天然支持操作审计和数据分析
-- **解耦消费者**：投影、Saga 和外部系统独立订阅同一事件流
+核心归属边界如下：
+
+| 数据 | 角色 | 恢复来源 |
+|---|---|---|
+| 领域事件流 | 权威业务历史 | 事件存储 |
+| 快照 | 可替换的加载检查点/当前状态物化 | 从事件历史重建 |
+| 投影 | 特定用途读模型 | 按投影恢复设计重放/重处理事件 |
+| 事件处理器副作用 | 集成/应用结果 | 处理器自己的幂等、重试与补偿设计 |
 
 ## 核心接口
-
-`EventStore` 接口定义了事件存储的核心操作。它继承自 `RequestIdExistenceChecker`
-（命令幂等性查找）、`AggregateIdScanner`（按命名聚合分页扫描聚合 ID）以及
-`AutoCloseable`（存储后端实现会在关闭时释放资源）：
 
 ```kotlin
 interface EventStore :
@@ -33,196 +30,137 @@ interface EventStore :
     AggregateIdScanner,
     AutoCloseable {
     fun append(eventStream: DomainEventStream): Mono<Void>
+
     fun load(
         aggregateId: AggregateId,
-        headVersion: Int = DEFAULT_HEAD_VERSION,        // 1
-        tailVersion: Int = DEFAULT_TAIL_VERSION         // Int.MAX_VALUE - 1
+        headVersion: Int = 1,
+        tailVersion: Int = Int.MAX_VALUE - 1,
     ): Flux<DomainEventStream>
+
     fun load(
         aggregateId: AggregateId,
         headEventTime: Long,
-        tailEventTime: Long
+        tailEventTime: Long,
     ): Flux<DomainEventStream>
-    fun single(aggregateId: AggregateId, version: Int): Mono<DomainEventStream> // 默认实现
-    fun last(aggregateId: AggregateId): Mono<DomainEventStream>
 
-    // 继承自 AggregateIdScanner（默认返回 UnsupportedOperationException）：
-    // fun scanAggregateId(namedAggregate, afterId = "(0)", limit = 10): Flux<AggregateId>
-    // 继承自 RequestIdExistenceChecker；默认实现扫描事件流。
-    // override fun existsRequestId(aggregateId, requestId): Mono<Boolean>
+    fun single(aggregateId: AggregateId, version: Int): Mono<DomainEventStream>
+    fun last(aggregateId: AggregateId): Mono<DomainEventStream>
 }
 ```
 
-MongoDB 和 Redis 会用索引查找覆盖 `scanAggregateId` 和 `existsRequestId`。
-Elasticsearch 后端覆盖了 `scanAggregateId` 但**未覆盖** `existsRequestId` —— 它继承了默认的流扫描实现。
-默认实现仅为自定义事件存储保留源码兼容性。
+版本与时间范围都包含首尾边界。`AbstractEventStore` 验证范围参数；接口本身不规定存储引擎、Schema、事务技术或重试策略。
 
 ### 领域事件流
 
-`DomainEventStream` 表示单个命令产生的领域事件集合：
+`DomainEventStream` 是一次命令执行产生的非空有序事件批次。流内所有事件属于同一聚合，并共享同一个事件流/聚合 `version`；事件在流内按从 1 开始递增的 `sequence` 排序。事件流保留 `commandId` 与 `requestId`，可用于审计与重复查询。
 
 ```kotlin
-interface DomainEventStream : EventMessage<DomainEventStream, List<DomainEvent<*>>> {
-    val aggregateId: AggregateId
-    val size: Int
-}
+eventStore.append(eventStream)
+    .thenReturn(eventStream)
 ```
 
-关键特性：
-- **一对一**：一个命令产生一个事件流
-- **原子性**：流中的所有事件作为单个单元持久化
-- **不可变性**：事件一旦创建就不能被修改
+`SimpleCommandAggregate` 在追加前先把新事件流应用到工作内存状态，再调用 `EventStore.append`。追加失败时，命令处理失败且该聚合实例过期；重试必须重新恢复状态，不能把未提交的内存状态当成权威状态。
 
 ### 核心概念
 
-| 概念 | 描述 | 源码 |
-|---|---|---|
-| `DomainEvent` | 关于聚合内过去业务行为的不可变事实 | [DomainEvent.kt:52-90](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/event/DomainEvent.kt#L52-L90) |
-| `DomainEventStream` | 单个命令产生的有序领域事件批次 | [DomainEventStream.kt:51-125](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/DomainEventStream.kt#L51-L125) |
-| `EventStore` | 追加、加载事件流并扫描聚合 ID 的核心接口 | [EventStore.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt) |
-| `SnapshotStore` | 通过带版本的快照检查点优化聚合加载 | [SnapshotStore.kt:27-58](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SnapshotStore.kt#L27-L58) |
+| 概念 | 契约 |
+|---|---|
+| `DomainEvent<T>` | 不可变、具名且带 revision 的业务事实 |
+| `DomainEventStream` | 一条命令产生的事件，以 command/request ID 关联 |
+| 聚合版本 | 追加与重放的乐观顺序边界 |
+| `requestId` | 记录在事件流中的操作身份，按聚合检查 |
+| `EventStore` | 追加与历史加载契约 |
+| `SnapshotStore` | 独立、可替换的检查点存储 |
 
 ## 聚合状态重建
 
-框架**不**在传统数据库中存储当前的聚合状态。相反，每个聚合的状态是其**事件历史的函数**。
+对于非创建命令，`RetryableAggregateProcessor` 通过 `StateAggregateRepository` 获取当前状态。`EventSourcingStateAggregateRepository`：
+
+1. 加载最新版本时先请求最新快照；
+2. 没有快照时创建空状态聚合；
+3. 从 `stateAggregate.expectedNextVersion` 加载到目标尾版本；
+4. 用 `stateAggregate.onSourcing` 依次应用事件流。
 
 ```mermaid
-flowchart TD
-    A[加载聚合] --> B{请求的是最新版本?}
-    B -->|是| C[尝试加载快照]
-    B -->|否| D[创建新聚合实例]
-    C --> E{快照是否存在?}
-    E -->|是| F[从快照恢复状态]
-    E -->|否| D
-    F --> G[加载增量事件]
-    D --> H[加载所有事件]
-    G --> I[应用事件]
-    H --> I
-    I --> J[返回聚合]
+flowchart LR
+    Load[加载聚合] --> Snapshot{是否加载最新版本}
+    Snapshot -->|是| Checkpoint[加载快照或创建空状态]
+    Snapshot -->|历史版本/时间| Empty[创建空状态]
+    Checkpoint --> History[从 expectedNextVersion 加载 EventStore]
+    Empty --> History
+    History --> Replay[按序应用事件流]
+    Replay --> Ready[StateAggregate 就绪]
 ```
 
-`EventSourcingStateAggregateRepository` 实现了这种重建机制：
-
-1. **快照优先加载**：在请求最新版本时，仓库首先从快照存储加载。如果存在快照，它将作为增量重放的起点。
-2. **全新聚合创建**：如果不存在快照，通过 `StateAggregateFactory` 创建新的聚合实例。
-3. **事件应用**：事件按版本顺序重放，每次调用 `stateAggregate.onSourcing(it)` 来变更内存中的状态。
+按历史版本/时间恢复时不使用最新快照，因为来自未来的检查点会污染目标时点。
 
 ## 事件溯源生命周期
 
-下图展示了从命令接收、事件持久化、总线发布到下游处理的完整生命周期：
+一条成功命令经历以下归属转换：
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant Client as 客户端
-    participant CommandGateway
-    participant CommandBus as 命令总线
-    participant Dispatcher as 命令分发器
-    participant Aggregate as 聚合
-    participant Repository as 状态聚合仓储
-    participant EventStore as 事件存储
-    participant SnapshotStore as 快照存储
-    participant DomainEventBus as 领域事件总线
-    participant Projection as 投影
-    participant Saga
+1. `SENT`：命令总线已接受命令，尚未证明历史追加。
+2. 恢复：非创建命令加载快照与后续事件历史。
+3. 执行：聚合规则返回 `DomainEventStream`。
+4. 溯源：新事件流更新工作内存状态。
+5. 追加：`EventStore.append` 提交新的权威历史。
+6. 发送：`SendDomainEventStreamFilter` 发送已追加事件流，然后 `SendStateEventFilter` 在命令 filter chain 内尝试发送结果状态事件。
+7. `PROCESSED`：以 `ORDER_FIRST` 包裹整条链的 `ProcessedNotifierFilter`，只在链完成或出错后发送信号。
+8. 与之独立地，`SNAPSHOT`、`PROJECTED` 或 `EVENT_HANDLED` 表示选中的下游路径完成；其信号可能早于或晚于 `PROCESSED` 到达。
 
-    Client->>CommandGateway: 发送命令
-    CommandGateway->>CommandBus: 校验后发送 CommandMessage
-    CommandBus->>Dispatcher: 投递 ServerCommandExchange
-    Dispatcher->>Aggregate: 创建 AggregateProcessor 并处理命令
-    Aggregate->>Repository: 加载当前状态
-    Repository->>SnapshotStore: 尝试加载最新快照
-    SnapshotStore-->>Repository: 快照（或空）
-    Repository->>EventStore: 加载快照之后的事件
-    EventStore-->>Repository: DomainEventStream（按版本排序）
-    Repository-->>Aggregate: 重建后的 StateAggregate
-    Aggregate->>Aggregate: 调用命令处理器并产生 DomainEventStream
-    Aggregate->>EventStore: 原子追加事件流
-    EventStore-->>Aggregate: 完成或抛出存储异常
-    Dispatcher->>DomainEventBus: 通过 SendDomainEventStreamFilter 发布
-    DomainEventBus-->>Projection: 接收事件流
-    DomainEventBus-->>Saga: 接收事件流
-    Projection->>Projection: 更新读模型
-    Saga->>Saga: 评估 Saga 进度
-    Client-->>CommandGateway: 响应
-```
+`DomainEventBus.send` 会传播失败，所以追加已经提交权威历史后，调用方仍可能观察到失败的 `PROCESSED`。当前状态事件 filter 使用 `logErrorResume()`：`StateEventBus.send` 失败会记录并吞掉，不会使 `PROCESSED` 失败。下游阶段信号可能抢先于 `PROCESSED` 到达；`StageWaitState` 会暂存早到的目标信号，直到观察到 `PROCESSED` 前置阶段才最终完成。这些路径不属于单一全局事务。
 
 ## 架构
 
-框架定义了清晰的接口层次结构，支持多种持久化后端。每个实现都扩展了 `AbstractEventStore`，后者提供集中的日志记录、输入验证和错误映射。
-
 ```mermaid
-classDiagram
-    class EventStore {
-        <<interface>>
-        +append(DomainEventStream) Mono~Void~
-        +load(AggregateId, headVersion, tailVersion) Flux~DomainEventStream~
-        +load(AggregateId, headEventTime, tailEventTime) Flux~DomainEventStream~
-        +scanAggregateId(NamedAggregate, String, Int) Flux~AggregateId~
-    }
-    class AbstractEventStore {
-        <<abstract>>
-        #appendStream(DomainEventStream)* Mono~Void~
-        #loadStream(AggregateId, head, tail)* Flux~DomainEventStream~
-        +append(DomainEventStream) Mono~Void~
-        +load(...) Flux~DomainEventStream~
-    }
-    class InMemoryEventStore
-    class MongoEventStore
-    class RedisEventStore
-
-    EventStore <|.. AbstractEventStore : 实现
-    AbstractEventStore <|-- InMemoryEventStore : 扩展
-    AbstractEventStore <|-- MongoEventStore : 扩展
-    AbstractEventStore <|-- RedisEventStore : 扩展
+flowchart TB
+    Command[命令] --> Restore[恢复聚合]
+    EventStore[(EventStore：权威)] --> Restore
+    SnapshotStore[(SnapshotStore：检查点)] --> Restore
+    Restore --> Handler[命令处理器]
+    Handler --> Stream[DomainEventStream]
+    Stream --> EventStore
+    EventStore --> Bus[链内领域/状态消息发送]
+    Bus --> Processed[命令链之后的 PROCESSED]
+    Bus --> Snapshot[快照：派生检查点]
+    Bus --> Projection[投影：派生读模型]
+    Bus --> Processor[事件处理器：副作用]
 ```
 
-`AbstractEventStore` 应用**模板方法模式**来集中处理横切关注点：
-
-- **`append()`**（公开、具体）：记录操作日志，委托给 `appendStream()`，并升级版本冲突异常。
-- **`load()`**（公开、具体）：验证版本/时间范围，然后委托给 `loadStream()`。
-- **`appendStream()` / `loadStream()`**（受保护、抽象）：每个后端实现存储特定的逻辑。
+应用应通过 `StateAggregateRepository` 加载聚合，不要自行拼接事件与快照数据。
 
 ## 异常处理
 
-事件存储定义了层次化的类型异常：
+`EventStore.append` 声明 `EventVersionConflictException`、`DuplicateAggregateIdException` 与 `DuplicateRequestIdException`。`AbstractEventStore` 把初始版本冲突映射为 `DuplicateAggregateIdException`；存储实现负责把实际存储错误映射到该契约。
 
-| 异常类型 | 描述 | 行为 |
-|---|---|---|
-| `EventVersionConflictException` | 并发写入导致的版本冲突 | 实现 `RecoverableException` -- 可安全重试 |
-| `DuplicateAggregateIdException` | 尝试创建已存在的聚合 | 致命 -- 表示 ID 冲突 |
-| `DuplicateRequestIdException` | 相同 request ID 已被处理 | 框架拒绝重复请求并返回错误；调用方可按业务语义将其解释为幂等结果 |
+不能因为接口声明了异常，就假设每个自定义后端都会原子检查版本、聚合创建与请求 ID。必须验证所选实现及其契约测试。
 
-```mermaid
-stateDiagram-v2
-    [*] --> AppendRequested: append(eventStream)
-    AppendRequested --> Success: 事件已存储
-    AppendRequested --> VersionConflict: version <= storedTailVersion
-    AppendRequested --> DuplicateRequest: requestId 已存在
+失败的 `PROCESSED` 不能证明追加失败。错误发生在追加之后时，重试取决于稳定 `requestId` 处理与所选存储的重复契约；把命令视为不存在之前，应按聚合/request ID 查询权威历史。
 
-    VersionConflict --> DuplicateAggregateId: 如果 version == INITIAL_VERSION
-    VersionConflict --> EventVersionConflictException: 否则
-    DuplicateRequest --> DuplicateRequestIdException
-    Success --> [*]
-```
+`RetryableAggregateProcessor` 只对分类为可恢复的错误执行有界退避重试。重试可能重新执行恢复与命令处理，所以处理器及其注入服务必须遵守自己的重试/幂等边界。不可恢复的业务错误会立即失败。
 
 ## 实现对比
 
-| 特性 | MongoDB | Redis | 内存 |
-|---|---|---|---|
-| **持久性** | 持久（磁盘） | 可配置 | 易失（内存） |
-| **版本范围查询** | 是 | 是 (ZRANGEBYSCORE) | 是 (内存) |
-| **时间范围查询** | 是 | 否 | 是 (内存) |
-| **并发控制** | 唯一复合索引 | Lua 脚本（原子） | 同步映射 |
-| **分片支持** | 分片集合 | Redis 集群 | 不适用 |
-| **生产就绪** | 高 | 中 | 仅开发/测试 |
+| 实现 | 典型用途 | 契约说明 |
+|---|---|---|
+| `InMemoryEventStore` | 测试与本地示例 | 易失，不代表生产持久性 |
+| MongoDB 模块 | 持久事件存储 | 验证实际索引、write concern、拓扑与模块测试 |
+| Redis 模块 | 持久事件存储 | 验证 Lua/脚本行为、持久化模式与模块测试 |
+| 自定义 `EventStore` | 应用专用后端 | 必须定义追加原子性、冲突映射、顺序与关闭行为 |
+
+核心接口刻意不承诺所有后端具备完全相同的运维能力。例如，某个实现可以不支持按时间范围加载或聚合扫描。
 
 ### 每种实现的存储模式
 
-**MongoDB** 为每种聚合类型使用独立的集合。集合名称由聚合的上下文名称和聚合名称派生（例如 `order_event_stream`）。文档使用唯一复合索引 `(aggregate_id, version)` 和 `(aggregate_id, request_id)` 进行索引 ([EventStreamSchemaInitializer.kt:51-69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/EventStreamSchemaInitializer.kt#L51-L69))。
+Schema 与原子性属于所选存储模块，而非 `wow-core`。用于生产前至少验证：
 
-**Redis** 将事件流存储在按聚合 ID 键的**有序集合**中。每个成员是 JSON 序列化的 `DomainEventStream`，按版本号评分。追加操作使用 Lua 脚本实现原子性 -- 在单个事务中检查版本冲突、重复请求 ID 和跨租户聚合 ID 唯一性（[RedisEventStore.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-redis/src/main/kotlin/me/ahoo/wow/redis/eventsourcing/RedisEventStore.kt)）。不支持时间范围加载。
+- 单聚合事件流的唯一键与排序键；
+- `requestId` 查询如何建立索引或扫描；
+- 并发追加时的原子行为；
+- 序列化兼容与事件 revision 策略；
+- 备份、恢复、保留与损坏检测；
+- 范围加载与聚合扫描的行为。
 
+不要照搬本指南中的某个 Schema，并把它当成运行中后端的证明。
 
 ## 配置
 
@@ -233,35 +171,26 @@ wow:
       storage: mongo
     snapshot:
       enabled: true
-      strategy: all  # 推荐：保存每个状态事件产生的状态
+      strategy: all
       storage: mongo
 ```
 
-| 属性 | 类型 | 默认值 | 描述 |
-|---|---|---|---|
-| `wow.eventsourcing.store.storage` | `StorageType` | `mongo` | 事件存储后端 |
-| `wow.eventsourcing.snapshot.enabled` | `Boolean` | `true` | 启用快照机制 |
-| `wow.eventsourcing.snapshot.strategy` | `Strategy` | `all` | 快照策略 (all, version_offset) |
-| `wow.eventsourcing.snapshot.version-offset` | `Int` | `5` | 版本间隔阈值 |
-| `wow.eventsourcing.snapshot.storage` | `StorageType` | `mongo` | 快照存储后端 |
+事件存储与快照存储可以使用同一种技术，但契约仍然独立。快照丢失应只影响加载成本或当前状态查询可用性，不能改变权威历史定义。
 
 ## 最佳实践
 
-1. **将快照作为默认当前状态查询存储**：保持推荐的 `strategy: all`，让每个已处理状态事件都更新最新快照。在支持查询的后端并启用 WebFlux 后，`SnapshotQueryService` 与内置 single/list/paged/count 路由可以替代单聚合标准查询中重复的投影代码和手写查询端点。仅在允许快照查询陈旧，或另有读模型承载实时查询时使用 `version_offset`。
-
-2. **监控版本冲突**：偶尔出现 `EventVersionConflictException` 是正常的。高频出现则表明存在竞争 -- 考虑重新设计聚合边界。
-
-3. **利用请求幂等性**：`requestId` 字段保证重试命令不会产生重复事件 -- 对于至少一次投递至关重要。
-
-4. **保持事件不可变且声明式**：事件应代表简单事实，而非条件逻辑。聚合的溯源函数只是将事件叠加到状态上。
-
-5. **仅在测试中使用内存存储**：`InMemoryEventStore` 是线程安全的但具有易失性。请勿部署到生产环境。
+1. 保持事件体为不可变事实，并测试溯源行为。
+2. 重试同一命令意图时复用一个稳定的 `requestId`。
+3. 把成功的 `PROCESSED` 视为完整命令 filter chain 完成，而不只是追加；失败时检查权威历史，因为追加可能已经成功。
+4. 通过 `StateAggregateRepository` 恢复，不要在应用代码中再写一套重放算法。
+5. 测试所选后端的并发与重复行为，不要从 `EventStore` KDoc 泛化。
+6. 让投影与外部副作用可安全重放/幂等，并明确重试或补偿的归属。
+7. 监控版本冲突；持续竞争可能说明聚合边界不合理。
 
 ## 相关主题
 
-- [快照](./snapshot) -- 使用快照优化聚合加载并支持当前状态查询
-- [查询服务](./query) -- 通过 DSL 与内置端点查询快照
-- [命令网关](./command-gateway) -- 命令如何路由到聚合
-- [Saga](./saga) -- 跨聚合的分布式事务
-- [投影](./projection) -- 投影如何消费事件流
-- [商业智能](./bi) -- 利用事件流进行数据分析
+- [快照](./snapshot) -- 加载检查点与 `SNAPSHOT` 语义
+- [命令网关](./command-gateway) -- 验证、幂等与等待阶段
+- [事件处理器](./event-processor) -- 下游副作用与 `EVENT_HANDLED`
+- [投影](./projection) -- 特定用途读模型与 `PROJECTED`
+- [Saga](./saga) -- 跨聚合协调

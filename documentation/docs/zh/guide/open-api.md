@@ -1,13 +1,27 @@
 ---
 title: OpenAPI
-description: Wow OpenAPI 模块提供基于 OpenAPI 规范的 API 接口。
+description: 基于生成元数据发布 Wow 路由合同，并明确区分编译期元数据、运行时 WebFlux 路由、Schema 与客户端。
 ---
 
 # OpenAPI
 
-> Wow OpenAPI 模块提供了基于 [OpenAPI](https://swagger.io/specification/) 规范的 API 接口。
+`wow-openapi` 为 Wow 路由合同构建 OpenAPI 3.1 operations 与 components。完整链路是：
+
+```text
+Wow 注解
+  -> KSP: META-INF/wow-metadata.json
+  -> MetadataSearcher: 运行时聚合元数据
+  -> RouterSpecs / RouteCatalog
+       -> WebFlux RouterFunction
+       -> OpenAPI paths 与 components
+  -> API 客户端或外部客户端生成器
+```
+
+共享 `RouteCatalog` 是关键边界：运行时 WebFlux Handler 与 OpenAPI renderer 消费同一套路由合同。KSP 不会生成可运行 HTTP 服务；存在 OpenAPI 也不能证明后端、查询能力、认证策略或客户端部署已经可用。
 
 ## 安装
+
+`wow-openapi` 提供路由合同与 Schema components：
 
 ::: code-group
 
@@ -20,7 +34,6 @@ implementation 'me.ahoo.wow:wow-openapi'
 ```
 
 ```xml [Maven]
-
 <dependency>
     <groupId>me.ahoo.wow</groupId>
     <artifactId>wow-openapi</artifactId>
@@ -30,7 +43,7 @@ implementation 'me.ahoo.wow:wow-openapi'
 
 :::
 
-以上依赖提供 Wow 的 OpenAPI 模型与路由规范。若要在 Spring Boot WebFlux 应用中发布这些规范，还需引入 `wow-spring-boot-starter` 和 WebFlux 模块；Swagger UI 本身由 Springdoc 提供：
+Spring Boot 应用使用 Starter 和 WebFlux runtime。仅当服务需要发布 `/v3/api-docs` 或 Swagger UI 时再添加 Springdoc：
 
 ```kotlin
 implementation("me.ahoo.wow:wow-spring-boot-starter")
@@ -38,130 +51,102 @@ implementation("me.ahoo.wow:wow-webflux")
 implementation("org.springdoc:springdoc-openapi-starter-webflux-ui")
 ```
 
+`OpenAPIAutoConfiguration` 创建 `RouterSpecs`；`WebFluxAutoConfiguration` 把目录物化为 `RouterFunction`；`WowOpenApiCustomizer` 把同一目录合并到 Springdoc。`wow.openapi.enabled=false` 禁用 Springdoc 定制，不会关闭 WebFlux 路由目录本身。
+
+包含 Wow 注解的模块仍需应用 KSP 与 `wow-compiler`，并确保生成的 `META-INF/wow-metadata.json` 位于服务运行时 classpath。不要手写或提交生成资源。
+
 ## Swagger-UI
 
-> Swagger-UI 是一个基于 OpenAPI 规范的 API 文档工具，可以通过 Swagger-UI 来查看和测试 API 接口。
+Swagger UI 是 Springdoc 应用特性，不属于路由合同本身。匹配的 Starter 存在且已启用时，Springdoc 页面通常位于 `/swagger-ui.html`，JSON 文档位于 `/v3/api-docs`。
 
 ![Swagger-UI](/images/compensation/open-api.png)
 
+准确路径、方法、参数、媒体类型、operation ID 与 component 引用应以 JSON 文档为准。截图不是合同证据。
+
 ## 聚合资源归属
 
-一个聚合根资源可以归属于租户、空间和拥有者中的一种或多种。
+聚合元数据会合并 `@AggregateRoute`、命令级 `@CommandRoute`、tenant 元数据以及生成的命令/事件类型。资源归属影响路径形状，但不代表调用方授权。
+
+路由目录还会根据 `@AggregateRoute(enabled = false)` 决定是否发布该聚合。这不会移除 HTTP 之外的命令处理或存储行为。
 
 ## RESTful URL PATH Spec
 
-`[tenant/{tenantId}]/[owner/{ownerId}]/resource/[{resourceId}]/action`
+聚合路由的通用形状是：
+
+```text
+[tenant/{tenantId}/][owner/{ownerId}/]{resourceName}[/{resourceId}]/{action}
+```
+
+默认路由从 resource name 开始。Wow 不会在本地路径前自动添加限界上下文 alias。客户端代码不应根据命名约定拼接路径，应检查生成 OpenAPI。
 
 ### 租户资源
 
-当聚合根为租户资源时（未标记静态租户ID），自动生成的 RESTful API 会添加 `tenant/{tenantId}` 路径前缀。
+动态 tenant 聚合的默认命令/状态路由会添加 `tenant/{tenantId}` 前缀；快照查询贡献者还会保留基础路由并增加 tenant 作用域变体。tenant 路径数据会传入运行时 Handler 与查询重写，但应用仍需把它绑定到已认证 Principal，并显式保护无作用域查询路由。
 
 ### 空间资源
 
-当聚合根为空间资源时，自动生成的 RESTful API 会添加 `Wow-Space-Id` 请求头参数。
+启用 spaced 的路由会声明 `Wow-Space-Id` 请求头。Space 不增加路径段。该请求头参与命令上下文和查询作用域，但不构成身份认证。
 
 ### 拥有者资源
 
-当聚合根被标记为拥有者资源时，自动生成的 RESTful API 会添加 `owner/{ownerId}` 路径前缀。
+`AggregateRoute.Owner.ALWAYS` 会在默认 owned 路由添加 `owner/{ownerId}` 并保留 resource ID；快照查询同时发布基础和 owner 作用域变体：
 
 ```kotlin
 @AggregateRoot
-@AggregateRoute(owner = AggregateRoute.Owner.ALWAYS)
+@AggregateRoute(resourceName = "orders", owner = AggregateRoute.Owner.ALWAYS)
 class Order(private val state: OrderState)
 ```
 
-当聚合根 ID 与拥有者 ID 相同时，自动生成的 RESTful API 会将 `{resourceId}` 路径参数移除。比如用户购物车ID即是用户ID时：
+`AGGREGATE_ID` 使用 owner ID 作为 aggregate ID，并省略独立 resource-ID 段：
 
 ```kotlin
-@StaticTenantId
 @AggregateRoot
-@AggregateRoute(owner = AggregateRoute.Owner.AGGREGATE_ID)
+@StaticTenantId
+@AggregateRoute(resourceName = "cart", owner = AggregateRoute.Owner.AGGREGATE_ID)
 class Cart(private val state: CartState)
 ```
 
+查询 Schema 路由是例外：`/{aggregate}/snapshot/schema` 与 `/refresh` 描述聚合模型，因此没有 tenant/owner 路径变体；spaced 聚合的公共合同仍可能声明 `Wow-Space-Id`。
+
 ## 全局路由
+
+全局合同独立于聚合路由贡献：
+
+| 方法 | 路径 | 用途 |
+|---|---|---|
+| `POST` | `/wow/command/send` | API Client 使用的通用命令入口 |
+| `POST` | `/wow/command/wait` | 等待信号接收端点 |
+| `GET` | `/wow/metadata` | 已加载 Wow 元数据 |
+| `POST` | `/wow/bi/script` | BI 同步脚本生成 |
+| `GET` | `/wow/id/global` | 全局 ID 生成 |
+
+发布上述任一路由都不会自动保护它。应用必须配置认证、授权、限流和网络暴露策略。
 
 ### 获取 Wow 元数据
 
-该路由提供了通过 RESTful API 获取 *Wow 编译时元数据*的能力，以便验证 Wow 元数据(`WowMetadata`)
-定义的正确性。
+`GET /wow/metadata` 返回由运行时 classpath 编译资源汇总得到的 `WowMetadata`，可用于诊断缺失的注解模块：
 
-::: code-group
-
-```shell [OpenAPI]
-curl -X 'GET' \
-  'http://localhost:8080/wow/metadata' \
+```shell
+curl 'http://localhost:8080/wow/metadata' \
   -H 'accept: application/json'
 ```
 
-```json [响应]
+代表性响应形状：
+
+```json
 {
   "contexts": {
     "example-service": {
       "alias": "example",
-      "scopes": [
-        "me.ahoo.wow.example.server",
-        "me.ahoo.wow.example.domain",
-        "me.ahoo.wow.example.api"
-      ],
+      "scopes": ["me.ahoo.wow.example.api"],
       "aggregates": {
-        "cart": {
-          "scopes": [
-            "me.ahoo.wow.example.api.cart"
-          ],
-          "type": "me.ahoo.wow.example.domain.cart.Cart",
-          "tenantId": "(0)",
-          "id": null,
-          "commands": [
-            "me.ahoo.wow.example.api.cart.ChangeQuantity",
-            "me.ahoo.wow.example.api.cart.RemoveCartItem",
-            "me.ahoo.wow.example.api.cart.AddCartItem"
-          ],
-          "events": [
-            "me.ahoo.wow.example.api.cart.CartItemAdded",
-            "me.ahoo.wow.example.api.cart.CartQuantityChanged",
-            "me.ahoo.wow.example.api.cart.CartItemRemoved"
-          ]
-        },
         "order": {
-          "scopes": [
-            "me.ahoo.wow.example.api.order"
-          ],
+          "scopes": ["me.ahoo.wow.example.api.order"],
           "type": "me.ahoo.wow.example.domain.order.Order",
           "tenantId": null,
           "id": null,
-          "commands": [
-            "me.ahoo.wow.example.api.order.ChangeAddress",
-            "me.ahoo.wow.example.api.order.ShipOrder",
-            "me.ahoo.wow.example.api.order.PayOrder",
-            "me.ahoo.wow.example.api.order.ReceiptOrder",
-            "me.ahoo.wow.example.api.order.CreateOrder"
-          ],
-          "events": [
-            "me.ahoo.wow.example.api.order.OrderShipped",
-            "me.ahoo.wow.example.api.order.OrderCreated",
-            "me.ahoo.wow.example.api.order.AddressChanged",
-            "me.ahoo.wow.example.api.order.OrderReceived",
-            "me.ahoo.wow.example.api.order.OrderPaid"
-          ]
-        }
-      }
-    },
-    "compensation-service": {
-      "alias": "compensation",
-      "scopes": [
-        "me.ahoo.wow.compensation"
-      ],
-      "aggregates": {
-        "execution_failed": {
-          "scopes": [
-            "me.ahoo.wow.compensation.api"
-          ],
-          "type": null,
-          "tenantId": "(0)",
-          "id": null,
-          "commands": [],
-          "events": []
+          "commands": ["me.ahoo.wow.example.api.order.CreateOrder"],
+          "events": ["me.ahoo.wow.example.api.order.OrderCreated"]
         }
       }
     }
@@ -169,89 +154,71 @@ curl -X 'GET' \
 }
 ```
 
-:::
+该响应能证明运行时已加载元数据，但不能证明每条生成路由都已物化；下一道门禁应检查 `/v3/api-docs` 或路由目录。
 
 ### 生成 BI 同步脚本
 
-`POST /wow/bi/script` 生成当前本地聚合的 ClickHouse 同步与展开 SQL。该路由及 OpenAPI operation 默认注册；配置 `wow.bi.script.enabled=false` 会同时移除二者。启用本身不会增加鉴权，因此必须由应用安全策略保护该管理端点。端点要求提供 `application/json` 请求体。OpenAPI schema 除部署覆盖字段外还包含 `operation` 与 `replayFromEarliestConfirmed`，不再包含 `previousManifest`；嵌套集群字段只包含 `name` 和 `installation`。schema 同时列出枚举值 `DEPLOY` / `RESET`、`CLUSTER` / `STANDALONE` 与 `FAIL` / `RAW_JSON`。请求可以降低 `maxExpansionDepth`，但不能超过服务端配置值；该配置是端点的安全上限。
+`POST /wow/bi/script` 为当前本地聚合生成 ClickHouse 同步与展开 SQL。路由和 OpenAPI operation 默认存在，`wow.bi.script.enabled=false` 会同时移除两者。启用路由不会自动授权。
 
-服务端配置和每个非 `null` 请求 override 使用相同的最大长度：`database` 128 个字符、`consumerDatabase` 128、`timezone` 64、`topicPrefix` 128、`kafkaBootstrapServers` 4096，`topology.cluster.name` 与 `topology.cluster.installation` 各 128。长度恰好等于限制的值可被接受；更长的服务端值会使应用启动失败，更长的 override 返回 `400`。
+端点要求 `application/json` 请求体。`{}` 表示使用服务端选项执行 `DEPLOY`。请求字段包含部署覆盖、`operation` 和 `replayFromEarliestConfirmed`；`previousManifest` 不属于合同。提供 `topology` 时必须提供 `topology.mode`；`STANDALONE` 拒绝 cluster 对象，`CLUSTER` 只接受 cluster `name` 与 `installation` 覆盖。
 
-| 状态 | `Content-Type` | 响应体 |
-|------|----------------|--------|
-| `200` | `application/sql` | 仅 SQL 文本；`Wow-BI-Diagnostic-Count` 给出响应体未携带的诊断数量 |
-| `200` | `application/json` | SQL、destructive 标记与诊断；`Wow-BI-Diagnostic-Count` 给出相同的诊断数量 |
-| `400` | 错误响应 | 空或无效 JSON 请求体、超过长度限制的 override、其他无效选项值或无效拓扑组合 |
-| `406` | 错误响应 | 请求的表示均不受支持，或所有受支持的表示均设为 `q=0`；运行时 `Wow-Error-Code` 为 `NotAcceptable` |
-| `415` | 公共 `wow.UnsupportedMediaType` response | 缺少或不支持的请求 `Content-Type`；运行时 `Wow-Error-Code` 为 `UnsupportedMediaType` |
-| `500` | 错误响应 | 未预期的 BI 脚本生成失败 |
-| `502` | 错误响应 | inspected replica 上的 owned ClickHouse catalog 不一致 |
-| `503` | 错误响应 | ClickHouse catalog inspection 不可用 |
-| `504` | 错误响应 | ClickHouse catalog inspection 超时 |
+请求可以降低 `maxExpansionDepth`，但不能超过服务端上限。长度限制同时适用于服务端配置和非 null 覆盖：`database`、`consumerDatabase` 为 128，`timezone` 64，`topicPrefix` 128，`kafkaBootstrapServers` 4096，cluster `name`/`installation` 为 128。超限服务端值使启动失败，超限请求返回 `400`。
 
-`{}` 使用服务端选项执行 `DEPLOY`，调用方无需保存部署历史。默认 NoOp inspector 会返回未对账诊断；注册 ClickHouse inspector 后从 catalog 恢复历史。`RESET` 需要 `replayFromEarliestConfirmed=true`，即使聚合作用域为空也要求服务端配置 `consumerGroupNamespace`，且 inspector 必须可用，否则返回 `400`。提供 `topology` 时必须提供 `topology.mode`。在 `CLUSTER` 模式下，省略的集群字段继承当前集群服务端基础配置；如果服务端基础配置是独立模式，则继承领域集群默认值。`STANDALONE` 拒绝 `cluster` 对象。`DEPLOY` 与 `RESET` 不迁移数据库、consumer-group namespace 或 ClickHouse 拓扑；部署新范围前必须先停止并清理旧物理范围。旧版 `GET` 方法在该路径上没有路由并返回 `404`。
+| 状态 | 合同 |
+|---|---|
+| `200 application/sql` | SQL 文本；`Wow-BI-Diagnostic-Count` 给出省略的诊断数量 |
+| `200 application/json` | SQL、destructive 标记、诊断与相同计数请求头 |
+| `400` | 请求体错误、无效覆盖/拓扑或不满足 RESET 前置条件 |
+| `406` | 没有可接受表示；`Wow-Error-Code: NotAcceptable` |
+| `415` | 缺少/不支持 content type；`Wow-Error-Code: UnsupportedMediaType` |
+| `500` | 未预期生成失败 |
+| `502` / `503` / `504` | catalog 不一致 / inspection 不可用 / 超时 |
 
-::: code-group
+`RESET` 要求 `replayFromEarliestConfirmed=true`、服务端已配置 `consumerGroupNamespace` 且 inspector 可用。`DEPLOY` 与 `RESET` 不迁移数据库、consumer-group namespace 或 topology。旧 `GET` 方法没有路由。
 
-```shell [空覆盖请求]
+```shell
 curl -X POST 'http://localhost:8080/wow/bi/script' \
   -H 'content-type: application/json' \
   -H 'accept: application/sql' \
   --data '{}'
 ```
 
-```json [独立模式请求]
-{
-  "database": "analytics",
-  "topology": {
-    "mode": "STANDALONE"
-  }
-}
-```
-
-```json [部分集群请求]
-{
-  "topology": {
-    "mode": "CLUSTER",
-    "cluster": {
-      "name": "production"
-    }
-  },
-  "kafkaBootstrapServers": "kafka:9092",
-  "topicPrefix": "analytics."
-}
-```
-
-```http [代表性响应开头]
-HTTP/1.1 200 OK
-Content-Type: application/sql
-Wow-BI-Diagnostic-Count: 0
-
--- global --
-CREATE DATABASE IF NOT EXISTS "bi_db" ON CLUSTER '{cluster}';
-CREATE DATABASE IF NOT EXISTS "bi_db_consumer" ON CLUSTER '{cluster}';
-```
-
-:::
-
-当前展开 schema、结构化类型、原始值语义和无损标量映射参见[商业智能](./bi)；路由配置与 Kafka/topic 优先级参见[BI 脚本配置](./configuration#bi-脚本配置)。
+展开语义参见[商业智能](./bi)，服务端选项参见[BI 脚本配置](./configuration#bi-脚本配置)。
 
 ### 生成全局 ID
 
-该路由提供了通过 RESTful API 生成*全局ID*的能力。
-
-::: code-group
-
-```shell [OpenAPI]
-curl -X 'GET' \
-  'http://localhost:8080/wow/id/global' \
+```shell
+curl 'http://localhost:8080/wow/id/global' \
   -H 'accept: text/plain'
 ```
 
-```text [响应]
+```text
 0U2MNGBQ0001001
 ```
 
-:::
+返回值是文本。除非明确依赖单独的 CosId 合同，否则客户端应把其布局视为不透明。
 
 ## 聚合路由规范
+
+路由目录根据聚合元数据贡献 command、state、event、snapshot 和 query 路由。常用快照查询后缀如下：
+
+| 方法 | 后缀 | 请求 / 响应 |
+|---|---|---|
+| `GET` | `snapshot/schema` | 运行时 `QueryModelSchemaMetadata` |
+| `POST` | `snapshot/schema/refresh` | 刷新后的查询模型 Schema |
+| `POST` | `snapshot/single` | `SingleQuery` -> 物化快照 |
+| `POST` | `snapshot/single/state` | `SingleQuery` -> 仅状态 |
+| `POST` | `snapshot/list` / `list/state` | `ListQuery` -> 数组或 SSE |
+| `POST` | `snapshot/paged` / `paged/state` | `PagedQuery` -> `PagedList` |
+| `POST` | `snapshot/count` | `FilterExpression` -> 精确计数 |
+| `POST` | `snapshot/aggregation` | `AggregationQuery` -> 动态行或 SSE |
+
+查询合同分为三个独立层次：
+
+1. 通用 query component schemas 定义规范请求 JSON 形状。
+2. 每个聚合专用 query request-body component 引用一个通用 Schema，并公开静态 `x-wow-query-fields`；其 enum 由 system fields 与 `JsonQuerySchemaSource` 推断字段组成。
+3. 运行时 `snapshot/schema` 路由发布合并后的 `QueryModelSchemaMetadata` 与后端已证明能力。
+
+`x-wow-query-fields` 是 request-body component 上的 OpenAPI 设计时元数据，不会作为 JSON 请求属性嵌入，也不表示后端能力。
+
+`wow-apiclient` 包含手工维护的 Wow 命令与快照 CoApi 接口。Fetcher 等外部工具可以从已发布 OpenAPI 生成其他客户端。客户端生成位于 OpenAPI 下游：KSP 元数据不会生成这些客户端，重新生成客户端也不会改变服务端字段语义。OpenAPI 合同变化后必须审阅生成 diff。

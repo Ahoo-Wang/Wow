@@ -1,193 +1,66 @@
 ---
 title: Mongo
-description: MongoDB 扩展，为生产环境提供 EventStore 和 SnapshotStore 实现。
+description: 使用 MongoDB 承载事件流、快照、查询和 PrepareKey。
 ---
 
 # Mongo
 
-_Mongo_ 扩展提供对 MongoDB 的支持，是推荐的用于生产环境的事件存储和快照存储实现。它实现了以下接口：
+`wow-mongo` 提供 `EventStore`、`SnapshotStore`、对应查询服务和 `PrepareKeyFactory` 的 MongoDB 实现。适合已经运行 MongoDB、需要持久化事件历史与快照查询的服务；若只需进程内测试，使用 `in_memory` 更简单。
 
-- `EventStore` - 事件存储
-- `EventStreamQueryService` - 事件流查询服务
-- `SnapshotStore` - 快照存储
-- `SnapshotQueryService` - 快照查询服务
-- `PrepareKey` - 基于 TTL 过期机制的分布式键预留
-
-该模块设计为即插即用的后端。当 `wow.eventsourcing.store.storage` 设置为 `mongo` 时，框架将其默认的内存存储替换为 MongoDB 支持的实现，该实现可自动处理并发、幂等性和模式生命周期。
+模块不会仅因存在于 classpath 就接管存储。Starter 还要看到 Mongo capability、Reactive `MongoClient`、`wow.mongo.enabled=true`，以及 event/snapshot/prepare 各自选择 Mongo。
 
 ## 架构概述
 
-```mermaid
-graph TB
-    subgraph App["应用层 (wow-core)"]
-        direction LR
-        AR["聚合根"]
-        CM["命令网关"]
-        QS["查询服务"]
-    end
+Wow 负责文档形状、集合命名、索引初始化、错误映射和存储 binding；MongoDB 负责写入原子性、唯一索引、读写关注、复制、分片和故障恢复。一个物理 database 默认只归属一个 bounded context，启动时由 `wow_database_metadata` 持久化认领。
 
-    subgraph MongoEvent["MongoDB - 事件流数据库"]
-        ESColl[("{aggregateName}_event_stream<br>集合")]
-    end
-
-    subgraph MongoSnap["MongoDB - 快照数据库"]
-        SSCol[("{aggregateName}_snapshot<br>集合")]
-    end
-
-    subgraph MongoPrep["MongoDB - PrepareKey 数据库"]
-        PKCol[("prepare_{keyName}<br>集合")]
-    end
-
-    subgraph Impl["wow-mongo 实现"]
-        direction LR
-        MES["MongoEventStore"]
-        MSR["MongoSnapshotStore"]
-        MPK["MongoPrepareKey"]
-        MESQ["MongoEventStreamQueryService"]
-        MSQS["MongoSnapshotQueryService"]
-    end
-
-    AR -->|"appendStream()"| MES
-    MES -->|"insertOne"| ESColl
-    AR -->|"save(Snapshot)"| MSR
-    MSR -->|"updateOne pipeline (upsert)"| SSCol
-    CM -->|"prepare()"| MPK
-    MPK -->|"replaceOne"| PKCol
-    QS -->|"dynamicQuery()"| MESQ
-    MESQ -->|"find()"| ESColl
-    QS -->|"dynamicQuery()"| MSQS
-    MSQS -->|"find()"| SSCol
-```
-
-每种聚合类型拥有自己的集合，按聚合名称分区。这种设计将热聚合彼此隔离，并支持按聚合进行分片和索引调优。
-
-`MongoSnapshotStore.save()` 通过单次 aggregation-pipeline `updateOne` 配合
-`$replaceWith` 与 `$cond` 完成保存。候选聚合版本大于或等于已存版本时，服务端
-原子替换完整文档；版本较低时保留已存文档。缺失或非整数的已存版本被视为无效
-元数据，并由候选快照修复。该 pipeline 使用的 MQL 表达式要求 MongoDB 5.2
-或更高版本；集成测试验证的版本为 MongoDB 6.0.6。
-
-该集合布局假设一个 MongoDB database 只服务一个 bounded context。Starter 启动时会在
-`wow_database_metadata` 中原子认领当前 `wow.context-name`；同一 context 的实例可安全重复启动，
-不同 context 误连到该 database 时会在创建 EventStore、SnapshotStore、查询 factory 或
-PrepareKeyFactory 前失败，并提示配置独立数据库。即使 event 与 snapshot 使用其他后端，独立的
-`prepare-database` 也会执行该检查；该检查不受 `auto-init-schema` 影响。对于尚无所有权标记的存量
-database，首次启动会先从已有 `*_event_stream` 和 `*_snapshot` 集合中查找属于其他 context 的文档，
-确认不存在历史混写后再写入标记。存量 `prepare_*` 文档没有 context
-元数据，因此上线前必须审计 prepare database 映射；首个升级的 context 会认领尚未标记且仅含
-prepare 数据的 database。aggregate 全量校验只在首次认领时执行；大型存量数据库应优先升级其真实
-所有者服务，并预留扫描时间。
+`MongoEventStore` 写入 `{aggregateName}_event_stream`，`MongoSnapshotStore` 写入 `{aggregateName}_snapshot`，`MongoPrepareKey` 使用 `prepare_{keyName}`。集合名没有 context 前缀，因此不要让不同 context 共用 database。
 
 ## 安装
 
-::: code-group
-```kotlin [Gradle(Kotlin)]
+直接装配模块与 Spring Reactive Mongo：
+
+```kotlin
 implementation("me.ahoo.wow:wow-mongo")
 implementation("org.springframework.boot:spring-boot-starter-data-mongodb-reactive")
 ```
-```groovy [Gradle(Groovy)]
-implementation 'me.ahoo.wow:wow-mongo'
-implementation 'org.springframework.boot:spring-boot-starter-data-mongodb-reactive'
+
+使用 Starter 时只请求 capability，它已带入上述依赖：
+
+```kotlin
+implementation("me.ahoo.wow:wow-spring-boot-starter") {
+    capabilities {
+        requireCapability("me.ahoo.wow:mongo-support")
+    }
+}
 ```
-```xml [Maven]
-<dependency>
-    <groupId>me.ahoo.wow</groupId>
-    <artifactId>wow-mongo</artifactId>
-    <version>${wow.version}</version>
-</dependency>
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-data-mongodb-reactive</artifactId>
-</dependency>
-```
-:::
 
 ## 核心组件
 
-| 组件 | 实现的契约 | 关键文件 | 职责 |
-|---|---|---|---|
-| `MongoEventStore` | `AbstractEventStore` | [MongoEventStore.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/MongoEventStore.kt) | 追加、加载和查询领域事件流 |
-| `MongoSnapshotStore` | `SnapshotStore` | [MongoSnapshotStore.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/MongoSnapshotStore.kt) | 保存、加载和版本检查聚合快照 |
-| `MongoPrepareKey` | `PrepareKey<V>` | [MongoPrepareKey.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/prepare/MongoPrepareKey.kt) | 基于 TTL 过期机制的分布式键预留 |
-| `MongoEventStreamQueryService` | `EventStreamQueryService` | [MongoEventStreamQueryService.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/query/event/MongoEventStreamQueryService.kt) | 原始事件流的动态查询 |
-| `MongoSnapshotQueryService` | `SnapshotQueryService<S>` | [MongoSnapshotQueryService.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/query/snapshot/MongoSnapshotQueryService.kt) | 将快照作为物化读模型进行动态查询 |
-| `EventStreamSchemaInitializer` | （独立） | [EventStreamSchemaInitializer.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/EventStreamSchemaInitializer.kt) | 创建事件流的集合 + 索引 |
-| `SnapshotSchemaInitializer` | （独立） | [SnapshotSchemaInitializer.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/SnapshotSchemaInitializer.kt) | 创建快照的集合 + 索引 |
+| 组件 | 运行时职责 |
+|---|---|
+| `MongoEventStore` | 追加、按版本/时间加载事件流，扫描聚合 ID |
+| `MongoSnapshotStore` | 加载并按版本原子保存快照 |
+| 查询 service factory | 为事件流和快照建立 Mongo 查询实现 |
+| `MongoPrepareKeyFactory` | 创建 TTL 语义的分布式预占键 |
+| schema initializer | 按已加载聚合元数据创建集合并协调索引 |
+| `MongoDatabaseContextGuard` | 阻止不同 bounded context 共用无 context 前缀的 database |
 
 ## 事件追加时序
 
-以下时序图展示了从聚合根产生事件到 MongoDB 文档持久化的完整路径，包括乐观并发控制和幂等性守卫。
+`append` 把一个 `DomainEventStream` 序列化为一个文档，再执行 `insertOne`；批处理显式启用时，多个独立 append 聚合为 unordered `insertMany`。MongoDB 返回 duplicate-key 时，Wow 只对已知索引名映射框架异常。
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant AR as 聚合根
-    participant ES as MongoEventStore
-    participant Doc as Documents.toDocument()
-    participant Coll as MongoCollection
-    participant Err as ErrorMapping
-    participant DB as MongoDB
-
-    AR->>ES: appendStream(DomainEventStream)
-    ES->>ES: eventStream.toEventStreamCollectionName()
-    Note over ES: "{aggregateName}_event_stream"
-    ES->>Doc: eventStream.toDocument()
-    Doc->>Doc: toLinkedHashMap() - replaceIdToPrimaryKey() - append("size")
-
-    ES->>Coll: insertOne(document) 或 unordered insertMany(batch)
-    Coll->>DB: 插入文档，_id = eventStreamId
-    DB-->>Coll: InsertOneResult 或 InsertManyResult
-
-    alt 写入已确认
-        Coll-->>ES: onNext(result)
-        ES->>ES: check(wasAcknowledged())
-        ES-->>AR: Mono.empty()（成功）
-    else 重复版本 (aggregateId + version)
-        DB-->>Coll: MongoWriteException 或 MongoBulkWriteException
-        Coll->>Err: 映射对应的 duplicate-key write error
-        Err->>Err: toWowError() - 匹配 "aggregateId_1_version_1"
-        Err-->>ES: EventVersionConflictException
-        ES-->>AR: EventVersionConflictException
-    else 重复 requestId
-        DB-->>Coll: MongoWriteException 或 MongoBulkWriteException
-        Coll->>Err: 映射对应的 duplicate-key write error
-        Err->>Err: toWowError() - 匹配 "requestId_1"
-        Err-->>ES: DuplicateRequestIdException
-        ES-->>AR: DuplicateRequestIdException
-    end
-```
-
-关键设计洞察是 **MongoDB 唯一索引扮演双重角色**：`{aggregateId, version}` 复合唯一索引强制执行乐观并发控制（同一版本不能有两处写入），而 `{requestId}` 唯一索引提供命令幂等性（无重复处理）。在违反索引约束时，`ErrorMapping.toWowError()` 将原始的 MongoDB 单条或批量写入错误转换为 Wow 框架的类型异常，以便框架无论在何种存储后端都能统一处理。
+写入成功只表示 MongoDB 已按当前 write concern 确认，不表示事件消费者或快照已经完成。
 
 ## 配置
 
-- 配置类： [MongoProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/mongo/MongoProperties.kt)
-- 前缀： `wow.mongo.`
-
-| 名称 | 数据类型 | 默认值 | 描述 |
-|---|---|---|---|
-| `enabled` | `Boolean` | `true` | 是否启用 |
-| `auto-init-schema` | `Boolean` | `true` | 是否自动生成 *Schema* |
-| `event-stream-database` | `String` | Spring Boot Mongo 模块配置的数据库名称 | 事件流数据库名称 |
-| `snapshot-database` | `String` | Spring Boot Mongo 模块配置的数据库名称 | 快照数据库名称 |
-| `prepare-database` | `String` | Spring Boot Mongo 模块配置的数据库名称 | `PrepareKey` 数据库名称 |
-| `event-store-batch.enabled` | `Boolean` | `false` | 使用 unordered `insertMany` 批量写入并发 EventStore 追加请求 |
-| `event-store-batch.max-size` | `Int` | `128` | 同一集合单批最多包含的事件流数量 |
-| `event-store-batch.max-delay` | `Duration` | `1ms` | 收集不足一批请求的最长等待时间 |
-| `event-store-batch.max-pending-appends` | `Int` | `4096` | 等待或正在写入的 append 最大接收数量；必须不小于 `max-size` |
-| `event-store-batch.lane-count` | `Int` | `1` | 串行写入 lane 数量；同一聚合的 append 始终进入同一 lane |
-| `snapshot-store-batch.enabled` | `Boolean` | `false` | 使用 unordered `bulkWrite` 批量写入并发 SnapshotStore 保存请求 |
-| `snapshot-store-batch.max-size` | `Int` | `128` | 同一集合单批最多包含的快照数量 |
-| `snapshot-store-batch.max-delay` | `Duration` | `1ms` | 收集不足一批快照的最长等待时间 |
-| `snapshot-store-batch.max-pending-saves` | `Int` | `4096` | 等待或正在写入的 save 最大接收数量；必须不小于 `max-size` |
-| `snapshot-store-batch.lane-count` | `Int` | `1` | 串行写入 lane 数量；同一聚合的 save 始终进入同一 lane |
-
-**YAML 配置示例**
+同时使用 Mongo EventStore 与 SnapshotStore 的最小配置：
 
 ```yaml
 spring:
+  application:
+    name: order-service
   mongodb:
-    uri: mongodb://localhost:27017/wow_db
+    uri: mongodb://localhost:27017/order_service
 
 wow:
   eventsourcing:
@@ -195,532 +68,175 @@ wow:
       storage: mongo
     snapshot:
       storage: mongo
-  mongo:
-    enabled: true
-    auto-init-schema: true
-    event-stream-database: wow_event_db
-    snapshot-database: wow_snapshot_db
-    prepare-database: wow_prepare_db
-    event-store-batch:
-      enabled: true
-      max-size: 128
-      max-delay: 1ms
-      max-pending-appends: 4096
-      lane-count: 1
-    snapshot-store-batch:
-      enabled: true
-      max-size: 128
-      max-delay: 1ms
-      max-pending-saves: 4096
-      lane-count: 1
 ```
 
-批处理默认关闭，因为不足一批的请求最多会增加 `max-delay` 的追加或保存延迟。启用后，两种存储
-都会按 MongoDB collection 对时间窗内的请求分组。EventStore 使用 unordered `insertMany`；
-SnapshotStore 会将同一存储聚合的请求合并为最高版本，并通过 unordered `bulkWrite` 使用与 direct
-保存相同的原子版本保护。每个原始 `append` 或 `save` 仍会独立完成。当请求数达到对应 pending 上限
-时，新请求会在提交 MongoDB 之前返回可恢复的过载错误，而不是继续堆积到无界内存队列。
-
-带明确索引的 bulk write error 只会让对应请求失败；write concern error 或无法自洽的批量结果会
-保守地让所有受影响请求失败，因为此时无法证明提交状态。批处理本身不具备原子性。直接构造启用
-批处理的 `MongoEventStore` 或 `MongoSnapshotStore` 时，应关闭它（例如使用 Kotlin `use`），以
-冲刷不足一批的窗口并释放工作线程；Spring 会通过正常的 Bean 生命周期关闭自动配置的实例。
+`wow.mongo.event-stream-database`、`snapshot-database`、`prepare-database` 未设置时回退到 Spring Mongo database。若 URI 与 Spring 属性都没有 database，自动配置会以对应 `must not be null` 错误失败。`wow.mongo.enabled=true`、`auto-init-schema=true`；event/snapshot batch 默认关闭，启用后的默认窗口为 `max-size=128`、`max-delay=1ms`、`max-pending-*=4096`、`lane-count=1`。
 
 ## 集合模式
 
+物理布局由模块生成，应用不应复制一套平行 collection 或在写入前重做 MongoDB 已负责的 schema/唯一性校验。
+
 ### 集合命名规则
 
-集合名称根据聚合元数据使用确定性后缀派生，定义在 [AggregateSchemaInitializer.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/AggregateSchemaInitializer.kt) 中：
-
-| 数据类型 | 集合命名格式 | 示例 |
-|---|---|---|
-| 事件流 | `{aggregateName}_event_stream` | `order_event_stream` |
-| 快照 | `{aggregateName}_snapshot` | `order_snapshot` |
-| PrepareKey | `prepare_{name}` | `prepare_username_idx` |
-
-事件流、快照与 PrepareKey 集合名称刻意保持兼容，不会加入 `contextName`。bounded context 的数据库
-所有权由 `wow_database_metadata` 单独记录；不要删除或手工改写该集合。若确需将数据库交给另一个
-context，应先迁移或清空原事件流、快照与 PrepareKey 数据，再删除所有权标记并启动新服务。
+事件流为 `{aggregateName}_event_stream`，快照为 `{aggregateName}_snapshot`，预占键为 `prepare_{keyName}`。名称只含 aggregate/key name；database 才是 bounded-context 隔离边界。
 
 ### 事件流集合 (`{aggregateName}_event_stream`)
 
-每个聚合按聚合类型定义，使用事件流 ID 作为主键（`_id`）。`body` 字段存储序列化的领域事件数组。
-
-```json
-{
-  "_id": "event-stream-id",
-  "aggregateId": "order-001",
-  "tenantId": "tenant-001",
-  "requestId": "request-001",
-  "commandId": "command-001",
-  "version": 1,
-  "header": {
-    "upstream_id": "saga-001"
-  },
-  "body": [
-    {
-      "name": "OrderCreated",
-      "revision": "1.0",
-      "bodyType": "me.ahoo.wow.example.api.order.OrderCreated"
-    }
-  ],
-  "size": 1,
-  "createTime": 1699920000000
-}
-```
-
-| 字段 | 类型 | 已索引 | 描述 |
-|---|---|---|---|
-| `_id` | String | 主键 | 事件流标识符 |
-| `aggregateId` | String | 哈希 + 唯一（与 version 组合） | 聚合根标识符 |
-| `tenantId` | String | 哈希 | 多租户分区键 |
-| `requestId` | String | 唯一（复合） | 命令请求幂等性键 |
-| `commandId` | String | -- | 发起命令标识符 |
-| `version` | Integer | 唯一（与 aggregateId 组合） | 事件时的聚合版本 |
-| `header` | Object | -- | 元数据（例如用于 Saga 追踪的 `upstream_id`） |
-| `body` | Array | -- | 领域事件负载的有序列表 |
-| `size` | Integer | -- | 此事件流中的事件数量 |
-| `createTime` | Long | -- | 纪元时间戳（毫秒） |
+每个文档代表一个事件流批次。默认索引包含聚合 ID hash、`{aggregateId, version}` 唯一约束、`{aggregateId, requestId}` 唯一约束，以及查询所需索引。唯一索引由 MongoDB 原子执行并发控制与请求幂等性。
 
 ### 快照集合 (`{aggregateName}_snapshot`)
 
-快照使用聚合 ID 作为主键（`_id`），使其成为最新状态的自然查找键。`state` 字段包含序列化的聚合状态对象。
-
-```json
-{
-  "_id": "order-001",
-  "contextName": "order-service",
-  "aggregateName": "order",
-  "tenantId": "tenant-001",
-  "version": 10,
-  "eventId": "event-010",
-  "firstOperator": "user-001",
-  "operator": "user-002",
-  "firstEventTime": 1699920000000,
-  "eventTime": 1699930000000,
-  "snapshotTime": 1699930000000,
-  "deleted": false,
-  "state": {
-    "id": "order-001",
-    "status": "PAID",
-    "totalAmount": 100.00
-  }
-}
-```
-
-| 字段 | 类型 | 已索引 | 描述 |
-|---|---|---|---|
-| `_id` | String | 唯一 | 聚合标识符（主键） |
-| `contextName` | String | -- | 限界上下文名称 |
-| `aggregateName` | String | -- | 聚合类型名称 |
-| `tenantId` | String | 哈希 | 多租户分区键 |
-| `version` | Integer | -- | 快照时的聚合版本 |
-| `eventId` | String | -- | 快照中包含的最后一个事件的 ID |
-| `firstOperator` | String | -- | 创建聚合的初始操作者 |
-| `operator` | String | -- | 最后修改聚合的操作者 |
-| `firstEventTime` | Long | -- | 第一个事件的时间戳 |
-| `eventTime` | Long | -- | 最后一个事件的时间戳 |
-| `snapshotTime` | Long | -- | 快照创建时的时间戳 |
-| `deleted` | Boolean | 哈希 | 软删除标志 |
-| `state` | Object | -- | 序列化的聚合状态（类型化） |
+文档主键是聚合 ID。保存使用带版本判断的 aggregation update pipeline：候选版本不低于现有版本时替换，较旧候选保持 no-op；缺失或非整数的既有版本由候选修复。该 pipeline 调用 driver MQL `MqlValue.isIntegerOr`，其 `@mongodb.server.release` 标注的运行下限是 MongoDB 5.2；部署必须使用 5.2+，并继续以目标版本的真实后端集成测试为准。
 
 ### PrepareKey 集合 (`prepare_{keyName}`)
 
-| 字段 | 类型 | 已索引 | 描述 |
-|---|---|---|---|
-| `_id` | String | 哈希 | 键值（唯一） |
-| `value` | Object | -- | 预留值的负载 |
-| `ttlAt` | Date | 升序（TTL） | 生存时间过期时间戳 |
-
-关键的文档级转换是 **主键映射**：事件流内部将其 ID 存储为 `_id`，但 `DomainEventStream` 模型使用 `id`——`Documents.replaceIdToPrimaryKey()` 和 `replacePrimaryKeyToId()` 透明地处理双向映射。类似地，快照通过 `replaceAggregateIdToPrimaryKey()` 和 `replacePrimaryKeyToAggregateId()` 在 `_id` 和 `aggregateId` 之间进行映射。
+`MongoPrepareKey` 使用 MongoDB 文档更新与 TTL 索引表达预占、续租和回滚。它是协调原语，不是通用分布式事务或业务锁服务。
 
 ## 模式初始化与索引
 
-`wow.mongo.auto-init-schema` 标志（默认 `true`）控制在启动时是否自动创建集合和索引。三个职责单一的初始化器处理此过程：
+`wow.mongo.auto-init-schema=true` 时，Starter 在创建存储前扫描当前 Wow 聚合元数据，确保集合和期望索引存在，并移除模块明确判定为冲突的旧索引。关闭后，数据库团队必须在流量进入前完成同一 schema 契约。
 
 ### EventStreamSchemaInitializer
 
-在初始化时，`EventStreamSchemaInitializer.initSchema()` 方法：
-
-1. 通过 `database.ensureCollection(collectionName)` 确保集合存在
-2. 在 `aggregateId` 上创建 **哈希索引** 以支持等值查询和哈希分片
-3. 创建 **唯一复合索引** `{aggregateId: 1, version: 1}` 用于乐观并发控制
-4. 根据 `enableRequestIdUniqueIndex` 标志（默认为 `false` 以兼容分片集群），创建全局 `requestId` 唯一索引或复合 `{aggregateId, requestId}` 唯一索引
-5. 在 `tenantId` 和 `ownerId` 上创建哈希索引以支持多租户过滤
-
-| 索引 | 字段 | 类型 | 用途 |
-|---|---|---|---|
-| `aggregateId_hashed` | `aggregateId` | 哈希 | 等值查询和哈希分片 |
-| `aggregateId_1_version_1` | `aggregateId`, `version` | 唯一 | 乐观并发控制——防止版本冲突 |
-| `aggregateId_1_requestId_1` | `aggregateId`, `requestId` | 唯一 | 请求幂等性（分片安全变体） |
-| `requestId_1` | `requestId` | 唯一 | 请求幂等性（非分片变体） |
-| `tenantId_hashed` | `tenantId` | 哈希 | 多租户过滤 |
-| `ownerId_hashed` | `ownerId` | 哈希 | 基于所有者的过滤 |
-
-`enableRequestIdUniqueIndex` 开关的存在是因为 MongoDB 分片集群无法跨分片强制执行唯一索引，除非分片键是唯一索引的一部分。当为 `false`（默认值）时，改用复合 `{aggregateId, requestId}` 索引，这与基于 `aggregateId` 的哈希分片兼容。
+事件索引的名字是错误映射契约的一部分。手工改名可能使 duplicate-key 不再映射为 `EventVersionConflictException` 或 `DuplicateRequestIdException`。
 
 ### SnapshotSchemaInitializer
 
-`SnapshotSchemaInitializer.initSchema()` 创建：
-
-| 索引 | 字段 | 类型 | 用途 |
-|---|---|---|---|
-| `tenantId_hashed` | `tenantId` | 哈希 | 多租户过滤 |
-| `ownerId_hashed` | `ownerId` | 哈希 | 基于所有者的过滤 |
-| `_id_hashed` | `_id` | 哈希 | 按 ID 快速查找聚合 |
-| `deleted_hashed` | `deleted` | 哈希 | 软删除过滤 |
+初始化器只建立模块声明的快照集合/索引；它不会替你设置副本集、分片、读写关注、备份或保留策略。
 
 ## 查询服务
 
-`wow-mongo` 模块提供两个查询服务实现，将 `FilterExpression` 编译为 MongoDB 过滤器文档（`Bson`）。
+Mongo 查询服务把 Wow 的 filter、projection、sort、分页与 aggregation 编译为 MongoDB 查询。支持的能力以运行时 `QuerySchema` 为准，不要把任意 MQL 能力推断为 Wow 公共查询合同。
 
 ### 过滤器编译管道
 
-编译管道为：`FilterExpression` -> `AbstractMongoFilterConverter` -> `Bson`。
-
-| Wow 操作符 | MongoDB 等价操作 |
-|---|---|
-| `EQ` | `Filters.eq()` |
-| `GT` / `GTE` / `LT` / `LTE` | `Filters.gt()` / `gte()` / `lt()` / `lte()` |
-| `CONTAINS` | `Filters.regex()`（已转义） |
-| `SEARCH` (`TERMS`) | `Filters.text(query)` |
-| `SEARCH` (`PHRASE`) | `Filters.text("\"$query\"")` |
-| `BETWEEN` | `Filters.and(Filters.gte(), Filters.lte())` |
-| `IN` / `NOT_IN` | `Filters.in()` / `nin()` |
-| `DELETION` | `Filters.eq("deleted", true/false)` 或 `Filters.empty()` |
-
-转换器还通过 `FieldConverter` 应用 **字段名转换**。对于事件流，`MessageRecords.ID` 字段映射到 `_id`。对于快照，`MessageRecords.AGGREGATE_ID` 映射到 `_id`。这使得应用层查询模型在整个底层主键策略中保持一致。
+公共字段先经逻辑 schema 验证和字段转换，再生成 Mongo filter。后端不支持或映射冲突的字段按 `wow.query.schema.validation-mode` 处理；应用无需增加一套猜测 Mongo 类型的预校验。
 
 ### 快照查询
 
-快照存储可直接用作读模型：
-
-```kotlin
-val query = listQuery {
-    filter {
-        "state.status" eq "PAID"
-        "state.totalAmount" gt 50.00
-    }
-    sort { "snapshotTime".desc() }
-    limit(10)
-}
-
-query.dynamicQuery(snapshotQueryService)
-```
-
-`MongoSnapshotQueryService` 使用 `MaterializedSnapshot<S>` 作为其类型化的结果包装器，其中 `S` 是从聚合元数据解析出的聚合状态类型。这支持直接对聚合状态字段进行类型安全的动态查询——例如，查询 `state.status` 或 `state.totalAmount` 而不需要单独的投影处理器。
+`MongoSnapshotQueryServiceFactory` 按聚合创建查询服务并绑定 snapshot collection。tenant、owner、space 等公共作用域由共享查询层重写，Mongo 扩展只执行最终 filter。
 
 ### 快照聚合
 
-`MongoSnapshotQueryService.aggregate()` 把通用 `AggregationQuery` 合同编译为原生 pipeline：根 `$match`、按顺序执行的 `$unwind` 与每层 Element `$match`、分组键过滤、`$group`、`$project`、`$sort` 和 `$limit`。第一个 Element 路径是绝对路径；后续 Element 路径、Element filter 及最内层 group/metric 字段都从当前作用域解析。
-
-MongoDB accumulator 实现 Terms、Histogram、DateHistogram、Count、Sum、Avg、Min 与 Max。缺失或为 null 的分组键会被排除。Count 统一为 `Long`；数值指标统一为有限 `Double`，没有值参与计算时为 `null`，空数据集的无分组单行汇总也遵循该规则。
-
-计算型数值指标会编译为受保护的原生 `$add`、`$subtract`、`$multiply` 与 `$divide` 表达式；缺失、非数值、除零或非有限结果不参与指标计算。不会使用 `$function`。
-
-编译前会使用协商后的 Query Schema：System、JSON Schema/注解、Bean 与约定文件提供逻辑语义，Mongo Adapter 读取 collection
-validator 和索引后发布可执行能力。已声明且与 validator 冲突的字段会在访问 MongoDB 前失败；普通未知路径在 `COMPATIBLE` 下仍可
-回退现有字段约定。没有 validator 时物理类型保持未知，首期不会为 `Temporal.Date` 发布范围或日期聚合能力；声明过单位的整数 epoch
-仍由 pipeline 安全转换。自定义 Jackson serializer 或 filter converter 不保证与 Wow 标准字段映射等价。
+aggregation 编译器把 Wow aggregation AST 转为 Mongo pipeline。结果语义由公共查询合同与 Mongo 表达式共同决定；运行真实后端集成测试，不要只用字符串快照证明 pipeline 可执行。
 
 ## PrepareKey：分布式协调
 
-`MongoPrepareKey` 实现了 Wow 的 `PrepareKey<V>` 接口，以 MongoDB 为协调后端进行分布式键预留。每个逻辑键变成一个 `prepare_{name}` 集合。
-
-该实现使用三个 MongoDB 原语来实现协调：
-
-| 操作 | MongoDB 方法 | 行为 |
-|---|---|---|
-| `prepare()` | `replaceOne`，过滤器 `{_id: key, ttlAt: {$lt: now}}` | CAS 风格的 upsert——仅当没有未过期的条目存在时才成功 |
-| `rollback()` | `deleteOne`，过滤器 `{_id: key, ttlAt: {$gt: now}}` | 移除活动预留（仅当未过期时） |
-| `reprepare()` | `updateOne`，使用 `$set` 更新 value + `ttlAt` | 原子性地扩展或替换预留 |
-
-TTL 索引（`{ttlAt: 1}`，`expireAfter: 0 seconds`）确保 MongoDB 自动移除过期的条目，提供无需应用程序干预的清理机制。
+Prepare 存储默认选择 Mongo。若改为 Redis，Mongo capability 即使存在也不会创建 `MongoPrepareKeyFactory`。过期、竞争和回滚结果由 MongoDB 原子更新决定，调用方仍需处理未获得预占的正常分支。
 
 ## 错误映射
 
-MongoDB 重复键错误通过 [ErrorMapping.toWowError()](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/ErrorMapping.kt) 转换为 Wow 框架异常：
+当前实现验证以下映射：
 
-```kotlin
-fun WriteError.toWowError(eventStream: DomainEventStream, cause: MongoServerException): Throwable {
-    if (ErrorCategory.fromErrorCode(code) != ErrorCategory.DUPLICATE_KEY) {
-        return cause
-    }
-    if (message.contains(AggregateSchemaInitializer.AGGREGATE_ID_AND_VERSION_UNIQUE_INDEX_NAME)) {
-        return EventVersionConflictException(eventStream = eventStream, cause = cause)
-    }
-    if (message.contains(AggregateSchemaInitializer.REQUEST_ID_UNIQUE_INDEX_NAME)) {
-        return DuplicateRequestIdException(
-            aggregateId = eventStream.aggregateId,
-            requestId = eventStream.requestId,
-            cause = cause
-        )
-    }
-    return cause
-}
-```
+- `{aggregateId, version}` 唯一索引冲突 → `EventVersionConflictException`；
+- request ID 唯一索引冲突 → `DuplicateRequestIdException`；
+- 已知网络、primary 切换和超时写错误 → recoverable Mongo 异常；
+- 未确认的 event/snapshot 写入 → `IllegalStateException`；
+- 不同 context 连接同一已认领 database → 启动失败。
 
-映射依赖于嵌入在 MongoDB 错误消息中的索引名称：
-
-- `EventVersionConflictException`——表示乐观并发冲突。框架会自动重试该命令。
-- `DuplicateRequestIdException`——表示命令已被处理。框架将其视为幂等成功。
+其他 MongoDB 异常保持后端异常，不应被文档承诺为统一 Wow 错误。
 
 ## 类层级
 
-```mermaid
-classDiagram
-    direction TB
-
-    class AbstractEventStore {
-        <<abstract>>
-        +appendStream(DomainEventStream) Mono~Void~
-        +loadStream(AggregateId, Int, Int) Flux~DomainEventStream~
-        +last(AggregateId) Mono~DomainEventStream~
-    }
-
-    class MongoEventStore {
-        -database: MongoDatabase
-        +appendStream(DomainEventStream) Mono~Void~
-        +loadStream(...) Flux~DomainEventStream~
-        +last(AggregateId) Mono~DomainEventStream~
-        +scanAggregateId(...) Flux~AggregateId~
-    }
-
-    class SnapshotStore {
-        <<interface>>
-        +load(AggregateId) Mono~Snapshot~
-        +save(Snapshot) Mono~Void~
-    }
-
-    class MongoSnapshotStore {
-        -database: MongoDatabase
-        +load(AggregateId) Mono~Snapshot~
-        +save(Snapshot) Mono~Void~
-    }
-
-    class PrepareKey~V~ {
-        <<interface>>
-        +prepare(String, PreparedValue~V~) Mono~Boolean~
-        +getValue(String) Mono~PreparedValue~V~~
-        +rollback(String) Mono~Boolean~
-        +reprepare(String, PreparedValue~V~) Mono~Boolean~
-    }
-
-    class MongoPrepareKey~V~ {
-        -prepareCollection: MongoCollection
-        +prepare(...) Mono~Boolean~
-        +getValue(...) Mono~PreparedValue~V~~
-        +rollback(...) Mono~Boolean~
-        +reprepare(...) Mono~Boolean~
-    }
-
-    class AbstractMongoQueryService~R~ {
-        <<abstract>>
-        #collection: MongoCollection
-        #converter: AbstractMongoFilterConverter
-        +single(ISingleQuery) Mono~R~
-        +list(IListQuery) Flux~R~
-        +paged(IPagedQuery) Mono~PagedList~R~~
-        +count(FilterExpression) Mono~Long~
-    }
-
-    class MongoEventStreamQueryService {
-        -snapshotType: JavaType
-        +toTypedResult(Document) DomainEventStream
-    }
-
-    class MongoSnapshotQueryService~S~ {
-        +toTypedResult(Document) MaterializedSnapshot~S~
-    }
-
-    AbstractEventStore <|-- MongoEventStore
-    SnapshotStore <|.. MongoSnapshotStore
-    PrepareKey <|.. MongoPrepareKey
-    AbstractMongoQueryService <|-- MongoEventStreamQueryService
-    AbstractMongoQueryService <|-- MongoSnapshotQueryService
-```
-
-类层级揭示了两层抽象：**Wow 核心接口**（`AbstractEventStore`、`SnapshotStore`、`PrepareKey`、`QueryService`）以存储无关的方式定义了框架契约，而 **Mongo 特定实现** 将这些契约映射到 MongoDB 的响应式驱动原语（`insertOne`、aggregation-pipeline `updateOne`、`replaceOne`、`find`、`countDocuments`）。
+公共调用方依赖 `EventStore`、`SnapshotStore` 和 query/prepare 契约；Mongo 具体类属于 adapter。通过 Starter 时优先让 storage binding 与 routing 选择 adapter，不要直接把内部 saver/appender 当作应用 API。
 
 ## 索引优化建议
 
+保留模块所需唯一索引，再根据真实 `explain` 与慢查询证据添加索引。任何修改都必须验证 schema initializer 的 reconciliation 不会把它识别为冲突布局。
+
 ### 事件流索引
 
-```javascript
-// 推荐额外添加的索引
-db.order_event_stream.createIndex(
-  { "createTime": 1 },
-  { name: "idx_create_time" }
-)
-
-db.order_event_stream.createIndex(
-  { "body.name": 1, "createTime": 1 },
-  { name: "idx_event_type_time" }
-)
-```
+版本与 request-ID 唯一索引是正确性约束，不能为了写吞吐移除。额外查询索引必须基于实际事件查询路径，而不是复制所有字段。
 
 ### 快照索引
 
-```javascript
-// 根据查询模式创建复合索引
-db.order_snapshot.find({
-  tenantId: "tenant-1",
-  deleted: false,
-  "state.status": "PAID"
-}).sort({ snapshotTime: -1, _id: 1 })
-
-db.order_snapshot.createIndex(
-  {
-    "tenantId": 1,
-    "deleted": 1,
-    "state.status": 1,
-    "snapshotTime": -1,
-    "_id": 1
-  },
-  { name: "tenant_deleted_status_time" }
-)
-```
-
-对于 event-stream 与 snapshot 集合，Wow 的自动初始化只创建事件溯源与通用过滤所需的受管索引，不推测业务查询模式。业务复合索引由应用按以下流程逐个发布：
-
-1. 从真实请求提取完整 filter、sort 与 projection，并在类生产数据上保存变更前的 `explain("executionStats")`。
-2. 默认按 ESR 规则设计“等值字段 → 排序字段（包括查询 sort 中的唯一稳定字段）→ 范围字段”。范围条件选择性很高时，同时用 `explain` 比较 ERS 候选；只有记录基线并审批接受阻塞排序后才能选择 ERS。`aggregateId` 排序在 MongoDB 快照集合中映射为 `_id`。
-3. 先在 staging 创建候选索引并复测。代表性查询必须返回数据；单节点及分片部署中每个 shard 的 winning plan 都不得包含 `COLLSCAN` 或阻塞 `SORT`。`totalKeysExamined / nReturned` 与 `totalDocsExamined / nReturned` 默认均不得超过 `5`；超过时必须记录基线和审批理由。同时核对结果数与有序 aggregate ID 列表不变。
-4. 生产环境按单聚合、单索引发布，记录变更前后的查询 p95/p99、索引大小和写入延迟。
-5. 仅查询计划回退时，可在支持隐藏索引的部署中先通过 `collMod` 隐藏新索引并复测。隐藏索引仍参与写入维护，不能回滚写放大；如索引大小或写入延迟回退，确认查询不再依赖后删除候选索引。
+为被 filter/sort/aggregation 使用的状态字段建立索引；不要为未开放的 Wow 查询能力建索引。数组、嵌套字段和 collation 均服从 MongoDB 原生规则。
 
 ## 性能优化
 
+先测 direct append/save。只有积压与吞吐证据表明单写请求开销是瓶颈时，才启用 event/snapshot batch；batch 增加排队、关闭排空和部分 bulk error 处理边界。
+
 ### 连接池配置
 
-```yaml
-spring:
-  mongodb:
-    uri: mongodb://localhost:27017/wow_db?minPoolSize=10&maxPoolSize=100&maxIdleTimeMS=60000
-```
-
-| 参数 | 描述 | 推荐值 |
-|---|---|---|
-| `minPoolSize` | 最小连接数 | 10 |
-| `maxPoolSize` | 最大连接数 | 100 |
-| `maxIdleTimeMS` | 最大空闲时间 | 60000 |
+连接池由 Spring Boot Mongo/driver 配置拥有，`wow.mongo.*` 不复制这些键。依据目标环境并发、等待队列和 server 连接限制调整。
 
 ### 写入关注配置
 
-对于生产环境的事件溯源，`w=majority` 确保在命令返回之前大多数副本集成员确认事件。这可以防止故障转移期间的数据丢失，代价是略微增加写入延迟。
-
-```yaml
-spring:
-  mongodb:
-    uri: mongodb://localhost:27017/wow_db?w=majority&wtimeoutMS=5000
-```
+write concern 由 Mongo client/URI 配置。Wow 检查 `wasAcknowledged()`，但不替应用选择 durability 等级。
 
 ### 读取偏好安全性
 
-Wow 的 Mongo 事件存储、快照存储、查询服务和幂等性检查默认共享 Spring 管理的 `MongoClient`。该共享客户端应保持主节点读取语义。在 `spring.mongodb.uri` 中设置 `readPreference=secondaryPreferred` 还会影响 `EventStore.load()` 与 `existsRequestId()`；复制延迟可能导致聚合重建或幂等性判断读取到旧数据。
-
-下文的数据库名称分离不会创建独立客户端。若快照或查询流量必须从从节点读取，应提供单独配置的客户端与存储集成，通过存储 binding 显式路由，并在生产上线前验证一致性保证。
+事件重放和刚写后的读取若使用 secondary，可能观察复制延迟。读偏好由应用选择，并应在一致性测试中验证；扩展不会私自提升或降低一致性。
 
 ### 数据库分离
 
-三个可配置的数据库（`event-stream-database`、`snapshot-database`、`prepare-database`）可在已配置的 MongoDB 部署内对工作负载进行逻辑分离：
-
-- **事件流**：写入密集（仅追加），受益于快速存储
-- **快照**：读取密集（物化视图），受益于专用索引和缓存
-- **PrepareKey**：低容量、短生命周期文档，受益于 TTL 索引清理
-
-当三者都为默认值 `null` 时，它们共享 Spring 配置的 MongoDB 数据库，这对开发和中度负载已经足够。不同的数据库名称可以支持差异化的 schema 管理、备份与保留策略以及运维归属；除非提供自定义集成，否则它们仍共享同一个 `MongoClient`。
+event、snapshot、prepare 可配置不同 database；每个 database 都会独立执行 context ownership guard。分离有助于容量与权限治理，但不是默认必需抽象。
 
 ## 分片策略
 
-对于大规模数据，推荐使用 MongoDB 分片：
-
-```javascript
-// 哈希分片将写入均匀分布到各分片上
-sh.shardCollection("wow_event_db.order_event_stream", { "aggregateId": "hashed" })
-sh.shardCollection("wow_snapshot_db.order_snapshot", { "_id": "hashed" })
-```
-
-::: warning
-使用分片集合时，保持 `EventStreamSchemaInitializer.enableRequestIdUniqueIndex = false`（默认值）。MongoDB 无法跨分片强制执行唯一索引，除非分片键是索引的一部分。复合 `{aggregateId, requestId}` 索引与分片兼容，因为 `aggregateId` 是分片键。
-:::
+分片键、zone 和 balancing 属于 MongoDB 运维。模块会生成固定唯一索引组合；选分片键前必须确认 MongoDB 对 unique index 与 shard key 的原生限制，并用实际集群验证。
 
 ## 故障排除
 
+先读启动异常、Mongo server error code 与索引名，再决定是配置、所有权、并发还是连接问题。
+
 ### 常见问题
+
+以下是当前源码和测试覆盖的可重复边界。
 
 #### 1. 版本冲突异常
 
-```
-me.ahoo.wow.eventsourcing.EventVersionConflictException
-```
-
-**原因**：对同一聚合根的并发写入
-
-**解决方案**：
-- 这是正常的乐观锁行为，框架会自动重试
-- 如果频繁发生，请考虑优化业务流程以减少冲突
+它表示数据库已存在相同聚合版本。不要捕获后盲目覆盖；回到命令并发、聚合版本和重试策略定位冲突来源。
 
 #### 2. 重复请求异常
 
-```
-me.ahoo.wow.eventsourcing.DuplicateRequestIdException
-```
-
-**原因**：相同的 `requestId` 被重复处理
-
-**解决方案**：
-- 这是幂等性保护，表明请求已被成功处理
-- 检查客户端是否有重复提交
+它表示同一聚合已记录相同 request ID。将它作为幂等结果处理前，必须核对原请求结果和业务响应合同。
 
 #### 3. 连接超时
 
-```
-com.mongodb.MongoTimeoutException
-```
-
-**解决方案**：
-- 检查 MongoDB 服务是否正常运行
-- 增大连接池大小
-- 检查网络延迟
+检查 URI、DNS、认证、TLS、副本集发现和网络策略。Wow 不在驱动前添加一套连接校验；原始驱动异常是诊断依据。
 
 ## 完整配置示例
 
 ```yaml
 spring:
   mongodb:
-    uri: mongodb://user:password@mongo1:27017,mongo2:27017,mongo3:27017/wow_db?replicaSet=rs0&w=majority&minPoolSize=10&maxPoolSize=100
+    uri: mongodb://mongo-0:27017/order_service?replicaSet=rs0
 
 wow:
+  mongo:
+    auto-init-schema: true
+    event-stream-database: order_event
+    snapshot-database: order_snapshot
+    prepare-database: order_prepare
+    event-store-batch:
+      enabled: false
+    snapshot-store-batch:
+      enabled: false
   eventsourcing:
     store:
       storage: mongo
     snapshot:
-      enabled: true
-      strategy: all
       storage: mongo
-  mongo:
-    enabled: true
-    auto-init-schema: true
-    event-stream-database: wow_event_db
-    snapshot-database: wow_snapshot_db
-    prepare-database: wow_prepare_db
 ```
+
+示例 database 必须都只服务同一 bounded context。
 
 ## 最佳实践
 
-1. **数据库分离**：当事件流、快照和 PrepareKey 需要不同的 schema、备份、保留或归属策略时，使用不同的数据库名称
-2. **启用快照**：对于拥有大量事件的聚合，启用快照可以显著提高加载性能
-3. **使用副本集**：在生产环境中使用副本集以实现高可用性
-4. **索引优化**：根据查询模式创建适当的复合索引
-5. **使用分片扩展**：当数据量大时使用分片进行水平扩展
+- 为每个 bounded context 使用独立 database，并在升级前审计存量所有权；
+- 保留模块所需唯一索引和快照版本语义；
+- 将 schema 变更、备份、恢复、分片和读写关注交给 MongoDB 运维流程；
+- 用真实 MongoDB 集成测试验证并发、幂等、query pipeline 和升级路径。
+
+聚焦检查：
+
+```bash
+./gradlew :wow-mongo:check
+```
+
+仓库 TCK 当前使用 `mongo:6.0.6`；模块 check 通过不证明你的版本、拓扑、数据量或索引迁移已经通过。
 
 ## 相关主题
 
-| 主题 | 描述 |
-|---|---|
-| [MongoDB 配置参考](../../reference/config/infrastructure) | `wow.mongo.*` 属性的配置参考 |
-| [事件溯源配置](../../reference/config/core) | 存储后端选择（`wow.eventsourcing.store.storage`） |
-| [快照配置](../../reference/config/core) | 快照策略和存储后端选择 |
-| [Redis 扩展](redis.md) | 替代的事件存储和快照后端 |
-| [Spring Boot Starter](spring-boot-starter.md) | 自动配置和功能变体 |
+下一步阅读[事件存储](../eventstore.md)确认权威历史边界，并阅读[基础设施配置](../../reference/config/infrastructure.md)完成连接、索引与恢复门禁。

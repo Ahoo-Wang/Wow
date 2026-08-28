@@ -1,321 +1,172 @@
 ---
 title: Query Service
-description: Query snapshots and event streams with FilterExpression, the query DSL, and REST APIs.
+description: Query snapshots and event streams with logical fields, FilterExpression, runtime query schemas, and guarded WebFlux routes.
 ---
 
 # Query Service
 
-`wow-mongo` and `wow-elasticsearch` provide query service implementations. The query API uses the single-layer `FilterExpression` model; storage modules compile it into backend queries.
+The Wow read path has four distinct responsibilities:
+
+```text
+event -> snapshot/projection -> logical query model -> query service -> guarded HTTP route/API client
+```
+
+`wow-query` defines the query model and filter chain. `wow-mongo` and `wow-elasticsearch` map logical fields to backend-native queries. `wow-webflux` adds request-scope rewriting and HTTP cost guards. OpenAPI describes the wire shapes; an API client only calls the published routes. None of these layers creates authentication or an application-specific projection.
 
 ## FilterExpression
 
-`FilterExpression` is a sealed interface. Every JSON expression uses only `op` as its type discriminator; there is no duplicate `type` or `operator` field.
+`FilterExpression` is the current filter contract. JSON uses `op` as the only discriminator:
 
 ```json
 {
   "op": "AND",
   "operands": [
-    { "op": "EQ", "field": "state.status", "value": "CREATED" },
-    { "op": "DELETION", "state": "ACTIVE" }
+    {"op": "EQ", "field": "state.status", "value": "CREATED"},
+    {"op": "DELETION", "state": "ACTIVE"}
   ]
 }
 ```
 
+A `field` is a logical path, not a MongoDB or Elasticsearch field name. Named segments start with a letter or underscore and may contain letters, digits, underscores, and hyphens; numeric segments address array indexes. For example, `state.items.0.productId` is valid. Backend adapters own physical paths and capabilities.
+
+Snapshot queries default to `DELETION = ACTIVE`. An explicit `DELETION` suppresses that default when it is the root expression or appears at any depth in the root's recursive `AND` conjunction tree. A deletion nested under `OR` or `NOR` is not an explicit top-level conjunction scope, so the active guard remains. Event-stream queries keep the complete history and do not add the snapshot deletion scope.
+
 ### Operators
 
-| Category | `op` | Main fields | Semantics |
+| Category | `op` | Main fields | Contract |
 |---|---|---|---|
-| Constants | `MATCH_ALL`, `MATCH_NONE` | - | Match every record or no records |
-| Metadata | `ID`, `IDS`, `AGGREGATE_ID`, `AGGREGATE_IDS`, `TENANT_ID`, `OWNER_ID`, `SPACE_ID` | `value` or `values` | Query document IDs, aggregate IDs, or message metadata; valid only as query-root expressions |
-| Logical | `AND`, `OR`, `NOR` | `operands` | `operands` must contain at least one expression |
-| Comparison | `EQ`, `NE`, `GT`, `GTE`, `LT`, `LTE` | `field`, `value` | `EQ` and `NE` accept `null` and normalize to null predicates |
-| String | `CONTAINS`, `STARTS_WITH`, `ENDS_WITH` | `field`, `value`, `stringComparison` | `stringComparison` defaults to `CASE_SENSITIVE` |
-| Collection | `IN`, `NOT_IN`, `CONTAINS_ALL` | `field`, `values` | `values` must be non-empty and cannot contain `null` |
-| Range | `BETWEEN` | `field`, `lowerBound`, `upperBound` | Both bounds are inclusive |
-| Empty, null, and existence | `IS_EMPTY`, `IS_NULL`, `IS_NOT_NULL`, `EXISTS`, `NOT_EXISTS` | `field` | Compiled to each backend's native existence and empty-value semantics |
-| Deletion | `DELETION` | `state` | `ACTIVE`, `DELETED`, or `ALL`; deletion is part of the filter model |
-| Array element | `ELEMENT_MATCH` | `field`, `predicate` | `predicate` cannot contain `DELETION`, `SEARCH`, or metadata Filters |
-| Full-text search | `SEARCH` | `query`, `fields`, `mode` | `mode` defaults to `TERMS` and may be set to `PHRASE`; field support is backend-specific |
-| Relative time | `TODAY`, `YESTERDAY`, `BEFORE_TODAY`, `TOMORROW`, `THIS_WEEK`, `NEXT_WEEK`, `LAST_WEEK`, `THIS_MONTH`, `NEXT_MONTH`, `LAST_MONTH`, `LAST_YEAR`, `THIS_YEAR`, `NEXT_YEAR`, `RECENT_DAYS`, `EARLIER_DAYS` | `field`; operation-specific `time` or `days`; optional `zoneId`, `datePattern`, and `timeUnit` | Normalized to absolute ranges before backend compilation |
+| Constants | `MATCH_ALL`, `MATCH_NONE` | - | Match every record or none |
+| Metadata | `ID`, `IDS`, `AGGREGATE_ID`, `AGGREGATE_IDS`, `TENANT_ID`, `OWNER_ID`, `SPACE_ID` | `value` / `values` | Root-only document and message metadata filters |
+| Logical | `AND`, `OR`, `NOR` | `operands` | At least one operand |
+| Comparison | `EQ`, `NE`, `GT`, `GTE`, `LT`, `LTE` | `field`, `value` | `EQ`/`NE` normalize `null` to null predicates |
+| String | `CONTAINS`, `STARTS_WITH`, `ENDS_WITH` | `field`, `value`, `stringComparison` | Default comparison is `CASE_SENSITIVE` |
+| Collection | `IN`, `NOT_IN`, `CONTAINS_ALL` | `field`, `values` | Non-empty values; no `null` elements |
+| Range | `BETWEEN` | `field`, `lowerBound`, `upperBound` | Inclusive bounds |
+| Shape | `IS_EMPTY`, `IS_NULL`, `IS_NOT_NULL`, `EXISTS`, `NOT_EXISTS` | `field` | Backend-native empty/null/existence behavior |
+| Deletion | `DELETION` | `state` | `ACTIVE`, `DELETED`, or `ALL` |
+| Array element | `ELEMENT_MATCH` | `field`, `predicate` | Child predicate is element-relative and excludes root-only filters |
+| Full text | `SEARCH` | `query`, `fields`, `mode` | `TERMS` by default; optional `PHRASE`; backend support differs |
+| Relative time | `TODAY`, `YESTERDAY`, `BEFORE_TODAY`, `TOMORROW`, `THIS_WEEK`, `NEXT_WEEK`, `LAST_WEEK`, `THIS_MONTH`, `NEXT_MONTH`, `LAST_MONTH`, `LAST_YEAR`, `THIS_YEAR`, `NEXT_YEAR`, `RECENT_DAYS`, `EARLIER_DAYS` | `field` plus time options | Resolved to absolute ranges before backend compilation |
 
-For numeric time fields, set `timeUnit` to a `java.util.concurrent.TimeUnit` enum name; it defaults to `MILLISECONDS`. When `datePattern` is configured, the filter emits strings and ignores `timeUnit`.
+Numeric temporal fields use `timeUnit` (`MILLISECONDS` by default). A configured `datePattern` emits formatted strings and ignores `timeUnit`. The runtime query-model schema may declare `Temporal.Date`, `Temporal.Epoch`, or `Temporal.Formatted`; capability publication still depends on the backend's proven physical mapping.
 
-When the final Query Schema declares a string as `Temporal.Formatted`, the resolver automatically applies its pattern and publishes `RANGE` only when the backend can execute a range query on that string field. Formatted strings do not support date histograms in the first release.
-
-`field` is a logical field path. Valid examples are:
-
-```text
-state.status
-state.items.0.productId
-```
-
-A named segment starts with a letter or underscore and may contain letters, digits, underscores, and hyphens. Pure numeric segments are valid array indexes. MongoDB and Elasticsearch query implementations own physical field mapping.
-
-OpenAPI request bodies reuse generic query schemas and do not publish a static field directory. Call `GET /{aggregate}/snapshot/schema` to obtain the current aggregate's logical fields, types, and capabilities. Use those logical paths even when a `/state` response unwraps the `state` object; for example, query `status` as `state.status`.
-
-Snapshot queries default to `DELETION = ACTIVE`. A top-level `DELETION`, or one used directly inside the top-level `AND`, explicitly overrides that scope; nesting deletion inside `OR` or `NOR` does not disable the active guard. Event-stream queries do not add a deletion scope, preserving complete audit history.
-
-:::info Backend differences
-MongoDB `SEARCH` uses the collection text index and does not restrict the query to `fields`; Elasticsearch can resolve search fields and multi-fields. `PHRASE` compiles to a quoted `$text` phrase in MongoDB and to `multi_match(type = phrase)` in Elasticsearch. Use relative child fields inside `ELEMENT_MATCH` for portable MongoDB and Elasticsearch behavior.
+::: info Backend boundary
+MongoDB full-text search uses the collection text index and cannot limit `$text` to the requested `fields`. Elasticsearch resolves supported search fields and multi-fields. Use the runtime query-model schema to discover available capabilities; do not infer parity from the common JSON type.
 :::
 
 ## Kotlin DSL
 
-Use `filterExpression` to build a standalone filter:
-
-```kotlin
-val orderFilter = filterExpression {
-    deletion(DeletionState.ACTIVE)
-    "state.status" eq "CREATED"
-    "state.totalAmount" gte 100
-    "state.customerName".contains(
-        "wang",
-        StringComparison.CASE_INSENSITIVE,
-    )
-    "state.tags" containsAll listOf("priority", "online")
-    "state.items".elementMatch {
-        "productId" eq "product-1"
-        "quantity" gt 0
-    }
-}
-```
-
-Use `PHRASE` to match consecutive terms produced by the backend analyzer. Omitting `mode` preserves the existing `TERMS` behavior:
-
-```kotlin
-val phraseFilter = filterExpression {
-    search("event sourcing", SearchMode.PHRASE, "state.title", "state.description")
-}
-```
-
-Use the dedicated functions to query aggregate and message metadata:
+Build a standalone expression with `filterExpression`:
 
 ```kotlin
 val filter = filterExpression {
     aggregateId("order-1")
-    tenantId("tenant-1")
-}
-```
-
-Metadata Filters are query-root expressions and cannot be nested inside `elementMatch`.
-
-Multiple expressions in the same DSL block are combined with `AND`. Use `and`, `or`, or `nor` for explicit grouping:
-
-```kotlin
-val filter = filterExpression {
-    or {
-        "state.status" eq "CREATED"
-        "state.status" eq "PAID"
-    }
-    nor {
-        "state.channel" eq "TEST"
-    }
-}
-```
-
-Use `String.path` to create a lexical path scope for relative fields; `pathState` is shorthand for `"state".path`. Nested `path` blocks append relative paths. Only paths starting with the current scope plus `.` are already qualified, so a field whose name equals the scope remains relative. Leaving a block automatically restores its parent path. Multiple expressions in a `path` block form one implicit `AND` operand, even when the block appears inside `or` or `nor`:
-
-```kotlin
-val filter = filterExpression {
     pathState {
         "status" eq "CREATED"
-        "customer".path {
-            "id" eq customerId
+        "totalAmount" gte 100
+        "items".elementMatch {
+            "productId" eq "product-1"
+            "quantity" gt 0
         }
     }
-    "tenantId" eq tenantId
 }
 ```
 
-`expression(...)` adds a prebuilt expression only at the current query-context root and cannot be called inside a `path` scope, including through deprecated `nested` blocks. `deletion(...)` is also query-root scoped and is rejected inside `path`. Prebuilt `LogicalField` values must already match the insertion context; for example, the independent element root inside `elementMatch` uses element-relative paths.
+Expressions in one block are combined with `AND`; use `or`, `nor`, or `and` for explicit grouping. `String.path` creates a lexical path scope and nested scopes append relative names. `pathState` is shorthand for `"state".path`.
+
+`ELEMENT_MATCH` starts an independent element-relative scope. Metadata filters, `DELETION`, and `SEARCH` are root expressions and cannot be placed inside it. `expression(...)` inserts a prebuilt expression only at the current query root; a prebuilt `LogicalField` is not automatically rebased.
 
 ### Query DSL
 
-`singleQuery`, `listQuery`, and `pagedQuery` all use `filter {}`:
+`singleQuery`, `listQuery`, and `pagedQuery` share filter, projection, and sort contracts:
 
 ```kotlin
 val query = pagedQuery {
     filter {
-        "state.status" eq "CREATED"
-        "state.createTime".recentDays(7, ZoneId.of("Asia/Shanghai"))
-        "state.createTime".yesterday(ZoneId.of("Asia/Shanghai"))
-        "state.createTime".nextMonth(ZoneId.of("Asia/Shanghai"))
-        "state.createTime".thisYear(ZoneId.of("Asia/Shanghai"))
+        pathState {
+            "status" eq "CREATED"
+            "createTime".recentDays(7, ZoneId.of("Asia/Shanghai"))
+        }
     }
     projection {
         include("aggregateId")
         include("state.status")
     }
-    sort {
-        "state.createTime".desc()
-    }
+    sort { "state.createTime".desc() }
     pagination {
         index(1)
         size(20)
     }
 }
 
-query.query(queryService)
+query.query(snapshotQueryService)
 ```
 
-`ListQuery.limit = 0` means unlimited results. HTTP queries remain subject to the WebFlux query-cost guard configuration.
+Pagination is 1-based. At the JVM query-service boundary, `ListQuery.limit = 0` means unlimited. The WebFlux HTTP guard rejects or caps requests according to `wow.webflux.query.*`; its defaults do not change the in-process query model.
+
+Before backend execution, a `QuerySchemaResolver` resolves logical fields and capabilities. `wow.query.schema.validation-mode=COMPATIBLE` accepts `EXACT` and `COMPATIBLE` resolutions; `STRICT` accepts only `EXACT`. A compatible fallback is not proof that a field has the same physical behavior on every backend.
 
 ### Snapshot aggregation
 
-Use `aggregation {}` to expand an ordered chain of state collections and return tabular rows:
+`AggregationQuery` returns dynamic tabular rows and always requires at least one metric:
 
 ```kotlin
 val query = aggregation {
-    expand("state.orders") { "status" eq "PAID" }
-    expand("lines") { "quantity" gt 0 }
+    filter { "state.status" eq "PAID" }
+    expand("state.items") { "quantity" gt 0 }
     terms("productId", "product")
-    sum("amount", "total")
-    sort { "total".desc() }
+    sum(field("price") * field("quantity"), "revenue")
+    count("lineCount")
+    sort { "revenue".desc() }
     limit(20)
 }
 
 query.query(snapshotQueryService)
 ```
 
-The equivalent JSON is:
+Path relativity is part of the public contract:
 
-```json
-{
-  "elements": [
-    {
-      "path": "state.orders",
-      "filter": { "op": "EQ", "field": "status", "value": "PAID" }
-    },
-    {
-      "path": "lines",
-      "filter": { "op": "GT", "field": "quantity", "value": 0 }
-    }
-  ],
-  "groupBy": [
-    { "type": "TERMS", "field": "productId", "alias": "product" }
-  ],
-  "metrics": [
-    {
-      "type": "NUMERIC",
-      "function": "SUM",
-      "expression": { "field": "amount" },
-      "alias": "total"
-    }
-  ],
-  "sort": [{ "field": "total", "direction": "DESC" }],
-  "limit": 20
-}
-```
+- the root `filter` uses absolute snapshot paths;
+- the first Element path is absolute;
+- each later Element path is relative to the current expanded element;
+- each Element filter is relative to its own element;
+- group and metric fields are relative to the innermost Element, or absolute when no Element exists;
+- Elements form one ordered parent-child chain, not sibling expansions.
 
-Numeric metrics can use fields, finite constants, and the four arithmetic operators. For example, this DSL calculates each product's net amount:
+Groups are `TERMS`, `HISTOGRAM`, and `DATE_HISTOGRAM`. Metrics are `COUNT`, `ANY`, and numeric `SUM`, `AVG`, `MIN`, `MAX`. Numeric expressions support finite constants plus `ADD`, `SUBTRACT`, `MULTIPLY`, and `DIVIDE`. `COUNT` is a `Long`; numeric metrics return a finite `Double` or `null` when no value contributes.
 
-```kotlin
-val query = aggregation {
-    expand("state.items")
-    terms("productId", "product")
-    sum(
-        field("price") * field("quantity") - field("discount"),
-        "netAmount",
-    )
-}
-```
+`ANY` selects one non-null scalar in a group. The selected value is intentionally unstable across executions and backends; it is not a deterministic replacement for another group key. A query without groups returns one summary row, including for an empty input (`COUNT = 0`, numeric metrics `null`).
 
-The equivalent expression JSON uses recursive `BINARY` nodes; field leaves can retain the existing `{ "field": ... }` shorthand:
+Aliases are unique single-segment logical fields and cannot use the `__wow` prefix. Sort fields reference aliases. Wow appends missing group aliases in declaration order for stable ordering. Limits are 5 Elements, 32 groups, 64 metrics, 32 effective sort fields, expression depth 8, 256 expression nodes, and 10,000 result rows; the default row limit is 100.
 
-```json
-{
-  "type": "NUMERIC",
-  "function": "SUM",
-  "expression": {
-    "type": "BINARY",
-    "operator": "SUBTRACT",
-    "left": {
-      "type": "BINARY",
-      "operator": "MULTIPLY",
-      "left": {"field": "price"},
-      "right": {"field": "quantity"}
-    },
-    "right": {"field": "discount"}
-  },
-  "alias": "netAmount"
-}
-```
+The base HTTP route is `POST /{aggregate}/snapshot/aggregation`. For dynamic-tenant or owned aggregates, the catalog also contributes tenant- or owner-scoped query variants. The route uses the ordinary snapshot query filter chain, so request-scope and configured ABAC filters can extend the root filter. Result masking intentionally skips aggregation. `allow-expensive-operators=false` rejects Elements, metric-alias sorting, non-Field numeric expressions, and expensive operators in HTTP aggregation filters.
 
-`ANY` returns one non-null scalar name from the current group; it does not add another group key:
+The REST compatibility extractor treats aggregation independently from single/list/paged: `filter` and legacy `condition` may both be omitted (the model defaults to `MATCH_ALL`), or exactly one may be supplied; supplying both is rejected. Request-scope rewriting still appends tenant/owner/space filters after extraction.
 
-```kotlin
-val query = aggregation {
-    expand("state.items")
-    terms("productId", "productId")
-    any("productName", "productName")
-    count("count")
-}
-```
-
-```json
-{
-  "elements": [{"path": "state.items"}],
-  "groupBy": [
-    {"type": "TERMS", "field": "productId", "alias": "productId"}
-  ],
-  "metrics": [
-    {"type": "ANY", "field": "productName", "alias": "productName"},
-    {"type": "COUNT", "alias": "count"}
-  ]
-}
-```
-
-ANY does not add another group key. It returns one non-null scalar from the current group, or `null` when no value contributes. The selected value is intentionally unstable across executions and backends. When a stable name is required, repair redundant data or use an explicit business query instead of relying on `ANY`.
-
-The first Element path is an absolute snapshot path. Every later Element path and every Element filter is relative to its current expanded element. Group and metric fields are relative to the innermost Element; without Elements, they are absolute snapshot paths. Elements form one parent-child chain, not sibling expansions.
-
-`TERMS`, `HISTOGRAM`, and `DATE_HISTOGRAM` groups are supported. Metrics are `COUNT`, `SUM`, `AVG`, `MIN`, `MAX`, and `ANY`; `COUNT` returns `Long`, while numeric metrics return a finite `Double` or `null` when no value contributes. A query without groups returns one summary row, including an empty dataset (`COUNT = 0`, numeric metrics `null`). Grouped results contain at most `limit` rows; the default is `100` and the maximum is `10,000`.
-
-Sort fields reference group or metric aliases. Missing group-alias sorts are appended in declaration order for stable results. Sorting by a metric alias is expensive and is controlled by the WebFlux `query.allow-expensive-operators` guard. Fixed structural limits are 5 Elements, 32 groups, 64 metrics, and 32 effective sort fields; each numeric expression has a maximum depth of 8, and all expressions in one query can contain at most 256 nodes.
-
-Aggregation uses the existing snapshot filter chain: ABAC and route filters still extend the root filter. The masking filter ignores aggregation queries, so configured maskers do not reject or rewrite aggregation results.
-
-Wow validates fields, collection shape, capabilities, and physical compatibility against the runtime schema. If the schema is unavailable, compatible-mode ordinary queries may retain the existing backend compilation path. Numeric metrics support fields, finite constants, addition, subtraction, multiplication, and division. For computed expressions containing `Constant` or `Binary`, a numeric scalar or singleton numeric array contributes one value; missing, non-numeric, empty-array, multi-valued, division-by-zero, or non-finite intermediate values do not contribute. A pure `Field` expression retains backend-native field aggregation, error, and multi-value semantics. Equivalent behavior is not guaranteed for custom Jackson serializers, backend filter converters, or custom Elasticsearch mappings. Batch aggregation is not included.
-
-The HTTP endpoint is `POST /{aggregate}/snapshot/aggregation`. Tenant-, owner-, or space-scoped aggregates prepend their applicable route prefix; use the running instance's OpenAPI paths as the source of truth. JSON responses are arrays of dynamic objects; SSE streams one object at a time. OpenAPI uses the generic `AggregationQuery` request body; expressions are a recursive `oneOf` with `type` as its discriminator.
+A custom `SnapshotQueryService` may inherit the default unsupported `aggregate()` implementation. Successful single/list/paged/count calls and a published route do not prove that custom service supports aggregation. Test the selected backend.
 
 #### Scenario examples
 
-The following request bodies are sent to the applicable aggregate's `snapshot/aggregation` endpoint. Except for the first example, the repeated `curl` wrapper is omitted to keep the aggregation structure visible.
+All request bodies below are sent to the aggregate's `snapshot/aggregation` route. Use the running service's OpenAPI document for the exact scoped path.
 
 ##### Count records by category
 
-The compensation control plane can count records by execution status:
-
-```bash
-curl --request POST 'http://localhost:8080/execution_failed/snapshot/aggregation' \
-  --header 'Content-Type: application/json' \
-  --data '{
-    "groupBy": [
-      {"type": "TERMS", "field": "state.status", "alias": "status"}
-    ],
-    "metrics": [
-      {"type": "COUNT", "alias": "count"}
-    ],
-    "sort": [
-      {"field": "status", "direction": "ASC"}
-    ],
-    "limit": 10
-  }'
-```
-
-The response has the following shape; counts depend on the current data:
-
 ```json
-[
-  {"status": "FAILED", "count": 12},
-  {"status": "SUCCEEDED", "count": 3}
-]
+{
+  "groupBy": [
+    {"type": "TERMS", "field": "state.status", "alias": "status"}
+  ],
+  "metrics": [
+    {"type": "COUNT", "alias": "count"}
+  ],
+  "sort": [{"field": "status", "direction": "ASC"}],
+  "limit": 10
+}
 ```
 
 ##### Summarize filtered records
 
-Without `groupBy`, a query returns exactly one row. This query first selects failed records, then reports their count, average retries, and maximum retries:
+Without groups, one row summarizes the filtered input:
 
 ```json
 {
@@ -325,65 +176,30 @@ Without `groupBy`, a query returns exactly one row. This query first selects fai
     {
       "type": "NUMERIC",
       "function": "AVG",
-      "expression": {"field": "state.retryState.retries"},
+      "expression": {"type": "FIELD", "field": "state.retryState.retries"},
       "alias": "averageRetries"
-    },
-    {
-      "type": "NUMERIC",
-      "function": "MAX",
-      "expression": {"field": "state.retryState.retries"},
-      "alias": "maxRetries"
     }
   ]
 }
 ```
 
-```json
-[
-  {"failedCount": 12, "averageRetries": 1.5, "maxRetries": 4.0}
-]
-```
-
-If no records match, one row is still returned: `failedCount` is `0`, and both numeric metrics are `null`.
-
 ##### Inspect a numeric distribution
 
-Orders can be bucketed by total amount. With `interval: 100`, the buckets are `[0, 100)`, `[100, 200)`, and so on; `amountRange` is the lower bound:
+`HISTOGRAM` returns each bucket's lower bound:
 
 ```json
 {
   "groupBy": [
-    {
-      "type": "HISTOGRAM",
-      "field": "state.totalAmount",
-      "alias": "amountRange",
-      "interval": 100
-    }
+    {"type": "HISTOGRAM", "field": "state.totalAmount", "alias": "amountRange", "interval": 100}
   ],
-  "metrics": [
-    {"type": "COUNT", "alias": "orderCount"},
-    {
-      "type": "NUMERIC",
-      "function": "SUM",
-      "expression": {"field": "state.totalAmount"},
-      "alias": "totalAmount"
-    }
-  ],
-  "sort": [{"field": "amountRange", "direction": "ASC"}],
-  "limit": 20
+  "metrics": [{"type": "COUNT", "alias": "orderCount"}],
+  "sort": [{"field": "amountRange", "direction": "ASC"}]
 }
-```
-
-```json
-[
-  {"amountRange": 0.0, "orderCount": 8, "totalAmount": 356.0},
-  {"amountRange": 100.0, "orderCount": 5, "totalAmount": 642.0}
-]
 ```
 
 ##### Track a business-time trend
 
-Assuming `state.createdAt` is an executable date field, records can be counted per day in the Shanghai time zone:
+`DATE_HISTOGRAM` needs the runtime schema to publish temporal aggregation capability. Bucket keys are epoch milliseconds at the bucket start:
 
 ```json
 {
@@ -396,28 +212,13 @@ Assuming `state.createdAt` is an executable date field, records can be counted p
       "timeZone": "Asia/Shanghai"
     }
   ],
-  "metrics": [{"type": "COUNT", "alias": "createdCount"}],
-  "sort": [{"field": "day", "direction": "ASC"}],
-  "limit": 31
+  "metrics": [{"type": "COUNT", "alias": "createdCount"}]
 }
 ```
 
-```json
-[
-  {"day": 1787500800000, "createdCount": 18},
-  {"day": 1787587200000, "createdCount": 23}
-]
-```
-
-Date bucket keys are epoch milliseconds at the start of each bucket. A field may use a backend-native date (MongoDB BSON
-Date proven by a collection validator, or Elasticsearch `date`/`date_nanos`) or an integer epoch whose unit is declared
-through `@QueryTemporal`, a bean, or a convention file. MongoDB converts the epoch, while Elasticsearch creates a
-request-scoped runtime date field. Without a MongoDB validator, native Date range and histogram operations fail closed
-because the physical BSON type cannot be proven.
+MongoDB must prove a native BSON Date through collection metadata or use a declared numeric epoch. Elasticsearch uses native date/date_nanos mappings or a request-scoped runtime date for declared epoch fields. A formatted temporal string does not gain date-histogram capability merely because it has a date pattern.
 
 ##### Expand a collection and select Top-N
-
-Order items form a collection. Expand `state.items` with an absolute path, then use relative paths to filter, group, and sum the items:
 
 ```json
 {
@@ -435,7 +236,7 @@ Order items form a collection. Expand `state.items` with an absolute path, then 
     {
       "type": "NUMERIC",
       "function": "SUM",
-      "expression": {"field": "quantity"},
+      "expression": {"type": "FIELD", "field": "quantity"},
       "alias": "totalQuantity"
     }
   ],
@@ -444,29 +245,24 @@ Order items form a collection. Expand `state.items` with an absolute path, then 
 }
 ```
 
-```json
-[
-  {"productId": "product-1", "totalQuantity": 42.0},
-  {"productId": "product-2", "totalQuantity": 31.0}
-]
-```
-
-The root `filter` still uses absolute snapshot paths. The Element filter, group, and metric fields are relative to the expanded item. Sorting by a metric alias such as `totalQuantity` is an expensive operation. With `query.allow-expensive-operators=false`, the HTTP guard rejects this example for both its Elements expansion and metric-alias sort; enable the setting or remove both capabilities.
-
-The same `AggregationQuery` contract can run through MongoDB and Elasticsearch snapshot query services and return the same row shape. Backend-specific field mappings, nested models, and custom serialization remain subject to the constraints documented by each extension.
-
 ### Rewriting queries
 
-Query filters use `withFilter` or `appendFilter`; internal paths no longer rewrite `Condition`:
+Filters are immutable. Policy filters append a new expression instead of changing field meaning:
 
 ```kotlin
-val warehouseFilter = filterExpression {
+val requiredScope = filterExpression {
     "state.warehouseId" eq warehouseId
 }
-context.appendFilter(warehouseFilter)
+context.appendFilter(requiredScope)
 ```
 
+The WebFlux `RewriteRequestFilter` appends tenant, owner, and space metadata filters derived from the route and header. This scopes the backend query; it does not authenticate the caller or prove that the caller may select those scope values.
+
 ## REST API
+
+Built-in WebFlux handlers place the `ServerRequest` in Reactor Context. Only then does `HttpQueryGuardFilter` enforce list/page windows, filter nodes and values, expensive-operator policy, and idle timeouts. Injected query services and other non-WebFlux contexts do not receive those HTTP-only limits.
+
+The schema resolver validates logical fields and backend capabilities. The HTTP guard limits request cost. Application security filters authorize the principal. These are separate boundaries.
 
 ### Paged query
 
@@ -478,87 +274,63 @@ Wow-Space-Id: space-1
 
 ```json
 {
-  "filter": {
-    "op": "AND",
-    "operands": [
-      { "op": "EQ", "field": "state.status", "value": "CREATED" },
-      { "op": "DELETION", "state": "ACTIVE" }
-    ]
-  },
-  "projection": {
-    "include": ["aggregateId", "state.status"]
-  },
-  "sort": [
-    { "field": "state.createTime", "direction": "DESC" }
-  ],
-  "pagination": {
-    "index": 1,
-    "size": 20
-  }
+  "filter": {"op": "EQ", "field": "state.status", "value": "CREATED"},
+  "projection": {"include": ["aggregateId", "state.status"]},
+  "sort": [{"field": "state.createTime", "direction": "DESC"}],
+  "pagination": {"index": 1, "size": 20}
 }
 ```
 
+The prefix above is only an example of a tenant-scoped aggregate. Default local routes do not prepend a bounded-context alias. Generated OpenAPI is the route source of truth.
+
 ### List and single queries
 
-List and single requests also use `filter`. A list request adds `limit`; a single request has no pagination field:
+List and single bodies use the same `filter`, `projection`, and `sort`. A list adds `limit`; a single has no pagination:
 
 ```json
 {
-  "filter": { "op": "AGGREGATE_ID", "value": "order-1" },
+  "filter": {"op": "AGGREGATE_ID", "value": "order-1"},
   "limit": 1,
   "sort": []
 }
 ```
 
+Use `/snapshot/list/state`, `/snapshot/paged/state`, or `/snapshot/single/state` for state-only response shapes. Logical query fields still use the full snapshot model, such as `state.status`; response unwrapping does not rename request fields.
+
 ### Count
 
-On the JVM, call the typed extension directly: `filter.count(queryService)`. The `Condition.count(...)` extension remains available but is deprecated.
-
-The count request body is a `FilterExpression` directly, without an outer `filter` property:
+The canonical count body is a `FilterExpression` directly, without an outer `filter`:
 
 ```http
-POST /tenant/tenant-1/sales-order/snapshot/count
+POST /sales-order/snapshot/count
 Content-Type: application/json
+
+{"op": "EQ", "field": "state.status", "value": "CREATED"}
 ```
 
-```json
-{
-  "op": "EQ",
-  "field": "state.status",
-  "value": "CREATED"
-}
-```
+The REST compatibility extractor also accepts `{}` as legacy `Condition.ALL`, then applies any request-scope filters. If a discriminator is present, use either new `op` or legacy `operator`; using both is rejected. OpenAPI publishes only the canonical `FilterExpression` body.
 
-New payloads use strict deserialization. Unknown properties, missing required fields, empty logical operands, invalid logical fields, and values that violate the declared type constraints are rejected as request errors.
+On the JVM, use `filter.count(queryService)`. Count remains exact according to the selected backend contract; HTTP cost policy may reject an unfiltered count when expensive operators are disabled.
 
 ## Compatibility and migration
 
-The legacy `Condition` DTO, `Operator`, and `ConditionDsl` remain available but are deprecated. Legacy query constructors, `QueryService.count(Condition)`, and `Condition.count(...)` convert `Condition` to `FilterExpression` immediately; query objects and the execution pipeline retain only `filter`.
+`Condition`, `Operator`, and `ConditionDsl` are deprecated compatibility inputs. Legacy constructors and count extensions convert them once to `FilterExpression`; the execution pipeline retains `filter`. The REST extractor rules are endpoint-specific:
 
-During REST migration:
+| Endpoint body | Neither representation | New representation | Legacy representation | Both |
+|---|---|---|---|---|
+| single/list/paged | rejected | `filter` accepted | `condition` accepted | rejected |
+| aggregation | accepted; omitted `filter` defaults to `MATCH_ALL` | `filter` accepted | `condition` accepted | rejected |
+| count | accepted as legacy `Condition.ALL` | top-level `op` accepted | top-level `operator` accepted | rejected |
 
-- `single`, `list`, and `paged` requests must contain exactly one of `filter` or `condition`;
-- `count` requests must contain exactly one of the new `op` or legacy `operator` discriminators;
-- OpenAPI publishes only the new `FilterExpression` shape;
-- legacy `condition` payloads are accepted only when they convert to a valid `FilterExpression`; `MATCH` now follows `SEARCH` semantics, cannot appear inside `ELEM_MATCH`, and no longer uses the former Elasticsearch exact-field mapping;
-- `RAW` is removed without a replacement operator. Backend-native queries belong in application-owned endpoints with application-owned security policy.
+- OpenAPI publishes only the new query shapes; runtime legacy acceptance is not added to the canonical schemas;
+- legacy `MATCH` converts to `SEARCH`; it is not allowed inside element match;
+- legacy `RAW` has no replacement. Backend-native queries belong in application-owned, explicitly secured endpoints.
 
-Legacy payload example:
-
-```json
-{
-  "condition": {
-    "field": "state.status",
-    "operator": "EQ",
-    "value": "CREATED"
-  },
-  "limit": 20
-}
-```
+Do not silently change an existing field's meaning during migration. Add a new logical field or an explicit schema override, then validate old and new requests against the intended compatibility mode.
 
 ## JSON Schema
 
-Canonical schemas:
+The canonical wire schemas are versioned independently from the runtime field directory:
 
 - [`filter-expression.schema.json`](https://github.com/Ahoo-Wang/Wow/blob/main/schema/query/v2/filter-expression.schema.json)
 - [`single-query.schema.json`](https://github.com/Ahoo-Wang/Wow/blob/main/schema/query/v2/single-query.schema.json)
@@ -566,18 +338,24 @@ Canonical schemas:
 - [`paged-query.schema.json`](https://github.com/Ahoo-Wang/Wow/blob/main/schema/query/v2/paged-query.schema.json)
 - [`count-query.schema.json`](https://github.com/Ahoo-Wang/Wow/blob/main/schema/query/v2/count-query.schema.json)
 
+OpenAPI publishes three separate layers. Generic component schemas define the JSON shapes of `FilterExpression`, single/list/paged queries, and aggregation. Each aggregate-specific request-body component references one of those generic schemas and adds static `x-wow-query-fields`: an enum built from system fields plus fields inferred by `JsonQuerySchemaSource`. The extension is a design-time field directory, not a list of backend-proven capabilities.
+
+`GET /{aggregate}/snapshot/schema` returns the third layer: current `QueryModelSchemaMetadata` with merged logical metadata and backend-proven capabilities; `POST /{aggregate}/snapshot/schema/refresh` refreshes it. These runtime schema routes deliberately omit tenant, owner, and aggregate-ID path variants because they describe the model, not caller-specific data. The common aggregate contract may still declare `Wow-Space-Id` for a spaced aggregate.
+
+The runtime schema merges system fields with JSON-Schema inference, classpath conventions, bean registrations, and working-directory conventions, then lets the backend adapter resolve physical bindings. KSP-generated `*Properties` constants are compile-time navigation helpers; they are not this runtime schema and do not publish an HTTP route.
+
 ## Query service registrar
 
-`SnapshotQueryServiceRegistrar` registers local aggregate query services in the Spring container. The bean name is `aggregate name + ".SnapshotQueryService"`.
+`SnapshotQueryServiceRegistrar` and `EventStreamQueryServiceRegistrar` register local aggregate services under names such as `order.SnapshotQueryService`. Those generated services execute through `QueryHandler`, where query rewriting, configured ABAC filters, and masking run before the backend.
 
 ```kotlin
-class OrderService(
+class OrderReader(
     private val queryService: SnapshotQueryService<OrderState>,
 ) {
-    fun getById(id: String): Mono<OrderState> = singleQuery {
-        filter {
-            aggregateId(id)
-        }
+    fun get(id: String): Mono<OrderState> = singleQuery {
+        filter { aggregateId(id) }
     }.query(queryService).toState().throwNotFoundIfEmpty()
 }
 ```
+
+Factories are lower-level backend entry points. A service created directly from `SnapshotQueryServiceFactory` or `EventStreamQueryServiceFactory` bypasses the generated handler chain. Keep raw factories inside trusted infrastructure code; do not expose them as an ordinary request path.
