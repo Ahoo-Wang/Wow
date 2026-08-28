@@ -35,7 +35,7 @@ tenant/owner 路径、`Wow-Space-Id` 请求头或 ABAC 标签都是路由与过�
 
 `AGGREGATE_ID` 拥有者策略在 owner ID 已标识聚合时移除独立 resource-ID 段。命令级 `@CommandRoute` 可以覆盖聚合路由默认值。快照查询贡献者始终发布基础聚合路由，并在适用时增加 tenant/owner 变体，因此无作用域查询路由必须有显式安全策略。准确路由以运行服务的 OpenAPI 为准；限界上下文 alias 不会自动成为 URL 前缀。
 
-查询 Schema 路由（`/{aggregate}/snapshot/schema` 与 `/refresh`）刻意不生成 tenant、owner 或 aggregate-ID 路径变体：它们描述聚合查询模型，而不是某个调用方的数据；spaced 聚合的公共聚合合同仍可能声明 `Wow-Space-Id`。
+查询 Schema 路由（`/{aggregate}/snapshot/schema`、`/{aggregate}/event/schema` 及各自的 `/refresh`）刻意不生成 tenant、owner 或 aggregate-ID 路径变体：它们描述聚合查询模型，而不是某个调用方的数据；spaced 聚合的公共聚合合同仍可能声明 `Wow-Space-Id`。
 
 ## 租户（Tenant）
 

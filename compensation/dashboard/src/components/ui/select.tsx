@@ -200,6 +200,7 @@ function SelectScrollDownButton({
 }
 
 export {
+  // eslint-disable-next-line react-refresh/only-export-components -- SelectPrimitive.Root is a component; the rule cannot statically resolve namespace-member initializers.
   Select,
   SelectContent,
   SelectGroup,

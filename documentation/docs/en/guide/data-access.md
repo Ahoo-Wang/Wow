@@ -35,7 +35,7 @@ Generated aggregate routes follow this shape where each optional segment is enab
 
 `AGGREGATE_ID` ownership removes the separate resource-ID segment when owner ID identifies the aggregate. Command-level `@CommandRoute` settings may override aggregate route defaults. Snapshot query contributors always publish a base aggregate route and add tenant/owner variants when applicable; an unscoped query route therefore needs an explicit security policy. Use the running OpenAPI document for the exact route; a bounded-context alias is not automatically a URL prefix.
 
-Query-schema routes (`/{aggregate}/snapshot/schema` and `/refresh`) intentionally have no tenant, owner, or aggregate-ID path variants: they describe the aggregate's query model, not data for one caller. The common aggregate contract may still declare `Wow-Space-Id` for a spaced aggregate.
+Query-schema routes (`/{aggregate}/snapshot/schema`, `/{aggregate}/event/schema`, and their `/refresh` routes) intentionally have no tenant, owner, or aggregate-ID path variants: they describe the aggregate's query models, not data for one caller. The common aggregate contract may still declare `Wow-Space-Id` for a spaced aggregate.
 
 ## Tenant
 

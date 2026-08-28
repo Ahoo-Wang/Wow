@@ -14,11 +14,16 @@
 package me.ahoo.wow.spring.boot.starter.webflux.route
 
 import me.ahoo.wow.query.event.EventStreamQueryGateway
+import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
+import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.CountEventStreamHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.event.EventStreamAggregationHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.event.EventStreamSchemaHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.event.EventStreamSchemaRefreshHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.ListQueryEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.LoadEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.PagedQueryEventStreamHandlerFunctionFactory
@@ -35,12 +40,13 @@ import me.ahoo.wow.webflux.route.snapshot.SnapshotAggregationHandlerFunctionFact
 import me.ahoo.wow.webflux.route.snapshot.SnapshotSchemaHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.SnapshotSchemaRefreshHandlerFunctionFactory
 
-class QueryRouteModule(
+class QueryRouteModule @JvmOverloads constructor(
     snapshotQueryGateway: SnapshotQueryGateway,
     snapshotQueryServiceFactory: SnapshotQueryServiceFactory,
     eventStreamQueryGateway: EventStreamQueryGateway,
     rewriteRequestFilter: RewriteRequestFilter,
-    exceptionHandler: RequestExceptionHandler
+    exceptionHandler: RequestExceptionHandler,
+    eventStreamQueryServiceFactory: EventStreamQueryServiceFactory = NoOpEventStreamQueryServiceFactory,
 ) : WebFluxRouteModule {
     override val httpFactories: List<HttpRouteHandlerFunctionFactory> = listOf(
         SnapshotSchemaHandlerFunctionFactory(
@@ -98,6 +104,19 @@ class QueryRouteModule(
         LoadEventStreamHandlerFunctionFactory(
             eventStreamQueryGateway = eventStreamQueryGateway,
             exceptionHandler = exceptionHandler
+        ),
+        EventStreamAggregationHandlerFunctionFactory(
+            eventStreamQueryGateway = eventStreamQueryGateway,
+            rewriteRequestFilter = rewriteRequestFilter,
+            exceptionHandler = exceptionHandler,
+        ),
+        EventStreamSchemaHandlerFunctionFactory(
+            eventStreamQueryServiceFactory = eventStreamQueryServiceFactory,
+            exceptionHandler = exceptionHandler,
+        ),
+        EventStreamSchemaRefreshHandlerFunctionFactory(
+            eventStreamQueryServiceFactory = eventStreamQueryServiceFactory,
+            exceptionHandler = exceptionHandler,
         ),
         ListQueryEventStreamHandlerFunctionFactory(
             eventStreamQueryGateway = eventStreamQueryGateway,

@@ -63,9 +63,16 @@ wow:
 
 `0` disables each numeric HTTP guard; `idle-timeout=0s` disables idle timeout. Do not duplicate backend field-type, mapping, or uniqueness checks. `HttpQueryGuardFilter` protects HTTP queries with WebFlux request context; programmatic query services retain their public behavior.
 
-## Snapshot Aggregation Route
+## Aggregation Query Routes
 
-The aggregation route accepts `AggregationQuery`. Normal JSON collects dynamic rows into an array; `Accept: text/event-stream` streams rows. Query guards also limit conditions, values, limits, Elements, metric sorting, and expensive expressions.
+Both Snapshot and EventStream routes accept `AggregationQuery`:
+
+- `.../snapshot/aggregation` aggregates the snapshot model;
+- `.../event/aggregation` aggregates the event-stream model and follows the same base, tenant, and owner route rules as event/list, event/paged, and event/count.
+
+Normal JSON collects dynamic rows into an array; `Accept: text/event-stream` streams rows. Query guards also limit conditions, values, limits, Elements, metric sorting, and expensive expressions.
+
+An EventStream root filter applies to the event-stream document. After `elements = [{"path":"body"}]` expands the event array, group and metric fields are relative to each event item. Elasticsearch currently does not index the `body.body` payload, so the cross-backend aggregation scope is the event-stream envelope and `body` event metadata. Payload aggregation requires a separate mapping and historical reindex design first.
 
 ## Wait Plan Integration
 

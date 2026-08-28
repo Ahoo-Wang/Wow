@@ -35,6 +35,8 @@ import me.ahoo.wow.openapi.contributor.aggregate.aggregateTags
 import me.ahoo.wow.openapi.contributor.aggregate.defaultAppendOwnerPath
 import me.ahoo.wow.openapi.contributor.aggregate.defaultAppendTenantPath
 import me.ahoo.wow.openapi.contributor.aggregate.versionPathParameterRef
+import me.ahoo.wow.openapi.contributor.aggregationQueryRequestBodyRef
+import me.ahoo.wow.openapi.contributor.aggregationResponse
 import me.ahoo.wow.openapi.contributor.badRequestResponseRef
 import me.ahoo.wow.openapi.contributor.batchAfterIdPathParameterRef
 import me.ahoo.wow.openapi.contributor.batchLimitPathParameterRef
@@ -48,6 +50,7 @@ import me.ahoo.wow.openapi.contributor.eventStreamPagedResponse
 import me.ahoo.wow.openapi.contributor.headVersionPathParameterRef
 import me.ahoo.wow.openapi.contributor.listQueryRequestBodyRef
 import me.ahoo.wow.openapi.contributor.pagedQueryRequestBodyRef
+import me.ahoo.wow.openapi.contributor.querySchemaResponses
 import me.ahoo.wow.openapi.contributor.requestTimeoutResponseRef
 import me.ahoo.wow.openapi.contributor.tailVersionPathParameterRef
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
@@ -64,6 +67,8 @@ object EventRouteContributor : RouteContributor {
         componentContext: OpenAPIComponentContext
     ): List<HttpRouteContract> {
         return buildList {
+            add(eventSchemaRoute(currentContext, aggregateRouteMetadata, componentContext))
+            add(eventSchemaRefreshRoute(currentContext, aggregateRouteMetadata, componentContext))
             tenantOwnerVariants(aggregateRouteMetadata).forEach { variant ->
                 addAll(queryRoutes(currentContext, aggregateRouteMetadata, componentContext, variant))
             }
@@ -73,6 +78,44 @@ object EventRouteContributor : RouteContributor {
         }
     }
 
+    private fun eventSchemaRoute(
+        currentContext: NamedBoundedContext,
+        aggregateRouteMetadata: AggregateRouteMetadata<*>,
+        componentContext: OpenAPIComponentContext,
+    ): HttpRouteContract = eventRoute(
+        currentContext = currentContext,
+        aggregateRouteMetadata = aggregateRouteMetadata,
+        componentContext = componentContext,
+        handlerKey = BuiltInHttpRouteHandlerKeys.Event.SCHEMA,
+        resourceName = "event_schema",
+        operation = "get",
+        operationSummary = "Get Event Stream Schema",
+        method = Https.Method.GET,
+        appendTenantPath = false,
+        appendOwnerPath = false,
+        appendPathSuffix = "event/schema",
+        responses = componentContext.querySchemaResponses(),
+    )
+
+    private fun eventSchemaRefreshRoute(
+        currentContext: NamedBoundedContext,
+        aggregateRouteMetadata: AggregateRouteMetadata<*>,
+        componentContext: OpenAPIComponentContext,
+    ): HttpRouteContract = eventRoute(
+        currentContext = currentContext,
+        aggregateRouteMetadata = aggregateRouteMetadata,
+        componentContext = componentContext,
+        handlerKey = BuiltInHttpRouteHandlerKeys.Event.SCHEMA_REFRESH,
+        resourceName = "event_schema",
+        operation = "refresh",
+        operationSummary = "Refresh Event Stream Schema",
+        appendTenantPath = false,
+        appendOwnerPath = false,
+        appendPathSuffix = "event/schema/refresh",
+        responses = componentContext.querySchemaResponses(),
+    )
+
+    @Suppress("LongMethod")
     private fun queryRoutes(
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>,
@@ -81,6 +124,21 @@ object EventRouteContributor : RouteContributor {
     ): List<HttpRouteContract> {
         val aggregateMetadata = aggregateRouteMetadata.aggregateMetadata
         return listOf(
+            eventRoute(
+                currentContext = currentContext,
+                aggregateRouteMetadata = aggregateRouteMetadata,
+                componentContext = componentContext,
+                handlerKey = BuiltInHttpRouteHandlerKeys.Event.AGGREGATION,
+                resourceName = EVENT,
+                operation = "aggregation",
+                operationSummary = "Aggregate Event Stream",
+                appendTenantPath = variant.appendTenantPath,
+                appendOwnerPath = variant.appendOwnerPath,
+                appendPathSuffix = "event/aggregation",
+                accept = STREAMING_ACCEPT,
+                requestBody = componentContext.aggregationQueryRequestBodyRef(),
+                responses = listOf(componentContext.aggregationResponse()),
+            ),
             eventRoute(
                 currentContext = currentContext,
                 aggregateRouteMetadata = aggregateRouteMetadata,
