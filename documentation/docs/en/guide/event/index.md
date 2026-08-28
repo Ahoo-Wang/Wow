@@ -8,6 +8,19 @@ outline: deep
 
 After a domain event enters EventStore, it is authoritative history. The downstream collaboration in this section runs after the append. It consumes committed facts, but its effects are not part of the source aggregate transaction and cannot roll back an appended event.
 
+Choose the collaboration mechanism by goal before opening its implementation and failure boundaries.
+
+```mermaid
+flowchart TB
+    Need{"What is needed after the fact occurs?"}
+    Need -->|Run an ordinary side effect| Processor["Event Processor"]
+    Need -->|Create cross-aggregate follow-up commands| Saga["Stateless Saga"]
+    Need -->|Persistently recover handler failure| Compensation["Event Compensation"]
+    Processor --> Done["Side effect completed"]
+    Saga --> Commands["0..N commands"]
+    Compensation --> Recovery["Scheduled or manual recovery"]
+```
+
 ## Choose a Processing Mechanism
 
 | Need | Choose | Responsibility boundary |

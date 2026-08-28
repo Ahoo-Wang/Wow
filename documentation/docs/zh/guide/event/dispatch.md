@@ -22,13 +22,18 @@ outline: deep
 `DomainEventDispatcher`、`ProjectionDispatcher` 与 `StatelessSagaDispatcher` 都基于 `CompositeEventDispatcher`。一个 Composite Dispatcher 创建两个子分发器，并共享聚合调度器：
 
 ```mermaid
-flowchart LR
-    D[DomainEventBus] --> ED[EventStreamDispatcher]
-    S[StateEventBus] --> SD[StateEventDispatcher]
-    ED --> E[EVENT functions]
-    SD --> SE[STATE_EVENT functions]
-    E --> H[Dispatcher-specific FilterChain]
-    SE --> H
+flowchart TB
+    DomainBus["DomainEventBus"] --> DomainDispatcher["Domain / Saga Dispatcher"]
+    StateBus["StateEventBus"] --> StateDispatcher["State / Snapshot / Projection Dispatcher"]
+    DomainDispatcher --> Chain["Dispatcher-specific Filter chain"]
+    StateDispatcher --> Chain
+    Chain --> Notifier["Notifier Filter"]
+    Notifier --> Compensation["Compensation Filter（启用时）"]
+    Notifier -. "无补偿 Filter" .-> Function["事件函数"]
+    Compensation --> Retryable["Retryable Filter（存在时）"]
+    Compensation --> Function
+    Retryable --> Function
+    Function --> Ack["错误处理与 finallyAck"]
 ```
 
 `EventStreamDispatcher` 只保留 `FunctionKind.EVENT`，`StateEventDispatcher` 只保留 `FunctionKind.STATE_EVENT`。各自按注册函数支持的聚合 topic 建立订阅；没有对应函数的聚合不会为该 dispatcher 创建消费路径。

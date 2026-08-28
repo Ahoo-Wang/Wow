@@ -8,6 +8,19 @@ outline: deep
 
 领域事件进入 EventStore 后成为权威历史。本区域的下游协作都发生在追加之后：它们消费已提交事实，但不把自己的副作用变成源聚合事务的一部分，也不能回滚已经追加的事件。
 
+先按目标选择协作机制，再进入对应页面理解实现和失败边界。
+
+```mermaid
+flowchart TB
+    Need{"事实发生后需要什么？"}
+    Need -->|执行普通副作用| Processor["Event Processor"]
+    Need -->|生成跨聚合后续命令| Saga["Stateless Saga"]
+    Need -->|持久恢复处理失败| Compensation["Event Compensation"]
+    Processor --> Done["副作用完成"]
+    Saga --> Commands["0..N 条命令"]
+    Compensation --> Recovery["调度或人工恢复"]
+```
+
 ## 选择处理机制
 
 | 需求 | 选择 | 责任边界 |

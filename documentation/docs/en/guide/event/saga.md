@@ -8,6 +8,24 @@ outline: deep
 
 Wow's `@StatelessSaga` is a stateless event orchestrator: it receives domain or state events and generates commands for the next step. Each target aggregate still handles its command in a local transaction. A Saga does not create a cross-aggregate ACID transaction.
 
+A Stateless Saga converts an occurred fact into 0..N follow-up commands sent in order.
+
+```mermaid
+sequenceDiagram
+    participant Source as Source aggregate
+    participant EventBus as DomainEventBus
+    participant Saga as Stateless Saga
+    participant Gateway as CommandGateway
+    participant Target as Target aggregate
+    Source->>EventBus: Domain event
+    EventBus->>Saga: Invoke matching Saga function
+    loop 0..N commands
+        Saga->>Gateway: Send follow-up command in order
+        Gateway->>Target: Process command
+    end
+    Saga-->>EventBus: SAGA_HANDLED + commandIds
+```
+
 ## When to Use a Saga
 
 Use a Saga when a committed event must drive business behavior in other aggregates, such as sending an entry command to a target account after a transfer is prepared. Use an [Event Processor](./processor.md) for notifications, audit, or external integrations. Do not wrap an ordinary side effect that generates no command in a Saga.

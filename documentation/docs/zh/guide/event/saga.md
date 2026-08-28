@@ -8,6 +8,24 @@ outline: deep
 
 Wow 的 `@StatelessSaga` 是无状态事件编排器：它接收领域事件或状态事件并生成下一步命令。每个目标聚合仍在自己的本地事务中处理命令；Saga 不创建跨聚合 ACID 事务。
 
+Stateless Saga 把一个已发生的事实转换为 0..N 条顺序发送的后续命令。
+
+```mermaid
+sequenceDiagram
+    participant Source as 源聚合
+    participant EventBus as DomainEventBus
+    participant Saga as Stateless Saga
+    participant Gateway as CommandGateway
+    participant Target as 目标聚合
+    Source->>EventBus: 领域事件
+    EventBus->>Saga: 调用匹配的 Saga 函数
+    loop 0..N 条命令
+        Saga->>Gateway: 顺序发送后续命令
+        Gateway->>Target: 处理命令
+    end
+    Saga-->>EventBus: SAGA_HANDLED + commandIds
+```
+
 ## 何时使用 Saga
 
 当一个已提交事件需要驱动其他聚合的业务行为时使用 Saga，例如转账准备完成后向目标账户发送入账命令。只需通知、审计或调用外部集成时使用[事件处理器](./processor.md)；不要用 Saga 包装一个不生成命令的普通副作用。
