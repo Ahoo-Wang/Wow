@@ -103,7 +103,7 @@ val query = aggregation {
 
 **业务问题**
 
-每天写入了多少份事件流？
+每天创建了多少份事件流？
 
 **统计单位**
 
@@ -132,11 +132,11 @@ val query = aggregation {
 ]
 ```
 
-`day` 是 UTC 日期桶起点的 epoch 毫秒，`streamCount` 是桶内根事件流数量。
+`day` 是 UTC 日期桶起点的 epoch 毫秒，`streamCount` 是首个事件创建时间落在桶内的根事件流数量。
 
 **边界**
 
-`createTime` 是根字段，不是展开事件字段；日期直方图能否执行取决于 Schema 暴露的时间聚合能力以及后端对该字段的实际映射。
+`createTime` 是根字段，不是展开事件字段；`DomainEventStream.createTime` 来自 `body.first().createTime`，不代表后端 append 或 ingestion 时间。日期直方图能否执行取决于 Schema 暴露的时间聚合能力以及后端对该字段的实际映射。
 
 ## 场景 4：租户与所有者活跃度
 
