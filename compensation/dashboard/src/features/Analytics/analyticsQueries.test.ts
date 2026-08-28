@@ -135,9 +135,85 @@ describe("analyticsQueries", () => {
           },
         ],
       },
-      groupBy: [{ type: "TERMS", field: "state.status", alias: "status" }],
+      groupBy: [
+        { type: "TERMS", field: "state.error.errorCode", alias: "errorCode" },
+        {
+          type: "TERMS",
+          field: "state.function.contextName",
+          alias: "contextName",
+        },
+        {
+          type: "TERMS",
+          field: "state.function.processorName",
+          alias: "processorName",
+        },
+        { type: "TERMS", field: "state.function.name", alias: "functionName" },
+        {
+          type: "TERMS",
+          field: "state.function.functionKind",
+          alias: "functionKind",
+        },
+        { type: "TERMS", field: "state.status", alias: "status" },
+      ],
       metrics: [{ type: "COUNT", alias: "statusCount" }],
     });
+  });
+
+  it("keeps same-status pressure clusters distinct for status merging", () => {
+    const first = {
+      errorCode: "TEST_TIMEOUT",
+      contextName: "billing",
+      processorName: "OrderProcessor",
+      functionName: "run",
+      functionKind: "EVENT",
+    };
+    const second = { ...first, processorName: "InvoiceProcessor" };
+
+    expect(createPressureStatusQuery([first, second]).groupBy).toEqual([
+      { type: "TERMS", field: "state.error.errorCode", alias: "errorCode" },
+      {
+        type: "TERMS",
+        field: "state.function.contextName",
+        alias: "contextName",
+      },
+      {
+        type: "TERMS",
+        field: "state.function.processorName",
+        alias: "processorName",
+      },
+      { type: "TERMS", field: "state.function.name", alias: "functionName" },
+      {
+        type: "TERMS",
+        field: "state.function.functionKind",
+        alias: "functionKind",
+      },
+      { type: "TERMS", field: "state.status", alias: "status" },
+    ]);
+    expect(
+      mergePressureRows(
+        [
+          {
+            ...first,
+            currentCount: 9,
+            oldestExecuteAt: 1_000,
+            nextRetryAt: 2_000,
+          },
+          {
+            ...second,
+            currentCount: 4,
+            oldestExecuteAt: 3_000,
+            nextRetryAt: 4_000,
+          },
+        ],
+        [
+          { ...first, status: ExecutionFailedStatus.FAILED, statusCount: 9 },
+          { ...second, status: ExecutionFailedStatus.FAILED, statusCount: 4 },
+        ],
+      ),
+    ).toMatchObject([
+      { processorName: "OrderProcessor", failedCount: 9, preparedCount: 0 },
+      { processorName: "InvoiceProcessor", failedCount: 4, preparedCount: 0 },
+    ]);
   });
 
   it("rejects a pressure status query without clusters", () => {

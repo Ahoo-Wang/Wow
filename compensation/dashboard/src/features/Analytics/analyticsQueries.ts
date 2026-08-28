@@ -197,6 +197,26 @@ export function createPressureStatusQuery(
       ),
     ),
     groupBy: [
+      aggregation.terms(
+        ExecutionFailedAggregatedFields.STATE_ERROR_ERROR_CODE,
+        "errorCode",
+      ),
+      aggregation.terms(
+        ExecutionFailedAggregatedFields.STATE_FUNCTION_CONTEXT_NAME,
+        "contextName",
+      ),
+      aggregation.terms(
+        ExecutionFailedAggregatedFields.STATE_FUNCTION_PROCESSOR_NAME,
+        "processorName",
+      ),
+      aggregation.terms(
+        ExecutionFailedAggregatedFields.STATE_FUNCTION_NAME,
+        "functionName",
+      ),
+      aggregation.terms(
+        ExecutionFailedAggregatedFields.STATE_FUNCTION_FUNCTION_KIND,
+        "functionKind",
+      ),
       aggregation.terms(ExecutionFailedAggregatedFields.STATE_STATUS, "status"),
     ],
     metrics: [aggregation.count("statusCount")],
