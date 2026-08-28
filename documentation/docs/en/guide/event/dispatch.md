@@ -23,17 +23,26 @@ Both implement `MessageBus`, but their topic kinds, subscriptions, and transport
 
 ```mermaid
 flowchart TB
-    DomainBus["DomainEventBus"] --> DomainDispatcher["Domain / Saga Dispatcher"]
-    StateBus["StateEventBus"] --> StateDispatcher["State / Snapshot / Projection Dispatcher"]
-    DomainDispatcher --> Chain["Dispatcher-specific Filter chain"]
-    StateDispatcher --> Chain
-    Chain --> Notifier["Notifier Filter"]
-    Notifier --> Compensation["Compensation Filter (when enabled)"]
-    Notifier -. "No compensation Filter" .-> Function["Event function"]
-    Compensation --> Retryable["Retryable Filter (when present)"]
-    Compensation --> Function
-    Retryable --> Function
-    Function --> Ack["Error handling and finallyAck"]
+    DomainBus["DomainEventBus"] --> EventStream["EventStreamDispatcher"]
+    StateBus["StateEventBus"] --> StateEvent["StateEventDispatcher"]
+    StateBus --> SnapshotDispatcher["SnapshotDispatcher"]
+    subgraph Composite["CompositeEventDispatcher"]
+        EventStream --> EventKind["FunctionKind.EVENT matching"]
+        StateEvent --> StateKind["FunctionKind.STATE_EVENT matching"]
+        EventKind --> Matched["Match Processor / Saga / Projection function"]
+        StateKind --> Matched
+    end
+    Matched --> EventNotifier["Notifier Filter"]
+    EventNotifier -->|"No Compensation"| Retryable["Retryable Filter"]
+    EventNotifier -->|"Compensation enabled"| DomainCompensation["Compensation Filter (domain event)"]
+    DomainCompensation --> Retryable
+    Retryable --> EventFunction["Invoke matched function"]
+    SnapshotDispatcher --> SnapshotNotifier["Notifier Filter"]
+    SnapshotNotifier -->|"No Compensation"| SnapshotFunction["Snapshot function"]
+    SnapshotNotifier -->|"Compensation enabled"| StateCompensation["Compensation Filter (state event)"]
+    StateCompensation --> SnapshotFunction
+    EventFunction --> EventBoundary["Handler error boundary and finallyAck"]
+    SnapshotFunction --> SnapshotBoundary["Snapshot error boundary and finallyAck"]
 ```
 
 `EventStreamDispatcher` retains only `FunctionKind.EVENT`; `StateEventDispatcher` retains only `FunctionKind.STATE_EVENT`. Each creates subscriptions from the aggregate topics supported by its registered functions. An aggregate without a corresponding function does not get a consumption path for that dispatcher.

@@ -23,17 +23,26 @@ outline: deep
 
 ```mermaid
 flowchart TB
-    DomainBus["DomainEventBus"] --> DomainDispatcher["Domain / Saga Dispatcher"]
-    StateBus["StateEventBus"] --> StateDispatcher["State / Snapshot / Projection Dispatcher"]
-    DomainDispatcher --> Chain["Dispatcher-specific Filter chain"]
-    StateDispatcher --> Chain
-    Chain --> Notifier["Notifier Filter"]
-    Notifier --> Compensation["Compensation Filter（启用时）"]
-    Notifier -. "无补偿 Filter" .-> Function["事件函数"]
-    Compensation --> Retryable["Retryable Filter（存在时）"]
-    Compensation --> Function
-    Retryable --> Function
-    Function --> Ack["错误处理与 finallyAck"]
+    DomainBus["DomainEventBus"] --> EventStream["EventStreamDispatcher"]
+    StateBus["StateEventBus"] --> StateEvent["StateEventDispatcher"]
+    StateBus --> SnapshotDispatcher["SnapshotDispatcher"]
+    subgraph Composite["CompositeEventDispatcher"]
+        EventStream --> EventKind["FunctionKind.EVENT 匹配"]
+        StateEvent --> StateKind["FunctionKind.STATE_EVENT 匹配"]
+        EventKind --> Matched["匹配 Processor / Saga / Projection 函数"]
+        StateKind --> Matched
+    end
+    Matched --> EventNotifier["Notifier Filter"]
+    EventNotifier -->|"无 Compensation"| Retryable["Retryable Filter"]
+    EventNotifier -->|"启用 Compensation"| DomainCompensation["Compensation Filter（领域事件）"]
+    DomainCompensation --> Retryable
+    Retryable --> EventFunction["调用匹配函数"]
+    SnapshotDispatcher --> SnapshotNotifier["Notifier Filter"]
+    SnapshotNotifier -->|"无 Compensation"| SnapshotFunction["Snapshot 函数"]
+    SnapshotNotifier -->|"启用 Compensation"| StateCompensation["Compensation Filter（状态事件）"]
+    StateCompensation --> SnapshotFunction
+    EventFunction --> EventBoundary["Handler 错误边界与 finallyAck"]
+    SnapshotFunction --> SnapshotBoundary["Snapshot 错误边界与 finallyAck"]
 ```
 
 `EventStreamDispatcher` 只保留 `FunctionKind.EVENT`，`StateEventDispatcher` 只保留 `FunctionKind.STATE_EVENT`。各自按注册函数支持的聚合 topic 建立订阅；没有对应函数的聚合不会为该 dispatcher 创建消费路径。

@@ -16,14 +16,16 @@ sequenceDiagram
     participant EventBus as DomainEventBus
     participant Saga as Stateless Saga
     participant Gateway as CommandGateway
-    participant Target as 目标聚合
+    participant CommandBus as CommandBus
     Source->>EventBus: 领域事件
     EventBus->>Saga: 调用匹配的 Saga 函数
     loop 0..N 条命令
         Saga->>Gateway: 顺序发送后续命令
-        Gateway->>Target: 处理命令
+        Gateway->>CommandBus: 发送命令
+        CommandBus-->>Gateway: 发送边界完成
     end
     Saga-->>EventBus: SAGA_HANDLED + commandIds
+    Note over Gateway,CommandBus: 目标聚合处理不在<br/>SAGA_HANDLED 保证内
 ```
 
 ## 何时使用 Saga
