@@ -19,11 +19,9 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
 import io.swagger.v3.oas.annotations.media.ArraySchema
 import io.swagger.v3.oas.annotations.media.Schema
 import me.ahoo.wow.api.serialization.MissingTypeImpl
-import tools.jackson.databind.annotation.JsonDeserialize
 import java.time.ZoneId
 
 @Schema(additionalProperties = Schema.AdditionalPropertiesValue.FALSE)
-@JsonDeserialize(using = AggregationQueryJsonDeserializer::class)
 data class AggregationQuery(
     override val filter: FilterExpression = MatchAllFilter,
     @get:ArraySchema(maxItems = MAX_ELEMENTS)

@@ -516,10 +516,6 @@ class FilterExpressionTest {
             jsonMapper.readValue("""{"condition":$condition}""", ListQuery::class.java).filter,
             jsonMapper.readValue("""{"condition":$condition}""", PagedQuery::class.java).filter,
             jsonMapper.readValue("""{"condition":$condition}""", SingleQuery::class.java).filter,
-            jsonMapper.readValue(
-                """{"condition":$condition,"metrics":[{"type":"COUNT","alias":"count"}]}""",
-                AggregationQuery::class.java,
-            ).filter,
         )
 
         filters.forEach { it.assert().isEqualTo(expected) }
@@ -528,18 +524,13 @@ class FilterExpressionTest {
     @Test
     fun `query models should reject filter and condition together`() {
         val body = """{"filter":{"op":"MATCH_ALL"},"condition":{"operator":"ALL"}}"""
-        val aggregationBody =
-            """{"filter":{"op":"MATCH_ALL"},"condition":{"operator":"ALL"},"metrics":[{"type":"COUNT","alias":"count"}]}"""
         val accepted = listOf(
             runCatching { jsonMapper.readValue(body, ListQuery::class.java) }.isSuccess,
             runCatching { jsonMapper.readValue(body, PagedQuery::class.java) }.isSuccess,
             runCatching { jsonMapper.readValue(body, SingleQuery::class.java) }.isSuccess,
-            runCatching {
-                jsonMapper.readValue(aggregationBody, AggregationQuery::class.java)
-            }.isSuccess,
         )
 
-        accepted.assert().containsExactly(false, false, false, false)
+        accepted.assert().containsExactly(false, false, false)
     }
 
     @Test
@@ -549,16 +540,14 @@ class FilterExpressionTest {
             """{"filter":{"op":"MATCH_ALL"},"condition":null}""",
         )
         val accepted = bodies.flatMap { body ->
-            val aggregationBody = body.dropLast(1) + ",\"metrics\":[{\"type\":\"COUNT\",\"alias\":\"count\"}]}"
             listOf(
                 runCatching { jsonMapper.readValue(body, ListQuery::class.java) }.isSuccess,
                 runCatching { jsonMapper.readValue(body, PagedQuery::class.java) }.isSuccess,
                 runCatching { jsonMapper.readValue(body, SingleQuery::class.java) }.isSuccess,
-                runCatching { jsonMapper.readValue(aggregationBody, AggregationQuery::class.java) }.isSuccess,
             )
         }
 
-        accepted.assert().containsExactly(false, false, false, false, false, false, false, false)
+        accepted.assert().containsExactly(false, false, false, false, false, false)
     }
 
     @Suppress("DEPRECATION")

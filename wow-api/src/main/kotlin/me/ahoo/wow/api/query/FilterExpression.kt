@@ -222,17 +222,6 @@ private fun JsonNode.requireCanonicalFilterPayload() {
     }
 }
 
-internal fun FilterExpression.requireScalarEqualityValues() {
-    requireScalarEqualityValue()
-    when (this) {
-        is AndFilter -> operands.forEach { it.requireScalarEqualityValues() }
-        is OrFilter -> operands.forEach { it.requireScalarEqualityValues() }
-        is NorFilter -> operands.forEach { it.requireScalarEqualityValues() }
-        is ElementMatchFilter -> predicate.requireScalarEqualityValues()
-        else -> Unit
-    }
-}
-
 private fun FilterExpression.requireScalarEqualityValue() {
     when (this) {
         is EqualFilter -> value.requireScalarEqualityValue(operator.name)

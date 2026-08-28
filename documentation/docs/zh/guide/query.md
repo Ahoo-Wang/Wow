@@ -141,7 +141,7 @@ alias 必须是唯一的单段逻辑字段，且不能使用 `__wow` 前缀。so
 
 基础 HTTP 路由是 `POST /{aggregate}/snapshot/aggregation`。对于动态 tenant 或 owned 聚合，目录还会贡献 tenant/owner 作用域查询变体。它复用普通快照查询过滤器链，因此请求作用域和已配置 ABAC 过滤器可以扩展根 filter；结果脱敏会刻意跳过聚合。`allow-expensive-operators=false` 时，HTTP 聚合会拒绝 Elements、按 metric alias 排序、非 Field 数值表达式和 filter 中的高成本操作符。
 
-查询模型兼容反序列化器对 aggregation 的处理不同于 single/list/paged：`filter` 与旧 `condition` 可以同时省略（模型默认 `MATCH_ALL`），也可以只提供其中一个；同时提供会被拒绝。反序列化完成后，请求作用域重写仍会追加 tenant/owner/space filters。
+`AggregationQuery` 只使用规范 `filter`；省略时模型默认 `MATCH_ALL`。反序列化完成后，请求作用域重写仍会追加 tenant/owner/space filters。
 
 自定义 `SnapshotQueryService` 可能继承默认的不支持 `aggregate()` 实现。single/list/paged/count 成功且路由已发布，并不能证明自定义服务支持聚合；应对所选后端做测试。
 
@@ -319,7 +319,7 @@ JVM 侧使用 `filter.count(queryService)`。count 按所选后端合同保持�
 | 端点请求体 | 两种表达都没有 | 新表达 | 旧表达 | 两者同时存在 |
 |---|---|---|---|---|
 | single/list/paged | 拒绝 | 接受 `filter` | 接受 `condition` | 拒绝 |
-| aggregation | 接受；省略 `filter` 时默认 `MATCH_ALL` | 接受 `filter` | 接受 `condition` | 拒绝 |
+| aggregation | 接受；省略 `filter` 时默认 `MATCH_ALL` | 接受 `filter` | 拒绝 | 拒绝 |
 | count | 按旧 `Condition.ALL` 接受 | 接受顶层 `op` | 接受顶层 `operator` | 拒绝 |
 
 - OpenAPI 只发布新查询形状；运行时旧格式兼容不会写入规范 Schema；

@@ -141,7 +141,7 @@ Aliases are unique single-segment logical fields and cannot use the `__wow` pref
 
 The base HTTP route is `POST /{aggregate}/snapshot/aggregation`. For dynamic-tenant or owned aggregates, the catalog also contributes tenant- or owner-scoped query variants. The route uses the ordinary snapshot query filter chain, so request-scope and configured ABAC filters can extend the root filter. Result masking intentionally skips aggregation. `allow-expensive-operators=false` rejects Elements, metric-alias sorting, non-Field numeric expressions, and expensive operators in HTTP aggregation filters.
 
-The query model compatibility deserializer treats aggregation independently from single/list/paged: `filter` and legacy `condition` may both be omitted (the model defaults to `MATCH_ALL`), or exactly one may be supplied; supplying both is rejected. Request-scope rewriting still appends tenant/owner/space filters after deserialization.
+`AggregationQuery` uses only the canonical `filter`; when omitted, the model defaults to `MATCH_ALL`. Request-scope rewriting still appends tenant/owner/space filters after deserialization.
 
 A custom `SnapshotQueryService` may inherit the default unsupported `aggregate()` implementation. Successful single/list/paged/count calls and a published route do not prove that custom service supports aggregation. Test the selected backend.
 
@@ -319,7 +319,7 @@ On the JVM, use `filter.count(queryService)`. Count remains exact according to t
 | Endpoint body | Neither representation | New representation | Legacy representation | Both |
 |---|---|---|---|---|
 | single/list/paged | rejected | `filter` accepted | `condition` accepted | rejected |
-| aggregation | accepted; omitted `filter` defaults to `MATCH_ALL` | `filter` accepted | `condition` accepted | rejected |
+| aggregation | accepted; omitted `filter` defaults to `MATCH_ALL` | `filter` accepted | rejected | rejected |
 | count | accepted as legacy `Condition.ALL` | top-level `op` accepted | top-level `operator` accepted | rejected |
 
 - OpenAPI publishes only the new query shapes; runtime legacy acceptance is not added to the canonical schemas;

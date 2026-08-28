@@ -59,7 +59,7 @@ import reactor.kotlin.test.test
 class QueryBodyExtractorTest {
 
     @Test
-    fun `aggregation body should default omitted filter and reject ambiguous or non scalar element equality`() {
+    fun `aggregation body should default omitted filter and reject legacy condition or invalid filter`() {
         val queryHandler = mockk<SnapshotQueryHandler> {
             every { aggregate(any(), any()) } returns Flux.empty()
         }
@@ -79,7 +79,8 @@ class QueryBodyExtractorTest {
         client.post().uri("/sku/snapshot/aggregation").contentType(MediaType.APPLICATION_JSON)
             .bodyValue("{$metric}").exchange().expectStatus().isOk
         client.post().uri("/sku/snapshot/aggregation").contentType(MediaType.APPLICATION_JSON)
-            .bodyValue("{\"condition\":{\"operator\":\"ALL\"},$metric}").exchange().expectStatus().isOk
+            .bodyValue("{\"condition\":{\"operator\":\"ALL\"},$metric}")
+            .exchange().expectStatus().isBadRequest
         client.post().uri("/sku/snapshot/aggregation").contentType(MediaType.APPLICATION_JSON)
             .bodyValue(
                 "{\"elements\":[{\"path\":\"state.items\",\"filter\":{\"op\":\"EQ\",\"field\":\"sku\",\"value\":\"a\"}}],$metric}"
@@ -96,14 +97,8 @@ class QueryBodyExtractorTest {
             )
             .exchange().expectStatus().isBadRequest
         client.post().uri("/sku/snapshot/aggregation").contentType(MediaType.APPLICATION_JSON)
-            .bodyValue("{\"condition\":{\"operator\":\"ALL\",\"unexpected\":true},$metric}")
-            .exchange().expectStatus().isBadRequest
-        client.post().uri("/sku/snapshot/aggregation").contentType(MediaType.APPLICATION_JSON)
-            .bodyValue("{\"condition\":{\"field\":\"state.tags\",\"operator\":\"EQ\",\"value\":[\"a\"]},$metric}")
-            .exchange().expectStatus().isBadRequest
-        client.post().uri("/sku/snapshot/aggregation").contentType(MediaType.APPLICATION_JSON)
             .bodyValue(
-                "{\"condition\":{\"operator\":\"ALL\"},\"elements\":[{\"path\":\"state.items\",\"filter\":{\"op\":\"NE\",\"field\":\"sku\",\"value\":{\"value\":\"a\"},\"unexpected\":true}}],$metric}"
+                "{\"elements\":[{\"path\":\"state.items\",\"filter\":{\"op\":\"NE\",\"field\":\"sku\",\"value\":{\"value\":\"a\"},\"unexpected\":true}}],$metric}"
             )
             .exchange().expectStatus().isBadRequest
     }
@@ -270,14 +265,37 @@ class QueryBodyExtractorTest {
     }
 
     @Test
-    fun `legacy non aggregation condition should ignore unknown fields`() {
-        val body = """{"condition":{"operator":"ALL","unexpected":true}}"""
+    fun `query unknown fields should follow representation strictness`() {
+        val legacyBodies = listOf(
+            """{"condition":{"operator":"ALL","unexpected":true}}""",
+            """{"condition":{"operator":"ALL"},"unexpected":true}""",
+            """{"condition":{"operator":"ALL"},"projection":{"unexpected":true}}""",
+            """{"condition":{"operator":"ALL"},"sort":[{"field":"state.name","direction":"ASC","unexpected":true}]}""",
+            """{"condition":{"operator":"ALL"},"pagination":{"unexpected":true}}""",
+        )
+        val canonicalBodies = listOf(
+            """{"filter":{"op":"MATCH_ALL"},"unexpected":true}""",
+            """{"filter":{"op":"MATCH_ALL"},"projection":{"unexpected":true}}""",
+            """{"filter":{"op":"MATCH_ALL"},"sort":[{"field":"state.name","direction":"ASC","unexpected":true}]}""",
+            """{"filter":{"op":"MATCH_ALL"},"pagination":{"unexpected":true}}""",
+        )
+        val clients = queryClients()
 
-        queryClients().forEach { (path, client) ->
-            val expectedStatus = if (path.endsWith("/single")) HttpStatus.NOT_FOUND else HttpStatus.OK
-            client.post().uri(path)
-                .contentType(MediaType.APPLICATION_JSON).bodyValue(body).exchange()
-                .expectStatus().isEqualTo(expectedStatus)
+        legacyBodies.forEach { body ->
+            clients.forEach { (path, client) ->
+                val expectedStatus = if (path.endsWith("/single")) HttpStatus.NOT_FOUND else HttpStatus.OK
+                client.post().uri(path)
+                    .contentType(MediaType.APPLICATION_JSON).bodyValue(body).exchange()
+                    .expectStatus().isEqualTo(expectedStatus)
+            }
+        }
+        canonicalBodies.forEach { body ->
+            clients.forEach { (path, client) ->
+                client.post().uri(path)
+                    .contentType(MediaType.APPLICATION_JSON).bodyValue(body).exchange()
+                    .expectStatus().isBadRequest
+                    .expectHeader().valueEquals(ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
+            }
         }
     }
 

@@ -58,34 +58,6 @@ class AggregationQueryTest {
     }
 
     @Test
-    fun `legacy aggregation condition should reject array equality`() {
-        val json = """
-            {
-              "condition": {"field":"state.tags","operator":"EQ","value":["a"]},
-              "metrics": [{"type":"COUNT","alias":"count"}]
-            }
-        """.trimIndent()
-
-        assertThrows<JacksonException> {
-            configuredMapper.readValue(json, AggregationQuery::class.java)
-        }
-    }
-
-    @Test
-    fun `legacy aggregation condition should reject unknown fields`() {
-        val json = """
-            {
-              "condition": {"operator":"ALL","unexpected":true},
-              "metrics": [{"type":"COUNT","alias":"count"}]
-            }
-        """.trimIndent()
-
-        assertThrows<JacksonException> {
-            configuredMapper.readValue(json, AggregationQuery::class.java)
-        }
-    }
-
-    @Test
     fun `configured mapper should reject missing metrics`() {
         assertThrows<JacksonException> {
             configuredMapper.readValue("{}", AggregationQuery::class.java)

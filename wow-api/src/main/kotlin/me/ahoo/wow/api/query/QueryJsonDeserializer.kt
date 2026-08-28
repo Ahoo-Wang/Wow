@@ -42,19 +42,6 @@ internal class SingleQueryJsonDeserializer : StdDeserializer<SingleQuery>(Single
         }
 }
 
-internal class AggregationQueryJsonDeserializer : StdDeserializer<AggregationQuery>(AggregationQuery::class.java) {
-    override fun deserialize(p: JsonParser, ctxt: DeserializationContext): AggregationQuery =
-        ctxt.constructQuery(AggregationQuery::class.java) {
-            readQuery(
-                p = p,
-                ctxt = ctxt,
-                inputType = AggregationQueryJson::class.java,
-                filterRequired = false,
-                strictCondition = true,
-            ).toQuery()
-        }
-}
-
 private inline fun <Q : Any> DeserializationContext.constructQuery(type: Class<Q>, factory: () -> Q): Q =
     try {
         factory()
@@ -66,29 +53,25 @@ private fun <Q : Any> readQuery(
     p: JsonParser,
     ctxt: DeserializationContext,
     inputType: Class<Q>,
-    filterRequired: Boolean = true,
-    strictCondition: Boolean = false,
 ): Q {
     val node = ctxt.readTree(p)
     if (node !is ObjectNode) {
         return ctxt.reportInputMismatch(inputType, "Query body must be a JSON object.")
     }
-    node.prepareCompatibleFilter(ctxt, inputType, filterRequired, strictCondition)
+    node.prepareCompatibleFilter(ctxt, inputType)
     return ctxt.readTreeAsValue(node, inputType)
 }
 
 private fun ObjectNode.prepareCompatibleFilter(
     ctxt: DeserializationContext,
     inputType: Class<*>,
-    filterRequired: Boolean,
-    strictCondition: Boolean,
 ) {
     val hasFilter = has("filter")
     val hasCondition = has("condition")
     if (hasFilter && hasCondition) {
         ctxt.reportInputMismatch<Nothing>(inputType, "filter and condition cannot be used together.")
     }
-    if (filterRequired && !hasFilter && !hasCondition) {
+    if (!hasFilter && !hasCondition) {
         ctxt.reportInputMismatch<Nothing>(inputType, "Exactly one of filter or condition is required.")
     }
     listOf("filter", "condition").forEach { property ->
@@ -96,25 +79,35 @@ private fun ObjectNode.prepareCompatibleFilter(
             ctxt.reportInputMismatch<Nothing>(inputType, "$property cannot be null.")
         }
     }
-    get("condition")?.let { condition ->
-        if (strictCondition) {
-            condition.requireLegacyConditionProperties(ctxt, inputType)
-        } else {
-            condition.removeUnknownLegacyConditionProperties()
-        }
+    if (hasCondition) {
+        removeUnknownLegacyQueryProperties(inputType)
     }
 }
 
 private val LEGACY_CONDITION_PROPERTIES = setOf("field", "operator", "value", "children", "options")
+private val LEGACY_PROJECTION_PROPERTIES = setOf("include", "exclude")
+private val LEGACY_SORT_PROPERTIES = setOf("field", "direction")
+private val LEGACY_PAGINATION_PROPERTIES = setOf("index", "size")
 
-private fun JsonNode.requireLegacyConditionProperties(ctxt: DeserializationContext, inputType: Class<*>) {
-    if (this !is ObjectNode) {
-        return
+// The legacy WebFlux path ignored unknown properties across the entire query body.
+private fun ObjectNode.removeUnknownLegacyQueryProperties(inputType: Class<*>) {
+    val queryProperties = when (inputType) {
+        ListQueryJson::class.java -> setOf("condition", "projection", "sort", "limit")
+        PagedQueryJson::class.java -> setOf("condition", "projection", "sort", "pagination")
+        SingleQueryJson::class.java -> setOf("condition", "projection", "sort")
+        else -> error("Unsupported legacy query type: ${inputType.name}.")
     }
-    propertyNames().firstOrNull { it !in LEGACY_CONDITION_PROPERTIES }?.let { property ->
-        ctxt.reportInputMismatch<Nothing>(inputType, "Unknown condition property: $property.")
+    remove(propertyNames().filterNot(queryProperties::contains))
+    get("condition")?.removeUnknownLegacyConditionProperties()
+    get("projection")?.removeUnknownProperties(LEGACY_PROJECTION_PROPERTIES)
+    get("sort")?.forEach { it.removeUnknownProperties(LEGACY_SORT_PROPERTIES) }
+    get("pagination")?.removeUnknownProperties(LEGACY_PAGINATION_PROPERTIES)
+}
+
+private fun JsonNode.removeUnknownProperties(properties: Set<String>) {
+    if (this is ObjectNode) {
+        remove(propertyNames().filterNot(properties::contains))
     }
-    get("children")?.forEach { it.requireLegacyConditionProperties(ctxt, inputType) }
 }
 
 private fun JsonNode.removeUnknownLegacyConditionProperties() {
@@ -160,20 +153,4 @@ private data class SingleQueryJson(
     val sort: List<Sort> = emptyList(),
 ) {
     fun toQuery(): SingleQuery = SingleQuery(compatibleFilter(filter, condition), projection, sort)
-}
-
-private data class AggregationQueryJson(
-    val filter: FilterExpression? = null,
-    val condition: Condition? = null,
-    val elements: List<AggregationElement> = emptyList(),
-    val groupBy: List<AggregationGroup> = emptyList(),
-    val metrics: List<AggregationMetric>,
-    val sort: List<Sort> = emptyList(),
-    val limit: Int = AggregationQuery.DEFAULT_LIMIT,
-) {
-    fun toQuery(): AggregationQuery {
-        val resolvedFilter = filter ?: condition?.toFilterExpression()?.also(FilterExpression::requireScalarEqualityValues)
-            ?: MatchAllFilter
-        return AggregationQuery(resolvedFilter, elements, groupBy, metrics, sort, limit)
-    }
 }
