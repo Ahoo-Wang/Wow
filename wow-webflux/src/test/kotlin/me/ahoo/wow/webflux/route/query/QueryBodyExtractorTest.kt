@@ -270,6 +270,30 @@ class QueryBodyExtractorTest {
     }
 
     @Test
+    fun `legacy non aggregation condition should ignore unknown fields`() {
+        val body = """{"condition":{"operator":"ALL","unexpected":true}}"""
+
+        queryClients().forEach { (path, client) ->
+            val expectedStatus = if (path.endsWith("/single")) HttpStatus.NOT_FOUND else HttpStatus.OK
+            client.post().uri(path)
+                .contentType(MediaType.APPLICATION_JSON).bodyValue(body).exchange()
+                .expectStatus().isEqualTo(expectedStatus)
+        }
+    }
+
+    @Test
+    fun `canonical filter property should reject legacy condition JSON`() {
+        val body = """{"filter":{"operator":"ALL"}}"""
+
+        queryClients().forEach { (path, client) ->
+            client.post().uri(path)
+                .contentType(MediaType.APPLICATION_JSON).bodyValue(body).exchange()
+                .expectStatus().isBadRequest
+                .expectHeader().valueEquals(ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
+        }
+    }
+
+    @Test
     fun `should reject collection equality in new filter payloads`() {
         val handlerFunction = CountQueryHandlerFunctionFactory(
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,

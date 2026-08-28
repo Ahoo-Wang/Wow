@@ -14,10 +14,8 @@
 package me.ahoo.wow.api.query
 
 import com.fasterxml.jackson.annotation.JsonIgnore
-import com.fasterxml.jackson.annotation.JsonProperty
-import com.fasterxml.jackson.annotation.JsonSetter
-import com.fasterxml.jackson.annotation.Nulls
 import io.swagger.v3.oas.annotations.media.Schema
+import tools.jackson.databind.annotation.JsonDeserialize
 
 /**
  * Interface for list queries that retrieve multiple items with a limit.
@@ -55,6 +53,7 @@ interface IListQuery : Queryable<IListQuery> {
  * ```
  */
 @Schema(additionalProperties = Schema.AdditionalPropertiesValue.FALSE)
+@JsonDeserialize(using = ListQueryJsonDeserializer::class)
 data class ListQuery(
     @get:JsonIgnore(false)
     override val filter: FilterExpression,
@@ -62,14 +61,6 @@ data class ListQuery(
     override val sort: List<Sort> = emptyList(),
     override val limit: Int = 0
 ) : IListQuery {
-    private constructor(
-        @JsonProperty("filter") @JsonSetter(nulls = Nulls.FAIL) filter: FilterExpression? = null,
-        @JsonProperty("condition") @JsonSetter(nulls = Nulls.FAIL) condition: FilterExpression? = null,
-        @JsonProperty("projection") projection: Projection = Projection.ALL,
-        @JsonProperty("sort") sort: List<Sort> = emptyList(),
-        @JsonProperty("limit") limit: Int = 0,
-    ) : this(resolveCompatibleFilter(filter, condition), projection, sort, limit)
-
     @Deprecated("Use filter.")
     constructor(
         condition: Condition,

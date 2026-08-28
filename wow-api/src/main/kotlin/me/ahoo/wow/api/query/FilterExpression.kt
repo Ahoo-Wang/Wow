@@ -185,7 +185,7 @@ internal class FilterExpressionTypeResolverBuilder : StdTypeResolverBuilder() {
 @Suppress("DEPRECATION")
 private class FilterExpressionTypeDeserializer(
     source: AsPropertyTypeDeserializer,
-    property: BeanProperty? = null,
+    private val property: BeanProperty? = null,
 ) : AsPropertyTypeDeserializer(source, property) {
     override fun forProperty(prop: BeanProperty?): TypeDeserializer =
         FilterExpressionTypeDeserializer(this, prop)
@@ -197,7 +197,13 @@ private class FilterExpressionTypeDeserializer(
         val node = ctxt.readTree(p)
         require(!(node.has("op") && node.has("operator"))) { "op and operator cannot be used together." }
         if (!node.has("op")) {
-            return ctxt.readTreeAsValue(node, Condition::class.java).toFilterExpression()
+            if (property != null) {
+                return ctxt.reportInputMismatch(
+                    FilterExpression::class.java,
+                    "Filter expression properties must use op.",
+                )
+            }
+            return node.toLegacyFilterExpression(ctxt)
         }
         node.requireCanonicalFilterPayload()
         return TreeTraversingParser(node, ctxt).use { parser ->

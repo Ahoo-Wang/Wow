@@ -14,10 +14,8 @@
 package me.ahoo.wow.api.query
 
 import com.fasterxml.jackson.annotation.JsonIgnore
-import com.fasterxml.jackson.annotation.JsonProperty
-import com.fasterxml.jackson.annotation.JsonSetter
-import com.fasterxml.jackson.annotation.Nulls
 import io.swagger.v3.oas.annotations.media.Schema
+import tools.jackson.databind.annotation.JsonDeserialize
 
 /**
  * Interface for single-item queries that retrieve at most one result.
@@ -46,19 +44,13 @@ interface ISingleQuery : Queryable<ISingleQuery>
  * ```
  */
 @Schema(additionalProperties = Schema.AdditionalPropertiesValue.FALSE)
+@JsonDeserialize(using = SingleQueryJsonDeserializer::class)
 data class SingleQuery(
     @get:JsonIgnore(false)
     override val filter: FilterExpression,
     override val projection: Projection = Projection.ALL,
     override val sort: List<Sort> = emptyList()
 ) : ISingleQuery {
-    private constructor(
-        @JsonProperty("filter") @JsonSetter(nulls = Nulls.FAIL) filter: FilterExpression? = null,
-        @JsonProperty("condition") @JsonSetter(nulls = Nulls.FAIL) condition: FilterExpression? = null,
-        @JsonProperty("projection") projection: Projection = Projection.ALL,
-        @JsonProperty("sort") sort: List<Sort> = emptyList(),
-    ) : this(resolveCompatibleFilter(filter, condition), projection, sort)
-
     @Deprecated("Use filter.")
     constructor(
         condition: Condition,

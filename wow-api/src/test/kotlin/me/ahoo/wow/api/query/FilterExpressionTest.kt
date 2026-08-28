@@ -123,6 +123,43 @@ class FilterExpressionTest {
     }
 
     @Test
+    fun `canonical filter properties should reject legacy condition JSON`() {
+        val legacy = """{"field":"state.tags","operator":"EQ","value":["a"]}"""
+        val accepted = listOf(
+            runCatching { jsonMapper.readValue("""{"filter":$legacy}""", ListQuery::class.java) }.isSuccess,
+            runCatching { jsonMapper.readValue("""{"filter":$legacy}""", PagedQuery::class.java) }.isSuccess,
+            runCatching { jsonMapper.readValue("""{"filter":$legacy}""", SingleQuery::class.java) }.isSuccess,
+            runCatching {
+                jsonMapper.readValue(
+                    """{"filter":$legacy,"metrics":[{"type":"COUNT","alias":"count"}]}""",
+                    AggregationQuery::class.java,
+                )
+            }.isSuccess,
+            runCatching {
+                jsonMapper.readValue(
+                    """{"elements":[{"path":"state.items","filter":$legacy}],"metrics":[{"type":"COUNT","alias":"count"}]}""",
+                    AggregationQuery::class.java,
+                )
+            }.isSuccess,
+        )
+
+        accepted.assert().containsExactly(false, false, false, false, false)
+    }
+
+    @Test
+    fun `legacy non aggregation query JSON should ignore unknown condition fields`() {
+        val condition = """{"operator":"ALL","unexpected":true}"""
+        val filters = listOf(
+            jsonMapper.readValue(condition, FilterExpression::class.java),
+            jsonMapper.readValue("""{"condition":$condition}""", ListQuery::class.java).filter,
+            jsonMapper.readValue("""{"condition":$condition}""", PagedQuery::class.java).filter,
+            jsonMapper.readValue("""{"condition":$condition}""", SingleQuery::class.java).filter,
+        )
+
+        filters.forEach { it.assert().isEqualTo(MatchAllFilter) }
+    }
+
+    @Test
     fun `search mode should default to terms`() {
         val decoded = jsonMapper.readValue(
             """{"op":"SEARCH","query":"wow","fields":["state.name"]}""",
