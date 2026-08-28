@@ -78,6 +78,12 @@ flowchart LR
 
 The stages mean different things: `SENT` means accepted by the command bus, `PROCESSED` means aggregate processing completed, `SNAPSHOT` means snapshot processing completed, and `PROJECTED` means the selected projection completed. See [Data Flow](./advanced/data-flow.md) and [Runtime Lifecycle](./advanced/runtime-lifecycle.md).
 
+The complete runtime architecture and data flow are shown below:
+
+<p align="center" style="text-align:center">
+  <img width="95%" src="/images/Architecture.svg" alt="Wow architecture and modules"/>
+</p>
+
 ## Fit Boundary
 
 | Better fit | Evaluate carefully |
@@ -111,10 +117,6 @@ Wow does not discover a domain boundary, and compensation is not a database roll
 | Verify domain and application behavior | [Test Suite](./test-suite.md), [Application Testing](./application-testing.md) |
 | Expose generated contracts and routes | [OpenAPI](./open-api.md), [WebFlux](./extensions/webflux.md) |
 | Observe runtime pipelines | [OpenTelemetry](./extensions/opentelemetry.md), [Metrics](./advanced/metrics.md) |
-
-<p align="center" style="text-align:center">
-  <img width="95%" src="/images/Architecture.svg" alt="Wow architecture and modules"/>
-</p>
 
 ## Next Steps
 

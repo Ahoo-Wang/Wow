@@ -15,6 +15,7 @@ package me.ahoo.wow.api.query
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import io.swagger.v3.oas.annotations.media.Schema
+import tools.jackson.databind.annotation.JsonDeserialize
 
 /**
  * Interface for list queries that retrieve multiple items with a limit.
@@ -52,6 +53,7 @@ interface IListQuery : Queryable<IListQuery> {
  * ```
  */
 @Schema(additionalProperties = Schema.AdditionalPropertiesValue.FALSE)
+@JsonDeserialize(using = ListQueryJsonDeserializer::class)
 data class ListQuery(
     @get:JsonIgnore(false)
     override val filter: FilterExpression,

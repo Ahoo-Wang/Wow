@@ -18,7 +18,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
         {
             text: 'Articles',
             base: '/articles/',
-            collapsed: false,
+            collapsed: true,
             items: [
                 {text: 'Articles Home', link: 'index.html'},
                 {text: 'HTTP 200 but the Query Is Empty', link: 'command-success-is-not-complete'},
@@ -31,7 +31,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
         {
             base: '/onboarding/',
             text: 'Evaluate and Contribute',
-            collapsed: false,
+            collapsed: true,
             items: [
                 {text: 'Choose by Role', link: 'index.html'},
                 {text: 'Contributor Guide', link: 'contributor-guide'},
@@ -45,7 +45,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
         {
             base: '/guide/',
             text: 'Start',
-            collapsed: false,
+            collapsed: true,
             items: [
                 {text: 'Guide Overview', link: 'index.html'},
                 {text: 'Introduction', link: 'introduction'},
@@ -57,7 +57,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
         {
             base: '/guide/',
             text: 'Domain Development',
-            collapsed: false,
+            collapsed: true,
             items: [
                 {text: 'Aggregate Modeling', link: 'modeling'},
                 {text: 'Event Store', link: 'eventstore'},
@@ -71,7 +71,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
         {
             base: '/guide/',
             text: 'Read Models and Queries',
-            collapsed: false,
+            collapsed: true,
             items: [
                 {text: 'Projection', link: 'projection'},
                 {text: 'Query Service', link: 'query'},
@@ -81,7 +81,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
         {
             base: '/guide/',
             text: 'Interfaces and Automation',
-            collapsed: false,
+            collapsed: true,
             items: [
                 {text: 'Open API', link: 'open-api'},
                 {text: 'Agent Skills', link: 'skills'},
@@ -91,7 +91,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
         {
             base: '/guide/',
             text: 'Testing and Delivery',
-            collapsed: false,
+            collapsed: true,
             items: [
                 {text: 'Test Suite', link: 'test-suite'},
                 {text: 'Application Testing', link: 'application-testing'},
@@ -101,7 +101,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
         {
             base: '/guide/',
             text: 'Production Operations',
-            collapsed: false,
+            collapsed: true,
             items: [
                 {text: 'Configuration', link: 'configuration'},
                 {text: 'BI Deployment and Recovery', link: 'bi-operations'},
@@ -111,7 +111,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {
                     text: 'Migration Guide',
                     link: 'migration',
-                    collapsed: false,
+                    collapsed: true,
                     items: [
                         {text: 'Traditional Architecture', link: 'migration/traditional-architecture'},
                         {text: 'Migrate Wow v6 to v8', link: 'migration/v6-to-v8'},
@@ -165,7 +165,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
         {
             text: 'Configuration',
             base: '/reference/config/',
-            collapsed: false,
+            collapsed: true,
             items: [
                 {text: 'Core Configuration', link: 'core'},
                 {text: 'Infrastructure', link: 'infrastructure'},
@@ -176,7 +176,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
         {
             text: 'Examples',
             base: '/reference/example/',
-            collapsed: false,
+            collapsed: true,
             items: [
                 {text: 'Order and Cart (Kotlin)', link: 'order'},
                 {text: 'Bank Transfer (JAVA)', link: 'transfer'},
@@ -185,7 +185,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
         },
         {
             text: 'Ecosystem',
-            collapsed: false,
+            collapsed: true,
             items: [
                 {text: 'Ecosystem', link: '/reference/ecosystem'},
             ],

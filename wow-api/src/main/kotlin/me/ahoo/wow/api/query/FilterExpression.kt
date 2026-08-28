@@ -19,6 +19,17 @@ import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.annotation.JsonTypeName
 import com.fasterxml.jackson.annotation.JsonValue
+import tools.jackson.core.JsonParser
+import tools.jackson.databind.BeanProperty
+import tools.jackson.databind.DeserializationContext
+import tools.jackson.databind.JavaType
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.annotation.JsonTypeResolver
+import tools.jackson.databind.jsontype.NamedType
+import tools.jackson.databind.jsontype.TypeDeserializer
+import tools.jackson.databind.jsontype.impl.AsPropertyTypeDeserializer
+import tools.jackson.databind.jsontype.impl.StdTypeResolverBuilder
+import tools.jackson.databind.node.TreeTraversingParser
 
 private val LOGICAL_FIELD_PATTERN =
     Regex("@?[A-Za-z_][A-Za-z0-9_-]*(\\.(?:@?[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*")
@@ -150,6 +161,7 @@ enum class StringComparison {
     JsonSubTypes.Type(ThisYearFilter::class, name = "THIS_YEAR"),
     JsonSubTypes.Type(NextYearFilter::class, name = "NEXT_YEAR"),
 )
+@JsonTypeResolver(FilterExpressionTypeResolverBuilder::class)
 sealed interface FilterExpression : RewritableFilter<FilterExpression> {
     @get:JsonProperty("op")
     val operator: FilterOperator
@@ -158,6 +170,70 @@ sealed interface FilterExpression : RewritableFilter<FilterExpression> {
 
     override fun appendFilter(append: FilterExpression): FilterExpression =
         if (this === MatchAllFilter) append else AndFilter(listOf(this, append))
+}
+
+internal class FilterExpressionTypeResolverBuilder : StdTypeResolverBuilder() {
+    override fun buildTypeDeserializer(
+        ctxt: DeserializationContext,
+        baseType: JavaType,
+        subtypes: Collection<NamedType>,
+    ): TypeDeserializer = FilterExpressionTypeDeserializer(
+        requireNotNull(super.buildTypeDeserializer(ctxt, baseType, subtypes)) as AsPropertyTypeDeserializer,
+    )
+}
+
+@Suppress("DEPRECATION")
+private class FilterExpressionTypeDeserializer(
+    source: AsPropertyTypeDeserializer,
+    private val property: BeanProperty? = null,
+) : AsPropertyTypeDeserializer(source, property) {
+    override fun forProperty(prop: BeanProperty?): TypeDeserializer =
+        FilterExpressionTypeDeserializer(this, prop)
+
+    override fun deserializeTypedFromObject(
+        p: JsonParser,
+        ctxt: DeserializationContext,
+    ): Any {
+        val node = ctxt.readTree(p)
+        require(!(node.has("op") && node.has("operator"))) { "op and operator cannot be used together." }
+        if (!node.has("op")) {
+            if (property != null) {
+                return ctxt.reportInputMismatch(
+                    FilterExpression::class.java,
+                    "Filter expression properties must use op.",
+                )
+            }
+            return node.toLegacyFilterExpression(ctxt)
+        }
+        node.requireCanonicalFilterPayload()
+        return TreeTraversingParser(node, ctxt).use { parser ->
+            parser.nextToken()
+            (super.deserializeTypedFromObject(parser, ctxt) as FilterExpression)
+                .also(FilterExpression::requireScalarEqualityValue)
+        }
+    }
+}
+
+private fun JsonNode.requireCanonicalFilterPayload() {
+    require(has("op")) { "Nested filter expression must use op." }
+    when (get("op").asString()) {
+        "AND", "OR", "NOR" -> get("operands")?.forEach { it.requireCanonicalFilterPayload() }
+        "ELEMENT_MATCH" -> get("predicate")?.requireCanonicalFilterPayload()
+    }
+}
+
+private fun FilterExpression.requireScalarEqualityValue() {
+    when (this) {
+        is EqualFilter -> value.requireScalarEqualityValue(operator.name)
+        is NotEqualFilter -> value.requireScalarEqualityValue(operator.name)
+        else -> Unit
+    }
+}
+
+private fun JsonNode.requireScalarEqualityValue(operator: String) {
+    require(isNull || isString || isNumber || isBoolean) {
+        "$operator value must be a JSON scalar in filter payloads."
+    }
 }
 
 @JsonTypeName("MATCH_ALL")

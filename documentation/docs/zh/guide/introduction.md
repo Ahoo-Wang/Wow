@@ -78,6 +78,12 @@ flowchart LR
 
 各阶段含义不同：`SENT` 表示命令总线已接收，`PROCESSED` 表示聚合处理完成，`SNAPSHOT` 表示快照处理完成，`PROJECTED` 表示选定投影完成。组件与调度细节见[数据流](./advanced/data-flow.md)和[运行时生命周期](./advanced/runtime-lifecycle.md)。
 
+完整的运行时架构与数据流如下：
+
+<p align="center" style="text-align:center">
+  <img width="95%" src="/images/Architecture.svg" alt="Wow 架构与模块"/>
+</p>
+
 ## 适用边界
 
 | 更适合 | 需谨慎评估 |
@@ -111,10 +117,6 @@ Wow 不会自动发现领域边界，补偿也不等于数据库回滚。选择�
 | 验证领域与应用行为 | [测试套件](./test-suite.md)、[应用测试](./application-testing.md) |
 | 暴露生成契约与路由 | [OpenAPI](./open-api.md)、[WebFlux](./extensions/webflux.md) |
 | 观测运行管道 | [OpenTelemetry](./extensions/opentelemetry.md)、[指标](./advanced/metrics.md) |
-
-<p align="center" style="text-align:center">
-  <img width="95%" src="/images/Architecture.svg" alt="Wow 架构与模块"/>
-</p>
 
 ## 下一步
 
