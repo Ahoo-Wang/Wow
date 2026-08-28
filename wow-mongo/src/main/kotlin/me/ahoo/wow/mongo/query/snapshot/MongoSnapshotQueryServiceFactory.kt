@@ -26,7 +26,7 @@ import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.snapshot.AbstractSnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 
-class MongoSnapshotQueryServiceFactory @JvmOverloads constructor(
+class MongoSnapshotQueryServiceFactory(
     private val database: MongoDatabase,
     private val schemaSources: List<QuerySchemaSource> = emptyList(),
     private val validationMode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
@@ -40,6 +40,11 @@ class MongoSnapshotQueryServiceFactory @JvmOverloads constructor(
             sources = schemaSources,
             adapter = MongoQuerySchemaAdapter(collection, database),
         )
-        return MongoSnapshotQueryService<Any>(materialized, collection, provider, validationMode)
+        return MongoSnapshotQueryService<Any>(
+            namedAggregate = materialized,
+            collection = collection,
+            schemaProvider = provider,
+            validationMode = validationMode,
+        )
     }
 }

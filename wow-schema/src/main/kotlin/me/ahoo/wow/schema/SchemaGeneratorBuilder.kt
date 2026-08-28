@@ -78,7 +78,7 @@ class SchemaGeneratorBuilder {
         private set
     var wowModule: WowModule? = WowModule()
         private set
-    var schemaNamingModule: SchemaNamingModule? = SchemaNamingModule("")
+    var schemaNamingModule: SchemaNamingModule? = SchemaNamingModule(defaultSchemaNamePrefix = "")
         private set
     var options: List<Option> =
         listOf(

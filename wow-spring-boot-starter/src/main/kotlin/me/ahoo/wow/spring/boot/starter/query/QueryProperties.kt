@@ -23,14 +23,10 @@ class QueryProperties @ConstructorBinding constructor(
     @DefaultValue
     var schema: Schema,
 ) {
-    constructor() : this(Schema())
-
     data class Schema @ConstructorBinding constructor(
         @DefaultValue("COMPATIBLE")
         var validationMode: QuerySchemaValidationMode,
-    ) {
-        constructor() : this(QuerySchemaValidationMode.COMPATIBLE)
-    }
+    )
 
     companion object {
         const val PREFIX = "wow.query"

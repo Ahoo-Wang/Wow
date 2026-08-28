@@ -46,7 +46,7 @@ describe("FailedSearch", () => {
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
 
     expect(onSearch).toHaveBeenCalledWith(
-      filter.and(filter.id("EXC-1"), filter.eq("state.eventId.id", "EVT-1")),
+      filter.and([filter.id("EXC-1"), filter.eq("state.eventId.id", "EVT-1")]),
       true,
     );
   });

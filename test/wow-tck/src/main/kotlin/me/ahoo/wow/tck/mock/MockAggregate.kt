@@ -86,7 +86,7 @@ data class MockStateAggregate(
     @field:QueryTemporal(TimeUnit.MILLISECONDS)
     val createdAt: Long = 0,
 ) : ReadOnlyStateAggregateAware<MockStateAggregate> {
-    constructor(id: String) : this(id, emptyList())
+    constructor(id: String) : this(id = id, orders = emptyList())
 
     var data: String = ""
         private set

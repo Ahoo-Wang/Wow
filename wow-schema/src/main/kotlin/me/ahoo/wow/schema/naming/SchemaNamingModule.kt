@@ -23,7 +23,10 @@ class SchemaNamingModule @JvmOverloads constructor(
 ) : DefaultSchemaNamePrefixCapable, Module {
     override fun applyToConfigBuilder(builder: SchemaGeneratorConfigBuilder) {
         builder.forTypesInGeneral().withDefinitionNamingStrategy(
-            WowSchemaNamingStrategy(defaultSchemaNamePrefix, onDefinitionName)
+            WowSchemaNamingStrategy(
+                defaultSchemaNamePrefix = defaultSchemaNamePrefix,
+                onDefinitionName = onDefinitionName,
+            )
         )
     }
 }

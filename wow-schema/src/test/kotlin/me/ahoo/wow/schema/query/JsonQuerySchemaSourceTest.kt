@@ -49,7 +49,7 @@ class JsonQuerySchemaSourceTest {
 
     @Test
     fun `should use JSON Schema priority`() {
-        JsonQuerySchemaSource { StructuralState::class.java }.priority.assert()
+        JsonQuerySchemaSource(typeResolver = { StructuralState::class.java }).priority.assert()
             .isEqualTo(QuerySchemaSourcePriority.JSON_SCHEMA)
     }
 
@@ -90,7 +90,7 @@ class JsonQuerySchemaSourceTest {
 
     @Test
     fun `should cache the same type independently by query model`() {
-        val source = JsonQuerySchemaSource { Cart::class.java }
+        val source = JsonQuerySchemaSource(typeResolver = { Cart::class.java })
 
         source.load(context).single().block()!!
         val eventStream = source.load(context.copy(model = QueryModel.EVENT_STREAM)).single().block()!!
@@ -100,7 +100,7 @@ class JsonQuerySchemaSourceTest {
 
     @Test
     fun `should return an empty declaration when aggregate events are unknown`() {
-        JsonQuerySchemaSource { MockEmptyAggregate::class.java }
+        JsonQuerySchemaSource(typeResolver = { MockEmptyAggregate::class.java })
             .load(context.copy(model = QueryModel.EVENT_STREAM)).single().block()!!
             .fields.assert().isEmpty()
     }
@@ -108,10 +108,12 @@ class JsonQuerySchemaSourceTest {
     @Test
     fun `should ignore unsupported query models`() {
         val resolutions = AtomicInteger()
-        val source = JsonQuerySchemaSource {
-            resolutions.incrementAndGet()
-            StructuralState::class.java
-        }
+        val source = JsonQuerySchemaSource(
+            typeResolver = {
+                resolutions.incrementAndGet()
+                StructuralState::class.java
+            },
+        )
 
         source.load(context.copy(model = QueryModel("OTHER"))).collectList().block().assert().isEmpty()
         resolutions.get().assert().isZero()
@@ -119,7 +121,7 @@ class JsonQuerySchemaSourceTest {
 
     @Test
     fun `should reuse inferred declaration for the same state type across contexts`() {
-        val source = JsonQuerySchemaSource { StructuralState::class.java }
+        val source = JsonQuerySchemaSource(typeResolver = { StructuralState::class.java })
         val otherContext = context.copy(
             namedAggregate = MaterializedNamedAggregate("other-context", "other-aggregate"),
         )
@@ -241,7 +243,7 @@ class JsonQuerySchemaSourceTest {
         val failure = IllegalStateException("resolver failed")
 
         assertThrows<QuerySchemaUnavailableException> {
-            JsonQuerySchemaSource { throw failure }.load(context).single().block()
+            JsonQuerySchemaSource(typeResolver = { throw failure }).load(context).single().block()
         }.cause.assert().isSameAs(failure)
     }
 
@@ -250,7 +252,7 @@ class JsonQuerySchemaSourceTest {
         val failure = QuerySchemaConflictException("schema conflict")
 
         assertThrows<QuerySchemaConflictException> {
-            JsonQuerySchemaSource { throw failure }.load(context).single().block()
+            JsonQuerySchemaSource(typeResolver = { throw failure }).load(context).single().block()
         }.assert().isSameAs(failure)
     }
 
@@ -533,7 +535,7 @@ class JsonQuerySchemaSourceTest {
     }
 
     private fun load(type: Class<*>): QuerySchemaDeclaration =
-        JsonQuerySchemaSource { type }.load(context).single().block()!!
+        JsonQuerySchemaSource(typeResolver = { type }).load(context).single().block()!!
 
     private fun QuerySchemaDeclaration.field(name: String): QueryFieldDeclaration = fields.getValue(LogicalField(name))
 

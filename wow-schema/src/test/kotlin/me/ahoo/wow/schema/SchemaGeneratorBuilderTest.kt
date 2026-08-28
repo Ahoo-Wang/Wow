@@ -38,7 +38,7 @@ class SchemaGeneratorBuilderTest {
         val kotlinModule = KotlinModule()
         val jodaMoneyModule = null
         val wowModule = WowModule()
-        val schemaNamingModule = SchemaNamingModule("")
+        val schemaNamingModule = SchemaNamingModule(defaultSchemaNamePrefix = "")
         val options = listOf<Option>()
         val customizer = Consumer<SchemaGeneratorConfigBuilder> {
         }
