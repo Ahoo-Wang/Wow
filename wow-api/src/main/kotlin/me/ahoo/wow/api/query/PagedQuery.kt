@@ -15,6 +15,7 @@ package me.ahoo.wow.api.query
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import io.swagger.v3.oas.annotations.media.Schema
+import tools.jackson.databind.annotation.JsonDeserialize
 
 /**
  * Interface for paginated queries that retrieve items in pages.
@@ -50,6 +51,7 @@ interface IPagedQuery : Queryable<IPagedQuery> {
  * ```
  */
 @Schema(additionalProperties = Schema.AdditionalPropertiesValue.FALSE)
+@JsonDeserialize(using = PagedQueryJsonDeserializer::class)
 data class PagedQuery(
     @get:JsonIgnore(false)
     override val filter: FilterExpression,

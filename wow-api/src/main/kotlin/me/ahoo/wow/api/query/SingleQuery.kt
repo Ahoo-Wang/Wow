@@ -15,6 +15,7 @@ package me.ahoo.wow.api.query
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import io.swagger.v3.oas.annotations.media.Schema
+import tools.jackson.databind.annotation.JsonDeserialize
 
 /**
  * Interface for single-item queries that retrieve at most one result.
@@ -43,6 +44,7 @@ interface ISingleQuery : Queryable<ISingleQuery>
  * ```
  */
 @Schema(additionalProperties = Schema.AdditionalPropertiesValue.FALSE)
+@JsonDeserialize(using = SingleQueryJsonDeserializer::class)
 data class SingleQuery(
     @get:JsonIgnore(false)
     override val filter: FilterExpression,
