@@ -14,11 +14,14 @@
 package me.ahoo.wow.query.event.filter
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
+import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogErrorHandler
@@ -31,6 +34,7 @@ import me.ahoo.wow.query.event.NoOpEventStreamQueryService
 import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
 import me.ahoo.wow.query.filter.DefaultQueryContext
 import me.ahoo.wow.query.filter.QueryContext
+import me.ahoo.wow.query.filter.QueryHandler
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
@@ -136,5 +140,39 @@ class DefaultEventStreamQueryHandlerTest {
             .block()
 
         context.getRequiredResult().test().expectNext(row).verifyComplete()
+    }
+
+    @Test
+    fun `legacy event stream handler should inherit unsupported aggregation`() {
+        val legacy = object :
+            EventStreamQueryHandler,
+            QueryHandler<DomainEventStream> by queryHandler {}
+        val query = AggregationQuery(metrics = listOf(AggregationMetric.Count("count")))
+
+        legacy.aggregate(MOCK_AGGREGATE_METADATA, query).test()
+            .expectErrorMessage("Event stream aggregation is not supported.")
+            .verify()
+
+        @Suppress("UNCHECKED_CAST")
+        val legacyResult = Class.forName("${EventStreamQueryHandler::class.java.name}\$DefaultImpls")
+            .getMethod(
+                "aggregate",
+                EventStreamQueryHandler::class.java,
+                NamedAggregate::class.java,
+                AggregationQuery::class.java,
+            ).invoke(null, legacy, MOCK_AGGREGATE_METADATA, query) as Flux<DynamicDocument>
+        legacyResult.test()
+            .expectErrorMessage("Event stream aggregation is not supported.")
+            .verify()
+
+        @Suppress("UNCHECKED_CAST")
+        val legacyCount = Class.forName("${EventStreamQueryHandler::class.java.name}\$DefaultImpls")
+            .getMethod(
+                "count",
+                EventStreamQueryHandler::class.java,
+                NamedAggregate::class.java,
+                Condition::class.java,
+            ).invoke(null, legacy, MOCK_AGGREGATE_METADATA, Condition.id("id")) as Mono<Long>
+        legacyCount.test().expectNext(0).verifyComplete()
     }
 }

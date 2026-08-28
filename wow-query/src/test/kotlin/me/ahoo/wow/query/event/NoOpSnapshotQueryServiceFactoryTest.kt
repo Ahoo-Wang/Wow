@@ -125,4 +125,12 @@ class NoOpSnapshotQueryServiceFactoryTest {
             .expectErrorMessage("Aggregation is not supported.")
             .verify()
     }
+
+    @Test
+    fun `aggregation DSL should delegate to event stream query service`() {
+        aggregation { count("count") }.query(queryService)
+            .test()
+            .expectErrorMessage("Aggregation is not supported.")
+            .verify()
+    }
 }

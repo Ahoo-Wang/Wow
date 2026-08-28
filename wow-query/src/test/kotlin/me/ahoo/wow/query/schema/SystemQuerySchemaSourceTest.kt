@@ -31,6 +31,13 @@ import java.util.concurrent.TimeUnit
 
 class SystemQuerySchemaSourceTest {
     @Test
+    fun `unsupported query model should be rejected`() {
+        assertThrows<QuerySchemaValidationException> {
+            SystemQuerySchemaSource.declaration(QueryModel("OTHER"))
+        }
+    }
+
+    @Test
     fun `snapshot system fields should reject forced mutable map mutation`() {
         val declaration = SystemQuerySchemaSource.declaration(QueryModel.SNAPSHOT)
         val state = LogicalField("state")

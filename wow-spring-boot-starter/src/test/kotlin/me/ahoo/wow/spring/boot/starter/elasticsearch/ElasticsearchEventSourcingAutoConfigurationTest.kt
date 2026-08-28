@@ -72,13 +72,20 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
     ).getBeanProvider(WowMetrics::class.java)
 
     @Test
-    fun `should preserve legacy event stream query factory JVM signature`() {
+    fun `should preserve executable legacy event stream query factory JVM signature`() {
         val method = ElasticsearchEventSourcingAutoConfiguration::class.java.getMethod(
             "elasticsearchEventStreamQueryServiceFactory",
             ReactiveElasticsearchClient::class.java,
         )
 
         method.returnType.assert().isEqualTo(ElasticsearchEventStreamQueryServiceFactory::class.java)
+        ElasticsearchEventSourcingAutoConfiguration(
+            elasticsearchProperties = ElasticsearchProperties(autoInitTemplate = false),
+            eventStoreBatchProperties = ElasticsearchEventStoreBatchProperties(),
+            snapshotStoreBatchProperties = ElasticsearchSnapshotStoreBatchProperties(),
+        ).elasticsearchEventStreamQueryServiceFactory(
+            mock(ReactiveElasticsearchClient::class.java),
+        ).assert().isInstanceOf(ElasticsearchEventStreamQueryServiceFactory::class.java)
     }
 
     @Test

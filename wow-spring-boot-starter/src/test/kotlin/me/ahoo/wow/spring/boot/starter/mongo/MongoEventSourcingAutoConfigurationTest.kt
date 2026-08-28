@@ -67,7 +67,7 @@ class MongoEventSourcingAutoConfigurationTest {
         .withUserConfiguration(QuerySchemaAutoConfiguration::class.java)
 
     @Test
-    fun `should preserve legacy event stream query factory JVM signature`() {
+    fun `should preserve executable legacy event stream query factory JVM signature`() {
         val method = MongoEventSourcingAutoConfiguration::class.java.getMethod(
             "mongoEventStreamQueryServiceFactory",
             MongoClient::class.java,
@@ -78,6 +78,15 @@ class MongoEventSourcingAutoConfigurationTest {
         method.returnType.assert().isEqualTo(
             me.ahoo.wow.mongo.query.event.MongoEventStreamQueryServiceFactory::class.java,
         )
+        MongoEventSourcingAutoConfiguration(
+            mongoProperties = MongoProperties(autoInitSchema = false, eventStreamDatabase = "testEventStream"),
+            eventStoreBatchProperties = MongoEventStoreBatchProperties(),
+            snapshotStoreBatchProperties = MongoSnapshotStoreBatchProperties(),
+        ).mongoEventStreamQueryServiceFactory(
+            mongoClient = mongoClient("order-service"),
+            dataMongoProperties = null,
+            currentBoundedContext = MaterializedNamedBoundedContext("order-service"),
+        ).assert().isInstanceOf(me.ahoo.wow.mongo.query.event.MongoEventStreamQueryServiceFactory::class.java)
     }
 
     @Test
