@@ -13,7 +13,7 @@ Wow 在写链路和读链路中携带四类数据访问上下文：
 3. **Space** — 通过请求头提供的可选命名空间元数据；
 4. **ABAC tags** — 资源标签与应用提供的 Principal 过滤器。
 
-在 WebFlux 查询路由中，`RewriteRequestFilter` 会在生成的查询服务到达后端前追加 tenant、owner、space 元数据过滤器。已配置的 `AbacQueryFilter` 可以在同一 Handler 链中追加资源标签条件。
+在 WebFlux 查询路由中，`RewriteRequestFilter` 会在调用 `QueryGateway` 前追加 tenant、owner、space 元数据过滤器。随后，已配置的 `AbacQueryFilter` 在 Gateway 过滤链内追加资源标签条件。
 
 ::: danger 作用域不是身份认证
 tenant/owner 路径、`Wow-Space-Id` 请求头或 ABAC 标签都是路由与过滤数据，不能证明谁发送了请求，也不能证明该 Principal 有权选择这些值。应用必须先认证身份，在服务端绑定允许的作用域，授权命令和查询路由，并避免让不受信请求访问原始查询 Factory。
@@ -225,7 +225,7 @@ class MemberAbacQueryFilter(
 
 ### 查询入口与策略执行
 
-Spring 注册的聚合 `SnapshotQueryService` 与 `EventStreamQueryService` 代理通过 `QueryGateway` 执行。请求作用域重写、已配置 ABAC 过滤器与结果脱敏都在该链中应用。
+Spring 注册的聚合 `SnapshotQueryService` 与 `EventStreamQueryService` 代理通过 `QueryGateway` 执行，已配置的 ABAC 过滤器与结果脱敏在该链中应用。进程内调用不会执行 WebFlux `RewriteRequestFilter`；调用方必须在查询中显式提供 tenant、owner、space 作用域，或通过过滤器支持的受信上下文提供。
 
 `SnapshotQueryServiceFactory` 与 `EventStreamQueryServiceFactory` 是原始后端入口。直接创建的服务会绕过生成的代理 / `QueryGateway` 策略链；注册在生成服务名下的自定义 Bean 也会按原样使用，不会再包装。两者都应视为受信基础设施访问。
 
