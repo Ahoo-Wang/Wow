@@ -19,7 +19,7 @@ import type {
   FilterSingleQuery,
   QueryClientOptions,
 } from "@ahoo-wang/fetcher-wow";
-import { ExecutionFailedAggregatedFields } from "../generated";
+import type { ExecutionFailedAggregatedFields } from "../generated";
 
 const executionFailedQueryClientOptions: QueryClientOptions = {
   contextAlias: "",
