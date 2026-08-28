@@ -41,65 +41,18 @@ import me.ahoo.wow.serialization.convert
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import java.time.Duration
 
-class ElasticsearchEventStreamQueryService private constructor(
+class ElasticsearchEventStreamQueryService(
     override val namedAggregate: NamedAggregate,
     override val elasticsearchClient: ReactiveElasticsearchClient,
-    override val filterConverter: AbstractElasticsearchFilterConverter,
-    override val queryBatchSize: Int,
-    override val queryKeepAlive: Duration,
-    private val schemaProvider: QueryModelSchemaProvider,
-    private val validationMode: QuerySchemaValidationMode,
+    override val filterConverter: AbstractElasticsearchFilterConverter = EventStreamFilterConverter,
+    override val queryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE,
+    override val queryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE,
+    private val schemaProvider: QueryModelSchemaProvider =
+        defaultSchemaProvider(namedAggregate, elasticsearchClient, filterConverter),
+    private val validationMode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
 ) : AbstractElasticsearchQueryService<DomainEventStream>(),
     EventStreamQueryService,
     QueryModelSchemaProvider by schemaProvider {
-    constructor(
-        namedAggregate: NamedAggregate,
-        elasticsearchClient: ReactiveElasticsearchClient,
-        filterConverter: AbstractElasticsearchFilterConverter = EventStreamFilterConverter,
-    ) : this(
-        namedAggregate,
-        elasticsearchClient,
-        filterConverter,
-        DEFAULT_SEARCH_BATCH_SIZE,
-        DEFAULT_PIT_KEEP_ALIVE,
-        defaultSchemaProvider(namedAggregate, elasticsearchClient, filterConverter),
-        QuerySchemaValidationMode.COMPATIBLE,
-    )
-
-    constructor(
-        namedAggregate: NamedAggregate,
-        elasticsearchClient: ReactiveElasticsearchClient,
-        filterConverter: AbstractElasticsearchFilterConverter,
-        queryBatchSize: Int,
-        queryKeepAlive: Duration,
-    ) : this(
-        namedAggregate,
-        elasticsearchClient,
-        filterConverter,
-        queryBatchSize,
-        queryKeepAlive,
-        defaultSchemaProvider(namedAggregate, elasticsearchClient, filterConverter),
-        QuerySchemaValidationMode.COMPATIBLE,
-    )
-
-    internal constructor(
-        namedAggregate: NamedAggregate,
-        elasticsearchClient: ReactiveElasticsearchClient,
-        schemaProvider: QueryModelSchemaProvider,
-        validationMode: QuerySchemaValidationMode,
-        filterConverter: AbstractElasticsearchFilterConverter = EventStreamFilterConverter,
-        queryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE,
-        queryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE,
-    ) : this(
-        namedAggregate,
-        elasticsearchClient,
-        filterConverter,
-        queryBatchSize,
-        queryKeepAlive,
-        schemaProvider,
-        validationMode,
-    )
-
     override val indexName: String = namedAggregate.toEventStreamIndexName()
 
     override fun toTypedResult(document: DynamicDocument): DomainEventStream {

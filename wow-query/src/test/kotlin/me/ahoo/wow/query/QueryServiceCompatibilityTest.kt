@@ -47,19 +47,10 @@ class QueryServiceCompatibilityTest {
     }
 
     @Test
-    fun `legacy query service should inherit unsupported aggregation`() {
-        val service = LegacyQueryService()
-        val query = AggregationQuery(metrics = listOf(AggregationMetric.Count("count")))
-
-        service.aggregate(query).test()
-            .expectErrorMessage("Aggregation is not supported.")
-            .verify()
-
-        @Suppress("UNCHECKED_CAST")
-        val legacyResult = Class.forName("${QueryService::class.java.name}\$DefaultImpls")
-            .getMethod("aggregate", QueryService::class.java, AggregationQuery::class.java)
-            .invoke(null, service, query) as Flux<DynamicDocument>
-        legacyResult.test()
+    fun `query service should inherit unsupported aggregation`() {
+        LegacyQueryService().aggregate(
+            AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))),
+        ).test()
             .expectErrorMessage("Aggregation is not supported.")
             .verify()
     }

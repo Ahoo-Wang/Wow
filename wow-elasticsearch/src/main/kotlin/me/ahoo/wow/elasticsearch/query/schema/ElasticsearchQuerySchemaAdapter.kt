@@ -33,16 +33,11 @@ import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QueryStorageType
 import reactor.core.publisher.Mono
 
-class ElasticsearchQuerySchemaAdapter internal constructor(
+class ElasticsearchQuerySchemaAdapter(
     private val indexName: String,
     private val mappingResolver: ElasticsearchIndexMappingResolver,
-    private val model: QueryModel,
+    private val model: QueryModel = QueryModel.SNAPSHOT,
 ) : QuerySchemaBackendAdapter {
-    constructor(
-        indexName: String,
-        mappingResolver: ElasticsearchIndexMappingResolver,
-    ) : this(indexName, mappingResolver, QueryModel.SNAPSHOT)
-
     override fun resolve(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> =
         load(logicalSchema, mappingResolver.currentOrLoad(indexName))
 

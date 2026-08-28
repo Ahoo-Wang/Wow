@@ -67,17 +67,7 @@ class MongoEventSourcingAutoConfigurationTest {
         .withUserConfiguration(QuerySchemaAutoConfiguration::class.java)
 
     @Test
-    fun `should preserve executable legacy event stream query factory JVM signature`() {
-        val method = MongoEventSourcingAutoConfiguration::class.java.getMethod(
-            "mongoEventStreamQueryServiceFactory",
-            MongoClient::class.java,
-            org.springframework.boot.mongodb.autoconfigure.MongoProperties::class.java,
-            me.ahoo.wow.api.naming.NamedBoundedContext::class.java,
-        )
-
-        method.returnType.assert().isEqualTo(
-            me.ahoo.wow.mongo.query.event.MongoEventStreamQueryServiceFactory::class.java,
-        )
+    fun `event stream query factory should use default schema collaborators`() {
         MongoEventSourcingAutoConfiguration(
             mongoProperties = MongoProperties(autoInitSchema = false, eventStreamDatabase = "testEventStream"),
             eventStoreBatchProperties = MongoEventStoreBatchProperties(),

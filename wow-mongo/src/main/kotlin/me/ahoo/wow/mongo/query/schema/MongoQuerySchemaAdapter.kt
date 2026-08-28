@@ -36,17 +36,12 @@ import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toFlux
 import java.util.Optional
 
-class MongoQuerySchemaAdapter internal constructor(
+class MongoQuerySchemaAdapter(
     private val collection: MongoCollection<Document>,
-    private val database: MongoDatabase?,
-    private val model: QueryModel,
-    private val fieldConverter: FieldConverter,
+    private val database: MongoDatabase? = null,
+    private val model: QueryModel = QueryModel.SNAPSHOT,
+    private val fieldConverter: FieldConverter = SnapshotFieldConverter,
 ) : QuerySchemaBackendAdapter {
-    constructor(
-        collection: MongoCollection<Document>,
-        database: MongoDatabase? = null,
-    ) : this(collection, database, QueryModel.SNAPSHOT, SnapshotFieldConverter)
-
     override fun resolve(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> = loadFacts(logicalSchema)
 
     private fun loadFacts(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> = Mono.defer {

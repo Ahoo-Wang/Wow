@@ -72,13 +72,7 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
     ).getBeanProvider(WowMetrics::class.java)
 
     @Test
-    fun `should preserve executable legacy event stream query factory JVM signature`() {
-        val method = ElasticsearchEventSourcingAutoConfiguration::class.java.getMethod(
-            "elasticsearchEventStreamQueryServiceFactory",
-            ReactiveElasticsearchClient::class.java,
-        )
-
-        method.returnType.assert().isEqualTo(ElasticsearchEventStreamQueryServiceFactory::class.java)
+    fun `event stream query factory should use default schema collaborators`() {
         ElasticsearchEventSourcingAutoConfiguration(
             elasticsearchProperties = ElasticsearchProperties(autoInitTemplate = false),
             eventStoreBatchProperties = ElasticsearchEventStoreBatchProperties(),

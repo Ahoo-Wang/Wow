@@ -42,35 +42,16 @@ import org.bson.Document
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-class MongoEventStreamQueryService private constructor(
+class MongoEventStreamQueryService(
     override val namedAggregate: NamedAggregate,
     override val collection: MongoCollection<Document>,
-    override val converter: AbstractMongoFilterConverter,
-    private val schemaProvider: QueryModelSchemaProvider,
-    private val validationMode: QuerySchemaValidationMode,
+    override val converter: AbstractMongoFilterConverter = EventStreamFilterConverter,
+    private val schemaProvider: QueryModelSchemaProvider =
+        defaultSchemaProvider(namedAggregate, collection, converter),
+    private val validationMode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
 ) : AbstractMongoQueryService<DomainEventStream>(),
     EventStreamQueryService,
     QueryModelSchemaProvider by schemaProvider {
-    constructor(
-        namedAggregate: NamedAggregate,
-        collection: MongoCollection<Document>,
-        converter: AbstractMongoFilterConverter = EventStreamFilterConverter,
-    ) : this(
-        namedAggregate,
-        collection,
-        converter,
-        defaultSchemaProvider(namedAggregate, collection, converter),
-        QuerySchemaValidationMode.COMPATIBLE,
-    )
-
-    internal constructor(
-        namedAggregate: NamedAggregate,
-        collection: MongoCollection<Document>,
-        schemaProvider: QueryModelSchemaProvider,
-        validationMode: QuerySchemaValidationMode,
-        converter: AbstractMongoFilterConverter = EventStreamFilterConverter,
-    ) : this(namedAggregate, collection, converter, schemaProvider, validationMode)
-
     override val projectionConverter: MongoProjectionConverter = MongoProjectionConverter(EventStreamFieldConverter)
     override val sortConverter: MongoSortConverter = MongoSortConverter(EventStreamFieldConverter)
     override fun toTypedResult(document: Document): DomainEventStream {

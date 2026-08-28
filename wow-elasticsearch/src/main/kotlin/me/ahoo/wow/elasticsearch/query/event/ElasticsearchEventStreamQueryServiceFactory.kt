@@ -32,34 +32,13 @@ import java.time.Duration
 
 class ElasticsearchEventStreamQueryServiceFactory(
     private val elasticsearchClient: ReactiveElasticsearchClient,
-    private val queryBatchSize: Int,
-    private val queryKeepAlive: Duration,
-    private val indexMappingResolver: ElasticsearchIndexMappingResolver,
-    private val schemaSources: List<QuerySchemaSource>,
-    private val validationMode: QuerySchemaValidationMode,
+    private val queryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE,
+    private val queryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE,
+    private val indexMappingResolver: ElasticsearchIndexMappingResolver =
+        ElasticsearchIndexMappingResolver(elasticsearchClient),
+    private val schemaSources: List<QuerySchemaSource> = emptyList(),
+    private val validationMode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
 ) : AbstractEventStreamQueryServiceFactory() {
-    constructor(elasticsearchClient: ReactiveElasticsearchClient) : this(
-        elasticsearchClient,
-        DEFAULT_SEARCH_BATCH_SIZE,
-        DEFAULT_PIT_KEEP_ALIVE,
-        ElasticsearchIndexMappingResolver(elasticsearchClient),
-        emptyList(),
-        QuerySchemaValidationMode.COMPATIBLE,
-    )
-
-    constructor(
-        elasticsearchClient: ReactiveElasticsearchClient,
-        queryBatchSize: Int,
-        queryKeepAlive: Duration,
-    ) : this(
-        elasticsearchClient,
-        queryBatchSize,
-        queryKeepAlive,
-        ElasticsearchIndexMappingResolver(elasticsearchClient),
-        emptyList(),
-        QuerySchemaValidationMode.COMPATIBLE,
-    )
-
     override fun createQueryService(namedAggregate: NamedAggregate): EventStreamQueryService {
         val materialized = namedAggregate.materialize()
         val provider = DefaultQueryModelSchemaProvider(
@@ -72,12 +51,12 @@ class ElasticsearchEventStreamQueryServiceFactory(
             ),
         )
         return ElasticsearchEventStreamQueryService(
-            materialized,
-            elasticsearchClient,
-            provider,
-            validationMode,
+            namedAggregate = materialized,
+            elasticsearchClient = elasticsearchClient,
             queryBatchSize = queryBatchSize,
             queryKeepAlive = queryKeepAlive,
+            schemaProvider = provider,
+            validationMode = validationMode,
         )
     }
 }

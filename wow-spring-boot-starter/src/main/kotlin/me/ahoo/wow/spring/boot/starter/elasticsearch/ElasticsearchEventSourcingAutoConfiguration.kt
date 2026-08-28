@@ -139,9 +139,10 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
     @ConditionalOnEventStoreStorage(StorageType.ELASTICSEARCH)
     fun elasticsearchEventStreamQueryServiceFactory(
         elasticsearchClient: ReactiveElasticsearchClient,
-        elasticsearchIndexMappingResolver: ElasticsearchIndexMappingResolver,
-        sources: List<QuerySchemaSource>,
-        schemaQueryProperties: QueryProperties,
+        elasticsearchIndexMappingResolver: ElasticsearchIndexMappingResolver =
+            ElasticsearchIndexMappingResolver(elasticsearchClient),
+        sources: List<QuerySchemaSource> = emptyList(),
+        schemaQueryProperties: QueryProperties = QueryProperties(),
     ): ElasticsearchEventStreamQueryServiceFactory {
         return ElasticsearchEventStreamQueryServiceFactory(
             elasticsearchClient,
@@ -152,14 +153,6 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
             schemaQueryProperties.schema.validationMode,
         )
     }
-
-    fun elasticsearchEventStreamQueryServiceFactory(
-        elasticsearchClient: ReactiveElasticsearchClient,
-    ): ElasticsearchEventStreamQueryServiceFactory = ElasticsearchEventStreamQueryServiceFactory(
-        elasticsearchClient,
-        queryProperties.batchSize,
-        queryProperties.keepAlive,
-    )
 
     @Bean
     @ConditionalOnEventStoreStorage(StorageType.ELASTICSEARCH)

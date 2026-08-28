@@ -25,7 +25,7 @@ import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 
-class MongoEventStreamQueryServiceFactory @JvmOverloads constructor(
+class MongoEventStreamQueryServiceFactory(
     private val database: MongoDatabase,
     private val schemaSources: List<QuerySchemaSource> = emptyList(),
     private val validationMode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
@@ -46,6 +46,11 @@ class MongoEventStreamQueryServiceFactory @JvmOverloads constructor(
                 EventStreamFieldConverter,
             ),
         )
-        return MongoEventStreamQueryService(materialized, collection, provider, validationMode)
+        return MongoEventStreamQueryService(
+            namedAggregate = materialized,
+            collection = collection,
+            schemaProvider = provider,
+            validationMode = validationMode,
+        )
     }
 }
