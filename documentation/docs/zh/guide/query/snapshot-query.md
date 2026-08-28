@@ -60,7 +60,7 @@ POST /sales-order/snapshot/paged/state
 POST /sales-order/snapshot/count
 ```
 
-list 可以协商 JSON 或 SSE；single 与 paged 返回 JSON。聚合路由及 [Query Model Schema（当前说明）](../query.md#json-schema) 路由是独立合同，以生成的 [OpenAPI](../open-api.md) 为准；HTTP guard 仍可能限制本来有效的 DTO。
+list 可以协商 JSON 或 SSE；single 与 paged 返回 JSON。聚合路由及 [Query Model Schema（当前说明）](./query-model-schema.md) 路由是独立合同，以生成的 [OpenAPI](../open-api.md) 为准；HTTP guard 仍可能限制本来有效的 DTO。
 
 ## 完整快照、state-only 与动态结果
 

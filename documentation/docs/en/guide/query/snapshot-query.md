@@ -60,7 +60,7 @@ POST /sales-order/snapshot/paged/state
 POST /sales-order/snapshot/count
 ```
 
-List can negotiate JSON or SSE; single and paged return JSON. Aggregation and [Query Model Schema (current guidance)](../query.md#json-schema) routes are separate contracts; use generated [OpenAPI](../open-api.md) as the source of truth. An HTTP guard can still limit a DTO that is otherwise valid.
+List can negotiate JSON or SSE; single and paged return JSON. Aggregation and [Query Model Schema (current guidance)](./query-model-schema.md) routes are separate contracts; use generated [OpenAPI](../open-api.md) as the source of truth. An HTTP guard can still limit a DTO that is otherwise valid.
 
 ## Complete Snapshot, State-only, and Dynamic Results
 
