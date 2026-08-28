@@ -51,4 +51,6 @@ Direct Factory access is for trusted infrastructure extensions or cases that exp
 
 ## Schema Provider differences
 
-The snapshot proxy does not implement a Schema Provider, while the event-stream proxy implements a Provider by delegating to the raw service. An event-stream Provider is a JVM-only capability: it publishes no HTTP route, OpenAPI Schema, or Client capability. WebFlux currently exposes only snapshot Schema routes; [WebFlux](../extensions/webflux.md) is authoritative for runtime routes, [OpenAPI](../open-api.md) for published HTTP/OpenAPI contracts, and [API Client](../extensions/apiclient.md) for client boundaries. Do not infer event-stream Schema HTTP, OpenAPI, or Client exposure from the event-stream proxy having a Provider.
+The snapshot proxy does not implement a Schema Provider, while the event-stream proxy implements a Provider by delegating to the raw service. However, both Snapshot and EventStream Schema HTTP handlers obtain a Provider from the service created by their respective raw Factory. Whether a proxy implements Provider cannot be used to infer HTTP/OpenAPI exposure.
+
+WebFlux publishes `snapshot/schema`, `snapshot/schema/refresh`, `event/schema`, and `event/schema/refresh` routes. [WebFlux](../extensions/webflux.md) is authoritative for runtime routes, [OpenAPI](../open-api.md) for published HTTP/OpenAPI contracts, and [API Client](../extensions/apiclient.md) for client boundaries. `wow-apiclient.query` still provides only Snapshot query interfaces and has no EventStream query interface.

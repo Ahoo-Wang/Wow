@@ -1,19 +1,21 @@
 ---
 title: 事件流聚合
-description: 用六个业务场景说明事件流根文档与展开事件的 JVM 聚合查询。
+description: 用六个业务场景说明事件流根文档与展开事件的 JVM、WebFlux HTTP/OpenAPI 聚合查询。
 ---
 
 # 事件流聚合
 
-事件流聚合由 JVM `EventStreamQueryGateway` 与 `EventStreamQueryService` 支持。当前没有对应的 WebFlux HTTP 聚合路由、OpenAPI 操作、Schema HTTP 路由或 API Client；因此本页只提供 Kotlin DSL 与结果行，不提供会暗示这些入口存在的 HTTP JSON 请求。
+事件流聚合同时支持 JVM `EventStreamQueryGateway` / `EventStreamQueryService` 与 WebFlux HTTP/OpenAPI。当前没有 EventStream API Client；HTTP 调用直接使用公共 `AggregationQuery` JSON 合同。
 
 ## 能力与入口
 
 - **JVM Gateway**：`EventStreamQueryGateway.aggregate(namedAggregate, query)` 通过策略链执行聚合。
 - **JVM Service**：聚合级 `EventStreamQueryService` 可通过 `query.query(queryService)` 执行；Spring 管理的服务通常经 [QueryGateway](./query-gateway.md) 进入策略链，直接 Factory 与自定义 Bean 的绕过边界见[查询后端](./query-backend.md)。
+- **WebFlux HTTP/OpenAPI**：当前 `sales-order` OpenAPI 已证明 `POST /sales-order/event/aggregation`、`POST /tenant/{tenantId}/sales-order/event/aggregation` 与 `POST /owner/{ownerId}/sales-order/event/aggregation`。基础路由不追加作用域；tenant/owner 变体由路径参数收窄作用域。
+- **Schema HTTP**：`GET /sales-order/event/schema` 与 `POST /sales-order/event/schema/refresh` 是独立的模型级路由，没有 tenant/owner 变体。
 - **公共合同**：Elements、group、metric、alias、排序与限制见[聚合查询](./aggregation-query.md)，根过滤的 Kotlin DSL 见[过滤条件](./filter-expression.md)，字段能力以 [Query Model Schema（当前说明）](../query.md#json-schema)为准。
 
-聚合返回 `Flux<DynamicDocument>`；下面的结果只是代表性动态行，不是固定业务数据。
+HTTP handler 严格解码请求后先经 `RewriteRequestFilter` 补充路径作用域，再进入 `EventStreamQueryGateway`；Gateway 策略链先执行 HTTP guard，尾部 filter 再调用所选 QueryService，由 Schema resolver 校验并解析查询后交给后端聚合。响应可按 `Accept` 协商 JSON 数组或 SSE。JVM 聚合返回 `Flux<DynamicDocument>`；下面的结果只是代表性动态行，不是固定业务数据。
 
 ## 根文档、body 与统计单位
 
@@ -46,6 +48,27 @@ fun eventNameFrequency(queryService: EventStreamQueryService) = aggregation {
     sort { "eventCount".desc() }
     limit(10)
 }.query(queryService)
+```
+
+**HTTP JSON**
+
+```json
+{
+  "filter": {"op": "TENANT_ID", "value": "tenant-a"},
+  "elements": [
+    {"path": "body"}
+  ],
+  "groupBy": [
+    {"type": "TERMS", "field": "name", "alias": "eventName"}
+  ],
+  "metrics": [
+    {"type": "COUNT", "alias": "eventCount"}
+  ],
+  "sort": [
+    {"field": "eventCount", "direction": "DESC"}
+  ],
+  "limit": 10
+}
 ```
 
 **结果解读**
@@ -81,6 +104,23 @@ val query = aggregation {
     terms("revision", "revision")
     terms("bodyType", "bodyType")
     count("eventCount")
+}
+```
+
+**HTTP JSON**
+
+```json
+{
+  "elements": [
+    {"path": "body"}
+  ],
+  "groupBy": [
+    {"type": "TERMS", "field": "revision", "alias": "revision"},
+    {"type": "TERMS", "field": "bodyType", "alias": "bodyType"}
+  ],
+  "metrics": [
+    {"type": "COUNT", "alias": "eventCount"}
+  ]
 }
 ```
 
@@ -123,6 +163,25 @@ val query = aggregation {
 }
 ```
 
+**HTTP JSON**
+
+```json
+{
+  "groupBy": [
+    {
+      "type": "DATE_HISTOGRAM",
+      "field": "createTime",
+      "alias": "day",
+      "unit": "DAY",
+      "timeZone": "UTC"
+    }
+  ],
+  "metrics": [
+    {"type": "COUNT", "alias": "streamCount"}
+  ]
+}
+```
+
 **结果解读**
 
 ```json
@@ -155,6 +214,20 @@ val query = aggregation {
     terms("tenantId", "tenantId")
     terms("ownerId", "ownerId")
     count("streamCount")
+}
+```
+
+**HTTP JSON**
+
+```json
+{
+  "groupBy": [
+    {"type": "TERMS", "field": "tenantId", "alias": "tenantId"},
+    {"type": "TERMS", "field": "ownerId", "alias": "ownerId"}
+  ],
+  "metrics": [
+    {"type": "COUNT", "alias": "streamCount"}
+  ]
 }
 ```
 
@@ -195,6 +268,31 @@ val eventCountQuery = aggregation {
     filter { tenantId("tenant-a") }
     expand("body")
     count("eventCount")
+}
+```
+
+**HTTP JSON request 1**
+
+```json
+{
+  "filter": {"op": "TENANT_ID", "value": "tenant-a"},
+  "metrics": [
+    {"type": "COUNT", "alias": "streamCount"}
+  ]
+}
+```
+
+**HTTP JSON request 2**
+
+```json
+{
+  "filter": {"op": "TENANT_ID", "value": "tenant-a"},
+  "elements": [
+    {"path": "body"}
+  ],
+  "metrics": [
+    {"type": "COUNT", "alias": "eventCount"}
+  ]
 }
 ```
 
@@ -240,6 +338,22 @@ val query = aggregation {
 }
 ```
 
+**HTTP JSON**
+
+```json
+{
+  "elements": [
+    {"path": "body"}
+  ],
+  "groupBy": [
+    {"type": "TERMS", "field": "body.data", "alias": "data"}
+  ],
+  "metrics": [
+    {"type": "COUNT", "alias": "eventCount"}
+  ]
+}
+```
+
 **结果解读**
 
 ```json
@@ -253,12 +367,12 @@ val query = aggregation {
 
 **边界**
 
-`body.body.data` 不是系统字段的通配承诺，必须由实际 Query Model Schema 声明并验证 TERMS 能力；MongoDB 还需以可查询形态存储该 payload，Elasticsearch 还需为 `body.body` 提供保持事件关联且可聚合的 mapping。
+`body.body.data` 不是系统字段的通配承诺，必须由实际 Query Model Schema 声明并验证 TERMS 能力；MongoDB 还需以可查询形态存储该 payload。Elasticsearch 中外层 `body` 必须保持 nested 以维持同一事件内字段的关联，`body.body.data` 还必须启用可聚合 mapping。
 
 ## 字段可用性与后端边界
 
 - 系统 Schema 声明根 `createTime`、`tenantId`、`ownerId` 以及事件元数据 `body.name`、`body.revision`、`body.bodyType`；具体操作能力仍由运行时 Schema 与 MongoDB / Elasticsearch adapter 共同解析。
 - `body` 展开后，Element filter、group、metric 与表达式字段相对单个事件；payload 的 Schema 根路径仍写作 `body.body.*`，查询中的相对路径写作 `body.*`。
-- MongoDB 与 Elasticsearch 共享公共 AST，但不承诺物理 pipeline、mapping、空值或桶细节完全一致。Elasticsearch 需要能保持同一事件内字段关联的 `body` nested mapping。
+- MongoDB 与 Elasticsearch 共享公共 AST，但不承诺物理 pipeline、mapping、空值或桶细节完全一致。Elasticsearch 的外层 `body` 必须保持 nested 以维持同一事件内字段关联；`body.body.*` payload 字段还需各自具备所用操作的 mapping 能力。
 - 自定义 `EventStreamQueryService` 可能沿用默认的“不支持聚合”实现；普通事件流数据查询可用不能单独证明该自定义后端会执行聚合。
-- 本页能力仅限 JVM。当前没有事件流聚合 HTTP、OpenAPI、Schema HTTP 或 API Client 入口；不要从 Kotlin DSL 或结果 JSON 推断这些入口存在。
+- EventStream 聚合 HTTP/OpenAPI 与独立的 Schema HTTP 路由已经存在；当前仍没有 EventStream API Client。HTTP 可用也不证明某个具体后端一定支持示例字段，实际 capability 以运行时 Query Model Schema 与后端 mapping 为准。

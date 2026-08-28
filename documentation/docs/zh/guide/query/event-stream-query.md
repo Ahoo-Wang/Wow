@@ -15,7 +15,7 @@ description: 查询聚合事件历史、事件流字段路径及已发布的 HTT
 
 ## JVM 查询
 
-`EventStreamQueryService` 在 JVM 支持 typed 和 dynamic 的 single/list/paged/count；`dynamicQuery` 返回 `DynamicDocument`。服务接口也有 JVM aggregation，但其语义与示例由事件流聚合页面说明，不能据此推断 HTTP 路由。
+`EventStreamQueryService` 在 JVM 支持 typed 和 dynamic 的 single/list/paged/count；`dynamicQuery` 返回 `DynamicDocument`。服务接口也有 JVM aggregation，其 JVM 与 HTTP/OpenAPI 合同和示例见[事件流聚合](./event-stream-aggregation.md)。
 
 按根字段分页的示例：
 
@@ -44,7 +44,17 @@ POST /sales-order/event/count
 GET /tenant/{tenantId}/sales-order/{id}/event/{headVersion}/{tailVersion}
 ```
 
-当前没有事件流 `single`、聚合或 Schema HTTP 路由，也没有事件流 API Client。JVM 聚合能力由事件流聚合页说明；不要用不存在的 HTTP 请求来表达它。
+聚合与 Schema 是独立于上述数据查询形态的合同：
+
+```text
+POST /sales-order/event/aggregation
+POST /tenant/{tenantId}/sales-order/event/aggregation
+POST /owner/{ownerId}/sales-order/event/aggregation
+GET /sales-order/event/schema
+POST /sales-order/event/schema/refresh
+```
+
+当前仍没有事件流 `single` HTTP 路由，也没有 EventStream API Client。聚合请求与 JSON/SSE 响应见[事件流聚合](./event-stream-aggregation.md)；Schema 路由是无 tenant/owner 变体的模型级入口。
 
 ## 按版本加载事件流
 
@@ -68,7 +78,9 @@ JVM single 无匹配时返回空 `Mono`；list 返回空 `Flux`，paged 返回�
 | 业务数据根 | `body` 事件数组，payload 为 `body.body` | `state` 当前业务状态 |
 | 删除默认值 | 不添加删除条件 | 默认 `DELETION = ACTIVE` |
 | HTTP 数据查询 | list、paged、count、按版本加载 | single、list、paged、count 与 state-only |
-| HTTP 聚合/Schema/API Client | 都没有 | 有独立快照合同 |
+| HTTP 聚合 | `event/aggregation`，JSON 或 SSE | `snapshot/aggregation`，JSON 或 SSE |
+| HTTP Schema | `event/schema` 与 refresh | `snapshot/schema` 与 refresh |
+| API Client | 无 | 有独立快照合同 |
 
 ## 何时使用事件流查询
 

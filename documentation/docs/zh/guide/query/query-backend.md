@@ -51,4 +51,6 @@ Factory 的创建结果不经过 Gateway。应用代码应优先使用 Spring �
 
 ## Schema Provider 差异
 
-快照代理不实现 Schema Provider，而事件流代理实现 Provider 并委托原始服务。事件流 Provider 仅是 JVM 能力：它不发布 HTTP 路由、OpenAPI Schema 或 Client 能力。WebFlux 目前只暴露快照 Schema 路由；运行时路由以 [WebFlux](../extensions/webflux.md) 为准，已发布 HTTP/OpenAPI 合同以 [OpenAPI](../open-api.md) 为准，客户端边界以 [API Client](../extensions/apiclient.md) 为准。不要由事件流代理具有 Provider 推导出事件流 Schema HTTP、OpenAPI 或 Client 暴露。
+快照代理不实现 Schema Provider，而事件流代理实现 Provider 并委托原始服务。但 Snapshot 与 EventStream Schema HTTP handler 都从各自原始 Factory 创建的服务取得 Provider；代理是否实现 Provider 不能用于推断 HTTP/OpenAPI 暴露。
+
+WebFlux 已分别发布 `snapshot/schema`、`snapshot/schema/refresh`、`event/schema` 与 `event/schema/refresh` 路由。运行时路由以 [WebFlux](../extensions/webflux.md) 为准，已发布 HTTP/OpenAPI 合同以 [OpenAPI](../open-api.md) 为准，客户端边界以 [API Client](../extensions/apiclient.md) 为准。`wow-apiclient.query` 仍只提供 Snapshot 查询接口，没有 EventStream 查询接口。
