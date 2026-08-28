@@ -101,6 +101,65 @@ describe("useSnapshotAnalytics", () => {
     );
   });
 
+  it("does not let settled stale requests overwrite refreshed sections", async () => {
+    const firstLoads = Array.from({ length: 6 }, () => deferred<unknown[]>());
+    let firstCall = 0;
+    let refresh = 0;
+    mocks.aggregate.mockImplementation((query) => {
+      if (refresh === 0) {
+        return firstLoads[firstCall++].promise;
+      }
+      if (isQuery(query, "errorCode")) {
+        return Promise.resolve([]);
+      }
+      if (isQuery(query, "recoverable")) {
+        return Promise.resolve([{ count: 2, recoverable: "true" }]);
+      }
+      if (isQuery(query, "retries")) {
+        return Promise.resolve([{ count: 2, retries: 0 }]);
+      }
+      return Promise.resolve([{ count: 2 }]);
+    });
+
+    const { result, rerender } = renderHook(
+      ({ token }) => useSnapshotAnalytics(token),
+      { initialProps: { token: 0 } },
+    );
+    expect(mocks.aggregate).toHaveBeenCalledTimes(6);
+
+    refresh = 1;
+    await act(async () => {
+      rerender({ token: 1 });
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(result.current.summary.data?.actionableNow).toBe(2));
+
+    await act(async () => {
+      firstLoads[0].resolve([{ count: 1 }]);
+      firstLoads[1].resolve([{ count: 1 }]);
+      firstLoads[2].resolve([{ count: 1 }]);
+      firstLoads[3].resolve([]);
+      firstLoads[4].resolve([{ count: 1, recoverable: "true" }]);
+      firstLoads[5].resolve([{ count: 1, retries: 0 }]);
+      await Promise.all(firstLoads.map(({ promise }) => promise));
+    });
+
+    await waitFor(() => {
+      expect(result.current.summary).toMatchObject({
+        data: { actionableNow: 2, timedOut: 2, unrecoverable: 2 },
+        loading: false,
+      });
+      expect(result.current.summary.error).toBeUndefined();
+      expect(result.current.retries.data?.buckets[0]).toEqual({
+        count: 2,
+        key: "0",
+      });
+      expect(result.current.retries.data?.truncated).toBe(false);
+      expect(result.current.retries.loading).toBe(false);
+      expect(result.current.retries.error).toBeUndefined();
+    });
+  });
+
   it("keeps failed section data while other sections update", async () => {
     let refresh = 0;
     mocks.aggregate.mockImplementation((query) => {
