@@ -8,6 +8,19 @@ outline: deep
 
 同一条命令可以从进程内或 HTTP 边界进入 Wow。选择入口不会改变聚合业务规则，但会改变路由元数据、响应形状以及调用方能否观察中间阶段。
 
+三种入口最终进入同一 CommandGateway，但路由发现、协议能力和响应形式不同。
+
+```mermaid
+flowchart TB
+    Caller["调用方"] --> Entry{"选择入口"}
+    Entry -->|同进程| Gateway["CommandGateway"]
+    Entry -->|聚合专用 HTTP| AggregateRoute["生成的聚合命令路由"]
+    Entry -->|动态全局 HTTP| Facade["POST /wow/command/send"]
+    AggregateRoute --> WebFlux["WebFlux Command Handler"]
+    Facade --> WebFlux
+    WebFlux --> Gateway
+```
+
 ## 选择调用入口
 
 | 场景 | 入口 | 返回 |

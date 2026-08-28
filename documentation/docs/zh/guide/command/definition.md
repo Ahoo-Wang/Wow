@@ -8,6 +8,18 @@ outline: deep
 
 命令是请求改变状态的祈使性载荷。它描述调用方想要发生什么；[聚合](../domain/aggregate.md)根据当前状态决定是否允许，并以领域事件表示已发生的事实。
 
+普通命令由聚合 Handler 根据当前状态产生事件；Void 命令在 Dispatcher 层直接确认。
+
+```mermaid
+flowchart LR
+    Command["命令载荷 + 元数据"] --> Void{"Void 命令？"}
+    Void -->|是| Ack["Dispatcher 确认，不进入聚合 Handler"]
+    Void -->|否| Handler["命令处理函数"]
+    State["当前聚合状态"] --> Handler
+    Handler --> Events["0..N 个领域事件"]
+    Events --> Sourcing["onSourcing 更新状态"]
+```
+
 ## 命令载荷与命令消息
 
 命令载荷通常是一个 Kotlin `data class` 或 `object`。发送时，`toCommandMessage()` 会将载荷与命令 ID、请求 ID、聚合身份、owner、space、header、期望版本以及创建标记封装为 `CommandMessage<C>`。
