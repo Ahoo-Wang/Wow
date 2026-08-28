@@ -69,6 +69,7 @@ object BuiltInHttpRouteHandlerKeys {
     }
 
     object Event {
+        const val AGGREGATION = "$AGGREGATE_EVENT.aggregation"
         const val COUNT = "$AGGREGATE_EVENT.count"
         const val LIST_QUERY = "$AGGREGATE_EVENT.list-query"
         const val PAGED_QUERY = "$AGGREGATE_EVENT.paged-query"
