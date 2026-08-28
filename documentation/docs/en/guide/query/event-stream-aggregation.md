@@ -103,7 +103,7 @@ The relative paths after expansion are `revision` and `bodyType`. Actual field p
 
 **Business question**
 
-How many event streams were written each day?
+How many event streams were created each day?
 
 **Counting unit**
 
@@ -132,11 +132,11 @@ val query = aggregation {
 ]
 ```
 
-`day` is the UTC date-bucket start in epoch milliseconds, and `streamCount` is the root event-stream count in that bucket.
+`day` is the UTC date-bucket start in epoch milliseconds, and `streamCount` is the root event-stream count whose first-event creation time falls in that bucket.
 
 **Boundary**
 
-`createTime` is a root field, not an expanded-event field. Date-histogram execution depends on the temporal aggregation capability exposed by Schema and the backend's actual mapping for the field.
+`createTime` is a root field, not an expanded-event field. `DomainEventStream.createTime` comes from `body.first().createTime`; it is not the backend append or ingestion time. Date-histogram execution depends on the temporal aggregation capability exposed by Schema and the backend's actual mapping for the field.
 
 ## Scenario 4: Tenant and Owner Activity
 
