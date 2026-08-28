@@ -26,9 +26,9 @@ For Kotlin assertions, use the FluentAssert extension already provided by this m
 
 ## Public boundary
 
-The public API lives under `me.ahoo.wow.test.*`, led by `AggregateSpec`, `SagaSpec`, and their DSLs. Aggregate specifications use an in-memory EventStore by default; Saga specifications use an in-memory CommandBus.
+The public API lives under `me.ahoo.wow.test.*`, led by `AggregateSpec`, `SagaSpec`, and their DSLs. Aggregate specifications use an in-memory EventStore by default; Saga specifications use an in-memory CommandBus. An aggregate specification can verify modeled domain lifecycle transitions such as `DefaultDeleteAggregate` and `DefaultRecoverAggregate`, as the current `CartSpec` does.
 
-These specifications prove domain decisions, events, sourced state, or Saga commands. They do not prove KSP output, Spring wiring, HTTP routes, real brokers/databases, recovery behavior, or authorization.
+These specifications prove domain decisions, events, sourced state, or Saga commands. They do not prove KSP output, Spring wiring, HTTP routes, real brokers/databases, recovery of real storage, process restarts, production-infrastructure recovery, or authorization.
 
 ## Minimal example
 

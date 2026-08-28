@@ -26,9 +26,9 @@ Kotlin 断言使用该模块已提供的 FluentAssert 扩展：`me.ahoo.test.ass
 
 ## 公开边界
 
-公开 API 位于 `me.ahoo.wow.test.*`，入口是 `AggregateSpec`、`SagaSpec` 及其 DSL。聚合规格默认使用内存 EventStore，Saga 规格默认使用内存 CommandBus。
+公开 API 位于 `me.ahoo.wow.test.*`，入口是 `AggregateSpec`、`SagaSpec` 及其 DSL。聚合规格默认使用内存 EventStore，Saga 规格默认使用内存 CommandBus。聚合规格可以验证已建模的领域生命周期转换；当前 `CartSpec` 就覆盖了 `DefaultDeleteAggregate` 和 `DefaultRecoverAggregate`。
 
-这些规格证明领域决策、事件、溯源状态或 Saga 命令，不证明 KSP 产物、Spring 装配、HTTP 路由、真实 Broker/数据库、恢复流程或鉴权。
+这些规格证明领域决策、事件、溯源状态或 Saga 命令，不证明 KSP 产物、Spring 装配、HTTP 路由、真实 Broker/数据库、真实存储恢复、进程重启、生产基础设施恢复或鉴权。
 
 ## 最小示例
 
