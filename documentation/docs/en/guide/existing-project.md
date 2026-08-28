@@ -17,12 +17,12 @@ Do not migrate every write path or add production infrastructure in the same cha
 
 ## Version Baseline
 
-The current Wow `8.14.0` source declares:
+The current Wow `8.15.0` source declares:
 
 | Component | Version |
 | --- | --- |
 | JDK | 17+ |
-| Wow | `8.14.0` |
+| Wow | `8.15.0` |
 | Spring Boot | `4.1.1` |
 | Kotlin | `2.4.10` |
 | KSP | `2.3.11` |
@@ -57,8 +57,8 @@ Align the platform and compiler in the annotated modules:
 
 ```kotlin
 dependencies {
-    implementation(platform("me.ahoo.wow:wow-bom:8.14.0"))
-    ksp(platform("me.ahoo.wow:wow-bom:8.14.0"))
+    implementation(platform("me.ahoo.wow:wow-bom:8.15.0"))
+    ksp(platform("me.ahoo.wow:wow-bom:8.15.0"))
 
     implementation("me.ahoo.wow:wow-api") // api module
     ksp("me.ahoo.wow:wow-compiler")
@@ -72,7 +72,7 @@ Request the base Starter and the `webflux-support` feature in the server module:
 ```kotlin
 dependencies {
     implementation(platform("org.springframework.boot:spring-boot-dependencies:4.1.1"))
-    implementation(platform("me.ahoo.wow:wow-bom:8.14.0"))
+    implementation(platform("me.ahoo.wow:wow-bom:8.15.0"))
 
     implementation("me.ahoo.wow:wow-spring-boot-starter")
     implementation("me.ahoo.wow:wow-spring-boot-starter") {
