@@ -6,13 +6,30 @@ const preview: Preview = {
   decorators: [
     Story => (
       <App>
-        <ConfigProvider>
+        <ConfigProvider
+          theme={{
+            token: {
+              colorErrorText: '#820014',
+              colorLink: '#003a8c',
+              colorPrimary: '#0958d9',
+              colorSuccessText: '#135200',
+              colorTextQuaternary: '#595959',
+              colorTextSecondary: '#595959',
+            },
+          }}
+        >
           <Story />
         </ConfigProvider>
       </App>
     ),
   ],
   parameters: {
+    a11y: {
+      context: {
+        exclude: [['.ant-select-dropdown'], ['.ant-table-measure-row']],
+      },
+      test: 'error',
+    },
     controls: {
       matchers: {
         color: /(background|color)$/i,
@@ -25,25 +42,11 @@ const preview: Preview = {
     },
     options: {
       storySort: {
-        order: [
-          'Introduction',
-          'Fetcher',
-          'Decorator',
-          'EventStream',
-          'OpenAI',
-          'EventBus',
-          'Storage',
-          'React',
-          'Wow',
-          'Generator',
-          'CoSec',
-          'OpenAPI',
-          'Viewer',
-        ],
+        order: ['Overview', 'HTTP & Streaming', 'React Hooks', 'Viewer'],
       },
     },
   },
-  tags: ['autodocs'],
+  tags: ['autodocs', 'test'],
 };
 
 export default preview;
