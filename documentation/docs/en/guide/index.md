@@ -25,7 +25,7 @@ The functional gates are verified; 30 minutes remains a target because first-tim
 
 ## Continue Building
 
-Continue from the three entry points: [Domain Model](./domain/), [Commands](./command/), and [Events and Collaboration](./event/). Then use [Projection](./projection.md) and [Query Service](./query.md) for the read side.
+Continue from the three entry points: [Domain Model](./domain/), [Commands](./command/), and [Events and Collaboration](./event/). Then use [Projection](./projection.md) and [Query](./query.md) for the read side.
 
 ## Prepare for Production
 
@@ -51,7 +51,7 @@ Use [Configuration Reference](../reference/config/core.md), [Examples](../refere
 | Build application release gates | [Application Testing](./application-testing.md) | [Production Best Practices](./best-practices.md) | Domain, HTTP, real-adapter, recovery, and security-negative evidence exists |
 | Evolve persisted events | [Event Evolution](./domain/event-evolution.md) | [Event Sourcing](./domain/event-sourcing.md) | Upgrader registration, ordering, historical replay, and rollback have evidence |
 | Expose writes and completion semantics | [Commands](./command/) | [Completion Semantics](./command/completion.md) | You can distinguish `SENT`, `PROCESSED`, `SNAPSHOT`, and `PROJECTED` |
-| Build a query model | [Projection](./projection.md) | [Query Service](./query.md) | The projection is retry-safe and idempotent, with a clear query boundary |
+| Build a query model | [Projection](./projection.md) | [Query](./query.md) | The projection is retry-safe and idempotent, with a clear query boundary |
 | Coordinate across aggregates | [Events and Collaboration](./event/) | [Saga](./event/saga.md) | Success, retry, and unrecoverable paths are tested |
 | Choose messaging and storage | [Module Dependencies](./advanced/module-dependencies.md) | [Extensions](./extensions/spring-boot-starter.md) | Only the required backends and starter capabilities are included |
 | Prepare for production | [Production Best Practices](./best-practices.md) | [Backup, Restore, and Replay](./recovery.md) | Idempotency, recovery, capacity, alerts, and rollback have evidence |

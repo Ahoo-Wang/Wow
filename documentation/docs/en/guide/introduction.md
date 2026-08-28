@@ -69,7 +69,7 @@ flowchart LR
     Store --> Saga[Saga / next command]
 ```
 
-[Domain Model](./domain/) owns aggregate boundaries, event history, snapshots, and lifecycle. [Commands](./command/) owns definition, sending, completion, and reliability. [Events and Collaboration](./event/) owns processors, sagas, compensation, and event dispatch. [Projection](./projection.md) and [Query Service](./query.md) continue to own the read side. See [Data Flow](./advanced/data-flow.md) for cross-capability handoffs and [Runtime Lifecycle](./advanced/runtime-lifecycle.md) for startup and shutdown.
+[Domain Model](./domain/) owns aggregate boundaries, event history, snapshots, and lifecycle. [Commands](./command/) owns definition, sending, completion, and reliability. [Events and Collaboration](./event/) owns processors, sagas, compensation, and event dispatch. [Projection](./projection.md) and [Query](./query.md) continue to own the read side. See [Data Flow](./advanced/data-flow.md) for cross-capability handoffs and [Runtime Lifecycle](./advanced/runtime-lifecycle.md) for startup and shutdown.
 
 The complete runtime architecture and data flow are shown below:
 
@@ -105,7 +105,7 @@ Wow does not discover a domain boundary, and compensation is not a database roll
 | --- | --- |
 | Model aggregate decisions and sourced state | [Domain Model](./domain/) |
 | Define, send, and declare command completion | [Commands](./command/) |
-| Build query-oriented views | [Projection](./projection.md), [Query Service](./query.md) |
+| Build query-oriented views | [Projection](./projection.md), [Query](./query.md) |
 | Process events and coordinate across aggregates | [Events and Collaboration](./event/) |
 | Verify domain and application behavior | [Test Suite](./test-suite.md), [Application Testing](./application-testing.md) |
 | Expose generated contracts and routes | [OpenAPI](./open-api.md), [WebFlux](./extensions/webflux.md) |

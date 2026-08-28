@@ -112,7 +112,7 @@ Only evidence from the target topology and production-like data volume supports 
 - [Aggregate and Invariants](./domain/aggregate.md)
 - [Send Commands](./command/sending.md)
 - [Snapshots](./domain/snapshot.md)
-- [Query Service](./query.md)
+- [Query](./query.md)
 - [Saga](./event/saga.md)
 - [Event Compensation](./event/compensation.md)
 - [Backup, Restore, and Replay](./recovery.md)

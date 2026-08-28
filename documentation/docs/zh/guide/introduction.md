@@ -69,7 +69,7 @@ flowchart LR
     Store --> Saga[Saga / 后续命令]
 ```
 
-[领域模型](./domain/)负责聚合边界、事件历史、快照与生命周期；[命令](./command/)负责命令定义、发送、完成与可靠性；[事件与协作](./event/)负责 Processor、Saga、补偿与事件分发。投影和查询仍由[投影](./projection.md)与[查询服务](./query.md)负责。跨能力交接见[数据流](./advanced/data-flow.md)，运行时启停见[运行时生命周期](./advanced/runtime-lifecycle.md)。
+[领域模型](./domain/)负责聚合边界、事件历史、快照与生命周期；[命令](./command/)负责命令定义、发送、完成与可靠性；[事件与协作](./event/)负责 Processor、Saga、补偿与事件分发。投影和查询仍由[投影](./projection.md)与[查询](./query.md)负责。跨能力交接见[数据流](./advanced/data-flow.md)，运行时启停见[运行时生命周期](./advanced/runtime-lifecycle.md)。
 
 完整的运行时架构与数据流如下：
 
@@ -105,7 +105,7 @@ Wow 不会自动发现领域边界，补偿也不等于数据库回滚。选择�
 | --- | --- |
 | 建模聚合决策与溯源状态 | [领域模型](./domain/) |
 | 定义、发送命令并声明完成语义 | [命令](./command/) |
-| 建立面向查询的视图 | [投影](./projection.md)、[查询服务](./query.md) |
+| 建立面向查询的视图 | [投影](./projection.md)、[查询](./query.md) |
 | 处理事件并编排跨聚合流程 | [事件与协作](./event/) |
 | 验证领域与应用行为 | [测试套件](./test-suite.md)、[应用测试](./application-testing.md) |
 | 暴露生成契约与路由 | [OpenAPI](./open-api.md)、[WebFlux](./extensions/webflux.md) |

@@ -154,7 +154,11 @@ class AbstractElasticsearchQueryServiceTest {
             closePointInTimeResponse()
         )
 
-        ElasticsearchSnapshotQueryServiceFactory(elasticsearchClient, 3, Duration.ofMinutes(5))
+        ElasticsearchSnapshotQueryServiceFactory(
+            elasticsearchClient = elasticsearchClient,
+            queryBatchSize = 3,
+            queryKeepAlive = Duration.ofMinutes(5),
+        )
             .create<Any>(MOCK_AGGREGATE_METADATA)
             .dynamicList(ListQuery(MatchAllFilter, limit = 4))
             .collectList()

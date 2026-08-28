@@ -58,7 +58,7 @@ class QuerySchemaSourcesTest {
 
     @Test
     fun `missing working directory file should be empty`() {
-        StepVerifier.create(WorkingDirectoryQuerySchemaSource(tempDir).load(ORDER_CONTEXT))
+        StepVerifier.create(WorkingDirectoryQuerySchemaSource(basePath = tempDir).load(ORDER_CONTEXT))
             .verifyComplete()
     }
 
@@ -92,7 +92,7 @@ class QuerySchemaSourcesTest {
     fun `malformed convention file should be unavailable with its cause`() {
         writeWorkingFile("{not-json")
 
-        StepVerifier.create(WorkingDirectoryQuerySchemaSource(tempDir).load(ORDER_CONTEXT))
+        StepVerifier.create(WorkingDirectoryQuerySchemaSource(basePath = tempDir).load(ORDER_CONTEXT))
             .expectErrorSatisfies { error ->
                 error.assert().isInstanceOf(QuerySchemaUnavailableException::class.java)
                 error.cause.assert().isNotNull()
@@ -115,7 +115,7 @@ class QuerySchemaSourcesTest {
             """{"fields":{"state.value":{"dynamicChildren":null}}}""",
         ).forEach { json ->
             writeWorkingFile(json)
-            StepVerifier.create(WorkingDirectoryQuerySchemaSource(tempDir).load(ORDER_CONTEXT))
+            StepVerifier.create(WorkingDirectoryQuerySchemaSource(basePath = tempDir).load(ORDER_CONTEXT))
                 .expectError(QuerySchemaUnavailableException::class.java)
                 .verify()
         }
@@ -129,7 +129,7 @@ class QuerySchemaSourcesTest {
         )
 
         assertThrows<IllegalArgumentException> {
-            WorkingDirectoryQuerySchemaSource(tempDir).load(traversal).collectList().block()
+            WorkingDirectoryQuerySchemaSource(basePath = tempDir).load(traversal).collectList().block()
         }
     }
 
@@ -229,10 +229,13 @@ class QuerySchemaSourcesTest {
     fun `working directory source should read file off the caller thread`() {
         writeWorkingFile(conventionJson("Async"))
         val readThread = AtomicReference<String>()
-        val source = WorkingDirectoryQuerySchemaSource(tempDir) { file ->
-            readThread.set(Thread.currentThread().name)
-            Files.readString(file)
-        }
+        val source = WorkingDirectoryQuerySchemaSource(
+            basePath = tempDir,
+            readText = { file ->
+                readThread.set(Thread.currentThread().name)
+                Files.readString(file)
+            },
+        )
 
         onNamedCallerThread {
             source.load(ORDER_CONTEXT).single().block()

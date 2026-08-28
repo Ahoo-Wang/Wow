@@ -103,11 +103,34 @@ export const sidebarEn: DefaultTheme.Sidebar = {
         },
         {
             base: '/guide/',
-            text: 'Read Models and Queries',
+            text: 'Query',
+            link: 'query',
             collapsed: true,
             items: [
+                {text: 'Query Gateway', link: 'query/query-gateway'},
+                {text: 'Query Backend', link: 'query/query-backend'},
+                {text: 'Query API Client', link: 'query/query-api-client'},
+                {text: 'Filter Expressions', link: 'query/filter-expression'},
+                {
+                    text: 'Data Queries',
+                    link: 'query/data-query',
+                    collapsed: true,
+                    items: [
+                        {text: 'Snapshot Queries', link: 'query/snapshot-query'},
+                        {text: 'Event Stream Queries', link: 'query/event-stream-query'},
+                    ],
+                },
+                {
+                    text: 'Aggregation Queries',
+                    link: 'query/aggregation-query',
+                    collapsed: true,
+                    items: [
+                        {text: 'Snapshot Aggregation', link: 'query/snapshot-aggregation'},
+                        {text: 'Event Stream Aggregation', link: 'query/event-stream-aggregation'},
+                    ],
+                },
+                {text: 'Query Model Schema', link: 'query/query-model-schema'},
                 {text: 'Projection', link: 'projection'},
-                {text: 'Query Service', link: 'query'},
                 {text: 'Data Access Control', link: 'data-access'},
             ],
         },

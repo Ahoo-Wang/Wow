@@ -32,18 +32,18 @@ describe("FindCategory", () => {
 
     it("uses index-friendly recoverability values for to-retry", () => {
       expect(RetryConditions.toRetryCondition(currentTime)).toEqual(
-        filter.and(
+        filter.and([
           filter.isIn(
             ExecutionFailedAggregatedFields.STATE_RECOVERABLE,
-            ...retryableRecoverability,
+            retryableRecoverability,
           ),
           filter.eq(ExecutionFailedAggregatedFields.STATE_IS_RETRYABLE, true),
-          filter.or(
+          filter.or([
             filter.eq(
               ExecutionFailedAggregatedFields.STATE_STATUS,
               ExecutionFailedStatus.FAILED,
             ),
-            filter.and(
+            filter.and([
               filter.eq(
                 ExecutionFailedAggregatedFields.STATE_STATUS,
                 ExecutionFailedStatus.PREPARED,
@@ -52,15 +52,15 @@ describe("FindCategory", () => {
                 ExecutionFailedAggregatedFields.STATE_RETRY_STATE_TIMEOUT_AT,
                 currentTime,
               ),
-            ),
-          ),
-        ),
+            ]),
+          ]),
+        ]),
       );
     });
 
     it("keeps the executing range condition", () => {
       expect(RetryConditions.executingCondition(currentTime)).toEqual(
-        filter.and(
+        filter.and([
           filter.eq(
             ExecutionFailedAggregatedFields.STATE_STATUS,
             ExecutionFailedStatus.PREPARED,
@@ -69,28 +69,28 @@ describe("FindCategory", () => {
             ExecutionFailedAggregatedFields.STATE_RETRY_STATE_TIMEOUT_AT,
             currentTime,
           ),
-        ),
+        ]),
       );
     });
 
     it("uses index-friendly recoverability values for next-retry", () => {
       expect(RetryConditions.nextRetryCondition(currentTime)).toEqual(
-        filter.and(
+        filter.and([
           filter.isIn(
             ExecutionFailedAggregatedFields.STATE_RECOVERABLE,
-            ...retryableRecoverability,
+            retryableRecoverability,
           ),
           filter.eq(ExecutionFailedAggregatedFields.STATE_IS_RETRYABLE, true),
           filter.lte(
             ExecutionFailedAggregatedFields.STATE_RETRY_STATE_NEXT_RETRY_AT,
             currentTime,
           ),
-          filter.or(
+          filter.or([
             filter.eq(
               ExecutionFailedAggregatedFields.STATE_STATUS,
               ExecutionFailedStatus.FAILED,
             ),
-            filter.and(
+            filter.and([
               filter.eq(
                 ExecutionFailedAggregatedFields.STATE_STATUS,
                 ExecutionFailedStatus.PREPARED,
@@ -99,28 +99,28 @@ describe("FindCategory", () => {
                 ExecutionFailedAggregatedFields.STATE_RETRY_STATE_TIMEOUT_AT,
                 currentTime,
               ),
-            ),
-          ),
-        ),
+            ]),
+          ]),
+        ]),
       );
     });
 
     it("uses closed enum values for non-retryable", () => {
       expect(RetryConditions.nonRetryableCondition).toEqual(
-        filter.and(
+        filter.and([
           filter.isIn(
             ExecutionFailedAggregatedFields.STATE_RECOVERABLE,
-            ...retryableRecoverability,
+            retryableRecoverability,
           ),
           filter.isIn(
             ExecutionFailedAggregatedFields.STATE_STATUS,
-            ...activeStatuses,
+            activeStatuses,
           ),
           filter.eq(
             ExecutionFailedAggregatedFields.STATE_IS_BELOW_RETRY_THRESHOLD,
             false,
           ),
-        ),
+        ]),
       );
     });
 
@@ -130,16 +130,16 @@ describe("FindCategory", () => {
 
     it("uses active status values for unrecoverable", () => {
       expect(RetryConditions.unrecoverableCondition).toEqual(
-        filter.and(
+        filter.and([
           filter.eq(
             ExecutionFailedAggregatedFields.STATE_RECOVERABLE,
             RecoverableType.UNRECOVERABLE,
           ),
           filter.isIn(
             ExecutionFailedAggregatedFields.STATE_STATUS,
-            ...activeStatuses,
+            activeStatuses,
           ),
-        ),
+        ]),
       );
     });
   });

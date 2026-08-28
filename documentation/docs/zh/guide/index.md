@@ -25,7 +25,7 @@ outline: deep
 
 ## 继续构建
 
-从[领域模型](./domain/)、[命令](./command/)和[事件与协作](./event/)三个入口继续；再用[投影](./projection.md)和[查询服务](./query.md)建立读取侧。
+从[领域模型](./domain/)、[命令](./command/)和[事件与协作](./event/)三个入口继续；再用[投影](./projection.md)和[查询](./query.md)建立读取侧。
 
 ## 准备生产运行
 
@@ -51,7 +51,7 @@ outline: deep
 | 建立应用发布门禁 | [应用测试](./application-testing.md) | [生产最佳实践](./best-practices.md) | 领域、HTTP、真实 Adapter、恢复和安全反例都有证据 |
 | 演进已持久化事件 | [事件演进](./domain/event-evolution.md) | [事件溯源](./domain/event-sourcing.md) | Upgrader 注册、顺序、历史回放与回滚均有证据 |
 | 提供写入 API 和完成语义 | [命令](./command/) | [完成语义](./command/completion.md) | 能区分 `SENT`、`PROCESSED`、`SNAPSHOT` 和 `PROJECTED` |
-| 建立查询模型 | [投影](./projection.md) | [查询服务](./query.md) | 投影可重试且幂等，查询边界清晰 |
+| 建立查询模型 | [投影](./projection.md) | [查询](./query.md) | 投影可重试且幂等，查询边界清晰 |
 | 编排跨聚合流程 | [事件与协作](./event/) | [Saga](./event/saga.md) | 正常、重试、不可恢复路径都有测试 |
 | 选择存储和消息实现 | [模块依赖](./advanced/module-dependencies.md) | [扩展](./extensions/spring-boot-starter.md) | 只引入实际需要的后端和 Starter capability |
 | 准备上生产 | [生产最佳实践](./best-practices.md) | [备份、恢复与重放](./recovery.md) | 幂等、恢复、容量、告警和回滚均有证据 |

@@ -130,7 +130,7 @@ export function FailedSearch({ onSearch, loading }: FailedSearchProps) {
         ? filter.matchAll()
         : filters.length === 1
           ? filters[0]
-          : filter.and(filters[0], ...filters.slice(1)),
+          : filter.and(filters),
       filters.length > 0,
     );
   };

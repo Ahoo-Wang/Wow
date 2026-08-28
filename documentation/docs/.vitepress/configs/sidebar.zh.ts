@@ -103,11 +103,34 @@ export const sidebarZh: DefaultTheme.Sidebar = {
         },
         {
             base: '/zh/guide/',
-            text: '读模型与查询',
+            text: '查询',
+            link: 'query',
             collapsed: true,
             items: [
+                {text: '查询网关', link: 'query/query-gateway'},
+                {text: '查询后端', link: 'query/query-backend'},
+                {text: '查询 API 客户端', link: 'query/query-api-client'},
+                {text: '过滤条件', link: 'query/filter-expression'},
+                {
+                    text: '数据查询',
+                    link: 'query/data-query',
+                    collapsed: true,
+                    items: [
+                        {text: '快照查询', link: 'query/snapshot-query'},
+                        {text: '事件流查询', link: 'query/event-stream-query'},
+                    ],
+                },
+                {
+                    text: '聚合查询',
+                    link: 'query/aggregation-query',
+                    collapsed: true,
+                    items: [
+                        {text: '快照聚合', link: 'query/snapshot-aggregation'},
+                        {text: '事件流聚合', link: 'query/event-stream-aggregation'},
+                    ],
+                },
+                {text: '查询模型 Schema', link: 'query/query-model-schema'},
                 {text: '投影', link: 'projection'},
-                {text: '查询服务', link: 'query'},
                 {text: '数据权限', link: 'data-access'},
             ],
         },

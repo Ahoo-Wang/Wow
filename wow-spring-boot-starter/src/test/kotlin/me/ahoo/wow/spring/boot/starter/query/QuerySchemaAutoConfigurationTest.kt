@@ -59,8 +59,14 @@ class QuerySchemaAutoConfigurationTest {
 
     @Test
     fun `should expose mutable enum query schema properties`() {
-        val properties = QueryProperties()
-        properties.schema = QueryProperties.Schema()
+        val properties = QueryProperties(
+            schema = QueryProperties.Schema(
+                validationMode = QuerySchemaValidationMode.COMPATIBLE,
+            ),
+        )
+        properties.schema = QueryProperties.Schema(
+            validationMode = QuerySchemaValidationMode.COMPATIBLE,
+        )
         properties.schema.validationMode = QuerySchemaValidationMode.STRICT
 
         properties.schema.validationMode.assert().isEqualTo(QuerySchemaValidationMode.STRICT)

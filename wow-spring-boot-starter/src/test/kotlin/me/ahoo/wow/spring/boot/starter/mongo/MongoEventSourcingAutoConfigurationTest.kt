@@ -37,6 +37,7 @@ import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaSource
+import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
@@ -76,6 +77,11 @@ class MongoEventSourcingAutoConfigurationTest {
             mongoClient = mongoClient("order-service"),
             dataMongoProperties = null,
             currentBoundedContext = MaterializedNamedBoundedContext("order-service"),
+            queryProperties = QueryProperties(
+                schema = QueryProperties.Schema(
+                    validationMode = QuerySchemaValidationMode.COMPATIBLE,
+                ),
+            ),
         ).assert().isInstanceOf(me.ahoo.wow.mongo.query.event.MongoEventStreamQueryServiceFactory::class.java)
     }
 
@@ -119,7 +125,11 @@ class MongoEventSourcingAutoConfigurationTest {
             dataMongoProperties = null,
             currentBoundedContext = MaterializedNamedBoundedContext("order-service"),
             sources = listOf(source),
-            queryProperties = QueryProperties(),
+            queryProperties = QueryProperties(
+                schema = QueryProperties.Schema(
+                    validationMode = QuerySchemaValidationMode.COMPATIBLE,
+                ),
+            ),
         )
 
         (factory.create<Any>(MOCK_AGGREGATE_METADATA) as QueryModelSchemaProvider)
@@ -144,7 +154,9 @@ class MongoEventSourcingAutoConfigurationTest {
             currentBoundedContext = MaterializedNamedBoundedContext("order-service"),
             sources = listOf(failingQuerySchemaSource(expected)),
             queryProperties = QueryProperties(
-                QueryProperties.Schema(me.ahoo.wow.query.schema.QuerySchemaValidationMode.STRICT)
+                schema = QueryProperties.Schema(
+                    validationMode = QuerySchemaValidationMode.STRICT,
+                ),
             ),
         )
 

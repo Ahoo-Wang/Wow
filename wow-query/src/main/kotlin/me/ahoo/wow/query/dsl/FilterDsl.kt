@@ -73,14 +73,10 @@ import java.time.ZoneId
 import java.util.concurrent.TimeUnit
 
 @QueryDslMarker
-class FilterDsl private constructor(
-    private val prefix: String,
-    private val allowScopedExpression: Boolean,
+class FilterDsl internal constructor(
+    private val prefix: String = "",
+    private val allowScopedExpression: Boolean = false,
 ) {
-    internal constructor() : this(prefix = "", allowScopedExpression = false)
-
-    internal constructor(prefix: String) : this(prefix, allowScopedExpression = false)
-
     private val expressions = mutableListOf<FilterExpression>()
 
     private fun add(expression: FilterExpression) {
@@ -136,7 +132,7 @@ class FilterDsl private constructor(
      * Multiple expressions in [block] form one implicit AND operand.
      */
     fun String.path(block: FilterDsl.() -> Unit) {
-        val scoped = FilterDsl(field(this).value).apply(block)
+        val scoped = FilterDsl(prefix = field(this).value).apply(block)
         require(scoped.expressions.isNotEmpty()) { "path block cannot be empty." }
         add(scoped.build())
     }
@@ -316,7 +312,10 @@ class FilterDsl private constructor(
         create: (List<FilterExpression>) -> FilterExpression,
         block: FilterDsl.() -> Unit,
     ): FilterExpression {
-        val nested = FilterDsl(prefix, allowScopedExpression).apply(block)
+        val nested = FilterDsl(
+            prefix = prefix,
+            allowScopedExpression = allowScopedExpression,
+        ).apply(block)
         require(nested.expressions.isNotEmpty()) { "$name block cannot be empty." }
         return create(nested.expressions.toList())
     }

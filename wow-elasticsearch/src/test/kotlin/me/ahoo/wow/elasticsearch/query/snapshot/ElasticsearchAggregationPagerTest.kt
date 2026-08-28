@@ -457,7 +457,11 @@ class ElasticsearchAggregationPagerTest {
             every { convert(any(), any()) } returns
                 co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll { it }
         }
-        val service = ElasticsearchSnapshotQueryService<Any>(MOCK_AGGREGATE_METADATA, client, converter)
+        val service = ElasticsearchSnapshotQueryService<Any>(
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+            elasticsearchClient = client,
+            filterConverter = converter,
+        )
 
         service.aggregate(
             aggregation {
