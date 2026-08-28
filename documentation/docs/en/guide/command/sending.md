@@ -55,7 +55,7 @@ These methods select an observation point; they do not change command processing
 
 ## Aggregate HTTP Routes
 
-Aggregate-specific routes are generated from command and aggregate metadata. They carry a concrete request-body schema and may place tenant, owner, aggregate ID, or command properties in paths and headers. Treat the target service's current generated OpenAPI or `RouterSpecs` route catalog as the authority for HTTP methods, paths, and scope.
+Aggregate-specific routes are generated from command and aggregate metadata. They carry a concrete request-body schema and may place tenant, owner, aggregate ID, or command properties in paths and headers. Treat the target service's current generated OpenAPI as the authority for HTTP methods, paths, and scope.
 
 Examples in the current generated `example-domain` contract are:
 
@@ -88,7 +88,7 @@ The current generated OpenAPI declares only `application/json` for this global r
 Aggregate command routes support two response modes:
 
 - `Accept: application/json` uses `sendAndWait` and returns only the final `CommandResult` for the selected wait plan;
-- `Accept: text/event-stream` uses `sendAndWaitStream` and emits each stage as an SSE event whose event name is the `CommandStage` and whose data is that stage's `CommandResult`.
+- `Accept: text/event-stream` uses `sendAndWaitStream` and emits one SSE event for each accepted signal; the same `CommandStage` can produce multiple events, whose event name is the stage name and whose data is that signal's `CommandResult`.
 
 Stage signals arrive in observed order; callers must not assume a fixed sequence. A disconnect or timeout ends only this HTTP wait. It does not cancel a command already accepted by the command bus.
 
@@ -105,7 +105,7 @@ The current route contract for global `/wow/command/send` accepts JSON only. Use
 | `requestId` | Caller-provided idempotency key |
 | `function` | Function information for the stage signal |
 | `errorCode` / `errorMsg` / `bindingErrors` | Success state and failure details; `succeeded` is derived from the error code |
-| `result` | Result values accumulated from accepted signals |
+| `result` | An SSE stream element carries the current accepted signal's data; a non-streaming final result can contain values accumulated by the wait state |
 | `signalTime` | Time when the signal was generated |
 
 A successful result proves only the observation point named by `stage`. Do not infer snapshot, projection, event-processor, or Saga completion from `PROCESSED`.

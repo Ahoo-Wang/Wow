@@ -55,7 +55,7 @@ commandGateway.sendAndWaitForSnapshot(message)
 
 ## 聚合 HTTP 路由
 
-聚合专用路由由命令与聚合 metadata 生成，携带具体请求体 Schema，并可把 tenant、owner、aggregate ID 或命令属性放入路径和请求头。HTTP 方法、路径和作用域必须以目标服务当前生成的 OpenAPI 或 `RouterSpecs` route catalog 为准。
+聚合专用路由由命令与聚合 metadata 生成，携带具体请求体 Schema，并可把 tenant、owner、aggregate ID 或命令属性放入路径和请求头。HTTP 方法、路径和作用域必须以目标服务当前生成的 OpenAPI 为准。
 
 当前 `example-domain` 生成契约中的示例是：
 
@@ -88,7 +88,7 @@ curl -X POST http://order-service:8080/wow/command/send \
 聚合命令路由同时支持两种响应：
 
 - `Accept: application/json` 调用 `sendAndWait`，只返回所选等待计划的最终 `CommandResult`；
-- `Accept: text/event-stream` 调用 `sendAndWaitStream`，把阶段作为 SSE 事件发送，事件名是 `CommandStage`，数据是该阶段的 `CommandResult`。
+- `Accept: text/event-stream` 调用 `sendAndWaitStream`，为每个 accepted signal 发送一个 SSE 事件；同一 `CommandStage` 可能产生多个事件，事件名是阶段名，数据是该信号的 `CommandResult`。
 
 阶段流按实际观察顺序到达，调用方不能假定固定顺序。连接断开或超时只结束本次 HTTP 等待，不会撤销已经被命令总线接受的命令。
 
@@ -105,7 +105,7 @@ curl -X POST http://order-service:8080/wow/command/send \
 | `requestId` | 调用方提供的幂等键 |
 | `function` | 产生阶段信号的函数信息 |
 | `errorCode` / `errorMsg` / `bindingErrors` | 成功状态与失败详情；`succeeded` 由错误码推导 |
-| `result` | 已接受信号累积的结果值 |
+| `result` | SSE 流元素携带当前 accepted signal 的数据；非流式最终结果可能包含等待状态累计的值 |
 | `signalTime` | 信号生成时间 |
 
 成功结果只证明 `stage` 对应的观察点。不要从 `PROCESSED` 推断快照、投影、事件处理器或 Saga 已完成。
