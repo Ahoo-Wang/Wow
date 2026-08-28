@@ -75,7 +75,7 @@ The current source tree declares:
 
 | Component | Baseline |
 | --- | --- |
-| Wow | `8.15.0` |
+| Wow | `8.16.0` |
 | Java | 17+ |
 | Spring Boot | `4.1.1` |
 | Kotlin | `2.4.10` |
