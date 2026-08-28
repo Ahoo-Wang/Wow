@@ -6,7 +6,7 @@ outline: deep
 
 # Events and Collaboration
 
-After a domain event enters EventStore, it is authoritative history. Processor, Saga, Projection, and Compensation all run after the append. They consume committed facts, but their effects are not part of the source aggregate transaction and cannot roll back an appended event.
+After a domain event enters EventStore, it is authoritative history. The downstream collaboration in this section runs after the append. It consumes committed facts, but its effects are not part of the source aggregate transaction and cannot roll back an appended event.
 
 ## Choose a Processing Mechanism
 
@@ -25,7 +25,6 @@ Choose from the required business result, not from annotation names. One flow ma
 command -> aggregate -> append domain event
                          |-> Processor -> ordinary side effect
                          |-> Saga -> 0..N follow-up commands
-                         |-> Projection -> query read model
                          `-> processing failure -> Compensation
 ```
 

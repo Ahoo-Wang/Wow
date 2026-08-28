@@ -6,7 +6,7 @@ outline: deep
 
 # 事件与协作
 
-领域事件进入 EventStore 后成为权威历史。Processor、Saga、Projection 与 Compensation 都发生在追加之后：它们消费已提交事实，但不把自己的副作用变成源聚合事务的一部分，也不能回滚已经追加的事件。
+领域事件进入 EventStore 后成为权威历史。本区域的下游协作都发生在追加之后：它们消费已提交事实，但不把自己的副作用变成源聚合事务的一部分，也不能回滚已经追加的事件。
 
 ## 选择处理机制
 
@@ -25,7 +25,6 @@ outline: deep
 命令 -> 聚合 -> 追加领域事件
                   |-> Processor -> 普通副作用
                   |-> Saga -> 0..N 条后续命令
-                  |-> Projection -> 查询读模型
                   `-> 处理失败 -> Compensation
 ```
 
