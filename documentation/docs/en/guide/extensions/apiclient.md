@@ -167,67 +167,7 @@ The synchronous gateway blocks the calling thread and returns `CommandResult`. U
 
 ## Snapshot Query
 
-Snapshot clients post the same DTOs defined by `wow-query`. They do not fetch `GET /{aggregate}/snapshot/schema` or prevalidate logical fields. The server resolves the runtime query-model schema, appends configured policies, and applies HTTP guards.
-
-Typed methods return `MaterializedSnapshot<S>`. State methods unwrap `S`. Dynamic methods return maps and are appropriate when projection selects a shape that is not `S`; they give up compile-time field typing.
-
-### Reactive Query API
-
-```kotlin
-val state: Mono<CartData> = cartClient.getStateById("cart-1")
-
-val snapshots: Flux<MaterializedSnapshot<CartData>> = listQuery {
-    filter {
-        "state.items".elementMatch { "quantity" gt 0 }
-    }
-    limit(20)
-}.query(cartClient)
-
-val page: Mono<PagedList<CartData>> = pagedQuery {
-    filter {
-        "state.items".elementMatch { "quantity" gt 0 }
-    }
-    pagination { index(1); size(20) }
-}.queryState(cartClient)
-
-val count: Mono<Long> = filterExpression {
-    "state.items".elementMatch { "quantity" gt 0 }
-}.count(cartClient)
-```
-
-Count posts a `FilterExpression` directly. Server-side WebFlux limits may reject a query that is valid as an in-process DTO.
-
-### Synchronous Query API
-
-```kotlin
-@CoApi(baseUrl = "http://order-service:8080")
-@HttpExchange("cart")
-interface CartQuerySyncClient : SynchronousSnapshotQueryApi<CartData>
-
-val cart: CartData? = cartQuerySyncClient.getStateById("cart-1")
-```
-
-The synchronous single helpers convert HTTP 404 to `null`; list, page, count, and other errors propagate. Keep this client out of non-blocking execution paths.
-
-### Snapshot Aggregation API
-
-Aggregation is deliberately not part of `ReactiveSnapshotQueryApi` or `SynchronousSnapshotQueryApi`. Opt in explicitly:
-
-```kotlin
-@CoApi(baseUrl = "http://order-service:8080")
-@HttpExchange("cart")
-interface CartAggregationClient : ReactiveSnapshotAggregationQueryApi
-
-val rows: Flux<Map<String, Any?>> = aggregation {
-    expand("state.items") { "quantity" gt 0 }
-    terms("productId", "product")
-    sum("quantity", "totalQuantity")
-    sort { "totalQuantity".desc() }
-    limit(20)
-}.query(cartAggregationClient)
-```
-
-The reactive API returns `Flux<Map<String, Any?>>`; the synchronous API returns `List<Map<String, Any?>>`. Both post `AggregationQuery` to `snapshot/aggregation`. Path relativity, backend schema capability, masking exclusion, and expensive-operator guards are server contracts unchanged by the client.
+See [Query API Client](../query/query-api-client.md) for snapshot data queries, state-only/dynamic results, 404 semantics, and the separate aggregation API.
 
 ## Error Handling
 

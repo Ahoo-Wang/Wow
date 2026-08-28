@@ -167,67 +167,7 @@ val result: CommandResult = syncGateway.send(request)
 
 ## 快照查询
 
-快照客户端提交 `wow-query` 定义的相同 DTO。它们不会获取 `GET /{aggregate}/snapshot/schema`，也不会在客户端预校验逻辑字段。服务端负责解析运行时查询模型 Schema、追加已配置策略并应用 HTTP 护栏。
-
-typed 方法返回 `MaterializedSnapshot<S>`；state 方法解包为 `S`；dynamic 方法返回 Map，适合 projection 选择出不同于 `S` 的形状，但会失去编译期字段类型。
-
-### 响应式查询 API
-
-```kotlin
-val state: Mono<CartData> = cartClient.getStateById("cart-1")
-
-val snapshots: Flux<MaterializedSnapshot<CartData>> = listQuery {
-    filter {
-        "state.items".elementMatch { "quantity" gt 0 }
-    }
-    limit(20)
-}.query(cartClient)
-
-val page: Mono<PagedList<CartData>> = pagedQuery {
-    filter {
-        "state.items".elementMatch { "quantity" gt 0 }
-    }
-    pagination { index(1); size(20) }
-}.queryState(cartClient)
-
-val count: Mono<Long> = filterExpression {
-    "state.items".elementMatch { "quantity" gt 0 }
-}.count(cartClient)
-```
-
-count 直接提交 `FilterExpression`。在进程内 DTO 合法的请求，仍可能被服务端 WebFlux 限制拒绝。
-
-### 同步查询 API
-
-```kotlin
-@CoApi(baseUrl = "http://order-service:8080")
-@HttpExchange("cart")
-interface CartQuerySyncClient : SynchronousSnapshotQueryApi<CartData>
-
-val cart: CartData? = cartQuerySyncClient.getStateById("cart-1")
-```
-
-同步 single helper 会把 HTTP 404 转换为 `null`；list、page、count 与其他错误继续传播。不要把该客户端放入非阻塞执行路径。
-
-### 快照聚合 API
-
-Aggregation 刻意不属于 `ReactiveSnapshotQueryApi` 或 `SynchronousSnapshotQueryApi`，必须显式选择：
-
-```kotlin
-@CoApi(baseUrl = "http://order-service:8080")
-@HttpExchange("cart")
-interface CartAggregationClient : ReactiveSnapshotAggregationQueryApi
-
-val rows: Flux<Map<String, Any?>> = aggregation {
-    expand("state.items") { "quantity" gt 0 }
-    terms("productId", "product")
-    sum("quantity", "totalQuantity")
-    sort { "totalQuantity".desc() }
-    limit(20)
-}.query(cartAggregationClient)
-```
-
-响应式 API 返回 `Flux<Map<String, Any?>>`，同步 API 返回 `List<Map<String, Any?>>`；两者都把 `AggregationQuery` 提交到 `snapshot/aggregation`。路径相对性、后端 Schema 能力、跳过脱敏和高成本操作符护栏都是服务端合同，不会因客户端而改变。
+快照数据查询、state-only/dynamic 结果、404 语义及独立聚合 API 见[查询 API 客户端](../query/query-api-client.md)。
 
 ## 错误处理
 
