@@ -16,14 +16,16 @@ sequenceDiagram
     participant EventBus as DomainEventBus
     participant Saga as Stateless Saga
     participant Gateway as CommandGateway
-    participant Target as Target aggregate
+    participant CommandBus as CommandBus
     Source->>EventBus: Domain event
     EventBus->>Saga: Invoke matching Saga function
     loop 0..N commands
         Saga->>Gateway: Send follow-up command in order
-        Gateway->>Target: Process command
+        Gateway->>CommandBus: Send command
+        CommandBus-->>Gateway: Send boundary completed
     end
     Saga-->>EventBus: SAGA_HANDLED + commandIds
+    Note over Gateway,CommandBus: Target aggregate processing is outside<br/>the SAGA_HANDLED guarantee
 ```
 
 ## When to Use a Saga
