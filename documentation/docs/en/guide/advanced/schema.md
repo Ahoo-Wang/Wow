@@ -12,7 +12,7 @@ Wow uses the word "schema" for different artifacts. They must not be treated as 
 | `META-INF/wow-metadata.json` | `wow-compiler` KSP | `MetadataSearcher` | bounded contexts, aggregates, commands, events, routes |
 | JSON Schema | `SchemaGeneratorBuilder` / bundled resources | validation, tooling, OpenAPI conversion | wire shape of a Java/Kotlin type |
 | OpenAPI components | `OpenAPISchemaBuilder` | `RouterSpecs`, Springdoc, generators | schemas referenced by HTTP operations |
-| Query-model schema | query schema sources + backend adapter | query resolver and `snapshot/schema` route | logical fields and backend-proven query capabilities |
+| Query-model schema | query schema sources + backend adapter | query resolver and `snapshot/schema` / `event/schema` routes | logical fields and backend-proven query capabilities |
 
 KSP also generates `*Properties` path constants for aggregate state navigation. Those constants do not enumerate runtime backend capabilities and do not replace the query-model schema.
 
@@ -99,7 +99,7 @@ OpenAPI query publication has two static layers, followed by one runtime layer:
 
 1. Generic component schemas define the canonical JSON shape of `FilterExpression`, `SingleQuery`, `ListQuery`, `PagedQuery`, and `AggregationQuery`.
 2. Each aggregate-specific request-body component references the appropriate generic schema and adds `x-wow-query-fields`. That extension references a static enum containing system fields plus fields inferred from the aggregate state by `JsonQuerySchemaSource`; it does not contain backend bindings or proven capabilities.
-3. `GET /{aggregate}/snapshot/schema` returns runtime `QueryModelSchemaMetadata` after all configured query-schema sources are merged and the selected backend adapter resolves capabilities. `/refresh` refreshes this runtime view.
+3. `GET /{aggregate}/snapshot/schema` and `GET /{aggregate}/event/schema` return the Snapshot and EventStream runtime `QueryModelSchemaMetadata` respectively after all configured query-schema sources are merged and the selected backend adapter resolves capabilities. The corresponding `/refresh` route refreshes that runtime view.
 
 The static field extension makes aggregate fields available to OpenAPI tooling without changing the generic request JSON shape. It must not be presented as equivalent to the runtime schema.
 

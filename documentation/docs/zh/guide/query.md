@@ -351,7 +351,7 @@ JVM 侧使用 `filter.count(queryService)`。count 按所选后端合同保持�
 
 OpenAPI 发布三个不同层次。通用 component schemas 定义 `FilterExpression`、single/list/paged query 与 aggregation 的 JSON 形状；每个聚合专用 request-body component 引用其中一个通用 Schema，并增加静态 `x-wow-query-fields`：其枚举由 system fields 与 `JsonQuerySchemaSource` 推断字段组成。该扩展是设计时字段目录，不是后端已证明能力列表。
 
-`GET /{aggregate}/snapshot/schema` 返回第三层：当前 `QueryModelSchemaMetadata`，包含合并后的逻辑元数据与后端已证明能力；`POST /{aggregate}/snapshot/schema/refresh` 刷新它。这些运行时 Schema 路由刻意不生成 tenant、owner 或 aggregate-ID 路径变体，因为它们描述模型而非调用方数据；spaced 聚合的公共聚合合同仍可能声明 `Wow-Space-Id`。
+`GET /{aggregate}/snapshot/schema` 与 `GET /{aggregate}/event/schema` 分别返回 Snapshot、EventStream 的第三层：当前 `QueryModelSchemaMetadata`，包含合并后的逻辑元数据与后端已证明能力；对应的 `POST .../schema/refresh` 刷新该模型。这些运行时 Schema 路由刻意不生成 tenant、owner 或 aggregate-ID 路径变体，因为它们描述模型而非调用方数据；spaced 聚合的公共聚合合同仍可能声明 `Wow-Space-Id`。
 
 运行时 Schema 会把系统字段与 JSON Schema 推断、classpath 约定、Bean 注册、工作目录约定合并，再由后端适配器解析物理绑定。KSP 生成的 `*Properties` 常量是编译期路径导航辅助，不是该运行时 Schema，也不会发布 HTTP 路由。
 

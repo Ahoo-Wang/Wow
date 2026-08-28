@@ -82,6 +82,7 @@ import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
 import me.ahoo.wow.webflux.route.query.HttpQueryGuardFilter
+import me.ahoo.wow.webflux.route.query.RewriteRequestFilter
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.test.context.FilteredClassLoader
@@ -109,6 +110,18 @@ import java.util.stream.Stream
 
 @Suppress("LargeClass")
 internal class WebFluxAutoConfigurationTest {
+
+    @Test
+    fun `should preserve query route module factory api`() {
+        WebFluxAutoConfiguration::class.java.getMethod(
+            "queryRouteModule",
+            SnapshotQueryGateway::class.java,
+            SnapshotQueryServiceFactory::class.java,
+            EventStreamQueryGateway::class.java,
+            RewriteRequestFilter::class.java,
+            RequestExceptionHandler::class.java,
+        ).assert().isNotNull()
+    }
     private val contextRunner = ApplicationContextRunner()
         .withBean(SnapshotQueryServiceFactory::class.java, { NoOpSnapshotQueryServiceFactory })
         .withPropertyValues(
@@ -968,6 +981,8 @@ internal class WebFluxAutoConfigurationTest {
             BuiltInHttpRouteHandlerKeys.Snapshot.SCHEMA_REFRESH,
             BuiltInHttpRouteHandlerKeys.Snapshot.AGGREGATION,
             BuiltInHttpRouteHandlerKeys.Event.LOAD,
+            BuiltInHttpRouteHandlerKeys.Event.SCHEMA,
+            BuiltInHttpRouteHandlerKeys.Event.SCHEMA_REFRESH,
             BuiltInHttpRouteHandlerKeys.Event.AGGREGATION,
             BuiltInHttpRouteHandlerKeys.Snapshot.REGENERATE,
             BuiltInHttpRouteHandlerKeys.Event.RESEND_STATE,
