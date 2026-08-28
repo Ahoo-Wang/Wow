@@ -85,7 +85,7 @@ describe('EventStreamQueryEndpointPaths', () => {
 
     expectTypeOf<QueryApiHasAggregationKeys>().toEqualTypeOf<true>();
     expectTypeOf<EventApiHasAggregationKeys>().toEqualTypeOf<true>();
-    expectTypeOf<QueryApiRequiresAggregation>().toEqualTypeOf<false>();
+    expectTypeOf<QueryApiRequiresAggregation>().toEqualTypeOf<true>();
     expectTypeOf(assertClientTypes).toBeFunction();
   });
 

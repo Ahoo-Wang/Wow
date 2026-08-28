@@ -34,7 +34,7 @@ import type { DynamicDocument } from './types';
  */
 export interface QueryApi<R, FIELDS extends string = string> {
   /** Runs an aggregation and returns all result rows. */
-  aggregate?<
+  aggregate<
     Row extends DynamicDocument = DynamicDocument,
     AGGREGATION_FIELDS extends string = string,
   >(
@@ -44,7 +44,7 @@ export interface QueryApi<R, FIELDS extends string = string> {
   ): Promise<Row[]>;
 
   /** Runs an aggregation and streams result rows as SSE. */
-  aggregateStream?<
+  aggregateStream<
     Row extends DynamicDocument = DynamicDocument,
     AGGREGATION_FIELDS extends string = string,
   >(

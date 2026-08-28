@@ -78,7 +78,7 @@ describe('SnapshotQueryEndpointPaths', () => {
     };
 
     expectTypeOf<SnapshotApiHasAggregationKeys>().toEqualTypeOf<true>();
-    expectTypeOf<SnapshotApiRequiresAggregation>().toEqualTypeOf<false>();
+    expectTypeOf<SnapshotApiRequiresAggregation>().toEqualTypeOf<true>();
     expectTypeOf(assertClientTypes).toBeFunction();
   });
 
