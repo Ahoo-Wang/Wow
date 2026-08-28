@@ -326,6 +326,17 @@ On the JVM, use `filter.count(queryService)`. Count remains exact according to t
 - legacy `MATCH` converts to `SEARCH`; it is not allowed inside element match;
 - legacy `RAW` has no replacement. Backend-native queries belong in application-owned, explicitly secured endpoints.
 
+When upgrading from 8.14.x, migrate the breaking query-entry rename. The old types and Spring bean names have no aliases:
+
+| 8.14.x | Current version |
+|---|---|
+| `me.ahoo.wow.query.filter.QueryHandler` / `AbstractQueryHandler` | `me.ahoo.wow.query.QueryGateway` / `AbstractQueryGateway` |
+| `me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler` / `DefaultSnapshotQueryHandler` | `me.ahoo.wow.query.snapshot.SnapshotQueryGateway` / `DefaultSnapshotQueryGateway` |
+| `me.ahoo.wow.query.event.filter.EventStreamQueryHandler` / `DefaultEventStreamQueryHandler` | `me.ahoo.wow.query.event.EventStreamQueryGateway` / `DefaultEventStreamQueryGateway` |
+| `snapshotQueryHandler` / `eventStreamQueryHandler` bean | `snapshotQueryGateway` / `eventStreamQueryGateway` bean |
+
+Update custom query filters so their `@FilterType` targets the corresponding `QueryGateway`. A custom Gateway no longer implements `Handler` or exposes `handle(QueryContext)`; it must implement `aggregate`, and Gateway `count` accepts only `FilterExpression`. Aggregate-scoped `QueryService`, `QueryServiceProxy`, both `QueryServiceRegistrar` implementations, backend `QueryService`, and factories remain unchanged: managed `QueryService` calls still pass through the Gateway, while direct factory access still bypasses the policy chain. This rename does not change HTTP/OpenAPI query shapes, wire contracts, or stored data, so it does not require data migration by itself.
+
 Do not silently change an existing field's meaning during migration. Add a new logical field or an explicit schema override, then validate old and new requests against the intended compatibility mode.
 
 ## JSON Schema
@@ -358,4 +369,4 @@ class OrderReader(
 }
 ```
 
-Factories are lower-level backend entry points. A service created directly from `SnapshotQueryServiceFactory` or `EventStreamQueryServiceFactory` bypasses the generated handler chain. Keep raw factories inside trusted infrastructure code; do not expose them as an ordinary request path.
+Factories are lower-level backend entry points. A service created directly from `SnapshotQueryServiceFactory` or `EventStreamQueryServiceFactory` bypasses the `QueryGateway` policy chain. Keep raw factories inside trusted infrastructure code; do not expose them as an ordinary request path.

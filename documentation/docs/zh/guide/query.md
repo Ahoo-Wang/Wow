@@ -326,6 +326,17 @@ JVM 侧使用 `filter.count(queryService)`。count 按所选后端合同保持�
 - 旧 `MATCH` 转换为 `SEARCH`，且不能放在 element match 中；
 - 旧 `RAW` 没有替代操作符。后端原生查询应由应用自有且显式保护的端点承担。
 
+从 8.14.x 升级时，查询执行入口完成了破坏性重命名，旧类型与 Spring Bean 名不保留别名：
+
+| 8.14.x | 当前版本 |
+|---|---|
+| `me.ahoo.wow.query.filter.QueryHandler` / `AbstractQueryHandler` | `me.ahoo.wow.query.QueryGateway` / `AbstractQueryGateway` |
+| `me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler` / `DefaultSnapshotQueryHandler` | `me.ahoo.wow.query.snapshot.SnapshotQueryGateway` / `DefaultSnapshotQueryGateway` |
+| `me.ahoo.wow.query.event.filter.EventStreamQueryHandler` / `DefaultEventStreamQueryHandler` | `me.ahoo.wow.query.event.EventStreamQueryGateway` / `DefaultEventStreamQueryGateway` |
+| `snapshotQueryHandler` / `eventStreamQueryHandler` Bean | `snapshotQueryGateway` / `eventStreamQueryGateway` Bean |
+
+自定义查询过滤器的 `@FilterType` 必须改为对应 `QueryGateway` 类型。自定义 Gateway 不再实现 `Handler` 或公开 `handle(QueryContext)`；它必须实现 `aggregate`，且 Gateway 的 `count` 只接受 `FilterExpression`。聚合级 `QueryService`、`QueryServiceProxy`、两个 `QueryServiceRegistrar`、后端 `QueryService` 与 Factory 保持不变：受管 `QueryService` 仍通过 Gateway，直接使用 Factory 仍会绕过策略链。此次重命名不改变 HTTP/OpenAPI 查询形状、线协议或存储数据，因此本身不需要数据迁移。
+
 迁移期间不要偷偷改变已有字段含义。应增加新逻辑字段或显式 Schema 覆盖，并在目标兼容模式下验证新旧请求。
 
 ## JSON Schema
@@ -358,4 +369,4 @@ class OrderReader(
 }
 ```
 
-Factory 是更底层的后端入口。直接通过 `SnapshotQueryServiceFactory` 或 `EventStreamQueryServiceFactory` 创建的服务会绕过生成的 Handler 链。原始 Factory 应只放在受信基础设施代码中，不要作为普通请求路径暴露。
+Factory 是更底层的后端入口。直接通过 `SnapshotQueryServiceFactory` 或 `EventStreamQueryServiceFactory` 创建的服务会绕过 `QueryGateway` 策略链。原始 Factory 应只放在受信基础设施代码中，不要作为普通请求路径暴露。
