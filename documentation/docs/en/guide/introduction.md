@@ -36,7 +36,7 @@ Commands name business intent, aggregates protect invariants, and domain events 
 
 ### 2. Performance and Scalability
 
-Aggregate boundaries, append-oriented event storage, and messaging abstractions reduce direct coupling between domain rules and storage topology. They do not remove hot aggregates, large events, backend limits, or deployment constraints. Evaluate the selected release with the reproducible tasks in [Framework Tests and Benchmarks](./test-runtime.md#benchmark-smoke); historical throughput without its code revision, hardware, and parameters is not a current guarantee.
+Aggregate boundaries, append-oriented event storage, and messaging abstractions reduce direct coupling between domain rules and storage topology. They do not remove hot aggregates, large events, backend limits, or deployment constraints. Evaluate the selected release with the reproducible tasks in [Framework Tests and Benchmarks](./test-runtime.md#benchmarks-have-three-uses); historical throughput without its code revision, hardware, and parameters is not a current guarantee.
 
 ### 3. Read-Write Separation and Synchronization Delay
 

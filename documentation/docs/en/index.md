@@ -34,11 +34,11 @@ features:
 - title: Reproducible Performance Baselines
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>'
   details: Purpose-specific JMH tasks keep performance claims tied to the current code, runtime environment, and result manifest instead of context-free historical numbers
-  link: /guide/test-runtime#benchmark-smoke
+  link: /guide/test-runtime#benchmarks-have-three-uses
 - title: Scalability
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="m21 3-7 7"/><path d="m3 21 7-7"/></svg>'
   details: Aggregate, event-store, and messaging abstractions reduce domain coupling to storage topology; real scalability depends on hot spots, backends, and deployment evidence.
-  link: /guide/introduction.html#performance-and-scalability
+  link: /guide/introduction.html#_2-performance-and-scalability
 - title: Distributed Transactions (Saga)
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>'
   details: Carefully manage transaction processes between complex multi-services using Saga orchestration pattern to reduce the complexity of distributed transactions

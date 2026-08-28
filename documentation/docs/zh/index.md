@@ -34,11 +34,11 @@ features:
 - title: 可复现的性能基线
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>'
   details: 提供按用途分层的 JMH 基准任务；性能结论必须绑定当前代码、运行环境与结果清单，避免复用失去上下文的历史数据
-  link: /zh/guide/test-runtime#基准-smoke
+  link: /zh/guide/test-runtime#基准分三种用途
 - title: 可伸缩性
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="m21 3-7 7"/><path d="m3 21 7-7"/></svg>'
   details: 聚合、事件存储与消息抽象降低领域规则对存储拓扑的耦合；实际伸缩能力取决于热点、后端和部署验证。
-  link: /zh/guide/introduction.html#性能与伸缩性
+  link: /zh/guide/introduction.html#_2-性能与伸缩性
 - title: 分布式事务 (Saga)
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>'
   details: 利用 Saga 编排模式精心管理复杂多服务之间的事务流程，以降低分布式事务的复杂性
