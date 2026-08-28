@@ -18,7 +18,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
         {
             text: '文章',
             base: '/zh/articles/',
-            collapsed: false,
+            collapsed: true,
             items: [
                 {text: '文章首页', link: 'index.html'},
                 {text: '接口返回 200，查询却查不到', link: 'command-success-is-not-complete'},
@@ -31,7 +31,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
         {
             base: '/zh/onboarding/',
             text: '评估与参与',
-            collapsed: false,
+            collapsed: true,
             items: [
                 {text: '按角色选择', link: 'index.html'},
                 {text: '贡献者指南', link: 'contributor-guide'},
@@ -45,7 +45,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
         {
             base: '/zh/guide/',
             text: '开始使用',
-            collapsed: false,
+            collapsed: true,
             items: [
                 {text: '指南导览', link: 'index.html'},
                 {text: '简介', link: 'introduction'},
@@ -57,7 +57,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
         {
             base: '/zh/guide/',
             text: '领域开发',
-            collapsed: false,
+            collapsed: true,
             items: [
                 {text: '聚合建模', link: 'modeling'},
                 {text: '事件存储', link: 'eventstore'},
@@ -71,7 +71,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
         {
             base: '/zh/guide/',
             text: '读模型与查询',
-            collapsed: false,
+            collapsed: true,
             items: [
                 {text: '投影', link: 'projection'},
                 {text: '查询服务', link: 'query'},
@@ -81,7 +81,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
         {
             base: '/zh/guide/',
             text: '接口与自动化',
-            collapsed: false,
+            collapsed: true,
             items: [
                 {text: 'Open API', link: 'open-api'},
                 {text: 'Agent Skills', link: 'skills'},
@@ -91,7 +91,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
         {
             base: '/zh/guide/',
             text: '测试与交付',
-            collapsed: false,
+            collapsed: true,
             items: [
                 {text: '测试套件', link: 'test-suite'},
                 {text: '应用测试', link: 'application-testing'},
@@ -101,7 +101,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
         {
             base: '/zh/guide/',
             text: '生产运维',
-            collapsed: false,
+            collapsed: true,
             items: [
                 {text: '配置', link: 'configuration'},
                 {text: 'BI 部署与恢复', link: 'bi-operations'},
@@ -111,7 +111,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {
                     text: '迁移指南',
                     link: 'migration',
-                    collapsed: false,
+                    collapsed: true,
                     items: [
                         {text: '传统架构迁移', link: 'migration/traditional-architecture'},
                         {text: 'Wow v6 迁移到 v8', link: 'migration/v6-to-v8'},
@@ -165,7 +165,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
         {
             text: '配置',
             base: '/zh/reference/config/',
-            collapsed: false,
+            collapsed: true,
             items: [
                 {text: '核心配置', link: 'core'},
                 {text: '基础设施', link: 'infrastructure'},
@@ -176,7 +176,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
         {
             text: '示例',
             base: '/zh/reference/example/',
-            collapsed: false,
+            collapsed: true,
             items: [
                 {text: '订单与购物车（Kotlin）', link: 'order'},
                 {text: '银行转账（JAVA）', link: 'transfer'},
@@ -185,7 +185,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
         },
         {
             text: '生态',
-            collapsed: false,
+            collapsed: true,
             items: [
                 {text: '生态资源', link: '/zh/reference/ecosystem'},
             ],
