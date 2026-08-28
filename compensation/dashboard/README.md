@@ -1,69 +1,42 @@
-# React + TypeScript + Vite
+# Wow Compensation Dashboard
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+该 React 应用是 `wow-compensation-server` 的运营客户端：查询 `ExecutionFailed` 队列和历史，修改恢复性/重试规格/目标函数，以及发起准备或强制准备。服务端状态机才是最终决策边界。
 
-Currently, two official plugins are available:
+## 开发
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+从仓库根目录执行：
 
-## Expanding the ESLint configuration
+```shell
+pnpm --dir compensation/dashboard install --frozen-lockfile
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default tseslint.config([
-  globalIgnores(["dist"]),
-  {
-    files: ["**/*.{ts,tsx}"],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ["./tsconfig.node.json", "./tsconfig.app.json"],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
+VITE_API_BASE_URL=http://127.0.0.1:18083/ \
+pnpm --dir compensation/dashboard dev --host 127.0.0.1
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+`VITE_API_BASE_URL` 是所有 Fetcher 请求的基地址。`.env.development` 默认指向开发集群服务；连接本地服务时必须像上面一样显式覆盖。本地补偿服务的安全启动命令见[补偿参考案例](../../documentation/docs/zh/reference/example/compensation.md#功能特性)。
 
-```js
-// eslint.config.js
-import reactX from "eslint-plugin-react-x";
-import reactDom from "eslint-plugin-react-dom";
+## 验证命令
 
-export default tseslint.config([
-  globalIgnores(["dist"]),
-  {
-    files: ["**/*.{ts,tsx}"],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs["recommended-typescript"],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ["./tsconfig.node.json", "./tsconfig.app.json"],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
-```
+| 目的 | 命令 |
+| --- | --- |
+| 类型检查与生产构建 | `pnpm --dir compensation/dashboard build` |
+| 单次运行 Vitest | `pnpm --dir compensation/dashboard exec vitest run` |
+| 代码检查 | `pnpm --dir compensation/dashboard lint` |
+| 覆盖率门禁 | `pnpm --dir compensation/dashboard coverage` |
+| 构建后浏览器测试 | `pnpm --dir compensation/dashboard test:browser` |
+| 本地预览 | `pnpm --dir compensation/dashboard preview --host 127.0.0.1` |
+
+`pnpm --dir compensation/dashboard test` 直接调用 `vitest`，在交互终端中可能进入 watch；CI 和一次性验证使用表中的 `vitest run`。Playwright 会在 `127.0.0.1:4174` 运行已构建的 preview，首次使用前需确保 Chromium 已安装。
+
+## 生成客户端边界
+
+[`src/generated/`](src/generated/) 是 Fetcher Generator 根据补偿服务 OpenAPI 产生的输出，不是手工维护源码：
+
+1. 先在 `wow-compensation-api`/服务端修改公开合同并生成运行时 `/v3/api-docs`；
+2. 确认 `package.json` 中的开发集群 OpenAPI 地址可访问；
+3. 执行 `pnpm --dir compensation/dashboard generate`；
+4. 审查生成 diff，再运行 build、Vitest 和 lint。
+
+业务代码通过 [`src/services/`](src/services/) 包装生成的 command/query client；基地址和 CoSec 策略也在该层组装。不要为规避后端/OpenAPI 缺陷而手改 `src/generated/`。ESLint 和覆盖率统计均明确排除该目录。
+
+补偿状态、运营权限与部署要求见[事件补偿指南](../../documentation/docs/zh/guide/event-compensation.md#控制台)。
