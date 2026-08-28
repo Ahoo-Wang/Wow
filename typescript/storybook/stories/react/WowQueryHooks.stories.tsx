@@ -135,7 +135,7 @@ const meta = {
   component: WowQueryDemo,
   beforeEach: installFetchFixture,
   args: { scenario: 'single' },
-  argTypes: { scenario: { control: 'radio' } },
+  argTypes: { scenario: { table: { disable: true } } },
 } satisfies Meta<typeof WowQueryDemo>;
 
 export default meta;
