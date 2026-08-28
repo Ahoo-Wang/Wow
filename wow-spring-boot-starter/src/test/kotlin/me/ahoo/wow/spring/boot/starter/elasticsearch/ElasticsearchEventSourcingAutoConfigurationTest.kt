@@ -36,6 +36,7 @@ import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaSource
+import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
@@ -78,7 +79,12 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
             eventStoreBatchProperties = ElasticsearchEventStoreBatchProperties(),
             snapshotStoreBatchProperties = ElasticsearchSnapshotStoreBatchProperties(),
         ).elasticsearchEventStreamQueryServiceFactory(
-            mock(ReactiveElasticsearchClient::class.java),
+            elasticsearchClient = mock(ReactiveElasticsearchClient::class.java),
+            schemaQueryProperties = QueryProperties(
+                schema = QueryProperties.Schema(
+                    validationMode = QuerySchemaValidationMode.COMPATIBLE,
+                ),
+            ),
         ).assert().isInstanceOf(ElasticsearchEventStreamQueryServiceFactory::class.java)
     }
 
@@ -116,7 +122,11 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
             elasticsearchClient = mock(ReactiveElasticsearchClient::class.java),
             elasticsearchIndexMappingResolver = mockk<ElasticsearchIndexMappingResolver>(),
             sources = listOf(failingQuerySchemaSource(expected)),
-            schemaQueryProperties = QueryProperties(),
+            schemaQueryProperties = QueryProperties(
+                schema = QueryProperties.Schema(
+                    validationMode = QuerySchemaValidationMode.COMPATIBLE,
+                ),
+            ),
         )
 
         (factory.create<Any>(MOCK_AGGREGATE_METADATA) as QueryModelSchemaProvider)
@@ -140,7 +150,7 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
             sources = listOf(failingQuerySchemaSource(expected)),
             schemaQueryProperties = QueryProperties(
                 schema = QueryProperties.Schema(
-                    validationMode = me.ahoo.wow.query.schema.QuerySchemaValidationMode.STRICT,
+                    validationMode = QuerySchemaValidationMode.STRICT,
                 ),
             ),
         )
