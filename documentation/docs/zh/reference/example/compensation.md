@@ -15,7 +15,7 @@ outline: deep
 | `wow-compensation-api` | 命令、事件、状态与查询契约 |
 | `wow-compensation-domain` | `ExecutionFailed` 聚合与退避计算 |
 | `wow-compensation-core` | 失败捕获、结果写回与原事件重放 |
-| `wow-compensation-server` | 快照查询、调度、OpenAPI、通知与 Dashboard 托管 |
+| `wow-compensation-server` | 快照查询、调度、OpenAPI、通知，以及存在前端构建产物时的 Dashboard 托管 |
 | `dashboard` | 失败队列、详情与人工操作 |
 
 先验证领域、核心与控制台：
@@ -27,9 +27,9 @@ pnpm --dir compensation/dashboard exec vitest run
 
 `ExecutionFailedSpec` 覆盖 prepare、force prepare、成功、再次失败和规格变更；`CompensationFilterTest` 覆盖过滤器错误边界；Dashboard 测试覆盖队列条件与操作状态。命令成功只证明这些本地 gate，不证明真实消息、存储、通知或部署环境。
 
-## 本地无持久化运行
+## 本地服务启动、健康与路由验证
 
-当前 `:wow-compensation-server:run` 的默认 JVM 参数会在 5555 开启无认证、无 TLS 的 JMX。最小安全的本地路由验证先生成 distribution，再用普通 `java` 只绑定 loopback：
+当前 `:wow-compensation-server:run` 的默认 JVM 参数会在 5555 开启无认证、无 TLS 的 JMX。最小安全的本地路由验证先生成 distribution，再用普通 `java` 只绑定 loopback。`installDist` 只复制已经存在的 `compensation/dashboard/dist`，不会构建前端；当前端产物不存在时，这条流程不验证 Dashboard 静态资源。
 
 ```bash
 ./gradlew :wow-compensation-server:installDist
@@ -65,9 +65,9 @@ curl -fsS http://127.0.0.1:18083/v3/api-docs | \
   jq -r '.paths["/execution_failed/{id}/prepare_compensation"].put.operationId'
 ```
 
-预期分别得到 `{"status":"UP"}` 和 `compensation.execution_failed.prepare_compensation`。该模式会在进程退出后丢失数据并禁用自动调度，只适合验证启动、Dashboard 静态资源、路由和本地状态机，不是持久恢复证明。
+预期分别得到 `{"status":"UP"}` 和 `compensation.execution_failed.prepare_compensation`。这组检查只验证服务启动、健康端点和 prepare 路由存在；它没有请求 Dashboard 静态资源，也没有发送补偿命令或执行状态转换，因此不验证 Dashboard 或本地状态机。该模式还会在进程退出后丢失数据并禁用自动调度，不是持久恢复证明。
 
-Dashboard 也可独立启动：
+Dashboard 需要单独启动并验证：
 
 ```bash
 pnpm --dir compensation/dashboard dev

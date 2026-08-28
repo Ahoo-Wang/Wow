@@ -86,7 +86,7 @@ fun onOrderPaid(event: OrderPaid): Mono<Void> = project(event)
 
 | Parameter | Type | Default | Effect |
 | --- | --- | --- | --- |
-| `enabled` | Boolean | `true` | `false` prevents creating or updating this function's compensation record |
+| `enabled` | Boolean | `true` | `false` prevents failure-record creation and `ApplyExecutionFailed`; an existing compensation success still sends `ApplyExecutionSuccess` |
 | `maxRetries` | Int | `10` | Maximum ordinary preparation count |
 | `minBackoff` | Int | `180` | Exponential-backoff base in seconds |
 | `executionTimeout` | Int | `120` | Timeout in seconds for one `PREPARED` execution |

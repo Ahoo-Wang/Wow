@@ -17,11 +17,13 @@ outline: deep
 普通事件处理器、无状态 Saga、投影与快照都运行在已提交事件之后。进程内重试可以吸收短暂故障，但不能跨越进程退出，也不会留下可查询的恢复状态。事件补偿补上这段持久化缺口：
 
 ```text
+Processor / Saga / Projection:
 已提交事件 -> 目标函数 -> 即时重试耗尽 -> ExecutionFailed
-                                             |
-                          自动调度或人工准备重试
-                                             |
-                          原事件 + 原目标函数重新投递
+
+Snapshot:
+已提交状态事件 -> SnapshotFunctionFilter 首次失败 -> ExecutionFailed
+
+ExecutionFailed -> 自动调度或人工准备 -> 原事件 + 原目标函数重新投递
 ```
 
 它只负责“再次执行失败的函数”。若业务需要用一条反向命令抵消先前效果，应由 [Saga](./saga.md) 表达业务补偿，而不是由 `ExecutionFailed` 代替领域决策。
@@ -32,10 +34,10 @@ outline: deep
 
 | 层 | 触发与持续时间 | 策略来源 | 是否留下持久记录 |
 | --- | --- | --- | --- |
-| `RetryableFilter` | 当前处理调用中的可恢复异常 | 运行时全局异常分类；默认重试 3 次，最小退避 2 秒 | 否 |
+| `RetryableFilter` | Processor、Saga 与 Projection 当前调用中的可恢复异常 | 运行时全局异常分类；默认重试 3 次，最小退避 2 秒 | 否 |
 | `EventCompensationFilter` | 内层处理链最终仍失败 | 函数 `@Retry` 或服务端默认重试规格 | 是 |
 
-补偿过滤器包在即时重试过滤器外层，所以只有即时重试耗尽后的错误才会进入持久失败记录。`@Retry` 的 `recoverable`、`unrecoverable`、`maxRetries`、`minBackoff` 与 `executionTimeout` 属于持久补偿，不会改写 `RetryableFilter` 的即时策略；`@Retry(enabled = false)` 也只让该函数退出持久记录。
+在包含 `RetryableFilter` 的 Processor、Saga 与 Projection 链中，补偿过滤器包在即时重试过滤器外层，所以持久补偿只接收即时重试耗尽后的错误。Snapshot 链处理 `StateEventExchange`，没有注册当前唯一面向 `DomainEventExchange` 的 `RetryableFilter`；`StateEventCompensationFilter` 直接包裹 `SnapshotFunctionFilter`，因此 Snapshot 首次失败即可进入持久补偿。`@Retry` 的 `recoverable`、`unrecoverable`、`maxRetries`、`minBackoff` 与 `executionTimeout` 属于持久补偿，不会改写即时重试策略。`@Retry(enabled = false)` 只禁止失败分支创建 `ExecutionFailed` 或发送 `ApplyExecutionFailed`；已有补偿执行成功时仍会写回 `ApplyExecutionSuccess`。
 
 完整属性、默认值和 YAML 见[事件补偿配置参考](../../reference/config/compensation.md)。
 
@@ -48,7 +50,7 @@ outline: deep
 - 错误代码、消息、绑定错误与堆栈；
 - 执行时间、重试规格与恢复性分类。
 
-没有函数信息或显式 `@Retry(enabled = false)` 时，错误原样传播，不创建记录。补偿命令发送成功后，原处理错误继续交给 dispatcher 的错误边界；若补偿命令本身发送失败，则由发送错误终止这条响应式链，不能把“原错误已记录”当作既成事实。
+没有函数信息时，错误原样传播，不创建记录。显式 `@Retry(enabled = false)` 时，失败也原样传播：首次执行不发送 `CreateExecutionFailed`，带补偿 ID 的失败不发送 `ApplyExecutionFailed`。这个检查只在错误分支；带补偿 ID 的执行成功仍发送 `ApplyExecutionSuccess`。补偿命令发送成功后，原处理错误继续交给 dispatcher 的错误边界；若补偿命令本身发送失败，则由发送错误终止这条响应式链，不能把“原错误已记录”当作既成事实。
 
 重放 exchange 的 header 已带有 `compensationId`。再次失败发送 `ApplyExecutionFailed`，成功则发送 `ApplyExecutionSuccess`，两者都写回同一个 `ExecutionFailed` 聚合。
 

@@ -15,7 +15,7 @@ outline: deep
 | `wow-compensation-api` | Command, event, state, and query contracts |
 | `wow-compensation-domain` | `ExecutionFailed` aggregate and backoff calculation |
 | `wow-compensation-core` | Failure capture, result write-back, and source-event replay |
-| `wow-compensation-server` | Snapshot query, scheduling, OpenAPI, notification, and Dashboard hosting |
+| `wow-compensation-server` | Snapshot query, scheduling, OpenAPI, notification, and Dashboard hosting when a frontend build is present |
 | `dashboard` | Failure queues, details, and operator actions |
 
 Check the domain, core, and console first:
@@ -27,9 +27,9 @@ pnpm --dir compensation/dashboard exec vitest run
 
 `ExecutionFailedSpec` covers prepare, force prepare, success, another failure, and retry-specification changes. `CompensationFilterTest` covers filter error boundaries, while Dashboard tests cover queue conditions and action state. Successful commands prove only these local gates, not real messaging, storage, notifications, or a deployment environment.
 
-## Run Locally Without Persistence
+## Local Service Startup, Health, and Route Check
 
-The current default JVM arguments for `:wow-compensation-server:run` enable JMX on port 5555 without authentication or TLS. For the smallest safe local route check, build the distribution and use plain `java` bound only to loopback:
+The current default JVM arguments for `:wow-compensation-server:run` enable JMX on port 5555 without authentication or TLS. For the smallest safe local route check, build the distribution and use plain `java` bound only to loopback. `installDist` copies an existing `compensation/dashboard/dist`; it does not build the frontend, so this flow does not verify Dashboard assets when that output is absent.
 
 ```bash
 ./gradlew :wow-compensation-server:installDist
@@ -65,9 +65,9 @@ curl -fsS http://127.0.0.1:18083/v3/api-docs | \
   jq -r '.paths["/execution_failed/{id}/prepare_compensation"].put.operationId'
 ```
 
-Expect `{"status":"UP"}` and `compensation.execution_failed.prepare_compensation`. This mode loses data when the process exits and disables automatic scheduling. It proves startup, Dashboard assets, routes, and the local state machine only; it is not durable-recovery evidence.
+Expect `{"status":"UP"}` and `compensation.execution_failed.prepare_compensation`. These checks prove only service startup, the health endpoint, and presence of the prepare route. They do not request Dashboard assets, send a compensation command, or execute a state transition, so they do not verify the Dashboard or local state machine. This mode also loses data when the process exits and disables automatic scheduling; it is not durable-recovery evidence.
 
-The Dashboard can also run separately:
+Run and verify the Dashboard separately:
 
 ```bash
 pnpm --dir compensation/dashboard dev

@@ -17,11 +17,13 @@ The source domain event entered EventStore before the handler ran. Compensation 
 Ordinary event processors, stateless sagas, projections, and snapshots all run after the source event is committed. An in-process retry can absorb a transient failure, but it cannot cross process termination or leave queryable recovery state. Event compensation fills that durability gap:
 
 ```text
+Processor / Saga / Projection:
 committed event -> target function -> immediate retry exhausted -> ExecutionFailed
-                                                               |
-                                             scheduled or operator preparation
-                                                               |
-                                             original event + target function replay
+
+Snapshot:
+committed state event -> first SnapshotFunctionFilter failure -> ExecutionFailed
+
+ExecutionFailed -> scheduled or operator preparation -> original event + target function replay
 ```
 
 It owns only “invoke the failed function again.” When the business needs a reverse command to offset an earlier effect, model that business compensation in a [Saga](./saga.md) instead of using `ExecutionFailed` as a domain decision.
@@ -32,10 +34,10 @@ The two recovery layers use separate policies:
 
 | Layer | Trigger and lifetime | Policy source | Durable record? |
 | --- | --- | --- | --- |
-| `RetryableFilter` | Recoverable errors in the current processing call | Global runtime exception classification; 3 retries with a 2-second minimum backoff by default | No |
+| `RetryableFilter` | Recoverable errors in the current Processor, Saga, or Projection call | Global runtime exception classification; 3 retries with a 2-second minimum backoff by default | No |
 | `EventCompensationFilter` | The inner chain still fails | Function `@Retry` or server default retry specification | Yes |
 
-The compensation filter wraps the immediate-retry filter, so only an error that survives immediate retry enters the durable failure path. The `recoverable`, `unrecoverable`, `maxRetries`, `minBackoff`, and `executionTimeout` values on `@Retry` belong to durable compensation and do not rewrite the immediate `RetryableFilter` policy. `@Retry(enabled = false)` likewise opts the function out only from durable recording.
+In Processor, Saga, and Projection chains that contain `RetryableFilter`, the compensation filter wraps immediate retry, so durable compensation observes only an error that survives those retries. The Snapshot chain handles `StateEventExchange` and does not receive the current `RetryableFilter`, whose bean is typed for `DomainEventExchange`. `StateEventCompensationFilter` directly wraps `SnapshotFunctionFilter`, so a first Snapshot failure can enter durable compensation. The `recoverable`, `unrecoverable`, `maxRetries`, `minBackoff`, and `executionTimeout` values on `@Retry` belong to durable compensation and do not rewrite immediate retry. `@Retry(enabled = false)` prevents the failure branch from creating `ExecutionFailed` or sending `ApplyExecutionFailed`; an existing compensation execution that succeeds still writes `ApplyExecutionSuccess`.
 
 See the [Compensation Configuration Reference](../../reference/config/compensation.md) for complete properties, defaults, and YAML.
 
@@ -48,7 +50,7 @@ See the [Compensation Configuration Reference](../../reference/config/compensati
 - error code, message, binding errors, and stack trace;
 - execution time, retry specification, and recoverability classification.
 
-When function information is absent, or when the function declares `@Retry(enabled = false)`, the original error propagates without creating a record. After the compensation command send succeeds, the original handler error continues to the dispatcher error boundary. If the compensation command send itself fails, that send error terminates the reactive chain; the original error must not be treated as durably recorded.
+When function information is absent, the original error propagates without creating a record. With `@Retry(enabled = false)`, a failure also propagates unchanged: a first execution does not send `CreateExecutionFailed`, and a failure carrying a compensation ID does not send `ApplyExecutionFailed`. This check exists only in the error branch; a successful execution carrying a compensation ID still sends `ApplyExecutionSuccess`. After a compensation command send succeeds, the original handler error continues to the dispatcher error boundary. If that send itself fails, its error terminates the reactive chain; the original error must not be treated as durably recorded.
 
 A replay exchange already carries `compensationId` in its header. Another failure sends `ApplyExecutionFailed`, while success sends `ApplyExecutionSuccess`; both update the same `ExecutionFailed` aggregate.
 

@@ -50,13 +50,17 @@ See [Event Processor](./processor.md) and [Saga](./saga.md) for application decl
 
 ## Filter Order
 
-Each dispatcher collects Spring `ExchangeFilter` beans compatible with its exchange type, applies `@FilterType` to keep filters for that dispatcher, and sorts them by `@Order`. The current critical relative order around an event function is:
+Each dispatcher collects Spring `ExchangeFilter` beans compatible with its exchange type, applies `@FilterType` to keep filters for that dispatcher, and sorts them by `@Order`. The current critical relative order has two forms:
 
 ```text
-Notifier -> EventCompensationFilter -> RetryableFilter -> FunctionFilter
+Processor / Saga / Projection:
+Notifier -> DomainEventCompensationFilter -> RetryableFilter -> FunctionFilter
+
+Snapshot:
+SnapshotNotifierFilter -> StateEventCompensationFilter -> SnapshotFunctionFilter
 ```
 
-Filters enter from left to right and observe completion or error from right to left. Not every chain necessarily contains every filter shown: function kind, enabled modules, and exchange type determine the actual set. Treat the startup `Build ... FilterChain` log as the evidence for a running instance.
+Filters enter from left to right and observe completion or error from right to left. The only `RetryableFilter` bean is typed for `DomainEventExchange`; the Snapshot chain collects `StateEventExchange` filters and therefore has no immediate-retry layer. Enabled modules and custom filters may further change the actual set. Treat the startup `Build ... FilterChain` log as the evidence for a running instance.
 
 ## Notifiers
 
@@ -73,19 +77,19 @@ Notification uses `notifyAndForget`; a notification failure is logged and does n
 
 ## RetryableFilter
 
-`RetryableFilter` wraps the function filter and resubscribes to the inner publisher. By default it retries only errors runtime-classified as `RECOVERABLE`, up to 3 retries with a 2-second minimum backoff. The final error continues outward.
+`RetryableFilter` wraps the function filter in Processor, Saga, and Projection chains and resubscribes to the inner publisher. By default it retries only errors runtime-classified as `RECOVERABLE`, up to 3 retries with a 2-second minimum backoff. The final error continues outward. The Snapshot `StateEventExchange` chain does not contain this filter.
 
 The filter has no durable state, cannot recover after process exit, and does not read durable-compensation parameters from function `@Retry`. A retry invokes the same function again, so the target side effect must be idempotent.
 
 ## CompensationFilter Insertion Point
 
-When the compensation module is enabled, `DomainEventCompensationFilter` enters the domain/state function chains for event processors, stateless sagas, and projections; `StateEventCompensationFilter` enters the Snapshot chain. They sit after the notifier and before `RetryableFilter`:
+When the compensation module is enabled, `DomainEventCompensationFilter` enters the domain/state function chains for event processors, stateless sagas, and projections, after the notifier and before `RetryableFilter`. `StateEventCompensationFilter` enters the Snapshot chain after `SnapshotNotifierFilter` and directly wraps `SnapshotFunctionFilter`:
 
 - an inner terminal failure creates `ExecutionFailed` on first execution or updates the existing record during compensation;
 - an inner success carrying a compensation ID writes `ApplyExecutionSuccess`;
 - after recording a failure, the error still reaches the dispatcher's `ErrorHandler`.
 
-This prevents a wait notification from announcing success before compensation write-back, and makes durable recording observe only an error that remains after inner retry. See [Event Compensation](./compensation.md) for the complete state machine.
+This prevents a wait notification from announcing success before compensation write-back. Durable recording in Processor, Saga, and Projection observes errors that remain after immediate retry; Snapshot has no such layer, so its first function failure can enter durable compensation. See [Event Compensation](./compensation.md) for the complete state machine.
 
 ## Acknowledgement and Failure Boundaries
 

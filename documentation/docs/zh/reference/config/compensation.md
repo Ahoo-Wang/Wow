@@ -86,7 +86,7 @@ fun onOrderPaid(event: OrderPaid): Mono<Void> = project(event)
 
 | 参数 | 类型 | 默认值 | 作用 |
 | --- | --- | --- | --- |
-| `enabled` | Boolean | `true` | `false` 时不创建或更新该函数的补偿记录 |
+| `enabled` | Boolean | `true` | `false` 时失败分支不创建记录，也不发送 `ApplyExecutionFailed`；已有补偿成功仍发送 `ApplyExecutionSuccess` |
 | `maxRetries` | Int | `10` | 普通准备允许的最大补偿次数 |
 | `minBackoff` | Int | `180` | 指数退避基础秒数 |
 | `executionTimeout` | Int | `120` | 一次 `PREPARED` 执行的超时秒数 |

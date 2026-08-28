@@ -50,13 +50,17 @@ Spring 启动时，Processor、Saga 和 Projection 的 AutoRegistrar 把已解�
 
 ## Filter 顺序
 
-每类 dispatcher 从 Spring 收集兼容 exchange 类型的 `ExchangeFilter`，用 `@FilterType` 选出属于自己的 Filter，再按 `@Order` 排序。当前事件函数链的关键相对顺序是：
+每类 dispatcher 从 Spring 收集兼容 exchange 类型的 `ExchangeFilter`，用 `@FilterType` 选出属于自己的 Filter，再按 `@Order` 排序。当前关键相对顺序分为两种：
 
 ```text
-Notifier -> EventCompensationFilter -> RetryableFilter -> FunctionFilter
+Processor / Saga / Projection:
+Notifier -> DomainEventCompensationFilter -> RetryableFilter -> FunctionFilter
+
+Snapshot:
+SnapshotNotifierFilter -> StateEventCompensationFilter -> SnapshotFunctionFilter
 ```
 
-Filter 从左到右进入、从右到左观察完成或错误。不是每条链都一定拥有上图的所有 Filter：例如函数类型、模块是否启用和 exchange 类型都会改变实际集合；应以启动日志中的 `Build ... FilterChain` 为当前实例证据。
+Filter 从左到右进入、从右到左观察完成或错误。唯一的 `RetryableFilter` bean 面向 `DomainEventExchange`；Snapshot 链收集 `StateEventExchange` Filter，因此没有即时重试层。模块是否启用和自定义 Filter 还会改变实际集合，应以启动日志中的 `Build ... FilterChain` 为当前实例证据。
 
 ## 通知器
 
@@ -73,19 +77,19 @@ Filter 从左到右进入、从右到左观察完成或错误。不是每条链�
 
 ## RetryableFilter
 
-`RetryableFilter` 包裹函数 Filter，并对内层 publisher 重新订阅。默认只重试运行时分类为 `RECOVERABLE` 的异常，最多重试 3 次，最小退避 2 秒；最终错误继续向外传播。
+`RetryableFilter` 在 Processor、Saga 与 Projection 链中包裹函数 Filter，并对内层 publisher 重新订阅。默认只重试运行时分类为 `RECOVERABLE` 的异常，最多重试 3 次，最小退避 2 秒；最终错误继续向外传播。Snapshot 的 `StateEventExchange` 链不包含这个 Filter。
 
 它没有持久状态，进程退出后不能恢复，也不读取函数 `@Retry` 的持久补偿参数。重试会再次调用同一函数，所以目标副作用必须幂等。
 
 ## CompensationFilter 插入点
 
-启用补偿模块时，`DomainEventCompensationFilter` 会进入事件处理器、无状态 Saga 与 Projection 的领域/状态事件函数链；`StateEventCompensationFilter` 进入 Snapshot 链。它们位于通知器之后、`RetryableFilter` 之前：
+启用补偿模块时，`DomainEventCompensationFilter` 会进入事件处理器、无状态 Saga 与 Projection 的领域/状态事件函数链，位于通知器之后、`RetryableFilter` 之前；`StateEventCompensationFilter` 进入 Snapshot 链，位于 `SnapshotNotifierFilter` 之后并直接包裹 `SnapshotFunctionFilter`：
 
 - 内层最终失败时，首次执行创建 `ExecutionFailed`，补偿执行更新已有记录；
 - 带补偿 ID 的内层执行成功时，写回 `ApplyExecutionSuccess`；
 - 过滤器处理完记录后，错误仍交给 dispatcher 的 `ErrorHandler`。
 
-这保证 wait 通知不会在失败记录尚未写回时先宣告成功，同时持久记录只接收内层重试之后仍未恢复的错误。完整状态机见[事件补偿](./compensation.md)。
+这保证 wait 通知不会在失败记录尚未写回时先宣告成功。Processor、Saga 与 Projection 的持久记录接收内层即时重试后仍未恢复的错误；Snapshot 没有该层，首次函数失败即可进入持久补偿。完整状态机见[事件补偿](./compensation.md)。
 
 ## Ack 与失败边界
 
