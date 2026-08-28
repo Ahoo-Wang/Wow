@@ -53,4 +53,4 @@ Factory 的创建结果不经过 Gateway。应用代码应优先使用 Spring �
 
 快照代理不实现 Schema Provider，而事件流代理实现 Provider 并委托原始服务。但 Snapshot 与 EventStream Schema HTTP handler 都从各自原始 Factory 创建的服务取得 Provider；代理是否实现 Provider 不能用于推断 HTTP/OpenAPI 暴露。
 
-WebFlux 已分别发布 `snapshot/schema`、`snapshot/schema/refresh`、`event/schema` 与 `event/schema/refresh` 路由。运行时路由以 [WebFlux](../extensions/webflux.md) 为准，已发布 HTTP/OpenAPI 合同以 [OpenAPI](../open-api.md) 为准，客户端边界以 [API Client](../extensions/apiclient.md) 为准。`wow-apiclient.query` 仍只提供 Snapshot 查询接口，没有 EventStream 查询接口。
+WebFlux 已分别发布 `snapshot/schema`、`snapshot/schema/refresh`、`event/schema` 与 `event/schema/refresh` 路由。运行时路由以 [WebFlux](../extensions/webflux.md) 为准，已发布 HTTP/OpenAPI 合同以 [OpenAPI](../open-api.md) 为准，客户端边界以 [API Client](./query-api-client.md) 为准。`wow-apiclient.query` 仍只提供 Snapshot 查询接口，没有 EventStream 查询接口。

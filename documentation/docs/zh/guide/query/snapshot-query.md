@@ -68,7 +68,7 @@ list 可以协商 JSON 或 SSE；single 与 paged 返回 JSON。聚合路由及 
 - `state-only` 路由只解包 `S`；它只改变响应，不改变 `state.*` 请求字段。
 - dynamic 结果返回 `DynamicDocument`，用于自定义 projection，但不保留 `S` 的编译期字段类型。
 
-响应式与同步 API Client 的 typed、state-only、dynamic 调用见[API 客户端](../extensions/apiclient.md)。
+响应式与同步 API Client 的 typed、state-only、dynamic 调用见[API 客户端](./query-api-client.md)。
 
 ## 空结果与 404
 

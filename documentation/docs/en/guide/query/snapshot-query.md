@@ -68,7 +68,7 @@ List can negotiate JSON or SSE; single and paged return JSON. Aggregation and [Q
 - A `state-only` route unwraps only `S`; it changes the response, not `state.*` request fields.
 - A dynamic result returns `DynamicDocument` for custom projections, without `S`'s compile-time field type.
 
-See [API Client](../extensions/apiclient.md) for reactive and synchronous typed, state-only, and dynamic API-client calls.
+See [API Client](./query-api-client.md) for reactive and synchronous typed, state-only, and dynamic API-client calls.
 
 ## Empty Results and 404
 

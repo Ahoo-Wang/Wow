@@ -11,7 +11,7 @@ Snapshot aggregation treats each aggregate's current materialized state as the s
 
 - **JVM Gateway**: inject the aggregate-scoped `SnapshotQueryService<OrderState>` through Spring, build an `AggregationQuery`, and call `query.query(snapshotQueryService)`. This bean normally executes policies through [QueryGateway](./query-gateway.md); see [Query Backends](./query-backend.md) for direct-Factory and custom-bean bypass conditions.
 - **HTTP / OpenAPI**: the example domain publishes `POST /sales-order/snapshot/aggregation`, `POST /tenant/{tenantId}/sales-order/snapshot/aggregation`, and `POST /owner/{ownerId}/sales-order/snapshot/aggregation`. The request body is `AggregationQuery` JSON, and the response can negotiate `application/json` or `text/event-stream`. Use the running service's generated [OpenAPI](../open-api.md) for exact paths and scope parameters.
-- **Snapshot API Client**: reactive and synchronous clients use the separate `ReactiveSnapshotAggregationQueryApi` and `SynchronousSnapshotAggregationQueryApi`; they are not folded into the regular snapshot-query interfaces. See the [general API Client guide](../extensions/apiclient.md) for dependencies and invocation.
+- **Snapshot API Client**: reactive and synchronous clients use the separate `ReactiveSnapshotAggregationQueryApi` and `SynchronousSnapshotAggregationQueryApi`; they are not folded into the regular snapshot-query interfaces. See the [general API Client guide](./query-api-client.md) for dependencies and invocation.
 
 Every HTTP JSON block below is a request body for one of these `snapshot/aggregation` routes. Results are representative dynamic rows, not fixed business data.
 

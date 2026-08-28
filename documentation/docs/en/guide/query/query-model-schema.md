@@ -89,7 +89,7 @@ Snapshot and EventStream both publish unscoped Schema and refresh HTTP routes:
 
 These four model-level routes have no tenant, owner, or aggregate-ID variants. Their response is public `QueryModelSchemaMetadata`, including model capabilities and field capabilities. Use the generated [OpenAPI](../open-api.md) as the source of truth for concrete paths and operation IDs.
 
-`x-wow-query-fields` is a static OpenAPI extension on aggregate-specific Snapshot query request-body components. It combines Snapshot system fields with fields inferred by `JsonQuerySchemaSource` so generators can discover candidate logical fields. It is not a JSON request property, contains no backend physical binding, and does not prove runtime capability. EventStream requests have no corresponding extension, and there is currently no EventStream API Client or client-side field discovery. The Snapshot API Client likewise does not read runtime Schema in place of server validation. See [API Client](../extensions/apiclient.md) for the client boundary.
+`x-wow-query-fields` is a static OpenAPI extension on aggregate-specific Snapshot query request-body components. It combines Snapshot system fields with fields inferred by `JsonQuerySchemaSource` so generators can discover candidate logical fields. It is not a JSON request property, contains no backend physical binding, and does not prove runtime capability. EventStream requests have no corresponding extension, and there is currently no EventStream API Client or client-side field discovery. The Snapshot API Client likewise does not read runtime Schema in place of server validation. See [API Client](./query-api-client.md) for the client boundary.
 
 ## Provider Differences
 

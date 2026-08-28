@@ -11,7 +11,7 @@ description: 用八个业务场景说明快照根文档与集合元素的聚合�
 
 - **JVM Gateway**：通过 Spring 注入聚合级 `SnapshotQueryService<OrderState>`，构造 `AggregationQuery` 后调用 `query.query(snapshotQueryService)`。该 Bean 通常经 [QueryGateway](./query-gateway.md) 执行策略链；直接 Factory 和自定义 Bean 的绕过条件见[查询后端](./query-backend.md)。
 - **HTTP / OpenAPI**：示例域已发布 `POST /sales-order/snapshot/aggregation`、`POST /tenant/{tenantId}/sales-order/snapshot/aggregation` 和 `POST /owner/{ownerId}/sales-order/snapshot/aggregation`。请求体是 `AggregationQuery` JSON，响应可协商 `application/json` 或 `text/event-stream`；准确路径与作用域参数以运行实例生成的 [OpenAPI](../open-api.md) 为准。
-- **快照 API Client**：响应式与同步客户端分别使用独立的 `ReactiveSnapshotAggregationQueryApi` 和 `SynchronousSnapshotAggregationQueryApi`，不会合并进普通快照查询接口。依赖与调用方式见[通用 API Client 指南](../extensions/apiclient.md)。
+- **快照 API Client**：响应式与同步客户端分别使用独立的 `ReactiveSnapshotAggregationQueryApi` 和 `SynchronousSnapshotAggregationQueryApi`，不会合并进普通快照查询接口。依赖与调用方式见[通用 API Client 指南](./query-api-client.md)。
 
 下面每个 HTTP JSON 都是上述 `snapshot/aggregation` 路由的请求体；结果只是代表性动态行，不是固定业务数据。
 

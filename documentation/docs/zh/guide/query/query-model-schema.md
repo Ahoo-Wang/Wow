@@ -89,7 +89,7 @@ Snapshot 与 EventStream 都发布无作用域变体的 Schema 与 refresh HTTP 
 
 这四条模型级路由没有 tenant、owner 或 aggregate-ID 变体。响应是公开的 `QueryModelSchemaMetadata`，包含模型、模型级 capability 和字段 capability；实际路径及 operationId 以生成的 [OpenAPI](../open-api.md) 为准。
 
-`x-wow-query-fields` 是 aggregate-specific Snapshot query request-body component 上的静态 OpenAPI 扩展。它由 Snapshot 系统字段与 `JsonQuerySchemaSource` 推断字段组成，用于生成器发现候选逻辑字段；它不是请求 JSON 属性，不含后端物理绑定，也不证明运行时 capability。EventStream 请求没有对应扩展，当前也没有 EventStream API Client 或客户端字段发现；Snapshot API Client 同样不会读取运行时 Schema 代替服务端校验。客户端边界见 [API Client](../extensions/apiclient.md)。
+`x-wow-query-fields` 是 aggregate-specific Snapshot query request-body component 上的静态 OpenAPI 扩展。它由 Snapshot 系统字段与 `JsonQuerySchemaSource` 推断字段组成，用于生成器发现候选逻辑字段；它不是请求 JSON 属性，不含后端物理绑定，也不证明运行时 capability。EventStream 请求没有对应扩展，当前也没有 EventStream API Client 或客户端字段发现；Snapshot API Client 同样不会读取运行时 Schema 代替服务端校验。客户端边界见 [API Client](./query-api-client.md)。
 
 ## Provider 差异
 
