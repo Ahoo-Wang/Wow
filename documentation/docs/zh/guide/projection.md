@@ -253,7 +253,7 @@ class OrderSummaryProjectorTest {
 
 - [快照](./snapshot) — 默认当前状态读模型、策略与查询边界
 - [事件处理器](./event-processor) — 通用事件处理
-- [查询服务](./query) — 查询模型、DSL、聚合与 HTTP 护栏
+- [查询](./query) — 查询模型、DSL、聚合与 HTTP 护栏
 - [数据权限](./data-access) — 请求作用域、查询过滤与授权边界
 - [OpenAPI](./open-api) — 运行时路由与接口发布
 - [事件溯源](./eventstore) — 事件持久化与聚合恢复

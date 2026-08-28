@@ -206,5 +206,5 @@ The template also wires [CosId](https://github.com/Ahoo-Wang/CosId) for IDs and 
 - Replace the demo model: [Aggregate Modeling](./modeling.md)
 - Choose completion semantics: [Command Gateway](./command-gateway.md)
 - Add application gates: [Testing Wow Applications](./application-testing.md)
-- Build a read model: [Projection](./projection.md) and [Query Service](./query.md)
+- Build a read model: [Projection](./projection.md) and [Query](./query.md)
 - Select runtime integrations: [Configuration](./configuration.md) and [Spring Boot Starter](./extensions/spring-boot-starter.md)

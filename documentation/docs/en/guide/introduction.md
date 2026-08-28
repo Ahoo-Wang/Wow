@@ -112,7 +112,7 @@ Wow does not discover a domain boundary, and compensation is not a database roll
 | --- | --- |
 | Model aggregate decisions and sourced state | [Aggregate Modeling](./modeling.md), [Event Store](./eventstore.md), [Snapshot](./snapshot.md) |
 | Declare command completion | [Command Gateway](./command-gateway.md) |
-| Build query-oriented views | [Projection](./projection.md), [Query Service](./query.md) |
+| Build query-oriented views | [Projection](./projection.md), [Query](./query.md) |
 | Coordinate and recover workflows | [Saga](./saga.md), [Event Compensation](./event-compensation.md) |
 | Verify domain and application behavior | [Test Suite](./test-suite.md), [Application Testing](./application-testing.md) |
 | Expose generated contracts and routes | [OpenAPI](./open-api.md), [WebFlux](./extensions/webflux.md) |

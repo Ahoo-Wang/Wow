@@ -25,7 +25,7 @@ The functional gates are verified; 30 minutes remains a target because first-tim
 
 ## Continue Building
 
-Use [Aggregate Modeling](./modeling.md) and [Test Suite](./test-suite.md) to define business rules, then connect the write and read paths with [Command Gateway](./command-gateway.md), [Projection](./projection.md), and [Query Service](./query.md).
+Use [Aggregate Modeling](./modeling.md) and [Test Suite](./test-suite.md) to define business rules, then connect the write and read paths with [Command Gateway](./command-gateway.md), [Projection](./projection.md), and [Query](./query.md).
 
 ## Prepare for Production
 
@@ -51,7 +51,7 @@ Use [Configuration Reference](../reference/config/core.md), [Examples](../refere
 | Build application release gates | [Application Testing](./application-testing.md) | [Production Best Practices](./best-practices.md) | Domain, HTTP, real-adapter, recovery, and security-negative evidence exists |
 | Evolve persisted events | [Event Evolution](./advanced/event-evolution.md) | [Event Store](./eventstore.md) | Upgrader registration, ordering, historical replay, and rollback have evidence |
 | Expose writes and completion semantics | [Command Gateway](./command-gateway.md) | [OpenAPI](./open-api.md) | You can distinguish `SENT`, `PROCESSED`, `SNAPSHOT`, and `PROJECTED` |
-| Build a query model | [Projection](./projection.md) | [Query Service](./query.md) | The projection is retry-safe and idempotent, with a clear query boundary |
+| Build a query model | [Projection](./projection.md) | [Query](./query.md) | The projection is retry-safe and idempotent, with a clear query boundary |
 | Coordinate across aggregates | [Saga](./saga.md) | [Event Compensation](./event-compensation.md) | Success, retry, and unrecoverable paths are tested |
 | Choose messaging and storage | [Module Dependencies](./advanced/module-dependencies.md) | [Extensions](./extensions/spring-boot-starter.md) | Only the required backends and starter capabilities are included |
 | Prepare for production | [Production Best Practices](./best-practices.md) | [Backup, Restore, and Replay](./recovery.md) | Idempotency, recovery, capacity, alerts, and rollback have evidence |

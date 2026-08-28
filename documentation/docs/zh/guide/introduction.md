@@ -112,7 +112,7 @@ Wow 不会自动发现领域边界，补偿也不等于数据库回滚。选择�
 | --- | --- |
 | 建模聚合决策与溯源状态 | [聚合建模](./modeling.md)、[事件存储](./eventstore.md)、[快照](./snapshot.md) |
 | 声明命令完成语义 | [命令网关](./command-gateway.md) |
-| 建立面向查询的视图 | [投影](./projection.md)、[查询服务](./query.md) |
+| 建立面向查询的视图 | [投影](./projection.md)、[查询](./query.md) |
 | 编排与恢复业务流程 | [Saga](./saga.md)、[事件补偿](./event-compensation.md) |
 | 验证领域与应用行为 | [测试套件](./test-suite.md)、[应用测试](./application-testing.md) |
 | 暴露生成契约与路由 | [OpenAPI](./open-api.md)、[WebFlux](./extensions/webflux.md) |
