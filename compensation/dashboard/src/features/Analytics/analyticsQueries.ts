@@ -11,7 +11,14 @@
  * limitations under the License.
  */
 
-import { aggregation, desc, filter } from "@ahoo-wang/fetcher-wow";
+import dayjs from "dayjs";
+import {
+  aggregation,
+  AggregationDateUnit,
+  desc,
+  DomainEventStreamMetadataFields,
+  filter,
+} from "@ahoo-wang/fetcher-wow";
 import type {
   AggregationQuery,
   FilterExpression,
@@ -24,6 +31,125 @@ import { RetryConditions } from "../Failed/RetryConditions.ts";
 
 export type SnapshotAggregationQuery =
   AggregationQuery<ExecutionFailedAggregatedFields>;
+
+export type AnalyticsRange = "24h" | "7d" | "30d";
+
+export type TrendSeriesKey =
+  | "newFailures"
+  | "prepared"
+  | "retriedFailed"
+  | "succeeded";
+
+export interface TrendWindow {
+  buckets: number[];
+  end: number;
+  start: number;
+  timeZone: string;
+  unit: AggregationDateUnit;
+}
+
+export interface TrendRow {
+  bucket: number;
+  streamCount: number;
+}
+
+export interface TrendPoint {
+  bucket: number;
+  newFailures: number;
+  prepared: number;
+  retriedFailed: number;
+  succeeded: number;
+}
+
+export type TrendRowsBySeries = Record<TrendSeriesKey, TrendRow[]>;
+
+export const TREND_EVENTS = {
+  newFailures: "execution_failed_created",
+  prepared: "compensation_prepared",
+  retriedFailed: "execution_failed_applied",
+  succeeded: "execution_success_applied",
+} as const;
+
+export function createTrendWindow(
+  range: AnalyticsRange,
+  now: number,
+  timeZone: string,
+): TrendWindow {
+  const size = range === "24h" ? 24 : range === "7d" ? 7 : 30;
+  const durationUnit = range === "24h" ? "hour" : "day";
+  const unit =
+    range === "24h" ? AggregationDateUnit.HOUR : AggregationDateUnit.DAY;
+  const end = dayjs(now).startOf(durationUnit).add(1, durationUnit);
+  const start = end.subtract(size, durationUnit);
+
+  return {
+    buckets: Array.from({ length: size }, (_, index) =>
+      start.add(index, durationUnit).valueOf(),
+    ),
+    end: end.valueOf(),
+    start: start.valueOf(),
+    timeZone,
+    unit,
+  };
+}
+
+function createEventTrendQuery(
+  window: TrendWindow,
+  eventName: string,
+): AggregationQuery<string> {
+  return {
+    filter: filter.and([
+      filter.gte(DomainEventStreamMetadataFields.CREATE_TIME, window.start),
+      filter.lt(DomainEventStreamMetadataFields.CREATE_TIME, window.end),
+      filter.elementMatch(
+        DomainEventStreamMetadataFields.BODY,
+        filter.eq("name", eventName),
+      ),
+    ]),
+    groupBy: [
+      aggregation.dateHistogram(DomainEventStreamMetadataFields.CREATE_TIME, {
+        unit: window.unit,
+        alias: "bucket",
+        timeZone: window.timeZone,
+      }),
+    ],
+    metrics: [aggregation.count("streamCount")],
+    limit: window.buckets.length,
+  };
+}
+
+export function createEventTrendQueries(
+  window: TrendWindow,
+): Record<TrendSeriesKey, AggregationQuery<string>> {
+  return {
+    newFailures: createEventTrendQuery(window, TREND_EVENTS.newFailures),
+    prepared: createEventTrendQuery(window, TREND_EVENTS.prepared),
+    retriedFailed: createEventTrendQuery(window, TREND_EVENTS.retriedFailed),
+    succeeded: createEventTrendQuery(window, TREND_EVENTS.succeeded),
+  };
+}
+
+export function mergeTrendRows(
+  window: TrendWindow,
+  rows: TrendRowsBySeries,
+): TrendPoint[] {
+  const counts = {
+    newFailures: new Map(rows.newFailures.map((row) => [row.bucket, row.streamCount])),
+    prepared: new Map(rows.prepared.map((row) => [row.bucket, row.streamCount])),
+    retriedFailed: new Map(
+      rows.retriedFailed.map((row) => [row.bucket, row.streamCount]),
+    ),
+    succeeded: new Map(rows.succeeded.map((row) => [row.bucket, row.streamCount])),
+  };
+
+  return window.buckets.map((bucket) => ({
+    bucket,
+    newFailures: counts.newFailures.get(bucket) ?? 0,
+    prepared: counts.prepared.get(bucket) ?? 0,
+    retriedFailed: counts.retriedFailed.get(bucket) ?? 0,
+    succeeded: counts.succeeded.get(bucket) ?? 0,
+  }));
+}
 
 export interface PressureClusterKey {
   errorCode: string;

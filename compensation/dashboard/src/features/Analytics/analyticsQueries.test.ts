@@ -11,16 +11,20 @@
  * limitations under the License.
  */
 
+import { AggregationDateUnit } from "@ahoo-wang/fetcher-wow";
 import { describe, expect, it } from "vitest";
 import { ExecutionFailedStatus } from "../../generated";
 import { RetryConditions } from "../Failed/RetryConditions.ts";
 import {
   bucketRetryRows,
+  createEventTrendQueries,
   createPressureQuery,
   createPressureStatusQuery,
   createRecoverabilityQuery,
   createRetryHistogramQuery,
   createSnapshotSummaryQueries,
+  createTrendWindow,
+  mergeTrendRows,
   mergePressureRows,
 } from "./analyticsQueries.ts";
 
@@ -325,5 +329,100 @@ describe("analyticsQueries", () => {
         { key: "6+", count: 7 },
       ],
     });
+  });
+
+  it.each([
+    ["24h", 24, "HOUR"],
+    ["7d", 7, "DAY"],
+    ["30d", 30, "DAY"],
+  ] as const)("aligns %s to exactly %i buckets", (range, size, unit) => {
+    const window = createTrendWindow(
+      range,
+      new Date(2026, 7, 28, 10, 37).getTime(),
+      "Asia/Shanghai",
+    );
+
+    expect(window.buckets).toHaveLength(size);
+    expect(window.unit).toBe(unit);
+    expect(window.start).toBe(window.buckets[0]);
+  });
+
+  it("filters event streams by root time and body event name", () => {
+    const window = createTrendWindow(
+      "7d",
+      new Date(2026, 7, 28, 10, 37).getTime(),
+      "Asia/Shanghai",
+    );
+    const query = createEventTrendQueries(window).succeeded;
+
+    expect(query).toMatchObject({
+      filter: {
+        op: "AND",
+        operands: expect.arrayContaining([
+          { op: "GTE", field: "createTime", value: window.start },
+          { op: "LT", field: "createTime", value: window.end },
+          {
+            op: "ELEMENT_MATCH",
+            field: "body",
+            predicate: {
+              op: "EQ",
+              field: "name",
+              value: "execution_success_applied",
+            },
+          },
+        ]),
+      },
+      groupBy: [
+        {
+          type: "DATE_HISTOGRAM",
+          field: "createTime",
+          alias: "bucket",
+          unit: "DAY",
+          timeZone: "Asia/Shanghai",
+        },
+      ],
+      metrics: [{ type: "COUNT", alias: "streamCount" }],
+      limit: 7,
+    });
+  });
+
+  it("fills missing buckets with zero without treating missing series as zero", () => {
+    const window = {
+      buckets: [1_000, 2_000, 3_000],
+      start: 1_000,
+      end: 4_000,
+      timeZone: "UTC",
+      unit: AggregationDateUnit.HOUR,
+    };
+    const points = mergeTrendRows(window, {
+      newFailures: [{ bucket: 1_000, streamCount: 2 }],
+      prepared: [{ bucket: 2_000, streamCount: 3 }],
+      retriedFailed: [],
+      succeeded: [{ bucket: 3_000, streamCount: 1 }],
+    });
+
+    expect(points).toEqual([
+      {
+        bucket: 1_000,
+        newFailures: 2,
+        prepared: 0,
+        retriedFailed: 0,
+        succeeded: 0,
+      },
+      {
+        bucket: 2_000,
+        newFailures: 0,
+        prepared: 3,
+        retriedFailed: 0,
+        succeeded: 0,
+      },
+      {
+        bucket: 3_000,
+        newFailures: 0,
+        prepared: 0,
+        retriedFailed: 0,
+        succeeded: 1,
+      },
+    ]);
   });
 });
