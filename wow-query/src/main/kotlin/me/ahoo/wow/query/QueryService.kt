@@ -16,6 +16,7 @@
 package me.ahoo.wow.query
 
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.FilterExpression
@@ -30,7 +31,7 @@ import reactor.core.publisher.Mono
 /**
  * Interface for performing various query operations on an aggregate.
  *
- * This service provides methods to execute single, list, and paged queries, as well as count operations,
+ * This service provides methods to execute single, list, paged, aggregation, and count queries,
  * with support for both typed and dynamic (untyped) results.
  *
 */
@@ -41,6 +42,9 @@ interface QueryService<R : Any> : NamedAggregateDecorator {
     fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument>
     fun paged(pagedQuery: IPagedQuery): Mono<PagedList<R>>
     fun dynamicPaged(pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>>
+
+    fun aggregate(query: AggregationQuery): Flux<DynamicDocument> =
+        Flux.error(UnsupportedOperationException("Aggregation is not supported."))
 
     fun count(filter: FilterExpression): Mono<Long>
 

@@ -246,6 +246,7 @@ Expected: PASS，Snapshot 现有测试仍通过。
 
 **Files:**
 - Modify: `wow-query/src/main/kotlin/me/ahoo/wow/query/event/EventStreamQueryService.kt`
+- Modify: `wow-query/src/main/kotlin/me/ahoo/wow/query/QueryService.kt`
 - Modify: `wow-query/src/main/kotlin/me/ahoo/wow/query/event/QueryDsl.kt`
 - Modify: `wow-query/src/main/kotlin/me/ahoo/wow/query/event/filter/EventStreamQueryHandler.kt`
 - Modify: `wow-query/src/main/kotlin/me/ahoo/wow/query/event/filter/EventStreamQueryFilter.kt`
@@ -256,7 +257,7 @@ Expected: PASS，Snapshot 现有测试仍通过。
 
 **Interfaces:**
 - Consumes: `AggregationQuery`、`QueryType.AGGREGATION`、`QueryModelSchemaProvider`。
-- Produces: `EventStreamQueryService.aggregate`、`EventStreamQueryHandler.aggregate`、`AggregationQuery.query(EventStreamQueryService)`、EventStream provider requirement extension。
+- Produces: `QueryService.aggregate`、`EventStreamQueryHandler.aggregate`、`AggregationQuery.query(EventStreamQueryService)`、EventStream provider requirement extension。
 
 - [ ] **Step 1: 把 Tail Filter 拒绝测试改为转发失败测试**
 
@@ -292,7 +293,7 @@ Expected: compilation FAIL，聚合方法不存在。
 
 - [ ] **Step 3: 实现最小接口与路由**
 
-给 `EventStreamQueryService` 和 `EventStreamQueryHandler` 增加返回 `UnsupportedOperationException` 的默认 `aggregate`。`DefaultEventStreamQueryHandler.aggregate` 调用：
+把 Snapshot 与 EventStream 共用的默认 `aggregate` 提升到 `QueryService`，并给 `EventStreamQueryHandler` 增加返回 `UnsupportedOperationException` 的默认方法。`DefaultEventStreamQueryHandler.aggregate` 调用：
 
 ```kotlin
 flux(namedAggregate, QueryType.AGGREGATION, query)

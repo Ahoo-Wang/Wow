@@ -14,7 +14,6 @@
 package me.ahoo.wow.query.event
 
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
@@ -27,17 +26,7 @@ import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-interface EventStreamQueryService : QueryService<DomainEventStream> {
-    /**
-     * Aggregates persisted event-stream documents.
-     *
-     * The root filter applies to the event-stream envelope. Expanding `body` creates an event-item scope, so its
-     * filters, groups, and metrics use fields relative to each event item. Event payload fields are available only
-     * when an explicit EventStream query schema declares them and the selected backend indexes them.
-     */
-    fun aggregate(query: AggregationQuery): Flux<DynamicDocument> =
-        Flux.error(UnsupportedOperationException("Event stream aggregation is not supported."))
-}
+interface EventStreamQueryService : QueryService<DomainEventStream>
 
 fun EventStreamQueryService.requiredQueryModelSchemaProvider(): QueryModelSchemaProvider =
     this as? QueryModelSchemaProvider

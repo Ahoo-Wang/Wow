@@ -25,7 +25,7 @@
 - 不新增独立的事件发现或合并逻辑；复用 `AggregatedDomainEventStreamDefinitionProvider` 已有的聚合元数据推断。
 - 不改变 Elasticsearch EventStream 模板中 `body.body.enabled = false` 的约束。
 - 不增加依赖、Gradle 模块、配置项、CI/CD 或发布逻辑。
-- 不把 `aggregate` 提升到通用 `QueryService`/`QueryHandler`。
+- 不把 `aggregate` 提升到通用 `QueryHandler`。
 - 不增加独立 EventStream Schema Adapter、Schema 注册 SPI 或兼容桥。
 
 ## 公共合同与兼容性
@@ -36,14 +36,14 @@
 val EVENT_STREAM = QueryModel("EVENT_STREAM")
 ```
 
-`EventStreamQueryService` 增加：
+`QueryService` 提供 Snapshot 与 EventStream 共用的默认方法：
 
 ```kotlin
 fun aggregate(query: AggregationQuery): Flux<DynamicDocument> =
-    Flux.error(UnsupportedOperationException("Event stream aggregation is not supported."))
+    Flux.error(UnsupportedOperationException("Aggregation is not supported."))
 ```
 
-默认实现避免要求已有第三方实现立即新增方法。`EventStreamQueryHandler` 使用相同策略增加默认方法，`DefaultEventStreamQueryHandler` 则把请求放入 `QueryType.AGGREGATION` 上下文。Spring 的 `EventStreamQueryServiceProxy` 必须显式转发至 handler，确保授权、query rewrite 和其他现有过滤器不能被注入式服务绕过。
+`SnapshotQueryService` 与 `EventStreamQueryService` 直接继承该合同，默认实现避免要求已有第三方实现立即新增方法。`EventStreamQueryHandler` 使用相同策略增加默认方法，`DefaultEventStreamQueryHandler` 则把请求放入 `QueryType.AGGREGATION` 上下文。Spring 的 `EventStreamQueryServiceProxy` 必须显式转发至 handler，确保授权、query rewrite 和其他现有过滤器不能被注入式服务绕过。
 
 `AggregationQuery.query(EventStreamQueryService)` 只作为现有 Snapshot 扩展的对称入口，不新增 DSL 模型。
 

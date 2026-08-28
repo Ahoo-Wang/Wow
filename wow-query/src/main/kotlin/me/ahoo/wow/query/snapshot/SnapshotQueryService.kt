@@ -15,7 +15,6 @@ package me.ahoo.wow.query.snapshot
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.naming.Named
-import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
@@ -29,10 +28,7 @@ import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-interface SnapshotQueryService<S : Any> : Named, QueryService<MaterializedSnapshot<S>> {
-    fun aggregate(query: AggregationQuery): Flux<DynamicDocument> =
-        Flux.error(UnsupportedOperationException("Snapshot aggregation is not supported by [$name]."))
-}
+interface SnapshotQueryService<S : Any> : Named, QueryService<MaterializedSnapshot<S>>
 
 fun SnapshotQueryService<*>.requiredQueryModelSchemaProvider(): QueryModelSchemaProvider =
     this as? QueryModelSchemaProvider

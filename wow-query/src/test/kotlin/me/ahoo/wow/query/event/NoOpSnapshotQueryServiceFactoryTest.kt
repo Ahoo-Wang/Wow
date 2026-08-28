@@ -14,7 +14,9 @@
 package me.ahoo.wow.query.event
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.modeling.toNamedAggregate
+import me.ahoo.wow.query.QueryService
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.filterExpression
@@ -115,10 +117,12 @@ class NoOpSnapshotQueryServiceFactoryTest {
     }
 
     @Test
-    fun `should report unsupported aggregation through query extension`() {
-        aggregation { count("count") }.query(queryService)
+    fun `generic query service should report unsupported aggregation`() {
+        val genericQueryService: QueryService<DomainEventStream> = queryService
+
+        genericQueryService.aggregate(aggregation { count("count") })
             .test()
-            .expectError(UnsupportedOperationException::class.java)
+            .expectErrorMessage("Aggregation is not supported.")
             .verify()
     }
 }
