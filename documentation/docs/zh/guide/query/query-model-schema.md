@@ -36,7 +36,7 @@ System
 
 ## 后端适配
 
-[MongoDB](../extensions/mongo.md) adapter 把逻辑字段经 `FieldConverter` 映射到文档路径，读取集合索引和可选的 `$jsonSchema` validator 来证明存储类型。它按 MongoDB 的数组/对象类型决定 Element scope，并只在存在合适 text index 时发布模型级全文能力；缺少 validator 时能证明的类型边界与存在 validator 时不同。
+[MongoDB](../extensions/mongo.md) adapter 把逻辑字段经 `FieldConverter` 映射到文档路径，读取集合索引和可选的 `$jsonSchema` validator 来证明存储类型。Element scope 候选先来自逻辑声明中的 `MANY` + `OBJECT`；validator 为该字段提供物理类型约束时，adapter 再用 array/object 类型确认或否决该候选。未配置 validator 或该字段没有类型约束时会保留逻辑候选，但不具备物理类型证明。adapter 只在存在合适 text index 时发布模型级全文能力。
 
 [Elasticsearch](../extensions/elasticsearch.md) adapter 读取目标 mapping，并分别考虑字段类型、multi-field、nested、doc values、alias 与 runtime field。全文字段可以绑定到 text 路径，精确匹配、排序或 TERMS 聚合可能绑定到 keyword multi-field；对象数组只有在对应 nested mapping 成立时才获得 Element scope。
 
