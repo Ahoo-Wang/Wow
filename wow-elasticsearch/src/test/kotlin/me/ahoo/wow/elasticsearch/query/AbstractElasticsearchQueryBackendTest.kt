@@ -33,14 +33,14 @@ import io.mockk.slot
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryServiceFactory
+import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryBackendFactory
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -48,15 +48,43 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchIndicesClient
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import tools.jackson.databind.node.JsonNodeFactory
+import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
 
-class AbstractElasticsearchQueryServiceTest {
+class AbstractElasticsearchQueryBackendTest {
     private val elasticsearchClient = mockk<ReactiveElasticsearchClient>()
     private val filterConverter = mockk<AbstractElasticsearchFilterConverter> {
         every { convert(any<me.ahoo.wow.api.query.FilterExpression>()) } returns matchAll { it }
     }
-    private val queryService = TestElasticsearchQueryService(elasticsearchClient, filterConverter)
+    private val queryBackend = TestElasticsearchQueryBackend(elasticsearchClient, filterConverter)
+
+    @Test
+    fun `standard source map should become independent object node`() {
+        val source = mapOf(
+            "aggregateId" to "id",
+            "state" to mapOf("amount" to 10.5),
+            "items" to listOf(mapOf("name" to "item")),
+            "nullable" to null,
+        )
+
+        val first = source.toObjectNode()
+        val second = source.toObjectNode()
+
+        first.assert().isNotSameAs(second)
+        first.path("state").path("amount").doubleValue().assert().isEqualTo(10.5)
+        first.path("items").path(0).path("name").asString().assert().isEqualTo("item")
+        first.path("nullable").isNull.assert().isTrue()
+    }
+
+    @Test
+    fun `nested non json source value should fail instead of creating pojo node`() {
+        assertThrows<IllegalArgumentException> {
+            mapOf("nested" to listOf(mapOf("value" to JsonNodeFactory.instance.pojoNode(Any())))).toObjectNode()
+        }
+    }
 
     @Test
     fun `dynamic list should not track exact total hits`() {
@@ -65,7 +93,7 @@ class AbstractElasticsearchQueryServiceTest {
             searchResponse(total = null)
         )
 
-        val result = queryService.dynamicList(
+        val result = queryBackend.list(
             ListQuery(
                 filter = MatchAllFilter,
                 projection = Projection(include = listOf("field")),
@@ -95,7 +123,7 @@ class AbstractElasticsearchQueryServiceTest {
             closePointInTimeResponse()
         )
 
-        val result = queryService.dynamicList(ListQuery(MatchAllFilter)).collectList().block()!!
+        val result = queryBackend.list(ListQuery(MatchAllFilter)).collectList().block()!!
 
         result.assert().hasSize(1)
         openRequest.captured.index().assert().containsExactly("test-index")
@@ -121,7 +149,7 @@ class AbstractElasticsearchQueryServiceTest {
             closePointInTimeResponse()
         )
 
-        queryService.dynamicList(
+        queryBackend.list(
             ListQuery(
                 filter = MatchAllFilter,
                 projection = Projection(include = listOf("field")),
@@ -154,13 +182,13 @@ class AbstractElasticsearchQueryServiceTest {
             closePointInTimeResponse()
         )
 
-        ElasticsearchSnapshotQueryServiceFactory(
+        ElasticsearchSnapshotQueryBackendFactory(
             elasticsearchClient = elasticsearchClient,
             queryBatchSize = 3,
             queryKeepAlive = Duration.ofMinutes(5),
         )
             .create<Any>(MOCK_AGGREGATE_METADATA)
-            .dynamicList(ListQuery(MatchAllFilter, limit = 4))
+            .list(ListQuery(MatchAllFilter, limit = 4))
             .collectList()
             .block()
 
@@ -179,7 +207,7 @@ class AbstractElasticsearchQueryServiceTest {
         )
         val filter = filterExpression { "logicalField" eq "value" }
 
-        queryService.dynamicList(
+        queryBackend.list(
             ListQuery(
                 filter = filter,
                 sort = listOf(Sort("logicalField", Sort.Direction.ASC)),
@@ -194,7 +222,7 @@ class AbstractElasticsearchQueryServiceTest {
     @Test
     fun `dynamic list should reject negative limit before searching`() {
         assertThrows<IllegalArgumentException> {
-            queryService.dynamicList(ListQuery(MatchAllFilter, limit = -1))
+            queryBackend.list(ListQuery(MatchAllFilter, limit = -1))
         }
 
         verify(exactly = 0) { elasticsearchClient.search(any<SearchRequest>(), Map::class.java) }
@@ -208,14 +236,14 @@ class AbstractElasticsearchQueryServiceTest {
             searchResponse(total = 42)
         )
 
-        val result = queryService.dynamicPaged(PagedQuery(MatchAllFilter)).block()!!
+        val result = queryBackend.paged(PagedQuery(MatchAllFilter)).block()!!
 
         request.captured.trackTotalHits()!!.enabled().assert().isTrue()
         request.captured.index().assert().containsExactly("test-index")
         request.captured.pit().assert().isNull()
         result.total.assert().isEqualTo(42)
         result.list.assert().hasSize(1)
-        result.list.single()["field"].assert().isEqualTo("value")
+        result.list.single().path("field").asString().assert().isEqualTo("value")
     }
 
     @Test
@@ -228,7 +256,7 @@ class AbstractElasticsearchQueryServiceTest {
             }
         )
 
-        val result = queryService.count(MatchAllFilter).block()!!
+        val result = queryBackend.count(MatchAllFilter).block()!!
 
         request.captured.index().assert().containsExactly("test-index")
         result.assert().isEqualTo(42)
@@ -276,13 +304,12 @@ class AbstractElasticsearchQueryServiceTest {
             )
         }
 
-    private open class TestElasticsearchQueryService(
+    private open class TestElasticsearchQueryBackend(
         override val elasticsearchClient: ReactiveElasticsearchClient,
         override val filterConverter: AbstractElasticsearchFilterConverter,
-    ) : AbstractElasticsearchQueryService<DynamicDocument>() {
+    ) : AbstractElasticsearchQueryBackend() {
         override val namedAggregate: NamedAggregate = MaterializedNamedAggregate("test", "aggregate")
         override val indexName: String = "test-index"
-
-        override fun toTypedResult(document: DynamicDocument): DynamicDocument = document
+        override fun aggregate(query: AggregationQuery): Flux<ObjectNode> = Flux.empty()
     }
 }

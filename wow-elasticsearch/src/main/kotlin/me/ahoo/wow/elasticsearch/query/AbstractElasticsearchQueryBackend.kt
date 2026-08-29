@@ -20,7 +20,6 @@ import co.elastic.clients.elasticsearch.core.CountRequest
 import co.elastic.clients.elasticsearch.core.SearchRequest
 import co.elastic.clients.elasticsearch.core.search.Hit
 import co.elastic.clients.elasticsearch.core.search.SourceFilter
-import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
@@ -28,28 +27,28 @@ import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.Queryable
-import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.isEmpty
 import me.ahoo.wow.elasticsearch.query.ElasticsearchProjectionConverter.toSourceFilter
 import me.ahoo.wow.elasticsearch.query.ElasticsearchSortConverter.toSortOptions
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationCompiler
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationPager
-import me.ahoo.wow.query.QueryService
+import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.schema.ResolvedAggregationQuery
+import me.ahoo.wow.serialization.JsonSerializer
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
 
-abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
+abstract class AbstractElasticsearchQueryBackend : QueryBackend {
     abstract val elasticsearchClient: ReactiveElasticsearchClient
     abstract val filterConverter: AbstractElasticsearchFilterConverter
     abstract val indexName: String
     protected open val queryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE
     protected open val queryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE
-    abstract fun toTypedResult(document: DynamicDocument): R
-
     protected open fun resolve(query: ISingleQuery): Mono<ISingleQuery> = Mono.just(query)
 
     protected open fun resolve(query: IListQuery): Mono<IListQuery> = Mono.just(query)
@@ -58,13 +57,9 @@ abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
 
     protected open fun resolve(filter: FilterExpression): Mono<FilterExpression> = Mono.just(filter)
 
-    override fun single(singleQuery: ISingleQuery): Mono<R> {
-        return dynamicSingle(singleQuery).map { toTypedResult(it) }
-    }
-
-    override fun dynamicSingle(singleQuery: ISingleQuery): Mono<DynamicDocument> {
-        return resolve(singleQuery).flatMap { resolved ->
-            dynamicListResolved(
+    override fun single(query: ISingleQuery): Mono<ObjectNode> {
+        return resolve(query).flatMap { resolved ->
+            listResolved(
                 ListQuery(
                     filter = resolved.filter,
                     projection = resolved.projection,
@@ -75,16 +70,12 @@ abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
         }
     }
 
-    override fun list(listQuery: IListQuery): Flux<R> {
-        return dynamicList(listQuery).map { toTypedResult(it) }
+    override fun list(query: IListQuery): Flux<ObjectNode> {
+        require(query.limit >= 0) { "limit must be greater than or equal to 0." }
+        return resolve(query).flatMapMany(::listResolved)
     }
 
-    override fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument> {
-        require(listQuery.limit >= 0) { "limit must be greater than or equal to 0." }
-        return resolve(listQuery).flatMapMany(::dynamicListResolved)
-    }
-
-    private fun dynamicListResolved(listQuery: IListQuery): Flux<DynamicDocument> {
+    private fun listResolved(listQuery: IListQuery): Flux<ObjectNode> {
         val resolved = compile(listQuery.filter, listQuery.sort)
         if (listQuery.limit == 0 || listQuery.limit > queryBatchSize) {
             return ElasticsearchQueryPager(elasticsearchClient, indexName, queryBatchSize, queryKeepAlive).search(
@@ -92,7 +83,7 @@ abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
                 query = resolved.query,
                 sourceFilter = listQuery.sourceFilter(),
                 sort = resolved.sortOptions.searchAfterSort(),
-            ).mapNotNull { it.toDynamicDocument() }
+            ).mapNotNull { it.toObjectNode() }
         }
         return Mono.fromSupplier {
             createSearchRequest(
@@ -106,19 +97,8 @@ abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
             .flatMapIterable { it.list }
     }
 
-    override fun paged(pagedQuery: IPagedQuery): Mono<PagedList<R>> {
-        return dynamicPaged(pagedQuery).map {
-            PagedList(
-                total = it.total,
-                list = it.list.map { doc ->
-                    toTypedResult(doc)
-                }
-            )
-        }
-    }
-
-    override fun dynamicPaged(pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>> {
-        return resolve(pagedQuery)
+    override fun paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> {
+        return resolve(query)
             .map { resolved ->
                 createSearchRequest(
                     query = resolved,
@@ -174,16 +154,13 @@ abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
         }
     }
 
-    @Suppress("UNCHECKED_CAST")
-    private fun Hit<Map<*, *>>.toDynamicDocument(): DynamicDocument? {
-        return source()?.let { (it as MutableMap<String, Any?>).toDynamicDocument() }
-    }
+    private fun Hit<Map<*, *>>.toObjectNode(): ObjectNode? = source()?.toObjectNode()
 
-    private fun search(searchRequest: SearchRequest): Mono<PagedList<DynamicDocument>> {
+    private fun search(searchRequest: SearchRequest): Mono<PagedList<ObjectNode>> {
         return elasticsearchClient.search(searchRequest, Map::class.java)
             .map { result ->
                 val hits = result.hits()
-                val list = hits.hits().mapNotNull { it.toDynamicDocument() }
+                val list = hits.hits().mapNotNull { it.toObjectNode() }
                 PagedList(hits.total()?.value() ?: 0, list)
             }
     }
@@ -197,7 +174,7 @@ abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
         }.flatMap(elasticsearchClient::count).map { it.count() }
     }
 
-    protected fun executeAggregation(resolved: ResolvedAggregationQuery): Flux<DynamicDocument> =
+    protected fun executeAggregation(resolved: ResolvedAggregationQuery): Flux<ObjectNode> =
         ElasticsearchAggregationPager(
             elasticsearchClient,
             indexName,
@@ -217,4 +194,27 @@ abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
         val query: Query,
         val sortOptions: List<SortOptions>,
     )
+}
+
+internal fun Map<*, *>.toObjectNode(): ObjectNode {
+    requireNoPojoNode()
+    val node = JsonSerializer.valueToTree<ObjectNode>(this)
+    node.requireStandardJson()
+    return node
+}
+
+private fun Any?.requireNoPojoNode() {
+    when (this) {
+        is JsonNode -> requireStandardJson()
+        is Map<*, *> -> values.forEach { it.requireNoPojoNode() }
+        is Iterable<*> -> forEach { it.requireNoPojoNode() }
+        is Array<*> -> forEach { it.requireNoPojoNode() }
+    }
+}
+
+private fun JsonNode.requireStandardJson() {
+    require(!isPojo) { "Elasticsearch source must contain only standard JSON values." }
+    for (child in this) {
+        child.requireStandardJson()
+    }
 }

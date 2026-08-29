@@ -21,6 +21,7 @@ import co.elastic.clients.elasticsearch.core.UpdateRequest
 import co.elastic.clients.elasticsearch.indices.PutMappingRequest
 import co.elastic.clients.json.JsonData
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.MatchAllFilter
@@ -53,27 +54,29 @@ import me.ahoo.wow.query.schema.QuerySchemaSourcePriority
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.schema.QueryStorageType
-import me.ahoo.wow.query.snapshot.SnapshotQueryService
-import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
+import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
+import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.filter.AbacQueryFilter.Companion.toFilterExpression
-import me.ahoo.wow.query.snapshot.query
 import me.ahoo.wow.query.snapshot.requiredQueryModelSchemaProvider
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockStateAggregate
-import me.ahoo.wow.tck.query.SnapshotQueryServiceSpec
+import me.ahoo.wow.tck.query.SnapshotQueryBackendSpec
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.core.scheduler.Schedulers
 import reactor.kotlin.test.test
+import tools.jackson.databind.node.ObjectNode
 import java.time.Instant
 import java.time.ZoneOffset
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
-class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
+class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
     @JvmField
     @RegisterExtension
     val elasticsearch = ElasticsearchTestFixture()
@@ -168,8 +171,8 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         super.setup()
     }
 
-    override fun createSnapshotQueryServiceFactory(): SnapshotQueryServiceFactory =
-        ElasticsearchSnapshotQueryServiceFactory(
+    override fun createSnapshotQueryBackendFactory(): SnapshotQueryBackendFactory =
+        ElasticsearchSnapshotQueryBackendFactory(
             elasticsearchClient = elasticsearchClient,
             queryBatchSize = me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
             queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
@@ -180,10 +183,75 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     override fun createSnapshotStore(): SnapshotStore = ElasticsearchSnapshotStore(elasticsearchClient)
 
     @Test
+    fun `retry should create a clean snapshot object node after a discarded mutation`() {
+        val attempts = AtomicInteger()
+        val seen = mutableListOf<ObjectNode>()
+
+        snapshotQueryBackend.list(snapshotOwnershipQuery())
+            .next()
+            .doOnNext { node ->
+                seen += node
+                if (attempts.getAndIncrement() == 0) {
+                    node.put("mutated", true)
+                    error("retry-once")
+                }
+            }.retry(1)
+            .test()
+            .assertNext { retried ->
+                seen.assert().hasSize(2)
+                retried.assert().isNotSameAs(seen.first())
+                retried.path("mutated").isMissingNode.assert().isTrue()
+                retried.path("aggregateId").asString().assert().isEqualTo(snapshot.aggregateId.id)
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `repeat should create clean snapshot object nodes for every subscription`() {
+        snapshotQueryBackend.list(snapshotOwnershipQuery())
+            .next()
+            .repeat(1)
+            .index()
+            .doOnNext { indexed ->
+                if (indexed.t1 == 0L) indexed.t2.put("mutated", true)
+            }.map { it.t2 }
+            .collectList()
+            .test()
+            .assertNext { nodes ->
+                nodes.assert().hasSize(2)
+                nodes[1].assert().isNotSameAs(nodes[0])
+                nodes[0].path("mutated").booleanValue().assert().isTrue()
+                nodes[1].path("mutated").isMissingNode.assert().isTrue()
+                nodes.map { it.path("aggregateId").asString() }.assert()
+                    .containsExactly(snapshot.aggregateId.id, snapshot.aggregateId.id)
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `concurrent subscriptions should receive isolated snapshot object nodes`() {
+        val publisher = snapshotQueryBackend.list(snapshotOwnershipQuery()).next()
+
+        Mono.zip(
+            publisher.subscribeOn(Schedulers.parallel()),
+            publisher.subscribeOn(Schedulers.parallel()),
+        ).test()
+            .assertNext { nodes ->
+                nodes.t1.put("mutated", true)
+                nodes.t2.assert().isNotSameAs(nodes.t1)
+                nodes.t2.path("mutated").isMissingNode.assert().isTrue()
+                nodes.t2.path("aggregateId").asString().assert().isEqualTo(snapshot.aggregateId.id)
+            }.verifyComplete()
+    }
+
+    private fun snapshotOwnershipQuery(): ListQuery = ListQuery(
+        filter = filterExpression { "aggregateId" eq snapshot.aggregateId.id },
+        limit = 1,
+    )
+
+    @Test
     fun `model level search should execute against mixed text numeric and date mappings`() {
         updateState(mapOf("data" to "searchable"))
 
-        snapshotQueryService.dynamicList(
+        snapshotQueryBackend.list(
             ListQuery(filter = SearchFilter("searchable"), limit = 10),
         ).test()
             .expectNextCount(1)
@@ -193,7 +261,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     @Test
     fun `field specific search bindings should be exact`() {
         updateState(mapOf("data" to "searchable"))
-        val strictService = ElasticsearchSnapshotQueryServiceFactory(
+        val strictService = ElasticsearchSnapshotQueryBackendFactory(
             elasticsearchClient = elasticsearchClient,
             queryBatchSize = me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
             queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
@@ -201,7 +269,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             validationMode = QuerySchemaValidationMode.STRICT,
         ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
 
-        strictService.dynamicList(
+        strictService.list(
             ListQuery(
                 filter = SearchFilter("searchable", setOf(LogicalField("state.data"))),
                 limit = 10,
@@ -215,7 +283,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         updateState(mapOf("sourceOnlyName" to "visible"))
         val service = strictService(querySchemaSources + source(stringField(field)))
 
-        service.dynamicList(
+        service.list(
             ListQuery(
                 filter = filterExpression { field gt "alpha" },
                 projection = Projection(include = listOf(field)),
@@ -223,7 +291,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             ),
         ).test()
             .assertNext { document ->
-                document.getNestedDocument("state")["sourceOnlyName"].assert().isEqualTo("visible")
+                document.path("state").path("sourceOnlyName").asString().assert().isEqualTo("visible")
             }.verifyComplete()
     }
 
@@ -233,7 +301,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         updateState(mapOf("sourceOnlyName" to "visible"))
         val service = strictService(querySchemaSources + source(stringField(field)))
 
-        service.dynamicList(
+        service.list(
             ListQuery(
                 filter = MatchAllFilter,
                 projection = Projection(include = listOf(field)),
@@ -241,7 +309,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             ),
         ).test()
             .assertNext { document ->
-                document.getNestedDocument("state")["sourceOnlyName"].assert().isEqualTo("visible")
+                document.path("state").path("sourceOnlyName").asString().assert().isEqualTo("visible")
             }.verifyComplete()
     }
 
@@ -251,7 +319,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         updateState(mapOf("opaque" to mapOf("name" to "visible")))
         val service = strictService(querySchemaSources + source(stringField(field)))
 
-        service.dynamicList(
+        service.list(
             ListQuery(
                 filter = MatchAllFilter,
                 projection = Projection(include = listOf(field)),
@@ -259,8 +327,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             ),
         ).test()
             .assertNext { document ->
-                document.getNestedDocument("state").getNestedDocument("opaque")["name"].assert()
-                    .isEqualTo("visible")
+                document.path("state").path("opaque").path("name").asString().assert().isEqualTo("visible")
             }.verifyComplete()
     }
 
@@ -273,7 +340,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             querySchemaSources + source(formattedField(field.value, "yyyy-MM-dd")),
         )
 
-        service.dynamicList(
+        service.list(
             ListQuery(
                 filter = TodayFilter(field, zoneId = "UTC"),
                 sort = listOf(Sort("_score", Sort.Direction.DESC)),
@@ -284,7 +351,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
 
     @Test
     fun `strict should execute generic document id equality`() {
-        strictService().dynamicList(
+        strictService().list(
             ListQuery(
                 filter = filterExpression { "_id" eq snapshot.aggregateId.id },
                 limit = 10,
@@ -309,7 +376,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             ),
         )
 
-        service.dynamicList(
+        service.list(
             ListQuery(
                 filter = filterExpression {
                     "state.ipValue" eq "192.0.2.1"
@@ -330,14 +397,10 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             count("count")
         }.query(service).test()
             .assertNext { row ->
-                row.toMap().assert().isEqualTo(
-                    mapOf(
-                        "category" to "alpha",
-                        "ip" to "192.0.2.1",
-                        "version" to "1.2.3",
-                        "count" to 1L,
-                    ),
-                )
+                row.path("category").asString().assert().isEqualTo("alpha")
+                row.path("ip").asString().assert().isEqualTo("192.0.2.1")
+                row.path("version").asString().assert().isEqualTo("1.2.3")
+                row.path("count").longValue().assert().isEqualTo(1L)
             }.verifyComplete()
     }
 
@@ -347,7 +410,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         updateState(mapOf("labels" to mapOf("color" to "green")))
         val service = strictService(querySchemaSources + source(stringField(field)))
 
-        service.dynamicList(
+        service.list(
             ListQuery(
                 filter = filterExpression { field eq "green" },
                 projection = Projection(include = listOf(field)),
@@ -358,26 +421,26 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
 
     @Test
     fun `strict should reject unknown fields while compatible executes fallback`() {
-        snapshotQueryService.dynamicList(
+        snapshotQueryBackend.list(
             ListQuery(filter = filterExpression { "state.unknown" eq "value" }, limit = 10),
         ).test().verifyComplete()
 
-        val strictService = ElasticsearchSnapshotQueryServiceFactory(
+        val strictService = ElasticsearchSnapshotQueryBackendFactory(
             elasticsearchClient = elasticsearchClient,
             queryBatchSize = me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
             queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
             schemaSources = querySchemaSources,
             validationMode = QuerySchemaValidationMode.STRICT,
         ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
-        strictService.dynamicList(
+        strictService.list(
             ListQuery(filter = filterExpression { "state.unknown" eq "value" }, limit = 10),
         ).test().expectError(QuerySchemaValidationException::class.java).verify()
     }
 
     @Test
     fun `all modes should reject invalid declared epoch literals before Elasticsearch`() {
-        listOf(snapshotQueryService, strictService()).forEach { service ->
-            service.dynamicList(
+        listOf(snapshotQueryBackend, strictService()).forEach { service ->
+            service.list(
                 ListQuery(
                     filter = filterExpression { "firstEventTime" lte "not-a-timestamp" },
                     limit = 10,
@@ -397,8 +460,8 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         )
         val mismatchedPrincipal = mapOf("department" to listOf("eng")).toFilterExpression()
 
-        listOf(snapshotQueryService, strictService()).forEach { service ->
-            service.dynamicList(ListQuery(filter = mismatchedPrincipal, limit = 10))
+        listOf(snapshotQueryBackend, strictService()).forEach { service ->
+            service.list(ListQuery(filter = mismatchedPrincipal, limit = 10))
                 .test().expectError(QuerySchemaValidationException::class.java).verify()
         }
     }
@@ -420,7 +483,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             .fields.getValue(LogicalField("tags")).bindings.assert().isEmpty()
         updateDocument(mapOf("tags" to mapOf("department" to listOf("eng"))))
 
-        strictService.dynamicList(
+        strictService.list(
             ListQuery(
                 filter = mapOf("department" to listOf("eng")).toFilterExpression(),
                 limit = 10,
@@ -452,21 +515,21 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
 
         val filter = mapOf("department" to listOf("eng")).toFilterExpression()
         listOf(compatibleService, strictService()).forEach { service ->
-            service.dynamicList(ListQuery(filter = filter, limit = 10))
+            service.list(ListQuery(filter = filter, limit = 10))
                 .test().expectError(QuerySchemaValidationException::class.java).verify()
         }
     }
 
     @Test
     fun `strict should reject a root nested child filter`() {
-        strictService().dynamicList(
+        strictService().list(
             ListQuery(filter = filterExpression { "state.orders.status" eq "PAID" }, limit = 10),
         ).test().expectError(QuerySchemaValidationException::class.java).verify()
     }
 
     @Test
     fun `strict should reject a root nested child sort`() {
-        strictService().dynamicList(
+        strictService().list(
             ListQuery(
                 filter = MatchAllFilter,
                 sort = listOf(Sort("state.orders.status", Sort.Direction.ASC)),
@@ -479,7 +542,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     fun `strict should execute a nested child inside element match`() {
         updateState(mapOf("orders" to listOf(mapOf("status" to "PAID"))))
 
-        strictService().dynamicList(
+        strictService().list(
             ListQuery(
                 filter = filterExpression {
                     "state.orders".elementMatch {
@@ -511,7 +574,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                 ),
             ),
         )
-        val service = ElasticsearchSnapshotQueryServiceFactory(
+        val service = ElasticsearchSnapshotQueryBackendFactory(
             elasticsearchClient = elasticsearchClient,
             queryBatchSize = me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
             queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
@@ -531,13 +594,13 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             count("count")
         }.query(service)
             .test()
-            .assertNext { row -> row.toMap().assert().isEqualTo(mapOf("count" to 1L)) }
+            .assertNext { row -> row.path("count").longValue().assert().isEqualTo(1L) }
             .verifyComplete()
     }
 
     @Test
     fun `direct service constructor should retain snapshot identity schema behavior`() {
-        val service = ElasticsearchSnapshotQueryService<MockStateAggregate>(
+        val service = ElasticsearchSnapshotQueryBackend(
             namedAggregate = MOCK_AGGREGATE_METADATA,
             elasticsearchClient = elasticsearchClient,
         )
@@ -551,13 +614,13 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
 
     @Test
     fun `computed metric should ignore an unreadable text field`() {
-        val service = ElasticsearchSnapshotQueryServiceFactory(elasticsearchClient = elasticsearchClient)
+        val service = ElasticsearchSnapshotQueryBackendFactory(elasticsearchClient = elasticsearchClient)
             .create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
         aggregation {
             sum(field("state.data") * constant(1.0), "unreadable")
         }.query(service)
             .test()
-            .assertNext { it.toMap().assert().isEqualTo(mapOf("unreadable" to null)) }
+            .assertNext { it.path("unreadable").isNull.assert().isTrue() }
             .verifyComplete()
     }
 
@@ -565,16 +628,16 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     fun `computed metric should ignore a mapped field without index or doc values`() {
         aggregation {
             sum(field("state.unreadableNumber") * constant(1.0), "unreadable")
-        }.query(snapshotQueryService)
+        }.query(snapshotQueryBackend)
             .test()
-            .assertNext { it.toMap().assert().isEqualTo(mapOf("unreadable" to null)) }
+            .assertNext { it.path("unreadable").isNull.assert().isTrue() }
             .verifyComplete()
     }
 
     @Test
     fun `provider refresh should publish new mapping alias and runtime capabilities`() {
         val indexName = MOCK_AGGREGATE_METADATA.toSnapshotIndexName()
-        val service = ElasticsearchSnapshotQueryServiceFactory(
+        val service = ElasticsearchSnapshotQueryBackendFactory(
             elasticsearchClient = elasticsearchClient,
             queryBatchSize = me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
             queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
@@ -620,7 +683,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         refreshed.fields.getValue(LogicalField("state.runtimeCode")).projectionPath.assert().isNull()
         provider.schema().block().assert().isSameAs(refreshed)
 
-        service.dynamicList(
+        service.list(
             ListQuery(
                 filter = filterExpression { "state.runtimeCode" eq "runtime" },
                 sort = listOf(Sort("state.runtimeCode", Sort.Direction.ASC)),
@@ -639,7 +702,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                 "epochSeconds" to Long.MAX_VALUE,
             ),
         )
-        val service = ElasticsearchSnapshotQueryServiceFactory(
+        val service = ElasticsearchSnapshotQueryBackendFactory(
             elasticsearchClient = elasticsearchClient,
             queryBatchSize = me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
             queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
@@ -665,31 +728,28 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
 
         dateHistogram(service, "state.epochMicros").test()
             .assertNext { rows ->
-                rows.map(Map<String, Any?>::toMap).assert().containsExactly(
-                    mapOf("day" to -86_400_000L, "count" to 1L),
-                )
+                rows.map { it.path("day").longValue() to it.path("count").longValue() }.assert()
+                    .containsExactly(-86_400_000L to 1L)
             }.verifyComplete()
         dateHistogram(service, "state.epochNanos").test()
             .assertNext { rows ->
-                rows.map(Map<String, Any?>::toMap).assert().containsExactly(
-                    mapOf("day" to -86_400_000L, "count" to 1L),
-                )
+                rows.map { it.path("day").longValue() to it.path("count").longValue() }.assert()
+                    .containsExactly(-86_400_000L to 1L)
             }.verifyComplete()
         dateHistogram(service, "state.epochSeconds").test()
             .assertNext { it.assert().isEmpty() }
             .verifyComplete()
         dateHistogram(service, "state.epochMillis").test()
             .assertNext { rows ->
-                rows.map(Map<String, Any?>::toMap).assert().containsExactly(
-                    mapOf("day" to 0L, "count" to 1L),
-                )
+                rows.map { it.path("day").longValue() to it.path("count").longValue() }.assert()
+                    .containsExactly(0L to 1L)
             }.verifyComplete()
 
         updateState(mapOf("epochMillis" to Long.MAX_VALUE))
         dateHistogram(service, "state.epochMillis").test()
             .assertNext { rows ->
                 rows.assert().hasSize(1)
-                rows.single()["count"].assert().isEqualTo(1L)
+                rows.single().path("count").longValue().assert().isEqualTo(1L)
             }.verifyComplete()
 
         updateState(mapOf("epochMicros" to listOf(1_000L, 2_000L)))
@@ -716,7 +776,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             .verifyComplete()
     }
 
-    private fun dateHistogram(service: SnapshotQueryService<*>, field: String) = aggregation {
+    private fun dateHistogram(service: SnapshotQueryBackend, field: String) = aggregation {
         dateHistogram(field, me.ahoo.wow.api.query.AggregationDateUnit.DAY, "day")
         count("count")
     }.query(service).collectList()
@@ -741,23 +801,23 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
 
     private fun strictService(
         schemaSources: List<QuerySchemaSource> = querySchemaSources,
-    ): SnapshotQueryService<MockStateAggregate> =
-        ElasticsearchSnapshotQueryServiceFactory(
+    ): SnapshotQueryBackend =
+        ElasticsearchSnapshotQueryBackendFactory(
             elasticsearchClient = elasticsearchClient,
             queryBatchSize = me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
             queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
             schemaSources = schemaSources,
             validationMode = QuerySchemaValidationMode.STRICT,
-        ).create(MOCK_AGGREGATE_METADATA)
+        ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
 
-    private fun compatibleService(): SnapshotQueryService<MockStateAggregate> =
-        ElasticsearchSnapshotQueryServiceFactory(
+    private fun compatibleService(): SnapshotQueryBackend =
+        ElasticsearchSnapshotQueryBackendFactory(
             elasticsearchClient = elasticsearchClient,
             queryBatchSize = me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
             queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
             schemaSources = querySchemaSources,
             validationMode = QuerySchemaValidationMode.COMPATIBLE,
-        ).create(MOCK_AGGREGATE_METADATA)
+        ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
 
     private fun currentMapping(): TypeMapping = elasticsearchClient.indices().getMapping { request ->
         request.index(MOCK_AGGREGATE_METADATA.toSnapshotIndexName())
@@ -780,7 +840,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         ).block()
     }
 
-    private fun defensiveEpochService(): SnapshotQueryService<MockStateAggregate> {
+    private fun defensiveEpochService(): SnapshotQueryBackend {
         val field = LogicalField("state.epochFraction")
         val schema = QueryModelSchema(
             QueryModel.SNAPSHOT,
@@ -792,7 +852,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
 
             override fun refresh(): Mono<QueryModelSchema> = Mono.just(schema)
         }
-        return ElasticsearchSnapshotQueryService(
+        return ElasticsearchSnapshotQueryBackend(
             namedAggregate = MOCK_AGGREGATE_METADATA,
             elasticsearchClient = elasticsearchClient,
             schemaProvider = provider,
@@ -843,3 +903,5 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         semanticType = DeclarationValue.Set(Temporal.Epoch(timeUnit)),
     )
 }
+
+private fun AggregationQuery.query(backend: SnapshotQueryBackend) = backend.aggregate(this)

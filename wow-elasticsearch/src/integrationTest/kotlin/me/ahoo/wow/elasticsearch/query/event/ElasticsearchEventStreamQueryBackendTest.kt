@@ -14,7 +14,11 @@
 package me.ahoo.wow.elasticsearch.query.event
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
@@ -26,14 +30,13 @@ import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.listQuery
-import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
-import me.ahoo.wow.query.event.count
-import me.ahoo.wow.query.event.query
+import me.ahoo.wow.query.event.EventStreamQueryBackend
+import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.event.requiredQueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
-import me.ahoo.wow.tck.query.EventStreamQueryServiceSpec
+import me.ahoo.wow.tck.query.EventStreamQueryBackendSpec
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
@@ -42,7 +45,7 @@ import reactor.core.publisher.Flux
 import reactor.kotlin.test.test
 import java.time.Duration
 
-class ElasticsearchEventStreamQueryServiceTest : EventStreamQueryServiceSpec() {
+class ElasticsearchEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
     @JvmField
     @RegisterExtension
     val elasticsearch = ElasticsearchTestFixture()
@@ -60,14 +63,14 @@ class ElasticsearchEventStreamQueryServiceTest : EventStreamQueryServiceSpec() {
         return ElasticsearchEventStore(elasticsearchClient)
     }
 
-    override fun createEventStreamQueryServiceFactory(): EventStreamQueryServiceFactory {
-        return ElasticsearchEventStreamQueryServiceFactory(elasticsearchClient)
+    override fun createEventStreamQueryBackendFactory(): EventStreamQueryBackendFactory {
+        return ElasticsearchEventStreamQueryBackendFactory(elasticsearchClient)
     }
 
     @Test
     fun `should provide event stream query schema`() {
         eventStore.append(generateEventStream(namedAggregate.aggregateId(generateGlobalId()))).block()
-        val schema = eventStreamQueryService.requiredQueryModelSchemaProvider().schema().block()!!
+        val schema = eventStreamQueryBackend.requiredQueryModelSchemaProvider().schema().block()!!
 
         schema.model.assert().isEqualTo(QueryModel.EVENT_STREAM)
         schema.fields.assert().containsKey(LogicalField("body.name"))
@@ -78,9 +81,9 @@ class ElasticsearchEventStreamQueryServiceTest : EventStreamQueryServiceSpec() {
     @Test
     fun `public constructor should expose default event stream schema`() {
         eventStore.append(generateEventStream(namedAggregate.aggregateId(generateGlobalId()))).block()
-        val queryService = ElasticsearchEventStreamQueryService(namedAggregate, elasticsearchClient)
+        val queryBackend = ElasticsearchEventStreamQueryBackend(namedAggregate, elasticsearchClient)
 
-        queryService.schema().test()
+        queryBackend.schema().test()
             .assertNext { schema -> schema.model.assert().isEqualTo(QueryModel.EVENT_STREAM) }
             .verifyComplete()
     }
@@ -90,20 +93,20 @@ class ElasticsearchEventStreamQueryServiceTest : EventStreamQueryServiceSpec() {
         val batchSize = 17
         val keepAlive = Duration.ofSeconds(23)
         eventStore.append(generateEventStream(namedAggregate.aggregateId(generateGlobalId()))).block()
-        val queryService = ElasticsearchEventStreamQueryService(
+        val queryBackend = ElasticsearchEventStreamQueryBackend(
             namedAggregate,
             elasticsearchClient,
             EventStreamFilterConverter,
             batchSize,
             keepAlive,
         )
-        val factoryService = ElasticsearchEventStreamQueryServiceFactory(
+        val factoryBackend = ElasticsearchEventStreamQueryBackendFactory(
             elasticsearchClient,
             batchSize,
             keepAlive,
-        ).create(namedAggregate) as ElasticsearchEventStreamQueryService
+        ).create(namedAggregate) as ElasticsearchEventStreamQueryBackend
 
-        Flux.concat(queryService.schema(), factoryService.schema())
+        Flux.concat(queryBackend.schema(), factoryBackend.schema())
             .test()
             .assertNext { schema -> schema.model.assert().isEqualTo(QueryModel.EVENT_STREAM) }
             .assertNext { schema -> schema.model.assert().isEqualTo(QueryModel.EVENT_STREAM) }
@@ -113,16 +116,16 @@ class ElasticsearchEventStreamQueryServiceTest : EventStreamQueryServiceSpec() {
     @Test
     fun `custom filter converter should make schema unavailable`() {
         val converter = object : AbstractElasticsearchFilterConverter() {}
-        val queryService = ElasticsearchEventStreamQueryService(
+        val queryBackend = ElasticsearchEventStreamQueryBackend(
             namedAggregate,
             elasticsearchClient,
             converter,
         )
 
-        queryService.schema().test()
+        queryBackend.schema().test()
             .expectError(QuerySchemaUnavailableException::class.java)
             .verify()
-        queryService.refresh().test()
+        queryBackend.refresh().test()
             .expectError(QuerySchemaUnavailableException::class.java)
             .verify()
     }
@@ -133,7 +136,7 @@ class ElasticsearchEventStreamQueryServiceTest : EventStreamQueryServiceSpec() {
         eventStore.append(eventStream).block()
 
         condition { id(eventStream.id) }
-            .count(eventStreamQueryService)
+            .count(eventStreamQueryBackend)
             .test()
             .expectNext(1L)
             .verifyComplete()
@@ -150,7 +153,7 @@ class ElasticsearchEventStreamQueryServiceTest : EventStreamQueryServiceSpec() {
             .thenMany(
                 listQuery {
                     condition { tenantId(tenantId) }
-                }.query(eventStreamQueryService)
+                }.query(eventStreamQueryBackend)
             )
             .test()
             .expectNextCount(3)
@@ -168,7 +171,7 @@ class ElasticsearchEventStreamQueryServiceTest : EventStreamQueryServiceSpec() {
             tenantId(eventStream.aggregateId.tenantId)
             "missingField".isNull()
         }
-            .count(eventStreamQueryService)
+            .count(eventStreamQueryBackend)
             .test()
             .expectNext(1L)
             .verifyComplete()
@@ -176,7 +179,7 @@ class ElasticsearchEventStreamQueryServiceTest : EventStreamQueryServiceSpec() {
             tenantId(eventStream.aggregateId.tenantId)
             "missingField".notNull()
         }
-            .count(eventStreamQueryService)
+            .count(eventStreamQueryBackend)
             .test()
             .expectNext(0L)
             .verifyComplete()
@@ -195,11 +198,18 @@ class ElasticsearchEventStreamQueryServiceTest : EventStreamQueryServiceSpec() {
             .block()
 
         Flux.concat(
-            condition { "tenantId".contains("*?literal", ignoreCase = true) }.count(eventStreamQueryService),
-            condition { "tenantId".startsWith("tenant*?", ignoreCase = true) }.count(eventStreamQueryService),
-            condition { "tenantId".endsWith("""\tail""", ignoreCase = true) }.count(eventStreamQueryService),
+            condition { "tenantId".contains("*?literal", ignoreCase = true) }.count(eventStreamQueryBackend),
+            condition { "tenantId".startsWith("tenant*?", ignoreCase = true) }.count(eventStreamQueryBackend),
+            condition { "tenantId".endsWith("""\tail""", ignoreCase = true) }.count(eventStreamQueryBackend),
         ).test()
             .expectNext(1L, 1L, 1L)
             .verifyComplete()
     }
 }
+
+private fun FilterExpression.count(backend: EventStreamQueryBackend) = backend.count(this)
+
+@Suppress("DEPRECATION")
+private fun Condition.count(backend: EventStreamQueryBackend) = backend.count(toFilterExpression())
+
+private fun IListQuery.query(backend: EventStreamQueryBackend) = backend.list(this)

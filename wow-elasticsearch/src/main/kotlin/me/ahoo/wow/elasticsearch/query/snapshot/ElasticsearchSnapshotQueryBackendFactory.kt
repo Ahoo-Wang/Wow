@@ -11,26 +11,26 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.elasticsearch.query.event
+package me.ahoo.wow.elasticsearch.query.snapshot
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.schema.QueryModel
-import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
+import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
 import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapter
 import me.ahoo.wow.modeling.materialize
-import me.ahoo.wow.query.event.AbstractEventStreamQueryServiceFactory
-import me.ahoo.wow.query.event.EventStreamQueryService
 import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
+import me.ahoo.wow.query.snapshot.AbstractSnapshotQueryBackendFactory
+import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import java.time.Duration
 
-class ElasticsearchEventStreamQueryServiceFactory(
+class ElasticsearchSnapshotQueryBackendFactory(
     private val elasticsearchClient: ReactiveElasticsearchClient,
     private val queryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE,
     private val queryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE,
@@ -38,19 +38,16 @@ class ElasticsearchEventStreamQueryServiceFactory(
         ElasticsearchIndexMappingResolver(elasticsearchClient),
     private val schemaSources: List<QuerySchemaSource> = emptyList(),
     private val validationMode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
-) : AbstractEventStreamQueryServiceFactory() {
-    override fun createQueryService(namedAggregate: NamedAggregate): EventStreamQueryService {
+) : AbstractSnapshotQueryBackendFactory() {
+    override fun createBackend(namedAggregate: NamedAggregate): SnapshotQueryBackend {
         val materialized = namedAggregate.materialize()
+        val indexName = materialized.toSnapshotIndexName()
         val provider = DefaultQueryModelSchemaProvider(
-            context = QuerySchemaContext(materialized, QueryModel.EVENT_STREAM),
+            context = QuerySchemaContext(materialized, QueryModel.SNAPSHOT),
             sources = schemaSources,
-            adapter = ElasticsearchQuerySchemaAdapter(
-                materialized.toEventStreamIndexName(),
-                indexMappingResolver,
-                QueryModel.EVENT_STREAM,
-            ),
+            adapter = ElasticsearchQuerySchemaAdapter(indexName, indexMappingResolver),
         )
-        return ElasticsearchEventStreamQueryService(
+        return ElasticsearchSnapshotQueryBackend(
             namedAggregate = materialized,
             elasticsearchClient = elasticsearchClient,
             queryBatchSize = queryBatchSize,

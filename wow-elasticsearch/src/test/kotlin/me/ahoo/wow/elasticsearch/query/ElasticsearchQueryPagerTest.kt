@@ -102,6 +102,7 @@ class ElasticsearchQueryPagerTest {
         searchRequests[1].pit()!!.id().assert().isEqualTo("pit-2")
         searchRequests[1].searchAfter().map { it.longValue() }.assert().containsExactly(2L, 102L)
         closeRequest.captured.id().assert().isEqualTo("pit-3")
+        verify(exactly = 1) { elasticsearchClient.closePointInTime(any<ClosePointInTimeRequest>()) }
     }
 
     @Test
@@ -124,7 +125,7 @@ class ElasticsearchQueryPagerTest {
     }
 
     @Test
-    fun `should close latest pit when an intermediate page fails`() {
+    fun `partial search failure should remain an error and close latest pit`() {
         val closeRequest = slot<ClosePointInTimeRequest>()
         stubPointInTime(closeRequest = closeRequest)
         every { elasticsearchClient.search(any<SearchRequest>(), Map::class.java) } returnsMany listOf(
@@ -140,6 +141,7 @@ class ElasticsearchQueryPagerTest {
             .verify()
 
         closeRequest.captured.id().assert().isEqualTo("pit-2")
+        verify(exactly = 1) { elasticsearchClient.closePointInTime(any<ClosePointInTimeRequest>()) }
     }
 
     @Test
@@ -159,6 +161,26 @@ class ElasticsearchQueryPagerTest {
             .verify()
 
         closeRequest.captured.id().assert().isEqualTo("pit-2")
+        verify(exactly = 1) { elasticsearchClient.closePointInTime(any<ClosePointInTimeRequest>()) }
+    }
+
+    @Test
+    fun `take should close latest pit after downstream cancellation`() {
+        val closeRequest = slot<ClosePointInTimeRequest>()
+        stubPointInTime(closeRequest = closeRequest)
+        every { elasticsearchClient.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(
+            searchResponse("pit-from-last-response", hit("1", 1), hit("2", 2)),
+        )
+
+        ElasticsearchQueryPager(elasticsearchClient, "test-index", batchSize = 2)
+            .search(0, query, null, sort)
+            .take(1)
+            .test()
+            .expectNextCount(1)
+            .verifyComplete()
+
+        closeRequest.captured.id().assert().isEqualTo("pit-from-last-response")
+        verify(exactly = 1) { elasticsearchClient.closePointInTime(any<ClosePointInTimeRequest>()) }
     }
 
     @Test
