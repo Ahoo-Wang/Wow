@@ -43,7 +43,9 @@ import tools.jackson.databind.node.ObjectNode
 class QueryGatewayContractTest {
     @Test
     fun `snapshot and event gateways should materialize model types after raw backend results`() {
-        snapshotGateway.single(singleQuery { }).block().assert().isInstanceOf(MaterializedSnapshot::class.java)
+        val snapshot = snapshotGateway.single(singleQuery { }).block()!!
+        snapshot.assert().isInstanceOf(MaterializedSnapshot::class.java)
+        snapshot.state.assert().isEqualTo(State("raw"))
         eventGateway.single(singleQuery { }).block().assert().isInstanceOf(DomainEventStream::class.java)
     }
 
