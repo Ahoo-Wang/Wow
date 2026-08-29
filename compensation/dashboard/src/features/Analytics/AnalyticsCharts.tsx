@@ -133,7 +133,7 @@ export function RetryDistributionChart({
       {description ? (
         <p className="text-sm text-muted-foreground">{description}</p>
       ) : null}
-      <ChartContainer config={config} className="h-36 w-full py-2 aspect-auto">
+      <ChartContainer config={config} className="h-36 w-full py-2 text-sm aspect-auto">
         <BarChart
           accessibilityLayer
           data={rows}
@@ -156,7 +156,7 @@ export function RetryDistributionChart({
               dataKey="display"
               position="right"
               className="fill-foreground font-mono tabular-nums"
-              fontSize={11}
+              fontSize={14}
             />
           </Bar>
         </BarChart>
@@ -195,7 +195,7 @@ export function CompensationTrendChart({
 }): ReactElement {
   return (
     <section aria-label="Compensation outcomes trend">
-      <ChartContainer config={trendConfig} className="h-36 w-full py-2 aspect-auto">
+      <ChartContainer config={trendConfig} className="h-36 w-full py-2 text-sm aspect-auto">
         <LineChart accessibilityLayer data={points}>
           <CartesianGrid vertical={false} />
           <XAxis

@@ -26,11 +26,13 @@ vi.mock("./useEventTrend.ts", () => ({
 }));
 vi.mock("@/components/ui/calendar", () => ({
   Calendar: ({
+    max,
     onSelect,
   }: {
+    max?: number;
     onSelect?: (range: { from?: Date; to?: Date }) => void;
   }) => (
-    <div role="grid" aria-label="Date range calendar">
+    <div role="grid" aria-label="Date range calendar" data-max={max}>
       <button
         type="button"
         onClick={() => onSelect?.({ from: new Date(2026, 7, 10) })}
@@ -150,6 +152,10 @@ describe("DashboardView", () => {
 
     const initialWindowReference = mocks.useSnapshotAnalytics.mock.lastCall?.[0];
     fireEvent.click(picker);
+    expect(
+      screen.getByRole("grid", { name: "Date range calendar" }),
+    ).toHaveAttribute("data-max", "999");
+    expect(screen.getByText("Select up to 1000 days.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Select start only" }));
     expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
     expect(mocks.useSnapshotAnalytics.mock.lastCall?.[0]).toBe(

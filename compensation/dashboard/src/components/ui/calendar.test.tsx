@@ -18,6 +18,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import { getDefaultClassNames } from "react-day-picker";
 import { enUS } from "react-day-picker/locale";
 import { describe, expect, it } from "vitest";
 import { Calendar } from "./calendar.tsx";
@@ -43,5 +44,20 @@ describe("Calendar", () => {
     });
 
     await waitFor(() => expect(document.activeElement).toBe(august21));
+  });
+
+  it("uses the DayPicker day-button class on interactive days", () => {
+    render(
+      <Calendar
+        mode="single"
+        locale={enUS}
+        defaultMonth={new Date(2026, 7, 1)}
+      />,
+    );
+
+    const dayButton = screen.getByRole("button", { name: /August 20/ });
+    const defaultClassNames = getDefaultClassNames();
+    expect(dayButton).toHaveClass(defaultClassNames.day_button);
+    expect(dayButton).not.toHaveClass(defaultClassNames.day);
   });
 });

@@ -68,6 +68,7 @@ export const TREND_EVENTS = {
   retriedFailed: "execution_failed_applied",
   succeeded: "execution_success_applied",
 } as const;
+export const MAX_TREND_DAYS = 1_000;
 
 export function createTrendWindow(
   startDate: Date,
@@ -76,6 +77,9 @@ export function createTrendWindow(
 ): TrendWindow {
   const start = dayjs(startDate).startOf("day");
   const end = dayjs(endDate).startOf("day").add(1, "day");
+  if (end.diff(start, "day") > MAX_TREND_DAYS) {
+    throw new Error(`Date range cannot exceed ${MAX_TREND_DAYS} days.`);
+  }
   const buckets: number[] = [];
   for (
     let bucket = start;

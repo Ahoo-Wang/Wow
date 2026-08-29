@@ -407,6 +407,27 @@ describe("analyticsQueries", () => {
     });
   });
 
+  it("allows exactly 1000 inclusive daily buckets", () => {
+    const start = new Date(2023, 0, 1);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 999);
+
+    const window = createTrendWindow(start, end, "Asia/Shanghai");
+
+    expect(window.buckets).toHaveLength(1_000);
+    expect(createEventTrendQueries(window).succeeded.limit).toBe(1_000);
+  });
+
+  it("rejects 1001 inclusive daily buckets", () => {
+    const start = new Date(2023, 0, 1);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1_000);
+
+    expect(() => createTrendWindow(start, end, "Asia/Shanghai")).toThrow(
+      "Date range cannot exceed 1000 days.",
+    );
+  });
+
   it("filters event streams by root time and body event name", () => {
     const window = createTrendWindow(
       new Date(2026, 7, 22),

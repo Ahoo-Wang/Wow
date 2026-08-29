@@ -492,11 +492,11 @@ table.sr-only {
 .dashboard-view {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 4px;
   height: 100%;
   min-height: 0;
   overflow: auto;
-  padding: 12px 18px;
+  padding: 4px 18px;
 }
 
 .dashboard-summary,
@@ -524,7 +524,7 @@ table.sr-only {
   gap: 10px;
   margin-left: auto;
   color: #64748b;
-  font-size: 12px;
+  font-size: 14px;
   white-space: nowrap;
 }
 
@@ -540,7 +540,7 @@ table.sr-only {
 }
 
 .dashboard-summary-values > div {
-  padding: 4px 16px 6px;
+  padding: 2px 16px;
 }
 
 .dashboard-summary-values > div:first-child {
@@ -553,7 +553,7 @@ table.sr-only {
 
 .dashboard-summary-values dt {
   color: #334155;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .dashboard-summary-values dd {
@@ -597,12 +597,12 @@ table.sr-only {
 }
 
 .dashboard-pressure-table [data-slot="table-head"] {
-  height: 34px;
+  height: 30px;
 }
 
 .dashboard-pressure-table [data-slot="table-cell"] {
-  padding-block: 4px;
-  font-size: 13px;
+  padding-block: 2px;
+  font-size: 14px;
 }
 
 .dashboard-pressure-table [data-slot="table-cell"]:first-child {
@@ -614,14 +614,27 @@ table.sr-only {
 }
 
 .dashboard-pressure-table [data-slot="table-cell"]:first-child .text-xs {
-  line-height: 13px;
+  font-size: 14px;
+  line-height: 14px;
+}
+
+.dashboard-pressure-table .text-xs {
+  font-size: 14px;
+}
+
+.dashboard-section-error {
+  overflow-wrap: anywhere;
+}
+
+.dashboard-view .text-xs {
+  font-size: 14px;
 }
 
 .dashboard-signals {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(24rem, 1.6fr);
   min-height: 13rem;
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid #dbe1e8;
   border-radius: 8px;
   background: #fff;
@@ -629,7 +642,7 @@ table.sr-only {
 
 .dashboard-signals > section {
   min-width: 0;
-  padding: 10px 12px;
+  padding: 6px 12px;
 }
 
 .dashboard-signals > section + section {
@@ -644,7 +657,7 @@ table.sr-only {
 }
 
 .dashboard-signals p {
-  font-size: 12px;
+  font-size: 14px;
   line-height: 16px;
 }
 
@@ -661,7 +674,7 @@ table.sr-only {
 
 .dashboard-signals > section:first-child dt,
 .dashboard-signals > section:first-child dd {
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .dashboard-signals > section:first-child dd {

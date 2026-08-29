@@ -108,6 +108,7 @@ async function mockAnalyticsAggregations(
   page: Page,
   callbacks: {
     failSnapshotAlias?: string;
+    snapshotErrorMessage?: string;
     onEvent: (query: AggregationQueryBody) => void;
     onSnapshot: (query: AggregationQueryBody) => void;
   },
@@ -131,7 +132,10 @@ async function mockAnalyticsAggregations(
       await route.fulfill({
         status: 500,
         contentType: "application/json",
-        body: JSON.stringify({ message: "analytics section unavailable" }),
+        body: JSON.stringify({
+          message:
+            callbacks.snapshotErrorMessage ?? "analytics section unavailable",
+        }),
       });
       return;
     }
@@ -451,6 +455,15 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
   const timeRange = page.getByRole("button", { name: /^Time range:/ });
   await expect(timeRange).toContainText("–");
   await timeRange.click();
+  for (const label of ["Today", "Last 7 days", "Last 30 days"]) {
+    const shortcut = page.getByRole("button", { name: label, exact: true });
+    await expect(shortcut).toBeVisible();
+    expect(
+      await shortcut.evaluate((element) =>
+        Number.parseFloat(getComputedStyle(element).fontSize),
+      ),
+    ).toBeGreaterThanOrEqual(14);
+  }
   await page.getByRole("button", { name: "Today", exact: true }).click();
   await expect.poll(() => snapshotRequests).toBe(14);
   await expect.poll(() => eventRequests).toBe(8);
@@ -458,6 +471,7 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
   await expect.poll(() => snapshotRequests).toBe(21);
   await expect.poll(() => eventRequests).toBe(12);
 
+  const appliedWindows: Array<{ end: number; start: number }> = [];
   for (const batch of [0, 1, 2]) {
     const snapshotWindows = snapshotQueries
       .slice(batch * 7, batch * 7 + 7)
@@ -465,14 +479,19 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
     const eventWindows = eventQueries
       .slice(batch * 4, batch * 4 + 4)
       .map((query) => queryWindow(query, "createTime"));
+    const windows = [...snapshotWindows, ...eventWindows];
+    for (const { end, start } of windows) {
+      expect(Number.isFinite(start)).toBe(true);
+      expect(Number.isFinite(end)).toBe(true);
+      expect(start).toBeLessThan(end as number);
+    }
     expect(
-      new Set(
-        [...snapshotWindows, ...eventWindows].map(
-          ({ end, start }) => `${start}:${end}`,
-        ),
-      ).size,
+      new Set(windows.map(({ end, start }) => `${start}:${end}`)).size,
     ).toBe(1);
+    appliedWindows.push(windows[0] as { end: number; start: number });
   }
+  expect(appliedWindows[0]).not.toEqual(appliedWindows[1]);
+  expect(appliedWindows[1]).toEqual(appliedWindows[2]);
 
   const pressureTable = page.getByRole("table", {
     name: "Current failure pressure",
@@ -524,6 +543,45 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
         .locator("tspan")
         .filter({ hasText: label });
       await expect(tick).toHaveCount(1);
+    }
+    const fontTargets = [
+      page.getByText("Actionable now", { exact: true }),
+      pressureTable.locator("tbody tr").first().locator("td").nth(1),
+      pressureTable
+        .locator("tbody tr")
+        .first()
+        .locator("td")
+        .first()
+        .locator(".text-muted-foreground"),
+      pressureTable.locator("tbody tr").first().getByText("90 (75%)"),
+      page
+        .getByRole("region", { name: "Recoverability" })
+        .getByText("Recoverable", { exact: true }),
+      page
+        .getByRole("region", { name: "Retry distribution" })
+        .locator("tspan")
+        .filter({ hasText: "1–2 retries" }),
+      page
+        .getByRole("region", { name: "Retry distribution" })
+        .locator("svg text")
+        .filter({ hasText: "4 (33%)" })
+        .first(),
+      page
+        .getByRole("region", { name: "Compensation outcomes trend" })
+        .locator("svg text")
+        .filter({ hasText: "08-29 00:00" })
+        .first(),
+      page
+        .getByRole("region", { name: "Compensation outcomes trend" })
+        .locator(".recharts-legend-wrapper")
+        .getByText("New failures", { exact: true }),
+    ];
+    for (const target of fontTargets) {
+      await expect(target).toBeVisible();
+      const fontSize = await target.evaluate((element) =>
+        Number.parseFloat(getComputedStyle(element).fontSize),
+      );
+      expect(fontSize).toBeGreaterThanOrEqual(14);
     }
   }
   expect(
@@ -582,4 +640,46 @@ test("isolates one failed analytics region", async ({ page }) => {
     "analytics section unavailable",
   );
   await expect(page.getByText("Compensation outcomes")).toBeVisible();
+});
+
+test("keeps a long analytics error wrapped and reachable", async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium");
+  await page.setViewportSize({ width: 1280, height: 720 });
+  const longMessage = `analytics-${"unavailable".repeat(160)}`;
+  await mockAnalyticsAggregations(page, {
+    failSnapshotAlias: "recoverable",
+    snapshotErrorMessage: longMessage,
+    onEvent: () => undefined,
+    onSnapshot: () => undefined,
+  });
+
+  await page.goto("/");
+
+  const alert = page.getByRole("alert");
+  await expect(alert).toHaveText(longMessage);
+  const layout = await alert.evaluate((element) => {
+    const dashboard = document.querySelector<HTMLElement>(".dashboard-view");
+    const signals = document.querySelector<HTMLElement>(".dashboard-signals");
+    if (!dashboard || !signals) {
+      throw new Error("Dashboard layout is missing");
+    }
+    return {
+      alertClientWidth: element.clientWidth,
+      alertScrollWidth: element.scrollWidth,
+      dashboardClientHeight: dashboard.clientHeight,
+      dashboardScrollHeight: dashboard.scrollHeight,
+      overflowWrap: getComputedStyle(element).overflowWrap,
+      signalsHeight: signals.getBoundingClientRect().height,
+    };
+  });
+  expect(layout.overflowWrap).toBe("anywhere");
+  expect(layout.alertScrollWidth).toBeLessThanOrEqual(layout.alertClientWidth);
+  expect(layout.signalsHeight).toBeGreaterThan(208);
+  expect(layout.dashboardScrollHeight).toBeGreaterThan(
+    layout.dashboardClientHeight,
+  );
+  await alert.scrollIntoViewIfNeeded();
+  await expect(alert).toBeVisible();
 });

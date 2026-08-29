@@ -44,7 +44,10 @@ import type {
   PressureCluster,
   RetryDistribution,
 } from "./analyticsQueries.ts";
-import { createTrendWindow } from "./analyticsQueries.ts";
+import {
+  createTrendWindow,
+  MAX_TREND_DAYS,
+} from "./analyticsQueries.ts";
 import { useEventTrend } from "./useEventTrend.ts";
 import {
   type AnalyticsSection,
@@ -103,7 +106,7 @@ function SectionError({ error }: { error: Error }) {
   }, [error]);
 
   return (
-    <p role="alert" className="text-sm text-red-700">
+    <p role="alert" className="dashboard-section-error text-sm text-red-700">
       {message}
     </p>
   );
@@ -293,6 +296,7 @@ export default function DashboardView() {
                       type="button"
                       variant="secondary"
                       size="sm"
+                      className="text-sm"
                       onClick={() => applyRecentDays(Number(days))}
                     >
                       {label}
@@ -301,6 +305,7 @@ export default function DashboardView() {
                 </div>
                 <Calendar
                   mode="range"
+                  max={MAX_TREND_DAYS - 1}
                   required
                   resetOnSelect
                   selected={draftRange}
@@ -308,6 +313,9 @@ export default function DashboardView() {
                   defaultMonth={draftRange.from}
                   timeZone={timeZone}
                 />
+                <p className="px-3 pb-2 text-sm text-muted-foreground">
+                  Select up to {MAX_TREND_DAYS} days.
+                </p>
                 <div className="flex justify-end gap-2 border-t p-2">
                   <Button
                     type="button"
