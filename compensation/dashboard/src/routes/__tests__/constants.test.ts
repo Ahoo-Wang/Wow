@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  AnalyticsNavItem,
+  DashboardNavItem,
   NavItemPaths,
   NavItems,
   PrimaryNavItems,
@@ -47,12 +47,19 @@ describe("routes/constants", () => {
     });
   });
 
-  it("keeps queue navigation separate from the analytics primary item", () => {
+  it("puts Dashboard first while keeping queue navigation separate", () => {
+    expect(NavItemPaths.Dashboard).toBe("/dashboard");
+    expect(NavItemPaths.Analytics).toBe("/analytics");
+    expect(DashboardNavItem).toEqual({ label: "Dashboard", path: "/dashboard" });
+    expect(PrimaryNavItems.map(({ label }) => label)).toEqual([
+      "Dashboard",
+      "To Retry",
+      "Executing",
+      "Next Retry",
+      "Non Retryable",
+      "Succeeded",
+      "Unrecoverable",
+    ]);
     expect(NavItems).toHaveLength(6);
-    expect(PrimaryNavItems).toHaveLength(7);
-    expect(AnalyticsNavItem).toEqual({
-      label: "Analytics",
-      path: "/analytics",
-    });
   });
 });

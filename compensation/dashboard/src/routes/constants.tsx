@@ -16,6 +16,7 @@ import { FindCategory } from "../features/Failed/FindCategory.ts";
 import LazyFailedView from "./LazyFailedView.tsx";
 
 export const NavItemPaths = {
+  Dashboard: "/dashboard",
   Analytics: "/analytics",
   ToRetry: "/to-retry",
   Executing: "/executing",
@@ -74,12 +75,12 @@ export const NavItems: readonly QueueNavItem[] = [
   },
 ];
 
-export const AnalyticsNavItem: NavItem = {
-  label: "Analytics",
-  path: NavItemPaths.Analytics,
+export const DashboardNavItem: NavItem = {
+  label: "Dashboard",
+  path: NavItemPaths.Dashboard,
 };
 
 export const PrimaryNavItems: readonly NavItem[] = [
+  DashboardNavItem,
   ...NavItems,
-  AnalyticsNavItem,
 ];

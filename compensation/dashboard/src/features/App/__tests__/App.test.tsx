@@ -47,6 +47,10 @@ vi.mock("react-router", () => ({
 
 const navItems = [
   {
+    label: "Dashboard",
+    path: "/dashboard",
+  },
+  {
     label: "To Retry",
     path: "/to-retry",
     category: FindCategory.ToRetry,
@@ -57,10 +61,6 @@ const navItems = [
     path: "/executing",
     category: FindCategory.Executing,
     component: () => null,
-  },
-  {
-    label: "Analytics",
-    path: "/analytics",
   },
 ];
 
@@ -86,7 +86,7 @@ describe("App", () => {
     );
     expect(
       screen.getByRole("link", { name: "Wow compensation dashboard" }),
-    ).toHaveAttribute("href", "/to-retry");
+    ).toHaveAttribute("href", "/dashboard");
     const projectLinks = screen.getByRole("navigation", {
       name: "Project repositories",
     });
@@ -157,14 +157,20 @@ describe("App", () => {
     expect(sidebar).not.toHaveClass("is-collapsed");
   });
 
-  it("shows Analytics as a primary workspace", () => {
-    mocks.pathname = "/analytics";
+  it("uses Dashboard as the workspace and logo destination", () => {
+    mocks.pathname = "/dashboard";
     render(<App navItems={navItems} />);
 
-    expect(screen.getByRole("heading", { name: "Analytics" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Analytics" })).toHaveAttribute(
+    expect(screen.getByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute(
       "href",
-      "/analytics",
+      "/dashboard",
+    );
+    expect(
+      screen.getByRole("link", { name: "Wow compensation dashboard" }),
+    ).toHaveAttribute(
+      "href",
+      "/dashboard",
     );
   });
 });

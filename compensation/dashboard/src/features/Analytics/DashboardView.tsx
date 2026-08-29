@@ -162,7 +162,7 @@ function PressureTable({ clusters }: { clusters: PressureCluster[] }) {
   );
 }
 
-export default function AnalyticsView() {
+export default function DashboardView() {
   const [range, setRange] = useState<AnalyticsRange>("7d");
   const [refreshToken, setRefreshToken] = useState(0);
   const snapshot = useSnapshotAnalytics(refreshToken);

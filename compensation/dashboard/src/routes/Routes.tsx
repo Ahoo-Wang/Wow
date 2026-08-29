@@ -15,13 +15,20 @@ import { Suspense } from "react";
 import { createBrowserRouter, Navigate } from "react-router";
 import App from "../features/App/App.tsx";
 import {
-  AnalyticsNavItem,
+  DashboardNavItem,
   NavItems,
   NavItemPaths,
   PrimaryNavItems,
 } from "./constants.tsx";
-import LazyAnalyticsView from "./LazyAnalyticsView.tsx";
+import LazyDashboardView from "./LazyDashboardView.tsx";
 import { Skeleton } from "@/components/ui/skeleton";
+
+const dashboardFallback = (
+  <div className="h-full space-y-4 p-5">
+    <Skeleton className="h-12 w-full" />
+    <Skeleton className="h-[70vh] w-full" />
+  </div>
+);
 
 export const AppRouter = createBrowserRouter([
   {
@@ -29,19 +36,20 @@ export const AppRouter = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Navigate to={NavItemPaths.ToRetry} replace />,
+        element: <Navigate to={NavItemPaths.Dashboard} replace />,
+      },
+      {
+        path: DashboardNavItem.path,
+        element: (
+          <Suspense fallback={dashboardFallback}>
+            <LazyDashboardView />
+          </Suspense>
+        ),
       },
       ...NavItems.map((routeItem) => ({
         path: routeItem.path,
         element: (
-          <Suspense
-            fallback={
-              <div className="h-full space-y-4 p-5">
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-[70vh] w-full" />
-              </div>
-            }
-          >
+          <Suspense fallback={dashboardFallback}>
             <routeItem.component
               key={routeItem.category}
               category={routeItem.category}
@@ -50,23 +58,12 @@ export const AppRouter = createBrowserRouter([
         ),
       })),
       {
-        path: AnalyticsNavItem.path,
-        element: (
-          <Suspense
-            fallback={
-              <div className="h-full space-y-4 p-5">
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-[70vh] w-full" />
-              </div>
-            }
-          >
-            <LazyAnalyticsView />
-          </Suspense>
-        ),
+        path: NavItemPaths.Analytics,
+        element: <Navigate to={NavItemPaths.Dashboard} replace />,
       },
       {
         path: "*",
-        element: <Navigate to={NavItemPaths.ToRetry} replace />,
+        element: <Navigate to={NavItemPaths.Dashboard} replace />,
       },
     ],
   },

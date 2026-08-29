@@ -13,6 +13,8 @@
 
 import { lazy } from "react";
 
-const LazyAnalyticsView = lazy(() => import("../features/Analytics/AnalyticsView.tsx"));
+const LazyDashboardView = lazy(
+  () => import("../features/Analytics/DashboardView.tsx"),
+);
 
-export default LazyAnalyticsView;
+export default LazyDashboardView;

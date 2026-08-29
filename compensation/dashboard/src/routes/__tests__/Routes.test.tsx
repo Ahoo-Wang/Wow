@@ -26,8 +26,8 @@ vi.mock("../../features/App/App.tsx", () => ({
 }));
 
 vi.mock("../constants.tsx", () => ({
-  NavItemPaths: { Analytics: "/analytics", ToRetry: "/to-retry" },
-  AnalyticsNavItem: { label: "Analytics", path: "/analytics" },
+  NavItemPaths: { Analytics: "/analytics", Dashboard: "/dashboard" },
+  DashboardNavItem: { label: "Dashboard", path: "/dashboard" },
   NavItems: [
     {
       category: "ToRetry",
@@ -46,13 +46,14 @@ vi.mock("../constants.tsx", () => ({
 }));
 
 describe("AppRouter", () => {
-  it("maps every navigation item and keeps both redirect guards", () => {
+  it("maps every navigation item and keeps Dashboard redirect guards", () => {
     expect(AppRouter).toBeDefined();
 
     const root = mocks.routerConfig?.[0];
     expect(root?.children?.map(({ index, path }) => ({ index, path }))).toEqual(
       [
         { index: true, path: undefined },
+        { index: undefined, path: "/dashboard" },
         { index: undefined, path: "/to-retry" },
         { index: undefined, path: "/executing" },
         { index: undefined, path: "/analytics" },
@@ -60,15 +61,11 @@ describe("AppRouter", () => {
       ],
     );
 
-    const indexRedirect = root?.children?.[0].element;
-    const fallbackRedirect = root?.children?.[4].element;
-    expect(indexRedirect?.props).toMatchObject({
-      replace: true,
-      to: "/to-retry",
-    });
-    expect(fallbackRedirect?.props).toMatchObject({
-      replace: true,
-      to: "/to-retry",
-    });
+    for (const index of [0, 4, 5]) {
+      expect(root?.children?.[index].element?.props).toMatchObject({
+        replace: true,
+        to: "/dashboard",
+      });
+    }
   });
 });

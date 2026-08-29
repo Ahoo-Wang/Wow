@@ -6,7 +6,7 @@ import type {
   AnalyticsSection,
   SnapshotAnalyticsResult,
 } from "./useSnapshotAnalytics.ts";
-import AnalyticsView from "./AnalyticsView.tsx";
+import DashboardView from "./DashboardView.tsx";
 
 const mocks = vi.hoisted(() => ({
   eventResult: undefined as unknown as AnalyticsSection<TrendPoint[]>,
@@ -81,9 +81,9 @@ beforeEach(() => {
   mocks.useEventTrend.mockImplementation(() => mocks.eventResult);
 });
 
-describe("AnalyticsView", () => {
+describe("DashboardView", () => {
   it("renders current pressure and keeps range scoped to history", () => {
-    render(<AnalyticsView />);
+    render(<DashboardView />);
 
     expect(screen.getByText("128")).toBeInTheDocument();
     expect(
@@ -102,7 +102,7 @@ describe("AnalyticsView", () => {
 
   it("refreshes both facts with one token and preserves regional errors", () => {
     mocks.snapshotResult.summary.error = new Error("snapshot unavailable");
-    render(<AnalyticsView />);
+    render(<DashboardView />);
 
     expect(screen.getByRole("alert")).toHaveTextContent("snapshot unavailable");
     fireEvent.click(screen.getByRole("button", { name: "Refresh analytics" }));
@@ -118,7 +118,7 @@ describe("AnalyticsView", () => {
       loading: true,
       updatedAt: 1_787_932_800_000,
     };
-    render(<AnalyticsView />);
+    render(<DashboardView />);
 
     expect(document.querySelectorAll("[data-slot='skeleton']").length).toBeGreaterThan(0);
     expect(screen.getByRole("status")).toHaveTextContent("Refreshing");
@@ -130,7 +130,7 @@ describe("AnalyticsView", () => {
       buckets: [{ key: "0", count: 3 }],
       truncated: true,
     };
-    render(<AnalyticsView />);
+    render(<DashboardView />);
 
     expect(screen.getByText("No active failure clusters")).toBeInTheDocument();
     expect(screen.getByText(/Retry distribution is truncated/)).toBeInTheDocument();
@@ -144,7 +144,7 @@ describe("AnalyticsView", () => {
       { recoverable: RecoverableType.UNRECOVERABLE, count: 2 },
     ];
 
-    render(<AnalyticsView />);
+    render(<DashboardView />);
 
     expect(screen.getByText("Recoverable: 7")).toHaveAttribute(
       "data-color",
@@ -187,7 +187,7 @@ describe("AnalyticsView", () => {
         processorName: "PaymentProcessor",
       },
     ];
-    render(<AnalyticsView />);
+    render(<DashboardView />);
 
     const pressureTable = screen.getByRole("table", {
       name: "Current failure pressure",
@@ -205,7 +205,7 @@ describe("AnalyticsView", () => {
   });
 
   it("keeps summary, pressure, distributions, then history in reading order", () => {
-    render(<AnalyticsView />);
+    render(<DashboardView />);
 
     const content = document.body.textContent ?? "";
     expect(content.indexOf("Actionable now")).toBeLessThan(

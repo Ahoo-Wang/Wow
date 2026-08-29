@@ -35,7 +35,7 @@ interface AppProps {
 }
 
 const navIcons: Record<string, ComponentType<{ className?: string }>> = {
-  "/analytics": ChartNoAxesCombined,
+  "/dashboard": ChartNoAxesCombined,
   "/to-retry": RefreshCcw,
   "/executing": Play,
   "/next-retry": Clock3,
@@ -72,7 +72,7 @@ export default function App({ navItems }: AppProps) {
         >
           <Link
             className="app-logo"
-            to="/to-retry"
+            to="/dashboard"
             aria-label="Wow compensation dashboard"
           >
             <img src="/logo.svg" alt="Wow" />
