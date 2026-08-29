@@ -21,11 +21,19 @@ import com.github.victools.jsonschema.generator.MemberScope
 import com.github.victools.jsonschema.generator.MethodScope
 import com.github.victools.jsonschema.generator.Option
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
+import com.github.victools.jsonschema.generator.SchemaGenerator
 import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.mask.MaskStrategy
+import me.ahoo.wow.api.query.mask.Masking
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryTemporal
 import me.ahoo.wow.configuration.requiredAggregateType
+import me.ahoo.wow.infra.reflection.MergedAnnotation.Companion.toMergedAnnotation
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
+import me.ahoo.wow.query.schema.DeclarationValue
+import me.ahoo.wow.query.schema.MaskRule
+import me.ahoo.wow.query.schema.QueryFieldDeclaration
+import me.ahoo.wow.query.schema.QuerySchemaConflictException
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaException
@@ -50,6 +58,7 @@ import tools.jackson.databind.util.Converter
 import java.util.concurrent.ConcurrentHashMap
 
 internal const val TEMPORAL_UNIT = "x-wow-query-temporal-unit"
+internal const val MASK_RULE_ATTRIBUTE = "x-wow-query-mask-rule"
 
 class JsonQuerySchemaSource(
     private val typeResolver: (QuerySchemaContext) -> Class<*> = { context ->
@@ -86,20 +95,36 @@ class JsonQuerySchemaSource(
 
     private companion object {
         val eventPayloadField = LogicalField("${MessageRecords.BODY}.${MessageRecords.BODY}")
+        val eventBodyTypeField = LogicalField("${MessageRecords.BODY}.${MessageRecords.BODY_TYPE}")
 
-        fun inferDeclaration(model: QueryModel, type: Class<*>): QuerySchemaDeclaration =
-            if (model == QueryModel.EVENT_STREAM) {
-                inferEventStreamDeclaration(type)
+        fun inferDeclaration(model: QueryModel, type: Class<*>): QuerySchemaDeclaration {
+            val maskRuleCatalog = MaskRuleCatalog()
+            val schemaGenerator = schemaGenerator(maskRuleCatalog)
+            return if (model == QueryModel.EVENT_STREAM) {
+                inferEventStreamDeclaration(type, schemaGenerator, maskRuleCatalog)
             } else {
-                JsonSchemaWalker(schemaGenerator.generateSchema(type)).declaration()
+                JsonSchemaWalker(
+                    schemaGenerator.generateSchema(type),
+                    maskRuleResolver = maskRuleCatalog::get,
+                ).declaration()
             }
+        }
 
-        fun inferEventStreamDeclaration(aggregateType: Class<*>): QuerySchemaDeclaration {
+        fun inferEventStreamDeclaration(
+            aggregateType: Class<*>,
+            schemaGenerator: SchemaGenerator,
+            maskRuleCatalog: MaskRuleCatalog,
+        ): QuerySchemaDeclaration {
             val rootSchema = schemaGenerator.generateSchema(AggregatedDomainEventStream::class.java, aggregateType)
             val eventSchemas = rootSchema.path("properties").path(MessageRecords.BODY).path("items").path("anyOf")
             val payloadSchema = JsonSerializer.createObjectNode()
             val payloadAlternatives = payloadSchema.putArray("anyOf")
+            val bodyTypes = mutableSetOf<String>()
             eventSchemas.forEach { eventSchema ->
+                eventSchema.path("properties").path(MessageRecords.BODY_TYPE).path("const")
+                    .takeIf { it.isString }
+                    ?.stringValue()
+                    ?.let(bodyTypes::add)
                 eventSchema.path("properties").path(MessageRecords.BODY)
                     .takeUnless { it.isMissingNode }
                     ?.let(payloadAlternatives::add)
@@ -107,24 +132,85 @@ class JsonQuerySchemaSource(
             if (payloadAlternatives.isEmpty) {
                 return QuerySchemaDeclaration(emptyMap())
             }
-            return JsonSchemaWalker(payloadSchema, rootSchema).declaration(eventPayloadField, includeRoot = false)
+            val declaration = JsonSchemaWalker(
+                payloadSchema,
+                rootSchema,
+                maskRuleCatalog::get,
+            ).declaration(eventPayloadField, includeRoot = false)
+            return declaration.copy(
+                fields = declaration.fields + Pair(
+                    eventBodyTypeField,
+                    QueryFieldDeclaration(
+                        enumValues = DeclarationValue.Set(
+                            bodyTypes.sorted().map { JsonSerializer.valueToTree(it) },
+                        ),
+                    ),
+                ),
+            )
         }
 
-        val schemaGenerator by lazy {
+        fun schemaGenerator(maskRuleCatalog: MaskRuleCatalog): SchemaGenerator =
             SchemaGeneratorBuilder().objectMapper(JsonSerializer).customizer { config ->
                 config.with(Option.DEFINITIONS_FOR_ALL_OBJECTS)
                 config.forFields()
                     .withCustomDefinitionProvider { scope, context -> scope.customSerializerDefinition(context) }
                     .withInstanceAttributeOverride(TemporalAttributeOverride<FieldScope>())
+                    .withInstanceAttributeOverride(MaskAttributeOverride(maskRuleCatalog))
                 config.forMethods()
                     .withCustomDefinitionProvider { scope, context -> scope.customSerializerDefinition(context) }
                     .withInstanceAttributeOverride(TemporalAttributeOverride<MethodScope>())
+                    .withInstanceAttributeOverride(MaskAttributeOverride(maskRuleCatalog))
                 config.forTypesInGeneral().withCustomDefinitionProvider { javaType, context ->
                     javaType.erasedType.registeredSerializerDefinition(context)
                 }
             }.build()
+    }
+}
+
+private class MaskRuleCatalog {
+    private val rules = mutableListOf<MaskRule>()
+
+    fun add(rule: MaskRule): String = rules.indexOf(rule).takeIf { it >= 0 }?.toString()
+        ?: rules.size.also { rules += rule }.toString()
+
+    fun get(id: String): MaskRule = rules[id.toInt()]
+}
+
+private class MaskAttributeOverride<M : MemberScope<*, *>>(
+    private val catalog: MaskRuleCatalog,
+) : InstanceAttributeOverrideV2<M> {
+    override fun overrideInstanceAttributes(
+        attributes: ObjectNode,
+        scope: M,
+        context: SchemaGenerationContext,
+    ) {
+        val effectiveAnnotations = scope.annotationsConsideringFieldAndGetter().flatMap { annotation ->
+            (listOf(annotation) + annotation.annotationClass.toMergedAnnotation().mergedAnnotations)
+                .mapNotNull { candidate ->
+                    candidate.annotationClass.java.getAnnotation(Masking::class.java)?.let { candidate to it }
+                }
+        }
+        if (effectiveAnnotations.size > 1) {
+            throw QuerySchemaConflictException("Multiple effective mask annotations are not allowed.")
+        }
+        effectiveAnnotations.singleOrNull()?.toMaskRule()?.let { rule ->
+            attributes.put(MASK_RULE_ATTRIBUTE, catalog.add(rule))
         }
     }
+
+    private fun Pair<Annotation, Masking>.toMaskRule(): MaskRule {
+        val strategyType = second.strategy
+        val strategy = strategyType.objectInstance ?: strategyType.java.getConstructor().newInstance()
+        @Suppress("UNCHECKED_CAST")
+        val compiled = (strategy as MaskStrategy<Annotation>).compile(first)
+        return MaskRule(strategyType, first, compiled)
+    }
+}
+
+private fun MemberScope<*, *>.annotationsConsideringFieldAndGetter(): List<Annotation> = when (this) {
+    is FieldScope -> rawMember.annotations.toList() + findGetter()?.rawMember?.annotations.orEmpty()
+    is MethodScope -> rawMember.annotations.toList() + findGetterField()?.rawMember?.annotations.orEmpty()
+    else -> emptyList()
 }
 
 private class TemporalAttributeOverride<M : MemberScope<*, *>> : InstanceAttributeOverrideV2<M> {

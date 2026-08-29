@@ -26,6 +26,8 @@ import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.NULLABLE
 import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.SEMANTIC_TYPE
 import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.TITLE
 
+private const val MASK_RULE = "maskRule"
+
 private fun QueryFieldDeclaration.mergeStructural(
     other: QueryFieldDeclaration,
     field: LogicalField,
@@ -41,6 +43,7 @@ private fun QueryFieldDeclaration.mergeStructural(
     cardinality = cardinality.requireSame(other.cardinality, field, CARDINALITY),
     semanticType = semanticType.requireSame(other.semanticType, field, SEMANTIC_TYPE),
     dynamicChildren = dynamicChildren.requireSame(other.dynamicChildren, field, DYNAMIC_CHILDREN),
+    maskRule = maskRule.requireSame(other.maskRule, field, MASK_RULE),
 )
 
 internal fun MutableMap<LogicalField, QueryFieldDeclaration>.mergeConjunctive(
@@ -56,6 +59,7 @@ internal fun MutableMap<LogicalField, QueryFieldDeclaration>.mergeConjunctive(
             )
         }
     }
+    requireMaskedStringFields()
 }
 
 internal fun List<Map<LogicalField, QueryFieldDeclaration>>.mergeAlternatives():
@@ -77,6 +81,16 @@ internal fun List<Map<LogicalField, QueryFieldDeclaration>>.mergeAlternatives():
         declaration.copy(
             required = DeclarationValue.Set(all { alternative -> alternative[field]?.isRequired() == true }),
         )
+    }.also(Map<LogicalField, QueryFieldDeclaration>::requireMaskedStringFields)
+}
+
+private fun Map<LogicalField, QueryFieldDeclaration>.requireMaskedStringFields() {
+    forEach { (_, declaration) ->
+        if (declaration.maskRule is DeclarationValue.Set &&
+            declaration.valueTypes != DeclarationValue.Set(setOf(QueryValueType.STRING))
+        ) {
+            throw QuerySchemaConflictException("Masked query schema field must have STRING value type.")
+        }
     }
 }
 
