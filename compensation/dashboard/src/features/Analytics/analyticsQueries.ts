@@ -287,7 +287,7 @@ export function createPressureQuery(): SnapshotAggregationQuery {
       ),
     ],
     sort: [desc("currentCount")],
-    limit: 10,
+    limit: 5,
   };
 }
 

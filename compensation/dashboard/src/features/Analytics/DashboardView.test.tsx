@@ -34,13 +34,16 @@ vi.mock("./AnalyticsCharts.tsx", () => ({
   ),
   DistributionChart: ({
     data,
+    description,
     title,
   }: {
     data: Array<{ color: string; count: number; label: string }>;
+    description: string;
     title: string;
   }) => (
     <div>
       <h3>{title}</h3>
+      <p>{description}</p>
       {data.map(({ color, count, label }) => (
         <span data-color={color} key={label}>
           {label}: {count}
@@ -113,7 +116,7 @@ describe("DashboardView", () => {
     render(<DashboardView />);
 
     expect(screen.getByRole("alert")).toHaveTextContent("snapshot unavailable");
-    fireEvent.click(screen.getByRole("button", { name: "Refresh analytics" }));
+    fireEvent.click(screen.getByRole("button", { name: "Refresh dashboard" }));
 
     expect(mocks.useSnapshotAnalytics).toHaveBeenLastCalledWith(1);
     expect(mocks.useEventTrend).toHaveBeenLastCalledWith("7d", 1);
@@ -130,7 +133,9 @@ describe("DashboardView", () => {
 
     expect(document.querySelectorAll("[data-slot='skeleton']").length).toBeGreaterThan(0);
     expect(screen.getByRole("status")).toHaveTextContent("Refreshing");
-    expect(screen.getAllByText(/Last updated/).length).toBeGreaterThan(0);
+    expect(
+      screen.getByRole("table", { name: "Current failure pressure" }),
+    ).toBeInTheDocument();
   });
 
   it("keeps empty pressure table accessible and does not draw truncated retry data", () => {
@@ -208,7 +213,14 @@ describe("DashboardView", () => {
     expect(pressureTable).toHaveTextContent("COMMAND");
     expect(screen.getByText("6 (30%)")).toBeInTheDocument();
     expect(screen.getByText("4 (20%)")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Failed 6 (30%); Prepared 4 (20%)"),
+    ).toBeInTheDocument();
     expect(screen.getAllByText("0 (0%)")).toHaveLength(2);
+    expect(
+      screen.getByText("Current failure pressure — Top 5 clusters"),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("Now").length).toBeGreaterThanOrEqual(3);
     expect(document.body).not.toHaveTextContent(/NaN|Infinity/);
   });
 
@@ -216,13 +228,18 @@ describe("DashboardView", () => {
     render(<DashboardView />);
 
     const content = document.body.textContent ?? "";
+    expect(screen.getAllByText(/Updated /)).toHaveLength(1);
+    expect(screen.queryByText(/Last updated/)).not.toBeInTheDocument();
     expect(content.indexOf("Actionable now")).toBeLessThan(
       content.indexOf("Current failure pressure"),
     );
     expect(content.indexOf("Current failure pressure")).toBeLessThan(
-      content.indexOf("Recoverability distribution"),
+      content.indexOf("Recoverability"),
     );
-    expect(content.indexOf("Recoverability distribution")).toBeLessThan(
+    expect(content.indexOf("Recoverability")).toBeLessThan(
+      content.indexOf("Retry distribution"),
+    );
+    expect(content.indexOf("Retry distribution")).toBeLessThan(
       content.indexOf("Compensation outcomes"),
     );
   });

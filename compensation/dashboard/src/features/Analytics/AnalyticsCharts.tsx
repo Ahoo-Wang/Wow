@@ -20,8 +20,6 @@ import {
   LabelList,
   Line,
   LineChart,
-  Pie,
-  PieChart,
   XAxis,
   YAxis,
 } from "recharts";
@@ -65,23 +63,29 @@ export function DistributionChart({
   title,
 }: DistributionChartProps): ReactElement {
   const total = data.reduce((sum, { count }) => sum + count, 0);
-  const config = Object.fromEntries(
-    data.map(({ color, key, label }) => [key, { color, label }]),
-  ) satisfies ChartConfig;
+  const labels = data.map(
+    ({ count, label }) =>
+      `${label} ${count} (${percentageLabel(count, total)})`,
+  );
 
   return (
     <section aria-label={title}>
       <h3 className="font-medium">{title}</h3>
       <p className="text-sm text-muted-foreground">{description}</p>
-      <ChartContainer config={config} className="h-44 w-full aspect-auto">
-        <PieChart accessibilityLayer>
-          <Pie data={data} dataKey="count" nameKey="label">
-            {data.map(({ color, key }) => (
-              <Cell key={key} fill={color} />
-            ))}
-          </Pie>
-        </PieChart>
-      </ChartContainer>
+      <div
+        role="img"
+        aria-label={`${title}: ${labels.join(", ")}`}
+        className="mt-3 flex h-7 overflow-hidden rounded-sm bg-slate-100"
+      >
+        {data.map(({ color, count, key }) => (
+          <span
+            key={key}
+            aria-hidden="true"
+            className="min-w-0 basis-0"
+            style={{ backgroundColor: color, flexGrow: count }}
+          />
+        ))}
+      </div>
       <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
         {data.map(({ color, count, key, label }) => {
           return (
@@ -122,10 +126,8 @@ export function RetryDistributionChart({
   return (
     <section aria-label="Retry distribution">
       <h3 className="font-medium">Retry distribution</h3>
-      <p className="text-sm text-muted-foreground">
-        Current active failure snapshots
-      </p>
-      <ChartContainer config={config} className="h-44 w-full aspect-auto">
+      <p className="text-sm text-muted-foreground">Now</p>
+      <ChartContainer config={config} className="h-28 w-full aspect-auto">
         <BarChart
           accessibilityLayer
           data={rows}
@@ -187,7 +189,7 @@ export function CompensationTrendChart({
 }): ReactElement {
   return (
     <section aria-label="Compensation outcomes trend">
-      <ChartContainer config={trendConfig} className="h-56 w-full aspect-auto">
+      <ChartContainer config={trendConfig} className="h-28 w-full aspect-auto">
         <LineChart accessibilityLayer data={points}>
           <CartesianGrid vertical={false} />
           <XAxis

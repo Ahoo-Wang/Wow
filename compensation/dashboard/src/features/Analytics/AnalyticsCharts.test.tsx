@@ -45,29 +45,31 @@ describe("AnalyticsCharts", () => {
 
   afterEach(() => vi.restoreAllMocks());
 
-  it("renders distribution counts and percentages as text", () => {
+  it("renders distribution counts and percentages as a CSS ratio bar", () => {
     render(
       <DistributionChart
-        title="Recoverability distribution"
-        description="Current active snapshots"
+        title="Recoverability"
+        description="Now"
         data={[
-          {
-            key: "recoverable",
-            label: "Recoverable",
-            count: 7,
-            color: "#16a34a",
-          },
           { key: "unknown", label: "Unknown", count: 3, color: "#f59e0b" },
+          {
+            key: "unrecoverable",
+            label: "Unrecoverable",
+            count: 7,
+            color: "#dc2626",
+          },
         ]}
       />,
     );
 
     expect(
-      screen.getByRole("heading", { name: "Recoverability distribution" }),
+      screen.getByRole("img", {
+        name: "Recoverability: Unknown 3 (30%), Unrecoverable 7 (70%)",
+      }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Recoverable")).toBeInTheDocument();
-    expect(screen.getByText("7 (70%)")).toBeInTheDocument();
+    expect(document.querySelector(".recharts-sector")).toBeNull();
     expect(screen.getByText("3 (30%)")).toBeInTheDocument();
+    expect(screen.getByText("7 (70%)")).toBeInTheDocument();
   });
 
   it("renders zero distribution percentages without invalid numbers", () => {

@@ -87,7 +87,13 @@ function SectionError({ error }: { error: Error }) {
   );
 }
 
-function SectionMeta<T>({ section }: { section: AnalyticsSection<T> }) {
+function SectionMeta<T>({
+  section,
+  showUpdatedAt = false,
+}: {
+  section: AnalyticsSection<T>;
+  showUpdatedAt?: boolean;
+}) {
   return (
     <>
       {section.loading && section.data ? (
@@ -96,7 +102,7 @@ function SectionMeta<T>({ section }: { section: AnalyticsSection<T> }) {
         </p>
       ) : null}
       {section.error ? <SectionError error={section.error} /> : null}
-      {section.updatedAt ? (
+      {showUpdatedAt && section.updatedAt ? (
         <p className="text-xs text-muted-foreground">
           Last updated {formatDate(section.updatedAt)}
         </p>
@@ -110,6 +116,41 @@ function formatStatusShare(count: number, total: number): string {
   return `${count} (${percentage}%)`;
 }
 
+function PressureStatusShare({ cluster }: { cluster: PressureCluster }) {
+  const failed = formatStatusShare(cluster.failedCount, cluster.currentCount);
+  const prepared = formatStatusShare(
+    cluster.preparedCount,
+    cluster.currentCount,
+  );
+  const failedWidth =
+    cluster.currentCount === 0
+      ? 0
+      : (cluster.failedCount / cluster.currentCount) * 100;
+  const preparedWidth =
+    cluster.currentCount === 0
+      ? 0
+      : (cluster.preparedCount / cluster.currentCount) * 100;
+
+  return (
+    <div aria-label={`Failed ${failed}; Prepared ${prepared}`}>
+      <div className="flex items-center gap-2 text-xs tabular-nums">
+        <span>{failed}</span>
+        <span>{prepared}</span>
+      </div>
+      <div
+        aria-hidden="true"
+        className="mt-1 flex h-1.5 overflow-hidden rounded-full bg-slate-100"
+      >
+        <span className="bg-red-600" style={{ width: `${failedWidth}%` }} />
+        <span
+          className="bg-blue-600"
+          style={{ width: `${preparedWidth}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 function PressureTable({ clusters }: { clusters: PressureCluster[] }) {
   const now = useNow();
   return (
@@ -118,8 +159,7 @@ function PressureTable({ clusters }: { clusters: PressureCluster[] }) {
         <TableRow>
           <TableHead>Cluster</TableHead>
           <TableHead className="text-right">Current</TableHead>
-          <TableHead className="text-right">Failed</TableHead>
-          <TableHead className="text-right">Prepared</TableHead>
+          <TableHead>Failed / Prepared</TableHead>
           <TableHead>Oldest</TableHead>
           <TableHead>Next retry</TableHead>
         </TableRow>
@@ -127,7 +167,7 @@ function PressureTable({ clusters }: { clusters: PressureCluster[] }) {
       <TableBody>
         {clusters.length === 0 ? (
           <TableRow>
-            <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+            <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
               No active failure clusters
             </TableCell>
           </TableRow>
@@ -144,11 +184,8 @@ function PressureTable({ clusters }: { clusters: PressureCluster[] }) {
                 </div>
               </TableCell>
               <TableCell className="text-right tabular-nums">{cluster.currentCount}</TableCell>
-              <TableCell className="text-right tabular-nums">
-                {formatStatusShare(cluster.failedCount, cluster.currentCount)}
-              </TableCell>
-              <TableCell className="text-right tabular-nums">
-                {formatStatusShare(cluster.preparedCount, cluster.currentCount)}
+              <TableCell>
+                <PressureStatusShare cluster={cluster} />
               </TableCell>
               <TableCell title={formatDate(cluster.oldestExecuteAt ?? undefined)}>
                 {cluster.oldestExecuteAt ? formatAge(cluster.oldestExecuteAt, now) : "-"}
@@ -169,129 +206,125 @@ export default function DashboardView() {
   const trend = useEventTrend(outcomesRange, refreshToken);
 
   return (
-    <div className="h-full space-y-6 overflow-y-auto p-5">
-      <section aria-labelledby="analytics-summary-title">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 id="analytics-summary-title" className="text-lg font-semibold">
-            Current compensation state
-          </h2>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setRefreshToken((value) => value + 1)}
-            aria-label="Refresh analytics"
-          >
-            <RefreshCw />
-            Refresh
-          </Button>
+    <div className="h-full space-y-4 overflow-y-auto p-5">
+      <section
+        aria-labelledby="dashboard-summary-title"
+        className="dashboard-summary"
+      >
+        <div className="dashboard-section-heading">
+          <h2 id="dashboard-summary-title">Current compensation state</h2>
+          <span className="dashboard-now">Now</span>
+          <div className="dashboard-refresh-status">
+            {snapshot.summary.updatedAt ? (
+              <span>Updated {formatDate(snapshot.summary.updatedAt)}</span>
+            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              aria-label="Refresh dashboard"
+              onClick={() => setRefreshToken((value) => value + 1)}
+            >
+              <RefreshCw /> Refresh
+            </Button>
+          </div>
         </div>
         <SectionMeta section={snapshot.summary} />
         {snapshot.summary.loading && !snapshot.summary.data ? (
           <Skeleton className="mt-3 h-24 w-full" />
         ) : snapshot.summary.data ? (
-          <dl className="mt-3 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-lg border bg-white p-4">
-              <dt className="text-sm text-muted-foreground">Actionable now</dt>
-              <dd className="mt-1 text-2xl font-semibold tabular-nums">
-                {snapshot.summary.data.actionableNow}
-              </dd>
+          <dl className="dashboard-summary-values">
+            <div>
+              <dt>Actionable now</dt>
+              <dd>{snapshot.summary.data.actionableNow}</dd>
             </div>
-            <div className="rounded-lg border bg-white p-4">
-              <dt className="text-sm text-muted-foreground">Timed out</dt>
-              <dd className="mt-1 text-2xl font-semibold tabular-nums">
-                {snapshot.summary.data.timedOut}
-              </dd>
+            <div>
+              <dt>Timed out</dt>
+              <dd>{snapshot.summary.data.timedOut}</dd>
             </div>
-            <div className="rounded-lg border bg-white p-4">
-              <dt className="text-sm text-muted-foreground">Unrecoverable</dt>
-              <dd className="mt-1 text-2xl font-semibold tabular-nums">
-                {snapshot.summary.data.unrecoverable}
-              </dd>
+            <div>
+              <dt>Unrecoverable</dt>
+              <dd>{snapshot.summary.data.unrecoverable}</dd>
             </div>
           </dl>
         ) : null}
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(38rem,2fr)]">
-        <section
-          aria-labelledby="analytics-pressure-title"
-          className="min-w-0"
-        >
-          <h2 id="analytics-pressure-title" className="text-lg font-semibold">
-            Current failure pressure
+      <section aria-labelledby="analytics-pressure-title" className="min-w-0">
+        <div className="dashboard-section-heading">
+          <h2 id="analytics-pressure-title">
+            Current failure pressure — Top 5 clusters
           </h2>
-          <SectionMeta section={snapshot.pressure} />
-          {snapshot.pressure.loading && !snapshot.pressure.data ? (
-            <Skeleton className="mt-3 h-64 w-full" />
-          ) : snapshot.pressure.data ? (
-            <div className="mt-3 rounded-lg border bg-white p-3">
-              <PressureTable clusters={snapshot.pressure.data} />
-            </div>
+          <span className="dashboard-now">Now</span>
+        </div>
+        <SectionMeta section={snapshot.pressure} />
+        {snapshot.pressure.loading && !snapshot.pressure.data ? (
+          <Skeleton className="mt-3 h-64 w-full" />
+        ) : snapshot.pressure.data ? (
+          <div className="mt-3 rounded-lg border bg-white p-3">
+            <PressureTable clusters={snapshot.pressure.data} />
+          </div>
+        ) : null}
+      </section>
+
+      <div
+        className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.7fr)]"
+        aria-label="Dashboard signals"
+      >
+        <section className="rounded-lg border bg-white p-4">
+          <SectionMeta section={snapshot.recoverability} />
+          {snapshot.recoverability.loading && !snapshot.recoverability.data ? (
+            <Skeleton className="mt-3 h-36 w-full" />
+          ) : snapshot.recoverability.data ? (
+            <DistributionChart
+              title="Recoverability"
+              description="Now"
+              data={snapshot.recoverability.data.map(
+                ({ count, recoverable }) => ({
+                  ...recoverabilityDisplay[recoverable],
+                  count,
+                  key: recoverable,
+                }),
+              )}
+            />
           ) : null}
         </section>
-
-        <div
-          className="grid gap-6 sm:grid-cols-2"
-          aria-label="Current distributions"
+        <section className="rounded-lg border bg-white p-4">
+          <SectionMeta section={snapshot.retries} />
+          {snapshot.retries.loading && !snapshot.retries.data ? (
+            <Skeleton className="mt-3 h-36 w-full" />
+          ) : snapshot.retries.data?.truncated ? (
+            <p className="mt-3 text-sm text-amber-800">
+              Retry distribution is truncated and is not charted.
+            </p>
+          ) : snapshot.retries.data ? (
+            <RetryDistributionChart
+              data={snapshot.retries.data.buckets.map(({ count, key }) => ({
+                color: retryBucketColors[key],
+                count,
+                key,
+                label: `${key} retries`,
+              }))}
+            />
+          ) : null}
+        </section>
+        <section
+          aria-labelledby="analytics-history-title"
+          className="rounded-lg border bg-white p-4"
         >
-          <section className="rounded-lg border bg-white p-4">
-            <SectionMeta section={snapshot.recoverability} />
-            {snapshot.recoverability.loading && !snapshot.recoverability.data ? (
-              <Skeleton className="mt-3 h-64 w-full" />
-            ) : snapshot.recoverability.data ? (
-              <DistributionChart
-                title="Recoverability distribution"
-                description="Current active failure snapshots"
-                data={snapshot.recoverability.data.map(
-                  ({ count, recoverable }) => ({
-                    ...recoverabilityDisplay[recoverable],
-                    count,
-                    key: recoverable,
-                  }),
-                )}
-              />
-            ) : null}
-          </section>
-          <section className="rounded-lg border bg-white p-4">
-            <SectionMeta section={snapshot.retries} />
-            {snapshot.retries.loading && !snapshot.retries.data ? (
-              <Skeleton className="mt-3 h-64 w-full" />
-            ) : snapshot.retries.data?.truncated ? (
-              <p className="mt-3 text-sm text-amber-800">
-                Retry distribution is truncated and is not charted.
-              </p>
-            ) : snapshot.retries.data ? (
-              <RetryDistributionChart
-                data={snapshot.retries.data.buckets.map(({ count, key }) => ({
-                  color: retryBucketColors[key],
-                  count,
-                  key,
-                  label: `${key} retries`,
-                }))}
-              />
-            ) : null}
-          </section>
-        </div>
-      </div>
-
-      <section aria-labelledby="analytics-history-title">
-        <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 id="analytics-history-title" className="text-base font-semibold">
             Compensation outcomes
             <span className="ml-2 font-normal text-muted-foreground">
               — Outcomes window: {outcomesRange}
             </span>
           </h2>
-        </div>
-        <SectionMeta section={trend} />
-        {trend.loading && !trend.data ? (
-          <Skeleton className="mt-3 h-72 w-full" />
-        ) : trend.data ? (
-          <div className="mt-3 rounded-lg border bg-white p-4">
+          <SectionMeta section={trend} />
+          {trend.loading && !trend.data ? (
+            <Skeleton className="mt-3 h-36 w-full" />
+          ) : trend.data ? (
             <CompensationTrendChart points={trend.data} />
-          </div>
-        ) : null}
-      </section>
+          ) : null}
+        </section>
+      </div>
     </div>
   );
 }
