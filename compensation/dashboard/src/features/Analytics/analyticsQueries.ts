@@ -22,6 +22,7 @@ import {
 import type {
   AggregationQuery,
   FilterExpression,
+  RecoverableType,
 } from "@ahoo-wang/fetcher-wow";
 import {
   ExecutionFailedAggregatedFields,
@@ -182,7 +183,7 @@ export interface SnapshotSummary {
 }
 
 export interface RecoverabilityRow {
-  recoverable: string;
+  recoverable: RecoverableType;
   count: number;
 }
 
@@ -296,33 +297,60 @@ export function createPressureStatusQuery(
   if (keys.length === 0) {
     throw new Error("Pressure status query requires at least one cluster.");
   }
-  return {
-    filter: filter.or(
-      keys.map((key) =>
-        filter.and([
-          filter.eq(
-            ExecutionFailedAggregatedFields.STATE_ERROR_ERROR_CODE,
-            key.errorCode,
-          ),
-          filter.eq(
-            ExecutionFailedAggregatedFields.STATE_FUNCTION_CONTEXT_NAME,
-            key.contextName,
-          ),
-          filter.eq(
-            ExecutionFailedAggregatedFields.STATE_FUNCTION_PROCESSOR_NAME,
-            key.processorName,
-          ),
-          filter.eq(
-            ExecutionFailedAggregatedFields.STATE_FUNCTION_NAME,
-            key.functionName,
-          ),
-          filter.eq(
-            ExecutionFailedAggregatedFields.STATE_FUNCTION_FUNCTION_KIND,
-            key.functionKind,
-          ),
-        ]),
+  const byFunctionKind = new Map<string, PressureClusterKey[]>();
+  keys.forEach((key) => {
+    const groupedKeys = byFunctionKind.get(key.functionKind) ?? [];
+    groupedKeys.push(key);
+    byFunctionKind.set(key.functionKind, groupedKeys);
+  });
+  const identityFilter = (
+    key: PressureClusterKey,
+    includeFunctionKind: boolean,
+  ) =>
+    filter.and([
+      filter.eq(
+        ExecutionFailedAggregatedFields.STATE_ERROR_ERROR_CODE,
+        key.errorCode,
       ),
+      filter.eq(
+        ExecutionFailedAggregatedFields.STATE_FUNCTION_CONTEXT_NAME,
+        key.contextName,
+      ),
+      filter.eq(
+        ExecutionFailedAggregatedFields.STATE_FUNCTION_PROCESSOR_NAME,
+        key.processorName,
+      ),
+      filter.eq(
+        ExecutionFailedAggregatedFields.STATE_FUNCTION_NAME,
+        key.functionName,
+      ),
+      ...(includeFunctionKind
+        ? [
+            filter.eq(
+              ExecutionFailedAggregatedFields.STATE_FUNCTION_FUNCTION_KIND,
+              key.functionKind,
+            ),
+          ]
+        : []),
+    ]);
+  const clusterFilter = filter.or(
+    [...byFunctionKind.entries()].flatMap(([functionKind, groupedKeys]) =>
+      // Factoring four or more shared values saves filter nodes without widening the identity match.
+      groupedKeys.length < 4
+        ? groupedKeys.map((key) => identityFilter(key, true))
+        : [
+            filter.and([
+              filter.eq(
+                ExecutionFailedAggregatedFields.STATE_FUNCTION_FUNCTION_KIND,
+                functionKind,
+              ),
+              filter.or(groupedKeys.map((key) => identityFilter(key, false))),
+            ]),
+          ],
     ),
+  );
+  return {
+    filter: filter.and([activeFilter, clusterFilter]),
     groupBy: [
       aggregation.terms(
         ExecutionFailedAggregatedFields.STATE_ERROR_ERROR_CODE,

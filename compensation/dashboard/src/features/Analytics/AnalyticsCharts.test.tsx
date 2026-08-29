@@ -44,7 +44,7 @@ describe("AnalyticsCharts", () => {
 
   afterEach(() => vi.restoreAllMocks());
 
-  it("renders distribution values as text instead of color alone", () => {
+  it("renders distribution counts and percentages as text", () => {
     render(
       <DistributionChart
         title="Recoverability distribution"
@@ -65,17 +65,45 @@ describe("AnalyticsCharts", () => {
       screen.getByRole("heading", { name: "Recoverability distribution" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Recoverable")).toBeInTheDocument();
-    expect(screen.getByText("7")).toBeInTheDocument();
+    expect(screen.getByText("7 (70%)")).toBeInTheDocument();
+    expect(screen.getByText("3 (30%)")).toBeInTheDocument();
   });
 
-  it("provides a screen-reader trend table", () => {
+  it("renders zero distribution percentages without invalid numbers", () => {
+    render(
+      <DistributionChart
+        title="Retry distribution"
+        description="Current active snapshots"
+        data={[
+          { key: "0", label: "0 retries", count: 0, color: "#2563eb" },
+          { key: "1-2", label: "1-2 retries", count: 0, color: "#2563eb" },
+        ]}
+      />,
+    );
+
+    expect(screen.getAllByText("0 (0%)")).toHaveLength(2);
+    expect(document.body).not.toHaveTextContent(/NaN|Infinity/);
+  });
+
+  it("shows all trend series and provides a screen-reader data table", () => {
     render(<CompensationTrendChart points={[trendPointFixture()]} />);
 
+    for (const label of [
+      "New failures",
+      "Prepared",
+      "Retried failed",
+      "Succeeded",
+    ]) {
+      expect(
+        screen.getAllByText(label).some((element) => !element.closest("table")),
+      ).toBe(true);
+    }
     expect(
       screen.getByRole("table", { name: "Compensation outcomes data" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("columnheader", { name: "Succeeded" }),
     ).toBeInTheDocument();
+    expect(document.querySelector(".recharts-tooltip-wrapper")).not.toBeNull();
   });
 });

@@ -12,6 +12,7 @@
  */
 
 import { AggregationDateUnit } from "@ahoo-wang/fetcher-wow";
+import type { FilterExpression } from "@ahoo-wang/fetcher-wow";
 import { describe, expect, it } from "vitest";
 import { ExecutionFailedStatus } from "../../generated";
 import { RetryConditions } from "../Failed/RetryConditions.ts";
@@ -27,6 +28,18 @@ import {
   mergeTrendRows,
   mergePressureRows,
 } from "./analyticsQueries.ts";
+
+function filterNodeCount(expression: FilterExpression): number {
+  return (
+    1 +
+    ("operands" in expression
+      ? expression.operands.reduce(
+          (count, operand) => count + filterNodeCount(operand),
+          0,
+        )
+      : 0)
+  );
+}
 
 describe("analyticsQueries", () => {
   it("builds all summary counts from one captured now", () => {
@@ -109,31 +122,41 @@ describe("analyticsQueries", () => {
       ]),
     ).toMatchObject({
       filter: {
-        op: "OR",
+        op: "AND",
         operands: [
           {
-            op: "AND",
+            op: "IN",
+            field: "state.status",
+            values: ["FAILED", "PREPARED"],
+          },
+          {
+            op: "OR",
             operands: [
               {
-                op: "EQ",
-                field: "state.error.errorCode",
-                value: "TEST_TIMEOUT",
-              },
-              {
-                op: "EQ",
-                field: "state.function.contextName",
-                value: "billing",
-              },
-              {
-                op: "EQ",
-                field: "state.function.processorName",
-                value: "OrderProcessor",
-              },
-              { op: "EQ", field: "state.function.name", value: "run" },
-              {
-                op: "EQ",
-                field: "state.function.functionKind",
-                value: "EVENT",
+                op: "AND",
+                operands: [
+                  {
+                    op: "EQ",
+                    field: "state.error.errorCode",
+                    value: "TEST_TIMEOUT",
+                  },
+                  {
+                    op: "EQ",
+                    field: "state.function.contextName",
+                    value: "billing",
+                  },
+                  {
+                    op: "EQ",
+                    field: "state.function.processorName",
+                    value: "OrderProcessor",
+                  },
+                  { op: "EQ", field: "state.function.name", value: "run" },
+                  {
+                    op: "EQ",
+                    field: "state.function.functionKind",
+                    value: "EVENT",
+                  },
+                ],
               },
             ],
           },
@@ -218,6 +241,20 @@ describe("analyticsQueries", () => {
       { processorName: "OrderProcessor", failedCount: 9, preparedCount: 0 },
       { processorName: "InvoiceProcessor", failedCount: 4, preparedCount: 0 },
     ]);
+  });
+
+  it("keeps a Top 10 status filter within the authenticated HTTP node budget", () => {
+    const keys = Array.from({ length: 10 }, (_, index) => ({
+      errorCode: `ERROR_${index}`,
+      contextName: `context_${index}`,
+      processorName: `Processor_${index}`,
+      functionName: `function_${index}`,
+      functionKind: "EVENT",
+    }));
+
+    expect(
+      filterNodeCount(createPressureStatusQuery(keys).filter!),
+    ).toBeLessThanOrEqual(62);
   });
 
   it("rejects a pressure status query without clusters", () => {

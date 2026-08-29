@@ -14,6 +14,7 @@
 import { RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ExchangeError } from "@ahoo-wang/fetcher";
+import { RecoverableType } from "@ahoo-wang/fetcher-wow";
 import { formatAge, formatDate } from "../../utils/dates.ts";
 import { Button } from "@/components/ui/button";
 import { useNow } from "@/hooks/useNow.ts";
@@ -38,6 +39,17 @@ import {
 } from "./useSnapshotAnalytics.ts";
 
 const ranges: readonly AnalyticsRange[] = ["24h", "7d", "30d"];
+const recoverabilityDisplay = {
+  [RecoverableType.RECOVERABLE]: {
+    color: "#16a34a",
+    label: "Recoverable",
+  },
+  [RecoverableType.UNKNOWN]: { color: "#f59e0b", label: "Unknown" },
+  [RecoverableType.UNRECOVERABLE]: {
+    color: "#dc2626",
+    label: "Unrecoverable",
+  },
+} satisfies Record<RecoverableType, { color: string; label: string }>;
 
 function SectionError({ error }: { error: Error }) {
   const [resolved, setResolved] = useState({ error, message: error.message });
@@ -216,22 +228,13 @@ export default function AnalyticsView() {
               <DistributionChart
                 title="Recoverability distribution"
                 description="Current active failure snapshots"
-                data={snapshot.recoverability.data.map(({ count, recoverable }) => ({
-                  color:
-                    recoverable === "true"
-                      ? "#16a34a"
-                      : recoverable === "false"
-                        ? "#dc2626"
-                        : "#f59e0b",
-                  count,
-                  key: recoverable,
-                  label:
-                    recoverable === "true"
-                      ? "Recoverable"
-                      : recoverable === "false"
-                        ? "Not recoverable"
-                        : "Unknown",
-                }))}
+                data={snapshot.recoverability.data.map(
+                  ({ count, recoverable }) => ({
+                    ...recoverabilityDisplay[recoverable],
+                    count,
+                    key: recoverable,
+                  }),
+                )}
               />
             ) : null}
           </section>

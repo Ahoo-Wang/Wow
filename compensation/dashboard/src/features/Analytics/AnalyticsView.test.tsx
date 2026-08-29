@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import { RecoverableType } from "@ahoo-wang/fetcher-wow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TrendPoint } from "./analyticsQueries.ts";
 import type {
@@ -24,7 +25,22 @@ vi.mock("./AnalyticsCharts.tsx", () => ({
   CompensationTrendChart: ({ points }: { points: TrendPoint[] }) => (
     <div data-testid="trend-chart">{points.length}</div>
   ),
-  DistributionChart: ({ title }: { title: string }) => <div>{title}</div>,
+  DistributionChart: ({
+    data,
+    title,
+  }: {
+    data: Array<{ color: string; count: number; label: string }>;
+    title: string;
+  }) => (
+    <div>
+      <h3>{title}</h3>
+      {data.map(({ color, count, label }) => (
+        <span data-color={color} key={label}>
+          {label}: {count}
+        </span>
+      ))}
+    </div>
+  ),
 }));
 
 beforeEach(() => {
@@ -105,6 +121,29 @@ describe("AnalyticsView", () => {
     expect(screen.getByText("No active failure clusters")).toBeInTheDocument();
     expect(screen.getByText(/Retry distribution is truncated/)).toBeInTheDocument();
     expect(screen.queryByText("Retry distribution")).not.toBeInTheDocument();
+  });
+
+  it("maps all recoverability enum values to visible labels and counts", () => {
+    mocks.snapshotResult.recoverability.data = [
+      { recoverable: RecoverableType.RECOVERABLE, count: 7 },
+      { recoverable: RecoverableType.UNKNOWN, count: 3 },
+      { recoverable: RecoverableType.UNRECOVERABLE, count: 2 },
+    ];
+
+    render(<AnalyticsView />);
+
+    expect(screen.getByText("Recoverable: 7")).toHaveAttribute(
+      "data-color",
+      "#16a34a",
+    );
+    expect(screen.getByText("Unknown: 3")).toHaveAttribute(
+      "data-color",
+      "#f59e0b",
+    );
+    expect(screen.getByText("Unrecoverable: 2")).toHaveAttribute(
+      "data-color",
+      "#dc2626",
+    );
   });
 
   it("distinguishes pressure identities and shows zero-safe status shares", () => {

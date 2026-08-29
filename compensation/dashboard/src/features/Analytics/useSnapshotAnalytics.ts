@@ -77,11 +77,51 @@ export function useSnapshotAnalytics(
       }
     });
 
-    void Promise.allSettled(Object.values(loads)).then((results) => {
-      if (!abortController.signal.aborted) {
-        setState((current) => settleSnapshotSections(current, results, now));
-      }
-    });
+    const settle = <T>(
+      load: Promise<T>,
+      update: (
+        current: SnapshotAnalyticsResult,
+        result: PromiseSettledResult<T>,
+      ) => SnapshotAnalyticsResult,
+    ) => {
+      void load.then(
+        (value) => {
+          if (!abortController.signal.aborted) {
+            setState((current) =>
+              update(current, { status: "fulfilled", value }),
+            );
+          }
+        },
+        (reason: unknown) => {
+          if (!abortController.signal.aborted) {
+            setState((current) =>
+              update(current, { status: "rejected", reason }),
+            );
+          }
+        },
+      );
+    };
+
+    settle(loads.summary, (current, result) => ({
+      ...current,
+      summary: settleSnapshotSection(current.summary, result, now),
+    }));
+    settle(loads.pressure, (current, result) => ({
+      ...current,
+      pressure: settleSnapshotSection(current.pressure, result, now),
+    }));
+    settle(loads.recoverability, (current, result) => ({
+      ...current,
+      recoverability: settleSnapshotSection(
+        current.recoverability,
+        result,
+        now,
+      ),
+    }));
+    settle(loads.retries, (current, result) => ({
+      ...current,
+      retries: settleSnapshotSection(current.retries, result, now),
+    }));
 
     return () => abortController.abort();
   }, [refreshToken]);
@@ -174,51 +214,28 @@ function markSnapshotLoading(
   };
 }
 
-function settleSnapshotSections(
-  current: SnapshotAnalyticsResult,
-  results: PromiseSettledResult<unknown>[],
+function settleSnapshotSection<T>(
+  section: AnalyticsSection<T>,
+  result: PromiseSettledResult<T>,
   updatedAt: number,
-): SnapshotAnalyticsResult {
-  const settle = <T>(
-    section: AnalyticsSection<T>,
-    result: PromiseSettledResult<T>,
-  ): AnalyticsSection<T> => {
-    if (result.status === "fulfilled") {
-      return { data: result.value, loading: false, updatedAt };
-    }
-    if (
-      typeof result.reason === "object" &&
-      result.reason !== null &&
-      "name" in result.reason &&
-      result.reason.name === "AbortError"
-    ) {
-      return { ...section, loading: false };
-    }
-    return {
-      ...section,
-      error:
-        result.reason instanceof Error
-          ? result.reason
-          : new Error(String(result.reason)),
-      loading: false,
-    };
-  };
+): AnalyticsSection<T> {
+  if (result.status === "fulfilled") {
+    return { data: result.value, loading: false, updatedAt };
+  }
+  if (
+    typeof result.reason === "object" &&
+    result.reason !== null &&
+    "name" in result.reason &&
+    result.reason.name === "AbortError"
+  ) {
+    return { ...section, loading: false };
+  }
   return {
-    summary: settle(
-      current.summary,
-      results[0] as PromiseSettledResult<SnapshotSummary>,
-    ),
-    pressure: settle(
-      current.pressure,
-      results[1] as PromiseSettledResult<PressureCluster[]>,
-    ),
-    recoverability: settle(
-      current.recoverability,
-      results[2] as PromiseSettledResult<RecoverabilityRow[]>,
-    ),
-    retries: settle(
-      current.retries,
-      results[3] as PromiseSettledResult<RetryDistribution>,
-    ),
+    ...section,
+    error:
+      result.reason instanceof Error
+        ? result.reason
+        : new Error(String(result.reason)),
+    loading: false,
   };
 }

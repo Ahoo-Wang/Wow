@@ -24,6 +24,10 @@ import {
 } from "recharts";
 import {
   ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
   type ChartConfig,
 } from "../../components/ui/chart.tsx";
 import { formatDate } from "../../utils/dates.ts";
@@ -47,6 +51,7 @@ export function DistributionChart({
   description,
   title,
 }: DistributionChartProps): ReactElement {
+  const total = data.reduce((sum, { count }) => sum + count, 0);
   const config = Object.fromEntries(
     data.map(({ color, key, label }) => [key, { color, label }]),
   ) satisfies ChartConfig;
@@ -65,19 +70,25 @@ export function DistributionChart({
         </PieChart>
       </ChartContainer>
       <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-        {data.map(({ color, count, key, label }) => (
-          <div key={key} className="flex items-center justify-between gap-2">
-            <dt className="flex items-center gap-1.5">
-              <span
-                aria-hidden="true"
-                className="size-2 rounded-full"
-                style={{ backgroundColor: color }}
-              />
-              {label}
-            </dt>
-            <dd className="font-mono tabular-nums">{count}</dd>
-          </div>
-        ))}
+        {data.map(({ color, count, key, label }) => {
+          const percentage =
+            total === 0 ? 0 : Math.round((count / total) * 100);
+          return (
+            <div key={key} className="flex items-center justify-between gap-2">
+              <dt className="flex items-center gap-1.5">
+                <span
+                  aria-hidden="true"
+                  className="size-2 rounded-full"
+                  style={{ backgroundColor: color }}
+                />
+                {label}
+              </dt>
+              <dd className="font-mono tabular-nums">
+                {count} ({percentage}%)
+              </dd>
+            </div>
+          );
+        })}
       </dl>
     </section>
   );
@@ -105,6 +116,16 @@ export function CompensationTrendChart({
             tickFormatter={(bucket: number) => formatDate(bucket, "MM-DD HH:mm")}
           />
           <YAxis allowDecimals={false} />
+          <ChartTooltip
+            content={
+              <ChartTooltipContent
+                labelFormatter={(_, payload) =>
+                  formatDate(Number(payload[0]?.payload.bucket), "MM-DD HH:mm")
+                }
+              />
+            }
+          />
+          <ChartLegend content={<ChartLegendContent />} />
           {Object.entries(trendConfig).map(([key, { color }]) => (
             <Line
               key={key}

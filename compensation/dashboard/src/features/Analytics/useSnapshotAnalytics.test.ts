@@ -73,6 +73,45 @@ describe("useSnapshotAnalytics", () => {
     await waitFor(() => expect(mocks.aggregate).toHaveBeenCalledTimes(7));
   });
 
+  it("settles successful sections while another section remains deferred", async () => {
+    const recoverability = deferred<unknown[]>();
+    mocks.aggregate.mockImplementation((query) => {
+      if (isQuery(query, "errorCode")) {
+        return Promise.resolve([]);
+      }
+      if (isQuery(query, "recoverable")) {
+        return recoverability.promise;
+      }
+      if (isQuery(query, "retries")) {
+        return Promise.resolve([{ count: 2, retries: 0 }]);
+      }
+      return Promise.resolve([{ count: 3 }]);
+    });
+
+    const { result } = renderHook(() => useSnapshotAnalytics(0));
+
+    await waitFor(() => {
+      expect(result.current.summary).toMatchObject({
+        data: { actionableNow: 3, timedOut: 3, unrecoverable: 3 },
+        loading: false,
+      });
+      expect(result.current.pressure).toMatchObject({
+        data: [],
+        loading: false,
+      });
+      expect(result.current.retries).toMatchObject({ loading: false });
+    });
+    expect(result.current.recoverability).toEqual({ loading: true });
+
+    recoverability.resolve([]);
+    await waitFor(() =>
+      expect(result.current.recoverability).toMatchObject({
+        data: [],
+        loading: false,
+      }),
+    );
+  });
+
   it("aborts stale snapshot requests when refreshToken changes", async () => {
     const controllers: AbortController[] = [];
     mocks.aggregate.mockImplementation((_query, _attributes, controller) => {
