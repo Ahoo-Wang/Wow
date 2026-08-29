@@ -201,7 +201,7 @@ Failed / Prepared 单元格同时展示：
 | Retried failed | 琥珀色 |
 | Succeeded | 绿色 |
 
-趋势图标题旁显示已应用的日期范围。图表压缩为底部次级信号，但保留 Tooltip、Legend 和屏幕阅读器数据表。不得用 Snapshot 总量作为折线数据。
+底部信号区不重复显示日期范围；顶部 Date Picker 是唯一可见时间作用域。趋势图压缩为底部次级信号，但保留 Tooltip、Legend 和屏幕阅读器数据表。不得用 Snapshot 总量作为折线数据。
 
 ### 7.6 Loading 骨架
 
@@ -246,7 +246,7 @@ DashboardView applied window
 
 - Time range 使用带可见选中态的按钮组，并提供可访问名称。
 - Time range 复用 shadcn Calendar、Popover、Button；允许增加标准 Calendar 依赖 `react-day-picker`，不手写日历。
-- Dashboard 内容工具栏和各区域标题使用同一 range 文案，避免作用域歧义。
+- 顶部 Date Picker 是唯一可见范围说明；底部区域不重复同一全局作用域。
 - Failed / Prepared、Recoverability 和 Retry distribution 都同时提供文本、数量、比例和颜色。
 - Recharts 继续启用 `accessibilityLayer`。
 - 趋势图保留屏幕阅读器数据表。
