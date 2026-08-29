@@ -79,6 +79,8 @@
 
 Dashboard 内容区顶部显示 `Time range` Date Picker，默认最近 7 个自然日。Picker 使用 shadcn Calendar range mode、Popover 和 Button；选择完整开始/结束日期并点击 Apply 后，同时改变 Snapshot 与 EventStream。Cancel、选择中或不完整范围不发送查询。
 
+弹层提供 Today、Last 7 days、Last 30 days 三个快捷按钮。快捷按钮复用 shadcn Button，点击后立即应用对应自然日范围并关闭弹层；手动选择仍使用 Apply/Cancel。
+
 两类事实源复用同一组 start/end 边界：
 
 - Snapshot 使用 `state.executeAt >= start && state.executeAt < end`，表示选定窗口内最近执行过且当前仍符合各指标条件的快照；
