@@ -87,12 +87,20 @@ internal fun Projection.withCursorFields(sortFields: List<String>): MongoCursorP
 private fun Document.valueAt(path: String): Any? =
     path.split('.').fold(this as Any?) { current, part -> (current as? Document)?.get(part) }
 
-private fun Document.removeAt(path: String) {
-    val parts = path.split('.')
-    val parent = parts.dropLast(1).fold(this as Document?) { current, part ->
-        current?.get(part) as? Document
+private fun Document.removeAt(path: String, removeEmptyParents: Boolean) {
+    fun Document.removePath(parts: List<String>) {
+        if (parts.size == 1) {
+            remove(parts.single())
+            return
+        }
+        val child = get(parts.first()) as? Document ?: return
+        child.removePath(parts.drop(1))
+        if (removeEmptyParents && child.isEmpty()) {
+            remove(parts.first())
+        }
     }
-    parent?.remove(parts.last())
+
+    removePath(path.split('.'))
 }
 
 internal fun <T : Any> List<Document>.toCursorPage(
@@ -110,7 +118,9 @@ internal fun <T : Any> List<Document>.toCursorPage(
     }
     return CursorPage(
         list = returned.map { document ->
-            projection.internalFields.forEach(document::removeAt)
+            projection.internalFields.forEach { field ->
+                document.removeAt(field, removeEmptyParents = projection.queryProjection.include.isNotEmpty())
+            }
             mapper(document)
         },
         nextCursor = nextCursor,

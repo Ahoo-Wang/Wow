@@ -74,6 +74,24 @@ class MongoCursorDocumentsTest {
     }
 
     @Test
+    fun `included projection should not leave empty parent for internal sort field`() {
+        val projection = Projection(include = listOf("name"))
+            .withCursorFields(listOf("state.createdAt"))
+        val query = cursorQuery(
+            projection = Projection(include = listOf("name")),
+            sort = listOf(Sort("state.createdAt", Sort.Direction.ASC)),
+        )
+
+        val page = listOf(
+            Document("name", "one").append("state", Document("createdAt", 1)),
+            Document("name", "two").append("state", Document("createdAt", 2)),
+        ).toCursorPage(query, projection, tokenCodec = tokenCodec) { it }
+
+        page.list.single().containsKey("state").assert().isFalse()
+        MongoCursorCodec.decode(tokenCodec, page.nextCursor!!, expectedSize = 1).single().assert().isEqualTo(1)
+    }
+
+    @Test
     fun `include projection should remove exclusion for internal cursor field`() {
         val projection = Projection(
             include = listOf("state.name"),
