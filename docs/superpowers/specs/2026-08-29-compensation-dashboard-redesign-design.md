@@ -31,7 +31,7 @@
 - 将页面和导航名称从 `Analytics` 提升为 `Dashboard`。
 - 将 Dashboard 设为根路由 `/` 和侧栏第一项。
 - 保留 `/analytics` 旧地址的兼容跳转。
-- 把 `24h / 7d / 30d` 放在 Dashboard 内容区顶部，明确命名为 `Time range`。
+- 把 shadcn Date Range Picker 放在 Dashboard 内容区顶部，明确命名为 `Time range`。
 - 同一时间窗口作用于全部 Snapshot 与 EventStream 聚合查询。
 - 以失败压力 Top 5 为页面主体，在 `1280 × 720` 成功态下一屏完整展示。
 - 用紧凑、可读且不依赖颜色的方式展示当前状态、风险构成和历史趋势。
@@ -77,26 +77,24 @@
 
 ### 5.1 Time range
 
-Dashboard 内容区顶部显示：
+Dashboard 内容区顶部显示 `Time range` Date Picker，默认最近 7 个自然日。Picker 使用 shadcn Calendar range mode、Popover 和 Button；选择完整开始/结束日期并点击 Apply 后，同时改变 Snapshot 与 EventStream。Cancel、选择中或不完整范围不发送查询。
 
-- 标签 `Time range`；
-- `24h / 7d / 30d` 按钮组，默认 `7d`；
-
-该控件同时改变 `useSnapshotAnalytics(range, refreshToken)` 与 `useEventTrend(range, refreshToken)`。两类事实源复用同一组 start/end 边界：
+两类事实源复用同一组 start/end 边界：
 
 - Snapshot 使用 `state.executeAt >= start && state.executeAt < end`，表示选定窗口内最近执行过且当前仍符合各指标条件的快照；
 - EventStream 使用根 `createTime >= start && createTime < end`，表示选定窗口内发生的结果事件；
 - Snapshot 的 `state.executeAt` 是领域执行时间；不使用可能因任意状态修改而变化的 `snapshotTime`。
+- start 为开始日 00:00（含），end 为结束日次日 00:00（不含），使用浏览器时区；趋势按自然日聚合。
 
 ### 5.2 顶栏状态实现
 
 为了让控件作用于整张 Dashboard，又不侵入通用 `App` 布局：
 
-- `DashboardView` 本地持有 `range`，默认 `7d`；
+- `DashboardView` 本地持有已应用的日期范围，默认最近 7 个自然日；
 - 时间控件与统一更新时间、Refresh 同属 Dashboard 内容工具栏；
 - `App` 不感知 Dashboard range，也不提供 Outlet context；
 - 不增加 React Context Provider、状态库或 URL 查询参数；
-- 不写入 localStorage 或 sessionStorage，刷新页面后恢复 `7d`。
+- 不写入 localStorage 或 sessionStorage，刷新页面后恢复最近 7 个自然日。
 
 ### 5.3 刷新
 
@@ -107,7 +105,7 @@ Updated 2026-08-29 10:36:24 | Refresh
 ```
 
 - 点击 Refresh 同时刷新当前范围的 Snapshot 与 EventStream；
-- 切换 Time range 同时取消并重新加载 Snapshot 与 EventStream；
+- Apply 新日期范围时同时取消并重新加载 Snapshot 与 EventStream；
 - 不为各区域增加独立重试按钮；
 - 不自动轮询。
 
@@ -203,7 +201,7 @@ Failed / Prepared 单元格同时展示：
 | Retried failed | 琥珀色 |
 | Succeeded | 绿色 |
 
-趋势图标题旁显示 `Time range: {range}`。图表压缩为底部次级信号，但保留 Tooltip、Legend 和屏幕阅读器数据表。不得用 Snapshot 总量作为折线数据。
+趋势图标题旁显示已应用的日期范围。图表压缩为底部次级信号，但保留 Tooltip、Legend 和屏幕阅读器数据表。不得用 Snapshot 总量作为折线数据。
 
 ### 7.6 Loading 骨架
 
@@ -216,14 +214,14 @@ Dashboard 路由懒加载和全部数据尚未首次返回时显示同一个 `Da
 Snapshot 与 EventStream 仍由两个既有 Hook 管理：
 
 ```text
-DashboardView range
+DashboardView applied window
         |
-        +--------------> useSnapshotAnalytics(range, refreshToken)
+        +--------------> useSnapshotAnalytics(window, refreshToken)
         |
-        +--------------> useEventTrend(range, refreshToken)
+        +--------------> useEventTrend(window, refreshToken)
 ```
 
-- 初次进入：并行加载默认 7d 的 Snapshot 与 EventStream；
+- 初次进入：并行加载默认最近 7 个自然日的 Snapshot 与 EventStream；
 - 切换时间窗口：Snapshot 与 EventStream 同时重新加载；
 - Refresh：两类事实源共同重新加载；
 - Top 集群查询返回空数组时，不执行状态占比查询；
@@ -247,7 +245,7 @@ DashboardView range
 ## 10. 可访问性
 
 - Time range 使用带可见选中态的按钮组，并提供可访问名称。
-- Time range 复用已安装的 Base UI `ToggleGroup`/`Toggle` 单选与键盘语义，不新增依赖。
+- Time range 复用 shadcn Calendar、Popover、Button；允许增加标准 Calendar 依赖 `react-day-picker`，不手写日历。
 - Dashboard 内容工具栏和各区域标题使用同一 range 文案，避免作用域歧义。
 - Failed / Prepared、Recoverability 和 Retry distribution 都同时提供文本、数量、比例和颜色。
 - Recharts 继续启用 `accessibilityLayer`。
@@ -292,7 +290,7 @@ DashboardView range
 - Snapshot 摘要、压力、Recoverability 和 Retry 查询都包含同一 `state.executeAt` 窗口。
 - Time range 切换触发最多 7 个 Snapshot 与固定 4 个 EventStream 请求。
 - Refresh 同时触发 Snapshot 与 EventStream。
-- 默认范围为 7d，刷新页面后恢复 7d。
+- 默认范围为最近 7 个自然日，刷新页面后恢复该默认值。
 - Abort、旧数据和局部错误合同继续通过。
 
 ### 13.2 路由与页面
@@ -313,7 +311,7 @@ Playwright 使用固定聚合响应验证：
 - `1280 × 720` 成功态下文档和 Dashboard 内容无横向、纵向滚动；
 - 所有主要区域都与视口相交并可见；
 - 不存在被遮挡或裁剪的 Compensation outcomes；
-- 切换 24h/7d/30d 同时发送 Snapshot 与 EventStream aggregation；
+- Apply 新日期范围时同时发送 Snapshot 与 EventStream aggregation；
 - Refresh 同时发送 Snapshot 与 EventStream aggregation；
 - `/dashboard`、`/analytics` 兼容跳转和根 Dashboard 正确；
 - 页面没有未处理控制台错误。
@@ -343,5 +341,5 @@ git diff --check
 - 底部信号区提高信息空间，且骨架屏替代首次加载白屏。
 - 成功态在 `1280 × 720` 一屏完整展示且无滚动条。
 - 真实聚合数据、局部错误、最后成功数据和截断保护保持正确。
-- 不新增后端 API、生成客户端修改、全局状态库或图表依赖。
+- 不新增后端 API、生成客户端修改、全局状态库或额外图表依赖；只允许已批准的 `react-day-picker`。
 - 单元测试、Lint、Build、Playwright 和视觉对比均通过。
