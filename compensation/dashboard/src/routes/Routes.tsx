@@ -15,7 +15,6 @@ import { Suspense } from "react";
 import { createBrowserRouter, Navigate } from "react-router";
 import App from "../features/App/App.tsx";
 import {
-  DashboardNavItem,
   NavItems,
   NavItemPaths,
   PrimaryNavItems,
@@ -36,10 +35,6 @@ export const AppRouter = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Navigate to={NavItemPaths.Dashboard} replace />,
-      },
-      {
-        path: DashboardNavItem.path,
         element: (
           <Suspense fallback={dashboardFallback}>
             <LazyDashboardView />
@@ -57,6 +52,10 @@ export const AppRouter = createBrowserRouter([
           </Suspense>
         ),
       })),
+      {
+        path: "/dashboard",
+        element: <Navigate to={NavItemPaths.Dashboard} replace />,
+      },
       {
         path: NavItemPaths.Analytics,
         element: <Navigate to={NavItemPaths.Dashboard} replace />,

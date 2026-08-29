@@ -19,19 +19,25 @@ vi.mock("react-router", () => ({
   NavLink: ({
     children,
     className,
+    end,
     to,
     ...props
   }: {
     children: ReactNode;
     className: (state: { isActive: boolean }) => string;
+    end?: boolean;
     to: string;
     "aria-label"?: string;
   }) => {
-    const isActive = to === mocks.pathname;
+    const isActive = end
+      ? to === mocks.pathname
+      : to === mocks.pathname ||
+        mocks.pathname.startsWith(to.endsWith("/") ? to : `${to}/`);
     return (
       <a
         aria-current={isActive ? "page" : undefined}
         className={className({ isActive })}
+        data-end={end ? "true" : undefined}
         href={to}
         {...props}
       >
@@ -50,7 +56,7 @@ vi.mock("react-router", () => ({
 const navItems = [
   {
     label: "Dashboard",
-    path: "/dashboard",
+    path: "/",
   },
   {
     label: "To Retry",
@@ -89,7 +95,14 @@ describe("App", () => {
     );
     expect(
       screen.getByRole("link", { name: "Wow compensation dashboard" }),
-    ).toHaveAttribute("href", "/dashboard");
+    ).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "Dashboard" })).not.toHaveAttribute(
+      "aria-current",
+    );
+    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute(
+      "data-end",
+      "true",
+    );
     const projectLinks = screen.getByRole("navigation", {
       name: "Project repositories",
     });
@@ -161,24 +174,28 @@ describe("App", () => {
   });
 
   it("uses Dashboard as the workspace and logo destination", () => {
-    mocks.pathname = "/dashboard";
+    mocks.pathname = "/";
     render(<App navItems={navItems} />);
 
     expect(screen.getByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute(
       "href",
-      "/dashboard",
+      "/",
+    );
+    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute(
+      "aria-current",
+      "page",
     );
     expect(
       screen.getByRole("link", { name: "Wow compensation dashboard" }),
     ).toHaveAttribute(
       "href",
-      "/dashboard",
+      "/",
     );
   });
 
   it("places the outcomes-only range in the Dashboard topbar", () => {
-    mocks.pathname = "/dashboard";
+    mocks.pathname = "/";
     render(<App navItems={navItems} />);
 
     expect(screen.getByText("Outcomes window")).toBeInTheDocument();

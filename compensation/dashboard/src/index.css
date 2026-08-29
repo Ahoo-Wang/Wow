@@ -142,6 +142,11 @@
   min-height: 100svh;
 }
 
+table.sr-only {
+  display: block;
+  table-layout: fixed;
+}
+
 .failed-table-container {
   container-type: inline-size;
 }
@@ -515,6 +520,222 @@
   min-height: 0;
   flex: 1;
   overflow: hidden;
+}
+
+.dashboard-view {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+  padding: 14px 18px;
+}
+
+.dashboard-summary,
+.dashboard-pressure,
+.dashboard-signals {
+  min-width: 0;
+}
+
+.dashboard-section-heading {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  gap: 8px;
+}
+
+.dashboard-section-heading h2 {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.dashboard-now {
+  display: inline-flex;
+  height: 22px;
+  align-items: center;
+  border: 1px solid #dbe1e8;
+  border-radius: 6px;
+  background: #f8fafc;
+  padding: 0 7px;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.dashboard-refresh-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  color: #64748b;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.dashboard-refresh-status button {
+  height: 32px;
+  padding-inline: 10px;
+}
+
+.dashboard-summary-values {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 4px;
+}
+
+.dashboard-summary-values > div {
+  padding: 4px 16px 6px;
+}
+
+.dashboard-summary-values > div:first-child {
+  padding-left: 12px;
+}
+
+.dashboard-summary-values > div + div {
+  border-left: 1px solid #dbe1e8;
+}
+
+.dashboard-summary-values dt {
+  color: #334155;
+  font-size: 13px;
+}
+
+.dashboard-summary-values dd {
+  margin-top: 2px;
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.dashboard-pressure {
+  flex: 0 0 auto;
+}
+
+.dashboard-pressure-table {
+  overflow: visible;
+}
+
+.dashboard-pressure-table table {
+  table-layout: fixed;
+}
+
+.dashboard-pressure-table th:nth-child(1) {
+  width: 36%;
+}
+
+.dashboard-pressure-table th:nth-child(2) {
+  width: 10%;
+}
+
+.dashboard-pressure-table th:nth-child(3) {
+  width: 29%;
+}
+
+.dashboard-pressure-table th:nth-child(4) {
+  width: 11%;
+}
+
+.dashboard-pressure-table th:nth-child(5) {
+  width: 14%;
+}
+
+.dashboard-pressure-table [data-slot="table-head"] {
+  height: 34px;
+}
+
+.dashboard-pressure-table [data-slot="table-cell"] {
+  padding-block: 4px;
+  font-size: 13px;
+}
+
+.dashboard-pressure-table [data-slot="table-cell"]:first-child {
+  white-space: normal;
+}
+
+.dashboard-pressure-table [data-slot="table-cell"]:first-child .font-medium {
+  line-height: 16px;
+}
+
+.dashboard-pressure-table [data-slot="table-cell"]:first-child .text-xs {
+  line-height: 13px;
+}
+
+.dashboard-signals {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(24rem, 1.6fr);
+  overflow: hidden;
+  border: 1px solid #dbe1e8;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.dashboard-signals > section {
+  min-width: 0;
+  padding: 10px 12px;
+}
+
+.dashboard-signals > section + section {
+  border-left: 1px solid #dbe1e8;
+}
+
+.dashboard-signals h2,
+.dashboard-signals h3 {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.dashboard-signals p {
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.dashboard-signals > section:first-child dl {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.dashboard-signals > section:first-child dl > div {
+  display: grid;
+  gap: 2px;
+}
+
+.dashboard-signals > section:first-child dt,
+.dashboard-signals > section:first-child dd {
+  font-size: 12px;
+}
+
+.dashboard-signals > section:first-child dd {
+  padding-left: 14px;
+}
+
+@media (max-width: 1279px), (max-height: 719px) {
+  .dashboard-view {
+    display: block;
+    overflow-y: auto;
+  }
+
+  .dashboard-view > * + * {
+    margin-top: 16px;
+  }
+
+  .dashboard-pressure {
+    overflow: visible;
+  }
+
+  .dashboard-signals {
+    grid-template-columns: 1fr;
+    overflow: visible;
+  }
+
+  .dashboard-signals > section + section {
+    border-top: 1px solid #dbe1e8;
+    border-left: 0;
+  }
 }
 
 @media (max-width: 1100px) and (min-width: 721px) {

@@ -88,6 +88,14 @@ async function mockAnalyticsAggregations(
     onSnapshot: () => void;
   },
 ) {
+  const pressureClusters = [
+    ["TEST_TIMEOUT", "billing", "OrderProcessor", "run", "EVENT", 120, 90, 30],
+    ["BAD_REQUEST", "orders", "OrderItemReservedTrackEventProcessor", "onPickupOrderItemReservedConfirmed", "EVENT", 80, 70, 10],
+    ["NOT_FOUND", "catalog", "ProductProjectionProcessor", "onProductChanged", "EVENT", 60, 60, 0],
+    ["CONFLICT", "inventory", "ReservationProcessor", "reserve", "COMMAND", 40, 30, 10],
+    ["UNAVAILABLE", "payment", "PaymentProcessor", "charge", "COMMAND", 20, 15, 5],
+  ] as const;
+
   await page.route("**/execution_failed/snapshot/aggregation", async (route) => {
     callbacks.onSnapshot();
     const query = route.request().postDataJSON() as {
@@ -110,39 +118,25 @@ async function mockAnalyticsAggregations(
     let rows: Array<Record<string, unknown>>;
 
     if (aliases.includes("errorCode") && aliases.includes("status")) {
-      rows = [
-        {
-          errorCode: "TEST_TIMEOUT",
-          contextName: "billing",
-          processorName: "OrderProcessor",
-          functionName: "run",
-          functionKind: "EVENT",
-          status: "FAILED",
-          statusCount: 9,
-        },
-        {
-          errorCode: "TEST_TIMEOUT",
-          contextName: "billing",
-          processorName: "OrderProcessor",
-          functionName: "run",
-          functionKind: "EVENT",
-          status: "PREPARED",
-          statusCount: 3,
-        },
-      ];
+      rows = pressureClusters.flatMap(
+        ([errorCode, contextName, processorName, functionName, functionKind, , failedCount, preparedCount]) => [
+          { errorCode, contextName, processorName, functionName, functionKind, status: "FAILED", statusCount: failedCount },
+          { errorCode, contextName, processorName, functionName, functionKind, status: "PREPARED", statusCount: preparedCount },
+        ],
+      );
     } else if (aliases.includes("errorCode")) {
-      rows = [
-        {
-          errorCode: "TEST_TIMEOUT",
-          contextName: "billing",
-          processorName: "OrderProcessor",
-          functionName: "run",
-          functionKind: "EVENT",
-          currentCount: 12,
+      rows = pressureClusters.map(
+        ([errorCode, contextName, processorName, functionName, functionKind, currentCount]) => ({
+          errorCode,
+          contextName,
+          processorName,
+          functionName,
+          functionKind,
+          currentCount,
           oldestExecuteAt: 1_787_846_400_000,
           nextRetryAt: 1_787_932_800_000,
-        },
-      ];
+        }),
+      );
     } else if (aliases.includes("recoverable")) {
       rows = [
         { recoverable: "RECOVERABLE", count: 7 },
@@ -396,9 +390,12 @@ test("preserves and freezes last-known-good data after refresh fails", async ({
   ).toBeDisabled();
 });
 
-test("loads analytics and scopes range changes to event aggregation", async ({
+test("loads the root dashboard with natural Top 5 pressure height", async ({
   page,
 }, testInfo) => {
+  if (testInfo.project.name === "desktop-chromium") {
+    await page.setViewportSize({ width: 1280, height: 720 });
+  }
   let snapshotRequests = 0;
   let eventRequests = 0;
   await mockAnalyticsAggregations(page, {
@@ -406,50 +403,60 @@ test("loads analytics and scopes range changes to event aggregation", async ({
     onSnapshot: () => snapshotRequests++,
   });
 
-  await page.goto("/analytics");
+  await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: "Analytics" })).toBeVisible();
-  await expect(page.getByText("Current failure pressure")).toBeVisible();
-  await expect(page.getByText("TEST_TIMEOUT")).toBeVisible();
+  expect(await page.evaluate(() => location.pathname)).toBe("/");
+  await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
   await expect(
-    page.getByRole("table", { name: "Compensation outcomes data" }),
-  ).toBeAttached();
+    page.getByText("Current failure pressure — Top 5 clusters"),
+  ).toBeVisible();
+  await expect(page.getByText("Compensation outcomes")).toBeVisible();
   await expect.poll(() => snapshotRequests).toBe(7);
   await expect.poll(() => eventRequests).toBe(4);
 
-  const analyticsViewport = page.locator(".app-content > div").first();
-  const verticalOverflow = await analyticsViewport.evaluate((element) => ({
-    clientHeight: element.clientHeight,
-    overflowY: getComputedStyle(element).overflowY,
-    scrollHeight: element.scrollHeight,
-  }));
-  expect(verticalOverflow.overflowY).toBe("auto");
-  expect(verticalOverflow.scrollHeight).toBeGreaterThan(
-    verticalOverflow.clientHeight,
-  );
-
-  const outcomesHeading = page.getByRole("heading", {
-    name: "Compensation outcomes",
+  const pressureTable = page.getByRole("table", {
+    name: "Current failure pressure",
   });
-  await outcomesHeading.scrollIntoViewIfNeeded();
-  await expect(outcomesHeading).toBeVisible();
-  const trendChartHeight = await page
-    .locator('[data-slot="chart"]')
-    .last()
-    .evaluate((element) => element.getBoundingClientRect().height);
-  expect(trendChartHeight).toBeLessThanOrEqual(320);
-  await expect(
-    page
-      .locator(".recharts-legend-wrapper")
-      .getByText("Succeeded", { exact: true }),
-  ).toBeVisible();
+  await expect(pressureTable.getByRole("row")).toHaveCount(6);
+
+  const dashboard = page.locator(".dashboard-view");
+  const overflow = await dashboard.evaluate((element) => ({
+    clientHeight: element.clientHeight,
+    clientWidth: element.clientWidth,
+    scrollHeight: element.scrollHeight,
+    scrollWidth: element.scrollWidth,
+  }));
+  if (testInfo.project.name === "desktop-chromium") {
+    expect(overflow.scrollHeight).toBeLessThanOrEqual(overflow.clientHeight);
+    expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth);
+    const pressureSizing = await page
+      .locator(".dashboard-pressure-table")
+      .evaluate((element) => {
+        const container = element.getBoundingClientRect();
+        const table = element.querySelector("table")?.getBoundingClientRect();
+        const rows = Array.from(element.querySelectorAll("tbody tr"));
+        return {
+          contentDelta: table
+            ? Math.abs(container.height - table.height - 2)
+            : Number.POSITIVE_INFINITY,
+          overflowY: getComputedStyle(element).overflowY,
+          rowsVisible: rows.every((row) => {
+            const bounds = row.getBoundingClientRect();
+            return bounds.top >= container.top && bounds.bottom <= container.bottom;
+          }),
+        };
+      });
+    expect(pressureSizing.contentDelta).toBeLessThanOrEqual(2);
+    expect(pressureSizing.overflowY).not.toMatch(/auto|scroll/);
+    expect(pressureSizing.rowsVisible).toBe(true);
+  }
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
 
   if (testInfo.project.name === "mobile-chromium") {
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth <= window.innerWidth,
-      ),
-    ).toBe(true);
     const pressureContainer = page
       .getByRole("table", { name: "Current failure pressure" })
       .locator("..");
@@ -462,30 +469,26 @@ test("loads analytics and scopes range changes to event aggregation", async ({
       pressureOverflow.clientWidth,
     );
     expect(["auto", "scroll"]).toContain(pressureOverflow.overflowX);
+    await page
+      .getByRole("heading", { name: "Compensation outcomes" })
+      .scrollIntoViewIfNeeded();
+    await expect(
+      page.getByRole("heading", { name: "Compensation outcomes" }),
+    ).toBeVisible();
   } else {
-    await page.setViewportSize({ width: 1920, height: 1324 });
-    const largeViewport = await analyticsViewport.evaluate((element) => ({
-      clientHeight: element.clientHeight,
-      scrollHeight: element.scrollHeight,
-    }));
-    expect(largeViewport.scrollHeight).toBeLessThanOrEqual(
-      largeViewport.clientHeight,
-    );
-    const chartHeights = await page
-      .locator('[data-slot="chart"]')
-      .evaluateAll((charts) =>
-        charts.map((chart) => chart.getBoundingClientRect().height),
-      );
-    expect(chartHeights.slice(0, 2).every((height) => height <= 192)).toBe(
-      true,
-    );
-    expect(chartHeights.at(-1)).toBeLessThanOrEqual(240);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollHeight <= window.innerHeight,
+      ),
+    ).toBe(true);
   }
+});
 
-  await page.getByRole("button", { name: "24h" }).click();
-
-  await expect.poll(() => eventRequests).toBe(8);
-  expect(snapshotRequests).toBe(7);
+test("redirects Dashboard aliases and fallback to the root", async ({ page }) => {
+  for (const path of ["/dashboard", "/analytics", "/missing-dashboard-route"]) {
+    await page.goto(path);
+    expect(await page.evaluate(() => location.pathname)).toBe("/");
+  }
 });
 
 test("isolates one failed analytics region", async ({ page }) => {

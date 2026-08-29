@@ -180,6 +180,7 @@ function PressureTable({ clusters }: { clusters: PressureCluster[] }) {
                 <div className="font-medium">{cluster.errorCode}</div>
                 <div className="text-xs text-muted-foreground">
                   {cluster.contextName} · {cluster.processorName}/
+                  <wbr />
                   {cluster.functionName} · {cluster.functionKind}
                 </div>
               </TableCell>
@@ -206,7 +207,7 @@ export default function DashboardView() {
   const trend = useEventTrend(outcomesRange, refreshToken);
 
   return (
-    <div className="h-full space-y-4 overflow-y-auto p-5">
+    <div className="dashboard-view">
       <section
         aria-labelledby="dashboard-summary-title"
         className="dashboard-summary"
@@ -249,9 +250,12 @@ export default function DashboardView() {
         ) : null}
       </section>
 
-      <section aria-labelledby="analytics-pressure-title" className="min-w-0">
+      <section
+        aria-labelledby="dashboard-pressure-title"
+        className="dashboard-pressure"
+      >
         <div className="dashboard-section-heading">
-          <h2 id="analytics-pressure-title">
+          <h2 id="dashboard-pressure-title">
             Current failure pressure — Top 5 clusters
           </h2>
           <span className="dashboard-now">Now</span>
@@ -260,17 +264,17 @@ export default function DashboardView() {
         {snapshot.pressure.loading && !snapshot.pressure.data ? (
           <Skeleton className="mt-3 h-64 w-full" />
         ) : snapshot.pressure.data ? (
-          <div className="mt-3 rounded-lg border bg-white p-3">
+          <div className="dashboard-pressure-table rounded-lg border bg-white">
             <PressureTable clusters={snapshot.pressure.data} />
           </div>
         ) : null}
       </section>
 
       <div
-        className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.7fr)]"
+        className="dashboard-signals"
         aria-label="Dashboard signals"
       >
-        <section className="rounded-lg border bg-white p-4">
+        <section>
           <SectionMeta section={snapshot.recoverability} />
           {snapshot.recoverability.loading && !snapshot.recoverability.data ? (
             <Skeleton className="mt-3 h-36 w-full" />
@@ -288,7 +292,7 @@ export default function DashboardView() {
             />
           ) : null}
         </section>
-        <section className="rounded-lg border bg-white p-4">
+        <section>
           <SectionMeta section={snapshot.retries} />
           {snapshot.retries.loading && !snapshot.retries.data ? (
             <Skeleton className="mt-3 h-36 w-full" />
@@ -309,7 +313,6 @@ export default function DashboardView() {
         </section>
         <section
           aria-labelledby="analytics-history-title"
-          className="rounded-lg border bg-white p-4"
         >
           <h2 id="analytics-history-title" className="text-base font-semibold">
             Compensation outcomes

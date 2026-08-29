@@ -16,7 +16,7 @@ import { FindCategory } from "../features/Failed/FindCategory.ts";
 import LazyFailedView from "./LazyFailedView.tsx";
 
 export const NavItemPaths = {
-  Dashboard: "/dashboard",
+  Dashboard: "/",
   Analytics: "/analytics",
   ToRetry: "/to-retry",
   Executing: "/executing",

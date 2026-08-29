@@ -43,7 +43,7 @@ export interface DashboardOutletContext {
 }
 
 const navIcons: Record<string, ComponentType<{ className?: string }>> = {
-  "/dashboard": ChartNoAxesCombined,
+  [NavItemPaths.Dashboard]: ChartNoAxesCombined,
   "/to-retry": RefreshCcw,
   "/executing": Play,
   "/next-retry": Clock3,
@@ -86,7 +86,7 @@ export default function App({ navItems }: AppProps) {
         >
           <Link
             className="app-logo"
-            to="/dashboard"
+            to={NavItemPaths.Dashboard}
             aria-label="Wow compensation dashboard"
           >
             <img src="/logo.svg" alt="Wow" />
@@ -98,6 +98,7 @@ export default function App({ navItems }: AppProps) {
                 <NavLink
                   key={item.path}
                   to={item.path}
+                  end={item.path === NavItemPaths.Dashboard}
                   aria-label={item.label}
                   title={item.label}
                   className={({ isActive }) =>

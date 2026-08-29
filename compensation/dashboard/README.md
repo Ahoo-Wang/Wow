@@ -1,6 +1,6 @@
 # Wow Compensation Dashboard
 
-该 React 应用是 `wow-compensation-server` 的运营客户端：查询 `ExecutionFailed` 队列和历史，通过 Analytics 查看补偿压力与趋势，修改恢复性/重试规格/目标函数，以及发起准备或强制准备。服务端状态机才是最终决策边界。
+该 React 应用是 `wow-compensation-server` 的运营客户端：查询 `ExecutionFailed` 队列和历史，通过 Dashboard 查看补偿压力与趋势，修改恢复性/重试规格/目标函数，以及发起准备或强制准备。服务端状态机才是最终决策边界。
 
 ## 开发
 
@@ -15,12 +15,15 @@ pnpm --dir compensation/dashboard dev --host 127.0.0.1
 
 `VITE_API_BASE_URL` 是所有 Fetcher 请求的基地址。`.env.development` 默认指向开发集群服务；连接本地服务时必须像上面一样显式覆盖。本地补偿服务的安全启动命令见[补偿参考案例](../../documentation/docs/zh/reference/example/compensation.md#功能特性)。
 
-## 分析页
+## 仪表盘
 
-`/analytics` 使用现有 `/execution_failed/snapshot/aggregation` 与
-`/execution_failed/event/aggregation` 展示当前补偿压力和历史趋势。
-24h/7d/30d 只影响事件趋势；当前状态指标始终来自 Snapshot。
-部署前必须确认运行实例 OpenAPI 同时暴露两个 aggregation 路由。
+`/` 是默认运营入口，使用现有
+`/execution_failed/snapshot/aggregation` 与
+`/execution_failed/event/aggregation` 展示当前补偿压力和历史结果；
+`/dashboard` 与 `/analytics` 保留为到根入口的兼容跳转。
+
+当前状态和历史结果的共享 `Time range` 语义由后续任务完成；
+本阶段只固定根路由与内容自适应布局。
 
 ## 验证命令
 

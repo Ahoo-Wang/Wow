@@ -4,7 +4,7 @@ import { AppRouter } from "../Routes.tsx";
 
 interface TestRoute {
   children?: TestRoute[];
-  element?: ReactElement;
+  element?: ReactElement<Record<string, unknown>>;
   index?: boolean;
   path?: string;
 }
@@ -26,8 +26,8 @@ vi.mock("../../features/App/App.tsx", () => ({
 }));
 
 vi.mock("../constants.tsx", () => ({
-  NavItemPaths: { Analytics: "/analytics", Dashboard: "/dashboard" },
-  DashboardNavItem: { label: "Dashboard", path: "/dashboard" },
+  NavItemPaths: { Analytics: "/analytics", Dashboard: "/" },
+  DashboardNavItem: { label: "Dashboard", path: "/" },
   NavItems: [
     {
       category: "ToRetry",
@@ -46,25 +46,28 @@ vi.mock("../constants.tsx", () => ({
 }));
 
 describe("AppRouter", () => {
-  it("maps every navigation item and keeps Dashboard redirect guards", () => {
+  it("renders Dashboard at the root and redirects compatibility routes", () => {
     expect(AppRouter).toBeDefined();
 
     const root = mocks.routerConfig?.[0];
     expect(root?.children?.map(({ index, path }) => ({ index, path }))).toEqual(
       [
         { index: true, path: undefined },
-        { index: undefined, path: "/dashboard" },
         { index: undefined, path: "/to-retry" },
         { index: undefined, path: "/executing" },
+        { index: undefined, path: "/dashboard" },
         { index: undefined, path: "/analytics" },
         { index: undefined, path: "*" },
       ],
     );
 
-    for (const index of [0, 4, 5]) {
+    expect(root?.children?.[0].element?.props).not.toHaveProperty("replace");
+    expect(root?.children?.[0].element?.props.children).toBeDefined();
+
+    for (const index of [3, 4, 5]) {
       expect(root?.children?.[index].element?.props).toMatchObject({
         replace: true,
-        to: "/dashboard",
+        to: "/",
       });
     }
   });

@@ -48,9 +48,9 @@ describe("routes/constants", () => {
   });
 
   it("puts Dashboard first while keeping queue navigation separate", () => {
-    expect(NavItemPaths.Dashboard).toBe("/dashboard");
+    expect(NavItemPaths.Dashboard).toBe("/");
     expect(NavItemPaths.Analytics).toBe("/analytics");
-    expect(DashboardNavItem).toEqual({ label: "Dashboard", path: "/dashboard" });
+    expect(DashboardNavItem).toEqual({ label: "Dashboard", path: "/" });
     expect(PrimaryNavItems.map(({ label }) => label)).toEqual([
       "Dashboard",
       "To Retry",
