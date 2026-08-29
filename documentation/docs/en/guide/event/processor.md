@@ -11,7 +11,7 @@ An event processor runs ordinary application side effects after a domain event h
 An event processor emits completion only after the matched reactive function completes; failures enter retry or compensation boundaries.
 
 ```mermaid
-flowchart LR
+flowchart TB
     Event["Domain event or state event"] --> Dispatcher["Event Dispatcher"]
     Dispatcher --> Match["Function matching and filtering"]
     Match --> Filters["Dispatcher Filter chain"]

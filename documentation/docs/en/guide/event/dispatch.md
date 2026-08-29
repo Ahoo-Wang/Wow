@@ -25,16 +25,16 @@ Both implement `MessageBus`, but their topic kinds, subscriptions, and transport
 flowchart TB
     DomainBus["DomainEventBus"] --> EventStream["EventStreamDispatcher"]
     StateBus["StateEventBus"] --> StateEvent["StateEventDispatcher"]
-    StateBus --> SnapshotDispatcher["SnapshotDispatcher"]
-    subgraph Composite["CompositeEventDispatcher"]
-        EventStream --> EventKind["FunctionKind.EVENT<br/>match Processor / Saga /<br/>Projection<br/>&nbsp;"]
-        StateEvent --> StateKind["FunctionKind.STATE_EVENT<br/>match Processor / Saga /<br/>Projection<br/>&nbsp;"]
-    end
-    EventKind --> EventChain["Processor / Saga /<br/>Projection<br/>Notifier → Retryable<br/>→ Function<br/>or<br/>Notifier<br/>→ Compensation<br/>→ Retryable<br/>→ Function<br/>&nbsp;"]
-    StateKind --> EventChain
-    SnapshotDispatcher --> SnapshotChain["Snapshot<br/>Notifier<br/>→ Function<br/>or<br/>Notifier<br/>→ Compensation<br/>→ Function<br/>&nbsp;"]
-    EventChain --> Boundary["Error handling and finallyAck"]
-    SnapshotChain --> Boundary
+    EventStream --> EventKind["FunctionKind.EVENT"]
+    EventKind ~~~ StateBus
+    StateEvent --> StateKind["FunctionKind.STATE_EVENT"]
+    EventKind --> Functions["Processor / Saga / Projection"]
+    StateKind --> Functions
+    Functions --> EventFilters["Notifier → [Compensation] → Retryable → Function"]
+    SnapshotPath["StateEventBus → SnapshotDispatcher"] --> SnapshotFilters["Notifier → [Compensation] → Function"]
+    EventFilters --> Boundary["Error handling and finallyAck"]
+    SnapshotFilters --> Boundary
+    EventFilters ~~~ SnapshotPath
 ```
 
 `EventStreamDispatcher` retains only `FunctionKind.EVENT`; `StateEventDispatcher` retains only `FunctionKind.STATE_EVENT`. Each creates subscriptions from the aggregate topics supported by its registered functions. An aggregate without a corresponding function does not get a consumption path for that dispatcher.

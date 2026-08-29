@@ -9,7 +9,7 @@ outline: deep
 读取历史事件时，`EventUpgraderFactory` 按 `@Order` 调用该事件已注册的全部 Upgrader，每个恰好一次；每次调用都可返回原记录、升级记录或 `DroppedEvent` 记录，应用必须验证最终记录可解析。
 
 ```mermaid
-flowchart LR
+flowchart TB
     Persisted["持久事件记录"] --> Ordered["该事件的 Upgrader 列表<br/>按 @Order 排序一次"]
     Ordered --> Apply["每个 Upgrader 恰好调用一次"]
     Apply --> Result{"每次调用返回"}

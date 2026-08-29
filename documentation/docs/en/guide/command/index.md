@@ -11,7 +11,7 @@ A command expresses one business intent to change aggregate state. Define its pa
 A command starts as business intent and connects to downstream collaboration through durable facts and observable completion signals.
 
 ```mermaid
-flowchart LR
+flowchart TB
     Intent["Business intent"] --> Definition["Define command"]
     Definition --> Send["Send command"]
     Send --> Process["Process in aggregate"]

@@ -9,16 +9,16 @@ outline: deep
 生命周期由事件驱动；删除和恢复仍然是聚合状态演进的一部分。
 
 ```mermaid
-stateDiagram-v2
-    direction LR
-    state "未初始化聚合" as Empty
-    state "活动聚合" as Active
-    state "已删除聚合" as Deleted
-    [*] --> Empty
-    Empty --> Active: 创建事件
-    Active --> Active: 普通领域事件
-    Active --> Deleted: 删除事件
-    Deleted --> Active: 恢复事件
+flowchart TB
+    Start((开始)) --> Empty["未初始化聚合"]
+    Empty --> Created["创建事件"]
+    Created --> Active["活动聚合"]
+    Active --> Regular["普通领域事件"]
+    Regular --> Active
+    Active --> DeletedEvent["删除事件"]
+    DeletedEvent --> Deleted["已删除聚合"]
+    Deleted --> Recovery["恢复事件"]
+    Recovery --> Active
 ```
 
 ## 创建或恢复状态

@@ -25,16 +25,16 @@ outline: deep
 flowchart TB
     DomainBus["DomainEventBus"] --> EventStream["EventStreamDispatcher"]
     StateBus["StateEventBus"] --> StateEvent["StateEventDispatcher"]
-    StateBus --> SnapshotDispatcher["SnapshotDispatcher"]
-    subgraph Composite["CompositeEventDispatcher"]
-        EventStream --> EventKind["FunctionKind.EVENT<br/>匹配 Processor / Saga /<br/>Projection<br/>&nbsp;"]
-        StateEvent --> StateKind["FunctionKind.STATE_EVENT<br/>匹配 Processor / Saga /<br/>Projection<br/>&nbsp;"]
-    end
-    EventKind --> EventChain["Processor / Saga /<br/>Projection<br/>Notifier → Retryable<br/>→ Function<br/>或<br/>Notifier<br/>→ Compensation<br/>→ Retryable<br/>→ Function<br/>&nbsp;"]
-    StateKind --> EventChain
-    SnapshotDispatcher --> SnapshotChain["Snapshot<br/>Notifier<br/>→ Function<br/>或<br/>Notifier<br/>→ Compensation<br/>→ Function<br/>&nbsp;"]
-    EventChain --> Boundary["错误处理与 finallyAck"]
-    SnapshotChain --> Boundary
+    EventStream --> EventKind["FunctionKind.EVENT"]
+    EventKind ~~~ StateBus
+    StateEvent --> StateKind["FunctionKind.STATE_EVENT"]
+    EventKind --> Functions["Processor / Saga / Projection"]
+    StateKind --> Functions
+    Functions --> EventFilters["Notifier → [Compensation] → Retryable → Function"]
+    SnapshotPath["StateEventBus → SnapshotDispatcher"] --> SnapshotFilters["Notifier → [Compensation] → Function"]
+    EventFilters --> Boundary["错误处理与 finallyAck"]
+    SnapshotFilters --> Boundary
+    EventFilters ~~~ SnapshotPath
 ```
 
 `EventStreamDispatcher` 只保留 `FunctionKind.EVENT`，`StateEventDispatcher` 只保留 `FunctionKind.STATE_EVENT`。各自按注册函数支持的聚合 topic 建立订阅；没有对应函数的聚合不会为该 dispatcher 创建消费路径。

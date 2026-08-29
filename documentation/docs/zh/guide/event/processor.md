@@ -11,7 +11,7 @@ outline: deep
 事件处理器只有在匹配函数的响应式工作完成后才产生完成信号；失败进入重试或补偿边界。
 
 ```mermaid
-flowchart LR
+flowchart TB
     Event["领域事件或状态事件"] --> Dispatcher["Event Dispatcher"]
     Dispatcher --> Match["函数匹配与过滤"]
     Match --> Filters["Dispatcher Filter chain"]

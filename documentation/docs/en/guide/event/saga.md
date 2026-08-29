@@ -11,25 +11,18 @@ Wow's `@StatelessSaga` is a stateless event orchestrator: it receives domain or 
 A Stateless Saga converts an occurred fact into 0..N follow-up commands sent in order.
 
 ```mermaid
-sequenceDiagram
-    participant Source as Source aggregate
-    participant EventBus as DomainEventBus
-    participant Saga as Stateless Saga
-    participant Gateway as CommandGateway
-    participant CommandBus as CommandBus
-    participant Notifier as SagaHandledNotifierFilter
-    participant WaitNotifier as CommandWaitNotifier
-    Source->>EventBus: Domain event
-    EventBus->>Notifier: Dispatch to matching Saga
-    Notifier->>Saga: Invoke Saga function
-    loop 0..N commands
-        Saga->>Gateway: Send follow-up command in order
-        Gateway->>CommandBus: Send command
-        CommandBus-->>Gateway: Send boundary completed
-    end
-    Saga-->>Notifier: Function completes and records commandIds
-    Notifier-->>WaitNotifier: SAGA_HANDLED + commandIds
-    Note over Gateway,CommandBus: Target aggregate processing is outside<br/>the SAGA_HANDLED guarantee
+flowchart TB
+    Source["Source aggregate"] -->|Domain event| EventBus["DomainEventBus"]
+    EventBus -->|Dispatch to matching Saga| Notifier["SagaHandledNotifierFilter"]
+    Notifier -->|Invoke Saga function| Saga["Stateless Saga"]
+    Saga --> Commands{"No follow-up command?"}
+    Commands -->|Yes| Done["Record commandIds"]
+    Commands -->|No: send in order| Gateway["CommandGateway"]
+    Gateway --> CommandBus["CommandBus"]
+    CommandBus --> Sent["Send complete; target processing pending"]
+    Sent --> Done
+    Done --> Signal["SAGA_HANDLED + commandIds"]
+    Signal --> WaitNotifier["CommandWaitNotifier"]
 ```
 
 ## When to Use a Saga

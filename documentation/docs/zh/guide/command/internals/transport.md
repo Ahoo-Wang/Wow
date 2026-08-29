@@ -13,17 +13,11 @@ outline: deep
 ```mermaid
 flowchart TB
     Command["CommandMessage"] --> Transport{"CommandBus 实现"}
-    Transport --> InMemory["InMemory：本地 sink 准入"]
-    Transport --> Kafka["Kafka：producer result"]
-    Transport --> Redis["Redis：Stream XADD"]
-    Transport --> LocalFirst["LocalFirst：本地 receipt + 分布式准入"]
+    Transport --> Evidence["InMemory：本地 sink<br/>Kafka：producer result<br/>Redis：Stream XADD<br/>LocalFirst：本地 receipt + 分布式准入"]
     Void["Void + LocalFirst"] --> Distributed["强制分布式路径"]
     Distributed --> Sent
-    InMemory --> Sent["SENT"]
-    Kafka --> Sent
-    Redis --> Sent
-    LocalFirst --> Sent
-    Sent --> Boundary["只证明 transport 接受，不证明 PROCESSED"]
+    Evidence --> Sent["SENT"]
+    Sent --> Boundary["SENT ≠ PROCESSED"]
 ```
 
 ## CommandBus 契约

@@ -57,12 +57,16 @@ A replay exchange already carries `compensationId` in its header. Another failur
 ## The ExecutionFailed State Machine
 
 ```mermaid
-stateDiagram-v2
-    [*] --> FAILED: ExecutionFailedCreated
-    FAILED --> PREPARED: Prepare / ForcePrepare
-    PREPARED --> PREPARED: Prepare / ForcePrepare after timeout
-    PREPARED --> FAILED: ExecutionFailedApplied
-    PREPARED --> SUCCEEDED: ExecutionSuccessApplied
+flowchart TB
+    Start((Start)) --> Created["ExecutionFailedCreated"]
+    Created --> Failed["FAILED"]
+    Failed --> Prepare["Prepare / ForcePrepare"]
+    Prepare --> Prepared["PREPARED"]
+    Prepared --> FailedResult["ExecutionFailedApplied → FAILED"]
+    Prepared --> SuccessResult["ExecutionSuccessApplied → SUCCEEDED"]
+    Prepared --> Timeout["Timeout → Prepare / ForcePrepare → PREPARED"]
+    FailedResult ~~~ SuccessResult
+    SuccessResult ~~~ Timeout
 ```
 
 | State | Meaning | Accepted result commands |

@@ -57,12 +57,16 @@ ExecutionFailed -> 自动调度或人工准备 -> 原事件 + 原目标函数重
 ## ExecutionFailed 状态机
 
 ```mermaid
-stateDiagram-v2
-    [*] --> FAILED: ExecutionFailedCreated
-    FAILED --> PREPARED: Prepare / ForcePrepare
-    PREPARED --> PREPARED: 超时后再次 Prepare / ForcePrepare
-    PREPARED --> FAILED: ExecutionFailedApplied
-    PREPARED --> SUCCEEDED: ExecutionSuccessApplied
+flowchart TB
+    Start((开始)) --> Created["ExecutionFailedCreated"]
+    Created --> Failed["FAILED"]
+    Failed --> Prepare["Prepare / ForcePrepare"]
+    Prepare --> Prepared["PREPARED"]
+    Prepared --> FailedResult["ExecutionFailedApplied → FAILED"]
+    Prepared --> SuccessResult["ExecutionSuccessApplied → SUCCEEDED"]
+    Prepared --> Timeout["超时 → Prepare / ForcePrepare → PREPARED"]
+    FailedResult ~~~ SuccessResult
+    SuccessResult ~~~ Timeout
 ```
 
 | 状态 | 含义 | 可接受的结果命令 |
