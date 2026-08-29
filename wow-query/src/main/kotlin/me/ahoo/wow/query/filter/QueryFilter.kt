@@ -14,8 +14,5 @@
 package me.ahoo.wow.query.filter
 
 import me.ahoo.wow.filter.Filter
-import me.ahoo.wow.filter.FilterType
-import me.ahoo.wow.query.QueryGateway
 
-@FilterType(QueryGateway::class)
 interface QueryFilter<CONTEXT : QueryContext<*, *>> : Filter<CONTEXT>

@@ -14,6 +14,11 @@
 package me.ahoo.wow.tck.query
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.IPagedQuery
+import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
@@ -24,37 +29,37 @@ import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.pagedQuery
 import me.ahoo.wow.query.dsl.singleQuery
-import me.ahoo.wow.query.event.EventStreamQueryService
-import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
-import me.ahoo.wow.query.event.count
-import me.ahoo.wow.query.event.dynamicQuery
-import me.ahoo.wow.query.event.query
+import me.ahoo.wow.query.event.EventStreamQueryBackend
+import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
 import me.ahoo.wow.tck.metrics.meteredForTck
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
+import tools.jackson.databind.node.ObjectNode
 
-abstract class EventStreamQueryServiceSpec {
+abstract class EventStreamQueryBackendSpec {
     val namedAggregate = MaterializedNamedAggregate("tck", "event-stream-query-spec")
     lateinit var eventStore: EventStore
-    lateinit var eventStreamQueryServiceFactory: EventStreamQueryServiceFactory
-    lateinit var eventStreamQueryService: EventStreamQueryService
+    lateinit var eventStreamQueryBackendFactory: EventStreamQueryBackendFactory
+    lateinit var eventStreamQueryBackend: EventStreamQueryBackend
 
     @BeforeEach
     open fun setup() {
         eventStore = createEventStore().meteredForTck()
-        eventStreamQueryServiceFactory = createEventStreamQueryServiceFactory()
-        eventStreamQueryService = eventStreamQueryServiceFactory.create(namedAggregate)
+        eventStreamQueryBackendFactory = createEventStreamQueryBackendFactory()
+        eventStreamQueryBackend = eventStreamQueryBackendFactory.create(namedAggregate)
     }
 
     protected abstract fun createEventStore(): EventStore
-    protected abstract fun createEventStreamQueryServiceFactory(): EventStreamQueryServiceFactory
+    protected abstract fun createEventStreamQueryBackendFactory(): EventStreamQueryBackendFactory
 
     @Test
     fun createFromCache() {
-        val queryService1 = eventStreamQueryServiceFactory.create(namedAggregate)
-        val queryService2 = eventStreamQueryServiceFactory.create(namedAggregate)
+        val queryService1 = eventStreamQueryBackendFactory.create(namedAggregate)
+        val queryService2 = eventStreamQueryBackendFactory.create(namedAggregate)
         queryService1.assert().isSameAs(queryService2)
     }
 
@@ -66,7 +71,7 @@ abstract class EventStreamQueryServiceSpec {
             condition {
                 tenantId(eventStream.aggregateId.tenantId)
             }
-        }.query(eventStreamQueryService)
+        }.query(eventStreamQueryBackend)
             .test()
             .expectNextCount(1)
             .verifyComplete()
@@ -80,7 +85,7 @@ abstract class EventStreamQueryServiceSpec {
             condition {
                 tenantId(eventStream.aggregateId.tenantId)
             }
-        }.dynamicQuery(eventStreamQueryService)
+        }.dynamicQuery(eventStreamQueryBackend)
             .test()
             .expectNextCount(1)
             .verifyComplete()
@@ -94,7 +99,7 @@ abstract class EventStreamQueryServiceSpec {
             condition {
                 tenantId(eventStream.aggregateId.tenantId)
             }
-        }.query(eventStreamQueryService)
+        }.query(eventStreamQueryBackend)
             .test()
             .expectNextCount(1)
             .verifyComplete()
@@ -108,7 +113,7 @@ abstract class EventStreamQueryServiceSpec {
             condition {
                 tenantId(eventStream.aggregateId.tenantId)
             }
-        }.dynamicQuery(eventStreamQueryService)
+        }.dynamicQuery(eventStreamQueryBackend)
             .test()
             .expectNextCount(1)
             .verifyComplete()
@@ -122,7 +127,7 @@ abstract class EventStreamQueryServiceSpec {
             condition {
                 tenantId(eventStream.aggregateId.tenantId)
             }
-        }.query(eventStreamQueryService)
+        }.query(eventStreamQueryBackend)
             .test()
             .expectNextCount(1)
             .verifyComplete()
@@ -136,7 +141,7 @@ abstract class EventStreamQueryServiceSpec {
             condition {
                 tenantId(eventStream.aggregateId.tenantId)
             }
-        }.dynamicQuery(eventStreamQueryService)
+        }.dynamicQuery(eventStreamQueryBackend)
             .test()
             .expectNextCount(1)
             .verifyComplete()
@@ -148,7 +153,7 @@ abstract class EventStreamQueryServiceSpec {
         eventStore.append(eventStream).block()
         filterExpression {
             tenantId(eventStream.aggregateId.tenantId)
-        }.count(eventStreamQueryService)
+        }.count(eventStreamQueryBackend)
             .test()
             .expectNextCount(1)
             .verifyComplete()
@@ -164,11 +169,11 @@ abstract class EventStreamQueryServiceSpec {
             expand("body")
             terms("name", "eventName")
             count("count")
-        }.query(eventStreamQueryService)
+        }.query(eventStreamQueryBackend)
             .collectList()
             .test()
             .assertNext { rows ->
-                rows.map { it.getValue<Long>("count") }.sorted().assert().containsExactly(1L, 9L)
+                rows.map { it.path("count").longValue() }.sorted().assert().containsExactly(1L, 9L)
             }
             .verifyComplete()
     }
@@ -180,9 +185,18 @@ abstract class EventStreamQueryServiceSpec {
         aggregation {
             filter { tenantId(generateGlobalId()) }
             count("count")
-        }.query(eventStreamQueryService)
+        }.query(eventStreamQueryBackend)
             .test()
-            .assertNext { it.getValue<Long>("count").assert().isZero() }
+            .assertNext { it.path("count").longValue().assert().isZero() }
             .verifyComplete()
     }
 }
+
+private fun ISingleQuery.query(backend: EventStreamQueryBackend): Mono<ObjectNode> = backend.single(this)
+private fun ISingleQuery.dynamicQuery(backend: EventStreamQueryBackend): Mono<ObjectNode> = backend.single(this)
+private fun IListQuery.query(backend: EventStreamQueryBackend): Flux<ObjectNode> = backend.list(this)
+private fun IListQuery.dynamicQuery(backend: EventStreamQueryBackend): Flux<ObjectNode> = backend.list(this)
+private fun IPagedQuery.query(backend: EventStreamQueryBackend) = backend.paged(this)
+private fun IPagedQuery.dynamicQuery(backend: EventStreamQueryBackend) = backend.paged(this)
+private fun FilterExpression.count(backend: EventStreamQueryBackend): Mono<Long> = backend.count(this)
+private fun AggregationQuery.query(backend: EventStreamQueryBackend): Flux<ObjectNode> = backend.aggregate(this)

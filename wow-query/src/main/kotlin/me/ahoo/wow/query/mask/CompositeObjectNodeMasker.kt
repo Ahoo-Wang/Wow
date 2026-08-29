@@ -11,17 +11,16 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.filter
+package me.ahoo.wow.query.mask
 
-import me.ahoo.test.asserts.assert
-import org.junit.jupiter.api.Test
+import tools.jackson.databind.node.ObjectNode
 
-class QueryTypeTest {
+interface CompositeObjectNodeMasker<MASKER : ObjectNodeMasker> : ObjectNodeMasker {
+    val maskers: List<MASKER>
+}
 
-    @Test
-    fun `query type should describe only backend operations`() {
-        QueryType.entries.assert().isEqualTo(
-            listOf(QueryType.SINGLE, QueryType.LIST, QueryType.PAGED, QueryType.COUNT, QueryType.AGGREGATION),
-        )
-    }
+class DefaultCompositeObjectNodeMasker<MASKER : ObjectNodeMasker>(
+    override val maskers: List<MASKER>,
+) : CompositeObjectNodeMasker<MASKER> {
+    override fun mask(node: ObjectNode): ObjectNode = maskers.fold(node) { masked, masker -> masker.mask(masked) }
 }

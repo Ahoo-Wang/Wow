@@ -15,7 +15,6 @@ package me.ahoo.wow.query.filter
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
@@ -24,6 +23,7 @@ import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.RewritableFilter
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.ConcurrentHashMap
 
 const val QUERY_KEY = "__QUERY__"
@@ -79,24 +79,24 @@ interface QueryContext<Q : Any, R : Any> {
         return attributes[key] as V?
     }
 
-    fun <E : Any> asSingleQuery(): QueryContext<ISingleQuery, Mono<E>> {
-        return this as QueryContext<ISingleQuery, Mono<E>>
+    fun asSingleQuery(): QueryContext<ISingleQuery, Mono<ObjectNode>> {
+        return this as QueryContext<ISingleQuery, Mono<ObjectNode>>
     }
 
-    fun <E : Any> asListQuery(): QueryContext<IListQuery, Flux<E>> {
-        return this as QueryContext<IListQuery, Flux<E>>
+    fun asListQuery(): QueryContext<IListQuery, Flux<ObjectNode>> {
+        return this as QueryContext<IListQuery, Flux<ObjectNode>>
     }
 
-    fun <E : Any> asPagedQuery(): QueryContext<IPagedQuery, Mono<PagedList<E>>> {
-        return this as QueryContext<IPagedQuery, Mono<PagedList<E>>>
+    fun asPagedQuery(): QueryContext<IPagedQuery, Mono<PagedList<ObjectNode>>> {
+        return this as QueryContext<IPagedQuery, Mono<PagedList<ObjectNode>>>
     }
 
     fun asCountQuery(): QueryContext<FilterExpression, Mono<Long>> {
         return this as QueryContext<FilterExpression, Mono<Long>>
     }
 
-    fun asAggregationQuery(): QueryContext<AggregationQuery, Flux<DynamicDocument>> {
-        return this as QueryContext<AggregationQuery, Flux<DynamicDocument>>
+    fun asAggregationQuery(): QueryContext<AggregationQuery, Flux<ObjectNode>> {
+        return this as QueryContext<AggregationQuery, Flux<ObjectNode>>
     }
 }
 

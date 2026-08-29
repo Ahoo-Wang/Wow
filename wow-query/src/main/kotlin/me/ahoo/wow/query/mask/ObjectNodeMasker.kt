@@ -14,16 +14,14 @@
 package me.ahoo.wow.query.mask
 
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
-import me.ahoo.wow.api.query.DynamicDocument
+import tools.jackson.databind.node.ObjectNode
 
-interface DataMasker
-
-interface DynamicDocumentMasker {
-    fun mask(dynamicDocument: DynamicDocument): DynamicDocument
+fun interface ObjectNodeMasker {
+    fun mask(node: ObjectNode): ObjectNode
 }
 
-interface AggregateDynamicDocumentMasker : DynamicDocumentMasker, NamedAggregateDecorator
+interface AggregateObjectNodeMasker : ObjectNodeMasker, NamedAggregateDecorator
 
-interface StateDynamicDocumentMasker : AggregateDynamicDocumentMasker
+interface StateObjectNodeMasker : AggregateObjectNodeMasker
 
-interface EventStreamDynamicDocumentMasker : AggregateDynamicDocumentMasker
+interface EventStreamObjectNodeMasker : AggregateObjectNodeMasker

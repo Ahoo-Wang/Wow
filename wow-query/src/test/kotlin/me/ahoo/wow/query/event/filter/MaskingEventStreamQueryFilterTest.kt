@@ -15,146 +15,111 @@ package me.ahoo.wow.query.event.filter
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
-import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.filter.FilterChainBuilder
-import me.ahoo.wow.filter.LogErrorHandler
+import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.query.dsl.listQuery
+import me.ahoo.wow.query.dsl.pagedQuery
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
-import me.ahoo.wow.query.event.EventStreamQueryGateway
-import me.ahoo.wow.query.event.EventStreamQueryService
-import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
+import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.filter.QueryContext
-import me.ahoo.wow.query.mask.EventStreamDynamicDocumentMasker
-import me.ahoo.wow.query.mask.EventStreamMaskerRegistry
-import me.ahoo.wow.serialization.MessageRecords
-import me.ahoo.wow.serialization.toJsonString
-import me.ahoo.wow.serialization.toObject
+import me.ahoo.wow.query.mask.EventStreamObjectNodeMasker
+import me.ahoo.wow.query.mask.EventStreamObjectNodeMaskerRegistry
+import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.kotlin.core.publisher.toMono
-import reactor.kotlin.test.test
+import reactor.test.StepVerifier
+import tools.jackson.databind.node.ObjectNode
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicInteger
 
 class MaskingEventStreamQueryFilterTest {
-    private val eventStreamMaskerRegistry = EventStreamMaskerRegistry()
-    private val tailSnapshotQueryFilter = TailEventStreamQueryFilter(MockEventStreamQueryServiceFactory)
-    private val queryFilterChain = FilterChainBuilder<QueryContext<*, *>>()
-        .addFilters(listOf(tailSnapshotQueryFilter, MaskingEventStreamQueryFilter(eventStreamMaskerRegistry)))
-        .filterCondition(EventStreamQueryGateway::class)
-        .build()
-    private val queryGateway = DefaultEventStreamQueryGateway(
-        queryFilterChain,
-        LogErrorHandler()
-    )
+    @Test
+    fun `event stream mask should run once for typed and dynamic document operations only`() {
+        val calls = AtomicInteger()
+        val gateway = gateway(
+            masker { node ->
+                calls.incrementAndGet()
+                node
+            },
+        )
 
-    init {
-        eventStreamMaskerRegistry.register(MockEventStreamMasker)
+        gateway.single(singleQuery { }).block().assert().isNotNull()
+        gateway.dynamicSingle(singleQuery { }).block().assert().isNotNull()
+        gateway.list(listQuery { }).single().block().assert().isNotNull()
+        gateway.dynamicList(listQuery { }).single().block().assert().isNotNull()
+        gateway.paged(pagedQuery { }).block()!!.list.assert().hasSize(1)
+        gateway.dynamicPaged(pagedQuery { }).block()!!.list.assert().hasSize(1)
+        calls.get().assert().isEqualTo(6)
+
+        gateway.count(MatchAllFilter).block().assert().isOne()
+        gateway.aggregate(AggregationQuery(metrics = listOf(AggregationMetric.Count("count")))).single().block()
+        calls.get().assert().isEqualTo(6)
     }
 
     @Test
-    fun `should mask dynamic event stream list results`() {
-        val query = listQuery { }
-        queryGateway.dynamicList(MOCK_AGGREGATE_METADATA, query)
-            .test()
-            .consumeNextWith {
-                it.assert().doesNotContainKey(MessageRecords.CONTEXT_NAME)
-            }
-            .verifyComplete()
+    fun `invalid event envelope mask should fail typed materialization`() {
+        val handled = CopyOnWriteArrayList<Throwable>()
+        val gateway = gateway(
+            masker { node ->
+                node.remove("body")
+                node
+            },
+            ErrorHandler { _, error ->
+                handled += error
+                Mono.empty()
+            },
+        )
+
+        gateway.dynamicSingle(singleQuery { }).block()!!.has("body").assert().isFalse()
+        StepVerifier.create(gateway.single(singleQuery { })).expectError().verify()
+        handled.assert().hasSize(1)
     }
 
-    @Test
-    fun `should mask dynamic single event stream result`() {
-        val query = singleQuery { }
-        queryGateway.dynamicSingle(MOCK_AGGREGATE_METADATA, query)
-            .test()
-            .consumeNextWith {
-                it.assert().doesNotContainKey(MessageRecords.CONTEXT_NAME)
-            }
-            .verifyComplete()
+    private fun gateway(
+        masker: EventStreamObjectNodeMasker,
+        errorHandler: ErrorHandler<QueryContext<*, *>> = ErrorHandler { _, error -> Mono.error(error) },
+    ): DefaultEventStreamQueryGateway {
+        val registry = EventStreamObjectNodeMaskerRegistry().apply { register(masker) }
+        return DefaultEventStreamQueryGateway(
+            MOCK_AGGREGATE_METADATA,
+            Backend,
+            listOf(MaskingEventStreamQueryFilter(registry)),
+            errorHandler,
+        )
     }
 
-    @Test
-    fun `should mask dynamic paged event stream results`() {
-        val pagedQuery = me.ahoo.wow.query.dsl.pagedQuery { }
-        queryGateway.dynamicPaged(MOCK_AGGREGATE_METADATA, pagedQuery)
-            .test()
-            .consumeNextWith {
-                it.total.assert().isOne()
-                it.list.first().assert().doesNotContainKey(MessageRecords.CONTEXT_NAME)
-            }
-            .verifyComplete()
+    private fun masker(mask: (ObjectNode) -> ObjectNode) = object : EventStreamObjectNodeMasker {
+        override val namedAggregate: NamedAggregate = MOCK_AGGREGATE_METADATA
+        override fun mask(node: ObjectNode): ObjectNode = mask(node)
     }
 
-    @Test
-    fun `should return count without masking`() {
-        queryGateway.count(MOCK_AGGREGATE_METADATA, MatchAllFilter)
-            .test()
-            .consumeNextWith {
-                it.assert().isOne()
-            }
-            .verifyComplete()
-    }
-}
-
-object MockEventStreamMasker : EventStreamDynamicDocumentMasker {
-    override val namedAggregate: NamedAggregate
-        get() = MockEventStreamQueryService.namedAggregate
-
-    override fun mask(dynamicDocument: DynamicDocument): DynamicDocument {
-        dynamicDocument.remove(MessageRecords.CONTEXT_NAME)
-        return dynamicDocument
-    }
-}
-
-object MockEventStreamQueryServiceFactory : EventStreamQueryServiceFactory {
-    override fun create(namedAggregate: NamedAggregate): EventStreamQueryService {
-        return MockEventStreamQueryService
-    }
-}
-
-object MockEventStreamQueryService : EventStreamQueryService {
-    override val namedAggregate: NamedAggregate
-        get() = MOCK_AGGREGATE_METADATA
-    private val eventStream = generateEventStream(MOCK_AGGREGATE_METADATA.aggregateId(generateGlobalId()))
-
-    private val dynamicDocument = eventStream.toJsonString().toObject<MutableMap<String, Any?>>().toDynamicDocument()
-    override fun single(singleQuery: ISingleQuery): Mono<DomainEventStream> {
-        return Mono.just(eventStream)
+    private object Backend : EventStreamQueryBackend {
+        override val namedAggregate: NamedAggregate = MOCK_AGGREGATE_METADATA
+        override fun single(query: ISingleQuery): Mono<ObjectNode> = Mono.fromSupplier(::eventNode)
+        override fun list(query: IListQuery): Flux<ObjectNode> = Flux.defer { Flux.just(eventNode()) }
+        override fun paged(
+            query: IPagedQuery
+        ): Mono<PagedList<ObjectNode>> = Mono.fromSupplier { PagedList(1, listOf(eventNode())) }
+        override fun count(filter: FilterExpression): Mono<Long> = Mono.just(1)
+        override fun aggregate(query: AggregationQuery): Flux<ObjectNode> = Flux.just("""{"count":1}""".toJsonNode())
     }
 
-    override fun dynamicSingle(singleQuery: ISingleQuery): Mono<DynamicDocument> {
-        return Mono.just(dynamicDocument)
-    }
-
-    override fun list(listQuery: IListQuery): Flux<DomainEventStream> {
-        return Flux.just(eventStream)
-    }
-
-    override fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument> {
-        return Flux.just(dynamicDocument)
-    }
-
-    override fun paged(pagedQuery: IPagedQuery): Mono<PagedList<DomainEventStream>> {
-        return Mono.just(PagedList(1, listOf(eventStream)))
-    }
-
-    override fun dynamicPaged(pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>> {
-        return Mono.just(PagedList(1, listOf(dynamicDocument)))
-    }
-
-    override fun count(filter: me.ahoo.wow.api.query.FilterExpression): Mono<Long> {
-        return 1L.toMono()
+    private companion object {
+        fun eventNode(): ObjectNode = generateEventStream(
+            MOCK_AGGREGATE_METADATA.aggregateId(generateGlobalId()),
+        ).toJsonNode()
     }
 }

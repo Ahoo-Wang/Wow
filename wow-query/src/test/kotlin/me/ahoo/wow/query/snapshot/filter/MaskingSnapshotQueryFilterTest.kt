@@ -13,231 +13,154 @@
 
 package me.ahoo.wow.query.snapshot.filter
 
-import io.mockk.spyk
-import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
-import me.ahoo.wow.filter.FilterChainBuilder
-import me.ahoo.wow.filter.LogErrorHandler
-import me.ahoo.wow.modeling.toNamedAggregate
+import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.query.dsl.listQuery
+import me.ahoo.wow.query.dsl.pagedQuery
 import me.ahoo.wow.query.dsl.singleQuery
-import me.ahoo.wow.query.filter.DefaultQueryContext
 import me.ahoo.wow.query.filter.QueryContext
-import me.ahoo.wow.query.filter.QueryType
-import me.ahoo.wow.query.mask.DataMasking
-import me.ahoo.wow.query.mask.StateDataMaskerRegistry
-import me.ahoo.wow.query.mask.StateDynamicDocumentMasker
+import me.ahoo.wow.query.mask.StateObjectNodeMasker
+import me.ahoo.wow.query.mask.StateObjectNodeMaskerRegistry
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
-import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
-import me.ahoo.wow.query.snapshot.SnapshotQueryService
-import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
-import me.ahoo.wow.query.snapshot.filter.MaskingSnapshotQueryFilterTest.DataMaskable.Companion.MASKED_PWD
-import me.ahoo.wow.serialization.toJsonString
-import me.ahoo.wow.serialization.toObject
+import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
+import me.ahoo.wow.serialization.JsonSerializer
+import me.ahoo.wow.serialization.toJsonNode
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.kotlin.core.publisher.toMono
-import reactor.kotlin.test.test
+import reactor.test.StepVerifier
+import tools.jackson.databind.node.ObjectNode
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicInteger
 
 class MaskingSnapshotQueryFilterTest {
-    private val tailSnapshotQueryFilter = TailSnapshotQueryFilter<Any>(MockSnapshotQueryServiceFactory)
-    private val stateDataMaskerRegistry = StateDataMaskerRegistry()
-    private val snapshotQueryFilterChain = FilterChainBuilder<QueryContext<*, *>>()
-        .addFilters(listOf(tailSnapshotQueryFilter, MaskingSnapshotQueryFilter(stateDataMaskerRegistry)))
-        .filterCondition(SnapshotQueryGateway::class)
-        .build()
-    private val queryGateway = DefaultSnapshotQueryGateway(
-        snapshotQueryFilterChain,
-        LogErrorHandler()
-    )
-
-    init {
-        stateDataMaskerRegistry.register(MockSnapshotMasker)
-    }
-
     @Test
-    fun `should mask single snapshot result`() {
-        val query = singleQuery { }
-        queryGateway.single(MockSnapshotQueryService.namedAggregate, query)
-            .test()
-            .consumeNextWith {
-                val state = it.state as DataMaskable
-                state.pwd.assert().isEqualTo(MASKED_PWD)
-            }
-            .verifyComplete()
-    }
-
-    @Test
-    fun `should mask dynamic single snapshot result`() {
-        val query = singleQuery { }
-        queryGateway.dynamicSingle(MockSnapshotQueryService.namedAggregate, query)
-            .test()
-            .consumeNextWith {
-                it.getNestedDocument("state").getValue<String>("pwd").assert().isEqualTo(MASKED_PWD)
-            }
-            .verifyComplete()
-    }
-
-    @Test
-    fun `should mask list snapshot results`() {
-        val query = listQuery { }
-        queryGateway.list(MockSnapshotQueryService.namedAggregate, query)
-            .test()
-            .consumeNextWith {
-                val state = it.state as DataMaskable
-                state.pwd.assert().isEqualTo(MASKED_PWD)
-            }
-            .verifyComplete()
-    }
-
-    @Test
-    fun `should mask dynamic list snapshot results`() {
-        val query = listQuery { }
-        queryGateway.dynamicList(MockSnapshotQueryService.namedAggregate, query)
-            .test()
-            .consumeNextWith {
-                it.getNestedDocument("state").getValue<String>("pwd").assert().isEqualTo(MASKED_PWD)
-            }
-            .verifyComplete()
-    }
-
-    @Test
-    fun `should mask paged snapshot results`() {
-        val pagedQuery = me.ahoo.wow.query.dsl.pagedQuery { }
-        queryGateway.paged(MockSnapshotQueryService.namedAggregate, pagedQuery)
-            .test()
-            .consumeNextWith {
-                it.total.assert().isOne()
-                val state = it.list.first().state as DataMaskable
-                state.pwd.assert().isEqualTo(MASKED_PWD)
-            }
-            .verifyComplete()
-    }
-
-    @Test
-    fun `should mask dynamic paged snapshot results`() {
-        val pagedQuery = me.ahoo.wow.query.dsl.pagedQuery { }
-        queryGateway.dynamicPaged(MockSnapshotQueryService.namedAggregate, pagedQuery)
-            .test()
-            .consumeNextWith {
-                it.total.assert().isOne()
-                it.list.first().getNestedDocument("state").getValue<String>("pwd").assert().isEqualTo(MASKED_PWD)
-            }
-            .verifyComplete()
-    }
-
-    @Test
-    fun `should return count without masking`() {
-        queryGateway.count(MockSnapshotQueryService.namedAggregate, MatchAllFilter)
-            .test()
-            .consumeNextWith {
-                it.assert().isOne()
-            }
-            .verifyComplete()
-    }
-
-    @Test
-    fun `aggregation should not look up a masker`() {
-        val maskerRegistry = spyk(StateDataMaskerRegistry())
-        val filter = MaskingSnapshotQueryFilter(maskerRegistry)
-        val context = DefaultQueryContext<AggregationQuery, Flux<DynamicDocument>>(
-            QueryType.AGGREGATION,
-            MockSnapshotQueryService.namedAggregate,
-        ).setQuery(AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))))
-
-        filter.filter(context) { Mono.empty() }.test().verifyComplete()
-
-        verify(exactly = 0) { maskerRegistry.getAggregateDataMasker(any()) }
-    }
-
-    data class DataMaskable(val pwd: String) : DataMasking<DataMaskable> {
-        companion object {
-            const val MASKED_PWD = "******"
-        }
-
-        override fun mask(): DataMaskable {
-            return copy(pwd = MASKED_PWD)
-        }
-    }
-
-    object MockSnapshotMasker : StateDynamicDocumentMasker {
-        override val namedAggregate: NamedAggregate
-            get() = MockSnapshotQueryService.namedAggregate
-
-        override fun mask(dynamicDocument: DynamicDocument): DynamicDocument {
-            dynamicDocument.getNestedDocument("state").put("pwd", MASKED_PWD)
-            return dynamicDocument
-        }
-    }
-
-    object MockSnapshotQueryServiceFactory : SnapshotQueryServiceFactory {
-        override fun <S : Any> create(namedAggregate: NamedAggregate): SnapshotQueryService<S> {
-            @Suppress("UNCHECKED_CAST")
-            return MockSnapshotQueryService as SnapshotQueryService<S>
-        }
-    }
-
-    object MockSnapshotQueryService : SnapshotQueryService<DataMaskable> {
-        override val name: String
-            get() = "mock"
-        override val namedAggregate: NamedAggregate
-            get() = "test.masking".toNamedAggregate()
-        private val snapshot = MaterializedSnapshot(
-            contextName = "contextName",
-            aggregateName = "aggregateName",
-            tenantId = "tenantId",
-            aggregateId = "aggregateId",
-            version = 1,
-            eventId = "eventId",
-            firstOperator = "firstOperator",
-            operator = "operator",
-            firstEventTime = 1,
-            eventTime = 1,
-            state = DataMaskable("pwd"),
-            snapshotTime = 1,
-            deleted = false
+    fun `mask should run before typed materialization exactly once for document operations`() {
+        val calls = AtomicInteger()
+        val gateway = gateway(
+            masker { node ->
+                calls.incrementAndGet()
+                node.withObject("state").put("secret", "***")
+                node
+            },
         )
 
-        private val dynamicDocument = snapshot.toJsonString().toObject<MutableMap<String, Any>>().toDynamicDocument()
+        gateway.single(singleQuery { }).block()!!.state.secret.assert().isEqualTo("***")
+        gateway.dynamicSingle(
+            singleQuery { }
+        ).block()!!.path("state").path("secret").textValue().assert().isEqualTo("***")
+        gateway.list(listQuery { }).single().block()!!.state.secret.assert().isEqualTo("***")
+        gateway.dynamicList(
+            listQuery { }
+        ).single().block()!!.path("state").path("secret").textValue().assert().isEqualTo("***")
+        gateway.paged(pagedQuery { }).block()!!.list.single().state.secret.assert().isEqualTo("***")
+        gateway.dynamicPaged(pagedQuery { }).block()!!.list.single().path("state").path("secret").textValue()
+            .assert().isEqualTo("***")
+        calls.get().assert().isEqualTo(6)
+    }
 
-        override fun single(singleQuery: ISingleQuery): Mono<MaterializedSnapshot<DataMaskable>> {
-            return snapshot.toMono()
-        }
+    @Test
+    fun `count and aggregation should never mask`() {
+        val calls = AtomicInteger()
+        val gateway = gateway(
+            masker { node ->
+                calls.incrementAndGet()
+                node
+            },
+        )
 
-        override fun dynamicSingle(singleQuery: ISingleQuery): Mono<DynamicDocument> {
-            return dynamicDocument.toMono()
-        }
+        gateway.count(MatchAllFilter).block().assert().isOne()
+        gateway.aggregate(AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))))
+            .single().block()!!.path("count").longValue().assert().isOne()
+        calls.get().assert().isZero()
+    }
 
-        override fun list(listQuery: IListQuery): Flux<MaterializedSnapshot<DataMaskable>> {
-            return Flux.just(snapshot)
-        }
+    @Test
+    fun `invalid envelope mask should expose dynamic output and fail closed for typed query`() {
+        val handled = CopyOnWriteArrayList<Throwable>()
+        val gateway = gateway(
+            masker { node ->
+                node.remove("state")
+                node
+            },
+            ErrorHandler { _, error ->
+                handled += error
+                Mono.empty()
+            },
+        )
 
-        override fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument> {
-            return Flux.just(dynamicDocument)
-        }
+        gateway.dynamicSingle(singleQuery { }).block()!!.has("state").assert().isFalse()
+        StepVerifier.create(gateway.single(singleQuery { })).expectError().verify()
+        handled.assert().hasSize(1)
+    }
 
-        override fun paged(pagedQuery: IPagedQuery): Mono<PagedList<MaterializedSnapshot<DataMaskable>>> {
-            return PagedList(1, listOf(snapshot)).toMono()
-        }
+    @Test
+    fun `mask failure should cross the gateway error boundary unchanged`() {
+        val original = IllegalStateException("mask")
+        val handled = CopyOnWriteArrayList<Throwable>()
+        val gateway = gateway(
+            masker { throw original },
+            ErrorHandler { _, error ->
+                handled += error
+                Mono.empty()
+            },
+        )
 
-        override fun dynamicPaged(pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>> {
-            return PagedList(1, listOf(dynamicDocument)).toMono()
-        }
+        StepVerifier.create(gateway.dynamicSingle(singleQuery { }))
+            .expectErrorMatches { it === original }
+            .verify()
+        handled.single().assert().isSameAs(original)
+    }
 
-        override fun count(filter: me.ahoo.wow.api.query.FilterExpression): Mono<Long> {
-            return 1L.toMono()
-        }
+    private fun gateway(
+        masker: StateObjectNodeMasker,
+        errorHandler: ErrorHandler<QueryContext<*, *>> = ErrorHandler { _, error -> Mono.error(error) },
+    ): DefaultSnapshotQueryGateway<State> {
+        val registry = StateObjectNodeMaskerRegistry().apply { register(masker) }
+        return DefaultSnapshotQueryGateway(
+            MOCK_AGGREGATE_METADATA,
+            Backend,
+            JsonSerializer.typeFactory.constructParametricType(MaterializedSnapshot::class.java, State::class.java),
+            listOf(MaskingSnapshotQueryFilter(registry)),
+            errorHandler,
+        )
+    }
+
+    private fun masker(mask: (ObjectNode) -> ObjectNode) = object : StateObjectNodeMasker {
+        override val namedAggregate: NamedAggregate = MOCK_AGGREGATE_METADATA
+        override fun mask(node: ObjectNode): ObjectNode = mask(node)
+    }
+
+    private object Backend : SnapshotQueryBackend {
+        override val namedAggregate: NamedAggregate = MOCK_AGGREGATE_METADATA
+        override val name: String = "mask"
+        override fun single(query: ISingleQuery): Mono<ObjectNode> = Mono.fromSupplier(::snapshotNode)
+        override fun list(query: IListQuery): Flux<ObjectNode> = Flux.defer { Flux.just(snapshotNode()) }
+        override fun paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> =
+            Mono.fromSupplier { PagedList(1, listOf(snapshotNode())) }
+        override fun count(filter: FilterExpression): Mono<Long> = Mono.just(1)
+        override fun aggregate(query: AggregationQuery): Flux<ObjectNode> = Flux.just("""{"count":1}""".toJsonNode())
+    }
+
+    private data class State(val secret: String)
+
+    private companion object {
+        fun snapshotNode(): ObjectNode = """
+            {"contextName":"mock","aggregateName":"mock","tenantId":"tenant","ownerId":"_default_",
+             "spaceId":"_default_","aggregateId":"aggregate","version":1,"eventId":"event",
+             "firstOperator":"operator","operator":"operator","firstEventTime":1,"eventTime":1,
+             "state":{"secret":"raw"},"snapshotTime":1,"tags":{},"deleted":false}
+        """.toJsonNode()
     }
 }

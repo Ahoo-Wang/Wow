@@ -15,6 +15,11 @@ package me.ahoo.wow.tck.query
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationDateUnit
+import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.IPagedQuery
+import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
@@ -36,14 +41,12 @@ import me.ahoo.wow.query.dsl.pagedQuery
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.schema.toMetadata
-import me.ahoo.wow.query.snapshot.SnapshotQueryService
-import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
-import me.ahoo.wow.query.snapshot.count
-import me.ahoo.wow.query.snapshot.dynamicQuery
-import me.ahoo.wow.query.snapshot.query
+import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
+import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.requiredQueryModelSchemaProvider
 import me.ahoo.wow.schema.query.JsonQuerySchemaSource
 import me.ahoo.wow.serialization.JsonSerializer
+import me.ahoo.wow.serialization.convert
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockDiscount
 import me.ahoo.wow.tck.mock.MockLine
@@ -51,25 +54,28 @@ import me.ahoo.wow.tck.mock.MockOrder
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
+import tools.jackson.databind.node.ObjectNode
 import java.math.BigDecimal
 import java.time.Clock
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 
 @Suppress("LargeClass")
-abstract class SnapshotQueryServiceSpec {
+abstract class SnapshotQueryBackendSpec {
     protected val querySchemaSources: List<QuerySchemaSource> = listOf(JsonQuerySchemaSource())
     lateinit var snapshotStore: SnapshotStore
-    lateinit var snapshotQueryServiceFactory: SnapshotQueryServiceFactory
-    lateinit var snapshotQueryService: SnapshotQueryService<MockStateAggregate>
+    lateinit var snapshotQueryBackendFactory: SnapshotQueryBackendFactory
+    lateinit var snapshotQueryBackend: SnapshotQueryBackend
     lateinit var snapshot: Snapshot<MockStateAggregate>
 
     @BeforeEach
     open fun setup() {
         snapshotStore = createSnapshotStore()
-        snapshotQueryServiceFactory = createSnapshotQueryServiceFactory()
-        snapshotQueryService = snapshotQueryServiceFactory.create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+        snapshotQueryBackendFactory = createSnapshotQueryBackendFactory()
+        snapshotQueryBackend = snapshotQueryBackendFactory.create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
         val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(generateGlobalId())
         val stateAggregate =
             ConstructorStateAggregateFactory.create(MOCK_AGGREGATE_METADATA.state, aggregateId)
@@ -86,18 +92,18 @@ abstract class SnapshotQueryServiceSpec {
     protected open fun createSnapshotRepository(): SnapshotStore {
         throw UnsupportedOperationException("Override createSnapshotStore().")
     }
-    protected abstract fun createSnapshotQueryServiceFactory(): SnapshotQueryServiceFactory
+    protected abstract fun createSnapshotQueryBackendFactory(): SnapshotQueryBackendFactory
 
     @Test
     fun createFromCache() {
-        val queryService1 = snapshotQueryServiceFactory.create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
-        val queryService2 = snapshotQueryServiceFactory.create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+        val queryService1 = snapshotQueryBackendFactory.create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+        val queryService2 = snapshotQueryBackendFactory.create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
         queryService1.assert().isSameAs(queryService2)
     }
 
     @Test
     fun name() {
-        snapshotQueryServiceFactory.create<MockStateAggregate>(MOCK_AGGREGATE_METADATA).name.assert().isNotBlank()
+        snapshotQueryBackendFactory.create<MockStateAggregate>(MOCK_AGGREGATE_METADATA).name.assert().isNotBlank()
     }
 
     @Test
@@ -106,7 +112,7 @@ abstract class SnapshotQueryServiceSpec {
             condition {
                 id(snapshot.aggregateId.id)
             }
-        }.query(snapshotQueryService)
+        }.query(snapshotQueryBackend)
             .test()
             .expectNextCount(1)
             .verifyComplete()
@@ -124,7 +130,7 @@ abstract class SnapshotQueryServiceSpec {
             sort {
                 "version".asc()
             }
-        }.dynamicQuery(snapshotQueryService)
+        }.dynamicQuery(snapshotQueryBackend)
             .test()
             .expectNextCount(1)
             .verifyComplete()
@@ -137,7 +143,7 @@ abstract class SnapshotQueryServiceSpec {
                 id(snapshot.aggregateId.id)
             }
             limit(10)
-        }.query(snapshotQueryService)
+        }.query(snapshotQueryBackend)
             .test()
             .expectNextCount(1)
             .verifyComplete()
@@ -153,7 +159,7 @@ abstract class SnapshotQueryServiceSpec {
                 exclude("firstEventTime")
             }
             limit(10)
-        }.dynamicQuery(snapshotQueryService)
+        }.dynamicQuery(snapshotQueryBackend)
             .test()
             .expectNextCount(1)
             .verifyComplete()
@@ -165,7 +171,7 @@ abstract class SnapshotQueryServiceSpec {
             condition {
                 id(snapshot.aggregateId.id)
             }
-        }.query(snapshotQueryService)
+        }.query(snapshotQueryBackend)
             .test()
             .expectNextCount(1)
             .verifyComplete()
@@ -177,7 +183,7 @@ abstract class SnapshotQueryServiceSpec {
             condition {
                 id(snapshot.aggregateId.id)
             }
-        }.dynamicQuery(snapshotQueryService)
+        }.dynamicQuery(snapshotQueryBackend)
             .test()
             .expectNextCount(1)
             .verifyComplete()
@@ -187,7 +193,7 @@ abstract class SnapshotQueryServiceSpec {
     fun count() {
         filterExpression {
             id(snapshot.aggregateId.id)
-        }.count(snapshotQueryService)
+        }.count(snapshotQueryBackend)
             .test()
             .expectNext(1L)
             .verifyComplete()
@@ -195,7 +201,7 @@ abstract class SnapshotQueryServiceSpec {
 
     @Test
     fun `schema should expose system state and backend-neutral capabilities`() {
-        snapshotQueryService.requiredQueryModelSchemaProvider().schema()
+        snapshotQueryBackend.requiredQueryModelSchemaProvider().schema()
             .test()
             .assertNext { schema ->
                 schema.model.assert().isEqualTo(QueryModel.SNAPSHOT)
@@ -240,7 +246,7 @@ abstract class SnapshotQueryServiceSpec {
 
     @Test
     fun `schema refresh should replace and publish one new object`() {
-        val provider = snapshotQueryService.requiredQueryModelSchemaProvider()
+        val provider = snapshotQueryBackend.requiredQueryModelSchemaProvider()
         provider.schema()
             .flatMap { initial ->
                 provider.refresh().flatMap { refreshed ->
@@ -262,7 +268,7 @@ abstract class SnapshotQueryServiceSpec {
             }
             sort { "state.createdAt".asc() }
             limit(10)
-        }.query(snapshotQueryService)
+        }.query(snapshotQueryBackend)
             .test()
             .expectNextCount(1)
             .verifyComplete()
@@ -273,7 +279,7 @@ abstract class SnapshotQueryServiceSpec {
         aggregation {
             dateHistogram("state.createdAt", AggregationDateUnit.DAY, "day")
             count("count")
-        }.query(snapshotQueryService)
+        }.query(snapshotQueryBackend)
             .test()
             .assertNext {
                 it.toMap().assert().isEqualTo(mapOf("day" to 0L, "count" to 1L))
@@ -291,7 +297,7 @@ abstract class SnapshotQueryServiceSpec {
             avg("version", "average")
             min("version", "minimum")
             max("version", "maximum")
-        }.query(snapshotQueryService)
+        }.query(snapshotQueryBackend)
             .test()
             .assertNext {
                 it.toMap().assert().isEqualTo(
@@ -319,7 +325,7 @@ abstract class SnapshotQueryServiceSpec {
             avg(net, "average")
             min(net, "minimum")
             max(net, "maximum")
-        }.query(snapshotQueryService)
+        }.query(snapshotQueryBackend)
             .test()
             .assertNext {
                 it.toMap().assert().isEqualTo(
@@ -345,7 +351,7 @@ abstract class SnapshotQueryServiceSpec {
             sum(field("quantity") / (field("quantity") - field("quantity")), "zeroDivision")
             sum(field("missing") * constant(1.0), "missing")
             sum(constant(Double.MAX_VALUE) * constant(2.0), "overflow")
-        }.query(snapshotQueryService)
+        }.query(snapshotQueryBackend)
             .test()
             .assertNext {
                 it.toMap().assert().isEqualTo(
@@ -367,7 +373,7 @@ abstract class SnapshotQueryServiceSpec {
             expand("state.orders")
             expand("lines")
             sum(field("samples") * constant(1.0), "total")
-        }.query(snapshotQueryService)
+        }.query(snapshotQueryBackend)
             .test()
             .assertNext { it.toMap().assert().isEqualTo(mapOf("total" to 7.0)) }
             .verifyComplete()
@@ -384,11 +390,11 @@ abstract class SnapshotQueryServiceSpec {
             histogram("quantity", 2.0, "quantityBucket")
             dateHistogram("createdAt", me.ahoo.wow.api.query.AggregationDateUnit.DAY, "day")
             count("count")
-        }.query(snapshotQueryService)
+        }.query(snapshotQueryBackend)
             .collectList()
             .test()
             .assertNext { rows ->
-                rows.map(Map<String, Any?>::toMap).assert().containsExactly(
+                rows.map(ObjectNode::toMap).assert().containsExactly(
                     mapOf(
                         "product" to "alpha",
                         "quantityBucket" to 4.0,
@@ -420,11 +426,11 @@ abstract class SnapshotQueryServiceSpec {
             expand("lines") { "productId" isIn listOf("gamma", "delta") }
             dateHistogram("createdAt", AggregationDateUnit.WEEK, "week")
             count("count")
-        }.query(snapshotQueryService)
+        }.query(snapshotQueryBackend)
             .collectList()
             .test()
             .assertNext { rows ->
-                rows.map(Map<String, Any?>::toMap).assert().containsExactly(
+                rows.map(ObjectNode::toMap).assert().containsExactly(
                     mapOf("week" to 1_769_385_600_000L, "count" to 1L),
                     mapOf("week" to 1_769_990_400_000L, "count" to 1L),
                 )
@@ -440,11 +446,11 @@ abstract class SnapshotQueryServiceSpec {
             expand("lines") { "productId" eq "beta" }
             dateHistogram("createdAt", AggregationDateUnit.SECOND, "second")
             count("count")
-        }.query(snapshotQueryService)
+        }.query(snapshotQueryBackend)
             .collectList()
             .test()
             .assertNext { rows ->
-                rows.map(Map<String, Any?>::toMap).assert().containsExactly(
+                rows.map(ObjectNode::toMap).assert().containsExactly(
                     mapOf("second" to Instant.parse("2026-01-02T10:00:00Z").toEpochMilli(), "count" to 1L),
                     mapOf("second" to Instant.parse("2026-01-02T18:00:00Z").toEpochMilli(), "count" to 1L),
                 )
@@ -462,11 +468,11 @@ abstract class SnapshotQueryServiceSpec {
             filter { aggregateIds("decimal-a", "decimal-b") }
             terms("state.decimalValue", "decimal")
             count("count")
-        }.query(snapshotQueryService)
+        }.query(snapshotQueryBackend)
             .collectList()
             .test()
             .assertNext { rows ->
-                rows.map(Map<String, Any?>::toMap).assert().containsExactly(
+                rows.map(ObjectNode::toMap).assert().containsExactly(
                     mapOf("decimal" to 1.25, "count" to 1L),
                     mapOf("decimal" to 2.5, "count" to 1L),
                 )
@@ -480,7 +486,7 @@ abstract class SnapshotQueryServiceSpec {
             any("state.data", "anyData")
             count("count")
             sum("version", "total")
-        }.query(snapshotQueryService)
+        }.query(snapshotQueryBackend)
             .test()
             .assertNext {
                 it.toMap().assert().isEqualTo(mapOf("anyData" to null, "count" to 0L, "total" to null))
@@ -497,12 +503,13 @@ abstract class SnapshotQueryServiceSpec {
             terms("productId", "productId")
             any("productName", "productName")
             count("count")
-        }.query(snapshotQueryService)
+        }.query(snapshotQueryBackend)
             .test()
             .assertNext { row ->
-                row["productId"].assert().isEqualTo("alpha")
-                setOf("Alpha", "Alpha 2026").contains(row["productName"]).assert().isTrue()
-                row["count"].assert().isEqualTo(3L)
+                val result = row.toMap()
+                result["productId"].assert().isEqualTo("alpha")
+                setOf("Alpha", "Alpha 2026").contains(result["productName"]).assert().isTrue()
+                result["count"].assert().isEqualTo(3L)
             }.verifyComplete()
     }
 
@@ -515,12 +522,13 @@ abstract class SnapshotQueryServiceSpec {
             expand("lines") { "productId" eq "gamma" }
             any("productName", "productName")
             count("count")
-        }.query(snapshotQueryService)
+        }.query(snapshotQueryBackend)
             .test()
             .assertNext { row ->
-                row.containsKey("productName").assert().isTrue()
-                row["productName"].assert().isNull()
-                row["count"].assert().isEqualTo(1L)
+                val result = row.toMap()
+                result.containsKey("productName").assert().isTrue()
+                result["productName"].assert().isNull()
+                result["count"].assert().isEqualTo(1L)
             }.verifyComplete()
     }
 
@@ -536,7 +544,7 @@ abstract class SnapshotQueryServiceSpec {
             avg("amount", "average")
             min("amount", "minimum")
             max("amount", "maximum")
-        }.query(snapshotQueryService)
+        }.query(snapshotQueryBackend)
             .test()
             .assertNext {
                 it.toMap().assert().isEqualTo(
@@ -562,11 +570,13 @@ abstract class SnapshotQueryServiceSpec {
             histogram("quantity", 2.0, "quantityBucket")
             count("count")
             sort { "product".asc() }
-        }.query(snapshotQueryService)
+        }.query(snapshotQueryBackend)
             .collectList()
             .test()
             .assertNext { rows ->
-                rows.map { listOf(it["product"], it["quantityBucket"], it["count"]) }.assert().containsExactly(
+                rows.map { row ->
+                    row.toMap().let { listOf(it["product"], it["quantityBucket"], it["count"]) }
+                }.assert().containsExactly(
                     listOf("alpha", 0.0, 1L),
                     listOf("alpha", 4.0, 1L),
                     listOf("beta", 2.0, 2L),
@@ -587,7 +597,7 @@ abstract class SnapshotQueryServiceSpec {
             sum("amount", "total")
             sort { "total".desc() }
             limit(1)
-        }.query(snapshotQueryService)
+        }.query(snapshotQueryBackend)
             .test()
             .assertNext {
                 it.toMap().assert().isEqualTo(mapOf("type" to "PROMO", "total" to 8.0))
@@ -603,7 +613,7 @@ abstract class SnapshotQueryServiceSpec {
             expand("lines")
             terms("productId", "product")
             count("count")
-        }.query(snapshotQueryService)
+        }.query(snapshotQueryBackend)
             .test()
             .expectNextCount(1)
             .thenCancel()
@@ -725,3 +735,13 @@ abstract class SnapshotQueryServiceSpec {
         const val AGGREGATION_SNAPSHOT_TIME = 1_767_225_600_000L
     }
 }
+
+private fun ISingleQuery.query(backend: SnapshotQueryBackend): Mono<ObjectNode> = backend.single(this)
+private fun ISingleQuery.dynamicQuery(backend: SnapshotQueryBackend): Mono<ObjectNode> = backend.single(this)
+private fun IListQuery.query(backend: SnapshotQueryBackend): Flux<ObjectNode> = backend.list(this)
+private fun IListQuery.dynamicQuery(backend: SnapshotQueryBackend): Flux<ObjectNode> = backend.list(this)
+private fun IPagedQuery.query(backend: SnapshotQueryBackend) = backend.paged(this)
+private fun IPagedQuery.dynamicQuery(backend: SnapshotQueryBackend) = backend.paged(this)
+private fun FilterExpression.count(backend: SnapshotQueryBackend): Mono<Long> = backend.count(this)
+private fun AggregationQuery.query(backend: SnapshotQueryBackend): Flux<ObjectNode> = backend.aggregate(this)
+private fun ObjectNode.toMap(): Map<String, Any?> = convert()

@@ -15,15 +15,33 @@ package me.ahoo.wow.query.event.filter
 
 import me.ahoo.wow.api.annotation.ORDER_LAST
 import me.ahoo.wow.api.annotation.Order
+import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.query.event.EventStreamQueryGateway
-import me.ahoo.wow.query.filter.MaskingDynamicDocumentQueryFilter
-import me.ahoo.wow.query.mask.EventStreamDynamicDocumentMasker
-import me.ahoo.wow.query.mask.EventStreamMaskerRegistry
+import me.ahoo.wow.query.filter.QueryContext
+import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.mask.EventStreamObjectNodeMaskerRegistry
+import reactor.core.publisher.Mono
 
-@Suppress("UNCHECKED_CAST")
-@Order(ORDER_LAST, before = [TailEventStreamQueryFilter::class])
+@Order(ORDER_LAST)
 @FilterType(EventStreamQueryGateway::class)
 class MaskingEventStreamQueryFilter(
-    maskerRegistry: EventStreamMaskerRegistry
-) : EventStreamQueryFilter, MaskingDynamicDocumentQueryFilter<EventStreamDynamicDocumentMasker>(maskerRegistry)
+    private val maskerRegistry: EventStreamObjectNodeMaskerRegistry,
+) : EventStreamQueryFilter {
+    override fun filter(context: QueryContext<*, *>, next: FilterChain<QueryContext<*, *>>): Mono<Void> =
+        next.filter(context).then(Mono.fromRunnable { mask(context) })
+
+    private fun mask(context: QueryContext<*, *>) {
+        if (context.queryType == QueryType.COUNT || context.queryType == QueryType.AGGREGATION) return
+        val masker = maskerRegistry.getMasker(context.namedAggregate)
+        when (context.queryType) {
+            QueryType.SINGLE -> context.asSingleQuery().rewriteResult { it.map(masker::mask) }
+            QueryType.LIST -> context.asListQuery().rewriteResult { it.map(masker::mask) }
+            QueryType.PAGED -> context.asPagedQuery().rewriteResult { result ->
+                result.map { page -> PagedList(page.total, page.list.map(masker::mask)) }
+            }
+            QueryType.COUNT, QueryType.AGGREGATION -> Unit
+        }
+    }
+}

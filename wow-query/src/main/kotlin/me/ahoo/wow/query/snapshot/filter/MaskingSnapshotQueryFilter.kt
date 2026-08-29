@@ -15,75 +15,33 @@ package me.ahoo.wow.query.snapshot.filter
 
 import me.ahoo.wow.api.annotation.ORDER_LAST
 import me.ahoo.wow.api.annotation.Order
-import me.ahoo.wow.api.query.MaterializedSnapshot
+import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterType
-import me.ahoo.wow.query.filter.MaskingDynamicDocumentQueryFilter
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryType
-import me.ahoo.wow.query.mask.StateDataMaskerRegistry
-import me.ahoo.wow.query.mask.StateDynamicDocumentMasker
-import me.ahoo.wow.query.mask.tryMask
+import me.ahoo.wow.query.mask.StateObjectNodeMaskerRegistry
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import reactor.core.publisher.Mono
 
-@Order(ORDER_LAST, before = [TailSnapshotQueryFilter::class])
+@Order(ORDER_LAST)
 @FilterType(SnapshotQueryGateway::class)
-class MaskingSnapshotQueryFilter(maskerRegistry: StateDataMaskerRegistry) : SnapshotQueryFilter,
-    MaskingDynamicDocumentQueryFilter<StateDynamicDocumentMasker>(maskerRegistry) {
-    override fun filter(
-        context: QueryContext<*, *>,
-        next: FilterChain<QueryContext<*, *>>
-    ): Mono<Void> {
-        return next.filter(context).then(
-            Mono.defer {
-                mask(context)
-                Mono.empty()
-            }
-        )
-    }
+class MaskingSnapshotQueryFilter(
+    private val maskerRegistry: StateObjectNodeMaskerRegistry,
+) : SnapshotQueryFilter {
+    override fun filter(context: QueryContext<*, *>, next: FilterChain<QueryContext<*, *>>): Mono<Void> =
+        next.filter(context).then(Mono.fromRunnable { mask(context) })
 
-    @Suppress("LongMethod")
     private fun mask(context: QueryContext<*, *>) {
-        if (context.queryType == QueryType.COUNT || context.queryType == QueryType.AGGREGATION) {
-            return
-        }
-        if (context.queryType.isDynamic) {
-            maskDynamicDocument(context)
-            return
-        }
-
-        maskState(context)
-    }
-
-    private fun maskState(context: QueryContext<*, *>) {
+        if (context.queryType == QueryType.COUNT || context.queryType == QueryType.AGGREGATION) return
+        val masker = maskerRegistry.getMasker(context.namedAggregate)
         when (context.queryType) {
-            QueryType.SINGLE -> {
-                context.asSingleQuery<MaterializedSnapshot<Any>>().rewriteResult { result ->
-                    result.map {
-                        it.tryMask()
-                    }
-                }
+            QueryType.SINGLE -> context.asSingleQuery().rewriteResult { it.map(masker::mask) }
+            QueryType.LIST -> context.asListQuery().rewriteResult { it.map(masker::mask) }
+            QueryType.PAGED -> context.asPagedQuery().rewriteResult { result ->
+                result.map { page -> PagedList(page.total, page.list.map(masker::mask)) }
             }
-
-            QueryType.LIST -> {
-                context.asListQuery<MaterializedSnapshot<Any>>().rewriteResult { result ->
-                    result.map {
-                        it.tryMask()
-                    }
-                }
-            }
-
-            QueryType.PAGED -> {
-                context.asPagedQuery<MaterializedSnapshot<Any>>().rewriteResult { result ->
-                    result.map {
-                        it.tryMask()
-                    }
-                }
-            }
-
-            else -> {
-            }
+            QueryType.COUNT, QueryType.AGGREGATION -> Unit
         }
     }
 }

@@ -13,22 +13,24 @@
 
 package me.ahoo.wow.query.snapshot
 
-import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import tools.jackson.databind.node.ObjectNode
 
-fun DynamicDocument.toState(): DynamicDocument {
-    return getNestedDocument(StateAggregateRecords.STATE)
+fun ObjectNode.toState(): ObjectNode {
+    val state = path(StateAggregateRecords.STATE)
+    check(state is ObjectNode) { "Snapshot state must be an ObjectNode." }
+    return state
 }
 
 fun <S : Any> Mono<MaterializedSnapshot<S>>.toState(): Mono<S> {
     return map { it.state }
 }
 
-fun Mono<out DynamicDocument>.toStateDocument(): Mono<DynamicDocument> {
+fun Mono<out ObjectNode>.toStateDocument(): Mono<ObjectNode> {
     return map { it.toState() }
 }
 
@@ -36,7 +38,7 @@ fun <S : Any> Flux<MaterializedSnapshot<S>>.toState(): Flux<S> {
     return map { it.state }
 }
 
-fun Flux<out DynamicDocument>.toStateDocument(): Flux<DynamicDocument> {
+fun Flux<out ObjectNode>.toStateDocument(): Flux<ObjectNode> {
     return map { it.toState() }
 }
 
@@ -44,6 +46,6 @@ fun <S : Any> Mono<PagedList<MaterializedSnapshot<S>>>.toStatePagedList(): Mono<
     return map { PagedList(it.total, it.list.map { snapshot -> snapshot.state }) }
 }
 
-fun <S : DynamicDocument> Mono<PagedList<S>>.toStateDocumentPagedList(): Mono<PagedList<DynamicDocument>> {
-    return map { PagedList(it.total, it.list.map { dynamicDocument -> dynamicDocument.toState() }) }
+fun <S : ObjectNode> Mono<PagedList<S>>.toStateDocumentPagedList(): Mono<PagedList<ObjectNode>> {
+    return map { PagedList(it.total, it.list.map { node -> node.toState() }) }
 }
