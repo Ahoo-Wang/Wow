@@ -12,7 +12,6 @@
  */
 
 import { AggregationDateUnit } from "@ahoo-wang/fetcher-wow";
-import type { FilterExpression } from "@ahoo-wang/fetcher-wow";
 import { describe, expect, it } from "vitest";
 import { ExecutionFailedStatus } from "../../generated";
 import { RetryConditions } from "../Failed/RetryConditions.ts";
@@ -28,18 +27,6 @@ import {
   mergeTrendRows,
   mergePressureRows,
 } from "./analyticsQueries.ts";
-
-function filterNodeCount(expression: FilterExpression): number {
-  return (
-    1 +
-    ("operands" in expression
-      ? expression.operands.reduce(
-          (count, operand) => count + filterNodeCount(operand),
-          0,
-        )
-      : 0)
-  );
-}
 
 describe("analyticsQueries", () => {
   it("builds all summary counts from one captured now", () => {
@@ -243,7 +230,7 @@ describe("analyticsQueries", () => {
     ]);
   });
 
-  it("keeps a Top 10 status filter within the authenticated HTTP node budget", () => {
+  it("keeps ten same-kind Top 10 clusters as distinct five-field predicates", () => {
     const keys = Array.from({ length: 10 }, (_, index) => ({
       errorCode: `ERROR_${index}`,
       contextName: `context_${index}`,
@@ -252,9 +239,121 @@ describe("analyticsQueries", () => {
       functionKind: "EVENT",
     }));
 
-    expect(
-      filterNodeCount(createPressureStatusQuery(keys).filter!),
-    ).toBeLessThanOrEqual(62);
+    expect(createPressureStatusQuery(keys).filter).toEqual({
+      op: "AND",
+      operands: [
+        {
+          op: "IN",
+          field: "state.status",
+          values: ["FAILED", "PREPARED"],
+        },
+        {
+          op: "OR",
+          operands: [
+            {
+              op: "AND",
+              operands: [
+                { op: "EQ", field: "state.error.errorCode", value: "ERROR_0" },
+                { op: "EQ", field: "state.function.contextName", value: "context_0" },
+                { op: "EQ", field: "state.function.processorName", value: "Processor_0" },
+                { op: "EQ", field: "state.function.name", value: "function_0" },
+                { op: "EQ", field: "state.function.functionKind", value: "EVENT" },
+              ],
+            },
+            {
+              op: "AND",
+              operands: [
+                { op: "EQ", field: "state.error.errorCode", value: "ERROR_1" },
+                { op: "EQ", field: "state.function.contextName", value: "context_1" },
+                { op: "EQ", field: "state.function.processorName", value: "Processor_1" },
+                { op: "EQ", field: "state.function.name", value: "function_1" },
+                { op: "EQ", field: "state.function.functionKind", value: "EVENT" },
+              ],
+            },
+            {
+              op: "AND",
+              operands: [
+                { op: "EQ", field: "state.error.errorCode", value: "ERROR_2" },
+                { op: "EQ", field: "state.function.contextName", value: "context_2" },
+                { op: "EQ", field: "state.function.processorName", value: "Processor_2" },
+                { op: "EQ", field: "state.function.name", value: "function_2" },
+                { op: "EQ", field: "state.function.functionKind", value: "EVENT" },
+              ],
+            },
+            {
+              op: "AND",
+              operands: [
+                { op: "EQ", field: "state.error.errorCode", value: "ERROR_3" },
+                { op: "EQ", field: "state.function.contextName", value: "context_3" },
+                { op: "EQ", field: "state.function.processorName", value: "Processor_3" },
+                { op: "EQ", field: "state.function.name", value: "function_3" },
+                { op: "EQ", field: "state.function.functionKind", value: "EVENT" },
+              ],
+            },
+            {
+              op: "AND",
+              operands: [
+                { op: "EQ", field: "state.error.errorCode", value: "ERROR_4" },
+                { op: "EQ", field: "state.function.contextName", value: "context_4" },
+                { op: "EQ", field: "state.function.processorName", value: "Processor_4" },
+                { op: "EQ", field: "state.function.name", value: "function_4" },
+                { op: "EQ", field: "state.function.functionKind", value: "EVENT" },
+              ],
+            },
+            {
+              op: "AND",
+              operands: [
+                { op: "EQ", field: "state.error.errorCode", value: "ERROR_5" },
+                { op: "EQ", field: "state.function.contextName", value: "context_5" },
+                { op: "EQ", field: "state.function.processorName", value: "Processor_5" },
+                { op: "EQ", field: "state.function.name", value: "function_5" },
+                { op: "EQ", field: "state.function.functionKind", value: "EVENT" },
+              ],
+            },
+            {
+              op: "AND",
+              operands: [
+                { op: "EQ", field: "state.error.errorCode", value: "ERROR_6" },
+                { op: "EQ", field: "state.function.contextName", value: "context_6" },
+                { op: "EQ", field: "state.function.processorName", value: "Processor_6" },
+                { op: "EQ", field: "state.function.name", value: "function_6" },
+                { op: "EQ", field: "state.function.functionKind", value: "EVENT" },
+              ],
+            },
+            {
+              op: "AND",
+              operands: [
+                { op: "EQ", field: "state.error.errorCode", value: "ERROR_7" },
+                { op: "EQ", field: "state.function.contextName", value: "context_7" },
+                { op: "EQ", field: "state.function.processorName", value: "Processor_7" },
+                { op: "EQ", field: "state.function.name", value: "function_7" },
+                { op: "EQ", field: "state.function.functionKind", value: "EVENT" },
+              ],
+            },
+            {
+              op: "AND",
+              operands: [
+                { op: "EQ", field: "state.error.errorCode", value: "ERROR_8" },
+                { op: "EQ", field: "state.function.contextName", value: "context_8" },
+                { op: "EQ", field: "state.function.processorName", value: "Processor_8" },
+                { op: "EQ", field: "state.function.name", value: "function_8" },
+                { op: "EQ", field: "state.function.functionKind", value: "EVENT" },
+              ],
+            },
+            {
+              op: "AND",
+              operands: [
+                { op: "EQ", field: "state.error.errorCode", value: "ERROR_9" },
+                { op: "EQ", field: "state.function.contextName", value: "context_9" },
+                { op: "EQ", field: "state.function.processorName", value: "Processor_9" },
+                { op: "EQ", field: "state.function.name", value: "function_9" },
+                { op: "EQ", field: "state.function.functionKind", value: "EVENT" },
+              ],
+            },
+          ],
+        },
+      ],
+    });
   });
 
   it("rejects a pressure status query without clusters", () => {
