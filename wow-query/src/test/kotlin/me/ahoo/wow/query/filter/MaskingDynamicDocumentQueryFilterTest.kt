@@ -17,6 +17,7 @@ import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
@@ -147,5 +148,28 @@ class MaskingDynamicDocumentQueryFilterTest {
             every { filter(context) } returns Mono.empty()
         }
         filter.filter(context, chain).test().verifyComplete()
+    }
+
+    @Test
+    fun `should mask dynamic cursor result and preserve next cursor`() {
+        val maskedDoc = mutableMapOf("field" to "masked").toDynamicDocument()
+        val masker = mockk<AggregateDataMasker<AggregateDynamicDocumentMasker>> {
+            every { isEmpty() } returns false
+            every { mask(any<DynamicDocument>()) } returns maskedDoc
+        }
+        val context = DefaultQueryContext<Any, Any>(QueryType.DYNAMIC_CURSOR, MOCK_AGGREGATE_METADATA)
+        context.setResult(
+            Mono.just(CursorPage(listOf(mutableMapOf("field" to "original").toDynamicDocument()), "next"))
+        )
+        val filter = MockMaskingFilter(MockMaskerRegistry(masker))
+
+        filter.filter(context) { Mono.empty() }.test().verifyComplete()
+
+        @Suppress("UNCHECKED_CAST")
+        val result = context.getRequiredResult() as Mono<CursorPage<DynamicDocument>>
+        result.test().consumeNextWith { page ->
+            page.list.assert().containsExactly(maskedDoc)
+            page.nextCursor.assert().isEqualTo("next")
+        }.verifyComplete()
     }
 }

@@ -96,6 +96,9 @@ class HttpQueryGuardFilter(
                 }
                 return
             }
+            is ICursorQuery -> require(maxPageSize == 0 || query.size <= maxPageSize) {
+                "HTTP cursor size[${query.size}] must be between 1 and $maxPageSize."
+            }
             is IListQuery -> validateList(query)
             is IPagedQuery -> validatePage(query)
         }
@@ -215,6 +218,9 @@ class HttpQueryGuardFilter(
 
             QueryType.PAGED, QueryType.DYNAMIC_PAGED ->
                 context.asPagedQuery<Any>().rewriteResult { it.timeout(idleTimeout) }
+
+            QueryType.CURSOR, QueryType.DYNAMIC_CURSOR ->
+                context.asCursorQuery<Any>().rewriteResult { it.timeout(idleTimeout) }
 
             QueryType.COUNT -> context.asCountQuery().rewriteResult { it.timeout(idleTimeout) }
 

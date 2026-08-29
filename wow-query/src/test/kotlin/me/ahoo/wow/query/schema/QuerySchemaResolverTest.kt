@@ -31,6 +31,7 @@ import me.ahoo.wow.api.query.BeforeTodayFilter
 import me.ahoo.wow.api.query.BetweenFilter
 import me.ahoo.wow.api.query.ContainsAllFilter
 import me.ahoo.wow.api.query.ContainsFilter
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.EarlierDaysFilter
@@ -100,6 +101,35 @@ import java.util.concurrent.TimeUnit
 
 @Suppress("LargeClass")
 class QuerySchemaResolverTest {
+    @Test
+    fun `cursor query should resolve fields without decoding backend cursor payload`() {
+        val createdAt = LogicalField("state.createdAt")
+        val aggregateId = LogicalField("aggregateId")
+        val resolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    createdAt to fieldSchema(
+                        QueryCapability.SORT to "document.created_at",
+                        valueTypes = setOf(QueryValueType.INTEGER),
+                    ),
+                    aggregateId to fieldSchema(
+                        QueryCapability.SORT to "document.aggregate_id",
+                        valueTypes = setOf(QueryValueType.STRING),
+                    ),
+                ),
+            ),
+        )
+        val query = CursorQuery(
+            MatchAllFilter,
+            sort = listOf(Sort(createdAt.value, Sort.Direction.ASC), Sort(aggregateId.value, Sort.Direction.ASC)),
+            cursor = "backend-owned-token",
+        )
+
+        val resolved = resolver.resolve(query).requireAccepted(QuerySchemaValidationMode.STRICT)
+        resolved.sort.map(Sort::field).assert().containsExactly("document.created_at", "document.aggregate_id")
+        resolved.cursor.assert().isEqualTo("backend-owned-token")
+    }
+
     @Test
     fun `filter capability matrix should rewrite exact literal range and presence fields`() {
         val field = LogicalField("state.value")

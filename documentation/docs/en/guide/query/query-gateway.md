@@ -41,7 +41,9 @@ sequenceDiagram
 
 The Gateway creates an independent `QueryContext` for every subscription, so separate subscriptions to the same reactive Publisher do not share the query, result, or attributes. The context holds the aggregate identity, query object, result, and `QueryType` for filters that rewrite queries or results.
 
-`QueryType` covers single, list, paged, count, aggregation, and dynamic-document forms; concrete query models, entry points, and protocol exposure can still differ.
+`QueryType` covers single, list, cursor, paged, count, aggregation, and dynamic-document forms; concrete query models, entry points, and protocol exposure can still differ. Cursor requests pass through the same Gateway/filter chain. Callers must preserve filter and sort across later requests, but the cursor carries no fingerprint for either and the server does not validate that binding. The server reapplies request-scope/security filters, then the selected backend decrypts and validates cursor structure, arity, and physical value kinds.
+
+`CURSOR` and `DYNAMIC_CURSOR` are new public enum members. External exhaustive `when` expressions over `QueryType` without an `else` must add both branches during migration; this feature does not claim complete source compatibility for those callers.
 
 ## Snapshot and event-stream filter chains
 

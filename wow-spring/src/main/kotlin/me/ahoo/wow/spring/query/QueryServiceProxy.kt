@@ -15,8 +15,10 @@ package me.ahoo.wow.spring.query
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
@@ -73,6 +75,11 @@ internal abstract class QueryServiceProxy<R : Any>(
 
     override fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument> =
         gateway.dynamicList(namedAggregate, listQuery)
+
+    override fun cursor(query: ICursorQuery): Mono<CursorPage<R>> = gateway.cursor(namedAggregate, query)
+
+    override fun dynamicCursor(query: ICursorQuery): Mono<CursorPage<DynamicDocument>> =
+        gateway.dynamicCursor(namedAggregate, query)
 
     override fun paged(pagedQuery: IPagedQuery): Mono<PagedList<R>> = gateway.paged(namedAggregate, pagedQuery)
 

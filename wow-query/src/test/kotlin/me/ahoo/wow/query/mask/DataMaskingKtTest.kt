@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.mask
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import org.junit.jupiter.api.Test
@@ -104,6 +105,20 @@ class DataMaskingKtTest {
         val pagedList = PagedList(1, listOf(snapshot))
         val masked = pagedList.tryMask()
         masked.list.first().state.pwd.assert().isEqualTo("******")
+    }
+
+    @Test
+    fun `should mask cursor page items and preserve next cursor`() {
+        val snapshot = MaterializedSnapshot(
+            contextName = "contextName", aggregateName = "aggregateName", tenantId = "tenantId", aggregateId = "aggregateId",
+            version = 1, eventId = "eventId", firstOperator = "firstOperator", operator = "operator",
+            firstEventTime = 1, eventTime = 1, state = MockMaskingData("pwd"), snapshotTime = 1, deleted = false,
+        )
+
+        val masked = CursorPage(listOf(snapshot), "next").tryMask()
+
+        masked.list.first().state.pwd.assert().isEqualTo("******")
+        masked.nextCursor.assert().isEqualTo("next")
     }
 
     @Test

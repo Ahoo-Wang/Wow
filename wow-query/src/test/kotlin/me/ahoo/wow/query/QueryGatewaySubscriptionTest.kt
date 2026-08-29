@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
@@ -33,6 +34,7 @@ import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.Filter
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.SimpleFilterChain
+import me.ahoo.wow.query.dsl.cursorQuery
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.pagedQuery
 import me.ahoo.wow.query.dsl.singleQuery
@@ -126,6 +128,8 @@ class QueryGatewaySubscriptionTest {
             QueryType.DYNAMIC_LIST to handler.dynamicList(MOCK_AGGREGATE_METADATA, listQuery { }),
             QueryType.PAGED to handler.paged(MOCK_AGGREGATE_METADATA, pagedQuery { }),
             QueryType.DYNAMIC_PAGED to handler.dynamicPaged(MOCK_AGGREGATE_METADATA, pagedQuery { }),
+            QueryType.CURSOR to handler.cursor(MOCK_AGGREGATE_METADATA, cursorQuery { }),
+            QueryType.DYNAMIC_CURSOR to handler.dynamicCursor(MOCK_AGGREGATE_METADATA, cursorQuery { }),
             QueryType.AGGREGATION to handler.aggregate(
                 MOCK_AGGREGATE_METADATA,
                 AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))),
@@ -213,6 +217,14 @@ class QueryGatewaySubscriptionTest {
 
                 QueryType.DYNAMIC_PAGED -> context.asPagedQuery<DynamicDocument>().setResult(
                     Mono.just(PagedList(1, listOf(mutableMapOf("result" to RESULT).toDynamicDocument())))
+                )
+
+                QueryType.CURSOR -> context.asCursorQuery<String>().setResult(
+                    Mono.just(CursorPage(listOf(RESULT), null))
+                )
+
+                QueryType.DYNAMIC_CURSOR -> context.asCursorQuery<DynamicDocument>().setResult(
+                    Mono.just(CursorPage(listOf(mutableMapOf("result" to RESULT).toDynamicDocument()), null))
                 )
 
                 QueryType.COUNT -> context.asCountQuery().setResult(Mono.just(1L))

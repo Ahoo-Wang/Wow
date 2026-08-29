@@ -7,7 +7,7 @@ description: 了解 QueryService、Spring 类型化 Bean、Factory 缓存与存�
 
 ## QueryService 契约
 
-`QueryService<R>` 是聚合查询后端契约，提供类型化（typed）与动态（dynamic）的单条（single）、列表（list）、分页（paged）、计数（count）和聚合（aggregation）操作。`SnapshotQueryService<S>` 返回 `MaterializedSnapshot<S>`，而 `EventStreamQueryService` 返回 `DomainEventStream`。聚合始终返回动态文档行；后端未支持时，默认 `aggregate` 会失败。
+`QueryService<R>` 是聚合查询后端契约，提供类型化（typed）与动态（dynamic）的单条（single）、列表（list）、游标分页（cursor）、分页（paged）、计数（count）和聚合（aggregation）操作。`SnapshotQueryService<S>` 返回 `MaterializedSnapshot<S>`，而 `EventStreamQueryService` 返回 `DomainEventStream`。聚合始终返回动态文档行；后端未支持时，默认 `aggregate` 会失败。cursor 还要求配置加密 codec，否则从第一页起返回 unsupported。
 
 ```mermaid
 flowchart TB
@@ -46,13 +46,15 @@ class OrderReader(
 
 ## QueryServiceProxy 如何路由
 
-`QueryServiceProxy` 保留后端的 `name` 与 `namedAggregate`，并把单条、列表、分页、计数和聚合操作转交相应 Gateway。代理本身不实现后端查询，也不把两个查询模型混为一个服务。
+`QueryServiceProxy` 保留后端的 `name` 与 `namedAggregate`，并把单条、列表、游标分页、分页、计数和聚合操作转交相应 Gateway。代理本身不实现后端查询，也不把两个查询模型混为一个服务。
 
 ## Factory、缓存与存储路由
 
 `SnapshotQueryServiceFactory` 与 `EventStreamQueryServiceFactory` 是原始服务的创建入口；其抽象基类按 materialized aggregate 缓存服务。Routing Factory 先查找聚合专属路由，未命中时使用默认 Factory，最终由 MongoDB、Elasticsearch 或其他已配置实现执行查询。
 
 Factory 的创建结果不经过 Gateway。应用代码应优先使用 Spring 注册的类型化服务；后端选择与物理查询编译属于存储扩展的职责。
+
+直接构造 MongoDB/Elasticsearch Factory 时，最后一个可选参数可注入 `CursorTokenCodec`；默认 `null` 保持既有源码调用可用，但 cursor 不受支持。Spring Boot 从 `wow.query.cursor.encryption-key` 创建同一合同的 codec 并传给 Snapshot/EventStream Factory。
 
 ## EventStreamQueryService Bean
 

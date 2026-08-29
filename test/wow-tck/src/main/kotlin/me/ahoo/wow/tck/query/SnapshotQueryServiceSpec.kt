@@ -14,8 +14,13 @@
 package me.ahoo.wow.tck.query
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregateIdsFilter
 import me.ahoo.wow.api.query.AggregationDateUnit
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
+import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
@@ -26,8 +31,10 @@ import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.modeling.metadata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
+import me.ahoo.wow.modeling.state.SimpleStateAggregate
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.filterExpression
@@ -181,6 +188,114 @@ abstract class SnapshotQueryServiceSpec {
             .test()
             .expectNextCount(1)
             .verifyComplete()
+    }
+
+    @Test
+    fun `cursor should traverse first middle and last pages with a stable tie breaker`() {
+        val ids = (1..5).map { "cursor-snapshot-$it" }
+        ids.forEach { saveCursorSnapshot(MockStateAggregate(id = it), version = 1) }
+
+        val query = CursorQuery(
+            filter = AggregateIdsFilter(ids),
+            sort = listOf(Sort("version", Sort.Direction.ASC)),
+            size = 2,
+        )
+        val first = query.query(snapshotQueryService).block()!!
+        val middle = query.copy(cursor = first.nextCursor).query(snapshotQueryService).block()!!
+        val last = query.copy(cursor = middle.nextCursor).query(snapshotQueryService).block()!!
+
+        first.list.map { it.aggregateId }.assert().containsExactly(ids[0], ids[1])
+        middle.list.map { it.aggregateId }.assert().containsExactly(ids[2], ids[3])
+        last.list.map { it.aggregateId }.assert().containsExactly(ids[4])
+        first.nextCursor.assert().isNotNull()
+        middle.nextCursor.assert().isNotNull()
+        last.nextCursor.assert().isNull()
+    }
+
+    @Test
+    fun `cursor should use the unique field as the default sort`() {
+        val ids = listOf("cursor-default-c", "cursor-default-a", "cursor-default-b")
+        ids.forEach { saveCursorSnapshot(MockStateAggregate(id = it), version = 1) }
+
+        val query = CursorQuery(AggregateIdsFilter(ids), size = 2)
+        val first = query.query(snapshotQueryService).block()!!
+        val second = query.copy(cursor = first.nextCursor).query(snapshotQueryService).block()!!
+
+        (first.list + second.list).map { it.aggregateId }.assert().containsExactly(*ids.sorted().toTypedArray())
+        second.nextCursor.assert().isNull()
+    }
+
+    @Test
+    fun `cursor should preserve mixed sort directions across pages`() {
+        val states = listOf(
+            MockStateAggregate(id = "cursor-mixed-a", createdAt = 30),
+            MockStateAggregate(id = "cursor-mixed-b", createdAt = 10),
+            MockStateAggregate(id = "cursor-mixed-c", createdAt = 20),
+        )
+        saveCursorSnapshot(states[0], version = 1)
+        saveCursorSnapshot(states[1], version = 1)
+        saveCursorSnapshot(states[2], version = 2)
+
+        val query = CursorQuery(
+            filter = AggregateIdsFilter(states.map(MockStateAggregate::id)),
+            sort = listOf(
+                Sort("version", Sort.Direction.ASC),
+                Sort("state.createdAt", Sort.Direction.DESC),
+            ),
+            size = 2,
+        )
+        val first = query.query(snapshotQueryService).block()!!
+        val second = query.copy(cursor = first.nextCursor).query(snapshotQueryService).block()!!
+
+        (first.list + second.list).map { it.aggregateId }.assert().containsExactly(
+            "cursor-mixed-a",
+            "cursor-mixed-b",
+            "cursor-mixed-c",
+        )
+    }
+
+    @Test
+    fun `cursor should continue after null and missing sort values`() {
+        val ids = listOf("cursor-null-a", "cursor-null-b", "cursor-null-c")
+        saveCursorDynamicSnapshot(mapOf("id" to ids[0]))
+        saveCursorDynamicSnapshot(mapOf("id" to ids[1], "cursorOrder" to null))
+        saveCursorDynamicSnapshot(mapOf("id" to ids[2], "cursorOrder" to 1))
+
+        val query = CursorQuery(
+            filter = AggregateIdsFilter(ids),
+            sort = listOf(Sort("state.cursorOrder", Sort.Direction.ASC)),
+            size = 2,
+        )
+        val first = query.dynamicQuery(snapshotQueryService).block()!!
+        val second = query.copy(cursor = first.nextCursor).dynamicQuery(snapshotQueryService).block()!!
+        val documents = first.list + second.list
+        val byId = documents.associateBy { it["aggregateId"] }
+
+        documents.map { it["aggregateId"] }.assert().containsExactly(*ids.toTypedArray())
+        byId.getValue(ids[0]).getNestedDocument("state").containsKey("cursorOrder").assert().isFalse()
+        val explicitNullState = byId.getValue(ids[1]).getNestedDocument("state")
+        explicitNullState.containsKey("cursorOrder").assert().isTrue()
+        explicitNullState["cursorOrder"].assert().isNull()
+        byId.getValue(ids[2]).getNestedDocument("state")["cursorOrder"].assert().isEqualTo(1)
+        second.nextCursor.assert().isNull()
+    }
+
+    @Test
+    fun `dynamic cursor should exclude projected sort fields without breaking continuation`() {
+        val ids = listOf("cursor-projection-a", "cursor-projection-b", "cursor-projection-c")
+        ids.forEach { saveCursorSnapshot(MockStateAggregate(id = it), version = 1) }
+        val query = CursorQuery(
+            filter = AggregateIdsFilter(ids),
+            projection = Projection(exclude = listOf("version")),
+            sort = listOf(Sort("version", Sort.Direction.ASC)),
+            size = 2,
+        )
+
+        val first = query.dynamicQuery(snapshotQueryService).block()!!
+        val second = query.copy(cursor = first.nextCursor).dynamicQuery(snapshotQueryService).block()!!
+
+        (first.list + second.list).map { it.containsKey("version") }.assert().containsExactly(false, false, false)
+        (first.list + second.list).map { it["aggregateId"] }.assert().containsExactly(*ids.toTypedArray())
     }
 
     @Test
@@ -619,6 +734,31 @@ abstract class SnapshotQueryServiceSpec {
                 ),
             ).test().verifyComplete()
         }
+    }
+
+    private fun saveCursorSnapshot(
+        state: MockStateAggregate,
+        version: Int,
+        tags: Map<String, List<String>> = emptyMap(),
+    ) {
+        snapshotStore.save(
+            SimpleSnapshot(
+                MOCK_AGGREGATE_METADATA.toStateAggregate(state, version = version, tags = tags),
+                AGGREGATION_SNAPSHOT_TIME,
+            ),
+        ).test().verifyComplete()
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun saveCursorDynamicSnapshot(state: Map<String, Any?>) {
+        val id = state.getValue("id") as String
+        val aggregate = SimpleStateAggregate(
+            aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(id),
+            metadata = MOCK_AGGREGATE_METADATA.state as StateAggregateMetadata<me.ahoo.wow.api.query.DynamicDocument>,
+            state = state.toMutableMap().toDynamicDocument(),
+            version = 1,
+        )
+        snapshotStore.save(SimpleSnapshot(aggregate, AGGREGATION_SNAPSHOT_TIME)).test().verifyComplete()
     }
 
     private fun aggregationStates(): List<MockStateAggregate> = listOf(aggregationStateA(), aggregationStateB())

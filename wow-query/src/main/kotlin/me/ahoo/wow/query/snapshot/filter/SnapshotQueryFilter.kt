@@ -76,6 +76,14 @@ class TailSnapshotQueryFilter<S : Any>(private val queryServiceFactory: Snapshot
                 }
             }
 
+            QueryType.CURSOR -> {
+                context.asCursorQuery<MaterializedSnapshot<S>>().setResult(queryService::cursor)
+            }
+
+            QueryType.DYNAMIC_CURSOR -> {
+                context.asCursorQuery<DynamicDocument>().setResult(queryService::dynamicCursor)
+            }
+
             QueryType.COUNT -> {
                 val query = context.getQuery()
                 val result = if (query is FilterExpression) {

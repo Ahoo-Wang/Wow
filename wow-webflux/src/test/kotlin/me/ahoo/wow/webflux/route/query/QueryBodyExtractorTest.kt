@@ -19,6 +19,7 @@ import io.mockk.slot
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ListQuery
@@ -34,8 +35,10 @@ import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.filter.Contexts.getRawRequest
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
+import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
+import me.ahoo.wow.webflux.route.snapshot.CursorQuerySnapshotStateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.SnapshotAggregationHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
@@ -57,6 +60,85 @@ import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 
 class QueryBodyExtractorTest {
+
+    @Test
+    fun `cursor body should reject unknown properties`() {
+        cursorClient().post().uri("/sku/snapshot/cursor")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("""{"filter":{"op":"MATCH_ALL"},"size":10,"unexpected":true}""")
+            .exchange()
+            .expectStatus().isBadRequest
+            .expectHeader().valueEquals(ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
+    }
+
+    @Test
+    fun `cursor handler should return a JSON cursor page`() {
+        val queryGateway = mockk<QueryGateway<Any>> {
+            every { dynamicCursor(any(), any()) } returns Mono.just(CursorPage(emptyList(), "next"))
+        }
+
+        val body = cursorClient(queryGateway).post().uri("/sku/snapshot/cursor")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("""{"filter":{"op":"MATCH_ALL"},"size":2}""")
+            .exchange()
+            .expectStatus().isOk
+            .expectHeader().contentTypeCompatibleWith(MediaType.APPLICATION_JSON)
+            .expectBody(String::class.java)
+            .returnResult().responseBody!!
+        val response = JsonSerializer.readTree(body)
+        response["list"].size().assert().isZero()
+        response["nextCursor"].asString().assert().isEqualTo("next")
+    }
+
+    @Test
+    fun `cursor handler should map backend cursor validation failure to HTTP 400`() {
+        val queryGateway = mockk<QueryGateway<Any>> {
+            every { dynamicCursor(any(), any()) } returns Mono.error(IllegalArgumentException("Invalid cursor."))
+        }
+
+        cursorClient(queryGateway).post().uri("/sku/snapshot/cursor")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("""{"filter":{"op":"MATCH_ALL"},"cursor":"malformed"}""")
+            .exchange()
+            .expectStatus().isBadRequest
+            .expectHeader().valueEquals(ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
+    }
+
+    @Test
+    fun `snapshot state cursor handler should preserve next cursor`() {
+        val queryGateway = mockk<SnapshotQueryGateway> {
+            every { dynamicCursor(any(), any()) } returns Mono.just(
+                CursorPage(
+                    listOf(mutableMapOf("state" to mutableMapOf("id" to "sku-1")).toDynamicDocument()),
+                    "next",
+                ),
+            )
+        }
+        val handler = CursorQuerySnapshotStateHandlerFunctionFactory(
+            queryGateway,
+            DefaultRewriteRequestFilter,
+            WebFluxRequestExceptionHandler(),
+        ).create(
+            testAggregateRouteContract(
+                BuiltInHttpRouteHandlerKeys.Snapshot.CURSOR_QUERY_STATE,
+                RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
+            ),
+        )
+        val client = WebTestClient.bindToRouterFunction(
+            route(POST("/sku/snapshot/cursor/state"), handler),
+        ).build()
+
+        val body = client.post().uri("/sku/snapshot/cursor/state")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("""{"filter":{"op":"MATCH_ALL"},"size":2}""")
+            .exchange()
+            .expectStatus().isOk
+            .expectBody(String::class.java)
+            .returnResult().responseBody!!
+        val response = JsonSerializer.readTree(body)
+        response["list"][0]["id"].asString().assert().isEqualTo("sku-1")
+        response["nextCursor"].asString().assert().isEqualTo("next")
+    }
 
     @Test
     fun `aggregation body should default omitted filter and reject legacy condition or invalid filter`() {
@@ -488,6 +570,21 @@ class QueryBodyExtractorTest {
                 ),
             )
             return WebTestClient.bindToRouterFunction(route(POST("/sku/snapshot/count"), handler)).build()
+        }
+
+        private fun cursorClient(queryGateway: QueryGateway<*> = RouteTestFixtures.snapshotQueryGateway): WebTestClient {
+            val handler = CursorQueryHandlerFunctionFactory(
+                BuiltInHttpRouteHandlerKeys.Snapshot.CURSOR_QUERY,
+                queryGateway,
+                DefaultRewriteRequestFilter,
+                WebFluxRequestExceptionHandler(),
+            ).create(
+                testAggregateRouteContract(
+                    BuiltInHttpRouteHandlerKeys.Snapshot.CURSOR_QUERY,
+                    RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
+                ),
+            )
+            return WebTestClient.bindToRouterFunction(route(POST("/sku/snapshot/cursor"), handler)).build()
         }
 
         private fun queryClients(): List<Pair<String, WebTestClient>> {

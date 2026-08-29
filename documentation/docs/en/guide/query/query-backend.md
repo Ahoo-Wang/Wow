@@ -7,7 +7,7 @@ description: Learn how QueryService, Spring typed Beans, Factory caching, and st
 
 ## QueryService contract
 
-`QueryService<R>` is the aggregate query-backend contract. It provides typed and dynamic single, list, paged, count, and aggregation operations. `SnapshotQueryService<S>` returns `MaterializedSnapshot<S>`, while `EventStreamQueryService` returns `DomainEventStream`. Aggregation always returns dynamic-document rows; the default `aggregate` fails when a backend does not support it.
+`QueryService<R>` is the aggregate query-backend contract. It provides typed and dynamic single, list, cursor, paged, count, and aggregation operations. `SnapshotQueryService<S>` returns `MaterializedSnapshot<S>`, while `EventStreamQueryService` returns `DomainEventStream`. Aggregation always returns dynamic-document rows; the default `aggregate` fails when a backend does not support it. Cursor also requires an encryption codec and is unsupported from its first page without one.
 
 ```mermaid
 flowchart TB
@@ -46,13 +46,15 @@ When a same-name Bean exists or its corresponding Gateway is unavailable, the ra
 
 ## How QueryServiceProxy routes
 
-`QueryServiceProxy` preserves the backend service's `name` and `namedAggregate`, then delegates single, list, paged, count, and aggregation to the corresponding Gateway. The proxy does not execute backend queries itself or combine the two query models into one service.
+`QueryServiceProxy` preserves the backend service's `name` and `namedAggregate`, then delegates single, list, cursor, paged, count, and aggregation to the corresponding Gateway. The proxy does not execute backend queries itself or combine the two query models into one service.
 
 ## Factories, caching, and storage routing
 
 `SnapshotQueryServiceFactory` and `EventStreamQueryServiceFactory` create raw services; their abstract base classes cache services by materialized aggregate. A Routing Factory first looks for an aggregate-specific route and otherwise uses its default Factory. MongoDB, Elasticsearch, or another configured implementation ultimately executes the query.
 
 Factory-created results do not pass through the Gateway. Application code should prefer Spring-registered typed services; backend selection and physical-query compilation belong to storage extensions.
+
+Direct MongoDB or Elasticsearch factory construction accepts an optional final `CursorTokenCodec` argument. Its source-compatible `null` default keeps existing calls valid but leaves cursor unsupported. Spring Boot creates the same codec contract from `wow.query.cursor.encryption-key` and passes it to Snapshot and EventStream factories.
 
 ## EventStreamQueryService Beans
 

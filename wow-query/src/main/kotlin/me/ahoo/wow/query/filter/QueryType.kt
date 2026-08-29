@@ -20,6 +20,8 @@ enum class QueryType(val isDynamic: Boolean) {
     DYNAMIC_LIST(true),
     PAGED(false),
     DYNAMIC_PAGED(true),
+    CURSOR(false),
+    DYNAMIC_CURSOR(true),
     COUNT(false),
     AGGREGATION(true),
 }

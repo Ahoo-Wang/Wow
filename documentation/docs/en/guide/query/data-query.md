@@ -5,7 +5,7 @@ description: Use shared query shapes to read snapshot or event-stream data.
 
 # Data Queries
 
-“Data Queries” is a documentation category, not a source type named `DataQuery`. The shared query contract consists of `SingleQuery`, `ListQuery`, `PagedQuery`, and count requests that use a `FilterExpression` directly. See [Filter Expressions](./filter-expression.md) for filter JSON and the Kotlin DSL.
+“Data Queries” is a documentation category, not a source type named `DataQuery`. The shared query contract consists of `SingleQuery`, `ListQuery`, `CursorQuery`, `PagedQuery`, and count requests that use a `FilterExpression` directly. See [Filter Expressions](./filter-expression.md) for filter JSON and the Kotlin DSL.
 
 ## Four Query Shapes
 

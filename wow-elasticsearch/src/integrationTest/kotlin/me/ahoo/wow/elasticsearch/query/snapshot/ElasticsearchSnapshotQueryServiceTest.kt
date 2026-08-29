@@ -21,6 +21,8 @@ import co.elastic.clients.elasticsearch.core.UpdateRequest
 import co.elastic.clients.elasticsearch.indices.PutMappingRequest
 import co.elastic.clients.json.JsonData
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregateIdsFilter
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.MatchAllFilter
@@ -37,8 +39,11 @@ import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
 import me.ahoo.wow.elasticsearch.TemplateInitializer.initSnapshotTemplate
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
+import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
+import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
 import me.ahoo.wow.query.dsl.aggregation
+import me.ahoo.wow.query.CursorTokenCodec
 import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.schema.DeclarationValue
 import me.ahoo.wow.query.schema.QueryFieldDeclaration
@@ -72,6 +77,7 @@ import reactor.kotlin.test.test
 import java.time.Instant
 import java.time.ZoneOffset
 import java.util.concurrent.TimeUnit
+import java.util.Base64
 
 class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     @JvmField
@@ -79,6 +85,9 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     val elasticsearch = ElasticsearchTestFixture()
 
     lateinit var elasticsearchClient: ReactiveElasticsearchClient
+    private val cursorTokenCodec = CursorTokenCodec.fromBase64Url(
+        Base64.getUrlEncoder().withoutPadding().encodeToString(ByteArray(32) { it.toByte() }),
+    )
 
     @BeforeEach
     override fun setup() {
@@ -123,6 +132,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                                 .properties("opaque") { it.`object` { field -> field.enabled(false) } }
                                 .properties("labels") { it.flattened { flattened -> flattened } }
                                 .properties("createdAt") { it.long_ { number -> number } }
+                                .properties("cursorDate") { it.date { date -> date } }
                                 .properties("unreadableNumber") {
                                     it.double_ { number -> number.index(false).docValues(false) }
                                 }.properties("epochMicros") { it.long_ { number -> number } }
@@ -175,6 +185,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
             schemaSources = querySchemaSources,
             validationMode = QuerySchemaValidationMode.COMPATIBLE,
+            cursorTokenCodec = cursorTokenCodec,
         )
 
     override fun createSnapshotStore(): SnapshotStore = ElasticsearchSnapshotStore(elasticsearchClient)
@@ -188,6 +199,49 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         ).test()
             .expectNextCount(1)
             .verifyComplete()
+    }
+
+    @Test
+    fun `cursor should reuse numeric date sort values across real pages`() {
+        val ids = listOf("date-cursor-a", "date-cursor-b", "date-cursor-c")
+        ids.forEachIndexed { index, id ->
+            snapshotStore.save(
+                SimpleSnapshot(
+                    MOCK_AGGREGATE_METADATA.toStateAggregate(MockStateAggregate(id = id), version = 1),
+                    snapshotTime = index.toLong(),
+                ),
+            ).block()
+            updateDocument(
+                id,
+                mapOf(
+                    "state" to mapOf(
+                        "id" to id,
+                        "cursorDate" to "2026-08-${index + 10}T00:00:00Z",
+                    ),
+                ),
+            )
+        }
+        val service = ElasticsearchSnapshotQueryServiceFactory(
+            elasticsearchClient = elasticsearchClient,
+            schemaSources = querySchemaSources + cursorDateSource(),
+            validationMode = QuerySchemaValidationMode.STRICT,
+            cursorTokenCodec = cursorTokenCodec,
+        ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+        val query = CursorQuery(
+            filter = AggregateIdsFilter(ids),
+            sort = listOf(Sort("state.cursorDate", Sort.Direction.ASC)),
+            size = 1,
+        )
+
+        val first = service.dynamicCursor(query).block()!!
+        val second = service.dynamicCursor(query.copy(cursor = first.nextCursor)).block()!!
+        val third = service.dynamicCursor(query.copy(cursor = second.nextCursor)).block()!!
+
+        (first.list + second.list + third.list).map { it["aggregateId"] }
+            .assert().containsExactly(*ids.toTypedArray())
+        first.nextCursor.assert().isNotNull()
+        second.nextCursor.assert().isNotNull()
+        third.nextCursor.assert().isNull()
     }
 
     @Test
@@ -728,10 +782,14 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
 
     @Suppress("UNCHECKED_CAST")
     private fun updateDocument(document: Map<String, Any>) {
+        updateDocument(snapshot.aggregateId.id, document)
+    }
+
+    private fun updateDocument(id: String, document: Map<String, Any>) {
         elasticsearchClient.update(
             UpdateRequest.of<Map<String, Any?>, Map<String, Any?>> { request ->
                 request.index(MOCK_AGGREGATE_METADATA.toSnapshotIndexName())
-                    .id(snapshot.aggregateId.id)
+                    .id(id)
                     .doc(document)
                     .refresh(Refresh.True)
             },
@@ -825,6 +883,16 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
             override fun load(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> =
                 Flux.just(QuerySchemaDeclaration(fields.toMap()))
         }
+
+    private fun cursorDateSource(): QuerySchemaSource = source(
+        LogicalField("state.cursorDate") to QueryFieldDeclaration(
+            valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
+            nullable = DeclarationValue.Set(false),
+            required = DeclarationValue.Set(true),
+            cardinality = DeclarationValue.Set(QueryCardinality.SINGLE),
+            semanticType = DeclarationValue.Set(Temporal.Date),
+        ),
+    )
 
     private fun stringField(field: String) = LogicalField(field) to QueryFieldDeclaration(
         valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),

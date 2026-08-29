@@ -5,7 +5,7 @@ description: 使用统一的查询形态读取快照或事件流数据。
 
 # 数据查询
 
-这里的“数据查询”是文档分类，不是名为 `DataQuery` 的源码类型。公共查询合同由 `SingleQuery`、`ListQuery`、`PagedQuery` 和直接使用 `FilterExpression` 的 count 组成；过滤条件的 JSON 与 Kotlin DSL 见[过滤条件](./filter-expression.md)。
+这里的“数据查询”是文档分类，不是名为 `DataQuery` 的源码类型。公共查询合同由 `SingleQuery`、`ListQuery`、`CursorQuery`、`PagedQuery` 和直接使用 `FilterExpression` 的 count 组成；过滤条件的 JSON 与 Kotlin DSL 见[过滤条件](./filter-expression.md)。
 
 ## 四种查询形态
 

@@ -21,6 +21,7 @@ import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
 import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapter
 import me.ahoo.wow.modeling.materialize
+import me.ahoo.wow.query.CursorTokenCodec
 import me.ahoo.wow.query.event.AbstractEventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.EventStreamQueryService
 import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
@@ -30,7 +31,7 @@ import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import java.time.Duration
 
-class ElasticsearchEventStreamQueryServiceFactory(
+class ElasticsearchEventStreamQueryServiceFactory @JvmOverloads constructor(
     private val elasticsearchClient: ReactiveElasticsearchClient,
     private val queryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE,
     private val queryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE,
@@ -38,6 +39,7 @@ class ElasticsearchEventStreamQueryServiceFactory(
         ElasticsearchIndexMappingResolver(elasticsearchClient),
     private val schemaSources: List<QuerySchemaSource> = emptyList(),
     private val validationMode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
+    private val cursorTokenCodec: CursorTokenCodec? = null,
 ) : AbstractEventStreamQueryServiceFactory() {
     override fun createQueryService(namedAggregate: NamedAggregate): EventStreamQueryService {
         val materialized = namedAggregate.materialize()
@@ -57,6 +59,7 @@ class ElasticsearchEventStreamQueryServiceFactory(
             queryKeepAlive = queryKeepAlive,
             schemaProvider = provider,
             validationMode = validationMode,
+            cursorTokenCodec = cursorTokenCodec,
         )
     }
 }

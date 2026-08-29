@@ -14,6 +14,9 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.CursorQuery
+import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryService
@@ -234,6 +237,22 @@ class DefaultQueryModelSchemaProviderTest {
         assertThrows<QuerySchemaUnavailableException> {
             NoOpSnapshotQueryService<Any>(CONTEXT.namedAggregate).requiredQueryModelSchemaProvider()
         }
+    }
+
+    @Test
+    fun `compatible cursor fallback should leave cursor validation to the backend`() {
+        val unavailable = object : QueryModelSchemaProvider {
+            override fun schema(): Mono<QueryModelSchema> = Mono.error(QuerySchemaUnavailableException("Unavailable."))
+            override fun refresh(): Mono<QueryModelSchema> = schema()
+        }
+        val query = CursorQuery(
+            MatchAllFilter,
+            sort = listOf(Sort("aggregateId", Sort.Direction.ASC)),
+            cursor = "not-base64",
+        )
+
+        unavailable.resolve(query, QuerySchemaValidationMode.COMPATIBLE).block()!!
+            .cursor.assert().isEqualTo("not-base64")
     }
 
     private fun provider(

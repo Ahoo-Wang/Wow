@@ -139,6 +139,23 @@ spring:
 
 Batch validation matches MongoDB. EventStore batching uses Bulk `create`. Both direct and batch SnapshotStore paths use an atomic `_source.version` guarded update so an older snapshot cannot overwrite a newer one. With `auto-init-template=true`, a failed, empty, or unacknowledged template request fails startup. Disable it only when an external platform explicitly owns templates, and retain template version and validation evidence.
 
+## Cursor Encryption
+
+Configuration class: `QueryProperties`. Built-in MongoDB and Elasticsearch CursorQuery services share this configuration.
+
+| Property | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `wow.query.cursor.encryption-key` | String? | `null` | Base64URL-encoded 32-byte AES-256-GCM key |
+
+```yaml
+wow:
+  query:
+    cursor:
+      encryption-key: ${WOW_QUERY_CURSOR_ENCRYPTION_KEY:}
+```
+
+The example references an environment variable only; never put a real key in a repository, image, document, or log. A nonblank value fails configuration deterministically unless it is valid Base64URL and decodes to exactly 32 bytes. An absent or blank value does not prevent startup and does not change existing queries such as `PageQuery`; every built-in CursorQuery, including its first page, fails explicitly with `UnsupportedOperationException`. Rotating the single key invalidates every outstanding cursor. There is no key ID, key ring, or historical-key support. Direct MongoDB or Elasticsearch JVM factory users can inject the same `CursorTokenCodec` through the final optional constructor argument; the source-compatible default keeps cursor unsupported.
+
 ## WebFlux
 
 Configuration class: `WebFluxProperties`; required capability: `webflux-support`.
@@ -150,7 +167,7 @@ Configuration class: `WebFluxProperties`; required capability: `webflux-support`
 | `wow.webflux.batch.concurrency` | Int | `1` | Concurrency for batch operation/command tasks |
 | `wow.webflux.batch.prefetch` | Int | `1` | Batch-task prefetch |
 | `wow.webflux.query.max-list-size` | Int | `1000` | List/aggregation limit; `0` removes the cap and permits limit `0` |
-| `wow.webflux.query.max-page-size` | Int | `100` | Page-size cap; `0` disables it |
+| `wow.webflux.query.max-page-size` | Int | `100` | Size cap for paged and cursor queries; `0` disables it |
 | `wow.webflux.query.max-page-window` | Long | `10000` | `page.index * page.size` cap; `0` disables it |
 | `wow.webflux.query.max-filter-nodes` | Int | `128` | FilterExpression node cap; `0` disables it |
 | `wow.webflux.query.max-filter-values` | Int | `1000` | Value-count cap for collection filters; `0` disables it |
@@ -159,6 +176,6 @@ Configuration class: `WebFluxProperties`; required capability: `webflux-support`
 | `wow.webflux.command.request.appender.agent.enabled` | Boolean | `true` | Adds `User-Agent` to command context |
 | `wow.webflux.command.request.appender.ip.enabled` | Boolean | `true` | Adds the resolved remote IP to command context |
 
-All numeric query caps must be non-negative. Ordinary page size must still be at least `1`, and page offset cannot exceed `Int.MAX_VALUE`. `allow-expensive-operators=true` is the compatibility default, not capacity evidence. Test existing requests and the upgrade path before tightening it.
+All numeric query caps must be non-negative. Paged and cursor sizes must still be at least `1`, and a paged offset cannot exceed `Int.MAX_VALUE`. CursorQuery cannot compensate for a missing index or an expensive filter: MongoDB needs a compound index matching the fixed filter and complete sort order; Elasticsearch continues with `search_after`, not a PIT, so it provides no cross-request snapshot consistency. `allow-expensive-operators=true` is the compatibility default, not capacity evidence. Test existing requests and the upgrade path before tightening it.
 
 `webflux-support` wires built-in command, event, snapshot-query, rebuild, and compensation routes. It does not provide business authentication, authorization, or management-plane isolation. Read actual paths from the runtime OpenAPI and protect modifying operation routes with authorization, audit, rate limits, and a controlled network entry point.

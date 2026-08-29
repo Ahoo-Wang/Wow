@@ -22,6 +22,8 @@ import io.mockk.mockk
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.api.query.CursorQuery
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.elasticsearch.IndexTemplateInitializer
 import me.ahoo.wow.elasticsearch.WowJsonpMapper
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStore
@@ -64,6 +66,7 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
+import java.util.Base64
 
 internal class ElasticsearchEventSourcingAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
@@ -71,6 +74,9 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
     private val metricsProvider = StaticListableBeanFactory(
         mapOf("wowMetrics" to WowMetrics.NONE)
     ).getBeanProvider(WowMetrics::class.java)
+
+    private fun encodedCursorKey(): String = Base64.getUrlEncoder().withoutPadding()
+        .encodeToString(ByteArray(32) { it.toByte() })
 
     @Test
     fun `event stream query factory should use default schema collaborators`() {
@@ -160,6 +166,42 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
             .test()
             .expectErrorSatisfies { it.assert().isSameAs(expected) }
             .verify()
+    }
+
+    @Test
+    fun `should pass configured cursor codec to Elasticsearch snapshot and event factories`() {
+        val expected = IllegalStateException("query schema source was used")
+        val configuration = ElasticsearchEventSourcingAutoConfiguration(
+            elasticsearchProperties = ElasticsearchProperties(autoInitTemplate = false),
+            eventStoreBatchProperties = ElasticsearchEventStoreBatchProperties(),
+            snapshotStoreBatchProperties = ElasticsearchSnapshotStoreBatchProperties(),
+        )
+        val client = mock(ReactiveElasticsearchClient::class.java)
+        val resolver = mockk<ElasticsearchIndexMappingResolver>()
+        val sources = listOf(failingQuerySchemaSource(expected))
+        val queryProperties = QueryProperties(
+            schema = QueryProperties.Schema(QuerySchemaValidationMode.COMPATIBLE),
+            cursor = QueryProperties.Cursor(encodedCursorKey()),
+        )
+        val snapshotFactory = configuration.elasticsearchSnapshotQueryServiceFactory(
+            client,
+            resolver,
+            sources,
+            queryProperties,
+        )
+        val eventFactory = configuration.elasticsearchEventStreamQueryServiceFactory(
+            client,
+            resolver,
+            sources,
+            queryProperties,
+        )
+
+        snapshotFactory.create<Any>(MOCK_AGGREGATE_METADATA)
+            .cursor(CursorQuery(MatchAllFilter))
+            .test().expectErrorSatisfies { it.assert().isSameAs(expected) }.verify()
+        eventFactory.create(MOCK_AGGREGATE_METADATA)
+            .cursor(CursorQuery(MatchAllFilter))
+            .test().expectErrorSatisfies { it.assert().isSameAs(expected) }.verify()
     }
 
     @Test

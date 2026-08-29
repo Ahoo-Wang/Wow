@@ -17,6 +17,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
@@ -33,6 +34,7 @@ import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
 import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapter
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.materialize
+import me.ahoo.wow.query.CursorTokenCodec
 import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaContext
@@ -41,6 +43,7 @@ import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.schema.resolve
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.serialization.JsonSerializer
+import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.convert
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
@@ -56,12 +59,14 @@ class ElasticsearchSnapshotQueryService<S : Any>(
     private val schemaProvider: QueryModelSchemaProvider =
         defaultSchemaProvider(namedAggregate, elasticsearchClient, filterConverter),
     private val validationMode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
+    protected override val cursorTokenCodec: CursorTokenCodec? = null,
 ) : AbstractElasticsearchQueryService<MaterializedSnapshot<S>>(),
     SnapshotQueryService<S>,
     QueryModelSchemaProvider by schemaProvider {
     override val name: String
         get() = ElasticsearchSnapshotStore.NAME
     override val indexName: String = namedAggregate.toSnapshotIndexName()
+    override val cursorUniqueField: String = MessageRecords.AGGREGATE_ID
 
     private val snapshotType = JsonSerializer.typeFactory
         .constructParametricType(
@@ -76,6 +81,8 @@ class ElasticsearchSnapshotQueryService<S : Any>(
     override fun resolve(query: IListQuery) = schemaProvider.resolve(query, validationMode)
 
     override fun resolve(query: IPagedQuery) = schemaProvider.resolve(query, validationMode)
+
+    override fun resolve(query: ICursorQuery) = schemaProvider.resolve(query, validationMode)
 
     override fun resolve(filter: FilterExpression) = schemaProvider.resolve(filter, validationMode)
 

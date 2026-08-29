@@ -17,17 +17,18 @@ description: 使用 wow-apiclient 的响应式、同步、类型化与独立快�
 |---|---|---|
 | `SnapshotSingleQueryApi` | single 的 typed、dynamic、state-only 合同 | `snapshot/single`、`snapshot/single/state` |
 | `SnapshotListQueryApi` | list 的 typed、dynamic、state-only 合同 | `snapshot/list`、`snapshot/list/state` |
+| `SnapshotCursorQueryApi` | cursor 的 typed、dynamic、state-only 合同 | `snapshot/cursor`、`snapshot/cursor/state` |
 | `SnapshotPagedQueryApi` | paged 的 typed、dynamic、state-only 合同 | `snapshot/paged`、`snapshot/paged/state` |
 | `SnapshotCountQueryApi` | `FilterExpression` 精确计数 | `snapshot/count` |
 | `SnapshotAggregationQueryApi` | `AggregationQuery` 动态结果行 | `snapshot/aggregation` |
-| `ReactiveSnapshotQueryApi` | 响应式组合 single、list、paged、count | 不包含 aggregation |
-| `SynchronousSnapshotQueryApi` | 同步组合 single、list、paged、count | 不包含 aggregation |
+| `ReactiveSnapshotQueryApi` | 响应式组合 single、list、paged、count | 不包含 cursor/aggregation |
+| `SynchronousSnapshotQueryApi` | 同步组合 single、list、paged、count | 不包含 cursor/aggregation |
 | `ReactiveSnapshotAggregationQueryApi` | `Flux<Map<String, Any?>>` | 独立 aggregation 客户端 |
 | `SynchronousSnapshotAggregationQueryApi` | `List<Map<String, Any?>>` | 独立 aggregation 客户端 |
 
-前五个基础接口的方法直接使用 `@PostExchange` 声明上表路径；对应的 Reactive 与 Synchronous 接口通过继承复用这些方法，普通组合接口再继承相应的细分接口。
+前六个基础接口的方法直接使用 `@PostExchange` 声明上表路径；对应的 Reactive 与 Synchronous 接口通过继承复用这些方法，普通组合接口再继承相应的细分接口。
 
-Reactive 与 Synchronous 的细分接口已经由两个普通组合接口继承。通常直接选择组合接口即可；只有客户端只需一种能力时，才单独继承细分接口，不必把每个派生接口重复声明成公共客户端。
+Reactive 与 Synchronous 的 single/list/paged/count 细分接口已经由两个普通组合接口继承。cursor 是显式 opt-in 能力：需要时额外继承 `ReactiveSnapshotCursorQueryApi<S>` 或 `SynchronousSnapshotCursorQueryApi<S>`；现有组合接口的具体实现无需新增 cursor 方法。
 
 ## 声明类型化客户端
 
@@ -36,7 +37,9 @@ Reactive 与 Synchronous 的细分接口已经由两个普通组合接口继承�
 ```kotlin
 @CoApi(baseUrl = "http://order-service:8080")
 @HttpExchange("cart")
-interface CartQueryClient : ReactiveSnapshotQueryApi<CartState>
+interface CartQueryClient :
+    ReactiveSnapshotQueryApi<CartState>,
+    ReactiveSnapshotCursorQueryApi<CartState>
 
 @CoApi(baseUrl = "http://order-service:8080")
 @HttpExchange("cart")
@@ -45,16 +48,30 @@ interface CartAggregationClient : ReactiveSnapshotAggregationQueryApi
 
 将需要物化的两个接口都注册到 `@EnableCoApi(clients = [...])`。如果 CoApi 或应用约定需要具体泛型元数据，可像仓库示例客户端一样用具体返回类型和 `@RequestBody` 重新声明方法，但不要重复方法上的路径。
 
-## 单条、列表、分页与计数
+## 单条、列表、游标分页、分页与计数
 
 | 操作 | 响应式结果 | 同步结果 |
 |---|---|---|
 | single typed / state-only / dynamic | `Mono<MaterializedSnapshot<S>>` / `Mono<S>` / `Mono<Map<String, Any>>` | 对应 nullable 值 |
 | list typed / state-only / dynamic | 对应 `Flux` | 对应 `List` |
+| cursor typed / state-only / dynamic | `Mono<CursorPage<...>>` | `CursorPage<...>` |
 | paged typed / state-only / dynamic | `Mono<PagedList<...>>` | `PagedList<...>` |
 | count | `Mono<Long>` | `Long` |
 
-`ISingleQuery`、`IListQuery`、`IPagedQuery` 分别通过 `query`、`queryState`、`dynamicQuery` 扩展执行；`FilterExpression.count` 执行计数。`getById` 与 `getStateById` 是按 `aggregateId` 构造 single 查询的便捷方法。
+`ISingleQuery`、`IListQuery`、`ICursorQuery`、`IPagedQuery` 分别通过 `query`、`queryState`、`dynamicQuery` 扩展执行；`FilterExpression.count` 执行计数。`getById` 与 `getStateById` 是按 `aggregateId` 构造 single 查询的便捷方法。
+
+```kotlin
+val query = CursorQuery(
+    filter = "state.status" eq "PAID",
+    sort = listOf(Sort("snapshotTime", Sort.Direction.DESC)),
+    size = 20,
+)
+val typed: Mono<CursorPage<MaterializedSnapshot<CartState>>> = query.query(cartQueryClient)
+val states: Mono<CursorPage<CartState>> = query.queryState(cartQueryClient)
+val dynamic: Mono<CursorPage<Map<String, Any>>> = query.dynamicQuery(cartQueryClient)
+```
+
+下一次请求复制原查询，只替换为返回的 `nextCursor`；它为 `null` 时结束。调用方必须保持相同的 filter/sort；服务端不在 token 中绑定或核对二者，只会重新应用请求作用域/安全过滤并验证后端 cursor 结构。游标结果没有 total、previous cursor 或跨请求快照一致性；服务端还必须配置 cursor encryption key。
 
 ## 完整快照、state-only 与动态结果
 
@@ -65,7 +82,7 @@ interface CartAggregationClient : ReactiveSnapshotAggregationQueryApi
 
 ## 独立的聚合客户端
 
-`ReactiveSnapshotQueryApi` 与 `SynchronousSnapshotQueryApi` 刻意不包含 aggregation。需要聚合时必须单独声明 `ReactiveSnapshotAggregationQueryApi` 或 `SynchronousSnapshotAggregationQueryApi`，并把 `AggregationQuery` 提交到 `snapshot/aggregation`：
+`ReactiveSnapshotQueryApi` 与 `SynchronousSnapshotQueryApi` 刻意不包含 cursor 与 aggregation。cursor 可在同一个客户端显式追加 cursor 接口；aggregation 仍必须单独声明 `ReactiveSnapshotAggregationQueryApi` 或 `SynchronousSnapshotAggregationQueryApi`，并把 `AggregationQuery` 提交到 `snapshot/aggregation`：
 
 ```kotlin
 val rows: Flux<Map<String, Any?>> = aggregation {
@@ -86,7 +103,7 @@ Reactive 接口使用 `Mono`/`Flux`，适合非阻塞调用链；Synchronous 接
 
 HTTP single 无匹配时返回 404。客户端提供的 `ISingleQuery.query`、`queryState`、`dynamicQuery` 以及 `getById`、`getStateById` helper 会把该 404 转换为响应式空 `Mono` 或同步 `null`。直接调用继承的 `single`、`singleState`、`dynamicSingle` 是原始 CoApi 传输调用，不经过这些 helper 的 404 转换。
 
-正常的无匹配 list 返回空 `Flux`/`List`，paged 返回 `total = 0` 且 `list = []` 的 `PagedList`，count 返回 `0`；它们不是 single 404。校验、授权、限流、超时和后端错误仍继续传播。
+正常的无匹配 list 返回空 `Flux`/`List`，cursor 返回 `list = []` 且 `nextCursor = null`，paged 返回 `total = 0` 且 `list = []` 的 `PagedList`，count 返回 `0`；它们不是 single 404。校验、授权、限流、超时和后端错误仍继续传播。
 
 ## 当前不支持的事件流客户端
 

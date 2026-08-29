@@ -18,6 +18,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
+import me.ahoo.wow.query.CursorTokenCodec
 import me.ahoo.wow.query.event.AbstractEventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.EventStreamQueryService
 import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
@@ -25,10 +26,11 @@ import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 
-class MongoEventStreamQueryServiceFactory(
+class MongoEventStreamQueryServiceFactory @JvmOverloads constructor(
     private val database: MongoDatabase,
     private val schemaSources: List<QuerySchemaSource> = emptyList(),
     private val validationMode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
+    private val cursorTokenCodec: CursorTokenCodec? = null,
 ) :
     AbstractEventStreamQueryServiceFactory() {
 
@@ -51,6 +53,7 @@ class MongoEventStreamQueryServiceFactory(
             collection = collection,
             schemaProvider = provider,
             validationMode = validationMode,
+            cursorTokenCodec = cursorTokenCodec,
         )
     }
 }

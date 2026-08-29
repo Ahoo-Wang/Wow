@@ -124,6 +124,7 @@ class MongoEventSourcingAutoConfiguration(
             eventStoreDatabase,
             sources,
             queryProperties.schema.validationMode,
+            queryProperties.cursorTokenCodec(),
         )
     }
 
@@ -198,6 +199,7 @@ class MongoEventSourcingAutoConfiguration(
             database = snapshotDatabase,
             schemaSources = sources,
             validationMode = queryProperties.schema.validationMode,
+            cursorTokenCodec = queryProperties.cursorTokenCodec(),
         )
     }
 

@@ -43,6 +43,13 @@ fun QueryModelSchemaProvider.resolve(
     .fallbackUnavailable(mode, query, !query.filter.referencesSystemTags())
 
 fun QueryModelSchemaProvider.resolve(
+    query: ICursorQuery,
+    mode: QuerySchemaValidationMode,
+): Mono<ICursorQuery> = schema()
+    .map { QuerySchemaResolver(it).resolve(query).requireAccepted(mode) }
+    .fallbackUnavailable(mode, query, !query.filter.referencesSystemTags())
+
+fun QueryModelSchemaProvider.resolve(
     filter: FilterExpression,
     mode: QuerySchemaValidationMode,
 ): Mono<FilterExpression> = schema()

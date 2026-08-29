@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.mask
 
+import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.IMaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 
@@ -56,4 +57,11 @@ fun <SOURCE : IMaterializedSnapshot<SOURCE, S>, S : Any> PagedList<SOURCE>.tryMa
         total = total,
         list = maskedList
     )
+}
+
+fun <SOURCE : IMaterializedSnapshot<SOURCE, S>, S : Any> CursorPage<SOURCE>.tryMask(): CursorPage<SOURCE> {
+    if (list.isEmpty() || list.first().state !is DataMasking<*>) {
+        return this
+    }
+    return copy(list = list.map { it.tryMask() })
 }

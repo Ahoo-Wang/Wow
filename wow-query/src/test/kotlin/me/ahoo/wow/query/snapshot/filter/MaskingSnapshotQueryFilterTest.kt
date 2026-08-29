@@ -19,7 +19,9 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
@@ -30,6 +32,7 @@ import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.modeling.toNamedAggregate
+import me.ahoo.wow.query.dsl.cursorQuery
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.filter.DefaultQueryContext
@@ -139,6 +142,24 @@ class MaskingSnapshotQueryFilterTest {
     }
 
     @Test
+    fun `should mask cursor snapshot results and preserve next cursor`() {
+        queryGateway.cursor(MockSnapshotQueryService.namedAggregate, cursorQuery { })
+            .test()
+            .consumeNextWith { page ->
+                (page.list.first().state as DataMaskable).pwd.assert().isEqualTo(MASKED_PWD)
+                page.nextCursor.assert().isEqualTo("next")
+            }
+            .verifyComplete()
+        queryGateway.dynamicCursor(MockSnapshotQueryService.namedAggregate, cursorQuery { })
+            .test()
+            .consumeNextWith { page ->
+                page.list.first().getNestedDocument("state").getValue<String>("pwd").assert().isEqualTo(MASKED_PWD)
+                page.nextCursor.assert().isEqualTo("next")
+            }
+            .verifyComplete()
+    }
+
+    @Test
     fun `should return count without masking`() {
         queryGateway.count(MockSnapshotQueryService.namedAggregate, MatchAllFilter)
             .test()
@@ -234,6 +255,14 @@ class MaskingSnapshotQueryFilterTest {
 
         override fun dynamicPaged(pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>> {
             return PagedList(1, listOf(dynamicDocument)).toMono()
+        }
+
+        override fun cursor(query: ICursorQuery): Mono<CursorPage<MaterializedSnapshot<DataMaskable>>> {
+            return CursorPage(listOf(snapshot), "next").toMono()
+        }
+
+        override fun dynamicCursor(query: ICursorQuery): Mono<CursorPage<DynamicDocument>> {
+            return CursorPage(listOf(dynamicDocument), "next").toMono()
         }
 
         override fun count(filter: me.ahoo.wow.api.query.FilterExpression): Mono<Long> {

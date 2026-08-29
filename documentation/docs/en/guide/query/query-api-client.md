@@ -17,17 +17,18 @@ These clients are snapshot-only. They do not read the runtime Query Model Schema
 |---|---|---|
 | `SnapshotSingleQueryApi` | typed, dynamic, and state-only single contracts | `snapshot/single`, `snapshot/single/state` |
 | `SnapshotListQueryApi` | typed, dynamic, and state-only list contracts | `snapshot/list`, `snapshot/list/state` |
+| `SnapshotCursorQueryApi` | typed, dynamic, and state-only cursor contracts | `snapshot/cursor`, `snapshot/cursor/state` |
 | `SnapshotPagedQueryApi` | typed, dynamic, and state-only paged contracts | `snapshot/paged`, `snapshot/paged/state` |
 | `SnapshotCountQueryApi` | exact count from a `FilterExpression` | `snapshot/count` |
 | `SnapshotAggregationQueryApi` | dynamic rows from an `AggregationQuery` | `snapshot/aggregation` |
-| `ReactiveSnapshotQueryApi` | reactive composition of single, list, paged, and count | excludes aggregation |
-| `SynchronousSnapshotQueryApi` | synchronous composition of single, list, paged, and count | excludes aggregation |
+| `ReactiveSnapshotQueryApi` | reactive composition of single, list, paged, and count | excludes cursor/aggregation |
+| `SynchronousSnapshotQueryApi` | synchronous composition of single, list, paged, and count | excludes cursor/aggregation |
 | `ReactiveSnapshotAggregationQueryApi` | `Flux<Map<String, Any?>>` | separate aggregation client |
 | `SynchronousSnapshotAggregationQueryApi` | `List<Map<String, Any?>>` | separate aggregation client |
 
-Methods on the first five base interfaces declare the listed paths directly with `@PostExchange`. Their Reactive and Synchronous interfaces reuse those methods through inheritance, and the regular composite interfaces inherit the corresponding specialized interfaces.
+Methods on the first six base interfaces declare the listed paths directly with `@PostExchange`. Their Reactive and Synchronous interfaces reuse those methods through inheritance, and the regular composite interfaces inherit the corresponding specialized interfaces.
 
-The specialized Reactive and Synchronous interfaces are already inherited by the two regular composite interfaces. Usually choose a composite interface directly; inherit one specialized interface only when a client needs that single capability. There is no need to expose every derived interface as a separate public client.
+The two regular composite interfaces inherit their Reactive or Synchronous single/list/paged/count specializations. Cursor is an explicit opt-in capability: additionally inherit `ReactiveSnapshotCursorQueryApi<S>` or `SynchronousSnapshotCursorQueryApi<S>` when needed. Existing concrete implementations of the composite interfaces do not acquire cursor methods.
 
 ## Declaring Typed Clients
 
@@ -36,7 +37,9 @@ Follow the project's existing CoApi declaration pattern and bind each interface 
 ```kotlin
 @CoApi(baseUrl = "http://order-service:8080")
 @HttpExchange("cart")
-interface CartQueryClient : ReactiveSnapshotQueryApi<CartState>
+interface CartQueryClient :
+    ReactiveSnapshotQueryApi<CartState>,
+    ReactiveSnapshotCursorQueryApi<CartState>
 
 @CoApi(baseUrl = "http://order-service:8080")
 @HttpExchange("cart")
@@ -45,16 +48,30 @@ interface CartAggregationClient : ReactiveSnapshotAggregationQueryApi
 
 Register both interfaces that CoApi must materialize in `@EnableCoApi(clients = [...])`. When CoApi or application conventions require concrete generic metadata, redeclare methods with concrete return types and `@RequestBody`, as the repository example clients do, but do not repeat the path on every method.
 
-## Single, List, Paged, and Count
+## Single, List, Cursor, Paged, and Count
 
 | Operation | Reactive result | Synchronous result |
 |---|---|---|
 | single typed / state-only / dynamic | `Mono<MaterializedSnapshot<S>>` / `Mono<S>` / `Mono<Map<String, Any>>` | corresponding nullable values |
 | list typed / state-only / dynamic | corresponding `Flux` | corresponding `List` |
+| cursor typed / state-only / dynamic | `Mono<CursorPage<...>>` | `CursorPage<...>` |
 | paged typed / state-only / dynamic | `Mono<PagedList<...>>` | `PagedList<...>` |
 | count | `Mono<Long>` | `Long` |
 
-`ISingleQuery`, `IListQuery`, and `IPagedQuery` execute through the `query`, `queryState`, and `dynamicQuery` extensions. `FilterExpression.count` executes a count. `getById` and `getStateById` are conveniences that build a single query for an `aggregateId`.
+`ISingleQuery`, `IListQuery`, `ICursorQuery`, and `IPagedQuery` execute through the `query`, `queryState`, and `dynamicQuery` extensions. `FilterExpression.count` executes a count. `getById` and `getStateById` are conveniences that build a single query for an `aggregateId`.
+
+```kotlin
+val query = CursorQuery(
+    filter = "state.status" eq "PAID",
+    sort = listOf(Sort("snapshotTime", Sort.Direction.DESC)),
+    size = 20,
+)
+val typed: Mono<CursorPage<MaterializedSnapshot<CartState>>> = query.query(cartQueryClient)
+val states: Mono<CursorPage<CartState>> = query.queryState(cartQueryClient)
+val dynamic: Mono<CursorPage<Map<String, Any>>> = query.dynamicQuery(cartQueryClient)
+```
+
+For the next request, copy the query and replace only its cursor with the returned `nextCursor`; stop when it is `null`. Callers must keep the same filter and sort. The server does not bind or compare them in the token; it reapplies request-scope/security filters and validates the backend cursor structure. Cursor results have no total, previous cursor, or cross-request snapshot consistency, and the server must have cursor encryption configured.
 
 ## Complete Snapshot, State-only, and Dynamic Results
 
@@ -65,7 +82,7 @@ Register both interfaces that CoApi must materialize in `@EnableCoApi(clients = 
 
 ## Separate Aggregation Client
 
-`ReactiveSnapshotQueryApi` and `SynchronousSnapshotQueryApi` deliberately exclude aggregation. Declare `ReactiveSnapshotAggregationQueryApi` or `SynchronousSnapshotAggregationQueryApi` separately, then post an `AggregationQuery` to `snapshot/aggregation`:
+`ReactiveSnapshotQueryApi` and `SynchronousSnapshotQueryApi` deliberately exclude cursor and aggregation. A client can explicitly add the cursor interface; aggregation still uses a separately declared `ReactiveSnapshotAggregationQueryApi` or `SynchronousSnapshotAggregationQueryApi`, posting an `AggregationQuery` to `snapshot/aggregation`:
 
 ```kotlin
 val rows: Flux<Map<String, Any?>> = aggregation {
@@ -86,7 +103,7 @@ Both variants submit the same query DTOs to the same HTTP paths. Only their invo
 
 HTTP single returns 404 when no item matches. The provided `ISingleQuery.query`, `queryState`, and `dynamicQuery` helpers, plus `getById` and `getStateById`, turn that 404 into an empty reactive `Mono` or synchronous `null`. Calling the inherited `single`, `singleState`, or `dynamicSingle` method directly is a raw CoApi transport call and does not pass through those helpers' 404 conversion.
 
-A normal no-match list returns an empty `Flux`/`List`; paged returns a `PagedList` with `total = 0` and `list = []`; count returns `0`. None is a single-query 404. Validation, authorization, rate-limit, timeout, and backend errors continue to propagate.
+A normal no-match list returns an empty `Flux`/`List`; cursor returns `list = []` with `nextCursor = null`; paged returns a `PagedList` with `total = 0` and `list = []`; count returns `0`. None is a single-query 404. Validation, authorization, rate-limit, timeout, and backend errors continue to propagate.
 
 ## Event Stream Client Is Not Currently Supported
 

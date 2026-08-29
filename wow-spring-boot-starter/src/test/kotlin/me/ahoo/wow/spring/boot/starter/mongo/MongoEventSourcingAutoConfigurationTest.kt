@@ -24,6 +24,8 @@ import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.unmockkObject
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.CursorQuery
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.configuration.NamedAggregateTypeSearcher
 import me.ahoo.wow.metrics.WowMetrics
@@ -59,6 +61,7 @@ import org.springframework.boot.test.context.assertj.AssertableApplicationContex
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import reactor.core.publisher.Flux
 import reactor.kotlin.test.test
+import java.util.Base64
 
 class MongoEventSourcingAutoConfigurationTest {
     private val metricsProvider = StaticListableBeanFactory(
@@ -66,6 +69,9 @@ class MongoEventSourcingAutoConfigurationTest {
     ).getBeanProvider(WowMetrics::class.java)
     private val contextRunner = ApplicationContextRunner()
         .withUserConfiguration(QuerySchemaAutoConfiguration::class.java)
+
+    private fun encodedCursorKey(): String = Base64.getUrlEncoder().withoutPadding()
+        .encodeToString(ByteArray(32) { it.toByte() })
 
     @Test
     fun `event stream query factory should use default schema collaborators`() {
@@ -165,6 +171,48 @@ class MongoEventSourcingAutoConfigurationTest {
             .test()
             .expectErrorSatisfies { it.assert().isSameAs(expected) }
             .verify()
+    }
+
+    @Test
+    fun `should pass configured cursor codec to Mongo snapshot and event factories`() {
+        val expected = IllegalStateException("query schema source was used")
+        val configuration = MongoEventSourcingAutoConfiguration(
+            mongoProperties = MongoProperties(
+                autoInitSchema = false,
+                eventStreamDatabase = "testEventStream",
+                snapshotDatabase = "testSnapshot",
+            ),
+            eventStoreBatchProperties = MongoEventStoreBatchProperties(),
+            snapshotStoreBatchProperties = MongoSnapshotStoreBatchProperties(),
+        )
+        val queryProperties = QueryProperties(
+            schema = QueryProperties.Schema(QuerySchemaValidationMode.COMPATIBLE),
+            cursor = QueryProperties.Cursor(encodedCursorKey()),
+        )
+        val client = mongoClient("order-service")
+        val context = MaterializedNamedBoundedContext("order-service")
+        val sources = listOf(failingQuerySchemaSource(expected))
+        val snapshotFactory = configuration.mongoSnapshotQueryServiceFactory(
+            client,
+            null,
+            context,
+            sources,
+            queryProperties,
+        )
+        val eventFactory = configuration.mongoEventStreamQueryServiceFactory(
+            client,
+            null,
+            context,
+            sources,
+            queryProperties,
+        )
+
+        snapshotFactory.create<Any>(MOCK_AGGREGATE_METADATA)
+            .cursor(CursorQuery(MatchAllFilter))
+            .test().expectErrorSatisfies { it.assert().isSameAs(expected) }.verify()
+        eventFactory.create(MOCK_AGGREGATE_METADATA)
+            .cursor(CursorQuery(MatchAllFilter))
+            .test().expectErrorSatisfies { it.assert().isSameAs(expected) }.verify()
     }
 
     @Test

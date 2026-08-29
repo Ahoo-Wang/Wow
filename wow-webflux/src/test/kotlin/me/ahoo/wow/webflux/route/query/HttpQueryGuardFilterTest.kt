@@ -25,10 +25,13 @@ import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.CursorPage
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.IdFilter
@@ -337,6 +340,50 @@ class HttpQueryGuardFilterTest {
     }
 
     @Test
+    fun `cursor should enforce max page size without page window`() {
+        guard(maxPageSize = 2, maxPageWindow = 1, idleTimeout = Duration.ZERO).filter(
+            cursorContext(CursorQuery(MatchAllFilter, size = 2)),
+            FilterChain { Mono.empty() },
+        ).writeRawRequest(request).test().verifyComplete()
+
+        guard(maxPageSize = 2, maxPageWindow = 1, idleTimeout = Duration.ZERO).filter(
+            cursorContext(CursorQuery(MatchAllFilter, size = 3)),
+            unexpectedBackend(),
+        ).writeRawRequest(request).test()
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
+    }
+
+    @Test
+    fun `cursor should allow match all but retain filter budgets and expensive operator guard`() {
+        guard(maxFilterValues = 2, idleTimeout = Duration.ZERO).filter(
+            cursorContext(CursorQuery(MatchAllFilter, size = 2)),
+            FilterChain { Mono.empty() },
+        ).writeRawRequest(request).test().verifyComplete()
+
+        listOf(
+            CursorQuery(IdsFilter(listOf("1", "2", "3"))),
+            CursorQuery(IsNotNullFilter(LogicalField("state.status"))),
+        ).forEach { query ->
+            guard(maxFilterValues = 2, idleTimeout = Duration.ZERO).filter(
+                cursorContext(query),
+                unexpectedBackend(),
+            ).writeRawRequest(request).test()
+                .expectError(IllegalArgumentException::class.java)
+                .verify()
+        }
+
+        guard(maxFilterNodes = 2, idleTimeout = Duration.ZERO).filter(
+            cursorContext(
+                CursorQuery(filterExpression { repeat(2) { MessageRecords.AGGREGATE_ID eq it } }),
+            ),
+            unexpectedBackend(),
+        ).writeRawRequest(request).test()
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
+    }
+
+    @Test
     fun `should keep trusted non-http query behavior`() {
         val context = listContext(ListQuery(MatchAllFilter))
         guard().filter(
@@ -528,6 +575,22 @@ class HttpQueryGuardFilterTest {
             context,
             FilterChain {
                 it.asPagedQuery<Any>().setResult(Mono.never())
+                Mono.empty()
+            },
+        ).writeRawRequest(request).test().verifyComplete()
+
+        context.getRequiredResult().test()
+            .expectError(TimeoutException::class.java)
+            .verify()
+    }
+
+    @Test
+    fun `cursor should apply idle timeout after backend result is installed`() {
+        val context = cursorContext(CursorQuery(IdFilter("aggregate-id")))
+        guard(idleTimeout = Duration.ofMillis(10)).filter(
+            context,
+            FilterChain {
+                it.asCursorQuery<Any>().setResult(Mono.never())
                 Mono.empty()
             },
         ).writeRawRequest(request).test().verifyComplete()
@@ -740,6 +803,12 @@ class HttpQueryGuardFilterTest {
             QueryType.PAGED,
             MOCK_AGGREGATE_METADATA,
         ).setQuery(query)
+
+    private fun cursorContext(query: ICursorQuery): QueryContext<ICursorQuery, Mono<CursorPage<Any>>> =
+        DefaultQueryContext<ICursorQuery, Mono<CursorPage<Any>>>(
+            QueryType.CURSOR,
+            MOCK_AGGREGATE_METADATA,
+        ).setQuery(query).setResult(Mono.just(CursorPage(emptyList(), null)))
 
     private fun countContext(filter: FilterExpression): QueryContext<FilterExpression, Mono<Long>> =
         DefaultQueryContext<FilterExpression, Mono<Long>>(

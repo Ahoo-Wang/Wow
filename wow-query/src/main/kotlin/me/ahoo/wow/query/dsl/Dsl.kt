@@ -16,6 +16,7 @@ package me.ahoo.wow.query.dsl
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
@@ -65,6 +66,12 @@ fun listQuery(block: ListQueryDsl.() -> Unit): IListQuery {
  */
 fun pagedQuery(block: PagedQueryDsl.() -> Unit): IPagedQuery {
     val dsl = PagedQueryDsl()
+    dsl.block()
+    return dsl.build()
+}
+
+fun cursorQuery(block: CursorQueryDsl.() -> Unit): ICursorQuery {
+    val dsl = CursorQueryDsl()
     dsl.block()
     return dsl.build()
 }

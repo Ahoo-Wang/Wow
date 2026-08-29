@@ -211,16 +211,20 @@ curl 'http://localhost:8080/wow/id/global' \
 | `POST` | `snapshot/single` | `SingleQuery` -> 物化快照 |
 | `POST` | `snapshot/single/state` | `SingleQuery` -> 仅状态 |
 | `POST` | `snapshot/list` / `list/state` | `ListQuery` -> 数组或 SSE |
+| `POST` | `snapshot/cursor` / `cursor/state` | `CursorQuery` -> JSON `CursorPage` |
 | `POST` | `snapshot/paged` / `paged/state` | `PagedQuery` -> `PagedList` |
+| `POST` | `event/cursor` | `CursorQuery` -> JSON `CursorPage` |
 | `POST` | `snapshot/count` | `FilterExpression` -> 精确计数 |
 | `POST` | `snapshot/aggregation` | `AggregationQuery` -> 动态行或 SSE |
 
 查询合同分为三个独立层次：
 
-1. 通用 query component schemas 定义规范请求 JSON 形状。
+1. 通用 query component schemas 定义规范请求 JSON 形状；`CursorQuery` 与各目标类型的 `CursorPage<T>` 会保留泛型响应结构。
 2. 每个聚合专用 query request-body component 引用一个通用 Schema，并公开静态 `x-wow-query-fields`；其 enum 由 system fields 与 `JsonQuerySchemaSource` 推断字段组成。
 3. 运行时 `snapshot/schema` 与 `event/schema` 路由分别发布合并后的 `QueryModelSchemaMetadata` 与后端已证明能力。
 
 `x-wow-query-fields` 是 request-body component 上的 OpenAPI 设计时元数据，不会作为 JSON 请求属性嵌入，也不表示后端能力。
+
+`CursorQuery.sort` 的 OpenAPI `maxItems` 为 32。`nextCursor` 只是 opaque string：内置后端用 `wow.query.cursor.encryption-key` 配置的 AES-256-GCM key 生成它，OpenAPI 不发布 key、payload 或 filter/sort 绑定。未配置 key 时 cursor 路由仍可被发现，但调用会明确返回不支持；详见[快照查询](./query/snapshot-query.md#游标分页)与[基础设施配置](../reference/config/infrastructure.md#cursor-加密)。
 
 `wow-apiclient` 包含手工维护的 Wow 命令与快照 CoApi 接口。Fetcher 等外部工具可以从已发布 OpenAPI 生成其他客户端。客户端生成位于 OpenAPI 下游：KSP 元数据不会生成这些客户端，重新生成客户端也不会改变服务端字段语义。OpenAPI 合同变化后必须审阅生成 diff。

@@ -18,8 +18,10 @@ package me.ahoo.wow.query
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
@@ -42,6 +44,12 @@ interface QueryService<R : Any> : NamedAggregateDecorator {
     fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument>
     fun paged(pagedQuery: IPagedQuery): Mono<PagedList<R>>
     fun dynamicPaged(pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>>
+
+    fun cursor(query: ICursorQuery): Mono<CursorPage<R>> =
+        Mono.error(UnsupportedOperationException("Cursor query is not supported."))
+
+    fun dynamicCursor(query: ICursorQuery): Mono<CursorPage<DynamicDocument>> =
+        Mono.error(UnsupportedOperationException("Cursor query is not supported."))
 
     fun aggregate(query: AggregationQuery): Flux<DynamicDocument> =
         Flux.error(UnsupportedOperationException("Aggregation is not supported."))

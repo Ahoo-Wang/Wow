@@ -82,6 +82,12 @@ class MaskingSnapshotQueryFilter(maskerRegistry: StateDataMaskerRegistry) : Snap
                 }
             }
 
+            QueryType.CURSOR -> {
+                context.asCursorQuery<MaterializedSnapshot<Any>>().rewriteResult { result ->
+                    result.map { it.tryMask() }
+                }
+            }
+
             else -> {
             }
         }

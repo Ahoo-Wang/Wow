@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot.starter.query
 
+import me.ahoo.wow.query.CursorTokenCodec
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.bind.ConstructorBinding
@@ -22,13 +23,30 @@ import org.springframework.boot.context.properties.bind.DefaultValue
 class QueryProperties @ConstructorBinding constructor(
     @DefaultValue
     var schema: Schema,
+    @DefaultValue
+    var cursor: Cursor = Cursor(null),
 ) {
     data class Schema @ConstructorBinding constructor(
         @DefaultValue("COMPATIBLE")
         var validationMode: QuerySchemaValidationMode,
     )
 
+    data class Cursor @ConstructorBinding constructor(
+        var encryptionKey: String?,
+    ) {
+        init {
+            tokenCodec()
+        }
+
+        fun tokenCodec(): CursorTokenCodec? = encryptionKey
+            ?.takeIf(String::isNotBlank)
+            ?.let(CursorTokenCodec::fromBase64Url)
+    }
+
+    fun cursorTokenCodec(): CursorTokenCodec? = cursor.tokenCodec()
+
     companion object {
         const val PREFIX = "wow.query"
+        const val CURSOR_ENCRYPTION_KEY = "$PREFIX.cursor.encryption-key"
     }
 }

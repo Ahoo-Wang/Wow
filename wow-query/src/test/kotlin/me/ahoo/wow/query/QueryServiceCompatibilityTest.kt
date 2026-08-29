@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
@@ -52,6 +53,13 @@ class QueryServiceCompatibilityTest {
             AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))),
         ).test()
             .expectErrorMessage("Aggregation is not supported.")
+            .verify()
+    }
+
+    @Test
+    fun `legacy query service should inherit unsupported cursor`() {
+        LegacyQueryService().cursor(CursorQuery(me.ahoo.wow.api.query.MatchAllFilter)).test()
+            .expectErrorMessage("Cursor query is not supported.")
             .verify()
     }
 

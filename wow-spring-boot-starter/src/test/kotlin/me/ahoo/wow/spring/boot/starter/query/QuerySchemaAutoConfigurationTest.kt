@@ -30,6 +30,7 @@ import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
+import java.util.Base64
 
 class QuerySchemaAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
@@ -42,7 +43,40 @@ class QuerySchemaAutoConfigurationTest {
             .run { context ->
                 context.getBean(QueryProperties::class.java)
                     .schema.validationMode.assert().isEqualTo(QuerySchemaValidationMode.COMPATIBLE)
+                context.getBean(QueryProperties::class.java).cursor.encryptionKey.assert().isNull()
+                context.getBean(QueryProperties::class.java).cursorTokenCodec().assert().isNull()
             }
+    }
+
+    @Test
+    fun `should bind cursor encryption key and create a usable codec`() {
+        val key = encodedKey(1)
+        contextRunner
+            .enableWow()
+            .withPropertyValues("wow.query.cursor.encryption-key=$key")
+            .withUserConfiguration(QuerySchemaAutoConfiguration::class.java)
+            .run { context ->
+                val properties = context.getBean(QueryProperties::class.java)
+                val payload = "payload".toByteArray()
+                val codec = properties.cursorTokenCodec()!!
+
+                properties.cursor.encryptionKey.assert().isEqualTo(key)
+                codec.decode(codec.encode(payload)).contentEquals(payload).assert().isTrue()
+            }
+    }
+
+    @Test
+    fun `should fail configuration for an invalid nonblank cursor encryption key`() {
+        listOf(
+            "not-base64!",
+            Base64.getUrlEncoder().withoutPadding().encodeToString(ByteArray(31)),
+        ).forEach { key ->
+            contextRunner
+                .enableWow()
+                .withPropertyValues("wow.query.cursor.encryption-key=$key")
+                .withUserConfiguration(QuerySchemaAutoConfiguration::class.java)
+                .run { context -> context.startupFailure.assert().isNotNull() }
+        }
     }
 
     @Test
@@ -116,12 +150,16 @@ class QuerySchemaAutoConfigurationTest {
     @Test
     fun `should publish one compatible validation default in canonical metadata`() {
         val propertyName = "wow.query.schema.validation-mode"
-        val canonical = metadataProperties("META-INF/spring-configuration-metadata.json")
+        val metadata = metadataProperties("META-INF/spring-configuration-metadata.json")
+        val canonical = metadata
             .filter { it.path("name").stringValue() == propertyName }
         canonical.assert().hasSize(1)
         canonical.single().path("type").stringValue()
             .assert().isEqualTo("me.ahoo.wow.query.schema.QuerySchemaValidationMode")
         canonical.single().path("defaultValue").stringValue().assert().isEqualTo("COMPATIBLE")
+
+        metadata.filter { it.path("name").stringValue() == QueryProperties.CURSOR_ENCRYPTION_KEY }
+            .single().path("type").stringValue().assert().isEqualTo("java.lang.String")
 
         metadataProperties("META-INF/additional-spring-configuration-metadata.json")
             .filter { it.path("name").stringValue() == propertyName }
@@ -134,4 +172,7 @@ class QuerySchemaAutoConfigurationTest {
             "Missing metadata resource [$resourceName]."
         }.bufferedReader().use { it.readText() },
     ).path("properties").asSequence().toList()
+
+    private fun encodedKey(seed: Int): String = Base64.getUrlEncoder().withoutPadding()
+        .encodeToString(ByteArray(32) { index -> (seed + index).toByte() })
 }

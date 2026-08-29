@@ -211,16 +211,20 @@ The catalog contributes command, state, event, snapshot, and query routes from a
 | `POST` | `snapshot/single` | `SingleQuery` -> materialized snapshot |
 | `POST` | `snapshot/single/state` | `SingleQuery` -> state only |
 | `POST` | `snapshot/list` / `list/state` | `ListQuery` -> array or SSE |
+| `POST` | `snapshot/cursor` / `cursor/state` | `CursorQuery` -> JSON `CursorPage` |
 | `POST` | `snapshot/paged` / `paged/state` | `PagedQuery` -> `PagedList` |
+| `POST` | `event/cursor` | `CursorQuery` -> JSON `CursorPage` |
 | `POST` | `snapshot/count` | `FilterExpression` -> exact count |
 | `POST` | `snapshot/aggregation` | `AggregationQuery` -> dynamic rows or SSE |
 
 Query contracts appear in three distinct layers:
 
-1. Generic query component schemas define the canonical request JSON shapes.
+1. Generic query component schemas define the canonical request JSON shapes; `CursorQuery` and each target-specific `CursorPage<T>` retain the generic response structure.
 2. Every aggregate-specific query request-body component references a generic schema and exposes static `x-wow-query-fields`, whose enum combines system fields with fields inferred by `JsonQuerySchemaSource`.
 3. The runtime `snapshot/schema` and `event/schema` routes publish their merged `QueryModelSchemaMetadata` and backend-proven capabilities.
 
 `x-wow-query-fields` is OpenAPI design-time metadata on the request-body component; it is not embedded as JSON request properties and is not a backend capability claim.
+
+OpenAPI sets `maxItems: 32` on `CursorQuery.sort`. A `nextCursor` is only an opaque string: built-in backends generate it with the AES-256-GCM key configured at `wow.query.cursor.encryption-key`. OpenAPI exposes neither the key nor the backend payload or a filter/sort binding. The cursor routes remain discoverable when the key is absent, but calls fail explicitly as unsupported; see [Snapshot Queries](./query/snapshot-query.md#cursor-pagination) and [Infrastructure Configuration](../reference/config/infrastructure.md#cursor-encryption).
 
 `wow-apiclient` contains hand-maintained CoApi interfaces for Wow command and snapshot contracts. External tools such as Fetcher may generate other clients from the published OpenAPI document. Client generation is downstream of OpenAPI: KSP metadata does not generate those clients, and regenerating a client does not change server field semantics. Review generated diffs whenever the OpenAPI contract changes.

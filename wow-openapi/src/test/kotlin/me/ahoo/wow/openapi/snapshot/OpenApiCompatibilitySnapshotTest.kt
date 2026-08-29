@@ -44,6 +44,25 @@ internal class OpenApiCompatibilitySnapshotTest {
     }
 
     @Test
+    fun `generated openapi should expose cursor query contracts`() {
+        val openAPI = OpenAPI()
+        RouterSpecs(currentContext).build().mergeOpenAPIFromCatalog(openAPI)
+        val document = mapper.valueToTree<com.fasterxml.jackson.databind.JsonNode>(openAPI)
+        val paths = document.path("paths")
+
+        paths.fieldNames().asSequence().any { it.endsWith("/snapshot/cursor") }.assert().isTrue()
+        paths.fieldNames().asSequence().any { it.endsWith("/snapshot/cursor/state") }.assert().isTrue()
+        paths.fieldNames().asSequence().any { it.endsWith("/event/cursor") }.assert().isTrue()
+
+        val cursorSchema = document.path("components").path("schemas").path("wow.api.query.CursorQuery")
+        cursorSchema.path("properties").has("cursor").assert().isTrue()
+        cursorSchema.path("properties").has("size").assert().isTrue()
+        cursorSchema.path("properties").path("sort").path("maxItems").asInt().assert()
+            .isEqualTo(me.ahoo.wow.api.query.AggregationQuery.MAX_SORT_FIELDS)
+        cursorSchema.path("properties").has("pagination").assert().isFalse()
+    }
+
+    @Test
     fun `generated BI script request schema should retain its OpenAPI 3 point 1 types`() {
         val openAPI = OpenAPI()
         RouterSpecs(currentContext).build().mergeOpenAPIFromCatalog(openAPI)

@@ -18,6 +18,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
@@ -35,6 +36,7 @@ import me.ahoo.wow.mongo.query.MongoProjectionConverter
 import me.ahoo.wow.mongo.query.MongoSortConverter
 import me.ahoo.wow.mongo.query.schema.MongoQuerySchemaAdapter
 import me.ahoo.wow.mongo.toMaterializedSnapshot
+import me.ahoo.wow.query.CursorTokenCodec
 import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaContext
@@ -43,6 +45,7 @@ import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.schema.resolve
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.serialization.JsonSerializer
+import me.ahoo.wow.serialization.MessageRecords
 import org.bson.Document
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -54,6 +57,7 @@ class MongoSnapshotQueryService<S : Any>(
     private val schemaProvider: QueryModelSchemaProvider =
         defaultSchemaProvider(namedAggregate, collection, converter),
     private val validationMode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
+    protected override val cursorTokenCodec: CursorTokenCodec? = null,
 ) : AbstractMongoQueryService<MaterializedSnapshot<S>>(),
     SnapshotQueryService<S>,
     QueryModelSchemaProvider by schemaProvider {
@@ -61,6 +65,7 @@ class MongoSnapshotQueryService<S : Any>(
         get() = MongoSnapshotStore.NAME
     override val projectionConverter: MongoProjectionConverter = MongoProjectionConverter(SnapshotFieldConverter)
     override val sortConverter: MongoSortConverter = MongoSortConverter(SnapshotFieldConverter)
+    override val cursorUniqueField: String = MessageRecords.AGGREGATE_ID
     private val snapshotType = JsonSerializer.typeFactory
         .constructParametricType(
             MaterializedSnapshot::class.java,
@@ -80,6 +85,8 @@ class MongoSnapshotQueryService<S : Any>(
     override fun resolve(query: IListQuery) = schemaProvider.resolve(query, validationMode)
 
     override fun resolve(query: IPagedQuery) = schemaProvider.resolve(query, validationMode)
+
+    override fun resolve(query: ICursorQuery) = schemaProvider.resolve(query, validationMode)
 
     override fun resolve(filter: FilterExpression) = schemaProvider.resolve(filter, validationMode)
 

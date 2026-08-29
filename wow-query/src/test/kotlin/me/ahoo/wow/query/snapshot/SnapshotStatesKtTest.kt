@@ -16,6 +16,7 @@ package me.ahoo.wow.query.snapshot
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
@@ -79,6 +80,20 @@ class SnapshotStatesKtTest {
         val pagedList = PagedList(1, listOf(snapshot))
         Mono.just(pagedList).toStateDocumentPagedList().test()
             .expectNextCount(1)
+            .verifyComplete()
+    }
+
+    @Test
+    fun `should extract dynamic state from cursor page`() {
+        val snapshot = SimpleDynamicDocument(
+            mutableMapOf("state" to SimpleDynamicDocument(mutableMapOf("id" to "id")))
+        ) as DynamicDocument
+
+        Mono.just(CursorPage(listOf(snapshot), "next")).toStateDocumentCursorPage().test()
+            .consumeNextWith { page ->
+                page.list.first().getValue<String>("id").assert().isEqualTo("id")
+                page.nextCursor.assert().isEqualTo("next")
+            }
             .verifyComplete()
     }
 }

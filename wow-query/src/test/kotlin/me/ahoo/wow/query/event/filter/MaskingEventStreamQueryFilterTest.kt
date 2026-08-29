@@ -15,7 +15,9 @@ package me.ahoo.wow.query.event.filter
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
@@ -27,6 +29,7 @@ import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.query.dsl.cursorQuery
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
@@ -98,6 +101,17 @@ class MaskingEventStreamQueryFilterTest {
     }
 
     @Test
+    fun `should mask dynamic cursor event stream results and preserve next cursor`() {
+        queryGateway.dynamicCursor(MOCK_AGGREGATE_METADATA, cursorQuery { })
+            .test()
+            .consumeNextWith { page ->
+                page.list.first().assert().doesNotContainKey(MessageRecords.CONTEXT_NAME)
+                page.nextCursor.assert().isEqualTo("next")
+            }
+            .verifyComplete()
+    }
+
+    @Test
     fun `should return count without masking`() {
         queryGateway.count(MOCK_AGGREGATE_METADATA, MatchAllFilter)
             .test()
@@ -152,6 +166,14 @@ object MockEventStreamQueryService : EventStreamQueryService {
 
     override fun dynamicPaged(pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>> {
         return Mono.just(PagedList(1, listOf(dynamicDocument)))
+    }
+
+    override fun cursor(query: ICursorQuery): Mono<CursorPage<DomainEventStream>> {
+        return Mono.just(CursorPage(listOf(eventStream), "next"))
+    }
+
+    override fun dynamicCursor(query: ICursorQuery): Mono<CursorPage<DynamicDocument>> {
+        return Mono.just(CursorPage(listOf(dynamicDocument), "next"))
     }
 
     override fun count(filter: me.ahoo.wow.api.query.FilterExpression): Mono<Long> {

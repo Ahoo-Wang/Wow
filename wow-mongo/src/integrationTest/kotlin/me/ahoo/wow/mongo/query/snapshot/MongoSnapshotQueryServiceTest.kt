@@ -20,6 +20,8 @@ import com.mongodb.client.model.Indexes
 import com.mongodb.client.model.UpdateOptions
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationDateUnit
+import me.ahoo.wow.api.query.AggregateIdsFilter
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.LogicalField
@@ -39,6 +41,7 @@ import me.ahoo.wow.mongo.MongoSnapshotStore
 import me.ahoo.wow.mongo.toMongoSnapshotWrite
 import me.ahoo.wow.mongo.versionGuardedSnapshotReplacement
 import me.ahoo.wow.query.dsl.aggregation
+import me.ahoo.wow.query.CursorTokenCodec
 import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.schema.DeclarationValue
 import me.ahoo.wow.query.schema.QueryFieldDeclaration
@@ -60,6 +63,7 @@ import org.bson.BsonDocument
 import org.bson.BsonInt32
 import org.bson.Document
 import org.bson.BsonTimestamp
+import org.bson.types.Decimal128
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
@@ -70,7 +74,9 @@ import reactor.kotlin.test.test
 import java.time.Instant
 import java.time.ZoneOffset
 import java.util.Date
+import java.util.Base64
 import java.util.concurrent.TimeUnit
+import java.math.BigDecimal
 
 class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     @JvmField
@@ -78,6 +84,9 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     val mongo = MongoTestFixture()
 
     lateinit var database: MongoDatabase
+    private val cursorTokenCodec = CursorTokenCodec.fromBase64Url(
+        Base64.getUrlEncoder().withoutPadding().encodeToString(ByteArray(32) { it.toByte() }),
+    )
 
     @BeforeEach
     override fun setup() {
@@ -93,6 +102,7 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         return MongoSnapshotQueryServiceFactory(
             database = database,
             schemaSources = querySchemaSources,
+            cursorTokenCodec = cursorTokenCodec,
         )
     }
 
@@ -437,6 +447,52 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     }
 
     @Test
+    fun `cursor should round trip native BSON date timestamp and decimal across pages`() {
+        setStateValidator(
+            Document("nativeDate", Document("bsonType", "date"))
+                .append("nativeTimestamp", Document("bsonType", "timestamp"))
+                .append("nativeDecimal", Document("bsonType", "decimal")),
+        )
+        val ids = listOf("native-cursor-a", "native-cursor-b", "native-cursor-c")
+        database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
+            .insertMany(
+                ids.mapIndexed { index, id ->
+                    Document("_id", id)
+                        .append("deleted", false)
+                        .append(
+                            "state",
+                            Document("nativeDate", Date(1_725_000_000_000 + index * 1_000L))
+                                .append("nativeTimestamp", BsonTimestamp(1_725_000_000 + index, index + 1))
+                                .append("nativeDecimal", Decimal128(BigDecimal("${index + 1}.125"))),
+                        )
+                },
+            ).toMono().then().block()
+        val service = MongoSnapshotQueryServiceFactory(
+            database = database,
+            schemaSources = querySchemaSources + nativeTemporalSource() + nativeDecimalSource(),
+            validationMode = QuerySchemaValidationMode.STRICT,
+            cursorTokenCodec = cursorTokenCodec,
+        ).create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+
+        listOf("state.nativeDate", "state.nativeTimestamp", "state.nativeDecimal").forEach { field ->
+            val query = CursorQuery(
+                filter = AggregateIdsFilter(ids),
+                sort = listOf(Sort(field, Sort.Direction.ASC)),
+                size = 1,
+            )
+            val first = service.dynamicCursor(query).block()!!
+            val second = service.dynamicCursor(query.copy(cursor = first.nextCursor)).block()!!
+            val third = service.dynamicCursor(query.copy(cursor = second.nextCursor)).block()!!
+
+            (first.list + second.list + third.list).map { it["aggregateId"] }
+                .assert().containsExactly(*ids.toTypedArray())
+            first.nextCursor.assert().isNotNull()
+            second.nextCursor.assert().isNotNull()
+            third.nextCursor.assert().isNull()
+        }
+    }
+
+    @Test
     fun `date operations without a validator should fail closed in every validation mode`() {
         clearValidator()
         QuerySchemaValidationMode.entries.forEach { mode ->
@@ -737,6 +793,23 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
                         semanticType = DeclarationValue.Set(Temporal.Date),
                     )
                 },
+            ),
+        )
+    }
+
+    private fun nativeDecimalSource(): QuerySchemaSource = object : QuerySchemaSource {
+        override val priority: Int = QuerySchemaSourcePriority.BEAN
+
+        override fun load(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> = Flux.just(
+            QuerySchemaDeclaration(
+                mapOf(
+                    LogicalField("state.nativeDecimal") to QueryFieldDeclaration(
+                        valueTypes = DeclarationValue.Set(setOf(QueryValueType.DECIMAL)),
+                        nullable = DeclarationValue.Set(false),
+                        required = DeclarationValue.Set(true),
+                        cardinality = DeclarationValue.Set(QueryCardinality.SINGLE),
+                    ),
+                ),
             ),
         )
     }

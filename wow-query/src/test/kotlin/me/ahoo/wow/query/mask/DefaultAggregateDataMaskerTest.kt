@@ -15,6 +15,7 @@ package me.ahoo.wow.query.mask
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
@@ -59,6 +60,18 @@ class DefaultAggregateDataMaskerTest {
         val pagedList = PagedList(1, listOf<DynamicDocument>(mutableMapOf<String, Any>().toDynamicDocument()))
         val maskedPagedList = aggregateDataMasker.mask(pagedList)
         maskedPagedList.list[0].getValue<String>(MockStateDataMasker.KEY).assert().isEqualTo(MockStateDataMasker.VALUE)
+    }
+
+    @Test
+    fun `should mask cursor page items and preserve next cursor`() {
+        val masker = DefaultAggregateDataMasker.empty<StateDynamicDocumentMasker>()
+            .addMasker(MockStateDataMasker(MOCK_AGGREGATE_METADATA))
+        val page = CursorPage(listOf<DynamicDocument>(mutableMapOf<String, Any>().toDynamicDocument()), "next")
+
+        val masked = masker.mask(page)
+
+        masked.list.first().getValue<String>(MockStateDataMasker.KEY).assert().isEqualTo(MockStateDataMasker.VALUE)
+        masked.nextCursor.assert().isEqualTo("next")
     }
 }
 

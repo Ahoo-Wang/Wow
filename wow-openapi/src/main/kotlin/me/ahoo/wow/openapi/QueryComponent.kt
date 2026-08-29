@@ -16,6 +16,7 @@ package me.ahoo.wow.openapi
 import io.swagger.v3.oas.models.media.StringSchema
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.LogicalField
@@ -27,6 +28,7 @@ import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.openapi.CommonComponent.Response.withErrorCodeHeader
 import me.ahoo.wow.openapi.QueryComponent.Schema.aggregationQuerySchema
+import me.ahoo.wow.openapi.QueryComponent.Schema.cursorQuerySchema
 import me.ahoo.wow.openapi.QueryComponent.Schema.filterSchema
 import me.ahoo.wow.openapi.QueryComponent.Schema.listQuerySchema
 import me.ahoo.wow.openapi.QueryComponent.Schema.pagedQuerySchema
@@ -60,6 +62,7 @@ object QueryComponent {
     const val SINGLE_QUERY_SUFFIX = ".SingleQuery"
     const val COUNT_QUERY_SUFFIX = ".CountQuery"
     const val LIST_QUERY_SUFFIX = ".ListQuery"
+    const val CURSOR_QUERY_SUFFIX = ".CursorQuery"
     const val PAGED_QUERY_SUFFIX = ".PagedQuery"
     const val AGGREGATION_QUERY_SUFFIX = ".AggregationQuery"
     const val AGGREGATED_FIELDS_SUFFIX = "AggregatedFields"
@@ -67,6 +70,7 @@ object QueryComponent {
     const val SINGLE_QUERY_KEY = Wow.WOW + SINGLE_QUERY_SUFFIX
     const val COUNT_QUERY_KEY = Wow.WOW + COUNT_QUERY_SUFFIX
     const val LIST_QUERY_KEY = Wow.WOW + LIST_QUERY_SUFFIX
+    const val CURSOR_QUERY_KEY = Wow.WOW + CURSOR_QUERY_SUFFIX
     const val PAGED_QUERY_KEY = Wow.WOW + PAGED_QUERY_SUFFIX
     const val AGGREGATION_QUERY_KEY = Wow.WOW + AGGREGATION_QUERY_SUFFIX
 
@@ -87,6 +91,11 @@ object QueryComponent {
         fun OpenAPIComponentContext.pagedQuerySchema(): io.swagger.v3.oas.models.media.Schema<*> {
             return schema(PagedQuery::class.java)
         }
+
+        fun OpenAPIComponentContext.cursorQuerySchema(): io.swagger.v3.oas.models.media.Schema<*> {
+            return schema(CursorQuery::class.java)
+        }
+
         fun OpenAPIComponentContext.aggregationQuerySchema(): io.swagger.v3.oas.models.media.Schema<*> {
             return schema(AggregationQuery::class.java)
         }
@@ -151,6 +160,17 @@ object QueryComponent {
             aggregateMetadata: AggregateMetadata<*, *>,
         ): io.swagger.v3.oas.models.parameters.RequestBody =
             aggregatedQueryRequestBody(aggregateMetadata, PAGED_QUERY_SUFFIX, pagedQuerySchema())
+
+        fun OpenAPIComponentContext.cursorQueryRequestBody(): io.swagger.v3.oas.models.parameters.RequestBody {
+            return requestBody(CURSOR_QUERY_KEY) {
+                content(schema = cursorQuerySchema())
+            }
+        }
+
+        fun OpenAPIComponentContext.aggregatedCursorQueryRequestBody(
+            aggregateMetadata: AggregateMetadata<*, *>,
+        ): io.swagger.v3.oas.models.parameters.RequestBody =
+            aggregatedQueryRequestBody(aggregateMetadata, CURSOR_QUERY_SUFFIX, cursorQuerySchema())
 
         private fun OpenAPIComponentContext.aggregatedQueryRequestBody(
             aggregateMetadata: AggregateMetadata<*, *>,

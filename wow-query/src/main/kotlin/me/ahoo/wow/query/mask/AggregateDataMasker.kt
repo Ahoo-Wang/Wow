@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.mask
 
 import me.ahoo.wow.annotation.sortedByOrder
+import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.PagedList
 
@@ -68,5 +69,15 @@ fun <MASKER : DynamicDocumentMasker> AggregateDataMasker<MASKER>.mask(pagedList:
     return PagedList(
         total = pagedList.total,
         list = maskedList
+    )
+}
+
+fun <MASKER : DynamicDocumentMasker> AggregateDataMasker<MASKER>.mask(
+    page: CursorPage<DynamicDocument>,
+): CursorPage<DynamicDocument> = if (page.list.isEmpty() || isEmpty()) {
+    page
+} else {
+    page.copy(
+        list = page.list.map(::mask),
     )
 }

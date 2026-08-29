@@ -45,6 +45,8 @@ import me.ahoo.wow.openapi.contributor.compensationTargetRequestBodyRef
 import me.ahoo.wow.openapi.contributor.compensationTargetResponseRef
 import me.ahoo.wow.openapi.contributor.countQueryRequestBodyRef
 import me.ahoo.wow.openapi.contributor.countQueryResponseRef
+import me.ahoo.wow.openapi.contributor.cursorQueryRequestBodyRef
+import me.ahoo.wow.openapi.contributor.eventStreamCursorResponse
 import me.ahoo.wow.openapi.contributor.eventStreamListResponse
 import me.ahoo.wow.openapi.contributor.eventStreamPagedResponse
 import me.ahoo.wow.openapi.contributor.headVersionPathParameterRef
@@ -181,6 +183,20 @@ object EventRouteContributor : RouteContributor {
                 appendPathSuffix = "event/paged",
                 requestBody = componentContext.pagedQueryRequestBodyRef(),
                 responses = listOf(componentContext.eventStreamPagedResponse(aggregateMetadata))
+            ),
+            eventRoute(
+                currentContext = currentContext,
+                aggregateRouteMetadata = aggregateRouteMetadata,
+                componentContext = componentContext,
+                handlerKey = BuiltInHttpRouteHandlerKeys.Event.CURSOR_QUERY,
+                resourceName = EVENT,
+                operation = "cursor_query",
+                operationSummary = "Cursor Query Event Stream",
+                appendTenantPath = variant.appendTenantPath,
+                appendOwnerPath = variant.appendOwnerPath,
+                appendPathSuffix = "event/cursor",
+                requestBody = componentContext.cursorQueryRequestBodyRef(),
+                responses = listOf(componentContext.eventStreamCursorResponse(aggregateMetadata)),
             )
         )
     }

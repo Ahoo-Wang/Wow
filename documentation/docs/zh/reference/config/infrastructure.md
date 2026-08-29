@@ -139,6 +139,23 @@ spring:
 
 批处理校验与 MongoDB 相同。EventStore batch 使用 Bulk `create`；SnapshotStore 的 direct/batch 两条路径都以 `_source.version` 做原子保护更新，避免旧快照覆盖新版本。`auto-init-template=true` 时，模板请求失败、空响应或未确认会让启动失败；仅在外部平台明确拥有模板时关闭它，并保留模板版本与验证证据。
 
+## Cursor 加密
+
+配置类：`QueryProperties`。内置 MongoDB 与 Elasticsearch CursorQuery 共用同一加密配置。
+
+| 属性 | 类型 | 默认值 | 含义 |
+| --- | --- | --- | --- |
+| `wow.query.cursor.encryption-key` | String? | `null` | Base64URL 编码的 32-byte AES-256-GCM key |
+
+```yaml
+wow:
+  query:
+    cursor:
+      encryption-key: ${WOW_QUERY_CURSOR_ENCRYPTION_KEY:}
+```
+
+示例只引用环境变量，不应把真实 key 写入仓库、镜像、文档或日志。非空值若不是合法 Base64URL 或解码后不是 32 bytes，配置会确定性失败。缺失或空值不会阻止应用启动，也不改变 `PageQuery` 等既有查询；任何内置 CursorQuery（包括第一页）都会以 `UnsupportedOperationException` 明确失败。单 key 轮换会使全部既有 cursor 失效；该合同没有 key ID、key ring 或历史 key。直接创建 MongoDB/Elasticsearch JVM query factory 时，可在构造器最后一个可选参数注入同一个 `CursorTokenCodec`；缺省仍是不支持 cursor。
+
 ## WebFlux
 
 配置类：`WebFluxProperties`；所需 capability：`webflux-support`。
@@ -150,7 +167,7 @@ spring:
 | `wow.webflux.batch.concurrency` | Int | `1` | 批量运维/命令任务并发度 |
 | `wow.webflux.batch.prefetch` | Int | `1` | 批量任务 prefetch |
 | `wow.webflux.query.max-list-size` | Int | `1000` | list/aggregation limit；`0` 关闭上限并允许 limit `0` |
-| `wow.webflux.query.max-page-size` | Int | `100` | page size 上限；`0` 关闭 |
+| `wow.webflux.query.max-page-size` | Int | `100` | paged 与 cursor 的 size 上限；`0` 关闭 |
 | `wow.webflux.query.max-page-window` | Long | `10000` | `page.index * page.size` 上限；`0` 关闭 |
 | `wow.webflux.query.max-filter-nodes` | Int | `128` | FilterExpression 节点数上限；`0` 关闭 |
 | `wow.webflux.query.max-filter-values` | Int | `1000` | 集合型过滤条件的值数量上限；`0` 关闭 |
@@ -159,6 +176,6 @@ spring:
 | `wow.webflux.command.request.appender.agent.enabled` | Boolean | `true` | 把 `User-Agent` 写入命令上下文 |
 | `wow.webflux.command.request.appender.ip.enabled` | Boolean | `true` | 把解析出的远端 IP 写入命令上下文 |
 
-所有数值型查询上限必须非负；普通 page size 仍至少为 `1`，page offset 仍不得超过 `Int.MAX_VALUE`。`allow-expensive-operators=true` 是兼容性默认值，不是容量证明；收紧前需验证现有请求和升级路径。
+所有数值型查询上限必须非负；paged 与 cursor size 仍至少为 `1`，paged offset 仍不得超过 `Int.MAX_VALUE`。CursorQuery 不能补偿缺失索引或昂贵 filter：MongoDB 必须为固定 filter 加完整 sort 顺序建立匹配的复合索引；Elasticsearch 通过 `search_after` 继续读取，而不是 PIT，因此没有跨请求快照一致性。`allow-expensive-operators=true` 是兼容性默认值，不是容量证明；收紧前需验证现有请求和升级路径。
 
 `webflux-support` 注册命令、事件、快照查询以及重建/补偿等内置 route，但不自动提供业务认证、授权或管理面隔离。应用必须从运行时 OpenAPI 取得实际路径，并为修改性运维 route 配置鉴权、审计、限流和受控网络入口。

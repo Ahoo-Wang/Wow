@@ -15,8 +15,10 @@ package me.ahoo.wow.query
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
@@ -37,6 +39,11 @@ interface QueryGateway<R : Any> {
     fun dynamicList(namedAggregate: NamedAggregate, listQuery: IListQuery): Flux<DynamicDocument>
     fun paged(namedAggregate: NamedAggregate, pagedQuery: IPagedQuery): Mono<PagedList<R>>
     fun dynamicPaged(namedAggregate: NamedAggregate, pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>>
+    fun cursor(namedAggregate: NamedAggregate, query: ICursorQuery): Mono<CursorPage<R>> =
+        Mono.error(UnsupportedOperationException("Cursor query is not supported."))
+
+    fun dynamicCursor(namedAggregate: NamedAggregate, query: ICursorQuery): Mono<CursorPage<DynamicDocument>> =
+        Mono.error(UnsupportedOperationException("Cursor query is not supported."))
     fun aggregate(namedAggregate: NamedAggregate, query: AggregationQuery): Flux<DynamicDocument>
     fun count(namedAggregate: NamedAggregate, filter: FilterExpression): Mono<Long>
 }
@@ -96,6 +103,14 @@ abstract class AbstractQueryGateway<R : Any>(
         namedAggregate: NamedAggregate,
         pagedQuery: IPagedQuery,
     ): Mono<PagedList<DynamicDocument>> = mono(namedAggregate, QueryType.DYNAMIC_PAGED, pagedQuery)
+
+    override fun cursor(namedAggregate: NamedAggregate, query: ICursorQuery): Mono<CursorPage<R>> =
+        mono(namedAggregate, QueryType.CURSOR, query)
+
+    override fun dynamicCursor(
+        namedAggregate: NamedAggregate,
+        query: ICursorQuery,
+    ): Mono<CursorPage<DynamicDocument>> = mono(namedAggregate, QueryType.DYNAMIC_CURSOR, query)
 
     override fun aggregate(
         namedAggregate: NamedAggregate,

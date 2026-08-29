@@ -15,7 +15,7 @@ Query root fields directly, such as `aggregateId`, `tenantId`, `version`, and `c
 
 ## JVM Queries
 
-`EventStreamQueryService` supports typed and dynamic single/list/paged/count queries on the JVM; `dynamicQuery` returns `DynamicDocument`. The service interface also has JVM aggregation; see [Event Stream Aggregation](./event-stream-aggregation.md) for its JVM and HTTP/OpenAPI contracts and examples.
+`EventStreamQueryService` supports typed and dynamic single/list/cursor/paged/count queries on the JVM; `dynamicQuery` returns `DynamicDocument`. The service interface also has JVM aggregation; see [Event Stream Aggregation](./event-stream-aggregation.md) for its JVM and HTTP/OpenAPI contracts and examples.
 
 This example pages through root fields:
 
@@ -39,15 +39,16 @@ These are the currently published base event-stream data-query routes for `sales
 
 ```text
 POST /sales-order/event/list
+POST /sales-order/event/cursor
 POST /sales-order/event/paged
 POST /sales-order/event/count
 ```
 
-The same list, paged, and count operations are also published with tenant and owner scopes:
+The same list, cursor, paged, and count operations are also published with tenant and owner scopes:
 
 ```text
-POST /tenant/{tenantId}/sales-order/event/{list|paged|count}
-POST /owner/{ownerId}/sales-order/event/{list|paged|count}
+POST /tenant/{tenantId}/sales-order/event/{list|cursor|paged|count}
+POST /owner/{ownerId}/sales-order/event/{list|cursor|paged|count}
 ```
 
 Aggregation and Schema are contracts separate from the data-query shapes above:
@@ -62,6 +63,8 @@ POST /sales-order/event/schema/refresh
 
 There is still no event-stream `single` HTTP route and no EventStream API Client. See [Event Stream Aggregation](./event-stream-aggregation.md) for aggregation requests and JSON/SSE responses. The Schema routes are model-level entries without tenant/owner variants. Generated OpenAPI from the running application is the source of truth for exact paths.
 
+`event/cursor` returns a JSON-only `CursorPage`. It follows the same continuation rules as [snapshot cursor pagination](./snapshot-query.md#cursor-pagination): callers keep `filter` and `sort` unchanged and stop when `nextCursor == null`. The token does not bind filter or sort; the server reapplies security filters and validates the backend cursor. Built-in backends also require `wow.query.cursor.encryption-key`; without it cursor is explicitly unsupported from the first page, and rotating the single key invalidates existing cursors. It has no total, previous cursor, PIT, or cross-request snapshot consistency. It also cannot replace a MongoDB compound index or make an expensive filter cheap; the Elasticsearch backend uses `search_after`.
+
 ## Loading an Event Stream by Version
 
 Load an aggregate ID and contiguous version range through the GET route, for example:
@@ -75,7 +78,7 @@ It constructs a list query by `aggregateId` and version range. The published `sa
 
 ## Empty Results
 
-A JVM single query returns an empty `Mono` for no match; list returns an empty `Flux`, and paged returns an empty page. HTTP list, paged, and version-range loading return an empty collection or page for no match; they have no single-query 404 semantics. HTTP guard, Schema resolution, or authorization failures remain errors and must not be confused with an empty result.
+A JVM single query returns an empty `Mono` for no match; list returns an empty `Flux`, and paged returns an empty page. With an encryption key configured, cursor returns a terminal empty page for no match; an absent key means cursor is unsupported, not empty. HTTP list, cursor, paged, and version-range loading return an empty collection or page for no match; they have no single-query 404 semantics. HTTP guard, Schema resolution, or authorization failures remain errors and must not be confused with an empty result.
 
 ## Differences from Snapshot Queries
 
@@ -83,7 +86,7 @@ A JVM single query returns an empty `Mono` for no match; list returns an empty `
 | --- | --- | --- |
 | Business-data root | `body` event array; payload is `body.body` | `state` current business state |
 | Deletion default | No deletion condition | `DELETION = ACTIVE` by default |
-| HTTP data queries | list, paged, count, version-range load | single, list, paged, count, and state-only |
+| HTTP data queries | list, cursor, paged, count, version-range load | single, list, cursor, paged, count, and state-only |
 | HTTP aggregation | `event/aggregation`, JSON or SSE | `snapshot/aggregation`, JSON or SSE |
 | HTTP Schema | `event/schema` and refresh | `snapshot/schema` and refresh |
 | API Client | None | Separate snapshot contracts exist |

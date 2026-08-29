@@ -77,6 +77,14 @@ class TailEventStreamQueryFilter(private val queryServiceFactory: EventStreamQue
                 }
             }
 
+            QueryType.CURSOR -> {
+                context.asCursorQuery<DomainEventStream>().setResult(queryService::cursor)
+            }
+
+            QueryType.DYNAMIC_CURSOR -> {
+                context.asCursorQuery<DynamicDocument>().setResult(queryService::dynamicCursor)
+            }
+
             QueryType.COUNT -> {
                 val query = context.getQuery()
                 val result = if (query is FilterExpression) {

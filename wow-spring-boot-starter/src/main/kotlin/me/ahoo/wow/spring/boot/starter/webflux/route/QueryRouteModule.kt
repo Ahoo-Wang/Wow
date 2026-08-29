@@ -21,6 +21,7 @@ import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.CountEventStreamHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.event.CursorQueryEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.EventStreamAggregationHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.EventStreamSchemaHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.EventStreamSchemaRefreshHandlerFunctionFactory
@@ -29,6 +30,8 @@ import me.ahoo.wow.webflux.route.event.LoadEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.PagedQueryEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.query.RewriteRequestFilter
 import me.ahoo.wow.webflux.route.snapshot.CountSnapshotHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.snapshot.CursorQuerySnapshotHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.snapshot.CursorQuerySnapshotStateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.ListQuerySnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.ListQuerySnapshotStateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.LoadSnapshotHandlerFunctionFactory
@@ -70,6 +73,16 @@ class QueryRouteModule(
             snapshotQueryGateway = snapshotQueryGateway,
             rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler
+        ),
+        CursorQuerySnapshotHandlerFunctionFactory(
+            snapshotQueryGateway = snapshotQueryGateway,
+            rewriteRequestFilter = rewriteRequestFilter,
+            exceptionHandler = exceptionHandler,
+        ),
+        CursorQuerySnapshotStateHandlerFunctionFactory(
+            snapshotQueryGateway = snapshotQueryGateway,
+            rewriteRequestFilter = rewriteRequestFilter,
+            exceptionHandler = exceptionHandler,
         ),
         PagedQuerySnapshotHandlerFunctionFactory(
             snapshotQueryGateway = snapshotQueryGateway,
@@ -122,6 +135,11 @@ class QueryRouteModule(
             eventStreamQueryGateway = eventStreamQueryGateway,
             rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler
+        ),
+        CursorQueryEventStreamHandlerFunctionFactory(
+            eventStreamQueryGateway = eventStreamQueryGateway,
+            rewriteRequestFilter = rewriteRequestFilter,
+            exceptionHandler = exceptionHandler,
         ),
         PagedQueryEventStreamHandlerFunctionFactory(
             eventStreamQueryGateway = eventStreamQueryGateway,

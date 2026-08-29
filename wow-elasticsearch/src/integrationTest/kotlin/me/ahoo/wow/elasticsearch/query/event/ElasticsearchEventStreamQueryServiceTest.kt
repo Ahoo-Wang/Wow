@@ -25,6 +25,7 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.query.dsl.condition
+import me.ahoo.wow.query.CursorTokenCodec
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.count
@@ -41,6 +42,7 @@ import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchCl
 import reactor.core.publisher.Flux
 import reactor.kotlin.test.test
 import java.time.Duration
+import java.util.Base64
 
 class ElasticsearchEventStreamQueryServiceTest : EventStreamQueryServiceSpec() {
     @JvmField
@@ -48,6 +50,9 @@ class ElasticsearchEventStreamQueryServiceTest : EventStreamQueryServiceSpec() {
     val elasticsearch = ElasticsearchTestFixture()
 
     lateinit var elasticsearchClient: ReactiveElasticsearchClient
+    private val cursorTokenCodec = CursorTokenCodec.fromBase64Url(
+        Base64.getUrlEncoder().withoutPadding().encodeToString(ByteArray(32) { it.toByte() }),
+    )
 
     @BeforeEach
     override fun setup() {
@@ -61,7 +66,10 @@ class ElasticsearchEventStreamQueryServiceTest : EventStreamQueryServiceSpec() {
     }
 
     override fun createEventStreamQueryServiceFactory(): EventStreamQueryServiceFactory {
-        return ElasticsearchEventStreamQueryServiceFactory(elasticsearchClient)
+        return ElasticsearchEventStreamQueryServiceFactory(
+            elasticsearchClient,
+            cursorTokenCodec = cursorTokenCodec,
+        )
     }
 
     @Test

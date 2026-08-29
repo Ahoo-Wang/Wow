@@ -13,12 +13,15 @@
 
 package me.ahoo.wow.mongo.query
 
+import com.mongodb.client.model.Filters
 import com.mongodb.reactivestreams.client.FindPublisher
 import com.mongodb.reactivestreams.client.MongoCollection
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
@@ -26,8 +29,10 @@ import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.mongo.query.aggregation.MongoAggregationCompiler
+import me.ahoo.wow.query.CursorTokenCodec
 import me.ahoo.wow.query.QueryService
 import me.ahoo.wow.query.schema.ResolvedAggregationQuery
+import me.ahoo.wow.query.withUniqueSort
 import org.bson.Document
 import org.bson.types.Decimal128
 import reactor.core.publisher.Flux
@@ -43,11 +48,16 @@ abstract class AbstractMongoQueryService<R : Any> : QueryService<R> {
     abstract fun toTypedResult(document: Document): R
     abstract fun toDynamicDocument(document: Document): DynamicDocument
 
+    protected open val cursorUniqueField: String? = null
+    protected open val cursorTokenCodec: CursorTokenCodec? = null
+
     protected open fun resolve(query: ISingleQuery): Mono<ISingleQuery> = Mono.just(query)
 
     protected open fun resolve(query: IListQuery): Mono<IListQuery> = Mono.just(query)
 
     protected open fun resolve(query: IPagedQuery): Mono<IPagedQuery> = Mono.just(query)
+
+    protected open fun resolve(query: ICursorQuery): Mono<ICursorQuery> = Mono.just(query)
 
     protected open fun resolve(filter: FilterExpression): Mono<FilterExpression> = Mono.just(filter)
 
@@ -132,6 +142,52 @@ abstract class AbstractMongoQueryService<R : Any> : QueryService<R> {
     override fun dynamicPaged(pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>> {
         return pagedDocument(pagedQuery) { toDynamicDocument(it) }
     }
+
+    private fun <T : Any> cursorDocument(
+        query: ICursorQuery,
+        mapper: (Document) -> T,
+    ): Mono<CursorPage<T>> {
+        val uniqueField = cursorUniqueField
+            ?: return Mono.error(UnsupportedOperationException("Cursor query is not supported."))
+        val tokenCodec = cursorTokenCodec
+            ?: return Mono.error(UnsupportedOperationException("Cursor query is not supported."))
+        val effective = query.withUniqueSort(uniqueField)
+        return resolve(effective).flatMap { resolved ->
+            val physicalSort = resolved.sort.map { it.copy(field = sortConverter.convertField(it.field)) }
+            val filter = resolved.cursor?.let {
+                MongoCursorCodec.decode(tokenCodec, it, resolved.sort.size)
+            }?.let { values ->
+                Filters.and(
+                    converter.convert(resolved.filter),
+                    MongoCursorFilterCompiler.compile(physicalSort, values),
+                )
+            } ?: converter.convert(resolved.filter)
+            val projection = projectionConverter.cursorProjection(
+                resolved.projection,
+                physicalSort.map { it.field },
+            )
+            collection.find(filter)
+                .projection(projectionConverter.convertCursor(projection))
+                .sort(sortConverter.convert(resolved.sort))
+                .limit(resolved.size + 1)
+                .toFlux()
+                .collectList()
+                .map { documents ->
+                    documents.toCursorPage(
+                        resolved,
+                        projection,
+                        physicalSort.map { it.field },
+                        tokenCodec,
+                        mapper,
+                    )
+                }
+        }
+    }
+
+    override fun cursor(query: ICursorQuery): Mono<CursorPage<R>> = cursorDocument(query, ::toTypedResult)
+
+    override fun dynamicCursor(query: ICursorQuery): Mono<CursorPage<DynamicDocument>> =
+        cursorDocument(query, ::toDynamicDocument)
 
     override fun count(filter: FilterExpression): Mono<Long> {
         return resolve(filter).flatMap { resolved ->

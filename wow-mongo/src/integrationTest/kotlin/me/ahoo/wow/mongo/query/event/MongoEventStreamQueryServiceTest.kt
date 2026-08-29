@@ -14,6 +14,7 @@ import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
 import me.ahoo.wow.mongo.MongoEventStore
 import me.ahoo.wow.mongo.query.AbstractMongoFilterConverter
 import me.ahoo.wow.query.dsl.aggregation
+import me.ahoo.wow.query.CursorTokenCodec
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.query
@@ -36,6 +37,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import reactor.core.publisher.Flux
 import reactor.kotlin.test.test
+import java.util.Base64
 
 class MongoEventStreamQueryServiceTest : EventStreamQueryServiceSpec() {
     @JvmField
@@ -43,6 +45,9 @@ class MongoEventStreamQueryServiceTest : EventStreamQueryServiceSpec() {
     val mongo = MongoTestFixture()
 
     lateinit var database: MongoDatabase
+    private val cursorTokenCodec = CursorTokenCodec.fromBase64Url(
+        Base64.getUrlEncoder().withoutPadding().encodeToString(ByteArray(32) { it.toByte() }),
+    )
 
     @BeforeEach
     override fun setup() {
@@ -55,7 +60,7 @@ class MongoEventStreamQueryServiceTest : EventStreamQueryServiceSpec() {
     }
 
     override fun createEventStreamQueryServiceFactory(): EventStreamQueryServiceFactory {
-        return MongoEventStreamQueryServiceFactory(database)
+        return MongoEventStreamQueryServiceFactory(database, cursorTokenCodec = cursorTokenCodec)
     }
 
     @Test

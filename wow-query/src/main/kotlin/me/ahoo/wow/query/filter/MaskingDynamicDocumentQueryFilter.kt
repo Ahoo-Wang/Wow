@@ -69,6 +69,12 @@ abstract class MaskingDynamicDocumentQueryFilter<MASKER : AggregateDynamicDocume
                 }
             }
 
+            QueryType.DYNAMIC_CURSOR -> {
+                context.asCursorQuery<DynamicDocument>().rewriteResult { result ->
+                    result.map(aggregateDataMasker::mask)
+                }
+            }
+
             else -> {
             }
         }

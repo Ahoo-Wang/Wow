@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.snapshot
 
+import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
@@ -47,3 +48,6 @@ fun <S : Any> Mono<PagedList<MaterializedSnapshot<S>>>.toStatePagedList(): Mono<
 fun <S : DynamicDocument> Mono<PagedList<S>>.toStateDocumentPagedList(): Mono<PagedList<DynamicDocument>> {
     return map { PagedList(it.total, it.list.map { dynamicDocument -> dynamicDocument.toState() }) }
 }
+
+fun <S : DynamicDocument> Mono<CursorPage<S>>.toStateDocumentCursorPage(): Mono<CursorPage<DynamicDocument>> =
+    map { page -> CursorPage(page.list.map(DynamicDocument::toState), page.nextCursor) }

@@ -79,7 +79,7 @@ Do not call `build()` after every type in an application pipeline. Let all route
 | Jackson enums | flattened string enum where configured |
 | `@Summary`, `@Description`, Swagger `@Schema` | title, description, discriminator, and composition metadata |
 
-The canonical single/list/paged/count JSON files live under `schema/query/v2`. Only the `FilterExpression` type is copied into `wow-schema` as the custom framework definition used during reflective generation.
+The canonical single/list/cursor/paged/count JSON files live under `schema/query/v2`. Only the `FilterExpression` type is copied into `wow-schema` as the custom framework definition used during reflective generation.
 
 ## How the OpenAPI Module Uses Schemas
 
@@ -97,7 +97,7 @@ Spring Boot's `OpenAPIAutoConfiguration` provides this context and a `WowOpenApi
 
 OpenAPI query publication has two static layers, followed by one runtime layer:
 
-1. Generic component schemas define the canonical JSON shape of `FilterExpression`, `SingleQuery`, `ListQuery`, `PagedQuery`, and `AggregationQuery`.
+1. Generic component schemas define the canonical JSON shape of `FilterExpression`, `SingleQuery`, `ListQuery`, `CursorQuery`, `PagedQuery`, and `AggregationQuery`.
 2. Each aggregate-specific request-body component references the appropriate generic schema and adds `x-wow-query-fields`. That extension references a static enum containing system fields plus fields inferred from the aggregate state by `JsonQuerySchemaSource`; it does not contain backend bindings or proven capabilities.
 3. `GET /{aggregate}/snapshot/schema` and `GET /{aggregate}/event/schema` return the Snapshot and EventStream runtime `QueryModelSchemaMetadata` respectively after all configured query-schema sources are merged and the selected backend adapter resolves capabilities. The corresponding `/refresh` route refreshes that runtime view.
 

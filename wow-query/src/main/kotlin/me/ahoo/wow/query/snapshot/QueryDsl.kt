@@ -15,8 +15,10 @@ package me.ahoo.wow.query.snapshot
 
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
@@ -45,6 +47,10 @@ fun <S : Any> IPagedQuery.query(queryService: SnapshotQueryService<S>): Mono<Pag
     return queryService.paged(this)
 }
 
+fun <S : Any> ICursorQuery.query(queryService: SnapshotQueryService<S>): Mono<CursorPage<MaterializedSnapshot<S>>> {
+    return queryService.cursor(this)
+}
+
 fun <S : Any> ISingleQuery.query(queryService: SnapshotQueryService<S>): Mono<MaterializedSnapshot<S>> {
     return queryService.single(this)
 }
@@ -55,6 +61,10 @@ fun IListQuery.dynamicQuery(queryService: SnapshotQueryService<*>): Flux<Dynamic
 
 fun IPagedQuery.dynamicQuery(queryService: SnapshotQueryService<*>): Mono<PagedList<DynamicDocument>> {
     return queryService.dynamicPaged(this)
+}
+
+fun ICursorQuery.dynamicQuery(queryService: SnapshotQueryService<*>): Mono<CursorPage<DynamicDocument>> {
+    return queryService.dynamicCursor(this)
 }
 
 fun ISingleQuery.dynamicQuery(queryService: SnapshotQueryService<*>): Mono<DynamicDocument> {

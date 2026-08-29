@@ -17,8 +17,11 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CursorPage
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
@@ -62,6 +65,8 @@ class QueryServiceProxyTest {
         proxy.dynamicSingle(singleQuery { })
         proxy.list(listQuery { })
         proxy.dynamicList(listQuery { })
+        proxy.cursor(CursorQuery(MatchAllFilter))
+        proxy.dynamicCursor(CursorQuery(MatchAllFilter))
         proxy.paged(pagedQuery { })
         proxy.dynamicPaged(pagedQuery { })
         proxy.count(MatchAllFilter)
@@ -72,6 +77,8 @@ class QueryServiceProxyTest {
             QueryType.DYNAMIC_SINGLE,
             QueryType.LIST,
             QueryType.DYNAMIC_LIST,
+            QueryType.CURSOR,
+            QueryType.DYNAMIC_CURSOR,
             QueryType.PAGED,
             QueryType.DYNAMIC_PAGED,
             QueryType.COUNT,
@@ -176,6 +183,18 @@ class QueryServiceProxyTest {
 
         override fun dynamicList(namedAggregate: NamedAggregate, listQuery: IListQuery): Flux<DynamicDocument> =
             record(QueryType.DYNAMIC_LIST, namedAggregate, Flux.empty())
+
+        override fun cursor(
+            namedAggregate: NamedAggregate,
+            query: ICursorQuery,
+        ): Mono<CursorPage<DomainEventStream>> =
+            record(QueryType.CURSOR, namedAggregate, Mono.just(CursorPage(emptyList(), null)))
+
+        override fun dynamicCursor(
+            namedAggregate: NamedAggregate,
+            query: ICursorQuery,
+        ): Mono<CursorPage<DynamicDocument>> =
+            record(QueryType.DYNAMIC_CURSOR, namedAggregate, Mono.just(CursorPage(emptyList(), null)))
 
         override fun paged(
             namedAggregate: NamedAggregate,

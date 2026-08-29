@@ -21,6 +21,7 @@ import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
 import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapter
 import me.ahoo.wow.modeling.materialize
+import me.ahoo.wow.query.CursorTokenCodec
 import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaSource
@@ -30,7 +31,7 @@ import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import java.time.Duration
 
-class ElasticsearchSnapshotQueryServiceFactory(
+class ElasticsearchSnapshotQueryServiceFactory @JvmOverloads constructor(
     private val elasticsearchClient: ReactiveElasticsearchClient,
     private val queryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE,
     private val queryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE,
@@ -38,6 +39,7 @@ class ElasticsearchSnapshotQueryServiceFactory(
         ElasticsearchIndexMappingResolver(elasticsearchClient),
     private val schemaSources: List<QuerySchemaSource> = emptyList(),
     private val validationMode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
+    private val cursorTokenCodec: CursorTokenCodec? = null,
 ) : AbstractSnapshotQueryServiceFactory() {
     override fun createQueryService(namedAggregate: NamedAggregate): SnapshotQueryService<*> {
         val materialized = namedAggregate.materialize()
@@ -54,6 +56,7 @@ class ElasticsearchSnapshotQueryServiceFactory(
             queryKeepAlive = queryKeepAlive,
             schemaProvider = provider,
             validationMode = validationMode,
+            cursorTokenCodec = cursorTokenCodec,
         )
     }
 }

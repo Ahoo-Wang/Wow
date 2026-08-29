@@ -140,6 +140,7 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
             elasticsearchIndexMappingResolver,
             sources,
             schemaQueryProperties.schema.validationMode,
+            schemaQueryProperties.cursorTokenCodec(),
         )
     }
 
@@ -198,6 +199,7 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
             indexMappingResolver = elasticsearchIndexMappingResolver,
             schemaSources = sources,
             validationMode = schemaQueryProperties.schema.validationMode,
+            cursorTokenCodec = schemaQueryProperties.cursorTokenCodec(),
         )
     }
 

@@ -86,6 +86,16 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         )
     }
 
+    fun resolve(query: ICursorQuery): QuerySchemaResolution<ICursorQuery> {
+        val filter = resolve(query.filter)
+        val projection = resolve(query.projection)
+        val sort = resolve(query.sort)
+        return QuerySchemaResolution(
+            CursorQuery(filter.value, projection.value, sort.value, query.size, query.cursor),
+            listOf(filter.compatibility, projection.compatibility, sort.compatibility).combined(),
+        )
+    }
+
     fun resolve(filter: FilterExpression): QuerySchemaResolution<FilterExpression> =
         filterResolver.resolve(filter)
 
