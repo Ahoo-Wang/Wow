@@ -176,7 +176,9 @@ class FilterChainBuilder<T> {
      *
      * @return the FilterChain<T> instance
      */
-    fun build(): FilterChain<T> {
+    fun build(
+        terminal: FilterChain<T> = EmptyFilterChain.instance(),
+    ): FilterChain<T> {
         /**
          * Filter and sort filters based on filter conditions.
          */
@@ -187,7 +189,7 @@ class FilterChainBuilder<T> {
         /**
          * Build the filter chain starting from the last filter.
          */
-        var next: FilterChain<T> = EmptyFilterChain.instance()
+        var next: FilterChain<T> = terminal
         for (i in sortedFilters.size - 1 downTo 0) {
             next = chainFactory(sortedFilters[i], next)
         }

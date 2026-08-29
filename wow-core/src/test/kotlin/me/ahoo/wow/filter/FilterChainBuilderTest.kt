@@ -47,6 +47,34 @@ class FilterChainBuilderTest {
     }
 
     @Test
+    fun `should append explicit terminal after sorted filters`() {
+        val calls = mutableListOf<String>()
+        fun named(name: String) = Filter<String> { context, next ->
+            calls += "$name-before-$context"
+            next.filter(context).doOnSuccess { calls += "$name-after-$context" }
+        }
+        val terminal = FilterChain<String> { context ->
+            calls += "terminal-$context"
+            Mono.empty()
+        }
+
+        FilterChainBuilder<String>()
+            .addFilters(listOf(named("a"), named("b")))
+            .build(terminal)
+            .filter("query")
+            .block()
+
+        calls.assert().isEqualTo(
+            listOf("a-before-query", "b-before-query", "terminal-query", "b-after-query", "a-after-query"),
+        )
+    }
+
+    @Test
+    fun `build without terminal should keep empty-chain behavior`() {
+        FilterChainBuilder<String>().build().filter("query").block()
+    }
+
+    @Test
     fun `typed condition includes matching filters and filters without type annotation`() {
         val chain = FilterChainBuilder<MutableList<String>>()
             .addFilter(OtherTypedFilter())
