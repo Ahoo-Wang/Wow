@@ -86,7 +86,7 @@ Sourcing functions update state only from events; do not read the current time, 
 Applications restore aggregates through `StateAggregateRepository`. For a request for the latest version, `EventSourcingStateAggregateRepository` loads a snapshot first; when none exists, it creates an empty aggregate, loads streams from `expectedNextVersion`, and invokes `onSourcing` for each stream.
 
 ```mermaid
-flowchart LR
+flowchart TB
     Load[Load aggregate] --> Latest{Latest version?}
     Latest -->|yes| Snapshot[Load snapshot or create empty aggregate]
     Latest -->|no| Empty[Create empty aggregate]

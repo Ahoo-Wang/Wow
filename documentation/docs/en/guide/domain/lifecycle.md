@@ -9,16 +9,16 @@ outline: deep
 Events drive the lifecycle; deletion and recovery remain part of aggregate state evolution.
 
 ```mermaid
-stateDiagram-v2
-    direction LR
-    state "Uninitialized aggregate" as Empty
-    state "Active aggregate" as Active
-    state "Deleted aggregate" as Deleted
-    [*] --> Empty
-    Empty --> Active: Creation event
-    Active --> Active: Regular domain event
-    Active --> Deleted: Deletion event
-    Deleted --> Active: Recovery event
+flowchart TB
+    Start((Start)) --> Empty["Uninitialized aggregate"]
+    Empty --> Created["Creation event"]
+    Created --> Active["Active aggregate"]
+    Active --> Regular["Regular domain event"]
+    Regular --> Active
+    Active --> DeletedEvent["Deletion event"]
+    DeletedEvent --> Deleted["Deleted aggregate"]
+    Deleted --> Recovery["Recovery event"]
+    Recovery --> Active
 ```
 
 ## Create or Restore State

@@ -11,7 +11,7 @@ This page explains how a non-`Void` command crosses the Wow runtime. See [Send C
 ## Component map
 
 ```mermaid
-flowchart LR
+flowchart TB
     Caller --> Gateway[DefaultCommandGateway]
     Gateway --> Bus[CommandBus]
     Bus --> Dispatcher[CommandDispatcher]

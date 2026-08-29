@@ -11,7 +11,7 @@ outline: deep
 命令从业务意图开始，以持久事实和可观察的完成信号连接下游协作。
 
 ```mermaid
-flowchart LR
+flowchart TB
     Intent["业务意图"] --> Definition["定义命令"]
     Definition --> Send["发送命令"]
     Send --> Process["聚合处理"]

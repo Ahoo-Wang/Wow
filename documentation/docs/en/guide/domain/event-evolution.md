@@ -9,7 +9,7 @@ outline: deep
 When historical events are read, `EventUpgraderFactory` invokes every Upgrader registered for that event once in `@Order` order. Each invocation may return the record unchanged, upgraded, or as a `DroppedEvent` record; the application must verify that the final record is resolvable.
 
 ```mermaid
-flowchart LR
+flowchart TB
     Persisted["Persisted event record"] --> Ordered["Upgrader list for this event<br/>sorted once by @Order"]
     Ordered --> Apply["Invoke each Upgrader exactly once"]
     Apply --> Result{"Each invocation returns"}

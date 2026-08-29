@@ -86,7 +86,7 @@ interface EventStore :
 应用通过 `StateAggregateRepository` 恢复聚合。`EventSourcingStateAggregateRepository` 在请求最新版本时先加载快照；没有快照则创建空聚合，再从 `expectedNextVersion` 加载事件流并逐条执行 `onSourcing`。
 
 ```mermaid
-flowchart LR
+flowchart TB
     Load[加载聚合] --> Latest{请求最新版本？}
     Latest -->|是| Snapshot[加载快照或创建空聚合]
     Latest -->|否| Empty[创建空聚合]

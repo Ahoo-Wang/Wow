@@ -11,25 +11,18 @@ Wow 的 `@StatelessSaga` 是无状态事件编排器：它接收领域事件或�
 Stateless Saga 把一个已发生的事实转换为 0..N 条顺序发送的后续命令。
 
 ```mermaid
-sequenceDiagram
-    participant Source as 源聚合
-    participant EventBus as DomainEventBus
-    participant Saga as Stateless Saga
-    participant Gateway as CommandGateway
-    participant CommandBus as CommandBus
-    participant Notifier as SagaHandledNotifierFilter
-    participant WaitNotifier as CommandWaitNotifier
-    Source->>EventBus: 领域事件
-    EventBus->>Notifier: 分发到匹配 Saga
-    Notifier->>Saga: 调用 Saga 函数
-    loop 0..N 条命令
-        Saga->>Gateway: 顺序发送后续命令
-        Gateway->>CommandBus: 发送命令
-        CommandBus-->>Gateway: 发送边界完成
-    end
-    Saga-->>Notifier: 函数完成并记录 commandIds
-    Notifier-->>WaitNotifier: SAGA_HANDLED + commandIds
-    Note over Gateway,CommandBus: 目标聚合处理不在<br/>SAGA_HANDLED 保证内
+flowchart TB
+    Source["源聚合"] -->|领域事件| EventBus["DomainEventBus"]
+    EventBus -->|分发到匹配 Saga| Notifier["SagaHandledNotifierFilter"]
+    Notifier -->|调用 Saga 函数| Saga["Stateless Saga"]
+    Saga --> Commands{"没有后续命令？"}
+    Commands -->|是| Done["记录 commandIds"]
+    Commands -->|否：顺序发送| Gateway["CommandGateway"]
+    Gateway --> CommandBus["CommandBus"]
+    CommandBus --> Sent["发送完成；目标聚合处理未保证"]
+    Sent --> Done
+    Done --> Signal["SAGA_HANDLED + commandIds"]
+    Signal --> WaitNotifier["CommandWaitNotifier"]
 ```
 
 ## 何时使用 Saga

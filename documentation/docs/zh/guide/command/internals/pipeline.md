@@ -11,7 +11,7 @@ outline: deep
 ## 组件地图
 
 ```mermaid
-flowchart LR
+flowchart TB
     Caller[调用方] --> Gateway[DefaultCommandGateway]
     Gateway --> Bus[CommandBus]
     Bus --> Dispatcher[CommandDispatcher]

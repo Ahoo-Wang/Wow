@@ -13,17 +13,11 @@ Each transport anchors SENT to different evidence, but none means the command ha
 ```mermaid
 flowchart TB
     Command["CommandMessage"] --> Transport{"CommandBus implementation"}
-    Transport --> InMemory["InMemory: local sink admission"]
-    Transport --> Kafka["Kafka: producer result"]
-    Transport --> Redis["Redis: Stream XADD"]
-    Transport --> LocalFirst["LocalFirst: local receipt + distributed admission"]
+    Transport --> Evidence["InMemory: local sink<br/>Kafka: producer result<br/>Redis: Stream XADD<br/>LocalFirst: local receipt + distributed admission"]
     Void["Void + LocalFirst"] --> Distributed["Force distributed path"]
     Distributed --> Sent
-    InMemory --> Sent["SENT"]
-    Kafka --> Sent
-    Redis --> Sent
-    LocalFirst --> Sent
-    Sent --> Boundary["Proves transport acceptance, not PROCESSED"]
+    Evidence --> Sent["SENT"]
+    Sent --> Boundary["SENT ≠ PROCESSED"]
 ```
 
 ## CommandBus contract
