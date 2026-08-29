@@ -9,7 +9,7 @@ description: 用 Wow 快照查询和领域/状态事件驱动 CoCache 缓存加�
 
 ## 特性
 
-- `QueryServiceCacheSource` 从本地 `SnapshotQueryService` 加载；
+- `QueryGatewayCacheSource` 从本地 `SnapshotQueryGateway` 加载；
 - `QueryApiCacheSource` 从远程 `ReactiveSnapshotQueryApi` 加载，并把 404 转为空；
 - `EvictStateCacheRefresher` 消费领域事件并逐出；
 - `SetStateCacheRefresher` 消费状态事件并 set，deleted state 改为逐出。
@@ -36,9 +36,9 @@ Starter 没有 `cocache-support` capability，也没有 `wow.cocache.*` 自动�
 
 ```kotlin
 @Bean
-fun orderCacheSource(queryService: SnapshotQueryService<OrderState>) =
-    QueryServiceCacheSource(
-        queryService = queryService,
+fun orderCacheSource(queryGateway: SnapshotQueryGateway<OrderState>) =
+    QueryGatewayCacheSource(
+        snapshotQueryGateway = queryGateway,
         stateToCacheDataConverter = { snapshot -> OrderView(snapshot.state) },
     )
 ```
@@ -73,9 +73,9 @@ Refresher 是 `MessageFunction`，必须进入应用的事件处理器发现/注
 
 ## 缓存加载源
 
-source 只负责 miss load 与 DTO 转换。权限、tenant/space 作用域和不存在语义必须由所调用 query service/API 的公共合同保证。
+source 只负责 miss load 与 DTO 转换。权限、tenant/space 作用域和不存在语义必须由所调用 Gateway/API 的公共合同保证。
 
-### QueryServiceCacheSource
+### QueryGatewayCacheSource
 
 它构造按 `aggregateId` 的 single query。空结果返回 `null` cache value；查询错误和 timeout 不会伪装成 cache miss。
 

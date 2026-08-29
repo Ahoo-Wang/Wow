@@ -16,11 +16,11 @@ Search for:
 - custom compiler/KSP assumptions and generated metadata;
 - OpenAPI, JSON Schema, client SDK, serialization, and event revision outputs;
 - custom auto-configuration, `@ConfigurationProperties`, exclusions, and bean overrides;
-- custom `SnapshotQueryService`, `SnapshotStore`, `EventStore`, bus, processor, lifecycle, or routing implementations.
+- custom `SnapshotQueryBackend`, `SnapshotStore`, `EventStore`, bus, processor, lifecycle, or routing implementations.
 
 For each item record current evidence, target-tag evidence, required action, owner, verification, and rollback effect.
 
-Source compatibility is not runtime capability: a new default interface method and generated route can compile while a custom `SnapshotQueryService` still falls into an unsupported `aggregate` implementation. When the target publishes aggregation, prove the selected service overrides or delegates `aggregate`, then call the generated endpoint for every snapshot backend actually used.
+Source compatibility is not runtime capability: a generated route can compile while a custom `SnapshotQueryBackend` still fails to compile or execute the target aggregation. Prove the routed Backend and call the generated endpoint for every snapshot backend actually used.
 
 ## Wow 8.12.x to 8.13.0 negotiated query schema
 
@@ -30,7 +30,7 @@ Verify old and new requests against every MongoDB or Elasticsearch mapping actua
 
 ## Wow 8.13.x to 8.14.0 event-stream aggregation
 
-`EventStreamQueryService` gains `AggregationQuery` through the shared default `QueryService.aggregate`. Existing custom implementations can still compile while returning unsupported, so prove the selected service overrides or delegates aggregation and provides the `EVENT_STREAM` query schema. Managed aggregate services traverse `QueryServiceProxy` and `QueryGateway`; direct factory access remains a trusted raw path.
+EventStream aggregation uses `EventStreamQueryGateway`, routed `EventStreamQueryBackend`, and the `EVENT_STREAM` query schema. Prove the selected Backend, generated route, and Schema provider. Direct Backend Factory access remains a trusted raw path that bypasses Gateway governance.
 
 Event-stream aggregation uses persisted event-stream documents: expand `body`, then use event-relative fields and declared payload fields under `body.body`. Wow adds no EventStream aggregation HTTP, OpenAPI, or Schema HTTP route. Verify the in-process contract, policy chain, schema mode, and each selected backend without inventing a transport or data migration.
 
@@ -45,7 +45,7 @@ When the pinned source is 8.14.x and the target is 8.15.0 or later, apply this s
 | `me.ahoo.wow.query.event.filter.EventStreamQueryHandler` / `DefaultEventStreamQueryHandler` | `me.ahoo.wow.query.event.EventStreamQueryGateway` / `DefaultEventStreamQueryGateway` |
 | `snapshotQueryHandler` / `eventStreamQueryHandler` bean | `snapshotQueryGateway` / `eventStreamQueryGateway` bean |
 
-Change custom query-filter `@FilterType` targets to the corresponding Gateway. `QueryGateway` no longer extends `Handler` or exposes `handle(QueryContext)`; direct implementations must implement `aggregate`, and Gateway `count` accepts only `FilterExpression`. Do not remove aggregate `QueryService` injection, `QueryServiceProxy`, either `QueryServiceRegistrar`, backend `QueryService`, or its factory: managed aggregate services route through the Gateway, while direct factory access remains a trusted raw path that bypasses its policy chain.
+Change model-specific query-filter `@FilterType` targets to the corresponding Gateway and leave generic `QueryFilter` implementations unannotated. `QueryGateway` does not extend `Handler` or expose `handle(QueryContext)`; direct implementations must implement `aggregate`, and Gateway `count` accepts only `FilterExpression`. Application code injects an aggregate Gateway; direct Backend Factory access remains a trusted raw path that bypasses its policy chain.
 
 The rename alone does not change HTTP/OpenAPI query shapes, wire formats, or stored events/snapshots, so it needs source compilation, Spring bean/qualifier startup, and representative managed-service/WebFlux query verification, but no data conversion. Reassess that conclusion if the same release also changes application schemas, storage layouts, or writers.
 

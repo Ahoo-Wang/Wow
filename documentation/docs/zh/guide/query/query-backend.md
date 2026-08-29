@@ -1,69 +1,67 @@
 ---
 title: 查询后端
-description: 了解 QueryService、Spring 类型化 Bean、Factory 缓存与存储实现之间的关系。
+description: 了解 ObjectNode 查询后端、聚合级 Gateway、Factory 路由与存储实现之间的关系。
 ---
 
 # 查询后端
 
-## QueryService 契约
+## QueryBackend 契约
 
-`QueryService<R>` 是聚合查询后端契约，提供类型化（typed）与动态（dynamic）的单条（single）、列表（list）、分页（paged）、计数（count）和聚合（aggregation）操作。`SnapshotQueryService<S>` 返回 `MaterializedSnapshot<S>`，而 `EventStreamQueryService` 返回 `DomainEventStream`。聚合始终返回动态文档行；后端未支持时，默认 `aggregate` 会失败。
+`QueryBackend` 是聚合绑定的低层合同：single、list、paged 与 aggregate 使用 `tools.jackson.databind.node.ObjectNode`，count 返回 `Long`。`SnapshotQueryBackend` 和 `EventStreamQueryBackend` 只区分数据模型与 Schema Provider 能力；typed 物化属于 Gateway，不属于 Backend。
 
 ```mermaid
 flowchart TB
-    SnapshotRegistrar["SnapshotQueryServiceRegistrar"] --> SnapshotBean["SnapshotQueryService&lt;STATE&gt; 类型化 Bean"]
-    EventRegistrar["EventStreamQueryServiceRegistrar"] --> EventBean["EventStreamQueryService Bean"]
-    SnapshotBean --> Proxy["QueryServiceProxy"]
-    EventBean --> Proxy
-    Proxy --> Gateway["QueryGateway"]
-    Gateway --> Factory["QueryServiceFactory 缓存与路由"]
-    Factory --> Mongo["MongoDB QueryService"]
-    Factory --> Elastic["Elasticsearch QueryService"]
-    Infra["受信基础设施"] -. "直接调用，绕过 Gateway" .-> Factory
+    Route["Routing BackendFactory"] -->|"NamedAggregate，装配一次"| Backend["绑定的 ObjectNode Backend"]
+    Registrar["Gateway Registrar"] --> Gateway["聚合级 Gateway Bean"]
+    Backend --> Gateway
+    Gateway --> Chain["一条 around chain"]
+    Chain --> Backend
+    Backend --> Store["MongoDB / Elasticsearch"]
+    Infra["受信基础设施"] -. "直接调用，绕过治理" .-> Route
 ```
 
-## 注入类型化的 SnapshotQueryService Bean
+## 注入类型化的 SnapshotQueryGateway Bean
 
-Spring 可按状态类型注入快照查询服务：
+Spring 可按状态类型注入快照 Gateway：
 
 ```kotlin
 @Component
 class OrderReader(
-    private val queryService: SnapshotQueryService<OrderState>,
+    private val queryGateway: SnapshotQueryGateway<OrderState>,
 ) {
     fun find(query: PagedQuery): Mono<PagedList<MaterializedSnapshot<OrderState>>> =
-        queryService.paged(query)
+        queryGateway.paged(query)
 }
 ```
 
-这是一条应用内 JVM 入口；受管服务可经由代理进入[查询网关](query-gateway.md)。
+这是应用内 JVM 入口；请求与结果都经过[查询网关](query-gateway.md)的同一条策略链。
 
 ## Bean 注册与命名
 
-`SnapshotQueryServiceRegistrar` 使用 `ResolvableType` 注册 `SnapshotQueryService<STATE>`，Bean 名为 `{contextAlias.}{aggregateName}.SnapshotQueryService`。这让 Spring 能以状态泛型选择快照服务。
+`SnapshotQueryGatewayRegistrar` 使用 `ResolvableType` 注册 `SnapshotQueryGateway<STATE>`，Bean 名为 `{contextAlias.}{aggregateName}.SnapshotQueryGateway`。`EventStreamQueryGatewayRegistrar` 注册 `EventStreamQueryGateway`，Bean 名为 `{contextAlias.}{aggregateName}.EventStreamQueryGateway`。
 
-存在同名 Bean 或不存在对应 Gateway 时，会保留原始、未代理的查询服务；不要把这描述成常规业务扩展点。
+存在同名 Gateway Bean 时，Registrar 保留该 Bean。自定义 Bean 自己负责完整治理合同；它不是 Backend Factory 的替代别名。
 
-## QueryServiceProxy 如何路由
+## Gateway 如何绑定 Backend
 
-`QueryServiceProxy` 保留后端的 `name` 与 `namedAggregate`，并把单条、列表、分页、计数和聚合操作转交相应 Gateway。代理本身不实现后端查询，也不把两个查询模型混为一个服务。
+Registrar 创建 Gateway 时，以当前 `NamedAggregate` 调用一次 `SnapshotQueryBackendFactory` 或 `EventStreamQueryBackendFactory`。Routing Factory 此时选择聚合专属路由或默认路由，Gateway 随后始终调用这个绑定的 Backend，不在每次请求中重复选择。
 
 ## Factory、缓存与存储路由
 
-`SnapshotQueryServiceFactory` 与 `EventStreamQueryServiceFactory` 是原始服务的创建入口；其抽象基类按 materialized aggregate 缓存服务。Routing Factory 先查找聚合专属路由，未命中时使用默认 Factory，最终由 MongoDB、Elasticsearch 或其他已配置实现执行查询。
+`SnapshotQueryBackendFactory` 与 `EventStreamQueryBackendFactory` 是原始 Backend 的创建入口；其抽象基类按 materialized aggregate 缓存 Backend。MongoDB、Elasticsearch 或其他配置实现最终把公共查询编译为物理查询，并规范化为 `ObjectNode`。
 
-Factory 的创建结果不经过 Gateway。应用代码应优先使用 Spring 注册的类型化服务；后端选择与物理查询编译属于存储扩展的职责。
+直接 Factory 调用不经过 Gateway。应用代码应使用 Spring 注册的聚合级 Gateway；只有低层诊断、合同测试与存储扩展直接使用 Factory。
 
-## EventStreamQueryService Bean
+## EventStreamQueryGateway Bean
 
-`EventStreamQueryServiceRegistrar` 也按聚合注册 Bean，命名规则使用 `.EventStreamQueryService`。事件流服务没有 `STATE` 泛型；存在多个候选时，应按 Bean 名限定，而不是依赖泛型消歧。
+事件流 Gateway 没有 `STATE` 泛型；存在多个候选时，应按精确 Bean 名限定，而不是依赖泛型消歧。
 
 ## 原始后端访问
 
-直接使用 Factory 适合受信基础设施扩展或明确要求原始后端语义的场景。它会绕过 Gateway 的查询重写、ABAC 与结果脱敏；同名自定义 Bean 和 Gateway 缺失也有同样的未代理边界。
+直接使用 Factory 适合受信基础设施扩展或明确要求原始后端语义的场景。它绕过 Gateway 的请求过滤、ABAC、结果掩码与错误观察，调用方必须自行承担这些责任。
 
-## Schema Provider 差异
+## Schema 使用同一路由
 
-快照代理不实现 Schema Provider，而事件流代理实现 Provider 并委托原始服务。但 Snapshot 与 EventStream Schema HTTP handler 都从各自原始 Factory 创建的服务取得 Provider；代理是否实现 Provider 不能用于推断 HTTP/OpenAPI 暴露。
+Snapshot 与 EventStream Schema HTTP handler 都从各自 Backend Factory 取得 `QueryModelSchemaProvider`。因为注入的是同一个 routed Factory，Schema 与查询执行使用同一条存储路由；Provider 不可用时明确失败，不会回退到另一后端。
 
 WebFlux 已分别发布 `snapshot/schema`、`snapshot/schema/refresh`、`event/schema` 与 `event/schema/refresh` 路由。运行时路由以 [WebFlux](../extensions/webflux.md) 为准，已发布 HTTP/OpenAPI 合同以 [OpenAPI](../open-api.md) 为准，客户端边界以 [API Client](./query-api-client.md) 为准。`wow-apiclient.query` 仍只提供 Snapshot 查询接口，没有 EventStream 查询接口。

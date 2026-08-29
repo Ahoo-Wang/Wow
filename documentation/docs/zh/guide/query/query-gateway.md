@@ -7,7 +7,7 @@ description: 理解查询请求如何经过上下文、过滤器链、权限与�
 
 ## 为什么查询先经过 Gateway
 
-`QueryGateway` 是查询策略的执行边界。Spring 注册的聚合级 `QueryService` 会由 `QueryServiceProxy` 转发到 Gateway，使查询重写、HTTP 护栏、已配置的权限过滤与结果脱敏在到达原始后端前按同一条链执行。
+`SnapshotQueryGateway<S>` 与 `EventStreamQueryGateway` 是业务查询入口，也是策略执行边界。Spring 为每个聚合注册绑定后的 Gateway，使请求重写、HTTP 护栏、权限过滤和结果掩码在同一条 around chain 中执行。
 
 业务代码通常不应绕过 Gateway。只有基础设施扩展或明确需要原始后端语义时，才直接使用 Factory；这种调用不会执行 Gateway 策略链。
 
@@ -18,34 +18,34 @@ description: 理解查询请求如何经过上下文、过滤器链、权限与�
 ```mermaid
 sequenceDiagram
     participant Caller as 调用方
-    participant Entry as Proxy / WebFlux Handler
-    participant Gateway as QueryGateway
-    participant Filters as QueryFilter 链
-    participant Tail as Tail Filter
-    participant Factory as QueryServiceFactory
-    participant Backend as Backend QueryService
+    participant Entry as WebFlux Handler / JVM
+    participant Gateway as 聚合绑定 Gateway
+    participant Filters as 一条 around chain
+    participant Backend as 绑定的 QueryBackend
+    participant Mask as ObjectNode 结果掩码
+    participant Jackson as 可选类型化转换
     Caller->>Entry: Query DTO / DSL
     Entry->>Gateway: 作用域重写后的查询
     Gateway->>Gateway: 创建 QueryContext + QueryType
-    Gateway->>Filters: 执行模型专属过滤链
-    Filters->>Tail: 传递最终查询
-    Tail->>Factory: 获取聚合级原始服务
-    Factory->>Backend: 执行查询
-    Backend-->>Gateway: Mono / Flux 结果
-    Gateway-->>Caller: 策略处理后的结果
+    Gateway->>Filters: 执行请求过滤器
+    Filters->>Backend: single / list / paged / count / aggregate
+    Backend-->>Mask: ObjectNode / PagedList / count
+    Mask-->>Filters: 执行结果过滤器
+    Filters-->>Jackson: 完成 chain
+    Jackson-->>Caller: ObjectNode 或类型化结果
 ```
 
-`QueryServiceProxy` 供进程内的类型化 Bean 使用；WebFlux Handler 在反序列化和请求重写后调用同一类服务。Tail Filter 按聚合创建原始服务并写入结果，随后由 Gateway 返回对应的 `Mono` 或 `Flux`。
+Registrar 在装配 Gateway 时按 `NamedAggregate` 调用一次路由 Factory，并把选中的 Backend 绑定到 Gateway；每次请求不会再次路由。Backend 统一产生 `ObjectNode`，结果过滤器先处理节点；typed single/list/paged 在 chain 完成后才由 Jackson 物化。count 保持 `Long`，aggregation 保持 `ObjectNode` 行。
 
 ## QueryContext 与 QueryType
 
 Gateway 在每次订阅时创建独立的 `QueryContext`，因此同一个响应式 Publisher 的不同订阅不会共享查询、结果或属性。Context 保存聚合标识、查询对象、结果和 `QueryType`，供过滤器重写查询或结果。
 
-`QueryType` 覆盖单条、列表、分页、计数、聚合和它们的动态文档形态；具体查询模型、入口和协议暴露能力仍可能不同。
+`QueryType` 只有 `SINGLE`、`LIST`、`PAGED`、`COUNT` 与 `AGGREGATION`；typed 与 `ObjectNode` 返回共享同一种操作类型。具体查询模型、入口和协议暴露能力仍可能不同。
 
 ## 快照与事件流过滤链
 
-`SnapshotQueryGateway` 与 `EventStreamQueryGateway` 选择各自模型的 `QueryFilter` 链，并分别由快照或事件流 Tail Filter 取得 Factory 创建的原始服务。模型专属过滤器不能假定会在另一条链中运行。
+`SnapshotQueryGateway` 与 `EventStreamQueryGateway` 使用同一种 `QueryFilter<QueryContext<*, *>>` 合同。通用 `QueryFilter` 不需要 `@FilterType`，会进入两种 Gateway；只属于某个模型的过滤器才用 `@FilterType(SnapshotQueryGateway::class)` 或 `@FilterType(EventStreamQueryGateway::class)` 限定。
 
 ## WebFlux 请求边界
 
@@ -55,20 +55,18 @@ Gateway 在每次订阅时创建独立的 `QueryContext`，因此同一个响应
 
 ## ABAC 与结果脱敏
 
-内建 `AbacQueryFilter` 位于快照查询网关。快照结果脱敏不处理计数与聚合；事件流动态结果脱敏只覆盖当前支持的动态查询形态，不覆盖 typed 结果或聚合。
+内建 `AbacQueryFilter` 位于快照查询网关。快照与事件流结果掩码都作用于 Backend 返回的 `ObjectNode`，因此 typed 结果也先掩码再物化；计数与聚合不执行该掩码。
 
 认证、Principal 绑定和完整的失败关闭策略请参阅[数据权限](../data-access.md)。
 
-## 原始 Factory 与自定义 Bean
+## 原始 Factory 边界
 
-直接调用 `SnapshotQueryServiceFactory` 或 `EventStreamQueryServiceFactory` 会绕过查询重写、ABAC 和结果脱敏。注册在生成服务名下的同名自定义 Bean 也会按原样保留，不会再包装为代理；Gateway 缺失时，Registrar 同样返回原始服务。这些是受信基础设施边界，不是常规业务扩展点。
+直接调用 `SnapshotQueryBackendFactory` 或 `EventStreamQueryBackendFactory` 会绕过整条 Gateway 治理链，包括 ABAC 与结果掩码。这些 Factory 是受信低层 SPI，只适合存储扩展、聚焦诊断和后端合同测试；常规应用代码应注入聚合绑定的 Gateway。
 
-## 从 QueryHandler 迁移
+## Bean 名
 
-将旧的 `QueryHandler` / `AbstractQueryHandler`、`SnapshotQueryHandler` 和 `EventStreamQueryHandler` 替换为对应的 Gateway 类型与实现；Bean 名从 `snapshotQueryHandler` / `eventStreamQueryHandler` 改为 `snapshotQueryGateway` / `eventStreamQueryGateway`。
-
-自定义过滤器的 `@FilterType` 应指向对应 `QueryGateway`。自定义 Gateway 不再实现 `Handler` 或公开 `handle(QueryContext)`：它需要实现 `aggregate`，并且 `count` 只接收 `FilterExpression`。
+聚合级 Bean 名精确为 `{contextAlias.}{aggregateName}.SnapshotQueryGateway` 与 `{contextAlias.}{aggregateName}.EventStreamQueryGateway`；没有 context alias 时省略前缀。快照 Gateway 还以状态泛型注册，事件流 Gateway 没有状态泛型，多候选时应按 Bean 名限定。
 
 ## 验证策略边界
 
-Gateway 负责策略链，不替代后端字段能力、Schema 解析或应用业务校验。Factory 直连、自定义同名 Bean 和缺失 Gateway 都绕过该边界；需要这些路径时，应由基础设施代码明确承担相应的安全与查询语义。
+Gateway 负责策略链，不替代后端字段能力、Schema 解析或应用业务校验。JSON 数组/SSE 流若已输出部分行后失败，已输出行不会回滚；SSE 会先发送错误事件，再继续传播原始终止错误，不会把部分失败伪装成成功完成。

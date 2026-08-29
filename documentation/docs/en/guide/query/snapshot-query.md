@@ -7,7 +7,7 @@ description: Query an aggregate's current materialized state, snapshot field pat
 
 ## Query Model
 
-`SnapshotQueryService<S>` queries `MaterializedSnapshot<S>`: it contains system fields such as `aggregateId`, `tenantId`, `ownerId`, `spaceId`, `version`, event times, and `deleted`, plus the current business state in `state`. A snapshot is for current aggregate state, not the full event history; see [Data Queries](./data-query.md) for shared request shapes.
+`SnapshotQueryGateway<S>` queries `MaterializedSnapshot<S>`: it contains system fields such as `aggregateId`, `tenantId`, `ownerId`, `spaceId`, `version`, event times, and `deleted`, plus the current business state in `state`. A snapshot is for current aggregate state, not the full event history; see [Data Queries](./data-query.md) for shared request shapes.
 
 ## Field Paths
 
@@ -15,16 +15,16 @@ Business fields start at `state`, for example `state.status` and `state.total`. 
 
 ```kotlin
 import me.ahoo.wow.query.dsl.pagedQuery
-import me.ahoo.wow.query.snapshot.SnapshotQueryService
+import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.pathState
 import me.ahoo.wow.query.snapshot.query
 
-fun findPaidOrders(queryService: SnapshotQueryService<OrderState>) = pagedQuery {
+fun findPaidOrders(queryGateway: SnapshotQueryGateway<OrderState>) = pagedQuery {
     filter {
         pathState { "status" eq "PAID" }
     }
     pagination { index(1); size(20) }
-}.query(queryService)
+}.query(queryGateway)
 ```
 
 The equivalent HTTP JSON uses the complete logical path:
@@ -44,7 +44,7 @@ Snapshot queries append `DELETION = ACTIVE` by default, so they do not return de
 
 ## JVM Queries
 
-After injecting aggregate-scoped `SnapshotQueryService<S>`, extensions execute typed single/list/paged/count queries; `dynamicQuery` returns `DynamicDocument` when projection changes the result shape. See [Query Backends](./query-backend.md) and [Query Gateway](./query-gateway.md) for the Spring `QueryGateway` policy boundary and direct-Factory bypass condition.
+After injecting aggregate-scoped `SnapshotQueryGateway<S>`, extensions execute typed single/list/paged/count queries; `dynamicQuery` returns `ObjectNode` when projection changes the result shape. The Gateway lets the Backend produce nodes and applies result masking before Jackson materializes typed results. See [Query Backends](./query-backend.md) and [Query Gateway](./query-gateway.md) for the direct-Factory bypass boundary.
 
 ## HTTP Routes
 
@@ -73,7 +73,7 @@ Here, `{operation}` is one of the seven operations above. List can negotiate JSO
 
 - A complete snapshot returns `MaterializedSnapshot<S>` to read state and system metadata together.
 - A `state-only` route unwraps only `S`; it changes the response, not `state.*` request fields.
-- A dynamic result returns `DynamicDocument` for custom projections, without `S`'s compile-time field type.
+- A dynamic result returns `ObjectNode` for custom projections, without `S`'s compile-time field type.
 
 See [API Client](./query-api-client.md) for reactive and synchronous typed, state-only, and dynamic API-client calls.
 

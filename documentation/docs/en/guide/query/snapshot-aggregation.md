@@ -9,7 +9,7 @@ Snapshot aggregation treats each aggregate's current materialized state as the s
 
 ## Capabilities and Entry Points
 
-- **JVM Gateway**: inject the aggregate-scoped `SnapshotQueryService<OrderState>` through Spring, build an `AggregationQuery`, and call `query.query(snapshotQueryService)`. This bean normally executes policies through [QueryGateway](./query-gateway.md); see [Query Backends](./query-backend.md) for direct-Factory and custom-bean bypass conditions.
+- **JVM Gateway**: inject the aggregate-scoped `SnapshotQueryGateway<OrderState>` through Spring, build an `AggregationQuery`, and call `query.query(snapshotQueryGateway)`. This Bean executes policies through [QueryGateway](./query-gateway.md); see [Query Backends](./query-backend.md) for the direct Backend Factory bypass boundary.
 - **HTTP / OpenAPI**: the example domain publishes `POST /sales-order/snapshot/aggregation`, `POST /tenant/{tenantId}/sales-order/snapshot/aggregation`, and `POST /owner/{ownerId}/sales-order/snapshot/aggregation`. The request body is `AggregationQuery` JSON, and the response can negotiate `application/json` or `text/event-stream`. Use the running service's generated [OpenAPI](../open-api.md) for exact paths and scope parameters.
 - **Snapshot API Client**: reactive and synchronous clients use the separate `ReactiveSnapshotAggregationQueryApi` and `SynchronousSnapshotAggregationQueryApi`; they are not folded into the regular snapshot-query interfaces. See the [general API Client guide](./query-api-client.md) for dependencies and invocation.
 
@@ -440,4 +440,4 @@ val query = aggregation {
 - The HTTP route executes through `SnapshotQueryGateway`, request-scope rewriting, and `HttpQueryGuardFilter`. When expensive operators are disabled, HTTP rejects Elements, metric-alias sorting, and arithmetic expressions. In-process JVM calls do not automatically receive these HTTP-only limits.
 - Aggregation result masking is intentionally skipped. Authorization, tenant/owner/space scope, and sensitive-field modeling must be enforced before aggregation; result masking cannot repair a leak afterward.
 - MongoDB and Elasticsearch share the public AST but do not promise identical physical pipelines, mappings, null handling, or bucket details. `ANY` in particular provides no stable value across executions or backends.
-- A custom `SnapshotQueryService` may retain the default unsupported aggregation implementation. Working data-query routes or published OpenAPI alone do not prove that the custom backend executes aggregation.
+- A custom `SnapshotQueryBackend` must implement the aggregation contract. Working data-query routes or published OpenAPI alone do not prove that the Backend executes aggregation.

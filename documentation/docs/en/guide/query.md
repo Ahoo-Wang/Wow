@@ -25,17 +25,16 @@ Data queries return snapshot or event-stream documents. Aggregation queries retu
 ## Three Entry Points
 
 1. [Query Gateway](./query/query-gateway.md): the server-side policy entry point for query rewriting, filter chains, and result handling.
-2. [Query Backend](./query/query-backend.md): the in-process JVM entry point exposing aggregate-scoped `SnapshotQueryService<STATE>` and `EventStreamQueryService` services.
+2. [Query Backend](./query/query-backend.md): the trusted low-level SPI for aggregate-bound `ObjectNode` Backends and Factories.
 3. [Query API Client](./query/query-api-client.md): the remote snapshot-query entry point with reactive and synchronous interfaces; it currently has no event-stream client.
 
 ## Execution Chain
 
 ```mermaid
 flowchart LR
-    Local["Typed JVM Bean"] --> Proxy["QueryServiceProxy"]
+    Local["Aggregate Gateway Bean"] --> Gateway["Query Gateway"]
     Client["Remote API Client"] --> HTTP["WebFlux / OpenAPI"]
     HTTP --> Rewrite["Request-scope rewrite"]
-    Proxy --> Gateway["Query Gateway"]
     Rewrite --> Gateway
     Gateway --> Filters["QueryFilter chain"]
     Filters --> Backend["Query backend"]
@@ -79,7 +78,7 @@ See [Snapshot Queries](./query/snapshot-query.md), [Event Stream Queries](./quer
 
 ## Compatibility and Migration
 
-`Condition`, `Operator`, and `ConditionDsl` are deprecated compatibility inputs; the canonical contract uses `FilterExpression`. The execution entry point moved from `QueryHandler` to `QueryGateway`, while aggregate-scoped `QueryService` instances and Factories remain. See [Filter Expressions](./query/filter-expression.md) for input compatibility and [Query Gateway](./query/query-gateway.md) for the execution-boundary migration.
+`Condition`, `Operator`, and `ConditionDsl` are deprecated compatibility inputs; the canonical contract uses `FilterExpression`. See [V9 Query Migration](./query/v9-query-migration.md) for the breaking Gateway/Backend JVM type mapping, the no-bridge policy, and unchanged transport contracts.
 
 ## JSON Schema
 
@@ -87,9 +86,9 @@ Generic JSON Schema defines the wire protocol, OpenAPI describes published reque
 
 <a id="query-service-registrar"></a>
 
-## Query Service Registrars
+## Query Gateway Registrars
 
-`SnapshotQueryServiceRegistrar` registers typed `SnapshotQueryService<STATE>` Beans by state type. `EventStreamQueryServiceRegistrar` registers aggregate-scoped services without a state type parameter, so multiple candidates are distinguished by Bean name. See [Query Backend](./query/query-backend.md) for naming, proxying, and raw Factory boundaries.
+`SnapshotQueryGatewayRegistrar` registers `SnapshotQueryGateway<STATE>` by state type. `EventStreamQueryGatewayRegistrar` registers aggregate-scoped Gateways without a state type parameter, so multiple candidates are distinguished by Bean name. See [Query Backend](./query/query-backend.md) for exact naming, Backend binding, and raw Factory boundaries.
 
 ## Next Steps
 
@@ -103,4 +102,5 @@ Generic JSON Schema defines the wire protocol, OpenAPI describes published reque
 8. [Aggregation Queries](./query/aggregation-query.md)
 9. [Snapshot Aggregation](./query/snapshot-aggregation.md)
 10. [Event Stream Aggregation](./query/event-stream-aggregation.md)
+11. [V9 Query Migration](./query/v9-query-migration.md)
 11. [Query Model Schema](./query/query-model-schema.md)

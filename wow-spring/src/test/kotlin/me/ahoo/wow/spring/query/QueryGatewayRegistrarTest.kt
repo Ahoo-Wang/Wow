@@ -93,12 +93,8 @@ class QueryGatewayRegistrarTest {
                 .assert().containsExactly(SNAPSHOT_GATEWAY_BEAN_NAME)
             context.getBeanNamesForType(EventStreamQueryGateway::class.java)
                 .assert().containsExactly(EVENT_STREAM_GATEWAY_BEAN_NAME)
-            context.beanDefinitionNames.filter { it.endsWith(".SnapshotQueryService") }.assert().isEmpty()
-            context.beanDefinitionNames.filter { it.endsWith(".EventStreamQueryService") }.assert().isEmpty()
             context.containsBean("snapshotQueryGateway").assert().isFalse()
             context.containsBean("eventStreamQueryGateway").assert().isFalse()
-            context.containsBean("test.order.SnapshotQueryService").assert().isFalse()
-            context.containsBean("test.order.EventStreamQueryService").assert().isFalse()
         }
     }
 
@@ -138,7 +134,6 @@ class QueryGatewayRegistrarTest {
             context.getBean(EVENT_STREAM_GATEWAY_BEAN_NAME).assert().isSameAs(customEventGateway)
             snapshotFactoryCalls.get().assert().isZero()
             eventFactoryCalls.get().assert().isZero()
-            context.beanDefinitionNames.filter { it.endsWith(".SnapshotQueryService") }.assert().isEmpty()
         }
     }
 

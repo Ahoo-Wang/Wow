@@ -2,7 +2,6 @@ package me.ahoo.wow.mongo
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.MaterializedSnapshot
-import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToAggregateId
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -97,12 +96,6 @@ class DocumentsKtTest {
         assertThrows<StreamWriteException> {
             JsonSerializer.valueToTree<ObjectNode>(document)
         }
-    }
-
-    @Test
-    fun `should convert document to dynamic document`() {
-        val dynamicDocument = snapshotDocument.replacePrimaryKeyToAggregateId().toDynamicDocument()
-        dynamicDocument.getNestedDocument("state").getValue<String>("id").assert().isEqualTo(aggregateId)
     }
 
     @Test

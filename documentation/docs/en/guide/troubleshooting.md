@@ -118,7 +118,7 @@ Use a business unique key, event ID, or target version for idempotency. Read the
 2. Measure SnapshotStore load, EventStore load, and sourcing functions separately.
 3. If Snapshot differs from full replay, stop relying on that read path and use aggregate specs to locate non-deterministic sourcing.
 4. If `SNAPSHOT` completed without a write, verify whether `version_offset` skipped below-threshold work.
-5. If queries are stale, prove storage routing maps SnapshotStore and SnapshotQueryServiceFactory to the same binding.
+5. If queries are stale, prove storage routing maps SnapshotStore and SnapshotQueryBackendFactory to the same binding.
 
 ## Connectivity and Auto-Configuration
 

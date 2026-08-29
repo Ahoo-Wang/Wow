@@ -93,11 +93,9 @@ Snapshot 与 EventStream 都发布无作用域变体的 Schema 与 refresh HTTP 
 
 `x-wow-query-fields` 是 aggregate-specific Snapshot query request-body component 上的静态 OpenAPI 扩展。它由 Snapshot 系统字段与 `JsonQuerySchemaSource` 推断字段组成，用于生成器发现候选逻辑字段；它不是请求 JSON 属性，不含后端物理绑定，也不证明运行时 capability。EventStream 请求没有对应扩展，当前也没有 EventStream API Client 或客户端字段发现；Snapshot API Client 同样不会读取运行时 Schema 代替服务端校验。客户端边界见 [API Client](./query-api-client.md)。
 
-## Provider 差异
+## Provider 与存储路由
 
-Spring `SnapshotQueryServiceProxy` 不实现 `QueryModelSchemaProvider`；`EventStreamQueryServiceProxy` 实现 Provider，并把 `schema()` 与 `refresh()` 委托给原始 EventStream service。这个差异只描述通过代理 Bean 访问 Provider 的能力。
-
-HTTP 暴露不依赖该差异：`SnapshotSchemaHandlerFunction` 从 `SnapshotQueryServiceFactory` 创建的原始 service 读取 Provider，EventStream handler 同样从 `EventStreamQueryServiceFactory` 创建的原始 service 读取 Provider。因此两类 handler 都能分别发布上述 Schema 与 refresh 路由，不能由 proxy 是否实现 Provider 推导 HTTP/OpenAPI 是否暴露。Factory 与 proxy 的职责见[查询后端](./query-backend.md)。
+`SnapshotSchemaHandlerFunction` 从 `SnapshotQueryBackendFactory` 创建的 routed Backend 读取 `QueryModelSchemaProvider`，EventStream handler 同样使用 `EventStreamQueryBackendFactory`。因此 Schema 读取、refresh 与实际查询按同一个 `NamedAggregate` 选择同一 Backend 路由；不能绕过 routing Factory 从另一存储拼接 Schema。Provider 不可用时明确抛出 `QuerySchemaUnavailableException`。Factory 与 Gateway 的职责见[查询后端](./query-backend.md)。
 
 ## 排查字段不可查询
 
@@ -106,4 +104,4 @@ HTTP 暴露不依赖该差异：`SnapshotSchemaHandlerFunction` 从 `SnapshotQue
 3. 检查实际后端事实：MongoDB 的索引与 validator，或 Elasticsearch 的 mapping、multi-field、nested、doc values 与 runtime field。不要从另一种后端的结果类推。
 4. 区分 `INCOMPATIBLE`、Schema conflict、Schema unavailable 与请求 DTO 错误，并核对当前使用 `COMPATIBLE` 还是 `STRICT`。
 5. 若刚修改声明或 mapping，可调用 refresh 重新读取当前进程视图；若 mapping 或历史文档本身不满足条件，refresh 不会修复数据。
-6. 若使用自定义 converter，确认原始 Factory 创建的 service 仍提供与转换规则一致的 `QueryModelSchemaProvider`。
+6. 若使用自定义 converter，确认 routed Backend 仍提供与转换规则一致的 `QueryModelSchemaProvider`。

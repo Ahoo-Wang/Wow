@@ -64,7 +64,7 @@ Idempotency must extend through external effects. Use a business key, event ID, 
 
 ## Use Snapshots as the Default Query Store
 
-For current state of one aggregate, prefer `strategy: all` with a query-capable SnapshotStore instead of copying the same state into another projection. MongoDB and Elasticsearch provide SnapshotQueryService. Redis and in-memory stores can save/load snapshots but provide no general dynamic-query implementation.
+For current state of one aggregate, prefer `strategy: all` with a query-capable SnapshotStore instead of copying the same state into another projection. MongoDB and Elasticsearch provide SnapshotQueryBackend. Redis and in-memory stores can save/load snapshots but provide no general node-query implementation.
 
 | Requirement | Selection | Acceptance |
 | --- | --- | --- |
