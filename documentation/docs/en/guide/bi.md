@@ -11,6 +11,10 @@ In a traditional reporting pipeline, an ETL job reads mutable business tables an
 instead projects immutable command and state-event Kafka topics into ClickHouse. The event store remains the source of
 truth; ClickHouse is a rebuildable analytical read model.
 
+<p align="center" style="text-align:center">
+  <img width="95%" src="/images/eventstore/eventsourcing.svg" alt="Event sourcing compared with traditional data storage"/>
+</p>
+
 That ownership boundary has operational consequences:
 
 - application metadata defines the desired schema and view graph;
@@ -20,6 +24,10 @@ That ownership boundary has operational consequences:
 
 Do not write domain state back from BI tables, and do not treat a successful SQL generation as proof that ClickHouse
 is current.
+
+<p align="center" style="text-align:center">
+  <img width="95%" src="/images/bi/bi.svg" alt="Wow business intelligence data flow"/>
+</p>
 
 ## Generate and Retrieve ETL Scripts
 

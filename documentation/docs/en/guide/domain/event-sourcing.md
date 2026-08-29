@@ -8,6 +8,10 @@ outline: deep
 
 Event sourcing keeps an aggregate's facts that have already happened as ordered `DomainEventStream` values and restores state from those facts. Commands make decisions; an event becomes recoverable authoritative history only after `EventStore` appends it successfully.
 
+<p align="center" style="text-align:center">
+  <img width="95%" src="/images/eventstore/eventsourcing.svg" alt="Event sourcing compared with traditional data storage"/>
+</p>
+
 ## Authoritative History Model
 
 An event stream is the aggregate's consistency history. Snapshots, projections, and event-processor results cannot replace it. The complete command-execution phases are documented in the [Command Processing Pipeline](../command/internals/pipeline.md); this page defines only when history becomes authoritative and the boundaries used for recovery.
