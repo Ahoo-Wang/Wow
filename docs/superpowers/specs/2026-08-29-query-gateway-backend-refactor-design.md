@@ -44,7 +44,10 @@ WebFlux ────────────────────────
 
 - 不保留旧 QueryService API、typealias、弃用适配器或二进制桥接。
 - 不新增全局 QueryGateway、AggregatedQueryGateway 或 QueryGatewayFactory。
+- 不新增 QueryRouter；storage routing 只按 `NamedAggregate` 在 Gateway 装配时执行一次。
 - 不拆分 RequestFilterChain 与 ResultFilterChain。
+- 不以 QueryPolicy、QueryResultPolicy、QueryPreparer 或 SecuredQuery 复制现有 FilterChain/QueryContext 职责。
+- 不创建第二套 Query、QueryExpression 或 QuerySchema；复用当前 FilterExpression、查询 DTO 与 QueryModelSchema。
 - 不改变查询请求 DTO、FilterExpression、AggregationQuery 或 Query DSL 构造语义。
 - 不改变 HTTP 路径、请求/响应 JSON、OpenAPI 查询结构或存储数据结构。
 - 不改变 storage routing 配置键与 default/binding/aggregate route 选择规则。
@@ -109,6 +112,12 @@ Snapshot 的 `Named` 能力继续表达实际 snapshot storage/backend 名称；
 
 MongoDB、Elasticsearch 与 NoOp/Unavailable 实现迁移为对应 Backend。Backend 可按实际能力实现 `QueryModelSchemaProvider`。
 
+Backend 返回的每个 `ObjectNode` 必须由当前订阅独占；不同订阅、retry、repeat 或并发查询不得共享可变节点。Backend 合同只允许标准 JSON tree，不能把 `Document`、`Map`、BSON 类型或任意 POJO 通过 `POJONode` 泄漏到 Gateway。
+
+MongoDB `Document` 与 Elasticsearch source `Map` 仅是存储实现内部表示。每个 Backend 在返回前负责转换为规范 `ObjectNode`；Gateway、Filter、mask 与 typed materialization 不感知存储驱动类型。
+
+MongoDB 不使用 `JsonSerializer.valueToTree(document)`：Jackson 3 的 tree generator 无法处理 `Decimal128` 使用的 `writeNumber(String)`。第一版固定使用 `JsonSerializer.writeValueAsBytes(document)` 后再 `readTree<ObjectNode>()`，并在替换 `_id` 后执行该转换。Elasticsearch source 只含标准 JSON 值时可直接树化；若自定义 mapper 返回非 JSON 值，同样必须在 Backend 内规范化或失败，不能生成 POJONode。
+
 ### QueryGateway
 
 `QueryGateway<R>` 同样绑定一个 `NamedAggregate`，是业务侧唯一查询入口：
@@ -153,6 +162,8 @@ Backend ObjectNode
 
 Snapshot Gateway 使用聚合 metadata 构造 `MaterializedSnapshot<S>` 的 Jackson `JavaType`；EventStream Gateway 使用 `DomainEventStream` 目标类型。实现复用现有 Jackson 3 转换能力，不新增 ResultConverter 接口。
 
+结果 Filter/mask 返回的 ObjectNode 必须保持目标 typed 结果可物化：不能删除 Snapshot/EventStream 必需信封字段，修改后的字段值必须与目标字段类型兼容。违反该约束时 typed 查询明确失败并进入 Gateway 错误边界；Gateway 不恢复被删除字段，也不绕过 mask。
+
 `count` 与 `aggregate` 没有 typed/dynamic 双重入口：count 固定为 `Long`，aggregate 固定为动态 `ObjectNode` 行。
 
 ## QueryContext 与 QueryType
@@ -191,6 +202,8 @@ enum class QueryType {
 
 每次订阅都通过 `Mono.defer` / `Flux.defer` 创建新 Context。`retry`、`repeat` 与并发订阅不得共享查询改写、attributes、结果 Publisher 或 mask 状态。
 
+Backend 也必须在每次订阅时创建独占的结果节点；Context 隔离不能用于掩盖 Backend 复用可变 ObjectNode 的错误。
+
 ## FilterChain
 
 ### 单条 around 链
@@ -221,6 +234,16 @@ Backend 是 Gateway 绑定的固定终点，由 Gateway 组装到普通 Filters 
 
 因此删除 `TailSnapshotQueryFilter` 与 `TailEventStreamQueryFilter`。不以新的 BackendFilter 名称复制 Tail Filter。
 
+现有 `FilterChainBuilder.build()` 固定终止于 `EmptyFilterChain`，不能在构建完成后追加 Backend。V9 为通用 builder 增加兼容的 terminal 参数：
+
+```kotlin
+fun build(
+    terminal: FilterChain<T> = EmptyFilterChain.instance()
+): FilterChain<T>
+```
+
+默认参数保持其他模块现有行为。每个 Default Gateway 接收 Filter Bean 列表，用模型专用 `FilterType` 选择与排序后，以绑定 Backend 的私有 `FilterChain` lambda 作为 terminal 构建自己的执行链。Registrar 不向 Gateway 注入已经结束于 Empty 的成品 FilterChain，也不新增 FilterChainFactory。
+
 ### Filter 类型选择
 
 Snapshot 与 EventStream 继续构建各自的 FilterChain，并使用模型专用 Gateway 作为 `@FilterType` 条件：
@@ -228,7 +251,9 @@ Snapshot 与 EventStream 继续构建各自的 FilterChain，并使用模型专�
 - `SnapshotQueryGateway::class`；
 - `EventStreamQueryGateway::class`。
 
-通用 Query Filter 继续使用 `QueryGateway::class`。ABAC、HTTP Guard、request rewrite 及其他现有顺序保持不变。
+通用 `QueryFilter` 不声明 `@FilterType`，从而自然进入 Snapshot 与 EventStream 两条链。模型专用 Filter 继续声明 `SnapshotQueryGateway::class` 或 `EventStreamQueryGateway::class`；同时作用于两种模型的具体 Filter 显式声明两个类型。
+
+不得继续把通用 Filter 标记为 `QueryGateway::class`：当前 `TypedFilterCondition` 使用精确类型匹配，该标记不会匹配两个专用 Gateway。ABAC、HTTP Guard、request rewrite 及其他现有顺序保持不变。
 
 ## Masking
 
@@ -240,6 +265,14 @@ Snapshot 与 EventStream 继续构建各自的 FilterChain，并使用模型专�
 - typed 与 dynamic 两套 mask 分支。
 
 masker 体系统一使用 Jackson 3 `ObjectNode`，按现有模型边界保留 Snapshot 与 EventStream 注册表。命名同步改为 ObjectNode 语义，不继续使用 DynamicDocument 名称。
+
+ObjectNode masker 的公共约束为：
+
+- 输入节点归当前订阅独占，masker 可以原位修改或返回新的 ObjectNode；
+- 不得删除 typed materialization 所需的 Snapshot/EventStream 信封字段；
+- 不得把字段替换为与 Schema/目标 Kotlin 类型不兼容的 JSON 类型；
+- 不得缓存、跨订阅发布或在调用完成后继续修改输入节点；
+- 任何违规导致的结果转换失败都必须 fail-closed。
 
 mask 范围为：
 
@@ -278,7 +311,11 @@ typed 查询先执行 ObjectNode mask，再转换为类型化结果，确保 typ
 
 配置属性名称与 default/binding/aggregate route 选择逻辑不变。路由只改变 Java/Kotlin 类型名，不改变用户配置合同。
 
+为保持现有 `binding` 配置，内建 Binding 的 `name` 字符串继续使用当前 `*-query-service-factory` 后缀；只重命名 Kotlin/JVM 类型与承载字段。不得静默改成 `*-query-backend-factory`。新增测试用现有字符串完成显式 binding 解析。
+
 Factory 仍是绕过 Gateway 治理链的受信低层 SPI。直接调用 Backend Factory 不执行 request filter、ABAC、HTTP guard 或结果 mask。
+
+不新增接收完整查询的 QueryRouter。当前 storage route 只依赖 `NamedAggregate`，Backend Factory 在 Gateway 创建时解析并缓存 Backend；单次查询不重复路由，也不为未来按请求动态选择后端预留接口。
 
 ## Spring 装配
 
@@ -288,8 +325,8 @@ Factory 仍是绕过 Gateway 治理链的受信低层 SPI。直接调用 Backend
 
 1. 获取聚合 `NamedAggregate` 与状态类型；
 2. 从对应主 Backend Factory 创建经过 storage routing 的缓存 Backend；
-3. 获取模型专用 FilterChain 与 ErrorHandler；
-4. 构造绑定聚合、Backend 与目标类型的 Gateway；
+3. 获取 Query Filter Bean 列表与模型专用 ErrorHandler；
+4. 构造绑定聚合、Backend 与目标类型的 Gateway，由 Gateway 使用 `build(backendTerminal)` 组装模型专用 FilterChain；
 5. 注册聚合级 Gateway Bean。
 
 Bean 名为：
@@ -352,6 +389,8 @@ Gateway 的错误边界覆盖完整 Publisher 生命周期：
 
 不得把安全过滤、mask、Schema、Backend 或 typed 转换失败恢复为空结果。WebFlux 继续由 `RequestExceptionHandler` 把传播错误映射为 HTTP 响应。
 
+流式 Backend 必须在完成、失败和取消时释放资源。MongoDB cursor 与 Elasticsearch PIT 分别覆盖 complete/error/cancel 测试；已经发出部分结果后发生错误时终止流并传播失败，不把部分结果标记为完整成功。
+
 ## 兼容性
 
 ### 明确破坏的 JVM 合同
@@ -386,6 +425,7 @@ Gateway 的错误边界覆盖完整 Publisher 生命周期：
 | 模块 | 主要改动 |
 | --- | --- |
 | `wow-api` | 删除 DynamicDocument 体系 |
+| `wow-core` | FilterChainBuilder 支持可选 terminal，默认行为不变 |
 | `wow-query` | 新 Backend/Gateway 契约、Context、Filter、mask、Factory 与 DSL |
 | `wow-mongo` | QueryService 实现迁移为 ObjectNode Backend |
 | `wow-elasticsearch` | QueryService 实现迁移为 ObjectNode Backend |
@@ -412,6 +452,10 @@ Gateway 的错误边界覆盖完整 Publisher 生命周期：
 - repeat、retry 与并发订阅 Context 隔离；
 - Backend、结果 Filter、mask、typed 转换错误经过 ErrorHandler 后传播原始错误；
 - Backend terminal 固定且不参与 Filter 排序；
+- `FilterChainBuilder.build()` 继续以 Empty 结束，`build(terminal)` 按相同顺序连接指定 terminal；
+- 通用 QueryFilter 同时进入 Snapshot/EventStream 链，模型专用 Filter 不串链；
+- Backend 每次订阅返回独占 ObjectNode，retry/repeat/并发查询不共享可变节点；
+- masker 删除必需信封字段或破坏字段类型时，dynamic 结果保持实际 mask 输出，typed 结果 fail-closed；
 - Backend Factory 缓存与 Snapshot/EventStream routing 选择。
 
 ### Backend TCK
@@ -422,6 +466,8 @@ Gateway 的错误边界覆盖完整 Publisher 生命周期：
 - projection、sort、pagination 与 limit；
 - aggregation 与空输入语义；
 - Snapshot/EventStream `ObjectNode` wire shape；
+- MongoDB Decimal128、Date、ObjectId、UUID、Binary、null、嵌套 Document/List 的 ObjectNode 规范化；
+- 同一代表性文档在旧 DynamicDocument HTTP 序列化与新 ObjectNode 序列化下结构等价；
 - QueryModelSchema 与 refresh；
 - compatible/strict Schema validation。
 
@@ -434,6 +480,7 @@ typed 转换与 mask 属于 Gateway TCK，不在每个存储后端重复验证�
 - Registrar 绑定正确的 routed Backend、FilterChain 与目标类型；
 - 同名自定义 Gateway 保持原样；
 - default storage、aggregate storage route 与显式 binding；
+- 现有 `*-query-service-factory` binding 名称继续解析到重命名后的 Backend Factory；
 - 缺失 Backend/Binding 的失败语义；
 - 不再注册 QueryService、Proxy、Tail Filter 或全局 Gateway Bean。
 
@@ -444,7 +491,21 @@ typed 转换与 mask 属于 Gateway TCK，不在每个存储后端重复验证�
 - request rewrite、HTTP guard、ABAC 与 raw request attribute 继续生效；
 - JSON/SSE 响应内容与现有快照保持一致；
 - Schema/refresh 使用 routed Backend；
+- MongoDB cursor 与 Elasticsearch PIT 在 complete/error/cancel 时释放；
+- 流已经发出部分记录后失败时不得返回完整成功；
 - HTTP 路径、请求/响应 schema 与 OpenAPI 快照不变。
+
+### 性能证据
+
+ObjectNode 是新公共边界，但不能无证据接受热路径回归。实现完成后记录当前 main 与 V9 的对比结果：
+
+- MongoDB 与 Elasticsearch；
+- single、100 条 list、1000 条 list、100 条 paged；
+- dynamic 与 typed；
+- 吞吐、p95、每条记录分配量；
+- 无 masker 与一个原位 masker。
+
+MongoDB 第一版使用已验证保持 JSON 的 `writeValueAsBytes(document) -> readTree<ObjectNode>()`，不得使用会在 Decimal128 上失败的 `valueToTree(document)`。基准结果必须随实现评审提交；若字节往返成为主要瓶颈，再用覆盖同一 BSON corpus 的递归 normalizer 替换，不能预先维护两套转换路径。
 
 ### 静态验收
 
@@ -463,6 +524,7 @@ typed 转换与 mask 属于 Gateway TCK，不在每个存储后端重复验证�
 ```bash
 ./gradlew \
   :wow-api:check \
+  :wow-core:check \
   :wow-query:check \
   :wow-spring:check \
   :wow-spring-boot-starter:check \
@@ -498,5 +560,8 @@ git diff --check
 - Backend Factory 保持缓存和全部 storage routing 语义；
 - WebFlux 路由绑定正确的聚合级 Gateway，Schema 路由绑定正确的 Backend；
 - QueryService、DynamicDocument、Proxy、Tail Filter 与对象级 masking 体系从当前实现移除；
+- 通用 Filter、terminal-aware FilterChain、ObjectNode 独占所有权和 masker 可物化约束均有回归测试；
+- MongoDB BSON corpus 的 ObjectNode 转换、现有 binding 字符串和 cursor/PIT 生命周期通过验证；
+- ObjectNode 前后性能对比已记录并评审，不把未测量成本当作可接受成本；
 - 明确保留的 HTTP/OpenAPI/wire/storage 合同无变化；
 - 聚焦检查、存储 integration tests、`:wow-it:integrationTest`、完整构建、文档构建与静态验收全部通过。
