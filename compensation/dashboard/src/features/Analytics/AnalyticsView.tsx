@@ -30,8 +30,13 @@ import {
 import {
   CompensationTrendChart,
   DistributionChart,
+  RetryDistributionChart,
 } from "./AnalyticsCharts.tsx";
-import type { AnalyticsRange, PressureCluster } from "./analyticsQueries.ts";
+import type {
+  AnalyticsRange,
+  PressureCluster,
+  RetryDistribution,
+} from "./analyticsQueries.ts";
 import { useEventTrend } from "./useEventTrend.ts";
 import {
   type AnalyticsSection,
@@ -50,6 +55,12 @@ const recoverabilityDisplay = {
     label: "Unrecoverable",
   },
 } satisfies Record<RecoverableType, { color: string; label: string }>;
+const retryBucketColors = {
+  "0": "#64748b",
+  "1–2": "#2563eb",
+  "3–5": "#f59e0b",
+  "6+": "#dc2626",
+} satisfies Record<RetryDistribution["buckets"][number]["key"], string>;
 
 function SectionError({ error }: { error: Error }) {
   const [resolved, setResolved] = useState({ error, message: error.message });
@@ -158,7 +169,7 @@ export default function AnalyticsView() {
   const trend = useEventTrend(range, refreshToken);
 
   return (
-    <div className="space-y-6 p-5">
+    <div className="h-full space-y-6 overflow-y-auto p-5">
       <section aria-labelledby="analytics-summary-title">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 id="analytics-summary-title" className="text-lg font-semibold">
@@ -201,7 +212,7 @@ export default function AnalyticsView() {
         ) : null}
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(20rem,1fr)]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(38rem,2fr)]">
         <section
           aria-labelledby="analytics-pressure-title"
           className="min-w-0"
@@ -219,7 +230,10 @@ export default function AnalyticsView() {
           ) : null}
         </section>
 
-        <div className="space-y-6" aria-label="Current distributions">
+        <div
+          className="grid gap-6 sm:grid-cols-2"
+          aria-label="Current distributions"
+        >
           <section className="rounded-lg border bg-white p-4">
             <SectionMeta section={snapshot.recoverability} />
             {snapshot.recoverability.loading && !snapshot.recoverability.data ? (
@@ -247,11 +261,9 @@ export default function AnalyticsView() {
                 Retry distribution is truncated and is not charted.
               </p>
             ) : snapshot.retries.data ? (
-              <DistributionChart
-                title="Retry distribution"
-                description="Current active failure snapshots"
+              <RetryDistributionChart
                 data={snapshot.retries.data.buckets.map(({ count, key }) => ({
-                  color: "#2563eb",
+                  color: retryBucketColors[key],
                   count,
                   key,
                   label: `${key} retries`,

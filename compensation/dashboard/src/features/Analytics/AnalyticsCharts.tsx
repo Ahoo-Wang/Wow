@@ -13,8 +13,11 @@
 
 import type { ReactElement } from "react";
 import {
+  Bar,
+  BarChart,
   CartesianGrid,
   Cell,
+  LabelList,
   Line,
   LineChart,
   Pie,
@@ -46,6 +49,16 @@ interface DistributionChartProps {
   title: string;
 }
 
+function percentageLabel(count: number, total: number): string {
+  if (total === 0) {
+    return "0%";
+  }
+  const percentage = (count / total) * 100;
+  return count > 0 && percentage < 1
+    ? "<1%"
+    : `${Math.round(percentage)}%`;
+}
+
 export function DistributionChart({
   data,
   description,
@@ -60,7 +73,7 @@ export function DistributionChart({
     <section aria-label={title}>
       <h3 className="font-medium">{title}</h3>
       <p className="text-sm text-muted-foreground">{description}</p>
-      <ChartContainer config={config} className="min-h-52">
+      <ChartContainer config={config} className="h-44 w-full aspect-auto">
         <PieChart accessibilityLayer>
           <Pie data={data} dataKey="count" nameKey="label">
             {data.map(({ color, key }) => (
@@ -71,8 +84,6 @@ export function DistributionChart({
       </ChartContainer>
       <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
         {data.map(({ color, count, key, label }) => {
-          const percentage =
-            total === 0 ? 0 : Math.round((count / total) * 100);
           return (
             <div key={key} className="flex items-center justify-between gap-2">
               <dt className="flex items-center gap-1.5">
@@ -84,12 +95,80 @@ export function DistributionChart({
                 {label}
               </dt>
               <dd className="font-mono tabular-nums">
-                {count} ({percentage}%)
+                {count} ({percentageLabel(count, total)})
               </dd>
             </div>
           );
         })}
       </dl>
+    </section>
+  );
+}
+
+export function RetryDistributionChart({
+  data,
+}: {
+  data: DistributionDatum[];
+}): ReactElement {
+  const total = data.reduce((sum, { count }) => sum + count, 0);
+  const rows = data.map((datum) => ({
+    ...datum,
+    display: `${datum.count} (${percentageLabel(datum.count, total)})`,
+  }));
+  const config = {
+    count: { color: "#2563eb", label: "Executions" },
+  } satisfies ChartConfig;
+
+  return (
+    <section aria-label="Retry distribution">
+      <h3 className="font-medium">Retry distribution</h3>
+      <p className="text-sm text-muted-foreground">
+        Current active failure snapshots
+      </p>
+      <ChartContainer config={config} className="h-44 w-full aspect-auto">
+        <BarChart
+          accessibilityLayer
+          data={rows}
+          layout="vertical"
+          margin={{ left: 0, right: 88 }}
+        >
+          <XAxis type="number" hide />
+          <YAxis
+            dataKey="label"
+            type="category"
+            width={72}
+            axisLine={false}
+            tickLine={false}
+          />
+          <Bar dataKey="count" minPointSize={2} radius={4} maxBarSize={18}>
+            {rows.map(({ color, key }) => (
+              <Cell key={key} fill={color} />
+            ))}
+            <LabelList
+              dataKey="display"
+              position="right"
+              className="fill-foreground font-mono tabular-nums"
+              fontSize={11}
+            />
+          </Bar>
+        </BarChart>
+      </ChartContainer>
+      <table className="sr-only" aria-label="Retry distribution data">
+        <thead>
+          <tr>
+            <th>Retries</th>
+            <th>Count</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(({ display, key, label }) => (
+            <tr key={key}>
+              <td>{label}</td>
+              <td>{display}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </section>
   );
 }
@@ -108,7 +187,7 @@ export function CompensationTrendChart({
 }): ReactElement {
   return (
     <section aria-label="Compensation outcomes trend">
-      <ChartContainer config={trendConfig} className="min-h-64">
+      <ChartContainer config={trendConfig} className="h-56 w-full aspect-auto">
         <LineChart accessibilityLayer data={points}>
           <CartesianGrid vertical={false} />
           <XAxis

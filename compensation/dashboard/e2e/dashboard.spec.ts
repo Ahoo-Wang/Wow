@@ -417,6 +417,33 @@ test("loads analytics and scopes range changes to event aggregation", async ({
   await expect.poll(() => snapshotRequests).toBe(7);
   await expect.poll(() => eventRequests).toBe(4);
 
+  const analyticsViewport = page.locator(".app-content > div").first();
+  const verticalOverflow = await analyticsViewport.evaluate((element) => ({
+    clientHeight: element.clientHeight,
+    overflowY: getComputedStyle(element).overflowY,
+    scrollHeight: element.scrollHeight,
+  }));
+  expect(verticalOverflow.overflowY).toBe("auto");
+  expect(verticalOverflow.scrollHeight).toBeGreaterThan(
+    verticalOverflow.clientHeight,
+  );
+
+  const outcomesHeading = page.getByRole("heading", {
+    name: "Compensation outcomes",
+  });
+  await outcomesHeading.scrollIntoViewIfNeeded();
+  await expect(outcomesHeading).toBeVisible();
+  const trendChartHeight = await page
+    .locator('[data-slot="chart"]')
+    .last()
+    .evaluate((element) => element.getBoundingClientRect().height);
+  expect(trendChartHeight).toBeLessThanOrEqual(320);
+  await expect(
+    page
+      .locator(".recharts-legend-wrapper")
+      .getByText("Succeeded", { exact: true }),
+  ).toBeVisible();
+
   if (testInfo.project.name === "mobile-chromium") {
     expect(
       await page.evaluate(
@@ -435,6 +462,24 @@ test("loads analytics and scopes range changes to event aggregation", async ({
       pressureOverflow.clientWidth,
     );
     expect(["auto", "scroll"]).toContain(pressureOverflow.overflowX);
+  } else {
+    await page.setViewportSize({ width: 1920, height: 1324 });
+    const largeViewport = await analyticsViewport.evaluate((element) => ({
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+    }));
+    expect(largeViewport.scrollHeight).toBeLessThanOrEqual(
+      largeViewport.clientHeight,
+    );
+    const chartHeights = await page
+      .locator('[data-slot="chart"]')
+      .evaluateAll((charts) =>
+        charts.map((chart) => chart.getBoundingClientRect().height),
+      );
+    expect(chartHeights.slice(0, 2).every((height) => height <= 192)).toBe(
+      true,
+    );
+    expect(chartHeights.at(-1)).toBeLessThanOrEqual(240);
   }
 
   await page.getByRole("button", { name: "24h" }).click();

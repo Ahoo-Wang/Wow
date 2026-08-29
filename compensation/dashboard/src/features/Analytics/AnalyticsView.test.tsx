@@ -41,6 +41,20 @@ vi.mock("./AnalyticsCharts.tsx", () => ({
       ))}
     </div>
   ),
+  RetryDistributionChart: ({
+    data,
+  }: {
+    data: Array<{ color: string; count: number; label: string }>;
+  }) => (
+    <div>
+      <h3>Retry distribution</h3>
+      {data.map(({ color, count, label }) => (
+        <span data-color={color} key={label}>
+          {label}: {count}
+        </span>
+      ))}
+    </div>
+  ),
 }));
 
 beforeEach(() => {

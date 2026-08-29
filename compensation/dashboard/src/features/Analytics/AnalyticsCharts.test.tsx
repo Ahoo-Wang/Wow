@@ -17,6 +17,7 @@ import type { TrendPoint } from "./analyticsQueries.ts";
 import {
   CompensationTrendChart,
   DistributionChart,
+  RetryDistributionChart,
 } from "./AnalyticsCharts.tsx";
 
 const trendPointFixture = (): TrendPoint => ({
@@ -83,6 +84,46 @@ describe("AnalyticsCharts", () => {
 
     expect(screen.getAllByText("0 (0%)")).toHaveLength(2);
     expect(document.body).not.toHaveTextContent(/NaN|Infinity/);
+  });
+
+  it("renders retry buckets as labeled bars without rounding nonzero data to zero", () => {
+    render(
+      <RetryDistributionChart
+        data={[
+          { key: "0", label: "0 retries", count: 488_710, color: "#64748b" },
+          {
+            key: "1–2",
+            label: "1–2 retries",
+            count: 616,
+            color: "#2563eb",
+          },
+          {
+            key: "3–5",
+            label: "3–5 retries",
+            count: 5_002,
+            color: "#f59e0b",
+          },
+          {
+            key: "6+",
+            label: "6+ retries",
+            count: 33_421,
+            color: "#dc2626",
+          },
+        ]}
+      />,
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Retry distribution" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("0 retries")).toBeInTheDocument();
+    expect(screen.getByText("488710 (93%)")).toBeInTheDocument();
+    expect(screen.getByText("616 (<1%)")).toBeInTheDocument();
+    expect(screen.getByText("33421 (6%)")).toBeInTheDocument();
+    expect(document.querySelectorAll(".recharts-bar-rectangle")).toHaveLength(
+      4,
+    );
+    expect(document.querySelector(".recharts-sector")).toBeNull();
   });
 
   it("shows all trend series and provides a screen-reader data table", () => {
