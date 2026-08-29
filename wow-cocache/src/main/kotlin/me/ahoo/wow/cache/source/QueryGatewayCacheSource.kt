@@ -16,13 +16,13 @@ package me.ahoo.wow.cache.source
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.cache.StateToCacheDataConverter
 import me.ahoo.wow.query.dsl.singleQuery
-import me.ahoo.wow.query.snapshot.SnapshotQueryService
+import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.query
 import reactor.core.publisher.Mono
 
 @JvmDefaultWithoutCompatibility
-open class QueryServiceCacheSource<S : Any, D : Any>(
-    private val queryService: SnapshotQueryService<S>,
+open class QueryGatewayCacheSource<S : Any, D : Any>(
+    private val snapshotQueryGateway: SnapshotQueryGateway<S>,
     override val stateToCacheDataConverter: StateToCacheDataConverter<MaterializedSnapshot<S>, D>,
     override val loadCacheSourceConfiguration: LoadCacheSourceConfiguration = LoadCacheSourceConfiguration.DEFAULT
 ) : StateCacheSource<String, MaterializedSnapshot<S>, D> {
@@ -32,6 +32,6 @@ open class QueryServiceCacheSource<S : Any, D : Any>(
             filter {
                 aggregateId(key)
             }
-        }.query(queryService)
+        }.query(snapshotQueryGateway)
     }
 }

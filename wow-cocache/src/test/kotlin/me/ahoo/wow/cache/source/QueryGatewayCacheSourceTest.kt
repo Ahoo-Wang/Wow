@@ -15,30 +15,29 @@ package me.ahoo.wow.cache.source
 
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.spyk
 import me.ahoo.cache.DefaultCacheValue
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.MaterializedSnapshot
-import me.ahoo.wow.query.snapshot.SnapshotQueryService
+import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import org.junit.jupiter.api.Test
 import reactor.kotlin.core.publisher.toMono
 
-class QueryServiceCacheSourceTest {
+class QueryGatewayCacheSourceTest {
     @Test
     fun `should load from cache source`() {
         val snapshot = mockk<MaterializedSnapshot<String>> {
             every { state } returns "test"
         }
-        val queryApiCacheSource = spyk<SnapshotQueryService<String>> {
+        val snapshotQueryGateway = mockk<SnapshotQueryGateway<String>> {
             every { single(any()) } returns snapshot.toMono()
         }
-        val queryServiceCacheSource = QueryServiceCacheSource(
-            queryApiCacheSource,
+        val queryGatewayCacheSource = QueryGatewayCacheSource(
+            snapshotQueryGateway,
             { it.state },
             LoadCacheSourceConfiguration.DEFAULT
         )
 
-        val cacheValue = queryServiceCacheSource.loadCacheValue("test")
+        val cacheValue = queryGatewayCacheSource.loadCacheValue("test")
         cacheValue.assert().isEqualTo(DefaultCacheValue.forever("test"))
     }
 }
