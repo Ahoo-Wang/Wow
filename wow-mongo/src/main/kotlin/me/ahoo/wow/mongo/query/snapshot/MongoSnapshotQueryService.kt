@@ -50,7 +50,7 @@ import org.bson.Document
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-class MongoSnapshotQueryService<S : Any>(
+class MongoSnapshotQueryService<S : Any> @JvmOverloads constructor(
     override val namedAggregate: NamedAggregate,
     override val collection: MongoCollection<Document>,
     override val converter: AbstractMongoFilterConverter = SnapshotFilterConverter,

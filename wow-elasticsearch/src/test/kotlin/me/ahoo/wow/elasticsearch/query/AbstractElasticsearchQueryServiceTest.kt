@@ -418,6 +418,17 @@ class AbstractElasticsearchQueryServiceTest {
     }
 
     @Test
+    fun `Elasticsearch services should retain pre-cursor constructor overloads`() {
+        listOf(
+            ElasticsearchSnapshotQueryService::class.java,
+            ElasticsearchEventStreamQueryService::class.java,
+        ).forEach { serviceType ->
+            serviceType.constructors.any { constructor -> constructor.parameterCount == 7 }
+                .assert().isTrue()
+        }
+    }
+
+    @Test
     fun `built in cursor services should use their record id and validate cursor structure`() {
         val schemaProvider = unavailableSchemaProvider()
         val snapshotService = ElasticsearchSnapshotQueryService<Any>(

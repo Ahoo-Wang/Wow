@@ -107,6 +107,13 @@ class QuerySchemaAutoConfigurationTest {
     }
 
     @Test
+    fun `should retain pre-cursor QueryProperties constructor overload`() {
+        QueryProperties::class.java.constructors.any { constructor ->
+            constructor.parameterTypes.contentEquals(arrayOf(QueryProperties.Schema::class.java))
+        }.assert().isTrue()
+    }
+
+    @Test
     fun `should expose built in schema sources`() {
         contextRunner
             .enableWow()

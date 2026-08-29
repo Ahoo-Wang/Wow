@@ -302,6 +302,17 @@ class AbstractMongoQueryServiceTest {
     }
 
     @Test
+    fun `Mongo services should retain pre-cursor constructor overloads`() {
+        listOf(
+            MongoSnapshotQueryService::class.java,
+            MongoEventStreamQueryService::class.java,
+        ).forEach { serviceType ->
+            serviceType.constructors.any { constructor -> constructor.parameterCount == 5 }
+                .assert().isTrue()
+        }
+    }
+
+    @Test
     fun `malformed cursor should fail identically with direct and schema fallback services`() {
         val schemaFallback = MongoSnapshotQueryService<Any>(
             namedAggregate = MOCK_AGGREGATE_METADATA,

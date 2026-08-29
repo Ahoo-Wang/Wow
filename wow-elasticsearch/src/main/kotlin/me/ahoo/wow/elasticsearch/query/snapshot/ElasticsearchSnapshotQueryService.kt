@@ -50,7 +50,7 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.time.Duration
 
-class ElasticsearchSnapshotQueryService<S : Any>(
+class ElasticsearchSnapshotQueryService<S : Any> @JvmOverloads constructor(
     override val namedAggregate: NamedAggregate,
     override val elasticsearchClient: ReactiveElasticsearchClient,
     override val filterConverter: AbstractElasticsearchFilterConverter = SnapshotFilterConverter,

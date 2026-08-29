@@ -26,6 +26,8 @@ class QueryProperties @ConstructorBinding constructor(
     @DefaultValue
     var cursor: Cursor = Cursor(null),
 ) {
+    constructor(schema: Schema) : this(schema, Cursor(null))
+
     data class Schema @ConstructorBinding constructor(
         @DefaultValue("COMPATIBLE")
         var validationMode: QuerySchemaValidationMode,

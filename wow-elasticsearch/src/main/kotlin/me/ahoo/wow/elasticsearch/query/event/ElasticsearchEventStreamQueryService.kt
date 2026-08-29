@@ -44,7 +44,7 @@ import me.ahoo.wow.serialization.convert
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import java.time.Duration
 
-class ElasticsearchEventStreamQueryService(
+class ElasticsearchEventStreamQueryService @JvmOverloads constructor(
     override val namedAggregate: NamedAggregate,
     override val elasticsearchClient: ReactiveElasticsearchClient,
     override val filterConverter: AbstractElasticsearchFilterConverter = EventStreamFilterConverter,
