@@ -8,6 +8,10 @@ outline: deep
 
 事件溯源把聚合的已发生事实保存为有序的 `DomainEventStream`，并从这些事实恢复状态。命令负责作出决策；事件一旦成功追加到 `EventStore`，才成为可恢复的权威历史。
 
+<p align="center" style="text-align:center">
+  <img width="95%" src="/images/eventstore/eventsourcing.svg" alt="事件溯源与传统数据存储对比"/>
+</p>
+
 ## 权威历史模型
 
 事件流是聚合的一致性历史；快照、投影和事件处理器的结果都不能替代它。命令执行的完整阶段见[命令处理管线](../command/internals/pipeline.md)；本页只定义历史何时成为权威，以及恢复所依赖的边界。
