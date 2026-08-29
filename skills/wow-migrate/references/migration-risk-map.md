@@ -30,9 +30,9 @@ Verify old and new requests against every MongoDB or Elasticsearch mapping actua
 
 ## Wow 8.13.x to 8.14.0 event-stream aggregation
 
-EventStream aggregation uses `EventStreamQueryGateway`, routed `EventStreamQueryBackend`, and the `EVENT_STREAM` query schema. Prove the selected Backend, generated route, and Schema provider. Direct Backend Factory access remains a trusted raw path that bypasses Gateway governance.
+In 8.14, EventStream aggregation is an in-process query entry over the selected storage query implementation and the `EVENT_STREAM` query schema. Prove the aggregate invocation reaches that selected storage implementation and that its aggregation contract works with the configured schema mode.
 
-Event-stream aggregation uses persisted event-stream documents: expand `body`, then use event-relative fields and declared payload fields under `body.body`. Wow adds no EventStream aggregation HTTP, OpenAPI, or Schema HTTP route. Verify the in-process contract, policy chain, schema mode, and each selected backend without inventing a transport or data migration.
+Event-stream aggregation uses persisted event-stream documents: expand `body`, then use event-relative fields and declared payload fields under `body.body`. This release train adds no EventStream aggregation HTTP, OpenAPI, or Schema HTTP route; do not demand or invent a generated route, transport, or data migration.
 
 ## Wow 8.14.x to 8.15.0 query entry rename
 
@@ -45,7 +45,7 @@ When the pinned source is 8.14.x and the target is 8.15.0 or later, apply this s
 | `me.ahoo.wow.query.event.filter.EventStreamQueryHandler` / `DefaultEventStreamQueryHandler` | `me.ahoo.wow.query.event.EventStreamQueryGateway` / `DefaultEventStreamQueryGateway` |
 | `snapshotQueryHandler` / `eventStreamQueryHandler` bean | `snapshotQueryGateway` / `eventStreamQueryGateway` bean |
 
-Change model-specific query-filter `@FilterType` targets to the corresponding Gateway and leave generic `QueryFilter` implementations unannotated. `QueryGateway` does not extend `Handler` or expose `handle(QueryContext)`; direct implementations must implement `aggregate`, and Gateway `count` accepts only `FilterExpression`. Application code injects an aggregate Gateway; direct Backend Factory access remains a trusted raw path that bypasses its policy chain.
+Change custom query-filter `@FilterType` targets to the corresponding renamed Gateway. The renamed query entry no longer extends `Handler` or exposes `handle(QueryContext)`; direct implementations must implement `aggregate`, and `count` accepts only `FilterExpression`. Preserve the aggregate query beans, their registrars, selected storage query implementations, and storage query factories. Managed aggregate query beans traverse the renamed Gateway/filter chain; direct storage query factory access remains a trusted raw path that bypasses that policy chain.
 
 The rename alone does not change HTTP/OpenAPI query shapes, wire formats, or stored events/snapshots, so it needs source compilation, Spring bean/qualifier startup, and representative managed-service/WebFlux query verification, but no data conversion. Reassess that conclusion if the same release also changes application schemas, storage layouts, or writers.
 

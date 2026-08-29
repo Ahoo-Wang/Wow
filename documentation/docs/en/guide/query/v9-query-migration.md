@@ -48,7 +48,7 @@ Schema handlers also use the routed Backend Factory, so Schema and queries selec
 
 ## Transport and Error Semantics
 
-JSON-array and SSE streaming behavior is unchanged. If a stream fails after emitting some elements, those elements are not rolled back. SSE emits an error event and then propagates the original terminal error. Migration must not rewrite that partial failure as an empty result or successful completion.
+JSON-array and SSE streaming behavior is unchanged. If a stream fails after emitting some elements, those elements are not rolled back. SSE attempts to emit an `ErrorInfo` error event. Whether or not that event can be produced, the original terminal error is always propagated, with an error-handler failure attached as a suppressed error. Migration must not rewrite that partial failure as an empty result or successful completion.
 
 ## Minimal Migration Steps
 

@@ -69,4 +69,4 @@ Aggregate Bean names are exactly `{contextAlias.}{aggregateName}.SnapshotQueryGa
 
 ## Validation strategy boundaries
 
-The Gateway owns the policy chain; it does not replace backend field capability, Schema resolution, or application validation. If a JSON-array or SSE stream fails after emitting rows, those rows are not rolled back. SSE emits an error event and then propagates the original terminal error; a partial failure is not converted into successful completion.
+The Gateway owns the policy chain; it does not replace backend field capability, Schema resolution, or application validation. If a JSON-array or SSE stream fails after emitting rows, those rows are not rolled back. SSE attempts to emit an `ErrorInfo` error event. Whether or not that event can be produced, the original terminal error is always propagated, with an error-handler failure attached as a suppressed error; partial failure never completes successfully.
