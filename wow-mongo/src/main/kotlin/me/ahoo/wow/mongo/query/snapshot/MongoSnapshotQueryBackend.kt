@@ -16,64 +16,48 @@ package me.ahoo.wow.mongo.query.snapshot
 import com.mongodb.reactivestreams.client.MongoCollection
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
-import me.ahoo.wow.api.query.MaterializedSnapshot
-import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.api.query.schema.QueryModel
-import me.ahoo.wow.configuration.requiredAggregateType
-import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToAggregateId
 import me.ahoo.wow.mongo.MongoSnapshotStore
 import me.ahoo.wow.mongo.query.AbstractMongoFilterConverter
-import me.ahoo.wow.mongo.query.AbstractMongoQueryService
+import me.ahoo.wow.mongo.query.AbstractMongoQueryBackend
 import me.ahoo.wow.mongo.query.MongoProjectionConverter
 import me.ahoo.wow.mongo.query.MongoSortConverter
 import me.ahoo.wow.mongo.query.schema.MongoQuerySchemaAdapter
-import me.ahoo.wow.mongo.toMaterializedSnapshot
+import me.ahoo.wow.mongo.toObjectNode
 import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.schema.resolve
-import me.ahoo.wow.query.snapshot.SnapshotQueryService
-import me.ahoo.wow.serialization.JsonSerializer
+import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import org.bson.Document
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import tools.jackson.databind.node.ObjectNode
 
-class MongoSnapshotQueryService<S : Any>(
+class MongoSnapshotQueryBackend(
     override val namedAggregate: NamedAggregate,
     override val collection: MongoCollection<Document>,
     override val converter: AbstractMongoFilterConverter = SnapshotFilterConverter,
     private val schemaProvider: QueryModelSchemaProvider =
         defaultSchemaProvider(namedAggregate, collection, converter),
     private val validationMode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
-) : AbstractMongoQueryService<MaterializedSnapshot<S>>(),
-    SnapshotQueryService<S>,
+) : AbstractMongoQueryBackend(),
+    SnapshotQueryBackend,
     QueryModelSchemaProvider by schemaProvider {
     override val name: String
         get() = MongoSnapshotStore.NAME
     override val projectionConverter: MongoProjectionConverter = MongoProjectionConverter(SnapshotFieldConverter)
     override val sortConverter: MongoSortConverter = MongoSortConverter(SnapshotFieldConverter)
-    private val snapshotType = JsonSerializer.typeFactory
-        .constructParametricType(
-            MaterializedSnapshot::class.java,
-            namedAggregate.requiredAggregateType<Any>().aggregateMetadata<Any, S>().state.aggregateType
-        )
-
-    override fun toTypedResult(document: Document): MaterializedSnapshot<S> {
-        return document.toMaterializedSnapshot(snapshotType)
-    }
-
-    override fun toDynamicDocument(document: Document): DynamicDocument {
-        return document.replacePrimaryKeyToAggregateId().toDynamicDocument()
-    }
+    override fun toObjectNode(document: Document): ObjectNode =
+        document.replacePrimaryKeyToAggregateId().toObjectNode()
 
     override fun resolve(query: ISingleQuery) = schemaProvider.resolve(query, validationMode)
 
@@ -83,7 +67,7 @@ class MongoSnapshotQueryService<S : Any>(
 
     override fun resolve(filter: FilterExpression) = schemaProvider.resolve(filter, validationMode)
 
-    override fun aggregate(query: AggregationQuery): Flux<DynamicDocument> {
+    override fun aggregate(query: AggregationQuery): Flux<ObjectNode> {
         return schemaProvider.resolve(query, validationMode).flatMapMany(::executeAggregation)
     }
 

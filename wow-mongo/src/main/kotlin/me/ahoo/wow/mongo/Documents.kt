@@ -21,6 +21,7 @@ import me.ahoo.wow.mongo.Documents.replaceAggregateIdToPrimaryKey
 import me.ahoo.wow.mongo.Documents.replaceIdToPrimaryKey
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToAggregateId
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToId
+import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.convert
 import me.ahoo.wow.serialization.toLinkedHashMap
@@ -28,6 +29,7 @@ import org.bson.Document
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import tools.jackson.databind.JavaType
+import tools.jackson.databind.node.ObjectNode
 
 object Documents {
     const val ID_FIELD = "_id"
@@ -53,6 +55,12 @@ object Documents {
         remove(ID_FIELD)
         return this
     }
+}
+
+fun Document.toObjectNode(): ObjectNode {
+    val node = JsonSerializer.readTree(JsonSerializer.writeValueAsBytes(this))
+    require(node is ObjectNode) { "MongoDB query result must serialize as a JSON object." }
+    return node
 }
 
 fun DomainEventStream.toDocument(): Document {

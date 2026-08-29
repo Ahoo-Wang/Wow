@@ -46,7 +46,6 @@ import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.requiredQueryModelSchemaProvider
 import me.ahoo.wow.schema.query.JsonQuerySchemaSource
 import me.ahoo.wow.serialization.JsonSerializer
-import me.ahoo.wow.serialization.convert
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockDiscount
 import me.ahoo.wow.tck.mock.MockLine
@@ -57,6 +56,7 @@ import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
+import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 import java.math.BigDecimal
 import java.time.Clock
@@ -285,7 +285,7 @@ abstract class SnapshotQueryBackendSpec {
         }.query(snapshotQueryBackend)
             .test()
             .assertNext {
-                it.toMap().assert().isEqualTo(mapOf("day" to 0L, "count" to 1L))
+                it.assertWireEquals(mapOf("day" to 0L, "count" to 1L))
             }.verifyComplete()
     }
 
@@ -303,7 +303,7 @@ abstract class SnapshotQueryBackendSpec {
         }.query(snapshotQueryBackend)
             .test()
             .assertNext {
-                it.toMap().assert().isEqualTo(
+                it.assertWireEquals(
                     mapOf(
                         "count" to 2L,
                         "total" to 3.0,
@@ -331,7 +331,7 @@ abstract class SnapshotQueryBackendSpec {
         }.query(snapshotQueryBackend)
             .test()
             .assertNext {
-                it.toMap().assert().isEqualTo(
+                it.assertWireEquals(
                     mapOf(
                         "count" to 6L,
                         "total" to 410.0,
@@ -357,7 +357,7 @@ abstract class SnapshotQueryBackendSpec {
         }.query(snapshotQueryBackend)
             .test()
             .assertNext {
-                it.toMap().assert().isEqualTo(
+                it.assertWireEquals(
                     mapOf(
                         "safeDivision" to 5.0,
                         "zeroDivision" to null,
@@ -378,7 +378,7 @@ abstract class SnapshotQueryBackendSpec {
             sum(field("samples") * constant(1.0), "total")
         }.query(snapshotQueryBackend)
             .test()
-            .assertNext { it.toMap().assert().isEqualTo(mapOf("total" to 7.0)) }
+            .assertNext { it.assertWireEquals(mapOf("total" to 7.0)) }
             .verifyComplete()
     }
 
@@ -397,25 +397,25 @@ abstract class SnapshotQueryBackendSpec {
             .collectList()
             .test()
             .assertNext { rows ->
-                rows.map(ObjectNode::toMap).assert().containsExactly(
+                rows.map(ObjectNode::toWireJsonNode).assert().containsExactly(
                     mapOf(
                         "product" to "alpha",
                         "quantityBucket" to 4.0,
                         "day" to 1_767_398_400_000L,
                         "count" to 1L,
-                    ),
+                    ).toWireJsonNode(),
                     mapOf(
                         "product" to "beta",
                         "quantityBucket" to 2.0,
                         "day" to 1_767_312_000_000L,
                         "count" to 2L,
-                    ),
+                    ).toWireJsonNode(),
                     mapOf(
                         "product" to "delta",
                         "quantityBucket" to 4.0,
                         "day" to 1_769_990_400_000L,
                         "count" to 1L,
-                    ),
+                    ).toWireJsonNode(),
                 )
             }.verifyComplete()
     }
@@ -433,9 +433,9 @@ abstract class SnapshotQueryBackendSpec {
             .collectList()
             .test()
             .assertNext { rows ->
-                rows.map(ObjectNode::toMap).assert().containsExactly(
-                    mapOf("week" to 1_769_385_600_000L, "count" to 1L),
-                    mapOf("week" to 1_769_990_400_000L, "count" to 1L),
+                rows.map(ObjectNode::toWireJsonNode).assert().containsExactly(
+                    mapOf("week" to 1_769_385_600_000L, "count" to 1L).toWireJsonNode(),
+                    mapOf("week" to 1_769_990_400_000L, "count" to 1L).toWireJsonNode(),
                 )
             }.verifyComplete()
     }
@@ -453,9 +453,11 @@ abstract class SnapshotQueryBackendSpec {
             .collectList()
             .test()
             .assertNext { rows ->
-                rows.map(ObjectNode::toMap).assert().containsExactly(
-                    mapOf("second" to Instant.parse("2026-01-02T10:00:00Z").toEpochMilli(), "count" to 1L),
-                    mapOf("second" to Instant.parse("2026-01-02T18:00:00Z").toEpochMilli(), "count" to 1L),
+                rows.map(ObjectNode::toWireJsonNode).assert().containsExactly(
+                    mapOf("second" to Instant.parse("2026-01-02T10:00:00Z").toEpochMilli(), "count" to 1L)
+                        .toWireJsonNode(),
+                    mapOf("second" to Instant.parse("2026-01-02T18:00:00Z").toEpochMilli(), "count" to 1L)
+                        .toWireJsonNode(),
                 )
             }.verifyComplete()
     }
@@ -475,9 +477,9 @@ abstract class SnapshotQueryBackendSpec {
             .collectList()
             .test()
             .assertNext { rows ->
-                rows.map(ObjectNode::toMap).assert().containsExactly(
-                    mapOf("decimal" to 1.25, "count" to 1L),
-                    mapOf("decimal" to 2.5, "count" to 1L),
+                rows.map(ObjectNode::toWireJsonNode).assert().containsExactly(
+                    mapOf("decimal" to 1.25, "count" to 1L).toWireJsonNode(),
+                    mapOf("decimal" to 2.5, "count" to 1L).toWireJsonNode(),
                 )
             }.verifyComplete()
     }
@@ -492,7 +494,7 @@ abstract class SnapshotQueryBackendSpec {
         }.query(snapshotQueryBackend)
             .test()
             .assertNext {
-                it.toMap().assert().isEqualTo(mapOf("anyData" to null, "count" to 0L, "total" to null))
+                it.assertWireEquals(mapOf("anyData" to null, "count" to 0L, "total" to null))
             }.verifyComplete()
     }
 
@@ -509,10 +511,9 @@ abstract class SnapshotQueryBackendSpec {
         }.query(snapshotQueryBackend)
             .test()
             .assertNext { row ->
-                val result = row.toMap()
-                result["productId"].assert().isEqualTo("alpha")
-                setOf("Alpha", "Alpha 2026").contains(result["productName"]).assert().isTrue()
-                result["count"].assert().isEqualTo(3L)
+                row.path("productId").textValue().assert().isEqualTo("alpha")
+                setOf("Alpha", "Alpha 2026").contains(row.path("productName").textValue()).assert().isTrue()
+                row.path("count").longValue().assert().isEqualTo(3L)
             }.verifyComplete()
     }
 
@@ -528,10 +529,9 @@ abstract class SnapshotQueryBackendSpec {
         }.query(snapshotQueryBackend)
             .test()
             .assertNext { row ->
-                val result = row.toMap()
-                result.containsKey("productName").assert().isTrue()
-                result["productName"].assert().isNull()
-                result["count"].assert().isEqualTo(1L)
+                row.has("productName").assert().isTrue()
+                row.path("productName").isNull.assert().isTrue()
+                row.path("count").longValue().assert().isEqualTo(1L)
             }.verifyComplete()
     }
 
@@ -550,7 +550,7 @@ abstract class SnapshotQueryBackendSpec {
         }.query(snapshotQueryBackend)
             .test()
             .assertNext {
-                it.toMap().assert().isEqualTo(
+                it.assertWireEquals(
                     mapOf(
                         "count" to 1L,
                         "total" to null,
@@ -578,7 +578,11 @@ abstract class SnapshotQueryBackendSpec {
             .test()
             .assertNext { rows ->
                 rows.map { row ->
-                    row.toMap().let { listOf(it["product"], it["quantityBucket"], it["count"]) }
+                    listOf(
+                        row.path("product").textValue(),
+                        row.path("quantityBucket").doubleValue(),
+                        row.path("count").longValue(),
+                    )
                 }.assert().containsExactly(
                     listOf("alpha", 0.0, 1L),
                     listOf("alpha", 4.0, 1L),
@@ -603,7 +607,7 @@ abstract class SnapshotQueryBackendSpec {
         }.query(snapshotQueryBackend)
             .test()
             .assertNext {
-                it.toMap().assert().isEqualTo(mapOf("type" to "PROMO", "total" to 8.0))
+                it.assertWireEquals(mapOf("type" to "PROMO", "total" to 8.0))
             }.verifyComplete()
     }
 
@@ -747,4 +751,7 @@ private fun IPagedQuery.query(backend: SnapshotQueryBackend) = backend.paged(thi
 private fun IPagedQuery.dynamicQuery(backend: SnapshotQueryBackend) = backend.paged(this)
 private fun FilterExpression.count(backend: SnapshotQueryBackend): Mono<Long> = backend.count(this)
 private fun AggregationQuery.query(backend: SnapshotQueryBackend): Flux<ObjectNode> = backend.aggregate(this)
-private fun ObjectNode.toMap(): Map<String, Any?> = convert()
+private fun Any.toWireJsonNode(): JsonNode = JsonSerializer.readTree(JsonSerializer.writeValueAsBytes(this))
+private fun ObjectNode.assertWireEquals(expected: Any) {
+    toWireJsonNode().assert().isEqualTo(expected.toWireJsonNode())
+}

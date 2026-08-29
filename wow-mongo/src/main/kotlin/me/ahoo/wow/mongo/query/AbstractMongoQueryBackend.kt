@@ -17,16 +17,15 @@ import com.mongodb.reactivestreams.client.FindPublisher
 import com.mongodb.reactivestreams.client.MongoCollection
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.Queryable
-import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.mongo.query.aggregation.MongoAggregationCompiler
-import me.ahoo.wow.query.QueryService
+import me.ahoo.wow.mongo.toObjectNode
+import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.schema.ResolvedAggregationQuery
 import org.bson.Document
 import org.bson.types.Decimal128
@@ -34,14 +33,14 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toFlux
 import reactor.kotlin.core.publisher.toMono
+import tools.jackson.databind.node.ObjectNode
 
-abstract class AbstractMongoQueryService<R : Any> : QueryService<R> {
+abstract class AbstractMongoQueryBackend : QueryBackend {
     abstract val collection: MongoCollection<Document>
     abstract val converter: AbstractMongoFilterConverter
     abstract val projectionConverter: MongoProjectionConverter
     abstract val sortConverter: MongoSortConverter
-    abstract fun toTypedResult(document: Document): R
-    abstract fun toDynamicDocument(document: Document): DynamicDocument
+    protected abstract fun toObjectNode(document: Document): ObjectNode
 
     protected open fun resolve(query: ISingleQuery): Mono<ISingleQuery> = Mono.just(query)
 
@@ -64,17 +63,7 @@ abstract class AbstractMongoQueryService<R : Any> : QueryService<R> {
         }
     }
 
-    override fun single(singleQuery: ISingleQuery): Mono<R> {
-        return singleDocument(singleQuery).map {
-            toTypedResult(it)
-        }
-    }
-
-    override fun dynamicSingle(singleQuery: ISingleQuery): Mono<DynamicDocument> {
-        return singleDocument(singleQuery).map {
-            toDynamicDocument(it)
-        }
-    }
+    override fun single(query: ISingleQuery): Mono<ObjectNode> = singleDocument(query).map(::toObjectNode)
 
     private fun listDocument(listQuery: IListQuery): Flux<Document> {
         require(listQuery.limit >= 0) { "limit must be greater than or equal to 0." }
@@ -85,22 +74,9 @@ abstract class AbstractMongoQueryService<R : Any> : QueryService<R> {
         }
     }
 
-    override fun list(listQuery: IListQuery): Flux<R> {
-        return listDocument(listQuery).map {
-            toTypedResult(it)
-        }
-    }
+    override fun list(query: IListQuery): Flux<ObjectNode> = listDocument(query).map(::toObjectNode)
 
-    override fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument> {
-        return listDocument(listQuery).map {
-            toDynamicDocument(it)
-        }
-    }
-
-    private fun <T : Any> pagedDocument(
-        pagedQuery: IPagedQuery,
-        documentMapper: (Document) -> T
-    ): Mono<PagedList<T>> {
+    private fun pagedDocument(pagedQuery: IPagedQuery): Mono<PagedList<ObjectNode>> {
         return resolve(pagedQuery).flatMap { resolved ->
             val projectionBson = projectionConverter.convert(resolved.projection)
             val filter = converter.convert(resolved.filter)
@@ -115,7 +91,7 @@ abstract class AbstractMongoQueryService<R : Any> : QueryService<R> {
                 .batchSize(resolved.pagination.size)
                 .toFlux()
 
-            val listMappedPublisher = listPublisher.map { documentMapper(it) }.collectList()
+            val listMappedPublisher = listPublisher.map(::toObjectNode).collectList()
             Mono.zip(totalPublisher, listMappedPublisher)
                 .map { result ->
                     PagedList(result.t1, result.t2)
@@ -123,15 +99,7 @@ abstract class AbstractMongoQueryService<R : Any> : QueryService<R> {
         }
     }
 
-    override fun paged(pagedQuery: IPagedQuery): Mono<PagedList<R>> {
-        return pagedDocument(pagedQuery) {
-            toTypedResult(it)
-        }
-    }
-
-    override fun dynamicPaged(pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>> {
-        return pagedDocument(pagedQuery) { toDynamicDocument(it) }
-    }
+    override fun paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> = pagedDocument(query)
 
     override fun count(filter: FilterExpression): Mono<Long> {
         return resolve(filter).flatMap { resolved ->
@@ -139,19 +107,19 @@ abstract class AbstractMongoQueryService<R : Any> : QueryService<R> {
         }
     }
 
-    protected fun executeAggregation(resolved: ResolvedAggregationQuery): Flux<DynamicDocument> {
+    protected fun executeAggregation(resolved: ResolvedAggregationQuery): Flux<ObjectNode> {
         val query = resolved.query
         val result = collection.aggregate(
             MongoAggregationCompiler(converter).compile(query, resolved.schema),
-        ).toFlux().map { it.toAggregationResult(query) }
+        ).toFlux().map { it.toAggregationResult(query).toObjectNode() }
         return if (query.groupBy.isEmpty()) {
-            result.switchIfEmpty(Flux.just(query.emptySummary()))
+            result.switchIfEmpty(Flux.defer { Flux.just(query.emptySummary().toObjectNode()) })
         } else {
             result
         }
     }
 
-    private fun Document.toAggregationResult(query: AggregationQuery): DynamicDocument {
+    private fun Document.toAggregationResult(query: AggregationQuery): Document {
         query.groupBy.forEach { group ->
             this[group.alias] = get(group.alias).toTermsValue(group.alias)
         }
@@ -162,15 +130,15 @@ abstract class AbstractMongoQueryService<R : Any> : QueryService<R> {
                 is AggregationMetric.Numeric -> get(metric.alias).toFiniteDouble(metric.alias)
             }
         }
-        return toDynamicDocument()
+        return this
     }
 
     private fun Any?.toTermsValue(alias: String): Any? =
         if (this is Decimal128) toFiniteDouble(alias) else this
 
-    private fun AggregationQuery.emptySummary(): DynamicDocument = metrics.associateTo(Document()) { metric ->
+    private fun AggregationQuery.emptySummary(): Document = metrics.associateTo(Document()) { metric ->
         metric.alias to if (metric is AggregationMetric.Count) 0L else null
-    }.toDynamicDocument()
+    }
 
     private fun Any?.toFiniteDouble(alias: String): Double? {
         val value = when (this) {

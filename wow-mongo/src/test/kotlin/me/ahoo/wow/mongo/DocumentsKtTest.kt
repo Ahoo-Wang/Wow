@@ -8,10 +8,19 @@ import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.bson.Document
+import org.bson.types.Binary
+import org.bson.types.Decimal128
+import org.bson.types.ObjectId
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
+import tools.jackson.core.exc.StreamWriteException
+import tools.jackson.databind.node.ObjectNode
+import java.math.BigDecimal
+import java.util.Date
+import java.util.UUID
 
 class DocumentsKtTest {
 
@@ -43,6 +52,46 @@ class DocumentsKtTest {
             MaterializedSnapshot::class.java,
             MOCK_AGGREGATE_METADATA.state.aggregateType
         )
+
+    @Test
+    fun `document should normalize complete bson corpus to canonical object node`() {
+        val normalizedDocument = Document(
+            mapOf(
+                "_id" to ObjectId("64b64c000000000000000001"),
+                "decimal" to Decimal128(BigDecimal("123.45")),
+                "date" to Date(1_700_000_000_000),
+                "uuid" to UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                "binary" to Binary(byteArrayOf(1, 2, 3)),
+                "nullable" to null,
+                "nested" to Document(
+                    "items",
+                    listOf(Document("value", Decimal128(BigDecimal("2.5")))),
+                ),
+            ),
+        ).apply {
+            this["_id"] = getObjectId("_id").toHexString()
+        }.replacePrimaryKeyToAggregateId()
+
+        val node = normalizedDocument.toObjectNode()
+
+        node.isObject.assert().isTrue()
+        node.findValues("decimal").single().isPojo.assert().isFalse()
+        node.findValues("value").single().isPojo.assert().isFalse()
+        JsonSerializer.writeValueAsString(node).assert().isEqualTo(
+            JsonSerializer.writeValueAsString(
+                JsonSerializer.readTree(JsonSerializer.writeValueAsBytes(normalizedDocument)),
+            ),
+        )
+    }
+
+    @Test
+    fun `direct document tree conversion should reproduce Decimal128 stream write failure`() {
+        val document = Document("decimal", Decimal128(BigDecimal("123.45")))
+
+        assertThrows<StreamWriteException> {
+            JsonSerializer.valueToTree<ObjectNode>(document)
+        }
+    }
 
     @Test
     fun `should convert document to dynamic document`() {

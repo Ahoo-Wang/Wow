@@ -23,15 +23,15 @@ import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
-import me.ahoo.wow.query.snapshot.AbstractSnapshotQueryServiceFactory
-import me.ahoo.wow.query.snapshot.SnapshotQueryService
+import me.ahoo.wow.query.snapshot.AbstractSnapshotQueryBackendFactory
+import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 
-class MongoSnapshotQueryServiceFactory(
+class MongoSnapshotQueryBackendFactory(
     private val database: MongoDatabase,
     private val schemaSources: List<QuerySchemaSource> = emptyList(),
     private val validationMode: QuerySchemaValidationMode = QuerySchemaValidationMode.COMPATIBLE,
-) : AbstractSnapshotQueryServiceFactory() {
-    override fun createQueryService(namedAggregate: NamedAggregate): SnapshotQueryService<*> {
+) : AbstractSnapshotQueryBackendFactory() {
+    override fun createBackend(namedAggregate: NamedAggregate): SnapshotQueryBackend {
         val materialized = namedAggregate.materialize()
         val collectionName = namedAggregate.toSnapshotCollectionName()
         val collection = database.getCollection(collectionName)
@@ -40,7 +40,7 @@ class MongoSnapshotQueryServiceFactory(
             sources = schemaSources,
             adapter = MongoQuerySchemaAdapter(collection, database),
         )
-        return MongoSnapshotQueryService<Any>(
+        return MongoSnapshotQueryBackend(
             namedAggregate = materialized,
             collection = collection,
             schemaProvider = provider,
