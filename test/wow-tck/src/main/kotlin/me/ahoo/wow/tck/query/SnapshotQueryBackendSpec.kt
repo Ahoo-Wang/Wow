@@ -107,14 +107,17 @@ abstract class SnapshotQueryBackendSpec {
     }
 
     @Test
-    fun single() {
+    fun `single should expose canonical snapshot json`() {
         singleQuery {
             condition {
                 id(snapshot.aggregateId.id)
             }
         }.query(snapshotQueryBackend)
             .test()
-            .expectNextCount(1)
+            .assertNext { node ->
+                node.path("aggregateId").textValue().assert().isEqualTo(snapshot.aggregateId.id)
+                node.path("state").isObject.assert().isTrue()
+            }
             .verifyComplete()
     }
 

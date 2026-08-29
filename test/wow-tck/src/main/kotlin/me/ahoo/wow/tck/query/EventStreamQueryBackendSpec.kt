@@ -64,7 +64,7 @@ abstract class EventStreamQueryBackendSpec {
     }
 
     @Test
-    fun single() {
+    fun `single should expose canonical event stream json`() {
         val eventStream = generateEventStream(namedAggregate.aggregateId(tenantId = generateGlobalId()))
         eventStore.append(eventStream).block()
         singleQuery {
@@ -73,7 +73,10 @@ abstract class EventStreamQueryBackendSpec {
             }
         }.query(eventStreamQueryBackend)
             .test()
-            .expectNextCount(1)
+            .assertNext { node ->
+                node.path("id").textValue().assert().isEqualTo(eventStream.id)
+                node.path("body").isArray.assert().isTrue()
+            }
             .verifyComplete()
     }
 
