@@ -15,6 +15,7 @@ package me.ahoo.wow.query.event
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.modeling.NamedAggregateDecorator
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
@@ -40,7 +41,7 @@ class EventStreamQueryBackendFactoryTest {
             }
         }
 
-        factory.create(ORDER).assert().isSameAs(factory.create(ORDER))
+        factory.create(ORDER).assert().isSameAs(factory.create(DecoratedNamedAggregate(ORDER)))
         factory.create(CART).assert().isNotSameAs(factory.create(ORDER))
         created.get().assert().isEqualTo(2)
     }
@@ -58,6 +59,10 @@ class EventStreamQueryBackendFactoryTest {
         override fun count(filter: FilterExpression): Mono<Long> = Mono.just(0L)
         override fun aggregate(query: AggregationQuery): Flux<ObjectNode> = Flux.empty()
     }
+
+    private class DecoratedNamedAggregate(
+        override val namedAggregate: NamedAggregate,
+    ) : NamedAggregateDecorator
 
     companion object {
         private val ORDER = MaterializedNamedAggregate("order-service", "order")

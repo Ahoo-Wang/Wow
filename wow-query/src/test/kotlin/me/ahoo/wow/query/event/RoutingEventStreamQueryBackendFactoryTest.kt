@@ -15,6 +15,7 @@ package me.ahoo.wow.query.event
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.modeling.NamedAggregateDecorator
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import org.junit.jupiter.api.Test
 
@@ -25,7 +26,7 @@ class RoutingEventStreamQueryBackendFactoryTest {
         val orderFactory = RecordingEventStreamQueryBackendFactory()
         val routing = RoutingEventStreamQueryBackendFactory(defaultFactory, mapOf(ORDER to orderFactory))
 
-        routing.create(ORDER).assert().isSameAs(orderFactory.create(ORDER))
+        routing.create(DecoratedNamedAggregate(ORDER)).assert().isSameAs(orderFactory.create(ORDER))
         routing.create(CART).assert().isSameAs(defaultFactory.create(CART))
         orderFactory.created.get().assert().isEqualTo(1)
         defaultFactory.created.get().assert().isEqualTo(1)
@@ -39,6 +40,10 @@ class RoutingEventStreamQueryBackendFactoryTest {
             return NoOpEventStreamQueryBackend(namedAggregate)
         }
     }
+
+    private class DecoratedNamedAggregate(
+        override val namedAggregate: NamedAggregate,
+    ) : NamedAggregateDecorator
 
     companion object {
         private val ORDER = MaterializedNamedAggregate("order-service", "order")

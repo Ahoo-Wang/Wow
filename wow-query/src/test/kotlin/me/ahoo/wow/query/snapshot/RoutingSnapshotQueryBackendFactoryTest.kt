@@ -15,6 +15,7 @@ package me.ahoo.wow.query.snapshot
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.modeling.NamedAggregateDecorator
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import org.junit.jupiter.api.Test
 
@@ -25,7 +26,7 @@ class RoutingSnapshotQueryBackendFactoryTest {
         val orderFactory = RecordingSnapshotQueryBackendFactory()
         val routing = RoutingSnapshotQueryBackendFactory(defaultFactory, mapOf(ORDER to orderFactory))
 
-        routing.create<Any>(ORDER).assert().isSameAs(orderFactory.create<Any>(ORDER))
+        routing.create<Any>(DecoratedNamedAggregate(ORDER)).assert().isSameAs(orderFactory.create<Any>(ORDER))
         routing.create<Any>(CART).assert().isSameAs(defaultFactory.create<Any>(CART))
         orderFactory.created.get().assert().isEqualTo(1)
         defaultFactory.created.get().assert().isEqualTo(1)
@@ -39,6 +40,10 @@ class RoutingSnapshotQueryBackendFactoryTest {
             return NoOpSnapshotQueryBackend(namedAggregate)
         }
     }
+
+    private class DecoratedNamedAggregate(
+        override val namedAggregate: NamedAggregate,
+    ) : NamedAggregateDecorator
 
     companion object {
         private val ORDER = MaterializedNamedAggregate("order-service", "order")
