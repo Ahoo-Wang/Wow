@@ -17,11 +17,13 @@
 
 ## 自动化证据
 
-- Vitest：`38 files / 192 tests` 通过。
+- Vitest：`40 files / 194 tests` 通过。
 - desktop/mobile `e2e/dashboard.spec.ts`：`16/16` 通过。
 - Lint、TypeScript/Vite build、`git diff --check` 通过。
 - 请求合同：初始 `7 Snapshot + 4 EventStream`；Today 后累计 `14 + 8`；Refresh 后累计 `21 + 12`；每批 `state.executeAt` 与 `createTime` 的 start/end 一致。
 - 交互合同：手动不完整范围禁用 Apply；Cancel 不应用；完整范围 Apply 后更新；Today / Last 7 days / Last 30 days 立即应用并关闭。
+- 真实 Calendar 回归：任意同日范围可以完成并 Apply；从完整范围重选时从新起点开始，不复用旧 endpoint。
+- 键盘可访问性：真实 Calendar 按 ArrowRight 后，`document.activeElement` 从 20 日移动到 21 日，焦点状态与 DOM 焦点连续一致。
 - 浏览器回归：Top 5 五行完整；signals 至少 `200px`；Retry 的 `1–2 retries`、`3–5 retries` 各由单个完整 `tspan` 渲染；成功态 `console.error = []`。
 
 ## in-app Browser Round 3
@@ -46,6 +48,7 @@
 - Round 1 P2：Dashboard 内部纵向溢出（`652/665`）。只把 `.dashboard-view` 垂直 padding 从 `14px` 收敛为 `12px`、section gap 从 `12px` 收敛为 `7px`；Round 3 为 `652/652`。
 - Round 2 P2：Retry distribution 的 `1–2 retries`、`3–5 retries` 拆成两行。只把 Recharts `YAxis.width` 从 `72` 增至 `88`；Round 3 保持单行。
 - Round 3：无可执行 P0 / P1 / P2。
+- Review fix：补上 `resetOnSelect` 与 DayButton DOM ref；真实 Date Picker/Calendar 回归覆盖日期重选和方向键焦点。
 - P3：无。
 
 ## 证据边界

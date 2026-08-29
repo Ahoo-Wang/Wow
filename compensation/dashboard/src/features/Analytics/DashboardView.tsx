@@ -302,7 +302,7 @@ export default function DashboardView() {
                 <Calendar
                   mode="range"
                   required
-                  min={1}
+                  resetOnSelect
                   selected={draftRange}
                   onSelect={setDraftRange}
                   defaultMonth={draftRange.from}
