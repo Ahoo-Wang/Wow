@@ -68,4 +68,6 @@ function Button({
   );
 }
 
-export { Button };
+// Calendar navigation reuses the standard shadcn button variants.
+// eslint-disable-next-line react-refresh/only-export-components
+export { Button, buttonVariants };

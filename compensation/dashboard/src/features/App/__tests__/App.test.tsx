@@ -5,6 +5,7 @@ import { FindCategory } from "../../Failed/FindCategory.ts";
 import App from "../App.tsx";
 
 const mocks = vi.hoisted(() => ({
+  outletContext: undefined as unknown,
   outletRender: vi.fn(),
   pathname: "/executing",
 }));
@@ -18,19 +19,27 @@ vi.mock("react-router", () => ({
   NavLink: ({
     children,
     className,
+    end,
     to,
     ...props
   }: {
     children: ReactNode;
-    className: (state: { isActive: boolean }) => string;
+    className?: string | ((state: { isActive: boolean }) => string);
+    end?: boolean;
     to: string;
     "aria-label"?: string;
   }) => {
-    const isActive = to === mocks.pathname;
+    const isActive = end
+      ? to === mocks.pathname
+      : to === mocks.pathname ||
+        mocks.pathname.startsWith(to.endsWith("/") ? to : `${to}/`);
     return (
       <a
         aria-current={isActive ? "page" : undefined}
-        className={className({ isActive })}
+        className={
+          typeof className === "function" ? className({ isActive }) : className
+        }
+        data-end={end ? "true" : undefined}
         href={to}
         {...props}
       >
@@ -38,7 +47,8 @@ vi.mock("react-router", () => ({
       </a>
     );
   },
-  Outlet: () => {
+  Outlet: ({ context }: { context?: unknown }) => {
+    mocks.outletContext = context;
     mocks.outletRender();
     return <div>Route content</div>;
   },
@@ -46,6 +56,10 @@ vi.mock("react-router", () => ({
 }));
 
 const navItems = [
+  {
+    label: "Dashboard",
+    path: "/",
+  },
   {
     label: "To Retry",
     path: "/to-retry",
@@ -62,6 +76,7 @@ const navItems = [
 
 describe("App", () => {
   beforeEach(() => {
+    mocks.outletContext = undefined;
     mocks.pathname = "/executing";
     mocks.outletRender.mockClear();
   });
@@ -81,8 +96,28 @@ describe("App", () => {
       "Executing",
     );
     expect(
-      screen.getByRole("link", { name: "Wow compensation dashboard" }),
-    ).toHaveAttribute("href", "/to-retry");
+      screen.getByRole("navigation", { name: "Primary navigation" }),
+    ).toContainElement(screen.getByRole("link", { name: "Executing" }));
+    const brandLink = screen.getByRole("link", {
+      name: "Wow compensation dashboard",
+    });
+    expect(brandLink).toHaveAttribute("href", "/");
+    expect(brandLink).toHaveTextContent("CompensationControl Plane");
+    expect(screen.getByText("Navigation")).toHaveAttribute(
+      "data-slot",
+      "sidebar-group-label",
+    );
+    expect(screen.getByRole("link", { name: "Executing" })).toHaveAttribute(
+      "data-size",
+      "lg",
+    );
+    expect(screen.getByRole("link", { name: "Dashboard" })).not.toHaveAttribute(
+      "aria-current",
+    );
+    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute(
+      "data-end",
+      "true",
+    );
     const projectLinks = screen.getByRole("navigation", {
       name: "Project repositories",
     });
@@ -116,7 +151,8 @@ describe("App", () => {
     expect(
       screen.queryByLabelText("Current local time"),
     ).not.toBeInTheDocument();
-    expect(screen.getByText("v8.16.1")).toBeInTheDocument();
+    const version = screen.getByText(/^v\d+\.\d+\.\d+$/);
+    expect(version).toBeInTheDocument();
     const commitLink = screen.getByRole("link", {
       name: /^GitHub commit [0-9a-f]{40}$/,
     });
@@ -127,29 +163,84 @@ describe("App", () => {
         /^https:\/\/github\.com\/Ahoo-Wang\/Wow\/commit\/[0-9a-f]{40}$/,
       ),
     );
+    expect(version.closest(".app-topbar")).not.toBeNull();
+    expect(version.closest("[data-slot='sidebar-footer']")).toBeNull();
   });
 
   it("collapses and expands the desktop navigation", () => {
     render(<App navItems={navItems} />);
 
     const sidebar = screen.getByRole("complementary", {
-      name: "Primary navigation",
+      name: "Application sidebar",
     });
+    const sidebarPanel = document.querySelector("[data-slot='sidebar']");
+    const sidebarWrapper = document.querySelector(
+      "[data-slot='sidebar-wrapper']",
+    ) as HTMLElement;
     const collapse = screen.getByRole("button", {
       name: "Collapse navigation",
     });
-    expect(sidebar).not.toHaveClass("is-collapsed");
+    expect(sidebar).toHaveAttribute("data-slot", "sidebar-container");
+    expect(sidebarPanel).toHaveAttribute("data-state", "expanded");
+    expect(sidebarWrapper.style.getPropertyValue("--sidebar-width")).toBe(
+      "11rem",
+    );
+    expect(sidebarWrapper.style.getPropertyValue("--sidebar-width-icon")).toBe(
+      "3.5rem",
+    );
+    expect(collapse).toHaveAttribute("data-slot", "sidebar-menu-button");
     expect(collapse).toHaveAttribute("aria-expanded", "true");
+    expect(
+      screen
+        .getByRole("link", { name: "Dashboard" })
+        .closest("[data-slot='sidebar-group-content']"),
+    ).not.toBeNull();
 
     fireEvent.click(collapse);
 
-    expect(sidebar).toHaveClass("is-collapsed");
+    expect(sidebarPanel).toHaveAttribute("data-state", "collapsed");
+    const expand = screen.getByRole("button", {
+      name: "Expand navigation",
+    });
+    expect(expand).toHaveAttribute("data-slot", "sidebar-menu-button");
+    expect(expand).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(expand);
+
+    expect(sidebarPanel).toHaveAttribute("data-state", "expanded");
+  });
+
+  it("uses Dashboard as the workspace and logo destination", () => {
+    mocks.pathname = "/";
+    render(<App navItems={navItems} />);
+
+    expect(screen.getByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute(
+      "href",
+      "/",
+    );
+    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
     expect(
-      screen.getByRole("button", { name: "Expand navigation" }),
-    ).toHaveAttribute("aria-expanded", "false");
+      screen.getByRole("link", { name: "Wow compensation dashboard" }),
+    ).toHaveAttribute(
+      "href",
+      "/",
+    );
+  });
 
-    fireEvent.click(screen.getByRole("button", { name: "Expand navigation" }));
+  it("keeps Dashboard range state and controls out of the App shell", () => {
+    mocks.pathname = "/";
+    render(<App navItems={navItems} />);
 
-    expect(sidebar).not.toHaveClass("is-collapsed");
+    expect(screen.queryByText("Outcomes window")).not.toBeInTheDocument();
+    expect(screen.queryByText("Applies to outcomes only")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "24h" })).not.toBeInTheDocument();
+    expect(mocks.outletContext).toBeUndefined();
+    expect(document.querySelector(".app-topbar")).not.toHaveClass(
+      "has-dashboard-controls",
+    );
   });
 });

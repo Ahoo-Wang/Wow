@@ -11,25 +11,10 @@
  * limitations under the License.
  */
 
-import { executionFailedQueryClientFactory } from "../generated";
-import type {
-  AggregationQuery,
-  DynamicDocument,
-} from "@ahoo-wang/fetcher-wow";
+import { useMediaQuery } from "@/hooks/useMediaQuery"
 
-export const executionFailedEventStreamQueryClient =
-  executionFailedQueryClientFactory.createEventStreamQueryClient({
-    contextAlias: "",
-  });
+const MOBILE_BREAKPOINT = 768
 
-export function aggregateExecutionFailedEvents<Row extends DynamicDocument>(
-  query: AggregationQuery<string>,
-  attributes?: Record<string, unknown>,
-  abortController?: AbortController,
-) {
-  return executionFailedEventStreamQueryClient.aggregate<Row>(
-    query,
-    attributes,
-    abortController,
-  );
+export function useIsMobile() {
+  return useMediaQuery(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`)
 }

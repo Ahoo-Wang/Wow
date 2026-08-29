@@ -12,7 +12,10 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import { executionFailedEventStreamQueryClient } from "./executionFailedEventStreamClient.ts";
+import {
+  aggregateExecutionFailedEvents,
+  executionFailedEventStreamQueryClient,
+} from "./executionFailedEventStreamClient.ts";
 
 const mocks = vi.hoisted(() => ({
   client: {
@@ -20,6 +23,7 @@ const mocks = vi.hoisted(() => ({
     list: vi.fn(),
     listStream: vi.fn(),
     paged: vi.fn(),
+    aggregate: vi.fn(),
   },
   createEventStreamQueryClient: vi.fn(),
 }));
@@ -37,5 +41,18 @@ describe("executionFailedEventStreamClient", () => {
       contextAlias: "",
     });
     expect(executionFailedEventStreamQueryClient).toBe(mocks.client);
+  });
+
+  it("delegates event aggregation through the configured client", async () => {
+    const query = { metrics: [{ type: "COUNT", alias: "count" }] } as never;
+    const abortController = new AbortController();
+
+    await aggregateExecutionFailedEvents(query, undefined, abortController);
+
+    expect(mocks.client.aggregate).toHaveBeenCalledWith(
+      query,
+      undefined,
+      abortController,
+    );
   });
 });

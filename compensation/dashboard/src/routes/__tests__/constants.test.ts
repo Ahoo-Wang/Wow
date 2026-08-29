@@ -1,9 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { NavItemPaths, NavItems } from "../constants.tsx";
+import {
+  DashboardNavItem,
+  NavItemPaths,
+  NavItems,
+  PrimaryNavItems,
+} from "../constants.tsx";
 
 describe("routes/constants", () => {
   describe("NavItemPaths", () => {
     it("has correct path values", () => {
+      expect(NavItemPaths.Analytics).toBe("/analytics");
       expect(NavItemPaths.ToRetry).toBe("/to-retry");
       expect(NavItemPaths.Executing).toBe("/executing");
       expect(NavItemPaths.NextRetry).toBe("/next-retry");
@@ -39,5 +45,21 @@ describe("routes/constants", () => {
         NavItemPaths.Unrecoverable,
       ]);
     });
+  });
+
+  it("puts Dashboard first while keeping queue navigation separate", () => {
+    expect(NavItemPaths.Dashboard).toBe("/");
+    expect(NavItemPaths.Analytics).toBe("/analytics");
+    expect(DashboardNavItem).toEqual({ label: "Dashboard", path: "/" });
+    expect(PrimaryNavItems.map(({ label }) => label)).toEqual([
+      "Dashboard",
+      "To Retry",
+      "Executing",
+      "Next Retry",
+      "Non Retryable",
+      "Succeeded",
+      "Unrecoverable",
+    ]);
+    expect(NavItems).toHaveLength(6);
   });
 });

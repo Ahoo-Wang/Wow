@@ -1,10 +1,11 @@
 import type { ReactElement } from "react";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { AppRouter } from "../Routes.tsx";
 
 interface TestRoute {
   children?: TestRoute[];
-  element?: ReactElement;
+  element?: ReactElement<Record<string, unknown>>;
   index?: boolean;
   path?: string;
 }
@@ -25,8 +26,15 @@ vi.mock("../../features/App/App.tsx", () => ({
   default: () => null,
 }));
 
+vi.mock("../LazyDashboardView.tsx", () => ({
+  default: () => {
+    throw new Promise(() => undefined);
+  },
+}));
+
 vi.mock("../constants.tsx", () => ({
-  NavItemPaths: { ToRetry: "/to-retry" },
+  NavItemPaths: { Analytics: "/analytics", Dashboard: "/" },
+  DashboardNavItem: { label: "Dashboard", path: "/" },
   NavItems: [
     {
       category: "ToRetry",
@@ -41,10 +49,11 @@ vi.mock("../constants.tsx", () => ({
       path: "/executing",
     },
   ],
+  PrimaryNavItems: [],
 }));
 
 describe("AppRouter", () => {
-  it("maps every navigation item and keeps both redirect guards", () => {
+  it("renders Dashboard at the root and redirects compatibility routes", () => {
     expect(AppRouter).toBeDefined();
 
     const root = mocks.routerConfig?.[0];
@@ -53,19 +62,32 @@ describe("AppRouter", () => {
         { index: true, path: undefined },
         { index: undefined, path: "/to-retry" },
         { index: undefined, path: "/executing" },
+        { index: undefined, path: "/dashboard" },
+        { index: undefined, path: "/analytics" },
         { index: undefined, path: "*" },
       ],
     );
 
-    const indexRedirect = root?.children?.[0].element;
-    const fallbackRedirect = root?.children?.[3].element;
-    expect(indexRedirect?.props).toMatchObject({
-      replace: true,
-      to: "/to-retry",
-    });
-    expect(fallbackRedirect?.props).toMatchObject({
-      replace: true,
-      to: "/to-retry",
-    });
+    expect(root?.children?.[0].element?.props).not.toHaveProperty("replace");
+    expect(root?.children?.[0].element?.props.children).toBeDefined();
+
+    for (const index of [3, 4, 5]) {
+      expect(root?.children?.[index].element?.props).toMatchObject({
+        replace: true,
+        to: "/",
+      });
+    }
+  });
+
+  it("shows the complete dashboard skeleton while the lazy route is pending", () => {
+    const dashboardRoute = mocks.routerConfig?.[0].children?.[0];
+
+    render(dashboardRoute?.element);
+
+    expect(
+      screen.getByRole("status", { name: "Loading dashboard" }),
+    ).toBeInTheDocument();
+    expect(document.querySelector("[data-slot='skeleton']")).not.toBeNull();
+    expect(document.querySelectorAll("[data-slot='card']")).toHaveLength(4);
   });
 });

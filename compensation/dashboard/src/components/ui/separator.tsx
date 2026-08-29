@@ -11,25 +11,26 @@
  * limitations under the License.
  */
 
-import { executionFailedQueryClientFactory } from "../generated";
-import type {
-  AggregationQuery,
-  DynamicDocument,
-} from "@ahoo-wang/fetcher-wow";
+import { Separator as SeparatorPrimitive } from "@base-ui/react/separator"
 
-export const executionFailedEventStreamQueryClient =
-  executionFailedQueryClientFactory.createEventStreamQueryClient({
-    contextAlias: "",
-  });
+import { cn } from "@/lib/utils"
 
-export function aggregateExecutionFailedEvents<Row extends DynamicDocument>(
-  query: AggregationQuery<string>,
-  attributes?: Record<string, unknown>,
-  abortController?: AbortController,
-) {
-  return executionFailedEventStreamQueryClient.aggregate<Row>(
-    query,
-    attributes,
-    abortController,
-  );
+function Separator({
+  className,
+  orientation = "horizontal",
+  ...props
+}: SeparatorPrimitive.Props) {
+  return (
+    <SeparatorPrimitive
+      data-slot="separator"
+      orientation={orientation}
+      className={cn(
+        "shrink-0 bg-border data-horizontal:h-px data-horizontal:w-full data-vertical:w-px data-vertical:self-stretch",
+        className
+      )}
+      {...props}
+    />
+  )
 }
+
+export { Separator }

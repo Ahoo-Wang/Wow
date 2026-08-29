@@ -14,28 +14,39 @@
 import { Suspense } from "react";
 import { createBrowserRouter, Navigate } from "react-router";
 import App from "../features/App/App.tsx";
-import { NavItems, NavItemPaths } from "./constants.tsx";
+import DashboardSkeleton from "../features/Analytics/DashboardSkeleton.tsx";
+import {
+  NavItems,
+  NavItemPaths,
+  PrimaryNavItems,
+} from "./constants.tsx";
+import LazyDashboardView from "./LazyDashboardView.tsx";
 import { Skeleton } from "@/components/ui/skeleton";
+
+const routeFallback = (
+  <div className="h-full space-y-4 p-5">
+    <Skeleton className="h-12 w-full" />
+    <Skeleton className="h-[70vh] w-full" />
+  </div>
+);
+const dashboardFallback = <DashboardSkeleton />;
 
 export const AppRouter = createBrowserRouter([
   {
-    element: <App navItems={NavItems} />,
+    element: <App navItems={PrimaryNavItems} />,
     children: [
       {
         index: true,
-        element: <Navigate to={NavItemPaths.ToRetry} replace />,
+        element: (
+          <Suspense fallback={dashboardFallback}>
+            <LazyDashboardView />
+          </Suspense>
+        ),
       },
       ...NavItems.map((routeItem) => ({
         path: routeItem.path,
         element: (
-          <Suspense
-            fallback={
-              <div className="h-full space-y-4 p-5">
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-[70vh] w-full" />
-              </div>
-            }
-          >
+          <Suspense fallback={routeFallback}>
             <routeItem.component
               key={routeItem.category}
               category={routeItem.category}
@@ -44,8 +55,16 @@ export const AppRouter = createBrowserRouter([
         ),
       })),
       {
+        path: "/dashboard",
+        element: <Navigate to={NavItemPaths.Dashboard} replace />,
+      },
+      {
+        path: NavItemPaths.Analytics,
+        element: <Navigate to={NavItemPaths.Dashboard} replace />,
+      },
+      {
         path: "*",
-        element: <Navigate to={NavItemPaths.ToRetry} replace />,
+        element: <Navigate to={NavItemPaths.Dashboard} replace />,
       },
     ],
   },

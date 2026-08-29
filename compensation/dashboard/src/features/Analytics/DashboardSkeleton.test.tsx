@@ -11,25 +11,15 @@
  * limitations under the License.
  */
 
-import { executionFailedQueryClientFactory } from "../generated";
-import type {
-  AggregationQuery,
-  DynamicDocument,
-} from "@ahoo-wang/fetcher-wow";
+import { render, screen } from "@testing-library/react";
+import { expect, it } from "vitest";
+import DashboardSkeleton from "./DashboardSkeleton.tsx";
 
-export const executionFailedEventStreamQueryClient =
-  executionFailedQueryClientFactory.createEventStreamQueryClient({
-    contextAlias: "",
-  });
+it("matches the four-card dashboard hierarchy", () => {
+  const { container } = render(<DashboardSkeleton />);
 
-export function aggregateExecutionFailedEvents<Row extends DynamicDocument>(
-  query: AggregationQuery<string>,
-  attributes?: Record<string, unknown>,
-  abortController?: AbortController,
-) {
-  return executionFailedEventStreamQueryClient.aggregate<Row>(
-    query,
-    attributes,
-    abortController,
-  );
-}
+  expect(
+    screen.getByRole("status", { name: "Loading dashboard" }),
+  ).toBeInTheDocument();
+  expect(container.querySelectorAll("[data-slot='card']")).toHaveLength(4);
+});

@@ -11,25 +11,10 @@
  * limitations under the License.
  */
 
-import { executionFailedQueryClientFactory } from "../generated";
-import type {
-  AggregationQuery,
-  DynamicDocument,
-} from "@ahoo-wang/fetcher-wow";
+import { lazy } from "react";
 
-export const executionFailedEventStreamQueryClient =
-  executionFailedQueryClientFactory.createEventStreamQueryClient({
-    contextAlias: "",
-  });
+const LazyDashboardView = lazy(
+  () => import("../features/Analytics/DashboardView.tsx"),
+);
 
-export function aggregateExecutionFailedEvents<Row extends DynamicDocument>(
-  query: AggregationQuery<string>,
-  attributes?: Record<string, unknown>,
-  abortController?: AbortController,
-) {
-  return executionFailedEventStreamQueryClient.aggregate<Row>(
-    query,
-    attributes,
-    abortController,
-  );
-}
+export default LazyDashboardView;
