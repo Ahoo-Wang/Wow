@@ -152,8 +152,8 @@ Configuration class: `WebFluxProperties`; required capability: `webflux-support`
 | `wow.webflux.query.max-list-size` | Int | `1000` | List/aggregation limit; `0` removes the cap and permits limit `0` |
 | `wow.webflux.query.max-page-size` | Int | `100` | Page-size cap; `0` disables it |
 | `wow.webflux.query.max-page-window` | Long | `10000` | `page.index * page.size` cap; `0` disables it |
-| `wow.webflux.query.max-condition-nodes` | Int | `64` | FilterExpression node cap; `0` disables it |
-| `wow.webflux.query.max-condition-values` | Int | `1000` | Value-count cap for collection filters; `0` disables it |
+| `wow.webflux.query.max-filter-nodes` | Int | `128` | FilterExpression node cap; `0` disables it |
+| `wow.webflux.query.max-filter-values` | Int | `1000` | Value-count cap for collection filters; `0` disables it |
 | `wow.webflux.query.allow-expensive-operators` | Boolean | `true` | Allows expensive filters, Elements, metric sorting/arithmetic, and match-all count/paged requests |
 | `wow.webflux.query.idle-timeout` | Duration | `10s` | Maximum idle wait for the next result or completion; `0s` disables it |
 | `wow.webflux.command.request.appender.agent.enabled` | Boolean | `true` | Adds `User-Agent` to command context |

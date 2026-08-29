@@ -82,7 +82,6 @@ import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
 import me.ahoo.wow.webflux.route.query.HttpQueryGuardFilter
-import me.ahoo.wow.webflux.route.query.RewriteRequestFilter
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.test.context.FilteredClassLoader
@@ -110,18 +109,6 @@ import java.util.stream.Stream
 
 @Suppress("LargeClass")
 internal class WebFluxAutoConfigurationTest {
-
-    @Test
-    fun `should preserve query route module factory api`() {
-        WebFluxAutoConfiguration::class.java.getMethod(
-            "queryRouteModule",
-            SnapshotQueryGateway::class.java,
-            SnapshotQueryServiceFactory::class.java,
-            EventStreamQueryGateway::class.java,
-            RewriteRequestFilter::class.java,
-            RequestExceptionHandler::class.java,
-        ).assert().isNotNull()
-    }
     private val contextRunner = ApplicationContextRunner()
         .withBean(SnapshotQueryServiceFactory::class.java, { NoOpSnapshotQueryServiceFactory })
         .withPropertyValues(
@@ -175,7 +162,9 @@ internal class WebFluxAutoConfigurationTest {
                 val batchExecutionPolicy = context.getBean(BatchExecutionPolicy::class.java)
                 batchExecutionPolicy.concurrency.assert().isOne()
                 batchExecutionPolicy.prefetch.assert().isOne()
-                context.getBean(WebFluxProperties::class.java).query.allowExpensiveOperators.assert().isTrue()
+                val queryProperties = context.getBean(WebFluxProperties::class.java).query
+                queryProperties.maxFilterNodes.assert().isEqualTo(128)
+                queryProperties.allowExpensiveOperators.assert().isTrue()
 
                 context.assertDefaultRouteFactoriesRegistered()
             }
@@ -191,8 +180,8 @@ internal class WebFluxAutoConfigurationTest {
                 "${WebFluxProperties.PREFIX}.query.max-list-size=200",
                 "${WebFluxProperties.PREFIX}.query.max-page-size=20",
                 "${WebFluxProperties.PREFIX}.query.max-page-window=2000",
-                "${WebFluxProperties.PREFIX}.query.max-condition-nodes=32",
-                "${WebFluxProperties.PREFIX}.query.max-condition-values=50",
+                "${WebFluxProperties.PREFIX}.query.max-filter-nodes=32",
+                "${WebFluxProperties.PREFIX}.query.max-filter-values=50",
                 "${WebFluxProperties.PREFIX}.query.allow-expensive-operators=false",
                 "${WebFluxProperties.PREFIX}.query.idle-timeout=5s",
             )
@@ -226,8 +215,8 @@ internal class WebFluxAutoConfigurationTest {
                 properties.query.maxListSize.assert().isEqualTo(200)
                 properties.query.maxPageSize.assert().isEqualTo(20)
                 properties.query.maxPageWindow.assert().isEqualTo(2000)
-                properties.query.maxConditionNodes.assert().isEqualTo(32)
-                properties.query.maxConditionValues.assert().isEqualTo(50)
+                properties.query.maxFilterNodes.assert().isEqualTo(32)
+                properties.query.maxFilterValues.assert().isEqualTo(50)
                 properties.query.allowExpensiveOperators.assert().isFalse()
                 properties.query.idleTimeout.assert().isEqualTo(Duration.ofSeconds(5))
                 val batchExecutionPolicy = context.getBean(BatchExecutionPolicy::class.java)

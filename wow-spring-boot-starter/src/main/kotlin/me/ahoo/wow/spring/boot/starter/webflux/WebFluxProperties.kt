@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot.starter.webflux
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.EnabledCapable
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
+import me.ahoo.wow.webflux.route.query.HttpQueryGuardFilter.Companion.DEFAULT_MAX_FILTER_NODES
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.bind.DefaultValue
@@ -56,10 +57,10 @@ constructor(
         var maxPageSize: Int = 100,
         @DefaultValue("10000")
         var maxPageWindow: Long = 10_000,
-        @DefaultValue("64")
-        var maxConditionNodes: Int = 64,
+        @DefaultValue("$DEFAULT_MAX_FILTER_NODES")
+        var maxFilterNodes: Int = DEFAULT_MAX_FILTER_NODES,
         @DefaultValue("1000")
-        var maxConditionValues: Int = 1000,
+        var maxFilterValues: Int = 1000,
         @DefaultValue("true")
         var allowExpensiveOperators: Boolean = true,
         @DefaultValue("10s")

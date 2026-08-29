@@ -55,8 +55,8 @@ wow:
       max-list-size: 1000
       max-page-size: 100
       max-page-window: 10000
-      max-condition-nodes: 64
-      max-condition-values: 1000
+      max-filter-nodes: 128
+      max-filter-values: 1000
       allow-expensive-operators: true
       idle-timeout: 10s
 ```

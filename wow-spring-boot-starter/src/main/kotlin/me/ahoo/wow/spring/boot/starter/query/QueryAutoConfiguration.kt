@@ -20,7 +20,6 @@ import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
 import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
-import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.filter.EventStreamQueryFilter
 import me.ahoo.wow.query.event.filter.MaskingEventStreamQueryFilter
 import me.ahoo.wow.query.event.filter.TailEventStreamQueryFilter
@@ -30,7 +29,6 @@ import me.ahoo.wow.query.mask.EventStreamMaskerRegistry
 import me.ahoo.wow.query.mask.StateDataMaskerRegistry
 import me.ahoo.wow.query.mask.StateDynamicDocumentMasker
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
-import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.filter.MaskingSnapshotQueryFilter
@@ -161,10 +159,4 @@ class QueryAutoConfiguration {
     fun unavailableEventStreamQueryServiceFactory(): EventStreamQueryServiceFactory {
         return UnavailableEventStreamQueryServiceFactory
     }
-
-    @Deprecated("NoOp query services must be configured explicitly.")
-    fun noOpSnapshotQueryServiceFactory(): SnapshotQueryServiceFactory = NoOpSnapshotQueryServiceFactory
-
-    @Deprecated("NoOp query services must be configured explicitly.")
-    fun noOpEventStreamQueryServiceFactory(): EventStreamQueryServiceFactory = NoOpEventStreamQueryServiceFactory
 }

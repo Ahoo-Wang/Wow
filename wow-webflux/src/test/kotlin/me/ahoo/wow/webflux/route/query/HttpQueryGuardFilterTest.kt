@@ -98,6 +98,29 @@ class HttpQueryGuardFilterTest {
     private val request = MockServerRequest.builder().build()
 
     @Test
+    fun `should allow 128 filter nodes by default`() {
+        val guard = HttpQueryGuardFilter(idleTimeout = Duration.ZERO)
+        val allowed = ListQuery(
+            filterExpression { repeat(127) { MessageRecords.AGGREGATE_ID eq it } },
+            limit = 1,
+        )
+        val rejected = ListQuery(
+            filterExpression { repeat(128) { MessageRecords.AGGREGATE_ID eq it } },
+            limit = 1,
+        )
+
+        guard.filter(listContext(allowed), FilterChain { Mono.empty() })
+            .writeRawRequest(request)
+            .test()
+            .verifyComplete()
+        guard.filter(listContext(rejected), unexpectedBackend())
+            .writeRawRequest(request)
+            .test()
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
+    }
+
+    @Test
     fun `should reject unsafe list queries before backend invocation`() {
         listOf(
             ListQuery(MatchAllFilter),
@@ -123,7 +146,7 @@ class HttpQueryGuardFilterTest {
             ListQuery(filterExpression { MessageRecords.AGGREGATE_ID isIn List(1001) { it } }, limit = 1),
             ListQuery(IdsFilter(List(1001) { it.toString() }), limit = 1),
             ListQuery(AggregateIdsFilter(List(1001) { it.toString() }), limit = 1),
-            ListQuery(filterExpression { repeat(65) { MessageRecords.AGGREGATE_ID eq it } }, limit = 1),
+            ListQuery(filterExpression { repeat(128) { MessageRecords.AGGREGATE_ID eq it } }, limit = 1),
         ).forEach { query ->
             guard().filter(listContext(query), unexpectedBackend())
                 .writeRawRequest(request)
@@ -692,7 +715,7 @@ class HttpQueryGuardFilterTest {
         maxListSize: Int = 1000,
         maxPageSize: Int = 100,
         maxPageWindow: Long = 10_000,
-        maxFilterNodes: Int = 64,
+        maxFilterNodes: Int = HttpQueryGuardFilter.DEFAULT_MAX_FILTER_NODES,
         maxFilterValues: Int = 1000,
         allowExpensiveOperators: Boolean = false,
         idleTimeout: Duration = Duration.ofSeconds(10),
