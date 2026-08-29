@@ -152,8 +152,8 @@ spring:
 | `wow.webflux.query.max-list-size` | Int | `1000` | list/aggregation limit；`0` 关闭上限并允许 limit `0` |
 | `wow.webflux.query.max-page-size` | Int | `100` | page size 上限；`0` 关闭 |
 | `wow.webflux.query.max-page-window` | Long | `10000` | `page.index * page.size` 上限；`0` 关闭 |
-| `wow.webflux.query.max-condition-nodes` | Int | `64` | FilterExpression 节点数上限；`0` 关闭 |
-| `wow.webflux.query.max-condition-values` | Int | `1000` | 集合型过滤条件的值数量上限；`0` 关闭 |
+| `wow.webflux.query.max-filter-nodes` | Int | `128` | FilterExpression 节点数上限；`0` 关闭 |
+| `wow.webflux.query.max-filter-values` | Int | `1000` | 集合型过滤条件的值数量上限；`0` 关闭 |
 | `wow.webflux.query.allow-expensive-operators` | Boolean | `true` | 允许 expensive filters、Elements、metric 排序/算术及 match-all count/paged |
 | `wow.webflux.query.idle-timeout` | Duration | `10s` | 等待下一结果或完成的最长空闲时间；`0s` 关闭 |
 | `wow.webflux.command.request.appender.agent.enabled` | Boolean | `true` | 把 `User-Agent` 写入命令上下文 |

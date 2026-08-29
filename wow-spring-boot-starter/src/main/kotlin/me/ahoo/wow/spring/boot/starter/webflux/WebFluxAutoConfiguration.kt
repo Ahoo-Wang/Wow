@@ -133,8 +133,8 @@ class WebFluxAutoConfiguration {
             maxListSize = query.maxListSize,
             maxPageSize = query.maxPageSize,
             maxPageWindow = query.maxPageWindow,
-            maxFilterNodes = query.maxConditionNodes,
-            maxFilterValues = query.maxConditionValues,
+            maxFilterNodes = query.maxFilterNodes,
+            maxFilterValues = query.maxFilterValues,
             allowExpensiveOperators = query.allowExpensiveOperators,
             idleTimeout = query.idleTimeout,
         )
@@ -234,20 +234,6 @@ class WebFluxAutoConfiguration {
             tracingPolicy = tracingPolicy
         )
     }
-
-    fun queryRouteModule(
-        snapshotQueryGateway: SnapshotQueryGateway,
-        snapshotQueryServiceFactory: SnapshotQueryServiceFactory,
-        eventStreamQueryGateway: EventStreamQueryGateway,
-        rewriteRequestFilter: RewriteRequestFilter,
-        exceptionHandler: RequestExceptionHandler,
-    ): QueryRouteModule = QueryRouteModule(
-        snapshotQueryGateway = snapshotQueryGateway,
-        snapshotQueryServiceFactory = snapshotQueryServiceFactory,
-        eventStreamQueryGateway = eventStreamQueryGateway,
-        rewriteRequestFilter = rewriteRequestFilter,
-        exceptionHandler = exceptionHandler,
-    )
 
     @Bean("queryRouteModule")
     @Order(Ordered.HIGHEST_PRECEDENCE)

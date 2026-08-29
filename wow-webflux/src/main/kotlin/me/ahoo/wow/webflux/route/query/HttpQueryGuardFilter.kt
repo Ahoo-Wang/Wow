@@ -41,7 +41,7 @@ class HttpQueryGuardFilter(
     private val maxListSize: Int = 1000,
     private val maxPageSize: Int = 100,
     private val maxPageWindow: Long = 10_000,
-    private val maxFilterNodes: Int = 64,
+    private val maxFilterNodes: Int = DEFAULT_MAX_FILTER_NODES,
     private val maxFilterValues: Int = 1000,
     private val allowExpensiveOperators: Boolean = true,
     private val idleTimeout: Duration = Duration.ofSeconds(10),
@@ -230,8 +230,10 @@ class HttpQueryGuardFilter(
         }
     }
 
-    private companion object {
-        val EXPENSIVE_OPERATORS = setOf(
+    companion object {
+        const val DEFAULT_MAX_FILTER_NODES: Int = 128
+
+        private val EXPENSIVE_OPERATORS = setOf(
             FilterOperator.NE,
             FilterOperator.NOT_IN,
             FilterOperator.NOR,
@@ -242,6 +244,6 @@ class HttpQueryGuardFilter(
             FilterOperator.CONTAINS,
             FilterOperator.ENDS_WITH,
         )
-        val COUNTING_QUERY_TYPES = setOf(QueryType.PAGED, QueryType.DYNAMIC_PAGED, QueryType.COUNT)
+        private val COUNTING_QUERY_TYPES = setOf(QueryType.PAGED, QueryType.DYNAMIC_PAGED, QueryType.COUNT)
     }
 }
