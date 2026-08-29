@@ -1,7 +1,10 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { RecoverableType } from "@ahoo-wang/fetcher-wow";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AnalyticsRange, TrendPoint } from "./analyticsQueries.ts";
+import {
+  AggregationDateUnit,
+  RecoverableType,
+} from "@ahoo-wang/fetcher-wow";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { TrendPoint } from "./analyticsQueries.ts";
 import type {
   AnalyticsSection,
   SnapshotAnalyticsResult,
@@ -10,23 +13,43 @@ import DashboardView from "./DashboardView.tsx";
 
 const mocks = vi.hoisted(() => ({
   eventResult: undefined as unknown as AnalyticsSection<TrendPoint[]>,
-  outcomesRange: "7d" as AnalyticsRange,
   snapshotResult: undefined as unknown as SnapshotAnalyticsResult,
   useEventTrend: vi.fn(),
   useSnapshotAnalytics: vi.fn(),
 }));
 
-vi.mock("react-router", () => ({
-  useOutletContext: () => ({
-    outcomesRange: mocks.outcomesRange,
-    setOutcomesRange: vi.fn(),
-  }),
-}));
 vi.mock("./useSnapshotAnalytics.ts", () => ({
   useSnapshotAnalytics: mocks.useSnapshotAnalytics,
 }));
 vi.mock("./useEventTrend.ts", () => ({
   useEventTrend: mocks.useEventTrend,
+}));
+vi.mock("@/components/ui/calendar", () => ({
+  Calendar: ({
+    onSelect,
+  }: {
+    onSelect?: (range: { from?: Date; to?: Date }) => void;
+  }) => (
+    <div role="grid" aria-label="Date range calendar">
+      <button
+        type="button"
+        onClick={() => onSelect?.({ from: new Date(2026, 7, 10) })}
+      >
+        Select start only
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          onSelect?.({
+            from: new Date(2026, 7, 10),
+            to: new Date(2026, 7, 12),
+          })
+        }
+      >
+        Select complete range
+      </button>
+    </div>
+  ),
 }));
 vi.mock("./AnalyticsCharts.tsx", () => ({
   CompensationTrendChart: ({ points }: { points: TrendPoint[] }) => (
@@ -68,7 +91,11 @@ vi.mock("./AnalyticsCharts.tsx", () => ({
 }));
 
 beforeEach(() => {
-  mocks.outcomesRange = "7d";
+  vi.spyOn(Date, "now").mockReturnValue(
+    new Date(2026, 7, 29, 10, 37).getTime(),
+  );
+  mocks.useSnapshotAnalytics.mockClear();
+  mocks.useEventTrend.mockClear();
   mocks.snapshotResult = {
     summary: {
       data: { actionableNow: 128, timedOut: 34, unrecoverable: 9 },
@@ -92,24 +119,102 @@ beforeEach(() => {
   mocks.useEventTrend.mockImplementation(() => mocks.eventResult);
 });
 
+afterEach(() => vi.restoreAllMocks());
+
 describe("DashboardView", () => {
-  it("uses the App-owned outcomes range without changing Snapshot", () => {
-    const { rerender } = render(<DashboardView />);
+  it("applies one complete local date range to both facts", () => {
+    render(<DashboardView />);
 
     expect(screen.getByText("128")).toBeInTheDocument();
     expect(
       screen.getByRole("table", { name: "Current failure pressure" }),
     ).toBeInTheDocument();
-    expect(mocks.useEventTrend).toHaveBeenLastCalledWith("7d", 0);
-    expect(mocks.useSnapshotAnalytics).toHaveBeenLastCalledWith(0);
-    expect(screen.queryByRole("button", { name: "24h" })).not.toBeInTheDocument();
+    const initialWindow = {
+      buckets: Array.from({ length: 7 }, (_, index) =>
+        new Date(2026, 7, 23 + index).getTime(),
+      ),
+      end: new Date(2026, 7, 30).getTime(),
+      start: new Date(2026, 7, 23).getTime(),
+      timeZone: expect.any(String),
+      unit: AggregationDateUnit.DAY,
+    };
+    expect(mocks.useEventTrend).toHaveBeenLastCalledWith(initialWindow, 0);
+    expect(mocks.useSnapshotAnalytics).toHaveBeenLastCalledWith(
+      initialWindow,
+      0,
+    );
+    const picker = screen.getByRole("button", {
+      name: "Time range: 2026-08-23 – 2026-08-29",
+    });
+    expect(screen.queryByRole("button", { name: "7d" })).not.toBeInTheDocument();
 
-    mocks.outcomesRange = "24h";
-    rerender(<DashboardView />);
+    const initialWindowReference = mocks.useSnapshotAnalytics.mock.lastCall?.[0];
+    fireEvent.click(picker);
+    fireEvent.click(screen.getByRole("button", { name: "Select start only" }));
+    expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
+    expect(mocks.useSnapshotAnalytics.mock.lastCall?.[0]).toBe(
+      initialWindowReference,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(mocks.useSnapshotAnalytics.mock.lastCall?.[0]).toBe(
+      initialWindowReference,
+    );
 
-    expect(mocks.useEventTrend).toHaveBeenLastCalledWith("24h", 0);
-    expect(mocks.useSnapshotAnalytics).toHaveBeenLastCalledWith(0);
+    fireEvent.click(picker);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Select complete range" }),
+    );
+    expect(mocks.useSnapshotAnalytics.mock.lastCall?.[0]).toBe(
+      initialWindowReference,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+
+    const appliedWindow = {
+      buckets: [
+        new Date(2026, 7, 10).getTime(),
+        new Date(2026, 7, 11).getTime(),
+        new Date(2026, 7, 12).getTime(),
+      ],
+      end: new Date(2026, 7, 13).getTime(),
+      start: new Date(2026, 7, 10).getTime(),
+      timeZone: expect.any(String),
+      unit: AggregationDateUnit.DAY,
+    };
+    expect(mocks.useSnapshotAnalytics).toHaveBeenLastCalledWith(
+      appliedWindow,
+      0,
+    );
+    expect(mocks.useEventTrend).toHaveBeenLastCalledWith(appliedWindow, 0);
+    expect(mocks.useSnapshotAnalytics.mock.lastCall?.[0]).toBe(
+      mocks.useEventTrend.mock.lastCall?.[0],
+    );
   });
+
+  it.each([
+    ["Today", 1, new Date(2026, 7, 29).getTime()],
+    ["Last 7 days", 7, new Date(2026, 7, 23).getTime()],
+    ["Last 30 days", 30, new Date(2026, 6, 31).getTime()],
+  ] as const)(
+    "applies %s immediately and closes the date picker",
+    (label, days, start) => {
+      render(<DashboardView />);
+
+      fireEvent.click(screen.getByRole("button", { name: /^Time range:/ }));
+      fireEvent.click(screen.getByRole("button", { name: label }));
+
+      expect(
+        screen.queryByRole("grid", { name: "Date range calendar" }),
+      ).not.toBeInTheDocument();
+      const window = mocks.useSnapshotAnalytics.mock.lastCall?.[0];
+      expect(window).toMatchObject({
+        start,
+        end: new Date(2026, 7, 30).getTime(),
+        unit: AggregationDateUnit.DAY,
+      });
+      expect(window.buckets).toHaveLength(days);
+      expect(window).toBe(mocks.useEventTrend.mock.lastCall?.[0]);
+    },
+  );
 
   it("refreshes both facts with one token and preserves regional errors", () => {
     mocks.snapshotResult.summary.error = new Error("snapshot unavailable");
@@ -118,21 +223,50 @@ describe("DashboardView", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("snapshot unavailable");
     fireEvent.click(screen.getByRole("button", { name: "Refresh dashboard" }));
 
-    expect(mocks.useSnapshotAnalytics).toHaveBeenLastCalledWith(1);
-    expect(mocks.useEventTrend).toHaveBeenLastCalledWith("7d", 1);
+    expect(mocks.useSnapshotAnalytics.mock.lastCall?.[1]).toBe(1);
+    expect(mocks.useEventTrend.mock.lastCall?.[1]).toBe(1);
+    expect(mocks.useSnapshotAnalytics.mock.lastCall?.[0]).toBe(
+      mocks.useEventTrend.mock.lastCall?.[0],
+    );
   });
 
-  it("uses skeletons for first loads and preserves stale data with status", () => {
-    mocks.snapshotResult.summary = { loading: true };
+  it("uses the complete dashboard skeleton only for the first full load", () => {
+    mocks.snapshotResult = {
+      summary: { loading: true },
+      pressure: { loading: true },
+      recoverability: { loading: true },
+      retries: { loading: true },
+    };
+    mocks.eventResult = { loading: true };
+    const { rerender } = render(<DashboardView />);
+
+    expect(
+      screen.getByRole("status", { name: "Loading dashboard" }),
+    ).toBeInTheDocument();
+    expect(document.querySelectorAll("[data-slot='skeleton']")).toHaveLength(13);
+
+    mocks.snapshotResult.summary = {
+      data: { actionableNow: 128, timedOut: 34, unrecoverable: 9 },
+      loading: true,
+      updatedAt: 1_787_932_800_000,
+    };
     mocks.snapshotResult.pressure = {
       data: [],
       loading: true,
       updatedAt: 1_787_932_800_000,
     };
-    render(<DashboardView />);
+    mocks.snapshotResult.recoverability = { data: [], loading: false };
+    mocks.snapshotResult.retries = {
+      data: { buckets: [], truncated: false },
+      loading: false,
+    };
+    mocks.eventResult = { data: [], loading: true };
+    rerender(<DashboardView />);
 
-    expect(document.querySelectorAll("[data-slot='skeleton']").length).toBeGreaterThan(0);
-    expect(screen.getByRole("status")).toHaveTextContent("Refreshing");
+    expect(
+      screen.queryByRole("status", { name: "Loading dashboard" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getAllByRole("status")[0]).toHaveTextContent("Refreshing");
     expect(
       screen.getByRole("table", { name: "Current failure pressure" }),
     ).toBeInTheDocument();
@@ -220,7 +354,7 @@ describe("DashboardView", () => {
     expect(
       screen.getByText("Current failure pressure — Top 5 clusters"),
     ).toBeInTheDocument();
-    expect(screen.getAllByText("Now").length).toBeGreaterThanOrEqual(3);
+    expect(document.body).not.toHaveTextContent("Now");
     expect(document.body).not.toHaveTextContent(/NaN|Infinity/);
   });
 
@@ -230,6 +364,9 @@ describe("DashboardView", () => {
     const content = document.body.textContent ?? "";
     expect(screen.getAllByText(/Updated /)).toHaveLength(1);
     expect(screen.queryByText(/Last updated/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Dashboard signals")).not.toHaveTextContent(
+      /Time range|2026-08-23|2026-08-29/,
+    );
     expect(content.indexOf("Actionable now")).toBeLessThan(
       content.indexOf("Current failure pressure"),
     );

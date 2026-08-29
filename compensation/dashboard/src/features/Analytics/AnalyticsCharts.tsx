@@ -43,7 +43,7 @@ interface DistributionDatum {
 
 interface DistributionChartProps {
   data: DistributionDatum[];
-  description: string;
+  description?: string;
   title: string;
 }
 
@@ -71,7 +71,9 @@ export function DistributionChart({
   return (
     <section aria-label={title}>
       <h3 className="font-medium">{title}</h3>
-      <p className="text-sm text-muted-foreground">{description}</p>
+      {description ? (
+        <p className="text-sm text-muted-foreground">{description}</p>
+      ) : null}
       <div
         role="img"
         aria-label={`${title}: ${labels.join(", ")}`}
@@ -111,8 +113,10 @@ export function DistributionChart({
 
 export function RetryDistributionChart({
   data,
+  description,
 }: {
   data: DistributionDatum[];
+  description?: string;
 }): ReactElement {
   const total = data.reduce((sum, { count }) => sum + count, 0);
   const rows = data.map((datum) => ({
@@ -126,8 +130,10 @@ export function RetryDistributionChart({
   return (
     <section aria-label="Retry distribution">
       <h3 className="font-medium">Retry distribution</h3>
-      <p className="text-sm text-muted-foreground">Now</p>
-      <ChartContainer config={config} className="h-28 w-full aspect-auto">
+      {description ? (
+        <p className="text-sm text-muted-foreground">{description}</p>
+      ) : null}
+      <ChartContainer config={config} className="h-36 w-full py-2 aspect-auto">
         <BarChart
           accessibilityLayer
           data={rows}
@@ -138,7 +144,7 @@ export function RetryDistributionChart({
           <YAxis
             dataKey="label"
             type="category"
-            width={72}
+            width={88}
             axisLine={false}
             tickLine={false}
           />
@@ -189,7 +195,7 @@ export function CompensationTrendChart({
 }): ReactElement {
   return (
     <section aria-label="Compensation outcomes trend">
-      <ChartContainer config={trendConfig} className="h-28 w-full aspect-auto">
+      <ChartContainer config={trendConfig} className="h-36 w-full py-2 aspect-auto">
         <LineChart accessibilityLayer data={points}>
           <CartesianGrid vertical={false} />
           <XAxis

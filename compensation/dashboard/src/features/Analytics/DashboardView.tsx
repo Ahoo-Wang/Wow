@@ -11,13 +11,20 @@
  * limitations under the License.
  */
 
-import { RefreshCw } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useOutletContext } from "react-router";
+import dayjs from "dayjs";
+import { CalendarDays, RefreshCw } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { ExchangeError } from "@ahoo-wang/fetcher";
 import { RecoverableType } from "@ahoo-wang/fetcher-wow";
+import type { DateRange } from "react-day-picker";
 import { formatAge, formatDate } from "../../utils/dates.ts";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useNow } from "@/hooks/useNow.ts";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -37,12 +44,27 @@ import type {
   PressureCluster,
   RetryDistribution,
 } from "./analyticsQueries.ts";
+import { createTrendWindow } from "./analyticsQueries.ts";
 import { useEventTrend } from "./useEventTrend.ts";
 import {
   type AnalyticsSection,
   useSnapshotAnalytics,
 } from "./useSnapshotAnalytics.ts";
-import type { DashboardOutletContext } from "../App/App.tsx";
+import DashboardSkeleton from "./DashboardSkeleton.tsx";
+
+interface CompleteDateRange {
+  from: Date;
+  to: Date;
+}
+
+function createDefaultDateRange(): CompleteDateRange {
+  const to = dayjs(Date.now()).startOf("day");
+  return { from: to.subtract(6, "day").toDate(), to: to.toDate() };
+}
+
+function formatDateRange({ from, to }: CompleteDateRange): string {
+  return `${dayjs(from).format("YYYY-MM-DD")} – ${dayjs(to).format("YYYY-MM-DD")}`;
+}
 
 const recoverabilityDisplay = {
   [RecoverableType.RECOVERABLE]: {
@@ -87,13 +109,7 @@ function SectionError({ error }: { error: Error }) {
   );
 }
 
-function SectionMeta<T>({
-  section,
-  showUpdatedAt = false,
-}: {
-  section: AnalyticsSection<T>;
-  showUpdatedAt?: boolean;
-}) {
+function SectionMeta<T>({ section }: { section: AnalyticsSection<T> }) {
   return (
     <>
       {section.loading && section.data ? (
@@ -102,11 +118,6 @@ function SectionMeta<T>({
         </p>
       ) : null}
       {section.error ? <SectionError error={section.error} /> : null}
-      {showUpdatedAt && section.updatedAt ? (
-        <p className="text-xs text-muted-foreground">
-          Last updated {formatDate(section.updatedAt)}
-        </p>
-      ) : null}
     </>
   );
 }
@@ -201,10 +212,42 @@ function PressureTable({ clusters }: { clusters: PressureCluster[] }) {
 }
 
 export default function DashboardView() {
-  const { outcomesRange } = useOutletContext<DashboardOutletContext>();
+  const [appliedRange, setAppliedRange] =
+    useState<CompleteDateRange>(createDefaultDateRange);
+  const [draftRange, setDraftRange] = useState<DateRange>(appliedRange);
+  const [rangeOpen, setRangeOpen] = useState(false);
   const [refreshToken, setRefreshToken] = useState(0);
-  const snapshot = useSnapshotAnalytics(refreshToken);
-  const trend = useEventTrend(outcomesRange, refreshToken);
+  const timeZone = useMemo(
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+    [],
+  );
+  const window = useMemo(
+    () => createTrendWindow(appliedRange.from, appliedRange.to, timeZone),
+    [appliedRange, timeZone],
+  );
+  const rangeLabel = formatDateRange(appliedRange);
+  const snapshot = useSnapshotAnalytics(window, refreshToken);
+  const trend = useEventTrend(window, refreshToken);
+  const sections = [
+    snapshot.summary,
+    snapshot.pressure,
+    snapshot.recoverability,
+    snapshot.retries,
+    trend,
+  ];
+
+  if (sections.every((section) => section.loading && !section.data)) {
+    return <DashboardSkeleton />;
+  }
+
+  const applyRecentDays = (days: number) => {
+    const to = dayjs(Date.now()).startOf("day");
+    setAppliedRange({
+      from: to.subtract(days - 1, "day").toDate(),
+      to: to.toDate(),
+    });
+    setRangeOpen(false);
+  };
 
   return (
     <div className="dashboard-view">
@@ -214,8 +257,86 @@ export default function DashboardView() {
       >
         <div className="dashboard-section-heading">
           <h2 id="dashboard-summary-title">Current compensation state</h2>
-          <span className="dashboard-now">Now</span>
           <div className="dashboard-refresh-status">
+            <span className="dashboard-time-range-label">Time range</span>
+            <Popover
+              open={rangeOpen}
+              onOpenChange={(open) => {
+                setRangeOpen(open);
+                if (open) {
+                  setDraftRange(appliedRange);
+                }
+              }}
+            >
+              <PopoverTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="dashboard-time-range-button"
+                    aria-label={`Time range: ${rangeLabel}`}
+                  />
+                }
+              >
+                <CalendarDays />
+                {rangeLabel}
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-auto p-0">
+                <div className="grid grid-cols-3 gap-1 border-b p-2">
+                  {[
+                    ["Today", 1],
+                    ["Last 7 days", 7],
+                    ["Last 30 days", 30],
+                  ].map(([label, days]) => (
+                    <Button
+                      key={label}
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => applyRecentDays(Number(days))}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+                <Calendar
+                  mode="range"
+                  required
+                  min={1}
+                  selected={draftRange}
+                  onSelect={setDraftRange}
+                  defaultMonth={draftRange.from}
+                  timeZone={timeZone}
+                />
+                <div className="flex justify-end gap-2 border-t p-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setDraftRange(appliedRange);
+                      setRangeOpen(false);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    disabled={!draftRange.from || !draftRange.to}
+                    onClick={() => {
+                      if (draftRange.from && draftRange.to) {
+                        setAppliedRange({
+                          from: draftRange.from,
+                          to: draftRange.to,
+                        });
+                        setRangeOpen(false);
+                      }
+                    }}
+                  >
+                    Apply
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
             {snapshot.summary.updatedAt ? (
               <span>Updated {formatDate(snapshot.summary.updatedAt)}</span>
             ) : null}
@@ -258,7 +379,6 @@ export default function DashboardView() {
           <h2 id="dashboard-pressure-title">
             Current failure pressure — Top 5 clusters
           </h2>
-          <span className="dashboard-now">Now</span>
         </div>
         <SectionMeta section={snapshot.pressure} />
         {snapshot.pressure.loading && !snapshot.pressure.data ? (
@@ -281,7 +401,6 @@ export default function DashboardView() {
           ) : snapshot.recoverability.data ? (
             <DistributionChart
               title="Recoverability"
-              description="Now"
               data={snapshot.recoverability.data.map(
                 ({ count, recoverable }) => ({
                   ...recoverabilityDisplay[recoverable],
@@ -316,9 +435,6 @@ export default function DashboardView() {
         >
           <h2 id="analytics-history-title" className="text-base font-semibold">
             Compensation outcomes
-            <span className="ml-2 font-normal text-muted-foreground">
-              — Outcomes window: {outcomesRange}
-            </span>
           </h2>
           <SectionMeta section={trend} />
           {trend.loading && !trend.data ? (

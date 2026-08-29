@@ -1,4 +1,5 @@
 import type { ReactElement } from "react";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { AppRouter } from "../Routes.tsx";
 
@@ -23,6 +24,12 @@ vi.mock("react-router", () => ({
 
 vi.mock("../../features/App/App.tsx", () => ({
   default: () => null,
+}));
+
+vi.mock("../LazyDashboardView.tsx", () => ({
+  default: () => {
+    throw new Promise(() => undefined);
+  },
 }));
 
 vi.mock("../constants.tsx", () => ({
@@ -70,5 +77,16 @@ describe("AppRouter", () => {
         to: "/",
       });
     }
+  });
+
+  it("shows the complete dashboard skeleton while the lazy route is pending", () => {
+    const dashboardRoute = mocks.routerConfig?.[0].children?.[0];
+
+    render(dashboardRoute?.element);
+
+    expect(
+      screen.getByRole("status", { name: "Loading dashboard" }),
+    ).toBeInTheDocument();
+    expect(document.querySelectorAll("[data-slot='skeleton']")).toHaveLength(13);
   });
 });

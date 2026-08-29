@@ -30,6 +30,7 @@ import type {
   RetryDistribution,
   RetryHistogramRow,
   SnapshotSummary,
+  TrendWindow,
 } from "./analyticsQueries.ts";
 
 export interface AnalyticsSection<T> {
@@ -51,6 +52,7 @@ interface CountRow {
 }
 
 export function useSnapshotAnalytics(
+  window: TrendWindow,
   refreshToken: number,
 ): SnapshotAnalyticsResult {
   const [state, setState] = useState<SnapshotAnalyticsResult>({
@@ -65,10 +67,10 @@ export function useSnapshotAnalytics(
     const now = Date.now();
 
     const loads = {
-      summary: loadSummary(now, abortController),
-      pressure: loadPressure(abortController),
-      recoverability: loadRecoverability(abortController),
-      retries: loadRetries(abortController),
+      summary: loadSummary(now, window, abortController),
+      pressure: loadPressure(window, abortController),
+      recoverability: loadRecoverability(window, abortController),
+      retries: loadRetries(window, abortController),
     };
 
     queueMicrotask(() => {
@@ -124,16 +126,17 @@ export function useSnapshotAnalytics(
     }));
 
     return () => abortController.abort();
-  }, [refreshToken]);
+  }, [window, refreshToken]);
 
   return state;
 }
 
 async function loadSummary(
   now: number,
+  window: TrendWindow,
   abortController: AbortController,
 ): Promise<SnapshotSummary> {
-  const queries = createSnapshotSummaryQueries(now);
+  const queries = createSnapshotSummaryQueries(now, window);
   const [actionableNow, timedOut, unrecoverable] = await Promise.all([
     aggregateExecutionFailedSnapshots<CountRow>(
       queries.actionableNow,
@@ -159,10 +162,11 @@ async function loadSummary(
 }
 
 async function loadPressure(
+  window: TrendWindow,
   abortController: AbortController,
 ): Promise<PressureCluster[]> {
   const rows = await aggregateExecutionFailedSnapshots<PressureClusterRow>(
-    createPressureQuery(),
+    createPressureQuery(window),
     undefined,
     abortController,
   );
@@ -170,7 +174,7 @@ async function loadPressure(
     return [];
   }
   const statuses = await aggregateExecutionFailedSnapshots<PressureStatusRow>(
-    createPressureStatusQuery(rows),
+    createPressureStatusQuery(rows, window),
     undefined,
     abortController,
   );
@@ -178,20 +182,22 @@ async function loadPressure(
 }
 
 async function loadRecoverability(
+  window: TrendWindow,
   abortController: AbortController,
 ): Promise<RecoverabilityRow[]> {
   return aggregateExecutionFailedSnapshots<RecoverabilityRow>(
-    createRecoverabilityQuery(),
+    createRecoverabilityQuery(window),
     undefined,
     abortController,
   );
 }
 
 async function loadRetries(
+  window: TrendWindow,
   abortController: AbortController,
 ): Promise<RetryDistribution> {
   const rows = await aggregateExecutionFailedSnapshots<RetryHistogramRow>(
-    createRetryHistogramQuery(),
+    createRetryHistogramQuery(window),
     undefined,
     abortController,
   );

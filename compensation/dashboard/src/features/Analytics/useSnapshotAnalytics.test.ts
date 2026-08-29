@@ -13,7 +13,8 @@
 
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { PressureClusterRow } from "./analyticsQueries.ts";
+import { AggregationDateUnit } from "@ahoo-wang/fetcher-wow";
+import type { PressureClusterRow, TrendWindow } from "./analyticsQueries.ts";
 import { useSnapshotAnalytics } from "./useSnapshotAnalytics.ts";
 
 const mocks = vi.hoisted(() => ({
@@ -41,8 +42,32 @@ function isQuery(
   return query?.groupBy?.some((groupBy) => groupBy.alias === alias);
 }
 
+const initialWindow: TrendWindow = {
+  buckets: Array.from({ length: 7 }, (_, index) =>
+    new Date(2026, 7, 22 + index).getTime(),
+  ),
+  end: new Date(2026, 7, 29).getTime(),
+  start: new Date(2026, 7, 22).getTime(),
+  timeZone: "Asia/Shanghai",
+  unit: AggregationDateUnit.DAY,
+};
+const nextWindow: TrendWindow = {
+  buckets: Array.from({ length: 3 }, (_, index) =>
+    new Date(2026, 7, 26 + index).getTime(),
+  ),
+  end: initialWindow.end,
+  start: new Date(2026, 7, 26).getTime(),
+  timeZone: "Asia/Shanghai",
+  unit: AggregationDateUnit.DAY,
+};
+
 describe("useSnapshotAnalytics", () => {
-  beforeEach(() => mocks.aggregate.mockReset());
+  beforeEach(() => {
+    vi.spyOn(Date, "now").mockReturnValue(
+      new Date(2026, 7, 28, 10, 37).getTime(),
+    );
+    mocks.aggregate.mockReset();
+  });
 
   afterEach(() => vi.restoreAllMocks());
 
@@ -55,7 +80,7 @@ describe("useSnapshotAnalytics", () => {
       return Promise.resolve([{ count: 1 }]);
     });
 
-    renderHook(() => useSnapshotAnalytics(0));
+    renderHook(() => useSnapshotAnalytics(initialWindow, 0));
 
     expect(mocks.aggregate).toHaveBeenCalledTimes(6);
     pressure.resolve([
@@ -88,7 +113,9 @@ describe("useSnapshotAnalytics", () => {
       return Promise.resolve([{ count: 3 }]);
     });
 
-    const { result } = renderHook(() => useSnapshotAnalytics(0));
+    const { result } = renderHook(() =>
+      useSnapshotAnalytics(initialWindow, 0),
+    );
 
     await waitFor(() => {
       expect(result.current.summary).toMatchObject({
@@ -112,12 +139,14 @@ describe("useSnapshotAnalytics", () => {
     );
   });
 
-  it("aborts stale snapshot requests when refreshToken changes", async () => {
+  it("aborts the old window and starts six requests with the applied window", async () => {
     const controllers: AbortController[] = [];
-    mocks.aggregate.mockImplementation((_query, _attributes, controller) => {
+    const queries: Array<{ filter: { operands: Array<{ op: string; value?: number }> } }> = [];
+    mocks.aggregate.mockImplementation((query, _attributes, controller) => {
       if (!controller) {
         return Promise.resolve([]);
       }
+      queries.push(query);
       controllers.push(controller);
       return new Promise((_, reject) => {
         controller.signal.addEventListener("abort", () =>
@@ -127,17 +156,32 @@ describe("useSnapshotAnalytics", () => {
     });
 
     const { rerender } = renderHook(
-      ({ token }) => useSnapshotAnalytics(token),
-      { initialProps: { token: 0 } },
+      ({ window }: { window: TrendWindow }) => useSnapshotAnalytics(window, 0),
+      { initialProps: { window: initialWindow } },
     );
     await act(async () => {
-      rerender({ token: 1 });
+      rerender({ window: nextWindow });
       await Promise.resolve();
     });
 
+    expect(mocks.aggregate).toHaveBeenCalledTimes(12);
     expect(controllers.slice(0, 6).every(({ signal }) => signal.aborted)).toBe(
       true,
     );
+    const windows = queries.map(({ filter }) => ({
+      end: filter.operands.find(({ op }) => op === "LT")?.value,
+      start: filter.operands.find(({ op }) => op === "GTE")?.value,
+    }));
+    expect(new Set(windows.slice(0, 6).map(({ end, start }) => `${start}:${end}`))).toHaveLength(1);
+    expect(new Set(windows.slice(6).map(({ end, start }) => `${start}:${end}`))).toHaveLength(1);
+    expect(windows[5]).toEqual({
+      end: initialWindow.end,
+      start: initialWindow.start,
+    });
+    expect(windows[11]).toEqual({
+      end: nextWindow.end,
+      start: nextWindow.start,
+    });
   });
 
   it("does not let settled stale requests overwrite refreshed sections", async () => {
@@ -161,7 +205,7 @@ describe("useSnapshotAnalytics", () => {
     });
 
     const { result, rerender } = renderHook(
-      ({ token }) => useSnapshotAnalytics(token),
+      ({ token }) => useSnapshotAnalytics(initialWindow, token),
       { initialProps: { token: 0 } },
     );
     expect(mocks.aggregate).toHaveBeenCalledTimes(6);
@@ -217,7 +261,7 @@ describe("useSnapshotAnalytics", () => {
     });
 
     const { result, rerender } = renderHook(
-      ({ token }) => useSnapshotAnalytics(token),
+      ({ token }) => useSnapshotAnalytics(initialWindow, token),
       { initialProps: { token: 0 } },
     );
     await waitFor(() => expect(result.current.summary.data?.actionableNow).toBe(1));
@@ -259,7 +303,7 @@ describe("useSnapshotAnalytics", () => {
     });
 
     const { result, rerender } = renderHook(
-      ({ token }) => useSnapshotAnalytics(token),
+      ({ token }) => useSnapshotAnalytics(initialWindow, token),
       { initialProps: { token: 0 } },
     );
     await waitFor(() => expect(result.current.retries.data).toBeDefined());

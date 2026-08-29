@@ -13,6 +13,30 @@
 
 import { expect, test, type Page } from "@playwright/test";
 
+type AggregationQueryBody = {
+  filter?: unknown;
+  groupBy?: Array<{ alias: string }>;
+};
+
+function queryWindow(query: AggregationQueryBody, field: string) {
+  const matches: Array<{ field?: string; op?: string; value?: number }> = [];
+  const visit = (value: unknown) => {
+    if (!value || typeof value !== "object") {
+      return;
+    }
+    const node = value as Record<string, unknown>;
+    if (node.field === field) {
+      matches.push(node);
+    }
+    Object.values(node).forEach(visit);
+  };
+  visit(query.filter);
+  return {
+    end: matches.find(({ op }) => op === "LT")?.value,
+    start: matches.find(({ op }) => op === "GTE")?.value,
+  };
+}
+
 const execution = {
   id: "E2E-TR-14",
   status: "FAILED",
@@ -84,8 +108,8 @@ async function mockAnalyticsAggregations(
   page: Page,
   callbacks: {
     failSnapshotAlias?: string;
-    onEvent: () => void;
-    onSnapshot: () => void;
+    onEvent: (query: AggregationQueryBody) => void;
+    onSnapshot: (query: AggregationQueryBody) => void;
   },
 ) {
   const pressureClusters = [
@@ -97,11 +121,8 @@ async function mockAnalyticsAggregations(
   ] as const;
 
   await page.route("**/execution_failed/snapshot/aggregation", async (route) => {
-    callbacks.onSnapshot();
-    const query = route.request().postDataJSON() as {
-      filter?: unknown;
-      groupBy?: Array<{ alias: string }>;
-    };
+    const query = route.request().postDataJSON() as AggregationQueryBody;
+    callbacks.onSnapshot(query);
     const aliases = query.groupBy?.map(({ alias }) => alias) ?? [];
     if (
       callbacks.failSnapshotAlias &&
@@ -161,8 +182,8 @@ async function mockAnalyticsAggregations(
   });
 
   await page.route("**/execution_failed/event/aggregation", async (route) => {
-    callbacks.onEvent();
-    const query = route.request().postDataJSON() as Record<string, unknown>;
+    const query = route.request().postDataJSON() as AggregationQueryBody;
+    callbacks.onEvent(query);
     const name = JSON.stringify(query).match(
       /execution_(?:failed_created|failed_applied|success_applied)|compensation_prepared/,
     )?.[0];
@@ -393,14 +414,28 @@ test("preserves and freezes last-known-good data after refresh fails", async ({
 test("loads the root dashboard with natural Top 5 pressure height", async ({
   page,
 }, testInfo) => {
+  const consoleErrors: string[] = [];
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      consoleErrors.push(message.text());
+    }
+  });
   if (testInfo.project.name === "desktop-chromium") {
     await page.setViewportSize({ width: 1280, height: 720 });
   }
   let snapshotRequests = 0;
   let eventRequests = 0;
+  const snapshotQueries: AggregationQueryBody[] = [];
+  const eventQueries: AggregationQueryBody[] = [];
   await mockAnalyticsAggregations(page, {
-    onEvent: () => eventRequests++,
-    onSnapshot: () => snapshotRequests++,
+    onEvent: (query) => {
+      eventRequests++;
+      eventQueries.push(query);
+    },
+    onSnapshot: (query) => {
+      snapshotRequests++;
+      snapshotQueries.push(query);
+    },
   });
 
   await page.goto("/");
@@ -413,11 +448,38 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
   await expect(page.getByText("Compensation outcomes")).toBeVisible();
   await expect.poll(() => snapshotRequests).toBe(7);
   await expect.poll(() => eventRequests).toBe(4);
+  const timeRange = page.getByRole("button", { name: /^Time range:/ });
+  await expect(timeRange).toContainText("–");
+  await timeRange.click();
+  await page.getByRole("button", { name: "Today", exact: true }).click();
+  await expect.poll(() => snapshotRequests).toBe(14);
+  await expect.poll(() => eventRequests).toBe(8);
+  await page.getByRole("button", { name: "Refresh dashboard" }).click();
+  await expect.poll(() => snapshotRequests).toBe(21);
+  await expect.poll(() => eventRequests).toBe(12);
+
+  for (const batch of [0, 1, 2]) {
+    const snapshotWindows = snapshotQueries
+      .slice(batch * 7, batch * 7 + 7)
+      .map((query) => queryWindow(query, "state.executeAt"));
+    const eventWindows = eventQueries
+      .slice(batch * 4, batch * 4 + 4)
+      .map((query) => queryWindow(query, "createTime"));
+    expect(
+      new Set(
+        [...snapshotWindows, ...eventWindows].map(
+          ({ end, start }) => `${start}:${end}`,
+        ),
+      ).size,
+    ).toBe(1);
+  }
 
   const pressureTable = page.getByRole("table", {
     name: "Current failure pressure",
   });
   await expect(pressureTable.getByRole("row")).toHaveCount(6);
+  await expect(page.getByText("Refreshing…")).toHaveCount(0);
+  await page.evaluate(() => document.fonts.ready);
 
   const dashboard = page.locator(".dashboard-view");
   const overflow = await dashboard.evaluate((element) => ({
@@ -449,6 +511,20 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
     expect(pressureSizing.contentDelta).toBeLessThanOrEqual(2);
     expect(pressureSizing.overflowY).not.toMatch(/auto|scroll/);
     expect(pressureSizing.rowsVisible).toBe(true);
+    expect((await page.locator(".dashboard-signals").boundingBox())?.height).toBeGreaterThanOrEqual(200);
+    for (const name of [
+      "Recoverability",
+      "Retry distribution",
+      "Compensation outcomes",
+    ]) {
+      await expect(page.getByRole("heading", { name })).toBeVisible();
+    }
+    for (const label of ["1–2 retries", "3–5 retries"]) {
+      const tick = page
+        .locator("tspan")
+        .filter({ hasText: label });
+      await expect(tick).toHaveCount(1);
+    }
   }
   expect(
     await page.evaluate(
@@ -482,6 +558,7 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
       ),
     ).toBe(true);
   }
+  expect(consoleErrors).toEqual([]);
 });
 
 test("redirects Dashboard aliases and fallback to the root", async ({ page }) => {

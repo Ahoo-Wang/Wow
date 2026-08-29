@@ -33,8 +33,6 @@ import { RetryConditions } from "../Failed/RetryConditions.ts";
 export type SnapshotAggregationQuery =
   AggregationQuery<ExecutionFailedAggregatedFields>;
 
-export type AnalyticsRange = "24h" | "7d" | "30d";
-
 export type TrendSeriesKey =
   | "newFailures"
   | "prepared"
@@ -72,25 +70,27 @@ export const TREND_EVENTS = {
 } as const;
 
 export function createTrendWindow(
-  range: AnalyticsRange,
-  now: number,
+  startDate: Date,
+  endDate: Date,
   timeZone: string,
 ): TrendWindow {
-  const size = range === "24h" ? 24 : range === "7d" ? 7 : 30;
-  const durationUnit = range === "24h" ? "hour" : "day";
-  const unit =
-    range === "24h" ? AggregationDateUnit.HOUR : AggregationDateUnit.DAY;
-  const end = dayjs(now).startOf(durationUnit).add(1, durationUnit);
-  const start = end.subtract(size, durationUnit);
+  const start = dayjs(startDate).startOf("day");
+  const end = dayjs(endDate).startOf("day").add(1, "day");
+  const buckets: number[] = [];
+  for (
+    let bucket = start;
+    bucket.isBefore(end);
+    bucket = bucket.add(1, "day")
+  ) {
+    buckets.push(bucket.valueOf());
+  }
 
   return {
-    buckets: Array.from({ length: size }, (_, index) =>
-      start.add(index, durationUnit).valueOf(),
-    ),
+    buckets,
     end: end.valueOf(),
     start: start.valueOf(),
     timeZone,
-    unit,
+    unit: AggregationDateUnit.DAY,
   };
 }
 
@@ -213,44 +213,62 @@ const clusterId = (key: PressureClusterKey) =>
   ]);
 
 const countMetric = () => aggregation.count("count");
+const withSnapshotWindow = (
+  window: TrendWindow,
+  expression: FilterExpression<ExecutionFailedAggregatedFields>,
+) =>
+  filter.and([
+    filter.gte(ExecutionFailedAggregatedFields.STATE_EXECUTE_AT, window.start),
+    filter.lt(ExecutionFailedAggregatedFields.STATE_EXECUTE_AT, window.end),
+    expression,
+  ]);
 
 export function createSnapshotSummaryQueries(
   now: number,
+  window: TrendWindow,
 ): Record<
   "actionableNow" | "timedOut" | "unrecoverable",
   SnapshotAggregationQuery
 > {
   return {
     actionableNow: {
-      filter: RetryConditions.nextRetryCondition(
-        now,
-      ) as FilterExpression<ExecutionFailedAggregatedFields>,
+      filter: withSnapshotWindow(
+        window,
+        RetryConditions.nextRetryCondition(
+          now,
+        ) as FilterExpression<ExecutionFailedAggregatedFields>,
+      ),
       metrics: [countMetric()],
     },
     timedOut: {
-      filter: filter.and([
-        filter.eq(
-          ExecutionFailedAggregatedFields.STATE_STATUS,
-          ExecutionFailedStatus.PREPARED,
-        ),
-        filter.lte(
-          ExecutionFailedAggregatedFields.STATE_RETRY_STATE_TIMEOUT_AT,
-          now,
-        ),
-      ]),
+      filter: withSnapshotWindow(
+        window,
+        filter.and([
+          filter.eq(
+            ExecutionFailedAggregatedFields.STATE_STATUS,
+            ExecutionFailedStatus.PREPARED,
+          ),
+          filter.lte(
+            ExecutionFailedAggregatedFields.STATE_RETRY_STATE_TIMEOUT_AT,
+            now,
+          ),
+        ]),
+      ),
       metrics: [countMetric()],
     },
     unrecoverable: {
-      filter:
+      filter: withSnapshotWindow(
+        window,
         RetryConditions.unrecoverableCondition as FilterExpression<ExecutionFailedAggregatedFields>,
+      ),
       metrics: [countMetric()],
     },
   } satisfies Record<string, SnapshotAggregationQuery>;
 }
 
-export function createPressureQuery(): SnapshotAggregationQuery {
+export function createPressureQuery(window: TrendWindow): SnapshotAggregationQuery {
   return {
-    filter: activeFilter,
+    filter: withSnapshotWindow(window, activeFilter),
     groupBy: [
       aggregation.terms(
         ExecutionFailedAggregatedFields.STATE_ERROR_ERROR_CODE,
@@ -293,6 +311,7 @@ export function createPressureQuery(): SnapshotAggregationQuery {
 
 export function createPressureStatusQuery(
   keys: PressureClusterKey[],
+  window: TrendWindow,
 ): SnapshotAggregationQuery {
   if (keys.length === 0) {
     throw new Error("Pressure status query requires at least one cluster.");
@@ -324,7 +343,10 @@ export function createPressureStatusQuery(
     ),
   );
   return {
-    filter: filter.and([activeFilter, clusterFilter]),
+    filter: withSnapshotWindow(
+      window,
+      filter.and([activeFilter, clusterFilter]),
+    ),
     groupBy: [
       aggregation.terms(
         ExecutionFailedAggregatedFields.STATE_ERROR_ERROR_CODE,
@@ -352,9 +374,11 @@ export function createPressureStatusQuery(
   };
 }
 
-export function createRecoverabilityQuery(): SnapshotAggregationQuery {
+export function createRecoverabilityQuery(
+  window: TrendWindow,
+): SnapshotAggregationQuery {
   return {
-    filter: activeFilter,
+    filter: withSnapshotWindow(window, activeFilter),
     groupBy: [
       aggregation.terms(
         ExecutionFailedAggregatedFields.STATE_RECOVERABLE,
@@ -365,9 +389,11 @@ export function createRecoverabilityQuery(): SnapshotAggregationQuery {
   };
 }
 
-export function createRetryHistogramQuery(): SnapshotAggregationQuery {
+export function createRetryHistogramQuery(
+  window: TrendWindow,
+): SnapshotAggregationQuery {
   return {
-    filter: activeFilter,
+    filter: withSnapshotWindow(window, activeFilter),
     groupBy: [
       aggregation.histogram(
         ExecutionFailedAggregatedFields.STATE_RETRY_STATE_RETRIES,

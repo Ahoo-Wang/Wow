@@ -15,20 +15,19 @@ import { useEffect, useState } from "react";
 import { aggregateExecutionFailedEvents } from "../../services";
 import {
   createEventTrendQueries,
-  createTrendWindow,
   mergeTrendRows,
 } from "./analyticsQueries.ts";
 import type {
-  AnalyticsRange,
   TrendPoint,
   TrendRow,
   TrendRowsBySeries,
   TrendSeriesKey,
+  TrendWindow,
 } from "./analyticsQueries.ts";
 import type { AnalyticsSection } from "./useSnapshotAnalytics.ts";
 
 export function useEventTrend(
-  range: AnalyticsRange,
+  window: TrendWindow,
   refreshToken: number,
 ): AnalyticsSection<TrendPoint[]> {
   const [section, setSection] = useState<AnalyticsSection<TrendPoint[]>>({
@@ -37,8 +36,6 @@ export function useEventTrend(
 
   useEffect(() => {
     const abortController = new AbortController();
-    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-    const window = createTrendWindow(range, Date.now(), timeZone);
     const queries = createEventTrendQueries(window);
 
     queueMicrotask(() => {
@@ -93,7 +90,7 @@ export function useEventTrend(
     );
 
     return () => abortController.abort();
-  }, [range, refreshToken]);
+  }, [window, refreshToken]);
 
   return section;
 }

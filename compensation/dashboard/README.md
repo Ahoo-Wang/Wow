@@ -22,8 +22,10 @@ pnpm --dir compensation/dashboard dev --host 127.0.0.1
 `/execution_failed/event/aggregation` 展示当前补偿压力和历史结果；
 `/dashboard` 与 `/analytics` 保留为到根入口的兼容跳转。
 
-当前状态和历史结果的共享 `Time range` 语义由后续任务完成；
-本阶段只固定根路由与内容自适应布局。
+Dashboard 内容区的 `Time range` 默认为最近 7 个自然日，同时约束 Snapshot 的
+`state.executeAt` 与 EventStream 的 `createTime`。完整选择日期范围并点击 Apply、使用
+Today / Last 7 days / Last 30 days 快捷项，或点击 Refresh，都会重载两类聚合；
+刷新期间保留最后一次成功数据，首次加载使用与最终布局一致的骨架屏。
 
 ## 验证命令
 

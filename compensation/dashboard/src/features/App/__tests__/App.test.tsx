@@ -194,25 +194,16 @@ describe("App", () => {
     );
   });
 
-  it("places the outcomes-only range in the Dashboard topbar", () => {
+  it("keeps Dashboard range state and controls out of the App shell", () => {
     mocks.pathname = "/";
     render(<App navItems={navItems} />);
 
-    expect(screen.getByText("Outcomes window")).toBeInTheDocument();
-    expect(screen.getByText("Applies to outcomes only")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "7d" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "24h" }));
-
-    expect(mocks.outletContext).toMatchObject({ outcomesRange: "24h" });
-  });
-
-  it("does not show Dashboard range controls in queue workspaces", () => {
-    render(<App navItems={navItems} />);
-
     expect(screen.queryByText("Outcomes window")).not.toBeInTheDocument();
+    expect(screen.queryByText("Applies to outcomes only")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "24h" })).not.toBeInTheDocument();
+    expect(mocks.outletContext).toBeUndefined();
+    expect(document.querySelector(".app-topbar")).not.toHaveClass(
+      "has-dashboard-controls",
+    );
   });
 });

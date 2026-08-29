@@ -125,6 +125,10 @@ describe("AnalyticsCharts", () => {
     expect(document.querySelectorAll(".recharts-bar-rectangle")).toHaveLength(
       4,
     );
+    expect(document.querySelector("[data-slot='chart']")).toHaveClass(
+      "h-36",
+      "py-2",
+    );
     expect(document.querySelector(".recharts-sector")).toBeNull();
   });
 
@@ -148,5 +152,9 @@ describe("AnalyticsCharts", () => {
       screen.getByRole("columnheader", { name: "Succeeded" }),
     ).toBeInTheDocument();
     expect(document.querySelector(".recharts-tooltip-wrapper")).not.toBeNull();
+    expect(document.querySelector("[data-slot='chart']")).toHaveClass(
+      "h-36",
+      "py-2",
+    );
   });
 });

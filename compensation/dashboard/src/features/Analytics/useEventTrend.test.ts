@@ -12,8 +12,9 @@
  */
 
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { AggregationDateUnit } from "@ahoo-wang/fetcher-wow";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AnalyticsRange, TrendRow } from "./analyticsQueries.ts";
+import type { TrendRow, TrendWindow } from "./analyticsQueries.ts";
 import { useEventTrend } from "./useEventTrend.ts";
 
 const mocks = vi.hoisted(() => ({
@@ -42,6 +43,25 @@ const successRows = (streamCount: number): TrendRow[] => [
   },
 ];
 
+const initialWindow: TrendWindow = {
+  buckets: Array.from({ length: 7 }, (_, index) =>
+    new Date(2026, 7, 22 + index).getTime(),
+  ),
+  end: new Date(2026, 7, 29).getTime(),
+  start: new Date(2026, 7, 22).getTime(),
+  timeZone: "Asia/Shanghai",
+  unit: AggregationDateUnit.DAY,
+};
+const nextWindow: TrendWindow = {
+  buckets: Array.from({ length: 3 }, (_, index) =>
+    new Date(2026, 7, 26 + index).getTime(),
+  ),
+  end: initialWindow.end,
+  start: new Date(2026, 7, 26).getTime(),
+  timeZone: "Asia/Shanghai",
+  unit: AggregationDateUnit.DAY,
+};
+
 function deferred<T>() {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((nextResolve) => {
@@ -54,7 +74,7 @@ describe("useEventTrend", () => {
   it("loads exactly four event aggregations for one shared window", async () => {
     mocks.aggregate.mockResolvedValue([]);
 
-    const { result } = renderHook(() => useEventTrend("7d", 0));
+    const { result } = renderHook(() => useEventTrend(initialWindow, 0));
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(mocks.aggregate).toHaveBeenCalledTimes(4);
@@ -85,7 +105,7 @@ describe("useEventTrend", () => {
     mocks.aggregate.mockResolvedValueOnce(successRows(3));
     mocks.aggregate.mockResolvedValueOnce(successRows(4));
     const { result, rerender } = renderHook(
-      ({ token }) => useEventTrend("7d", token),
+      ({ token }) => useEventTrend(initialWindow, token),
       { initialProps: { token: 0 } },
     );
     await waitFor(() => expect(result.current.data).toBeDefined());
@@ -111,7 +131,7 @@ describe("useEventTrend", () => {
     mocks.aggregate.mockImplementation(() => loads[calls++].promise);
 
     const { result, rerender } = renderHook(
-      ({ token }) => useEventTrend("7d", token),
+      ({ token }) => useEventTrend(initialWindow, token),
       { initialProps: { token: 0 } },
     );
     await waitFor(() => expect(mocks.aggregate).toHaveBeenCalledTimes(4));
@@ -143,7 +163,7 @@ describe("useEventTrend", () => {
     await waitFor(() => expect(result.current.data?.at(-1)?.newFailures).toBe(5));
   });
 
-  it("aborts the old four requests when range changes before starting four new ones", async () => {
+  it("aborts the old four requests when the applied window changes", async () => {
     const controllers: AbortController[] = [];
     mocks.aggregate.mockImplementation((_query, _attributes, controller) => {
       controllers.push(controller);
@@ -155,12 +175,12 @@ describe("useEventTrend", () => {
     });
 
     const { rerender } = renderHook(
-      ({ range }) => useEventTrend(range, 0),
-      { initialProps: { range: "7d" as AnalyticsRange } },
+      ({ window }: { window: TrendWindow }) => useEventTrend(window, 0),
+      { initialProps: { window: initialWindow } },
     );
     await waitFor(() => expect(mocks.aggregate).toHaveBeenCalledTimes(4));
 
-    rerender({ range: "30d" });
+    rerender({ window: nextWindow });
 
     await waitFor(() => expect(mocks.aggregate).toHaveBeenCalledTimes(8));
     expect(controllers.slice(0, 4).every(({ signal }) => signal.aborted)).toBe(
@@ -168,7 +188,7 @@ describe("useEventTrend", () => {
     );
   });
 
-  it.each(["range", "refreshToken"] as const)(
+  it.each(["window", "refreshToken"] as const)(
     "does not let a late stale %s batch overwrite refreshed data",
     async (trigger) => {
       const staleLoads = Array.from({ length: 4 }, () => deferred<TrendRow[]>());
@@ -180,18 +200,18 @@ describe("useEventTrend", () => {
       mocks.aggregate.mockImplementation(() => loads[calls++].promise);
 
       const { result, rerender } = renderHook(
-        ({ range, token }: { range: AnalyticsRange; token: number }) =>
-          useEventTrend(range, token),
-        { initialProps: { range: "7d" as AnalyticsRange, token: 0 } },
+        ({ window, token }: { window: TrendWindow; token: number }) =>
+          useEventTrend(window, token),
+        { initialProps: { window: initialWindow, token: 0 } },
       );
       await waitFor(() => expect(mocks.aggregate).toHaveBeenCalledTimes(4));
 
       calls = 0;
       loads = refreshedLoads;
       rerender(
-        trigger === "range"
-          ? { range: "30d", token: 0 }
-          : { range: "7d", token: 1 },
+        trigger === "window"
+          ? { window: nextWindow, token: 0 }
+          : { window: initialWindow, token: 1 },
       );
       await waitFor(() => expect(mocks.aggregate).toHaveBeenCalledTimes(8));
       await act(async () => {
@@ -216,7 +236,7 @@ describe("useEventTrend", () => {
   it("does not replace the last complete trend with an AbortError", async () => {
     mocks.aggregate.mockResolvedValue(successRows(1));
     const { result, rerender } = renderHook(
-      ({ token }) => useEventTrend("7d", token),
+      ({ token }) => useEventTrend(initialWindow, token),
       { initialProps: { token: 0 } },
     );
     await waitFor(() => expect(result.current.data).toBeDefined());
