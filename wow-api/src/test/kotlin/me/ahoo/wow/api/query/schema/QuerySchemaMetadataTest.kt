@@ -36,12 +36,14 @@ class QuerySchemaMetadataTest {
             semanticType = null,
             dynamicChildren = false,
             capabilities = setOf(QueryCapability.EXACT_MATCH),
+            masked = true,
         )
 
         val json = jsonMapper.readTree(jsonMapper.writeValueAsString(field))
 
         json.get("field").asString().assert().isEqualTo("status")
         json.get("enumValues")[0].asString().assert().isEqualTo("OPEN")
+        json.get("masked").booleanValue().assert().isTrue()
         json.has("physicalPath").assert().isFalse()
         json.has("storageType").assert().isFalse()
     }
@@ -60,6 +62,7 @@ class QuerySchemaMetadataTest {
             semanticType = Temporal.Epoch(),
             dynamicChildren = false,
             capabilities = setOf(QueryCapability.RANGE),
+            masked = false,
         )
         val metadata = QueryModelSchemaMetadata(
             model = QueryModel.SNAPSHOT,
