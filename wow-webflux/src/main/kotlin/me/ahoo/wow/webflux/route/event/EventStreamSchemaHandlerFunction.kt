@@ -13,11 +13,10 @@
 
 package me.ahoo.wow.webflux.route.event
 
-import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
-import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
+import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.event.requiredQueryModelSchemaProvider
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
@@ -26,45 +25,31 @@ import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerResponse
 
 class EventStreamSchemaHandlerFunctionFactory(
-    private val eventStreamQueryServiceFactory: EventStreamQueryServiceFactory,
+    private val eventStreamQueryBackendFactory: EventStreamQueryBackendFactory,
     private val exceptionHandler: RequestExceptionHandler,
 ) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Event.SCHEMA) {
     override fun create(
         contract: HttpRouteContract,
         metadata: HttpRouteHandlerMetadata.Aggregate,
-    ): HandlerFunction<ServerResponse> = eventStreamSchemaHandler(
-        aggregateMetadata = aggregateMetadata(metadata),
-        eventStreamQueryServiceFactory = eventStreamQueryServiceFactory,
+    ): HandlerFunction<ServerResponse> = QuerySchemaHandlerFunction(
+        provider = eventStreamQueryBackendFactory.create(aggregateMetadata(metadata))
+            .requiredQueryModelSchemaProvider(),
         exceptionHandler = exceptionHandler,
         refresh = false,
     )
 }
 
 class EventStreamSchemaRefreshHandlerFunctionFactory(
-    private val eventStreamQueryServiceFactory: EventStreamQueryServiceFactory,
+    private val eventStreamQueryBackendFactory: EventStreamQueryBackendFactory,
     private val exceptionHandler: RequestExceptionHandler,
 ) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Event.SCHEMA_REFRESH) {
     override fun create(
         contract: HttpRouteContract,
         metadata: HttpRouteHandlerMetadata.Aggregate,
-    ): HandlerFunction<ServerResponse> = eventStreamSchemaHandler(
-        aggregateMetadata = aggregateMetadata(metadata),
-        eventStreamQueryServiceFactory = eventStreamQueryServiceFactory,
+    ): HandlerFunction<ServerResponse> = QuerySchemaHandlerFunction(
+        provider = eventStreamQueryBackendFactory.create(aggregateMetadata(metadata))
+            .requiredQueryModelSchemaProvider(),
         exceptionHandler = exceptionHandler,
         refresh = true,
     )
 }
-
-private fun eventStreamSchemaHandler(
-    aggregateMetadata: AggregateMetadata<*, *>,
-    eventStreamQueryServiceFactory: EventStreamQueryServiceFactory,
-    exceptionHandler: RequestExceptionHandler,
-    refresh: Boolean,
-): HandlerFunction<ServerResponse> = QuerySchemaHandlerFunction(
-    provider = {
-        eventStreamQueryServiceFactory.create(aggregateMetadata)
-            .requiredQueryModelSchemaProvider()
-    },
-    exceptionHandler = exceptionHandler,
-    refresh = refresh,
-)

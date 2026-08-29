@@ -24,14 +24,12 @@ import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
 
 internal class QuerySchemaHandlerFunction(
-    private val provider: () -> QueryModelSchemaProvider,
+    private val provider: QueryModelSchemaProvider,
     private val exceptionHandler: RequestExceptionHandler,
     private val refresh: Boolean,
 ) : HandlerFunction<ServerResponse> {
-    override fun handle(request: ServerRequest): Mono<ServerResponse> = Mono.defer {
-        val provider = provider()
-        if (refresh) provider.refresh() else provider.schema()
-    }
-        .map(QueryModelSchema::toMetadata)
-        .toServerResponse(request, exceptionHandler)
+    override fun handle(request: ServerRequest): Mono<ServerResponse> =
+        (if (refresh) provider.refresh() else provider.schema())
+            .map(QueryModelSchema::toMetadata)
+            .toServerResponse(request, exceptionHandler)
 }

@@ -13,11 +13,11 @@
 
 package me.ahoo.wow.webflux.route.snapshot
 
-import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
-import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
+import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.requiredQueryModelSchemaProvider
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
@@ -26,44 +26,36 @@ import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerResponse
 
 class SnapshotSchemaHandlerFunction(
-    private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val snapshotQueryServiceFactory: SnapshotQueryServiceFactory,
-    private val exceptionHandler: RequestExceptionHandler,
-    private val refresh: Boolean,
-) : HandlerFunction<ServerResponse> by QuerySchemaHandlerFunction(
-    provider = {
-        snapshotQueryServiceFactory.create<Any>(aggregateMetadata)
-            .requiredQueryModelSchemaProvider()
-    },
-    exceptionHandler = exceptionHandler,
-    refresh = refresh,
-)
+    provider: QueryModelSchemaProvider,
+    exceptionHandler: RequestExceptionHandler,
+    refresh: Boolean,
+) : HandlerFunction<ServerResponse> by QuerySchemaHandlerFunction(provider, exceptionHandler, refresh)
 
 class SnapshotSchemaHandlerFunctionFactory(
-    private val snapshotQueryServiceFactory: SnapshotQueryServiceFactory,
+    private val snapshotQueryBackendFactory: SnapshotQueryBackendFactory,
     private val exceptionHandler: RequestExceptionHandler,
 ) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Snapshot.SCHEMA) {
     override fun create(
         contract: HttpRouteContract,
         metadata: HttpRouteHandlerMetadata.Aggregate,
     ): HandlerFunction<ServerResponse> = SnapshotSchemaHandlerFunction(
-        aggregateMetadata = aggregateMetadata(metadata),
-        snapshotQueryServiceFactory = snapshotQueryServiceFactory,
+        provider = snapshotQueryBackendFactory.create<Any>(aggregateMetadata(metadata))
+            .requiredQueryModelSchemaProvider(),
         exceptionHandler = exceptionHandler,
         refresh = false,
     )
 }
 
 class SnapshotSchemaRefreshHandlerFunctionFactory(
-    private val snapshotQueryServiceFactory: SnapshotQueryServiceFactory,
+    private val snapshotQueryBackendFactory: SnapshotQueryBackendFactory,
     private val exceptionHandler: RequestExceptionHandler,
 ) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Snapshot.SCHEMA_REFRESH) {
     override fun create(
         contract: HttpRouteContract,
         metadata: HttpRouteHandlerMetadata.Aggregate,
     ): HandlerFunction<ServerResponse> = SnapshotSchemaHandlerFunction(
-        aggregateMetadata = aggregateMetadata(metadata),
-        snapshotQueryServiceFactory = snapshotQueryServiceFactory,
+        provider = snapshotQueryBackendFactory.create<Any>(aggregateMetadata(metadata))
+            .requiredQueryModelSchemaProvider(),
         exceptionHandler = exceptionHandler,
         refresh = true,
     )

@@ -18,7 +18,6 @@ import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.filter.Contexts.getRawRequest
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
@@ -35,21 +34,22 @@ import org.springframework.web.reactive.function.server.HandlerStrategies
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Flux
 import reactor.kotlin.core.publisher.toMono
+import tools.jackson.databind.node.JsonNodeFactory
 import java.util.concurrent.atomic.AtomicBoolean
 
 class SnapshotAggregationHandlerFunctionTest {
     @Test
     fun `aggregation route should stream handler rows`() {
         val subscribed = AtomicBoolean()
-        val gateway = mockk<SnapshotQueryGateway> {
-            every { aggregate(any(), any()) } returns Flux.deferContextual {
+        val gateway = mockk<SnapshotQueryGateway<Any>> {
+            every { aggregate(any()) } returns Flux.deferContextual {
                 it.getRawRequest<MockServerRequest>().assert().isNotNull()
                 subscribed.set(true)
-                Flux.just(mutableMapOf("count" to 1L).toDynamicDocument())
+                Flux.just(JsonNodeFactory.instance.objectNode().put("count", 1L))
             }
         }
         val function = SnapshotAggregationHandlerFunctionFactory(
-            snapshotQueryGateway = gateway,
+            snapshotQueryGateway = { gateway },
             rewriteRequestFilter = DefaultRewriteRequestFilter,
             exceptionHandler = WebFluxRequestExceptionHandler(),
         ).create(

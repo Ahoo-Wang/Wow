@@ -30,7 +30,7 @@ class QuerySchemaHandlerFunctionTest {
     fun `get should load schema`() {
         val provider = RecordingSchemaProvider()
         val handler = QuerySchemaHandlerFunction(
-            provider = { provider },
+            provider = provider,
             exceptionHandler = WebFluxRequestExceptionHandler(),
             refresh = false,
         )
@@ -52,7 +52,7 @@ class QuerySchemaHandlerFunctionTest {
     fun `post should refresh schema`() {
         val provider = RecordingSchemaProvider()
         val handler = QuerySchemaHandlerFunction(
-            provider = { provider },
+            provider = provider,
             exceptionHandler = WebFluxRequestExceptionHandler(),
             refresh = true,
         )

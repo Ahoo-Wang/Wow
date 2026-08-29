@@ -34,7 +34,7 @@ class SingleSnapshotHandlerFunctionTest {
     @Test
     fun `should handle single snapshot query`() {
         val handlerFunction = SingleSnapshotHandlerFunctionFactory(
-            RouteTestFixtures.snapshotQueryGateway,
+            { RouteTestFixtures.snapshotQueryGateway },
             DefaultRewriteRequestFilter,
             exceptionHandler = WebFluxRequestExceptionHandler(),
         ).create(

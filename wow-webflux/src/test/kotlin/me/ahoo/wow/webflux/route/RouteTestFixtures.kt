@@ -13,41 +13,30 @@
 
 package me.ahoo.wow.webflux.route
 
-import me.ahoo.wow.filter.FilterChainBuilder
-import me.ahoo.wow.filter.LogErrorHandler
+import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
-import me.ahoo.wow.query.event.EventStreamQueryGateway
-import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
-import me.ahoo.wow.query.event.filter.TailEventStreamQueryFilter
-import me.ahoo.wow.query.filter.QueryContext
+import me.ahoo.wow.query.event.NoOpEventStreamQueryBackendFactory
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
-import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
-import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
-import me.ahoo.wow.query.snapshot.filter.TailSnapshotQueryFilter
+import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackendFactory
+import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 
 internal object RouteTestFixtures {
     val MOCK_AGGREGATE_ROUTE_METADATA =
         MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata()
 
-    private val tailSnapshotQueryFilter = TailSnapshotQueryFilter<Any>(NoOpSnapshotQueryServiceFactory)
-    private val snapshotQueryFilterChain = FilterChainBuilder<QueryContext<*, *>>()
-        .addFilters(listOf(tailSnapshotQueryFilter))
-        .filterCondition(SnapshotQueryGateway::class)
-        .build()
-    val snapshotQueryGateway = DefaultSnapshotQueryGateway(
-        snapshotQueryFilterChain,
-        LogErrorHandler()
+    val snapshotQueryGateway = DefaultSnapshotQueryGateway<Any>(
+        namedAggregate = MOCK_AGGREGATE_METADATA.namedAggregate,
+        backend = NoOpSnapshotQueryBackendFactory.create<Any>(MOCK_AGGREGATE_METADATA.namedAggregate),
+        targetType = JsonSerializer.typeFactory.constructParametricType(
+            MaterializedSnapshot::class.java,
+            Any::class.java,
+        ),
     )
 
-    private val tailEventStreamQueryFilter = TailEventStreamQueryFilter(NoOpEventStreamQueryServiceFactory)
-    private val eventStreamQueryFilterChain = FilterChainBuilder<QueryContext<*, *>>()
-        .addFilters(listOf(tailEventStreamQueryFilter))
-        .filterCondition(EventStreamQueryGateway::class)
-        .build()
     val eventStreamQueryGateway = DefaultEventStreamQueryGateway(
-        eventStreamQueryFilterChain,
-        LogErrorHandler()
+        namedAggregate = MOCK_AGGREGATE_METADATA.namedAggregate,
+        backend = NoOpEventStreamQueryBackendFactory.create(MOCK_AGGREGATE_METADATA.namedAggregate),
     )
 }

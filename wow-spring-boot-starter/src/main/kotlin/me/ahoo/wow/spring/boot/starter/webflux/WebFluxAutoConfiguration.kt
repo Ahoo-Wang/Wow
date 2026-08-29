@@ -23,10 +23,8 @@ import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.RouterSpecs
-import me.ahoo.wow.query.event.EventStreamQueryGateway
-import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
-import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
-import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
+import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
+import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
 import me.ahoo.wow.spring.boot.starter.bi.BiScriptProperties
@@ -41,7 +39,6 @@ import me.ahoo.wow.spring.boot.starter.webflux.route.QueryRouteModule
 import me.ahoo.wow.spring.boot.starter.webflux.route.SnapshotRouteModule
 import me.ahoo.wow.spring.boot.starter.webflux.route.StateRouteModule
 import me.ahoo.wow.spring.boot.starter.webflux.route.WebFluxRouteModule
-import me.ahoo.wow.spring.query.getOrNoOp
 import me.ahoo.wow.webflux.exception.DefaultGlobalExceptionHandler
 import me.ahoo.wow.webflux.exception.DefaultWebFluxErrorStrategy
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
@@ -66,6 +63,7 @@ import me.ahoo.wow.webflux.route.policy.TracingPolicy
 import me.ahoo.wow.webflux.route.query.DefaultRewriteRequestFilter
 import me.ahoo.wow.webflux.route.query.HttpQueryGuardFilter
 import me.ahoo.wow.webflux.route.query.RewriteRequestFilter
+import org.springframework.beans.factory.BeanFactory
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
@@ -238,19 +236,17 @@ class WebFluxAutoConfiguration {
     @Bean("queryRouteModule")
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @ConditionalOnMissingBean
-    fun queryRouteModuleWithEventStreamQueryServiceFactory(
-        snapshotQueryGateway: SnapshotQueryGateway,
-        snapshotQueryServiceFactory: SnapshotQueryServiceFactory,
-        eventStreamQueryGateway: EventStreamQueryGateway,
-        eventStreamQueryServiceFactory: ObjectProvider<EventStreamQueryServiceFactory>,
+    fun queryRouteModule(
+        beanFactory: BeanFactory,
+        snapshotQueryBackendFactory: SnapshotQueryBackendFactory,
+        eventStreamQueryBackendFactory: EventStreamQueryBackendFactory,
         rewriteRequestFilter: RewriteRequestFilter,
         exceptionHandler: RequestExceptionHandler
     ): QueryRouteModule {
         return QueryRouteModule(
-            snapshotQueryGateway = snapshotQueryGateway,
-            snapshotQueryServiceFactory = snapshotQueryServiceFactory,
-            eventStreamQueryGateway = eventStreamQueryGateway,
-            eventStreamQueryServiceFactory = eventStreamQueryServiceFactory.getOrNoOp(),
+            beanFactory = beanFactory,
+            snapshotQueryBackendFactory = snapshotQueryBackendFactory,
+            eventStreamQueryBackendFactory = eventStreamQueryBackendFactory,
             rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler
         )

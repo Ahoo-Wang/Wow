@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.webflux.route.query
 
-import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.exception.throwNotFoundIfEmpty
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.contract.HttpRouteContract
@@ -28,20 +27,21 @@ import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
+import tools.jackson.databind.node.ObjectNode
 
 class SingleQueryHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val queryGateway: QueryGateway<*>,
     private val rewriteRequestFilter: RewriteRequestFilter,
     private val exceptionHandler: RequestExceptionHandler,
-    private val rewriteResult: (Mono<DynamicDocument>) -> Mono<DynamicDocument>
+    private val rewriteResult: (Mono<ObjectNode>) -> Mono<ObjectNode>
 ) : HandlerFunction<ServerResponse> {
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         return request.body(SINGLE_QUERY_EXTRACTOR)
             .flatMap {
                 val query = rewriteRequestFilter.rewrite(aggregateMetadata, request, it)
-                val result = queryGateway.dynamicSingle(aggregateMetadata, query)
+                val result = queryGateway.dynamicSingle(query)
                 rewriteResult(result)
                     .writeRawRequest(request)
                     .throwNotFoundIfEmpty()
@@ -51,10 +51,10 @@ class SingleQueryHandlerFunction(
 
 open class SingleQueryHandlerFunctionFactory(
     handlerKey: String,
-    private val queryGateway: QueryGateway<*>,
+    private val queryGateway: (AggregateMetadata<*, *>) -> QueryGateway<*>,
     private val rewriteRequestFilter: RewriteRequestFilter,
     private val exceptionHandler: RequestExceptionHandler,
-    private val rewriteResult: (Mono<DynamicDocument>) -> Mono<DynamicDocument> = { it }
+    private val rewriteResult: (Mono<ObjectNode>) -> Mono<ObjectNode> = { it }
 ) : AggregateRouteHandlerFunctionFactorySupport(handlerKey) {
     override fun create(
         contract: HttpRouteContract,
@@ -66,7 +66,7 @@ open class SingleQueryHandlerFunctionFactory(
     private fun create(aggregateMetadata: AggregateMetadata<*, *>): HandlerFunction<ServerResponse> {
         return SingleQueryHandlerFunction(
             aggregateMetadata = aggregateMetadata,
-            queryGateway = queryGateway,
+            queryGateway = queryGateway(aggregateMetadata),
             rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler,
             rewriteResult = rewriteResult

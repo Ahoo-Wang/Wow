@@ -29,8 +29,8 @@ import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStoreBatchOptio
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStoreBatchOptions
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
-import me.ahoo.wow.elasticsearch.query.event.ElasticsearchEventStreamQueryServiceFactory
-import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryServiceFactory
+import me.ahoo.wow.elasticsearch.query.event.ElasticsearchEventStreamQueryBackendFactory
+import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryBackendFactory
 import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaContext
@@ -78,14 +78,14 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
             elasticsearchProperties = ElasticsearchProperties(autoInitTemplate = false),
             eventStoreBatchProperties = ElasticsearchEventStoreBatchProperties(),
             snapshotStoreBatchProperties = ElasticsearchSnapshotStoreBatchProperties(),
-        ).elasticsearchEventStreamQueryServiceFactory(
+        ).elasticsearchEventStreamQueryBackendFactory(
             elasticsearchClient = mock(ReactiveElasticsearchClient::class.java),
             schemaQueryProperties = QueryProperties(
                 schema = QueryProperties.Schema(
                     validationMode = QuerySchemaValidationMode.COMPATIBLE,
                 ),
             ),
-        ).assert().isInstanceOf(ElasticsearchEventStreamQueryServiceFactory::class.java)
+        ).assert().isInstanceOf(ElasticsearchEventStreamQueryBackendFactory::class.java)
     }
 
     @Test
@@ -118,7 +118,7 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
             eventStoreBatchProperties = ElasticsearchEventStoreBatchProperties(),
             snapshotStoreBatchProperties = ElasticsearchSnapshotStoreBatchProperties(),
         )
-        val factory = configuration.elasticsearchSnapshotQueryServiceFactory(
+        val factory = configuration.elasticsearchSnapshotQueryBackendFactory(
             elasticsearchClient = mock(ReactiveElasticsearchClient::class.java),
             elasticsearchIndexMappingResolver = mockk<ElasticsearchIndexMappingResolver>(),
             sources = listOf(failingQuerySchemaSource(expected)),
@@ -144,7 +144,7 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
             eventStoreBatchProperties = ElasticsearchEventStoreBatchProperties(),
             snapshotStoreBatchProperties = ElasticsearchSnapshotStoreBatchProperties(),
         )
-        val factory = configuration.elasticsearchEventStreamQueryServiceFactory(
+        val factory = configuration.elasticsearchEventStreamQueryBackendFactory(
             elasticsearchClient = mock(ReactiveElasticsearchClient::class.java),
             elasticsearchIndexMappingResolver = mockk<ElasticsearchIndexMappingResolver>(),
             sources = listOf(failingQuerySchemaSource(expected)),
@@ -314,14 +314,14 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
                 context.assert()
                     .hasSingleBean(Jackson3JsonpMapper::class.java)
                     .hasSingleBean(ElasticsearchEventStore::class.java)
-                    .hasSingleBean(ElasticsearchEventStreamQueryServiceFactory::class.java)
+                    .hasSingleBean(ElasticsearchEventStreamQueryBackendFactory::class.java)
                     .hasSingleBean(IndexTemplateInitializer::class.java)
                     .hasBean("elasticsearchSnapshotStore")
                     .hasBean("elasticsearchSnapshotRepository")
                     .hasSingleBean(ElasticsearchSnapshotStore::class.java)
                     .hasSingleBean(EventStoreBinding::class.java)
                     .hasSingleBean(SnapshotStoreBinding::class.java)
-                    .hasSingleBean(ElasticsearchSnapshotQueryServiceFactory::class.java)
+                    .hasSingleBean(ElasticsearchSnapshotQueryBackendFactory::class.java)
                 context.containsBean("snapshotRepository").assert().isFalse()
                 assertQueryProperties(context)
                 assertBatchOptions(context)

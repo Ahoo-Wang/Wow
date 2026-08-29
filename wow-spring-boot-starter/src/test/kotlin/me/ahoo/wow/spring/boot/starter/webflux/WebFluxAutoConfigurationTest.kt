@@ -13,11 +13,17 @@
 
 package me.ahoo.wow.spring.boot.starter.webflux
 
+import io.mockk.every
 import io.mockk.mockk
-import io.mockk.spyk
+import io.mockk.verify
 import me.ahoo.cosid.machine.HostAddressSupplier
 import me.ahoo.cosid.machine.LocalHostAddressSupplier
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.MaterializedSnapshot
+import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.bi.BiDeploymentInspection
 import me.ahoo.wow.bi.BiDeploymentInspectionException
 import me.ahoo.wow.bi.BiDeploymentInspector
@@ -37,7 +43,11 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
+import me.ahoo.wow.example.domain.cart.Cart
+import me.ahoo.wow.example.domain.order.Order
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
+import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.openapi.Https
@@ -48,10 +58,22 @@ import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
 import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyMode
 import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyRequest
+import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
+import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
+import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
+import me.ahoo.wow.query.event.EventStreamQueryBackend
+import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.event.EventStreamQueryGateway
-import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
+import me.ahoo.wow.query.event.NoOpEventStreamQueryBackend
+import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
+import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
+import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
+import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
-import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
+import me.ahoo.wow.serialization.JsonSerializer
+import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
 import me.ahoo.wow.spring.boot.starter.bi.BiScriptProperties
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
@@ -61,6 +83,7 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.EventSourcingAutoConfigurat
 import me.ahoo.wow.spring.boot.starter.kafka.KafkaProperties
 import me.ahoo.wow.spring.boot.starter.modeling.AggregateAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.openapi.OpenAPIAutoConfiguration
+import me.ahoo.wow.spring.boot.starter.query.QueryAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.webflux.WebFluxProperties.Companion.GLOBAL_ERROR_ENABLED
 import me.ahoo.wow.spring.boot.starter.webflux.bi.BiDeploymentInspectorAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.webflux.route.CommandRouteModule
@@ -73,6 +96,7 @@ import me.ahoo.wow.spring.boot.starter.webflux.route.WebFluxRouteModule
 import me.ahoo.wow.test.SagaVerifier
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.WebFluxErrorStrategy
+import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionRegistrar
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestRemoteIpHeaderAppender
@@ -81,8 +105,10 @@ import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
+import me.ahoo.wow.webflux.route.query.DefaultRewriteRequestFilter
 import me.ahoo.wow.webflux.route.query.HttpQueryGuardFilter
 import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.BeanFactory
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.test.context.FilteredClassLoader
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
@@ -102,7 +128,9 @@ import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebExceptionHandler
 import org.springframework.web.server.adapter.WebHttpHandlerBuilder
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 import java.time.Duration
 import java.util.stream.Stream
@@ -110,11 +138,53 @@ import java.util.stream.Stream
 @Suppress("LargeClass")
 internal class WebFluxAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
-        .withBean(SnapshotQueryServiceFactory::class.java, { NoOpSnapshotQueryServiceFactory })
+        .withBean(SnapshotQueryBackendFactory::class.java, { TestSnapshotQueryBackendFactory })
+        .withBean(EventStreamQueryBackendFactory::class.java, { TestEventStreamQueryBackendFactory })
+        .withTestAggregateQueryGateways()
         .withPropertyValues(
             "${BiScriptProperties.PREFIX}.enabled=true",
             "${BiScriptProperties.PREFIX}.consumer-group-namespace=test",
         )
+
+    @Test
+    fun `query route should resolve each aggregate gateway once during construction`() {
+        val orderGateway = mockk<SnapshotQueryGateway<Any>> {
+            every { dynamicList(any()) } returns Flux.empty()
+        }
+        val cartGateway = mockk<SnapshotQueryGateway<Any>> {
+            every { dynamicList(any()) } returns Flux.empty()
+        }
+        val beanFactory = mockk<BeanFactory> {
+            every {
+                getBean("example.order.SnapshotQueryGateway", SnapshotQueryGateway::class.java)
+            } returns orderGateway
+            every {
+                getBean("example.cart.SnapshotQueryGateway", SnapshotQueryGateway::class.java)
+            } returns cartGateway
+        }
+        val factory = QueryRouteModule(
+            beanFactory = beanFactory,
+            snapshotQueryBackendFactory = TestSnapshotQueryBackendFactory,
+            eventStreamQueryBackendFactory = TestEventStreamQueryBackendFactory,
+            rewriteRequestFilter = DefaultRewriteRequestFilter,
+            exceptionHandler = WebFluxRequestExceptionHandler(),
+        ).httpFactories.single { it.handlerKey == BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY }
+        val orderHandler = factory.create(queryContract("order", Order::class.java.aggregateRouteMetadata()))
+        val cartHandler = factory.create(queryContract("cart", Cart::class.java.aggregateRouteMetadata()))
+        fun request() = MockServerRequest.builder()
+            .pathVariable(MessageRecords.ID, generateGlobalId())
+            .pathVariable(MessageRecords.OWNER_ID, generateGlobalId())
+            .body(ListQuery(MatchAllFilter, limit = 1).toMono())
+
+        orderHandler.handle(request()).block()
+        orderHandler.handle(request()).block()
+        cartHandler.handle(request()).block()
+
+        verify(exactly = 1) {
+            beanFactory.getBean("example.order.SnapshotQueryGateway", SnapshotQueryGateway::class.java)
+            beanFactory.getBean("example.cart.SnapshotQueryGateway", SnapshotQueryGateway::class.java)
+        }
+    }
 
     @Test
     fun `should load context with webflux command route and exception handler`() {
@@ -128,8 +198,6 @@ internal class WebFluxAutoConfigurationTest {
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
             .withBean(StateEventCompensator::class.java, { mockk() })
             .withBean(EventCompensateSupporter::class.java, { mockk() })
-            .withBean(SnapshotQueryGateway::class.java, { spyk<SnapshotQueryGateway>() })
-            .withBean(EventStreamQueryGateway::class.java, { spyk<EventStreamQueryGateway>() })
             .withBean(HostAddressSupplier::class.java, { LocalHostAddressSupplier.INSTANCE })
             .withUserConfiguration(
                 CommandAutoConfiguration::class.java,
@@ -138,6 +206,7 @@ internal class WebFluxAutoConfigurationTest {
                 AggregateAutoConfiguration::class.java,
                 OpenAPIAutoConfiguration::class.java,
                 BiDeploymentInspectorAutoConfiguration::class.java,
+                QueryAutoConfiguration::class.java,
                 WebFluxAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
@@ -193,8 +262,6 @@ internal class WebFluxAutoConfigurationTest {
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
             .withBean(StateEventCompensator::class.java, { mockk() })
             .withBean(EventCompensateSupporter::class.java, { mockk() })
-            .withBean(SnapshotQueryGateway::class.java, { spyk<SnapshotQueryGateway>() })
-            .withBean(EventStreamQueryGateway::class.java, { spyk<EventStreamQueryGateway>() })
             .withBean(HostAddressSupplier::class.java, { LocalHostAddressSupplier.INSTANCE })
             .withUserConfiguration(
                 CommandAutoConfiguration::class.java,
@@ -203,6 +270,7 @@ internal class WebFluxAutoConfigurationTest {
                 AggregateAutoConfiguration::class.java,
                 OpenAPIAutoConfiguration::class.java,
                 BiDeploymentInspectorAutoConfiguration::class.java,
+                QueryAutoConfiguration::class.java,
                 WebFluxAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
@@ -619,7 +687,9 @@ internal class WebFluxAutoConfigurationTest {
     fun `should not construct or validate BI generation options when disabled`() {
         webFluxContextRunner(
             ApplicationContextRunner()
-                .withBean(SnapshotQueryServiceFactory::class.java, { NoOpSnapshotQueryServiceFactory })
+                .withBean(SnapshotQueryBackendFactory::class.java, { TestSnapshotQueryBackendFactory })
+                .withBean(EventStreamQueryBackendFactory::class.java, { TestEventStreamQueryBackendFactory })
+                .withTestAggregateQueryGateways()
         )
             .withPropertyValues(
                 "${BiScriptProperties.PREFIX}.enabled=false",
@@ -685,7 +755,9 @@ internal class WebFluxAutoConfigurationTest {
     fun `should expose BI route by default without requiring generation configuration at startup`() {
         webFluxContextRunner(
             ApplicationContextRunner()
-                .withBean(SnapshotQueryServiceFactory::class.java, { NoOpSnapshotQueryServiceFactory })
+                .withBean(SnapshotQueryBackendFactory::class.java, { TestSnapshotQueryBackendFactory })
+                .withBean(EventStreamQueryBackendFactory::class.java, { TestEventStreamQueryBackendFactory })
+                .withTestAggregateQueryGateways()
         )
             .run { context: AssertableApplicationContext ->
                 context.assert().hasNotFailed()
@@ -701,7 +773,9 @@ internal class WebFluxAutoConfigurationTest {
     fun `should reject BI generation without a consumer group namespace at request time`() {
         webFluxContextRunner(
             ApplicationContextRunner()
-                .withBean(SnapshotQueryServiceFactory::class.java, { NoOpSnapshotQueryServiceFactory })
+                .withBean(SnapshotQueryBackendFactory::class.java, { TestSnapshotQueryBackendFactory })
+                .withBean(EventStreamQueryBackendFactory::class.java, { TestEventStreamQueryBackendFactory })
+                .withTestAggregateQueryGateways()
         )
             .run { context: AssertableApplicationContext ->
                 context.assert().hasNotFailed()
@@ -810,8 +884,6 @@ internal class WebFluxAutoConfigurationTest {
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
             .withBean(StateEventCompensator::class.java, { mockk() })
             .withBean(EventCompensateSupporter::class.java, { mockk() })
-            .withBean(SnapshotQueryGateway::class.java, { spyk<SnapshotQueryGateway>() })
-            .withBean(EventStreamQueryGateway::class.java, { spyk<EventStreamQueryGateway>() })
             .withBean(HostAddressSupplier::class.java, { LocalHostAddressSupplier.INSTANCE })
             .withUserConfiguration(
                 CommandAutoConfiguration::class.java,
@@ -820,6 +892,7 @@ internal class WebFluxAutoConfigurationTest {
                 AggregateAutoConfiguration::class.java,
                 OpenAPIAutoConfiguration::class.java,
                 BiDeploymentInspectorAutoConfiguration::class.java,
+                QueryAutoConfiguration::class.java,
                 WebFluxAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
@@ -861,8 +934,6 @@ internal class WebFluxAutoConfigurationTest {
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
             .withBean(StateEventCompensator::class.java, { mockk() })
             .withBean(EventCompensateSupporter::class.java, { mockk() })
-            .withBean(SnapshotQueryGateway::class.java, { spyk<SnapshotQueryGateway>() })
-            .withBean(EventStreamQueryGateway::class.java, { spyk<EventStreamQueryGateway>() })
             .withBean(HostAddressSupplier::class.java, { LocalHostAddressSupplier.INSTANCE })
             .withUserConfiguration(
                 CommandAutoConfiguration::class.java,
@@ -871,6 +942,7 @@ internal class WebFluxAutoConfigurationTest {
                 AggregateAutoConfiguration::class.java,
                 OpenAPIAutoConfiguration::class.java,
                 BiDeploymentInspectorAutoConfiguration::class.java,
+                QueryAutoConfiguration::class.java,
                 WebFluxAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
@@ -895,8 +967,6 @@ internal class WebFluxAutoConfigurationTest {
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
             .withBean(StateEventCompensator::class.java, { mockk() })
             .withBean(EventCompensateSupporter::class.java, { mockk() })
-            .withBean(SnapshotQueryGateway::class.java, { spyk<SnapshotQueryGateway>() })
-            .withBean(EventStreamQueryGateway::class.java, { spyk<EventStreamQueryGateway>() })
             .withBean(KafkaProperties::class.java, {
                 KafkaProperties(bootstrapServers = listOf("localhost:9092"))
             })
@@ -908,6 +978,7 @@ internal class WebFluxAutoConfigurationTest {
                 AggregateAutoConfiguration::class.java,
                 OpenAPIAutoConfiguration::class.java,
                 BiDeploymentInspectorAutoConfiguration::class.java,
+                QueryAutoConfiguration::class.java,
                 WebFluxAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
@@ -942,8 +1013,6 @@ internal class WebFluxAutoConfigurationTest {
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
             .withBean(StateEventCompensator::class.java, { mockk() })
             .withBean(EventCompensateSupporter::class.java, { mockk() })
-            .withBean(SnapshotQueryGateway::class.java, { spyk<SnapshotQueryGateway>() })
-            .withBean(EventStreamQueryGateway::class.java, { spyk<EventStreamQueryGateway>() })
             .withBean(HostAddressSupplier::class.java, { LocalHostAddressSupplier.INSTANCE })
             .withUserConfiguration(
                 CommandAutoConfiguration::class.java,
@@ -952,6 +1021,7 @@ internal class WebFluxAutoConfigurationTest {
                 AggregateAutoConfiguration::class.java,
                 OpenAPIAutoConfiguration::class.java,
                 BiDeploymentInspectorAutoConfiguration::class.java,
+                QueryAutoConfiguration::class.java,
                 WebFluxAutoConfiguration::class.java,
             )
     }
@@ -1053,8 +1123,61 @@ internal class WebFluxAutoConfigurationTest {
             .mapNotNull { it.message }
             .joinToString("\n")
 
+    private fun queryContract(name: String, metadata: AggregateRouteMetadata<*>): HttpRouteContract =
+        HttpRouteContract(
+            routeId = "query-$name",
+            method = Https.Method.POST,
+            path = "/$name",
+            handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY,
+            handlerMetadata = HttpRouteHandlerMetadata.Aggregate(metadata),
+        )
+
+    private fun ApplicationContextRunner.withTestAggregateQueryGateways(): ApplicationContextRunner =
+        TEST_AGGREGATES.fold(this) { runner, namedAggregate ->
+            runner
+                .withBean(
+                    "${namedAggregate.contextName}.${namedAggregate.aggregateName}.SnapshotQueryGateway",
+                    SnapshotQueryGateway::class.java,
+                    {
+                        DefaultSnapshotQueryGateway<Any>(
+                            namedAggregate = namedAggregate,
+                            backend = TestSnapshotQueryBackend(namedAggregate),
+                            targetType = JsonSerializer.typeFactory.constructParametricType(
+                                MaterializedSnapshot::class.java,
+                                Any::class.java,
+                            ),
+                        )
+                    },
+                )
+                .withBean(
+                    "${namedAggregate.contextName}.${namedAggregate.aggregateName}.EventStreamQueryGateway",
+                    EventStreamQueryGateway::class.java,
+                    {
+                        DefaultEventStreamQueryGateway(
+                            namedAggregate = namedAggregate,
+                            backend = TestEventStreamQueryBackend(namedAggregate),
+                        )
+                    },
+                )
+        }
+
     private companion object {
         const val BI_SCRIPT_TEST_MAX_IN_MEMORY_SIZE: Int = 1024 * 1024
+        val SNAPSHOT_SCHEMA = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())
+        val EVENT_STREAM_SCHEMA = QueryModelSchema(QueryModel.EVENT_STREAM, emptySet(), emptyMap())
+        val TEST_AGGREGATES = listOf(
+            "order-service" to "order",
+            "order-service" to "cart",
+            "order-service" to "audit",
+            "example" to "order",
+            "example" to "disabled_route_aggregate",
+            "example" to "cart",
+            "transfer" to "account",
+            "compensation" to "execution_failed",
+            "tck" to "mock_aggregate",
+            "tck" to "modeling_command_aggregate_with_tenant_id",
+            "tck" to "modeling_command_aggregate_without_ctor_parameters",
+        ).map { (context, aggregate) -> MaterializedNamedAggregate(context, aggregate) }
     }
 
     private class TestHttpRouteHandlerFunctionFactory(
@@ -1068,6 +1191,30 @@ internal class WebFluxAutoConfigurationTest {
                 ServerResponse.ok().build()
             }
         }
+    }
+
+    private object TestSnapshotQueryBackendFactory : SnapshotQueryBackendFactory {
+        override fun <S : Any> create(namedAggregate: NamedAggregate): SnapshotQueryBackend =
+            TestSnapshotQueryBackend(namedAggregate)
+    }
+
+    private class TestSnapshotQueryBackend(namedAggregate: NamedAggregate) :
+        SnapshotQueryBackend by NoOpSnapshotQueryBackend(namedAggregate),
+        QueryModelSchemaProvider {
+        override fun schema(): Mono<QueryModelSchema> = Mono.just(SNAPSHOT_SCHEMA)
+        override fun refresh(): Mono<QueryModelSchema> = schema()
+    }
+
+    private object TestEventStreamQueryBackendFactory : EventStreamQueryBackendFactory {
+        override fun create(namedAggregate: NamedAggregate): EventStreamQueryBackend =
+            TestEventStreamQueryBackend(namedAggregate)
+    }
+
+    private class TestEventStreamQueryBackend(namedAggregate: NamedAggregate) :
+        EventStreamQueryBackend by NoOpEventStreamQueryBackend(namedAggregate),
+        QueryModelSchemaProvider {
+        override fun schema(): Mono<QueryModelSchema> = Mono.just(EVENT_STREAM_SCHEMA)
+        override fun refresh(): Mono<QueryModelSchema> = schema()
     }
 
     private class TestObjectProvider<T : Any>(

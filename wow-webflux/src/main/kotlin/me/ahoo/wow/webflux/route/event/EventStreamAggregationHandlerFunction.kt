@@ -38,27 +38,27 @@ class EventStreamAggregationHandlerFunction(
     override fun handle(request: ServerRequest): Mono<ServerResponse> =
         request.body(AGGREGATION_QUERY_EXTRACTOR)
             .flatMapMany { query ->
-                queryGateway.aggregate(
-                    aggregateMetadata,
-                    rewriteRequestFilter.rewrite(aggregateMetadata, request, query),
-                )
+                queryGateway.aggregate(rewriteRequestFilter.rewrite(aggregateMetadata, request, query))
             }
             .writeRawRequest(request)
             .toServerResponse(request, exceptionHandler)
 }
 
 class EventStreamAggregationHandlerFunctionFactory(
-    private val eventStreamQueryGateway: EventStreamQueryGateway,
+    private val eventStreamQueryGateway: (AggregateMetadata<*, *>) -> EventStreamQueryGateway,
     private val rewriteRequestFilter: RewriteRequestFilter,
     private val exceptionHandler: RequestExceptionHandler,
 ) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Event.AGGREGATION) {
     override fun create(
         contract: HttpRouteContract,
         metadata: HttpRouteHandlerMetadata.Aggregate,
-    ): HandlerFunction<ServerResponse> = EventStreamAggregationHandlerFunction(
-        aggregateMetadata = aggregateMetadata(metadata),
-        queryGateway = eventStreamQueryGateway,
-        rewriteRequestFilter = rewriteRequestFilter,
-        exceptionHandler = exceptionHandler,
-    )
+    ): HandlerFunction<ServerResponse> {
+        val aggregateMetadata = aggregateMetadata(metadata)
+        return EventStreamAggregationHandlerFunction(
+            aggregateMetadata = aggregateMetadata,
+            queryGateway = eventStreamQueryGateway(aggregateMetadata),
+            rewriteRequestFilter = rewriteRequestFilter,
+            exceptionHandler = exceptionHandler,
+        )
+    }
 }

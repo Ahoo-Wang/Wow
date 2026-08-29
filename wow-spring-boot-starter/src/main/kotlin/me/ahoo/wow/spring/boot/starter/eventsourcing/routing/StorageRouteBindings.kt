@@ -14,8 +14,8 @@ package me.ahoo.wow.spring.boot.starter.eventsourcing.routing
 
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
-import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
-import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
+import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
+import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import java.util.Locale
 
@@ -49,38 +49,38 @@ data class SnapshotStoreBinding(
     }
 }
 
-data class EventStreamQueryServiceFactoryBinding(
+data class EventStreamQueryBackendFactoryBinding(
     val name: String,
     val storage: StorageType?,
-    val eventStreamQueryServiceFactory: EventStreamQueryServiceFactory
+    val eventStreamQueryBackendFactory: EventStreamQueryBackendFactory
 ) {
     companion object {
         fun storage(
             storage: StorageType,
-            eventStreamQueryServiceFactory: EventStreamQueryServiceFactory
-        ): EventStreamQueryServiceFactoryBinding =
-            EventStreamQueryServiceFactoryBinding(
+            eventStreamQueryBackendFactory: EventStreamQueryBackendFactory
+        ): EventStreamQueryBackendFactoryBinding =
+            EventStreamQueryBackendFactoryBinding(
                 name = storage.bindingPrefix() + "-event-stream-query-service-factory",
                 storage = storage,
-                eventStreamQueryServiceFactory = eventStreamQueryServiceFactory,
+                eventStreamQueryBackendFactory = eventStreamQueryBackendFactory,
             )
     }
 }
 
-data class SnapshotQueryServiceFactoryBinding(
+data class SnapshotQueryBackendFactoryBinding(
     val name: String,
     val storage: StorageType?,
-    val snapshotQueryServiceFactory: SnapshotQueryServiceFactory
+    val snapshotQueryBackendFactory: SnapshotQueryBackendFactory
 ) {
     companion object {
         fun storage(
             storage: StorageType,
-            snapshotQueryServiceFactory: SnapshotQueryServiceFactory
-        ): SnapshotQueryServiceFactoryBinding =
-            SnapshotQueryServiceFactoryBinding(
+            snapshotQueryBackendFactory: SnapshotQueryBackendFactory
+        ): SnapshotQueryBackendFactoryBinding =
+            SnapshotQueryBackendFactoryBinding(
                 name = storage.bindingPrefix() + "-snapshot-query-service-factory",
                 storage = storage,
-                snapshotQueryServiceFactory = snapshotQueryServiceFactory,
+                snapshotQueryBackendFactory = snapshotQueryBackendFactory,
             )
     }
 }

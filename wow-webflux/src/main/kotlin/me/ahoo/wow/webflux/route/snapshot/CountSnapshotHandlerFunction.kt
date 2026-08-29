@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.webflux.route.snapshot
 
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
@@ -20,7 +21,7 @@ import me.ahoo.wow.webflux.route.query.CountQueryHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.query.RewriteRequestFilter
 
 class CountSnapshotHandlerFunctionFactory(
-    snapshotQueryGateway: SnapshotQueryGateway,
+    snapshotQueryGateway: (AggregateMetadata<*, *>) -> SnapshotQueryGateway<Any>,
     rewriteRequestFilter: RewriteRequestFilter,
     exceptionHandler: RequestExceptionHandler
 ) : CountQueryHandlerFunctionFactory(
