@@ -13,11 +13,7 @@
 
 import type { ReactElement } from "react";
 import {
-  Bar,
-  BarChart,
   CartesianGrid,
-  Cell,
-  LabelList,
   Line,
   LineChart,
   XAxis,
@@ -25,8 +21,6 @@ import {
 } from "recharts";
 import {
   ChartContainer,
-  ChartLegend,
-  ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
@@ -77,7 +71,7 @@ export function DistributionChart({
       <div
         role="img"
         aria-label={`${title}: ${labels.join(", ")}`}
-        className="mt-3 flex h-7 overflow-hidden rounded-sm bg-slate-100"
+        className="mt-3 flex h-7 overflow-hidden rounded-sm bg-muted"
       >
         {data.map(({ color, count, key }) => (
           <span
@@ -107,6 +101,7 @@ export function DistributionChart({
           );
         })}
       </dl>
+      <p className="dashboard-chart-total">Total {total.toLocaleString()}</p>
     </section>
   );
 }
@@ -123,9 +118,7 @@ export function RetryDistributionChart({
     ...datum,
     display: `${datum.count} (${percentageLabel(datum.count, total)})`,
   }));
-  const config = {
-    count: { color: "#2563eb", label: "Executions" },
-  } satisfies ChartConfig;
+  const maxCount = Math.max(...rows.map(({ count }) => count), 1);
 
   return (
     <section aria-label="Retry distribution">
@@ -133,59 +126,43 @@ export function RetryDistributionChart({
       {description ? (
         <p className="text-sm text-muted-foreground">{description}</p>
       ) : null}
-      <ChartContainer config={config} className="h-36 w-full py-2 text-sm aspect-auto">
-        <BarChart
-          accessibilityLayer
-          data={rows}
-          layout="vertical"
-          margin={{ left: 0, right: 88 }}
-        >
-          <XAxis type="number" hide />
-          <YAxis
-            dataKey="label"
-            type="category"
-            width={88}
-            axisLine={false}
-            tickLine={false}
-          />
-          <Bar dataKey="count" minPointSize={2} radius={4} maxBarSize={18}>
-            {rows.map(({ color, key }) => (
-              <Cell key={key} fill={color} />
-            ))}
-            <LabelList
-              dataKey="display"
-              position="right"
-              className="fill-foreground font-mono tabular-nums"
-              fontSize={14}
-            />
-          </Bar>
-        </BarChart>
-      </ChartContainer>
-      <table className="sr-only" aria-label="Retry distribution data">
-        <thead>
-          <tr>
-            <th>Retries</th>
-            <th>Count</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map(({ display, key, label }) => (
-            <tr key={key}>
-              <td>{label}</td>
-              <td>{display}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div
+        role="img"
+        aria-label={`Retry distribution: ${rows
+          .map(({ display, label }) => `${label} ${display}`)
+          .join(", ")}`}
+        className="mt-2 grid gap-1.5"
+      >
+        {rows.map(({ color, count, display, key, label }) => (
+          <div
+            key={key}
+            className="grid grid-cols-[5.5rem_minmax(0,1fr)_auto] items-center gap-2 text-sm"
+          >
+            <span className="text-right text-muted-foreground">{label}</span>
+            <span className="h-2 overflow-hidden rounded-full bg-muted">
+              <span
+                className="block h-full rounded-full"
+                style={{
+                  backgroundColor: color,
+                  minWidth: count > 0 ? 2 : 0,
+                  width: `${(count / maxCount) * 100}%`,
+                }}
+              />
+            </span>
+            <span className="font-mono tabular-nums">{display}</span>
+          </div>
+        ))}
+      </div>
+      <p className="dashboard-chart-total">Total {total.toLocaleString()}</p>
     </section>
   );
 }
 
 const trendConfig = {
-  newFailures: { color: "#dc2626", label: "New failures" },
-  prepared: { color: "#2563eb", label: "Prepared" },
-  retriedFailed: { color: "#f59e0b", label: "Retried failed" },
-  succeeded: { color: "#16a34a", label: "Succeeded" },
+  newFailures: { color: "var(--chart-1)", label: "New failures" },
+  prepared: { color: "var(--chart-2)", label: "Prepared" },
+  retriedFailed: { color: "var(--chart-3)", label: "Retried failed" },
+  succeeded: { color: "var(--chart-4)", label: "Succeeded" },
 } satisfies ChartConfig;
 
 export function CompensationTrendChart({
@@ -193,38 +170,107 @@ export function CompensationTrendChart({
 }: {
   points: TrendPoint[];
 }): ReactElement {
+  const singlePoint = points.length === 1 ? points[0] : undefined;
+  const latestPoint = points.at(-1);
+
   return (
-    <section aria-label="Compensation outcomes trend">
-      <ChartContainer config={trendConfig} className="h-36 w-full py-2 text-sm aspect-auto">
-        <LineChart accessibilityLayer data={points}>
-          <CartesianGrid vertical={false} />
-          <XAxis
-            dataKey="bucket"
-            tickFormatter={(bucket: number) => formatDate(bucket, "MM-DD HH:mm")}
-          />
-          <YAxis allowDecimals={false} />
-          <ChartTooltip
-            content={
-              <ChartTooltipContent
-                labelFormatter={(_, payload) =>
-                  formatDate(Number(payload[0]?.payload.bucket), "MM-DD HH:mm")
+    <section
+      aria-label="Compensation outcomes trend"
+      className="dashboard-trend-chart"
+    >
+      {singlePoint ? (
+        <dl
+          aria-label={`Compensation outcomes for ${formatDate(singlePoint.bucket, "MM-DD")}`}
+          className="dashboard-trend-single grid min-h-0 flex-1 grid-cols-2 gap-2 py-2 text-sm sm:grid-cols-4"
+        >
+          {Object.entries(trendConfig).map(([key, { color, label }]) => {
+            const seriesKey = key as keyof typeof trendConfig;
+            return (
+              <div
+                key={key}
+                className="flex min-w-0 flex-col justify-center rounded-md bg-muted/50 px-3 py-2"
+              >
+                <dt className="flex items-center gap-1.5 text-muted-foreground">
+                  <span
+                    aria-hidden="true"
+                    className="size-2 rounded-sm"
+                    style={{ backgroundColor: color }}
+                  />
+                  {label}
+                </dt>
+                <dd className="mt-1 text-xl font-semibold tabular-nums">
+                  {singlePoint[seriesKey]}
+                </dd>
+              </div>
+            );
+          })}
+        </dl>
+      ) : (
+        <>
+          {latestPoint ? (
+            <dl
+              aria-label={`Latest outcomes for ${formatDate(latestPoint.bucket, "MM-DD")}`}
+              className="dashboard-trend-summary"
+            >
+              {Object.entries(trendConfig).map(([key, { color, label }]) => {
+                const seriesKey = key as keyof typeof trendConfig;
+                return (
+                  <div key={key}>
+                    <dt>
+                      <span
+                        aria-hidden="true"
+                        style={{ backgroundColor: color }}
+                      />
+                      {label}
+                    </dt>
+                    <dd>{latestPoint[seriesKey].toLocaleString()}</dd>
+                  </div>
+                );
+              })}
+            </dl>
+          ) : null}
+          <ChartContainer
+            config={trendConfig}
+            className="min-h-0 flex-1 w-full py-2 text-sm aspect-auto"
+          >
+            <LineChart
+              accessibilityLayer
+              data={points}
+              margin={{ left: 0, right: 12, top: 8 }}
+            >
+              <CartesianGrid vertical={false} />
+              <XAxis
+                dataKey="bucket"
+                axisLine={false}
+                tickLine={false}
+                tickMargin={8}
+                tickFormatter={(bucket: number) => formatDate(bucket, "MM-DD")}
+              />
+              <YAxis allowDecimals={false} axisLine={false} tickLine={false} />
+              <ChartTooltip
+                content={
+                  <ChartTooltipContent
+                    labelFormatter={(_, payload) =>
+                      formatDate(Number(payload[0]?.payload.bucket), "MM-DD HH:mm")
+                    }
+                  />
                 }
               />
-            }
-          />
-          <ChartLegend content={<ChartLegendContent />} />
-          {Object.entries(trendConfig).map(([key, { color }]) => (
-            <Line
-              key={key}
-              dataKey={key}
-              dot={false}
-              name={trendConfig[key as keyof typeof trendConfig].label}
-              stroke={color}
-              type="monotone"
-            />
-          ))}
-        </LineChart>
-      </ChartContainer>
+              {Object.entries(trendConfig).map(([key, { color }]) => (
+                <Line
+                  key={key}
+                  dataKey={key}
+                  dot={{ r: 2.5 }}
+                  name={trendConfig[key as keyof typeof trendConfig].label}
+                  stroke={color}
+                  strokeWidth={2}
+                  type="monotone"
+                />
+              ))}
+            </LineChart>
+          </ChartContainer>
+        </>
+      )}
       <table className="sr-only" aria-label="Compensation outcomes data">
         <thead>
           <tr>

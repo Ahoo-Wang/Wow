@@ -24,7 +24,7 @@ vi.mock("react-router", () => ({
     ...props
   }: {
     children: ReactNode;
-    className: (state: { isActive: boolean }) => string;
+    className?: string | ((state: { isActive: boolean }) => string);
     end?: boolean;
     to: string;
     "aria-label"?: string;
@@ -36,7 +36,9 @@ vi.mock("react-router", () => ({
     return (
       <a
         aria-current={isActive ? "page" : undefined}
-        className={className({ isActive })}
+        className={
+          typeof className === "function" ? className({ isActive }) : className
+        }
         data-end={end ? "true" : undefined}
         href={to}
         {...props}
@@ -94,8 +96,21 @@ describe("App", () => {
       "Executing",
     );
     expect(
-      screen.getByRole("link", { name: "Wow compensation dashboard" }),
-    ).toHaveAttribute("href", "/");
+      screen.getByRole("navigation", { name: "Primary navigation" }),
+    ).toContainElement(screen.getByRole("link", { name: "Executing" }));
+    const brandLink = screen.getByRole("link", {
+      name: "Wow compensation dashboard",
+    });
+    expect(brandLink).toHaveAttribute("href", "/");
+    expect(brandLink).toHaveTextContent("CompensationControl Plane");
+    expect(screen.getByText("Navigation")).toHaveAttribute(
+      "data-slot",
+      "sidebar-group-label",
+    );
+    expect(screen.getByRole("link", { name: "Executing" })).toHaveAttribute(
+      "data-size",
+      "lg",
+    );
     expect(screen.getByRole("link", { name: "Dashboard" })).not.toHaveAttribute(
       "aria-current",
     );
@@ -147,30 +162,53 @@ describe("App", () => {
         /^https:\/\/github\.com\/Ahoo-Wang\/Wow\/commit\/[0-9a-f]{40}$/,
       ),
     );
+    expect(screen.getByText("v8.15.0").closest(".app-topbar")).not.toBeNull();
+    expect(
+      screen.getByText("v8.15.0").closest("[data-slot='sidebar-footer']"),
+    ).toBeNull();
   });
 
   it("collapses and expands the desktop navigation", () => {
     render(<App navItems={navItems} />);
 
     const sidebar = screen.getByRole("complementary", {
-      name: "Primary navigation",
+      name: "Application sidebar",
     });
+    const sidebarPanel = document.querySelector("[data-slot='sidebar']");
+    const sidebarWrapper = document.querySelector(
+      "[data-slot='sidebar-wrapper']",
+    ) as HTMLElement;
     const collapse = screen.getByRole("button", {
       name: "Collapse navigation",
     });
-    expect(sidebar).not.toHaveClass("is-collapsed");
+    expect(sidebar).toHaveAttribute("data-slot", "sidebar-container");
+    expect(sidebarPanel).toHaveAttribute("data-state", "expanded");
+    expect(sidebarWrapper.style.getPropertyValue("--sidebar-width")).toBe(
+      "11rem",
+    );
+    expect(sidebarWrapper.style.getPropertyValue("--sidebar-width-icon")).toBe(
+      "3.5rem",
+    );
+    expect(collapse).toHaveAttribute("data-slot", "sidebar-menu-button");
     expect(collapse).toHaveAttribute("aria-expanded", "true");
+    expect(
+      screen
+        .getByRole("link", { name: "Dashboard" })
+        .closest("[data-slot='sidebar-group-content']"),
+    ).not.toBeNull();
 
     fireEvent.click(collapse);
 
-    expect(sidebar).toHaveClass("is-collapsed");
-    expect(
-      screen.getByRole("button", { name: "Expand navigation" }),
-    ).toHaveAttribute("aria-expanded", "false");
+    expect(sidebarPanel).toHaveAttribute("data-state", "collapsed");
+    const expand = screen.getByRole("button", {
+      name: "Expand navigation",
+    });
+    expect(expand).toHaveAttribute("data-slot", "sidebar-menu-button");
+    expect(expand).toHaveAttribute("aria-expanded", "false");
 
-    fireEvent.click(screen.getByRole("button", { name: "Expand navigation" }));
+    fireEvent.click(expand);
 
-    expect(sidebar).not.toHaveClass("is-collapsed");
+    expect(sidebarPanel).toHaveAttribute("data-state", "expanded");
   });
 
   it("uses Dashboard as the workspace and logo destination", () => {

@@ -87,6 +87,7 @@ describe("AppRouter", () => {
     expect(
       screen.getByRole("status", { name: "Loading dashboard" }),
     ).toBeInTheDocument();
-    expect(document.querySelectorAll("[data-slot='skeleton']")).toHaveLength(13);
+    expect(document.querySelector("[data-slot='skeleton']")).not.toBeNull();
+    expect(document.querySelectorAll("[data-slot='card']")).toHaveLength(4);
   });
 });

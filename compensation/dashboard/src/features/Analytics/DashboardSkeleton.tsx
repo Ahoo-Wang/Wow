@@ -12,6 +12,11 @@
  */
 
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+} from "@/components/ui/card";
 
 export default function DashboardSkeleton() {
   return (
@@ -20,25 +25,45 @@ export default function DashboardSkeleton() {
       aria-label="Loading dashboard"
       className="dashboard-view dashboard-skeleton"
     >
-      <section className="space-y-3">
-        <Skeleton className="h-8 w-full" />
-        <div className="grid grid-cols-3 gap-3">
+      <Card size="sm" className="dashboard-summary">
+        <CardHeader>
+          <Skeleton className="h-6 w-56 max-w-full" />
+        </CardHeader>
+        <CardContent className="grid grid-cols-3 gap-3">
           {Array.from({ length: 3 }, (_, index) => (
             <Skeleton key={index} className="h-14 w-full" />
           ))}
-        </div>
-      </section>
-      <section className="space-y-3">
-        <Skeleton className="h-8 w-72 max-w-full" />
-        {Array.from({ length: 5 }, (_, index) => (
-          <Skeleton key={index} className="h-8 w-full" />
-        ))}
-      </section>
-      <section className="grid grid-cols-3 gap-3">
-        {Array.from({ length: 3 }, (_, index) => (
-          <Skeleton key={index} className="h-48 w-full" />
-        ))}
-      </section>
+        </CardContent>
+      </Card>
+      <div className="dashboard-signals">
+        <Card size="sm" className="dashboard-outcomes">
+          <CardHeader>
+            <Skeleton className="h-6 w-48 max-w-full" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-64 w-full" />
+          </CardContent>
+        </Card>
+        <Card size="sm" className="dashboard-health">
+          <CardHeader>
+            <Skeleton className="h-6 w-32 max-w-full" />
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            <Skeleton className="h-28 w-full" />
+            <Skeleton className="h-28 w-full" />
+          </CardContent>
+        </Card>
+      </div>
+      <Card size="sm" className="dashboard-pressure">
+        <CardHeader>
+          <Skeleton className="h-6 w-72 max-w-full" />
+        </CardHeader>
+        <CardContent className="grid gap-2">
+          {Array.from({ length: 5 }, (_, index) => (
+            <Skeleton key={index} className="h-8 w-full" />
+          ))}
+        </CardContent>
+      </Card>
     </div>
   );
 }

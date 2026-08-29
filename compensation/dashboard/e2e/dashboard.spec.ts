@@ -455,6 +455,28 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
   const timeRange = page.getByRole("button", { name: /^Time range:/ });
   await expect(timeRange).toContainText("–");
   await timeRange.click();
+  const pickerSizing = await page.getByRole("dialog").evaluate((dialog) => {
+    const calendar = dialog.querySelector<HTMLElement>("[data-slot='calendar']");
+    if (!calendar) {
+      throw new Error("Date range calendar is missing");
+    }
+    const dialogBounds = dialog.getBoundingClientRect();
+    const calendarBounds = calendar.getBoundingClientRect();
+    return {
+      calendarWidth: calendarBounds.width,
+      dialogLeft: dialogBounds.left,
+      dialogRight: dialogBounds.right,
+      dialogWidth: dialogBounds.width,
+      viewportWidth: window.innerWidth,
+    };
+  });
+  expect(
+    Math.abs(pickerSizing.dialogWidth - pickerSizing.calendarWidth),
+  ).toBeLessThanOrEqual(2);
+  expect(pickerSizing.dialogLeft).toBeGreaterThanOrEqual(0);
+  expect(pickerSizing.dialogRight).toBeLessThanOrEqual(
+    pickerSizing.viewportWidth,
+  );
   for (const label of ["Today", "Last 7 days", "Last 30 days"]) {
     const shortcut = page.getByRole("button", { name: label, exact: true });
     await expect(shortcut).toBeVisible();
@@ -530,7 +552,33 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
     expect(pressureSizing.contentDelta).toBeLessThanOrEqual(2);
     expect(pressureSizing.overflowY).not.toMatch(/auto|scroll/);
     expect(pressureSizing.rowsVisible).toBe(true);
+    await expect(page.getByText("Swipe to view more")).toBeHidden();
     expect((await page.locator(".dashboard-signals").boundingBox())?.height).toBeGreaterThanOrEqual(200);
+    const signalsLayout = await page
+      .locator(".dashboard-signals")
+      .evaluate((element) => {
+        const outcomes = element.querySelector<HTMLElement>(
+          ".dashboard-outcomes",
+        );
+        const health = element.querySelector<HTMLElement>(".dashboard-health");
+        if (!outcomes || !health) {
+          throw new Error("Dashboard analysis layout is missing");
+        }
+        const outcomesBounds = outcomes.getBoundingClientRect();
+        const healthBounds = health.getBoundingClientRect();
+        return {
+          healthTop: healthBounds.top,
+          healthWidth: healthBounds.width,
+          outcomesTop: outcomesBounds.top,
+          outcomesWidth: outcomesBounds.width,
+        };
+      });
+    expect(
+      Math.abs(signalsLayout.outcomesTop - signalsLayout.healthTop),
+    ).toBeLessThanOrEqual(2);
+    expect(signalsLayout.outcomesWidth + 1).toBeGreaterThanOrEqual(
+      signalsLayout.healthWidth * 2,
+    );
     for (const name of [
       "Recoverability",
       "Retry distribution",
@@ -539,11 +587,18 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
       await expect(page.getByRole("heading", { name })).toBeVisible();
     }
     for (const label of ["1–2 retries", "3–5 retries"]) {
-      const tick = page
-        .locator("tspan")
-        .filter({ hasText: label });
-      await expect(tick).toHaveCount(1);
+      await expect(
+        page
+          .getByRole("img", { name: /Retry distribution:/ })
+          .getByText(label, { exact: true }),
+      ).toBeVisible();
     }
+    const singleDayOutcomes = page.getByLabel(
+      "Compensation outcomes for 08-29",
+    );
+    expect((await singleDayOutcomes.boundingBox())?.height).toBeGreaterThanOrEqual(
+      200,
+    );
     const fontTargets = [
       page.getByText("Actionable now", { exact: true }),
       pressureTable.locator("tbody tr").first().locator("td").nth(1),
@@ -559,22 +614,12 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
         .getByText("Recoverable", { exact: true }),
       page
         .getByRole("region", { name: "Retry distribution" })
-        .locator("tspan")
-        .filter({ hasText: "1–2 retries" }),
+        .getByText("1–2 retries", { exact: true }),
       page
         .getByRole("region", { name: "Retry distribution" })
-        .locator("svg text")
-        .filter({ hasText: "4 (33%)" })
-        .first(),
-      page
-        .getByRole("region", { name: "Compensation outcomes trend" })
-        .locator("svg text")
-        .filter({ hasText: "08-29 00:00" })
-        .first(),
-      page
-        .getByRole("region", { name: "Compensation outcomes trend" })
-        .locator(".recharts-legend-wrapper")
-        .getByText("New failures", { exact: true }),
+        .getByText("4 (33%)", { exact: true }),
+      singleDayOutcomes.getByText("New failures", { exact: true }),
+      singleDayOutcomes.locator("dd").first(),
     ];
     for (const target of fontTargets) {
       await expect(target).toBeVisible();
@@ -583,6 +628,52 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
       );
       expect(fontSize).toBeGreaterThanOrEqual(14);
     }
+
+    await page.setViewportSize({ width: 1440, height: 1024 });
+    const tallViewportLayout = await page
+      .locator(".dashboard-view")
+      .evaluate((dashboard) => {
+        const signals = dashboard.querySelector<HTMLElement>(
+          ".dashboard-signals",
+        );
+        const healthTitle = dashboard.querySelector<HTMLElement>(
+          "#dashboard-health-title",
+        );
+        const recoverabilityTitle = dashboard.querySelector<HTMLElement>(
+          "[aria-label='Recoverability'] h3",
+        );
+        const lastPressureRow = dashboard.querySelector<HTMLElement>(
+          ".dashboard-pressure-table tbody tr:last-child",
+        );
+        if (
+          !signals ||
+          !healthTitle ||
+          !recoverabilityTitle ||
+          !lastPressureRow
+        ) {
+          throw new Error("Dashboard visual hierarchy is incomplete");
+        }
+        const signalsBounds = signals.getBoundingClientRect();
+        const healthTitleBounds = healthTitle.getBoundingClientRect();
+        const recoverabilityTitleBounds = recoverabilityTitle.getBoundingClientRect();
+        return {
+          dashboardClientHeight: dashboard.clientHeight,
+          dashboardScrollHeight: dashboard.scrollHeight,
+          healthLeadGap: recoverabilityTitleBounds.top - healthTitleBounds.bottom,
+          lastPressureRowBottom: lastPressureRow.getBoundingClientRect().bottom,
+          signalsHeight: signalsBounds.height,
+          viewportHeight: window.innerHeight,
+        };
+      });
+    expect(tallViewportLayout.signalsHeight).toBeGreaterThanOrEqual(400);
+    expect(tallViewportLayout.signalsHeight).toBeLessThanOrEqual(480);
+    expect(tallViewportLayout.healthLeadGap).toBeLessThanOrEqual(32);
+    expect(tallViewportLayout.lastPressureRowBottom).toBeLessThanOrEqual(
+      tallViewportLayout.viewportHeight,
+    );
+    expect(tallViewportLayout.dashboardScrollHeight).toBeLessThanOrEqual(
+      tallViewportLayout.dashboardClientHeight,
+    );
   }
   expect(
     await page.evaluate(
@@ -591,6 +682,39 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
   ).toBe(true);
 
   if (testInfo.project.name === "mobile-chromium") {
+    const sidebarTrigger = page.locator("[data-slot='sidebar-trigger']");
+    await expect(sidebarTrigger).toBeVisible();
+    await sidebarTrigger.click();
+    await expect(sidebarTrigger).toHaveAttribute("aria-expanded", "true");
+
+    const mobileSidebar = page.locator(
+      "[data-slot='sidebar'][data-mobile='true']",
+    );
+    await expect(mobileSidebar).toBeVisible();
+    for (const name of [
+      "Dashboard",
+      "To Retry",
+      "Executing",
+      "Next Retry",
+      "Non Retryable",
+      "Succeeded",
+      "Unrecoverable",
+    ]) {
+      await expect(
+        mobileSidebar.getByRole("link", { name, exact: true }),
+      ).toBeVisible();
+    }
+    await mobileSidebar
+      .getByRole("link", { name: "Wow compensation dashboard" })
+      .click();
+    await expect(mobileSidebar).toBeHidden();
+    await expect(sidebarTrigger).toHaveAttribute("aria-expanded", "false");
+    await sidebarTrigger.click();
+    await mobileSidebar
+      .getByRole("link", { name: "Dashboard", exact: true })
+      .click();
+    await expect(mobileSidebar).toBeHidden();
+    await expect(page.getByText("Swipe to view more")).toHaveCount(0);
     const pressureContainer = page
       .getByRole("table", { name: "Current failure pressure" })
       .locator("..");
@@ -599,10 +723,27 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
       overflowX: getComputedStyle(element).overflowX,
       scrollWidth: element.scrollWidth,
     }));
-    expect(pressureOverflow.scrollWidth).toBeGreaterThan(
+    expect(pressureOverflow.scrollWidth).toBeLessThanOrEqual(
       pressureOverflow.clientWidth,
     );
-    expect(["auto", "scroll"]).toContain(pressureOverflow.overflowX);
+    expect(pressureOverflow.overflowX).not.toMatch(/auto|scroll/);
+    const firstPressureCard = await pressureContainer
+      .locator("tbody tr")
+      .first()
+      .evaluate((element) => {
+        const bounds = element.getBoundingClientRect();
+        const container = element.parentElement?.parentElement?.parentElement
+          ?.getBoundingClientRect();
+        return {
+          display: getComputedStyle(element).display,
+          right: bounds.right,
+          containerRight: container?.right ?? 0,
+        };
+      });
+    expect(firstPressureCard.display).toBe("grid");
+    expect(firstPressureCard.right).toBeLessThanOrEqual(
+      firstPressureCard.containerRight,
+    );
     await page
       .getByRole("heading", { name: "Compensation outcomes" })
       .scrollIntoViewIfNeeded();
@@ -617,6 +758,225 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
     ).toBe(true);
   }
   expect(consoleErrors).toEqual([]);
+});
+
+test("keeps the multi-day outcomes summary compact", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium");
+  await page.setViewportSize({ width: 1440, height: 1024 });
+  await mockAnalyticsAggregations(page, {
+    onEvent: () => undefined,
+    onSnapshot: () => undefined,
+  });
+
+  await page.goto("/");
+
+  const latestOutcomes = page.locator("[aria-label^='Latest outcomes for']");
+  await expect(latestOutcomes).toBeVisible();
+  expect((await latestOutcomes.boundingBox())?.height).toBeLessThanOrEqual(72);
+});
+
+test("hides desktop navigation labels when collapsed", async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium");
+  await mockAnalyticsAggregations(page, {
+    onEvent: () => undefined,
+    onSnapshot: () => undefined,
+  });
+
+  await page.goto("/");
+
+  const labels = [
+    "Dashboard",
+    "To Retry",
+    "Executing",
+    "Next Retry",
+    "Non Retryable",
+    "Succeeded",
+    "Unrecoverable",
+  ].map((name) => page.getByRole("link", { name, exact: true }).locator("span"));
+  for (const label of labels) {
+    await expect(label).toBeVisible();
+  }
+  await page.getByRole("button", { name: "Collapse navigation" }).click();
+  for (const label of labels) {
+    await expect(label).toBeHidden();
+  }
+  await expect
+    .poll(() =>
+      page
+        .locator("[data-slot='sidebar-container']")
+        .evaluate((element) => Math.round(element.getBoundingClientRect().width)),
+    )
+    .toBe(56);
+  const alignment = await page.evaluate(() => {
+    const sidebar = document.querySelector<HTMLElement>(
+      "[data-slot='sidebar-container']",
+    );
+    const dashboard = document.querySelector<HTMLElement>(
+      "a[aria-label='Dashboard']",
+    );
+    const dashboardIcon = dashboard?.querySelector<SVGElement>("svg");
+    const toRetry = document.querySelector<HTMLElement>(
+      "a[aria-label='To Retry']",
+    );
+    const footer = document.querySelector<HTMLElement>(
+      "button[aria-label='Expand navigation']",
+    );
+    const footerIcon = footer?.querySelector<SVGElement>("svg");
+    if (
+      !sidebar ||
+      !dashboard ||
+      !dashboardIcon ||
+      !toRetry ||
+      !footer ||
+      !footerIcon
+    ) {
+      throw new Error("Collapsed navigation alignment targets are missing");
+    }
+    const center = (element: Element) => {
+      const bounds = element.getBoundingClientRect();
+      return bounds.left + bounds.width / 2;
+    };
+    return {
+      dashboard: center(dashboard),
+      dashboardIcon: center(dashboardIcon),
+      dashboardIconSize: dashboardIcon.getBoundingClientRect().width,
+      menuGap:
+        toRetry.getBoundingClientRect().top -
+        dashboard.getBoundingClientRect().bottom,
+      footer: center(footer),
+      footerIcon: center(footerIcon),
+      footerIconSize: footerIcon.getBoundingClientRect().width,
+      sidebar: center(sidebar),
+    };
+  });
+  for (const center of [
+    alignment.dashboard,
+    alignment.dashboardIcon,
+    alignment.footer,
+    alignment.footerIcon,
+  ]) {
+    expect(Math.abs(center - alignment.sidebar)).toBeLessThanOrEqual(0.5);
+  }
+  expect(alignment.dashboardIconSize).toBe(20);
+  expect(alignment.footerIconSize).toBe(20);
+  expect(alignment.menuGap).toBe(4);
+});
+
+test("stacks mobile dashboard regions without overlap", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium");
+  await mockAnalyticsAggregations(page, {
+    onEvent: () => undefined,
+    onSnapshot: () => undefined,
+  });
+
+  await page.goto("/");
+  await expect(
+    page.locator("[aria-label^='Latest outcomes for']"),
+  ).toBeVisible();
+
+  const mobileLayout = await page.locator(".dashboard-view").evaluate((dashboard) => {
+    const signals = dashboard.querySelector<HTMLElement>(".dashboard-signals");
+    const pressure = dashboard.querySelector<HTMLElement>(".dashboard-pressure");
+    const recoverability = dashboard.querySelector<HTMLElement>(
+      "[aria-label='Recoverability']",
+    );
+    const retries = dashboard.querySelector<HTMLElement>(
+      "[aria-label='Retry distribution']",
+    );
+    const summaryItems = Array.from(
+      dashboard.querySelectorAll<HTMLElement>(".dashboard-trend-summary > div"),
+    );
+    if (
+      !signals ||
+      !pressure ||
+      !recoverability ||
+      !retries ||
+      summaryItems.length !== 4
+    ) {
+      throw new Error("Mobile dashboard hierarchy is incomplete");
+    }
+    return {
+      firstSummaryTop: summaryItems[0].getBoundingClientRect().top,
+      pressureTop: pressure.getBoundingClientRect().top,
+      recoverabilityBottom: recoverability.getBoundingClientRect().bottom,
+      retriesTop: retries.getBoundingClientRect().top,
+      signalsBottom: signals.getBoundingClientRect().bottom,
+      thirdSummaryTop: summaryItems[2].getBoundingClientRect().top,
+    };
+  });
+  expect(mobileLayout.thirdSummaryTop).toBeGreaterThan(
+    mobileLayout.firstSummaryTop,
+  );
+  expect(mobileLayout.retriesTop).toBeGreaterThanOrEqual(
+    mobileLayout.recoverabilityBottom,
+  );
+  expect(mobileLayout.pressureTop).toBeGreaterThanOrEqual(
+    mobileLayout.signalsBottom,
+  );
+});
+
+test("reflows pressure rows from the available card width", async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium");
+  await page.setViewportSize({ width: 900, height: 900 });
+  await mockAnalyticsAggregations(page, {
+    onEvent: () => undefined,
+    onSnapshot: () => undefined,
+  });
+
+  await page.goto("/");
+
+  const pressure = page.getByRole("region", {
+    name: "Current failure pressure — Top 5 clusters",
+  });
+  const firstRow = pressure.locator("tbody tr").first();
+  await expect(firstRow).toBeVisible();
+  expect(
+    await firstRow.evaluate((element) => getComputedStyle(element).display),
+  ).toBe("grid");
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+});
+
+test("shows a distinct dashboard skeleton while initial data is pending", async ({
+  page,
+}) => {
+  let release = () => undefined;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await mockAnalyticsAggregations(page, {
+    onEvent: () => undefined,
+    onSnapshot: () => undefined,
+  });
+  for (const pattern of [
+    "**/execution_failed/snapshot/aggregation",
+    "**/execution_failed/event/aggregation",
+  ]) {
+    await page.route(pattern, async (route) => {
+      await pending;
+      await route.fallback();
+    });
+  }
+
+  try {
+    await page.goto("/");
+    const loading = page.getByRole("status", { name: "Loading dashboard" });
+    await expect(loading).toBeVisible();
+    await expect(loading.locator("[data-slot='skeleton']").first()).toHaveClass(
+      /bg-muted/,
+    );
+  } finally {
+    release();
+  }
+
+  await expect(page.getByText("Compensation outcomes")).toBeVisible();
 });
 
 test("redirects Dashboard aliases and fallback to the root", async ({ page }) => {
@@ -677,7 +1037,7 @@ test("keeps a long analytics error wrapped and reachable", async ({
   expect(layout.overflowWrap).toBe("anywhere");
   expect(layout.alertScrollWidth).toBeLessThanOrEqual(layout.alertClientWidth);
   expect(layout.signalsHeight).toBeGreaterThan(208);
-  expect(layout.dashboardScrollHeight).toBeGreaterThan(
+  expect(layout.dashboardScrollHeight).toBeGreaterThanOrEqual(
     layout.dashboardClientHeight,
   );
   await alert.scrollIntoViewIfNeeded();

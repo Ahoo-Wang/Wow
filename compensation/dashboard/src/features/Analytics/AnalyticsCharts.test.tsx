@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TrendPoint } from "./analyticsQueries.ts";
 import {
@@ -62,14 +62,15 @@ describe("AnalyticsCharts", () => {
       />,
     );
 
-    expect(
-      screen.getByRole("img", {
-        name: "Recoverability: Unknown 3 (30%), Unrecoverable 7 (70%)",
-      }),
-    ).toBeInTheDocument();
+    const distribution = screen.getByRole("img", {
+      name: "Recoverability: Unknown 3 (30%), Unrecoverable 7 (70%)",
+    });
+    expect(distribution).toBeInTheDocument();
+    expect(distribution).toHaveClass("bg-muted");
     expect(document.querySelector(".recharts-sector")).toBeNull();
     expect(screen.getByText("3 (30%)")).toBeInTheDocument();
     expect(screen.getByText("7 (70%)")).toBeInTheDocument();
+    expect(screen.getByText("Total 10")).toBeInTheDocument();
   });
 
   it("renders zero distribution percentages without invalid numbers", () => {
@@ -122,18 +123,30 @@ describe("AnalyticsCharts", () => {
     expect(screen.getByText("488710 (93%)")).toBeInTheDocument();
     expect(screen.getByText("616 (<1%)")).toBeInTheDocument();
     expect(screen.getByText("33421 (6%)")).toBeInTheDocument();
-    expect(document.querySelectorAll(".recharts-bar-rectangle")).toHaveLength(
-      4,
-    );
-    expect(document.querySelector("[data-slot='chart']")).toHaveClass(
-      "h-36",
-      "py-2",
-    );
+    expect(screen.getByText("Total 527,749")).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", { name: /Retry distribution:/ }),
+    ).toBeInTheDocument();
+    expect(document.querySelector("[data-slot='chart']")).toBeNull();
     expect(document.querySelector(".recharts-sector")).toBeNull();
   });
 
   it("shows all trend series and provides a screen-reader data table", () => {
-    render(<CompensationTrendChart points={[trendPointFixture()]} />);
+    render(
+      <CompensationTrendChart
+        points={[
+          trendPointFixture(),
+          {
+            ...trendPointFixture(),
+            bucket: new Date(2026, 7, 29).getTime(),
+            newFailures: 24,
+            prepared: 12,
+            retriedFailed: 8,
+            succeeded: 4,
+          },
+        ]}
+      />,
+    );
 
     for (const label of [
       "New failures",
@@ -151,10 +164,35 @@ describe("AnalyticsCharts", () => {
     expect(
       screen.getByRole("columnheader", { name: "Succeeded" }),
     ).toBeInTheDocument();
+    const latest = screen.getByLabelText("Latest outcomes for 08-29");
+    expect(within(latest).getByText("24")).toBeInTheDocument();
+    expect(within(latest).getByText("12")).toBeInTheDocument();
+    expect(within(latest).getByText("8")).toBeInTheDocument();
+    expect(within(latest).getByText("4")).toBeInTheDocument();
+    expect(latest.querySelector("dt span")).toHaveStyle({
+      backgroundColor: "var(--chart-1)",
+    });
     expect(document.querySelector(".recharts-tooltip-wrapper")).not.toBeNull();
     expect(document.querySelector("[data-slot='chart']")).toHaveClass(
-      "h-36",
+      "min-h-0",
+      "flex-1",
       "py-2",
     );
+  });
+
+  it("shows one trend bucket as visible outcome values instead of an empty line chart", () => {
+    render(<CompensationTrendChart points={[trendPointFixture()]} />);
+
+    const summary = screen.getByLabelText("Compensation outcomes for 08-28");
+    expect(within(summary).getByText("New failures")).toBeInTheDocument();
+    expect(within(summary).getByText("12")).toBeInTheDocument();
+    expect(within(summary).getByText("Prepared")).toBeInTheDocument();
+    expect(within(summary).getByText("6")).toBeInTheDocument();
+    expect(within(summary).getByText("Retried failed")).toBeInTheDocument();
+    expect(within(summary).getByText("4")).toBeInTheDocument();
+    expect(within(summary).getByText("Succeeded")).toBeInTheDocument();
+    expect(within(summary).getByText("2")).toBeInTheDocument();
+    expect(summary).toHaveClass("min-h-0", "flex-1");
+    expect(document.querySelector("[data-slot='chart']")).toBeNull();
   });
 });

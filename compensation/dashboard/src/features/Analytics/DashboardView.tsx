@@ -12,14 +12,22 @@
  */
 
 import dayjs from "dayjs";
-import { CalendarDays, RefreshCw } from "lucide-react";
+import { CalendarDays, CircleAlert, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { ExchangeError } from "@ahoo-wang/fetcher";
 import { RecoverableType } from "@ahoo-wang/fetcher-wow";
 import type { DateRange } from "react-day-picker";
 import { formatAge, formatDate } from "../../utils/dates.ts";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Calendar } from "@/components/ui/calendar";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Popover,
   PopoverContent,
@@ -27,6 +35,7 @@ import {
 } from "@/components/ui/popover";
 import { useNow } from "@/hooks/useNow.ts";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
 import {
   Table,
   TableBody,
@@ -35,6 +44,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  ToggleGroup,
+  ToggleGroupItem,
+} from "@/components/ui/toggle-group";
 import {
   CompensationTrendChart,
   DistributionChart,
@@ -71,20 +84,20 @@ function formatDateRange({ from, to }: CompleteDateRange): string {
 
 const recoverabilityDisplay = {
   [RecoverableType.RECOVERABLE]: {
-    color: "#16a34a",
+    color: "var(--chart-4)",
     label: "Recoverable",
   },
-  [RecoverableType.UNKNOWN]: { color: "#f59e0b", label: "Unknown" },
+  [RecoverableType.UNKNOWN]: { color: "var(--chart-3)", label: "Unknown" },
   [RecoverableType.UNRECOVERABLE]: {
-    color: "#dc2626",
+    color: "var(--chart-1)",
     label: "Unrecoverable",
   },
 } satisfies Record<RecoverableType, { color: string; label: string }>;
 const retryBucketColors = {
-  "0": "#64748b",
-  "1–2": "#2563eb",
-  "3–5": "#f59e0b",
-  "6+": "#dc2626",
+  "0": "var(--chart-5)",
+  "1–2": "var(--chart-2)",
+  "3–5": "var(--chart-3)",
+  "6+": "var(--chart-1)",
 } satisfies Record<RetryDistribution["buckets"][number]["key"], string>;
 
 function SectionError({ error }: { error: Error }) {
@@ -106,23 +119,15 @@ function SectionError({ error }: { error: Error }) {
   }, [error]);
 
   return (
-    <p role="alert" className="dashboard-section-error text-sm text-red-700">
-      {message}
-    </p>
+    <Alert variant="destructive" className="dashboard-section-error">
+      <CircleAlert />
+      <AlertDescription>{message}</AlertDescription>
+    </Alert>
   );
 }
 
 function SectionMeta<T>({ section }: { section: AnalyticsSection<T> }) {
-  return (
-    <>
-      {section.loading && section.data ? (
-        <p role="status" className="text-xs text-muted-foreground">
-          Refreshing…
-        </p>
-      ) : null}
-      {section.error ? <SectionError error={section.error} /> : null}
-    </>
-  );
+  return section.error ? <SectionError error={section.error} /> : null;
 }
 
 function formatStatusShare(count: number, total: number): string {
@@ -153,11 +158,11 @@ function PressureStatusShare({ cluster }: { cluster: PressureCluster }) {
       </div>
       <div
         aria-hidden="true"
-        className="mt-1 flex h-1.5 overflow-hidden rounded-full bg-slate-100"
+        className="mt-1 flex h-1.5 overflow-hidden rounded-full bg-muted"
       >
-        <span className="bg-red-600" style={{ width: `${failedWidth}%` }} />
+        <span className="bg-chart-1" style={{ width: `${failedWidth}%` }} />
         <span
-          className="bg-blue-600"
+          className="bg-chart-2"
           style={{ width: `${preparedWidth}%` }}
         />
       </div>
@@ -190,7 +195,7 @@ function PressureTable({ clusters }: { clusters: PressureCluster[] }) {
             <TableRow
               key={`${cluster.errorCode}:${cluster.contextName}:${cluster.processorName}:${cluster.functionName}:${cluster.functionKind}`}
             >
-              <TableCell>
+              <TableCell data-label="Cluster">
                 <div className="font-medium">{cluster.errorCode}</div>
                 <div className="text-xs text-muted-foreground">
                   {cluster.contextName} · {cluster.processorName}/
@@ -198,14 +203,21 @@ function PressureTable({ clusters }: { clusters: PressureCluster[] }) {
                   {cluster.functionName} · {cluster.functionKind}
                 </div>
               </TableCell>
-              <TableCell className="text-right tabular-nums">{cluster.currentCount}</TableCell>
-              <TableCell>
+              <TableCell data-label="Current" className="text-right tabular-nums">
+                {cluster.currentCount}
+              </TableCell>
+              <TableCell data-label="Failed / Prepared">
                 <PressureStatusShare cluster={cluster} />
               </TableCell>
-              <TableCell title={formatDate(cluster.oldestExecuteAt ?? undefined)}>
+              <TableCell
+                data-label="Oldest"
+                title={formatDate(cluster.oldestExecuteAt ?? undefined)}
+              >
                 {cluster.oldestExecuteAt ? formatAge(cluster.oldestExecuteAt, now) : "-"}
               </TableCell>
-              <TableCell>{formatDate(cluster.nextRetryAt ?? undefined)}</TableCell>
+              <TableCell data-label="Next retry">
+                {formatDate(cluster.nextRetryAt ?? undefined)}
+              </TableCell>
             </TableRow>
           ))
         )}
@@ -238,6 +250,9 @@ export default function DashboardView() {
     snapshot.retries,
     trend,
   ];
+  const refreshing = sections.some(
+    (section) => section.loading && section.data !== undefined,
+  );
 
   if (sections.every((section) => section.loading && !section.data)) {
     return <DashboardSkeleton />;
@@ -254,13 +269,17 @@ export default function DashboardView() {
 
   return (
     <div className="dashboard-view">
-      <section
+      <Card
+        size="sm"
+        role="region"
         aria-labelledby="dashboard-summary-title"
         className="dashboard-summary"
       >
-        <div className="dashboard-section-heading">
-          <h2 id="dashboard-summary-title">Current compensation state</h2>
-          <div className="dashboard-refresh-status">
+        <CardHeader>
+          <CardTitle>
+            <h2 id="dashboard-summary-title">Current compensation state</h2>
+          </CardTitle>
+          <CardAction className="dashboard-refresh-status">
             <span className="dashboard-time-range-label">Time range</span>
             <Popover
               open={rangeOpen}
@@ -284,24 +303,33 @@ export default function DashboardView() {
                 <CalendarDays />
                 {rangeLabel}
               </PopoverTrigger>
-              <PopoverContent align="end" className="w-auto p-0">
-                <div className="grid grid-cols-3 gap-1 border-b p-2">
+              <PopoverContent
+                align="end"
+                className="w-[min(21.5rem,calc(100vw-1rem))] p-0 [&_[data-slot=calendar]]:w-full"
+              >
+                <div className="border-b p-2">
+                  <ToggleGroup
+                    aria-label="Date range presets"
+                    variant="outline"
+                    spacing={0}
+                    className="w-full"
+                  >
                   {[
                     ["Today", 1],
                     ["Last 7 days", 7],
                     ["Last 30 days", 30],
                   ].map(([label, days]) => (
-                    <Button
+                    <ToggleGroupItem
                       key={label}
+                      value={String(days)}
                       type="button"
-                      variant="secondary"
-                      size="sm"
-                      className="text-sm"
+                      className="flex-1"
                       onClick={() => applyRecentDays(Number(days))}
                     >
                       {label}
-                    </Button>
+                    </ToggleGroupItem>
                   ))}
+                  </ToggleGroup>
                 </div>
                 <Calendar
                   mode="range"
@@ -313,9 +341,11 @@ export default function DashboardView() {
                   defaultMonth={draftRange.from}
                   timeZone={timeZone}
                 />
-                <p className="px-3 pb-2 text-sm text-muted-foreground">
-                  Select up to {MAX_TREND_DAYS} days.
-                </p>
+                {draftRange.from && !draftRange.to ? (
+                  <p className="px-3 pb-2 text-sm text-muted-foreground">
+                    Select an end date.
+                  </p>
+                ) : null}
                 <div className="flex justify-end gap-2 border-t p-2">
                   <Button
                     type="button"
@@ -351,107 +381,142 @@ export default function DashboardView() {
             <Button
               type="button"
               variant="outline"
-              aria-label="Refresh dashboard"
+              aria-busy={refreshing}
+              aria-label={refreshing ? "Refreshing dashboard" : "Refresh dashboard"}
               onClick={() => setRefreshToken((value) => value + 1)}
             >
-              <RefreshCw /> Refresh
+              <RefreshCw className={refreshing ? "animate-spin" : undefined} />
+              Refresh
             </Button>
-          </div>
-        </div>
-        <SectionMeta section={snapshot.summary} />
-        {snapshot.summary.loading && !snapshot.summary.data ? (
-          <Skeleton className="mt-3 h-24 w-full" />
-        ) : snapshot.summary.data ? (
-          <dl className="dashboard-summary-values">
-            <div>
-              <dt>Actionable now</dt>
-              <dd>{snapshot.summary.data.actionableNow}</dd>
-            </div>
-            <div>
-              <dt>Timed out</dt>
-              <dd>{snapshot.summary.data.timedOut}</dd>
-            </div>
-            <div>
-              <dt>Unrecoverable</dt>
-              <dd>{snapshot.summary.data.unrecoverable}</dd>
-            </div>
-          </dl>
-        ) : null}
-      </section>
-
-      <section
-        aria-labelledby="dashboard-pressure-title"
-        className="dashboard-pressure"
-      >
-        <div className="dashboard-section-heading">
-          <h2 id="dashboard-pressure-title">
-            Current failure pressure — Top 5 clusters
-          </h2>
-        </div>
-        <SectionMeta section={snapshot.pressure} />
-        {snapshot.pressure.loading && !snapshot.pressure.data ? (
-          <Skeleton className="mt-3 h-64 w-full" />
-        ) : snapshot.pressure.data ? (
-          <div className="dashboard-pressure-table rounded-lg border bg-white">
-            <PressureTable clusters={snapshot.pressure.data} />
-          </div>
-        ) : null}
-      </section>
+          </CardAction>
+        </CardHeader>
+        <CardContent>
+          <SectionMeta section={snapshot.summary} />
+          {snapshot.summary.loading && !snapshot.summary.data ? (
+            <Skeleton className="h-24 w-full" />
+          ) : snapshot.summary.data ? (
+            <dl className="dashboard-summary-values">
+              <div>
+                <dt>Actionable now</dt>
+                <dd>{snapshot.summary.data.actionableNow}</dd>
+              </div>
+              <div>
+                <dt>Timed out</dt>
+                <dd>{snapshot.summary.data.timedOut}</dd>
+              </div>
+              <div>
+                <dt>Unrecoverable</dt>
+                <dd>{snapshot.summary.data.unrecoverable}</dd>
+              </div>
+            </dl>
+          ) : null}
+        </CardContent>
+      </Card>
 
       <div
         className="dashboard-signals"
         aria-label="Dashboard signals"
       >
-        <section>
-          <SectionMeta section={snapshot.recoverability} />
-          {snapshot.recoverability.loading && !snapshot.recoverability.data ? (
-            <Skeleton className="mt-3 h-36 w-full" />
-          ) : snapshot.recoverability.data ? (
-            <DistributionChart
-              title="Recoverability"
-              data={snapshot.recoverability.data.map(
-                ({ count, recoverable }) => ({
-                  ...recoverabilityDisplay[recoverable],
-                  count,
-                  key: recoverable,
-                }),
-              )}
-            />
-          ) : null}
-        </section>
-        <section>
-          <SectionMeta section={snapshot.retries} />
-          {snapshot.retries.loading && !snapshot.retries.data ? (
-            <Skeleton className="mt-3 h-36 w-full" />
-          ) : snapshot.retries.data?.truncated ? (
-            <p className="mt-3 text-sm text-amber-800">
-              Retry distribution is truncated and is not charted.
-            </p>
-          ) : snapshot.retries.data ? (
-            <RetryDistributionChart
-              data={snapshot.retries.data.buckets.map(({ count, key }) => ({
-                color: retryBucketColors[key],
-                count,
-                key,
-                label: `${key} retries`,
-              }))}
-            />
-          ) : null}
-        </section>
-        <section
+        <Card
+          size="sm"
+          role="region"
           aria-labelledby="analytics-history-title"
+          className="dashboard-outcomes"
         >
-          <h2 id="analytics-history-title" className="text-base font-semibold">
-            Compensation outcomes
-          </h2>
-          <SectionMeta section={trend} />
-          {trend.loading && !trend.data ? (
-            <Skeleton className="mt-3 h-36 w-full" />
-          ) : trend.data ? (
-            <CompensationTrendChart points={trend.data} />
-          ) : null}
-        </section>
+          <CardHeader>
+            <CardTitle>
+              <h2 id="analytics-history-title">Compensation outcomes</h2>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <SectionMeta section={trend} />
+            {trend.loading && !trend.data ? (
+              <Skeleton className="h-36 w-full" />
+            ) : trend.data ? (
+              <CompensationTrendChart points={trend.data} />
+            ) : null}
+          </CardContent>
+        </Card>
+        <Card
+          size="sm"
+          role="region"
+          aria-labelledby="dashboard-health-title"
+          className="dashboard-health"
+        >
+          <CardHeader>
+            <CardTitle>
+              <h2 id="dashboard-health-title">Current health</h2>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="dashboard-health-content">
+            <section>
+              <SectionMeta section={snapshot.recoverability} />
+              {snapshot.recoverability.loading &&
+              !snapshot.recoverability.data ? (
+                <Skeleton className="h-36 w-full" />
+              ) : snapshot.recoverability.data ? (
+                <DistributionChart
+                  title="Recoverability"
+                  data={snapshot.recoverability.data.map(
+                    ({ count, recoverable }) => ({
+                      ...recoverabilityDisplay[recoverable],
+                      count,
+                      key: recoverable,
+                    }),
+                  )}
+                />
+              ) : null}
+            </section>
+            <Separator className="dashboard-health-separator" />
+            <section>
+              <SectionMeta section={snapshot.retries} />
+              {snapshot.retries.loading && !snapshot.retries.data ? (
+                <Skeleton className="h-36 w-full" />
+              ) : snapshot.retries.data?.truncated ? (
+                <Alert>
+                  <AlertDescription>
+                    Retry distribution is truncated and is not charted.
+                  </AlertDescription>
+                </Alert>
+              ) : snapshot.retries.data ? (
+                <RetryDistributionChart
+                  data={snapshot.retries.data.buckets.map(({ count, key }) => ({
+                    color: retryBucketColors[key],
+                    count,
+                    key,
+                    label: `${key} retries`,
+                  }))}
+                />
+              ) : null}
+            </section>
+          </CardContent>
+        </Card>
       </div>
+
+      <Card
+        size="sm"
+        role="region"
+        aria-labelledby="dashboard-pressure-title"
+        className="dashboard-pressure"
+      >
+        <CardHeader>
+          <CardTitle>
+            <h2 id="dashboard-pressure-title">
+              Current failure pressure — Top 5 clusters
+            </h2>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <SectionMeta section={snapshot.pressure} />
+          {snapshot.pressure.loading && !snapshot.pressure.data ? (
+            <Skeleton className="h-64 w-full" />
+          ) : snapshot.pressure.data ? (
+            <div className="dashboard-pressure-table">
+              <PressureTable clusters={snapshot.pressure.data} />
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
     </div>
   );
 }

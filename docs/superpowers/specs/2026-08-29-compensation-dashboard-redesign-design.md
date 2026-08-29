@@ -1,347 +1,51 @@
-# 补偿控制面仪表盘重建设计
+# 补偿控制面 Dashboard 重设计
 
-## 1. 背景与定位
+## 目标
 
-现有 `/analytics` 页面已经通过既有 Snapshot 与 EventStream 聚合查询提供当前补偿状态、失败压力、可恢复性、重试分布和历史结果趋势。数据能力已经成立，但页面仍以“分析内容集合”组织，默认入口仍是 `/to-retry`，不符合值班人员先总览、再定位、最后进入队列处理的工作顺序。
+将 `/` 重构为运维控制仪表盘，优先回答三个问题：当前是否失控、失败压力集中在哪里、补偿结果正在改善还是恶化。
 
-本次把分析页升级为补偿控制面的默认 `Dashboard`。仪表盘的产品目标不是展示更多图表，而是让值班人员在 30 秒内回答：
+## 约束
 
-1. 现在是否需要关注；
-2. 压力集中在哪里；
-3. 风险属于哪种性质；
-4. 补偿结果正在改善还是恶化；
-5. 下一步应进入哪个既有队列调查。
+- 不新增后端 API，仅使用现有快照和事件流聚合查询。
+- 不新增前端依赖，复用 React、shadcn/Base UI、Recharts、Lucide 与 Geist。
+- 保留现有路由、深蓝导航、Logo、版本、提交与仓库入口。
+- 时间范围作用于全部 Dashboard 查询，但控件属于 Dashboard 内容区，不进入 App 框架顶部。
+- 不实现视觉稿中缺少现有数据支持的 Success rate、环比或严重度推断。
+- 维持 Top 5 压力表按内容伸缩，不设置固定高度或内部纵向滚动。
 
-本设计只重建信息架构、路由入口和可视化，不改变聚合查询能力。`docs/superpowers/specs/2026-08-28-compensation-dashboard-analytics-design.md` 中已经实现的数据合同、查询边界、请求取消、最后成功数据、局部错误隔离和事件趋势原子性继续有效；本文只覆盖与页面定位、布局、Top 数量、图表形态、导航和测试验收有关的部分。
+## 页面结构
 
-## 2. 最终视觉目标
+1. App 框架顶部只显示 `Dashboard`、版本、提交和仓库入口。
+2. `Current compensation state` 内容标题行右侧承载全局 Date Picker、更新时间与 Refresh。
+3. 标题下为三个等宽状态指标：Actionable now、Timed out、Unrecoverable。
+4. 中部为分析主区域：左侧大面积 `Compensation outcomes`；右侧 `Current health`，纵向排列 Recoverability 与 Retry distribution。
+5. 底部为 `Current failure pressure — Top 5 clusters` 表格。
 
-最终批准稿：
+## 交互
 
-![补偿控制面仪表盘最终视觉](assets/2026-08-29-compensation-dashboard-target.png)
+- Date Picker 继续支持 Today、Last 7 days、Last 30 days 和手动 Apply/Cancel。
+- Date Picker 日历填满弹层宽度，不保留右侧空白，移动端不得越出视口。
+- 刷新保留最后成功数据；不在区域中插入 `Refreshing…` 行。
+- 刷新期间保持 Refresh 按钮尺寸与文字不变，仅旋转图标并设置 `aria-busy`、动态 accessible name。
+- 区域错误仍在所属区域显示，避免一个查询失败阻塞其他区域。
 
-视觉稿用于确认信息层级和空间关系。实现必须使用真实聚合结果，不复制稿中的静态数据或把视觉稿当成像素图片嵌入页面。
+## 响应式
 
-用户在浏览器验收中追加了三项覆盖性批注，优先级高于视觉稿中的对应表达：Dashboard 规范地址是 `/`；时间控件放在 Dashboard 内容区并作用于全部聚合查询；压力表区域高度由内容自动撑开，不占用剩余视口高度。
+- `>=1280px`：趋势与 Current health 左右分栏，压力表位于下方。
+- `<1280px`：趋势、Current health、压力表依次纵向排列。
+- `<=720px`：使用完整 Sheet 导航；压力表转换为标签化卡片，不产生页面级或区域级横向滚动。
 
-## 3. 范围
+## 无障碍
 
-### 3.1 目标
+- 保留 skip link、语义 heading/section、表格名称、图表隐藏数据表和错误 alert。
+- 交互文字不小于 14px；焦点状态继续使用现有 shadcn/Base UI 样式。
+- 动画遵守既有 `prefers-reduced-motion` 规则。
 
-- 将页面和导航名称从 `Analytics` 提升为 `Dashboard`。
-- 将 Dashboard 设为根路由 `/` 和侧栏第一项。
-- 保留 `/analytics` 旧地址的兼容跳转。
-- 把 shadcn Date Range Picker 放在 Dashboard 内容区顶部，明确命名为 `Time range`。
-- 同一时间窗口作用于全部 Snapshot 与 EventStream 聚合查询。
-- 以失败压力 Top 5 为页面主体，在 `1280 × 720` 成功态下一屏完整展示。
-- 用紧凑、可读且不依赖颜色的方式展示当前状态、风险构成和历史趋势。
-- 用匹配最终布局的 shadcn Skeleton 骨架替代 Dashboard 首次加载白屏。
-- 复用现有查询、Hook、shadcn/ui、Recharts、路由和错误处理，不新增通用仪表盘框架。
+## 验收
 
-### 3.2 非目标
-
-- 不新增或修改后端 API、OpenAPI、Query Schema、`AggregationQuery` 或存储实现。
-- 不修改 `compensation/dashboard/src/generated/`。
-- 不增加自动轮询、持久化缓存、查询构建器、保存视图或任意字段选择器。
-- 不增加告警、预测、AI、搜索、导出、环境选择、风险评分或新的补偿操作。
-- 不新增失败队列，不改变既有六类队列的查询、刷新和操作行为。
-- 不把 Snapshot 当前数量解释为历史事件数量。
-- 不要求错误态和窄屏态强行无滚动；可读性和错误可达性优先于一屏约束。
-
-## 4. 信息架构
-
-### 4.1 决策顺序
-
-页面按以下顺序组织：
-
-1. **当前状态**：Actionable now、Timed out、Unrecoverable；
-2. **压力定位**：失败压力 Top 5；
-3. **风险构成**：Recoverability 与 Retry distribution；
-4. **结果方向**：Compensation outcomes；
-5. **处理入口**：保留侧栏六类既有队列，不在表格中伪造尚不存在的筛选深链。
-
-所有区域共享同一个 `Time range`；不再用 `Now` 暗示 Snapshot 未经过时间过滤。
-
-### 4.2 路由与导航
-
-- 规范路由为根路径 `/`，Dashboard 直接作为 index route 渲染，地址栏保持 `/`。
-- 未匹配路由重定向到 `/`。
-- `/dashboard` 与 `/analytics` 使用 `replace` 重定向到 `/`，保留开发期地址、旧书签和已分享链接。
-- 侧栏顺序为 Dashboard、To Retry、Executing、Next Retry、Non Retryable、Succeeded、Unrecoverable。
-- Logo 链接改为 `/`。
-- Dashboard 使用现有图表类 Lucide 图标，应用顶栏标题显示 `Dashboard`。
-
-导航项继续区分无 `FindCategory` 的 Dashboard 和六类队列，不能为了统一数组而把队列 category 改成可空类型。
-
-## 5. 时间语义与状态归属
-
-### 5.1 Time range
-
-Dashboard 内容区顶部显示 `Time range` Date Picker，默认最近 7 个自然日。Picker 使用 shadcn Calendar range mode、Popover 和 Button；选择完整开始/结束日期并点击 Apply 后，同时改变 Snapshot 与 EventStream。Cancel、选择中或不完整范围不发送查询。
-
-弹层提供 Today、Last 7 days、Last 30 days 三个快捷按钮。快捷按钮复用 shadcn Button，点击后立即应用对应自然日范围并关闭弹层；手动选择仍使用 Apply/Cancel。
-
-两类事实源复用同一组 start/end 边界：
-
-- Snapshot 使用 `state.executeAt >= start && state.executeAt < end`，表示选定窗口内最近执行过且当前仍符合各指标条件的快照；
-- EventStream 使用根 `createTime >= start && createTime < end`，表示选定窗口内发生的结果事件；
-- Snapshot 的 `state.executeAt` 是领域执行时间；不使用可能因任意状态修改而变化的 `snapshotTime`。
-- start 为开始日 00:00（含），end 为结束日次日 00:00（不含），使用浏览器时区；趋势按自然日聚合。
-
-### 5.2 顶栏状态实现
-
-为了让控件作用于整张 Dashboard，又不侵入通用 `App` 布局：
-
-- `DashboardView` 本地持有已应用的日期范围，默认最近 7 个自然日；
-- 时间控件与统一更新时间、Refresh 同属 Dashboard 内容工具栏；
-- `App` 不感知 Dashboard range，也不提供 Outlet context；
-- 不增加 React Context Provider、状态库或 URL 查询参数；
-- 不写入 localStorage 或 sessionStorage，刷新页面后恢复最近 7 个自然日。
-
-### 5.3 刷新
-
-`Refresh` 仍是唯一主操作，位于当前状态行右侧，并与统一的更新时间组成紧凑状态组：
-
-```text
-Updated 2026-08-29 10:36:24 | Refresh
-```
-
-- 点击 Refresh 同时刷新当前范围的 Snapshot 与 EventStream；
-- Apply 新日期范围时同时取消并重新加载 Snapshot 与 EventStream；
-- 不为各区域增加独立重试按钮；
-- 不自动轮询。
-
-## 6. 页面布局
-
-### 6.1 目标视口
-
-主要桌面验收视口为 `1280 × 720`。在该视口且所有区域成功时：
-
-- 页面和内容容器没有纵向或横向滚动条；
-- Dashboard 标题、时间窗口、三个摘要指标、Top 5、两个分布和趋势图全部可见；
-- 正文字号不低于 14px；
-- 长集群身份允许两行，不截断错误码和关键函数名。
-
-高度或宽度低于目标视口时允许页面滚动和分区纵向排列，不通过继续缩小字体维持一屏。
-
-### 6.2 布局层级
-
-1. App 顶栏：Dashboard、构建信息和仓库链接；
-2. Dashboard 内容工具栏与摘要条：Time range、三个指标、统一更新时间和 Refresh；
-3. 主体：Current failure pressure Top 5；
-4. 底部信号条：Recoverability、Retry distribution、Compensation outcomes。
-
-布局优先使用间距、对齐、分隔线和排版区分层级。避免三张大 KPI 卡、卡片套卡片和无意义阴影。
-
-压力区域高度由标题、表头和五条真实内容自然撑开；不得用 `minmax(0, 1fr)`、固定 height 或 `calc(100% - …)` 填满页面剩余空间。底部信号条紧随压力表，目标视口通过紧凑行高和间距实现一屏。
-
-底部信号条在桌面端提供约 `13rem` 最小高度，Retry 与趋势图使用约 `9rem` 图表高度和更宽松的内边距；窄屏取消该最小高度并按内容堆叠。增高不能破坏 `1280 × 720` 一屏合同。
-
-## 7. 组件设计
-
-### 7.1 当前状态条
-
-三个指标沿用现有查询语义：
-
-| 指标 | 数据语义 |
-| --- | --- |
-| Actionable now | `RetryConditions.nextRetryCondition(now)` |
-| Timed out | `PREPARED && timeoutAt <= now` |
-| Unrecoverable | `RetryConditions.unrecoverableCondition` |
-
-指标使用单一分组面和垂直分隔线，不各自包成卡片。所有数字使用 tabular nums。
-
-### 7.2 失败压力 Top 5
-
-现有压力聚合查询的 `limit` 从 10 改为 5，后续状态占比查询只限定这 5 个完整集群身份。表格列固定为：
-
-- Cluster；
-- Current；
-- Failed / Prepared；
-- Oldest；
-- Next retry。
-
-Failed / Prepared 单元格同时展示：
-
-- 精确数量；
-- 百分比；
-- 细分比例条，Failed 为红色，Prepared 为蓝色。
-
-比例条不能作为唯一信息源。`aria-label` 必须包含两类数量和比例。没有 Prepared 时仍显示 `0 (0%)`，不能隐藏蓝色语义对应的文本。
-
-不新增复合风险评分、行操作按钮或“查看全部”。运营人员继续通过既有侧栏队列处理详细记录。
-
-### 7.3 Recoverability
-
-把现有环图改为简单的水平堆叠比例条：
-
-- Recoverable：绿色；
-- Unknown：琥珀色；
-- Unrecoverable：红色。
-
-比例条下始终显示分类、数量和百分比。使用 CSS 即可完成，不为这一简单比例新增新的图表抽象。
-
-### 7.4 Retry distribution
-
-保留现有水平条形表达：
-
-- `0`：灰色；
-- `1–2`：蓝色；
-- `3–5`：琥珀色；
-- `6+`：红色。
-
-继续显示精确数量和百分比，非零且小于 1% 显示 `<1%`。达到聚合上限时继续拒绝绘图并显示截断警告。
-
-### 7.5 Compensation outcomes
-
-保留四条 EventStream 序列和现有数据原子性：
-
-| 序列 | 颜色 |
-| --- | --- |
-| New failures | 红色 |
-| Prepared | 蓝色 |
-| Retried failed | 琥珀色 |
-| Succeeded | 绿色 |
-
-底部信号区不重复显示日期范围；顶部 Date Picker 是唯一可见时间作用域。趋势图压缩为底部次级信号，但保留 Tooltip、Legend 和屏幕阅读器数据表。不得用 Snapshot 总量作为折线数据。
-
-### 7.6 Loading 骨架
-
-Dashboard 路由懒加载和全部数据尚未首次返回时显示同一个 `DashboardSkeleton`。骨架只组合现有 shadcn `Skeleton`，对应摘要、Top 5 五行和底部三个信号区，并通过 `role="status"` 提供可访问加载名称。
-
-刷新和局部加载继续保留最后成功数据或区域级骨架，不重新覆盖为整屏骨架，避免信息闪烁和布局跳动。
-
-## 8. 数据流与并发
-
-Snapshot 与 EventStream 仍由两个既有 Hook 管理：
-
-```text
-DashboardView applied window
-        |
-        +--------------> useSnapshotAnalytics(window, refreshToken)
-        |
-        +--------------> useEventTrend(window, refreshToken)
-```
-
-- 初次进入：并行加载默认最近 7 个自然日的 Snapshot 与 EventStream；
-- 切换时间窗口：Snapshot 与 EventStream 同时重新加载；
-- Refresh：两类事实源共同重新加载；
-- Top 集群查询返回空数组时，不执行状态占比查询；
-- Snapshot 最多 7 个聚合请求的上限保持不变，Top 数量降低不会增加请求数；
-- EventStream 固定 4 个查询并保持全有或全无。
-
-## 9. 加载、错误与空状态
-
-保留现有五区域独立状态和最后成功数据策略：
-
-- 首次无数据时显示稳定高度 Skeleton；
-- 刷新时保留旧数据并显示 `Refreshing…`；
-- 刷新失败时保留旧数据、内联显示错误和最后成功时间；
-- 首次失败显示区域级错误；
-- Abort 不进入可见错误状态；
-- 压力表两条查询视为原子区域；
-- 四条历史序列视为原子区域。
-
-成功态的一屏验收不要求错误文案被强行压缩。错误、截断警告或超长后端消息出现时允许内容区域滚动，禁止覆盖、裁剪或隐藏错误。
-
-## 10. 可访问性
-
-- Time range 使用带可见选中态的按钮组，并提供可访问名称。
-- Time range 复用 shadcn Calendar、Popover、Button；允许增加标准 Calendar 依赖 `react-day-picker`，不手写日历。
-- 顶部 Date Picker 是唯一可见范围说明；底部区域不重复同一全局作用域。
-- Failed / Prepared、Recoverability 和 Retry distribution 都同时提供文本、数量、比例和颜色。
-- Recharts 继续启用 `accessibilityLayer`。
-- 趋势图保留屏幕阅读器数据表。
-- 加载使用 `role="status"`，错误使用 `role="alert"`。
-- 键盘焦点在时间范围、Refresh、导航和仓库链接上清晰可见。
-- DOM 阅读顺序与视觉顺序一致；窄屏不使用仅视觉排序。
-- 颜色对比和一屏截图不能替代键盘、屏幕阅读器与缩放测试。
-
-## 11. 兼容性与安全边界
-
-- `/dashboard`、`/analytics` 兼容跳转保留旧链接，但不保留第二份页面实现。
-- 既有六类队列 URL 和行为不变。
-- 聚合调用继续经过现有认证 Header、QueryGateway、HTTP guard、rewrite 和 Schema 校验。
-- 不增加 tenant/owner 选择器，不扩大现有数据作用域。
-- 不修改后端查询节点上限；当前补偿服务的既有配置继续作为运行边界。
-- 不修改生成客户端，不绕过查询校验，不把路由存在视为授权证明。
-
-## 12. 最小文件边界
-
-实现优先修改既有文件：
-
-| 位置 | 变化 |
-| --- | --- |
-| `src/features/App/App.tsx` | Dashboard 标题、Logo 根路径和通用布局；移除 Dashboard 专用时间控件/context |
-| `src/routes/constants.tsx` | Dashboard 导航名称、顺序和路径 |
-| `src/routes/Routes.tsx` | 根 index Dashboard、Dashboard/Analytics 兼容跳转 |
-| `src/features/Analytics/DashboardView.tsx` | 全局 range、内容工具栏、Top 5 和底部信号条 |
-| `src/features/Analytics/DashboardSkeleton.tsx` | 路由与首次数据加载共用的 shadcn Skeleton 骨架 |
-| `src/features/Analytics/AnalyticsCharts.tsx` | Recoverability 比例条、Retry 条形图和紧凑趋势图 |
-| `src/features/Analytics/analyticsQueries.ts` | 共用时间窗口、Snapshot 时间过滤、压力 limit 5 |
-| `src/features/Analytics/useSnapshotAnalytics.ts` | 接收 range 并按同一窗口执行 Snapshot 聚合 |
-| 对应测试与 `e2e/dashboard.spec.ts` | 更新路由、语义、布局和交互合同 |
-
-可以把页面导出和懒加载文件重命名为 Dashboard，但不整体重命名 Analytics 数据目录，也不新增 dashboard framework、全局 store、client class 或通用 widget 抽象。
-
-## 13. 测试策略
-
-### 13.1 查询与 Hook
-
-- 压力查询 `limit = 5`，状态占比查询只包含返回的 5 个完整身份。
-- Snapshot 摘要、压力、Recoverability 和 Retry 查询都包含同一 `state.executeAt` 窗口。
-- Time range 切换触发最多 7 个 Snapshot 与固定 4 个 EventStream 请求。
-- Refresh 同时触发 Snapshot 与 EventStream。
-- 默认范围为最近 7 个自然日，刷新页面后恢复该默认值。
-- Abort、旧数据和局部错误合同继续通过。
-
-### 13.2 路由与页面
-
-- `/` 直接渲染 Dashboard 且地址不跳转。
-- `/dashboard`、`/analytics` 和未知路由使用 replace 跳转到 `/`。
-- Dashboard 是侧栏第一项和 Logo 目标。
-- 时间控件只在 Dashboard 内容区出现，并作用于全部聚合查询。
-- 页面展示同一 Time range 下的三个摘要指标、Top 5、两个分布和四线趋势。
-- Failed / Prepared 的文本、比例和可访问名称正确。
-- 无数据、加载、刷新、局部失败和截断警告均可达。
-- 路由懒加载和首次全量数据加载显示完整骨架；刷新 last-good 数据时不显示整屏骨架。
-
-### 13.3 浏览器验收
-
-Playwright 使用固定聚合响应验证：
-
-- `1280 × 720` 成功态下文档和 Dashboard 内容无横向、纵向滚动；
-- 所有主要区域都与视口相交并可见；
-- 不存在被遮挡或裁剪的 Compensation outcomes；
-- Apply 新日期范围时同时发送 Snapshot 与 EventStream aggregation；
-- Refresh 同时发送 Snapshot 与 EventStream aggregation；
-- `/dashboard`、`/analytics` 兼容跳转和根 Dashboard 正确；
-- 页面没有未处理控制台错误。
-
-同时保留更窄视口测试，验证内容可通过滚动到达、表格不会撑破整个应用壳。
-
-## 14. 验证命令
-
-```bash
-cd compensation/dashboard
-pnpm test
-pnpm lint
-pnpm build
-pnpm exec playwright test e2e/dashboard.spec.ts
-git diff --check
-```
-
-视觉验收必须在本地运行页面上，以最终视觉稿和 `1280 × 720` 实现截图组成对比输入后检查；不能仅凭测试通过或单张截图宣称视觉完成。
-
-## 15. 完成标准
-
-- Dashboard 直接渲染在根路由，Dashboard/Analytics 旧地址兼容。
-- Time range 位于 Dashboard 内容区并影响全部聚合查询。
-- Snapshot 使用 `state.executeAt`，EventStream 使用 `createTime`，二者共享 start/end。
-- 失败压力 Top 5 是最大、最先读取的内容区域。
-- 压力表按内容自动伸缩，不填满剩余视口。
-- 底部信号区提高信息空间，且骨架屏替代首次加载白屏。
-- 成功态在 `1280 × 720` 一屏完整展示且无滚动条。
-- 真实聚合数据、局部错误、最后成功数据和截断保护保持正确。
-- 不新增后端 API、生成客户端修改、全局状态库或额外图表依赖；只允许已批准的 `react-day-picker`。
-- 单元测试、Lint、Build、Playwright 和视觉对比均通过。
+- Dashboard 阅读顺序为状态、趋势/健康、压力表。
+- 快照与事件流继续共享同一时间窗口。
+- 刷新期间主区域高度不变化，不出现可见 `Refreshing…`。
+- Date Picker 的日历宽度填满弹层且桌面、移动端无溢出。
+- 1280×720 桌面基准无页面级横向溢出，核心区域可见。
+- Vitest、ESLint、TypeScript/Vite build、桌面与移动端 E2E 全部通过。

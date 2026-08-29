@@ -60,4 +60,26 @@ describe("Calendar", () => {
     expect(dayButton).toHaveClass(defaultClassNames.day_button);
     expect(dayButton).not.toHaveClass(defaultClassNames.day);
   });
+
+  it("uses a visible semantic fill across selected ranges", () => {
+    render(
+      <Calendar
+        mode="range"
+        locale={enUS}
+        defaultMonth={new Date(2026, 7, 1)}
+        selected={{
+          from: new Date(2026, 7, 23),
+          to: new Date(2026, 7, 29),
+        }}
+      />,
+    );
+
+    const rangeMiddle = screen.getByRole("button", {
+      name: /August 24.*selected/,
+    });
+    expect(rangeMiddle).toHaveAttribute("data-range-middle", "true");
+    expect(rangeMiddle).toHaveClass(
+      "data-[range-middle=true]:bg-primary/10",
+    );
+  });
 });
