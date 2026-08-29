@@ -66,6 +66,8 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
+import reactor.core.scheduler.Schedulers
 import reactor.kotlin.core.publisher.toFlux
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
@@ -75,6 +77,7 @@ import java.time.Instant
 import java.time.ZoneOffset
 import java.util.Date
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
     @JvmField
@@ -103,6 +106,76 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
     override fun createSnapshotStore(): SnapshotStore {
         return NativeDateSnapshotStore(database)
     }
+
+    @Test
+    fun `retry should create a clean snapshot object node after a discarded mutation`() {
+        val attempts = AtomicInteger()
+        val seen = mutableListOf<ObjectNode>()
+
+        snapshotQueryBackend.list(snapshotOwnershipQuery())
+            .next()
+            .doOnNext { node ->
+                seen += node
+                if (attempts.getAndIncrement() == 0) {
+                    node.put("mutated", true)
+                    error("retry-once")
+                }
+            }.retry(1)
+            .test()
+            .assertNext { retried ->
+                seen.assert().hasSize(2)
+                retried.assert().isNotSameAs(seen.first())
+                retried.path("mutated").isMissingNode.assert().isTrue()
+                retried.path("aggregateId").textValue().assert().isEqualTo(snapshot.aggregateId.id)
+                retried.has("_id").assert().isFalse()
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `repeat should create clean snapshot object nodes for every subscription`() {
+        snapshotQueryBackend.list(snapshotOwnershipQuery())
+            .next()
+            .repeat(1)
+            .index()
+            .doOnNext { indexed ->
+                if (indexed.t1 == 0L) {
+                    indexed.t2.put("mutated", true)
+                }
+            }.map { it.t2 }
+            .collectList()
+            .test()
+            .assertNext { nodes ->
+                nodes.assert().hasSize(2)
+                nodes[1].assert().isNotSameAs(nodes[0])
+                nodes[0].path("mutated").booleanValue().assert().isTrue()
+                nodes[1].path("mutated").isMissingNode.assert().isTrue()
+                nodes.map { it.path("aggregateId").textValue() }.assert()
+                    .containsExactly(snapshot.aggregateId.id, snapshot.aggregateId.id)
+                nodes.all { !it.has("_id") }.assert().isTrue()
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `concurrent subscriptions should receive isolated snapshot object nodes`() {
+        val publisher = snapshotQueryBackend.list(snapshotOwnershipQuery()).next()
+
+        Mono.zip(
+            publisher.subscribeOn(Schedulers.parallel()),
+            publisher.subscribeOn(Schedulers.parallel()),
+        ).test()
+            .assertNext { nodes ->
+                nodes.t1.put("mutated", true)
+                nodes.t2.assert().isNotSameAs(nodes.t1)
+                nodes.t2.path("mutated").isMissingNode.assert().isTrue()
+                nodes.t2.path("aggregateId").textValue().assert().isEqualTo(snapshot.aggregateId.id)
+                nodes.t2.has("_id").assert().isFalse()
+            }.verifyComplete()
+    }
+
+    private fun snapshotOwnershipQuery(): ListQuery = ListQuery(
+        filter = filterExpression { id(snapshot.aggregateId.id) },
+        limit = 1,
+    )
 
     @Test
     fun `minimum and maximum should ignore non-numeric BSON values`() {

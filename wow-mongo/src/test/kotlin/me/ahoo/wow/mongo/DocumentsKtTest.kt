@@ -17,6 +17,7 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 import tools.jackson.core.exc.StreamWriteException
+import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 import java.math.BigDecimal
 import java.util.Date
@@ -58,6 +59,7 @@ class DocumentsKtTest {
         val normalizedDocument = Document(
             mapOf(
                 "_id" to ObjectId("64b64c000000000000000001"),
+                "objectId" to ObjectId("64b64c000000000000000002"),
                 "decimal" to Decimal128(BigDecimal("123.45")),
                 "date" to Date(1_700_000_000_000),
                 "uuid" to UUID.fromString("00000000-0000-0000-0000-000000000001"),
@@ -75,13 +77,17 @@ class DocumentsKtTest {
         val node = normalizedDocument.toObjectNode()
 
         node.isObject.assert().isTrue()
-        node.findValues("decimal").single().isPojo.assert().isFalse()
-        node.findValues("value").single().isPojo.assert().isFalse()
+        node.allNodes().none { it.isPojo }.assert().isTrue()
         JsonSerializer.writeValueAsString(node).assert().isEqualTo(
             JsonSerializer.writeValueAsString(
                 JsonSerializer.readTree(JsonSerializer.writeValueAsBytes(normalizedDocument)),
             ),
         )
+    }
+
+    private fun JsonNode.allNodes(): Sequence<JsonNode> = sequence {
+        yield(this@allNodes)
+        this@allNodes.forEach { yieldAll(it.allNodes()) }
     }
 
     @Test
