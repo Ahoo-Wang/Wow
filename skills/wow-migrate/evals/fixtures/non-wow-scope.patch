@@ -9,4 +9,4 @@ new file mode 100644
 --- /dev/null
 +++ b/services/wow-service/build.gradle.kts
 @@ -0,0 +1 @@
-+dependencies { implementation("me.ahoo.wow:wow-spring-boot-starter:8.16.1") }
++dependencies { implementation("me.ahoo.wow:wow-spring-boot-starter:8.16.2") }

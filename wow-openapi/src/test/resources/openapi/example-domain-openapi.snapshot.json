@@ -6506,10 +6506,10 @@
   },
   "info" : {
     "title" : "example-service",
-    "version" : "8.16.1",
+    "version" : "8.16.2",
     "x-wow-context-alias" : "example",
     "x-wow-context-name" : "example-service",
-    "x-wow-version" : "8.16.1"
+    "x-wow-version" : "8.16.2"
   },
   "openapi" : "3.1.0",
   "paths" : {
