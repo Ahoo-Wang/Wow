@@ -15,6 +15,11 @@ package me.ahoo.wow.query.schema
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.mask.FullMaskStrategy
+import me.ahoo.wow.api.query.mask.KeepMask
+import me.ahoo.wow.api.query.mask.KeepMaskStrategy
+import me.ahoo.wow.api.query.mask.Mask
+import me.ahoo.wow.api.query.mask.CompiledMask
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QuerySemanticType
@@ -23,6 +28,7 @@ import me.ahoo.wow.api.query.schema.Temporal
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.TimeUnit
+import kotlin.reflect.jvm.javaField
 
 class QuerySchemaMergerTest {
     private val merger = QuerySchemaMerger()
@@ -172,6 +178,62 @@ class QuerySchemaMergerTest {
         }
     }
 
+    @Test
+    fun `mask rules should merge only when equal`() {
+        val rule = fullMaskRule()
+        val masked = declaration("state.secret", setOf(QueryValueType.STRING), maskRule = rule)
+        val sameRule = MaskRule(rule.strategyType, rule.annotation, CompiledMask { "different" })
+
+        sameRule.assert().isEqualTo(rule)
+
+        merger.merge(
+            system(),
+            listOf(
+                PrioritizedQuerySchemaDeclaration(100, declaration("state.secret")),
+                PrioritizedQuerySchemaDeclaration(100, masked),
+            ),
+        ).fields.getValue(LogicalField("state.secret")).maskRule.assert().isEqualTo(rule)
+
+        merger.merge(
+            system(),
+            listOf(
+                PrioritizedQuerySchemaDeclaration(100, masked),
+                PrioritizedQuerySchemaDeclaration(
+                    100,
+                    declaration("state.secret", setOf(QueryValueType.STRING), maskRule = sameRule),
+                ),
+            ),
+        ).fields.getValue(LogicalField("state.secret")).maskRule.assert().isEqualTo(rule)
+
+        assertThrows<QuerySchemaConflictException> {
+            merger.merge(
+                system(),
+                listOf(
+                    PrioritizedQuerySchemaDeclaration(100, masked),
+                    PrioritizedQuerySchemaDeclaration(200, declaration("state.secret", maskRule = keepMaskRule())),
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun `materialized masked fields should remain string typed`() {
+        val masked = declaration("state.secret", setOf(QueryValueType.STRING), maskRule = fullMaskRule())
+
+        assertThrows<QuerySchemaConflictException> {
+            merger.merge(
+                system(),
+                listOf(
+                    PrioritizedQuerySchemaDeclaration(100, masked),
+                    PrioritizedQuerySchemaDeclaration(
+                        200,
+                        declaration("state.secret", setOf(QueryValueType.INTEGER)),
+                    ),
+                ),
+            )
+        }
+    }
+
     private fun system(): QuerySchemaDeclaration =
         SystemQuerySchemaSource.declaration(QueryModel.SNAPSHOT)
 
@@ -179,18 +241,35 @@ class QuerySchemaMergerTest {
         field: String,
         valueTypes: Set<QueryValueType>? = null,
         semanticType: QuerySemanticType? = null,
+        maskRule: MaskRule? = null,
     ): QuerySchemaDeclaration =
         QuerySchemaDeclaration(
             mapOf(
                 LogicalField(field) to QueryFieldDeclaration(
                     valueTypes = valueTypes?.let { DeclarationValue.Set(it) } ?: DeclarationValue.Unset,
                     semanticType = semanticType?.let { DeclarationValue.Set(it) } ?: DeclarationValue.Unset,
+                    maskRule = maskRule?.let { DeclarationValue.Set(it) } ?: DeclarationValue.Unset,
                 ),
             ),
         )
+
+    private fun fullMaskRule(): MaskRule {
+        val annotation = Masked::secret.javaField!!.getAnnotation(Mask::class.java)
+        return MaskRule(FullMaskStrategy::class, annotation, FullMaskStrategy.compile(annotation))
+    }
+
+    private fun keepMaskRule(): MaskRule {
+        val annotation = Masked::keep.javaField!!.getAnnotation(KeepMask::class.java)
+        return MaskRule(KeepMaskStrategy::class, annotation, KeepMaskStrategy.compile(annotation))
+    }
 
     private fun title(value: String): QuerySchemaDeclaration =
         QuerySchemaDeclaration(
             mapOf(LogicalField("state.name") to QueryFieldDeclaration(title = DeclarationValue.Set(value))),
         )
+
+    private data class Masked(
+        @field:Mask val secret: String,
+        @field:KeepMask val keep: String,
+    )
 }

@@ -106,12 +106,17 @@ internal class QuerySchemaMerger {
         title = title.valueOr(null),
         description = description.valueOr(null),
         enumValues = enumValues.valueOr(null),
-        valueTypes = valueTypes.valueOr(emptySet()),
+        valueTypes = valueTypes.valueOr(emptySet()).also { valueTypes ->
+            if (maskRule is DeclarationValue.Set && valueTypes != setOf(me.ahoo.wow.api.query.schema.QueryValueType.STRING)) {
+                throw QuerySchemaConflictException("Masked query schema field must have STRING value type.")
+            }
+        },
         nullable = nullable.valueOr(true),
         required = required.valueOr(false),
         cardinality = cardinality.valueOr(QueryCardinality.SINGLE),
         semanticType = semanticType.valueOr(null),
         dynamicChildren = dynamicChildren.valueOr(false),
+        maskRule = (maskRule as? DeclarationValue.Set)?.value,
     )
 
     private fun <T> DeclarationValue<T>.valueOr(default: T): T =

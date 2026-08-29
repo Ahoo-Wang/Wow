@@ -15,6 +15,8 @@ package me.ahoo.wow.query.schema
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.mask.FullMaskStrategy
+import me.ahoo.wow.api.query.mask.Mask
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
@@ -24,9 +26,13 @@ import me.ahoo.wow.tck.mock.MockCommandAggregate
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.node.JsonNodeFactory
+import tools.jackson.module.kotlin.jsonMapper
 import java.util.concurrent.TimeUnit
+import kotlin.reflect.jvm.javaField
 
 class QueryModelSchemaTest {
+    private val jsonMapper = jsonMapper()
+
     @Test
     fun `exact field should win over a dynamic ancestor`() {
         val exact = fieldSchema(
@@ -139,6 +145,25 @@ class QueryModelSchemaTest {
     }
 
     @Test
+    fun `metadata should expose masked without executable mask details`() {
+        val schema = QueryModelSchema(
+            QueryModel.SNAPSHOT,
+            emptySet(),
+            mapOf(LogicalField("state.secret") to fieldSchema(maskRule = fullMaskRule())),
+        )
+
+        val metadata = schema.toMetadata()
+        val json = jsonMapper.writeValueAsString(metadata)
+        val directJson = jsonMapper.writeValueAsString(schema)
+
+        metadata.fields.single().masked.assert().isTrue()
+        json.contains("FullMaskStrategy").assert().isFalse()
+        json.contains("maskRule").assert().isFalse()
+        json.contains("annotation").assert().isFalse()
+        directJson.contains("maskRule").assert().isFalse()
+    }
+
+    @Test
     fun `storage type should reject unsafe identifiers`() {
         assertThrows<IllegalArgumentException> { QueryStorageType("keyword.raw") }
         QueryStorageType("keyword-raw").value.assert().isEqualTo("keyword-raw")
@@ -235,6 +260,7 @@ class QueryModelSchemaTest {
         dynamicChildren: Boolean = false,
         bindings: Map<QueryCapability, QueryFieldBinding> = emptyMap(),
         projectionPath: String? = null,
+        maskRule: MaskRule? = null,
     ): QueryFieldSchema = QueryFieldSchema(
         title = title,
         description = null,
@@ -245,7 +271,15 @@ class QueryModelSchemaTest {
         cardinality = QueryCardinality.SINGLE,
         semanticType = null,
         dynamicChildren = dynamicChildren,
+        maskRule = maskRule,
         bindings = bindings,
         projectionPath = projectionPath,
     )
+
+    private fun fullMaskRule(): MaskRule {
+        val annotation = Masked::secret.javaField!!.getAnnotation(Mask::class.java)
+        return MaskRule(FullMaskStrategy::class, annotation, FullMaskStrategy.compile(annotation))
+    }
+
+    private data class Masked(@field:Mask val secret: String)
 }

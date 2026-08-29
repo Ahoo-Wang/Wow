@@ -245,6 +245,7 @@ class MongoQuerySchemaAdapter(
             dynamicChildren = dynamicChildren && bindings.keys.any { it != QueryCapability.ELEMENT_SCOPE },
             bindings = bindings,
             projectionPath = projectionPath,
+            maskRule = maskRule,
         )
 
         private fun List<Document>.hasTextIndex(): Boolean = any { index ->
