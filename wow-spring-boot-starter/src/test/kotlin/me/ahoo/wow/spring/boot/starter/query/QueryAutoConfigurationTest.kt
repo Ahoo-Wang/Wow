@@ -23,12 +23,19 @@ import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedQuery
+import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.exception.WowException
+import me.ahoo.wow.filter.FilterChain
+import me.ahoo.wow.messaging.handler.RetryableFilter
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.event.EventStreamQueryGateway
+import me.ahoo.wow.query.event.NoOpEventStreamQueryBackendFactory
+import me.ahoo.wow.query.event.filter.EventStreamQueryFilter
 import me.ahoo.wow.query.event.filter.MaskingEventStreamQueryFilter
+import me.ahoo.wow.query.filter.QueryContext
+import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.mask.EventStreamObjectNodeMasker
 import me.ahoo.wow.query.mask.EventStreamObjectNodeMaskerRegistry
 import me.ahoo.wow.query.mask.StateObjectNodeMasker
@@ -39,6 +46,7 @@ import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.filter.AbacQueryFilter
 import me.ahoo.wow.query.snapshot.filter.MaskingSnapshotQueryFilter
+import me.ahoo.wow.query.snapshot.filter.SnapshotQueryFilter
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
@@ -50,9 +58,39 @@ import reactor.kotlin.test.test
 import reactor.util.context.ContextView
 import tools.jackson.databind.node.JsonNodeFactory
 import tools.jackson.databind.node.ObjectNode
+import java.util.concurrent.atomic.AtomicInteger
 
 class QueryAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
+
+    @Test
+    fun `query registrars exclude retryable event filter and retain query filters`() {
+        val genericCalls = AtomicInteger()
+        val snapshotCalls = AtomicInteger()
+        val eventCalls = AtomicInteger()
+
+        contextRunner.enableWow()
+            .withUserConfiguration(QueryAutoConfiguration::class.java)
+            .withBean(RecordingSnapshotQueryBackendFactory::class.java, { RecordingSnapshotQueryBackendFactory() })
+            .withBean(EventStreamQueryBackendFactory::class.java, { NoOpEventStreamQueryBackendFactory })
+            .withBean(RetryableFilter::class.java, { RetryableFilter<DomainEventExchange<Any>>() })
+            .withBean(RecordingQueryFilter::class.java, { RecordingQueryFilter(genericCalls) })
+            .withBean(RecordingSnapshotQueryFilter::class.java, { RecordingSnapshotQueryFilter(snapshotCalls) })
+            .withBean(RecordingEventStreamQueryFilter::class.java, { RecordingEventStreamQueryFilter(eventCalls) })
+            .run { context: AssertableApplicationContext ->
+                @Suppress("UNCHECKED_CAST")
+                val snapshot = context.getBean(SNAPSHOT_GATEWAY_BEAN_NAME) as SnapshotQueryGateway<Any>
+                val event = context.getBean(EVENT_STREAM_GATEWAY_BEAN_NAME) as EventStreamQueryGateway
+
+                snapshot.dynamicSingle(singleQuery { }).test().expectNextCount(1).verifyComplete()
+                event.dynamicSingle(singleQuery { }).test().verifyComplete()
+
+                context.assert().hasSingleBean(RetryableFilter::class.java)
+                genericCalls.get().assert().isEqualTo(2)
+                snapshotCalls.get().assert().isOne()
+                eventCalls.get().assert().isOne()
+            }
+    }
 
     @Test
     fun `should register aggregate gateways and only shared query infrastructure`() {
@@ -176,6 +214,33 @@ class QueryAutoConfigurationTest {
             contextView: ContextView,
             context: me.ahoo.wow.query.filter.QueryContext<*, *>
         ): Mono<AbacTags> = mapOf("role" to listOf("*")).toMono()
+    }
+
+    internal class RecordingQueryFilter(
+        private val calls: AtomicInteger,
+    ) : QueryFilter<QueryContext<*, *>> {
+        override fun filter(context: QueryContext<*, *>, next: FilterChain<QueryContext<*, *>>): Mono<Void> {
+            calls.incrementAndGet()
+            return next.filter(context)
+        }
+    }
+
+    internal class RecordingSnapshotQueryFilter(
+        private val calls: AtomicInteger,
+    ) : SnapshotQueryFilter {
+        override fun filter(context: QueryContext<*, *>, next: FilterChain<QueryContext<*, *>>): Mono<Void> {
+            calls.incrementAndGet()
+            return next.filter(context)
+        }
+    }
+
+    internal class RecordingEventStreamQueryFilter(
+        private val calls: AtomicInteger,
+    ) : EventStreamQueryFilter {
+        override fun filter(context: QueryContext<*, *>, next: FilterChain<QueryContext<*, *>>): Mono<Void> {
+            calls.incrementAndGet()
+            return next.filter(context)
+        }
     }
 
     private companion object {

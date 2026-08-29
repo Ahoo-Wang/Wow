@@ -9,6 +9,14 @@ description: Learn how ObjectNode query backends, aggregate Gateways, Factory ro
 
 `QueryBackend` is the aggregate-bound low-level contract. Single, list, paged, and aggregate use `tools.jackson.databind.node.ObjectNode`; count returns `Long`. `SnapshotQueryBackend` and `EventStreamQueryBackend` distinguish the data model and Schema Provider capability. Typed materialization belongs to the Gateway, not the Backend.
 
+## Node ownership and masking constraints
+
+Every subscription to a Backend publisher must create mutable `ObjectNode` instances owned exclusively by that subscription. Subscriptions created by `retry`, `repeat`, and concurrent callers each receive fresh nodes. A Backend must not cache or share nodes across subscriptions, publish cached nodes, or continue mutating a node asynchronously after emission.
+
+Only standard JSON trees may cross the Backend boundary. MongoDB `Document`, Elasticsearch source `Map`, BSON values, `POJONode`, and arbitrary POJOs must be normalized or rejected inside the Backend instead of leaking into the Gateway.
+
+An `ObjectNodeMasker` may mutate the current subscription's owned node in place or return a replacement. It must not cache, share across subscriptions, publish asynchronously, or continue mutation after returning. Its output must remain a standard JSON tree and preserve the required Snapshot/EventStream envelope fields and field types needed for typed materialization. On violation, a dynamic query exposes the actual masked result while a typed query fails closed during materialization; the Gateway neither restores fields nor bypasses masking.
+
 ```mermaid
 flowchart TB
     Route["Routing BackendFactory"] -->|"NamedAggregate, once at assembly"| Backend["Bound ObjectNode Backend"]

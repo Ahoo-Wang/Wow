@@ -16,7 +16,6 @@ package me.ahoo.wow.spring.query
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.filter.ErrorHandler
-import me.ahoo.wow.filter.Filter
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
@@ -57,7 +56,7 @@ class SnapshotQueryGatewayRegistrar : QueryGatewayRegistrar() {
             val backend = appContext.getBean(SnapshotQueryBackendFactory::class.java).create<Any>(namedAggregate)
 
             @Suppress("UNCHECKED_CAST")
-            val filters = appContext.getBeanProvider(Filter::class.java).toList()
+            val filters = appContext.getBeanProvider(QueryFilter::class.java).toList()
                 as List<QueryFilter<QueryContext<*, *>>>
 
             @Suppress("UNCHECKED_CAST")

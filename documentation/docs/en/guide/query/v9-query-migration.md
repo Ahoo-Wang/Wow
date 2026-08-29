@@ -17,8 +17,30 @@ HTTP paths and request/response JSON, generated OpenAPI, wire formats, storage l
 | --- | --- |
 | `SnapshotQueryService<S>` | `SnapshotQueryGateway<S>` |
 | `EventStreamQueryService` | `EventStreamQueryGateway` |
+| `QueryServiceCacheSource` | `QueryGatewayCacheSource` |
 | `SnapshotQueryServiceFactory` | `SnapshotQueryBackendFactory` |
 | `EventStreamQueryServiceFactory` | `EventStreamQueryBackendFactory` |
+| `AbstractSnapshotQueryServiceFactory` | `AbstractSnapshotQueryBackendFactory` |
+| `AbstractEventStreamQueryServiceFactory` | `AbstractEventStreamQueryBackendFactory` |
+| `RoutingSnapshotQueryServiceFactory` | `RoutingSnapshotQueryBackendFactory` |
+| `RoutingEventStreamQueryServiceFactory` | `RoutingEventStreamQueryBackendFactory` |
+| `AbstractMongoQueryService` | `AbstractMongoQueryBackend` |
+| `MongoSnapshotQueryService` | `MongoSnapshotQueryBackend` |
+| `MongoEventStreamQueryService` | `MongoEventStreamQueryBackend` |
+| `MongoSnapshotQueryServiceFactory` | `MongoSnapshotQueryBackendFactory` |
+| `MongoEventStreamQueryServiceFactory` | `MongoEventStreamQueryBackendFactory` |
+| `AbstractElasticsearchQueryService` | `AbstractElasticsearchQueryBackend` |
+| `ElasticsearchSnapshotQueryService` | `ElasticsearchSnapshotQueryBackend` |
+| `ElasticsearchEventStreamQueryService` | `ElasticsearchEventStreamQueryBackend` |
+| `ElasticsearchSnapshotQueryServiceFactory` | `ElasticsearchSnapshotQueryBackendFactory` |
+| `ElasticsearchEventStreamQueryServiceFactory` | `ElasticsearchEventStreamQueryBackendFactory` |
+| `SnapshotQueryServiceFactoryBinding` | `SnapshotQueryBackendFactoryBinding` |
+| `EventStreamQueryServiceFactoryBinding` | `EventStreamQueryBackendFactoryBinding` |
+| `UnavailableQueryService` | `UnavailableQueryBackend` |
+| `QueryServiceRegistrar` | `QueryGatewayRegistrar` |
+| `SnapshotQueryServiceRegistrar` | `SnapshotQueryGatewayRegistrar` |
+| `EventStreamQueryServiceRegistrar` | `EventStreamQueryGatewayRegistrar` |
+| `QueryServiceProxy` / `SnapshotQueryServiceProxy` / `EventStreamQueryServiceProxy` | Removed; inject the aggregate-bound Gateway directly |
 | `DynamicDocument` / `SimpleDynamicDocument` | `tools.jackson.databind.node.ObjectNode` |
 | `DynamicDocumentMasker` | `ObjectNodeMasker` |
 | `QueryType.DYNAMIC_SINGLE` | `QueryType.SINGLE` |
@@ -46,6 +68,14 @@ Application code injects an aggregate Gateway so request filters, ABAC, Backend 
 
 Schema handlers also use the routed Backend Factory, so Schema and queries select the same Backend for a `NamedAggregate`. A generic `QueryFilter` has no `@FilterType`; only a model-specific filter targets its Gateway type.
 
+## ObjectNode ownership and masking
+
+Every subscription to a publisher returned by a custom Backend must create mutable `ObjectNode` values owned exclusively by that subscription. Subscriptions created by `retry`, `repeat`, and concurrent callers must also receive fresh nodes. Do not cache or share nodes across subscriptions, publish cached nodes, or continue mutating a node asynchronously after emission.
+
+Only standard JSON trees may cross the Backend boundary. Storage-driver `Map`/`Document` values, BSON values, `POJONode`, and arbitrary POJOs must be normalized or rejected inside the Backend.
+
+An `ObjectNodeMasker` may mutate its input in place or return a replacement, but it must not cache, share across subscriptions, publish asynchronously, or continue mutation after returning. Its output must preserve required Snapshot/EventStream envelope fields and field types needed for typed materialization. Violations make typed queries fail closed; the Gateway neither restores fields nor bypasses masking.
+
 ## Transport and Error Semantics
 
 JSON-array and SSE streaming behavior is unchanged. If a stream fails after emitting some elements, those elements are not rolled back. SSE attempts to emit an `ErrorInfo` error event. A `RequestExceptionHandler` failure or a failure while generating, rendering, or serializing that error event is attached to the original as a suppressed error only when distinct and not already recorded. The original terminal error is always propagated; migration must not rewrite that partial failure as an empty result or successful completion.
@@ -53,6 +83,6 @@ JSON-array and SSE streaming behavior is unchanged. If a stream fails after emit
 ## Minimal Migration Steps
 
 1. Replace imports, constructor parameters, Bean qualifiers, and Factory implementations according to the tables.
-2. Make custom Backends return `ObjectNode`, leaving typed conversion to the Gateway.
+2. Make every custom Backend subscription return fresh, exclusively owned `ObjectNode` values containing only standard JSON-tree data, leaving typed conversion to the Gateway.
 3. Move result masking to `ObjectNodeMasker` and verify generic versus model-specific filter selection.
 4. Recompile, start the Spring context, and separately verify JVM, HTTP/OpenAPI, Schema, and actual storage routing.

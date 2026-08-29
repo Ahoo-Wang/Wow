@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot.starter.webflux
 
+import io.mockk.clearMocks
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -121,6 +122,7 @@ import org.springframework.mock.web.server.MockServerWebExchange
 import org.springframework.test.web.reactive.server.HttpHandlerConnector
 import org.springframework.test.web.reactive.server.WebTestClient
 import org.springframework.web.reactive.function.server.HandlerFunction
+import org.springframework.web.reactive.function.server.HandlerStrategies
 import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.RouterFunctions
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -171,16 +173,35 @@ internal class WebFluxAutoConfigurationTest {
         ).httpFactories.single { it.handlerKey == BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY }
         val orderHandler = factory.create(queryContract("order", Order::class.java.aggregateRouteMetadata()))
         val cartHandler = factory.create(queryContract("cart", Cart::class.java.aggregateRouteMetadata()))
+        verify(exactly = 1) {
+            beanFactory.getBean("example.order.SnapshotQueryGateway", SnapshotQueryGateway::class.java)
+            beanFactory.getBean("example.cart.SnapshotQueryGateway", SnapshotQueryGateway::class.java)
+        }
+        clearMocks(beanFactory, answers = false)
+
         fun request() = MockServerRequest.builder()
             .pathVariable(MessageRecords.ID, generateGlobalId())
             .pathVariable(MessageRecords.OWNER_ID, generateGlobalId())
             .body(ListQuery(MatchAllFilter, limit = 1).toMono())
+        val responseContext = object : ServerResponse.Context {
+            private val strategies = HandlerStrategies.withDefaults()
+            override fun messageWriters() = strategies.messageWriters()
+            override fun viewResolvers() = strategies.viewResolvers()
+        }
+        fun invoke(handler: HandlerFunction<ServerResponse>) {
+            val response = handler.handle(request()).block()!!
+            val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/test").build())
+            response.writeTo(exchange, responseContext).block()
+            exchange.response.bodyAsString.block()!!.assert().isEqualTo("[]")
+        }
 
-        orderHandler.handle(request()).block()
-        orderHandler.handle(request()).block()
-        cartHandler.handle(request()).block()
+        invoke(orderHandler)
+        invoke(orderHandler)
+        invoke(cartHandler)
 
-        verify(exactly = 1) {
+        verify(exactly = 2) { orderGateway.dynamicList(any()) }
+        verify(exactly = 1) { cartGateway.dynamicList(any()) }
+        verify(exactly = 0) {
             beanFactory.getBean("example.order.SnapshotQueryGateway", SnapshotQueryGateway::class.java)
             beanFactory.getBean("example.cart.SnapshotQueryGateway", SnapshotQueryGateway::class.java)
         }

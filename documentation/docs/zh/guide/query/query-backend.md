@@ -9,6 +9,14 @@ description: 了解 ObjectNode 查询后端、聚合级 Gateway、Factory 路由
 
 `QueryBackend` 是聚合绑定的低层合同：single、list、paged 与 aggregate 使用 `tools.jackson.databind.node.ObjectNode`，count 返回 `Long`。`SnapshotQueryBackend` 和 `EventStreamQueryBackend` 只区分数据模型与 Schema Provider 能力；typed 物化属于 Gateway，不属于 Backend。
 
+## 节点所有权与掩码约束
+
+Backend 返回的 Publisher 每次订阅都必须创建由该订阅独占的可变 `ObjectNode`；`retry`、`repeat` 和并发订阅也分别拥有新节点。Backend 不得跨订阅缓存或共享节点，不得发布缓存节点，也不得在节点发出后异步继续修改。
+
+Backend 边界只允许标准 JSON tree。MongoDB `Document`、Elasticsearch source `Map`、BSON 值、`POJONode` 和任意 POJO 必须在 Backend 内规范化或被拒绝，不能泄漏到 Gateway。
+
+`ObjectNodeMasker` 可以原位修改当前订阅独占的节点，也可以返回替代节点，但不得缓存、跨订阅共享、异步发布或在调用返回后继续修改。输出必须仍是标准 JSON tree，并保留 Snapshot/EventStream 必需信封字段及 typed 目标可物化的字段类型。违反约束时 dynamic 查询暴露实际掩码结果，typed 查询在物化处 fail-closed；Gateway 不恢复字段，也不绕过掩码。
+
 ```mermaid
 flowchart TB
     Route["Routing BackendFactory"] -->|"NamedAggregate，装配一次"| Backend["绑定的 ObjectNode Backend"]

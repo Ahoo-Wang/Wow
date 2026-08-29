@@ -16,6 +16,15 @@ package me.ahoo.wow.query.mask
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
 import tools.jackson.databind.node.ObjectNode
 
+/**
+ * Masks an [ObjectNode] owned exclusively by the current query subscription.
+ *
+ * A masker may mutate and return the input node or return a replacement node. It must not cache or share the node
+ * across subscriptions, publish it asynchronously, or mutate it after this call returns. The returned node must remain
+ * a standard JSON tree and preserve the required Snapshot/EventStream envelope fields and JSON field types needed for
+ * typed materialization. A violation makes the typed query fail closed; the Gateway does not restore fields or bypass
+ * masking.
+ */
 fun interface ObjectNodeMasker {
     fun mask(node: ObjectNode): ObjectNode
 }

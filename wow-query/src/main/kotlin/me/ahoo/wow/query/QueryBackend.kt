@@ -24,6 +24,16 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import tools.jackson.databind.node.ObjectNode
 
+/**
+ * Aggregate-bound SPI for raw query results.
+ *
+ * Every subscription to a returned publisher, including subscriptions created by `retry`, `repeat`, or concurrent
+ * callers, must own fresh mutable [ObjectNode] instances. Implementations must not cache or share nodes across
+ * subscriptions, publish cached nodes, mutate emitted nodes asynchronously, or mutate them after delivery.
+ *
+ * Results must contain only standard JSON-tree values. Storage-driver `Map`/`Document` values, BSON values,
+ * `POJONode`, and arbitrary POJOs must be normalized inside the Backend or rejected before crossing this boundary.
+ */
 interface QueryBackend : NamedAggregateDecorator {
     fun single(query: ISingleQuery): Mono<ObjectNode>
     fun list(query: IListQuery): Flux<ObjectNode>

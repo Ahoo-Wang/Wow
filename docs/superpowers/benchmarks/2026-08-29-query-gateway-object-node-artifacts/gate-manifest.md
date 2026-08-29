@@ -7,7 +7,7 @@
 - V9 production commit: `6b67462c8645fe135f34c882f90dc442e2dd84c9`.
 - Benchmark/result commit under test: `6d6a4f575500dae6ccca0cd6843013b0a862eba0`.
 - Artifact packaging commit: the commit containing this manifest; resolve with `git log -1 --format=%H -- docs/superpowers/benchmarks/2026-08-29-query-gateway-object-node-artifacts/gate-manifest.md`.
-- Overall Task 12 status: `BLOCKED` only because all 16 Mongo combinations are `MISSING EVIDENCE` under `SERVER-121912`. Elasticsearch evidence and every non-performance gate below passed.
+- Overall Task 12 and merge status: `BLOCKED`. All 16 Mongo combinations are `MISSING EVIDENCE` under `SERVER-121912`; the Elasticsearch adverse signals also have no product budget or production-risk acceptance and require a longer stable rerun. Every non-performance gate below passed.
 
 ## Environment
 

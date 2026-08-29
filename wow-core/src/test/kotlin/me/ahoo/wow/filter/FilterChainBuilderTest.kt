@@ -24,6 +24,12 @@ import reactor.test.StepVerifier
 class FilterChainBuilderTest {
 
     @Test
+    fun `build exposes no-arg and terminal JVM signatures`() {
+        FilterChainBuilder::class.java.getMethod("build")
+        FilterChainBuilder::class.java.getMethod("build", FilterChain::class.java)
+    }
+
+    @Test
     fun `build orders filters and terminates with empty chain`() {
         val chain = FilterChainBuilder<MutableList<String>>()
             .addFilter(LastRecordingFilter())

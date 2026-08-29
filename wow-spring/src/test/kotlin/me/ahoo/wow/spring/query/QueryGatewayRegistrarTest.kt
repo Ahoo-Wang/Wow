@@ -23,7 +23,7 @@ import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.filter.ErrorHandler
-import me.ahoo.wow.filter.Filter
+import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
@@ -31,6 +31,7 @@ import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.query.event.NoOpEventStreamQueryBackend
 import me.ahoo.wow.query.filter.QueryContext
+import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
@@ -173,11 +174,16 @@ class QueryGatewayRegistrarTest {
             Supplier { ErrorHandler<QueryContext<*, *>> { _, error -> Mono.error(error) } },
         )
         registerBean(
-            Filter::class.java,
+            QueryFilter::class.java,
             Supplier {
-                Filter<QueryContext<*, *>> { context, next ->
-                    filterCalls.incrementAndGet()
-                    next.filter(context)
+                object : QueryFilter<QueryContext<*, *>> {
+                    override fun filter(
+                        context: QueryContext<*, *>,
+                        next: FilterChain<QueryContext<*, *>>,
+                    ): Mono<Void> {
+                        filterCalls.incrementAndGet()
+                        return next.filter(context)
+                    }
                 }
             },
         )

@@ -15,7 +15,6 @@ package me.ahoo.wow.spring.query
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.filter.ErrorHandler
-import me.ahoo.wow.filter.Filter
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
@@ -51,7 +50,7 @@ class EventStreamQueryGatewayRegistrar : QueryGatewayRegistrar() {
             val backend = appContext.getBean(EventStreamQueryBackendFactory::class.java).create(namedAggregate)
 
             @Suppress("UNCHECKED_CAST")
-            val filters = appContext.getBeanProvider(Filter::class.java).toList()
+            val filters = appContext.getBeanProvider(QueryFilter::class.java).toList()
                 as List<QueryFilter<QueryContext<*, *>>>
 
             @Suppress("UNCHECKED_CAST")
