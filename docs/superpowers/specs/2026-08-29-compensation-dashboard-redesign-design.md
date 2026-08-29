@@ -35,6 +35,7 @@
 - 同一时间窗口作用于全部 Snapshot 与 EventStream 聚合查询。
 - 以失败压力 Top 5 为页面主体，在 `1280 × 720` 成功态下一屏完整展示。
 - 用紧凑、可读且不依赖颜色的方式展示当前状态、风险构成和历史趋势。
+- 用匹配最终布局的 shadcn Skeleton 骨架替代 Dashboard 首次加载白屏。
 - 复用现有查询、Hook、shadcn/ui、Recharts、路由和错误处理，不新增通用仪表盘框架。
 
 ### 3.2 非目标
@@ -134,6 +135,8 @@ Updated 2026-08-29 10:36:24 | Refresh
 
 压力区域高度由标题、表头和五条真实内容自然撑开；不得用 `minmax(0, 1fr)`、固定 height 或 `calc(100% - …)` 填满页面剩余空间。底部信号条紧随压力表，目标视口通过紧凑行高和间距实现一屏。
 
+底部信号条在桌面端提供约 `13rem` 最小高度，Retry 与趋势图使用约 `9rem` 图表高度和更宽松的内边距；窄屏取消该最小高度并按内容堆叠。增高不能破坏 `1280 × 720` 一屏合同。
+
 ## 7. 组件设计
 
 ### 7.1 当前状态条
@@ -202,6 +205,12 @@ Failed / Prepared 单元格同时展示：
 
 趋势图标题旁显示 `Time range: {range}`。图表压缩为底部次级信号，但保留 Tooltip、Legend 和屏幕阅读器数据表。不得用 Snapshot 总量作为折线数据。
 
+### 7.6 Loading 骨架
+
+Dashboard 路由懒加载和全部数据尚未首次返回时显示同一个 `DashboardSkeleton`。骨架只组合现有 shadcn `Skeleton`，对应摘要、Top 5 五行和底部三个信号区，并通过 `role="status"` 提供可访问加载名称。
+
+刷新和局部加载继续保留最后成功数据或区域级骨架，不重新覆盖为整屏骨架，避免信息闪烁和布局跳动。
+
 ## 8. 数据流与并发
 
 Snapshot 与 EventStream 仍由两个既有 Hook 管理：
@@ -238,6 +247,7 @@ DashboardView range
 ## 10. 可访问性
 
 - Time range 使用带可见选中态的按钮组，并提供可访问名称。
+- Time range 复用已安装的 Base UI `ToggleGroup`/`Toggle` 单选与键盘语义，不新增依赖。
 - Dashboard 内容工具栏和各区域标题使用同一 range 文案，避免作用域歧义。
 - Failed / Prepared、Recoverability 和 Retry distribution 都同时提供文本、数量、比例和颜色。
 - Recharts 继续启用 `accessibilityLayer`。
@@ -266,6 +276,7 @@ DashboardView range
 | `src/routes/constants.tsx` | Dashboard 导航名称、顺序和路径 |
 | `src/routes/Routes.tsx` | 根 index Dashboard、Dashboard/Analytics 兼容跳转 |
 | `src/features/Analytics/DashboardView.tsx` | 全局 range、内容工具栏、Top 5 和底部信号条 |
+| `src/features/Analytics/DashboardSkeleton.tsx` | 路由与首次数据加载共用的 shadcn Skeleton 骨架 |
 | `src/features/Analytics/AnalyticsCharts.tsx` | Recoverability 比例条、Retry 条形图和紧凑趋势图 |
 | `src/features/Analytics/analyticsQueries.ts` | 共用时间窗口、Snapshot 时间过滤、压力 limit 5 |
 | `src/features/Analytics/useSnapshotAnalytics.ts` | 接收 range 并按同一窗口执行 Snapshot 聚合 |
@@ -293,6 +304,7 @@ DashboardView range
 - 页面展示同一 Time range 下的三个摘要指标、Top 5、两个分布和四线趋势。
 - Failed / Prepared 的文本、比例和可访问名称正确。
 - 无数据、加载、刷新、局部失败和截断警告均可达。
+- 路由懒加载和首次全量数据加载显示完整骨架；刷新 last-good 数据时不显示整屏骨架。
 
 ### 13.3 浏览器验收
 
@@ -328,6 +340,7 @@ git diff --check
 - Snapshot 使用 `state.executeAt`，EventStream 使用 `createTime`，二者共享 start/end。
 - 失败压力 Top 5 是最大、最先读取的内容区域。
 - 压力表按内容自动伸缩，不填满剩余视口。
+- 底部信号区提高信息空间，且骨架屏替代首次加载白屏。
 - 成功态在 `1280 × 720` 一屏完整展示且无滚动条。
 - 真实聚合数据、局部错误、最后成功数据和截断保护保持正确。
 - 不新增后端 API、生成客户端修改、全局状态库或图表依赖。
