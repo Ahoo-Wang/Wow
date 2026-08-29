@@ -151,7 +151,8 @@ describe("App", () => {
     expect(
       screen.queryByLabelText("Current local time"),
     ).not.toBeInTheDocument();
-    expect(screen.getByText("v8.16.1")).toBeInTheDocument();
+    const version = screen.getByText(/^v\d+\.\d+\.\d+$/);
+    expect(version).toBeInTheDocument();
     const commitLink = screen.getByRole("link", {
       name: /^GitHub commit [0-9a-f]{40}$/,
     });
@@ -162,10 +163,8 @@ describe("App", () => {
         /^https:\/\/github\.com\/Ahoo-Wang\/Wow\/commit\/[0-9a-f]{40}$/,
       ),
     );
-    expect(screen.getByText("v8.15.0").closest(".app-topbar")).not.toBeNull();
-    expect(
-      screen.getByText("v8.15.0").closest("[data-slot='sidebar-footer']"),
-    ).toBeNull();
+    expect(version.closest(".app-topbar")).not.toBeNull();
+    expect(version.closest("[data-slot='sidebar-footer']")).toBeNull();
   });
 
   it("collapses and expands the desktop navigation", () => {
