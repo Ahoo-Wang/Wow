@@ -132,11 +132,15 @@ class ResponsesKtTest {
                 messageWriters()
             } returns listOf(ServerSentEventHttpMessageWriter())
         }
-        IllegalArgumentException().toFlux<String>()
+        val original = IllegalArgumentException()
+        original.toFlux<String>()
             .toServerResponse(mockRequest, WebFluxRequestExceptionHandler())
             .test()
             .consumeNextWith {
-                it.writeTo(serverWebExchange, responseContext).test().verifyComplete()
+                it.writeTo(serverWebExchange, responseContext)
+                    .test()
+                    .expectErrorSatisfies { error -> error.assert().isSameAs(original) }
+                    .verify()
                 it.statusCode().assert().isEqualTo(HttpStatus.OK)
                 it.headers().contentType.assert().isEqualTo(MediaType.TEXT_EVENT_STREAM)
                 it.headers().getFirst(ERROR_CODE).assert().isEqualTo(ErrorInfo.SUCCEEDED)
@@ -163,14 +167,16 @@ class ResponsesKtTest {
     @Test
     fun `should resume server sent event stream errors`() {
         val mockRequest = MockServerRequest.builder().build()
+        val original = IllegalArgumentException("bad")
 
-        IllegalArgumentException("bad").toFlux<ServerSentEvent<String>>()
+        original.toFlux<ServerSentEvent<String>>()
             .errorResume(mockRequest, WebFluxRequestExceptionHandler())
             .test()
             .consumeNextWith {
                 it.event().assert().isEqualTo(ErrorCodes.ILLEGAL_ARGUMENT)
                 it.data().assert().contains(ErrorCodes.ILLEGAL_ARGUMENT)
             }
-            .verifyComplete()
+            .expectErrorSatisfies { error -> error.assert().isSameAs(original) }
+            .verify()
     }
 }
