@@ -21,21 +21,22 @@ import org.springframework.beans.factory.support.BeanDefinitionRegistry
 import org.springframework.context.annotation.ImportBeanDefinitionRegistrar
 import org.springframework.core.type.AnnotationMetadata
 
-abstract class QueryServiceRegistrar : ImportBeanDefinitionRegistrar, BeanFactoryAware {
+abstract class QueryGatewayRegistrar : ImportBeanDefinitionRegistrar, BeanFactoryAware {
 
     protected lateinit var appContext: BeanFactory
+
     override fun setBeanFactory(beanFactory: BeanFactory) {
-        this.appContext = beanFactory
+        appContext = beanFactory
     }
 
     override fun registerBeanDefinitions(importingClassMetadata: AnnotationMetadata, registry: BeanDefinitionRegistry) {
         MetadataSearcher.namedAggregateType.forEach {
-            registerQueryService(it, registry)
+            registerQueryGateway(it, registry)
         }
     }
 
-    abstract fun registerQueryService(
+    abstract fun registerQueryGateway(
         entry: Map.Entry<MaterializedNamedAggregate, Class<*>>,
-        registry: BeanDefinitionRegistry
+        registry: BeanDefinitionRegistry,
     )
 }
