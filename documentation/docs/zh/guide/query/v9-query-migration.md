@@ -48,7 +48,7 @@ Schema handler 也使用 routed Backend Factory，因此 Schema 与实际查询�
 
 ## 传输与错误语义
 
-JSON 数组与 SSE 的流式行为保持不变。若流在输出部分元素后失败，已输出元素不会回滚；SSE 会尝试发送一个 `ErrorInfo` 错误事件。无论该事件能否生成，原始终止错误都会继续传播，错误处理失败会附加为 suppressed error；迁移不能把这种部分失败改写为空结果或成功完成。
+JSON 数组与 SSE 的流式行为保持不变。若流在输出部分元素后失败，已输出元素不会回滚；SSE 会尝试发送一个 `ErrorInfo` 错误事件。`RequestExceptionHandler` 失败，或该错误事件生成、渲染、序列化失败时，只要失败不同于原始错误且尚未记录，就附加为 suppressed error；原始终止错误始终继续传播，迁移不能把这种部分失败改写为空结果或成功完成。
 
 ## 最小迁移步骤
 

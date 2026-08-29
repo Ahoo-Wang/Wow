@@ -69,4 +69,4 @@ Gateway 在每次订阅时创建独立的 `QueryContext`，因此同一个响应
 
 ## 验证策略边界
 
-Gateway 负责策略链，不替代后端字段能力、Schema 解析或应用业务校验。JSON 数组/SSE 流若已输出部分行后失败，已输出行不会回滚；SSE 会尝试发送一个 `ErrorInfo` 错误事件。无论该事件能否生成，原始终止错误都会继续传播，错误处理失败会附加为 suppressed error；部分失败绝不会成功完成。
+Gateway 负责策略链，不替代后端字段能力、Schema 解析或应用业务校验。JSON 数组/SSE 流若已输出部分行后失败，已输出行不会回滚；SSE 会尝试发送一个 `ErrorInfo` 错误事件。`RequestExceptionHandler` 失败，或该错误事件生成、渲染、序列化失败时，只要失败不同于原始错误且尚未记录，就附加为 suppressed error；原始终止错误始终继续传播，部分失败绝不会成功完成。
