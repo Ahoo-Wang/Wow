@@ -18,6 +18,8 @@ import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.annotation.JsonUnwrapped
 import io.swagger.v3.oas.annotations.media.Schema
+import me.ahoo.wow.api.query.mask.KeepMask
+import me.ahoo.wow.api.query.mask.Mask
 import me.ahoo.wow.api.query.schema.QueryTemporal
 import tools.jackson.core.JsonGenerator
 import tools.jackson.databind.SerializationContext
@@ -303,3 +305,48 @@ internal data class InvalidTemporalState(
     @field:QueryTemporal
     val createdAt: String,
 )
+
+internal data class MaskedStructuralState(
+    @field:Mask val password: String,
+    val contacts: List<MaskedContact>,
+    @get:KeepMask(prefix = 1, suffix = 1) val getterSecret: String,
+    @field:ComposedMask val composedSecret: String,
+)
+
+internal data class MaskedContact(
+    @field:KeepMask(prefix = 3, suffix = 2) val phone: String,
+)
+
+@Target(AnnotationTarget.FIELD, AnnotationTarget.PROPERTY_GETTER)
+@Retention(AnnotationRetention.RUNTIME)
+@Mask
+internal annotation class ComposedMask
+
+internal data class ConflictingMaskAnnotationsState(
+    @field:Mask
+    @get:KeepMask(prefix = 1)
+    val secret: String,
+)
+
+internal data class PartiallyMaskedAlternativeState(
+    @field:Schema(oneOf = [MaskedStringBranch::class, UnmaskedStringBranch::class])
+    val value: RepeatedValue,
+)
+
+internal data class DifferentlyMaskedAlternativeState(
+    @field:Schema(oneOf = [MaskedStringBranch::class, KeptStringBranch::class])
+    val value: RepeatedValue,
+)
+
+internal data class InvalidMaskedAlternativeState(
+    @field:Schema(oneOf = [MaskedStringBranch::class, UnmaskedIntegerBranch::class])
+    val value: RepeatedValue,
+)
+
+internal data class MaskedStringBranch(@field:Mask val shared: String)
+
+internal data class KeptStringBranch(@field:KeepMask(prefix = 1) val shared: String)
+
+internal data class UnmaskedStringBranch(val shared: String)
+
+internal data class UnmaskedIntegerBranch(val shared: Int)

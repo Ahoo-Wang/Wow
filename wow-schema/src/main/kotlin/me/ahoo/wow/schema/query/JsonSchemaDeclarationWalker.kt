@@ -21,6 +21,7 @@ import me.ahoo.wow.api.query.schema.QuerySemanticType
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.query.schema.DeclarationValue
+import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryFieldDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaConflictException
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
@@ -75,6 +76,7 @@ private val COMPOSITIONS by lazy {
 internal class JsonSchemaWalker(
     private val schema: JsonNode,
     private val rootSchema: JsonNode = schema,
+    private val maskRuleResolver: (String) -> MaskRule,
 ) {
     private val fields = linkedMapOf<LogicalField, QueryFieldDeclaration>()
 
@@ -157,6 +159,12 @@ internal class JsonSchemaWalker(
         }
         val shapeNodes = if (arrayShape) nodes + itemNodes else nodes
         val valueTypes = shapeNodes.flatMap { it.nonNullValueTypes() }.toSet()
+        val maskRuleId = shapeNodes.consistentValue(field, "maskRule") {
+            it.textValueOrNull(MASK_RULE_ATTRIBUTE)
+        }
+        if (maskRuleId != null && valueTypes != setOf(QueryValueType.STRING)) {
+            throw QuerySchemaConflictException("Masked query schema field must have STRING value type.")
+        }
         val temporalUnit = (nodes + itemNodes).consistentValue(field, SEMANTIC_TYPE) {
             it.textValueOrNull(TEMPORAL_UNIT)
         }
@@ -189,6 +197,7 @@ internal class JsonSchemaWalker(
             ),
             semanticType = DeclarationValue.Set(semanticType),
             dynamicChildren = DeclarationValue.Set(shapeNodes.any(JsonNode::hasAdditionalProperties)),
+            maskRule = maskRuleId?.let { DeclarationValue.Set(maskRuleResolver(it)) } ?: DeclarationValue.Unset,
         )
     }
 

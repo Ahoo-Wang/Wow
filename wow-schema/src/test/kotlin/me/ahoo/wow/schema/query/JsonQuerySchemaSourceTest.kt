@@ -16,14 +16,22 @@ package me.ahoo.wow.schema.query
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.mask.FullMaskStrategy
+import me.ahoo.wow.api.query.mask.KeepMask
+import me.ahoo.wow.api.query.mask.KeepMaskStrategy
+import me.ahoo.wow.api.query.mask.Mask
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
+import me.ahoo.wow.example.api.cart.CartItemAdded
+import me.ahoo.wow.example.api.cart.CartItemRemoved
+import me.ahoo.wow.example.api.cart.CartQuantityChanged
 import me.ahoo.wow.example.domain.cart.Cart
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.query.schema.DeclarationValue
+import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryFieldDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaConflictException
 import me.ahoo.wow.query.schema.QuerySchemaContext
@@ -40,6 +48,8 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.reflect.jvm.javaField
+import kotlin.reflect.jvm.javaGetter
 
 class JsonQuerySchemaSourceTest {
     private val context = QuerySchemaContext(
@@ -75,6 +85,14 @@ class JsonQuerySchemaSourceTest {
             .isEqualTo(DeclarationValue.Set(setOf(QueryValueType.INTEGER)))
         declaration.field("body.body.added").required.assert()
             .isEqualTo(DeclarationValue.Set(false))
+        checkNotNull((declaration.field("body.bodyType").enumValues as DeclarationValue.Set).value)
+            .map { it.stringValue() }
+            .assert()
+            .containsExactly(
+                CartItemAdded::class.java.name,
+                CartItemRemoved::class.java.name,
+                CartQuantityChanged::class.java.name,
+            )
     }
 
     @Test
@@ -534,10 +552,75 @@ class JsonQuerySchemaSourceTest {
         }
     }
 
+    @Test
+    fun `should compile field getter nested collection and composed mask annotations`() {
+        val declaration = load(MaskedStructuralState::class.java)
+
+        declaration.field("state.password").assertMaskRule(fullMaskRule())
+        declaration.field("state.contacts.phone").assertMaskRule(keepMaskRule())
+        declaration.field("state.getterSecret").assertMaskRule(getterKeepMaskRule())
+        declaration.field("state.composedSecret").assertMaskRule(composedMaskRule())
+    }
+
+    @Test
+    fun `should reject multiple effective mask annotations on one property`() {
+        assertThrownBy<QuerySchemaConflictException> {
+            load(ConflictingMaskAnnotationsState::class.java)
+        }
+    }
+
+    @Test
+    fun `should retain a partial alternative branch mask rule`() {
+        load(PartiallyMaskedAlternativeState::class.java)
+            .field("state.value.shared")
+            .assertMaskRule(fullMaskRule(MaskedStringBranch::class.java))
+    }
+
+    @Test
+    fun `should reject different mask rules across alternative branches`() {
+        assertThrownBy<QuerySchemaConflictException> {
+            load(DifferentlyMaskedAlternativeState::class.java)
+        }
+    }
+
+    @Test
+    fun `should reject masked path with non string alternative`() {
+        assertThrownBy<QuerySchemaConflictException> {
+            load(InvalidMaskedAlternativeState::class.java)
+        }
+    }
+
     private fun load(type: Class<*>): QuerySchemaDeclaration =
         JsonQuerySchemaSource(typeResolver = { type }).load(context).single().block()!!
 
     private fun QuerySchemaDeclaration.field(name: String): QueryFieldDeclaration = fields.getValue(LogicalField(name))
+
+    private fun QueryFieldDeclaration.assertMaskRule(rule: MaskRule) {
+        valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.STRING)))
+        maskRule.assert().isEqualTo(DeclarationValue.Set(rule))
+    }
+
+    private fun fullMaskRule(type: Class<*> = MaskedStructuralState::class.java): MaskRule {
+        val annotation = type.getDeclaredField(
+            if (type == MaskedStructuralState::class.java) "password" else "shared",
+        ).getAnnotation(Mask::class.java)
+        return MaskRule(FullMaskStrategy::class, annotation, FullMaskStrategy.compile(annotation))
+    }
+
+    private fun keepMaskRule(): MaskRule {
+        val annotation = MaskedContact::phone.javaField!!.getAnnotation(KeepMask::class.java)
+        return MaskRule(KeepMaskStrategy::class, annotation, KeepMaskStrategy.compile(annotation))
+    }
+
+    private fun getterKeepMaskRule(): MaskRule {
+        val annotation = MaskedStructuralState::getterSecret.javaGetter!!.getAnnotation(KeepMask::class.java)
+        return MaskRule(KeepMaskStrategy::class, annotation, KeepMaskStrategy.compile(annotation))
+    }
+
+    private fun composedMaskRule(): MaskRule {
+        val annotation = ComposedMask::class.java.getAnnotation(Mask::class.java)
+        return MaskRule(FullMaskStrategy::class, annotation, FullMaskStrategy.compile(annotation))
+    }
 
     private fun declaration(
         title: String? = null,
