@@ -52,6 +52,8 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import tools.jackson.databind.node.JsonNodeFactory
 import tools.jackson.databind.node.ObjectNode
+import java.math.BigDecimal
+import java.math.BigInteger
 import java.time.Duration
 
 class AbstractElasticsearchQueryBackendTest {
@@ -62,11 +64,18 @@ class AbstractElasticsearchQueryBackendTest {
     private val queryBackend = TestElasticsearchQueryBackend(elasticsearchClient, filterConverter)
 
     @Test
-    fun `standard source map should become independent object node`() {
+    fun `nested standard json should become independent object node without losing large numbers`() {
+        val decimal = BigDecimal("1E+10000")
+        val integer = BigInteger("123456789012345678901234567890")
+        val embeddedNode = JsonNodeFactory.instance.objectNode()
+            .set("values", JsonNodeFactory.instance.arrayNode().add("text").add(1))
         val source = mapOf(
             "aggregateId" to "id",
             "state" to mapOf("amount" to 10.5),
             "items" to listOf(mapOf("name" to "item")),
+            "array" to arrayOf<Any>(true, integer),
+            "decimal" to decimal,
+            "node" to embeddedNode,
             "nullable" to null,
         )
 
@@ -76,11 +85,66 @@ class AbstractElasticsearchQueryBackendTest {
         first.assert().isNotSameAs(second)
         first.path("state").path("amount").doubleValue().assert().isEqualTo(10.5)
         first.path("items").path(0).path("name").asString().assert().isEqualTo("item")
+        first.path("array").path(0).booleanValue().assert().isTrue()
+        first.path("array").path(1).bigIntegerValue().assert().isEqualTo(integer)
+        first.path("decimal").decimalValue().compareTo(decimal).assert().isZero()
+        first.path("node").path("values").path(0).asString().assert().isEqualTo("text")
         first.path("nullable").isNull.assert().isTrue()
     }
 
     @Test
-    fun `nested non json source value should fail instead of creating pojo node`() {
+    fun `arbitrary pojo source value should fail`() {
+        assertThrows<IllegalArgumentException> {
+            mapOf("value" to Any()).toObjectNode()
+        }
+    }
+
+    @Test
+    fun `non string source map key should fail`() {
+        assertThrows<IllegalArgumentException> {
+            mapOf<Any, Any>(1 to "value").toObjectNode()
+        }
+    }
+
+    @Test
+    fun `primitive array source value should fail`() {
+        listOf<Any>(byteArrayOf(1, 2), intArrayOf(1, 2)).forEach { value ->
+            assertThrows<IllegalArgumentException> {
+                mapOf("value" to value).toObjectNode()
+            }
+        }
+    }
+
+    @Test
+    fun `non standard json nodes should fail`() {
+        listOf(
+            JsonNodeFactory.instance.pojoNode(Any()),
+            JsonNodeFactory.instance.missingNode(),
+            JsonNodeFactory.instance.binaryNode(byteArrayOf(1)),
+        ).forEach { node ->
+            assertThrows<IllegalArgumentException> {
+                mapOf("nested" to listOf(mapOf("value" to node))).toObjectNode()
+            }
+        }
+    }
+
+    @Test
+    fun `non finite source numbers should fail`() {
+        listOf<Any>(
+            Double.NaN,
+            Double.POSITIVE_INFINITY,
+            Float.NEGATIVE_INFINITY,
+            JsonNodeFactory.instance.numberNode(Double.NaN),
+            JsonNodeFactory.instance.numberNode(Float.POSITIVE_INFINITY),
+        ).forEach { value ->
+            assertThrows<IllegalArgumentException> {
+                mapOf("value" to value).toObjectNode()
+            }
+        }
+    }
+
+    @Test
+    fun `deeply nested pojo node should fail`() {
         assertThrows<IllegalArgumentException> {
             mapOf("nested" to listOf(mapOf("value" to JsonNodeFactory.instance.pojoNode(Any())))).toObjectNode()
         }
