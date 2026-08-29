@@ -34,4 +34,5 @@ data class QueryFieldSchemaMetadata(
     val semanticType: QuerySemanticType?,
     val dynamicChildren: Boolean,
     val capabilities: Set<QueryCapability>,
+    val masked: Boolean = false,
 )
