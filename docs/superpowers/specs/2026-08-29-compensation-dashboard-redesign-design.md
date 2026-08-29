@@ -22,15 +22,17 @@
 
 视觉稿用于确认信息层级和空间关系。实现必须使用真实聚合结果，不复制稿中的静态数据或把视觉稿当成像素图片嵌入页面。
 
+用户在浏览器验收中追加了三项覆盖性批注，优先级高于视觉稿中的对应表达：Dashboard 规范地址是 `/`；时间控件放在 Dashboard 内容区并作用于全部聚合查询；压力表区域高度由内容自动撑开，不占用剩余视口高度。
+
 ## 3. 范围
 
 ### 3.1 目标
 
 - 将页面和导航名称从 `Analytics` 提升为 `Dashboard`。
-- 将 Dashboard 设为应用默认入口和侧栏第一项。
+- 将 Dashboard 设为根路由 `/` 和侧栏第一项。
 - 保留 `/analytics` 旧地址的兼容跳转。
-- 把 `24h / 7d / 30d` 提升到应用顶栏，明确命名为 `Outcomes window`。
-- 时间窗口只影响历史 EventStream 结果，不改变任何当前 Snapshot 指标。
+- 把 `24h / 7d / 30d` 放在 Dashboard 内容区顶部，明确命名为 `Time range`。
+- 同一时间窗口作用于全部 Snapshot 与 EventStream 聚合查询。
 - 以失败压力 Top 5 为页面主体，在 `1280 × 720` 成功态下一屏完整展示。
 - 用紧凑、可读且不依赖颜色的方式展示当前状态、风险构成和历史趋势。
 - 复用现有查询、Hook、shadcn/ui、Recharts、路由和错误处理，不新增通用仪表盘框架。
@@ -57,43 +59,43 @@
 4. **结果方向**：Compensation outcomes；
 5. **处理入口**：保留侧栏六类既有队列，不在表格中伪造尚不存在的筛选深链。
 
-所有区域都必须显示其时间语义：Snapshot 区域标记 `Now`，历史趋势标记当前 `Outcomes window`。
+所有区域共享同一个 `Time range`；不再用 `Now` 暗示 Snapshot 未经过时间过滤。
 
 ### 4.2 路由与导航
 
-- 新的规范路由为 `/dashboard`。
-- `/` 重定向到 `/dashboard`。
-- 未匹配路由重定向到 `/dashboard`。
-- `/analytics` 使用 `replace` 重定向到 `/dashboard`，保留旧书签和已分享链接。
+- 规范路由为根路径 `/`，Dashboard 直接作为 index route 渲染，地址栏保持 `/`。
+- 未匹配路由重定向到 `/`。
+- `/dashboard` 与 `/analytics` 使用 `replace` 重定向到 `/`，保留开发期地址、旧书签和已分享链接。
 - 侧栏顺序为 Dashboard、To Retry、Executing、Next Retry、Non Retryable、Succeeded、Unrecoverable。
-- Logo 链接改为 `/dashboard`。
+- Logo 链接改为 `/`。
 - Dashboard 使用现有图表类 Lucide 图标，应用顶栏标题显示 `Dashboard`。
 
 导航项继续区分无 `FindCategory` 的 Dashboard 和六类队列，不能为了统一数组而把队列 category 改成可空类型。
 
 ## 5. 时间语义与状态归属
 
-### 5.1 Outcomes window
+### 5.1 Time range
 
-顶栏显示：
+Dashboard 内容区顶部显示：
 
-- 标签 `Outcomes window`；
+- 标签 `Time range`；
 - `24h / 7d / 30d` 按钮组，默认 `7d`；
-- 低强调说明 `Applies to outcomes only`。
 
-该控件只改变 `useEventTrend(range, refreshToken)` 的 `range`，不得触发 `useSnapshotAnalytics`。Snapshot 指标始终代表刷新时刻的当前状态。
+该控件同时改变 `useSnapshotAnalytics(range, refreshToken)` 与 `useEventTrend(range, refreshToken)`。两类事实源复用同一组 start/end 边界：
+
+- Snapshot 使用 `state.executeAt >= start && state.executeAt < end`，表示选定窗口内最近执行过且当前仍符合各指标条件的快照；
+- EventStream 使用根 `createTime >= start && createTime < end`，表示选定窗口内发生的结果事件；
+- Snapshot 的 `state.executeAt` 是领域执行时间；不使用可能因任意状态修改而变化的 `snapshotTime`。
 
 ### 5.2 顶栏状态实现
 
-为了让页面级控件真正位于现有 `App` 顶栏，而不增加全局状态库：
+为了让控件作用于整张 Dashboard，又不侵入通用 `App` 布局：
 
-- `App` 在 Dashboard 路由上持有内存态 `outcomesRange`，默认 `7d`；
-- `App` 只在 Dashboard 路由渲染时间窗口控件；
-- 通过 React Router 现有 `Outlet context` 把 `outcomesRange` 和更新函数交给 Dashboard 页面；
+- `DashboardView` 本地持有 `range`，默认 `7d`；
+- 时间控件与统一更新时间、Refresh 同属 Dashboard 内容工具栏；
+- `App` 不感知 Dashboard range，也不提供 Outlet context；
 - 不增加 React Context Provider、状态库或 URL 查询参数；
 - 不写入 localStorage 或 sessionStorage，刷新页面后恢复 `7d`。
-
-在同一应用壳内离开再返回 Dashboard 时允许保留本次会话选择；这不是持久化合同。
 
 ### 5.3 刷新
 
@@ -103,8 +105,8 @@
 Updated 2026-08-29 10:36:24 | Refresh
 ```
 
-- 点击 Refresh 同时刷新 Snapshot 与当前范围的 EventStream；
-- 切换 Outcomes window 只取消并重新加载 EventStream；
+- 点击 Refresh 同时刷新当前范围的 Snapshot 与 EventStream；
+- 切换 Time range 同时取消并重新加载 Snapshot 与 EventStream；
 - 不为各区域增加独立重试按钮；
 - 不自动轮询。
 
@@ -115,7 +117,7 @@ Updated 2026-08-29 10:36:24 | Refresh
 主要桌面验收视口为 `1280 × 720`。在该视口且所有区域成功时：
 
 - 页面和内容容器没有纵向或横向滚动条；
-- Dashboard 标题、时间窗口、三个当前指标、Top 5、两个分布和趋势图全部可见；
+- Dashboard 标题、时间窗口、三个摘要指标、Top 5、两个分布和趋势图全部可见；
 - 正文字号不低于 14px；
 - 长集群身份允许两行，不截断错误码和关键函数名。
 
@@ -123,12 +125,14 @@ Updated 2026-08-29 10:36:24 | Refresh
 
 ### 6.2 布局层级
 
-1. App 顶栏：Dashboard、Outcomes window、构建信息和仓库链接；
-2. 当前状态条：三个指标、`Now`、统一更新时间和 Refresh；
+1. App 顶栏：Dashboard、构建信息和仓库链接；
+2. Dashboard 内容工具栏与摘要条：Time range、三个指标、统一更新时间和 Refresh；
 3. 主体：Current failure pressure Top 5；
 4. 底部信号条：Recoverability、Retry distribution、Compensation outcomes。
 
 布局优先使用间距、对齐、分隔线和排版区分层级。避免三张大 KPI 卡、卡片套卡片和无意义阴影。
+
+压力区域高度由标题、表头和五条真实内容自然撑开；不得用 `minmax(0, 1fr)`、固定 height 或 `calc(100% - …)` 填满页面剩余空间。底部信号条紧随压力表，目标视口通过紧凑行高和间距实现一屏。
 
 ## 7. 组件设计
 
@@ -196,23 +200,22 @@ Failed / Prepared 单元格同时展示：
 | Retried failed | 琥珀色 |
 | Succeeded | 绿色 |
 
-趋势图标题旁显示 `Outcomes window: {range}`。图表压缩为底部次级信号，但保留 Tooltip、Legend 和屏幕阅读器数据表。不得用 Snapshot 总量作为折线数据。
+趋势图标题旁显示 `Time range: {range}`。图表压缩为底部次级信号，但保留 Tooltip、Legend 和屏幕阅读器数据表。不得用 Snapshot 总量作为折线数据。
 
 ## 8. 数据流与并发
 
 Snapshot 与 EventStream 仍由两个既有 Hook 管理：
 
 ```text
-App outcomesRange
+DashboardView range
         |
-        v
-DashboardView ---------> useEventTrend(range, refreshToken)
+        +--------------> useSnapshotAnalytics(range, refreshToken)
         |
-        +--------------> useSnapshotAnalytics(refreshToken)
+        +--------------> useEventTrend(range, refreshToken)
 ```
 
-- 初次进入：并行加载 Snapshot 与默认 7d EventStream；
-- 切换时间窗口：仅 EventStream 重新加载；
+- 初次进入：并行加载默认 7d 的 Snapshot 与 EventStream；
+- 切换时间窗口：Snapshot 与 EventStream 同时重新加载；
 - Refresh：两类事实源共同重新加载；
 - Top 集群查询返回空数组时，不执行状态占比查询；
 - Snapshot 最多 7 个聚合请求的上限保持不变，Top 数量降低不会增加请求数；
@@ -234,8 +237,8 @@ DashboardView ---------> useEventTrend(range, refreshToken)
 
 ## 10. 可访问性
 
-- Outcomes window 使用带可见选中态的按钮组，并提供可访问名称。
-- `Now` 和 `Outcomes window` 文本明确区分 Snapshot 与历史语义。
+- Time range 使用带可见选中态的按钮组，并提供可访问名称。
+- Dashboard 内容工具栏和各区域标题使用同一 range 文案，避免作用域歧义。
 - Failed / Prepared、Recoverability 和 Retry distribution 都同时提供文本、数量、比例和颜色。
 - Recharts 继续启用 `accessibilityLayer`。
 - 趋势图保留屏幕阅读器数据表。
@@ -246,7 +249,7 @@ DashboardView ---------> useEventTrend(range, refreshToken)
 
 ## 11. 兼容性与安全边界
 
-- `/analytics` 兼容跳转保留旧链接，但不保留第二份页面实现。
+- `/dashboard`、`/analytics` 兼容跳转保留旧链接，但不保留第二份页面实现。
 - 既有六类队列 URL 和行为不变。
 - 聚合调用继续经过现有认证 Header、QueryGateway、HTTP guard、rewrite 和 Schema 校验。
 - 不增加 tenant/owner 选择器，不扩大现有数据作用域。
@@ -259,12 +262,13 @@ DashboardView ---------> useEventTrend(range, refreshToken)
 
 | 位置 | 变化 |
 | --- | --- |
-| `src/features/App/App.tsx` | Dashboard 标题、Logo 默认链接、顶栏时间控件和 Outlet context |
+| `src/features/App/App.tsx` | Dashboard 标题、Logo 根路径和通用布局；移除 Dashboard 专用时间控件/context |
 | `src/routes/constants.tsx` | Dashboard 导航名称、顺序和路径 |
-| `src/routes/Routes.tsx` | 默认路由、Dashboard 规范路由、Analytics 兼容跳转 |
-| `src/features/Analytics/AnalyticsView.tsx` | Dashboard 布局、Now 状态、Top 5 和底部信号条 |
+| `src/routes/Routes.tsx` | 根 index Dashboard、Dashboard/Analytics 兼容跳转 |
+| `src/features/Analytics/DashboardView.tsx` | 全局 range、内容工具栏、Top 5 和底部信号条 |
 | `src/features/Analytics/AnalyticsCharts.tsx` | Recoverability 比例条、Retry 条形图和紧凑趋势图 |
-| `src/features/Analytics/analyticsQueries.ts` | 压力查询 limit 从 10 改为 5 |
+| `src/features/Analytics/analyticsQueries.ts` | 共用时间窗口、Snapshot 时间过滤、压力 limit 5 |
+| `src/features/Analytics/useSnapshotAnalytics.ts` | 接收 range 并按同一窗口执行 Snapshot 聚合 |
 | 对应测试与 `e2e/dashboard.spec.ts` | 更新路由、语义、布局和交互合同 |
 
 可以把页面导出和懒加载文件重命名为 Dashboard，但不整体重命名 Analytics 数据目录，也不新增 dashboard framework、全局 store、client class 或通用 widget 抽象。
@@ -274,19 +278,19 @@ DashboardView ---------> useEventTrend(range, refreshToken)
 ### 13.1 查询与 Hook
 
 - 压力查询 `limit = 5`，状态占比查询只包含返回的 5 个完整身份。
-- Snapshot 摘要、Recoverability 和 Retry 查询合同不变。
-- Outcomes window 切换只触发 4 个 EventStream 请求。
+- Snapshot 摘要、压力、Recoverability 和 Retry 查询都包含同一 `state.executeAt` 窗口。
+- Time range 切换触发最多 7 个 Snapshot 与固定 4 个 EventStream 请求。
 - Refresh 同时触发 Snapshot 与 EventStream。
 - 默认范围为 7d，刷新页面后恢复 7d。
 - Abort、旧数据和局部错误合同继续通过。
 
 ### 13.2 路由与页面
 
-- `/`、未知路由跳转到 `/dashboard`。
-- `/analytics` 使用 replace 跳转到 `/dashboard`。
+- `/` 直接渲染 Dashboard 且地址不跳转。
+- `/dashboard`、`/analytics` 和未知路由使用 replace 跳转到 `/`。
 - Dashboard 是侧栏第一项和 Logo 目标。
-- 时间控件只在 Dashboard 顶栏出现，并明确显示作用域。
-- 页面展示三个 Now 指标、Top 5、两个当前分布和四线历史趋势。
+- 时间控件只在 Dashboard 内容区出现，并作用于全部聚合查询。
+- 页面展示同一 Time range 下的三个摘要指标、Top 5、两个分布和四线趋势。
 - Failed / Prepared 的文本、比例和可访问名称正确。
 - 无数据、加载、刷新、局部失败和截断警告均可达。
 
@@ -297,9 +301,9 @@ Playwright 使用固定聚合响应验证：
 - `1280 × 720` 成功态下文档和 Dashboard 内容无横向、纵向滚动；
 - 所有主要区域都与视口相交并可见；
 - 不存在被遮挡或裁剪的 Compensation outcomes；
-- 切换 24h/7d/30d 只发送 EventStream aggregation；
+- 切换 24h/7d/30d 同时发送 Snapshot 与 EventStream aggregation；
 - Refresh 同时发送 Snapshot 与 EventStream aggregation；
-- `/analytics` 兼容跳转和默认 `/dashboard` 正确；
+- `/dashboard`、`/analytics` 兼容跳转和根 Dashboard 正确；
 - 页面没有未处理控制台错误。
 
 同时保留更窄视口测试，验证内容可通过滚动到达、表格不会撑破整个应用壳。
@@ -319,10 +323,11 @@ git diff --check
 
 ## 15. 完成标准
 
-- Dashboard 成为默认入口，Analytics 旧地址兼容。
-- 时间窗口位于顶栏并只影响历史结果。
-- 当前 Snapshot 区域始终明确标记 Now。
+- Dashboard 直接渲染在根路由，Dashboard/Analytics 旧地址兼容。
+- Time range 位于 Dashboard 内容区并影响全部聚合查询。
+- Snapshot 使用 `state.executeAt`，EventStream 使用 `createTime`，二者共享 start/end。
 - 失败压力 Top 5 是最大、最先读取的内容区域。
+- 压力表按内容自动伸缩，不填满剩余视口。
 - 成功态在 `1280 × 720` 一屏完整展示且无滚动条。
 - 真实聚合数据、局部错误、最后成功数据和截断保护保持正确。
 - 不新增后端 API、生成客户端修改、全局状态库或图表依赖。
