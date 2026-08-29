@@ -27,11 +27,19 @@ import {
 import { useMemo, useState, type ComponentType } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router";
 import { ErrorBoundary } from "../../components/ErrorBoundary/ErrorBoundary.tsx";
-import type { NavItem } from "../../routes/constants.tsx";
+import { NavItemPaths, type NavItem } from "../../routes/constants.tsx";
+import type { AnalyticsRange } from "../Analytics/analyticsQueries.ts";
 import { cn } from "@/lib/utils";
 
 interface AppProps {
   navItems: readonly NavItem[];
+}
+
+const outcomesRanges: readonly AnalyticsRange[] = ["24h", "7d", "30d"];
+
+export interface DashboardOutletContext {
+  outcomesRange: AnalyticsRange;
+  setOutcomesRange: (range: AnalyticsRange) => void;
 }
 
 const navIcons: Record<string, ComponentType<{ className?: string }>> = {
@@ -51,7 +59,13 @@ const buildCommitUrl = `https://github.com/Ahoo-Wang/Wow/commit/${buildCommitSha
 
 export default function App({ navItems }: AppProps) {
   const location = useLocation();
+  const [outcomesRange, setOutcomesRange] = useState<AnalyticsRange>("7d");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const isDashboard = location.pathname === NavItemPaths.Dashboard;
+  const outletContext: DashboardOutletContext = {
+    outcomesRange,
+    setOutcomesRange,
+  };
 
   const activeTitle = useMemo(
     () =>
@@ -115,8 +129,30 @@ export default function App({ navItems }: AppProps) {
         </aside>
 
         <main id="main-content" tabIndex={-1} className="app-main">
-          <header className="app-topbar">
+          <header className={cn("app-topbar", isDashboard && "has-dashboard-controls")}>
             <h1>{activeTitle}</h1>
+            {isDashboard ? (
+              <div className="dashboard-outcomes-control">
+                <span className="dashboard-outcomes-label">Outcomes window</span>
+                <div className="dashboard-outcomes-buttons" aria-label="Outcomes window">
+                  {outcomesRanges.map((range) => (
+                    <button
+                      key={range}
+                      type="button"
+                      aria-pressed={outcomesRange === range}
+                      className={cn(
+                        "dashboard-outcomes-button",
+                        outcomesRange === range && "is-active",
+                      )}
+                      onClick={() => setOutcomesRange(range)}
+                    >
+                      {range}
+                    </button>
+                  ))}
+                </div>
+                <span className="dashboard-outcomes-scope">Applies to outcomes only</span>
+              </div>
+            ) : null}
             <div className="app-topbar-actions">
               <div className="app-build-info" aria-label="Build information">
                 <span
@@ -166,7 +202,7 @@ export default function App({ navItems }: AppProps) {
             </div>
           </header>
           <div className="app-content">
-            <Outlet />
+            <Outlet context={outletContext} />
           </div>
         </main>
       </div>

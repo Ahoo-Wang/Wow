@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { RecoverableType } from "@ahoo-wang/fetcher-wow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { TrendPoint } from "./analyticsQueries.ts";
+import type { AnalyticsRange, TrendPoint } from "./analyticsQueries.ts";
 import type {
   AnalyticsSection,
   SnapshotAnalyticsResult,
@@ -10,11 +10,18 @@ import DashboardView from "./DashboardView.tsx";
 
 const mocks = vi.hoisted(() => ({
   eventResult: undefined as unknown as AnalyticsSection<TrendPoint[]>,
+  outcomesRange: "7d" as AnalyticsRange,
   snapshotResult: undefined as unknown as SnapshotAnalyticsResult,
   useEventTrend: vi.fn(),
   useSnapshotAnalytics: vi.fn(),
 }));
 
+vi.mock("react-router", () => ({
+  useOutletContext: () => ({
+    outcomesRange: mocks.outcomesRange,
+    setOutcomesRange: vi.fn(),
+  }),
+}));
 vi.mock("./useSnapshotAnalytics.ts", () => ({
   useSnapshotAnalytics: mocks.useSnapshotAnalytics,
 }));
@@ -58,6 +65,7 @@ vi.mock("./AnalyticsCharts.tsx", () => ({
 }));
 
 beforeEach(() => {
+  mocks.outcomesRange = "7d";
   mocks.snapshotResult = {
     summary: {
       data: { actionableNow: 128, timedOut: 34, unrecoverable: 9 },
@@ -82,19 +90,19 @@ beforeEach(() => {
 });
 
 describe("DashboardView", () => {
-  it("renders current pressure and keeps range scoped to history", () => {
-    render(<DashboardView />);
+  it("uses the App-owned outcomes range without changing Snapshot", () => {
+    const { rerender } = render(<DashboardView />);
 
     expect(screen.getByText("128")).toBeInTheDocument();
     expect(
       screen.getByRole("table", { name: "Current failure pressure" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "7d" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    expect(mocks.useEventTrend).toHaveBeenLastCalledWith("7d", 0);
+    expect(mocks.useSnapshotAnalytics).toHaveBeenLastCalledWith(0);
+    expect(screen.queryByRole("button", { name: "24h" })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "24h" }));
+    mocks.outcomesRange = "24h";
+    rerender(<DashboardView />);
 
     expect(mocks.useEventTrend).toHaveBeenLastCalledWith("24h", 0);
     expect(mocks.useSnapshotAnalytics).toHaveBeenLastCalledWith(0);

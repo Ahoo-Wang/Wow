@@ -5,6 +5,7 @@ import { FindCategory } from "../../Failed/FindCategory.ts";
 import App from "../App.tsx";
 
 const mocks = vi.hoisted(() => ({
+  outletContext: undefined as unknown,
   outletRender: vi.fn(),
   pathname: "/executing",
 }));
@@ -38,7 +39,8 @@ vi.mock("react-router", () => ({
       </a>
     );
   },
-  Outlet: () => {
+  Outlet: ({ context }: { context?: unknown }) => {
+    mocks.outletContext = context;
     mocks.outletRender();
     return <div>Route content</div>;
   },
@@ -66,6 +68,7 @@ const navItems = [
 
 describe("App", () => {
   beforeEach(() => {
+    mocks.outletContext = undefined;
     mocks.pathname = "/executing";
     mocks.outletRender.mockClear();
   });
@@ -172,5 +175,27 @@ describe("App", () => {
       "href",
       "/dashboard",
     );
+  });
+
+  it("places the outcomes-only range in the Dashboard topbar", () => {
+    mocks.pathname = "/dashboard";
+    render(<App navItems={navItems} />);
+
+    expect(screen.getByText("Outcomes window")).toBeInTheDocument();
+    expect(screen.getByText("Applies to outcomes only")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "7d" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "24h" }));
+
+    expect(mocks.outletContext).toMatchObject({ outcomesRange: "24h" });
+  });
+
+  it("does not show Dashboard range controls in queue workspaces", () => {
+    render(<App navItems={navItems} />);
+
+    expect(screen.queryByText("Outcomes window")).not.toBeInTheDocument();
   });
 });

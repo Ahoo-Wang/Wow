@@ -13,6 +13,7 @@
 
 import { RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useOutletContext } from "react-router";
 import { ExchangeError } from "@ahoo-wang/fetcher";
 import { RecoverableType } from "@ahoo-wang/fetcher-wow";
 import { formatAge, formatDate } from "../../utils/dates.ts";
@@ -33,7 +34,6 @@ import {
   RetryDistributionChart,
 } from "./AnalyticsCharts.tsx";
 import type {
-  AnalyticsRange,
   PressureCluster,
   RetryDistribution,
 } from "./analyticsQueries.ts";
@@ -42,8 +42,8 @@ import {
   type AnalyticsSection,
   useSnapshotAnalytics,
 } from "./useSnapshotAnalytics.ts";
+import type { DashboardOutletContext } from "../App/App.tsx";
 
-const ranges: readonly AnalyticsRange[] = ["24h", "7d", "30d"];
 const recoverabilityDisplay = {
   [RecoverableType.RECOVERABLE]: {
     color: "#16a34a",
@@ -163,10 +163,10 @@ function PressureTable({ clusters }: { clusters: PressureCluster[] }) {
 }
 
 export default function DashboardView() {
-  const [range, setRange] = useState<AnalyticsRange>("7d");
+  const { outcomesRange } = useOutletContext<DashboardOutletContext>();
   const [refreshToken, setRefreshToken] = useState(0);
   const snapshot = useSnapshotAnalytics(refreshToken);
-  const trend = useEventTrend(range, refreshToken);
+  const trend = useEventTrend(outcomesRange, refreshToken);
 
   return (
     <div className="h-full space-y-6 overflow-y-auto p-5">
@@ -276,22 +276,12 @@ export default function DashboardView() {
 
       <section aria-labelledby="analytics-history-title">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 id="analytics-history-title" className="text-lg font-semibold">
+          <h2 id="analytics-history-title" className="text-base font-semibold">
             Compensation outcomes
+            <span className="ml-2 font-normal text-muted-foreground">
+              — Outcomes window: {outcomesRange}
+            </span>
           </h2>
-          <div className="flex gap-2" aria-label="History range">
-            {ranges.map((item) => (
-              <Button
-                key={item}
-                type="button"
-                variant={range === item ? "default" : "outline"}
-                aria-pressed={range === item}
-                onClick={() => setRange(item)}
-              >
-                {item}
-              </Button>
-            ))}
-          </div>
         </div>
         <SectionMeta section={trend} />
         {trend.loading && !trend.data ? (
