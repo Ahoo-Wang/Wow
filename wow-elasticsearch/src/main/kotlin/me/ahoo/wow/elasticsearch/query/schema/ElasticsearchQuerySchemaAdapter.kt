@@ -190,6 +190,7 @@ class ElasticsearchQuerySchemaAdapter(
                 dynamicChildren = false,
                 bindings = bindings,
                 projectionPath = projectionPath,
+                maskRule = maskRule,
             )
 
         private fun metadataField(

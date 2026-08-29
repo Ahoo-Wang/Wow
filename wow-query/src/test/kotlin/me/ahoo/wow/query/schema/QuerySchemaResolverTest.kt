@@ -79,6 +79,8 @@ import me.ahoo.wow.api.query.ThisYearFilter
 import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.TomorrowFilter
 import me.ahoo.wow.api.query.YesterdayFilter
+import me.ahoo.wow.api.query.mask.FullMaskStrategy
+import me.ahoo.wow.api.query.mask.Mask
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryCompatibilityLevel
@@ -97,6 +99,7 @@ import java.time.Instant
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 import java.util.concurrent.TimeUnit
+import kotlin.reflect.jvm.javaField
 
 @Suppress("LargeClass")
 class QuerySchemaResolverTest {
@@ -1120,7 +1123,7 @@ class QuerySchemaResolverTest {
     }
 
     @Test
-    fun `aggregation elements should always append relative paths after the root element`() {
+    fun `aggregation elements should retain absolute paths after the root element`() {
         val query = AggregationQuery(
             elements = listOf(
                 AggregationElement(LogicalField("state.orders")),
@@ -1140,12 +1143,12 @@ class QuerySchemaResolverTest {
         )
 
         QuerySchemaResolver(schema).resolve(query).assert().isEqualTo(
-            QuerySchemaResolution(query, QueryCompatibilityLevel.COMPATIBLE),
+            QuerySchemaResolution(query, QueryCompatibilityLevel.EXACT),
         )
     }
 
     @Test
-    fun `aggregation groups and expressions should always append the innermost element path`() {
+    fun `aggregation groups and expressions should retain absolute innermost paths`() {
         val query = AggregationQuery(
             elements = listOf(AggregationElement(LogicalField("state.orders"))),
             groupBy = listOf(
@@ -1174,7 +1177,7 @@ class QuerySchemaResolverTest {
         )
 
         QuerySchemaResolver(schema).resolve(query).assert().isEqualTo(
-            QuerySchemaResolution(query, QueryCompatibilityLevel.COMPATIBLE),
+            QuerySchemaResolution(query, QueryCompatibilityLevel.EXACT),
         )
     }
 
@@ -1217,6 +1220,62 @@ class QuerySchemaResolverTest {
             .resolve(query).compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
     }
 
+    @Test
+    fun `masked fields should be rejected only from aggregation references`() {
+        val rootSecret = LogicalField("state.secret")
+        val nestedSecret = LogicalField("state.orders.secret")
+        val resolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    rootSecret to fieldSchema(
+                        QueryCapability.EXACT_MATCH to "document.secret",
+                        QueryCapability.SORT to "document.secret.keyword",
+                        QueryCapability.AGGREGATE_TERMS to "document.secret.keyword",
+                        QueryCapability.AGGREGATE_NUMERIC to "document.secret",
+                        maskRule = fullMaskRule(),
+                    ),
+                    LogicalField("state.orders") to fieldSchema(
+                        QueryCapability.ELEMENT_SCOPE to "document.orders",
+                    ),
+                    nestedSecret to fieldSchema(
+                        QueryCapability.AGGREGATE_TERMS to "document.orders.secret.keyword",
+                        maskRule = fullMaskRule(),
+                    ),
+                ),
+            ),
+        )
+        val aggregations = listOf(
+            AggregationQuery(groupBy = listOf(AggregationGroup.Terms(rootSecret, "secret")), metrics = listOf(AggregationMetric.Count("count"))),
+            AggregationQuery(metrics = listOf(AggregationMetric.Any(rootSecret, "secret"))),
+            AggregationQuery(
+                metrics = listOf(
+                    AggregationMetric.Numeric(
+                        AggregationFunction.SUM,
+                        AggregationExpression.Binary(
+                            AggregationExpressionOperator.ADD,
+                            AggregationExpression.Field(rootSecret),
+                            AggregationExpression.Constant(1.0),
+                        ),
+                        "total",
+                    ),
+                ),
+            ),
+            AggregationQuery(
+                elements = listOf(AggregationElement(LogicalField("state.orders"))),
+                groupBy = listOf(AggregationGroup.Terms(LogicalField("secret"), "secret")),
+                metrics = listOf(AggregationMetric.Count("count")),
+            ),
+        )
+
+        aggregations.forEach { query ->
+            resolver.resolve(query).compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+        }
+        resolver.resolve(EqualFilter(rootSecret, json("secret"))).compatibility.assert()
+            .isEqualTo(QueryCompatibilityLevel.EXACT)
+        resolver.resolve(listOf(Sort(rootSecret.value, Sort.Direction.ASC))).compatibility.assert()
+            .isEqualTo(QueryCompatibilityLevel.EXACT)
+    }
+
     private fun schema(
         fields: Map<LogicalField, QueryFieldSchema> = emptyMap(),
         capabilities: Set<QueryCapability> = emptySet(),
@@ -1229,6 +1288,7 @@ class QuerySchemaResolverTest {
         projectionPath: String? = null,
         cardinality: QueryCardinality = QueryCardinality.SINGLE,
         valueTypes: Set<QueryValueType> = emptySet(),
+        maskRule: MaskRule? = null,
     ) = QueryFieldSchema(
         title = null,
         description = null,
@@ -1239,6 +1299,7 @@ class QuerySchemaResolverTest {
         cardinality = cardinality,
         semanticType = semanticType,
         dynamicChildren = dynamicChildren,
+        maskRule = maskRule,
         bindings = bindings.associate { (capability, path) ->
             capability to QueryFieldBinding(path, storageType = null)
         },
@@ -1247,4 +1308,11 @@ class QuerySchemaResolverTest {
     )
 
     private fun json(value: Any): JsonNode = JsonNodeFactory.instance.pojoNode(value)
+
+    private fun fullMaskRule(): MaskRule {
+        val annotation = Masked::secret.javaField!!.getAnnotation(Mask::class.java)
+        return MaskRule(FullMaskStrategy::class, annotation, FullMaskStrategy.compile(annotation))
+    }
+
+    private data class Masked(@field:Mask val secret: String)
 }

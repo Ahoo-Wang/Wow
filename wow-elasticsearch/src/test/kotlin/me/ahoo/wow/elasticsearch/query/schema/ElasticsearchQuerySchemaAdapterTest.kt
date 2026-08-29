@@ -29,6 +29,8 @@ import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.mask.FullMaskStrategy
+import me.ahoo.wow.api.query.mask.Mask
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryCompatibilityLevel
@@ -42,6 +44,7 @@ import me.ahoo.wow.query.schema.DeclarationValue
 import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
 import me.ahoo.wow.query.schema.LogicalQueryFieldSchema
 import me.ahoo.wow.query.schema.LogicalQuerySchema
+import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryFieldDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
@@ -55,9 +58,26 @@ import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchIn
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 import java.util.concurrent.TimeUnit
+import kotlin.reflect.jvm.javaField
 
 @Suppress("LargeClass")
 class ElasticsearchQuerySchemaAdapterTest {
+    @Test
+    fun `binding should retain a logical mask rule`() {
+        val secret = LogicalField("state.secret")
+        val rule = fullMaskRule()
+
+        val schema = ElasticsearchQuerySchemaAdapter.bind(
+            LogicalQuerySchema(mapOf(secret to field(QueryValueType.STRING, maskRule = rule))),
+            ElasticsearchIndexMapping.from(
+                INDEX,
+                TypeMapping.of { mapping -> mapping.properties(secret.value) { it.keyword { keyword -> keyword } } },
+            ),
+        )
+
+        schema.fields.getValue(secret).maskRule.assert().isSameAs(rule)
+    }
+
     @Test
     fun `event stream schema should retain model and nested body capability`() {
         val body = LogicalField("body")
@@ -844,6 +864,7 @@ class ElasticsearchQuerySchemaAdapterTest {
         cardinality: QueryCardinality = QueryCardinality.SINGLE,
         semanticType: Temporal? = null,
         dynamicChildren: Boolean = false,
+        maskRule: MaskRule? = null,
     ) = LogicalQueryFieldSchema(
         title = null,
         description = null,
@@ -854,7 +875,15 @@ class ElasticsearchQuerySchemaAdapterTest {
         cardinality = cardinality,
         semanticType = semanticType,
         dynamicChildren = dynamicChildren,
+        maskRule = maskRule,
     )
+
+    private fun fullMaskRule(): MaskRule {
+        val annotation = Masked::secret.javaField!!.getAnnotation(Mask::class.java)
+        return MaskRule(FullMaskStrategy::class, annotation, FullMaskStrategy.compile(annotation))
+    }
+
+    private data class Masked(@field:Mask val secret: String)
 
     private fun mapping(): TypeMapping = TypeMapping.of { mapping ->
         mapping.properties("state") { state ->

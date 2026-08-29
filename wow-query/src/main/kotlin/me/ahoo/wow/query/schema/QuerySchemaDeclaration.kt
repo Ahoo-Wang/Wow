@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.schema
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.schema.QueryCardinality
@@ -74,6 +75,7 @@ data class QueryFieldDeclaration(
     val cardinality: DeclarationValue<QueryCardinality> = DeclarationValue.Unset,
     val semanticType: DeclarationValue<QuerySemanticType?> = DeclarationValue.Unset,
     val dynamicChildren: DeclarationValue<Boolean> = DeclarationValue.Unset,
+    @get:JsonIgnore val maskRule: DeclarationValue<MaskRule> = DeclarationValue.Unset,
 )
 
 interface QuerySchemaSource {
@@ -110,7 +112,18 @@ internal fun QueryFieldDeclaration.merge(
     cardinality = cardinality.merge(higher.cardinality, field, CARDINALITY, rejectDifferent),
     semanticType = semanticType.merge(higher.semanticType, field, SEMANTIC_TYPE, rejectDifferent),
     dynamicChildren = dynamicChildren.merge(higher.dynamicChildren, field, DYNAMIC_CHILDREN, rejectDifferent),
+    maskRule = maskRule.mergeMaskRule(higher.maskRule, field),
 )
+
+private fun DeclarationValue<MaskRule>.mergeMaskRule(
+    higher: DeclarationValue<MaskRule>,
+    field: LogicalField,
+): DeclarationValue<MaskRule> {
+    if (this is DeclarationValue.Unset) return higher
+    if (higher is DeclarationValue.Unset) return this
+    if ((this as DeclarationValue.Set).value == (higher as DeclarationValue.Set).value) return this
+    throw QuerySchemaConflictException("Conflicting query schema declaration: [$field.maskRule].")
+}
 
 private fun <T> DeclarationValue<T>.merge(
     higher: DeclarationValue<T>,

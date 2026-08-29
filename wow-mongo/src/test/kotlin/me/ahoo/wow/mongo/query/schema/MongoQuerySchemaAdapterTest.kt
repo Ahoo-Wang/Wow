@@ -30,6 +30,8 @@ import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TodayFilter
+import me.ahoo.wow.api.query.mask.FullMaskStrategy
+import me.ahoo.wow.api.query.mask.Mask
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryCompatibilityLevel
@@ -43,6 +45,7 @@ import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryBackendFactory
 import me.ahoo.wow.query.converter.FieldConverter
 import me.ahoo.wow.query.schema.LogicalQueryFieldSchema
 import me.ahoo.wow.query.schema.LogicalQuerySchema
+import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QuerySchemaResolver
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
@@ -58,9 +61,24 @@ import reactor.kotlin.test.test
 import tools.jackson.databind.node.StringNode
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.reflect.jvm.javaField
 
 @Suppress("LargeClass")
 class MongoQuerySchemaAdapterTest {
+    @Test
+    fun `binding should retain a logical mask rule`() {
+        val secret = LogicalField("state.secret")
+        val rule = fullMaskRule()
+
+        val schema = MongoQuerySchemaAdapter.bind(
+            LogicalQuerySchema(mapOf(secret to field(QueryValueType.STRING, maskRule = rule))),
+            emptyList(),
+            null,
+        )
+
+        schema.fields.getValue(secret).maskRule.assert().isSameAs(rule)
+    }
+
     @Test
     fun `event stream schema should bind logical id to MongoDB document id`() {
         val id = LogicalField("id")
@@ -981,6 +999,7 @@ class MongoQuerySchemaAdapterTest {
         cardinality: QueryCardinality = QueryCardinality.SINGLE,
         semanticType: Temporal? = null,
         dynamicChildren: Boolean = false,
+        maskRule: MaskRule? = null,
     ) = LogicalQueryFieldSchema(
         title = null,
         description = null,
@@ -991,7 +1010,15 @@ class MongoQuerySchemaAdapterTest {
         cardinality = cardinality,
         semanticType = semanticType,
         dynamicChildren = dynamicChildren,
+        maskRule = maskRule,
     )
+
+    private fun fullMaskRule(): MaskRule {
+        val annotation = Masked::secret.javaField!!.getAnnotation(Mask::class.java)
+        return MaskRule(FullMaskStrategy::class, annotation, FullMaskStrategy.compile(annotation))
+    }
+
+    private data class Masked(@field:Mask val secret: String)
 
     private fun indexes(vararg values: Document): ListIndexesPublisher<Document> = mockk {
         every { subscribe(any()) } answers {

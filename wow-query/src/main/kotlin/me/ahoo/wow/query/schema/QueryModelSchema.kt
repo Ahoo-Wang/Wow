@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.schema
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
@@ -76,6 +77,7 @@ data class QueryFieldSchema(
     val dynamicChildren: Boolean,
     val bindings: Map<QueryCapability, QueryFieldBinding>,
     val projectionPath: String? = bindings[QueryCapability.PRESENCE]?.physicalPath,
+    @get:JsonIgnore val maskRule: MaskRule? = null,
 )
 
 data class LogicalQuerySchema(
@@ -92,6 +94,7 @@ data class LogicalQueryFieldSchema(
     val cardinality: QueryCardinality,
     val semanticType: QuerySemanticType?,
     val dynamicChildren: Boolean,
+    @get:JsonIgnore val maskRule: MaskRule? = null,
 )
 
 fun QueryModelSchema.toMetadata(): QueryModelSchemaMetadata =
@@ -111,6 +114,7 @@ fun QueryModelSchema.toMetadata(): QueryModelSchemaMetadata =
                 semanticType = schema.semanticType,
                 dynamicChildren = schema.dynamicChildren,
                 capabilities = schema.bindings.keys,
+                masked = schema.maskRule != null,
             )
         },
     )
