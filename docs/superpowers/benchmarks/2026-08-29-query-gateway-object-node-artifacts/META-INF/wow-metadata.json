@@ -1,0 +1,23 @@
+{
+  "contexts": {
+    "benchmark-query": {
+      "alias": null,
+      "description": "",
+      "scopes": [
+        "me.ahoo.wow.benchmark.query"
+      ],
+      "aggregates": {
+        "query_benchmark": {
+          "scopes": [
+            "me.ahoo.wow.benchmark.query"
+          ],
+          "type": "me.ahoo.wow.benchmark.query.QueryBenchmarkAggregate",
+          "tenantId": null,
+          "id": null,
+          "commands": [],
+          "events": []
+        }
+      }
+    }
+  }
+}

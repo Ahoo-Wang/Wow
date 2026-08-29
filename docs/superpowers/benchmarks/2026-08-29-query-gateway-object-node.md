@@ -48,9 +48,8 @@ masking   = none | inPlace
 源证据：
 
 - V9 benchmark：`wow-benchmarks/src/jmh/kotlin/me/ahoo/wow/benchmark/query/QueryGatewayBackendBenchmark.kt`，SHA-256 `8f35e8b5024c9bffd7a75bbc46f3c68b062fe7ac59bc1b88232702d742a1ad20`。
-- main 临时 benchmark：SHA-256 `fe71b30975917bc6d0660378606d8d2628e394fcc8be153d1f3f223a0506fd86`。
-- main 临时 metadata：SHA-256 `5753d0aa17512785454f6558e7a19ffddda6ce19925c5d3db59d1a7c90461a30`。
-- 两份 benchmark 的完整 `git diff --no-index` SHA-256 为 `c0e5523536fd30643af50d9f2afaf2c0ee880f38c0f6511fea6920247ff620f5`；差异仅为上表列出的旧/新 API 装配与结果类型，没有数据集、参数、查询或消费差异。
+- main API 专用 benchmark：`docs/superpowers/benchmarks/2026-08-29-query-gateway-object-node-artifacts/QueryGatewayBackendBenchmark-main.kt`，SHA-256 `fe71b30975917bc6d0660378606d8d2628e394fcc8be153d1f3f223a0506fd86`。
+- main metadata：`docs/superpowers/benchmarks/2026-08-29-query-gateway-object-node-artifacts/META-INF/wow-metadata.json`，SHA-256 `5753d0aa17512785454f6558e7a19ffddda6ce19925c5d3db59d1a7c90461a30`。
 
 ## 环境
 
@@ -99,14 +98,18 @@ java -jar wow-benchmarks/build/libs/wow-benchmarks-8.16.1-jmh.jar \
   -rf json -rff <result.json> -o <human.txt>
 ```
 
-原始输出遵循 `wow-benchmarks/README.md` 约定保留在忽略目录，不提交本地 JMH 输出：
+正式采样的原始输出已从本地 JMH 结果目录逐字节复制到 committed artifact 目录；JSON 保留每个 fork 的 `rawData` 与 percentile，human output 保留 sample histogram/percentile 表：
 
-| 版本 | JSON | SHA-256 | human output |
-| --- | --- | --- | --- |
-| main | `wow-benchmarks/results/jmh/query-gateway-object-node/main-elasticsearch.json` | `19f4c438e8563a171c3b7d95db5ce95bf54413399df1743f93ef1d466011ccc5` | `wow-benchmarks/results/jmh/query-gateway-object-node/main-elasticsearch.txt` |
-| V9 | `wow-benchmarks/results/jmh/query-gateway-object-node/v9-elasticsearch.json` | `f7d8389575dde7c05f3e64f7bfa4b927339880efa73403b94d87ce9fce311199` | `wow-benchmarks/results/jmh/query-gateway-object-node/v9-elasticsearch.txt` |
+| 版本 | committed JSON | JSON SHA-256 | committed human output | text SHA-256 |
+| --- | --- | --- | --- | --- |
+| main | `docs/superpowers/benchmarks/2026-08-29-query-gateway-object-node-artifacts/main-elasticsearch.json` | `19f4c438e8563a171c3b7d95db5ce95bf54413399df1743f93ef1d466011ccc5` | `docs/superpowers/benchmarks/2026-08-29-query-gateway-object-node-artifacts/main-elasticsearch.txt` | `55115865cadb2446af95964ca6758c5b9f10934573305d7102cf96157adb7f3a` |
+| V9 | `docs/superpowers/benchmarks/2026-08-29-query-gateway-object-node-artifacts/v9-elasticsearch.json` | `f7d8389575dde7c05f3e64f7bfa4b927339880efa73403b94d87ce9fce311199` | `docs/superpowers/benchmarks/2026-08-29-query-gateway-object-node-artifacts/v9-elasticsearch.txt` | `bbf245afe7177a805e3ce6cc66963ed14eae7aa37d0a44e958f89e4d9c6b13f5` |
+
+原始 JMH text 的 histogram 行包含生成器写入的行尾空格，JSON 也保留生成时的 EOF 布局；根 `.gitattributes` 只把本 artifact 目录的 `*-elasticsearch.json` / `*-elasticsearch.txt` 标记为 `binary`，从而保持上述字节与哈希不变，同时让 diff whitespace 检查继续覆盖可编辑源码与 Markdown。
 
 两份 JSON 均通过以下结构校验：32 条记录、16 个唯一参数组合、每个 mode 16 条、每条 `forks=3`、无缺失 `gc.alloc.rate.norm`、无缺失 sample `95.0` percentile。
+
+最终 gate 命令、时间、环境、退出码、BUILD tail、测试计数与本地 source-log SHA-256 记录在 `docs/superpowers/benchmarks/2026-08-29-query-gateway-object-node-artifacts/gate-manifest.md`。
 
 ## 指标定义
 
