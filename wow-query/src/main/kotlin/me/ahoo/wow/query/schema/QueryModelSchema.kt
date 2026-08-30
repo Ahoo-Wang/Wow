@@ -84,40 +84,13 @@ data class QueryFieldSchema(
     val bindings: Map<QueryCapability, QueryFieldBinding>,
     val projectionPath: String? = bindings[QueryCapability.PRESENCE]?.physicalPath,
     @get:JsonIgnore val maskRule: MaskRule? = null,
-) {
-    constructor(
-        title: String?,
-        description: String?,
-        enumValues: List<JsonNode>?,
-        valueTypes: Set<QueryValueType>,
-        nullable: Boolean,
-        required: Boolean,
-        cardinality: QueryCardinality,
-        semanticType: QuerySemanticType?,
-        dynamicChildren: Boolean,
-        bindings: Map<QueryCapability, QueryFieldBinding>,
-        projectionPath: String?,
-    ) : this(
-        title = title,
-        description = description,
-        enumValues = enumValues,
-        valueTypes = valueTypes,
-        nullable = nullable,
-        required = required,
-        cardinality = cardinality,
-        semanticType = semanticType,
-        dynamicChildren = dynamicChildren,
-        bindings = bindings,
-        projectionPath = projectionPath,
-        maskRule = null,
-    )
-}
+)
 
 data class LogicalQuerySchema(
     val fields: Map<LogicalField, LogicalQueryFieldSchema>,
 )
 
-data class LogicalQueryFieldSchema @JvmOverloads constructor(
+data class LogicalQueryFieldSchema(
     val title: String?,
     val description: String?,
     val enumValues: List<JsonNode>?,

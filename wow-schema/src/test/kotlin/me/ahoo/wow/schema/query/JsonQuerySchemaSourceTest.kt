@@ -622,6 +622,15 @@ class JsonQuerySchemaSourceTest {
     }
 
     @Test
+    fun `should identify the annotation and strategy when mask strategy type is wrong`() {
+        val error = assertThrows<QuerySchemaConflictException> {
+            load(WrongStrategyMaskState::class.java)
+        }
+
+        error.message.assert().contains("WrongStrategyMask").contains("FullMaskStrategy")
+    }
+
+    @Test
     fun `should fail closed when mask strategy cannot be constructed`() {
         listOf(
             AbstractMaskStrategyState::class.java,

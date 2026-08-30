@@ -19,6 +19,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.annotation.JsonUnwrapped
 import io.swagger.v3.oas.annotations.media.Schema
 import me.ahoo.wow.api.query.mask.CompiledMask
+import me.ahoo.wow.api.query.mask.FullMaskStrategy
 import me.ahoo.wow.api.query.mask.KeepMask
 import me.ahoo.wow.api.query.mask.Mask
 import me.ahoo.wow.api.query.mask.MaskStrategy
@@ -333,6 +334,13 @@ class PublicClassMaskStrategy : MaskStrategy<PublicClassMask> {
 internal data class PublicClassStrategyState(
     @field:PublicClassMask(prefix = "masked-") val secret: String,
 )
+
+@Target(AnnotationTarget.FIELD)
+@Retention(AnnotationRetention.RUNTIME)
+@Masking(FullMaskStrategy::class)
+internal annotation class WrongStrategyMask
+
+internal data class WrongStrategyMaskState(@field:WrongStrategyMask val secret: String)
 
 @Target(AnnotationTarget.FIELD)
 @Retention(AnnotationRetention.RUNTIME)
