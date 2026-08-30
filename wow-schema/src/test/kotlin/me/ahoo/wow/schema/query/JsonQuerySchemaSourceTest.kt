@@ -379,6 +379,13 @@ class JsonQuerySchemaSourceTest {
     }
 
     @Test
+    fun `should reject masked illegal logical property names`() {
+        assertThrows<QuerySchemaConflictException> {
+            load(MaskedInvalidLogicalFieldState::class.java)
+        }
+    }
+
+    @Test
     fun `should treat custom serializer wire shapes as opaque`() {
         val declaration = load(CustomSerializerState::class.java)
 
@@ -521,6 +528,20 @@ class JsonQuerySchemaSourceTest {
     }
 
     @Test
+    fun `should reject masked recursive descendants`() {
+        assertThrows<QuerySchemaConflictException> {
+            load(MaskedRecursiveState::class.java)
+        }
+    }
+
+    @Test
+    fun `should reject masked mutually recursive descendants`() {
+        assertThrows<QuerySchemaConflictException> {
+            load(MutuallyRecursiveMaskedState::class.java)
+        }
+    }
+
+    @Test
     fun `should not truncate deep acyclic state paths`() {
         load(DeepLevelOne::class.java).fields.keys.assert()
             .contains(LogicalField("state.two.three.four.five.six.value"))
@@ -540,6 +561,13 @@ class JsonQuerySchemaSourceTest {
             attributeGroups.dynamicChildren.assert().isEqualTo(DeclarationValue.Set(true))
         }
         declaration.field("state.closed").dynamicChildren.assert().isEqualTo(DeclarationValue.Set(false))
+    }
+
+    @Test
+    fun `should reject masked dynamic map values`() {
+        assertThrows<QuerySchemaConflictException> {
+            load(MaskedDynamicState::class.java)
+        }
     }
 
     @Test

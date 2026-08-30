@@ -81,6 +81,11 @@ internal data class JacksonDetails(
     val nested: String,
 )
 
+internal data class MaskedInvalidLogicalFieldState(
+    @field:JsonProperty("phone.number")
+    @field:Mask val phone: String,
+)
+
 internal data class CustomSerializerState(
     val typeValue: TypeCustomSerializedValue,
     @get:JsonSerialize(using = PropertyCustomSerializedValueSerializer::class)
@@ -274,6 +279,20 @@ internal data class RecursiveState(
     val children: List<RecursiveState>,
 )
 
+internal data class MaskedRecursiveState(
+    @field:Mask val secret: String,
+    val child: MaskedRecursiveState?,
+)
+
+internal data class MutuallyRecursiveMaskedState(
+    val node: MutuallyRecursiveMaskedNode,
+)
+
+internal data class MutuallyRecursiveMaskedNode(
+    @field:Mask val secret: String,
+    val parent: MutuallyRecursiveMaskedState?,
+)
+
 internal data class DeepLevelOne(val two: DeepLevelTwo)
 
 internal data class DeepLevelTwo(val three: DeepLevelThree)
@@ -290,6 +309,10 @@ internal data class DynamicState(
     val attributes: Map<String, String>,
     val attributeGroups: List<Map<String, String>>,
     val closed: StructuralAddress,
+)
+
+internal data class MaskedDynamicState(
+    val contacts: Map<String, MaskedContact>,
 )
 
 internal data class NativeTemporalState(

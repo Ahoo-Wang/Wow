@@ -118,15 +118,23 @@ internal class JsonSchemaWalker(
             ?.toSet()
             .orEmpty()
         get(JsonSchemaProperty.PROPERTIES)?.properties()?.forEach { (propertyName, propertySchema) ->
-            if (propertyName.isLogicalFieldSegment() && !propertySchema.isWriteOnly()) {
-                val fullName = "$parentName.$propertyName"
-                val field = LogicalField(fullName)
-                collected.mergeConjunctive(
-                    mapOf(field to propertySchema.toDeclaration(field, propertyName in parentRequired)),
-                )
-                collected.mergeConjunctive(propertySchema.collectProperties(fullName, resolvingReferences))
+            if (propertySchema.isWriteOnly()) {
+                return@forEach
             }
+            val fullName = "$parentName.$propertyName"
+            if (!propertyName.isLogicalFieldSegment()) {
+                propertySchema.requireNoMaskRule(
+                    "Masked query schema field has an invalid logical name: [$fullName].",
+                )
+                return@forEach
+            }
+            val field = LogicalField(fullName)
+            collected.mergeConjunctive(
+                mapOf(field to propertySchema.toDeclaration(field, propertyName in parentRequired)),
+            )
+            collected.mergeConjunctive(propertySchema.collectProperties(fullName, resolvingReferences))
         }
+        validateMaskedUnrepresentableDescendants(parentName, resolvingReferences)
         reference()?.takeIf { it !in resolvingReferences }?.let { reference ->
             rootSchema.at(reference.removePrefix(ROOT_REFERENCE))
                 .takeUnless(JsonNode::isMissingNode)
@@ -258,6 +266,53 @@ internal class JsonSchemaWalker(
 
     private fun JsonNode.isWriteOnly(): Boolean = effectiveNodes().any {
         it.get(JsonSchemaProperty.WRITE_ONLY)?.takeIf(JsonNode::isBoolean)?.booleanValue() == true
+    }
+
+    private fun JsonNode.hasMaskRule(visitedReferences: Set<String> = emptySet()): Boolean {
+        if (isWriteOnly()) return false
+        if (textValueOrNull(MASK_RULE_ATTRIBUTE) != null) return true
+        if (get(JsonSchemaProperty.PROPERTIES)?.properties()?.any { (_, propertySchema) ->
+                propertySchema.hasMaskRule(visitedReferences)
+            } == true ||
+            get(JsonSchemaProperty.ITEMS)?.hasMaskRule(visitedReferences) == true ||
+            get(JsonSchemaProperty.ADDITIONAL_PROPERTIES)?.takeIf(JsonNode::isObject)
+                ?.hasMaskRule(visitedReferences) == true
+        ) {
+            return true
+        }
+        reference()?.takeIf { it !in visitedReferences }?.let { reference ->
+            if (rootSchema.at(reference.removePrefix(ROOT_REFERENCE))
+                    .takeUnless(JsonNode::isMissingNode)
+                    ?.hasMaskRule(visitedReferences + reference) == true
+            ) {
+                return true
+            }
+        }
+        return COMPOSITIONS.any { composition ->
+            get(composition)?.any { branch -> branch.hasMaskRule(visitedReferences) } == true
+        }
+    }
+
+    private fun JsonNode.requireNoMaskRule(message: String) {
+        if (hasMaskRule()) {
+            throw QuerySchemaConflictException(message)
+        }
+    }
+
+    private fun JsonNode.validateMaskedUnrepresentableDescendants(
+        parentName: String,
+        resolvingReferences: Set<String>,
+    ) {
+        get(JsonSchemaProperty.ADDITIONAL_PROPERTIES)?.takeIf(JsonNode::isObject)
+            ?.requireNoMaskRule(
+                "Dynamic query schema field cannot contain masked descendants: [$parentName].",
+            )
+        val reference = reference()?.takeIf { it in resolvingReferences } ?: return
+        rootSchema.at(reference.removePrefix(ROOT_REFERENCE))
+            .takeUnless(JsonNode::isMissingNode)
+            ?.requireNoMaskRule(
+                "Recursive query schema field cannot contain masked descendants: [$parentName].",
+            )
     }
 }
 
