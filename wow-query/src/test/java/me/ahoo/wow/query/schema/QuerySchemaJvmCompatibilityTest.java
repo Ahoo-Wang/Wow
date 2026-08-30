@@ -17,9 +17,13 @@ import me.ahoo.wow.api.query.schema.QueryCardinality;
 import me.ahoo.wow.api.query.schema.QueryValueType;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Constructor;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
@@ -40,6 +44,7 @@ class QuerySchemaJvmCompatibilityTest {
         );
 
         assertSame(DeclarationValue.Unset.INSTANCE, declaration.getMaskRule());
+        assertEquals(Set.of(10, 9, 0), constructorArities(QueryFieldDeclaration.class));
     }
 
     @Test
@@ -59,6 +64,7 @@ class QuerySchemaJvmCompatibilityTest {
         );
 
         assertNull(schema.getMaskRule());
+        assertEquals(Set.of(12, 11), constructorArities(QueryFieldSchema.class));
     }
 
     @Test
@@ -76,5 +82,13 @@ class QuerySchemaJvmCompatibilityTest {
         );
 
         assertNull(schema.getMaskRule());
+        assertEquals(Set.of(10, 9), constructorArities(LogicalQueryFieldSchema.class));
+    }
+
+    private static Set<Integer> constructorArities(Class<?> type) {
+        return Arrays.stream(type.getDeclaredConstructors())
+            .filter(constructor -> !constructor.isSynthetic())
+            .map(Constructor::getParameterCount)
+            .collect(Collectors.toSet());
     }
 }
