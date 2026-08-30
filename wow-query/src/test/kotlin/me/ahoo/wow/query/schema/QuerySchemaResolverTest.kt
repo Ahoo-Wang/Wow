@@ -1625,6 +1625,28 @@ class QuerySchemaResolverTest {
         resolved.include.assert().containsExactly("body.body.secret", "document.events.type")
     }
 
+    @Test
+    fun `masked event projection should reject wildcard exclusion of body type`() {
+        val resolver = QuerySchemaResolver(
+            QueryModelSchema(
+                QueryModel.EVENT_STREAM,
+                emptySet(),
+                mapOf(
+                    LogicalField("body.body.secret") to fieldSchema(
+                        QueryCapability.PRESENCE to "body.body.secret",
+                        maskRule = fullMaskRule(),
+                    ),
+                    LogicalField("body.bodyType") to fieldSchema(
+                        QueryCapability.PRESENCE to "document.events.type",
+                    ),
+                ),
+            ),
+        )
+
+        resolver.resolve(Projection(exclude = listOf("body.bodyT*"))).compatibility.assert()
+            .isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+    }
+
     private fun schema(
         fields: Map<LogicalField, QueryFieldSchema> = emptyMap(),
         capabilities: Set<QueryCapability> = emptySet(),

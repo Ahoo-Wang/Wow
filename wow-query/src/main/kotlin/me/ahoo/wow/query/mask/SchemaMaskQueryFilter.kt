@@ -15,9 +15,6 @@ package me.ahoo.wow.query.mask
 
 import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.api.query.Projection
-import me.ahoo.wow.api.query.Queryable
-import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.SimpleFilterChain
 import me.ahoo.wow.query.QueryBackend
@@ -42,14 +39,13 @@ internal class SchemaMaskQueryFilter(
         context: QueryContext<*, *>,
         next: FilterChain<QueryContext<*, *>>,
     ): Mono<Void> {
-        val projection = (context.getQuery() as? Queryable<*>)?.projection ?: Projection.ALL
         return next.filter(context).then(
             Mono.fromRunnable {
                 when (context.queryType) {
-                    QueryType.SINGLE -> context.asSingleQuery().rewriteResult { it.maskResult(projection) }
-                    QueryType.LIST -> context.asListQuery().rewriteResult { it.maskResult(projection) }
-                    QueryType.PAGED -> context.asPagedQuery().rewriteResult { it.maskPagedResult(projection) }
-                    QueryType.CURSOR -> context.asCursorQuery().rewriteResult { it.maskCursorResult(projection) }
+                    QueryType.SINGLE -> context.asSingleQuery().rewriteResult { it.maskResult() }
+                    QueryType.LIST -> context.asListQuery().rewriteResult { it.maskResult() }
+                    QueryType.PAGED -> context.asPagedQuery().rewriteResult { it.maskPagedResult() }
+                    QueryType.CURSOR -> context.asCursorQuery().rewriteResult { it.maskCursorResult() }
                     QueryType.COUNT,
                     QueryType.AGGREGATION,
                     -> Unit
@@ -63,47 +59,37 @@ internal class SchemaMaskQueryFilter(
             .ofNullable(SchemaMasker.create(schema))
             .also { cached.set(schema to it) }
 
-    private fun Mono<ObjectNode>.maskResult(projection: Projection): Mono<ObjectNode> =
+    private fun Mono<ObjectNode>.maskResult(): Mono<ObjectNode> =
         Mono.defer(provider::schema).flatMap { schema ->
             val source = withQueryModelSchema(schema)
             masker(schema).map { schemaMasker ->
-                val removeBodyType = schema.requiresInternalEventBodyType(projection)
-                source.map { schemaMasker.mask(it, removeBodyType) }
+                source.map(schemaMasker::mask)
             }.orElse(source)
         }
 
-    private fun Flux<ObjectNode>.maskResult(projection: Projection): Flux<ObjectNode> =
+    private fun Flux<ObjectNode>.maskResult(): Flux<ObjectNode> =
         Mono.defer(provider::schema).flatMapMany { schema ->
             val source = withQueryModelSchema(schema)
             masker(schema).map { schemaMasker ->
-                val removeBodyType = schema.requiresInternalEventBodyType(projection)
-                source.map { schemaMasker.mask(it, removeBodyType) }
+                source.map(schemaMasker::mask)
             }.orElse(source)
         }
 
-    private fun Mono<PagedList<ObjectNode>>.maskPagedResult(projection: Projection): Mono<PagedList<ObjectNode>> =
+    private fun Mono<PagedList<ObjectNode>>.maskPagedResult(): Mono<PagedList<ObjectNode>> =
         Mono.defer(provider::schema).flatMap { schema ->
             val source = withQueryModelSchema(schema)
             masker(schema).map { schemaMasker ->
-                val removeBodyType = schema.requiresInternalEventBodyType(projection)
-                source.map { page -> PagedList(page.total, page.list.map { schemaMasker.mask(it, removeBodyType) }) }
+                source.map { page -> PagedList(page.total, page.list.map(schemaMasker::mask)) }
             }.orElse(source)
         }
 
-    private fun Mono<CursorPage<ObjectNode>>.maskCursorResult(projection: Projection): Mono<CursorPage<ObjectNode>> =
+    private fun Mono<CursorPage<ObjectNode>>.maskCursorResult(): Mono<CursorPage<ObjectNode>> =
         Mono.defer(provider::schema).flatMap { schema ->
             val source = withQueryModelSchema(schema)
             masker(schema).map { schemaMasker ->
-                val removeBodyType = schema.requiresInternalEventBodyType(projection)
-                source.map { page -> page.copy(list = page.list.map { schemaMasker.mask(it, removeBodyType) }) }
+                source.map { page -> page.copy(list = page.list.map(schemaMasker::mask)) }
             }.orElse(source)
         }
-
-    private fun SchemaMasker.mask(node: ObjectNode, removeBodyType: Boolean): ObjectNode =
-        mask(node).let { if (removeBodyType) it.removeInternalEventBodyType() else it }
-
-    private fun QueryModelSchema.requiresInternalEventBodyType(projection: Projection): Boolean =
-        model == QueryModel.EVENT_STREAM && projection.requiresInternalEventBodyType()
 }
 
 internal fun FilterChain<QueryContext<*, *>>.withSchemaMaskFilter(
