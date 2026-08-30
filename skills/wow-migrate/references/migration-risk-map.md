@@ -49,6 +49,50 @@ Change custom query-filter `@FilterType` targets to the corresponding renamed Ga
 
 The rename alone does not change HTTP/OpenAPI query shapes, wire formats, or stored events/snapshots, so it needs source compilation, Spring bean/qualifier startup, and representative managed-service/WebFlux query verification, but no data conversion. Reassess that conclusion if the same release also changes application schemas, storage layouts, or writers.
 
+## Wow 8.16.x to V9 query gateway/backend split
+
+Pin the exact V9 tag or commit first. When that target contains the V9 query split, migrate the V8.16.x JVM API directly; do not add aliases, adapters, duplicate beans, or compatibility proxies:
+
+| V8.16.x | V9 |
+|---|---|
+| `SnapshotQueryService<S>` | `SnapshotQueryGateway<S>` |
+| `EventStreamQueryService` | `EventStreamQueryGateway` |
+| `QueryServiceCacheSource` | `QueryGatewayCacheSource` |
+| `SnapshotQueryServiceFactory` | `SnapshotQueryBackendFactory` |
+| `EventStreamQueryServiceFactory` | `EventStreamQueryBackendFactory` |
+| `AbstractSnapshotQueryServiceFactory` | `AbstractSnapshotQueryBackendFactory` |
+| `AbstractEventStreamQueryServiceFactory` | `AbstractEventStreamQueryBackendFactory` |
+| `RoutingSnapshotQueryServiceFactory` | `RoutingSnapshotQueryBackendFactory` |
+| `RoutingEventStreamQueryServiceFactory` | `RoutingEventStreamQueryBackendFactory` |
+| `AbstractMongoQueryService` | `AbstractMongoQueryBackend` |
+| `MongoSnapshotQueryService` | `MongoSnapshotQueryBackend` |
+| `MongoEventStreamQueryService` | `MongoEventStreamQueryBackend` |
+| `MongoSnapshotQueryServiceFactory` | `MongoSnapshotQueryBackendFactory` |
+| `MongoEventStreamQueryServiceFactory` | `MongoEventStreamQueryBackendFactory` |
+| `AbstractElasticsearchQueryService` | `AbstractElasticsearchQueryBackend` |
+| `ElasticsearchSnapshotQueryService` | `ElasticsearchSnapshotQueryBackend` |
+| `ElasticsearchEventStreamQueryService` | `ElasticsearchEventStreamQueryBackend` |
+| `ElasticsearchSnapshotQueryServiceFactory` | `ElasticsearchSnapshotQueryBackendFactory` |
+| `ElasticsearchEventStreamQueryServiceFactory` | `ElasticsearchEventStreamQueryBackendFactory` |
+| `SnapshotQueryServiceFactoryBinding` | `SnapshotQueryBackendFactoryBinding` |
+| `EventStreamQueryServiceFactoryBinding` | `EventStreamQueryBackendFactoryBinding` |
+| `UnavailableQueryService` | `UnavailableQueryBackend` |
+| `QueryServiceRegistrar` | `QueryGatewayRegistrar` |
+| `SnapshotQueryServiceRegistrar` | `SnapshotQueryGatewayRegistrar` |
+| `EventStreamQueryServiceRegistrar` | `EventStreamQueryGatewayRegistrar` |
+| `QueryServiceProxy` / snapshot / event-stream proxies | Deleted; inject the aggregate-bound Gateway directly |
+| `DynamicDocument` / `SimpleDynamicDocument` | `tools.jackson.databind.node.ObjectNode` |
+| `DynamicDocumentMasker` | `ObjectNodeMasker` |
+| `QueryType.DYNAMIC_SINGLE` / `DYNAMIC_LIST` / `DYNAMIC_PAGED` | `SINGLE` / `LIST` / `PAGED` |
+
+Spring registers `{contextAlias.}{aggregateName}.SnapshotQueryGateway` and `{contextAlias.}{aggregateName}.EventStreamQueryGateway`; omit the alias prefix when absent, and do not retain the old `*.QueryService` bean names. A `QueryFilter` without `@FilterType` applies generally; a model-specific filter targets `SnapshotQueryGateway` or `EventStreamQueryGateway`.
+
+Each aggregate-bound Gateway captures the routed `ObjectNode` Backend during bean construction and runs one around chain. Request filters rewrite or reject before `next`; the terminal invokes the Backend and stores its result Publisher; result filters run after `next` and may rewrite that Publisher. The built-in snapshot/event-stream masker applies to `SINGLE`, `LIST`, and `PAGED`, before the Gateway optionally materializes typed results with Jackson; it does not mask `COUNT` or `AGGREGATION`. Application and transport code use the Gateway. Direct Backend Factory access is a trusted low-level path that bypasses request filtering, authorization, result masking, and error observation. Schema handlers use the same routed Backend Factory and `NamedAggregate` selection as queries.
+
+Every Backend subscription must produce fresh, exclusively owned `ObjectNode` values containing only standard JSON tree nodes. Do not cache or share mutable nodes across retry, repeat, or concurrent subscriptions, expose `Map`, BSON, `POJONode`, or arbitrary POJOs, or mutate a node after publication. An `ObjectNodeMasker` may mutate its input or return a replacement, but must preserve required snapshot/event-stream envelope fields and typed field shapes; typed materialization fails closed after masking.
+
+Factory JVM names change, but public route binding values deliberately retain the `*-query-service-factory` suffix, including `mongo-snapshot-query-service-factory` and `elasticsearch-event-stream-query-service-factory`. This split is JVM source- and binary-breaking, so rebuild downstream code. By itself it does not change HTTP paths, request/response JSON, generated OpenAPI, wire formats, storage layouts, or existing data, and therefore requires no data conversion. Verify compilation, exact Spring bean/qualifier startup, managed Gateway filtering and masking, trusted raw Backend behavior, generated HTTP routes, Schema routes, and every routed MongoDB/Elasticsearch Backend actually used.
+
 ## Runtime and data coupling
 
 Identify every writer, reader, database/namespace, bounded context, aggregate route, ownership marker, stream/topic, snapshot/event format, PrepareKey store, index, and background process. Determine whether source and target versions can safely coexist; assume they cannot unless the pinned contract proves otherwise.
