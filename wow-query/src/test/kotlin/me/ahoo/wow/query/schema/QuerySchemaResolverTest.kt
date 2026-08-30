@@ -1391,6 +1391,52 @@ class QuerySchemaResolverTest {
     }
 
     @Test
+    fun `aggregation should reject a declared field bound to a masked projection path`() {
+        val resolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    LogicalField("state.emailAlias") to fieldSchema(
+                        projectionPath = "state.email",
+                        maskRule = fullMaskRule(),
+                    ),
+                    LogicalField("state.email") to fieldSchema(
+                        QueryCapability.AGGREGATE_TERMS to "state.email",
+                    ),
+                ),
+            ),
+        )
+        val query = AggregationQuery(
+            groupBy = listOf(AggregationGroup.Terms(LogicalField("state.email"), "email")),
+            metrics = listOf(AggregationMetric.Count("count")),
+        )
+
+        resolver.resolve(query).compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+    }
+
+    @Test
+    fun `aggregation should keep an unrelated declared field exact beside a masked alias`() {
+        val resolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    LogicalField("state.emailAlias") to fieldSchema(
+                        projectionPath = "state.email",
+                        maskRule = fullMaskRule(),
+                    ),
+                    LogicalField("state.status") to fieldSchema(
+                        QueryCapability.AGGREGATE_TERMS to "document.status.keyword",
+                    ),
+                ),
+            ),
+        )
+        val query = AggregationQuery(
+            groupBy = listOf(AggregationGroup.Terms(LogicalField("state.status"), "status")),
+            metrics = listOf(AggregationMetric.Count("count")),
+        )
+
+        resolver.resolve(query).compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+    }
+
+    @Test
     fun `aggregation should keep an unknown non-masked path compatible`() {
         val resolver = QuerySchemaResolver(
             schema(

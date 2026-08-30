@@ -199,10 +199,11 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         physicalParent = physicalParent,
         fieldIsAbsolute = true,
     ).let { resolved ->
-        val matchesMaskedCandidate = resolved.fieldSchema == null && schema.maskedFields.values.any { maskedField ->
+        val compilerCandidate = resolved.physicalPath ?: resolved.logical.value
+        val matchesMaskedCandidate = schema.maskedFields.values.any { maskedField ->
             val projectionPath = maskedField.projectionPath
-            (!projectionPath.isNullOrEmpty() && projectionPath == resolved.logical.value) ||
-                maskedField.bindings.values.any { binding -> binding.physicalPath == resolved.logical.value }
+            (!projectionPath.isNullOrEmpty() && projectionPath == compilerCandidate) ||
+                maskedField.bindings.values.any { binding -> binding.physicalPath == compilerCandidate }
         }
         if (resolved.fieldSchema?.maskRule == null && !matchesMaskedCandidate) {
             resolved
