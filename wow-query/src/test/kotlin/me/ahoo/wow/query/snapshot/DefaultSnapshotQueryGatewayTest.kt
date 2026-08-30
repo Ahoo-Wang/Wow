@@ -21,9 +21,15 @@ import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.mask.FullMaskStrategy
+import me.ahoo.wow.api.query.mask.Mask
+import me.ahoo.wow.api.query.schema.QueryCardinality
+import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.query.dsl.listQuery
@@ -32,14 +38,22 @@ import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.schema.MaskRule
+import me.ahoo.wow.query.schema.QueryFieldSchema
+import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.test.StepVerifier
 import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.reflect.jvm.javaField
 
 class DefaultSnapshotQueryGatewayTest {
     @Test
@@ -81,6 +95,52 @@ class DefaultSnapshotQueryGatewayTest {
                 QueryType.AGGREGATION
             ),
         )
+    }
+
+    @Test
+    fun `gateway should mask typed and dynamic single list and paged results`() {
+        val backend = SchemaSnapshotBackend(Mono.just(maskedSchema()))
+        val gateway = gateway(backend)
+
+        gateway.dynamicSingle(singleQuery { }).block()!!.stateValue().assert().isEqualTo("***********")
+        gateway.single(singleQuery { }).block()!!.state.value.assert().isEqualTo("***********")
+        gateway.dynamicList(listQuery { }).single().block()!!.stateValue().assert().isEqualTo("***********")
+        gateway.list(listQuery { }).single().block()!!.state.value.assert().isEqualTo("***********")
+        gateway.dynamicPaged(pagedQuery { }).block()!!.list.single().stateValue().assert().isEqualTo("***********")
+        gateway.paged(pagedQuery { }).block()!!.list.single().state.value.assert().isEqualTo("***********")
+        backend.schemaCalls.get().assert().isOne()
+    }
+
+    @Test
+    fun `gateway should cache an unmasked schema and leave raw results unchanged`() {
+        val backend = SchemaSnapshotBackend(Mono.just(unmaskedSchema()))
+        val gateway = gateway(backend)
+
+        gateway.dynamicSingle(singleQuery { }).block()!!.stateValue().assert().isEqualTo("state-value")
+        gateway.dynamicSingle(singleQuery { }).block()!!.stateValue().assert().isEqualTo("state-value")
+        backend.schemaCalls.get().assert().isOne()
+    }
+
+    @Test
+    fun `gateway should fail result queries before subscribing backend when schema fails`() {
+        val failure = QuerySchemaUnavailableException("unavailable")
+        val backend = SchemaSnapshotBackend(Mono.error(failure))
+
+        StepVerifier.create(gateway(backend).dynamicSingle(singleQuery { }))
+            .expectErrorMatches { it === failure }
+            .verify()
+        backend.resultSubscriptions.get().assert().isZero()
+    }
+
+    @Test
+    fun `count and aggregation should not load mask schema`() {
+        val backend = SchemaSnapshotBackend(Mono.error(QuerySchemaUnavailableException("unused")))
+        val gateway = gateway(backend)
+
+        gateway.count(MatchAllFilter).block().assert().isOne()
+        gateway.aggregate(AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))))
+            .single().block()!!.path("count").longValue().assert().isOne()
+        backend.schemaCalls.get().assert().isZero()
     }
 
     private fun gateway(
@@ -144,7 +204,75 @@ class DefaultSnapshotQueryGatewayTest {
 
     private data class TestState(val value: String)
 
+    private class SchemaSnapshotBackend(
+        private val schemaPublisher: Mono<QueryModelSchema>,
+    ) : SnapshotQueryBackend, QueryModelSchemaProvider {
+        override val namedAggregate: NamedAggregate = MOCK_AGGREGATE_METADATA
+        override val name: String = "schema"
+        val schemaCalls = AtomicInteger()
+        val resultSubscriptions = AtomicInteger()
+
+        override fun schema(): Mono<QueryModelSchema> = Mono.defer {
+            schemaCalls.incrementAndGet()
+            schemaPublisher
+        }
+
+        override fun refresh(): Mono<QueryModelSchema> = schema()
+
+        override fun single(query: ISingleQuery): Mono<ObjectNode> = Mono.fromSupplier {
+            resultSubscriptions.incrementAndGet()
+            snapshotNode()
+        }
+
+        override fun list(query: IListQuery): Flux<ObjectNode> = Flux.defer {
+            resultSubscriptions.incrementAndGet()
+            Flux.just(snapshotNode())
+        }
+
+        override fun paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> = Mono.fromSupplier {
+            resultSubscriptions.incrementAndGet()
+            PagedList(1, listOf(snapshotNode()))
+        }
+
+        override fun count(filter: FilterExpression): Mono<Long> = Mono.just(1)
+
+        override fun aggregate(query: AggregationQuery): Flux<ObjectNode> =
+            Flux.just("""{"count":1}""".toJsonNode())
+    }
+
     private companion object {
+        fun ObjectNode.stateValue(): String = path("state").path("value").stringValue()
+
+        fun maskedSchema(): QueryModelSchema {
+            val annotation = Masked::value.javaField!!.getAnnotation(Mask::class.java)
+            val rule = MaskRule(FullMaskStrategy::class, annotation, FullMaskStrategy.compile(annotation))
+            return QueryModelSchema(
+                model = QueryModel.SNAPSHOT,
+                capabilities = emptySet(),
+                fields = mapOf(LogicalField("state.value") to fieldSchema(rule)),
+            )
+        }
+
+        fun unmaskedSchema(): QueryModelSchema = QueryModelSchema(
+            model = QueryModel.SNAPSHOT,
+            capabilities = emptySet(),
+            fields = emptyMap(),
+        )
+
+        fun fieldSchema(maskRule: MaskRule) = QueryFieldSchema(
+            title = null,
+            description = null,
+            enumValues = null,
+            valueTypes = setOf(QueryValueType.STRING),
+            nullable = false,
+            required = true,
+            cardinality = QueryCardinality.SINGLE,
+            semanticType = null,
+            dynamicChildren = false,
+            bindings = emptyMap(),
+            maskRule = maskRule,
+        )
+
         fun snapshotNode(): ObjectNode = """
             {
               "contextName":"mock",
@@ -166,4 +294,6 @@ class DefaultSnapshotQueryGatewayTest {
             }
         """.toJsonNode()
     }
+
+    private data class Masked(@field:Mask val value: String)
 }

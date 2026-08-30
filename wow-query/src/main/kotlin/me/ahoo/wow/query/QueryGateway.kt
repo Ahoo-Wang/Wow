@@ -29,11 +29,14 @@ import me.ahoo.wow.query.filter.DefaultQueryContext
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.mask.SchemaMasker
+import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.serialization.toObject
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import tools.jackson.databind.JavaType
 import tools.jackson.databind.node.ObjectNode
+import java.util.Optional
 import kotlin.reflect.KClass
 
 interface QueryGateway<R : Any> : NamedAggregateDecorator {
@@ -55,6 +58,12 @@ abstract class AbstractQueryGateway<R : Any>(
     filterType: KClass<*>,
     private val errorHandler: ErrorHandler<QueryContext<*, *>>,
 ) : QueryGateway<R> {
+    private val masker = (backend as? QueryModelSchemaProvider)?.let { provider ->
+        Mono.defer { provider.schema() }
+            .map { Optional.ofNullable(SchemaMasker.create(it)) }
+            .cache()
+    }
+
     private val chain = FilterChainBuilder<QueryContext<*, *>>()
         .addFilters(filters)
         .filterCondition(filterType)
@@ -106,32 +115,50 @@ abstract class AbstractQueryGateway<R : Any>(
             .onErrorResume { original -> observeError(context, original).thenMany(Flux.error(original)) }
     }
 
+    private fun Mono<ObjectNode>.maskResult(): Mono<ObjectNode> = masker?.flatMap { optional ->
+        optional.map { schemaMasker -> map(schemaMasker::mask) }.orElse(this)
+    } ?: this
+
+    private fun Flux<ObjectNode>.maskResult(): Flux<ObjectNode> = masker?.flatMapMany { optional ->
+        optional.map { schemaMasker -> map(schemaMasker::mask) }.orElse(this)
+    } ?: this
+
+    private fun Mono<PagedList<ObjectNode>>.maskPagedResult(): Mono<PagedList<ObjectNode>> = masker?.flatMap { optional ->
+        optional.map { schemaMasker ->
+            map { page -> PagedList(page.total, page.list.map(schemaMasker::mask)) }
+        }.orElse(this)
+    } ?: this
+
     override fun single(query: ISingleQuery): Mono<R> =
         mono<ISingleQuery, Mono<ObjectNode>, R>(QueryType.SINGLE, query) { context ->
-            context.getRequiredResult().map { it.toObject<R>(targetType) }
+            context.getRequiredResult().maskResult().map { it.toObject<R>(targetType) }
         }
 
     override fun dynamicSingle(query: ISingleQuery): Mono<ObjectNode> =
-        mono<ISingleQuery, Mono<ObjectNode>, ObjectNode>(QueryType.SINGLE, query) { it.getRequiredResult() }
+        mono<ISingleQuery, Mono<ObjectNode>, ObjectNode>(QueryType.SINGLE, query) {
+            it.getRequiredResult().maskResult()
+        }
 
     override fun list(query: IListQuery): Flux<R> =
         flux<IListQuery, Flux<ObjectNode>, R>(QueryType.LIST, query) { context ->
-            context.getRequiredResult().map { it.toObject<R>(targetType) }
+            context.getRequiredResult().maskResult().map { it.toObject<R>(targetType) }
         }
 
     override fun dynamicList(query: IListQuery): Flux<ObjectNode> =
-        flux<IListQuery, Flux<ObjectNode>, ObjectNode>(QueryType.LIST, query) { it.getRequiredResult() }
+        flux<IListQuery, Flux<ObjectNode>, ObjectNode>(QueryType.LIST, query) {
+            it.getRequiredResult().maskResult()
+        }
 
     override fun paged(query: IPagedQuery): Mono<PagedList<R>> =
         mono<IPagedQuery, Mono<PagedList<ObjectNode>>, PagedList<R>>(QueryType.PAGED, query) { context ->
-            context.getRequiredResult().map { page ->
+            context.getRequiredResult().maskPagedResult().map { page ->
                 PagedList(page.total, page.list.map { it.toObject<R>(targetType) })
             }
         }
 
     override fun dynamicPaged(query: IPagedQuery): Mono<PagedList<ObjectNode>> =
         mono<IPagedQuery, Mono<PagedList<ObjectNode>>, PagedList<ObjectNode>>(QueryType.PAGED, query) {
-            it.getRequiredResult()
+            it.getRequiredResult().maskPagedResult()
         }
 
     override fun count(filter: FilterExpression): Mono<Long> =
