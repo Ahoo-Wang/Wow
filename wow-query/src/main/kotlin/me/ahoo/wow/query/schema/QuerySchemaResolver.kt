@@ -244,10 +244,13 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
 
     private fun QueryFieldResolution.matchesMaskedCandidate(): Boolean {
         val logicalCandidate = logical.value
+        val projectionCandidate = fieldSchema?.projectionPath
         val physicalCandidate = physicalPath ?: logicalCandidate
         return schema.maskedFields.values.any { maskedField ->
             val projectionPath = maskedField.projectionPath
-            (!projectionPath.isNullOrEmpty() && projectionPath == logicalCandidate) ||
+            val matchesProjection = !projectionPath.isNullOrEmpty() &&
+                (projectionPath == logicalCandidate || projectionPath == projectionCandidate)
+            matchesProjection ||
                 maskedField.bindings.values.any { binding -> binding.physicalPath == physicalCandidate }
         }
     }

@@ -85,7 +85,7 @@ For every result query, `SchemaMaskQueryFilter` reads the Provider's current Sch
 | Snapshot/EventStream typed/dynamic `cursor` | Masks `CursorPage.list` and preserves `nextCursor` unchanged |
 | Snapshot state-only / aggregate-state load | Reuses the Snapshot Gateway and is masked |
 | Ordinary filter, full-text search, sort | May reference a masked field; the backend matches or sorts raw values, while the response remains masked |
-| `CursorQuery` effective sort | Must resolve exactly, be single-valued, and carry no masking rule; otherwise it is rejected before Backend execution so raw sort values or multi-value arrays cannot enter `nextCursor` |
+| `CursorQuery` effective sort | Must resolve exactly, be single-valued, carry no masking rule, and not alias a masked projection or physical binding; otherwise it is rejected before Backend execution so raw sort values or multi-value arrays cannot enter `nextCursor` |
 | Data-query `count` | Count is unchanged; the masking layer neither loads Schema nor reads field values |
 | Aggregation group, field metric, numeric expression | A masked-field reference resolves as `INCOMPATIBLE` and is rejected before Backend execution |
 | Schema required by aggregation is unavailable | Fails closed; even a count-only aggregation does not fall back to execution |
