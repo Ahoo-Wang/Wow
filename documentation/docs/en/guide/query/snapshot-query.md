@@ -107,7 +107,7 @@ POST /sales-order/snapshot/cursor/state
 POST /sales-order/snapshot/count
 ```
 
-The same single, single/state, list, list/state, paged, paged/state, and count operations are also published with tenant and owner scopes:
+The same single, single/state, list, list/state, paged, paged/state, cursor, cursor/state, and count operations are also published with tenant and owner scopes:
 
 ```text
 POST /tenant/{tenantId}/sales-order/snapshot/{operation}

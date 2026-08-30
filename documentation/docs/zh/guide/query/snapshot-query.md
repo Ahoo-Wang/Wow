@@ -107,7 +107,7 @@ POST /sales-order/snapshot/cursor/state
 POST /sales-order/snapshot/count
 ```
 
-相同的 single、single/state、list、list/state、paged、paged/state 和 count 操作还发布 tenant 与 owner 作用域变体：
+相同的 single、single/state、list、list/state、paged、paged/state、cursor、cursor/state 和 count 操作还发布 tenant 与 owner 作用域变体：
 
 ```text
 POST /tenant/{tenantId}/sales-order/snapshot/{operation}
