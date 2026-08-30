@@ -380,8 +380,26 @@ class JsonQuerySchemaSourceTest {
 
     @Test
     fun `should reject masked illegal logical property names`() {
-        assertThrows<QuerySchemaConflictException> {
+        val error = assertThrows<QuerySchemaConflictException> {
             load(MaskedInvalidLogicalFieldState::class.java)
+        }
+
+        error.message.assert().contains("state[\"phone.number\"]")
+    }
+
+    @Test
+    fun `should reject masked descendants behind schema compositions`() {
+        listOf("allOf", "anyOf", "oneOf").forEach { composition ->
+            assertThrows<QuerySchemaConflictException> {
+                JsonSchemaWalker(
+                    schema = JsonSerializer.readTree(
+                        """
+                        {"properties":{"contact.value":{"$composition":[{"properties":{"phone":{"$MASK_RULE_ATTRIBUTE":"0"}}}]}}}
+                        """.trimIndent(),
+                    ),
+                    maskRuleResolver = { fullMaskRule() },
+                ).declaration()
+            }
         }
     }
 
@@ -531,6 +549,13 @@ class JsonQuerySchemaSourceTest {
     fun `should reject masked recursive descendants`() {
         assertThrows<QuerySchemaConflictException> {
             load(MaskedRecursiveState::class.java)
+        }
+    }
+
+    @Test
+    fun `should reject masked recursive list descendants`() {
+        assertThrows<QuerySchemaConflictException> {
+            load(MaskedRecursiveChildrenState::class.java)
         }
     }
 

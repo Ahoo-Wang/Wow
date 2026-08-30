@@ -69,6 +69,7 @@ internal data class JacksonState(
     @field:JsonProperty("0")
     val numericName: String,
     @field:JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    @field:Mask
     val secret: String,
     @field:JsonProperty(access = JsonProperty.Access.READ_ONLY)
     val visible: String,
@@ -282,6 +283,11 @@ internal data class RecursiveState(
 internal data class MaskedRecursiveState(
     @field:Mask val secret: String,
     val child: MaskedRecursiveState?,
+)
+
+internal data class MaskedRecursiveChildrenState(
+    @field:Mask val secret: String,
+    val children: List<MaskedRecursiveChildrenState>,
 )
 
 internal data class MutuallyRecursiveMaskedState(
