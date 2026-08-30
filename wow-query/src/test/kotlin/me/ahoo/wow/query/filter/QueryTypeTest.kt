@@ -19,42 +19,9 @@ import org.junit.jupiter.api.Test
 class QueryTypeTest {
 
     @Test
-    fun `single should not be dynamic`() {
-        QueryType.SINGLE.isDynamic.assert().isFalse()
-    }
-
-    @Test
-    fun `dynamic single should be dynamic`() {
-        QueryType.DYNAMIC_SINGLE.isDynamic.assert().isTrue()
-    }
-
-    @Test
-    fun `list should not be dynamic`() {
-        QueryType.LIST.isDynamic.assert().isFalse()
-    }
-
-    @Test
-    fun `dynamic list should be dynamic`() {
-        QueryType.DYNAMIC_LIST.isDynamic.assert().isTrue()
-    }
-
-    @Test
-    fun `paged should not be dynamic`() {
-        QueryType.PAGED.isDynamic.assert().isFalse()
-    }
-
-    @Test
-    fun `dynamic paged should be dynamic`() {
-        QueryType.DYNAMIC_PAGED.isDynamic.assert().isTrue()
-    }
-
-    @Test
-    fun `count should not be dynamic`() {
-        QueryType.COUNT.isDynamic.assert().isFalse()
-    }
-
-    @Test
-    fun `aggregation should be dynamic`() {
-        QueryType.AGGREGATION.isDynamic.assert().isTrue()
+    fun `query type should describe only backend operations`() {
+        QueryType.entries.assert().isEqualTo(
+            listOf(QueryType.SINGLE, QueryType.LIST, QueryType.PAGED, QueryType.COUNT, QueryType.AGGREGATION),
+        )
     }
 }

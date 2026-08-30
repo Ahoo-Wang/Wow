@@ -93,11 +93,9 @@ These four model-level routes have no tenant, owner, or aggregate-ID variants. T
 
 `x-wow-query-fields` is a static OpenAPI extension on aggregate-specific Snapshot query request-body components. It combines Snapshot system fields with fields inferred by `JsonQuerySchemaSource` so generators can discover candidate logical fields. It is not a JSON request property, contains no backend physical binding, and does not prove runtime capability. EventStream requests have no corresponding extension, and there is currently no EventStream API Client or client-side field discovery. The Snapshot API Client likewise does not read runtime Schema in place of server validation. See [API Client](./query-api-client.md) for the client boundary.
 
-## Provider Differences
+## Provider and Storage Routing
 
-Spring `SnapshotQueryServiceProxy` does not implement `QueryModelSchemaProvider`. `EventStreamQueryServiceProxy` does implement the Provider and delegates `schema()` and `refresh()` to the raw EventStream service. This difference describes Provider access through the proxy Bean only.
-
-HTTP exposure does not depend on that difference. `SnapshotSchemaHandlerFunction` obtains its Provider from a raw service created by `SnapshotQueryServiceFactory`; the EventStream handler does the same through `EventStreamQueryServiceFactory`. Both handlers can therefore publish their Schema and refresh routes. Whether a proxy implements Provider cannot be used to infer HTTP/OpenAPI exposure. See [Query Backend](./query-backend.md) for the Factory and proxy responsibilities.
+`SnapshotSchemaHandlerFunction` reads `QueryModelSchemaProvider` from the routed Backend created by `SnapshotQueryBackendFactory`; the EventStream handler likewise uses `EventStreamQueryBackendFactory`. Schema reads, refreshes, and queries therefore select the same Backend route for the same `NamedAggregate`. A handler must not bypass the routing Factory to assemble Schema from another store. An unavailable Provider raises `QuerySchemaUnavailableException` explicitly. See [Query Backend](./query-backend.md) for Factory and Gateway responsibilities.
 
 ## Troubleshooting an Unqueryable Field
 
@@ -106,4 +104,4 @@ HTTP exposure does not depend on that difference. `SnapshotSchemaHandlerFunction
 3. Inspect actual backend facts: MongoDB indexes and validators, or Elasticsearch mappings, multi-fields, nested mappings, doc values, and runtime fields. Do not extrapolate from the other backend.
 4. Distinguish `INCOMPATIBLE`, Schema conflict, Schema unavailable, and request-DTO errors, and verify whether the current mode is `COMPATIBLE` or `STRICT`.
 5. After changing declarations or mappings, refresh the current-process view. Refresh cannot repair a mapping or historical document that still violates the required capability.
-6. With a custom converter, verify that the raw Factory-created service still supplies a `QueryModelSchemaProvider` consistent with the converter.
+6. With a custom converter, verify that the routed Backend still supplies a `QueryModelSchemaProvider` consistent with the converter.

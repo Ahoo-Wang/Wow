@@ -2,16 +2,24 @@ package me.ahoo.wow.mongo
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.MaterializedSnapshot
-import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToAggregateId
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.bson.Document
+import org.bson.types.Binary
+import org.bson.types.Decimal128
+import org.bson.types.ObjectId
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertDoesNotThrow
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.node.ObjectNode
+import java.math.BigDecimal
+import java.util.Date
+import java.util.UUID
 
 class DocumentsKtTest {
 
@@ -45,9 +53,53 @@ class DocumentsKtTest {
         )
 
     @Test
-    fun `should convert document to dynamic document`() {
-        val dynamicDocument = snapshotDocument.replacePrimaryKeyToAggregateId().toDynamicDocument()
-        dynamicDocument.getNestedDocument("state").getValue<String>("id").assert().isEqualTo(aggregateId)
+    fun `document should normalize complete bson corpus to canonical object node`() {
+        val normalizedDocument = Document(
+            mapOf(
+                "_id" to ObjectId("64b64c000000000000000001"),
+                "objectId" to ObjectId("64b64c000000000000000002"),
+                "decimal" to Decimal128(BigDecimal("123.45")),
+                "date" to Date(1_700_000_000_000),
+                "uuid" to UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                "binary" to Binary(byteArrayOf(1, 2, 3)),
+                "nullable" to null,
+                "nested" to Document(
+                    "items",
+                    listOf(Document("value", Decimal128(BigDecimal("2.5")))),
+                ),
+            ),
+        ).apply {
+            this["_id"] = getObjectId("_id").toHexString()
+        }.replacePrimaryKeyToAggregateId()
+
+        val node = normalizedDocument.toObjectNode()
+
+        node.isObject.assert().isTrue()
+        node.allNodes().none { it.isPojo }.assert().isTrue()
+        JsonSerializer.writeValueAsString(node).assert().isEqualTo(
+            JsonSerializer.writeValueAsString(
+                JsonSerializer.readTree(JsonSerializer.writeValueAsBytes(normalizedDocument)),
+            ),
+        )
+    }
+
+    private fun JsonNode.allNodes(): Sequence<JsonNode> = sequence {
+        yield(this@allNodes)
+        this@allNodes.forEach { yieldAll(it.allNodes()) }
+    }
+
+    @Test
+    fun `json serializer should discover mongo bson serializers`() {
+        val document = Document("decimal", Decimal128(BigDecimal("123.45")))
+            .append("binary", Binary(byteArrayOf(1, 2, 3)))
+
+        val node = assertDoesNotThrow {
+            JsonSerializer.valueToTree<ObjectNode>(document)
+        }
+
+        node.path("decimal").decimalValue().assert().isEqualTo(BigDecimal("123.45"))
+        node.path("binary").path("data").asString().assert().isEqualTo("AQID")
+        node.allNodes().none { it.isPojo }.assert().isTrue()
     }
 
     @Test

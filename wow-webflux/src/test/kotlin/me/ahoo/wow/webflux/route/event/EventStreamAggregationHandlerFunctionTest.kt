@@ -20,7 +20,6 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.OwnerIdFilter
-import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.event.EventStreamQueryGateway
@@ -39,6 +38,7 @@ import org.springframework.web.reactive.function.server.HandlerStrategies
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Flux
 import reactor.kotlin.core.publisher.toMono
+import tools.jackson.databind.node.JsonNodeFactory
 import java.util.concurrent.atomic.AtomicBoolean
 
 class EventStreamAggregationHandlerFunctionTest {
@@ -48,14 +48,14 @@ class EventStreamAggregationHandlerFunctionTest {
         val capturedQuery = slot<AggregationQuery>()
         val subscribed = AtomicBoolean()
         val gateway = mockk<EventStreamQueryGateway> {
-            every { aggregate(any(), capture(capturedQuery)) } returns Flux.deferContextual {
+            every { aggregate(capture(capturedQuery)) } returns Flux.deferContextual {
                 it.getRawRequest<MockServerRequest>().assert().isNotNull()
                 subscribed.set(true)
-                Flux.just(mutableMapOf("count" to 1L).toDynamicDocument())
+                Flux.just(JsonNodeFactory.instance.objectNode().put("count", 1L))
             }
         }
         val function = EventStreamAggregationHandlerFunctionFactory(
-            eventStreamQueryGateway = gateway,
+            eventStreamQueryGateway = { gateway },
             rewriteRequestFilter = DefaultRewriteRequestFilter,
             exceptionHandler = WebFluxRequestExceptionHandler(),
         ).create(

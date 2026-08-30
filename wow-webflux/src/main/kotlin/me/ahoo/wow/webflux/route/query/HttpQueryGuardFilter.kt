@@ -32,6 +32,7 @@ import me.ahoo.wow.webflux.route.acceptsEventStream
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
 import java.util.ArrayDeque
 
@@ -199,22 +200,20 @@ class HttpQueryGuardFilter(
     private fun applyIdleTimeout(context: QueryContext<*, *>, request: ServerRequest) {
         if (idleTimeout.isZero) return
         when (context.queryType) {
-            QueryType.SINGLE, QueryType.DYNAMIC_SINGLE ->
-                context.asSingleQuery<Any>().rewriteResult { it.timeout(idleTimeout) }
+            QueryType.SINGLE -> context.asSingleQuery().rewriteResult { it.timeout(idleTimeout) }
 
-            QueryType.LIST, QueryType.DYNAMIC_LIST ->
-                context.asListQuery<Any>().rewriteResult {
+            QueryType.LIST ->
+                context.asListQuery().rewriteResult {
                     if (request.acceptsEventStream()) {
                         it.timeout(idleTimeout)
                     } else {
                         it.timeout(idleTimeout)
                             .collectList()
-                            .flatMapMany(Flux<Any>::fromIterable)
+                            .flatMapMany(Flux<ObjectNode>::fromIterable)
                     }
                 }
 
-            QueryType.PAGED, QueryType.DYNAMIC_PAGED ->
-                context.asPagedQuery<Any>().rewriteResult { it.timeout(idleTimeout) }
+            QueryType.PAGED -> context.asPagedQuery().rewriteResult { it.timeout(idleTimeout) }
 
             QueryType.COUNT -> context.asCountQuery().rewriteResult { it.timeout(idleTimeout) }
 
@@ -224,7 +223,7 @@ class HttpQueryGuardFilter(
                 } else {
                     it.timeout(idleTimeout)
                         .collectList()
-                        .flatMapMany(Flux<Any>::fromIterable)
+                        .flatMapMany(Flux<ObjectNode>::fromIterable)
                 }
             }
         }
@@ -244,6 +243,6 @@ class HttpQueryGuardFilter(
             FilterOperator.CONTAINS,
             FilterOperator.ENDS_WITH,
         )
-        private val COUNTING_QUERY_TYPES = setOf(QueryType.PAGED, QueryType.DYNAMIC_PAGED, QueryType.COUNT)
+        private val COUNTING_QUERY_TYPES = setOf(QueryType.PAGED, QueryType.COUNT)
     }
 }

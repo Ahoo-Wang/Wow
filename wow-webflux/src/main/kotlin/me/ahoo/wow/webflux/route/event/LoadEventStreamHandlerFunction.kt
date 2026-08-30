@@ -51,14 +51,14 @@ class LoadEventStreamHandlerFunction(
             }
             limit(limit)
         }
-        return eventStreamQueryGateway.dynamicList(aggregateMetadata, listQuery)
+        return eventStreamQueryGateway.dynamicList(listQuery)
             .writeRawRequest(request)
             .toServerResponse(request, exceptionHandler)
     }
 }
 
 class LoadEventStreamHandlerFunctionFactory(
-    private val eventStreamQueryGateway: EventStreamQueryGateway,
+    private val eventStreamQueryGateway: (AggregateMetadata<*, *>) -> EventStreamQueryGateway,
     private val exceptionHandler: RequestExceptionHandler
 ) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Event.LOAD) {
     override fun create(
@@ -69,6 +69,10 @@ class LoadEventStreamHandlerFunctionFactory(
     }
 
     private fun create(aggregateMetadata: AggregateMetadata<*, *>): HandlerFunction<ServerResponse> {
-        return LoadEventStreamHandlerFunction(aggregateMetadata, eventStreamQueryGateway, exceptionHandler)
+        return LoadEventStreamHandlerFunction(
+            aggregateMetadata,
+            eventStreamQueryGateway(aggregateMetadata),
+            exceptionHandler,
+        )
     }
 }

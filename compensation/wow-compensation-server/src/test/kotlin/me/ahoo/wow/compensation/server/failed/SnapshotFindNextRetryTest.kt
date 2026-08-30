@@ -11,7 +11,7 @@ import me.ahoo.wow.api.query.LessThanOrEqualFilter
 import me.ahoo.wow.compensation.api.ExecutionFailedStatus
 import me.ahoo.wow.compensation.domain.ExecutionFailedState
 import me.ahoo.wow.query.dsl.filter
-import me.ahoo.wow.query.snapshot.SnapshotQueryService
+import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 
@@ -30,11 +30,11 @@ class SnapshotFindNextRetryTest {
     @Test
     fun `should build correct find next retry filter`() {
         val querySlot = slot<IListQuery>()
-        val queryService = mockk<SnapshotQueryService<ExecutionFailedState>> {
+        val snapshotQueryGateway = mockk<SnapshotQueryGateway<ExecutionFailedState>> {
             every { list(capture(querySlot)) } returns Flux.empty()
         }
         val before = System.currentTimeMillis()
-        SnapshotFindNextRetry(queryService).findNextRetry(10).collectList().block()
+        SnapshotFindNextRetry(snapshotQueryGateway).findNextRetry(10).collectList().block()
         val after = System.currentTimeMillis()
         val nextQuery = querySlot.captured
         val actualFilter = nextQuery.filter as AndFilter

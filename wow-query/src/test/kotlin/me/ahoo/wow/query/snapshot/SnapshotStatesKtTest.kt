@@ -13,72 +13,54 @@
 
 package me.ahoo.wow.query.snapshot
 
-import io.mockk.every
-import io.mockk.mockk
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.api.query.SimpleDynamicDocument
+import me.ahoo.wow.serialization.toJsonNode
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.kotlin.core.publisher.toMono
-import reactor.kotlin.test.test
+import tools.jackson.databind.node.ObjectNode
 
 class SnapshotStatesKtTest {
-
     @Test
-    fun `should extract state from snapshot mono`() {
-        val snapshot = mockk<MaterializedSnapshot<String>> {
-            every { state } returns "state"
-        }
-        snapshot.toMono().toState().test().expectNext("state").verifyComplete()
+    fun `object node state helpers should preserve object nodes`() {
+        val snapshot = """{"state":{"id":"id"}}""".toJsonNode<ObjectNode>()
+
+        snapshot.toState().path("id").textValue().assert().isEqualTo("id")
+        Mono.just(snapshot).toStateDocument().block()!!.path("id").textValue().assert().isEqualTo("id")
+        Flux.just(snapshot).toStateDocument().single().block()!!.path("id").textValue().assert().isEqualTo("id")
+        Mono.just(PagedList(1, listOf(snapshot))).toStateDocumentPagedList().block()!!.list.single()
+            .path("id").textValue().assert().isEqualTo("id")
     }
 
     @Test
-    fun `should extract dynamic state document from mono`() {
-        val snapshot = SimpleDynamicDocument(mutableMapOf("state" to SimpleDynamicDocument(mutableMapOf("id" to "id"))))
-        snapshot.toMono().toStateDocument().test().consumeNextWith {
-            it.getValue<String>("id").assert().isEqualTo("id")
-        }.verifyComplete()
+    fun `state helper should reject non-object state`() {
+        assertThrows<IllegalStateException> { """{"state":"invalid"}""".toJsonNode<ObjectNode>().toState() }
     }
 
     @Test
-    fun `should extract state from snapshot flux`() {
-        val snapshot = mockk<MaterializedSnapshot<String>> {
-            every { state } returns "state"
-        }
-        Flux.just(snapshot).toState().test().expectNext("state").verifyComplete()
-    }
+    fun `typed state helpers should project state`() {
+        val snapshot = MaterializedSnapshot(
+            contextName = "context",
+            aggregateName = "aggregate",
+            tenantId = "tenant",
+            aggregateId = "id",
+            version = 1,
+            eventId = "event",
+            firstOperator = "operator",
+            operator = "operator",
+            firstEventTime = 1,
+            eventTime = 1,
+            state = "state",
+            snapshotTime = 1,
+            deleted = false,
+        )
 
-    @Test
-    fun `should extract dynamic state document from flux`() {
-        val snapshot = SimpleDynamicDocument(mutableMapOf("state" to SimpleDynamicDocument(mutableMapOf("id" to "id"))))
-        Flux.just(snapshot).toStateDocument().test().consumeNextWith {
-            it.getValue<String>("id").assert().isEqualTo("id")
-        }.verifyComplete()
-    }
-
-    @Test
-    fun `should extract state from paged snapshot list`() {
-        val snapshot = mockk<MaterializedSnapshot<String>> {
-            every { state } returns "state"
-        }
-        val pagedList = PagedList(1, listOf(snapshot))
-        Mono.just(pagedList).toStatePagedList().test()
-            .expectNextCount(1)
-            .verifyComplete()
-    }
-
-    @Test
-    fun `should extract dynamic state from paged list`() {
-        val snapshot = SimpleDynamicDocument(
-            mutableMapOf("state" to SimpleDynamicDocument(mutableMapOf("id" to "id")))
-        ) as DynamicDocument
-        val pagedList = PagedList(1, listOf(snapshot))
-        Mono.just(pagedList).toStateDocumentPagedList().test()
-            .expectNextCount(1)
-            .verifyComplete()
+        Mono.just(snapshot).toState().block().assert().isEqualTo("state")
+        Flux.just(snapshot).toState().single().block().assert().isEqualTo("state")
+        Mono.just(PagedList(1, listOf(snapshot))).toStatePagedList().block()!!.list.single()
+            .assert().isEqualTo("state")
     }
 }

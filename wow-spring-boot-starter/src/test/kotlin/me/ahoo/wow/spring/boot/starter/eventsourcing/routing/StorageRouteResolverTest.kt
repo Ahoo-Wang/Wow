@@ -20,12 +20,12 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.query.event.EventStreamQueryService
-import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
-import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
-import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
-import me.ahoo.wow.query.snapshot.SnapshotQueryService
-import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
+import me.ahoo.wow.query.event.EventStreamQueryBackend
+import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
+import me.ahoo.wow.query.event.NoOpEventStreamQueryBackendFactory
+import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackendFactory
+import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
+import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -39,12 +39,20 @@ class StorageRouteResolverTest {
     private val mongoSnapshotStore = NoOpSnapshotStore("mongo")
     private val redisSnapshotStore = NoOpSnapshotStore("redis")
     private val archiveSnapshotStore = NoOpSnapshotStore("archive")
-    private val mongoEventStreamQueryServiceFactory = NoOpEventStreamQueryServiceFactory
-    private val redisEventStreamQueryServiceFactory = RecordingEventStreamQueryServiceFactory()
-    private val archiveEventStreamQueryServiceFactory = RecordingEventStreamQueryServiceFactory()
-    private val mongoSnapshotQueryServiceFactory = NoOpSnapshotQueryServiceFactory
-    private val redisSnapshotQueryServiceFactory = RecordingSnapshotQueryServiceFactory()
-    private val archiveSnapshotQueryServiceFactory = RecordingSnapshotQueryServiceFactory()
+    private val mongoEventStreamQueryBackendFactory = NoOpEventStreamQueryBackendFactory
+    private val redisEventStreamQueryBackendFactory = RecordingEventStreamQueryBackendFactory()
+    private val archiveEventStreamQueryBackendFactory = RecordingEventStreamQueryBackendFactory()
+    private val mongoSnapshotQueryBackendFactory = NoOpSnapshotQueryBackendFactory
+    private val redisSnapshotQueryBackendFactory = RecordingSnapshotQueryBackendFactory()
+    private val archiveSnapshotQueryBackendFactory = RecordingSnapshotQueryBackendFactory()
+
+    @Test
+    fun `renamed backend binding keeps public service factory name`() {
+        SnapshotQueryBackendFactoryBinding.storage(StorageType.MONGO, mongoSnapshotQueryBackendFactory)
+            .name.assert().isEqualTo("mongo-snapshot-query-service-factory")
+        EventStreamQueryBackendFactoryBinding.storage(StorageType.ELASTICSEARCH, mongoEventStreamQueryBackendFactory)
+            .name.assert().isEqualTo("elasticsearch-event-stream-query-service-factory")
+    }
 
     @Test
     fun `aggregate key without context resolves using current context`() {
@@ -299,13 +307,13 @@ class StorageRouteResolverTest {
             ),
         )
 
-        val resolved = resolver().resolveEventStreamQueryServiceFactoryRoutes(properties)
+        val resolved = resolver().resolveEventStreamQueryBackendFactoryRoutes(properties)
 
-        resolved.defaultEventStreamQueryServiceFactory.assert().isSameAs(mongoEventStreamQueryServiceFactory)
-        resolved.eventStreamQueryServiceFactoryRoutes[MaterializedNamedAggregate("order-service", "order")]
-            .assert().isSameAs(redisEventStreamQueryServiceFactory)
-        resolved.eventStreamQueryServiceFactoryRoutes[MaterializedNamedAggregate("order-service", "audit")]
-            .assert().isSameAs(archiveEventStreamQueryServiceFactory)
+        resolved.defaultEventStreamQueryBackendFactory.assert().isSameAs(mongoEventStreamQueryBackendFactory)
+        resolved.eventStreamQueryBackendFactoryRoutes[MaterializedNamedAggregate("order-service", "order")]
+            .assert().isSameAs(redisEventStreamQueryBackendFactory)
+        resolved.eventStreamQueryBackendFactoryRoutes[MaterializedNamedAggregate("order-service", "audit")]
+            .assert().isSameAs(archiveEventStreamQueryBackendFactory)
     }
 
     @Test
@@ -321,13 +329,13 @@ class StorageRouteResolverTest {
             ),
         )
 
-        val resolved = resolver().resolveSnapshotQueryServiceFactoryRoutes(properties)
+        val resolved = resolver().resolveSnapshotQueryBackendFactoryRoutes(properties)
 
-        resolved.defaultSnapshotQueryServiceFactory.assert().isSameAs(mongoSnapshotQueryServiceFactory)
-        resolved.snapshotQueryServiceFactoryRoutes[MaterializedNamedAggregate("order-service", "cart")]
-            .assert().isSameAs(redisSnapshotQueryServiceFactory)
-        resolved.snapshotQueryServiceFactoryRoutes[MaterializedNamedAggregate("order-service", "audit")]
-            .assert().isSameAs(archiveSnapshotQueryServiceFactory)
+        resolved.defaultSnapshotQueryBackendFactory.assert().isSameAs(mongoSnapshotQueryBackendFactory)
+        resolved.snapshotQueryBackendFactoryRoutes[MaterializedNamedAggregate("order-service", "cart")]
+            .assert().isSameAs(redisSnapshotQueryBackendFactory)
+        resolved.snapshotQueryBackendFactoryRoutes[MaterializedNamedAggregate("order-service", "audit")]
+            .assert().isSameAs(archiveSnapshotQueryBackendFactory)
     }
 
     @Test
@@ -339,10 +347,10 @@ class StorageRouteResolverTest {
                 ),
             ),
         )
-        val resolver = resolver(includeQueryServiceFactoryBindings = false)
+        val resolver = resolver(includeQueryBackendFactoryBindings = false)
 
         val exception = assertThrows<IllegalArgumentException> {
-            resolver.resolveEventStreamQueryServiceFactoryRoutes(properties)
+            resolver.resolveEventStreamQueryBackendFactoryRoutes(properties)
         }
         exception.message.assert().contains("audit")
         exception.message.assert().contains("archive-event-store")
@@ -358,10 +366,10 @@ class StorageRouteResolverTest {
                 ),
             ),
         )
-        val resolver = resolver(includeQueryServiceFactoryBindings = false)
+        val resolver = resolver(includeQueryBackendFactoryBindings = false)
 
         val exception = assertThrows<IllegalArgumentException> {
-            resolver.resolveSnapshotQueryServiceFactoryRoutes(properties)
+            resolver.resolveSnapshotQueryBackendFactoryRoutes(properties)
         }
         exception.message.assert().contains("audit")
         exception.message.assert().contains("archive-snapshot-store")
@@ -377,10 +385,10 @@ class StorageRouteResolverTest {
                 ),
             ),
         )
-        val resolver = resolver(includeQueryServiceFactoryBindings = false)
+        val resolver = resolver(includeQueryBackendFactoryBindings = false)
 
         val exception = assertThrows<IllegalArgumentException> {
-            resolver.resolveEventStreamQueryServiceFactoryRoutes(properties)
+            resolver.resolveEventStreamQueryBackendFactoryRoutes(properties)
         }
         exception.message.assert().contains("order")
         exception.message.assert().contains(StorageType.REDIS.name)
@@ -389,16 +397,16 @@ class StorageRouteResolverTest {
 
     @Test
     fun `missing default query service factory binding fails`() {
-        val resolver = resolver(includeQueryServiceFactoryBindings = false)
+        val resolver = resolver(includeQueryBackendFactoryBindings = false)
 
         val eventException = assertThrows<IllegalArgumentException> {
-            resolver.resolveEventStreamQueryServiceFactoryRoutes(StorageRoutingProperties())
+            resolver.resolveEventStreamQueryBackendFactoryRoutes(StorageRoutingProperties())
         }
         eventException.message.assert().contains("<default>")
         eventException.message.assert().contains("query service factory")
 
         val snapshotException = assertThrows<IllegalArgumentException> {
-            resolver.resolveSnapshotQueryServiceFactoryRoutes(StorageRoutingProperties())
+            resolver.resolveSnapshotQueryBackendFactoryRoutes(StorageRoutingProperties())
         }
         snapshotException.message.assert().contains("<default>")
         snapshotException.message.assert().contains("query service factory")
@@ -407,7 +415,7 @@ class StorageRouteResolverTest {
     private fun resolver(
         contextName: String = "order-service",
         snapshotEnabled: Boolean = true,
-        includeQueryServiceFactoryBindings: Boolean = true
+        includeQueryBackendFactoryBindings: Boolean = true
     ): StorageRouteResolver =
         StorageRouteResolver(
             contextName = contextName,
@@ -430,56 +438,56 @@ class StorageRouteResolverTest {
                     snapshotStore = archiveSnapshotStore,
                 ),
             ),
-            eventStreamQueryServiceFactoryBindings = eventStreamQueryServiceFactoryBindings(
-                includeQueryServiceFactoryBindings
+            eventStreamQueryBackendFactoryBindings = eventStreamQueryBackendFactoryBindings(
+                includeQueryBackendFactoryBindings
             ),
-            snapshotQueryServiceFactoryBindings = snapshotQueryServiceFactoryBindings(
-                includeQueryServiceFactoryBindings
+            snapshotQueryBackendFactoryBindings = snapshotQueryBackendFactoryBindings(
+                includeQueryBackendFactoryBindings
             ),
         )
 
-    private fun eventStreamQueryServiceFactoryBindings(
-        includeQueryServiceFactoryBindings: Boolean
-    ): List<EventStreamQueryServiceFactoryBinding> {
-        if (!includeQueryServiceFactoryBindings) {
+    private fun eventStreamQueryBackendFactoryBindings(
+        includeQueryBackendFactoryBindings: Boolean
+    ): List<EventStreamQueryBackendFactoryBinding> {
+        if (!includeQueryBackendFactoryBindings) {
             return emptyList()
         }
         return listOf(
-            EventStreamQueryServiceFactoryBinding.storage(
+            EventStreamQueryBackendFactoryBinding.storage(
                 StorageType.MONGO,
-                mongoEventStreamQueryServiceFactory,
+                mongoEventStreamQueryBackendFactory,
             ),
-            EventStreamQueryServiceFactoryBinding.storage(
+            EventStreamQueryBackendFactoryBinding.storage(
                 StorageType.REDIS,
-                redisEventStreamQueryServiceFactory,
+                redisEventStreamQueryBackendFactory,
             ),
-            EventStreamQueryServiceFactoryBinding(
+            EventStreamQueryBackendFactoryBinding(
                 name = "archive-event-store",
                 storage = null,
-                eventStreamQueryServiceFactory = archiveEventStreamQueryServiceFactory,
+                eventStreamQueryBackendFactory = archiveEventStreamQueryBackendFactory,
             ),
         )
     }
 
-    private fun snapshotQueryServiceFactoryBindings(
-        includeQueryServiceFactoryBindings: Boolean
-    ): List<SnapshotQueryServiceFactoryBinding> {
-        if (!includeQueryServiceFactoryBindings) {
+    private fun snapshotQueryBackendFactoryBindings(
+        includeQueryBackendFactoryBindings: Boolean
+    ): List<SnapshotQueryBackendFactoryBinding> {
+        if (!includeQueryBackendFactoryBindings) {
             return emptyList()
         }
         return listOf(
-            SnapshotQueryServiceFactoryBinding.storage(
+            SnapshotQueryBackendFactoryBinding.storage(
                 StorageType.MONGO,
-                mongoSnapshotQueryServiceFactory,
+                mongoSnapshotQueryBackendFactory,
             ),
-            SnapshotQueryServiceFactoryBinding.storage(
+            SnapshotQueryBackendFactoryBinding.storage(
                 StorageType.REDIS,
-                redisSnapshotQueryServiceFactory,
+                redisSnapshotQueryBackendFactory,
             ),
-            SnapshotQueryServiceFactoryBinding(
+            SnapshotQueryBackendFactoryBinding(
                 name = "archive-snapshot-store",
                 storage = null,
-                snapshotQueryServiceFactory = archiveSnapshotQueryServiceFactory,
+                snapshotQueryBackendFactory = archiveSnapshotQueryBackendFactory,
             ),
         )
     }
@@ -511,14 +519,14 @@ private class NoOpSnapshotStore(
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> = Mono.empty()
 }
 
-private class RecordingEventStreamQueryServiceFactory : EventStreamQueryServiceFactory {
-    override fun create(namedAggregate: NamedAggregate): EventStreamQueryService {
+private class RecordingEventStreamQueryBackendFactory : EventStreamQueryBackendFactory {
+    override fun create(namedAggregate: NamedAggregate): EventStreamQueryBackend {
         throw UnsupportedOperationException("Not needed for route resolution tests.")
     }
 }
 
-private class RecordingSnapshotQueryServiceFactory : SnapshotQueryServiceFactory {
-    override fun <S : Any> create(namedAggregate: NamedAggregate): SnapshotQueryService<S> {
+private class RecordingSnapshotQueryBackendFactory : SnapshotQueryBackendFactory {
+    override fun <S : Any> create(namedAggregate: NamedAggregate): SnapshotQueryBackend {
         throw UnsupportedOperationException("Not needed for route resolution tests.")
     }
 }

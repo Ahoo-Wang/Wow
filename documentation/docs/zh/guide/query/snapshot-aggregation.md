@@ -9,7 +9,7 @@ description: 用八个业务场景说明快照根文档与集合元素的聚合�
 
 ## 能力与入口
 
-- **JVM Gateway**：通过 Spring 注入聚合级 `SnapshotQueryService<OrderState>`，构造 `AggregationQuery` 后调用 `query.query(snapshotQueryService)`。该 Bean 通常经 [QueryGateway](./query-gateway.md) 执行策略链；直接 Factory 和自定义 Bean 的绕过条件见[查询后端](./query-backend.md)。
+- **JVM Gateway**：通过 Spring 注入聚合级 `SnapshotQueryGateway<OrderState>`，构造 `AggregationQuery` 后调用 `query.query(snapshotQueryGateway)`。该 Bean 经 [QueryGateway](./query-gateway.md) 执行策略链；直接 Backend Factory 的绕过条件见[查询后端](./query-backend.md)。
 - **HTTP / OpenAPI**：示例域已发布 `POST /sales-order/snapshot/aggregation`、`POST /tenant/{tenantId}/sales-order/snapshot/aggregation` 和 `POST /owner/{ownerId}/sales-order/snapshot/aggregation`。请求体是 `AggregationQuery` JSON，响应可协商 `application/json` 或 `text/event-stream`；准确路径与作用域参数以运行实例生成的 [OpenAPI](../open-api.md) 为准。
 - **快照 API Client**：响应式与同步客户端分别使用独立的 `ReactiveSnapshotAggregationQueryApi` 和 `SynchronousSnapshotAggregationQueryApi`，不会合并进普通快照查询接口。依赖与调用方式见[通用 API Client 指南](./query-api-client.md)。
 
@@ -438,6 +438,6 @@ val query = aggregation {
 - 快照查询默认追加 `DELETION = ACTIVE`；根 filter 先筛选快照，Element filter 再筛选展开后的单个元素。
 - 逻辑字段能否用于精确匹配、范围、Element、TERMS、数值或时间聚合，由运行时 Query Model Schema 和所选 MongoDB / Elasticsearch mapping 共同证明；请求 DTO 合法不等于后端支持。
 - HTTP 路由经 `SnapshotQueryGateway`、请求作用域重写和 `HttpQueryGuardFilter`。禁用高成本操作符时，Elements、按 metric alias 排序和算术表达式会被拒绝；进程内 JVM 调用不自动获得这组 HTTP 专用限制。
-- 聚合结果脱敏被刻意跳过。授权、tenant/owner/space 作用域与敏感字段建模必须在聚合执行前完成，不能依赖结果 masking 补救。
+- 当前 V9 不提供内建结果 Mask。授权、tenant/owner/space 作用域与敏感字段建模必须在聚合执行前完成，不能依赖结果处理补救泄漏。
 - MongoDB 与 Elasticsearch 共享公共 AST，但不承诺物理 pipeline、mapping、空值或桶细节完全一致。`ANY` 尤其不提供跨执行或跨后端稳定值。
-- 自定义 `SnapshotQueryService` 可能沿用默认的“不支持聚合”实现；数据查询路由可用或 OpenAPI 已发布，不能单独证明该自定义后端会执行聚合。
+- 自定义 `SnapshotQueryBackend` 必须实现聚合合同；数据查询路由可用或 OpenAPI 已发布，不能单独证明该 Backend 会执行聚合。

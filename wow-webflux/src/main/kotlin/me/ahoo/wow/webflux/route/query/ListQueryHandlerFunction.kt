@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.webflux.route.query
 
-import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
@@ -28,20 +27,21 @@ import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import tools.jackson.databind.node.ObjectNode
 
 class ListQueryHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val queryGateway: QueryGateway<*>,
     private val rewriteRequestFilter: RewriteRequestFilter,
     private val exceptionHandler: RequestExceptionHandler,
-    private val rewriteResult: (Flux<DynamicDocument>) -> Flux<DynamicDocument>
+    private val rewriteResult: (Flux<ObjectNode>) -> Flux<ObjectNode>
 ) : HandlerFunction<ServerResponse> {
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         return request.body(LIST_QUERY_EXTRACTOR)
             .flatMapMany {
                 val query = rewriteRequestFilter.rewrite(aggregateMetadata, request, it)
-                val result = queryGateway.dynamicList(aggregateMetadata, query)
+                val result = queryGateway.dynamicList(query)
                 rewriteResult(result)
             }.writeRawRequest(request)
             .toServerResponse(request, exceptionHandler)
@@ -50,10 +50,10 @@ class ListQueryHandlerFunction(
 
 open class ListQueryHandlerFunctionFactory(
     handlerKey: String,
-    private val queryGateway: QueryGateway<*>,
+    private val queryGateway: (AggregateMetadata<*, *>) -> QueryGateway<*>,
     private val rewriteRequestFilter: RewriteRequestFilter,
     private val exceptionHandler: RequestExceptionHandler,
-    private val rewriteResult: (Flux<DynamicDocument>) -> Flux<DynamicDocument> = { it }
+    private val rewriteResult: (Flux<ObjectNode>) -> Flux<ObjectNode> = { it }
 ) : AggregateRouteHandlerFunctionFactorySupport(handlerKey) {
     override fun create(
         contract: HttpRouteContract,
@@ -65,7 +65,7 @@ open class ListQueryHandlerFunctionFactory(
     private fun create(aggregateMetadata: AggregateMetadata<*, *>): HandlerFunction<ServerResponse> {
         return ListQueryHandlerFunction(
             aggregateMetadata = aggregateMetadata,
-            queryGateway = queryGateway,
+            queryGateway = queryGateway(aggregateMetadata),
             rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler,
             rewriteResult = rewriteResult

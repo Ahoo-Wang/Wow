@@ -9,7 +9,7 @@ description: Drive CoCache loading and refresh from Wow snapshot queries and dom
 
 ## Features
 
-- `QueryServiceCacheSource` loads from a local `SnapshotQueryService`.
+- `QueryGatewayCacheSource` loads from a local `SnapshotQueryGateway`.
 - `QueryApiCacheSource` loads from a remote `ReactiveSnapshotQueryApi` and converts 404 to empty.
 - `EvictStateCacheRefresher` consumes domain events and evicts.
 - `SetStateCacheRefresher` consumes state events and sets, or evicts deleted state.
@@ -36,9 +36,9 @@ Create `Cache<String, OrderView>` through the application's existing CoCache con
 
 ```kotlin
 @Bean
-fun orderCacheSource(queryService: SnapshotQueryService<OrderState>) =
-    QueryServiceCacheSource(
-        queryService = queryService,
+fun orderCacheSource(queryGateway: SnapshotQueryGateway<OrderState>) =
+    QueryGatewayCacheSource(
+        snapshotQueryGateway = queryGateway,
         stateToCacheDataConverter = { snapshot -> OrderView(snapshot.state) },
     )
 ```
@@ -73,9 +73,9 @@ Eviction is simpler and reloads on the next read. Active set reduces misses but 
 
 ## Cache Sources
 
-A source only loads a miss and converts a DTO. Authorization, tenant/space scope, and not-found semantics must come from the called query service/API contract.
+A source only loads a miss and converts a DTO. Authorization, tenant/space scope, and not-found semantics must come from the called Gateway/API contract.
 
-### QueryServiceCacheSource
+### QueryGatewayCacheSource
 
 It creates a single query by `aggregateId`. Empty results return a null cache value. Query errors and timeouts do not masquerade as cache misses.
 

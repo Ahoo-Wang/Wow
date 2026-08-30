@@ -15,35 +15,52 @@ package me.ahoo.wow.query
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.modeling.NamedAggregateDecorator
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.IPagedQuery
+import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.filter.Handler
 import org.junit.jupiter.api.Test
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 import java.lang.reflect.Modifier
 
 class QueryGatewayApiTest {
     @Test
-    fun `gateway should not expose filter handler contract`() {
+    fun `gateway should be aggregate bound without exposing handler contract`() {
+        NamedAggregateDecorator::class.java.isAssignableFrom(QueryGateway::class.java).assert().isTrue()
         Handler::class.java.isAssignableFrom(QueryGateway::class.java).assert().isFalse()
+        QueryGateway::class.java.declaredMethods.filter { Modifier.isAbstract(it.modifiers) }
+            .flatMap { it.parameterTypes.asIterable() }
+            .none { it == NamedAggregate::class.java }
+            .assert().isTrue()
     }
 
     @Test
-    fun `gateway should expose only filter expression count`() {
-        QueryGateway::class.java.methods.any { method ->
-            method.name == "count" && method.parameterTypes.contentEquals(
-                arrayOf(NamedAggregate::class.java, Condition::class.java),
-            )
-        }.assert().isFalse()
-    }
-
-    @Test
-    fun `gateway aggregation should be mandatory`() {
-        val aggregate = QueryGateway::class.java.getMethod(
-            "aggregate",
-            NamedAggregate::class.java,
-            AggregationQuery::class.java,
-        )
-
-        Modifier.isAbstract(aggregate.modifiers).assert().isTrue()
+    fun `gateway should expose the five object-node operations and typed variants`() {
+        QueryGateway::class.java.getMethod(
+            "single",
+            ISingleQuery::class.java
+        ).returnType.assert().isEqualTo(Mono::class.java)
+        QueryGateway::class.java.getMethod("dynamicSingle", ISingleQuery::class.java).returnType
+            .assert().isEqualTo(Mono::class.java)
+        QueryGateway::class.java.getMethod(
+            "list",
+            IListQuery::class.java
+        ).returnType.assert().isEqualTo(Flux::class.java)
+        QueryGateway::class.java.getMethod("dynamicList", IListQuery::class.java).returnType
+            .assert().isEqualTo(Flux::class.java)
+        QueryGateway::class.java.getMethod(
+            "paged",
+            IPagedQuery::class.java
+        ).returnType.assert().isEqualTo(Mono::class.java)
+        QueryGateway::class.java.getMethod("dynamicPaged", IPagedQuery::class.java).returnType
+            .assert().isEqualTo(Mono::class.java)
+        QueryGateway::class.java.getMethod("count", FilterExpression::class.java).returnType
+            .assert().isEqualTo(Mono::class.java)
+        QueryGateway::class.java.getMethod("aggregate", AggregationQuery::class.java).returnType
+            .assert().isEqualTo(Flux::class.java)
     }
 }

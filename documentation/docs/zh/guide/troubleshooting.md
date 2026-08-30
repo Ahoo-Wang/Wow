@@ -118,7 +118,7 @@ append 的 expected version 与 EventStore head 不同。Wow 只对 recoverable 
 2. 分开测量 SnapshotStore load、EventStore load 与 sourcing function。
 3. 若 Snapshot 与完整重放不一致，停止依赖该快照的读路径，先用聚合规格定位非确定 sourcing。
 4. 若 `SNAPSHOT` 已完成但没有写入，确认策略是否为 `version_offset` 且阈值未达到。
-5. 若查询返回旧数据，核对 storage route 的 SnapshotStore 与 SnapshotQueryServiceFactory 是否指向同一 binding。
+5. 若查询返回旧数据，核对 storage route 的 SnapshotStore 与 SnapshotQueryBackendFactory 是否指向同一 binding。
 
 ## 连接与自动配置
 

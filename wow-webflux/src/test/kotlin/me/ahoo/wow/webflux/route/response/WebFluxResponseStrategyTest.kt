@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
+import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
@@ -27,10 +28,12 @@ import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import org.springframework.mock.web.server.MockServerWebExchange
 import org.springframework.web.reactive.function.server.HandlerStrategies
+import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
+import java.nio.charset.StandardCharsets
 
 class WebFluxResponseStrategyTest {
 
@@ -130,20 +133,60 @@ class WebFluxResponseStrategyTest {
         val request = MockServerRequest.builder()
             .header(HttpHeaders.ACCEPT, MediaType.TEXT_EVENT_STREAM_VALUE)
             .build()
+        val original = IllegalArgumentException("bad")
 
-        DefaultWebFluxResponseStrategy
+        val response = DefaultWebFluxResponseStrategy
             .sse(
-                Flux.error<ServerSentEvent<String>>(IllegalArgumentException("bad")),
+                Flux.error(original),
                 request,
                 WebFluxRequestExceptionHandler()
             )
-            .test()
-            .consumeNextWith {
-                val body = it.writeBody()
-                body.assert().contains(ErrorCodes.ILLEGAL_ARGUMENT)
-                body.assert().contains("data:")
-            }
-            .verifyComplete()
+            .block()!!
+
+        val exchange = response.writeToExchangeExpectingError(original)
+        val body = exchange.bodyIgnoringError()
+        body.assert().contains(ErrorCodes.ILLEGAL_ARGUMENT)
+        body.assert().contains("data:")
+    }
+
+    @Test
+    fun `sse response should propagate failure after writing partial stream and error event`() {
+        val request = MockServerRequest.builder()
+            .header(HttpHeaders.ACCEPT, MediaType.TEXT_EVENT_STREAM_VALUE)
+            .build()
+        val original = IllegalArgumentException("bad")
+        val row = ServerSentEvent.builder<String>().event("row").data("one").build()
+        val response = DefaultWebFluxResponseStrategy.sse(
+            Flux.just(row).concatWith(Flux.error(original)),
+            request,
+            WebFluxRequestExceptionHandler(),
+        ).block()!!
+
+        val exchange = response.writeToExchangeExpectingError(original)
+        val body = exchange.bodyIgnoringError()
+        body.assert().contains("event:row", "data:one", ErrorCodes.ILLEGAL_ARGUMENT)
+    }
+
+    @Test
+    fun `sse response should preserve original when exception handler fails`() {
+        val request = MockServerRequest.builder()
+            .header(HttpHeaders.ACCEPT, MediaType.TEXT_EVENT_STREAM_VALUE)
+            .build()
+        val original = IllegalArgumentException("bad")
+        val handlerFailure = IllegalStateException("handler failed")
+        val exceptionHandler = object : RequestExceptionHandler {
+            override fun handle(request: ServerRequest, throwable: Throwable): Mono<ServerResponse> =
+                Mono.error(handlerFailure)
+        }
+        val response = DefaultWebFluxResponseStrategy.sse(
+            Flux.error(original),
+            request,
+            exceptionHandler,
+        ).block()!!
+
+        response.writeToExchangeExpectingError(original)
+        original.suppressed.assert().contains(handlerFailure)
+        original.suppressed.none { it === original }.assert().isTrue()
     }
 
     private data class BodyValue(val name: String)
@@ -176,6 +219,29 @@ class WebFluxResponseStrategyTest {
         }
         error.assert().isInstanceOf(IllegalArgumentException::class.java)
         return exchange
+    }
+
+    private fun ServerResponse.writeToExchangeExpectingError(expected: Throwable): MockServerWebExchange {
+        val exchange = MockServerWebExchange.from(
+            MockServerHttpRequest.get("/test").build()
+        )
+        var error: Throwable? = null
+        try {
+            writeTo(exchange, EMPTY_CONTEXT).block()
+        } catch (throwable: Throwable) {
+            error = throwable
+        }
+        error.assert().isSameAs(expected)
+        return exchange
+    }
+
+    private fun MockServerWebExchange.bodyIgnoringError(): String {
+        return response.body
+            .map { it.toString(StandardCharsets.UTF_8) }
+            .onErrorComplete()
+            .collectList()
+            .block()!!
+            .joinToString("")
     }
 
     private companion object {

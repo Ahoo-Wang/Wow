@@ -5,17 +5,17 @@ description: Apply JVM and WebFlux HTTP/OpenAPI event-stream aggregation to root
 
 # Event Stream Aggregation
 
-Event-stream aggregation is supported through the JVM `EventStreamQueryGateway` / `EventStreamQueryService` and WebFlux HTTP/OpenAPI. There is no EventStream API Client; HTTP callers use the shared `AggregationQuery` JSON contract directly.
+Event-stream aggregation is supported through the JVM `EventStreamQueryGateway` and WebFlux HTTP/OpenAPI. There is no EventStream API Client; HTTP callers use the shared `AggregationQuery` JSON contract directly.
 
 ## Capabilities and Entry Points
 
 - **JVM Gateway**: `EventStreamQueryGateway.aggregate(namedAggregate, query)` executes aggregation through the policy chain.
-- **JVM Service**: an aggregate-specific `EventStreamQueryService` executes `query.query(queryService)`. A Spring-managed service normally enters the policy chain through [Query Gateway](./query-gateway.md); see [Query Backends](./query-backend.md) for direct-Factory and custom-Bean bypass boundaries.
+- **JVM Gateway**: an aggregate-specific `EventStreamQueryGateway` executes `query.query(queryGateway)`. A Spring-managed Gateway enters the complete policy chain; see [Query Backends](./query-backend.md) for the direct Backend Factory bypass boundary.
 - **WebFlux HTTP/OpenAPI**: current `sales-order` OpenAPI proves `POST /sales-order/event/aggregation`, `POST /tenant/{tenantId}/sales-order/event/aggregation`, and `POST /owner/{ownerId}/sales-order/event/aggregation`. The base route contains no tenant/owner path scope; tenant/owner variants provide the corresponding scope through path parameters.
 - **Schema HTTP**: `GET /sales-order/event/schema` and `POST /sales-order/event/schema/refresh` are separate model-level routes without tenant/owner variants.
 - **Shared contract**: see [Aggregation Queries](./aggregation-query.md) for Elements, groups, metrics, aliases, sorting, and limits; see [Filter Expressions](./filter-expression.md) for the root-filter Kotlin DSL; field capabilities come from [Query Model Schema (current reference)](./query-model-schema.md).
 
-After strict request decoding, `RewriteRequestFilter` merges tenant/owner/space scope from aggregate metadata, path variables, and the `Command-Tenant-Id`, `Command-Owner-Id`, and `Wow-Space-Id` request headers before entering `EventStreamQueryGateway`. The Gateway policy chain applies the HTTP guard, its tail filter invokes the selected QueryService, and the Schema resolver validates and resolves the query before backend aggregation. The response negotiates a JSON array or SSE through `Accept`. JVM aggregation returns `Flux<DynamicDocument>`. The results below are representative dynamic rows, not fixed business data.
+After strict request decoding, `RewriteRequestFilter` merges tenant/owner/space scope from aggregate metadata, path variables, and the `Command-Tenant-Id`, `Command-Owner-Id`, and `Wow-Space-Id` request headers before entering `EventStreamQueryGateway`. The Gateway policy chain applies the HTTP guard and invokes the Backend bound at assembly; the Schema resolver validates and resolves the query before aggregation. The response negotiates a JSON array or SSE through `Accept`. JVM aggregation returns `Flux<ObjectNode>`. The results below are representative node rows, not fixed business data.
 
 ## Root Documents, body, and Counting Units
 
@@ -50,17 +50,17 @@ One expanded event. Multiple events in the same event stream are counted separat
 
 ```kotlin
 import me.ahoo.wow.query.dsl.aggregation
-import me.ahoo.wow.query.event.EventStreamQueryService
+import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.query.event.query
 
-fun eventNameFrequency(queryService: EventStreamQueryService) = aggregation {
+fun eventNameFrequency(queryGateway: EventStreamQueryGateway) = aggregation {
     filter { tenantId("tenant-a") }
     expand("body")
     terms("name", "eventName")
     count("eventCount")
     sort { "eventCount".desc() }
     limit(10)
-}.query(queryService)
+}.query(queryGateway)
 ```
 
 **HTTP JSON**
@@ -387,5 +387,5 @@ val query = aggregation {
 - System Schema declares root `createTime`, `tenantId`, and `ownerId`, plus event metadata `body.name`, `body.revision`, and `body.bodyType`. Runtime Schema and the MongoDB or Elasticsearch adapter still resolve the concrete operation capabilities.
 - After expanding `body`, Element filters, groups, metrics, and expression fields are relative to one event. Payload Schema root paths remain `body.body.*`, while relative query paths become `body.*`.
 - MongoDB and Elasticsearch share the public AST but do not promise identical physical pipelines, mappings, null behavior, or bucket details. Elasticsearch's outer `body` must remain nested to preserve fields from the same event; each `body.body.*` payload field also needs mapping capabilities for the operation being used.
-- A custom `EventStreamQueryService` may retain the default unsupported aggregation implementation. Working event-stream data queries alone do not prove that such a custom backend executes aggregation.
+- A custom `EventStreamQueryBackend` must implement the aggregation contract. Working event-stream data queries alone do not prove that the Backend executes aggregation.
 - EventStream aggregation HTTP/OpenAPI and separate Schema HTTP routes exist. There is still no EventStream API Client. HTTP availability also does not prove that a specific backend supports an example field; actual capability comes from runtime Query Model Schema and backend mapping.

@@ -89,7 +89,7 @@ Temporal bucketing is not a numeric Expression. It is a `DATE_HISTOGRAM` Group w
 
 ## Aggregation Results
 
-Rows are dynamic maps whose keys are aliases. The reactive snapshot aggregation API Client returns `Flux<Map<String, Any?>>`; its synchronous counterpart collects `List<Map<String, Any?>>`. JVM `QueryService.aggregate` returns the equivalent map-like `Flux<DynamicDocument>`.
+Rows use aliases as keys. The reactive snapshot aggregation API Client returns `Flux<Map<String, Any?>>`; its synchronous counterpart collects `List<Map<String, Any?>>`. JVM `QueryGateway.aggregate` returns `Flux<ObjectNode>`.
 
 This is the smallest shared-contract example: a root filter, one group, a `COUNT`, a metric alias, and sorting. The fields do not assume `state.*` or `body.*`; replace them with valid logical paths after selecting the model.
 
@@ -124,7 +124,7 @@ The result columns use the group and metric aliases exactly:
 ]
 ```
 
-With no group, aggregation always returns one summary row: for empty input, `COUNT = 0`, `ANY = null`, and numeric metrics are `null`. With groups, empty input produces no rows. A custom `QueryService` that differs from the shared TCK must declare and verify that behavior independently; the difference is not the framework's shared contract.
+With no group, aggregation always returns one summary row: for empty input, `COUNT = 0`, `ANY = null`, and numeric metrics are `null`. With groups, empty input produces no rows. A custom `QueryBackend` that differs from the shared TCK must declare and verify that behavior independently; the difference is not the framework's shared contract.
 
 ## Decide the Counting Unit First
 

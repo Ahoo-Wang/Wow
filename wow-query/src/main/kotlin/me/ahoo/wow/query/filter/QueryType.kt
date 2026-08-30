@@ -13,13 +13,10 @@
 
 package me.ahoo.wow.query.filter
 
-enum class QueryType(val isDynamic: Boolean) {
-    SINGLE(false),
-    DYNAMIC_SINGLE(true),
-    LIST(false),
-    DYNAMIC_LIST(true),
-    PAGED(false),
-    DYNAMIC_PAGED(true),
-    COUNT(false),
-    AGGREGATION(true),
+enum class QueryType {
+    SINGLE,
+    LIST,
+    PAGED,
+    COUNT,
+    AGGREGATION,
 }

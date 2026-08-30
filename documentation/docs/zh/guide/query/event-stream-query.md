@@ -7,7 +7,7 @@ description: 查询聚合事件历史、事件流字段路径及已发布的 HTT
 
 ## 查询模型
 
-`EventStreamQueryService` 查询 `DomainEventStream`。一个事件流是一次命令执行产生的事件集合，系统信封包含 `id`、`aggregateId`、`tenantId`、`ownerId`、`spaceId`、`version`、`createTime`、`requestId` 和 `commandId` 等字段；事件集合位于 `body`。它保留完整历史，不会自动追加快照的 `DELETION = ACTIVE` 条件。
+`EventStreamQueryGateway` 查询 `DomainEventStream`。一个事件流是一次命令执行产生的事件集合，系统信封包含 `id`、`aggregateId`、`tenantId`、`ownerId`、`spaceId`、`version`、`createTime`、`requestId` 和 `commandId` 等字段；事件集合位于 `body`。它保留完整历史，不会自动追加快照的 `DELETION = ACTIVE` 条件。
 
 ## 根字段与事件 body
 
@@ -15,23 +15,23 @@ description: 查询聚合事件历史、事件流字段路径及已发布的 HTT
 
 ## JVM 查询
 
-`EventStreamQueryService` 在 JVM 支持 typed 和 dynamic 的 single/list/paged/count；`dynamicQuery` 返回 `DynamicDocument`。服务接口也有 JVM aggregation，其 JVM 与 HTTP/OpenAPI 合同和示例见[事件流聚合](./event-stream-aggregation.md)。
+`EventStreamQueryGateway` 在 JVM 支持 typed 和 dynamic 的 single/list/paged/count；`dynamicQuery` 返回 `ObjectNode`。Gateway 也提供 JVM aggregation，其 JVM 与 HTTP/OpenAPI 合同和示例见[事件流聚合](./event-stream-aggregation.md)。
 
 按根字段分页的示例：
 
 ```kotlin
 import me.ahoo.wow.query.dsl.pagedQuery
-import me.ahoo.wow.query.event.EventStreamQueryService
+import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.query.event.query
 
-fun findRecentStreams(queryService: EventStreamQueryService) = pagedQuery {
+fun findRecentStreams(queryGateway: EventStreamQueryGateway) = pagedQuery {
     filter { tenantId("tenant-a") }
     sort { "createTime".desc() }
     pagination { index(1); size(20) }
-}.query(queryService)
+}.query(queryGateway)
 ```
 
-通过 Spring 管理的服务会进入 QueryGateway；直接 Factory 的绕过边界见[查询后端](./query-backend.md)与[查询网关](./query-gateway.md)。
+Spring 管理的聚合级 Gateway 会执行完整治理链；直接 Backend Factory 的绕过边界见[查询后端](./query-backend.md)与[查询网关](./query-gateway.md)。
 
 ## HTTP 路由
 

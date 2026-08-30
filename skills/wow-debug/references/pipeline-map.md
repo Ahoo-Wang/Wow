@@ -25,8 +25,8 @@ request / command
 | Projection is stale | event publication, processor invocation, repository result, duplicate/retry behavior |
 | Wait hangs or times out | command identity, wait plan, propagation, stage completion, `notifyAndForget` failure logs, resource cleanup |
 | Query is wrong | enforced filters, filter normalization/conversion and scoped paths, schema source/merge/provider/cache, validation mode, backend adapter, pagination/sort |
-| Aggregation route exists but fails | generated path/body, `QueryGateway` and its `QueryType.AGGREGATION` filter chain, selected `SnapshotQueryService.aggregate`, backend compiler/mapping |
-| EventStream aggregation fails | managed/raw service path, `QueryGateway` filter chain, selected `EventStreamQueryService.aggregate`, `EVENT_STREAM` schema, `body` scope, backend mapping; no framework HTTP route |
+| Aggregation route exists but fails | generated path/body, aggregate `QueryGateway` and its `QueryType.AGGREGATION` filter chain, routed `SnapshotQueryBackend.aggregate`, backend compiler/mapping |
+| EventStream aggregation fails | managed/raw path, aggregate `QueryGateway` filter chain, routed `EventStreamQueryBackend.aggregate`, `EVENT_STREAM` schema, `body` scope, backend mapping, and generated HTTP/OpenAPI route |
 | Configuration is ignored | property prefix/binding, capability/variant, condition, active profile, bean selection |
 | Runtime startup/shutdown fails | lifecycle owner, state transition, component slot, fatal cause, deadline |
 | Test fails unexpectedly | fixture, owner/tenant, event order, fork/ref checkpoint, assertion boundary |

@@ -76,7 +76,7 @@ Count 请求体直接是 `FilterExpression`，没有额外的 `filter` 包装：
 { "op": "EQ", "field": "status", "value": "READY" }
 ```
 
-JVM 中可使用 `filter.count(queryService)`。计数是否可执行以及精确性遵循所选后端合同；HTTP 成本保护可能拒绝高成本或无过滤请求。Count 不返回数据列表。
+JVM 中可使用 `filter.count(queryGateway)`。计数是否可执行以及精确性遵循所选后端合同；HTTP 成本保护可能拒绝高成本或无过滤请求。Count 不返回数据列表。
 
 ## 排序与分页
 
@@ -84,7 +84,7 @@ JVM 中可使用 `filter.count(queryService)`。计数是否可执行以及精�
 
 ## 返回值与空结果
 
-查询可以返回类型化（typed）、仅状态（state-only）或动态（dynamic）结果，具体入口决定可用形态和解包方式。空结果也由具体入口决定：JVM、WebFlux 和 API Client 的 404、空值或空列表语义在各自子页面及客户端页面解释；本页不把一种传输语义推广到所有入口。
+查询可以返回类型化（typed）、仅状态（state-only）或 `ObjectNode` 结果，具体入口决定可用形态和解包方式。Gateway 在通用结果 Filter 完成后按需用 Jackson 物化 typed 结果。当前 V9 临时不提供自动 Mask，字段值不会被 Gateway 遮蔽。空结果也由具体入口决定：JVM、WebFlux 和 API Client 的 404、空值或空列表语义在各自子页面及客户端页面解释；本页不把一种传输语义推广到所有入口。
 
 ## 选择快照还是事件流
 

@@ -1,30 +1,44 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package me.ahoo.wow.spring.boot.starter.query
 
-import io.mockk.every
-import io.mockk.spyk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.abac.AbacTags
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.query.DynamicDocument
-import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
-import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
+import me.ahoo.wow.api.query.PagedQuery
+import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.exception.WowException
+import me.ahoo.wow.filter.FilterChain
+import me.ahoo.wow.messaging.handler.RetryableFilter
+import me.ahoo.wow.query.dsl.singleQuery
+import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.event.EventStreamQueryGateway
-import me.ahoo.wow.query.event.EventStreamQueryService
-import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
-import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
-import me.ahoo.wow.query.mask.EventStreamDynamicDocumentMasker
-import me.ahoo.wow.query.mask.StateDynamicDocumentMasker
-import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryService
-import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
+import me.ahoo.wow.query.event.NoOpEventStreamQueryBackendFactory
+import me.ahoo.wow.query.event.filter.EventStreamQueryFilter
+import me.ahoo.wow.query.filter.QueryContext
+import me.ahoo.wow.query.filter.QueryFilter
+import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
+import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
+import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
-import me.ahoo.wow.query.snapshot.SnapshotQueryService
-import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.filter.AbacQueryFilter
-import me.ahoo.wow.query.snapshot.filter.MaskingSnapshotQueryFilter
-import me.ahoo.wow.query.snapshot.filter.TailSnapshotQueryFilter
+import me.ahoo.wow.query.snapshot.filter.SnapshotQueryFilter
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
@@ -34,161 +48,146 @@ import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 import reactor.util.context.ContextView
+import tools.jackson.databind.node.JsonNodeFactory
+import tools.jackson.databind.node.ObjectNode
+import java.util.concurrent.atomic.AtomicInteger
 
 class QueryAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
 
     @Test
-    fun `should load context with query handler beans`() {
+    fun `query registrars exclude retryable event filter and retain query filters`() {
+        val genericCalls = AtomicInteger()
+        val snapshotCalls = AtomicInteger()
+        val eventCalls = AtomicInteger()
+
+        contextRunner.enableWow()
+            .withUserConfiguration(QueryAutoConfiguration::class.java)
+            .withBean(RecordingSnapshotQueryBackendFactory::class.java, { RecordingSnapshotQueryBackendFactory() })
+            .withBean(EventStreamQueryBackendFactory::class.java, { NoOpEventStreamQueryBackendFactory })
+            .withBean(RetryableFilter::class.java, { RetryableFilter<DomainEventExchange<Any>>() })
+            .withBean(RecordingQueryFilter::class.java, { RecordingQueryFilter(genericCalls) })
+            .withBean(RecordingSnapshotQueryFilter::class.java, { RecordingSnapshotQueryFilter(snapshotCalls) })
+            .withBean(RecordingEventStreamQueryFilter::class.java, { RecordingEventStreamQueryFilter(eventCalls) })
+            .run { context: AssertableApplicationContext ->
+                @Suppress("UNCHECKED_CAST")
+                val snapshot = context.getBean(SNAPSHOT_GATEWAY_BEAN_NAME) as SnapshotQueryGateway<Any>
+                val event = context.getBean(EVENT_STREAM_GATEWAY_BEAN_NAME) as EventStreamQueryGateway
+
+                snapshot.dynamicSingle(singleQuery { }).test().expectNextCount(1).verifyComplete()
+                event.dynamicSingle(singleQuery { }).test().verifyComplete()
+
+                context.assert().hasSingleBean(RetryableFilter::class.java)
+                genericCalls.get().assert().isEqualTo(2)
+                snapshotCalls.get().assert().isOne()
+                eventCalls.get().assert().isOne()
+            }
+    }
+
+    @Test
+    fun `should register aggregate gateways and only shared query infrastructure`() {
         contextRunner
             .enableWow()
             .withUserConfiguration(QueryAutoConfiguration::class.java)
-            .withBean(StateDynamicDocumentMasker::class.java, {
-                spyk<StateDynamicDocumentMasker> {
-                    every { namedAggregate } returns MOCK_AGGREGATE_METADATA
-                }
-            })
-            .withBean(EventStreamDynamicDocumentMasker::class.java, {
-                spyk<EventStreamDynamicDocumentMasker> {
-                    every { namedAggregate } returns MOCK_AGGREGATE_METADATA
-                }
-            })
             .run { context: AssertableApplicationContext ->
                 context.assert()
-                    .hasBean(ExistsBeanName.SNAPSHOT_QUERY_SERVICE)
-                    .hasBean(ExistsBeanName.EVENT_STREAM_QUERY_SERVICE)
-                    .hasBean("noOpSnapshotQueryServiceFactory")
-                    .hasBean("noOpEventStreamQueryServiceFactory")
-                    .hasSingleBean(MaskingSnapshotQueryFilter::class.java)
-                    .hasSingleBean(TailSnapshotQueryFilter::class.java)
-                    .hasBean("snapshotQueryFilterChain")
-                    .hasBean("eventStreamQueryFilterChain")
+                    .hasBean(SNAPSHOT_GATEWAY_BEAN_NAME)
+                    .hasBean(EVENT_STREAM_GATEWAY_BEAN_NAME)
+                    .hasBean("noOpSnapshotQueryBackendFactory")
+                    .hasBean("noOpEventStreamQueryBackendFactory")
                     .hasBean("snapshotQueryErrorHandler")
                     .hasBean("eventStreamQueryErrorHandler")
-                    .hasSingleBean(SnapshotQueryGateway::class.java)
-                    .hasSingleBean(EventStreamQueryGateway::class.java)
+                    .doesNotHaveBean("stateObjectNodeMaskerRegistry")
+                    .doesNotHaveBean("eventStreamObjectNodeMaskerRegistry")
+                    .doesNotHaveBean("maskingSnapshotQueryFilter")
+                    .doesNotHaveBean("maskingEventStreamQueryFilter")
+                    .doesNotHaveBean("snapshotQueryFilterChain")
+                    .doesNotHaveBean("eventStreamQueryFilterChain")
+                    .doesNotHaveBean("snapshotQueryGateway")
+                    .doesNotHaveBean("eventStreamQueryGateway")
 
-                context.getBean(
-                    ExistsBeanName.SNAPSHOT_QUERY_SERVICE,
-                    SnapshotQueryService::class.java,
-                ).count(MatchAllFilter)
-                    .test()
-                    .expectErrorSatisfies(::assertUnavailable)
-                    .verify()
-                context.getBean(
-                    ExistsBeanName.EVENT_STREAM_QUERY_SERVICE,
-                    EventStreamQueryService::class.java,
-                ).count(MatchAllFilter)
-                    .test()
-                    .expectErrorSatisfies(::assertUnavailable)
-                    .verify()
+                context.getBean(SNAPSHOT_GATEWAY_BEAN_NAME).assert()
+                    .isInstanceOf(SnapshotQueryGateway::class.java)
+                context.getBean(EVENT_STREAM_GATEWAY_BEAN_NAME).assert()
+                    .isInstanceOf(EventStreamQueryGateway::class.java)
             }
     }
 
     @Test
-    fun `should load context when snapshot query service bean already exists`() {
-        contextRunner
-            .enableWow()
+    fun `unavailable backends should fail every operation with exact error`() {
+        contextRunner.enableWow()
             .withUserConfiguration(QueryAutoConfiguration::class.java)
-            .withBean(ExistsBeanName.SNAPSHOT_QUERY_SERVICE, ExistsBeanName::class.java)
             .run { context: AssertableApplicationContext ->
-                context.assert()
-                    .hasBean("example.order.SnapshotQueryService")
-                    .hasSingleBean(ExistsBeanName::class.java)
+                val snapshotFactory = context.getBean(SnapshotQueryBackendFactory::class.java)
+                val eventFactory = context.getBean(EventStreamQueryBackendFactory::class.java)
+                val snapshot = snapshotFactory.create<Any>(MOCK_AGGREGATE_METADATA)
+                val event = eventFactory.create(MOCK_AGGREGATE_METADATA)
+
+                listOf(snapshot, event).forEach { backend ->
+                    backend.single(singleQuery { }).test().expectErrorSatisfies(::assertUnavailable).verify()
+                    backend.list(ListQuery(MatchAllFilter, limit = 1))
+                        .test().expectErrorSatisfies(::assertUnavailable).verify()
+                    backend.paged(PagedQuery(MatchAllFilter))
+                        .test().expectErrorSatisfies(::assertUnavailable).verify()
+                    backend.count(MatchAllFilter).test().expectErrorSatisfies(::assertUnavailable).verify()
+                    backend.aggregate(AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))))
+                        .test().expectErrorSatisfies(::assertUnavailable).verify()
+                }
             }
     }
 
     @Test
-    fun `should preserve explicitly configured no op query services`() {
-        contextRunner
-            .enableWow()
+    fun `aggregate gateway should apply policies while backend remains raw`() {
+        contextRunner.enableWow()
             .withUserConfiguration(QueryAutoConfiguration::class.java)
-            .withBean(SnapshotQueryServiceFactory::class.java, { NoOpSnapshotQueryServiceFactory })
-            .withBean(EventStreamQueryServiceFactory::class.java, { NoOpEventStreamQueryServiceFactory })
-            .run { context: AssertableApplicationContext ->
-                context.getBean(
-                    ExistsBeanName.SNAPSHOT_QUERY_SERVICE,
-                    SnapshotQueryService::class.java,
-                ).count(MatchAllFilter)
-                    .test()
-                    .expectNext(0L)
-                    .verifyComplete()
-                context.getBean(
-                    ExistsBeanName.EVENT_STREAM_QUERY_SERVICE,
-                    EventStreamQueryService::class.java,
-                ).count(MatchAllFilter)
-                    .test()
-                    .expectNext(0L)
-                    .verifyComplete()
-            }
-    }
-
-    @Test
-    fun `injected query service should enforce policies while factory remains raw`() {
-        contextRunner
-            .enableWow()
-            .withUserConfiguration(QueryAutoConfiguration::class.java)
-            .withBean(RecordingSnapshotQueryServiceFactory::class.java, { RecordingSnapshotQueryServiceFactory() })
+            .withBean(RecordingSnapshotQueryBackendFactory::class.java, { RecordingSnapshotQueryBackendFactory() })
             .withBean(AbacQueryFilter::class.java, { TestAbacQueryFilter })
-            .withBean(StateDynamicDocumentMasker::class.java, { TestStateDynamicDocumentMasker })
             .run { context: AssertableApplicationContext ->
-                val factory = context.getBean(RecordingSnapshotQueryServiceFactory::class.java)
-                val queryService = context.getBean(
-                    ExistsBeanName.SNAPSHOT_QUERY_SERVICE,
-                    SnapshotQueryService::class.java,
-                )
-                queryService.name.assert().isEqualTo(RAW_SERVICE_NAME)
-                queryService.namedAggregate.assert().isEqualTo(factory.service.namedAggregate)
+                val factory = context.getBean(RecordingSnapshotQueryBackendFactory::class.java)
 
-                val query = me.ahoo.wow.query.dsl.singleQuery { }
-                queryService.dynamicSingle(query)
-                    .test()
-                    .consumeNextWith {
-                        it.getNestedDocument("state").assert().doesNotContainKey(SECRET)
-                    }
-                    .verifyComplete()
-                factory.service.lastQuery!!.filter.operator.assert()
+                @Suppress("UNCHECKED_CAST")
+                val gateway = context.getBean(SNAPSHOT_GATEWAY_BEAN_NAME) as SnapshotQueryGateway<Any>
+                val query = singleQuery { }
+
+                gateway.dynamicSingle(query).test().expectNextCount(1).verifyComplete()
+                factory.backend.lastQuery!!.filter.operator.assert()
                     .isNotEqualTo(me.ahoo.wow.api.query.FilterOperator.MATCH_ALL)
 
-                val rawService = factory.create<Any>(MOCK_AGGREGATE_METADATA)
-                rawService.assert().isSameAs(factory.service)
-                rawService.assert().isNotSameAs(queryService)
-                rawService.dynamicSingle(query)
-                    .test()
-                    .consumeNextWith {
-                        it.getNestedDocument("state").getValue<String>(SECRET).assert().isEqualTo(RAW_SECRET)
-                    }
+                val rawBackend = factory.create<Any>(MOCK_AGGREGATE_METADATA)
+                rawBackend.assert().isSameAs(factory.backend)
+                rawBackend.single(query).test()
+                    .consumeNextWith { it["state"][SECRET].stringValue().assert().isEqualTo(RAW_SECRET) }
                     .verifyComplete()
-                factory.service.lastQuery.assert().isSameAs(query)
+                factory.backend.lastQuery.assert().isSameAs(query)
             }
     }
 
     private fun assertUnavailable(error: Throwable) {
         error.assert().isInstanceOf(WowException::class.java)
         (error as WowException).errorCode.assert().isEqualTo(ErrorCodes.INTERNAL_SERVER_ERROR)
-        error.message.assert().contains("No query backend is configured")
+        error.message.assert().isEqualTo(
+            "No query backend is configured for aggregate[${MOCK_AGGREGATE_METADATA.namedAggregate}]."
+        )
     }
 
-    internal class RecordingSnapshotQueryServiceFactory : SnapshotQueryServiceFactory {
-        val service = RecordingSnapshotQueryService()
-
-        @Suppress("UNCHECKED_CAST")
-        override fun <S : Any> create(namedAggregate: NamedAggregate): SnapshotQueryService<S> =
-            service as SnapshotQueryService<S>
+    internal class RecordingSnapshotQueryBackendFactory : SnapshotQueryBackendFactory {
+        val backend = RecordingSnapshotQueryBackend()
+        override fun <S : Any> create(namedAggregate: NamedAggregate): SnapshotQueryBackend = backend
     }
 
-    internal class RecordingSnapshotQueryService : SnapshotQueryService<Any> by
-    NoOpSnapshotQueryService(MOCK_AGGREGATE_METADATA) {
-        override val name: String = RAW_SERVICE_NAME
-        var lastQuery: ISingleQuery? = null
+    internal class RecordingSnapshotQueryBackend : SnapshotQueryBackend by
+    NoOpSnapshotQueryBackend(MOCK_AGGREGATE_METADATA) {
+        override val name: String = "raw"
+        var lastQuery: me.ahoo.wow.api.query.ISingleQuery? = null
 
-        override fun dynamicSingle(singleQuery: ISingleQuery): Mono<DynamicDocument> {
-            lastQuery = singleQuery
-            return Mono.fromSupplier {
-                mutableMapOf<String, Any?>(
-                    "state" to mutableMapOf<String, Any?>(SECRET to RAW_SECRET),
-                ).toDynamicDocument()
-            }
+        override fun single(query: me.ahoo.wow.api.query.ISingleQuery): Mono<ObjectNode> {
+            lastQuery = query
+            return Mono.just(
+                JsonNodeFactory.instance.objectNode().set(
+                    "state",
+                    JsonNodeFactory.instance.objectNode().put(SECRET, RAW_SECRET),
+                )
+            )
         }
     }
 
@@ -199,26 +198,37 @@ class QueryAutoConfigurationTest {
         ): Mono<AbacTags> = mapOf("role" to listOf("*")).toMono()
     }
 
-    internal object TestStateDynamicDocumentMasker : StateDynamicDocumentMasker {
-        override val namedAggregate: NamedAggregate = MOCK_AGGREGATE_METADATA
+    internal class RecordingQueryFilter(
+        private val calls: AtomicInteger,
+    ) : QueryFilter<QueryContext<*, *>> {
+        override fun filter(context: QueryContext<*, *>, next: FilterChain<QueryContext<*, *>>): Mono<Void> {
+            calls.incrementAndGet()
+            return next.filter(context)
+        }
+    }
 
-        override fun mask(dynamicDocument: DynamicDocument): DynamicDocument {
-            dynamicDocument.getNestedDocument("state").remove(SECRET)
-            return dynamicDocument
+    internal class RecordingSnapshotQueryFilter(
+        private val calls: AtomicInteger,
+    ) : SnapshotQueryFilter {
+        override fun filter(context: QueryContext<*, *>, next: FilterChain<QueryContext<*, *>>): Mono<Void> {
+            calls.incrementAndGet()
+            return next.filter(context)
+        }
+    }
+
+    internal class RecordingEventStreamQueryFilter(
+        private val calls: AtomicInteger,
+    ) : EventStreamQueryFilter {
+        override fun filter(context: QueryContext<*, *>, next: FilterChain<QueryContext<*, *>>): Mono<Void> {
+            calls.incrementAndGet()
+            return next.filter(context)
         }
     }
 
     private companion object {
-        const val RAW_SERVICE_NAME = "raw"
+        const val SNAPSHOT_GATEWAY_BEAN_NAME = "example.order.SnapshotQueryGateway"
+        const val EVENT_STREAM_GATEWAY_BEAN_NAME = "example.order.EventStreamQueryGateway"
         const val SECRET = "secret"
         const val RAW_SECRET = "raw-secret"
-    }
-}
-
-@Suppress("UtilityClassWithPublicConstructor")
-class ExistsBeanName {
-    companion object {
-        const val SNAPSHOT_QUERY_SERVICE = "example.order.SnapshotQueryService"
-        const val EVENT_STREAM_QUERY_SERVICE = "example.order.EventStreamQueryService"
     }
 }

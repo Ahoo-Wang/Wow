@@ -20,7 +20,6 @@ import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
-import me.ahoo.wow.query.mask.tryMask
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
@@ -51,7 +50,7 @@ class LoadTimeBasedAggregateHandlerFunction(
             }
             .map {
                 OwnerAggregatePrecondition(request, aggregateRouteMetadata.owner).check(it)
-                it.state.tryMask()
+                it.state
             }
             .throwNotFoundIfEmpty()
             .toServerResponse(request, exceptionHandler)

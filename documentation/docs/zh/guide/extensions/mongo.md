@@ -5,7 +5,7 @@ description: 使用 MongoDB 承载事件流、快照、查询和 PrepareKey。
 
 # Mongo
 
-`wow-mongo` 提供 `EventStore`、`SnapshotStore`、对应查询服务和 `PrepareKeyFactory` 的 MongoDB 实现。适合已经运行 MongoDB、需要持久化事件历史与快照查询的服务；若只需进程内测试，使用 `in_memory` 更简单。
+`wow-mongo` 提供 `EventStore`、`SnapshotStore`、对应查询 Backend 和 `PrepareKeyFactory` 的 MongoDB 实现。适合已经运行 MongoDB、需要持久化事件历史与快照查询的服务；若只需进程内测试，使用 `in_memory` 更简单。
 
 模块不会仅因存在于 classpath 就接管存储。Starter 还要看到 Mongo capability、Reactive `MongoClient`、`wow.mongo.enabled=true`，以及 event/snapshot/prepare 各自选择 Mongo。
 
@@ -104,9 +104,9 @@ wow:
 
 初始化器只建立模块声明的快照集合/索引；它不会替你设置副本集、分片、读写关注、备份或保留策略。
 
-## 查询服务
+## 查询 Backend
 
-Mongo 查询服务把 Wow 的 filter、projection、sort、分页与 aggregation 编译为 MongoDB 查询。支持的能力以运行时 `QuerySchema` 为准，不要把任意 MQL 能力推断为 Wow 公共查询合同。
+Mongo 查询 Backend 把 Wow 的 filter、projection、sort、分页与 aggregation 编译为 MongoDB 查询。支持的能力以运行时 `QuerySchema` 为准，不要把任意 MQL 能力推断为 Wow 公共查询合同。
 
 ### 过滤器编译管道
 
@@ -114,7 +114,7 @@ Mongo 查询服务把 Wow 的 filter、projection、sort、分页与 aggregation
 
 ### 快照查询
 
-`MongoSnapshotQueryServiceFactory` 按聚合创建查询服务并绑定 snapshot collection。tenant、owner、space 等公共作用域由共享查询层重写，Mongo 扩展只执行最终 filter。
+`MongoSnapshotQueryBackendFactory` 按聚合创建 Backend 并绑定 snapshot collection。tenant、owner、space 等公共作用域由共享查询层重写，Mongo 扩展只执行最终 filter。
 
 ### 快照聚合
 

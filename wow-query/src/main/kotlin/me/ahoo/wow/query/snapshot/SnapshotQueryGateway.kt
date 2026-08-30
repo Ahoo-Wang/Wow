@@ -13,18 +13,30 @@
 
 package me.ahoo.wow.query.snapshot
 
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.filter.ErrorHandler
-import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.query.AbstractQueryGateway
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.filter.QueryContext
+import me.ahoo.wow.query.filter.QueryFilter
+import tools.jackson.databind.JavaType
 
-interface SnapshotQueryGateway : QueryGateway<MaterializedSnapshot<Any>>
+interface SnapshotQueryGateway<S : Any> : QueryGateway<MaterializedSnapshot<S>>
 
-class DefaultSnapshotQueryGateway(
-    chain: FilterChain<QueryContext<*, *>>,
+class DefaultSnapshotQueryGateway<S : Any>(
+    namedAggregate: NamedAggregate,
+    backend: SnapshotQueryBackend,
+    targetType: JavaType,
+    filters: List<QueryFilter<QueryContext<*, *>>> = emptyList(),
     errorHandler: ErrorHandler<QueryContext<*, *>> = LogErrorHandler(),
-) : SnapshotQueryGateway,
-    AbstractQueryGateway<MaterializedSnapshot<Any>>(chain, errorHandler)
+) : SnapshotQueryGateway<S>,
+    AbstractQueryGateway<MaterializedSnapshot<S>>(
+        namedAggregate,
+        backend,
+        targetType,
+        filters,
+        SnapshotQueryGateway::class,
+        errorHandler,
+    )

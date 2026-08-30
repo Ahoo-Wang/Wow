@@ -18,7 +18,6 @@ import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
-import me.ahoo.wow.query.mask.tryMask
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.command.getAggregateId
 import me.ahoo.wow.webflux.route.command.getTenantIdOrDefault
@@ -50,7 +49,7 @@ abstract class AbstractLoadAggregateHandlerFunction(
             .map {
                 checkVersion(version, it)
                 OwnerAggregatePrecondition(request, aggregateRouteMetadata.owner).check(it)
-                it.state.tryMask()
+                it.state
             }
             .throwNotFoundIfEmpty()
             .toServerResponse(request, exceptionHandler)

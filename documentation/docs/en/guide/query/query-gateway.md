@@ -7,7 +7,7 @@ description: Understand how a query reaches its backend through context, filter 
 
 ## Why queries go through the Gateway first
 
-`QueryGateway` is the policy execution boundary for queries. Aggregate-level `QueryService` instances registered by Spring are forwarded by `QueryServiceProxy` to the Gateway, so query rewriting, HTTP guards, configured authorization filters, and result masking run through one chain before the raw backend is reached.
+`SnapshotQueryGateway<S>` and `EventStreamQueryGateway` are the application query entries and the policy boundary. Spring registers a bound Gateway per aggregate so request rewriting, HTTP guards, authorization, and generic result handling execute in one around chain.
 
 Business code should not normally bypass the Gateway. Use a Factory directly only for infrastructure extensions or when raw backend semantics are explicitly required; that call does not run the Gateway policy chain.
 
@@ -18,34 +18,32 @@ The complete chain is:
 ```mermaid
 sequenceDiagram
     participant Caller as Caller
-    participant Entry as Proxy / WebFlux Handler
-    participant Gateway as QueryGateway
-    participant Filters as QueryFilter chain
-    participant Tail as Tail Filter
-    participant Factory as QueryServiceFactory
-    participant Backend as Backend QueryService
+    participant Entry as WebFlux Handler / JVM
+    participant Gateway as Aggregate-bound Gateway
+    participant Filters as One around chain
+    participant Backend as Bound QueryBackend
+    participant Jackson as Optional typed conversion
     Caller->>Entry: Query DTO / DSL
     Entry->>Gateway: Query after scope rewriting
     Gateway->>Gateway: Create QueryContext + QueryType
-    Gateway->>Filters: Run model-specific filters
-    Filters->>Tail: Pass the final query
-    Tail->>Factory: Resolve the aggregate-scoped raw service
-    Factory->>Backend: Execute query
-    Backend-->>Gateway: Mono / Flux result
-    Gateway-->>Caller: Policy-processed result
+    Gateway->>Filters: Run request filters
+    Filters->>Backend: single / list / paged / count / aggregate
+    Backend-->>Filters: ObjectNode / PagedList / count
+    Filters-->>Jackson: Complete chain
+    Jackson-->>Caller: ObjectNode or typed result
 ```
 
-`QueryServiceProxy` serves in-process typed Beans; a WebFlux Handler calls the same kind of service after deserialization and request rewriting. The Tail Filter creates the raw aggregate service, stores the result, and the Gateway returns the corresponding `Mono` or `Flux`.
+At Gateway assembly, the registrar calls the routing Factory once for the `NamedAggregate` and binds the selected Backend. Requests are not routed again. The Backend produces `ObjectNode`; result filters process those nodes before typed single/list/paged results are materialized by Jackson. Count remains `Long`, and aggregation remains a stream of `ObjectNode` rows.
 
 ## QueryContext and QueryType
 
 The Gateway creates an independent `QueryContext` for every subscription, so separate subscriptions to the same reactive Publisher do not share the query, result, or attributes. The context holds the aggregate identity, query object, result, and `QueryType` for filters that rewrite queries or results.
 
-`QueryType` covers single, list, paged, count, aggregation, and dynamic-document forms; concrete query models, entry points, and protocol exposure can still differ.
+`QueryType` contains only `SINGLE`, `LIST`, `PAGED`, `COUNT`, and `AGGREGATION`; typed and `ObjectNode` results share the same operation type. Concrete query models, entries, and protocol exposure can still differ.
 
 ## Snapshot and event-stream filter chains
 
-`SnapshotQueryGateway` and `EventStreamQueryGateway` select their respective model-specific `QueryFilter` chains. Their snapshot and event-stream Tail Filters obtain a raw service from the Factory. A model-specific filter cannot assume it runs in the other chain.
+`SnapshotQueryGateway` and `EventStreamQueryGateway` share the `QueryFilter<QueryContext<*, *>>` contract. A generic `QueryFilter` needs no `@FilterType` and enters both Gateways; only model-specific filters use `@FilterType(SnapshotQueryGateway::class)` or `@FilterType(EventStreamQueryGateway::class)`.
 
 ## The WebFlux request boundary
 
@@ -53,22 +51,20 @@ The Gateway creates an independent `QueryContext` for every subscription, so sep
 
 `HttpQueryGuardFilter` belongs to both Gateways, but applies only when a `ServerRequest` exists in the Reactor Context; it does not change ordinary in-process query constraints.
 
-## ABAC and result masking
+## ABAC and the temporary Mask downgrade
 
-The built-in `AbacQueryFilter` belongs to the snapshot query gateway. Snapshot result masking does not process count or aggregation; event-stream dynamic-result masking covers only the currently supported dynamic query forms, not typed results or aggregation.
+The built-in `AbacQueryFilter` belongs to the snapshot Gateway. The current V9 query architecture temporarily provides no built-in Mask API, registry, or result-masking filter. Snapshot, EventStream, and direct aggregate-state loads do not automatically hide field values. A follow-up task will restore one static-annotation design; until then, do not treat the Gateway as a masking boundary.
 
 For authentication, Principal binding, and the complete fail-closed policy, see [Data Access Control](../data-access.md).
 
-## Raw Factories and custom Beans
+## Raw Factory Boundary
 
-Calling `SnapshotQueryServiceFactory` or `EventStreamQueryServiceFactory` directly bypasses query rewriting, ABAC, and result masking. A custom Bean with the generated service name is also retained as-is instead of being wrapped; when a Gateway is absent, the Registrar likewise returns the raw service. These are trusted infrastructure boundaries, not normal business extension points.
+Calling `SnapshotQueryBackendFactory` or `EventStreamQueryBackendFactory` directly bypasses the entire Gateway governance chain, including ABAC and result filters. These Factories are trusted low-level SPIs for storage extensions, focused diagnostics, and backend contract tests. Ordinary application code should inject the aggregate-bound Gateway.
 
-## Migrating from QueryHandler
+## Bean Names
 
-Replace the former `QueryHandler` / `AbstractQueryHandler`, `SnapshotQueryHandler`, and `EventStreamQueryHandler` with their corresponding Gateway types and implementations. Rename `snapshotQueryHandler` / `eventStreamQueryHandler` Beans to `snapshotQueryGateway` / `eventStreamQueryGateway`.
-
-Custom filters' `@FilterType` must target the corresponding `QueryGateway`. A custom Gateway no longer implements `Handler` or exposes `handle(QueryContext)`: it must implement `aggregate`, and its `count` accepts only `FilterExpression`.
+Aggregate Bean names are exactly `{contextAlias.}{aggregateName}.SnapshotQueryGateway` and `{contextAlias.}{aggregateName}.EventStreamQueryGateway`; omit the prefix when there is no context alias. Snapshot Gateways are also registered by their state generic. Event-stream Gateways have no state generic, so qualify by Bean name when there are multiple candidates.
 
 ## Validation strategy boundaries
 
-The Gateway owns the policy chain; it does not replace backend field capabilities, schema resolution, or application business validation. Direct Factory access, a same-name custom Bean, and a missing Gateway each bypass this boundary. Infrastructure code that needs those paths must explicitly own their security and query semantics.
+The Gateway owns the policy chain; it does not replace backend field capability, Schema resolution, or application validation. If a JSON-array or SSE stream fails after emitting rows, those rows are not rolled back. SSE attempts to emit an `ErrorInfo` error event. A `RequestExceptionHandler` failure or a failure while generating, rendering, or serializing that error event is attached to the original as a suppressed error only when distinct and not already recorded. The original terminal error is always propagated; partial failure never completes successfully.

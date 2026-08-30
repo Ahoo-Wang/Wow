@@ -76,7 +76,7 @@ The count body is a `FilterExpression` directly, without an outer `filter` prope
 { "op": "EQ", "field": "status", "value": "READY" }
 ```
 
-On the JVM, use `filter.count(queryService)`. Execution and exactness follow the selected backend contract; HTTP cost protection may reject expensive or unfiltered requests. Count does not return a data list.
+On the JVM, use `filter.count(queryGateway)`. Execution and exactness follow the selected backend contract; HTTP cost protection may reject expensive or unfiltered requests. Count does not return a data list.
 
 ## Sorting and Pagination
 
@@ -84,7 +84,7 @@ Sort fields must be logical fields supported by the current query model, with di
 
 ## Results and Empty Results
 
-Queries may return typed, state-only, or dynamic results; the concrete entry point determines which forms and unwrapping rules are available. Empty-result behavior is also entry-point-specific: JVM, WebFlux, and API Client 404, empty-value, or empty-list semantics are explained in their child pages and client page. This page does not generalize one transport semantic to every entry point.
+Queries may return typed, state-only, or `ObjectNode` results; the concrete entry point determines which forms and unwrapping rules are available. The Gateway optionally uses Jackson after generic result filters complete. The current V9 temporarily provides no automatic Mask, so the Gateway does not hide field values. Empty-result behavior is also entry-point-specific: JVM, WebFlux, and API Client 404, empty-value, or empty-list semantics are explained in their child pages and client page. This page does not generalize one transport semantic to every entry point.
 
 ## Choosing Snapshot or Event Stream
 

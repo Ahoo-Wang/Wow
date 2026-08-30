@@ -225,11 +225,11 @@ class MemberAbacQueryFilter(
 
 ### 查询入口与策略执行
 
-Spring 注册的聚合 `SnapshotQueryService` 与 `EventStreamQueryService` 代理通过 `QueryGateway` 执行，已配置的 ABAC 过滤器与结果脱敏在该链中应用。进程内调用不会执行 WebFlux `RewriteRequestFilter`；调用方必须在查询中显式提供 tenant、owner、space 作用域，或通过过滤器支持的受信上下文提供。
+Spring 注册的聚合 `SnapshotQueryGateway` 与 `EventStreamQueryGateway` 执行已配置的 ABAC 与通用查询过滤器。进程内调用不会执行 WebFlux `RewriteRequestFilter`；调用方必须在查询中显式提供 tenant、owner、space 作用域，或通过过滤器支持的受信上下文提供。当前 V9 临时不提供自动 Mask，查询与 aggregate-state load 都可能返回原始字段值；在静态注解方案交付前，不得依赖旧脱敏行为保护敏感端点。
 
-`SnapshotQueryServiceFactory` 与 `EventStreamQueryServiceFactory` 是原始后端入口。直接创建的服务会绕过生成的代理 / `QueryGateway` 策略链；注册在生成服务名下的自定义 Bean 也会按原样使用，不会再包装。两者都应视为受信基础设施访问。
+`SnapshotQueryBackendFactory` 与 `EventStreamQueryBackendFactory` 是原始后端入口。直接创建的 Backend 会绕过 `QueryGateway` 策略链，应视为受信基础设施访问。
 
-聚合查询会复用快照过滤器链处理根 filter，但结果脱敏会跳过动态聚合行。不能仅因普通快照存在脱敏就开放聚合接口。
+聚合查询会复用快照过滤器链处理根 filter，但当前没有内建结果 Mask。不能仅因普通快照查询受 ABAC 约束就开放敏感聚合接口。
 
 ## 必须完成的安全闭环
 

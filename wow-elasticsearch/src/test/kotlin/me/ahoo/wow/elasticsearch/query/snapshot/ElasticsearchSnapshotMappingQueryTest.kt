@@ -62,6 +62,7 @@ import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchCl
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchIndicesClient
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
+import tools.jackson.databind.node.ObjectNode
 
 class ElasticsearchSnapshotMappingQueryTest {
     private val client = mockk<ReactiveElasticsearchClient>()
@@ -70,7 +71,7 @@ class ElasticsearchSnapshotMappingQueryTest {
 
     init {
         every { client.indices() } returns indicesClient
-        every { client.search(capture(searchRequest), Map::class.java) } returns Mono.just(emptySearchResponse())
+        every { client.search(capture(searchRequest), ObjectNode::class.java) } returns Mono.just(emptySearchResponse())
     }
 
     @Test
@@ -78,7 +79,7 @@ class ElasticsearchSnapshotMappingQueryTest {
         every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
             mappingResponse(queryMapping()),
         )
-        val service = ElasticsearchSnapshotQueryServiceFactory(
+        val service = ElasticsearchSnapshotQueryBackendFactory(
             elasticsearchClient = client,
             queryBatchSize = DEFAULT_SEARCH_BATCH_SIZE,
             queryKeepAlive = DEFAULT_PIT_KEEP_ALIVE,
@@ -86,11 +87,11 @@ class ElasticsearchSnapshotMappingQueryTest {
             validationMode = QuerySchemaValidationMode.STRICT,
         ).create<Any>(MOCK_AGGREGATE_METADATA)
 
-        service.dynamicList(ListQuery(filter = equal("state.unknown", "value"), limit = 10)).test()
+        service.list(ListQuery(filter = equal("state.unknown", "value"), limit = 10)).test()
             .expectError(QuerySchemaValidationException::class.java)
             .verify()
 
-        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+        verify(exactly = 0) { client.search(any<SearchRequest>(), ObjectNode::class.java) }
     }
 
     @Test
@@ -99,13 +100,13 @@ class ElasticsearchSnapshotMappingQueryTest {
             mappingResponse(queryMapping()),
         )
 
-        strictQueryService().dynamicList(
+        strictQueryBackend().list(
             ListQuery(filter = equal("state.orders.status", "PAID"), limit = 10),
         ).test()
             .expectError(QuerySchemaValidationException::class.java)
             .verify()
 
-        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+        verify(exactly = 0) { client.search(any<SearchRequest>(), ObjectNode::class.java) }
     }
 
     @Test
@@ -114,7 +115,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             mappingResponse(queryMapping()),
         )
 
-        strictQueryService().dynamicList(
+        strictQueryBackend().list(
             ListQuery(
                 filter = MatchAllFilter,
                 sort = listOf(Sort("state.orders.status", Sort.Direction.ASC)),
@@ -124,7 +125,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             .expectError(QuerySchemaValidationException::class.java)
             .verify()
 
-        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+        verify(exactly = 0) { client.search(any<SearchRequest>(), ObjectNode::class.java) }
     }
 
     @Test
@@ -132,18 +133,18 @@ class ElasticsearchSnapshotMappingQueryTest {
         every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
             mappingResponse(queryMapping()),
         )
-        val service = strictQueryService()
+        val service = strictQueryBackend()
 
         listOf(
             ExistsFilter(LogicalField("state")),
             IsEmptyFilter(LogicalField("state.orders")),
         ).forEach { filter ->
-            service.dynamicList(ListQuery(filter = filter, limit = 10)).test()
+            service.list(ListQuery(filter = filter, limit = 10)).test()
                 .expectError(QuerySchemaValidationException::class.java)
                 .verify()
         }
 
-        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+        verify(exactly = 0) { client.search(any<SearchRequest>(), ObjectNode::class.java) }
     }
 
     @Test
@@ -152,7 +153,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             mappingResponse(queryMapping()),
         )
 
-        strictQueryService().dynamicList(
+        strictQueryBackend().list(
             ListQuery(
                 filter = filter {
                     "state.orders".elementMatch {
@@ -166,7 +167,7 @@ class ElasticsearchSnapshotMappingQueryTest {
         val nested = searchRequest.captured.query()!!.bool().filter()[1].nested()
         nested.path().assert().isEqualTo("state.orders")
         nested.query().term().field().assert().isEqualTo("state.orders.status")
-        verify(exactly = 1) { client.search(any<SearchRequest>(), Map::class.java) }
+        verify(exactly = 1) { client.search(any<SearchRequest>(), ObjectNode::class.java) }
     }
 
     @Test
@@ -175,13 +176,13 @@ class ElasticsearchSnapshotMappingQueryTest {
             mappingResponse(queryMapping()),
         )
 
-        strictQueryService().dynamicList(
+        strictQueryBackend().list(
             ListQuery(filter = equal("state.singleOrders.status", "PAID"), limit = 10),
         ).test()
             .expectError(QuerySchemaValidationException::class.java)
             .verify()
 
-        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+        verify(exactly = 0) { client.search(any<SearchRequest>(), ObjectNode::class.java) }
     }
 
     @Test
@@ -190,7 +191,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             mappingResponse(queryMapping()),
         )
 
-        strictQueryService().dynamicList(
+        strictQueryBackend().list(
             ListQuery(
                 filter = MatchAllFilter,
                 sort = listOf(Sort("state.stringOrders.status", Sort.Direction.ASC)),
@@ -200,7 +201,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             .expectError(QuerySchemaValidationException::class.java)
             .verify()
 
-        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+        verify(exactly = 0) { client.search(any<SearchRequest>(), ObjectNode::class.java) }
     }
 
     @Test
@@ -213,13 +214,13 @@ class ElasticsearchSnapshotMappingQueryTest {
             ),
         )
 
-        strictQueryService(emptyList()).dynamicList(
+        strictQueryBackend(emptyList()).list(
             ListQuery(filter = equal("tags.department", "eng"), limit = 10),
         ).test()
             .expectError(QuerySchemaValidationException::class.java)
             .verify()
 
-        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+        verify(exactly = 0) { client.search(any<SearchRequest>(), ObjectNode::class.java) }
     }
 
     @Test
@@ -234,13 +235,13 @@ class ElasticsearchSnapshotMappingQueryTest {
             ),
         )
 
-        strictQueryService(emptyList()).dynamicList(
+        strictQueryBackend(emptyList()).list(
             ListQuery(filter = equal("tags.department", "eng"), limit = 10),
         ).test()
             .expectError(QuerySchemaValidationException::class.java)
             .verify()
 
-        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+        verify(exactly = 0) { client.search(any<SearchRequest>(), ObjectNode::class.java) }
     }
 
     @Test
@@ -255,11 +256,11 @@ class ElasticsearchSnapshotMappingQueryTest {
             ),
         )
 
-        queryService().dynamicList(
+        queryBackend().list(
             ListQuery(filter = equal("tags.department", "eng"), limit = 10),
         ).test().expectError(QuerySchemaValidationException::class.java).verify()
 
-        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+        verify(exactly = 0) { client.search(any<SearchRequest>(), ObjectNode::class.java) }
     }
 
     @Test
@@ -267,7 +268,7 @@ class ElasticsearchSnapshotMappingQueryTest {
         val failure = IllegalStateException("mapping unavailable")
         every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.error(failure)
 
-        queryService().dynamicList(
+        queryBackend().list(
             ListQuery(filter = equal("tags.department", "eng"), limit = 10),
         ).test()
             .expectErrorSatisfies { error ->
@@ -276,7 +277,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             }
             .verify()
 
-        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+        verify(exactly = 0) { client.search(any<SearchRequest>(), ObjectNode::class.java) }
     }
 
     @Test
@@ -289,11 +290,11 @@ class ElasticsearchSnapshotMappingQueryTest {
             ),
         )
 
-        strictQueryService(emptyList()).dynamicList(
+        strictQueryBackend(emptyList()).list(
             ListQuery(filter = equal("tags.department", "eng"), limit = 10),
         ).test().expectError(QuerySchemaValidationException::class.java).verify()
 
-        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+        verify(exactly = 0) { client.search(any<SearchRequest>(), ObjectNode::class.java) }
     }
 
     @Test
@@ -308,7 +309,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             "state.age" gt 18
         }
 
-        queryService().dynamicList(
+        queryBackend().list(
             ListQuery(
                 filter = filter,
                 projection = Projection(include = listOf("state.name")),
@@ -333,7 +334,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             mappingResponse(queryMapping()),
         )
 
-        queryService().dynamicList(
+        queryBackend().list(
             ListQuery(condition = Condition.eq("state.name", "Wow"), limit = 10),
         ).collectList().block()
 
@@ -346,10 +347,10 @@ class ElasticsearchSnapshotMappingQueryTest {
         every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
             mappingResponse(queryMapping()),
         )
-        val service = queryService()
+        val service = queryBackend()
 
         repeat(2) {
-            service.dynamicList(
+            service.list(
                 ListQuery(filter = equal("state.newField", "new"), limit = 10),
             ).test()
                 .expectError(QuerySchemaValidationException::class.java)
@@ -357,7 +358,7 @@ class ElasticsearchSnapshotMappingQueryTest {
         }
 
         verify(exactly = 1) { indicesClient.getMapping(any<GetMappingRequest>()) }
-        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+        verify(exactly = 0) { client.search(any<SearchRequest>(), ObjectNode::class.java) }
     }
 
     @Test
@@ -366,7 +367,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             mappingResponse(queryMapping()),
         )
 
-        queryService().dynamicList(
+        queryBackend().list(
             ListQuery(
                 filter = filter {
                     "body".elementMatch {
@@ -388,14 +389,14 @@ class ElasticsearchSnapshotMappingQueryTest {
             Mono.just(mappingResponse(queryMapping())),
             Mono.just(mappingResponse(queryMapping(includeNewField = true))),
         )
-        val service = queryService()
+        val service = queryBackend()
         val query = ListQuery(filter = equal("state.newField", "new"), limit = 10)
 
-        service.dynamicList(query).test()
+        service.list(query).test()
             .expectError(QuerySchemaValidationException::class.java)
             .verify()
         service.requiredQueryModelSchemaProvider().refresh().block()
-        service.dynamicList(query).collectList().block()
+        service.list(query).collectList().block()
 
         searchRequest.captured.query()!!.bool().filter()[1].term().field().assert().isEqualTo("state.newField")
         verify(exactly = 2) { indicesClient.getMapping(any<GetMappingRequest>()) }
@@ -407,7 +408,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             Mono.just(mappingResponse(queryMapping())),
             Mono.just(mappingResponse(queryMapping(includeNewField = true))),
         )
-        val factory = ElasticsearchSnapshotQueryServiceFactory(
+        val factory = ElasticsearchSnapshotQueryBackendFactory(
             elasticsearchClient = client,
             queryBatchSize = DEFAULT_SEARCH_BATCH_SIZE,
             queryKeepAlive = DEFAULT_PIT_KEEP_ALIVE,
@@ -417,11 +418,11 @@ class ElasticsearchSnapshotMappingQueryTest {
         val service = factory.create<Any>(MOCK_AGGREGATE_METADATA)
         val query = ListQuery(filter = equal("state.newField", "new"), limit = 10)
 
-        service.dynamicList(query).test()
+        service.list(query).test()
             .expectError(QuerySchemaValidationException::class.java)
             .verify()
         service.requiredQueryModelSchemaProvider().refresh().block()
-        service.dynamicList(query).collectList().block()
+        service.list(query).collectList().block()
 
         verify(exactly = 2) { indicesClient.getMapping(any<GetMappingRequest>()) }
     }
@@ -432,7 +433,7 @@ class ElasticsearchSnapshotMappingQueryTest {
         val resolver = mockk<ElasticsearchIndexMappingResolver> {
             every { currentOrLoad(any()) } returns Mono.error(failure)
         }
-        val service = ElasticsearchSnapshotQueryServiceFactory(
+        val service = ElasticsearchSnapshotQueryBackendFactory(
             elasticsearchClient = client,
             queryBatchSize = DEFAULT_SEARCH_BATCH_SIZE,
             queryKeepAlive = DEFAULT_PIT_KEEP_ALIVE,
@@ -455,7 +456,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             every { convert(capture(convertedFilter)) } returns matchAll { it }
         }
         val filter = equal("custom.physical", "value")
-        val service = ElasticsearchSnapshotQueryService<Any>(
+        val service = ElasticsearchSnapshotQueryBackend(
             namedAggregate = MOCK_AGGREGATE_METADATA,
             elasticsearchClient = client,
             filterConverter = customConverter,
@@ -463,31 +464,31 @@ class ElasticsearchSnapshotMappingQueryTest {
             queryKeepAlive = DEFAULT_PIT_KEEP_ALIVE,
         )
 
-        service.dynamicList(ListQuery(filter = filter, limit = 10)).collectList().block()
+        service.list(ListQuery(filter = filter, limit = 10)).collectList().block()
 
         convertedFilter.captured.assert().isSameAs(filter)
         verify(exactly = 0) { client.indices() }
     }
 
-    private fun queryService(): ElasticsearchSnapshotQueryService<Any> =
-        ElasticsearchSnapshotQueryServiceFactory(
+    private fun queryBackend(): ElasticsearchSnapshotQueryBackend =
+        ElasticsearchSnapshotQueryBackendFactory(
             elasticsearchClient = client,
             queryBatchSize = DEFAULT_SEARCH_BATCH_SIZE,
             queryKeepAlive = DEFAULT_PIT_KEEP_ALIVE,
             schemaSources = schemaSources(),
             validationMode = QuerySchemaValidationMode.COMPATIBLE,
-        ).create<Any>(MOCK_AGGREGATE_METADATA) as ElasticsearchSnapshotQueryService<Any>
+        ).create<Any>(MOCK_AGGREGATE_METADATA) as ElasticsearchSnapshotQueryBackend
 
-    private fun strictQueryService(
+    private fun strictQueryBackend(
         sources: List<QuerySchemaSource> = schemaSources(),
-    ): ElasticsearchSnapshotQueryService<Any> =
-        ElasticsearchSnapshotQueryServiceFactory(
+    ): ElasticsearchSnapshotQueryBackend =
+        ElasticsearchSnapshotQueryBackendFactory(
             elasticsearchClient = client,
             queryBatchSize = DEFAULT_SEARCH_BATCH_SIZE,
             queryKeepAlive = DEFAULT_PIT_KEEP_ALIVE,
             schemaSources = sources,
             validationMode = QuerySchemaValidationMode.STRICT,
-        ).create<Any>(MOCK_AGGREGATE_METADATA) as ElasticsearchSnapshotQueryService<Any>
+        ).create<Any>(MOCK_AGGREGATE_METADATA) as ElasticsearchSnapshotQueryBackend
 
     private fun schemaSources(): List<QuerySchemaSource> {
         val context = QuerySchemaContext(MOCK_AGGREGATE_METADATA.materialize(), QueryModel.SNAPSHOT)
@@ -580,8 +581,8 @@ class ElasticsearchSnapshotMappingQueryTest {
             }
         }
 
-    private fun emptySearchResponse(): SearchResponse<Map<*, *>> =
-        SearchResponse.of<Map<*, *>> {
+    private fun emptySearchResponse(): SearchResponse<ObjectNode> =
+        SearchResponse.of<ObjectNode> {
             it.took(1)
                 .timedOut(false)
                 .shards { shards -> shards.failed(0).successful(1).total(1) }

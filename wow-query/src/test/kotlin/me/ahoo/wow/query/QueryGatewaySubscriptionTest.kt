@@ -14,238 +14,198 @@
 package me.ahoo.wow.query
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.Condition
-import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
-import me.ahoo.wow.api.query.IdFilter
-import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.IPagedQuery
+import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.api.query.Projection
-import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
-import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.api.query.TenantIdFilter
-import me.ahoo.wow.api.query.toFilterExpression
-import me.ahoo.wow.filter.EmptyFilterChain
 import me.ahoo.wow.filter.ErrorHandler
-import me.ahoo.wow.filter.Filter
 import me.ahoo.wow.filter.FilterChain
-import me.ahoo.wow.filter.SimpleFilterChain
-import me.ahoo.wow.query.dsl.listQuery
-import me.ahoo.wow.query.dsl.pagedQuery
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.filter.QueryContext
-import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.filter.QueryFilter
+import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
+import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
+import me.ahoo.wow.serialization.JsonSerializer
+import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import org.reactivestreams.Publisher
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
-import reactor.kotlin.test.test
-import java.util.concurrent.ConcurrentLinkedQueue
+import reactor.test.StepVerifier
+import tools.jackson.databind.node.ObjectNode
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 
 class QueryGatewaySubscriptionTest {
-    @Suppress("DEPRECATION")
     @Test
-    fun `custom list query should retain implementation during executable conversion`() {
-        lateinit var captured: IListQuery
-        val chain = FilterChain<QueryContext<*, *>> { context ->
-            val listContext = context.asListQuery<String>()
-            captured = listContext.getQuery()
-            listContext.setResult(Flux.empty())
-            Mono.empty()
-        }
-        val handler = TestQueryGateway(chain)
-
-        handler.list(
-            MOCK_AGGREGATE_METADATA,
-            CustomListQuery(Condition.tenantId("tenant-1").toFilterExpression(), marker = "custom"),
-        ).test().verifyComplete()
-
-        (captured as CustomListQuery).marker.assert().isEqualTo("custom")
-        captured.filter.assert().isEqualTo(TenantIdFilter("tenant-1"))
-    }
-
-    @Test
-    fun `should isolate all query operations when repeated`() {
-        val filter = NonIdempotentTestFilter()
-        val handler = TestQueryGateway(filter.chain())
-        val publishers = operationPublishers(handler)
-        filter.assertNoContexts()
-
-        publishers.forEach { (queryType, publisher) ->
-            Flux.from(publisher)
-                .repeat(1)
-                .test()
-                .expectNextCount(2)
-                .verifyComplete()
-
-            filter.assertIsolated(queryType, 2)
-        }
-    }
-
-    @Test
-    fun `should isolate context when retried`() {
-        val filter = NonIdempotentTestFilter(failures = 1)
-        val handler = TestQueryGateway(filter.chain())
-
-        handler.single(MOCK_AGGREGATE_METADATA, singleQuery { })
-            .retry(1)
-            .test()
-            .expectNext(RESULT)
-            .verifyComplete()
-
-        filter.assertIsolated(QueryType.SINGLE, 2)
-    }
-
-    @Test
-    fun `should isolate concurrent subscriptions`() {
-        val filter = NonIdempotentTestFilter()
-        val handler = TestQueryGateway(filter.chain())
-        val publisher = handler.dynamicList(MOCK_AGGREGATE_METADATA, listQuery { })
-
-        Flux.merge(
-            publisher.subscribeOn(Schedulers.parallel()),
-            publisher.subscribeOn(Schedulers.parallel()),
-        ).test()
-            .expectNextCount(2)
-            .verifyComplete()
-
-        filter.assertIsolated(QueryType.DYNAMIC_LIST, 2)
-    }
-
-    private fun operationPublishers(handler: TestQueryGateway): List<Pair<QueryType, Publisher<*>>> =
-        listOf(
-            QueryType.SINGLE to handler.single(MOCK_AGGREGATE_METADATA, singleQuery { }),
-            QueryType.DYNAMIC_SINGLE to handler.dynamicSingle(MOCK_AGGREGATE_METADATA, singleQuery { }),
-            QueryType.LIST to handler.list(MOCK_AGGREGATE_METADATA, listQuery { }),
-            QueryType.DYNAMIC_LIST to handler.dynamicList(MOCK_AGGREGATE_METADATA, listQuery { }),
-            QueryType.PAGED to handler.paged(MOCK_AGGREGATE_METADATA, pagedQuery { }),
-            QueryType.DYNAMIC_PAGED to handler.dynamicPaged(MOCK_AGGREGATE_METADATA, pagedQuery { }),
-            QueryType.AGGREGATION to handler.aggregate(
-                MOCK_AGGREGATE_METADATA,
-                AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))),
-            ),
-            QueryType.COUNT to handler.count(MOCK_AGGREGATE_METADATA, MatchAllFilter),
-        )
-
-    private class TestQueryGateway(chain: FilterChain<QueryContext<*, *>>) :
-        AbstractQueryGateway<String>(
-            chain,
-            ErrorHandler<QueryContext<*, *>> { _, error -> Mono.error(error) }
-        )
-
-    private class NonIdempotentTestFilter(
-        private val failures: AtomicInteger = AtomicInteger(),
-    ) : Filter<QueryContext<*, *>> {
-        constructor(failures: Int) : this(AtomicInteger(failures))
-
-        private val contexts = ConcurrentLinkedQueue<QueryContext<*, *>>()
-
-        fun chain(): FilterChain<QueryContext<*, *>> =
-            SimpleFilterChain(this, SimpleFilterChain(ResultTestFilter, EmptyFilterChain.instance()))
-
-        override fun filter(
-            context: QueryContext<*, *>,
-            next: FilterChain<QueryContext<*, *>>
-        ): Mono<Void> {
-            contexts.add(context)
-            context.appendFilter(APPENDED_FILTER)
-            return next.filter(context).then(
-                Mono.defer {
-                    if (context.queryType == QueryType.COUNT) {
-                        return@defer Mono.empty()
-                    }
-                    val maskCount = (context.getAttribute<Int>(MASK_COUNT_KEY) ?: 0) + 1
-                    check(maskCount == 1) { "Result was masked more than once." }
-                    context.setAttribute(MASK_COUNT_KEY, maskCount)
-                    if (failures.getAndDecrement() > 0) {
-                        Mono.error(IllegalStateException("Retry query."))
-                    } else {
-                        Mono.empty()
-                    }
-                }
+    fun `repeat retry and concurrent subscriptions should isolate context and object node`() {
+        assertIsolated { publisher -> publisher.repeat(1) }
+        val failures = AtomicInteger(1)
+        assertIsolated(
+            expectedOutputs = 1,
+            filterResult = { node ->
+                if (failures.getAndDecrement() > 0) Mono.error(IllegalStateException("retry")) else Mono.just(node)
+            },
+        ) { publisher -> publisher.retry(1) }
+        assertIsolated { publisher ->
+            Flux.merge(
+                publisher.subscribeOn(Schedulers.parallel()),
+                publisher.subscribeOn(Schedulers.parallel()),
             )
         }
+    }
 
-        fun assertIsolated(queryType: QueryType, expected: Int) {
-            val matchedContexts = contexts.filter { it.queryType == queryType }
-            matchedContexts.assert().hasSize(expected)
-            matchedContexts.toSet().assert().hasSize(expected)
-            matchedContexts.forEach { context ->
-                queryFilter(context).assert().isEqualTo(APPENDED_FILTER)
-                if (queryType == QueryType.COUNT) {
-                    context.getAttribute<Int>(MASK_COUNT_KEY).assert().isNull()
-                } else {
-                    context.getAttribute<Int>(MASK_COUNT_KEY).assert().isOne()
-                }
+    @Test
+    fun `error handler should observe but never swallow original failure`() {
+        val original = IllegalStateException("backend")
+        val handled = CopyOnWriteArrayList<Throwable>()
+        val gateway = gateway(
+            backend = backend { Mono.error(original) },
+            errorHandler = ErrorHandler { _, error ->
+                handled += error
+                Mono.empty()
+            },
+        )
+
+        StepVerifier.create(gateway.dynamicSingle(singleQuery { }))
+            .expectErrorMatches { it === original }
+            .verify()
+        handled.single().assert().isSameAs(original)
+    }
+
+    @Test
+    fun `error handler failure should be suppressed on original`() {
+        val original = IllegalStateException("typed-conversion")
+        val handlerFailure = IllegalArgumentException("handler")
+        val invalidNode = snapshotNode().apply { remove("state") }
+        val gateway = gateway(
+            backend = backend { Mono.just(invalidNode) },
+            errorHandler = ErrorHandler { _, _ -> Mono.error(handlerFailure) },
+        )
+
+        StepVerifier.create(gateway.single(singleQuery { }))
+            .expectErrorMatches { it !== handlerFailure && it.suppressed.single() === handlerFailure }
+            .verify()
+    }
+
+    @Test
+    fun `same error from handler should not self suppress`() {
+        val original = IllegalStateException("backend")
+        val gateway = gateway(
+            backend = backend { Mono.error(original) },
+            errorHandler = ErrorHandler { _, _ -> Mono.error(original) },
+        )
+
+        StepVerifier.create(gateway.dynamicSingle(singleQuery { }))
+            .expectErrorMatches { it === original && it.suppressed.isEmpty() }
+            .verify()
+    }
+
+    @Test
+    fun `error boundary should cover request and result filters`() {
+        listOf(
+            errorFilter { _, _ -> Mono.error(IllegalStateException("request-filter")) },
+            errorFilter { context, next ->
+                next.filter(context).then(
+                    Mono.fromRunnable {
+                        context.asSingleQuery().rewriteResult { Mono.error(IllegalStateException("result-filter")) }
+                    },
+                )
+            },
+        ).forEach { filter ->
+            val handled = CopyOnWriteArrayList<Throwable>()
+            val gateway = gateway(
+                backend { Mono.fromSupplier(::snapshotNode) },
+                listOf(filter),
+                ErrorHandler { _, error ->
+                    handled += error
+                    Mono.empty()
+                },
+            )
+
+            StepVerifier.create(gateway.dynamicSingle(singleQuery { }))
+                .expectErrorMatches { it === handled.single() }
+                .verify()
+        }
+    }
+
+    private fun errorFilter(
+        block: (QueryContext<*, *>, FilterChain<QueryContext<*, *>>) -> Mono<Void>,
+    ) = object : QueryFilter<QueryContext<*, *>> {
+        override fun filter(context: QueryContext<*, *>, next: FilterChain<QueryContext<*, *>>): Mono<Void> =
+            block(context, next)
+    }
+
+    private fun assertIsolated(
+        expectedOutputs: Long = 2,
+        filterResult: (ObjectNode) -> Mono<ObjectNode> = { Mono.just(it) },
+        resubscribe: (Mono<ObjectNode>) -> Publisher<ObjectNode>,
+    ) {
+        val contexts = CopyOnWriteArrayList<QueryContext<*, *>>()
+        val nodes = CopyOnWriteArrayList<ObjectNode>()
+        val filter = object : QueryFilter<QueryContext<*, *>> {
+            override fun filter(context: QueryContext<*, *>, next: FilterChain<QueryContext<*, *>>): Mono<Void> {
+                contexts += context
+                context.setAttribute("subscription", contexts.size)
+                return next.filter(context).then(
+                    Mono.fromRunnable {
+                        context.asSingleQuery().rewriteResult { result ->
+                            result.flatMap { node ->
+                                nodes += node
+                                node.withObject("state").put("seen", true)
+                                filterResult(node)
+                            }
+                        }
+                    },
+                )
             }
         }
+        val publisher = gateway(backend { Mono.fromSupplier(::snapshotNode) }, filters = listOf(filter))
+            .dynamicSingle(singleQuery { })
 
-        fun assertNoContexts() {
-            contexts.assert().isEmpty()
-        }
+        StepVerifier.create(resubscribe(publisher)).expectNextCount(expectedOutputs).verifyComplete()
+        contexts.map(System::identityHashCode).toSet().assert().hasSize(2)
+        nodes.map(System::identityHashCode).toSet().assert().hasSize(2)
+        contexts.forEach { it.getAttribute<Int>("subscription").assert().isNotNull() }
+        nodes.forEach { it.path("state").path("seen").booleanValue().assert().isTrue() }
     }
 
-    private object ResultTestFilter : Filter<QueryContext<*, *>> {
-        override fun filter(
-            context: QueryContext<*, *>,
-            next: FilterChain<QueryContext<*, *>>
-        ): Mono<Void> {
-            when (context.queryType) {
-                QueryType.SINGLE -> context.asSingleQuery<String>().setResult(Mono.just(RESULT))
-                QueryType.DYNAMIC_SINGLE -> context.asSingleQuery<DynamicDocument>().setResult(
-                    Mono.just(mutableMapOf("result" to RESULT).toDynamicDocument())
-                )
+    private fun gateway(
+        backend: SnapshotQueryBackend,
+        filters: List<QueryFilter<QueryContext<*, *>>> = emptyList(),
+        errorHandler: ErrorHandler<QueryContext<*, *>> = ErrorHandler { _, error -> Mono.error(error) },
+    ) = DefaultSnapshotQueryGateway<TestState>(
+        MOCK_AGGREGATE_METADATA,
+        backend,
+        JsonSerializer.typeFactory.constructParametricType(MaterializedSnapshot::class.java, TestState::class.java),
+        filters,
+        errorHandler,
+    )
 
-                QueryType.LIST -> context.asListQuery<String>().setResult(Flux.just(RESULT))
-                QueryType.DYNAMIC_LIST -> context.asListQuery<DynamicDocument>().setResult(
-                    Flux.just(mutableMapOf("result" to RESULT).toDynamicDocument())
-                )
-
-                QueryType.PAGED -> context.asPagedQuery<String>().setResult(
-                    Mono.just(PagedList(1, listOf(RESULT)))
-                )
-
-                QueryType.DYNAMIC_PAGED -> context.asPagedQuery<DynamicDocument>().setResult(
-                    Mono.just(PagedList(1, listOf(mutableMapOf("result" to RESULT).toDynamicDocument())))
-                )
-
-                QueryType.COUNT -> context.asCountQuery().setResult(Mono.just(1L))
-                QueryType.AGGREGATION -> context.asAggregationQuery().setResult(
-                    Flux.just(mutableMapOf("count" to 1L).toDynamicDocument())
-                )
-            }
-            return next.filter(context)
-        }
+    private fun backend(single: () -> Mono<ObjectNode>) = object : SnapshotQueryBackend {
+        override val namedAggregate: NamedAggregate = MOCK_AGGREGATE_METADATA
+        override val name: String = "subscription"
+        override fun single(query: ISingleQuery): Mono<ObjectNode> = single()
+        override fun list(query: IListQuery): Flux<ObjectNode> = Flux.empty()
+        override fun paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> = Mono.just(PagedList.empty())
+        override fun count(filter: FilterExpression): Mono<Long> = Mono.just(0)
+        override fun aggregate(query: AggregationQuery): Flux<ObjectNode> = Flux.empty()
     }
 
-    private data class CustomListQuery(
-        override val filter: FilterExpression,
-        val marker: String,
-        override val projection: Projection = Projection.ALL,
-        override val sort: List<Sort> = emptyList(),
-        override val limit: Int = 0,
-    ) : IListQuery {
-        override fun withFilter(newFilter: FilterExpression): IListQuery = copy(filter = newFilter)
-
-        override fun withProjection(newProjection: Projection): IListQuery = copy(projection = newProjection)
-    }
+    private data class TestState(val value: String)
 
     private companion object {
-        const val RESULT = "result"
-        const val MASK_COUNT_KEY = "maskCount"
-        val APPENDED_FILTER = IdFilter("subscription")
-
-        fun queryFilter(context: QueryContext<*, *>): me.ahoo.wow.api.query.FilterExpression =
-            when (val query = context.getQuery()) {
-                is me.ahoo.wow.api.query.FilterExpression -> query
-                is me.ahoo.wow.api.query.FilterCapable<*> -> query.filter
-                else -> error("Unsupported query type: ${query::class}.")
-            }
+        fun snapshotNode(): ObjectNode = """
+            {"contextName":"mock","aggregateName":"mock","tenantId":"tenant","ownerId":"_default_",
+             "spaceId":"_default_","aggregateId":"aggregate","version":1,"eventId":"event",
+             "firstOperator":"operator","operator":"operator","firstEventTime":1,"eventTime":1,
+             "state":{"value":"state-value"},"snapshotTime":1,"tags":{},"deleted":false}
+        """.toJsonNode()
     }
 }
