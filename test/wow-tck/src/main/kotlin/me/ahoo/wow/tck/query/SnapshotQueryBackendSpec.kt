@@ -223,15 +223,15 @@ abstract class SnapshotQueryBackendSpec {
     @Test
     fun `cursor should support descending multi field sort`() {
         val cursorAggregateIds = saveCursorSnapshots(
-            MockStateAggregate(id = "cursor-desc-a", createdAt = 1),
-            MockStateAggregate(id = "cursor-desc-b", createdAt = 3),
-            MockStateAggregate(id = "cursor-desc-c", createdAt = 2),
+            MockStateAggregate(id = "cursor-desc-a", createdAt = 2),
+            MockStateAggregate(id = "cursor-desc-b", createdAt = 2),
+            MockStateAggregate(id = "cursor-desc-c", createdAt = 3),
         )
         val query = CursorQuery(
             filter = filterExpression { aggregateIds(*cursorAggregateIds.toTypedArray()) },
             sort = listOf(
                 Sort("state.createdAt", Sort.Direction.DESC),
-                Sort("aggregateId", Sort.Direction.ASC),
+                Sort("aggregateId", Sort.Direction.DESC),
             ),
             size = 2,
         )
@@ -239,8 +239,8 @@ abstract class SnapshotQueryBackendSpec {
         val first = snapshotQueryBackend.cursor(query).block()!!
         val second = snapshotQueryBackend.cursor(query.copy(cursor = first.nextCursor)).block()!!
 
-        (first.list + second.list).map { it.path("state").path("createdAt").longValue() }.assert()
-            .containsExactly(3L, 2L, 1L)
+        (first.list + second.list).map { it.path("aggregateId").textValue() }.assert()
+            .containsExactly("cursor-desc-c", "cursor-desc-b", "cursor-desc-a")
         first.nextCursor.assert().isNotNull()
         second.nextCursor.assert().isNull()
     }
