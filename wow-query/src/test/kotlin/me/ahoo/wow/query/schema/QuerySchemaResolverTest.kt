@@ -1323,7 +1323,7 @@ class QuerySchemaResolverTest {
     }
 
     @Test
-    fun `aggregation should reject a masked physical binding relative to an element`() {
+    fun `aggregation should keep an unknown path compatible when logical and physical parents differ`() {
         val resolver = QuerySchemaResolver(
             schema(
                 mapOf(
@@ -1340,6 +1340,50 @@ class QuerySchemaResolverTest {
         val query = AggregationQuery(
             elements = listOf(AggregationElement(LogicalField("state.orders"))),
             groupBy = listOf(AggregationGroup.Terms(LogicalField("email.keyword"), "email")),
+            metrics = listOf(AggregationMetric.Count("count")),
+        )
+
+        resolver.resolve(query).compatibility.assert().isEqualTo(QueryCompatibilityLevel.COMPATIBLE)
+    }
+
+    @Test
+    fun `aggregation should reject a nested masked binding used as the logical fallback path`() {
+        val resolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    LogicalField("state.orders") to fieldSchema(
+                        QueryCapability.ELEMENT_SCOPE to "document.orders",
+                    ),
+                    LogicalField("state.orders.email") to fieldSchema(
+                        QueryCapability.AGGREGATE_TERMS to "state.orders.email.keyword",
+                        maskRule = fullMaskRule(),
+                    ),
+                ),
+            ),
+        )
+        val query = AggregationQuery(
+            elements = listOf(AggregationElement(LogicalField("state.orders"))),
+            groupBy = listOf(AggregationGroup.Terms(LogicalField("email.keyword"), "email")),
+            metrics = listOf(AggregationMetric.Count("count")),
+        )
+
+        resolver.resolve(query).compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+    }
+
+    @Test
+    fun `aggregation should reject a masked projection path used as the logical fallback path`() {
+        val resolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    LogicalField("state.emailAlias") to fieldSchema(
+                        projectionPath = "state.email",
+                        maskRule = fullMaskRule(),
+                    ),
+                ),
+            ),
+        )
+        val query = AggregationQuery(
+            groupBy = listOf(AggregationGroup.Terms(LogicalField("state.email"), "email")),
             metrics = listOf(AggregationMetric.Count("count")),
         )
 
