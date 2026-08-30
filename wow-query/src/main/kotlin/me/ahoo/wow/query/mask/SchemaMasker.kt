@@ -111,12 +111,19 @@ internal class SchemaMasker private constructor(
                 else -> throw QuerySchemaConflictException("Unsupported masked query model: [${schema.model}].")
             }
             val paths = schema.maskedFields.map { (field, fieldSchema) ->
-                if (!field.value.startsWith(prefix)) {
+                val responsePath = fieldSchema.projectionPath ?: field.value
+                val invalidPath = when {
+                    !field.value.startsWith(prefix) -> "field" to field.value
+                    !responsePath.startsWith(prefix) -> "projection path" to responsePath
+                    else -> null
+                }
+                if (invalidPath != null) {
                     throw QuerySchemaConflictException(
-                        "${schema.model} masked field must be under [${prefix.removeSuffix(".")}]: [$field].",
+                        "${schema.model} masked ${invalidPath.first} must be under " +
+                            "[${prefix.removeSuffix(".")}]: [${invalidPath.second}].",
                     )
                 }
-                MaskedPath(field.value.split('.'), checkNotNull(fieldSchema.maskRule).compiled)
+                MaskedPath(responsePath.split('.'), checkNotNull(fieldSchema.maskRule).compiled)
             }
             val eventBodyTypes = if (schema.model == QueryModel.EVENT_STREAM) {
                 schema.requiredEventBodyTypes()

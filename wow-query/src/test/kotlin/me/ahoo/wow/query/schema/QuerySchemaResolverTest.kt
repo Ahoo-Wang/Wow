@@ -1302,6 +1302,70 @@ class QuerySchemaResolverTest {
             .isEqualTo(QueryCompatibilityLevel.EXACT)
     }
 
+    @Test
+    fun `aggregation should reject a masked root field physical binding`() {
+        val resolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    LogicalField("state.email") to fieldSchema(
+                        QueryCapability.AGGREGATE_TERMS to "state.email.keyword",
+                        maskRule = fullMaskRule(),
+                    ),
+                ),
+            ),
+        )
+        val query = AggregationQuery(
+            groupBy = listOf(AggregationGroup.Terms(LogicalField("state.email.keyword"), "email")),
+            metrics = listOf(AggregationMetric.Count("count")),
+        )
+
+        resolver.resolve(query).compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+    }
+
+    @Test
+    fun `aggregation should reject a masked physical binding relative to an element`() {
+        val resolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    LogicalField("state.orders") to fieldSchema(
+                        QueryCapability.ELEMENT_SCOPE to "document.orders",
+                    ),
+                    LogicalField("state.orders.email") to fieldSchema(
+                        QueryCapability.AGGREGATE_TERMS to "document.orders.email.keyword",
+                        maskRule = fullMaskRule(),
+                    ),
+                ),
+            ),
+        )
+        val query = AggregationQuery(
+            elements = listOf(AggregationElement(LogicalField("state.orders"))),
+            groupBy = listOf(AggregationGroup.Terms(LogicalField("email.keyword"), "email")),
+            metrics = listOf(AggregationMetric.Count("count")),
+        )
+
+        resolver.resolve(query).compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+    }
+
+    @Test
+    fun `aggregation should keep an unknown non-masked path compatible`() {
+        val resolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    LogicalField("state.email") to fieldSchema(
+                        QueryCapability.AGGREGATE_TERMS to "state.email.keyword",
+                        maskRule = fullMaskRule(),
+                    ),
+                ),
+            ),
+        )
+        val query = AggregationQuery(
+            groupBy = listOf(AggregationGroup.Terms(LogicalField("state.unknown.keyword"), "unknown")),
+            metrics = listOf(AggregationMetric.Count("count")),
+        )
+
+        resolver.resolve(query).compatibility.assert().isEqualTo(QueryCompatibilityLevel.COMPATIBLE)
+    }
+
     private fun schema(
         fields: Map<LogicalField, QueryFieldSchema> = emptyMap(),
         capabilities: Set<QueryCapability> = emptySet(),

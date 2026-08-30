@@ -199,7 +199,12 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         physicalParent = physicalParent,
         fieldIsAbsolute = true,
     ).let { resolved ->
-        if (resolved.fieldSchema?.maskRule == null) {
+        val matchesMaskedBinding = schema.maskedFields.values.any { maskedField ->
+            maskedField.bindings.values.any { binding ->
+                binding.physicalPath == field.value || binding.physicalPath.relativeTo(physicalParent) == field.value
+            }
+        }
+        if (resolved.fieldSchema?.maskRule == null && !matchesMaskedBinding) {
             resolved
         } else {
             resolved.copy(compatibility = QueryCompatibilityLevel.INCOMPATIBLE)
