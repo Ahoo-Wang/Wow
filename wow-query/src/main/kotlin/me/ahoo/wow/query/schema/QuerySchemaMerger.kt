@@ -90,17 +90,11 @@ internal class QuerySchemaMerger {
             system.fields[field]?.enumValues === DeclarationValue.Unset &&
             extension.hasOnlyEnumValues()
 
-    private fun QueryFieldDeclaration.hasOnlyEnumValues(): Boolean =
-        title === DeclarationValue.Unset &&
-            description === DeclarationValue.Unset &&
-            enumValues is DeclarationValue.Set &&
-            valueTypes === DeclarationValue.Unset &&
-            nullable === DeclarationValue.Unset &&
-            required === DeclarationValue.Unset &&
-            cardinality === DeclarationValue.Unset &&
-            semanticType === DeclarationValue.Unset &&
-            dynamicChildren === DeclarationValue.Unset &&
-            maskRule === DeclarationValue.Unset
+    private fun QueryFieldDeclaration.hasOnlyEnumValues(): Boolean {
+        val values = (enumValues as? DeclarationValue.Set)?.value ?: return false
+        return copy(enumValues = DeclarationValue.Unset) == QueryFieldDeclaration() &&
+            values.isNotEmpty() && values.all { it.isString } && values.distinct().size == values.size
+    }
 
     private fun QueryFieldDeclaration.rejectSystemOverwrite(
         field: LogicalField,
