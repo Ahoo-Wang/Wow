@@ -84,9 +84,48 @@ class SchemaMaskerTest {
     }
 
     @Test
+    fun `snapshot should mask the projection path returned by the backend`() {
+        val masker = SchemaMasker.create(
+            QueryModelSchema(
+                model = QueryModel.SNAPSHOT,
+                capabilities = emptySet(),
+                fields = mapOf(
+                    LogicalField("state.emailAlias") to fieldSchema(
+                        projectionPath = "state.email",
+                        maskRule = fullMaskRule(),
+                    ),
+                ),
+            ),
+        )!!
+        val node = """{"state":{"email":"secret@example.com"}}""".toJsonNode<ObjectNode>()
+
+        masker.mask(node)
+
+        node.path("state").path("email").stringValue().assert().isEqualTo("******************")
+    }
+
+    @Test
     fun `snapshot should reject masked fields outside state`() {
         assertThrows<QuerySchemaConflictException> {
             SchemaMasker.create(schema(QueryModel.SNAPSHOT, "secret" to fullMaskRule()))
+        }
+    }
+
+    @Test
+    fun `snapshot should reject projection paths outside state`() {
+        assertThrows<QuerySchemaConflictException> {
+            SchemaMasker.create(
+                QueryModelSchema(
+                    model = QueryModel.SNAPSHOT,
+                    capabilities = emptySet(),
+                    fields = mapOf(
+                        LogicalField("state.secret") to fieldSchema(
+                            projectionPath = "secret",
+                            maskRule = fullMaskRule(),
+                        ),
+                    ),
+                ),
+            )
         }
     }
 
@@ -188,6 +227,7 @@ class SchemaMaskerTest {
 
     private fun fieldSchema(
         enumValues: List<tools.jackson.databind.JsonNode>? = null,
+        projectionPath: String? = null,
         maskRule: MaskRule? = null,
     ) = QueryFieldSchema(
         title = null,
@@ -200,6 +240,7 @@ class SchemaMaskerTest {
         semanticType = null,
         dynamicChildren = false,
         bindings = emptyMap(),
+        projectionPath = projectionPath,
         maskRule = maskRule,
     )
 
