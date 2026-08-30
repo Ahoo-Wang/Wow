@@ -202,12 +202,11 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
     }
 
     private fun ResponseBody<ObjectNode>.toCursorPage(query: ICursorQuery): CursorPage<ObjectNode> {
-        val returnedHits = hits().hits().take(query.size)
-        val nextCursor = if (hits().hits().size > query.size) {
-            returnedHits.last().sort().let { sort ->
-                require(sort.size == query.sort.size) { "Invalid cursor." }
-                ElasticsearchCursorCodec.encode(sort)
-            }
+        val hits = hits().hits()
+        require(hits.all { it.sort().size == query.sort.size }) { "Invalid cursor." }
+        val returnedHits = hits.take(query.size)
+        val nextCursor = if (hits.size > query.size) {
+            ElasticsearchCursorCodec.encode(returnedHits.last().sort())
         } else {
             null
         }
