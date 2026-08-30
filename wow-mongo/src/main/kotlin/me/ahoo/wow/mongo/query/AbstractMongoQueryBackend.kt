@@ -26,6 +26,7 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.Queryable
+import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.mongo.query.aggregation.MongoAggregationCompiler
 import me.ahoo.wow.mongo.toObjectNode
 import me.ahoo.wow.query.QueryBackend
@@ -122,6 +123,7 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
                 resolved.projection,
                 physicalSort.map { it.field },
             )
+            val deferredInternalFields = setOf(Documents.ID_FIELD).intersect(projection.internalFields)
             collection.find(filter)
                 .projection(projectionConverter.convertCursor(projection))
                 .sort(sortConverter.convert(resolved.sort))
@@ -133,8 +135,15 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
                         resolved,
                         projection,
                         physicalSort.map { it.field },
-                        ::toObjectNode,
-                    )
+                        deferredInternalFields,
+                    ) { document ->
+                        toObjectNode(document).also { result ->
+                            if (deferredInternalFields.isNotEmpty()) {
+                                result.remove(Documents.ID_FIELD)
+                                result.remove(uniqueField)
+                            }
+                        }
+                    }
                 }
         }
     }
