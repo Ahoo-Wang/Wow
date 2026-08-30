@@ -136,26 +136,43 @@ export function useSnapshotAnalytics(
       );
     };
 
-    settle(loads.summary, (current, result) => ({
-      ...current,
-      summary: settleSnapshotSection(current.summary, result, now),
-    }));
     settle(loads.pressure, (current, result) => ({
       ...current,
       pressure: settleSnapshotSection(current.pressure, result, now),
-    }));
-    settle(loads.recoverability, (current, result) => ({
-      ...current,
-      recoverability: settleSnapshotSection(
-        current.recoverability,
-        result,
-        now,
-      ),
     }));
     settle(loads.retries, (current, result) => ({
       ...current,
       retries: settleSnapshotSection(current.retries, result, now),
     }));
+    void Promise.allSettled([
+      loads.summary,
+      loads.recoverability,
+    ] as const).then(([summaryResult, recoverabilityResult]) => {
+      if (!abortController.signal.aborted) {
+        setState((current) => {
+          const result =
+            current.windowKey === requestedWindowKey
+              ? current.result
+              : initialSnapshotResult();
+          return {
+            result: {
+              ...result,
+              summary: settleSnapshotSection(
+                result.summary,
+                summaryResult,
+                now,
+              ),
+              recoverability: settleSnapshotSection(
+                result.recoverability,
+                recoverabilityResult,
+                now,
+              ),
+            },
+            windowKey: requestedWindowKey,
+          };
+        });
+      }
+    });
 
     return () => abortController.abort();
   }, [window, refreshToken, requestedWindowKey]);
