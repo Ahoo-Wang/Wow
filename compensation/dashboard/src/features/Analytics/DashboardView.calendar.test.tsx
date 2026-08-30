@@ -44,6 +44,8 @@ beforeEach(() => {
         activeTotal: 4,
         newerThanRange: 4,
         olderThanRange: 0,
+        selectedInRange: 0,
+        stockTruncated: false,
         timedOut: 2,
         unrecoverable: 3,
       },

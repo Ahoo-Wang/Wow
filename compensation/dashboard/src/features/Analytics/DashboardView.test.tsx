@@ -102,6 +102,8 @@ beforeEach(() => {
         activeTotal: 968,
         newerThanRange: 0,
         olderThanRange: 968,
+        selectedInRange: 0,
+        stockTruncated: false,
         timedOut: 34,
         unrecoverable: 9,
       },
@@ -148,6 +150,8 @@ describe("DashboardView", () => {
       activeTotal: 1_000,
       newerThanRange: 0,
       olderThanRange: 968,
+      selectedInRange: 32,
+      stockTruncated: false,
       timedOut: 3,
       unrecoverable: 4,
     };
@@ -358,6 +362,8 @@ describe("DashboardView", () => {
       activeTotal: 100,
       newerThanRange: 15,
       olderThanRange: 60,
+      selectedInRange: 25,
+      stockTruncated: false,
       timedOut: 1,
       unrecoverable: 4,
     };
@@ -374,6 +380,7 @@ describe("DashboardView", () => {
 
   it("applies one complete local date range to both facts", () => {
     mocks.snapshotResult.summary.data!.activeTotal = 1_168;
+    mocks.snapshotResult.summary.data!.selectedInRange = 200;
     mocks.snapshotResult.recoverability.data = [
       { recoverable: RecoverableType.UNRECOVERABLE, count: 200 },
     ];
@@ -526,6 +533,8 @@ describe("DashboardView", () => {
         activeTotal: 1_000,
         newerThanRange: 32,
         olderThanRange: 968,
+        selectedInRange: 0,
+        stockTruncated: false,
         timedOut: 34,
         unrecoverable: 9,
       },
@@ -565,6 +574,8 @@ describe("DashboardView", () => {
       activeTotal: 20,
       newerThanRange: 0,
       olderThanRange: 0,
+      selectedInRange: 20,
+      stockTruncated: false,
       timedOut: 0,
       unrecoverable: 0,
     };
@@ -591,6 +602,8 @@ describe("DashboardView", () => {
       activeTotal: 0,
       newerThanRange: 0,
       olderThanRange: 0,
+      selectedInRange: 0,
+      stockTruncated: false,
       timedOut: 1,
       unrecoverable: 1,
     };
@@ -644,6 +657,8 @@ describe("DashboardView", () => {
       activeTotal: 4_004_001,
       newerThanRange: 0,
       olderThanRange: 4_002_000,
+      selectedInRange: 2_001,
+      stockTruncated: false,
       timedOut: 0,
       unrecoverable: 0,
     };
