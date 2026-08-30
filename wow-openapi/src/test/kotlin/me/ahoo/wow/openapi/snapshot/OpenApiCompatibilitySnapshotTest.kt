@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.openapi.snapshot
 
+import com.fasterxml.jackson.databind.JsonNode
 import io.swagger.v3.core.util.ObjectMapperFactory
 import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.parameters.Parameter
@@ -92,6 +93,39 @@ internal class OpenApiCompatibilitySnapshotTest {
         unsupportedTypeStrategy.path("type").asText().assert().isEqualTo("string")
         unsupportedTypeStrategy.path("enum").map { it.asText() }.assert()
             .containsExactly("FAIL", "RAW_JSON")
+    }
+
+    @Test
+    fun `generated openapi should publish cursor query contracts`() {
+        val openAPI = OpenAPI()
+        RouterSpecs(currentContext).build().mergeOpenAPIFromCatalog(openAPI)
+
+        val document = mapper.valueToTree<JsonNode>(openAPI)
+        val paths = document.path("paths")
+        paths.fieldNames().asSequence().any { it.endsWith("/snapshot/cursor") }.assert().isTrue()
+        paths.fieldNames().asSequence().any { it.endsWith("/snapshot/cursor/state") }.assert().isTrue()
+        paths.fieldNames().asSequence().any { it.endsWith("/event/cursor") }.assert().isTrue()
+
+        val cursor = document.path("components").path("schemas").path("wow.api.query.CursorQuery")
+        cursor.path("properties").has("size").assert().isTrue()
+        cursor.path("properties").has("cursor").assert().isTrue()
+        cursor.path("properties").has("pagination").assert().isFalse()
+
+        listOf(
+            "/cart/snapshot/cursor" to "#/components/schemas/example.cart.CartStateMaterializedSnapshot",
+            "/cart/snapshot/cursor/state" to "#/components/schemas/example.cart.CartState",
+            "/cart/event/cursor" to "#/components/schemas/example.cart.CartAggregatedDomainEventStream",
+        ).forEach { (path, expectedItemRef) ->
+            val content = paths.path(path).path("post").path("responses").path("200").path("content")
+            content.has("application/json").assert().isTrue()
+            content.has("text/event-stream").assert().isFalse()
+            val responseSchemaRef = content.path("application/json").path("schema").path("\$ref").asText()
+            val responseSchema = document.path("components").path("schemas")
+                .path(responseSchemaRef.substringAfterLast('/'))
+            responseSchema.path("properties").path("list").path("items").path("\$ref").asText().assert()
+                .isEqualTo(expectedItemRef)
+            responseSchema.path("properties").has("nextCursor").assert().isTrue()
+        }
     }
 
     @Test
