@@ -16,14 +16,19 @@ package me.ahoo.wow.schema.query;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import me.ahoo.wow.api.query.mask.Mask;
 
-public final class JavaGetterMaskedState implements GetterMaskedState {
+interface ExplicitMethodMaskedState {
+    @JsonProperty("explicitSecret")
+    @Mask
+    String explicitSecret();
+}
+
+public final class JavaGetterMaskedState implements GetterMaskedState, ExplicitMethodMaskedState {
     @Override
     public String getInheritedToken() {
         return "token";
     }
 
-    @JsonProperty("explicitSecret")
-    @Mask
+    @Override
     public String explicitSecret() {
         return "secret";
     }
