@@ -74,6 +74,10 @@ class AbstractElasticsearchQueryBackendTest {
             "state" to mapOf("amount" to 10.5),
             "items" to listOf(mapOf("name" to "item")),
             "array" to arrayOf<Any>(true, integer),
+            "byte" to 1.toByte(),
+            "short" to 2.toShort(),
+            "float" to 1.25f,
+            "floatNode" to JsonNodeFactory.instance.numberNode(2.5f),
             "decimal" to decimal,
             "node" to embeddedNode,
             "nullable" to null,
@@ -87,6 +91,10 @@ class AbstractElasticsearchQueryBackendTest {
         first.path("items").path(0).path("name").asString().assert().isEqualTo("item")
         first.path("array").path(0).booleanValue().assert().isTrue()
         first.path("array").path(1).bigIntegerValue().assert().isEqualTo(integer)
+        first.path("byte").intValue().assert().isEqualTo(1)
+        first.path("short").intValue().assert().isEqualTo(2)
+        first.path("float").floatValue().assert().isEqualTo(1.25f)
+        first.path("floatNode").floatValue().assert().isEqualTo(2.5f)
         first.path("decimal").decimalValue().compareTo(decimal).assert().isZero()
         first.path("node").path("values").path(0).asString().assert().isEqualTo("text")
         first.path("nullable").isNull.assert().isTrue()

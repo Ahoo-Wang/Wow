@@ -26,6 +26,7 @@ import co.elastic.clients.elasticsearch.core.OpenPointInTimeRequest
 import co.elastic.clients.elasticsearch.core.OpenPointInTimeResponse
 import co.elastic.clients.elasticsearch.core.SearchRequest
 import co.elastic.clients.elasticsearch.core.SearchResponse
+import co.elastic.clients.json.JsonData
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -232,6 +233,32 @@ class ElasticsearchAggregationPagerTest {
     }
 
     @Test
+    fun `top rows should continue to tie breaker when primary values are both null`() {
+        val rows = listOf(
+            mapOf("id" to "a", "value" to null).toObjectNode(),
+            mapOf("id" to "b", "value" to null).toObjectNode(),
+        )
+
+        selectTopRows(
+            rows,
+            listOf(Sort("value", Sort.Direction.ASC), Sort("id", Sort.Direction.DESC)),
+            limit = 2,
+        ).map { it.path("id").asString() }.assert().containsExactly("b", "a")
+    }
+
+    @Test
+    fun `top rows should reject object and array sort values`() {
+        val rows = listOf(
+            mapOf("value" to mapOf("nested" to 1)).toObjectNode(),
+            mapOf("value" to listOf(1)).toObjectNode(),
+        )
+
+        assertThrows<IllegalStateException> {
+            selectTopRows(rows, listOf(Sort("value", Sort.Direction.ASC)), limit = 2)
+        }.message.assert().contains("Aggregation sort values must have comparable types")
+    }
+
+    @Test
     fun `summary should request once and normalize empty values`() {
         stubPointInTime()
         every { client.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(summaryResponse())
@@ -289,6 +316,42 @@ class ElasticsearchAggregationPagerTest {
         pager().execute(plan).collectList().test()
             .assertNext { rows -> rows.map { it.path("product").booleanValue() }.assert().containsExactly(true) }
             .verifyComplete()
+    }
+
+    @Test
+    fun `group aggregation should normalize null keys`() {
+        stubPointInTime()
+        every { client.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(
+            groupResponse("pit-2", listOf(bucket(FieldValue.NULL, 1))),
+        )
+        val plan = compiler().compile(
+            aggregation {
+                terms("state.value", "product")
+                count("count")
+            },
+        )
+
+        pager().execute(plan).test()
+            .assertNext { row -> row.path("product").isNull.assert().isTrue() }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `group aggregation should reject unsupported key values`() {
+        stubPointInTime()
+        every { client.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(
+            groupResponse("pit-2", listOf(bucket(FieldValue.of(JsonData.of("unsupported")), 1))),
+        )
+        val plan = compiler().compile(
+            aggregation {
+                terms("state.value", "product")
+                count("count")
+            },
+        )
+
+        pager().execute(plan).test()
+            .expectErrorMessage("Unsupported Elasticsearch aggregation key [Any].")
+            .verify()
     }
 
     @Test
