@@ -35,6 +35,8 @@ data class AccountState(
 )
 ```
 
+Mask annotations support only JVM `String`/`String?` properties. Enum, UUID, and other JVM types fail closed during Schema construction even when their serialized JSON wire shape is a String, preventing typed-result rematerialization failures.
+
 - `@Mask` replaces every Unicode code point with one `*`; for example, `A中😀` becomes `***`.
 - `@KeepMask(prefix, suffix)` preserves leading and trailing code points and masks the middle. A value too short to preserve both sides is fully masked; for example, `13800138000` becomes `138****8000`, while `1234567` becomes `*******`.
 - Missing values and `null` remain unchanged, and an empty string remains empty. Nested objects, collections, and nested string arrays are traversed recursively by Schema path.
@@ -70,7 +72,7 @@ A Strategy can be a Kotlin `object` or a public no-argument class. The example d
 
 ## Query Schema Contract
 
-At runtime, `JsonQuerySchemaSource` discovers effective annotations on fields and getters, including inherited parent Kotlin properties and interface getters. Rules flow through Query Schema merging and backend adapters, but public `QueryModelSchemaMetadata` exposes only field-level `masked: Boolean`. Strategy types, annotation parameters, compiled rules, and executable functions remain in memory.
+At runtime, `JsonQuerySchemaSource` discovers effective annotations on fields, Jackson-visible non-public getters, inherited parent Kotlin properties, and interface getters. Rules flow through Query Schema merging and backend adapters, but public `QueryModelSchemaMetadata` exposes only field-level `masked: Boolean`. Strategy types, annotation parameters, compiled rules, and executable functions remain in memory.
 
 For every result query, `SchemaMaskQueryFilter` reads the Provider's current Schema: the same Schema instance reuses its compiled Masker, while a refresh-published new instance recompiles it. A Schema-load failure is not cached, so a later subscription or `retry` can load again. When the root Schema has no `masked` field, result handling reuses an empty masking decision on an O(1) fast path: it creates no masker, does not walk JSON, and adds no per-result `map`.
 
@@ -90,7 +92,7 @@ For every result query, `SchemaMaskQueryFilter` reads the Provider's current Sch
 
 | Condition | Result |
 |---|---|
-| A field or Schema alternative is not a String wire shape | Schema construction fails |
+| A field is not a JVM String, or a Schema alternative is not a String wire shape | Schema construction fails |
 | One member has multiple effective mask annotations, or Schema branches have conflicting rules | Schema conflict |
 | A Strategy cannot be constructed, or `compile` throws | Schema construction fails with the original error preserved |
 | A response value is not a String/String array, Strategy execution throws, or a custom `CompiledMask` returns `null` | The current result Publisher fails instead of returning the raw value |

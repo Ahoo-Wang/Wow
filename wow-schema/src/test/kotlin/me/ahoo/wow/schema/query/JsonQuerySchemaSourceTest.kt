@@ -692,10 +692,13 @@ class JsonQuerySchemaSourceTest {
     }
 
     @Test
-    fun `should exclude non public computed getters`() {
-        load(NonPublicComputedGetterState::class.java).fields.keys.assert()
-            .doesNotContain(LogicalField("state.privateSecret"))
-            .doesNotContain(LogicalField("state.protectedSecret"))
+    fun `should include masked non public computed getters visible to Jackson`() {
+        val declaration = load(NonPublicComputedGetterState::class.java)
+
+        listOf("state.privateSecret", "state.protectedSecret").forEach { field ->
+            declaration.field(field).requiredMaskRule()
+                .strategyType.assert().isEqualTo(FullMaskStrategy::class)
+        }
     }
 
     @Test
@@ -820,9 +823,11 @@ class JsonQuerySchemaSourceTest {
     }
 
     @Test
-    fun `should reject masked path with non string alternative`() {
-        assertThrownBy<QuerySchemaConflictException> {
-            load(InvalidMaskedAlternativeState::class.java)
+    fun `should reject invalid masked targets`() {
+        listOf(InvalidMaskedAlternativeState::class.java, InvalidMaskedJvmTypeState::class.java).forEach { type ->
+            assertThrownBy<QuerySchemaConflictException> {
+                load(type)
+            }
         }
     }
 

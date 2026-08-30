@@ -60,7 +60,6 @@ import tools.jackson.databind.ser.std.StdContainerSerializer
 import tools.jackson.databind.util.Converter
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
-import java.lang.reflect.Modifier
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.jvm.kotlinFunction
 import kotlin.reflect.jvm.kotlinProperty
@@ -185,7 +184,7 @@ class JsonQuerySchemaSource(
     }
 }
 
-private fun Method.isComputedGetter(): Boolean = Modifier.isPublic(modifiers) && parameterCount == 0 &&
+private fun Method.isComputedGetter(): Boolean = parameterCount == 0 &&
     when {
         name == "getClass" -> false
         name.startsWith("get") -> name.length > 3
@@ -237,7 +236,13 @@ private class MaskAttributeOverride<M : MemberScope<*, *>>(
         if (effectiveAnnotations.size > 1) {
             throw QuerySchemaConflictException("Multiple effective mask annotations are not allowed.")
         }
-        effectiveAnnotations.singleOrNull()?.toMaskRule()?.let { rule ->
+        effectiveAnnotations.singleOrNull()?.let { annotation ->
+            if (scope.type.erasedType != String::class.java) {
+                throw QuerySchemaConflictException(
+                    "Masked query schema member [${scope.rawMember}] must have String JVM type.",
+                )
+            }
+            val rule = annotation.toMaskRule()
             attributes.put(MASK_RULE_ATTRIBUTE, catalog.add(rule))
         }
     }
