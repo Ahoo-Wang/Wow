@@ -5,7 +5,7 @@ Use this reference for `FilterExpression`, Query DSL, snapshot or event-stream a
 ## Stable decisions
 
 - Keep query construction separate from backend conversion and execution.
-- Use `FilterExpression` and `FilterDsl` as the primary contract. Treat legacy `Condition` APIs only as target-version compatibility adapters; do not introduce new condition rewrite paths.
+- Use `FilterExpression` and `FilterDsl` as the canonical JVM contract. V9.0.x retains deprecated `Condition`/`Operator` types, `ConditionDsl`, legacy query constructors, count client overloads, and REST `condition`/`operator` input only as adapters to `FilterExpression`; they are scheduled for removal in 9.1.0. Do not add new Condition-based APIs.
 - Apply tenant, owner, deletion, and authorization filters at the boundary that cannot be bypassed by callers.
 - Treat pagination ordering as a correctness contract; define a deterministic tie-breaker when records can share the primary sort value.
 - Project only fields supported by downstream mapping and serialization.

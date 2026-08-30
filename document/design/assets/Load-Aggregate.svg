@@ -62,12 +62,12 @@
         <rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="151"
               x="259.5" y="102.7539"/>
         <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="137" x="266.5"
-              y="123.2891">SnapshotRepository
+              y="123.2891">SnapshotStore
         </text>
         <rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="151"
               x="259.5" y="692.832"/>
         <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="137" x="266.5"
-              y="713.3672">SnapshotRepository
+              y="713.3672">SnapshotStore
         </text>
         <rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="136"
               x="420.5" y="102.7539"/>
@@ -328,7 +328,7 @@ __Sequence Diagram__
 end title
 
 participant AggregateRepository
-participant SnapshotRepository
+participant SnapshotStore
 participant AggregateFactory
 participant StateAggregate
 database Snapshot
@@ -337,15 +337,15 @@ database EventStore
 autonumber "<b>[00]</b>"
 
 [-> AggregateRepository++: load(aggregateId)
-AggregateRepository -> SnapshotRepository++: load(aggregateId)
-SnapshotRepository -> Snapshot++: load(aggregateId)
-SnapshotRepository <- - Snapshot- -: snapshot
+AggregateRepository -> SnapshotStore++: load(aggregateId)
+SnapshotStore -> Snapshot++: load(aggregateId)
+SnapshotStore <- - Snapshot- -: snapshot
 
 alt snapshot exist
     create StateAggregate
-    SnapshotRepository -> StateAggregate ++: deserialize snapshot to stateAggregate
-    SnapshotRepository <- - StateAggregate: stateAggregate
-    AggregateRepository <- - SnapshotRepository- -: stateAggregate
+    SnapshotStore -> StateAggregate ++: deserialize snapshot to stateAggregate
+    SnapshotStore <- - StateAggregate: stateAggregate
+    AggregateRepository <- - SnapshotStore- -: stateAggregate
 else snapshot not exist
     AggregateRepository -> AggregateFactory++: create(aggregateId)
     create StateAggregate
@@ -378,7 +378,7 @@ __Sequence Diagram__
 end title
 
 participant AggregateRepository
-participant SnapshotRepository
+participant SnapshotStore
 participant AggregateFactory
 participant StateAggregate
 database Snapshot
@@ -387,15 +387,15 @@ database EventStore
 autonumber "<b>[00]</b>"
 
 [-> AggregateRepository++: load(aggregateId)
-AggregateRepository -> SnapshotRepository++: load(aggregateId)
-SnapshotRepository -> Snapshot++: load(aggregateId)
-SnapshotRepository <- - Snapshot- -: snapshot
+AggregateRepository -> SnapshotStore++: load(aggregateId)
+SnapshotStore -> Snapshot++: load(aggregateId)
+SnapshotStore <- - Snapshot- -: snapshot
 
 alt snapshot exist
     create StateAggregate
-    SnapshotRepository -> StateAggregate ++: deserialize snapshot to stateAggregate
-    SnapshotRepository <- - StateAggregate: stateAggregate
-    AggregateRepository <- - SnapshotRepository- -: stateAggregate
+    SnapshotStore -> StateAggregate ++: deserialize snapshot to stateAggregate
+    SnapshotStore <- - StateAggregate: stateAggregate
+    AggregateRepository <- - SnapshotStore- -: stateAggregate
 else snapshot not exist
     AggregateRepository -> AggregateFactory++: create(aggregateId)
     create StateAggregate

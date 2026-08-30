@@ -7,7 +7,9 @@ description: 将 V8 查询 JVM API 迁移到聚合级 Gateway 与 ObjectNode Bac
 
 ## 迁移边界
 
-V9 删除旧 JVM 类型，不提供 bridge、typealias 或 deprecation 过渡。该变更会破坏依赖旧类型的 JVM 源码与二进制；请重新编译下游代码，并按下表直接迁移。`QueryFieldSchemaMetadata.masked`、`QueryFieldDeclaration.maskRule`、`QueryFieldSchema.maskRule` 与 `LogicalQueryFieldSchema.maskRule` 是新增 Mask 字段的 Schema 构造合同，不保留 V8 JVM constructor overload。
+除下述 `Condition` 迁移窗口外，V9 删除旧 JVM 类型，不提供 bridge、typealias 或 deprecation 过渡。该变更会破坏依赖旧类型的 JVM 源码与二进制；请重新编译下游代码，并按下表直接迁移。`QueryFieldSchemaMetadata.masked`、`QueryFieldDeclaration.maskRule`、`QueryFieldSchema.maskRule` 与 `LogicalQueryFieldSchema.maskRule` 是新增 Mask 字段的 Schema 构造合同，不保留 V8 JVM constructor overload。
+
+V9.0.x 为查询条件提供明确的迁移窗口：保留已弃用的 `Condition`/`Operator` JVM 类型、`ConditionDsl`、旧查询构造器、count 客户端重载和既有反序列化，并统一适配为 `FilterExpression`。WebFlux list/paged/single 请求仍可提交 `condition`，count 请求仍可提交裸 `operator` 形状。上述兼容 API 计划在 9.1.0 删除；新代码应立即使用 `FilterExpression`/`FilterDsl`。规范 `filter`、OpenAPI 与出站 JSON 只使用 `op`。
 
 数据查询的 HTTP 请求/结果 envelope、Backend wire tree、存储布局和既有数据不因这次 JVM 重构或静态注解 Mask 改变。Query Schema HTTP 元数据及其生成的 OpenAPI component 会变化：每个字段新增 `masked: Boolean`。无需迁移存储数据，Backend 与存储中的原值也不会被改写。把原 Mask 配置迁移到字段注解后，受管 Gateway 会恢复响应的保密语义。
 
