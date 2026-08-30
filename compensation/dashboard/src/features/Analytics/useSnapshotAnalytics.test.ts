@@ -98,7 +98,7 @@ describe("useSnapshotAnalytics", () => {
     await waitFor(() => expect(mocks.aggregate).toHaveBeenCalledTimes(9));
   });
 
-  it("settles successful sections while another section remains deferred", async () => {
+  it("settles independent sections while the stock pair remains deferred", async () => {
     const recoverability = deferred<unknown[]>();
     mocks.aggregate.mockImplementation((query) => {
       if (isQuery(query, "errorCode")) {
@@ -116,6 +116,17 @@ describe("useSnapshotAnalytics", () => {
     const { result } = renderHook(() => useSnapshotAnalytics(initialWindow, 0));
 
     await waitFor(() => {
+      expect(result.current.pressure).toMatchObject({
+        data: [],
+        loading: false,
+      });
+      expect(result.current.retries).toMatchObject({ loading: false });
+    });
+    expect(result.current.summary).toEqual({ loading: true });
+    expect(result.current.recoverability).toEqual({ loading: true });
+
+    recoverability.resolve([]);
+    await waitFor(() => {
       expect(result.current.summary).toMatchObject({
         data: {
           actionableNow: 3,
@@ -126,21 +137,11 @@ describe("useSnapshotAnalytics", () => {
         },
         loading: false,
       });
-      expect(result.current.pressure).toMatchObject({
-        data: [],
-        loading: false,
-      });
-      expect(result.current.retries).toMatchObject({ loading: false });
-    });
-    expect(result.current.recoverability).toEqual({ loading: true });
-
-    recoverability.resolve([]);
-    await waitFor(() =>
       expect(result.current.recoverability).toMatchObject({
         data: [],
         loading: false,
-      }),
-    );
+      });
+    });
   });
 
   it("hides data from the previous window while the new window loads", async () => {
@@ -169,6 +170,62 @@ describe("useSnapshotAnalytics", () => {
     for (const section of Object.values(result.current)) {
       expect(section).toEqual({ loading: true });
     }
+  });
+
+  it("keeps the last coherent stock pair until both refreshed sections settle", async () => {
+    let refresh = 0;
+    const refreshedSummary = deferred<unknown[]>();
+    const refreshedRecoverability = deferred<unknown[]>();
+    mocks.aggregate.mockImplementation((query) => {
+      if (isQuery(query, "errorCode") || isQuery(query, "retries")) {
+        return Promise.resolve([]);
+      }
+      if (isQuery(query, "recoverable")) {
+        return refresh === 0
+          ? Promise.resolve([{ count: 1, recoverable: "true" }])
+          : refreshedRecoverability.promise;
+      }
+      return refresh === 0
+        ? Promise.resolve([{ count: 1 }])
+        : refreshedSummary.promise;
+    });
+
+    const { result, rerender } = renderHook(
+      ({ token }) => useSnapshotAnalytics(initialWindow, token),
+      { initialProps: { token: 0 } },
+    );
+    await waitFor(() =>
+      expect(result.current.summary.data?.actionableNow).toBe(1),
+    );
+
+    refresh = 1;
+    rerender({ token: 1 });
+    await act(async () => {
+      refreshedSummary.resolve([{ count: 2 }]);
+      await refreshedSummary.promise;
+      await Promise.resolve();
+    });
+
+    expect(result.current.summary).toMatchObject({
+      data: { actionableNow: 1 },
+      loading: true,
+    });
+    expect(result.current.recoverability).toMatchObject({
+      data: [{ count: 1, recoverable: "true" }],
+      loading: true,
+    });
+
+    refreshedRecoverability.resolve([{ count: 2, recoverable: "true" }]);
+    await waitFor(() => {
+      expect(result.current.summary).toMatchObject({
+        data: { actionableNow: 2 },
+        loading: false,
+      });
+      expect(result.current.recoverability).toMatchObject({
+        data: [{ count: 2, recoverable: "true" }],
+        loading: false,
+      });
+    });
   });
 
   it("aborts the old window and starts eight requests with the applied window", async () => {

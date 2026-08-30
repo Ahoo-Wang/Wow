@@ -625,6 +625,60 @@ describe("DashboardView", () => {
     expect(screen.queryByText("Top cluster 125%")).not.toBeInTheDocument();
   });
 
+  it("distinguishes tiny positive ratios from zero", () => {
+    mocks.snapshotResult.summary.data = {
+      actionableNow: 1,
+      newerThanRange: 0,
+      olderThanRange: 4_002_000,
+      timedOut: 0,
+      unrecoverable: 0,
+    };
+    mocks.snapshotResult.recoverability.data = [
+      { recoverable: RecoverableType.RECOVERABLE, count: 2_001 },
+    ];
+    mocks.snapshotResult.pressure.data = [
+      {
+        contextName: "openapi-service",
+        currentCount: 1,
+        errorCode: "NotFound",
+        failedCount: 1,
+        functionKind: "EVENT",
+        functionName: "onQuotationApplied",
+        nextRetryAt: null,
+        oldestExecuteAt: null,
+        preparedCount: 0,
+        processorName: "QuotationSaga",
+      },
+    ];
+    mocks.eventResult.data = [
+      {
+        bucket: new Date(2026, 7, 29).getTime(),
+        newFailures: 0,
+        prepared: 0,
+        retriedFailed: 2_000,
+        succeeded: 1,
+      },
+    ];
+
+    render(<DashboardView />);
+
+    expect(
+      within(screen.getByRole("region", { name: "Backlog exposure" })).getByText(
+        "<0.1%",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(
+        screen.getByRole("region", { name: "Compensation effectiveness" }),
+      ).getByText("<0.1%"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        name: "Failure concentration · Top cluster <0.1%",
+      }),
+    ).toBeInTheDocument();
+  });
+
   it("uses the oldest successful section timestamp for the dashboard", () => {
     const oldestUpdatedAt = new Date(2026, 7, 29).getTime();
     mocks.snapshotResult.summary.updatedAt = oldestUpdatedAt + 60_000;

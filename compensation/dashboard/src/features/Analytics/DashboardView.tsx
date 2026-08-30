@@ -136,6 +136,11 @@ const percentageFormatter = new Intl.NumberFormat("en-US", {
   style: "percent",
 });
 
+function formatPercentage(value: number): string {
+  const formatted = percentageFormatter.format(value);
+  return value > 0 && formatted === "0%" ? "<0.1%" : formatted;
+}
+
 function PressureStatusShare({ cluster }: { cluster: PressureCluster }) {
   const failed = formatStatusShare(cluster.failedCount, cluster.currentCount);
   const prepared = formatStatusShare(
@@ -318,7 +323,7 @@ export default function DashboardView() {
     ? snapshot.pressure.data![0].currentCount / selectedActive!
     : 0;
   const pressureTitle = pressureInsightsReady
-    ? `Failure concentration · Top cluster ${percentageFormatter.format(pressureShare)}`
+    ? `Failure concentration · Top cluster ${formatPercentage(pressureShare)}`
     : "Current failure pressure — Top 5 clusters";
 
   const applyRecentDays = (days: number) => {
@@ -488,18 +493,19 @@ export default function DashboardView() {
                   </div>
                   <div>
                     <dt>Coverage</dt>
-                    <dd>{percentageFormatter.format(selectedCoverage)}</dd>
+                    <dd>{formatPercentage(selectedCoverage)}</dd>
                   </div>
                 </dl>
                 <Progress
                   aria-label="Selected active coverage"
+                  aria-valuetext={formatPercentage(selectedCoverage)}
                   value={selectedCoverage * 100}
                   className="dashboard-stock-progress"
                 />
                 <div className="dashboard-stock-scale">
                   <span>
                     {selectedActive.toLocaleString()} selected (
-                    {percentageFormatter.format(selectedCoverage)})
+                    {formatPercentage(selectedCoverage)})
                   </span>
                   <span>
                     {snapshot.summary.data.olderThanRange.toLocaleString()} older
@@ -555,7 +561,7 @@ export default function DashboardView() {
                     <dd>
                       {trendSummary.retrySuccess === null
                         ? "—"
-                        : percentageFormatter.format(trendSummary.retrySuccess)}
+                        : formatPercentage(trendSummary.retrySuccess)}
                     </dd>
                   </div>
                 </dl>
@@ -697,7 +703,7 @@ export default function DashboardView() {
                   : snapshot.pressure.data!.length === 5
                     ? "Top 5 clusters"
                     : `${snapshot.pressure.data!.length} clusters`}{" "}
-                · Top cluster {percentageFormatter.format(pressureShare)}
+                · Top cluster {formatPercentage(pressureShare)}
               </Badge>
             </CardAction>
           ) : null}
