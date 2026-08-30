@@ -20,6 +20,7 @@ interface ReactiveSnapshotQueryApi<S : Any> :
     ReactiveSnapshotSingleQueryApi<S>,
     ReactiveSnapshotListQueryApi<S>,
     ReactiveSnapshotPagedQueryApi<S>,
+    ReactiveSnapshotCursorQueryApi<S>,
     ReactiveSnapshotCountQueryApi
 
 fun <T : Any> Mono<T>.switchNotFoundToEmpty(): Mono<T> {

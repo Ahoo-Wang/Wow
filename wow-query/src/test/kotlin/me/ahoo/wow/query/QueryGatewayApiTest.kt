@@ -68,4 +68,13 @@ class QueryGatewayApiTest {
         QueryGateway::class.java.getMethod("aggregate", AggregationQuery::class.java).returnType
             .assert().isEqualTo(Flux::class.java)
     }
+
+    @Test
+    fun `cursor should be a required backend and gateway contract`() {
+        listOf(
+            QueryBackend::class.java.getMethod("cursor", ICursorQuery::class.java),
+            QueryGateway::class.java.getMethod("cursor", ICursorQuery::class.java),
+            QueryGateway::class.java.getMethod("dynamicCursor", ICursorQuery::class.java),
+        ).all { Modifier.isAbstract(it.modifiers) }.assert().isTrue()
+    }
 }

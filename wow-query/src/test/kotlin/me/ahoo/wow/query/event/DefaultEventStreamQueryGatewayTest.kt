@@ -53,12 +53,24 @@ import me.ahoo.wow.tck.mock.MockAggregateCreated
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.kotlin.test.test
 import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.reflect.jvm.javaField
 
 class DefaultEventStreamQueryGatewayTest {
+    @Test
+    fun `backend should return an empty terminal cursor page`() {
+        NoOpEventStreamQueryBackend(MOCK_AGGREGATE_METADATA).cursor(CursorQuery(MatchAllFilter))
+            .test()
+            .assertNext { page ->
+                page.list.assert().isEmpty()
+                page.nextCursor.assert().isNull()
+            }
+            .verifyComplete()
+    }
+
     @Test
     fun `typed result should materialize after the event filter chain`() {
         val eventStream = generateEventStream(MOCK_AGGREGATE_METADATA.aggregateId(generateGlobalId()))
@@ -166,6 +178,8 @@ class DefaultEventStreamQueryGatewayTest {
         override fun single(query: ISingleQuery): Mono<ObjectNode> = single()
         override fun list(query: IListQuery): Flux<ObjectNode> = Flux.empty()
         override fun paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> = Mono.just(PagedList.empty())
+        override fun cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> =
+            Mono.just(CursorPage(emptyList(), null))
         override fun count(filter: FilterExpression): Mono<Long> = Mono.just(0)
         override fun aggregate(query: AggregationQuery): Flux<ObjectNode> = Flux.empty()
     }

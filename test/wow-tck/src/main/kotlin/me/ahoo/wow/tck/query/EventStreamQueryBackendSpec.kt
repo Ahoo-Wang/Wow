@@ -40,7 +40,6 @@ import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
 import me.ahoo.wow.tck.metrics.meteredForTck
-import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
@@ -53,7 +52,6 @@ abstract class EventStreamQueryBackendSpec {
     lateinit var eventStore: EventStore
     lateinit var eventStreamQueryBackendFactory: EventStreamQueryBackendFactory
     lateinit var eventStreamQueryBackend: EventStreamQueryBackend
-    protected open val cursorQuerySupported: Boolean = false
 
     @BeforeEach
     open fun setup() {
@@ -64,16 +62,10 @@ abstract class EventStreamQueryBackendSpec {
 
     protected abstract fun createEventStore(): EventStore
     protected abstract fun createEventStreamQueryBackendFactory(): EventStreamQueryBackendFactory
-    protected open fun prepareNullAndMissingCursorEventStreams(
+    protected abstract fun prepareNullAndMissingCursorEventStreams(
         nullStream: DomainEventStream,
         missingStream: DomainEventStream,
-    ) {
-        Assumptions.assumeTrue(false) { "EventStream cursor null/missing fixture is not available." }
-    }
-
-    protected fun assumeCursorQuerySupported() {
-        Assumptions.assumeTrue(cursorQuerySupported) { "EventStream cursor query is not supported." }
-    }
+    )
 
     @Test
     fun createFromCache() {
@@ -171,7 +163,6 @@ abstract class EventStreamQueryBackendSpec {
 
     @Test
     fun `cursor should traverse tied versions without duplicates`() {
-        assumeCursorQuerySupported()
         val tenantId = generateGlobalId()
         repeat(3) {
             eventStore.append(generateEventStream(namedAggregate.aggregateId(tenantId = tenantId))).block()
@@ -194,7 +185,6 @@ abstract class EventStreamQueryBackendSpec {
 
     @Test
     fun `cursor should support descending multi field sort`() {
-        assumeCursorQuerySupported()
         val tenantId = generateGlobalId()
         val highest = generateEventStream(namedAggregate.aggregateId(tenantId = tenantId), aggregateVersion = 2)
         val tied = List(2) {
@@ -223,7 +213,6 @@ abstract class EventStreamQueryBackendSpec {
 
     @Test
     fun `cursor should traverse null and missing sort values in both directions`() {
-        assumeCursorQuerySupported()
         val tenantId = generateGlobalId()
         val nullStream = generateEventStream(namedAggregate.aggregateId(tenantId = tenantId), ownerId = "null")
         val missingStream = generateEventStream(namedAggregate.aggregateId(tenantId = tenantId), ownerId = "missing")
@@ -260,7 +249,6 @@ abstract class EventStreamQueryBackendSpec {
 
     @Test
     fun `cursor should not expose projection-only cursor fields`() {
-        assumeCursorQuerySupported()
         val tenantId = generateGlobalId()
         eventStore.append(generateEventStream(namedAggregate.aggregateId(tenantId = tenantId))).block()
 
@@ -282,7 +270,6 @@ abstract class EventStreamQueryBackendSpec {
 
     @Test
     fun `cursor should reject a malformed token`() {
-        assumeCursorQuerySupported()
         eventStore.append(generateEventStream(namedAggregate.aggregateId(tenantId = generateGlobalId()))).block()
 
         eventStreamQueryBackend.cursor(
@@ -298,7 +285,6 @@ abstract class EventStreamQueryBackendSpec {
 
     @Test
     fun `cursor should return an empty terminal page`() {
-        assumeCursorQuerySupported()
         eventStore.append(generateEventStream(namedAggregate.aggregateId(tenantId = generateGlobalId()))).block()
 
         eventStreamQueryBackend.cursor(

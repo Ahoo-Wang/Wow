@@ -47,7 +47,7 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
     abstract val sortConverter: MongoSortConverter
     protected abstract fun toObjectNode(document: Document): ObjectNode
 
-    protected open val cursorUniqueField: String? = null
+    protected abstract val cursorUniqueField: String
 
     protected open fun resolve(query: ISingleQuery): Mono<ISingleQuery> = Mono.just(query)
 
@@ -112,7 +112,6 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
 
     override fun cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> {
         val uniqueField = cursorUniqueField
-            ?: return Mono.error(UnsupportedOperationException("Cursor query is not supported."))
         return resolve(query.withUniqueSort(uniqueField)).flatMap { resolved ->
             val physicalSort = resolved.sort.map { it.copy(field = sortConverter.convertField(it.field)) }
             val filter = resolved.cursor?.let {

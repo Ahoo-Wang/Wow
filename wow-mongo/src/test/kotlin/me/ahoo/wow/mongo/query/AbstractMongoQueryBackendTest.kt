@@ -65,6 +65,7 @@ class AbstractMongoQueryBackendTest {
         override val converter = me.ahoo.wow.mongo.query.snapshot.SnapshotFilterConverter
         override val projectionConverter = mockk<MongoProjectionConverter>()
         override val sortConverter = mockk<MongoSortConverter>()
+        override val cursorUniqueField: String = "id"
         override fun toObjectNode(document: Document): ObjectNode = document.toObjectNode()
         override fun aggregate(query: AggregationQuery): Flux<ObjectNode> = Flux.empty()
     }

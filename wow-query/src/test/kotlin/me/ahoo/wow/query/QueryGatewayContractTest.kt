@@ -42,7 +42,6 @@ import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.kotlin.test.test
 import tools.jackson.databind.node.ObjectNode
 
 class QueryGatewayContractTest {
@@ -60,14 +59,6 @@ class QueryGatewayContractTest {
             page.nextCursor.assert().isEqualTo("next")
             page.list.single().assert().isInstanceOf(DomainEventStream::class.java)
         }
-    }
-
-    @Test
-    fun `gateway should reject cursor by default`() {
-        UnsupportedGateway.cursor(CursorQuery(MatchAllFilter))
-            .test().expectErrorMessage("Cursor query is not supported.").verify()
-        UnsupportedGateway.dynamicCursor(CursorQuery(MatchAllFilter))
-            .test().expectErrorMessage("Cursor query is not supported.").verify()
     }
 
     private val snapshotGateway = DefaultSnapshotQueryGateway<State>(
@@ -103,18 +94,6 @@ class QueryGatewayContractTest {
         override fun paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> = Mono.just(PagedList.empty())
         override fun cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> =
             Mono.fromSupplier { CursorPage(listOf(eventNode()), "next") }
-        override fun count(filter: FilterExpression): Mono<Long> = Mono.just(0)
-        override fun aggregate(query: AggregationQuery): Flux<ObjectNode> = Flux.empty()
-    }
-
-    private object UnsupportedGateway : QueryGateway<State> {
-        override val namedAggregate: NamedAggregate = MOCK_AGGREGATE_METADATA
-        override fun single(query: ISingleQuery): Mono<State> = Mono.empty()
-        override fun dynamicSingle(query: ISingleQuery): Mono<ObjectNode> = Mono.empty()
-        override fun list(query: IListQuery): Flux<State> = Flux.empty()
-        override fun dynamicList(query: IListQuery): Flux<ObjectNode> = Flux.empty()
-        override fun paged(query: IPagedQuery): Mono<PagedList<State>> = Mono.just(PagedList.empty())
-        override fun dynamicPaged(query: IPagedQuery): Mono<PagedList<ObjectNode>> = Mono.just(PagedList.empty())
         override fun count(filter: FilterExpression): Mono<Long> = Mono.just(0)
         override fun aggregate(query: AggregationQuery): Flux<ObjectNode> = Flux.empty()
     }
