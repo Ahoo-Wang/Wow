@@ -26,7 +26,7 @@ import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerResponse
 
 class SnapshotSchemaHandlerFunction(
-    provider: QueryModelSchemaProvider,
+    provider: () -> QueryModelSchemaProvider,
     exceptionHandler: RequestExceptionHandler,
     refresh: Boolean,
 ) : HandlerFunction<ServerResponse> by QuerySchemaHandlerFunction(provider, exceptionHandler, refresh)
@@ -39,8 +39,10 @@ class SnapshotSchemaHandlerFunctionFactory(
         contract: HttpRouteContract,
         metadata: HttpRouteHandlerMetadata.Aggregate,
     ): HandlerFunction<ServerResponse> = SnapshotSchemaHandlerFunction(
-        provider = snapshotQueryBackendFactory.create<Any>(aggregateMetadata(metadata))
-            .requiredQueryModelSchemaProvider(),
+        provider = {
+            snapshotQueryBackendFactory.create<Any>(aggregateMetadata(metadata))
+                .requiredQueryModelSchemaProvider()
+        },
         exceptionHandler = exceptionHandler,
         refresh = false,
     )
@@ -54,8 +56,10 @@ class SnapshotSchemaRefreshHandlerFunctionFactory(
         contract: HttpRouteContract,
         metadata: HttpRouteHandlerMetadata.Aggregate,
     ): HandlerFunction<ServerResponse> = SnapshotSchemaHandlerFunction(
-        provider = snapshotQueryBackendFactory.create<Any>(aggregateMetadata(metadata))
-            .requiredQueryModelSchemaProvider(),
+        provider = {
+            snapshotQueryBackendFactory.create<Any>(aggregateMetadata(metadata))
+                .requiredQueryModelSchemaProvider()
+        },
         exceptionHandler = exceptionHandler,
         refresh = true,
     )

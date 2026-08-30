@@ -23,13 +23,11 @@ import me.ahoo.wow.query.event.NoOpEventStreamQueryBackend
 import me.ahoo.wow.query.event.NoOpEventStreamQueryBackendFactory
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
-import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
 import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import org.springframework.test.web.reactive.server.WebTestClient
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.RouterFunctions
@@ -62,13 +60,21 @@ class EventStreamSchemaHandlerFunctionTest {
     }
 
     @Test
-    fun `backend without schema provider should return unavailable error`() {
-        assertThrows<QuerySchemaUnavailableException> {
-            EventStreamSchemaHandlerFunctionFactory(
-                eventStreamQueryBackendFactory = NoOpEventStreamQueryBackendFactory,
-                exceptionHandler = WebFluxRequestExceptionHandler(),
-            ).create(testAggregateRouteContract(BuiltInHttpRouteHandlerKeys.Event.SCHEMA))
-        }
+    fun `backend without schema provider should start and return unavailable error`() {
+        val exceptionHandler = WebFluxRequestExceptionHandler()
+        val schemaHandler = EventStreamSchemaHandlerFunctionFactory(
+            eventStreamQueryBackendFactory = NoOpEventStreamQueryBackendFactory,
+            exceptionHandler = exceptionHandler,
+        ).create(testAggregateRouteContract(BuiltInHttpRouteHandlerKeys.Event.SCHEMA))
+        val refreshHandler = EventStreamSchemaRefreshHandlerFunctionFactory(
+            eventStreamQueryBackendFactory = NoOpEventStreamQueryBackendFactory,
+            exceptionHandler = exceptionHandler,
+        ).create(testAggregateRouteContract(BuiltInHttpRouteHandlerKeys.Event.SCHEMA_REFRESH))
+
+        client(schemaHandler).get().uri("/").exchange()
+            .expectStatus().isEqualTo(503)
+        client(refreshHandler).post().uri("/").exchange()
+            .expectStatus().isEqualTo(503)
     }
 
     @Test

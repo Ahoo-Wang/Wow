@@ -32,8 +32,10 @@ class EventStreamSchemaHandlerFunctionFactory(
         contract: HttpRouteContract,
         metadata: HttpRouteHandlerMetadata.Aggregate,
     ): HandlerFunction<ServerResponse> = QuerySchemaHandlerFunction(
-        provider = eventStreamQueryBackendFactory.create(aggregateMetadata(metadata))
-            .requiredQueryModelSchemaProvider(),
+        provider = {
+            eventStreamQueryBackendFactory.create(aggregateMetadata(metadata))
+                .requiredQueryModelSchemaProvider()
+        },
         exceptionHandler = exceptionHandler,
         refresh = false,
     )
@@ -47,8 +49,10 @@ class EventStreamSchemaRefreshHandlerFunctionFactory(
         contract: HttpRouteContract,
         metadata: HttpRouteHandlerMetadata.Aggregate,
     ): HandlerFunction<ServerResponse> = QuerySchemaHandlerFunction(
-        provider = eventStreamQueryBackendFactory.create(aggregateMetadata(metadata))
-            .requiredQueryModelSchemaProvider(),
+        provider = {
+            eventStreamQueryBackendFactory.create(aggregateMetadata(metadata))
+                .requiredQueryModelSchemaProvider()
+        },
         exceptionHandler = exceptionHandler,
         refresh = true,
     )
