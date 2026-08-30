@@ -682,10 +682,13 @@ class JsonQuerySchemaSourceTest {
 
     @Test
     fun `should inherit Kotlin property getter mask from Java getter`() {
-        load(JavaGetterMaskedState::class.java)
-            .field("state.inheritedToken")
-            .requiredMaskRule()
-            .strategyType.assert().isEqualTo(FullMaskStrategy::class)
+        val declaration = load(JavaGetterMaskedState::class.java)
+
+        listOf("state.inheritedToken", "state.explicitSecret").forEach { field ->
+            declaration.field(field)
+                .requiredMaskRule()
+                .strategyType.assert().isEqualTo(FullMaskStrategy::class)
+        }
     }
 
     @Test

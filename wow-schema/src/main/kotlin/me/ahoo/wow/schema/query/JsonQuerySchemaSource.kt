@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.schema.query
 
+import com.fasterxml.jackson.annotation.JsonGetter
+import com.fasterxml.jackson.annotation.JsonProperty
 import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.CustomPropertyDefinition
 import com.github.victools.jsonschema.generator.FieldScope
@@ -165,8 +167,13 @@ class JsonQuerySchemaSource(
                     .withInstanceAttributeOverride(TemporalAttributeOverride<FieldScope>())
                     .withInstanceAttributeOverride(MaskAttributeOverride(maskRuleCatalog))
                 config.forMethods()
+                    .withPropertyNameOverrideResolver { scope ->
+                        scope.rawMember.explicitJacksonPropertyName()
+                    }
                     .withIgnoreCheck { scope ->
-                        scope.findGetterField() == null && !scope.rawMember.isComputedGetter()
+                        scope.findGetterField() == null &&
+                            !scope.rawMember.isComputedGetter() &&
+                            !scope.rawMember.isExplicitJacksonProperty()
                     }
                     .withCustomDefinitionProvider { scope, context -> scope.customSerializerDefinition(context) }
                     .withInstanceAttributeOverride(TemporalAttributeOverride<MethodScope>())
@@ -187,6 +194,14 @@ private fun Method.isComputedGetter(): Boolean = Modifier.isPublic(modifiers) &&
                 (returnType == Boolean::class.java || returnType == Boolean::class.javaObjectType)
         else -> false
     }
+
+private fun Method.isExplicitJacksonProperty(): Boolean =
+    isAnnotationPresent(JsonProperty::class.java) || isAnnotationPresent(JsonGetter::class.java)
+
+private fun Method.explicitJacksonPropertyName(): String? =
+    getAnnotation(JsonProperty::class.java)?.value?.takeIf(String::isNotEmpty)
+        ?: getAnnotation(JsonGetter::class.java)?.value?.takeIf(String::isNotEmpty)
+        ?: name.takeIf { isExplicitJacksonProperty() && !isComputedGetter() }
 
 private class MaskRuleCatalog {
     private val rules = mutableListOf<MaskRule>()
