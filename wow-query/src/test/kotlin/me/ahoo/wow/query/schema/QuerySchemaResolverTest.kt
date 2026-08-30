@@ -1400,7 +1400,7 @@ class QuerySchemaResolverTest {
                         maskRule = fullMaskRule(),
                     ),
                     LogicalField("state.email") to fieldSchema(
-                        QueryCapability.AGGREGATE_TERMS to "state.email",
+                        QueryCapability.AGGREGATE_TERMS to "document.email.keyword",
                     ),
                 ),
             ),
