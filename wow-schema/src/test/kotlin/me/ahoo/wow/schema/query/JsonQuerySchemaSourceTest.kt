@@ -45,6 +45,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
+import reactor.test.StepVerifier
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -598,12 +599,21 @@ class JsonQuerySchemaSourceTest {
         listOf(
             AbstractMaskStrategyState::class.java,
             privateMaskStrategyStateType(),
-            ThrowingMaskStrategyState::class.java,
         ).forEach { stateType ->
             assertThrows<QuerySchemaConflictException> {
                 load(stateType)
             }.message.assert().contains("Unable to instantiate MaskStrategy")
         }
+    }
+
+    @Test
+    fun `should unwrap and wrap mask strategy constructor failure as conflict`() {
+        val error = assertThrows<QuerySchemaConflictException> {
+            load(ThrowingMaskStrategyState::class.java)
+        }
+
+        error.message.assert().contains("Unable to instantiate MaskStrategy")
+        error.cause.assert().isSameAs(constructorMaskFailure)
     }
 
     @Test
@@ -614,6 +624,34 @@ class JsonQuerySchemaSourceTest {
 
         error.message.assert().contains("Unable to compile mask annotation")
         error.cause.assert().isSameAs(compileMaskFailure)
+    }
+
+    @Test
+    fun `should preserve query schema failure from mask strategy compile`() {
+        assertThrows<QuerySchemaConflictException> {
+            load(CompileQuerySchemaFailureState::class.java)
+        }.assert().isSameAs(compileQuerySchemaFailure)
+    }
+
+    @Test
+    fun `should preserve error from mask strategy compile`() {
+        StepVerifier.create(loadPublisher(CompileErrorState::class.java))
+            .expectErrorSatisfies { error -> error.assert().isSameAs(compileError) }
+            .verify()
+    }
+
+    @Test
+    fun `should preserve query schema failure from mask strategy constructor`() {
+        assertThrows<QuerySchemaConflictException> {
+            load(ConstructorQuerySchemaFailureState::class.java)
+        }.assert().isSameAs(constructorQuerySchemaFailure)
+    }
+
+    @Test
+    fun `should preserve error from mask strategy constructor`() {
+        StepVerifier.create(loadPublisher(ConstructorErrorState::class.java))
+            .expectErrorSatisfies { error -> error.assert().isSameAs(constructorError) }
+            .verify()
     }
 
     @Test
@@ -644,8 +682,10 @@ class JsonQuerySchemaSourceTest {
         }
     }
 
-    private fun load(type: Class<*>): QuerySchemaDeclaration =
-        JsonQuerySchemaSource(typeResolver = { type }).load(context).single().block()!!
+    private fun load(type: Class<*>): QuerySchemaDeclaration = loadPublisher(type).single().block()!!
+
+    private fun loadPublisher(type: Class<*>): Flux<QuerySchemaDeclaration> =
+        JsonQuerySchemaSource(typeResolver = { type }).load(context)
 
     private fun QuerySchemaDeclaration.field(name: String): QueryFieldDeclaration = fields.getValue(LogicalField(name))
 

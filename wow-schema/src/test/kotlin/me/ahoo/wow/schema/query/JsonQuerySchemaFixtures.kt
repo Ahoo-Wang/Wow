@@ -24,6 +24,7 @@ import me.ahoo.wow.api.query.mask.Mask
 import me.ahoo.wow.api.query.mask.MaskStrategy
 import me.ahoo.wow.api.query.mask.Masking
 import me.ahoo.wow.api.query.schema.QueryTemporal
+import me.ahoo.wow.query.schema.QuerySchemaConflictException
 import tools.jackson.core.JsonGenerator
 import tools.jackson.databind.SerializationContext
 import tools.jackson.databind.annotation.JsonSerialize
@@ -349,9 +350,11 @@ internal data class AbstractMaskStrategyState(
 @Masking(ThrowingMaskStrategy::class)
 private annotation class ThrowingMask
 
+internal val constructorMaskFailure = IllegalStateException("constructor failed")
+
 private class ThrowingMaskStrategy : MaskStrategy<ThrowingMask> {
     init {
-        error("constructor failed")
+        throw constructorMaskFailure
     }
 
     override fun compile(annotation: ThrowingMask): CompiledMask = CompiledMask { it }
@@ -374,6 +377,65 @@ internal object CompileThrowingMaskStrategy : MaskStrategy<CompileThrowingMask> 
 
 internal data class CompileThrowingMaskStrategyState(
     @field:CompileThrowingMask val secret: String,
+)
+
+internal val compileQuerySchemaFailure = QuerySchemaConflictException("compile conflict")
+internal val compileError = AssertionError("compile error")
+
+@Target(AnnotationTarget.FIELD)
+@Retention(AnnotationRetention.RUNTIME)
+@Masking(CompileIdentityFailureMaskStrategy::class)
+internal annotation class CompileIdentityFailureMask(val error: Boolean = false)
+
+internal object CompileIdentityFailureMaskStrategy : MaskStrategy<CompileIdentityFailureMask> {
+    override fun compile(annotation: CompileIdentityFailureMask): CompiledMask =
+        throw if (annotation.error) compileError else compileQuerySchemaFailure
+}
+
+internal data class CompileQuerySchemaFailureState(
+    @field:CompileIdentityFailureMask val secret: String,
+)
+
+internal data class CompileErrorState(
+    @field:CompileIdentityFailureMask(error = true) val secret: String,
+)
+
+internal val constructorQuerySchemaFailure = QuerySchemaConflictException("constructor conflict")
+
+@Target(AnnotationTarget.FIELD)
+@Retention(AnnotationRetention.RUNTIME)
+@Masking(ConstructorQuerySchemaFailureMaskStrategy::class)
+internal annotation class ConstructorQuerySchemaFailureMask
+
+internal class ConstructorQuerySchemaFailureMaskStrategy : MaskStrategy<ConstructorQuerySchemaFailureMask> {
+    init {
+        throw constructorQuerySchemaFailure
+    }
+
+    override fun compile(annotation: ConstructorQuerySchemaFailureMask): CompiledMask = CompiledMask { it }
+}
+
+internal data class ConstructorQuerySchemaFailureState(
+    @field:ConstructorQuerySchemaFailureMask val secret: String,
+)
+
+internal val constructorError = AssertionError("constructor error")
+
+@Target(AnnotationTarget.FIELD)
+@Retention(AnnotationRetention.RUNTIME)
+@Masking(ConstructorErrorMaskStrategy::class)
+internal annotation class ConstructorErrorMask
+
+internal class ConstructorErrorMaskStrategy : MaskStrategy<ConstructorErrorMask> {
+    init {
+        throw constructorError
+    }
+
+    override fun compile(annotation: ConstructorErrorMask): CompiledMask = CompiledMask { it }
+}
+
+internal data class ConstructorErrorState(
+    @field:ConstructorErrorMask val secret: String,
 )
 
 internal open class ParentPropertyMaskedState(

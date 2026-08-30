@@ -55,6 +55,7 @@ import tools.jackson.databind.ser.impl.UnknownSerializer
 import tools.jackson.databind.ser.std.ReferenceTypeSerializer
 import tools.jackson.databind.ser.std.StdContainerSerializer
 import tools.jackson.databind.util.Converter
+import java.lang.reflect.InvocationTargetException
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.jvm.kotlinFunction
 import kotlin.reflect.jvm.kotlinProperty
@@ -200,28 +201,34 @@ private class MaskAttributeOverride<M : MemberScope<*, *>>(
         }
     }
 
-    @Suppress("TooGenericExceptionCaught", "UNCHECKED_CAST")
+    @Suppress("UNCHECKED_CAST")
     private fun Pair<Annotation, Masking>.toMaskRule(): MaskRule {
         val strategyType = second.strategy
-        val strategy = try {
+        val strategy = runMaskStrategyOperation(
+            "Unable to instantiate MaskStrategy [${strategyType.qualifiedName}].",
+        ) {
             strategyType.objectInstance ?: strategyType.java.getConstructor().newInstance()
-        } catch (error: Exception) {
-            throw QuerySchemaConflictException(
-                "Unable to instantiate MaskStrategy [${strategyType.qualifiedName}].",
-                error,
-            )
         }
 
-        val compiled = try {
+        val compiled = runMaskStrategyOperation(
+            "Unable to compile mask annotation [${first.annotationClass.qualifiedName}] " +
+                "with MaskStrategy [${strategyType.qualifiedName}].",
+        ) {
             (strategy as MaskStrategy<Annotation>).compile(first)
-        } catch (error: Exception) {
-            throw QuerySchemaConflictException(
-                "Unable to compile mask annotation [${first.annotationClass.qualifiedName}] " +
-                    "with MaskStrategy [${strategyType.qualifiedName}].",
-                error,
-            )
         }
         return MaskRule(strategyType, first, compiled)
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private inline fun <T> runMaskStrategyOperation(message: String, operation: () -> T): T = try {
+        operation()
+    } catch (error: Throwable) {
+        when (val failure = (error as? InvocationTargetException)?.targetException ?: error) {
+            is QuerySchemaException -> throw failure
+            is Error -> throw failure
+            is Exception -> throw QuerySchemaConflictException(message, failure)
+            else -> throw failure
+        }
     }
 }
 
