@@ -44,6 +44,10 @@ export interface TrendWindow {
   unit: AggregationDateUnit;
 }
 
+export function trendWindowKey(window: TrendWindow): string {
+  return `${window.start}:${window.end}:${window.timeZone}:${window.unit}`;
+}
+
 export interface TrendRow {
   bucket: number;
   streamCount: number;

@@ -21,6 +21,7 @@ import {
   createRetryHistogramQuery,
   createSnapshotSummaryQueries,
   mergePressureRows,
+  trendWindowKey,
 } from "./analyticsQueries.ts";
 import type {
   PressureCluster,
@@ -51,16 +52,29 @@ interface CountRow {
   count: number;
 }
 
-export function useSnapshotAnalytics(
-  window: TrendWindow,
-  refreshToken: number,
-): SnapshotAnalyticsResult {
-  const [state, setState] = useState<SnapshotAnalyticsResult>({
+interface SnapshotAnalyticsState {
+  result: SnapshotAnalyticsResult;
+  windowKey: string;
+}
+
+function initialSnapshotResult(): SnapshotAnalyticsResult {
+  return {
     pressure: { loading: true },
     recoverability: { loading: true },
     retries: { loading: true },
     summary: { loading: true },
-  });
+  };
+}
+
+export function useSnapshotAnalytics(
+  window: TrendWindow,
+  refreshToken: number,
+): SnapshotAnalyticsResult {
+  const requestedWindowKey = trendWindowKey(window);
+  const [state, setState] = useState<SnapshotAnalyticsState>(() => ({
+    result: initialSnapshotResult(),
+    windowKey: requestedWindowKey,
+  }));
 
   useEffect(() => {
     const abortController = new AbortController();
@@ -75,7 +89,13 @@ export function useSnapshotAnalytics(
 
     queueMicrotask(() => {
       if (!abortController.signal.aborted) {
-        setState(markSnapshotLoading);
+        setState((current) => ({
+          result:
+            current.windowKey === requestedWindowKey
+              ? markSnapshotLoading(current.result)
+              : initialSnapshotResult(),
+          windowKey: requestedWindowKey,
+        }));
       }
     });
 
@@ -89,16 +109,28 @@ export function useSnapshotAnalytics(
       void load.then(
         (value) => {
           if (!abortController.signal.aborted) {
-            setState((current) =>
-              update(current, { status: "fulfilled", value }),
-            );
+            setState((current) => ({
+              result: update(
+                current.windowKey === requestedWindowKey
+                  ? current.result
+                  : initialSnapshotResult(),
+                { status: "fulfilled", value },
+              ),
+              windowKey: requestedWindowKey,
+            }));
           }
         },
         (reason: unknown) => {
           if (!abortController.signal.aborted) {
-            setState((current) =>
-              update(current, { status: "rejected", reason }),
-            );
+            setState((current) => ({
+              result: update(
+                current.windowKey === requestedWindowKey
+                  ? current.result
+                  : initialSnapshotResult(),
+                { status: "rejected", reason },
+              ),
+              windowKey: requestedWindowKey,
+            }));
           }
         },
       );
@@ -126,9 +158,11 @@ export function useSnapshotAnalytics(
     }));
 
     return () => abortController.abort();
-  }, [window, refreshToken]);
+  }, [window, refreshToken, requestedWindowKey]);
 
-  return state;
+  return state.windowKey === requestedWindowKey
+    ? state.result
+    : initialSnapshotResult();
 }
 
 async function loadSummary(

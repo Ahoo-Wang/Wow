@@ -143,6 +143,34 @@ describe("useSnapshotAnalytics", () => {
     );
   });
 
+  it("hides data from the previous window while the new window loads", async () => {
+    mocks.aggregate.mockImplementation((query) => {
+      if (
+        isQuery(query, "errorCode") ||
+        isQuery(query, "recoverable") ||
+        isQuery(query, "retries")
+      ) {
+        return Promise.resolve([]);
+      }
+      return Promise.resolve([{ count: 1 }]);
+    });
+    const { result, rerender } = renderHook(
+      ({ window }: { window: TrendWindow }) => useSnapshotAnalytics(window, 0),
+      { initialProps: { window: initialWindow } },
+    );
+    await waitFor(() => expect(result.current.summary.data).toBeDefined());
+
+    mocks.aggregate.mockImplementation(() => new Promise(() => undefined));
+    await act(async () => {
+      rerender({ window: nextWindow });
+      await Promise.resolve();
+    });
+
+    for (const section of Object.values(result.current)) {
+      expect(section).toEqual({ loading: true });
+    }
+  });
+
   it("aborts the old window and starts eight requests with the applied window", async () => {
     const controllers: AbortController[] = [];
     const queries: Array<{
