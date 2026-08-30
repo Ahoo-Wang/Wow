@@ -18,7 +18,7 @@ import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.Sort
 
-private val FORBIDDEN_CURSOR_SORTS = setOf("_score", "_doc", "_shard_doc")
+internal val FORBIDDEN_CURSOR_SORTS = setOf("_score", "_doc", "_shard_doc")
 
 fun ICursorQuery.withUniqueSort(uniqueField: String): ICursorQuery {
     val effective = if (sort.any { it.field == uniqueField }) {

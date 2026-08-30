@@ -72,7 +72,7 @@ The built-in Snapshot Backend appends `aggregateId` as a unique tie-breaker, whi
 
 The backend encodes effective sort values as an unpadded Base64URL continuation. The token is neither encrypted nor signed, carries no authorization, and should not be logged; the framework has no cursor encryption-key configuration. Callers should pass it back unchanged rather than parse or construct it.
 
-Every effective sort must resolve exactly in Query Schema, be single-valued, carry no Mask rule, and not alias a masked projection or physical binding. Mask rules include those compiled from `@Mask`, `@KeepMask`, or a custom `@Masking` meta-annotation; unavailable Schema fails closed. An invalid token is rejected as `Invalid cursor.` without echoing its content.
+Every effective sort must resolve exactly in Query Schema, be single-valued, carry no Mask rule, and not alias a masked projection or physical binding. Neither the requested nor resolved physical sort may be `_score`, `_doc`, or `_shard_doc`. Mask rules include those compiled from `@Mask`, `@KeepMask`, or a custom `@Masking` meta-annotation; unavailable Schema fails closed. An invalid token is rejected as `Invalid cursor.` without echoing its content.
 
 ## Schema uses the same route
 
