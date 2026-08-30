@@ -48,14 +48,14 @@ Data-query HTTP request and result envelopes, Backend wire trees, storage layout
 | `QueryServiceProxy` / `SnapshotQueryServiceProxy` / `EventStreamQueryServiceProxy` | Removed; inject the aggregate-bound Gateway directly |
 | `DynamicDocument` / `SimpleDynamicDocument` | `tools.jackson.databind.node.ObjectNode` |
 | `DynamicDocumentMasker` | Removed; use `@Mask`, `@KeepMask`, or a custom `@Masking` meta-annotation on domain fields |
-| `AggregateDynamicDocumentMasker` | Removed; managed Gateways mask Snapshot and EventStream results from Query Schema |
+| `AggregateDynamicDocumentMasker` | Removed; built-in `SchemaMaskQueryFilter` masks Snapshot and EventStream results from Query Schema |
 | `StateDynamicDocumentMasker` | Removed; declare static mask annotations on state fields |
 | `EventStreamDynamicDocumentMasker` | Removed; declare static mask annotations on event-payload fields |
 | `AggregateDataMasker` / `DefaultAggregateDataMasker` | Removed; no runtime object-mask SPI is retained |
 | `DataMaskerRegistry` / `AbstractDataMaskerRegistry` | Removed; Query Schema discovers rules from field annotations |
 | `StateDataMaskerRegistry` / `EventStreamMaskerRegistry` | Removed; model maskers are no longer registered |
 | `DataMasker` / `DataMasking` / `tryMask` | Removed; migrate to static field annotations |
-| `MaskingDynamicDocumentQueryFilter` | Removed; masking has a fixed position after Gateway result filters |
+| `MaskingDynamicDocumentQueryFilter` | Removed; replaced by the framework-owned outermost `SchemaMaskQueryFilter` |
 | `QueryType.DYNAMIC_SINGLE` | `QueryType.SINGLE` |
 | `QueryType.DYNAMIC_LIST` | `QueryType.LIST` |
 | `QueryType.DYNAMIC_PAGED` | `QueryType.PAGED` |
@@ -67,7 +67,7 @@ There is no one-to-one replacement for `QueryService<R>`: move storage queries a
 
 Filters no longer use `QueryType.isDynamic` to distinguish a final typed result from a node result. Both paths traverse the same ObjectNode FilterChain and differ only by optional Jackson materialization after the chain. Remove branches used only for typed/dynamic dispatch; do not invent a replacement result-type discriminator.
 
-Delete old Mask types, implementations, Beans, registries, and custom filters without creating an ObjectNode Mask compatibility layer. Once old rules are declared on domain fields, Snapshot and EventStream typed, dynamic, and aggregate-state load entries mask automatically on the same managed Gateway path: every result query reads current Schema, the same instance reuses its Masker, a refresh-published instance recompiles it, unavailable Schema fails result queries closed without subscribing to the Backend, and count does not read masking Schema. A direct Backend Factory or a custom Backend without `QueryModelSchemaProvider` remains a trusted low-level boundary that returns raw values; `COMPATIBLE` unavailable fallback belongs only to direct `QueryModelSchemaProvider.resolve(...)` request resolution.
+Delete old Mask types, implementations, Beans, registries, and custom filters without creating an ObjectNode Mask compatibility layer. Once old rules are declared on domain fields, Snapshot and EventStream typed, dynamic, and aggregate-state load entries mask automatically on the same managed Gateway path: the framework-owned `SchemaMaskQueryFilter` reads current Schema for every result query, the same instance reuses its Masker, a refresh-published instance recompiles it, unavailable Schema fails result queries closed without subscribing to the Backend, and count does not read masking Schema. A direct Backend Factory or a custom Backend without `QueryModelSchemaProvider` remains a trusted low-level boundary that returns raw values; `COMPATIBLE` unavailable fallback belongs only to direct `QueryModelSchemaProvider.resolve(...)` request resolution.
 
 ## Static Mask Migration
 

@@ -22,7 +22,7 @@ sequenceDiagram
     participant Gateway as Aggregate-bound Gateway
     participant Filters as One around chain
     participant Backend as Bound QueryBackend
-    participant Mask as Schema Mask
+    participant Mask as SchemaMaskQueryFilter
     participant Jackson as Optional typed conversion
     Caller->>Entry: Query DTO / DSL
     Entry->>Gateway: Query after scope rewriting
@@ -35,7 +35,7 @@ sequenceDiagram
     Jackson-->>Caller: ObjectNode or typed result
 ```
 
-At Gateway assembly, the registrar calls the routing Factory once for the `NamedAggregate` and binds the selected Backend. Requests are not routed again. The Backend produces `ObjectNode`; result filters process those nodes, then every single/list/paged result query reads the Provider's current Schema and masks it, reusing a Masker for the same Schema instance and recompiling for a refresh-published instance, before Jackson finally materializes typed results. Unavailable Schema fails these managed result queries closed without subscribing to the Backend. Count remains `Long` and does not read masking Schema. Aggregation remains a stream of `ObjectNode` rows, with Schema rejecting groups, metrics, and expressions that reference masked fields.
+At Gateway assembly, the registrar calls the routing Factory once for the `NamedAggregate` and binds the selected Backend. Requests are not routed again. The Backend produces `ObjectNode`. The framework-owned outermost `SchemaMaskQueryFilter` reads the Provider's current Schema after all generic result filters and masks the final node, reusing a Masker for the same Schema instance and recompiling for a refresh-published instance, before Jackson finally materializes typed results. Unavailable Schema fails these managed result queries closed without subscribing to the Backend. Count remains `Long` and does not read masking Schema. Aggregation remains a stream of `ObjectNode` rows, with Schema rejecting groups, metrics, and expressions that reference masked fields.
 
 ## QueryContext and QueryType
 
@@ -55,7 +55,7 @@ The Gateway creates an independent `QueryContext` for every subscription, so sep
 
 ## ABAC and Field Masking
 
-The built-in `AbacQueryFilter` belongs to the snapshot Gateway. For a Backend that provides `QueryModelSchemaProvider`, the Gateway applies Schema-driven field masking after all generic result filters and before typed materialization. Snapshot and EventStream typed, dynamic, and aggregate-state load entries share this managed path. See [Field Masking](./masking.md) for annotations, caching, the behavior matrix, and fail-closed rules.
+The built-in `AbacQueryFilter` belongs to the snapshot Gateway. For a Backend that provides `QueryModelSchemaProvider`, the framework-owned `SchemaMaskQueryFilter` applies Schema-driven field masking after all generic result filters and before typed materialization. Snapshot and EventStream typed, dynamic, and aggregate-state load entries share this managed path. See [Field Masking](./masking.md) for annotations, caching, the behavior matrix, and fail-closed rules.
 
 For authentication, Principal binding, and the complete fail-closed policy, see [Data Access Control](../data-access.md).
 

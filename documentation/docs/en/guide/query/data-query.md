@@ -84,7 +84,7 @@ Sort fields must be logical fields supported by the current query model, with di
 
 ## Results and Empty Results
 
-Queries may return typed, state-only, or `ObjectNode` results; the concrete entry point determines which forms and unwrapping rules are available. A managed Gateway automatically masks from the Query Model Schema after generic result filters, then optionally uses Jackson for typed materialization. It skips masking immediately when the root Schema has no `masked` fields. Empty-result behavior is also entry-point-specific: JVM, WebFlux, and API Client 404, empty-value, or empty-list semantics are explained in their child pages and client page. This page does not generalize one transport semantic to every entry point.
+Queries may return typed, state-only, or `ObjectNode` results; the concrete entry point determines which forms and unwrapping rules are available. The managed response chain's `SchemaMaskQueryFilter` masks from the Query Model Schema after generic result filters, and the Gateway then optionally uses Jackson for typed materialization. It skips masking immediately when the root Schema has no `masked` fields. Empty-result behavior is also entry-point-specific: JVM, WebFlux, and API Client 404, empty-value, or empty-list semantics are explained in their child pages and client page. This page does not generalize one transport semantic to every entry point.
 
 ## Choosing Snapshot or Event Stream
 

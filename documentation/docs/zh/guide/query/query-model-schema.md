@@ -82,7 +82,7 @@ flowchart LR
 
 Schema 来源或后端事实不可用时，只有 `COMPATIBLE` 模式可以让不引用系统 `tags` 的过滤请求按原路径回退。过滤条件直接或通过逻辑组合、搜索、相对时间、Element predicate 在作用域解析后引用根系统 `tags` 或 `tags.*` 时仍传播 `QuerySchemaUnavailableException`，保持失败关闭；元素自身名为 `tags` 的业务字段不等于根系统标签。`STRICT` 对所有请求都不回退。
 
-因此不能把回退理解为“Schema 关闭后所有字段可查询”。回退只保留原请求，不证明字段能力，也不会放宽系统标签查询。字段已明确解析为 `INCOMPATIBLE`、来源冲突或普通校验失败同样不会触发 unavailable 回退。这个 `COMPATIBLE` unavailable 回退只适用于直接 `QueryModelSchemaProvider.resolve(...)` 的请求解析；受管 Gateway 必须在返回数据前取得 Schema 执行 Mask，Schema 不可用时 `single`、`list`、`paged` 失败关闭且不会订阅 Backend，只有 `count` 不读取 Mask Schema。系统标签的授权语义见[数据权限](../data-access.md)。
+因此不能把回退理解为“Schema 关闭后所有字段可查询”。回退只保留原请求，不证明字段能力，也不会放宽系统标签查询。字段已明确解析为 `INCOMPATIBLE`、来源冲突或普通校验失败同样不会触发 unavailable 回退。这个 `COMPATIBLE` unavailable 回退只适用于直接 `QueryModelSchemaProvider.resolve(...)` 的请求解析；受管响应链的 `SchemaMaskQueryFilter` 必须在返回数据前取得 Schema，Schema 不可用时 `single`、`list`、`paged` 失败关闭且不会订阅 Backend，只有 `count` 不读取 Mask Schema。系统标签的授权语义见[数据权限](../data-access.md)。
 
 ## HTTP 与 OpenAPI 扩展
 

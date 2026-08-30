@@ -84,7 +84,7 @@ JVM 中可使用 `filter.count(queryGateway)`。计数是否可执行以及精�
 
 ## 返回值与空结果
 
-查询可以返回类型化（typed）、仅状态（state-only）或 `ObjectNode` 结果，具体入口决定可用形态和解包方式。受管 Gateway 在通用结果 Filter 完成后按 Query Model Schema 自动 Mask，再按需用 Jackson 物化 typed 结果；根 Schema 没有 `masked` 字段时直接跳过。空结果也由具体入口决定：JVM、WebFlux 和 API Client 的 404、空值或空列表语义在各自子页面及客户端页面解释；本页不把一种传输语义推广到所有入口。
+查询可以返回类型化（typed）、仅状态（state-only）或 `ObjectNode` 结果，具体入口决定可用形态和解包方式。受管响应链中的 `SchemaMaskQueryFilter` 在通用结果 Filter 完成后按 Query Model Schema 自动 Mask，Gateway 再按需用 Jackson 物化 typed 结果；根 Schema 没有 `masked` 字段时直接跳过。空结果也由具体入口决定：JVM、WebFlux 和 API Client 的 404、空值或空列表语义在各自子页面及客户端页面解释；本页不把一种传输语义推广到所有入口。
 
 ## 选择快照还是事件流
 
