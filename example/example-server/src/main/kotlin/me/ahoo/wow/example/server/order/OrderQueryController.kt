@@ -18,7 +18,7 @@ import io.swagger.v3.oas.annotations.tags.Tag
 import me.ahoo.wow.example.domain.order.OrderState
 import me.ahoo.wow.exception.throwNotFoundIfEmpty
 import me.ahoo.wow.query.dsl.singleQuery
-import me.ahoo.wow.query.snapshot.SnapshotQueryService
+import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.query
 import me.ahoo.wow.query.snapshot.toState
 import org.springframework.web.bind.annotation.GetMapping
@@ -33,7 +33,7 @@ import reactor.core.publisher.Mono
 @RequestMapping("/order")
 class OrderQueryController(
     // Spring's generated aggregate bean enforces policies; factories are reserved for trusted raw backend access.
-    private val queryService: SnapshotQueryService<OrderState>
+    private val snapshotQueryGateway: SnapshotQueryGateway<OrderState>
 ) {
     @GetMapping("{tenantId}/{orderId}")
     fun onQuery(@PathVariable tenantId: String, @PathVariable orderId: String): Mono<OrderState> {
@@ -42,6 +42,6 @@ class OrderQueryController(
                 tenantId(tenantId)
                 id(orderId)
             }
-        }.query(queryService).toState().throwNotFoundIfEmpty()
+        }.query(snapshotQueryGateway).toState().throwNotFoundIfEmpty()
     }
 }

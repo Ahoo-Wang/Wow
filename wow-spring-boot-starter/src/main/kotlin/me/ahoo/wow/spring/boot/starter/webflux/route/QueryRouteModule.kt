@@ -13,11 +13,12 @@
 
 package me.ahoo.wow.spring.boot.starter.webflux.route
 
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
+import me.ahoo.wow.modeling.toStringWithAlias
+import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.event.EventStreamQueryGateway
-import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
-import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
+import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
-import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.CountEventStreamHandlerFunctionFactory
@@ -39,99 +40,46 @@ import me.ahoo.wow.webflux.route.snapshot.SingleSnapshotStateHandlerFunctionFact
 import me.ahoo.wow.webflux.route.snapshot.SnapshotAggregationHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.SnapshotSchemaHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.SnapshotSchemaRefreshHandlerFunctionFactory
+import org.springframework.beans.factory.BeanFactory
 
 class QueryRouteModule(
-    snapshotQueryGateway: SnapshotQueryGateway,
-    snapshotQueryServiceFactory: SnapshotQueryServiceFactory,
-    eventStreamQueryGateway: EventStreamQueryGateway,
+    private val beanFactory: BeanFactory,
+    snapshotQueryBackendFactory: SnapshotQueryBackendFactory,
+    eventStreamQueryBackendFactory: EventStreamQueryBackendFactory,
     rewriteRequestFilter: RewriteRequestFilter,
     exceptionHandler: RequestExceptionHandler,
-    eventStreamQueryServiceFactory: EventStreamQueryServiceFactory = NoOpEventStreamQueryServiceFactory,
 ) : WebFluxRouteModule {
     override val httpFactories: List<HttpRouteHandlerFunctionFactory> = listOf(
-        SnapshotSchemaHandlerFunctionFactory(
-            snapshotQueryServiceFactory = snapshotQueryServiceFactory,
-            exceptionHandler = exceptionHandler,
-        ),
-        SnapshotSchemaRefreshHandlerFunctionFactory(
-            snapshotQueryServiceFactory = snapshotQueryServiceFactory,
-            exceptionHandler = exceptionHandler,
-        ),
-        LoadSnapshotHandlerFunctionFactory(
-            snapshotQueryGateway = snapshotQueryGateway,
-            exceptionHandler = exceptionHandler
-        ),
-        ListQuerySnapshotHandlerFunctionFactory(
-            snapshotQueryGateway = snapshotQueryGateway,
-            rewriteRequestFilter = rewriteRequestFilter,
-            exceptionHandler = exceptionHandler
-        ),
-        ListQuerySnapshotStateHandlerFunctionFactory(
-            snapshotQueryGateway = snapshotQueryGateway,
-            rewriteRequestFilter = rewriteRequestFilter,
-            exceptionHandler = exceptionHandler
-        ),
-        PagedQuerySnapshotHandlerFunctionFactory(
-            snapshotQueryGateway = snapshotQueryGateway,
-            rewriteRequestFilter = rewriteRequestFilter,
-            exceptionHandler = exceptionHandler
-        ),
-        PagedQuerySnapshotStateHandlerFunctionFactory(
-            snapshotQueryGateway = snapshotQueryGateway,
-            rewriteRequestFilter = rewriteRequestFilter,
-            exceptionHandler = exceptionHandler
-        ),
-        SingleSnapshotHandlerFunctionFactory(
-            snapshotQueryGateway = snapshotQueryGateway,
-            rewriteRequestFilter = rewriteRequestFilter,
-            exceptionHandler = exceptionHandler
-        ),
-        SingleSnapshotStateHandlerFunctionFactory(
-            snapshotQueryGateway = snapshotQueryGateway,
-            rewriteRequestFilter = rewriteRequestFilter,
-            exceptionHandler = exceptionHandler
-        ),
-        CountSnapshotHandlerFunctionFactory(
-            snapshotQueryGateway = snapshotQueryGateway,
-            rewriteRequestFilter = rewriteRequestFilter,
-            exceptionHandler = exceptionHandler
-        ),
-        SnapshotAggregationHandlerFunctionFactory(
-            snapshotQueryGateway = snapshotQueryGateway,
-            rewriteRequestFilter = rewriteRequestFilter,
-            exceptionHandler = exceptionHandler
-        ),
-        LoadEventStreamHandlerFunctionFactory(
-            eventStreamQueryGateway = eventStreamQueryGateway,
-            exceptionHandler = exceptionHandler
-        ),
-        EventStreamAggregationHandlerFunctionFactory(
-            eventStreamQueryGateway = eventStreamQueryGateway,
-            rewriteRequestFilter = rewriteRequestFilter,
-            exceptionHandler = exceptionHandler,
-        ),
-        EventStreamSchemaHandlerFunctionFactory(
-            eventStreamQueryServiceFactory = eventStreamQueryServiceFactory,
-            exceptionHandler = exceptionHandler,
-        ),
-        EventStreamSchemaRefreshHandlerFunctionFactory(
-            eventStreamQueryServiceFactory = eventStreamQueryServiceFactory,
-            exceptionHandler = exceptionHandler,
-        ),
-        ListQueryEventStreamHandlerFunctionFactory(
-            eventStreamQueryGateway = eventStreamQueryGateway,
-            rewriteRequestFilter = rewriteRequestFilter,
-            exceptionHandler = exceptionHandler
-        ),
-        PagedQueryEventStreamHandlerFunctionFactory(
-            eventStreamQueryGateway = eventStreamQueryGateway,
-            rewriteRequestFilter = rewriteRequestFilter,
-            exceptionHandler = exceptionHandler
-        ),
-        CountEventStreamHandlerFunctionFactory(
-            eventStreamQueryGateway = eventStreamQueryGateway,
-            rewriteRequestFilter = rewriteRequestFilter,
-            exceptionHandler = exceptionHandler
-        ),
+        SnapshotSchemaHandlerFunctionFactory(snapshotQueryBackendFactory, exceptionHandler),
+        SnapshotSchemaRefreshHandlerFunctionFactory(snapshotQueryBackendFactory, exceptionHandler),
+        LoadSnapshotHandlerFunctionFactory(::snapshotGateway, exceptionHandler),
+        ListQuerySnapshotHandlerFunctionFactory(::snapshotGateway, rewriteRequestFilter, exceptionHandler),
+        ListQuerySnapshotStateHandlerFunctionFactory(::snapshotGateway, rewriteRequestFilter, exceptionHandler),
+        PagedQuerySnapshotHandlerFunctionFactory(::snapshotGateway, rewriteRequestFilter, exceptionHandler),
+        PagedQuerySnapshotStateHandlerFunctionFactory(::snapshotGateway, rewriteRequestFilter, exceptionHandler),
+        SingleSnapshotHandlerFunctionFactory(::snapshotGateway, rewriteRequestFilter, exceptionHandler),
+        SingleSnapshotStateHandlerFunctionFactory(::snapshotGateway, rewriteRequestFilter, exceptionHandler),
+        CountSnapshotHandlerFunctionFactory(::snapshotGateway, rewriteRequestFilter, exceptionHandler),
+        SnapshotAggregationHandlerFunctionFactory(::snapshotGateway, rewriteRequestFilter, exceptionHandler),
+        LoadEventStreamHandlerFunctionFactory(::eventStreamGateway, exceptionHandler),
+        EventStreamAggregationHandlerFunctionFactory(::eventStreamGateway, rewriteRequestFilter, exceptionHandler),
+        EventStreamSchemaHandlerFunctionFactory(eventStreamQueryBackendFactory, exceptionHandler),
+        EventStreamSchemaRefreshHandlerFunctionFactory(eventStreamQueryBackendFactory, exceptionHandler),
+        ListQueryEventStreamHandlerFunctionFactory(::eventStreamGateway, rewriteRequestFilter, exceptionHandler),
+        PagedQueryEventStreamHandlerFunctionFactory(::eventStreamGateway, rewriteRequestFilter, exceptionHandler),
+        CountEventStreamHandlerFunctionFactory(::eventStreamGateway, rewriteRequestFilter, exceptionHandler),
     )
+
+    @Suppress("UNCHECKED_CAST")
+    private fun snapshotGateway(metadata: AggregateMetadata<*, *>): SnapshotQueryGateway<Any> =
+        beanFactory.getBean(
+            "${metadata.namedAggregate.toStringWithAlias()}.SnapshotQueryGateway",
+            SnapshotQueryGateway::class.java,
+        ) as SnapshotQueryGateway<Any>
+
+    private fun eventStreamGateway(metadata: AggregateMetadata<*, *>): EventStreamQueryGateway =
+        beanFactory.getBean(
+            "${metadata.namedAggregate.toStringWithAlias()}.EventStreamQueryGateway",
+            EventStreamQueryGateway::class.java,
+        )
 }

@@ -34,7 +34,7 @@ class PagedQuerySnapshotStateHandlerFunctionFactoryTest {
     @Test
     fun `should handle paged query snapshot state request`() {
         val handlerFunction = PagedQuerySnapshotStateHandlerFunctionFactory(
-            RouteTestFixtures.snapshotQueryGateway,
+            { RouteTestFixtures.snapshotQueryGateway },
             DefaultRewriteRequestFilter,
             exceptionHandler = WebFluxRequestExceptionHandler(),
         ).create(

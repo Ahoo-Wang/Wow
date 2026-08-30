@@ -38,8 +38,8 @@ import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.mongo.query.AbstractMongoFilterConverter
 import me.ahoo.wow.mongo.query.event.EventStreamFieldConverter
-import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryService
-import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryServiceFactory
+import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryBackend
+import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryBackendFactory
 import me.ahoo.wow.query.converter.FieldConverter
 import me.ahoo.wow.query.schema.LogicalQueryFieldSchema
 import me.ahoo.wow.query.schema.LogicalQuerySchema
@@ -753,7 +753,7 @@ class MongoQuerySchemaAdapterTest {
     @Test
     fun `strict service should reject an unknown field before Mongo find`() {
         val fixture = serviceFixture(indexes())
-        val service = MongoSnapshotQueryServiceFactory(
+        val service = MongoSnapshotQueryBackendFactory(
             database = fixture.database,
             validationMode = QuerySchemaValidationMode.STRICT,
         ).create<Any>(MOCK_AGGREGATE_METADATA)
@@ -768,7 +768,7 @@ class MongoQuerySchemaAdapterTest {
     @Test
     fun `compatible service should preserve the current path when schema is unavailable`() {
         val fixture = serviceFixture(failingIndexes(IllegalStateException("offline")))
-        val service = MongoSnapshotQueryServiceFactory(database = fixture.database)
+        val service = MongoSnapshotQueryBackendFactory(database = fixture.database)
             .create<Any>(MOCK_AGGREGATE_METADATA)
 
         service.list(unknownListQuery()).test().verifyComplete()
@@ -780,7 +780,7 @@ class MongoQuerySchemaAdapterTest {
     fun `compatible service should not find system tags when schema is unavailable`() {
         val failure = IllegalStateException("offline")
         val fixture = serviceFixture(failingIndexes(failure))
-        val service = MongoSnapshotQueryServiceFactory(database = fixture.database)
+        val service = MongoSnapshotQueryBackendFactory(database = fixture.database)
             .create<Any>(MOCK_AGGREGATE_METADATA)
 
         service.list(
@@ -801,7 +801,7 @@ class MongoQuerySchemaAdapterTest {
     @Test
     fun `service should pass resolved filter projection and sort paths to Mongo`() {
         val fixture = serviceFixture(indexes())
-        val service = MongoSnapshotQueryServiceFactory(
+        val service = MongoSnapshotQueryBackendFactory(
             database = fixture.database,
             validationMode = QuerySchemaValidationMode.STRICT,
         ).create<Any>(MOCK_AGGREGATE_METADATA)
@@ -825,13 +825,13 @@ class MongoQuerySchemaAdapterTest {
         val converter = object : AbstractMongoFilterConverter() {
             override val fieldConverter: FieldConverter = FieldConverter { "custom.$it" }
         }
-        val service = MongoSnapshotQueryService<Any>(
+        val service = MongoSnapshotQueryBackend(
             namedAggregate = MOCK_AGGREGATE_METADATA,
             collection = fixture.collection,
             converter = converter,
         )
 
-        service.dynamicList(
+        service.list(
             ListQuery(
                 EqualFilter(LogicalField("aggregateId"), StringNode.valueOf("id")),
                 limit = 1,
@@ -851,7 +851,7 @@ class MongoQuerySchemaAdapterTest {
                 if (reads.getAndIncrement() == 0) indexes() else indexes(Document("key", Document("all", "text")))
             },
         )
-        val provider = MongoSnapshotQueryServiceFactory(database = fixture.database)
+        val provider = MongoSnapshotQueryBackendFactory(database = fixture.database)
             .create<Any>(MOCK_AGGREGATE_METADATA)
             .requiredQueryModelSchemaProvider()
 

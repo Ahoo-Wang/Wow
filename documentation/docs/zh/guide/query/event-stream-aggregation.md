@@ -5,17 +5,17 @@ description: 用六个业务场景说明事件流根文档与展开事件的 JVM
 
 # 事件流聚合
 
-事件流聚合同时支持 JVM `EventStreamQueryGateway` / `EventStreamQueryService` 与 WebFlux HTTP/OpenAPI。当前没有 EventStream API Client；HTTP 调用直接使用公共 `AggregationQuery` JSON 合同。
+事件流聚合同时支持 JVM `EventStreamQueryGateway` 与 WebFlux HTTP/OpenAPI。当前没有 EventStream API Client；HTTP 调用直接使用公共 `AggregationQuery` JSON 合同。
 
 ## 能力与入口
 
 - **JVM Gateway**：`EventStreamQueryGateway.aggregate(namedAggregate, query)` 通过策略链执行聚合。
-- **JVM Service**：聚合级 `EventStreamQueryService` 可通过 `query.query(queryService)` 执行；Spring 管理的服务通常经 [QueryGateway](./query-gateway.md) 进入策略链，直接 Factory 与自定义 Bean 的绕过边界见[查询后端](./query-backend.md)。
+- **JVM Gateway**：聚合级 `EventStreamQueryGateway` 可通过 `query.query(queryGateway)` 执行；Spring 管理的 Gateway 进入完整策略链，直接 Backend Factory 的绕过边界见[查询后端](./query-backend.md)。
 - **WebFlux HTTP/OpenAPI**：当前 `sales-order` OpenAPI 已证明 `POST /sales-order/event/aggregation`、`POST /tenant/{tenantId}/sales-order/event/aggregation` 与 `POST /owner/{ownerId}/sales-order/event/aggregation`。基础路由不包含 tenant/owner 路径作用域；tenant/owner 变体通过路径参数提供相应作用域。
 - **Schema HTTP**：`GET /sales-order/event/schema` 与 `POST /sales-order/event/schema/refresh` 是独立的模型级路由，没有 tenant/owner 变体。
 - **公共合同**：Elements、group、metric、alias、排序与限制见[聚合查询](./aggregation-query.md)，根过滤的 Kotlin DSL 见[过滤条件](./filter-expression.md)，字段能力以 [Query Model Schema（当前说明）](./query-model-schema.md)为准。
 
-HTTP handler 严格解码请求后，`RewriteRequestFilter` 会依据 aggregate metadata、路径变量以及 `Command-Tenant-Id`、`Command-Owner-Id`、`Wow-Space-Id` 请求头合并 tenant/owner/space scope，再进入 `EventStreamQueryGateway`；Gateway 策略链先执行 HTTP guard，尾部 filter 再调用所选 QueryService，由 Schema resolver 校验并解析查询后交给后端聚合。响应可按 `Accept` 协商 JSON 数组或 SSE。JVM 聚合返回 `Flux<DynamicDocument>`；下面的结果只是代表性动态行，不是固定业务数据。
+HTTP handler 严格解码请求后，`RewriteRequestFilter` 会依据 aggregate metadata、路径变量以及 `Command-Tenant-Id`、`Command-Owner-Id`、`Wow-Space-Id` 请求头合并 tenant/owner/space scope，再进入 `EventStreamQueryGateway`；Gateway 策略链先执行 HTTP guard，再调用装配时绑定的 Backend，由 Schema resolver 校验并解析查询后聚合。响应可按 `Accept` 协商 JSON 数组或 SSE。JVM 聚合返回 `Flux<ObjectNode>`；下面的结果只是代表性节点行，不是固定业务数据。
 
 ## 根文档、body 与统计单位
 
@@ -50,17 +50,17 @@ flowchart TB
 
 ```kotlin
 import me.ahoo.wow.query.dsl.aggregation
-import me.ahoo.wow.query.event.EventStreamQueryService
+import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.query.event.query
 
-fun eventNameFrequency(queryService: EventStreamQueryService) = aggregation {
+fun eventNameFrequency(queryGateway: EventStreamQueryGateway) = aggregation {
     filter { tenantId("tenant-a") }
     expand("body")
     terms("name", "eventName")
     count("eventCount")
     sort { "eventCount".desc() }
     limit(10)
-}.query(queryService)
+}.query(queryGateway)
 ```
 
 **HTTP JSON**
@@ -387,5 +387,5 @@ val query = aggregation {
 - 系统 Schema 声明根 `createTime`、`tenantId`、`ownerId` 以及事件元数据 `body.name`、`body.revision`、`body.bodyType`；具体操作能力仍由运行时 Schema 与 MongoDB / Elasticsearch adapter 共同解析。
 - `body` 展开后，Element filter、group、metric 与表达式字段相对单个事件；payload 的 Schema 根路径仍写作 `body.body.*`，查询中的相对路径写作 `body.*`。
 - MongoDB 与 Elasticsearch 共享公共 AST，但不承诺物理 pipeline、mapping、空值或桶细节完全一致。Elasticsearch 的外层 `body` 必须保持 nested 以维持同一事件内字段关联；`body.body.*` payload 字段还需各自具备所用操作的 mapping 能力。
-- 自定义 `EventStreamQueryService` 可能沿用默认的“不支持聚合”实现；普通事件流数据查询可用不能单独证明该自定义后端会执行聚合。
+- 自定义 `EventStreamQueryBackend` 必须实现聚合合同；普通事件流数据查询可用不能单独证明该 Backend 会执行聚合。
 - EventStream 聚合 HTTP/OpenAPI 与独立的 Schema HTTP 路由已经存在；当前仍没有 EventStream API Client。HTTP 可用也不证明某个具体后端一定支持示例字段，实际 capability 以运行时 Query Model Schema 与后端 mapping 为准。

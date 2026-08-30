@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.webflux.route.snapshot
 
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.toStateDocument
@@ -21,7 +22,7 @@ import me.ahoo.wow.webflux.route.query.RewriteRequestFilter
 import me.ahoo.wow.webflux.route.query.SingleQueryHandlerFunctionFactory
 
 class SingleSnapshotStateHandlerFunctionFactory(
-    snapshotQueryGateway: SnapshotQueryGateway,
+    snapshotQueryGateway: (AggregateMetadata<*, *>) -> SnapshotQueryGateway<Any>,
     rewriteRequestFilter: RewriteRequestFilter,
     exceptionHandler: RequestExceptionHandler
 ) : SingleQueryHandlerFunctionFactory(

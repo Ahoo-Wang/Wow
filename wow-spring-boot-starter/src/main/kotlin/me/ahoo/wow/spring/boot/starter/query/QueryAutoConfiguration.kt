@@ -13,32 +13,13 @@
 package me.ahoo.wow.spring.boot.starter.query
 
 import me.ahoo.wow.filter.ErrorHandler
-import me.ahoo.wow.filter.Filter
-import me.ahoo.wow.filter.FilterChain
-import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogErrorHandler
-import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
-import me.ahoo.wow.query.event.EventStreamQueryGateway
-import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
-import me.ahoo.wow.query.event.filter.EventStreamQueryFilter
-import me.ahoo.wow.query.event.filter.MaskingEventStreamQueryFilter
-import me.ahoo.wow.query.event.filter.TailEventStreamQueryFilter
+import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.filter.QueryContext
-import me.ahoo.wow.query.mask.EventStreamDynamicDocumentMasker
-import me.ahoo.wow.query.mask.EventStreamMaskerRegistry
-import me.ahoo.wow.query.mask.StateDataMaskerRegistry
-import me.ahoo.wow.query.mask.StateDynamicDocumentMasker
-import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
-import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
-import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
-import me.ahoo.wow.query.snapshot.filter.MaskingSnapshotQueryFilter
-import me.ahoo.wow.query.snapshot.filter.SnapshotQueryFilter
-import me.ahoo.wow.query.snapshot.filter.TailSnapshotQueryFilter
+import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
-import me.ahoo.wow.spring.query.EventStreamQueryServiceRegistrar
-import me.ahoo.wow.spring.query.SnapshotQueryServiceRegistrar
-import org.springframework.beans.factory.ObjectProvider
-import org.springframework.beans.factory.annotation.Qualifier
+import me.ahoo.wow.spring.query.EventStreamQueryGatewayRegistrar
+import me.ahoo.wow.spring.query.SnapshotQueryGatewayRegistrar
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean
@@ -50,113 +31,24 @@ import org.springframework.context.annotation.Import
  * @author ahoo wang
  */
 @AutoConfiguration
-@Import(SnapshotQueryServiceRegistrar::class, EventStreamQueryServiceRegistrar::class)
+@Import(SnapshotQueryGatewayRegistrar::class, EventStreamQueryGatewayRegistrar::class)
 @ConditionalOnWowEnabled
 class QueryAutoConfiguration {
-
-    @Bean
-    fun stateDataMaskerRegistry(
-        maskers: List<StateDynamicDocumentMasker>
-    ): StateDataMaskerRegistry {
-        val maskerRegistry = StateDataMaskerRegistry()
-        maskers.forEach {
-            maskerRegistry.register(it)
-        }
-        return maskerRegistry
-    }
-
-    @Bean
-    fun eventStreamMaskerRegistry(
-        maskers: List<EventStreamDynamicDocumentMasker>
-    ): EventStreamMaskerRegistry {
-        val maskerRegistry = EventStreamMaskerRegistry()
-        maskers.forEach {
-            maskerRegistry.register(it)
-        }
-        return maskerRegistry
-    }
-
-    @Bean
-    fun maskingSnapshotQueryFilter(stateDataMaskerRegistry: StateDataMaskerRegistry): SnapshotQueryFilter {
-        return MaskingSnapshotQueryFilter(stateDataMaskerRegistry)
-    }
-
-    @Bean
-    fun maskingEventStreamQueryFilter(eventStreamMaskerRegistry: EventStreamMaskerRegistry): EventStreamQueryFilter {
-        return MaskingEventStreamQueryFilter(eventStreamMaskerRegistry)
-    }
-
-    @Bean
-    fun tailSnapshotQueryFilter(
-        snapshotQueryServiceFactory: ObjectProvider<SnapshotQueryServiceFactory>,
-    ): TailSnapshotQueryFilter<Any> {
-        return TailSnapshotQueryFilter(snapshotQueryServiceFactory.getObject())
-    }
-
-    @Bean
-    fun tailEventStreamQueryFilter(
-        eventStreamQueryServiceFactory: ObjectProvider<EventStreamQueryServiceFactory>,
-    ): TailEventStreamQueryFilter {
-        return TailEventStreamQueryFilter(eventStreamQueryServiceFactory.getObject())
-    }
-
-    @Bean
-    fun snapshotQueryFilterChain(
-        filters: List<Filter<QueryContext<*, *>>>
-    ): FilterChain<QueryContext<*, *>> {
-        return FilterChainBuilder<QueryContext<*, *>>()
-            .addFilters(filters)
-            .filterCondition(SnapshotQueryGateway::class)
-            .build()
-    }
-
-    @Bean
-    fun eventStreamQueryFilterChain(
-        filters: List<Filter<QueryContext<*, *>>>
-    ): FilterChain<QueryContext<*, *>> {
-        return FilterChainBuilder<QueryContext<*, *>>()
-            .addFilters(filters)
-            .filterCondition(EventStreamQueryGateway::class)
-            .build()
-    }
-
     @Bean("snapshotQueryErrorHandler")
     @ConditionalOnMissingBean(name = ["snapshotQueryErrorHandler"])
-    fun snapshotQueryErrorHandler(): ErrorHandler<QueryContext<*, *>> {
-        return LogErrorHandler()
-    }
+    fun snapshotQueryErrorHandler(): ErrorHandler<QueryContext<*, *>> = LogErrorHandler()
 
     @Bean("eventStreamQueryErrorHandler")
     @ConditionalOnMissingBean(name = ["eventStreamQueryErrorHandler"])
-    fun eventStreamQueryErrorHandler(): ErrorHandler<QueryContext<*, *>> {
-        return LogErrorHandler()
-    }
+    fun eventStreamQueryErrorHandler(): ErrorHandler<QueryContext<*, *>> = LogErrorHandler()
 
-    @Bean
-    fun snapshotQueryGateway(
-        @Qualifier("snapshotQueryFilterChain") chain: FilterChain<QueryContext<*, *>>,
-        @Qualifier("snapshotQueryErrorHandler") queryErrorHandler: ErrorHandler<QueryContext<*, *>>
-    ): SnapshotQueryGateway {
-        return DefaultSnapshotQueryGateway(chain, queryErrorHandler)
-    }
+    @Bean("noOpSnapshotQueryBackendFactory")
+    @ConditionalOnMissingBean(SnapshotQueryBackendFactory::class)
+    fun unavailableSnapshotQueryBackendFactory(): SnapshotQueryBackendFactory =
+        UnavailableSnapshotQueryBackendFactory
 
-    @Bean
-    fun eventStreamQueryGateway(
-        @Qualifier("eventStreamQueryFilterChain") chain: FilterChain<QueryContext<*, *>>,
-        @Qualifier("eventStreamQueryErrorHandler") queryErrorHandler: ErrorHandler<QueryContext<*, *>>
-    ): EventStreamQueryGateway {
-        return DefaultEventStreamQueryGateway(chain, queryErrorHandler)
-    }
-
-    @Bean("noOpSnapshotQueryServiceFactory")
-    @ConditionalOnMissingBean(SnapshotQueryServiceFactory::class)
-    fun unavailableSnapshotQueryServiceFactory(): SnapshotQueryServiceFactory {
-        return UnavailableSnapshotQueryServiceFactory
-    }
-
-    @Bean("noOpEventStreamQueryServiceFactory")
-    @ConditionalOnMissingBean(EventStreamQueryServiceFactory::class)
-    fun unavailableEventStreamQueryServiceFactory(): EventStreamQueryServiceFactory {
-        return UnavailableEventStreamQueryServiceFactory
-    }
+    @Bean("noOpEventStreamQueryBackendFactory")
+    @ConditionalOnMissingBean(EventStreamQueryBackendFactory::class)
+    fun unavailableEventStreamQueryBackendFactory(): EventStreamQueryBackendFactory =
+        UnavailableEventStreamQueryBackendFactory
 }

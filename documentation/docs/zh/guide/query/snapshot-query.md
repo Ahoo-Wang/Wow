@@ -7,7 +7,7 @@ description: 查询聚合当前物化状态、快照字段路径及已发布的 
 
 ## 查询模型
 
-`SnapshotQueryService<S>` 查询 `MaterializedSnapshot<S>`：它包含 `aggregateId`、`tenantId`、`ownerId`、`spaceId`、`version`、事件时间、`deleted` 等系统字段，以及当前业务状态 `state`。快照适合读取聚合的当前状态，不是完整事件历史；公共请求形态见[数据查询](./data-query.md)。
+`SnapshotQueryGateway<S>` 查询 `MaterializedSnapshot<S>`：它包含 `aggregateId`、`tenantId`、`ownerId`、`spaceId`、`version`、事件时间、`deleted` 等系统字段，以及当前业务状态 `state`。快照适合读取聚合的当前状态，不是完整事件历史；公共请求形态见[数据查询](./data-query.md)。
 
 ## 字段路径
 
@@ -15,16 +15,16 @@ description: 查询聚合当前物化状态、快照字段路径及已发布的 
 
 ```kotlin
 import me.ahoo.wow.query.dsl.pagedQuery
-import me.ahoo.wow.query.snapshot.SnapshotQueryService
+import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.pathState
 import me.ahoo.wow.query.snapshot.query
 
-fun findPaidOrders(queryService: SnapshotQueryService<OrderState>) = pagedQuery {
+fun findPaidOrders(queryGateway: SnapshotQueryGateway<OrderState>) = pagedQuery {
     filter {
         pathState { "status" eq "PAID" }
     }
     pagination { index(1); size(20) }
-}.query(queryService)
+}.query(queryGateway)
 ```
 
 同一请求的 HTTP JSON 使用完整逻辑路径：
@@ -44,7 +44,7 @@ fun findPaidOrders(queryService: SnapshotQueryService<OrderState>) = pagedQuery 
 
 ## JVM 查询
 
-注入聚合级 `SnapshotQueryService<S>` 后，可通过扩展执行 typed 的 single/list/paged/count；`dynamicQuery` 返回 `DynamicDocument`，适用于 projection 改变返回形状的场景。服务经 Spring `QueryGateway` 的策略边界、直接 Factory 的绕过条件见[查询后端](./query-backend.md)与[查询网关](./query-gateway.md)。
+注入聚合级 `SnapshotQueryGateway<S>` 后，可通过扩展执行 typed 的 single/list/paged/count；`dynamicQuery` 返回 `ObjectNode`，适用于 projection 改变返回形状的场景。Gateway 先让 Backend 返回节点并完成通用结果 Filter，再用 Jackson 物化 typed 结果；当前 V9 临时不提供自动 Mask。直接 Factory 的绕过条件见[查询后端](./query-backend.md)与[查询网关](./query-gateway.md)。
 
 ## HTTP 路由
 
@@ -73,7 +73,7 @@ POST /owner/{ownerId}/sales-order/snapshot/{operation}
 
 - 完整快照返回 `MaterializedSnapshot<S>`，用于同时读取状态和系统元数据。
 - `state-only` 路由只解包 `S`；它只改变响应，不改变 `state.*` 请求字段。
-- dynamic 结果返回 `DynamicDocument`，用于自定义 projection，但不保留 `S` 的编译期字段类型。
+- dynamic 结果返回 `ObjectNode`，用于自定义 projection，但不保留 `S` 的编译期字段类型。
 
 响应式与同步 API Client 的 typed、state-only、dynamic 调用见[API 客户端](./query-api-client.md)。
 

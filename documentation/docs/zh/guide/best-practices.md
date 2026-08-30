@@ -64,7 +64,7 @@ Wow 提供命令、事件溯源、消息处理和等待阶段，但应用仍拥�
 
 ## 将快照作为默认查询存储
 
-对于单聚合当前状态查询，优先使用 `strategy: all` 与支持查询的 SnapshotStore，避免把同一状态复制到额外投影。MongoDB 和 Elasticsearch 提供 SnapshotQueryService；Redis 与 in-memory SnapshotStore 可以保存/加载快照，但没有通用动态查询实现。
+对于单聚合当前状态查询，优先使用 `strategy: all` 与支持查询的 SnapshotStore，避免把同一状态复制到额外投影。MongoDB 和 Elasticsearch 提供 SnapshotQueryBackend；Redis 与 in-memory SnapshotStore 可以保存/加载快照，但没有通用节点查询实现。
 
 | 需求 | 选择 | 验收 |
 | --- | --- | --- |

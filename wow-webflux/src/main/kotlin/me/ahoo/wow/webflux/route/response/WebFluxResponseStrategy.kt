@@ -29,7 +29,6 @@ import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.kotlin.core.publisher.toMono
 
 private object StringServerSentEventType : ParameterizedTypeReference<ServerSentEvent<String>>()
 
@@ -138,14 +137,21 @@ internal fun Flux<ServerSentEvent<String>>.errorResume(
     request: ServerRequest,
     exceptionHandler: RequestExceptionHandler
 ): Flux<ServerSentEvent<String>> {
-    return onErrorResume {
-        val errorInfo = it.toErrorInfo()
-        val serverSendEventMono = ServerSentEvent.builder<String>()
-            .id(generateGlobalId())
-            .event(errorInfo.errorCode)
-            .data(errorInfo.toJsonString())
-            .build().toMono()
+    return onErrorResume { original ->
+        Flux.defer {
+            val errorInfo = original.toErrorInfo()
+            val errorEvent = ServerSentEvent.builder<String>()
+                .id(generateGlobalId())
+                .event(errorInfo.errorCode)
+                .data(errorInfo.toJsonString())
+                .build()
 
-        exceptionHandler.handle(request, it).then(serverSendEventMono)
+            exceptionHandler.handle(request, original).thenMany(Flux.just(errorEvent))
+        }.onErrorResume { handlerError ->
+            if (handlerError !== original && original.suppressed.none { it === handlerError }) {
+                original.addSuppressed(handlerError)
+            }
+            Flux.empty()
+        }.concatWith(Flux.error(original))
     }
 }

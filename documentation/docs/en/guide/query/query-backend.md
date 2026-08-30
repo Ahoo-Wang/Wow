@@ -1,69 +1,73 @@
 ---
 title: Query Backend
-description: Learn how QueryService, Spring typed Beans, Factory caching, and storage implementations fit together.
+description: Learn how ObjectNode query backends, aggregate Gateways, Factory routing, and storage implementations fit together.
 ---
 
 # Query Backend
 
-## QueryService contract
+## QueryBackend contract
 
-`QueryService<R>` is the aggregate query-backend contract. It provides typed and dynamic single, list, paged, count, and aggregation operations. `SnapshotQueryService<S>` returns `MaterializedSnapshot<S>`, while `EventStreamQueryService` returns `DomainEventStream`. Aggregation always returns dynamic-document rows; the default `aggregate` fails when a backend does not support it.
+`QueryBackend` is the aggregate-bound low-level contract. Single, list, paged, and aggregate use `tools.jackson.databind.node.ObjectNode`; count returns `Long`. `SnapshotQueryBackend` and `EventStreamQueryBackend` distinguish the data model and Schema Provider capability. Typed materialization belongs to the Gateway, not the Backend.
+
+## Node ownership constraints
+
+Every subscription to a Backend publisher must create mutable `ObjectNode` instances owned exclusively by that subscription. Subscriptions created by `retry`, `repeat`, and concurrent callers each receive fresh nodes. A Backend must not cache or share nodes across subscriptions, publish cached nodes, or continue mutating a node asynchronously after emission.
+
+Only standard JSON trees may cross the Backend boundary. MongoDB `Document`, Elasticsearch source `Map`, BSON values, `POJONode`, and arbitrary POJOs must be normalized or rejected inside the Backend instead of leaking into the Gateway.
 
 ```mermaid
 flowchart TB
-    SnapshotRegistrar["SnapshotQueryServiceRegistrar"] --> SnapshotBean["Typed SnapshotQueryService&lt;STATE&gt; Bean"]
-    EventRegistrar["EventStreamQueryServiceRegistrar"] --> EventBean["EventStreamQueryService Bean"]
-    SnapshotBean --> Proxy["QueryServiceProxy"]
-    EventBean --> Proxy
-    Proxy --> Gateway["QueryGateway"]
-    Gateway --> Factory["QueryServiceFactory cache and routing"]
-    Factory --> Mongo["MongoDB QueryService"]
-    Factory --> Elastic["Elasticsearch QueryService"]
-    Infra["Trusted infrastructure"] -. "Direct call bypasses Gateway" .-> Factory
+    Route["Routing BackendFactory"] -->|"NamedAggregate, once at assembly"| Backend["Bound ObjectNode Backend"]
+    Registrar["Gateway Registrar"] --> Gateway["Aggregate Gateway Bean"]
+    Backend --> Gateway
+    Gateway --> Chain["One around chain"]
+    Chain --> Backend
+    Backend --> Store["MongoDB / Elasticsearch"]
+    Infra["Trusted infrastructure"] -. "Direct call bypasses governance" .-> Route
 ```
 
-## Injecting a typed SnapshotQueryService Bean
+## Injecting a typed SnapshotQueryGateway Bean
 
-Spring can inject a snapshot query service by its state type:
+Spring can inject a snapshot Gateway by its state type:
 
 ```kotlin
 @Component
 class OrderReader(
-    private val queryService: SnapshotQueryService<OrderState>,
+    private val queryGateway: SnapshotQueryGateway<OrderState>,
 ) {
     fun find(query: PagedQuery): Mono<PagedList<MaterializedSnapshot<OrderState>>> =
-        queryService.paged(query)
+        queryGateway.paged(query)
 }
 ```
 
-This is an in-process JVM entry point; a managed service can enter the [Query Gateway](query-gateway.md) through its proxy.
+This is the in-process JVM entry. Requests and results traverse the same [Query Gateway](query-gateway.md) policy chain.
 
 ## Bean registration and naming
 
-`SnapshotQueryServiceRegistrar` registers `SnapshotQueryService<STATE>` with `ResolvableType`; its Bean name is `{contextAlias.}{aggregateName}.SnapshotQueryService`. This lets Spring select a snapshot service by its state generic.
+`SnapshotQueryGatewayRegistrar` registers `SnapshotQueryGateway<STATE>` with `ResolvableType`; its Bean name is `{contextAlias.}{aggregateName}.SnapshotQueryGateway`. `EventStreamQueryGatewayRegistrar` registers `EventStreamQueryGateway` as `{contextAlias.}{aggregateName}.EventStreamQueryGateway`.
 
-When a same-name Bean exists or its corresponding Gateway is unavailable, the raw, unproxied query service is retained. Do not describe either case as a normal business extension point.
+When a same-name Gateway Bean exists, the Registrar retains it. A custom Bean owns the complete governance contract; it is not an alias for a Backend Factory.
 
-## How QueryServiceProxy routes
+## How a Gateway binds its Backend
 
-`QueryServiceProxy` preserves the backend service's `name` and `namedAggregate`, then delegates single, list, paged, count, and aggregation to the corresponding Gateway. The proxy does not execute backend queries itself or combine the two query models into one service.
+When it creates a Gateway, the registrar calls `SnapshotQueryBackendFactory` or `EventStreamQueryBackendFactory` once with the current `NamedAggregate`. The routing Factory selects an aggregate-specific route or its default at that point. The Gateway then keeps the bound Backend instead of selecting again for every request.
 
 ## Factories, caching, and storage routing
 
-`SnapshotQueryServiceFactory` and `EventStreamQueryServiceFactory` create raw services; their abstract base classes cache services by materialized aggregate. A Routing Factory first looks for an aggregate-specific route and otherwise uses its default Factory. MongoDB, Elasticsearch, or another configured implementation ultimately executes the query.
+`SnapshotQueryBackendFactory` and `EventStreamQueryBackendFactory` create raw Backends; their abstract base classes cache by materialized aggregate. MongoDB, Elasticsearch, or another configured implementation compiles the public query into a physical query and normalizes results as `ObjectNode`.
 
-Factory-created results do not pass through the Gateway. Application code should prefer Spring-registered typed services; backend selection and physical-query compilation belong to storage extensions.
+A direct Factory call does not pass through the Gateway. Application code should use the Spring-registered aggregate Gateway; only low-level diagnostics, contract tests, and storage extensions should call the Factory directly.
 
-## EventStreamQueryService Beans
+## EventStreamQueryGateway Beans
 
-`EventStreamQueryServiceRegistrar` also registers one Bean per aggregate, using the `.EventStreamQueryService` naming rule. Event-stream services have no `STATE` generic; when multiple candidates exist, qualify by Bean name instead of relying on generic disambiguation.
+Event-stream Gateways have no `STATE` generic. When multiple candidates exist, qualify by the exact Bean name instead of relying on generic disambiguation.
 
 ## Raw backend access
 
-Direct Factory access is for trusted infrastructure extensions or cases that explicitly require raw backend semantics. It bypasses Gateway query rewriting, ABAC, and result masking; a same-name custom Bean and a missing Gateway have the same unproxied boundary.
+Direct Factory access is for trusted infrastructure extensions or cases that explicitly require raw backend semantics. It bypasses Gateway request filters, ABAC, result filters, and error observation; the caller must own those responsibilities.
 
-## Schema Provider differences
+## Schema uses the same route
 
-The snapshot proxy does not implement a Schema Provider, while the event-stream proxy implements a Provider by delegating to the raw service. However, both Snapshot and EventStream Schema HTTP handlers obtain a Provider from the service created by their respective raw Factory. Whether a proxy implements Provider cannot be used to infer HTTP/OpenAPI exposure.
+Snapshot and EventStream Schema HTTP handlers both obtain `QueryModelSchemaProvider` from their Backend Factory. Because that injection uses the same routed Factory, Schema and query execution select the same storage route. An unavailable Provider fails explicitly instead of falling back to another backend.
 
 WebFlux publishes `snapshot/schema`, `snapshot/schema/refresh`, `event/schema`, and `event/schema/refresh` routes. [WebFlux](../extensions/webflux.md) is authoritative for runtime routes, [OpenAPI](../open-api.md) for published HTTP/OpenAPI contracts, and [API Client](./query-api-client.md) for client boundaries. `wow-apiclient.query` still provides only Snapshot query interfaces and has no EventStream query interface.

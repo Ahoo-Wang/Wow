@@ -73,7 +73,7 @@ class MongoEventSourcingAutoConfigurationTest {
             mongoProperties = MongoProperties(autoInitSchema = false, eventStreamDatabase = "testEventStream"),
             eventStoreBatchProperties = MongoEventStoreBatchProperties(),
             snapshotStoreBatchProperties = MongoSnapshotStoreBatchProperties(),
-        ).mongoEventStreamQueryServiceFactory(
+        ).mongoEventStreamQueryBackendFactory(
             mongoClient = mongoClient("order-service"),
             dataMongoProperties = null,
             currentBoundedContext = MaterializedNamedBoundedContext("order-service"),
@@ -82,7 +82,7 @@ class MongoEventSourcingAutoConfigurationTest {
                     validationMode = QuerySchemaValidationMode.COMPATIBLE,
                 ),
             ),
-        ).assert().isInstanceOf(me.ahoo.wow.mongo.query.event.MongoEventStreamQueryServiceFactory::class.java)
+        ).assert().isInstanceOf(me.ahoo.wow.mongo.query.event.MongoEventStreamQueryBackendFactory::class.java)
     }
 
     @Test
@@ -120,7 +120,7 @@ class MongoEventSourcingAutoConfigurationTest {
             snapshotStoreBatchProperties = MongoSnapshotStoreBatchProperties(),
         )
 
-        val factory = configuration.mongoSnapshotQueryServiceFactory(
+        val factory = configuration.mongoSnapshotQueryBackendFactory(
             mongoClient = mongoClient("order-service"),
             dataMongoProperties = null,
             currentBoundedContext = MaterializedNamedBoundedContext("order-service"),
@@ -148,7 +148,7 @@ class MongoEventSourcingAutoConfigurationTest {
             snapshotStoreBatchProperties = MongoSnapshotStoreBatchProperties(),
         )
 
-        val factory = configuration.mongoEventStreamQueryServiceFactory(
+        val factory = configuration.mongoEventStreamQueryBackendFactory(
             mongoClient = mongoClient("order-service"),
             dataMongoProperties = null,
             currentBoundedContext = MaterializedNamedBoundedContext("order-service"),

@@ -31,34 +31,34 @@ import reactor.core.publisher.Mono
 
 class SnapshotAggregationHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val queryGateway: SnapshotQueryGateway,
+    private val queryGateway: SnapshotQueryGateway<Any>,
     private val rewriteRequestFilter: RewriteRequestFilter,
     private val exceptionHandler: RequestExceptionHandler,
 ) : HandlerFunction<ServerResponse> {
     override fun handle(request: ServerRequest): Mono<ServerResponse> =
         request.body(AGGREGATION_QUERY_EXTRACTOR)
             .flatMapMany { query ->
-                queryGateway.aggregate(
-                    aggregateMetadata,
-                    rewriteRequestFilter.rewrite(aggregateMetadata, request, query)
-                )
+                queryGateway.aggregate(rewriteRequestFilter.rewrite(aggregateMetadata, request, query))
             }
             .writeRawRequest(request)
             .toServerResponse(request, exceptionHandler)
 }
 
 class SnapshotAggregationHandlerFunctionFactory(
-    private val snapshotQueryGateway: SnapshotQueryGateway,
+    private val snapshotQueryGateway: (AggregateMetadata<*, *>) -> SnapshotQueryGateway<Any>,
     private val rewriteRequestFilter: RewriteRequestFilter,
     private val exceptionHandler: RequestExceptionHandler,
 ) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Snapshot.AGGREGATION) {
     override fun create(
         contract: HttpRouteContract,
         metadata: HttpRouteHandlerMetadata.Aggregate,
-    ): HandlerFunction<ServerResponse> = SnapshotAggregationHandlerFunction(
-        aggregateMetadata = aggregateMetadata(metadata),
-        queryGateway = snapshotQueryGateway,
-        rewriteRequestFilter = rewriteRequestFilter,
-        exceptionHandler = exceptionHandler,
-    )
+    ): HandlerFunction<ServerResponse> {
+        val aggregateMetadata = aggregateMetadata(metadata)
+        return SnapshotAggregationHandlerFunction(
+            aggregateMetadata = aggregateMetadata,
+            queryGateway = snapshotQueryGateway(aggregateMetadata),
+            rewriteRequestFilter = rewriteRequestFilter,
+            exceptionHandler = exceptionHandler,
+        )
+    }
 }

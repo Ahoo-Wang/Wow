@@ -16,11 +16,11 @@ Search for:
 - custom compiler/KSP assumptions and generated metadata;
 - OpenAPI, JSON Schema, client SDK, serialization, and event revision outputs;
 - custom auto-configuration, `@ConfigurationProperties`, exclusions, and bean overrides;
-- custom `SnapshotQueryService`, `SnapshotStore`, `EventStore`, bus, processor, lifecycle, or routing implementations.
+- custom `SnapshotQueryBackend`, `SnapshotStore`, `EventStore`, bus, processor, lifecycle, or routing implementations.
 
 For each item record current evidence, target-tag evidence, required action, owner, verification, and rollback effect.
 
-Source compatibility is not runtime capability: a new default interface method and generated route can compile while a custom `SnapshotQueryService` still falls into an unsupported `aggregate` implementation. When the target publishes aggregation, prove the selected service overrides or delegates `aggregate`, then call the generated endpoint for every snapshot backend actually used.
+Source compatibility is not runtime capability: a generated route can compile while a custom `SnapshotQueryBackend` still fails to compile or execute the target aggregation. Prove the routed Backend and call the generated endpoint for every snapshot backend actually used.
 
 ## Wow 8.12.x to 8.13.0 negotiated query schema
 
@@ -30,9 +30,9 @@ Verify old and new requests against every MongoDB or Elasticsearch mapping actua
 
 ## Wow 8.13.x to 8.14.0 event-stream aggregation
 
-`EventStreamQueryService` gains `AggregationQuery` through the shared default `QueryService.aggregate`. Existing custom implementations can still compile while returning unsupported, so prove the selected service overrides or delegates aggregation and provides the `EVENT_STREAM` query schema. Managed aggregate services traverse `QueryServiceProxy` and `QueryGateway`; direct factory access remains a trusted raw path.
+In 8.14, EventStream aggregation is an in-process query entry over the selected storage query implementation and the `EVENT_STREAM` query schema. Prove the aggregate invocation reaches that selected storage implementation and that its aggregation contract works with the configured schema mode.
 
-Event-stream aggregation uses persisted event-stream documents: expand `body`, then use event-relative fields and declared payload fields under `body.body`. Wow adds no EventStream aggregation HTTP, OpenAPI, or Schema HTTP route. Verify the in-process contract, policy chain, schema mode, and each selected backend without inventing a transport or data migration.
+Event-stream aggregation uses persisted event-stream documents: expand `body`, then use event-relative fields and declared payload fields under `body.body`. This release train adds no EventStream aggregation HTTP, OpenAPI, or Schema HTTP route; do not demand or invent a generated route, transport, or data migration.
 
 ## Wow 8.14.x to 8.15.0 query entry rename
 
@@ -45,9 +45,67 @@ When the pinned source is 8.14.x and the target is 8.15.0 or later, apply this s
 | `me.ahoo.wow.query.event.filter.EventStreamQueryHandler` / `DefaultEventStreamQueryHandler` | `me.ahoo.wow.query.event.EventStreamQueryGateway` / `DefaultEventStreamQueryGateway` |
 | `snapshotQueryHandler` / `eventStreamQueryHandler` bean | `snapshotQueryGateway` / `eventStreamQueryGateway` bean |
 
-Change custom query-filter `@FilterType` targets to the corresponding Gateway. `QueryGateway` no longer extends `Handler` or exposes `handle(QueryContext)`; direct implementations must implement `aggregate`, and Gateway `count` accepts only `FilterExpression`. Do not remove aggregate `QueryService` injection, `QueryServiceProxy`, either `QueryServiceRegistrar`, backend `QueryService`, or its factory: managed aggregate services route through the Gateway, while direct factory access remains a trusted raw path that bypasses its policy chain.
+Change custom query-filter `@FilterType` targets to the corresponding renamed Gateway. The renamed query entry no longer extends `Handler` or exposes `handle(QueryContext)`; direct implementations must implement `aggregate`, and `count` accepts only `FilterExpression`. Preserve the aggregate query beans, their registrars, selected storage query implementations, and storage query factories. Managed aggregate query beans traverse the renamed Gateway/filter chain; direct storage query factory access remains a trusted raw path that bypasses that policy chain.
 
 The rename alone does not change HTTP/OpenAPI query shapes, wire formats, or stored events/snapshots, so it needs source compilation, Spring bean/qualifier startup, and representative managed-service/WebFlux query verification, but no data conversion. Reassess that conclusion if the same release also changes application schemas, storage layouts, or writers.
+
+## Wow 8.16.x to V9 query gateway/backend split
+
+Pin the exact V9 tag or commit first. When that target contains the V9 query split, migrate the V8.16.x JVM API directly; do not add aliases, adapters, duplicate beans, or compatibility proxies:
+
+| V8.16.x | V9 |
+|---|---|
+| `QueryService<R>` | Deleted; split into `QueryBackend` and an aggregate-bound `QueryGateway<R>` |
+| `QueryGateway<R>` / `AbstractQueryGateway<R>` | Names retained, but the contract becomes aggregate-bound |
+| `SnapshotQueryService<S>` | `SnapshotQueryGateway<S>` |
+| `EventStreamQueryService` | `EventStreamQueryGateway` |
+| `QueryServiceCacheSource` | `QueryGatewayCacheSource` |
+| `SnapshotQueryServiceFactory` | `SnapshotQueryBackendFactory` |
+| `EventStreamQueryServiceFactory` | `EventStreamQueryBackendFactory` |
+| `AbstractSnapshotQueryServiceFactory` | `AbstractSnapshotQueryBackendFactory` |
+| `AbstractEventStreamQueryServiceFactory` | `AbstractEventStreamQueryBackendFactory` |
+| `RoutingSnapshotQueryServiceFactory` | `RoutingSnapshotQueryBackendFactory` |
+| `RoutingEventStreamQueryServiceFactory` | `RoutingEventStreamQueryBackendFactory` |
+| `AbstractMongoQueryService` | `AbstractMongoQueryBackend` |
+| `MongoSnapshotQueryService` | `MongoSnapshotQueryBackend` |
+| `MongoEventStreamQueryService` | `MongoEventStreamQueryBackend` |
+| `MongoSnapshotQueryServiceFactory` | `MongoSnapshotQueryBackendFactory` |
+| `MongoEventStreamQueryServiceFactory` | `MongoEventStreamQueryBackendFactory` |
+| `AbstractElasticsearchQueryService` | `AbstractElasticsearchQueryBackend` |
+| `ElasticsearchSnapshotQueryService` | `ElasticsearchSnapshotQueryBackend` |
+| `ElasticsearchEventStreamQueryService` | `ElasticsearchEventStreamQueryBackend` |
+| `ElasticsearchSnapshotQueryServiceFactory` | `ElasticsearchSnapshotQueryBackendFactory` |
+| `ElasticsearchEventStreamQueryServiceFactory` | `ElasticsearchEventStreamQueryBackendFactory` |
+| `SnapshotQueryServiceFactoryBinding` | `SnapshotQueryBackendFactoryBinding` |
+| `EventStreamQueryServiceFactoryBinding` | `EventStreamQueryBackendFactoryBinding` |
+| `NoOpSnapshotQueryService<S>` | `NoOpSnapshotQueryBackend` |
+| `NoOpEventStreamQueryService` | `NoOpEventStreamQueryBackend` |
+| `NoOpSnapshotQueryServiceFactory` | `NoOpSnapshotQueryBackendFactory` |
+| `NoOpEventStreamQueryServiceFactory` | `NoOpEventStreamQueryBackendFactory` |
+| `QueryServiceRegistrar` | `QueryGatewayRegistrar` |
+| `SnapshotQueryServiceRegistrar` | `SnapshotQueryGatewayRegistrar` |
+| `EventStreamQueryServiceRegistrar` | `EventStreamQueryGatewayRegistrar` |
+| `QueryServiceProxy` / snapshot / event-stream proxies | Deleted; inject the aggregate-bound Gateway directly |
+| `DynamicDocument` / `SimpleDynamicDocument` | `tools.jackson.databind.node.ObjectNode` |
+| `DynamicDocumentMasker` and Aggregate/State/EventStream subtypes | Deleted; no replacement in the current version |
+| `AggregateDataMasker` / `DefaultAggregateDataMasker` | Deleted; no replacement in the current version |
+| `DataMaskerRegistry` / `AbstractDataMaskerRegistry` and model registries | Deleted; no replacement in the current version |
+| `DataMasker` / `DataMasking` / `tryMask` | Deleted; no replacement in the current version |
+| `MaskingDynamicDocumentQueryFilter` | Deleted; no replacement in the current version |
+| `QueryType.DYNAMIC_SINGLE` / `DYNAMIC_LIST` / `DYNAMIC_PAGED` | `SINGLE` / `LIST` / `PAGED` |
+| `QueryType.isDynamic` | Deleted; typed and node paths share operation types |
+
+`QueryService<R>` has no one-to-one replacement. Move storage execution and Schema capability to an `ObjectNode`-returning `QueryBackend`; keep the managed entry, filtering, and typed materialization in the aggregate-bound `QueryGateway<R>`. The V8 Gateway accepted a `NamedAggregate` on every method call. V9 binds the `NamedAggregate` and routed Backend when constructing the Gateway, so callers remove that method argument. Custom `AbstractQueryGateway` subclasses supply `namedAggregate`, `backend`, `targetType`, `filters`, `filterType`, and `errorHandler`; use the default Snapshot/EventStream Gateway when no custom entry policy is required. Filters cannot use `QueryType.isDynamic`: typed and node calls share one ObjectNode chain and differ only by optional Jackson materialization after it. Remove typed/dynamic dispatch branches instead of inventing a replacement discriminator.
+
+Delete old Mask types, implementations, Beans, registries, and custom filters. The current V9 creates no ObjectNode Mask compatibility layer and provides no built-in replacement. Snapshot, EventStream, and direct aggregate-state loads return raw field values. This is an accepted temporary downgrade until a separate static-annotation task restores masking; protect sensitive endpoints with access control or external isolation rather than inventing an interim Mask API.
+
+Spring registers `{contextAlias.}{aggregateName}.SnapshotQueryGateway` and `{contextAlias.}{aggregateName}.EventStreamQueryGateway`; omit the alias prefix when absent, and do not retain the old `*.QueryService` bean names. A `QueryFilter` without `@FilterType` applies generally; a model-specific filter targets `SnapshotQueryGateway` or `EventStreamQueryGateway`.
+
+Each aggregate-bound Gateway captures the routed `ObjectNode` Backend during bean construction and runs one around chain. Request filters rewrite or reject before `next`; the terminal invokes the Backend and stores its result Publisher; result filters run after `next` and may rewrite that Publisher. The Gateway optionally materializes typed results with Jackson after the chain. Application and transport code use the Gateway. Direct Backend Factory access is a trusted low-level path that bypasses request filtering, authorization, result filters, and error observation. Schema handlers use the same routed Backend Factory and `NamedAggregate` selection as queries.
+
+Every Backend subscription must produce fresh, exclusively owned `ObjectNode` values containing only standard JSON tree nodes. Do not cache or share mutable nodes across retry, repeat, or concurrent subscriptions, expose `Map`, BSON, `POJONode`, or arbitrary POJOs, or mutate a node after publication.
+
+Factory JVM names change, but public route binding values deliberately retain the `*-query-service-factory` suffix, including `mongo-snapshot-query-service-factory` and `elasticsearch-event-stream-query-service-factory`. This split is JVM source- and binary-breaking, so rebuild downstream code. By itself it does not change HTTP paths, request/response JSON structure, generated OpenAPI, wire structure, storage layouts, or existing data, and therefore requires no data conversion. Removing Mask does change response value and confidentiality semantics because formerly hidden fields become raw. Verify compilation, exact Spring bean/qualifier startup, managed Gateway filtering, trusted raw Backend behavior, generated HTTP routes, Schema routes, every routed MongoDB/Elasticsearch Backend, and the temporary Mask downgrade actually used.
 
 ## Runtime and data coupling
 

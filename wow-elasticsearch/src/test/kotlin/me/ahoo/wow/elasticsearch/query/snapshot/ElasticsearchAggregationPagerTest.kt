@@ -26,18 +26,19 @@ import co.elastic.clients.elasticsearch.core.OpenPointInTimeRequest
 import co.elastic.clients.elasticsearch.core.OpenPointInTimeResponse
 import co.elastic.clients.elasticsearch.core.SearchRequest
 import co.elastic.clients.elasticsearch.core.SearchResponse
+import co.elastic.clients.json.JsonData
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.SimpleDynamicDocument
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterConverter
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationCompiler
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationPager
 import me.ahoo.wow.elasticsearch.query.aggregation.selectTopRows
+import me.ahoo.wow.elasticsearch.query.toObjectNode
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
@@ -81,7 +82,7 @@ class ElasticsearchAggregationPagerTest {
         )
 
         pager(batchSize = 2).execute(plan)
-            .map { it.getValue<String>("product") }
+            .map { it.path("product").asString() }
             .test()
             .expectNext("a", "b", "c")
             .verifyComplete()
@@ -113,7 +114,7 @@ class ElasticsearchAggregationPagerTest {
         )
 
         pager(batchSize = 2).execute(plan)
-            .map { it.getValue<Double>("total") }
+            .map { it.path("total").doubleValue() }
             .test()
             .expectNext(9.0, 7.0)
             .verifyComplete()
@@ -170,7 +171,7 @@ class ElasticsearchAggregationPagerTest {
         )
 
         pager().execute(plan)
-            .map { it.getValue<String>("product") }
+            .map { it.path("product").asString() }
             .test()
             .expectNext("2.0.0.1")
             .verifyComplete()
@@ -179,51 +180,77 @@ class ElasticsearchAggregationPagerTest {
     @Test
     fun `metric sort should retain exact bounded top N with complete tie sort`() {
         val rows = listOf(
-            SimpleDynamicDocument(mutableMapOf("product" to "c", "total" to 7.0)),
-            SimpleDynamicDocument(mutableMapOf("product" to "a", "total" to 7.0)),
-            SimpleDynamicDocument(mutableMapOf("product" to "b", "total" to 7.0)),
-            SimpleDynamicDocument(mutableMapOf("product" to "d", "total" to 3.0)),
+            mapOf("product" to "c", "total" to 7.0).toObjectNode(),
+            mapOf("product" to "a", "total" to 7.0).toObjectNode(),
+            mapOf("product" to "b", "total" to 7.0).toObjectNode(),
+            mapOf("product" to "d", "total" to 3.0).toObjectNode(),
         )
 
         selectTopRows(
             rows,
             listOf(Sort("total", Sort.Direction.DESC), Sort("product", Sort.Direction.ASC)),
             limit = 2,
-        ).map { it["product"] }.assert().containsExactly("a", "b")
+        ).map { it.path("product").asString() }.assert().containsExactly("a", "b")
     }
 
     @Test
     fun `long sort above double precision should not fall through to tie sort`() {
         val rows = listOf(
-            SimpleDynamicDocument(mutableMapOf("product" to "z", "count" to 9_007_199_254_740_993L)),
-            SimpleDynamicDocument(mutableMapOf("product" to "a", "count" to 9_007_199_254_740_992L)),
+            mapOf("product" to "z", "count" to 9_007_199_254_740_993L).toObjectNode(),
+            mapOf("product" to "a", "count" to 9_007_199_254_740_992L).toObjectNode(),
         )
 
         selectTopRows(
             rows,
             listOf(Sort("count", Sort.Direction.DESC), Sort("product", Sort.Direction.ASC)),
             limit = 1,
-        ).single()["product"].assert().isEqualTo("z")
+        ).single().path("product").asString().assert().isEqualTo("z")
     }
 
     @Test
     fun `top rows should sort boolean and null values`() {
         val rows = listOf(
-            SimpleDynamicDocument(mutableMapOf("active" to true)),
-            SimpleDynamicDocument(mutableMapOf("active" to null)),
-            SimpleDynamicDocument(mutableMapOf("active" to false)),
+            mapOf("active" to true).toObjectNode(),
+            mapOf("active" to null).toObjectNode(),
+            mapOf("active" to false).toObjectNode(),
         )
 
         selectTopRows(rows, listOf(Sort("active", Sort.Direction.ASC)), limit = 3)
-            .map { it["active"] }
+            .map { if (it.path("active").isNull) null else it.path("active").booleanValue() }
             .assert().containsExactly(null, false, true)
     }
 
     @Test
     fun `top rows should reject incomparable values`() {
         val rows = listOf(
-            SimpleDynamicDocument(mutableMapOf("value" to 1)),
-            SimpleDynamicDocument(mutableMapOf("value" to "1")),
+            mapOf("value" to 1).toObjectNode(),
+            mapOf("value" to "1").toObjectNode(),
+        )
+
+        assertThrows<IllegalStateException> {
+            selectTopRows(rows, listOf(Sort("value", Sort.Direction.ASC)), limit = 2)
+        }.message.assert().contains("Aggregation sort values must have comparable types")
+    }
+
+    @Test
+    fun `top rows should continue to tie breaker when primary values are both null`() {
+        val rows = listOf(
+            mapOf("id" to "a", "value" to null).toObjectNode(),
+            mapOf("id" to "b", "value" to null).toObjectNode(),
+        )
+
+        selectTopRows(
+            rows,
+            listOf(Sort("value", Sort.Direction.ASC), Sort("id", Sort.Direction.DESC)),
+            limit = 2,
+        ).map { it.path("id").asString() }.assert().containsExactly("b", "a")
+    }
+
+    @Test
+    fun `top rows should reject object and array sort values`() {
+        val rows = listOf(
+            mapOf("value" to mapOf("nested" to 1)).toObjectNode(),
+            mapOf("value" to listOf(1)).toObjectNode(),
         )
 
         assertThrows<IllegalStateException> {
@@ -244,9 +271,9 @@ class ElasticsearchAggregationPagerTest {
 
         pager().execute(plan).test()
             .assertNext {
-                it["count"].assert().isEqualTo(0L)
-                it.containsKey("total").assert().isTrue()
-                it["total"].assert().isNull()
+                it.path("count").longValue().assert().isEqualTo(0L)
+                it.has("total").assert().isTrue()
+                it.path("total").isNull.assert().isTrue()
             }
             .verifyComplete()
 
@@ -287,8 +314,44 @@ class ElasticsearchAggregationPagerTest {
         )
 
         pager().execute(plan).collectList().test()
-            .assertNext { rows -> rows.map { it["product"] }.assert().containsExactly(true) }
+            .assertNext { rows -> rows.map { it.path("product").booleanValue() }.assert().containsExactly(true) }
             .verifyComplete()
+    }
+
+    @Test
+    fun `group aggregation should normalize null keys`() {
+        stubPointInTime()
+        every { client.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(
+            groupResponse("pit-2", listOf(bucket(FieldValue.NULL, 1))),
+        )
+        val plan = compiler().compile(
+            aggregation {
+                terms("state.value", "product")
+                count("count")
+            },
+        )
+
+        pager().execute(plan).test()
+            .assertNext { row -> row.path("product").isNull.assert().isTrue() }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `group aggregation should reject unsupported key values`() {
+        stubPointInTime()
+        every { client.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(
+            groupResponse("pit-2", listOf(bucket(FieldValue.of(JsonData.of("unsupported")), 1))),
+        )
+        val plan = compiler().compile(
+            aggregation {
+                terms("state.value", "product")
+                count("count")
+            },
+        )
+
+        pager().execute(plan).test()
+            .expectErrorMessage("Unsupported Elasticsearch aggregation key [Any].")
+            .verify()
     }
 
     @Test
@@ -306,7 +369,7 @@ class ElasticsearchAggregationPagerTest {
         )
 
         pager().execute(plan).test()
-            .assertNext { row -> row["productName"].assert().isEqualTo("Alpha") }
+            .assertNext { row -> row.path("productName").asString().assert().isEqualTo("Alpha") }
             .verifyComplete()
 
         requests.single().aggregations().values.single()
@@ -363,7 +426,15 @@ class ElasticsearchAggregationPagerTest {
 
         pager().execute(plan).collectList().test()
             .assertNext { rows ->
-                rows.map { it["productName"] }.assert().containsExactly(true, false, 7L, 7.5, null, null, null)
+                rows.map { it.path("productName") }.map { node ->
+                    when {
+                        node.isBoolean -> node.booleanValue()
+                        node.isIntegralNumber -> node.longValue()
+                        node.isNumber -> node.doubleValue()
+                        node.isNull -> null
+                        else -> error("unexpected node: $node")
+                    }
+                }.assert().containsExactly(true, false, 7L, 7.5, null, null, null)
             }
             .verifyComplete()
     }
@@ -402,7 +473,7 @@ class ElasticsearchAggregationPagerTest {
         )
 
         pager().execute(plan).test()
-            .assertNext { row -> row["productName"].assert().isNull() }
+            .assertNext { row -> row.path("productName").isNull.assert().isTrue() }
             .verifyComplete()
         pager().execute(plan).test()
             .expectErrorMessage(
@@ -457,7 +528,7 @@ class ElasticsearchAggregationPagerTest {
             every { convert(any(), any()) } returns
                 co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll { it }
         }
-        val service = ElasticsearchSnapshotQueryService<Any>(
+        val service = ElasticsearchSnapshotQueryBackend(
             namedAggregate = MOCK_AGGREGATE_METADATA,
             elasticsearchClient = client,
             filterConverter = converter,

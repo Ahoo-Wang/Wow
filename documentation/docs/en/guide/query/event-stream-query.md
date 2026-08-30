@@ -7,7 +7,7 @@ description: Query aggregate event history, event-stream field paths, and publis
 
 ## Query Model
 
-`EventStreamQueryService` queries `DomainEventStream`. An event stream is the event collection produced by one command execution. Its system envelope includes fields such as `id`, `aggregateId`, `tenantId`, `ownerId`, `spaceId`, `version`, `createTime`, `requestId`, and `commandId`; its event collection is `body`. It retains the full history and does not automatically add the snapshot `DELETION = ACTIVE` condition.
+`EventStreamQueryGateway` queries `DomainEventStream`. An event stream is the event collection produced by one command execution. Its system envelope includes fields such as `id`, `aggregateId`, `tenantId`, `ownerId`, `spaceId`, `version`, `createTime`, `requestId`, and `commandId`; its event collection is `body`. It retains the full history and does not automatically add the snapshot `DELETION = ACTIVE` condition.
 
 ## Root Fields and Event Body
 
@@ -15,23 +15,23 @@ Query root fields directly, such as `aggregateId`, `tenantId`, `version`, and `c
 
 ## JVM Queries
 
-`EventStreamQueryService` supports typed and dynamic single/list/paged/count queries on the JVM; `dynamicQuery` returns `DynamicDocument`. The service interface also has JVM aggregation; see [Event Stream Aggregation](./event-stream-aggregation.md) for its JVM and HTTP/OpenAPI contracts and examples.
+`EventStreamQueryGateway` supports typed and dynamic single/list/paged/count queries on the JVM; `dynamicQuery` returns `ObjectNode`. The Gateway also provides JVM aggregation; see [Event Stream Aggregation](./event-stream-aggregation.md) for its JVM and HTTP/OpenAPI contracts and examples.
 
 This example pages through root fields:
 
 ```kotlin
 import me.ahoo.wow.query.dsl.pagedQuery
-import me.ahoo.wow.query.event.EventStreamQueryService
+import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.query.event.query
 
-fun findRecentStreams(queryService: EventStreamQueryService) = pagedQuery {
+fun findRecentStreams(queryGateway: EventStreamQueryGateway) = pagedQuery {
     filter { tenantId("tenant-a") }
     sort { "createTime".desc() }
     pagination { index(1); size(20) }
-}.query(queryService)
+}.query(queryGateway)
 ```
 
-A Spring-managed service enters QueryGateway; see [Query Backends](./query-backend.md) and [Query Gateway](./query-gateway.md) for the direct-Factory bypass boundary.
+A Spring-managed aggregate Gateway executes the full governance chain. See [Query Backends](./query-backend.md) and [Query Gateway](./query-gateway.md) for the direct Backend Factory bypass boundary.
 
 ## HTTP Routes
 

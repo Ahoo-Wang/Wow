@@ -16,16 +16,17 @@ package me.ahoo.wow.query.filter
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.query.dsl.singleQuery
+import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import tools.jackson.databind.node.ObjectNode
 
 class QueryContextTest {
 
@@ -138,9 +139,20 @@ class QueryContextTest {
     }
 
     @Test
+    fun `document operation contexts should expose only object node publishers`() {
+        val node = JsonSerializer.createObjectNode().put("value", "raw")
+        val context = DefaultQueryContext<ISingleQuery, Mono<ObjectNode>>(
+            queryType = QueryType.SINGLE,
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+        ).setQuery(singleQuery { }).setResult(Mono.just(node))
+
+        context.asSingleQuery().getRequiredResult().block().assert().isSameAs(node)
+    }
+
+    @Test
     fun `should expose typed aggregation context separately`() {
         val query = AggregationQuery(metrics = listOf(AggregationMetric.Count("count")))
-        val context = DefaultQueryContext<AggregationQuery, Flux<DynamicDocument>>(
+        val context = DefaultQueryContext<AggregationQuery, Flux<ObjectNode>>(
             queryType = QueryType.AGGREGATION,
             namedAggregate = MOCK_AGGREGATE_METADATA,
         ).setQuery(query)

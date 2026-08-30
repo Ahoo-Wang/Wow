@@ -22,8 +22,8 @@ import me.ahoo.wow.elasticsearch.WowJsonpMapper
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStore
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
-import me.ahoo.wow.elasticsearch.query.event.ElasticsearchEventStreamQueryServiceFactory
-import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryServiceFactory
+import me.ahoo.wow.elasticsearch.query.event.ElasticsearchEventStreamQueryBackendFactory
+import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryBackendFactory
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.metrics.WowMetrics
@@ -33,8 +33,8 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ConditionalOnEventStoreStorage
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ConditionalOnSnapshotStoreStorage
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
-import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStreamQueryServiceFactoryBinding
-import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotQueryServiceFactoryBinding
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStreamQueryBackendFactoryBinding
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotQueryBackendFactoryBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
 import me.ahoo.wow.spring.boot.starter.query.QueryProperties
@@ -126,14 +126,14 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
 
     @Bean
     @ConditionalOnEventStoreStorage(StorageType.ELASTICSEARCH)
-    fun elasticsearchEventStreamQueryServiceFactory(
+    fun elasticsearchEventStreamQueryBackendFactory(
         elasticsearchClient: ReactiveElasticsearchClient,
         elasticsearchIndexMappingResolver: ElasticsearchIndexMappingResolver =
             ElasticsearchIndexMappingResolver(elasticsearchClient),
         sources: List<QuerySchemaSource> = emptyList(),
         schemaQueryProperties: QueryProperties,
-    ): ElasticsearchEventStreamQueryServiceFactory {
-        return ElasticsearchEventStreamQueryServiceFactory(
+    ): ElasticsearchEventStreamQueryBackendFactory {
+        return ElasticsearchEventStreamQueryBackendFactory(
             elasticsearchClient,
             queryProperties.batchSize,
             queryProperties.keepAlive,
@@ -145,12 +145,12 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
 
     @Bean
     @ConditionalOnEventStoreStorage(StorageType.ELASTICSEARCH)
-    fun elasticsearchEventStreamQueryServiceFactoryBinding(
-        elasticsearchEventStreamQueryServiceFactory: ElasticsearchEventStreamQueryServiceFactory
-    ): EventStreamQueryServiceFactoryBinding {
-        return EventStreamQueryServiceFactoryBinding.storage(
+    fun elasticsearchEventStreamQueryBackendFactoryBinding(
+        elasticsearchEventStreamQueryBackendFactory: ElasticsearchEventStreamQueryBackendFactory
+    ): EventStreamQueryBackendFactoryBinding {
+        return EventStreamQueryBackendFactoryBinding.storage(
             StorageType.ELASTICSEARCH,
-            elasticsearchEventStreamQueryServiceFactory,
+            elasticsearchEventStreamQueryBackendFactory,
         )
     }
 
@@ -185,13 +185,13 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
     @Bean
     @ConditionalOnSnapshotEnabled
     @ConditionalOnSnapshotStoreStorage(StorageType.ELASTICSEARCH)
-    fun elasticsearchSnapshotQueryServiceFactory(
+    fun elasticsearchSnapshotQueryBackendFactory(
         elasticsearchClient: ReactiveElasticsearchClient,
         elasticsearchIndexMappingResolver: ElasticsearchIndexMappingResolver,
         sources: List<QuerySchemaSource>,
         schemaQueryProperties: QueryProperties,
-    ): ElasticsearchSnapshotQueryServiceFactory {
-        return ElasticsearchSnapshotQueryServiceFactory(
+    ): ElasticsearchSnapshotQueryBackendFactory {
+        return ElasticsearchSnapshotQueryBackendFactory(
             elasticsearchClient = elasticsearchClient,
             queryBatchSize = queryProperties.batchSize,
             queryKeepAlive = queryProperties.keepAlive,
@@ -210,12 +210,12 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
     @Bean
     @ConditionalOnSnapshotEnabled
     @ConditionalOnSnapshotStoreStorage(StorageType.ELASTICSEARCH)
-    fun elasticsearchSnapshotQueryServiceFactoryBinding(
-        elasticsearchSnapshotQueryServiceFactory: ElasticsearchSnapshotQueryServiceFactory
-    ): SnapshotQueryServiceFactoryBinding {
-        return SnapshotQueryServiceFactoryBinding.storage(
+    fun elasticsearchSnapshotQueryBackendFactoryBinding(
+        elasticsearchSnapshotQueryBackendFactory: ElasticsearchSnapshotQueryBackendFactory
+    ): SnapshotQueryBackendFactoryBinding {
+        return SnapshotQueryBackendFactoryBinding.storage(
             StorageType.ELASTICSEARCH,
-            elasticsearchSnapshotQueryServiceFactory,
+            elasticsearchSnapshotQueryBackendFactory,
         )
     }
 }

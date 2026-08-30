@@ -38,17 +38,14 @@ class CountQueryHandlerFunction(
         return request.body(FILTER_EXPRESSION_EXTRACTOR)
             .flatMap { filter ->
                 val rewritten = rewriteRequestFilter.rewrite(aggregateMetadata, request, filter)
-                queryGateway.count(
-                    aggregateMetadata,
-                    rewritten,
-                ).writeRawRequest(request)
+                queryGateway.count(rewritten).writeRawRequest(request)
             }.toServerResponse(request, exceptionHandler)
     }
 }
 
 open class CountQueryHandlerFunctionFactory(
     handlerKey: String,
-    private val queryGateway: QueryGateway<*>,
+    private val queryGateway: (AggregateMetadata<*, *>) -> QueryGateway<*>,
     private val rewriteRequestFilter: RewriteRequestFilter,
     private val exceptionHandler: RequestExceptionHandler
 ) : AggregateRouteHandlerFunctionFactorySupport(handlerKey) {
@@ -62,7 +59,7 @@ open class CountQueryHandlerFunctionFactory(
     private fun create(aggregateMetadata: AggregateMetadata<*, *>): HandlerFunction<ServerResponse> {
         return CountQueryHandlerFunction(
             aggregateMetadata = aggregateMetadata,
-            queryGateway = queryGateway,
+            queryGateway = queryGateway(aggregateMetadata),
             rewriteRequestFilter = rewriteRequestFilter,
             exceptionHandler = exceptionHandler
         )

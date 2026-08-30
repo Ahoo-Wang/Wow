@@ -1,0 +1,12 @@
+{
+  "contexts": {
+    "query-registrar-test": {
+      "alias": "test",
+      "aggregates": {
+        "order": {
+          "type": "me.ahoo.wow.spring.query.QueryRegistrarOrder"
+        }
+      }
+    }
+  }
+}

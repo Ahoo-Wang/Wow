@@ -14,6 +14,7 @@
 package me.ahoo.wow.webflux.route.snapshot
 
 import me.ahoo.wow.exception.throwNotFoundIfEmpty
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
@@ -34,7 +35,7 @@ import reactor.core.publisher.Mono
 
 class LoadSnapshotHandlerFunction(
     private val aggregateRouteMetadata: AggregateRouteMetadata<*>,
-    private val snapshotQueryGateway: SnapshotQueryGateway,
+    private val snapshotQueryGateway: SnapshotQueryGateway<Any>,
     private val exceptionHandler: RequestExceptionHandler
 ) : HandlerFunction<ServerResponse> {
     private val aggregateMetadata = aggregateRouteMetadata.aggregateMetadata
@@ -51,7 +52,7 @@ class LoadSnapshotHandlerFunction(
                 }
             }
         }
-        return snapshotQueryGateway.dynamicSingle(aggregateMetadata, singleQuery)
+        return snapshotQueryGateway.dynamicSingle(singleQuery)
             .writeRawRequest(request)
             .throwNotFoundIfEmpty()
             .toServerResponse(request, exceptionHandler)
@@ -59,7 +60,7 @@ class LoadSnapshotHandlerFunction(
 }
 
 class LoadSnapshotHandlerFunctionFactory(
-    private val snapshotQueryGateway: SnapshotQueryGateway,
+    private val snapshotQueryGateway: (AggregateMetadata<*, *>) -> SnapshotQueryGateway<Any>,
     private val exceptionHandler: RequestExceptionHandler
 ) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Snapshot.LOAD) {
     override fun create(
@@ -70,6 +71,10 @@ class LoadSnapshotHandlerFunctionFactory(
     }
 
     private fun create(aggregateRouteMetadata: AggregateRouteMetadata<*>): HandlerFunction<ServerResponse> {
-        return LoadSnapshotHandlerFunction(aggregateRouteMetadata, snapshotQueryGateway, exceptionHandler)
+        return LoadSnapshotHandlerFunction(
+            aggregateRouteMetadata,
+            snapshotQueryGateway(aggregateRouteMetadata.aggregateMetadata),
+            exceptionHandler,
+        )
     }
 }

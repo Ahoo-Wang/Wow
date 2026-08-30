@@ -20,15 +20,16 @@ import co.elastic.clients.elasticsearch._types.aggregations.CompositeBucket
 import co.elastic.clients.elasticsearch.core.SearchRequest
 import co.elastic.clients.elasticsearch.core.search.ResponseBody
 import me.ahoo.wow.api.query.AggregationFunction
-import me.ahoo.wow.api.query.DynamicDocument
-import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.elasticsearch.query.ElasticsearchPointInTime
+import me.ahoo.wow.elasticsearch.query.toObjectNode
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
 import java.util.PriorityQueue
 import kotlin.math.min
@@ -51,7 +52,7 @@ internal class ElasticsearchAggregationPager(
         require(keepAlive.toMillis() > 0) { "keepAlive must be greater than or equal to 1ms." }
     }
 
-    fun execute(plan: ElasticsearchAggregationPlan): Flux<DynamicDocument> = pointInTime.use { pit ->
+    fun execute(plan: ElasticsearchAggregationPlan): Flux<ObjectNode> = pointInTime.use { pit ->
         if (plan.groupSources.isEmpty()) {
             search(plan, pit, afterKey = emptyMap(), pageSize = 0)
                 .map { response -> response.summary(plan) }
@@ -63,7 +64,7 @@ internal class ElasticsearchAggregationPager(
     private fun grouped(
         plan: ElasticsearchAggregationPlan,
         pit: ElasticsearchPointInTime.Session,
-    ): Flux<DynamicDocument> {
+    ): Flux<ObjectNode> {
         val pages = searchPage(plan, pit)
             .expand { page ->
                 if (page.shouldStop(plan)) {
@@ -184,7 +185,7 @@ internal class ElasticsearchAggregationPager(
         }
     }
 
-    private fun ResponseBody<Map<*, *>>.summary(plan: ElasticsearchAggregationPlan): DynamicDocument {
+    private fun ResponseBody<Map<*, *>>.summary(plan: ElasticsearchAggregationPlan): ObjectNode {
         val scope = aggregations().getValue(ROOT_AGGREGATION).let { root ->
             if (plan.elements.isEmpty()) root.filter() else root.innermostScope(plan)
         }
@@ -220,18 +221,18 @@ internal class ElasticsearchAggregationPager(
         return requireNotNull(scope)
     }
 
-    private fun CompositeBucket.toRow(plan: ElasticsearchAggregationPlan): DynamicDocument {
+    private fun CompositeBucket.toRow(plan: ElasticsearchAggregationPlan): ObjectNode {
         val row = key().mapValuesTo(linkedMapOf()) { (_, value) -> value.nativeValue() }
         plan.metrics.forEach { metric -> row[metric.alias] = metric.value(docCount(), aggregations()) }
-        return row.toDynamicDocument()
+        return row.toObjectNode()
     }
 
     private fun ElasticsearchAggregationPlan.toRow(
         docCount: Long,
         aggregations: Map<String, Aggregate>,
-    ): DynamicDocument = metrics.associateTo(linkedMapOf()) { metric ->
+    ): ObjectNode = metrics.associateTo(linkedMapOf()) { metric ->
         metric.alias to metric.value(docCount, aggregations)
-    }.toDynamicDocument()
+    }.toObjectNode()
 
     private fun ElasticsearchAggregationMetric.value(
         docCount: Long,
@@ -276,7 +277,7 @@ internal class ElasticsearchAggregationPager(
     }
 
     private data class AggregationPage(
-        val rows: List<DynamicDocument>,
+        val rows: List<ObjectNode>,
         val afterKey: Map<String, FieldValue>,
         val fetched: Int,
     ) {
@@ -288,10 +289,10 @@ internal class ElasticsearchAggregationPager(
 }
 
 internal fun selectTopRows(
-    rows: Iterable<DynamicDocument>,
+    rows: Iterable<ObjectNode>,
     sort: List<Sort>,
     limit: Int,
-): List<DynamicDocument> = BoundedTopRows(sort, limit).apply { rows.forEach(::add) }.result()
+): List<ObjectNode> = BoundedTopRows(sort, limit).apply { rows.forEach(::add) }.result()
 
 private class BoundedTopRows(
     sort: List<Sort>,
@@ -300,12 +301,12 @@ private class BoundedTopRows(
 ) {
     private val groupIndexes = groupAliases.withIndex().associate { (index, alias) -> alias to index }
     private val currentGroupOrder = LongArray(groupAliases.size)
-    private var previous: DynamicDocument? = null
+    private var previous: ObjectNode? = null
     private var sequence = 0L
     private val comparator = rankedRowComparator(sort, groupIndexes)
     private val rows = PriorityQueue(comparator.reversed())
 
-    fun add(row: DynamicDocument) {
+    fun add(row: ObjectNode) {
         previous?.let { previous ->
             val firstDifference = groupAliases.indexOfFirst { previous[it] != row[it] }
             if (firstDifference >= 0) {
@@ -323,11 +324,11 @@ private class BoundedTopRows(
         }
     }
 
-    fun result(): List<DynamicDocument> = rows.sortedWith(comparator).map(RankedRow::row)
+    fun result(): List<ObjectNode> = rows.sortedWith(comparator).map(RankedRow::row)
 }
 
 private data class RankedRow(
-    val row: DynamicDocument,
+    val row: ObjectNode,
     val groupOrder: LongArray,
 )
 
@@ -344,19 +345,35 @@ private fun rankedRowComparator(
     } ?: 0
 }
 
-private fun compareValues(left: Any?, right: Any?): Int = when {
-    left === right -> 0
-    left == null -> -1
-    right == null -> 1
-    left is Long && right is Long -> left.compareTo(right)
-    left is Number && right is Number -> left.toDouble().compareTo(right.toDouble())
-    left is String && right is String -> left.compareTo(right)
-    left is Boolean && right is Boolean -> left.compareTo(right)
-    else -> error(
-        "Aggregation sort values must have comparable types, " +
-            "but were [${left::class.java.name}] and [${right::class.java.name}].",
-    )
+private fun compareValues(left: JsonNode?, right: JsonNode?): Int {
+    val leftValue = left.toSortValue()
+    val rightValue = right.toSortValue()
+    return when {
+        leftValue === rightValue -> 0
+        leftValue == null -> -1
+        rightValue == null -> 1
+        leftValue is Long && rightValue is Long -> leftValue.compareTo(rightValue)
+        leftValue is Number && rightValue is Number -> leftValue.toDouble().compareTo(rightValue.toDouble())
+        leftValue is String && rightValue is String -> leftValue.compareTo(rightValue)
+        leftValue is Boolean && rightValue is Boolean -> leftValue.compareTo(rightValue)
+        else -> incomparableValues(left, right)
+    }
 }
+
+private fun JsonNode?.toSortValue(): Any? = when {
+    this == null || isNull -> null
+    isIntegralNumber -> longValue()
+    isNumber -> doubleValue()
+    isString -> stringValue()
+    isBoolean -> booleanValue()
+    else -> this
+}
+
+private fun incomparableValues(left: JsonNode?, right: JsonNode?): Nothing =
+    error(
+        "Aggregation sort values must have comparable types, " +
+            "but were [${left?.nodeType}] and [${right?.nodeType}].",
+    )
 
 private fun nestedAggregationName(index: Int): String = "__wow_element_$index"
 

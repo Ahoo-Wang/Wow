@@ -5,7 +5,7 @@ description: Use MongoDB for event streams, snapshots, queries, and PrepareKey.
 
 # Mongo
 
-`wow-mongo` provides MongoDB implementations of `EventStore`, `SnapshotStore`, their query services, and `PrepareKeyFactory`. Use it when a service already operates MongoDB and needs durable event history plus snapshot queries. Use `in_memory` for process-local tests.
+`wow-mongo` provides MongoDB implementations of `EventStore`, `SnapshotStore`, their query Backends, and `PrepareKeyFactory`. Use it when a service already operates MongoDB and needs durable event history plus snapshot queries. Use `in_memory` for process-local tests.
 
 The module does not take over storage merely by being on the classpath. Starter also needs the Mongo capability, a reactive `MongoClient`, `wow.mongo.enabled=true`, and Mongo selected independently for event, snapshot, or prepare storage.
 
@@ -40,7 +40,7 @@ implementation("me.ahoo.wow:wow-spring-boot-starter") {
 |---|---|
 | `MongoEventStore` | Append and load event streams by version/time; scan aggregate IDs |
 | `MongoSnapshotStore` | Load and atomically save versioned snapshots |
-| Query service factories | Create Mongo event-stream and snapshot query implementations |
+| Query Backend factories | Create Mongo event-stream and snapshot query implementations |
 | `MongoPrepareKeyFactory` | Create distributed reservation keys with TTL semantics |
 | Schema initializers | Create collections and reconcile indexes from loaded aggregate metadata |
 | `MongoDatabaseContextGuard` | Prevent contexts from sharing a database whose collections omit context names |
@@ -104,9 +104,9 @@ Event index names participate in error mapping. Renaming them manually can stop 
 
 The initializer creates only module-declared snapshot collections and indexes. It does not configure replica sets, sharding, read/write concern, backup, or retention.
 
-## Query Services
+## Query Backends
 
-Mongo query services compile Wow filters, projections, sorting, paging, and aggregations into MongoDB operations. Runtime `QuerySchema` defines supported public capabilities; arbitrary MQL support is not automatically a Wow API contract.
+Mongo query Backends compile Wow filters, projections, sorting, paging, and aggregations into MongoDB operations. Runtime `QuerySchema` defines supported public capabilities; arbitrary MQL support is not automatically a Wow API contract.
 
 ### Filter Compilation Pipeline
 
@@ -114,7 +114,7 @@ Public fields pass through logical schema validation and field conversion before
 
 ### Snapshot Queries
 
-`MongoSnapshotQueryServiceFactory` creates a query service for each aggregate and binds its snapshot collection. Shared query rewriting adds tenant, owner, and space scope; the Mongo adapter executes the resulting filter.
+`MongoSnapshotQueryBackendFactory` creates a Backend for each aggregate and binds its snapshot collection. Shared query rewriting adds tenant, owner, and space scope; the Mongo adapter executes the resulting filter.
 
 ### Snapshot Aggregation
 

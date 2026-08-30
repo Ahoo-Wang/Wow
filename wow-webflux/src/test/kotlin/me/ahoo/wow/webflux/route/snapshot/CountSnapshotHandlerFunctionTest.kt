@@ -33,7 +33,7 @@ class CountSnapshotHandlerFunctionTest {
     @Test
     fun `should handle count snapshot query`() {
         val handlerFunction = CountSnapshotHandlerFunctionFactory(
-            RouteTestFixtures.snapshotQueryGateway,
+            { RouteTestFixtures.snapshotQueryGateway },
             DefaultRewriteRequestFilter,
             exceptionHandler = WebFluxRequestExceptionHandler(),
         ).create(

@@ -170,13 +170,19 @@ class FilterChainBuilder<T> {
     }
 
     /**
-     * Builds the filter chain.
+     * Builds the filter chain with an empty terminal.
+     */
+    fun build(): FilterChain<T> = build(EmptyFilterChain.instance())
+
+    /**
+     * Builds the filter chain with the given terminal.
      *
      * Creates a filter chain instance based on the set filter conditions and filter list.
      *
+     * @param terminal the terminal chain invoked after all matching filters
      * @return the FilterChain<T> instance
      */
-    fun build(): FilterChain<T> {
+    fun build(terminal: FilterChain<T>): FilterChain<T> {
         /**
          * Filter and sort filters based on filter conditions.
          */
@@ -187,7 +193,7 @@ class FilterChainBuilder<T> {
         /**
          * Build the filter chain starting from the last filter.
          */
-        var next: FilterChain<T> = EmptyFilterChain.instance()
+        var next: FilterChain<T> = terminal
         for (i in sortedFilters.size - 1 downTo 0) {
             next = chainFactory(sortedFilters[i], next)
         }

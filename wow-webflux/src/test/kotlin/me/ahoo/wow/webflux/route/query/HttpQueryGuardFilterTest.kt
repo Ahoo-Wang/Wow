@@ -27,7 +27,6 @@ import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
-import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
@@ -38,36 +37,33 @@ import me.ahoo.wow.api.query.IsNotNullFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
-import me.ahoo.wow.api.query.SimpleDynamicDocument
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.filter.FilterChain
-import me.ahoo.wow.filter.FilterChainBuilder
-import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.BatchComponent
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
 import me.ahoo.wow.query.event.EventStreamQueryGateway
-import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
-import me.ahoo.wow.query.event.filter.TailEventStreamQueryFilter
+import me.ahoo.wow.query.event.NoOpEventStreamQueryBackendFactory
 import me.ahoo.wow.query.filter.Contexts.writeRawRequest
 import me.ahoo.wow.query.filter.DefaultQueryContext
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
-import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
+import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackendFactory
+import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
+import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
-import me.ahoo.wow.query.snapshot.SnapshotQueryService
-import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.filter.AbacQueryFilter
-import me.ahoo.wow.query.snapshot.filter.TailSnapshotQueryFilter
+import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
@@ -89,6 +85,8 @@ import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 import reactor.util.context.ContextView
+import tools.jackson.databind.node.JsonNodeFactory
+import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
@@ -235,7 +233,7 @@ class HttpQueryGuardFilterTest {
         guard(allowExpensiveOperators = false).filter(aggregationContext(computed), unexpectedBackend())
             .writeRawRequest(request).test().expectError(IllegalArgumentException::class.java).verify()
 
-        val row = SimpleDynamicDocument(mutableMapOf("total" to 10.0))
+        val row = JsonNodeFactory.instance.objectNode().put("total", 10.0)
         guard(allowExpensiveOperators = true, idleTimeout = Duration.ZERO)
             .filter(
                 aggregationContext(computed),
@@ -293,7 +291,7 @@ class HttpQueryGuardFilterTest {
 
     @Test
     fun `aggregation guard should allow safe group sorting without expensive operators`() {
-        val row = SimpleDynamicDocument(mutableMapOf("status" to "ACTIVE", "count" to 1L))
+        val row = JsonNodeFactory.instance.objectNode().put("status", "ACTIVE").put("count", 1L)
         val context = aggregationContext(
             AggregationQuery(
                 groupBy = listOf(AggregationGroup.Terms(LogicalField("state.status"), "status")),
@@ -342,7 +340,7 @@ class HttpQueryGuardFilterTest {
         guard().filter(
             context,
             FilterChain {
-                it.asListQuery<Any>().setResult(Flux.empty())
+                it.asListQuery().setResult(Flux.empty())
                 Mono.empty()
             },
         ).test().verifyComplete()
@@ -353,7 +351,7 @@ class HttpQueryGuardFilterTest {
         guard().filter(
             propagatedContext,
             FilterChain {
-                it.asListQuery<Any>().setResult(Flux.empty())
+                it.asListQuery().setResult(Flux.empty())
                 Mono.empty()
             },
         ).writeRawRequest(Any()).test().verifyComplete()
@@ -365,7 +363,7 @@ class HttpQueryGuardFilterTest {
         HttpQueryGuardFilter(idleTimeout = Duration.ZERO).filter(
             context,
             FilterChain {
-                it.asListQuery<Any>().setResult(Flux.empty())
+                it.asListQuery().setResult(Flux.empty())
                 Mono.empty()
             },
         ).writeRawRequest(request).test().verifyComplete()
@@ -417,7 +415,7 @@ class HttpQueryGuardFilterTest {
         guard().filter(
             context,
             FilterChain {
-                it.asPagedQuery<Any>().setResult(Mono.empty())
+                it.asPagedQuery().setResult(Mono.empty())
                 Mono.empty()
             },
         ).writeRawRequest(request).test().verifyComplete()
@@ -431,7 +429,7 @@ class HttpQueryGuardFilterTest {
         guard().filter(
             listContext(ListQuery(filter, limit = 1)),
             FilterChain {
-                it.asListQuery<Any>().setResult(Flux.empty())
+                it.asListQuery().setResult(Flux.empty())
                 Mono.empty()
             },
         ).writeRawRequest(request).test().verifyComplete()
@@ -448,7 +446,7 @@ class HttpQueryGuardFilterTest {
         guard().filter(
             listContext(ListQuery(condition, limit = 1)),
             FilterChain {
-                it.asListQuery<Any>().setResult(Flux.empty())
+                it.asListQuery().setResult(Flux.empty())
                 Mono.empty()
             },
         ).writeRawRequest(request).test().verifyComplete()
@@ -527,7 +525,7 @@ class HttpQueryGuardFilterTest {
         guard(idleTimeout = Duration.ofMillis(10)).filter(
             context,
             FilterChain {
-                it.asPagedQuery<Any>().setResult(Mono.never())
+                it.asPagedQuery().setResult(Mono.never())
                 Mono.empty()
             },
         ).writeRawRequest(request).test().verifyComplete()
@@ -553,10 +551,11 @@ class HttpQueryGuardFilterTest {
         guard(idleTimeout = Duration.ofMillis(10)).filter(
             context,
             FilterChain {
-                it.asListQuery<Any>().setResult(
+                it.asListQuery().setResult(
                     Flux.concat(
-                        Mono.just("first"),
-                        Mono.delay(Duration.ofMillis(50)).thenReturn("second"),
+                        Mono.just(JsonNodeFactory.instance.objectNode().put("value", "first")),
+                        Mono.delay(Duration.ofMillis(50))
+                            .thenReturn(JsonNodeFactory.instance.objectNode().put("value", "second")),
                     ),
                 )
                 Mono.empty()
@@ -570,7 +569,7 @@ class HttpQueryGuardFilterTest {
 
     @Test
     fun `json aggregation should time out before emitting a partial response`() {
-        val row = SimpleDynamicDocument(mutableMapOf("count" to 1L))
+        val row = JsonNodeFactory.instance.objectNode().put("count", 1L)
         val context = aggregationContext(AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))))
         guard(idleTimeout = Duration.ofMillis(10)).filter(
             context,
@@ -587,7 +586,7 @@ class HttpQueryGuardFilterTest {
 
     @Test
     fun `event stream aggregation should emit rows before an idle timeout`() {
-        val row = SimpleDynamicDocument(mutableMapOf("count" to 1L))
+        val row = JsonNodeFactory.instance.objectNode().put("count", 1L)
         val context = aggregationContext(AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))))
         val eventStreamRequest = MockServerRequest.builder()
             .header(HttpHeaders.ACCEPT, MediaType.TEXT_EVENT_STREAM_VALUE)
@@ -613,10 +612,8 @@ class HttpQueryGuardFilterTest {
             abacQueryFilter = TestAbacQueryFilter,
         )
 
-        gateway.dynamicList(
-            MOCK_AGGREGATE_METADATA,
-            ListQuery(filterExpression { "state.status" eq "ACTIVE" }, limit = 1),
-        ).writeRawRequest(request).test().verifyComplete()
+        gateway.dynamicList(ListQuery(filterExpression { "state.status" eq "ACTIVE" }, limit = 1))
+            .writeRawRequest(request).test().verifyComplete()
     }
 
     @Test
@@ -634,19 +631,19 @@ class HttpQueryGuardFilterTest {
     @Test
     fun `built-in http route should buffer json and map a later idle timeout`() {
         val cancelled = AtomicBoolean()
-        val service = mockk<SnapshotQueryService<Any>> {
-            io.mockk.every { dynamicList(any()) } returns Flux.concat(
-                Flux.just(mockk<DynamicDocument>()),
+        val backend = mockk<SnapshotQueryBackend> {
+            io.mockk.every { list(any()) } returns Flux.concat(
+                Flux.just(JsonNodeFactory.instance.objectNode()),
                 Flux.never(),
             ).doOnCancel { cancelled.set(true) }
         }
-        val factory = mockk<SnapshotQueryServiceFactory> {
-            io.mockk.every { create<Any>(any()) } returns service
+        val factory = mockk<SnapshotQueryBackendFactory> {
+            io.mockk.every { create<Any>(any()) } returns backend
         }
         val response = listHandler(
             snapshotQueryGateway(
                 guard = guard(idleTimeout = Duration.ofMillis(10)),
-                queryServiceFactory = factory,
+                queryBackendFactory = factory,
             ),
         ).handle(
             MockServerRequest.builder().body(ListQuery(MatchAllFilter, limit = 1).toMono()),
@@ -691,11 +688,11 @@ class HttpQueryGuardFilterTest {
 
     @Test
     fun `built-in snapshot load route should apply idle timeout`() {
-        val service = mockk<SnapshotQueryService<Any>> {
-            io.mockk.every { dynamicSingle(any()) } returns Mono.never()
+        val backend = mockk<SnapshotQueryBackend> {
+            io.mockk.every { single(any()) } returns Mono.never()
         }
-        val factory = mockk<SnapshotQueryServiceFactory> {
-            io.mockk.every { create<Any>(any()) } returns service
+        val factory = mockk<SnapshotQueryBackendFactory> {
+            io.mockk.every { create<Any>(any()) } returns backend
         }
         val request = MockServerRequest.builder()
             .pathVariable(MessageRecords.ID, generateGlobalId())
@@ -704,7 +701,7 @@ class HttpQueryGuardFilterTest {
         val response = loadSnapshotHandler(
             snapshotQueryGateway(
                 guard = guard(idleTimeout = Duration.ofMillis(10)),
-                queryServiceFactory = factory,
+                queryBackendFactory = factory,
             ),
         ).handle(request).block()!!
 
@@ -729,14 +726,14 @@ class HttpQueryGuardFilterTest {
         idleTimeout = idleTimeout,
     )
 
-    private fun listContext(query: IListQuery): QueryContext<IListQuery, Flux<Any>> =
-        DefaultQueryContext<IListQuery, Flux<Any>>(
+    private fun listContext(query: IListQuery): QueryContext<IListQuery, Flux<ObjectNode>> =
+        DefaultQueryContext<IListQuery, Flux<ObjectNode>>(
             QueryType.LIST,
             MOCK_AGGREGATE_METADATA,
         ).setQuery(query)
 
-    private fun pagedContext(query: IPagedQuery): QueryContext<IPagedQuery, Mono<PagedList<Any>>> =
-        DefaultQueryContext<IPagedQuery, Mono<PagedList<Any>>>(
+    private fun pagedContext(query: IPagedQuery): QueryContext<IPagedQuery, Mono<PagedList<ObjectNode>>> =
+        DefaultQueryContext<IPagedQuery, Mono<PagedList<ObjectNode>>>(
             QueryType.PAGED,
             MOCK_AGGREGATE_METADATA,
         ).setQuery(query)
@@ -747,8 +744,8 @@ class HttpQueryGuardFilterTest {
             MOCK_AGGREGATE_METADATA,
         ).setQuery(filter)
 
-    private fun aggregationContext(query: AggregationQuery): QueryContext<AggregationQuery, Flux<DynamicDocument>> =
-        DefaultQueryContext<AggregationQuery, Flux<DynamicDocument>>(
+    private fun aggregationContext(query: AggregationQuery): QueryContext<AggregationQuery, Flux<ObjectNode>> =
+        DefaultQueryContext<AggregationQuery, Flux<ObjectNode>>(
             QueryType.AGGREGATION,
             MOCK_AGGREGATE_METADATA,
         ).setQuery(query)
@@ -759,32 +756,35 @@ class HttpQueryGuardFilterTest {
 
     private fun snapshotQueryGateway(
         guard: HttpQueryGuardFilter = guard(),
-        queryServiceFactory: SnapshotQueryServiceFactory = NoOpSnapshotQueryServiceFactory,
+        queryBackendFactory: SnapshotQueryBackendFactory = NoOpSnapshotQueryBackendFactory,
         abacQueryFilter: AbacQueryFilter? = null,
-    ): SnapshotQueryGateway {
+    ): SnapshotQueryGateway<Any> {
         val filters = buildList {
             add(guard)
             if (abacQueryFilter != null) add(abacQueryFilter)
-            add(TailSnapshotQueryFilter<Any>(queryServiceFactory))
         }
-        val chain = FilterChainBuilder<QueryContext<*, *>>()
-            .addFilters(filters)
-            .filterCondition(SnapshotQueryGateway::class)
-            .build()
-        return DefaultSnapshotQueryGateway(chain, LogErrorHandler())
+        return DefaultSnapshotQueryGateway(
+            namedAggregate = MOCK_AGGREGATE_METADATA.namedAggregate,
+            backend = queryBackendFactory.create<Any>(MOCK_AGGREGATE_METADATA.namedAggregate),
+            targetType = JsonSerializer.typeFactory.constructParametricType(
+                MaterializedSnapshot::class.java,
+                Any::class.java,
+            ),
+            filters = filters,
+        )
     }
 
     private fun eventStreamQueryGateway(guard: HttpQueryGuardFilter = guard()): EventStreamQueryGateway {
-        val chain = FilterChainBuilder<QueryContext<*, *>>()
-            .addFilters(listOf(guard, TailEventStreamQueryFilter(NoOpEventStreamQueryServiceFactory)))
-            .filterCondition(EventStreamQueryGateway::class)
-            .build()
-        return DefaultEventStreamQueryGateway(chain, LogErrorHandler())
+        return DefaultEventStreamQueryGateway(
+            namedAggregate = MOCK_AGGREGATE_METADATA.namedAggregate,
+            backend = NoOpEventStreamQueryBackendFactory.create(MOCK_AGGREGATE_METADATA.namedAggregate),
+            filters = listOf(guard),
+        )
     }
 
-    private fun listHandler(queryGateway: SnapshotQueryGateway) = ListQueryHandlerFunctionFactory(
+    private fun listHandler(queryGateway: SnapshotQueryGateway<Any>) = ListQueryHandlerFunctionFactory(
         handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY,
-        queryGateway = queryGateway,
+        queryGateway = { queryGateway },
         rewriteRequestFilter = DefaultRewriteRequestFilter,
         exceptionHandler = WebFluxRequestExceptionHandler(),
     ).create(
@@ -795,15 +795,15 @@ class HttpQueryGuardFilterTest {
     )
 
     private fun loadEventStreamHandler(queryGateway: EventStreamQueryGateway) =
-        LoadEventStreamHandlerFunctionFactory(queryGateway, WebFluxRequestExceptionHandler()).create(
+        LoadEventStreamHandlerFunctionFactory({ queryGateway }, WebFluxRequestExceptionHandler()).create(
             testAggregateRouteContract(
                 handlerKey = BuiltInHttpRouteHandlerKeys.Event.LOAD,
                 aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
             ),
         )
 
-    private fun loadSnapshotHandler(queryGateway: SnapshotQueryGateway) =
-        LoadSnapshotHandlerFunctionFactory(queryGateway, WebFluxRequestExceptionHandler()).create(
+    private fun loadSnapshotHandler(queryGateway: SnapshotQueryGateway<Any>) =
+        LoadSnapshotHandlerFunctionFactory({ queryGateway }, WebFluxRequestExceptionHandler()).create(
             testAggregateRouteContract(
                 handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.LOAD,
                 aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,

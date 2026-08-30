@@ -25,17 +25,16 @@ Wow 的“查询”覆盖查询模型、服务端 Query Gateway、JVM 查询后�
 ## 三个入口
 
 1. [查询网关](./query/query-gateway.md)：服务端策略入口，执行查询重写、过滤链和结果处理。
-2. [查询后端](./query/query-backend.md)：应用内 JVM 入口，提供聚合级 `SnapshotQueryService<STATE>` 与 `EventStreamQueryService`。
+2. [查询后端](./query/query-backend.md)：受信低层 SPI，提供聚合绑定的 `ObjectNode` Backend 与 Factory。
 3. [查询 API 客户端](./query/query-api-client.md)：远程快照查询入口，提供响应式与同步接口；当前不包含事件流客户端。
 
 ## 执行链
 
 ```mermaid
 flowchart LR
-    Local["JVM 类型化 Bean"] --> Proxy["QueryServiceProxy"]
+    Local["聚合级 Gateway Bean"] --> Gateway["Query Gateway"]
     Client["远程 API Client"] --> HTTP["WebFlux / OpenAPI"]
     HTTP --> Rewrite["请求作用域重写"]
-    Proxy --> Gateway["Query Gateway"]
     Rewrite --> Gateway
     Gateway --> Filters["QueryFilter 链"]
     Filters --> Backend["查询后端"]
@@ -81,7 +80,7 @@ Content-Type: application/json
 
 ## 兼容性与迁移
 
-`Condition`、`Operator` 与 `ConditionDsl` 是已弃用兼容输入；规范合同使用 `FilterExpression`。查询执行入口从 `QueryHandler` 迁移到 `QueryGateway`，但聚合级 `QueryService` 与 Factory 保持不变。输入兼容规则见[过滤条件](./query/filter-expression.md)，执行边界迁移见[查询网关](./query/query-gateway.md)。
+`Condition`、`Operator` 与 `ConditionDsl` 是已弃用兼容输入；规范合同使用 `FilterExpression`。V9 的 Gateway/Backend 破坏性 JVM 类型映射、无 bridge 策略与保持不变的传输合同见 [V9 查询迁移](./query/v9-query-migration.md)。
 
 ## JSON Schema
 
@@ -89,9 +88,9 @@ Content-Type: application/json
 
 <a id="查询服务注册器"></a>
 
-## Query Service Registrars
+## Query Gateway Registrars
 
-`SnapshotQueryServiceRegistrar` 按状态类型注册 `SnapshotQueryService<STATE>` 类型化 Bean；`EventStreamQueryServiceRegistrar` 注册无状态泛型的聚合级服务，多候选时按 Bean 名区分。命名、代理和原始 Factory 边界见[查询后端](./query/query-backend.md)。
+`SnapshotQueryGatewayRegistrar` 按状态类型注册 `SnapshotQueryGateway<STATE>`；`EventStreamQueryGatewayRegistrar` 注册无状态泛型的聚合级 Gateway，多候选时按 Bean 名区分。精确命名、Backend 绑定与原始 Factory 边界见[查询后端](./query/query-backend.md)。
 
 ## 下一步
 
@@ -105,4 +104,5 @@ Content-Type: application/json
 8. [聚合查询](./query/aggregation-query.md)
 9. [快照聚合](./query/snapshot-aggregation.md)
 10. [事件流聚合](./query/event-stream-aggregation.md)
+11. [V9 查询迁移](./query/v9-query-migration.md)
 11. [查询模型 Schema](./query/query-model-schema.md)

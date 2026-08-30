@@ -89,7 +89,7 @@ flowchart LR
 
 ## 聚合结果
 
-结果行是以 alias 为列名的动态 map。快照聚合 API Client 的响应式接口返回 `Flux<Map<String, Any?>>`；同步接口收集为 `List<Map<String, Any?>>`。JVM `QueryService.aggregate` 返回等价的 map-like `Flux<DynamicDocument>`。
+结果行以 alias 为列名。快照聚合 API Client 的响应式接口返回 `Flux<Map<String, Any?>>`；同步接口收集为 `List<Map<String, Any?>>`。JVM `QueryGateway.aggregate` 返回 `Flux<ObjectNode>`。
 
 下面是最小的公共合同示例：根过滤、一个 group、一个 `COUNT`、指标 alias 与排序。字段名没有预设为 `state.*` 或 `body.*`，应在选定模型后替换为有效逻辑路径。
 
@@ -124,7 +124,7 @@ val query = aggregation {
 ]
 ```
 
-没有 group 时始终返回一行汇总：空输入时 `COUNT = 0`、`ANY = null`，数值 metric = `null`。有 group 的空输入不产生结果行。自定义 `QueryService` 若偏离公共 TCK，必须由该实现独立声明和验证，不能将差异泛化为框架公共合同。
+没有 group 时始终返回一行汇总：空输入时 `COUNT = 0`、`ANY = null`，数值 metric = `null`。有 group 的空输入不产生结果行。自定义 `QueryBackend` 若偏离公共 TCK，必须由该实现独立声明和验证，不能将差异泛化为框架公共合同。
 
 ## 先确定统计单位
 

@@ -120,6 +120,7 @@ class CommandResponsesTest {
                 messageWriters()
             } returns listOf(ServerSentEventHttpMessageWriter())
         }
+        val timeout = TimeoutException()
         CommandResult(
             id = generateGlobalId(),
             waitCommandId = generateGlobalId(),
@@ -139,14 +140,15 @@ class CommandResponsesTest {
         ).toMono()
             .toFlux()
             .doOnNext {
-                throw TimeoutException()
+                throw timeout
             }
             .toCommandResponse(serverRequest, WebFluxRequestExceptionHandler())
             .flatMap {
                 it.writeTo(serverWebExchange, responseContext)
             }
             .test()
-            .verifyComplete()
+            .expectErrorSatisfies { error -> error.assert().isSameAs(timeout) }
+            .verify()
     }
 
     @Test

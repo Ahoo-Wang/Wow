@@ -16,15 +16,13 @@ package me.ahoo.wow.webflux.route.event
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.schema.QueryModel
-import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
-import me.ahoo.wow.query.event.EventStreamQueryService
-import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
-import me.ahoo.wow.query.event.NoOpEventStreamQueryService
-import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
+import me.ahoo.wow.query.event.EventStreamQueryBackend
+import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
+import me.ahoo.wow.query.event.NoOpEventStreamQueryBackend
+import me.ahoo.wow.query.event.NoOpEventStreamQueryBackendFactory
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
-import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
@@ -39,10 +37,10 @@ import java.util.concurrent.atomic.AtomicInteger
 class EventStreamSchemaHandlerFunctionTest {
     @Test
     fun `get should return event stream schema`() {
-        val service = RecordingSchemaService()
-        val factory = RecordingEventStreamQueryServiceFactory(service)
+        val backend = RecordingSchemaBackend()
+        val factory = RecordingEventStreamQueryBackendFactory(backend)
         val handler = EventStreamSchemaHandlerFunctionFactory(
-            eventStreamQueryServiceFactory = factory,
+            eventStreamQueryBackendFactory = factory,
             exceptionHandler = WebFluxRequestExceptionHandler(),
         ).create(testAggregateRouteContract(BuiltInHttpRouteHandlerKeys.Event.SCHEMA))
 
@@ -57,30 +55,33 @@ class EventStreamSchemaHandlerFunctionTest {
         model.assert().isEqualTo("EVENT_STREAM")
         factory.namedAggregate.assert()
             .isSameAs(RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA.aggregateMetadata)
-        service.schemaCalls.get().assert().isOne()
-        service.refreshCalls.get().assert().isZero()
+        backend.schemaCalls.get().assert().isOne()
+        backend.refreshCalls.get().assert().isZero()
     }
 
     @Test
-    fun `service without schema provider should return unavailable error`() {
-        val handler = EventStreamSchemaHandlerFunctionFactory(
-            eventStreamQueryServiceFactory = NoOpEventStreamQueryServiceFactory,
-            exceptionHandler = WebFluxRequestExceptionHandler(),
+    fun `backend without schema provider should start and return unavailable error`() {
+        val exceptionHandler = WebFluxRequestExceptionHandler()
+        val schemaHandler = EventStreamSchemaHandlerFunctionFactory(
+            eventStreamQueryBackendFactory = NoOpEventStreamQueryBackendFactory,
+            exceptionHandler = exceptionHandler,
         ).create(testAggregateRouteContract(BuiltInHttpRouteHandlerKeys.Event.SCHEMA))
+        val refreshHandler = EventStreamSchemaRefreshHandlerFunctionFactory(
+            eventStreamQueryBackendFactory = NoOpEventStreamQueryBackendFactory,
+            exceptionHandler = exceptionHandler,
+        ).create(testAggregateRouteContract(BuiltInHttpRouteHandlerKeys.Event.SCHEMA_REFRESH))
 
-        client(handler).get().uri("/").exchange()
+        client(schemaHandler).get().uri("/").exchange()
             .expectStatus().isEqualTo(503)
-            .expectHeader().valueEquals(
-                CommonComponent.Header.ERROR_CODE,
-                QuerySchemaUnavailableException.ERROR_CODE,
-            )
+        client(refreshHandler).post().uri("/").exchange()
+            .expectStatus().isEqualTo(503)
     }
 
     @Test
     fun `refresh should refresh event stream schema`() {
-        val service = RecordingSchemaService()
+        val backend = RecordingSchemaBackend()
         val handler = EventStreamSchemaRefreshHandlerFunctionFactory(
-            eventStreamQueryServiceFactory = RecordingEventStreamQueryServiceFactory(service),
+            eventStreamQueryBackendFactory = RecordingEventStreamQueryBackendFactory(backend),
             exceptionHandler = WebFluxRequestExceptionHandler(),
         ).create(
             testAggregateRouteContract(
@@ -91,8 +92,8 @@ class EventStreamSchemaHandlerFunctionTest {
         client(handler).post().uri("/").exchange()
             .expectStatus().isOk
 
-        service.schemaCalls.get().assert().isZero()
-        service.refreshCalls.get().assert().isOne()
+        backend.schemaCalls.get().assert().isZero()
+        backend.refreshCalls.get().assert().isOne()
     }
 
     private fun client(handler: HandlerFunction<*>) = WebTestClient.bindToRouterFunction(
@@ -102,19 +103,19 @@ class EventStreamSchemaHandlerFunctionTest {
             .build()
     ).build()
 
-    private class RecordingEventStreamQueryServiceFactory(
-        private val service: EventStreamQueryService,
-    ) : EventStreamQueryServiceFactory {
+    private class RecordingEventStreamQueryBackendFactory(
+        private val backend: EventStreamQueryBackend,
+    ) : EventStreamQueryBackendFactory {
         lateinit var namedAggregate: NamedAggregate
 
-        override fun create(namedAggregate: NamedAggregate): EventStreamQueryService {
+        override fun create(namedAggregate: NamedAggregate): EventStreamQueryBackend {
             this.namedAggregate = namedAggregate
-            return service
+            return backend
         }
     }
 
-    private class RecordingSchemaService :
-        EventStreamQueryService by NoOpEventStreamQueryService(NAMED_AGGREGATE),
+    private class RecordingSchemaBackend :
+        EventStreamQueryBackend by NoOpEventStreamQueryBackend(NAMED_AGGREGATE),
         QueryModelSchemaProvider {
         val schemaCalls = AtomicInteger()
         val refreshCalls = AtomicInteger()

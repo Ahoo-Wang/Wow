@@ -17,129 +17,153 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.IPagedQuery
+import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MatchAllFilter
-import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
-import me.ahoo.wow.api.query.toFilterExpression
-import me.ahoo.wow.filter.FilterChainBuilder
-import me.ahoo.wow.filter.LogErrorHandler
-import me.ahoo.wow.query.dsl.condition
+import me.ahoo.wow.api.query.MaterializedSnapshot
+import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.filter.ErrorHandler
+import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.query.dsl.listQuery
+import me.ahoo.wow.query.dsl.pagedQuery
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.filter.QueryContext
-import me.ahoo.wow.query.snapshot.filter.TailSnapshotQueryFilter
+import me.ahoo.wow.query.filter.QueryFilter
+import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.serialization.JsonSerializer
+import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
-import reactor.kotlin.test.test
+import reactor.core.publisher.Mono
+import tools.jackson.databind.node.ObjectNode
+import java.util.concurrent.CopyOnWriteArrayList
 
 class DefaultSnapshotQueryGatewayTest {
-    private val tailSnapshotQueryFilter = TailSnapshotQueryFilter<Any>(NoOpSnapshotQueryServiceFactory)
-    private val snapshotQueryFilterChain = FilterChainBuilder<QueryContext<*, *>>()
-        .addFilters(listOf(tailSnapshotQueryFilter))
-        .filterCondition(SnapshotQueryGateway::class)
-        .build()
-    private val queryGateway = DefaultSnapshotQueryGateway(
-        snapshotQueryFilterChain,
-        LogErrorHandler()
+    @Test
+    fun `typed and dynamic single should share object-node chain`() {
+        val backendCalls = CopyOnWriteArrayList<QueryType>()
+        val order = CopyOnWriteArrayList<String>()
+        val backend = RecordingSnapshotBackend(MOCK_AGGREGATE_METADATA, backendCalls, order)
+        val gateway = gateway(backend, listOf(around("a", order), around("b", order)))
+
+        gateway.dynamicSingle(singleQuery { }).block()!!.path("state").path("value").textValue()
+            .assert().isEqualTo("state-value")
+        gateway.single(singleQuery { }).block()!!.state.value.assert().isEqualTo("state-value")
+
+        backendCalls.assert().isEqualTo(listOf(QueryType.SINGLE, QueryType.SINGLE))
+        order.take(5).assert().isEqualTo(listOf("a-request", "b-request", "backend", "b-result", "a-result"))
+    }
+
+    @Test
+    fun `gateway should forward every operation to its bound backend`() {
+        val calls = CopyOnWriteArrayList<QueryType>()
+        val backend = RecordingSnapshotBackend(MOCK_AGGREGATE_METADATA, calls)
+        val gateway = gateway(backend)
+
+        gateway.dynamicList(listQuery { }).collectList().block()!!.assert().hasSize(1)
+        gateway.list(listQuery { }).collectList().block()!!.single().state.value.assert().isEqualTo("state-value")
+        gateway.dynamicPaged(pagedQuery { }).block()!!.total.assert().isOne()
+        gateway.paged(pagedQuery { }).block()!!.list.single().state.value.assert().isEqualTo("state-value")
+        gateway.count(MatchAllFilter).block().assert().isOne()
+        gateway.aggregate(AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))))
+            .single().block()!!.path("count").longValue().assert().isOne()
+
+        calls.assert().isEqualTo(
+            listOf(
+                QueryType.LIST,
+                QueryType.LIST,
+                QueryType.PAGED,
+                QueryType.PAGED,
+                QueryType.COUNT,
+                QueryType.AGGREGATION
+            ),
+        )
+    }
+
+    private fun gateway(
+        backend: SnapshotQueryBackend,
+        filters: List<QueryFilter<QueryContext<*, *>>> = emptyList(),
+    ): DefaultSnapshotQueryGateway<TestState> = DefaultSnapshotQueryGateway(
+        namedAggregate = MOCK_AGGREGATE_METADATA,
+        backend = backend,
+        targetType = JsonSerializer.typeFactory.constructParametricType(
+            MaterializedSnapshot::class.java,
+            TestState::class.java,
+        ),
+        filters = filters,
+        errorHandler = ErrorHandler { _, error -> Mono.error(error) },
     )
-    private val aggregateQueryService = object : SnapshotQueryService<Any> by NoOpSnapshotQueryService(
-        MOCK_AGGREGATE_METADATA
-    ) {
-        override fun aggregate(query: AggregationQuery): Flux<DynamicDocument> =
-            Flux.just(mutableMapOf<String, Any?>("count" to 1L).toDynamicDocument())
-    }
-    private val aggregateQueryServiceFactory = object : SnapshotQueryServiceFactory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <S : Any> create(namedAggregate: NamedAggregate): SnapshotQueryService<S> =
-            aggregateQueryService as SnapshotQueryService<S>
-    }
-    private val aggregateQueryGateway = DefaultSnapshotQueryGateway(
-        FilterChainBuilder<QueryContext<*, *>>()
-            .addFilters(listOf(TailSnapshotQueryFilter<Any>(aggregateQueryServiceFactory)))
-            .filterCondition(SnapshotQueryGateway::class)
-            .build(),
-        LogErrorHandler()
-    )
 
-    @Test
-    fun `should execute single query`() {
-        val query = singleQuery {
+    private fun around(name: String, order: MutableList<String>) = object : QueryFilter<QueryContext<*, *>> {
+        override fun filter(context: QueryContext<*, *>, next: FilterChain<QueryContext<*, *>>): Mono<Void> {
+            order += "$name-request"
+            return next.filter(context).then(Mono.fromRunnable { order += "$name-result" })
+        }
+    }
+
+    private class RecordingSnapshotBackend(
+        override val namedAggregate: NamedAggregate,
+        private val calls: MutableList<QueryType>,
+        private val order: MutableList<String>? = null,
+    ) : SnapshotQueryBackend {
+        override val name: String = "recording"
+
+        override fun single(query: ISingleQuery): Mono<ObjectNode> {
+            calls += QueryType.SINGLE
+            order?.add("backend")
+            return Mono.fromSupplier(::snapshotNode)
         }
 
-        queryGateway.single(MOCK_AGGREGATE_METADATA, query)
-            .test().verifyComplete()
-    }
-
-    @Test
-    fun `should execute dynamic single query`() {
-        val query = singleQuery {
+        override fun list(query: IListQuery): Flux<ObjectNode> = Flux.defer {
+            Flux.just(record(QueryType.LIST, snapshotNode()))
         }
 
-        queryGateway.dynamicSingle(MOCK_AGGREGATE_METADATA, query)
-            .test().verifyComplete()
-    }
-
-    @Test
-    fun `should execute list query`() {
-        val query = listQuery { }
-        queryGateway.list(MOCK_AGGREGATE_METADATA, query)
-            .test().verifyComplete()
-    }
-
-    @Test
-    fun `should execute dynamic list query`() {
-        val query = listQuery { }
-        queryGateway.dynamicList(MOCK_AGGREGATE_METADATA, query)
-            .test().verifyComplete()
-    }
-
-    @Test
-    fun `should execute paged query`() {
-        val pagedQuery = me.ahoo.wow.query.dsl.pagedQuery { }
-        queryGateway.paged(MOCK_AGGREGATE_METADATA, pagedQuery)
-            .test()
-            .consumeNextWith {
-                it.total.assert().isZero()
-            }
-            .verifyComplete()
-    }
-
-    @Test
-    fun `should execute dynamic paged query`() {
-        val pagedQuery = me.ahoo.wow.query.dsl.pagedQuery { }
-        queryGateway.dynamicPaged(MOCK_AGGREGATE_METADATA, pagedQuery)
-            .test()
-            .consumeNextWith {
-                it.total.assert().isZero()
-            }
-            .verifyComplete()
-    }
-
-    @Test
-    fun `should execute count query`() {
-        val condition = condition {
-            id("1")
+        override fun paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> = Mono.fromSupplier {
+            PagedList(1, listOf(record(QueryType.PAGED, snapshotNode())))
         }
-        queryGateway.count(MOCK_AGGREGATE_METADATA, condition.toFilterExpression())
-            .test()
-            .consumeNextWith {
-                it.assert().isZero()
-            }
-            .verifyComplete()
-        queryGateway.count(MOCK_AGGREGATE_METADATA, MatchAllFilter)
-            .test()
-            .expectNext(0)
-            .verifyComplete()
+
+        override fun count(filter: FilterExpression): Mono<Long> = Mono.fromSupplier {
+            calls += QueryType.COUNT
+            1L
+        }
+
+        override fun aggregate(query: AggregationQuery): Flux<ObjectNode> = Flux.defer {
+            calls += QueryType.AGGREGATION
+            Flux.just("""{"count":1}""".toJsonNode())
+        }
+
+        private fun record(queryType: QueryType, node: ObjectNode): ObjectNode {
+            calls += queryType
+            order?.add("backend")
+            return node
+        }
     }
 
-    @Test
-    fun `aggregation should use the existing snapshot chain`() {
-        val query = AggregationQuery(metrics = listOf(AggregationMetric.Count("count")))
+    private data class TestState(val value: String)
 
-        aggregateQueryGateway.aggregate(MOCK_AGGREGATE_METADATA, query)
-            .test()
-            .expectNextMatches { it["count"] == 1L }
-            .verifyComplete()
+    private companion object {
+        fun snapshotNode(): ObjectNode = """
+            {
+              "contextName":"mock",
+              "aggregateName":"mock",
+              "tenantId":"tenant",
+              "ownerId":"_default_",
+              "spaceId":"_default_",
+              "aggregateId":"aggregate",
+              "version":1,
+              "eventId":"event",
+              "firstOperator":"operator",
+              "operator":"operator",
+              "firstEventTime":1,
+              "eventTime":1,
+              "state":{"value":"state-value"},
+              "snapshotTime":1,
+              "tags":{},
+              "deleted":false
+            }
+        """.toJsonNode()
     }
 }

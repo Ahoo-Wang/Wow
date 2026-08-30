@@ -16,8 +16,8 @@ package me.ahoo.wow.query.schema
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryService
-import me.ahoo.wow.query.snapshot.SnapshotQueryService
+import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
+import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.requiredQueryModelSchemaProvider
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -221,9 +221,9 @@ class DefaultQueryModelSchemaProviderTest {
     }
 
     @Test
-    fun `required provider should return capable service and reject incapable service`() {
+    fun `required provider should return capable backend and reject incapable backend`() {
         val capable = object :
-            SnapshotQueryService<Any> by NoOpSnapshotQueryService(CONTEXT.namedAggregate),
+            SnapshotQueryBackend by NoOpSnapshotQueryBackend(CONTEXT.namedAggregate),
             QueryModelSchemaProvider {
             override fun schema(): Mono<QueryModelSchema> = Mono.just(newSchema())
 
@@ -232,7 +232,7 @@ class DefaultQueryModelSchemaProviderTest {
 
         capable.requiredQueryModelSchemaProvider().assert().isSameAs(capable)
         assertThrows<QuerySchemaUnavailableException> {
-            NoOpSnapshotQueryService<Any>(CONTEXT.namedAggregate).requiredQueryModelSchemaProvider()
+            NoOpSnapshotQueryBackend(CONTEXT.namedAggregate).requiredQueryModelSchemaProvider()
         }
     }
 
