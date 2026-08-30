@@ -189,7 +189,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             UpdateRequest.of<Map<String, Any?>, Map<String, Any?>> { request ->
                 request.index(MOCK_AGGREGATE_METADATA.toSnapshotIndexName())
                     .id(nullId)
-                    .doc(mapOf("state" to mapOf("cursorSort" to null)))
+                    .doc(mapOf("state" to mapOf("createdAt" to null)))
                     .refresh(Refresh.True)
             },
             Map::class.java as Class<Map<String, Any?>>,
@@ -200,7 +200,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
                     .id(missingId)
                     .script { script ->
                         script.lang(ScriptLanguage.Painless)
-                            .source { source -> source.scriptString("ctx._source.state.remove('cursorSort')") }
+                            .source { source -> source.scriptString("ctx._source.state.remove('createdAt')") }
                     }.refresh(Refresh.True)
             },
             Map::class.java as Class<Map<String, Any?>>,

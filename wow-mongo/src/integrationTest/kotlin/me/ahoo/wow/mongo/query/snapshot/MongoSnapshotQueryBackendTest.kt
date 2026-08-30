@@ -111,11 +111,11 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         val collection = database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
         collection.updateOne(
             Filters.eq("_id", nullId),
-            Document("\$set", Document().append("state.cursorSort", null)),
+            Document("\$set", Document().append("state.createdAt", null)),
         ).toMono().test().expectNextCount(1).verifyComplete()
         collection.updateOne(
             Filters.eq("_id", missingId),
-            Document("\$unset", Document("state.cursorSort", "")),
+            Document("\$unset", Document("state.createdAt", "")),
         ).toMono().test().expectNextCount(1).verifyComplete()
     }
 

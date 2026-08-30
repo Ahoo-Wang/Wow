@@ -41,6 +41,7 @@ import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
 import me.ahoo.wow.tck.metrics.meteredForTck
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -62,10 +63,12 @@ abstract class EventStreamQueryBackendSpec {
 
     protected abstract fun createEventStore(): EventStore
     protected abstract fun createEventStreamQueryBackendFactory(): EventStreamQueryBackendFactory
-    protected abstract fun prepareNullAndMissingCursorEventStreams(
+    protected open fun prepareNullAndMissingCursorEventStreams(
         nullStream: DomainEventStream,
         missingStream: DomainEventStream,
-    )
+    ) {
+        Assumptions.assumeTrue(false) { "EventStream cursor null/missing fixture is not available." }
+    }
 
     @Test
     fun createFromCache() {
