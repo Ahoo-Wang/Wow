@@ -42,4 +42,5 @@ export class EventStreamQueryEndpointPaths {
   static readonly COUNT = `${EventStreamQueryEndpointPaths.EVENT_STREAM_RESOURCE_NAME}/count`;
   static readonly LIST = `${EventStreamQueryEndpointPaths.EVENT_STREAM_RESOURCE_NAME}/list`;
   static readonly PAGED = `${EventStreamQueryEndpointPaths.EVENT_STREAM_RESOURCE_NAME}/paged`;
+  static readonly CURSOR = `${EventStreamQueryEndpointPaths.EVENT_STREAM_RESOURCE_NAME}/cursor`;
 }

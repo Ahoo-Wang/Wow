@@ -12,152 +12,51 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import {
-  cursorCondition,
-  cursorFilter,
-  cursorQuery,
-  cursorSort,
-  CURSOR_ID_START,
-} from '../../src';
-import { SortDirection } from '../../src';
-import { and, eq, filter, gt, lt } from '../../src';
-import { listQuery } from '../../src';
+import { asc, cursorQuery, filter } from '../../src';
 
 describe('cursorQuery', () => {
-  it('should create cursor condition with ascending direction', () => {
-    const field = 'id';
-    const cursorId = 'cursor123';
-    const direction = SortDirection.ASC;
+  it('creates a Wow V9 cursor request with server defaults', () => {
+    const query = cursorQuery({ filter: filter.matchAll() });
 
-    const result = cursorCondition({ field, cursorId, direction });
-
-    expect(result).toEqual(gt(field, cursorId));
+    expect(query).toEqual({
+      filter: { op: 'MATCH_ALL' },
+      projection: {},
+      sort: [],
+      size: 10,
+      cursor: null,
+    });
   });
 
-  it('should create cursor condition with descending direction', () => {
-    const field = 'id';
-    const cursorId = 'cursor123';
-    const direction = SortDirection.DESC;
-
-    const result = cursorCondition({ field, cursorId, direction });
-
-    expect(result).toEqual(lt(field, cursorId));
-  });
-
-  it('should create cursor condition with default values', () => {
-    const field = 'id';
-
-    const result = cursorCondition({ field });
-
-    expect(result).toEqual(lt(field, CURSOR_ID_START));
-  });
-
-  it('should enhance a filter query with cursor parameters', () => {
-    const query = listQuery({ filter: filter.eq('status', 'active') });
-    const result = cursorQuery({
-      field: 'id',
-      cursorId: 'cursor123',
-      direction: SortDirection.ASC,
-      query,
+  it('preserves the opaque cursor and ordered sort fields', () => {
+    const query = cursorQuery({
+      filter: filter.eq('state.status', 'PAID'),
+      projection: { include: ['state.status'] },
+      sort: [asc('state.createdAt')],
+      size: 20,
+      cursor: 'opaque-next-cursor',
     });
 
-    expect(result.filter).toEqual(
-      filter.and([
-        cursorFilter({
-          field: 'id',
-          cursorId: 'cursor123',
-          direction: SortDirection.ASC,
-        }),
-        query.filter,
-      ]),
+    expect(query).toEqual({
+      filter: { op: 'EQ', field: 'state.status', value: 'PAID' },
+      projection: { include: ['state.status'] },
+      sort: [{ field: 'state.createdAt', direction: 'ASC' }],
+      size: 20,
+      cursor: 'opaque-next-cursor',
+    });
+  });
+
+  it.each([0, 2_147_483_647])('rejects invalid cursor size %s', size => {
+    expect(() => cursorQuery({ filter: filter.matchAll(), size })).toThrow(
+      'size must be between 1 and 2147483646.',
     );
   });
 
-  it('should treat an undefined filter as a legacy query', () => {
-    const query = {
-      condition: eq('status', 'active'),
-      filter: undefined,
-      limit: 10,
-    };
-    const options = {
-      field: 'id',
-      cursorId: 'cursor123',
-      direction: SortDirection.ASC,
-      query,
-    };
-
-    const result = cursorQuery(options);
-
-    expect(result).toEqual({
-      ...query,
-      condition: and(cursorCondition(options), query.condition),
-      sort: [{ field: 'id', direction: SortDirection.ASC }],
-    });
-  });
-
-  it('should create cursor sort configuration', () => {
-    const field = 'id';
-    const direction = SortDirection.ASC;
-
-    const result = cursorSort({ field, direction });
-
-    expect(result).toEqual({
-      field,
-      direction,
-    });
-  });
-
-  it('should create cursor sort with default direction', () => {
-    const field = 'id';
-
-    const result = cursorSort({ field });
-
-    expect(result).toEqual({
-      field,
-      direction: SortDirection.DESC,
-    });
-  });
-
-  it('should enhance base query with cursor parameters', () => {
-    const options = {
-      field: 'id',
-      cursorId: 'cursor123',
-      direction: SortDirection.ASC,
-      query: listQuery({
-        condition: eq('status', 'active'),
-        limit: 10,
+  it('rejects more than 32 sort fields', () => {
+    expect(() =>
+      cursorQuery({
+        filter: filter.matchAll(),
+        sort: Array.from({ length: 33 }, (_, index) => asc(`field${index}`)),
       }),
-    };
-
-    const result = cursorQuery(options);
-
-    expect(result.condition).toBeDefined();
-    expect(result.sort).toBeDefined();
-    expect(result.sort).toHaveLength(1);
-    expect(result.sort![0]).toEqual({
-      field: options.field,
-      direction: options.direction,
-    });
-    expect(result.limit).toBe(10);
-  });
-
-  it('should combine cursor condition with existing condition using AND operator', () => {
-    const options = {
-      field: 'id',
-      cursorId: 'cursor123',
-      direction: SortDirection.ASC,
-      query: listQuery({
-        condition: eq('status', 'active'),
-        limit: 10,
-      }),
-    };
-
-    const result = cursorQuery(options);
-    const expectedCondition = and(
-      cursorCondition(options),
-      eq('status', 'active'),
-    );
-
-    expect(result.condition).toEqual(expectedCondition);
+    ).toThrow('sort must contain at most 32 fields.');
   });
 });

@@ -22,6 +22,7 @@ import type { AggregationQuery } from './aggregation';
 import type { Condition } from './condition';
 import type { FilterExpression } from './filter';
 import type { DynamicDocument } from './types';
+import type { CursorPage, CursorQuery } from './cursorQuery';
 
 /**
  * Interface for generic query API operations.
@@ -33,6 +34,13 @@ import type { DynamicDocument } from './types';
  * @template R - The type of resource being queried
  */
 export interface QueryApi<R, FIELDS extends string = string> {
+  /** Retrieves the next forward-only cursor page. */
+  cursor<T extends Partial<R> = R>(
+    query: CursorQuery<FIELDS>,
+    attributes?: Record<string, unknown>,
+    abortController?: AbortController,
+  ): Promise<CursorPage<T>>;
+
   /** Runs an aggregation and returns all result rows. */
   aggregate<
     Row extends DynamicDocument = DynamicDocument,

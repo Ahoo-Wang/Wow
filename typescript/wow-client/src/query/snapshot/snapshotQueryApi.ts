@@ -20,6 +20,7 @@ import type {
   SingleQueryRequest,
 } from '../queryable';
 import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
+import type { CursorPage, CursorQuery } from '../cursorQuery';
 
 /**
  * Interface for snapshot query API operations.
@@ -31,6 +32,13 @@ export interface SnapshotQueryApi<
   S,
   FIELDS extends string = string,
 > extends QueryApi<MaterializedSnapshot<S>, FIELDS> {
+  /** Retrieves the next cursor page of snapshot states. */
+  cursorState<T extends Partial<S> = S>(
+    query: CursorQuery<FIELDS>,
+    attributes?: Record<string, unknown>,
+    abortController?: AbortController,
+  ): Promise<CursorPage<T>>;
+
   /**
    * Retrieves a single snapshot state based on the provided query parameters.
    * @param singleQuery - The query parameters for retrieving a single snapshot state
@@ -115,6 +123,8 @@ export class SnapshotQueryEndpointPaths {
   static readonly LIST_STATE = `${SnapshotQueryEndpointPaths.LIST}/state`;
   static readonly PAGED = `${SnapshotQueryEndpointPaths.SNAPSHOT_RESOURCE_NAME}/paged`;
   static readonly PAGED_STATE = `${SnapshotQueryEndpointPaths.PAGED}/state`;
+  static readonly CURSOR = `${SnapshotQueryEndpointPaths.SNAPSHOT_RESOURCE_NAME}/cursor`;
+  static readonly CURSOR_STATE = `${SnapshotQueryEndpointPaths.CURSOR}/state`;
   static readonly SINGLE = `${SnapshotQueryEndpointPaths.SNAPSHOT_RESOURCE_NAME}/single`;
   static readonly SINGLE_STATE = `${SnapshotQueryEndpointPaths.SINGLE}/state`;
 }

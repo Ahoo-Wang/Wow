@@ -11,126 +11,43 @@
  * limitations under the License.
  */
 
-import type { FieldSort } from './sort';
-import { SortDirection } from './sort';
-import type { FilterListQuery, ListQuery } from './queryable';
-import type { Condition } from './condition';
-import { and, gt, lt } from './condition';
 import type { FilterExpression } from './filter';
-import { filter } from './filter';
+import { defaultProjection, type Projection } from './projection';
+import type { FieldSort } from './sort';
 
-/**
- * Represents a cursor-based pagination query configuration.
- * This interface defines the structure for implementing cursor-based pagination,
- * which is an efficient way to paginate through large datasets.
- */
-/** @deprecated Use FilterCursorQuery instead. */
+export const DEFAULT_CURSOR_SIZE = 10;
+export const MAX_CURSOR_SIZE = 2_147_483_646;
+export const MAX_CURSOR_SORT_FIELDS = 32;
+
+/** Wow V9 forward-only cursor query request. */
 export interface CursorQuery<FIELDS extends string = string> {
-  /** Field name used for cursor-based sorting and filtering */
-  field: FIELDS;
-  /**
-   * Cursor ID marking the starting point (exclusive)
-   * Uses CURSOR_ID_START constant for initial query
-   */
-  cursorId?: string;
-  /** Sort direction for pagination traversal (ascending or descending) */
-  direction?: SortDirection;
-  /** Base query object to be enhanced with cursor-based parameters */
-  query: ListQuery<FIELDS>;
+  filter: FilterExpression<FIELDS>;
+  projection?: Projection<FIELDS>;
+  sort?: FieldSort<FIELDS>[];
+  size?: number;
+  cursor?: string | null;
 }
 
-export interface FilterCursorQuery<FIELDS extends string = string> extends Omit<
-  CursorQuery<FIELDS>,
-  'query'
-> {
-  query: FilterListQuery<FIELDS>;
+/** Wow V9 cursor page response. */
+export interface CursorPage<T> {
+  list: T[];
+  nextCursor: string | null;
 }
 
-/** Special cursor ID value representing the starting point of a dataset */
-export const CURSOR_ID_START = '~';
-
-/**
- * Generates a cursor condition for filtering records relative to the cursor position
- * @param params - Cursor parameters excluding the base query
- * @param params.field - The field to apply the cursor condition on
- * @param params.cursorId - The cursor ID to compare against (defaults to CURSOR_ID_START)
- * @param params.direction - Sort direction which determines the comparison operator (defaults to SortDirection.DESC)
- * @returns Condition object for filtering records based on cursor position
- */
-/** @deprecated Use cursorFilter instead. */
-export function cursorCondition<FIELDS extends string = string>({
-  field,
-  cursorId = CURSOR_ID_START,
-  direction = SortDirection.DESC,
-}: Omit<CursorQuery<FIELDS>, 'query'>): Condition<FIELDS> {
-  // When sorting in ascending order, we want records greater than the cursor
-  if (direction === SortDirection.ASC) {
-    return gt(field, cursorId);
-  } else {
-    // When sorting in descending order, we want records less than the cursor
-    return lt(field, cursorId);
+export function cursorQuery<FIELDS extends string = string>({
+  filter,
+  projection = defaultProjection<FIELDS>(),
+  sort = [],
+  size = DEFAULT_CURSOR_SIZE,
+  cursor = null,
+}: CursorQuery<FIELDS>): CursorQuery<FIELDS> {
+  if (!Number.isInteger(size) || size < 1 || size > MAX_CURSOR_SIZE) {
+    throw new TypeError(`size must be between 1 and ${MAX_CURSOR_SIZE}.`);
   }
-}
-
-export function cursorFilter<FIELDS extends string = string>({
-  field,
-  cursorId = CURSOR_ID_START,
-  direction = SortDirection.DESC,
-}: Omit<CursorQuery<FIELDS>, 'query'>): FilterExpression<FIELDS> {
-  return direction === SortDirection.ASC
-    ? filter.gt(field, cursorId)
-    : filter.lt(field, cursorId);
-}
-
-/**
- * Creates a sort configuration based on cursor parameters
- * @param params - Cursor parameters excluding the base query
- * @param params.field - The field to sort by
- * @param params.direction - Sort direction (defaults to SortDirection.DESC)
- * @returns FieldSort configuration for cursor-based pagination
- */
-export function cursorSort<FIELDS extends string = string>({
-  field,
-  direction = SortDirection.DESC,
-}: Omit<CursorQuery<FIELDS>, 'query'>): FieldSort<FIELDS> {
-  return { field, direction };
-}
-
-/**
- * Enhances a base query with cursor-based pagination parameters
- * This function combines the cursor condition with the existing query condition
- * and sets the sorting according to the cursor parameters.
- * @param options - Complete cursor query configuration
- * @param options.field - The field used for cursor-based sorting and filtering
- * @param options.cursorId - The cursor ID marking the starting point (exclusive)
- * @param options.direction - Sort direction for pagination traversal
- * @param options.query - Base query object to be enhanced with cursor-based parameters
- * @returns Enhanced query with cursor-based filtering and sorting
- */
-export function cursorQuery<FIELDS extends string = string>(
-  options: FilterCursorQuery<FIELDS>,
-): FilterListQuery<FIELDS>;
-/** @deprecated Pass FilterCursorQuery instead. */
-export function cursorQuery<FIELDS extends string = string>(
-  options: CursorQuery<FIELDS>,
-): ListQuery<FIELDS>;
-export function cursorQuery<FIELDS extends string = string>(
-  options: CursorQuery<FIELDS> | FilterCursorQuery<FIELDS>,
-): ListQuery<FIELDS> | FilterListQuery<FIELDS> {
-  const query = options.query;
-  const mergedSort = cursorSort(options);
-  const queryFilter = 'filter' in query ? query.filter : undefined;
-  if (queryFilter !== undefined) {
-    return {
-      ...query,
-      filter: filter.and([cursorFilter(options), queryFilter]),
-      sort: [mergedSort],
-    };
+  if (sort.length > MAX_CURSOR_SORT_FIELDS) {
+    throw new TypeError(
+      `sort must contain at most ${MAX_CURSOR_SORT_FIELDS} fields.`,
+    );
   }
-  const conditionQuery = query as ListQuery<FIELDS>;
-  return {
-    ...query,
-    condition: and(cursorCondition(options), conditionQuery.condition),
-    sort: [mergedSort],
-  };
+  return { filter, projection, sort, size, cursor };
 }

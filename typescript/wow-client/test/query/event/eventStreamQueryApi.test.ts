@@ -19,7 +19,11 @@ import {
   EventStreamQueryClient,
   EventStreamQueryEndpointPaths,
   aggregation,
+  cursorQuery,
+  filter,
   type AggregationQuery,
+  type CursorPage,
+  type DomainEventStream,
   type DynamicDocument,
 } from '../../../src';
 
@@ -44,6 +48,38 @@ describe('EventStreamQueryEndpointPaths', () => {
     expect(EventStreamQueryEndpointPaths.COUNT).toBe('event/count');
     expect(EventStreamQueryEndpointPaths.LIST).toBe('event/list');
     expect(EventStreamQueryEndpointPaths.PAGED).toBe('event/paged');
+    expect(EventStreamQueryEndpointPaths.CURSOR).toBe('event/cursor');
+  });
+
+  it('posts cursor requests and exposes typed cursor pages', async () => {
+    const fetcher = new NamedFetcher('event-cursor-test');
+    const requests: Array<{ path: string; body: unknown }> = [];
+    vi.spyOn(fetcher.interceptors, 'exchange').mockImplementation(
+      async current => {
+        requests.push({
+          path: String(current.request.url),
+          body:
+            typeof current.request.body === 'string'
+              ? JSON.parse(current.request.body)
+              : current.request.body,
+        });
+        current.extractResult = vi.fn().mockResolvedValue({
+          list: [],
+          nextCursor: null,
+        });
+        return current;
+      },
+    );
+    const client = new EventStreamQueryClient<unknown, RootFields>({
+      basePath: '/order',
+      fetcher,
+    });
+    const query = cursorQuery<RootFields>({ filter: filter.matchAll() });
+
+    const page = await client.cursor(query);
+
+    expectTypeOf(page).toEqualTypeOf<CursorPage<DomainEventStream<unknown>>>();
+    expect(requests).toEqual([{ path: '/order/event/cursor', body: query }]);
   });
 
   it('exposes aggregation through the common and event query APIs', () => {

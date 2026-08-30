@@ -18,10 +18,13 @@ import type { SnapshotQueryApi } from '../../../src';
 import {
   SnapshotQueryEndpointPaths,
   aggregation,
+  cursorQuery,
   filter,
   SnapshotQueryClient,
   type AggregationQuery,
+  type CursorPage,
   type DynamicDocument,
+  type MaterializedSnapshot,
 } from '../../../src';
 
 describe('SnapshotQueryEndpointPaths', () => {
@@ -45,10 +48,51 @@ describe('SnapshotQueryEndpointPaths', () => {
     expect(SnapshotQueryEndpointPaths.LIST_STATE).toBe('snapshot/list/state');
     expect(SnapshotQueryEndpointPaths.PAGED).toBe('snapshot/paged');
     expect(SnapshotQueryEndpointPaths.PAGED_STATE).toBe('snapshot/paged/state');
+    expect(SnapshotQueryEndpointPaths.CURSOR).toBe('snapshot/cursor');
+    expect(SnapshotQueryEndpointPaths.CURSOR_STATE).toBe(
+      'snapshot/cursor/state',
+    );
     expect(SnapshotQueryEndpointPaths.SINGLE).toBe('snapshot/single');
     expect(SnapshotQueryEndpointPaths.SINGLE_STATE).toBe(
       'snapshot/single/state',
     );
+  });
+
+  it('posts cursor requests and exposes typed cursor pages', async () => {
+    type State = { status: string };
+    const fetcher = new NamedFetcher('snapshot-cursor-test');
+    const requests: Array<{ path: string; body: unknown }> = [];
+    vi.spyOn(fetcher.interceptors, 'exchange').mockImplementation(
+      async current => {
+        requests.push({
+          path: String(current.request.url),
+          body:
+            typeof current.request.body === 'string'
+              ? JSON.parse(current.request.body)
+              : current.request.body,
+        });
+        current.extractResult = vi.fn().mockResolvedValue({
+          list: [],
+          nextCursor: null,
+        });
+        return current;
+      },
+    );
+    const client = new SnapshotQueryClient<State, RootFields>({
+      basePath: '/order',
+      fetcher,
+    });
+    const query = cursorQuery<RootFields>({ filter: filter.matchAll() });
+
+    const page = await client.cursor(query);
+    const statePage = await client.cursorState(query);
+
+    expectTypeOf(page).toEqualTypeOf<CursorPage<MaterializedSnapshot<State>>>();
+    expectTypeOf(statePage).toEqualTypeOf<CursorPage<State>>();
+    expect(requests).toEqual([
+      { path: '/order/snapshot/cursor', body: query },
+      { path: '/order/snapshot/cursor/state', body: query },
+    ]);
   });
 
   it('exposes typed JSON and SSE aggregation results', () => {
