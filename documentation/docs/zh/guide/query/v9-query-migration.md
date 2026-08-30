@@ -7,7 +7,7 @@ description: 将 V8 查询 JVM API 迁移到聚合级 Gateway 与 ObjectNode Bac
 
 ## 迁移边界
 
-V9 删除旧 JVM 类型，不提供 bridge、typealias、deprecation 过渡或 V8 JVM constructor overload。该变更会破坏依赖旧类型的 JVM 源码与二进制；新增 Mask 字段的 V9 构造器只保留 V9 合同，请重新编译下游代码，并按下表直接迁移。
+V9 删除旧 JVM 类型，不提供 bridge、typealias 或 deprecation 过渡。该变更会破坏依赖旧类型的 JVM 源码与二进制；请重新编译下游代码，并按下表直接迁移。`QueryFieldSchemaMetadata.masked`、`QueryFieldDeclaration.maskRule`、`QueryFieldSchema.maskRule` 与 `LogicalQueryFieldSchema.maskRule` 是新增 Mask 字段的 Schema 构造合同，不保留 V8 JVM constructor overload。
 
 数据查询的 HTTP 请求/结果 envelope、Backend wire tree、存储布局和既有数据不因这次 JVM 重构或静态注解 Mask 改变。Query Schema HTTP 元数据及其生成的 OpenAPI component 会变化：每个字段新增 `masked: Boolean`。无需迁移存储数据，Backend 与存储中的原值也不会被改写。把原 Mask 配置迁移到字段注解后，受管 Gateway 会恢复响应的保密语义。
 
@@ -63,7 +63,7 @@ V9 删除旧 JVM 类型，不提供 bridge、typealias、deprecation 过渡或 V
 
 typed 与节点返回共享 `SINGLE`、`LIST`、`PAGED` 操作类型。Backend 始终返回 `ObjectNode`，Gateway 在通用结果 Filter 完成后按需使用 Jackson 物化 typed 结果。
 
-原 `QueryService<R>` 没有一对一替代类型：存储查询与 Schema 能力迁移到返回 `ObjectNode` 的 `QueryBackend`，受管入口、过滤链与 typed 物化留在聚合级 `QueryGateway<R>`。原 `QueryGateway` 每次调用接收 `NamedAggregate`；V9 在构造 Gateway 时绑定 `NamedAggregate`、routed Backend 与新增 Mask 字段，且不保留 V8 JVM constructor overload，因此 `single`、`list`、`paged`、`count` 和 `aggregate` 调用不再传聚合参数。自定义 `AbstractQueryGateway` 子类必须按新构造合同提供 `namedAggregate`、`backend`、`targetType`、`filters`、`filterType` 与 `errorHandler`；没有自定义入口策略时直接使用 Snapshot/EventStream 默认 Gateway。
+原 `QueryService<R>` 没有一对一替代类型：存储查询与 Schema 能力迁移到返回 `ObjectNode` 的 `QueryBackend`，受管入口、过滤链与 typed 物化留在聚合级 `QueryGateway<R>`。原 `QueryGateway` 每次调用接收 `NamedAggregate`；V9 在构造 Gateway 时只绑定 `NamedAggregate` 与 routed Backend，因此 `single`、`list`、`paged`、`count` 和 `aggregate` 调用不再传聚合参数。自定义 `AbstractQueryGateway` 子类必须按新构造合同提供 `namedAggregate`、`backend`、`targetType`、`filters`、`filterType` 与 `errorHandler`；没有自定义入口策略时直接使用 Snapshot/EventStream 默认 Gateway。
 
 Filter 不再通过 `QueryType.isDynamic` 判断最终返回 typed 对象还是节点；两条路径在同一 ObjectNode FilterChain 中处理，区别仅发生在链完成后的可选 Jackson 物化。删除只为 typed/dynamic 分流的分支，不要发明新的结果类型判别器。
 
