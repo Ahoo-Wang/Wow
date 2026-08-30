@@ -5933,6 +5933,9 @@
           "field" : {
             "$ref" : "#/components/schemas/wow.api.query.LogicalField"
           },
+          "masked" : {
+            "type" : "boolean"
+          },
           "nullable" : {
             "type" : "boolean"
           },
