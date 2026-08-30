@@ -61,7 +61,7 @@ abstract class AbstractQueryGateway<R : Any>(
     private val masker = (backend as? QueryModelSchemaProvider)?.let { provider ->
         Mono.defer { provider.schema() }
             .map { Optional.ofNullable(SchemaMasker.create(it)) }
-            .cache()
+            .cacheInvalidateIf { false }
     }
 
     private val chain = FilterChainBuilder<QueryContext<*, *>>()
