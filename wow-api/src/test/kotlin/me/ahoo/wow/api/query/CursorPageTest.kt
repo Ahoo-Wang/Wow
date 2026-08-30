@@ -28,4 +28,13 @@ class CursorPageTest {
         page.list.assert().containsExactly("one")
         page.nextCursor.assert().isEqualTo("next")
     }
+
+    @Test
+    fun `should round trip terminal cursor page`() {
+        val json = mapper.writeValueAsString(CursorPage(emptyList<String>(), null))
+        val page = mapper.readValue(json, CursorPage::class.java)
+
+        page.list.assert().isEmpty()
+        page.nextCursor.assert().isNull()
+    }
 }
