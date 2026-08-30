@@ -456,6 +456,24 @@ internal data class InterfaceGetterMaskedState(
     override val inheritedToken: String,
 ) : GetterMaskedState
 
+internal interface PrefixGetterMaskedState {
+    @get:KeepMask(prefix = 1)
+    val inheritedToken: String
+}
+
+internal interface SuffixGetterMaskedState {
+    @get:KeepMask(suffix = 1)
+    val inheritedToken: String
+}
+
+internal data class ConflictingInheritedGetterMaskedState(
+    override val inheritedToken: String,
+) : PrefixGetterMaskedState, SuffixGetterMaskedState
+
+internal data class ReversedConflictingInheritedGetterMaskedState(
+    override val inheritedToken: String,
+) : SuffixGetterMaskedState, PrefixGetterMaskedState
+
 @Target(AnnotationTarget.FIELD, AnnotationTarget.PROPERTY_GETTER)
 @Retention(AnnotationRetention.RUNTIME)
 @Mask

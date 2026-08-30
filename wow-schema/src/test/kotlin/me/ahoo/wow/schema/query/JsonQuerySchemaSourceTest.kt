@@ -585,6 +585,26 @@ class JsonQuerySchemaSourceTest {
     }
 
     @Test
+    fun `should inherit Kotlin property getter mask from Java getter`() {
+        load(JavaGetterMaskedState::class.java)
+            .field("state.inheritedToken")
+            .requiredMaskRule()
+            .strategyType.assert().isEqualTo(FullMaskStrategy::class)
+    }
+
+    @Test
+    fun `should reject conflicting inherited getter masks independent of interface order`() {
+        listOf(
+            ConflictingInheritedGetterMaskedState::class.java,
+            ReversedConflictingInheritedGetterMaskedState::class.java,
+        ).forEach { type ->
+            assertThrows<QuerySchemaConflictException> {
+                load(type)
+            }
+        }
+    }
+
+    @Test
     fun `should construct and compile a public zero argument class strategy`() {
         val rule = load(PublicClassStrategyState::class.java)
             .field("state.secret")

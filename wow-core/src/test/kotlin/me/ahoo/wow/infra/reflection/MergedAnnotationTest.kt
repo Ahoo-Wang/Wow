@@ -39,6 +39,40 @@ class MergedAnnotationTest {
     }
 
     @Test
+    fun `should retain different annotations from sibling properties independent of interface order`() {
+        val annotations = listOf(
+            SiblingMergedState::token,
+            ReversedSiblingMergedState::token,
+        ).map { property ->
+            property.toMergedAnnotation().mergedAnnotations
+                .filterIsInstance<MergedMarker>()
+                .mapTo(hashSetOf()) { it.value }
+        }
+
+        annotations.assert().isEqualTo(
+            listOf(setOf("left", "right"), setOf("left", "right")),
+        )
+    }
+
+    @Test
+    fun `should let local property annotation override sibling annotations`() {
+        val annotations = LocallyMergedState::token.toMergedAnnotation().mergedAnnotations
+            .filterIsInstance<MergedMarker>()
+            .map { it.value }
+
+        annotations.assert().isEqualTo(listOf("local"))
+    }
+
+    @Test
+    fun `should deduplicate equal annotations from sibling properties`() {
+        val annotations = EqualSiblingMergedState::token.toMergedAnnotation().mergedAnnotations
+            .filterIsInstance<MergedMarker>()
+
+        annotations.assert().hasSize(1)
+        annotations.single().value.assert().isEqualTo("same")
+    }
+
+    @Test
     fun `should merge function annotations from matching inherited signature`() {
         val annotations = ChildMergedOperation::execute.toMergedAnnotation().mergedAnnotations
             .filterIsInstance<MergedMarker>()
@@ -81,6 +115,38 @@ private open class BaseMergedState(
 )
 
 private class ChildMergedState(override val id: String) : BaseMergedState(id)
+
+private interface LeftMergedState {
+    @get:MergedMarker("left")
+    val token: String
+}
+
+private interface RightMergedState {
+    @get:MergedMarker("right")
+    val token: String
+}
+
+private data class SiblingMergedState(override val token: String) : LeftMergedState, RightMergedState
+
+private data class ReversedSiblingMergedState(override val token: String) : RightMergedState, LeftMergedState
+
+private data class LocallyMergedState(
+    @get:MergedMarker("local") override val token: String,
+) : LeftMergedState, RightMergedState
+
+private interface FirstEqualMergedState {
+    @get:MergedMarker("same")
+    val token: String
+}
+
+private interface SecondEqualMergedState {
+    @get:MergedMarker("same")
+    val token: String
+}
+
+private data class EqualSiblingMergedState(
+    override val token: String,
+) : FirstEqualMergedState, SecondEqualMergedState
 
 private interface BaseMergedOperation {
     @MergedMarker("base-function")

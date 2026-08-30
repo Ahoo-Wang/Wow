@@ -13,7 +13,10 @@
 
 package me.ahoo.wow.infra.reflection
 
+import me.ahoo.wow.infra.reflection.IntimateAnnotationElement.Companion.flatRepeatableAnnotation
+import me.ahoo.wow.infra.reflection.IntimateAnnotationElement.Companion.inheritedAnnotations
 import me.ahoo.wow.infra.reflection.IntimateAnnotationElement.Companion.toIntimateAnnotationElement
+import java.lang.reflect.Method
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.KAnnotatedElement
 import kotlin.reflect.KClass
@@ -21,7 +24,9 @@ import kotlin.reflect.KFunction
 import kotlin.reflect.KProperty
 import kotlin.reflect.full.declaredFunctions
 import kotlin.reflect.full.declaredMembers
+import kotlin.reflect.full.declaredMemberProperties
 import kotlin.reflect.full.superclasses
+import kotlin.reflect.jvm.javaMethod
 
 /**
  * Finds annotations inherited from a superclass or interface.
@@ -75,42 +80,50 @@ class MergedAnnotation(val element: KAnnotatedElement) {
             return scanned
         }
 
+        private fun mergeInheritedAnnotations(
+            local: Set<Annotation>,
+            inherited: Sequence<Annotation>,
+        ): Set<Annotation> {
+            val localTypes = local.mapTo(hashSetOf()) { it.annotationClass }
+            return linkedSetOf<Annotation>().apply {
+                addAll(local)
+                inherited.filterNot { it.annotationClass in localTypes }.forEach(::add)
+            }
+        }
+
         fun KClass<*>.inheritedAnnotations(): Set<Annotation> {
             val intimateAnnotationElement = this.toIntimateAnnotationElement()
-            val merged: LinkedHashSet<Annotation> = linkedSetOf()
-            merged.addAll(intimateAnnotationElement.inheritedAnnotations)
-            inheritedClass().flatMap {
-                it.toIntimateAnnotationElement().inheritedAnnotations
-            }.forEach { inheritedAnnotation ->
-                if (merged.all { it.annotationClass != inheritedAnnotation.annotationClass }) {
-                    merged.add(inheritedAnnotation)
-                }
-            }
-            return merged
+            return mergeInheritedAnnotations(
+                intimateAnnotationElement.inheritedAnnotations,
+                inheritedClass().asSequence().flatMap {
+                    it.toIntimateAnnotationElement().inheritedAnnotations.asSequence()
+                },
+            )
         }
 
         fun KProperty<*>.inheritedAnnotations(): Set<Annotation> {
             val intimateAnnotationElement = this.toIntimateAnnotationElement()
             val declaringClass = intimateAnnotationElement.declaringClass
             declaringClass ?: return intimateAnnotationElement.inheritedAnnotations
-            val merged: LinkedHashSet<Annotation> = linkedSetOf()
-            merged.addAll(intimateAnnotationElement.inheritedAnnotations)
-            declaringClass.inheritedClass().flatMap {
-                it.declaredMembers
-            }.filter {
-                it.name == this.name
-            }.flatMap {
-                it.toIntimateAnnotationElement().inheritedAnnotations
-            }.forEach { inheritedAnnotation ->
-                if (merged.all { it.annotationClass != inheritedAnnotation.annotationClass }) {
-                    merged.add(inheritedAnnotation)
-                }
-            }
-            return merged
+            return mergeInheritedAnnotations(
+                intimateAnnotationElement.inheritedAnnotations,
+                declaringClass.inheritedClass().asSequence()
+                    .flatMap { it.declaredMembers.asSequence() }
+                    .filter { it.name == this.name }
+                    .flatMap { it.toIntimateAnnotationElement().inheritedAnnotations.asSequence() },
+            )
+        }
+
+        private val KFunction<*>.jvmName: String
+            get() = javaMethod?.name ?: name
+
+        private fun KFunction<*>.sameSignature(other: Method): Boolean {
+            val method = javaMethod ?: return false
+            return method.name == other.name && method.parameterTypes.contentEquals(other.parameterTypes)
         }
 
         private fun KFunction<*>.sameSignature(other: KFunction<*>): Boolean {
-            if (this.name != other.name) {
+            if (this.jvmName != other.jvmName) {
                 return false
             }
             if (this.parameters.size != other.parameters.size) {
@@ -129,24 +142,41 @@ class MergedAnnotation(val element: KAnnotatedElement) {
             return true
         }
 
+        fun Method.inheritedAnnotations(): Set<Annotation> {
+            val local = annotations.asSequence()
+                .flatMap { it.flatRepeatableAnnotation() }
+                .flatMap { it.inheritedAnnotations().asSequence() }
+                .toCollection(linkedSetOf())
+            return mergeInheritedAnnotations(
+                local,
+                declaringClass.kotlin.inheritedClass().asSequence()
+                    .flatMap {
+                        it.declaredFunctions.asSequence() +
+                            it.declaredMemberProperties.asSequence().map { property -> property.getter }
+                    }.filter {
+                        it.sameSignature(this)
+                    }.flatMap {
+                        it.toIntimateAnnotationElement().inheritedAnnotations.asSequence()
+                    },
+            )
+        }
+
         fun KFunction<*>.inheritedAnnotations(): Set<Annotation> {
             val intimateAnnotationElement = this.toIntimateAnnotationElement()
             val declaringClass = intimateAnnotationElement.declaringClass
             declaringClass ?: return intimateAnnotationElement.inheritedAnnotations
-            val merged: LinkedHashSet<Annotation> = linkedSetOf()
-            merged.addAll(intimateAnnotationElement.inheritedAnnotations)
-            declaringClass.inheritedClass().flatMap {
-                it.declaredFunctions
-            }.filter {
-                it.sameSignature(this)
-            }.flatMap {
-                it.toIntimateAnnotationElement().inheritedAnnotations
-            }.forEach { inheritedAnnotation ->
-                if (merged.all { it.annotationClass != inheritedAnnotation.annotationClass }) {
-                    merged.add(inheritedAnnotation)
-                }
-            }
-            return merged
+            return mergeInheritedAnnotations(
+                intimateAnnotationElement.inheritedAnnotations,
+                declaringClass.inheritedClass().asSequence()
+                    .flatMap {
+                        it.declaredFunctions.asSequence() +
+                            it.declaredMemberProperties.asSequence().map { property -> property.getter }
+                    }.filter {
+                        it.sameSignature(this)
+                    }.flatMap {
+                        it.toIntimateAnnotationElement().inheritedAnnotations.asSequence()
+                    },
+            )
         }
     }
 }
