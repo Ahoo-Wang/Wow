@@ -35,8 +35,8 @@ internal class SchemaMasker private constructor(
     }
 
     private fun validateEventBodyTypes(node: ObjectNode, knownBodyTypes: Set<String>) {
-        val events = node.get("body")
-        if (events == null || !events.isArray) {
+        val events = node.get("body")?.takeUnless(JsonNode::isNull) ?: return
+        if (!events.isArray) {
             throw QuerySchemaValidationException("Event stream [body] must be a JSON array.")
         }
         events.forEach { event ->

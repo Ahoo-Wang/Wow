@@ -59,11 +59,6 @@ fun QueryModelSchemaProvider.resolve(
             schema,
         )
     }
-    .fallbackUnavailable(
-        mode,
-        ResolvedAggregationQuery(query, schema = null),
-        !query.filter.referencesSystemTags(),
-    )
 
 @Suppress("CyclomaticComplexMethod")
 private fun FilterExpression.referencesSystemTags(logicalParent: LogicalField? = null): Boolean = when (this) {

@@ -44,6 +44,8 @@ import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.schema.QuerySchemaValidationMode
+import me.ahoo.wow.query.schema.resolve
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -166,14 +168,33 @@ class DefaultSnapshotQueryGatewayTest {
     }
 
     @Test
-    fun `count and aggregation should not load mask schema`() {
+    fun `count should not load mask schema`() {
         val backend = SchemaSnapshotBackend(Mono.error(QuerySchemaUnavailableException("unused")))
         val gateway = gateway(backend)
 
         gateway.count(MatchAllFilter).block().assert().isOne()
-        gateway.aggregate(AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))))
-            .single().block()!!.path("count").longValue().assert().isOne()
         backend.schemaCalls.get().assert().isZero()
+    }
+
+    @Test
+    fun `aggregation schema failure should stop execution and be observed by error handler`() {
+        val failure = QuerySchemaUnavailableException("aggregation unavailable")
+        val observed = CopyOnWriteArrayList<Throwable>()
+        val backend = SchemaSnapshotBackend(Mono.error(failure))
+
+        StepVerifier.create(
+            gateway(
+                backend,
+                errorHandler = ErrorHandler { _, error ->
+                    observed += error
+                    Mono.empty()
+                },
+            ).aggregate(AggregationQuery(metrics = listOf(AggregationMetric.Count("count")))),
+        )
+            .expectErrorSatisfies { error -> error.assert().isSameAs(failure) }
+            .verify()
+        backend.resultSubscriptions.get().assert().isZero()
+        observed.assert().containsExactly(failure)
     }
 
     @Test
@@ -341,7 +362,12 @@ class DefaultSnapshotQueryGatewayTest {
         override fun count(filter: FilterExpression): Mono<Long> = Mono.just(1)
 
         override fun aggregate(query: AggregationQuery): Flux<ObjectNode> =
-            Flux.just("""{"count":1}""".toJsonNode())
+            resolve(query, QuerySchemaValidationMode.COMPATIBLE).flatMapMany {
+                Flux.defer {
+                    resultSubscriptions.incrementAndGet()
+                    Flux.just("""{"count":1}""".toJsonNode())
+                }
+            }
     }
 
     private companion object {
