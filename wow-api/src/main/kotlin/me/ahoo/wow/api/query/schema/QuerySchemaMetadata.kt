@@ -22,7 +22,7 @@ data class QueryModelSchemaMetadata(
     val fields: List<QueryFieldSchemaMetadata>,
 )
 
-data class QueryFieldSchemaMetadata(
+data class QueryFieldSchemaMetadata @JvmOverloads constructor(
     val field: LogicalField,
     val title: String?,
     val description: String?,

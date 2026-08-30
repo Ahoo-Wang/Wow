@@ -65,7 +65,7 @@ data class QuerySchemaDeclaration(
     val fields: Map<LogicalField, QueryFieldDeclaration>,
 )
 
-data class QueryFieldDeclaration(
+data class QueryFieldDeclaration @JvmOverloads constructor(
     val title: DeclarationValue<String?> = DeclarationValue.Unset,
     val description: DeclarationValue<String?> = DeclarationValue.Unset,
     val enumValues: DeclarationValue<List<JsonNode>?> = DeclarationValue.Unset,

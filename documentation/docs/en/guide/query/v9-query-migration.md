@@ -9,7 +9,7 @@ description: Migrate the V8 query JVM API to aggregate Gateways and ObjectNode B
 
 V9 removes the old JVM types without a bridge, type alias, or deprecation window. This breaks JVM source and binary users of those types. Recompile downstream code and migrate directly with the tables below.
 
-HTTP paths, request/response JSON structure, generated OpenAPI, Backend wire trees, storage layouts, and existing data do not change because of this JVM refactor or static-annotation masking. No storage-data migration is required, and raw values in the Backend and storage are not rewritten. After old mask rules move to field annotations, the managed Gateway restores response confidentiality semantics.
+Data-query HTTP request and result envelopes, Backend wire trees, storage layouts, and existing data do not change because of this JVM refactor or static-annotation masking. Query Schema HTTP metadata and its generated OpenAPI component do change: each field adds `masked: Boolean`. No storage-data migration is required, and raw values in the Backend and storage are not rewritten. After old mask rules move to field annotations, the managed Gateway restores response confidentiality semantics.
 
 ## JVM Type Mapping
 

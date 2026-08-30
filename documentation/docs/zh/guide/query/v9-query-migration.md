@@ -9,7 +9,7 @@ description: 将 V8 查询 JVM API 迁移到聚合级 Gateway 与 ObjectNode Bac
 
 V9 删除旧 JVM 类型，不提供 bridge、typealias 或 deprecation 过渡。该变更会破坏依赖旧类型的 JVM 源码与二进制；请重新编译下游代码，并按下表直接迁移。
 
-HTTP 路径、请求/响应 JSON 结构、生成 OpenAPI、Backend wire tree、存储布局和既有数据不因这次 JVM 重构或静态注解 Mask 改变。无需迁移存储数据，Backend 与存储中的原值也不会被改写。把原 Mask 配置迁移到字段注解后，受管 Gateway 会恢复响应的保密语义。
+数据查询的 HTTP 请求/结果 envelope、Backend wire tree、存储布局和既有数据不因这次 JVM 重构或静态注解 Mask 改变。Query Schema HTTP 元数据及其生成的 OpenAPI component 会变化：每个字段新增 `masked: Boolean`。无需迁移存储数据，Backend 与存储中的原值也不会被改写。把原 Mask 配置迁移到字段注解后，受管 Gateway 会恢复响应的保密语义。
 
 ## JVM 类型映射
 

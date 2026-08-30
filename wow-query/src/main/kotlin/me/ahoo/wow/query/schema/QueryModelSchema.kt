@@ -71,7 +71,7 @@ data class QueryModelSchema(
     }
 }
 
-data class QueryFieldSchema(
+data class QueryFieldSchema @JvmOverloads constructor(
     val title: String?,
     val description: String?,
     val enumValues: List<JsonNode>?,
@@ -90,7 +90,7 @@ data class LogicalQuerySchema(
     val fields: Map<LogicalField, LogicalQueryFieldSchema>,
 )
 
-data class LogicalQueryFieldSchema(
+data class LogicalQueryFieldSchema @JvmOverloads constructor(
     val title: String?,
     val description: String?,
     val enumValues: List<JsonNode>?,
