@@ -219,8 +219,15 @@ export interface SnapshotSummary {
   activeTotal: number;
   newerThanRange: number;
   olderThanRange: number;
+  selectedInRange: number;
+  stockTruncated: boolean;
   timedOut: number;
   unrecoverable: number;
+}
+
+export interface StockPartitionRow {
+  count: number;
+  executeAtBucket: number;
 }
 
 export interface RecoverabilityRow {
@@ -269,9 +276,7 @@ export function createSnapshotSummaryQueries(
   window: TrendWindow,
 ): Record<
   | "actionableNow"
-  | "activeTotal"
-  | "newerThanRange"
-  | "olderThanRange"
+  | "stockPartitions"
   | "timedOut"
   | "unrecoverable",
   SnapshotAggregationQuery
@@ -286,29 +291,20 @@ export function createSnapshotSummaryQueries(
       ),
       metrics: [countMetric()],
     },
-    activeTotal: {
+    stockPartitions: {
       filter: activeFilter,
-      metrics: [countMetric()],
-    },
-    newerThanRange: {
-      filter: filter.and([
-        activeFilter,
-        filter.gte(
+      groupBy: [
+        aggregation.dateHistogram(
           ExecutionFailedAggregatedFields.STATE_EXECUTE_AT,
-          window.end,
+          {
+            alias: "executeAtBucket",
+            timeZone: window.timeZone,
+            unit: AggregationDateUnit.DAY,
+          },
         ),
-      ]),
+      ],
       metrics: [countMetric()],
-    },
-    olderThanRange: {
-      filter: filter.and([
-        activeFilter,
-        filter.lt(
-          ExecutionFailedAggregatedFields.STATE_EXECUTE_AT,
-          window.start,
-        ),
-      ]),
-      metrics: [countMetric()],
+      limit: MAX_TREND_DAYS,
     },
     timedOut: {
       filter: withSnapshotWindow(

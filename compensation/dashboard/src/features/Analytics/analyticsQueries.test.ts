@@ -76,55 +76,23 @@ describe("analyticsQueries", () => {
     [queries.actionableNow, queries.timedOut, queries.unrecoverable].forEach(
       expectSnapshotWindow,
     );
-    expect(queries).toHaveProperty("newerThanRange", {
-      filter: {
-        op: "AND",
-        operands: [
-          {
-            op: "IN",
-            field: "state.status",
-            values: [
-              ExecutionFailedStatus.FAILED,
-              ExecutionFailedStatus.PREPARED,
-            ],
-          },
-          {
-            op: "GTE",
-            field: "state.executeAt",
-            value: snapshotWindow.end,
-          },
-        ],
-      },
-      metrics: [{ type: "COUNT", alias: "count" }],
-    });
-    expect(queries).toHaveProperty("activeTotal", {
+    expect(queries).toHaveProperty("stockPartitions", {
       filter: {
         op: "IN",
         field: "state.status",
         values: [ExecutionFailedStatus.FAILED, ExecutionFailedStatus.PREPARED],
       },
+      groupBy: [
+        {
+          alias: "executeAtBucket",
+          field: "state.executeAt",
+          timeZone: snapshotWindow.timeZone,
+          type: "DATE_HISTOGRAM",
+          unit: "DAY",
+        },
+      ],
       metrics: [{ type: "COUNT", alias: "count" }],
-    });
-    expect(queries).toHaveProperty("olderThanRange", {
-      filter: {
-        op: "AND",
-        operands: [
-          {
-            op: "IN",
-            field: "state.status",
-            values: [
-              ExecutionFailedStatus.FAILED,
-              ExecutionFailedStatus.PREPARED,
-            ],
-          },
-          {
-            op: "LT",
-            field: "state.executeAt",
-            value: snapshotWindow.start,
-          },
-        ],
-      },
-      metrics: [{ type: "COUNT", alias: "count" }],
+      limit: 1_000,
     });
     expect(queries.actionableNow.metrics).toEqual([
       { type: "COUNT", alias: "count" },

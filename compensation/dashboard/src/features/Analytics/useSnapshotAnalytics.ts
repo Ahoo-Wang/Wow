@@ -21,6 +21,7 @@ import {
   createRetryHistogramQuery,
   createSnapshotSummaryQueries,
   mergePressureRows,
+  MAX_TREND_DAYS,
   trendWindowKey,
 } from "./analyticsQueries.ts";
 import type {
@@ -31,6 +32,7 @@ import type {
   RetryDistribution,
   RetryHistogramRow,
   SnapshotSummary,
+  StockPartitionRow,
   TrendWindow,
 } from "./analyticsQueries.ts";
 
@@ -188,14 +190,8 @@ async function loadSummary(
   abortController: AbortController,
 ): Promise<SnapshotSummary> {
   const queries = createSnapshotSummaryQueries(now, window);
-  const [
-    actionableNow,
-    timedOut,
-    unrecoverable,
-    activeTotal,
-    newerThanRange,
-    olderThanRange,
-  ] = await Promise.all([
+  const [actionableNow, timedOut, unrecoverable, stockPartitions] =
+    await Promise.all([
       aggregateExecutionFailedSnapshots<CountRow>(
         queries.actionableNow,
         undefined,
@@ -211,27 +207,35 @@ async function loadSummary(
         undefined,
         abortController,
       ),
-      aggregateExecutionFailedSnapshots<CountRow>(
-        queries.activeTotal,
-        undefined,
-        abortController,
-      ),
-      aggregateExecutionFailedSnapshots<CountRow>(
-        queries.newerThanRange,
-        undefined,
-        abortController,
-      ),
-      aggregateExecutionFailedSnapshots<CountRow>(
-        queries.olderThanRange,
+      aggregateExecutionFailedSnapshots<StockPartitionRow>(
+        queries.stockPartitions,
         undefined,
         abortController,
       ),
     ]);
+  const stock = stockPartitions.reduce(
+    (counts, { count, executeAtBucket }) => {
+      counts.activeTotal += count;
+      if (executeAtBucket < window.start) {
+        counts.olderThanRange += count;
+      } else if (executeAtBucket >= window.end) {
+        counts.newerThanRange += count;
+      } else {
+        counts.selectedInRange += count;
+      }
+      return counts;
+    },
+    {
+      activeTotal: 0,
+      newerThanRange: 0,
+      olderThanRange: 0,
+      selectedInRange: 0,
+    },
+  );
   return {
     actionableNow: actionableNow[0]?.count ?? 0,
-    activeTotal: activeTotal[0]?.count ?? 0,
-    newerThanRange: newerThanRange[0]?.count ?? 0,
-    olderThanRange: olderThanRange[0]?.count ?? 0,
+    ...stock,
+    stockTruncated: stockPartitions.length >= MAX_TREND_DAYS,
     timedOut: timedOut[0]?.count ?? 0,
     unrecoverable: unrecoverable[0]?.count ?? 0,
   };

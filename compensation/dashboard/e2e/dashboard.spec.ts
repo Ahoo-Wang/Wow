@@ -232,6 +232,13 @@ async function mockAnalyticsAggregations(
             nextRetryAt: 1_787_932_800_000,
           }),
         );
+      } else if (aliases.includes("executeAtBucket")) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        rows = [
+          { count: 680, executeAtBucket: today.getTime() - 365 * 86_400_000 },
+          { count: 320, executeAtBucket: today.getTime() },
+        ];
       } else if (aliases.includes("recoverable")) {
         rows = [
           { recoverable: "RECOVERABLE", count: 300 },
@@ -249,12 +256,6 @@ async function mockAnalyticsAggregations(
         rows = [{ count: 128 }];
       } else if (serializedFilter.includes("timeoutAt")) {
         rows = [{ count: 34 }];
-      } else if (!serializedFilter.includes("state.executeAt")) {
-        rows = [{ count: 1_000 }];
-      } else if (!serializedFilter.includes('"op":"GTE"')) {
-        rows = [{ count: 680 }];
-      } else if (!serializedFilter.includes('"op":"LT"')) {
-        rows = [{ count: 0 }];
       } else {
         rows = [{ count: 9 }];
       }
@@ -533,7 +534,7 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
   await expect(
     page.getByRole("heading", { name: "FLOW / Compensation effectiveness" }),
   ).toBeVisible();
-  await expect.poll(() => snapshotRequests).toBe(10);
+  await expect.poll(() => snapshotRequests).toBe(8);
   await expect.poll(() => eventRequests).toBe(4);
   const timeRange = page.getByRole("button", { name: /^Time range:/ });
   await expect(timeRange).toContainText("–");
@@ -572,33 +573,29 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
     ).toBeGreaterThanOrEqual(14);
   }
   await page.getByRole("button", { name: "Today", exact: true }).click();
-  await expect.poll(() => snapshotRequests).toBe(20);
+  await expect.poll(() => snapshotRequests).toBe(16);
   await expect.poll(() => eventRequests).toBe(8);
   await page.getByRole("button", { name: "Refresh dashboard" }).click();
-  await expect.poll(() => snapshotRequests).toBe(30);
+  await expect.poll(() => snapshotRequests).toBe(24);
   await expect.poll(() => eventRequests).toBe(12);
 
   const appliedWindows: Array<{ end: number; start: number }> = [];
   for (const batch of [0, 1, 2]) {
-    const snapshotWindows = snapshotQueries
-      .slice(batch * 10, batch * 10 + 10)
+    const batchSnapshotQueries = snapshotQueries.slice(
+      batch * 8,
+      batch * 8 + 8,
+    );
+    const stockPartitionSnapshots = batchSnapshotQueries.filter((query) =>
+      query.groupBy?.some(({ alias }) => alias === "executeAtBucket"),
+    );
+    const snapshotWindows = batchSnapshotQueries
+      .filter((query) => !stockPartitionSnapshots.includes(query))
       .map((query) => queryWindow(query, "state.executeAt"));
     const fullyWindowedSnapshots = snapshotWindows.filter(
       ({ end, start }) => Number.isFinite(start) && Number.isFinite(end),
     );
-    const olderSnapshot = snapshotWindows.filter(
-      ({ end, start }) => !Number.isFinite(start) && Number.isFinite(end),
-    );
-    const newerSnapshot = snapshotWindows.filter(
-      ({ end, start }) => Number.isFinite(start) && !Number.isFinite(end),
-    );
-    const allTimeSnapshot = snapshotWindows.filter(
-      ({ end, start }) => !Number.isFinite(start) && !Number.isFinite(end),
-    );
     expect(fullyWindowedSnapshots).toHaveLength(7);
-    expect(olderSnapshot).toHaveLength(1);
-    expect(newerSnapshot).toHaveLength(1);
-    expect(allTimeSnapshot).toHaveLength(1);
+    expect(stockPartitionSnapshots).toHaveLength(1);
     const eventWindows = eventQueries
       .slice(batch * 4, batch * 4 + 4)
       .map((query) => queryWindow(query, "createTime"));
@@ -611,8 +608,6 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
     expect(
       new Set(windows.map(({ end, start }) => `${start}:${end}`)).size,
     ).toBe(1);
-    expect(olderSnapshot[0]?.end).toBe(windows[0]?.start);
-    expect(newerSnapshot[0]?.start).toBe(windows[0]?.end);
     appliedWindows.push(windows[0] as { end: number; start: number });
   }
   expect(appliedWindows[0]).not.toEqual(appliedWindows[1]);
@@ -916,6 +911,12 @@ test("keeps zero-valued dashboard bars visually empty", async ({
       await route.fulfill({ json: [] });
       return;
     }
+    if (aliases.includes("executeAtBucket")) {
+      await route.fulfill({
+        json: [{ count: 680, executeAtBucket: Date.now() - 365 * 86_400_000 }],
+      });
+      return;
+    }
     const serializedFilter = JSON.stringify(query.filter);
     if (
       aliases.length === 0 &&
@@ -923,10 +924,6 @@ test("keeps zero-valued dashboard bars visually empty", async ({
       serializedFilter.includes('"op":"LT"')
     ) {
       await route.fulfill({ json: [{ count: 0 }] });
-      return;
-    }
-    if (!serializedFilter.includes("state.executeAt")) {
-      await route.fulfill({ json: [{ count: 680 }] });
       return;
     }
     await route.fallback();

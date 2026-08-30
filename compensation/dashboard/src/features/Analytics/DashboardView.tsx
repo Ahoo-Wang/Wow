@@ -279,17 +279,12 @@ export default function DashboardView() {
     (total, { count }) => total + count,
     0,
   );
-  const partitionTotal =
-    selectedActive !== undefined && snapshot.summary.data
-      ? selectedActive +
-        snapshot.summary.data.olderThanRange +
-        snapshot.summary.data.newerThanRange
-      : undefined;
   const activeTotal = snapshot.summary.data?.activeTotal;
   const stockPartitionsConsistent =
-    partitionTotal !== undefined &&
-    activeTotal !== undefined &&
-    partitionTotal === activeTotal;
+    selectedActive !== undefined &&
+    snapshot.summary.data !== undefined &&
+    !snapshot.summary.data.stockTruncated &&
+    snapshot.summary.data.selectedInRange === selectedActive;
   const summarySubsetsConsistent =
     selectedActive !== undefined &&
     snapshot.summary.data !== undefined &&
