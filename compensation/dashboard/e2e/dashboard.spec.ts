@@ -249,10 +249,10 @@ async function mockAnalyticsAggregations(
         rows = [{ count: 128 }];
       } else if (serializedFilter.includes("timeoutAt")) {
         rows = [{ count: 34 }];
-      } else if (!serializedFilter.includes("state.executeAt")) {
-        rows = [{ count: 1_000 }];
       } else if (!serializedFilter.includes('"op":"GTE"')) {
         rows = [{ count: 680 }];
+      } else if (!serializedFilter.includes('"op":"LT"')) {
+        rows = [{ count: 0 }];
       } else {
         rows = [{ count: 9 }];
       }
@@ -585,12 +585,16 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
     const olderSnapshot = snapshotWindows.filter(
       ({ end, start }) => !Number.isFinite(start) && Number.isFinite(end),
     );
+    const newerSnapshot = snapshotWindows.filter(
+      ({ end, start }) => Number.isFinite(start) && !Number.isFinite(end),
+    );
     const allTimeSnapshot = snapshotWindows.filter(
       ({ end, start }) => !Number.isFinite(start) && !Number.isFinite(end),
     );
     expect(fullyWindowedSnapshots).toHaveLength(7);
     expect(olderSnapshot).toHaveLength(1);
-    expect(allTimeSnapshot).toHaveLength(1);
+    expect(newerSnapshot).toHaveLength(1);
+    expect(allTimeSnapshot).toHaveLength(0);
     const eventWindows = eventQueries
       .slice(batch * 4, batch * 4 + 4)
       .map((query) => queryWindow(query, "createTime"));
@@ -604,6 +608,7 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
       new Set(windows.map(({ end, start }) => `${start}:${end}`)).size,
     ).toBe(1);
     expect(olderSnapshot[0]?.end).toBe(windows[0]?.start);
+    expect(newerSnapshot[0]?.start).toBe(windows[0]?.end);
     appliedWindows.push(windows[0] as { end: number; start: number });
   }
   expect(appliedWindows[0]).not.toEqual(appliedWindows[1]);

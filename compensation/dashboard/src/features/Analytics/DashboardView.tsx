@@ -274,14 +274,13 @@ export default function DashboardView() {
     (total, { count }) => total + count,
     0,
   );
-  const activeTotal = snapshot.summary.data?.activeTotal;
-  const stockCountsConsistent =
-    selectedActive !== undefined &&
-    activeTotal !== undefined &&
-    snapshot.summary.data !== undefined &&
-    selectedActive + snapshot.summary.data.olderThanRange <= activeTotal;
+  const activeTotal =
+    selectedActive !== undefined && snapshot.summary.data
+      ? selectedActive +
+        snapshot.summary.data.olderThanRange +
+        snapshot.summary.data.newerThanRange
+      : undefined;
   const scopeInsightsReady =
-    stockCountsConsistent &&
     selectedActive !== undefined &&
     activeTotal !== undefined &&
     snapshot.summary.updatedAt !== undefined &&
@@ -295,12 +294,7 @@ export default function DashboardView() {
     scopeInsightsReady && activeTotal > 0 ? selectedActive / activeTotal : 0;
   const newerThanRange =
     scopeInsightsReady && snapshot.summary.data
-      ? Math.max(
-          activeTotal -
-            selectedActive -
-            snapshot.summary.data.olderThanRange,
-          0,
-        )
+      ? snapshot.summary.data.newerThanRange
       : 0;
   const pressureInsightsReady =
     Boolean(snapshot.pressure.data?.length) &&

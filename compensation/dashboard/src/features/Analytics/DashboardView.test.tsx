@@ -99,7 +99,7 @@ beforeEach(() => {
     summary: {
       data: {
         actionableNow: 128,
-        activeTotal: 1_000,
+        newerThanRange: 0,
         olderThanRange: 968,
         timedOut: 34,
         unrecoverable: 9,
@@ -346,7 +346,7 @@ describe("DashboardView", () => {
   it("accounts for active failures newer than the selected range", () => {
     mocks.snapshotResult.summary.data = {
       actionableNow: 2,
-      activeTotal: 100,
+      newerThanRange: 15,
       olderThanRange: 60,
       timedOut: 1,
       unrecoverable: 4,
@@ -509,7 +509,7 @@ describe("DashboardView", () => {
     mocks.snapshotResult.summary = {
       data: {
         actionableNow: 128,
-        activeTotal: 1_000,
+        newerThanRange: 32,
         olderThanRange: 968,
         timedOut: 34,
         unrecoverable: 9,
@@ -544,10 +544,10 @@ describe("DashboardView", () => {
     ).toBeInTheDocument();
   });
 
-  it("does not present incoherent stock counts", () => {
+  it("does not derive newer stock from an independently read total", () => {
     mocks.snapshotResult.summary.data = {
       actionableNow: 0,
-      activeTotal: 20,
+      newerThanRange: 0,
       olderThanRange: 0,
       timedOut: 0,
       unrecoverable: 0,
@@ -559,14 +559,8 @@ describe("DashboardView", () => {
     render(<DashboardView />);
 
     const stock = screen.getByRole("region", { name: "Backlog exposure" });
-    expect(
-      within(stock).getByText("Backlog exposure unavailable."),
-    ).toBeInTheDocument();
-    expect(
-      within(stock).queryByRole("progressbar", {
-        name: "Selected active coverage",
-      }),
-    ).not.toBeInTheDocument();
+    expect(within(stock).getByText("0 newer")).toBeInTheDocument();
+    expect(within(stock).getByText("25 total")).toBeInTheDocument();
   });
 
   it("does not present incoherent pressure concentration", () => {
