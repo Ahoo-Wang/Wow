@@ -1,5 +1,7 @@
 # Query Gateway / ObjectNode 后端性能证据（2026-08-30）
 
+> **临时 Mask 降级说明：** `inPlace` 组合与文中 V9 source checksum 是删除 Mask 前的历史证据。当前 benchmark 已移除 masking 参数和相关实现，只测量无 Mask 的 Gateway/Backend/ObjectNode 路径；原始结果与 artifact 不追溯改写，也不作为当前 HEAD 的新性能证明。
+
 ## 结论
 
 本轮 32 个参数组合已全部完成，性能验收为 **PASS（accepted scoped exception）**：

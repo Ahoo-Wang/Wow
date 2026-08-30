@@ -15,16 +15,8 @@ package me.ahoo.wow.spring.boot.starter.query
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
-import me.ahoo.wow.query.event.filter.EventStreamQueryFilter
-import me.ahoo.wow.query.event.filter.MaskingEventStreamQueryFilter
 import me.ahoo.wow.query.filter.QueryContext
-import me.ahoo.wow.query.mask.EventStreamObjectNodeMasker
-import me.ahoo.wow.query.mask.EventStreamObjectNodeMaskerRegistry
-import me.ahoo.wow.query.mask.StateObjectNodeMasker
-import me.ahoo.wow.query.mask.StateObjectNodeMaskerRegistry
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
-import me.ahoo.wow.query.snapshot.filter.MaskingSnapshotQueryFilter
-import me.ahoo.wow.query.snapshot.filter.SnapshotQueryFilter
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.query.EventStreamQueryGatewayRegistrar
 import me.ahoo.wow.spring.query.SnapshotQueryGatewayRegistrar
@@ -42,32 +34,6 @@ import org.springframework.context.annotation.Import
 @Import(SnapshotQueryGatewayRegistrar::class, EventStreamQueryGatewayRegistrar::class)
 @ConditionalOnWowEnabled
 class QueryAutoConfiguration {
-
-    @Bean
-    fun stateObjectNodeMaskerRegistry(maskers: List<StateObjectNodeMasker>): StateObjectNodeMaskerRegistry {
-        val maskerRegistry = StateObjectNodeMaskerRegistry()
-        maskers.forEach(maskerRegistry::register)
-        return maskerRegistry
-    }
-
-    @Bean
-    fun eventStreamObjectNodeMaskerRegistry(
-        maskers: List<EventStreamObjectNodeMasker>
-    ): EventStreamObjectNodeMaskerRegistry {
-        val maskerRegistry = EventStreamObjectNodeMaskerRegistry()
-        maskers.forEach(maskerRegistry::register)
-        return maskerRegistry
-    }
-
-    @Bean
-    fun maskingSnapshotQueryFilter(stateObjectNodeMaskerRegistry: StateObjectNodeMaskerRegistry): SnapshotQueryFilter =
-        MaskingSnapshotQueryFilter(stateObjectNodeMaskerRegistry)
-
-    @Bean
-    fun maskingEventStreamQueryFilter(
-        eventStreamObjectNodeMaskerRegistry: EventStreamObjectNodeMaskerRegistry
-    ): EventStreamQueryFilter = MaskingEventStreamQueryFilter(eventStreamObjectNodeMaskerRegistry)
-
     @Bean("snapshotQueryErrorHandler")
     @ConditionalOnMissingBean(name = ["snapshotQueryErrorHandler"])
     fun snapshotQueryErrorHandler(): ErrorHandler<QueryContext<*, *>> = LogErrorHandler()

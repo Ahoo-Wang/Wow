@@ -13,8 +13,6 @@
 
 package me.ahoo.wow.spring.boot.starter.query
 
-import io.mockk.every
-import io.mockk.spyk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.abac.AbacTags
 import me.ahoo.wow.api.modeling.NamedAggregate
@@ -33,19 +31,13 @@ import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.query.event.NoOpEventStreamQueryBackendFactory
 import me.ahoo.wow.query.event.filter.EventStreamQueryFilter
-import me.ahoo.wow.query.event.filter.MaskingEventStreamQueryFilter
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
-import me.ahoo.wow.query.mask.EventStreamObjectNodeMasker
-import me.ahoo.wow.query.mask.EventStreamObjectNodeMaskerRegistry
-import me.ahoo.wow.query.mask.StateObjectNodeMasker
-import me.ahoo.wow.query.mask.StateObjectNodeMaskerRegistry
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.filter.AbacQueryFilter
-import me.ahoo.wow.query.snapshot.filter.MaskingSnapshotQueryFilter
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryFilter
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -97,28 +89,18 @@ class QueryAutoConfigurationTest {
         contextRunner
             .enableWow()
             .withUserConfiguration(QueryAutoConfiguration::class.java)
-            .withBean(StateObjectNodeMasker::class.java, {
-                spyk<StateObjectNodeMasker> {
-                    every { namedAggregate } returns MOCK_AGGREGATE_METADATA
-                }
-            })
-            .withBean(EventStreamObjectNodeMasker::class.java, {
-                spyk<EventStreamObjectNodeMasker> {
-                    every { namedAggregate } returns MOCK_AGGREGATE_METADATA
-                }
-            })
             .run { context: AssertableApplicationContext ->
                 context.assert()
                     .hasBean(SNAPSHOT_GATEWAY_BEAN_NAME)
                     .hasBean(EVENT_STREAM_GATEWAY_BEAN_NAME)
                     .hasBean("noOpSnapshotQueryBackendFactory")
                     .hasBean("noOpEventStreamQueryBackendFactory")
-                    .hasSingleBean(StateObjectNodeMaskerRegistry::class.java)
-                    .hasSingleBean(EventStreamObjectNodeMaskerRegistry::class.java)
-                    .hasSingleBean(MaskingSnapshotQueryFilter::class.java)
-                    .hasSingleBean(MaskingEventStreamQueryFilter::class.java)
                     .hasBean("snapshotQueryErrorHandler")
                     .hasBean("eventStreamQueryErrorHandler")
+                    .doesNotHaveBean("stateObjectNodeMaskerRegistry")
+                    .doesNotHaveBean("eventStreamObjectNodeMaskerRegistry")
+                    .doesNotHaveBean("maskingSnapshotQueryFilter")
+                    .doesNotHaveBean("maskingEventStreamQueryFilter")
                     .doesNotHaveBean("snapshotQueryFilterChain")
                     .doesNotHaveBean("eventStreamQueryFilterChain")
                     .doesNotHaveBean("snapshotQueryGateway")

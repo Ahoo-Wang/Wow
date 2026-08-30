@@ -438,6 +438,6 @@ val query = aggregation {
 - Snapshot queries append `DELETION = ACTIVE` by default. The root filter first selects snapshots, and each Element filter then selects individual expanded elements.
 - The runtime Query Model Schema and selected MongoDB or Elasticsearch mapping jointly prove whether logical fields support exact match, range, Element scope, TERMS, numeric, or temporal aggregation. A valid request DTO does not establish backend support.
 - The HTTP route executes through `SnapshotQueryGateway`, request-scope rewriting, and `HttpQueryGuardFilter`. When expensive operators are disabled, HTTP rejects Elements, metric-alias sorting, and arithmetic expressions. In-process JVM calls do not automatically receive these HTTP-only limits.
-- Aggregation result masking is intentionally skipped. Authorization, tenant/owner/space scope, and sensitive-field modeling must be enforced before aggregation; result masking cannot repair a leak afterward.
+- The current V9 provides no built-in result Mask. Enforce authorization, tenant/owner/space scope, and sensitive-field modeling before aggregation; result processing cannot repair a leak afterward.
 - MongoDB and Elasticsearch share the public AST but do not promise identical physical pipelines, mappings, null handling, or bucket details. `ANY` in particular provides no stable value across executions or backends.
 - A custom `SnapshotQueryBackend` must implement the aggregation contract. Working data-query routes or published OpenAPI alone do not prove that the Backend executes aggregation.

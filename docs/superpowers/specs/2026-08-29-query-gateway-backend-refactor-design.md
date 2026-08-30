@@ -1,5 +1,7 @@
 # 查询模块 Gateway / Backend 分层重构设计
 
+> **2026-08-30 覆盖决策：** 当前 V9 临时删除全部 Mask API、Registry、内建 Masking Filter 与自动配置，不建立 ObjectNode Mask 兼容层。本文后续所有 Masking/ObjectNode masker 合同、测试与性能轴均为已被覆盖的历史设计记录；Snapshot、EventStream 与 aggregate-state load 暂时返回原始字段值，静态注解替代方案由独立任务继续。
+
 ## 背景
 
 当前查询模块包含两组重叠职责：

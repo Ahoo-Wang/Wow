@@ -37,14 +37,9 @@ import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCollectionName
 import me.ahoo.wow.mongo.Documents.replaceAggregateIdToPrimaryKey
 import me.ahoo.wow.mongo.SnapshotSchemaInitializer
 import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryBackend
-import me.ahoo.wow.query.filter.QueryContext
-import me.ahoo.wow.query.mask.StateObjectNodeMasker
-import me.ahoo.wow.query.mask.StateObjectNodeMaskerRegistry
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
-import me.ahoo.wow.query.snapshot.filter.MaskingSnapshotQueryFilter
-import me.ahoo.wow.query.snapshot.filter.SnapshotQueryFilter
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toLinkedHashMap
 import org.bson.Document
@@ -64,22 +59,18 @@ import org.openjdk.jmh.annotations.Threads
 import org.openjdk.jmh.annotations.Warmup
 import org.openjdk.jmh.infra.Blackhole
 import reactor.kotlin.core.publisher.toMono
-import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
 import java.util.Random
 import java.util.concurrent.TimeUnit
 
 private const val DATASET_SIZE = 1_000
 private const val DATASET_SEED = 20_260_829L
-private const val MASK_FIELD = "maskProbe"
-private const val MASK_VALUE = "***"
 private const val ELASTICSEARCH_BATCH_SIZE = 100
 
 data class QueryBenchmarkState(
     val id: String,
     val group: Int,
     val payload: String,
-    var maskProbe: String? = null,
 ) {
     constructor(id: String) : this(id, 0, "")
 }
@@ -101,9 +92,6 @@ open class QueryGatewayBackendBenchmark {
     @Param("dynamic", "typed")
     lateinit var result: String
 
-    @Param("none", "inPlace")
-    lateinit var masking: String
-
     private val namedAggregate: NamedAggregate = MaterializedNamedAggregate("benchmark-query", "query_benchmark")
     private lateinit var gateway: SnapshotQueryGateway<QueryBenchmarkState>
     private lateinit var singleQuery: ISingleQuery
@@ -120,8 +108,6 @@ open class QueryGatewayBackendBenchmark {
             "Unsupported operation: $operation"
         }
         require(result == "dynamic" || result == "typed") { "Unsupported result: $result" }
-        require(masking == "none" || masking == "inPlace") { "Unsupported masking: $masking" }
-
         val backend = when (storage) {
             "mongo" -> setupMongo()
             "elasticsearch" -> setupElasticsearch()
@@ -135,10 +121,7 @@ open class QueryGatewayBackendBenchmark {
 
         val probe = executeConfiguredQuery()
         check(recordCount(probe) == expectedRecordCount()) {
-            "Unexpected result count for $storage/$operation/$result/$masking: ${recordCount(probe)}"
-        }
-        check(maskProbe(probe) == (MASK_VALUE.takeIf { masking == "inPlace" })) {
-            "Unexpected mask result for $storage/$operation/$result/$masking: ${maskProbe(probe)}"
+            "Unexpected result count for $storage/$operation/$result: ${recordCount(probe)}"
         }
     }
 
@@ -162,25 +145,6 @@ open class QueryGatewayBackendBenchmark {
     }
 
     private fun createGateway(backend: SnapshotQueryBackend): SnapshotQueryGateway<QueryBenchmarkState> {
-        val filters = buildList<SnapshotQueryFilter> {
-            if (masking == "inPlace") {
-                val registry = StateObjectNodeMaskerRegistry().apply {
-                    register(
-                        object : StateObjectNodeMasker {
-                            override val namedAggregate: NamedAggregate = this@QueryGatewayBackendBenchmark.namedAggregate
-
-                            override fun mask(node: ObjectNode): ObjectNode {
-                                val state = node.path("state")
-                                check(state is ObjectNode) { "Snapshot state must be an ObjectNode." }
-                                state.put(MASK_FIELD, MASK_VALUE)
-                                return node
-                            }
-                        },
-                    )
-                }
-                add(MaskingSnapshotQueryFilter(registry))
-            }
-        }
         val targetType = JsonSerializer.typeFactory.constructParametricType(
             MaterializedSnapshot::class.java,
             QueryBenchmarkState::class.java,
@@ -189,7 +153,7 @@ open class QueryGatewayBackendBenchmark {
             namedAggregate = namedAggregate,
             backend = backend,
             targetType = targetType,
-            filters = filters,
+            filters = emptyList(),
         )
     }
 
@@ -294,19 +258,6 @@ open class QueryGatewayBackendBenchmark {
         is List<*> -> queryResult.size
         is PagedList<*> -> queryResult.list.size
         else -> 1
-    }
-
-    private fun maskProbe(queryResult: Any): String? {
-        val record = when (queryResult) {
-            is List<*> -> queryResult.first()
-            is PagedList<*> -> queryResult.list.first()
-            else -> queryResult
-        }
-        return when (record) {
-            is ObjectNode -> record.path("state").path(MASK_FIELD).takeIf { it.isString }?.stringValue()
-            is MaterializedSnapshot<*> -> (record.state as QueryBenchmarkState).maskProbe
-            else -> error("Unexpected query result: ${record?.javaClass?.name}")
-        }
     }
 
     private fun aggregateId(index: Int): String = "query-benchmark-%04d".format(index)

@@ -55,6 +55,8 @@ Pin the exact V9 tag or commit first. When that target contains the V9 query spl
 
 | V8.16.x | V9 |
 |---|---|
+| `QueryService<R>` | Deleted; split into `QueryBackend` and an aggregate-bound `QueryGateway<R>` |
+| `QueryGateway<R>` / `AbstractQueryGateway<R>` | Names retained, but the contract becomes aggregate-bound |
 | `SnapshotQueryService<S>` | `SnapshotQueryGateway<S>` |
 | `EventStreamQueryService` | `EventStreamQueryGateway` |
 | `QueryServiceCacheSource` | `QueryGatewayCacheSource` |
@@ -76,22 +78,34 @@ Pin the exact V9 tag or commit first. When that target contains the V9 query spl
 | `ElasticsearchEventStreamQueryServiceFactory` | `ElasticsearchEventStreamQueryBackendFactory` |
 | `SnapshotQueryServiceFactoryBinding` | `SnapshotQueryBackendFactoryBinding` |
 | `EventStreamQueryServiceFactoryBinding` | `EventStreamQueryBackendFactoryBinding` |
-| `UnavailableQueryService` | `UnavailableQueryBackend` |
+| `NoOpSnapshotQueryService<S>` | `NoOpSnapshotQueryBackend` |
+| `NoOpEventStreamQueryService` | `NoOpEventStreamQueryBackend` |
+| `NoOpSnapshotQueryServiceFactory` | `NoOpSnapshotQueryBackendFactory` |
+| `NoOpEventStreamQueryServiceFactory` | `NoOpEventStreamQueryBackendFactory` |
 | `QueryServiceRegistrar` | `QueryGatewayRegistrar` |
 | `SnapshotQueryServiceRegistrar` | `SnapshotQueryGatewayRegistrar` |
 | `EventStreamQueryServiceRegistrar` | `EventStreamQueryGatewayRegistrar` |
 | `QueryServiceProxy` / snapshot / event-stream proxies | Deleted; inject the aggregate-bound Gateway directly |
 | `DynamicDocument` / `SimpleDynamicDocument` | `tools.jackson.databind.node.ObjectNode` |
-| `DynamicDocumentMasker` | `ObjectNodeMasker` |
+| `DynamicDocumentMasker` and Aggregate/State/EventStream subtypes | Deleted; no replacement in the current version |
+| `AggregateDataMasker` / `DefaultAggregateDataMasker` | Deleted; no replacement in the current version |
+| `DataMaskerRegistry` / `AbstractDataMaskerRegistry` and model registries | Deleted; no replacement in the current version |
+| `DataMasker` / `DataMasking` / `tryMask` | Deleted; no replacement in the current version |
+| `MaskingDynamicDocumentQueryFilter` | Deleted; no replacement in the current version |
 | `QueryType.DYNAMIC_SINGLE` / `DYNAMIC_LIST` / `DYNAMIC_PAGED` | `SINGLE` / `LIST` / `PAGED` |
+| `QueryType.isDynamic` | Deleted; typed and node paths share operation types |
+
+`QueryService<R>` has no one-to-one replacement. Move storage execution and Schema capability to an `ObjectNode`-returning `QueryBackend`; keep the managed entry, filtering, and typed materialization in the aggregate-bound `QueryGateway<R>`. The V8 Gateway accepted a `NamedAggregate` on every method call. V9 binds the `NamedAggregate` and routed Backend when constructing the Gateway, so callers remove that method argument. Custom `AbstractQueryGateway` subclasses supply `namedAggregate`, `backend`, `targetType`, `filters`, `filterType`, and `errorHandler`; use the default Snapshot/EventStream Gateway when no custom entry policy is required. Filters cannot use `QueryType.isDynamic`: typed and node calls share one ObjectNode chain and differ only by optional Jackson materialization after it. Remove typed/dynamic dispatch branches instead of inventing a replacement discriminator.
+
+Delete old Mask types, implementations, Beans, registries, and custom filters. The current V9 creates no ObjectNode Mask compatibility layer and provides no built-in replacement. Snapshot, EventStream, and direct aggregate-state loads return raw field values. This is an accepted temporary downgrade until a separate static-annotation task restores masking; protect sensitive endpoints with access control or external isolation rather than inventing an interim Mask API.
 
 Spring registers `{contextAlias.}{aggregateName}.SnapshotQueryGateway` and `{contextAlias.}{aggregateName}.EventStreamQueryGateway`; omit the alias prefix when absent, and do not retain the old `*.QueryService` bean names. A `QueryFilter` without `@FilterType` applies generally; a model-specific filter targets `SnapshotQueryGateway` or `EventStreamQueryGateway`.
 
-Each aggregate-bound Gateway captures the routed `ObjectNode` Backend during bean construction and runs one around chain. Request filters rewrite or reject before `next`; the terminal invokes the Backend and stores its result Publisher; result filters run after `next` and may rewrite that Publisher. The built-in snapshot/event-stream masker applies to `SINGLE`, `LIST`, and `PAGED`, before the Gateway optionally materializes typed results with Jackson; it does not mask `COUNT` or `AGGREGATION`. Application and transport code use the Gateway. Direct Backend Factory access is a trusted low-level path that bypasses request filtering, authorization, result masking, and error observation. Schema handlers use the same routed Backend Factory and `NamedAggregate` selection as queries.
+Each aggregate-bound Gateway captures the routed `ObjectNode` Backend during bean construction and runs one around chain. Request filters rewrite or reject before `next`; the terminal invokes the Backend and stores its result Publisher; result filters run after `next` and may rewrite that Publisher. The Gateway optionally materializes typed results with Jackson after the chain. Application and transport code use the Gateway. Direct Backend Factory access is a trusted low-level path that bypasses request filtering, authorization, result filters, and error observation. Schema handlers use the same routed Backend Factory and `NamedAggregate` selection as queries.
 
-Every Backend subscription must produce fresh, exclusively owned `ObjectNode` values containing only standard JSON tree nodes. Do not cache or share mutable nodes across retry, repeat, or concurrent subscriptions, expose `Map`, BSON, `POJONode`, or arbitrary POJOs, or mutate a node after publication. An `ObjectNodeMasker` may mutate its input or return a replacement, but must preserve required snapshot/event-stream envelope fields and typed field shapes; typed materialization fails closed after masking.
+Every Backend subscription must produce fresh, exclusively owned `ObjectNode` values containing only standard JSON tree nodes. Do not cache or share mutable nodes across retry, repeat, or concurrent subscriptions, expose `Map`, BSON, `POJONode`, or arbitrary POJOs, or mutate a node after publication.
 
-Factory JVM names change, but public route binding values deliberately retain the `*-query-service-factory` suffix, including `mongo-snapshot-query-service-factory` and `elasticsearch-event-stream-query-service-factory`. This split is JVM source- and binary-breaking, so rebuild downstream code. By itself it does not change HTTP paths, request/response JSON, generated OpenAPI, wire formats, storage layouts, or existing data, and therefore requires no data conversion. Verify compilation, exact Spring bean/qualifier startup, managed Gateway filtering and masking, trusted raw Backend behavior, generated HTTP routes, Schema routes, and every routed MongoDB/Elasticsearch Backend actually used.
+Factory JVM names change, but public route binding values deliberately retain the `*-query-service-factory` suffix, including `mongo-snapshot-query-service-factory` and `elasticsearch-event-stream-query-service-factory`. This split is JVM source- and binary-breaking, so rebuild downstream code. By itself it does not change HTTP paths, request/response JSON structure, generated OpenAPI, wire structure, storage layouts, or existing data, and therefore requires no data conversion. Removing Mask does change response value and confidentiality semantics because formerly hidden fields become raw. Verify compilation, exact Spring bean/qualifier startup, managed Gateway filtering, trusted raw Backend behavior, generated HTTP routes, Schema routes, every routed MongoDB/Elasticsearch Backend, and the temporary Mask downgrade actually used.
 
 ## Runtime and data coupling
 

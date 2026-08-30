@@ -225,11 +225,11 @@ This example represents an application policy; adapt it to the actual security c
 
 ### Query Entry Points and Policy Enforcement
 
-Spring-registered aggregate `SnapshotQueryGateway` and `EventStreamQueryGateway` Beans execute configured ABAC filters and result masking. In-process calls do not execute WebFlux `RewriteRequestFilter`; callers must provide tenant, owner, and space scope explicitly in the query or through a trusted context supported by their filters.
+Spring-registered aggregate `SnapshotQueryGateway` and `EventStreamQueryGateway` Beans execute configured ABAC and generic query filters. In-process calls do not execute WebFlux `RewriteRequestFilter`; callers must provide tenant, owner, and space scope explicitly in the query or through a trusted context supported by their filters. The current V9 temporarily provides no automatic Mask, so queries and aggregate-state loads can return raw field values. Do not rely on the old masking behavior to protect sensitive endpoints before the static-annotation replacement ships.
 
 `SnapshotQueryBackendFactory` and `EventStreamQueryBackendFactory` are raw backend entries. Directly created Backends bypass the `QueryGateway` policy chain and are trusted infrastructure access.
 
-Aggregation uses the snapshot filter chain for its root filter, but result masking skips dynamic aggregation rows. Do not present aggregation merely because ordinary snapshot masking exists.
+Aggregation uses the snapshot filter chain for its root filter, but there is currently no built-in result Mask. Do not expose sensitive aggregation merely because ordinary snapshot queries pass through ABAC.
 
 ## Required Security Closure
 

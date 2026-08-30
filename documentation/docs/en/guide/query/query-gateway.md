@@ -7,7 +7,7 @@ description: Understand how a query reaches its backend through context, filter 
 
 ## Why queries go through the Gateway first
 
-`SnapshotQueryGateway<S>` and `EventStreamQueryGateway` are the application query entries and the policy boundary. Spring registers a bound Gateway per aggregate so request rewriting, HTTP guards, authorization, and result masking execute in one around chain.
+`SnapshotQueryGateway<S>` and `EventStreamQueryGateway` are the application query entries and the policy boundary. Spring registers a bound Gateway per aggregate so request rewriting, HTTP guards, authorization, and generic result handling execute in one around chain.
 
 Business code should not normally bypass the Gateway. Use a Factory directly only for infrastructure extensions or when raw backend semantics are explicitly required; that call does not run the Gateway policy chain.
 
@@ -22,15 +22,13 @@ sequenceDiagram
     participant Gateway as Aggregate-bound Gateway
     participant Filters as One around chain
     participant Backend as Bound QueryBackend
-    participant Mask as ObjectNode result mask
     participant Jackson as Optional typed conversion
     Caller->>Entry: Query DTO / DSL
     Entry->>Gateway: Query after scope rewriting
     Gateway->>Gateway: Create QueryContext + QueryType
     Gateway->>Filters: Run request filters
     Filters->>Backend: single / list / paged / count / aggregate
-    Backend-->>Mask: ObjectNode / PagedList / count
-    Mask-->>Filters: Run result filters
+    Backend-->>Filters: ObjectNode / PagedList / count
     Filters-->>Jackson: Complete chain
     Jackson-->>Caller: ObjectNode or typed result
 ```
@@ -53,15 +51,15 @@ The Gateway creates an independent `QueryContext` for every subscription, so sep
 
 `HttpQueryGuardFilter` belongs to both Gateways, but applies only when a `ServerRequest` exists in the Reactor Context; it does not change ordinary in-process query constraints.
 
-## ABAC and result masking
+## ABAC and the temporary Mask downgrade
 
-The built-in `AbacQueryFilter` belongs to the snapshot Gateway. Snapshot and event-stream result masking both process Backend `ObjectNode` values, so typed results are masked before materialization. Count and aggregation skip this mask.
+The built-in `AbacQueryFilter` belongs to the snapshot Gateway. The current V9 query architecture temporarily provides no built-in Mask API, registry, or result-masking filter. Snapshot, EventStream, and direct aggregate-state loads do not automatically hide field values. A follow-up task will restore one static-annotation design; until then, do not treat the Gateway as a masking boundary.
 
 For authentication, Principal binding, and the complete fail-closed policy, see [Data Access Control](../data-access.md).
 
 ## Raw Factory Boundary
 
-Calling `SnapshotQueryBackendFactory` or `EventStreamQueryBackendFactory` directly bypasses the entire Gateway governance chain, including ABAC and result masking. These Factories are trusted low-level SPIs for storage extensions, focused diagnostics, and backend contract tests. Ordinary application code should inject the aggregate-bound Gateway.
+Calling `SnapshotQueryBackendFactory` or `EventStreamQueryBackendFactory` directly bypasses the entire Gateway governance chain, including ABAC and result filters. These Factories are trusted low-level SPIs for storage extensions, focused diagnostics, and backend contract tests. Ordinary application code should inject the aggregate-bound Gateway.
 
 ## Bean Names
 

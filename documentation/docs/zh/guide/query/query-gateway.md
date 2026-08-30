@@ -7,7 +7,7 @@ description: 理解查询请求如何经过上下文、过滤器链、权限与�
 
 ## 为什么查询先经过 Gateway
 
-`SnapshotQueryGateway<S>` 与 `EventStreamQueryGateway` 是业务查询入口，也是策略执行边界。Spring 为每个聚合注册绑定后的 Gateway，使请求重写、HTTP 护栏、权限过滤和结果掩码在同一条 around chain 中执行。
+`SnapshotQueryGateway<S>` 与 `EventStreamQueryGateway` 是业务查询入口，也是策略执行边界。Spring 为每个聚合注册绑定后的 Gateway，使请求重写、HTTP 护栏、权限过滤和通用结果处理在同一条 around chain 中执行。
 
 业务代码通常不应绕过 Gateway。只有基础设施扩展或明确需要原始后端语义时，才直接使用 Factory；这种调用不会执行 Gateway 策略链。
 
@@ -22,15 +22,13 @@ sequenceDiagram
     participant Gateway as 聚合绑定 Gateway
     participant Filters as 一条 around chain
     participant Backend as 绑定的 QueryBackend
-    participant Mask as ObjectNode 结果掩码
     participant Jackson as 可选类型化转换
     Caller->>Entry: Query DTO / DSL
     Entry->>Gateway: 作用域重写后的查询
     Gateway->>Gateway: 创建 QueryContext + QueryType
     Gateway->>Filters: 执行请求过滤器
     Filters->>Backend: single / list / paged / count / aggregate
-    Backend-->>Mask: ObjectNode / PagedList / count
-    Mask-->>Filters: 执行结果过滤器
+    Backend-->>Filters: ObjectNode / PagedList / count
     Filters-->>Jackson: 完成 chain
     Jackson-->>Caller: ObjectNode 或类型化结果
 ```
@@ -53,15 +51,15 @@ Gateway 在每次订阅时创建独立的 `QueryContext`，因此同一个响应
 
 `HttpQueryGuardFilter` 同时属于两个 Gateway，但只有 Reactor Context 中存在 `ServerRequest` 时才生效；它不会改变普通进程内查询的约束。
 
-## ABAC 与结果脱敏
+## ABAC 与临时 Mask 降级
 
-内建 `AbacQueryFilter` 位于快照查询网关。快照与事件流结果掩码都作用于 Backend 返回的 `ObjectNode`，因此 typed 结果也先掩码再物化；计数与聚合不执行该掩码。
+内建 `AbacQueryFilter` 位于快照查询网关。当前 V9 查询架构临时不提供内建 Mask API、Registry 或结果脱敏 Filter；Snapshot、EventStream 与直接 aggregate-state load 都不会自动遮蔽字段值。静态注解方案由后续任务统一恢复，在此之前不得把 Gateway 视为脱敏边界。
 
 认证、Principal 绑定和完整的失败关闭策略请参阅[数据权限](../data-access.md)。
 
 ## 原始 Factory 边界
 
-直接调用 `SnapshotQueryBackendFactory` 或 `EventStreamQueryBackendFactory` 会绕过整条 Gateway 治理链，包括 ABAC 与结果掩码。这些 Factory 是受信低层 SPI，只适合存储扩展、聚焦诊断和后端合同测试；常规应用代码应注入聚合绑定的 Gateway。
+直接调用 `SnapshotQueryBackendFactory` 或 `EventStreamQueryBackendFactory` 会绕过整条 Gateway 治理链，包括 ABAC 与结果 Filter。这些 Factory 是受信低层 SPI，只适合存储扩展、聚焦诊断和后端合同测试；常规应用代码应注入聚合绑定的 Gateway。
 
 ## Bean 名
 

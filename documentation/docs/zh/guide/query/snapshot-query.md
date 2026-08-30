@@ -44,7 +44,7 @@ fun findPaidOrders(queryGateway: SnapshotQueryGateway<OrderState>) = pagedQuery 
 
 ## JVM 查询
 
-注入聚合级 `SnapshotQueryGateway<S>` 后，可通过扩展执行 typed 的 single/list/paged/count；`dynamicQuery` 返回 `ObjectNode`，适用于 projection 改变返回形状的场景。Gateway 先让 Backend 返回节点并完成结果掩码，再用 Jackson 物化 typed 结果；直接 Factory 的绕过条件见[查询后端](./query-backend.md)与[查询网关](./query-gateway.md)。
+注入聚合级 `SnapshotQueryGateway<S>` 后，可通过扩展执行 typed 的 single/list/paged/count；`dynamicQuery` 返回 `ObjectNode`，适用于 projection 改变返回形状的场景。Gateway 先让 Backend 返回节点并完成通用结果 Filter，再用 Jackson 物化 typed 结果；当前 V9 临时不提供自动 Mask。直接 Factory 的绕过条件见[查询后端](./query-backend.md)与[查询网关](./query-gateway.md)。
 
 ## HTTP 路由
 
