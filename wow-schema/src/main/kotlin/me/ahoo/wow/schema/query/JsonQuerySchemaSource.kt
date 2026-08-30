@@ -58,6 +58,7 @@ import tools.jackson.databind.ser.std.StdContainerSerializer
 import tools.jackson.databind.util.Converter
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
+import java.lang.reflect.Modifier
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.jvm.kotlinFunction
 import kotlin.reflect.jvm.kotlinProperty
@@ -177,7 +178,7 @@ class JsonQuerySchemaSource(
     }
 }
 
-private fun Method.isComputedGetter(): Boolean = parameterCount == 0 &&
+private fun Method.isComputedGetter(): Boolean = Modifier.isPublic(modifiers) && parameterCount == 0 &&
     when {
         name == "getClass" -> false
         name.startsWith("get") -> name.length > 3

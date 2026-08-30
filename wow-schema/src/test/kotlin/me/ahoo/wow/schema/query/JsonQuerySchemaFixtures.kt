@@ -456,6 +456,12 @@ internal data class InterfaceGetterMaskedState(
     override val inheritedToken: String,
 ) : GetterMaskedState
 
+internal open class NonPublicComputedGetterState {
+    private fun getPrivateSecret(): String = "private"
+
+    protected fun getProtectedSecret(): String = "protected"
+}
+
 internal interface PrefixGetterMaskedState {
     @get:KeepMask(prefix = 1)
     val inheritedToken: String
