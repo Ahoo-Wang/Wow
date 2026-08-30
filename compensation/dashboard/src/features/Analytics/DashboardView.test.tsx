@@ -142,6 +142,13 @@ describe("DashboardView", () => {
   });
 
   it("makes stock, flow, and pressure concentration the primary signals", () => {
+    mocks.snapshotResult.summary.data = {
+      actionableNow: 12,
+      newerThanRange: 0,
+      olderThanRange: 968,
+      timedOut: 3,
+      unrecoverable: 4,
+    };
     mocks.snapshotResult.recoverability.data = [
       { recoverable: RecoverableType.UNKNOWN, count: 2 },
       { recoverable: RecoverableType.UNRECOVERABLE, count: 30 },
@@ -363,6 +370,9 @@ describe("DashboardView", () => {
   });
 
   it("applies one complete local date range to both facts", () => {
+    mocks.snapshotResult.recoverability.data = [
+      { recoverable: RecoverableType.UNRECOVERABLE, count: 200 },
+    ];
     render(<DashboardView />);
 
     expect(screen.getByText("128")).toBeInTheDocument();
@@ -561,6 +571,29 @@ describe("DashboardView", () => {
     const stock = screen.getByRole("region", { name: "Backlog exposure" });
     expect(within(stock).getByText("0 newer")).toBeInTheDocument();
     expect(within(stock).getByText("25 total")).toBeInTheDocument();
+  });
+
+  it("does not present summary subsets larger than selected active", () => {
+    mocks.snapshotResult.summary.data = {
+      actionableNow: 1,
+      newerThanRange: 0,
+      olderThanRange: 0,
+      timedOut: 1,
+      unrecoverable: 1,
+    };
+    mocks.snapshotResult.recoverability.data = [];
+
+    render(<DashboardView />);
+
+    const stock = screen.getByRole("region", { name: "Backlog exposure" });
+    expect(
+      within(stock).getByText("Backlog exposure unavailable."),
+    ).toBeInTheDocument();
+    expect(
+      within(stock).queryByRole("progressbar", {
+        name: "Selected active coverage",
+      }),
+    ).not.toBeInTheDocument();
   });
 
   it("does not present incoherent pressure concentration", () => {

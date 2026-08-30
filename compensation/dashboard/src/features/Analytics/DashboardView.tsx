@@ -280,7 +280,16 @@ export default function DashboardView() {
         snapshot.summary.data.olderThanRange +
         snapshot.summary.data.newerThanRange
       : undefined;
+  const summarySubsetsConsistent =
+    selectedActive !== undefined &&
+    snapshot.summary.data !== undefined &&
+    Math.max(
+      snapshot.summary.data.actionableNow,
+      snapshot.summary.data.timedOut,
+      snapshot.summary.data.unrecoverable,
+    ) <= selectedActive;
   const scopeInsightsReady =
+    summarySubsetsConsistent &&
     selectedActive !== undefined &&
     activeTotal !== undefined &&
     snapshot.summary.updatedAt !== undefined &&
