@@ -34,6 +34,8 @@ class MaskingTest {
         mask.mask("1234567").assert().isEqualTo("*******")
         KeepMaskStrategy.compile(HugeKeep::value.javaField!!.getAnnotation(KeepMask::class.java))
             .mask("short").assert().isEqualTo("*****")
+        KeepMaskStrategy.compile(UnicodeKept::value.javaField!!.getAnnotation(KeepMask::class.java))
+            .mask("A中😀BCD").assert().isEqualTo("A中**CD")
     }
 
     @Test
@@ -48,4 +50,5 @@ class MaskingTest {
     private data class Kept(@field:KeepMask(prefix = 3, suffix = 4) val phone: String)
     private data class InvalidKeep(@field:KeepMask(prefix = -1) val value: String)
     private data class HugeKeep(@field:KeepMask(prefix = Int.MAX_VALUE, suffix = 1) val value: String)
+    private data class UnicodeKept(@field:KeepMask(prefix = 2, suffix = 2) val value: String)
 }

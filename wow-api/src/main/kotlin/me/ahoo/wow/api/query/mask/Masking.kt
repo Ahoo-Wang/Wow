@@ -22,10 +22,18 @@ import kotlin.reflect.KClass
 @MustBeDocumented
 annotation class Masking(val strategy: KClass<out MaskStrategy<*>>)
 
+/**
+ * Compiles [annotation] only during schema construction.
+ * The returned [CompiledMask] must be thread-safe, non-blocking, and non-null.
+ */
 interface MaskStrategy<A : Annotation> {
     fun compile(annotation: A): CompiledMask
 }
 
+/**
+ * Reusable result of [MaskStrategy.compile].
+ * [mask] may be invoked concurrently, must not block, and returns a non-null value.
+ */
 fun interface CompiledMask {
     fun mask(value: String): String
 }

@@ -76,30 +76,7 @@ data class QueryFieldDeclaration(
     val semanticType: DeclarationValue<QuerySemanticType?> = DeclarationValue.Unset,
     val dynamicChildren: DeclarationValue<Boolean> = DeclarationValue.Unset,
     @get:JsonIgnore val maskRule: DeclarationValue<MaskRule> = DeclarationValue.Unset,
-) {
-    constructor(
-        title: DeclarationValue<String?>,
-        description: DeclarationValue<String?>,
-        enumValues: DeclarationValue<List<JsonNode>?>,
-        valueTypes: DeclarationValue<Set<QueryValueType>>,
-        nullable: DeclarationValue<Boolean>,
-        required: DeclarationValue<Boolean>,
-        cardinality: DeclarationValue<QueryCardinality>,
-        semanticType: DeclarationValue<QuerySemanticType?>,
-        dynamicChildren: DeclarationValue<Boolean>,
-    ) : this(
-        title = title,
-        description = description,
-        enumValues = enumValues,
-        valueTypes = valueTypes,
-        nullable = nullable,
-        required = required,
-        cardinality = cardinality,
-        semanticType = semanticType,
-        dynamicChildren = dynamicChildren,
-        maskRule = DeclarationValue.Unset,
-    )
-}
+)
 
 interface QuerySchemaSource {
     val priority: Int
