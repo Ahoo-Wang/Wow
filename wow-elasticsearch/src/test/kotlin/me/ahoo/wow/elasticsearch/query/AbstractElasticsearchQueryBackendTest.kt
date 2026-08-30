@@ -151,9 +151,21 @@ class AbstractElasticsearchQueryBackendTest {
     }
 
     @Test
+    fun `query source should deserialize directly to object node`() {
+        val sourceType = slot<Class<ObjectNode>>()
+        every { elasticsearchClient.search(any<SearchRequest>(), capture(sourceType)) } returns Mono.just(
+            emptyObjectNodeSearchResponse(),
+        )
+
+        queryBackend.list(ListQuery(MatchAllFilter, limit = 1)).collectList().block()
+
+        sourceType.captured.assert().isEqualTo(ObjectNode::class.java)
+    }
+
+    @Test
     fun `dynamic list should not track exact total hits`() {
         val request = slot<SearchRequest>()
-        every { elasticsearchClient.search(capture(request), Map::class.java) } returns Mono.just(
+        every { elasticsearchClient.search(capture(request), ObjectNode::class.java) } returns Mono.just(
             searchResponse(total = null)
         )
 
@@ -180,7 +192,7 @@ class AbstractElasticsearchQueryBackendTest {
         val searchRequest = slot<SearchRequest>()
         val closeRequest = slot<ClosePointInTimeRequest>()
         every { elasticsearchClient.openPointInTime(capture(openRequest)) } returns Mono.just(openPointInTimeResponse())
-        every { elasticsearchClient.search(capture(searchRequest), Map::class.java) } returns Mono.just(
+        every { elasticsearchClient.search(capture(searchRequest), ObjectNode::class.java) } returns Mono.just(
             searchResponse(total = null, pitId = "pit-2")
         )
         every { elasticsearchClient.closePointInTime(capture(closeRequest)) } returns Mono.just(
@@ -206,7 +218,7 @@ class AbstractElasticsearchQueryBackendTest {
         every { elasticsearchClient.openPointInTime(any<OpenPointInTimeRequest>()) } returns Mono.just(
             openPointInTimeResponse()
         )
-        every { elasticsearchClient.search(capture(searchRequest), Map::class.java) } returns Mono.just(
+        every { elasticsearchClient.search(capture(searchRequest), ObjectNode::class.java) } returns Mono.just(
             searchResponse(total = null, pitId = "pit-2")
         )
         every { elasticsearchClient.closePointInTime(any<ClosePointInTimeRequest>()) } returns Mono.just(
@@ -239,7 +251,7 @@ class AbstractElasticsearchQueryBackendTest {
         every { elasticsearchClient.indices() } returns indicesClient
         every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(emptyMappingResponse())
         every { elasticsearchClient.openPointInTime(capture(openRequest)) } returns Mono.just(openPointInTimeResponse())
-        every { elasticsearchClient.search(capture(searchRequest), Map::class.java) } returns Mono.just(
+        every { elasticsearchClient.search(capture(searchRequest), ObjectNode::class.java) } returns Mono.just(
             searchResponse(total = null, pitId = "pit-2")
         )
         every { elasticsearchClient.closePointInTime(any<ClosePointInTimeRequest>()) } returns Mono.just(
@@ -266,7 +278,7 @@ class AbstractElasticsearchQueryBackendTest {
         val request = slot<SearchRequest>()
         val convertedFilter = slot<FilterExpression>()
         every { filterConverter.convert(capture(convertedFilter)) } returns matchAll { it }
-        every { elasticsearchClient.search(capture(request), Map::class.java) } returns Mono.just(
+        every { elasticsearchClient.search(capture(request), ObjectNode::class.java) } returns Mono.just(
             searchResponse(total = null),
         )
         val filter = filterExpression { "logicalField" eq "value" }
@@ -289,14 +301,14 @@ class AbstractElasticsearchQueryBackendTest {
             queryBackend.list(ListQuery(MatchAllFilter, limit = -1))
         }
 
-        verify(exactly = 0) { elasticsearchClient.search(any<SearchRequest>(), Map::class.java) }
+        verify(exactly = 0) { elasticsearchClient.search(any<SearchRequest>(), ObjectNode::class.java) }
         verify(exactly = 0) { elasticsearchClient.openPointInTime(any<OpenPointInTimeRequest>()) }
     }
 
     @Test
     fun `dynamic paged should track exact total hits`() {
         val request = slot<SearchRequest>()
-        every { elasticsearchClient.search(capture(request), Map::class.java) } returns Mono.just(
+        every { elasticsearchClient.search(capture(request), ObjectNode::class.java) } returns Mono.just(
             searchResponse(total = 42)
         )
 
@@ -324,11 +336,11 @@ class AbstractElasticsearchQueryBackendTest {
 
         request.captured.index().assert().containsExactly("test-index")
         result.assert().isEqualTo(42)
-        verify(exactly = 0) { elasticsearchClient.search(any<SearchRequest>(), Map::class.java) }
+        verify(exactly = 0) { elasticsearchClient.search(any<SearchRequest>(), ObjectNode::class.java) }
     }
 
-    private fun searchResponse(total: Long?, pitId: String? = null): SearchResponse<Map<*, *>> {
-        return SearchResponse.of<Map<*, *>> {
+    private fun searchResponse(total: Long?, pitId: String? = null): SearchResponse<ObjectNode> {
+        return SearchResponse.of<ObjectNode> {
             it.took(1)
                 .timedOut(false)
                 .shards { shards -> shards.failed(0).successful(1).total(1) }
@@ -339,7 +351,7 @@ class AbstractElasticsearchQueryBackendTest {
                     hits.hits { hit ->
                         hit.index("test-index")
                             .id("1")
-                            .source(mutableMapOf<String, Any?>("field" to "value"))
+                            .source(JsonNodeFactory.instance.objectNode().put("field", "value"))
                     }.hits { hit -> hit.index("test-index").id("2") }
                 }
             if (pitId != null) {
@@ -347,6 +359,13 @@ class AbstractElasticsearchQueryBackendTest {
             }
             it
         }
+    }
+
+    private fun emptyObjectNodeSearchResponse(): SearchResponse<ObjectNode> = SearchResponse.of<ObjectNode> {
+        it.took(1)
+            .timedOut(false)
+            .shards { shards -> shards.failed(0).successful(1).total(1) }
+            .hits { hits -> hits.hits(emptyList()) }
     }
 
     private fun openPointInTimeResponse(): OpenPointInTimeResponse {

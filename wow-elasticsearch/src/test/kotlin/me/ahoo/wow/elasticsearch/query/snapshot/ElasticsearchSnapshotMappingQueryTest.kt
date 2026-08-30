@@ -62,6 +62,7 @@ import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchCl
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchIndicesClient
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
+import tools.jackson.databind.node.ObjectNode
 
 class ElasticsearchSnapshotMappingQueryTest {
     private val client = mockk<ReactiveElasticsearchClient>()
@@ -70,7 +71,7 @@ class ElasticsearchSnapshotMappingQueryTest {
 
     init {
         every { client.indices() } returns indicesClient
-        every { client.search(capture(searchRequest), Map::class.java) } returns Mono.just(emptySearchResponse())
+        every { client.search(capture(searchRequest), ObjectNode::class.java) } returns Mono.just(emptySearchResponse())
     }
 
     @Test
@@ -90,7 +91,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             .expectError(QuerySchemaValidationException::class.java)
             .verify()
 
-        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+        verify(exactly = 0) { client.search(any<SearchRequest>(), ObjectNode::class.java) }
     }
 
     @Test
@@ -105,7 +106,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             .expectError(QuerySchemaValidationException::class.java)
             .verify()
 
-        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+        verify(exactly = 0) { client.search(any<SearchRequest>(), ObjectNode::class.java) }
     }
 
     @Test
@@ -124,7 +125,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             .expectError(QuerySchemaValidationException::class.java)
             .verify()
 
-        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+        verify(exactly = 0) { client.search(any<SearchRequest>(), ObjectNode::class.java) }
     }
 
     @Test
@@ -143,7 +144,7 @@ class ElasticsearchSnapshotMappingQueryTest {
                 .verify()
         }
 
-        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+        verify(exactly = 0) { client.search(any<SearchRequest>(), ObjectNode::class.java) }
     }
 
     @Test
@@ -166,7 +167,7 @@ class ElasticsearchSnapshotMappingQueryTest {
         val nested = searchRequest.captured.query()!!.bool().filter()[1].nested()
         nested.path().assert().isEqualTo("state.orders")
         nested.query().term().field().assert().isEqualTo("state.orders.status")
-        verify(exactly = 1) { client.search(any<SearchRequest>(), Map::class.java) }
+        verify(exactly = 1) { client.search(any<SearchRequest>(), ObjectNode::class.java) }
     }
 
     @Test
@@ -181,7 +182,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             .expectError(QuerySchemaValidationException::class.java)
             .verify()
 
-        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+        verify(exactly = 0) { client.search(any<SearchRequest>(), ObjectNode::class.java) }
     }
 
     @Test
@@ -200,7 +201,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             .expectError(QuerySchemaValidationException::class.java)
             .verify()
 
-        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+        verify(exactly = 0) { client.search(any<SearchRequest>(), ObjectNode::class.java) }
     }
 
     @Test
@@ -219,7 +220,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             .expectError(QuerySchemaValidationException::class.java)
             .verify()
 
-        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+        verify(exactly = 0) { client.search(any<SearchRequest>(), ObjectNode::class.java) }
     }
 
     @Test
@@ -240,7 +241,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             .expectError(QuerySchemaValidationException::class.java)
             .verify()
 
-        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+        verify(exactly = 0) { client.search(any<SearchRequest>(), ObjectNode::class.java) }
     }
 
     @Test
@@ -259,7 +260,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             ListQuery(filter = equal("tags.department", "eng"), limit = 10),
         ).test().expectError(QuerySchemaValidationException::class.java).verify()
 
-        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+        verify(exactly = 0) { client.search(any<SearchRequest>(), ObjectNode::class.java) }
     }
 
     @Test
@@ -276,7 +277,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             }
             .verify()
 
-        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+        verify(exactly = 0) { client.search(any<SearchRequest>(), ObjectNode::class.java) }
     }
 
     @Test
@@ -293,7 +294,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             ListQuery(filter = equal("tags.department", "eng"), limit = 10),
         ).test().expectError(QuerySchemaValidationException::class.java).verify()
 
-        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+        verify(exactly = 0) { client.search(any<SearchRequest>(), ObjectNode::class.java) }
     }
 
     @Test
@@ -357,7 +358,7 @@ class ElasticsearchSnapshotMappingQueryTest {
         }
 
         verify(exactly = 1) { indicesClient.getMapping(any<GetMappingRequest>()) }
-        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
+        verify(exactly = 0) { client.search(any<SearchRequest>(), ObjectNode::class.java) }
     }
 
     @Test
@@ -580,8 +581,8 @@ class ElasticsearchSnapshotMappingQueryTest {
             }
         }
 
-    private fun emptySearchResponse(): SearchResponse<Map<*, *>> =
-        SearchResponse.of<Map<*, *>> {
+    private fun emptySearchResponse(): SearchResponse<ObjectNode> =
+        SearchResponse.of<ObjectNode> {
             it.took(1)
                 .timedOut(false)
                 .shards { shards -> shards.failed(0).successful(1).total(1) }

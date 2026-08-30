@@ -1,193 +1,174 @@
 # Query Gateway / ObjectNode benchmark gate manifest
 
-## Identity and status
+## 身份与结论
 
-- Manifest assembled: `2026-08-30T04:43:32+0800` (`Asia/Shanghai`).
-- Baseline commit: `2e43a9f0d3fee099ee249bc75f55f8678bb27635`.
-- V9 production commit: `6b67462c8645fe135f34c882f90dc442e2dd84c9`.
-- Benchmark/result commit under test: `6d6a4f575500dae6ccca0cd6843013b0a862eba0`.
-- Artifact packaging commit: the commit containing this manifest; resolve with `git log -1 --format=%H -- docs/superpowers/benchmarks/2026-08-29-query-gateway-object-node-artifacts/gate-manifest.md`.
-- Overall Task 12 and merge status: `BLOCKED`. All 16 Mongo combinations are `MISSING EVIDENCE` under `SERVER-121912`; the Elasticsearch adverse signals also have no product budget or production-risk acceptance and require a longer stable rerun. Every non-performance gate below passed.
+- Manifest 更新：`2026-08-30`（`Asia/Shanghai`）。
+- main baseline：`2e43a9f0d3fee099ee249bc75f55f8678bb27635`。
+- V9 committed source：`b56f9cbb39db25ffe4f32d0591b9f6c90d18b8c9`；本 manifest 同时覆盖当前未提交的 ObjectNode/SPI 最小优化。
+- 证据完整性：`PASS`。Elasticsearch 与 MongoDB 各 16 个组合，main/V9 各 32 条 mode 记录，共 128 条 JMH 记录，无缺测。
+- 正确性与构建门禁：`PASS`。
+- 仓库性能预算：throughput、latency、allocation 均为 `10%`；越阈值且区间不重叠才进入候选，候选必须定向确认。
+- Task 12 / merge 性能门禁：`PASS_WITH_ACCEPTED_EXCEPTION`。Elasticsearch 定向确认没有已证实回归；MongoDB 的 12 行 allocation 与其中 2 行 throughput 回归已作为 ObjectNode 合约的窄范围例外被明确接受，不引入自定义 BSON→ObjectNode codec。
 
-## Environment
+## 环境
 
-| Item | Value |
+| 项目 | 值 |
 | --- | --- |
-| Host | Apple M4 Pro, 14 logical CPUs |
-| OS | macOS 26.5.2 (25F84), Darwin 25.5.0 arm64 |
-| Docker | client/server 29.7.2; VM kernel `7.0.12-linuxkit` |
+| Host | Apple M4 Pro，14 logical CPUs |
+| OS | macOS 26.5.2 (25F84)，Darwin 25.5.0 arm64 |
+| Docker | Desktop 4.88.1；client/server 29.7.2；VM kernel `7.0.12-linuxkit` |
 | JDK | Azul Zulu OpenJDK 17.0.7+7-LTS |
-| JVM | OpenJDK 64-Bit Server VM; G1; `-Xms1g -Xmx1g -XX:+UseG1GC` |
-| JMH | 1.37; 1 thread; 3 forks; 5 × 200 ms warmup; 10 × 200 ms measurement; `thrpt,sample`; `-prof gc` |
-| Dataset | 1,000 snapshots; seed `20260829` |
-| Elasticsearch | `docker.elastic.co/elasticsearch/elasticsearch:9.2.6`; image ID `sha256:8fb2a046f8adf4e8d64066206ebcb798bef8ff4420379feedd427c30500c5d3c`; digest `sha256:e5673d86bb6a41ed543329ec094fc93d5ef749d32cc87a4150a15d520ad9c670` |
+| JVM | G1；`-Xms1g -Xmx1g -XX:+UseG1GC` |
+| JMH coverage | 1.37；1 thread；3 forks；5 × 200 ms warmup；10 × 200 ms measurement；`thrpt,sample`；`-prof gc` |
+| JMH confirmation | 1.37；1 thread；1 fork；5 × 1 s warmup；5 × 1 s measurement；`thrpt,sample`；AB/BA/AB 三轮；`-prof gc` |
+| Dataset | 1,000 snapshots；seed `20260829` |
+| Elasticsearch | `docker.elastic.co/elasticsearch/elasticsearch:9.2.6` |
+| MongoDB | 官方 macOS ARM64 8.3.8；tarball SHA-256 `00e8d49b4ee064cef23a42af09cdf8f1c06cf4cdee16e747db95406843b08472`；`mongod` SHA-256 `f17130625c4abb436006eee52653c6f472cd0d29a16aee880907563c14f46449` |
+
+Docker 中的 MongoDB 8.3.4、8.3.7、8.3.8 都被 Linux 7.0.12 内核兼容性检查拒绝启动。Docker Desktop 更新检查确认 4.88.1 已是当前可用版本后，经明确确认改用官方原生 MongoDB 8.3.8；main/V9 共用同一进程和配置。仓库镜像 pin 未修改。
 
 ## Durable artifacts
 
-All six files were copied byte-for-byte from the measured local results or preserved detached-main harness. `cmp` returned exit 0 for every pair.
+八份 JMH 原始输出从实际结果逐字节复制，`cmp` 全部返回 0。JSON 保留 fork `rawData`、GC secondary metrics 和 sample percentile；每份 text 保留 16 个 histogram 与 16 个 percentile 表。
 
 | Artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `main-elasticsearch.json` | 3,364,790 | `19f4c438e8563a171c3b7d95db5ce95bf54413399df1743f93ef1d466011ccc5` |
-| `main-elasticsearch.txt` | 524,418 | `55115865cadb2446af95964ca6758c5b9f10934573305d7102cf96157adb7f3a` |
-| `v9-elasticsearch.json` | 3,270,452 | `f7d8389575dde7c05f3e64f7bfa4b927339880efa73403b94d87ce9fce311199` |
-| `v9-elasticsearch.txt` | 525,493 | `bbf245afe7177a805e3ce6cc66963ed14eae7aa37d0a44e958f89e4d9c6b13f5` |
+| `main-elasticsearch.json` | 3,318,147 | `c0d5f62bfd37d74d06323dd1871453dc2dc68267dadb8defdd94e8ab4edccc5c` |
+| `main-elasticsearch.txt` | 524,106 | `23fd475f88f7732db0c8e2f448b1f9915140d910ef76f71ab3f5d6506071befd` |
+| `v9-elasticsearch.json` | 3,204,527 | `eaef14cf09a06fac409758455c5ea757c84f2263922bdb7bd0094f4c4c9aecbc` |
+| `v9-elasticsearch.txt` | 522,025 | `99e94186c3a55da4549c0614c9efd046eaeb1ea37fb14e13bcbf1a40c429a052` |
+| `main-mongo.json` | 5,770,500 | `363be320dc7647758659448a71968daba5e3b829b3f7d34f1724eb9a1c908b3a` |
+| `main-mongo.txt` | 543,743 | `756cd5b69cdfcad860c774ee0dc2ca8bccdc142e3c91748b6cb3b082a263fa38` |
+| `v9-mongo.json` | 5,672,056 | `d8a86c747cd61598e24fd776b59b529ef56665fe50d143637ab7cdf2a7d5e7d7` |
+| `v9-mongo.txt` | 545,975 | `75059fd996cfe8776ab76cc651ae2d84c11466ff751f3d57e13ede6e27adb8a7` |
 | `QueryGatewayBackendBenchmark-main.kt` | 13,992 | `fe71b30975917bc6d0660378606d8d2628e394fcc8be153d1f3f223a0506fd86` |
 | `META-INF/wow-metadata.json` | 484 | `5753d0aa17512785454f6558e7a19ffddda6ce19925c5d3db59d1a7c90461a30` |
+| `paired-elasticsearch.tsv` | 6,111 | `5507d2869fa3e9ceb3bcd7f2eff4a59c1908af0f63884f9464e8275c100b4560` |
+| `paired-elasticsearch-summary.tsv` | 1,753 | `3b57c51edb87f5d4252267f9d1ce5ba00529fe83ee0999c152aa1a010a0586fa` |
+| `paired-mongo.tsv` | 5,577 | `2db71c1f6c4fe83147a5a6c302f6ab977237f938aa62638cd30bcaf64e91188e` |
+| `paired-mongo-summary.tsv` | 1,800 | `2aa4119be5a8f84881a2bbc55c0438d584e8edecd44c4693b8d647432d246673` |
 
-The JSON files retain throughput fork `rawData`, GC secondary metrics and sample p95. Each human output contains 16 sample histograms and 16 percentile tables.
+根目录 `.gitattributes` 将该目录的 `*-elasticsearch.{json,txt}` 与 `*-mongo.{json,txt}` 标记为 binary，避免 Git 改写 JMH 生成字节。
 
-The exact JMH text contains histogram-line trailing spaces, and the exact JSON contains its generated EOF layout. Root `.gitattributes` marks only this directory's `*-elasticsearch.json` and `*-elasticsearch.txt` as `binary`, so Git preserves and hashes the original bytes while `git diff --check` continues to inspect editable source and Markdown.
+## 基准命令与完成时间
 
-## Benchmark commands and results
-
-The repository-provided Gradle command was run first:
-
-```bash
-./gradlew :wow-benchmarks:jmh \
-  -Pjmh.include='.*QueryGatewayBackendBenchmark.*' \
-  -Pjmh.profilers=gc
-```
-
-- Exit: `0`, but Gradle printed `:wow-benchmarks:jmh SKIPPED`; it is not counted as measurement evidence.
-- Exact wall-clock timestamp/source log: not persisted. The final JMH artifacts below are the measurement evidence.
-
-Both detached main and V9 used the following JMH CLI with their own byte-identified jar and result path:
+main 与 V9 使用各自源码构建的 jar，只替换 storage 与结果路径：
 
 ```bash
-java -jar wow-benchmarks/build/libs/wow-benchmarks-8.16.1-jmh.jar \
-  '.*QueryGatewayBackendBenchmark.query' \
-  -p storage=elasticsearch \
-  -wi 5 -w 200ms -i 10 -r 200ms -f 3 -t 1 \
-  -bm thrpt,sample -tu s -foe true -prof gc \
-  -jvmArgs '-Xms1g -Xmx1g -XX:+UseG1GC' \
+java -jar wow-benchmarks/build/libs/wow-benchmarks-8.16.1-jmh.jar \\
+  '.*QueryGatewayBackendBenchmark.query' \\
+  -p storage=<mongo|elasticsearch> \\
+  -wi 5 -w 200ms -i 10 -r 200ms -f 3 -t 1 \\
+  -bm thrpt,sample -tu s -foe true -prof gc \\
+  -jvmArgs '-Xms1g -Xmx1g -XX:+UseG1GC' \\
   -rf json -rff <result.json> -o <human.txt>
 ```
 
-| Run | Completion timestamp from original output mtime | Exit | Records / combinations | Output SHA-256 |
-| --- | --- | ---: | --- | --- |
-| main | `2026-08-30T03:51:17+0800` | 0 | 32 mode rows / 16 combinations | JSON `19f4c4...cca5`; text `551158...f3a` |
-| V9 | `2026-08-30T03:59:41+0800` | 0 | 32 mode rows / 16 combinations | JSON `f7d838...1199`; text `bbf245...13f5` |
+| Storage | Run | 完成时间 | Exit | Records / combinations |
+| --- | --- | --- | ---: | --- |
+| Elasticsearch | main | `2026-08-30T08:06:33+0800` | 0 | 32 / 16 |
+| Elasticsearch | V9 | `2026-08-30T08:13:38+0800` | 0 | 32 / 16 |
+| MongoDB | V9 | `2026-08-30T08:28:06+0800` | 0 | 32 / 16 |
+| MongoDB | adjacent main | `2026-08-30T08:37:59+0800` | 0 | 32 / 16 |
 
-Artifact validation command:
+Mongo 的 adjacent main 替换了较早的 main 运行，以降低同机时段漂移。完整比较矩阵见上级 `2026-08-29-query-gateway-object-node.md`。
+
+## 三轮配对确认
+
+仓库现有 baseline comparison 使用 `10%` throughput/latency/allocation 阈值，并要求阈值越界与区间不重叠同时成立；候选本身不直接失败，必须定向确认。本次复用该规则，没有另造预算。
+
+每个候选按 AB/BA/AB 三轮交替 main/V9：
 
 ```bash
-cmp <each original source> <each durable copy>
-shasum -a 256 <six durable artifacts>
-jq -e '<32 rows; 16 combinations; 16 thrpt; 16 sample; forks=3; gc present; p95 present; throughput rawData has 3 forks>' {main,v9}-elasticsearch.json
+java -jar <main-or-v9-jmh.jar> '.*QueryGatewayBackendBenchmark.query' \
+  -p storage=<storage> -p operation=<operation> -p result=<result> -p masking=<masking> \
+  -wi 5 -w 1s -i 5 -r 1s -f 1 -t 1 -bm thrpt,sample -tu s -foe true -prof gc \
+  -jvmArgs '-Xms1g -Xmx1g -XX:+UseG1GC' -rf json -rff <pair.json> -o <pair.txt>
+```
+
+- Elasticsearch：15 个候选，90 个 JMH 进程 / 180 条 mode 记录；`PASS=1`、`INCONCLUSIVE=14`、确认回归 `0`。所有 allocation 配对区间均在 ±10% 内；throughput/p95 存在明显 AB/BA 顺序效应。
+- MongoDB：14 个候选，84 个 JMH 进程 / 168 条 mode 记录；确认回归 `12`、`INCONCLUSIVE=2`。12 行均由 allocation 触发，其中 `list1000/dynamic/inPlace` 与 `paged100/typed/inPlace` 同时确认 throughput 回归；没有确认 p95 回归。
+- 三轮比值使用几何均值；95% CI 在对数空间使用 `t(2)=4.303` 计算。成对分数、区间、顺序效应、verdict 与 cause 保存在四份 `paired-*.tsv`。
+- 四份 TSV 于 `2026-08-30T10:22:12+0800` 通过行数、唯一 case、verdict count、SHA-256 与 whitespace 校验。
+- Mongo 根因：旧 dynamic 直接复用 Mongo `Document`/Map 图；V9 为 ObjectNode 合约构造第二棵树，typed 再物化领域对象。SPI 已删除 bytes→tree 中转，但不会消除这棵必需树。
+- 采样结束后，原生 Mongo 进程已正常停止；临时 Elasticsearch benchmark 容器与 network 已通过 compose down 删除。
+
+## Artifact validation
+
+```bash
+cmp <each original result> <each durable copy>
+shasum -a 256 <ten durable artifacts>
+jq -e '<32 rows; 16 combinations; 16 thrpt; 16 sample; forks=3; gc/p95/rawData complete>' \
+  {main,v9}-{elasticsearch,mongo}.json
 test "$(rg -c '^  Histogram, s/op:$' <human-output>)" -eq 16
 test "$(rg -c '^  Percentiles, s/op:$' <human-output>)" -eq 16
 ```
 
-- Timestamp: `2026-08-30T04:43:04+0800`.
-- Exit: `0`.
-- Result: both JSON files passed every structural assertion; both text files contained 16 histograms and 16 percentile tables; all `cmp` checks passed.
-- Local source log: `.superpowers/sdd/2026-08-29-query-gateway-backend-refactor/task-12-logs/artifact-validation-fix-round-1.log`, 1,312 bytes, SHA-256 `9d81e25ca0b347bde294828094a3b128079b007c9d4a09457cc6117c74b5bf36`.
+- 完成时间：`2026-08-30T08:42:53+0800`。
+- Exit：`0`。
+- 结果：八个 source/durable `cmp`、四份 JSON 结构断言、四份 text 计数和 SHA-256 均通过。
 
-## Final non-performance gates
+## 最终代码与文档门禁
 
-The Gradle gates ran after the benchmark source was commit-ready. `--rerun-tasks` forced fresh task execution.
-
-### Focused modules
+### 变更模块
 
 ```bash
-./gradlew \
-  :wow-api:check \
-  :wow-core:check \
-  :wow-query:check \
-  :wow-spring:check \
-  :wow-spring-boot-starter:check \
-  :wow-webflux:check \
-  :wow-cocache:check \
-  :wow-apiclient:check \
+./gradlew :wow-query:check :wow-mongo:check :wow-elasticsearch:check \
   --stacktrace --rerun-tasks
 ```
 
-- Completion timestamp: `2026-08-30T04:07:38+0800`.
-- Exit: `0`.
-- Tail: `BUILD SUCCESSFUL in 1m 7s`; `133 actionable tasks: 133 executed`.
-- XML count: 429 suites, 2,214 tests, 0 skipped, 0 failures, 0 errors.
-- Local source log: `focused-check.log`, 126,696 bytes, SHA-256 `63a65152ae96ccd20c5b4abbd3affe55b6b0144bb5587f759b532d432346a9aa`.
+- Exit：`0`。
+- Tail：`BUILD SUCCESSFUL in 18s`；`49 actionable tasks: 49 executed`。
 
-### Storage, integration and wow-it
-
-```bash
-./gradlew \
-  :wow-mongo:check :wow-mongo:integrationTest \
-  :wow-elasticsearch:check :wow-elasticsearch:integrationTest \
-  :wow-it:integrationTest \
-  --stacktrace --rerun-tasks
-```
-
-- Completion timestamp: `2026-08-30T04:10:15+0800`.
-- Exit: `0`.
-- Tail: `BUILD SUCCESSFUL in 2m 8s`; `54 actionable tasks: 54 executed`.
-- XML count: 65 suites, 677 tests, 0 skipped, 0 failures, 0 errors.
-- Local source log: `storage-integration.log`, 62,340 bytes, SHA-256 `8177066a7e5c4a1c4ad3b2548ca06e14c9443575b2a910b9860bb470d76023dd`.
-
-### Full build
+### 全量构建
 
 ```bash
 ./gradlew build --rerun-tasks
 ```
 
-- Completion timestamp: `2026-08-30T04:11:50+0800`.
-- Exit: `0`.
-- Tail: `BUILD SUCCESSFUL in 1m 30s`; `335 actionable tasks: 335 executed`.
-- XML count: 650 `test`/`contractTest` suites, 3,737 tests, 0 skipped, 0 failures, 0 errors.
-- Local source log: `full-build.log`, 165,717 bytes, SHA-256 `29f19e6928cf57ed5413581c9b6ad84e4ef0f29d8f11671504a313513fddce15`.
+- Exit：`0`。
+- 最终 fresh run：`BUILD SUCCESSFUL in 1m 48s`；`335 actionable tasks: 335 executed`。
 
-The focused/storage counts are final XML snapshots on the same commit; later full-build unit tasks can overwrite matching unit XML. The three totals must not be added together.
+### Elasticsearch 真实后端集成
 
-### Documentation build (durability fix round 1)
+```bash
+./gradlew :wow-elasticsearch:integrationTest --stacktrace --rerun-tasks
+```
+
+- Exit：`0`。
+- 最终 fresh run：`BUILD SUCCESSFUL in 2m 1s`；`38 actionable tasks: 38 executed`。
+- Mongo 当前代码路径已由原生 MongoDB 8.3.8 的 V9 16 组合 JMH 实际执行；Testcontainers Mongo integrationTest 未重跑，因为 Docker VM 内核会在测试启动前拒绝 Mongo 容器。
+
+### 文档
 
 ```bash
 cd documentation && pnpm docs:build
 ```
 
-- Completion timestamp: `2026-08-30T04:48:06+0800`.
-- Exit: `0`.
-- Tail: client/server bundles, page render and sitemap completed; `build complete in 7.15s.`
-- Warning: existing chunk-size warning only.
-- Local source log: `docs-build-fix-round-1.log`, 6,454 bytes, SHA-256 `df23b525393d1c257f3d79949757b640212aa656290dc043a68301b7463e3849`.
+- 最终 fresh run：Exit `0`；`build complete in 24.35s`。
+- 仅有既有 chunk-size warning。
 
-### Required static scans
+### SPI 打包与静态扫描
 
 ```bash
-! rg -n "QueryService|DynamicDocument|SimpleDynamicDocument|TailSnapshotQueryFilter|TailEventStreamQueryFilter|DataMasking|DYNAMIC_SINGLE|DYNAMIC_LIST|DYNAMIC_PAGED" \
+jar tf wow-mongo/build/libs/wow-mongo-8.16.1.jar | \\
+  rg 'MongoJacksonModule|META-INF/services/tools.jackson.databind.JacksonModule'
+unzip -p wow-mongo/build/libs/wow-mongo-8.16.1.jar \\
+  META-INF/services/tools.jackson.databind.JacksonModule
+
+! rg -n "QueryService|DynamicDocument|SimpleDynamicDocument|TailSnapshotQueryFilter|TailEventStreamQueryFilter|DataMasking|DYNAMIC_SINGLE|DYNAMIC_LIST|DYNAMIC_PAGED" \\
   wow-*/src test example compensation --glob '!**/build/**'
-
-! rg -n "class QueryRouter|interface QueryRouter|QueryGatewayFactory|AggregatedQueryGateway" \
+! rg -n "class QueryRouter|interface QueryRouter|QueryGatewayFactory|AggregatedQueryGateway|Query.*Proxy|Proxy.*Query" \\
   wow-*/src test example compensation --glob '!**/build/**'
-```
-
-- Completion timestamp: `2026-08-30T04:12:21+0800`.
-- Each wrapped command exit: `0`; each underlying `rg` exit: `1`; matches: `0`.
-- Local source logs: `legacy-static-scan.log` and `router-static-scan.log`, both 0 bytes, both SHA-256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`.
-
-Additional architecture scans:
-
-```bash
-! rg -n "Query.*Proxy|Proxy.*Query" wow-*/src test example compensation --glob '!**/build/**'
 ! rg -n "BeanFactory" wow-webflux/src/main --glob '!**/build/**'
-```
-
-- Completion timestamps: `2026-08-30T04:20:50+0800` and `2026-08-30T04:21:18+0800`.
-- Each wrapped command exit: `0`; matches: `0`.
-- Local source logs: `query-proxy-static-scan.log` and `webflux-handler-beanfactory-scan.log`, both 0 bytes, both SHA-256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`.
-
-### Diff checks
-
-```bash
 git diff --check
-git diff --cached --check
-git diff --check 2e43a9f0d..HEAD
 ```
 
-- Timestamp: `2026-08-30T04:46:58+0800`.
-- Each exit: `0`; diagnostic output: none.
-- Local source log: `diff-check-fix-round-1.log`, 0 bytes, SHA-256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`.
+- 最终完成时间：`2026-08-30T10:40:56+0800`。
+- Exit：`0`。
+- jar 同时包含 `MongoJacksonModule.class` 与精确 service 路径，service 内容为 `me.ahoo.wow.mongo.MongoJacksonModule`。
+- 三组静态扫描零匹配，diff whitespace 检查无诊断。
 
-## Local log retention boundary
+## 放行边界
 
-The four large Gradle logs are not committed. Their exact local path, byte length and SHA-256 are recorded above; the committed artifact payload contains the raw benchmark fork/histogram data, both harness inputs and this durable manifest. Losing the local Gradle logs does not lose the recorded command, commit, timestamp, exit, BUILD tail, task count or test count.
+正确性、打包、文档、覆盖矩阵与配对证据均已通过。性能预算复用仓库既有 10% 规则；Elasticsearch 没有确认回归。Mongo ObjectNode 的确定性 allocation 与伴随吞吐成本已按窄范围接受，Task 12 完成；不增加自定义 codec、第二套 ObjectMapper、reader cache 或 serializer factory。

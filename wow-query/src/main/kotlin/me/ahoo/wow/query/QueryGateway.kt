@@ -29,7 +29,7 @@ import me.ahoo.wow.query.filter.DefaultQueryContext
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
-import me.ahoo.wow.serialization.convert
+import me.ahoo.wow.serialization.toObject
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import tools.jackson.databind.JavaType
@@ -108,7 +108,7 @@ abstract class AbstractQueryGateway<R : Any>(
 
     override fun single(query: ISingleQuery): Mono<R> =
         mono<ISingleQuery, Mono<ObjectNode>, R>(QueryType.SINGLE, query) { context ->
-            context.getRequiredResult().map { it.convert<R>(targetType) }
+            context.getRequiredResult().map { it.toObject<R>(targetType) }
         }
 
     override fun dynamicSingle(query: ISingleQuery): Mono<ObjectNode> =
@@ -116,7 +116,7 @@ abstract class AbstractQueryGateway<R : Any>(
 
     override fun list(query: IListQuery): Flux<R> =
         flux<IListQuery, Flux<ObjectNode>, R>(QueryType.LIST, query) { context ->
-            context.getRequiredResult().map { it.convert<R>(targetType) }
+            context.getRequiredResult().map { it.toObject<R>(targetType) }
         }
 
     override fun dynamicList(query: IListQuery): Flux<ObjectNode> =
@@ -125,7 +125,7 @@ abstract class AbstractQueryGateway<R : Any>(
     override fun paged(query: IPagedQuery): Mono<PagedList<R>> =
         mono<IPagedQuery, Mono<PagedList<ObjectNode>>, PagedList<R>>(QueryType.PAGED, query) { context ->
             context.getRequiredResult().map { page ->
-                PagedList(page.total, page.list.map { it.convert<R>(targetType) })
+                PagedList(page.total, page.list.map { it.toObject<R>(targetType) })
             }
         }
 

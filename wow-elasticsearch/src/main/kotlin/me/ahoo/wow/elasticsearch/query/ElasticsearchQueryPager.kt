@@ -22,6 +22,7 @@ import co.elastic.clients.elasticsearch.core.search.SourceFilter
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
 import kotlin.math.min
 
@@ -48,7 +49,7 @@ internal class ElasticsearchQueryPager(
         query: Query,
         sourceFilter: SourceFilter?,
         sort: List<SortOptions>,
-    ): Flux<Hit<Map<*, *>>> {
+    ): Flux<Hit<ObjectNode>> {
         require(limit >= 0) { "limit must be greater than or equal to 0." }
         require(sort.isNotEmpty()) { "sort must not be empty when using search_after." }
         return pointInTime.use { pit ->
@@ -94,7 +95,7 @@ internal class ElasticsearchQueryPager(
                 }
                 it
             }
-            elasticsearchClient.search(request, Map::class.java)
+            elasticsearchClient.search(request, ObjectNode::class.java)
         }.map { response ->
             pit.update(response.pitId())
             val hits = response.hits().hits()
@@ -112,7 +113,7 @@ internal class ElasticsearchQueryPager(
     }
 
     private data class SearchPage(
-        val hits: List<Hit<Map<*, *>>>,
+        val hits: List<Hit<ObjectNode>>,
         val fetched: Long,
         val nextSearchAfter: List<FieldValue>?,
     )

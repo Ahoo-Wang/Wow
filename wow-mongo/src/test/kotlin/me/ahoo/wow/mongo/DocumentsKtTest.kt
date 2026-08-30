@@ -11,11 +11,10 @@ import org.bson.types.Binary
 import org.bson.types.Decimal128
 import org.bson.types.ObjectId
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.assertDoesNotThrow
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
-import tools.jackson.core.exc.StreamWriteException
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 import java.math.BigDecimal
@@ -90,12 +89,17 @@ class DocumentsKtTest {
     }
 
     @Test
-    fun `direct document tree conversion should reproduce Decimal128 stream write failure`() {
+    fun `json serializer should discover mongo bson serializers`() {
         val document = Document("decimal", Decimal128(BigDecimal("123.45")))
+            .append("binary", Binary(byteArrayOf(1, 2, 3)))
 
-        assertThrows<StreamWriteException> {
+        val node = assertDoesNotThrow {
             JsonSerializer.valueToTree<ObjectNode>(document)
         }
+
+        node.path("decimal").decimalValue().assert().isEqualTo(BigDecimal("123.45"))
+        node.path("binary").path("data").asString().assert().isEqualTo("AQID")
+        node.allNodes().none { it.isPojo }.assert().isTrue()
     }
 
     @Test

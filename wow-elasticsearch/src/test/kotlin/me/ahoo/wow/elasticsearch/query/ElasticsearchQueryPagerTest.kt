@@ -33,6 +33,8 @@ import org.junit.jupiter.api.assertThrows
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
+import tools.jackson.databind.node.JsonNodeFactory
+import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
 
 class ElasticsearchQueryPagerTest {
@@ -74,7 +76,7 @@ class ElasticsearchQueryPagerTest {
         val searchRequests = mutableListOf<SearchRequest>()
         val closeRequest = slot<ClosePointInTimeRequest>()
         stubPointInTime(openRequest, closeRequest)
-        every { elasticsearchClient.search(capture(searchRequests), Map::class.java) } returnsMany listOf(
+        every { elasticsearchClient.search(capture(searchRequests), ObjectNode::class.java) } returnsMany listOf(
             Mono.just(searchResponse("pit-2", hit("1", 1), hit("2", 2))),
             Mono.just(searchResponse("pit-3", hit("3", 3))),
         )
@@ -109,7 +111,7 @@ class ElasticsearchQueryPagerTest {
     fun `should stop at positive limit`() {
         val searchRequests = mutableListOf<SearchRequest>()
         stubPointInTime()
-        every { elasticsearchClient.search(capture(searchRequests), Map::class.java) } returnsMany listOf(
+        every { elasticsearchClient.search(capture(searchRequests), ObjectNode::class.java) } returnsMany listOf(
             Mono.just(searchResponse("pit-2", hit("1", 1), hit("2", 2))),
             Mono.just(searchResponse("pit-3", hit("3", 3))),
         )
@@ -121,14 +123,14 @@ class ElasticsearchQueryPagerTest {
             .verifyComplete()
 
         searchRequests.map { it.size() }.assert().containsExactly(2, 1)
-        verify(exactly = 2) { elasticsearchClient.search(any<SearchRequest>(), Map::class.java) }
+        verify(exactly = 2) { elasticsearchClient.search(any<SearchRequest>(), ObjectNode::class.java) }
     }
 
     @Test
     fun `partial search failure should remain an error and close latest pit`() {
         val closeRequest = slot<ClosePointInTimeRequest>()
         stubPointInTime(closeRequest = closeRequest)
-        every { elasticsearchClient.search(any<SearchRequest>(), Map::class.java) } returnsMany listOf(
+        every { elasticsearchClient.search(any<SearchRequest>(), ObjectNode::class.java) } returnsMany listOf(
             Mono.just(searchResponse("pit-2", hit("1", 1), hit("2", 2))),
             Mono.error(IllegalStateException("page failed")),
         )
@@ -148,7 +150,7 @@ class ElasticsearchQueryPagerTest {
     fun `should close latest pit when cancelled`() {
         val closeRequest = slot<ClosePointInTimeRequest>()
         stubPointInTime(closeRequest = closeRequest)
-        every { elasticsearchClient.search(any<SearchRequest>(), Map::class.java) } returnsMany listOf(
+        every { elasticsearchClient.search(any<SearchRequest>(), ObjectNode::class.java) } returnsMany listOf(
             Mono.just(searchResponse("pit-2", hit("1", 1), hit("2", 2))),
             Mono.never(),
         )
@@ -168,7 +170,7 @@ class ElasticsearchQueryPagerTest {
     fun `take should close latest pit after downstream cancellation`() {
         val closeRequest = slot<ClosePointInTimeRequest>()
         stubPointInTime(closeRequest = closeRequest)
-        every { elasticsearchClient.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(
+        every { elasticsearchClient.search(any<SearchRequest>(), ObjectNode::class.java) } returns Mono.just(
             searchResponse("pit-from-last-response", hit("1", 1), hit("2", 2)),
         )
 
@@ -188,7 +190,7 @@ class ElasticsearchQueryPagerTest {
         every { elasticsearchClient.openPointInTime(any<OpenPointInTimeRequest>()) } returns Mono.just(
             openPointInTimeResponse()
         )
-        every { elasticsearchClient.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(
+        every { elasticsearchClient.search(any<SearchRequest>(), ObjectNode::class.java) } returns Mono.just(
             searchResponse("pit-2", hit("1", 1))
         )
         every { elasticsearchClient.closePointInTime(any<ClosePointInTimeRequest>()) } returns Mono.error(
@@ -209,7 +211,7 @@ class ElasticsearchQueryPagerTest {
         every { elasticsearchClient.openPointInTime(any<OpenPointInTimeRequest>()) } returns Mono.just(
             openPointInTimeResponse()
         )
-        every { elasticsearchClient.search(capture(searchRequests), Map::class.java) } returnsMany listOf(
+        every { elasticsearchClient.search(capture(searchRequests), ObjectNode::class.java) } returnsMany listOf(
             Mono.just(searchResponse(null, hit("1", 1), hit("2", 2))),
             Mono.just(searchResponse("", hit("3", 3))),
         )
@@ -236,7 +238,7 @@ class ElasticsearchQueryPagerTest {
     fun `should fail when a full page omits the search after cursor`() {
         val closeRequest = slot<ClosePointInTimeRequest>()
         stubPointInTime(closeRequest = closeRequest)
-        every { elasticsearchClient.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(
+        every { elasticsearchClient.search(any<SearchRequest>(), ObjectNode::class.java) } returns Mono.just(
             searchResponse("pit-2", "1" to emptyList(), "2" to emptyList())
         )
 
@@ -306,8 +308,8 @@ class ElasticsearchQueryPagerTest {
     private fun searchResponse(
         pitId: String?,
         vararg hits: Pair<String, List<FieldValue>>,
-    ): SearchResponse<Map<*, *>> {
-        return SearchResponse.of<Map<*, *>> {
+    ): SearchResponse<ObjectNode> {
+        return SearchResponse.of<ObjectNode> {
             it.took(1)
                 .timedOut(false)
                 .shards { shards -> shards.failed(0).successful(1).total(1) }
@@ -316,7 +318,7 @@ class ElasticsearchQueryPagerTest {
                         metadata.hits { hit ->
                             hit.index("test-index")
                                 .id(id)
-                                .source(mutableMapOf<String, Any?>("id" to id))
+                                .source(JsonNodeFactory.instance.objectNode().put("id", id))
                                 .sort(sort)
                         }
                     }

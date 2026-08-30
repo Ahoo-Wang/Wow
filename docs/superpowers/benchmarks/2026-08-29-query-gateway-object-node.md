@@ -1,19 +1,56 @@
-# Query Gateway / ObjectNode 后端性能证据（2026-08-29）
+# Query Gateway / ObjectNode 后端性能证据（2026-08-30）
 
 ## 结论
 
-本轮性能验收为 **BLOCKED / MISSING EVIDENCE**，Task 12 与分支合并均保持阻塞，不能宣称 32 个参数组合全部完成：
+本轮 32 个参数组合已全部完成，性能验收为 **PASS（accepted scoped exception）**：
 
-- Elasticsearch 的 16 个组合已在 main 与 V9 上完成，共得到 64 条 JMH 原始记录（每个版本 16 个组合 × throughput/sample 两种 mode）。
-- MongoDB 的 16 个组合没有结果。仓库 pin 的 8.3.4、compose 默认的 8.3.7，以及经明确批准用于两轮相对比较的 8.3.8，均因 Docker VM 内核兼容性在启动前退出；未使用 mock、内存 Backend 或外推数值补表。
-- 已完成的 Elasticsearch 局部证据中，V9 有 13/16 行吞吐下降、13/16 行 p95 上升、16/16 行每记录分配量上升。分配量增加范围为 `+2.89%..+33.92%`，因此这是需要评审的回归信号；本任务按约束只记录证据，不增加第二条 Mongo normalizer，也不在生产代码中做性能优化。
-- 这些 Elasticsearch 不利信号尚未被接受为生产风险，目前不存在产品性能预算或风险接受结论。关闭该缺口需要先定义产品预算，再用更长、稳定的同环境运行复测；若结果超过未来预算，应调查并优化 `ObjectNode` 转换路径，然后重跑完整矩阵。
+- 仓库现有正式基准规则定义 throughput、latency、allocation 阈值均为 `10%`；越阈值且区间不重叠才是回归候选，候选需做受控配对复测。
+- 短矩阵覆盖 Elasticsearch/MongoDB 各 16 个组合，main/V9 各含 throughput/sample，共 128 条 JMH 记录；它只用于筛选候选。
+- 定向确认采用 `5 × 1s` warmup、`5 × 1s` measurement、单 fork，按 AB/BA/AB 三轮交替 main/V9；每轮同时采集 throughput、p95 与 allocation。
+- Elasticsearch 15 个候选最终为 `PASS=1`、`INCONCLUSIVE=14`、已确认回归 `0`。所有 allocation 配对区间都在 ±10% 预算内；外部服务 throughput/p95 有显著顺序效应，不能据此宣称回归。
+- MongoDB 14 个候选最终为已确认回归 `12`、`INCONCLUSIVE=2`。12 行均由 allocation 触发；另有 2 行同时确认 throughput 回归，未确认 p95 回归。
+- Mongo allocation 的根因是 API 合约差异：旧 dynamic 路径直接复用驱动解码出的 `Document`/Map 图；V9 必须再构造完整 `ObjectNode`，typed 路径随后还要物化领域对象。SPI 已移除 bytes→tree 中转，但不能移除合约要求的树。
+- 已明确接受 MongoDB ObjectNode 合约的 scoped 性能例外：覆盖 12 行确定性 allocation 回归及其中 2 行伴随的 throughput 回归；不扩展为其他存储、指标或未来回归的通用豁免。
+- 不实现自定义 BSON→ObjectNode 驱动 codec；其 BSON 类型兼容、wire 语义与维护成本高于本轮已接受的局部收益风险。
 
-这只是同一台本机、固定短迭代下的框架相对证据，不是生产容量、SLO 或跨环境结论。
+这份证据用于重构前后的相对比较，不代表生产容量或 SLO。
 
-## 基准设计与 source equivalence
+## 已落地的最小优化
 
-两轮都查询同一类 Snapshot 模型，参数矩阵为：
+- Elasticsearch 直接把 `_source` 反序列化为 `ObjectNode`，移除 `Map -> ObjectNode` 的双对象图。
+- MongoDB `Document.toObjectNode()` 直接调用全局 `JsonSerializer.valueToTree()`；`MongoJacksonModule` 通过 `wow-mongo/src/main/resources/META-INF/services/tools.jackson.databind.JacksonModule` 被 `findAndAddModules()` 自动发现，统一处理 `Decimal128` 与 BSON `Binary` 的 `ByteArray`。
+- typed 结果使用 Jackson `treeToValue`，不再经 `convertValue` 的 `TokenBuffer` 中转。
+
+没有增加 serializer factory、第二套 ObjectMapper 或缓存层；现有 SPI、Jackson tree API 已覆盖需求。
+
+## 配对确认
+
+配对比值均为 `V9/main`；throughput 越高越好，allocation/p95 越低越好。95% CI 由三轮对数比值计算，`t(2)=4.303`。原始成对分数与可重算摘要保存在 artifact 目录的 `paired-*.tsv`。
+
+Elasticsearch 的 15 个候选没有确认回归。其稳定 allocation 结果为：dynamic `+0.7%..+3.8%`，typed `-4.5%..-0.5%`；其余 throughput/p95 区间跨越预算边界，按仓库规则保持 `INCONCLUSIVE`，不视为失败。
+
+MongoDB 的确认结果：
+
+| Case | Throughput ratio [95% CI] | Allocation ratio [95% CI] | P95 ratio [95% CI] | Verdict |
+| --- | --- | --- | --- | --- |
+| list100/dynamic/inPlace | 0.895 [0.764, 1.048] | 1.532 [1.523, 1.540] | 2.019 [0.117, 34.800] | REGRESSION: allocation |
+| list100/dynamic/none | 0.893 [0.838, 0.953] | 1.521 [1.520, 1.521] | 0.436 [0.007, 25.256] | REGRESSION: allocation |
+| list100/typed/inPlace | 1.646 [0.218, 12.408] | 1.103 [1.103, 1.103] | 1.017 [0.907, 1.139] | REGRESSION: allocation |
+| list100/typed/none | 1.473 [0.212, 10.247] | 1.131 [1.131, 1.132] | 1.077 [0.962, 1.206] | REGRESSION: allocation |
+| list1000/dynamic/inPlace | 0.792 [0.723, 0.868] | 1.578 [1.578, 1.578] | 1.200 [0.960, 1.502] | REGRESSION: throughput, allocation |
+| list1000/dynamic/none | 0.859 [0.728, 1.013] | 1.564 [1.564, 1.564] | 1.250 [0.936, 1.670] | REGRESSION: allocation |
+| list1000/typed/inPlace | 0.960 [0.811, 1.136] | 1.106 [1.106, 1.106] | 0.999 [0.887, 1.124] | REGRESSION: allocation |
+| list1000/typed/none | 0.990 [0.940, 1.042] | 1.135 [1.135, 1.135] | 0.965 [0.861, 1.081] | REGRESSION: allocation |
+| paged100/dynamic/inPlace | 1.013 [0.907, 1.132] | 1.484 [1.483, 1.486] | 1.040 [0.907, 1.193] | REGRESSION: allocation |
+| paged100/dynamic/none | 0.996 [0.987, 1.005] | 1.480 [1.479, 1.482] | 1.031 [0.856, 1.242] | REGRESSION: allocation |
+| paged100/typed/inPlace | 0.775 [0.726, 0.827] | 1.101 [1.100, 1.101] | 1.176 [1.022, 1.354] | REGRESSION: throughput, allocation |
+| paged100/typed/none | 1.004 [0.421, 2.394] | 1.128 [1.125, 1.131] | 0.442 [0.005, 36.000] | REGRESSION: allocation |
+| single/dynamic/none | 1.006 [0.772, 1.311] | 1.077 [0.999, 1.161] | 2.587 [0.042, 158.955] | INCONCLUSIVE |
+| single/typed/none | 1.031 [0.950, 1.119] | 1.042 [1.038, 1.046] | 1.037 [0.775, 1.387] | INCONCLUSIVE |
+
+## 基准设计
+
+参数矩阵：
 
 ```text
 storage   = mongo | elasticsearch
@@ -24,166 +61,92 @@ masking   = none | inPlace
 
 共同工作负载：
 
-- 数据集固定为 1,000 条 `MaterializedSnapshot<QueryBenchmarkState>`；seed 为 `20260829`。
-- 每条文档包含相同的 envelope，以及 `state.id`、`state.group`、128 字符 `state.payload` 和可选 `state.maskProbe`。
-- `single` 用固定首个 aggregate id；`list100`、`list1000` 使用 `MatchAllFilter` 并完整 `collectList()`；`paged100` 查询第一页并完整物化 100 条记录。
-- Elasticsearch `queryBatchSize=100`，所以 `list1000` 经过真实 PIT/search-after 分页路径；其余操作经过具体查询实现的普通搜索路径。
-- `inPlace` 只把可选 `state.maskProbe` 原位改为 `***`。setup 在正式测量前校验返回条数及 mask 结果。
-- benchmark 方法对阻塞完成后的完整 single/list/page 对象调用 `Blackhole.consume`，不是只消费 Publisher 创建。
-- dynamic 与 typed 在每个 trial 内共享同一个 Gateway 及同一个存储实现；差异只在最终结果 API。
+- 固定 1,000 条 `MaterializedSnapshot<QueryBenchmarkState>`，seed `20260829`。
+- `single` 查询固定 aggregate id；`list100`、`list1000` 完整收集结果；`paged100` 完整物化第一页 100 条。
+- `inPlace` 在 Gateway 结果链原位把 `state.maskProbe` 改为 `***`；setup 在测量前校验条数与 mask。
+- benchmark 阻塞等待并消费完整结果，不只消费 Publisher。
+- main 使用旧 QueryService/DynamicDocument API 专用 harness；V9 使用 QueryBackend/QueryGateway/ObjectNode。数据、查询和 JMH 参数相同，API 边界差异正是被测重构。
 
-由于 main 的 QueryService API 与 V9 的 Backend/Gateway API 不能由同一份源码编译，main 使用 detached worktree 中的 API 专用源。共享的数据生成、存储 seed、查询、完整消费、参数和校验代码逐字相同；API 差异如下：
-
-| 项目 | main `2e43a9f0d` | V9 `6b67462c8` + benchmark source |
-| --- | --- | --- |
-| Mongo 实现 | `MongoSnapshotQueryService` | `MongoSnapshotQueryBackend` |
-| Elasticsearch 实现 | `ElasticsearchSnapshotQueryService` | `ElasticsearchSnapshotQueryBackend` |
-| Gateway terminal | `TailSnapshotQueryFilter` 绑定同一 QueryService | `DefaultSnapshotQueryGateway` 直接绑定同一 Backend |
-| dynamic | 旧 `DynamicDocument` | `ObjectNode` |
-| typed | 旧 QueryService 直接物化 | 同一 `ObjectNode` 链末端 Jackson 物化 |
-| mask | 旧 API 原生的 in-place `StateDynamicDocumentMasker`；typed state 的 `DataMasking.mask()` 原位写同一字段 | 一个 in-place `StateObjectNodeMasker`，在 dynamic/typed 共同结果链写同一字段 |
-| 聚合元数据 | 临时 `src/main/resources/META-INF/wow-metadata.json` 仅供旧 typed QueryService 解析 state 类型 | Gateway 显式持有 `JavaType`，无需临时 metadata |
-
-旧 API 不存在 ObjectNode masker，因此 main 使用其原生 mutable result boundary 完成同一个单字段原位写入；这是唯一不可逐字相同的实现差异，也是被测重构的一部分。没有为 main 或 V9 添加 fake Backend。
-
-源证据：
+源文件：
 
 - V9 benchmark：`wow-benchmarks/src/jmh/kotlin/me/ahoo/wow/benchmark/query/QueryGatewayBackendBenchmark.kt`，SHA-256 `8f35e8b5024c9bffd7a75bbc46f3c68b062fe7ac59bc1b88232702d742a1ad20`。
-- main API 专用 benchmark：`docs/superpowers/benchmarks/2026-08-29-query-gateway-object-node-artifacts/QueryGatewayBackendBenchmark-main.kt`，SHA-256 `fe71b30975917bc6d0660378606d8d2628e394fcc8be153d1f3f223a0506fd86`。
+- main harness：`docs/superpowers/benchmarks/2026-08-29-query-gateway-object-node-artifacts/QueryGatewayBackendBenchmark-main.kt`，SHA-256 `fe71b30975917bc6d0660378606d8d2628e394fcc8be153d1f3f223a0506fd86`。
 - main metadata：`docs/superpowers/benchmarks/2026-08-29-query-gateway-object-node-artifacts/META-INF/wow-metadata.json`，SHA-256 `5753d0aa17512785454f6558e7a19ffddda6ce19925c5d3db59d1a7c90461a30`。
 
-## 环境
+## 环境与复现
 
 | 项目 | 值 |
 | --- | --- |
 | Host | Apple M4 Pro，14 logical CPUs |
 | OS | macOS 26.5.2 (25F84)，Darwin 25.5.0 arm64 |
-| Docker VM kernel | `7.0.12-linuxkit` |
-| Docker | client/server 29.7.2 |
+| Docker | Desktop 4.88.1；client/server 29.7.2；VM kernel `7.0.12-linuxkit` |
 | JDK | Azul Zulu OpenJDK 17.0.7+7-LTS |
-| JVM | OpenJDK 64-Bit Server VM，G1，`-Xms1g -Xmx1g -XX:+UseG1GC` |
-| JMH | 1.37，1 thread，3 forks，5 × 200ms warmup，10 × 200ms measurement |
-| Modes / profiler | `thrpt,sample`；`-prof gc` |
-| main commit | `2e43a9f0d3fee099ee249bc75f55f8678bb27635` |
-| V9 production commit | `6b67462c8645fe135f34c882f90dc442e2dd84c9` |
-| Elasticsearch | `docker.elastic.co/elasticsearch/elasticsearch:9.2.6`；image ID `sha256:8fb2a046f8adf4e8d64066206ebcb798bef8ff4420379feedd427c30500c5d3c`；repo digest `sha256:e5673d86bb6a41ed543329ec094fc93d5ef749d32cc87a4150a15d520ad9c670` |
+| JVM | G1，`-Xms1g -Xmx1g -XX:+UseG1GC` |
+| JMH | 1.37；1 thread；3 forks；5 × 200 ms warmup；10 × 200 ms measurement；`thrpt,sample`；`-prof gc` |
+| main source | `2e43a9f0d3fee099ee249bc75f55f8678bb27635` |
+| V9 source | `b56f9cbb39db25ffe4f32d0591b9f6c90d18b8c9` + 本轮未提交优化 |
+| Elasticsearch | `docker.elastic.co/elasticsearch/elasticsearch:9.2.6` |
+| MongoDB | 官方 macOS ARM64 8.3.8；tarball SHA-256 `00e8d49b4ee064cef23a42af09cdf8f1c06cf4cdee16e747db95406843b08472`；`mongod` SHA-256 `f17130625c4abb436006eee52653c6f472cd0d29a16aee880907563c14f46449` |
 
-main 与 V9 没有并发运行；正式采样期间没有并发 Gradle build、镜像拉取或 Mongo 重启负载。
+Docker 中的 MongoDB 8.3.4/8.3.7/8.3.8 均被 Linux 7.0.12 内核兼容性检查拒绝启动；Docker Desktop 已是当前可用最新版，因此经确认改用官方 macOS ARM64 tarball。下载入口与安装方式见 [MongoDB Community Download](https://www.mongodb.com/try/download/community-edition/releases) 和 [MongoDB macOS tarball 安装文档](https://www.mongodb.com/docs/v8.0/tutorial/install-mongodb-on-os-x-tarball/)。原生进程保留 compose 等价的鉴权、WiredTiger cache/compressor 与诊断参数。
 
-## 复现命令与原始输出
-
-main harness 在 detached worktree `2e43a9f0d` 编译：
-
-```bash
-./gradlew :wow-benchmarks:compileJmhKotlin --stacktrace
-./gradlew :wow-benchmarks:jmhJar --stacktrace
-```
-
-V9 先按任务简报原样运行：
-
-```bash
-./gradlew :wow-benchmarks:jmh \
-  -Pjmh.include='.*QueryGatewayBackendBenchmark.*' \
-  -Pjmh.profilers=gc
-```
-
-该命令退出码为 0，但仓库明确输出 `:wow-benchmarks:jmh SKIPPED`，因为通用 `jmh` task 已禁用。两轮正式证据因此都从各自构建的 `jmhJar` 使用完全相同的 JMH CLI：
+两种存储仅替换 `storage` 参数：
 
 ```bash
 java -jar wow-benchmarks/build/libs/wow-benchmarks-8.16.1-jmh.jar \
   '.*QueryGatewayBackendBenchmark.query' \
-  -p storage=elasticsearch \
+  -p storage=<mongo|elasticsearch> \
   -wi 5 -w 200ms -i 10 -r 200ms -f 3 -t 1 \
   -bm thrpt,sample -tu s -foe true -prof gc \
   -jvmArgs '-Xms1g -Xmx1g -XX:+UseG1GC' \
   -rf json -rff <result.json> -o <human.txt>
 ```
 
-正式采样的原始输出已从本地 JMH 结果目录逐字节复制到 committed artifact 目录；JSON 保留每个 fork 的 `rawData` 与 percentile，human output 保留 sample histogram/percentile 表：
-
-| 版本 | committed JSON | JSON SHA-256 | committed human output | text SHA-256 |
-| --- | --- | --- | --- | --- |
-| main | `docs/superpowers/benchmarks/2026-08-29-query-gateway-object-node-artifacts/main-elasticsearch.json` | `19f4c438e8563a171c3b7d95db5ce95bf54413399df1743f93ef1d466011ccc5` | `docs/superpowers/benchmarks/2026-08-29-query-gateway-object-node-artifacts/main-elasticsearch.txt` | `55115865cadb2446af95964ca6758c5b9f10934573305d7102cf96157adb7f3a` |
-| V9 | `docs/superpowers/benchmarks/2026-08-29-query-gateway-object-node-artifacts/v9-elasticsearch.json` | `f7d8389575dde7c05f3e64f7bfa4b927339880efa73403b94d87ce9fce311199` | `docs/superpowers/benchmarks/2026-08-29-query-gateway-object-node-artifacts/v9-elasticsearch.txt` | `bbf245afe7177a805e3ce6cc66963ed14eae7aa37d0a44e958f89e4d9c6b13f5` |
-
-原始 JMH text 的 histogram 行包含生成器写入的行尾空格，JSON 也保留生成时的 EOF 布局；根 `.gitattributes` 只把本 artifact 目录的 `*-elasticsearch.json` / `*-elasticsearch.txt` 标记为 `binary`，从而保持上述字节与哈希不变，同时让 diff whitespace 检查继续覆盖可编辑源码与 Markdown。
-
-两份 JSON 均通过以下结构校验：32 条记录、16 个唯一参数组合、每个 mode 16 条、每条 `forks=3`、无缺失 `gc.alloc.rate.norm`、无缺失 sample `95.0` percentile。
-
-最终 gate 命令、时间、环境、退出码、BUILD tail、测试计数与本地 source-log SHA-256 记录在 `docs/superpowers/benchmarks/2026-08-29-query-gateway-object-node-artifacts/gate-manifest.md`。
-
 ## 指标定义
 
-- `throughput`：throughput mode 的 `primaryMetric.score`，单位 `ops/s`；变化为 `(V9/main - 1) × 100%`，越高越好。
-- `p95`：sample mode 的 `primaryMetric.scorePercentiles["95.0"]`，由 `s/op` 转为毫秒；变化为 `(V9/main - 1) × 100%`，越低越好。
-- `B/record`：throughput mode 的 `gc.alloc.rate.norm` 除以本操作实际返回记录数；single 除以 1，list100/paged100 除以 100，list1000 除以 1,000。变化越低越好。
+- throughput：`ops/s`，变化 `(V9/main - 1) × 100%`，越高越好。
+- p95：sample mode `95.0` percentile，转为毫秒；变化越低越好。
+- B/record：`gc.alloc.rate.norm` 除以操作返回记录数；变化越低越好。
 
 ## 完整 32 行矩阵
 
 | Storage | Operation | Result | Mask | main ops/s | V9 ops/s | Δ throughput | main p95 ms | V9 p95 ms | Δ p95 | main B/record | V9 B/record | Δ allocation |
 | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Elasticsearch | single | dynamic | none | 1614.49 | 1867.69 | +15.68% | 0.682 | 0.695 | +1.96% | 53657.9 | 55346.6 | +3.15% |
-| Elasticsearch | single | dynamic | inPlace | 1970.39 | 1959.91 | -0.53% | 0.695 | 0.716 | +2.92% | 53679.7 | 55583.2 | +3.55% |
-| Elasticsearch | single | typed | none | 1903.96 | 1720.23 | -9.65% | 0.700 | 0.711 | +1.46% | 60129.4 | 62042.4 | +3.18% |
-| Elasticsearch | single | typed | inPlace | 2015.72 | 1965.46 | -2.49% | 0.701 | 0.815 | +16.23% | 60344.6 | 62088.7 | +2.89% |
-| Elasticsearch | list100 | dynamic | none | 985.13 | 937.20 | -4.87% | 1.335 | 1.370 | +2.61% | 5227.6 | 6981.9 | +33.56% |
-| Elasticsearch | list100 | dynamic | inPlace | 986.40 | 927.21 | -6.00% | 1.217 | 1.818 | +49.44% | 5229.5 | 7000.3 | +33.86% |
-| Elasticsearch | list100 | typed | none | 808.63 | 775.99 | -4.04% | 1.571 | 1.626 | +3.52% | 11684.8 | 13420.6 | +14.85% |
-| Elasticsearch | list100 | typed | inPlace | 778.99 | 784.62 | +0.72% | 1.536 | 1.622 | +5.60% | 11746.9 | 13235.9 | +12.68% |
-| Elasticsearch | list1000 | dynamic | none | 77.21 | 80.27 | +3.96% | 14.107 | 14.909 | +5.69% | 5285.3 | 7039.8 | +33.20% |
-| Elasticsearch | list1000 | dynamic | inPlace | 83.04 | 80.33 | -3.27% | 20.141 | 24.707 | +22.67% | 5285.2 | 7064.2 | +33.66% |
-| Elasticsearch | list1000 | typed | none | 71.09 | 68.61 | -3.49% | 16.367 | 17.334 | +5.91% | 11723.6 | 13497.9 | +15.13% |
-| Elasticsearch | list1000 | typed | inPlace | 72.07 | 68.53 | -4.90% | 21.004 | 17.626 | -16.08% | 11803.5 | 13291.2 | +12.60% |
-| Elasticsearch | paged100 | dynamic | none | 980.79 | 969.26 | -1.18% | 1.262 | 1.333 | +5.68% | 5210.6 | 6965.4 | +33.68% |
-| Elasticsearch | paged100 | dynamic | inPlace | 997.85 | 931.99 | -6.60% | 2.126 | 1.325 | -37.67% | 5217.0 | 6986.6 | +33.92% |
-| Elasticsearch | paged100 | typed | none | 852.65 | 797.69 | -6.45% | 1.592 | 1.605 | +0.82% | 11653.8 | 13409.0 | +15.06% |
-| Elasticsearch | paged100 | typed | inPlace | 833.50 | 801.26 | -3.87% | 1.645 | 1.544 | -6.10% | 11739.5 | 13228.4 | +12.68% |
-| MongoDB | single | dynamic | none | MISSING EVIDENCE | MISSING EVIDENCE | — | — | — | — | — | — | — |
-| MongoDB | single | dynamic | inPlace | MISSING EVIDENCE | MISSING EVIDENCE | — | — | — | — | — | — | — |
-| MongoDB | single | typed | none | MISSING EVIDENCE | MISSING EVIDENCE | — | — | — | — | — | — | — |
-| MongoDB | single | typed | inPlace | MISSING EVIDENCE | MISSING EVIDENCE | — | — | — | — | — | — | — |
-| MongoDB | list100 | dynamic | none | MISSING EVIDENCE | MISSING EVIDENCE | — | — | — | — | — | — | — |
-| MongoDB | list100 | dynamic | inPlace | MISSING EVIDENCE | MISSING EVIDENCE | — | — | — | — | — | — | — |
-| MongoDB | list100 | typed | none | MISSING EVIDENCE | MISSING EVIDENCE | — | — | — | — | — | — | — |
-| MongoDB | list100 | typed | inPlace | MISSING EVIDENCE | MISSING EVIDENCE | — | — | — | — | — | — | — |
-| MongoDB | list1000 | dynamic | none | MISSING EVIDENCE | MISSING EVIDENCE | — | — | — | — | — | — | — |
-| MongoDB | list1000 | dynamic | inPlace | MISSING EVIDENCE | MISSING EVIDENCE | — | — | — | — | — | — | — |
-| MongoDB | list1000 | typed | none | MISSING EVIDENCE | MISSING EVIDENCE | — | — | — | — | — | — | — |
-| MongoDB | list1000 | typed | inPlace | MISSING EVIDENCE | MISSING EVIDENCE | — | — | — | — | — | — | — |
-| MongoDB | paged100 | dynamic | none | MISSING EVIDENCE | MISSING EVIDENCE | — | — | — | — | — | — | — |
-| MongoDB | paged100 | dynamic | inPlace | MISSING EVIDENCE | MISSING EVIDENCE | — | — | — | — | — | — | — |
-| MongoDB | paged100 | typed | none | MISSING EVIDENCE | MISSING EVIDENCE | — | — | — | — | — | — | — |
-| MongoDB | paged100 | typed | inPlace | MISSING EVIDENCE | MISSING EVIDENCE | — | — | — | — | — | — | — |
+| Elasticsearch | list100 | dynamic | inPlace | 955.31 | 455.39 | -52.33% | 1.286 | 2.259 | +75.62% | 5229.7 | 5433.8 | +3.90% |
+| Elasticsearch | list100 | dynamic | none | 955.31 | 906.57 | -5.10% | 1.315 | 1.827 | +38.94% | 5227.4 | 5412.0 | +3.53% |
+| Elasticsearch | list100 | typed | inPlace | 796.10 | 356.01 | -55.28% | 1.556 | 2.502 | +60.79% | 11766.1 | 11243.8 | -4.44% |
+| Elasticsearch | list100 | typed | none | 790.71 | 828.38 | +4.76% | 1.522 | 2.126 | +39.70% | 11665.5 | 11410.5 | -2.19% |
+| Elasticsearch | list1000 | dynamic | inPlace | 82.62 | 66.04 | -20.06% | 14.352 | 16.918 | +17.88% | 5285.1 | 5485.5 | +3.79% |
+| Elasticsearch | list1000 | dynamic | none | 78.90 | 79.51 | +0.76% | 15.000 | 16.332 | +8.87% | 5285.3 | 5469.2 | +3.48% |
+| Elasticsearch | list1000 | typed | inPlace | 72.30 | 58.60 | -18.94% | 17.554 | 31.929 | +81.89% | 11822.5 | 11282.3 | -4.57% |
+| Elasticsearch | list1000 | typed | none | 71.33 | 55.51 | -22.18% | 18.029 | 27.099 | +50.31% | 11733.6 | 11471.9 | -2.23% |
+| Elasticsearch | paged100 | dynamic | inPlace | 1015.55 | 767.74 | -24.40% | 3.305 | 3.197 | -3.30% | 5216.7 | 5418.1 | +3.86% |
+| Elasticsearch | paged100 | dynamic | none | 1024.13 | 627.10 | -38.77% | 1.288 | 1.612 | +25.12% | 5210.0 | 5401.0 | +3.67% |
+| Elasticsearch | paged100 | typed | inPlace | 840.46 | 646.90 | -23.03% | 5.588 | 3.029 | -45.79% | 11739.0 | 11220.6 | -4.42% |
+| Elasticsearch | paged100 | typed | none | 858.74 | 432.76 | -49.60% | 1.554 | 1.843 | +18.58% | 11653.7 | 11404.6 | -2.14% |
+| Elasticsearch | single | dynamic | inPlace | 1954.05 | 1236.60 | -36.72% | 0.732 | 0.954 | +30.36% | 53631.9 | 54407.9 | +1.45% |
+| Elasticsearch | single | dynamic | none | 1241.60 | 1915.98 | +54.32% | 0.702 | 0.974 | +38.64% | 53953.4 | 53631.3 | -0.60% |
+| Elasticsearch | single | typed | inPlace | 1962.48 | 1035.09 | -47.26% | 0.917 | 0.843 | -8.13% | 60259.7 | 60443.6 | +0.31% |
+| Elasticsearch | single | typed | none | 1799.58 | 1799.48 | -0.01% | 0.690 | 1.047 | +51.63% | 60214.4 | 59749.8 | -0.77% |
+| MongoDB | list100 | dynamic | inPlace | 3734.69 | 3159.46 | -15.40% | 0.341 | 0.393 | +15.20% | 3656.6 | 5580.9 | +52.62% |
+| MongoDB | list100 | dynamic | none | 3922.61 | 3240.96 | -17.38% | 0.330 | 0.377 | +14.11% | 3642.9 | 5530.0 | +51.80% |
+| MongoDB | list100 | typed | inPlace | 2130.25 | 2078.63 | -2.42% | 0.569 | 0.565 | -0.68% | 10874.2 | 11993.3 | +10.29% |
+| MongoDB | list100 | typed | none | 2233.48 | 2122.43 | -4.97% | 0.557 | 0.573 | +2.93% | 10783.5 | 12198.4 | +13.12% |
+| MongoDB | list1000 | dynamic | inPlace | 553.37 | 444.71 | -19.64% | 2.265 | 2.487 | +9.79% | 3357.6 | 5280.1 | +57.26% |
+| MongoDB | list1000 | dynamic | none | 556.54 | 437.00 | -21.48% | 2.007 | 2.621 | +30.61% | 3346.6 | 5231.9 | +56.34% |
+| MongoDB | list1000 | typed | inPlace | 287.63 | 269.35 | -6.35% | 3.817 | 4.084 | +7.00% | 10571.5 | 11688.8 | +10.57% |
+| MongoDB | list1000 | typed | none | 266.05 | 290.04 | +9.02% | 4.029 | 3.957 | -1.79% | 10483.4 | 11896.5 | +13.48% |
+| MongoDB | paged100 | dynamic | inPlace | 2100.93 | 2026.53 | -3.54% | 0.563 | 0.571 | +1.45% | 3964.5 | 5867.3 | +48.00% |
+| MongoDB | paged100 | dynamic | none | 2092.62 | 2119.24 | +1.27% | 0.535 | 0.570 | +6.70% | 3958.2 | 5843.1 | +47.62% |
+| MongoDB | paged100 | typed | inPlace | 2075.42 | 1571.05 | -24.30% | 0.586 | 0.731 | +24.83% | 11188.4 | 12317.1 | +10.09% |
+| MongoDB | paged100 | typed | none | 2008.07 | 1643.37 | -18.16% | 0.612 | 0.782 | +27.74% | 11095.8 | 12516.7 | +12.81% |
+| MongoDB | single | dynamic | inPlace | 12031.49 | 11517.24 | -4.27% | 0.140 | 0.126 | -9.78% | 36087.4 | 38157.3 | +5.74% |
+| MongoDB | single | dynamic | none | 10949.50 | 12026.80 | +9.84% | 0.115 | 0.137 | +19.65% | 35954.2 | 37664.9 | +4.76% |
+| MongoDB | single | typed | inPlace | 11366.51 | 10870.28 | -4.37% | 0.128 | 0.124 | -3.01% | 43256.9 | 44658.1 | +3.24% |
+| MongoDB | single | typed | none | 10792.93 | 11534.31 | +6.87% | 0.112 | 0.134 | +20.27% | 43051.2 | 44568.3 | +3.52% |
 
-## MongoDB 阻塞证据
+## 原始证据
 
-三个真实镜像均由同一 compose 配置启动；没有修改仓库的 image pin：
+原始 JSON 保留每个 fork 的 `rawData`、GC secondary metrics 和 sample percentile；text 保留 16 个 histogram 与 16 个 percentile 表。文件哈希、运行时间和最终验证命令见同目录 `gate-manifest.md`。
 
-```bash
-docker compose --env-file wow-benchmarks/docker/benchmark.env \
-  -f wow-benchmarks/docker/compose.mongo.yml up -d --wait
-
-WOW_BENCHMARK_MONGO_IMAGE=mongo:8.3.7 docker compose \
-  --env-file wow-benchmarks/docker/benchmark.env \
-  -f wow-benchmarks/docker/compose.mongo.yml up -d --wait
-
-WOW_BENCHMARK_MONGO_IMAGE=mongo:8.3.8 docker compose \
-  --env-file wow-benchmarks/docker/benchmark.env \
-  -f wow-benchmarks/docker/compose.mongo.yml up -d --wait
-```
-
-每次 compose 均报告 `container wow-benchmark-mongo is unhealthy`，容器日志相同：
-
-```text
-MongoDB cannot start: Linux kernel versions 6.19 and newer has a known incompatibility with this version of MongoDB. See https://jira.mongodb.org/browse/SERVER-121912 for more information.
-```
-
-镜像证据：
-
-| Image | image ID | repo digest |
-| --- | --- | --- |
-| `mongo:8.3.4` | `sha256:6818b4556f741c6d220e7edf3d51730719d965f51d5c4e80ac9e0eeafcaac94d` | `sha256:48a009d2d8007e92d6d7e8baa31713cd11c48c06e827e856240e5a1d319b49d9` |
-| `mongo:8.3.7` | `sha256:6285ae7ce4648634b93894bb21de0784ff81d109b3350b64f1f4331717f5c783` | `sha256:2f02e2184c6d91c3208e5ab75a0707d1386a05377b20fdaf49a314815774d863` |
-| `mongo:8.3.8` | `sha256:d50db15ba4794a2940fc2173104abf0540dac953de03a0d66be1a1361ddce80c` | `sha256:5211c51171f57ae60842b11664bb244628971b3d35325762a97888337b9bb0db` |
-
-因此没有 main/V9 Mongo 数值，也不能判断 Mongo byte round-trip 是否是主要瓶颈。后续必须在 Mongo 能启动、且 main/V9 继续使用同一镜像/JDK/JVM/host/JMH 设置的环境重跑全部 16 个 Mongo 组合，才能关闭性能验收。
+短 200 ms 矩阵只负责覆盖与筛选；最终判定以三轮 AB/BA/AB 配对确认和仓库既有 10% 预算为准。Elasticsearch 外部服务的 throughput/p95 仍有高顺序效应，因此只报告 `INCONCLUSIVE`，不把噪声解释成代码回归。Mongo allocation 区间极窄且稳定，属于已确认并接受的 ObjectNode 合约成本。

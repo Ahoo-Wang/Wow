@@ -156,10 +156,10 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
         }
     }
 
-    private fun Hit<Map<*, *>>.toObjectNode(): ObjectNode? = source()?.toObjectNode()
+    private fun Hit<ObjectNode>.toObjectNode(): ObjectNode? = source()
 
     private fun search(searchRequest: SearchRequest): Mono<PagedList<ObjectNode>> {
-        return elasticsearchClient.search(searchRequest, Map::class.java)
+        return elasticsearchClient.search(searchRequest, ObjectNode::class.java)
             .map { result ->
                 val hits = result.hits()
                 val list = hits.hits().mapNotNull { it.toObjectNode() }

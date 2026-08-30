@@ -29,6 +29,7 @@ import org.bson.Document
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import tools.jackson.databind.JavaType
+import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 
 object Documents {
@@ -58,7 +59,7 @@ object Documents {
 }
 
 fun Document.toObjectNode(): ObjectNode {
-    val node = JsonSerializer.readTree(JsonSerializer.writeValueAsBytes(this))
+    val node = JsonSerializer.valueToTree<JsonNode>(this)
     require(node is ObjectNode) { "MongoDB query result must serialize as a JSON object." }
     return node
 }
