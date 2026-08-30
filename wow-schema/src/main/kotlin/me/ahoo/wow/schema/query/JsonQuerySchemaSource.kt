@@ -195,13 +195,21 @@ private fun Method.isComputedGetter(): Boolean = Modifier.isPublic(modifiers) &&
         else -> false
     }
 
-private fun Method.isExplicitJacksonProperty(): Boolean =
-    isAnnotationPresent(JsonProperty::class.java) || isAnnotationPresent(JsonGetter::class.java)
+private fun Method.explicitJacksonProperty(): Annotation? = inheritedAnnotations().firstOrNull {
+    it is JsonProperty || it is JsonGetter
+}
 
-private fun Method.explicitJacksonPropertyName(): String? =
-    getAnnotation(JsonProperty::class.java)?.value?.takeIf(String::isNotEmpty)
-        ?: getAnnotation(JsonGetter::class.java)?.value?.takeIf(String::isNotEmpty)
-        ?: name.takeIf { isExplicitJacksonProperty() && !isComputedGetter() }
+private fun Method.isExplicitJacksonProperty(): Boolean = explicitJacksonProperty() != null
+
+private fun Method.explicitJacksonPropertyName(): String? {
+    val annotation = explicitJacksonProperty() ?: return null
+    val explicitName = when (annotation) {
+        is JsonProperty -> annotation.value
+        is JsonGetter -> annotation.value
+        else -> error("Unsupported Jackson property annotation: [$annotation].")
+    }
+    return explicitName.takeIf(String::isNotEmpty) ?: name.takeIf { !isComputedGetter() }
+}
 
 private class MaskRuleCatalog {
     private val rules = mutableListOf<MaskRule>()
