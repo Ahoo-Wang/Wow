@@ -15,10 +15,16 @@ package me.ahoo.wow.tck.query
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CursorPage
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
@@ -147,6 +153,106 @@ abstract class EventStreamQueryBackendSpec {
         }.dynamicQuery(eventStreamQueryBackend)
             .test()
             .expectNextCount(1)
+            .verifyComplete()
+    }
+
+    @Test
+    fun `cursor should traverse tied versions without duplicates`() {
+        val tenantId = generateGlobalId()
+        repeat(3) {
+            eventStore.append(generateEventStream(namedAggregate.aggregateId(tenantId = tenantId))).block()
+        }
+        val query = CursorQuery(
+            TenantIdFilter(tenantId),
+            sort = listOf(Sort("version", Sort.Direction.ASC)),
+            size = 2,
+        )
+
+        val first = eventStreamQueryBackend.cursor(query).block()!!
+        val second = eventStreamQueryBackend.cursor(query.copy(cursor = first.nextCursor)).block()!!
+
+        first.list.assert().hasSize(2)
+        first.nextCursor.assert().isNotNull()
+        (first.list + second.list).map { it.path("id").textValue() }.distinct().assert().hasSize(3)
+        second.list.assert().hasSize(1)
+        second.nextCursor.assert().isNull()
+    }
+
+    @Test
+    fun `cursor should support descending multi field sort`() {
+        val tenantId = generateGlobalId()
+        listOf(1, 3, 2).forEach { version ->
+            eventStore.append(
+                generateEventStream(
+                    aggregateId = namedAggregate.aggregateId(tenantId = tenantId),
+                    aggregateVersion = version,
+                ),
+            ).block()
+        }
+        val query = CursorQuery(
+            TenantIdFilter(tenantId),
+            sort = listOf(
+                Sort("version", Sort.Direction.DESC),
+                Sort("tenantId", Sort.Direction.ASC),
+            ),
+            size = 2,
+        )
+
+        val first = eventStreamQueryBackend.cursor(query).block()!!
+        val second = eventStreamQueryBackend.cursor(query.copy(cursor = first.nextCursor)).block()!!
+
+        (first.list + second.list).map { it.path("version").intValue() }.assert().containsExactly(4, 3, 2)
+        first.nextCursor.assert().isNotNull()
+        second.nextCursor.assert().isNull()
+    }
+
+    @Test
+    fun `cursor should not expose projection-only cursor fields`() {
+        val tenantId = generateGlobalId()
+        eventStore.append(generateEventStream(namedAggregate.aggregateId(tenantId = tenantId))).block()
+
+        eventStreamQueryBackend.cursor(
+            CursorQuery(
+                TenantIdFilter(tenantId),
+                projection = Projection(include = listOf("tenantId")),
+                sort = listOf(Sort("version", Sort.Direction.ASC)),
+            ),
+        ).test()
+            .assertNext { page ->
+                page.list.single().let { node ->
+                    node.path("tenantId").textValue().assert().isEqualTo(tenantId)
+                    node.has("version").assert().isFalse()
+                    node.has("id").assert().isFalse()
+                }
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `cursor should reject a malformed token`() {
+        eventStore.append(generateEventStream(namedAggregate.aggregateId(tenantId = generateGlobalId()))).block()
+
+        eventStreamQueryBackend.cursor(
+            CursorQuery(
+                MatchAllFilter,
+                sort = listOf(Sort("version", Sort.Direction.ASC)),
+                cursor = "malformed",
+            ),
+        ).test()
+            .expectErrorMessage("Invalid cursor.")
+            .verify()
+    }
+
+    @Test
+    fun `cursor should return an empty terminal page`() {
+        eventStore.append(generateEventStream(namedAggregate.aggregateId(tenantId = generateGlobalId()))).block()
+
+        eventStreamQueryBackend.cursor(
+            CursorQuery(
+                TenantIdFilter("missing"),
+                sort = listOf(Sort("id", Sort.Direction.ASC)),
+            ),
+        ).test()
+            .expectNext(CursorPage(emptyList(), null))
             .verifyComplete()
     }
 
