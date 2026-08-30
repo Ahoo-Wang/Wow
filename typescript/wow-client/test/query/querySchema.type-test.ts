@@ -46,4 +46,13 @@ const schema: QueryModelSchemaMetadata = {
   ],
 };
 
+const customModel: QueryModelSchemaMetadata['model'] = 'CUSTOM_MODEL';
+const customCapability: QueryModelSchemaMetadata['capabilities'][number] =
+  'CUSTOM_CAPABILITY';
+const customValueType: QueryModelSchemaMetadata['fields'][number]['valueTypes'][number] =
+  'CUSTOM_VALUE';
+
 expectTypeOf(schema).toEqualTypeOf<QueryModelSchemaMetadata>();
+expectTypeOf(customModel).toEqualTypeOf<string>();
+expectTypeOf(customCapability).toEqualTypeOf<string>();
+expectTypeOf(customValueType).toEqualTypeOf<string>();
