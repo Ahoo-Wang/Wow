@@ -13,11 +13,14 @@
 
 package me.ahoo.wow.mongo.query
 
+import com.mongodb.client.model.Filters
 import com.mongodb.reactivestreams.client.FindPublisher
 import com.mongodb.reactivestreams.client.MongoCollection
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
@@ -27,6 +30,7 @@ import me.ahoo.wow.mongo.query.aggregation.MongoAggregationCompiler
 import me.ahoo.wow.mongo.toObjectNode
 import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.schema.ResolvedAggregationQuery
+import me.ahoo.wow.query.withUniqueSort
 import org.bson.Document
 import org.bson.types.Decimal128
 import reactor.core.publisher.Flux
@@ -42,11 +46,15 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
     abstract val sortConverter: MongoSortConverter
     protected abstract fun toObjectNode(document: Document): ObjectNode
 
+    protected open val cursorUniqueField: String? = null
+
     protected open fun resolve(query: ISingleQuery): Mono<ISingleQuery> = Mono.just(query)
 
     protected open fun resolve(query: IListQuery): Mono<IListQuery> = Mono.just(query)
 
     protected open fun resolve(query: IPagedQuery): Mono<IPagedQuery> = Mono.just(query)
+
+    protected open fun resolve(query: ICursorQuery): Mono<ICursorQuery> = Mono.just(query)
 
     protected open fun resolve(filter: FilterExpression): Mono<FilterExpression> = Mono.just(filter)
 
@@ -100,6 +108,36 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
     }
 
     override fun paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> = pagedDocument(query)
+
+    override fun cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> {
+        val uniqueField = cursorUniqueField
+            ?: return Mono.error(UnsupportedOperationException("Cursor query is not supported."))
+        return resolve(query.withUniqueSort(uniqueField)).flatMap { resolved ->
+            val physicalSort = resolved.sort.map { it.copy(field = sortConverter.convertField(it.field)) }
+            val filter = resolved.cursor?.let {
+                MongoCursorFilterCompiler.compile(physicalSort, MongoCursorCodec.decode(it, resolved.sort.size))
+            }?.let { Filters.and(converter.convert(resolved.filter), it) }
+                ?: converter.convert(resolved.filter)
+            val projection = projectionConverter.cursorProjection(
+                resolved.projection,
+                physicalSort.map { it.field },
+            )
+            collection.find(filter)
+                .projection(projectionConverter.convertCursor(projection))
+                .sort(sortConverter.convert(resolved.sort))
+                .limit(resolved.size + 1)
+                .toFlux()
+                .collectList()
+                .map { documents ->
+                    documents.toCursorPage(
+                        resolved,
+                        projection,
+                        physicalSort.map { it.field },
+                        ::toObjectNode,
+                    )
+                }
+        }
+    }
 
     override fun count(filter: FilterExpression): Mono<Long> {
         return resolve(filter).flatMap { resolved ->

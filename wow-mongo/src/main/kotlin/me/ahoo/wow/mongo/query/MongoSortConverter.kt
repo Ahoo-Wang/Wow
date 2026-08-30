@@ -21,6 +21,8 @@ import org.bson.conversions.Bson
 
 class MongoSortConverter(override val fieldConverter: FieldConverter) : AbstractSortConverter<Bson?>() {
 
+    internal fun convertField(field: String): String = fieldConverter.convert(field)
+
     override fun internalConvert(sort: List<Sort>): Bson? {
         if (sort.isEmpty()) return null
         return sort.map {

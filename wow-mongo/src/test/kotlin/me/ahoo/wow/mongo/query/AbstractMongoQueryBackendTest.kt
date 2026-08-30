@@ -17,19 +17,31 @@ import com.mongodb.reactivestreams.client.FindPublisher
 import com.mongodb.reactivestreams.client.MongoCollection
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CursorQuery
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.mongo.query.event.MongoEventStreamQueryBackend
+import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryBackend
 import me.ahoo.wow.mongo.toObjectNode
+import me.ahoo.wow.query.QueryBackend
+import me.ahoo.wow.query.converter.FieldConverter
+import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import org.bson.Document
 import org.bson.conversions.Bson
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.reactivestreams.Subscriber
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 import reactor.core.publisher.SignalType
 import reactor.kotlin.test.test
 import tools.jackson.databind.node.ObjectNode
@@ -42,6 +54,20 @@ class AbstractMongoQueryBackendTest {
         override val converter = me.ahoo.wow.mongo.query.snapshot.SnapshotFilterConverter
         override val projectionConverter = mockk<MongoProjectionConverter>()
         override val sortConverter = mockk<MongoSortConverter>()
+        override fun toObjectNode(document: Document): ObjectNode = document.toObjectNode()
+        override fun aggregate(query: AggregationQuery): Flux<ObjectNode> = Flux.empty()
+    }
+    private lateinit var resolvedCursorQuery: ICursorQuery
+    private val cursorBackend = object : AbstractMongoQueryBackend() {
+        override val namedAggregate = MaterializedNamedAggregate("test", "aggregate")
+        override val collection: MongoCollection<Document> = this@AbstractMongoQueryBackendTest.collection
+        override val converter = me.ahoo.wow.mongo.query.snapshot.SnapshotFilterConverter
+        override val projectionConverter = MongoProjectionConverter(FieldConverter { it })
+        override val sortConverter = MongoSortConverter(FieldConverter { it })
+        override val cursorUniqueField: String = "id"
+        override fun resolve(query: ICursorQuery): Mono<ICursorQuery> = Mono.just(query).doOnNext {
+            resolvedCursorQuery = it
+        }
         override fun toObjectNode(document: Document): ObjectNode = document.toObjectNode()
         override fun aggregate(query: AggregationQuery): Flux<ObjectNode> = Flux.empty()
     }
@@ -127,6 +153,115 @@ class AbstractMongoQueryBackendTest {
         signals.assert().containsExactly(SignalType.CANCEL)
     }
 
+    @Test
+    fun `cursor should use lookahead without count or skip`() {
+        val publisher = cursorPublisher(
+            listOf(Document("rank", 1).append("id", "1"), Document("rank", 2).append("id", "2")),
+            limit = 2,
+        )
+
+        val page = cursorBackend.cursor(
+            CursorQuery(MatchAllFilter, sort = listOf(Sort("rank", Sort.Direction.ASC)), size = 1),
+        ).block()!!
+
+        page.list.single().path("rank").asInt().assert().isEqualTo(1)
+        page.nextCursor.assert().isNotNull()
+        verify(exactly = 1) { publisher.limit(2) }
+        verify(exactly = 0) { publisher.skip(any()) }
+        verify(exactly = 0) { collection.countDocuments(any<Bson>()) }
+    }
+
+    @Test
+    fun `cursor should append unique sort before resolve`() {
+        cursorPublisher(emptyList(), limit = 2)
+
+        cursorBackend.cursor(
+            CursorQuery(MatchAllFilter, sort = listOf(Sort("rank", Sort.Direction.DESC)), size = 1),
+        ).block()
+
+        resolvedCursorQuery.sort.assert().containsExactly(
+            Sort("rank", Sort.Direction.DESC),
+            Sort("id", Sort.Direction.ASC),
+        )
+    }
+
+    @Test
+    fun `built-in cursor backends should resolve schema before Mongo access`() {
+        val schemaProvider = mockk<QueryModelSchemaProvider>()
+        every { schemaProvider.schema() } returns Mono.error(QuerySchemaUnavailableException("unavailable"))
+        val backends = listOf<QueryBackend>(
+            MongoSnapshotQueryBackend(
+                namedAggregate = MaterializedNamedAggregate("test", "aggregate"),
+                collection = collection,
+                schemaProvider = schemaProvider,
+            ),
+            MongoEventStreamQueryBackend(
+                namedAggregate = MaterializedNamedAggregate("test", "aggregate"),
+                collection = collection,
+                schemaProvider = schemaProvider,
+            ),
+        )
+
+        backends.forEach { builtIn ->
+            builtIn.cursor(CursorQuery(MatchAllFilter)).test()
+                .expectError(QuerySchemaUnavailableException::class.java)
+                .verify()
+        }
+
+        verify(exactly = 2) { schemaProvider.schema() }
+        verify(exactly = 0) { collection.find(any<Bson>()) }
+    }
+
+    @Test
+    fun `cursor keyset projection and token should use physical sort paths`() {
+        val mappedBackend = object : AbstractMongoQueryBackend() {
+            override val namedAggregate = MaterializedNamedAggregate("test", "aggregate")
+            override val collection: MongoCollection<Document> = this@AbstractMongoQueryBackendTest.collection
+            override val converter = me.ahoo.wow.mongo.query.snapshot.SnapshotFilterConverter
+            override val projectionConverter = MongoProjectionConverter(FieldConverter { "physical_$it" })
+            override val sortConverter = MongoSortConverter(FieldConverter { "physical_$it" })
+            override val cursorUniqueField: String = "id"
+            override fun toObjectNode(document: Document): ObjectNode = document.toObjectNode()
+            override fun aggregate(query: AggregationQuery): Flux<ObjectNode> = Flux.empty()
+        }
+        val filter = slot<Bson>()
+        val projection = slot<Bson>()
+        val publisher = mockk<FindPublisher<Document>>()
+        every { collection.find(capture(filter)) } returns publisher
+        every { publisher.projection(capture(projection)) } returns publisher
+        every { publisher.sort(any()) } returns publisher
+        every { publisher.limit(2) } returns publisher
+        every { publisher.subscribe(any()) } answers {
+            Flux.fromIterable(
+                listOf(
+                    Document("physical_name", "two")
+                        .append("physical_rank", 2)
+                        .append("physical_id", "2"),
+                    Document("physical_name", "three")
+                        .append("physical_rank", 3)
+                        .append("physical_id", "3"),
+                ),
+            ).subscribe(firstArg<Subscriber<in Document>>())
+        }
+
+        val page = mappedBackend.cursor(
+            CursorQuery(
+                MatchAllFilter,
+                projection = Projection(include = listOf("name")),
+                sort = listOf(Sort("rank", Sort.Direction.ASC)),
+                size = 1,
+                cursor = MongoCursorCodec.encode(listOf(1, "1")),
+            ),
+        ).block()!!
+
+        filter.captured.toBsonDocument().toJson().assert().contains("physical_rank", "physical_id")
+        projection.captured.toBsonDocument().toJson().assert()
+            .contains("physical_name", "physical_rank", "physical_id")
+        MongoCursorCodec.decode(page.nextCursor!!, 2).assert().containsExactly(2, "2")
+        page.list.single().has("physical_rank").assert().isFalse()
+        page.list.single().has("physical_id").assert().isFalse()
+    }
+
     private fun arrangePublisher(
         publisher: FindPublisher<Document>,
         bson: Bson,
@@ -141,5 +276,17 @@ class AbstractMongoQueryBackendTest {
         every { publisher.subscribe(any()) } answers {
             source().subscribe(firstArg<Subscriber<in Document>>())
         }
+    }
+
+    private fun cursorPublisher(documents: List<Document>, limit: Int): FindPublisher<Document> {
+        val publisher = mockk<FindPublisher<Document>>()
+        every { collection.find(any<Bson>()) } returns publisher
+        every { publisher.projection(any()) } returns publisher
+        every { publisher.sort(any()) } returns publisher
+        every { publisher.limit(limit) } returns publisher
+        every { publisher.subscribe(any()) } answers {
+            Flux.fromIterable(documents).subscribe(firstArg<Subscriber<in Document>>())
+        }
+        return publisher
     }
 }
