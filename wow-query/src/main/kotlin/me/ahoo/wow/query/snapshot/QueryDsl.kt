@@ -79,7 +79,7 @@ fun AggregationQuery.query(queryGateway: SnapshotQueryGateway<*>): Flux<ObjectNo
     return queryGateway.aggregate(this)
 }
 
-@Deprecated("Use FilterExpression.count.")
+@Deprecated("Scheduled for removal in 9.1.0. Use FilterExpression.count.")
 fun Condition.count(queryGateway: SnapshotQueryGateway<*>): Mono<Long> {
     return queryGateway.count(this.toFilterExpression())
 }

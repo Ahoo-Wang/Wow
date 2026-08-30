@@ -61,7 +61,7 @@ data class ListQuery(
     override val sort: List<Sort> = emptyList(),
     override val limit: Int = 0
 ) : IListQuery {
-    @Deprecated("Use filter.")
+    @Deprecated("Scheduled for removal in 9.1.0. Use filter.")
     constructor(
         condition: Condition,
         projection: Projection = Projection.ALL,

@@ -305,7 +305,7 @@ class ElasticsearchSnapshotMappingQueryTest {
         val filter = filter {
             "state.name" eq "Wow"
             "state.name" search "Wow"
-            "state.name".contains("ow")
+            "state.name".containsText("ow")
             "state.age" gt 18
         }
 

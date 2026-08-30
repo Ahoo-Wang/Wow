@@ -13,7 +13,7 @@
 package me.ahoo.wow.spring.boot.starter.query
 
 import me.ahoo.wow.filter.ErrorHandler
-import me.ahoo.wow.filter.LogErrorHandler
+import me.ahoo.wow.query.QueryLogErrorHandler
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
@@ -36,11 +36,11 @@ import org.springframework.context.annotation.Import
 class QueryAutoConfiguration {
     @Bean("snapshotQueryErrorHandler")
     @ConditionalOnMissingBean(name = ["snapshotQueryErrorHandler"])
-    fun snapshotQueryErrorHandler(): ErrorHandler<QueryContext<*, *>> = LogErrorHandler()
+    fun snapshotQueryErrorHandler(): ErrorHandler<QueryContext<*, *>> = QueryLogErrorHandler()
 
     @Bean("eventStreamQueryErrorHandler")
     @ConditionalOnMissingBean(name = ["eventStreamQueryErrorHandler"])
-    fun eventStreamQueryErrorHandler(): ErrorHandler<QueryContext<*, *>> = LogErrorHandler()
+    fun eventStreamQueryErrorHandler(): ErrorHandler<QueryContext<*, *>> = QueryLogErrorHandler()
 
     @Bean("noOpSnapshotQueryBackendFactory")
     @ConditionalOnMissingBean(SnapshotQueryBackendFactory::class)

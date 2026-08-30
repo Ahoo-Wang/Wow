@@ -50,14 +50,14 @@ package me.ahoo.wow.query.dsl
  * ```kotlin
  * @QueryDslMarker
  * interface FilterDsl {
- *     fun where(init: ConditionDsl.() -> Unit): FilterDsl
+ *     fun where(init: FilterDsl.() -> Unit): FilterExpression
  *     fun having(init: AggregateConditionDsl.() -> Unit): FilterDsl
  * }
  *
  * @QueryDslMarker
- * interface ConditionDsl {
- *     infix fun String.eq(value: Any): Condition
- *     infix fun String.gt(value: Any): Condition
+ * interface FilterDsl {
+ *     infix fun String.eq(value: Any): FilterExpression
+ *     infix fun String.gt(value: Any): FilterExpression
  *     // Methods from FilterDsl not accessible here
  * }
  * ```
@@ -83,8 +83,8 @@ package me.ahoo.wow.query.dsl
  * ```kotlin
  * val complexQuery = query {
  *     filter {                          // FilterDsl context
- *         where {                        // ConditionDsl context
- *             "status" eq "active"        // ConditionDsl methods only
+ *         where {                        // FilterDsl context
+ *             "status" eq "active"        // FilterDsl methods only
  *             "age" gt 18
  *             // filter.where() not accessible due to @QueryDslMarker
  *         }

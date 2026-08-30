@@ -16,6 +16,7 @@ package me.ahoo.wow.query.snapshot.filter
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.query.dsl.filter
@@ -32,8 +33,7 @@ class CountSnapshotQueryContextTest {
             queryType = QueryType.COUNT,
             MOCK_AGGREGATE_METADATA
         )
-        val query = filter { }
-        context.setQuery(query)
+        context.setQuery(MatchAllFilter)
         context.appendFilter(TenantIdFilter("tenantId"))
         context.getQuery().assert().isEqualTo(TenantIdFilter("tenantId"))
     }

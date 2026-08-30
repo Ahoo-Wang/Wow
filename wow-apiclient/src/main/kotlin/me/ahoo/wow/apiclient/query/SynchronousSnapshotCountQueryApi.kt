@@ -22,7 +22,7 @@ fun FilterExpression.count(snapshotQueryApi: SynchronousSnapshotCountQueryApi): 
     return snapshotQueryApi.count(this)
 }
 
-@Deprecated("Use FilterExpression.count.")
+@Deprecated("Scheduled for removal in 9.1.0. Use FilterExpression.count.")
 fun Condition.count(snapshotQueryApi: SynchronousSnapshotCountQueryApi): Long {
     return snapshotQueryApi.count(this)
 }

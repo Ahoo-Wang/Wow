@@ -77,7 +77,7 @@ import kotlin.reflect.KCallable
  * - `String.tomorrow(datePattern: Any? = null)`: Adds a condition to check if the field is tomorrow.
  */
 @QueryDslMarker
-@Deprecated("Use FilterDsl.")
+@Deprecated("Scheduled for removal in 9.1.0. Use FilterDsl.")
 class ConditionDsl : NestedFieldDsl() {
 
     private var conditions: MutableList<Condition> = mutableListOf()
