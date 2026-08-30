@@ -464,6 +464,7 @@ internal data class InterfaceGetterMaskedState(
     override val inheritedToken: String,
 ) : GetterMaskedState
 
+@Suppress("FunctionOnlyReturningConstant")
 internal open class NonPublicComputedGetterState {
     private fun getPrivateSecret(): String = "private"
 

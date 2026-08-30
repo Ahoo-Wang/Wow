@@ -53,6 +53,7 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.reflect.jvm.javaField
 import kotlin.reflect.jvm.javaGetter
 
+@Suppress("LargeClass")
 class JsonQuerySchemaSourceTest {
     private val context = QuerySchemaContext(
         MaterializedNamedAggregate("test-context", "test-aggregate"),

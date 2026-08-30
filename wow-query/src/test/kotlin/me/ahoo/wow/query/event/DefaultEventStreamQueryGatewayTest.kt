@@ -114,9 +114,11 @@ class DefaultEventStreamQueryGatewayTest {
 
         gateway.dynamicSingle(singleQuery { }).block()!!
         val newType = "$oldType-refreshed"
-        currentNode.set(currentNode.get().deepCopy().also { node ->
-            (node.path("body").path(0) as ObjectNode).put("bodyType", newType)
-        })
+        currentNode.set(
+            currentNode.get().deepCopy().also { node ->
+                (node.path("body").path(0) as ObjectNode).put("bodyType", newType)
+            }
+        )
         currentSchema.set(eventSchema(newType))
 
         gateway.dynamicSingle(singleQuery { }).block()!!
