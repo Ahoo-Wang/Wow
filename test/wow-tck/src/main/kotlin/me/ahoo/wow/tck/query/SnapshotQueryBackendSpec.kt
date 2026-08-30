@@ -16,11 +16,16 @@ package me.ahoo.wow.tck.query
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CursorPage
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.LogicalField
+import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
@@ -189,6 +194,84 @@ abstract class SnapshotQueryBackendSpec {
         }.dynamicQuery(snapshotQueryBackend)
             .test()
             .expectNextCount(1)
+            .verifyComplete()
+    }
+
+    @Test
+    fun `cursor should traverse tied versions without duplicates`() {
+        val cursorAggregateIds = saveCursorSnapshots(
+            MockStateAggregate(id = "cursor-snapshot-a"),
+            MockStateAggregate(id = "cursor-snapshot-b"),
+            MockStateAggregate(id = "cursor-snapshot-c"),
+        )
+        val query = CursorQuery(
+            filter = filterExpression { aggregateIds(*cursorAggregateIds.toTypedArray()) },
+            sort = listOf(Sort("version", Sort.Direction.ASC)),
+            size = 2,
+        )
+
+        val first = snapshotQueryBackend.cursor(query).block()!!
+        val second = snapshotQueryBackend.cursor(query.copy(cursor = first.nextCursor)).block()!!
+
+        first.list.assert().hasSize(2)
+        first.nextCursor.assert().isNotNull()
+        (first.list + second.list).map { it.path("aggregateId").textValue() }.distinct().assert().hasSize(3)
+        second.list.assert().hasSize(1)
+        second.nextCursor.assert().isNull()
+    }
+
+    @Test
+    fun `cursor should support descending multi field sort`() {
+        val cursorAggregateIds = saveCursorSnapshots(
+            MockStateAggregate(id = "cursor-desc-a", createdAt = 1),
+            MockStateAggregate(id = "cursor-desc-b", createdAt = 3),
+            MockStateAggregate(id = "cursor-desc-c", createdAt = 2),
+        )
+        val query = CursorQuery(
+            filter = filterExpression { aggregateIds(*cursorAggregateIds.toTypedArray()) },
+            sort = listOf(
+                Sort("state.createdAt", Sort.Direction.DESC),
+                Sort("aggregateId", Sort.Direction.ASC),
+            ),
+            size = 2,
+        )
+
+        val first = snapshotQueryBackend.cursor(query).block()!!
+        val second = snapshotQueryBackend.cursor(query.copy(cursor = first.nextCursor)).block()!!
+
+        (first.list + second.list).map { it.path("state").path("createdAt").longValue() }.assert()
+            .containsExactly(3L, 2L, 1L)
+        first.nextCursor.assert().isNotNull()
+        second.nextCursor.assert().isNull()
+    }
+
+    @Test
+    fun `cursor should not expose projection-only cursor fields`() {
+        snapshotQueryBackend.cursor(
+            CursorQuery(
+                filter = IdFilter(snapshot.aggregateId.id),
+                projection = Projection(include = listOf("state.data")),
+                sort = listOf(Sort("version", Sort.Direction.ASC)),
+            ),
+        ).test()
+            .assertNext { page ->
+                page.list.single().let { node ->
+                    node.path("state").has("data").assert().isTrue()
+                    node.has("version").assert().isFalse()
+                    node.has("aggregateId").assert().isFalse()
+                }
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `cursor should return an empty terminal page`() {
+        snapshotQueryBackend.cursor(
+            CursorQuery(
+                IdFilter("missing"),
+                sort = listOf(Sort("aggregateId", Sort.Direction.ASC)),
+            ),
+        ).test()
+            .expectNext(CursorPage(emptyList(), null))
             .verifyComplete()
     }
 
@@ -636,6 +719,18 @@ abstract class SnapshotQueryBackendSpec {
                 ),
             ).test().verifyComplete()
         }
+    }
+
+    private fun saveCursorSnapshots(vararg states: MockStateAggregate): List<String> {
+        states.forEach { state ->
+            snapshotStore.save(
+                SimpleSnapshot(
+                    MOCK_AGGREGATE_METADATA.toStateAggregate(state, version = 1),
+                    AGGREGATION_SNAPSHOT_TIME,
+                ),
+            ).test().verifyComplete()
+        }
+        return states.map(MockStateAggregate::id)
     }
 
     private fun aggregationStates(): List<MockStateAggregate> = listOf(aggregationStateA(), aggregationStateB())
