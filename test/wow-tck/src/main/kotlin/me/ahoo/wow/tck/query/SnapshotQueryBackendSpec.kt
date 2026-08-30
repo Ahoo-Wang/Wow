@@ -19,10 +19,10 @@ import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
@@ -56,8 +56,8 @@ import me.ahoo.wow.tck.mock.MockDiscount
 import me.ahoo.wow.tck.mock.MockLine
 import me.ahoo.wow.tck.mock.MockOrder
 import me.ahoo.wow.tck.mock.MockStateAggregate
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Assumptions
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
