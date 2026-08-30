@@ -14,6 +14,7 @@
 package me.ahoo.wow.elasticsearch.query.snapshot
 
 import co.elastic.clients.elasticsearch._types.Refresh
+import co.elastic.clients.elasticsearch._types.ScriptLanguage
 import co.elastic.clients.elasticsearch._types.mapping.DynamicMapping
 import co.elastic.clients.elasticsearch._types.mapping.RuntimeFieldType
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
@@ -181,6 +182,30 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         )
 
     override fun createSnapshotStore(): SnapshotStore = ElasticsearchSnapshotStore(elasticsearchClient)
+
+    @Suppress("UNCHECKED_CAST")
+    override fun prepareNullAndMissingCursorSnapshots(nullId: String, missingId: String) {
+        elasticsearchClient.update(
+            UpdateRequest.of<Map<String, Any?>, Map<String, Any?>> { request ->
+                request.index(MOCK_AGGREGATE_METADATA.toSnapshotIndexName())
+                    .id(nullId)
+                    .doc(mapOf("state" to mapOf("cursorSort" to null)))
+                    .refresh(Refresh.True)
+            },
+            Map::class.java as Class<Map<String, Any?>>,
+        ).block()
+        elasticsearchClient.update(
+            UpdateRequest.of<Map<String, Any?>, Map<String, Any?>> { request ->
+                request.index(MOCK_AGGREGATE_METADATA.toSnapshotIndexName())
+                    .id(missingId)
+                    .script { script ->
+                        script.lang(ScriptLanguage.Painless)
+                            .source { source -> source.scriptString("ctx._source.state.remove('cursorSort')") }
+                    }.refresh(Refresh.True)
+            },
+            Map::class.java as Class<Map<String, Any?>>,
+        ).block()
+    }
 
     @Test
     fun `retry should create a clean snapshot object node after a discarded mutation`() {

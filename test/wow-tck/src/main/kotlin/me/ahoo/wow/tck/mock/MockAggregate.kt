@@ -14,6 +14,7 @@
 package me.ahoo.wow.tck.mock
 
 import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.annotation.JsonInclude
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.annotation.OnCommand
@@ -85,6 +86,8 @@ data class MockStateAggregate(
     val decimalValue: BigDecimal = BigDecimal.ZERO,
     @field:QueryTemporal(TimeUnit.MILLISECONDS)
     val createdAt: Long = 0,
+    @field:JsonInclude(JsonInclude.Include.NON_NULL)
+    val cursorSort: String? = null,
 ) : ReadOnlyStateAggregateAware<MockStateAggregate> {
     constructor(id: String) : this(id = id, orders = emptyList())
 

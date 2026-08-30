@@ -72,7 +72,7 @@ Registrar 创建 Gateway 时，以当前 `NamedAggregate` 调用一次 `Snapshot
 
 后端把有效排序值编码为无 padding 的 Base64URL continuation。token 不加密、不签名、不承载授权，也不应记录到日志；框架没有游标加密密钥配置。调用方只应原样传回 token，不应解析或构造它。
 
-有效 sort 必须由 Query Schema 精确解析且不能携带任何 Mask rule，包括 `@Mask`、`@KeepMask` 与自定义 `@Masking` meta-annotation 编译出的规则；Schema 不可用时失败关闭。非法 token 以 `Invalid cursor.` 拒绝，不回显其内容。
+有效 sort 必须由 Query Schema 精确解析、是单值字段且不能携带任何 Mask rule，包括 `@Mask`、`@KeepMask` 与自定义 `@Masking` meta-annotation 编译出的规则；Schema 不可用时失败关闭。非法 token 以 `Invalid cursor.` 拒绝，不回显其内容。
 
 ## Schema 使用同一路由
 

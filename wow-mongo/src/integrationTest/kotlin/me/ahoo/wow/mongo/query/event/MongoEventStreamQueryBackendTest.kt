@@ -1,5 +1,6 @@
 package me.ahoo.wow.mongo.query.event
 
+import com.mongodb.client.model.Filters
 import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationQuery
@@ -10,6 +11,7 @@ import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
@@ -36,8 +38,10 @@ import me.ahoo.wow.serialization.MessageRecords
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
+import org.bson.Document
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 import tools.jackson.databind.node.ObjectNode
 
@@ -60,6 +64,21 @@ class MongoEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
 
     override fun createEventStreamQueryBackendFactory(): EventStreamQueryBackendFactory {
         return MongoEventStreamQueryBackendFactory(database)
+    }
+
+    override fun prepareNullAndMissingCursorEventStreams(
+        nullStream: DomainEventStream,
+        missingStream: DomainEventStream,
+    ) {
+        val collection = database.getCollection(namedAggregate.toEventStreamCollectionName())
+        collection.updateOne(
+            Filters.eq("_id", nullStream.id),
+            Document("\$set", Document().append("ownerId", null)),
+        ).toMono().test().expectNextCount(1).verifyComplete()
+        collection.updateOne(
+            Filters.eq("_id", missingStream.id),
+            Document("\$unset", Document("ownerId", "")),
+        ).toMono().test().expectNextCount(1).verifyComplete()
     }
 
     @Test
