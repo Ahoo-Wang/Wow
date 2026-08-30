@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.elasticsearch.query
 
+import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll
 import co.elastic.clients.elasticsearch.core.ClosePointInTimeRequest
@@ -34,6 +35,7 @@ import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
@@ -331,6 +333,82 @@ class AbstractElasticsearchQueryBackendTest {
     }
 
     @Test
+    fun `cursor should use search after without total from pit or shard doc`() {
+        val request = slot<SearchRequest>()
+        every { elasticsearchClient.search(capture(request), ObjectNode::class.java) } returns Mono.just(
+            cursorSearchResponse(cursorHit("id-1", 1L), cursorHit("id-2", 2L)),
+        )
+
+        val page = queryBackend.cursor(
+            CursorQuery(
+                MatchAllFilter,
+                sort = listOf(Sort("version", Sort.Direction.DESC)),
+                size = 1,
+            ),
+        ).block()!!
+
+        request.captured.size().assert().isEqualTo(2)
+        request.captured.from().assert().isNull()
+        request.captured.trackTotalHits()!!.enabled().assert().isFalse()
+        request.captured.pit().assert().isNull()
+        request.captured.searchAfter().assert().isEmpty()
+        request.captured.sort().map { it.field().field() }.assert().containsExactly("version", "id")
+        request.captured.sort().map { it.field().missing()!!.stringValue() }.assert()
+            .containsExactly("_last", "_first")
+        page.list.map { it.path("id").asString() }.assert().containsExactly("id-1")
+        page.nextCursor.assert().isNotNull()
+        val nextValues = ElasticsearchCursorCodec.decode(page.nextCursor!!, 2)
+        nextValues[0].longValue().assert().isEqualTo(1L)
+        nextValues[1].stringValue().assert().isEqualTo("id-1")
+        verify(exactly = 0) { elasticsearchClient.openPointInTime(any<OpenPointInTimeRequest>()) }
+    }
+
+    @Test
+    fun `cursor continuation should search after last returned hit and omit terminal cursor`() {
+        val request = slot<SearchRequest>()
+        every { elasticsearchClient.search(capture(request), ObjectNode::class.java) } returns Mono.just(
+            cursorSearchResponse(cursorHit("id-2", 2L)),
+        )
+        val cursor = ElasticsearchCursorCodec.encode(listOf(FieldValue.of(1L), FieldValue.of("id-1")))
+
+        val page = queryBackend.cursor(
+            CursorQuery(
+                MatchAllFilter,
+                sort = listOf(Sort("version", Sort.Direction.ASC)),
+                size = 1,
+                cursor = cursor,
+            ),
+        ).block()!!
+
+        request.captured.searchAfter()[0].longValue().assert().isEqualTo(1L)
+        request.captured.searchAfter()[1].stringValue().assert().isEqualTo("id-1")
+        page.list.map { it.path("id").asString() }.assert().containsExactly("id-2")
+        page.nextCursor.assert().isNull()
+    }
+
+    @Test
+    fun `cursor should reject missing hit sort arity`() {
+        every { elasticsearchClient.search(any<SearchRequest>(), ObjectNode::class.java) } returns Mono.just(
+            cursorSearchResponse(
+                "id-1" to listOf(FieldValue.of(1L)),
+                cursorHit("id-2", 2L),
+            ),
+        )
+
+        val error = assertThrows<IllegalArgumentException> {
+            queryBackend.cursor(
+                CursorQuery(
+                    MatchAllFilter,
+                    sort = listOf(Sort("version", Sort.Direction.ASC)),
+                    size = 1,
+                ),
+            ).block()
+        }
+
+        error.message.assert().isEqualTo("Invalid cursor.")
+    }
+
+    @Test
     fun `count should use count api`() {
         val request = slot<CountRequest>()
         every { elasticsearchClient.count(capture(request)) } returns Mono.just(
@@ -369,6 +447,28 @@ class AbstractElasticsearchQueryBackendTest {
         }
     }
 
+    private fun cursorHit(id: String, version: Long): Pair<String, List<FieldValue>> =
+        id to listOf(FieldValue.of(version), FieldValue.of(id))
+
+    private fun cursorSearchResponse(
+        vararg hits: Pair<String, List<FieldValue>>,
+    ): SearchResponse<ObjectNode> = SearchResponse.of<ObjectNode> {
+        it.took(1)
+            .timedOut(false)
+            .shards { shards -> shards.failed(0).successful(1).total(1) }
+            .hits { metadata ->
+                hits.forEach { (id, sort) ->
+                    metadata.hits { hit ->
+                        hit.index("test-index")
+                            .id(id)
+                            .source(JsonNodeFactory.instance.objectNode().put("id", id))
+                            .sort(sort)
+                    }
+                }
+                metadata
+            }
+    }
+
     private fun emptyObjectNodeSearchResponse(): SearchResponse<ObjectNode> = SearchResponse.of<ObjectNode> {
         it.took(1)
             .timedOut(false)
@@ -401,6 +501,7 @@ class AbstractElasticsearchQueryBackendTest {
     ) : AbstractElasticsearchQueryBackend() {
         override val namedAggregate: NamedAggregate = MaterializedNamedAggregate("test", "aggregate")
         override val indexName: String = "test-index"
+        override val cursorUniqueField: String = "id"
         override fun aggregate(query: AggregationQuery): Flux<ObjectNode> = Flux.empty()
     }
 }

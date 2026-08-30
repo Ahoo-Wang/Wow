@@ -16,6 +16,7 @@ package me.ahoo.wow.elasticsearch.query.event
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
@@ -35,6 +36,7 @@ import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.schema.resolve
+import me.ahoo.wow.serialization.MessageRecords
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
@@ -52,12 +54,15 @@ class ElasticsearchEventStreamQueryBackend(
     EventStreamQueryBackend,
     QueryModelSchemaProvider by schemaProvider {
     override val indexName: String = namedAggregate.toEventStreamIndexName()
+    override val cursorUniqueField: String = MessageRecords.ID
 
     override fun resolve(query: ISingleQuery) = schemaProvider.resolve(query, validationMode)
 
     override fun resolve(query: IListQuery) = schemaProvider.resolve(query, validationMode)
 
     override fun resolve(query: IPagedQuery) = schemaProvider.resolve(query, validationMode)
+
+    override fun resolve(query: ICursorQuery) = schemaProvider.resolve(query, validationMode)
 
     override fun resolve(filter: FilterExpression) = schemaProvider.resolve(filter, validationMode)
 
