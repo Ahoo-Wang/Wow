@@ -25,6 +25,7 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TenantIdFilter
+import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
@@ -61,6 +62,10 @@ abstract class EventStreamQueryBackendSpec {
 
     protected abstract fun createEventStore(): EventStore
     protected abstract fun createEventStreamQueryBackendFactory(): EventStreamQueryBackendFactory
+    protected abstract fun prepareNullAndMissingCursorEventStreams(
+        nullStream: DomainEventStream,
+        missingStream: DomainEventStream,
+    )
 
     @Test
     fun createFromCache() {
@@ -204,6 +209,42 @@ abstract class EventStreamQueryBackendSpec {
         )
         first.nextCursor.assert().isNotNull()
         second.nextCursor.assert().isNull()
+    }
+
+    @Test
+    fun `cursor should traverse null and missing sort values in both directions`() {
+        val tenantId = generateGlobalId()
+        val nullStream = generateEventStream(namedAggregate.aggregateId(tenantId = tenantId), ownerId = "null")
+        val missingStream = generateEventStream(namedAggregate.aggregateId(tenantId = tenantId), ownerId = "missing")
+        val valueStream = generateEventStream(namedAggregate.aggregateId(tenantId = tenantId), ownerId = "value")
+        listOf(nullStream, missingStream, valueStream).forEach { eventStore.append(it).block() }
+        prepareNullAndMissingCursorEventStreams(nullStream, missingStream)
+        val nullishIds = listOf(nullStream.id, missingStream.id).sorted()
+
+        listOf(
+            Sort.Direction.ASC to (nullishIds + valueStream.id),
+            Sort.Direction.DESC to (listOf(valueStream.id) + nullishIds),
+        ).forEach { (direction, expectedIds) ->
+            val query = CursorQuery(
+                TenantIdFilter(tenantId),
+                sort = listOf(Sort("ownerId", direction)),
+                size = 2,
+            )
+
+            val first = eventStreamQueryBackend.cursor(query).block()!!
+            val second = eventStreamQueryBackend.cursor(query.copy(cursor = first.nextCursor)).block()!!
+            val nodes = first.list + second.list
+
+            nodes.map { it.path("id").textValue() }.assert().containsExactly(*expectedIds.toTypedArray())
+            nodes.map { it.path("id").textValue() }.distinct().assert().hasSize(3)
+            nodes.associateBy { it.path("id").textValue() }.let { byId ->
+                byId.getValue(nullStream.id).path("ownerId").isNull.assert().isTrue()
+                byId.getValue(missingStream.id).path("ownerId").isMissingNode.assert().isTrue()
+            }
+            first.nextCursor.assert().isNotNull()
+            second.list.assert().hasSize(1)
+            second.nextCursor.assert().isNull()
+        }
     }
 
     @Test

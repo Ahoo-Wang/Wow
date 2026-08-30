@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.elasticsearch.query.event
 
+import co.elastic.clients.elasticsearch._types.Refresh
+import co.elastic.clients.elasticsearch._types.ScriptLanguage
+import co.elastic.clients.elasticsearch.core.UpdateRequest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.FilterExpression
@@ -21,10 +24,13 @@ import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
 import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
 import me.ahoo.wow.elasticsearch.TemplateInitializer.initEventStreamTemplate
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStore
+import me.ahoo.wow.elasticsearch.eventsourcing.toDocId
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterConverter
+import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
@@ -65,6 +71,33 @@ class ElasticsearchEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
 
     override fun createEventStreamQueryBackendFactory(): EventStreamQueryBackendFactory {
         return ElasticsearchEventStreamQueryBackendFactory(elasticsearchClient)
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    override fun prepareNullAndMissingCursorEventStreams(
+        nullStream: DomainEventStream,
+        missingStream: DomainEventStream,
+    ) {
+        elasticsearchClient.update(
+            UpdateRequest.of<Map<String, Any?>, Map<String, Any?>> { request ->
+                request.index(nullStream.aggregateId.toEventStreamIndexName())
+                    .id(nullStream.toDocId())
+                    .doc(mapOf("ownerId" to null))
+                    .refresh(Refresh.True)
+            },
+            Map::class.java as Class<Map<String, Any?>>,
+        ).block()
+        elasticsearchClient.update(
+            UpdateRequest.of<Map<String, Any?>, Map<String, Any?>> { request ->
+                request.index(missingStream.aggregateId.toEventStreamIndexName())
+                    .id(missingStream.toDocId())
+                    .script { script ->
+                        script.lang(ScriptLanguage.Painless)
+                            .source { source -> source.scriptString("ctx._source.remove('ownerId')") }
+                    }.refresh(Refresh.True)
+            },
+            Map::class.java as Class<Map<String, Any?>>,
+        ).block()
     }
 
     @Test

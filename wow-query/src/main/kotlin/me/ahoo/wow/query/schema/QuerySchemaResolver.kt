@@ -136,7 +136,8 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
                 fieldResolver.resolve(logical, QueryCapability.SORT, null, null)
             }
             val accepted = field?.compatibility == QueryCompatibilityLevel.EXACT &&
-                field.fieldSchema != null && field.fieldSchema.maskRule == null
+                field.fieldSchema != null && field.fieldSchema.cardinality == QueryCardinality.SINGLE &&
+                field.fieldSchema.maskRule == null
             item.copy(field = field?.value ?: item.field) to
                 if (accepted) QueryCompatibilityLevel.EXACT else QueryCompatibilityLevel.INCOMPATIBLE
         }

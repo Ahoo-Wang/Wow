@@ -1498,6 +1498,30 @@ class QuerySchemaResolverTest {
         ).compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
     }
 
+    @Test
+    fun `cursor sort should reject multi valued fields while ordinary sort remains allowed`() {
+        val many = LogicalField("state.many")
+        val single = LogicalField("state.single")
+        val resolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    many to fieldSchema(
+                        QueryCapability.SORT to "document.many",
+                        cardinality = QueryCardinality.MANY,
+                    ),
+                    single to fieldSchema(QueryCapability.SORT to "document.single"),
+                ),
+            ),
+        )
+
+        resolver.resolve(ListQuery(MatchAllFilter, sort = listOf(Sort(many.value, Sort.Direction.ASC))))
+            .compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+        resolver.resolve(CursorQuery(MatchAllFilter, sort = listOf(Sort(many.value, Sort.Direction.ASC))))
+            .compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+        resolver.resolve(CursorQuery(MatchAllFilter, sort = listOf(Sort(single.value, Sort.Direction.ASC))))
+            .compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+    }
+
     private fun schema(
         fields: Map<LogicalField, QueryFieldSchema> = emptyMap(),
         capabilities: Set<QueryCapability> = emptySet(),

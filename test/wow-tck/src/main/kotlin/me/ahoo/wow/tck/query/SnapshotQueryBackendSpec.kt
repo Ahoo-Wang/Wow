@@ -98,6 +98,7 @@ abstract class SnapshotQueryBackendSpec {
         throw UnsupportedOperationException("Override createSnapshotStore().")
     }
     protected abstract fun createSnapshotQueryBackendFactory(): SnapshotQueryBackendFactory
+    protected abstract fun prepareNullAndMissingCursorSnapshots(nullId: String, missingId: String)
 
     @Test
     fun createFromCache() {
@@ -243,6 +244,45 @@ abstract class SnapshotQueryBackendSpec {
             .containsExactly("cursor-desc-c", "cursor-desc-b", "cursor-desc-a")
         first.nextCursor.assert().isNotNull()
         second.nextCursor.assert().isNull()
+    }
+
+    @Test
+    fun `cursor should traverse null and missing sort values in both directions`() {
+        val nullId = "cursor-null"
+        val missingId = "cursor-missing"
+        val valueId = "cursor-value"
+        val cursorAggregateIds = saveCursorSnapshots(
+            MockStateAggregate(id = nullId, cursorSort = "null"),
+            MockStateAggregate(id = missingId, cursorSort = "missing"),
+            MockStateAggregate(id = valueId, cursorSort = "value"),
+        )
+        prepareNullAndMissingCursorSnapshots(nullId, missingId)
+        val nullishIds = listOf(nullId, missingId).sorted()
+
+        listOf(
+            Sort.Direction.ASC to (nullishIds + valueId),
+            Sort.Direction.DESC to (listOf(valueId) + nullishIds),
+        ).forEach { (direction, expectedIds) ->
+            val query = CursorQuery(
+                filter = filterExpression { aggregateIds(*cursorAggregateIds.toTypedArray()) },
+                sort = listOf(Sort("state.cursorSort", direction)),
+                size = 2,
+            )
+
+            val first = snapshotQueryBackend.cursor(query).block()!!
+            val second = snapshotQueryBackend.cursor(query.copy(cursor = first.nextCursor)).block()!!
+            val nodes = first.list + second.list
+
+            nodes.map { it.path("aggregateId").textValue() }.assert().containsExactly(*expectedIds.toTypedArray())
+            nodes.map { it.path("aggregateId").textValue() }.distinct().assert().hasSize(3)
+            nodes.associateBy { it.path("aggregateId").textValue() }.let { byId ->
+                byId.getValue(nullId).path("state").path("cursorSort").isNull.assert().isTrue()
+                byId.getValue(missingId).path("state").path("cursorSort").isMissingNode.assert().isTrue()
+            }
+            first.nextCursor.assert().isNotNull()
+            second.list.assert().hasSize(1)
+            second.nextCursor.assert().isNull()
+        }
     }
 
     @Test

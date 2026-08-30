@@ -107,6 +107,18 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         return NativeDateSnapshotStore(database)
     }
 
+    override fun prepareNullAndMissingCursorSnapshots(nullId: String, missingId: String) {
+        val collection = database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
+        collection.updateOne(
+            Filters.eq("_id", nullId),
+            Document("\$set", Document().append("state.cursorSort", null)),
+        ).toMono().test().expectNextCount(1).verifyComplete()
+        collection.updateOne(
+            Filters.eq("_id", missingId),
+            Document("\$unset", Document("state.cursorSort", "")),
+        ).toMono().test().expectNextCount(1).verifyComplete()
+    }
+
     @Test
     fun `retry should create a clean snapshot object node after a discarded mutation`() {
         val attempts = AtomicInteger()
