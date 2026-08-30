@@ -912,6 +912,15 @@ test("keeps zero-valued dashboard bars visually empty", async ({
       await route.fulfill({ json: [] });
       return;
     }
+    const serializedFilter = JSON.stringify(query.filter);
+    if (
+      aliases.length === 0 &&
+      serializedFilter.includes('"op":"GTE"') &&
+      serializedFilter.includes('"op":"LT"')
+    ) {
+      await route.fulfill({ json: [{ count: 0 }] });
+      return;
+    }
     await route.fallback();
   });
   await page.route("**/execution_failed/event/aggregation", async (route) => {
