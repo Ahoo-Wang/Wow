@@ -19,9 +19,9 @@ import me.ahoo.wow.benchmark.fixture.BenchmarkEvents
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventSourcingStateAggregateRepository
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
-import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.SimpleStateAggregate
@@ -63,25 +63,25 @@ open class AggregateLoadComponentBenchmark {
 open class AggregateRepositoryLoadComponentBenchmark {
     private lateinit var repository: EventSourcingStateAggregateRepository
     private lateinit var emptyAggregateId: AggregateId
-    private lateinit var snapshotRepository: SnapshotRepository
+    private lateinit var snapshotStore: SnapshotStore
     private lateinit var snapshotAggregateId: AggregateId
 
     @Setup
     fun setup() {
         repository = EventSourcingStateAggregateRepository(
             ConstructorStateAggregateFactory,
-            InMemorySnapshotRepository(),
+            InMemorySnapshotStore(),
             InMemoryEventStore(),
         )
         emptyAggregateId = BenchmarkAggregates.aggregateId()
-        snapshotRepository = InMemorySnapshotRepository()
+        snapshotStore = InMemorySnapshotStore()
         snapshotAggregateId = BenchmarkAggregates.aggregateId()
         val aggregate = ConstructorStateAggregateFactory.create(
             BenchmarkAggregates.cartMetadata.state,
             snapshotAggregateId,
         )
         val snapshot = SimpleSnapshot(BenchmarkEvents.singleEventStream(snapshotAggregateId).toStateEvent(aggregate))
-        snapshotRepository.save(snapshot).block()
+        snapshotStore.save(snapshot).block()
     }
 
     @Benchmark
@@ -97,7 +97,7 @@ open class AggregateRepositoryLoadComponentBenchmark {
     @Benchmark
     fun loadSnapshot(blackhole: Blackhole) {
         val snapshot = checkNotNull(
-            snapshotRepository.load<SimpleStateAggregate<*>>(snapshotAggregateId).block()
+            snapshotStore.load<SimpleStateAggregate<*>>(snapshotAggregateId).block()
         )
         blackhole.consume(snapshot)
     }

@@ -30,8 +30,8 @@ import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.eventsourcing.EventSourcingStateAggregateRepository
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.NoopEventStore
-import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.eventsourcing.state.SendStateEventFilter
 import me.ahoo.wow.eventsourcing.state.StateEventBus
@@ -80,7 +80,7 @@ class CommandPipelineScenario private constructor(
     companion object {
         fun create(
             eventStore: EventStore = NoopEventStore,
-            snapshotRepository: SnapshotRepository = InMemorySnapshotRepository(),
+            snapshotStore: SnapshotStore = InMemorySnapshotStore(),
             domainEventBus: DomainEventBus = InMemoryDomainEventBus(),
             stateEventBus: StateEventBus = InMemoryStateEventBus(),
             commandWaitNotifier: CommandWaitNotifier = LocalCommandWaitNotifier(DefaultWaitCoordinator()),
@@ -90,7 +90,7 @@ class CommandPipelineScenario private constructor(
             val stateAggregateRepository: StateAggregateRepository =
                 EventSourcingStateAggregateRepository(
                     ConstructorStateAggregateFactory,
-                    snapshotRepository,
+                    snapshotStore,
                     eventStore,
                 )
             val aggregateProcessorFactory = RetryableAggregateProcessorFactory(

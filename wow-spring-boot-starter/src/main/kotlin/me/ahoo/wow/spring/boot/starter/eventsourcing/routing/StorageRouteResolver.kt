@@ -196,7 +196,7 @@ class StorageRouteResolver(
         return requireNotNull(
             eventStreamQueryBackendFactoryBindingsByName[binding]?.eventStreamQueryBackendFactory
         ) {
-            "Storage route[$routeKey] channel[$EVENT_CHANNEL] query service factory binding[$binding] was not found."
+            "Storage route[$routeKey] channel[$EVENT_CHANNEL] query backend factory binding[$binding] was not found."
         }
     }
 
@@ -210,7 +210,7 @@ class StorageRouteResolver(
         }
         val binding = channel.binding!!.trim()
         return requireNotNull(snapshotQueryBackendFactoryBindingsByName[binding]?.snapshotQueryBackendFactory) {
-            "Storage route[$routeKey] channel[$SNAPSHOT_CHANNEL] query service factory binding[$binding] was not found."
+            "Storage route[$routeKey] channel[$SNAPSHOT_CHANNEL] query backend factory binding[$binding] was not found."
         }
     }
 
@@ -253,7 +253,7 @@ class StorageRouteResolver(
         channelName: String,
     ): EventStreamQueryBackendFactory =
         requireNotNull(eventStreamQueryBackendFactoryBindingsByStorage[storage]?.eventStreamQueryBackendFactory) {
-            "Storage route[$routeKey] channel[$channelName] query service factory storage[${storage.name}] was not found."
+            "Storage route[$routeKey] channel[$channelName] query backend factory storage[${storage.name}] was not found."
         }
 
     private fun requiredSnapshotQueryBackendFactory(
@@ -262,7 +262,7 @@ class StorageRouteResolver(
         channelName: String,
     ): SnapshotQueryBackendFactory =
         requireNotNull(snapshotQueryBackendFactoryBindingsByStorage[storage]?.snapshotQueryBackendFactory) {
-            "Storage route[$routeKey] channel[$channelName] query service factory storage[${storage.name}] was not found."
+            "Storage route[$routeKey] channel[$channelName] query backend factory storage[${storage.name}] was not found."
         }
 
     companion object {

@@ -122,10 +122,7 @@ abstract class CommandDispatcherSpec {
 
     protected open fun createEventStore(): EventStore = InMemoryEventStore()
 
-    protected open fun createSnapshotStore(): SnapshotStore = createSnapshotRepository()
-
-    @Deprecated("Use createSnapshotStore().", ReplaceWith("createSnapshotStore()"))
-    protected open fun createSnapshotRepository(): SnapshotStore = InMemorySnapshotStore()
+    protected open fun createSnapshotStore(): SnapshotStore = InMemorySnapshotStore()
 
     protected fun createStateAggregateRepository(
         stateAggregateFactory: StateAggregateFactory,

@@ -61,15 +61,4 @@ class SnapshotStoreNamingTest {
             }
             .verifyComplete()
     }
-
-    @Suppress("DEPRECATION")
-    @Test
-    fun `deprecated snapshot store names should remain source compatible`() {
-        val store: SnapshotRepository = InMemorySnapshotRepository()
-        val noOp: SnapshotRepository = NoOpSnapshotRepository
-
-        store.name.assert().isEqualTo(InMemorySnapshotStore.NAME)
-        noOp.name.assert().isEqualTo(NoOpSnapshotStore.NAME)
-        NoOpSnapshotRepository.NAME.assert().isEqualTo(NoOpSnapshotStore.NAME)
-    }
 }

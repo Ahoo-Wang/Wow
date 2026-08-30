@@ -154,7 +154,7 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
         )
     }
 
-    @Bean(name = ["elasticsearchSnapshotStore", "elasticsearchSnapshotRepository"])
+    @Bean
     @ConditionalOnSnapshotEnabled
     @ConditionalOnSnapshotStoreStorage(StorageType.ELASTICSEARCH)
     fun elasticsearchSnapshotStore(

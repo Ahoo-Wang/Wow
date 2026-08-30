@@ -24,7 +24,7 @@ import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
 import me.ahoo.wow.command.wait.WaitCoordinator
 import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.eventsourcing.NoopEventStore
-import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.messaging.MessageSubscription
 import org.openjdk.jmh.annotations.Benchmark
@@ -49,7 +49,7 @@ open class CommandPipelineComponentBenchmark {
         BenchmarkIds.installDeterministicGlobalIdGenerator()
         val aggregateMetadata = BenchmarkAggregates.cartMetadata
         val eventStore = NoopEventStore
-        val snapshotRepository = InMemorySnapshotRepository()
+        val snapshotStore = InMemorySnapshotStore()
         domainEventBus = InMemoryDomainEventBus()
         stateEventBus = InMemoryStateEventBus()
         val subscription = MessageSubscription(BenchmarkAggregates.namedAggregate)
@@ -59,7 +59,7 @@ open class CommandPipelineComponentBenchmark {
         val commandWaitNotifier = LocalCommandWaitNotifier(waitCoordinator)
         commandPipelineScenario = CommandPipelineScenario.create(
             eventStore = eventStore,
-            snapshotRepository = snapshotRepository,
+            snapshotStore = snapshotStore,
             domainEventBus = domainEventBus,
             stateEventBus = stateEventBus,
             commandWaitNotifier = commandWaitNotifier,

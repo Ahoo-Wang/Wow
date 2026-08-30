@@ -38,7 +38,7 @@ class OrderQueryController(
     @GetMapping("{tenantId}/{orderId}")
     fun onQuery(@PathVariable tenantId: String, @PathVariable orderId: String): Mono<OrderState> {
         return singleQuery {
-            condition {
+            filter {
                 tenantId(tenantId)
                 id(orderId)
             }

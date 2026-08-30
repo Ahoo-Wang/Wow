@@ -14,7 +14,6 @@
 package me.ahoo.wow.elasticsearch
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import me.ahoo.wow.messaging.dispatcher.SafeSubscriber
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toJsonString
 import org.springframework.core.io.ClassPathResource
@@ -102,7 +101,4 @@ class IndexTemplateInitializer(private val elasticsearchOperations: ReactiveElas
             }
         }
     }
-
-    @Deprecated("Template initialization is now awaited and failures are propagated by initAll().")
-    class InitSubscriber(override val name: String) : SafeSubscriber<Boolean>()
 }

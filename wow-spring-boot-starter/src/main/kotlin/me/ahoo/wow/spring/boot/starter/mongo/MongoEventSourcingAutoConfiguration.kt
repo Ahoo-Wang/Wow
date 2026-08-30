@@ -147,7 +147,7 @@ class MongoEventSourcingAutoConfiguration(
         return eventStoreDatabase
     }
 
-    @Bean(name = ["mongoSnapshotStore", "mongoSnapshotRepository"])
+    @Bean
     @ConditionalOnSnapshotEnabled
     @ConditionalOnSnapshotStoreStorage(StorageType.MONGO)
     fun mongoSnapshotStore(

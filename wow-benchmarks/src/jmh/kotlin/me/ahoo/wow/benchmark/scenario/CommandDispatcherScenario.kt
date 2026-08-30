@@ -34,8 +34,8 @@ import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.eventsourcing.EventSourcingStateAggregateRepository
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
-import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.eventsourcing.state.SendStateEventFilter
 import me.ahoo.wow.eventsourcing.state.StateEventBus
@@ -73,7 +73,7 @@ class CommandDispatcherScenario private constructor(
         fun create(
             commandBus: CommandBus = InMemoryCommandBus(),
             eventStore: EventStore = InMemoryEventStore(),
-            snapshotRepository: SnapshotRepository = InMemorySnapshotRepository(),
+            snapshotStore: SnapshotStore = InMemorySnapshotStore(),
             domainEventBus: DomainEventBus = InMemoryDomainEventBus(),
             stateEventBus: StateEventBus = InMemoryStateEventBus(),
             schedulerSupplier: AggregateSchedulerSupplier = BenchmarkAggregateSchedulerSupplier(),
@@ -99,7 +99,7 @@ class CommandDispatcherScenario private constructor(
             val stateAggregateRepository =
                 EventSourcingStateAggregateRepository(
                     ConstructorStateAggregateFactory,
-                    snapshotRepository,
+                    snapshotStore,
                     eventStore,
                 )
             val aggregateProcessorFactory = RetryableAggregateProcessorFactory(

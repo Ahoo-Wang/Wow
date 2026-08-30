@@ -60,7 +60,7 @@ data class EventStreamQueryBackendFactoryBinding(
             eventStreamQueryBackendFactory: EventStreamQueryBackendFactory
         ): EventStreamQueryBackendFactoryBinding =
             EventStreamQueryBackendFactoryBinding(
-                name = storage.bindingPrefix() + "-event-stream-query-service-factory",
+                name = storage.bindingPrefix() + "-event-stream-query-backend-factory",
                 storage = storage,
                 eventStreamQueryBackendFactory = eventStreamQueryBackendFactory,
             )
@@ -78,7 +78,7 @@ data class SnapshotQueryBackendFactoryBinding(
             snapshotQueryBackendFactory: SnapshotQueryBackendFactory
         ): SnapshotQueryBackendFactoryBinding =
             SnapshotQueryBackendFactoryBinding(
-                name = storage.bindingPrefix() + "-snapshot-query-service-factory",
+                name = storage.bindingPrefix() + "-snapshot-query-backend-factory",
                 storage = storage,
                 snapshotQueryBackendFactory = snapshotQueryBackendFactory,
             )

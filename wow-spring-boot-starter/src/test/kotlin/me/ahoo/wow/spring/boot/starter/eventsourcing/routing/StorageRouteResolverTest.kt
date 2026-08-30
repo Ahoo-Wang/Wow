@@ -49,9 +49,9 @@ class StorageRouteResolverTest {
     @Test
     fun `renamed backend binding keeps public service factory name`() {
         SnapshotQueryBackendFactoryBinding.storage(StorageType.MONGO, mongoSnapshotQueryBackendFactory)
-            .name.assert().isEqualTo("mongo-snapshot-query-service-factory")
+            .name.assert().isEqualTo("mongo-snapshot-query-backend-factory")
         EventStreamQueryBackendFactoryBinding.storage(StorageType.ELASTICSEARCH, mongoEventStreamQueryBackendFactory)
-            .name.assert().isEqualTo("elasticsearch-event-stream-query-service-factory")
+            .name.assert().isEqualTo("elasticsearch-event-stream-query-backend-factory")
     }
 
     @Test
@@ -295,7 +295,7 @@ class StorageRouteResolverTest {
     }
 
     @Test
-    fun `event query service factory routes resolve storage and custom bindings`() {
+    fun `event query backend factory routes resolve storage and custom bindings`() {
         val properties = StorageRoutingProperties(
             aggregates = mapOf(
                 "order" to AggregateStorageRouteProperties(
@@ -317,7 +317,7 @@ class StorageRouteResolverTest {
     }
 
     @Test
-    fun `snapshot query service factory routes resolve storage and custom bindings`() {
+    fun `snapshot query backend factory routes resolve storage and custom bindings`() {
         val properties = StorageRoutingProperties(
             aggregates = mapOf(
                 "cart" to AggregateStorageRouteProperties(
@@ -339,7 +339,7 @@ class StorageRouteResolverTest {
     }
 
     @Test
-    fun `missing named event query service factory binding fails`() {
+    fun `missing named event query backend factory binding fails`() {
         val properties = StorageRoutingProperties(
             aggregates = mapOf(
                 "audit" to AggregateStorageRouteProperties(
@@ -354,11 +354,11 @@ class StorageRouteResolverTest {
         }
         exception.message.assert().contains("audit")
         exception.message.assert().contains("archive-event-store")
-        exception.message.assert().contains("query service factory")
+        exception.message.assert().contains("query backend factory")
     }
 
     @Test
-    fun `missing named snapshot query service factory binding fails`() {
+    fun `missing named snapshot query backend factory binding fails`() {
         val properties = StorageRoutingProperties(
             aggregates = mapOf(
                 "audit" to AggregateStorageRouteProperties(
@@ -373,11 +373,11 @@ class StorageRouteResolverTest {
         }
         exception.message.assert().contains("audit")
         exception.message.assert().contains("archive-snapshot-store")
-        exception.message.assert().contains("query service factory")
+        exception.message.assert().contains("query backend factory")
     }
 
     @Test
-    fun `missing storage query service factory binding fails`() {
+    fun `missing storage query backend factory binding fails`() {
         val properties = StorageRoutingProperties(
             aggregates = mapOf(
                 "order" to AggregateStorageRouteProperties(
@@ -392,24 +392,24 @@ class StorageRouteResolverTest {
         }
         exception.message.assert().contains("order")
         exception.message.assert().contains(StorageType.REDIS.name)
-        exception.message.assert().contains("query service factory")
+        exception.message.assert().contains("query backend factory")
     }
 
     @Test
-    fun `missing default query service factory binding fails`() {
+    fun `missing default query backend factory binding fails`() {
         val resolver = resolver(includeQueryBackendFactoryBindings = false)
 
         val eventException = assertThrows<IllegalArgumentException> {
             resolver.resolveEventStreamQueryBackendFactoryRoutes(StorageRoutingProperties())
         }
         eventException.message.assert().contains("<default>")
-        eventException.message.assert().contains("query service factory")
+        eventException.message.assert().contains("query backend factory")
 
         val snapshotException = assertThrows<IllegalArgumentException> {
             resolver.resolveSnapshotQueryBackendFactoryRoutes(StorageRoutingProperties())
         }
         snapshotException.message.assert().contains("<default>")
-        snapshotException.message.assert().contains("query service factory")
+        snapshotException.message.assert().contains("query backend factory")
     }
 
     private fun resolver(

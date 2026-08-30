@@ -109,7 +109,7 @@ class CommandWriteE2EFixture private constructor(
             return CommandDispatcherScenario.create(
                 commandBus = commandBus,
                 eventStore = eventStore,
-                snapshotRepository = snapshotStore,
+                snapshotStore = snapshotStore,
                 domainEventBus = domainEventBus,
                 stateEventBus = stateEventBus,
                 schedulerSupplier = schedulerSupplier,

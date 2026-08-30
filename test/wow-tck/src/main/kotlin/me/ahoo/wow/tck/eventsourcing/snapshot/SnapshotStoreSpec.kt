@@ -42,12 +42,7 @@ abstract class SnapshotStoreSpec {
 
     private val stateAggregateFactory: StateAggregateFactory = ConstructorStateAggregateFactory
 
-    protected open fun createSnapshotStore(): SnapshotStore = createSnapshotRepository()
-
-    @Deprecated("Use createSnapshotStore().", ReplaceWith("createSnapshotStore()"))
-    protected open fun createSnapshotRepository(): SnapshotStore {
-        throw UnsupportedOperationException("Override createSnapshotStore().")
-    }
+    protected abstract fun createSnapshotStore(): SnapshotStore
 
     @Test
     fun name() {
