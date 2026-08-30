@@ -21,6 +21,7 @@ import me.ahoo.wow.api.query.*
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryCompatibilityLevel
+import me.ahoo.wow.query.FORBIDDEN_CURSOR_SORTS
 
 enum class QuerySchemaValidationMode {
     COMPATIBLE,
@@ -137,7 +138,8 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
             }
             val accepted = field?.compatibility == QueryCompatibilityLevel.EXACT &&
                 field.fieldSchema != null && field.fieldSchema.cardinality == QueryCardinality.SINGLE &&
-                field.fieldSchema.maskRule == null && !field.matchesMaskedCandidate()
+                field.fieldSchema.maskRule == null && field.value !in FORBIDDEN_CURSOR_SORTS &&
+                !field.matchesMaskedCandidate()
             item.copy(field = field?.value ?: item.field) to
                 if (accepted) QueryCompatibilityLevel.EXACT else QueryCompatibilityLevel.INCOMPATIBLE
         }

@@ -1556,6 +1556,29 @@ class QuerySchemaResolverTest {
             .compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
     }
 
+    @Test
+    fun `cursor sort should reject aliases resolved to unstable metadata fields`() {
+        val aliases = mapOf(
+            LogicalField("state.scoreRank") to "_score",
+            LogicalField("state.documentRank") to "_doc",
+            LogicalField("state.shardRank") to "_shard_doc",
+        )
+        val resolver = QuerySchemaResolver(
+            schema(
+                aliases.mapValues { (_, physical) ->
+                    fieldSchema(QueryCapability.SORT to physical)
+                },
+            ),
+        )
+
+        aliases.keys.forEach { alias ->
+            resolver.resolve(ListQuery(MatchAllFilter, sort = listOf(Sort(alias.value, Sort.Direction.ASC))))
+                .compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+            resolver.resolve(CursorQuery(MatchAllFilter, sort = listOf(Sort(alias.value, Sort.Direction.ASC))))
+                .compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+        }
+    }
+
     private fun schema(
         fields: Map<LogicalField, QueryFieldSchema> = emptyMap(),
         capabilities: Set<QueryCapability> = emptySet(),
