@@ -249,8 +249,12 @@ class DefaultSnapshotQueryGatewayTest {
                     Mono.empty()
                 },
             ).dynamicSingle(singleQuery { }),
-        ).expectErrorMatches { it === failure }.verify()
-        observed.assert().containsExactly(failure)
+        ).expectErrorSatisfies { error ->
+            error.assert().isInstanceOf(QuerySchemaValidationException::class.java)
+            error.message.assert().isEqualTo("Mask strategy execution failed.")
+            error.cause.assert().isSameAs(failure)
+            observed.single().assert().isSameAs(error)
+        }.verify()
     }
 
     @Test
