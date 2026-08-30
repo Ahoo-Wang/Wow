@@ -23,6 +23,7 @@ import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.withQueryModelSchema
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import tools.jackson.databind.node.ObjectNode
@@ -30,18 +31,9 @@ import java.util.Optional
 import java.util.concurrent.atomic.AtomicReference
 
 internal class SchemaMaskQueryFilter(
-    provider: QueryModelSchemaProvider,
+    private val provider: QueryModelSchemaProvider,
 ) : QueryFilter<QueryContext<*, *>> {
-    private val masker: Mono<Optional<SchemaMasker>>
-
-    init {
-        val cached = AtomicReference<Pair<QueryModelSchema, Optional<SchemaMasker>>?>()
-        masker = Mono.defer(provider::schema).map { schema ->
-            cached.get()?.takeIf { it.first === schema }?.second ?: Optional
-                .ofNullable(SchemaMasker.create(schema))
-                .also { cached.set(schema to it) }
-        }
-    }
+    private val cached = AtomicReference<Pair<QueryModelSchema, Optional<SchemaMasker>>?>()
 
     override fun filter(
         context: QueryContext<*, *>,
@@ -60,25 +52,36 @@ internal class SchemaMaskQueryFilter(
         },
     )
 
-    private fun Mono<ObjectNode>.maskResult(): Mono<ObjectNode> = masker.flatMap { optional ->
-        optional.map { schemaMasker -> map(schemaMasker::mask) }.orElse(this)
+    private fun masker(schema: QueryModelSchema): Optional<SchemaMasker> =
+        cached.get()?.takeIf { it.first === schema }?.second ?: Optional
+            .ofNullable(SchemaMasker.create(schema))
+            .also { cached.set(schema to it) }
+
+    private fun Mono<ObjectNode>.maskResult(): Mono<ObjectNode> = Mono.defer(provider::schema).flatMap { schema ->
+        val source = withQueryModelSchema(schema)
+        masker(schema).map { schemaMasker -> source.map(schemaMasker::mask) }.orElse(source)
     }
 
-    private fun Flux<ObjectNode>.maskResult(): Flux<ObjectNode> = masker.flatMapMany { optional ->
-        optional.map { schemaMasker -> map(schemaMasker::mask) }.orElse(this)
+    private fun Flux<ObjectNode>.maskResult(): Flux<ObjectNode> = Mono.defer(provider::schema).flatMapMany { schema ->
+        val source = withQueryModelSchema(schema)
+        masker(schema).map { schemaMasker -> source.map(schemaMasker::mask) }.orElse(source)
     }
 
-    private fun Mono<PagedList<ObjectNode>>.maskPagedResult(): Mono<PagedList<ObjectNode>> = masker.flatMap { optional ->
-        optional.map { schemaMasker ->
-            map { page -> PagedList(page.total, page.list.map(schemaMasker::mask)) }
-        }.orElse(this)
-    }
+    private fun Mono<PagedList<ObjectNode>>.maskPagedResult(): Mono<PagedList<ObjectNode>> =
+        Mono.defer(provider::schema).flatMap { schema ->
+            val source = withQueryModelSchema(schema)
+            masker(schema).map { schemaMasker ->
+                source.map { page -> PagedList(page.total, page.list.map(schemaMasker::mask)) }
+            }.orElse(source)
+        }
 
-    private fun Mono<CursorPage<ObjectNode>>.maskCursorResult(): Mono<CursorPage<ObjectNode>> = masker.flatMap { optional ->
-        optional.map { schemaMasker ->
-            map { page -> page.copy(list = page.list.map(schemaMasker::mask)) }
-        }.orElse(this)
-    }
+    private fun Mono<CursorPage<ObjectNode>>.maskCursorResult(): Mono<CursorPage<ObjectNode>> =
+        Mono.defer(provider::schema).flatMap { schema ->
+            val source = withQueryModelSchema(schema)
+            masker(schema).map { schemaMasker ->
+                source.map { page -> page.copy(list = page.list.map(schemaMasker::mask)) }
+            }.orElse(source)
+        }
 }
 
 internal fun FilterChain<QueryContext<*, *>>.withSchemaMaskFilter(

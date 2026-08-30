@@ -24,40 +24,40 @@ import reactor.core.publisher.Mono
 fun QueryModelSchemaProvider.resolve(
     query: ISingleQuery,
     mode: QuerySchemaValidationMode,
-): Mono<ISingleQuery> = schema()
+): Mono<ISingleQuery> = schemaForQuery()
     .map { QuerySchemaResolver(it).resolve(query).requireAccepted(mode) }
     .fallbackUnavailable(mode, query, !query.filter.referencesSystemTags())
 
 fun QueryModelSchemaProvider.resolve(
     query: IListQuery,
     mode: QuerySchemaValidationMode,
-): Mono<IListQuery> = schema()
+): Mono<IListQuery> = schemaForQuery()
     .map { QuerySchemaResolver(it).resolve(query).requireAccepted(mode) }
     .fallbackUnavailable(mode, query, !query.filter.referencesSystemTags())
 
 fun QueryModelSchemaProvider.resolve(
     query: IPagedQuery,
     mode: QuerySchemaValidationMode,
-): Mono<IPagedQuery> = schema()
+): Mono<IPagedQuery> = schemaForQuery()
     .map { QuerySchemaResolver(it).resolve(query).requireAccepted(mode) }
     .fallbackUnavailable(mode, query, !query.filter.referencesSystemTags())
 
 fun QueryModelSchemaProvider.resolve(
     query: ICursorQuery,
     mode: QuerySchemaValidationMode,
-): Mono<ICursorQuery> = schema().map { QuerySchemaResolver(it).resolve(query).requireAccepted(mode) }
+): Mono<ICursorQuery> = schemaForQuery().map { QuerySchemaResolver(it).resolve(query).requireAccepted(mode) }
 
 fun QueryModelSchemaProvider.resolve(
     filter: FilterExpression,
     mode: QuerySchemaValidationMode,
-): Mono<FilterExpression> = schema()
+): Mono<FilterExpression> = schemaForQuery()
     .map { QuerySchemaResolver(it).resolve(filter).requireAccepted(mode) }
     .fallbackUnavailable(mode, filter, !filter.referencesSystemTags())
 
 fun QueryModelSchemaProvider.resolve(
     query: AggregationQuery,
     mode: QuerySchemaValidationMode,
-): Mono<ResolvedAggregationQuery> = schema()
+): Mono<ResolvedAggregationQuery> = schemaForQuery()
     .map { schema ->
         ResolvedAggregationQuery(
             QuerySchemaResolver(schema).resolve(query).requireAccepted(mode),

@@ -123,6 +123,17 @@ class QuerySchemaValidationModeTest {
     }
 
     @Test
+    fun `provider resolution should reuse the schema pinned to the subscription`() {
+        val provider = FixedProvider(Mono.error(AssertionError("provider schema must not be loaded")))
+
+        provider.resolve(SingleQuery(MatchAllFilter), QuerySchemaValidationMode.STRICT)
+            .withQueryModelSchema(schema())
+            .test()
+            .expectNext(SingleQuery(MatchAllFilter))
+            .verifyComplete()
+    }
+
+    @Test
     fun `compatible mode should fall back for non aggregation requests when schema is unavailable`() {
         val unavailable = QuerySchemaUnavailableException("unavailable")
         val provider = FixedProvider(Mono.error(unavailable))
