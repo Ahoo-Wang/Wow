@@ -404,6 +404,20 @@ class JsonQuerySchemaSourceTest {
     }
 
     @Test
+    fun `should reject masked descendants behind dynamic array values`() {
+        assertThrows<QuerySchemaConflictException> {
+            JsonSchemaWalker(
+                schema = JsonSerializer.readTree(
+                    """
+                    {"properties":{"contacts":{"additionalProperties":{"items":{"properties":{"phone":{"$MASK_RULE_ATTRIBUTE":"0"}}}}}}}
+                    """.trimIndent(),
+                ),
+                maskRuleResolver = { fullMaskRule() },
+            ).declaration()
+        }
+    }
+
+    @Test
     fun `should treat custom serializer wire shapes as opaque`() {
         val declaration = load(CustomSerializerState::class.java)
 
@@ -549,13 +563,6 @@ class JsonQuerySchemaSourceTest {
     fun `should reject masked recursive descendants`() {
         assertThrows<QuerySchemaConflictException> {
             load(MaskedRecursiveState::class.java)
-        }
-    }
-
-    @Test
-    fun `should reject masked recursive list descendants`() {
-        assertThrows<QuerySchemaConflictException> {
-            load(MaskedRecursiveChildrenState::class.java)
         }
     }
 

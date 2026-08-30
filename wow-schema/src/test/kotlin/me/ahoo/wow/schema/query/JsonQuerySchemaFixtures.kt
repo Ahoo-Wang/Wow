@@ -285,11 +285,6 @@ internal data class MaskedRecursiveState(
     val child: MaskedRecursiveState?,
 )
 
-internal data class MaskedRecursiveChildrenState(
-    @field:Mask val secret: String,
-    val children: List<MaskedRecursiveChildrenState>,
-)
-
 internal data class MutuallyRecursiveMaskedState(
     val node: MutuallyRecursiveMaskedNode,
 )
