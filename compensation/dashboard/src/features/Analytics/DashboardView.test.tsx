@@ -99,6 +99,7 @@ beforeEach(() => {
     summary: {
       data: {
         actionableNow: 128,
+        activeTotal: 968,
         newerThanRange: 0,
         olderThanRange: 968,
         timedOut: 34,
@@ -144,6 +145,7 @@ describe("DashboardView", () => {
   it("makes stock, flow, and pressure concentration the primary signals", () => {
     mocks.snapshotResult.summary.data = {
       actionableNow: 12,
+      activeTotal: 1_000,
       newerThanRange: 0,
       olderThanRange: 968,
       timedOut: 3,
@@ -353,6 +355,7 @@ describe("DashboardView", () => {
   it("accounts for active failures newer than the selected range", () => {
     mocks.snapshotResult.summary.data = {
       actionableNow: 2,
+      activeTotal: 100,
       newerThanRange: 15,
       olderThanRange: 60,
       timedOut: 1,
@@ -370,6 +373,7 @@ describe("DashboardView", () => {
   });
 
   it("applies one complete local date range to both facts", () => {
+    mocks.snapshotResult.summary.data!.activeTotal = 1_168;
     mocks.snapshotResult.recoverability.data = [
       { recoverable: RecoverableType.UNRECOVERABLE, count: 200 },
     ];
@@ -519,6 +523,7 @@ describe("DashboardView", () => {
     mocks.snapshotResult.summary = {
       data: {
         actionableNow: 128,
+        activeTotal: 1_000,
         newerThanRange: 32,
         olderThanRange: 968,
         timedOut: 34,
@@ -554,9 +559,10 @@ describe("DashboardView", () => {
     ).toBeInTheDocument();
   });
 
-  it("does not derive newer stock from an independently read total", () => {
+  it("does not present incoherent stock partitions", () => {
     mocks.snapshotResult.summary.data = {
       actionableNow: 0,
+      activeTotal: 20,
       newerThanRange: 0,
       olderThanRange: 0,
       timedOut: 0,
@@ -569,13 +575,20 @@ describe("DashboardView", () => {
     render(<DashboardView />);
 
     const stock = screen.getByRole("region", { name: "Backlog exposure" });
-    expect(within(stock).getByText("0 newer")).toBeInTheDocument();
-    expect(within(stock).getByText("25 total")).toBeInTheDocument();
+    expect(
+      within(stock).getByText("Backlog exposure unavailable."),
+    ).toBeInTheDocument();
+    expect(
+      within(stock).queryByRole("progressbar", {
+        name: "Selected active coverage",
+      }),
+    ).not.toBeInTheDocument();
   });
 
   it("does not present summary subsets larger than selected active", () => {
     mocks.snapshotResult.summary.data = {
       actionableNow: 1,
+      activeTotal: 0,
       newerThanRange: 0,
       olderThanRange: 0,
       timedOut: 1,
@@ -628,6 +641,7 @@ describe("DashboardView", () => {
   it("distinguishes tiny positive ratios from zero", () => {
     mocks.snapshotResult.summary.data = {
       actionableNow: 1,
+      activeTotal: 4_004_001,
       newerThanRange: 0,
       olderThanRange: 4_002_000,
       timedOut: 0,

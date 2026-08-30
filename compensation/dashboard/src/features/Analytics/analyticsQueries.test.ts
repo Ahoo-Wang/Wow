@@ -97,7 +97,14 @@ describe("analyticsQueries", () => {
       },
       metrics: [{ type: "COUNT", alias: "count" }],
     });
-    expect(queries).not.toHaveProperty("activeTotal");
+    expect(queries).toHaveProperty("activeTotal", {
+      filter: {
+        op: "IN",
+        field: "state.status",
+        values: [ExecutionFailedStatus.FAILED, ExecutionFailedStatus.PREPARED],
+      },
+      metrics: [{ type: "COUNT", alias: "count" }],
+    });
     expect(queries).toHaveProperty("olderThanRange", {
       filter: {
         op: "AND",

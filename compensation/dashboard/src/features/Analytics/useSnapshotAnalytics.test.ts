@@ -71,7 +71,7 @@ describe("useSnapshotAnalytics", () => {
 
   afterEach(() => vi.restoreAllMocks());
 
-  it("starts eight snapshot requests and waits for top clusters before status mix", async () => {
+  it("starts nine snapshot requests and waits for top clusters before status mix", async () => {
     const pressure = deferred<PressureClusterRow[]>();
     mocks.aggregate.mockImplementation((query) => {
       if (isQuery(query, "errorCode")) {
@@ -82,7 +82,7 @@ describe("useSnapshotAnalytics", () => {
 
     renderHook(() => useSnapshotAnalytics(initialWindow, 0));
 
-    expect(mocks.aggregate).toHaveBeenCalledTimes(8);
+    expect(mocks.aggregate).toHaveBeenCalledTimes(9);
     pressure.resolve([
       {
         errorCode: "TEST",
@@ -95,7 +95,7 @@ describe("useSnapshotAnalytics", () => {
         nextRetryAt: 2_000,
       },
     ]);
-    await waitFor(() => expect(mocks.aggregate).toHaveBeenCalledTimes(9));
+    await waitFor(() => expect(mocks.aggregate).toHaveBeenCalledTimes(10));
   });
 
   it("settles independent sections while the stock pair remains deferred", async () => {
@@ -130,6 +130,7 @@ describe("useSnapshotAnalytics", () => {
       expect(result.current.summary).toMatchObject({
         data: {
           actionableNow: 3,
+          activeTotal: 3,
           newerThanRange: 3,
           olderThanRange: 3,
           timedOut: 3,
@@ -228,7 +229,7 @@ describe("useSnapshotAnalytics", () => {
     });
   });
 
-  it("aborts the old window and starts eight requests with the applied window", async () => {
+  it("aborts the old window and starts nine requests with the applied window", async () => {
     const controllers: AbortController[] = [];
     const queries: Array<{
       filter: { operands: Array<{ op: string; value?: number }> };
@@ -255,8 +256,8 @@ describe("useSnapshotAnalytics", () => {
       await Promise.resolve();
     });
 
-    expect(mocks.aggregate).toHaveBeenCalledTimes(16);
-    expect(controllers.slice(0, 8).every(({ signal }) => signal.aborted)).toBe(
+    expect(mocks.aggregate).toHaveBeenCalledTimes(18);
+    expect(controllers.slice(0, 9).every(({ signal }) => signal.aborted)).toBe(
       true,
     );
     const fullyWindowedQueries = queries.filter((query) => {
@@ -278,7 +279,7 @@ describe("useSnapshotAnalytics", () => {
       queries.filter(
         (query) => !JSON.stringify(query.filter).includes('"state.executeAt"'),
       ),
-    ).toHaveLength(0);
+    ).toHaveLength(2);
     expect(JSON.stringify(fullyWindowedQueries.slice(0, 6))).toContain(
       String(initialWindow.start),
     );
@@ -288,7 +289,7 @@ describe("useSnapshotAnalytics", () => {
   });
 
   it("does not let settled stale requests overwrite refreshed sections", async () => {
-    const firstLoads = Array.from({ length: 8 }, () => deferred<unknown[]>());
+    const firstLoads = Array.from({ length: 9 }, () => deferred<unknown[]>());
     let firstCall = 0;
     let refresh = 0;
     mocks.aggregate.mockImplementation((query) => {
@@ -311,7 +312,7 @@ describe("useSnapshotAnalytics", () => {
       ({ token }) => useSnapshotAnalytics(initialWindow, token),
       { initialProps: { token: 0 } },
     );
-    expect(mocks.aggregate).toHaveBeenCalledTimes(8);
+    expect(mocks.aggregate).toHaveBeenCalledTimes(9);
 
     refresh = 1;
     await act(async () => {
@@ -328,9 +329,10 @@ describe("useSnapshotAnalytics", () => {
       firstLoads[2].resolve([{ count: 1 }]);
       firstLoads[3].resolve([{ count: 1 }]);
       firstLoads[4].resolve([{ count: 1 }]);
-      firstLoads[5].resolve([]);
-      firstLoads[6].resolve([{ count: 1, recoverable: "true" }]);
-      firstLoads[7].resolve([{ count: 1, retries: 0 }]);
+      firstLoads[5].resolve([{ count: 1 }]);
+      firstLoads[6].resolve([]);
+      firstLoads[7].resolve([{ count: 1, recoverable: "true" }]);
+      firstLoads[8].resolve([{ count: 1, retries: 0 }]);
       await Promise.all(firstLoads.map(({ promise }) => promise));
     });
 
@@ -338,6 +340,7 @@ describe("useSnapshotAnalytics", () => {
       expect(result.current.summary).toMatchObject({
         data: {
           actionableNow: 2,
+          activeTotal: 2,
           newerThanRange: 2,
           olderThanRange: 2,
           timedOut: 2,
@@ -393,6 +396,7 @@ describe("useSnapshotAnalytics", () => {
     expect(result.current.retries.data).toBe(retries);
     expect(result.current.summary.data).toEqual({
       actionableNow: 2,
+      activeTotal: 2,
       newerThanRange: 2,
       olderThanRange: 2,
       timedOut: 2,
