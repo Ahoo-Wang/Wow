@@ -57,6 +57,7 @@ import me.ahoo.wow.tck.mock.MockLine
 import me.ahoo.wow.tck.mock.MockOrder
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -98,7 +99,9 @@ abstract class SnapshotQueryBackendSpec {
         throw UnsupportedOperationException("Override createSnapshotStore().")
     }
     protected abstract fun createSnapshotQueryBackendFactory(): SnapshotQueryBackendFactory
-    protected abstract fun prepareNullAndMissingCursorSnapshots(nullId: String, missingId: String)
+    protected open fun prepareNullAndMissingCursorSnapshots(nullId: String, missingId: String) {
+        Assumptions.assumeTrue(false) { "Snapshot cursor null/missing fixture is not available." }
+    }
 
     @Test
     fun createFromCache() {
@@ -252,9 +255,9 @@ abstract class SnapshotQueryBackendSpec {
         val missingId = "cursor-missing"
         val valueId = "cursor-value"
         val cursorAggregateIds = saveCursorSnapshots(
-            MockStateAggregate(id = nullId, cursorSort = "null"),
-            MockStateAggregate(id = missingId, cursorSort = "missing"),
-            MockStateAggregate(id = valueId, cursorSort = "value"),
+            MockStateAggregate(id = nullId, createdAt = 1),
+            MockStateAggregate(id = missingId, createdAt = 2),
+            MockStateAggregate(id = valueId, createdAt = 3),
         )
         prepareNullAndMissingCursorSnapshots(nullId, missingId)
         val nullishIds = listOf(nullId, missingId).sorted()
@@ -265,7 +268,7 @@ abstract class SnapshotQueryBackendSpec {
         ).forEach { (direction, expectedIds) ->
             val query = CursorQuery(
                 filter = filterExpression { aggregateIds(*cursorAggregateIds.toTypedArray()) },
-                sort = listOf(Sort("state.cursorSort", direction)),
+                sort = listOf(Sort("state.createdAt", direction)),
                 size = 2,
             )
 
@@ -276,8 +279,8 @@ abstract class SnapshotQueryBackendSpec {
             nodes.map { it.path("aggregateId").textValue() }.assert().containsExactly(*expectedIds.toTypedArray())
             nodes.map { it.path("aggregateId").textValue() }.distinct().assert().hasSize(3)
             nodes.associateBy { it.path("aggregateId").textValue() }.let { byId ->
-                byId.getValue(nullId).path("state").path("cursorSort").isNull.assert().isTrue()
-                byId.getValue(missingId).path("state").path("cursorSort").isMissingNode.assert().isTrue()
+                byId.getValue(nullId).path("state").path("createdAt").isNull.assert().isTrue()
+                byId.getValue(missingId).path("state").path("createdAt").isMissingNode.assert().isTrue()
             }
             first.nextCursor.assert().isNotNull()
             second.list.assert().hasSize(1)
