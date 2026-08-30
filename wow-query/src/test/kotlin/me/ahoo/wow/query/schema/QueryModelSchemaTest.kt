@@ -164,6 +164,27 @@ class QueryModelSchemaTest {
     }
 
     @Test
+    fun `mask cache should distinguish schemas with and without masked fields`() {
+        val maskedField = LogicalField("state.secret")
+        val maskedSchema = QueryModelSchema(
+            QueryModel.SNAPSHOT,
+            emptySet(),
+            mapOf(
+                maskedField to fieldSchema(maskRule = fullMaskRule()),
+                LogicalField("state.name") to fieldSchema(),
+            ),
+        )
+        val unmaskedSchema = maskedSchema.copy(
+            fields = mapOf(LogicalField("state.name") to fieldSchema()),
+        )
+
+        maskedSchema.hasMaskedFields.assert().isTrue()
+        maskedSchema.maskedFields.keys.assert().containsExactly(maskedField)
+        unmaskedSchema.hasMaskedFields.assert().isFalse()
+        unmaskedSchema.maskedFields.assert().isEmpty()
+    }
+
+    @Test
     fun `storage type should reject unsafe identifiers`() {
         assertThrows<IllegalArgumentException> { QueryStorageType("keyword.raw") }
         QueryStorageType("keyword-raw").value.assert().isEqualTo("keyword-raw")

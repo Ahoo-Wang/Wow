@@ -199,7 +199,9 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         physicalParent = physicalParent,
         fieldIsAbsolute = true,
     ).let { resolved ->
-        if (resolved.fieldSchema?.maskRule == null) resolved else {
+        if (resolved.fieldSchema?.maskRule == null) {
+            resolved
+        } else {
             resolved.copy(compatibility = QueryCompatibilityLevel.INCOMPATIBLE)
         }
     }
@@ -218,32 +220,3 @@ internal fun LogicalField.absoluteTo(parent: LogicalField?): LogicalField =
     } else {
         LogicalField("${parent.value}.$value")
     }
-
-internal fun AggregationQuery.referencedAggregationFields(): Set<LogicalField> {
-    val parent = elements.fold<AggregationElement, LogicalField?>(null) { current, element ->
-        element.path.absoluteTo(current)
-    }
-    return buildSet {
-        groupBy.mapTo(this) { it.field.absoluteTo(parent) }
-        metrics.filterIsInstance<AggregationMetric.Any>().mapTo(this) { it.field.absoluteTo(parent) }
-        metrics.filterIsInstance<AggregationMetric.Numeric>().forEach { addExpressionFields(it.expression, parent) }
-    }
-}
-
-private fun MutableSet<LogicalField>.addExpressionFields(
-    expression: AggregationExpression,
-    parent: LogicalField?,
-) {
-    val expressions = ArrayDeque<AggregationExpression>()
-    expressions += expression
-    while (expressions.isNotEmpty()) {
-        when (val current = expressions.removeLast()) {
-            is AggregationExpression.Field -> add(current.field.absoluteTo(parent))
-            is AggregationExpression.Binary -> {
-                expressions += current.left
-                expressions += current.right
-            }
-            is AggregationExpression.Constant -> Unit
-        }
-    }
-}

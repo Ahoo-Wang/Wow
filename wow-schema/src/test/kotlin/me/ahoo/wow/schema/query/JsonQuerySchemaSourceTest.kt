@@ -39,6 +39,7 @@ import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaSourcePriority
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.schema.MockEmptyAggregate
+import me.ahoo.wow.schema.query.maskfixture.privateMaskStrategyStateType
 import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -563,6 +564,49 @@ class JsonQuerySchemaSourceTest {
     }
 
     @Test
+    fun `should inherit mask from parent Kotlin property`() {
+        val rule = load(ChildPropertyMaskedState::class.java)
+            .field("state.inheritedSecret")
+            .requiredMaskRule()
+
+        rule.strategyType.assert().isEqualTo(PublicClassMaskStrategy::class)
+        rule.compiled.mask("secret").assert().isEqualTo("parent-secret")
+    }
+
+    @Test
+    fun `should inherit mask from interface getter`() {
+        val rule = load(InterfaceGetterMaskedState::class.java)
+            .field("state.inheritedToken")
+            .requiredMaskRule()
+
+        rule.strategyType.assert().isEqualTo(FullMaskStrategy::class)
+        rule.compiled.mask("token").assert().isEqualTo("*****")
+    }
+
+    @Test
+    fun `should construct and compile a public zero argument class strategy`() {
+        val rule = load(PublicClassStrategyState::class.java)
+            .field("state.secret")
+            .requiredMaskRule()
+
+        rule.strategyType.assert().isEqualTo(PublicClassMaskStrategy::class)
+        rule.compiled.mask("secret").assert().isEqualTo("masked-secret")
+    }
+
+    @Test
+    fun `should fail closed when mask strategy cannot be constructed`() {
+        listOf(
+            AbstractMaskStrategyState::class.java,
+            privateMaskStrategyStateType(),
+            ThrowingMaskStrategyState::class.java,
+        ).forEach { stateType ->
+            assertThrows<QuerySchemaConflictException> {
+                load(stateType)
+            }.message.assert().contains("Unable to instantiate MaskStrategy")
+        }
+    }
+
+    @Test
     fun `should reject multiple effective mask annotations on one property`() {
         assertThrownBy<QuerySchemaConflictException> {
             load(ConflictingMaskAnnotationsState::class.java)
@@ -599,6 +643,9 @@ class JsonQuerySchemaSourceTest {
         valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.STRING)))
         maskRule.assert().isEqualTo(DeclarationValue.Set(rule))
     }
+
+    private fun QueryFieldDeclaration.requiredMaskRule(): MaskRule =
+        (maskRule as DeclarationValue.Set).value
 
     private fun fullMaskRule(type: Class<*> = MaskedStructuralState::class.java): MaskRule {
         val annotation = type.getDeclaredField(

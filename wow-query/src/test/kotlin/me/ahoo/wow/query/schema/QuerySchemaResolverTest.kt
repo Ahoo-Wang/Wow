@@ -1245,7 +1245,10 @@ class QuerySchemaResolverTest {
             ),
         )
         val aggregations = listOf(
-            AggregationQuery(groupBy = listOf(AggregationGroup.Terms(rootSecret, "secret")), metrics = listOf(AggregationMetric.Count("count"))),
+            AggregationQuery(
+                groupBy = listOf(AggregationGroup.Terms(rootSecret, "secret")),
+                metrics = listOf(AggregationMetric.Count("count"))
+            ),
             AggregationQuery(metrics = listOf(AggregationMetric.Any(rootSecret, "secret"))),
             AggregationQuery(
                 metrics = listOf(

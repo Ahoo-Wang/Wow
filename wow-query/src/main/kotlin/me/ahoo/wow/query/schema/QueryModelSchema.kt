@@ -42,6 +42,12 @@ data class QueryModelSchema(
     val capabilities: Set<QueryCapability>,
     val fields: Map<LogicalField, QueryFieldSchema>,
 ) {
+    @get:JsonIgnore
+    internal val maskedFields: Map<LogicalField, QueryFieldSchema> = fields.filterValues { it.maskRule != null }
+
+    @get:JsonIgnore
+    internal val hasMaskedFields: Boolean = maskedFields.isNotEmpty()
+
     fun resolve(field: LogicalField): QueryFieldSchema? {
         fields[field]?.let { return it }
         var separator = field.value.lastIndexOf('.')

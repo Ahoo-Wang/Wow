@@ -18,8 +18,11 @@ import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.annotation.JsonUnwrapped
 import io.swagger.v3.oas.annotations.media.Schema
+import me.ahoo.wow.api.query.mask.CompiledMask
 import me.ahoo.wow.api.query.mask.KeepMask
 import me.ahoo.wow.api.query.mask.Mask
+import me.ahoo.wow.api.query.mask.MaskStrategy
+import me.ahoo.wow.api.query.mask.Masking
 import me.ahoo.wow.api.query.schema.QueryTemporal
 import tools.jackson.core.JsonGenerator
 import tools.jackson.databind.SerializationContext
@@ -316,6 +319,65 @@ internal data class MaskedStructuralState(
 internal data class MaskedContact(
     @field:KeepMask(prefix = 3, suffix = 2) val phone: String,
 )
+
+@Target(AnnotationTarget.FIELD, AnnotationTarget.PROPERTY, AnnotationTarget.PROPERTY_GETTER)
+@Retention(AnnotationRetention.RUNTIME)
+@Masking(PublicClassMaskStrategy::class)
+annotation class PublicClassMask(val prefix: String = "")
+
+class PublicClassMaskStrategy : MaskStrategy<PublicClassMask> {
+    override fun compile(annotation: PublicClassMask): CompiledMask = CompiledMask { annotation.prefix + it }
+}
+
+internal data class PublicClassStrategyState(
+    @field:PublicClassMask(prefix = "masked-") val secret: String,
+)
+
+@Target(AnnotationTarget.FIELD)
+@Retention(AnnotationRetention.RUNTIME)
+@Masking(AbstractMaskStrategy::class)
+private annotation class AbstractMask
+
+private abstract class AbstractMaskStrategy : MaskStrategy<AbstractMask>
+
+internal data class AbstractMaskStrategyState(
+    @field:AbstractMask val secret: String,
+)
+
+@Target(AnnotationTarget.FIELD)
+@Retention(AnnotationRetention.RUNTIME)
+@Masking(ThrowingMaskStrategy::class)
+private annotation class ThrowingMask
+
+private class ThrowingMaskStrategy : MaskStrategy<ThrowingMask> {
+    init {
+        error("constructor failed")
+    }
+
+    override fun compile(annotation: ThrowingMask): CompiledMask = CompiledMask { it }
+}
+
+internal data class ThrowingMaskStrategyState(
+    @field:ThrowingMask val secret: String,
+)
+
+internal open class ParentPropertyMaskedState(
+    @property:PublicClassMask(prefix = "parent-")
+    open val inheritedSecret: String,
+)
+
+internal class ChildPropertyMaskedState(
+    override val inheritedSecret: String,
+) : ParentPropertyMaskedState(inheritedSecret)
+
+internal interface GetterMaskedState {
+    @get:Mask
+    val inheritedToken: String
+}
+
+internal data class InterfaceGetterMaskedState(
+    override val inheritedToken: String,
+) : GetterMaskedState
 
 @Target(AnnotationTarget.FIELD, AnnotationTarget.PROPERTY_GETTER)
 @Retention(AnnotationRetention.RUNTIME)

@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.api.query.mask
 
-import kotlin.reflect.KClass
 import java.lang.annotation.Inherited
+import kotlin.reflect.KClass
 
 @Target(AnnotationTarget.ANNOTATION_CLASS)
 @Retention(AnnotationRetention.RUNTIME)
