@@ -570,7 +570,12 @@ describe("DashboardView", () => {
   });
 
   it("uses the oldest successful section timestamp for the dashboard", () => {
-    mocks.snapshotResult.summary.updatedAt = 1_787_932_860_000;
+    const oldestUpdatedAt = new Date(2026, 7, 29).getTime();
+    mocks.snapshotResult.summary.updatedAt = oldestUpdatedAt + 60_000;
+    mocks.snapshotResult.pressure.updatedAt = oldestUpdatedAt;
+    mocks.snapshotResult.recoverability.updatedAt = oldestUpdatedAt + 60_000;
+    mocks.snapshotResult.retries.updatedAt = oldestUpdatedAt + 60_000;
+    mocks.eventResult.updatedAt = oldestUpdatedAt + 60_000;
 
     render(<DashboardView />);
 
