@@ -35,7 +35,7 @@ sequenceDiagram
     Jackson-->>Caller: ObjectNode or typed result
 ```
 
-At Gateway assembly, the registrar calls the routing Factory once for the `NamedAggregate` and binds the selected Backend. Requests are not routed again. The Backend produces `ObjectNode`; result filters process those nodes, single/list/paged data results are then masked from the Query Model Schema, and Jackson finally materializes typed results. Count remains `Long`. Aggregation remains a stream of `ObjectNode` rows, with Schema rejecting groups, metrics, and expressions that reference masked fields.
+At Gateway assembly, the registrar calls the routing Factory once for the `NamedAggregate` and binds the selected Backend. Requests are not routed again. The Backend produces `ObjectNode`; result filters process those nodes, then every single/list/paged result query reads the Provider's current Schema and masks it, reusing a Masker for the same Schema instance and recompiling for a refresh-published instance, before Jackson finally materializes typed results. Unavailable Schema fails these managed result queries closed without subscribing to the Backend. Count remains `Long` and does not read masking Schema. Aggregation remains a stream of `ObjectNode` rows, with Schema rejecting groups, metrics, and expressions that reference masked fields.
 
 ## QueryContext and QueryType
 

@@ -72,7 +72,7 @@ Strategy 可以是 Kotlin `object` 或公开无参类。示例不按 UTF-16 code
 
 `JsonQuerySchemaSource` 在运行时发现字段、getter 及其父类 Kotlin property 或接口 getter 上继承的有效注解。规则随 Query Schema 合并和后端 adapter 传递，但公开 `QueryModelSchemaMetadata` 只暴露字段级 `masked: Boolean`；Strategy 类型、注解参数、编译后的规则和可执行函数只存在于内存中。
 
-Gateway 缓存成功取得的 Mask 判定。Schema 加载失败不会被缓存，后续订阅或 `retry` 可以重新加载。根 Schema 没有 `masked` 字段时，结果阶段走 O(1) 快速路径：不创建 masker、不遍历 JSON，也不为每条结果追加 `map`。
+Gateway 每次结果查询都会读取 Provider 当前 Schema：同一 Schema 实例复用已编译的 Masker，refresh 发布新实例后会重新编译。Schema 加载失败不会被缓存，后续订阅或 `retry` 可以重新加载。根 Schema 没有 `masked` 字段时，复用空 Mask 判定走 O(1) 快速路径：不创建 masker、不遍历 JSON，也不为每条结果追加 `map`。
 
 ## 行为矩阵
 

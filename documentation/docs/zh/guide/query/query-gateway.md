@@ -35,7 +35,7 @@ sequenceDiagram
     Jackson-->>Caller: ObjectNode 或类型化结果
 ```
 
-Registrar 在装配 Gateway 时按 `NamedAggregate` 调用一次路由 Factory，并把选中的 Backend 绑定到 Gateway；每次请求不会再次路由。Backend 统一产生 `ObjectNode`，结果过滤器先处理节点；single/list/paged 数据结果随后按 Query Model Schema 脱敏，typed 结果最后才由 Jackson 物化。count 保持 `Long`，aggregation 保持 `ObjectNode` 行，并由 Schema 拒绝对 Mask 字段的分组、metric 与 expression 引用。
+Registrar 在装配 Gateway 时按 `NamedAggregate` 调用一次路由 Factory，并把选中的 Backend 绑定到 Gateway；每次请求不会再次路由。Backend 统一产生 `ObjectNode`，结果过滤器先处理节点；每次 single/list/paged 结果查询再读取 Provider 当前 Schema 并脱敏，同一 Schema 实例复用 Masker，refresh 新实例会重新编译，typed 结果最后才由 Jackson 物化。Schema 不可用时这些受管结果查询失败关闭且不订阅 Backend；count 保持 `Long` 并且不读取 Mask Schema，aggregation 保持 `ObjectNode` 行，并由 Schema 拒绝对 Mask 字段的分组、metric 与 expression 引用。
 
 ## QueryContext 与 QueryType
 
