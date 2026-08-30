@@ -39,6 +39,9 @@ internal class QuerySchemaMerger {
         }
         extensions.forEach { extension ->
             extension.declaration.fields.forEach { (field, declaration) ->
+                if (isEventBodyTypeEnumEnrichment(field, system, extensionRoot, declaration)) {
+                    return@forEach
+                }
                 validateExtensionPath(field, extensionRoot)
                 system.fields[field]?.rejectSystemOverwrite(field, declaration)
             }
@@ -75,6 +78,29 @@ internal class QuerySchemaMerger {
             throw QuerySchemaConflictException("Query schema extension must be under [$extensionRoot]: [$field].")
         }
     }
+
+    private fun isEventBodyTypeEnumEnrichment(
+        field: LogicalField,
+        system: QuerySchemaDeclaration,
+        extensionRoot: String,
+        extension: QueryFieldDeclaration,
+    ): Boolean =
+        extensionRoot == EVENT_PAYLOAD_ROOT &&
+            field == EVENT_BODY_TYPE_FIELD &&
+            system.fields[field]?.enumValues === DeclarationValue.Unset &&
+            extension.hasOnlyEnumValues()
+
+    private fun QueryFieldDeclaration.hasOnlyEnumValues(): Boolean =
+        title === DeclarationValue.Unset &&
+            description === DeclarationValue.Unset &&
+            enumValues is DeclarationValue.Set &&
+            valueTypes === DeclarationValue.Unset &&
+            nullable === DeclarationValue.Unset &&
+            required === DeclarationValue.Unset &&
+            cardinality === DeclarationValue.Unset &&
+            semanticType === DeclarationValue.Unset &&
+            dynamicChildren === DeclarationValue.Unset &&
+            maskRule === DeclarationValue.Unset
 
     private fun QueryFieldDeclaration.rejectSystemOverwrite(
         field: LogicalField,
@@ -124,4 +150,9 @@ internal class QuerySchemaMerger {
             is DeclarationValue.Set -> value
             DeclarationValue.Unset -> default
         }
+
+    private companion object {
+        const val EVENT_PAYLOAD_ROOT = "${MessageRecords.BODY}.${MessageRecords.BODY}"
+        val EVENT_BODY_TYPE_FIELD = LogicalField("${MessageRecords.BODY}.${MessageRecords.BODY_TYPE}")
+    }
 }
