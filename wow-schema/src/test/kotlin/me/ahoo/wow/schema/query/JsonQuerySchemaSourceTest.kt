@@ -593,6 +593,13 @@ class JsonQuerySchemaSourceTest {
     }
 
     @Test
+    fun `should exclude non public computed getters`() {
+        load(NonPublicComputedGetterState::class.java).fields.keys.assert()
+            .doesNotContain(LogicalField("state.privateSecret"))
+            .doesNotContain(LogicalField("state.protectedSecret"))
+    }
+
+    @Test
     fun `should reject conflicting inherited getter masks independent of interface order`() {
         listOf(
             ConflictingInheritedGetterMaskedState::class.java,
