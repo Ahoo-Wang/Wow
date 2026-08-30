@@ -23,6 +23,9 @@ import co.elastic.clients.elasticsearch.indices.get_mapping.IndexMappingRecord
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationGroup
+import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.InFilter
 import me.ahoo.wow.api.query.LogicalField
@@ -63,7 +66,7 @@ import kotlin.reflect.jvm.javaField
 @Suppress("LargeClass")
 class ElasticsearchQuerySchemaAdapterTest {
     @Test
-    fun `binding should retain a logical mask rule`() {
+    fun `binding should retain a logical mask rule and reject every physical multi-field`() {
         val secret = LogicalField("state.secret")
         val rule = fullMaskRule()
 
@@ -71,11 +74,24 @@ class ElasticsearchQuerySchemaAdapterTest {
             LogicalQuerySchema(mapOf(secret to field(QueryValueType.STRING, maskRule = rule))),
             ElasticsearchIndexMapping.from(
                 INDEX,
-                TypeMapping.of { mapping -> mapping.properties(secret.value) { it.keyword { keyword -> keyword } } },
+                TypeMapping.of { mapping ->
+                    mapping.properties(secret.value) { property ->
+                        property.text { text ->
+                            text.fields("keyword") { it.keyword { keyword -> keyword } }
+                                .fields("raw") { it.keyword { keyword -> keyword } }
+                        }
+                    }
+                },
             ),
         )
 
         schema.fields.getValue(secret).maskRule.assert().isSameAs(rule)
+        val query = AggregationQuery(
+            groupBy = listOf(AggregationGroup.Terms(LogicalField("${secret.value}.raw"), "secret")),
+            metrics = listOf(AggregationMetric.Count("count")),
+        )
+        QuerySchemaResolver(schema).resolve(query).compatibility.assert()
+            .isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
     }
 
     @Test

@@ -55,6 +55,9 @@ fun <T> QuerySchemaResolution<T>.requireAccepted(mode: QuerySchemaValidationMode
 class QuerySchemaResolver(private val schema: QueryModelSchema) {
     private val fieldResolver = QueryFieldSchemaResolver(schema)
     private val filterResolver = QueryFilterSchemaResolver(schema, fieldResolver)
+    private val maskedAggregationPaths = schema.maskedFields.flatMapTo(linkedSetOf()) { (logical, field) ->
+        listOfNotNull(logical.value, field.projectionPath) + field.bindings.values.map { it.physicalPath }
+    }
 
     fun resolve(query: ISingleQuery): QuerySchemaResolution<ISingleQuery> {
         val filter = resolve(query.filter)
@@ -201,10 +204,9 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
     ).let { resolved ->
         val logicalCandidate = resolved.logical.value
         val physicalCandidate = resolved.physicalPath ?: logicalCandidate
-        val matchesMaskedCandidate = schema.maskedFields.values.any { maskedField ->
-            val projectionPath = maskedField.projectionPath
-            (!projectionPath.isNullOrEmpty() && projectionPath == logicalCandidate) ||
-                maskedField.bindings.values.any { binding -> binding.physicalPath == physicalCandidate }
+        val matchesMaskedCandidate = maskedAggregationPaths.any { maskedPath ->
+            logicalCandidate == maskedPath || logicalCandidate.startsWith("$maskedPath.") ||
+                physicalCandidate == maskedPath || physicalCandidate.startsWith("$maskedPath.")
         }
         if (resolved.fieldSchema?.maskRule == null && !matchesMaskedCandidate) {
             resolved
