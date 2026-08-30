@@ -99,7 +99,11 @@ internal class SchemaMasker private constructor(
     }
 
     private fun CompiledMask.requireMasked(value: String): String {
-        val masked: String? = mask(value)
+        val masked: String? = try {
+            mask(value)
+        } catch (error: Exception) {
+            throw QuerySchemaValidationException("Mask strategy execution failed.", error)
+        }
         return masked ?: throw QuerySchemaValidationException("Mask strategy returned null.")
     }
 

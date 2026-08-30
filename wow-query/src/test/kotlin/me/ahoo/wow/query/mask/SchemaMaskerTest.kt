@@ -198,6 +198,31 @@ class SchemaMaskerTest {
     }
 
     @Test
+    fun `snapshot should hide custom mask execution errors`() {
+        val failure = IllegalStateException("secret-value")
+        val rule = fullMaskRule().copyWith(CompiledMask { throw failure })
+        val masker = SchemaMasker.create(schema(QueryModel.SNAPSHOT, "state.secret" to rule))!!
+
+        val error = assertThrows<QuerySchemaValidationException> {
+            masker.mask("""{"state":{"secret":"secret-value"}}""".toJsonNode<ObjectNode>())
+        }
+
+        error.message.assert().isEqualTo("Mask strategy execution failed.")
+        error.cause.assert().isSameAs(failure)
+    }
+
+    @Test
+    fun `snapshot should propagate JVM errors from custom masks`() {
+        val failure = AssertionError("fatal")
+        val rule = fullMaskRule().copyWith(CompiledMask { throw failure })
+        val masker = SchemaMasker.create(schema(QueryModel.SNAPSHOT, "state.secret" to rule))!!
+
+        assertThrows<AssertionError> {
+            masker.mask("""{"state":{"secret":"value"}}""".toJsonNode<ObjectNode>())
+        }.assert().isSameAs(failure)
+    }
+
+    @Test
     fun `event stream should validate body type and mask nested arrays`() {
         val masker = SchemaMasker.create(
             eventSchema("body.body.customers.secrets" to fullMaskRule()),
