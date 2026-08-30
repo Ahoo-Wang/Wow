@@ -28,9 +28,9 @@ sequenceDiagram
     Entry->>Gateway: 作用域重写后的查询
     Gateway->>Gateway: 创建 QueryContext + QueryType
     Gateway->>Filters: 执行请求过滤器
-    Filters->>Backend: single / list / paged / count / aggregate
-    Backend-->>Filters: ObjectNode / PagedList / count
-    Filters-->>Mask: 完成全部结果过滤（single/list/paged）
+    Filters->>Backend: single / list / paged / cursor / count / aggregate
+    Backend-->>Filters: ObjectNode / PagedList / CursorPage / count
+    Filters-->>Mask: 完成全部结果过滤（single/list/paged/cursor）
     Mask-->>Jackson: 脱敏后的 ObjectNode
     Jackson-->>Caller: ObjectNode 或类型化结果
 ```
@@ -41,7 +41,7 @@ Registrar 在装配 Gateway 时按 `NamedAggregate` 调用一次路由 Factory�
 
 Gateway 在每次订阅时创建独立的 `QueryContext`，因此同一个响应式 Publisher 的不同订阅不会共享查询、结果或属性。Context 保存聚合标识、查询对象、结果和 `QueryType`，供过滤器重写查询或结果。
 
-`QueryType` 只有 `SINGLE`、`LIST`、`PAGED`、`COUNT` 与 `AGGREGATION`；typed 与 `ObjectNode` 返回共享同一种操作类型。具体查询模型、入口和协议暴露能力仍可能不同。
+`QueryType` 只有 `SINGLE`、`LIST`、`PAGED`、`CURSOR`、`COUNT` 与 `AGGREGATION`；typed 与 `ObjectNode` 返回共享同一种操作类型。具体查询模型、入口和协议暴露能力仍可能不同。
 
 ## 快照与事件流过滤链
 
@@ -53,9 +53,11 @@ Gateway 在每次订阅时创建独立的 `QueryContext`，因此同一个响应
 
 `HttpQueryGuardFilter` 同时属于两个 Gateway，但只有 Reactor Context 中存在 `ServerRequest` 时才生效；它不会改变普通进程内查询的约束。
 
+游标不是策略快照。每个后续 HTTP 请求都会重新补入 tenant、owner 与 space 条件，并重新执行授权、原始 filter、HTTP guard、结果 Filter 和 `SchemaMasker`；token 不承载或恢复任何授权状态。进程内的每次订阅同样重新执行 Gateway chain。
+
 ## ABAC 与字段脱敏
 
-内建 `AbacQueryFilter` 位于快照查询网关。对于提供 `QueryModelSchemaProvider` 的 Backend，框架内建 `SchemaMaskQueryFilter` 会在全部通用结果 Filter 完成后、typed 物化前执行 Schema 驱动的字段脱敏；Snapshot 与 EventStream 的 typed、dynamic 和 aggregate-state load 入口共享这条受管路径。注解、缓存、行为矩阵与失败关闭规则见[字段脱敏](./masking.md)。
+内建 `AbacQueryFilter` 位于快照查询网关。对于提供 `QueryModelSchemaProvider` 的 Backend，框架内建 `SchemaMaskQueryFilter` 会在全部通用结果 Filter 完成后、typed 物化前执行 Schema 驱动的字段脱敏；Snapshot 与 EventStream 的 typed、dynamic、cursor 和 aggregate-state load 入口共享这条受管路径。注解、缓存、行为矩阵与失败关闭规则见[字段脱敏](./masking.md)。
 
 认证、Principal 绑定和完整的失败关闭策略请参阅[数据权限](../data-access.md)。
 
@@ -69,4 +71,4 @@ Gateway 在每次订阅时创建独立的 `QueryContext`，因此同一个响应
 
 ## 验证策略边界
 
-Gateway 负责策略链，不替代后端字段能力、Schema 解析或应用业务校验。JSON 数组/SSE 流若已输出部分行后失败，已输出行不会回滚；SSE 会尝试发送一个 `ErrorInfo` 错误事件。`RequestExceptionHandler` 失败，或该错误事件生成、渲染、序列化失败时，只要失败不同于原始错误且尚未记录，就附加为 suppressed error；原始终止错误始终继续传播，部分失败绝不会成功完成。
+Gateway 负责策略链，不替代后端字段能力、Schema 解析或应用业务校验。Cursor 的有效 sort 必须由 Query Schema 精确解析且不能带 `@Mask`；Schema 不可用时失败关闭，不会按兼容模式降级。JSON 数组/SSE 流若已输出部分行后失败，已输出行不会回滚；SSE 会尝试发送一个 `ErrorInfo` 错误事件。`RequestExceptionHandler` 失败，或该错误事件生成、渲染、序列化失败时，只要失败不同于原始错误且尚未记录，就附加为 suppressed error；原始终止错误始终继续传播，部分失败绝不会成功完成。

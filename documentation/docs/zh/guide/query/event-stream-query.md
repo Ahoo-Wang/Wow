@@ -15,7 +15,7 @@ description: 查询聚合事件历史、事件流字段路径及已发布的 HTT
 
 ## JVM 查询
 
-`EventStreamQueryGateway` 在 JVM 支持 typed 和 dynamic 的 single/list/paged/count；`dynamicQuery` 返回 `ObjectNode`。Gateway 也提供 JVM aggregation，其 JVM 与 HTTP/OpenAPI 合同和示例见[事件流聚合](./event-stream-aggregation.md)。
+`EventStreamQueryGateway` 在 JVM 支持 typed 和 dynamic 的 single/list/paged/cursor/count；`dynamicQuery` 返回 `ObjectNode`。Gateway 也提供 JVM aggregation，其 JVM 与 HTTP/OpenAPI 合同和示例见[事件流聚合](./event-stream-aggregation.md)。
 
 按根字段分页的示例：
 
@@ -33,6 +33,23 @@ fun findRecentStreams(queryGateway: EventStreamQueryGateway) = pagedQuery {
 
 Spring 管理的聚合级 Gateway 会执行完整治理链；直接 Backend Factory 的绕过边界见[查询后端](./query-backend.md)与[查询网关](./query-gateway.md)。
 
+按游标只向后读取时，使用 `cursorQuery`；第一次不传 cursor，之后保持 filter 与 sort 不变并传回 `nextCursor`，直到它为 `null`：
+
+```kotlin
+import me.ahoo.wow.query.dsl.cursorQuery
+import me.ahoo.wow.query.event.query
+
+fun findRecentStreams(
+    queryGateway: EventStreamQueryGateway,
+    cursor: String?,
+) = cursorQuery {
+    filter { tenantId("tenant-a") }
+    sort { "createTime".desc() }
+    size(20)
+    cursor(cursor)
+}.query(queryGateway)
+```
+
 ## HTTP 路由
 
 以下为 `sales-order` 当前发布的基础事件流数据查询路由：
@@ -40,14 +57,15 @@ Spring 管理的聚合级 Gateway 会执行完整治理链；直接 Backend Fact
 ```text
 POST /sales-order/event/list
 POST /sales-order/event/paged
+POST /sales-order/event/cursor
 POST /sales-order/event/count
 ```
 
-相同的 list、paged 与 count 操作还发布 tenant 与 owner 作用域变体：
+相同的 list、paged、cursor 与 count 操作还发布 tenant 与 owner 作用域变体：
 
 ```text
-POST /tenant/{tenantId}/sales-order/event/{list|paged|count}
-POST /owner/{ownerId}/sales-order/event/{list|paged|count}
+POST /tenant/{tenantId}/sales-order/event/{list|paged|cursor|count}
+POST /owner/{ownerId}/sales-order/event/{list|paged|cursor|count}
 ```
 
 聚合与 Schema 是独立于上述数据查询形态的合同：
@@ -60,7 +78,23 @@ GET /sales-order/event/schema
 POST /sales-order/event/schema/refresh
 ```
 
-当前仍没有事件流 `single` HTTP 路由，也没有 EventStream API Client。聚合请求与 JSON/SSE 响应见[事件流聚合](./event-stream-aggregation.md)；Schema 路由是无 tenant/owner 变体的模型级入口。精确路径以运行实例生成的 OpenAPI 为准。
+事件流 cursor 请求体与 Snapshot 相同，使用 `filter`、`projection`、`sort`、`size` 和可选 `cursor`；响应只有 `list` 与 `nextCursor`：
+
+```http
+POST /sales-order/event/cursor
+Content-Type: application/json
+Accept: application/json
+
+{
+  "filter": { "op": "EQ", "field": "tenantId", "value": "tenant-a" },
+  "projection": { "include": ["id", "aggregateId", "createTime"] },
+  "sort": [{ "field": "createTime", "direction": "DESC" }],
+  "size": 20,
+  "cursor": null
+}
+```
+
+cursor 路由只返回 JSON；没有 cursor SSE。当前仍没有事件流 `single` HTTP 路由，也没有 EventStream API Client。聚合请求与 JSON/SSE 响应见[事件流聚合](./event-stream-aggregation.md)；Schema 路由是无 tenant/owner 变体的模型级入口。精确路径以运行实例生成的 OpenAPI 为准。
 
 ## 按版本加载事件流
 
@@ -75,7 +109,7 @@ Accept: application/json
 
 ## 空结果
 
-JVM single 无匹配时返回空 `Mono`；list 返回空 `Flux`，paged 返回空页。HTTP list、paged 和按版本加载在无匹配时返回空集合或空页；它们没有 single 的 404 语义。HTTP guard、Schema 解析或授权失败仍是错误，不能与空结果混淆。
+JVM single 无匹配时返回空 `Mono`；list 返回空 `Flux`，paged 与 cursor 返回空页。HTTP list、paged、cursor 和按版本加载在无匹配时返回空集合或空页；它们没有 single 的 404 语义。HTTP guard、Schema 解析或授权失败仍是错误，不能与空结果混淆。
 
 ## 与快照查询的差异
 
@@ -83,7 +117,7 @@ JVM single 无匹配时返回空 `Mono`；list 返回空 `Flux`，paged 返回�
 | --- | --- | --- |
 | 业务数据根 | `body` 事件数组，payload 为 `body.body` | `state` 当前业务状态 |
 | 删除默认值 | 不添加删除条件 | 默认 `DELETION = ACTIVE` |
-| HTTP 数据查询 | list、paged、count、按版本加载 | single、list、paged、count 与 state-only |
+| HTTP 数据查询 | list、paged、cursor、count、按版本加载 | single、list、paged、cursor、count 与 state-only |
 | HTTP 聚合 | `event/aggregation`，JSON 或 SSE | `snapshot/aggregation`，JSON 或 SSE |
 | HTTP Schema | `event/schema` 与 refresh | `snapshot/schema` 与 refresh |
 | API Client | 无 | 有独立快照合同 |

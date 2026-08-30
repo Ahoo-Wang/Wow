@@ -17,7 +17,7 @@ flowchart LR
     Mask --> Jackson["Jackson typed materialization"]
 ```
 
-This chain covers Snapshot and EventStream typed/dynamic `single`, `list`, and `paged` results, plus state-only/aggregate-state results loaded through the Snapshot Gateway. Masking changes only the current response node. It does not rewrite stored documents, domain objects, or the application's general Jackson serialization contract. `count` and aggregation results also do not pass through result masking.
+This chain covers Snapshot and EventStream typed/dynamic `single`, `list`, `paged`, and `cursor` results, plus state-only/aggregate-state results loaded through the Snapshot Gateway. Masking changes only the current response node. It does not rewrite stored documents, domain objects, or the application's general Jackson serialization contract. `count` and aggregation results also do not pass through result masking.
 
 ## Built-in Annotations
 
@@ -82,8 +82,10 @@ For every result query, `SchemaMaskQueryFilter` reads the Provider's current Sch
 |---|---|
 | Snapshot/EventStream typed `single`, `list`, `paged` | Masked before typed materialization |
 | Snapshot/EventStream dynamic `single`, `list`, `paged` | Returns masked `ObjectNode` values |
+| Snapshot/EventStream typed/dynamic `cursor` | Masks `CursorPage.list` and preserves `nextCursor` unchanged |
 | Snapshot state-only / aggregate-state load | Reuses the Snapshot Gateway and is masked |
 | Ordinary filter, full-text search, sort | May reference a masked field; the backend matches or sorts raw values, while the response remains masked |
+| `CursorQuery` effective sort | Must resolve exactly and must not carry a masking rule; otherwise raw sort values would enter `nextCursor`, so it is rejected before Backend execution |
 | Data-query `count` | Count is unchanged; the masking layer neither loads Schema nor reads field values |
 | Aggregation group, field metric, numeric expression | A masked-field reference resolves as `INCOMPATIBLE` and is rejected before Backend execution |
 | Schema required by aggregation is unavailable | Fails closed; even a count-only aggregation does not fall back to execution |
@@ -113,7 +115,7 @@ When migrating from V8 Registry/filter masking, first follow [V9 Query Migration
 
 1. Use the [Query Model Schema](./query-model-schema.md) endpoint to confirm the target field adds only `masked: true`, without exposing a strategy or parameters.
 2. Verify Snapshot/EventStream typed, dynamic, and state-only/aggregate-state load responses separately.
-3. Verify filter/search/sort and data-query `count` remain available, while group, field metric, numeric expression, and Schema-unavailable aggregation fail closed.
+3. Verify ordinary filter/search/sort and data-query `count` remain available, while masked cursor sort, group, field metric, numeric expression, and Schema-unavailable aggregation fail closed.
 4. Verify direct-Factory raw values only in trusted tests, and confirm that stored documents and general Jackson serialization were not rewritten.
 
 See [Query Gateway](./query-gateway.md) for the complete execution position, filter ordering, and bypass conditions.

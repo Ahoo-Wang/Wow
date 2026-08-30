@@ -44,7 +44,52 @@ Snapshot queries append `DELETION = ACTIVE` by default, so they do not return de
 
 ## JVM Queries
 
-After injecting aggregate-scoped `SnapshotQueryGateway<S>`, extensions execute typed single/list/paged/count queries; `dynamicQuery` returns `ObjectNode` when projection changes the result shape. After the Backend produces nodes and generic result filters complete, the framework-owned `SchemaMaskQueryFilter` masks from the Query Model Schema, and the Gateway then uses Jackson for typed results. Typed, dynamic, and state-only entries use the same managed path. See [Field Masking](./masking.md) for details, and [Query Backends](./query-backend.md) plus [Query Gateway](./query-gateway.md) for the direct-Factory raw-value boundary.
+After injecting aggregate-scoped `SnapshotQueryGateway<S>`, extensions execute typed single/list/paged/cursor/count queries; `dynamicQuery` returns `ObjectNode` when projection changes the result shape. After the Backend produces nodes and generic result filters complete, the framework-owned `SchemaMaskQueryFilter` masks from the Query Model Schema, and the Gateway then uses Jackson for typed results. Typed, dynamic, and state-only entries use the same managed path. See [Field Masking](./masking.md) for details, and [Query Backends](./query-backend.md) plus [Query Gateway](./query-gateway.md) for the direct-Factory raw-value boundary.
+
+## Cursor Queries
+
+`CursorQuery` uses `filter`, `projection`, `sort`, `size`, and an optional `cursor`, and returns a `CursorPage` containing only `list` and `nextCursor`. Omit `cursor` or send `null` on the first request. Later requests keep `filter` and `sort` unchanged and send the preceding `nextCursor`; stop when `nextCursor == null`.
+
+The same Snapshot Gateway provides typed, dynamic, and state-only results:
+
+```kotlin
+import me.ahoo.wow.query.dsl.cursorQuery
+import me.ahoo.wow.query.snapshot.dynamicQuery
+import me.ahoo.wow.query.snapshot.pathState
+import me.ahoo.wow.query.snapshot.query
+import me.ahoo.wow.query.snapshot.toStateCursorPage
+
+val query = cursorQuery {
+    filter { pathState { "status" eq "PAID" } }
+    sort { "version".desc() }
+    size(20)
+}
+
+val typed = query.query(queryGateway)
+val dynamic = query.dynamicQuery(queryGateway)
+val stateOnly = query.query(queryGateway).toStateCursorPage()
+```
+
+The corresponding HTTP request and response are:
+
+```json
+{
+  "filter": { "op": "EQ", "field": "state.status", "value": "PAID" },
+  "projection": { "include": ["state.status", "version"] },
+  "sort": [{ "field": "version", "direction": "DESC" }],
+  "size": 20,
+  "cursor": null
+}
+```
+
+```json
+{
+  "list": [],
+  "nextCursor": null
+}
+```
+
+`POST /sales-order/snapshot/cursor` returns complete snapshots, while `POST /sales-order/snapshot/cursor/state` returns state-only values; both return JSON only. See [API Client](./query-api-client.md) for explicit opt-in reactive and synchronous clients, and [Query Backends](./query-backend.md) for execution and token boundaries.
 
 ## HTTP Routes
 
@@ -57,6 +102,8 @@ POST /sales-order/snapshot/list
 POST /sales-order/snapshot/list/state
 POST /sales-order/snapshot/paged
 POST /sales-order/snapshot/paged/state
+POST /sales-order/snapshot/cursor
+POST /sales-order/snapshot/cursor/state
 POST /sales-order/snapshot/count
 ```
 
@@ -67,7 +114,7 @@ POST /tenant/{tenantId}/sales-order/snapshot/{operation}
 POST /owner/{ownerId}/sales-order/snapshot/{operation}
 ```
 
-Here, `{operation}` is one of the seven operations above. List can negotiate JSON or SSE; single and paged return JSON. Aggregation and [Query Model Schema (current guidance)](./query-model-schema.md) routes are separate contracts. Generated [OpenAPI](../open-api.md) from the running application is the source of truth for exact paths. An HTTP guard can still limit a DTO that is otherwise valid.
+Here, `{operation}` is one of the nine operations above. List can negotiate JSON or SSE; single, paged, and cursor return JSON. Aggregation and [Query Model Schema (current guidance)](./query-model-schema.md) routes are separate contracts. Generated [OpenAPI](../open-api.md) from the running application is the source of truth for exact paths. An HTTP guard can still limit a DTO that is otherwise valid.
 
 ## Complete Snapshot, State-only, and Dynamic Results
 
@@ -79,7 +126,7 @@ See [API Client](./query-api-client.md) for reactive and synchronous typed, stat
 
 ## Empty Results and 404
 
-A JVM single query returns an empty `Mono` for no match; list returns an empty `Flux`, and paged returns an empty page. HTTP `snapshot/single` and `snapshot/single/state` return 404 when there is no match. The API Client maps a single-query 404 to an empty reactive `Mono` or synchronous `null`; other errors propagate.
+A JVM single query returns an empty `Mono` for no match; list returns an empty `Flux`, while paged and cursor return an empty page. HTTP `snapshot/single` and `snapshot/single/state` return 404 when there is no match. The API Client maps a single-query 404 to an empty reactive `Mono` or synchronous `null`; other errors propagate.
 
 ## When to Use Snapshot Queries
 
