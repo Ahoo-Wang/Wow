@@ -1323,7 +1323,7 @@ class QuerySchemaResolverTest {
     }
 
     @Test
-    fun `aggregation should keep an unknown path compatible when logical and physical parents differ`() {
+    fun `aggregation should reject a masked descendant when logical and physical parents differ`() {
         val resolver = QuerySchemaResolver(
             schema(
                 mapOf(
@@ -1343,7 +1343,7 @@ class QuerySchemaResolverTest {
             metrics = listOf(AggregationMetric.Count("count")),
         )
 
-        resolver.resolve(query).compatibility.assert().isEqualTo(QueryCompatibilityLevel.COMPATIBLE)
+        resolver.resolve(query).compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
     }
 
     @Test
