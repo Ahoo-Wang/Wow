@@ -23,6 +23,7 @@ import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryCompatibilityLevel
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.query.FORBIDDEN_CURSOR_SORTS
+import me.ahoo.wow.query.mask.hasUnrestorableInternalEventBodyTypeExclusion
 import me.ahoo.wow.query.mask.withInternalEventBodyType
 
 enum class QuerySchemaValidationMode {
@@ -106,7 +107,8 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         filterResolver.resolve(filter)
 
     fun resolve(projection: Projection): QuerySchemaResolution<Projection> {
-        val effectiveProjection = if (schema.model == QueryModel.EVENT_STREAM && schema.hasMaskedFields) {
+        val maskedEventProjection = schema.model == QueryModel.EVENT_STREAM && schema.hasMaskedFields
+        val effectiveProjection = if (maskedEventProjection) {
             projection.withInternalEventBodyType()
         } else {
             projection
@@ -122,7 +124,12 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
                 include.map { it.value },
                 exclude.map { it.value },
             ),
-            (include + exclude).map { it.compatibility }.combined(),
+            buildList {
+                addAll((include + exclude).map { it.compatibility })
+                if (maskedEventProjection && projection.hasUnrestorableInternalEventBodyTypeExclusion()) {
+                    add(QueryCompatibilityLevel.INCOMPATIBLE)
+                }
+            }.combined(),
         )
     }
 

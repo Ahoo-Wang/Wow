@@ -19,17 +19,25 @@ import tools.jackson.databind.node.ObjectNode
 
 internal const val EVENT_BODY_TYPE_PATH = "body.bodyType"
 private const val EVENT_BODY_PATH = "body"
+private const val EVENT_BODY_PAYLOAD_PATH = "body.body"
 
 internal fun Projection.requiresInternalEventBodyType(): Boolean {
-    val bodySelected = include.isEmpty() || include.any { it == EVENT_BODY_PATH || it.startsWith("$EVENT_BODY_PATH.") }
-    val bodyExcluded = EVENT_BODY_PATH in exclude
+    val bodySelected = include.isEmpty() || include.any {
+        EVENT_BODY_PATH.isSelectedBy(it) || it.startsWith("$EVENT_BODY_PATH.")
+    }
+    val bodyExcluded = exclude.any {
+        EVENT_BODY_PATH.matchesProjectionPattern(it) || EVENT_BODY_PAYLOAD_PATH.matchesProjectionPattern(it)
+    }
     if (!bodySelected || bodyExcluded) return false
 
-    val bodyTypeSelected = include.isEmpty() || include.any {
-        it == EVENT_BODY_TYPE_PATH || EVENT_BODY_TYPE_PATH.startsWith("$it.")
-    }
-    return !bodyTypeSelected || EVENT_BODY_TYPE_PATH in exclude
+    val bodyTypeSelected = include.isEmpty() || include.any(EVENT_BODY_TYPE_PATH::isSelectedBy)
+    return !bodyTypeSelected || exclude.any(EVENT_BODY_TYPE_PATH::isSelectedBy)
 }
+
+internal fun Projection.hasUnrestorableInternalEventBodyTypeExclusion(): Boolean =
+    requiresInternalEventBodyType() && exclude.any {
+        '*' in it && EVENT_BODY_TYPE_PATH.matchesProjectionPattern(it)
+    }
 
 internal fun Projection.withInternalEventBodyType(): Projection {
     if (!requiresInternalEventBodyType()) return this
@@ -45,3 +53,9 @@ internal fun ObjectNode.removeInternalEventBodyType(): ObjectNode = apply {
         (event as? ObjectNode)?.remove("bodyType")
     }
 }
+
+private fun String.isSelectedBy(pattern: String): Boolean =
+    this == pattern || startsWith("$pattern.") || matchesProjectionPattern(pattern)
+
+private fun String.matchesProjectionPattern(pattern: String): Boolean =
+    pattern.split('*').joinToString(".*", "^", "$") { Regex.escape(it) }.toRegex().matches(this)

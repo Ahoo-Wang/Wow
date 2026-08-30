@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.event
 
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.query.AbstractQueryGateway
@@ -21,7 +22,10 @@ import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.QueryLogErrorHandler
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
+import me.ahoo.wow.query.mask.removeInternalEventBodyType
+import me.ahoo.wow.query.mask.requiresInternalEventBodyType
 import me.ahoo.wow.serialization.JsonSerializer
+import tools.jackson.databind.node.ObjectNode
 
 interface EventStreamQueryGateway : QueryGateway<DomainEventStream>
 
@@ -38,4 +42,7 @@ class DefaultEventStreamQueryGateway(
         filters,
         EventStreamQueryGateway::class,
         errorHandler,
-    )
+    ) {
+    override fun prepareDynamicResult(query: Queryable<*>, result: ObjectNode): ObjectNode =
+        if (query.projection.requiresInternalEventBodyType()) result.removeInternalEventBodyType() else result
+}

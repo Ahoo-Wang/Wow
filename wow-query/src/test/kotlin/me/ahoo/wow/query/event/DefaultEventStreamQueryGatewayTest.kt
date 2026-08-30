@@ -26,6 +26,7 @@ import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.mask.FullMaskStrategy
 import me.ahoo.wow.api.query.mask.Mask
@@ -142,6 +143,63 @@ class DefaultEventStreamQueryGatewayTest {
 
         event.path("body").path("data").stringValue().assert().isEqualTo("******")
         event.has("bodyType").assert().isFalse()
+    }
+
+    @Test
+    fun `typed event gateway should retain internally projected body type until materialization`() {
+        val eventStream = generateEventStream(
+            MOCK_AGGREGATE_METADATA.aggregateId(generateGlobalId()),
+            eventCount = 1,
+            createdEventSupplier = { MockAggregateCreated("secret") },
+        )
+        val raw = eventStream.toJsonNode<ObjectNode>()
+        val bodyType = raw.path("body").path(0).path("bodyType").stringValue()
+        val gateway = DefaultEventStreamQueryGateway(
+            MOCK_AGGREGATE_METADATA,
+            SchemaEventBackend(eventStream::toJsonNode, eventSchema(bodyType)),
+            errorHandler = ErrorHandler { _, error -> Mono.error(error) },
+        )
+
+        val result = gateway.single(
+            singleQuery {
+                projection { exclude("body.bodyType") }
+            },
+        ).block()!!
+
+        (result.body.single().body as MockAggregateCreated).data.assert().isEqualTo("******")
+    }
+
+    @Test
+    fun `dynamic event gateway should clean body type from rewritten projection`() {
+        val eventStream = generateEventStream(
+            MOCK_AGGREGATE_METADATA.aggregateId(generateGlobalId()),
+            eventCount = 1,
+            createdEventSupplier = { MockAggregateCreated("secret") },
+        )
+        val raw = eventStream.toJsonNode<ObjectNode>()
+        val bodyType = raw.path("body").path(0).path("bodyType").stringValue()
+        val rewriteProjection = object : EventStreamQueryFilter {
+            override fun filter(context: QueryContext<*, *>, next: FilterChain<QueryContext<*, *>>): Mono<Void> {
+                context.asSingleQuery().rewriteQuery {
+                    it.withProjection(Projection(exclude = listOf("body.bodyType")))
+                }
+                return next.filter(context)
+            }
+        }
+        val gateway = DefaultEventStreamQueryGateway(
+            MOCK_AGGREGATE_METADATA,
+            SchemaEventBackend(eventStream::toJsonNode, eventSchema(bodyType)),
+            filters = listOf(rewriteProjection),
+            errorHandler = ErrorHandler { _, error -> Mono.error(error) },
+        )
+
+        val result = gateway.dynamicSingle(
+            singleQuery {
+                projection { include("body.bodyType") }
+            },
+        ).block()!!
+
+        result.path("body").path(0).has("bodyType").assert().isFalse()
     }
 
     @Test
