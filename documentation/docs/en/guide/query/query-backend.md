@@ -7,7 +7,7 @@ description: Learn how ObjectNode query backends, aggregate Gateways, Factory ro
 
 ## QueryBackend contract
 
-`QueryBackend` is the aggregate-bound low-level contract. Single, list, paged, and aggregate use `tools.jackson.databind.node.ObjectNode`; count returns `Long`. `SnapshotQueryBackend` and `EventStreamQueryBackend` distinguish the data model and Schema Provider capability. Typed materialization belongs to the Gateway, not the Backend.
+`QueryBackend` is the aggregate-bound low-level contract. Single, list, paged, cursor, and aggregate use `tools.jackson.databind.node.ObjectNode`; count returns `Long`, while cursor wraps nodes in `CursorPage<ObjectNode>`. `SnapshotQueryBackend` and `EventStreamQueryBackend` distinguish the data model and Schema Provider capability. Typed materialization belongs to the Gateway, not the Backend.
 
 ## Node ownership constraints
 
@@ -65,6 +65,14 @@ Event-stream Gateways have no `STATE` generic. When multiple candidates exist, q
 ## Raw backend access
 
 Direct Factory access is for trusted infrastructure extensions or cases that explicitly require raw backend semantics. It bypasses Gateway request filters, ABAC, result filters, and error observation; the caller must own those responsibilities.
+
+## Cursor Execution and Tokens
+
+The built-in Snapshot Backend appends `aggregateId` as a unique tie-breaker, while the EventStream Backend appends `id`. MongoDB uses a keyset filter. Elasticsearch uses `search_after` without PIT. Both request `size + 1` to detect another page, perform no count or offset, and return no total. Traversal is forward-only and has no cross-request snapshot; concurrent writes can change what a later page observes.
+
+The backend encodes effective sort values as an unpadded Base64URL continuation. The token is neither encrypted nor signed, carries no authorization, and should not be logged; the framework has no cursor encryption-key configuration. Callers should pass it back unchanged rather than parse or construct it.
+
+Every effective sort must resolve exactly in Query Schema and must not be annotated with `@Mask`; unavailable Schema fails closed. An invalid token is rejected as `Invalid cursor.` without echoing its content.
 
 ## Schema uses the same route
 

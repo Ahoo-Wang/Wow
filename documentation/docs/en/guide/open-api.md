@@ -200,7 +200,7 @@ The returned value is text. Client code should treat its layout as opaque unless
 
 ## Aggregate Routing Specification
 
-The catalog contributes command, state, event, snapshot, and query routes from aggregate metadata. Common snapshot query suffixes are:
+The catalog contributes command, state, event, snapshot, and query routes from aggregate metadata. Common query suffixes are:
 
 | Method | Suffix | Request / response |
 |---|---|---|
@@ -212,6 +212,8 @@ The catalog contributes command, state, event, snapshot, and query routes from a
 | `POST` | `snapshot/single/state` | `SingleQuery` -> state only |
 | `POST` | `snapshot/list` / `list/state` | `ListQuery` -> array or SSE |
 | `POST` | `snapshot/paged` / `paged/state` | `PagedQuery` -> `PagedList` |
+| `POST` | `snapshot/cursor` / `cursor/state` | `CursorQuery` -> complete-snapshot / state-only `CursorPage` |
+| `POST` | `event/cursor` | `CursorQuery` -> EventStream `CursorPage` |
 | `POST` | `snapshot/count` | `FilterExpression` -> exact count |
 | `POST` | `snapshot/aggregation` | `AggregationQuery` -> dynamic rows or SSE |
 
@@ -222,5 +224,7 @@ Query contracts appear in three distinct layers:
 3. The runtime `snapshot/schema` and `event/schema` routes publish their merged `QueryModelSchemaMetadata` and backend-proven capabilities.
 
 `x-wow-query-fields` is OpenAPI design-time metadata on the request-body component; it is not embedded as JSON request properties and is not a backend capability claim.
+
+The `CursorQuery` component contains `filter`, `projection`, `sort`, `size`, and an optional `cursor`, but no `pagination`. `CursorPage` contains only `list` and nullable `nextCursor`, with no total. These cursor routes declare `application/json` only; there is no SSE cursor contract.
 
 `wow-apiclient` contains hand-maintained CoApi interfaces for Wow command and snapshot contracts. External tools such as Fetcher may generate other clients from the published OpenAPI document. Client generation is downstream of OpenAPI: KSP metadata does not generate those clients, and regenerating a client does not change server field semantics. Review generated diffs whenever the OpenAPI contract changes.

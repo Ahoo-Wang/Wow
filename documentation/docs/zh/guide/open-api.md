@@ -200,7 +200,7 @@ curl 'http://localhost:8080/wow/id/global' \
 
 ## 聚合路由规范
 
-路由目录根据聚合元数据贡献 command、state、event、snapshot 和 query 路由。常用快照查询后缀如下：
+路由目录根据聚合元数据贡献 command、state、event、snapshot 和 query 路由。常用查询后缀如下：
 
 | 方法 | 后缀 | 请求 / 响应 |
 |---|---|---|
@@ -212,6 +212,8 @@ curl 'http://localhost:8080/wow/id/global' \
 | `POST` | `snapshot/single/state` | `SingleQuery` -> 仅状态 |
 | `POST` | `snapshot/list` / `list/state` | `ListQuery` -> 数组或 SSE |
 | `POST` | `snapshot/paged` / `paged/state` | `PagedQuery` -> `PagedList` |
+| `POST` | `snapshot/cursor` / `cursor/state` | `CursorQuery` -> 完整快照 / state-only `CursorPage` |
+| `POST` | `event/cursor` | `CursorQuery` -> EventStream `CursorPage` |
 | `POST` | `snapshot/count` | `FilterExpression` -> 精确计数 |
 | `POST` | `snapshot/aggregation` | `AggregationQuery` -> 动态行或 SSE |
 
@@ -222,5 +224,7 @@ curl 'http://localhost:8080/wow/id/global' \
 3. 运行时 `snapshot/schema` 与 `event/schema` 路由分别发布合并后的 `QueryModelSchemaMetadata` 与后端已证明能力。
 
 `x-wow-query-fields` 是 request-body component 上的 OpenAPI 设计时元数据，不会作为 JSON 请求属性嵌入，也不表示后端能力。
+
+`CursorQuery` component 的请求字段是 `filter`、`projection`、`sort`、`size` 与可选 `cursor`，不含 `pagination`；`CursorPage` 只有 `list` 与 nullable `nextCursor`，不含 total。上述 cursor route 只声明 `application/json`，没有 SSE cursor 合同。
 
 `wow-apiclient` 包含手工维护的 Wow 命令与快照 CoApi 接口。Fetcher 等外部工具可以从已发布 OpenAPI 生成其他客户端。客户端生成位于 OpenAPI 下游：KSP 元数据不会生成这些客户端，重新生成客户端也不会改变服务端字段语义。OpenAPI 合同变化后必须审阅生成 diff。

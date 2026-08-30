@@ -17,7 +17,7 @@ flowchart LR
     Mask --> Jackson["Jackson typed 物化"]
 ```
 
-该链路覆盖 Snapshot 与 EventStream 的 typed/dynamic `single`、`list`、`paged` 结果，以及经 Snapshot Gateway 加载的 state-only/aggregate-state 结果。Mask 只修改当前响应节点，不重写存储文档、领域对象或应用的通用 Jackson 序列化合同；`count` 与聚合结果也不经过结果 Mask。
+该链路覆盖 Snapshot 与 EventStream 的 typed/dynamic `single`、`list`、`paged`、`cursor` 结果，以及经 Snapshot Gateway 加载的 state-only/aggregate-state 结果。Mask 只修改当前响应节点，不重写存储文档、领域对象或应用的通用 Jackson 序列化合同；`count` 与聚合结果也不经过结果 Mask。
 
 ## 内建注解
 
@@ -82,8 +82,10 @@ Strategy 可以是 Kotlin `object` 或公开无参类。示例不按 UTF-16 code
 |---|---|
 | Snapshot/EventStream typed `single`、`list`、`paged` | 在 typed 物化前脱敏 |
 | Snapshot/EventStream dynamic `single`、`list`、`paged` | 返回已脱敏的 `ObjectNode` |
+| Snapshot/EventStream typed/dynamic `cursor` | 对 `CursorPage.list` 脱敏，原样保留 `nextCursor` |
 | Snapshot state-only / aggregate-state load | 复用 Snapshot Gateway，同样脱敏 |
 | 普通 filter、全文 search、sort | 允许引用 Mask 字段；后端按原值匹配或排序，响应仍脱敏 |
+| `CursorQuery` 有效 sort | 必须精确解析且不能带 Mask 规则；否则原始排序值会进入 `nextCursor`，因此在 Backend 前拒绝 |
 | 数据查询 `count` | 计数不变；Mask 层不加载 Schema、不处理字段值 |
 | 聚合 group、字段 metric、数值 expression | 引用 Mask 字段时解析为 `INCOMPATIBLE` 并在 Backend 执行前拒绝 |
 | 聚合所需 Schema 不可用 | 失败关闭；即使聚合只含 `COUNT` 也不降级执行 |
@@ -113,7 +115,7 @@ Event projection 完全没有 `body`，或把顶层 `body` 投影为 `null` 时�
 
 1. 通过[查询模型 Schema](./query-model-schema.md)端点确认目标字段只新增 `masked: true`，没有公开策略或参数。
 2. 分别验证 Snapshot/EventStream 的 typed、dynamic 与 state-only/aggregate-state load 响应。
-3. 验证 filter/search/sort 与数据查询 `count` 保持可用；group、字段 metric、数值 expression 和 Schema unavailable 聚合失败关闭。
+3. 验证普通 filter/search/sort 与数据查询 `count` 保持可用；masked cursor sort、group、字段 metric、数值 expression 和 Schema unavailable 聚合失败关闭。
 4. 仅在受信测试中验证 direct Factory 返回原始值，并确认存储文档与通用 Jackson 序列化未被改写。
 
 完整执行位置、Filter 顺序和绕过条件见[查询网关](./query-gateway.md)。

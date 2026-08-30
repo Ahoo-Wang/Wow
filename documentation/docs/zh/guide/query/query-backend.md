@@ -7,7 +7,7 @@ description: 了解 ObjectNode 查询后端、聚合级 Gateway、Factory 路由
 
 ## QueryBackend 契约
 
-`QueryBackend` 是聚合绑定的低层合同：single、list、paged 与 aggregate 使用 `tools.jackson.databind.node.ObjectNode`，count 返回 `Long`。`SnapshotQueryBackend` 和 `EventStreamQueryBackend` 只区分数据模型与 Schema Provider 能力；typed 物化属于 Gateway，不属于 Backend。
+`QueryBackend` 是聚合绑定的低层合同：single、list、paged、cursor 与 aggregate 使用 `tools.jackson.databind.node.ObjectNode`，count 返回 `Long`；cursor 把节点包装在 `CursorPage<ObjectNode>` 中。`SnapshotQueryBackend` 和 `EventStreamQueryBackend` 只区分数据模型与 Schema Provider 能力；typed 物化属于 Gateway，不属于 Backend。
 
 ## 节点所有权约束
 
@@ -65,6 +65,14 @@ Registrar 创建 Gateway 时，以当前 `NamedAggregate` 调用一次 `Snapshot
 ## 原始后端访问
 
 直接使用 Factory 适合受信基础设施扩展或明确要求原始后端语义的场景。它绕过 Gateway 的请求过滤、ABAC、结果 Filter 与错误观察，调用方必须自行承担这些责任。
+
+## 游标执行与 token
+
+内置 Snapshot Backend 把 `aggregateId`、EventStream Backend 把 `id` 追加为唯一 tie-breaker。MongoDB 用 keyset filter，Elasticsearch 用不带 PIT 的 `search_after`；两者都请求 `size + 1` 判断是否还有下一页，不执行 count、offset，也不返回 total。游标只向后移动，没有跨请求快照；并发写入可能改变后续页看到的数据。
+
+后端把有效排序值编码为无 padding 的 Base64URL continuation。token 不加密、不签名、不承载授权，也不应记录到日志；框架没有游标加密密钥配置。调用方只应原样传回 token，不应解析或构造它。
+
+有效 sort 必须由 Query Schema 精确解析且未标注 `@Mask`；Schema 不可用时失败关闭。非法 token 以 `Invalid cursor.` 拒绝，不回显其内容。
 
 ## Schema 使用同一路由
 

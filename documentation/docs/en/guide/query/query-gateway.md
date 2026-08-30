@@ -28,9 +28,9 @@ sequenceDiagram
     Entry->>Gateway: Query after scope rewriting
     Gateway->>Gateway: Create QueryContext + QueryType
     Gateway->>Filters: Run request filters
-    Filters->>Backend: single / list / paged / count / aggregate
-    Backend-->>Filters: ObjectNode / PagedList / count
-    Filters-->>Mask: Complete all result filters (single/list/paged)
+    Filters->>Backend: single / list / paged / cursor / count / aggregate
+    Backend-->>Filters: ObjectNode / PagedList / CursorPage / count
+    Filters-->>Mask: Complete all result filters (single/list/paged/cursor)
     Mask-->>Jackson: Masked ObjectNode
     Jackson-->>Caller: ObjectNode or typed result
 ```
@@ -41,7 +41,7 @@ At Gateway assembly, the registrar calls the routing Factory once for the `Named
 
 The Gateway creates an independent `QueryContext` for every subscription, so separate subscriptions to the same reactive Publisher do not share the query, result, or attributes. The context holds the aggregate identity, query object, result, and `QueryType` for filters that rewrite queries or results.
 
-`QueryType` contains only `SINGLE`, `LIST`, `PAGED`, `COUNT`, and `AGGREGATION`; typed and `ObjectNode` results share the same operation type. Concrete query models, entries, and protocol exposure can still differ.
+`QueryType` contains only `SINGLE`, `LIST`, `PAGED`, `CURSOR`, `COUNT`, and `AGGREGATION`; typed and `ObjectNode` results share the same operation type. Concrete query models, entries, and protocol exposure can still differ.
 
 ## Snapshot and event-stream filter chains
 
@@ -53,9 +53,11 @@ The Gateway creates an independent `QueryContext` for every subscription, so sep
 
 `HttpQueryGuardFilter` belongs to both Gateways, but applies only when a `ServerRequest` exists in the Reactor Context; it does not change ordinary in-process query constraints.
 
+A cursor is not a policy snapshot. Every later HTTP request reapplies tenant, owner, and space conditions, then reruns authorization, the original filter, HTTP guards, result filters, and `SchemaMasker`; the token neither carries nor restores authorization state. Every in-process subscription likewise reruns the Gateway chain.
+
 ## ABAC and Field Masking
 
-The built-in `AbacQueryFilter` belongs to the snapshot Gateway. For a Backend that provides `QueryModelSchemaProvider`, the framework-owned `SchemaMaskQueryFilter` applies Schema-driven field masking after all generic result filters and before typed materialization. Snapshot and EventStream typed, dynamic, and aggregate-state load entries share this managed path. See [Field Masking](./masking.md) for annotations, caching, the behavior matrix, and fail-closed rules.
+The built-in `AbacQueryFilter` belongs to the snapshot Gateway. For a Backend that provides `QueryModelSchemaProvider`, the framework-owned `SchemaMaskQueryFilter` applies Schema-driven field masking after all generic result filters and before typed materialization. Snapshot and EventStream typed, dynamic, cursor, and aggregate-state load entries share this managed path. See [Field Masking](./masking.md) for annotations, caching, the behavior matrix, and fail-closed rules.
 
 For authentication, Principal binding, and the complete fail-closed policy, see [Data Access Control](../data-access.md).
 
@@ -69,4 +71,4 @@ Aggregate Bean names are exactly `{contextAlias.}{aggregateName}.SnapshotQueryGa
 
 ## Validation strategy boundaries
 
-The Gateway owns the policy chain; it does not replace backend field capability, Schema resolution, or application validation. If a JSON-array or SSE stream fails after emitting rows, those rows are not rolled back. SSE attempts to emit an `ErrorInfo` error event. A `RequestExceptionHandler` failure or a failure while generating, rendering, or serializing that error event is attached to the original as a suppressed error only when distinct and not already recorded. The original terminal error is always propagated; partial failure never completes successfully.
+The Gateway owns the policy chain; it does not replace backend field capability, Schema resolution, or application validation. A Cursor effective sort must resolve exactly in Query Schema and must not carry `@Mask`; unavailable Schema fails closed rather than falling back in compatible mode. If a JSON-array or SSE stream fails after emitting rows, those rows are not rolled back. SSE attempts to emit an `ErrorInfo` error event. A `RequestExceptionHandler` failure or a failure while generating, rendering, or serializing that error event is attached to the original as a suppressed error only when distinct and not already recorded. The original terminal error is always propagated; partial failure never completes successfully.
