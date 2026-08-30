@@ -62,7 +62,17 @@ There are eleven built-in capabilities:
 | `AGGREGATE_NUMERIC` | Numeric histograms, numeric metrics, and numeric expressions |
 | `AGGREGATE_TEMPORAL` | Date histograms and temporal buckets |
 
-Fields also carry `valueTypes`, `cardinality`, `semanticType`, and `dynamicChildren`. Even when a capability exists, a value-type, collection-cardinality, or current Element-scope mismatch can still resolve as `INCOMPATIBLE`.
+Fields also carry `valueTypes`, `cardinality`, `semanticType`, `dynamicChildren`, and `masked`. `masked: Boolean` only states that the managed Gateway masks the field; it does not expose the strategy or its parameters. Even when a capability exists, a value-type, collection-cardinality, or current Element-scope mismatch can still resolve as `INCOMPATIBLE`.
+
+## Static-Annotation Masking
+
+When building a Query Schema at runtime, `JsonQuerySchemaSource` discovers `RUNTIME` annotations from fields, Kotlin properties/getters, and inherited parent or interface members. It validates each rule and compiles `MaskStrategy.compile` into an in-memory `MaskRule`. This process does not use KSP. The in-memory rule follows Schema merging and backend adaptation, but Schema HTTP metadata exposes only `masked: true/false`; it never serializes a Strategy type, annotation parameters, or executable function.
+
+Built-in `@Mask` replaces each Unicode code point with `*`. `@KeepMask(prefix, suffix)` preserves the requested leading and trailing code points and replaces the middle with `*`; a value too short to preserve both sides is fully masked. `null` remains `null`, and an empty string remains empty. Nested objects, collections, and string arrays are traversed recursively by Schema path.
+
+A custom field annotation must use `@Masking(strategy)` as a meta-annotation and have `RUNTIME` retention. Its Strategy can be a Kotlin `object` or a public no-argument class. It compiles once during Schema construction, and query results execute only the resulting `CompiledMask`. Member annotations on a parent Kotlin property or interface getter are inherited by the implementing member.
+
+Masking accepts only `String` wire values, including nullable or collection forms. Multiple effective mask annotations on one field, conflicting Schema-branch rules, a non-String branch, or a Strategy construction or compilation failure fails Schema construction closed. When an EventStream Schema contains a mask, it also requires a known `bodyType` enum; a result with a missing or unknown `bodyType` terminates the entire result Publisher instead of returning an unmasked event.
 
 ## COMPATIBLE and STRICT
 

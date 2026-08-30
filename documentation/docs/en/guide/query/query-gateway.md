@@ -22,6 +22,7 @@ sequenceDiagram
     participant Gateway as Aggregate-bound Gateway
     participant Filters as One around chain
     participant Backend as Bound QueryBackend
+    participant Mask as Schema Mask
     participant Jackson as Optional typed conversion
     Caller->>Entry: Query DTO / DSL
     Entry->>Gateway: Query after scope rewriting
@@ -29,11 +30,12 @@ sequenceDiagram
     Gateway->>Filters: Run request filters
     Filters->>Backend: single / list / paged / count / aggregate
     Backend-->>Filters: ObjectNode / PagedList / count
-    Filters-->>Jackson: Complete chain
+    Filters-->>Mask: Complete all result filters (single/list/paged)
+    Mask-->>Jackson: Masked ObjectNode
     Jackson-->>Caller: ObjectNode or typed result
 ```
 
-At Gateway assembly, the registrar calls the routing Factory once for the `NamedAggregate` and binds the selected Backend. Requests are not routed again. The Backend produces `ObjectNode`; result filters process those nodes before typed single/list/paged results are materialized by Jackson. Count remains `Long`, and aggregation remains a stream of `ObjectNode` rows.
+At Gateway assembly, the registrar calls the routing Factory once for the `NamedAggregate` and binds the selected Backend. Requests are not routed again. The Backend produces `ObjectNode`; result filters process those nodes, single/list/paged data results are then masked from the Query Model Schema, and Jackson finally materializes typed results. Count remains `Long`. Aggregation remains a stream of `ObjectNode` rows, with Schema rejecting groups, metrics, and expressions that reference masked fields.
 
 ## QueryContext and QueryType
 
@@ -51,15 +53,17 @@ The Gateway creates an independent `QueryContext` for every subscription, so sep
 
 `HttpQueryGuardFilter` belongs to both Gateways, but applies only when a `ServerRequest` exists in the Reactor Context; it does not change ordinary in-process query constraints.
 
-## ABAC and the temporary Mask downgrade
+## ABAC and Static Masking
 
-The built-in `AbacQueryFilter` belongs to the snapshot Gateway. The current V9 query architecture temporarily provides no built-in Mask API, registry, or result-masking filter. Snapshot, EventStream, and direct aggregate-state loads do not automatically hide field values. A follow-up task will restore one static-annotation design; until then, do not treat the Gateway as a masking boundary.
+The built-in `AbacQueryFilter` belongs to the snapshot Gateway. For a Backend that provides `QueryModelSchemaProvider`, the Gateway applies Query Model Schema-driven static-annotation masking to raw `ObjectNode` values after all generic result filters and before typed materialization. Snapshot and EventStream typed, dynamic, and aggregate-state load entries share this managed path.
+
+The Gateway caches a successful Schema decision. A transient Schema-load error is not cached, so a later subscription can retry. When the root Schema has no `masked` fields, the fast path creates no masker and does not walk result JSON. With EventStream masking enabled, a missing or unknown `bodyType` fails the result Publisher closed.
 
 For authentication, Principal binding, and the complete fail-closed policy, see [Data Access Control](../data-access.md).
 
 ## Raw Factory Boundary
 
-Calling `SnapshotQueryBackendFactory` or `EventStreamQueryBackendFactory` directly bypasses the entire Gateway governance chain, including ABAC and result filters. These Factories are trusted low-level SPIs for storage extensions, focused diagnostics, and backend contract tests. Ordinary application code should inject the aggregate-bound Gateway.
+Calling `SnapshotQueryBackendFactory` or `EventStreamQueryBackendFactory` directly bypasses the entire Gateway governance chain, including ABAC, result filters, and masking. A custom Backend without `QueryModelSchemaProvider` cannot establish a masking contract either. Both are trusted raw-value boundaries for storage extensions, focused diagnostics, and backend contract tests. Ordinary application code should inject the aggregate-bound Gateway.
 
 ## Bean Names
 
