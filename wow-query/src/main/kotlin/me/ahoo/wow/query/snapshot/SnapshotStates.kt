@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.snapshot
 
+import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.serialization.state.StateAggregateRecords
@@ -49,3 +50,9 @@ fun <S : Any> Mono<PagedList<MaterializedSnapshot<S>>>.toStatePagedList(): Mono<
 fun <S : ObjectNode> Mono<PagedList<S>>.toStateDocumentPagedList(): Mono<PagedList<ObjectNode>> {
     return map { PagedList(it.total, it.list.map { node -> node.toState() }) }
 }
+
+fun <S : Any> Mono<CursorPage<MaterializedSnapshot<S>>>.toStateCursorPage(): Mono<CursorPage<S>> =
+    map { page -> CursorPage(page.list.map { it.state }, page.nextCursor) }
+
+fun Mono<CursorPage<ObjectNode>>.toStateDocumentCursorPage(): Mono<CursorPage<ObjectNode>> =
+    map { page -> page.copy(list = page.list.map(ObjectNode::toState)) }

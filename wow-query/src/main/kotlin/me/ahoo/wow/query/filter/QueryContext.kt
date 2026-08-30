@@ -15,7 +15,9 @@ package me.ahoo.wow.query.filter
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
@@ -89,6 +91,10 @@ interface QueryContext<Q : Any, R : Any> {
 
     fun asPagedQuery(): QueryContext<IPagedQuery, Mono<PagedList<ObjectNode>>> {
         return this as QueryContext<IPagedQuery, Mono<PagedList<ObjectNode>>>
+    }
+
+    fun asCursorQuery(): QueryContext<ICursorQuery, Mono<CursorPage<ObjectNode>>> {
+        return this as QueryContext<ICursorQuery, Mono<CursorPage<ObjectNode>>>
     }
 
     fun asCountQuery(): QueryContext<FilterExpression, Mono<Long>> {

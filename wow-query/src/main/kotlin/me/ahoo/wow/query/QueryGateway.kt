@@ -16,7 +16,9 @@ package me.ahoo.wow.query
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
@@ -44,6 +46,10 @@ interface QueryGateway<R : Any> : NamedAggregateDecorator {
     fun dynamicList(query: IListQuery): Flux<ObjectNode>
     fun paged(query: IPagedQuery): Mono<PagedList<R>>
     fun dynamicPaged(query: IPagedQuery): Mono<PagedList<ObjectNode>>
+    fun cursor(query: ICursorQuery): Mono<CursorPage<R>> =
+        Mono.error(UnsupportedOperationException("Cursor query is not supported."))
+    fun dynamicCursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> =
+        Mono.error(UnsupportedOperationException("Cursor query is not supported."))
     fun count(filter: FilterExpression): Mono<Long>
     fun aggregate(query: AggregationQuery): Flux<ObjectNode>
 }
@@ -67,6 +73,7 @@ abstract class AbstractQueryGateway<R : Any>(
             QueryType.SINGLE -> context.asSingleQuery().setResult { backend.single(it) }
             QueryType.LIST -> context.asListQuery().setResult { backend.list(it) }
             QueryType.PAGED -> context.asPagedQuery().setResult { backend.paged(it) }
+            QueryType.CURSOR -> context.asCursorQuery().setResult { backend.cursor(it) }
             QueryType.COUNT -> context.asCountQuery().setResult { backend.count(it) }
             QueryType.AGGREGATION -> context.asAggregationQuery().setResult { backend.aggregate(it) }
         }
@@ -137,6 +144,18 @@ abstract class AbstractQueryGateway<R : Any>(
 
     override fun dynamicPaged(query: IPagedQuery): Mono<PagedList<ObjectNode>> =
         mono<IPagedQuery, Mono<PagedList<ObjectNode>>, PagedList<ObjectNode>>(QueryType.PAGED, query) {
+            it.getRequiredResult()
+        }
+
+    override fun cursor(query: ICursorQuery): Mono<CursorPage<R>> =
+        mono<ICursorQuery, Mono<CursorPage<ObjectNode>>, CursorPage<R>>(QueryType.CURSOR, query) { context ->
+            context.getRequiredResult().map { page ->
+                CursorPage(page.list.map { it.toObject<R>(targetType) }, page.nextCursor)
+            }
+        }
+
+    override fun dynamicCursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> =
+        mono<ICursorQuery, Mono<CursorPage<ObjectNode>>, CursorPage<ObjectNode>>(QueryType.CURSOR, query) {
             it.getRequiredResult()
         }
 

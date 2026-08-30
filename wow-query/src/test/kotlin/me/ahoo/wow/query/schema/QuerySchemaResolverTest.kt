@@ -31,6 +31,7 @@ import me.ahoo.wow.api.query.BeforeTodayFilter
 import me.ahoo.wow.api.query.BetweenFilter
 import me.ahoo.wow.api.query.ContainsAllFilter
 import me.ahoo.wow.api.query.ContainsFilter
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.EarlierDaysFilter
@@ -1454,6 +1455,47 @@ class QuerySchemaResolverTest {
         )
 
         resolver.resolve(query).compatibility.assert().isEqualTo(QueryCompatibilityLevel.COMPATIBLE)
+    }
+
+    @Test
+    fun `cursor sort should require exact unmasked bindings while ordinary sort remains allowed`() {
+        val secret = LogicalField("state.secret")
+        val resolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    secret to fieldSchema(
+                        QueryCapability.SORT to "document.secret.keyword",
+                        maskRule = fullMaskRule(),
+                    ),
+                ),
+            ),
+        )
+
+        resolver.resolve(ListQuery(MatchAllFilter, sort = listOf(Sort(secret.value, Sort.Direction.ASC))))
+            .compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
+        resolver.resolve(CursorQuery(MatchAllFilter, sort = listOf(Sort(secret.value, Sort.Direction.ASC))))
+            .compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+        resolver.resolve(CursorQuery(MatchAllFilter, sort = listOf(Sort("state.unknown", Sort.Direction.ASC))))
+            .compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
+
+        val dynamic = LogicalField("state.dynamic")
+        val dynamicResolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    dynamic to fieldSchema(
+                        QueryCapability.SORT to "document.dynamic",
+                        dynamicChildren = true,
+                        maskRule = fullMaskRule(),
+                    ),
+                ),
+            ),
+        )
+        dynamicResolver.resolve(
+            CursorQuery(
+                MatchAllFilter,
+                sort = listOf(Sort("state.dynamic.secret", Sort.Direction.ASC)),
+            ),
+        ).compatibility.assert().isEqualTo(QueryCompatibilityLevel.INCOMPATIBLE)
     }
 
     private fun schema(

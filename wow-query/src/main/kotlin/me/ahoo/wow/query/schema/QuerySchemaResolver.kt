@@ -89,6 +89,16 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         )
     }
 
+    fun resolve(query: ICursorQuery): QuerySchemaResolution<ICursorQuery> {
+        val filter = resolve(query.filter)
+        val projection = resolve(query.projection)
+        val sort = resolveCursorSort(query.sort)
+        return QuerySchemaResolution(
+            CursorQuery(filter.value, projection.value, sort.value, query.size, query.cursor),
+            listOf(filter.compatibility, projection.compatibility, sort.compatibility).combined(),
+        )
+    }
+
     fun resolve(filter: FilterExpression): QuerySchemaResolution<FilterExpression> =
         filterResolver.resolve(filter)
 
@@ -117,6 +127,22 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         return QuerySchemaResolution(
             resolved.map(Pair<Sort, QueryCompatibilityLevel>::first),
             resolved.map(Pair<Sort, QueryCompatibilityLevel>::second).combined(),
+        )
+    }
+
+    private fun resolveCursorSort(sort: List<Sort>): QuerySchemaResolution<List<Sort>> {
+        val resolved = sort.map { item ->
+            val field = runCatching { LogicalField(item.field) }.getOrNull()?.let { logical ->
+                fieldResolver.resolve(logical, QueryCapability.SORT, null, null)
+            }
+            val accepted = field?.compatibility == QueryCompatibilityLevel.EXACT &&
+                field.fieldSchema != null && field.fieldSchema.maskRule == null
+            item.copy(field = field?.value ?: item.field) to
+                if (accepted) QueryCompatibilityLevel.EXACT else QueryCompatibilityLevel.INCOMPATIBLE
+        }
+        return QuerySchemaResolution(
+            resolved.map { it.first },
+            resolved.map { it.second }.combined(),
         )
     }
 

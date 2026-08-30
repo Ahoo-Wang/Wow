@@ -16,6 +16,7 @@ package me.ahoo.wow.query.schema
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ListQuery
@@ -37,6 +38,7 @@ import me.ahoo.wow.api.query.schema.QueryValueType
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Mono
+import reactor.kotlin.test.test
 import reactor.test.StepVerifier
 import tools.jackson.databind.node.JsonNodeFactory
 
@@ -135,6 +137,21 @@ class QuerySchemaValidationModeTest {
         provider.resolve(single, QuerySchemaValidationMode.COMPATIBLE).block().assert().isSameAs(single)
         provider.resolve(list, QuerySchemaValidationMode.COMPATIBLE).block().assert().isSameAs(list)
         provider.resolve(paged, QuerySchemaValidationMode.COMPATIBLE).block().assert().isSameAs(paged)
+    }
+
+    @Test
+    fun `compatible cursor should not fallback when schema is unavailable`() {
+        val provider = object : QueryModelSchemaProvider {
+            override fun schema(): Mono<QueryModelSchema> = Mono.error(QuerySchemaUnavailableException("missing"))
+
+            override fun refresh(): Mono<QueryModelSchema> = schema()
+        }
+
+        provider.resolve(
+            CursorQuery(MatchAllFilter, sort = listOf(Sort("aggregateId", Sort.Direction.ASC))),
+            QuerySchemaValidationMode.COMPATIBLE,
+        )
+            .test().expectError(QuerySchemaUnavailableException::class.java).verify()
     }
 
     @Test

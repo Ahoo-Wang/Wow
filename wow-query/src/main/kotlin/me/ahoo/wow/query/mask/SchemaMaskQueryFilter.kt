@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.mask
 
+import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.SimpleFilterChain
@@ -51,6 +52,7 @@ internal class SchemaMaskQueryFilter(
                 QueryType.SINGLE -> context.asSingleQuery().rewriteResult { it.maskResult() }
                 QueryType.LIST -> context.asListQuery().rewriteResult { it.maskResult() }
                 QueryType.PAGED -> context.asPagedQuery().rewriteResult { it.maskPagedResult() }
+                QueryType.CURSOR -> context.asCursorQuery().rewriteResult { it.maskCursorResult() }
                 QueryType.COUNT,
                 QueryType.AGGREGATION,
                 -> Unit
@@ -69,6 +71,12 @@ internal class SchemaMaskQueryFilter(
     private fun Mono<PagedList<ObjectNode>>.maskPagedResult(): Mono<PagedList<ObjectNode>> = masker.flatMap { optional ->
         optional.map { schemaMasker ->
             map { page -> PagedList(page.total, page.list.map(schemaMasker::mask)) }
+        }.orElse(this)
+    }
+
+    private fun Mono<CursorPage<ObjectNode>>.maskCursorResult(): Mono<CursorPage<ObjectNode>> = masker.flatMap { optional ->
+        optional.map { schemaMasker ->
+            map { page -> page.copy(list = page.list.map(schemaMasker::mask)) }
         }.orElse(this)
     }
 }

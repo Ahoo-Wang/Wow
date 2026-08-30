@@ -19,7 +19,10 @@ import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CursorPage
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
@@ -27,6 +30,7 @@ import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.mask.CompiledMask
 import me.ahoo.wow.api.query.mask.FullMaskStrategy
 import me.ahoo.wow.api.query.mask.KeepMask
@@ -59,6 +63,7 @@ import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.kotlin.test.test
 import reactor.test.StepVerifier
 import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.CopyOnWriteArrayList
@@ -112,6 +117,9 @@ class DefaultSnapshotQueryGatewayTest {
         gateway.list(listQuery { }).collectList().block()!!.single().state.value.assert().isEqualTo("state-value")
         gateway.dynamicPaged(pagedQuery { }).block()!!.total.assert().isOne()
         gateway.paged(pagedQuery { }).block()!!.list.single().state.value.assert().isEqualTo("state-value")
+        gateway.dynamicCursor(CursorQuery(MatchAllFilter)).block()!!.nextCursor.assert().isEqualTo("next")
+        gateway.cursor(CursorQuery(MatchAllFilter)).block()!!.list.single().state.value
+            .assert().isEqualTo("state-value")
         gateway.count(MatchAllFilter).block().assert().isOne()
         gateway.aggregate(AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))))
             .single().block()!!.path("count").longValue().assert().isOne()
@@ -122,6 +130,8 @@ class DefaultSnapshotQueryGatewayTest {
                 QueryType.LIST,
                 QueryType.PAGED,
                 QueryType.PAGED,
+                QueryType.CURSOR,
+                QueryType.CURSOR,
                 QueryType.COUNT,
                 QueryType.AGGREGATION
             ),
@@ -140,6 +150,30 @@ class DefaultSnapshotQueryGatewayTest {
         gateway.dynamicPaged(pagedQuery { }).block()!!.list.single().stateValue().assert().isEqualTo("***********")
         gateway.paged(pagedQuery { }).block()!!.list.single().state.value.assert().isEqualTo("***********")
         backend.schemaCalls.get().assert().isEqualTo(6)
+    }
+
+    @Test
+    fun `cursor should mask raw page and preserve next cursor`() {
+        val backend = SchemaSnapshotBackend(Mono.just(maskedSchema()))
+        val gateway = gateway(backend)
+        val query = CursorQuery(MatchAllFilter, sort = listOf(Sort("aggregateId", Sort.Direction.ASC)))
+
+        gateway.dynamicCursor(query)
+            .test()
+            .assertNext { page ->
+                page.nextCursor.assert().isEqualTo("next")
+                page.list.single().path("state").path("value").textValue().assert().isNotEqualTo("state-value")
+            }.verifyComplete()
+        gateway.cursor(query).test().assertNext { page ->
+            page.nextCursor.assert().isEqualTo("next")
+            page.list.single().state.value.assert().isNotEqualTo("state-value")
+        }.verifyComplete()
+    }
+
+    @Test
+    fun `backend should reject cursor by default`() {
+        NoOpSnapshotQueryBackend(MOCK_AGGREGATE_METADATA).cursor(CursorQuery(MatchAllFilter))
+            .test().expectErrorMessage("Cursor query is not supported.").verify()
     }
 
     @Test
@@ -378,6 +412,10 @@ class DefaultSnapshotQueryGatewayTest {
             PagedList(1, listOf(record(QueryType.PAGED, snapshotNode())))
         }
 
+        override fun cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> = Mono.fromSupplier {
+            CursorPage(listOf(record(QueryType.CURSOR, snapshotNode())), "next")
+        }
+
         override fun count(filter: FilterExpression): Mono<Long> = Mono.fromSupplier {
             calls += QueryType.COUNT
             1L
@@ -445,6 +483,11 @@ class DefaultSnapshotQueryGatewayTest {
         override fun paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> = Mono.fromSupplier {
             resultSubscriptions.incrementAndGet()
             PagedList(1, listOf(nodeSupplier()))
+        }
+
+        override fun cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> = Mono.fromSupplier {
+            resultSubscriptions.incrementAndGet()
+            CursorPage(listOf(nodeSupplier()), "next")
         }
 
         override fun count(filter: FilterExpression): Mono<Long> = Mono.just(1)

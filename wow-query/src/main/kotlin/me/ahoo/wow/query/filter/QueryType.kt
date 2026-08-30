@@ -17,6 +17,7 @@ enum class QueryType {
     SINGLE,
     LIST,
     PAGED,
+    CURSOR,
     COUNT,
     AGGREGATION,
 }

@@ -16,7 +16,10 @@ package me.ahoo.wow.query.filter
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CursorPage
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.MatchAllFilter
@@ -147,6 +150,19 @@ class QueryContextTest {
         ).setQuery(singleQuery { }).setResult(Mono.just(node))
 
         context.asSingleQuery().getRequiredResult().block().assert().isSameAs(node)
+    }
+
+    @Test
+    fun `cursor context should expose object node pages`() {
+        val query = CursorQuery(MatchAllFilter)
+        val page = CursorPage(listOf(JsonSerializer.createObjectNode()), "next")
+        val context = DefaultQueryContext<ICursorQuery, Mono<CursorPage<ObjectNode>>>(
+            queryType = QueryType.CURSOR,
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+        ).setQuery(query).setResult(Mono.just(page))
+
+        context.asCursorQuery().getQuery().assert().isSameAs(query)
+        context.asCursorQuery().getRequiredResult().block().assert().isSameAs(page)
     }
 
     @Test

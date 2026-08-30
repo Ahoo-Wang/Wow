@@ -16,10 +16,14 @@ package me.ahoo.wow.query
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CursorPage
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.filter.ErrorHandler
@@ -66,17 +70,60 @@ class QueryGatewaySubscriptionTest {
         val original = IllegalStateException("backend")
         val handled = CopyOnWriteArrayList<Throwable>()
         val gateway = gateway(
-            backend = backend { Mono.error(original) },
+            backend = backend(cursor = { Mono.error(original) }) { Mono.error(original) },
             errorHandler = ErrorHandler { _, error ->
                 handled += error
                 Mono.empty()
             },
         )
 
-        StepVerifier.create(gateway.dynamicSingle(singleQuery { }))
-            .expectErrorMatches { it === original }
-            .verify()
-        handled.single().assert().isSameAs(original)
+        listOf<Publisher<*>>(
+            gateway.dynamicSingle(singleQuery { }),
+            gateway.dynamicCursor(CursorQuery(MatchAllFilter)),
+        ).forEach { publisher ->
+            StepVerifier.create(publisher)
+                .expectErrorMatches { it === original }
+                .verify()
+        }
+        handled.assert().hasSize(2)
+        handled.forEach { it.assert().isSameAs(original) }
+    }
+
+    @Test
+    fun `cursor repeat should isolate context and page nodes`() {
+        val contexts = CopyOnWriteArrayList<QueryContext<*, *>>()
+        val nodes = CopyOnWriteArrayList<ObjectNode>()
+        val filter = object : QueryFilter<QueryContext<*, *>> {
+            override fun filter(context: QueryContext<*, *>, next: FilterChain<QueryContext<*, *>>): Mono<Void> {
+                contexts += context
+                return next.filter(context).then(
+                    Mono.fromRunnable {
+                        context.asCursorQuery().rewriteResult { result ->
+                            result.map { page ->
+                                page.copy(
+                                    list = page.list.map { node ->
+                                        nodes += node
+                                        node
+                                    },
+                                )
+                            }
+                        }
+                    },
+                )
+            }
+        }
+        val gateway = gateway(
+            backend(
+                cursor = { Mono.fromSupplier { CursorPage(listOf(snapshotNode()), "next") } },
+            ) { Mono.empty() },
+            filters = listOf(filter),
+        )
+
+        StepVerifier.create(gateway.dynamicCursor(CursorQuery(MatchAllFilter)).repeat(1))
+            .expectNextCount(2)
+            .verifyComplete()
+        contexts.map(System::identityHashCode).toSet().assert().hasSize(2)
+        nodes.map(System::identityHashCode).toSet().assert().hasSize(2)
     }
 
     @Test
@@ -188,12 +235,18 @@ class QueryGatewaySubscriptionTest {
         errorHandler,
     )
 
-    private fun backend(single: () -> Mono<ObjectNode>) = object : SnapshotQueryBackend {
+    private fun backend(
+        cursor: () -> Mono<CursorPage<ObjectNode>> = {
+            Mono.error(UnsupportedOperationException("Cursor query is not supported."))
+        },
+        single: () -> Mono<ObjectNode>,
+    ) = object : SnapshotQueryBackend {
         override val namedAggregate: NamedAggregate = MOCK_AGGREGATE_METADATA
         override val name: String = "subscription"
         override fun single(query: ISingleQuery): Mono<ObjectNode> = single()
         override fun list(query: IListQuery): Flux<ObjectNode> = Flux.empty()
         override fun paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> = Mono.just(PagedList.empty())
+        override fun cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> = cursor()
         override fun count(filter: FilterExpression): Mono<Long> = Mono.just(0)
         override fun aggregate(query: AggregationQuery): Flux<ObjectNode> = Flux.empty()
     }
