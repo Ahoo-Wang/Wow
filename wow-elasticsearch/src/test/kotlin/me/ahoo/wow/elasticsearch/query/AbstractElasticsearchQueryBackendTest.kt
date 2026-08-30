@@ -387,25 +387,24 @@ class AbstractElasticsearchQueryBackendTest {
     }
 
     @Test
-    fun `cursor should reject missing hit sort arity`() {
-        every { elasticsearchClient.search(any<SearchRequest>(), ObjectNode::class.java) } returns Mono.just(
-            cursorSearchResponse(
-                "id-1" to listOf(FieldValue.of(1L)),
-                cursorHit("id-2", 2L),
-            ),
+    fun `cursor should reject last returned hit sort arity`() {
+        assertInvalidCursorResponse(
+            "id-1" to listOf(FieldValue.of(1L)),
+            cursorHit("id-2", 2L),
         )
+    }
 
-        val error = assertThrows<IllegalArgumentException> {
-            queryBackend.cursor(
-                CursorQuery(
-                    MatchAllFilter,
-                    sort = listOf(Sort("version", Sort.Direction.ASC)),
-                    size = 1,
-                ),
-            ).block()
-        }
+    @Test
+    fun `cursor should reject terminal hit sort arity`() {
+        assertInvalidCursorResponse("id-1" to listOf(FieldValue.of(1L)))
+    }
 
-        error.message.assert().isEqualTo("Invalid cursor.")
+    @Test
+    fun `cursor should reject lookahead hit sort arity`() {
+        assertInvalidCursorResponse(
+            cursorHit("id-1", 1L),
+            "id-2" to listOf(FieldValue.of(2L)),
+        )
     }
 
     @Test
@@ -449,6 +448,24 @@ class AbstractElasticsearchQueryBackendTest {
 
     private fun cursorHit(id: String, version: Long): Pair<String, List<FieldValue>> =
         id to listOf(FieldValue.of(version), FieldValue.of(id))
+
+    private fun assertInvalidCursorResponse(vararg hits: Pair<String, List<FieldValue>>) {
+        every { elasticsearchClient.search(any<SearchRequest>(), ObjectNode::class.java) } returns Mono.just(
+            cursorSearchResponse(*hits),
+        )
+
+        val error = assertThrows<IllegalArgumentException> {
+            queryBackend.cursor(
+                CursorQuery(
+                    MatchAllFilter,
+                    sort = listOf(Sort("version", Sort.Direction.ASC)),
+                    size = 1,
+                ),
+            ).block()
+        }
+
+        error.message.assert().isEqualTo("Invalid cursor.")
+    }
 
     private fun cursorSearchResponse(
         vararg hits: Pair<String, List<FieldValue>>,
