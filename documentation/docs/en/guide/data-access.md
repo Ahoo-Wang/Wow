@@ -225,7 +225,7 @@ This example represents an application policy; adapt it to the actual security c
 
 ### Query Entry Points and Policy Enforcement
 
-Spring-registered aggregate `SnapshotQueryGateway` and `EventStreamQueryGateway` Beans execute configured ABAC and generic query filters. In-process calls do not execute WebFlux `RewriteRequestFilter`; callers must provide tenant, owner, and space scope explicitly in the query or through a trusted context supported by their filters. Managed Gateways automatically mask query and aggregate-state load results from Query Model Schema. A direct Backend Factory or custom Backend without `QueryModelSchemaProvider` still returns raw field values and must be protected as a trusted low-level boundary.
+Spring-registered aggregate `SnapshotQueryGateway` and `EventStreamQueryGateway` Beans execute configured ABAC and generic query filters. In-process calls do not execute WebFlux `RewriteRequestFilter`; callers must provide tenant, owner, and space scope explicitly in the query or through a trusted context supported by their filters. Managed Gateways automatically mask query and aggregate-state load results from Query Model Schema. A direct Backend Factory or custom Backend without `QueryModelSchemaProvider` still returns raw field values and must be protected as a trusted low-level boundary. See [Field Masking](./query/masking.md) for the complete boundary.
 
 `SnapshotQueryBackendFactory` and `EventStreamQueryBackendFactory` are raw backend entries. Directly created Backends bypass the `QueryGateway` policy chain and are trusted infrastructure access.
 

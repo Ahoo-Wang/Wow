@@ -108,6 +108,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             collapsed: true,
             items: [
                 {text: '查询网关', link: 'query/query-gateway'},
+                {text: '字段脱敏', link: 'query/masking'},
                 {text: '查询后端', link: 'query/query-backend'},
                 {text: '查询 API 客户端', link: 'query/query-api-client'},
                 {text: '过滤条件', link: 'query/filter-expression'},

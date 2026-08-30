@@ -438,6 +438,6 @@ val query = aggregation {
 - 快照查询默认追加 `DELETION = ACTIVE`；根 filter 先筛选快照，Element filter 再筛选展开后的单个元素。
 - 逻辑字段能否用于精确匹配、范围、Element、TERMS、数值或时间聚合，由运行时 Query Model Schema 和所选 MongoDB / Elasticsearch mapping 共同证明；请求 DTO 合法不等于后端支持。
 - HTTP 路由经 `SnapshotQueryGateway`、请求作用域重写和 `HttpQueryGuardFilter`。禁用高成本操作符时，Elements、按 metric alias 排序和算术表达式会被拒绝；进程内 JVM 调用不自动获得这组 HTTP 专用限制。
-- Mask 字段仍可用于普通 filter、全文 search 与 sort；这些操作只决定匹配和顺序，不直接返回聚合值。任何 group、字段 metric 或算术 expression 引用 Mask 字段都会被 Schema 判为 `INCOMPATIBLE` 并拒绝，避免聚合结果泄漏原值；`COUNT` 不读取字段值，语义不变。
+- 脱敏字段仍可用于普通 filter、全文 search 与 sort；group、字段 metric 或算术 expression 引用该字段时会被 Schema 判为 `INCOMPATIBLE` 并拒绝，`COUNT` 不变。完整矩阵见[字段脱敏](./masking.md)。
 - MongoDB 与 Elasticsearch 共享公共 AST，但不承诺物理 pipeline、mapping、空值或桶细节完全一致。`ANY` 尤其不提供跨执行或跨后端稳定值。
 - 自定义 `SnapshotQueryBackend` 必须实现聚合合同；数据查询路由可用或 OpenAPI 已发布，不能单独证明该 Backend 会执行聚合。
