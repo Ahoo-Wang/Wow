@@ -63,7 +63,6 @@ import {
   type AnalyticsSection,
   useSnapshotAnalytics,
 } from "./useSnapshotAnalytics.ts";
-import DashboardSkeleton from "./DashboardSkeleton.tsx";
 
 interface CompleteDateRange {
   from: Date;
@@ -262,17 +261,27 @@ export default function DashboardView() {
   const refreshing = sections.some(
     (section) => section.loading && section.data !== undefined,
   );
-
-  if (sections.every((section) => section.loading && !section.data)) {
-    return <DashboardSkeleton />;
-  }
+  const initialLoading = sections.every(
+    (section) => section.loading && !section.data,
+  );
+  const dashboardUpdatedAt = sections.every(
+    (section) => section.updatedAt !== undefined,
+  )
+    ? Math.min(...sections.map((section) => section.updatedAt!))
+    : undefined;
 
   const selectedActive = snapshot.recoverability.data?.reduce(
     (total, { count }) => total + count,
     0,
   );
   const activeTotal = snapshot.summary.data?.activeTotal;
+  const stockCountsConsistent =
+    selectedActive !== undefined &&
+    activeTotal !== undefined &&
+    snapshot.summary.data !== undefined &&
+    selectedActive + snapshot.summary.data.olderThanRange <= activeTotal;
   const scopeInsightsReady =
+    stockCountsConsistent &&
     selectedActive !== undefined &&
     activeTotal !== undefined &&
     snapshot.summary.updatedAt !== undefined &&
@@ -319,6 +328,11 @@ export default function DashboardView() {
 
   return (
     <div className="dashboard-view">
+      {initialLoading ? (
+        <span role="status" aria-label="Loading dashboard" className="sr-only">
+          Loading dashboard
+        </span>
+      ) : null}
       <div className="dashboard-toolbar">
         <span className="dashboard-time-range-label">Time range</span>
         <Popover
@@ -415,8 +429,8 @@ export default function DashboardView() {
             </div>
           </PopoverContent>
         </Popover>
-        {snapshot.summary.updatedAt ? (
-          <span>Updated {formatDate(snapshot.summary.updatedAt)}</span>
+        {dashboardUpdatedAt ? (
+          <span>Updated {formatDate(dashboardUpdatedAt)}</span>
         ) : null}
         <Button
           type="button"

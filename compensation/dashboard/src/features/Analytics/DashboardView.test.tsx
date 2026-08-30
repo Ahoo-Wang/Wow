@@ -483,7 +483,7 @@ describe("DashboardView", () => {
     );
   });
 
-  it("uses the complete dashboard skeleton only for the first full load", () => {
+  it("keeps range controls available during the first full load", () => {
     mocks.snapshotResult = {
       summary: { loading: true },
       pressure: { loading: true },
@@ -496,9 +496,15 @@ describe("DashboardView", () => {
     expect(
       screen.getByRole("status", { name: "Loading dashboard" }),
     ).toBeInTheDocument();
-    expect(document.querySelectorAll("[data-slot='skeleton']")).toHaveLength(
-      13,
-    );
+    expect(
+      screen.getByRole("button", { name: /^Time range:/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Refresh dashboard" }),
+    ).toBeInTheDocument();
+    expect(
+      document.querySelectorAll("[data-slot='skeleton']").length,
+    ).toBeGreaterThanOrEqual(6);
 
     mocks.snapshotResult.summary = {
       data: {
@@ -535,6 +541,41 @@ describe("DashboardView", () => {
     expect(refresh.querySelector("svg")).toHaveClass("animate-spin");
     expect(
       screen.getByRole("table", { name: "Current failure pressure" }),
+    ).toBeInTheDocument();
+  });
+
+  it("does not present incoherent stock counts", () => {
+    mocks.snapshotResult.summary.data = {
+      actionableNow: 0,
+      activeTotal: 20,
+      olderThanRange: 0,
+      timedOut: 0,
+      unrecoverable: 0,
+    };
+    mocks.snapshotResult.recoverability.data = [
+      { recoverable: RecoverableType.UNRECOVERABLE, count: 25 },
+    ];
+
+    render(<DashboardView />);
+
+    const stock = screen.getByRole("region", { name: "Backlog exposure" });
+    expect(
+      within(stock).getByText("Backlog exposure unavailable."),
+    ).toBeInTheDocument();
+    expect(
+      within(stock).queryByRole("progressbar", {
+        name: "Selected active coverage",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("uses the oldest successful section timestamp for the dashboard", () => {
+    mocks.snapshotResult.summary.updatedAt = 1_787_932_860_000;
+
+    render(<DashboardView />);
+
+    expect(
+      screen.getByText("Updated 2026-08-29 00:00:00"),
     ).toBeInTheDocument();
   });
 
