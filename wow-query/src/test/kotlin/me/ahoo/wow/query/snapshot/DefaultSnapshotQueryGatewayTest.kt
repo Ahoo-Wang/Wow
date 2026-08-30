@@ -199,6 +199,15 @@ class DefaultSnapshotQueryGatewayTest {
     }
 
     @Test
+    fun `gateway should pin one schema generation across resolve and mask`() {
+        val backend = SwitchingSchemaSnapshotBackend()
+
+        gateway(backend).dynamicSingle(singleQuery { }).block()!!
+            .stateValue().assert().isEqualTo("***********")
+        backend.schemaCalls.get().assert().isOne()
+    }
+
+    @Test
     fun `gateway should refresh masker when mask rule changes`() {
         val current = AtomicReference(maskedSchema())
         val backend = SchemaSnapshotBackend(schemaPublisher = { Mono.just(current.get()) })
@@ -499,6 +508,27 @@ class DefaultSnapshotQueryGatewayTest {
                     Flux.just("""{"count":1}""".toJsonNode())
                 }
             }
+    }
+
+    private class SwitchingSchemaSnapshotBackend :
+        SnapshotQueryBackend by NoOpSnapshotQueryBackend(MOCK_AGGREGATE_METADATA),
+        QueryModelSchemaProvider {
+        private val current = AtomicReference(maskedSchema())
+        val schemaCalls = AtomicInteger()
+
+        override fun schema(): Mono<QueryModelSchema> {
+            val selected = current.get()
+            if (schemaCalls.incrementAndGet() == 1) {
+                current.set(unmaskedSchema())
+            }
+            return Mono.just(selected)
+        }
+
+        override fun refresh(): Mono<QueryModelSchema> = schema()
+
+        override fun single(query: ISingleQuery): Mono<ObjectNode> =
+            resolve(query, QuerySchemaValidationMode.COMPATIBLE)
+                .then(Mono.fromSupplier(::snapshotNode))
     }
 
     private companion object {
