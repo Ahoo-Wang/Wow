@@ -23,8 +23,8 @@ import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 import kotlin.reflect.KProperty
 import kotlin.reflect.full.declaredFunctions
-import kotlin.reflect.full.declaredMembers
 import kotlin.reflect.full.declaredMemberProperties
+import kotlin.reflect.full.declaredMembers
 import kotlin.reflect.full.superclasses
 import kotlin.reflect.jvm.javaMethod
 
