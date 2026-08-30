@@ -15,8 +15,8 @@ package me.ahoo.wow.api.query.mask
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
-import kotlin.reflect.jvm.javaField
 import org.junit.jupiter.api.Test
+import kotlin.reflect.jvm.javaField
 
 class MaskingTest {
     @Test

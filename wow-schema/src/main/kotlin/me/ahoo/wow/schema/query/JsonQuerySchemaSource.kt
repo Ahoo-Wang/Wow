@@ -56,6 +56,8 @@ import tools.jackson.databind.ser.std.ReferenceTypeSerializer
 import tools.jackson.databind.ser.std.StdContainerSerializer
 import tools.jackson.databind.util.Converter
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.reflect.jvm.kotlinFunction
+import kotlin.reflect.jvm.kotlinProperty
 
 internal const val TEMPORAL_UNIT = "x-wow-query-temporal-unit"
 internal const val MASK_RULE_ATTRIBUTE = "x-wow-query-mask-rule"
@@ -189,7 +191,7 @@ private class MaskAttributeOverride<M : MemberScope<*, *>>(
                 .mapNotNull { candidate ->
                     candidate.annotationClass.java.getAnnotation(Masking::class.java)?.let { candidate to it }
                 }
-        }
+        }.distinct()
         if (effectiveAnnotations.size > 1) {
             throw QuerySchemaConflictException("Multiple effective mask annotations are not allowed.")
         }
@@ -200,18 +202,38 @@ private class MaskAttributeOverride<M : MemberScope<*, *>>(
 
     private fun Pair<Annotation, Masking>.toMaskRule(): MaskRule {
         val strategyType = second.strategy
-        val strategy = strategyType.objectInstance ?: strategyType.java.getConstructor().newInstance()
+        val strategy = try {
+            strategyType.objectInstance ?: strategyType.java.getConstructor().newInstance()
+        } catch (error: ReflectiveOperationException) {
+            throw QuerySchemaConflictException(
+                "Unable to instantiate MaskStrategy [${strategyType.qualifiedName}].",
+                error,
+            )
+        }
+
         @Suppress("UNCHECKED_CAST")
         val compiled = (strategy as MaskStrategy<Annotation>).compile(first)
         return MaskRule(strategyType, first, compiled)
     }
 }
 
-private fun MemberScope<*, *>.annotationsConsideringFieldAndGetter(): List<Annotation> = when (this) {
-    is FieldScope -> rawMember.annotations.toList() + findGetter()?.rawMember?.annotations.orEmpty()
-    is MethodScope -> rawMember.annotations.toList() + findGetterField()?.rawMember?.annotations.orEmpty()
-    else -> emptyList()
-}
+private fun MemberScope<*, *>.annotationsConsideringFieldAndGetter(): List<Annotation> = buildSet {
+    when (this@annotationsConsideringFieldAndGetter) {
+        is FieldScope -> {
+            rawMember.kotlinProperty?.toMergedAnnotation()?.mergedAnnotations?.let(::addAll)
+            addAll(rawMember.annotations)
+            findGetter()?.rawMember?.annotations?.let(::addAll)
+        }
+
+        is MethodScope -> {
+            rawMember.kotlinFunction?.toMergedAnnotation()?.mergedAnnotations?.let(::addAll)
+            findGetterField()?.rawMember?.kotlinProperty
+                ?.toMergedAnnotation()?.mergedAnnotations?.let(::addAll)
+            addAll(rawMember.annotations)
+            findGetterField()?.rawMember?.annotations?.let(::addAll)
+        }
+    }
+}.toList()
 
 private class TemporalAttributeOverride<M : MemberScope<*, *>> : InstanceAttributeOverrideV2<M> {
     override fun overrideInstanceAttributes(
