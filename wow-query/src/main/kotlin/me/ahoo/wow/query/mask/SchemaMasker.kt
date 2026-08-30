@@ -98,6 +98,7 @@ internal class SchemaMasker private constructor(
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private fun CompiledMask.requireMasked(value: String): String {
         val masked: String? = try {
             mask(value)
