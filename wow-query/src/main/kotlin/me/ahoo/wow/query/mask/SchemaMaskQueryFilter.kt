@@ -13,10 +13,9 @@
 
 package me.ahoo.wow.query.mask
 
-import me.ahoo.wow.api.annotation.ORDER_FIRST
-import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.filter.FilterChain
+import me.ahoo.wow.filter.SimpleFilterChain
 import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
@@ -29,7 +28,6 @@ import tools.jackson.databind.node.ObjectNode
 import java.util.Optional
 import java.util.concurrent.atomic.AtomicReference
 
-@Order(ORDER_FIRST)
 internal class SchemaMaskQueryFilter(
     provider: QueryModelSchemaProvider,
 ) : QueryFilter<QueryContext<*, *>> {
@@ -75,9 +73,9 @@ internal class SchemaMaskQueryFilter(
     }
 }
 
-internal fun List<QueryFilter<QueryContext<*, *>>>.withSchemaMaskFilter(
+internal fun FilterChain<QueryContext<*, *>>.withSchemaMaskFilter(
     backend: QueryBackend,
-): List<QueryFilter<QueryContext<*, *>>> {
+): FilterChain<QueryContext<*, *>> {
     val provider = backend as? QueryModelSchemaProvider ?: return this
-    return listOf(SchemaMaskQueryFilter(provider)) + this
+    return SimpleFilterChain(SchemaMaskQueryFilter(provider), this)
 }

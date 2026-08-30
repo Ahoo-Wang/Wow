@@ -57,9 +57,10 @@ abstract class AbstractQueryGateway<R : Any>(
     private val errorHandler: ErrorHandler<QueryContext<*, *>>,
 ) : QueryGateway<R> {
     private val chain = FilterChainBuilder<QueryContext<*, *>>()
-        .addFilters(filters.withSchemaMaskFilter(backend))
+        .addFilters(filters)
         .filterCondition(filterType)
         .build(FilterChain(::invokeBackend))
+        .withSchemaMaskFilter(backend)
 
     private fun invokeBackend(context: QueryContext<*, *>): Mono<Void> {
         when (context.queryType) {

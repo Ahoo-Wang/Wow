@@ -14,6 +14,8 @@
 package me.ahoo.wow.query.snapshot
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.ORDER_FIRST
+import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
@@ -282,24 +284,9 @@ class DefaultSnapshotQueryGatewayTest {
     }
 
     @Test
-    fun `gateway should mask raw results after every result filter`() {
+    fun `schema mask filter should remain outermost after user filter sorting`() {
         val backend = SchemaSnapshotBackend(Mono.just(maskedSchema()))
-        val reveal = object : QueryFilter<QueryContext<*, *>> {
-            override fun filter(
-                context: QueryContext<*, *>,
-                next: FilterChain<QueryContext<*, *>>,
-            ): Mono<Void> = next.filter(context).then(
-                Mono.fromRunnable {
-                    context.asSingleQuery().rewriteResult { result ->
-                        result.map { node ->
-                            (node.path("state") as ObjectNode).put("value", "revealed")
-                            node
-                        }
-                    }
-                },
-            )
-        }
-        val gateway = gateway(backend, filters = listOf(reveal))
+        val gateway = gateway(backend, filters = listOf(RevealResultFilter()))
 
         gateway.dynamicSingle(singleQuery { }).block()!!.stateValue().assert().isEqualTo("********")
         gateway.single(singleQuery { }).block()!!.state.value.assert().isEqualTo("********")
@@ -409,6 +396,23 @@ class DefaultSnapshotQueryGatewayTest {
     }
 
     private data class TestState(val value: String)
+
+    @Order(ORDER_FIRST, before = [SchemaMaskQueryFilter::class])
+    private class RevealResultFilter : QueryFilter<QueryContext<*, *>> {
+        override fun filter(
+            context: QueryContext<*, *>,
+            next: FilterChain<QueryContext<*, *>>,
+        ): Mono<Void> = next.filter(context).then(
+            Mono.fromRunnable {
+                context.asSingleQuery().rewriteResult { result ->
+                    result.map { node ->
+                        (node.path("state") as ObjectNode).put("value", "revealed")
+                        node
+                    }
+                }
+            },
+        )
+    }
 
     private class SchemaSnapshotBackend(
         private val schemaPublisher: () -> Mono<QueryModelSchema>,
