@@ -35,6 +35,8 @@ data class AccountState(
 )
 ```
 
+Mask 注解只能用于 JVM `String`/`String?` 属性；enum、UUID 等类型即使序列化后的 JSON 形状是 String，也会在 Schema 构建时失败关闭，避免 typed 结果无法重新物化。
+
 - `@Mask` 按 Unicode code point 数量把每个 code point 替换为一个 `*`，例如 `A中😀` 变为 `***`。
 - `@KeepMask(prefix, suffix)` 按 code point 保留前后部分并遮蔽中间；值太短、无法同时保留两端时全量遮蔽，例如 `13800138000` 变为 `138****8000`，`1234567` 变为 `*******`。
 - 缺失值与 `null` 不变，空字符串仍为空字符串。嵌套对象、集合和嵌套字符串数组按 Schema 路径递归处理。
@@ -70,7 +72,7 @@ Strategy 可以是 Kotlin `object` 或公开无参类。示例不按 UTF-16 code
 
 ## Query Schema 合同
 
-`JsonQuerySchemaSource` 在运行时发现字段、getter 及其父类 Kotlin property 或接口 getter 上继承的有效注解。规则随 Query Schema 合并和后端 adapter 传递，但公开 `QueryModelSchemaMetadata` 只暴露字段级 `masked: Boolean`；Strategy 类型、注解参数、编译后的规则和可执行函数只存在于内存中。
+`JsonQuerySchemaSource` 在运行时发现字段、Jackson 可见的非 public getter，以及从父类 Kotlin property 或接口 getter 继承的有效注解。规则随 Query Schema 合并和后端 adapter 传递，但公开 `QueryModelSchemaMetadata` 只暴露字段级 `masked: Boolean`；Strategy 类型、注解参数、编译后的规则和可执行函数只存在于内存中。
 
 `SchemaMaskQueryFilter` 每次结果查询都会读取 Provider 当前 Schema：同一 Schema 实例复用已编译的 Masker，refresh 发布新实例后会重新编译。Schema 加载失败不会被缓存，后续订阅或 `retry` 可以重新加载。根 Schema 没有 `masked` 字段时，复用空 Mask 判定走 O(1) 快速路径：不创建 masker、不遍历 JSON，也不为每条结果追加 `map`。
 
@@ -90,7 +92,7 @@ Strategy 可以是 Kotlin `object` 或公开无参类。示例不按 UTF-16 code
 
 | 条件 | 结果 |
 |---|---|
-| 字段或 Schema alternative 不是 String wire shape | Schema 构建失败 |
+| 字段不是 JVM String，或 Schema alternative 不是 String wire shape | Schema 构建失败 |
 | 同一成员有多个有效 Mask 注解，或 Schema 分支规则冲突 | Schema conflict |
 | Strategy 无法构造，或 `compile` 抛错 | Schema 构建失败，错误保留 |
 | 响应值为非 String/非 String 数组，Strategy 执行抛错，或自定义 `CompiledMask` 返回 `null` | 当前结果 Publisher 失败，不返回原值 |

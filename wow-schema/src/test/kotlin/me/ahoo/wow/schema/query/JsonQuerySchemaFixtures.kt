@@ -488,11 +488,15 @@ internal data class InterfaceGetterMaskedState(
     override val inheritedToken: String,
 ) : GetterMaskedState
 
-@Suppress("FunctionOnlyReturningConstant")
+@Suppress("FunctionOnlyReturningConstant", "UnusedPrivateProperty")
 internal open class NonPublicComputedGetterState {
-    private fun getPrivateSecret(): String = "private"
+    @get:Mask
+    private val privateSecret: String
+        get() = "private"
 
-    protected fun getProtectedSecret(): String = "protected"
+    @get:Mask
+    protected val protectedSecret: String
+        get() = "protected"
 }
 
 internal interface PrefixGetterMaskedState {
@@ -552,6 +556,8 @@ internal data class InvalidMaskedAlternativeState(
     @field:Schema(oneOf = [MaskedStringBranch::class, UnmaskedIntegerBranch::class])
     val value: RepeatedValue,
 )
+
+internal data class InvalidMaskedJvmTypeState(@field:Mask val value: StructuralStatus)
 
 internal data class MaskedStringBranch(@field:Mask val shared: String)
 
