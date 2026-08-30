@@ -71,43 +71,7 @@ Delete old Mask types, implementations, Beans, registries, and custom filters wi
 
 ## Static Mask Migration
 
-Use `@Mask` for full masking and `@KeepMask(prefix, suffix)` for fields such as phone numbers that preserve leading and trailing characters:
-
-```kotlin
-import me.ahoo.wow.api.query.mask.KeepMask
-import me.ahoo.wow.api.query.mask.Mask
-
-data class AccountState(
-    @field:Mask
-    val password: String,
-    @field:KeepMask(prefix = 3, suffix = 4)
-    val phone: String?,
-)
-```
-
-`@Mask` emits one `*` per Unicode code point. `@KeepMask` preserves edges by code point and fully masks a value too short to preserve both sides. `null` and empty strings remain unchanged. An annotation can live on a field or getter and follows inherited parent Kotlin-property or interface-getter members. Query Schema traverses nested objects and collections by path.
-
-For a specialized rule, define a domain annotation with `@Masking(strategy)` instead of a Registry:
-
-```kotlin
-import me.ahoo.wow.api.query.mask.CompiledMask
-import me.ahoo.wow.api.query.mask.MaskStrategy
-import me.ahoo.wow.api.query.mask.Masking
-
-@Target(AnnotationTarget.FIELD, AnnotationTarget.PROPERTY_GETTER)
-@Retention(AnnotationRetention.RUNTIME)
-@Masking(FixedMaskStrategy::class)
-annotation class FixedMask(val replacement: String = "***")
-
-object FixedMaskStrategy : MaskStrategy<FixedMask> {
-    override fun compile(annotation: FixedMask): CompiledMask =
-        CompiledMask { annotation.replacement }
-}
-```
-
-Query Schema discovers, validates, and compiles the Strategy at runtime; KSP is not used. A custom Strategy is a Kotlin `object` or public no-argument class. Fields must have a `String` wire shape. Multiple effective rules, conflicting branch rules, a non-String branch, or Strategy construction failure fails Schema closed. With EventStream masking enabled, a missing or unknown `bodyType` terminates the entire result Publisher instead of falling back to raw values.
-
-Public Schema metadata adds only field-level `masked: Boolean`; Strategy details, annotation parameters, and executable `MaskRule` stay in memory. Ordinary filters, full-text search, and sort can reference a masked field. Groups, field metrics, and arithmetic expressions cannot; `COUNT` is unchanged.
+After removing the old Registry/filter, migrate full masking to `@Mask`, edge-preserving rules to `@KeepMask(prefix, suffix)`, and domain-specific rules to runtime field annotations carrying `@Masking(strategy)`. Do not add an ObjectNode compatibility layer or a new Registry. See [Field Masking](./masking.md) for the complete API, Unicode/empty-value semantics, behavior matrix, and fail-closed contract.
 
 ## Spring Bean Mapping
 
@@ -142,6 +106,6 @@ JSON-array and SSE streaming behavior is unchanged. If a stream fails after emit
 
 1. Replace imports, constructor parameters, Bean qualifiers, and Factory implementations according to the tables.
 2. Make every custom Backend subscription return fresh, exclusively owned `ObjectNode` values containing only standard JSON-tree data, leaving typed conversion to the Gateway.
-3. Remove every old Mask implementation, Bean, registry, and filter; migrate each old rule to `@Mask`, `@KeepMask`, or a custom `@Masking(strategy)` field annotation.
+3. Remove every old Mask implementation, Bean, registry, and filter; use [Field Masking](./masking.md) to migrate each rule to `@Mask`, `@KeepMask`, or a custom `@Masking(strategy)` field annotation.
 4. Check Schema `masked` metadata; separately verify Snapshot/EventStream typed, dynamic, state-only/aggregate-state load results, and the direct-Backend raw-value boundary.
 5. Verify that ordinary filter/search/sort and count remain usable, that a group, field metric, or expression referencing a masked field fails closed, and then check actual MongoDB/Elasticsearch routing, HTTP/OpenAPI, and raw stored values.

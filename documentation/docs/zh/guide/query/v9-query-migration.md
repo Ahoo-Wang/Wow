@@ -71,43 +71,7 @@ Filter 不再通过 `QueryType.isDynamic` 判断最终返回 typed 对象还是�
 
 ## 静态 Mask 迁移
 
-默认全量遮蔽使用 `@Mask`；手机号等需要保留前后字符的字段使用 `@KeepMask(prefix, suffix)`：
-
-```kotlin
-import me.ahoo.wow.api.query.mask.KeepMask
-import me.ahoo.wow.api.query.mask.Mask
-
-data class AccountState(
-    @field:Mask
-    val password: String,
-    @field:KeepMask(prefix = 3, suffix = 4)
-    val phone: String?,
-)
-```
-
-`@Mask` 按 Unicode code point 数生成等长 `*`。`@KeepMask` 按 code point 保留两端；值太短时全量遮蔽。`null` 与空字符串保持不变。注解可位于字段或 getter，并随父类 Kotlin property、接口 getter 的成员关系继承；嵌套对象和集合由 Query Schema 路径递归处理。
-
-特殊规则使用 `@Masking(strategy)` 定义领域注解，不需要 Registry：
-
-```kotlin
-import me.ahoo.wow.api.query.mask.CompiledMask
-import me.ahoo.wow.api.query.mask.MaskStrategy
-import me.ahoo.wow.api.query.mask.Masking
-
-@Target(AnnotationTarget.FIELD, AnnotationTarget.PROPERTY_GETTER)
-@Retention(AnnotationRetention.RUNTIME)
-@Masking(FixedMaskStrategy::class)
-annotation class FixedMask(val replacement: String = "***")
-
-object FixedMaskStrategy : MaskStrategy<FixedMask> {
-    override fun compile(annotation: FixedMask): CompiledMask =
-        CompiledMask { annotation.replacement }
-}
-```
-
-Query Schema 在运行时发现、校验并编译 Strategy，不使用 KSP。自定义 Strategy 使用 Kotlin `object` 或公开无参类。字段必须是 `String` wire 值；多个有效规则、分支规则冲突、非 String 分支或 Strategy 构建失败都会让 Schema 失败关闭。EventStream 启用 Mask 后，缺失或未知 `bodyType` 会终止整个结果 Publisher，不会降级返回原值。
-
-公开 Schema 元数据只增加字段级 `masked: Boolean`；Strategy、注解参数与可执行 `MaskRule` 只保留在内存中。普通 filter、全文 search 和 sort 可引用 Mask 字段；group、字段 metric 与算术 expression 不可引用，`COUNT` 不变。
+删除旧 Registry/Filter 后，把全量遮蔽迁移为 `@Mask`，保留前后字符的规则迁移为 `@KeepMask(prefix, suffix)`，领域专用规则迁移为带 `@Masking(strategy)` 的运行时字段注解。无需建立 ObjectNode 兼容层或新 Registry；完整 API、Unicode/空值语义、行为矩阵与失败关闭合同见[字段脱敏](./masking.md)。
 
 ## Spring Bean 映射
 
@@ -142,6 +106,6 @@ JSON 数组与 SSE 的流式行为保持不变。若流在输出部分元素后�
 
 1. 按表替换 import、构造参数、Bean qualifier 与 Factory 实现。
 2. 让自定义 Backend 的每次订阅返回独占、只含标准 JSON tree 的新 `ObjectNode`，把 typed 转换留给 Gateway。
-3. 删除全部旧 Mask 实现、Bean、Registry 与 Filter；把每条旧规则迁移为 `@Mask`、`@KeepMask` 或自定义 `@Masking(strategy)` 字段注解。
+3. 删除全部旧 Mask 实现、Bean、Registry 与 Filter；按[字段脱敏](./masking.md)把每条旧规则迁移为 `@Mask`、`@KeepMask` 或自定义 `@Masking(strategy)` 字段注解。
 4. 检查 Schema 的 `masked` 元数据；分别验证 Snapshot/EventStream 的 typed、dynamic、state-only/aggregate-state load，以及 direct Backend 原始值边界。
 5. 验证普通 filter/search/sort 和 count 保持可用，并确认 group、字段 metric、expression 引用 Mask 字段时失败关闭；再核对实际 MongoDB/Elasticsearch 路由、HTTP/OpenAPI 与存储原值。

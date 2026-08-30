@@ -108,6 +108,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             collapsed: true,
             items: [
                 {text: 'Query Gateway', link: 'query/query-gateway'},
+                {text: 'Field Masking', link: 'query/masking'},
                 {text: 'Query Backend', link: 'query/query-backend'},
                 {text: 'Query API Client', link: 'query/query-api-client'},
                 {text: 'Filter Expressions', link: 'query/filter-expression'},

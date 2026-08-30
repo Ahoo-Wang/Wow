@@ -62,17 +62,11 @@ flowchart LR
 | `AGGREGATE_NUMERIC` | 数值直方图、数值 metric 与数值表达式 |
 | `AGGREGATE_TEMPORAL` | 日期直方图与时间分桶 |
 
-字段还携带 `valueTypes`、`cardinality`、`semanticType`、`dynamicChildren` 和 `masked`。`masked: Boolean` 只表明受管 Gateway 会对该字段脱敏，不公开具体策略或参数。即使 capability 存在，值类型、集合基数或当前 Element scope 不匹配，解析仍可能得到 `INCOMPATIBLE`。
+字段还携带 `valueTypes`、`cardinality`、`semanticType`、`dynamicChildren` 和 `masked`。即使 capability 存在，值类型、集合基数或当前 Element scope 不匹配，解析仍可能得到 `INCOMPATIBLE`。
 
-## 静态注解 Mask
+## 字段脱敏元数据
 
-`JsonQuerySchemaSource` 在运行时构建 Query Schema 时，从字段、Kotlin property/getter 及其父类或接口成员发现 `RUNTIME` 注解，校验规则并把 `MaskStrategy.compile` 的结果编译为内存中的 `MaskRule`。这一过程不依赖 KSP。内存规则会随 Schema 合并和后端 adapter 传递，但 Schema HTTP 元数据只暴露 `masked: true/false`，不会序列化 Strategy 类型、注解参数或可执行函数。
-
-内建 `@Mask` 按 Unicode code point 数量把每个字符替换为 `*`；`@KeepMask(prefix, suffix)` 保留指定的前后 code point，中间替换为 `*`，当值不足以同时保留两端时全量替换。`null` 保持 `null`，空字符串保持空字符串。嵌套对象、集合和字符串数组会按 Schema 路径递归处理。
-
-自定义字段注解必须使用 `@Masking(strategy)` 作为 meta-annotation，并保留到 `RUNTIME`。Strategy 可以是 Kotlin `object` 或公开无参类；它在 Schema 构建时只编译一次，查询结果只执行 `CompiledMask`。父类 Kotlin property 和接口 getter 上的成员注解会传给实现成员。
-
-Mask 只允许 `String` 或可空/集合形式的 String wire 值。同一字段存在多个有效 Mask 注解、Schema 分支规则冲突、非 String 分支、Strategy 无法构造或编译失败都会使 Schema 构建失败关闭。EventStream Schema 含 Mask 时还要求已知 `bodyType` 枚举；结果中的 `bodyType` 缺失或未知会终止整个结果 Publisher，而不是返回未脱敏事件。
+`JsonQuerySchemaSource` 在运行时把领域字段注解编译为内存规则，并随 Schema 合并与后端 adapter 传递；公开 Schema 只暴露 `masked: Boolean`，不序列化策略、参数或可执行规则。内建注解、自定义 `@Masking(strategy)`、成员继承、结果行为与失败关闭合同统一见[字段脱敏](./masking.md)。
 
 ## COMPATIBLE 与 STRICT
 

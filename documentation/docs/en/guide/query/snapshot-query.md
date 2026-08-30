@@ -44,7 +44,7 @@ Snapshot queries append `DELETION = ACTIVE` by default, so they do not return de
 
 ## JVM Queries
 
-After injecting aggregate-scoped `SnapshotQueryGateway<S>`, extensions execute typed single/list/paged/count queries; `dynamicQuery` returns `ObjectNode` when projection changes the result shape. The Gateway lets the Backend produce nodes, runs generic result filters, automatically masks from the Query Model Schema, and then uses Jackson for typed results. Typed, dynamic, and state-only entries use the same managed path. See [Query Backends](./query-backend.md) and [Query Gateway](./query-gateway.md) for the direct-Factory raw-value boundary.
+After injecting aggregate-scoped `SnapshotQueryGateway<S>`, extensions execute typed single/list/paged/count queries; `dynamicQuery` returns `ObjectNode` when projection changes the result shape. The Gateway lets the Backend produce nodes, runs generic result filters, automatically masks from the Query Model Schema, and then uses Jackson for typed results. Typed, dynamic, and state-only entries use the same managed path. See [Field Masking](./masking.md) for details, and [Query Backends](./query-backend.md) plus [Query Gateway](./query-gateway.md) for the direct-Factory raw-value boundary.
 
 ## HTTP Routes
 

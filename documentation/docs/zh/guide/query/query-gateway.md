@@ -53,17 +53,15 @@ Gateway 在每次订阅时创建独立的 `QueryContext`，因此同一个响应
 
 `HttpQueryGuardFilter` 同时属于两个 Gateway，但只有 Reactor Context 中存在 `ServerRequest` 时才生效；它不会改变普通进程内查询的约束。
 
-## ABAC 与静态 Mask
+## ABAC 与字段脱敏
 
-内建 `AbacQueryFilter` 位于快照查询网关。对于提供 `QueryModelSchemaProvider` 的 Backend，Gateway 会在全部通用结果 Filter 完成后、typed 物化前，对 raw `ObjectNode` 执行 Schema 驱动的静态注解 Mask。Snapshot 与 EventStream 的 typed、dynamic 和 aggregate-state load 入口共享这条受管路径。
-
-成功取得的 Schema 判定会被 Gateway 缓存；瞬时 Schema 加载错误不会被缓存，后续订阅可以重试。根 Schema 没有任何 `masked` 字段时走快速路径，不创建执行器，也不遍历结果 JSON。事件流启用 Mask 时，缺失或未知 `bodyType` 会使结果 Publisher 失败关闭。
+内建 `AbacQueryFilter` 位于快照查询网关。对于提供 `QueryModelSchemaProvider` 的 Backend，Gateway 会在全部通用结果 Filter 完成后、typed 物化前执行 Schema 驱动的字段脱敏；Snapshot 与 EventStream 的 typed、dynamic 和 aggregate-state load 入口共享这条受管路径。注解、缓存、行为矩阵与失败关闭规则见[字段脱敏](./masking.md)。
 
 认证、Principal 绑定和完整的失败关闭策略请参阅[数据权限](../data-access.md)。
 
 ## 原始 Factory 边界
 
-直接调用 `SnapshotQueryBackendFactory` 或 `EventStreamQueryBackendFactory` 会绕过整条 Gateway 治理链，包括 ABAC、结果 Filter 与 Mask。没有 `QueryModelSchemaProvider` 的自定义 Backend 也无法建立 Mask 合同。这两类路径都是返回原始值的受信低层边界，只适合存储扩展、聚焦诊断和后端合同测试；常规应用代码应注入聚合绑定的 Gateway。
+直接调用 `SnapshotQueryBackendFactory` 或 `EventStreamQueryBackendFactory` 会绕过整条 Gateway 治理链，包括 ABAC、结果 Filter 与字段脱敏。没有 `QueryModelSchemaProvider` 的自定义 Backend 也无法建立脱敏合同。这两类路径都是返回原始值的受信低层边界，只适合存储扩展、聚焦诊断和后端合同测试；常规应用代码应注入聚合绑定的 Gateway。
 
 ## Bean 名
 
