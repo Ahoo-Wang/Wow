@@ -22,6 +22,20 @@ import org.bson.conversions.Bson
 
 class MongoProjectionConverter(override val fieldConverter: FieldConverter) : AbstractProjectionConverter<Bson?>() {
 
+    internal fun cursorProjection(projection: Projection, sortFields: List<String>): MongoCursorProjection {
+        val physical = if (projection.isEmpty()) {
+            projection
+        } else {
+            Projection(
+                include = projection.include.map(fieldConverter::convert),
+                exclude = projection.exclude.map(fieldConverter::convert),
+            )
+        }
+        return physical.withCursorFields(sortFields)
+    }
+
+    internal fun convertCursor(projection: MongoCursorProjection): Bson? = internalConvert(projection.queryProjection)
+
     override fun internalConvert(projection: Projection): Bson? {
         if (projection.isEmpty()) return null
         if (projection.include.isNotEmpty() && projection.exclude.isNotEmpty()) {

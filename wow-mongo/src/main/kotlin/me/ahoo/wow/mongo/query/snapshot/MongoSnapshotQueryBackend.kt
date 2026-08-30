@@ -17,6 +17,7 @@ import com.mongodb.reactivestreams.client.MongoCollection
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
@@ -37,6 +38,7 @@ import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QuerySchemaValidationMode
 import me.ahoo.wow.query.schema.resolve
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
+import me.ahoo.wow.serialization.MessageRecords
 import org.bson.Document
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -56,6 +58,7 @@ class MongoSnapshotQueryBackend(
         get() = MongoSnapshotStore.NAME
     override val projectionConverter: MongoProjectionConverter = MongoProjectionConverter(SnapshotFieldConverter)
     override val sortConverter: MongoSortConverter = MongoSortConverter(SnapshotFieldConverter)
+    override val cursorUniqueField: String = MessageRecords.AGGREGATE_ID
     override fun toObjectNode(document: Document): ObjectNode =
         document.replacePrimaryKeyToAggregateId().toObjectNode()
 
@@ -64,6 +67,8 @@ class MongoSnapshotQueryBackend(
     override fun resolve(query: IListQuery) = schemaProvider.resolve(query, validationMode)
 
     override fun resolve(query: IPagedQuery) = schemaProvider.resolve(query, validationMode)
+
+    override fun resolve(query: ICursorQuery) = schemaProvider.resolve(query, validationMode)
 
     override fun resolve(filter: FilterExpression) = schemaProvider.resolve(filter, validationMode)
 
