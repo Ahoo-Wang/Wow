@@ -7,12 +7,12 @@ description: Configure Schema-driven masking for managed Snapshot and EventStrea
 
 ## Scope and Execution Order
 
-Field masking belongs only to the managed `QueryGateway` response chain and requires the selected Backend to provide `QueryModelSchemaProvider`. Its position is fixed after every generic result filter and before Jackson materializes a typed result:
+Field masking is implemented by the framework-owned `SchemaMaskQueryFilter` in the managed `QueryGateway` response chain and requires the selected Backend to provide `QueryModelSchemaProvider`. The framework always installs this filter as the outermost filter; its result phase is fixed after every generic result filter and before Jackson materializes a typed result:
 
 ```mermaid
 flowchart LR
     Backend["QueryBackend<br/>ObjectNode"] --> Filters["All result filters"]
-    Filters --> Mask["Query Model Schema Mask"]
+    Filters --> Mask["SchemaMaskQueryFilter"]
     Mask --> Dynamic["dynamic ObjectNode"]
     Mask --> Jackson["Jackson typed materialization"]
 ```
@@ -72,7 +72,7 @@ A Strategy can be a Kotlin `object` or a public no-argument class. The example d
 
 At runtime, `JsonQuerySchemaSource` discovers effective annotations on fields and getters, including inherited parent Kotlin properties and interface getters. Rules flow through Query Schema merging and backend adapters, but public `QueryModelSchemaMetadata` exposes only field-level `masked: Boolean`. Strategy types, annotation parameters, compiled rules, and executable functions remain in memory.
 
-For every result query, the Gateway reads the Provider's current Schema: the same Schema instance reuses its compiled Masker, while a refresh-published new instance recompiles it. A Schema-load failure is not cached, so a later subscription or `retry` can load again. When the root Schema has no `masked` field, result handling reuses an empty masking decision on an O(1) fast path: it creates no masker, does not walk JSON, and adds no per-result `map`.
+For every result query, `SchemaMaskQueryFilter` reads the Provider's current Schema: the same Schema instance reuses its compiled Masker, while a refresh-published new instance recompiles it. A Schema-load failure is not cached, so a later subscription or `retry` can load again. When the root Schema has no `masked` field, result handling reuses an empty masking decision on an O(1) fast path: it creates no masker, does not walk JSON, and adds no per-result `map`.
 
 ## Behavior Matrix
 

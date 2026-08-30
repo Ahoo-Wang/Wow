@@ -48,14 +48,14 @@ V9 删除旧 JVM 类型，不提供 bridge、typealias 或 deprecation 过渡。
 | `QueryServiceProxy` / `SnapshotQueryServiceProxy` / `EventStreamQueryServiceProxy` | 已删除；直接注入聚合级 Gateway |
 | `DynamicDocument` / `SimpleDynamicDocument` | `tools.jackson.databind.node.ObjectNode` |
 | `DynamicDocumentMasker` | 已删除；在领域字段使用 `@Mask`、`@KeepMask` 或自定义 `@Masking` meta-annotation |
-| `AggregateDynamicDocumentMasker` | 已删除；Snapshot 与 EventStream 由受管 Gateway 按 Query Schema 统一 Mask |
+| `AggregateDynamicDocumentMasker` | 已删除；Snapshot 与 EventStream 由内建 `SchemaMaskQueryFilter` 按 Query Schema 统一 Mask |
 | `StateDynamicDocumentMasker` | 已删除；在状态字段声明静态 Mask 注解 |
 | `EventStreamDynamicDocumentMasker` | 已删除；在事件 payload 字段声明静态 Mask 注解 |
 | `AggregateDataMasker` / `DefaultAggregateDataMasker` | 已删除；不保留运行时对象 Mask SPI |
 | `DataMaskerRegistry` / `AbstractDataMaskerRegistry` | 已删除；规则由 Query Schema 从字段注解发现 |
 | `StateDataMaskerRegistry` / `EventStreamMaskerRegistry` | 已删除；不再注册模型级 Masker |
 | `DataMasker` / `DataMasking` / `tryMask` | 已删除；迁移为字段静态注解 |
-| `MaskingDynamicDocumentQueryFilter` | 已删除；Mask 固定在 Gateway 结果 Filter 之后执行 |
+| `MaskingDynamicDocumentQueryFilter` | 已删除；由框架内建、固定最外层的 `SchemaMaskQueryFilter` 统一替代 |
 | `QueryType.DYNAMIC_SINGLE` | `QueryType.SINGLE` |
 | `QueryType.DYNAMIC_LIST` | `QueryType.LIST` |
 | `QueryType.DYNAMIC_PAGED` | `QueryType.PAGED` |
@@ -67,7 +67,7 @@ typed 与节点返回共享 `SINGLE`、`LIST`、`PAGED` 操作类型。Backend �
 
 Filter 不再通过 `QueryType.isDynamic` 判断最终返回 typed 对象还是节点；两条路径在同一 ObjectNode FilterChain 中处理，区别仅发生在链完成后的可选 Jackson 物化。删除只为 typed/dynamic 分流的分支，不要发明新的结果类型判别器。
 
-删除旧 Mask 类型、实现、Bean、Registry 与自定义 Filter，不建立 ObjectNode Mask 兼容层。把原规则声明到领域字段后，Snapshot、EventStream 的 typed、dynamic 与 aggregate-state load 会在同一条受管 Gateway 路径自动脱敏；Gateway 每次结果查询读取当前 Schema，同一实例复用 Masker，refresh 新实例重新编译，Schema 不可用时结果查询失败关闭且不订阅 Backend，count 不读取 Mask Schema。直接 Backend Factory 或不提供 `QueryModelSchemaProvider` 的自定义 Backend 仍是返回原始值的受信低层边界；`COMPATIBLE` unavailable fallback 只属于直接 `QueryModelSchemaProvider.resolve(...)` 请求解析。
+删除旧 Mask 类型、实现、Bean、Registry 与自定义 Filter，不建立 ObjectNode Mask 兼容层。把原规则声明到领域字段后，Snapshot、EventStream 的 typed、dynamic 与 aggregate-state load 会在同一条受管 Gateway 路径自动脱敏；框架内建 `SchemaMaskQueryFilter` 每次结果查询读取当前 Schema，同一实例复用 Masker，refresh 新实例重新编译，Schema 不可用时结果查询失败关闭且不订阅 Backend，count 不读取 Mask Schema。直接 Backend Factory 或不提供 `QueryModelSchemaProvider` 的自定义 Backend 仍是返回原始值的受信低层边界；`COMPATIBLE` unavailable fallback 只属于直接 `QueryModelSchemaProvider.resolve(...)` 请求解析。
 
 ## 静态 Mask 迁移
 

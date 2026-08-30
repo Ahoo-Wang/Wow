@@ -38,9 +38,11 @@ import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.pagedQuery
 import me.ahoo.wow.query.dsl.singleQuery
+import me.ahoo.wow.query.filter.DefaultQueryContext
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.mask.SchemaMaskQueryFilter
 import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
@@ -63,6 +65,26 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.reflect.jvm.javaField
 
 class DefaultSnapshotQueryGatewayTest {
+    @Test
+    fun `schema mask filter should wrap the downstream result`() {
+        val backend = SchemaSnapshotBackend(Mono.just(maskedSchema()))
+        val context = DefaultQueryContext<ISingleQuery, Mono<ObjectNode>>(
+            QueryType.SINGLE,
+            MOCK_AGGREGATE_METADATA,
+        ).setQuery(singleQuery { })
+        val downstream = FilterChain<QueryContext<*, *>> { downstreamContext ->
+            downstreamContext.asSingleQuery().setResult(Mono.fromSupplier(::snapshotNode))
+            Mono.empty()
+        }
+
+        val result = SchemaMaskQueryFilter(backend).filter(context, downstream)
+            .then(Mono.defer { context.getRequiredResult() })
+
+        StepVerifier.create(result)
+            .assertNext { it.stateValue().assert().isEqualTo("***********") }
+            .verifyComplete()
+    }
+
     @Test
     fun `typed and dynamic single should share object-node chain`() {
         val backendCalls = CopyOnWriteArrayList<QueryType>()

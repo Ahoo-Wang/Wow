@@ -22,7 +22,7 @@ sequenceDiagram
     participant Gateway as 聚合绑定 Gateway
     participant Filters as 一条 around chain
     participant Backend as 绑定的 QueryBackend
-    participant Mask as Schema Mask
+    participant Mask as SchemaMaskQueryFilter
     participant Jackson as 可选类型化转换
     Caller->>Entry: Query DTO / DSL
     Entry->>Gateway: 作用域重写后的查询
@@ -35,7 +35,7 @@ sequenceDiagram
     Jackson-->>Caller: ObjectNode 或类型化结果
 ```
 
-Registrar 在装配 Gateway 时按 `NamedAggregate` 调用一次路由 Factory，并把选中的 Backend 绑定到 Gateway；每次请求不会再次路由。Backend 统一产生 `ObjectNode`，结果过滤器先处理节点；每次 single/list/paged 结果查询再读取 Provider 当前 Schema 并脱敏，同一 Schema 实例复用 Masker，refresh 新实例会重新编译，typed 结果最后才由 Jackson 物化。Schema 不可用时这些受管结果查询失败关闭且不订阅 Backend；count 保持 `Long` 并且不读取 Mask Schema，aggregation 保持 `ObjectNode` 行，并由 Schema 拒绝对 Mask 字段的分组、metric 与 expression 引用。
+Registrar 在装配 Gateway 时按 `NamedAggregate` 调用一次路由 Factory，并把选中的 Backend 绑定到 Gateway；每次请求不会再次路由。Backend 统一产生 `ObjectNode`。框架强制装配在最外层的 `SchemaMaskQueryFilter` 会在全部通用结果 Filter 完成后读取 Provider 当前 Schema 并脱敏；同一 Schema 实例复用 Masker，refresh 新实例会重新编译，typed 结果最后才由 Jackson 物化。Schema 不可用时这些受管结果查询失败关闭且不订阅 Backend；count 保持 `Long` 并且不读取 Mask Schema，aggregation 保持 `ObjectNode` 行，并由 Schema 拒绝对 Mask 字段的分组、metric 与 expression 引用。
 
 ## QueryContext 与 QueryType
 
@@ -55,7 +55,7 @@ Gateway 在每次订阅时创建独立的 `QueryContext`，因此同一个响应
 
 ## ABAC 与字段脱敏
 
-内建 `AbacQueryFilter` 位于快照查询网关。对于提供 `QueryModelSchemaProvider` 的 Backend，Gateway 会在全部通用结果 Filter 完成后、typed 物化前执行 Schema 驱动的字段脱敏；Snapshot 与 EventStream 的 typed、dynamic 和 aggregate-state load 入口共享这条受管路径。注解、缓存、行为矩阵与失败关闭规则见[字段脱敏](./masking.md)。
+内建 `AbacQueryFilter` 位于快照查询网关。对于提供 `QueryModelSchemaProvider` 的 Backend，框架内建 `SchemaMaskQueryFilter` 会在全部通用结果 Filter 完成后、typed 物化前执行 Schema 驱动的字段脱敏；Snapshot 与 EventStream 的 typed、dynamic 和 aggregate-state load 入口共享这条受管路径。注解、缓存、行为矩阵与失败关闭规则见[字段脱敏](./masking.md)。
 
 认证、Principal 绑定和完整的失败关闭策略请参阅[数据权限](../data-access.md)。
 
