@@ -188,8 +188,14 @@ async function loadSummary(
   abortController: AbortController,
 ): Promise<SnapshotSummary> {
   const queries = createSnapshotSummaryQueries(now, window);
-  const [actionableNow, timedOut, unrecoverable, newerThanRange, olderThanRange] =
-    await Promise.all([
+  const [
+    actionableNow,
+    timedOut,
+    unrecoverable,
+    activeTotal,
+    newerThanRange,
+    olderThanRange,
+  ] = await Promise.all([
       aggregateExecutionFailedSnapshots<CountRow>(
         queries.actionableNow,
         undefined,
@@ -206,6 +212,11 @@ async function loadSummary(
         abortController,
       ),
       aggregateExecutionFailedSnapshots<CountRow>(
+        queries.activeTotal,
+        undefined,
+        abortController,
+      ),
+      aggregateExecutionFailedSnapshots<CountRow>(
         queries.newerThanRange,
         undefined,
         abortController,
@@ -218,6 +229,7 @@ async function loadSummary(
     ]);
   return {
     actionableNow: actionableNow[0]?.count ?? 0,
+    activeTotal: activeTotal[0]?.count ?? 0,
     newerThanRange: newerThanRange[0]?.count ?? 0,
     olderThanRange: olderThanRange[0]?.count ?? 0,
     timedOut: timedOut[0]?.count ?? 0,

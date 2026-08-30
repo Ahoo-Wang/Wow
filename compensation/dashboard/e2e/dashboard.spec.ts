@@ -249,6 +249,8 @@ async function mockAnalyticsAggregations(
         rows = [{ count: 128 }];
       } else if (serializedFilter.includes("timeoutAt")) {
         rows = [{ count: 34 }];
+      } else if (!serializedFilter.includes("state.executeAt")) {
+        rows = [{ count: 1_000 }];
       } else if (!serializedFilter.includes('"op":"GTE"')) {
         rows = [{ count: 680 }];
       } else if (!serializedFilter.includes('"op":"LT"')) {
@@ -519,7 +521,9 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
   await page.goto("/");
 
   expect(await page.evaluate(() => location.pathname)).toBe("/");
-  await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Dashboard", exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByText(/Failure concentration · Top cluster/),
   ).toBeVisible();
@@ -529,7 +533,7 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
   await expect(
     page.getByRole("heading", { name: "FLOW / Compensation effectiveness" }),
   ).toBeVisible();
-  await expect.poll(() => snapshotRequests).toBe(9);
+  await expect.poll(() => snapshotRequests).toBe(10);
   await expect.poll(() => eventRequests).toBe(4);
   const timeRange = page.getByRole("button", { name: /^Time range:/ });
   await expect(timeRange).toContainText("–");
@@ -568,16 +572,16 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
     ).toBeGreaterThanOrEqual(14);
   }
   await page.getByRole("button", { name: "Today", exact: true }).click();
-  await expect.poll(() => snapshotRequests).toBe(18);
+  await expect.poll(() => snapshotRequests).toBe(20);
   await expect.poll(() => eventRequests).toBe(8);
   await page.getByRole("button", { name: "Refresh dashboard" }).click();
-  await expect.poll(() => snapshotRequests).toBe(27);
+  await expect.poll(() => snapshotRequests).toBe(30);
   await expect.poll(() => eventRequests).toBe(12);
 
   const appliedWindows: Array<{ end: number; start: number }> = [];
   for (const batch of [0, 1, 2]) {
     const snapshotWindows = snapshotQueries
-      .slice(batch * 9, batch * 9 + 9)
+      .slice(batch * 10, batch * 10 + 10)
       .map((query) => queryWindow(query, "state.executeAt"));
     const fullyWindowedSnapshots = snapshotWindows.filter(
       ({ end, start }) => Number.isFinite(start) && Number.isFinite(end),
@@ -594,7 +598,7 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
     expect(fullyWindowedSnapshots).toHaveLength(7);
     expect(olderSnapshot).toHaveLength(1);
     expect(newerSnapshot).toHaveLength(1);
-    expect(allTimeSnapshot).toHaveLength(0);
+    expect(allTimeSnapshot).toHaveLength(1);
     const eventWindows = eventQueries
       .slice(batch * 4, batch * 4 + 4)
       .map((query) => queryWindow(query, "createTime"));
@@ -919,6 +923,10 @@ test("keeps zero-valued dashboard bars visually empty", async ({
       serializedFilter.includes('"op":"LT"')
     ) {
       await route.fulfill({ json: [{ count: 0 }] });
+      return;
+    }
+    if (!serializedFilter.includes("state.executeAt")) {
+      await route.fulfill({ json: [{ count: 680 }] });
       return;
     }
     await route.fallback();
