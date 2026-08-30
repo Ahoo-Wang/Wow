@@ -40,6 +40,7 @@ import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationPager
 import me.ahoo.wow.elasticsearch.query.aggregation.selectTopRows
 import me.ahoo.wow.elasticsearch.query.toObjectNode
 import me.ahoo.wow.query.dsl.aggregation
+import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -521,9 +522,7 @@ class ElasticsearchAggregationPagerTest {
     }
 
     @Test
-    fun `snapshot service with custom converter should aggregate without loading mapping`() {
-        stubPointInTime()
-        every { client.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(summaryResponse())
+    fun `snapshot service with custom converter should fail aggregation before Elasticsearch access`() {
         val converter = mockk<AbstractElasticsearchFilterConverter> {
             every { convert(any(), any()) } returns
                 co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll { it }
@@ -540,9 +539,15 @@ class ElasticsearchAggregationPagerTest {
                 sum("physical.total", "total")
             },
         ).test()
-            .expectNextCount(1)
-            .verifyComplete()
+            .expectErrorSatisfies { error ->
+                error.assert().isInstanceOf(QuerySchemaUnavailableException::class.java)
+                error.message.assert().isEqualTo(
+                    "Elasticsearch query schema is unavailable for custom filter converters.",
+                )
+            }
+            .verify()
 
+        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
         verify(exactly = 0) { client.indices() }
     }
 
