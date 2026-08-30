@@ -20,7 +20,13 @@ import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.mask.FullMaskStrategy
+import me.ahoo.wow.api.query.mask.Mask
+import me.ahoo.wow.api.query.schema.QueryCardinality
+import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.id.generateGlobalId
@@ -29,15 +35,22 @@ import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.event.filter.EventStreamQueryFilter
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
+import me.ahoo.wow.query.schema.MaskRule
+import me.ahoo.wow.query.schema.QueryFieldSchema
+import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryFilter
+import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import me.ahoo.wow.tck.mock.MockAggregateCreated
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.CopyOnWriteArrayList
+import kotlin.reflect.jvm.javaField
 
 class DefaultEventStreamQueryGatewayTest {
     @Test
@@ -54,6 +67,28 @@ class DefaultEventStreamQueryGatewayTest {
         gateway.dynamicSingle(singleQuery { }).block()!!.path("id").textValue().assert().isEqualTo(eventStream.id)
         gateway.single(singleQuery { }).block()!!.id.assert().isEqualTo(eventStream.id)
         calls.assert().isEqualTo(listOf("generic", "event", "generic", "event"))
+    }
+
+    @Test
+    fun `event gateway should mask dynamic and typed results with schema body type validation`() {
+        val eventStream = generateEventStream(
+            MOCK_AGGREGATE_METADATA.aggregateId(generateGlobalId()),
+            eventCount = 1,
+            createdEventSupplier = { MockAggregateCreated("secret") },
+        )
+        val raw = eventStream.toJsonNode<ObjectNode>()
+        val bodyType = raw.path("body").path(0).path("bodyType").stringValue()
+        val gateway = DefaultEventStreamQueryGateway(
+            MOCK_AGGREGATE_METADATA,
+            SchemaEventBackend(eventStream::toJsonNode, eventSchema(bodyType)),
+            errorHandler = ErrorHandler { _, error -> Mono.error(error) },
+        )
+
+        gateway.dynamicSingle(singleQuery { }).block()!!
+            .path("body").path(0).path("body").path("data").stringValue()
+            .assert().isEqualTo("******")
+        val typed = gateway.single(singleQuery { }).block()!!
+        (typed.body.single().body as MockAggregateCreated).data.assert().isEqualTo("******")
     }
 
     private fun generic(calls: MutableList<String>) = object : QueryFilter<QueryContext<*, *>> {
@@ -85,4 +120,54 @@ class DefaultEventStreamQueryGatewayTest {
         override fun count(filter: FilterExpression): Mono<Long> = Mono.just(0)
         override fun aggregate(query: AggregationQuery): Flux<ObjectNode> = Flux.empty()
     }
+
+    private class SchemaEventBackend(
+        private val nodeSupplier: () -> ObjectNode,
+        private val modelSchema: QueryModelSchema,
+    ) : EventStreamQueryBackend, QueryModelSchemaProvider {
+        override val namedAggregate: NamedAggregate = MOCK_AGGREGATE_METADATA
+        override fun schema(): Mono<QueryModelSchema> = Mono.just(modelSchema)
+        override fun refresh(): Mono<QueryModelSchema> = schema()
+        override fun single(query: ISingleQuery): Mono<ObjectNode> = Mono.fromSupplier(nodeSupplier)
+        override fun list(query: IListQuery): Flux<ObjectNode> = Flux.empty()
+        override fun paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> = Mono.just(PagedList.empty())
+        override fun count(filter: FilterExpression): Mono<Long> = Mono.just(0)
+        override fun aggregate(query: AggregationQuery): Flux<ObjectNode> = Flux.empty()
+    }
+
+    private companion object {
+        fun eventSchema(bodyType: String): QueryModelSchema {
+            val annotation = Masked::data.javaField!!.getAnnotation(Mask::class.java)
+            val rule = MaskRule(FullMaskStrategy::class, annotation, FullMaskStrategy.compile(annotation))
+            return QueryModelSchema(
+                model = QueryModel.EVENT_STREAM,
+                capabilities = emptySet(),
+                fields = mapOf(
+                    LogicalField("body.body.data") to fieldSchema(maskRule = rule),
+                    LogicalField("body.bodyType") to fieldSchema(
+                        enumValues = listOf(JsonSerializer.valueToTree(bodyType)),
+                    ),
+                ),
+            )
+        }
+
+        fun fieldSchema(
+            enumValues: List<tools.jackson.databind.JsonNode>? = null,
+            maskRule: MaskRule? = null,
+        ) = QueryFieldSchema(
+            title = null,
+            description = null,
+            enumValues = enumValues,
+            valueTypes = setOf(QueryValueType.STRING),
+            nullable = false,
+            required = true,
+            cardinality = QueryCardinality.SINGLE,
+            semanticType = null,
+            dynamicChildren = false,
+            bindings = emptyMap(),
+            maskRule = maskRule,
+        )
+    }
+
+    private data class Masked(@field:Mask val data: String)
 }

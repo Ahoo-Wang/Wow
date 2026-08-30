@@ -43,6 +43,7 @@ import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -122,6 +123,38 @@ class DefaultSnapshotQueryGatewayTest {
     }
 
     @Test
+    fun `gateway should retry schema loading after an earlier request fails`() {
+        val failure = QuerySchemaUnavailableException("first")
+        val attempts = AtomicInteger()
+        val backend = SchemaSnapshotBackend(schemaPublisher = {
+            if (attempts.getAndIncrement() == 0) Mono.error(failure) else Mono.just(maskedSchema())
+        })
+        val gateway = gateway(backend)
+
+        StepVerifier.create(gateway.dynamicSingle(singleQuery { }))
+            .expectErrorMatches { it === failure }
+            .verify()
+        gateway.dynamicSingle(singleQuery { }).block()!!.stateValue().assert().isEqualTo("***********")
+        backend.schemaCalls.get().assert().isEqualTo(2)
+    }
+
+    @Test
+    fun `retry should resubscribe schema loading after an error`() {
+        val attempts = AtomicInteger()
+        val backend = SchemaSnapshotBackend(schemaPublisher = {
+            if (attempts.getAndIncrement() == 0) {
+                Mono.error(QuerySchemaUnavailableException("retry"))
+            } else {
+                Mono.just(maskedSchema())
+            }
+        })
+
+        gateway(backend).dynamicSingle(singleQuery { }).retry(1).block()!!
+            .stateValue().assert().isEqualTo("***********")
+        backend.schemaCalls.get().assert().isEqualTo(2)
+    }
+
+    @Test
     fun `gateway should fail result queries before subscribing backend when schema fails`() {
         val failure = QuerySchemaUnavailableException("unavailable")
         val backend = SchemaSnapshotBackend(Mono.error(failure))
@@ -143,9 +176,77 @@ class DefaultSnapshotQueryGatewayTest {
         backend.schemaCalls.get().assert().isZero()
     }
 
+    @Test
+    fun `gateway should mask raw results after every result filter`() {
+        val backend = SchemaSnapshotBackend(Mono.just(maskedSchema()))
+        val reveal = object : QueryFilter<QueryContext<*, *>> {
+            override fun filter(
+                context: QueryContext<*, *>,
+                next: FilterChain<QueryContext<*, *>>,
+            ): Mono<Void> = next.filter(context).then(
+                Mono.fromRunnable {
+                    context.asSingleQuery().rewriteResult { result ->
+                        result.map { node ->
+                            (node.path("state") as ObjectNode).put("value", "revealed")
+                            node
+                        }
+                    }
+                },
+            )
+        }
+        val gateway = gateway(backend, filters = listOf(reveal))
+
+        gateway.dynamicSingle(singleQuery { }).block()!!.stateValue().assert().isEqualTo("********")
+        gateway.single(singleQuery { }).block()!!.state.value.assert().isEqualTo("********")
+    }
+
+    @Test
+    fun `schema errors should fail the publisher and be observed by error handler`() {
+        val failure = QuerySchemaUnavailableException("observed")
+        val observed = CopyOnWriteArrayList<Throwable>()
+        val backend = SchemaSnapshotBackend(Mono.error(failure))
+
+        StepVerifier.create(
+            gateway(
+                backend,
+                errorHandler = ErrorHandler { _, error ->
+                    observed += error
+                    Mono.empty()
+                }
+            ).dynamicSingle(singleQuery { }),
+        ).expectErrorMatches { it === failure }.verify()
+        observed.assert().containsExactly(failure)
+    }
+
+    @Test
+    fun `mask wire errors should fail the publisher and be observed by error handler`() {
+        val observed = CopyOnWriteArrayList<Throwable>()
+        val backend = SchemaSnapshotBackend(
+            schemaPublisher = { Mono.just(maskedSchema()) },
+            nodeSupplier = {
+                snapshotNode().also { node -> (node.path("state") as ObjectNode).put("value", 42) }
+            },
+        )
+
+        StepVerifier.create(
+            gateway(
+                backend,
+                errorHandler = ErrorHandler { _, error ->
+                    observed += error
+                    Mono.empty()
+                }
+            ).dynamicSingle(singleQuery { }),
+        ).expectErrorMatches { error ->
+            error is QuerySchemaValidationException && observed.singleOrNull() === error
+        }
+            .verify()
+        observed.single().assert().isInstanceOf(QuerySchemaValidationException::class.java)
+    }
+
     private fun gateway(
         backend: SnapshotQueryBackend,
         filters: List<QueryFilter<QueryContext<*, *>>> = emptyList(),
+        errorHandler: ErrorHandler<QueryContext<*, *>> = ErrorHandler { _, error -> Mono.error(error) },
     ): DefaultSnapshotQueryGateway<TestState> = DefaultSnapshotQueryGateway(
         namedAggregate = MOCK_AGGREGATE_METADATA,
         backend = backend,
@@ -154,7 +255,7 @@ class DefaultSnapshotQueryGatewayTest {
             TestState::class.java,
         ),
         filters = filters,
-        errorHandler = ErrorHandler { _, error -> Mono.error(error) },
+        errorHandler = errorHandler,
     )
 
     private fun around(name: String, order: MutableList<String>) = object : QueryFilter<QueryContext<*, *>> {
@@ -205,8 +306,11 @@ class DefaultSnapshotQueryGatewayTest {
     private data class TestState(val value: String)
 
     private class SchemaSnapshotBackend(
-        private val schemaPublisher: Mono<QueryModelSchema>,
+        private val schemaPublisher: () -> Mono<QueryModelSchema>,
+        private val nodeSupplier: () -> ObjectNode = ::snapshotNode,
     ) : SnapshotQueryBackend, QueryModelSchemaProvider {
+        constructor(schemaPublisher: Mono<QueryModelSchema>) : this({ schemaPublisher })
+
         override val namedAggregate: NamedAggregate = MOCK_AGGREGATE_METADATA
         override val name: String = "schema"
         val schemaCalls = AtomicInteger()
@@ -214,24 +318,24 @@ class DefaultSnapshotQueryGatewayTest {
 
         override fun schema(): Mono<QueryModelSchema> = Mono.defer {
             schemaCalls.incrementAndGet()
-            schemaPublisher
+            schemaPublisher()
         }
 
         override fun refresh(): Mono<QueryModelSchema> = schema()
 
         override fun single(query: ISingleQuery): Mono<ObjectNode> = Mono.fromSupplier {
             resultSubscriptions.incrementAndGet()
-            snapshotNode()
+            nodeSupplier()
         }
 
         override fun list(query: IListQuery): Flux<ObjectNode> = Flux.defer {
             resultSubscriptions.incrementAndGet()
-            Flux.just(snapshotNode())
+            Flux.just(nodeSupplier())
         }
 
         override fun paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> = Mono.fromSupplier {
             resultSubscriptions.incrementAndGet()
-            PagedList(1, listOf(snapshotNode()))
+            PagedList(1, listOf(nodeSupplier()))
         }
 
         override fun count(filter: FilterExpression): Mono<Long> = Mono.just(1)
