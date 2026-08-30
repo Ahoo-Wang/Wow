@@ -31,8 +31,12 @@ import me.ahoo.wow.example.domain.cart.Cart
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.query.schema.DeclarationValue
+import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
+import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryFieldDeclaration
+import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QuerySchemaBackendAdapter
 import me.ahoo.wow.query.schema.QuerySchemaConflictException
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
@@ -44,6 +48,7 @@ import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 import reactor.test.StepVerifier
 import java.util.concurrent.ConcurrentHashMap
@@ -89,6 +94,36 @@ class JsonQuerySchemaSourceTest {
         declaration.field("body.body.added").required.assert()
             .isEqualTo(DeclarationValue.Set(false))
         checkNotNull((declaration.field("body.bodyType").enumValues as DeclarationValue.Set).value)
+            .map { it.stringValue() }
+            .assert()
+            .containsExactly(
+                CartItemAdded::class.java.name,
+                CartItemRemoved::class.java.name,
+                CartQuantityChanged::class.java.name,
+            )
+    }
+
+    @Test
+    fun `should merge event body type metadata through default provider`() {
+        val eventStreamContext = QuerySchemaContext(
+            Cart::class.java.aggregateMetadata<Any, Any>().namedAggregate,
+            QueryModel.EVENT_STREAM,
+        )
+        val resolved = AtomicReference<LogicalQuerySchema>()
+        val provider = DefaultQueryModelSchemaProvider(
+            eventStreamContext,
+            listOf(JsonQuerySchemaSource()),
+            object : QuerySchemaBackendAdapter {
+                override fun resolve(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> {
+                    resolved.set(logicalSchema)
+                    return Mono.just(QueryModelSchema(QueryModel.EVENT_STREAM, emptySet(), emptyMap()))
+                }
+            },
+        )
+
+        provider.schema().block()!!
+
+        checkNotNull(resolved.get().fields.getValue(LogicalField("body.bodyType")).enumValues)
             .map { it.stringValue() }
             .assert()
             .containsExactly(

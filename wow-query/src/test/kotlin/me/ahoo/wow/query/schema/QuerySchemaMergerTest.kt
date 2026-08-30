@@ -27,6 +27,7 @@ import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import tools.jackson.databind.node.JsonNodeFactory
 import java.util.concurrent.TimeUnit
 import kotlin.reflect.jvm.javaField
 
@@ -137,6 +138,63 @@ class QuerySchemaMergerTest {
     }
 
     @Test
+    fun `event stream body type enum should enrich system discriminator`() {
+        val field = merger.merge(
+            eventStreamSystem(),
+            listOf(
+                PrioritizedQuerySchemaDeclaration(
+                    300,
+                    bodyType(QueryFieldDeclaration(enumValues = DeclarationValue.Set(enumValues("example.Event")))),
+                ),
+            ),
+        ).fields.getValue(LogicalField("body.bodyType"))
+
+        field.enumValues.assert().isEqualTo(listOf(JsonNodeFactory.instance.stringNode("example.Event")))
+        field.valueTypes.assert().isEqualTo(setOf(QueryValueType.STRING))
+        field.required.assert().isTrue()
+    }
+
+    @Test
+    fun `event stream body type should reject every non enum leaf`() {
+        listOf(
+            QueryFieldDeclaration(title = DeclarationValue.Set("Body type")),
+            QueryFieldDeclaration(description = DeclarationValue.Set("Event type discriminator")),
+            QueryFieldDeclaration(valueTypes = DeclarationValue.Set(setOf(QueryValueType.INTEGER))),
+            QueryFieldDeclaration(nullable = DeclarationValue.Set(true)),
+            QueryFieldDeclaration(required = DeclarationValue.Set(false)),
+            QueryFieldDeclaration(cardinality = DeclarationValue.Set(QueryCardinality.MANY)),
+            QueryFieldDeclaration(semanticType = DeclarationValue.Set(Temporal.Epoch(TimeUnit.MILLISECONDS))),
+            QueryFieldDeclaration(dynamicChildren = DeclarationValue.Set(true)),
+            QueryFieldDeclaration(maskRule = DeclarationValue.Set(fullMaskRule())),
+        ).forEach { extension ->
+            assertThrows<QuerySchemaConflictException> {
+                merger.merge(eventStreamSystem(), listOf(PrioritizedQuerySchemaDeclaration(300, bodyType(extension))))
+            }
+        }
+    }
+
+    @Test
+    fun `event stream payload outside system field should conflict`() {
+        assertThrows<QuerySchemaConflictException> {
+            merger.merge(
+                eventStreamSystem(),
+                listOf(
+                    PrioritizedQuerySchemaDeclaration(
+                        300,
+                        QuerySchemaDeclaration(
+                            mapOf(
+                                LogicalField("body.name") to QueryFieldDeclaration(
+                                    enumValues = DeclarationValue.Set(listOf(JsonNodeFactory.instance.stringNode("event"))),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            )
+        }
+    }
+
+    @Test
     fun `arbitrary snapshot top level extension should conflict`() {
         val exception = assertThrows<QuerySchemaConflictException> {
             merger.merge(
@@ -237,6 +295,9 @@ class QuerySchemaMergerTest {
     private fun system(): QuerySchemaDeclaration =
         SystemQuerySchemaSource.declaration(QueryModel.SNAPSHOT)
 
+    private fun eventStreamSystem(): QuerySchemaDeclaration =
+        SystemQuerySchemaSource.declaration(QueryModel.EVENT_STREAM)
+
     private fun declaration(
         field: String,
         valueTypes: Set<QueryValueType>? = null,
@@ -267,6 +328,14 @@ class QuerySchemaMergerTest {
         QuerySchemaDeclaration(
             mapOf(LogicalField("state.name") to QueryFieldDeclaration(title = DeclarationValue.Set(value))),
         )
+
+    private fun bodyType(declaration: QueryFieldDeclaration): QuerySchemaDeclaration = QuerySchemaDeclaration(
+        mapOf(
+            LogicalField("body.bodyType") to declaration,
+        ),
+    )
+
+    private fun enumValues(value: String) = listOf(JsonNodeFactory.instance.stringNode(value))
 
     private data class Masked(
         @field:Mask val secret: String,
