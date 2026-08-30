@@ -720,12 +720,16 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
         const recoverabilityTitle = dashboard.querySelector<HTMLElement>(
           "[aria-label='Recoverability composition'] h3",
         );
+        const recoverabilityTotal = dashboard.querySelector<HTMLElement>(
+          "[aria-label='Recoverability composition'] .dashboard-chart-total",
+        );
         if (
           !overview ||
           !activity ||
           !health ||
           !healthTitle ||
-          !recoverabilityTitle
+          !recoverabilityTitle ||
+          !recoverabilityTotal
         ) {
           throw new Error("Dashboard visual hierarchy is incomplete");
         }
@@ -735,16 +739,24 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
           recoverabilityTitle.getBoundingClientRect();
         return {
           activityHeight: activityBounds.height,
+          healthBottom: health.getBoundingClientRect().bottom,
           healthHeight: health.getBoundingClientRect().height,
           healthLeadGap:
             recoverabilityTitleBounds.top - healthTitleBounds.bottom,
+          healthOverflow: getComputedStyle(health).overflowY,
           overviewHeight: overview.getBoundingClientRect().height,
+          recoverabilityTotalBottom:
+            recoverabilityTotal.getBoundingClientRect().bottom,
         };
       });
     expect(tallViewportLayout.overviewHeight).toBeGreaterThanOrEqual(260);
     expect(tallViewportLayout.activityHeight).toBeGreaterThanOrEqual(224);
     expect(tallViewportLayout.healthHeight).toBeGreaterThanOrEqual(140);
     expect(tallViewportLayout.healthLeadGap).toBeLessThanOrEqual(32);
+    expect(tallViewportLayout.healthOverflow).not.toBe("hidden");
+    expect(tallViewportLayout.recoverabilityTotalBottom).toBeLessThanOrEqual(
+      tallViewportLayout.healthBottom,
+    );
   }
   expect(
     await page.evaluate(
@@ -1147,22 +1159,23 @@ test("keeps a long analytics error wrapped and reachable", async ({
   await expect(alert).toHaveText(longMessage);
   const layout = await alert.evaluate((element) => {
     const dashboard = document.querySelector<HTMLElement>(".dashboard-view");
-    const overview = document.querySelector<HTMLElement>(".dashboard-overview");
-    if (!dashboard || !overview) {
+    const ownerCard = element.closest<HTMLElement>("[data-slot='card']");
+    if (!dashboard || !ownerCard) {
       throw new Error("Dashboard layout is missing");
     }
     return {
       alertClientWidth: element.clientWidth,
+      alertBottom: element.getBoundingClientRect().bottom,
       alertScrollWidth: element.scrollWidth,
       dashboardClientHeight: dashboard.clientHeight,
       dashboardScrollHeight: dashboard.scrollHeight,
       overflowWrap: getComputedStyle(element).overflowWrap,
-      overviewHeight: overview.getBoundingClientRect().height,
+      ownerCardBottom: ownerCard.getBoundingClientRect().bottom,
     };
   });
   expect(layout.overflowWrap).toBe("anywhere");
   expect(layout.alertScrollWidth).toBeLessThanOrEqual(layout.alertClientWidth);
-  expect(layout.overviewHeight).toBeGreaterThan(208);
+  expect(layout.alertBottom).toBeLessThanOrEqual(layout.ownerCardBottom);
   expect(layout.dashboardScrollHeight).toBeGreaterThanOrEqual(
     layout.dashboardClientHeight,
   );
