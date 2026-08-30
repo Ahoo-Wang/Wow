@@ -18,6 +18,7 @@ import io.swagger.v3.oas.models.media.IntegerSchema
 import io.swagger.v3.oas.models.media.ObjectSchema
 import io.swagger.v3.oas.models.media.Schema
 import io.swagger.v3.oas.models.media.StringSchema
+import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.schema.QueryModelSchemaMetadata
@@ -27,11 +28,13 @@ import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.QueryComponent
 import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedAggregationQueryRequestBody
 import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedCountQueryRequestBody
+import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedCursorQueryRequestBody
 import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedListQueryRequestBody
 import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedPagedQueryRequestBody
 import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedSingleQueryRequestBody
 import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregationQueryRequestBody
 import me.ahoo.wow.openapi.QueryComponent.RequestBody.countQueryRequestBody
+import me.ahoo.wow.openapi.QueryComponent.RequestBody.cursorQueryRequestBody
 import me.ahoo.wow.openapi.QueryComponent.RequestBody.listQueryRequestBody
 import me.ahoo.wow.openapi.QueryComponent.RequestBody.pagedQueryRequestBody
 import me.ahoo.wow.openapi.QueryComponent.RequestBody.singleQueryRequestBody
@@ -58,6 +61,11 @@ internal fun OpenAPIComponentContext.listQueryRequestBodyRef(): HttpRequestBody 
 internal fun OpenAPIComponentContext.pagedQueryRequestBodyRef(): HttpRequestBody {
     pagedQueryRequestBody()
     return HttpRequestBody(componentRef = QueryComponent.PAGED_QUERY_KEY)
+}
+
+internal fun OpenAPIComponentContext.cursorQueryRequestBodyRef(): HttpRequestBody {
+    cursorQueryRequestBody()
+    return HttpRequestBody(componentRef = QueryComponent.CURSOR_QUERY_KEY)
 }
 
 internal fun OpenAPIComponentContext.singleQueryRequestBodyRef(): HttpRequestBody {
@@ -96,6 +104,13 @@ internal fun OpenAPIComponentContext.aggregatedPagedQueryRequestBodyRef(
 ): HttpRequestBody {
     aggregatedPagedQueryRequestBody(aggregateMetadata)
     return aggregateMetadata.queryRequestBodyRef(QueryComponent.PAGED_QUERY_SUFFIX)
+}
+
+internal fun OpenAPIComponentContext.aggregatedCursorQueryRequestBodyRef(
+    aggregateMetadata: AggregateMetadata<*, *>,
+): HttpRequestBody {
+    aggregatedCursorQueryRequestBody(aggregateMetadata)
+    return aggregateMetadata.queryRequestBodyRef(QueryComponent.CURSOR_QUERY_SUFFIX)
 }
 
 internal fun OpenAPIComponentContext.aggregatedSingleQueryRequestBodyRef(
@@ -172,6 +187,19 @@ internal fun OpenAPIComponentContext.eventStreamPagedResponse(
     )
 }
 
+internal fun OpenAPIComponentContext.eventStreamCursorResponse(
+    aggregateMetadata: AggregateMetadata<*, *>
+): HttpResponse {
+    return responseWithJson(
+        schema = HttpSchema.Raw(
+            schema(
+                CursorPage::class.java,
+                resolveType(AggregatedDomainEventStream::class.java, aggregateMetadata.command.aggregateType)
+            )
+        )
+    )
+}
+
 internal fun OpenAPIComponentContext.materializedSnapshotListResponse(
     aggregateMetadata: AggregateMetadata<*, *>
 ): HttpResponse {
@@ -200,11 +228,32 @@ internal fun OpenAPIComponentContext.materializedSnapshotPagedResponse(
     )
 }
 
+internal fun OpenAPIComponentContext.materializedSnapshotCursorResponse(
+    aggregateMetadata: AggregateMetadata<*, *>
+): HttpResponse {
+    return responseWithJson(
+        schema = HttpSchema.Raw(
+            schema(
+                CursorPage::class.java,
+                resolveType(MaterializedSnapshot::class.java, aggregateMetadata.state.aggregateType)
+            )
+        )
+    )
+}
+
 internal fun OpenAPIComponentContext.statePagedResponse(
     aggregateMetadata: AggregateMetadata<*, *>
 ): HttpResponse {
     return responseWithJson(
         schema = HttpSchema.Raw(schema(PagedList::class.java, aggregateMetadata.state.aggregateType))
+    )
+}
+
+internal fun OpenAPIComponentContext.stateCursorResponse(
+    aggregateMetadata: AggregateMetadata<*, *>
+): HttpResponse {
+    return responseWithJson(
+        schema = HttpSchema.Raw(schema(CursorPage::class.java, aggregateMetadata.state.aggregateType))
     )
 }
 
