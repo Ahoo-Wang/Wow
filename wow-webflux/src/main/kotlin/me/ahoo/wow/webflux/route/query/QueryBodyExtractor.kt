@@ -14,6 +14,7 @@
 package me.ahoo.wow.webflux.route.query
 
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedQuery
@@ -32,6 +33,7 @@ class QueryBodyExtractor<Q : Any>(private val queryType: Class<Q>) : BodyExtract
     companion object {
         val FILTER_EXPRESSION_EXTRACTOR = QueryBodyExtractor(FilterExpression::class.java)
         val AGGREGATION_QUERY_EXTRACTOR = QueryBodyExtractor(AggregationQuery::class.java)
+        val CURSOR_QUERY_EXTRACTOR = QueryBodyExtractor(CursorQuery::class.java)
         val LIST_QUERY_EXTRACTOR = QueryBodyExtractor(ListQuery::class.java)
         val PAGED_QUERY_EXTRACTOR = QueryBodyExtractor(PagedQuery::class.java)
         val SINGLE_QUERY_EXTRACTOR = QueryBodyExtractor(SingleQuery::class.java)

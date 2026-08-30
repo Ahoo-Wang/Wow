@@ -25,9 +25,13 @@ import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.ContainsFilter
+import me.ahoo.wow.api.query.CursorPage
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.IdFilter
@@ -45,6 +49,7 @@ import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.api.query.toFilterExpression
+import me.ahoo.wow.filter.EmptyFilterChain
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.BatchComponent
@@ -508,6 +513,45 @@ class HttpQueryGuardFilterTest {
             .verify()
     }
 
+    @Test
+    fun `cursor should use max page size without page window or counting rejection`() {
+        val filter = HttpQueryGuardFilter(maxPageSize = 2, maxPageWindow = 1, allowExpensiveOperators = false)
+
+        filter.filter(cursorContext(CursorQuery(MatchAllFilter, size = 2)), EmptyFilterChain.instance())
+            .writeRawRequest(request)
+            .test()
+            .verifyComplete()
+    }
+
+    @Test
+    fun `cursor should reject oversized pages and expensive filters`() {
+        guard(maxPageSize = 2).validateForTest(CursorQuery(MatchAllFilter, size = 3))
+            .test()
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
+        guard(allowExpensiveOperators = false).validateForTest(
+            CursorQuery(ContainsFilter(LogicalField("state.name"), "x")),
+        ).test()
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
+    }
+
+    @Test
+    fun `cursor should apply idle timeout after backend result is installed`() {
+        val context = cursorContext(CursorQuery(IdFilter("aggregate-id")))
+        guard(idleTimeout = Duration.ofMillis(10)).filter(
+            context,
+            FilterChain {
+                it.asCursorQuery().setResult(Mono.never())
+                Mono.empty()
+            },
+        ).writeRawRequest(request).test().verifyComplete()
+
+        context.getRequiredResult().test()
+            .expectError(TimeoutException::class.java)
+            .verify()
+    }
+
     @Suppress("DEPRECATION")
     @Test
     fun `legacy empty NOT_IN should canonicalize to match all before guard`() {
@@ -737,6 +781,15 @@ class HttpQueryGuardFilterTest {
             QueryType.PAGED,
             MOCK_AGGREGATE_METADATA,
         ).setQuery(query)
+
+    private fun cursorContext(query: ICursorQuery): QueryContext<ICursorQuery, Mono<CursorPage<ObjectNode>>> =
+        DefaultQueryContext<ICursorQuery, Mono<CursorPage<ObjectNode>>>(
+            QueryType.CURSOR,
+            MOCK_AGGREGATE_METADATA,
+        ).setQuery(query).setResult(Mono.just(CursorPage(emptyList(), null)))
+
+    private fun HttpQueryGuardFilter.validateForTest(query: ICursorQuery): Mono<Void> =
+        filter(cursorContext(query), EmptyFilterChain.instance()).writeRawRequest(request)
 
     private fun countContext(filter: FilterExpression): QueryContext<FilterExpression, Mono<Long>> =
         DefaultQueryContext<FilterExpression, Mono<Long>>(
