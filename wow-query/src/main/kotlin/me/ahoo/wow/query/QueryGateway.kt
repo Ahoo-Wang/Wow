@@ -46,10 +46,8 @@ interface QueryGateway<R : Any> : NamedAggregateDecorator {
     fun dynamicList(query: IListQuery): Flux<ObjectNode>
     fun paged(query: IPagedQuery): Mono<PagedList<R>>
     fun dynamicPaged(query: IPagedQuery): Mono<PagedList<ObjectNode>>
-    fun cursor(query: ICursorQuery): Mono<CursorPage<R>> =
-        Mono.error(UnsupportedOperationException("Cursor query is not supported."))
-    fun dynamicCursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> =
-        Mono.error(UnsupportedOperationException("Cursor query is not supported."))
+    fun cursor(query: ICursorQuery): Mono<CursorPage<R>>
+    fun dynamicCursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>>
     fun count(filter: FilterExpression): Mono<Long>
     fun aggregate(query: AggregationQuery): Flux<ObjectNode>
 }

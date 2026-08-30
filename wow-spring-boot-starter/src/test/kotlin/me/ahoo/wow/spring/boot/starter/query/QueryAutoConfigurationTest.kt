@@ -18,6 +18,7 @@ import me.ahoo.wow.api.abac.AbacTags
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedQuery
@@ -128,6 +129,8 @@ class QueryAutoConfigurationTest {
                     backend.list(ListQuery(MatchAllFilter, limit = 1))
                         .test().expectErrorSatisfies(::assertUnavailable).verify()
                     backend.paged(PagedQuery(MatchAllFilter))
+                        .test().expectErrorSatisfies(::assertUnavailable).verify()
+                    backend.cursor(CursorQuery(MatchAllFilter))
                         .test().expectErrorSatisfies(::assertUnavailable).verify()
                     backend.count(MatchAllFilter).test().expectErrorSatisfies(::assertUnavailable).verify()
                     backend.aggregate(AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))))

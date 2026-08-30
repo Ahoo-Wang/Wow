@@ -52,7 +52,6 @@ import reactor.kotlin.test.test
 import java.time.Duration
 
 class ElasticsearchEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
-    override val cursorQuerySupported: Boolean = true
 
     @JvmField
     @RegisterExtension

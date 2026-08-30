@@ -237,7 +237,7 @@ class QueryGatewaySubscriptionTest {
 
     private fun backend(
         cursor: () -> Mono<CursorPage<ObjectNode>> = {
-            Mono.error(UnsupportedOperationException("Cursor query is not supported."))
+            Mono.just(CursorPage(emptyList(), null))
         },
         single: () -> Mono<ObjectNode>,
     ) = object : SnapshotQueryBackend {

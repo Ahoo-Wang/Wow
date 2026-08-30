@@ -40,8 +40,7 @@ interface QueryBackend : NamedAggregateDecorator {
     fun single(query: ISingleQuery): Mono<ObjectNode>
     fun list(query: IListQuery): Flux<ObjectNode>
     fun paged(query: IPagedQuery): Mono<PagedList<ObjectNode>>
-    fun cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> =
-        Mono.error(UnsupportedOperationException("Cursor query is not supported."))
+    fun cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>>
     fun count(filter: FilterExpression): Mono<Long>
     fun aggregate(query: AggregationQuery): Flux<ObjectNode>
 }

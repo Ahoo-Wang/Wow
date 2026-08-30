@@ -35,6 +35,14 @@ class SnapshotCursorQueryApiTest {
     }
 
     @Test
+    fun `standard snapshot APIs should compose cursor capabilities`() {
+        ReactiveSnapshotCursorQueryApi::class.java
+            .isAssignableFrom(ReactiveSnapshotQueryApi::class.java).assert().isTrue()
+        SynchronousSnapshotCursorQueryApi::class.java
+            .isAssignableFrom(SynchronousSnapshotQueryApi::class.java).assert().isTrue()
+    }
+
+    @Test
     fun `reactive cursor API should expose typed cursor pages`() {
         val api = object : ReactiveSnapshotCursorQueryApi<State> {
             override fun cursor(query: ICursorQuery): Mono<CursorPage<MaterializedSnapshot<State>>> = Mono.empty()

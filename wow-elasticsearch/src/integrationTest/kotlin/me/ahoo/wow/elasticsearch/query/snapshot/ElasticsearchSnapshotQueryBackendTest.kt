@@ -78,7 +78,6 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
-    override val cursorQuerySupported: Boolean = true
 
     @JvmField
     @RegisterExtension

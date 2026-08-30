@@ -16,7 +16,9 @@ package me.ahoo.wow.spring.query
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
@@ -209,6 +211,9 @@ class QueryGatewayRegistrarTest {
         override fun list(query: IListQuery): Flux<ObjectNode> = Flux.empty()
 
         override fun paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> = Mono.just(PagedList.empty())
+
+        override fun cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> =
+            Mono.just(CursorPage(emptyList(), null))
 
         override fun count(filter: FilterExpression): Mono<Long> = Mono.just(0)
 

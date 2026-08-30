@@ -171,9 +171,14 @@ class DefaultSnapshotQueryGatewayTest {
     }
 
     @Test
-    fun `backend should reject cursor by default`() {
+    fun `backend should return an empty terminal cursor page`() {
         NoOpSnapshotQueryBackend(MOCK_AGGREGATE_METADATA).cursor(CursorQuery(MatchAllFilter))
-            .test().expectErrorMessage("Cursor query is not supported.").verify()
+            .test()
+            .assertNext { page ->
+                page.list.assert().isEmpty()
+                page.nextCursor.assert().isNull()
+            }
+            .verifyComplete()
     }
 
     @Test

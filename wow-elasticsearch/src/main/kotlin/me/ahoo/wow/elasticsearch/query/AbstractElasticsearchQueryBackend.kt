@@ -55,7 +55,7 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
     abstract val indexName: String
     protected open val queryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE
     protected open val queryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE
-    protected open val cursorUniqueField: String? = null
+    protected abstract val cursorUniqueField: String
     protected open fun resolve(query: ISingleQuery): Mono<ISingleQuery> = Mono.just(query)
 
     protected open fun resolve(query: IListQuery): Mono<IListQuery> = Mono.just(query)
@@ -121,7 +121,6 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
 
     override fun cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> {
         val uniqueField = cursorUniqueField
-            ?: return Mono.error(UnsupportedOperationException("Cursor query is not supported."))
         return resolve(query.withUniqueSort(uniqueField)).flatMap { resolved ->
             val compiled = compile(resolved.filter, resolved.sort)
             elasticsearchClient.search(cursorSearchRequest(resolved, compiled), ObjectNode::class.java)

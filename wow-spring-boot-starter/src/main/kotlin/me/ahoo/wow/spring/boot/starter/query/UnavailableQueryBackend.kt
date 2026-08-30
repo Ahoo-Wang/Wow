@@ -15,7 +15,9 @@ package me.ahoo.wow.spring.boot.starter.query
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
@@ -58,6 +60,7 @@ private abstract class UnavailableQueryBackend(
     override fun single(query: ISingleQuery): Mono<ObjectNode> = unavailableMono()
     override fun list(query: IListQuery): Flux<ObjectNode> = unavailableFlux()
     override fun paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> = unavailableMono()
+    override fun cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> = unavailableMono()
     override fun count(filter: FilterExpression): Mono<Long> = unavailableMono()
     override fun aggregate(query: AggregationQuery): Flux<ObjectNode> = unavailableFlux()
 
