@@ -216,7 +216,7 @@ export interface PressureCluster extends PressureClusterRow {
 
 export interface SnapshotSummary {
   actionableNow: number;
-  activeTotal: number;
+  newerThanRange: number;
   olderThanRange: number;
   timedOut: number;
   unrecoverable: number;
@@ -268,7 +268,7 @@ export function createSnapshotSummaryQueries(
   window: TrendWindow,
 ): Record<
   | "actionableNow"
-  | "activeTotal"
+  | "newerThanRange"
   | "olderThanRange"
   | "timedOut"
   | "unrecoverable",
@@ -284,8 +284,14 @@ export function createSnapshotSummaryQueries(
       ),
       metrics: [countMetric()],
     },
-    activeTotal: {
-      filter: activeFilter,
+    newerThanRange: {
+      filter: filter.and([
+        activeFilter,
+        filter.gte(
+          ExecutionFailedAggregatedFields.STATE_EXECUTE_AT,
+          window.end,
+        ),
+      ]),
       metrics: [countMetric()],
     },
     olderThanRange: {

@@ -41,7 +41,7 @@ beforeEach(() => {
     summary: {
       data: {
         actionableNow: 1,
-        activeTotal: 4,
+        newerThanRange: 4,
         olderThanRange: 0,
         timedOut: 2,
         unrecoverable: 3,

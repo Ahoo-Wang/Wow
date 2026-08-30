@@ -76,14 +76,28 @@ describe("analyticsQueries", () => {
     [queries.actionableNow, queries.timedOut, queries.unrecoverable].forEach(
       expectSnapshotWindow,
     );
-    expect(queries).toHaveProperty("activeTotal", {
+    expect(queries).toHaveProperty("newerThanRange", {
       filter: {
-        op: "IN",
-        field: "state.status",
-        values: [ExecutionFailedStatus.FAILED, ExecutionFailedStatus.PREPARED],
+        op: "AND",
+        operands: [
+          {
+            op: "IN",
+            field: "state.status",
+            values: [
+              ExecutionFailedStatus.FAILED,
+              ExecutionFailedStatus.PREPARED,
+            ],
+          },
+          {
+            op: "GTE",
+            field: "state.executeAt",
+            value: snapshotWindow.end,
+          },
+        ],
       },
       metrics: [{ type: "COUNT", alias: "count" }],
     });
+    expect(queries).not.toHaveProperty("activeTotal");
     expect(queries).toHaveProperty("olderThanRange", {
       filter: {
         op: "AND",

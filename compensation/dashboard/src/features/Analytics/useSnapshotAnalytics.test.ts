@@ -119,7 +119,7 @@ describe("useSnapshotAnalytics", () => {
       expect(result.current.summary).toMatchObject({
         data: {
           actionableNow: 3,
-          activeTotal: 3,
+          newerThanRange: 3,
           olderThanRange: 3,
           timedOut: 3,
           unrecoverable: 3,
@@ -202,9 +202,13 @@ describe("useSnapshotAnalytics", () => {
     expect(controllers.slice(0, 8).every(({ signal }) => signal.aborted)).toBe(
       true,
     );
-    const fullyWindowedQueries = queries.filter((query) =>
-      JSON.stringify(query.filter).includes('"op":"GTE"'),
-    );
+    const fullyWindowedQueries = queries.filter((query) => {
+      const serializedFilter = JSON.stringify(query.filter);
+      return (
+        serializedFilter.includes('"op":"GTE"') &&
+        serializedFilter.includes('"op":"LT"')
+      );
+    });
     expect(fullyWindowedQueries).toHaveLength(12);
     expect(
       queries.filter(
@@ -212,12 +216,12 @@ describe("useSnapshotAnalytics", () => {
           JSON.stringify(query.filter).includes('"state.executeAt"') &&
           !fullyWindowedQueries.includes(query),
       ),
-    ).toHaveLength(2);
+    ).toHaveLength(4);
     expect(
       queries.filter(
         (query) => !JSON.stringify(query.filter).includes('"state.executeAt"'),
       ),
-    ).toHaveLength(2);
+    ).toHaveLength(0);
     expect(JSON.stringify(fullyWindowedQueries.slice(0, 6))).toContain(
       String(initialWindow.start),
     );
@@ -277,7 +281,7 @@ describe("useSnapshotAnalytics", () => {
       expect(result.current.summary).toMatchObject({
         data: {
           actionableNow: 2,
-          activeTotal: 2,
+          newerThanRange: 2,
           olderThanRange: 2,
           timedOut: 2,
           unrecoverable: 2,
@@ -332,7 +336,7 @@ describe("useSnapshotAnalytics", () => {
     expect(result.current.retries.data).toBe(retries);
     expect(result.current.summary.data).toEqual({
       actionableNow: 2,
-      activeTotal: 2,
+      newerThanRange: 2,
       olderThanRange: 2,
       timedOut: 2,
       unrecoverable: 2,
