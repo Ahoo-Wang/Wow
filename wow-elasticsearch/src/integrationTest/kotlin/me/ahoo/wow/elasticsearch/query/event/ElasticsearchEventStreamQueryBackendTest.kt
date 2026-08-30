@@ -17,11 +17,10 @@ import co.elastic.clients.elasticsearch._types.Refresh
 import co.elastic.clients.elasticsearch._types.ScriptLanguage
 import co.elastic.clients.elasticsearch.core.UpdateRequest
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.LogicalField
-import me.ahoo.wow.api.query.toFilterExpression
+import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
@@ -34,7 +33,7 @@ import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
-import me.ahoo.wow.query.dsl.condition
+import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
@@ -169,7 +168,7 @@ class ElasticsearchEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
         val eventStream = generateEventStream(namedAggregate.aggregateId(generateGlobalId()))
         eventStore.append(eventStream).block()
 
-        condition { id(eventStream.id) }
+        filterExpression { id(eventStream.id) }
             .count(eventStreamQueryBackend)
             .test()
             .expectNext(1L)
@@ -186,7 +185,7 @@ class ElasticsearchEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
         Flux.concat(eventStreams.map { eventStore.append(it) })
             .thenMany(
                 listQuery {
-                    condition { tenantId(tenantId) }
+                    filter { tenantId(tenantId) }
                 }.query(eventStreamQueryBackend)
             )
             .test()
@@ -201,7 +200,7 @@ class ElasticsearchEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
         )
         eventStore.append(eventStream).block()
 
-        condition {
+        filterExpression {
             tenantId(eventStream.aggregateId.tenantId)
             "missingField".isNull()
         }
@@ -209,9 +208,9 @@ class ElasticsearchEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
             .test()
             .expectNext(1L)
             .verifyComplete()
-        condition {
+        filterExpression {
             tenantId(eventStream.aggregateId.tenantId)
-            "missingField".notNull()
+            "missingField".isNotNull()
         }
             .count(eventStreamQueryBackend)
             .test()
@@ -232,9 +231,15 @@ class ElasticsearchEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
             .block()
 
         Flux.concat(
-            condition { "tenantId".contains("*?literal", ignoreCase = true) }.count(eventStreamQueryBackend),
-            condition { "tenantId".startsWith("tenant*?", ignoreCase = true) }.count(eventStreamQueryBackend),
-            condition { "tenantId".endsWith("""\tail""", ignoreCase = true) }.count(eventStreamQueryBackend),
+            filterExpression {
+                "tenantId".containsText("*?literal", StringComparison.CASE_INSENSITIVE)
+            }.count(eventStreamQueryBackend),
+            filterExpression {
+                "tenantId".startsWithText("tenant*?", StringComparison.CASE_INSENSITIVE)
+            }.count(eventStreamQueryBackend),
+            filterExpression {
+                "tenantId".endsWithText("""\tail""", StringComparison.CASE_INSENSITIVE)
+            }.count(eventStreamQueryBackend),
         ).test()
             .expectNext(1L, 1L, 1L)
             .verifyComplete()
@@ -242,8 +247,5 @@ class ElasticsearchEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
 }
 
 private fun FilterExpression.count(backend: EventStreamQueryBackend) = backend.count(this)
-
-@Suppress("DEPRECATION")
-private fun Condition.count(backend: EventStreamQueryBackend) = backend.count(toFilterExpression())
 
 private fun IListQuery.query(backend: EventStreamQueryBackend) = backend.list(this)

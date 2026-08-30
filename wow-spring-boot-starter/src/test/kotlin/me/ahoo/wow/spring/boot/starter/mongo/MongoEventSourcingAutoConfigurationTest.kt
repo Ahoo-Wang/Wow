@@ -199,7 +199,7 @@ class MongoEventSourcingAutoConfigurationTest {
                 context.assert()
                     .hasSingleBean(MongoEventStore::class.java)
                     .hasBean("mongoSnapshotStore")
-                    .hasBean("mongoSnapshotRepository")
+                    .doesNotHaveBean("mongoSnapshotRepository")
                     .hasSingleBean(MongoSnapshotStore::class.java)
                     .hasSingleBean(EventStoreBinding::class.java)
                     .hasSingleBean(SnapshotStoreBinding::class.java)

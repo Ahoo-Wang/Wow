@@ -26,7 +26,7 @@ class MockSnapshotAutoConfigurationTest {
             .run { context: AssertableApplicationContext ->
                 context.assert()
                     .hasBean("delaySnapshotStore")
-                    .hasBean("delaySnapshotRepository")
+                    .doesNotHaveBean("delaySnapshotRepository")
                     .hasSingleBean(DelaySnapshotStore::class.java)
                     .hasSingleBean(SnapshotStoreBinding::class.java)
                 val snapshotStore = context.getBean(DelaySnapshotStore::class.java)

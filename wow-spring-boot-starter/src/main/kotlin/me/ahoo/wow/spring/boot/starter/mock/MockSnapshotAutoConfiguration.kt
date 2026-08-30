@@ -31,7 +31,7 @@ import org.springframework.context.annotation.Bean
 @ConditionalOnClass(DelaySnapshotStore::class)
 class MockSnapshotAutoConfiguration {
 
-    @Bean(name = ["delaySnapshotStore", "delaySnapshotRepository"])
+    @Bean
     @ConditionalOnSnapshotStoreStorage(StorageType.DELAY)
     fun delaySnapshotStore(): DelaySnapshotStore {
         return DelaySnapshotStore()

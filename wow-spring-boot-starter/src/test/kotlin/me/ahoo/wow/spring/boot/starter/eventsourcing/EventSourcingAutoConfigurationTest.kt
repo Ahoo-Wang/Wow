@@ -38,7 +38,7 @@ internal class EventSourcingAutoConfigurationTest {
             .run { context: AssertableApplicationContext ->
                 context.assert()
                     .hasBean("noOpSnapshotStore")
-                    .hasBean("noOpSnapshotRepository")
+                    .doesNotHaveBean("noOpSnapshotRepository")
                     .hasSingleBean(NoOpSnapshotStore::class.java)
             }
     }

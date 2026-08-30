@@ -39,7 +39,6 @@ import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
 import me.ahoo.wow.query.dsl.aggregation
-import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.pagedQuery
@@ -91,20 +90,15 @@ abstract class SnapshotQueryBackendSpec {
             .verifyComplete()
     }
 
-    protected open fun createSnapshotStore(): SnapshotStore = createSnapshotRepository()
-
-    @Deprecated("Use createSnapshotStore().", ReplaceWith("createSnapshotStore()"))
-    protected open fun createSnapshotRepository(): SnapshotStore {
-        throw UnsupportedOperationException("Override createSnapshotStore().")
-    }
+    protected abstract fun createSnapshotStore(): SnapshotStore
     protected abstract fun createSnapshotQueryBackendFactory(): SnapshotQueryBackendFactory
     protected abstract fun prepareNullAndMissingCursorSnapshots(nullId: String, missingId: String)
 
     @Test
     fun createFromCache() {
-        val queryService1 = snapshotQueryBackendFactory.create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
-        val queryService2 = snapshotQueryBackendFactory.create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
-        queryService1.assert().isSameAs(queryService2)
+        val backend1 = snapshotQueryBackendFactory.create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+        val backend2 = snapshotQueryBackendFactory.create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
+        backend1.assert().isSameAs(backend2)
     }
 
     @Test
@@ -115,7 +109,7 @@ abstract class SnapshotQueryBackendSpec {
     @Test
     fun `single should expose canonical snapshot json`() {
         singleQuery {
-            condition {
+            filter {
                 id(snapshot.aggregateId.id)
             }
         }.query(snapshotQueryBackend)
@@ -130,7 +124,7 @@ abstract class SnapshotQueryBackendSpec {
     @Test
     fun dynamicSingle() {
         singleQuery {
-            condition {
+            filter {
                 id(snapshot.aggregateId.id)
             }
             projection {
@@ -148,7 +142,7 @@ abstract class SnapshotQueryBackendSpec {
     @Test
     fun list() {
         listQuery {
-            condition {
+            filter {
                 id(snapshot.aggregateId.id)
             }
             limit(10)
@@ -161,7 +155,7 @@ abstract class SnapshotQueryBackendSpec {
     @Test
     fun dynamicList() {
         listQuery {
-            condition {
+            filter {
                 id(snapshot.aggregateId.id)
             }
             projection {
@@ -177,7 +171,7 @@ abstract class SnapshotQueryBackendSpec {
     @Test
     fun paged() {
         pagedQuery {
-            condition {
+            filter {
                 id(snapshot.aggregateId.id)
             }
         }.query(snapshotQueryBackend)
@@ -189,7 +183,7 @@ abstract class SnapshotQueryBackendSpec {
     @Test
     fun dynamicPaged() {
         pagedQuery {
-            condition {
+            filter {
                 id(snapshot.aggregateId.id)
             }
         }.dynamicQuery(snapshotQueryBackend)

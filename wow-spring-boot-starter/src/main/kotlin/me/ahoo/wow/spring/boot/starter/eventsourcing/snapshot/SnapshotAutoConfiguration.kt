@@ -51,7 +51,7 @@ import org.springframework.core.annotation.Order
 class SnapshotAutoConfiguration(
     private val snapshotProperties: SnapshotProperties,
 ) {
-    @Bean(name = ["inMemorySnapshotStore", "inMemorySnapshotRepository"])
+    @Bean
     @ConditionalOnSnapshotStoreStorage(StorageType.IN_MEMORY)
     fun inMemorySnapshotStore(): InMemorySnapshotStore {
         return InMemorySnapshotStore()

@@ -317,7 +317,7 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
                     .hasSingleBean(ElasticsearchEventStreamQueryBackendFactory::class.java)
                     .hasSingleBean(IndexTemplateInitializer::class.java)
                     .hasBean("elasticsearchSnapshotStore")
-                    .hasBean("elasticsearchSnapshotRepository")
+                    .doesNotHaveBean("elasticsearchSnapshotRepository")
                     .hasSingleBean(ElasticsearchSnapshotStore::class.java)
                     .hasSingleBean(EventStoreBinding::class.java)
                     .hasSingleBean(SnapshotStoreBinding::class.java)

@@ -78,7 +78,7 @@ internal class SnapshotAutoConfigurationTest {
             .run { context: AssertableApplicationContext ->
                 context.assert()
                     .hasBean("inMemorySnapshotStore")
-                    .hasBean("inMemorySnapshotRepository")
+                    .doesNotHaveBean("inMemorySnapshotRepository")
                     .hasSingleBean(InMemorySnapshotStore::class.java)
                     .hasSingleBean(SimpleSnapshotStrategy::class.java)
                     .hasSingleBean(SnapshotFunctionFilter::class.java)
@@ -139,7 +139,7 @@ internal class SnapshotAutoConfigurationTest {
             .run { context: AssertableApplicationContext ->
                 context.assert()
                     .hasBean("inMemorySnapshotStore")
-                    .hasBean("inMemorySnapshotRepository")
+                    .doesNotHaveBean("inMemorySnapshotRepository")
                     .hasSingleBean(InMemorySnapshotStore::class.java)
                     .hasSingleBean(VersionOffsetSnapshotStrategy::class.java)
                     .hasSingleBean(SnapshotFunctionFilter::class.java)

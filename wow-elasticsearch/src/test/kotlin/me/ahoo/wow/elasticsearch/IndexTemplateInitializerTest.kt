@@ -102,12 +102,6 @@ class IndexTemplateInitializerTest {
         }
     }
 
-    @Test
-    @Suppress("DEPRECATION")
-    fun `legacy init subscriber should retain its name`() {
-        IndexTemplateInitializer.InitSubscriber("legacy").name.assert().isEqualTo("legacy")
-    }
-
     private fun readMappings(templateName: String): JsonNode =
         ClassPathResource("templates/$templateName.json").inputStream.use {
             JsonSerializer.readValue(it, JsonNode::class.java)["template"]["mappings"]

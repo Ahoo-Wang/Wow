@@ -63,7 +63,7 @@ open class CommandIngressE2EDiagnosticBenchmark {
         scenario = CommandDispatcherScenario.create(
             commandBus = createCommandBus(),
             eventStore = NoopEventStore,
-            snapshotRepository = InMemorySnapshotStore(),
+            snapshotStore = InMemorySnapshotStore(),
             domainEventBus = InMemoryDomainEventBus(),
             stateEventBus = InMemoryStateEventBus(),
             schedulerSupplier = BenchmarkAggregateSchedulerSupplier(resolveSchedulerPoolSize()),

@@ -31,7 +31,6 @@ import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.query.dsl.aggregation
-import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.pagedQuery
@@ -69,9 +68,9 @@ abstract class EventStreamQueryBackendSpec {
 
     @Test
     fun createFromCache() {
-        val queryService1 = eventStreamQueryBackendFactory.create(namedAggregate)
-        val queryService2 = eventStreamQueryBackendFactory.create(namedAggregate)
-        queryService1.assert().isSameAs(queryService2)
+        val backend1 = eventStreamQueryBackendFactory.create(namedAggregate)
+        val backend2 = eventStreamQueryBackendFactory.create(namedAggregate)
+        backend1.assert().isSameAs(backend2)
     }
 
     @Test
@@ -79,7 +78,7 @@ abstract class EventStreamQueryBackendSpec {
         val eventStream = generateEventStream(namedAggregate.aggregateId(tenantId = generateGlobalId()))
         eventStore.append(eventStream).block()
         singleQuery {
-            condition {
+            filter {
                 tenantId(eventStream.aggregateId.tenantId)
             }
         }.query(eventStreamQueryBackend)
@@ -96,7 +95,7 @@ abstract class EventStreamQueryBackendSpec {
         val eventStream = generateEventStream(namedAggregate.aggregateId(tenantId = generateGlobalId()))
         eventStore.append(eventStream).block()
         singleQuery {
-            condition {
+            filter {
                 tenantId(eventStream.aggregateId.tenantId)
             }
         }.dynamicQuery(eventStreamQueryBackend)
@@ -110,7 +109,7 @@ abstract class EventStreamQueryBackendSpec {
         val eventStream = generateEventStream(namedAggregate.aggregateId(tenantId = generateGlobalId()))
         eventStore.append(eventStream).block()
         listQuery {
-            condition {
+            filter {
                 tenantId(eventStream.aggregateId.tenantId)
             }
         }.query(eventStreamQueryBackend)
@@ -124,7 +123,7 @@ abstract class EventStreamQueryBackendSpec {
         val eventStream = generateEventStream(namedAggregate.aggregateId(tenantId = generateGlobalId()))
         eventStore.append(eventStream).block()
         listQuery {
-            condition {
+            filter {
                 tenantId(eventStream.aggregateId.tenantId)
             }
         }.dynamicQuery(eventStreamQueryBackend)
@@ -138,7 +137,7 @@ abstract class EventStreamQueryBackendSpec {
         val eventStream = generateEventStream(namedAggregate.aggregateId(tenantId = generateGlobalId()))
         eventStore.append(eventStream).block()
         pagedQuery {
-            condition {
+            filter {
                 tenantId(eventStream.aggregateId.tenantId)
             }
         }.query(eventStreamQueryBackend)
@@ -152,7 +151,7 @@ abstract class EventStreamQueryBackendSpec {
         val eventStream = generateEventStream(namedAggregate.aggregateId(tenantId = generateGlobalId()))
         eventStore.append(eventStream).block()
         pagedQuery {
-            condition {
+            filter {
                 tenantId(eventStream.aggregateId.tenantId)
             }
         }.dynamicQuery(eventStreamQueryBackend)

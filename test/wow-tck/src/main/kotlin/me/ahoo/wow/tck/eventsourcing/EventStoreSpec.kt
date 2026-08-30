@@ -540,11 +540,5 @@ abstract class EventStoreSpec {
     companion object {
         const val DEFAULT_CONCURRENCY_TEST_ITERATIONS = 1000
         const val DEFAULT_CONCURRENCY_TEST_MAX_CONCURRENCY = 2
-
-        @Deprecated("Use DEFAULT_CONCURRENCY_TEST_ITERATIONS.")
-        const val TIMES = DEFAULT_CONCURRENCY_TEST_ITERATIONS
-
-        @Deprecated("Use DEFAULT_CONCURRENCY_TEST_MAX_CONCURRENCY.")
-        const val DEFAULT_PARALLELISM = DEFAULT_CONCURRENCY_TEST_MAX_CONCURRENCY
     }
 }

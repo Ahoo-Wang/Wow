@@ -25,7 +25,7 @@ import org.springframework.context.annotation.Bean
 @ConditionalOnWowEnabled
 class EventSourcingAutoConfiguration {
 
-    @Bean(name = ["noOpSnapshotStore", "noOpSnapshotRepository"])
+    @Bean
     @ConditionalOnProperty(
         value = [ConditionalOnSnapshotEnabled.ENABLED_KEY],
         havingValue = "false",

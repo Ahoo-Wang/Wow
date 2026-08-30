@@ -238,7 +238,7 @@ class StorageRoutingAutoConfigurationTest {
     }
 
     @Test
-    fun `event route should create primary routing event stream query service factory`() {
+    fun `event route should create primary routing event stream query backend factory`() {
         routingContextRunner
             .withPropertyValues("${StorageRoutingProperties.AGGREGATES}.order.event.storage=${StorageType.REDIS_NAME}")
             .run { context: AssertableApplicationContext ->
@@ -298,7 +298,7 @@ class StorageRoutingAutoConfigurationTest {
     }
 
     @Test
-    fun `snapshot route should create primary routing snapshot query service factory`() {
+    fun `snapshot route should create primary routing snapshot query backend factory`() {
         routingContextRunner
             .withPropertyValues(
                 "${StorageRoutingProperties.AGGREGATES}.cart.snapshot.storage=${StorageType.REDIS_NAME}"
@@ -345,7 +345,7 @@ class StorageRoutingAutoConfigurationTest {
             .run { context: AssertableApplicationContext ->
                 val failure = context.startupFailure
                 failure.assert().isInstanceOf(BeanCreationException::class.java)
-                failure!!.message.assert().contains("query service factory")
+                failure!!.message.assert().contains("query backend factory")
                 failure.message.assert().contains("store-only-event-store")
             }
     }

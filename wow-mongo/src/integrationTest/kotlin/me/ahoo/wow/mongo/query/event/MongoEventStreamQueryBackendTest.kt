@@ -124,12 +124,12 @@ class MongoEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
     }
 
     @Test
-    fun `should query event stream by id in logical condition`() {
+    fun `should query event stream by id in logical filter`() {
         val eventStream = generateEventStream(namedAggregate.aggregateId(tenantId = generateGlobalId()))
         eventStore.append(eventStream).block()
 
         singleQuery {
-            condition {
+            filter {
                 MessageRecords.ID eq eventStream.id
                 tenantId(eventStream.aggregateId.tenantId)
             }
