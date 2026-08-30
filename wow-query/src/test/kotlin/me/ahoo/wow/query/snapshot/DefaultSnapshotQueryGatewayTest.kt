@@ -25,7 +25,10 @@ import me.ahoo.wow.api.query.LogicalField
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.mask.CompiledMask
 import me.ahoo.wow.api.query.mask.FullMaskStrategy
+import me.ahoo.wow.api.query.mask.KeepMask
+import me.ahoo.wow.api.query.mask.KeepMaskStrategy
 import me.ahoo.wow.api.query.mask.Mask
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
@@ -56,6 +59,7 @@ import reactor.test.StepVerifier
 import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.reflect.jvm.javaField
 
 class DefaultSnapshotQueryGatewayTest {
@@ -111,17 +115,72 @@ class DefaultSnapshotQueryGatewayTest {
         gateway.list(listQuery { }).single().block()!!.state.value.assert().isEqualTo("***********")
         gateway.dynamicPaged(pagedQuery { }).block()!!.list.single().stateValue().assert().isEqualTo("***********")
         gateway.paged(pagedQuery { }).block()!!.list.single().state.value.assert().isEqualTo("***********")
-        backend.schemaCalls.get().assert().isOne()
+        backend.schemaCalls.get().assert().isEqualTo(6)
     }
 
     @Test
-    fun `gateway should cache an unmasked schema and leave raw results unchanged`() {
+    fun `gateway should load an unmasked schema for each result query and leave raw results unchanged`() {
         val backend = SchemaSnapshotBackend(Mono.just(unmaskedSchema()))
         val gateway = gateway(backend)
 
         gateway.dynamicSingle(singleQuery { }).block()!!.stateValue().assert().isEqualTo("state-value")
         gateway.dynamicSingle(singleQuery { }).block()!!.stateValue().assert().isEqualTo("state-value")
-        backend.schemaCalls.get().assert().isOne()
+        backend.schemaCalls.get().assert().isEqualTo(2)
+    }
+
+    @Test
+    fun `gateway should refresh masker when schema becomes masked`() {
+        val current = AtomicReference(unmaskedSchema())
+        val backend = SchemaSnapshotBackend(schemaPublisher = { Mono.just(current.get()) })
+        val gateway = gateway(backend)
+
+        gateway.dynamicSingle(singleQuery { }).block()!!.stateValue().assert().isEqualTo("state-value")
+        current.set(maskedSchema())
+        gateway.dynamicSingle(singleQuery { }).block()!!.stateValue().assert().isEqualTo("***********")
+        backend.schemaCalls.get().assert().isEqualTo(2)
+    }
+
+    @Test
+    fun `gateway should refresh masker when mask rule changes`() {
+        val current = AtomicReference(maskedSchema())
+        val backend = SchemaSnapshotBackend(schemaPublisher = { Mono.just(current.get()) })
+        val gateway = gateway(backend)
+
+        gateway.dynamicSingle(singleQuery { }).block()!!.stateValue().assert().isEqualTo("***********")
+        val annotation = Kept::value.javaField!!.getAnnotation(KeepMask::class.java)
+        val rule = MaskRule(KeepMaskStrategy::class, annotation, KeepMaskStrategy.compile(annotation))
+        current.set(
+            QueryModelSchema(
+                QueryModel.SNAPSHOT,
+                emptySet(),
+                mapOf(LogicalField("state.value") to fieldSchema(rule)),
+            ),
+        )
+        gateway.dynamicSingle(singleQuery { }).block()!!.stateValue().assert().isEqualTo("st*******ue")
+    }
+
+    @Test
+    fun `mask execution errors should fail the publisher and be observed by error handler`() {
+        val failure = IllegalStateException("mask failed")
+        val observed = CopyOnWriteArrayList<Throwable>()
+        val annotation = Masked::value.javaField!!.getAnnotation(Mask::class.java)
+        val schema = QueryModelSchema(
+            QueryModel.SNAPSHOT,
+            emptySet(),
+            mapOf(
+                LogicalField("state.value") to fieldSchema(
+                    MaskRule(FullMaskStrategy::class, annotation, CompiledMask { throw failure }),
+                ),
+            ),
+        )
+
+        StepVerifier.create(
+            gateway(
+                SchemaSnapshotBackend(Mono.just(schema)),
+                errorHandler = ErrorHandler { _, error -> observed += error; Mono.empty() },
+            ).dynamicSingle(singleQuery { }),
+        ).expectErrorMatches { it === failure }.verify()
+        observed.assert().containsExactly(failure)
     }
 
     @Test
@@ -426,4 +485,5 @@ class DefaultSnapshotQueryGatewayTest {
     }
 
     private data class Masked(@field:Mask val value: String)
+    private data class Kept(@field:KeepMask(prefix = 2, suffix = 2) val value: String)
 }

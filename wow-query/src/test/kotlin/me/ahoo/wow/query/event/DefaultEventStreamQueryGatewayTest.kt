@@ -50,6 +50,7 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.reflect.jvm.javaField
 
 class DefaultEventStreamQueryGatewayTest {
@@ -91,6 +92,38 @@ class DefaultEventStreamQueryGatewayTest {
         (typed.body.single().body as MockAggregateCreated).data.assert().isEqualTo("******")
     }
 
+    @Test
+    fun `event gateway should refresh masker when body type schema changes`() {
+        val eventStream = generateEventStream(
+            MOCK_AGGREGATE_METADATA.aggregateId(generateGlobalId()),
+            eventCount = 1,
+            createdEventSupplier = { MockAggregateCreated("secret") },
+        )
+        val currentNode = AtomicReference(eventStream.toJsonNode<ObjectNode>())
+        val oldType = currentNode.get().path("body").path(0).path("bodyType").stringValue()
+        val currentSchema = AtomicReference(eventSchema(oldType))
+        val backend = SchemaEventBackend(
+            nodeSupplier = { currentNode.get().deepCopy() },
+            modelSchema = { currentSchema.get() },
+        )
+        val gateway = DefaultEventStreamQueryGateway(
+            MOCK_AGGREGATE_METADATA,
+            backend,
+            errorHandler = ErrorHandler { _, error -> Mono.error(error) },
+        )
+
+        gateway.dynamicSingle(singleQuery { }).block()!!
+        val newType = "$oldType-refreshed"
+        currentNode.set(currentNode.get().deepCopy().also { node ->
+            (node.path("body").path(0) as ObjectNode).put("bodyType", newType)
+        })
+        currentSchema.set(eventSchema(newType))
+
+        gateway.dynamicSingle(singleQuery { }).block()!!
+            .path("body").path(0).path("body").path("data").stringValue()
+            .assert().isEqualTo("******")
+    }
+
     private fun generic(calls: MutableList<String>) = object : QueryFilter<QueryContext<*, *>> {
         override fun filter(context: QueryContext<*, *>, next: FilterChain<QueryContext<*, *>>): Mono<Void> {
             calls += "generic"
@@ -123,10 +156,12 @@ class DefaultEventStreamQueryGatewayTest {
 
     private class SchemaEventBackend(
         private val nodeSupplier: () -> ObjectNode,
-        private val modelSchema: QueryModelSchema,
+        private val modelSchema: () -> QueryModelSchema,
     ) : EventStreamQueryBackend, QueryModelSchemaProvider {
+        constructor(nodeSupplier: () -> ObjectNode, modelSchema: QueryModelSchema) : this(nodeSupplier, { modelSchema })
+
         override val namedAggregate: NamedAggregate = MOCK_AGGREGATE_METADATA
-        override fun schema(): Mono<QueryModelSchema> = Mono.just(modelSchema)
+        override fun schema(): Mono<QueryModelSchema> = Mono.fromSupplier(modelSchema)
         override fun refresh(): Mono<QueryModelSchema> = schema()
         override fun single(query: ISingleQuery): Mono<ObjectNode> = Mono.fromSupplier(nodeSupplier)
         override fun list(query: IListQuery): Flux<ObjectNode> = Flux.empty()
