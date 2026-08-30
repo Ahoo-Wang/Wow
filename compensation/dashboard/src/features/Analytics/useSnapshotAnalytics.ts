@@ -137,25 +137,38 @@ async function loadSummary(
   abortController: AbortController,
 ): Promise<SnapshotSummary> {
   const queries = createSnapshotSummaryQueries(now, window);
-  const [actionableNow, timedOut, unrecoverable] = await Promise.all([
-    aggregateExecutionFailedSnapshots<CountRow>(
-      queries.actionableNow,
-      undefined,
-      abortController,
-    ),
-    aggregateExecutionFailedSnapshots<CountRow>(
-      queries.timedOut,
-      undefined,
-      abortController,
-    ),
-    aggregateExecutionFailedSnapshots<CountRow>(
-      queries.unrecoverable,
-      undefined,
-      abortController,
-    ),
-  ]);
+  const [actionableNow, timedOut, unrecoverable, activeTotal, olderThanRange] =
+    await Promise.all([
+      aggregateExecutionFailedSnapshots<CountRow>(
+        queries.actionableNow,
+        undefined,
+        abortController,
+      ),
+      aggregateExecutionFailedSnapshots<CountRow>(
+        queries.timedOut,
+        undefined,
+        abortController,
+      ),
+      aggregateExecutionFailedSnapshots<CountRow>(
+        queries.unrecoverable,
+        undefined,
+        abortController,
+      ),
+      aggregateExecutionFailedSnapshots<CountRow>(
+        queries.activeTotal,
+        undefined,
+        abortController,
+      ),
+      aggregateExecutionFailedSnapshots<CountRow>(
+        queries.olderThanRange,
+        undefined,
+        abortController,
+      ),
+    ]);
   return {
     actionableNow: actionableNow[0]?.count ?? 0,
+    activeTotal: activeTotal[0]?.count ?? 0,
+    olderThanRange: olderThanRange[0]?.count ?? 0,
     timedOut: timedOut[0]?.count ?? 0,
     unrecoverable: unrecoverable[0]?.count ?? 0,
   };

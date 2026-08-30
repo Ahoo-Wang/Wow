@@ -1,35 +1,51 @@
 # Dashboard 设计 QA
 
-## 范围
+## 对比目标
 
-- 默认路由 `/` 的运维仪表盘。
-- 全局 Date Picker、刷新、加载骨架、区域错误和空状态。
-- 桌面 Sidebar 的展开/折叠，以及移动端 Sheet 导航。
-- Compensation outcomes、Current health 与 Top 5 failure pressure。
+- 视觉基准：`/Users/ahoo/.codex/generated_images/01a048e1-d5df-7803-b318-53e3690e7e55/exec-2ba13041-37a3-40cd-8051-871aa05288be.png`
+- 浏览器实现截图：`/tmp/wow-dashboard-implementation-desktop-final-2.png`
+- 移动端实现截图：`/tmp/wow-dashboard-implementation-mobile-final-3.png`
+- 全景对比：`/tmp/wow-dashboard-source-vs-final-2.png`（左侧基准，右侧实现）
+- 视口：1440 × 1024 CSS px、设备密度 1；响应式检查为 390 × 844 CSS px。
+- 归一化：基准图由 1487 × 1058 px 缩放至 1440 × 1024 px；实现以 1440 × 1024 px 捕获。
+- 状态：根路由 `/`、浅色主题、生产环境只读数据、时间范围 2026-08-24 至 2026-08-30。
 
-## 视觉与交互结论
+## 结论
 
-- 页面由四个 shadcn Card 组成，保持状态、结果/健康、失败压力的阅读顺序。
-- 桌面 Sidebar 宽度为 176px，折叠宽度为 56px；菜单图标为 20px，折叠态居中，菜单项间隔为 4px。
-- 版本与提交信息保留在桌面顶部栏；移动端使用完整 Sheet 导航，选择路由或品牌入口后自动关闭。
-- Date Picker 使用 Popover、Calendar 与 ToggleGroup；快捷范围和手动范围共享同一全局窗口。
-- 1440×1024 与 1280×720 桌面视口无页面级横向溢出，Top 5 行全部可见。
-- 900px 内容宽度下，压力表通过容器查询转换为卡片；390×844 移动端无横向滚动或区域重叠。
-- Refresh 保持按钮文字和尺寸稳定，仅更新图标状态；刷新失败时保留最后成功数据。
-- 图表同时提供可访问文本或隐藏数据表，不依赖颜色独立表达状态。
+- 没有遗留的 P0、P1 或 P2 问题。
+- 字体：Geist 字体、字重层级、14 px 运维标签、等宽数字与换行符合高密度控制面语境。
+- 布局：Stock、Flow、活动、健康与压力保持基准层级；当前生产数据下四张卡片在 1440 × 1024 内完整显示。
+- 色彩：主色、错误红、灰阶、警告橙与成功绿均复用现有 shadcn 主题变量。
+- 资产：保留 Wow Logo 与 Lucide 图标，没有新增占位或近似资源。
+- 文案：区分存量与流量；健康状态明确为选定执行范围内的当前快照；集中度不虚构风险阈值。
+- 响应式：390 px 下按阅读顺序堆叠，无横向溢出、图例重叠或压力卡片裁切。
 
-## 数据边界
+## 局部证据
 
-- 仅使用现有 Snapshot 与 EventStream 聚合查询 API。
-- 不推断 Success rate、环比或严重度等缺少现有数据支持的指标。
-- Recoverability 与 Retry distribution 总数由可见桶计算。
+归一化后的 2880 × 1024 全景对比在原始分辨率下可以辨认字体和表格细节；移动端全页截图单独覆盖健康图例与压力卡片，因此无需额外裁切图。
+
+## 交互证据
+
+- 日期弹层与日历宽度均为 344 px，位于视口内；Today、Last 7 days、Last 30 days、Apply、Cancel 均可用。
+- 刷新期间按钮保持 `Refresh`，保留已完成卡片，通过 `aria-busy=true` 与图标旋转表达状态，不再渲染 `Refreshing…`。
+- 导航折叠宽度为 56 px；Dashboard 图标与导航中心误差不超过 0.5 px；图标为 20 px，菜单间隔为 4 px。
+- 浏览器控制台无 error 级别日志。
+
+## 对比历史
+
+1. 初始：加载状态无法对比；等待生产数据稳定后重新捕获。
+2. P2：1440 × 1024 下区域比例导致溢出；压缩活动区、健康区与卡片间距。
+3. P2：重试分布总数被裁切；移动到标题可用空间。
+4. P2：390 px 下 Recoverability 图例重叠；移动断点改为纵向排列。
+5. 语义：健康标题错误暗示 as-of 状态、集中度无阈值却标为 Critical、Recoverability 错误会重复播报；改为准确中性文案并统一错误归属。
+6. 最终：桌面当前生产数据无横向或纵向溢出；移动端无横向溢出或图例重叠。
 
 ## 验证
 
-- `pnpm test`：41 个测试文件、204 个测试通过。
+- `pnpm test`：41 个测试文件、207 项测试通过。
 - `pnpm lint`：通过。
 - `pnpm build`：通过。
-- `pnpm exec playwright test`：23 个测试通过，5 个按项目或状态有意跳过。
-- 浏览器检查覆盖桌面展开/折叠、移动导航、Date Picker、加载、错误、空状态和窄内容区重排。
+- Playwright：23 项通过，5 项按项目条件跳过。
+- 独立代码复审：无 Critical 或 Important 问题。
 
 final result: passed

@@ -22,4 +22,9 @@ it("matches the four-card dashboard hierarchy", () => {
     screen.getByRole("status", { name: "Loading dashboard" }),
   ).toBeInTheDocument();
   expect(container.querySelectorAll("[data-slot='card']")).toHaveLength(4);
+  expect(container.querySelector(".dashboard-toolbar")).not.toBeNull();
+  expect(container.querySelector(".dashboard-overview")).not.toBeNull();
+  expect(container.querySelector(".dashboard-activity")).not.toBeNull();
+  expect(container.querySelector(".dashboard-health")).not.toBeNull();
+  expect(container.querySelector(".dashboard-pressure")).not.toBeNull();
 });

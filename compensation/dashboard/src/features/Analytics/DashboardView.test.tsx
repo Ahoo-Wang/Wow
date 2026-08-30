@@ -1,8 +1,5 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import {
-  AggregationDateUnit,
-  RecoverableType,
-} from "@ahoo-wang/fetcher-wow";
+import { AggregationDateUnit, RecoverableType } from "@ahoo-wang/fetcher-wow";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TrendPoint } from "./analyticsQueries.ts";
 import type {
@@ -100,7 +97,13 @@ beforeEach(() => {
   mocks.useEventTrend.mockClear();
   mocks.snapshotResult = {
     summary: {
-      data: { actionableNow: 128, timedOut: 34, unrecoverable: 9 },
+      data: {
+        actionableNow: 128,
+        activeTotal: 1_000,
+        olderThanRange: 968,
+        timedOut: 34,
+        unrecoverable: 9,
+      },
       loading: false,
       updatedAt: 1_787_932_800_000,
     },
@@ -129,13 +132,170 @@ describe("DashboardView", () => {
 
     expect(document.querySelectorAll("[data-slot='card']")).toHaveLength(4);
     expect(
-      screen.getByRole("region", { name: "Current compensation state" }),
+      screen.getByRole("region", { name: "Compensation overview" }),
     ).toHaveAttribute("data-slot", "card");
     expect(
       screen.getByRole("region", {
         name: "Current failure pressure — Top 5 clusters",
       }),
     ).toHaveAttribute("data-slot", "card");
+  });
+
+  it("makes stock, flow, and pressure concentration the primary signals", () => {
+    mocks.snapshotResult.recoverability.data = [
+      { recoverable: RecoverableType.UNKNOWN, count: 2 },
+      { recoverable: RecoverableType.UNRECOVERABLE, count: 30 },
+    ];
+    mocks.snapshotResult.pressure.data = [
+      {
+        contextName: "billing",
+        currentCount: 20,
+        errorCode: "TIMEOUT",
+        failedCount: 20,
+        functionKind: "EVENT",
+        functionName: "charge",
+        nextRetryAt: null,
+        oldestExecuteAt: null,
+        preparedCount: 0,
+        processorName: "PaymentProcessor",
+      },
+      {
+        contextName: "billing",
+        currentCount: 12,
+        errorCode: "REJECTED",
+        failedCount: 12,
+        functionKind: "EVENT",
+        functionName: "refund",
+        nextRetryAt: null,
+        oldestExecuteAt: null,
+        preparedCount: 0,
+        processorName: "PaymentProcessor",
+      },
+    ];
+    mocks.eventResult.data = [
+      {
+        bucket: new Date(2026, 7, 28).getTime(),
+        newFailures: 12,
+        prepared: 6,
+        retriedFailed: 4,
+        succeeded: 2,
+      },
+      {
+        bucket: new Date(2026, 7, 29).getTime(),
+        newFailures: 24,
+        prepared: 12,
+        retriedFailed: 8,
+        succeeded: 4,
+      },
+    ];
+
+    render(<DashboardView />);
+
+    const stock = screen.getByRole("region", { name: "Backlog exposure" });
+    expect(
+      within(stock).getByRole("heading", { name: "STOCK / Backlog exposure" }),
+    ).toBeInTheDocument();
+    expect(within(stock).getByText("Selected active")).toBeInTheDocument();
+    expect(within(stock).getByText("32")).toBeInTheDocument();
+    expect(within(stock).getByText("Older backlog")).toBeInTheDocument();
+    expect(within(stock).getByText("968")).toBeInTheDocument();
+    expect(within(stock).getByText("Coverage")).toBeInTheDocument();
+    expect(within(stock).getByText("3.2%")).toBeInTheDocument();
+    expect(
+      within(stock).getByRole("progressbar", {
+        name: "Selected active coverage",
+      }),
+    ).toHaveAttribute("aria-valuenow", "3.2");
+
+    const flow = screen.getByRole("region", {
+      name: "Compensation effectiveness",
+    });
+    expect(
+      within(flow).getByRole("heading", {
+        name: "FLOW / Compensation effectiveness",
+      }),
+    ).toBeInTheDocument();
+    expect(within(flow).getByText("New failures")).toBeInTheDocument();
+    expect(within(flow).getByText("36")).toBeInTheDocument();
+    expect(within(flow).getByText("Net backlog")).toBeInTheDocument();
+    expect(within(flow).getByText("+30")).toBeInTheDocument();
+    expect(within(flow).getByText("Retry success")).toBeInTheDocument();
+    expect(within(flow).getByText("33.3%")).toBeInTheDocument();
+    expect(within(flow).getByText("Prepared")).toBeInTheDocument();
+    expect(within(flow).getByText("18")).toBeInTheDocument();
+    expect(within(flow).getByText("Retried failed")).toBeInTheDocument();
+    expect(within(flow).getByText("12")).toBeInTheDocument();
+    expect(within(flow).getByText("Succeeded")).toBeInTheDocument();
+    expect(within(flow).getByText("6")).toBeInTheDocument();
+
+    expect(
+      screen.getByRole("heading", {
+        name: "Failure concentration · Top cluster 62.5%",
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("2 clusters · Top cluster 62.5%")).toHaveAttribute(
+      "data-slot",
+      "badge",
+    );
+    expect(
+      screen
+        .getByRole("table", { name: "Current failure pressure" })
+        .querySelector("tbody tr:first-child"),
+    ).toHaveAttribute("data-dominant", "true");
+  });
+
+  it("shows an unavailable retry success rate when the selected range has no retry outcomes", () => {
+    mocks.eventResult.data = [
+      {
+        bucket: new Date(2026, 7, 29).getTime(),
+        newFailures: 12,
+        prepared: 0,
+        retriedFailed: 0,
+        succeeded: 0,
+      },
+    ];
+
+    render(<DashboardView />);
+
+    expect(
+      within(
+        screen.getByRole("region", { name: "Compensation effectiveness" }),
+      ).getByText("—"),
+    ).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/NaN|Infinity/);
+  });
+
+  it("hides cross-section insights until their data belongs to one request batch", () => {
+    mocks.snapshotResult.recoverability = {
+      data: [{ recoverable: RecoverableType.UNRECOVERABLE, count: 32 }],
+      loading: false,
+      updatedAt: 1,
+    };
+    mocks.snapshotResult.pressure = {
+      data: [
+        {
+          contextName: "billing",
+          currentCount: 32,
+          errorCode: "TIMEOUT",
+          failedCount: 32,
+          functionKind: "EVENT",
+          functionName: "charge",
+          nextRetryAt: null,
+          oldestExecuteAt: null,
+          preparedCount: 0,
+          processorName: "PaymentProcessor",
+        },
+      ],
+      loading: false,
+      updatedAt: 2,
+    };
+
+    render(<DashboardView />);
+
+    expect(
+      screen.queryByRole("progressbar", { name: "Selected active coverage" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/Top cluster/)).not.toBeInTheDocument();
   });
 
   it("groups the quick date presets without changing their behavior", () => {
@@ -152,12 +312,16 @@ describe("DashboardView", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("uses the shadcn destructive alert for a regional error", () => {
-    mocks.snapshotResult.summary.error = new Error("snapshot unavailable");
+  it("renders a shared dependency error once with the shadcn alert", () => {
+    mocks.snapshotResult.recoverability.error = new Error(
+      "snapshot unavailable",
+    );
     render(<DashboardView />);
 
-    expect(screen.getByRole("alert")).toHaveAttribute("data-slot", "alert");
-    expect(screen.getByRole("alert")).toHaveTextContent("snapshot unavailable");
+    const alerts = screen.getAllByRole("alert");
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toHaveAttribute("data-slot", "alert");
+    expect(alerts[0]).toHaveTextContent("snapshot unavailable");
   });
 
   it("applies one complete local date range to both facts", () => {
@@ -184,18 +348,25 @@ describe("DashboardView", () => {
     const picker = screen.getByRole("button", {
       name: "Time range: 2026-08-23 – 2026-08-29",
     });
-    expect(screen.queryByRole("button", { name: "7d" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "7d" }),
+    ).not.toBeInTheDocument();
 
-    const initialWindowReference = mocks.useSnapshotAnalytics.mock.lastCall?.[0];
+    const initialWindowReference =
+      mocks.useSnapshotAnalytics.mock.lastCall?.[0];
     fireEvent.click(picker);
     expect(
       screen.getByRole("grid", { name: "Date range calendar" }),
     ).toHaveAttribute("data-max", "999");
-    expect(screen.queryByText("Select up to 1000 days.")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Select up to 1000 days."),
+    ).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Select start only" }));
     expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
     expect(screen.getByText("Select an end date.")).toBeInTheDocument();
-    expect(screen.queryByText("Select up to 1000 days.")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Select up to 1000 days."),
+    ).not.toBeInTheDocument();
     expect(mocks.useSnapshotAnalytics.mock.lastCall?.[0]).toBe(
       initialWindowReference,
     );
@@ -287,10 +458,18 @@ describe("DashboardView", () => {
     expect(
       screen.getByRole("status", { name: "Loading dashboard" }),
     ).toBeInTheDocument();
-    expect(document.querySelectorAll("[data-slot='skeleton']")).toHaveLength(15);
+    expect(document.querySelectorAll("[data-slot='skeleton']")).toHaveLength(
+      13,
+    );
 
     mocks.snapshotResult.summary = {
-      data: { actionableNow: 128, timedOut: 34, unrecoverable: 9 },
+      data: {
+        actionableNow: 128,
+        activeTotal: 1_000,
+        olderThanRange: 968,
+        timedOut: 34,
+        unrecoverable: 9,
+      },
       loading: true,
       updatedAt: 1_787_932_800_000,
     };
@@ -329,7 +508,9 @@ describe("DashboardView", () => {
     render(<DashboardView />);
 
     expect(screen.getByText("No active failure clusters")).toBeInTheDocument();
-    expect(screen.getByText(/Retry distribution is truncated/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Retry distribution is truncated/),
+    ).toBeInTheDocument();
     expect(screen.queryByText("Retry distribution")).not.toBeInTheDocument();
   });
 
@@ -399,7 +580,7 @@ describe("DashboardView", () => {
     expect(
       screen.getByLabelText("Failed 6 (30%); Prepared 4 (20%)"),
     ).toBeInTheDocument();
-    expect(screen.getAllByText("0 (0%)")).toHaveLength(2);
+    expect(within(pressureTable).getAllByText("0 (0%)")).toHaveLength(2);
     expect(
       screen.getByText("Current failure pressure — Top 5 clusters"),
     ).toBeInTheDocument();
@@ -430,7 +611,9 @@ describe("DashboardView", () => {
         .getByRole("table", { name: "Current failure pressure" })
         .querySelectorAll("tbody tr:first-child td"),
     );
-    expect(firstRowCells.map((cell) => cell.getAttribute("data-label"))).toEqual([
+    expect(
+      firstRowCells.map((cell) => cell.getAttribute("data-label")),
+    ).toEqual([
       "Cluster",
       "Current",
       "Failed / Prepared",
@@ -439,23 +622,31 @@ describe("DashboardView", () => {
     ]);
   });
 
-  it("keeps state, outcomes, current health, then pressure in reading order", () => {
+  it("keeps stock, flow, activity, health, then pressure in reading order", () => {
     render(<DashboardView />);
 
     const content = document.body.textContent ?? "";
     expect(screen.getAllByText(/Updated /)).toHaveLength(1);
     expect(screen.queryByText(/Last updated/)).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Dashboard signals")).not.toHaveTextContent(
+    expect(screen.getByLabelText("Dashboard activity")).not.toHaveTextContent(
       /Time range|2026-08-23|2026-08-29/,
     );
-    expect(content.indexOf("Actionable now")).toBeLessThan(
-      content.indexOf("Compensation outcomes"),
+    expect(content.indexOf("STOCK / Backlog exposure")).toBeLessThan(
+      content.indexOf("FLOW / Compensation effectiveness"),
     );
-    expect(content.indexOf("Compensation outcomes")).toBeLessThan(
+    expect(content.indexOf("FLOW / Compensation effectiveness")).toBeLessThan(
+      content.indexOf("Dashboard activity"),
+    );
+    expect(content.indexOf("Dashboard activity")).toBeLessThan(
       content.indexOf("Current health"),
     );
+    expect(
+      screen.getByRole("heading", {
+        name: "Current health for selected execution range",
+      }),
+    ).toBeInTheDocument();
     expect(content.indexOf("Current health")).toBeLessThan(
-      content.indexOf("Recoverability"),
+      content.indexOf("Current failure pressure"),
     );
     expect(content.indexOf("Recoverability")).toBeLessThan(
       content.indexOf("Retry distribution"),
