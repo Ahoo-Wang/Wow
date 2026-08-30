@@ -22,6 +22,7 @@ V9 已将查询主链重构为 `QueryGateway → QueryBackend`，并通过静态
 - 普通 single/list/paged/filter/sort/projection 的 Mask 语义保持不变。
 - 删除 `encryption-key`、AES 编解码、Codec 注入及相关配置；token 只做无 padding Base64URL 编码。
 - token 是客户端不应解释的后端 continuation 数据，但不是加密或签名数据。
+- Cursor 是 V9 Query 的全链路必选能力，不保留 Backend、Gateway、API Client 或 TCK 的 V8 兼容层。
 
 ## 目标
 
@@ -60,11 +61,14 @@ V9 已将查询主链重构为 `QueryGateway → QueryBackend`，并通过静态
 - `nextCursor == null` 表示遍历结束；
 - cursor 值来自最后一条已返回记录，而不是 lookahead 记录。
 
-### 可选能力
+### 必选能力
 
-`QueryGateway` 与 `QueryBackend` 增加 cursor 能力。公共 SPI 的默认实现返回
-`UnsupportedOperationException("Cursor query is not supported.")`，使自定义 Backend 可以显式选择是否支持，
-而内置 MongoDB、Elasticsearch Backend 覆盖该实现。
+`QueryGateway` 与 `QueryBackend` 的 cursor 方法均为 V9 必须实现的抽象合同，不提供默认
+`UnsupportedOperationException`。标准 Snapshot API Client 直接包含 typed、dynamic、state-only cursor 方法，
+不再要求调用方额外继承 opt-in cursor 接口。Backend TCK 默认执行 cursor 合同，不提供 capability flag 或整组跳过。
+
+框架内建 NoOp Backend 返回 `CursorPage(emptyList(), null)`；Unavailable Backend 继续返回其既有 unavailable 错误。
+MongoDB、Elasticsearch 抽象 Backend 要求子类提供非空唯一排序字段，不再以 nullable 字段作为 unsupported 入口。
 
 ## V9 运行链
 
@@ -154,6 +158,7 @@ Schema 整体不可用也始终阻塞 CursorQuery。
 - `QueryType` 只新增一个 `CURSOR`；typed 与 dynamic 共用该类型和过滤链。
 - Gateway 对 `CursorPage<ObjectNode>.list` 应用现有 `SchemaMasker`，保留 `nextCursor`，再转换 typed 结果。
 - Snapshot 提供 typed、dynamic、state-only cursor；EventStream 提供 typed、dynamic cursor。
+- 标准 Snapshot reactive/synchronous API Client 直接发布 cursor 方法，不保留额外 opt-in 接口。
 - WebFlux 路由沿用现有查询 guard、body extractor 与错误映射；不新增 SSE cursor。
 - OpenAPI、JSON Schema、API Client 和 DSL 暴露与现有 CursorQuery 设计一致的契约。
 - 中英文文档明确 masked sort 拒绝、Schema fail-closed、token 非加密，以及不存在
@@ -167,7 +172,6 @@ Schema 整体不可用也始终阻塞 CursorQuery。
 | CursorQuery 无法取得 Query Schema | `QuerySchemaUnavailableException`，不 fallback |
 | 未知排序字段、非 EXACT/MANY 排序字段或缺失 SORT capability | `QuerySchemaValidationException`，存储不被调用 |
 | cursor Base64/结构/数量/类型非法 | `IllegalArgumentException("Invalid cursor.")` / HTTP 400 |
-| Backend 未实现 cursor | `UnsupportedOperationException("Cursor query is not supported.")` |
 | 无匹配结果 | `CursorPage(emptyList(), null)` |
 
 错误信息不得包含 cursor payload、原始排序值、masked 值或安全上下文。
@@ -175,7 +179,8 @@ Schema 整体不可用也始终阻塞 CursorQuery。
 ## 兼容与迁移
 
 - V9 CursorQuery 只基于新 QueryGateway/QueryBackend API，不引入旧 `QueryService` 适配层。
-- 自定义 Backend 通过默认 unsupported 实现保持可编译，并可按需实现 cursor。
+- 自定义 Backend、Gateway、API Client 与 TCK 实现必须迁移到 V9 cursor 合同；不以默认方法、独立 opt-in
+  接口或测试 skip 保持 V8 源码兼容。
 - 旧 PR #3091 未合并，因此不提供加密 token 的 wire migration 或双格式 decode。
 - 删除 `QueryProperties.cursor.encryptionKey`、`CURSOR_ENCRYPTION_KEY` 常量及 Spring Boot codec wiring。
 - 不运行或声称 `javap` JVM ABI 验证。
@@ -188,7 +193,8 @@ Schema 整体不可用也始终阻塞 CursorQuery。
 - Gateway：typed/dynamic cursor 结果只 mask 一次，保留 `nextCursor`，错误进入现有 ErrorHandler；
 - MongoDB：keyset、唯一键、null/missing、projection 清理、Base64/结构/类型拒绝；
 - Elasticsearch：`search_after`、唯一键、`track_total_hits=false`、Base64/arity/type 拒绝；
-- HTTP/OpenAPI/API Client/DSL：路由、Schema、序列化与无结果合同；
+- HTTP/OpenAPI/API Client/DSL：路由、Schema、序列化与无结果合同；标准 API Client 直接包含 cursor；
+- TCK：cursor 用例默认执行，MongoDB/Elasticsearch fixture 显式实现 null/missing 数据准备；
 - Spring Boot：不存在 cursor key 配置或 Codec wiring；
 - 仓库扫描：生产代码、测试和 `documentation/docs` 均不存在 `encryption-key`、AES cursor 或真实密钥示例；
   本设计文档只保留删除决策记录。
@@ -210,6 +216,7 @@ git diff --check
 ## 验收标准
 
 - CursorQuery 在 V9 QueryGateway/QueryBackend 主链可用于 Snapshot 与 EventStream；
+- Cursor 在 Backend、Gateway、标准 API Client 与 TCK 中均为必选合同，不存在 unsupported 默认实现或 opt-in 兼容层；
 - MongoDB 不执行 count/skip，Elasticsearch 不执行 total/from；
 - masked 有效排序和 Schema unavailable 均在存储访问前失败；
 - 普通查询的 masked filter/sort/projection 行为无回归；
