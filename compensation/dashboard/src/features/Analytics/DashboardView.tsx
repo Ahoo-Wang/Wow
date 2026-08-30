@@ -19,6 +19,7 @@ import { RecoverableType } from "@ahoo-wang/fetcher-wow";
 import type { DateRange } from "react-day-picker";
 import { formatAge, formatDate } from "../../utils/dates.ts";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -35,6 +36,7 @@ import {
 } from "@/components/ui/popover";
 import { useNow } from "@/hooks/useNow.ts";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import {
   Table,
@@ -44,22 +46,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  ToggleGroup,
-  ToggleGroupItem,
-} from "@/components/ui/toggle-group";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   CompensationTrendChart,
   DistributionChart,
   RetryDistributionChart,
 } from "./AnalyticsCharts.tsx";
-import type {
-  PressureCluster,
-  RetryDistribution,
-} from "./analyticsQueries.ts";
+import type { PressureCluster, RetryDistribution } from "./analyticsQueries.ts";
 import {
   createTrendWindow,
   MAX_TREND_DAYS,
+  summarizeTrend,
 } from "./analyticsQueries.ts";
 import { useEventTrend } from "./useEventTrend.ts";
 import {
@@ -135,6 +132,11 @@ function formatStatusShare(count: number, total: number): string {
   return `${count} (${percentage}%)`;
 }
 
+const percentageFormatter = new Intl.NumberFormat("en-US", {
+  maximumFractionDigits: 1,
+  style: "percent",
+});
+
 function PressureStatusShare({ cluster }: { cluster: PressureCluster }) {
   const failed = formatStatusShare(cluster.failedCount, cluster.currentCount);
   const prepared = formatStatusShare(
@@ -161,10 +163,7 @@ function PressureStatusShare({ cluster }: { cluster: PressureCluster }) {
         className="mt-1 flex h-1.5 overflow-hidden rounded-full bg-muted"
       >
         <span className="bg-chart-1" style={{ width: `${failedWidth}%` }} />
-        <span
-          className="bg-chart-2"
-          style={{ width: `${preparedWidth}%` }}
-        />
+        <span className="bg-chart-2" style={{ width: `${preparedWidth}%` }} />
       </div>
     </div>
   );
@@ -186,14 +185,18 @@ function PressureTable({ clusters }: { clusters: PressureCluster[] }) {
       <TableBody>
         {clusters.length === 0 ? (
           <TableRow>
-            <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+            <TableCell
+              colSpan={5}
+              className="h-24 text-center text-muted-foreground"
+            >
               No active failure clusters
             </TableCell>
           </TableRow>
         ) : (
-          clusters.map((cluster) => (
+          clusters.map((cluster, index) => (
             <TableRow
               key={`${cluster.errorCode}:${cluster.contextName}:${cluster.processorName}:${cluster.functionName}:${cluster.functionKind}`}
+              data-dominant={index === 0 ? "true" : undefined}
             >
               <TableCell data-label="Cluster">
                 <div className="font-medium">{cluster.errorCode}</div>
@@ -203,7 +206,10 @@ function PressureTable({ clusters }: { clusters: PressureCluster[] }) {
                   {cluster.functionName} · {cluster.functionKind}
                 </div>
               </TableCell>
-              <TableCell data-label="Current" className="text-right tabular-nums">
+              <TableCell
+                data-label="Current"
+                className="text-right tabular-nums"
+              >
                 {cluster.currentCount}
               </TableCell>
               <TableCell data-label="Failed / Prepared">
@@ -213,7 +219,9 @@ function PressureTable({ clusters }: { clusters: PressureCluster[] }) {
                 data-label="Oldest"
                 title={formatDate(cluster.oldestExecuteAt ?? undefined)}
               >
-                {cluster.oldestExecuteAt ? formatAge(cluster.oldestExecuteAt, now) : "-"}
+                {cluster.oldestExecuteAt
+                  ? formatAge(cluster.oldestExecuteAt, now)
+                  : "-"}
               </TableCell>
               <TableCell data-label="Next retry">
                 {formatDate(cluster.nextRetryAt ?? undefined)}
@@ -227,8 +235,9 @@ function PressureTable({ clusters }: { clusters: PressureCluster[] }) {
 }
 
 export default function DashboardView() {
-  const [appliedRange, setAppliedRange] =
-    useState<CompleteDateRange>(createDefaultDateRange);
+  const [appliedRange, setAppliedRange] = useState<CompleteDateRange>(
+    createDefaultDateRange,
+  );
   const [draftRange, setDraftRange] = useState<DateRange>(appliedRange);
   const [rangeOpen, setRangeOpen] = useState(false);
   const [refreshToken, setRefreshToken] = useState(0);
@@ -258,6 +267,35 @@ export default function DashboardView() {
     return <DashboardSkeleton />;
   }
 
+  const selectedActive = snapshot.recoverability.data?.reduce(
+    (total, { count }) => total + count,
+    0,
+  );
+  const activeTotal = snapshot.summary.data?.activeTotal;
+  const scopeInsightsReady =
+    selectedActive !== undefined &&
+    activeTotal !== undefined &&
+    snapshot.summary.updatedAt !== undefined &&
+    snapshot.summary.updatedAt === snapshot.recoverability.updatedAt &&
+    !snapshot.summary.error &&
+    !snapshot.recoverability.error;
+  const selectedCoverage =
+    scopeInsightsReady && activeTotal > 0 ? selectedActive / activeTotal : 0;
+  const pressureInsightsReady =
+    Boolean(snapshot.pressure.data?.length) &&
+    Boolean(selectedActive) &&
+    snapshot.pressure.updatedAt !== undefined &&
+    snapshot.pressure.updatedAt === snapshot.recoverability.updatedAt &&
+    !snapshot.pressure.error &&
+    !snapshot.recoverability.error;
+  const trendSummary = summarizeTrend(trend.data ?? []);
+  const pressureShare = pressureInsightsReady
+    ? snapshot.pressure.data![0].currentCount / selectedActive!
+    : 0;
+  const pressureTitle = pressureInsightsReady
+    ? `Failure concentration · Top cluster ${percentageFormatter.format(pressureShare)}`
+    : "Current failure pressure — Top 5 clusters";
+
   const applyRecentDays = (days: number) => {
     const to = dayjs(Date.now()).startOf("day");
     setAppliedRange({
@@ -269,229 +307,340 @@ export default function DashboardView() {
 
   return (
     <div className="dashboard-view">
+      <div className="dashboard-toolbar">
+        <span className="dashboard-time-range-label">Time range</span>
+        <Popover
+          open={rangeOpen}
+          onOpenChange={(open) => {
+            setRangeOpen(open);
+            if (open) {
+              setDraftRange(appliedRange);
+            }
+          }}
+        >
+          <PopoverTrigger
+            render={
+              <Button
+                type="button"
+                variant="outline"
+                className="dashboard-time-range-button"
+                aria-label={`Time range: ${rangeLabel}`}
+              />
+            }
+          >
+            <CalendarDays />
+            {rangeLabel}
+          </PopoverTrigger>
+          <PopoverContent
+            align="end"
+            className="w-[min(21.5rem,calc(100vw-1rem))] p-0 [&_[data-slot=calendar]]:w-full"
+          >
+            <div className="border-b p-2">
+              <ToggleGroup
+                aria-label="Date range presets"
+                variant="outline"
+                spacing={0}
+                className="w-full"
+              >
+                {[
+                  ["Today", 1],
+                  ["Last 7 days", 7],
+                  ["Last 30 days", 30],
+                ].map(([label, days]) => (
+                  <ToggleGroupItem
+                    key={label}
+                    value={String(days)}
+                    type="button"
+                    className="flex-1"
+                    onClick={() => applyRecentDays(Number(days))}
+                  >
+                    {label}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+            </div>
+            <Calendar
+              mode="range"
+              max={MAX_TREND_DAYS - 1}
+              required
+              resetOnSelect
+              selected={draftRange}
+              onSelect={setDraftRange}
+              defaultMonth={draftRange.from}
+              timeZone={timeZone}
+            />
+            {draftRange.from && !draftRange.to ? (
+              <p className="px-3 pb-2 text-sm text-muted-foreground">
+                Select an end date.
+              </p>
+            ) : null}
+            <div className="flex justify-end gap-2 border-t p-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setDraftRange(appliedRange);
+                  setRangeOpen(false);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={!draftRange.from || !draftRange.to}
+                onClick={() => {
+                  if (draftRange.from && draftRange.to) {
+                    setAppliedRange({
+                      from: draftRange.from,
+                      to: draftRange.to,
+                    });
+                    setRangeOpen(false);
+                  }
+                }}
+              >
+                Apply
+              </Button>
+            </div>
+          </PopoverContent>
+        </Popover>
+        {snapshot.summary.updatedAt ? (
+          <span>Updated {formatDate(snapshot.summary.updatedAt)}</span>
+        ) : null}
+        <Button
+          type="button"
+          variant="outline"
+          aria-busy={refreshing}
+          aria-label={refreshing ? "Refreshing dashboard" : "Refresh dashboard"}
+          onClick={() => setRefreshToken((value) => value + 1)}
+        >
+          <RefreshCw className={refreshing ? "animate-spin" : undefined} />
+          Refresh
+        </Button>
+      </div>
+
       <Card
         size="sm"
         role="region"
-        aria-labelledby="dashboard-summary-title"
-        className="dashboard-summary"
+        aria-labelledby="dashboard-overview-title"
+        className="dashboard-overview"
       >
-        <CardHeader>
+        <CardHeader className="sr-only">
           <CardTitle>
-            <h2 id="dashboard-summary-title">Current compensation state</h2>
+            <h2 id="dashboard-overview-title">Compensation overview</h2>
           </CardTitle>
-          <CardAction className="dashboard-refresh-status">
-            <span className="dashboard-time-range-label">Time range</span>
-            <Popover
-              open={rangeOpen}
-              onOpenChange={(open) => {
-                setRangeOpen(open);
-                if (open) {
-                  setDraftRange(appliedRange);
-                }
-              }}
-            >
-              <PopoverTrigger
-                render={
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="dashboard-time-range-button"
-                    aria-label={`Time range: ${rangeLabel}`}
-                  />
-                }
-              >
-                <CalendarDays />
-                {rangeLabel}
-              </PopoverTrigger>
-              <PopoverContent
-                align="end"
-                className="w-[min(21.5rem,calc(100vw-1rem))] p-0 [&_[data-slot=calendar]]:w-full"
-              >
-                <div className="border-b p-2">
-                  <ToggleGroup
-                    aria-label="Date range presets"
-                    variant="outline"
-                    spacing={0}
-                    className="w-full"
-                  >
-                  {[
-                    ["Today", 1],
-                    ["Last 7 days", 7],
-                    ["Last 30 days", 30],
-                  ].map(([label, days]) => (
-                    <ToggleGroupItem
-                      key={label}
-                      value={String(days)}
-                      type="button"
-                      className="flex-1"
-                      onClick={() => applyRecentDays(Number(days))}
-                    >
-                      {label}
-                    </ToggleGroupItem>
-                  ))}
-                  </ToggleGroup>
-                </div>
-                <Calendar
-                  mode="range"
-                  max={MAX_TREND_DAYS - 1}
-                  required
-                  resetOnSelect
-                  selected={draftRange}
-                  onSelect={setDraftRange}
-                  defaultMonth={draftRange.from}
-                  timeZone={timeZone}
+        </CardHeader>
+        <CardContent className="dashboard-overview-content">
+          <section
+            role="region"
+            aria-label="Backlog exposure"
+            className="dashboard-stock"
+          >
+            <h3 id="dashboard-stock-title">STOCK / Backlog exposure</h3>
+            <SectionMeta section={snapshot.summary} />
+            {scopeInsightsReady && snapshot.summary.data ? (
+              <>
+                <dl className="dashboard-stock-metrics">
+                  <div>
+                    <dt>Selected active</dt>
+                    <dd>{selectedActive.toLocaleString()}</dd>
+                  </div>
+                  <div>
+                    <dt>Older backlog</dt>
+                    <dd>
+                      {snapshot.summary.data.olderThanRange.toLocaleString()}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Unrecoverable</dt>
+                    <dd>
+                      {snapshot.summary.data.unrecoverable.toLocaleString()}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Coverage</dt>
+                    <dd>{percentageFormatter.format(selectedCoverage)}</dd>
+                  </div>
+                </dl>
+                <Progress
+                  aria-label="Selected active coverage"
+                  value={selectedCoverage * 100}
+                  className="dashboard-stock-progress"
                 />
-                {draftRange.from && !draftRange.to ? (
-                  <p className="px-3 pb-2 text-sm text-muted-foreground">
-                    Select an end date.
-                  </p>
-                ) : null}
-                <div className="flex justify-end gap-2 border-t p-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => {
-                      setDraftRange(appliedRange);
-                      setRangeOpen(false);
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="button"
-                    disabled={!draftRange.from || !draftRange.to}
-                    onClick={() => {
-                      if (draftRange.from && draftRange.to) {
-                        setAppliedRange({
-                          from: draftRange.from,
-                          to: draftRange.to,
-                        });
-                        setRangeOpen(false);
-                      }
-                    }}
-                  >
-                    Apply
-                  </Button>
+                <div className="dashboard-stock-scale">
+                  <span>
+                    {selectedActive.toLocaleString()} (
+                    {percentageFormatter.format(selectedCoverage)})
+                  </span>
+                  <span>{activeTotal.toLocaleString()} active</span>
+                  <span>
+                    {snapshot.summary.data.olderThanRange.toLocaleString()} (
+                    {percentageFormatter.format(
+                      activeTotal > 0
+                        ? snapshot.summary.data.olderThanRange / activeTotal
+                        : 0,
+                    )}
+                    )
+                  </span>
                 </div>
-              </PopoverContent>
-            </Popover>
-            {snapshot.summary.updatedAt ? (
-              <span>Updated {formatDate(snapshot.summary.updatedAt)}</span>
-            ) : null}
-            <Button
-              type="button"
-              variant="outline"
-              aria-busy={refreshing}
-              aria-label={refreshing ? "Refreshing dashboard" : "Refresh dashboard"}
-              onClick={() => setRefreshToken((value) => value + 1)}
-            >
-              <RefreshCw className={refreshing ? "animate-spin" : undefined} />
-              Refresh
-            </Button>
-          </CardAction>
+                <Separator />
+                <dl className="dashboard-stock-secondary">
+                  <div>
+                    <dt>Actionable now</dt>
+                    <dd>
+                      {snapshot.summary.data.actionableNow.toLocaleString()}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Timed out</dt>
+                    <dd>{snapshot.summary.data.timedOut.toLocaleString()}</dd>
+                  </div>
+                </dl>
+              </>
+            ) : (
+              <Skeleton className="h-44 w-full" />
+            )}
+          </section>
+          <section
+            role="region"
+            aria-label="Compensation effectiveness"
+            className="dashboard-flow"
+          >
+            <h3 id="dashboard-flow-title">FLOW / Compensation effectiveness</h3>
+            <SectionMeta section={trend} />
+            {trend.data ? (
+              <>
+                <dl className="dashboard-flow-primary">
+                  <div>
+                    <dt>New failures</dt>
+                    <dd>{trendSummary.newFailures.toLocaleString()}</dd>
+                  </div>
+                  <div>
+                    <dt>Net backlog</dt>
+                    <dd>
+                      {trendSummary.netBacklog >= 0 ? "+" : ""}
+                      {trendSummary.netBacklog.toLocaleString()}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Retry success</dt>
+                    <dd>
+                      {trendSummary.retrySuccess === null
+                        ? "—"
+                        : percentageFormatter.format(trendSummary.retrySuccess)}
+                    </dd>
+                  </div>
+                </dl>
+                <Separator />
+                <dl className="dashboard-flow-secondary">
+                  <div>
+                    <dt>
+                      <span aria-hidden="true" className="bg-chart-2" />
+                      Prepared
+                    </dt>
+                    <dd>{trendSummary.prepared.toLocaleString()}</dd>
+                  </div>
+                  <div>
+                    <dt>
+                      <span aria-hidden="true" className="bg-chart-3" />
+                      Retried failed
+                    </dt>
+                    <dd>{trendSummary.retriedFailed.toLocaleString()}</dd>
+                  </div>
+                  <div>
+                    <dt>
+                      <span aria-hidden="true" className="bg-chart-4" />
+                      Succeeded
+                    </dt>
+                    <dd>{trendSummary.succeeded.toLocaleString()}</dd>
+                  </div>
+                </dl>
+              </>
+            ) : (
+              <Skeleton className="h-44 w-full" />
+            )}
+          </section>
+        </CardContent>
+      </Card>
+
+      <Card
+        size="sm"
+        role="region"
+        aria-labelledby="dashboard-activity-title"
+        className="dashboard-activity"
+      >
+        <CardHeader className="sr-only">
+          <CardTitle>
+            <h2 id="dashboard-activity-title">Dashboard activity</h2>
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <SectionMeta section={snapshot.summary} />
-          {snapshot.summary.loading && !snapshot.summary.data ? (
-            <Skeleton className="h-24 w-full" />
-          ) : snapshot.summary.data ? (
-            <dl className="dashboard-summary-values">
-              <div>
-                <dt>Actionable now</dt>
-                <dd>{snapshot.summary.data.actionableNow}</dd>
-              </div>
-              <div>
-                <dt>Timed out</dt>
-                <dd>{snapshot.summary.data.timedOut}</dd>
-              </div>
-              <div>
-                <dt>Unrecoverable</dt>
-                <dd>{snapshot.summary.data.unrecoverable}</dd>
-              </div>
-            </dl>
+          {trend.loading && !trend.data ? (
+            <Skeleton className="h-56 w-full" />
+          ) : trend.data ? (
+            <CompensationTrendChart points={trend.data} />
           ) : null}
         </CardContent>
       </Card>
 
-      <div
-        className="dashboard-signals"
-        aria-label="Dashboard signals"
+      <Card
+        size="sm"
+        role="region"
+        aria-labelledby="dashboard-health-title"
+        className="dashboard-health"
       >
-        <Card
-          size="sm"
-          role="region"
-          aria-labelledby="analytics-history-title"
-          className="dashboard-outcomes"
-        >
-          <CardHeader>
-            <CardTitle>
-              <h2 id="analytics-history-title">Compensation outcomes</h2>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <SectionMeta section={trend} />
-            {trend.loading && !trend.data ? (
-              <Skeleton className="h-36 w-full" />
-            ) : trend.data ? (
-              <CompensationTrendChart points={trend.data} />
-            ) : null}
-          </CardContent>
-        </Card>
-        <Card
-          size="sm"
-          role="region"
-          aria-labelledby="dashboard-health-title"
-          className="dashboard-health"
-        >
-          <CardHeader>
-            <CardTitle>
-              <h2 id="dashboard-health-title">Current health</h2>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="dashboard-health-content">
-            <section>
-              <SectionMeta section={snapshot.recoverability} />
-              {snapshot.recoverability.loading &&
-              !snapshot.recoverability.data ? (
-                <Skeleton className="h-36 w-full" />
-              ) : snapshot.recoverability.data ? (
-                <DistributionChart
-                  title="Recoverability"
-                  data={snapshot.recoverability.data.map(
-                    ({ count, recoverable }) => ({
-                      ...recoverabilityDisplay[recoverable],
-                      count,
-                      key: recoverable,
-                    }),
-                  )}
-                />
-              ) : null}
-            </section>
-            <Separator className="dashboard-health-separator" />
-            <section>
-              <SectionMeta section={snapshot.retries} />
-              {snapshot.retries.loading && !snapshot.retries.data ? (
-                <Skeleton className="h-36 w-full" />
-              ) : snapshot.retries.data?.truncated ? (
-                <Alert>
-                  <AlertDescription>
-                    Retry distribution is truncated and is not charted.
-                  </AlertDescription>
-                </Alert>
-              ) : snapshot.retries.data ? (
-                <RetryDistributionChart
-                  data={snapshot.retries.data.buckets.map(({ count, key }) => ({
-                    color: retryBucketColors[key],
+        <CardHeader>
+          <CardTitle>
+            <h2 id="dashboard-health-title">
+              Current health for selected execution range
+            </h2>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="dashboard-health-content">
+          <section>
+            <SectionMeta section={snapshot.recoverability} />
+            {snapshot.recoverability.loading &&
+            !snapshot.recoverability.data ? (
+              <Skeleton className="h-24 w-full" />
+            ) : snapshot.recoverability.data ? (
+              <DistributionChart
+                title="Recoverability composition"
+                data={snapshot.recoverability.data.map(
+                  ({ count, recoverable }) => ({
+                    ...recoverabilityDisplay[recoverable],
                     count,
-                    key,
-                    label: `${key} retries`,
-                  }))}
-                />
-              ) : null}
-            </section>
-          </CardContent>
-        </Card>
-      </div>
+                    key: recoverable,
+                  }),
+                )}
+              />
+            ) : null}
+          </section>
+          <Separator
+            orientation="vertical"
+            className="dashboard-health-separator"
+          />
+          <section>
+            <SectionMeta section={snapshot.retries} />
+            {snapshot.retries.loading && !snapshot.retries.data ? (
+              <Skeleton className="h-24 w-full" />
+            ) : snapshot.retries.data?.truncated ? (
+              <Alert>
+                <AlertDescription>
+                  Retry distribution is truncated and is not charted.
+                </AlertDescription>
+              </Alert>
+            ) : snapshot.retries.data ? (
+              <RetryDistributionChart
+                data={snapshot.retries.data.buckets.map(({ count, key }) => ({
+                  color: retryBucketColors[key],
+                  count,
+                  key,
+                  label: `${key} retries`,
+                }))}
+              />
+            ) : null}
+          </section>
+        </CardContent>
+      </Card>
 
       <Card
         size="sm"
@@ -501,10 +650,20 @@ export default function DashboardView() {
       >
         <CardHeader>
           <CardTitle>
-            <h2 id="dashboard-pressure-title">
-              Current failure pressure — Top 5 clusters
-            </h2>
+            <h2 id="dashboard-pressure-title">{pressureTitle}</h2>
           </CardTitle>
+          {pressureInsightsReady ? (
+            <CardAction className="max-sm:col-span-2 max-sm:row-start-2 max-sm:justify-self-start">
+              <Badge variant="outline">
+                {snapshot.pressure.data!.length === 1
+                  ? "1 cluster"
+                  : snapshot.pressure.data!.length === 5
+                    ? "Top 5 clusters"
+                    : `${snapshot.pressure.data!.length} clusters`}{" "}
+                · Top cluster {percentageFormatter.format(pressureShare)}
+              </Badge>
+            </CardAction>
+          ) : null}
         </CardHeader>
         <CardContent>
           <SectionMeta section={snapshot.pressure} />

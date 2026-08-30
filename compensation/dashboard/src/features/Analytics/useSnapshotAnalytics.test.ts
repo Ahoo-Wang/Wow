@@ -71,7 +71,7 @@ describe("useSnapshotAnalytics", () => {
 
   afterEach(() => vi.restoreAllMocks());
 
-  it("starts six snapshot requests and waits for top clusters before status mix", async () => {
+  it("starts eight snapshot requests and waits for top clusters before status mix", async () => {
     const pressure = deferred<PressureClusterRow[]>();
     mocks.aggregate.mockImplementation((query) => {
       if (isQuery(query, "errorCode")) {
@@ -82,7 +82,7 @@ describe("useSnapshotAnalytics", () => {
 
     renderHook(() => useSnapshotAnalytics(initialWindow, 0));
 
-    expect(mocks.aggregate).toHaveBeenCalledTimes(6);
+    expect(mocks.aggregate).toHaveBeenCalledTimes(8);
     pressure.resolve([
       {
         errorCode: "TEST",
@@ -95,7 +95,7 @@ describe("useSnapshotAnalytics", () => {
         nextRetryAt: 2_000,
       },
     ]);
-    await waitFor(() => expect(mocks.aggregate).toHaveBeenCalledTimes(7));
+    await waitFor(() => expect(mocks.aggregate).toHaveBeenCalledTimes(9));
   });
 
   it("settles successful sections while another section remains deferred", async () => {
@@ -113,13 +113,17 @@ describe("useSnapshotAnalytics", () => {
       return Promise.resolve([{ count: 3 }]);
     });
 
-    const { result } = renderHook(() =>
-      useSnapshotAnalytics(initialWindow, 0),
-    );
+    const { result } = renderHook(() => useSnapshotAnalytics(initialWindow, 0));
 
     await waitFor(() => {
       expect(result.current.summary).toMatchObject({
-        data: { actionableNow: 3, timedOut: 3, unrecoverable: 3 },
+        data: {
+          actionableNow: 3,
+          activeTotal: 3,
+          olderThanRange: 3,
+          timedOut: 3,
+          unrecoverable: 3,
+        },
         loading: false,
       });
       expect(result.current.pressure).toMatchObject({
@@ -139,9 +143,11 @@ describe("useSnapshotAnalytics", () => {
     );
   });
 
-  it("aborts the old window and starts six requests with the applied window", async () => {
+  it("aborts the old window and starts eight requests with the applied window", async () => {
     const controllers: AbortController[] = [];
-    const queries: Array<{ filter: { operands: Array<{ op: string; value?: number }> } }> = [];
+    const queries: Array<{
+      filter: { operands: Array<{ op: string; value?: number }> };
+    }> = [];
     mocks.aggregate.mockImplementation((query, _attributes, controller) => {
       if (!controller) {
         return Promise.resolve([]);
@@ -164,28 +170,36 @@ describe("useSnapshotAnalytics", () => {
       await Promise.resolve();
     });
 
-    expect(mocks.aggregate).toHaveBeenCalledTimes(12);
-    expect(controllers.slice(0, 6).every(({ signal }) => signal.aborted)).toBe(
+    expect(mocks.aggregate).toHaveBeenCalledTimes(16);
+    expect(controllers.slice(0, 8).every(({ signal }) => signal.aborted)).toBe(
       true,
     );
-    const windows = queries.map(({ filter }) => ({
-      end: filter.operands.find(({ op }) => op === "LT")?.value,
-      start: filter.operands.find(({ op }) => op === "GTE")?.value,
-    }));
-    expect(new Set(windows.slice(0, 6).map(({ end, start }) => `${start}:${end}`))).toHaveLength(1);
-    expect(new Set(windows.slice(6).map(({ end, start }) => `${start}:${end}`))).toHaveLength(1);
-    expect(windows[5]).toEqual({
-      end: initialWindow.end,
-      start: initialWindow.start,
-    });
-    expect(windows[11]).toEqual({
-      end: nextWindow.end,
-      start: nextWindow.start,
-    });
+    const fullyWindowedQueries = queries.filter((query) =>
+      JSON.stringify(query.filter).includes('"op":"GTE"'),
+    );
+    expect(fullyWindowedQueries).toHaveLength(12);
+    expect(
+      queries.filter(
+        (query) =>
+          JSON.stringify(query.filter).includes('"state.executeAt"') &&
+          !fullyWindowedQueries.includes(query),
+      ),
+    ).toHaveLength(2);
+    expect(
+      queries.filter(
+        (query) => !JSON.stringify(query.filter).includes('"state.executeAt"'),
+      ),
+    ).toHaveLength(2);
+    expect(JSON.stringify(fullyWindowedQueries.slice(0, 6))).toContain(
+      String(initialWindow.start),
+    );
+    expect(JSON.stringify(fullyWindowedQueries.slice(6))).toContain(
+      String(nextWindow.start),
+    );
   });
 
   it("does not let settled stale requests overwrite refreshed sections", async () => {
-    const firstLoads = Array.from({ length: 6 }, () => deferred<unknown[]>());
+    const firstLoads = Array.from({ length: 8 }, () => deferred<unknown[]>());
     let firstCall = 0;
     let refresh = 0;
     mocks.aggregate.mockImplementation((query) => {
@@ -208,28 +222,38 @@ describe("useSnapshotAnalytics", () => {
       ({ token }) => useSnapshotAnalytics(initialWindow, token),
       { initialProps: { token: 0 } },
     );
-    expect(mocks.aggregate).toHaveBeenCalledTimes(6);
+    expect(mocks.aggregate).toHaveBeenCalledTimes(8);
 
     refresh = 1;
     await act(async () => {
       rerender({ token: 1 });
       await Promise.resolve();
     });
-    await waitFor(() => expect(result.current.summary.data?.actionableNow).toBe(2));
+    await waitFor(() =>
+      expect(result.current.summary.data?.actionableNow).toBe(2),
+    );
 
     await act(async () => {
       firstLoads[0].resolve([{ count: 1 }]);
       firstLoads[1].resolve([{ count: 1 }]);
       firstLoads[2].resolve([{ count: 1 }]);
-      firstLoads[3].resolve([]);
-      firstLoads[4].resolve([{ count: 1, recoverable: "true" }]);
-      firstLoads[5].resolve([{ count: 1, retries: 0 }]);
+      firstLoads[3].resolve([{ count: 1 }]);
+      firstLoads[4].resolve([{ count: 1 }]);
+      firstLoads[5].resolve([]);
+      firstLoads[6].resolve([{ count: 1, recoverable: "true" }]);
+      firstLoads[7].resolve([{ count: 1, retries: 0 }]);
       await Promise.all(firstLoads.map(({ promise }) => promise));
     });
 
     await waitFor(() => {
       expect(result.current.summary).toMatchObject({
-        data: { actionableNow: 2, timedOut: 2, unrecoverable: 2 },
+        data: {
+          actionableNow: 2,
+          activeTotal: 2,
+          olderThanRange: 2,
+          timedOut: 2,
+          unrecoverable: 2,
+        },
         loading: false,
       });
       expect(result.current.summary.error).toBeUndefined();
@@ -264,18 +288,24 @@ describe("useSnapshotAnalytics", () => {
       ({ token }) => useSnapshotAnalytics(initialWindow, token),
       { initialProps: { token: 0 } },
     );
-    await waitFor(() => expect(result.current.summary.data?.actionableNow).toBe(1));
+    await waitFor(() =>
+      expect(result.current.summary.data?.actionableNow).toBe(1),
+    );
     const retries = result.current.retries.data;
 
     refresh = 1;
     rerender({ token: 1 });
 
     await waitFor(() =>
-      expect(result.current.retries.error?.message).toBe("retry data unavailable"),
+      expect(result.current.retries.error?.message).toBe(
+        "retry data unavailable",
+      ),
     );
     expect(result.current.retries.data).toBe(retries);
     expect(result.current.summary.data).toEqual({
       actionableNow: 2,
+      activeTotal: 2,
+      olderThanRange: 2,
       timedOut: 2,
       unrecoverable: 2,
     });

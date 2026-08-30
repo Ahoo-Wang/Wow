@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TrendPoint } from "./analyticsQueries.ts";
 import {
@@ -131,7 +131,7 @@ describe("AnalyticsCharts", () => {
     expect(document.querySelector(".recharts-sector")).toBeNull();
   });
 
-  it("shows all trend series and provides a screen-reader data table", () => {
+  it("separates failure inflow from the smaller outcome flow", () => {
     render(
       <CompensationTrendChart
         points={[
@@ -148,31 +148,29 @@ describe("AnalyticsCharts", () => {
       />,
     );
 
-    for (const label of [
-      "New failures",
-      "Prepared",
-      "Retried failed",
-      "Succeeded",
-    ]) {
-      expect(
-        screen.getAllByText(label).some((element) => !element.closest("table")),
-      ).toBe(true);
-    }
+    expect(
+      screen.getByRole("heading", {
+        name: "Failure inflow (new failures) — daily trend",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        name: "Outcome flow (total in selected range)",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", {
+        name: "Outcome flow: Prepared 18, Retried failed 12, Succeeded 6",
+      }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("table", { name: "Compensation outcomes data" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("columnheader", { name: "Succeeded" }),
     ).toBeInTheDocument();
-    const latest = screen.getByLabelText("Latest outcomes for 08-29");
-    expect(within(latest).getByText("24")).toBeInTheDocument();
-    expect(within(latest).getByText("12")).toBeInTheDocument();
-    expect(within(latest).getByText("8")).toBeInTheDocument();
-    expect(within(latest).getByText("4")).toBeInTheDocument();
-    expect(latest.querySelector("dt span")).toHaveStyle({
-      backgroundColor: "var(--chart-1)",
-    });
     expect(document.querySelector(".recharts-tooltip-wrapper")).not.toBeNull();
+    expect(document.querySelectorAll("[data-slot='chart']")).toHaveLength(1);
     expect(document.querySelector("[data-slot='chart']")).toHaveClass(
       "min-h-0",
       "flex-1",
@@ -183,16 +181,15 @@ describe("AnalyticsCharts", () => {
   it("shows one trend bucket as visible outcome values instead of an empty line chart", () => {
     render(<CompensationTrendChart points={[trendPointFixture()]} />);
 
-    const summary = screen.getByLabelText("Compensation outcomes for 08-28");
-    expect(within(summary).getByText("New failures")).toBeInTheDocument();
-    expect(within(summary).getByText("12")).toBeInTheDocument();
-    expect(within(summary).getByText("Prepared")).toBeInTheDocument();
-    expect(within(summary).getByText("6")).toBeInTheDocument();
-    expect(within(summary).getByText("Retried failed")).toBeInTheDocument();
-    expect(within(summary).getByText("4")).toBeInTheDocument();
-    expect(within(summary).getByText("Succeeded")).toBeInTheDocument();
-    expect(within(summary).getByText("2")).toBeInTheDocument();
-    expect(summary).toHaveClass("min-h-0", "flex-1");
+    expect(
+      screen.getByRole("heading", { name: "Failure inflow (new failures)" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("12 new failures")).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", {
+        name: "Outcome flow: Prepared 6, Retried failed 4, Succeeded 2",
+      }),
+    ).toBeInTheDocument();
     expect(document.querySelector("[data-slot='chart']")).toBeNull();
   });
 });

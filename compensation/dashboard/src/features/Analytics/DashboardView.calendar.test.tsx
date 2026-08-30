@@ -39,7 +39,13 @@ beforeEach(() => {
   );
   mocks.useSnapshotAnalytics.mockReturnValue({
     summary: {
-      data: { actionableNow: 1, timedOut: 2, unrecoverable: 3 },
+      data: {
+        actionableNow: 1,
+        activeTotal: 4,
+        olderThanRange: 0,
+        timedOut: 2,
+        unrecoverable: 3,
+      },
       loading: false,
     },
     pressure: { data: [], loading: false },

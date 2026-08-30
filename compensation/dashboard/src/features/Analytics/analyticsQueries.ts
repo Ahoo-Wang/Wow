@@ -34,10 +34,7 @@ export type SnapshotAggregationQuery =
   AggregationQuery<ExecutionFailedAggregatedFields>;
 
 export type TrendSeriesKey =
-  | "newFailures"
-  | "prepared"
-  | "retriedFailed"
-  | "succeeded";
+  "newFailures" | "prepared" | "retriedFailed" | "succeeded";
 
 export interface TrendWindow {
   buckets: number[];
@@ -60,7 +57,34 @@ export interface TrendPoint {
   succeeded: number;
 }
 
+export interface TrendSummary {
+  netBacklog: number;
+  newFailures: number;
+  prepared: number;
+  retriedFailed: number;
+  retrySuccess: number | null;
+  succeeded: number;
+}
+
 export type TrendRowsBySeries = Record<TrendSeriesKey, TrendRow[]>;
+
+export function summarizeTrend(points: TrendPoint[]): TrendSummary {
+  const totals = points.reduce(
+    (sum, point) => ({
+      newFailures: sum.newFailures + point.newFailures,
+      prepared: sum.prepared + point.prepared,
+      retriedFailed: sum.retriedFailed + point.retriedFailed,
+      succeeded: sum.succeeded + point.succeeded,
+    }),
+    { newFailures: 0, prepared: 0, retriedFailed: 0, succeeded: 0 },
+  );
+  const retryOutcomes = totals.retriedFailed + totals.succeeded;
+  return {
+    ...totals,
+    netBacklog: totals.newFailures - totals.succeeded,
+    retrySuccess: retryOutcomes === 0 ? null : totals.succeeded / retryOutcomes,
+  };
+}
 
 export const TREND_EVENTS = {
   newFailures: "execution_failed_created",
@@ -139,12 +163,18 @@ export function mergeTrendRows(
   rows: TrendRowsBySeries,
 ): TrendPoint[] {
   const counts = {
-    newFailures: new Map(rows.newFailures.map((row) => [row.bucket, row.streamCount])),
-    prepared: new Map(rows.prepared.map((row) => [row.bucket, row.streamCount])),
+    newFailures: new Map(
+      rows.newFailures.map((row) => [row.bucket, row.streamCount]),
+    ),
+    prepared: new Map(
+      rows.prepared.map((row) => [row.bucket, row.streamCount]),
+    ),
     retriedFailed: new Map(
       rows.retriedFailed.map((row) => [row.bucket, row.streamCount]),
     ),
-    succeeded: new Map(rows.succeeded.map((row) => [row.bucket, row.streamCount])),
+    succeeded: new Map(
+      rows.succeeded.map((row) => [row.bucket, row.streamCount]),
+    ),
   };
 
   return window.buckets.map((bucket) => ({
@@ -182,6 +212,8 @@ export interface PressureCluster extends PressureClusterRow {
 
 export interface SnapshotSummary {
   actionableNow: number;
+  activeTotal: number;
+  olderThanRange: number;
   timedOut: number;
   unrecoverable: number;
 }
@@ -231,7 +263,11 @@ export function createSnapshotSummaryQueries(
   now: number,
   window: TrendWindow,
 ): Record<
-  "actionableNow" | "timedOut" | "unrecoverable",
+  | "actionableNow"
+  | "activeTotal"
+  | "olderThanRange"
+  | "timedOut"
+  | "unrecoverable",
   SnapshotAggregationQuery
 > {
   return {
@@ -242,6 +278,20 @@ export function createSnapshotSummaryQueries(
           now,
         ) as FilterExpression<ExecutionFailedAggregatedFields>,
       ),
+      metrics: [countMetric()],
+    },
+    activeTotal: {
+      filter: activeFilter,
+      metrics: [countMetric()],
+    },
+    olderThanRange: {
+      filter: filter.and([
+        activeFilter,
+        filter.lt(
+          ExecutionFailedAggregatedFields.STATE_EXECUTE_AT,
+          window.start,
+        ),
+      ]),
       metrics: [countMetric()],
     },
     timedOut: {
@@ -270,7 +320,9 @@ export function createSnapshotSummaryQueries(
   } satisfies Record<string, SnapshotAggregationQuery>;
 }
 
-export function createPressureQuery(window: TrendWindow): SnapshotAggregationQuery {
+export function createPressureQuery(
+  window: TrendWindow,
+): SnapshotAggregationQuery {
   return {
     filter: withSnapshotWindow(window, activeFilter),
     groupBy: [

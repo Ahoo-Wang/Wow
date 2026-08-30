@@ -12,13 +12,7 @@
  */
 
 import type { ReactElement } from "react";
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 import {
   ChartContainer,
   ChartTooltip,
@@ -26,7 +20,7 @@ import {
   type ChartConfig,
 } from "../../components/ui/chart.tsx";
 import { formatDate } from "../../utils/dates.ts";
-import type { TrendPoint } from "./analyticsQueries.ts";
+import { summarizeTrend, type TrendPoint } from "./analyticsQueries.ts";
 
 interface DistributionDatum {
   color: string;
@@ -46,9 +40,7 @@ function percentageLabel(count: number, total: number): string {
     return "0%";
   }
   const percentage = (count / total) * 100;
-  return count > 0 && percentage < 1
-    ? "<1%"
-    : `${Math.round(percentage)}%`;
+  return count > 0 && percentage < 1 ? "<1%" : `${Math.round(percentage)}%`;
 }
 
 export function DistributionChart({
@@ -170,65 +162,47 @@ export function CompensationTrendChart({
 }: {
   points: TrendPoint[];
 }): ReactElement {
-  const singlePoint = points.length === 1 ? points[0] : undefined;
-  const latestPoint = points.at(-1);
+  const totals = summarizeTrend(points);
+  const outcomeFlow = [
+    {
+      color: trendConfig.prepared.color,
+      count: totals.prepared,
+      key: "prepared",
+      label: trendConfig.prepared.label,
+    },
+    {
+      color: trendConfig.retriedFailed.color,
+      count: totals.retriedFailed,
+      key: "retriedFailed",
+      label: trendConfig.retriedFailed.label,
+    },
+    {
+      color: trendConfig.succeeded.color,
+      count: totals.succeeded,
+      key: "succeeded",
+      label: trendConfig.succeeded.label,
+    },
+  ];
+  const maxOutcome = Math.max(...outcomeFlow.map(({ count }) => count), 1);
 
   return (
     <section
-      aria-label="Compensation outcomes trend"
-      className="dashboard-trend-chart"
+      aria-label="Compensation activity"
+      className="dashboard-activity-chart"
     >
-      {singlePoint ? (
-        <dl
-          aria-label={`Compensation outcomes for ${formatDate(singlePoint.bucket, "MM-DD")}`}
-          className="dashboard-trend-single grid min-h-0 flex-1 grid-cols-2 gap-2 py-2 text-sm sm:grid-cols-4"
-        >
-          {Object.entries(trendConfig).map(([key, { color, label }]) => {
-            const seriesKey = key as keyof typeof trendConfig;
-            return (
-              <div
-                key={key}
-                className="flex min-w-0 flex-col justify-center rounded-md bg-muted/50 px-3 py-2"
-              >
-                <dt className="flex items-center gap-1.5 text-muted-foreground">
-                  <span
-                    aria-hidden="true"
-                    className="size-2 rounded-sm"
-                    style={{ backgroundColor: color }}
-                  />
-                  {label}
-                </dt>
-                <dd className="mt-1 text-xl font-semibold tabular-nums">
-                  {singlePoint[seriesKey]}
-                </dd>
-              </div>
-            );
-          })}
-        </dl>
-      ) : (
-        <>
-          {latestPoint ? (
-            <dl
-              aria-label={`Latest outcomes for ${formatDate(latestPoint.bucket, "MM-DD")}`}
-              className="dashboard-trend-summary"
-            >
-              {Object.entries(trendConfig).map(([key, { color, label }]) => {
-                const seriesKey = key as keyof typeof trendConfig;
-                return (
-                  <div key={key}>
-                    <dt>
-                      <span
-                        aria-hidden="true"
-                        style={{ backgroundColor: color }}
-                      />
-                      {label}
-                    </dt>
-                    <dd>{latestPoint[seriesKey].toLocaleString()}</dd>
-                  </div>
-                );
-              })}
-            </dl>
-          ) : null}
+      <section className="dashboard-failure-inflow">
+        <h3>
+          Failure inflow (new failures)
+          {points.length > 1 ? " — daily trend" : ""}
+        </h3>
+        <p className="dashboard-series-label">
+          <span
+            aria-hidden="true"
+            style={{ backgroundColor: trendConfig.newFailures.color }}
+          />
+          New failures
+        </p>
+        {points.length > 1 ? (
           <ChartContainer
             config={trendConfig}
             className="min-h-0 flex-1 w-full py-2 text-sm aspect-auto"
@@ -251,26 +225,61 @@ export function CompensationTrendChart({
                 content={
                   <ChartTooltipContent
                     labelFormatter={(_, payload) =>
-                      formatDate(Number(payload[0]?.payload.bucket), "MM-DD HH:mm")
+                      formatDate(
+                        Number(payload[0]?.payload.bucket),
+                        "MM-DD HH:mm",
+                      )
                     }
                   />
                 }
               />
-              {Object.entries(trendConfig).map(([key, { color }]) => (
-                <Line
-                  key={key}
-                  dataKey={key}
-                  dot={{ r: 2.5 }}
-                  name={trendConfig[key as keyof typeof trendConfig].label}
-                  stroke={color}
-                  strokeWidth={2}
-                  type="monotone"
-                />
-              ))}
+              <Line
+                dataKey="newFailures"
+                dot={{ r: 2.5 }}
+                name={trendConfig.newFailures.label}
+                stroke={trendConfig.newFailures.color}
+                strokeWidth={2}
+                type="monotone"
+              />
             </LineChart>
           </ChartContainer>
-        </>
-      )}
+        ) : (
+          <p className="dashboard-inflow-single">
+            {totals.newFailures.toLocaleString()} new failures
+          </p>
+        )}
+      </section>
+      <section className="dashboard-outcome-flow">
+        <h3>Outcome flow (total in selected range)</h3>
+        <div
+          role="img"
+          aria-label={`Outcome flow: ${outcomeFlow
+            .map(({ count, label }) => `${label} ${count}`)
+            .join(", ")}`}
+          className="dashboard-outcome-flow-bars"
+        >
+          {outcomeFlow.map(({ color, count, key, label }) => (
+            <div key={key} className="dashboard-outcome-flow-row">
+              <span className="dashboard-outcome-flow-label">
+                <span aria-hidden="true" style={{ backgroundColor: color }} />
+                {label}
+              </span>
+              <span className="dashboard-outcome-flow-track">
+                <span
+                  aria-hidden="true"
+                  style={{
+                    backgroundColor: color,
+                    width: `${(count / maxOutcome) * 100}%`,
+                  }}
+                />
+              </span>
+              <span className="font-mono tabular-nums">
+                {count.toLocaleString()}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
       <table className="sr-only" aria-label="Compensation outcomes data">
         <thead>
           <tr>

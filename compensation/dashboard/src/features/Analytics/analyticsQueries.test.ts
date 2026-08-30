@@ -38,9 +38,7 @@ describe("analyticsQueries", () => {
   };
 
   function expectSnapshotWindow(query: { filter?: unknown }) {
-    expect(JSON.stringify(query.filter)).toContain(
-      '"field":"state.executeAt"',
-    );
+    expect(JSON.stringify(query.filter)).toContain('"field":"state.executeAt"');
     expect(query.filter).toMatchObject({
       op: "AND",
       operands: expect.arrayContaining([
@@ -75,7 +73,38 @@ describe("analyticsQueries", () => {
     expect(JSON.stringify(queries.unrecoverable.filter)).toContain(
       JSON.stringify(RetryConditions.unrecoverableCondition),
     );
-    Object.values(queries).forEach(expectSnapshotWindow);
+    [queries.actionableNow, queries.timedOut, queries.unrecoverable].forEach(
+      expectSnapshotWindow,
+    );
+    expect(queries).toHaveProperty("activeTotal", {
+      filter: {
+        op: "IN",
+        field: "state.status",
+        values: [ExecutionFailedStatus.FAILED, ExecutionFailedStatus.PREPARED],
+      },
+      metrics: [{ type: "COUNT", alias: "count" }],
+    });
+    expect(queries).toHaveProperty("olderThanRange", {
+      filter: {
+        op: "AND",
+        operands: [
+          {
+            op: "IN",
+            field: "state.status",
+            values: [
+              ExecutionFailedStatus.FAILED,
+              ExecutionFailedStatus.PREPARED,
+            ],
+          },
+          {
+            op: "LT",
+            field: "state.executeAt",
+            value: snapshotWindow.start,
+          },
+        ],
+      },
+      metrics: [{ type: "COUNT", alias: "count" }],
+    });
     expect(queries.actionableNow.metrics).toEqual([
       { type: "COUNT", alias: "count" },
     ]);
@@ -97,10 +126,14 @@ describe("analyticsQueries", () => {
         functionKind: "EVENT",
       },
     ];
+    const summary = createSnapshotSummaryQueries(
+      1_787_932_800_000,
+      snapshotWindow,
+    );
     const queries = [
-      ...Object.values(
-        createSnapshotSummaryQueries(1_787_932_800_000, snapshotWindow),
-      ),
+      summary.actionableNow,
+      summary.timedOut,
+      summary.unrecoverable,
       createPressureQuery(snapshotWindow),
       createPressureStatusQuery(keys, snapshotWindow),
       createRecoverabilityQuery(snapshotWindow),
@@ -157,7 +190,8 @@ describe("analyticsQueries", () => {
   });
 
   it("builds status counts only for the supplied pressure clusters", () => {
-    const statusQuery = createPressureStatusQuery([
+    const statusQuery = createPressureStatusQuery(
+      [
         {
           errorCode: "TEST_TIMEOUT",
           contextName: "billing",
@@ -165,7 +199,9 @@ describe("analyticsQueries", () => {
           functionName: "run",
           functionKind: "EVENT",
         },
-      ], snapshotWindow);
+      ],
+      snapshotWindow,
+    );
     expect(JSON.stringify(statusQuery.filter)).toContain(
       JSON.stringify({
         op: "EQ",
@@ -208,7 +244,9 @@ describe("analyticsQueries", () => {
     };
     const second = { ...first, processorName: "InvoiceProcessor" };
 
-    expect(createPressureStatusQuery([first, second], snapshotWindow).groupBy).toEqual([
+    expect(
+      createPressureStatusQuery([first, second], snapshotWindow).groupBy,
+    ).toEqual([
       { type: "TERMS", field: "state.error.errorCode", alias: "errorCode" },
       {
         type: "TERMS",
@@ -266,9 +304,7 @@ describe("analyticsQueries", () => {
 
     const query = createPressureStatusQuery(keys, snapshotWindow);
     expect(
-      JSON.stringify(query.filter).match(
-        /"field":"state\.error\.errorCode"/g,
-      ),
+      JSON.stringify(query.filter).match(/"field":"state\.error\.errorCode"/g),
     ).toHaveLength(5);
   });
 

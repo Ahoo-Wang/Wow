@@ -115,79 +115,155 @@ async function mockAnalyticsAggregations(
 ) {
   const pressureClusters = [
     ["TEST_TIMEOUT", "billing", "OrderProcessor", "run", "EVENT", 120, 90, 30],
-    ["BAD_REQUEST", "orders", "OrderItemReservedTrackEventProcessor", "onPickupOrderItemReservedConfirmed", "EVENT", 80, 70, 10],
-    ["NOT_FOUND", "catalog", "ProductProjectionProcessor", "onProductChanged", "EVENT", 60, 60, 0],
-    ["CONFLICT", "inventory", "ReservationProcessor", "reserve", "COMMAND", 40, 30, 10],
-    ["UNAVAILABLE", "payment", "PaymentProcessor", "charge", "COMMAND", 20, 15, 5],
+    [
+      "BAD_REQUEST",
+      "orders",
+      "OrderItemReservedTrackEventProcessor",
+      "onPickupOrderItemReservedConfirmed",
+      "EVENT",
+      80,
+      70,
+      10,
+    ],
+    [
+      "NOT_FOUND",
+      "catalog",
+      "ProductProjectionProcessor",
+      "onProductChanged",
+      "EVENT",
+      60,
+      60,
+      0,
+    ],
+    [
+      "CONFLICT",
+      "inventory",
+      "ReservationProcessor",
+      "reserve",
+      "COMMAND",
+      40,
+      30,
+      10,
+    ],
+    [
+      "UNAVAILABLE",
+      "payment",
+      "PaymentProcessor",
+      "charge",
+      "COMMAND",
+      20,
+      15,
+      5,
+    ],
   ] as const;
 
-  await page.route("**/execution_failed/snapshot/aggregation", async (route) => {
-    const query = route.request().postDataJSON() as AggregationQueryBody;
-    callbacks.onSnapshot(query);
-    const aliases = query.groupBy?.map(({ alias }) => alias) ?? [];
-    if (
-      callbacks.failSnapshotAlias &&
-      aliases.includes(callbacks.failSnapshotAlias)
-    ) {
-      await route.fulfill({
-        status: 500,
-        contentType: "application/json",
-        body: JSON.stringify({
-          message:
-            callbacks.snapshotErrorMessage ?? "analytics section unavailable",
-        }),
-      });
-      return;
-    }
-    const serializedFilter = JSON.stringify(query.filter ?? {});
-    let rows: Array<Record<string, unknown>>;
+  await page.route(
+    "**/execution_failed/snapshot/aggregation",
+    async (route) => {
+      const query = route.request().postDataJSON() as AggregationQueryBody;
+      callbacks.onSnapshot(query);
+      const aliases = query.groupBy?.map(({ alias }) => alias) ?? [];
+      if (
+        callbacks.failSnapshotAlias &&
+        aliases.includes(callbacks.failSnapshotAlias)
+      ) {
+        await route.fulfill({
+          status: 500,
+          contentType: "application/json",
+          body: JSON.stringify({
+            message:
+              callbacks.snapshotErrorMessage ?? "analytics section unavailable",
+          }),
+        });
+        return;
+      }
+      const serializedFilter = JSON.stringify(query.filter ?? {});
+      let rows: Array<Record<string, unknown>>;
 
-    if (aliases.includes("errorCode") && aliases.includes("status")) {
-      rows = pressureClusters.flatMap(
-        ([errorCode, contextName, processorName, functionName, functionKind, , failedCount, preparedCount]) => [
-          { errorCode, contextName, processorName, functionName, functionKind, status: "FAILED", statusCount: failedCount },
-          { errorCode, contextName, processorName, functionName, functionKind, status: "PREPARED", statusCount: preparedCount },
-        ],
-      );
-    } else if (aliases.includes("errorCode")) {
-      rows = pressureClusters.map(
-        ([errorCode, contextName, processorName, functionName, functionKind, currentCount]) => ({
-          errorCode,
-          contextName,
-          processorName,
-          functionName,
-          functionKind,
-          currentCount,
-          oldestExecuteAt: 1_787_846_400_000,
-          nextRetryAt: 1_787_932_800_000,
-        }),
-      );
-    } else if (aliases.includes("recoverable")) {
-      rows = [
-        { recoverable: "RECOVERABLE", count: 7 },
-        { recoverable: "UNKNOWN", count: 3 },
-        { recoverable: "UNRECOVERABLE", count: 2 },
-      ];
-    } else if (aliases.includes("retries")) {
-      rows = [
-        { retries: 0, count: 5 },
-        { retries: 1, count: 4 },
-        { retries: 3, count: 2 },
-        { retries: 6, count: 1 },
-      ];
-    } else if (serializedFilter.includes("nextRetryAt")) {
-      rows = [{ count: 128 }];
-    } else if (serializedFilter.includes("timeoutAt")) {
-      rows = [{ count: 34 }];
-    } else {
-      rows = [{ count: 9 }];
-    }
-    await route.fulfill({ json: rows });
-  });
+      if (aliases.includes("errorCode") && aliases.includes("status")) {
+        rows = pressureClusters.flatMap(
+          ([
+            errorCode,
+            contextName,
+            processorName,
+            functionName,
+            functionKind,
+            ,
+            failedCount,
+            preparedCount,
+          ]) => [
+            {
+              errorCode,
+              contextName,
+              processorName,
+              functionName,
+              functionKind,
+              status: "FAILED",
+              statusCount: failedCount,
+            },
+            {
+              errorCode,
+              contextName,
+              processorName,
+              functionName,
+              functionKind,
+              status: "PREPARED",
+              statusCount: preparedCount,
+            },
+          ],
+        );
+      } else if (aliases.includes("errorCode")) {
+        rows = pressureClusters.map(
+          ([
+            errorCode,
+            contextName,
+            processorName,
+            functionName,
+            functionKind,
+            currentCount,
+          ]) => ({
+            errorCode,
+            contextName,
+            processorName,
+            functionName,
+            functionKind,
+            currentCount,
+            oldestExecuteAt: 1_787_846_400_000,
+            nextRetryAt: 1_787_932_800_000,
+          }),
+        );
+      } else if (aliases.includes("recoverable")) {
+        rows = [
+          { recoverable: "RECOVERABLE", count: 300 },
+          { recoverable: "UNKNOWN", count: 10 },
+          { recoverable: "UNRECOVERABLE", count: 10 },
+        ];
+      } else if (aliases.includes("retries")) {
+        rows = [
+          { retries: 0, count: 5 },
+          { retries: 1, count: 4 },
+          { retries: 3, count: 2 },
+          { retries: 6, count: 1 },
+        ];
+      } else if (serializedFilter.includes("nextRetryAt")) {
+        rows = [{ count: 128 }];
+      } else if (serializedFilter.includes("timeoutAt")) {
+        rows = [{ count: 34 }];
+      } else if (!serializedFilter.includes("state.executeAt")) {
+        rows = [{ count: 1_000 }];
+      } else if (!serializedFilter.includes('"op":"GTE"')) {
+        rows = [{ count: 680 }];
+      } else {
+        rows = [{ count: 9 }];
+      }
+      await route.fulfill({ json: rows });
+    },
+  );
 
   await page.route("**/execution_failed/event/aggregation", async (route) => {
     const query = route.request().postDataJSON() as AggregationQueryBody;
     callbacks.onEvent(query);
+    const { start } = queryWindow(query, "createTime");
     const name = JSON.stringify(query).match(
       /execution_(?:failed_created|failed_applied|success_applied)|compensation_prepared/,
     )?.[0];
@@ -200,7 +276,7 @@ async function mockAnalyticsAggregations(
     await route.fulfill({
       json: [
         {
-          bucket: new Date(2026, 7, 28).getTime(),
+          bucket: start,
           streamCount: name ? counts[name] : 0,
         },
       ],
@@ -352,24 +428,22 @@ test("loads lifecycle history through the paged EventStream REST API", async ({
 test("keeps prepared actions independent of the browser clock", async ({
   page,
 }, testInfo) => {
-  await page.route(
-    "**/execution_failed/snapshot/paged/state",
-    (route) =>
-      route.fulfill({
-        json: {
-          total: 1,
-          list: [
-            {
-              ...execution,
-              status: "PREPARED",
-              retryState: {
-                ...execution.retryState,
-                timeoutAt: Date.now() + 86_400_000,
-              },
+  await page.route("**/execution_failed/snapshot/paged/state", (route) =>
+    route.fulfill({
+      json: {
+        total: 1,
+        list: [
+          {
+            ...execution,
+            status: "PREPARED",
+            retryState: {
+              ...execution.retryState,
+              timeoutAt: Date.now() + 86_400_000,
             },
-          ],
-        },
-      }),
+          },
+        ],
+      },
+    }),
   );
 
   await page.goto("/to-retry");
@@ -447,16 +521,23 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
   expect(await page.evaluate(() => location.pathname)).toBe("/");
   await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
   await expect(
-    page.getByText("Current failure pressure — Top 5 clusters"),
+    page.getByText(/Failure concentration · Top cluster/),
   ).toBeVisible();
-  await expect(page.getByText("Compensation outcomes")).toBeVisible();
-  await expect.poll(() => snapshotRequests).toBe(7);
+  await expect(
+    page.getByRole("heading", { name: "STOCK / Backlog exposure" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "FLOW / Compensation effectiveness" }),
+  ).toBeVisible();
+  await expect.poll(() => snapshotRequests).toBe(9);
   await expect.poll(() => eventRequests).toBe(4);
   const timeRange = page.getByRole("button", { name: /^Time range:/ });
   await expect(timeRange).toContainText("–");
   await timeRange.click();
   const pickerSizing = await page.getByRole("dialog").evaluate((dialog) => {
-    const calendar = dialog.querySelector<HTMLElement>("[data-slot='calendar']");
+    const calendar = dialog.querySelector<HTMLElement>(
+      "[data-slot='calendar']",
+    );
     if (!calendar) {
       throw new Error("Date range calendar is missing");
     }
@@ -487,21 +568,33 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
     ).toBeGreaterThanOrEqual(14);
   }
   await page.getByRole("button", { name: "Today", exact: true }).click();
-  await expect.poll(() => snapshotRequests).toBe(14);
+  await expect.poll(() => snapshotRequests).toBe(18);
   await expect.poll(() => eventRequests).toBe(8);
   await page.getByRole("button", { name: "Refresh dashboard" }).click();
-  await expect.poll(() => snapshotRequests).toBe(21);
+  await expect.poll(() => snapshotRequests).toBe(27);
   await expect.poll(() => eventRequests).toBe(12);
 
   const appliedWindows: Array<{ end: number; start: number }> = [];
   for (const batch of [0, 1, 2]) {
     const snapshotWindows = snapshotQueries
-      .slice(batch * 7, batch * 7 + 7)
+      .slice(batch * 9, batch * 9 + 9)
       .map((query) => queryWindow(query, "state.executeAt"));
+    const fullyWindowedSnapshots = snapshotWindows.filter(
+      ({ end, start }) => Number.isFinite(start) && Number.isFinite(end),
+    );
+    const olderSnapshot = snapshotWindows.filter(
+      ({ end, start }) => !Number.isFinite(start) && Number.isFinite(end),
+    );
+    const allTimeSnapshot = snapshotWindows.filter(
+      ({ end, start }) => !Number.isFinite(start) && !Number.isFinite(end),
+    );
+    expect(fullyWindowedSnapshots).toHaveLength(7);
+    expect(olderSnapshot).toHaveLength(1);
+    expect(allTimeSnapshot).toHaveLength(1);
     const eventWindows = eventQueries
       .slice(batch * 4, batch * 4 + 4)
       .map((query) => queryWindow(query, "createTime"));
-    const windows = [...snapshotWindows, ...eventWindows];
+    const windows = [...fullyWindowedSnapshots, ...eventWindows];
     for (const { end, start } of windows) {
       expect(Number.isFinite(start)).toBe(true);
       expect(Number.isFinite(end)).toBe(true);
@@ -510,6 +603,7 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
     expect(
       new Set(windows.map(({ end, start }) => `${start}:${end}`)).size,
     ).toBe(1);
+    expect(olderSnapshot[0]?.end).toBe(windows[0]?.start);
     appliedWindows.push(windows[0] as { end: number; start: number });
   }
   expect(appliedWindows[0]).not.toEqual(appliedWindows[1]);
@@ -530,7 +624,6 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
     scrollWidth: element.scrollWidth,
   }));
   if (testInfo.project.name === "desktop-chromium") {
-    expect(overflow.scrollHeight).toBeLessThanOrEqual(overflow.clientHeight);
     expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth);
     const pressureSizing = await page
       .locator(".dashboard-pressure-table")
@@ -545,7 +638,9 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
           overflowY: getComputedStyle(element).overflowY,
           rowsVisible: rows.every((row) => {
             const bounds = row.getBoundingClientRect();
-            return bounds.top >= container.top && bounds.bottom <= container.bottom;
+            return (
+              bounds.top >= container.top && bounds.bottom <= container.bottom
+            );
           }),
         };
       });
@@ -553,36 +648,13 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
     expect(pressureSizing.overflowY).not.toMatch(/auto|scroll/);
     expect(pressureSizing.rowsVisible).toBe(true);
     await expect(page.getByText("Swipe to view more")).toBeHidden();
-    expect((await page.locator(".dashboard-signals").boundingBox())?.height).toBeGreaterThanOrEqual(200);
-    const signalsLayout = await page
-      .locator(".dashboard-signals")
-      .evaluate((element) => {
-        const outcomes = element.querySelector<HTMLElement>(
-          ".dashboard-outcomes",
-        );
-        const health = element.querySelector<HTMLElement>(".dashboard-health");
-        if (!outcomes || !health) {
-          throw new Error("Dashboard analysis layout is missing");
-        }
-        const outcomesBounds = outcomes.getBoundingClientRect();
-        const healthBounds = health.getBoundingClientRect();
-        return {
-          healthTop: healthBounds.top,
-          healthWidth: healthBounds.width,
-          outcomesTop: outcomesBounds.top,
-          outcomesWidth: outcomesBounds.width,
-        };
-      });
-    expect(
-      Math.abs(signalsLayout.outcomesTop - signalsLayout.healthTop),
-    ).toBeLessThanOrEqual(2);
-    expect(signalsLayout.outcomesWidth + 1).toBeGreaterThanOrEqual(
-      signalsLayout.healthWidth * 2,
-    );
     for (const name of [
-      "Recoverability",
+      "STOCK / Backlog exposure",
+      "FLOW / Compensation effectiveness",
+      "Failure inflow (new failures)",
+      "Outcome flow (total in selected range)",
+      "Recoverability composition",
       "Retry distribution",
-      "Compensation outcomes",
     ]) {
       await expect(page.getByRole("heading", { name })).toBeVisible();
     }
@@ -593,12 +665,13 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
           .getByText(label, { exact: true }),
       ).toBeVisible();
     }
-    const singleDayOutcomes = page.getByLabel(
-      "Compensation outcomes for 08-29",
-    );
-    expect((await singleDayOutcomes.boundingBox())?.height).toBeGreaterThanOrEqual(
-      200,
-    );
+    const activity = page.getByRole("region", {
+      name: "Compensation activity",
+    });
+    await expect(activity.getByText("12 new failures")).toBeVisible();
+    await expect(
+      activity.getByRole("img", { name: /Outcome flow:/ }),
+    ).toBeVisible();
     const fontTargets = [
       page.getByText("Actionable now", { exact: true }),
       pressureTable.locator("tbody tr").first().locator("td").nth(1),
@@ -610,7 +683,7 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
         .locator(".text-muted-foreground"),
       pressureTable.locator("tbody tr").first().getByText("90 (75%)"),
       page
-        .getByRole("region", { name: "Recoverability" })
+        .getByRole("region", { name: "Recoverability composition" })
         .getByText("Recoverable", { exact: true }),
       page
         .getByRole("region", { name: "Retry distribution" })
@@ -618,8 +691,8 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
       page
         .getByRole("region", { name: "Retry distribution" })
         .getByText("4 (33%)", { exact: true }),
-      singleDayOutcomes.getByText("New failures", { exact: true }),
-      singleDayOutcomes.locator("dd").first(),
+      activity.locator(".dashboard-series-label"),
+      activity.getByText("12 new failures", { exact: true }),
     ];
     for (const target of fontTargets) {
       await expect(target).toBeVisible();
@@ -633,47 +706,45 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
     const tallViewportLayout = await page
       .locator(".dashboard-view")
       .evaluate((dashboard) => {
-        const signals = dashboard.querySelector<HTMLElement>(
-          ".dashboard-signals",
+        const overview = dashboard.querySelector<HTMLElement>(
+          ".dashboard-overview",
         );
+        const activity = dashboard.querySelector<HTMLElement>(
+          ".dashboard-activity",
+        );
+        const health =
+          dashboard.querySelector<HTMLElement>(".dashboard-health");
         const healthTitle = dashboard.querySelector<HTMLElement>(
           "#dashboard-health-title",
         );
         const recoverabilityTitle = dashboard.querySelector<HTMLElement>(
-          "[aria-label='Recoverability'] h3",
-        );
-        const lastPressureRow = dashboard.querySelector<HTMLElement>(
-          ".dashboard-pressure-table tbody tr:last-child",
+          "[aria-label='Recoverability composition'] h3",
         );
         if (
-          !signals ||
+          !overview ||
+          !activity ||
+          !health ||
           !healthTitle ||
-          !recoverabilityTitle ||
-          !lastPressureRow
+          !recoverabilityTitle
         ) {
           throw new Error("Dashboard visual hierarchy is incomplete");
         }
-        const signalsBounds = signals.getBoundingClientRect();
+        const activityBounds = activity.getBoundingClientRect();
         const healthTitleBounds = healthTitle.getBoundingClientRect();
-        const recoverabilityTitleBounds = recoverabilityTitle.getBoundingClientRect();
+        const recoverabilityTitleBounds =
+          recoverabilityTitle.getBoundingClientRect();
         return {
-          dashboardClientHeight: dashboard.clientHeight,
-          dashboardScrollHeight: dashboard.scrollHeight,
-          healthLeadGap: recoverabilityTitleBounds.top - healthTitleBounds.bottom,
-          lastPressureRowBottom: lastPressureRow.getBoundingClientRect().bottom,
-          signalsHeight: signalsBounds.height,
-          viewportHeight: window.innerHeight,
+          activityHeight: activityBounds.height,
+          healthHeight: health.getBoundingClientRect().height,
+          healthLeadGap:
+            recoverabilityTitleBounds.top - healthTitleBounds.bottom,
+          overviewHeight: overview.getBoundingClientRect().height,
         };
       });
-    expect(tallViewportLayout.signalsHeight).toBeGreaterThanOrEqual(400);
-    expect(tallViewportLayout.signalsHeight).toBeLessThanOrEqual(480);
+    expect(tallViewportLayout.overviewHeight).toBeGreaterThanOrEqual(260);
+    expect(tallViewportLayout.activityHeight).toBeGreaterThanOrEqual(224);
+    expect(tallViewportLayout.healthHeight).toBeGreaterThanOrEqual(140);
     expect(tallViewportLayout.healthLeadGap).toBeLessThanOrEqual(32);
-    expect(tallViewportLayout.lastPressureRowBottom).toBeLessThanOrEqual(
-      tallViewportLayout.viewportHeight,
-    );
-    expect(tallViewportLayout.dashboardScrollHeight).toBeLessThanOrEqual(
-      tallViewportLayout.dashboardClientHeight,
-    );
   }
   expect(
     await page.evaluate(
@@ -732,8 +803,8 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
       .first()
       .evaluate((element) => {
         const bounds = element.getBoundingClientRect();
-        const container = element.parentElement?.parentElement?.parentElement
-          ?.getBoundingClientRect();
+        const container =
+          element.parentElement?.parentElement?.parentElement?.getBoundingClientRect();
         return {
           display: getComputedStyle(element).display,
           right: bounds.right,
@@ -745,22 +816,18 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
       firstPressureCard.containerRight,
     );
     await page
-      .getByRole("heading", { name: "Compensation outcomes" })
+      .getByRole("heading", { name: "Failure inflow (new failures)" })
       .scrollIntoViewIfNeeded();
     await expect(
-      page.getByRole("heading", { name: "Compensation outcomes" }),
+      page.getByRole("heading", { name: "Failure inflow (new failures)" }),
     ).toBeVisible();
-  } else {
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollHeight <= window.innerHeight,
-      ),
-    ).toBe(true);
   }
   expect(consoleErrors).toEqual([]);
 });
 
-test("keeps the multi-day outcomes summary compact", async ({ page }, testInfo) => {
+test("separates multi-day failure inflow from outcome flow", async ({
+  page,
+}, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-chromium");
   await page.setViewportSize({ width: 1440, height: 1024 });
   await mockAnalyticsAggregations(page, {
@@ -770,9 +837,21 @@ test("keeps the multi-day outcomes summary compact", async ({ page }, testInfo) 
 
   await page.goto("/");
 
-  const latestOutcomes = page.locator("[aria-label^='Latest outcomes for']");
-  await expect(latestOutcomes).toBeVisible();
-  expect((await latestOutcomes.boundingBox())?.height).toBeLessThanOrEqual(72);
+  const activity = page.getByRole("region", { name: "Compensation activity" });
+  await expect(
+    activity.getByRole("heading", {
+      name: "Failure inflow (new failures) — daily trend",
+    }),
+  ).toBeVisible();
+  await expect(
+    activity.getByRole("heading", {
+      name: "Outcome flow (total in selected range)",
+    }),
+  ).toBeVisible();
+  await expect(
+    activity.getByRole("img", { name: /Outcome flow:/ }),
+  ).toBeVisible();
+  expect((await activity.boundingBox())?.height).toBeGreaterThanOrEqual(200);
 });
 
 test("hides desktop navigation labels when collapsed", async ({
@@ -794,7 +873,9 @@ test("hides desktop navigation labels when collapsed", async ({
     "Non Retryable",
     "Succeeded",
     "Unrecoverable",
-  ].map((name) => page.getByRole("link", { name, exact: true }).locator("span"));
+  ].map((name) =>
+    page.getByRole("link", { name, exact: true }).locator("span"),
+  );
   for (const label of labels) {
     await expect(label).toBeVisible();
   }
@@ -806,7 +887,9 @@ test("hides desktop navigation labels when collapsed", async ({
     .poll(() =>
       page
         .locator("[data-slot='sidebar-container']")
-        .evaluate((element) => Math.round(element.getBoundingClientRect().width)),
+        .evaluate((element) =>
+          Math.round(element.getBoundingClientRect().width),
+        ),
     )
     .toBe(56);
   const alignment = await page.evaluate(() => {
@@ -864,7 +947,9 @@ test("hides desktop navigation labels when collapsed", async ({
   expect(alignment.menuGap).toBe(4);
 });
 
-test("stacks mobile dashboard regions without overlap", async ({ page }, testInfo) => {
+test("stacks mobile dashboard regions without overlap", async ({
+  page,
+}, testInfo) => {
   test.skip(testInfo.project.name !== "mobile-chromium");
   await mockAnalyticsAggregations(page, {
     onEvent: () => undefined,
@@ -873,48 +958,81 @@ test("stacks mobile dashboard regions without overlap", async ({ page }, testInf
 
   await page.goto("/");
   await expect(
-    page.locator("[aria-label^='Latest outcomes for']"),
+    page.getByRole("heading", { name: "STOCK / Backlog exposure" }),
   ).toBeVisible();
 
-  const mobileLayout = await page.locator(".dashboard-view").evaluate((dashboard) => {
-    const signals = dashboard.querySelector<HTMLElement>(".dashboard-signals");
-    const pressure = dashboard.querySelector<HTMLElement>(".dashboard-pressure");
-    const recoverability = dashboard.querySelector<HTMLElement>(
-      "[aria-label='Recoverability']",
-    );
-    const retries = dashboard.querySelector<HTMLElement>(
-      "[aria-label='Retry distribution']",
-    );
-    const summaryItems = Array.from(
-      dashboard.querySelectorAll<HTMLElement>(".dashboard-trend-summary > div"),
-    );
-    if (
-      !signals ||
-      !pressure ||
-      !recoverability ||
-      !retries ||
-      summaryItems.length !== 4
-    ) {
-      throw new Error("Mobile dashboard hierarchy is incomplete");
-    }
-    return {
-      firstSummaryTop: summaryItems[0].getBoundingClientRect().top,
-      pressureTop: pressure.getBoundingClientRect().top,
-      recoverabilityBottom: recoverability.getBoundingClientRect().bottom,
-      retriesTop: retries.getBoundingClientRect().top,
-      signalsBottom: signals.getBoundingClientRect().bottom,
-      thirdSummaryTop: summaryItems[2].getBoundingClientRect().top,
-    };
-  });
-  expect(mobileLayout.thirdSummaryTop).toBeGreaterThan(
-    mobileLayout.firstSummaryTop,
+  const mobileLayout = await page
+    .locator(".dashboard-view")
+    .evaluate((dashboard) => {
+      const overview = dashboard.querySelector<HTMLElement>(
+        ".dashboard-overview",
+      );
+      const stock = dashboard.querySelector<HTMLElement>(".dashboard-stock");
+      const flow = dashboard.querySelector<HTMLElement>(".dashboard-flow");
+      const activity = dashboard.querySelector<HTMLElement>(
+        ".dashboard-activity",
+      );
+      const failureInflow = dashboard.querySelector<HTMLElement>(
+        ".dashboard-failure-inflow",
+      );
+      const outcomeFlow = dashboard.querySelector<HTMLElement>(
+        ".dashboard-outcome-flow",
+      );
+      const health = dashboard.querySelector<HTMLElement>(".dashboard-health");
+      const pressure = dashboard.querySelector<HTMLElement>(
+        ".dashboard-pressure",
+      );
+      const recoverability = dashboard.querySelector<HTMLElement>(
+        "[aria-label='Recoverability composition']",
+      );
+      const retries = dashboard.querySelector<HTMLElement>(
+        "[aria-label='Retry distribution']",
+      );
+      if (
+        !overview ||
+        !stock ||
+        !flow ||
+        !activity ||
+        !failureInflow ||
+        !outcomeFlow ||
+        !health ||
+        !pressure ||
+        !recoverability ||
+        !retries
+      ) {
+        throw new Error("Mobile dashboard hierarchy is incomplete");
+      }
+      return {
+        activityBottom: activity.getBoundingClientRect().bottom,
+        flowTop: flow.getBoundingClientRect().top,
+        healthBottom: health.getBoundingClientRect().bottom,
+        outcomeFlowTop: outcomeFlow.getBoundingClientRect().top,
+        overviewBottom: overview.getBoundingClientRect().bottom,
+        pressureTop: pressure.getBoundingClientRect().top,
+        recoverabilityBottom: recoverability.getBoundingClientRect().bottom,
+        retriesTop: retries.getBoundingClientRect().top,
+        stockBottom: stock.getBoundingClientRect().bottom,
+        failureInflowBottom: failureInflow.getBoundingClientRect().bottom,
+      };
+    });
+  expect(mobileLayout.flowTop).toBeGreaterThanOrEqual(mobileLayout.stockBottom);
+  expect(mobileLayout.outcomeFlowTop).toBeGreaterThanOrEqual(
+    mobileLayout.failureInflowBottom,
   );
   expect(mobileLayout.retriesTop).toBeGreaterThanOrEqual(
     mobileLayout.recoverabilityBottom,
   );
-  expect(mobileLayout.pressureTop).toBeGreaterThanOrEqual(
-    mobileLayout.signalsBottom,
+  expect(mobileLayout.activityBottom).toBeGreaterThanOrEqual(
+    mobileLayout.overviewBottom,
   );
+  expect(mobileLayout.pressureTop).toBeGreaterThanOrEqual(
+    mobileLayout.healthBottom,
+  );
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
 });
 
 test("reflows pressure rows from the available card width", async ({
@@ -930,7 +1048,7 @@ test("reflows pressure rows from the available card width", async ({
   await page.goto("/");
 
   const pressure = page.getByRole("region", {
-    name: "Current failure pressure — Top 5 clusters",
+    name: /Failure concentration/,
   });
   const firstRow = pressure.locator("tbody tr").first();
   await expect(firstRow).toBeVisible();
@@ -976,10 +1094,14 @@ test("shows a distinct dashboard skeleton while initial data is pending", async 
     release();
   }
 
-  await expect(page.getByText("Compensation outcomes")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "STOCK / Backlog exposure" }),
+  ).toBeVisible();
 });
 
-test("redirects Dashboard aliases and fallback to the root", async ({ page }) => {
+test("redirects Dashboard aliases and fallback to the root", async ({
+  page,
+}) => {
   for (const path of ["/dashboard", "/analytics", "/missing-dashboard-route"]) {
     await page.goto(path);
     expect(await page.evaluate(() => location.pathname)).toBe("/");
@@ -999,7 +1121,11 @@ test("isolates one failed analytics region", async ({ page }) => {
   await expect(page.getByRole("alert")).toContainText(
     "analytics section unavailable",
   );
-  await expect(page.getByText("Compensation outcomes")).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      name: "Failure inflow (new failures) — daily trend",
+    }),
+  ).toBeVisible();
 });
 
 test("keeps a long analytics error wrapped and reachable", async ({
@@ -1021,8 +1147,8 @@ test("keeps a long analytics error wrapped and reachable", async ({
   await expect(alert).toHaveText(longMessage);
   const layout = await alert.evaluate((element) => {
     const dashboard = document.querySelector<HTMLElement>(".dashboard-view");
-    const signals = document.querySelector<HTMLElement>(".dashboard-signals");
-    if (!dashboard || !signals) {
+    const overview = document.querySelector<HTMLElement>(".dashboard-overview");
+    if (!dashboard || !overview) {
       throw new Error("Dashboard layout is missing");
     }
     return {
@@ -1031,12 +1157,12 @@ test("keeps a long analytics error wrapped and reachable", async ({
       dashboardClientHeight: dashboard.clientHeight,
       dashboardScrollHeight: dashboard.scrollHeight,
       overflowWrap: getComputedStyle(element).overflowWrap,
-      signalsHeight: signals.getBoundingClientRect().height,
+      overviewHeight: overview.getBoundingClientRect().height,
     };
   });
   expect(layout.overflowWrap).toBe("anywhere");
   expect(layout.alertScrollWidth).toBeLessThanOrEqual(layout.alertClientWidth);
-  expect(layout.signalsHeight).toBeGreaterThan(208);
+  expect(layout.overviewHeight).toBeGreaterThan(208);
   expect(layout.dashboardScrollHeight).toBeGreaterThanOrEqual(
     layout.dashboardClientHeight,
   );
