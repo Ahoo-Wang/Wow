@@ -18,6 +18,7 @@ import me.ahoo.wow.infra.reflection.MergedAnnotation.Companion.inheritedAnnotati
 import me.ahoo.wow.infra.reflection.MergedAnnotation.Companion.toMergedAnnotation
 import org.junit.jupiter.api.Test
 import java.lang.reflect.Method
+import kotlin.reflect.KClass
 import kotlin.reflect.full.declaredFunctions
 
 class MergedAnnotationTest {
@@ -29,6 +30,20 @@ class MergedAnnotationTest {
             .map { it.value }
 
         annotations.assert().isEqualTo(listOf("base-class"))
+    }
+
+    @Test
+    fun `should evaluate shared ancestors once in repeated diamonds`() {
+        val scans = mutableMapOf<KClass<*>, Int>()
+
+        val annotations = RepeatedDiamondRoot::class.inheritedAnnotations { type ->
+            scans[type] = scans.getOrDefault(type, 0) + 1
+            type.annotations.toSet()
+        }.filterIsInstance<MergedMarker>().map { it.value }
+
+        annotations.assert().isEqualTo(listOf("repeated-base"))
+        scans.getValue(RepeatedDiamondShared::class).assert().isEqualTo(1)
+        scans.getValue(RepeatedDiamondBase::class).assert().isEqualTo(1)
     }
 
     @Test
@@ -179,6 +194,21 @@ private fun Method.mergedMarkerValues(): Set<String> = inheritedAnnotations()
 private open class BaseMergedClass
 
 private class ChildMergedClass : BaseMergedClass()
+
+@MergedMarker("repeated-base")
+private interface RepeatedDiamondBase
+
+private interface RepeatedDiamondLeft : RepeatedDiamondBase
+
+private interface RepeatedDiamondRight : RepeatedDiamondBase
+
+private interface RepeatedDiamondShared : RepeatedDiamondLeft, RepeatedDiamondRight
+
+private interface RepeatedDiamondOuterLeft : RepeatedDiamondShared
+
+private interface RepeatedDiamondOuterRight : RepeatedDiamondShared
+
+private interface RepeatedDiamondRoot : RepeatedDiamondOuterLeft, RepeatedDiamondOuterRight
 
 private open class BaseMergedState(
     @get:MergedMarker("base-property")
