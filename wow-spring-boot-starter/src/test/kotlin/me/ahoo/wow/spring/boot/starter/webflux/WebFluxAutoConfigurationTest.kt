@@ -149,6 +149,25 @@ internal class WebFluxAutoConfigurationTest {
         )
 
     @Test
+    fun `query route should expose unique cursor factories`() {
+        val factories = QueryRouteModule(
+            beanFactory = mockk(),
+            snapshotQueryBackendFactory = TestSnapshotQueryBackendFactory,
+            eventStreamQueryBackendFactory = TestEventStreamQueryBackendFactory,
+            rewriteRequestFilter = DefaultRewriteRequestFilter,
+            exceptionHandler = WebFluxRequestExceptionHandler(),
+        ).httpFactories
+        val handlerKeys = factories.map { it.handlerKey }
+
+        handlerKeys.toSet().assert().hasSize(handlerKeys.size)
+        handlerKeys.assert().contains(
+            BuiltInHttpRouteHandlerKeys.Snapshot.CURSOR_QUERY,
+            BuiltInHttpRouteHandlerKeys.Snapshot.CURSOR_QUERY_STATE,
+            BuiltInHttpRouteHandlerKeys.Event.CURSOR_QUERY,
+        )
+    }
+
+    @Test
     fun `query route should resolve each aggregate gateway once during construction`() {
         val orderGateway = mockk<SnapshotQueryGateway<Any>> {
             every { dynamicList(any()) } returns Flux.empty()

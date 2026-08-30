@@ -18,6 +18,7 @@ package me.ahoo.wow.webflux.route.query
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.query.*
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.filter.FilterChain
@@ -98,6 +99,7 @@ class HttpQueryGuardFilter(
                 return
             }
             is IListQuery -> validateList(query)
+            is ICursorQuery -> validateCursor(query)
             is IPagedQuery -> validatePage(query)
         }
         val filter = when (query) {
@@ -135,6 +137,12 @@ class HttpQueryGuardFilter(
         val offset = (pagination.index.toLong() - 1) * pagination.size
         require(offset <= Int.MAX_VALUE) {
             "HTTP page offset[$offset] must not exceed ${Int.MAX_VALUE}."
+        }
+    }
+
+    private fun validateCursor(query: ICursorQuery) {
+        require(query.size >= 1 && (maxPageSize == 0 || query.size <= maxPageSize)) {
+            "HTTP cursor size[${query.size}] must be between 1 and $maxPageSize."
         }
     }
 
@@ -214,6 +222,8 @@ class HttpQueryGuardFilter(
                 }
 
             QueryType.PAGED -> context.asPagedQuery().rewriteResult { it.timeout(idleTimeout) }
+
+            QueryType.CURSOR -> context.asCursorQuery().rewriteResult { it.timeout(idleTimeout) }
 
             QueryType.COUNT -> context.asCountQuery().rewriteResult { it.timeout(idleTimeout) }
 

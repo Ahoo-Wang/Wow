@@ -19,6 +19,7 @@ import io.mockk.slot
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ListQuery
@@ -35,6 +36,7 @@ import me.ahoo.wow.query.filter.Contexts.getRawRequest
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
+import me.ahoo.wow.webflux.route.snapshot.CursorQuerySnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.SnapshotAggregationHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
@@ -447,6 +449,55 @@ class QueryBodyExtractorTest {
     }
 
     @Test
+    fun `cursor body should accept canonical payload and reject invalid properties`() {
+        val queryGateway = mockk<SnapshotQueryGateway<Any>> {
+            every { dynamicCursor(any()) } returns Mono.just(CursorPage(emptyList(), null))
+        }
+        val client = cursorClient(queryGateway)
+
+        client.post().uri("/sku/snapshot/cursor")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(
+                """{"filter":{"op":"MATCH_ALL"},"sort":[{"field":"state.name","direction":"ASC"}],"size":2,"cursor":"opaque"}"""
+            ).exchange().expectStatus().isOk
+
+        listOf(
+            """{"filter":{"op":"MATCH_ALL"},"unexpected":true}""",
+            """{"filter":null}""",
+            """{"filter":{"op":"MATCH_ALL"},"size":0}""",
+            """{"filter":{"op":"MATCH_ALL"},"size":2147483647}""",
+        ).forEach { body ->
+            client.post().uri("/sku/snapshot/cursor")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(body)
+                .exchange()
+                .expectStatus().isBadRequest
+                .expectHeader().valueEquals(ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
+        }
+    }
+
+    @Test
+    fun `cursor route should map invalid cursor to safe bad request`() {
+        val cursor = "sensitive-payload.signature"
+        val queryGateway = mockk<SnapshotQueryGateway<Any>> {
+            every { dynamicCursor(any()) } returns Mono.error(IllegalArgumentException("Invalid cursor."))
+        }
+
+        cursorClient(queryGateway).post().uri("/sku/snapshot/cursor")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("""{"filter":{"op":"MATCH_ALL"},"cursor":"$cursor"}""")
+            .exchange()
+            .expectStatus().isBadRequest
+            .expectHeader().valueEquals(ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
+            .expectBody(String::class.java)
+            .consumeWith { result ->
+                result.responseBody!!.assert()
+                    .contains("Invalid cursor.")
+                    .doesNotContain(cursor, "sensitive-payload")
+            }
+    }
+
+    @Test
     fun `should extract single query and return not found when no data`() {
         // NoOpSnapshotQueryBackendFactory returns empty for single query,
         // so throwNotFoundIfEmpty() results in 404 NOT_FOUND.
@@ -488,6 +539,22 @@ class QueryBodyExtractorTest {
                 ),
             )
             return WebTestClient.bindToRouterFunction(route(POST("/sku/snapshot/count"), handler)).build()
+        }
+
+        private fun cursorClient(
+            queryGateway: SnapshotQueryGateway<Any> = RouteTestFixtures.snapshotQueryGateway,
+        ): WebTestClient {
+            val handler = CursorQuerySnapshotHandlerFunctionFactory(
+                { queryGateway },
+                DefaultRewriteRequestFilter,
+                WebFluxRequestExceptionHandler(),
+            ).create(
+                testAggregateRouteContract(
+                    BuiltInHttpRouteHandlerKeys.Snapshot.CURSOR_QUERY,
+                    RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
+                ),
+            )
+            return WebTestClient.bindToRouterFunction(route(POST("/sku/snapshot/cursor"), handler)).build()
         }
 
         private fun queryClients(): List<Pair<String, WebTestClient>> {
