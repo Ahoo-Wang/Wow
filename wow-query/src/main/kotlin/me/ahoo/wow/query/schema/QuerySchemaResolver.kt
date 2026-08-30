@@ -193,7 +193,7 @@ class QuerySchemaResolver(private val schema: QueryModelSchema) {
         logicalParent: LogicalField?,
         physicalParent: String?,
     ): QueryFieldResolution = fieldResolver.resolve(
-        field = field.absoluteTo(logicalParent),
+        field = if (logicalParent == null) field else LogicalField("${logicalParent.value}.${field.value}"),
         capability = capability,
         logicalParent = logicalParent,
         physicalParent = physicalParent,

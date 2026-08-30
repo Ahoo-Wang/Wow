@@ -1123,11 +1123,11 @@ class QuerySchemaResolverTest {
     }
 
     @Test
-    fun `aggregation elements should retain absolute paths after the root element`() {
+    fun `aggregation elements should resolve paths relative to the root element`() {
         val query = AggregationQuery(
             elements = listOf(
                 AggregationElement(LogicalField("state.orders")),
-                AggregationElement(LogicalField("state.orders.items")),
+                AggregationElement(LogicalField("items")),
             ),
             metrics = listOf(AggregationMetric.Count("count")),
         )
@@ -1148,16 +1148,16 @@ class QuerySchemaResolverTest {
     }
 
     @Test
-    fun `aggregation groups and expressions should retain absolute innermost paths`() {
+    fun `aggregation groups and expressions should resolve relative to the innermost element`() {
         val query = AggregationQuery(
             elements = listOf(AggregationElement(LogicalField("state.orders"))),
             groupBy = listOf(
-                AggregationGroup.Terms(LogicalField("state.orders.category"), "category"),
+                AggregationGroup.Terms(LogicalField("category"), "category"),
             ),
             metrics = listOf(
                 AggregationMetric.Numeric(
                     AggregationFunction.SUM,
-                    AggregationExpression.Field(LogicalField("state.orders.amount")),
+                    AggregationExpression.Field(LogicalField("amount")),
                     "total",
                 ),
             ),
@@ -1179,6 +1179,29 @@ class QuerySchemaResolverTest {
         QuerySchemaResolver(schema).resolve(query).assert().isEqualTo(
             QuerySchemaResolution(query, QueryCompatibilityLevel.EXACT),
         )
+    }
+
+    @Test
+    fun `aggregation fields should remain relative to the innermost element`() {
+        val query = AggregationQuery(
+            elements = listOf(AggregationElement(LogicalField("body"))),
+            groupBy = listOf(AggregationGroup.Terms(LogicalField("body.data"), "data")),
+            metrics = listOf(AggregationMetric.Count("count")),
+        )
+        val resolver = QuerySchemaResolver(
+            schema(
+                mapOf(
+                    LogicalField("body") to fieldSchema(
+                        QueryCapability.ELEMENT_SCOPE to "event.body",
+                    ),
+                    LogicalField("body.body.data") to fieldSchema(
+                        QueryCapability.AGGREGATE_TERMS to "event.body.body.data.keyword",
+                    ),
+                ),
+            ),
+        )
+
+        resolver.resolve(query).compatibility.assert().isEqualTo(QueryCompatibilityLevel.EXACT)
     }
 
     @Test
