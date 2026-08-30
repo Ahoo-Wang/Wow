@@ -174,6 +174,39 @@ class QuerySchemaMergerTest {
     }
 
     @Test
+    fun `event stream body type should reject invalid enum enrichment`() {
+        listOf(
+            QueryFieldDeclaration(enumValues = DeclarationValue.Set(null)),
+            QueryFieldDeclaration(enumValues = DeclarationValue.Set(emptyList())),
+            QueryFieldDeclaration(enumValues = DeclarationValue.Set(listOf(JsonNodeFactory.instance.numberNode(1)))),
+            QueryFieldDeclaration(enumValues = DeclarationValue.Set(enumValues("duplicate", "duplicate"))),
+        ).forEach { extension ->
+            assertThrows<QuerySchemaConflictException> {
+                merger.merge(eventStreamSystem(), listOf(PrioritizedQuerySchemaDeclaration(300, bodyType(extension))))
+            }
+        }
+    }
+
+    @Test
+    fun `event stream body type invalid enum should not clear lower priority enum`() {
+        assertThrows<QuerySchemaConflictException> {
+            merger.merge(
+                eventStreamSystem(),
+                listOf(
+                    PrioritizedQuerySchemaDeclaration(
+                        100,
+                        bodyType(QueryFieldDeclaration(enumValues = DeclarationValue.Set(enumValues("example.Event")))),
+                    ),
+                    PrioritizedQuerySchemaDeclaration(
+                        300,
+                        bodyType(QueryFieldDeclaration(enumValues = DeclarationValue.Set(emptyList()))),
+                    ),
+                ),
+            )
+        }
+    }
+
+    @Test
     fun `event stream payload outside system field should conflict`() {
         assertThrows<QuerySchemaConflictException> {
             merger.merge(
@@ -335,7 +368,7 @@ class QuerySchemaMergerTest {
         ),
     )
 
-    private fun enumValues(value: String) = listOf(JsonNodeFactory.instance.stringNode(value))
+    private fun enumValues(vararg values: String) = values.map(JsonNodeFactory.instance::stringNode)
 
     private data class Masked(
         @field:Mask val secret: String,
