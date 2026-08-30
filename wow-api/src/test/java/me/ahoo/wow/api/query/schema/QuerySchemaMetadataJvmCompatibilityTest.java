@@ -16,8 +16,12 @@ package me.ahoo.wow.api.query.schema;
 import me.ahoo.wow.api.query.LogicalField;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Constructor;
+import java.util.Arrays;
 import java.util.Set;
+import java.util.stream.Collectors;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
 class QuerySchemaMetadataJvmCompatibilityTest {
@@ -38,5 +42,13 @@ class QuerySchemaMetadataJvmCompatibilityTest {
         );
 
         assertFalse(metadata.getMasked());
+        assertEquals(Set.of(12, 11), constructorArities(QueryFieldSchemaMetadata.class));
+    }
+
+    private static Set<Integer> constructorArities(Class<?> type) {
+        return Arrays.stream(type.getDeclaredConstructors())
+            .filter(constructor -> !constructor.isSynthetic())
+            .map(Constructor::getParameterCount)
+            .collect(Collectors.toSet());
     }
 }

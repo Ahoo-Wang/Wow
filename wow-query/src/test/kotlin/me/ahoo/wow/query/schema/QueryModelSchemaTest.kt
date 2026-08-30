@@ -164,6 +164,37 @@ class QueryModelSchemaTest {
     }
 
     @Test
+    fun `origin main constructor arities should remain unambiguous in Kotlin`() {
+        val declaration = QueryFieldDeclaration(
+            DeclarationValue.Unset,
+            DeclarationValue.Unset,
+            DeclarationValue.Unset,
+            DeclarationValue.Unset,
+            DeclarationValue.Unset,
+            DeclarationValue.Unset,
+            DeclarationValue.Unset,
+            DeclarationValue.Unset,
+            DeclarationValue.Unset,
+        )
+        val schema = QueryFieldSchema(
+            null,
+            null,
+            null,
+            setOf(QueryValueType.STRING),
+            false,
+            false,
+            QueryCardinality.SINGLE,
+            null,
+            false,
+            emptyMap(),
+            null,
+        )
+
+        declaration.maskRule.assert().isEqualTo(DeclarationValue.Unset)
+        schema.maskRule.assert().isNull()
+    }
+
+    @Test
     fun `mask cache should distinguish schemas with and without masked fields`() {
         val maskedField = LogicalField("state.secret")
         val maskedSchema = QueryModelSchema(
