@@ -181,19 +181,16 @@ abstract class EventStreamQueryBackendSpec {
     @Test
     fun `cursor should support descending multi field sort`() {
         val tenantId = generateGlobalId()
-        listOf(1, 3, 2).forEach { version ->
-            eventStore.append(
-                generateEventStream(
-                    aggregateId = namedAggregate.aggregateId(tenantId = tenantId),
-                    aggregateVersion = version,
-                ),
-            ).block()
+        val highest = generateEventStream(namedAggregate.aggregateId(tenantId = tenantId), aggregateVersion = 2)
+        val tied = List(2) {
+            generateEventStream(namedAggregate.aggregateId(tenantId = tenantId), aggregateVersion = 1)
         }
+        listOf(highest, *tied.toTypedArray()).forEach { eventStore.append(it).block() }
         val query = CursorQuery(
             TenantIdFilter(tenantId),
             sort = listOf(
                 Sort("version", Sort.Direction.DESC),
-                Sort("tenantId", Sort.Direction.ASC),
+                Sort("id", Sort.Direction.DESC),
             ),
             size = 2,
         )
@@ -201,7 +198,10 @@ abstract class EventStreamQueryBackendSpec {
         val first = eventStreamQueryBackend.cursor(query).block()!!
         val second = eventStreamQueryBackend.cursor(query.copy(cursor = first.nextCursor)).block()!!
 
-        (first.list + second.list).map { it.path("version").intValue() }.assert().containsExactly(4, 3, 2)
+        (first.list + second.list).map { it.path("id").textValue() }.assert().containsExactly(
+            highest.id,
+            *tied.sortedByDescending { it.id }.map { it.id }.toTypedArray(),
+        )
         first.nextCursor.assert().isNotNull()
         second.nextCursor.assert().isNull()
     }
