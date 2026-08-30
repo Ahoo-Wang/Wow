@@ -82,6 +82,8 @@ internal object QueryProtocol {
         const val SORT = "sort"
         const val PAGINATION = "pagination"
         const val LIMIT = "limit"
+        const val SIZE = "size"
+        const val CURSOR = "cursor"
     }
 
     object Condition {
